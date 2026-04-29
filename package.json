@@ -1,0 +1,26 @@
+{
+  "name": "top.sealoong.unitybox.sensa",
+  "displayName": "Sensa",
+  "version": "0.1.0",
+  "description": "VRChat SPS/OGB/TPS contact sensing bridge to Intiface/TCode physical devices.",
+  "unity": "2022.3",
+  "author": {
+    "name": "SeaLoong",
+    "url": "https://github.com/SeaLoong"
+  },
+  "url": "https://github.com/SeaLoong/Sensa",
+  "license": "MIT",
+  "keywords": [
+    "vrchat",
+    "sps",
+    "osc",
+    "haptics",
+    "intiface",
+    "tcode"
+  ],
+  "vpmDependencies": {
+    "com.vrchat.avatars": ">=3.7.0",
+    "nadena.dev.modular-avatar": ">=1.10.0",
+    "nadena.dev.ndmf": ">=1.5.0"
+  }
+}
