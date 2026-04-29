@@ -67,11 +67,15 @@ namespace UnityBox.Sensa
 
     public static class SensaProcessor
     {
-        // SPS contact tags
-        private const string TAG_SPS_PEN_TIP  = "SPS_Pen_Tip";
-        private const string TAG_SPS_PEN_ROOT = "SPS_Pen_Root";
-        private const string TAG_TPS_PEN      = "TPS_Pen_Penetrating";
-        private const string TAG_TPS_ROOT     = "TPS_Pen_Root";
+        // Standard VRCFury SPS / TPS contact tags
+        // Plug senders
+        private const string TAG_TPS_PEN          = "TPS_Pen_Penetrating"; // Plug tip — primary tag used by all modern SPS Plugs
+        private const string TAG_TPS_ROOT         = "TPS_Pen_Root";        // Plug root
+        // Socket senders (used by Plug-side receivers to detect sockets)
+        private const string TAG_TPS_ORF_ROOT     = "TPS_Orf_Root";
+        private const string TAG_TPS_ORF_NORM     = "TPS_Orf_Norm";
+        private const string TAG_SPSLL_SOCK_ROOT  = "SPSLL_Socket_Root";
+        private const string TAG_SPSLL_SOCK_FRONT = "SPSLL_Socket_Front";
 
         public static void Process(SensaComponent comp)
         {
@@ -108,9 +112,9 @@ namespace UnityBox.Sensa
                 return;
             }
 
-            // Only add TPS tag when the user opted in
-            var filterTags = new List<string> { TAG_SPS_PEN_TIP };
-            if (comp.detectDps) filterTags.Add(TAG_TPS_PEN);
+            // TPS_Pen_Penetrating is the authoritative primary tag emitted by all modern SPS Plugs.
+            // detectDps is no longer needed to gate this tag — it is always included.
+            var filterTags = new List<string> { TAG_TPS_PEN };
 
             var containerGo = GetOrCreateChild(host, "Sensa_Socket");
             var containerTransform = containerGo.transform;
@@ -226,7 +230,7 @@ namespace UnityBox.Sensa
             var tipSender = tipGo.GetComponent<VRCContactSender>()
                             ?? tipGo.AddComponent<VRCContactSender>();
             tipSender.radius = 0.02f;
-            tipSender.collisionTags = new List<string> { TAG_SPS_PEN_TIP, TAG_TPS_PEN };
+            tipSender.collisionTags = new List<string> { TAG_TPS_PEN };
 
             // ── Root sender ──────────────────────────────────────────
             var rootGo = GetOrCreateChild(containerGo, "Root_Sender");
@@ -234,18 +238,28 @@ namespace UnityBox.Sensa
             var rootSender = rootGo.GetComponent<VRCContactSender>()
                              ?? rootGo.AddComponent<VRCContactSender>();
             rootSender.radius = 0.02f;
-            rootSender.collisionTags = new List<string> { TAG_SPS_PEN_ROOT, TAG_TPS_ROOT };
+            rootSender.collisionTags = new List<string> { TAG_TPS_ROOT };
 
-            // ── PenOthers receiver (proximity to others' orifice tags) ─
-            // We detect the "SPS_Orf_*" tags emitted by the socket side.
+            // ── PenOthers receiver (proximity to others' socket) ─────
+            // VRCFury Socket senders emit TPS_Orf_Root+SPSLL_Socket_Root (root)
+            // and TPS_Orf_Norm+SPSLL_Socket_Front (forward normal).
             // OGB standard: the plug side gets "OGB/Pen/{name}/PenOthers" driven
             // by a Proximity receiver near tip that fires on the other player's socket.
+            // Socket-side senders emit TPS_Orf_Root+SPSLL_Socket_Root (root) and
+            // TPS_Orf_Norm+SPSLL_Socket_Front (forward normal). Filter on all four so
+            // the Plug can detect any standard VRCFury Socket.
+            var socketTags = new List<string>
+            {
+                TAG_TPS_ORF_ROOT, TAG_SPSLL_SOCK_ROOT,
+                TAG_TPS_ORF_NORM, TAG_SPSLL_SOCK_FRONT
+            };
+
             string penOthers = $"{pen}/PenOthers";
             CreateProximityReceiver(
                 containerTransform, "PenOthers",
                 tipGo.transform.localPosition,
                 radius: 0.10f,
-                filterTags: new List<string> { "SPS_Orf", "SPS_Socket" },
+                filterTags: socketTags,
                 paramName: penOthers,
                 allowOthers: true, allowSelf: false);
 
@@ -254,7 +268,7 @@ namespace UnityBox.Sensa
             string touchOthers = $"{pen}/TouchOthers";
             CreateTouchReceiver(containerTransform, "TouchOthers",
                 tipGo.transform.localPosition, 0.04f,
-                new List<string> { "SPS_Orf", "SPS_Socket" },
+                socketTags,
                 touchOthers, allowOthers: true, allowSelf: false);
             paramList.Add((touchOthers, true));
 
@@ -263,14 +277,14 @@ namespace UnityBox.Sensa
                 string penSelf = $"{pen}/PenSelf";
                 CreateProximityReceiver(containerTransform, "PenSelf",
                     tipGo.transform.localPosition, 0.10f,
-                    new List<string> { "SPS_Orf", "SPS_Socket" },
+                    socketTags,
                     penSelf, allowOthers: false, allowSelf: true);
                 paramList.Add((penSelf, false));
 
                 string touchSelf = $"{pen}/TouchSelf";
                 CreateTouchReceiver(containerTransform, "TouchSelf",
                     tipGo.transform.localPosition, 0.04f,
-                    new List<string> { "SPS_Orf", "SPS_Socket" },
+                    socketTags,
                     touchSelf, allowOthers: false, allowSelf: true);
                 paramList.Add((touchSelf, true));
             }

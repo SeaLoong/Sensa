@@ -117,7 +117,7 @@ namespace UnityBox.Sensa
         [Range(1, 10)]
         public int depthRingCount = 5;
 
-        [Tooltip("Also filter for TPS_Pen_Penetrating tag to detect DPS/TPS avatars.")]
+        [Tooltip("Deprecated \u2014 TPS_Pen_Penetrating is now always included in filter tags and is the primary standard tag for all modern SPS Plugs. This field has no effect.")]
         public bool detectDps = true;
 
         [Tooltip("Generate AngleX / AngleY OSC parameters (four lateral proximity Contacts).")]
@@ -128,10 +128,10 @@ namespace UnityBox.Sensa
 
         // ── Plug config ───────────────────────────────────────────────
         [Header("Plug (Penetrator) Config")]
-        [Tooltip("Tip bone of the penetrator (used to place the SPS_Pen_Tip ContactSender).")]
+        [Tooltip("Tip bone of the penetrator (places the TPS_Pen_Penetrating ContactSender).")]
         public Transform tipBone;
 
-        [Tooltip("Root bone of the penetrator (used to place the SPS_Pen_Root ContactSender).")]
+        [Tooltip("Root bone of the penetrator (places the TPS_Pen_Root ContactSender).")]
         public Transform rootBone;
 
         [Tooltip("Also detect self-penetration (adds a receiver for local-only depth).")]

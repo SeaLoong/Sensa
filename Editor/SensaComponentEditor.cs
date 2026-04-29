@@ -164,9 +164,8 @@ namespace UnityBox.Sensa
             EditorGUILayout.PropertyField(_depthRingCount,
                 new GUIContent("Depth Ring Count", "Number of proximity rings (1–10)."));
 
-            EditorGUILayout.Space(2);
-            EditorGUILayout.PropertyField(_detectDps,
-                new GUIContent("DPS/TPS Compat", "Also filter TPS_Pen_Penetrating tag."));
+            // detectDps is a no-op since TPS_Pen_Penetrating is now always the primary filter;
+            // hidden from UI to avoid confusion. The serialized field is retained for backwards compatibility.
             EditorGUILayout.PropertyField(_generateAngleParams,
                 new GUIContent("Generate Angle Params", "Add AngleX/AngleY proximity receivers."));
             EditorGUILayout.PropertyField(_generateSelfParam,
@@ -178,9 +177,9 @@ namespace UnityBox.Sensa
             EditorGUILayout.LabelField("Plug Config", EditorStyles.boldLabel);
 
             EditorGUILayout.PropertyField(_tipBone,
-                new GUIContent("Tip Bone", "Tip of the penetrator (SPS_Pen_Tip sender placed here)."));
+                new GUIContent("Tip Bone", "Tip of the penetrator (TPS_Pen_Penetrating sender placed here)."));
             EditorGUILayout.PropertyField(_rootBone,
-                new GUIContent("Root Bone", "Root of the penetrator (SPS_Pen_Root sender placed here)."));
+                new GUIContent("Root Bone", "Root of the penetrator (TPS_Pen_Root sender placed here)."));
             EditorGUILayout.PropertyField(_selfPenetration,
                 new GUIContent("Self Penetration", "Detect insertion into own sockets."));
         }
