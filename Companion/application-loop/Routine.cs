@@ -17,6 +17,7 @@ public sealed class SafetySystem
     private float  _currentCap = 0f;       // ramps from 0→cap over RampUpMs
     private long   _rampStartMs = -1;
     private bool   _emergency = false;
+    private DeviceCommand _heldCommand = DeviceCommand.Zero with { GateOpen = false, Vibrate = 0f };
 
     public bool EmergencyActive => _emergency;
 
@@ -34,7 +35,7 @@ public sealed class SafetySystem
             return raw with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, Vibrate = 0f, GateOpen = false };
 
         // Ramp-up: first time we get a nonzero command, start the ramp
-        bool anyActivity = raw.GateOpen && (raw.L0 > 0.01f || raw.Vibrate > 0.01f);
+        bool anyActivity = raw.GateOpen && HasActivity(raw);
         long now = Environment.TickCount64;
 
         if (anyActivity)
@@ -51,9 +52,9 @@ public sealed class SafetySystem
             switch (_cfg.Idle)
             {
                 case IdleBehavior.Park:
-                    return raw with { L0 = 0.5f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, Vibrate = 0f, GateOpen = true };
+                    return raw with { L0 = 0.5f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, Vibrate = 0f, GateOpen = false };
                 case IdleBehavior.StayAtPosition:
-                    return raw; // keep last position — caller must pass last position
+                    return _heldCommand with { DeltaMs = raw.DeltaMs, GateOpen = false, Vibrate = 0f };
                 case IdleBehavior.RetractToZero:
                 default:
                     _rampStartMs = -1; // reset ramp when idle
@@ -67,11 +68,24 @@ public sealed class SafetySystem
         // Rotation axes (R0, R1) represent physical angle offsets centred at 0.5
         // and must not be intensity-scaled — clamping them breaks the centre position
         // during ramp-up.
-        return raw with
+        var safe = raw with
         {
             L0      = Math.Clamp(raw.L0,      0f, _currentCap),
             Vibrate = Math.Clamp(raw.Vibrate, 0f, _currentCap),
         };
+        _heldCommand = safe with { GateOpen = false, Vibrate = 0f };
+        return safe;
+    }
+
+    private static bool HasActivity(DeviceCommand raw)
+    {
+        return raw.L0 > 0.01f
+            || raw.Vibrate > 0.01f
+            || Math.Abs(raw.R0 - 0.5f) > 0.01f
+            || Math.Abs(raw.R1 - 0.5f) > 0.01f
+            || Math.Abs(raw.R2 - 0.5f) > 0.01f
+            || Math.Abs(raw.L1 - 0.5f) > 0.01f
+            || Math.Abs(raw.L2 - 0.5f) > 0.01f;
     }
 }
 

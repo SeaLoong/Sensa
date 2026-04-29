@@ -13,78 +13,81 @@
       <div class="hero-main">
         <div class="hero-copy">
           <p class="eyebrow">Sensa Local Control Console</p>
-          <h1>Sensa WebUI</h1>
-          <p>HTTP + WebSocket 本地控制台，覆盖配置、状态、功能测试、录制导出、诊断与快速上手说明。</p>
+          <h1 id="heroTitle">Sensa WebUI</h1>
+          <p data-i18n="hero.desc">HTTP + WebSocket 本地控制台，覆盖配置、状态、功能测试、录制导出、诊断与快速上手说明。</p>
         </div>
         <div class="hero-status-grid" id="heroQuickStats"></div>
       </div>
       <div class="hero-actions">
-        <button id="mobileMenuBtn" class="ghost mobile-only" type="button">菜单</button>
-        <button id="refreshBtn" type="button">刷新状态</button>
-        <button id="saveBtn" class="primary" type="button">保存配置</button>
-        <span id="wsBadge" class="badge offline">WS 未连接</span>
+        <button id="langToggleBtn" class="ghost icon-btn tip-right" type="button" data-tip="" data-i18n-data-tip="tip.lang">ZH</button>
+        <button id="themeToggleBtn" class="ghost icon-btn tip-right" type="button" data-tip="" data-i18n-data-tip="tip.theme">◑</button>
+        <button id="mobileMenuBtn" class="ghost mobile-only" type="button" data-i18n="btn.menu">菜单</button>
+        <button id="refreshBtn" type="button" data-tip="" data-i18n="btn.refresh" data-i18n-data-tip="tip.refresh">刷新状态</button>
+        <button id="saveBtn" class="primary" type="button" data-tip="" data-i18n="btn.save" data-i18n-data-tip="tip.save">保存配置</button>
+        <span id="wsBadge" class="badge offline" data-i18n="ws.disconnected">WS 未连接</span>
       </div>
     </header>
 
     <div class="shell">
       <aside class="side-nav" id="sideNav">
         <nav class="tab-nav" aria-label="主导航">
-          <button type="button" class="tab-button is-active" data-tab-target="overview">总览</button>
-          <button type="button" class="tab-button" data-tab-target="config">配置</button>
-          <button type="button" class="tab-button" data-tab-target="testing">测试</button>
-          <button type="button" class="tab-button" data-tab-target="monitoring">监控</button>
-          <button type="button" class="tab-button" data-tab-target="help">说明</button>
+          <button type="button" class="tab-button is-active" data-tab-target="overview" data-i18n="nav.overview">总览</button>
+          <button type="button" class="tab-button" data-tab-target="config" data-i18n="nav.config">配置</button>
+          <button type="button" class="tab-button" data-tab-target="testing" data-i18n="nav.testing">测试</button>
+          <button type="button" class="tab-button" data-tab-target="monitoring" data-i18n="nav.monitoring">监控</button>
+          <button type="button" class="tab-button" data-tab-target="help" data-i18n="nav.help">说明</button>
         </nav>
 
         <section class="side-card">
-          <h2>当前摘要</h2>
+          <h2 data-i18n="side.summary">当前摘要</h2>
           <ul class="mini-summary" id="miniSummary"></ul>
         </section>
 
         <section class="side-card">
-          <h2>快速操作</h2>
+          <h2 data-i18n="side.quickActions">快速操作</h2>
           <div class="stack-actions">
-            <button type="button" data-action="/api/control/loop/start">启动 Loop</button>
-            <button type="button" data-action="/api/control/loop/stop">停止 Loop</button>
-            <button type="button" data-action="/api/control/loop/emergency-stop" class="danger">紧急停止</button>
-            <button type="button" data-action="/api/control/loop/clear-emergency">清除紧急停止</button>
+            <button type="button" data-action="/api/control/loop/start" data-tip="" data-i18n="btn.startLoop" data-i18n-data-tip="tip.startLoop">启动 Loop</button>
+            <button type="button" data-action="/api/control/loop/stop" data-tip="" data-i18n="btn.stopLoop" data-i18n-data-tip="tip.stopLoop">停止 Loop</button>
+            <button type="button" data-action="/api/control/loop/emergency-stop" class="danger" data-tip="" data-i18n="btn.emergencyStop" data-i18n-data-tip="tip.emergencyStop">紧急停止</button>
+            <button type="button" data-action="/api/control/loop/clear-emergency" data-tip="" data-i18n="btn.clearEmergency" data-i18n-data-tip="tip.clearEmergency">清除紧急停止</button>
           </div>
         </section>
       </aside>
 
       <main class="tab-shell">
+        <!-- ① 总览 -->
         <section class="tab-panel is-active" data-tab-panel="overview">
           <div class="panel-grid panel-grid--overview">
             <section class="card card-highlight span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>快速上手</h2>
-                  <p class="muted">从第一次启动到第一次设备动作，这里是一条最短路径。</p>
+                  <h2 data-i18n="overview.title">快速上手</h2>
+                  <p class="muted" data-i18n="overview.desc">从第一次启动到第一次设备动作，这里是一条最短路径。</p>
                 </div>
-                <span class="badge soft">适合首次使用</span>
+                <span class="badge soft" data-i18n="overview.badge">适合首次使用</span>
               </div>
               <ol class="quickstart">
-                <li>确认 VRChat 已开启 OSC，默认向 <code>127.0.0.1:9001</code> 发送头像参数。</li>
-                <li>在“总览”页检查 Loop、TCode、Intiface、Recording 的当前状态。</li>
-                <li>在“配置”页填写信号路径、角色和设备连接配置。</li>
-                <li>在“测试”页用手动覆盖直接验证 OSR2 / SR6 / OSR6 的轴向和振动。</li>
-                <li>在“监控”页确认参数流、日志和录制链路都工作正常。</li>
+                <li data-i18n="overview.step1">确认 VRChat 已开启 OSC，默认向 <code>127.0.0.1:9001</code> 发送头像参数。</li>
+                <li data-i18n="overview.step2">在"总览"页检查 Loop、TCode、Intiface、Recording 的当前状态。</li>
+                <li data-i18n="overview.step3">在"配置"页填写信号路径、角色和设备连接配置。</li>
+                <li data-i18n="overview.step4">在"测试"页用手动覆盖直接验证 OSR2 / SR6 / OSR6 的轴向和振动。</li>
+                <li data-i18n="overview.step5">在"监控"页确认参数流、日志和录制链路都工作正常。</li>
               </ol>
-              <p class="muted">提示：修改 OSC 端口后建议重启服务；其余大部分配置支持热更新。</p>
+              <p class="muted" data-i18n="overview.hint">提示：修改 OSC 端口后建议重启服务；其余大部分配置支持热更新。</p>
             </section>
 
             <section class="card">
-              <h2>服务状态</h2>
+              <h2 data-i18n="overview.status">服务状态</h2>
               <div class="stats" id="statusCards"></div>
             </section>
 
             <section class="card span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>实时诊断</h2>
-                  <p class="muted">根据运行状态和最近日志自动汇总常见问题。</p>
+                  <h2 data-i18n="overview.diag">实时诊断</h2>
+                  <p class="muted" data-i18n="overview.diagDesc">根据运行状态和最近日志自动汇总常见问题。</p>
                 </div>
-                <button id="copyDiagnosticsBtn" type="button" class="ghost">复制诊断摘要</button>
+                <button id="copyDiagnosticsBtn" type="button" class="ghost" data-tip="" data-i18n="btn.copyDiag" data-i18n-data-tip="tip.copyDiag">复制诊断摘要</button>
               </div>
               <div id="diagnosticsList" class="diagnostic-list"></div>
             </section>
@@ -92,8 +95,8 @@
             <section class="card span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>3D 设备预览</h2>
-                  <p class="muted">用于观察主冲程、姿态和偏移是否符合预期，移动端同样可用。</p>
+                  <h2 data-i18n="overview.preview">3D 设备预览</h2>
+                  <p class="muted" data-i18n="overview.previewDesc">用于观察主冲程、姿态和偏移是否符合预期，移动端同样可用。</p>
                 </div>
                 <div class="badge soft" id="commandSummaryBadge">L0 0.00 · Idle</div>
               </div>
@@ -107,69 +110,83 @@
           </div>
         </section>
 
+        <!-- ② 配置 -->
         <section class="tab-panel" data-tab-panel="config">
           <div class="panel-grid panel-grid--config">
             <section class="card span-3">
               <div class="section-title-row">
                 <div>
-                  <h2>配置总览</h2>
-                  <p class="muted">所有主要配置都可以在这里热更新；保存后会写入本地配置文件。</p>
+                  <h2 data-i18n="config.title">配置总览</h2>
+                  <p class="muted" data-i18n="config.desc">所有主要配置都可以在这里热更新；保存后会写入本地配置文件。</p>
                 </div>
                 <div class="button-row">
-                  <button id="applyConfigBtn" class="primary" type="button">应用配置</button>
-                  <button id="saveConfigBtn" type="button">写入磁盘</button>
+                  <button id="applyConfigBtn" class="primary" type="button" data-i18n="btn.apply">应用配置</button>
+                  <button id="saveConfigBtn" type="button" data-i18n="btn.writeDisk">写入磁盘</button>
                 </div>
               </div>
 
               <form id="configForm">
                 <div class="form-grid">
                   <fieldset>
-                    <legend>WebUI</legend>
-                    <label>标题<input name="webUi.title" /></label>
-                    <label>Host<input name="webUi.host" /></label>
-                    <label>Port<input type="number" name="webUi.port" /></label>
-                    <label class="inline"><input type="checkbox" name="webUi.autoOpenBrowser" /> 自动打开浏览器</label>
+                    <legend data-i18n="cfg.webui">WebUI</legend>
+                    <label data-i18n="cfg.webui.title">标题<input name="webUi.title" /></label>
+                    <label data-i18n="cfg.webui.host">Host<input name="webUi.host" /></label>
+                    <label data-i18n="cfg.webui.port">Port<input type="number" name="webUi.port" /></label>
+                    <label class="inline"><input type="checkbox" name="webUi.autoOpenBrowser" /> <span data-i18n="cfg.webui.autoOpen">自动打开浏览器</span></label>
                   </fieldset>
 
                   <fieldset>
-                    <legend>OSC</legend>
-                    <label>ReceiverPort<input type="number" name="osc.receiverPort" /></label>
+                    <legend data-i18n="cfg.osc">OSC</legend>
+                    <label data-tip="" data-i18n-data-tip="tip.receiverPort" data-i18n="cfg.osc.port">ReceiverPort<input type="number" name="osc.receiverPort" /></label>
+                  </fieldset>
+
+                  <fieldset class="proto-tcode">
+                    <div class="fieldset-header">
+                      <h3 data-i18n="cfg.tcode">TCode 串口设备</h3>
+                      <span class="proto-badge tcode" data-i18n="cfg.tcode.sub">OSR2 / SR6 / OSR6</span>
+                    </div>
+                    <label data-tip="" data-i18n-data-tip="tip.comPort">
+                      <span data-i18n="cfg.tcode.comPort">串口号 (COM Port)</span>
+                      <div class="input-row">
+                        <input name="tCode.comPort" list="comPortList" autocomplete="off" />
+                        <datalist id="comPortList"></datalist>
+                        <button id="refreshPortsBtn" type="button" class="tip-right" data-tip="" data-i18n="cfg.tcode.refreshPorts" data-i18n-data-tip="tip.refreshPorts">刷新</button>
+                      </div>
+                    </label>
+                    <label data-tip="" data-i18n-data-tip="tip.minPos" data-i18n="cfg.tcode.minPos">MinPos<input type="number" name="tCode.minPos" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.maxPos" data-i18n="cfg.tcode.maxPos">MaxPos<input type="number" name="tCode.maxPos" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.maxVelocity" data-i18n="cfg.tcode.maxVel">MaxVelocity<input type="number" name="tCode.maxVelocity" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.ups" data-i18n="cfg.tcode.ups">UpdatesPerSecond<input type="number" name="tCode.updatesPerSecond" /></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.tcodeEnabled"><input type="checkbox" name="tCode.enabled" /> <span data-i18n="cfg.tcode.enabled">启用 TCode 自动连接</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.speedMode"><input type="checkbox" name="tCode.preferSpeedMode" /> <span data-i18n="cfg.tcode.speedMode">优先速度模式</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.l0inv"><input type="checkbox" name="tCode.l0Invert" /> <span data-i18n="cfg.tcode.l0inv">L0 反向</span></label>
+                  </fieldset>
+
+                  <fieldset class="proto-intiface">
+                    <div class="fieldset-header">
+                      <h3 data-i18n="cfg.intiface">Intiface / Buttplug</h3>
+                      <span class="proto-badge intiface" data-i18n="cfg.intiface.sub">Bluetooth 设备</span>
+                    </div>
+                    <label data-tip="" data-i18n-data-tip="tip.wsAddr" data-i18n="cfg.intiface.wsAddr">WebSocket 地址<input name="intiface.websocketAddress" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.intifacePort" data-i18n="cfg.intiface.port">Port<input type="number" name="intiface.port" /></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.intifaceEnabled"><input type="checkbox" name="intiface.enabled" /> <span data-i18n="cfg.intiface.enabled">启用 Intiface 自动连接</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.manageEngine"><input type="checkbox" name="intiface.manageEngineProcess" /> <span data-i18n="cfg.intiface.manage">托管 intiface-engine</span></label>
                   </fieldset>
 
                   <fieldset>
-                    <legend>TCode</legend>
-                    <label>ComPort<input name="tCode.comPort" /></label>
-                    <label>MinPos<input type="number" name="tCode.minPos" /></label>
-                    <label>MaxPos<input type="number" name="tCode.maxPos" /></label>
-                    <label>MaxVelocity<input type="number" name="tCode.maxVelocity" /></label>
-                    <label>UpdatesPerSecond<input type="number" name="tCode.updatesPerSecond" /></label>
-                    <label class="inline"><input type="checkbox" name="tCode.enabled" /> 启用 TCode 自动连接</label>
-                    <label class="inline"><input type="checkbox" name="tCode.preferSpeedMode" /> 优先速度模式</label>
-                    <label class="inline"><input type="checkbox" name="tCode.l0Invert" /> L0 反向</label>
+                    <legend data-i18n="cfg.safety">Safety</legend>
+                    <label data-tip="" data-i18n-data-tip="tip.intensityCap" data-i18n="cfg.safety.cap">GlobalIntensityCap<input type="number" step="0.01" min="0" max="1" name="safety.globalIntensityCap" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.rampUp" data-i18n="cfg.safety.ramp">RampUpMs<input type="number" name="safety.rampUpMs" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.idle" data-i18n="cfg.safety.idle">Idle<select name="safety.idle"></select></label>
+                    <label data-tip="" data-i18n-data-tip="tip.estopKey" data-i18n="cfg.safety.estop">EmergencyStopKey<input name="safety.emergencyStopKey" /></label>
                   </fieldset>
 
                   <fieldset>
-                    <legend>Intiface</legend>
-                    <label>WebSocket 地址<input name="intiface.websocketAddress" /></label>
-                    <label>Port<input type="number" name="intiface.port" /></label>
-                    <label class="inline"><input type="checkbox" name="intiface.enabled" /> 启用 Intiface 自动连接</label>
-                    <label class="inline"><input type="checkbox" name="intiface.manageEngineProcess" /> 托管 intiface-engine</label>
-                  </fieldset>
-
-                  <fieldset>
-                    <legend>Safety</legend>
-                    <label>GlobalIntensityCap<input type="number" step="0.01" min="0" max="1" name="safety.globalIntensityCap" /></label>
-                    <label>RampUpMs<input type="number" name="safety.rampUpMs" /></label>
-                    <label>Idle<select name="safety.idle"></select></label>
-                    <label>EmergencyStopKey<input name="safety.emergencyStopKey" /></label>
-                  </fieldset>
-
-                  <fieldset>
-                    <legend>Rhythm</legend>
-                    <label class="inline"><input type="checkbox" name="rhythm.enabled" /> 启用 BPM 检测</label>
-                    <label>WindowMs<input type="number" name="rhythm.windowMs" /></label>
-                    <label>MinBpm<input type="number" step="0.1" name="rhythm.minBpm" /></label>
-                    <label>MaxBpm<input type="number" step="0.1" name="rhythm.maxBpm" /></label>
+                    <legend data-i18n="cfg.rhythm">Rhythm</legend>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.bpmEnabled"><input type="checkbox" name="rhythm.enabled" /> <span data-i18n="cfg.rhythm.enabled">启用 BPM 检测</span></label>
+                    <label data-tip="" data-i18n-data-tip="tip.bpmWindow" data-i18n="cfg.rhythm.window">WindowMs<input type="number" name="rhythm.windowMs" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.minBpm" data-i18n="cfg.rhythm.minBpm">MinBpm<input type="number" step="0.1" name="rhythm.minBpm" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.maxBpm" data-i18n="cfg.rhythm.maxBpm">MaxBpm<input type="number" step="0.1" name="rhythm.maxBpm" /></label>
                   </fieldset>
                 </div>
               </form>
@@ -178,27 +195,27 @@
             <section class="card span-3">
               <div class="section-title-row">
                 <div>
-                  <h2>信号配置</h2>
-                  <p class="muted">支持直接新增、删除、筛选与编辑。适合快速构建不同玩法的信号矩阵。</p>
+                  <h2 data-i18n="signals.title">信号配置</h2>
+                  <p class="muted" data-i18n="signals.desc">支持直接新增、删除、筛选与编辑。适合快速构建不同玩法的信号矩阵。</p>
                 </div>
                 <div class="button-row">
-                  <input id="signalFilterInput" class="filter-input" type="search" placeholder="搜索 OSC Path 或 Role" />
-                  <button id="addSignalBtn" type="button">新增信号</button>
+                  <input id="signalFilterInput" class="filter-input" type="search" data-i18n-placeholder="signals.filter" placeholder="搜索 OSC Path 或 Role" />
+                  <button id="addSignalBtn" type="button" data-tip="" data-i18n="btn.addSignal" data-i18n-data-tip="tip.addSignal">新增信号</button>
                 </div>
               </div>
               <div class="table-wrap">
                 <table id="signalsTable">
                   <thead>
                     <tr>
-                      <th>OSC Path</th>
-                      <th>Role</th>
-                      <th>Curve</th>
-                      <th>Min</th>
-                      <th>Max</th>
-                      <th>α</th>
-                      <th>Dead Zone</th>
-                      <th>Invert</th>
-                      <th>最新值</th>
+                      <th data-tip="" data-i18n="sig.oscPath" data-i18n-data-tip="tip.oscPath">OSC Path</th>
+                      <th data-tip="" data-i18n="sig.role" data-i18n-data-tip="tip.role">Role</th>
+                      <th data-tip="" data-i18n="sig.curve" data-i18n-data-tip="tip.curve">Curve</th>
+                      <th data-tip="" data-i18n="sig.min" data-i18n-data-tip="tip.sigMin">Min</th>
+                      <th data-tip="" data-i18n="sig.max" data-i18n-data-tip="tip.sigMax">Max</th>
+                      <th data-tip="" data-i18n="sig.alpha" data-i18n-data-tip="tip.alpha">α</th>
+                      <th data-tip="" data-i18n="sig.dz" data-i18n-data-tip="tip.deadZone">Dead Zone</th>
+                      <th data-tip="" data-i18n="sig.inv" data-i18n-data-tip="tip.invert">Invert</th>
+                      <th data-i18n="sig.latest">最新值</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -209,71 +226,93 @@
           </div>
         </section>
 
+        <!-- ③ 测试 -->
         <section class="tab-panel" data-tab-panel="testing">
           <div class="panel-grid panel-grid--testing">
             <section class="card span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>手动功能测试</h2>
-                  <p class="muted">覆盖实时融合输出，适合验证轴向、回中位置、振动和 Gate 行为。</p>
+                  <h2 data-i18n="test.manual.title">手动功能测试</h2>
+                  <p class="muted" data-i18n="test.manual.desc">覆盖实时融合输出，适合验证轴向、回中位置、振动和 Gate 行为。</p>
                 </div>
-                <span class="badge soft">经过 SafetySystem</span>
+                <span class="badge soft" data-i18n="test.manual.badge">经过 SafetySystem</span>
               </div>
               <div id="manualTestControls" class="slider-grid"></div>
               <div class="button-row">
-                <label class="inline"><input id="manualEnabled" type="checkbox" /> 启用手动覆盖</label>
-                <label class="inline"><input id="manualGate" type="checkbox" checked /> GateOpen</label>
-                <button id="applyManualBtn" class="primary" type="button">应用手动测试</button>
-                <button id="clearManualBtn" type="button">清除手动测试</button>
+                <label class="inline" data-tip="" data-i18n-data-tip="tip.manualEnabled"><input id="manualEnabled" type="checkbox" /> <span data-i18n="cb.manualEnabled">启用手动覆盖</span></label>
+                <label class="inline" data-tip="" data-i18n-data-tip="tip.gateOpen"><input id="manualGate" type="checkbox" checked /> <span data-i18n="cb.gateOpen">GateOpen</span></label>
+                <button id="applyManualBtn" class="primary" type="button" data-tip="" data-i18n="btn.applyManual" data-i18n-data-tip="tip.applyManual">应用手动测试</button>
+                <button id="clearManualBtn" type="button" data-tip="" data-i18n="btn.clearManual" data-i18n-data-tip="tip.clearManual">清除手动测试</button>
               </div>
             </section>
 
-            <section class="card">
-              <h2>设备控制</h2>
+            <section class="card proto-section-tcode">
+              <div class="device-section-header">
+                <span class="proto-badge tcode">TCode</span>
+                <div>
+                  <h3 data-i18n="test.tcode.title">TCode 设备控制</h3>
+                  <p class="info-note" data-i18n="test.tcode.desc">串口 OSR2 / SR6 / OSR6 设备的连接管理，仅在 TCode 配置启用时生效。</p>
+                </div>
+              </div>
+              <div id="tcodeStatusRow" class="device-status-row"></div>
               <div class="actions-grid">
-                <button type="button" data-action="/api/control/tcode/connect">连接 TCode</button>
-                <button type="button" data-action="/api/control/tcode/disconnect">断开 TCode</button>
-                <button type="button" data-action="/api/control/tcode/park">TCode 回中</button>
-                <button type="button" data-action="/api/control/intiface/connect">连接 Intiface</button>
-                <button type="button" data-action="/api/control/intiface/disconnect">断开 Intiface</button>
-                <button type="button" data-action="/api/control/intiface/scan-start">开始扫描</button>
-                <button type="button" data-action="/api/control/intiface/scan-stop">停止扫描</button>
+                <button type="button" data-action="/api/control/tcode/connect" data-tip="" data-i18n="btn.connectTCode" data-i18n-data-tip="tip.connectTCode">连接 TCode</button>
+                <button type="button" data-action="/api/control/tcode/disconnect" data-tip="" data-i18n="btn.disconnectTCode" data-i18n-data-tip="tip.disconnectTCode">断开 TCode</button>
+                <button type="button" data-action="/api/control/tcode/park" data-tip="" data-i18n="btn.parkTCode" data-i18n-data-tip="tip.parkTCode">TCode 回中</button>
               </div>
             </section>
 
-            <section class="card">
-              <h2>录制与导出</h2>
+            <section class="card proto-section-intiface">
+              <div class="device-section-header">
+                <span class="proto-badge intiface">Intiface</span>
+                <div>
+                  <h3 data-i18n="test.intiface.title">Intiface / Buttplug</h3>
+                  <p class="info-note" data-i18n="test.intiface.desc">托管或外部 Intiface Central 中的 Buttplug 设备管理。</p>
+                </div>
+              </div>
+              <div id="intifaceStatusRow" class="device-status-row"></div>
               <div class="actions-grid">
-                <button type="button" data-action="/api/control/recording/start">开始录制</button>
-                <button type="button" data-action="/api/control/recording/stop">停止录制</button>
-                <button id="exportRecordingBtn" type="button">导出 .funscript</button>
+                <button type="button" data-action="/api/control/intiface/connect" data-tip="" data-i18n="btn.connectIntiface" data-i18n-data-tip="tip.connectIntiface">连接 Intiface</button>
+                <button type="button" data-action="/api/control/intiface/disconnect" data-tip="" data-i18n="btn.disconnectIntiface" data-i18n-data-tip="tip.disconnectIntiface">断开 Intiface</button>
+                <button type="button" data-action="/api/control/intiface/scan-start" data-tip="" data-i18n="btn.scanStart" data-i18n-data-tip="tip.scanStart">开始扫描</button>
+                <button type="button" data-action="/api/control/intiface/scan-stop" data-tip="" data-i18n="btn.scanStop" data-i18n-data-tip="tip.scanStop">停止扫描</button>
+              </div>
+              <p class="info-note" data-i18n="test.intiface.devicesTitle">已发现的设备</p>
+              <div id="intifaceDeviceList" class="device-chip-list"></div>
+            </section>
+
+            <section class="card span-2">
+              <h2 data-i18n="test.recording.title">录制与导出</h2>
+              <div class="actions-grid">
+                <button type="button" data-action="/api/control/recording/start" data-tip="" data-i18n="btn.startRecording" data-i18n-data-tip="tip.startRecording">开始录制</button>
+                <button type="button" data-action="/api/control/recording/stop" data-tip="" data-i18n="btn.stopRecording" data-i18n-data-tip="tip.stopRecording">停止录制</button>
+                <button id="exportRecordingBtn" type="button" data-tip="" data-i18n="btn.exportFunscript" data-i18n-data-tip="tip.exportFunscript">导出 .funscript</button>
               </div>
               <p id="recordingInfo" class="muted"></p>
-              <div class="callout info">
-                导出前会自动做 Ramer-Douglas-Peucker 简化，适合直接丢给支持 `.funscript` 的播放器或工具链。
-              </div>
+              <div class="callout info" data-i18n="test.recording.hint">导出前会自动做 Ramer-Douglas-Peucker 简化，适合直接丢给支持 <code>.funscript</code> 的播放器或工具链。</div>
             </section>
           </div>
         </section>
 
+        <!-- ④ 监控 -->
         <section class="tab-panel" data-tab-panel="monitoring">
           <div class="panel-grid panel-grid--monitoring">
             <section class="card span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>参数流</h2>
-                  <p class="muted">显示最近收到的 OSC 参数快照，可用来快速检查路径拼写是否正确。</p>
+                  <h2 data-i18n="monitor.params.title">参数流</h2>
+                  <p class="muted" data-i18n="monitor.params.desc">显示最近收到的 OSC 参数快照，可用来快速检查路径拼写是否正确。</p>
                 </div>
-                <input id="parameterFilterInput" class="filter-input" type="search" placeholder="搜索参数路径 / 类型" />
+                <input id="parameterFilterInput" class="filter-input" type="search" data-i18n-placeholder="monitor.params.filter" placeholder="搜索参数路径 / 类型" />
               </div>
               <div class="table-wrap compact-table">
                 <table id="parametersTable">
                   <thead>
                     <tr>
-                      <th>Path</th>
-                      <th>Value</th>
-                      <th>Type</th>
-                      <th>Timestamp</th>
+                      <th data-i18n="col.path">Path</th>
+                      <th data-i18n="col.value">Value</th>
+                      <th data-i18n="col.type">Type</th>
+                      <th data-i18n="col.time">Timestamp</th>
                     </tr>
                   </thead>
                   <tbody></tbody>
@@ -284,52 +323,51 @@
             <section class="card span-2">
               <div class="section-title-row">
                 <div>
-                  <h2>日志</h2>
-                  <p class="muted">用于定位连接失败、配置问题、紧急停止、录制链路等运行时信息。</p>
+                  <h2 data-i18n="monitor.logs.title">日志</h2>
+                  <p class="muted" data-i18n="monitor.logs.desc">用于定位连接失败、配置问题、紧急停止、录制链路等运行时信息。</p>
                 </div>
-                <input id="logFilterInput" class="filter-input" type="search" placeholder="搜索日志关键字" />
+                <input id="logFilterInput" class="filter-input" type="search" data-i18n-placeholder="monitor.logs.filter" placeholder="搜索日志关键字" />
               </div>
               <pre id="logPanel" class="log-panel"></pre>
             </section>
           </div>
         </section>
 
+        <!-- ⑤ 说明 -->
         <section class="tab-panel" data-tab-panel="help">
           <div class="panel-grid panel-grid--help">
             <section class="card span-2">
-              <h2>上手建议</h2>
+              <h2 data-i18n="help.title">上手建议</h2>
               <div class="doc-cards">
                 <article class="doc-card">
-                  <h3>1. 先跑通最短链路</h3>
-                  <p>优先验证：Loop 运行 → 手动测试有反应 → TCode / Intiface 连接成功 → 再接入 VRChat OSC。</p>
+                  <h3 data-i18n="help.tip1.title">1. 先跑通最短链路</h3>
+                  <p data-i18n="help.tip1.body">优先验证：Loop 运行 → 手动测试有反应 → TCode / Intiface 连接成功 → 再接入 VRChat OSC。</p>
                 </article>
                 <article class="doc-card">
-                  <h3>2. 先做粗校准</h3>
-                  <p>信号先把 `VrchatMin / VrchatMax` 调到能覆盖输入范围，再微调 `Dead Zone` 和 `Smoothing α`。</p>
+                  <h3 data-i18n="help.tip2.title">2. 先做粗校准</h3>
+                  <p data-i18n="help.tip2.body">信号先把 <code>VrchatMin / VrchatMax</code> 调到能覆盖输入范围，再微调 <code>Dead Zone</code> 和 <code>Smoothing α</code>。</p>
                 </article>
                 <article class="doc-card">
-                  <h3>3. 手机端也能用</h3>
-                  <p>移动端采用底部 Tab 导航，适合放在第二屏或远程桌面窗口中当控制面板。</p>
+                  <h3 data-i18n="help.tip3.title">3. 手机端也能用</h3>
+                  <p data-i18n="help.tip3.body">移动端采用底部 Tab 导航，适合放在第二屏或远程桌面窗口中当控制面板。</p>
+                </article>
+                <article class="doc-card">
+                  <h3 data-i18n="help.tip4.title">4. 多主题 / i18n</h3>
+                  <p data-i18n="help.tip4.body">右上角可切换 ZH / EN 界面语言以及配色主题（深蓝、AMOLED、紫色、翠绿、亮色）。</p>
                 </article>
               </div>
             </section>
 
             <section class="card">
-              <h2>当前端点</h2>
+              <h2 data-i18n="help.endpoints.title">当前端点</h2>
               <ul class="endpoint-list" id="endpointList"></ul>
             </section>
 
             <section class="card span-2">
-              <h2>当前实现边界</h2>
-              <div class="callout warn">
-                <strong>OSC 端口热更新：</strong> 修改后建议重启服务。
-              </div>
-              <div class="callout warn">
-                <strong>Intiface 内嵌引擎：</strong> 如果本地没有 <code>intiface-engine.exe</code>，系统会跳过连接而不是阻塞其它功能。
-              </div>
-              <div class="callout info">
-                <strong>Angle Raw：</strong> 当前不会自动做 <code>Right - Left</code> 之类的差值重建；若要更真实的角度，请在上游参数层先计算。
-              </div>
+              <h2 data-i18n="help.limits.title">当前实现边界</h2>
+              <div class="callout warn"><strong data-i18n="help.limit1.title">OSC 端口热更新：</strong> <span data-i18n="help.limit1.body">修改后建议重启服务。</span></div>
+              <div class="callout warn"><strong data-i18n="help.limit2.title">Intiface 内嵌引擎：</strong> <span data-i18n="help.limit2.body">如果本地没有 <code>intiface-engine.exe</code>，系统会跳过连接而不是阻塞其它功能。</span></div>
+              <div class="callout info"><strong data-i18n="help.limit3.title">Angle Raw：</strong> <span data-i18n="help.limit3.body">当前不会自动做 <code>Right - Left</code> 之类的差值重建；若要更真实的角度，请在上游参数层先计算。</span></div>
             </section>
           </div>
         </section>
@@ -337,11 +375,11 @@
     </div>
 
     <nav class="mobile-tabbar" aria-label="移动端导航">
-      <button type="button" class="tab-button is-active" data-tab-target="overview">总览</button>
-      <button type="button" class="tab-button" data-tab-target="config">配置</button>
-      <button type="button" class="tab-button" data-tab-target="testing">测试</button>
-      <button type="button" class="tab-button" data-tab-target="monitoring">监控</button>
-      <button type="button" class="tab-button" data-tab-target="help">说明</button>
+      <button type="button" class="tab-button is-active" data-tab-target="overview" data-i18n="nav.overview">总览</button>
+      <button type="button" class="tab-button" data-tab-target="config" data-i18n="nav.config">配置</button>
+      <button type="button" class="tab-button" data-tab-target="testing" data-i18n="nav.testing">测试</button>
+      <button type="button" class="tab-button" data-tab-target="monitoring" data-i18n="nav.monitoring">监控</button>
+      <button type="button" class="tab-button" data-tab-target="help" data-i18n="nav.help">说明</button>
     </nav>
 
     <template id="signalRowTemplate">
@@ -355,7 +393,7 @@
         <td><input type="number" step="0.01" min="0" max="1" data-field="deadZone" /></td>
         <td><input type="checkbox" data-field="invertDirection" /></td>
         <td class="latest-value"></td>
-        <td><button class="remove-row" type="button">删除</button></td>
+        <td><button class="remove-row" type="button" data-i18n="btn.delete">删除</button></td>
       </tr>
     </template>
 

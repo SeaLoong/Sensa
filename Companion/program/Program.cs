@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.IO.Ports;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -212,6 +213,7 @@ object BuildMeta()
         endpoints = new[]
         {
             "/api/meta",
+            "/api/meta/serial-ports",
             "/api/config",
             "/api/state/overview",
             "/api/state/parameters",
@@ -233,11 +235,28 @@ object BuildMeta()
     };
 }
 
+string[] BuildSerialPortList()
+{
+    try
+    {
+        return SerialPort.GetPortNames()
+            .Where(static name => !string.IsNullOrWhiteSpace(name))
+            .OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
+    catch (Exception ex)
+    {
+        LogError($"[Meta] Failed to enumerate serial ports: {ex.Message}");
+        return Array.Empty<string>();
+    }
+}
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseWebSockets();
 
 app.MapGet("/api/meta", () => Results.Ok(BuildMeta()));
+app.MapGet("/api/meta/serial-ports", () => Results.Ok(BuildSerialPortList()));
 app.MapGet("/api/config", () => Results.Ok(save));
 app.MapPost("/api/config/save", () =>
 {
