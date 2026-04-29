@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sensa WebUI</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <h1>Sensa WebUI</h1>
+      <p>HTTP + WebSocket 控制面板，覆盖配置、状态观察、功能测试、录制导出与快速说明。</p>
+    </div>
+    <div class="hero-actions">
+      <button id="refreshBtn">刷新状态</button>
+      <button id="saveBtn" class="primary">保存配置</button>
+      <span id="wsBadge" class="badge offline">WS 未连接</span>
+    </div>
+  </header>
+
+  <main class="layout">
+    <section class="card span-2">
+      <h2>快速上手</h2>
+      <ol class="quickstart">
+        <li>先确认 VRChat 已开启 OSC，默认向 <code>127.0.0.1:9001</code> 发送头像参数。</li>
+        <li>在“服务与设备控制”中检查 Loop、TCode、Intiface 的连接状态。</li>
+        <li>在“信号配置”里填写 OSC 路径并指定 Role，然后点击“应用配置”。</li>
+        <li>使用“手动功能测试”可在无 VRChat 输入时直接验证设备轴向与振动。</li>
+        <li>确认状态面板、参数流、录制区均正常后，即可开始实战使用。</li>
+      </ol>
+      <p class="muted">提示：修改 OSC 端口后建议重启服务；其余大多数配置可直接热更新。</p>
+    </section>
+
+    <section class="card">
+      <h2>服务状态</h2>
+      <div class="stats" id="statusCards"></div>
+      <div class="actions-grid">
+        <button data-action="/api/control/loop/start">启动 Loop</button>
+        <button data-action="/api/control/loop/stop">停止 Loop</button>
+        <button data-action="/api/control/loop/emergency-stop" class="danger">紧急停止</button>
+        <button data-action="/api/control/loop/clear-emergency">清除紧急停止</button>
+        <button data-action="/api/control/tcode/connect">连接 TCode</button>
+        <button data-action="/api/control/tcode/disconnect">断开 TCode</button>
+        <button data-action="/api/control/tcode/park">TCode 回中</button>
+        <button data-action="/api/control/intiface/connect">连接 Intiface</button>
+        <button data-action="/api/control/intiface/disconnect">断开 Intiface</button>
+        <button data-action="/api/control/intiface/scan-start">开始扫描</button>
+        <button data-action="/api/control/intiface/scan-stop">停止扫描</button>
+      </div>
+    </section>
+
+    <section class="card span-2">
+      <h2>3D 设备预览</h2>
+      <canvas id="deviceCanvas" width="860" height="320"></canvas>
+      <p class="muted">这是一个轻量 3D-ish 视图：L0 表示主冲程，R0/R1/R2 表示姿态与扭转，L1/L2 表示横向偏移。适合快速看出轴向是否反了。</p>
+    </section>
+
+    <section class="card span-2">
+      <h2>配置总览</h2>
+      <form id="configForm">
+        <div class="form-grid">
+          <fieldset>
+            <legend>WebUI</legend>
+            <label>标题<input name="webUi.title"></label>
+            <label>Host<input name="webUi.host"></label>
+            <label>Port<input type="number" name="webUi.port"></label>
+            <label class="inline"><input type="checkbox" name="webUi.autoOpenBrowser"> 自动打开浏览器</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>OSC</legend>
+            <label>ReceiverPort<input type="number" name="osc.receiverPort"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>TCode</legend>
+            <label>ComPort<input name="tCode.comPort"></label>
+            <label>MinPos<input type="number" name="tCode.minPos"></label>
+            <label>MaxPos<input type="number" name="tCode.maxPos"></label>
+            <label>MaxVelocity<input type="number" name="tCode.maxVelocity"></label>
+            <label>UpdatesPerSecond<input type="number" name="tCode.updatesPerSecond"></label>
+            <label class="inline"><input type="checkbox" name="tCode.enabled"> 启用 TCode 自动连接</label>
+            <label class="inline"><input type="checkbox" name="tCode.preferSpeedMode"> 优先速度模式</label>
+            <label class="inline"><input type="checkbox" name="tCode.l0Invert"> L0 反向</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Intiface</legend>
+            <label>WebSocket 地址<input name="intiface.websocketAddress"></label>
+            <label>Port<input type="number" name="intiface.port"></label>
+            <label class="inline"><input type="checkbox" name="intiface.enabled"> 启用 Intiface 自动连接</label>
+            <label class="inline"><input type="checkbox" name="intiface.manageEngineProcess"> 托管 intiface-engine</label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Safety</legend>
+            <label>GlobalIntensityCap<input type="number" step="0.01" min="0" max="1" name="safety.globalIntensityCap"></label>
+            <label>RampUpMs<input type="number" name="safety.rampUpMs"></label>
+            <label>Idle<select name="safety.idle"></select></label>
+            <label>EmergencyStopKey<input name="safety.emergencyStopKey"></label>
+          </fieldset>
+
+          <fieldset>
+            <legend>Rhythm</legend>
+            <label class="inline"><input type="checkbox" name="rhythm.enabled"> 启用 BPM 检测</label>
+            <label>WindowMs<input type="number" name="rhythm.windowMs"></label>
+            <label>MinBpm<input type="number" step="0.1" name="rhythm.minBpm"></label>
+            <label>MaxBpm<input type="number" step="0.1" name="rhythm.maxBpm"></label>
+          </fieldset>
+        </div>
+      </form>
+      <div class="button-row">
+        <button id="applyConfigBtn" class="primary">应用配置</button>
+        <button id="saveConfigBtn">写入磁盘</button>
+      </div>
+    </section>
+
+    <section class="card span-2">
+      <div class="section-title-row">
+        <h2>信号配置</h2>
+        <button id="addSignalBtn">新增信号</button>
+      </div>
+      <div class="table-wrap">
+        <table id="signalsTable">
+          <thead>
+            <tr>
+              <th>OSC Path</th>
+              <th>Role</th>
+              <th>Curve</th>
+              <th>Min</th>
+              <th>Max</th>
+              <th>α</th>
+              <th>Dead Zone</th>
+              <th>Invert</th>
+              <th>最新值</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>手动功能测试</h2>
+      <p class="muted">启用后会覆盖实时融合输出，适合快速验证 OSR2/SR6/OSR6 的轴映射和振动。仍然受 SafetySystem 保护。</p>
+      <div id="manualTestControls" class="slider-grid"></div>
+      <div class="button-row">
+        <label class="inline"><input id="manualEnabled" type="checkbox"> 启用手动覆盖</label>
+        <label class="inline"><input id="manualGate" type="checkbox" checked> GateOpen</label>
+        <button id="applyManualBtn" class="primary">应用手动测试</button>
+        <button id="clearManualBtn">清除手动测试</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>录制与导出</h2>
+      <div class="actions-grid">
+        <button data-action="/api/control/recording/start">开始录制</button>
+        <button data-action="/api/control/recording/stop">停止录制</button>
+        <button id="exportRecordingBtn">导出 .funscript</button>
+      </div>
+      <p id="recordingInfo" class="muted"></p>
+    </section>
+
+    <section class="card span-2">
+      <h2>参数流</h2>
+      <div class="table-wrap compact-table">
+        <table id="parametersTable">
+          <thead>
+            <tr>
+              <th>Path</th>
+              <th>Value</th>
+              <th>Type</th>
+              <th>Timestamp</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card span-2">
+      <h2>日志</h2>
+      <pre id="logPanel" class="log-panel"></pre>
+    </section>
+  </main>
+
+  <template id="signalRowTemplate">
+    <tr>
+      <td><input data-field="oscPath"></td>
+      <td><select data-field="role"></select></td>
+      <td><select data-field="curve"></select></td>
+      <td><input type="number" step="0.01" data-field="vrchatMin"></td>
+      <td><input type="number" step="0.01" data-field="vrchatMax"></td>
+      <td><input type="number" step="0.01" min="0.01" max="1" data-field="smoothingAlpha"></td>
+      <td><input type="number" step="0.01" min="0" max="1" data-field="deadZone"></td>
+      <td><input type="checkbox" data-field="invertDirection"></td>
+      <td class="latest-value"></td>
+      <td><button class="remove-row">删除</button></td>
+    </tr>
+  </template>
+
+  <script src="/app.js" type="module"></script>
+</body>
+</html>

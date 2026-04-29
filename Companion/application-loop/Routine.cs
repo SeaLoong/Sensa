@@ -103,7 +103,11 @@ public sealed class Routine : IDisposable
 
     // ── Public computed state for UI display ───────────────────────
     private volatile DeviceCommand _lastCommandField = DeviceCommand.Zero;
+    private volatile DeviceCommand _manualOverrideField = DeviceCommand.Zero;
+    private volatile bool _manualOverrideEnabled;
     public DeviceCommand LastCommand  => _lastCommandField;
+    public DeviceCommand ManualOverrideCommand => _manualOverrideField;
+    public bool          ManualOverrideEnabled => _manualOverrideEnabled;
     public float         CurrentBpm   { get; private set; } = 0f;
     public bool          IsRunning    => _cts is not null && !_cts.IsCancellationRequested;
     public bool          IsEmergency  => _safety.EmergencyActive;
@@ -175,6 +179,20 @@ public sealed class Routine : IDisposable
 
     public void ClearEmergency() => _safety.ClearEmergency();
 
+    public void SetManualOverride(DeviceCommand cmd)
+    {
+        _manualOverrideField = cmd;
+        _manualOverrideEnabled = true;
+        OnLog?.Invoke("[ManualTest] Override enabled.");
+    }
+
+    public void ClearManualOverride()
+    {
+        _manualOverrideField = DeviceCommand.Zero;
+        _manualOverrideEnabled = false;
+        OnLog?.Invoke("[ManualTest] Override cleared.");
+    }
+
     // ────────────────────────────────────────────────────────────────
 
     private async Task RunLoopAsync(CancellationToken ct)
@@ -210,6 +228,14 @@ public sealed class Routine : IDisposable
             // 5. Safety constraints
             var safeCmd = _safety.Apply(rawCmd);
             safeCmd = safeCmd with { DeltaMs = tickMs };
+
+            // 5.5 Manual test override for Web UI functional testing.
+            // Still passes through SafetySystem so emergency stop and intensity limits remain effective.
+            if (_manualOverrideEnabled)
+            {
+                var manualCmd = _manualOverrideField with { DeltaMs = tickMs };
+                safeCmd = _safety.Apply(manualCmd) with { DeltaMs = tickMs };
+            }
 
             _lastCommandField = safeCmd;
 

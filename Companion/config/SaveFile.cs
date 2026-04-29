@@ -72,6 +72,18 @@ public sealed class OscReceiverConfig
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+//  Web UI / HTTP service config
+// ═══════════════════════════════════════════════════════════════════════
+
+public sealed class WebUiConfig
+{
+    public string Host            { get; set; } = "127.0.0.1";
+    public int    Port            { get; set; } = 5086;
+    public bool   AutoOpenBrowser { get; set; } = false;
+    public string Title           { get; set; } = "Sensa WebUI";
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 //  Device routing: one row per signal, one column per axis
 //  Entry[signalIndex][axis] = weight (0 = disabled)
 // ═══════════════════════════════════════════════════════════════════════
@@ -91,6 +103,7 @@ public sealed class DeviceRouteEntry
 public sealed class SaveFile
 {
     public OscReceiverConfig     Osc          { get; set; } = new();
+    public WebUiConfig           WebUi        { get; set; } = new();
     public IntifaceConfig         Intiface     { get; set; } = new();
     public TCodeConfig            TCode        { get; set; } = new();
     public SafetyConfig           Safety       { get; set; } = new();
@@ -146,5 +159,17 @@ public sealed class SaveFile
         {
             Console.Error.WriteLine($"[Sensa] Failed to save config: {ex.Message}");
         }
+    }
+
+    public void CopyFrom(SaveFile other)
+    {
+        Osc          = other.Osc          ?? new OscReceiverConfig();
+        WebUi        = other.WebUi        ?? new WebUiConfig();
+        Intiface     = other.Intiface     ?? new IntifaceConfig();
+        TCode        = other.TCode        ?? new TCodeConfig();
+        Safety       = other.Safety       ?? new SafetyConfig();
+        Rhythm       = other.Rhythm       ?? new RhythmConfig();
+        Signals      = other.Signals      ?? new List<SignalConfig>();
+        DeviceRoutes = other.DeviceRoutes ?? new List<DeviceRouteEntry>();
     }
 }

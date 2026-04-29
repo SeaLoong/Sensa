@@ -133,16 +133,16 @@ public sealed class IntifaceEngineHost : IDisposable
     /// Looks for intiface-engine.exe next to the executable or in %LOCALAPPDATA%\Sensa\,
     /// then launches it as a child process.
     /// </summary>
-    public void Start()
+    public bool Start()
     {
-        if (IsRunning) return;
+        if (IsRunning) return true;
 
         var enginePath = FindEngine();
         if (enginePath is null)
         {
             Console.Error.WriteLine("[Intiface] intiface-engine.exe not found. " +
                                     "Use Intiface Central or place it next to the executable.");
-            return;
+            return false;
         }
 
         var psi = new System.Diagnostics.ProcessStartInfo
@@ -163,6 +163,7 @@ public sealed class IntifaceEngineHost : IDisposable
         _process.BeginOutputReadLine();
         _process.BeginErrorReadLine();
         Console.WriteLine($"[Intiface] Engine started (PID {_process.Id})");
+        return true;
     }
 
     public void Stop()
