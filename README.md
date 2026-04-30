@@ -427,6 +427,14 @@ pos = round(mapped)
 command = "L0{pos:D3}S{velocity:D4}"
 ```
 
+其中速度项当前按 TCode `Sxxxx` 语义估算：
+
+```text
+speed = ceil(|Δnormalised| × 10000 × 100 / Δt_ms)
+```
+
+也就是把相邻帧的归一化位移换算成“**每 100ms 的四位幅值刻度**”，而不是简单按“每秒归一化速度”发送。
+
 ### SR6 / OSR6（6 轴）
 
 SR6 / OSR6 在上述基础上额外增加：
@@ -445,7 +453,7 @@ SR6 / OSR6 在上述基础上额外增加：
 - `R0 / R1 / R2 / L1 / L2` 都以 `0.5` 为中心；
 - `OSR2-class` 固件对不存在的轴会忽略；因此 Sensa 可以统一发送完整轴集，由设备侧按能力接收；
 - `L0Invert = true` 时，会先执行 `L0 = 1 - L0`；
-- 速度由 `VelocityEstimator` 从相邻帧差估算。
+- 速度由 `VelocityEstimator` 从相邻帧差估算，并换算到 TCode `Sxxxx` 所使用的“每 100ms 幅值刻度”单位；
 - 当前串口层使用 `SerialPort.WriteLine(...)`，符合 TCode 对“换行提交”的要求。
 
 ---

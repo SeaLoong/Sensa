@@ -155,12 +155,17 @@ public sealed class SignalFusion
 
 public sealed class VelocityEstimator
 {
+    private const float TCodeMagnitudeScale = 10000f;
+    private const float HundredMillisecondsPerSecond = 10f;
+
     private float _lastPos    = 0.5f;
     private long  _lastTimeMs = -1;  // -1 = not yet initialised
 
     /// <summary>
     /// Call each update with the new normalised position [0,1].
-    /// Returns velocity clamped to maxVelocity.  Returns 0 on the first call.
+    /// Returns a TCode S-term magnitude clamped to maxVelocity.
+    /// TCode speed is expressed in magnitude units per 100 ms, not normalised units per second.
+    /// Returns 0 on the first call.
     /// </summary>
     public int Estimate(float newPos, int maxVelocity = 1400)
     {
@@ -178,12 +183,17 @@ public sealed class VelocityEstimator
         if (dt < 1) dt = 1;
 
         float deltaPos = newPos - _lastPos;
-        float velocity = Math.Abs(deltaPos / dt) * 1000f;
+        float velocity = Math.Abs(deltaPos)
+            * TCodeMagnitudeScale
+            * HundredMillisecondsPerSecond
+            / dt;
 
         _lastPos    = newPos;
         _lastTimeMs = now;
 
-        return (int)Math.Min(velocity, maxVelocity);
+        if (velocity <= 0f) return 0;
+
+        return (int)Math.Min(MathF.Ceiling(velocity), maxVelocity);
     }
 
     public void Reset(float pos = 0.5f)
