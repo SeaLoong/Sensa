@@ -157,8 +157,12 @@
                     <label data-tip="" data-i18n-data-tip="tip.maxPos" data-i18n="cfg.tcode.maxPos">MaxPos<input type="number" name="tCode.maxPos" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.maxVelocity" data-i18n="cfg.tcode.maxVel">MaxVelocity<input type="number" name="tCode.maxVelocity" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.ups" data-i18n="cfg.tcode.ups">UpdatesPerSecond<input type="number" name="tCode.updatesPerSecond" /></label>
-                    <label class="inline" data-tip="" data-i18n-data-tip="tip.tcodeEnabled"><input type="checkbox" name="tCode.enabled" /> <span data-i18n="cfg.tcode.enabled">启用 TCode 自动连接</span></label>
-                    <label class="inline" data-tip="" data-i18n-data-tip="tip.speedMode"><input type="checkbox" name="tCode.preferSpeedMode" /> <span data-i18n="cfg.tcode.speedMode">优先速度模式</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.tcodeEnabled"
+                      ><input type="checkbox" name="tCode.enabled" /> <span data-i18n="cfg.tcode.enabled">启用 TCode 自动连接</span></label
+                    >
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.speedMode"
+                      ><input type="checkbox" name="tCode.preferSpeedMode" /> <span data-i18n="cfg.tcode.speedMode">优先速度模式</span></label
+                    >
                     <label class="inline" data-tip="" data-i18n-data-tip="tip.l0inv"><input type="checkbox" name="tCode.l0Invert" /> <span data-i18n="cfg.tcode.l0inv">L0 反向</span></label>
                   </fieldset>
 
@@ -169,13 +173,19 @@
                     </div>
                     <label data-tip="" data-i18n-data-tip="tip.wsAddr" data-i18n="cfg.intiface.wsAddr">WebSocket 地址<input name="intiface.websocketAddress" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.intifacePort" data-i18n="cfg.intiface.port">Port<input type="number" name="intiface.port" /></label>
-                    <label class="inline" data-tip="" data-i18n-data-tip="tip.intifaceEnabled"><input type="checkbox" name="intiface.enabled" /> <span data-i18n="cfg.intiface.enabled">启用 Intiface 自动连接</span></label>
-                    <label class="inline" data-tip="" data-i18n-data-tip="tip.manageEngine"><input type="checkbox" name="intiface.manageEngineProcess" /> <span data-i18n="cfg.intiface.manage">托管 intiface-engine</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.intifaceEnabled"
+                      ><input type="checkbox" name="intiface.enabled" /> <span data-i18n="cfg.intiface.enabled">启用 Intiface 自动连接</span></label
+                    >
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.manageEngine"
+                      ><input type="checkbox" name="intiface.manageEngineProcess" /> <span data-i18n="cfg.intiface.manage">托管 intiface-engine</span></label
+                    >
                   </fieldset>
 
                   <fieldset>
                     <legend data-i18n="cfg.safety">Safety</legend>
-                    <label data-tip="" data-i18n-data-tip="tip.intensityCap" data-i18n="cfg.safety.cap">GlobalIntensityCap<input type="number" step="0.01" min="0" max="1" name="safety.globalIntensityCap" /></label>
+                    <label data-tip="" data-i18n-data-tip="tip.intensityCap" data-i18n="cfg.safety.cap"
+                      >GlobalIntensityCap<input type="number" step="0.01" min="0" max="1" name="safety.globalIntensityCap"
+                    /></label>
                     <label data-tip="" data-i18n-data-tip="tip.rampUp" data-i18n="cfg.safety.ramp">RampUpMs<input type="number" name="safety.rampUpMs" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.idle" data-i18n="cfg.safety.idle">Idle<select name="safety.idle"></select></label>
                     <label data-tip="" data-i18n-data-tip="tip.estopKey" data-i18n="cfg.safety.estop">EmergencyStopKey<input name="safety.emergencyStopKey" /></label>
@@ -183,7 +193,9 @@
 
                   <fieldset>
                     <legend data-i18n="cfg.rhythm">Rhythm</legend>
-                    <label class="inline" data-tip="" data-i18n-data-tip="tip.bpmEnabled"><input type="checkbox" name="rhythm.enabled" /> <span data-i18n="cfg.rhythm.enabled">启用 BPM 检测</span></label>
+                    <label class="inline" data-tip="" data-i18n-data-tip="tip.bpmEnabled"
+                      ><input type="checkbox" name="rhythm.enabled" /> <span data-i18n="cfg.rhythm.enabled">启用 BPM 检测</span></label
+                    >
                     <label data-tip="" data-i18n-data-tip="tip.bpmWindow" data-i18n="cfg.rhythm.window">WindowMs<input type="number" name="rhythm.windowMs" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.minBpm" data-i18n="cfg.rhythm.minBpm">MinBpm<input type="number" step="0.1" name="rhythm.minBpm" /></label>
                     <label data-tip="" data-i18n-data-tip="tip.maxBpm" data-i18n="cfg.rhythm.maxBpm">MaxBpm<input type="number" step="0.1" name="rhythm.maxBpm" /></label>
@@ -366,8 +378,14 @@
             <section class="card span-2">
               <h2 data-i18n="help.limits.title">当前实现边界</h2>
               <div class="callout warn"><strong data-i18n="help.limit1.title">OSC 端口热更新：</strong> <span data-i18n="help.limit1.body">修改后建议重启服务。</span></div>
-              <div class="callout warn"><strong data-i18n="help.limit2.title">Intiface 内嵌引擎：</strong> <span data-i18n="help.limit2.body">如果本地没有 <code>intiface-engine.exe</code>，系统会跳过连接而不是阻塞其它功能。</span></div>
-              <div class="callout info"><strong data-i18n="help.limit3.title">Angle Raw：</strong> <span data-i18n="help.limit3.body">当前不会自动做 <code>Right - Left</code> 之类的差值重建；若要更真实的角度，请在上游参数层先计算。</span></div>
+              <div class="callout warn">
+                <strong data-i18n="help.limit2.title">Intiface 内嵌引擎：</strong>
+                <span data-i18n="help.limit2.body">如果本地没有 <code>intiface-engine.exe</code>，系统会跳过连接而不是阻塞其它功能。</span>
+              </div>
+              <div class="callout info">
+                <strong data-i18n="help.limit3.title">Angle Raw：</strong>
+                <span data-i18n="help.limit3.body">当前不会自动做 <code>Right - Left</code> 之类的差值重建；若要更真实的角度，请在上游参数层先计算。</span>
+              </div>
             </section>
           </div>
         </section>
