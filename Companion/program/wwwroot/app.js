@@ -86,6 +86,9 @@ const I18N = {
     'msg.diagCopied': '可以直接贴给协作者或用于提 issue。',
     'msg.themeChanged': '新的配色已经生效。',
     'msg.langChanged': '当前界面文案已按所选语言刷新。',
+    'msg.actionReportedFailure': '服务返回了失败状态，请查看日志或诊断信息。',
+    'msg.intifaceConnectFailed': 'Intiface 连接失败。当前这台机器如果没有 Intiface 环境，这是预期现象；若要测试，请检查 Intiface Central 或 intiface-engine.exe。',
+    'msg.tcodeConnectFailed': 'TCode 连接失败，请检查 COM 口、驱动、串口占用和设备供电。',
     'diag.loopStopped.title': 'Loop 当前未运行',
     'diag.loopStopped.body': '不会继续向设备发送融合后的命令。若这是意外情况，请点击“启动 Loop”。',
     'diag.emergency.title': 'Emergency Stop 已触发',
@@ -351,6 +354,9 @@ const I18N = {
     'msg.diagCopied': 'You can paste this directly into a report or issue.',
     'msg.themeChanged': 'The new color theme is now active.',
     'msg.langChanged': 'The visible UI copy has been refreshed.',
+    'msg.actionReportedFailure': 'The service reported a failed action. Check logs or diagnostics for details.',
+    'msg.intifaceConnectFailed': 'Intiface connection failed. That is expected on machines without an Intiface environment; otherwise check Intiface Central or intiface-engine.exe.',
+    'msg.tcodeConnectFailed': 'TCode connection failed. Check the COM port, driver, port contention, and device power.',
     'diag.loopStopped.title': 'Loop is not running',
     'diag.loopStopped.body': 'No fused commands are being sent to devices. Click “Start Loop” if this is unexpected.',
     'diag.emergency.title': 'Emergency Stop is active',
@@ -1127,6 +1133,21 @@ function renderAll() {
   renderLogs();
 }
 
+function getActionFailureMessage(path) {
+  switch (path) {
+    case '/api/control/intiface/connect':
+      return t('msg.intifaceConnectFailed');
+    case '/api/control/tcode/connect':
+      return t('msg.tcodeConnectFailed');
+    default:
+      return t('msg.actionReportedFailure');
+  }
+}
+
+function shouldPreferLocalizedActionFailure(path) {
+  return path === '/api/control/intiface/connect' || path === '/api/control/tcode/connect';
+}
+
 async function refreshAll(showFeedback = false) {
   try {
     const [meta, config, overview, parameters, logs, serialPorts] = await Promise.all([
@@ -1161,9 +1182,16 @@ async function refreshAll(showFeedback = false) {
 
 async function postAction(path, body = null) {
   try {
-    await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
+    const result = await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
+    if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
+      const localizedMessage = getActionFailureMessage(path);
+      const displayMessage = shouldPreferLocalizedActionFailure(path) ? localizedMessage : result.message || localizedMessage;
+      showToast(t('toast.actionFailed'), displayMessage, 'error', 4200);
+      await refreshAll().catch(() => {});
+      return;
+    }
     await refreshAll();
-    showToast(t('toast.actionSuccess'), path);
+    showToast(t('toast.actionSuccess'), result?.message || path);
   } catch (error) {
     showToast(t('toast.actionFailed'), error.message, 'error', 4200);
     throw error;

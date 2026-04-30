@@ -318,11 +318,20 @@ app.MapPost("/api/control/loop/clear-emergency", () =>
     return Results.Ok(new { ok = true, routine.IsEmergency });
 });
 
-app.MapPost("/api/control/intiface/connect", async () => Results.Ok(new { ok = await ConnectIntifaceAsync(), intiface.IsConnected }));
+app.MapPost("/api/control/intiface/connect", async () =>
+{
+    var ok = await ConnectIntifaceAsync();
+    var message = ok
+        ? "Intiface connected."
+        : save.Intiface.ManageEngineProcess
+            ? "Intiface connection failed. Ensure intiface-engine.exe exists locally or disable engine management."
+            : "Intiface connection failed. Check the configured WebSocket address and whether Intiface Central is running.";
+    return Results.Ok(new { ok, connected = intiface.IsConnected, message });
+});
 app.MapPost("/api/control/intiface/disconnect", async () =>
 {
     await DisconnectIntifaceAsync();
-    return Results.Ok(new { ok = true, intiface.IsConnected });
+    return Results.Ok(new { ok = true, connected = intiface.IsConnected, message = "Intiface disconnected." });
 });
 app.MapPost("/api/control/intiface/scan-start", async () =>
 {
@@ -335,11 +344,18 @@ app.MapPost("/api/control/intiface/scan-stop", async () =>
     return Results.Ok(new { ok = true });
 });
 
-app.MapPost("/api/control/tcode/connect", async () => Results.Ok(new { ok = await ConnectTCodeAsync(), connected = tcode.IsConnected }));
+app.MapPost("/api/control/tcode/connect", async () =>
+{
+    var ok = await ConnectTCodeAsync();
+    var message = ok
+        ? $"TCode connected: {save.TCode.ComPort}"
+        : "TCode connection failed. Check the COM port, driver, and whether another app is already using the device.";
+    return Results.Ok(new { ok, connected = tcode.IsConnected, message });
+});
 app.MapPost("/api/control/tcode/disconnect", async () =>
 {
     await DisconnectTCodeAsync();
-    return Results.Ok(new { ok = true, connected = tcode.IsConnected });
+    return Results.Ok(new { ok = true, connected = tcode.IsConnected, message = "TCode disconnected." });
 });
 app.MapPost("/api/control/tcode/park", () =>
 {
