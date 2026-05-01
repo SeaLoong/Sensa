@@ -1,57 +1,46 @@
-const THEMES = ['light'];
+// ============================================================
+// Sensa WebUI — Vue 3 CDN  (v20250503)
+// ============================================================
+const { createApp, ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, defineComponent } = Vue; // ───── CONSTANTS ─────────────────────────────────────────────
 const LANGUAGES = ['zh-CN', 'en'];
-const DEFAULT_TITLE = 'Sensa WebUI';
 const DEVICE_MEMORY_KEY = 'sensa.deviceMemory';
-const MOCK_TOGGLE_KEY = 'sensa.showMockDevices';
-
-const sliderAxes = ['L0', 'R0', 'R1', 'R2', 'L1', 'L2', 'Vibrate'];
-const sliderDefaults = { L0: 0, R0: 0.5, R1: 0.5, R2: 0.5, L1: 0.5, L2: 0.5, Vibrate: 0 };
-
-const MOCK_DEVICE_LIBRARY = [
+const DEVICE_CONFIG_KEY = 'sensa.deviceCfg';
+const SHOW_MOCK = new URLSearchParams(location.search).has('mock');
+const MAX_HIST = 300;
+const AXES = ['L0', 'R0', 'R1', 'R2', 'L1', 'L2', 'Vibrate'];
+const AXIS_DEFS = { L0: 0, R0: 0.5, R1: 0.5, R2: 0.5, L1: 0.5, L2: 0.5, Vibrate: 0 };
+const AXIS_KEY = { L0: 'l0', R0: 'r0', R1: 'r1', R2: 'r2', L1: 'l1', L2: 'l2', Vibrate: 'vibrate' };
+const AXIS_LABELS = {
+  L0: { zh: 'L0 主冲程', en: 'L0 Stroke' },
+  R0: { zh: 'R0 横滚', en: 'R0 Roll' },
+  R1: { zh: 'R1 俯仰', en: 'R1 Pitch' },
+  R2: { zh: 'R2 扭转', en: 'R2 Twist' },
+  L1: { zh: 'L1 横向', en: 'L1 Lateral' },
+  L2: { zh: 'L2 前后', en: 'L2 Forward' },
+  Vibrate: { zh: '振动', en: 'Vibrate' },
+};
+const MOCK_DEVICES = [
   {
-    id: 'mock:sr6-rig',
+    id: 'mock:sr6',
+    memoryId: 'mock:sr6',
     kind: 'tcode',
-    model: 'SR6',
+    source: 'mock',
     name: 'SR6 Mock Rig',
+    model: 'SR6',
     connectionLabel: 'TCode',
-    summary: '6 轴串口设备布局预览，用于检查 SR6 轴向、回中和速度模式卡片样式。',
-    badges: ['Mock', 'SR6'],
-    facts: {
-      port: 'COM-MOCK',
-      mode: 'Speed',
-      axes: 'L0/R0/R1/R2/L1/L2',
-      state: 'Preview',
-    },
+    summary: '6 轴串口设备布局预览，用于检查 SR6 轴向与卡片样式。',
+    facts: { port: 'COM-MOCK', mode: 'Speed', axes: 'L0/R0/R1/R2/L1/L2', state: 'Preview' },
     quickActions: ['park'],
-  },
-  {
-    id: 'mock:buttplug-linear',
-    kind: 'intiface',
-    model: 'Buttplug Linear',
-    name: 'Mock Linear Device',
-    connectionLabel: 'Intiface',
-    summary: '模拟线性 + 振动设备，用来检查没有实机时的设备卡片和能力摘要布局。',
-    badges: ['Mock', 'Buttplug'],
-    facts: {
-      position: '1 feature',
-      vibrate: '2 features',
-      connection: 'Bridge Ready',
-      state: 'Preview',
-    },
-    quickActions: ['scan'],
+    snapshot: { comPort: 'COM-MOCK', minPos: 100, maxPos: 900, maxVelocity: 1400, updatesPerSecond: 50, preferSpeedMode: true, rampUpMs: 2000 },
   },
 ];
 
+// ───── I18N ─────────────────────────────────────────────────
 const I18N = {
   'zh-CN': {
-    'hero.desc': '本地控制台，用于连接、配置、设备控制、脚本和运行监控。',
+    'hero.desc': '本地控制台，用于 TCode 串口设备连接、配置与实时控制。',
     'btn.refresh': '刷新状态',
     'btn.save': '保存配置',
-    'btn.startLoop': '启动 Loop',
-    'btn.stopLoop': '停止 Loop',
-    'btn.emergencyStop': '紧急停止',
-    'btn.clearEmergency': '清除紧急停止',
-    'btn.copyDiag': '复制诊断摘要',
     'btn.apply': '应用并保存',
     'btn.reloadConfig': '重新读取',
     'btn.addSignal': '新增信号',
@@ -59,59 +48,46 @@ const I18N = {
     'btn.connectTCode': '连接 TCode',
     'btn.disconnectTCode': '断开 TCode',
     'btn.parkTCode': 'TCode 回中',
-    'btn.connectIntiface': '连接 Intiface',
-    'btn.disconnectIntiface': '断开 Intiface',
-    'btn.scanStart': '开始扫描',
-    'btn.scanStop': '停止扫描',
+    'btn.park': '回中',
+    'btn.startLoop': '启动 Loop',
+    'btn.stopLoop': '停止 Loop',
     'btn.startRecording': '开始录制',
     'btn.stopRecording': '停止录制',
     'btn.exportFunscript': '导出 .funscript',
-    'btn.toggleMock': '切换 Mock 设备预览',
-    'btn.saveDeviceConfig': '保存配置',
-    'btn.resetDeviceConfig': '重置配置',
+    'btn.saveDeviceCfg': '保存设备配置',
+    'btn.loadDeviceCfg': '读取已保存',
     'btn.applyManual': '应用手动测试',
     'btn.clearManual': '清除手动测试',
-    'btn.connect': '连接',
-    'btn.disconnect': '断开',
-    'btn.park': '回中',
-    'btn.scan': '扫描',
+    'btn.copyDiag': '复制诊断摘要',
+    'btn.centerAxes': '回正所有轴',
     'cb.manualEnabled': '启用手动覆盖',
     'cb.gateOpen': 'GateOpen',
     'nav.overview': '总览',
-    'nav.connections': '连接',
     'nav.config': '配置',
     'nav.devices': '设备',
+    'nav.control': '控制',
     'nav.scripts': '脚本',
     'nav.monitoring': '监控',
     'nav.help': '帮助',
     'overview.title': '总览',
-    'overview.desc': '查看当前运行状态、连接情况和主要输出。',
     'overview.badge': '当前状态',
     'overview.status': '服务状态',
     'overview.diag': '实时诊断',
-    'overview.diagDesc': '显示当前运行状态和异常提示。',
-    'overview.preview': '姿态预览',
-    'overview.previewDesc': '显示当前输出姿态和主要轴向状态。',
+    'overview.diagDesc': '当前运行状态与异常提示。',
     'overview.devices.title': '已连接设备总览',
-    'overview.devices.desc': '优先显示当前已连接的真实设备。',
-    'overview.guide.none.title': '暂无已连接设备',
-    'overview.guide.none.body': '请先在“连接”页建立链路，再到“设备”页进行测试。',
+    'overview.devices.desc': '优先显示已连接真实设备。',
+    'overview.guide.none.title': '暂无连接的设备',
+    'overview.guide.none.body': '请前往「配置」页连接 TCode 串口设备，再到「设备」页进行手动测试。',
     'overview.guide.connected.title': '设备链路已建立',
-    'overview.guide.connected.body': '可前往“设备”页进行单设备测试，或在“监控”页查看参数和日志。',
-    'overview.guide.osc.title': 'OSC 还没进来',
-    'overview.guide.osc.body': '当前尚未收到 OSC 参数，可先完成连接和设备测试。',
-    'connections.title': '连接中心',
-    'connections.desc': '在这里管理 TCode 和 Intiface 的连接参数与连接状态。',
-    'connections.filter.all': '全部',
-    'connections.tcode.title': '串口连接',
-    'connections.tcode.desc': '适用于 OSR2 / SR6 / OSR6 这类串口设备。连接参数和设备相关配置集中放在同一张卡片中。',
-    'connections.intiface.title': 'Buttplug 连接',
-    'connections.intiface.desc': '适用于 Intiface Central / 内嵌引擎驱动的 Buttplug 设备。扫描、连接与地址配置集中管理。',
-    'connections.intiface.note': '如果当前机器没有 Intiface 环境，也应能明确失败而不是误报成功。',
+    'overview.guide.connected.body': '可前往「控制」页手动测试轴向，或直接「启动 Loop」开始实时输出。',
+    'overview.guide.osc.title': 'OSC 尚未收到参数',
+    'overview.guide.osc.body': '请确认 VRChat 已启用 OSC，端口与 Sensa 配置的接收端口一致。',
+    'config.tcode.title': 'TCode 串口连接',
+    'config.tcode.desc': '适用于 OSR2 / SR6 / OSR6 等 TCode 串口设备。',
     'config.service.title': '服务配置',
-    'config.service.desc': '管理服务地址、端口和接收端口等基础参数。',
-    'config.processing.title': '处理链配置',
-    'config.processing.desc': '管理安全限制、空闲行为和节奏检测等处理参数。',
+    'config.service.desc': '管理服务地址、端口和 OSC 接收端口。',
+    'config.safety.title': '安全与限制',
+    'config.safety.desc': '全局强度上限、空闲行为与紧急停止热键。',
     'cfg.webui.host': 'Host',
     'cfg.webui.port': 'Port',
     'cfg.osc.port': 'ReceiverPort',
@@ -122,16 +98,11 @@ const I18N = {
     'cfg.tcode.ups': 'UpdatesPerSecond',
     'cfg.tcode.enabled': '启用 TCode 自动连接',
     'cfg.tcode.speedMode': '优先速度模式',
-    'cfg.tcode.l0inv': 'L0 反向',
     'cfg.tcode.refreshPorts': '刷新',
-    'cfg.intiface.wsAddr': 'WebSocket 地址',
-    'cfg.intiface.port': 'Port',
-    'cfg.intiface.enabled': '启用 Intiface 自动连接',
-    'cfg.intiface.manage': '托管 intiface-engine',
-    'cfg.safety.cap': 'GlobalIntensityCap',
-    'cfg.safety.ramp': 'RampUpMs',
-    'cfg.safety.idle': 'Idle',
-    'cfg.safety.estop': 'EmergencyStopKey',
+    'cfg.safety.cap': '全局强度上限 (GlobalIntensityCap)',
+    'cfg.safety.ramp': 'RampUpMs（启动渐增）',
+    'cfg.safety.idle': '空闲行为 (Idle)',
+    'cfg.safety.estop': '紧急停止热键 (EmergencyStopKey)',
     'cfg.rhythm.enabled': '启用 BPM 检测',
     'cfg.rhythm.window': 'WindowMs',
     'cfg.rhythm.minBpm': 'MinBpm',
@@ -148,44 +119,47 @@ const I18N = {
     'sig.dz': 'Dead Zone',
     'sig.inv': 'Invert',
     'sig.latest': '最新值',
-    'devices.title': '设备',
-    'devices.desc': '查看已连接设备，并执行设备相关操作与测试。',
-    'devices.test.title': '设备测试台',
-    'devices.test.desc': '在这里进行手动测试，并查看当前设备能力。',
-    'devices.test.badge': '支持 mock 检查布局',
-    'devices.ops.title': '设备操作中心',
-    'devices.ops.desc': '这里集中放置回中、Loop 控制、紧急停止和手动测试。',
-    'devices.ops.badge': '快捷操作',
-    'devices.recording.title': '录制与导出',
-    'devices.recording.desc': '录制结果可在脚本页中查看和导出。',
-    'devices.recording.hint': '导出前会自动进行轨迹简化。',
+    'devices.title': '设备工作台',
+    'devices.desc': '已连接设备的参数配置与快捷操作。',
+    'devices.test.title': '手动测试',
+    'devices.test.desc': '在不启动 Loop 的情况下验证设备轴向响应。',
+    'devices.range.title': '输出范围',
+    'devices.range.desc': '设备行程的下限与上限（TCode 0–999）。',
+    'devices.params.title': '设备参数',
+    'devices.params.maxVel': 'MaxVelocity（速度上限）',
+    'devices.params.ups': 'UpdatesPerSecond（帧率）',
+    'devices.params.ramp': 'RampUpMs（启动渐增）',
     'devices.empty.title': '当前没有真实连接设备',
-    'devices.empty.body': '你可以打开 Mock 设备预览检查卡片样式，也可以先去“连接”页建立真实链路。',
-    'devices.memory.title': '设备配置',
-    'devices.memory.none': '这台设备还没有保存的本地备注。',
+    'devices.empty.body': '可用 ?mock URL 参数开启 Mock 预览，或到「配置」页连接设备。',
+    'devices.memory.title': '设备备注',
+    'devices.memory.none': '还没有保存的备注。',
     'devices.memory.saved': '已保存 {time}',
     'devices.alias': '设备别名',
     'devices.note': '设备备注',
-    'devices.profile': '连接摘要',
-    'devices.quickActions': '快捷操作',
-    'devices.capabilities': '能力摘要',
-    'devices.mock.enabled': 'Mock 设备预览已开启。当前会额外显示两张模拟设备卡片。',
-    'devices.mock.disabled': '当前仅显示真实连接设备。',
-    'devices.manual.title': '手动功能测试',
-    'devices.manual.desc': '这里保留统一的手动覆盖测试；不同设备的专用卡片则只展示该设备真正能理解的操作。',
-    'scripts.title': '脚本',
-    'scripts.desc': '录制、导出、导入和预览播放统一放在这里。',
+    'devices.profile': '连接快照',
+    'control.title': '实时控制',
+    'control.desc': '手动调节各轴位置与参数。',
+    'control.axes.title': '轴位控制',
+    'control.axes.running': 'Loop 运行中，仅显示实时输出值。停止 Loop 后方可手动操作。',
+    'control.axes.stopped': 'Loop 已停止。可拖动滑条设置各轴位置，再点「应用」发送至设备。',
+    'control.bpm.title': 'BPM 节奏检测',
+    'control.bpm.desc': '分析 OSC 信号变化频率，自动估算节拍 BPM。',
+    'control.invert.title': 'L0 轴反转',
+    'control.invert.desc': '将 L0 输出取反（0↔1），修改后需保存配置。',
+    'control.manual.title': '手动覆盖',
+    'control.manual.desc': '启用后滑条值将覆盖 OSC 信号直接发送至设备。',
+    'scripts.title': '脚本工作台',
     'scripts.badge': 'Script Studio',
     'scripts.recording.title': '录制与导出',
-    'scripts.recording.desc': '用当前实时输出录制 L0 轨迹，并在录制完成后导出 `.funscript` 文件。',
-    'scripts.recording.hint': '导出前会自动进行轨迹简化，预览播放不会直接控制设备。',
+    'scripts.recording.desc': '录制当前 L0 输出并导出为 .funscript 文件。',
+    'scripts.recording.hint': '导出前自动做 RDP 简化；浏览器本地预览不直接控制设备。',
     'scripts.import.title': '导入与来源',
-    'scripts.import.desc': '可直接使用录制缓存，或导入本地 `.funscript` 文件。',
-    'scripts.import.file': '选择 `.funscript` 文件',
+    'scripts.import.desc': '使用录制缓存，或导入本地 .funscript 文件。',
+    'scripts.import.file': '选择 .funscript 文件',
     'scripts.import.useRecording': '使用当前录制缓存',
     'scripts.import.clear': '清空脚本预览',
     'scripts.player.title': '脚本预览播放',
-    'scripts.player.desc': '用于检查节奏、密度和时间轴。',
+    'scripts.player.desc': '仅用于波形检查，不向设备发送命令。',
     'scripts.player.play': '播放',
     'scripts.player.pause': '暂停',
     'scripts.player.stop': '停止',
@@ -193,17 +167,17 @@ const I18N = {
     'scripts.player.playing': '播放中',
     'scripts.player.paused': '已暂停',
     'scripts.timeline.title': '时间轴摘要',
-    'scripts.timeline.desc': '显示脚本来源、数量和时长等摘要信息。',
+    'scripts.timeline.desc': '脚本来源、帧数和时长摘要。',
     'scripts.timeline.empty': '当前没有可预览的脚本数据。',
-    'scripts.meta.empty': '当前未加载脚本数据。',
-    'scripts.meta.recording': '当前录制缓存：{count} 个采样点，约 {duration}。',
+    'scripts.meta.empty': '当前未加载脚本。',
+    'scripts.meta.recording': '录制缓存：{count} 个采样点，约 {duration}。',
     'scripts.meta.imported': '已导入 `{name}`：{count} 个动作点，时长约 {duration}。',
     'scripts.summary.source': '当前来源',
-    'scripts.summary.points': '动作 / 采样点',
+    'scripts.summary.points': '动作/采样',
     'scripts.summary.duration': '时长',
     'scripts.summary.position': '当前位置',
     'scripts.source.empty': '未加载',
-    'scripts.source.recording': '当前录制缓存',
+    'scripts.source.recording': '录制缓存',
     'scripts.source.imported': '导入脚本',
     'scripts.timeline.source': '来源',
     'scripts.timeline.frames': '关键点数量',
@@ -211,52 +185,36 @@ const I18N = {
     'scripts.timeline.range': '时长范围',
     'scripts.timeline.preview': '当前位置',
     'monitor.params.title': '参数流',
-    'monitor.params.desc': '查看当前参数流和最近更新时间。',
+    'monitor.params.desc': '实时收到的 OSC 参数。',
     'monitor.params.filter': '搜索参数路径 / 类型',
+    'monitor.chart.title': '轴位输出历史',
+    'monitor.chart.desc': 'over time',
     'monitor.logs.title': '日志',
-    'monitor.logs.desc': '查看运行日志、连接日志和配置变更记录。',
+    'monitor.logs.desc': '连接、配置与运行事件日志。',
     'monitor.logs.filter': '搜索日志关键字',
     'help.title': '帮助与文档',
-    'help.card.workflow.title': '使用顺序',
-    'help.card.workflow.body': '建议先建立连接，再进行设备测试，最后接入 VRChat 信号。',
-    'help.card.layout.title': '页面分区',
-    'help.card.layout.body': '连接、配置、设备、脚本、监控和帮助分区显示，便于快速定位功能。',
-    'help.card.mobile.title': '移动端说明',
-    'help.card.mobile.body': '在较小屏幕上会自动调整布局与导航方式。',
     'help.endpoints.title': 'HTTP / WS 端点',
     'help.links.title': '参考链接',
-    'help.links.desc': '查看说明文档和相关外部资料。',
+    'help.links.desc': '相关文档与外部参考资料。',
     'help.links.tcodeSpec': 'TCode 轴、命令和扩展项的公开规范。',
     'help.links.osr': '固件参考实现，适合对照轴向与实时控制语义。',
-    'help.links.emu': '适合对照 TCode 的 `Ixxxx` / `Sxxxx` 行为与姿态模型。',
+    'help.links.emu': '适合对照 TCode 的 Ixxxx / Sxxxx 行为与姿态模型。',
     'help.links.vsp': '补充说明串口连接、设备准备与测试流程。',
-    'legend.l0': 'L0：主冲程',
-    'legend.r': 'R0 / R1 / R2：姿态与扭转',
-    'legend.lateral': 'L1 / L2：横移与偏摆',
     'label.loop': 'Loop',
-    'label.emergency': 'Emergency',
     'label.params': '参数数量',
     'label.recording': '录制',
     'label.manual': '手动测试',
     'label.output': '输出',
-    'label.devices': '设备',
     'label.port': '端口',
     'label.mode': '模式',
-    'label.engine': '引擎',
-    'label.address': '地址',
-    'label.connectedCount': '已连接 {count} 台',
-    'label.none': '无',
-    'label.noDevices': '暂无设备',
-    'label.auto': '自动连接',
+    'label.frames': '帧数',
+    'label.mock': 'Mock 预览',
+    'label.real': '真实设备',
     'label.on': '开',
     'label.off': '关',
     'label.speed': '速度模式',
     'label.interval': '时间模式',
-    'label.managed': '托管',
-    'label.external': '外部',
-    'label.frames': '帧数',
-    'label.mock': 'Mock 预览',
-    'label.real': '真实设备',
+    'label.none': '无',
     'status.running': '运行中',
     'status.stopped': '已停止',
     'status.connected': '已连接',
@@ -269,8 +227,6 @@ const I18N = {
     'status.disabled': '未启用',
     'status.wsConnected': 'WS 已连接',
     'status.wsDisconnected': 'WS 未连接',
-    'status.none': '暂无',
-    'status.mocking': 'Mock 中',
     'toast.refreshFailed': '刷新失败',
     'toast.refreshSuccess': '状态已刷新',
     'toast.saved': '配置已保存',
@@ -283,93 +239,56 @@ const I18N = {
     'toast.themeChanged': '主题已切换',
     'toast.langChanged': '界面语言已切换',
     'toast.portsRefreshed': '串口列表已刷新',
-    'toast.copyFailed': '复制失败，请手动复制。',
-    'toast.mockChanged': 'Mock 设备显示状态已切换',
-    'toast.memorySaved': '设备配置记忆已保存',
-    'toast.memoryCleared': '设备配置记忆已重置',
     'toast.scriptLoaded': '脚本已加载',
     'toast.scriptCleared': '脚本预览已清空',
     'toast.scriptFailed': '脚本加载失败',
-    'msg.saved': '当前配置已写入本地磁盘。',
-    'msg.applied': '配置已应用并写入文件。',
+    'toast.deviceCfgSaved': '设备配置已保存',
+    'toast.deviceCfgLoaded': '已读取保存的配置',
+    'msg.saved': '配置已写入磁盘。',
+    'msg.applied': '配置已应用并保存。',
     'msg.signalAdded': '请填写 OSC Path 并选择合适的 Role。',
     'msg.noRecording': '没有可导出的录制数据',
     'msg.diagCopied': '诊断摘要已复制。',
-    'msg.themeChanged': '新的配色已经生效。',
-    'msg.langChanged': '当前界面文案已按所选语言刷新。',
-    'msg.portsRefreshed': '可用 COM 口已重新枚举。',
-    'msg.mockChanged': 'Mock 设备显示状态已更新。',
-    'msg.memorySaved': '设备备注已保存到本地。',
-    'msg.memoryCleared': '设备备注已清除。',
-    'msg.scriptLoaded': '脚本已加载，可进行预览。',
-    'msg.scriptCleared': '脚本预览已清空。',
-    'msg.scriptInvalid': '文件不是有效的 `.funscript` JSON，或缺少 actions 数组。',
-    'msg.actionReportedFailure': '服务返回了失败状态，请查看日志或诊断信息。',
-    'msg.intifaceConnectFailed': 'Intiface 连接失败，请检查 Intiface Central、WebSocket 地址或 intiface-engine。',
     'msg.tcodeConnectFailed': 'TCode 连接失败，请检查 COM 口、驱动、串口占用和设备供电。',
+    'msg.actionReportedFailure': '服务返回失败状态，请查看日志。',
+    'msg.scriptInvalid': '不是有效的 .funscript JSON，或缺少 actions 数组。',
+    'msg.portsRefreshed': '可用 COM 口已重新枚举。',
+    'msg.deviceCfgSaved': '设备参数已保存到本地。再次连接时可一键读取。',
+    'msg.deviceCfgLoaded': '已读取该设备已保存的参数配置。',
     'diag.loopStopped.title': 'Loop 当前未运行',
-    'diag.loopStopped.body': '不会继续向设备发送融合后的命令。若这是意外情况，请点击“启动 Loop”。',
+    'diag.loopStopped.body': '不会继续向设备发送融合命令。点击「启动 Loop」恢复。',
     'diag.emergency.title': 'Emergency Stop 已触发',
-    'diag.emergency.body': '设备输出会被强制压制。确认安全后可清除紧急停止。',
-    'diag.engineMissing.title': '未找到内置 Intiface 引擎',
-    'diag.engineMissing.body': '如果你依赖 Buttplug 设备，请放置 intiface-engine.exe，或关闭内置托管并手动启动 Intiface Central。',
+    'diag.emergency.body': '设备输出被强制压制。确认安全后可清除紧急停止。',
     'diag.tcodeMissing.title': 'TCode 自动连接已启用但未连接',
-    'diag.tcodeMissing.body': '请确认 COM 口正确、串口未被占用，并可用“连接”页按钮手动重连。',
+    'diag.tcodeMissing.body': '请确认 COM 口正确、未被占用，可在「配置」页手动重连。',
     'diag.oscMissing.title': '尚未收到 OSC 参数',
-    'diag.oscMissing.body': '检查 VRChat 是否启用 OSC、端口是否为 9001、以及当前头像是否确实带有 Sensa 组件。',
+    'diag.oscMissing.body': '检查 VRChat OSC 是否启用、端口是否为 9001，以及头像是否带有 Sensa 组件。',
     'diag.ok.title': '运行状态良好',
     'diag.ok.body': '当前没有发现明显的连接或运行问题。',
-    'recording.summary': '当前录制状态：{state}，累计 {count} 帧。',
+    'recording.summary': '录制状态：{state}，累计 {count} 帧。',
     'recording.active': '录制中',
     'recording.inactive': '未录制',
     'ws.disconnected': 'WS 未连接',
-    'tip.refresh': '立即重新拉取全部状态与配置',
-    'tip.lang': '切换中文 / English',
-    'tip.theme': '切换主题',
-    'tip.tcode.comPort': '填写设备的串口号，如 COM3 或 COM7。可点右侧"刷新"按钮列出可用串口。',
-    'tip.tcode.minPos': '轴向最小位置 (0–999)，对应行程下端。默认通常为 100。',
-    'tip.tcode.maxPos': '轴向最大位置 (0–999)，对应行程上端。默认通常为 900。',
-    'tip.tcode.maxVel': '每帧最大移动量（速度上限），防止机械零件运动过快。数值越小越安全。',
-    'tip.tcode.ups': '每秒向设备发送命令的频率。建议 50–100，过高可能导致丢帧或串口拥塞。',
-    'tip.tcode.enabled': '勾选后服务启动时自动尝试连接到指定串口，无需手动操作。',
-    'tip.tcode.speedMode': '发送速度指令 (Ixxxx) 代替绝对位置指令 (Lxxxx)，适合支持插值平滑的固件。',
-    'tip.tcode.l0inv': '将 L0 输出取反（0 ↔ 1），适合设备倒置安装或轴向与预期相反时使用。',
-    'tip.intiface.wsAddr': 'Intiface Central 或内置引擎的 WebSocket 地址，默认 ws://localhost:12345。',
-    'tip.intiface.port': '内置 intiface-engine 监听的端口，需与 WebSocket 地址中的端口保持一致。',
-    'tip.intiface.enabled': '勾选后服务启动时自动连接 Intiface，否则需在连接页手动操作。',
-    'tip.intiface.manage': '由 Sensa 启动和管理内置 intiface-engine 进程，否则请手动运行 Intiface Central。',
-    'tip.webui.host': '服务绑定的 IP 地址。127.0.0.1 仅本机访问；0.0.0.0 允许局域网设备访问。',
-    'tip.webui.port': 'WebUI HTTP 端口。修改后需重启服务，并同步更新浏览器地址栏中的端口号。',
-    'tip.osc.port': '接收 VRChat OSC 数据的 UDP 端口。VRChat 默认发送到 9001，需与此处一致。',
-    'tip.safety.cap': '全局强度上限 (0.0–1.0)，所有设备的输出都不会超过此值。建议不超过 0.8。',
-    'tip.safety.ramp': '启动时输出从零渐增到目标值所需的毫秒数，防止突然全速启动带来机械冲击。',
-    'tip.safety.idle': 'Loop 停止或长时间无信号时的设备行为：保持末尾位置，还是自动回中。',
-    'tip.safety.estop': '全局紧急停止热键。建议配置一个键盘快捷键，发生意外时迅速停止所有输出。留空则禁用热键功能。',
-    'tip.rhythm.enabled': '开启后根据 OSC 信号的变化频率自动估算节拍 BPM，用于节奏同步场景。',
-    'tip.rhythm.window': 'BPM 计算的历史时间窗口（毫秒）。越大越稳定，但对节奏变化的响应滞后越大。',
-    'tip.rhythm.minBpm': 'BPM 识别的最低值，低于此值的节奏会被忽略。',
-    'tip.rhythm.maxBpm': 'BPM 识别的最高值，高于此值的节奏会被忽略。',
+    'tip.tcode.comPort': '填写设备串口号，如 COM3。可点「刷新」枚举可用串口。',
+    'tip.tcode.minPos': '输出下限（0–999），对应行程底端。默认 100。',
+    'tip.tcode.maxPos': '输出上限（0–999），对应行程顶端。默认 900。',
+    'tip.tcode.maxVel': '每帧最大移动量（速度上限）。越小越安全，越大动作越快。',
+    'tip.tcode.ups': '每秒向设备发送命令的频率。建议 50–100。',
+    'tip.tcode.enabled': '服务启动时自动连接到指定串口。',
+    'tip.tcode.speedMode': '发送速度指令 (Ixxxx) 代替位置指令 (Lxxxx)。需固件支持。',
     'tip.stat.loop': 'Loop 是主处理循环，运行时才向设备下发融合后的命令。',
-    'tip.stat.emergency': '紧急停止状态。触发后所有设备输出被强制归零，需手动清除后才能恢复。',
-    'tip.stat.bpm': '当前由 OSC 信号变化推算出的节拍 BPM，0 表示未检测到节奏。',
-    'tip.stat.params': '当前通过 OSC 收到并更新过的参数总数。为 0 时检查 VRChat OSC 设置。',
+    'tip.stat.bpm': '由 OSC 信号变化推算出的节拍 BPM，0 表示未检测到节奏。',
+    'tip.stat.params': '当前通过 OSC 收到并更新的参数总数。',
     'tip.stat.oscPort': '当前监听 VRChat OSC 数据的 UDP 端口。',
-    'tip.stat.tcode': 'TCode 串口设备的连接状态及当前使用的串口号。',
-    'tip.stat.intiface': 'Intiface / Buttplug 的连接状态及当前已发现的设备数量。',
-    'tip.stat.recording': 'L0 输出录制状态及已录制的帧数。可在脚本页导出为 .funscript。',
-    'tip.stat.manual': '手动覆盖状态。启用后设备接受手动测试值而非 OSC 信号。',
-    'tip.stat.output': '当前各轴的实时输出值。L0=主轴, R0=翻滚, V=振动。',
-    'devices.test.hint': '拖动以下滑块可手动控制各轴位置。勾选「启用手动覆盖」，然后点击「应用手动测试」将命令发送至设备。测试结束后点击「清除手动测试」恢复正常 OSC 驱动模式。',
+    'tip.stat.tcode': 'TCode 串口设备的连接状态。',
+    'tip.stat.recording': 'L0 输出录制状态。可在脚本页导出为 .funscript。',
+    'tip.stat.manual': '手动覆盖状态。启用后设备接受手动测试值。',
+    'tip.stat.output': '当前各轴的实时输出值。',
   },
   en: {
-    'hero.desc': 'Local console for connections, configuration, device control, scripts, and runtime monitoring.',
-    'btn.refresh': 'Refresh State',
+    'hero.desc': 'Local console for TCode serial device connection, configuration, and real-time control.',
+    'btn.refresh': 'Refresh',
     'btn.save': 'Save Config',
-    'btn.startLoop': 'Start Loop',
-    'btn.stopLoop': 'Stop Loop',
-    'btn.emergencyStop': 'Emergency Stop',
-    'btn.clearEmergency': 'Clear Emergency',
-    'btn.copyDiag': 'Copy Diagnostics',
     'btn.apply': 'Apply & Save',
     'btn.reloadConfig': 'Reload',
     'btn.addSignal': 'Add Signal',
@@ -377,55 +296,46 @@ const I18N = {
     'btn.connectTCode': 'Connect TCode',
     'btn.disconnectTCode': 'Disconnect TCode',
     'btn.parkTCode': 'Park TCode',
-    'btn.connectIntiface': 'Connect Intiface',
-    'btn.disconnectIntiface': 'Disconnect Intiface',
-    'btn.scanStart': 'Start Scan',
-    'btn.scanStop': 'Stop Scan',
+    'btn.park': 'Park',
+    'btn.startLoop': 'Start Loop',
+    'btn.stopLoop': 'Stop Loop',
     'btn.startRecording': 'Start Recording',
     'btn.stopRecording': 'Stop Recording',
     'btn.exportFunscript': 'Export .funscript',
-    'btn.toggleMock': 'Toggle Mock Device Preview',
-    'btn.saveDeviceConfig': 'Save Config',
-    'btn.resetDeviceConfig': 'Reset Config',
+    'btn.saveDeviceCfg': 'Save Device Config',
+    'btn.loadDeviceCfg': 'Load Saved',
     'btn.applyManual': 'Apply Manual Test',
     'btn.clearManual': 'Clear Manual Test',
+    'btn.copyDiag': 'Copy Diagnostics',
+    'btn.centerAxes': 'Center All Axes',
     'cb.manualEnabled': 'Enable Manual Override',
     'cb.gateOpen': 'GateOpen',
     'nav.overview': 'Overview',
-    'nav.connections': 'Connections',
     'nav.config': 'Config',
     'nav.devices': 'Devices',
+    'nav.control': 'Control',
     'nav.scripts': 'Scripts',
     'nav.monitoring': 'Monitoring',
     'nav.help': 'Help',
     'overview.title': 'Overview',
-    'overview.desc': 'View the current runtime state, connections, and main output.',
     'overview.badge': 'Current status',
     'overview.status': 'Service Status',
     'overview.diag': 'Live Diagnostics',
-    'overview.diagDesc': 'Shows current runtime status and active warnings.',
-    'overview.preview': 'Pose Preview',
-    'overview.previewDesc': 'Shows current output pose and major axis status.',
+    'overview.diagDesc': 'Current runtime status and active warnings.',
     'overview.devices.title': 'Connected Device Overview',
-    'overview.devices.desc': 'Real connected devices are shown here first.',
+    'overview.devices.desc': 'Real connected devices shown first.',
     'overview.guide.none.title': 'No connected devices',
-    'overview.guide.none.body': 'Open the Connections tab first, then continue with testing on the Devices tab.',
+    'overview.guide.none.body': 'Go to Config to connect your TCode device, then test in Devices.',
     'overview.guide.connected.title': 'A device path is available',
-    'overview.guide.connected.body': 'Use the Devices tab for testing, or Monitoring to inspect parameters and logs.',
-    'overview.guide.osc.title': 'OSC has not arrived yet',
-    'overview.guide.osc.body': 'No OSC parameters have been received yet. Device testing can still continue.',
-    'connections.title': 'Connection Center',
-    'connections.desc': 'Manage TCode and Intiface connection settings and connection state here.',
-    'connections.filter.all': 'All',
-    'connections.tcode.title': 'Serial Connection',
-    'connections.tcode.desc': 'For OSR2 / SR6 / OSR6 style serial devices. Device-specific connection settings stay in one focused card.',
-    'connections.intiface.title': 'Buttplug Connection',
-    'connections.intiface.desc': 'For Intiface Central or embedded engine workflows. Scan, connect, and address settings live together.',
-    'connections.intiface.note': 'On machines without an Intiface environment this should fail clearly instead of pretending success.',
+    'overview.guide.connected.body': 'Use the Control tab for manual testing or start Loop for live output.',
+    'overview.guide.osc.title': 'No OSC parameters yet',
+    'overview.guide.osc.body': 'Check VRChat OSC settings, confirm port 9001, and verify the avatar has Sensa components.',
+    'config.tcode.title': 'TCode Serial Connection',
+    'config.tcode.desc': 'For OSR2 / SR6 / OSR6 style TCode devices.',
     'config.service.title': 'Service Configuration',
-    'config.service.desc': 'Configure service host, port, and receiver port settings.',
-    'config.processing.title': 'Processing Chain',
-    'config.processing.desc': 'Configure safety limits, idle behavior, and rhythm detection settings.',
+    'config.service.desc': 'Manage host, port, and OSC port settings.',
+    'config.safety.title': 'Safety & Limits',
+    'config.safety.desc': 'Global intensity cap, idle behavior, and emergency stop hotkey.',
     'cfg.webui.host': 'Host',
     'cfg.webui.port': 'Port',
     'cfg.osc.port': 'ReceiverPort',
@@ -436,22 +346,17 @@ const I18N = {
     'cfg.tcode.ups': 'UpdatesPerSecond',
     'cfg.tcode.enabled': 'Enable TCode auto-connect',
     'cfg.tcode.speedMode': 'Prefer speed mode',
-    'cfg.tcode.l0inv': 'Invert L0',
     'cfg.tcode.refreshPorts': 'Refresh',
-    'cfg.intiface.wsAddr': 'WebSocket Address',
-    'cfg.intiface.port': 'Port',
-    'cfg.intiface.enabled': 'Enable Intiface auto-connect',
-    'cfg.intiface.manage': 'Manage intiface-engine',
     'cfg.safety.cap': 'GlobalIntensityCap',
     'cfg.safety.ramp': 'RampUpMs',
-    'cfg.safety.idle': 'Idle',
+    'cfg.safety.idle': 'Idle Behavior',
     'cfg.safety.estop': 'EmergencyStopKey',
     'cfg.rhythm.enabled': 'Enable BPM detection',
     'cfg.rhythm.window': 'WindowMs',
     'cfg.rhythm.minBpm': 'MinBpm',
     'cfg.rhythm.maxBpm': 'MaxBpm',
     'signals.title': 'Signal Matrix',
-    'signals.desc': 'Edit signal paths, roles, and curve mappings in one place.',
+    'signals.desc': 'Edit signal paths, roles, and curve mappings.',
     'signals.filter': 'Search OSC path or role',
     'sig.oscPath': 'OSC Path',
     'sig.role': 'Role',
@@ -462,44 +367,47 @@ const I18N = {
     'sig.dz': 'Dead Zone',
     'sig.inv': 'Invert',
     'sig.latest': 'Latest',
-    'devices.title': 'Devices',
-    'devices.desc': 'View connected devices and run device-specific actions and tests.',
-    'devices.test.title': 'Device Test Bench',
-    'devices.test.desc': 'Run manual tests here and review current device capabilities.',
-    'devices.test.badge': 'Supports mock layout checks',
-    'devices.ops.title': 'Device Operations',
-    'devices.ops.desc': 'Park, loop control, emergency stop, and manual tests are grouped here.',
-    'devices.ops.badge': 'Quick actions',
-    'devices.recording.title': 'Recording & Export',
-    'devices.recording.desc': 'Recording results can be viewed and exported from the Scripts tab.',
-    'devices.recording.hint': 'Export uses trajectory simplification automatically.',
-    'devices.empty.title': 'No real connected devices right now',
-    'devices.empty.body': 'Enable mock preview to inspect the layout without hardware, or go back to the Connections tab and establish a real link first.',
-    'devices.memory.title': 'Device Config',
-    'devices.memory.none': 'No local note has been saved for this device yet.',
+    'devices.title': 'Device Workbench',
+    'devices.desc': 'Device parameter configuration and quick actions.',
+    'devices.test.title': 'Manual Test',
+    'devices.test.desc': 'Test device axis responses without a live VRChat signal.',
+    'devices.range.title': 'Output Range',
+    'devices.range.desc': 'Device travel limits (TCode 0–999).',
+    'devices.params.title': 'Device Parameters',
+    'devices.params.maxVel': 'MaxVelocity (speed cap)',
+    'devices.params.ups': 'UpdatesPerSecond (frame rate)',
+    'devices.params.ramp': 'RampUpMs (startup ramp)',
+    'devices.empty.title': 'No real connected devices',
+    'devices.empty.body': 'Use ?mock URL parameter for mock preview, or go to Config to connect a device.',
+    'devices.memory.title': 'Device Note',
+    'devices.memory.none': 'No note saved for this device.',
     'devices.memory.saved': 'Saved at {time}',
     'devices.alias': 'Device Alias',
     'devices.note': 'Device Note',
     'devices.profile': 'Connection Snapshot',
-    'devices.quickActions': 'Quick Actions',
-    'devices.capabilities': 'Capability Summary',
-    'devices.mock.enabled': 'Mock preview is enabled. Two simulated device cards are shown now.',
-    'devices.mock.disabled': 'Only real connected devices are shown.',
-    'devices.manual.title': 'Manual Functional Test',
-    'devices.manual.desc': 'Manual override remains unified here, while device-specific cards only show actions that the target device can actually understand.',
-    'scripts.title': 'Scripts',
-    'scripts.desc': 'Recording, export, import, and preview playback are grouped here.',
+    'control.title': 'Live Control',
+    'control.desc': 'Manually adjust axis positions and parameters.',
+    'control.axes.title': 'Axis Control',
+    'control.axes.running': 'Loop is running — showing live read-only output. Stop Loop to enable manual control.',
+    'control.axes.stopped': 'Loop is stopped. Drag sliders to set axis positions, then click Apply.',
+    'control.bpm.title': 'BPM Rhythm Detection',
+    'control.bpm.desc': 'Estimates BPM from OSC signal variation frequency.',
+    'control.invert.title': 'L0 Axis Invert',
+    'control.invert.desc': 'Inverts L0 output (0↔1). Requires saving config.',
+    'control.manual.title': 'Manual Override',
+    'control.manual.desc': 'When enabled, slider values are sent directly to the device instead of OSC signals.',
+    'scripts.title': 'Script Studio',
     'scripts.badge': 'Script Studio',
     'scripts.recording.title': 'Recording & Export',
-    'scripts.recording.desc': 'Capture the live L0 output and export it as a `.funscript` when the recording is done.',
-    'scripts.recording.hint': 'Export uses trajectory simplification automatically. Preview playback does not control devices directly.',
+    'scripts.recording.desc': 'Capture live L0 output and export as .funscript.',
+    'scripts.recording.hint': 'Export uses trajectory simplification. Preview does not control devices.',
     'scripts.import.title': 'Import & Source',
-    'scripts.import.desc': 'Use the current recording buffer directly, or import a local `.funscript` file.',
-    'scripts.import.file': 'Choose a `.funscript` file',
+    'scripts.import.desc': 'Use the recording buffer or import a .funscript file.',
+    'scripts.import.file': 'Choose .funscript file',
     'scripts.import.useRecording': 'Use current recording buffer',
     'scripts.import.clear': 'Clear preview',
-    'scripts.player.title': 'Script Preview Playback',
-    'scripts.player.desc': 'Use this section to review rhythm, density, and timeline position.',
+    'scripts.player.title': 'Script Preview',
+    'scripts.player.desc': 'Waveform inspection only — does not control devices.',
     'scripts.player.play': 'Play',
     'scripts.player.pause': 'Pause',
     'scripts.player.stop': 'Stop',
@@ -507,11 +415,11 @@ const I18N = {
     'scripts.player.playing': 'Playing',
     'scripts.player.paused': 'Paused',
     'scripts.timeline.title': 'Timeline Summary',
-    'scripts.timeline.desc': 'Shows source, count, duration, and other summary details.',
-    'scripts.timeline.empty': 'No script data is available.',
-    'scripts.meta.empty': 'No script data is loaded.',
-    'scripts.meta.recording': 'Current recording buffer: {count} sampled points over about {duration}.',
-    'scripts.meta.imported': 'Imported `{name}`: {count} action points over about {duration}.',
+    'scripts.timeline.desc': 'Source, frame count, and duration.',
+    'scripts.timeline.empty': 'No script data available.',
+    'scripts.meta.empty': 'No script data loaded.',
+    'scripts.meta.recording': 'Recording buffer: {count} samples over about {duration}.',
+    'scripts.meta.imported': 'Imported `{name}`: {count} action points, about {duration}.',
     'scripts.summary.source': 'Current source',
     'scripts.summary.points': 'Actions / samples',
     'scripts.summary.duration': 'Duration',
@@ -525,52 +433,36 @@ const I18N = {
     'scripts.timeline.range': 'Duration range',
     'scripts.timeline.preview': 'Current position',
     'monitor.params.title': 'Parameter Stream',
-    'monitor.params.desc': 'View the current parameter stream and latest update times.',
+    'monitor.params.desc': 'Live OSC parameters received.',
     'monitor.params.filter': 'Search parameter path / type',
+    'monitor.chart.title': 'Axis Output History',
+    'monitor.chart.desc': 'over time',
     'monitor.logs.title': 'Logs',
-    'monitor.logs.desc': 'View runtime logs, connection logs, and configuration changes.',
+    'monitor.logs.desc': 'Connection, config, and runtime event logs.',
     'monitor.logs.filter': 'Search logs',
     'help.title': 'Help & Documentation',
-    'help.card.workflow.title': 'Usage order',
-    'help.card.workflow.body': 'Create a connection first, then test devices, and finally connect live VRChat signals.',
-    'help.card.layout.title': 'Page sections',
-    'help.card.layout.body': 'Connections, config, devices, scripts, monitoring, and help are separated for quicker access.',
-    'help.card.mobile.title': 'Mobile note',
-    'help.card.mobile.body': 'The layout and navigation adapt automatically on smaller screens.',
     'help.endpoints.title': 'HTTP / WS Endpoints',
     'help.links.title': 'Reference Links',
-    'help.links.desc': 'View documentation and related external references.',
-    'help.links.tcodeSpec': 'Public documentation for TCode axes, commands, and extension terms.',
-    'help.links.osr': 'Firmware reference implementations for axis naming and real-time behavior.',
-    'help.links.emu': 'Useful for comparing `Ixxxx` / `Sxxxx` behavior and pose expectations.',
-    'help.links.vsp': 'Additional guidance for serial setup, device preparation, and testing flow.',
-    'legend.l0': 'L0: Main stroke',
-    'legend.r': 'R0 / R1 / R2: Pose & Twist',
-    'legend.lateral': 'L1 / L2: Lateral Offsets',
+    'help.links.desc': 'Documentation and related external resources.',
+    'help.links.tcodeSpec': 'Public spec for TCode axes, commands, and extension terms.',
+    'help.links.osr': 'Firmware reference for axis naming and real-time behavior.',
+    'help.links.emu': 'Useful for comparing Ixxxx / Sxxxx behavior and pose models.',
+    'help.links.vsp': 'Additional guidance for serial setup, device prep, and testing.',
     'label.loop': 'Loop',
-    'label.emergency': 'Emergency',
     'label.params': 'Parameters',
     'label.recording': 'Recording',
     'label.manual': 'Manual',
     'label.output': 'Output',
-    'label.devices': 'Devices',
     'label.port': 'Port',
     'label.mode': 'Mode',
-    'label.engine': 'Engine',
-    'label.address': 'Address',
-    'label.connectedCount': '{count} connected',
-    'label.none': 'None',
-    'label.noDevices': 'No devices',
-    'label.auto': 'Auto-connect',
+    'label.frames': 'Frames',
+    'label.mock': 'Mock Preview',
+    'label.real': 'Real Device',
     'label.on': 'On',
     'label.off': 'Off',
     'label.speed': 'Speed Mode',
     'label.interval': 'Interval Mode',
-    'label.managed': 'Managed',
-    'label.external': 'External',
-    'label.frames': 'Frames',
-    'label.mock': 'Mock Preview',
-    'label.real': 'Real Device',
+    'label.none': 'None',
     'status.running': 'Running',
     'status.stopped': 'Stopped',
     'status.connected': 'Connected',
@@ -583,12 +475,10 @@ const I18N = {
     'status.disabled': 'Disabled',
     'status.wsConnected': 'WS Connected',
     'status.wsDisconnected': 'WS Offline',
-    'status.none': 'None',
-    'status.mocking': 'Mocking',
     'toast.refreshFailed': 'Refresh failed',
     'toast.refreshSuccess': 'State refreshed',
-    'toast.saved': 'Configuration saved',
-    'toast.applied': 'Configuration saved',
+    'toast.saved': 'Config saved',
+    'toast.applied': 'Config saved',
     'toast.actionSuccess': 'Action completed',
     'toast.actionFailed': 'Action failed',
     'toast.signalAdded': 'Signal added',
@@ -597,107 +487,78 @@ const I18N = {
     'toast.themeChanged': 'Theme changed',
     'toast.langChanged': 'Language changed',
     'toast.portsRefreshed': 'Serial ports refreshed',
-    'toast.copyFailed': 'Copy failed. Please copy manually.',
-    'toast.mockChanged': 'Mock preview toggled',
-    'toast.memorySaved': 'Remembered configuration saved',
-    'toast.memoryCleared': 'Remembered configuration cleared',
     'toast.scriptLoaded': 'Script loaded',
     'toast.scriptCleared': 'Script preview cleared',
     'toast.scriptFailed': 'Script load failed',
-    'msg.saved': 'The current configuration has been written to disk.',
-    'msg.applied': 'Configuration was applied and written to disk.',
-    'msg.signalAdded': 'Fill in the OSC path and choose an appropriate role.',
+    'toast.deviceCfgSaved': 'Device config saved',
+    'toast.deviceCfgLoaded': 'Saved config loaded',
+    'msg.saved': 'Config written to disk.',
+    'msg.applied': 'Config applied and saved.',
+    'msg.signalAdded': 'Fill in the OSC path and choose a role.',
     'msg.noRecording': 'No recording data available',
     'msg.diagCopied': 'Diagnostics summary copied.',
-    'msg.themeChanged': 'The new theme is now active.',
-    'msg.langChanged': 'Visible copy has been refreshed in the selected language.',
-    'msg.portsRefreshed': 'Available COM ports were enumerated again.',
-    'msg.mockChanged': 'Mock device visibility updated.',
-    'msg.memorySaved': 'Device note saved locally.',
-    'msg.memoryCleared': 'Device note cleared.',
-    'msg.scriptLoaded': 'Script loaded and ready for preview.',
-    'msg.scriptCleared': 'Script preview cleared.',
-    'msg.scriptInvalid': 'The file is not a valid `.funscript` JSON document or it is missing an actions array.',
-    'msg.actionReportedFailure': 'The service reported a failed action. Check logs or diagnostics.',
-    'msg.intifaceConnectFailed': 'Intiface connection failed. Check Intiface Central, the WebSocket address, or intiface-engine.',
-    'msg.tcodeConnectFailed': 'TCode connection failed. Check the COM port, driver, contention, and device power.',
+    'msg.tcodeConnectFailed': 'TCode connection failed. Check COM port, driver, contention, and device power.',
+    'msg.actionReportedFailure': 'The service reported a failure. Check logs.',
+    'msg.scriptInvalid': 'Not a valid .funscript JSON or missing actions array.',
+    'msg.portsRefreshed': 'Available COM ports were re-enumerated.',
+    'msg.deviceCfgSaved': 'Device parameters saved locally. Load on next connect.',
+    'msg.deviceCfgLoaded': 'Loaded saved parameters for this device.',
     'diag.loopStopped.title': 'Loop is not running',
-    'diag.loopStopped.body': 'No fused commands are being sent to devices. Click “Start Loop” if this is unexpected.',
+    'diag.loopStopped.body': 'No fused commands are being sent. Click Start Loop if this is unexpected.',
     'diag.emergency.title': 'Emergency Stop is active',
-    'diag.emergency.body': 'Device output is being clamped for safety. Clear the emergency stop when it is safe to resume.',
-    'diag.engineMissing.title': 'Embedded Intiface engine not found',
-    'diag.engineMissing.body': 'If you rely on Buttplug devices, place intiface-engine.exe locally or disable engine management and run Intiface Central manually.',
+    'diag.emergency.body': 'Device output is clamped. Clear the emergency stop when safe to resume.',
     'diag.tcodeMissing.title': 'TCode auto-connect is enabled but not connected',
-    'diag.tcodeMissing.body': 'Check that the COM port is correct, the port is free, and then retry from the Connections page.',
+    'diag.tcodeMissing.body': 'Check COM port, ensure it is free, then retry from Config.',
     'diag.oscMissing.title': 'No OSC parameters received yet',
-    'diag.oscMissing.body': 'Check VRChat OSC, confirm port 9001, and verify that the current avatar really contains Sensa components.',
+    'diag.oscMissing.body': 'Check VRChat OSC, confirm port 9001, verify avatar has Sensa components.',
     'diag.ok.title': 'System looks healthy',
-    'diag.ok.body': 'No obvious runtime or connection problems were detected.',
-    'recording.summary': 'Recording status: {state}, total {count} frames.',
+    'diag.ok.body': 'No obvious connection or runtime problems detected.',
+    'recording.summary': 'Recording: {state}, {count} frames.',
     'recording.active': 'Recording',
     'recording.inactive': 'Not recording',
     'ws.disconnected': 'WS Offline',
-    'tip.refresh': 'Fetch the latest service state and configuration',
-    'tip.lang': 'Toggle Chinese / English',
-    'tip.theme': 'Cycle theme',
     'tip.tcode.comPort': 'Serial port for the device, e.g. COM3. Click Refresh to list available ports.',
-    'tip.tcode.minPos': 'Minimum axis position (0–999), bottom of the travel range. Usually 100.',
-    'tip.tcode.maxPos': 'Maximum axis position (0–999), top of the travel range. Usually 900.',
-    'tip.tcode.maxVel': 'Max per-frame movement (velocity cap). Lower values protect mechanical components.',
+    'tip.tcode.minPos': 'Minimum axis position (0–999), bottom of travel. Usually 100.',
+    'tip.tcode.maxPos': 'Maximum axis position (0–999), top of travel. Usually 900.',
+    'tip.tcode.maxVel': 'Max per-frame movement (velocity cap). Lower values protect mechanics.',
     'tip.tcode.ups': 'Commands per second sent to the device. 50–100 recommended.',
-    'tip.tcode.enabled': 'Auto-connect to the specified port when the service starts.',
+    'tip.tcode.enabled': 'Auto-connect to the specified serial port on service start.',
     'tip.tcode.speedMode': 'Send speed (Ixxxx) instead of position (Lxxxx) commands. Requires interpolating firmware.',
-    'tip.tcode.l0inv': 'Invert the L0 axis (0 ↔ 1). Use when the device is mounted upside down.',
-    'tip.intiface.wsAddr': 'WebSocket address of Intiface Central or the embedded engine. Default: ws://localhost:12345.',
-    'tip.intiface.port': 'Port the embedded intiface-engine listens on. Must match the WebSocket address.',
-    'tip.intiface.enabled': 'Auto-connect to Intiface when the service starts.',
-    'tip.intiface.manage': 'Let Sensa start/stop the embedded intiface-engine. Disable if using Intiface Central manually.',
-    'tip.webui.host': 'Bind address. 127.0.0.1 = local only; 0.0.0.0 = LAN accessible.',
-    'tip.webui.port': 'HTTP port for the web interface. Restart after changing.',
-    'tip.osc.port': 'UDP port for VRChat OSC data. VRChat defaults to 9001.',
-    'tip.safety.cap': 'Global intensity cap (0–1). Device output will never exceed this. Recommended ≤ 0.8.',
-    'tip.safety.ramp': 'Milliseconds to ramp from 0 to target on startup. Prevents sudden full-speed starts.',
-    'tip.safety.idle': 'Device behavior when Loop stops or no signal arrives: hold last position or return to center.',
-    'tip.safety.estop': 'Global emergency stop hotkey. Assign a key to stop all output instantly. Leave blank to disable.',
-    'tip.rhythm.enabled': 'Detect BPM from OSC signal changes for rhythm-aware output.',
-    'tip.rhythm.window': 'BPM calculation window in ms. Larger = smoother but slower to respond.',
-    'tip.rhythm.minBpm': 'Minimum detectable BPM. Rhythms below this are ignored.',
-    'tip.rhythm.maxBpm': 'Maximum detectable BPM. Rhythms above this are ignored.',
-    'tip.stat.loop': 'Main processing loop. Must be running to send commands to devices.',
-    'tip.stat.emergency': 'Emergency stop state. When triggered, all device output is clamped to zero.',
-    'tip.stat.bpm': 'Current BPM estimated from OSC signal variation. 0 means no rhythm detected.',
-    'tip.stat.params': 'Number of OSC parameters received and updated. 0 means no OSC signal yet.',
-    'tip.stat.oscPort': 'UDP port currently listening for VRChat OSC data.',
-    'tip.stat.tcode': 'TCode serial device connection state and active COM port.',
-    'tip.stat.intiface': 'Intiface / Buttplug connection state and number of discovered devices.',
-    'tip.stat.recording': 'L0 recording state and frame count. Export as .funscript from the Scripts tab.',
-    'tip.stat.manual': 'Manual override state. When enabled, device accepts manual test values instead of OSC.',
-    'tip.stat.output': 'Current real-time axis output values. L0=stroke, R0=roll, V=vibrate.',
-    'devices.test.hint': 'Drag sliders to set each axis value manually. Check "Enable Manual Override" and click "Apply" to send to the device. Click "Clear" to return to normal OSC-driven mode.',
+    'tip.stat.loop': 'Main processing loop. Must be running to send commands.',
+    'tip.stat.bpm': 'Current BPM estimated from OSC signal variation. 0 = no rhythm.',
+    'tip.stat.params': 'Number of OSC parameters received. 0 means no OSC signal yet.',
+    'tip.stat.oscPort': 'UDP port listening for VRChat OSC data.',
+    'tip.stat.tcode': 'TCode serial device connection state.',
+    'tip.stat.recording': 'L0 recording state. Export as .funscript from Scripts tab.',
+    'tip.stat.manual': 'Manual override state. When enabled, device uses manual test values.',
+    'tip.stat.output': 'Current real-time axis output values.',
   },
 };
 
-const state = {
+// ───── REACTIVE STATE ─────────────────────────────────────────
+const appState = reactive({
   meta: null,
   config: null,
   overview: null,
-  recordingFrames: [],
   parameters: [],
   logs: [],
   serialPorts: [],
+  recordingFrames: [],
+  roles: [],
+  curves: [],
+  idleBehaviors: [],
   activeTab: localStorage.getItem('sensa.activeTab') || 'overview',
   language: localStorage.getItem('sensa.language') || 'zh-CN',
   theme: 'light',
   wsConnected: false,
   wsRetryMs: 1000,
-  filters: {
-    signals: '',
-    parameters: '',
-    logs: '',
-  },
-  connectionFilter: 'all',
-  showMockDevices: localStorage.getItem(MOCK_TOGGLE_KEY) === 'true',
-  deviceDrafts: {},
+  toastList: [], // kept for backward compat but unused
+  filters: { signals: '', parameters: '', logs: '' },
+  // Control tab
+  manual: { ...AXIS_DEFS },
+  manualEnabled: false,
+  manualGateOpen: true,
+  // Script player
   scriptPlayer: {
     source: 'empty',
     name: '',
@@ -709,81 +570,32 @@ const state = {
     baselineMs: 0,
     rafId: 0,
   },
-};
+  // Axis history for ECharts
+  axisHistory: [],
+  // Device config locally persisted
+  deviceDrafts: {},
+});
 
-const enums = {
-  roles: [],
-  curves: [],
-  idleBehaviors: [],
-};
+const TABS = [
+  { id: 'overview', label: 'nav.overview' },
+  { id: 'config', label: 'nav.config' },
+  { id: 'devices', label: 'nav.devices' },
+  { id: 'control', label: 'nav.control' },
+  { id: 'scripts', label: 'nav.scripts' },
+  { id: 'monitoring', label: 'nav.monitoring' },
+  { id: 'help', label: 'nav.help' },
+];
 
-const els = {
-  toastHost: document.getElementById('toastHost'),
-  heroTitle: document.getElementById('heroTitle'),
-  heroQuickStats: document.getElementById('heroQuickStats'),
-  wsBadge: document.getElementById('wsBadge'),
-  statusCards: document.getElementById('statusCards'),
-  diagnosticsList: document.getElementById('diagnosticsList'),
-  overviewGuide: document.getElementById('overviewGuide'),
-  overviewDeviceDeck: document.getElementById('overviewDeviceDeck'),
-  commandSummaryBadge: document.getElementById('commandSummaryBadge'),
-  connectionTcodeSummary: document.getElementById('connectionTcodeSummary'),
-  connectionIntifaceSummary: document.getElementById('connectionIntifaceSummary'),
-  signalFilterInput: document.getElementById('signalFilterInput'),
-  signalsBody: document.querySelector('#signalsTable tbody'),
-  signalTemplate: document.getElementById('signalRowTemplate'),
-  connectedDeviceDeck: document.getElementById('connectedDeviceDeck'),
-  deviceWorkbenchIntro: document.getElementById('deviceWorkbenchIntro'),
-  deviceOpsSummary: document.getElementById('deviceOpsSummary'),
-  deviceTestZone: document.getElementById('deviceTestZone'),
-  recordingInfo: document.getElementById('recordingInfo'),
-  scriptSummaryGrid: document.getElementById('scriptSummaryGrid'),
-  scriptRecordingBadge: document.getElementById('scriptRecordingBadge'),
-  scriptMeta: document.getElementById('scriptMeta'),
-  scriptCanvas: document.getElementById('scriptCanvas'),
-  scriptSeekInput: document.getElementById('scriptSeekInput'),
-  scriptStatusBadge: document.getElementById('scriptStatusBadge'),
-  scriptTimeLabel: document.getElementById('scriptTimeLabel'),
-  scriptTimelineList: document.getElementById('scriptTimelineList'),
-  parameterFilterInput: document.getElementById('parameterFilterInput'),
-  parametersBody: document.querySelector('#parametersTable tbody'),
-  logFilterInput: document.getElementById('logFilterInput'),
-  logPanel: document.getElementById('logPanel'),
-  endpointList: document.getElementById('endpointList'),
-  copyDiagnosticsBtn: document.getElementById('copyDiagnosticsBtn'),
-  langToggleBtn: document.getElementById('langToggleBtn'),
-  themeToggleBtn: document.getElementById('themeToggleBtn'),
-  refreshBtn: document.getElementById('refreshBtn'),
-  applyConfigBtn: document.getElementById('applyConfigBtn'),
-  saveConfigBtn: document.getElementById('saveConfigBtn'),
-  addSignalBtn: document.getElementById('addSignalBtn'),
-  refreshPortsBtn: document.getElementById('refreshPortsBtn'),
-  exportRecordingBtn: document.getElementById('exportRecordingBtn'),
-  mockDevicesToggleBtn: document.getElementById('mockDevicesToggleBtn'),
-  scriptFileInput: document.getElementById('scriptFileInput'),
-  useRecordingScriptBtn: document.getElementById('useRecordingScriptBtn'),
-  clearScriptBtn: document.getElementById('clearScriptBtn'),
-  scriptPlayBtn: document.getElementById('scriptPlayBtn'),
-  scriptPauseBtn: document.getElementById('scriptPauseBtn'),
-  scriptStopBtn: document.getElementById('scriptStopBtn'),
-  comPortList: document.getElementById('comPortList'),
-  canvas: document.getElementById('deviceCanvas'),
-};
-
-function qs(selector, root = document) {
-  return root.querySelector(selector);
+// ───── UTILITIES ──────────────────────────────────────────────
+function t(key, replacements = null) {
+  const table = I18N[appState.language] || I18N['zh-CN'];
+  let v = table[key] ?? I18N['zh-CN'][key] ?? key;
+  if (replacements) for (const [k, r] of Object.entries(replacements)) v = v.replaceAll(`{${k}}`, r);
+  return v;
 }
 
-function qsa(selector, root = document) {
-  return Array.from(root.querySelectorAll(selector));
-}
-
-function inputByName(name) {
-  return document.querySelector(`[name="${name}"]`);
-}
-
-function escapeHtml(value) {
-  return String(value ?? '')
+function esc(v) {
+  return String(v ?? '')
     .replaceAll('&', '&amp;')
     .replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;')
@@ -791,286 +603,81 @@ function escapeHtml(value) {
     .replaceAll("'", '&#39;');
 }
 
-function formatDuration(ms) {
-  const safe = Math.max(0, Math.round(Number(ms) || 0));
-  const totalSeconds = Math.floor(safe / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
-  const seconds = totalSeconds % 60;
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+function fmtDur(ms) {
+  const s = Math.floor(Math.max(0, ms) / 1000);
+  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function formatScriptSource(source) {
-  switch (source) {
-    case 'recording':
-      return t('scripts.source.recording');
-    case 'imported':
-      return t('scripts.source.imported');
-    default:
-      return t('scripts.source.empty');
+async function api(path, opts = {}) {
+  const r = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }, ...opts });
+  if (!r.ok) {
+    const tx = await r.text();
+    throw new Error(`${r.status} ${r.statusText} - ${tx}`);
   }
+  const ct = r.headers.get('content-type') || '';
+  return ct.includes('application/json') ? r.json() : r.text();
 }
 
-function stopScriptPlayback() {
-  const player = state.scriptPlayer;
-  player.isPlaying = false;
-  if (player.rafId) cancelAnimationFrame(player.rafId);
-  player.rafId = 0;
+function showToast(title, message, type = 'success', ms = 2800) {
+  const content = [title, message].filter(Boolean).join(': ');
+  const duration = ms;
+  if (type === 'error') TDesign.MessagePlugin.error({ content, duration });
+  else if (type === 'warn' || type === 'warning') TDesign.MessagePlugin.warning({ content, duration });
+  else TDesign.MessagePlugin.success({ content, duration });
 }
 
-function setScriptCurrentMs(ms) {
-  const player = state.scriptPlayer;
-  player.currentMs = Math.max(0, Math.min(player.durationMs || 0, Math.round(ms || 0)));
-  if (els.scriptSeekInput) {
-    const ratio = player.durationMs > 0 ? player.currentMs / player.durationMs : 0;
-    els.scriptSeekInput.value = String(Math.round(ratio * 1000));
-  }
-  renderScriptPlayer();
-}
-
-function getScriptValueAt(ms) {
-  const points = state.scriptPlayer.points || [];
-  if (!points.length) return 0;
-  let value = points[0].value;
-  for (const point of points) {
-    if (point.ms > ms) break;
-    value = point.value;
-  }
-  return value;
-}
-
-function setScriptDataset({ source, name, points, durationMs }) {
-  stopScriptPlayback();
-  state.scriptPlayer = {
-    ...state.scriptPlayer,
-    source,
-    name,
-    points,
-    durationMs: Math.max(0, Math.round(durationMs || 0)),
-    currentMs: 0,
-    isPlaying: false,
-    startedAtMs: 0,
-    baselineMs: 0,
-    rafId: 0,
-  };
-  renderScriptPlayer();
-}
-
-function useRecordingDataset() {
-  const points = (state.recordingFrames || []).map(frame => ({ ms: Number(frame.ms) || 0, value: Math.max(0, Math.min(1, Number(frame.l0) || 0)) }));
-  const durationMs = points.length ? points[points.length - 1].ms : 0;
-  setScriptDataset({ source: points.length ? 'recording' : 'empty', name: 'recording', points, durationMs });
-}
-
-function parseFunscriptText(text) {
-  const data = JSON.parse(text);
-  if (!data || !Array.isArray(data.actions)) throw new Error(t('msg.scriptInvalid'));
-  const points = data.actions
-    .map(action => ({
-      ms: Math.max(0, Math.round(Number(action.at) || 0)),
-      value: Math.max(0, Math.min(1, (Number(action.pos) || 0) / 100)),
-    }))
-    .sort((a, b) => a.ms - b.ms);
-  return {
-    points,
-    durationMs: points.length ? points[points.length - 1].ms : 0,
-  };
-}
-
-function scriptTick(now) {
-  const player = state.scriptPlayer;
-  if (!player.isPlaying) return;
-  const elapsed = now - player.startedAtMs;
-  const nextMs = player.baselineMs + elapsed;
-  if (nextMs >= player.durationMs) {
-    setScriptCurrentMs(player.durationMs);
-    stopScriptPlayback();
-    return;
-  }
-  setScriptCurrentMs(nextMs);
-  player.rafId = requestAnimationFrame(scriptTick);
-}
-
-function loadDeviceMemory() {
+function loadDeviceMem() {
   try {
     return JSON.parse(localStorage.getItem(DEVICE_MEMORY_KEY) || '{}');
   } catch {
     return {};
   }
 }
-
-function saveDeviceMemory(memory) {
-  localStorage.setItem(DEVICE_MEMORY_KEY, JSON.stringify(memory));
+function saveDeviceMem(m) {
+  localStorage.setItem(DEVICE_MEMORY_KEY, JSON.stringify(m));
+}
+function getDeviceMem(device) {
+  return loadDeviceMem()[`${device.kind}:${device.memoryId}`] || null;
+}
+function setDeviceMem(device, payload) {
+  const m = loadDeviceMem();
+  m[`${device.kind}:${device.memoryId}`] = { ...payload, savedAt: new Date().toISOString() };
+  saveDeviceMem(m);
+}
+function clearDeviceMem(device) {
+  const m = loadDeviceMem();
+  delete m[`${device.kind}:${device.memoryId}`];
+  saveDeviceMem(m);
 }
 
-function t(key, replacements = null, fallback = null) {
-  const table = I18N[state.language] || I18N['zh-CN'];
-  let value = table[key] ?? I18N['zh-CN'][key] ?? fallback ?? key;
-  if (replacements) {
-    for (const [name, replacement] of Object.entries(replacements)) {
-      value = value.replaceAll(`{${name}}`, replacement);
-    }
+function loadDeviceCfg(port) {
+  try {
+    const all = JSON.parse(localStorage.getItem(DEVICE_CONFIG_KEY) || '{}');
+    return all[port] || null;
+  } catch {
+    return null;
   }
-  return value;
+}
+function saveDeviceCfg(port, cfg) {
+  try {
+    const all = JSON.parse(localStorage.getItem(DEVICE_CONFIG_KEY) || '{}');
+    all[port] = { ...cfg, savedAt: new Date().toISOString() };
+    localStorage.setItem(DEVICE_CONFIG_KEY, JSON.stringify(all));
+  } catch {}
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
-    ...options,
-  });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`${response.status} ${response.statusText} - ${text}`);
-  }
-  const contentType = response.headers.get('content-type') || '';
-  return contentType.includes('application/json') ? response.json() : response.text();
+function axisLabel(axis) {
+  const rec = AXIS_LABELS[axis];
+  if (!rec) return axis;
+  return appState.language === 'zh-CN' ? rec.zh : rec.en;
 }
 
-function showToast(title, message, type = 'success', timeoutMs = 2800) {
-  const el = document.createElement('div');
-  el.className = `toast ${type}`;
-  el.innerHTML = `<div class="toast-title">${escapeHtml(title)}</div><div>${escapeHtml(message)}</div>`;
-  els.toastHost.appendChild(el);
-  setTimeout(() => el.remove(), timeoutMs);
-}
-
-function setLeadingTextPreservingChildren(element, text) {
-  const suffix = element.querySelector('input, select, textarea, button, datalist, output, canvas, .input-row') ? ' ' : '';
-  const textNode = Array.from(element.childNodes).find(node => node.nodeType === Node.TEXT_NODE);
-  if (textNode) {
-    textNode.textContent = `${text}${suffix}`;
-    return;
-  }
-  element.insertBefore(document.createTextNode(`${text}${suffix}`), element.firstChild);
-}
-
-function translateDocument() {
-  document.documentElement.lang = state.language;
-  qsa('[data-i18n]').forEach(element => {
-    const key = element.dataset.i18n;
-    const translated = t(key, null, null);
-    if (!translated || translated === key) return;
-    if (element.querySelector('input, select, textarea, button, datalist, output, canvas, .input-row')) {
-      setLeadingTextPreservingChildren(element, translated);
-    } else {
-      element.innerHTML = translated;
-    }
-  });
-  qsa('[data-i18n-placeholder]').forEach(element => {
-    element.setAttribute('placeholder', t(element.dataset.i18nPlaceholder, null, element.getAttribute('placeholder') || ''));
-  });
-  qsa('[data-i18n-data-tip]').forEach(element => {
-    element.dataset.tip = t(element.dataset.i18nDataTip, null, element.dataset.tip || '');
-  });
-  document.title = DEFAULT_TITLE;
-  els.heroTitle.textContent = DEFAULT_TITLE;
-  els.langToggleBtn.textContent = state.language === 'zh-CN' ? 'EN' : 'ZH';
-  els.themeToggleBtn.textContent = `◑ ${state.theme}`;
-}
-
-function applyTheme(theme) {
-  state.theme = THEMES.includes(theme) ? theme : 'light';
-  document.documentElement.dataset.theme = state.theme;
-  localStorage.setItem('sensa.theme', state.theme);
-  els.themeToggleBtn.textContent = `◑ ${state.theme}`;
-}
-
-function cycleTheme() {
-  const index = THEMES.indexOf(state.theme);
-  applyTheme(THEMES[(index + 1) % THEMES.length]);
-}
-
-function toggleLanguage() {
-  const index = LANGUAGES.indexOf(state.language);
-  state.language = LANGUAGES[(index + 1) % LANGUAGES.length];
-  localStorage.setItem('sensa.language', state.language);
-  renderAll();
-}
-
-function setActiveTab(tab) {
-  state.activeTab = tab;
-  localStorage.setItem('sensa.activeTab', tab);
-  qsa('[data-tab-panel]').forEach(panel => panel.classList.toggle('is-active', panel.dataset.tabPanel === tab));
-  qsa('.tab-button').forEach(button => button.classList.toggle('is-active', button.dataset.tabTarget === tab));
-  window.scrollTo({ top: 0, behavior: 'auto' });
-}
-
-function setWsConnected(connected) {
-  state.wsConnected = connected;
-  els.wsBadge.textContent = connected ? t('status.wsConnected') : t('status.wsDisconnected');
-  els.wsBadge.className = `badge ${connected ? 'online' : 'offline'}`;
-}
-
-function formatStatus(flag) {
-  return flag ? t('status.connected') : t('status.disconnected');
-}
-
-function fillInput(name, value) {
-  const input = inputByName(name);
-  if (!input) return;
-  if (input.type === 'checkbox') input.checked = !!value;
-  else input.value = value ?? '';
-}
-
-function readInput(name) {
-  const input = inputByName(name);
-  if (!input) return undefined;
-  if (input.type === 'checkbox') return input.checked;
-  if (input.type === 'number') return input.value === '' ? 0 : Number(input.value);
-  return input.value;
-}
-
-function populateSelect(name, values) {
-  const select = inputByName(name);
-  if (!select) return;
-  select.innerHTML = values.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-}
-
-function rememberableDeviceKey(device) {
-  return `${device.kind}:${device.memoryId}`;
-}
-
-function getRememberedConfig(device) {
-  const memory = loadDeviceMemory();
-  return memory[rememberableDeviceKey(device)] || null;
-}
-
-function rememberDeviceConfig(device, payload) {
-  const memory = loadDeviceMemory();
-  memory[rememberableDeviceKey(device)] = {
-    ...payload,
-    savedAt: new Date().toISOString(),
-  };
-  saveDeviceMemory(memory);
-}
-
-function clearRememberedConfig(device) {
-  const memory = loadDeviceMemory();
-  delete memory[rememberableDeviceKey(device)];
-  saveDeviceMemory(memory);
-}
-
-function getDeviceDraft(device) {
-  return state.deviceDrafts[rememberableDeviceKey(device)] || null;
-}
-
-function setDeviceDraft(device, patch) {
-  const key = rememberableDeviceKey(device);
-  state.deviceDrafts[key] = {
-    ...(state.deviceDrafts[key] || {}),
-    ...patch,
-  };
-}
-
-function clearDeviceDraft(device) {
-  delete state.deviceDrafts[rememberableDeviceKey(device)];
-}
-
+// ───── DEVICE BUILD ───────────────────────────────────────────
 function buildRealDevices() {
-  const devices = [];
-  if (state.overview?.tcode?.connected) {
-    const cfg = state.config?.tCode || {};
-    devices.push({
+  const devs = [];
+  if (appState.overview?.tcode?.connected) {
+    const cfg = appState.config?.tCode || {};
+    devs.push({
       id: `tcode:${cfg.comPort || 'unknown'}`,
       memoryId: cfg.comPort || 'unknown',
       kind: 'tcode',
@@ -1078,7 +685,7 @@ function buildRealDevices() {
       name: cfg.comPort ? `TCode @ ${cfg.comPort}` : 'TCode Device',
       model: cfg.comPort?.toUpperCase().includes('COM') ? 'OSR-class' : 'TCode',
       connectionLabel: 'TCode',
-      summary: '当前通过串口连接的 OSR 类设备。适合继续验证回中、速度模式与轴向。',
+      summary: '当前通过串口连接的 OSR 类设备。',
       facts: {
         port: cfg.comPort || t('label.none'),
         mode: cfg.preferSpeedMode ? t('label.speed') : t('label.interval'),
@@ -1093,1031 +700,1396 @@ function buildRealDevices() {
         maxVelocity: cfg.maxVelocity,
         updatesPerSecond: cfg.updatesPerSecond,
         preferSpeedMode: cfg.preferSpeedMode,
-        l0Invert: cfg.l0Invert,
+        rampUpMs: appState.config?.safety?.rampUpMs,
       },
     });
   }
-
-  const intifaceDevices = state.overview?.intiface?.devices || [];
-  intifaceDevices.forEach(device => {
-    devices.push({
-      id: `intiface:${device.index}:${device.name}`,
-      memoryId: `${device.index}:${device.name}`,
-      kind: 'intiface',
-      source: 'real',
-      name: device.name,
-      model: 'Buttplug Device',
-      connectionLabel: 'Intiface',
-      summary: '当前由 Intiface / Buttplug 暴露出来的真实设备。',
-      facts: {
-        position: `${device.positionFeatures} position`,
-        vibrate: `${device.vibrateFeatures} vibrate`,
-        bridge: state.config?.intiface?.manageEngineProcess ? t('label.managed') : t('label.external'),
-        state: t('status.connected'),
-      },
-      quickActions: ['scan'],
-      snapshot: {
-        websocketAddress: state.config?.intiface?.websocketAddress,
-        port: state.config?.intiface?.port,
-        enabled: state.config?.intiface?.enabled,
-        manageEngineProcess: state.config?.intiface?.manageEngineProcess,
-      },
-    });
-  });
-  return devices;
+  return devs;
 }
 
 function buildMockDevices() {
-  return MOCK_DEVICE_LIBRARY.map(mock => ({
-    ...mock,
-    source: 'mock',
-    memoryId: mock.id,
-    snapshot:
-      mock.kind === 'tcode'
-        ? {
-            comPort: 'COM-MOCK',
-            minPos: 100,
-            maxPos: 900,
-            maxVelocity: 1400,
-            updatesPerSecond: 50,
-            preferSpeedMode: true,
-            l0Invert: false,
-          }
-        : {
-            websocketAddress: 'ws://localhost:12345',
-            port: 12345,
-            enabled: true,
-            manageEngineProcess: true,
-          },
-  }));
+  return MOCK_DEVICES.map(m => ({ ...m }));
 }
 
-function getDisplayedDevices() {
-  const realDevices = buildRealDevices();
-  if (state.showMockDevices) return [...realDevices, ...buildMockDevices()];
-  return realDevices;
-}
-
-function formatSnapshot(snapshot) {
-  if (!snapshot || typeof snapshot !== 'object') return '';
-  const rows = Object.entries(snapshot)
-    .filter(([, v]) => v !== undefined && v !== null)
-    .map(([k, v]) => `<div class="snapshot-row"><span class="snapshot-key">${escapeHtml(k)}</span><span class="snapshot-val">${escapeHtml(String(v))}</span></div>`)
-    .join('');
-  return `<div class="snapshot-list">${rows}</div>`;
-}
-
-function buildDeviceCard(device, context = 'devices') {
-  const remembered = getRememberedConfig(device);
-  const draft = getDeviceDraft(device);
-  const memorySummary = remembered ? t('devices.memory.saved', { time: new Date(remembered.savedAt).toLocaleString() }) : t('devices.memory.none');
-  const factEntries = Object.entries(device.facts || {})
-    .map(([key, value]) => `<div class="fact-pill"><strong>${escapeHtml(key)}</strong><span>${escapeHtml(value)}</span></div>`)
-    .join('');
-
-  const actionButtons = [];
-  if (device.quickActions.includes('park')) {
-    actionButtons.push(`<button type="button" data-device-action="park" data-device-id="${escapeHtml(device.id)}">${escapeHtml(t('btn.park'))}</button>`);
+// ───── SCRIPT PLAYER ─────────────────────────────────────────
+function stopScriptPlayback() {
+  const p = appState.scriptPlayer;
+  p.isPlaying = false;
+  if (p.rafId) {
+    cancelAnimationFrame(p.rafId);
+    p.rafId = 0;
   }
-  if (device.quickActions.includes('scan')) {
-    actionButtons.push(`<button type="button" data-device-action="scan" data-device-id="${escapeHtml(device.id)}">${escapeHtml(t('btn.scan'))}</button>`);
+}
+
+function setScriptMs(ms) {
+  const p = appState.scriptPlayer;
+  p.currentMs = Math.max(0, Math.min(p.durationMs || 0, Math.round(ms || 0)));
+}
+
+function getScriptValAt(ms) {
+  const pts = appState.scriptPlayer.points || [];
+  if (!pts.length) return 0;
+  let v = pts[0].value;
+  for (const pt of pts) {
+    if (pt.ms > ms) break;
+    v = pt.value;
   }
-  // save/reset config actions are rendered inside the memory section below
-
-  const alias = draft?.alias ?? remembered?.alias ?? '';
-  const note = draft?.note ?? remembered?.note ?? '';
-  const classes = ['device-card', `device-card--${device.kind}`, 'positioned'];
-  if (device.source === 'mock') classes.push('device-card--mock');
-
-  const memoryBlock =
-    context === 'devices'
-      ? `
-      <div class="device-card__stack">
-        <div class="device-config-label"><strong>${escapeHtml(t('devices.memory.title'))}</strong><span class="muted">${escapeHtml(memorySummary)}</span></div>
-        <label>
-          <span>${escapeHtml(t('devices.alias'))}</span>
-          <input type="text" data-memory-field="alias" data-device-id="${escapeHtml(device.id)}" value="${escapeHtml(alias)}" />
-        </label>
-        <label>
-          <span>${escapeHtml(t('devices.note'))}</span>
-          <input type="text" data-memory-field="note" data-device-id="${escapeHtml(device.id)}" value="${escapeHtml(note)}" />
-        </label>
-        <div class="button-row">
-          <button type="button" class="primary" data-device-action="remember" data-device-id="${escapeHtml(device.id)}">${escapeHtml(t('btn.saveDeviceConfig'))}</button>
-          <button type="button" class="ghost" data-device-action="reset" data-device-id="${escapeHtml(device.id)}">${escapeHtml(t('btn.resetDeviceConfig'))}</button>
-        </div>
-        <div class="callout"><strong>${escapeHtml(t('devices.profile'))}</strong>${formatSnapshot(device.snapshot)}</div>
-      </div>`
-      : '';
-
-  const quickActionsSection = actionButtons.length
-    ? `<div class="device-card__stack">
-        <strong>${escapeHtml(t('devices.quickActions'))}</strong>
-        <div class="button-row">${actionButtons.join('')}</div>
-      </div>`
-    : '';
-
-  return `
-    <article class="${classes.join(' ')}" data-device-card="${escapeHtml(device.id)}">
-      <div class="device-card__meta">
-        <div>
-          <span class="proto-badge ${device.kind === 'tcode' ? 'tcode' : 'intiface'}">${escapeHtml(device.connectionLabel)}</span>
-          <h3>${escapeHtml(device.name)}</h3>
-          <p class="muted">${escapeHtml(device.summary)}</p>
-        </div>
-        <span class="badge ${device.source === 'mock' ? 'soft' : 'online'}">${escapeHtml(device.source === 'mock' ? t('label.mock') : t('label.real'))}</span>
-      </div>
-      <div class="device-card__facts">${factEntries}</div>
-      ${memoryBlock}
-      ${quickActionsSection}
-    </article>`;
+  return v;
 }
 
-function renderOverviewGuide(devices) {
-  const items = [];
-  if (devices.length === 0) {
-    items.push({ title: t('overview.guide.none.title'), body: t('overview.guide.none.body') });
-  } else {
-    items.push({ title: t('overview.guide.connected.title'), body: t('overview.guide.connected.body') });
-  }
-  if ((state.overview?.osc?.parameterCount || 0) === 0) {
-    items.push({ title: t('overview.guide.osc.title'), body: t('overview.guide.osc.body') });
-  }
-  els.overviewGuide.innerHTML = items.map(item => `<article class="guide-step"><strong>${escapeHtml(item.title)}</strong><div>${escapeHtml(item.body)}</div></article>`).join('');
-}
-
-function renderStatus() {
-  if (!state.overview) return;
-  const overview = state.overview;
-  const command = overview.loop.command || {};
-  const devices = buildRealDevices();
-  const cards = [
-    [t('label.loop'), overview.loop.isRunning ? t('status.running') : t('status.stopped'), overview.loop.isRunning ? 'ok' : 'warn', t('tip.stat.loop')],
-    [t('label.emergency'), overview.loop.isEmergency ? t('status.triggered') : t('status.normal'), overview.loop.isEmergency ? 'danger' : '', t('tip.stat.emergency')],
-    ['BPM', Number(overview.loop.currentBpm || 0).toFixed(1), '', t('tip.stat.bpm')],
-    [t('label.params'), String(overview.osc.parameterCount || 0), '', t('tip.stat.params')],
-    ['OSC ' + t('label.port'), String(state.config?.osc?.receiverPort || '-'), '', t('tip.stat.oscPort')],
-    ['TCode', overview.tcode.connected ? `${t('status.connected')} · ${state.config?.tCode?.comPort || '-'}` : t('status.disconnected'), overview.tcode.connected ? 'ok' : '', t('tip.stat.tcode')],
-    [
-      'Intiface',
-      overview.intiface.connected ? `${t('status.connected')} (${overview.intiface.devices.length})` : t('status.disconnected'),
-      overview.intiface.connected ? 'ok' : '',
-      t('tip.stat.intiface'),
-    ],
-    [
-      t('label.recording'),
-      overview.recording.isActive ? `${t('recording.active')} · ${overview.recording.frameCount}` : `${t('status.idle')} · ${overview.recording.frameCount}`,
-      overview.recording.isActive ? 'ok' : '',
-      t('tip.stat.recording'),
-    ],
-    [t('label.manual'), overview.loop.manualOverrideEnabled ? t('status.enabled') : t('status.disabled'), overview.loop.manualOverrideEnabled ? 'warn' : '', t('tip.stat.manual')],
-    [t('label.output'), `L0 ${Number(command.l0 ?? 0).toFixed(2)} · R0 ${Number(command.r0 ?? 0.5).toFixed(2)} · V ${Number(command.vibrate ?? 0).toFixed(2)}`, '', t('tip.stat.output')],
-  ];
-
-  els.statusCards.innerHTML = cards
-    .map(
-      ([label, value, cls, tip]) =>
-        `<div class="stat ${cls || ''}" ${tip ? `data-tip="${escapeHtml(tip)}"` : ''}><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${escapeHtml(value)}</div></div>`,
-    )
-    .join('');
-
-  const heroChips = [
-    { label: t('label.loop'), value: overview.loop.isRunning ? t('status.running') : t('status.stopped'), cls: overview.loop.isRunning ? 'ok' : '' },
-    { label: t('label.emergency'), value: overview.loop.isEmergency ? t('status.triggered') : t('status.normal'), cls: overview.loop.isEmergency ? 'danger' : '' },
-    { label: 'WS', value: state.wsConnected ? t('status.connected') : t('status.disconnected'), cls: state.wsConnected ? 'ok' : '' },
-    { label: t('label.devices'), value: devices.length ? String(devices.length) : '-', cls: '' },
-  ];
-  els.heroQuickStats.innerHTML = heroChips.map(({ label, value, cls }) => `<div class="quick-chip ${cls}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join('');
-
-  els.commandSummaryBadge.textContent = `L0 ${Number(command.l0 ?? 0).toFixed(2)} · R0 ${Number(command.r0 ?? 0.5).toFixed(2)} · Vib ${Number(command.vibrate ?? 0).toFixed(2)} · Gate ${command.gateOpen ? 'Open' : 'Closed'}`;
-  renderOverviewGuide(devices);
-  renderOverviewDevices(devices);
-  renderConnectionSummaries();
-  renderRecordingSummary();
-  renderDiagnostics();
-  drawDevice(command);
-}
-
-function renderOverviewDevices(devices) {
-  if (!devices.length) {
-    els.overviewDeviceDeck.innerHTML = `<div class="empty-state"><strong>${escapeHtml(t('devices.empty.title'))}</strong><div>${escapeHtml(t('devices.empty.body'))}</div></div>`;
-    return;
-  }
-  els.overviewDeviceDeck.innerHTML = devices.map(device => buildDeviceCard(device, 'overview')).join('');
-}
-
-function renderConnectionSummaries() {
-  if (!state.config || !state.overview) return;
-  const tcodeBits = [
-    [t('label.port'), state.config.tCode?.comPort || t('label.none')],
-    [t('label.auto'), state.config.tCode?.enabled ? t('label.on') : t('label.off')],
-    [t('label.mode'), state.config.tCode?.preferSpeedMode ? t('label.speed') : t('label.interval')],
-    [t('label.frames'), `${state.config.tCode?.updatesPerSecond ?? '-'} UPS`],
-  ];
-  els.connectionTcodeSummary.innerHTML = tcodeBits
-    .map(([label, value]) => `<div class="device-status-chip ${state.overview.tcode.connected ? 'ok' : ''}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`)
-    .join('');
-
-  const intifaceBits = [
-    [t('label.address'), state.config.intiface?.websocketAddress || t('label.none')],
-    [t('label.engine'), state.config.intiface?.manageEngineProcess ? t('label.managed') : t('label.external')],
-    [t('label.auto'), state.config.intiface?.enabled ? t('label.on') : t('label.off')],
-    [t('label.devices'), t('label.connectedCount', { count: String(state.overview.intiface.devices.length) })],
-  ];
-  els.connectionIntifaceSummary.innerHTML = intifaceBits
-    .map(([label, value]) => `<div class="device-status-chip ${state.overview.intiface.connected ? 'ok' : ''}"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`)
-    .join('');
-}
-
-function renderConfig() {
-  if (!state.config) return;
-  fillInput('webUi.host', state.config.webUi.host);
-  fillInput('webUi.port', state.config.webUi.port);
-  fillInput('osc.receiverPort', state.config.osc.receiverPort);
-  fillInput('tCode.comPort', state.config.tCode.comPort);
-  fillInput('tCode.minPos', state.config.tCode.minPos);
-  fillInput('tCode.maxPos', state.config.tCode.maxPos);
-  fillInput('tCode.maxVelocity', state.config.tCode.maxVelocity);
-  fillInput('tCode.updatesPerSecond', state.config.tCode.updatesPerSecond);
-  fillInput('tCode.enabled', state.config.tCode.enabled);
-  fillInput('tCode.preferSpeedMode', state.config.tCode.preferSpeedMode);
-  fillInput('tCode.l0Invert', state.config.tCode.l0Invert);
-  fillInput('intiface.websocketAddress', state.config.intiface.websocketAddress);
-  fillInput('intiface.port', state.config.intiface.port);
-  fillInput('intiface.enabled', state.config.intiface.enabled);
-  fillInput('intiface.manageEngineProcess', state.config.intiface.manageEngineProcess);
-  fillInput('safety.globalIntensityCap', state.config.safety.globalIntensityCap);
-  fillInput('safety.rampUpMs', state.config.safety.rampUpMs);
-  fillInput('safety.idle', state.config.safety.idle);
-  fillInput('safety.emergencyStopKey', state.config.safety.emergencyStopKey);
-  fillInput('rhythm.enabled', state.config.rhythm.enabled);
-  fillInput('rhythm.windowMs', state.config.rhythm.windowMs);
-  fillInput('rhythm.minBpm', state.config.rhythm.minBpm);
-  fillInput('rhythm.maxBpm', state.config.rhythm.maxBpm);
-  renderPortOptions();
-  els.endpointList.innerHTML = state.meta?.endpoints?.length
-    ? state.meta.endpoints.map(endpoint => `<li><code>${escapeHtml(endpoint)}</code></li>`).join('')
-    : `<li>${escapeHtml(t('label.none'))}</li>`;
-}
-
-function renderPortOptions() {
-  els.comPortList.innerHTML = state.serialPorts.map(port => `<option value="${escapeHtml(port)}"></option>`).join('');
-}
-
-function renderSignals() {
-  if (!state.config) return;
-  const latestMap = new Map((state.overview?.signals || []).map(item => [item.signal.oscPath, item.latest?.value]));
-  const filter = state.filters.signals.trim().toLowerCase();
-  els.signalsBody.innerHTML = '';
-  state.config.signals.forEach((signal, index) => {
-    const haystack = `${signal.oscPath} ${signal.role} ${signal.curve}`.toLowerCase();
-    if (filter && !haystack.includes(filter)) return;
-
-    const fragment = els.signalTemplate.content.cloneNode(true);
-    const row = qs('tr', fragment);
-    Object.entries(signal).forEach(([field, value]) => {
-      const input = qs(`[data-field="${field}"]`, row);
-      if (!input) return;
-      if (input.type === 'checkbox') input.checked = !!value;
-      else input.value = value;
-    });
-
-    const roleSelect = qs('[data-field="role"]', row);
-    roleSelect.innerHTML = enums.roles.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-    roleSelect.value = signal.role;
-
-    const curveSelect = qs('[data-field="curve"]', row);
-    curveSelect.innerHTML = enums.curves.map(value => `<option value="${escapeHtml(value)}">${escapeHtml(value)}</option>`).join('');
-    curveSelect.value = signal.curve;
-
-    qs('.latest-value', row).textContent = latestMap.has(signal.oscPath) ? Number(latestMap.get(signal.oscPath)).toFixed(4) : '-';
-    row.querySelectorAll('input, select').forEach(input => {
-      input.addEventListener('change', () => {
-        const field = input.dataset.field;
-        state.config.signals[index][field] = input.type === 'checkbox' ? input.checked : input.type === 'number' ? Number(input.value) : input.value;
-      });
-    });
-    const removeBtn = qs('.remove-row', row);
-    removeBtn.textContent = t('btn.delete');
-    removeBtn.addEventListener('click', () => {
-      state.config.signals.splice(index, 1);
-      renderSignals();
-    });
-    els.signalsBody.appendChild(fragment);
-  });
-}
-
-function collectConfig() {
-  return {
-    ...state.config,
-    webUi: {
-      host: readInput('webUi.host'),
-      port: readInput('webUi.port'),
-      autoOpenBrowser: state.config?.webUi?.autoOpenBrowser ?? false,
-      title: DEFAULT_TITLE,
-    },
-    osc: {
-      receiverPort: readInput('osc.receiverPort'),
-    },
-    tCode: {
-      comPort: readInput('tCode.comPort'),
-      minPos: readInput('tCode.minPos'),
-      maxPos: readInput('tCode.maxPos'),
-      maxVelocity: readInput('tCode.maxVelocity'),
-      updatesPerSecond: readInput('tCode.updatesPerSecond'),
-      enabled: readInput('tCode.enabled'),
-      preferSpeedMode: readInput('tCode.preferSpeedMode'),
-      l0Invert: readInput('tCode.l0Invert'),
-    },
-    intiface: {
-      websocketAddress: readInput('intiface.websocketAddress'),
-      port: readInput('intiface.port'),
-      enabled: readInput('intiface.enabled'),
-      manageEngineProcess: readInput('intiface.manageEngineProcess'),
-    },
-    safety: {
-      globalIntensityCap: readInput('safety.globalIntensityCap'),
-      rampUpMs: readInput('safety.rampUpMs'),
-      idle: readInput('safety.idle'),
-      emergencyStopKey: readInput('safety.emergencyStopKey'),
-    },
-    rhythm: {
-      enabled: readInput('rhythm.enabled'),
-      windowMs: readInput('rhythm.windowMs'),
-      minBpm: readInput('rhythm.minBpm'),
-      maxBpm: readInput('rhythm.maxBpm'),
-    },
-    signals: state.config.signals,
-    deviceRoutes: state.config.deviceRoutes || [],
+function setScriptDataset({ source, name, points, durationMs }) {
+  stopScriptPlayback();
+  appState.scriptPlayer = {
+    ...appState.scriptPlayer,
+    source,
+    name,
+    points,
+    durationMs: Math.max(0, Math.round(durationMs || 0)),
+    currentMs: 0,
+    isPlaying: false,
+    startedAtMs: 0,
+    baselineMs: 0,
+    rafId: 0,
   };
 }
 
-function renderRecordingSummary() {
-  const recording = state.overview?.recording;
-  if (!recording) return;
-  els.recordingInfo.textContent = t('recording.summary', {
-    state: recording.isActive ? t('recording.active') : t('recording.inactive'),
-    count: String(recording.frameCount),
-  });
+function parseFunscript(text) {
+  const data = JSON.parse(text);
+  if (!data || !Array.isArray(data.actions)) throw new Error(t('msg.scriptInvalid'));
+  const pts = data.actions.map(a => ({ ms: Math.max(0, Math.round(Number(a.at) || 0)), value: Math.max(0, Math.min(1, (Number(a.pos) || 0) / 100)) })).sort((a, b) => a.ms - b.ms);
+  return { points: pts, durationMs: pts.length ? pts[pts.length - 1].ms : 0 };
 }
 
-function renderDeviceOpsSummary() {
-  if (!els.deviceOpsSummary || !state.overview) return;
-  const overview = state.overview;
-  const chips = [
-    [t('label.loop'), overview.loop.isRunning ? t('status.running') : t('status.stopped')],
-    [t('label.emergency'), overview.loop.isEmergency ? t('status.triggered') : t('status.normal')],
-    [t('label.manual'), overview.loop.manualOverrideEnabled ? t('status.enabled') : t('status.disabled')],
-    [t('label.recording'), overview.recording.isActive ? t('recording.active') : t('recording.inactive')],
-  ];
-  els.deviceOpsSummary.innerHTML = chips.map(([label, value]) => `<div class="device-chip"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(value)}</span></div>`).join('');
-}
-
-function renderScriptCanvas() {
-  if (!els.scriptCanvas) return;
-  const ctx = els.scriptCanvas.getContext('2d');
-  if (!ctx) return;
-  const cssWidth = els.scriptCanvas.clientWidth || 960;
-  const cssHeight = 260;
-  const dpr = window.devicePixelRatio || 1;
-  els.scriptCanvas.width = Math.round(cssWidth * dpr);
-  els.scriptCanvas.height = Math.round(cssHeight * dpr);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(dpr, dpr);
-
-  const width = cssWidth;
-  const height = cssHeight;
+// ───── CANVAS DRAW ────────────────────────────────────────────
+function drawDevice(ctx, width, height, command = {}) {
   ctx.clearRect(0, 0, width, height);
-
-  const player = state.scriptPlayer;
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-  ctx.lineWidth = 1;
-  for (let i = 0; i < 5; i += 1) {
-    const y = 24 + ((height - 48) / 4) * i;
-    ctx.beginPath();
-    ctx.moveTo(16, y);
-    ctx.lineTo(width - 16, y);
-    ctx.stroke();
-  }
-
-  if (!player.points.length || player.durationMs <= 0) {
-    ctx.fillStyle = '#5e6673';
-    ctx.font = '14px Segoe UI';
-    ctx.fillText(t('scripts.timeline.empty'), 24, height / 2);
-    return;
-  }
-
-  const plotLeft = 20;
-  const plotTop = 20;
-  const plotWidth = width - 40;
-  const plotHeight = height - 44;
-
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = '#0052d9';
-  ctx.beginPath();
-  player.points.forEach((point, index) => {
-    const x = plotLeft + (point.ms / player.durationMs) * plotWidth;
-    const y = plotTop + (1 - point.value) * plotHeight;
-    if (index === 0) ctx.moveTo(x, y);
-    else ctx.lineTo(x, y);
-  });
-  ctx.stroke();
-
-  const currentX = plotLeft + ((player.currentMs || 0) / player.durationMs) * plotWidth;
-  ctx.strokeStyle = 'rgba(227,77,89,0.9)';
-  ctx.lineWidth = 2;
-  ctx.beginPath();
-  ctx.moveTo(currentX, plotTop);
-  ctx.lineTo(currentX, plotTop + plotHeight);
-  ctx.stroke();
-
-  const currentY = plotTop + (1 - getScriptValueAt(player.currentMs || 0)) * plotHeight;
-  ctx.fillStyle = '#e34d59';
-  ctx.beginPath();
-  ctx.arc(currentX, currentY, 5, 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function renderScriptPlayer() {
-  if (!els.scriptStatusBadge || !els.scriptTimeLabel || !els.scriptMeta || !els.scriptTimelineList || !els.scriptSummaryGrid) return;
-  const player = state.scriptPlayer;
-  const points = player.points || [];
-  const density = player.durationMs > 0 ? (points.length / Math.max(player.durationMs / 1000, 1)).toFixed(1) : '0.0';
-  const statusKey = !points.length ? 'scripts.player.empty' : player.isPlaying ? 'scripts.player.playing' : player.currentMs > 0 ? 'scripts.player.paused' : 'scripts.player.empty';
-
-  els.scriptStatusBadge.textContent = t(statusKey);
-  els.scriptRecordingBadge.textContent = state.overview?.recording?.isActive ? t('recording.active') : t('recording.inactive');
-  els.scriptTimeLabel.textContent = `${formatDuration(player.currentMs)} / ${formatDuration(player.durationMs)}`;
-
-  const metaText =
-    player.source === 'recording'
-      ? t('scripts.meta.recording', { count: String(points.length), duration: formatDuration(player.durationMs) })
-      : player.source === 'imported'
-        ? t('scripts.meta.imported', { name: player.name || 'script', count: String(points.length), duration: formatDuration(player.durationMs) })
-        : t('scripts.meta.empty');
-  els.scriptMeta.textContent = metaText;
-
-  const summary = [
-    [t('scripts.summary.source'), formatScriptSource(player.source)],
-    [t('scripts.summary.points'), String(points.length)],
-    [t('scripts.summary.duration'), formatDuration(player.durationMs)],
-    [t('scripts.summary.position'), `${formatDuration(player.currentMs)} · ${Math.round(getScriptValueAt(player.currentMs) * 100)}%`],
-  ];
-  els.scriptSummaryGrid.innerHTML = summary
-    .map(([label, value]) => `<div class="stat"><div class="stat-label">${escapeHtml(label)}</div><div class="stat-value">${escapeHtml(value)}</div></div>`)
-    .join('');
-
-  if (!points.length) {
-    els.scriptTimelineList.innerHTML = `<article class="diagnostic-item"><strong>${escapeHtml(t('scripts.timeline.title'))}</strong><div>${escapeHtml(t('scripts.timeline.empty'))}</div></article>`;
-  } else {
-    const cards = [
-      [t('scripts.timeline.source'), formatScriptSource(player.source)],
-      [t('scripts.timeline.frames'), String(points.length)],
-      [t('scripts.timeline.density'), `${density} / s`],
-      [t('scripts.timeline.range'), `${formatDuration(points[0]?.ms || 0)} → ${formatDuration(player.durationMs)}`],
-      [t('scripts.timeline.preview'), `${formatDuration(player.currentMs)} · ${Math.round(getScriptValueAt(player.currentMs) * 100)}%`],
-    ];
-    els.scriptTimelineList.innerHTML = cards.map(([title, body]) => `<article class="diagnostic-item ok"><strong>${escapeHtml(title)}</strong><div>${escapeHtml(body)}</div></article>`).join('');
-  }
-  renderScriptCanvas();
-}
-
-function renderScripts() {
-  renderRecordingSummary();
-  renderScriptPlayer();
-}
-
-function renderParameters() {
-  const filter = state.filters.parameters.trim().toLowerCase();
-  els.parametersBody.innerHTML = state.parameters
-    .filter(item => !filter || `${item.path} ${item.type}`.toLowerCase().includes(filter))
-    .slice(0, 300)
-    .map(
-      item =>
-        `<tr><td>${escapeHtml(item.path)}</td><td>${Number(item.value).toFixed(4)}</td><td>${escapeHtml(item.type)}</td><td>${escapeHtml(new Date(item.timestampMs).toLocaleTimeString())}</td></tr>`,
-    )
-    .join('');
-}
-
-function renderLogs() {
-  const filter = state.filters.logs.trim().toLowerCase();
-  els.logPanel.textContent = state.logs
-    .filter(item => !filter || item.message.toLowerCase().includes(filter))
-    .map(item => `[${new Date(item.timestamp).toLocaleTimeString()}] ${item.message}`)
-    .join('\n');
-  els.logPanel.scrollTop = els.logPanel.scrollHeight;
-}
-
-function renderDiagnostics() {
-  if (!state.overview) return;
-  const overview = state.overview;
-  const diagnostics = [];
-  const logText = state.logs.map(item => item.message).join('\n');
-  if (!overview.loop.isRunning) diagnostics.push({ type: 'warn', title: t('diag.loopStopped.title'), body: t('diag.loopStopped.body') });
-  if (overview.loop.isEmergency) diagnostics.push({ type: 'error', title: t('diag.emergency.title'), body: t('diag.emergency.body') });
-  if (!overview.intiface.connected && /intiface-engine\.exe not found/i.test(logText)) diagnostics.push({ type: 'warn', title: t('diag.engineMissing.title'), body: t('diag.engineMissing.body') });
-  if (!overview.tcode.connected && state.config?.tCode?.enabled) diagnostics.push({ type: 'warn', title: t('diag.tcodeMissing.title'), body: t('diag.tcodeMissing.body') });
-  if ((overview.osc.parameterCount || 0) === 0) diagnostics.push({ type: 'warn', title: t('diag.oscMissing.title'), body: t('diag.oscMissing.body') });
-  if (!diagnostics.length) diagnostics.push({ type: 'ok', title: t('diag.ok.title'), body: t('diag.ok.body') });
-  els.diagnosticsList.innerHTML = diagnostics
-    .map(item => `<article class="diagnostic-item ${item.type}"><strong>${escapeHtml(item.title)}</strong><div>${escapeHtml(item.body)}</div></article>`)
-    .join('');
-}
-
-function buildManualTestMarkup() {
-  const sliders = sliderAxes
-    .map(
-      axis => `
-      <div class="slider-wrap">
-        <label>${escapeHtml(axis)}<output id="out-${axis}">${Number(sliderDefaults[axis]).toFixed(2)}</output></label>
-        <input type="range" id="slider-${axis}" min="0" max="1" step="0.01" value="${sliderDefaults[axis]}" />
-      </div>
-    `,
-    )
-    .join('');
-
-  const capabilityChips = getDisplayedDevices().length
-    ? getDisplayedDevices()
-        .map(device => `<div class="device-chip"><strong>${escapeHtml(device.name)}</strong><span>${escapeHtml(device.model)}</span></div>`)
-        .join('')
-    : `<div class="empty-state"><strong>${escapeHtml(t('devices.empty.title'))}</strong><div>${escapeHtml(t('devices.empty.body'))}</div></div>`;
-
-  return `
-    <div class="callout info">${escapeHtml(t('devices.test.hint'))}</div>
-    <div class="section-title-row">
-      <div>
-        <h3>${escapeHtml(t('devices.manual.title'))}</h3>
-        <p class="muted">${escapeHtml(t('devices.manual.desc'))}</p>
-      </div>
-    </div>
-    <div class="slider-grid">${sliders}</div>
-    <div class="actions-grid">
-      <label class="inline"><input id="manualEnabled" type="checkbox" /> <span>${escapeHtml(t('cb.manualEnabled'))}</span></label>
-      <label class="inline"><input id="manualGate" type="checkbox" checked /> <span>${escapeHtml(t('cb.gateOpen'))}</span></label>
-      <button id="applyManualBtn" type="button">${escapeHtml(t('btn.applyManual'))}</button>
-      <button id="clearManualBtn" type="button">${escapeHtml(t('btn.clearManual'))}</button>
-    </div>
-    <div class="section-title-row" style="margin-top:16px">
-      <div><h3>${escapeHtml(t('devices.capabilities'))}</h3></div>
-    </div>
-    <div class="device-chip-list">${capabilityChips}</div>
-  `;
-}
-
-function setSliderValue(axis, value) {
-  const slider = document.getElementById(`slider-${axis}`);
-  const output = document.getElementById(`out-${axis}`);
-  if (!slider || !output) return;
-  slider.value = Number(value).toFixed(2);
-  output.textContent = Number(value).toFixed(2);
-}
-
-function renderDeviceWorkbench() {
-  const devices = getDisplayedDevices();
-  els.deviceWorkbenchIntro.textContent = state.showMockDevices ? t('devices.mock.enabled') : t('devices.mock.disabled');
-  els.connectedDeviceDeck.innerHTML = devices.length
-    ? devices.map(device => buildDeviceCard(device, 'devices')).join('')
-    : `<div class="empty-state"><strong>${escapeHtml(t('devices.empty.title'))}</strong><div>${escapeHtml(t('devices.empty.body'))}</div></div>`;
-  els.deviceTestZone.innerHTML = buildManualTestMarkup();
-  bindDeviceWorkbenchActions();
-  syncManualControls();
-}
-
-function syncManualControls() {
-  const manualCommand = state.overview?.loop?.manualCommand;
-  const enabled = state.overview?.loop?.manualOverrideEnabled;
-  const manualEnabled = document.getElementById('manualEnabled');
-  const manualGate = document.getElementById('manualGate');
-  if (manualEnabled) manualEnabled.checked = !!enabled;
-  if (!manualCommand) {
-    sliderAxes.forEach(axis => setSliderValue(axis, sliderDefaults[axis]));
-    if (manualGate) manualGate.checked = true;
-    return;
-  }
-  if (manualGate) manualGate.checked = manualCommand.gateOpen ?? true;
-  setSliderValue('L0', manualCommand.l0 ?? sliderDefaults.L0);
-  setSliderValue('R0', manualCommand.r0 ?? sliderDefaults.R0);
-  setSliderValue('R1', manualCommand.r1 ?? sliderDefaults.R1);
-  setSliderValue('R2', manualCommand.r2 ?? sliderDefaults.R2);
-  setSliderValue('L1', manualCommand.l1 ?? sliderDefaults.L1);
-  setSliderValue('L2', manualCommand.l2 ?? sliderDefaults.L2);
-  setSliderValue('Vibrate', manualCommand.vibrate ?? sliderDefaults.Vibrate);
-}
-
-function bindDeviceWorkbenchActions() {
-  sliderAxes.forEach(axis => {
-    const slider = document.getElementById(`slider-${axis}`);
-    const output = document.getElementById(`out-${axis}`);
-    if (slider && output) {
-      slider.addEventListener('input', () => {
-        output.textContent = Number(slider.value).toFixed(2);
-      });
-    }
-  });
-
-  const manualApplyBtn = document.getElementById('applyManualBtn');
-  if (manualApplyBtn) {
-    manualApplyBtn.onclick = async () => {
-      const payload = {
-        enabled: document.getElementById('manualEnabled')?.checked ?? false,
-        gateOpen: document.getElementById('manualGate')?.checked ?? true,
-        l0: Number(document.getElementById('slider-L0')?.value ?? 0),
-        r0: Number(document.getElementById('slider-R0')?.value ?? 0.5),
-        r1: Number(document.getElementById('slider-R1')?.value ?? 0.5),
-        r2: Number(document.getElementById('slider-R2')?.value ?? 0.5),
-        l1: Number(document.getElementById('slider-L1')?.value ?? 0.5),
-        l2: Number(document.getElementById('slider-L2')?.value ?? 0.5),
-        vibrate: Number(document.getElementById('slider-Vibrate')?.value ?? 0),
-      };
-      await api('/api/manual-test', { method: 'PUT', body: JSON.stringify(payload) });
-      await refreshAll();
-      showToast(t('toast.actionSuccess'), t('btn.applyManual'));
-    };
-  }
-
-  const manualClearBtn = document.getElementById('clearManualBtn');
-  if (manualClearBtn) {
-    manualClearBtn.onclick = async () => {
-      await api('/api/manual-test', { method: 'DELETE' });
-      await refreshAll();
-      showToast(t('toast.actionSuccess'), t('btn.clearManual'));
-    };
-  }
-
-  qsa('[data-device-action]').forEach(button => {
-    button.addEventListener('click', async () => {
-      const device = getDisplayedDevices().find(item => item.id === button.dataset.deviceId);
-      if (!device) return;
-      const action = button.dataset.deviceAction;
-      if (action === 'remember') {
-        const alias = qs(`[data-memory-field="alias"][data-device-id="${device.id}"]`)?.value || '';
-        const note = qs(`[data-memory-field="note"][data-device-id="${device.id}"]`)?.value || '';
-        rememberDeviceConfig(device, { alias, note, snapshot: device.snapshot });
-        clearDeviceDraft(device);
-        renderDeviceWorkbench();
-        showToast(t('toast.memorySaved'), t('msg.memorySaved'));
-        return;
-      }
-      if (action === 'reset') {
-        clearRememberedConfig(device);
-        clearDeviceDraft(device);
-        renderDeviceWorkbench();
-        showToast(t('toast.memoryCleared'), t('msg.memoryCleared'));
-        return;
-      }
-      if (action === 'park') {
-        await postAction('/api/control/tcode/park');
-        return;
-      }
-      if (action === 'scan') {
-        await postAction('/api/control/intiface/scan-start');
-      }
-    });
-  });
-
-  qsa('[data-memory-field]').forEach(input => {
-    input.addEventListener('input', () => {
-      const device = getDisplayedDevices().find(item => item.id === input.dataset.deviceId);
-      if (!device) return;
-      setDeviceDraft(device, { [input.dataset.memoryField]: input.value });
-    });
-  });
-}
-
-function renderConnectionFilter() {
-  qsa('[data-connection-filter]').forEach(button => {
-    const active = button.dataset.connectionFilter === state.connectionFilter;
-    button.classList.toggle('is-active', active);
-  });
-  qsa('[data-connection-card]').forEach(card => {
-    const matches = state.connectionFilter === 'all' || card.dataset.connectionCard === state.connectionFilter;
-    card.style.display = matches ? '' : 'none';
-  });
-}
-
-function shouldPreferLocalizedActionFailure(path) {
-  return path === '/api/control/intiface/connect' || path === '/api/control/tcode/connect';
-}
-
-function getActionFailureMessage(path) {
-  switch (path) {
-    case '/api/control/intiface/connect':
-      return t('msg.intifaceConnectFailed');
-    case '/api/control/tcode/connect':
-      return t('msg.tcodeConnectFailed');
-    default:
-      return t('msg.actionReportedFailure');
-  }
-}
-
-async function postAction(path, body = null) {
-  try {
-    const result = await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
-    if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
-      const localizedMessage = getActionFailureMessage(path);
-      const displayMessage = shouldPreferLocalizedActionFailure(path) ? localizedMessage : result.message || localizedMessage;
-      showToast(t('toast.actionFailed'), displayMessage, 'error', 4200);
-      await refreshAll().catch(() => {});
-      return;
-    }
-    await refreshAll();
-    showToast(t('toast.actionSuccess'), result?.message || path);
-  } catch (error) {
-    showToast(t('toast.actionFailed'), error.message, 'error', 4200);
-    throw error;
-  }
-}
-
-async function refreshSerialPorts(showFeedback = false) {
-  state.serialPorts = await api('/api/meta/serial-ports');
-  renderPortOptions();
-  if (showFeedback) showToast(t('toast.portsRefreshed'), t('msg.portsRefreshed'));
-}
-
-function drawDevice(command = {}) {
-  const ctx = els.canvas.getContext('2d');
-  if (!ctx) return;
-  const cssWidth = els.canvas.clientWidth || 960;
-  const cssHeight = Math.max(260, Math.min(420, Math.round(cssWidth * 0.36)));
-  const dpr = window.devicePixelRatio || 1;
-  els.canvas.width = Math.round(cssWidth * dpr);
-  els.canvas.height = Math.round(cssHeight * dpr);
-  ctx.setTransform(1, 0, 0, 1, 0, 0);
-  ctx.scale(dpr, dpr);
-
-  const width = cssWidth;
-  const height = cssHeight;
-  ctx.clearRect(0, 0, width, height);
-
-  const centerX = width / 2 + ((command.l2 ?? 0.5) - 0.5) * 180;
-  const centerY = height / 2 - ((command.l1 ?? 0.5) - 0.5) * 120;
+  const cx = width / 2 + ((command.l2 ?? 0.5) - 0.5) * Math.min(width * 0.22, 180);
+  const cy = height / 2 - ((command.l1 ?? 0.5) - 0.5) * Math.min(height * 0.35, 120);
   const stroke = command.l0 ?? 0;
   const roll = (((command.r0 ?? 0.5) - 0.5) * Math.PI) / 1.4;
   const pitch = (((command.r1 ?? 0.5) - 0.5) * Math.PI) / 1.4;
   const twist = ((command.r2 ?? 0.5) - 0.5) * Math.PI * 2;
-
   ctx.save();
-  ctx.translate(centerX, centerY);
+  ctx.translate(cx, cy);
   ctx.rotate(roll * 0.45);
-  const bodyLength = 150 + stroke * 110;
-  const bodyWidth = 38 + Math.cos(twist) * 4;
-  ctx.fillStyle = 'rgba(101,162,255,0.16)';
-  ctx.strokeStyle = 'rgba(101,162,255,0.95)';
-  ctx.lineWidth = 3;
+  const bLen = Math.round(110 + stroke * Math.min(height * 0.42, 95));
+  const bW = 36 + Math.cos(twist) * 4;
+  ctx.fillStyle = 'rgba(101,162,255,0.15)';
+  ctx.strokeStyle = 'rgba(101,162,255,0.92)';
+  ctx.lineWidth = 2.5;
   ctx.beginPath();
-  ctx.roundRect(-bodyWidth / 2, -bodyLength / 2, bodyWidth, bodyLength, 18);
+  ctx.roundRect(-bW / 2, -bLen / 2, bW, bLen, 16);
   ctx.fill();
   ctx.stroke();
-
   ctx.save();
-  ctx.translate(0, -bodyLength / 2);
+  ctx.translate(0, -bLen / 2);
   ctx.rotate(twist);
   ctx.beginPath();
-  ctx.ellipse(0, 0, 26, 15 + Math.abs(pitch) * 10, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(75,216,168,0.18)';
+  ctx.ellipse(0, 0, 24, 14 + Math.abs(pitch) * 8, 0, 0, Math.PI * 2);
+  ctx.fillStyle = 'rgba(75,216,168,0.16)';
   ctx.fill();
-  ctx.strokeStyle = 'rgba(75,216,168,0.92)';
+  ctx.strokeStyle = 'rgba(75,216,168,0.9)';
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
-
-  ctx.beginPath();
-  ctx.moveTo(-75, bodyLength / 2 + 16);
-  ctx.lineTo(75, bodyLength / 2 + 16);
-  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
-  ctx.stroke();
   ctx.restore();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.78)';
-  ctx.font = '14px Segoe UI';
-  ctx.fillText(
-    `L0 ${Number(command.l0 ?? 0).toFixed(2)} | R0 ${Number(command.r0 ?? 0.5).toFixed(2)} | R1 ${Number(command.r1 ?? 0.5).toFixed(2)} | R2 ${Number(command.r2 ?? 0.5).toFixed(2)}`,
-    16,
-    24,
-  );
-  ctx.fillText(`L1 ${Number(command.l1 ?? 0.5).toFixed(2)} | L2 ${Number(command.l2 ?? 0.5).toFixed(2)} | Vibrate ${Number(command.vibrate ?? 0).toFixed(2)}`, 16, 46);
+  ctx.fillStyle = 'rgba(0,0,0,0.55)';
+  ctx.font = '12px Segoe UI,sans-serif';
+  ctx.fillText(`L0 ${Number(command.l0 ?? 0).toFixed(2)} · R0 ${Number(command.r0 ?? 0.5).toFixed(2)} · Vib ${Number(command.vibrate ?? 0).toFixed(2)}`, 12, 18);
 }
 
-function renderAll() {
-  translateDocument();
-  renderConfig();
-  renderStatus();
-  renderSignals();
-  renderParameters();
-  renderLogs();
-  renderDeviceWorkbench();
-  renderScripts();
-  renderConnectionFilter();
-}
+// ─────────────────────────────────────────────────────────────
+// COMPONENTS
+// ─────────────────────────────────────────────────────────────
 
-async function refreshAll(showFeedback = false) {
-  try {
-    const [meta, config, overview, parameters, logs, serialPorts, recordingFrames] = await Promise.all([
-      api('/api/meta'),
-      api('/api/config'),
-      api('/api/state/overview'),
-      api('/api/state/parameters'),
-      api('/api/state/logs'),
-      api('/api/meta/serial-ports').catch(() => []),
-      api('/api/state/recording/data').catch(() => []),
-    ]);
-    state.meta = meta;
-    state.config = config;
-    state.overview = overview;
-    state.parameters = parameters;
-    state.logs = logs;
-    state.serialPorts = serialPorts;
-    state.recordingFrames = recordingFrames;
-
-    enums.roles.splice(0, enums.roles.length, ...(meta.enums?.signalRoles || []));
-    enums.curves.splice(0, enums.curves.length, ...(meta.enums?.curveTypes || []));
-    enums.idleBehaviors.splice(0, enums.idleBehaviors.length, ...(meta.enums?.idleBehaviors || []));
-    populateSelect('safety.idle', enums.idleBehaviors);
-    renderAll();
-
-    if (showFeedback) showToast(t('toast.refreshSuccess'), overview?.service?.url || location.origin);
-  } catch (error) {
-    showToast(t('toast.refreshFailed'), error.message, 'error', 3600);
-    throw error;
-  }
-}
-
-function bindActions() {
-  qsa('[data-tab-target]').forEach(button => button.addEventListener('click', () => setActiveTab(button.dataset.tabTarget)));
-  qsa('[data-connection-filter]').forEach(button => {
-    button.addEventListener('click', () => {
-      state.connectionFilter = button.dataset.connectionFilter;
-      renderConnectionFilter();
-    });
-  });
-  qsa('[data-action]').forEach(button => button.addEventListener('click', async () => postAction(button.dataset.action)));
-
-  els.refreshBtn.addEventListener('click', () => refreshAll());
-  els.applyConfigBtn.addEventListener('click', async () => {
-    state.config = collectConfig();
-    await api('/api/config', { method: 'PUT', body: JSON.stringify(state.config) });
-    await refreshAll();
-    showToast(t('toast.applied'), t('msg.applied'));
-  });
-  els.saveConfigBtn.addEventListener('click', async () => {
-    await refreshAll(true);
-  });
-  els.addSignalBtn.addEventListener('click', () => {
-    if (!state.config) return;
-    state.config.signals.push({
-      oscPath: '',
-      invertDirection: false,
-      vrchatMin: 0,
-      vrchatMax: 1,
-      smoothingAlpha: 0.7,
-      deadZone: 0.01,
-      curve: enums.curves[0] || 'Linear',
-      role: enums.roles[0] || 'Depth',
-      isOgbSocket: false,
-      isOgbPlug: false,
-    });
-    renderSignals();
-    showToast(t('toast.signalAdded'), t('msg.signalAdded'));
-  });
-  els.signalFilterInput.addEventListener('input', event => {
-    state.filters.signals = event.target.value;
-    renderSignals();
-  });
-  els.parameterFilterInput.addEventListener('input', event => {
-    state.filters.parameters = event.target.value;
-    renderParameters();
-  });
-  els.logFilterInput.addEventListener('input', event => {
-    state.filters.logs = event.target.value;
-    renderLogs();
-  });
-  els.copyDiagnosticsBtn.addEventListener('click', async () => {
-    const text = qsa('.diagnostic-item', els.diagnosticsList)
-      .map(item => item.textContent.trim())
-      .join('\n');
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast(t('toast.diagCopied'), t('msg.diagCopied'));
-    } catch {
-      showToast(t('toast.actionFailed'), t('toast.copyFailed'), 'error');
+// Dual-range range slider
+const DualRange = {
+  name: 'DualRange',
+  props: {
+    modelValue: { type: Array, default: () => [0, 100] },
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 999 },
+    label: String,
+    disabled: Boolean,
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const low = computed(() => props.modelValue[0]);
+    const high = computed(() => props.modelValue[1]);
+    const pct = v => (((v - props.min) / (props.max - props.min)) * 100).toFixed(2);
+    const fillStyle = computed(() => ({
+      left: `${pct(low.value)}%`,
+      width: `${pct(high.value) - pct(low.value)}%`,
+    }));
+    function onLow(e) {
+      const v = Math.min(Number(e.target.value), high.value - 1);
+      emit('update:modelValue', [v, high.value]);
     }
-  });
-  els.langToggleBtn.addEventListener('click', toggleLanguage);
-  els.themeToggleBtn.addEventListener('click', cycleTheme);
-  els.refreshPortsBtn.addEventListener('click', async () => {
-    try {
-      await refreshSerialPorts(true);
-    } catch (error) {
-      showToast(t('toast.actionFailed'), error.message, 'error');
+    function onHigh(e) {
+      const v = Math.max(Number(e.target.value), low.value + 1);
+      emit('update:modelValue', [low.value, v]);
     }
-  });
-  els.exportRecordingBtn.addEventListener('click', async () => {
-    try {
-      const result = await api('/api/control/recording/export', { method: 'POST' });
-      showToast(t('toast.exportDone'), result.path || t('msg.noRecording'), result.path ? 'success' : 'error', 5000);
+    return { low, high, pct, fillStyle, onLow, onHigh };
+  },
+  template: `
+<div class="drange" :class="{disabled}">
+  <div class="drange__header">
+    <span class="drange__label">{{ label }}</span>
+    <span class="drange__value">{{ low }} – {{ high }}</span>
+    <span class="drange__max muted">/ {{ max }}</span>
+  </div>
+  <div class="drange__wrap">
+    <div class="drange__rail"></div>
+    <div class="drange__fill" :style="fillStyle"></div>
+    <input class="drange__input" type="range" :min="min" :max="max" :value="low"  :disabled="disabled" @input="onLow" />
+    <input class="drange__input" type="range" :min="min" :max="max" :value="high" :disabled="disabled" @input="onHigh" />
+  </div>
+</div>`,
+};
+
+// Single axis slider with fill track
+const AxisSlider = {
+  name: 'AxisSlider',
+  props: {
+    modelValue: { type: Number, default: 0 },
+    axis: String,
+    min: { type: Number, default: 0 },
+    max: { type: Number, default: 1 },
+    step: { type: Number, default: 0.01 },
+    disabled: Boolean,
+    readonly: Boolean,
+  },
+  emits: ['update:modelValue'],
+  setup(props, { emit }) {
+    const pct = computed(() => ((((props.modelValue ?? 0) - props.min) / (props.max - props.min)) * 100).toFixed(1) + '%');
+    const trackStyle = computed(() => ({
+      background: `linear-gradient(to right,var(--primary) ${pct.value},var(--border) ${pct.value})`,
+    }));
+    function onInput(e) {
+      emit('update:modelValue', Number(e.target.value));
+    }
+    return { pct, trackStyle, onInput, axisLabel };
+  },
+  template: `
+<div class="axis-row" :class="{disabled:disabled||readonly}">
+  <div class="axis-row__info">
+    <span class="axis-row__name">{{ axis }}</span>
+    <span class="axis-row__label">{{ axisLabel(axis) }}</span>
+    <span class="axis-row__val">{{ Number(modelValue??0).toFixed(2) }}</span>
+  </div>
+  <input class="axis-row__input" type="range" :min="min" :max="max" :step="step"
+    :value="modelValue" :disabled="disabled||readonly" :style="trackStyle"
+    @input="onInput" />
+</div>`,
+};
+
+// Posture canvas component
+const PostureCanvas = {
+  name: 'PostureCanvas',
+  props: { command: { type: Object, default: () => ({}) } },
+  setup(props) {
+    const cvs = ref(null);
+    function redraw() {
+      const el = cvs.value;
+      if (!el) return;
+      const dpr = window.devicePixelRatio || 1;
+      const w = el.clientWidth || 160;
+      const h = el.clientHeight || 90;
+      el.width = Math.round(w * dpr);
+      el.height = Math.round(h * dpr);
+      const ctx = el.getContext('2d');
+      ctx.scale(dpr, dpr);
+      drawDevice(ctx, w, h, props.command);
+    }
+    watch(() => props.command, redraw, { deep: true });
+    onMounted(() => {
+      nextTick(redraw);
+      window.addEventListener('resize', redraw);
+    });
+    onUnmounted(() => window.removeEventListener('resize', redraw));
+    return { cvs };
+  },
+  template: `<canvas ref="cvs" class="posture-canvas"></canvas>`,
+};
+
+// ECharts line chart panel
+const EChartPanel = {
+  name: 'EChartPanel',
+  props: { history: { type: Array, default: () => [] }, lang: String },
+  setup(props) {
+    const el = ref(null);
+    let chart = null;
+    const SERIES_CFG = [
+      { key: 'l0', name: 'L0', color: '#0052d9' },
+      { key: 'r0', name: 'R0', color: '#00a870' },
+      { key: 'r1', name: 'R1', color: '#8B5CF6' },
+      { key: 'r2', name: 'R2', color: '#f0a020' },
+      { key: 'l1', name: 'L1', color: '#e34d59' },
+      { key: 'l2', name: 'L2', color: '#00b4d8' },
+      { key: 'vibrate', name: 'Vib', color: '#ff6b35' },
+    ];
+    function buildOption(hist) {
+      const times = hist.map(d => new Date(d.time).toLocaleTimeString());
+      return {
+        backgroundColor: 'transparent',
+        grid: { left: 40, right: 12, top: 32, bottom: 36 },
+        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#d3d8e3', textStyle: { color: '#4a5568', fontSize: 12 } },
+        legend: { top: 4, textStyle: { color: '#4a5568', fontSize: 11 }, data: SERIES_CFG.map(s => s.name) },
+        xAxis: {
+          type: 'category',
+          data: times,
+          axisLine: { lineStyle: { color: '#d3d8e3' } },
+          axisLabel: { color: '#8a9199', fontSize: 10, rotate: 0, showMaxLabel: true, showMinLabel: true, interval: 'auto' },
+          splitLine: { show: false },
+        },
+        yAxis: { type: 'value', min: 0, max: 1, splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } }, axisLabel: { color: '#8a9199', fontSize: 10 }, axisLine: { show: false } },
+        series: SERIES_CFG.map(s => ({
+          name: s.name,
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          lineStyle: { width: 1.5, color: s.color },
+          data: hist.map(d => +(d[s.key] ?? 0).toFixed(3)),
+          color: s.color,
+        })),
+      };
+    }
+    onMounted(() => {
+      chart = echarts.init(el.value, null, { renderer: 'canvas' });
+      chart.setOption(buildOption(props.history));
+      window.addEventListener('resize', () => chart?.resize());
+    });
+    onUnmounted(() => {
+      chart?.dispose();
+      chart = null;
+    });
+    watch(
+      () => props.history.length,
+      () => chart?.setOption(buildOption(props.history), { notMerge: false }),
+    );
+    return { el };
+  },
+  template: `<div ref="el" class="echart-panel"></div>`,
+};
+
+// Script Canvas component
+const ScriptCanvas = {
+  name: 'ScriptCanvas',
+  props: { player: { type: Object, required: true } },
+  setup(props) {
+    const cvs = ref(null);
+    function draw() {
+      const el = cvs.value;
+      if (!el) return;
+      const dpr = window.devicePixelRatio || 1;
+      const cw = el.clientWidth || 800;
+      const ch = 220;
+      el.width = Math.round(cw * dpr);
+      el.height = Math.round(ch * dpr);
+      const ctx = el.getContext('2d');
+      ctx.scale(dpr, dpr);
+      const w = cw;
+      const h = ch;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
+      ctx.lineWidth = 1;
+      for (let i = 0; i < 5; i++) {
+        const y = 20 + ((h - 40) / 4) * i;
+        ctx.beginPath();
+        ctx.moveTo(14, y);
+        ctx.lineTo(w - 14, y);
+        ctx.stroke();
+      }
+      const p = props.player;
+      if (!p.points.length || p.durationMs <= 0) {
+        ctx.fillStyle = '#8a9199';
+        ctx.font = '13px Segoe UI,sans-serif';
+        ctx.fillText(t('scripts.timeline.empty'), 20, h / 2);
+        return;
+      }
+      const px = 18,
+        py = 16,
+        pw = w - 36,
+        ph = h - 36;
+      ctx.strokeStyle = '#0052d9';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      p.points.forEach((pt, i) => {
+        const x = px + (pt.ms / p.durationMs) * pw;
+        const y = py + (1 - pt.value) * ph;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      const cx2 = px + ((p.currentMs || 0) / p.durationMs) * pw;
+      ctx.strokeStyle = 'rgba(227,77,89,0.88)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(cx2, py);
+      ctx.lineTo(cx2, py + ph);
+      ctx.stroke();
+      const cy2 = py + (1 - getScriptValAt(p.currentMs || 0)) * ph;
+      ctx.fillStyle = '#e34d59';
+      ctx.beginPath();
+      ctx.arc(cx2, cy2, 5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    watch(() => [props.player.currentMs, props.player.points.length, props.player.source], draw, { deep: false });
+    onMounted(() => {
+      nextTick(draw);
+      window.addEventListener('resize', draw);
+    });
+    onUnmounted(() => window.removeEventListener('resize', draw));
+    return { cvs };
+  },
+  template: `<canvas ref="cvs" class="script-canvas"></canvas>`,
+};
+
+// ─────────────────────────────────────────────────────────────
+// ROOT APP
+// ─────────────────────────────────────────────────────────────
+const App = {
+  name: 'SensaApp',
+  components: { DualRange, AxisSlider, PostureCanvas, EChartPanel, ScriptCanvas },
+
+  setup() {
+    const st = appState;
+
+    // ── computed ──
+    const lang = computed(() => st.language);
+    const loopRun = computed(() => st.overview?.loop?.isRunning ?? false);
+    const cmd = computed(() => st.overview?.loop?.command || {});
+    const devices = computed(() => {
+      const r = buildRealDevices();
+      return SHOW_MOCK ? [...r, ...buildMockDevices()] : r;
+    });
+    const deviceRange = computed({
+      get: () => [st.config?.tCode?.minPos ?? 100, st.config?.tCode?.maxPos ?? 900],
+      set([lo, hi]) {
+        if (st.config?.tCode) {
+          st.config.tCode.minPos = lo;
+          st.config.tCode.maxPos = hi;
+        }
+      },
+    });
+    const overviewBpm = computed(() => Number(st.overview?.loop?.currentBpm ?? 0).toFixed(1));
+    const tcodeSummary = computed(() => {
+      if (!st.config || !st.overview) return [];
+      const c = st.config.tCode || {};
+      return [
+        [t('label.port'), c.comPort || t('label.none')],
+        [t('label.mode'), c.preferSpeedMode ? t('label.speed') : t('label.interval')],
+        [t('label.auto'), c.enabled ? t('label.on') : t('label.off')],
+        [t('label.frames'), `${c.updatesPerSecond ?? '-'} UPS`],
+      ];
+    });
+    const signalLatestMap = computed(() => {
+      const m = new Map();
+      (st.overview?.signals || []).forEach(s => m.set(s.signal.oscPath, s.latest?.value));
+      return m;
+    });
+    const filtSigs = computed(() => {
+      const f = (st.filters.signals || '').trim().toLowerCase();
+      return (st.config?.signals || []).filter(s => !f || `${s.oscPath} ${s.role} ${s.curve}`.toLowerCase().includes(f));
+    });
+    const filtParams = computed(() => {
+      const f = (st.filters.parameters || '').trim().toLowerCase();
+      return st.parameters.filter(p => !f || `${p.path} ${p.type}`.toLowerCase().includes(f)).slice(0, 300);
+    });
+    const filtLogs = computed(() => {
+      const f = (st.filters.logs || '').trim().toLowerCase();
+      return st.logs.filter(l => !f || l.message.toLowerCase().includes(f));
+    });
+    const diagnostics = computed(() => {
+      if (!st.overview) return [];
+      const ov = st.overview;
+      const ds = [];
+      if (!ov.loop.isRunning) ds.push({ type: 'warn', title: t('diag.loopStopped.title'), body: t('diag.loopStopped.body') });
+      if (ov.loop.isEmergency) ds.push({ type: 'error', title: t('diag.emergency.title'), body: t('diag.emergency.body') });
+      if (!ov.tcode.connected && st.config?.tCode?.enabled) ds.push({ type: 'warn', title: t('diag.tcodeMissing.title'), body: t('diag.tcodeMissing.body') });
+      if ((ov.osc.parameterCount || 0) === 0) ds.push({ type: 'warn', title: t('diag.oscMissing.title'), body: t('diag.oscMissing.body') });
+      if (!ds.length) ds.push({ type: 'ok', title: t('diag.ok.title'), body: t('diag.ok.body') });
+      return ds;
+    });
+    const overviewGuide = computed(() => {
+      const items = [];
+      if (!devices.value.length) items.push({ title: t('overview.guide.none.title'), body: t('overview.guide.none.body') });
+      else items.push({ title: t('overview.guide.connected.title'), body: t('overview.guide.connected.body') });
+      if ((st.overview?.osc?.parameterCount || 0) === 0) items.push({ title: t('overview.guide.osc.title'), body: t('overview.guide.osc.body') });
+      return items;
+    });
+    const statusCards = computed(() => {
+      if (!st.overview) return [];
+      const ov = st.overview;
+      const c = ov.loop.command || {};
+      return [
+        { label: t('label.loop'), value: ov.loop.isRunning ? t('status.running') : t('status.stopped'), cls: ov.loop.isRunning ? 'ok' : 'warn', tip: t('tip.stat.loop') },
+        { label: 'BPM', value: overviewBpm.value, cls: '', tip: t('tip.stat.bpm') },
+        { label: t('label.params'), value: String(ov.osc.parameterCount || 0), cls: '', tip: t('tip.stat.params') },
+        { label: 'OSC ' + t('label.port'), value: String(st.config?.osc?.receiverPort || '-'), cls: '', tip: t('tip.stat.oscPort') },
+        {
+          label: 'TCode',
+          value: ov.tcode.connected ? `${t('status.connected')} · ${st.config?.tCode?.comPort || '-'}` : t('status.disconnected'),
+          cls: ov.tcode.connected ? 'ok' : '',
+          tip: t('tip.stat.tcode'),
+        },
+        {
+          label: t('label.recording'),
+          value: ov.recording.isActive ? `${t('recording.active')} · ${ov.recording.frameCount}` : `${t('status.idle')} · ${ov.recording.frameCount}`,
+          cls: ov.recording.isActive ? 'ok' : '',
+          tip: t('tip.stat.recording'),
+        },
+        { label: t('label.manual'), value: ov.loop.manualOverrideEnabled ? t('status.enabled') : t('status.disabled'), cls: ov.loop.manualOverrideEnabled ? 'warn' : '', tip: t('tip.stat.manual') },
+        { label: t('label.output'), value: `L0 ${Number(c.l0 ?? 0).toFixed(2)} · R0 ${Number(c.r0 ?? 0.5).toFixed(2)} · V ${Number(c.vibrate ?? 0).toFixed(2)}`, cls: '', tip: t('tip.stat.output') },
+      ];
+    });
+    const cmdBadge = computed(() => {
+      const c = cmd.value;
+      return `L0 ${Number(c.l0 ?? 0).toFixed(2)} · R0 ${Number(c.r0 ?? 0.5).toFixed(2)} · Vib ${Number(c.vibrate ?? 0).toFixed(2)} · Gate ${c.gateOpen ? 'Open' : 'Closed'}`;
+    });
+    const scriptFmtSrc = computed(() => {
+      const p = st.scriptPlayer;
+      return p.source === 'recording' ? t('scripts.source.recording') : p.source === 'imported' ? t('scripts.source.imported') : t('scripts.source.empty');
+    });
+    const scriptMeta = computed(() => {
+      const p = st.scriptPlayer;
+      if (p.source === 'recording') return t('scripts.meta.recording', { count: String(p.points.length), duration: fmtDur(p.durationMs) });
+      if (p.source === 'imported') return t('scripts.meta.imported', { name: p.name || 'script', count: String(p.points.length), duration: fmtDur(p.durationMs) });
+      return t('scripts.meta.empty');
+    });
+    const scriptStatusKey = computed(() => {
+      const p = st.scriptPlayer;
+      if (!p.points.length) return 'scripts.player.empty';
+      if (p.isPlaying) return 'scripts.player.playing';
+      if (p.currentMs > 0) return 'scripts.player.paused';
+      return 'scripts.player.empty';
+    });
+    const scriptSummary = computed(() => {
+      const p = st.scriptPlayer;
+      const dens = p.durationMs > 0 ? (p.points.length / Math.max(p.durationMs / 1000, 1)).toFixed(1) : '0.0';
+      return [
+        [t('scripts.summary.source'), scriptFmtSrc.value],
+        [t('scripts.summary.points'), String(p.points.length)],
+        [t('scripts.summary.duration'), fmtDur(p.durationMs)],
+        [t('scripts.summary.position'), `${fmtDur(p.currentMs)} · ${Math.round(getScriptValAt(p.currentMs) * 100)}%`],
+        [t('scripts.timeline.frames'), String(p.points.length)],
+        [t('scripts.timeline.density'), `${dens} / s`],
+        [t('scripts.timeline.range'), `${fmtDur(p.points[0]?.ms || 0)} → ${fmtDur(p.durationMs)}`],
+      ];
+    });
+
+    // ── actions ──
+    function setActiveTab(tab) {
+      st.activeTab = tab;
+      localStorage.setItem('sensa.activeTab', tab);
+      window.scrollTo({ top: 0, behavior: 'auto' });
+    }
+    function toggleLanguage() {
+      const i = LANGUAGES.indexOf(st.language);
+      st.language = LANGUAGES[(i + 1) % LANGUAGES.length];
+      localStorage.setItem('sensa.language', st.language);
+      showToast(t('toast.langChanged'), t('msg.langChanged'));
+    }
+    function cycleTheme() {
+      st.theme = 'light';
+      document.documentElement.dataset.theme = 'light';
+      localStorage.setItem('sensa.theme', 'light');
+    }
+
+    async function refreshAll(feedback = false) {
+      try {
+        const [meta, cfg, ov, params, logs, ports, rec] = await Promise.all([
+          api('/api/meta'),
+          api('/api/config'),
+          api('/api/state/overview'),
+          api('/api/state/parameters'),
+          api('/api/state/logs'),
+          api('/api/meta/serial-ports').catch(() => []),
+          api('/api/state/recording/data').catch(() => []),
+        ]);
+        st.meta = meta;
+        st.config = cfg;
+        st.overview = ov;
+        st.parameters = params;
+        st.logs = logs;
+        st.serialPorts = ports;
+        st.recordingFrames = rec;
+        st.roles = [...(meta.enums?.signalRoles || [])];
+        st.curves = [...(meta.enums?.curveTypes || [])];
+        st.idleBehaviors = [...(meta.enums?.idleBehaviors || [])];
+        // sync manual from current command
+        const mc = ov.loop.manualCommand || {};
+        st.manualEnabled = ov.loop.manualOverrideEnabled || false;
+        st.manualGateOpen = mc.gateOpen ?? true;
+        AXES.forEach(ax => {
+          st.manual[ax] = mc[AXIS_KEY[ax]] ?? AXIS_DEFS[ax];
+        });
+        // push axis history
+        const c = ov.loop.command || {};
+        st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
+        if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
+        if (feedback) showToast(t('toast.refreshSuccess'), ov?.service?.url || location.origin);
+      } catch (e) {
+        showToast(t('toast.refreshFailed'), e.message, 'error', 3600);
+        throw e;
+      }
+    }
+
+    async function postAction(path, body = null) {
+      try {
+        const result = await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
+        if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
+          const msg = path === '/api/control/tcode/connect' ? t('msg.tcodeConnectFailed') : result.message || t('msg.actionReportedFailure');
+          showToast(t('toast.actionFailed'), msg, 'error', 4200);
+          await refreshAll().catch(() => {});
+          return;
+        }
+        await refreshAll();
+        showToast(t('toast.actionSuccess'), result?.message || path);
+      } catch (e) {
+        showToast(t('toast.actionFailed'), e.message, 'error', 4200);
+      }
+    }
+
+    async function saveConfig() {
+      try {
+        await api('/api/config', { method: 'PUT', body: JSON.stringify(st.config) });
+        await refreshAll();
+        showToast(t('toast.applied'), t('msg.applied'));
+      } catch (e) {
+        showToast(t('toast.actionFailed'), e.message, 'error');
+      }
+    }
+
+    async function applyManual() {
+      const payload = {
+        enabled: st.manualEnabled,
+        gateOpen: st.manualGateOpen,
+        l0: st.manual.L0,
+        r0: st.manual.R0,
+        r1: st.manual.R1,
+        r2: st.manual.R2,
+        l1: st.manual.L1,
+        l2: st.manual.L2,
+        vibrate: st.manual.Vibrate,
+      };
+      await api('/api/manual-test', { method: 'PUT', body: JSON.stringify(payload) });
       await refreshAll();
-    } catch (error) {
-      showToast(t('toast.actionFailed'), error.message, 'error', 5000);
+      showToast(t('toast.actionSuccess'), t('btn.applyManual'));
     }
-  });
-  els.useRecordingScriptBtn?.addEventListener('click', () => {
-    useRecordingDataset();
-    showToast(t('toast.scriptLoaded'), t('msg.scriptLoaded'));
-  });
-  els.clearScriptBtn?.addEventListener('click', () => {
-    setScriptDataset({ source: 'empty', name: '', points: [], durationMs: 0 });
-    showToast(t('toast.scriptCleared'), t('msg.scriptCleared'));
-  });
-  els.scriptFileInput?.addEventListener('change', async event => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    try {
-      const text = await file.text();
-      const parsed = parseFunscriptText(text);
-      setScriptDataset({ source: 'imported', name: file.name, points: parsed.points, durationMs: parsed.durationMs });
-      showToast(t('toast.scriptLoaded'), t('msg.scriptLoaded'));
-    } catch (error) {
-      showToast(t('toast.scriptFailed'), error.message || t('msg.scriptInvalid'), 'error', 4000);
+
+    async function clearManual() {
+      await api('/api/manual-test', { method: 'DELETE' });
+      await refreshAll();
+      showToast(t('toast.actionSuccess'), t('btn.clearManual'));
     }
-  });
-  els.scriptPlayBtn?.addEventListener('click', () => {
-    const player = state.scriptPlayer;
-    if (!player.points.length || player.durationMs <= 0) return;
-    if (player.currentMs >= player.durationMs) player.currentMs = 0;
-    player.isPlaying = true;
-    player.baselineMs = player.currentMs;
-    player.startedAtMs = performance.now();
-    if (player.rafId) cancelAnimationFrame(player.rafId);
-    player.rafId = requestAnimationFrame(scriptTick);
-    renderScriptPlayer();
-  });
-  els.scriptPauseBtn?.addEventListener('click', () => {
-    stopScriptPlayback();
-    renderScriptPlayer();
-  });
-  els.scriptStopBtn?.addEventListener('click', () => {
-    stopScriptPlayback();
-    setScriptCurrentMs(0);
-  });
-  els.scriptSeekInput?.addEventListener('input', event => {
-    const ratio = Number(event.target.value) / 1000;
-    stopScriptPlayback();
-    setScriptCurrentMs((state.scriptPlayer.durationMs || 0) * ratio);
-  });
-  els.mockDevicesToggleBtn.addEventListener('click', () => {
-    state.showMockDevices = !state.showMockDevices;
-    localStorage.setItem(MOCK_TOGGLE_KEY, String(state.showMockDevices));
-    renderAll();
-    showToast(t('toast.mockChanged'), t('msg.mockChanged'));
-  });
-  window.addEventListener('resize', () => {
-    if (state.overview) drawDevice(state.overview.loop.command);
-    renderScriptCanvas();
-  });
-}
 
-function connectWs() {
-  const protocol = location.protocol === 'https:' ? 'wss' : 'ws';
-  const ws = new WebSocket(`${protocol}://${location.host}/api/ws`);
-  ws.addEventListener('open', () => {
-    state.wsRetryMs = 1000;
-    setWsConnected(true);
-    renderStatus();
-  });
-  ws.addEventListener('close', () => {
-    setWsConnected(false);
-    renderStatus();
-    setTimeout(connectWs, state.wsRetryMs);
-    state.wsRetryMs = Math.min(Math.round(state.wsRetryMs * 1.8), 10000);
-  });
-  ws.addEventListener('message', event => {
-    const payload = JSON.parse(event.data);
-    if (payload.type !== 'state') return;
-    state.overview = payload.data;
-    state.logs = payload.logs;
-    renderStatus();
-    renderSignals();
-    renderLogs();
-    renderDeviceWorkbench();
-    renderDeviceOpsSummary();
-    renderScripts();
-  });
-}
+    function centerAxes() {
+      AXES.forEach(ax => {
+        st.manual[ax] = AXIS_DEFS[ax];
+      });
+    }
 
-function startBackgroundRefresh() {
-  setInterval(() => {
-    refreshAll().catch(() => {});
-  }, 8000);
-}
+    async function refreshPorts() {
+      try {
+        st.serialPorts = await api('/api/meta/serial-ports');
+        showToast(t('toast.portsRefreshed'), t('msg.portsRefreshed'));
+      } catch (e) {
+        showToast(t('toast.actionFailed'), e.message, 'error');
+      }
+    }
 
-applyTheme(state.theme);
-translateDocument();
-bindActions();
-setActiveTab(state.activeTab);
-setWsConnected(false);
-await refreshAll().catch(() => {});
-useRecordingDataset();
-connectWs();
-startBackgroundRefresh();
+    function addSignal() {
+      if (!st.config) return;
+      st.config.signals.push({
+        oscPath: '',
+        invertDirection: false,
+        vrchatMin: 0,
+        vrchatMax: 1,
+        smoothingAlpha: 0.7,
+        deadZone: 0.01,
+        curve: st.curves[0] || 'Linear',
+        role: st.roles[0] || 'Depth',
+        isOgbSocket: false,
+        isOgbPlug: false,
+      });
+      showToast(t('toast.signalAdded'), t('msg.signalAdded'));
+    }
+
+    function removeSignal(idx) {
+      st.config.signals.splice(idx, 1);
+    }
+
+    async function copyDiag() {
+      const text = diagnostics.value.map(d => `${d.title}: ${d.body}`).join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        showToast(t('toast.diagCopied'), t('msg.diagCopied'));
+      } catch {
+        showToast(t('toast.actionFailed'), 'Copy failed', 'error');
+      }
+    }
+
+    async function exportRecording() {
+      try {
+        const r = await api('/api/control/recording/export', { method: 'POST' });
+        showToast(t('toast.exportDone'), r.path || t('msg.noRecording'), r.path ? 'success' : 'error', 5000);
+        await refreshAll();
+      } catch (e) {
+        showToast(t('toast.actionFailed'), e.message, 'error', 5000);
+      }
+    }
+
+    function useRecordingDS() {
+      const pts = (st.recordingFrames || []).map(f => ({ ms: Number(f.ms) || 0, value: Math.max(0, Math.min(1, Number(f.l0) || 0)) }));
+      const dur = pts.length ? pts[pts.length - 1].ms : 0;
+      setScriptDataset({ source: pts.length ? 'recording' : 'empty', name: 'recording', points: pts, durationMs: dur });
+      showToast(t('toast.scriptLoaded'), t('scripts.meta.recording', { count: String(pts.length), duration: fmtDur(dur) }));
+    }
+
+    async function loadScriptFile(file) {
+      try {
+        const txt = await file.text();
+        const parsed = parseFunscript(txt);
+        setScriptDataset({ source: 'imported', name: file.name, points: parsed.points, durationMs: parsed.durationMs });
+        showToast(t('toast.scriptLoaded'), t('scripts.meta.imported', { name: file.name, count: String(parsed.points.length), duration: fmtDur(parsed.durationMs) }));
+      } catch (e) {
+        showToast(t('toast.scriptFailed'), e.message || t('msg.scriptInvalid'), 'error', 4000);
+      }
+    }
+
+    function scriptPlay() {
+      const p = st.scriptPlayer;
+      if (!p.points.length || p.durationMs <= 0) return;
+      if (p.currentMs >= p.durationMs) st.scriptPlayer.currentMs = 0;
+      p.isPlaying = true;
+      p.baselineMs = p.currentMs;
+      p.startedAtMs = performance.now();
+      if (p.rafId) cancelAnimationFrame(p.rafId);
+      function tick(now) {
+        if (!st.scriptPlayer.isPlaying) return;
+        const ms = st.scriptPlayer.baselineMs + (now - st.scriptPlayer.startedAtMs);
+        if (ms >= st.scriptPlayer.durationMs) {
+          setScriptMs(st.scriptPlayer.durationMs);
+          stopScriptPlayback();
+          return;
+        }
+        setScriptMs(ms);
+        st.scriptPlayer.rafId = requestAnimationFrame(tick);
+      }
+      p.rafId = requestAnimationFrame(tick);
+    }
+
+    function scriptPause() {
+      stopScriptPlayback();
+    }
+
+    function scriptStop() {
+      stopScriptPlayback();
+      setScriptMs(0);
+    }
+
+    function scriptSeek(ratio) {
+      stopScriptPlayback();
+      setScriptMs((st.scriptPlayer.durationMs || 0) * ratio);
+    }
+
+    function saveDevConfig(device) {
+      const c = st.config?.tCode || {};
+      const cfg = { minPos: c.minPos, maxPos: c.maxPos, maxVelocity: c.maxVelocity, updatesPerSecond: c.updatesPerSecond, rampUpMs: st.config?.safety?.rampUpMs };
+      saveDeviceCfg(device.memoryId, cfg);
+      showToast(t('toast.deviceCfgSaved'), t('msg.deviceCfgSaved'));
+    }
+
+    function loadDevConfig(device) {
+      const saved = loadDeviceCfg(device.memoryId);
+      if (!saved) {
+        showToast('', 'No saved config for this device', 'warn');
+        return;
+      }
+      if (st.config?.tCode) {
+        if (saved.minPos !== undefined) st.config.tCode.minPos = saved.minPos;
+        if (saved.maxPos !== undefined) st.config.tCode.maxPos = saved.maxPos;
+        if (saved.maxVelocity !== undefined) st.config.tCode.maxVelocity = saved.maxVelocity;
+        if (saved.updatesPerSecond !== undefined) st.config.tCode.updatesPerSecond = saved.updatesPerSecond;
+      }
+      if (saved.rampUpMs !== undefined && st.config?.safety) st.config.safety.rampUpMs = saved.rampUpMs;
+      showToast(t('toast.deviceCfgLoaded'), t('msg.deviceCfgLoaded'));
+    }
+
+    function saveDevMemory(device, alias, note) {
+      setDeviceMem(device, { alias, note, snapshot: device.snapshot });
+      showToast(t('toast.memorySaved') ?? '已保存', '');
+    }
+
+    // ── WebSocket ──
+    function connectWs() {
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+      const ws = new WebSocket(`${proto}://${location.host}/api/ws`);
+      ws.addEventListener('open', () => {
+        st.wsRetryMs = 1000;
+        st.wsConnected = true;
+      });
+      ws.addEventListener('close', () => {
+        st.wsConnected = false;
+        setTimeout(connectWs, st.wsRetryMs);
+        st.wsRetryMs = Math.min(Math.round(st.wsRetryMs * 1.8), 10000);
+      });
+      ws.addEventListener('message', e => {
+        const payload = JSON.parse(e.data);
+        if (payload.type !== 'state') return;
+        st.overview = payload.data;
+        st.logs = payload.logs;
+        const c = payload.data?.loop?.command || {};
+        st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
+        if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
+      });
+    }
+
+    onMounted(async () => {
+      document.documentElement.dataset.theme = 'light';
+      document.title = 'Sensa WebUI';
+      await refreshAll().catch(() => {});
+      useRecordingDS();
+      connectWs();
+      setInterval(() => refreshAll().catch(() => {}), 8000);
+    });
+
+    return {
+      st,
+      TABS,
+      t,
+      fmtDur,
+      esc,
+      lang,
+      loopRun,
+      cmd,
+      devices,
+      deviceRange,
+      overviewBpm,
+      tcodeSummary,
+      signalLatestMap,
+      filtSigs,
+      filtParams,
+      filtLogs,
+      diagnostics,
+      overviewGuide,
+      statusCards,
+      cmdBadge,
+      scriptFmtSrc,
+      scriptMeta,
+      scriptStatusKey,
+      scriptSummary,
+      // actions
+      setActiveTab,
+      toggleLanguage,
+      cycleTheme,
+      refreshAll,
+      postAction,
+      saveConfig,
+      applyManual,
+      clearManual,
+      centerAxes,
+      refreshPorts,
+      addSignal,
+      removeSignal,
+      copyDiag,
+      exportRecording,
+      useRecordingDS,
+      loadScriptFile,
+      scriptPlay,
+      scriptPause,
+      scriptStop,
+      scriptSeek,
+      saveDevConfig,
+      loadDevConfig,
+      saveDevMemory,
+      getDeviceMem,
+      AXES,
+      AXIS_DEFS,
+      AXIS_KEY,
+      axisLabel,
+    };
+  },
+
+  template: `
+<div>
+
+  <!-- Header -->
+  <header class="hero">
+    <div class="hero-topbar">
+      <div class="hero-brand">
+        <p class="eyebrow">Sensa Local Control Console</p>
+        <h1>Sensa WebUI</h1>
+        <p class="hero-desc">{{ t('hero.desc') }}</p>
+      </div>
+      <PostureCanvas :command="cmd" />
+      <div class="hero-actions">
+        <t-button variant="text" class="icon-btn" :title="t('tip.lang')" @click="toggleLanguage">{{ st.language==='zh-CN'?'EN':'ZH' }}</t-button>
+        <t-button variant="text" class="icon-btn" @click="cycleTheme">&#9677;</t-button>
+        <t-button @click="refreshAll(true)">{{ t('btn.refresh') }}</t-button>
+        <t-tag :theme="st.wsConnected?'success':'danger'" variant="light">{{ st.wsConnected?t('status.wsConnected'):t('status.wsDisconnected') }}</t-tag>
+      </div>
+    </div>
+    <nav class="top-tabs" aria-label="主导航">
+      <button v-for="tab in TABS" :key="tab.id" type="button"
+        :class="['tab-button',{'is-active':st.activeTab===tab.id}]"
+        @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
+    </nav>
+  </header>
+
+  <!-- Main -->
+  <main class="workspace">
+
+    <!-- ═══ OVERVIEW ═══ -->
+    <section v-show="st.activeTab==='overview'" class="tab-panel is-active">
+      <div class="panel-grid panel-grid--overview">
+
+        <section class="card hero-card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('overview.title') }}</h2></div>
+            <t-tag variant="light">{{ t('overview.badge') }}</t-tag>
+          </div>
+          <div class="overview-guide">
+            <article v-for="(item,i) in overviewGuide" :key="i" class="guide-step">
+              <strong>{{ item.title }}</strong><div>{{ item.body }}</div>
+            </article>
+          </div>
+          <div class="overview-actions">
+            <t-button @click="postAction('/api/control/loop/start')">{{ t('btn.startLoop') }}</t-button>
+            <t-button @click="postAction('/api/control/loop/stop')">{{ t('btn.stopLoop') }}</t-button>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>{{ t('overview.status') }}</h2>
+          <div class="stats">
+            <div v-for="card in statusCards" :key="card.label" :class="['stat',card.cls]" :data-tip="card.tip">
+              <div class="stat-label">{{ card.label }}</div>
+              <div class="stat-value">{{ card.value }}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-3">
+          <h2>{{ t('overview.devices.title') }}</h2>
+          <p class="muted">{{ t('overview.devices.desc') }}</p>
+          <div v-if="!devices.length" class="empty-state">
+            <strong>{{ t('devices.empty.title') }}</strong>
+            <div>{{ t('devices.empty.body') }}</div>
+          </div>
+          <div v-else class="device-deck">
+            <article v-for="dev in devices" :key="dev.id" :class="['device-card','device-card--tcode',dev.source==='mock'?'device-card--mock':'','positioned']">
+              <div class="device-card__meta">
+                <div>
+                  <span class="proto-badge tcode">{{ dev.connectionLabel }}</span>
+                  <h3>{{ dev.name }}</h3>
+                  <p class="muted">{{ dev.summary }}</p>
+                </div>
+                <t-tag :theme="dev.source==='mock'?'default':'success'" variant="light">{{ dev.source==='mock'?t('label.mock'):t('label.real') }}</t-tag>
+              </div>
+              <div class="device-card__facts">
+                <div v-for="(v,k) in dev.facts" :key="k" class="fact-pill">
+                  <strong>{{ k }}</strong><span>{{ v }}</span>
+                </div>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('overview.diag') }}</h2><p class="muted">{{ t('overview.diagDesc') }}</p></div>
+            <t-button variant="text" @click="copyDiag">{{ t('btn.copyDiag') }}</t-button>
+          </div>
+          <div class="diagnostic-list">
+            <t-alert v-for="(d,i) in diagnostics" :key="i"
+              :theme="{ok:'success',warn:'warning',error:'error'}[d.type]||'info'"
+              :title="d.title" :message="d.body" style="margin-bottom:6px" />
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ═══ CONFIG ═══ -->
+    <section v-show="st.activeTab==='config'" class="tab-panel">
+      <div v-if="st.config" class="panel-grid panel-grid--config">
+
+        <!-- TCode Connection -->
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('config.tcode.title') }}</h2><p class="muted">{{ t('config.tcode.desc') }}</p></div>
+            <span class="proto-badge tcode">TCode</span>
+          </div>
+          <div class="device-status-row">
+            <div v-for="([lb,vl],i) in tcodeSummary" :key="i" :class="['device-status-chip',st.overview?.tcode?.connected?'ok':'']">
+              <strong>{{ lb }}</strong><span>{{ vl }}</span>
+            </div>
+          </div>
+          <div class="form-stack compact-form">
+            <label :title="t('tip.tcode.comPort')">
+              <span>{{ t('cfg.tcode.comPort') }}</span>
+              <div class="input-row">
+                <t-select v-model="st.config.tCode.comPort" filterable :creatable="true" :placeholder="'COM3'" style="flex:1">
+                  <t-option v-for="p in st.serialPorts" :key="p" :value="p" :label="p" />
+                </t-select>
+                <t-button @click="refreshPorts">{{ t('cfg.tcode.refreshPorts') }}</t-button>
+              </div>
+            </label>
+            <div class="inline-grid inline-grid--2">
+              <label :title="t('tip.tcode.ups')"><span>{{ t('cfg.tcode.ups') }}</span><t-input-number v-model="st.config.tCode.updatesPerSecond" :step="1" /></label>
+              <label :title="t('tip.tcode.speedMode')"><t-checkbox v-model="st.config.tCode.preferSpeedMode">{{ t('cfg.tcode.speedMode') }}</t-checkbox></label>
+            </div>
+            <t-checkbox v-model="st.config.tCode.enabled" :title="t('tip.tcode.enabled')">{{ t('cfg.tcode.enabled') }}</t-checkbox>
+          </div>
+          <div class="actions-grid">
+            <t-button @click="postAction('/api/control/tcode/connect')">{{ t('btn.connectTCode') }}</t-button>
+            <t-button @click="postAction('/api/control/tcode/disconnect')">{{ t('btn.disconnectTCode') }}</t-button>
+          </div>
+        </section>
+
+        <!-- Service Config -->
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('config.service.title') }}</h2><p class="muted">{{ t('config.service.desc') }}</p></div>
+          </div>
+          <div class="form-stack compact-form">
+            <label :title="t('tip.webui.host')??''"><span>{{ t('cfg.webui.host') }}</span><t-input v-model="st.config.webUi.host" /></label>
+            <label :title="t('tip.webui.port')??''"><span>{{ t('cfg.webui.port') }}</span><t-input-number v-model="st.config.webUi.port" :step="1" /></label>
+            <label :title="t('tip.osc.port')??''"><span>{{ t('cfg.osc.port') }}</span><t-input-number v-model="st.config.osc.receiverPort" :step="1" /></label>
+          </div>
+        </section>
+
+        <!-- Safety Config -->
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('config.safety.title') }}</h2><p class="muted">{{ t('config.safety.desc') }}</p></div>
+          </div>
+          <div class="form-stack compact-form">
+            <label><span>{{ t('cfg.safety.cap') }}</span><t-input-number v-model="st.config.safety.globalIntensityCap" :step="0.01" :min="0" :max="1" /></label>
+            <label><span>{{ t('cfg.safety.idle') }}</span>
+              <t-select v-model="st.config.safety.idle">
+                <t-option v-for="opt in st.idleBehaviors" :key="opt" :value="opt" :label="opt" />
+              </t-select>
+            </label>
+            <label><span>{{ t('cfg.safety.estop') }}</span><t-input v-model="st.config.safety.emergencyStopKey" /></label>
+          </div>
+        </section>
+
+        <!-- Signal Matrix -->
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('signals.title') }}</h2><p class="muted">{{ t('signals.desc') }}</p></div>
+            <div class="button-row">
+              <t-input v-model="st.filters.signals" :placeholder="t('signals.filter')" clearable style="width:200px" />
+              <t-button @click="addSignal">{{ t('btn.addSignal') }}</t-button>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead><tr>
+                <th>{{ t('sig.oscPath') }}</th><th>{{ t('sig.role') }}</th><th>{{ t('sig.curve') }}</th>
+                <th>{{ t('sig.min') }}</th><th>{{ t('sig.max') }}</th><th>{{ t('sig.alpha') }}</th>
+                <th>{{ t('sig.dz') }}</th><th>{{ t('sig.inv') }}</th><th>{{ t('sig.latest') }}</th><th></th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(sig,idx) in filtSigs" :key="idx">
+                  <td><t-input v-model="sig.oscPath" size="small" /></td>
+                  <td><t-select v-model="sig.role" size="small" style="min-width:90px"><t-option v-for="r in st.roles" :key="r" :value="r" :label="r" /></t-select></td>
+                  <td><t-select v-model="sig.curve" size="small" style="min-width:90px"><t-option v-for="c in st.curves" :key="c" :value="c" :label="c" /></t-select></td>
+                  <td><t-input-number v-model="sig.vrchatMin" :step="0.01" size="small" style="width:80px" /></td>
+                  <td><t-input-number v-model="sig.vrchatMax" :step="0.01" size="small" style="width:80px" /></td>
+                  <td><t-input-number v-model="sig.smoothingAlpha" :step="0.01" :min="0.01" :max="1" size="small" style="width:80px" /></td>
+                  <td><t-input-number v-model="sig.deadZone" :step="0.01" :min="0" :max="1" size="small" style="width:80px" /></td>
+                  <td><t-checkbox v-model="sig.invertDirection" /></td>
+                  <td>{{ signalLatestMap.has(sig.oscPath) ? Number(signalLatestMap.get(sig.oscPath)).toFixed(4) : '-' }}</td>
+                  <td><t-button variant="text" theme="danger" size="small" @click="removeSignal(st.config.signals.indexOf(sig))">{{ t('btn.delete') }}</t-button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="surface-actions">
+            <t-button theme="primary" @click="saveConfig">{{ t('btn.apply') }}</t-button>
+            <t-button @click="refreshAll(true)">{{ t('btn.reloadConfig') }}</t-button>
+          </div>
+        </section>
+
+      </div>
+      <div v-else class="empty-state"><strong>加载中…</strong></div>
+    </section>
+
+    <!-- ═══ DEVICES ═══ -->
+    <section v-show="st.activeTab==='devices'" class="tab-panel">
+      <div class="panel-grid panel-grid--devices">
+
+        <section class="card span-3">
+          <div class="section-title-row">
+            <div><h2>{{ t('devices.title') }}</h2><p class="muted">{{ t('devices.desc') }}</p></div>
+          </div>
+
+          <div v-if="!devices.length" class="empty-state">
+            <strong>{{ t('devices.empty.title') }}</strong>
+            <div>{{ t('devices.empty.body') }}</div>
+          </div>
+
+          <div v-else class="device-deck">
+            <article v-for="dev in devices" :key="dev.id" :class="['device-card','device-card--tcode',dev.source==='mock'?'device-card--mock':'','positioned']">
+              <div class="device-card__meta">
+                <div>
+                  <span class="proto-badge tcode">{{ dev.connectionLabel }}</span>
+                  <h3>{{ dev.name }}</h3>
+                  <p class="muted">{{ dev.summary }}</p>
+                </div>
+                <t-tag :theme="dev.source==='mock'?'default':'success'" variant="light">{{ dev.source==='mock'?t('label.mock'):t('label.real') }}</t-tag>
+              </div>
+              <div class="device-card__facts">
+                <div v-for="(v,k) in dev.facts" :key="k" class="fact-pill"><strong>{{ k }}</strong><span>{{ v }}</span></div>
+              </div>
+
+              <!-- Output Range dual slider -->
+              <div v-if="st.config" class="device-card__stack">
+                <div class="section-subtitle">{{ t('devices.range.title') }}</div>
+                <p class="muted small">{{ t('devices.range.desc') }}</p>
+                <DualRange v-model="deviceRange" :min="0" :max="999" :label="'Output Range'" />
+              </div>
+
+              <!-- Device parameters -->
+              <div v-if="st.config" class="device-card__stack">
+                <div class="section-subtitle">{{ t('devices.params.title') }}</div>
+                <div class="inline-grid inline-grid--2">
+                  <label><span>{{ t('devices.params.maxVel') }}</span><t-input-number v-model="st.config.tCode.maxVelocity" :step="1" /></label>
+                  <label><span>{{ t('devices.params.ups') }}</span><t-input-number v-model="st.config.tCode.updatesPerSecond" :step="1" /></label>
+                  <label class="inline-grid--full"><span>{{ t('devices.params.ramp') }}</span><t-input-number v-model="st.config.safety.rampUpMs" :step="1" /></label>
+                </div>
+              </div>
+
+              <!-- Quick actions -->
+              <div class="device-card__stack">
+                <div class="button-row">
+                  <t-button @click="postAction('/api/control/tcode/park')">{{ t('btn.park') }}</t-button>
+                  <t-button @click="saveConfig();saveDevConfig(dev)">{{ t('btn.saveDeviceCfg') }}</t-button>
+                  <t-button variant="text" @click="loadDevConfig(dev)">{{ t('btn.loadDeviceCfg') }}</t-button>
+                </div>
+              </div>
+
+              <!-- Device memory -->
+              <div class="device-card__stack" v-if="dev.source!=='mock'">
+                <div class="device-config-label">
+                  <strong>{{ t('devices.memory.title') }}</strong>
+                  <span class="muted">{{ getDeviceMem(dev) ? t('devices.memory.saved',{time:new Date(getDeviceMem(dev).savedAt).toLocaleString()}) : t('devices.memory.none') }}</span>
+                </div>
+                <div class="inline-grid inline-grid--2">
+                  <label><span>{{ t('devices.alias') }}</span><t-input :value="getDeviceMem(dev)?.alias||''" @change="v=>saveDevMemory(dev,v,getDeviceMem(dev)?.note||'')" /></label>
+                  <label><span>{{ t('devices.note') }}</span><t-input :value="getDeviceMem(dev)?.note||''" @change="v=>saveDevMemory(dev,getDeviceMem(dev)?.alias||'',v)" /></label>
+                </div>
+              </div>
+
+            </article>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ═══ CONTROL ═══ -->
+    <section v-show="st.activeTab==='control'" class="tab-panel">
+      <div class="panel-grid panel-grid--control">
+
+        <!-- Axis control card -->
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('control.axes.title') }}</h2></div>
+            <t-tag :theme="loopRun?'warning':'default'" variant="light">{{ loopRun?t('status.running'):t('status.stopped') }}</t-tag>
+          </div>
+          <div :class="['callout',loopRun?'warn':'info']">
+            {{ loopRun ? t('control.axes.running') : t('control.axes.stopped') }}
+          </div>
+          <div class="axis-grid axis-grid--control">
+            <AxisSlider v-for="ax in AXES" :key="ax" :axis="ax"
+              :modelValue="loopRun ? (cmd[AXIS_KEY[ax]]??AXIS_DEFS[ax]) : st.manual[ax]"
+              @update:modelValue="v=>{ if(!loopRun) st.manual[ax]=v; }"
+              :readonly="loopRun" />
+          </div>
+          <div class="actions-grid" style="margin-top:12px" v-if="!loopRun">
+            <t-checkbox v-model="st.manualEnabled">{{ t('cb.manualEnabled') }}</t-checkbox>
+            <t-checkbox v-model="st.manualGateOpen">{{ t('cb.gateOpen') }}</t-checkbox>
+            <t-button @click="applyManual">{{ t('btn.applyManual') }}</t-button>
+            <t-button @click="clearManual">{{ t('btn.clearManual') }}</t-button>
+            <t-button variant="text" @click="centerAxes">{{ t('btn.centerAxes') }}</t-button>
+          </div>
+        </section>
+
+        <!-- L0 Invert toggle -->
+        <section v-if="st.config" class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('control.invert.title') }}</h2><p class="muted">{{ t('control.invert.desc') }}</p></div>
+          </div>
+          <div class="toggle-group">
+            <t-checkbox v-model="st.config.tCode.l0Invert">L0 Invert</t-checkbox>
+          </div>
+          <div class="actions-grid" style="margin-top:12px">
+            <t-button @click="saveConfig">{{ t('btn.save') }}</t-button>
+          </div>
+        </section>
+
+        <!-- BPM card -->
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('control.bpm.title') }}</h2><p class="muted">{{ t('control.bpm.desc') }}</p></div>
+            <t-tag variant="light">{{ overviewBpm }} BPM</t-tag>
+          </div>
+          <div v-if="st.config" class="form-stack compact-form">
+            <t-checkbox v-model="st.config.rhythm.enabled">{{ t('cfg.rhythm.enabled') }}</t-checkbox>
+            <div class="inline-grid inline-grid--3">
+              <label><span>{{ t('cfg.rhythm.window') }}</span><t-input-number v-model="st.config.rhythm.windowMs" :step="1" /></label>
+              <label><span>{{ t('cfg.rhythm.minBpm') }}</span><t-input-number v-model="st.config.rhythm.minBpm" :step="0.1" /></label>
+              <label><span>{{ t('cfg.rhythm.maxBpm') }}</span><t-input-number v-model="st.config.rhythm.maxBpm" :step="0.1" /></label>
+            </div>
+            <div class="actions-grid">
+              <t-button @click="saveConfig">{{ t('btn.save') }}</t-button>
+            </div>
+          </div>
+        </section>
+
+        <!-- Park -->
+        <section class="card">
+          <h2>{{ t('btn.parkTCode') }}</h2>
+          <p class="muted">将所有轴回到安全中点位置。</p>
+          <t-button @click="postAction('/api/control/tcode/park')" style="margin-top:8px">{{ t('btn.park') }}</t-button>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ═══ SCRIPTS ═══ -->
+    <section v-show="st.activeTab==='scripts'" class="tab-panel">
+      <div class="panel-grid panel-grid--scripts">
+
+        <section class="card span-3 script-hero-card">
+          <div class="section-title-row">
+            <div><h2>{{ t('scripts.title') }}</h2><p class="muted">{{ t('scripts.recording.hint') }}</p></div>
+            <t-tag variant="light">{{ t('scripts.badge') }}</t-tag>
+          </div>
+          <div class="stat-row" style="display:flex;gap:8px;flex-wrap:wrap">
+            <div v-for="([lb,vl],i) in scriptSummary.slice(0,4)" :key="i" class="stat">
+              <div class="stat-label">{{ lb }}</div>
+              <div class="stat-value">{{ vl }}</div>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('scripts.recording.title') }}</h2><p class="muted">{{ t('scripts.recording.desc') }}</p></div>
+            <t-tag :theme="st.overview?.recording?.isActive?'success':'default'" variant="light">{{ st.overview?.recording?.isActive ? t('recording.active') : t('recording.inactive') }}</t-tag>
+          </div>
+          <div class="actions-grid actions-grid--wide">
+            <t-button @click="postAction('/api/control/recording/start')">{{ t('btn.startRecording') }}</t-button>
+            <t-button @click="postAction('/api/control/recording/stop')">{{ t('btn.stopRecording') }}</t-button>
+            <t-button @click="exportRecording">{{ t('btn.exportFunscript') }}</t-button>
+          </div>
+          <p class="muted" style="margin-top:8px">{{ t('recording.summary',{state:st.overview?.recording?.isActive?t('recording.active'):t('recording.inactive'),count:String(st.overview?.recording?.frameCount??0)}) }}</p>
+          <div class="callout info">{{ t('scripts.recording.hint') }}</div>
+        </section>
+
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('scripts.import.title') }}</h2><p class="muted">{{ t('scripts.import.desc') }}</p></div>
+          </div>
+          <div class="form-stack compact-form">
+            <label>
+              <span>{{ t('scripts.import.file') }}</span>
+              <input type="file" accept=".funscript,.json,application/json" @change="e=>e.target.files?.[0]&&loadScriptFile(e.target.files[0])" />
+            </label>
+            <div class="callout info">{{ scriptMeta }}</div>
+            <div class="button-row">
+              <t-button variant="text" @click="useRecordingDS">{{ t('scripts.import.useRecording') }}</t-button>
+              <t-button variant="text" @click="()=>setScriptDataset({source:'empty',name:'',points:[],durationMs:0})">{{ t('scripts.import.clear') }}</t-button>
+            </div>
+          </div>
+        </section>
+
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('scripts.player.title') }}</h2><p class="muted">{{ t('scripts.player.desc') }}</p></div>
+            <t-tag variant="light">{{ t(scriptStatusKey) }}</t-tag>
+          </div>
+          <ScriptCanvas :player="st.scriptPlayer" />
+          <div class="script-player-controls">
+            <input type="range" min="0" max="1000" step="1"
+              :value="Math.round(st.scriptPlayer.durationMs>0?(st.scriptPlayer.currentMs/st.scriptPlayer.durationMs)*1000:0)"
+              @input="e=>scriptSeek(Number(e.target.value)/1000)" />
+            <div class="script-player-toolbar">
+              <t-button theme="primary" @click="scriptPlay">{{ t('scripts.player.play') }}</t-button>
+              <t-button variant="text" @click="scriptPause">{{ t('scripts.player.pause') }}</t-button>
+              <t-button variant="text" @click="scriptStop">{{ t('scripts.player.stop') }}</t-button>
+              <span class="script-time-label">{{ fmtDur(st.scriptPlayer.currentMs) }} / {{ fmtDur(st.scriptPlayer.durationMs) }}</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="card">
+          <div class="section-title-row">
+            <div><h2>{{ t('scripts.timeline.title') }}</h2></div>
+          </div>
+          <div class="diagnostic-list">
+            <t-alert v-if="!st.scriptPlayer.points.length" theme="info" :title="t('scripts.timeline.title')" :message="t('scripts.timeline.empty')" />
+            <article v-else v-for="([lb,vl],i) in scriptSummary" :key="i" class="diagnostic-item ok">
+              <strong>{{ lb }}</strong><div>{{ vl }}</div>
+            </article>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ═══ MONITORING ═══ -->
+    <section v-show="st.activeTab==='monitoring'" class="tab-panel">
+      <div class="panel-grid panel-grid--monitoring">
+
+        <!-- ECharts axis history chart -->
+        <section class="card span-3">
+          <div class="section-title-row">
+            <div><h2>{{ t('monitor.chart.title') }}</h2><p class="muted">最近 {{ st.axisHistory.length }} 个数据点 ({{ t('monitor.chart.desc') }})</p></div>
+          </div>
+          <EChartPanel :history="st.axisHistory" :lang="st.language" />
+        </section>
+
+        <section class="card span-3">
+          <div class="section-title-row">
+            <div><h2>{{ t('monitor.params.title') }}</h2><p class="muted">{{ t('monitor.params.desc') }}</p></div>
+            <t-input v-model="st.filters.parameters" :placeholder="t('monitor.params.filter')" clearable style="width:220px" />
+          </div>
+          <div class="table-wrap compact-table table-wrap--wide">
+            <table>
+              <thead><tr>
+                <th>Path</th><th>Value</th><th>Type</th><th>Timestamp</th>
+              </tr></thead>
+              <tbody>
+                <tr v-for="(p,i) in filtParams" :key="i">
+                  <td>{{ p.path }}</td>
+                  <td>{{ Number(p.value).toFixed(4) }}</td>
+                  <td>{{ p.type }}</td>
+                  <td>{{ new Date(p.timestampMs).toLocaleTimeString() }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="card span-3">
+          <div class="section-title-row">
+            <div><h2>{{ t('monitor.logs.title') }}</h2><p class="muted">{{ t('monitor.logs.desc') }}</p></div>
+            <t-input v-model="st.filters.logs" :placeholder="t('monitor.logs.filter')" clearable style="width:220px" />
+          </div>
+          <pre class="log-panel log-panel--wide">{{ filtLogs.map(l=>'['+new Date(l.timestamp).toLocaleTimeString()+'] '+l.message).join('\\n') }}</pre>
+        </section>
+
+      </div>
+    </section>
+
+    <!-- ═══ HELP ═══ -->
+    <section v-show="st.activeTab==='help'" class="tab-panel">
+      <div class="panel-grid panel-grid--help">
+
+        <section class="card span-3">
+          <div class="section-title-row"><div><h2>{{ t('help.title') }}</h2></div></div>
+          <div class="doc-cards doc-cards--help">
+            <article class="doc-card">
+              <h3>&#128640; 快速入门</h3>
+              <p>&#9312; 到「配置」页，找到「TCode 串口连接」，选择 COM 口后点击连接。</p>
+              <p>&#9313; 到「设备」页确认设备已出现，用手动测试滑块验证轴向响应。</p>
+              <p>&#9314; 在「配置」页检查 OSC 接收端口（默认 9001），在 VRChat 中启用 OSC。</p>
+              <p>&#9315; 回到「总览」，点击「启动 Loop」，设备即开始实时输出。</p>
+            </article>
+            <article class="doc-card">
+              <h3>&#128203; 页面功能速查</h3>
+              <p><strong>总览</strong> — 整体运行状态、服务健康检查。</p>
+              <p><strong>配置</strong> — TCode 串口连接、服务地址、安全限制和信号矩阵。</p>
+              <p><strong>设备</strong> — 已连接设备的行程范围、速度限制和手动测试。</p>
+              <p><strong>控制</strong> — 实时轴位控制、L0 反转、BPM 节奏检测设置。</p>
+              <p><strong>脚本</strong> — 录制、导出和预览 .funscript 文件。</p>
+              <p><strong>监控</strong> — 实时轴位输出图表、OSC 参数流和运行日志。</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="card span-2">
+          <h2>&#128299; TCode 串口连接说明</h2>
+          <div class="doc-cards" style="grid-template-columns:1fr">
+            <article class="doc-card"><h3>串口号 (COM Port)</h3><p>在 Windows 设备管理器 → 端口里找到对应的 COMX 号。如果列表中没有出现，检查 USB 驱动（CH340 / CP2102 等）是否已安装。</p></article>
+            <article class="doc-card"><h3>MinPos / MaxPos（输出范围）</h3><p>TCode 轴位范围 0–999。在「设备」页可用双端滑条直观设置。默认 100–900 即可覆盖正常行程范围。</p></article>
+            <article class="doc-card"><h3>MaxVelocity</h3><p>每帧最大移动量。数值越大动作越快，但超过设备物理限制会导致失步。建议先从保守值（如 1000）开始测试。</p></article>
+            <article class="doc-card"><h3>UpdatesPerSecond</h3><p>每秒向设备发送命令的频率。建议 50–100。过高可能导致串口缓冲区溢出；过低会使运动出现分段感。</p></article>
+            <article class="doc-card"><h3>RampUpMs</h3><p>Loop 启动后输出从 0 渐增到目标值所需的毫秒数。防止骤然全速启动。建议 500–2000。</p></article>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>&#127918; 控制页说明</h2>
+          <div class="doc-cards" style="grid-template-columns:1fr">
+            <article class="doc-card"><h3>轴位控制</h3><p>Loop 停止时，可手动拖动滑条设置每个轴的位置，点「应用手动测试」后命令发送至设备。Loop 运行时仅显示当前实时输出，不可手动操作。</p></article>
+            <article class="doc-card"><h3>L0 反转</h3><p>勾选后 L0 轴输出取反（0 变为最大，1 变为最小）。设备倒置安装时使用。</p></article>
+            <article class="doc-card"><h3>BPM 节奏检测</h3><p>开启后系统会分析 OSC 参数的变化频率，自动估算节拍 BPM。可在「控制」页直接调整检测参数。</p></article>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>&#128225; 信号矩阵说明</h2>
+          <div class="doc-cards" style="grid-template-columns:1fr">
+            <article class="doc-card"><h3>OSC Path</h3><p>VRChat 发出的 OSC 参数路径，如 <code>/avatar/parameters/Sensa_L0</code>。需与头像参数名完全一致。</p></article>
+            <article class="doc-card"><h3>Role（角色）</h3><p>该信号控制设备的哪个维度：Depth（主冲程）、Vibrate（振动）、Roll/Pitch/Twist（姿态轴）等。</p></article>
+            <article class="doc-card"><h3>&#945;（EMA 平滑系数）</h3><p>越接近 0 越平滑（延迟越高）；越接近 1 越贴近原始值（响应越快）。推荐 0.5–0.8。</p></article>
+            <article class="doc-card"><h3>Dead Zone</h3><p>信号变化幅度小于此值时不触发更新，避免微小抖动引起不必要的运动。</p></article>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>&#10067; 常见问题排查</h2>
+          <div class="doc-cards" style="grid-template-columns:1fr">
+            <article class="doc-card"><h3>设备没有反应</h3><p>&#9312; Loop 是否已启动。&#9313; GlobalIntensityCap 是否为 0。&#9314; 信号矩阵是否有路径匹配。</p></article>
+            <article class="doc-card"><h3>TCode 连接失败</h3><p>&#9312; 确认 COM 口号正确。&#9313; 没有其他程序占用。&#9314; USB-串口驱动已安装（CH340/CP2102）。&#9315; 断开重连或重启设备。</p></article>
+            <article class="doc-card"><h3>OSC 参数不来</h3><p>&#9312; VRChat 设置中 OSC 已启用。&#9313; 默认输出端口 9001 与 Sensa 接收端口一致。&#9314; 防火墙未拦截 UDP 9001。</p></article>
+          </div>
+        </section>
+
+        <section class="card">
+          <h2>{{ t('help.endpoints.title') }}</h2>
+          <p class="muted">可通过以下端点直接调用 API，适合调试或外部集成。</p>
+          <ul class="endpoint-list">
+            <li v-for="ep in (st.meta?.endpoints||[])" :key="ep"><code>{{ ep }}</code></li>
+          </ul>
+        </section>
+
+        <section class="card span-2">
+          <div class="section-title-row">
+            <div><h2>{{ t('help.links.title') }}</h2><p class="muted">{{ t('help.links.desc') }}</p></div>
+          </div>
+          <div class="link-grid">
+            <a class="link-card" href="https://github.com/multiaxis/TCode-Specification" target="_blank" rel="noreferrer"><strong>TCode Specification</strong><span>{{ t('help.links.tcodeSpec') }}</span></a>
+            <a class="link-card" href="https://github.com/multiaxis/OSR2-Arduino" target="_blank" rel="noreferrer"><strong>OSR2 / SR6 Firmware</strong><span>{{ t('help.links.osr') }}</span></a>
+            <a class="link-card" href="https://github.com/ayvasoftware/osr-emu" target="_blank" rel="noreferrer"><strong>OSR Emulator</strong><span>{{ t('help.links.emu') }}</span></a>
+            <a class="link-card" href="https://voicescriptplayer.github.io/vspdocs/zh/device/tcode/" target="_blank" rel="noreferrer"><strong>VoiceScriptPlayer TCode Docs</strong><span>{{ t('help.links.vsp') }}</span></a>
+          </div>
+        </section>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Mobile bottom nav -->
+  <nav class="mobile-tabbar" aria-label="移动端导航">
+    <button v-for="tab in TABS" :key="tab.id" type="button"
+      :class="['tab-button',{'is-active':st.activeTab===tab.id}]"
+      @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
+  </nav>
+
+</div>`,
+};
+
+// ─────────────────────────────────────────────────────────────
+// MOUNT
+// ─────────────────────────────────────────────────────────────
+createApp(App).use(TDesign).mount('#app');

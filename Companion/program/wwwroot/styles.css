@@ -91,6 +91,30 @@
   --intiface-accent: #4f8dff;
 }
 
+/* ── TDesign token bridge — keep custom component colors in sync ────────── */
+/* Override TDesign's --td-* tokens to match our Sensa palette */
+[data-theme='light'],
+:root:not([data-theme]) {
+  --td-brand-color: #0052d9;
+  --td-brand-color-1: #f0f3ff;
+  --td-brand-color-2: #d9e1ff;
+  --td-brand-color-7: #0052d9;
+  --td-brand-color-8: #003cab;
+  --td-success-color: #2ba471;
+  --td-warning-color: #ed7b2f;
+  --td-error-color: #e34d59;
+  --td-font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+  --td-radius-default: 6px;
+  --td-radius-small: 4px;
+}
+
+[data-theme='dark'],
+[data-theme='amoled'],
+[data-theme='purple'],
+[data-theme='emerald'] {
+  --td-font-family: Inter, 'Segoe UI', system-ui, sans-serif;
+}
+
 [data-theme='light'] {
   color-scheme: light;
   --bg: #f6f8fb;
@@ -160,142 +184,22 @@ textarea {
   font: inherit;
 }
 
+/* button base reset — TDesign handles <t-button> styling */
 button {
-  appearance: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.4rem;
-  min-height: 32px;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text);
+  min-width: 0;
+  font: inherit;
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.2;
-  text-align: center;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    color 0.15s ease;
-  box-shadow: none;
 }
 
-button:hover {
-  background: var(--bg-soft);
-  border-color: var(--primary);
-  color: var(--primary);
-}
-
-button:active {
-  background: var(--primary-soft);
-}
-
-button.primary {
-  background: var(--primary);
-  border-color: var(--primary);
-  color: #fff;
-  font-weight: 600;
-}
-
-button.primary:hover {
-  background: var(--primary-hover);
-  border-color: var(--primary-hover);
-  color: #fff;
-}
-
-button.danger {
-  background: var(--danger);
-  border-color: var(--danger);
-  color: #fff;
-}
-
-button.danger:hover {
-  background: color-mix(in srgb, var(--danger) 88%, black 6%);
-  border-color: color-mix(in srgb, var(--danger) 88%, black 6%);
-}
-
-button.ghost {
-  background: transparent;
-  border-color: transparent;
-  box-shadow: none;
-}
-
-button.ghost:hover {
-  background: var(--primary-soft);
-  border-color: transparent;
-}
-
+/* input/select/textarea reset — TDesign handles <t-input>, <t-select> styling */
 input,
 select,
 textarea {
-  width: 100%;
-  min-height: 32px;
-  padding: 0.4375rem 0.75rem;
-  border-radius: 4px;
-  border: 1px solid var(--border-strong);
-  background: var(--surface-2);
-  color: var(--text);
-  transition:
-    border-color 0.15s ease,
-    box-shadow 0.15s ease,
-    background 0.15s ease;
+  min-width: 0;
+  font: inherit;
 }
 
-input::placeholder,
-textarea::placeholder {
-  color: var(--text-placeholder);
-}
-
-input:focus,
-select:focus,
-textarea:focus {
-  outline: none;
-  border-color: var(--primary);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 18%, transparent);
-}
-
-/* ── TDesign Checkbox ───────────────────────────────────────── */
-input[type='checkbox'] {
-  appearance: none;
-  -webkit-appearance: none;
-  width: 16px;
-  height: 16px;
-  min-height: auto;
-  padding: 0;
-  border-radius: 2px;
-  border: 1.5px solid var(--border-strong);
-  background: var(--surface-1);
-  cursor: pointer;
-  flex-shrink: 0;
-  vertical-align: -2px;
-  transition:
-    background 0.15s ease,
-    border-color 0.15s ease,
-    box-shadow 0.15s ease;
-}
-
-input[type='checkbox']:hover {
-  border-color: var(--primary);
-}
-
-input[type='checkbox']:checked {
-  background: var(--primary);
-  border-color: var(--primary);
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpolyline points='3,8.5 6.5,12 13,4' fill='none' stroke='white' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: 11px;
-}
-
-input[type='checkbox']:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 22%, transparent);
-}
+/* input[type='checkbox'] — handled by TDesign <t-checkbox> component */
 
 /* ── TDesign File Upload ─────────────────────────────────────── */
 input[type='file'] {
@@ -386,15 +290,6 @@ input[type='range']::-moz-range-track {
   height: 4px;
   border-radius: 2px;
   background: var(--border);
-}
-
-/* ── Search Input Icon ───────────────────────────────────────── */
-input[type='search'] {
-  padding-left: 34px;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Ccircle cx='6.5' cy='6.5' r='4' stroke='%23a6adb8' stroke-width='1.5'/%3E%3Cpath d='m10 10 3 3' stroke='%23a6adb8' stroke-width='1.5' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: 10px center;
-  background-size: 14px;
 }
 
 code {
@@ -509,6 +404,19 @@ code {
 
 .quick-chip:last-child {
   border-right: none;
+}
+
+.quick-chip.ok {
+  background: color-mix(in srgb, var(--success) 10%, var(--surface-2));
+}
+.quick-chip.ok span {
+  color: var(--success);
+}
+.quick-chip.danger {
+  background: color-mix(in srgb, var(--danger) 10%, var(--surface-2));
+}
+.quick-chip.danger span {
+  color: var(--danger);
 }
 
 .quick-chip strong {
@@ -626,7 +534,7 @@ code {
 
 .section-title-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 16px;
   flex-wrap: wrap;
@@ -703,6 +611,17 @@ code {
   margin-top: 16px;
 }
 
+/* Hero persistent quick-action bar */
+.hero-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+
 /* Device config section label (title + summary on same row) */
 .device-config-label {
   display: flex;
@@ -748,6 +667,28 @@ code {
 
 .stat {
   padding: 18px;
+}
+
+.stat.ok {
+  border-color: color-mix(in srgb, var(--success) 35%, var(--border));
+  background: color-mix(in srgb, var(--success) 7%, var(--surface-2));
+}
+.stat.ok .stat-value {
+  color: var(--success);
+}
+.stat.warn {
+  border-color: color-mix(in srgb, var(--warning) 35%, var(--border));
+  background: color-mix(in srgb, var(--warning) 7%, var(--surface-2));
+}
+.stat.warn .stat-value {
+  color: var(--warning);
+}
+.stat.danger {
+  border-color: color-mix(in srgb, var(--danger) 35%, var(--border));
+  background: color-mix(in srgb, var(--danger) 8%, var(--surface-2));
+}
+.stat.danger .stat-value {
+  color: var(--danger);
 }
 
 .stat-label {
@@ -1095,6 +1036,19 @@ label > span {
   font-weight: 600;
 }
 
+/* Ensure TDesign inputs fill form-stack labels */
+.compact-form label .t-input,
+.compact-form label .t-input-number,
+.compact-form label .t-select {
+  width: 100%;
+}
+
+.inline-grid label .t-input,
+.inline-grid label .t-input-number,
+.inline-grid label .t-select {
+  width: 100%;
+}
+
 label.inline {
   display: inline-flex;
   align-items: center;
@@ -1122,11 +1076,12 @@ label.inline {
   flex-wrap: wrap;
 }
 
-.input-row input {
+.input-row .t-input,
+.input-row .t-select {
   flex: 1 1 auto;
 }
 
-.input-row button {
+.input-row .t-button {
   flex: 0 0 auto;
 }
 
@@ -1598,5 +1553,482 @@ label.inline {
 
   .toast {
     min-width: 0;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   NEW COMPONENTS (v20250503) — Vue 3 rewrite additions
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ── Posture Canvas (header) ────────────────────────────────── */
+.posture-canvas {
+  flex: 0 0 auto;
+  width: 160px;
+  height: 90px;
+  border-radius: var(--radius-md);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  align-self: center;
+  display: block;
+}
+
+/* ── Dual Range Slider ──────────────────────────────────────── */
+.drange {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+}
+.drange.disabled {
+  opacity: 0.5;
+  pointer-events: none;
+}
+.drange__header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-size: 12px;
+}
+.drange__label {
+  font-weight: 600;
+  color: var(--text);
+}
+.drange__value {
+  color: var(--primary);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+.drange__max {
+  color: var(--text-muted);
+}
+.drange__wrap {
+  position: relative;
+  height: 32px;
+  display: flex;
+  align-items: center;
+}
+.drange__rail,
+.drange__fill {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 5px;
+  border-radius: 3px;
+  pointer-events: none;
+}
+.drange__rail {
+  left: 0;
+  right: 0;
+  background: var(--border);
+}
+.drange__fill {
+  background: var(--primary);
+  opacity: 0.85;
+}
+.drange__input {
+  position: absolute;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  pointer-events: none;
+  cursor: pointer;
+}
+.drange__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  pointer-events: all;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+  transition:
+    border-color 0.15s,
+    transform 0.1s;
+}
+.drange__input::-webkit-slider-thumb:hover,
+.drange__input:focus-visible::-webkit-slider-thumb {
+  border-color: var(--primary-hover, #1e3a8a);
+  transform: scale(1.15);
+}
+.drange__input::-moz-range-thumb {
+  pointer-events: all;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--bg);
+  border: 2px solid var(--primary);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+  cursor: grab;
+}
+.drange__input:focus-visible {
+  outline: none;
+}
+
+/* ── Single Axis Slider ─────────────────────────────────────── */
+.axis-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 0;
+}
+.axis-row.disabled {
+  opacity: 0.55;
+  pointer-events: none;
+}
+.axis-row__info {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 12px;
+}
+.axis-row__name {
+  font-weight: 700;
+  color: var(--primary);
+  width: 28px;
+  flex-shrink: 0;
+}
+.axis-row__label {
+  color: var(--text-muted);
+  flex: 1;
+}
+.axis-row__val {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+  min-width: 36px;
+  text-align: right;
+}
+.axis-row__input {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+.axis-row__input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  cursor: grab;
+  transition: transform 0.1s;
+}
+.axis-row__input::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+.axis-row__input::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--primary);
+  border: 2px solid var(--bg);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+}
+.axis-row__input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* Axis grid */
+.axis-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+.axis-grid--control {
+  gap: 2px;
+}
+
+/* ── ECharts panel ──────────────────────────────────────────── */
+.echart-panel {
+  width: 100%;
+  height: 320px;
+  min-height: 220px;
+}
+
+/* ── Script Canvas ──────────────────────────────────────────── */
+.script-canvas {
+  width: 100%;
+  height: 220px;
+  display: block;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+/* ── Script player controls ─────────────────────────────────── */
+.script-player-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.script-player-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.script-time-label {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+.script-player-controls input[type='range'] {
+  width: 100%;
+  accent-color: var(--primary);
+}
+
+/* ── Panel grids — variants keep 12-col grid from base, only override child spans ── */
+/* (grid-template-columns is controlled by .panel-grid base rule) */
+
+/* ── Device card stacks ─────────────────────────────────────── */
+.device-card__stack {
+  padding: 12px 0;
+  border-top: 1px solid var(--border);
+}
+.device-card__stack:first-child {
+  border-top: none;
+}
+.section-subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.device-config-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+/* ── Callout banners ────────────────────────────────────────── */
+.callout {
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  margin: 8px 0;
+}
+.callout.info {
+  background: var(--bg-soft);
+  border-left: 3px solid var(--primary);
+  color: var(--text);
+}
+.callout.warn {
+  background: #fff9e6;
+  border-left: 3px solid #f0a020;
+  color: #7a4f0a;
+}
+.callout.error {
+  background: #fff1f0;
+  border-left: 3px solid #e34d59;
+  color: #8b1a1a;
+}
+[data-theme='dark'] .callout.warn {
+  background: rgba(240, 160, 32, 0.12);
+  color: #fcd34d;
+}
+[data-theme='dark'] .callout.error {
+  background: rgba(227, 77, 89, 0.12);
+  color: #fca5a5;
+}
+
+/* ── Toggle group ───────────────────────────────────────────── */
+.toggle-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 0;
+}
+
+/* ── Inline grid extend ─────────────────────────────────────── */
+.inline-grid--3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+/* ── Tab button active fix (.isactive for Vue :class binding) ─ */
+.tab-button.isactive {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+
+/* ── Overview layout fixes ──────────────────────────────────── */
+.overview-guide {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 8px 0;
+}
+.overview-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+.guide-step {
+  padding: 10px;
+  background: var(--bg-soft);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+.guide-step strong {
+  display: block;
+  margin-bottom: 3px;
+}
+
+/* ── Hero topbar flex for posture canvas ────────────────────── */
+.hero-topbar {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.hero-brand {
+  flex: 1;
+  min-width: 200px;
+}
+.hero-actions {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-left: auto;
+}
+
+/* ── Stat row / overview stats ──────────────────────────────── */
+.stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ── Device status row ──────────────────────────────────────── */
+.device-status-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 8px 0;
+}
+.device-status-chip {
+  padding: 4px 10px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  font-size: 12px;
+  display: flex;
+  gap: 4px;
+  align-items: center;
+  background: var(--bg-soft);
+}
+.device-status-chip.ok {
+  border-color: var(--success, #00a870);
+  background: rgba(0, 168, 112, 0.07);
+}
+.device-status-chip strong {
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.device-status-chip span {
+  color: var(--text);
+}
+
+/* ── Help page ──────────────────────────────────────────────── */
+.doc-cards--help {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.endpoint-list {
+  font-size: 12px;
+  padding: 0;
+  margin: 8px 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.endpoint-list li code {
+  background: var(--bg-soft);
+  padding: 3px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--border);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+}
+.link-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+.link-card {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  text-decoration: none;
+  background: var(--bg-soft);
+  transition: border-color 0.15s;
+}
+.link-card:hover {
+  border-color: var(--primary);
+}
+.link-card strong {
+  color: var(--primary);
+  font-size: 13px;
+}
+.link-card span {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ── Hidden tab-panel (v-show approach) ─────────────────────── */
+.tab-panel {
+  display: block;
+}
+
+/* ── Responsive adjustments ─────────────────────────────────── */
+@media (max-width: 900px) {
+  .posture-canvas {
+    width: 120px;
+    height: 68px;
+  }
+}
+@media (max-width: 600px) {
+  .doc-cards--help {
+    grid-template-columns: 1fr;
+  }
+  .link-grid {
+    grid-template-columns: 1fr;
+  }
+  .posture-canvas {
+    display: none;
+  }
+  .inline-grid--3 {
+    grid-template-columns: 1fr 1fr;
+  }
+  .hero-topbar {
+    gap: 8px;
   }
 }
