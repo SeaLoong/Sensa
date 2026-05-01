@@ -643,6 +643,15 @@ code {
 .filter-input {
   flex: 1 1 260px;
   width: auto;
+  min-width: min(280px, 100%);
+  max-width: 100%;
+}
+
+.path-cell {
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .stats {
@@ -1473,8 +1482,10 @@ label.inline {
     left: 16px;
     right: 16px;
     bottom: 16px;
-    display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    display: flex;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
     gap: 8px;
     padding: 8px;
     border-radius: var(--radius-lg);
@@ -1486,8 +1497,13 @@ label.inline {
     z-index: 40;
   }
 
+  .mobile-tabbar::-webkit-scrollbar {
+    display: none;
+  }
+
   .mobile-tabbar .tab-button {
     min-height: 42px;
+    min-width: max-content;
     padding: 0.625rem 0.5rem;
     border-radius: 6px;
     border: 1px solid transparent;
@@ -1550,7 +1566,7 @@ label.inline {
   }
 
   .mobile-tabbar {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
   }
 
   .toast {

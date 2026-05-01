@@ -1569,9 +1569,9 @@ const App = {
       </div>
       <PostureCanvas :command="cmd" />
       <div class="hero-actions">
-        <t-button variant="text" class="icon-btn" :title="t('tip.lang')" @click="toggleLanguage">{{ st.language==='zh-CN'?'EN':'ZH' }}</t-button>
-        <t-button variant="text" class="icon-btn" @click="cycleTheme">&#9677;</t-button>
-        <t-button @click="refreshAll(true)">{{ t('btn.refresh') }}</t-button>
+        <t-button variant="text" class="icon-btn" :title="t('tip.lang')" :aria-label="t('tip.lang')" @click="toggleLanguage">{{ st.language==='zh-CN'?'EN':'ZH' }}</t-button>
+        <t-button variant="text" class="icon-btn" :title="'Theme: '+st.theme" :aria-label="'Theme: '+st.theme" @click="cycleTheme">&#9677;</t-button>
+        <t-button :title="t('btn.refresh')" :aria-label="t('btn.refresh')" @click="refreshAll(true)">{{ t('btn.refresh') }}</t-button>
         <t-tag :theme="st.wsConnected?'success':'danger'" variant="light">{{ st.wsConnected?t('status.wsConnected'):t('status.wsDisconnected') }}</t-tag>
       </div>
     </div>
@@ -1726,7 +1726,7 @@ const App = {
           <div class="section-title-row">
             <div><h2>{{ t('signals.title') }}</h2><p class="muted">{{ t('signals.desc') }}</p></div>
             <div class="button-row">
-              <t-input v-model="st.filters.signals" :placeholder="t('signals.filter')" clearable style="width:200px" />
+              <t-input class="filter-input" v-model="st.filters.signals" :placeholder="t('signals.filter')" clearable />
               <t-button @click="addSignal">{{ t('btn.addSignal') }}</t-button>
             </div>
           </div>
@@ -2003,7 +2003,7 @@ const App = {
         <section class="card span-3">
           <div class="section-title-row">
             <div><h2>{{ t('monitor.params.title') }}</h2><p class="muted">{{ t('monitor.params.desc') }}</p></div>
-            <t-input v-model="st.filters.parameters" :placeholder="t('monitor.params.filter')" clearable style="width:220px" />
+            <t-input class="filter-input" v-model="st.filters.parameters" :placeholder="t('monitor.params.filter')" clearable />
           </div>
           <div class="table-wrap compact-table table-wrap--wide">
             <table>
@@ -2012,7 +2012,7 @@ const App = {
               </tr></thead>
               <tbody>
                 <tr v-for="(p,i) in filtParams" :key="i">
-                  <td>{{ p.path }}</td>
+                  <td class="path-cell" :title="p.path">{{ p.path }}</td>
                   <td>{{ Number(p.value).toFixed(4) }}</td>
                   <td>{{ p.type }}</td>
                   <td>{{ new Date(p.timestampMs).toLocaleTimeString() }}</td>
@@ -2025,7 +2025,7 @@ const App = {
         <section class="card span-3">
           <div class="section-title-row">
             <div><h2>{{ t('monitor.logs.title') }}</h2><p class="muted">{{ t('monitor.logs.desc') }}</p></div>
-            <t-input v-model="st.filters.logs" :placeholder="t('monitor.logs.filter')" clearable style="width:220px" />
+            <t-input class="filter-input" v-model="st.filters.logs" :placeholder="t('monitor.logs.filter')" clearable />
           </div>
           <pre class="log-panel log-panel--wide">{{ filtLogs.map(l=>'['+new Date(l.timestamp).toLocaleTimeString()+'] '+l.message).join('\\n') }}</pre>
         </section>
@@ -2127,6 +2127,8 @@ const App = {
   <nav class="mobile-tabbar" aria-label="移动端导航">
     <button v-for="tab in TABS" :key="tab.id" type="button"
       :class="['tab-button',{'is-active':st.activeTab===tab.id}]"
+      :title="t(tab.label)"
+      :aria-label="t(tab.label)"
       @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
   </nav>
 
