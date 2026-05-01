@@ -207,6 +207,7 @@ const I18N = {
     'label.output': '输出',
     'label.port': '端口',
     'label.mode': '模式',
+    'label.auto': '自动连接',
     'label.frames': '帧数',
     'label.mock': 'Mock 预览',
     'label.real': '真实设备',
@@ -238,6 +239,7 @@ const I18N = {
     'toast.diagCopied': '诊断已复制',
     'toast.themeChanged': '主题已切换',
     'toast.langChanged': '界面语言已切换',
+    'toast.memorySaved': '设备备注已保存',
     'toast.portsRefreshed': '串口列表已刷新',
     'toast.scriptLoaded': '脚本已加载',
     'toast.scriptCleared': '脚本预览已清空',
@@ -255,6 +257,9 @@ const I18N = {
     'msg.portsRefreshed': '可用 COM 口已重新枚举。',
     'msg.deviceCfgSaved': '设备参数已保存到本地。再次连接时可一键读取。',
     'msg.deviceCfgLoaded': '已读取该设备已保存的参数配置。',
+    'msg.langChanged': '语言偏好已保存。',
+    'msg.copyFailed': '复制失败，请手动复制。',
+    'msg.noSavedDeviceCfg': '这个设备还没有保存过配置。',
     'diag.loopStopped.title': 'Loop 当前未运行',
     'diag.loopStopped.body': '不会继续向设备发送融合命令。点击「启动 Loop」恢复。',
     'diag.emergency.title': 'Emergency Stop 已触发',
@@ -276,6 +281,10 @@ const I18N = {
     'tip.tcode.ups': '每秒向设备发送命令的频率。建议 50–100。',
     'tip.tcode.enabled': '服务启动时自动连接到指定串口。',
     'tip.tcode.speedMode': '发送速度指令 (Ixxxx) 代替位置指令 (Lxxxx)。需固件支持。',
+    'tip.lang': '切换界面语言',
+    'tip.webui.host': 'WebUI 服务监听地址。通常保持 127.0.0.1 或 0.0.0.0。',
+    'tip.webui.port': 'WebUI 服务监听端口，修改后需要重启服务。',
+    'tip.osc.port': '接收 VRChat OSC 的 UDP 端口，默认 9001。',
     'tip.stat.loop': 'Loop 是主处理循环，运行时才向设备下发融合后的命令。',
     'tip.stat.bpm': '由 OSC 信号变化推算出的节拍 BPM，0 表示未检测到节奏。',
     'tip.stat.params': '当前通过 OSC 收到并更新的参数总数。',
@@ -455,6 +464,7 @@ const I18N = {
     'label.output': 'Output',
     'label.port': 'Port',
     'label.mode': 'Mode',
+    'label.auto': 'Auto Connect',
     'label.frames': 'Frames',
     'label.mock': 'Mock Preview',
     'label.real': 'Real Device',
@@ -486,6 +496,7 @@ const I18N = {
     'toast.diagCopied': 'Diagnostics copied',
     'toast.themeChanged': 'Theme changed',
     'toast.langChanged': 'Language changed',
+    'toast.memorySaved': 'Device note saved',
     'toast.portsRefreshed': 'Serial ports refreshed',
     'toast.scriptLoaded': 'Script loaded',
     'toast.scriptCleared': 'Script preview cleared',
@@ -503,6 +514,9 @@ const I18N = {
     'msg.portsRefreshed': 'Available COM ports were re-enumerated.',
     'msg.deviceCfgSaved': 'Device parameters saved locally. Load on next connect.',
     'msg.deviceCfgLoaded': 'Loaded saved parameters for this device.',
+    'msg.langChanged': 'Language preference saved.',
+    'msg.copyFailed': 'Copy failed. Please copy manually.',
+    'msg.noSavedDeviceCfg': 'No saved configuration found for this device.',
     'diag.loopStopped.title': 'Loop is not running',
     'diag.loopStopped.body': 'No fused commands are being sent. Click Start Loop if this is unexpected.',
     'diag.emergency.title': 'Emergency Stop is active',
@@ -524,6 +538,10 @@ const I18N = {
     'tip.tcode.ups': 'Commands per second sent to the device. 50–100 recommended.',
     'tip.tcode.enabled': 'Auto-connect to the specified serial port on service start.',
     'tip.tcode.speedMode': 'Send speed (Ixxxx) instead of position (Lxxxx) commands. Requires interpolating firmware.',
+    'tip.lang': 'Switch interface language',
+    'tip.webui.host': 'WebUI service bind address. Usually keep 127.0.0.1 or 0.0.0.0.',
+    'tip.webui.port': 'WebUI listening port. Restart service after changes.',
+    'tip.osc.port': 'UDP port used to receive VRChat OSC. Default is 9001.',
     'tip.stat.loop': 'Main processing loop. Must be running to send commands.',
     'tip.stat.bpm': 'Current BPM estimated from OSC signal variation. 0 = no rhythm.',
     'tip.stat.params': 'Number of OSC parameters received. 0 means no OSC signal yet.',
@@ -1054,6 +1072,11 @@ const App = {
 
   setup() {
     const st = appState;
+    const THEMES = ['light', 'dark', 'amoled', 'purple', 'emerald'];
+    let wsRef = null;
+    let reconnectTimer = 0;
+    let pollTimer = 0;
+    let disposed = false;
 
     // ── computed ──
     const lang = computed(() => st.language);
@@ -1191,9 +1214,12 @@ const App = {
       showToast(t('toast.langChanged'), t('msg.langChanged'));
     }
     function cycleTheme() {
-      st.theme = 'light';
-      document.documentElement.dataset.theme = 'light';
-      localStorage.setItem('sensa.theme', 'light');
+      const i = THEMES.indexOf(st.theme);
+      const nextTheme = THEMES[(i + 1 + THEMES.length) % THEMES.length] || 'light';
+      st.theme = nextTheme;
+      document.documentElement.dataset.theme = nextTheme;
+      localStorage.setItem('sensa.theme', nextTheme);
+      showToast(t('toast.themeChanged'), nextTheme);
     }
 
     async function refreshAll(feedback = false) {
@@ -1326,7 +1352,7 @@ const App = {
         await navigator.clipboard.writeText(text);
         showToast(t('toast.diagCopied'), t('msg.diagCopied'));
       } catch {
-        showToast(t('toast.actionFailed'), 'Copy failed', 'error');
+        showToast(t('toast.actionFailed'), t('msg.copyFailed'), 'error');
       }
     }
 
@@ -1404,7 +1430,7 @@ const App = {
     function loadDevConfig(device) {
       const saved = loadDeviceCfg(device.memoryId);
       if (!saved) {
-        showToast('', 'No saved config for this device', 'warn');
+        showToast(t('toast.actionFailed'), t('msg.noSavedDeviceCfg'), 'warning');
         return;
       }
       if (st.config?.tCode) {
@@ -1419,40 +1445,58 @@ const App = {
 
     function saveDevMemory(device, alias, note) {
       setDeviceMem(device, { alias, note, snapshot: device.snapshot });
-      showToast(t('toast.memorySaved') ?? '已保存', '');
+      showToast(t('toast.memorySaved'), '');
     }
 
     // ── WebSocket ──
     function connectWs() {
+      if (disposed) return;
       const proto = location.protocol === 'https:' ? 'wss' : 'ws';
       const ws = new WebSocket(`${proto}://${location.host}/api/ws`);
+      wsRef = ws;
       ws.addEventListener('open', () => {
         st.wsRetryMs = 1000;
         st.wsConnected = true;
       });
       ws.addEventListener('close', () => {
+        if (disposed) return;
         st.wsConnected = false;
-        setTimeout(connectWs, st.wsRetryMs);
+        reconnectTimer = window.setTimeout(connectWs, st.wsRetryMs);
         st.wsRetryMs = Math.min(Math.round(st.wsRetryMs * 1.8), 10000);
       });
       ws.addEventListener('message', e => {
-        const payload = JSON.parse(e.data);
-        if (payload.type !== 'state') return;
-        st.overview = payload.data;
-        st.logs = payload.logs;
-        const c = payload.data?.loop?.command || {};
-        st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
-        if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
+        try {
+          const payload = JSON.parse(e.data);
+          if (payload.type !== 'state') return;
+          st.overview = payload.data;
+          st.logs = payload.logs || [];
+          const c = payload.data?.loop?.command || {};
+          st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
+          if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
+        } catch {
+          // ignore malformed ws payload
+        }
       });
     }
 
     onMounted(async () => {
-      document.documentElement.dataset.theme = 'light';
+      const savedTheme = localStorage.getItem('sensa.theme');
+      st.theme = THEMES.includes(savedTheme) ? savedTheme : 'light';
+      document.documentElement.dataset.theme = st.theme;
       document.title = 'Sensa WebUI';
       await refreshAll().catch(() => {});
       useRecordingDS();
       connectWs();
-      setInterval(() => refreshAll().catch(() => {}), 8000);
+      pollTimer = window.setInterval(() => refreshAll().catch(() => {}), 8000);
+    });
+
+    onUnmounted(() => {
+      disposed = true;
+      if (reconnectTimer) window.clearTimeout(reconnectTimer);
+      if (pollTimer) window.clearInterval(pollTimer);
+      if (wsRef && (wsRef.readyState === WebSocket.OPEN || wsRef.readyState === WebSocket.CONNECTING)) {
+        wsRef.close();
+      }
     });
 
     return {

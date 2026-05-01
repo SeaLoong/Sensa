@@ -11,6 +11,7 @@
   --surface-4: #26344a;
   --text: #f3f6fb;
   --text-secondary: #c4cddd;
+  --text-muted: #c4cddd;
   --text-placeholder: #8a97ab;
   --primary: #3b82f6;
   --primary-hover: #2563eb;
@@ -127,6 +128,7 @@
   --surface-4: #edf2fe;
   --text: #1f2329;
   --text-secondary: #5e6673;
+  --text-muted: #5e6673;
   --text-placeholder: #a6adb8;
   --primary: #0052d9;
   --primary-hover: #366ef4;
@@ -865,7 +867,7 @@ code {
 }
 
 .script-hero-card {
-  background: linear-gradient(180deg, #ffffff 0%, #f7faff 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 96%, transparent) 0%, color-mix(in srgb, var(--primary) 8%, var(--surface-2)) 100%);
 }
 
 .script-summary-grid {
@@ -1843,11 +1845,17 @@ label.inline {
   border-left: 3px solid #e34d59;
   color: #8b1a1a;
 }
-[data-theme='dark'] .callout.warn {
+[data-theme='dark'] .callout.warn,
+[data-theme='amoled'] .callout.warn,
+[data-theme='purple'] .callout.warn,
+[data-theme='emerald'] .callout.warn {
   background: rgba(240, 160, 32, 0.12);
   color: #fcd34d;
 }
-[data-theme='dark'] .callout.error {
+[data-theme='dark'] .callout.error,
+[data-theme='amoled'] .callout.error,
+[data-theme='purple'] .callout.error,
+[data-theme='emerald'] .callout.error {
   background: rgba(227, 77, 89, 0.12);
   color: #fca5a5;
 }
@@ -2001,11 +2009,6 @@ label.inline {
 .link-card span {
   color: var(--text-muted);
   font-size: 12px;
-}
-
-/* ── Hidden tab-panel (v-show approach) ─────────────────────── */
-.tab-panel {
-  display: block;
 }
 
 /* ── Responsive adjustments ─────────────────────────────────── */
