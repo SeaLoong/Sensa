@@ -1780,7 +1780,7 @@ const App = {
   <main class="workspace">
 
     <!-- ═══ OVERVIEW ═══ -->
-    <section v-show="st.activeTab==='overview'" class="tab-panel is-active">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='overview'}]">
       <div class="panel-grid panel-grid--overview">
 
         <section class="card hero-card span-2">
@@ -1851,7 +1851,7 @@ const App = {
     </section>
 
     <!-- ═══ CONFIG ═══ -->
-    <section v-show="st.activeTab==='config'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='config'}]">
       <div v-if="st.config" class="panel-grid panel-grid--config">
 
         <!-- TCode Connection -->
@@ -1958,7 +1958,7 @@ const App = {
     </section>
 
     <!-- ═══ DEVICES ═══ -->
-    <section v-show="st.activeTab==='devices'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='devices'}]">
       <div class="panel-grid panel-grid--devices">
 
         <section class="card span-3">
@@ -2135,7 +2135,7 @@ const App = {
     </section>
 
     <!-- ═══ CONTROL ═══ -->
-    <section v-show="st.activeTab==='control'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='control'}]">
       <div class="panel-grid panel-grid--control">
 
         <!-- Axis control card -->
@@ -2209,7 +2209,7 @@ const App = {
     </section>
 
     <!-- ═══ SCRIPTS ═══ -->
-    <section v-show="st.activeTab==='scripts'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='scripts'}]">
       <div class="panel-grid panel-grid--scripts">
 
         <section class="card span-3 script-hero-card">
@@ -2291,7 +2291,7 @@ const App = {
     </section>
 
     <!-- ═══ MONITORING ═══ -->
-    <section v-show="st.activeTab==='monitoring'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='monitoring'}]">
       <div class="panel-grid panel-grid--monitoring">
 
         <!-- ECharts axis history chart -->
@@ -2336,7 +2336,7 @@ const App = {
     </section>
 
     <!-- ═══ HELP ═══ -->
-    <section v-show="st.activeTab==='help'" class="tab-panel">
+    <section :class="['tab-panel', {'is-active': st.activeTab==='help'}]">
       <div class="panel-grid panel-grid--help">
 
         <section class="card span-3">
