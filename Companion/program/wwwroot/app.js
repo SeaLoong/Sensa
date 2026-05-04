@@ -139,6 +139,15 @@ const I18N = {
     'connections.wsStream': 'WS 流 (/api/ws)',
     'connections.lastWs': '最近消息',
     'connections.nextRetry': '重连间隔',
+    'connections.diagnostics': '连接诊断',
+    'connections.diag.empty': '暂无连接诊断事件。',
+    'connections.diag.lastEvent': '最近事件',
+    'connections.diag.serial': '串口 TCode',
+    'connections.diag.udp': 'UDP',
+    'connections.diag.tcp': 'TCP',
+    'connections.diag.intiface': 'Intiface',
+    'connections.diag.http': 'HTTP API',
+    'connections.diag.ws': 'WS 流',
     'devices.test.title': '手动测试',
     'devices.test.desc': '在不启动 Loop 的情况下验证设备轴向响应。',
     'devices.range.title': '输出范围',
@@ -410,6 +419,15 @@ const I18N = {
     'connections.wsStream': 'WS Stream (/api/ws)',
     'connections.lastWs': 'Last message',
     'connections.nextRetry': 'Reconnect delay',
+    'connections.diagnostics': 'Connection Diagnostics',
+    'connections.diag.empty': 'No connection diagnostics yet.',
+    'connections.diag.lastEvent': 'Last event',
+    'connections.diag.serial': 'Serial TCode',
+    'connections.diag.udp': 'UDP',
+    'connections.diag.tcp': 'TCP',
+    'connections.diag.intiface': 'Intiface',
+    'connections.diag.http': 'HTTP API',
+    'connections.diag.ws': 'WS Stream',
     'devices.test.title': 'Manual Test',
     'devices.test.desc': 'Test device axis responses without a live VRChat signal.',
     'devices.range.title': 'Output Range',
@@ -601,6 +619,14 @@ const appState = reactive({
   wsRetryMs: 1000,
   wsLastMessageAt: null,
   apiReachable: true,
+  connectionHealth: {
+    serial: { status: 'idle', message: '', at: null },
+    udp: { status: 'idle', message: '', at: null },
+    tcp: { status: 'idle', message: '', at: null },
+    intiface: { status: 'idle', message: '', at: null },
+    http: { status: 'idle', message: '', at: null },
+    ws: { status: 'idle', message: '', at: null },
+  },
   toastList: [], // kept for backward compat but unused
   filters: { signals: '', parameters: '', logs: '' },
   // Control tab
@@ -719,6 +745,14 @@ function axisLabel(axis) {
   const rec = AXIS_LABELS[axis];
   if (!rec) return axis;
   return appState.language === 'zh-CN' ? rec.zh : rec.en;
+}
+
+function mapPathToConnection(path) {
+  if (path.startsWith('/api/control/tcode/')) return 'serial';
+  if (path.startsWith('/api/control/udp/')) return 'udp';
+  if (path.startsWith('/api/control/tcp/')) return 'tcp';
+  if (path.startsWith('/api/control/intiface/')) return 'intiface';
+  return null;
 }
 
 // ───── DEVICE BUILD ───────────────────────────────────────────
@@ -1318,6 +1352,23 @@ const App = {
         [t('scripts.timeline.range'), `${fmtDur(p.points[0]?.ms || 0)} → ${fmtDur(p.durationMs)}`],
       ];
     });
+    const connectionDiagnostics = computed(() => {
+      const labels = {
+        serial: t('connections.diag.serial'),
+        udp: t('connections.diag.udp'),
+        tcp: t('connections.diag.tcp'),
+        intiface: t('connections.diag.intiface'),
+        http: t('connections.diag.http'),
+        ws: t('connections.diag.ws'),
+      };
+      return Object.entries(st.connectionHealth).map(([key, rec]) => ({
+        key,
+        title: labels[key] || key,
+        status: rec.status || 'idle',
+        message: rec.message || t('connections.diag.empty'),
+        at: rec.at ? new Date(rec.at).toLocaleTimeString() : t('label.none'),
+      }));
+    });
 
     // ── actions ──
     function setActiveTab(tab) {
@@ -1340,6 +1391,15 @@ const App = {
       showToast(t('toast.themeChanged'), nextTheme);
     }
 
+    function setConnHealth(key, status, message) {
+      if (!st.connectionHealth[key]) return;
+      st.connectionHealth[key] = {
+        status,
+        message: String(message || '').trim(),
+        at: Date.now(),
+      };
+    }
+
     async function refreshAll(feedback = false) {
       try {
         const [meta, cfg, ov, params, logs, ports, rec] = await Promise.all([
@@ -1359,6 +1419,7 @@ const App = {
         st.serialPorts = ports;
         st.recordingFrames = rec;
         st.apiReachable = true;
+        setConnHealth('http', 'ok', `${t('status.connected')} · /api/state/overview`);
         st.roles = [...(meta.enums?.signalRoles || [])];
         st.curves = [...(meta.enums?.curveTypes || [])];
         st.idleBehaviors = [...(meta.enums?.idleBehaviors || [])];
@@ -1376,23 +1437,28 @@ const App = {
         if (feedback) showToast(t('toast.refreshSuccess'), ov?.service?.url || location.origin);
       } catch (e) {
         st.apiReachable = false;
+        setConnHealth('http', 'error', e.message || 'HTTP request failed');
         showToast(t('toast.refreshFailed'), e.message, 'error', 3600);
         throw e;
       }
     }
 
     async function postAction(path, body = null) {
+      const connKey = mapPathToConnection(path);
       try {
         const result = await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
         if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
           const msg = path === '/api/control/tcode/connect' ? t('msg.tcodeConnectFailed') : result.message || t('msg.actionReportedFailure');
+          if (connKey) setConnHealth(connKey, 'error', msg);
           showToast(t('toast.actionFailed'), msg, 'error', 4200);
           await refreshAll().catch(() => {});
           return;
         }
+        if (connKey) setConnHealth(connKey, 'ok', result?.message || path);
         await refreshAll();
         showToast(t('toast.actionSuccess'), result?.message || path);
       } catch (e) {
+        if (connKey) setConnHealth(connKey, 'error', e.message || path);
         showToast(t('toast.actionFailed'), e.message, 'error', 4200);
       }
     }
@@ -1577,10 +1643,12 @@ const App = {
       ws.addEventListener('open', () => {
         st.wsRetryMs = 1000;
         st.wsConnected = true;
+        setConnHealth('ws', 'ok', `${t('status.connected')} · /api/ws`);
       });
       ws.addEventListener('close', () => {
         if (disposed) return;
         st.wsConnected = false;
+        setConnHealth('ws', 'error', `${t('status.disconnected')} · /api/ws`);
         reconnectTimer = window.setTimeout(connectWs, st.wsRetryMs);
         st.wsRetryMs = Math.min(Math.round(st.wsRetryMs * 1.8), 10000);
       });
@@ -1589,6 +1657,7 @@ const App = {
           const payload = JSON.parse(e.data);
           if (payload.type !== 'state') return;
           st.wsLastMessageAt = Date.now();
+          setConnHealth('ws', 'ok', `${t('status.connected')} · /api/ws`);
           st.overview = payload.data;
           st.logs = payload.logs || [];
           const c = payload.data?.loop?.command || {};
@@ -1648,6 +1717,7 @@ const App = {
       scriptMeta,
       scriptStatusKey,
       scriptSummary,
+      connectionDiagnostics,
       // actions
       setActiveTab,
       toggleLanguage,
@@ -1989,6 +2059,19 @@ const App = {
                 <t-button @click="postAction('/api/control/intiface/disconnect')">{{ t('connections.disconnect') }}</t-button>
                 <t-button variant="text" @click="postAction('/api/control/intiface/scan-start')">{{ t('connections.scanStart') }}</t-button>
                 <t-button variant="text" @click="postAction('/api/control/intiface/scan-stop')">{{ t('connections.scanStop') }}</t-button>
+              </div>
+            </article>
+
+            <article class="card connection-card device-card">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.diagnostics') }}</h3></div>
+              </div>
+              <div class="diagnostic-list">
+                <article v-for="item in connectionDiagnostics" :key="item.key" :class="['diagnostic-item', item.status === 'ok' ? 'ok' : item.status === 'error' ? 'error' : 'warn']">
+                  <strong>{{ item.title }}</strong>
+                  <div>{{ item.message }}</div>
+                  <div class="muted" style="margin-top:4px">{{ t('connections.diag.lastEvent') }}: {{ item.at }}</div>
+                </article>
               </div>
             </article>
           </div>
