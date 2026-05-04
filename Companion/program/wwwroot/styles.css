@@ -2177,139 +2177,132 @@ label.inline {
 }
 
 .pipeline-toolbar__linker {
-  /* ── Pipeline Global Section (page-level, always visible) ─── */
-  .pipeline-global-section {
-    padding: 10px 24px 12px;
-    border-bottom: 1px solid var(--border);
-    background: var(--surface);
-    display: grid;
-    gap: 10px;
-  }
-
-  .pipeline-toolbar-bar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  .pipeline-toolbar-bar__left,
-  .pipeline-toolbar-bar__right {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
-
-  /* Compact node card (replaces t-card in pipeline nodes) */
-  .pipeline-node-card {
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface);
-    padding: 6px 10px;
-    transition:
-      opacity 0.2s,
-      border-color 0.2s,
-      box-shadow 0.2s;
-    min-width: 0;
-  }
-
-  .pipeline-node-card__top {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 5px;
-    overflow: hidden;
-  }
-
-  .pipeline-node-type-tag {
-    flex-shrink: 0;
-  }
-
-  .pipeline-node-name {
-    font-size: 12px;
-    font-weight: 600;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    color: var(--text-primary);
-  }
-
-  .pipeline-node-card__bottom {
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-
-  /* Disabled state */
-  .pipeline-node-card.is-disabled {
-    opacity: 0.45;
-  }
-
-  /* SOLO state */
-  .pipeline-node-card.is-solo {
-    border-color: var(--warning-color, #f0a020);
-    box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.22);
-  }
-
-  /* SOLO button */
-  .solo-btn {
-    font-size: 11px;
-    font-weight: 700;
-    padding: 0 6px;
-    height: 22px;
-    min-width: 22px;
-    border-radius: 4px;
-    color: var(--text-secondary);
-  }
-
-  .solo-btn--active {
-    background: var(--warning-color, #f0a020) !important;
-    color: #fff !important;
-    border-color: var(--warning-color, #f0a020) !important;
-  }
-
-  /* Links bar */
-  .pipeline-links-bar {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-    padding-top: 8px;
-    border-top: 1px solid var(--border);
-    min-height: 30px;
-  }
-
-  .pipeline-link-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    padding: 2px 6px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--surface-2);
-    font-size: 12px;
-  }
-
-  /* Card config form (inside dialog) */
-  .card-config-form {
-    display: grid;
-    gap: 10px;
-  }
-
-  .card-config-form label {
-    display: grid;
-    gap: 4px;
-  }
-
-  .card-config-form label > span {
-    color: var(--text-secondary);
-    font-size: 12px;
-    font-weight: 500;
-  }
   justify-content: flex-end;
   gap: 8px;
+}
+
+/* ── Pipeline Global Section (page-level, always visible) ─── */
+.pipeline-global-section {
+  padding: 10px 24px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+  display: grid;
+  gap: 10px;
+}
+
+.pipeline-toolbar-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.pipeline-toolbar-bar__left,
+.pipeline-toolbar-bar__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* Compact node card (replaces t-card in pipeline nodes) */
+.pipeline-node-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  padding: 6px 10px;
+  transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s;
+  min-width: 0;
+}
+
+.pipeline-node-card__top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  overflow: hidden;
+}
+
+.pipeline-node-type-tag {
+  flex-shrink: 0;
+}
+
+.pipeline-node-name {
+  font-size: 12px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--text-primary);
+}
+
+.pipeline-node-card__bottom {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.pipeline-node-card.is-disabled {
+  opacity: 0.45;
+}
+
+.pipeline-node-card.is-solo {
+  border-color: var(--warning-color, #f0a020);
+  box-shadow: 0 0 0 2px rgba(240, 160, 32, 0.22);
+}
+
+.solo-btn {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0 6px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 4px;
+  color: var(--text-secondary);
+}
+
+.solo-btn--active {
+  background: var(--warning-color, #f0a020) !important;
+  color: #fff !important;
+  border-color: var(--warning-color, #f0a020) !important;
+}
+
+.pipeline-links-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  min-height: 30px;
+}
+
+.pipeline-link-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  font-size: 12px;
+}
+
+.card-config-form {
+  display: grid;
+  gap: 10px;
+}
+
+.card-config-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.card-config-form label > span {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .pipeline-wire-status {
