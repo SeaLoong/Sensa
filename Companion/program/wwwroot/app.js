@@ -649,6 +649,13 @@ const appState = reactive({
   axisHistory: [],
   // Device config locally persisted
   deviceDrafts: {},
+  // Pipeline workbench
+  pipeline: { columns: [], links: [] },
+  pipelineUi: {
+    addTypeByColumn: {},
+    linkFrom: '',
+    linkTo: '',
+  },
 });
 
 const TABS = [
@@ -660,6 +667,93 @@ const TABS = [
   { id: 'monitoring', label: 'nav.monitoring' },
   { id: 'help', label: 'nav.help' },
 ];
+
+const PIPELINE_STORAGE_KEY = 'sensa.pipeline.v1';
+const INPUT_NODE_TYPES = [
+  { value: 'osc', label: 'OSC' },
+  { value: 'http', label: 'HTTP' },
+  { value: 'ws', label: 'WS' },
+  { value: 'manual', label: '手动控制' },
+  { value: 'script', label: '脚本输入' },
+];
+const PROCESS_NODE_TYPES = [
+  { value: 'transform', label: '数值变换' },
+  { value: 'invert-l0', label: 'L0 反转' },
+  { value: 'clamp', label: '区间限制' },
+];
+const OUTPUT_NODE_TYPES = [
+  { value: 'serial', label: 'TCode 串口' },
+  { value: 'udp', label: 'TCode UDP' },
+  { value: 'tcp', label: 'TCode TCP' },
+  { value: 'intiface', label: 'Intiface' },
+  { value: 'script', label: '脚本输出' },
+];
+
+function makeId(prefix) {
+  return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+function createPipelineCard(kind, type) {
+  const base = {
+    id: makeId(`${kind}-${type}`),
+    kind,
+    type,
+    name: `${kind} · ${type}`,
+    enabled: true,
+    config: {},
+  };
+  if (kind === 'input') {
+    if (type === 'osc') base.config = { port: 9001, sourceKey: 'osc-main', pathPrefix: '/avatar/parameters' };
+    if (type === 'http') base.config = { port: 5086, route: '/ingest/http', sourceKey: 'http-1' };
+    if (type === 'ws') base.config = { port: 5086, route: '/ingest/ws', sourceKey: 'ws-1' };
+    if (type === 'manual') base.config = { sourceKey: 'manual-1', note: '来自控制页手动覆盖' };
+    if (type === 'script') base.config = { sourceKey: 'script-player', mode: 'timeline' };
+    base.name = INPUT_NODE_TYPES.find(x => x.value === type)?.label || base.name;
+  }
+  if (kind === 'process') {
+    if (type === 'transform') base.config = { targetAxis: 'L0', gain: 1, offset: 0 };
+    if (type === 'invert-l0') base.config = { targetAxis: 'L0' };
+    if (type === 'clamp') base.config = { targetAxis: 'L0', min: 0, max: 1 };
+    base.name = PROCESS_NODE_TYPES.find(x => x.value === type)?.label || base.name;
+  }
+  if (kind === 'output') {
+    if (type === 'serial') base.config = { comPort: 'COM3' };
+    if (type === 'udp') base.config = { host: '127.0.0.1', port: 9999 };
+    if (type === 'tcp') base.config = { host: '127.0.0.1', port: 9998 };
+    if (type === 'intiface') base.config = { websocketAddress: 'ws://localhost:12345' };
+    if (type === 'script') base.config = { fileName: 'output.funscript' };
+    base.name = OUTPUT_NODE_TYPES.find(x => x.value === type)?.label || base.name;
+  }
+  return base;
+}
+
+function createDefaultPipeline() {
+  const inputCard = createPipelineCard('input', 'osc');
+  const outputCard = createPipelineCard('output', 'serial');
+  return {
+    columns: [
+      { id: 'col-input', kind: 'input', title: '输入列', cards: [inputCard] },
+      { id: 'col-output', kind: 'output', title: '输出列', cards: [outputCard] },
+    ],
+    links: [{ id: makeId('link'), from: inputCard.id, to: outputCard.id }],
+  };
+}
+
+function loadPipeline() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PIPELINE_STORAGE_KEY) || 'null');
+    if (!parsed || !Array.isArray(parsed.columns) || !Array.isArray(parsed.links) || parsed.columns.length < 2) return createDefaultPipeline();
+    return parsed;
+  } catch {
+    return createDefaultPipeline();
+  }
+}
+
+function savePipeline(pipeline) {
+  try {
+    localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(pipeline));
+  } catch {}
+}
 
 // ───── UTILITIES ──────────────────────────────────────────────
 function t(key, replacements = null) {
@@ -1370,6 +1464,239 @@ const App = {
       }));
     });
 
+    const pipelineColumns = computed(() => st.pipeline?.columns || []);
+    const pipelineCards = computed(() => pipelineColumns.value.flatMap(col => col.cards.map(card => ({ ...card, columnId: col.id, columnKind: col.kind }))));
+    const pipelineLinkFromOptions = computed(() => pipelineCards.value.map(card => ({ value: card.id, label: `${card.name} · ${columnKindLabel(card.columnKind)}` })));
+    const pipelineLinkToOptions = computed(() => {
+      if (!st.pipelineUi.linkFrom) return [];
+      const fromMeta = locateCard(st.pipelineUi.linkFrom);
+      if (!fromMeta) return [];
+      const nextCol = st.pipeline.columns[fromMeta.colIndex + 1];
+      if (!nextCol) return [];
+      return nextCol.cards.map(card => ({ value: card.id, label: `${card.name} · ${columnKindLabel(nextCol.kind)}` }));
+    });
+
+    function columnKindLabel(kind) {
+      if (kind === 'input') return '输入';
+      if (kind === 'output') return '输出';
+      return '处理';
+    }
+
+    function nodeTypeLabel(kind, type) {
+      const source = kind === 'input' ? INPUT_NODE_TYPES : kind === 'output' ? OUTPUT_NODE_TYPES : PROCESS_NODE_TYPES;
+      return source.find(x => x.value === type)?.label || type;
+    }
+
+    function cardTypeOptions(kind) {
+      if (kind === 'input') return INPUT_NODE_TYPES;
+      if (kind === 'output') return OUTPUT_NODE_TYPES;
+      return PROCESS_NODE_TYPES;
+    }
+
+    function locateCard(cardId) {
+      for (let i = 0; i < st.pipeline.columns.length; i++) {
+        const col = st.pipeline.columns[i];
+        const cardIndex = col.cards.findIndex(card => card.id === cardId);
+        if (cardIndex >= 0) return { col, colIndex: i, cardIndex, card: col.cards[cardIndex] };
+      }
+      return null;
+    }
+
+    function sanitizePipeline() {
+      if (!st.pipeline || !Array.isArray(st.pipeline.columns) || !Array.isArray(st.pipeline.links)) {
+        st.pipeline = createDefaultPipeline();
+        return;
+      }
+      if (st.pipeline.columns.length < 2) st.pipeline = createDefaultPipeline();
+      const first = st.pipeline.columns[0];
+      const last = st.pipeline.columns[st.pipeline.columns.length - 1];
+      first.kind = 'input';
+      first.title = '输入列';
+      last.kind = 'output';
+      last.title = '输出列';
+      st.pipeline.columns.slice(1, -1).forEach((col, idx) => {
+        col.kind = 'process';
+        col.title = `处理列 ${idx + 1}`;
+      });
+      const ids = new Set(st.pipeline.columns.flatMap(col => col.cards.map(card => card.id)));
+      st.pipeline.links = st.pipeline.links.filter(link => ids.has(link.from) && ids.has(link.to));
+    }
+
+    function persistPipeline() {
+      sanitizePipeline();
+      savePipeline(st.pipeline);
+    }
+
+    function resetPipeline() {
+      st.pipeline = createDefaultPipeline();
+      st.pipelineUi.linkFrom = '';
+      st.pipelineUi.linkTo = '';
+      st.pipelineUi.addTypeByColumn = {};
+      persistPipeline();
+    }
+
+    function addProcessColumn() {
+      const outputIdx = st.pipeline.columns.findIndex(col => col.kind === 'output');
+      const newColId = makeId('col-process');
+      st.pipeline.columns.splice(outputIdx, 0, {
+        id: newColId,
+        kind: 'process',
+        title: `处理列 ${st.pipeline.columns.filter(col => col.kind === 'process').length + 1}`,
+        cards: [createPipelineCard('process', 'transform')],
+      });
+      st.pipeline.links = [];
+      persistPipeline();
+    }
+
+    function removeProcessColumn(columnId) {
+      const idx = st.pipeline.columns.findIndex(col => col.id === columnId && col.kind === 'process');
+      if (idx < 0) return;
+      const removedIds = new Set(st.pipeline.columns[idx].cards.map(card => card.id));
+      st.pipeline.columns.splice(idx, 1);
+      st.pipeline.links = st.pipeline.links.filter(link => !removedIds.has(link.from) && !removedIds.has(link.to));
+      persistPipeline();
+    }
+
+    function addCardToColumn(columnId) {
+      const col = st.pipeline.columns.find(c => c.id === columnId);
+      if (!col) return;
+      const selectedType = st.pipelineUi.addTypeByColumn[columnId] || cardTypeOptions(col.kind)[0]?.value;
+      if (!selectedType) return;
+      col.cards.push(createPipelineCard(col.kind, selectedType));
+      persistPipeline();
+    }
+
+    function removeCardFromColumn(columnId, cardId) {
+      const col = st.pipeline.columns.find(c => c.id === columnId);
+      if (!col) return;
+      if (col.cards.length <= 1) {
+        showToast('提示', '每列至少保留一个卡片', 'warning');
+        return;
+      }
+      col.cards = col.cards.filter(card => card.id !== cardId);
+      st.pipeline.links = st.pipeline.links.filter(link => link.from !== cardId && link.to !== cardId);
+      if (st.pipelineUi.linkFrom === cardId) st.pipelineUi.linkFrom = '';
+      if (st.pipelineUi.linkTo === cardId) st.pipelineUi.linkTo = '';
+      persistPipeline();
+    }
+
+    function addPipelineLink() {
+      const from = st.pipelineUi.linkFrom;
+      const to = st.pipelineUi.linkTo;
+      if (!from || !to) return;
+      const fromMeta = locateCard(from);
+      const toMeta = locateCard(to);
+      if (!fromMeta || !toMeta) return;
+      if (toMeta.colIndex !== fromMeta.colIndex + 1) {
+        showToast('连线失败', '只允许连接到右侧相邻列', 'warning');
+        return;
+      }
+      const exists = st.pipeline.links.some(link => link.from === from && link.to === to);
+      if (exists) return;
+      st.pipeline.links.push({ id: makeId('link'), from, to });
+      persistPipeline();
+    }
+
+    function removePipelineLink(linkId) {
+      st.pipeline.links = st.pipeline.links.filter(link => link.id !== linkId);
+      persistPipeline();
+    }
+
+    function outputActionsForType(type) {
+      if (type === 'serial') return ['connect', 'disconnect', 'park'];
+      if (type === 'udp') return ['connect', 'disconnect'];
+      if (type === 'tcp') return ['connect', 'disconnect'];
+      if (type === 'intiface') return ['connect', 'disconnect', 'scanStart', 'scanStop'];
+      return [];
+    }
+
+    function runOutputAction(type, action) {
+      const map = {
+        serial: {
+          connect: '/api/control/tcode/connect',
+          disconnect: '/api/control/tcode/disconnect',
+          park: '/api/control/tcode/park',
+        },
+        udp: {
+          connect: '/api/control/udp/connect',
+          disconnect: '/api/control/udp/disconnect',
+        },
+        tcp: {
+          connect: '/api/control/tcp/connect',
+          disconnect: '/api/control/tcp/disconnect',
+        },
+        intiface: {
+          connect: '/api/control/intiface/connect',
+          disconnect: '/api/control/intiface/disconnect',
+          scanStart: '/api/control/intiface/scan-start',
+          scanStop: '/api/control/intiface/scan-stop',
+        },
+      };
+      const path = map[type]?.[action];
+      if (!path) return;
+      postAction(path);
+    }
+
+    // ── Pipeline wire visualization ──
+    const portPositions = ref({});
+    const wireStageSize = ref({ w: 1200, h: 600 });
+
+    const wirePaths = computed(() => {
+      const links = st.pipeline?.links || [];
+      return links.map(link => {
+        const fp = portPositions.value[`${link.from}-r`];
+        const tp = portPositions.value[`${link.to}-l`];
+        if (!fp || !tp) return null;
+        const dx = Math.max(40, Math.abs(tp.x - fp.x) * 0.5);
+        const path = `M ${fp.x} ${fp.y} C ${fp.x + dx} ${fp.y}, ${tp.x - dx} ${tp.y}, ${tp.x} ${tp.y}`;
+        return { ...link, path };
+      }).filter(Boolean);
+    });
+
+    function updatePortPositions() {
+      const container = document.getElementById('pipeline-columns-wrap');
+      if (!container) return;
+      const cr = container.getBoundingClientRect();
+      const sl = container.scrollLeft;
+      const st2 = container.scrollTop;
+      const pos = {};
+      for (const col of (st.pipeline?.columns || [])) {
+        for (const card of col.cards) {
+          for (const side of ['l', 'r']) {
+            const el = document.getElementById(`p${side}-${card.id}`);
+            if (el) {
+              const r = el.getBoundingClientRect();
+              pos[`${card.id}-${side}`] = {
+                x: r.left + r.width / 2 - cr.left + sl,
+                y: r.top + r.height / 2 - cr.top + st2,
+              };
+            }
+          }
+        }
+      }
+      portPositions.value = pos;
+      wireStageSize.value = {
+        w: Math.max(container.scrollWidth, 600),
+        h: Math.max(container.scrollHeight, 400),
+      };
+    }
+
+    function startWireFrom(cardId) {
+      if (st.pipelineUi.linkFrom === cardId) {
+        st.pipelineUi.linkFrom = '';
+      } else {
+        st.pipelineUi.linkFrom = cardId;
+        st.pipelineUi.linkTo = '';
+      }
+    }
+
+    function endWireTo(cardId) {
+      if (!st.pipelineUi.linkFrom || st.pipelineUi.linkFrom === cardId) return;
+      st.pipelineUi.linkTo = cardId;
+      addPipelineLink();
+      st.pipelineUi.linkFrom = '';
+    }
+
     // ── actions ──
     function setActiveTab(tab) {
       st.activeTab = tab;
@@ -1678,6 +2005,8 @@ const App = {
       st.theme = THEMES.includes(savedTheme) ? savedTheme : 'light';
       document.documentElement.dataset.theme = st.theme;
       document.title = 'Sensa WebUI';
+      st.pipeline = loadPipeline();
+      sanitizePipeline();
       if (!TABS.some(tab => tab.id === st.activeTab)) {
         st.activeTab = 'overview';
         localStorage.setItem('sensa.activeTab', st.activeTab);
@@ -1686,7 +2015,30 @@ const App = {
       useRecordingDS();
       connectWs();
       pollTimer = window.setInterval(() => refreshAll().catch(() => {}), 8000);
+      nextTick(() => setTimeout(updatePortPositions, 200));
+      window.addEventListener('resize', updatePortPositions);
     });
+
+    watch(
+      () => st.pipeline,
+      () => {
+        persistPipeline();
+        nextTick(updatePortPositions);
+      },
+      { deep: true },
+    );
+
+    watch(
+      () => st.pipelineUi.linkFrom,
+      () => {
+        st.pipelineUi.linkTo = '';
+      },
+    );
+
+    watch(
+      () => st.activeTab,
+      tab => { if (tab === 'devices') nextTick(() => setTimeout(updatePortPositions, 100)); },
+    );
 
     onUnmounted(() => {
       disposed = true;
@@ -1695,6 +2047,7 @@ const App = {
       if (wsRef && (wsRef.readyState === WebSocket.OPEN || wsRef.readyState === WebSocket.CONNECTING)) {
         wsRef.close();
       }
+      window.removeEventListener('resize', updatePortPositions);
     });
 
     return {
@@ -1726,6 +2079,20 @@ const App = {
       scriptStatusKey,
       scriptSummary,
       connectionDiagnostics,
+      pipelineColumns,
+      pipelineCards,
+      pipelineLinkFromOptions,
+      pipelineLinkToOptions,
+      columnKindLabel,
+      nodeTypeLabel,
+      cardTypeOptions,
+      outputActionsForType,
+      portPositions,
+      wireStageSize,
+      wirePaths,
+      updatePortPositions,
+      startWireFrom,
+      endWireTo,
       // actions
       setActiveTab,
       panelStyle,
@@ -1751,6 +2118,14 @@ const App = {
       saveDevConfig,
       loadDevConfig,
       saveDevMemory,
+      addProcessColumn,
+      removeProcessColumn,
+      addCardToColumn,
+      removeCardFromColumn,
+      addPipelineLink,
+      removePipelineLink,
+      runOutputAction,
+      resetPipeline,
       getDeviceMem,
       PRIMARY_POSE_AXES,
       AXES,
@@ -1968,177 +2343,179 @@ const App = {
 
     <!-- ═══ DEVICES ═══ -->
     <section :class="['tab-panel', {'is-active': st.activeTab==='devices'}]" :style="panelStyle('devices')">
-      <div class="panel-grid panel-grid--devices">
+      <div class="pipeline-shell">
 
-        <section class="card span-3">
-          <div class="section-title-row">
-            <div><h2>{{ t('devices.title') }}</h2><p class="muted">{{ t('devices.desc') }}</p></div>
+        <t-card title="流水线工作台" class="pipeline-toolbar-card">
+          <template #actions>
+            <t-button v-if="st.pipelineUi.linkFrom" variant="text" @click="st.pipelineUi.linkFrom=''">取消连线</t-button>
+          </template>
+          <div v-if="st.pipelineUi.linkFrom" class="pipeline-wire-status">
+            <t-tag theme="warning" variant="outline">
+              正在连线：{{ pipelineCards.find(x=>x.id===st.pipelineUi.linkFrom)?.name || '...' }} → 请点击右侧列卡片的左侧端口（●）
+            </t-tag>
           </div>
-
-          <div v-if="st.config && st.overview" class="panel-grid panel-grid--connections" style="margin-bottom:16px">
-            <article class="card connection-card device-card">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.sensaTransport') }}</h3></div>
-              </div>
-              <div class="device-status-row">
-                <div :class="['device-status-chip', st.apiReachable ? 'ok' : '']">
-                  <strong>{{ t('connections.httpApi') }}</strong>
-                  <span>{{ st.apiReachable ? t('status.connected') : t('status.disconnected') }}</span>
-                </div>
-                <div :class="['device-status-chip', st.wsConnected ? 'ok' : '']">
-                  <strong>{{ t('connections.wsStream') }}</strong>
-                  <span>{{ st.wsConnected ? t('status.connected') : t('status.disconnected') }}</span>
-                </div>
-                <div class="device-status-chip">
-                  <strong>{{ t('connections.lastWs') }}</strong>
-                  <span>{{ wsLastSeenText }}</span>
-                </div>
-                <div class="device-status-chip">
-                  <strong>{{ t('connections.nextRetry') }}</strong>
-                  <span>{{ wsRetryText }}</span>
-                </div>
-              </div>
-            </article>
-
-            <article class="card connection-card device-card device-card--tcode">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.serial') }}</h3></div>
-                <t-tag :theme="st.overview.tcode?.connected?'success':'danger'" variant="light">{{ st.overview.tcode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
-              </div>
-              <div class="form-stack compact-form">
-                <label>
-                  <span>{{ t('cfg.tcode.comPort') }}</span>
-                  <div class="input-row">
-                    <t-select v-model="st.config.tCode.comPort" filterable :creatable="true" :placeholder="'COM3'" style="flex:1">
-                      <t-option v-for="p in st.serialPorts" :key="p" :value="p" :label="p" />
-                    </t-select>
-                    <t-button @click="refreshPorts">{{ t('cfg.tcode.refreshPorts') }}</t-button>
-                  </div>
-                </label>
-              </div>
-              <div class="actions-grid">
-                <t-button @click="postAction('/api/control/tcode/connect')">{{ t('connections.connect') }}</t-button>
-                <t-button @click="postAction('/api/control/tcode/disconnect')">{{ t('connections.disconnect') }}</t-button>
-              </div>
-            </article>
-
-            <article class="card connection-card device-card">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.udp') }}</h3></div>
-                <t-tag :theme="st.overview.udpTCode?.connected?'success':'danger'" variant="light">{{ st.overview.udpTCode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
-              </div>
-              <div class="form-stack compact-form inline-grid inline-grid--2">
-                <label><span>{{ t('connections.host') }}</span><t-input v-model="st.config.udpTCode.host" /></label>
-                <label><span>{{ t('connections.port') }}</span><t-input-number v-model="st.config.udpTCode.port" :step="1" /></label>
-                <label class="inline-grid--full"><t-checkbox v-model="st.config.udpTCode.enabled">Auto Connect</t-checkbox></label>
-              </div>
-              <div class="actions-grid">
-                <t-button @click="postAction('/api/control/udp/connect')">{{ t('connections.connect') }}</t-button>
-                <t-button @click="postAction('/api/control/udp/disconnect')">{{ t('connections.disconnect') }}</t-button>
-              </div>
-            </article>
-
-            <article class="card connection-card device-card">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.tcp') }}</h3></div>
-                <t-tag :theme="st.overview.tcpTCode?.connected?'success':'danger'" variant="light">{{ st.overview.tcpTCode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
-              </div>
-              <div class="form-stack compact-form inline-grid inline-grid--2">
-                <label><span>{{ t('connections.host') }}</span><t-input v-model="st.config.tcpTCode.host" /></label>
-                <label><span>{{ t('connections.port') }}</span><t-input-number v-model="st.config.tcpTCode.port" :step="1" /></label>
-                <label class="inline-grid--full"><t-checkbox v-model="st.config.tcpTCode.enabled">Auto Connect</t-checkbox></label>
-              </div>
-              <div class="actions-grid">
-                <t-button @click="postAction('/api/control/tcp/connect')">{{ t('connections.connect') }}</t-button>
-                <t-button @click="postAction('/api/control/tcp/disconnect')">{{ t('connections.disconnect') }}</t-button>
-              </div>
-            </article>
-
-            <article class="card connection-card device-card device-card--intiface">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.intiface') }}</h3></div>
-                <t-tag :theme="st.overview.intiface?.connected?'success':'danger'" variant="light">{{ st.overview.intiface?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
-              </div>
-              <div class="form-stack compact-form">
-                <label><span>{{ t('connections.ws') }}</span><t-input v-model="st.config.intiface.websocketAddress" /></label>
-                <label><t-checkbox v-model="st.config.intiface.manageEngineProcess">{{ t('connections.manageEngine') }}</t-checkbox></label>
-              </div>
-              <div class="actions-grid">
-                <t-button @click="postAction('/api/control/intiface/connect')">{{ t('connections.connect') }}</t-button>
-                <t-button @click="postAction('/api/control/intiface/disconnect')">{{ t('connections.disconnect') }}</t-button>
-                <t-button variant="text" @click="postAction('/api/control/intiface/scan-start')">{{ t('connections.scanStart') }}</t-button>
-                <t-button variant="text" @click="postAction('/api/control/intiface/scan-stop')">{{ t('connections.scanStop') }}</t-button>
-              </div>
-            </article>
-
-            <article class="card connection-card device-card">
-              <div class="section-title-row">
-                <div><h3>{{ t('connections.diagnostics') }}</h3></div>
-              </div>
-              <div class="diagnostic-list">
-                <article v-for="item in connectionDiagnostics" :key="item.key" :class="['diagnostic-item', item.status === 'ok' ? 'ok' : item.status === 'error' ? 'error' : 'warn']">
-                  <strong>{{ item.title }}</strong>
-                  <div>{{ item.message }}</div>
-                  <div class="muted" style="margin-top:4px">{{ t('connections.diag.lastEvent') }}: {{ item.at }}</div>
-                </article>
-              </div>
-            </article>
+          <div class="pipeline-toolbar">
+            <div class="pipeline-toolbar__group">
+              <t-button theme="primary" @click="addProcessColumn">+ 处理列</t-button>
+              <t-button variant="outline" theme="danger" @click="resetPipeline">重置流水线</t-button>
+            </div>
+            <div class="pipeline-toolbar__group pipeline-toolbar__linker">
+              <span class="muted" style="font-size:12px">手动连线：</span>
+              <t-select v-model="st.pipelineUi.linkFrom" :options="pipelineLinkFromOptions" placeholder="选择起点卡片" clearable style="min-width:180px" />
+              <t-select v-model="st.pipelineUi.linkTo" :options="pipelineLinkToOptions" placeholder="选择目标卡片" clearable style="min-width:180px" :disabled="!st.pipelineUi.linkFrom" />
+              <t-button theme="success" :disabled="!st.pipelineUi.linkFrom||!st.pipelineUi.linkTo" @click="addPipelineLink">连线</t-button>
+            </div>
           </div>
+        </t-card>
 
-          <div v-if="!devices.length" class="empty-state">
-            <strong>{{ t('devices.empty.title') }}</strong>
-            <div>{{ t('devices.empty.body') }}</div>
+        <div id="pipeline-columns-wrap" class="pipeline-columns-wrap" @scroll="updatePortPositions">
+          <svg class="pipeline-wires-svg"
+               :width="wireStageSize.w" :height="wireStageSize.h"
+               xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <marker id="wire-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+                <polygon points="0 0, 10 3.5, 0 7" class="wire-arrow-marker" />
+              </marker>
+            </defs>
+            <path v-for="wp in wirePaths" :key="wp.id"
+                  :d="wp.path"
+                  class="wire-path"
+                  marker-end="url(#wire-arrow)"
+                  @click.stop="removePipelineLink(wp.id)"
+                  title="点击删除此连线" />
+          </svg>
+
+          <div class="pipeline-columns">
+            <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
+                 :class="['pipeline-col-wrap', `pipeline-col--${column.kind}`]">
+
+              <div class="pipeline-col-header">
+                <span class="pipeline-col-title">{{ column.title }}</span>
+                <div class="pipeline-col-header-end">
+                  <t-tag variant="light" size="small" :theme="column.kind==='input'?'primary':column.kind==='output'?'success':'default'">{{ columnKindLabel(column.kind) }}</t-tag>
+                  <t-button v-if="column.kind==='process'" variant="text" theme="danger" size="small" @click="removeProcessColumn(column.id)">移除</t-button>
+                </div>
+              </div>
+
+              <div class="pipeline-column-stack">
+                <div v-for="card in column.cards" :key="card.id" class="pipeline-node-wrap">
+                  <div v-if="column.kind !== 'input'"
+                       class="card-port card-port--left"
+                       :id="`pl-${card.id}`"
+                       :class="{'card-port--connectable': !!st.pipelineUi.linkFrom && st.pipelineUi.linkFrom !== card.id}"
+                       @click.stop="endWireTo(card.id)"
+                       title="点击完成连线" />
+
+                  <t-card class="pipeline-node-card" :title="card.name">
+                    <template #actions>
+                      <t-switch v-model="card.enabled" size="small" />
+                      <t-button variant="text" theme="danger" size="small" @click="removeCardFromColumn(column.id, card.id)">✕</t-button>
+                    </template>
+                    <template #subtitle>
+                      <t-tag variant="light" size="small">{{ nodeTypeLabel(card.kind, card.type) }}</t-tag>
+                    </template>
+
+                    <div class="pipeline-node-form">
+                      <label>
+                        <span>显示名称</span>
+                        <t-input v-model="card.name" size="small" />
+                      </label>
+
+                      <template v-if="card.kind==='input'">
+                        <label v-if="card.type==='osc' || card.type==='http' || card.type==='ws'">
+                          <span>服务端口</span>
+                          <t-input-number v-model="card.config.port" :step="1" size="small" />
+                        </label>
+                        <label v-if="card.type==='http' || card.type==='ws'">
+                          <span>路由/通道</span>
+                          <t-input v-model="card.config.route" placeholder="/ingest/source" size="small" />
+                        </label>
+                        <label v-if="card.type==='osc'">
+                          <span>Path 前缀</span>
+                          <t-input v-model="card.config.pathPrefix" placeholder="/avatar/parameters" size="small" />
+                        </label>
+                        <label>
+                          <span>输入标识 (sourceKey)</span>
+                          <t-input v-model="card.config.sourceKey" placeholder="用于同端口多输入区分" size="small" />
+                        </label>
+                      </template>
+
+                      <template v-if="card.kind==='process'">
+                        <label>
+                          <span>目标轴</span>
+                          <t-select v-model="card.config.targetAxis" :options="AXES.map(ax=>({label:ax,value:ax}))" size="small" />
+                        </label>
+                        <template v-if="card.type==='transform'">
+                          <label><span>Gain（增益）</span><t-input-number v-model="card.config.gain" :step="0.01" size="small" /></label>
+                          <label><span>Offset（偏移）</span><t-input-number v-model="card.config.offset" :step="0.01" size="small" /></label>
+                        </template>
+                        <template v-if="card.type==='clamp'">
+                          <label><span>Min</span><t-input-number v-model="card.config.min" :step="0.01" :min="0" :max="1" size="small" /></label>
+                          <label><span>Max</span><t-input-number v-model="card.config.max" :step="0.01" :min="0" :max="1" size="small" /></label>
+                        </template>
+                        <t-alert v-if="card.type==='invert-l0'" theme="info" message="将目标轴做 1-x 反转（0↔1）。" />
+                      </template>
+
+                      <template v-if="card.kind==='output'">
+                        <label v-if="card.type==='serial'">
+                          <span>串口号</span>
+                          <t-input v-model="card.config.comPort" placeholder="COM3" size="small" />
+                        </label>
+                        <template v-if="card.type==='udp' || card.type==='tcp'">
+                          <label><span>Host</span><t-input v-model="card.config.host" placeholder="127.0.0.1" size="small" /></label>
+                          <label><span>Port</span><t-input-number v-model="card.config.port" :step="1" size="small" /></label>
+                        </template>
+                        <label v-if="card.type==='intiface'">
+                          <span>WebSocket 地址</span>
+                          <t-input v-model="card.config.websocketAddress" placeholder="ws://localhost:12345" size="small" />
+                        </label>
+                        <label v-if="card.type==='script'">
+                          <span>输出脚本名</span>
+                          <t-input v-model="card.config.fileName" placeholder="output.funscript" size="small" />
+                        </label>
+                        <div class="pipeline-output-actions" v-if="outputActionsForType(card.type).length">
+                          <t-button v-for="action in outputActionsForType(card.type)" :key="action"
+                                    variant="outline" size="small" @click="runOutputAction(card.type, action)">
+                            {{ {connect:'连接',disconnect:'断开',park:'回中',scanStart:'开始扫描',scanStop:'停止扫描'}[action]||action }}
+                          </t-button>
+                        </div>
+                      </template>
+                    </div>
+                  </t-card>
+
+                  <div v-if="column.kind !== 'output'"
+                       class="card-port card-port--right"
+                       :id="`pr-${card.id}`"
+                       :class="{'card-port--drawing': st.pipelineUi.linkFrom === card.id}"
+                       @click.stop="startWireFrom(card.id)"
+                       :title="st.pipelineUi.linkFrom === card.id ? '点击取消' : '点击开始连线'" />
+                </div>
+              </div>
+
+              <div class="pipeline-add-card-row">
+                <t-select v-model="st.pipelineUi.addTypeByColumn[column.id]"
+                          :options="cardTypeOptions(column.kind)" placeholder="选择卡片类型" size="small" />
+                <t-button variant="outline" size="small" @click="addCardToColumn(column.id)">+ 添加</t-button>
+              </div>
+
+            </div>
           </div>
+        </div>
 
-          <div v-else class="device-deck">
-            <article v-for="dev in devices" :key="dev.id" :class="['device-card','device-card--tcode',dev.source==='mock'?'device-card--mock':'','positioned']">
-              <div class="device-card__meta">
-                <div>
-                  <span class="proto-badge tcode">{{ dev.connectionLabel }}</span>
-                  <h3>{{ dev.name }}</h3>
-                  <p class="muted">{{ dev.summary }}</p>
-                </div>
-                <t-tag :theme="dev.source==='mock'?'default':'success'" variant="light">{{ dev.source==='mock'?t('label.mock'):t('label.real') }}</t-tag>
-              </div>
-              <div class="device-card__facts">
-                <div v-for="(v,k) in dev.facts" :key="k" class="fact-pill"><strong>{{ k }}</strong><span>{{ v }}</span></div>
-              </div>
-
-              <!-- Output Range dual slider -->
-              <!-- Device parameters -->
-              <div v-if="st.config" class="device-card__stack">
-                <div class="section-subtitle">{{ t('devices.params.title') }}</div>
-                <div class="inline-grid inline-grid--2">
-                  <label><span>{{ t('devices.params.maxVel') }}</span><t-input-number v-model="st.config.tCode.maxVelocity" :step="1" /></label>
-                  <label><span>{{ t('devices.params.ups') }}</span><t-input-number v-model="st.config.tCode.updatesPerSecond" :step="1" /></label>
-                  <label class="inline-grid--full"><span>{{ t('devices.params.ramp') }}</span><t-input-number v-model="st.config.safety.rampUpMs" :step="1" /></label>
-                </div>
-              </div>
-
-              <!-- Quick actions -->
-              <div class="device-card__stack">
-                <div class="button-row">
-                  <t-button @click="postAction('/api/control/tcode/park')">{{ t('btn.park') }}</t-button>
-                  <t-button @click="saveConfig();saveDevConfig(dev)">{{ t('btn.saveDeviceCfg') }}</t-button>
-                  <t-button variant="text" @click="loadDevConfig(dev)">{{ t('btn.loadDeviceCfg') }}</t-button>
-                </div>
-              </div>
-
-              <!-- Device memory -->
-              <div class="device-card__stack" v-if="dev.source!=='mock'">
-                <div class="device-config-label">
-                  <strong>{{ t('devices.memory.title') }}</strong>
-                  <span class="muted">{{ getDeviceMem(dev) ? t('devices.memory.saved',{time:new Date(getDeviceMem(dev).savedAt).toLocaleString()}) : t('devices.memory.none') }}</span>
-                </div>
-                <div class="inline-grid inline-grid--2">
-                  <label><span>{{ t('devices.alias') }}</span><t-input :value="getDeviceMem(dev)?.alias||''" @change="v=>saveDevMemory(dev,v,getDeviceMem(dev)?.note||'')" /></label>
-                  <label><span>{{ t('devices.note') }}</span><t-input :value="getDeviceMem(dev)?.note||''" @change="v=>saveDevMemory(dev,getDeviceMem(dev)?.alias||'',v)" /></label>
-                </div>
-              </div>
-
-            </article>
+        <t-card title="连线清单" class="pipeline-links-card">
+          <div v-if="!st.pipeline.links.length" class="empty-state">
+            <strong>暂无连线</strong>
+            <div>点击非输入列卡片右侧端口（●）开始连线，再点击下一列左侧端口完成。也可使用上方手动连线下拉框。</div>
           </div>
-        </section>
+          <div v-else class="pipeline-link-list">
+            <div class="pipeline-link-item" v-for="link in st.pipeline.links" :key="link.id">
+              <span>{{ pipelineCards.find(x=>x.id===link.from)?.name || link.from }}</span>
+              <span class="muted">→</span>
+              <span>{{ pipelineCards.find(x=>x.id===link.to)?.name || link.to }}</span>
+              <t-button variant="text" theme="danger" size="small" @click="removePipelineLink(link.id)">删除</t-button>
+            </div>
+          </div>
+        </t-card>
 
       </div>
     </section>

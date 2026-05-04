@@ -2148,3 +2148,260 @@ label.inline {
     gap: 8px;
   }
 }
+
+/* ── Pipeline Workbench ────────────────────────────────────── */
+.pipeline-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.pipeline-toolbar-card,
+.pipeline-links-card,
+.pipeline-node-card {
+  border-radius: var(--radius-md);
+}
+
+.pipeline-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pipeline-toolbar__group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.pipeline-toolbar__linker {
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.pipeline-wire-status {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Wire Stage: relative container that holds SVG + columns ── */
+.pipeline-columns-wrap {
+  position: relative;
+  overflow-x: auto;
+  overflow-y: visible;
+  min-height: 280px;
+}
+
+/* SVG wire overlay – rendered behind cards */
+.pipeline-wires-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: visible;
+}
+
+.wire-path {
+  fill: none;
+  stroke: var(--primary, #0052d9);
+  stroke-width: 2;
+  stroke-linecap: round;
+  pointer-events: stroke;
+  cursor: pointer;
+  transition: stroke-width 0.12s, stroke 0.12s;
+  opacity: 0.75;
+}
+
+.wire-path:hover {
+  stroke-width: 3.5;
+  stroke: var(--error, #e34d59);
+  opacity: 1;
+}
+
+.wire-arrow-marker {
+  fill: var(--primary, #0052d9);
+}
+
+/* ── Columns grid (above SVG via z-index) ── */
+.pipeline-columns {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(300px, 340px);
+  gap: 40px;
+  padding-bottom: 4px;
+  position: relative;
+  z-index: 1;
+}
+
+/* Column wrapper */
+.pipeline-col-wrap {
+  border: 1.5px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+  overflow: visible;
+}
+
+.pipeline-col--input  { border-color: rgba(0, 82, 217, 0.25); background: linear-gradient(160deg, rgba(0,82,217,0.04) 0%, var(--surface) 60%); }
+.pipeline-col--process { border-color: rgba(139, 92, 246, 0.25); background: linear-gradient(160deg, rgba(139,92,246,0.04) 0%, var(--surface) 60%); }
+.pipeline-col--output  { border-color: rgba(0, 168, 112, 0.25); background: linear-gradient(160deg, rgba(0,168,112,0.04) 0%, var(--surface) 60%); }
+
+.pipeline-col-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+
+.pipeline-col-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.pipeline-col-header-end {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.pipeline-column-stack {
+  display: grid;
+  gap: 12px;
+}
+
+/* Card node wrapper – must be relative for port dots */
+.pipeline-node-wrap {
+  position: relative;
+  padding: 0 10px;
+}
+
+/* ── Port circles on card edges ── */
+.card-port {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 2px solid var(--primary, #0052d9);
+  background: var(--surface, #fff);
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.12s ease;
+  box-shadow: 0 0 0 0 rgba(0, 82, 217, 0);
+}
+
+.card-port--left {
+  left: -7px;
+  transform: translateY(-50%);
+}
+
+.card-port--right {
+  right: -7px;
+  transform: translateY(-50%);
+}
+
+.card-port--right:hover,
+.card-port--right.card-port--drawing {
+  background: var(--warning-color, #f0a020);
+  border-color: var(--warning-color, #f0a020);
+  box-shadow: 0 0 0 4px rgba(240, 160, 32, 0.22);
+  transform: translateY(-50%) scale(1.25);
+}
+
+.card-port--right.card-port--drawing {
+  animation: port-pulse-orange 0.9s ease-in-out infinite;
+}
+
+.card-port--left:hover,
+.card-port--left.card-port--connectable {
+  background: var(--success-color, #00a870);
+  border-color: var(--success-color, #00a870);
+  box-shadow: 0 0 0 4px rgba(0, 168, 112, 0.22);
+  transform: translateY(-50%) scale(1.25);
+}
+
+.card-port--left.card-port--connectable {
+  animation: port-pulse-green 0.9s ease-in-out infinite;
+}
+
+@keyframes port-pulse-orange {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(240,160,32,0.2); }
+  50%       { box-shadow: 0 0 0 7px rgba(240,160,32,0.05); }
+}
+
+@keyframes port-pulse-green {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(0,168,112,0.2); }
+  50%       { box-shadow: 0 0 0 7px rgba(0,168,112,0.05); }
+}
+
+/* ── Node card internals ── */
+.pipeline-node-form {
+  display: grid;
+  gap: 8px;
+}
+
+.pipeline-node-form label {
+  display: grid;
+  gap: 4px;
+}
+
+.pipeline-node-form label > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.pipeline-output-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.pipeline-add-card-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+/* ── Links list ── */
+.pipeline-link-list {
+  display: grid;
+  gap: 8px;
+}
+
+.pipeline-link-item {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+@media (max-width: 960px) {
+  .pipeline-columns {
+    grid-auto-columns: minmax(260px, 82vw);
+    gap: 28px;
+  }
+
+  .pipeline-toolbar__linker {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
