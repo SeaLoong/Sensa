@@ -50,12 +50,14 @@ var recorder    = new RecordingBuffer();
 var uiActions   = new UiActionQueue();
 
 var tcode = new TCodeSerial(save.TCode);
+var tcodeUdp = new TCodeUdp(save.TCode, save.UdpTCode);
+var tcodeTcp = new TCodeTcp(save.TCode, save.TcpTCode);
 IntifaceEngineHost? intifaceHost = null;
 var intiface = new IntifaceTransmitter(save.Intiface);
 
 intiface.OnLog += Log;
 
-var routine = new Routine(save, paramStore, oscReceiver, uiActions, intiface, tcode, recorder);
+var routine = new Routine(save, paramStore, oscReceiver, uiActions, intiface, tcode, tcodeUdp, tcodeTcp, recorder);
 routine.OnLog += Log;
 
 async Task RunOnLoopAsync(Action action)
@@ -96,6 +98,50 @@ Task DisconnectTCodeAsync()
 {
     tcode.Disconnect();
     Log("[TCode] Disconnected.");
+    return Task.CompletedTask;
+}
+
+Task<bool> ConnectTCodeUdpAsync()
+{
+    try
+    {
+        tcodeUdp.Connect();
+        Log($"[TCode/UDP] Connected: {save.UdpTCode.Host}:{save.UdpTCode.Port}");
+        return Task.FromResult(true);
+    }
+    catch (Exception ex)
+    {
+        LogError($"[TCode/UDP] Failed to connect: {ex.Message}");
+        return Task.FromResult(false);
+    }
+}
+
+Task DisconnectTCodeUdpAsync()
+{
+    tcodeUdp.Disconnect();
+    Log("[TCode/UDP] Disconnected.");
+    return Task.CompletedTask;
+}
+
+Task<bool> ConnectTCodeTcpAsync()
+{
+    try
+    {
+        tcodeTcp.Connect();
+        Log($"[TCode/TCP] Connected: {save.TcpTCode.Host}:{save.TcpTCode.Port}");
+        return Task.FromResult(true);
+    }
+    catch (Exception ex)
+    {
+        LogError($"[TCode/TCP] Failed to connect: {ex.Message}");
+        return Task.FromResult(false);
+    }
+}
+
+Task DisconnectTCodeTcpAsync()
+{
+    tcodeTcp.Disconnect();
+    Log("[TCode/TCP] Disconnected.");
     return Task.CompletedTask;
 }
 
@@ -175,6 +221,16 @@ object BuildOverviewSnapshot()
             connected = tcode.IsConnected,
             config = save.TCode,
         },
+        udpTCode = new
+        {
+            connected = tcodeUdp.IsConnected,
+            config = save.UdpTCode,
+        },
+        tcpTCode = new
+        {
+            connected = tcodeTcp.IsConnected,
+            config = save.TcpTCode,
+        },
         intiface = new
         {
             connected = intiface.IsConnected,
@@ -226,6 +282,10 @@ object BuildMeta()
             "/api/control/intiface/disconnect",
             "/api/control/tcode/connect",
             "/api/control/tcode/disconnect",
+            "/api/control/udp/connect",
+            "/api/control/udp/disconnect",
+            "/api/control/tcp/connect",
+            "/api/control/tcp/disconnect",
             "/api/control/recording/start",
             "/api/control/recording/stop",
             "/api/control/recording/export",
@@ -360,7 +420,37 @@ app.MapPost("/api/control/tcode/disconnect", async () =>
 app.MapPost("/api/control/tcode/park", () =>
 {
     tcode.Park();
+    tcodeUdp.Park();
+    tcodeTcp.Park();
     return Results.Ok(new { ok = true });
+});
+
+app.MapPost("/api/control/udp/connect", async () =>
+{
+    var ok = await ConnectTCodeUdpAsync();
+    var message = ok
+        ? $"UDP connected: {save.UdpTCode.Host}:{save.UdpTCode.Port}"
+        : "UDP connection failed. Check host/port and whether target accepts TCode over UDP.";
+    return Results.Ok(new { ok, connected = tcodeUdp.IsConnected, message });
+});
+app.MapPost("/api/control/udp/disconnect", async () =>
+{
+    await DisconnectTCodeUdpAsync();
+    return Results.Ok(new { ok = true, connected = tcodeUdp.IsConnected, message = "UDP disconnected." });
+});
+
+app.MapPost("/api/control/tcp/connect", async () =>
+{
+    var ok = await ConnectTCodeTcpAsync();
+    var message = ok
+        ? $"TCP connected: {save.TcpTCode.Host}:{save.TcpTCode.Port}"
+        : "TCP connection failed. Check host/port and whether target accepts TCode over TCP.";
+    return Results.Ok(new { ok, connected = tcodeTcp.IsConnected, message });
+});
+app.MapPost("/api/control/tcp/disconnect", async () =>
+{
+    await DisconnectTCodeTcpAsync();
+    return Results.Ok(new { ok = true, connected = tcodeTcp.IsConnected, message = "TCP disconnected." });
 });
 
 app.MapPost("/api/control/recording/start", () =>
@@ -445,6 +535,10 @@ app.Lifetime.ApplicationStopping.Register(() =>
     recorder.Stop();
     tcode.Park();
     tcode.Dispose();
+    tcodeUdp.Park();
+    tcodeUdp.Dispose();
+    tcodeTcp.Park();
+    tcodeTcp.Dispose();
     oscReceiver.Stop();
     oscReceiver.Dispose();
     routine.Dispose();
@@ -457,6 +551,12 @@ Log($"[OSC] Listening on UDP :{save.Osc.ReceiverPort}");
 
 if (save.TCode.Enabled && !string.IsNullOrWhiteSpace(save.TCode.ComPort))
     await ConnectTCodeAsync();
+
+if (save.UdpTCode.Enabled)
+    await ConnectTCodeUdpAsync();
+
+if (save.TcpTCode.Enabled)
+    await ConnectTCodeTcpAsync();
 
 if (save.Intiface.Enabled)
     await ConnectIntifaceAsync();
@@ -484,6 +584,10 @@ oscReceiver.Stop();
 oscReceiver.Dispose();
 tcode.Park();
 tcode.Dispose();
+tcodeUdp.Park();
+tcodeUdp.Dispose();
+tcodeTcp.Park();
+tcodeTcp.Dispose();
 await intiface.DisposeAsync();
 intifaceHost?.Dispose();
 save.Save();

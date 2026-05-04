@@ -100,6 +100,8 @@ public sealed class Routine : IDisposable
     private readonly OscReceiver         _osc;
     private readonly IntifaceTransmitter? _intiface;
     private readonly TCodeSerial?        _tcode;
+    private readonly TCodeUdp?           _tcodeUdp;
+    private readonly TCodeTcp?           _tcodeTcp;
     private readonly RecordingBuffer?    _recorder;
     private readonly UiActionQueue       _actions;
     private readonly SafetySystem        _safety;
@@ -136,6 +138,8 @@ public sealed class Routine : IDisposable
         UiActionQueue       actions,
         IntifaceTransmitter? intiface  = null,
         TCodeSerial?        tcode     = null,
+        TCodeUdp?           tcodeUdp  = null,
+        TCodeTcp?           tcodeTcp  = null,
         RecordingBuffer?    recorder  = null)
     {
         _save     = save;
@@ -143,6 +147,8 @@ public sealed class Routine : IDisposable
         _osc      = osc;
         _intiface = intiface;
         _tcode    = tcode;
+        _tcodeUdp = tcodeUdp;
+        _tcodeTcp = tcodeTcp;
         _recorder = recorder;
         _actions  = actions;
         _safety   = new SafetySystem(save.Safety);
@@ -260,6 +266,8 @@ public sealed class Routine : IDisposable
                 catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
             }
             _tcode?.Send(safeCmd);
+            _tcodeUdp?.Send(safeCmd);
+            _tcodeTcp?.Send(safeCmd);
 
             // 7. Record
             _recorder?.Push(safeCmd);
@@ -269,6 +277,8 @@ public sealed class Routine : IDisposable
     private async Task SendEmergencyAsync()
     {
         _tcode?.EmergencyStop();
+        _tcodeUdp?.EmergencyStop();
+        _tcodeTcp?.EmergencyStop();
         if (_intiface is { IsConnected: true })
         {
             try { await _intiface.StopAllAsync(); } catch { }

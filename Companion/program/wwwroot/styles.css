@@ -1599,13 +1599,28 @@ label.inline {
 /* ── Posture Canvas (header) ────────────────────────────────── */
 .posture-canvas {
   flex: 0 0 auto;
-  width: 160px;
-  height: 90px;
+  width: 320px;
+  height: 200px;
   border-radius: var(--radius-md);
   background: var(--bg-soft);
   border: 1px solid var(--border);
   align-self: center;
   display: block;
+}
+
+@media (max-width: 1200px) {
+  .posture-canvas {
+    width: 260px;
+    height: 160px;
+  }
+}
+
+@media (max-width: 960px) {
+  .posture-canvas {
+    width: 100%;
+    max-width: 420px;
+    height: 180px;
+  }
 }
 
 /* ── Dual Range Slider ──────────────────────────────────────── */

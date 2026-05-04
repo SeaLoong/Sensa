@@ -24,6 +24,20 @@ public sealed class TCodeConfig
     public bool   Enabled           { get; set; } = false;
 }
 
+public sealed class UdpTCodeConfig
+{
+    public bool   Enabled { get; set; } = false;
+    public string Host    { get; set; } = "127.0.0.1";
+    public int    Port    { get; set; } = 9999;
+}
+
+public sealed class TcpTCodeConfig
+{
+    public bool   Enabled { get; set; } = false;
+    public string Host    { get; set; } = "127.0.0.1";
+    public int    Port    { get; set; } = 9998;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  Intiface config
 // ═══════════════════════════════════════════════════════════════════════
@@ -106,6 +120,8 @@ public sealed class SaveFile
     public WebUiConfig           WebUi        { get; set; } = new();
     public IntifaceConfig         Intiface     { get; set; } = new();
     public TCodeConfig            TCode        { get; set; } = new();
+    public UdpTCodeConfig         UdpTCode     { get; set; } = new();
+    public TcpTCodeConfig         TcpTCode     { get; set; } = new();
     public SafetyConfig           Safety       { get; set; } = new();
     public RhythmConfig           Rhythm       { get; set; } = new();
     public List<SignalConfig>      Signals      { get; set; } = new();
@@ -167,6 +183,8 @@ public sealed class SaveFile
         WebUi        = other.WebUi        ?? new WebUiConfig();
         Intiface     = other.Intiface     ?? new IntifaceConfig();
         TCode        = other.TCode        ?? new TCodeConfig();
+        UdpTCode     = other.UdpTCode     ?? new UdpTCodeConfig();
+        TcpTCode     = other.TcpTCode     ?? new TcpTCodeConfig();
         Safety       = other.Safety       ?? new SafetyConfig();
         Rhythm       = other.Rhythm       ?? new RhythmConfig();
         Signals      = other.Signals      ?? new List<SignalConfig>();

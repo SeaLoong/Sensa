@@ -12,14 +12,14 @@ const AXIS_DEFS = { L0: 0, R0: 0.5, R1: 0.5, R2: 0.5, L1: 0.5, L2: 0.5, Vibrate:
 const AXIS_KEY = { L0: 'l0', R0: 'r0', R1: 'r1', R2: 'r2', L1: 'l1', L2: 'l2', Vibrate: 'vibrate' };
 const AXIS_LABELS = {
   L0: { zh: 'L0 主冲程', en: 'L0 Stroke' },
-  R0: { zh: 'R0 横滚', en: 'R0 Roll' },
-  R1: { zh: 'R1 俯仰', en: 'R1 Pitch' },
-  R2: { zh: 'R2 扭转', en: 'R2 Twist' },
-  L1: { zh: 'L1 横向', en: 'L1 Lateral' },
-  L2: { zh: 'L2 前后', en: 'L2 Forward' },
+  R0: { zh: 'R0 扭转', en: 'R0 Twist' },
+  R1: { zh: 'R1 横滚', en: 'R1 Roll' },
+  R2: { zh: 'R2 俯仰', en: 'R2 Pitch' },
+  L1: { zh: 'L1 前后', en: 'L1 Forward/Back' },
+  L2: { zh: 'L2 左右', en: 'L2 Left/Right' },
   Vibrate: { zh: '振动', en: 'Vibrate' },
 };
-const PRIMARY_POSE_AXES = ['L2', 'L1', 'R0'];
+const PRIMARY_POSE_AXES = ['L1', 'L0', 'R2'];
 const MOCK_DEVICES = [
   {
     id: 'mock:sr6',
@@ -65,7 +65,7 @@ const I18N = {
     'cb.gateOpen': 'GateOpen',
     'nav.overview': '总览',
     'nav.config': '配置',
-    'nav.devices': '设备',
+    'nav.connections': '连接',
     'nav.control': '控制',
     'nav.scripts': '脚本',
     'nav.monitoring': '监控',
@@ -120,8 +120,20 @@ const I18N = {
     'sig.dz': 'Dead Zone',
     'sig.inv': 'Invert',
     'sig.latest': '最新值',
-    'devices.title': '设备工作台',
-    'devices.desc': '已连接设备的参数配置与快捷操作。',
+    'devices.title': '连接工作台',
+    'devices.desc': '统一管理串口、UDP、TCP 与 Intiface 连接。',
+    'connections.serial': '串口 TCode',
+    'connections.udp': 'UDP (TCode over UDP)',
+    'connections.tcp': 'TCP (TCode over TCP)',
+    'connections.intiface': 'Intiface',
+    'connections.host': 'Host',
+    'connections.port': 'Port',
+    'connections.connect': '连接',
+    'connections.disconnect': '断开',
+    'connections.scanStart': '开始扫描',
+    'connections.scanStop': '停止扫描',
+    'connections.manageEngine': '自动管理 Intiface 引擎',
+    'connections.ws': 'WebSocket 地址',
     'devices.test.title': '手动测试',
     'devices.test.desc': '在不启动 Loop 的情况下验证设备轴向响应。',
     'devices.range.title': '输出范围',
@@ -322,7 +334,7 @@ const I18N = {
     'cb.gateOpen': 'GateOpen',
     'nav.overview': 'Overview',
     'nav.config': 'Config',
-    'nav.devices': 'Devices',
+    'nav.connections': 'Connections',
     'nav.control': 'Control',
     'nav.scripts': 'Scripts',
     'nav.monitoring': 'Monitoring',
@@ -377,8 +389,20 @@ const I18N = {
     'sig.dz': 'Dead Zone',
     'sig.inv': 'Invert',
     'sig.latest': 'Latest',
-    'devices.title': 'Device Workbench',
-    'devices.desc': 'Device parameter configuration and quick actions.',
+    'devices.title': 'Connection Workbench',
+    'devices.desc': 'Manage Serial, UDP, TCP, and Intiface connections in one place.',
+    'connections.serial': 'Serial TCode',
+    'connections.udp': 'UDP (TCode over UDP)',
+    'connections.tcp': 'TCP (TCode over TCP)',
+    'connections.intiface': 'Intiface',
+    'connections.host': 'Host',
+    'connections.port': 'Port',
+    'connections.connect': 'Connect',
+    'connections.disconnect': 'Disconnect',
+    'connections.scanStart': 'Start Scan',
+    'connections.scanStop': 'Stop Scan',
+    'connections.manageEngine': 'Manage Intiface engine automatically',
+    'connections.ws': 'WebSocket Address',
     'devices.test.title': 'Manual Test',
     'devices.test.desc': 'Test device axis responses without a live VRChat signal.',
     'devices.range.title': 'Output Range',
@@ -598,7 +622,7 @@ const appState = reactive({
 const TABS = [
   { id: 'overview', label: 'nav.overview' },
   { id: 'config', label: 'nav.config' },
-  { id: 'devices', label: 'nav.devices' },
+  { id: 'devices', label: 'nav.connections' },
   { id: 'control', label: 'nav.control' },
   { id: 'scripts', label: 'nav.scripts' },
   { id: 'monitoring', label: 'nav.monitoring' },
@@ -723,6 +747,69 @@ function buildRealDevices() {
       },
     });
   }
+  if (appState.overview?.udpTCode?.connected) {
+    const cfg = appState.config?.udpTCode || {};
+    devs.push({
+      id: `udp:${cfg.host || 'unknown'}:${cfg.port || 0}`,
+      memoryId: `${cfg.host || 'unknown'}:${cfg.port || 0}`,
+      kind: 'tcode',
+      source: 'real',
+      name: `TCode UDP @ ${cfg.host || '-'}:${cfg.port || '-'}`,
+      model: 'Network Bridge',
+      connectionLabel: 'UDP',
+      summary: '通过 UDP 发送 TCode 指令。',
+      facts: {
+        host: cfg.host || '-',
+        port: cfg.port || '-',
+        mode: appState.config?.tCode?.preferSpeedMode ? t('label.speed') : t('label.interval'),
+        state: t('status.connected'),
+      },
+      quickActions: ['park'],
+      snapshot: { host: cfg.host, port: cfg.port },
+    });
+  }
+  if (appState.overview?.tcpTCode?.connected) {
+    const cfg = appState.config?.tcpTCode || {};
+    devs.push({
+      id: `tcp:${cfg.host || 'unknown'}:${cfg.port || 0}`,
+      memoryId: `${cfg.host || 'unknown'}:${cfg.port || 0}`,
+      kind: 'tcode',
+      source: 'real',
+      name: `TCode TCP @ ${cfg.host || '-'}:${cfg.port || '-'}`,
+      model: 'Network Bridge',
+      connectionLabel: 'TCP',
+      summary: '通过 TCP 发送 TCode 指令。',
+      facts: {
+        host: cfg.host || '-',
+        port: cfg.port || '-',
+        mode: appState.config?.tCode?.preferSpeedMode ? t('label.speed') : t('label.interval'),
+        state: t('status.connected'),
+      },
+      quickActions: ['park'],
+      snapshot: { host: cfg.host, port: cfg.port },
+    });
+  }
+  if (appState.overview?.intiface?.connected) {
+    const count = appState.overview?.intiface?.devices?.length || 0;
+    devs.push({
+      id: 'intiface:hub',
+      memoryId: 'intiface:hub',
+      kind: 'intiface',
+      source: 'real',
+      name: 'Intiface Hub',
+      model: 'Buttplug',
+      connectionLabel: 'Intiface',
+      summary: '通过 Intiface/Buttplug 控制已发现设备。',
+      facts: {
+        ws: appState.config?.intiface?.websocketAddress || '-',
+        devices: String(count),
+        mode: appState.config?.intiface?.manageEngineProcess ? 'Managed Engine' : 'External Engine',
+        state: t('status.connected'),
+      },
+      quickActions: [],
+      snapshot: { count },
+    });
+  }
   return devs;
 }
 
@@ -782,11 +869,11 @@ function parseFunscript(text) {
 // ───── CANVAS DRAW ────────────────────────────────────────────
 function drawDevice(ctx, width, height, command = {}) {
   ctx.clearRect(0, 0, width, height);
-  const cx = width / 2 + ((command.l2 ?? 0.5) - 0.5) * Math.min(width * 0.22, 180);
-  const cy = height / 2 - ((command.l1 ?? 0.5) - 0.5) * Math.min(height * 0.35, 120);
+  const cx = width / 2 + ((command.l1 ?? 0.5) - 0.5) * Math.min(width * 0.28, 220);
+  const cy = height / 2 - ((command.l0 ?? 0.0) - 0.5) * Math.min(height * 0.32, 120);
   const stroke = command.l0 ?? 0;
   const roll = (((command.r0 ?? 0.5) - 0.5) * Math.PI) / 1.4;
-  const pitch = (((command.r1 ?? 0.5) - 0.5) * Math.PI) / 1.4;
+  const pitch = (((command.r2 ?? 0.5) - 0.5) * Math.PI) / 1.4;
   const twist = ((command.r2 ?? 0.5) - 0.5) * Math.PI * 2;
   ctx.save();
   ctx.translate(cx, cy);
@@ -1106,14 +1193,14 @@ const App = {
     const secondaryAxes = computed(() => AXES.filter(ax => !PRIMARY_POSE_AXES.includes(ax)));
     function axisDirectionHint(axis, isHigh) {
       const zh = {
-        L2: ['前', '后'],
-        L1: ['上', '下'],
-        R0: ['右倾', '左倾'],
+        L1: ['前', '后'],
+        L0: ['上', '下'],
+        R2: ['上俯', '下俯'],
       };
       const en = {
-        L2: ['Forward', 'Backward'],
-        L1: ['Up', 'Down'],
-        R0: ['Right', 'Left'],
+        L1: ['Forward', 'Backward'],
+        L0: ['Up', 'Down'],
+        R2: ['Pitch Up', 'Pitch Down'],
       };
       const table = st.language === 'zh-CN' ? zh : en;
       const pair = table[axis] || ['', ''];
@@ -1795,6 +1882,79 @@ const App = {
         <section class="card span-3">
           <div class="section-title-row">
             <div><h2>{{ t('devices.title') }}</h2><p class="muted">{{ t('devices.desc') }}</p></div>
+          </div>
+
+          <div v-if="st.config && st.overview" class="panel-grid panel-grid--connections" style="margin-bottom:16px">
+            <article class="card connection-card device-card device-card--tcode">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.serial') }}</h3></div>
+                <t-tag :theme="st.overview.tcode?.connected?'success':'danger'" variant="light">{{ st.overview.tcode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
+              </div>
+              <div class="form-stack compact-form">
+                <label>
+                  <span>{{ t('cfg.tcode.comPort') }}</span>
+                  <div class="input-row">
+                    <t-select v-model="st.config.tCode.comPort" filterable :creatable="true" :placeholder="'COM3'" style="flex:1">
+                      <t-option v-for="p in st.serialPorts" :key="p" :value="p" :label="p" />
+                    </t-select>
+                    <t-button @click="refreshPorts">{{ t('cfg.tcode.refreshPorts') }}</t-button>
+                  </div>
+                </label>
+              </div>
+              <div class="actions-grid">
+                <t-button @click="postAction('/api/control/tcode/connect')">{{ t('connections.connect') }}</t-button>
+                <t-button @click="postAction('/api/control/tcode/disconnect')">{{ t('connections.disconnect') }}</t-button>
+              </div>
+            </article>
+
+            <article class="card connection-card device-card">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.udp') }}</h3></div>
+                <t-tag :theme="st.overview.udpTCode?.connected?'success':'danger'" variant="light">{{ st.overview.udpTCode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
+              </div>
+              <div class="form-stack compact-form inline-grid inline-grid--2">
+                <label><span>{{ t('connections.host') }}</span><t-input v-model="st.config.udpTCode.host" /></label>
+                <label><span>{{ t('connections.port') }}</span><t-input-number v-model="st.config.udpTCode.port" :step="1" /></label>
+                <label class="inline-grid--full"><t-checkbox v-model="st.config.udpTCode.enabled">Auto Connect</t-checkbox></label>
+              </div>
+              <div class="actions-grid">
+                <t-button @click="postAction('/api/control/udp/connect')">{{ t('connections.connect') }}</t-button>
+                <t-button @click="postAction('/api/control/udp/disconnect')">{{ t('connections.disconnect') }}</t-button>
+              </div>
+            </article>
+
+            <article class="card connection-card device-card">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.tcp') }}</h3></div>
+                <t-tag :theme="st.overview.tcpTCode?.connected?'success':'danger'" variant="light">{{ st.overview.tcpTCode?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
+              </div>
+              <div class="form-stack compact-form inline-grid inline-grid--2">
+                <label><span>{{ t('connections.host') }}</span><t-input v-model="st.config.tcpTCode.host" /></label>
+                <label><span>{{ t('connections.port') }}</span><t-input-number v-model="st.config.tcpTCode.port" :step="1" /></label>
+                <label class="inline-grid--full"><t-checkbox v-model="st.config.tcpTCode.enabled">Auto Connect</t-checkbox></label>
+              </div>
+              <div class="actions-grid">
+                <t-button @click="postAction('/api/control/tcp/connect')">{{ t('connections.connect') }}</t-button>
+                <t-button @click="postAction('/api/control/tcp/disconnect')">{{ t('connections.disconnect') }}</t-button>
+              </div>
+            </article>
+
+            <article class="card connection-card device-card device-card--intiface">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.intiface') }}</h3></div>
+                <t-tag :theme="st.overview.intiface?.connected?'success':'danger'" variant="light">{{ st.overview.intiface?.connected?t('status.connected'):t('status.disconnected') }}</t-tag>
+              </div>
+              <div class="form-stack compact-form">
+                <label><span>{{ t('connections.ws') }}</span><t-input v-model="st.config.intiface.websocketAddress" /></label>
+                <label><t-checkbox v-model="st.config.intiface.manageEngineProcess">{{ t('connections.manageEngine') }}</t-checkbox></label>
+              </div>
+              <div class="actions-grid">
+                <t-button @click="postAction('/api/control/intiface/connect')">{{ t('connections.connect') }}</t-button>
+                <t-button @click="postAction('/api/control/intiface/disconnect')">{{ t('connections.disconnect') }}</t-button>
+                <t-button variant="text" @click="postAction('/api/control/intiface/scan-start')">{{ t('connections.scanStart') }}</t-button>
+                <t-button variant="text" @click="postAction('/api/control/intiface/scan-stop')">{{ t('connections.scanStop') }}</t-button>
+              </div>
+            </article>
           </div>
 
           <div v-if="!devices.length" class="empty-state">
