@@ -19,6 +19,7 @@ const AXIS_LABELS = {
   L2: { zh: 'L2 前后', en: 'L2 Forward' },
   Vibrate: { zh: '振动', en: 'Vibrate' },
 };
+const PRIMARY_POSE_AXES = ['L2', 'L1', 'R0'];
 const MOCK_DEVICES = [
   {
     id: 'mock:sr6',
@@ -876,11 +877,15 @@ const AxisSlider = {
     step: { type: Number, default: 0.01 },
     disabled: Boolean,
     readonly: Boolean,
+    vertical: Boolean,
+    highLabel: { type: String, default: '' },
+    lowLabel: { type: String, default: '' },
   },
   emits: ['update:modelValue'],
   setup(props, { emit }) {
     const pct = computed(() => ((((props.modelValue ?? 0) - props.min) / (props.max - props.min)) * 100).toFixed(1) + '%');
     const trackStyle = computed(() => ({
+      '--axis-pct': pct.value,
       background: `linear-gradient(to right,var(--primary) ${pct.value},var(--border) ${pct.value})`,
     }));
     function onInput(e) {
@@ -889,13 +894,24 @@ const AxisSlider = {
     return { pct, trackStyle, onInput, axisLabel };
   },
   template: `
-<div class="axis-row" :class="{disabled:disabled||readonly}">
+<div class="axis-row" :class="[{disabled:disabled||readonly},{'is-vertical':vertical}]">
   <div class="axis-row__info">
     <span class="axis-row__name">{{ axis }}</span>
     <span class="axis-row__label">{{ axisLabel(axis) }}</span>
     <span class="axis-row__val">{{ Number(modelValue??0).toFixed(2) }}</span>
   </div>
-  <input class="axis-row__input" type="range" :min="min" :max="max" :step="step"
+  <template v-if="vertical">
+    <div class="axis-row__vertical-wrap">
+      <span class="axis-row__dir axis-row__dir--top">{{ highLabel }}</span>
+      <div class="axis-row__vertical-track">
+        <input class="axis-row__input axis-row__input--vertical" type="range" :min="min" :max="max" :step="step"
+          :value="modelValue" :disabled="disabled||readonly" :style="trackStyle"
+          @input="onInput" />
+      </div>
+      <span class="axis-row__dir axis-row__dir--bottom">{{ lowLabel }}</span>
+    </div>
+  </template>
+  <input v-else class="axis-row__input" type="range" :min="min" :max="max" :step="step"
     :value="modelValue" :disabled="disabled||readonly" :style="trackStyle"
     @input="onInput" />
 </div>`,
@@ -1086,16 +1102,23 @@ const App = {
       const r = buildRealDevices();
       return SHOW_MOCK ? [...r, ...buildMockDevices()] : r;
     });
-    const deviceRange = computed({
-      get: () => [st.config?.tCode?.minPos ?? 100, st.config?.tCode?.maxPos ?? 900],
-      set([lo, hi]) {
-        if (st.config?.tCode) {
-          st.config.tCode.minPos = lo;
-          st.config.tCode.maxPos = hi;
-        }
-      },
-    });
     const overviewBpm = computed(() => Number(st.overview?.loop?.currentBpm ?? 0).toFixed(1));
+    const secondaryAxes = computed(() => AXES.filter(ax => !PRIMARY_POSE_AXES.includes(ax)));
+    function axisDirectionHint(axis, isHigh) {
+      const zh = {
+        L2: ['前', '后'],
+        L1: ['上', '下'],
+        R0: ['右倾', '左倾'],
+      };
+      const en = {
+        L2: ['Forward', 'Backward'],
+        L1: ['Up', 'Down'],
+        R0: ['Right', 'Left'],
+      };
+      const table = st.language === 'zh-CN' ? zh : en;
+      const pair = table[axis] || ['', ''];
+      return isHigh ? pair[0] : pair[1];
+    }
     const tcodeSummary = computed(() => {
       if (!st.config || !st.overview) return [];
       const c = st.config.tCode || {};
@@ -1509,8 +1532,9 @@ const App = {
       loopRun,
       cmd,
       devices,
-      deviceRange,
       overviewBpm,
+      secondaryAxes,
+      axisDirectionHint,
       tcodeSummary,
       signalLatestMap,
       filtSigs,
@@ -1549,6 +1573,7 @@ const App = {
       loadDevConfig,
       saveDevMemory,
       getDeviceMem,
+      PRIMARY_POSE_AXES,
       AXES,
       AXIS_DEFS,
       AXIS_KEY,
@@ -1792,12 +1817,6 @@ const App = {
               </div>
 
               <!-- Output Range dual slider -->
-              <div v-if="st.config" class="device-card__stack">
-                <div class="section-subtitle">{{ t('devices.range.title') }}</div>
-                <p class="muted small">{{ t('devices.range.desc') }}</p>
-                <DualRange v-model="deviceRange" :min="0" :max="999" :label="'Output Range'" />
-              </div>
-
               <!-- Device parameters -->
               <div v-if="st.config" class="device-card__stack">
                 <div class="section-subtitle">{{ t('devices.params.title') }}</div>
@@ -1849,11 +1868,21 @@ const App = {
           <div :class="['callout',loopRun?'warn':'info']">
             {{ loopRun ? t('control.axes.running') : t('control.axes.stopped') }}
           </div>
-          <div class="axis-grid axis-grid--control">
-            <AxisSlider v-for="ax in AXES" :key="ax" :axis="ax"
+          <div class="axis-control-layout">
+            <div class="axis-vertical-group">
+              <AxisSlider v-for="ax in PRIMARY_POSE_AXES" :key="'v-'+ax" :axis="ax" vertical
+                :high-label="axisDirectionHint(ax, true)"
+                :low-label="axisDirectionHint(ax, false)"
+                :modelValue="loopRun ? (cmd[AXIS_KEY[ax]]??AXIS_DEFS[ax]) : st.manual[ax]"
+                @update:modelValue="v=>{ if(!loopRun) st.manual[ax]=v; }"
+                :readonly="loopRun" />
+            </div>
+            <div class="axis-grid axis-grid--control axis-horizontal-group">
+            <AxisSlider v-for="ax in secondaryAxes" :key="ax" :axis="ax"
               :modelValue="loopRun ? (cmd[AXIS_KEY[ax]]??AXIS_DEFS[ax]) : st.manual[ax]"
               @update:modelValue="v=>{ if(!loopRun) st.manual[ax]=v; }"
               :readonly="loopRun" />
+            </div>
           </div>
           <div class="actions-grid" style="margin-top:12px" v-if="!loopRun">
             <t-checkbox v-model="st.manualEnabled">{{ t('cb.manualEnabled') }}</t-checkbox>
@@ -1861,6 +1890,7 @@ const App = {
             <t-button @click="applyManual">{{ t('btn.applyManual') }}</t-button>
             <t-button @click="clearManual">{{ t('btn.clearManual') }}</t-button>
             <t-button variant="text" @click="centerAxes">{{ t('btn.centerAxes') }}</t-button>
+            <t-button variant="text" @click="postAction('/api/control/tcode/park')">{{ t('btn.parkTCode') }}</t-button>
           </div>
         </section>
 
@@ -1894,13 +1924,6 @@ const App = {
               <t-button @click="saveConfig">{{ t('btn.save') }}</t-button>
             </div>
           </div>
-        </section>
-
-        <!-- Park -->
-        <section class="card">
-          <h2>{{ t('btn.parkTCode') }}</h2>
-          <p class="muted">将所有轴回到安全中点位置。</p>
-          <t-button @click="postAction('/api/control/tcode/park')" style="margin-top:8px">{{ t('btn.park') }}</t-button>
         </section>
 
       </div>
@@ -2043,7 +2066,7 @@ const App = {
             <article class="doc-card">
               <h3>&#128640; 快速入门</h3>
               <p>&#9312; 到「配置」页，找到「TCode 串口连接」，选择 COM 口后点击连接。</p>
-              <p>&#9313; 到「设备」页确认设备已出现，用手动测试滑块验证轴向响应。</p>
+              <p>&#9313; 到「设备」页确认设备已出现，再到「控制」页用轴位滑条验证响应。</p>
               <p>&#9314; 在「配置」页检查 OSC 接收端口（默认 9001），在 VRChat 中启用 OSC。</p>
               <p>&#9315; 回到「总览」，点击「启动 Loop」，设备即开始实时输出。</p>
             </article>
@@ -2051,7 +2074,7 @@ const App = {
               <h3>&#128203; 页面功能速查</h3>
               <p><strong>总览</strong> — 整体运行状态、服务健康检查。</p>
               <p><strong>配置</strong> — TCode 串口连接、服务地址、安全限制和信号矩阵。</p>
-              <p><strong>设备</strong> — 已连接设备的行程范围、速度限制和手动测试。</p>
+              <p><strong>设备</strong> — 已连接设备信息、参数快照与快速操作。</p>
               <p><strong>控制</strong> — 实时轴位控制、L0 反转、BPM 节奏检测设置。</p>
               <p><strong>脚本</strong> — 录制、导出和预览 .funscript 文件。</p>
               <p><strong>监控</strong> — 实时轴位输出图表、OSC 参数流和运行日志。</p>
@@ -2063,7 +2086,7 @@ const App = {
           <h2>&#128299; TCode 串口连接说明</h2>
           <div class="doc-cards" style="grid-template-columns:1fr">
             <article class="doc-card"><h3>串口号 (COM Port)</h3><p>在 Windows 设备管理器 → 端口里找到对应的 COMX 号。如果列表中没有出现，检查 USB 驱动（CH340 / CP2102 等）是否已安装。</p></article>
-            <article class="doc-card"><h3>MinPos / MaxPos（输出范围）</h3><p>TCode 轴位范围 0–999。在「设备」页可用双端滑条直观设置。默认 100–900 即可覆盖正常行程范围。</p></article>
+            <article class="doc-card"><h3>MinPos / MaxPos（输出范围）</h3><p>TCode 轴位范围 0–999。推荐默认 100–900 作为安全行程区间，根据设备结构再微调。</p></article>
             <article class="doc-card"><h3>MaxVelocity</h3><p>每帧最大移动量。数值越大动作越快，但超过设备物理限制会导致失步。建议先从保守值（如 1000）开始测试。</p></article>
             <article class="doc-card"><h3>UpdatesPerSecond</h3><p>每秒向设备发送命令的频率。建议 50–100。过高可能导致串口缓冲区溢出；过低会使运动出现分段感。</p></article>
             <article class="doc-card"><h3>RampUpMs</h3><p>Loop 启动后输出从 0 渐增到目标值所需的毫秒数。防止骤然全速启动。建议 500–2000。</p></article>
