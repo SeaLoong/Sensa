@@ -78,7 +78,7 @@ const I18N = {
     'overview.devices.title': '已连接设备总览',
     'overview.devices.desc': '优先显示已连接真实设备。',
     'overview.guide.none.title': '暂无连接的设备',
-    'overview.guide.none.body': '请前往「配置」页连接 TCode 串口设备，再到「设备」页进行手动测试。',
+    'overview.guide.none.body': '请前往「配置」页连接 TCode 串口设备，再到「连接」页进行手动测试。',
     'overview.guide.connected.title': '设备链路已建立',
     'overview.guide.connected.body': '可前往「控制」页手动测试轴向，或直接「启动 Loop」开始实时输出。',
     'overview.guide.osc.title': 'OSC 尚未收到参数',
@@ -134,6 +134,11 @@ const I18N = {
     'connections.scanStop': '停止扫描',
     'connections.manageEngine': '自动管理 Intiface 引擎',
     'connections.ws': 'WebSocket 地址',
+    'connections.sensaTransport': 'Sensa 服务链路',
+    'connections.httpApi': 'HTTP API',
+    'connections.wsStream': 'WS 流 (/api/ws)',
+    'connections.lastWs': '最近消息',
+    'connections.nextRetry': '重连间隔',
     'devices.test.title': '手动测试',
     'devices.test.desc': '在不启动 Loop 的情况下验证设备轴向响应。',
     'devices.range.title': '输出范围',
@@ -239,8 +244,6 @@ const I18N = {
     'status.triggered': '已触发',
     'status.enabled': '已启用',
     'status.disabled': '未启用',
-    'status.wsConnected': 'WS 已连接',
-    'status.wsDisconnected': 'WS 未连接',
     'toast.refreshFailed': '刷新失败',
     'toast.refreshSuccess': '状态已刷新',
     'toast.saved': '配置已保存',
@@ -286,7 +289,6 @@ const I18N = {
     'recording.summary': '录制状态：{state}，累计 {count} 帧。',
     'recording.active': '录制中',
     'recording.inactive': '未录制',
-    'ws.disconnected': 'WS 未连接',
     'tip.tcode.comPort': '填写设备串口号，如 COM3。可点「刷新」枚举可用串口。',
     'tip.tcode.minPos': '输出下限（0–999），对应行程底端。默认 100。',
     'tip.tcode.maxPos': '输出上限（0–999），对应行程顶端。默认 900。',
@@ -347,7 +349,7 @@ const I18N = {
     'overview.devices.title': 'Connected Device Overview',
     'overview.devices.desc': 'Real connected devices shown first.',
     'overview.guide.none.title': 'No connected devices',
-    'overview.guide.none.body': 'Go to Config to connect your TCode device, then test in Devices.',
+    'overview.guide.none.body': 'Go to Config to connect your TCode device, then test in Connections.',
     'overview.guide.connected.title': 'A device path is available',
     'overview.guide.connected.body': 'Use the Control tab for manual testing or start Loop for live output.',
     'overview.guide.osc.title': 'No OSC parameters yet',
@@ -403,6 +405,11 @@ const I18N = {
     'connections.scanStop': 'Stop Scan',
     'connections.manageEngine': 'Manage Intiface engine automatically',
     'connections.ws': 'WebSocket Address',
+    'connections.sensaTransport': 'Sensa Service Transport',
+    'connections.httpApi': 'HTTP API',
+    'connections.wsStream': 'WS Stream (/api/ws)',
+    'connections.lastWs': 'Last message',
+    'connections.nextRetry': 'Reconnect delay',
     'devices.test.title': 'Manual Test',
     'devices.test.desc': 'Test device axis responses without a live VRChat signal.',
     'devices.range.title': 'Output Range',
@@ -508,8 +515,6 @@ const I18N = {
     'status.triggered': 'Triggered',
     'status.enabled': 'Enabled',
     'status.disabled': 'Disabled',
-    'status.wsConnected': 'WS Connected',
-    'status.wsDisconnected': 'WS Offline',
     'toast.refreshFailed': 'Refresh failed',
     'toast.refreshSuccess': 'State refreshed',
     'toast.saved': 'Config saved',
@@ -555,7 +560,6 @@ const I18N = {
     'recording.summary': 'Recording: {state}, {count} frames.',
     'recording.active': 'Recording',
     'recording.inactive': 'Not recording',
-    'ws.disconnected': 'WS Offline',
     'tip.tcode.comPort': 'Serial port for the device, e.g. COM3. Click Refresh to list available ports.',
     'tip.tcode.minPos': 'Minimum axis position (0–999), bottom of travel. Usually 100.',
     'tip.tcode.maxPos': 'Maximum axis position (0–999), top of travel. Usually 900.',
@@ -595,6 +599,8 @@ const appState = reactive({
   theme: 'light',
   wsConnected: false,
   wsRetryMs: 1000,
+  wsLastMessageAt: null,
+  apiReachable: true,
   toastList: [], // kept for backward compat but unused
   filters: { signals: '', parameters: '', logs: '' },
   // Control tab
@@ -1190,6 +1196,8 @@ const App = {
       return SHOW_MOCK ? [...r, ...buildMockDevices()] : r;
     });
     const overviewBpm = computed(() => Number(st.overview?.loop?.currentBpm ?? 0).toFixed(1));
+    const wsLastSeenText = computed(() => (st.wsLastMessageAt ? new Date(st.wsLastMessageAt).toLocaleTimeString() : t('label.none')));
+    const wsRetryText = computed(() => `${Math.max(1, Math.round(st.wsRetryMs / 1000))}s`);
     const secondaryAxes = computed(() => AXES.filter(ax => !PRIMARY_POSE_AXES.includes(ax)));
     function axisDirectionHint(axis, isHigh) {
       const zh = {
@@ -1350,6 +1358,7 @@ const App = {
         st.logs = logs;
         st.serialPorts = ports;
         st.recordingFrames = rec;
+        st.apiReachable = true;
         st.roles = [...(meta.enums?.signalRoles || [])];
         st.curves = [...(meta.enums?.curveTypes || [])];
         st.idleBehaviors = [...(meta.enums?.idleBehaviors || [])];
@@ -1366,6 +1375,7 @@ const App = {
         if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
         if (feedback) showToast(t('toast.refreshSuccess'), ov?.service?.url || location.origin);
       } catch (e) {
+        st.apiReachable = false;
         showToast(t('toast.refreshFailed'), e.message, 'error', 3600);
         throw e;
       }
@@ -1578,6 +1588,7 @@ const App = {
         try {
           const payload = JSON.parse(e.data);
           if (payload.type !== 'state') return;
+          st.wsLastMessageAt = Date.now();
           st.overview = payload.data;
           st.logs = payload.logs || [];
           const c = payload.data?.loop?.command || {};
@@ -1620,6 +1631,8 @@ const App = {
       cmd,
       devices,
       overviewBpm,
+      wsLastSeenText,
+      wsRetryText,
       secondaryAxes,
       axisDirectionHint,
       tcodeSummary,
@@ -1684,7 +1697,6 @@ const App = {
         <t-button variant="text" class="icon-btn" :title="t('tip.lang')" :aria-label="t('tip.lang')" @click="toggleLanguage">{{ st.language==='zh-CN'?'EN':'ZH' }}</t-button>
         <t-button variant="text" class="icon-btn" :title="'Theme: '+st.theme" :aria-label="'Theme: '+st.theme" @click="cycleTheme">&#9677;</t-button>
         <t-button :title="t('btn.refresh')" :aria-label="t('btn.refresh')" @click="refreshAll(true)">{{ t('btn.refresh') }}</t-button>
-        <t-tag :theme="st.wsConnected?'success':'danger'" variant="light">{{ st.wsConnected?t('status.wsConnected'):t('status.wsDisconnected') }}</t-tag>
       </div>
     </div>
     <nav class="top-tabs" aria-label="主导航">
@@ -1885,6 +1897,30 @@ const App = {
           </div>
 
           <div v-if="st.config && st.overview" class="panel-grid panel-grid--connections" style="margin-bottom:16px">
+            <article class="card connection-card device-card">
+              <div class="section-title-row">
+                <div><h3>{{ t('connections.sensaTransport') }}</h3></div>
+              </div>
+              <div class="device-status-row">
+                <div :class="['device-status-chip', st.apiReachable ? 'ok' : '']">
+                  <strong>{{ t('connections.httpApi') }}</strong>
+                  <span>{{ st.apiReachable ? t('status.connected') : t('status.disconnected') }}</span>
+                </div>
+                <div :class="['device-status-chip', st.wsConnected ? 'ok' : '']">
+                  <strong>{{ t('connections.wsStream') }}</strong>
+                  <span>{{ st.wsConnected ? t('status.connected') : t('status.disconnected') }}</span>
+                </div>
+                <div class="device-status-chip">
+                  <strong>{{ t('connections.lastWs') }}</strong>
+                  <span>{{ wsLastSeenText }}</span>
+                </div>
+                <div class="device-status-chip">
+                  <strong>{{ t('connections.nextRetry') }}</strong>
+                  <span>{{ wsRetryText }}</span>
+                </div>
+              </div>
+            </article>
+
             <article class="card connection-card device-card device-card--tcode">
               <div class="section-title-row">
                 <div><h3>{{ t('connections.serial') }}</h3></div>
