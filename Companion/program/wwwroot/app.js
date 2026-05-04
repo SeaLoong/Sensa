@@ -1608,7 +1608,9 @@ const App = {
       const card = col.cards.find(c => c.id === cardId);
       if (!card) return;
       const wasSolo = !!card.solo;
-      col.cards.forEach(c => { c.solo = false; });
+      col.cards.forEach(c => {
+        c.solo = false;
+      });
       if (!wasSolo) card.solo = true;
       persistPipeline();
     }
@@ -1671,14 +1673,16 @@ const App = {
 
     const wirePaths = computed(() => {
       const links = st.pipeline?.links || [];
-      return links.map(link => {
-        const fp = portPositions.value[`${link.from}-r`];
-        const tp = portPositions.value[`${link.to}-l`];
-        if (!fp || !tp) return null;
-        const dx = Math.max(40, Math.abs(tp.x - fp.x) * 0.5);
-        const path = `M ${fp.x} ${fp.y} C ${fp.x + dx} ${fp.y}, ${tp.x - dx} ${tp.y}, ${tp.x} ${tp.y}`;
-        return { ...link, path };
-      }).filter(Boolean);
+      return links
+        .map(link => {
+          const fp = portPositions.value[`${link.from}-r`];
+          const tp = portPositions.value[`${link.to}-l`];
+          if (!fp || !tp) return null;
+          const dx = Math.max(40, Math.abs(tp.x - fp.x) * 0.5);
+          const path = `M ${fp.x} ${fp.y} C ${fp.x + dx} ${fp.y}, ${tp.x - dx} ${tp.y}, ${tp.x} ${tp.y}`;
+          return { ...link, path };
+        })
+        .filter(Boolean);
     });
 
     function updatePortPositions() {
@@ -1688,7 +1692,7 @@ const App = {
       const sl = container.scrollLeft;
       const st2 = container.scrollTop;
       const pos = {};
-      for (const col of (st.pipeline?.columns || [])) {
+      for (const col of st.pipeline?.columns || []) {
         for (const card of col.cards) {
           for (const side of ['l', 'r']) {
             const el = document.getElementById(`p${side}-${card.id}`);
@@ -2065,7 +2069,9 @@ const App = {
 
     watch(
       () => st.activeTab,
-      _tab => { /* pipeline is always visible; updatePortPositions called via ResizeObserver */ },
+      _tab => {
+        /* pipeline is always visible; updatePortPositions called via ResizeObserver */
+      },
     );
 
     onUnmounted(() => {
