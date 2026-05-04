@@ -1,31 +1,45 @@
 # Sensa
 
+## 本项目当前正在使用 AI Coding 半自动迭代，完全由 AI 维护，目前完成度为暂时不可用
+
 Sensa 是一个面向 VRChat 的接触感知桥接系统：在 Unity 侧自动生成接触组件，把 SPS / OGB / TPS 相关参数通过 OSC 发到本地 Companion；Companion 再以 **HTTP 服务 + WebSocket 服务 + WebUI** 的方式提供配置、监控、功能测试与设备驱动能力，最终控制 Intiface / Buttplug 设备或 TCode 设备（OSR2 / SR6 / OSR6）。
 
 ---
 
 ## 目录
 
-- [功能概览](#功能概览)
-- [安装要求](#安装要求)
-- [快速开始](#快速开始)
-- [Unity 组件配置](#unity-组件配置)
-  - [Socket（Orifice）模式](#socketorifice模式)
-  - [Plug（Penetrator）模式](#plugpenetrator模式)
-  - [辅助信号](#辅助信号)
-- [Companion Web 服务](#companion-web-服务)
-  - [运行方式](#运行方式)
-  - [WebUI 能力](#webui-能力)
-  - [配置文件](#配置文件)
-  - [信号管道](#信号管道)
-  - [手动功能测试](#手动功能测试)
-  - [录制与导出](#录制与导出)
-  - [HTTP 与 WebSocket 端点](#http-与-websocket-端点)
-- [OSC 参数参考](#osc-参数参考)
-- [TCode 映射说明](#tcode-映射说明)
-- [Intiface 映射说明](#intiface-映射说明)
-- [实现审计与资料来源](#实现审计与资料来源)
-- [常见问题](#常见问题)
+- [Sensa](#sensa)
+  - [本项目当前正在使用 AI Coding 半自动迭代，完全由 AI 维护，目前完成度为暂时不可用](#本项目当前正在使用-ai-coding-半自动迭代完全由-ai-维护目前完成度为暂时不可用)
+  - [目录](#目录)
+  - [功能概览](#功能概览)
+  - [安装要求](#安装要求)
+    - [Unity 端](#unity-端)
+    - [Companion 端](#companion-端)
+  - [快速开始](#快速开始)
+  - [Unity 组件配置](#unity-组件配置)
+    - [Socket（Orifice）模式](#socketorifice模式)
+    - [Plug（Penetrator）模式](#plugpenetrator模式)
+    - [辅助信号](#辅助信号)
+  - [Companion Web 服务](#companion-web-服务)
+    - [运行方式](#运行方式)
+    - [WebUI 能力](#webui-能力)
+      - [推荐使用方式](#推荐使用方式)
+    - [配置文件](#配置文件)
+    - [信号管道](#信号管道)
+      - [信号角色说明](#信号角色说明)
+    - [手动功能测试](#手动功能测试)
+    - [录制与导出](#录制与导出)
+    - [HTTP 与 WebSocket 端点](#http-与-websocket-端点)
+      - [常用 HTTP 端点](#常用-http-端点)
+      - [WebSocket 端点](#websocket-端点)
+  - [OSC 参数参考](#osc-参数参考)
+  - [TCode 映射说明](#tcode-映射说明)
+    - [协议约定](#协议约定)
+    - [OSR2-class / OSR2+（常见 4 轴）](#osr2-class--osr2常见-4-轴)
+    - [SR6 / OSR6（6 轴）](#sr6--osr66-轴)
+  - [Intiface 映射说明](#intiface-映射说明)
+  - [实现审计与资料来源](#实现审计与资料来源)
+  - [常见问题](#常见问题)
 
 ---
 
