@@ -661,7 +661,6 @@ const appState = reactive({
 const TABS = [
   { id: 'overview', label: 'nav.overview' },
   { id: 'config', label: 'nav.config' },
-  { id: 'devices', label: 'nav.connections' },
   { id: 'control', label: 'nav.control' },
   { id: 'scripts', label: 'nav.scripts' },
   { id: 'monitoring', label: 'nav.monitoring' },
@@ -700,6 +699,7 @@ function createPipelineCard(kind, type) {
     type,
     name: `${kind} · ${type}`,
     enabled: true,
+    solo: false,
     config: {},
   };
   if (kind === 'input') {
@@ -1602,6 +1602,34 @@ const App = {
       persistPipeline();
     }
 
+    function toggleSolo(columnId, cardId) {
+      const col = st.pipeline.columns.find(c => c.id === columnId);
+      if (!col) return;
+      const card = col.cards.find(c => c.id === cardId);
+      if (!card) return;
+      const wasSolo = !!card.solo;
+      col.cards.forEach(c => { c.solo = false; });
+      if (!wasSolo) card.solo = true;
+      persistPipeline();
+    }
+
+    const configDialog = reactive({ visible: false, colId: '', cardId: '' });
+    const configDialogCard = computed(() => {
+      if (!configDialog.cardId) return null;
+      const col = st.pipeline.columns.find(c => c.id === configDialog.colId);
+      if (!col) return null;
+      return col.cards.find(c => c.id === configDialog.cardId) || null;
+    });
+    function openCardConfig(colId, cardId) {
+      configDialog.colId = colId;
+      configDialog.cardId = cardId;
+      configDialog.visible = true;
+    }
+    function closeCardConfig() {
+      persistPipeline();
+      configDialog.visible = false;
+    }
+
     function outputActionsForType(type) {
       if (type === 'serial') return ['connect', 'disconnect', 'park'];
       if (type === 'udp') return ['connect', 'disconnect'];
@@ -2037,7 +2065,7 @@ const App = {
 
     watch(
       () => st.activeTab,
-      tab => { if (tab === 'devices') nextTick(() => setTimeout(updatePortPositions, 100)); },
+      _tab => { /* pipeline is always visible; updatePortPositions called via ResizeObserver */ },
     );
 
     onUnmounted(() => {
@@ -2087,6 +2115,11 @@ const App = {
       nodeTypeLabel,
       cardTypeOptions,
       outputActionsForType,
+      toggleSolo,
+      configDialog,
+      configDialogCard,
+      openCardConfig,
+      closeCardConfig,
       portPositions,
       wireStageSize,
       wirePaths,
@@ -2159,6 +2192,190 @@ const App = {
         @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
     </nav>
   </header>
+
+  <!-- ═══ PIPELINE WORKBENCH (page-level, always visible) ═══ -->
+  <section class="pipeline-global-section">
+    <!-- Toolbar bar -->
+    <div class="pipeline-toolbar-bar">
+      <div class="pipeline-toolbar-bar__left">
+        <t-tag v-if="st.pipelineUi.linkFrom" theme="warning" variant="outline" style="cursor:pointer" @click="st.pipelineUi.linkFrom=''">
+          连线中：{{ pipelineCards.find(x=>x.id===st.pipelineUi.linkFrom)?.name || '...' }} → 点击目标端口● &nbsp; <strong>×取消</strong>
+        </t-tag>
+        <t-button theme="primary" size="small" @click="addProcessColumn">+ 处理列</t-button>
+        <t-button variant="outline" theme="danger" size="small" @click="resetPipeline">重置</t-button>
+      </div>
+      <div class="pipeline-toolbar-bar__right">
+        <span class="muted" style="font-size:12px">手动连线：</span>
+        <t-select v-model="st.pipelineUi.linkFrom" :options="pipelineLinkFromOptions" placeholder="起点卡片" clearable size="small" style="min-width:160px" />
+        <t-select v-model="st.pipelineUi.linkTo" :options="pipelineLinkToOptions" placeholder="目标卡片" clearable size="small" style="min-width:160px" :disabled="!st.pipelineUi.linkFrom" />
+        <t-button theme="success" size="small" :disabled="!st.pipelineUi.linkFrom||!st.pipelineUi.linkTo" @click="addPipelineLink">连线</t-button>
+      </div>
+    </div>
+
+    <!-- Columns + SVG wires -->
+    <div id="pipeline-columns-wrap" class="pipeline-columns-wrap" @scroll="updatePortPositions">
+      <svg class="pipeline-wires-svg"
+           :width="wireStageSize.w" :height="wireStageSize.h"
+           xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="wire-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" class="wire-arrow-marker" />
+          </marker>
+        </defs>
+        <path v-for="wp in wirePaths" :key="wp.id"
+              :d="wp.path"
+              class="wire-path"
+              marker-end="url(#wire-arrow)"
+              @click.stop="removePipelineLink(wp.id)"
+              title="点击删除此连线" />
+      </svg>
+
+      <div class="pipeline-columns">
+        <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
+             :class="['pipeline-col-wrap', `pipeline-col--${column.kind}`]">
+
+          <div class="pipeline-col-header">
+            <span class="pipeline-col-title">{{ column.title }}</span>
+            <div class="pipeline-col-header-end">
+              <t-tag variant="light" size="small" :theme="column.kind==='input'?'primary':column.kind==='output'?'success':'default'">{{ columnKindLabel(column.kind) }}</t-tag>
+              <t-button v-if="column.kind==='process'" variant="text" theme="danger" size="small" @click="removeProcessColumn(column.id)">移除</t-button>
+            </div>
+          </div>
+
+          <div class="pipeline-column-stack">
+            <div v-for="card in column.cards" :key="card.id" class="pipeline-node-wrap">
+              <!-- Left port -->
+              <div v-if="column.kind !== 'input'"
+                   class="card-port card-port--left"
+                   :id="`pl-${card.id}`"
+                   :class="{'card-port--connectable': !!st.pipelineUi.linkFrom && st.pipelineUi.linkFrom !== card.id}"
+                   @click.stop="endWireTo(card.id)"
+                   title="点击完成连线" />
+
+              <!-- Compact node card -->
+              <div :class="['pipeline-node-card', {'is-disabled': !card.enabled, 'is-solo': card.solo}]">
+                <div class="pipeline-node-card__top">
+                  <t-tag variant="light" size="small" class="pipeline-node-type-tag">{{ nodeTypeLabel(card.kind, card.type) }}</t-tag>
+                  <span class="pipeline-node-name">{{ card.name }}</span>
+                </div>
+                <div class="pipeline-node-card__bottom">
+                  <t-switch v-model="card.enabled" size="small" :title="card.enabled ? '禁用' : '启用'" />
+                  <t-button size="small" variant="text"
+                            :class="['solo-btn', {'solo-btn--active': card.solo}]"
+                            :title="card.solo ? '取消SOLO' : 'SOLO（此列只此卡生效）'"
+                            @click="toggleSolo(column.id, card.id)">S</t-button>
+                  <t-button size="small" variant="outline" @click="openCardConfig(column.id, card.id)">⚙ 配置</t-button>
+                  <t-button variant="text" theme="danger" size="small" @click="removeCardFromColumn(column.id, card.id)">✕</t-button>
+                </div>
+              </div>
+
+              <!-- Right port -->
+              <div v-if="column.kind !== 'output'"
+                   class="card-port card-port--right"
+                   :id="`pr-${card.id}`"
+                   :class="{'card-port--drawing': st.pipelineUi.linkFrom === card.id}"
+                   @click.stop="startWireFrom(card.id)"
+                   :title="st.pipelineUi.linkFrom === card.id ? '点击取消' : '点击开始连线'" />
+            </div>
+          </div>
+
+          <div class="pipeline-add-card-row">
+            <t-select v-model="st.pipelineUi.addTypeByColumn[column.id]"
+                      :options="cardTypeOptions(column.kind)" placeholder="选择卡片类型" size="small" />
+            <t-button variant="outline" size="small" @click="addCardToColumn(column.id)">+ 添加</t-button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- Links bar -->
+    <div class="pipeline-links-bar">
+      <span class="muted" style="font-size:12px;flex-shrink:0">连线：</span>
+      <span v-if="!st.pipeline.links.length" class="muted" style="font-size:12px">暂无连线，点击卡片右侧端口● 开始连线</span>
+      <div v-for="link in st.pipeline.links" :key="link.id" class="pipeline-link-chip">
+        <span>{{ pipelineCards.find(x=>x.id===link.from)?.name || link.from }}</span>
+        <span class="muted">→</span>
+        <span>{{ pipelineCards.find(x=>x.id===link.to)?.name || link.to }}</span>
+        <t-button variant="text" theme="danger" size="small" @click="removePipelineLink(link.id)">×</t-button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══ CONFIG DIALOG ═══ -->
+  <t-dialog v-model:visible="configDialog.visible" :header="configDialogCard ? `配置：${configDialogCard.name}` : '配置'"
+            :footer="false" destroy-on-close @close="closeCardConfig" style="min-width:420px">
+    <div v-if="configDialogCard" class="card-config-form">
+      <label>
+        <span>显示名称</span>
+        <t-input v-model="configDialogCard.name" size="small" />
+      </label>
+
+      <template v-if="configDialogCard.kind==='input'">
+        <label v-if="configDialogCard.type==='osc' || configDialogCard.type==='http' || configDialogCard.type==='ws'">
+          <span>服务端口</span>
+          <t-input-number v-model="configDialogCard.config.port" :step="1" size="small" />
+        </label>
+        <label v-if="configDialogCard.type==='http' || configDialogCard.type==='ws'">
+          <span>路由/通道</span>
+          <t-input v-model="configDialogCard.config.route" placeholder="/ingest/source" size="small" />
+        </label>
+        <label v-if="configDialogCard.type==='osc'">
+          <span>Path 前缀</span>
+          <t-input v-model="configDialogCard.config.pathPrefix" placeholder="/avatar/parameters" size="small" />
+        </label>
+        <label>
+          <span>输入标识 (sourceKey)</span>
+          <t-input v-model="configDialogCard.config.sourceKey" placeholder="用于同端口多输入区分" size="small" />
+        </label>
+      </template>
+
+      <template v-if="configDialogCard.kind==='process'">
+        <label>
+          <span>目标轴</span>
+          <t-select v-model="configDialogCard.config.targetAxis" :options="AXES.map(ax=>({label:ax,value:ax}))" size="small" />
+        </label>
+        <template v-if="configDialogCard.type==='transform'">
+          <label><span>Gain（增益）</span><t-input-number v-model="configDialogCard.config.gain" :step="0.01" size="small" /></label>
+          <label><span>Offset（偏移）</span><t-input-number v-model="configDialogCard.config.offset" :step="0.01" size="small" /></label>
+        </template>
+        <template v-if="configDialogCard.type==='clamp'">
+          <label><span>Min</span><t-input-number v-model="configDialogCard.config.min" :step="0.01" :min="0" :max="1" size="small" /></label>
+          <label><span>Max</span><t-input-number v-model="configDialogCard.config.max" :step="0.01" :min="0" :max="1" size="small" /></label>
+        </template>
+        <t-alert v-if="configDialogCard.type==='invert-l0'" theme="info" message="将目标轴做 1-x 反转（0↔1）。" />
+      </template>
+
+      <template v-if="configDialogCard.kind==='output'">
+        <label v-if="configDialogCard.type==='serial'">
+          <span>串口号</span>
+          <t-input v-model="configDialogCard.config.comPort" placeholder="COM3" size="small" />
+        </label>
+        <template v-if="configDialogCard.type==='udp' || configDialogCard.type==='tcp'">
+          <label><span>Host</span><t-input v-model="configDialogCard.config.host" placeholder="127.0.0.1" size="small" /></label>
+          <label><span>Port</span><t-input-number v-model="configDialogCard.config.port" :step="1" size="small" /></label>
+        </template>
+        <label v-if="configDialogCard.type==='intiface'">
+          <span>WebSocket 地址</span>
+          <t-input v-model="configDialogCard.config.websocketAddress" placeholder="ws://localhost:12345" size="small" />
+        </label>
+        <label v-if="configDialogCard.type==='script'">
+          <span>输出脚本名</span>
+          <t-input v-model="configDialogCard.config.fileName" placeholder="output.funscript" size="small" />
+        </label>
+        <div class="pipeline-output-actions" v-if="outputActionsForType(configDialogCard.type).length">
+          <t-button v-for="action in outputActionsForType(configDialogCard.type)" :key="action"
+                    variant="outline" size="small" @click="runOutputAction(configDialogCard.type, action)">
+            {{ {connect:'连接',disconnect:'断开',park:'回中',scanStart:'开始扫描',scanStop:'停止扫描'}[action]||action }}
+          </t-button>
+        </div>
+      </template>
+
+      <div style="display:flex;justify-content:flex-end;margin-top:16px">
+        <t-button theme="primary" @click="closeCardConfig">完成</t-button>
+      </div>
+    </div>
+  </t-dialog>
 
   <!-- Main -->
   <main class="workspace">
@@ -2339,185 +2556,6 @@ const App = {
 
       </div>
       <div v-else class="empty-state"><strong>加载中…</strong></div>
-    </section>
-
-    <!-- ═══ DEVICES ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='devices'}]" :style="panelStyle('devices')">
-      <div class="pipeline-shell">
-
-        <t-card title="流水线工作台" class="pipeline-toolbar-card">
-          <template #actions>
-            <t-button v-if="st.pipelineUi.linkFrom" variant="text" @click="st.pipelineUi.linkFrom=''">取消连线</t-button>
-          </template>
-          <div v-if="st.pipelineUi.linkFrom" class="pipeline-wire-status">
-            <t-tag theme="warning" variant="outline">
-              正在连线：{{ pipelineCards.find(x=>x.id===st.pipelineUi.linkFrom)?.name || '...' }} → 请点击右侧列卡片的左侧端口（●）
-            </t-tag>
-          </div>
-          <div class="pipeline-toolbar">
-            <div class="pipeline-toolbar__group">
-              <t-button theme="primary" @click="addProcessColumn">+ 处理列</t-button>
-              <t-button variant="outline" theme="danger" @click="resetPipeline">重置流水线</t-button>
-            </div>
-            <div class="pipeline-toolbar__group pipeline-toolbar__linker">
-              <span class="muted" style="font-size:12px">手动连线：</span>
-              <t-select v-model="st.pipelineUi.linkFrom" :options="pipelineLinkFromOptions" placeholder="选择起点卡片" clearable style="min-width:180px" />
-              <t-select v-model="st.pipelineUi.linkTo" :options="pipelineLinkToOptions" placeholder="选择目标卡片" clearable style="min-width:180px" :disabled="!st.pipelineUi.linkFrom" />
-              <t-button theme="success" :disabled="!st.pipelineUi.linkFrom||!st.pipelineUi.linkTo" @click="addPipelineLink">连线</t-button>
-            </div>
-          </div>
-        </t-card>
-
-        <div id="pipeline-columns-wrap" class="pipeline-columns-wrap" @scroll="updatePortPositions">
-          <svg class="pipeline-wires-svg"
-               :width="wireStageSize.w" :height="wireStageSize.h"
-               xmlns="http://www.w3.org/2000/svg">
-            <defs>
-              <marker id="wire-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-                <polygon points="0 0, 10 3.5, 0 7" class="wire-arrow-marker" />
-              </marker>
-            </defs>
-            <path v-for="wp in wirePaths" :key="wp.id"
-                  :d="wp.path"
-                  class="wire-path"
-                  marker-end="url(#wire-arrow)"
-                  @click.stop="removePipelineLink(wp.id)"
-                  title="点击删除此连线" />
-          </svg>
-
-          <div class="pipeline-columns">
-            <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
-                 :class="['pipeline-col-wrap', `pipeline-col--${column.kind}`]">
-
-              <div class="pipeline-col-header">
-                <span class="pipeline-col-title">{{ column.title }}</span>
-                <div class="pipeline-col-header-end">
-                  <t-tag variant="light" size="small" :theme="column.kind==='input'?'primary':column.kind==='output'?'success':'default'">{{ columnKindLabel(column.kind) }}</t-tag>
-                  <t-button v-if="column.kind==='process'" variant="text" theme="danger" size="small" @click="removeProcessColumn(column.id)">移除</t-button>
-                </div>
-              </div>
-
-              <div class="pipeline-column-stack">
-                <div v-for="card in column.cards" :key="card.id" class="pipeline-node-wrap">
-                  <div v-if="column.kind !== 'input'"
-                       class="card-port card-port--left"
-                       :id="`pl-${card.id}`"
-                       :class="{'card-port--connectable': !!st.pipelineUi.linkFrom && st.pipelineUi.linkFrom !== card.id}"
-                       @click.stop="endWireTo(card.id)"
-                       title="点击完成连线" />
-
-                  <t-card class="pipeline-node-card" :title="card.name">
-                    <template #actions>
-                      <t-switch v-model="card.enabled" size="small" />
-                      <t-button variant="text" theme="danger" size="small" @click="removeCardFromColumn(column.id, card.id)">✕</t-button>
-                    </template>
-                    <template #subtitle>
-                      <t-tag variant="light" size="small">{{ nodeTypeLabel(card.kind, card.type) }}</t-tag>
-                    </template>
-
-                    <div class="pipeline-node-form">
-                      <label>
-                        <span>显示名称</span>
-                        <t-input v-model="card.name" size="small" />
-                      </label>
-
-                      <template v-if="card.kind==='input'">
-                        <label v-if="card.type==='osc' || card.type==='http' || card.type==='ws'">
-                          <span>服务端口</span>
-                          <t-input-number v-model="card.config.port" :step="1" size="small" />
-                        </label>
-                        <label v-if="card.type==='http' || card.type==='ws'">
-                          <span>路由/通道</span>
-                          <t-input v-model="card.config.route" placeholder="/ingest/source" size="small" />
-                        </label>
-                        <label v-if="card.type==='osc'">
-                          <span>Path 前缀</span>
-                          <t-input v-model="card.config.pathPrefix" placeholder="/avatar/parameters" size="small" />
-                        </label>
-                        <label>
-                          <span>输入标识 (sourceKey)</span>
-                          <t-input v-model="card.config.sourceKey" placeholder="用于同端口多输入区分" size="small" />
-                        </label>
-                      </template>
-
-                      <template v-if="card.kind==='process'">
-                        <label>
-                          <span>目标轴</span>
-                          <t-select v-model="card.config.targetAxis" :options="AXES.map(ax=>({label:ax,value:ax}))" size="small" />
-                        </label>
-                        <template v-if="card.type==='transform'">
-                          <label><span>Gain（增益）</span><t-input-number v-model="card.config.gain" :step="0.01" size="small" /></label>
-                          <label><span>Offset（偏移）</span><t-input-number v-model="card.config.offset" :step="0.01" size="small" /></label>
-                        </template>
-                        <template v-if="card.type==='clamp'">
-                          <label><span>Min</span><t-input-number v-model="card.config.min" :step="0.01" :min="0" :max="1" size="small" /></label>
-                          <label><span>Max</span><t-input-number v-model="card.config.max" :step="0.01" :min="0" :max="1" size="small" /></label>
-                        </template>
-                        <t-alert v-if="card.type==='invert-l0'" theme="info" message="将目标轴做 1-x 反转（0↔1）。" />
-                      </template>
-
-                      <template v-if="card.kind==='output'">
-                        <label v-if="card.type==='serial'">
-                          <span>串口号</span>
-                          <t-input v-model="card.config.comPort" placeholder="COM3" size="small" />
-                        </label>
-                        <template v-if="card.type==='udp' || card.type==='tcp'">
-                          <label><span>Host</span><t-input v-model="card.config.host" placeholder="127.0.0.1" size="small" /></label>
-                          <label><span>Port</span><t-input-number v-model="card.config.port" :step="1" size="small" /></label>
-                        </template>
-                        <label v-if="card.type==='intiface'">
-                          <span>WebSocket 地址</span>
-                          <t-input v-model="card.config.websocketAddress" placeholder="ws://localhost:12345" size="small" />
-                        </label>
-                        <label v-if="card.type==='script'">
-                          <span>输出脚本名</span>
-                          <t-input v-model="card.config.fileName" placeholder="output.funscript" size="small" />
-                        </label>
-                        <div class="pipeline-output-actions" v-if="outputActionsForType(card.type).length">
-                          <t-button v-for="action in outputActionsForType(card.type)" :key="action"
-                                    variant="outline" size="small" @click="runOutputAction(card.type, action)">
-                            {{ {connect:'连接',disconnect:'断开',park:'回中',scanStart:'开始扫描',scanStop:'停止扫描'}[action]||action }}
-                          </t-button>
-                        </div>
-                      </template>
-                    </div>
-                  </t-card>
-
-                  <div v-if="column.kind !== 'output'"
-                       class="card-port card-port--right"
-                       :id="`pr-${card.id}`"
-                       :class="{'card-port--drawing': st.pipelineUi.linkFrom === card.id}"
-                       @click.stop="startWireFrom(card.id)"
-                       :title="st.pipelineUi.linkFrom === card.id ? '点击取消' : '点击开始连线'" />
-                </div>
-              </div>
-
-              <div class="pipeline-add-card-row">
-                <t-select v-model="st.pipelineUi.addTypeByColumn[column.id]"
-                          :options="cardTypeOptions(column.kind)" placeholder="选择卡片类型" size="small" />
-                <t-button variant="outline" size="small" @click="addCardToColumn(column.id)">+ 添加</t-button>
-              </div>
-
-            </div>
-          </div>
-        </div>
-
-        <t-card title="连线清单" class="pipeline-links-card">
-          <div v-if="!st.pipeline.links.length" class="empty-state">
-            <strong>暂无连线</strong>
-            <div>点击非输入列卡片右侧端口（●）开始连线，再点击下一列左侧端口完成。也可使用上方手动连线下拉框。</div>
-          </div>
-          <div v-else class="pipeline-link-list">
-            <div class="pipeline-link-item" v-for="link in st.pipeline.links" :key="link.id">
-              <span>{{ pipelineCards.find(x=>x.id===link.from)?.name || link.from }}</span>
-              <span class="muted">→</span>
-              <span>{{ pipelineCards.find(x=>x.id===link.to)?.name || link.to }}</span>
-              <t-button variant="text" theme="danger" size="small" @click="removePipelineLink(link.id)">删除</t-button>
-            </div>
-          </div>
-        </t-card>
-
-      </div>
     </section>
 
     <!-- ═══ CONTROL ═══ -->
