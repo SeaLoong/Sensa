@@ -2231,8 +2231,8 @@ const App = {
       </svg>
 
       <div class="pipeline-columns">
-        <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
-             :class="['pipeline-col-wrap', `pipeline-col--${column.kind}`]">
+           <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
+             :class="['pipeline-col-wrap', 'pipeline-col--' + column.kind]">
 
           <div class="pipeline-col-header">
             <span class="pipeline-col-title">{{ column.title }}</span>
@@ -2245,9 +2245,9 @@ const App = {
           <div class="pipeline-column-stack">
             <div v-for="card in column.cards" :key="card.id" class="pipeline-node-wrap">
               <!-- Left port -->
-              <div v-if="column.kind !== 'input'"
-                   class="card-port card-port--left"
-                   :id="`pl-${card.id}`"
+                  <div v-if="column.kind !== 'input'"
+                    class="card-port card-port--left"
+                    :id="'pl-' + card.id"
                    :class="{'card-port--connectable': !!st.pipelineUi.linkFrom && st.pipelineUi.linkFrom !== card.id}"
                    @click.stop="endWireTo(card.id)"
                    title="点击完成连线" />
@@ -2270,9 +2270,9 @@ const App = {
               </div>
 
               <!-- Right port -->
-              <div v-if="column.kind !== 'output'"
-                   class="card-port card-port--right"
-                   :id="`pr-${card.id}`"
+                  <div v-if="column.kind !== 'output'"
+                    class="card-port card-port--right"
+                    :id="'pr-' + card.id"
                    :class="{'card-port--drawing': st.pipelineUi.linkFrom === card.id}"
                    @click.stop="startWireFrom(card.id)"
                    :title="st.pipelineUi.linkFrom === card.id ? '点击取消' : '点击开始连线'" />
@@ -2303,7 +2303,7 @@ const App = {
   </section>
 
   <!-- ═══ CONFIG DIALOG ═══ -->
-  <t-dialog v-model:visible="configDialog.visible" :header="configDialogCard ? `配置：${configDialogCard.name}` : '配置'"
+  <t-dialog v-model:visible="configDialog.visible" :header="configDialogCard ? ('配置：' + configDialogCard.name) : '配置'"
             :footer="false" destroy-on-close @close="closeCardConfig" style="min-width:420px">
     <div v-if="configDialogCard" class="card-config-form">
       <label>

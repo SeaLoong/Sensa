@@ -2177,7 +2177,6 @@ label.inline {
 }
 
 .pipeline-toolbar__linker {
-
   /* ── Pipeline Global Section (page-level, always visible) ─── */
   .pipeline-global-section {
     padding: 10px 24px 12px;
@@ -2209,7 +2208,10 @@ label.inline {
     border-radius: var(--radius-sm);
     background: var(--surface);
     padding: 6px 10px;
-    transition: opacity 0.2s, border-color 0.2s, box-shadow 0.2s;
+    transition:
+      opacity 0.2s,
+      border-color 0.2s,
+      box-shadow 0.2s;
     min-width: 0;
   }
 
@@ -2342,7 +2344,9 @@ label.inline {
   stroke-linecap: round;
   pointer-events: stroke;
   cursor: pointer;
-  transition: stroke-width 0.12s, stroke 0.12s;
+  transition:
+    stroke-width 0.12s,
+    stroke 0.12s;
   opacity: 0.75;
 }
 
@@ -2378,9 +2382,18 @@ label.inline {
   overflow: visible;
 }
 
-.pipeline-col--input  { border-color: rgba(0, 82, 217, 0.25); background: linear-gradient(160deg, rgba(0,82,217,0.04) 0%, var(--surface) 60%); }
-.pipeline-col--process { border-color: rgba(139, 92, 246, 0.25); background: linear-gradient(160deg, rgba(139,92,246,0.04) 0%, var(--surface) 60%); }
-.pipeline-col--output  { border-color: rgba(0, 168, 112, 0.25); background: linear-gradient(160deg, rgba(0,168,112,0.04) 0%, var(--surface) 60%); }
+.pipeline-col--input {
+  border-color: rgba(0, 82, 217, 0.25);
+  background: linear-gradient(160deg, rgba(0, 82, 217, 0.04) 0%, var(--surface) 60%);
+}
+.pipeline-col--process {
+  border-color: rgba(139, 92, 246, 0.25);
+  background: linear-gradient(160deg, rgba(139, 92, 246, 0.04) 0%, var(--surface) 60%);
+}
+.pipeline-col--output {
+  border-color: rgba(0, 168, 112, 0.25);
+  background: linear-gradient(160deg, rgba(0, 168, 112, 0.04) 0%, var(--surface) 60%);
+}
 
 .pipeline-col-header {
   display: flex;
@@ -2464,13 +2477,23 @@ label.inline {
 }
 
 @keyframes port-pulse-orange {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(240,160,32,0.2); }
-  50%       { box-shadow: 0 0 0 7px rgba(240,160,32,0.05); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(240, 160, 32, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(240, 160, 32, 0.05);
+  }
 }
 
 @keyframes port-pulse-green {
-  0%, 100% { box-shadow: 0 0 0 3px rgba(0,168,112,0.2); }
-  50%       { box-shadow: 0 0 0 7px rgba(0,168,112,0.05); }
+  0%,
+  100% {
+    box-shadow: 0 0 0 3px rgba(0, 168, 112, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(0, 168, 112, 0.05);
+  }
 }
 
 /* ── Node card internals ── */
