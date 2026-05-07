@@ -17,7 +17,9 @@ namespace Sensa.TransmitTCode;
 /// </summary>
 public sealed class TCodeSerial : IDisposable
 {
-    private readonly TCodeConfig _cfg;
+    private readonly SaveFile? _save;
+    private readonly OutputDeviceConfig? _output;
+    private readonly Func<TCodeMotionProfile>? _profileResolver;
     private SerialPort? _port;
     private VelocityEstimator _velL0 = new();
     private VelocityEstimator _velR0 = new();
@@ -25,23 +27,30 @@ public sealed class TCodeSerial : IDisposable
     private VelocityEstimator _velR2 = new();
     private VelocityEstimator _velL1 = new();
     private VelocityEstimator _velL2 = new();
+    private double _pendingDeltaMs;
 
     public bool IsConnected => _port?.IsOpen == true;
 
-    public TCodeSerial(TCodeConfig cfg) => _cfg = cfg;
+    public TCodeSerial(SaveFile save) => _save = save;
+
+    public TCodeSerial(OutputDeviceConfig output, Func<TCodeMotionProfile> profileResolver)
+    {
+        _output = output;
+        _profileResolver = profileResolver;
+    }
 
     // ────────────────────────────────────────────────────────────────
 
     public void Connect()
     {
         Disconnect();
-        _port = new SerialPort(_cfg.ComPort, 115200, Parity.None, 8, StopBits.One)
+        _port = new SerialPort(GetComPort(), 115200, Parity.None, 8, StopBits.One)
         {
             ReadTimeout  = 100,
             WriteTimeout = 200,
         };
         _port.Open();
-        Console.WriteLine($"[TCode] Connected to {_cfg.ComPort}");
+        Console.WriteLine($"[TCode] Connected to {GetComPort()}");
     }
 
     public void Disconnect()
@@ -53,6 +62,7 @@ public sealed class TCodeSerial : IDisposable
         }
         _port?.Dispose();
         _port = null;
+        _pendingDeltaMs = 0;
     }
 
     public void Dispose() => Disconnect();
@@ -67,14 +77,24 @@ public sealed class TCodeSerial : IDisposable
     {
         if (_port?.IsOpen != true) return;
 
+        _pendingDeltaMs += Math.Max(cmd.DeltaMs, 0);
+        var minIntervalMs = 1000.0 / Math.Max(GetUpdatesPerSecond(), 10);
+        if (_pendingDeltaMs + 0.001 < minIntervalMs)
+            return;
+
+        var sendCmd = cmd with { DeltaMs = Math.Max(_pendingDeltaMs, 1) };
+        _pendingDeltaMs = 0;
+
+        var profile = ResolveProfile();
+
         var sb = new System.Text.StringBuilder();
 
-        AppendAxis(sb, "L0", cmd.L0, _cfg.L0Invert, _velL0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R0", cmd.R0, false,          _velR0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R1", cmd.R1, false,          _velR1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R2", cmd.R2, false,          _velR2, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L1", cmd.L1, false,          _velL1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L2", cmd.L2, false,          _velL2, (int)cmd.DeltaMs);
+        AppendAxis(sb, "L0", sendCmd.L0, profile.L0, _velL0, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "R0", sendCmd.R0, profile.R0, _velR0, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "R1", sendCmd.R1, profile.R1, _velR1, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "R2", sendCmd.R2, profile.R2, _velR2, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "L1", sendCmd.L1, profile.L1, _velL1, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "L2", sendCmd.L2, profile.L2, _velL2, (int)sendCmd.DeltaMs);
 
         string line = sb.ToString().TrimEnd();
         if (line.Length == 0) return;
@@ -95,6 +115,7 @@ public sealed class TCodeSerial : IDisposable
     public void EmergencyStop()
     {
         if (_port?.IsOpen != true) return;
+        _pendingDeltaMs = 0;
         try { _port.WriteLine("DSTOP"); }
         catch { }
     }
@@ -104,16 +125,16 @@ public sealed class TCodeSerial : IDisposable
     // ────────────────────────────────────────────────────────────────
 
     private void AppendAxis(System.Text.StringBuilder sb, string axis, float value,
-                            bool invert, VelocityEstimator vel, int deltaMs)
+                            TCodeAxisConfig axisConfig, VelocityEstimator vel, int deltaMs)
     {
-        if (invert) value = 1f - value;
-        float mapped = MapToRange(value);
+        if (axisConfig.Invert) value = 1f - value;
+        float mapped = MapToRange(value, axisConfig);
         int   pos    = (int)(mapped * 1000f);
         pos = Math.Clamp(pos, 0, 999);
 
-        if (_cfg.PreferSpeedMode)
+        if (PreferSpeedMode())
         {
-            int speed = vel.Estimate(mapped, _cfg.MaxVelocity);
+            int speed = vel.Estimate(mapped, axisConfig.MaxSpeed);
             sb.Append($"{axis}{pos:D3}S{speed:D4} ");
         }
         else
@@ -123,9 +144,19 @@ public sealed class TCodeSerial : IDisposable
         }
     }
 
-    /// <summary>Maps normalised [0,1] to device range [MinPos,MaxPos]/1000.</summary>
-    private float MapToRange(float v)
+    /// <summary>Maps normalised [0,1] to device range [Min,Max]/1000.</summary>
+    private static float MapToRange(float v, TCodeAxisConfig axisConfig)
     {
-        return (_cfg.MinPos + (_cfg.MaxPos - _cfg.MinPos) * v) / 1000f;
+        var min = Math.Clamp(axisConfig.Min, 0, 999);
+        var max = Math.Clamp(axisConfig.Max, min, 999);
+        return (min + ((max - min) * Math.Clamp(v, 0f, 1f))) / 1000f;
     }
+
+    private string GetComPort() => string.IsNullOrWhiteSpace(_output?.ComPort) ? _save?.TCode.ComPort ?? "COM3" : _output.ComPort;
+
+    private int GetUpdatesPerSecond() => Math.Clamp(_output?.UpdatesPerSecond ?? _save?.TCode.UpdatesPerSecond ?? 50, 10, 240);
+
+    private bool PreferSpeedMode() => _output?.PreferSpeedMode ?? _save?.TCode.PreferSpeedMode ?? true;
+
+    private TCodeMotionProfile ResolveProfile() => _profileResolver?.Invoke() ?? _save?.ResolveMotionProfile(TCodeProfileTarget.TCode) ?? new TCodeMotionProfile();
 }

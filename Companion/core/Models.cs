@@ -53,11 +53,68 @@ public sealed class ParameterStore
     public bool TryGet(string path, out Entry entry) =>
         _store.TryGetValue(path, out entry);
 
+    /// <summary>
+    /// Try to read the latest parameter matching an exact OSC path or a simple
+    /// trailing-wildcard pattern such as <c>OGB/Pen/*</c>.
+    /// For wildcard patterns, the newest matching entry by timestamp wins.
+    /// </summary>
+    public bool TryGetLatest(string pathOrPattern, out Entry entry) =>
+        TryGetLatest(pathOrPattern, out _, out entry);
+
+    /// <summary>
+    /// Try to read the latest parameter matching an exact OSC path or a simple
+    /// trailing-wildcard pattern such as <c>OGB/Pen/*</c>.
+    /// Returns the actual matched path when successful.
+    /// </summary>
+    public bool TryGetLatest(string pathOrPattern, out string matchedPath, out Entry entry)
+    {
+        matchedPath = string.Empty;
+        entry = default;
+
+        if (string.IsNullOrWhiteSpace(pathOrPattern))
+            return false;
+
+        if (!IsWildcardPath(pathOrPattern))
+        {
+            if (!_store.TryGetValue(pathOrPattern, out entry))
+                return false;
+
+            matchedPath = pathOrPattern;
+            return true;
+        }
+
+        var prefix = pathOrPattern[..^1];
+        var found = false;
+        var latestTimestampMs = long.MinValue;
+
+        foreach (var (path, current) in _store)
+        {
+            if (!path.StartsWith(prefix, StringComparison.Ordinal))
+                continue;
+
+            if (found && current.TimestampMs <= latestTimestampMs)
+                continue;
+
+            matchedPath = path;
+            entry = current;
+            latestTimestampMs = current.TimestampMs;
+            found = true;
+        }
+
+        return found;
+    }
+
     /// <summary>All currently known parameter paths.</summary>
     public IEnumerable<string> AllPaths => _store.Keys;
 
+    /// <summary>Stable snapshot of all known parameters and their latest values.</summary>
+    public KeyValuePair<string, Entry>[] Snapshot() => _store.ToArray();
+
     /// <summary>Remove all entries (e.g. on avatar change).</summary>
     public void Clear() => _store.Clear();
+
+    private static bool IsWildcardPath(string path) =>
+        path.EndsWith("/*", StringComparison.Ordinal);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -132,12 +189,15 @@ public enum SignalRole
     Depth,
     AngleX,   // → R0 (roll)
     AngleY,   // → R1 (pitch)
-    Twist,    // → R2 (tube twist). SR6/OSR6 only.
-    Surge,    // → L1 (forward/back linear). SR6/OSR6 only.
-    Sway,     // → L2 (left/right linear). SR6/OSR6 only.
-    Vibrate,
+    Twist,    // → R2 (tube twist)
+    Surge,    // → L1 (forward/back)
+    Sway,     // → L2 (left/right)
+    Vibrate,  // → V0 (primary vibration)
+    Vibrate2, // → V1 (secondary vibration)
+    Vibrate3, // → V2 (tertiary vibration)
+    Auxiliary,// → A0 (auxiliary channel: pump/lube/etc.)
     Gate,
-    BpmDrive,
+    BpmDrive, // rhythm/beat detection drive
 }
 
 public enum CurveType

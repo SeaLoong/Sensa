@@ -12,8 +12,9 @@ namespace Sensa.TransmitTCode;
 /// </summary>
 public sealed class TCodeUdp : IDisposable
 {
-    private readonly TCodeConfig _tcode;
-    private readonly UdpTCodeConfig _cfg;
+    private readonly SaveFile? _save;
+    private readonly OutputDeviceConfig? _output;
+    private readonly Func<TCodeMotionProfile>? _profileResolver;
     private UdpClient? _client;
     private IPEndPoint? _remote;
 
@@ -26,25 +27,28 @@ public sealed class TCodeUdp : IDisposable
 
     public bool IsConnected => _client is not null && _remote is not null;
 
-    public TCodeUdp(TCodeConfig tcode, UdpTCodeConfig cfg)
+    public TCodeUdp(SaveFile save) => _save = save;
+
+    public TCodeUdp(OutputDeviceConfig output, Func<TCodeMotionProfile> profileResolver)
     {
-        _tcode = tcode;
-        _cfg = cfg;
+        _output = output;
+        _profileResolver = profileResolver;
     }
 
     public void Connect()
     {
         Disconnect();
-        if (string.IsNullOrWhiteSpace(_cfg.Host))
+        var host = GetHost();
+        if (string.IsNullOrWhiteSpace(host))
             throw new InvalidOperationException("UDP host is empty.");
 
-        var addrs = Dns.GetHostAddresses(_cfg.Host);
+        var addrs = Dns.GetHostAddresses(host);
         var addr = addrs.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork || a.AddressFamily == AddressFamily.InterNetworkV6)
-            ?? throw new InvalidOperationException($"Cannot resolve UDP host '{_cfg.Host}'.");
+            ?? throw new InvalidOperationException($"Cannot resolve UDP host '{host}'.");
 
-        _remote = new IPEndPoint(addr, _cfg.Port);
+        _remote = new IPEndPoint(addr, GetPort());
         _client = new UdpClient(addr.AddressFamily);
-        Console.WriteLine($"[TCode/UDP] Ready: {_cfg.Host}:{_cfg.Port}");
+        Console.WriteLine($"[TCode/UDP] Ready: {host}:{GetPort()}");
     }
 
     public void Disconnect()
@@ -98,25 +102,28 @@ public sealed class TCodeUdp : IDisposable
 
     private string BuildLine(DeviceCommand cmd)
     {
+        var profile = ResolveProfile();
         var sb = new StringBuilder();
-        AppendAxis(sb, "L0", cmd.L0, _tcode.L0Invert, _velL0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R0", cmd.R0, false, _velR0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R1", cmd.R1, false, _velR1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R2", cmd.R2, false, _velR2, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L1", cmd.L1, false, _velL1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L2", cmd.L2, false, _velL2, (int)cmd.DeltaMs);
+        AppendAxis(sb, "L0", cmd.L0, profile.L0, _velL0, (int)cmd.DeltaMs);
+        AppendAxis(sb, "R0", cmd.R0, profile.R0, _velR0, (int)cmd.DeltaMs);
+        AppendAxis(sb, "R1", cmd.R1, profile.R1, _velR1, (int)cmd.DeltaMs);
+        AppendAxis(sb, "R2", cmd.R2, profile.R2, _velR2, (int)cmd.DeltaMs);
+        AppendAxis(sb, "L1", cmd.L1, profile.L1, _velL1, (int)cmd.DeltaMs);
+        AppendAxis(sb, "L2", cmd.L2, profile.L2, _velL2, (int)cmd.DeltaMs);
         return sb.ToString().TrimEnd();
     }
 
-    private void AppendAxis(StringBuilder sb, string axis, float value, bool invert, VelocityEstimator vel, int deltaMs)
+    private void AppendAxis(StringBuilder sb, string axis, float value, TCodeAxisConfig axisConfig, VelocityEstimator vel, int deltaMs)
     {
-        if (invert) value = 1f - value;
-        var mapped = (_tcode.MinPos + (_tcode.MaxPos - _tcode.MinPos) * value) / 1000f;
+        if (axisConfig.Invert) value = 1f - value;
+        var min = Math.Clamp(axisConfig.Min, 0, 999);
+        var max = Math.Clamp(axisConfig.Max, min, 999);
+        var mapped = (min + ((max - min) * Math.Clamp(value, 0f, 1f))) / 1000f;
         var pos = Math.Clamp((int)(mapped * 1000f), 0, 999);
 
-        if (_tcode.PreferSpeedMode)
+        if (PreferSpeedMode())
         {
-            var speed = vel.Estimate(mapped, _tcode.MaxVelocity);
+            var speed = vel.Estimate(mapped, axisConfig.MaxSpeed);
             sb.Append($"{axis}{pos:D3}S{speed:D4} ");
         }
         else
@@ -125,4 +132,12 @@ public sealed class TCodeUdp : IDisposable
             sb.Append($"{axis}{pos:D3}I{duration:D4} ");
         }
     }
+
+    private string GetHost() => string.IsNullOrWhiteSpace(_output?.Host) ? _save?.UdpTCode.Host ?? "127.0.0.1" : _output.Host;
+
+    private int GetPort() => _output?.Port is > 0 and <= 65535 ? _output.Port : _save?.UdpTCode.Port ?? 9999;
+
+    private bool PreferSpeedMode() => _output?.PreferSpeedMode ?? _save?.TCode.PreferSpeedMode ?? true;
+
+    private TCodeMotionProfile ResolveProfile() => _profileResolver?.Invoke() ?? _save?.ResolveMotionProfile(TCodeProfileTarget.Udp) ?? new TCodeMotionProfile();
 }

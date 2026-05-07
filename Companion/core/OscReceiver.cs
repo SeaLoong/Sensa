@@ -18,28 +18,67 @@ namespace Sensa.Core;
 public sealed class OscReceiver : IDisposable
 {
     private readonly ParameterStore _store;
-    private readonly int _port;
+    private string _host;
+    private int _port;
     private UdpClient?  _udp;
     private Thread?     _thread;
     private volatile bool _running;
 
     public event Action? OnAvatarChange;
 
-    public OscReceiver(ParameterStore store, int port = 9001)
+    public OscReceiver(ParameterStore store, string host = "0.0.0.0", int port = 9001)
     {
         _store = store;
-        _port  = port;
+        _host  = NormalizeHost(host);
+        _port  = NormalizePort(port);
     }
+
+    public string Host => _host;
+    public int Port => _port;
 
     public void Start()
     {
         if (_running) return;
         // Create socket first; if the port is in use this throws before _running is set,
         // so a subsequent call to Start() will retry instead of silently no-oping.
-        _udp     = new UdpClient(new IPEndPoint(IPAddress.Any, _port));
+        _udp     = new UdpClient(new IPEndPoint(ResolveBindAddress(_host), _port));
         _running = true;
         _thread  = new Thread(ReceiveLoop) { IsBackground = true, Name = "OscReceiver" };
         _thread.Start();
+    }
+
+    public void Reconfigure(string host, int port)
+    {
+        host = NormalizeHost(host);
+        port = NormalizePort(port);
+
+        if (string.Equals(_host, host, StringComparison.OrdinalIgnoreCase) && _port == port)
+            return;
+
+        var wasRunning = _running;
+        var previousHost = _host;
+        var previousPort = _port;
+
+        Stop();
+
+        _host = host;
+        _port = port;
+
+        try
+        {
+            if (wasRunning)
+                Start();
+        }
+        catch
+        {
+            _host = previousHost;
+            _port = previousPort;
+
+            if (wasRunning)
+                Start();
+
+            throw;
+        }
     }
 
     public void Stop()
@@ -176,5 +215,32 @@ public sealed class OscReceiver : IDisposable
     {
         int raw = ReadInt32(data, ref pos);
         return BitConverter.Int32BitsToSingle(raw);
+    }
+
+    private static string NormalizeHost(string? host)
+    {
+        return string.IsNullOrWhiteSpace(host) ? "0.0.0.0" : host.Trim();
+    }
+
+    private static int NormalizePort(int port)
+    {
+        return port is > 0 and <= 65535 ? port : 9001;
+    }
+
+    private static IPAddress ResolveBindAddress(string host)
+    {
+        if (host == "0.0.0.0" || host == "*" || host.Equals("any", StringComparison.OrdinalIgnoreCase))
+            return IPAddress.Any;
+
+        if (host == "::")
+            return IPAddress.IPv6Any;
+
+        if (IPAddress.TryParse(host, out var ip))
+            return ip;
+
+        var resolved = Dns.GetHostAddresses(host)
+            .FirstOrDefault(address => address.AddressFamily == AddressFamily.InterNetwork || address.AddressFamily == AddressFamily.InterNetworkV6);
+
+        return resolved ?? throw new InvalidOperationException($"Cannot resolve OSC bind host '{host}'.");
     }
 }

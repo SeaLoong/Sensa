@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Sensa.Config;
 using Sensa.Core;
 using Sensa.TransmitIntiface;
@@ -103,11 +104,15 @@ public sealed class Routine : IDisposable
     private readonly TCodeUdp?           _tcodeUdp;
     private readonly TCodeTcp?           _tcodeTcp;
     private readonly RecordingBuffer?    _recorder;
+    private readonly ScriptInputPlayer   _scriptInput;
     private readonly UiActionQueue       _actions;
     private readonly SafetySystem        _safety;
+    private readonly Func<DeviceCommand, Task>? _sendOutputsAsync;
+    private readonly Func<Task>? _emergencyStopAsync;
+    private readonly Func<int>? _loopRateResolver;
 
-    // Per-signal processors keyed by OSC path
-    private readonly Dictionary<string, SignalProcessor> _processors = new();
+    // Per-signal processors; duplicate OSC paths are allowed so one parameter can drive multiple axes.
+    private readonly List<(string Path, SignalProcessor Processor)> _processors = new();
     private readonly SignalFusion _fusion = new();
     private readonly RhythmDetector _rhythm = new();
 
@@ -121,10 +126,11 @@ public sealed class Routine : IDisposable
     private volatile DeviceCommand _lastCommandField = DeviceCommand.Zero;
     private volatile DeviceCommand _manualOverrideField = DeviceCommand.Zero;
     private volatile bool _manualOverrideEnabled;
+    private volatile InputMode _inputMode = InputMode.Osc;
     public DeviceCommand LastCommand  => _lastCommandField;
     public DeviceCommand ManualOverrideCommand => _manualOverrideField;
     public bool          ManualOverrideEnabled => _manualOverrideEnabled;
-    public float         CurrentBpm   { get; private set; } = 0f;
+    public InputMode     CurrentInputMode => _inputMode;
     public bool          IsRunning    => _cts is not null && !_cts.IsCancellationRequested;
     public bool          IsEmergency  => _safety.EmergencyActive;
 
@@ -140,7 +146,11 @@ public sealed class Routine : IDisposable
         TCodeSerial?        tcode     = null,
         TCodeUdp?           tcodeUdp  = null,
         TCodeTcp?           tcodeTcp  = null,
-        RecordingBuffer?    recorder  = null)
+        RecordingBuffer?    recorder  = null,
+        ScriptInputPlayer?  scriptInput = null,
+        Func<DeviceCommand, Task>? sendOutputsAsync = null,
+        Func<Task>? emergencyStopAsync = null,
+        Func<int>? loopRateResolver = null)
     {
         _save     = save;
         _store    = store;
@@ -150,14 +160,18 @@ public sealed class Routine : IDisposable
         _tcodeUdp = tcodeUdp;
         _tcodeTcp = tcodeTcp;
         _recorder = recorder;
+        _scriptInput = scriptInput ?? new ScriptInputPlayer();
         _actions  = actions;
         _safety   = new SafetySystem(save.Safety);
+        _sendOutputsAsync = sendOutputsAsync;
+        _emergencyStopAsync = emergencyStopAsync;
+        _loopRateResolver = loopRateResolver;
 
         RebuildProcessors();
         _osc.OnAvatarChange += () =>
         {
             // Reset EMA state on all processors so stale smoothed values don't bleed across avatars.
-            foreach (var proc in _processors.Values) proc.Reset();
+            foreach (var (_, proc) in _processors) proc.Reset();
             OnLog?.Invoke("[Routine] Avatar changed — parameter store cleared, EMA reset.");
         };
     }
@@ -167,7 +181,10 @@ public sealed class Routine : IDisposable
         _processors.Clear();
         foreach (var sig in _save.Signals)
         {
-            _processors[sig.OscPath] = new SignalProcessor(sig);
+            if (string.IsNullOrWhiteSpace(sig.OscPath))
+                continue;
+
+            _processors.Add((sig.OscPath, new SignalProcessor(sig)));
         }
     }
 
@@ -213,15 +230,37 @@ public sealed class Routine : IDisposable
         OnLog?.Invoke("[ManualTest] Override cleared.");
     }
 
+    public void SetInputMode(InputMode mode)
+    {
+        if (_inputMode == mode)
+            return;
+
+        _inputMode = mode;
+
+        if (mode != InputMode.Manual)
+            _manualOverrideEnabled = false;
+
+        if (mode != InputMode.Script)
+            _scriptInput.Pause();
+
+        OnLog?.Invoke($"[Input] Mode switched to {mode}.");
+    }
+
     // ────────────────────────────────────────────────────────────────
 
     private async Task RunLoopAsync(CancellationToken ct)
     {
-        double tickMs = 1000.0 / Math.Max(_save.TCode.UpdatesPerSecond, 10);
-        using var timer = new PeriodicTimer(TimeSpan.FromMilliseconds(tickMs));
+        var lastTick = Stopwatch.GetTimestamp();
 
-        while (await timer.WaitForNextTickAsync(ct))
+        while (!ct.IsCancellationRequested)
         {
+            var now = Stopwatch.GetTimestamp();
+            var tickMs = Math.Max(1000.0 / Math.Max(_loopRateResolver?.Invoke() ?? _save.GetRecommendedLoopRate(), 10), 1);
+            var deltaMs = Stopwatch.GetElapsedTime(lastTick, now).TotalMilliseconds;
+            if (deltaMs < 0.5)
+                deltaMs = tickMs;
+            lastTick = now;
+
             // 1. Drain UI actions
             while (_actions.TryDequeue(out var action))
             {
@@ -232,50 +271,69 @@ public sealed class Routine : IDisposable
             _signals.Clear();
             foreach (var (path, proc) in _processors)
             {
-                if (!_store.TryGet(path, out var entry)) continue;
+                if (!_store.TryGetLatest(path, out var entry)) continue;
                 float processed = proc.Process(entry.Value.AsFloat());
                 _signals.Add((proc.Config.Role, processed));
             }
 
             // 3. Fuse signals into a DeviceCommand
-            var rawCmd = _fusion.Fuse(_signals, deltaMs: tickMs);
+            var rawCmd = _fusion.Fuse(_signals, deltaMs: deltaMs);
 
             // 4. Rhythm detection (uses L0 depth; respects saved RhythmConfig)
             var rc = _save.Rhythm;
             _rhythm.Feed(rawCmd.L0, rc.WindowMs, rc.MinBpm, rc.MaxBpm);
-            CurrentBpm = _rhythm.CurrentBpm;
-
-            // 5. Safety constraints
-            var safeCmd = _safety.Apply(rawCmd);
-            safeCmd = safeCmd with { DeltaMs = tickMs };
-
-            // 5.5 Manual test override for Web UI functional testing.
-            // Still passes through SafetySystem so emergency stop and intensity limits remain effective.
-            if (_manualOverrideEnabled)
+            // 5. Select active input source and pass through safety.
+            var selectedInput = _inputMode switch
             {
-                var manualCmd = _manualOverrideField with { DeltaMs = tickMs };
-                safeCmd = _safety.Apply(manualCmd) with { DeltaMs = tickMs };
-            }
+                InputMode.Manual when _manualOverrideEnabled => _manualOverrideField with { DeltaMs = deltaMs },
+                InputMode.Manual => DeviceCommand.Zero with { DeltaMs = deltaMs, GateOpen = false },
+                InputMode.Script => _scriptInput.Sample(deltaMs),
+                _ => rawCmd with { DeltaMs = deltaMs },
+            };
+
+            var safeCmd = _safety.Apply(selectedInput) with { DeltaMs = deltaMs };
 
             _lastCommandField = safeCmd;
 
             // 6. Transmit
-            if (_intiface is { IsConnected: true })
+            if (_sendOutputsAsync is not null)
             {
-                try { await _intiface.SendAsync(safeCmd); }
-                catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+                try { await _sendOutputsAsync(safeCmd); }
+                catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
             }
-            _tcode?.Send(safeCmd);
-            _tcodeUdp?.Send(safeCmd);
-            _tcodeTcp?.Send(safeCmd);
+            else
+            {
+                if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
+                {
+                    try { await _intiface.SendAsync(safeCmd); }
+                    catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+                }
+                if (_save.TCode.Enabled)
+                    _tcode?.Send(safeCmd);
+                if (_save.UdpTCode.Enabled)
+                    _tcodeUdp?.Send(safeCmd);
+                if (_save.TcpTCode.Enabled)
+                    _tcodeTcp?.Send(safeCmd);
+            }
 
             // 7. Record
             _recorder?.Push(safeCmd);
+
+            var elapsedMs = Stopwatch.GetElapsedTime(now).TotalMilliseconds;
+            var remainingMs = tickMs - elapsedMs;
+            if (remainingMs > 0.5)
+                await Task.Delay(TimeSpan.FromMilliseconds(remainingMs), ct);
         }
     }
 
     private async Task SendEmergencyAsync()
     {
+        if (_emergencyStopAsync is not null)
+        {
+            try { await _emergencyStopAsync(); } catch { }
+            return;
+        }
+
         _tcode?.EmergencyStop();
         _tcodeUdp?.EmergencyStop();
         _tcodeTcp?.EmergencyStop();

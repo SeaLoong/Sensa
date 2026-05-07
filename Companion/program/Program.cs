@@ -1,10 +1,13 @@
 ﻿using System.Diagnostics;
 using System.IO.Ports;
+using System.Management;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using Buttplug.Core.Messages;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Win32;
 using Sensa.ApplicationLoop;
 using Sensa.Config;
 using Sensa.Core;
@@ -17,6 +20,7 @@ Console.Title = "Sensa";
 Console.WriteLine("Sensa Web Service starting…");
 
 var save = SaveFile.Load();
+save.NormalizeForRuntime();
 var uiUrl = $"http://{save.WebUi.Host}:{save.WebUi.Port}";
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,19 +49,23 @@ void LogError(string message)
 }
 
 var paramStore  = new ParameterStore();
-var oscReceiver = new OscReceiver(paramStore, port: save.Osc.ReceiverPort);
+var oscReceiver = new OscReceiver(paramStore, save.Osc.ReceiverHost, save.Osc.ReceiverPort);
 var recorder    = new RecordingBuffer();
+var scriptInput = new ScriptInputPlayer();
 var uiActions   = new UiActionQueue();
 
-var tcode = new TCodeSerial(save.TCode);
-var tcodeUdp = new TCodeUdp(save.TCode, save.UdpTCode);
-var tcodeTcp = new TCodeTcp(save.TCode, save.TcpTCode);
-IntifaceEngineHost? intifaceHost = null;
-var intiface = new IntifaceTransmitter(save.Intiface);
+var outputManager = new OutputRuntimeManager(save, Log, LogError);
 
-intiface.OnLog += Log;
-
-var routine = new Routine(save, paramStore, oscReceiver, uiActions, intiface, tcode, tcodeUdp, tcodeTcp, recorder);
+var routine = new Routine(
+    save,
+    paramStore,
+    oscReceiver,
+    uiActions,
+    recorder: recorder,
+    scriptInput: scriptInput,
+    sendOutputsAsync: outputManager.SendAsync,
+    emergencyStopAsync: outputManager.EmergencyStopAsync,
+    loopRateResolver: save.GetRecommendedLoopRate);
 routine.OnLog += Log;
 
 async Task RunOnLoopAsync(Action action)
@@ -80,293 +88,322 @@ async Task RunOnLoopAsync(Action action)
 
 Task<bool> ConnectTCodeAsync()
 {
-    if (string.IsNullOrWhiteSpace(save.TCode.ComPort)) return Task.FromResult(false);
-    try
-    {
-        tcode.Connect();
-        Log($"[TCode] Connected: {save.TCode.ComPort}");
-        return Task.FromResult(true);
-    }
-    catch (Exception ex)
-    {
-        LogError($"[TCode] Failed to connect: {ex.Message}");
-        return Task.FromResult(false);
-    }
+    return outputManager.ConnectPrimaryAsync(OutputDeviceType.TCodeSerial);
 }
 
 Task DisconnectTCodeAsync()
 {
-    tcode.Disconnect();
-    Log("[TCode] Disconnected.");
-    return Task.CompletedTask;
+    return outputManager.DisconnectPrimaryAsync(OutputDeviceType.TCodeSerial);
 }
 
 Task<bool> ConnectTCodeUdpAsync()
 {
-    try
-    {
-        tcodeUdp.Connect();
-        Log($"[TCode/UDP] Connected: {save.UdpTCode.Host}:{save.UdpTCode.Port}");
-        return Task.FromResult(true);
-    }
-    catch (Exception ex)
-    {
-        LogError($"[TCode/UDP] Failed to connect: {ex.Message}");
-        return Task.FromResult(false);
-    }
+    return outputManager.ConnectPrimaryAsync(OutputDeviceType.TCodeUdp);
 }
 
 Task DisconnectTCodeUdpAsync()
 {
-    tcodeUdp.Disconnect();
-    Log("[TCode/UDP] Disconnected.");
-    return Task.CompletedTask;
+    return outputManager.DisconnectPrimaryAsync(OutputDeviceType.TCodeUdp);
 }
 
 Task<bool> ConnectTCodeTcpAsync()
 {
-    try
-    {
-        tcodeTcp.Connect();
-        Log($"[TCode/TCP] Connected: {save.TcpTCode.Host}:{save.TcpTCode.Port}");
-        return Task.FromResult(true);
-    }
-    catch (Exception ex)
-    {
-        LogError($"[TCode/TCP] Failed to connect: {ex.Message}");
-        return Task.FromResult(false);
-    }
+    return outputManager.ConnectPrimaryAsync(OutputDeviceType.TCodeTcp);
 }
 
 Task DisconnectTCodeTcpAsync()
 {
-    tcodeTcp.Disconnect();
-    Log("[TCode/TCP] Disconnected.");
-    return Task.CompletedTask;
+    return outputManager.DisconnectPrimaryAsync(OutputDeviceType.TCodeTcp);
 }
 
 async Task<bool> ConnectIntifaceAsync()
 {
-    try
-    {
-        if (save.Intiface.ManageEngineProcess)
-        {
-            if (intifaceHost?.IsRunning != true)
-            {
-                intifaceHost?.Dispose();
-                intifaceHost = new IntifaceEngineHost(save.Intiface.Port);
-                if (!intifaceHost.Start())
-                {
-                    Log("[Intiface] Skipping connection attempt because embedded engine is unavailable.");
-                    return false;
-                }
-                await Task.Delay(1500);
-            }
-        }
-
-        if (!intiface.IsConnected)
-            await intiface.ConnectAsync();
-        return intiface.IsConnected;
-    }
-    catch (Exception ex)
-    {
-        LogError($"[Intiface] Failed: {ex.Message}");
-        return false;
-    }
+    return await outputManager.ConnectPrimaryAsync(OutputDeviceType.Intiface);
 }
 
 async Task DisconnectIntifaceAsync()
 {
-    await intiface.DisconnectAsync();
-    intifaceHost?.Dispose();
-    intifaceHost = null;
+    await outputManager.DisconnectPrimaryAsync(OutputDeviceType.Intiface);
 }
+
+Task<bool> ConnectOutputAsync(string outputId) => outputManager.ConnectAsync(outputId);
+
+Task DisconnectOutputAsync(string outputId) => outputManager.DisconnectAsync(outputId);
 
 object BuildOverviewSnapshot()
 {
     var cmd = routine.LastCommand;
-    var paramCount = paramStore.AllPaths.Count();
-    var devices = intiface.Devices.Select(device => new
+    var scriptSnapshot = scriptInput.GetSnapshot();
+    var serialOutput = save.GetPrimaryOutput(OutputDeviceType.TCodeSerial);
+    var udpOutput = save.GetPrimaryOutput(OutputDeviceType.TCodeUdp);
+    var tcpOutput = save.GetPrimaryOutput(OutputDeviceType.TCodeTcp);
+    var intifaceOutput = save.GetPrimaryOutput(OutputDeviceType.Intiface);
+    var oscPreview = paramStore.Snapshot()
+        .OrderByDescending(entry => entry.Value.TimestampMs)
+        .Take(24)
+        .Select(entry => new
+        {
+            path = entry.Key,
+            type = entry.Value.Value.Type.ToString().ToLowerInvariant(),
+            value = FormatOscPreviewValue(entry.Value.Value),
+            numericValue = entry.Value.Value.AsFloat(),
+            entry.Value.TimestampMs,
+        })
+        .ToArray();
+    var devices = outputManager.GetDevices(intifaceOutput?.Id).Select(device => new
     {
         name = device.Name,
         index = device.Index,
-        positionFeatures = device.GetFeaturesWithOutput(Buttplug.Core.Messages.OutputType.Position).Count(),
-        vibrateFeatures = device.GetFeaturesWithOutput(Buttplug.Core.Messages.OutputType.Vibrate).Count(),
+        positionFeatures = device.GetFeaturesWithOutput(OutputType.Position).Count(),
+        vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
     }).ToArray();
+    var outputs = outputManager.BuildOverview();
 
     return new
     {
-        service = new
-        {
-            title = save.WebUi.Title,
-            url = uiUrl,
-            time = DateTimeOffset.Now,
-        },
         loop = new
         {
             routine.IsRunning,
             routine.IsEmergency,
-            routine.CurrentBpm,
             routine.ManualOverrideEnabled,
+            inputMode = routine.CurrentInputMode,
             command = cmd,
             manualCommand = routine.ManualOverrideCommand,
         },
+        input = new
+        {
+            mode = routine.CurrentInputMode.ToString().ToLowerInvariant(),
+            script = scriptSnapshot,
+        },
         osc = new
         {
+            save.Osc.ReceiverHost,
             save.Osc.ReceiverPort,
-            parameterCount = paramCount,
+            preview = oscPreview,
         },
         tcode = new
         {
-            connected = tcode.IsConnected,
+            connected = outputManager.IsConnected(serialOutput?.Id),
             config = save.TCode,
         },
         udpTCode = new
         {
-            connected = tcodeUdp.IsConnected,
+            connected = outputManager.IsConnected(udpOutput?.Id),
             config = save.UdpTCode,
         },
         tcpTCode = new
         {
-            connected = tcodeTcp.IsConnected,
+            connected = outputManager.IsConnected(tcpOutput?.Id),
             config = save.TcpTCode,
         },
         intiface = new
         {
-            connected = intiface.IsConnected,
+            connected = outputManager.IsConnected(intifaceOutput?.Id),
             config = save.Intiface,
             devices,
         },
+        outputs,
         recording = new
         {
             recorder.IsActive,
             recorder.FrameCount,
         },
-        signals = save.Signals.Select((signal, index) => new
+        signals = save.Signals.Select((signal, index) =>
         {
-            index,
-            signal,
-            latest = paramStore.TryGet(signal.OscPath, out var entry)
-                ? new { value = entry.Value.AsFloat(), entry.TimestampMs, type = entry.Value.Type.ToString() }
-                : null,
+            var hasLatest = paramStore.TryGetLatest(signal.OscPath, out var matchedPath, out var entry);
+            return new
+            {
+                index,
+                signal,
+                latest = hasLatest
+                    ? new { path = matchedPath, value = entry.Value.AsFloat(), entry.TimestampMs, type = entry.Value.Type.ToString() }
+                    : null,
+            };
         }).ToArray(),
     };
 }
 
-object BuildMeta()
-{
-    return new
-    {
-        name = "Sensa",
-        mode = "web-service",
-        webUi = new { save.WebUi.Host, save.WebUi.Port, save.WebUi.AutoOpenBrowser, save.WebUi.Title, url = uiUrl },
-        enums = new
-        {
-            signalRoles = Enum.GetNames<SignalRole>(),
-            curveTypes = Enum.GetNames<CurveType>(),
-            idleBehaviors = Enum.GetNames<IdleBehavior>(),
-        },
-        endpoints = new[]
-        {
-            "/api/meta",
-            "/api/meta/serial-ports",
-            "/api/config",
-            "/api/state/overview",
-            "/api/state/parameters",
-            "/api/state/logs",
-            "/api/control/loop/start",
-            "/api/control/loop/stop",
-            "/api/control/loop/emergency-stop",
-            "/api/control/loop/clear-emergency",
-            "/api/control/intiface/connect",
-            "/api/control/intiface/disconnect",
-            "/api/control/tcode/connect",
-            "/api/control/tcode/disconnect",
-            "/api/control/udp/connect",
-            "/api/control/udp/disconnect",
-            "/api/control/tcp/connect",
-            "/api/control/tcp/disconnect",
-            "/api/control/recording/start",
-            "/api/control/recording/stop",
-            "/api/control/recording/export",
-            "/api/manual-test",
-            "/api/ws",
-        },
-    };
-}
-
-string[] BuildSerialPortList()
+object[] BuildSerialPortList()
 {
     try
     {
+        var descriptions = ReadSerialPortDescriptions();
+
         return SerialPort.GetPortNames()
             .Where(static name => !string.IsNullOrWhiteSpace(name))
             .OrderBy(static name => name, StringComparer.OrdinalIgnoreCase)
-            .ToArray();
+            .Select(name => new
+            {
+                portName = name,
+                description = descriptions.TryGetValue(name, out var desc) ? desc : null,
+            })
+            .ToArray<object>();
     }
     catch (Exception ex)
     {
         LogError($"[Meta] Failed to enumerate serial ports: {ex.Message}");
-        return Array.Empty<string>();
+        return Array.Empty<object>();
     }
 }
 
+static Dictionary<string, string> ReadSerialPortDescriptions()
+{
+    var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+    try
+    {
+        // Primary: Win32_SerialPort gives friendly names for real COM ports
+        using var searcher = new ManagementObjectSearcher(
+            "SELECT Name FROM Win32_SerialPort");
+
+        foreach (var obj in searcher.Get())
+        {
+            var name = obj["Name"]?.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            var comMatch = System.Text.RegularExpressions.Regex.Match(name, @"\((COM\d+)\)$");
+            if (!comMatch.Success) continue;
+
+            var comPort = comMatch.Groups[1].Value;
+            var description = name[..(name.LastIndexOf('('))].Trim();
+            if (!result.ContainsKey(comPort))
+                result[comPort] = description;
+        }
+    }
+    catch { }
+
+    try
+    {
+        // Secondary: Win32_PnPEntity catches USB virtual COM ports (OSR6 etc.)
+        using var pnpSearcher = new ManagementObjectSearcher(
+            "SELECT Name FROM Win32_PnPEntity WHERE Name LIKE '%(COM%'");
+
+        foreach (var obj in pnpSearcher.Get())
+        {
+            var name = obj["Name"]?.ToString();
+            if (string.IsNullOrWhiteSpace(name)) continue;
+
+            var comMatch = System.Text.RegularExpressions.Regex.Match(name, @"\((COM\d+)\)$");
+            if (!comMatch.Success) continue;
+
+            var comPort = comMatch.Groups[1].Value;
+            if (result.ContainsKey(comPort)) continue; // Win32_SerialPort name is better
+
+            var description = name[..(name.LastIndexOf('('))].Trim();
+            result[comPort] = description;
+        }
+    }
+    catch { }
+
+    // Final fallback: registry COM port list
+    if (result.Count == 0)
+        return ReadSerialPortDescriptionsFromRegistry();
+
+    return result;
+}
+
+static Dictionary<string, string> ReadSerialPortDescriptionsFromRegistry()
+{
+    var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    try
+    {
+        using var key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");
+        if (key is null) return result;
+
+        foreach (var valueName in key.GetValueNames())
+        {
+            var portName = key.GetValue(valueName) as string;
+            if (string.IsNullOrWhiteSpace(portName)) continue;
+            result[portName] = portName;
+        }
+    }
+    catch
+    {
+        // Best effort
+    }
+
+    return result;
+}
+
+static bool ReadBoolOrDefault(string? raw, bool fallback) =>
+    bool.TryParse(raw, out var parsed) ? parsed : fallback;
+
+static double ReadDoubleOrDefault(string? raw, double fallback) =>
+    double.TryParse(raw, out var parsed) ? parsed : fallback;
+
+static string FormatOscPreviewValue(OscValue value) =>
+    value.Type switch
+    {
+        OscValueType.Float => value.Float.ToString("0.###"),
+        OscValueType.Int => value.Int.ToString(),
+        OscValueType.Bool => value.Bool ? "true" : "false",
+        _ => "0",
+    };
+
 app.UseDefaultFiles();
-app.UseStaticFiles();
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = ctx =>
+    {
+        var path = ctx.Context.Request.Path.Value ?? string.Empty;
+        if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith("/app.js", StringComparison.OrdinalIgnoreCase)
+            || path.EndsWith("/styles.css", StringComparison.OrdinalIgnoreCase))
+        {
+            ctx.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
+            ctx.Context.Response.Headers.Pragma = "no-cache";
+            ctx.Context.Response.Headers.Expires = "0";
+        }
+    },
+});
 app.UseWebSockets();
 
-app.MapGet("/api/meta", () => Results.Ok(BuildMeta()));
 app.MapGet("/api/meta/serial-ports", () => Results.Ok(BuildSerialPortList()));
 app.MapGet("/api/config", () => Results.Ok(save));
-app.MapPost("/api/config/save", () =>
-{
-    save.Save();
-    Log("[Config] Saved.");
-    return Results.Ok(new { ok = true });
-});
 app.MapPut("/api/config", async (SaveFile incoming) =>
 {
-    await RunOnLoopAsync(() =>
+    var previousOscHost = save.Osc.ReceiverHost;
+    var previousOscPort = save.Osc.ReceiverPort;
+
+    try
     {
-        save.CopyFrom(incoming);
-        routine.RebuildProcessors();
-    });
-    save.Save();
-    Log("[Config] Updated from WebUI.");
-    return Results.Ok(save);
-});
-
-app.MapGet("/api/state/overview", () => Results.Ok(BuildOverviewSnapshot()));
-app.MapGet("/api/state/parameters", () =>
-{
-    var data = paramStore.AllPaths
-        .OrderBy(path => path)
-        .Select(path =>
+        await RunOnLoopAsync(() =>
         {
-            paramStore.TryGet(path, out var entry);
-            return new
-            {
-                path,
-                value = entry.Value.AsFloat(),
-                type = entry.Value.Type.ToString(),
-                timestampMs = entry.TimestampMs,
-            };
+            save.CopyFrom(incoming);
+            routine.RebuildProcessors();
         });
-    return Results.Ok(data);
-});
-app.MapGet("/api/state/logs", () => Results.Ok(logBuffer.Snapshot()));
-app.MapGet("/api/state/recording/data", () => Results.Ok(recorder.TakeSnapshot().Select(f => new { ms = f.Ms, l0 = f.L0 })));
 
-app.MapPost("/api/control/loop/start", () =>
-{
-    routine.Start();
-    return Results.Ok(new { ok = true, routine.IsRunning });
+        if (!string.Equals(previousOscHost, save.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
+            || previousOscPort != save.Osc.ReceiverPort)
+        {
+            try
+            {
+                oscReceiver.Reconfigure(save.Osc.ReceiverHost, save.Osc.ReceiverPort);
+                Log($"[OSC] Listening on {save.Osc.ReceiverHost}:{save.Osc.ReceiverPort}");
+            }
+            catch
+            {
+                save.Osc.ReceiverHost = previousOscHost;
+                save.Osc.ReceiverPort = previousOscPort;
+                oscReceiver.Reconfigure(previousOscHost, previousOscPort);
+                throw;
+            }
+        }
+
+        await outputManager.ReloadAsync();
+        await outputManager.ConnectEnabledAsync();
+        save.Save();
+        Log("[Config] Updated from WebUI.");
+        return Results.Ok(save);
+    }
+    catch (Exception ex)
+    {
+        LogError($"[Config] Update failed: {ex.Message}");
+        return Results.BadRequest(new { ok = false, error = ex.Message });
+    }
 });
-app.MapPost("/api/control/loop/stop", async () =>
-{
-    await routine.StopAsync();
-    return Results.Ok(new { ok = true, routine.IsRunning });
-});
+app.MapGet("/api/state/overview", () => Results.Ok(BuildOverviewSnapshot()));
+app.MapGet("/api/state/logs", () => Results.Ok(logBuffer.Snapshot()));
 app.MapPost("/api/control/loop/emergency-stop", () =>
 {
     routine.EmergencyStop();
@@ -378,102 +415,16 @@ app.MapPost("/api/control/loop/clear-emergency", () =>
     return Results.Ok(new { ok = true, routine.IsEmergency });
 });
 
-app.MapPost("/api/control/intiface/connect", async () =>
+app.MapPut("/api/input/mode", (InputModeRequest request) =>
 {
-    var ok = await ConnectIntifaceAsync();
-    var message = ok
-        ? "Intiface connected."
-        : save.Intiface.ManageEngineProcess
-            ? "Intiface connection failed. Ensure intiface-engine.exe exists locally or disable engine management."
-            : "Intiface connection failed. Check the configured WebSocket address and whether Intiface Central is running.";
-    return Results.Ok(new { ok, connected = intiface.IsConnected, message });
-});
-app.MapPost("/api/control/intiface/disconnect", async () =>
-{
-    await DisconnectIntifaceAsync();
-    return Results.Ok(new { ok = true, connected = intiface.IsConnected, message = "Intiface disconnected." });
-});
-app.MapPost("/api/control/intiface/scan-start", async () =>
-{
-    await intiface.StartScanAsync();
-    return Results.Ok(new { ok = true });
-});
-app.MapPost("/api/control/intiface/scan-stop", async () =>
-{
-    await intiface.StopScanAsync();
-    return Results.Ok(new { ok = true });
+    if (!Enum.TryParse<InputMode>(request.Mode, ignoreCase: true, out var mode))
+        return Results.BadRequest(new { ok = false, error = $"Unknown input mode: {request.Mode}" });
+
+    routine.SetInputMode(mode);
+    return Results.Ok(new { ok = true, mode = routine.CurrentInputMode.ToString().ToLowerInvariant() });
 });
 
-app.MapPost("/api/control/tcode/connect", async () =>
-{
-    var ok = await ConnectTCodeAsync();
-    var message = ok
-        ? $"TCode connected: {save.TCode.ComPort}"
-        : "TCode connection failed. Check the COM port, driver, and whether another app is already using the device.";
-    return Results.Ok(new { ok, connected = tcode.IsConnected, message });
-});
-app.MapPost("/api/control/tcode/disconnect", async () =>
-{
-    await DisconnectTCodeAsync();
-    return Results.Ok(new { ok = true, connected = tcode.IsConnected, message = "TCode disconnected." });
-});
-app.MapPost("/api/control/tcode/park", () =>
-{
-    tcode.Park();
-    tcodeUdp.Park();
-    tcodeTcp.Park();
-    return Results.Ok(new { ok = true });
-});
-
-app.MapPost("/api/control/udp/connect", async () =>
-{
-    var ok = await ConnectTCodeUdpAsync();
-    var message = ok
-        ? $"UDP connected: {save.UdpTCode.Host}:{save.UdpTCode.Port}"
-        : "UDP connection failed. Check host/port and whether target accepts TCode over UDP.";
-    return Results.Ok(new { ok, connected = tcodeUdp.IsConnected, message });
-});
-app.MapPost("/api/control/udp/disconnect", async () =>
-{
-    await DisconnectTCodeUdpAsync();
-    return Results.Ok(new { ok = true, connected = tcodeUdp.IsConnected, message = "UDP disconnected." });
-});
-
-app.MapPost("/api/control/tcp/connect", async () =>
-{
-    var ok = await ConnectTCodeTcpAsync();
-    var message = ok
-        ? $"TCP connected: {save.TcpTCode.Host}:{save.TcpTCode.Port}"
-        : "TCP connection failed. Check host/port and whether target accepts TCode over TCP.";
-    return Results.Ok(new { ok, connected = tcodeTcp.IsConnected, message });
-});
-app.MapPost("/api/control/tcp/disconnect", async () =>
-{
-    await DisconnectTCodeTcpAsync();
-    return Results.Ok(new { ok = true, connected = tcodeTcp.IsConnected, message = "TCP disconnected." });
-});
-
-app.MapPost("/api/control/recording/start", () =>
-{
-    recorder.Start();
-    Log("[Recording] Started.");
-    return Results.Ok(new { ok = true, recorder.IsActive, recorder.FrameCount });
-});
-app.MapPost("/api/control/recording/stop", () =>
-{
-    recorder.Stop();
-    Log("[Recording] Stopped.");
-    return Results.Ok(new { ok = true, recorder.IsActive, recorder.FrameCount });
-});
-app.MapPost("/api/control/recording/export", () =>
-{
-    var path = FunscriptExporter.Export(recorder);
-    if (string.IsNullOrWhiteSpace(path) || !File.Exists(path))
-        return Results.BadRequest(new { ok = false, error = "No recording data available." });
-    return Results.Ok(new { ok = true, path });
-});
-
-app.MapPut("/api/manual-test", (ManualTestRequest request) =>
+app.MapPut("/api/input/manual", (ManualInputRequest request) =>
 {
     var cmd = new DeviceCommand
     {
@@ -488,16 +439,235 @@ app.MapPut("/api/manual-test", (ManualTestRequest request) =>
     };
 
     if (request.Enabled)
+    {
         routine.SetManualOverride(cmd);
+        routine.SetInputMode(InputMode.Manual);
+    }
     else
+    {
         routine.ClearManualOverride();
+    }
 
-    return Results.Ok(new { ok = true, routine.ManualOverrideEnabled, command = routine.ManualOverrideCommand });
+    return Results.Ok(new
+    {
+        ok = true,
+        inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(),
+        command = routine.ManualOverrideCommand,
+    });
 });
-app.MapDelete("/api/manual-test", () =>
+
+app.MapDelete("/api/input/manual", () =>
 {
     routine.ClearManualOverride();
-    return Results.Ok(new { ok = true, routine.ManualOverrideEnabled });
+    return Results.Ok(new
+    {
+        ok = true,
+        inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(),
+    });
+});
+
+app.MapPost("/api/input/script/load", async (HttpRequest request) =>
+{
+    if (!request.HasFormContentType)
+        return Results.BadRequest(new { ok = false, error = "Expected multipart/form-data." });
+
+    var form = await request.ReadFormAsync();
+    var file = form.Files.GetFile("file");
+    if (file is null || file.Length == 0)
+        return Results.BadRequest(new { ok = false, error = "请先选择脚本文件。" });
+
+    var loop = ReadBoolOrDefault(form["loop"].ToString(), false);
+    var speed = ReadDoubleOrDefault(form["speed"].ToString(), 1.0);
+
+    try
+    {
+        using var stream = file.OpenReadStream();
+        scriptInput.Load(file.FileName, stream);
+        scriptInput.Configure(loop: loop, speed: speed);
+        routine.SetInputMode(InputMode.Script);
+        Log($"[ScriptInput] Loaded: {file.FileName}");
+
+        return Results.Ok(new
+        {
+            ok = true,
+            inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(),
+            script = scriptInput.GetSnapshot(),
+        });
+    }
+    catch (Exception ex)
+    {
+        LogError($"[ScriptInput] Load failed: {ex.Message}");
+        return Results.BadRequest(new { ok = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/input/script/play", (ScriptPlaybackRequest request) =>
+{
+    try
+    {
+        var snapshot = scriptInput.Play(request.Restart, request.Loop, request.Speed);
+        routine.SetInputMode(InputMode.Script);
+        Log($"[ScriptInput] Playback started: {snapshot.FileName}");
+        return Results.Ok(new
+        {
+            ok = true,
+            inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(),
+            script = snapshot,
+        });
+    }
+    catch (Exception ex)
+    {
+        LogError($"[ScriptInput] Play failed: {ex.Message}");
+        return Results.BadRequest(new { ok = false, error = ex.Message });
+    }
+});
+
+app.MapPost("/api/input/script/pause", () =>
+{
+    var snapshot = scriptInput.Pause();
+    Log("[ScriptInput] Playback paused.");
+    return Results.Ok(new { ok = true, script = snapshot });
+});
+
+app.MapPost("/api/input/script/stop", () =>
+{
+    var snapshot = scriptInput.Stop();
+    Log("[ScriptInput] Playback stopped.");
+    return Results.Ok(new { ok = true, script = snapshot });
+});
+
+app.MapPost("/api/control/intiface/connect", async () =>
+{
+    var ok = await ConnectIntifaceAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.Intiface);
+    var message = ok
+        ? "Intiface connected."
+        : save.Intiface.ManageEngineProcess
+            ? "Intiface connection failed. Ensure intiface-engine.exe exists locally or disable engine management."
+            : "Intiface connection failed. Check the configured WebSocket address and whether Intiface Central is running.";
+    return Results.Ok(new { ok, connected = outputManager.IsConnected(primary?.Id), message });
+});
+app.MapPost("/api/control/intiface/disconnect", async () =>
+{
+    await DisconnectIntifaceAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.Intiface);
+    return Results.Ok(new { ok = true, connected = outputManager.IsConnected(primary?.Id), message = "Intiface disconnected." });
+});
+app.MapPost("/api/control/intiface/scan-start", async () =>
+{
+    await outputManager.StartPrimaryScanAsync(OutputDeviceType.Intiface);
+    return Results.Ok(new { ok = true });
+});
+app.MapPost("/api/control/intiface/scan-stop", async () =>
+{
+    await outputManager.StopPrimaryScanAsync(OutputDeviceType.Intiface);
+    return Results.Ok(new { ok = true });
+});
+
+app.MapPost("/api/control/output/{outputId}/connect", async (string outputId) =>
+{
+    var output = save.FindOutput(outputId);
+    if (output is null)
+        return Results.NotFound(new { ok = false, error = "输出不存在。" });
+
+    var ok = await ConnectOutputAsync(outputId);
+    return Results.Ok(new
+    {
+        ok,
+        connected = outputManager.IsConnected(outputId),
+        outputId,
+        type = output.Type,
+        message = ok ? $"{output.Name} 已连接。" : $"{output.Name} 连接失败。",
+    });
+});
+
+app.MapPost("/api/control/output/{outputId}/disconnect", async (string outputId) =>
+{
+    var output = save.FindOutput(outputId);
+    if (output is null)
+        return Results.NotFound(new { ok = false, error = "输出不存在。" });
+
+    await DisconnectOutputAsync(outputId);
+    return Results.Ok(new
+    {
+        ok = true,
+        connected = outputManager.IsConnected(outputId),
+        outputId,
+        type = output.Type,
+        message = $"{output.Name} 已断开。",
+    });
+});
+
+app.MapPost("/api/control/output/{outputId}/scan-start", async (string outputId) =>
+{
+    var output = save.FindOutput(outputId);
+    if (output is null)
+        return Results.NotFound(new { ok = false, error = "输出不存在。" });
+    if (output.Type != OutputDeviceType.Intiface)
+        return Results.BadRequest(new { ok = false, error = "只有 Intiface 输出支持扫描。" });
+
+    await outputManager.StartScanAsync(outputId);
+    return Results.Ok(new { ok = true, outputId });
+});
+
+app.MapPost("/api/control/output/{outputId}/scan-stop", async (string outputId) =>
+{
+    var output = save.FindOutput(outputId);
+    if (output is null)
+        return Results.NotFound(new { ok = false, error = "输出不存在。" });
+    if (output.Type != OutputDeviceType.Intiface)
+        return Results.BadRequest(new { ok = false, error = "只有 Intiface 输出支持扫描。" });
+
+    await outputManager.StopScanAsync(outputId);
+    return Results.Ok(new { ok = true, outputId });
+});
+
+app.MapPost("/api/control/tcode/connect", async () =>
+{
+    var ok = await ConnectTCodeAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeSerial);
+    var message = ok
+        ? $"TCode connected: {save.TCode.ComPort}"
+        : "TCode connection failed. Check the COM port, driver, and whether another app is already using the device.";
+    return Results.Ok(new { ok, connected = outputManager.IsConnected(primary?.Id), message });
+});
+app.MapPost("/api/control/tcode/disconnect", async () =>
+{
+    await DisconnectTCodeAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeSerial);
+    return Results.Ok(new { ok = true, connected = outputManager.IsConnected(primary?.Id), message = "TCode disconnected." });
+});
+
+app.MapPost("/api/control/udp/connect", async () =>
+{
+    var ok = await ConnectTCodeUdpAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeUdp);
+    var message = ok
+        ? $"UDP connected: {save.UdpTCode.Host}:{save.UdpTCode.Port}"
+        : "UDP connection failed. Check host/port and whether target accepts TCode over UDP.";
+    return Results.Ok(new { ok, connected = outputManager.IsConnected(primary?.Id), message });
+});
+app.MapPost("/api/control/udp/disconnect", async () =>
+{
+    await DisconnectTCodeUdpAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeUdp);
+    return Results.Ok(new { ok = true, connected = outputManager.IsConnected(primary?.Id), message = "UDP disconnected." });
+});
+
+app.MapPost("/api/control/tcp/connect", async () =>
+{
+    var ok = await ConnectTCodeTcpAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeTcp);
+    var message = ok
+        ? $"TCP connected: {save.TcpTCode.Host}:{save.TcpTCode.Port}"
+        : "TCP connection failed. Check host/port and whether target accepts TCode over TCP.";
+    return Results.Ok(new { ok, connected = outputManager.IsConnected(primary?.Id), message });
+});
+app.MapPost("/api/control/tcp/disconnect", async () =>
+{
+    await DisconnectTCodeTcpAsync();
+    var primary = save.GetPrimaryOutput(OutputDeviceType.TCodeTcp);
+    return Results.Ok(new { ok = true, connected = outputManager.IsConnected(primary?.Id), message = "TCP disconnected." });
 });
 
 app.Map("/api/ws", async context =>
@@ -533,33 +703,17 @@ app.Lifetime.ApplicationStopping.Register(() =>
 {
     Log("[Sensa] Shutting down…");
     recorder.Stop();
-    tcode.Park();
-    tcode.Dispose();
-    tcodeUdp.Park();
-    tcodeUdp.Dispose();
-    tcodeTcp.Park();
-    tcodeTcp.Dispose();
+    outputManager.DisposeAsync().AsTask().GetAwaiter().GetResult();
     oscReceiver.Stop();
     oscReceiver.Dispose();
     routine.Dispose();
-    intifaceHost?.Dispose();
     save.Save();
 });
 
 oscReceiver.Start();
-Log($"[OSC] Listening on UDP :{save.Osc.ReceiverPort}");
+Log($"[OSC] Listening on {save.Osc.ReceiverHost}:{save.Osc.ReceiverPort}");
 
-if (save.TCode.Enabled && !string.IsNullOrWhiteSpace(save.TCode.ComPort))
-    await ConnectTCodeAsync();
-
-if (save.UdpTCode.Enabled)
-    await ConnectTCodeUdpAsync();
-
-if (save.TcpTCode.Enabled)
-    await ConnectTCodeTcpAsync();
-
-if (save.Intiface.Enabled)
-    await ConnectIntifaceAsync();
+await outputManager.ConnectEnabledAsync();
 
 routine.Start();
 Log($"[WebUI] Available at {uiUrl}");
@@ -582,17 +736,12 @@ await routine.StopAsync();
 routine.Dispose();
 oscReceiver.Stop();
 oscReceiver.Dispose();
-tcode.Park();
-tcode.Dispose();
-tcodeUdp.Park();
-tcodeUdp.Dispose();
-tcodeTcp.Park();
-tcodeTcp.Dispose();
-await intiface.DisposeAsync();
-intifaceHost?.Dispose();
+await outputManager.DisposeAsync();
 save.Save();
 
-public sealed record ManualTestRequest(
+public sealed record InputModeRequest(string Mode);
+
+public sealed record ManualInputRequest(
     bool Enabled,
     float L0,
     float R0,
@@ -602,3 +751,8 @@ public sealed record ManualTestRequest(
     float L2,
     float Vibrate,
     bool GateOpen);
+
+public sealed record ScriptPlaybackRequest(
+    bool Restart,
+    bool? Loop,
+    double? Speed);

@@ -10,6 +10,10 @@
     <ProjectReference Include="..\service-recording\Sensa.ServiceRecording.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="System.Management" Version="9.0.*" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

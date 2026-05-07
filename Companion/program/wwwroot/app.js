@@ -1,2873 +1,2510 @@
-// ============================================================
-// Sensa WebUI — Vue 3 CDN  (v20250503)
-// ============================================================
-const { createApp, ref, reactive, computed, watch, nextTick, onMounted, onUnmounted, defineComponent } = Vue; // ───── CONSTANTS ─────────────────────────────────────────────
-const LANGUAGES = ['zh-CN', 'en'];
-const DEVICE_MEMORY_KEY = 'sensa.deviceMemory';
-const DEVICE_CONFIG_KEY = 'sensa.deviceCfg';
-const SHOW_MOCK = new URLSearchParams(location.search).has('mock');
-const MAX_HIST = 300;
-const AXES = ['L0', 'R0', 'R1', 'R2', 'L1', 'L2', 'Vibrate'];
-const AXIS_DEFS = { L0: 0, R0: 0.5, R1: 0.5, R2: 0.5, L1: 0.5, L2: 0.5, Vibrate: 0 };
-const AXIS_KEY = { L0: 'l0', R0: 'r0', R1: 'r1', R2: 'r2', L1: 'l1', L2: 'l2', Vibrate: 'vibrate' };
-const AXIS_LABELS = {
-  L0: { zh: 'L0 主冲程', en: 'L0 Stroke' },
-  R0: { zh: 'R0 扭转', en: 'R0 Twist' },
-  R1: { zh: 'R1 横滚', en: 'R1 Roll' },
-  R2: { zh: 'R2 俯仰', en: 'R2 Pitch' },
-  L1: { zh: 'L1 前后', en: 'L1 Forward/Back' },
-  L2: { zh: 'L2 左右', en: 'L2 Left/Right' },
-  Vibrate: { zh: '振动', en: 'Vibrate' },
-};
-const PRIMARY_POSE_AXES = ['L1', 'L0', 'R2'];
-const MOCK_DEVICES = [
-  {
-    id: 'mock:sr6',
-    memoryId: 'mock:sr6',
-    kind: 'tcode',
-    source: 'mock',
-    name: 'SR6 Mock Rig',
-    model: 'SR6',
-    connectionLabel: 'TCode',
-    summary: '6 轴串口设备布局预览，用于检查 SR6 轴向与卡片样式。',
-    facts: { port: 'COM-MOCK', mode: 'Speed', axes: 'L0/R0/R1/R2/L1/L2', state: 'Preview' },
-    quickActions: ['park'],
-    snapshot: { comPort: 'COM-MOCK', minPos: 100, maxPos: 900, maxVelocity: 1400, updatesPerSecond: 50, preferSpeedMode: true, rampUpMs: 2000 },
-  },
-];
+const {
+  Alert,
+  AppBar,
+  Box,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  Chip,
+  CssBaseline,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  FormControl,
+  FormControlLabel,
+  InputLabel,
+  LinearProgress,
+  MenuItem,
+  Select,
+  Slider,
+  Snackbar,
+  Stack,
+  Switch,
+  Tab,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Tabs,
+  TextField,
+  Tooltip,
+  Toolbar,
+  Typography,
+  createTheme,
+  ThemeProvider,
+} = MaterialUI;
 
-// ───── I18N ─────────────────────────────────────────────────
-const I18N = {
-  'zh-CN': {
-    'hero.desc': '本地控制台，用于 TCode 串口设备连接、配置与实时控制。',
-    'btn.refresh': '刷新状态',
-    'btn.save': '保存配置',
-    'btn.apply': '应用并保存',
-    'btn.reloadConfig': '重新读取',
-    'btn.addSignal': '新增信号',
-    'btn.delete': '删除',
-    'btn.connectTCode': '连接 TCode',
-    'btn.disconnectTCode': '断开 TCode',
-    'btn.parkTCode': 'TCode 回中',
-    'btn.park': '回中',
-    'btn.startLoop': '启动 Loop',
-    'btn.stopLoop': '停止 Loop',
-    'btn.startRecording': '开始录制',
-    'btn.stopRecording': '停止录制',
-    'btn.exportFunscript': '导出 .funscript',
-    'btn.saveDeviceCfg': '保存设备配置',
-    'btn.loadDeviceCfg': '读取已保存',
-    'btn.applyManual': '应用手动测试',
-    'btn.clearManual': '清除手动测试',
-    'btn.copyDiag': '复制诊断摘要',
-    'btn.centerAxes': '回正所有轴',
-    'cb.manualEnabled': '启用手动覆盖',
-    'cb.gateOpen': 'GateOpen',
-    'nav.overview': '总览',
-    'nav.config': '配置',
-    'nav.connections': '连接',
-    'nav.control': '控制',
-    'nav.scripts': '脚本',
-    'nav.monitoring': '监控',
-    'nav.help': '帮助',
-    'overview.title': '总览',
-    'overview.badge': '当前状态',
-    'overview.status': '服务状态',
-    'overview.diag': '实时诊断',
-    'overview.diagDesc': '当前运行状态与异常提示。',
-    'overview.devices.title': '已连接设备总览',
-    'overview.devices.desc': '优先显示已连接真实设备。',
-    'overview.guide.none.title': '暂无连接的设备',
-    'overview.guide.none.body': '请前往「配置」页连接 TCode 串口设备，再到「连接」页进行手动测试。',
-    'overview.guide.connected.title': '设备链路已建立',
-    'overview.guide.connected.body': '可前往「控制」页手动测试轴向，或直接「启动 Loop」开始实时输出。',
-    'overview.guide.osc.title': 'OSC 尚未收到参数',
-    'overview.guide.osc.body': '请确认 VRChat 已启用 OSC，端口与 Sensa 配置的接收端口一致。',
-    'config.tcode.title': 'TCode 串口连接',
-    'config.tcode.desc': '适用于 OSR2 / SR6 / OSR6 等 TCode 串口设备。',
-    'config.service.title': '服务配置',
-    'config.service.desc': '管理服务地址、端口和 OSC 接收端口。',
-    'config.safety.title': '安全与限制',
-    'config.safety.desc': '全局强度上限、空闲行为与紧急停止热键。',
-    'cfg.webui.host': 'Host',
-    'cfg.webui.port': 'Port',
-    'cfg.osc.port': 'ReceiverPort',
-    'cfg.tcode.comPort': '串口号 (COM Port)',
-    'cfg.tcode.minPos': 'MinPos',
-    'cfg.tcode.maxPos': 'MaxPos',
-    'cfg.tcode.maxVel': 'MaxVelocity',
-    'cfg.tcode.ups': 'UpdatesPerSecond',
-    'cfg.tcode.enabled': '启用 TCode 自动连接',
-    'cfg.tcode.speedMode': '优先速度模式',
-    'cfg.tcode.refreshPorts': '刷新',
-    'cfg.safety.cap': '全局强度上限 (GlobalIntensityCap)',
-    'cfg.safety.ramp': 'RampUpMs（启动渐增）',
-    'cfg.safety.idle': '空闲行为 (Idle)',
-    'cfg.safety.estop': '紧急停止热键 (EmergencyStopKey)',
-    'cfg.rhythm.enabled': '启用 BPM 检测',
-    'cfg.rhythm.window': 'WindowMs',
-    'cfg.rhythm.minBpm': 'MinBpm',
-    'cfg.rhythm.maxBpm': 'MaxBpm',
-    'signals.title': '信号矩阵',
-    'signals.desc': '集中编辑信号路径、角色和曲线映射。',
-    'signals.filter': '搜索 OSC Path 或 Role',
-    'sig.oscPath': 'OSC Path',
-    'sig.role': 'Role',
-    'sig.curve': 'Curve',
-    'sig.min': 'Min',
-    'sig.max': 'Max',
-    'sig.alpha': 'α',
-    'sig.dz': 'Dead Zone',
-    'sig.inv': 'Invert',
-    'sig.latest': '最新值',
-    'devices.title': '连接工作台',
-    'devices.desc': '统一管理串口、UDP、TCP 与 Intiface 连接。',
-    'connections.serial': '串口 TCode',
-    'connections.udp': 'UDP (TCode over UDP)',
-    'connections.tcp': 'TCP (TCode over TCP)',
-    'connections.intiface': 'Intiface',
-    'connections.host': 'Host',
-    'connections.port': 'Port',
-    'connections.connect': '连接',
-    'connections.disconnect': '断开',
-    'connections.scanStart': '开始扫描',
-    'connections.scanStop': '停止扫描',
-    'connections.manageEngine': '自动管理 Intiface 引擎',
-    'connections.ws': 'WebSocket 地址',
-    'connections.sensaTransport': 'Sensa 服务链路',
-    'connections.httpApi': 'HTTP API',
-    'connections.wsStream': 'WS 流 (/api/ws)',
-    'connections.lastWs': '最近消息',
-    'connections.nextRetry': '重连间隔',
-    'connections.diagnostics': '连接诊断',
-    'connections.diag.empty': '暂无连接诊断事件。',
-    'connections.diag.lastEvent': '最近事件',
-    'connections.diag.serial': '串口 TCode',
-    'connections.diag.udp': 'UDP',
-    'connections.diag.tcp': 'TCP',
-    'connections.diag.intiface': 'Intiface',
-    'connections.diag.http': 'HTTP API',
-    'connections.diag.ws': 'WS 流',
-    'devices.test.title': '手动测试',
-    'devices.test.desc': '在不启动 Loop 的情况下验证设备轴向响应。',
-    'devices.range.title': '输出范围',
-    'devices.range.desc': '设备行程的下限与上限（TCode 0–999）。',
-    'devices.params.title': '设备参数',
-    'devices.params.maxVel': 'MaxVelocity（速度上限）',
-    'devices.params.ups': 'UpdatesPerSecond（帧率）',
-    'devices.params.ramp': 'RampUpMs（启动渐增）',
-    'devices.empty.title': '当前没有真实连接设备',
-    'devices.empty.body': '可用 ?mock URL 参数开启 Mock 预览，或到「配置」页连接设备。',
-    'devices.memory.title': '设备备注',
-    'devices.memory.none': '还没有保存的备注。',
-    'devices.memory.saved': '已保存 {time}',
-    'devices.alias': '设备别名',
-    'devices.note': '设备备注',
-    'devices.profile': '连接快照',
-    'control.title': '实时控制',
-    'control.desc': '手动调节各轴位置与参数。',
-    'control.axes.title': '轴位控制',
-    'control.axes.running': 'Loop 运行中，仅显示实时输出值。停止 Loop 后方可手动操作。',
-    'control.axes.stopped': 'Loop 已停止。可拖动滑条设置各轴位置，再点「应用」发送至设备。',
-    'control.bpm.title': 'BPM 节奏检测',
-    'control.bpm.desc': '分析 OSC 信号变化频率，自动估算节拍 BPM。',
-    'control.invert.title': 'L0 轴反转',
-    'control.invert.desc': '将 L0 输出取反（0↔1），修改后需保存配置。',
-    'control.manual.title': '手动覆盖',
-    'control.manual.desc': '启用后滑条值将覆盖 OSC 信号直接发送至设备。',
-    'scripts.title': '脚本工作台',
-    'scripts.badge': 'Script Studio',
-    'scripts.recording.title': '录制与导出',
-    'scripts.recording.desc': '录制当前 L0 输出并导出为 .funscript 文件。',
-    'scripts.recording.hint': '导出前自动做 RDP 简化；浏览器本地预览不直接控制设备。',
-    'scripts.import.title': '导入与来源',
-    'scripts.import.desc': '使用录制缓存，或导入本地 .funscript 文件。',
-    'scripts.import.file': '选择 .funscript 文件',
-    'scripts.import.useRecording': '使用当前录制缓存',
-    'scripts.import.clear': '清空脚本预览',
-    'scripts.player.title': '脚本预览播放',
-    'scripts.player.desc': '仅用于波形检查，不向设备发送命令。',
-    'scripts.player.play': '播放',
-    'scripts.player.pause': '暂停',
-    'scripts.player.stop': '停止',
-    'scripts.player.empty': '未加载',
-    'scripts.player.playing': '播放中',
-    'scripts.player.paused': '已暂停',
-    'scripts.timeline.title': '时间轴摘要',
-    'scripts.timeline.desc': '脚本来源、帧数和时长摘要。',
-    'scripts.timeline.empty': '当前没有可预览的脚本数据。',
-    'scripts.meta.empty': '当前未加载脚本。',
-    'scripts.meta.recording': '录制缓存：{count} 个采样点，约 {duration}。',
-    'scripts.meta.imported': '已导入 `{name}`：{count} 个动作点，时长约 {duration}。',
-    'scripts.summary.source': '当前来源',
-    'scripts.summary.points': '动作/采样',
-    'scripts.summary.duration': '时长',
-    'scripts.summary.position': '当前位置',
-    'scripts.source.empty': '未加载',
-    'scripts.source.recording': '录制缓存',
-    'scripts.source.imported': '导入脚本',
-    'scripts.timeline.source': '来源',
-    'scripts.timeline.frames': '关键点数量',
-    'scripts.timeline.density': '关键点密度',
-    'scripts.timeline.range': '时长范围',
-    'scripts.timeline.preview': '当前位置',
-    'monitor.params.title': '参数流',
-    'monitor.params.desc': '实时收到的 OSC 参数。',
-    'monitor.params.filter': '搜索参数路径 / 类型',
-    'monitor.chart.title': '轴位输出历史',
-    'monitor.chart.desc': 'over time',
-    'monitor.logs.title': '日志',
-    'monitor.logs.desc': '连接、配置与运行事件日志。',
-    'monitor.logs.filter': '搜索日志关键字',
-    'help.title': '帮助与文档',
-    'help.endpoints.title': 'HTTP / WS 端点',
-    'help.links.title': '参考链接',
-    'help.links.desc': '相关文档与外部参考资料。',
-    'help.links.tcodeSpec': 'TCode 轴、命令和扩展项的公开规范。',
-    'help.links.osr': '固件参考实现，适合对照轴向与实时控制语义。',
-    'help.links.emu': '适合对照 TCode 的 Ixxxx / Sxxxx 行为与姿态模型。',
-    'help.links.vsp': '补充说明串口连接、设备准备与测试流程。',
-    'label.loop': 'Loop',
-    'label.params': '参数数量',
-    'label.recording': '录制',
-    'label.manual': '手动测试',
-    'label.output': '输出',
-    'label.port': '端口',
-    'label.mode': '模式',
-    'label.auto': '自动连接',
-    'label.frames': '帧数',
-    'label.mock': 'Mock 预览',
-    'label.real': '真实设备',
-    'label.on': '开',
-    'label.off': '关',
-    'label.speed': '速度模式',
-    'label.interval': '时间模式',
-    'label.none': '无',
-    'status.running': '运行中',
-    'status.stopped': '已停止',
-    'status.connected': '已连接',
-    'status.disconnected': '未连接',
-    'status.idle': '空闲',
-    'status.active': '活动中',
-    'status.normal': '正常',
-    'status.triggered': '已触发',
-    'status.enabled': '已启用',
-    'status.disabled': '未启用',
-    'toast.refreshFailed': '刷新失败',
-    'toast.refreshSuccess': '状态已刷新',
-    'toast.saved': '配置已保存',
-    'toast.applied': '配置已保存',
-    'toast.actionSuccess': '操作成功',
-    'toast.actionFailed': '操作失败',
-    'toast.signalAdded': '已新增信号',
-    'toast.exportDone': '导出完成',
-    'toast.diagCopied': '诊断已复制',
-    'toast.themeChanged': '主题已切换',
-    'toast.langChanged': '界面语言已切换',
-    'toast.memorySaved': '设备备注已保存',
-    'toast.portsRefreshed': '串口列表已刷新',
-    'toast.scriptLoaded': '脚本已加载',
-    'toast.scriptCleared': '脚本预览已清空',
-    'toast.scriptFailed': '脚本加载失败',
-    'toast.deviceCfgSaved': '设备配置已保存',
-    'toast.deviceCfgLoaded': '已读取保存的配置',
-    'msg.saved': '配置已写入磁盘。',
-    'msg.applied': '配置已应用并保存。',
-    'msg.signalAdded': '请填写 OSC Path 并选择合适的 Role。',
-    'msg.noRecording': '没有可导出的录制数据',
-    'msg.diagCopied': '诊断摘要已复制。',
-    'msg.tcodeConnectFailed': 'TCode 连接失败，请检查 COM 口、驱动、串口占用和设备供电。',
-    'msg.actionReportedFailure': '服务返回失败状态，请查看日志。',
-    'msg.scriptInvalid': '不是有效的 .funscript JSON，或缺少 actions 数组。',
-    'msg.portsRefreshed': '可用 COM 口已重新枚举。',
-    'msg.deviceCfgSaved': '设备参数已保存到本地。再次连接时可一键读取。',
-    'msg.deviceCfgLoaded': '已读取该设备已保存的参数配置。',
-    'msg.langChanged': '语言偏好已保存。',
-    'msg.copyFailed': '复制失败，请手动复制。',
-    'msg.noSavedDeviceCfg': '这个设备还没有保存过配置。',
-    'diag.loopStopped.title': 'Loop 当前未运行',
-    'diag.loopStopped.body': '不会继续向设备发送融合命令。点击「启动 Loop」恢复。',
-    'diag.emergency.title': 'Emergency Stop 已触发',
-    'diag.emergency.body': '设备输出被强制压制。确认安全后可清除紧急停止。',
-    'diag.tcodeMissing.title': 'TCode 自动连接已启用但未连接',
-    'diag.tcodeMissing.body': '请确认 COM 口正确、未被占用，可在「配置」页手动重连。',
-    'diag.oscMissing.title': '尚未收到 OSC 参数',
-    'diag.oscMissing.body': '检查 VRChat OSC 是否启用、端口是否为 9001，以及头像是否带有 Sensa 组件。',
-    'diag.ok.title': '运行状态良好',
-    'diag.ok.body': '当前没有发现明显的连接或运行问题。',
-    'recording.summary': '录制状态：{state}，累计 {count} 帧。',
-    'recording.active': '录制中',
-    'recording.inactive': '未录制',
-    'tip.tcode.comPort': '填写设备串口号，如 COM3。可点「刷新」枚举可用串口。',
-    'tip.tcode.minPos': '输出下限（0–999），对应行程底端。默认 100。',
-    'tip.tcode.maxPos': '输出上限（0–999），对应行程顶端。默认 900。',
-    'tip.tcode.maxVel': '每帧最大移动量（速度上限）。越小越安全，越大动作越快。',
-    'tip.tcode.ups': '每秒向设备发送命令的频率。建议 50–100。',
-    'tip.tcode.enabled': '服务启动时自动连接到指定串口。',
-    'tip.tcode.speedMode': '发送速度指令 (Ixxxx) 代替位置指令 (Lxxxx)。需固件支持。',
-    'tip.lang': '切换界面语言',
-    'tip.webui.host': 'WebUI 服务监听地址。通常保持 127.0.0.1 或 0.0.0.0。',
-    'tip.webui.port': 'WebUI 服务监听端口，修改后需要重启服务。',
-    'tip.osc.port': '接收 VRChat OSC 的 UDP 端口，默认 9001。',
-    'tip.stat.loop': 'Loop 是主处理循环，运行时才向设备下发融合后的命令。',
-    'tip.stat.bpm': '由 OSC 信号变化推算出的节拍 BPM，0 表示未检测到节奏。',
-    'tip.stat.params': '当前通过 OSC 收到并更新的参数总数。',
-    'tip.stat.oscPort': '当前监听 VRChat OSC 数据的 UDP 端口。',
-    'tip.stat.tcode': 'TCode 串口设备的连接状态。',
-    'tip.stat.recording': 'L0 输出录制状态。可在脚本页导出为 .funscript。',
-    'tip.stat.manual': '手动覆盖状态。启用后设备接受手动测试值。',
-    'tip.stat.output': '当前各轴的实时输出值。',
-  },
-  en: {
-    'hero.desc': 'Local console for TCode serial device connection, configuration, and real-time control.',
-    'btn.refresh': 'Refresh',
-    'btn.save': 'Save Config',
-    'btn.apply': 'Apply & Save',
-    'btn.reloadConfig': 'Reload',
-    'btn.addSignal': 'Add Signal',
-    'btn.delete': 'Delete',
-    'btn.connectTCode': 'Connect TCode',
-    'btn.disconnectTCode': 'Disconnect TCode',
-    'btn.parkTCode': 'Park TCode',
-    'btn.park': 'Park',
-    'btn.startLoop': 'Start Loop',
-    'btn.stopLoop': 'Stop Loop',
-    'btn.startRecording': 'Start Recording',
-    'btn.stopRecording': 'Stop Recording',
-    'btn.exportFunscript': 'Export .funscript',
-    'btn.saveDeviceCfg': 'Save Device Config',
-    'btn.loadDeviceCfg': 'Load Saved',
-    'btn.applyManual': 'Apply Manual Test',
-    'btn.clearManual': 'Clear Manual Test',
-    'btn.copyDiag': 'Copy Diagnostics',
-    'btn.centerAxes': 'Center All Axes',
-    'cb.manualEnabled': 'Enable Manual Override',
-    'cb.gateOpen': 'GateOpen',
-    'nav.overview': 'Overview',
-    'nav.config': 'Config',
-    'nav.connections': 'Connections',
-    'nav.control': 'Control',
-    'nav.scripts': 'Scripts',
-    'nav.monitoring': 'Monitoring',
-    'nav.help': 'Help',
-    'overview.title': 'Overview',
-    'overview.badge': 'Current status',
-    'overview.status': 'Service Status',
-    'overview.diag': 'Live Diagnostics',
-    'overview.diagDesc': 'Current runtime status and active warnings.',
-    'overview.devices.title': 'Connected Device Overview',
-    'overview.devices.desc': 'Real connected devices shown first.',
-    'overview.guide.none.title': 'No connected devices',
-    'overview.guide.none.body': 'Go to Config to connect your TCode device, then test in Connections.',
-    'overview.guide.connected.title': 'A device path is available',
-    'overview.guide.connected.body': 'Use the Control tab for manual testing or start Loop for live output.',
-    'overview.guide.osc.title': 'No OSC parameters yet',
-    'overview.guide.osc.body': 'Check VRChat OSC settings, confirm port 9001, and verify the avatar has Sensa components.',
-    'config.tcode.title': 'TCode Serial Connection',
-    'config.tcode.desc': 'For OSR2 / SR6 / OSR6 style TCode devices.',
-    'config.service.title': 'Service Configuration',
-    'config.service.desc': 'Manage host, port, and OSC port settings.',
-    'config.safety.title': 'Safety & Limits',
-    'config.safety.desc': 'Global intensity cap, idle behavior, and emergency stop hotkey.',
-    'cfg.webui.host': 'Host',
-    'cfg.webui.port': 'Port',
-    'cfg.osc.port': 'ReceiverPort',
-    'cfg.tcode.comPort': 'COM Port',
-    'cfg.tcode.minPos': 'MinPos',
-    'cfg.tcode.maxPos': 'MaxPos',
-    'cfg.tcode.maxVel': 'MaxVelocity',
-    'cfg.tcode.ups': 'UpdatesPerSecond',
-    'cfg.tcode.enabled': 'Enable TCode auto-connect',
-    'cfg.tcode.speedMode': 'Prefer speed mode',
-    'cfg.tcode.refreshPorts': 'Refresh',
-    'cfg.safety.cap': 'GlobalIntensityCap',
-    'cfg.safety.ramp': 'RampUpMs',
-    'cfg.safety.idle': 'Idle Behavior',
-    'cfg.safety.estop': 'EmergencyStopKey',
-    'cfg.rhythm.enabled': 'Enable BPM detection',
-    'cfg.rhythm.window': 'WindowMs',
-    'cfg.rhythm.minBpm': 'MinBpm',
-    'cfg.rhythm.maxBpm': 'MaxBpm',
-    'signals.title': 'Signal Matrix',
-    'signals.desc': 'Edit signal paths, roles, and curve mappings.',
-    'signals.filter': 'Search OSC path or role',
-    'sig.oscPath': 'OSC Path',
-    'sig.role': 'Role',
-    'sig.curve': 'Curve',
-    'sig.min': 'Min',
-    'sig.max': 'Max',
-    'sig.alpha': 'α',
-    'sig.dz': 'Dead Zone',
-    'sig.inv': 'Invert',
-    'sig.latest': 'Latest',
-    'devices.title': 'Connection Workbench',
-    'devices.desc': 'Manage Serial, UDP, TCP, and Intiface connections in one place.',
-    'connections.serial': 'Serial TCode',
-    'connections.udp': 'UDP (TCode over UDP)',
-    'connections.tcp': 'TCP (TCode over TCP)',
-    'connections.intiface': 'Intiface',
-    'connections.host': 'Host',
-    'connections.port': 'Port',
-    'connections.connect': 'Connect',
-    'connections.disconnect': 'Disconnect',
-    'connections.scanStart': 'Start Scan',
-    'connections.scanStop': 'Stop Scan',
-    'connections.manageEngine': 'Manage Intiface engine automatically',
-    'connections.ws': 'WebSocket Address',
-    'connections.sensaTransport': 'Sensa Service Transport',
-    'connections.httpApi': 'HTTP API',
-    'connections.wsStream': 'WS Stream (/api/ws)',
-    'connections.lastWs': 'Last message',
-    'connections.nextRetry': 'Reconnect delay',
-    'connections.diagnostics': 'Connection Diagnostics',
-    'connections.diag.empty': 'No connection diagnostics yet.',
-    'connections.diag.lastEvent': 'Last event',
-    'connections.diag.serial': 'Serial TCode',
-    'connections.diag.udp': 'UDP',
-    'connections.diag.tcp': 'TCP',
-    'connections.diag.intiface': 'Intiface',
-    'connections.diag.http': 'HTTP API',
-    'connections.diag.ws': 'WS Stream',
-    'devices.test.title': 'Manual Test',
-    'devices.test.desc': 'Test device axis responses without a live VRChat signal.',
-    'devices.range.title': 'Output Range',
-    'devices.range.desc': 'Device travel limits (TCode 0–999).',
-    'devices.params.title': 'Device Parameters',
-    'devices.params.maxVel': 'MaxVelocity (speed cap)',
-    'devices.params.ups': 'UpdatesPerSecond (frame rate)',
-    'devices.params.ramp': 'RampUpMs (startup ramp)',
-    'devices.empty.title': 'No real connected devices',
-    'devices.empty.body': 'Use ?mock URL parameter for mock preview, or go to Config to connect a device.',
-    'devices.memory.title': 'Device Note',
-    'devices.memory.none': 'No note saved for this device.',
-    'devices.memory.saved': 'Saved at {time}',
-    'devices.alias': 'Device Alias',
-    'devices.note': 'Device Note',
-    'devices.profile': 'Connection Snapshot',
-    'control.title': 'Live Control',
-    'control.desc': 'Manually adjust axis positions and parameters.',
-    'control.axes.title': 'Axis Control',
-    'control.axes.running': 'Loop is running — showing live read-only output. Stop Loop to enable manual control.',
-    'control.axes.stopped': 'Loop is stopped. Drag sliders to set axis positions, then click Apply.',
-    'control.bpm.title': 'BPM Rhythm Detection',
-    'control.bpm.desc': 'Estimates BPM from OSC signal variation frequency.',
-    'control.invert.title': 'L0 Axis Invert',
-    'control.invert.desc': 'Inverts L0 output (0↔1). Requires saving config.',
-    'control.manual.title': 'Manual Override',
-    'control.manual.desc': 'When enabled, slider values are sent directly to the device instead of OSC signals.',
-    'scripts.title': 'Script Studio',
-    'scripts.badge': 'Script Studio',
-    'scripts.recording.title': 'Recording & Export',
-    'scripts.recording.desc': 'Capture live L0 output and export as .funscript.',
-    'scripts.recording.hint': 'Export uses trajectory simplification. Preview does not control devices.',
-    'scripts.import.title': 'Import & Source',
-    'scripts.import.desc': 'Use the recording buffer or import a .funscript file.',
-    'scripts.import.file': 'Choose .funscript file',
-    'scripts.import.useRecording': 'Use current recording buffer',
-    'scripts.import.clear': 'Clear preview',
-    'scripts.player.title': 'Script Preview',
-    'scripts.player.desc': 'Waveform inspection only — does not control devices.',
-    'scripts.player.play': 'Play',
-    'scripts.player.pause': 'Pause',
-    'scripts.player.stop': 'Stop',
-    'scripts.player.empty': 'No script loaded',
-    'scripts.player.playing': 'Playing',
-    'scripts.player.paused': 'Paused',
-    'scripts.timeline.title': 'Timeline Summary',
-    'scripts.timeline.desc': 'Source, frame count, and duration.',
-    'scripts.timeline.empty': 'No script data available.',
-    'scripts.meta.empty': 'No script data loaded.',
-    'scripts.meta.recording': 'Recording buffer: {count} samples over about {duration}.',
-    'scripts.meta.imported': 'Imported `{name}`: {count} action points, about {duration}.',
-    'scripts.summary.source': 'Current source',
-    'scripts.summary.points': 'Actions / samples',
-    'scripts.summary.duration': 'Duration',
-    'scripts.summary.position': 'Current position',
-    'scripts.source.empty': 'Empty',
-    'scripts.source.recording': 'Recording buffer',
-    'scripts.source.imported': 'Imported script',
-    'scripts.timeline.source': 'Source',
-    'scripts.timeline.frames': 'Key points',
-    'scripts.timeline.density': 'Key density',
-    'scripts.timeline.range': 'Duration range',
-    'scripts.timeline.preview': 'Current position',
-    'monitor.params.title': 'Parameter Stream',
-    'monitor.params.desc': 'Live OSC parameters received.',
-    'monitor.params.filter': 'Search parameter path / type',
-    'monitor.chart.title': 'Axis Output History',
-    'monitor.chart.desc': 'over time',
-    'monitor.logs.title': 'Logs',
-    'monitor.logs.desc': 'Connection, config, and runtime event logs.',
-    'monitor.logs.filter': 'Search logs',
-    'help.title': 'Help & Documentation',
-    'help.endpoints.title': 'HTTP / WS Endpoints',
-    'help.links.title': 'Reference Links',
-    'help.links.desc': 'Documentation and related external resources.',
-    'help.links.tcodeSpec': 'Public spec for TCode axes, commands, and extension terms.',
-    'help.links.osr': 'Firmware reference for axis naming and real-time behavior.',
-    'help.links.emu': 'Useful for comparing Ixxxx / Sxxxx behavior and pose models.',
-    'help.links.vsp': 'Additional guidance for serial setup, device prep, and testing.',
-    'label.loop': 'Loop',
-    'label.params': 'Parameters',
-    'label.recording': 'Recording',
-    'label.manual': 'Manual',
-    'label.output': 'Output',
-    'label.port': 'Port',
-    'label.mode': 'Mode',
-    'label.auto': 'Auto Connect',
-    'label.frames': 'Frames',
-    'label.mock': 'Mock Preview',
-    'label.real': 'Real Device',
-    'label.on': 'On',
-    'label.off': 'Off',
-    'label.speed': 'Speed Mode',
-    'label.interval': 'Interval Mode',
-    'label.none': 'None',
-    'status.running': 'Running',
-    'status.stopped': 'Stopped',
-    'status.connected': 'Connected',
-    'status.disconnected': 'Disconnected',
-    'status.idle': 'Idle',
-    'status.active': 'Active',
-    'status.normal': 'Normal',
-    'status.triggered': 'Triggered',
-    'status.enabled': 'Enabled',
-    'status.disabled': 'Disabled',
-    'toast.refreshFailed': 'Refresh failed',
-    'toast.refreshSuccess': 'State refreshed',
-    'toast.saved': 'Config saved',
-    'toast.applied': 'Config saved',
-    'toast.actionSuccess': 'Action completed',
-    'toast.actionFailed': 'Action failed',
-    'toast.signalAdded': 'Signal added',
-    'toast.exportDone': 'Export complete',
-    'toast.diagCopied': 'Diagnostics copied',
-    'toast.themeChanged': 'Theme changed',
-    'toast.langChanged': 'Language changed',
-    'toast.memorySaved': 'Device note saved',
-    'toast.portsRefreshed': 'Serial ports refreshed',
-    'toast.scriptLoaded': 'Script loaded',
-    'toast.scriptCleared': 'Script preview cleared',
-    'toast.scriptFailed': 'Script load failed',
-    'toast.deviceCfgSaved': 'Device config saved',
-    'toast.deviceCfgLoaded': 'Saved config loaded',
-    'msg.saved': 'Config written to disk.',
-    'msg.applied': 'Config applied and saved.',
-    'msg.signalAdded': 'Fill in the OSC path and choose a role.',
-    'msg.noRecording': 'No recording data available',
-    'msg.diagCopied': 'Diagnostics summary copied.',
-    'msg.tcodeConnectFailed': 'TCode connection failed. Check COM port, driver, contention, and device power.',
-    'msg.actionReportedFailure': 'The service reported a failure. Check logs.',
-    'msg.scriptInvalid': 'Not a valid .funscript JSON or missing actions array.',
-    'msg.portsRefreshed': 'Available COM ports were re-enumerated.',
-    'msg.deviceCfgSaved': 'Device parameters saved locally. Load on next connect.',
-    'msg.deviceCfgLoaded': 'Loaded saved parameters for this device.',
-    'msg.langChanged': 'Language preference saved.',
-    'msg.copyFailed': 'Copy failed. Please copy manually.',
-    'msg.noSavedDeviceCfg': 'No saved configuration found for this device.',
-    'diag.loopStopped.title': 'Loop is not running',
-    'diag.loopStopped.body': 'No fused commands are being sent. Click Start Loop if this is unexpected.',
-    'diag.emergency.title': 'Emergency Stop is active',
-    'diag.emergency.body': 'Device output is clamped. Clear the emergency stop when safe to resume.',
-    'diag.tcodeMissing.title': 'TCode auto-connect is enabled but not connected',
-    'diag.tcodeMissing.body': 'Check COM port, ensure it is free, then retry from Config.',
-    'diag.oscMissing.title': 'No OSC parameters received yet',
-    'diag.oscMissing.body': 'Check VRChat OSC, confirm port 9001, verify avatar has Sensa components.',
-    'diag.ok.title': 'System looks healthy',
-    'diag.ok.body': 'No obvious connection or runtime problems detected.',
-    'recording.summary': 'Recording: {state}, {count} frames.',
-    'recording.active': 'Recording',
-    'recording.inactive': 'Not recording',
-    'tip.tcode.comPort': 'Serial port for the device, e.g. COM3. Click Refresh to list available ports.',
-    'tip.tcode.minPos': 'Minimum axis position (0–999), bottom of travel. Usually 100.',
-    'tip.tcode.maxPos': 'Maximum axis position (0–999), top of travel. Usually 900.',
-    'tip.tcode.maxVel': 'Max per-frame movement (velocity cap). Lower values protect mechanics.',
-    'tip.tcode.ups': 'Commands per second sent to the device. 50–100 recommended.',
-    'tip.tcode.enabled': 'Auto-connect to the specified serial port on service start.',
-    'tip.tcode.speedMode': 'Send speed (Ixxxx) instead of position (Lxxxx) commands. Requires interpolating firmware.',
-    'tip.lang': 'Switch interface language',
-    'tip.webui.host': 'WebUI service bind address. Usually keep 127.0.0.1 or 0.0.0.0.',
-    'tip.webui.port': 'WebUI listening port. Restart service after changes.',
-    'tip.osc.port': 'UDP port used to receive VRChat OSC. Default is 9001.',
-    'tip.stat.loop': 'Main processing loop. Must be running to send commands.',
-    'tip.stat.bpm': 'Current BPM estimated from OSC signal variation. 0 = no rhythm.',
-    'tip.stat.params': 'Number of OSC parameters received. 0 means no OSC signal yet.',
-    'tip.stat.oscPort': 'UDP port listening for VRChat OSC data.',
-    'tip.stat.tcode': 'TCode serial device connection state.',
-    'tip.stat.recording': 'L0 recording state. Export as .funscript from Scripts tab.',
-    'tip.stat.manual': 'Manual override state. When enabled, device uses manual test values.',
-    'tip.stat.output': 'Current real-time axis output values.',
-  },
-};
+const { useEffect, useMemo, useRef, useState } = React;
 
-// ───── REACTIVE STATE ─────────────────────────────────────────
-const appState = reactive({
-  meta: null,
-  config: null,
-  overview: null,
-  parameters: [],
-  logs: [],
-  serialPorts: [],
-  recordingFrames: [],
-  roles: [],
-  curves: [],
-  idleBehaviors: [],
-  activeTab: localStorage.getItem('sensa.activeTab') || 'overview',
-  language: localStorage.getItem('sensa.language') || 'zh-CN',
-  theme: 'light',
-  wsConnected: false,
-  wsRetryMs: 1000,
-  wsLastMessageAt: null,
-  apiReachable: true,
-  connectionHealth: {
-    serial: { status: 'idle', message: '', at: null },
-    udp: { status: 'idle', message: '', at: null },
-    tcp: { status: 'idle', message: '', at: null },
-    intiface: { status: 'idle', message: '', at: null },
-    http: { status: 'idle', message: '', at: null },
-    ws: { status: 'idle', message: '', at: null },
-  },
-  toastList: [], // kept for backward compat but unused
-  filters: { signals: '', parameters: '', logs: '' },
-  // Control tab
-  manual: { ...AXIS_DEFS },
-  manualEnabled: false,
-  manualGateOpen: true,
-  // Script player
-  scriptPlayer: {
-    source: 'empty',
-    name: '',
-    points: [],
-    durationMs: 0,
-    currentMs: 0,
-    isPlaying: false,
-    startedAtMs: 0,
-    baselineMs: 0,
-    rafId: 0,
-  },
-  // Axis history for ECharts
-  axisHistory: [],
-  // Device config locally persisted
-  deviceDrafts: {},
-  // Pipeline workbench
-  pipeline: { columns: [], links: [] },
-  pipelineUi: {
-    addTypeByColumn: {},
-    linkFrom: '',
-    linkTo: '',
-  },
-});
+const STORAGE_KEY = 'sensa.studio.v4';
+const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 
-const TABS = [
-  { id: 'overview', label: 'nav.overview' },
-  { id: 'config', label: 'nav.config' },
-  { id: 'control', label: 'nav.control' },
-  { id: 'scripts', label: 'nav.scripts' },
-  { id: 'monitoring', label: 'nav.monitoring' },
-  { id: 'help', label: 'nav.help' },
-];
-
-const PIPELINE_STORAGE_KEY = 'sensa.pipeline.v1';
-const INPUT_NODE_TYPES = [
+const INPUT_MODES = [
   { value: 'osc', label: 'OSC' },
-  { value: 'http', label: 'HTTP' },
-  { value: 'ws', label: 'WS' },
-  { value: 'manual', label: '手动控制' },
-  { value: 'script', label: '脚本输入' },
-];
-const PROCESS_NODE_TYPES = [
-  { value: 'transform', label: '数值变换' },
-  { value: 'invert-l0', label: 'L0 反转' },
-  { value: 'clamp', label: '区间限制' },
-];
-const OUTPUT_NODE_TYPES = [
-  { value: 'serial', label: 'TCode 串口' },
-  { value: 'udp', label: 'TCode UDP' },
-  { value: 'tcp', label: 'TCode TCP' },
-  { value: 'intiface', label: 'Intiface' },
-  { value: 'script', label: '脚本输出' },
+  { value: 'manual', label: '手动' },
+  { value: 'script', label: '脚本' },
 ];
 
-function makeId(prefix) {
+const OUTPUT_TYPES = [
+  { value: 'TCodeSerial', label: 'TCode 串口', shortLabel: '串口直连', scanSupported: false },
+  { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
+  { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
+  { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
+];
+
+const OUTPUT_TYPE_BY_VALUE = Object.fromEntries(OUTPUT_TYPES.map(item => [item.value, item]));
+
+const EMPTY_MANUAL = {
+  L0: 0,
+  L1: 0.5,
+  L2: 0.5,
+  R0: 0.5,
+  R1: 0.5,
+  R2: 0.5,
+  V0: 0,
+  V1: 0,
+  V2: 0,
+  A0: 0.5,
+  BpmDrive: 0,
+  GateOpen: true,
+};
+
+const MANUAL_AXES = [
+  { key: 'L0', label: 'L0 主轴', min: 0, max: 1, step: 0.01, description: '主往复轴。0 表示最缩回，1 表示最伸出。' },
+  { key: 'L1', label: 'L1 前后', min: 0, max: 1, step: 0.01, description: '前后平移轴；0.5 附近表示居中。' },
+  { key: 'L2', label: 'L2 左右', min: 0, max: 1, step: 0.01, description: '左右平移轴；0.5 附近表示居中。' },
+  { key: 'R0', label: 'R0 滚转', min: 0, max: 1, step: 0.01, description: '滚转轴，控制左右翻滚；0.5 附近表示居中。' },
+  { key: 'R1', label: 'R1 俯仰', min: 0, max: 1, step: 0.01, description: '俯仰轴，控制前后俯仰；0.5 附近表示居中。' },
+  { key: 'R2', label: 'R2 扭转', min: 0, max: 1, step: 0.01, description: '扭转轴，控制旋转角度；0.5 附近表示居中。' },
+  { key: 'V0', label: 'V0 震动', min: 0, max: 1, step: 0.01, description: '主震动强度。0 为关闭，1 为最大。' },
+  { key: 'V1', label: 'V1 震动 2', min: 0, max: 1, step: 0.01, description: '第二路震动强度。0 为关闭，1 为最大。' },
+  { key: 'V2', label: 'V2 震动 3', min: 0, max: 1, step: 0.01, description: '第三路震动强度。0 为关闭，1 为最大。' },
+  { key: 'A0', label: 'A0 辅助', min: 0, max: 1, step: 0.01, description: '辅助通道（如气泵/润滑等），0.5 附近表示居中。' },
+  { key: 'BpmDrive', label: '节奏驱动', min: 0, max: 1, step: 0.01, description: 'BPM 节奏驱动强度，由节奏检测功能自动控制。' },
+];
+
+const SIGNAL_ROLE_OPTIONS = [
+  { value: 'Depth', label: '主轴行程（L0）' },
+  { value: 'Surge', label: '前后位移（L1）' },
+  { value: 'Sway', label: '左右位移（L2）' },
+  { value: 'AngleX', label: '滚转（R0）' },
+  { value: 'AngleY', label: '俯仰（R1）' },
+  { value: 'Twist', label: '扭转（R2）' },
+  { value: 'Vibrate', label: '主震动（V0）' },
+  { value: 'Vibrate2', label: '震动 2（V1）' },
+  { value: 'Vibrate3', label: '震动 3（V2）' },
+  { value: 'Auxiliary', label: '辅助（A0）' },
+  { value: 'Gate', label: '闸门' },
+  { value: 'BpmDrive', label: '节奏驱动' },
+];
+
+const AXIS_PROFILE_DEFS = [
+  { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
+  { key: 'l1', axis: 'L1', label: '前后位移', minLabel: '后', maxLabel: '前' },
+  { key: 'l2', axis: 'L2', label: '左右位移', minLabel: '左', maxLabel: '右' },
+  { key: 'r0', axis: 'R0', label: '滚转', minLabel: '左', maxLabel: '右' },
+  { key: 'r1', axis: 'R1', label: '俯仰', minLabel: '后', maxLabel: '前' },
+  { key: 'r2', axis: 'R2', label: '扭转', minLabel: '左旋', maxLabel: '右旋' },
+  { key: 'v0', axis: 'V0', label: '主震动', minLabel: '最小', maxLabel: '最大' },
+  { key: 'v1', axis: 'V1', label: '震动 2', minLabel: '最小', maxLabel: '最大' },
+  { key: 'v2', axis: 'V2', label: '震动 3', minLabel: '最小', maxLabel: '最大' },
+  { key: 'a0', axis: 'A0', label: '辅助通道', minLabel: '最小', maxLabel: '最大' },
+];
+
+const DEFAULT_AXIS_PROFILE = {
+  min: 100,
+  max: 900,
+  maxSpeed: 1400,
+  invert: false,
+};
+
+const BUILT_IN_OSC_MAPPING_PRESETS = [
+  {
+    id: 'osr-inserted-pussy',
+    name: 'OSR-VRChat · 被插入（小穴）',
+    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Pussy/PenOthers。',
+    mappings: [{ oscPath: 'OGB/Orf/Pussy/PenOthers', role: 'Depth', isOgbSocket: true }],
+  },
+  {
+    id: 'osr-inserted-ass',
+    name: 'OSR-VRChat · 被插入（后庭）',
+    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Ass/PenOthers。',
+    mappings: [{ oscPath: 'OGB/Orf/Ass/PenOthers', role: 'Depth', isOgbSocket: true }],
+  },
+  {
+    id: 'osr-inserting-others',
+    name: 'OSR-VRChat · 插入他人',
+    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*（通配），并按其 inserting_others 逻辑反向映射深度。',
+    mappings: [{ oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true }],
+  },
+  {
+    id: 'osr-inserting-self',
+    name: 'OSR-VRChat · 自插测试',
+    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*（通配），并按其 inserting_self 逻辑反向映射深度。',
+    mappings: [{ oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true }],
+  },
+  {
+    id: 'ogb-socket-full',
+    name: 'OGB Socket 完整（被插入 · 全部轴）',
+    description: '参照 osc.toys / OGB 标准：作为 Orifice/Socket 方，映射全部 SPS 参数轴（深度、姿态、平移、震动）。路径前缀可自行替换为具体孔位（如 Pussy→Ass）。',
+    mappings: [
+      { oscPath: 'OGB/Orf/Pussy/Main/PenOthers', role: 'Depth', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/AngleRight_Raw', role: 'AngleX', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/AngleUp_Raw', role: 'AngleY', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/Twist_Raw', role: 'Twist', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/Surge_Raw', role: 'Surge', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/Sway_Raw', role: 'Sway', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/Vibrate', role: 'Vibrate', isOgbSocket: true },
+    ],
+  },
+  {
+    id: 'ogb-plug-full',
+    name: 'OGB Plug 完整（插入方 · 全部轴）',
+    description: '参照 osc.toys / OGB 标准：作为 Pen/Plug 方，使用 OGB/Pen/* 通配路径映射全部 SPS 参数轴。深度默认反向（插入越深值越小）。',
+    mappings: [
+      { oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'AngleX', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'AngleY', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'Twist', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'Surge', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'Sway', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'Vibrate', isOgbPlug: true },
+    ],
+  },
+  {
+    id: 'sensa-socket-starter',
+    name: 'Sensa / OGB Socket · 深度 + 姿态起点',
+    description: '按照 Sensa 生成的 OGB 参数命名，附带单边姿态起始映射。',
+    mappings: [
+      { oscPath: 'OGB/Orf/Pussy/Main/PenOthers', role: 'Depth', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/AngleRight_Raw', role: 'AngleX', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/AngleUp_Raw', role: 'AngleY', isOgbSocket: true },
+    ],
+  },
+];
+
+const BUILT_IN_OSC_PRESET_IDS = new Set(BUILT_IN_OSC_MAPPING_PRESETS.map(preset => preset.id));
+
+function createDefaultMotionProfile(useGlobal = false) {
+  return {
+    useGlobal,
+    l0: { ...DEFAULT_AXIS_PROFILE },
+    l1: { ...DEFAULT_AXIS_PROFILE },
+    l2: { ...DEFAULT_AXIS_PROFILE },
+    r0: { ...DEFAULT_AXIS_PROFILE },
+    r1: { ...DEFAULT_AXIS_PROFILE },
+    r2: { ...DEFAULT_AXIS_PROFILE },
+    v0: { ...DEFAULT_AXIS_PROFILE },
+    v1: { ...DEFAULT_AXIS_PROFILE },
+    v2: { ...DEFAULT_AXIS_PROFILE },
+    a0: { ...DEFAULT_AXIS_PROFILE },
+  };
+}
+
+function createDefaultAxisProfileCard(name = '全局默认', options = {}) {
+  return {
+    id: options.id || (options.isDefault ? 'global-default' : createDraftId('axis-profile')),
+    name,
+    isDefault: Boolean(options.isDefault),
+    motion: createDefaultMotionProfile(false),
+  };
+}
+
+function normalizeAxisProfile(axis) {
+  const next = {
+    ...DEFAULT_AXIS_PROFILE,
+    ...(axis || {}),
+  };
+
+  const min = Math.max(0, Math.min(999, Number(next.min ?? DEFAULT_AXIS_PROFILE.min)));
+  const max = Math.max(min, Math.min(999, Number(next.max ?? DEFAULT_AXIS_PROFILE.max)));
+
+  return {
+    min,
+    max,
+    maxSpeed: Math.max(1, Math.min(9999, Number(next.maxSpeed ?? DEFAULT_AXIS_PROFILE.maxSpeed))),
+    invert: Boolean(next.invert),
+  };
+}
+
+function normalizeMotionProfile(profile, useGlobal = false) {
+  const fallback = createDefaultMotionProfile(useGlobal);
+  return {
+    ...fallback,
+    ...(profile || {}),
+    useGlobal: profile?.useGlobal ?? useGlobal,
+    l0: normalizeAxisProfile(profile?.l0),
+    l1: normalizeAxisProfile(profile?.l1),
+    l2: normalizeAxisProfile(profile?.l2),
+    r0: normalizeAxisProfile(profile?.r0),
+    r1: normalizeAxisProfile(profile?.r1),
+    r2: normalizeAxisProfile(profile?.r2),
+    v0: normalizeAxisProfile(profile?.v0),
+    v1: normalizeAxisProfile(profile?.v1),
+    v2: normalizeAxisProfile(profile?.v2),
+    a0: normalizeAxisProfile(profile?.a0),
+  };
+}
+
+function normalizeAxisProfileCard(profile, index = 0) {
+  return {
+    id: (profile?.id || (index === 0 ? 'global-default' : `axis-profile-${index + 1}`)).trim(),
+    name: (profile?.name || (index === 0 ? '全局默认' : `轴配置 ${index + 1}`)).trim(),
+    isDefault: Boolean(profile?.isDefault),
+    motion: normalizeMotionProfile(profile?.motion, false),
+  };
+}
+
+function normalizeAxisProfiles(config) {
+  const source = Array.isArray(config?.axisProfiles) ? config.axisProfiles : [];
+  const profiles = (source.length ? source : [createDefaultAxisProfileCard('全局默认', { isDefault: true })]).map((profile, index) => normalizeAxisProfileCard(profile, index));
+  const defaultProfile = profiles.find(profile => profile.isDefault) || profiles[0];
+  return profiles.map(profile => ({
+    ...profile,
+    isDefault: profile.id === defaultProfile.id,
+  }));
+}
+
+function cloneAxisProfileCard(profile) {
+  return JSON.parse(
+    JSON.stringify({
+      ...profile,
+      motion: normalizeMotionProfile(profile?.motion, false),
+    }),
+  );
+}
+
+function cloneMotionProfile(profile, useGlobal = false) {
+  return JSON.parse(JSON.stringify(normalizeMotionProfile(profile, useGlobal)));
+}
+
+function getAxisProfiles(config) {
+  return normalizeAxisProfiles(config);
+}
+
+function getDefaultAxisProfile(config) {
+  return getAxisProfiles(config).find(profile => profile.isDefault) || getAxisProfiles(config)[0];
+}
+
+function getDefaultAxisProfileId(config) {
+  return getDefaultAxisProfile(config)?.id || 'global-default';
+}
+
+function getAxisProfile(config, profileId) {
+  const profiles = getAxisProfiles(config);
+  return profiles.find(profile => profile.id === profileId) || getDefaultAxisProfile(config);
+}
+
+function buildProfileDialogDraft(profileId, config) {
+  const profile = getAxisProfile(config, profileId);
+  return {
+    profileId: profile.id,
+    name: profile.name,
+    isDefault: Boolean(profile.isDefault),
+    isNew: false,
+    profile: cloneMotionProfile(profile.motion, false),
+  };
+}
+
+function buildNewProfileDialogDraft(config) {
+  const nextIndex = getAxisProfiles(config).length + 1;
+  return {
+    profileId: createDraftId('axis-profile'),
+    name: `轴配置 ${nextIndex}`,
+    isDefault: false,
+    isNew: true,
+    profile: createDefaultMotionProfile(false),
+  };
+}
+
+function stripMotionProfile(profile, useGlobal = false) {
+  const normalized = normalizeMotionProfile(profile, useGlobal);
+  return {
+    useGlobal,
+    l0: normalized.l0,
+    r0: normalized.r0,
+    r1: normalized.r1,
+    r2: normalized.r2,
+    l1: normalized.l1,
+    l2: normalized.l2,
+  };
+}
+
+function createDraftId(prefix = 'draft') {
   return `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function createPipelineCard(kind, type) {
-  const base = {
-    id: makeId(`${kind}-${type}`),
-    kind,
-    type,
-    name: `${kind} · ${type}`,
-    enabled: true,
-    solo: false,
-    config: {},
-  };
-  if (kind === 'input') {
-    if (type === 'osc') base.config = { port: 9001, sourceKey: 'osc-main', pathPrefix: '/avatar/parameters' };
-    if (type === 'http') base.config = { port: 5086, route: '/ingest/http', sourceKey: 'http-1' };
-    if (type === 'ws') base.config = { port: 5086, route: '/ingest/ws', sourceKey: 'ws-1' };
-    if (type === 'manual') base.config = { sourceKey: 'manual-1', note: '来自控制页手动覆盖' };
-    if (type === 'script') base.config = { sourceKey: 'script-player', mode: 'timeline' };
-    base.name = INPUT_NODE_TYPES.find(x => x.value === type)?.label || base.name;
-  }
-  if (kind === 'process') {
-    if (type === 'transform') base.config = { targetAxis: 'L0', gain: 1, offset: 0 };
-    if (type === 'invert-l0') base.config = { targetAxis: 'L0' };
-    if (type === 'clamp') base.config = { targetAxis: 'L0', min: 0, max: 1 };
-    base.name = PROCESS_NODE_TYPES.find(x => x.value === type)?.label || base.name;
-  }
-  if (kind === 'output') {
-    if (type === 'serial') base.config = { comPort: 'COM3' };
-    if (type === 'udp') base.config = { host: '127.0.0.1', port: 9999 };
-    if (type === 'tcp') base.config = { host: '127.0.0.1', port: 9998 };
-    if (type === 'intiface') base.config = { websocketAddress: 'ws://localhost:12345' };
-    if (type === 'script') base.config = { fileName: 'output.funscript' };
-    base.name = OUTPUT_NODE_TYPES.find(x => x.value === type)?.label || base.name;
-  }
-  return base;
-}
-
-function createDefaultPipeline() {
-  const inputCard = createPipelineCard('input', 'osc');
-  const outputCard = createPipelineCard('output', 'serial');
+function makeSignalDraft(signal = {}) {
   return {
-    columns: [
-      { id: 'col-input', kind: 'input', title: '输入列', cards: [inputCard] },
-      { id: 'col-output', kind: 'output', title: '输出列', cards: [outputCard] },
-    ],
-    links: [{ id: makeId('link'), from: inputCard.id, to: outputCard.id }],
+    _draftId: createDraftId('signal'),
+    oscPath: '',
+    invertDirection: false,
+    vrchatMin: 0,
+    vrchatMax: 1,
+    smoothingAlpha: 0.7,
+    deadZone: 0.01,
+    curve: 'Linear',
+    role: 'Depth',
+    isOgbSocket: false,
+    isOgbPlug: false,
+    ...signal,
   };
 }
 
-function loadPipeline() {
-  try {
-    const parsed = JSON.parse(localStorage.getItem(PIPELINE_STORAGE_KEY) || 'null');
-    if (!parsed || !Array.isArray(parsed.columns) || !Array.isArray(parsed.links) || parsed.columns.length < 2) return createDefaultPipeline();
-    return parsed;
-  } catch {
-    return createDefaultPipeline();
+function buildSignalDrafts(signals) {
+  return Array.isArray(signals) ? signals.map(signal => makeSignalDraft(signal)) : [];
+}
+
+function createOscPresetDraft(name = '新预设', options = {}) {
+  return {
+    id: options.id || createDraftId('osc-preset'),
+    name,
+    description: options.description || '',
+    mappings: Array.isArray(options.mappings) ? options.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })) : [],
+  };
+}
+
+function normalizeOscPreset(preset, index = 0, options = {}) {
+  return {
+    id: (preset?.id || `osc-preset-${index + 1}`).trim(),
+    name: (preset?.name || `OSC 预设 ${index + 1}`).trim(),
+    description: (preset?.description || '').trim(),
+    isBuiltIn: Boolean(options.isBuiltIn),
+    mappings: Array.isArray(preset?.mappings) ? preset.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })).filter(mapping => Boolean(mapping.oscPath)) : [],
+  };
+}
+
+function getCustomOscMappingPresets(config) {
+  const source = Array.isArray(config?.oscMappingPresets) ? config.oscMappingPresets : [];
+  return source.map((preset, index) => normalizeOscPreset(preset, index, { isBuiltIn: false })).filter(preset => !BUILT_IN_OSC_PRESET_IDS.has(preset.id));
+}
+
+function getOscMappingPresets(config) {
+  const customPresets = getCustomOscMappingPresets(config);
+  const customIds = new Set(customPresets.map(preset => preset.id));
+  const builtInPresets = BUILT_IN_OSC_MAPPING_PRESETS.filter(preset => !customIds.has(preset.id)).map((preset, index) => normalizeOscPreset(preset, index, { isBuiltIn: true }));
+
+  return [...builtInPresets, ...customPresets];
+}
+
+function getOscMappingPreset(config, presetId) {
+  if (!presetId) return null;
+  return getOscMappingPresets(config).find(preset => preset.id === presetId) || null;
+}
+
+function buildPresetDialogDraft(config, presetId, options = {}) {
+  const fromCurrentMappings = options.fromCurrent === true;
+  const preset = presetId ? getOscMappingPreset(config, presetId) : null;
+  const fromBuiltIn = Boolean(preset?.isBuiltIn);
+  const customPresetCount = getCustomOscMappingPresets(config).length;
+  const sourceMappings = fromCurrentMappings ? options.currentMappings || [] : preset?.mappings || [];
+
+  return {
+    presetId: fromBuiltIn || !preset ? createDraftId('osc-preset') : preset.id,
+    name: preset?.name ? (fromBuiltIn ? `${preset.name} · 自定义` : preset.name) : `OSC 预设 ${customPresetCount + 1}`,
+    description: preset?.description || '',
+    isNew: fromBuiltIn || !preset,
+    fromBuiltIn,
+    mappings: buildSignalDrafts(sourceMappings),
+  };
+}
+
+function stripSignalDraft(signal) {
+  const { _draftId, ...rest } = signal;
+  return {
+    ...rest,
+    oscPath: (rest.oscPath || '').trim(),
+    vrchatMin: Number(rest.vrchatMin || 0),
+    vrchatMax: Number(rest.vrchatMax || 0),
+    smoothingAlpha: Number(rest.smoothingAlpha || 0),
+    deadZone: Number(rest.deadZone || 0),
+  };
+}
+
+function countInvertedAxes(profile) {
+  return AXIS_PROFILE_DEFS.filter(axis => profile?.[axis.key]?.invert).length;
+}
+
+function describeCommandMode(preferSpeedMode) {
+  return preferSpeedMode ? '按速度 (S)' : '按时间 (I)';
+}
+
+function describeCommandModeDetail(preferSpeedMode) {
+  return preferSpeedMode
+    ? '发送形如 L0500S0200 的指令。目标位置不变，但会额外告诉设备“以多快的速度逼近目标”，更适合连续跟随。'
+    : '发送形如 L0500I0020 的指令。目标位置不变，但会额外告诉设备“在多少毫秒内到达目标”，更适合固定步进。';
+}
+
+function buildAxisProfileBadges(profileCard) {
+  const motion = normalizeMotionProfile(profileCard?.motion, false);
+  return AXIS_PROFILE_DEFS.flatMap(axis => {
+    const current = motion[axis.key];
+    const badges = [`${axis.axis} ${current.min}-${current.max}`];
+    if (current.invert) badges.push(`${axis.axis} 反向`);
+    return badges;
+  });
+}
+
+function isTCodeOutputType(type) {
+  return type === 'TCodeSerial' || type === 'TCodeUdp' || type === 'TCodeTcp';
+}
+
+function getOutputTypeLabel(type) {
+  return OUTPUT_TYPE_BY_VALUE[type]?.label || '输出设备';
+}
+
+function getOutputs(config) {
+  return Array.isArray(config?.outputs) ? config.outputs : [];
+}
+
+function buildDefaultOutputName(type, config) {
+  const index = getOutputs(config).filter(output => output.type === type).length + 1;
+  return `${getOutputTypeLabel(type)} ${index}`;
+}
+
+function createOutputConfig(type, config) {
+  return {
+    id: createDraftId('output'),
+    name: buildDefaultOutputName(type, config),
+    type,
+    enabled: false,
+    motionProfileId: getDefaultAxisProfileId(config),
+    comPort: '',
+    host: '127.0.0.1',
+    port: type === 'TCodeUdp' ? 9999 : type === 'TCodeTcp' ? 9998 : 12345,
+    updatesPerSecond: 50,
+    preferSpeedMode: true,
+    manageEngineProcess: true,
+    websocketAddress: 'ws://localhost:12345',
+  };
+}
+
+function normalizeOutputConfig(output, config) {
+  const fallback = createOutputConfig(output?.type || 'TCodeSerial', config);
+  return {
+    ...fallback,
+    ...(output || {}),
+    id: output?.id || fallback.id,
+    name: (output?.name || fallback.name).trim(),
+    type: output?.type || fallback.type,
+    enabled: Boolean(output?.enabled),
+    motionProfileId: isTCodeOutputType(output?.type || fallback.type) ? output?.motionProfileId || getDefaultAxisProfileId(config) : getDefaultAxisProfileId(config),
+    comPort: output?.comPort || '',
+    host: output?.host || fallback.host,
+    port: Number(output?.port || fallback.port),
+    updatesPerSecond: Number(output?.updatesPerSecond || fallback.updatesPerSecond),
+    preferSpeedMode: output?.preferSpeedMode !== false,
+    manageEngineProcess: output?.manageEngineProcess !== false,
+    websocketAddress: output?.websocketAddress || fallback.websocketAddress,
+  };
+}
+
+function getOutputConfig(config, outputId) {
+  return getOutputs(config).find(output => output.id === outputId) || null;
+}
+
+function getOutputOverview(overview, outputId) {
+  return Array.isArray(overview?.outputs) ? overview.outputs.find(output => output.id === outputId) || null : null;
+}
+
+function buildOutputSummary(output) {
+  if (!output) return '未配置';
+  if (output.type === 'TCodeSerial') {
+    const portLabel = output.comPort || '未设置串口';
+    return `${portLabel} · ${Math.max(10, Number(output.updatesPerSecond || 50))} Hz · ${describeCommandMode(Boolean(output.preferSpeedMode))}`;
   }
-}
-
-function savePipeline(pipeline) {
-  try {
-    localStorage.setItem(PIPELINE_STORAGE_KEY, JSON.stringify(pipeline));
-  } catch {}
-}
-
-// ───── UTILITIES ──────────────────────────────────────────────
-function t(key, replacements = null) {
-  const table = I18N[appState.language] || I18N['zh-CN'];
-  let v = table[key] ?? I18N['zh-CN'][key] ?? key;
-  if (replacements) for (const [k, r] of Object.entries(replacements)) v = v.replaceAll(`{${k}}`, r);
-  return v;
-}
-
-function esc(v) {
-  return String(v ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
-function fmtDur(ms) {
-  const s = Math.floor(Math.max(0, ms) / 1000);
-  return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`;
-}
-
-async function api(path, opts = {}) {
-  const r = await fetch(path, { headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) }, ...opts });
-  if (!r.ok) {
-    const tx = await r.text();
-    throw new Error(`${r.status} ${r.statusText} - ${tx}`);
+  if (output.type === 'TCodeUdp' || output.type === 'TCodeTcp') {
+    return `${output.host || '127.0.0.1'}:${output.port || (output.type === 'TCodeUdp' ? 9999 : 9998)}`;
   }
-  const ct = r.headers.get('content-type') || '';
-  return ct.includes('application/json') ? r.json() : r.text();
+  return output.websocketAddress || 'ws://localhost:12345';
 }
 
-function showToast(title, message, type = 'success', ms = 2800) {
-  const content = [title, message].filter(Boolean).join(': ');
-  const duration = ms;
-  if (type === 'error') TDesign.MessagePlugin.error({ content, duration });
-  else if (type === 'warn' || type === 'warning') TDesign.MessagePlugin.warning({ content, duration });
-  else TDesign.MessagePlugin.success({ content, duration });
+function apiRequest(path, options = {}) {
+  return fetch(path, options).then(async response => {
+    const isJson = (response.headers.get('content-type') || '').includes('application/json');
+    const payload = isJson ? await response.json() : await response.text();
+
+    if (!response.ok) {
+      const message = typeof payload === 'string' ? payload : payload?.error || payload?.message || `${response.status} ${response.statusText}`;
+      throw new Error(message);
+    }
+
+    return payload;
+  });
 }
 
-function loadDeviceMem() {
+function cloneConfig(config) {
+  return JSON.parse(JSON.stringify(config));
+}
+
+function loadStudio() {
   try {
-    return JSON.parse(localStorage.getItem(DEVICE_MEMORY_KEY) || '{}');
-  } catch {
-    return {};
-  }
-}
-function saveDeviceMem(m) {
-  localStorage.setItem(DEVICE_MEMORY_KEY, JSON.stringify(m));
-}
-function getDeviceMem(device) {
-  return loadDeviceMem()[`${device.kind}:${device.memoryId}`] || null;
-}
-function setDeviceMem(device, payload) {
-  const m = loadDeviceMem();
-  m[`${device.kind}:${device.memoryId}`] = { ...payload, savedAt: new Date().toISOString() };
-  saveDeviceMem(m);
-}
-function clearDeviceMem(device) {
-  const m = loadDeviceMem();
-  delete m[`${device.kind}:${device.memoryId}`];
-  saveDeviceMem(m);
-}
-
-function loadDeviceCfg(port) {
-  try {
-    const all = JSON.parse(localStorage.getItem(DEVICE_CONFIG_KEY) || '{}');
-    return all[port] || null;
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
-function saveDeviceCfg(port, cfg) {
-  try {
-    const all = JSON.parse(localStorage.getItem(DEVICE_CONFIG_KEY) || '{}');
-    all[port] = { ...cfg, savedAt: new Date().toISOString() };
-    localStorage.setItem(DEVICE_CONFIG_KEY, JSON.stringify(all));
-  } catch {}
+
+function normalizeSerialPorts(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map(item => {
+    if (typeof item === 'string') return { portName: item, description: null };
+    return { portName: item?.portName || '', description: item?.description || null };
+  });
 }
 
-function axisLabel(axis) {
-  const rec = AXIS_LABELS[axis];
-  if (!rec) return axis;
-  return appState.language === 'zh-CN' ? rec.zh : rec.en;
-}
-
-function mapPathToConnection(path) {
-  if (path.startsWith('/api/control/tcode/')) return 'serial';
-  if (path.startsWith('/api/control/udp/')) return 'udp';
-  if (path.startsWith('/api/control/tcp/')) return 'tcp';
-  if (path.startsWith('/api/control/intiface/')) return 'intiface';
-  return null;
-}
-
-// ───── DEVICE BUILD ───────────────────────────────────────────
-function buildRealDevices() {
-  const devs = [];
-  if (appState.overview?.tcode?.connected) {
-    const cfg = appState.config?.tCode || {};
-    devs.push({
-      id: `tcode:${cfg.comPort || 'unknown'}`,
-      memoryId: cfg.comPort || 'unknown',
-      kind: 'tcode',
-      source: 'real',
-      name: cfg.comPort ? `TCode @ ${cfg.comPort}` : 'TCode Device',
-      model: cfg.comPort?.toUpperCase().includes('COM') ? 'OSR-class' : 'TCode',
-      connectionLabel: 'TCode',
-      summary: '当前通过串口连接的 OSR 类设备。',
-      facts: {
-        port: cfg.comPort || t('label.none'),
-        mode: cfg.preferSpeedMode ? t('label.speed') : t('label.interval'),
-        ups: `${cfg.updatesPerSecond ?? '-'} UPS`,
-        state: t('status.connected'),
-      },
-      quickActions: ['park'],
-      snapshot: {
-        comPort: cfg.comPort,
-        minPos: cfg.minPos,
-        maxPos: cfg.maxPos,
-        maxVelocity: cfg.maxVelocity,
-        updatesPerSecond: cfg.updatesPerSecond,
-        preferSpeedMode: cfg.preferSpeedMode,
-        rampUpMs: appState.config?.safety?.rampUpMs,
-      },
-    });
-  }
-  if (appState.overview?.udpTCode?.connected) {
-    const cfg = appState.config?.udpTCode || {};
-    devs.push({
-      id: `udp:${cfg.host || 'unknown'}:${cfg.port || 0}`,
-      memoryId: `${cfg.host || 'unknown'}:${cfg.port || 0}`,
-      kind: 'tcode',
-      source: 'real',
-      name: `TCode UDP @ ${cfg.host || '-'}:${cfg.port || '-'}`,
-      model: 'Network Bridge',
-      connectionLabel: 'UDP',
-      summary: '通过 UDP 发送 TCode 指令。',
-      facts: {
-        host: cfg.host || '-',
-        port: cfg.port || '-',
-        mode: appState.config?.tCode?.preferSpeedMode ? t('label.speed') : t('label.interval'),
-        state: t('status.connected'),
-      },
-      quickActions: ['park'],
-      snapshot: { host: cfg.host, port: cfg.port },
-    });
-  }
-  if (appState.overview?.tcpTCode?.connected) {
-    const cfg = appState.config?.tcpTCode || {};
-    devs.push({
-      id: `tcp:${cfg.host || 'unknown'}:${cfg.port || 0}`,
-      memoryId: `${cfg.host || 'unknown'}:${cfg.port || 0}`,
-      kind: 'tcode',
-      source: 'real',
-      name: `TCode TCP @ ${cfg.host || '-'}:${cfg.port || '-'}`,
-      model: 'Network Bridge',
-      connectionLabel: 'TCP',
-      summary: '通过 TCP 发送 TCode 指令。',
-      facts: {
-        host: cfg.host || '-',
-        port: cfg.port || '-',
-        mode: appState.config?.tCode?.preferSpeedMode ? t('label.speed') : t('label.interval'),
-        state: t('status.connected'),
-      },
-      quickActions: ['park'],
-      snapshot: { host: cfg.host, port: cfg.port },
-    });
-  }
-  if (appState.overview?.intiface?.connected) {
-    const count = appState.overview?.intiface?.devices?.length || 0;
-    devs.push({
-      id: 'intiface:hub',
-      memoryId: 'intiface:hub',
-      kind: 'intiface',
-      source: 'real',
-      name: 'Intiface Hub',
-      model: 'Buttplug',
-      connectionLabel: 'Intiface',
-      summary: '通过 Intiface/Buttplug 控制已发现设备。',
-      facts: {
-        ws: appState.config?.intiface?.websocketAddress || '-',
-        devices: String(count),
-        mode: appState.config?.intiface?.manageEngineProcess ? 'Managed Engine' : 'External Engine',
-        state: t('status.connected'),
-      },
-      quickActions: [],
-      snapshot: { count },
-    });
-  }
-  return devs;
-}
-
-function buildMockDevices() {
-  return MOCK_DEVICES.map(m => ({ ...m }));
-}
-
-// ───── SCRIPT PLAYER ─────────────────────────────────────────
-function stopScriptPlayback() {
-  const p = appState.scriptPlayer;
-  p.isPlaying = false;
-  if (p.rafId) {
-    cancelAnimationFrame(p.rafId);
-    p.rafId = 0;
-  }
-}
-
-function setScriptMs(ms) {
-  const p = appState.scriptPlayer;
-  p.currentMs = Math.max(0, Math.min(p.durationMs || 0, Math.round(ms || 0)));
-}
-
-function getScriptValAt(ms) {
-  const pts = appState.scriptPlayer.points || [];
-  if (!pts.length) return 0;
-  let v = pts[0].value;
-  for (const pt of pts) {
-    if (pt.ms > ms) break;
-    v = pt.value;
-  }
-  return v;
-}
-
-function setScriptDataset({ source, name, points, durationMs }) {
-  stopScriptPlayback();
-  appState.scriptPlayer = {
-    ...appState.scriptPlayer,
-    source,
-    name,
-    points,
-    durationMs: Math.max(0, Math.round(durationMs || 0)),
-    currentMs: 0,
-    isPlaying: false,
-    startedAtMs: 0,
-    baselineMs: 0,
-    rafId: 0,
+function sanitizeStudio(raw, config) {
+  return {
+    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : 'osc',
   };
 }
 
-function parseFunscript(text) {
-  const data = JSON.parse(text);
-  if (!data || !Array.isArray(data.actions)) throw new Error(t('msg.scriptInvalid'));
-  const pts = data.actions.map(a => ({ ms: Math.max(0, Math.round(Number(a.at) || 0)), value: Math.max(0, Math.min(1, (Number(a.pos) || 0) / 100)) })).sort((a, b) => a.ms - b.ms);
-  return { points: pts, durationMs: pts.length ? pts[pts.length - 1].ms : 0 };
+function isWildcardOscPath(path) {
+  return typeof path === 'string' && path.trim().endsWith('/*');
 }
 
-// ───── CANVAS DRAW ────────────────────────────────────────────
-function drawDevice(ctx, width, height, command = {}) {
-  ctx.clearRect(0, 0, width, height);
-  const cx = width / 2 + ((command.l1 ?? 0.5) - 0.5) * Math.min(width * 0.28, 220);
-  const cy = height / 2 - ((command.l0 ?? 0.0) - 0.5) * Math.min(height * 0.32, 120);
-  const stroke = command.l0 ?? 0;
-  const roll = (((command.r0 ?? 0.5) - 0.5) * Math.PI) / 1.4;
-  const pitch = (((command.r2 ?? 0.5) - 0.5) * Math.PI) / 1.4;
-  const twist = ((command.r2 ?? 0.5) - 0.5) * Math.PI * 2;
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.rotate(roll * 0.45);
-  const bLen = Math.round(110 + stroke * Math.min(height * 0.42, 95));
-  const bW = 36 + Math.cos(twist) * 4;
-  ctx.fillStyle = 'rgba(101,162,255,0.15)';
-  ctx.strokeStyle = 'rgba(101,162,255,0.92)';
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.roundRect(-bW / 2, -bLen / 2, bW, bLen, 16);
-  ctx.fill();
-  ctx.stroke();
-  ctx.save();
-  ctx.translate(0, -bLen / 2);
-  ctx.rotate(twist);
-  ctx.beginPath();
-  ctx.ellipse(0, 0, 24, 14 + Math.abs(pitch) * 8, 0, 0, Math.PI * 2);
-  ctx.fillStyle = 'rgba(75,216,168,0.16)';
-  ctx.fill();
-  ctx.strokeStyle = 'rgba(75,216,168,0.9)';
-  ctx.lineWidth = 2;
-  ctx.stroke();
-  ctx.restore();
-  ctx.restore();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)';
-  ctx.font = '12px Segoe UI,sans-serif';
-  ctx.fillText(`L0 ${Number(command.l0 ?? 0).toFixed(2)} · R0 ${Number(command.r0 ?? 0.5).toFixed(2)} · Vib ${Number(command.vibrate ?? 0).toFixed(2)}`, 12, 18);
+function matchesOscPathPattern(pattern, actualPath) {
+  const normalizedPattern = (pattern || '').trim();
+  const normalizedActualPath = (actualPath || '').trim();
+
+  if (!normalizedPattern || !normalizedActualPath) return false;
+
+  if (isWildcardOscPath(normalizedPattern)) {
+    return normalizedActualPath.startsWith(normalizedPattern.slice(0, -1));
+  }
+
+  return normalizedPattern === normalizedActualPath;
 }
 
-// ─────────────────────────────────────────────────────────────
-// COMPONENTS
-// ─────────────────────────────────────────────────────────────
+function getLatestOscPreviewEntry(previewEntries, pattern) {
+  const matches = Array.isArray(previewEntries) ? previewEntries.filter(entry => matchesOscPathPattern(pattern, entry?.path || '')) : [];
+  if (matches.length === 0) return null;
 
-// Dual-range range slider
-const DualRange = {
-  name: 'DualRange',
-  props: {
-    modelValue: { type: Array, default: () => [0, 100] },
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 999 },
-    label: String,
-    disabled: Boolean,
-  },
-  emits: ['update:modelValue'],
-  setup(props, { emit }) {
-    const low = computed(() => props.modelValue[0]);
-    const high = computed(() => props.modelValue[1]);
-    const pct = v => (((v - props.min) / (props.max - props.min)) * 100).toFixed(2);
-    const fillStyle = computed(() => ({
-      left: `${pct(low.value)}%`,
-      width: `${pct(high.value) - pct(low.value)}%`,
-    }));
-    function onLow(e) {
-      const v = Math.min(Number(e.target.value), high.value - 1);
-      emit('update:modelValue', [v, high.value]);
-    }
-    function onHigh(e) {
-      const v = Math.max(Number(e.target.value), low.value + 1);
-      emit('update:modelValue', [low.value, v]);
-    }
-    return { low, high, pct, fillStyle, onLow, onHigh };
-  },
-  template: `
-<div class="drange" :class="{disabled}">
-  <div class="drange__header">
-    <span class="drange__label">{{ label }}</span>
-    <span class="drange__value">{{ low }} – {{ high }}</span>
-    <span class="drange__max muted">/ {{ max }}</span>
-  </div>
-  <div class="drange__wrap">
-    <div class="drange__rail"></div>
-    <div class="drange__fill" :style="fillStyle"></div>
-    <input class="drange__input" type="range" :min="min" :max="max" :value="low"  :disabled="disabled" @input="onLow" />
-    <input class="drange__input" type="range" :min="min" :max="max" :value="high" :disabled="disabled" @input="onHigh" />
-  </div>
-</div>`,
-};
+  const latest = matches.reduce((current, entry) => {
+    if (!current) return entry;
+    return Number(entry?.timestampMs || 0) > Number(current?.timestampMs || 0) ? entry : current;
+  }, null);
 
-// Single axis slider with fill track
-const AxisSlider = {
-  name: 'AxisSlider',
-  props: {
-    modelValue: { type: Number, default: 0 },
-    axis: String,
-    min: { type: Number, default: 0 },
-    max: { type: Number, default: 1 },
-    step: { type: Number, default: 0.01 },
-    disabled: Boolean,
-    readonly: Boolean,
-    vertical: Boolean,
-    highLabel: { type: String, default: '' },
-    lowLabel: { type: String, default: '' },
-  },
-  emits: ['update:modelValue'],
-  setup(props, { emit }) {
-    const pct = computed(() => ((((props.modelValue ?? 0) - props.min) / (props.max - props.min)) * 100).toFixed(1) + '%');
-    const trackStyle = computed(() => ({
-      '--axis-pct': pct.value,
-      background: `linear-gradient(to right,var(--primary) ${pct.value},var(--border) ${pct.value})`,
-    }));
-    function onInput(e) {
-      emit('update:modelValue', Number(e.target.value));
-    }
-    return { pct, trackStyle, onInput, axisLabel };
-  },
-  template: `
-<div class="axis-row" :class="[{disabled:disabled||readonly},{'is-vertical':vertical}]">
-  <div class="axis-row__info">
-    <span class="axis-row__name">{{ axis }}</span>
-    <span class="axis-row__label">{{ axisLabel(axis) }}</span>
-    <span class="axis-row__val">{{ Number(modelValue??0).toFixed(2) }}</span>
-  </div>
-  <template v-if="vertical">
-    <div class="axis-row__vertical-wrap">
-      <span class="axis-row__dir axis-row__dir--top">{{ highLabel }}</span>
-      <div class="axis-row__vertical-track">
-        <input class="axis-row__input axis-row__input--vertical" type="range" :min="min" :max="max" :step="step"
-          :value="modelValue" :disabled="disabled||readonly" :style="trackStyle"
-          @input="onInput" />
-      </div>
-      <span class="axis-row__dir axis-row__dir--bottom">{{ lowLabel }}</span>
-    </div>
-  </template>
-  <input v-else class="axis-row__input" type="range" :min="min" :max="max" :step="step"
-    :value="modelValue" :disabled="disabled||readonly" :style="trackStyle"
-    @input="onInput" />
-</div>`,
-};
+  return latest ? { ...latest, matchCount: matches.length } : null;
+}
 
-// Posture canvas component
-const PostureCanvas = {
-  name: 'PostureCanvas',
-  props: { command: { type: Object, default: () => ({}) } },
-  setup(props) {
-    const cvs = ref(null);
-    function redraw() {
-      const el = cvs.value;
-      if (!el) return;
-      const dpr = window.devicePixelRatio || 1;
-      const w = el.clientWidth || 160;
-      const h = el.clientHeight || 90;
-      el.width = Math.round(w * dpr);
-      el.height = Math.round(h * dpr);
-      const ctx = el.getContext('2d');
-      ctx.scale(dpr, dpr);
-      drawDevice(ctx, w, h, props.command);
-    }
-    watch(() => props.command, redraw, { deep: true });
-    onMounted(() => {
-      nextTick(redraw);
-      window.addEventListener('resize', redraw);
-    });
-    onUnmounted(() => window.removeEventListener('resize', redraw));
-    return { cvs };
-  },
-  template: `<canvas ref="cvs" class="posture-canvas"></canvas>`,
-};
+function formatPreviewTimestamp(timestampMs) {
+  if (!timestampMs) return '—';
+  const value = new Date(timestampMs);
+  if (Number.isNaN(value.getTime())) return '—';
+  return value.toLocaleTimeString();
+}
 
-// ECharts line chart panel
-const EChartPanel = {
-  name: 'EChartPanel',
-  props: { history: { type: Array, default: () => [] }, lang: String },
-  setup(props) {
-    const el = ref(null);
-    let chart = null;
-    const SERIES_CFG = [
-      { key: 'l0', name: 'L0', color: '#0052d9' },
-      { key: 'r0', name: 'R0', color: '#00a870' },
-      { key: 'r1', name: 'R1', color: '#8B5CF6' },
-      { key: 'r2', name: 'R2', color: '#f0a020' },
-      { key: 'l1', name: 'L1', color: '#e34d59' },
-      { key: 'l2', name: 'L2', color: '#00b4d8' },
-      { key: 'vibrate', name: 'Vib', color: '#ff6b35' },
-    ];
-    function buildOption(hist) {
-      const times = hist.map(d => new Date(d.time).toLocaleTimeString());
-      return {
-        backgroundColor: 'transparent',
-        grid: { left: 40, right: 12, top: 32, bottom: 36 },
-        tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, backgroundColor: 'rgba(255,255,255,0.95)', borderColor: '#d3d8e3', textStyle: { color: '#4a5568', fontSize: 12 } },
-        legend: { top: 4, textStyle: { color: '#4a5568', fontSize: 11 }, data: SERIES_CFG.map(s => s.name) },
-        xAxis: {
-          type: 'category',
-          data: times,
-          axisLine: { lineStyle: { color: '#d3d8e3' } },
-          axisLabel: { color: '#8a9199', fontSize: 10, rotate: 0, showMaxLabel: true, showMinLabel: true, interval: 'auto' },
-          splitLine: { show: false },
-        },
-        yAxis: { type: 'value', min: 0, max: 1, splitLine: { lineStyle: { color: '#f0f2f5', type: 'dashed' } }, axisLabel: { color: '#8a9199', fontSize: 10 }, axisLine: { show: false } },
-        series: SERIES_CFG.map(s => ({
-          name: s.name,
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          lineStyle: { width: 1.5, color: s.color },
-          data: hist.map(d => +(d[s.key] ?? 0).toFixed(3)),
-          color: s.color,
-        })),
-      };
-    }
-    onMounted(() => {
-      chart = echarts.init(el.value, null, { renderer: 'canvas' });
-      chart.setOption(buildOption(props.history));
-      window.addEventListener('resize', () => chart?.resize());
-    });
-    onUnmounted(() => {
-      chart?.dispose();
-      chart = null;
-    });
-    watch(
-      () => props.history.length,
-      () => chart?.setOption(buildOption(props.history), { notMerge: false }),
-    );
-    return { el };
-  },
-  template: `<div ref="el" class="echart-panel"></div>`,
-};
+function normalizeManualCommand(command) {
+  const raw = command || {};
+  return {
+    ...EMPTY_MANUAL,
+    L0: raw.L0 ?? EMPTY_MANUAL.L0,
+    L1: raw.L1 ?? EMPTY_MANUAL.L1,
+    L2: raw.L2 ?? EMPTY_MANUAL.L2,
+    R0: raw.R0 ?? EMPTY_MANUAL.R0,
+    R1: raw.R1 ?? EMPTY_MANUAL.R1,
+    R2: raw.R2 ?? EMPTY_MANUAL.R2,
+    V0: raw.Vibrate ?? raw.V0 ?? EMPTY_MANUAL.V0,
+    V1: raw.V1 ?? EMPTY_MANUAL.V1,
+    V2: raw.V2 ?? EMPTY_MANUAL.V2,
+    A0: raw.A0 ?? EMPTY_MANUAL.A0,
+    BpmDrive: raw.BpmDrive ?? EMPTY_MANUAL.BpmDrive,
+    GateOpen: raw.GateOpen ?? EMPTY_MANUAL.GateOpen,
+  };
+}
 
-// Script Canvas component
-const ScriptCanvas = {
-  name: 'ScriptCanvas',
-  props: { player: { type: Object, required: true } },
-  setup(props) {
-    const cvs = ref(null);
-    function draw() {
-      const el = cvs.value;
-      if (!el) return;
-      const dpr = window.devicePixelRatio || 1;
-      const cw = el.clientWidth || 800;
-      const ch = 220;
-      el.width = Math.round(cw * dpr);
-      el.height = Math.round(ch * dpr);
-      const ctx = el.getContext('2d');
-      ctx.scale(dpr, dpr);
-      const w = cw;
-      const h = ch;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.strokeStyle = 'rgba(0,0,0,0.06)';
-      ctx.lineWidth = 1;
-      for (let i = 0; i < 5; i++) {
-        const y = 20 + ((h - 40) / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(14, y);
-        ctx.lineTo(w - 14, y);
-        ctx.stroke();
+function formatMode(mode) {
+  return INPUT_MODES.find(item => item.value === mode)?.label || '未知输入';
+}
+
+function formatDuration(ms) {
+  const value = Math.max(0, Number(ms || 0));
+  const totalSeconds = Math.floor(value / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  const remainder = Math.floor((value % 1000) / 10);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(remainder).padStart(2, '0')}`;
+}
+
+function normalizeLogs(entries) {
+  if (!Array.isArray(entries)) return [];
+
+  return entries
+    .map(entry => {
+      if (typeof entry === 'string') return entry;
+      if (!entry || typeof entry !== 'object') return '';
+
+      const message = entry.message || '';
+      if (!message) return '';
+
+      const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
+      const prefix = timestamp && !Number.isNaN(timestamp.getTime()) ? `[${timestamp.toLocaleTimeString()}] ` : '';
+      return `${prefix}${message}`;
+    })
+    .filter(Boolean);
+}
+
+function formatRealtimeStatus(state) {
+  if (state === 'connected') return '实时连接 在线';
+  if (state === 'connecting') return '实时连接 连接中';
+  return '实时连接 离线';
+}
+
+function buildOutputDialogDraft(outputId, config) {
+  const output = getOutputConfig(config, outputId);
+  if (!output) return null;
+
+  return normalizeOutputConfig(output, config);
+}
+
+function mergeOutputDraft(outputId, config, draft) {
+  const next = cloneConfig(config);
+  next.schemaVersion = 3;
+  next.outputs = getOutputs(config).map(output => {
+    if (output.id !== outputId) return output;
+    return {
+      ...output,
+      ...draft,
+      type: output.type,
+      id: output.id,
+      motionProfileId: isTCodeOutputType(output.type) ? draft.motionProfileId || getDefaultAxisProfileId(config) : output.motionProfileId,
+    };
+  });
+
+  return next;
+}
+
+function TabPanel({ value, current, children }) {
+  return value === current ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
+}
+
+function MetricCard({ label, value, tone = 'default' }) {
+  return (
+    <Box className={`metric-card metric-card--${tone}`}>
+      <Typography variant="caption" color="text.secondary">
+        {label}
+      </Typography>
+      <Typography variant="h6">{value}</Typography>
+    </Box>
+  );
+}
+
+function AxisSlider({ axis, value, onChange }) {
+  const axisLabel = (
+    <Typography
+      variant="subtitle2"
+      sx={
+        axis.description
+          ? {
+              textDecoration: 'underline dotted',
+              textUnderlineOffset: '3px',
+              cursor: 'help',
+            }
+          : undefined
       }
-      const p = props.player;
-      if (!p.points.length || p.durationMs <= 0) {
-        ctx.fillStyle = '#8a9199';
-        ctx.font = '13px Segoe UI,sans-serif';
-        ctx.fillText(t('scripts.timeline.empty'), 20, h / 2);
-        return;
-      }
-      const px = 18,
-        py = 16,
-        pw = w - 36,
-        ph = h - 36;
-      ctx.strokeStyle = '#0052d9';
-      ctx.lineWidth = 2.5;
-      ctx.beginPath();
-      p.points.forEach((pt, i) => {
-        const x = px + (pt.ms / p.durationMs) * pw;
-        const y = py + (1 - pt.value) * ph;
-        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-      });
-      ctx.stroke();
-      const cx2 = px + ((p.currentMs || 0) / p.durationMs) * pw;
-      ctx.strokeStyle = 'rgba(227,77,89,0.88)';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath();
-      ctx.moveTo(cx2, py);
-      ctx.lineTo(cx2, py + ph);
-      ctx.stroke();
-      const cy2 = py + (1 - getScriptValAt(p.currentMs || 0)) * ph;
-      ctx.fillStyle = '#e34d59';
-      ctx.beginPath();
-      ctx.arc(cx2, cy2, 5, 0, Math.PI * 2);
-      ctx.fill();
-    }
-    watch(() => [props.player.currentMs, props.player.points.length, props.player.source], draw, { deep: false });
-    onMounted(() => {
-      nextTick(draw);
-      window.addEventListener('resize', draw);
-    });
-    onUnmounted(() => window.removeEventListener('resize', draw));
-    return { cvs };
-  },
-  template: `<canvas ref="cvs" class="script-canvas"></canvas>`,
-};
+    >
+      {axis.label}
+    </Typography>
+  );
 
-// ─────────────────────────────────────────────────────────────
-// ROOT APP
-// ─────────────────────────────────────────────────────────────
-const App = {
-  name: 'SensaApp',
-  components: { DualRange, AxisSlider, PostureCanvas, EChartPanel, ScriptCanvas },
+  return (
+    <Box className="axis-slider-card">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+        {axis.description ? (
+          <Tooltip title={axis.description} arrow placement="top">
+            {axisLabel}
+          </Tooltip>
+        ) : (
+          axisLabel
+        )}
+        <Chip size="small" variant="outlined" label={Number(value).toFixed(2)} />
+      </Stack>
+      <Slider min={axis.min} max={axis.max} step={axis.step} value={value} valueLabelDisplay="auto" onChange={(_, next) => onChange(Number(next))} />
+    </Box>
+  );
+}
 
-  setup() {
-    const st = appState;
-    const THEMES = ['light', 'dark', 'amoled', 'purple', 'emerald'];
-    let wsRef = null;
-    let reconnectTimer = 0;
-    let pollTimer = 0;
+function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
+  return (
+    <Box className="motion-axis-card">
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+        <Box>
+          <Typography variant="subtitle2">{axisDefinition.axis}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {axisDefinition.label}
+          </Typography>
+        </Box>
+        <Chip size="small" variant="outlined" label={`${value.min}-${value.max}`} />
+      </Stack>
+
+      <Box className="motion-axis-card__range">
+        <Stack direction="row" justifyContent="space-between" alignItems="center">
+          <Typography variant="caption" color="text.secondary">
+            {axisDefinition.minLabel}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {axisDefinition.maxLabel}
+          </Typography>
+        </Stack>
+        <Slider
+          disabled={disabled}
+          min={0}
+          max={999}
+          step={1}
+          value={[value.min, value.max]}
+          valueLabelDisplay="auto"
+          onChange={(_, next) => {
+            const [min, max] = next;
+            onChange({ min: Number(min), max: Number(max) });
+          }}
+        />
+      </Box>
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center" mt={1} mb={0.5}>
+        <Typography variant="caption" color="text.secondary">
+          速度限制
+        </Typography>
+        <Chip size="small" variant="outlined" label={`${value.maxSpeed}`} />
+      </Stack>
+
+      <Slider disabled={disabled} min={10} max={4000} step={10} value={value.maxSpeed} valueLabelDisplay="auto" onChange={(_, next) => onChange({ maxSpeed: Number(next) })} />
+
+      <FormControlLabel
+        sx={{ mt: 0.5 }}
+        control={<Switch checked={Boolean(value.invert)} disabled={disabled} onChange={(_, checked) => onChange({ invert: checked })} />}
+        label={value.invert ? '已反向' : '方向正常'}
+      />
+    </Box>
+  );
+}
+
+function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
+  return (
+    <Box className="signal-row">
+      <Box className="signal-row__grid">
+        <TextField label="参数路径" size="small" value={draft.oscPath} onChange={event => onChange({ oscPath: event.target.value })} />
+
+        <FormControl size="small" fullWidth>
+          <InputLabel>目标轴</InputLabel>
+          <Select value={draft.role} label="目标轴" onChange={event => onChange({ role: event.target.value })}>
+            {SIGNAL_ROLE_OPTIONS.map(option => (
+              <MenuItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+
+        <TextField label="输入最小值" type="number" size="small" value={draft.vrchatMin} onChange={event => onChange({ vrchatMin: Number(event.target.value || 0) })} />
+        <TextField label="输入最大值" type="number" size="small" value={draft.vrchatMax} onChange={event => onChange({ vrchatMax: Number(event.target.value || 0) })} />
+        <TextField
+          label="平滑"
+          type="number"
+          size="small"
+          value={draft.smoothingAlpha}
+          inputProps={{ min: 0, max: 1, step: 0.05 }}
+          onChange={event => onChange({ smoothingAlpha: Number(event.target.value || 0) })}
+        />
+      </Box>
+
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" justifyContent="space-between">
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+          {latestEntry ? (
+            <>
+              <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
+              {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
+              {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`匹配 ${latestEntry.matchCount} 条`} />}
+            </>
+          ) : (
+            <Chip size="small" variant="outlined" label="暂无实时值" />
+          )}
+          <Chip size="small" variant="outlined" label={SIGNAL_ROLE_OPTIONS.find(option => option.value === draft.role)?.label || draft.role} />
+        </Stack>
+
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+          <FormControlLabel control={<Switch checked={Boolean(draft.invertDirection)} onChange={(_, checked) => onChange({ invertDirection: checked })} />} label="反向" />
+          <Button size="small" color="error" onClick={onRemove}>
+            移除
+          </Button>
+        </Stack>
+      </Stack>
+    </Box>
+  );
+}
+
+function App() {
+  const [config, setConfig] = useState(null);
+  const [overview, setOverview] = useState(null);
+  const [logs, setLogs] = useState([]);
+  const [studio, setStudio] = useState(() => loadStudio() || { preferredInputTab: 'osc' });
+  const [serialPorts, setSerialPorts] = useState([]);
+  const [oscDraft, setOscDraft] = useState({ receiverHost: '0.0.0.0', receiverPort: 9001 });
+  const [signalDrafts, setSignalDrafts] = useState([]);
+  const [selectedOscPreset, setSelectedOscPreset] = useState('');
+  const [presetDialog, setPresetDialog] = useState(null);
+  const [profileDialog, setProfileDialog] = useState(null);
+  const [dialog, setDialog] = useState(null);
+  const [manualDraft, setManualDraft] = useState(EMPTY_MANUAL);
+  const [manualContinuous, setManualContinuous] = useState(false);
+  const [scriptSettings, setScriptSettings] = useState({ loop: false, speed: 1 });
+  const [selectedScriptFile, setSelectedScriptFile] = useState(null);
+  const [scriptInputKey, setScriptInputKey] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [busyKey, setBusyKey] = useState('');
+  const [wsState, setWsState] = useState('connecting');
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+
+  const manualTimerRef = useRef(null);
+  const manualSyncBlockedRef = useRef(false);
+  const scriptSettingsInitializedRef = useRef(false);
+  const manualInitializedRef = useRef(false);
+
+  useEffect(() => {
     let disposed = false;
 
-    // ── computed ──
-    const lang = computed(() => st.language);
-    const loopRun = computed(() => st.overview?.loop?.isRunning ?? false);
-    const cmd = computed(() => st.overview?.loop?.command || {});
-    const devices = computed(() => {
-      const r = buildRealDevices();
-      return SHOW_MOCK ? [...r, ...buildMockDevices()] : r;
-    });
-    const overviewBpm = computed(() => Number(st.overview?.loop?.currentBpm ?? 0).toFixed(1));
-    const wsLastSeenText = computed(() => (st.wsLastMessageAt ? new Date(st.wsLastMessageAt).toLocaleTimeString() : t('label.none')));
-    const wsRetryText = computed(() => `${Math.max(1, Math.round(st.wsRetryMs / 1000))}s`);
-    const secondaryAxes = computed(() => AXES.filter(ax => !PRIMARY_POSE_AXES.includes(ax)));
-    function axisDirectionHint(axis, isHigh) {
-      const zh = {
-        L1: ['前', '后'],
-        L0: ['上', '下'],
-        R2: ['上俯', '下俯'],
-      };
-      const en = {
-        L1: ['Forward', 'Backward'],
-        L0: ['Up', 'Down'],
-        R2: ['Pitch Up', 'Pitch Down'],
-      };
-      const table = st.language === 'zh-CN' ? zh : en;
-      const pair = table[axis] || ['', ''];
-      return isHigh ? pair[0] : pair[1];
-    }
-    const tcodeSummary = computed(() => {
-      if (!st.config || !st.overview) return [];
-      const c = st.config.tCode || {};
-      return [
-        [t('label.port'), c.comPort || t('label.none')],
-        [t('label.mode'), c.preferSpeedMode ? t('label.speed') : t('label.interval')],
-        [t('label.auto'), c.enabled ? t('label.on') : t('label.off')],
-        [t('label.frames'), `${c.updatesPerSecond ?? '-'} UPS`],
-      ];
-    });
-    const signalLatestMap = computed(() => {
-      const m = new Map();
-      (st.overview?.signals || []).forEach(s => m.set(s.signal.oscPath, s.latest?.value));
-      return m;
-    });
-    const filtSigs = computed(() => {
-      const f = (st.filters.signals || '').trim().toLowerCase();
-      return (st.config?.signals || []).filter(s => !f || `${s.oscPath} ${s.role} ${s.curve}`.toLowerCase().includes(f));
-    });
-    const filtParams = computed(() => {
-      const f = (st.filters.parameters || '').trim().toLowerCase();
-      return st.parameters.filter(p => !f || `${p.path} ${p.type}`.toLowerCase().includes(f)).slice(0, 300);
-    });
-    const filtLogs = computed(() => {
-      const f = (st.filters.logs || '').trim().toLowerCase();
-      return st.logs.filter(l => !f || l.message.toLowerCase().includes(f));
-    });
-    const diagnostics = computed(() => {
-      if (!st.overview) return [];
-      const ov = st.overview;
-      const ds = [];
-      if (!ov.loop.isRunning) ds.push({ type: 'warn', title: t('diag.loopStopped.title'), body: t('diag.loopStopped.body') });
-      if (ov.loop.isEmergency) ds.push({ type: 'error', title: t('diag.emergency.title'), body: t('diag.emergency.body') });
-      if (!ov.tcode.connected && st.config?.tCode?.enabled) ds.push({ type: 'warn', title: t('diag.tcodeMissing.title'), body: t('diag.tcodeMissing.body') });
-      if ((ov.osc.parameterCount || 0) === 0) ds.push({ type: 'warn', title: t('diag.oscMissing.title'), body: t('diag.oscMissing.body') });
-      if (!ds.length) ds.push({ type: 'ok', title: t('diag.ok.title'), body: t('diag.ok.body') });
-      return ds;
-    });
-    const overviewGuide = computed(() => {
-      const items = [];
-      if (!devices.value.length) items.push({ title: t('overview.guide.none.title'), body: t('overview.guide.none.body') });
-      else items.push({ title: t('overview.guide.connected.title'), body: t('overview.guide.connected.body') });
-      if ((st.overview?.osc?.parameterCount || 0) === 0) items.push({ title: t('overview.guide.osc.title'), body: t('overview.guide.osc.body') });
-      return items;
-    });
-    const statusCards = computed(() => {
-      if (!st.overview) return [];
-      const ov = st.overview;
-      const c = ov.loop.command || {};
-      return [
-        { label: t('label.loop'), value: ov.loop.isRunning ? t('status.running') : t('status.stopped'), cls: ov.loop.isRunning ? 'ok' : 'warn', tip: t('tip.stat.loop') },
-        { label: 'BPM', value: overviewBpm.value, cls: '', tip: t('tip.stat.bpm') },
-        { label: t('label.params'), value: String(ov.osc.parameterCount || 0), cls: '', tip: t('tip.stat.params') },
-        { label: 'OSC ' + t('label.port'), value: String(st.config?.osc?.receiverPort || '-'), cls: '', tip: t('tip.stat.oscPort') },
-        {
-          label: 'TCode',
-          value: ov.tcode.connected ? `${t('status.connected')} · ${st.config?.tCode?.comPort || '-'}` : t('status.disconnected'),
-          cls: ov.tcode.connected ? 'ok' : '',
-          tip: t('tip.stat.tcode'),
-        },
-        {
-          label: t('label.recording'),
-          value: ov.recording.isActive ? `${t('recording.active')} · ${ov.recording.frameCount}` : `${t('status.idle')} · ${ov.recording.frameCount}`,
-          cls: ov.recording.isActive ? 'ok' : '',
-          tip: t('tip.stat.recording'),
-        },
-        { label: t('label.manual'), value: ov.loop.manualOverrideEnabled ? t('status.enabled') : t('status.disabled'), cls: ov.loop.manualOverrideEnabled ? 'warn' : '', tip: t('tip.stat.manual') },
-        { label: t('label.output'), value: `L0 ${Number(c.l0 ?? 0).toFixed(2)} · R0 ${Number(c.r0 ?? 0.5).toFixed(2)} · V ${Number(c.vibrate ?? 0).toFixed(2)}`, cls: '', tip: t('tip.stat.output') },
-      ];
-    });
-    const cmdBadge = computed(() => {
-      const c = cmd.value;
-      return `L0 ${Number(c.l0 ?? 0).toFixed(2)} · R0 ${Number(c.r0 ?? 0.5).toFixed(2)} · Vib ${Number(c.vibrate ?? 0).toFixed(2)} · Gate ${c.gateOpen ? 'Open' : 'Closed'}`;
-    });
-    const scriptFmtSrc = computed(() => {
-      const p = st.scriptPlayer;
-      return p.source === 'recording' ? t('scripts.source.recording') : p.source === 'imported' ? t('scripts.source.imported') : t('scripts.source.empty');
-    });
-    const scriptMeta = computed(() => {
-      const p = st.scriptPlayer;
-      if (p.source === 'recording') return t('scripts.meta.recording', { count: String(p.points.length), duration: fmtDur(p.durationMs) });
-      if (p.source === 'imported') return t('scripts.meta.imported', { name: p.name || 'script', count: String(p.points.length), duration: fmtDur(p.durationMs) });
-      return t('scripts.meta.empty');
-    });
-    const scriptStatusKey = computed(() => {
-      const p = st.scriptPlayer;
-      if (!p.points.length) return 'scripts.player.empty';
-      if (p.isPlaying) return 'scripts.player.playing';
-      if (p.currentMs > 0) return 'scripts.player.paused';
-      return 'scripts.player.empty';
-    });
-    const scriptSummary = computed(() => {
-      const p = st.scriptPlayer;
-      const dens = p.durationMs > 0 ? (p.points.length / Math.max(p.durationMs / 1000, 1)).toFixed(1) : '0.0';
-      return [
-        [t('scripts.summary.source'), scriptFmtSrc.value],
-        [t('scripts.summary.points'), String(p.points.length)],
-        [t('scripts.summary.duration'), fmtDur(p.durationMs)],
-        [t('scripts.summary.position'), `${fmtDur(p.currentMs)} · ${Math.round(getScriptValAt(p.currentMs) * 100)}%`],
-        [t('scripts.timeline.frames'), String(p.points.length)],
-        [t('scripts.timeline.density'), `${dens} / s`],
-        [t('scripts.timeline.range'), `${fmtDur(p.points[0]?.ms || 0)} → ${fmtDur(p.durationMs)}`],
-      ];
-    });
-    const connectionDiagnostics = computed(() => {
-      const labels = {
-        serial: t('connections.diag.serial'),
-        udp: t('connections.diag.udp'),
-        tcp: t('connections.diag.tcp'),
-        intiface: t('connections.diag.intiface'),
-        http: t('connections.diag.http'),
-        ws: t('connections.diag.ws'),
-      };
-      return Object.entries(st.connectionHealth).map(([key, rec]) => ({
-        key,
-        title: labels[key] || key,
-        status: rec.status || 'idle',
-        message: rec.message || t('connections.diag.empty'),
-        at: rec.at ? new Date(rec.at).toLocaleTimeString() : t('label.none'),
-      }));
-    });
-
-    const pipelineColumns = computed(() => st.pipeline?.columns || []);
-    const pipelineCards = computed(() => pipelineColumns.value.flatMap(col => col.cards.map(card => ({ ...card, columnId: col.id, columnKind: col.kind }))));
-    const pipelineLinkFromOptions = computed(() => pipelineCards.value.map(card => ({ value: card.id, label: `${card.name} · ${columnKindLabel(card.columnKind)}` })));
-    const pipelineLinkToOptions = computed(() => {
-      if (!st.pipelineUi.linkFrom) return [];
-      const fromMeta = locateCard(st.pipelineUi.linkFrom);
-      if (!fromMeta) return [];
-      const nextCol = st.pipeline.columns[fromMeta.colIndex + 1];
-      if (!nextCol) return [];
-      return nextCol.cards.map(card => ({ value: card.id, label: `${card.name} · ${columnKindLabel(nextCol.kind)}` }));
-    });
-
-    function columnKindLabel(kind) {
-      if (kind === 'input') return '输入';
-      if (kind === 'output') return '输出';
-      return '处理';
-    }
-
-    function nodeTypeLabel(kind, type) {
-      const source = kind === 'input' ? INPUT_NODE_TYPES : kind === 'output' ? OUTPUT_NODE_TYPES : PROCESS_NODE_TYPES;
-      return source.find(x => x.value === type)?.label || type;
-    }
-
-    function cardTypeOptions(kind) {
-      if (kind === 'input') return INPUT_NODE_TYPES;
-      if (kind === 'output') return OUTPUT_NODE_TYPES;
-      return PROCESS_NODE_TYPES;
-    }
-
-    function locateCard(cardId) {
-      for (let i = 0; i < st.pipeline.columns.length; i++) {
-        const col = st.pipeline.columns[i];
-        const cardIndex = col.cards.findIndex(card => card.id === cardId);
-        if (cardIndex >= 0) return { col, colIndex: i, cardIndex, card: col.cards[cardIndex] };
-      }
-      return null;
-    }
-
-    function sanitizePipeline() {
-      if (!st.pipeline || !Array.isArray(st.pipeline.columns) || !Array.isArray(st.pipeline.links)) {
-        st.pipeline = createDefaultPipeline();
-        return;
-      }
-      if (st.pipeline.columns.length < 2) st.pipeline = createDefaultPipeline();
-      const first = st.pipeline.columns[0];
-      const last = st.pipeline.columns[st.pipeline.columns.length - 1];
-      first.kind = 'input';
-      first.title = '输入列';
-      last.kind = 'output';
-      last.title = '输出列';
-      st.pipeline.columns.slice(1, -1).forEach((col, idx) => {
-        col.kind = 'process';
-        col.title = `处理列 ${idx + 1}`;
-      });
-      const ids = new Set(st.pipeline.columns.flatMap(col => col.cards.map(card => card.id)));
-      st.pipeline.links = st.pipeline.links.filter(link => ids.has(link.from) && ids.has(link.to));
-    }
-
-    function persistPipeline() {
-      sanitizePipeline();
-      savePipeline(st.pipeline);
-    }
-
-    function resetPipeline() {
-      st.pipeline = createDefaultPipeline();
-      st.pipelineUi.linkFrom = '';
-      st.pipelineUi.linkTo = '';
-      st.pipelineUi.addTypeByColumn = {};
-      persistPipeline();
-    }
-
-    function addProcessColumn() {
-      const outputIdx = st.pipeline.columns.findIndex(col => col.kind === 'output');
-      const newColId = makeId('col-process');
-      st.pipeline.columns.splice(outputIdx, 0, {
-        id: newColId,
-        kind: 'process',
-        title: `处理列 ${st.pipeline.columns.filter(col => col.kind === 'process').length + 1}`,
-        cards: [createPipelineCard('process', 'transform')],
-      });
-      st.pipeline.links = [];
-      persistPipeline();
-    }
-
-    function removeProcessColumn(columnId) {
-      const idx = st.pipeline.columns.findIndex(col => col.id === columnId && col.kind === 'process');
-      if (idx < 0) return;
-      const removedIds = new Set(st.pipeline.columns[idx].cards.map(card => card.id));
-      st.pipeline.columns.splice(idx, 1);
-      st.pipeline.links = st.pipeline.links.filter(link => !removedIds.has(link.from) && !removedIds.has(link.to));
-      persistPipeline();
-    }
-
-    function addCardToColumn(columnId) {
-      const col = st.pipeline.columns.find(c => c.id === columnId);
-      if (!col) return;
-      const selectedType = st.pipelineUi.addTypeByColumn[columnId] || cardTypeOptions(col.kind)[0]?.value;
-      if (!selectedType) return;
-      col.cards.push(createPipelineCard(col.kind, selectedType));
-      persistPipeline();
-    }
-
-    function removeCardFromColumn(columnId, cardId) {
-      const col = st.pipeline.columns.find(c => c.id === columnId);
-      if (!col) return;
-      if (col.cards.length <= 1) {
-        showToast('提示', '每列至少保留一个卡片', 'warning');
-        return;
-      }
-      col.cards = col.cards.filter(card => card.id !== cardId);
-      st.pipeline.links = st.pipeline.links.filter(link => link.from !== cardId && link.to !== cardId);
-      if (st.pipelineUi.linkFrom === cardId) st.pipelineUi.linkFrom = '';
-      if (st.pipelineUi.linkTo === cardId) st.pipelineUi.linkTo = '';
-      persistPipeline();
-    }
-
-    function addPipelineLink() {
-      const from = st.pipelineUi.linkFrom;
-      const to = st.pipelineUi.linkTo;
-      if (!from || !to) return;
-      const fromMeta = locateCard(from);
-      const toMeta = locateCard(to);
-      if (!fromMeta || !toMeta) return;
-      if (toMeta.colIndex !== fromMeta.colIndex + 1) {
-        showToast('连线失败', '只允许连接到右侧相邻列', 'warning');
-        return;
-      }
-      const exists = st.pipeline.links.some(link => link.from === from && link.to === to);
-      if (exists) return;
-      st.pipeline.links.push({ id: makeId('link'), from, to });
-      persistPipeline();
-    }
-
-    function removePipelineLink(linkId) {
-      st.pipeline.links = st.pipeline.links.filter(link => link.id !== linkId);
-      persistPipeline();
-    }
-
-    function toggleSolo(columnId, cardId) {
-      const col = st.pipeline.columns.find(c => c.id === columnId);
-      if (!col) return;
-      const card = col.cards.find(c => c.id === cardId);
-      if (!card) return;
-      const wasSolo = !!card.solo;
-      col.cards.forEach(c => {
-        c.solo = false;
-      });
-      if (!wasSolo) card.solo = true;
-      persistPipeline();
-    }
-
-    const configDialog = reactive({ visible: false, colId: '', cardId: '' });
-    const configDialogCard = computed(() => {
-      if (!configDialog.cardId) return null;
-      const col = st.pipeline.columns.find(c => c.id === configDialog.colId);
-      if (!col) return null;
-      return col.cards.find(c => c.id === configDialog.cardId) || null;
-    });
-    function openCardConfig(colId, cardId) {
-      configDialog.colId = colId;
-      configDialog.cardId = cardId;
-      configDialog.visible = true;
-    }
-    function closeCardConfig() {
-      persistPipeline();
-      configDialog.visible = false;
-    }
-
-    function outputActionsForType(type) {
-      if (type === 'serial') return ['connect', 'disconnect', 'park'];
-      if (type === 'udp') return ['connect', 'disconnect'];
-      if (type === 'tcp') return ['connect', 'disconnect'];
-      if (type === 'intiface') return ['connect', 'disconnect', 'scanStart', 'scanStop'];
-      return [];
-    }
-
-    function runOutputAction(type, action) {
-      const map = {
-        serial: {
-          connect: '/api/control/tcode/connect',
-          disconnect: '/api/control/tcode/disconnect',
-          park: '/api/control/tcode/park',
-        },
-        udp: {
-          connect: '/api/control/udp/connect',
-          disconnect: '/api/control/udp/disconnect',
-        },
-        tcp: {
-          connect: '/api/control/tcp/connect',
-          disconnect: '/api/control/tcp/disconnect',
-        },
-        intiface: {
-          connect: '/api/control/intiface/connect',
-          disconnect: '/api/control/intiface/disconnect',
-          scanStart: '/api/control/intiface/scan-start',
-          scanStop: '/api/control/intiface/scan-stop',
-        },
-      };
-      const path = map[type]?.[action];
-      if (!path) return;
-      postAction(path);
-    }
-
-    // ── Pipeline wire visualization ──
-    const portPositions = ref({});
-    const wireStageSize = ref({ w: 1200, h: 600 });
-
-    const wirePaths = computed(() => {
-      const links = st.pipeline?.links || [];
-      return links
-        .map(link => {
-          const fp = portPositions.value[`${link.from}-r`];
-          const tp = portPositions.value[`${link.to}-l`];
-          if (!fp || !tp) return null;
-          const dx = Math.max(40, Math.abs(tp.x - fp.x) * 0.5);
-          const path = `M ${fp.x} ${fp.y} C ${fp.x + dx} ${fp.y}, ${tp.x - dx} ${tp.y}, ${tp.x} ${tp.y}`;
-          return { ...link, path };
-        })
-        .filter(Boolean);
-    });
-
-    function updatePortPositions() {
-      const container = document.getElementById('pipeline-columns-wrap');
-      if (!container) return;
-      const cr = container.getBoundingClientRect();
-      const sl = container.scrollLeft;
-      const st2 = container.scrollTop;
-      const pos = {};
-      for (const col of st.pipeline?.columns || []) {
-        for (const card of col.cards) {
-          for (const side of ['l', 'r']) {
-            const el = document.getElementById(`p${side}-${card.id}`);
-            if (el) {
-              const r = el.getBoundingClientRect();
-              pos[`${card.id}-${side}`] = {
-                x: r.left + r.width / 2 - cr.left + sl,
-                y: r.top + r.height / 2 - cr.top + st2,
-              };
-            }
-          }
-        }
-      }
-      portPositions.value = pos;
-      wireStageSize.value = {
-        w: Math.max(container.scrollWidth, 600),
-        h: Math.max(container.scrollHeight, 400),
-      };
-    }
-
-    function startWireFrom(cardId) {
-      if (st.pipelineUi.linkFrom === cardId) {
-        st.pipelineUi.linkFrom = '';
-      } else {
-        st.pipelineUi.linkFrom = cardId;
-        st.pipelineUi.linkTo = '';
-      }
-    }
-
-    function endWireTo(cardId) {
-      if (!st.pipelineUi.linkFrom || st.pipelineUi.linkFrom === cardId) return;
-      st.pipelineUi.linkTo = cardId;
-      addPipelineLink();
-      st.pipelineUi.linkFrom = '';
-    }
-
-    // ── actions ──
-    function setActiveTab(tab) {
-      st.activeTab = tab;
-      localStorage.setItem('sensa.activeTab', tab);
-      window.scrollTo({ top: 0, behavior: 'auto' });
-    }
-
-    function panelStyle(tabId) {
-      return { display: st.activeTab === tabId ? 'block' : 'none' };
-    }
-    function toggleLanguage() {
-      const i = LANGUAGES.indexOf(st.language);
-      st.language = LANGUAGES[(i + 1) % LANGUAGES.length];
-      localStorage.setItem('sensa.language', st.language);
-      showToast(t('toast.langChanged'), t('msg.langChanged'));
-    }
-    function cycleTheme() {
-      const i = THEMES.indexOf(st.theme);
-      const nextTheme = THEMES[(i + 1 + THEMES.length) % THEMES.length] || 'light';
-      st.theme = nextTheme;
-      document.documentElement.dataset.theme = nextTheme;
-      localStorage.setItem('sensa.theme', nextTheme);
-      showToast(t('toast.themeChanged'), nextTheme);
-    }
-
-    function setConnHealth(key, status, message) {
-      if (!st.connectionHealth[key]) return;
-      st.connectionHealth[key] = {
-        status,
-        message: String(message || '').trim(),
-        at: Date.now(),
-      };
-    }
-
-    async function refreshAll(feedback = false) {
+    async function loadInitial() {
       try {
-        const [meta, cfg, ov, params, logs, ports, rec] = await Promise.all([
-          api('/api/meta'),
-          api('/api/config'),
-          api('/api/state/overview'),
-          api('/api/state/parameters'),
-          api('/api/state/logs'),
-          api('/api/meta/serial-ports').catch(() => []),
-          api('/api/state/recording/data').catch(() => []),
+        const [configResponse, overviewResponse, logsResponse, serialPortResponse] = await Promise.all([
+          apiRequest('/api/config'),
+          apiRequest('/api/state/overview'),
+          apiRequest('/api/state/logs'),
+          apiRequest('/api/meta/serial-ports'),
         ]);
-        st.meta = meta;
-        st.config = cfg;
-        st.overview = ov;
-        st.parameters = params;
-        st.logs = logs;
-        st.serialPorts = ports;
-        st.recordingFrames = rec;
-        st.apiReachable = true;
-        setConnHealth('http', 'ok', `${t('status.connected')} · /api/state/overview`);
-        st.roles = [...(meta.enums?.signalRoles || [])];
-        st.curves = [...(meta.enums?.curveTypes || [])];
-        st.idleBehaviors = [...(meta.enums?.idleBehaviors || [])];
-        // sync manual from current command
-        const mc = ov.loop.manualCommand || {};
-        st.manualEnabled = ov.loop.manualOverrideEnabled || false;
-        st.manualGateOpen = mc.gateOpen ?? true;
-        AXES.forEach(ax => {
-          st.manual[ax] = mc[AXIS_KEY[ax]] ?? AXIS_DEFS[ax];
-        });
-        // push axis history
-        const c = ov.loop.command || {};
-        st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
-        if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
-        if (feedback) showToast(t('toast.refreshSuccess'), ov?.service?.url || location.origin);
-      } catch (e) {
-        st.apiReachable = false;
-        setConnHealth('http', 'error', e.message || 'HTTP request failed');
-        showToast(t('toast.refreshFailed'), e.message, 'error', 3600);
-        throw e;
-      }
-    }
 
-    async function postAction(path, body = null) {
-      const connKey = mapPathToConnection(path);
-      try {
-        const result = await api(path, body ? { method: 'POST', body: JSON.stringify(body) } : { method: 'POST' });
-        if (result && typeof result === 'object' && 'ok' in result && result.ok === false) {
-          const msg = path === '/api/control/tcode/connect' ? t('msg.tcodeConnectFailed') : result.message || t('msg.actionReportedFailure');
-          if (connKey) setConnHealth(connKey, 'error', msg);
-          showToast(t('toast.actionFailed'), msg, 'error', 4200);
-          await refreshAll().catch(() => {});
-          return;
-        }
-        if (connKey) setConnHealth(connKey, 'ok', result?.message || path);
-        await refreshAll();
-        showToast(t('toast.actionSuccess'), result?.message || path);
-      } catch (e) {
-        if (connKey) setConnHealth(connKey, 'error', e.message || path);
-        showToast(t('toast.actionFailed'), e.message, 'error', 4200);
-      }
-    }
-
-    async function saveConfig() {
-      try {
-        await api('/api/config', { method: 'PUT', body: JSON.stringify(st.config) });
-        await refreshAll();
-        showToast(t('toast.applied'), t('msg.applied'));
-      } catch (e) {
-        showToast(t('toast.actionFailed'), e.message, 'error');
-      }
-    }
-
-    async function applyManual() {
-      const payload = {
-        enabled: st.manualEnabled,
-        gateOpen: st.manualGateOpen,
-        l0: st.manual.L0,
-        r0: st.manual.R0,
-        r1: st.manual.R1,
-        r2: st.manual.R2,
-        l1: st.manual.L1,
-        l2: st.manual.L2,
-        vibrate: st.manual.Vibrate,
-      };
-      await api('/api/manual-test', { method: 'PUT', body: JSON.stringify(payload) });
-      await refreshAll();
-      showToast(t('toast.actionSuccess'), t('btn.applyManual'));
-    }
-
-    async function clearManual() {
-      await api('/api/manual-test', { method: 'DELETE' });
-      await refreshAll();
-      showToast(t('toast.actionSuccess'), t('btn.clearManual'));
-    }
-
-    function centerAxes() {
-      AXES.forEach(ax => {
-        st.manual[ax] = AXIS_DEFS[ax];
-      });
-    }
-
-    async function refreshPorts() {
-      try {
-        st.serialPorts = await api('/api/meta/serial-ports');
-        showToast(t('toast.portsRefreshed'), t('msg.portsRefreshed'));
-      } catch (e) {
-        showToast(t('toast.actionFailed'), e.message, 'error');
-      }
-    }
-
-    function addSignal() {
-      if (!st.config) return;
-      st.config.signals.push({
-        oscPath: '',
-        invertDirection: false,
-        vrchatMin: 0,
-        vrchatMax: 1,
-        smoothingAlpha: 0.7,
-        deadZone: 0.01,
-        curve: st.curves[0] || 'Linear',
-        role: st.roles[0] || 'Depth',
-        isOgbSocket: false,
-        isOgbPlug: false,
-      });
-      showToast(t('toast.signalAdded'), t('msg.signalAdded'));
-    }
-
-    function removeSignal(idx) {
-      st.config.signals.splice(idx, 1);
-    }
-
-    async function copyDiag() {
-      const text = diagnostics.value.map(d => `${d.title}: ${d.body}`).join('\n');
-      try {
-        await navigator.clipboard.writeText(text);
-        showToast(t('toast.diagCopied'), t('msg.diagCopied'));
-      } catch {
-        showToast(t('toast.actionFailed'), t('msg.copyFailed'), 'error');
-      }
-    }
-
-    async function exportRecording() {
-      try {
-        const r = await api('/api/control/recording/export', { method: 'POST' });
-        showToast(t('toast.exportDone'), r.path || t('msg.noRecording'), r.path ? 'success' : 'error', 5000);
-        await refreshAll();
-      } catch (e) {
-        showToast(t('toast.actionFailed'), e.message, 'error', 5000);
-      }
-    }
-
-    function useRecordingDS() {
-      const pts = (st.recordingFrames || []).map(f => ({ ms: Number(f.ms) || 0, value: Math.max(0, Math.min(1, Number(f.l0) || 0)) }));
-      const dur = pts.length ? pts[pts.length - 1].ms : 0;
-      setScriptDataset({ source: pts.length ? 'recording' : 'empty', name: 'recording', points: pts, durationMs: dur });
-      showToast(t('toast.scriptLoaded'), t('scripts.meta.recording', { count: String(pts.length), duration: fmtDur(dur) }));
-    }
-
-    async function loadScriptFile(file) {
-      try {
-        const txt = await file.text();
-        const parsed = parseFunscript(txt);
-        setScriptDataset({ source: 'imported', name: file.name, points: parsed.points, durationMs: parsed.durationMs });
-        showToast(t('toast.scriptLoaded'), t('scripts.meta.imported', { name: file.name, count: String(parsed.points.length), duration: fmtDur(parsed.durationMs) }));
-      } catch (e) {
-        showToast(t('toast.scriptFailed'), e.message || t('msg.scriptInvalid'), 'error', 4000);
-      }
-    }
-
-    function scriptPlay() {
-      const p = st.scriptPlayer;
-      if (!p.points.length || p.durationMs <= 0) return;
-      if (p.currentMs >= p.durationMs) st.scriptPlayer.currentMs = 0;
-      p.isPlaying = true;
-      p.baselineMs = p.currentMs;
-      p.startedAtMs = performance.now();
-      if (p.rafId) cancelAnimationFrame(p.rafId);
-      function tick(now) {
-        if (!st.scriptPlayer.isPlaying) return;
-        const ms = st.scriptPlayer.baselineMs + (now - st.scriptPlayer.startedAtMs);
-        if (ms >= st.scriptPlayer.durationMs) {
-          setScriptMs(st.scriptPlayer.durationMs);
-          stopScriptPlayback();
-          return;
-        }
-        setScriptMs(ms);
-        st.scriptPlayer.rafId = requestAnimationFrame(tick);
-      }
-      p.rafId = requestAnimationFrame(tick);
-    }
-
-    function scriptPause() {
-      stopScriptPlayback();
-    }
-
-    function scriptStop() {
-      stopScriptPlayback();
-      setScriptMs(0);
-    }
-
-    function scriptSeek(ratio) {
-      stopScriptPlayback();
-      setScriptMs((st.scriptPlayer.durationMs || 0) * ratio);
-    }
-
-    function saveDevConfig(device) {
-      const c = st.config?.tCode || {};
-      const cfg = { minPos: c.minPos, maxPos: c.maxPos, maxVelocity: c.maxVelocity, updatesPerSecond: c.updatesPerSecond, rampUpMs: st.config?.safety?.rampUpMs };
-      saveDeviceCfg(device.memoryId, cfg);
-      showToast(t('toast.deviceCfgSaved'), t('msg.deviceCfgSaved'));
-    }
-
-    function loadDevConfig(device) {
-      const saved = loadDeviceCfg(device.memoryId);
-      if (!saved) {
-        showToast(t('toast.actionFailed'), t('msg.noSavedDeviceCfg'), 'warning');
-        return;
-      }
-      if (st.config?.tCode) {
-        if (saved.minPos !== undefined) st.config.tCode.minPos = saved.minPos;
-        if (saved.maxPos !== undefined) st.config.tCode.maxPos = saved.maxPos;
-        if (saved.maxVelocity !== undefined) st.config.tCode.maxVelocity = saved.maxVelocity;
-        if (saved.updatesPerSecond !== undefined) st.config.tCode.updatesPerSecond = saved.updatesPerSecond;
-      }
-      if (saved.rampUpMs !== undefined && st.config?.safety) st.config.safety.rampUpMs = saved.rampUpMs;
-      showToast(t('toast.deviceCfgLoaded'), t('msg.deviceCfgLoaded'));
-    }
-
-    function saveDevMemory(device, alias, note) {
-      setDeviceMem(device, { alias, note, snapshot: device.snapshot });
-      showToast(t('toast.memorySaved'), '');
-    }
-
-    // ── WebSocket ──
-    function connectWs() {
-      if (disposed) return;
-      const proto = location.protocol === 'https:' ? 'wss' : 'ws';
-      const ws = new WebSocket(`${proto}://${location.host}/api/ws`);
-      wsRef = ws;
-      ws.addEventListener('open', () => {
-        st.wsRetryMs = 1000;
-        st.wsConnected = true;
-        setConnHealth('ws', 'ok', `${t('status.connected')} · /api/ws`);
-      });
-      ws.addEventListener('close', () => {
         if (disposed) return;
-        st.wsConnected = false;
-        setConnHealth('ws', 'error', `${t('status.disconnected')} · /api/ws`);
-        reconnectTimer = window.setTimeout(connectWs, st.wsRetryMs);
-        st.wsRetryMs = Math.min(Math.round(st.wsRetryMs * 1.8), 10000);
-      });
-      ws.addEventListener('message', e => {
-        try {
-          const payload = JSON.parse(e.data);
-          if (payload.type !== 'state') return;
-          st.wsLastMessageAt = Date.now();
-          setConnHealth('ws', 'ok', `${t('status.connected')} · /api/ws`);
-          st.overview = payload.data;
-          st.logs = payload.logs || [];
-          const c = payload.data?.loop?.command || {};
-          st.axisHistory.push({ time: Date.now(), l0: c.l0 ?? 0, r0: c.r0 ?? 0.5, r1: c.r1 ?? 0.5, r2: c.r2 ?? 0.5, l1: c.l1 ?? 0.5, l2: c.l2 ?? 0.5, vibrate: c.vibrate ?? 0 });
-          if (st.axisHistory.length > MAX_HIST) st.axisHistory.shift();
-        } catch {
-          // ignore malformed ws payload
-        }
-      });
+
+        setConfig(configResponse);
+        setOverview(overviewResponse);
+        setLogs(normalizeLogs(logsResponse));
+        setSerialPorts(normalizeSerialPorts(serialPortResponse));
+        setOscDraft({
+          receiverHost: configResponse?.osc?.receiverHost || '0.0.0.0',
+          receiverPort: configResponse?.osc?.receiverPort || 9001,
+        });
+        setSignalDrafts(buildSignalDrafts(configResponse?.signals));
+        setStudio(previous => sanitizeStudio(previous, configResponse));
+        setManualDraft(normalizeManualCommand(overviewResponse?.loop?.manualCommand));
+        setScriptSettings({
+          loop: Boolean(overviewResponse?.input?.script?.loop),
+          speed: Number(overviewResponse?.input?.script?.speed || 1),
+        });
+        manualInitializedRef.current = true;
+        scriptSettingsInitializedRef.current = true;
+      } catch (error) {
+        notify(error.message || '初始化失败', 'error');
+      } finally {
+        if (!disposed) setLoading(false);
+      }
     }
 
-    onMounted(async () => {
-      const savedTheme = localStorage.getItem('sensa.theme');
-      st.theme = THEMES.includes(savedTheme) ? savedTheme : 'light';
-      document.documentElement.dataset.theme = st.theme;
-      document.title = 'Sensa WebUI';
-      st.pipeline = loadPipeline();
-      sanitizePipeline();
-      if (!TABS.some(tab => tab.id === st.activeTab)) {
-        st.activeTab = 'overview';
-        localStorage.setItem('sensa.activeTab', st.activeTab);
-      }
-      await refreshAll().catch(() => {});
-      useRecordingDS();
-      connectWs();
-      pollTimer = window.setInterval(() => refreshAll().catch(() => {}), 8000);
-      nextTick(() => setTimeout(updatePortPositions, 200));
-      window.addEventListener('resize', updatePortPositions);
-    });
+    loadInitial();
 
-    watch(
-      () => st.pipeline,
-      () => {
-        persistPipeline();
-        nextTick(updatePortPositions);
-      },
-      { deep: true },
-    );
-
-    watch(
-      () => st.pipelineUi.linkFrom,
-      () => {
-        st.pipelineUi.linkTo = '';
-      },
-    );
-
-    watch(
-      () => st.activeTab,
-      _tab => {
-        /* pipeline is always visible; updatePortPositions called via ResizeObserver */
-      },
-    );
-
-    onUnmounted(() => {
+    return () => {
       disposed = true;
-      if (reconnectTimer) window.clearTimeout(reconnectTimer);
-      if (pollTimer) window.clearInterval(pollTimer);
-      if (wsRef && (wsRef.readyState === WebSocket.OPEN || wsRef.readyState === WebSocket.CONNECTING)) {
-        wsRef.close();
-      }
-      window.removeEventListener('resize', updatePortPositions);
-    });
-
-    return {
-      st,
-      TABS,
-      t,
-      fmtDur,
-      esc,
-      lang,
-      loopRun,
-      cmd,
-      devices,
-      overviewBpm,
-      wsLastSeenText,
-      wsRetryText,
-      secondaryAxes,
-      axisDirectionHint,
-      tcodeSummary,
-      signalLatestMap,
-      filtSigs,
-      filtParams,
-      filtLogs,
-      diagnostics,
-      overviewGuide,
-      statusCards,
-      cmdBadge,
-      scriptFmtSrc,
-      scriptMeta,
-      scriptStatusKey,
-      scriptSummary,
-      connectionDiagnostics,
-      pipelineColumns,
-      pipelineCards,
-      pipelineLinkFromOptions,
-      pipelineLinkToOptions,
-      columnKindLabel,
-      nodeTypeLabel,
-      cardTypeOptions,
-      outputActionsForType,
-      toggleSolo,
-      configDialog,
-      configDialogCard,
-      openCardConfig,
-      closeCardConfig,
-      portPositions,
-      wireStageSize,
-      wirePaths,
-      updatePortPositions,
-      startWireFrom,
-      endWireTo,
-      // actions
-      setActiveTab,
-      panelStyle,
-      toggleLanguage,
-      cycleTheme,
-      refreshAll,
-      postAction,
-      saveConfig,
-      applyManual,
-      clearManual,
-      centerAxes,
-      refreshPorts,
-      addSignal,
-      removeSignal,
-      copyDiag,
-      exportRecording,
-      useRecordingDS,
-      loadScriptFile,
-      scriptPlay,
-      scriptPause,
-      scriptStop,
-      scriptSeek,
-      saveDevConfig,
-      loadDevConfig,
-      saveDevMemory,
-      addProcessColumn,
-      removeProcessColumn,
-      addCardToColumn,
-      removeCardFromColumn,
-      addPipelineLink,
-      removePipelineLink,
-      runOutputAction,
-      resetPipeline,
-      getDeviceMem,
-      PRIMARY_POSE_AXES,
-      AXES,
-      AXIS_DEFS,
-      AXIS_KEY,
-      axisLabel,
     };
-  },
+  }, []);
 
-  template: `
-<div>
+  useEffect(() => {
+    if (!config) return;
+    setStudio(previous => sanitizeStudio(previous, config));
+    setOscDraft({
+      receiverHost: config?.osc?.receiverHost || '0.0.0.0',
+      receiverPort: config?.osc?.receiverPort || 9001,
+    });
+    setSignalDrafts(buildSignalDrafts(config?.signals));
+  }, [config]);
 
-  <!-- Header -->
-  <header class="hero">
-    <div class="hero-topbar">
-      <div class="hero-brand">
-        <p class="eyebrow">Sensa Local Control Console</p>
-        <h1>Sensa WebUI</h1>
-        <p class="hero-desc">{{ t('hero.desc') }}</p>
-      </div>
-      <PostureCanvas :command="cmd" />
-      <div class="hero-actions">
-        <t-button variant="text" class="icon-btn" :title="t('tip.lang')" :aria-label="t('tip.lang')" @click="toggleLanguage">{{ st.language==='zh-CN'?'EN':'ZH' }}</t-button>
-        <t-button variant="text" class="icon-btn" :title="'Theme: '+st.theme" :aria-label="'Theme: '+st.theme" @click="cycleTheme">&#9677;</t-button>
-        <t-button :title="t('btn.refresh')" :aria-label="t('btn.refresh')" @click="refreshAll(true)">{{ t('btn.refresh') }}</t-button>
-      </div>
-    </div>
-    <nav class="top-tabs" aria-label="主导航">
-      <button v-for="tab in TABS" :key="tab.id" type="button"
-        :class="['tab-button',{'is-active':st.activeTab===tab.id}]"
-        @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
-    </nav>
-  </header>
+  useEffect(() => {
+    const presets = getOscMappingPresets(config);
+    if (presets.length === 0) {
+      setSelectedOscPreset('');
+      return;
+    }
 
-  <!-- ═══ PIPELINE WORKBENCH (page-level, always visible) ═══ -->
-  <section class="pipeline-global-section">
-    <!-- Toolbar bar -->
-    <div class="pipeline-toolbar-bar">
-      <div class="pipeline-toolbar-bar__left">
-        <t-tag v-if="st.pipelineUi.linkFrom" theme="warning" variant="outline" style="cursor:pointer" @click="st.pipelineUi.linkFrom=''">
-          连线中：{{ pipelineCards.find(x=>x.id===st.pipelineUi.linkFrom)?.name || '...' }} → 点击目标端口● &nbsp; <strong>×取消</strong>
-        </t-tag>
-        <t-button theme="primary" size="small" @click="addProcessColumn">+ 处理列</t-button>
-        <t-button variant="outline" theme="danger" size="small" @click="resetPipeline">重置</t-button>
-      </div>
-      <div class="pipeline-toolbar-bar__right">
-        <span class="muted" style="font-size:12px">手动连线：</span>
-        <t-select v-model="st.pipelineUi.linkFrom" :options="pipelineLinkFromOptions" placeholder="起点卡片" clearable size="small" style="min-width:160px" />
-        <t-select v-model="st.pipelineUi.linkTo" :options="pipelineLinkToOptions" placeholder="目标卡片" clearable size="small" style="min-width:160px" :disabled="!st.pipelineUi.linkFrom" />
-        <t-button theme="success" size="small" :disabled="!st.pipelineUi.linkFrom||!st.pipelineUi.linkTo" @click="addPipelineLink">连线</t-button>
-      </div>
-    </div>
+    setSelectedOscPreset(previous => (presets.some(preset => preset.id === previous) ? previous : presets[0].id));
+  }, [config]);
 
-    <!-- Columns + SVG wires -->
-    <div id="pipeline-columns-wrap" class="pipeline-columns-wrap" @scroll="updatePortPositions">
-      <svg class="pipeline-wires-svg"
-           :width="wireStageSize.w" :height="wireStageSize.h"
-           xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <marker id="wire-arrow" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
-            <polygon points="0 0, 10 3.5, 0 7" class="wire-arrow-marker" />
-          </marker>
-        </defs>
-        <path v-for="wp in wirePaths" :key="wp.id"
-              :d="wp.path"
-              class="wire-path"
-              marker-end="url(#wire-arrow)"
-              @click.stop="removePipelineLink(wp.id)"
-              title="点击删除此连线" />
-      </svg>
+  useEffect(() => {
+    if (!studio) return;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(studio));
+  }, [studio]);
 
-      <div class="pipeline-columns">
-           <div v-for="(column, colIndex) in pipelineColumns" :key="column.id"
-             :class="['pipeline-col-wrap', 'pipeline-col--' + column.kind]">
+  useEffect(() => {
+    if (!overview?.loop?.manualCommand || manualSyncBlockedRef.current || manualInitializedRef.current === false) return;
+    setManualDraft(normalizeManualCommand(overview.loop.manualCommand));
+  }, [overview?.loop?.manualCommand]);
 
-          <div class="pipeline-col-header">
-            <span class="pipeline-col-title">{{ column.title }}</span>
-            <div class="pipeline-col-header-end">
-              <t-tag variant="light" size="small" :theme="column.kind==='input'?'primary':column.kind==='output'?'success':'default'">{{ columnKindLabel(column.kind) }}</t-tag>
-              <t-button v-if="column.kind==='process'" variant="text" theme="danger" size="small" @click="removeProcessColumn(column.id)">移除</t-button>
-            </div>
-          </div>
+  useEffect(() => {
+    if (!overview?.input?.script || scriptSettingsInitializedRef.current === false) return;
+    if (busyKey.startsWith('script-')) return;
 
-          <div class="pipeline-column-stack">
-            <div v-for="card in column.cards" :key="card.id" class="pipeline-node-wrap">
-              <!-- Left port -->
-                  <div v-if="column.kind !== 'input'"
-                    class="card-port card-port--left"
-                    :id="'pl-' + card.id"
-                   :class="{'card-port--connectable': !!st.pipelineUi.linkFrom && st.pipelineUi.linkFrom !== card.id}"
-                   @click.stop="endWireTo(card.id)"
-                   title="点击完成连线" />
+    setScriptSettings(previous => ({
+      ...previous,
+      loop: Boolean(overview.input.script.loop),
+      speed: Number(overview.input.script.speed || previous.speed || 1),
+    }));
+  }, [overview?.input?.script, busyKey]);
 
-              <!-- Compact node card -->
-              <div :class="['pipeline-node-card', {'is-disabled': !card.enabled, 'is-solo': card.solo}]">
-                <div class="pipeline-node-card__top">
-                  <t-tag variant="light" size="small" class="pipeline-node-type-tag">{{ nodeTypeLabel(card.kind, card.type) }}</t-tag>
-                  <span class="pipeline-node-name">{{ card.name }}</span>
-                </div>
-                <div class="pipeline-node-card__bottom">
-                  <t-switch v-model="card.enabled" size="small" :title="card.enabled ? '禁用' : '启用'" />
-                  <t-button size="small" variant="text"
-                            :class="['solo-btn', {'solo-btn--active': card.solo}]"
-                            :title="card.solo ? '取消SOLO' : 'SOLO（此列只此卡生效）'"
-                            @click="toggleSolo(column.id, card.id)">S</t-button>
-                  <t-button size="small" variant="outline" @click="openCardConfig(column.id, card.id)">⚙ 配置</t-button>
-                  <t-button variant="text" theme="danger" size="small" @click="removeCardFromColumn(column.id, card.id)">✕</t-button>
-                </div>
-              </div>
+  useEffect(() => {
+    if (!selectedScriptFile) return;
+    let cancelled = false;
 
-              <!-- Right port -->
-                  <div v-if="column.kind !== 'output'"
-                    class="card-port card-port--right"
-                    :id="'pr-' + card.id"
-                   :class="{'card-port--drawing': st.pipelineUi.linkFrom === card.id}"
-                   @click.stop="startWireFrom(card.id)"
-                   :title="st.pipelineUi.linkFrom === card.id ? '点击取消' : '点击开始连线'" />
-            </div>
-          </div>
+    (async () => {
+      const formData = new FormData();
+      formData.append('file', selectedScriptFile);
+      formData.append('loop', String(scriptSettings.loop));
+      formData.append('speed', String(scriptSettings.speed));
 
-          <div class="pipeline-add-card-row">
-            <t-select v-model="st.pipelineUi.addTypeByColumn[column.id]"
-                      :options="cardTypeOptions(column.kind)" placeholder="选择卡片类型" size="small" />
-            <t-button variant="outline" size="small" @click="addCardToColumn(column.id)">+ 添加</t-button>
-          </div>
+      try {
+        const result = await apiRequest('/api/input/script/load', {
+          method: 'POST',
+          body: formData,
+        });
 
-        </div>
-      </div>
-    </div>
+        if (cancelled) return;
 
-    <!-- Links bar -->
-    <div class="pipeline-links-bar">
-      <span class="muted" style="font-size:12px;flex-shrink:0">连线：</span>
-      <span v-if="!st.pipeline.links.length" class="muted" style="font-size:12px">暂无连线，点击卡片右侧端口● 开始连线</span>
-      <div v-for="link in st.pipeline.links" :key="link.id" class="pipeline-link-chip">
-        <span>{{ pipelineCards.find(x=>x.id===link.from)?.name || link.from }}</span>
-        <span class="muted">→</span>
-        <span>{{ pipelineCards.find(x=>x.id===link.to)?.name || link.to }}</span>
-        <t-button variant="text" theme="danger" size="small" @click="removePipelineLink(link.id)">×</t-button>
-      </div>
-    </div>
-  </section>
+        setSelectedScriptFile(null);
+        setScriptInputKey(previous => previous + 1);
+        setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
+        if (result?.script) {
+          setScriptSettings({
+            loop: Boolean(result.script.loop),
+            speed: Number(result.script.speed || 1),
+          });
+        }
+        await refreshOverview();
+        notify('脚本已加载', 'success');
+      } catch (error) {
+        if (!cancelled) {
+          notify(error.message || '脚本加载失败', 'error');
+          setSelectedScriptFile(null);
+          setScriptInputKey(previous => previous + 1);
+        }
+      }
+    })();
 
-  <!-- ═══ CONFIG DIALOG ═══ -->
-  <t-dialog v-model:visible="configDialog.visible" :header="configDialogCard ? ('配置：' + configDialogCard.name) : '配置'"
-            :footer="false" destroy-on-close @close="closeCardConfig" style="min-width:420px">
-    <div v-if="configDialogCard" class="card-config-form">
-      <label>
-        <span>显示名称</span>
-        <t-input v-model="configDialogCard.name" size="small" />
-      </label>
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedScriptFile]);
 
-      <template v-if="configDialogCard.kind==='input'">
-        <label v-if="configDialogCard.type==='osc' || configDialogCard.type==='http' || configDialogCard.type==='ws'">
-          <span>服务端口</span>
-          <t-input-number v-model="configDialogCard.config.port" :step="1" size="small" />
-        </label>
-        <label v-if="configDialogCard.type==='http' || configDialogCard.type==='ws'">
-          <span>路由/通道</span>
-          <t-input v-model="configDialogCard.config.route" placeholder="/ingest/source" size="small" />
-        </label>
-        <label v-if="configDialogCard.type==='osc'">
-          <span>Path 前缀</span>
-          <t-input v-model="configDialogCard.config.pathPrefix" placeholder="/avatar/parameters" size="small" />
-        </label>
-        <label>
-          <span>输入标识 (sourceKey)</span>
-          <t-input v-model="configDialogCard.config.sourceKey" placeholder="用于同端口多输入区分" size="small" />
-        </label>
-      </template>
+  useEffect(() => {
+    let socket;
+    let retryHandle;
+    let disposed = false;
 
-      <template v-if="configDialogCard.kind==='process'">
-        <label>
-          <span>目标轴</span>
-          <t-select v-model="configDialogCard.config.targetAxis" :options="AXES.map(ax=>({label:ax,value:ax}))" size="small" />
-        </label>
-        <template v-if="configDialogCard.type==='transform'">
-          <label><span>Gain（增益）</span><t-input-number v-model="configDialogCard.config.gain" :step="0.01" size="small" /></label>
-          <label><span>Offset（偏移）</span><t-input-number v-model="configDialogCard.config.offset" :step="0.01" size="small" /></label>
-        </template>
-        <template v-if="configDialogCard.type==='clamp'">
-          <label><span>Min</span><t-input-number v-model="configDialogCard.config.min" :step="0.01" :min="0" :max="1" size="small" /></label>
-          <label><span>Max</span><t-input-number v-model="configDialogCard.config.max" :step="0.01" :min="0" :max="1" size="small" /></label>
-        </template>
-        <t-alert v-if="configDialogCard.type==='invert-l0'" theme="info" message="将目标轴做 1-x 反转（0↔1）。" />
-      </template>
+    function connect() {
+      setWsState('connecting');
+      socket = new WebSocket(WS_URL);
 
-      <template v-if="configDialogCard.kind==='output'">
-        <label v-if="configDialogCard.type==='serial'">
-          <span>串口号</span>
-          <t-input v-model="configDialogCard.config.comPort" placeholder="COM3" size="small" />
-        </label>
-        <template v-if="configDialogCard.type==='udp' || configDialogCard.type==='tcp'">
-          <label><span>Host</span><t-input v-model="configDialogCard.config.host" placeholder="127.0.0.1" size="small" /></label>
-          <label><span>Port</span><t-input-number v-model="configDialogCard.config.port" :step="1" size="small" /></label>
-        </template>
-        <label v-if="configDialogCard.type==='intiface'">
-          <span>WebSocket 地址</span>
-          <t-input v-model="configDialogCard.config.websocketAddress" placeholder="ws://localhost:12345" size="small" />
-        </label>
-        <label v-if="configDialogCard.type==='script'">
-          <span>输出脚本名</span>
-          <t-input v-model="configDialogCard.config.fileName" placeholder="output.funscript" size="small" />
-        </label>
-        <div class="pipeline-output-actions" v-if="outputActionsForType(configDialogCard.type).length">
-          <t-button v-for="action in outputActionsForType(configDialogCard.type)" :key="action"
-                    variant="outline" size="small" @click="runOutputAction(configDialogCard.type, action)">
-            {{ {connect:'连接',disconnect:'断开',park:'回中',scanStart:'开始扫描',scanStop:'停止扫描'}[action]||action }}
-          </t-button>
-        </div>
-      </template>
+      socket.onopen = () => setWsState('connected');
 
-      <div style="display:flex;justify-content:flex-end;margin-top:16px">
-        <t-button theme="primary" @click="closeCardConfig">完成</t-button>
-      </div>
-    </div>
-  </t-dialog>
+      socket.onmessage = event => {
+        try {
+          const payload = JSON.parse(event.data);
+          if (payload?.type !== 'state') return;
+          setOverview(payload.data || null);
+          setLogs(normalizeLogs(payload.logs));
+        } catch {
+          // ignore malformed frames
+        }
+      };
 
-  <!-- Main -->
-  <main class="workspace">
+      socket.onerror = () => {
+        setWsState('error');
+      };
 
-    <!-- ═══ OVERVIEW ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='overview'}]" :style="panelStyle('overview')">
-      <div class="panel-grid panel-grid--overview">
+      socket.onclose = () => {
+        if (disposed) return;
+        setWsState('disconnected');
+        retryHandle = window.setTimeout(connect, 1500);
+      };
+    }
 
-        <section class="card hero-card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('overview.title') }}</h2></div>
-            <t-tag variant="light">{{ t('overview.badge') }}</t-tag>
-          </div>
-          <div class="overview-guide">
-            <article v-for="(item,i) in overviewGuide" :key="i" class="guide-step">
-              <strong>{{ item.title }}</strong><div>{{ item.body }}</div>
-            </article>
-          </div>
-          <div class="overview-actions">
-            <t-button @click="postAction('/api/control/loop/start')">{{ t('btn.startLoop') }}</t-button>
-            <t-button @click="postAction('/api/control/loop/stop')">{{ t('btn.stopLoop') }}</t-button>
-          </div>
-        </section>
+    connect();
 
-        <section class="card">
-          <h2>{{ t('overview.status') }}</h2>
-          <div class="stats">
-            <div v-for="card in statusCards" :key="card.label" :class="['stat',card.cls]" :data-tip="card.tip">
-              <div class="stat-label">{{ card.label }}</div>
-              <div class="stat-value">{{ card.value }}</div>
-            </div>
-          </div>
-        </section>
+    return () => {
+      disposed = true;
+      window.clearTimeout(retryHandle);
+      socket?.close();
+    };
+  }, []);
 
-        <section class="card span-3">
-          <h2>{{ t('overview.devices.title') }}</h2>
-          <p class="muted">{{ t('overview.devices.desc') }}</p>
-          <div v-if="!devices.length" class="empty-state">
-            <strong>{{ t('devices.empty.title') }}</strong>
-            <div>{{ t('devices.empty.body') }}</div>
-          </div>
-          <div v-else class="device-deck">
-            <article v-for="dev in devices" :key="dev.id" :class="['device-card','device-card--tcode',dev.source==='mock'?'device-card--mock':'','positioned']">
-              <div class="device-card__meta">
-                <div>
-                  <span class="proto-badge tcode">{{ dev.connectionLabel }}</span>
-                  <h3>{{ dev.name }}</h3>
-                  <p class="muted">{{ dev.summary }}</p>
-                </div>
-                <t-tag :theme="dev.source==='mock'?'default':'success'" variant="light">{{ dev.source==='mock'?t('label.mock'):t('label.real') }}</t-tag>
-              </div>
-              <div class="device-card__facts">
-                <div v-for="(v,k) in dev.facts" :key="k" class="fact-pill">
-                  <strong>{{ k }}</strong><span>{{ v }}</span>
-                </div>
-              </div>
-            </article>
-          </div>
-        </section>
+  function notify(message, severity = 'info') {
+    setSnackbar({ open: true, message, severity });
+  }
 
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('overview.diag') }}</h2><p class="muted">{{ t('overview.diagDesc') }}</p></div>
-            <t-button variant="text" @click="copyDiag">{{ t('btn.copyDiag') }}</t-button>
-          </div>
-          <div class="diagnostic-list">
-            <t-alert v-for="(d,i) in diagnostics" :key="i"
-              :theme="{ok:'success',warn:'warning',error:'error'}[d.type]||'info'"
-              :title="d.title" :message="d.body" style="margin-bottom:6px" />
-          </div>
-        </section>
+  async function withBusy(key, action) {
+    setBusyKey(key);
+    try {
+      return await action();
+    } finally {
+      setBusyKey('');
+    }
+  }
 
-      </div>
-    </section>
+  async function refreshOverview() {
+    const nextOverview = await apiRequest('/api/state/overview');
+    setOverview(nextOverview);
+    return nextOverview;
+  }
 
-    <!-- ═══ CONFIG ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='config'}]" :style="panelStyle('config')">
-      <div v-if="st.config" class="panel-grid panel-grid--config">
+  async function refreshSerialPorts() {
+    const nextPorts = await apiRequest('/api/meta/serial-ports');
+    setSerialPorts(normalizeSerialPorts(nextPorts));
+  }
 
-        <!-- TCode Connection -->
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('config.tcode.title') }}</h2><p class="muted">{{ t('config.tcode.desc') }}</p></div>
-            <span class="proto-badge tcode">TCode</span>
-          </div>
-          <div class="device-status-row">
-            <div v-for="([lb,vl],i) in tcodeSummary" :key="i" :class="['device-status-chip',st.overview?.tcode?.connected?'ok':'']">
-              <strong>{{ lb }}</strong><span>{{ vl }}</span>
-            </div>
-          </div>
-          <div class="form-stack compact-form">
-            <label :title="t('tip.tcode.comPort')">
-              <span>{{ t('cfg.tcode.comPort') }}</span>
-              <div class="input-row">
-                <t-select v-model="st.config.tCode.comPort" filterable :creatable="true" :placeholder="'COM3'" style="flex:1">
-                  <t-option v-for="p in st.serialPorts" :key="p" :value="p" :label="p" />
-                </t-select>
-                <t-button @click="refreshPorts">{{ t('cfg.tcode.refreshPorts') }}</t-button>
-              </div>
-            </label>
-            <div class="inline-grid inline-grid--2">
-              <label :title="t('tip.tcode.ups')"><span>{{ t('cfg.tcode.ups') }}</span><t-input-number v-model="st.config.tCode.updatesPerSecond" :step="1" /></label>
-              <label :title="t('tip.tcode.speedMode')"><t-checkbox v-model="st.config.tCode.preferSpeedMode">{{ t('cfg.tcode.speedMode') }}</t-checkbox></label>
-            </div>
-            <t-checkbox v-model="st.config.tCode.enabled" :title="t('tip.tcode.enabled')">{{ t('cfg.tcode.enabled') }}</t-checkbox>
-          </div>
-          <div class="actions-grid">
-            <t-button @click="postAction('/api/control/tcode/connect')">{{ t('btn.connectTCode') }}</t-button>
-            <t-button @click="postAction('/api/control/tcode/disconnect')">{{ t('btn.disconnectTCode') }}</t-button>
-          </div>
-        </section>
+  async function persistConfig(nextConfig) {
+    nextConfig.schemaVersion = 3;
+    const saved = await apiRequest('/api/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(nextConfig),
+    });
+    setConfig(saved);
+    return saved;
+  }
 
-        <!-- Service Config -->
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('config.service.title') }}</h2><p class="muted">{{ t('config.service.desc') }}</p></div>
-          </div>
-          <div class="form-stack compact-form">
-            <label :title="t('tip.webui.host')??''"><span>{{ t('cfg.webui.host') }}</span><t-input v-model="st.config.webUi.host" /></label>
-            <label :title="t('tip.webui.port')??''"><span>{{ t('cfg.webui.port') }}</span><t-input-number v-model="st.config.webUi.port" :step="1" /></label>
-            <label :title="t('tip.osc.port')??''"><span>{{ t('cfg.osc.port') }}</span><t-input-number v-model="st.config.osc.receiverPort" :step="1" /></label>
-          </div>
-        </section>
+  async function saveOscConfig() {
+    if (!config) return;
 
-        <!-- Safety Config -->
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('config.safety.title') }}</h2><p class="muted">{{ t('config.safety.desc') }}</p></div>
-          </div>
-          <div class="form-stack compact-form">
-            <label><span>{{ t('cfg.safety.cap') }}</span><t-input-number v-model="st.config.safety.globalIntensityCap" :step="0.01" :min="0" :max="1" /></label>
-            <label><span>{{ t('cfg.safety.idle') }}</span>
-              <t-select v-model="st.config.safety.idle">
-                <t-option v-for="opt in st.idleBehaviors" :key="opt" :value="opt" :label="opt" />
-              </t-select>
-            </label>
-            <label><span>{{ t('cfg.safety.estop') }}</span><t-input v-model="st.config.safety.emergencyStopKey" /></label>
-          </div>
-        </section>
+    await withBusy('osc-save', async () => {
+      const nextConfig = cloneConfig(config);
+      nextConfig.osc = {
+        ...nextConfig.osc,
+        receiverHost: (oscDraft.receiverHost || '0.0.0.0').trim() || '0.0.0.0',
+        receiverPort: Number(oscDraft.receiverPort || 9001),
+      };
 
-        <!-- Signal Matrix -->
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('signals.title') }}</h2><p class="muted">{{ t('signals.desc') }}</p></div>
-            <div class="button-row">
-              <t-input class="filter-input" v-model="st.filters.signals" :placeholder="t('signals.filter')" clearable />
-              <t-button @click="addSignal">{{ t('btn.addSignal') }}</t-button>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead><tr>
-                <th>{{ t('sig.oscPath') }}</th><th>{{ t('sig.role') }}</th><th>{{ t('sig.curve') }}</th>
-                <th>{{ t('sig.min') }}</th><th>{{ t('sig.max') }}</th><th>{{ t('sig.alpha') }}</th>
-                <th>{{ t('sig.dz') }}</th><th>{{ t('sig.inv') }}</th><th>{{ t('sig.latest') }}</th><th></th>
-              </tr></thead>
-              <tbody>
-                <tr v-for="(sig,idx) in filtSigs" :key="idx">
-                  <td><t-input v-model="sig.oscPath" size="small" /></td>
-                  <td><t-select v-model="sig.role" size="small" style="min-width:90px"><t-option v-for="r in st.roles" :key="r" :value="r" :label="r" /></t-select></td>
-                  <td><t-select v-model="sig.curve" size="small" style="min-width:90px"><t-option v-for="c in st.curves" :key="c" :value="c" :label="c" /></t-select></td>
-                  <td><t-input-number v-model="sig.vrchatMin" :step="0.01" size="small" style="width:80px" /></td>
-                  <td><t-input-number v-model="sig.vrchatMax" :step="0.01" size="small" style="width:80px" /></td>
-                  <td><t-input-number v-model="sig.smoothingAlpha" :step="0.01" :min="0.01" :max="1" size="small" style="width:80px" /></td>
-                  <td><t-input-number v-model="sig.deadZone" :step="0.01" :min="0" :max="1" size="small" style="width:80px" /></td>
-                  <td><t-checkbox v-model="sig.invertDirection" /></td>
-                  <td>{{ signalLatestMap.has(sig.oscPath) ? Number(signalLatestMap.get(sig.oscPath)).toFixed(4) : '-' }}</td>
-                  <td><t-button variant="text" theme="danger" size="small" @click="removeSignal(st.config.signals.indexOf(sig))">{{ t('btn.delete') }}</t-button></td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="surface-actions">
-            <t-button theme="primary" @click="saveConfig">{{ t('btn.apply') }}</t-button>
-            <t-button @click="refreshAll(true)">{{ t('btn.reloadConfig') }}</t-button>
-          </div>
-        </section>
+      await persistConfig(nextConfig);
+      await refreshOverview();
+      notify('OSC 配置已保存', 'success');
+    }).catch(error => notify(error.message || '保存 OSC 配置失败', 'error'));
+  }
 
-      </div>
-      <div v-else class="empty-state"><strong>加载中…</strong></div>
-    </section>
+  function updateSignalDraft(draftId, patch) {
+    setSignalDrafts(previous => previous.map(signal => (signal._draftId === draftId ? { ...signal, ...patch } : signal)));
+  }
 
-    <!-- ═══ CONTROL ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='control'}]" :style="panelStyle('control')">
-      <div class="panel-grid panel-grid--control">
+  function addSignalDraft(prefillPath = '') {
+    setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: prefillPath })]);
+  }
 
-        <!-- Axis control card -->
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('control.axes.title') }}</h2></div>
-            <t-tag :theme="loopRun?'warning':'default'" variant="light">{{ loopRun?t('status.running'):t('status.stopped') }}</t-tag>
-          </div>
-          <div :class="['callout',loopRun?'warn':'info']">
-            {{ loopRun ? t('control.axes.running') : t('control.axes.stopped') }}
-          </div>
-          <div class="axis-control-layout">
-            <div class="axis-vertical-group">
-              <AxisSlider v-for="ax in PRIMARY_POSE_AXES" :key="'v-'+ax" :axis="ax" vertical
-                :high-label="axisDirectionHint(ax, true)"
-                :low-label="axisDirectionHint(ax, false)"
-                :modelValue="loopRun ? (cmd[AXIS_KEY[ax]]??AXIS_DEFS[ax]) : st.manual[ax]"
-                @update:modelValue="v=>{ if(!loopRun) st.manual[ax]=v; }"
-                :readonly="loopRun" />
-            </div>
-            <div class="axis-grid axis-grid--control axis-horizontal-group">
-            <AxisSlider v-for="ax in secondaryAxes" :key="ax" :axis="ax"
-              :modelValue="loopRun ? (cmd[AXIS_KEY[ax]]??AXIS_DEFS[ax]) : st.manual[ax]"
-              @update:modelValue="v=>{ if(!loopRun) st.manual[ax]=v; }"
-              :readonly="loopRun" />
-            </div>
-          </div>
-          <div class="actions-grid" style="margin-top:12px" v-if="!loopRun">
-            <t-checkbox v-model="st.manualEnabled">{{ t('cb.manualEnabled') }}</t-checkbox>
-            <t-checkbox v-model="st.manualGateOpen">{{ t('cb.gateOpen') }}</t-checkbox>
-            <t-button @click="applyManual">{{ t('btn.applyManual') }}</t-button>
-            <t-button @click="clearManual">{{ t('btn.clearManual') }}</t-button>
-            <t-button variant="text" @click="centerAxes">{{ t('btn.centerAxes') }}</t-button>
-            <t-button variant="text" @click="postAction('/api/control/tcode/park')">{{ t('btn.parkTCode') }}</t-button>
-          </div>
-        </section>
+  function removeSignalDraft(draftId) {
+    setSignalDrafts(previous => previous.filter(signal => signal._draftId !== draftId));
+  }
 
-        <!-- L0 Invert toggle -->
-        <section v-if="st.config" class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('control.invert.title') }}</h2><p class="muted">{{ t('control.invert.desc') }}</p></div>
-          </div>
-          <div class="toggle-group">
-            <t-checkbox v-model="st.config.tCode.l0Invert">L0 Invert</t-checkbox>
-          </div>
-          <div class="actions-grid" style="margin-top:12px">
-            <t-button @click="saveConfig">{{ t('btn.save') }}</t-button>
-          </div>
-        </section>
+  async function saveOscMappings() {
+    if (!config) return;
 
-        <!-- BPM card -->
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('control.bpm.title') }}</h2><p class="muted">{{ t('control.bpm.desc') }}</p></div>
-            <t-tag variant="light">{{ overviewBpm }} BPM</t-tag>
-          </div>
-          <div v-if="st.config" class="form-stack compact-form">
-            <t-checkbox v-model="st.config.rhythm.enabled">{{ t('cfg.rhythm.enabled') }}</t-checkbox>
-            <div class="inline-grid inline-grid--3">
-              <label><span>{{ t('cfg.rhythm.window') }}</span><t-input-number v-model="st.config.rhythm.windowMs" :step="1" /></label>
-              <label><span>{{ t('cfg.rhythm.minBpm') }}</span><t-input-number v-model="st.config.rhythm.minBpm" :step="0.1" /></label>
-              <label><span>{{ t('cfg.rhythm.maxBpm') }}</span><t-input-number v-model="st.config.rhythm.maxBpm" :step="0.1" /></label>
-            </div>
-            <div class="actions-grid">
-              <t-button @click="saveConfig">{{ t('btn.save') }}</t-button>
-            </div>
-          </div>
-        </section>
+    await withBusy('osc-mappings-save', async () => {
+      const nextConfig = cloneConfig(config);
+      nextConfig.schemaVersion = 3;
+      nextConfig.signals = signalDrafts.map(stripSignalDraft).filter(signal => Boolean(signal.oscPath));
 
-      </div>
-    </section>
+      await persistConfig(nextConfig);
+      await refreshOverview();
+      notify('OSC 映射已保存', 'success');
+    }).catch(error => notify(error.message || '保存 OSC 映射失败', 'error'));
+  }
 
-    <!-- ═══ SCRIPTS ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='scripts'}]" :style="panelStyle('scripts')">
-      <div class="panel-grid panel-grid--scripts">
+  function applyOscPreset(mode = 'replace') {
+    const preset = getOscMappingPreset(config, selectedOscPreset);
+    if (!preset) {
+      notify('请选择一个预设方案', 'warning');
+      return;
+    }
 
-        <section class="card span-3 script-hero-card">
-          <div class="section-title-row">
-            <div><h2>{{ t('scripts.title') }}</h2><p class="muted">{{ t('scripts.recording.hint') }}</p></div>
-            <t-tag variant="light">{{ t('scripts.badge') }}</t-tag>
-          </div>
-          <div class="stat-row" style="display:flex;gap:8px;flex-wrap:wrap">
-            <div v-for="([lb,vl],i) in scriptSummary.slice(0,4)" :key="i" class="stat">
-              <div class="stat-label">{{ lb }}</div>
-              <div class="stat-value">{{ vl }}</div>
-            </div>
-          </div>
-        </section>
+    const nextDrafts = preset.mappings.map(mapping => makeSignalDraft(mapping));
+    setSignalDrafts(previous => (mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts));
+    notify(mode === 'append' ? `已追加预设：${preset.name}` : `已应用预设：${preset.name}`, 'success');
+  }
 
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('scripts.recording.title') }}</h2><p class="muted">{{ t('scripts.recording.desc') }}</p></div>
-            <t-tag :theme="st.overview?.recording?.isActive?'success':'default'" variant="light">{{ st.overview?.recording?.isActive ? t('recording.active') : t('recording.inactive') }}</t-tag>
-          </div>
-          <div class="actions-grid actions-grid--wide">
-            <t-button @click="postAction('/api/control/recording/start')">{{ t('btn.startRecording') }}</t-button>
-            <t-button @click="postAction('/api/control/recording/stop')">{{ t('btn.stopRecording') }}</t-button>
-            <t-button @click="exportRecording">{{ t('btn.exportFunscript') }}</t-button>
-          </div>
-          <p class="muted" style="margin-top:8px">{{ t('recording.summary',{state:st.overview?.recording?.isActive?t('recording.active'):t('recording.inactive'),count:String(st.overview?.recording?.frameCount??0)}) }}</p>
-          <div class="callout info">{{ t('scripts.recording.hint') }}</div>
-        </section>
+  function openPresetDialog(presetId = null, options = {}) {
+    if (!config) return;
+    setPresetDialog(buildPresetDialogDraft(config, presetId, options));
+  }
 
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('scripts.import.title') }}</h2><p class="muted">{{ t('scripts.import.desc') }}</p></div>
-          </div>
-          <div class="form-stack compact-form">
-            <label>
-              <span>{{ t('scripts.import.file') }}</span>
-              <input type="file" accept=".funscript,.json,application/json" @change="e=>e.target.files?.[0]&&loadScriptFile(e.target.files[0])" />
-            </label>
-            <div class="callout info">{{ scriptMeta }}</div>
-            <div class="button-row">
-              <t-button variant="text" @click="useRecordingDS">{{ t('scripts.import.useRecording') }}</t-button>
-              <t-button variant="text" @click="()=>setScriptDataset({source:'empty',name:'',points:[],durationMs:0})">{{ t('scripts.import.clear') }}</t-button>
-            </div>
-          </div>
-        </section>
+  function updatePresetDialogSignal(draftId, patch) {
+    setPresetDialog(previous => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        mappings: previous.mappings.map(signal => (signal._draftId === draftId ? { ...signal, ...patch } : signal)),
+      };
+    });
+  }
 
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('scripts.player.title') }}</h2><p class="muted">{{ t('scripts.player.desc') }}</p></div>
-            <t-tag variant="light">{{ t(scriptStatusKey) }}</t-tag>
-          </div>
-          <ScriptCanvas :player="st.scriptPlayer" />
-          <div class="script-player-controls">
-            <input type="range" min="0" max="1000" step="1"
-              :value="Math.round(st.scriptPlayer.durationMs>0?(st.scriptPlayer.currentMs/st.scriptPlayer.durationMs)*1000:0)"
-              @input="e=>scriptSeek(Number(e.target.value)/1000)" />
-            <div class="script-player-toolbar">
-              <t-button theme="primary" @click="scriptPlay">{{ t('scripts.player.play') }}</t-button>
-              <t-button variant="text" @click="scriptPause">{{ t('scripts.player.pause') }}</t-button>
-              <t-button variant="text" @click="scriptStop">{{ t('scripts.player.stop') }}</t-button>
-              <span class="script-time-label">{{ fmtDur(st.scriptPlayer.currentMs) }} / {{ fmtDur(st.scriptPlayer.durationMs) }}</span>
-            </div>
-          </div>
-        </section>
+  function addPresetDialogSignal(prefillPath = '') {
+    setPresetDialog(previous => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        mappings: [...previous.mappings, makeSignalDraft({ oscPath: prefillPath })],
+      };
+    });
+  }
 
-        <section class="card">
-          <div class="section-title-row">
-            <div><h2>{{ t('scripts.timeline.title') }}</h2></div>
-          </div>
-          <div class="diagnostic-list">
-            <t-alert v-if="!st.scriptPlayer.points.length" theme="info" :title="t('scripts.timeline.title')" :message="t('scripts.timeline.empty')" />
-            <article v-else v-for="([lb,vl],i) in scriptSummary" :key="i" class="diagnostic-item ok">
-              <strong>{{ lb }}</strong><div>{{ vl }}</div>
-            </article>
-          </div>
-        </section>
+  function removePresetDialogSignal(draftId) {
+    setPresetDialog(previous => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        mappings: previous.mappings.filter(signal => signal._draftId !== draftId),
+      };
+    });
+  }
 
-      </div>
-    </section>
+  async function savePresetDialog() {
+    if (!config || !presetDialog) return;
 
-    <!-- ═══ MONITORING ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='monitoring'}]" :style="panelStyle('monitoring')">
-      <div class="panel-grid panel-grid--monitoring">
+    await withBusy(`preset-save-${presetDialog.presetId}`, async () => {
+      const nextConfig = cloneConfig(config);
+      const nextPreset = {
+        id: presetDialog.presetId,
+        name: (presetDialog.name || 'OSC 预设').trim() || 'OSC 预设',
+        description: (presetDialog.description || '').trim(),
+        mappings: presetDialog.mappings.map(stripSignalDraft).filter(signal => Boolean(signal.oscPath)),
+      };
 
-        <!-- ECharts axis history chart -->
-        <section class="card span-3">
-          <div class="section-title-row">
-            <div><h2>{{ t('monitor.chart.title') }}</h2><p class="muted">最近 {{ st.axisHistory.length }} 个数据点 ({{ t('monitor.chart.desc') }})</p></div>
-          </div>
-          <EChartPanel :history="st.axisHistory" :lang="st.language" />
-        </section>
+      const presets = getCustomOscMappingPresets(config);
+      nextConfig.oscMappingPresets = presetDialog.isNew ? [...presets, nextPreset] : presets.map(preset => (preset.id === presetDialog.presetId ? nextPreset : preset));
 
-        <section class="card span-3">
-          <div class="section-title-row">
-            <div><h2>{{ t('monitor.params.title') }}</h2><p class="muted">{{ t('monitor.params.desc') }}</p></div>
-            <t-input class="filter-input" v-model="st.filters.parameters" :placeholder="t('monitor.params.filter')" clearable />
-          </div>
-          <div class="table-wrap compact-table table-wrap--wide">
-            <table>
-              <thead><tr>
-                <th>Path</th><th>Value</th><th>Type</th><th>Timestamp</th>
-              </tr></thead>
-              <tbody>
-                <tr v-for="(p,i) in filtParams" :key="i">
-                  <td class="path-cell" :title="p.path">{{ p.path }}</td>
-                  <td>{{ Number(p.value).toFixed(4) }}</td>
-                  <td>{{ p.type }}</td>
-                  <td>{{ new Date(p.timestampMs).toLocaleTimeString() }}</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </section>
+      const saved = await persistConfig(nextConfig);
+      setSelectedOscPreset(nextPreset.id);
+      setPresetDialog(null);
+      notify(`${nextPreset.name} 已保存`, 'success');
+      setConfig(saved);
+    }).catch(error => notify(error.message || '保存预设失败', 'error'));
+  }
 
-        <section class="card span-3">
-          <div class="section-title-row">
-            <div><h2>{{ t('monitor.logs.title') }}</h2><p class="muted">{{ t('monitor.logs.desc') }}</p></div>
-            <t-input class="filter-input" v-model="st.filters.logs" :placeholder="t('monitor.logs.filter')" clearable />
-          </div>
-          <pre class="log-panel log-panel--wide">{{ filtLogs.map(l=>'['+new Date(l.timestamp).toLocaleTimeString()+'] '+l.message).join('\\n') }}</pre>
-        </section>
+  async function deleteSelectedPreset() {
+    if (!config || !selectedOscPreset) return;
 
-      </div>
-    </section>
+    const preset = getOscMappingPreset(config, selectedOscPreset);
+    if (!preset) return;
+    if (preset.isBuiltIn) {
+      notify('内置预设不能删除；如需修改，请复制为自定义预设。', 'warning');
+      return;
+    }
 
-    <!-- ═══ HELP ═══ -->
-    <section :class="['tab-panel', {'is-active': st.activeTab==='help'}]" :style="panelStyle('help')">
-      <div class="panel-grid panel-grid--help">
+    await withBusy(`preset-delete-${selectedOscPreset}`, async () => {
+      const nextConfig = cloneConfig(config);
+      const remaining = getCustomOscMappingPresets(config).filter(item => item.id !== selectedOscPreset);
+      nextConfig.oscMappingPresets = remaining;
 
-        <section class="card span-3">
-          <div class="section-title-row"><div><h2>{{ t('help.title') }}</h2></div></div>
-          <div class="doc-cards doc-cards--help">
-            <article class="doc-card">
-              <h3>&#128640; 快速入门</h3>
-              <p>&#9312; 到「配置」页，找到「TCode 串口连接」，选择 COM 口后点击连接。</p>
-              <p>&#9313; 到「设备」页确认设备已出现，再到「控制」页用轴位滑条验证响应。</p>
-              <p>&#9314; 在「配置」页检查 OSC 接收端口（默认 9001），在 VRChat 中启用 OSC。</p>
-              <p>&#9315; 回到「总览」，点击「启动 Loop」，设备即开始实时输出。</p>
-            </article>
-            <article class="doc-card">
-              <h3>&#128203; 页面功能速查</h3>
-              <p><strong>总览</strong> — 整体运行状态、服务健康检查。</p>
-              <p><strong>配置</strong> — TCode 串口连接、服务地址、安全限制和信号矩阵。</p>
-              <p><strong>设备</strong> — 已连接设备信息、参数快照与快速操作。</p>
-              <p><strong>控制</strong> — 实时轴位控制、L0 反转、BPM 节奏检测设置。</p>
-              <p><strong>脚本</strong> — 录制、导出和预览 .funscript 文件。</p>
-              <p><strong>监控</strong> — 实时轴位输出图表、OSC 参数流和运行日志。</p>
-            </article>
-          </div>
-        </section>
+      const saved = await persistConfig(nextConfig);
+      const nextPresets = getOscMappingPresets({ ...saved, oscMappingPresets: remaining });
+      setSelectedOscPreset(nextPresets[0]?.id || '');
+      notify(`${preset.name} 已删除`, 'info');
+      setConfig(saved);
+    }).catch(error => notify(error.message || '删除预设失败', 'error'));
+  }
 
-        <section class="card span-2">
-          <h2>&#128299; TCode 串口连接说明</h2>
-          <div class="doc-cards" style="grid-template-columns:1fr">
-            <article class="doc-card"><h3>串口号 (COM Port)</h3><p>在 Windows 设备管理器 → 端口里找到对应的 COMX 号。如果列表中没有出现，检查 USB 驱动（CH340 / CP2102 等）是否已安装。</p></article>
-            <article class="doc-card"><h3>MinPos / MaxPos（输出范围）</h3><p>TCode 轴位范围 0–999。推荐默认 100–900 作为安全行程区间，根据设备结构再微调。</p></article>
-            <article class="doc-card"><h3>MaxVelocity</h3><p>每帧最大移动量。数值越大动作越快，但超过设备物理限制会导致失步。建议先从保守值（如 1000）开始测试。</p></article>
-            <article class="doc-card"><h3>UpdatesPerSecond</h3><p>每秒向设备发送命令的频率。建议 50–100。过高可能导致串口缓冲区溢出；过低会使运动出现分段感。</p></article>
-            <article class="doc-card"><h3>RampUpMs</h3><p>Loop 启动后输出从 0 渐增到目标值所需的毫秒数。防止骤然全速启动。建议 500–2000。</p></article>
-          </div>
-        </section>
+  function updateProfileAxis(axisKey, patch) {
+    setProfileDialog(previous => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        profile: {
+          ...previous.profile,
+          [axisKey]: {
+            ...previous.profile[axisKey],
+            ...patch,
+          },
+        },
+      };
+    });
+  }
 
-        <section class="card">
-          <h2>&#127918; 控制页说明</h2>
-          <div class="doc-cards" style="grid-template-columns:1fr">
-            <article class="doc-card"><h3>轴位控制</h3><p>Loop 停止时，可手动拖动滑条设置每个轴的位置，点「应用手动测试」后命令发送至设备。Loop 运行时仅显示当前实时输出，不可手动操作。</p></article>
-            <article class="doc-card"><h3>L0 反转</h3><p>勾选后 L0 轴输出取反（0 变为最大，1 变为最小）。设备倒置安装时使用。</p></article>
-            <article class="doc-card"><h3>BPM 节奏检测</h3><p>开启后系统会分析 OSC 参数的变化频率，自动估算节拍 BPM。可在「控制」页直接调整检测参数。</p></article>
-          </div>
-        </section>
+  function openProfileDialog(profileId) {
+    if (!config) return;
+    setProfileDialog(buildProfileDialogDraft(profileId, config));
+  }
 
-        <section class="card">
-          <h2>&#128225; 信号矩阵说明</h2>
-          <div class="doc-cards" style="grid-template-columns:1fr">
-            <article class="doc-card"><h3>OSC Path</h3><p>VRChat 发出的 OSC 参数路径，如 <code>/avatar/parameters/Sensa_L0</code>。需与头像参数名完全一致。</p></article>
-            <article class="doc-card"><h3>Role（角色）</h3><p>该信号控制设备的哪个维度：Depth（主冲程）、Vibrate（振动）、Roll/Pitch/Twist（姿态轴）等。</p></article>
-            <article class="doc-card"><h3>&#945;（EMA 平滑系数）</h3><p>越接近 0 越平滑（延迟越高）；越接近 1 越贴近原始值（响应越快）。推荐 0.5–0.8。</p></article>
-            <article class="doc-card"><h3>Dead Zone</h3><p>信号变化幅度小于此值时不触发更新，避免微小抖动引起不必要的运动。</p></article>
-          </div>
-        </section>
+  function openNewProfileDialog() {
+    if (!config) return;
+    setProfileDialog(buildNewProfileDialogDraft(config));
+  }
 
-        <section class="card">
-          <h2>&#10067; 常见问题排查</h2>
-          <div class="doc-cards" style="grid-template-columns:1fr">
-            <article class="doc-card"><h3>设备没有反应</h3><p>&#9312; Loop 是否已启动。&#9313; GlobalIntensityCap 是否为 0。&#9314; 信号矩阵是否有路径匹配。</p></article>
-            <article class="doc-card"><h3>TCode 连接失败</h3><p>&#9312; 确认 COM 口号正确。&#9313; 没有其他程序占用。&#9314; USB-串口驱动已安装（CH340/CP2102）。&#9315; 断开重连或重启设备。</p></article>
-            <article class="doc-card"><h3>OSC 参数不来</h3><p>&#9312; VRChat 设置中 OSC 已启用。&#9313; 默认输出端口 9001 与 Sensa 接收端口一致。&#9314; 防火墙未拦截 UDP 9001。</p></article>
-          </div>
-        </section>
+  async function saveProfileDialog() {
+    if (!profileDialog || !config) return;
 
-        <section class="card">
-          <h2>{{ t('help.endpoints.title') }}</h2>
-          <p class="muted">可通过以下端点直接调用 API，适合调试或外部集成。</p>
-          <ul class="endpoint-list">
-            <li v-for="ep in (st.meta?.endpoints||[])" :key="ep"><code>{{ ep }}</code></li>
-          </ul>
-        </section>
+    await withBusy(`profile-save-${profileDialog.profileId}`, async () => {
+      const nextConfig = cloneConfig(config);
+      const existingProfiles = getAxisProfiles(config);
+      const updatedProfile = {
+        id: profileDialog.profileId,
+        name: (profileDialog.name || '轴配置').trim() || '轴配置',
+        isDefault: Boolean(profileDialog.isDefault),
+        motion: stripMotionProfile(profileDialog.profile, false),
+      };
 
-        <section class="card span-2">
-          <div class="section-title-row">
-            <div><h2>{{ t('help.links.title') }}</h2><p class="muted">{{ t('help.links.desc') }}</p></div>
-          </div>
-          <div class="link-grid">
-            <a class="link-card" href="https://github.com/multiaxis/TCode-Specification" target="_blank" rel="noreferrer"><strong>TCode Specification</strong><span>{{ t('help.links.tcodeSpec') }}</span></a>
-            <a class="link-card" href="https://github.com/multiaxis/OSR2-Arduino" target="_blank" rel="noreferrer"><strong>OSR2 / SR6 Firmware</strong><span>{{ t('help.links.osr') }}</span></a>
-            <a class="link-card" href="https://github.com/ayvasoftware/osr-emu" target="_blank" rel="noreferrer"><strong>OSR Emulator</strong><span>{{ t('help.links.emu') }}</span></a>
-            <a class="link-card" href="https://voicescriptplayer.github.io/vspdocs/zh/device/tcode/" target="_blank" rel="noreferrer"><strong>VoiceScriptPlayer TCode Docs</strong><span>{{ t('help.links.vsp') }}</span></a>
-          </div>
-        </section>
+      nextConfig.axisProfiles = profileDialog.isNew ? [...existingProfiles, updatedProfile] : existingProfiles.map(profile => (profile.id === profileDialog.profileId ? updatedProfile : profile));
 
-      </div>
-    </section>
+      if (!nextConfig.axisProfiles.some(profile => profile.isDefault)) {
+        nextConfig.axisProfiles = nextConfig.axisProfiles.map((profile, index) => ({
+          ...profile,
+          isDefault: index === 0,
+        }));
+      }
 
-  </main>
+      await persistConfig(nextConfig);
+      await refreshOverview();
+      setProfileDialog(null);
+      notify(`${updatedProfile.name} 已保存`, 'success');
+    }).catch(error => notify(error.message || '保存轴配置失败', 'error'));
+  }
 
-  <!-- Mobile bottom nav -->
-  <nav class="mobile-tabbar" aria-label="移动端导航">
-    <button v-for="tab in TABS" :key="tab.id" type="button"
-      :class="['tab-button',{'is-active':st.activeTab===tab.id}]"
-      :title="t(tab.label)"
-      :aria-label="t(tab.label)"
-      @click="setActiveTab(tab.id)">{{ t(tab.label) }}</button>
-  </nav>
+  async function setDefaultAxisProfile(profileId) {
+    if (!config) return;
 
-</div>`,
-};
+    await withBusy(`profile-default-${profileId}`, async () => {
+      const nextConfig = cloneConfig(config);
+      nextConfig.axisProfiles = getAxisProfiles(config).map(profile => ({
+        ...profile,
+        isDefault: profile.id === profileId,
+      }));
 
-// ─────────────────────────────────────────────────────────────
-// MOUNT
-// ─────────────────────────────────────────────────────────────
-createApp(App).use(TDesign).mount('#app');
+      const saved = await persistConfig(nextConfig);
+      await refreshOverview();
+      notify(`默认轴配置已切换为 ${getAxisProfile(saved, profileId).name}`, 'success');
+    }).catch(error => notify(error.message || '设置默认轴配置失败', 'error'));
+  }
+
+  async function removeAxisProfile(profileId) {
+    if (!config) return;
+
+    const profile = getAxisProfile(config, profileId);
+    if (!profile || profile.isDefault) {
+      notify('默认轴配置不能移除', 'warning');
+      return;
+    }
+
+    await withBusy(`profile-remove-${profileId}`, async () => {
+      const nextConfig = cloneConfig(config);
+      const defaultProfileId = getDefaultAxisProfileId(config);
+      nextConfig.axisProfiles = getAxisProfiles(config).filter(item => item.id !== profileId);
+      nextConfig.outputs = getOutputs(config).map(output => (isTCodeOutputType(output.type) && output.motionProfileId === profileId ? { ...output, motionProfileId: defaultProfileId } : output));
+
+      const saved = await persistConfig(nextConfig);
+      await refreshOverview();
+      notify(`${profile.name} 已移除，相关输出已回退到默认轴配置`, 'info');
+      setStudio(previous => sanitizeStudio(previous, saved));
+    }).catch(error => notify(error.message || '移除轴配置失败', 'error'));
+  }
+
+  async function syncOutputConnections(nextStudio, nextConfig, options = {}) {
+    const latestOverview = await refreshOverview();
+    const outputs = getOutputs(nextConfig);
+    const connectionState = Object.fromEntries(outputs.map(output => [output.id, Boolean(getOutputOverview(latestOverview, output.id)?.connected)]));
+    let changed = false;
+
+    for (const output of outputs) {
+      const desired = Boolean(output.enabled);
+      const connected = connectionState[output.id];
+
+      if (options.reconnectOutputId === output.id && desired) {
+        if (connected) {
+          await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/disconnect`, { method: 'POST' }).catch(() => null);
+        }
+        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/connect`, { method: 'POST' });
+        connectionState[output.id] = Boolean(result?.connected);
+        changed = true;
+        if (result?.message) notify(result.message, result.ok === false ? 'error' : 'success');
+        continue;
+      }
+
+      if (desired && !connected) {
+        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/connect`, { method: 'POST' });
+        connectionState[output.id] = Boolean(result?.connected);
+        changed = true;
+        if (result?.message) notify(result.message, result.ok === false ? 'error' : 'success');
+      }
+
+      if (!desired && connected) {
+        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/disconnect`, { method: 'POST' });
+        connectionState[output.id] = false;
+        changed = true;
+        if (result?.message && options.announceDisconnect !== false) notify(result.message, 'info');
+      }
+    }
+
+    if (changed) await refreshOverview();
+  }
+
+  function selectInputTab(nextMode) {
+    setStudio(previous => ({ ...(previous || {}), preferredInputTab: nextMode }));
+  }
+
+  async function applyInputMode(nextMode) {
+    if (!nextMode) return;
+
+    await withBusy(`mode-${nextMode}`, async () => {
+      await apiRequest('/api/input/mode', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: nextMode }),
+      });
+      await refreshOverview();
+      notify(`已切换到 ${formatMode(nextMode)}`, 'success');
+    }).catch(error => notify(error.message || '切换输入失败', 'error'));
+  }
+
+  function manualDraftToPayload(draft) {
+    return {
+      L0: draft.L0,
+      L1: draft.L1,
+      L2: draft.L2,
+      R0: draft.R0,
+      R1: draft.R1,
+      R2: draft.R2,
+      Vibrate: draft.V0,
+      V1: draft.V1,
+      V2: draft.V2,
+      A0: draft.A0,
+      BpmDrive: draft.BpmDrive,
+      GateOpen: draft.GateOpen,
+    };
+  }
+
+  function handleManualSliderChange(patch) {
+    const nextDraft = { ...manualDraft, ...patch };
+    setManualDraft(nextDraft);
+    if (!manualContinuous) return;
+
+    manualSyncBlockedRef.current = true;
+    apiRequest('/api/input/manual', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        enabled: true,
+        ...manualDraftToPayload(nextDraft),
+      }),
+    })
+      .catch(error => notify(error.message || '手动输入更新失败', 'error'))
+      .finally(() => {
+        manualSyncBlockedRef.current = false;
+      });
+  }
+
+  async function applyManualOnce() {
+    window.clearTimeout(manualTimerRef.current);
+
+    try {
+      await apiRequest('/api/input/manual', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: true,
+          ...manualDraftToPayload(manualDraft),
+        }),
+      });
+      notify('位置已更新', 'success');
+    } catch (error) {
+      notify(error.message || '更新位置失败', 'error');
+    } finally {
+      manualSyncBlockedRef.current = false;
+    }
+  }
+
+  async function disableManualInput() {
+    window.clearTimeout(manualTimerRef.current);
+
+    await withBusy('manual-disable', async () => {
+      await apiRequest('/api/input/manual', { method: 'DELETE' });
+      await refreshOverview();
+      notify('手动输入已停用', 'success');
+      manualSyncBlockedRef.current = false;
+    }).catch(error => notify(error.message || '停用手动输入失败', 'error'));
+  }
+
+  async function uploadScript() {
+    if (!selectedScriptFile) {
+      notify('请先选择一个 .funscript 文件', 'warning');
+      return;
+    }
+
+    await withBusy('script-load', async () => {
+      const formData = new FormData();
+      formData.append('file', selectedScriptFile);
+      formData.append('loop', String(scriptSettings.loop));
+      formData.append('speed', String(scriptSettings.speed));
+
+      const result = await apiRequest('/api/input/script/load', {
+        method: 'POST',
+        body: formData,
+      });
+
+      setSelectedScriptFile(null);
+      setScriptInputKey(previous => previous + 1);
+      setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
+      if (result?.script) {
+        setScriptSettings({
+          loop: Boolean(result.script.loop),
+          speed: Number(result.script.speed || 1),
+        });
+      }
+      await refreshOverview();
+      notify('脚本已加载', 'success');
+    }).catch(error => notify(error.message || '脚本加载失败', 'error'));
+  }
+
+  async function playScript(restart = false) {
+    await withBusy(restart ? 'script-restart' : 'script-play', async () => {
+      const result = await apiRequest('/api/input/script/play', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          restart,
+          loop: scriptSettings.loop,
+          speed: scriptSettings.speed,
+        }),
+      });
+
+      if (result?.script) {
+        setScriptSettings({
+          loop: Boolean(result.script.loop),
+          speed: Number(result.script.speed || 1),
+        });
+      }
+      setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
+      await refreshOverview();
+      notify(restart ? '脚本已重新开始' : '脚本播放中', 'success');
+    }).catch(error => notify(error.message || '脚本播放失败', 'error'));
+  }
+
+  async function pauseScript() {
+    await withBusy('script-pause', async () => {
+      await apiRequest('/api/input/script/pause', { method: 'POST' });
+      await refreshOverview();
+      notify('脚本已暂停', 'info');
+    }).catch(error => notify(error.message || '脚本暂停失败', 'error'));
+  }
+
+  async function stopScript() {
+    await withBusy('script-stop', async () => {
+      await apiRequest('/api/input/script/stop', { method: 'POST' });
+      await refreshOverview();
+      notify('脚本已停止', 'info');
+    }).catch(error => notify(error.message || '脚本停止失败', 'error'));
+  }
+
+  async function setOutputEnabled(type, enabled) {
+    if (!config || !studio) return;
+
+    await withBusy(`output-enable-${type}`, async () => {
+      const nextConfig = cloneConfig(config);
+      nextConfig.outputs = getOutputs(config).map(output => (output.id === type ? { ...output, enabled } : output));
+      const saved = await persistConfig(nextConfig);
+      await syncOutputConnections(studio, saved, { announceDisconnect: false });
+      notify(`${getOutputConfig(saved, type)?.name || '输出'}${enabled ? ' 已启用' : ' 已禁用'}`, 'success');
+    }).catch(error => notify(error.message || '更新输出状态失败', 'error'));
+  }
+
+  async function addOutputCard(type) {
+    if (!studio || !config) return;
+
+    await withBusy(`output-add-${type}`, async () => {
+      if (type === 'TCodeSerial') {
+        refreshSerialPorts().catch(() => null);
+      }
+
+      const nextOutput = createOutputConfig(type, config);
+      const nextConfig = cloneConfig(config);
+      nextConfig.outputs = [...getOutputs(config), nextOutput];
+
+      const saved = await persistConfig(nextConfig);
+      setStudio(previous => sanitizeStudio(previous, saved));
+      setDialog({ outputId: nextOutput.id, draft: buildOutputDialogDraft(nextOutput.id, saved) });
+      await refreshOverview();
+      notify(`已添加 ${nextOutput.name}`, 'success');
+    }).catch(error => notify(error.message || '添加输出失败', 'error'));
+  }
+
+  async function removeOutputCard(type) {
+    if (!studio || !config) return;
+
+    await withBusy(`output-remove-${type}`, async () => {
+      const removed = getOutputConfig(config, type);
+      const nextStudio = { ...studio };
+
+      const nextConfig = cloneConfig(config);
+      nextConfig.outputs = getOutputs(config).filter(output => output.id !== type);
+      const saved = await persistConfig(nextConfig);
+      setStudio(nextStudio);
+      await syncOutputConnections(nextStudio, saved, { announceDisconnect: false });
+      notify(`${removed?.name || '输出'} 已移除`, 'info');
+    }).catch(error => notify(error.message || '移除输出失败', 'error'));
+  }
+
+  async function openOutputDialog(type) {
+    if (!config) return;
+    const output = getOutputConfig(config, type);
+    if (!output) return;
+
+    if (output.type === 'TCodeSerial') {
+      refreshSerialPorts().catch(() => null);
+    }
+    setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config) });
+  }
+
+  async function saveOutputDialog() {
+    if (!dialog || !config || !studio) return;
+
+    await withBusy(`dialog-save-${dialog.outputId}`, async () => {
+      const nextConfig = mergeOutputDraft(dialog.outputId, config, dialog.draft);
+      const saved = await persistConfig(nextConfig);
+      setDialog(null);
+      await syncOutputConnections(studio, saved, { reconnectOutputId: dialog.outputId, announceDisconnect: false });
+      notify(`${getOutputConfig(saved, dialog.outputId)?.name || '输出'} 配置已保存`, 'success');
+    }).catch(error => notify(error.message || '保存配置失败', 'error'));
+  }
+
+  async function emergencyStop() {
+    await withBusy('emergency-stop', async () => {
+      await apiRequest('/api/control/loop/emergency-stop', { method: 'POST' });
+      await refreshOverview();
+      notify('已停止所有输出', 'warning');
+    }).catch(error => notify(error.message || '急停失败', 'error'));
+  }
+
+  async function clearEmergency() {
+    await withBusy('emergency-clear', async () => {
+      await apiRequest('/api/control/loop/clear-emergency', { method: 'POST' });
+      await refreshOverview();
+      notify('输出已恢复', 'success');
+    }).catch(error => notify(error.message || '解除急停失败', 'error'));
+  }
+
+  async function toggleIntifaceScan(start, outputId) {
+    const endpoint = start ? `/api/control/output/${encodeURIComponent(outputId)}/scan-start` : `/api/control/output/${encodeURIComponent(outputId)}/scan-stop`;
+    await withBusy(start ? 'scan-start' : 'scan-stop', async () => {
+      await apiRequest(endpoint, { method: 'POST' });
+      notify(start ? '已请求开始扫描' : '已请求停止扫描', 'info');
+    }).catch(error => notify(error.message || '扫描请求失败', 'error'));
+  }
+
+  const theme = useMemo(
+    () =>
+      createTheme({
+        palette: {
+          mode: 'light',
+          primary: { main: '#2563eb' },
+          secondary: { main: '#7c3aed' },
+          success: { main: '#059669' },
+          warning: { main: '#d97706' },
+          error: { main: '#dc2626' },
+          background: {
+            default: '#f4f7fb',
+            paper: '#ffffff',
+          },
+          text: {
+            primary: '#0f172a',
+            secondary: '#475569',
+          },
+          divider: 'rgba(15, 23, 42, 0.08)',
+        },
+        shape: { borderRadius: 18 },
+      }),
+    [],
+  );
+
+  const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config]);
+  const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset]);
+
+  const studioState = studio || { preferredInputTab: 'osc' };
+  const outputs = getOutputs(config);
+  const axisProfiles = getAxisProfiles(config);
+  const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'osc';
+  const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
+  const hasPendingInputMode = selectedInputTab !== actualInputMode;
+  const scriptState = overview?.input?.script || null;
+  const oscPreview = overview?.osc?.preview || [];
+  const sortedOscPreview = useMemo(() => {
+    const signals = Array.isArray(signalDrafts) ? signalDrafts.filter(d => d?.oscPath) : [];
+    return [...oscPreview]
+      .map(entry => {
+        const matchingSignals = signals.filter(signal => matchesOscPathPattern(signal.oscPath, entry?.path || ''));
+        return { ...entry, _matches: matchingSignals.length > 0 ? matchingSignals : null };
+      })
+      .sort((left, right) => {
+        const leftMatch = left._matches ? 1 : 0;
+        const rightMatch = right._matches ? 1 : 0;
+        if (leftMatch !== rightMatch) return rightMatch - leftMatch;
+        return (left?.path || '').localeCompare(right?.path || '', 'zh-CN', { numeric: true, sensitivity: 'base' });
+      });
+  }, [oscPreview, signalDrafts]);
+  const visibleOutputs = outputs;
+  const effectiveOutputCount = visibleOutputs.filter(output => Boolean(output.enabled)).length;
+
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box className="loading-shell">
+          <Card className="loading-card">
+            <CardContent>
+              <Stack spacing={2}>
+                <Typography variant="h5">Sensa WebUI</Typography>
+                <Typography color="text.secondary">正在同步服务状态与设备配置…</Typography>
+                <LinearProgress />
+              </Stack>
+            </CardContent>
+          </Card>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+
+      <Box className="app-shell">
+        <AppBar
+          position="sticky"
+          color="transparent"
+          elevation={0}
+          sx={{
+            borderBottom: theme => `1px solid ${theme.palette.divider}`,
+            backdropFilter: 'blur(18px)',
+            backgroundColor: 'rgba(255,255,255,0.82)',
+          }}
+        >
+          <Toolbar sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Box sx={{ mr: 'auto' }}>
+              <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                Sensa WebUI
+              </Typography>
+            </Box>
+
+            <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} label={formatRealtimeStatus(wsState)} />
+            {actualInputMode === 'osc' && <Chip size="small" color={oscPreview.length > 0 ? 'success' : 'default'} variant="outlined" label={oscPreview.length > 0 ? 'OSC 已连接' : 'OSC 未连接'} />}
+            <Chip size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
+            <Chip size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
+
+            {overview?.loop?.isEmergency ? (
+              <Button variant="contained" color="success" size="small" onClick={clearEmergency} disabled={busyKey === 'emergency-clear'}>
+                恢复输出
+              </Button>
+            ) : (
+              <Button variant="contained" color="error" size="small" onClick={emergencyStop} disabled={busyKey === 'emergency-stop'}>
+                停止输出
+              </Button>
+            )}
+          </Toolbar>
+        </AppBar>
+
+        <Box className="page-main">
+          {overview?.loop?.isEmergency && <Alert severity="warning">当前已停止所有输出。</Alert>}
+
+          <Card className="section-card" variant="outlined">
+            <CardHeader title="输入" />
+            <Divider />
+            <CardContent>
+              <Box
+                sx={{
+                  mb: 2,
+                  display: 'grid',
+                  gap: 1.25,
+                  border: theme => `1px solid ${theme.palette.divider}`,
+                  borderRadius: '18px',
+                  backgroundColor: 'rgba(248, 250, 252, 0.82)',
+                  padding: '12px 14px',
+                }}
+              >
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center">
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    <Chip size="small" variant="outlined" color="primary" label={`当前生效：${formatMode(actualInputMode)}`} />
+                    {hasPendingInputMode && <Chip size="small" variant="filled" color="warning" label={`待应用：${formatMode(selectedInputTab)}`} />}
+                  </Stack>
+
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {hasPendingInputMode && (
+                      <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>
+                        恢复到当前输入
+                      </Button>
+                    )}
+                    <Button size="small" variant="contained" onClick={() => applyInputMode(selectedInputTab)} disabled={!hasPendingInputMode || busyKey === `mode-${selectedInputTab}`}>
+                      {busyKey === `mode-${selectedInputTab}` ? '切换中…' : '应用输入方式'}
+                    </Button>
+                  </Stack>
+                </Stack>
+
+                <Typography variant="body2" color="text.secondary">
+                  切换页签只会切换配置视图；点击“应用输入方式”后，才会真正修改当前生效输入。
+                </Typography>
+              </Box>
+
+              <Tabs value={selectedInputTab} onChange={(_, next) => selectInputTab(next)} variant="scrollable" allowScrollButtonsMobile>
+                {INPUT_MODES.map(item => (
+                  <Tab key={item.value} value={item.value} label={item.label} />
+                ))}
+              </Tabs>
+
+              <TabPanel value="osc" current={selectedInputTab}>
+                <Stack spacing={2}>
+                  <Box className="osc-section-grid">
+                    <Box className="dialog-panel">
+                      <Box className="dialog-panel__header">
+                        <Typography variant="subtitle2">OSC 配置</Typography>
+                        <Chip size="small" variant="outlined" label={`${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001}`} />
+                      </Box>
+
+                      <Box className="dialog-grid">
+                        <TextField label="监听地址" size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
+                        <TextField
+                          label="监听端口"
+                          type="number"
+                          size="small"
+                          value={oscDraft.receiverPort}
+                          onChange={event => setOscDraft(previous => ({ ...previous, receiverPort: Number(event.target.value || 0) }))}
+                        />
+                      </Box>
+
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
+                        <Button variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>
+                          保存配置
+                        </Button>
+                      </Stack>
+                    </Box>
+
+                    <Box className="dialog-panel">
+                      <Box className="dialog-panel__header">
+                        <Typography variant="subtitle2">参数预览</Typography>
+                        <Chip size="small" variant="outlined" label={`${oscPreview.length} 项`} />
+                      </Box>
+
+                      {oscPreview.length === 0 ? (
+                        <Box className="empty-inline-state">
+                          <Typography color="text.secondary">暂无 OSC 参数</Typography>
+                        </Box>
+                      ) : (
+                        <TableContainer className="osc-preview-table-wrap">
+                          <Table size="small" className="osc-preview-table">
+                            <TableHead>
+                              <TableRow>
+                                <TableCell>参数名称</TableCell>
+                                <TableCell width="110">类型</TableCell>
+                                <TableCell width="120" align="right">
+                                  当前值
+                                </TableCell>
+                                <TableCell width="110" align="right">
+                                  更新时间
+                                </TableCell>
+                              </TableRow>
+                            </TableHead>
+                            <TableBody>
+                              {sortedOscPreview.map(entry => {
+                                const matched = entry._matches;
+                                const tooltipText = matched
+                                  ? matched
+                                      .map(s => {
+                                        const roleLabel = SIGNAL_ROLE_OPTIONS.find(r => r.value === s.role)?.label || s.role || '未分配';
+                                        const invertNote = s.invertDirection ? '（反向）' : '';
+                                        return `${s.oscPath} → ${roleLabel}${invertNote}`;
+                                      })
+                                      .join('；')
+                                  : '';
+
+                                return (
+                                  <Tooltip key={`${entry.path}-${entry.timestampMs}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
+                                    <TableRow
+                                      hover
+                                      sx={{
+                                        backgroundColor: matched ? 'rgba(25, 118, 210, 0.08)' : undefined,
+                                        '&:hover': { backgroundColor: matched ? 'rgba(25, 118, 210, 0.16)' : undefined },
+                                      }}
+                                    >
+                                      <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
+                                        {entry.path}
+                                      </TableCell>
+                                      <TableCell>{entry.type || '—'}</TableCell>
+                                      <TableCell align="right">{entry.value ?? '—'}</TableCell>
+                                      <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
+                                    </TableRow>
+                                  </Tooltip>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </TableContainer>
+                      )}
+                    </Box>
+                  </Box>
+
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">OSC 映射</Typography>
+                      <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
+                    </Box>
+
+                    <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
+                      <FormControl size="small" sx={{ minWidth: 280 }}>
+                        <InputLabel>预设方案</InputLabel>
+                        <Select value={selectedOscPreset} label="预设方案" onChange={event => setSelectedOscPreset(event.target.value)}>
+                          {oscMappingPresets.map(preset => (
+                            <MenuItem key={preset.id} value={preset.id}>
+                              {preset.name}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                      </FormControl>
+
+                      <Divider orientation="vertical" flexItem />
+
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                        <Tooltip title="用选中预设的映射替换当前全部映射" arrow>
+                          <Button variant="contained" size="small" onClick={() => applyOscPreset('replace')} disabled={!selectedOscPresetConfig}>
+                            应用
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title="将选中预设的映射追加到当前映射列表" arrow>
+                          <Button variant="outlined" size="small" onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>
+                            追加
+                          </Button>
+                        </Tooltip>
+                        {selectedOscPresetConfig && (
+                          <Tooltip title={selectedOscPresetConfig.isBuiltIn ? '将内置预设复制为自定义预设以便修改' : '编辑当前预设的名称与映射'} arrow>
+                            <Button variant="text" size="small" onClick={() => openPresetDialog(selectedOscPreset)}>
+                              {selectedOscPresetConfig.isBuiltIn ? '复制' : '编辑'}
+                            </Button>
+                          </Tooltip>
+                        )}
+                        <Tooltip title="将当前映射列表保存为一套新的预设方案" arrow>
+                          <Button variant="text" size="small" onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })} disabled={signalDrafts.length === 0}>
+                            另存为预设
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title="创建一个不带任何映射的空白预设" arrow>
+                          <Button variant="text" size="small" onClick={() => openPresetDialog(null)}>
+                            新建空预设
+                          </Button>
+                        </Tooltip>
+                        <Tooltip title={selectedOscPresetConfig?.isBuiltIn ? '内置预设不可删除' : '删除选中的自定义预设'} arrow>
+                          <Button
+                            color="error"
+                            variant="text"
+                            size="small"
+                            onClick={deleteSelectedPreset}
+                            disabled={!selectedOscPresetConfig || Boolean(selectedOscPresetConfig?.isBuiltIn) || busyKey?.startsWith('preset-delete-')}
+                          >
+                            删除
+                          </Button>
+                        </Tooltip>
+                      </Stack>
+                    </Stack>
+
+                    {selectedOscPresetConfig ? (
+                      <Alert severity={selectedOscPresetConfig.isBuiltIn ? 'info' : 'success'}>{selectedOscPresetConfig.description || '选择一套映射预设后即可快速生成对应信号。'}</Alert>
+                    ) : (
+                      <Alert severity="warning">当前没有可用预设，你可以先新增一套自己的映射方案。</Alert>
+                    )}
+
+                    {signalDrafts.length === 0 ? (
+                      <Box className="empty-inline-state">
+                        <Stack spacing={1.5} alignItems="center">
+                          <Typography color="text.secondary">还没有轴映射</Typography>
+                          <Button variant="outlined" onClick={() => addSignalDraft()}>
+                            新增映射
+                          </Button>
+                        </Stack>
+                      </Box>
+                    ) : (
+                      <Box className="signal-list">
+                        {signalDrafts.map(draft => (
+                          <SignalMappingRow
+                            key={draft._draftId}
+                            draft={draft}
+                            latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                            onChange={patch => updateSignalDraft(draft._draftId, patch)}
+                            onRemove={() => removeSignalDraft(draft._draftId)}
+                          />
+                        ))}
+                      </Box>
+                    )}
+
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
+                      <Button variant="outlined" onClick={() => addSignalDraft()}>
+                        新增映射
+                      </Button>
+                      <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'}>
+                        保存映射
+                      </Button>
+                    </Stack>
+                  </Box>
+                </Stack>
+              </TabPanel>
+
+              <TabPanel value="manual" current={selectedInputTab}>
+                <Stack spacing={2}>
+                  <Box className="axis-grid">
+                    {MANUAL_AXES.map(axis => (
+                      <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={next => handleManualSliderChange({ [axis.key]: next })} />
+                    ))}
+                  </Box>
+
+                  <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center">
+                    <Tooltip title="使用当前所有滑条值驱动输出设备执行" arrow>
+                      <span>
+                        <Button variant="contained" onClick={applyManualOnce} disabled={busyKey === 'manual-once'}>
+                          更新位置
+                        </Button>
+                      </span>
+                    </Tooltip>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={manualContinuous}
+                          onChange={(_, checked) => {
+                            setManualContinuous(checked);
+                            if (!checked) {
+                              window.clearTimeout(manualTimerRef.current);
+                              manualSyncBlockedRef.current = false;
+                            }
+                          }}
+                        />
+                      }
+                      label={
+                        <Tooltip title="开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。" arrow>
+                          <Box component="span" sx={{ textDecoration: 'underline dotted', textUnderlineOffset: '3px', cursor: 'help' }}>
+                            持续更新
+                          </Box>
+                        </Tooltip>
+                      }
+                    />
+                  </Stack>
+                </Stack>
+              </TabPanel>
+
+              <TabPanel value="script" current={selectedInputTab}>
+                <Stack spacing={2}>
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">脚本文件</Typography>
+                      <Chip size="small" variant="outlined" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
+                    </Box>
+                    <Stack direction="row" spacing={1.5} alignItems="center">
+                      <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
+                        {selectedScriptFile ? '加载中…' : '选择脚本'}
+                        <input key={scriptInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
+                      </Button>
+                      <Typography variant="caption" color="text.secondary">
+                        选择 .funscript 文件后自动加载
+                      </Typography>
+                    </Stack>
+                  </Box>
+
+                  <Box className="metric-grid metric-grid--compact">
+                    <MetricCard label="状态" value={scriptState?.state || 'empty'} tone="accent" />
+                    <MetricCard label="动作数" value={scriptState?.actionCount ?? 0} tone="default" />
+                    <MetricCard label="进度" value={`${formatDuration(scriptState?.positionMs || 0)} / ${formatDuration(scriptState?.durationMs || 0)}`} tone="primary" />
+                  </Box>
+
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">播放控制</Typography>
+                      <Chip size="small" variant="outlined" label={`${scriptSettings.speed.toFixed(2)}x${scriptSettings.loop ? ' · 循环' : ''}`} />
+                    </Box>
+
+                    <Stack spacing={2}>
+                      <Stack spacing={0.5}>
+                        <Typography variant="caption" color="text.secondary">
+                          播放速度
+                        </Typography>
+                        <Slider
+                          min={0.25}
+                          max={2}
+                          step={0.05}
+                          value={scriptSettings.speed}
+                          valueLabelDisplay="auto"
+                          onChange={(_, next) => setScriptSettings(previous => ({ ...previous, speed: Number(next) }))}
+                        />
+                      </Stack>
+
+                      <FormControlLabel
+                        control={<Switch checked={scriptSettings.loop} onChange={(_, checked) => setScriptSettings(previous => ({ ...previous, loop: checked }))} />}
+                        label={scriptSettings.loop ? '循环播放' : '单次播放'}
+                      />
+
+                      <LinearProgress
+                        variant={scriptState?.durationMs ? 'determinate' : 'indeterminate'}
+                        value={scriptState?.durationMs ? Math.min(100, (scriptState.positionMs / scriptState.durationMs) * 100) : 0}
+                        sx={{ height: 8, borderRadius: 4 }}
+                      />
+
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                        <Button variant="contained" onClick={() => playScript(false)} disabled={busyKey === 'script-play' || busyKey === 'script-load'}>
+                          播放
+                        </Button>
+                        <Button variant="outlined" onClick={() => playScript(true)} disabled={!scriptState?.loaded || busyKey === 'script-restart'}>
+                          从头开始
+                        </Button>
+                        <Button variant="outlined" color="warning" onClick={pauseScript} disabled={!scriptState?.loaded || busyKey === 'script-pause'}>
+                          暂停
+                        </Button>
+                        <Button variant="outlined" color="error" onClick={stopScript} disabled={!scriptState?.loaded || busyKey === 'script-stop'}>
+                          停止
+                        </Button>
+                      </Stack>
+                    </Stack>
+                  </Box>
+                </Stack>
+              </TabPanel>
+            </CardContent>
+          </Card>
+
+          <Card className="section-card" variant="outlined">
+            <CardHeader title="配置" />
+            <Divider />
+            <CardContent>
+              <Box className="config-cards-row">
+                {axisProfiles.map(profile => {
+                  const usedCount = outputs.filter(output => isTCodeOutputType(output.type) && output.motionProfileId === profile.id).length;
+
+                  return (
+                    <Card key={profile.id} className="config-card" variant="outlined">
+                      <CardHeader
+                        title={profile.name}
+                        subheader={profile.isDefault ? '全局默认轴配置' : usedCount > 0 ? `已分配给 ${usedCount} 个输出` : '尚未分配输出'}
+                        action={profile.isDefault ? <Chip size="small" color="primary" variant="outlined" label="默认" /> : null}
+                      />
+                      <CardContent>
+                        <Stack spacing={2}>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="config-summary">
+                            {buildAxisProfileBadges(profile).map(item => (
+                              <Chip key={`${profile.id}-${item}`} size="small" variant="outlined" label={item} />
+                            ))}
+                          </Stack>
+
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                            <Button variant="contained" onClick={() => openProfileDialog(profile.id)}>
+                              配置
+                            </Button>
+                            {!profile.isDefault && (
+                              <Button variant="outlined" onClick={() => setDefaultAxisProfile(profile.id)}>
+                                设为默认
+                              </Button>
+                            )}
+                            {!profile.isDefault && (
+                              <Button color="error" onClick={() => removeAxisProfile(profile.id)}>
+                                移除
+                              </Button>
+                            )}
+                          </Stack>
+                        </Stack>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+
+                <Card className="config-card config-card--add" variant="outlined">
+                  <CardContent>
+                    <Stack spacing={1.5} alignItems="center" justifyContent="center" sx={{ height: '100%', textAlign: 'center' }}>
+                      <Typography variant="subtitle1">新增轴配置</Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        新建一张可复用的轴约束卡，然后分配给任意多个 TCode 输出实例。
+                      </Typography>
+                      <Button variant="contained" onClick={openNewProfileDialog}>
+                        + 轴配置
+                      </Button>
+                    </Stack>
+                  </CardContent>
+                </Card>
+              </Box>
+            </CardContent>
+          </Card>
+
+          <Card className="section-card" variant="outlined">
+            <CardHeader title="输出" />
+            <Divider />
+            <CardContent>
+              <Stack spacing={2}>
+                <Box className="output-toolbar">
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                    {OUTPUT_TYPES.map(output => (
+                      <Button key={output.value} size="small" variant="outlined" onClick={() => addOutputCard(output.value)}>
+                        + {output.label}
+                      </Button>
+                    ))}
+                  </Stack>
+                </Box>
+
+                {visibleOutputs.length === 0 ? (
+                  <Box className="empty-state">
+                    <Typography variant="h6">暂无输出</Typography>
+                    <Typography color="text.secondary">添加一个输出设备</Typography>
+                  </Box>
+                ) : (
+                  <Box className="outputs-row">
+                    {visibleOutputs.map(output => {
+                      const outputState = getOutputOverview(overview, output.id) || {};
+                      const typeMeta = OUTPUT_TYPE_BY_VALUE[output.type] || { label: output.type, shortLabel: output.type, scanSupported: false };
+                      const isEnabled = Boolean(output.enabled);
+                      const outputBusy = busyKey === `output-enable-${output.id}`;
+                      const connectionLabel = isEnabled ? (outputState.connected ? '已连接' : '未连接') : '已禁用';
+                      const summary = buildOutputSummary(output);
+                      const profileName = isTCodeOutputType(output.type)
+                        ? outputState.profileName || getAxisProfile(config, output.motionProfileId)?.name || getDefaultAxisProfile(config)?.name
+                        : null;
+
+                      return (
+                        <Card key={output.id} className={`output-card${isEnabled ? ' output-card--enabled' : ' output-card--disabled'}`} variant="outlined">
+                          <CardHeader
+                            className="output-card__header"
+                            title={output.name}
+                            subheader={summary}
+                            action={
+                              <Button
+                                className="output-card__toggle-button"
+                                size="small"
+                                variant={isEnabled ? 'contained' : 'outlined'}
+                                color={isEnabled ? 'warning' : 'primary'}
+                                onClick={() => setOutputEnabled(output.id, !isEnabled)}
+                                disabled={outputBusy}
+                              >
+                                {outputBusy ? '处理中…' : isEnabled ? '禁用' : '启用'}
+                              </Button>
+                            }
+                          />
+                          <CardContent className="output-card__content">
+                            <Stack spacing={1.5} sx={{ flex: 1 }}>
+                              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="output-card-meta">
+                                <Chip size="small" variant="outlined" label={typeMeta.shortLabel} />
+                                <Chip size="small" color={!isEnabled ? 'default' : outputState.connected ? 'success' : 'warning'} variant="outlined" label={connectionLabel} />
+                                {profileName && <Chip size="small" variant="outlined" label={`轴配置 · ${profileName}`} />}
+                              </Stack>
+
+                              {output.type === 'Intiface' && Array.isArray(outputState.devices) && outputState.devices.length > 0 && (
+                                <Box className="device-list">
+                                  {outputState.devices.map(device => (
+                                    <Chip key={`${device.name}-${device.index}`} size="small" variant="outlined" label={device.name} />
+                                  ))}
+                                </Box>
+                              )}
+
+                              {typeMeta.scanSupported && (
+                                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(true, output.id)}>
+                                    开始扫描
+                                  </Button>
+                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(false, output.id)}>
+                                    停止扫描
+                                  </Button>
+                                </Stack>
+                              )}
+
+                              <Box className="output-card-actions">
+                                <Button size="small" variant="outlined" onClick={() => openOutputDialog(output.id)}>
+                                  配置
+                                </Button>
+                                <Button size="small" color="error" onClick={() => removeOutputCard(output.id)}>
+                                  移除
+                                </Button>
+                              </Box>
+                            </Stack>
+                          </CardContent>
+                        </Card>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Stack>
+            </CardContent>
+          </Card>
+
+          <Card className="section-card" variant="outlined">
+            <CardHeader title="日志" />
+            <Divider />
+            <CardContent>
+              <Box className="log-list">
+                {logs.length === 0 ? (
+                  <Typography color="text.secondary">暂时没有日志。</Typography>
+                ) : (
+                  logs.map((line, index) => (
+                    <Typography key={`${index}-${line}`} variant="body2" className="log-line">
+                      {line}
+                    </Typography>
+                  ))
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
+
+      <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} fullWidth maxWidth="lg">
+        <DialogTitle>{presetDialog ? `${presetDialog.name || 'OSC 预设'} · 预设编辑` : 'OSC 预设'}</DialogTitle>
+        <DialogContent dividers>
+          {presetDialog && (
+            <Stack spacing={2.5}>
+              <TextField label="预设名称" size="small" value={presetDialog.name || ''} onChange={event => setPresetDialog(previous => ({ ...previous, name: event.target.value }))} />
+              <TextField
+                label="说明"
+                size="small"
+                multiline
+                minRows={2}
+                value={presetDialog.description || ''}
+                onChange={event => setPresetDialog(previous => ({ ...previous, description: event.target.value }))}
+              />
+
+              {presetDialog.mappings.length === 0 ? (
+                <Box className="empty-inline-state">
+                  <Stack spacing={1.5} alignItems="center">
+                    <Typography color="text.secondary">这套预设还没有映射项</Typography>
+                    <Button variant="outlined" onClick={() => addPresetDialogSignal()}>
+                      新增预设映射
+                    </Button>
+                  </Stack>
+                </Box>
+              ) : (
+                <Box className="signal-list">
+                  {presetDialog.mappings.map(draft => (
+                    <SignalMappingRow
+                      key={draft._draftId}
+                      draft={draft}
+                      latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                      onChange={patch => updatePresetDialogSignal(draft._draftId, patch)}
+                      onRemove={() => removePresetDialogSignal(draft._draftId)}
+                    />
+                  ))}
+                </Box>
+              )}
+
+              <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                <Button variant="outlined" onClick={() => addPresetDialogSignal()}>
+                  新增预设映射
+                </Button>
+              </Stack>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setPresetDialog(null)}>取消</Button>
+          <Button variant="contained" onClick={savePresetDialog} disabled={!presetDialog || busyKey.startsWith('preset-save-')}>
+            保存预设
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} fullWidth maxWidth="md">
+        <DialogTitle>{dialog ? `${getOutputTypeLabel(dialog.draft.type)} 配置` : '输出配置'}</DialogTitle>
+        <DialogContent dividers>
+          {dialog && (
+            <Stack spacing={2}>
+              <TextField
+                label="名称"
+                size="small"
+                value={dialog.draft.name || ''}
+                onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, name: event.target.value } }))}
+              />
+
+              {isTCodeOutputType(dialog.draft.type) && (
+                <FormControl size="small" fullWidth>
+                  <InputLabel>轴配置</InputLabel>
+                  <Select
+                    value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
+                    label="轴配置"
+                    onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: event.target.value } }))}
+                  >
+                    {axisProfiles.map(profile => (
+                      <MenuItem key={profile.id} value={profile.id}>
+                        {profile.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              )}
+
+              {dialog.draft.type === 'TCodeSerial' && (
+                <>
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">串口连接</Typography>
+                      <Chip size="small" variant="outlined" label={dialog.draft.comPort || '未选择串口'} />
+                    </Box>
+
+                    <FormControl size="small" fullWidth>
+                      <InputLabel>串口</InputLabel>
+                      <Select value={dialog.draft.comPort || ''} label="串口" onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: event.target.value } }))}>
+                        {serialPorts.length === 0 && <MenuItem value="">未检测到串口</MenuItem>}
+                        {serialPorts.map(port => (
+                          <MenuItem key={port.portName} value={port.portName}>
+                            <Stack direction="row" spacing={1} alignItems="baseline">
+                              <Typography variant="body2">{port.portName}</Typography>
+                              {port.description && port.description !== port.portName && (
+                                <Typography variant="caption" color="text.secondary">
+                                  {port.description}
+                                </Typography>
+                              )}
+                            </Stack>
+                          </MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Box>
+
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">实时发送</Typography>
+                      <Chip size="small" color="primary" variant="outlined" label={describeCommandMode(Boolean(dialog.draft.preferSpeedMode))} />
+                    </Box>
+
+                    <Box className="dialog-grid">
+                      <TextField
+                        label="实时发送频率 (Hz)"
+                        type="number"
+                        size="small"
+                        value={dialog.draft.updatesPerSecond ?? 50}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, updatesPerSecond: Number(event.target.value || 0) } }))}
+                      />
+
+                      <FormControl size="small" fullWidth>
+                        <InputLabel>斜率方式</InputLabel>
+                        <Select
+                          value={dialog.draft.preferSpeedMode ? 'speed' : 'interval'}
+                          label="斜率方式"
+                          onChange={event =>
+                            setDialog(previous => ({
+                              ...previous,
+                              draft: {
+                                ...previous.draft,
+                                preferSpeedMode: event.target.value === 'speed',
+                              },
+                            }))
+                          }
+                        >
+                          <MenuItem value="speed">按速度 (S)</MenuItem>
+                          <MenuItem value="interval">按时间 (I)</MenuItem>
+                        </Select>
+                      </FormControl>
+                    </Box>
+
+                    <Alert severity="info">{describeCommandModeDetail(Boolean(dialog.draft.preferSpeedMode))}</Alert>
+                  </Box>
+                </>
+              )}
+
+              {(dialog?.draft?.type === 'TCodeUdp' || dialog?.draft?.type === 'TCodeTcp') && (
+                <>
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">网络目标</Typography>
+                      <Chip size="small" variant="outlined" label={dialog.draft.type === 'TCodeUdp' ? 'UDP' : 'TCP'} />
+                    </Box>
+
+                    <Box className="dialog-grid">
+                      <TextField
+                        label="Host"
+                        size="small"
+                        value={dialog.draft.host || ''}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, host: event.target.value } }))}
+                      />
+                      <TextField
+                        label="Port"
+                        type="number"
+                        size="small"
+                        value={dialog.draft.port ?? ''}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, port: Number(event.target.value || 0) } }))}
+                      />
+                    </Box>
+                  </Box>
+                </>
+              )}
+
+              {dialog?.draft?.type === 'Intiface' && (
+                <>
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">Intiface 连接参数</Typography>
+                      <Chip size="small" variant="outlined" label="Buttplug" />
+                    </Box>
+
+                    <Box className="dialog-grid">
+                      <TextField
+                        label="WebSocket 地址"
+                        size="small"
+                        value={dialog.draft.websocketAddress || ''}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, websocketAddress: event.target.value } }))}
+                      />
+                      <TextField
+                        label="端口"
+                        type="number"
+                        size="small"
+                        value={dialog.draft.port ?? 12345}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, port: Number(event.target.value || 0) } }))}
+                      />
+                    </Box>
+
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={Boolean(dialog.draft.manageEngineProcess)}
+                          onChange={(_, checked) => setDialog(previous => ({ ...previous, draft: { ...previous.draft, manageEngineProcess: checked } }))}
+                        />
+                      }
+                      label="由后台托管 intiface-engine.exe"
+                    />
+                  </Box>
+                </>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDialog(null)}>取消</Button>
+          <Button variant="contained" onClick={saveOutputDialog} disabled={!dialog || busyKey.startsWith('dialog-save-')}>
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} fullWidth maxWidth="lg">
+        <DialogTitle>{profileDialog ? `${profileDialog.name || '轴配置'} · 轴配置` : '轴配置'}</DialogTitle>
+        <DialogContent dividers>
+          {profileDialog && (
+            <Stack spacing={2}>
+              <TextField label="配置名称" size="small" value={profileDialog.name || ''} onChange={event => setProfileDialog(previous => ({ ...previous, name: event.target.value }))} />
+
+              {profileDialog.isDefault && <Alert severity="info">这是当前默认轴配置。删除会被禁止，但你仍然可以修改各轴约束。</Alert>}
+
+              <Box className="motion-axis-grid">
+                {AXIS_PROFILE_DEFS.map(axis => (
+                  <MotionAxisEditor
+                    key={`${profileDialog.profileId}-${axis.key}`}
+                    axisDefinition={axis}
+                    value={profileDialog.profile[axis.key]}
+                    disabled={false}
+                    onChange={patch => updateProfileAxis(axis.key, patch)}
+                  />
+                ))}
+              </Box>
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setProfileDialog(null)}>取消</Button>
+          <Button variant="contained" onClick={saveProfileDialog} disabled={!profileDialog || busyKey.startsWith('profile-save-')}>
+            保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar open={snackbar.open} autoHideDuration={2600} onClose={() => setSnackbar(previous => ({ ...previous, open: false }))}>
+        <Alert variant="filled" severity={snackbar.severity}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </ThemeProvider>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('app-root')).render(<App />);
