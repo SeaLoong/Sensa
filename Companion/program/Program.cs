@@ -435,7 +435,6 @@ app.MapPut("/api/input/manual", (ManualInputRequest request) =>
         L1 = Math.Clamp(request.L1, 0f, 1f),
         L2 = Math.Clamp(request.L2, 0f, 1f),
         Vibrate = Math.Clamp(request.Vibrate, 0f, 1f),
-        GateOpen = request.GateOpen,
     };
 
     if (request.Enabled)
@@ -749,8 +748,7 @@ public sealed record ManualInputRequest(
     float R2,
     float L1,
     float L2,
-    float Vibrate,
-    bool GateOpen);
+    float Vibrate);
 
 public sealed record ScriptPlaybackRequest(
     bool Restart,

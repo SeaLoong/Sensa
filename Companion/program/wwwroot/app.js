@@ -70,8 +70,6 @@ const EMPTY_MANUAL = {
   V1: 0,
   V2: 0,
   A0: 0.5,
-  BpmDrive: 0,
-  GateOpen: true,
 };
 
 const MANUAL_AXES = [
@@ -85,7 +83,6 @@ const MANUAL_AXES = [
   { key: 'V1', label: 'V1 震动 2', min: 0, max: 1, step: 0.01, description: '第二路震动强度。0 为关闭，1 为最大。' },
   { key: 'V2', label: 'V2 震动 3', min: 0, max: 1, step: 0.01, description: '第三路震动强度。0 为关闭，1 为最大。' },
   { key: 'A0', label: 'A0 辅助', min: 0, max: 1, step: 0.01, description: '辅助通道（如气泵/润滑等），0.5 附近表示居中。' },
-  { key: 'BpmDrive', label: '节奏驱动', min: 0, max: 1, step: 0.01, description: 'BPM 节奏驱动强度，由节奏检测功能自动控制。' },
 ];
 
 const SIGNAL_ROLE_OPTIONS = [
@@ -95,12 +92,10 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'AngleX', label: '滚转（R0）' },
   { value: 'AngleY', label: '俯仰（R1）' },
   { value: 'Twist', label: '扭转（R2）' },
-  { value: 'Vibrate', label: '主震动（V0）' },
+  { value: 'Vibrate', label: '震动（V0）' },
   { value: 'Vibrate2', label: '震动 2（V1）' },
   { value: 'Vibrate3', label: '震动 3（V2）' },
   { value: 'Auxiliary', label: '辅助（A0）' },
-  { value: 'Gate', label: '闸门' },
-  { value: 'BpmDrive', label: '节奏驱动' },
 ];
 
 const AXIS_PROFILE_DEFS = [
@@ -119,7 +114,7 @@ const AXIS_PROFILE_DEFS = [
 const DEFAULT_AXIS_PROFILE = {
   min: 100,
   max: 900,
-  maxSpeed: 1400,
+  maxSpeed: 2000,
   invert: false,
 };
 
@@ -174,16 +169,6 @@ const BUILT_IN_OSC_MAPPING_PRESETS = [
       { oscPath: 'OGB/Pen/*', role: 'Surge', invertDirection: true, isOgbPlug: true },
       { oscPath: 'OGB/Pen/*', role: 'Sway', invertDirection: true, isOgbPlug: true },
       { oscPath: 'OGB/Pen/*', role: 'Vibrate', isOgbPlug: true },
-    ],
-  },
-  {
-    id: 'sensa-socket-starter',
-    name: 'Sensa / OGB Socket · 深度 + 姿态起点',
-    description: '按照 Sensa 生成的 OGB 参数命名，附带单边姿态起始映射。',
-    mappings: [
-      { oscPath: 'OGB/Orf/Pussy/Main/PenOthers', role: 'Depth', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/AngleRight_Raw', role: 'AngleX', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/AngleUp_Raw', role: 'AngleY', isOgbSocket: true },
     ],
   },
 ];
@@ -615,8 +600,6 @@ function normalizeManualCommand(command) {
     V1: raw.V1 ?? EMPTY_MANUAL.V1,
     V2: raw.V2 ?? EMPTY_MANUAL.V2,
     A0: raw.A0 ?? EMPTY_MANUAL.A0,
-    BpmDrive: raw.BpmDrive ?? EMPTY_MANUAL.BpmDrive,
-    GateOpen: raw.GateOpen ?? EMPTY_MANUAL.GateOpen,
   };
 }
 
@@ -793,7 +776,7 @@ function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
 
         <FormControl size="small" fullWidth>
           <InputLabel>目标轴</InputLabel>
-          <Select value={draft.role} label="目标轴" onChange={event => onChange({ role: event.target.value })}>
+          <Select value={draft.role} label="目标轴" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ role: event.target.value })}>
             {SIGNAL_ROLE_OPTIONS.map(option => (
               <MenuItem key={option.value} value={option.value}>
                 {option.label}
@@ -1101,6 +1084,11 @@ function App() {
     setSignalDrafts(previous => previous.filter(signal => signal._draftId !== draftId));
   }
 
+  function clearSignalDrafts() {
+    setSignalDrafts([]);
+    notify('已清空所有映射', 'info');
+  }
+
   async function saveOscMappings() {
     if (!config) return;
 
@@ -1370,8 +1358,6 @@ function App() {
       V1: draft.V1,
       V2: draft.V2,
       A0: draft.A0,
-      BpmDrive: draft.BpmDrive,
-      GateOpen: draft.GateOpen,
     };
   }
 
@@ -1850,7 +1836,7 @@ function App() {
                     <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
                       <FormControl size="small" sx={{ minWidth: 280 }}>
                         <InputLabel>预设方案</InputLabel>
-                        <Select value={selectedOscPreset} label="预设方案" onChange={event => setSelectedOscPreset(event.target.value)}>
+                        <Select value={selectedOscPreset} label="预设方案" MenuProps={{ disableScrollLock: true }} onChange={event => setSelectedOscPreset(event.target.value)}>
                           {oscMappingPresets.map(preset => (
                             <MenuItem key={preset.id} value={preset.id}>
                               {preset.name}
@@ -1938,6 +1924,9 @@ function App() {
                       </Button>
                       <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'}>
                         保存映射
+                      </Button>
+                      <Button variant="outlined" color="error" onClick={clearSignalDrafts} disabled={signalDrafts.length === 0}>
+                        清空映射
                       </Button>
                     </Stack>
                   </Box>
@@ -2241,7 +2230,7 @@ function App() {
         </Box>
       </Box>
 
-      <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} fullWidth maxWidth="lg">
+      <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} disableScrollLock fullWidth maxWidth="lg">
         <DialogTitle>{presetDialog ? `${presetDialog.name || 'OSC 预设'} · 预设编辑` : 'OSC 预设'}</DialogTitle>
         <DialogContent dividers>
           {presetDialog && (
@@ -2295,7 +2284,7 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} fullWidth maxWidth="md">
+      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} disableScrollLock fullWidth maxWidth="md">
         <DialogTitle>{dialog ? `${getOutputTypeLabel(dialog.draft.type)} 配置` : '输出配置'}</DialogTitle>
         <DialogContent dividers>
           {dialog && (
@@ -2334,7 +2323,12 @@ function App() {
 
                     <FormControl size="small" fullWidth>
                       <InputLabel>串口</InputLabel>
-                      <Select value={dialog.draft.comPort || ''} label="串口" onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: event.target.value } }))}>
+                      <Select
+                        value={dialog.draft.comPort || ''}
+                        label="串口"
+                        MenuProps={{ disableScrollLock: true }}
+                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: event.target.value } }))}
+                      >
                         {serialPorts.length === 0 && <MenuItem value="">未检测到串口</MenuItem>}
                         {serialPorts.map(port => (
                           <MenuItem key={port.portName} value={port.portName}>
@@ -2467,7 +2461,7 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} fullWidth maxWidth="lg">
+      <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} disableScrollLock fullWidth maxWidth="lg">
         <DialogTitle>{profileDialog ? `${profileDialog.name || '轴配置'} · 轴配置` : '轴配置'}</DialogTitle>
         <DialogContent dividers>
           {profileDialog && (

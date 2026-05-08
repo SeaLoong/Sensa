@@ -157,13 +157,12 @@ public sealed class ScriptInputPlayer
             AdvanceLocked(Environment.TickCount64);
 
             if (!_playing || _actions.Count == 0)
-                return DeviceCommand.Zero with { DeltaMs = deltaMs, GateOpen = false };
+                return DeviceCommand.Zero with { DeltaMs = deltaMs };
 
             return DeviceCommand.Zero with
             {
                 L0 = _lastL0,
                 DeltaMs = deltaMs,
-                GateOpen = true,
             };
         }
     }
