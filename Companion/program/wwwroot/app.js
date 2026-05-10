@@ -993,8 +993,8 @@ function App() {
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
         savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(configResponse?.signals));
         setStudio(previous => sanitizeStudio(previous, configResponse));
-        setManualDraft(normalizeManualCommand(overviewResponse?.loop?.manualCommand));
-        manualDraftRef.current = normalizeManualCommand(overviewResponse?.loop?.manualCommand);
+        setManualDraft({ ...EMPTY_MANUAL });
+        manualDraftRef.current = { ...EMPTY_MANUAL };
         setScriptSettings({
           loop: Boolean(overviewResponse?.input?.script?.loop),
           speed: Number(overviewResponse?.input?.script?.speed || 1),
@@ -1040,15 +1040,6 @@ function App() {
     if (!studio) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(studio));
   }, [studio]);
-
-  useEffect(() => {
-    // Sync manualDraft from server only during init or when NOT in manual mode
-    if (!overview?.loop?.manualCommand || manualInitializedRef.current === false) return;
-    if (overview?.input?.mode === 'manual') return; // local draft is authoritative during manual input
-    const normalized = normalizeManualCommand(overview.loop.manualCommand);
-    setManualDraft(normalized);
-    manualDraftRef.current = normalized;
-  }, [overview?.loop?.manualCommand, overview?.input?.mode]);
 
   useEffect(() => {
     if (!overview?.input?.script || scriptSettingsInitializedRef.current === false) return;
@@ -1556,6 +1547,17 @@ function App() {
     } finally {
       manualSyncBlockedRef.current = false;
     }
+  }
+
+  function syncManualFromDevice() {
+    if (!overview?.loop?.manualCommand) {
+      notify('没有可同步的设备状态', 'info');
+      return;
+    }
+    const normalized = normalizeManualCommand(overview.loop.manualCommand);
+    setManualDraft(normalized);
+    manualDraftRef.current = normalized;
+    notify('滑条已同步设备当前位置', 'info');
   }
 
   async function disableManualInput() {

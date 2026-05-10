@@ -90,6 +90,8 @@ public sealed class Routine : IDisposable
         _loopRateResolver = loopRateResolver;
 
         RebuildProcessors();
+        // Event-driven: when any OSC parameter changes, fuse and send
+        _store.OnSet += (_, _) => { _ = TrySendOscAsync(); };
         _osc.OnAvatarChange += () =>
         {
             foreach (var (_, proc) in _processors) proc.Reset();
@@ -177,9 +179,76 @@ public sealed class Routine : IDisposable
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
     }
 
-    /// <summary>Directly send a command to all outputs (event-driven path for manual/script).</summary>
+    /// <summary>Directly send a command to all outputs (event-driven path).</summary>
     public Task SendToOutputsAsync(DeviceCommand cmd) =>
         _sendOutputsAsync?.Invoke(cmd) ?? Task.CompletedTask;
+
+    /// <summary>Process current OSC signals, fuse, and send if changed. Called event-driven from ParameterStore.OnSet.</summary>
+    public async Task TrySendOscAsync()
+    {
+        if (_emergency || !_inputActive) return;
+
+        var deltaMs = 20.0; // default 50Hz-equivalent interval
+        var selectedInput = _inputMode switch
+        {
+            InputMode.Manual when _manualOverrideEnabled => _manualOverrideField with { DeltaMs = deltaMs },
+            InputMode.Manual => DeviceCommand.Zero with { DeltaMs = deltaMs },
+            InputMode.Script => _scriptInput.Sample(deltaMs),
+            _ => FuseOscSignals(deltaMs),
+        };
+
+        var cmd = _emergency
+            ? selectedInput with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs }
+            : selectedInput;
+
+        _lastCommandField = cmd;
+
+        if (CmdEquals(cmd, _lastSentCmd)) return;
+        _lastSentCmd = cmd;
+
+        if (_sendOutputsAsync is not null)
+        {
+            try { await _sendOutputsAsync(cmd); }
+            catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
+        }
+        else
+        {
+            if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
+            {
+                try { await _intiface.SendAsync(cmd); }
+                catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+            }
+            if (_save.TCode.Enabled) _tcode?.Send(cmd);
+            if (_save.UdpTCode.Enabled) _tcodeUdp?.Send(cmd);
+            if (_save.TcpTCode.Enabled) _tcodeTcp?.Send(cmd);
+        }
+    }
+
+    private DeviceCommand FuseOscSignals(double deltaMs)
+    {
+        _signals.Clear();
+        foreach (var (path, proc) in _processors)
+        {
+            if (!_store.TryGetLatest(path, out var entry)) continue;
+            _signals.Add((proc.Config.Role, proc.Process(entry.Value.AsFloat())));
+        }
+        return _fusion.Fuse(_signals, deltaMs: deltaMs);
+    }
+
+    private static bool CmdEquals(DeviceCommand? a, DeviceCommand? b)
+    {
+        if (a is null || b is null) return a is null && b is null;
+        return Math.Abs(a.L0 - b.L0) < 0.001f
+            && Math.Abs(a.R0 - b.R0) < 0.001f
+            && Math.Abs(a.R1 - b.R1) < 0.001f
+            && Math.Abs(a.R2 - b.R2) < 0.001f
+            && Math.Abs(a.L1 - b.L1) < 0.001f
+            && Math.Abs(a.L2 - b.L2) < 0.001f
+            && Math.Abs(a.V0 - b.V0) < 0.001f
+            && Math.Abs(a.V1 - b.V1) < 0.001f
+            && Math.Abs(a.V2 - b.V2) < 0.001f
+            && Math.Abs(a.A0 - b.A0) < 0.001f;
+    }
 
     // ────────────────────────────────────────────────────────────────
 
@@ -202,101 +271,25 @@ public sealed class Routine : IDisposable
                 try { action(); } catch (Exception ex) { OnLog?.Invoke($"[UiAction] {ex.Message}"); }
             }
 
-            // 2. Build signal list from ParameterStore (reuse pre-allocated list to reduce GC)
-            _signals.Clear();
-            foreach (var (path, proc) in _processors)
-            {
-                if (!_store.TryGetLatest(path, out var entry)) continue;
-                float processed = proc.Process(entry.Value.AsFloat());
-                _signals.Add((proc.Config.Role, processed));
-            }
-
-            // 3. Fuse signals into a DeviceCommand
-            var rawCmd = _fusion.Fuse(_signals, deltaMs: deltaMs);
-
-            // 4. Select active input source.
-            var selectedInput = _inputMode switch
+            // 2. Update last command for UI display (no sending — that's event-driven)
+            _lastCommandField = _inputMode switch
             {
                 InputMode.Manual when _manualOverrideEnabled => _manualOverrideField with { DeltaMs = deltaMs },
-                InputMode.Manual => DeviceCommand.Zero with { DeltaMs = deltaMs },
-                InputMode.Script => _scriptInput.Sample(deltaMs),
-                _ => rawCmd with { DeltaMs = deltaMs },
+                _ => _lastCommandField with { DeltaMs = deltaMs },
             };
 
-            // 5. Emergency stop: zero all axes, centre rotation/linear offsets
-            var cmd = _emergency
-                ? selectedInput with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs }
-                : selectedInput;
-
-            _lastCommandField = cmd;
-
-            // When input is inactive, skip transmission entirely (device holds last position)
-            if (!_inputActive)
-            {
-                var idleMs = tickMs - Stopwatch.GetElapsedTime(now).TotalMilliseconds;
-                if (idleMs > 0.5)
-                    await Task.Delay(TimeSpan.FromMilliseconds(idleMs), ct);
-                continue;
-            }
-
-            // Periodic debug log (every 50 ticks ≈ 1s at 50Hz)
+            // Periodic debug log
             _tickCounter++;
-            if (_tickCounter % 50 == 0)
+            if (_tickCounter % 100 == 0)
             {
                 OnDebugLog?.Invoke(
                     $"[Loop] mode={_inputMode} emg={_emergency} " +
-                    $"L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} " +
-                    $"L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2} " +
-                    $"deltaMs={cmd.DeltaMs:F1}");
+                    $"lastSent: L0={_lastSentCmd?.L0:F2} R0={_lastSentCmd?.R0:F2} ...");
             }
 
-            // 6. Transmit — event-driven: only send when the command actually differs from last sent
-            if (!_emergency && _inputActive)
-            {
-                var changed = _lastSentCmd is null ||
-                    Math.Abs(cmd.L0 - _lastSentCmd.L0) > 0.001f ||
-                    Math.Abs(cmd.R0 - _lastSentCmd.R0) > 0.001f ||
-                    Math.Abs(cmd.R1 - _lastSentCmd.R1) > 0.001f ||
-                    Math.Abs(cmd.R2 - _lastSentCmd.R2) > 0.001f ||
-                    Math.Abs(cmd.L1 - _lastSentCmd.L1) > 0.001f ||
-                    Math.Abs(cmd.L2 - _lastSentCmd.L2) > 0.001f ||
-                    Math.Abs(cmd.V0 - _lastSentCmd.V0) > 0.001f ||
-                    Math.Abs(cmd.V1 - _lastSentCmd.V1) > 0.001f ||
-                    Math.Abs(cmd.V2 - _lastSentCmd.V2) > 0.001f ||
-                    Math.Abs(cmd.A0 - _lastSentCmd.A0) > 0.001f;
-
-                if (changed)
-                {
-                    _lastSentCmd = cmd;
-                    if (_sendOutputsAsync is not null)
-                    {
-                        try { await _sendOutputsAsync(cmd); }
-                        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
-                    }
-                    else
-                    {
-                        if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
-                        {
-                            try { await _intiface.SendAsync(cmd); }
-                            catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
-                        }
-                        if (_save.TCode.Enabled)
-                            _tcode?.Send(cmd);
-                        if (_save.UdpTCode.Enabled)
-                            _tcodeUdp?.Send(cmd);
-                        if (_save.TcpTCode.Enabled)
-                            _tcodeTcp?.Send(cmd);
-                    }
-                }
-            }
-
-            // 7. Record
-            _recorder?.Push(cmd);
-
-            var elapsedMs = Stopwatch.GetElapsedTime(now).TotalMilliseconds;
-            var remainingMs = tickMs - elapsedMs;
-            if (remainingMs > 0.5)
-                await Task.Delay(TimeSpan.FromMilliseconds(remainingMs), ct);
+            var idleMs = tickMs - Stopwatch.GetElapsedTime(now).TotalMilliseconds;
+            if (idleMs > 0.5)
+                await Task.Delay(TimeSpan.FromMilliseconds(idleMs), ct);
         }
     }
 

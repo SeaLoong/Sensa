@@ -47,12 +47,10 @@ public sealed class ParameterStore
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         _store[path] = new Entry(value, ts);
-    }
+    OnSet?.Invoke(path, value);
+}
 
-    /// <summary>Try to read a parameter. Returns false if never received.</summary>
-    public bool TryGet(string path, out Entry entry) =>
-        _store.TryGetValue(path, out entry);
-
+public event Action<string, OscValue>? OnSet;
     /// <summary>
     /// Try to read the latest parameter matching an exact OSC path or a simple
     /// trailing-wildcard pattern such as <c>OGB/Pen/*</c>.
