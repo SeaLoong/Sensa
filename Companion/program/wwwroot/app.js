@@ -2155,6 +2155,13 @@ function App() {
                         </Button>
                       </span>
                     </Tooltip>
+                    <Tooltip title="读取当前设备位置更新滑条（不发送）" arrow>
+                      <span>
+                        <Button variant="outlined" onClick={syncManualFromDevice}>
+                          从设备同步
+                        </Button>
+                      </span>
+                    </Tooltip>
                     <FormControlLabel
                       control={
                         <Switch

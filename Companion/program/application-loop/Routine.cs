@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Sensa.Config;
 using Sensa.Core;
 using Sensa.TransmitIntiface;
@@ -8,10 +7,12 @@ using Sensa.UiActions;
 
 namespace Sensa.ApplicationLoop;
 
-// ═══════════════════════════════════════════════════════════════════════
-//  Routine — the main 50 Hz closed-loop tick
-// ═══════════════════════════════════════════════════════════════════════
-
+/// <summary>
+/// Event-driven signal processing engine — no loop. Sends are triggered by:
+///   - ParameterStore.OnSet (OSC parameter arrives)
+///   - Manual PUT / WS handler (user moves slider)
+///   - Script timer (funscript frame advances)
+/// </summary>
 public sealed class Routine : IDisposable
 {
     private readonly SaveFile            _save;
@@ -26,37 +27,29 @@ public sealed class Routine : IDisposable
     private readonly UiActionQueue       _actions;
     private readonly Func<DeviceCommand, Task>? _sendOutputsAsync;
     private readonly Func<Task>? _emergencyStopAsync;
-    private readonly Func<int>? _loopRateResolver;
+    private readonly Timer? _actionTimer;
+    private readonly Timer? _logTimer;
 
-    // Per-signal processors; duplicate OSC paths are allowed so one parameter can drive multiple axes.
+    // Per-signal processors
     private readonly List<(string Path, SignalProcessor Processor)> _processors = new();
     private readonly SignalFusion _fusion = new();
-
-    // Pre-allocated signal list — reused every tick to avoid per-frame GC allocations
     private readonly List<(SignalRole, float)> _signals = new();
 
-    private CancellationTokenSource? _cts;
-    private Task? _loopTask;
-
-    // ── Public computed state for UI display ───────────────────────
     private volatile DeviceCommand _lastCommandField = DeviceCommand.Zero;
     private volatile DeviceCommand _manualOverrideField = DeviceCommand.Zero;
     private volatile bool _manualOverrideEnabled;
     private volatile InputMode _inputMode = InputMode.Osc;
     private volatile bool _emergency;
-    private volatile bool _inputActive; // user-facing master switch: false → no data sent
-    public DeviceCommand LastCommand  => _lastCommandField;
+    private volatile bool _inputActive = true;
+    private DeviceCommand? _lastSentCmd;
+
+    public DeviceCommand LastCommand          => _lastCommandField;
     public DeviceCommand ManualOverrideCommand => _manualOverrideField;
     public bool          ManualOverrideEnabled => _manualOverrideEnabled;
-    public InputMode     CurrentInputMode => _inputMode;
-    public bool          IsRunning    => _cts is not null && !_cts.IsCancellationRequested;
-    public bool          IsEmergency  => _emergency;
-    public bool          InputActive  => _inputActive;
+    public InputMode     CurrentInputMode      => _inputMode;
+    public bool          IsEmergency           => _emergency;
+    public bool          InputActive           => _inputActive;
 
-    private int _tickCounter;
-    private DeviceCommand? _lastSentCmd; // for event-driven dedup
-
-    // ── Events ─────────────────────────────────────────────────────
     public event Action<string>? OnLog;
     public event Action<string>? OnDebugLog;
 
@@ -87,16 +80,27 @@ public sealed class Routine : IDisposable
         _actions  = actions;
         _sendOutputsAsync = sendOutputsAsync;
         _emergencyStopAsync = emergencyStopAsync;
-        _loopRateResolver = loopRateResolver;
 
         RebuildProcessors();
-        // Event-driven: when any OSC parameter changes, fuse and send
-        _store.OnSet += (_, _) => { _ = TrySendOscAsync(); };
+
+        // Event-driven OSC: fire on every parameter change
+        _store.OnSet += (_, _) => { _ = TrySendAsync(); };
+
+        // Avatar change: reset processors + OSC receiver clears ParameterStore
         _osc.OnAvatarChange += () =>
         {
             foreach (var (_, proc) in _processors) proc.Reset();
-            OnLog?.Invoke("[Routine] Avatar changed — parameter store cleared, EMA reset.");
+            OnLog?.Invoke("[Routine] Avatar changed — EMA reset.");
         };
+
+        // Drain UI actions and log periodically (only housekeeping, no sending)
+        _actionTimer = new Timer(_ => DrainActions(), null, 50, 50);
+        _logTimer = new Timer(_ =>
+        {
+            OnDebugLog?.Invoke(
+                $"[Routine] mode={_inputMode} emg={_emergency} " +
+                $"lastSent: L0={_lastSentCmd?.L0:F2} R0={_lastSentCmd?.R0:F2} V0={_lastSentCmd?.V0:F2}");
+        }, null, 1000, 1000);
     }
 
     public void RebuildProcessors()
@@ -106,30 +110,11 @@ public sealed class Routine : IDisposable
         {
             if (string.IsNullOrWhiteSpace(sig.OscPath))
                 continue;
-
             _processors.Add((sig.OscPath, new SignalProcessor(sig)));
         }
     }
 
     // ────────────────────────────────────────────────────────────────
-
-    public void Start()
-    {
-        if (_cts is not null) return;
-        _cts = new CancellationTokenSource();
-        _loopTask = RunLoopAsync(_cts.Token);
-        OnLog?.Invoke("[Routine] Started.");
-    }
-
-    public async Task StopAsync()
-    {
-        if (_cts is null) return;
-        _cts.Cancel();
-        try { if (_loopTask != null) await _loopTask; } catch (OperationCanceledException) { }
-        _cts.Dispose();
-        _cts = null;
-        OnLog?.Invoke("[Routine] Stopped.");
-    }
 
     public void EmergencyStop()
     {
@@ -137,40 +122,40 @@ public sealed class Routine : IDisposable
         _ = SendEmergencyAsync();
     }
 
-    public void ClearEmergency() => _emergency = false;
+    public void ClearEmergency()
+    {
+        _emergency = false;
+        // Re-send current state after clearing emergency
+        _lastSentCmd = null;
+        _ = TrySendAsync();
+    }
 
     public void SetManualOverride(DeviceCommand cmd)
     {
         _manualOverrideField = cmd;
         _manualOverrideEnabled = true;
-        OnLog?.Invoke("[ManualTest] Override enabled.");
+        OnLog?.Invoke("[Manual] Override enabled.");
+        _ = TrySendAsync();
     }
 
     public void ClearManualOverride()
     {
         _manualOverrideField = DeviceCommand.Zero;
         _manualOverrideEnabled = false;
-        OnLog?.Invoke("[ManualTest] Override cleared.");
+        OnLog?.Invoke("[Manual] Override cleared.");
     }
 
     public void SetInputMode(InputMode mode)
     {
-        if (_inputMode == mode)
-            return;
-
+        if (_inputMode == mode) return;
         _inputMode = mode;
 
-        if (mode != InputMode.Manual)
-            _manualOverrideEnabled = false;
-
-        if (mode != InputMode.Script)
-            _scriptInput.Pause();
-
-        // Auto-enable input when switching to a non-OSC mode
-        if (mode != InputMode.Osc)
-            _inputActive = true;
+        if (mode != InputMode.Manual) _manualOverrideEnabled = false;
+        if (mode != InputMode.Script) _scriptInput.Pause();
+        if (mode != InputMode.Osc) _inputActive = true;
 
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
+        _ = TrySendAsync();
     }
 
     public void SetInputActive(bool active)
@@ -179,32 +164,45 @@ public sealed class Routine : IDisposable
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
     }
 
-    /// <summary>Directly send a command to all outputs (event-driven path).</summary>
-    public Task SendToOutputsAsync(DeviceCommand cmd) =>
-        _sendOutputsAsync?.Invoke(cmd) ?? Task.CompletedTask;
-
-    /// <summary>Process current OSC signals, fuse, and send if changed. Called event-driven from ParameterStore.OnSet.</summary>
-    public async Task TrySendOscAsync()
+    /// <summary>
+    /// Event-driven send: called by any trigger (OSC param, manual, script, mode switch).
+    /// Fuses the current input into a DeviceCommand and sends if changed.
+    /// </summary>
+    public async Task TrySendAsync()
     {
         if (_emergency || !_inputActive) return;
 
-        var deltaMs = 20.0; // default 50Hz-equivalent interval
-        var selectedInput = _inputMode switch
-        {
-            InputMode.Manual when _manualOverrideEnabled => _manualOverrideField with { DeltaMs = deltaMs },
-            InputMode.Manual => DeviceCommand.Zero with { DeltaMs = deltaMs },
-            InputMode.Script => _scriptInput.Sample(deltaMs),
-            _ => FuseOscSignals(deltaMs),
-        };
+        DrainActions();
 
-        var cmd = _emergency
-            ? selectedInput with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs }
-            : selectedInput;
+        // Build command from current input mode
+        var deltaMs = 20.0;
+        DeviceCommand cmd;
+
+        switch (_inputMode)
+        {
+            case InputMode.Manual when _manualOverrideEnabled:
+                cmd = _manualOverrideField with { DeltaMs = deltaMs };
+                break;
+            case InputMode.Manual:
+                cmd = DeviceCommand.Zero with { DeltaMs = deltaMs };
+                break;
+            case InputMode.Script:
+                cmd = _scriptInput.Sample(deltaMs);
+                break;
+            default: // OSC
+                cmd = FuseOscSignals(deltaMs);
+                break;
+        }
+
+        if (_emergency)
+            cmd = cmd with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs };
 
         _lastCommandField = cmd;
 
         if (CmdEquals(cmd, _lastSentCmd)) return;
         _lastSentCmd = cmd;
+
+        _recorder?.Push(cmd);
 
         if (_sendOutputsAsync is not null)
         {
@@ -221,6 +219,19 @@ public sealed class Routine : IDisposable
             if (_save.TCode.Enabled) _tcode?.Send(cmd);
             if (_save.UdpTCode.Enabled) _tcodeUdp?.Send(cmd);
             if (_save.TcpTCode.Enabled) _tcodeTcp?.Send(cmd);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    //  Helpers
+    // ────────────────────────────────────────────────────────────────
+
+    private void DrainActions()
+    {
+        while (_actions.TryDequeue(out var action))
+        {
+            try { action(); }
+            catch (Exception ex) { OnLog?.Invoke($"[UiAction] {ex.Message}"); }
         }
     }
 
@@ -250,49 +261,6 @@ public sealed class Routine : IDisposable
             && Math.Abs(a.A0 - b.A0) < 0.001f;
     }
 
-    // ────────────────────────────────────────────────────────────────
-
-    private async Task RunLoopAsync(CancellationToken ct)
-    {
-        var lastTick = Stopwatch.GetTimestamp();
-
-        while (!ct.IsCancellationRequested)
-        {
-            var now = Stopwatch.GetTimestamp();
-            var tickMs = Math.Max(1000.0 / Math.Max(_loopRateResolver?.Invoke() ?? _save.GetRecommendedLoopRate(), 10), 1);
-            var deltaMs = Stopwatch.GetElapsedTime(lastTick, now).TotalMilliseconds;
-            if (deltaMs < 0.5)
-                deltaMs = tickMs;
-            lastTick = now;
-
-            // 1. Drain UI actions
-            while (_actions.TryDequeue(out var action))
-            {
-                try { action(); } catch (Exception ex) { OnLog?.Invoke($"[UiAction] {ex.Message}"); }
-            }
-
-            // 2. Update last command for UI display (no sending — that's event-driven)
-            _lastCommandField = _inputMode switch
-            {
-                InputMode.Manual when _manualOverrideEnabled => _manualOverrideField with { DeltaMs = deltaMs },
-                _ => _lastCommandField with { DeltaMs = deltaMs },
-            };
-
-            // Periodic debug log
-            _tickCounter++;
-            if (_tickCounter % 100 == 0)
-            {
-                OnDebugLog?.Invoke(
-                    $"[Loop] mode={_inputMode} emg={_emergency} " +
-                    $"lastSent: L0={_lastSentCmd?.L0:F2} R0={_lastSentCmd?.R0:F2} ...");
-            }
-
-            var idleMs = tickMs - Stopwatch.GetElapsedTime(now).TotalMilliseconds;
-            if (idleMs > 0.5)
-                await Task.Delay(TimeSpan.FromMilliseconds(idleMs), ct);
-        }
-    }
-
     private async Task SendEmergencyAsync()
     {
         if (_emergencyStopAsync is not null)
@@ -300,7 +268,6 @@ public sealed class Routine : IDisposable
             try { await _emergencyStopAsync(); } catch { }
             return;
         }
-
         _tcode?.EmergencyStop();
         _tcodeUdp?.EmergencyStop();
         _tcodeTcp?.EmergencyStop();
@@ -312,7 +279,7 @@ public sealed class Routine : IDisposable
 
     public void Dispose()
     {
-        _cts?.Cancel();
-        _cts?.Dispose();
+        _actionTimer?.Dispose();
+        _logTimer?.Dispose();
     }
 }

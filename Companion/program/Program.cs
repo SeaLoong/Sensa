@@ -68,8 +68,7 @@ var routine = new Routine(
     recorder: recorder,
     scriptInput: scriptInput,
     sendOutputsAsync: outputManager.SendAsync,
-    emergencyStopAsync: outputManager.EmergencyStopAsync,
-    loopRateResolver: save.GetRecommendedLoopRate);
+    emergencyStopAsync: outputManager.EmergencyStopAsync);
 routine.OnLog += Log;
 routine.OnDebugLog += (msg) => LogEntry(msg, LogLevel.Debug);
 
@@ -168,10 +167,9 @@ object BuildOverviewSnapshot()
     {
         loop = new
         {
-            routine.IsRunning,
-            routine.IsEmergency,
+            isEmergency = routine.IsEmergency,
             routine.ManualOverrideEnabled,
-            routine.InputActive,
+            inputActive = routine.InputActive,
             inputMode = routine.CurrentInputMode,
             command = cmd,
             manualCommand = routine.ManualOverrideCommand,
@@ -776,7 +774,6 @@ Log($"[OSC] Listening on {save.Osc.ReceiverHost}:{save.Osc.ReceiverPort}");
 
 await outputManager.ConnectEnabledAsync();
 
-routine.Start();
 Log($"[WebUI] Available at {uiUrl}");
 
 if (save.WebUi.AutoOpenBrowser)
@@ -793,7 +790,6 @@ if (save.WebUi.AutoOpenBrowser)
 
 await app.RunAsync();
 
-await routine.StopAsync();
 routine.Dispose();
 oscReceiver.Stop();
 oscReceiver.Dispose();
