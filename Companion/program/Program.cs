@@ -37,6 +37,7 @@ var app = builder.Build();
 
 var logBuffer = new ServiceLogBuffer();
 void Log(string message) => LogEntry(message, LogLevel.Info);
+void LogDebug(string message) => LogEntry(message, LogLevel.Debug);
 void LogError(string message) => LogEntry(message, LogLevel.Error);
 
 void LogEntry(string message, LogLevel level)
@@ -67,6 +68,7 @@ var routine = new Routine(
     emergencyStopAsync: outputManager.EmergencyStopAsync,
     loopRateResolver: save.GetRecommendedLoopRate);
 routine.OnLog += Log;
+routine.OnDebugLog += (msg) => LogEntry(msg, LogLevel.Debug);
 
 async Task RunOnLoopAsync(Action action)
 {
@@ -166,6 +168,7 @@ object BuildOverviewSnapshot()
             routine.IsRunning,
             routine.IsEmergency,
             routine.ManualOverrideEnabled,
+            routine.InputActive,
             inputMode = routine.CurrentInputMode,
             command = cmd,
             manualCommand = routine.ManualOverrideCommand,
@@ -415,6 +418,12 @@ app.MapPost("/api/control/loop/clear-emergency", () =>
     return Results.Ok(new { ok = true, routine.IsEmergency });
 });
 
+app.MapPut("/api/input/active", (InputActiveRequest request) =>
+{
+    routine.SetInputActive(request.Active);
+    return Results.Ok(new { ok = true, active = routine.InputActive });
+});
+
 app.MapPut("/api/input/mode", (InputModeRequest request) =>
 {
     if (!Enum.TryParse<InputMode>(request.Mode, ignoreCase: true, out var mode))
@@ -444,10 +453,12 @@ app.MapPut("/api/input/manual", (ManualInputRequest request) =>
     {
         routine.SetManualOverride(cmd);
         routine.SetInputMode(InputMode.Manual);
+        LogDebug($"[Input/Manual] HTTP L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2}");
     }
     else
     {
         routine.ClearManualOverride();
+        LogDebug("[Input/Manual] Cleared");
     }
 
     return Results.Ok(new
@@ -573,6 +584,7 @@ app.MapPost("/api/control/output/{outputId}/connect", async (string outputId) =>
         return Results.NotFound(new { ok = false, error = "输出不存在。" });
 
     var ok = await ConnectOutputAsync(outputId);
+    LogDebug($"[Output] Connect {outputId} → {ok}");
     return Results.Ok(new
     {
         ok,
@@ -590,6 +602,7 @@ app.MapPost("/api/control/output/{outputId}/disconnect", async (string outputId)
         return Results.NotFound(new { ok = false, error = "输出不存在。" });
 
     await DisconnectOutputAsync(outputId);
+    LogDebug($"[Output] Disconnect {outputId}");
     return Results.Ok(new
     {
         ok = true,
@@ -859,6 +872,7 @@ async Task<object> HandleWebSocketCommand(string json)
                         {
                             routine.SetManualOverride(cmd);
                             routine.SetInputMode(InputMode.Manual);
+                            LogDebug($"[Input/Manual] L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2}");
                         }
                         else
                             routine.ClearManualOverride();
@@ -887,6 +901,16 @@ async Task<object> HandleWebSocketCommand(string json)
                 break;
 
             // ── Input mode ────────────────────────────────────
+            case "/api/input/active" when method == "PUT":
+            {
+                if (root.TryGetProperty("body", out var body) && body.TryGetProperty("active", out var actEl))
+                {
+                    var active = actEl.GetBoolean();
+                    routine.SetInputActive(active);
+                    result = new { active = routine.InputActive };
+                }
+                break;
+            }
             case "/api/input/mode" when method == "PUT":
             {
                 if (root.TryGetProperty("body", out var body) && body.TryGetProperty("mode", out var modeEl))
@@ -960,6 +984,7 @@ async Task<object?> HandleOutputAction(string? outputId, Func<Task<object>> acti
 }
 
 public sealed record InputModeRequest(string Mode);
+public sealed record InputActiveRequest(bool Active);
 
 public sealed record ManualInputRequest(
     bool Enabled,

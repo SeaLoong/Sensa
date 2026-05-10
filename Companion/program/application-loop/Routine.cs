@@ -44,15 +44,21 @@ public sealed class Routine : IDisposable
     private volatile bool _manualOverrideEnabled;
     private volatile InputMode _inputMode = InputMode.Osc;
     private volatile bool _emergency;
+    private volatile bool _inputActive; // user-facing master switch: false → no data sent
     public DeviceCommand LastCommand  => _lastCommandField;
     public DeviceCommand ManualOverrideCommand => _manualOverrideField;
     public bool          ManualOverrideEnabled => _manualOverrideEnabled;
     public InputMode     CurrentInputMode => _inputMode;
     public bool          IsRunning    => _cts is not null && !_cts.IsCancellationRequested;
     public bool          IsEmergency  => _emergency;
+    public bool          InputActive  => _inputActive;
+
+    private long _lastLogTick;
+    private int _tickCounter;
 
     // ── Events ─────────────────────────────────────────────────────
     public event Action<string>? OnLog;
+    public event Action<string>? OnDebugLog;
 
     public Routine(
         SaveFile            save,
@@ -158,7 +164,17 @@ public sealed class Routine : IDisposable
         if (mode != InputMode.Script)
             _scriptInput.Pause();
 
+        // Auto-enable input when switching to a non-OSC mode
+        if (mode != InputMode.Osc)
+            _inputActive = true;
+
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
+    }
+
+    public void SetInputActive(bool active)
+    {
+        _inputActive = active;
+        OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
     }
 
     // ────────────────────────────────────────────────────────────────
@@ -209,6 +225,26 @@ public sealed class Routine : IDisposable
                 : selectedInput;
 
             _lastCommandField = cmd;
+
+            // When input is inactive, skip transmission entirely (device holds last position)
+            if (!_inputActive)
+            {
+                var idleMs = tickMs - Stopwatch.GetElapsedTime(now).TotalMilliseconds;
+                if (idleMs > 0.5)
+                    await Task.Delay(TimeSpan.FromMilliseconds(idleMs), ct);
+                continue;
+            }
+
+            // Periodic debug log (every 50 ticks ≈ 1s at 50Hz)
+            _tickCounter++;
+            if (_tickCounter % 50 == 0)
+            {
+                OnDebugLog?.Invoke(
+                    $"[Loop] mode={_inputMode} emg={_emergency} " +
+                    $"L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} " +
+                    $"L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2} " +
+                    $"deltaMs={cmd.DeltaMs:F1}");
+            }
 
             // 6. Transmit — skip entirely during emergency (DSTOP already sent by SendEmergencyAsync)
             if (!_emergency && _sendOutputsAsync is not null)

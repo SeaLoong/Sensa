@@ -22,6 +22,7 @@ public sealed class TCodeTcp : IDisposable
     private readonly VelocityEstimator _velR2 = new();
     private readonly VelocityEstimator _velL1 = new();
     private readonly VelocityEstimator _velL2 = new();
+    private string? _lastLine;
 
     public bool IsConnected => _client?.Connected == true && _stream is not null;
 
@@ -61,6 +62,8 @@ public sealed class TCodeTcp : IDisposable
         if (!IsConnected) return;
         var line = BuildLine(cmd);
         if (line.Length == 0) return;
+        if (line == _lastLine) return; // unchanged — skip
+        _lastLine = line;
 
         try
         {

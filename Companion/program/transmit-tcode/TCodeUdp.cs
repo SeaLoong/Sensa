@@ -24,6 +24,7 @@ public sealed class TCodeUdp : IDisposable
     private readonly VelocityEstimator _velR2 = new();
     private readonly VelocityEstimator _velL1 = new();
     private readonly VelocityEstimator _velL2 = new();
+    private string? _lastLine;
 
     public bool IsConnected => _client is not null && _remote is not null;
 
@@ -65,6 +66,8 @@ public sealed class TCodeUdp : IDisposable
         if (!IsConnected) return;
         var line = BuildLine(cmd);
         if (line.Length == 0) return;
+        if (line == _lastLine) return; // unchanged — skip
+        _lastLine = line;
 
         try
         {

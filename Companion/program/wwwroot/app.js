@@ -1025,7 +1025,7 @@ function App() {
   }, [studio]);
 
   useEffect(() => {
-    if (!overview?.loop?.manualCommand || manualSyncBlockedRef.current || manualInitializedRef.current === false) return;
+    if (!overview?.loop?.manualCommand || manualSyncBlockedRef.current || manualInitializedRef.current === false || manualRafRef.current) return;
     const normalized = normalizeManualCommand(overview.loop.manualCommand);
     setManualDraft(normalized);
     manualDraftRef.current = normalized;
@@ -1866,9 +1866,26 @@ function App() {
                 }}
               >
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center">
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                     <Chip size="small" variant="outlined" color="primary" label={`当前生效：${formatMode(actualInputMode)}`} />
                     {hasPendingInputMode && <Chip size="small" variant="filled" color="warning" label={`待应用：${formatMode(selectedInputTab)}`} />}
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          size="small"
+                          checked={overview?.loop?.inputActive !== false}
+                          onChange={async (_, checked) => {
+                            await apiRequest('/api/input/active', {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ active: checked }),
+                            });
+                            await refreshOverview();
+                          }}
+                        />
+                      }
+                      label={<Typography variant="caption">输入开关</Typography>}
+                    />
                   </Stack>
 
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">

@@ -32,6 +32,9 @@ public sealed class TCodeSerial : IDisposable
     private VelocityEstimator _velV2 = new();
     private VelocityEstimator _velA0 = new();
     private double _pendingDeltaMs;
+    private long _centerDeadlineMs; // 0 = no center in progress
+    private DeviceCommand? _lastSentCmd;
+    private string? _lastSentLine;
 
     public bool IsConnected => _port?.IsOpen == true;
 
@@ -67,6 +70,7 @@ public sealed class TCodeSerial : IDisposable
         _port?.Dispose();
         _port = null;
         _pendingDeltaMs = 0;
+        _centerDeadlineMs = 0;
     }
 
     public void Dispose() => Disconnect();
@@ -81,6 +85,25 @@ public sealed class TCodeSerial : IDisposable
     {
         if (_port?.IsOpen != true) return;
 
+        // During center period override position to neutral regardless of loop command
+        if (_centerDeadlineMs > 0)
+        {
+            if (Environment.TickCount64 < _centerDeadlineMs)
+            {
+                // Use the pendingDeltaMs accumulation but override all values to centre
+                _pendingDeltaMs += Math.Max(cmd.DeltaMs, 0);
+                var ci = 1000.0 / Math.Max(GetUpdatesPerSecond(), 10);
+                if (_pendingDeltaMs + 0.001 < ci)
+                    return;
+                // Send another centre command while centering
+                _pendingDeltaMs = 0;
+                try { _port.WriteLine("L0500I2000 L1500I2000 L2500I2000 R0500I2000 R1500I2000 R2500I2000 V0000I2000 V1000I2000 V2000I2000 A0500I2000"); }
+                catch { }
+                return;
+            }
+            _centerDeadlineMs = 0; // centre period done, resume normal operation
+        }
+
         _pendingDeltaMs += Math.Max(cmd.DeltaMs, 0);
         var minIntervalMs = 1000.0 / Math.Max(GetUpdatesPerSecond(), 10);
         if (_pendingDeltaMs + 0.001 < minIntervalMs)
@@ -88,6 +111,22 @@ public sealed class TCodeSerial : IDisposable
 
         var sendCmd = cmd with { DeltaMs = Math.Max(_pendingDeltaMs, 1) };
         _pendingDeltaMs = 0;
+
+        // Skip sending if command unchanged since last send (event-driven optimization)
+        if (_lastSentCmd is not null &&
+            sendCmd.L0 == _lastSentCmd.L0 &&
+            sendCmd.R0 == _lastSentCmd.R0 &&
+            sendCmd.R1 == _lastSentCmd.R1 &&
+            sendCmd.R2 == _lastSentCmd.R2 &&
+            sendCmd.L1 == _lastSentCmd.L1 &&
+            sendCmd.L2 == _lastSentCmd.L2 &&
+            sendCmd.V0 == _lastSentCmd.V0 &&
+            sendCmd.V1 == _lastSentCmd.V1 &&
+            sendCmd.V2 == _lastSentCmd.V2 &&
+            sendCmd.A0 == _lastSentCmd.A0)
+            return;
+
+        _lastSentCmd = sendCmd;
 
         var profile = ResolveProfile();
 
@@ -107,6 +146,8 @@ public sealed class TCodeSerial : IDisposable
         string line = sb.ToString().TrimEnd();
         if (line.Length == 0) return;
 
+        if (line == _lastSentLine) return; // identical serialised string — skip
+        _lastSentLine = line;
         try   { _port.WriteLine(line); }
         catch (Exception ex) { Console.Error.WriteLine($"[TCode] Write error: {ex.Message}"); }
     }
@@ -115,6 +156,8 @@ public sealed class TCodeSerial : IDisposable
     public void Center()
     {
         if (_port?.IsOpen != true) return;
+        _centerDeadlineMs = Environment.TickCount64 + 2200; // 2.2s to allow for timing jitter
+        Console.WriteLine($"[TCode] Centering on {GetComPort()}");
         try { _port.WriteLine("L0500I2000 L1500I2000 L2500I2000 R0500I2000 R1500I2000 R2500I2000 V0000I2000 V1000I2000 V2000I2000 A0500I2000"); }
         catch { }
     }
