@@ -141,8 +141,17 @@ public record DeviceCommand
     /// <summary>L2 axis: sway (left/right linear) [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
     public float L2 { get; init; } = 0.5f;
 
-    /// <summary>Vibration intensity [0,1].</summary>
-    public float Vibrate { get; init; }
+    /// <summary>V0 axis: main vibration intensity [0,1].</summary>
+    public float V0 { get; init; }
+
+    /// <summary>V1 axis: second vibration [0,1].</summary>
+    public float V1 { get; init; }
+
+    /// <summary>V2 axis: third vibration [0,1].</summary>
+    public float V2 { get; init; }
+
+    /// <summary>A0 axis: auxiliary channel [0,1] (0.5 = centre).</summary>
+    public float A0 { get; init; } = 0.5f;
 
     /// <summary>Elapsed milliseconds since last command (used by transmitters for timing).</summary>
     public double DeltaMs { get; init; }
@@ -189,8 +198,10 @@ public enum SignalRole
     Twist,    // → R2 (tube twist)
     Surge,    // → L1 (forward/back)
     Sway,     // → L2 (left/right)
-    Vibrate,  // → V0 (vibration)
-    Gate,
+    V0,       // main vibration (TCode V0)
+    V1,       // second vibration (TCode V1)
+    V2,       // third vibration (TCode V2)
+    Auxiliary,// → A0 (auxiliary channel)
 }
 
 public enum CurveType

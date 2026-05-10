@@ -92,11 +92,25 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'AngleX', label: '滚转（R0）' },
   { value: 'AngleY', label: '俯仰（R1）' },
   { value: 'Twist', label: '扭转（R2）' },
-  { value: 'Vibrate', label: '震动（V0）' },
-  { value: 'Vibrate2', label: '震动 2（V1）' },
-  { value: 'Vibrate3', label: '震动 3（V2）' },
+  { value: 'V0', label: '震动（V0）' },
+  { value: 'V1', label: '震动 2（V1）' },
+  { value: 'V2', label: '震动 3（V2）' },
   { value: 'Auxiliary', label: '辅助（A0）' },
 ];
+
+// Position/rotation axes default to no smoothing (alpha=1); vibration axes default to moderate smoothing
+const DEFAULT_SIGNAL_SMOOTHING = {
+  Depth: 1.0,
+  Surge: 1.0,
+  Sway: 1.0,
+  AngleX: 1.0,
+  AngleY: 1.0,
+  Twist: 1.0,
+  V0: 0.4,
+  V1: 0.4,
+  V2: 0.4,
+  Auxiliary: 1.0,
+};
 
 const AXIS_PROFILE_DEFS = [
   { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
@@ -154,7 +168,7 @@ const BUILT_IN_OSC_MAPPING_PRESETS = [
       { oscPath: 'OGB/Orf/Pussy/Main/Twist_Raw', role: 'Twist', isOgbSocket: true },
       { oscPath: 'OGB/Orf/Pussy/Main/Surge_Raw', role: 'Surge', isOgbSocket: true },
       { oscPath: 'OGB/Orf/Pussy/Main/Sway_Raw', role: 'Sway', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/Vibrate', role: 'Vibrate', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/Pussy/Main/Vibrate', role: 'V0', isOgbSocket: true },
     ],
   },
   {
@@ -168,7 +182,7 @@ const BUILT_IN_OSC_MAPPING_PRESETS = [
       { oscPath: 'OGB/Pen/*', role: 'Twist', invertDirection: true, isOgbPlug: true },
       { oscPath: 'OGB/Pen/*', role: 'Surge', invertDirection: true, isOgbPlug: true },
       { oscPath: 'OGB/Pen/*', role: 'Sway', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'Vibrate', isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*', role: 'V0', isOgbPlug: true },
     ],
   },
 ];
@@ -325,16 +339,17 @@ function createDraftId(prefix = 'draft') {
 }
 
 function makeSignalDraft(signal = {}) {
+  const role = signal.role || 'Depth';
   return {
     _draftId: createDraftId('signal'),
     oscPath: '',
     invertDirection: false,
     vrchatMin: 0,
     vrchatMax: 1,
-    smoothingAlpha: 0.7,
-    deadZone: 0.01,
+    smoothingAlpha: DEFAULT_SIGNAL_SMOOTHING[role] ?? 1.0,
+    deadZone: role === 'V0' || role === 'V1' || role === 'V2' ? 0 : 0.01,
     curve: 'Linear',
-    role: 'Depth',
+    role,
     isOgbSocket: false,
     isOgbPlug: false,
     ...signal,
@@ -409,6 +424,11 @@ function stripSignalDraft(signal) {
     smoothingAlpha: Number(rest.smoothingAlpha || 0),
     deadZone: Number(rest.deadZone || 0),
   };
+}
+
+function computeSignalHash(signals) {
+  const cleaned = signals.map(stripSignalDraft).filter(s => Boolean(s.oscPath));
+  return JSON.stringify(cleaned);
 }
 
 function countInvertedAxes(profile) {
@@ -510,6 +530,14 @@ function buildOutputSummary(output) {
 }
 
 function apiRequest(path, options = {}) {
+  // Use WebSocket when available for all non-FormData requests
+  if (_wsCommandSocket && _wsCommandSocket.readyState === WebSocket.OPEN && !(options.body instanceof FormData)) {
+    return wsRequest(path, options);
+  }
+  return httpRequest(path, options);
+}
+
+function httpRequest(path, options = {}) {
   return fetch(path, options).then(async response => {
     const isJson = (response.headers.get('content-type') || '').includes('application/json');
     const payload = isJson ? await response.json() : await response.text();
@@ -520,6 +548,50 @@ function apiRequest(path, options = {}) {
     }
 
     return payload;
+  });
+}
+
+let _wsRequestId = 0;
+const _wsPending = new Map();
+let _wsCommandSocket = null;
+
+function setWsCommandSocket(socket) {
+  _wsCommandSocket = socket;
+}
+
+function wsRequest(path, options = {}) {
+  return new Promise(resolve => {
+    if (!_wsCommandSocket || _wsCommandSocket.readyState !== WebSocket.OPEN) {
+      resolve(httpRequest(path, options));
+      return;
+    }
+
+    const id = ++_wsRequestId;
+    const method = options.method || 'GET';
+    const msg = { id: String(id), method, path };
+
+    if (options.body) {
+      if (options.body instanceof FormData) {
+        resolve(httpRequest(path, options));
+        return;
+      }
+      msg.body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
+    }
+
+    const timeout = setTimeout(() => {
+      _wsPending.delete(String(id));
+      resolve(httpRequest(path, options));
+    }, 8000);
+
+    _wsPending.set(String(id), { resolve, timeout });
+
+    try {
+      _wsCommandSocket.send(JSON.stringify(msg));
+    } catch (err) {
+      _wsPending.delete(String(id));
+      clearTimeout(timeout);
+      resolve(httpRequest(path, options));
+    }
   });
 }
 
@@ -534,6 +606,20 @@ function loadStudio() {
   } catch {
     return null;
   }
+}
+
+const OSR_DEVICE_KEYWORDS = ['ch340', 'ch341', 'cp210', 'ft232', 'ftdi', 'arduino', 'usb-serial', 'usb serial', 'serial'];
+
+function isOserDevice(port) {
+  const desc = (port.description || '').toLowerCase();
+  return OSR_DEVICE_KEYWORDS.some(kw => desc.includes(kw));
+}
+
+function pickSmartComPort(ports) {
+  if (!Array.isArray(ports) || ports.length === 0) return '';
+  const osr = ports.filter(isOserDevice);
+  if (osr.length > 0) return osr[0].portName;
+  return ports[0].portName;
 }
 
 function normalizeSerialPorts(raw) {
@@ -596,7 +682,7 @@ function normalizeManualCommand(command) {
     R0: raw.R0 ?? EMPTY_MANUAL.R0,
     R1: raw.R1 ?? EMPTY_MANUAL.R1,
     R2: raw.R2 ?? EMPTY_MANUAL.R2,
-    V0: raw.Vibrate ?? raw.V0 ?? EMPTY_MANUAL.V0,
+    V0: raw.V0 ?? EMPTY_MANUAL.V0,
     V1: raw.V1 ?? EMPTY_MANUAL.V1,
     V2: raw.V2 ?? EMPTY_MANUAL.V2,
     A0: raw.A0 ?? EMPTY_MANUAL.A0,
@@ -621,18 +707,24 @@ function normalizeLogs(entries) {
 
   return entries
     .map(entry => {
-      if (typeof entry === 'string') return entry;
-      if (!entry || typeof entry !== 'object') return '';
+      if (typeof entry === 'string') return { message: entry, level: 'info', category: 'General' };
+      if (!entry || typeof entry !== 'object') return null;
 
-      const message = entry.message || '';
-      if (!message) return '';
+      const message = entry.message || entry.Message || '';
+      if (!message) return null;
 
-      const timestamp = entry.timestamp ? new Date(entry.timestamp) : null;
-      const prefix = timestamp && !Number.isNaN(timestamp.getTime()) ? `[${timestamp.toLocaleTimeString()}] ` : '';
-      return `${prefix}${message}`;
+      return {
+        message,
+        level: (entry.level || entry.Level || 'info').toLowerCase(),
+        category: (entry.category || entry.Category || 'General').trim(),
+        timestamp: entry.timestamp || entry.Timestamp || null,
+      };
     })
     .filter(Boolean);
 }
+
+const LOG_LEVEL_ORDER = ['debug', 'info', 'warning', 'error'];
+const LOG_LEVEL_COLOR = { debug: '#6b7280', info: '#1f2937', warning: '#d97706', error: '#dc2626' };
 
 function formatRealtimeStatus(state) {
   if (state === 'connected') return '实时连接 在线';
@@ -640,11 +732,16 @@ function formatRealtimeStatus(state) {
   return '实时连接 离线';
 }
 
-function buildOutputDialogDraft(outputId, config) {
+function buildOutputDialogDraft(outputId, config, serialPorts) {
   const output = getOutputConfig(config, outputId);
   if (!output) return null;
 
-  return normalizeOutputConfig(output, config);
+  const draft = normalizeOutputConfig(output, config);
+  // Smart default COM port for new TCode serial outputs
+  if (output.type === 'TCodeSerial' && !draft.comPort) {
+    draft.comPort = pickSmartComPort(serialPorts);
+  }
+  return draft;
 }
 
 function mergeOutputDraft(outputId, config, draft) {
@@ -843,9 +940,14 @@ function App() {
   const [busyKey, setBusyKey] = useState('');
   const [wsState, setWsState] = useState('connecting');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
+  const [logFilterLevel, setLogFilterLevel] = useState('info');
+  const [logCategoryFilter, setLogCategoryFilter] = useState('');
+  const [confirmClearMappings, setConfirmClearMappings] = useState(false);
 
   const manualTimerRef = useRef(null);
   const manualSyncBlockedRef = useRef(false);
+  const manualDraftRef = useRef(EMPTY_MANUAL);
+  const savedSignalsHashRef = useRef('');
   const scriptSettingsInitializedRef = useRef(false);
   const manualInitializedRef = useRef(false);
 
@@ -872,8 +974,10 @@ function App() {
           receiverPort: configResponse?.osc?.receiverPort || 9001,
         });
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
+        savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(configResponse?.signals));
         setStudio(previous => sanitizeStudio(previous, configResponse));
         setManualDraft(normalizeManualCommand(overviewResponse?.loop?.manualCommand));
+        manualDraftRef.current = normalizeManualCommand(overviewResponse?.loop?.manualCommand);
         setScriptSettings({
           loop: Boolean(overviewResponse?.input?.script?.loop),
           speed: Number(overviewResponse?.input?.script?.speed || 1),
@@ -902,6 +1006,7 @@ function App() {
       receiverPort: config?.osc?.receiverPort || 9001,
     });
     setSignalDrafts(buildSignalDrafts(config?.signals));
+    savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(config?.signals));
   }, [config]);
 
   useEffect(() => {
@@ -921,7 +1026,9 @@ function App() {
 
   useEffect(() => {
     if (!overview?.loop?.manualCommand || manualSyncBlockedRef.current || manualInitializedRef.current === false) return;
-    setManualDraft(normalizeManualCommand(overview.loop.manualCommand));
+    const normalized = normalizeManualCommand(overview.loop.manualCommand);
+    setManualDraft(normalized);
+    manualDraftRef.current = normalized;
   }, [overview?.loop?.manualCommand]);
 
   useEffect(() => {
@@ -986,15 +1093,25 @@ function App() {
     function connect() {
       setWsState('connecting');
       socket = new WebSocket(WS_URL);
+      setWsCommandSocket(socket);
 
       socket.onopen = () => setWsState('connected');
 
       socket.onmessage = event => {
         try {
           const payload = JSON.parse(event.data);
-          if (payload?.type !== 'state') return;
-          setOverview(payload.data || null);
-          setLogs(normalizeLogs(payload.logs));
+          if (payload?.type === 'state') {
+            setOverview(payload.data || null);
+            setLogs(normalizeLogs(payload.logs));
+            return;
+          }
+          // Handle command response
+          if (payload?.id && _wsPending.has(payload.id)) {
+            const pending = _wsPending.get(payload.id);
+            clearTimeout(pending.timeout);
+            _wsPending.delete(payload.id);
+            pending.resolve(payload.data);
+          }
         } catch {
           // ignore malformed frames
         }
@@ -1005,6 +1122,13 @@ function App() {
       };
 
       socket.onclose = () => {
+        setWsCommandSocket(null);
+        // Reject all pending WS requests
+        for (const [id, pending] of _wsPending) {
+          clearTimeout(pending.timeout);
+          pending.reject(new Error('WS disconnected'));
+        }
+        _wsPending.clear();
         if (disposed) return;
         setWsState('disconnected');
         retryHandle = window.setTimeout(connect, 1500);
@@ -1086,6 +1210,7 @@ function App() {
 
   function clearSignalDrafts() {
     setSignalDrafts([]);
+    setConfirmClearMappings(false);
     notify('已清空所有映射', 'info');
   }
 
@@ -1099,6 +1224,7 @@ function App() {
 
       await persistConfig(nextConfig);
       await refreshOverview();
+      savedSignalsHashRef.current = computeSignalHash(signalDrafts);
       notify('OSC 映射已保存', 'success');
     }).catch(error => notify(error.message || '保存 OSC 映射失败', 'error'));
   }
@@ -1354,34 +1480,46 @@ function App() {
       R0: draft.R0,
       R1: draft.R1,
       R2: draft.R2,
-      Vibrate: draft.V0,
+      V0: draft.V0,
       V1: draft.V1,
       V2: draft.V2,
       A0: draft.A0,
     };
   }
 
+  const manualRafRef = useRef(null);
+
   function handleManualSliderChange(patch) {
     const nextDraft = { ...manualDraft, ...patch };
     setManualDraft(nextDraft);
+    manualDraftRef.current = nextDraft;
     if (!manualContinuous) return;
 
-    manualSyncBlockedRef.current = true;
-    apiRequest('/api/input/manual', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        enabled: true,
-        ...manualDraftToPayload(nextDraft),
-      }),
-    })
-      .catch(error => notify(error.message || '手动输入更新失败', 'error'))
-      .finally(() => {
-        manualSyncBlockedRef.current = false;
-      });
+    if (manualRafRef.current) return; // already scheduled
+    manualRafRef.current = requestAnimationFrame(() => {
+      manualRafRef.current = null;
+      const draft = manualDraftRef.current;
+      manualSyncBlockedRef.current = true;
+      apiRequest('/api/input/manual', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          enabled: true,
+          ...manualDraftToPayload(draft),
+        }),
+      })
+        .catch(error => notify(error.message || '手动输入更新失败', 'error'))
+        .finally(() => {
+          manualSyncBlockedRef.current = false;
+        });
+    });
   }
 
   async function applyManualOnce() {
+    if (manualRafRef.current) {
+      cancelAnimationFrame(manualRafRef.current);
+      manualRafRef.current = null;
+    }
     window.clearTimeout(manualTimerRef.current);
 
     try {
@@ -1402,6 +1540,10 @@ function App() {
   }
 
   async function disableManualInput() {
+    if (manualRafRef.current) {
+      cancelAnimationFrame(manualRafRef.current);
+      manualRafRef.current = null;
+    }
     window.clearTimeout(manualTimerRef.current);
 
     await withBusy('manual-disable', async () => {
@@ -1537,9 +1679,9 @@ function App() {
     if (!output) return;
 
     if (output.type === 'TCodeSerial') {
-      refreshSerialPorts().catch(() => null);
+      await refreshSerialPorts().catch(() => null);
     }
-    setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config) });
+    setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config, serialPorts) });
   }
 
   async function saveOutputDialog() {
@@ -1630,6 +1772,22 @@ function App() {
   }, [oscPreview, signalDrafts]);
   const visibleOutputs = outputs;
   const effectiveOutputCount = visibleOutputs.filter(output => Boolean(output.enabled)).length;
+  const hasUnsavedMappings = useMemo(() => savedSignalsHashRef.current && computeSignalHash(signalDrafts) !== savedSignalsHashRef.current, [signalDrafts]);
+  const LOG_MAX_VISIBLE = 300;
+  const filteredLogs = useMemo(() => {
+    const levelIdx = LOG_LEVEL_ORDER.indexOf(logFilterLevel);
+    let filtered = logs.filter(log => {
+      if (log.level && LOG_LEVEL_ORDER.indexOf(log.level) < levelIdx) return false;
+      if (logCategoryFilter && log.category !== logCategoryFilter) return false;
+      return true;
+    });
+    if (filtered.length > LOG_MAX_VISIBLE) filtered = filtered.slice(filtered.length - LOG_MAX_VISIBLE);
+    return filtered;
+  }, [logs, logFilterLevel, logCategoryFilter]);
+  const logCategories = useMemo(() => {
+    const cats = new Set(logs.map(l => l.category).filter(Boolean));
+    return ['', ...cats].sort();
+  }, [logs]);
 
   if (loading) {
     return (
@@ -1830,7 +1988,10 @@ function App() {
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">OSC 映射</Typography>
-                      <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
+                      <Stack direction="row" spacing={0.5}>
+                        {hasUnsavedMappings && <Chip size="small" color="warning" variant="filled" label="未保存" />}
+                        <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
+                      </Stack>
                     </Box>
 
                     <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
@@ -1922,10 +2083,10 @@ function App() {
                       <Button variant="outlined" onClick={() => addSignalDraft()}>
                         新增映射
                       </Button>
-                      <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'}>
-                        保存映射
+                      <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'} color={hasUnsavedMappings ? 'warning' : 'primary'}>
+                        {hasUnsavedMappings ? '保存映射 ●' : '保存映射'}
                       </Button>
-                      <Button variant="outlined" color="error" onClick={clearSignalDrafts} disabled={signalDrafts.length === 0}>
+                      <Button variant="outlined" color="error" onClick={() => setConfirmClearMappings(true)} disabled={signalDrafts.length === 0}>
                         清空映射
                       </Button>
                     </Stack>
@@ -2211,18 +2372,49 @@ function App() {
           </Card>
 
           <Card className="section-card" variant="outlined">
-            <CardHeader title="日志" />
+            <CardHeader
+              title="日志"
+              action={
+                <Stack direction="row" spacing={1} alignItems="center">
+                  <FormControl size="small" sx={{ minWidth: 80 }}>
+                    <Select value={logFilterLevel} onChange={e => setLogFilterLevel(e.target.value)}>
+                      <MenuItem value="debug">全部</MenuItem>
+                      <MenuItem value="info">信息+</MenuItem>
+                      <MenuItem value="warning">警告+</MenuItem>
+                      <MenuItem value="error">错误</MenuItem>
+                    </Select>
+                  </FormControl>
+                  <FormControl size="small" sx={{ minWidth: 100 }}>
+                    <Select value={logCategoryFilter} onChange={e => setLogCategoryFilter(e.target.value)}>
+                      <MenuItem value="">全部分类</MenuItem>
+                      {logCategories.filter(Boolean).map(cat => (
+                        <MenuItem key={cat} value={cat}>
+                          {cat}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <Chip size="small" variant="outlined" label={`${filteredLogs.length} 条`} />
+                </Stack>
+              }
+            />
             <Divider />
             <CardContent>
               <Box className="log-list">
-                {logs.length === 0 ? (
+                {filteredLogs.length === 0 ? (
                   <Typography color="text.secondary">暂时没有日志。</Typography>
                 ) : (
-                  logs.map((line, index) => (
-                    <Typography key={`${index}-${line}`} variant="body2" className="log-line">
-                      {line}
-                    </Typography>
-                  ))
+                  filteredLogs.map((log, index) => {
+                    const ts = log.timestamp ? new Date(log.timestamp) : null;
+                    const timeStr = ts && !Number.isNaN(ts.getTime()) ? ts.toLocaleTimeString() : '';
+                    return (
+                      <Typography key={`${index}-${log.message}`} variant="body2" className="log-line" sx={{ color: LOG_LEVEL_COLOR[log.level] || '#1f2937' }}>
+                        {timeStr ? `[${timeStr}] ` : ''}
+                        {log.category ? `<${log.category}> ` : ''}
+                        {log.message}
+                      </Typography>
+                    );
+                  })
                 )}
               </Box>
             </CardContent>
@@ -2488,6 +2680,19 @@ function App() {
           <Button onClick={() => setProfileDialog(null)}>取消</Button>
           <Button variant="contained" onClick={saveProfileDialog} disabled={!profileDialog || busyKey.startsWith('profile-save-')}>
             保存
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog open={confirmClearMappings} onClose={() => setConfirmClearMappings(false)} disableScrollLock>
+        <DialogTitle>确认清空映射</DialogTitle>
+        <DialogContent>
+          <Typography>确定要清空所有 {signalDrafts.length} 条 OSC 轴映射吗？此操作可通过「保存映射」撤销。</Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setConfirmClearMappings(false)}>取消</Button>
+          <Button variant="contained" color="error" onClick={clearSignalDrafts}>
+            确认清空
           </Button>
         </DialogActions>
       </Dialog>

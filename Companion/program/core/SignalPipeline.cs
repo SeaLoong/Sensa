@@ -94,7 +94,10 @@ public sealed class SignalFusion
         float twist   = 0f;
         float surge   = 0f;
         float sway    = 0f;
-        float vibrate = 0f;
+        float v0 = 0f;
+        float v1 = 0f;
+        float v2 = 0f;
+        float aux = 0.5f;
 
         foreach (var (role, value) in signals)
         {
@@ -118,8 +121,17 @@ public sealed class SignalFusion
                 case SignalRole.Sway:
                     sway = value;
                     break;
-                case SignalRole.Vibrate:
-                    vibrate = Max(vibrate, value);
+                case SignalRole.V0:
+                    v0 = Max(v0, value);
+                    break;
+                case SignalRole.V1:
+                    v1 = Max(v1, value);
+                    break;
+                case SignalRole.V2:
+                    v2 = Max(v2, value);
+                    break;
+                case SignalRole.Auxiliary:
+                    aux = value;
                     break;
             }
         }
@@ -136,7 +148,10 @@ public sealed class SignalFusion
             R2       = 0.5f + twist  * 0.5f,
             L1       = 0.5f + surge  * 0.5f,
             L2       = 0.5f + sway   * 0.5f,
-            Vibrate  = vibrate,
+            V0       = v0,
+            V1       = v1,
+            V2       = v2,
+            A0       = aux,
             DeltaMs  = deltaMs,
         };
     }

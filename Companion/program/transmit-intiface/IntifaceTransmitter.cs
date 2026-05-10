@@ -95,7 +95,7 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
                 {
                     double vibrateVal = posFeatures.Count == 0
                         ? Math.Clamp(cmd.L0, 0.0, 1.0)    // depth → vibrate on linear-less devices
-                        : Math.Clamp(cmd.Vibrate, 0.0, 1.0);
+                        : Math.Clamp(cmd.V0, 0.0, 1.0);
                     foreach (var f in vibFeatures)
                         await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal));
                 }

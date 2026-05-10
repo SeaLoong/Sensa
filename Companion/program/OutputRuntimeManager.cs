@@ -299,14 +299,17 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
                     if (string.IsNullOrWhiteSpace(_output.ComPort))
                         return false;
                     _serial?.Connect();
+                    _serial?.Center(); // slow return to centre after connect
                     _log($"[Output] 已连接 {Label}: {_output.ComPort}");
                     return _serial?.IsConnected == true;
                 case OutputDeviceType.TCodeUdp:
                     _udp?.Connect();
+                    _udp?.Center();
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
                     return _udp?.IsConnected == true;
                 case OutputDeviceType.TCodeTcp:
                     _tcp?.Connect();
+                    _tcp?.Center();
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
                     return _tcp?.IsConnected == true;
                 case OutputDeviceType.Intiface:
@@ -414,15 +417,15 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
         switch (_output.Type)
         {
             case OutputDeviceType.TCodeSerial:
-                _serial?.Park();
+                _serial?.Center();
                 _serial?.Dispose();
                 break;
             case OutputDeviceType.TCodeUdp:
-                _udp?.Park();
+                _udp?.Center();
                 _udp?.Dispose();
                 break;
             case OutputDeviceType.TCodeTcp:
-                _tcp?.Park();
+                _tcp?.Center();
                 _tcp?.Dispose();
                 break;
             case OutputDeviceType.Intiface:

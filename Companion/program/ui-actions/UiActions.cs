@@ -44,7 +44,7 @@ public sealed class UiNotificationQueue<T>
 public sealed class LoopStateSnapshot
 {
     public float L0         { get; set; }
-    public float Vibrate    { get; set; }
+    public float V0    { get; set; }
     public float Bpm        { get; set; }
     public bool  Emergency  { get; set; }
     public bool  IntifaceOk { get; set; }

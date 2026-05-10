@@ -205,18 +205,18 @@ public sealed class Routine : IDisposable
 
             // 5. Emergency stop: zero all axes, centre rotation/linear offsets
             var cmd = _emergency
-                ? selectedInput with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, Vibrate = 0f, DeltaMs = deltaMs }
+                ? selectedInput with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs }
                 : selectedInput;
 
             _lastCommandField = cmd;
 
-            // 6. Transmit
-            if (_sendOutputsAsync is not null)
+            // 6. Transmit — skip entirely during emergency (DSTOP already sent by SendEmergencyAsync)
+            if (!_emergency && _sendOutputsAsync is not null)
             {
                 try { await _sendOutputsAsync(cmd); }
                 catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
             }
-            else
+            else if (!_emergency)
             {
                 if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
                 {

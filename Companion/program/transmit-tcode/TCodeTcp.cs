@@ -73,10 +73,10 @@ public sealed class TCodeTcp : IDisposable
         }
     }
 
-    public void Park()
+    public void Center()
     {
         if (!IsConnected) return;
-        SendRaw("L0500S500 R0500S500 R1500S500 R2500S500 L1500S500 L2500S500\n");
+        SendRaw("L0500I2000 R0500I2000 R1500I2000 R2500I2000 L1500I2000 L2500I2000\n");
     }
 
     public void EmergencyStop()

@@ -160,7 +160,7 @@ public sealed class DeviceRouteEntry
 {
     public string DeviceName  { get; set; } = "";
     public bool   SendL0      { get; set; } = true;
-    public bool   SendVibrate { get; set; } = true;
+    public bool   SendV0 { get; set; } = true;
     public bool   Enabled     { get; set; } = true;
 }
 
@@ -311,7 +311,7 @@ public sealed class SaveFile
             {
                 DeviceName  = route.DeviceName,
                 SendL0      = route.SendL0,
-                SendVibrate = route.SendVibrate,
+                SendV0 = route.SendV0,
                 Enabled     = route.Enabled,
             })
             .ToList();
@@ -328,6 +328,7 @@ public sealed class SaveFile
         UdpTCode ??= new UdpTCodeConfig();
         TcpTCode ??= new TcpTCodeConfig();
         TCodeProfiles = CloneProfiles(TCodeProfiles, TCode);
+
         AxisProfiles = CloneAxisProfiles(
             SchemaVersion >= 2 ? AxisProfiles : null,
             TCodeProfiles,
@@ -1071,7 +1072,7 @@ public sealed class SaveFile
                     new() { OscPath = "OGB/Orf/Pussy/Main/Twist_Raw", Role = SignalRole.Twist, IsOgbSocket = true },
                     new() { OscPath = "OGB/Orf/Pussy/Main/Surge_Raw", Role = SignalRole.Surge, IsOgbSocket = true },
                     new() { OscPath = "OGB/Orf/Pussy/Main/Sway_Raw", Role = SignalRole.Sway, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/Vibrate", Role = SignalRole.Vibrate, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/Pussy/Main/Vibrate", Role = SignalRole.V0, IsOgbSocket = true },
                 },
             },
             new()
@@ -1087,7 +1088,7 @@ public sealed class SaveFile
                     new() { OscPath = "OGB/Pen/*", Role = SignalRole.Twist, InvertDirection = true, IsOgbPlug = true },
                     new() { OscPath = "OGB/Pen/*", Role = SignalRole.Surge, InvertDirection = true, IsOgbPlug = true },
                     new() { OscPath = "OGB/Pen/*", Role = SignalRole.Sway, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.Vibrate, IsOgbPlug = true },
+                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.V0, IsOgbPlug = true },
                 },
             },
             new()

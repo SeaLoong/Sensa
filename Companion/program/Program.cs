@@ -36,16 +36,16 @@ wsJsonOptions.Converters.Add(new JsonStringEnumConverter());
 var app = builder.Build();
 
 var logBuffer = new ServiceLogBuffer();
-void Log(string message)
-{
-    logBuffer.Add(message);
-    Console.WriteLine(message);
-}
+void Log(string message) => LogEntry(message, LogLevel.Info);
+void LogError(string message) => LogEntry(message, LogLevel.Error);
 
-void LogError(string message)
+void LogEntry(string message, LogLevel level)
 {
-    logBuffer.Add(message);
-    Console.Error.WriteLine(message);
+    logBuffer.Add(message, level);
+    if (level >= LogLevel.Warning)
+        Console.Error.WriteLine(message);
+    else
+        Console.WriteLine(message);
 }
 
 var paramStore  = new ParameterStore();
@@ -434,7 +434,10 @@ app.MapPut("/api/input/manual", (ManualInputRequest request) =>
         R2 = Math.Clamp(request.R2, 0f, 1f),
         L1 = Math.Clamp(request.L1, 0f, 1f),
         L2 = Math.Clamp(request.L2, 0f, 1f),
-        Vibrate = Math.Clamp(request.Vibrate, 0f, 1f),
+        V0 = Math.Clamp(request.V0, 0f, 1f),
+        V1 = Math.Clamp(request.V1, 0f, 1f),
+        V2 = Math.Clamp(request.V2, 0f, 1f),
+        A0 = Math.Clamp(request.A0, 0f, 1f),
     };
 
     if (request.Enabled)
@@ -678,20 +681,63 @@ app.Map("/api/ws", async context =>
     }
 
     using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    var buffer = new byte[16384];
+    var stateCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
 
-    while (!context.RequestAborted.IsCancellationRequested && socket.State == WebSocketState.Open)
+    // Background task: push state every ~100ms (approx loop rate)
+    var pushTask = Task.Run(async () =>
     {
-        var snapshotJson = JsonSerializer.Serialize(new
+        while (!stateCts.Token.IsCancellationRequested && socket.State == WebSocketState.Open)
         {
-            type = "state",
-            data = BuildOverviewSnapshot(),
-            logs = logBuffer.Snapshot(50),
-        }, wsJsonOptions);
+            try
+            {
+                var snapshotJson = JsonSerializer.Serialize(new
+                {
+                    type = "state",
+                    data = BuildOverviewSnapshot(),
+                    logs = logBuffer.Snapshot(50),
+                }, wsJsonOptions);
 
-        var bytes = Encoding.UTF8.GetBytes(snapshotJson);
-        await socket.SendAsync(bytes, WebSocketMessageType.Text, true, context.RequestAborted);
+                var bytes = Encoding.UTF8.GetBytes(snapshotJson);
+                await socket.SendAsync(bytes, WebSocketMessageType.Text, true, stateCts.Token);
+                await Task.Delay(100, stateCts.Token);
+            }
+            catch (OperationCanceledException) { break; }
+            catch (Exception) { break; }
+        }
+    }, stateCts.Token);
 
-        await Task.Delay(TimeSpan.FromMilliseconds(250), context.RequestAborted);
+    // Main loop: receive commands immediately
+    try
+    {
+        while (!context.RequestAborted.IsCancellationRequested && socket.State == WebSocketState.Open)
+        {
+            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestAborted);
+            if (result.MessageType == WebSocketMessageType.Close) break;
+
+            if (result.MessageType == WebSocketMessageType.Text)
+            {
+                try
+                {
+                    var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
+                    var response = await HandleWebSocketCommand(json);
+                    var respBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, wsJsonOptions));
+                    await socket.SendAsync(respBytes, WebSocketMessageType.Text, true, context.RequestAborted);
+                }
+                catch (Exception ex)
+                {
+                    var errBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { ok = false, error = ex.Message }, wsJsonOptions));
+                    await socket.SendAsync(errBytes, WebSocketMessageType.Text, true, context.RequestAborted);
+                }
+            }
+        }
+    }
+    catch (OperationCanceledException) { }
+    finally
+    {
+        stateCts.Cancel();
+        try { await pushTask; } catch { }
+        stateCts.Dispose();
     }
 
     if (socket.State == WebSocketState.Open)
@@ -738,6 +784,181 @@ oscReceiver.Dispose();
 await outputManager.DisposeAsync();
 save.Save();
 
+async Task<object> HandleWebSocketCommand(string json)
+{
+    try
+    {
+        using var doc = JsonDocument.Parse(json);
+        var root = doc.RootElement;
+        var id = root.TryGetProperty("id", out var idEl) ? idEl.GetString() : null;
+        var method = root.TryGetProperty("method", out var m) ? m.GetString()?.ToUpperInvariant() : "";
+        var path = root.TryGetProperty("path", out var p) ? p.GetString() ?? "" : "";
+
+        object? result = null;
+        bool ok = true;
+
+        switch (path)
+        {
+            // ── Config ────────────────────────────────────────
+            case "/api/config" when method == "GET":
+                result = save;
+                break;
+
+            case "/api/config" when method == "PUT":
+            {
+                if (root.TryGetProperty("body", out var body))
+                {
+                    var updated = JsonSerializer.Deserialize<SaveFile>(body.GetRawText(), wsJsonOptions);
+                    if (updated is not null)
+                    {
+                        save.CopyFrom(updated);
+                        save.Save();
+                        routine.RebuildProcessors();
+                        result = save;
+                    }
+                }
+                break;
+            }
+
+            // ── State ─────────────────────────────────────────
+            case "/api/state/overview" when method == "GET":
+                result = BuildOverviewSnapshot();
+                break;
+
+            case "/api/state/logs" when method == "GET":
+                result = logBuffer.Snapshot();
+                break;
+
+            // ── Serial ports ──────────────────────────────────
+            case "/api/meta/serial-ports" when method == "GET":
+                result = BuildSerialPortList();
+                break;
+
+            // ── Manual input ──────────────────────────────────
+            case "/api/input/manual" when method == "PUT":
+            {
+                if (root.TryGetProperty("body", out var body))
+                {
+                    var request = JsonSerializer.Deserialize<ManualInputRequest>(body.GetRawText(), wsJsonOptions);
+                    if (request is not null)
+                    {
+                        var cmd = new DeviceCommand
+                        {
+                            L0 = Math.Clamp(request.L0, 0f, 1f),
+                            R0 = Math.Clamp(request.R0, 0f, 1f),
+                            R1 = Math.Clamp(request.R1, 0f, 1f),
+                            R2 = Math.Clamp(request.R2, 0f, 1f),
+                            L1 = Math.Clamp(request.L1, 0f, 1f),
+                            L2 = Math.Clamp(request.L2, 0f, 1f),
+                            V0 = Math.Clamp(request.V0, 0f, 1f),
+                            V1 = Math.Clamp(request.V1, 0f, 1f),
+                            V2 = Math.Clamp(request.V2, 0f, 1f),
+                            A0 = Math.Clamp(request.A0, 0f, 1f),
+                        };
+                        if (request.Enabled)
+                        {
+                            routine.SetManualOverride(cmd);
+                            routine.SetInputMode(InputMode.Manual);
+                        }
+                        else
+                            routine.ClearManualOverride();
+
+                        result = new { inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(), command = routine.ManualOverrideCommand };
+                    }
+                }
+                break;
+            }
+            case "/api/input/manual" when method == "DELETE":
+            {
+                routine.ClearManualOverride();
+                result = new { inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant() };
+                break;
+            }
+
+            // ── Emergency ─────────────────────────────────────
+            case "/api/control/loop/emergency-stop" when method == "POST":
+                routine.EmergencyStop();
+                result = new { routine.IsEmergency };
+                break;
+
+            case "/api/control/loop/clear-emergency" when method == "POST":
+                routine.ClearEmergency();
+                result = new { routine.IsEmergency };
+                break;
+
+            // ── Input mode ────────────────────────────────────
+            case "/api/input/mode" when method == "PUT":
+            {
+                if (root.TryGetProperty("body", out var body) && body.TryGetProperty("mode", out var modeEl))
+                {
+                    var modeStr = modeEl.GetString() ?? "";
+                    if (Enum.TryParse<InputMode>(modeStr, ignoreCase: true, out var mode))
+                    {
+                        routine.SetInputMode(mode);
+                        result = new { mode = routine.CurrentInputMode.ToString().ToLowerInvariant() };
+                    }
+                }
+                break;
+            }
+
+            // ── Output control ────────────────────────────────
+            case var route when method == "POST" && TryMatchOutputAction(route, out var outputId, out var act):
+            {
+                if (string.IsNullOrWhiteSpace(outputId)) { ok = false; break; }
+                result = act switch
+                {
+                    "connect" => await HandleOutputAction(outputId, async () =>
+                    {
+                        var ok2 = await ConnectOutputAsync(outputId);
+                        return new { ok2, connected = outputManager.IsConnected(outputId) };
+                    }),
+                    "disconnect" => await HandleOutputAction(outputId, async () =>
+                    {
+                        await DisconnectOutputAsync(outputId);
+                        return new { connected = outputManager.IsConnected(outputId) };
+                    }),
+                    _ => null
+                };
+                if (result is null) ok = false;
+                break;
+            }
+
+            default:
+                ok = false;
+                result = new { error = $"Unknown WS command: {method} {path}" };
+                break;
+        }
+
+        return new { id, ok, data = result };
+    }
+    catch (Exception ex)
+    {
+        return new { id = "", ok = false, data = new { error = ex.Message } };
+    }
+}
+
+bool TryMatchOutputAction(string path, out string? outputId, out string? act)
+{
+    outputId = null; act = null;
+    // /api/control/output/{id}/connect or /{id}/disconnect
+    var segs = path.Split('/');
+    if (segs.Length >= 5 && segs[1] == "api" && segs[2] == "control" && segs[3] == "output")
+    {
+        outputId = segs[4];
+        act = segs.Length >= 6 ? segs[5] : null;
+        return act == "connect" || act == "disconnect";
+    }
+    return false;
+}
+
+async Task<object?> HandleOutputAction(string? outputId, Func<Task<object>> action)
+{
+    if (string.IsNullOrWhiteSpace(outputId)) return null;
+    var output = save.FindOutput(outputId);
+    if (output is null) return null;
+    return await action();
+}
+
 public sealed record InputModeRequest(string Mode);
 
 public sealed record ManualInputRequest(
@@ -748,7 +969,10 @@ public sealed record ManualInputRequest(
     float R2,
     float L1,
     float L2,
-    float Vibrate);
+    float V0,
+    float V1,
+    float V2,
+    float A0);
 
 public sealed record ScriptPlaybackRequest(
     bool Restart,

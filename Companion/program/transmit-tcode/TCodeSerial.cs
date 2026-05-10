@@ -99,10 +99,10 @@ public sealed class TCodeSerial : IDisposable
         AppendAxis(sb, "R0", sendCmd.R0, profile.R0, _velR0, (int)sendCmd.DeltaMs);
         AppendAxis(sb, "R1", sendCmd.R1, profile.R1, _velR1, (int)sendCmd.DeltaMs);
         AppendAxis(sb, "R2", sendCmd.R2, profile.R2, _velR2, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V0", sendCmd.Vibrate, profile.V0, _velV0, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V1", 0f, profile.V1, _velV1, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V2", 0f, profile.V2, _velV2, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "A0", 0f, profile.A0, _velA0, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "V0", sendCmd.V0, profile.V0, _velV0, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "V1", sendCmd.V1, profile.V1, _velV1, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "V2", sendCmd.V2, profile.V2, _velV2, (int)sendCmd.DeltaMs);
+        AppendAxis(sb, "A0", sendCmd.A0, profile.A0, _velA0, (int)sendCmd.DeltaMs);
 
         string line = sb.ToString().TrimEnd();
         if (line.Length == 0) return;
@@ -111,11 +111,11 @@ public sealed class TCodeSerial : IDisposable
         catch (Exception ex) { Console.Error.WriteLine($"[TCode] Write error: {ex.Message}"); }
     }
 
-    /// <summary>Park all axes at centre/zero.</summary>
-    public void Park()
+    /// <summary>Slowly return all axes to centre (~2 s). Call once after connect; not for emergency.</summary>
+    public void Center()
     {
         if (_port?.IsOpen != true) return;
-        try { _port.WriteLine("L0500S500 L1500S500 L2500S500 R0500S500 R1500S500 R2500S500 V0000S500 V1000S500 V2000S500 A0000S500"); }
+        try { _port.WriteLine("L0500I2000 L1500I2000 L2500I2000 R0500I2000 R1500I2000 R2500I2000 V0000I2000 V1000I2000 V2000I2000 A0500I2000"); }
         catch { }
     }
 
