@@ -62,8 +62,11 @@ public sealed class ParameterStore
         TryGetLatest(pathOrPattern, out _, out entry);
 
     /// <summary>
-    /// Try to read the latest parameter matching an exact OSC path or a simple
-    /// trailing-wildcard pattern such as <c>OGB/Pen/*</c>.
+    /// Try to read the latest parameter matching an exact OSC path or glob pattern.
+    /// Supports:
+    ///   - Exact match: OGB/Orf/Pussy/Main/PenOthers
+    ///   - Single-segment wildcard: OGB/Orf/*/Main/PenOthers
+    ///   - Trailing multi-segment wildcard: OGB/Pen/Main/**
     /// Returns the actual matched path when successful.
     /// </summary>
     public bool TryGetLatest(string pathOrPattern, out string matchedPath, out Entry entry)
@@ -74,22 +77,27 @@ public sealed class ParameterStore
         if (string.IsNullOrWhiteSpace(pathOrPattern))
             return false;
 
-        if (!IsWildcardPath(pathOrPattern))
+        // Exact match first
+        if (_store.TryGetValue(pathOrPattern, out entry))
         {
-            if (!_store.TryGetValue(pathOrPattern, out entry))
-                return false;
-
             matchedPath = pathOrPattern;
             return true;
         }
 
-        var prefix = pathOrPattern[..^1];
+        // Check for wildcards
+        var hasGlob = pathOrPattern.Contains('*');
+        if (!hasGlob)
+            return false;
+
+        // Split pattern into segments
+        var patternSegs = pathOrPattern.Split('/');
         var found = false;
         var latestTimestampMs = long.MinValue;
 
         foreach (var (path, current) in _store)
         {
-            if (!path.StartsWith(prefix, StringComparison.Ordinal))
+            var pathSegs = path.Split('/');
+            if (!GlobMatch(patternSegs, pathSegs))
                 continue;
 
             if (found && current.TimestampMs <= latestTimestampMs)
@@ -104,6 +112,37 @@ public sealed class ParameterStore
         return found;
     }
 
+    /// <summary>Glob-style path segment matching. * matches any single segment; ** matches zero or more segments.</summary>
+    private static bool GlobMatch(ReadOnlySpan<string> pattern, ReadOnlySpan<string> path)
+    {
+        int pi = 0, si = 0;
+        while (pi < pattern.Length && si < path.Length)
+        {
+            if (pattern[pi] == "**")
+            {
+                // ** matches any remaining segments — check if the rest of the pattern matches
+                // Try all possible end positions for **
+                for (int end = si; end <= path.Length; end++)
+                {
+                    if (GlobMatch(pattern[(pi + 1)..], path[end..]))
+                        return true;
+                }
+                return false;
+            }
+            if (pattern[pi] == "*" || pattern[pi] == path[si])
+            {
+                pi++;
+                si++;
+                continue;
+            }
+            return false;
+        }
+        // Allow ** at the end to match zero remaining segments
+        if (pi < pattern.Length && pattern[pi] == "**" && pi + 1 == pattern.Length)
+            return true;
+        return pi == pattern.Length && si == path.Length;
+    }
+
     /// <summary>All currently known parameter paths.</summary>
     public IEnumerable<string> AllPaths => _store.Keys;
 
@@ -112,9 +151,6 @@ public sealed class ParameterStore
 
     /// <summary>Remove all entries (e.g. on avatar change).</summary>
     public void Clear() => _store.Clear();
-
-    private static bool IsWildcardPath(string path) =>
-        path.EndsWith("/*", StringComparison.Ordinal);
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -180,6 +216,12 @@ public sealed class SignalConfig
     // Curve & role
     public CurveType  Curve { get; set; } = CurveType.Linear;
     public SignalRole Role  { get; set; } = SignalRole.Depth;
+
+    // Output range remap [0,1] → [OutputMin, OutputMax]. (default 0/1 = full range)
+    // Allows splitting an axis into segments driven by different OSC parameters.
+    // E.g. AngleRight_Raw maps to [0.5, 1.0], AngleLeft_Raw maps to [0.0, 0.5].
+    public float OutputMin { get; set; } = 0f;
+    public float OutputMax { get; set; } = 1f;
 
     // Auto-detected flags (set by OSC path scanner)
     public bool IsOgbSocket { get; set; } = false;

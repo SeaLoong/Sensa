@@ -999,96 +999,98 @@ public sealed class SaveFile
         {
             new()
             {
-                Id = "osr-inserted-pussy",
-                Name = "OSR-VRChat · 被插入（小穴）",
-                Description = "直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Pussy/PenOthers。",
+                Id = "ogb-socket-full",
+                Name = "OGB Socket · 深度 + 姿态",
+                Description = "利用通配匹配任意 OGB Socket 孔位。深度+四向姿态角。AngleRight→[0.5,1]，AngleLeft→[0,0.5]，组合为完整 0-1。",
                 Mappings = new List<SignalConfig>
                 {
-                    new()
-                    {
-                        OscPath = "OGB/Orf/Pussy/PenOthers",
-                        Role = SignalRole.Depth,
-                        IsOgbSocket = true,
-                    },
+                    new() { OscPath = "OGB/Orf/*/Main/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleRight_Raw", Role = SignalRole.AngleX, OutputMin = 0.5f, OutputMax = 1f, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleLeft_Raw", Role = SignalRole.AngleX, OutputMin = 0f, OutputMax = 0.5f, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleUp_Raw", Role = SignalRole.AngleY, OutputMin = 0.5f, OutputMax = 1f, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleDown_Raw", Role = SignalRole.AngleY, OutputMin = 0f, OutputMax = 0.5f, IsOgbSocket = true },
+                },
+            },
+            new()
+            {
+                Id = "ogb-plug-full",
+                Name = "OGB Plug · 深度（插入 / 自插）",
+                Description = "Plug 方标准深度，同时映射 PenOthers+PenSelf。深度自动反向。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                },
+            },
+            new()
+            {
+                Id = "ogb-plug-others",
+                Name = "OGB Plug · 仅插入他人",
+                Description = "仅映射 PenOthers，不包含自插。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                },
+            },
+            new()
+            {
+                Id = "ogb-plug-self",
+                Name = "OGB Plug · 仅自插",
+                Description = "仅映射 PenSelf。需在 Sensa 组件中启用 generateSelfParam。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                },
+            },
+            new()
+            {
+                Id = "osr-inserted-pussy",
+                Name = "OSR-VRChat · 被插入（小穴）",
+                Description = "OGB/Orf/Pussy/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Orf/Pussy/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
                 },
             },
             new()
             {
                 Id = "osr-inserted-ass",
                 Name = "OSR-VRChat · 被插入（后庭）",
-                Description = "直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Ass/PenOthers。",
+                Description = "OGB/Orf/Ass/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。",
                 Mappings = new List<SignalConfig>
                 {
-                    new()
-                    {
-                        OscPath = "OGB/Orf/Ass/PenOthers",
-                        Role = SignalRole.Depth,
-                        IsOgbSocket = true,
-                    },
-                },
-            },
-            new()
-            {
-                Id = "osr-inserting-others",
-                Name = "OSR-VRChat · 插入他人",
-                Description = "直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*，并按其 inserting_others 逻辑反向映射深度。",
-                Mappings = new List<SignalConfig>
-                {
-                    new()
-                    {
-                        OscPath = "OGB/Pen/*",
-                        Role = SignalRole.Depth,
-                        InvertDirection = true,
-                        IsOgbPlug = true,
-                    },
-                },
-            },
-            new()
-            {
-                Id = "osr-inserting-self",
-                Name = "OSR-VRChat · 自插测试",
-                Description = "直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*，并按其 inserting_self 逻辑反向映射深度。",
-                Mappings = new List<SignalConfig>
-                {
-                    new()
-                    {
-                        OscPath = "OGB/Pen/*",
-                        Role = SignalRole.Depth,
-                        InvertDirection = true,
-                        IsOgbPlug = true,
-                    },
-                },
-            },
-            new()
-            {
-                Id = "ogb-socket-full",
-                Name = "OGB Socket 完整（被插入 · 全部轴）",
-                Description = "参照 osc.toys / OGB 标准：作为 Orifice/Socket 方，映射全部 SPS 参数轴。",
-                Mappings = new List<SignalConfig>
-                {
-                    new() { OscPath = "OGB/Orf/Pussy/Main/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/AngleRight_Raw", Role = SignalRole.AngleX, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/AngleUp_Raw", Role = SignalRole.AngleY, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/Twist_Raw", Role = SignalRole.Twist, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/Surge_Raw", Role = SignalRole.Surge, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/Sway_Raw", Role = SignalRole.Sway, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/Pussy/Main/Vibrate", Role = SignalRole.V0, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/Ass/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
                 },
             },
             new()
             {
                 Id = "ogb-plug-full",
-                Name = "OGB Plug 完整（插入方 · 全部轴）",
-                Description = "参照 osc.toys / OGB 标准：作为 Pen/Plug 方，使用 OGB/Pen/* 通配路径映射全部 SPS 参数轴。",
+                Name = "OGB Plug · 深度（插入 / 自插）",
+                Description = "Plug 方标准深度，同时映射 PenOthers+PenSelf。深度自动反向。",
                 Mappings = new List<SignalConfig>
                 {
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.AngleX, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.AngleY, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.Twist, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.Surge, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.Sway, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*", Role = SignalRole.V0, IsOgbPlug = true },
+                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                },
+            },
+            new()
+            {
+                Id = "ogb-plug-others",
+                Name = "OGB Plug · 仅插入他人",
+                Description = "仅映射 PenOthers，不包含自插。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
+                },
+            },
+            new()
+            {
+                Id = "ogb-plug-self",
+                Name = "OGB Plug · 仅自插",
+                Description = "仅映射 PenSelf。需在 Sensa 组件中启用 generateSelfParam。",
+                Mappings = new List<SignalConfig>
+                {
+                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
                 },
             },
             new()

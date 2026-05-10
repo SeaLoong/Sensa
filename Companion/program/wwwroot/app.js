@@ -134,56 +134,49 @@ const DEFAULT_AXIS_PROFILE = {
 
 const BUILT_IN_OSC_MAPPING_PRESETS = [
   {
+    id: 'ogb-socket-full',
+    name: 'OGB Socket · 深度 + 姿态',
+    description: '利用通配匹配任意 OGB Socket 孔位(Pussy/Ass/Mouth)。深度+四向姿态角。AngleRight→右半轴[0.5,1]，AngleLeft→左半轴[0,0.5]，二者组合为完整 0-1。',
+    mappings: [
+      { oscPath: 'OGB/Orf/*/Main/PenOthers', role: 'Depth', isOgbSocket: true },
+      { oscPath: 'OGB/Orf/*/Main/AngleRight_Raw', role: 'AngleX', outputMin: 0.5, outputMax: 1, isOgbSocket: true },
+      { oscPath: 'OGB/Orf/*/Main/AngleLeft_Raw', role: 'AngleX', outputMin: 0, outputMax: 0.5, isOgbSocket: true },
+      { oscPath: 'OGB/Orf/*/Main/AngleUp_Raw', role: 'AngleY', outputMin: 0.5, outputMax: 1, isOgbSocket: true },
+      { oscPath: 'OGB/Orf/*/Main/AngleDown_Raw', role: 'AngleY', outputMin: 0, outputMax: 0.5, isOgbSocket: true },
+    ],
+  },
+  {
+    id: 'ogb-plug-full',
+    name: 'OGB Plug · 深度（插入 / 自插）',
+    description: 'Plug 方标准深度参数，同时映射 PenOthers(插入他人)和 PenSelf(自插)。深度自动反向。',
+    mappings: [
+      { oscPath: 'OGB/Pen/*/PenOthers', role: 'Depth', invertDirection: true, isOgbPlug: true },
+      { oscPath: 'OGB/Pen/*/PenSelf', role: 'Depth', invertDirection: true, isOgbPlug: true },
+    ],
+  },
+  {
+    id: 'ogb-plug-others',
+    name: 'OGB Plug · 仅插入他人',
+    description: '仅映射 PenOthers(插入他人深度)，不包含自插。',
+    mappings: [{ oscPath: 'OGB/Pen/*/PenOthers', role: 'Depth', invertDirection: true, isOgbPlug: true }],
+  },
+  {
+    id: 'ogb-plug-self',
+    name: 'OGB Plug · 仅自插',
+    description: '仅映射 PenSelf(自插深度)。需在 Sensa 组件中启用 generateSelfParam。',
+    mappings: [{ oscPath: 'OGB/Pen/*/PenSelf', role: 'Depth', invertDirection: true, isOgbPlug: true }],
+  },
+  {
     id: 'osr-inserted-pussy',
     name: 'OSR-VRChat · 被插入（小穴）',
-    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Pussy/PenOthers。',
+    description: 'OGB/Orf/Pussy/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。',
     mappings: [{ oscPath: 'OGB/Orf/Pussy/PenOthers', role: 'Depth', isOgbSocket: true }],
   },
   {
     id: 'osr-inserted-ass',
     name: 'OSR-VRChat · 被插入（后庭）',
-    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Orf/Ass/PenOthers。',
+    description: 'OGB/Orf/Ass/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。',
     mappings: [{ oscPath: 'OGB/Orf/Ass/PenOthers', role: 'Depth', isOgbSocket: true }],
-  },
-  {
-    id: 'osr-inserting-others',
-    name: 'OSR-VRChat · 插入他人',
-    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*（通配），并按其 inserting_others 逻辑反向映射深度。',
-    mappings: [{ oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true }],
-  },
-  {
-    id: 'osr-inserting-self',
-    name: 'OSR-VRChat · 自插测试',
-    description: '直接参考 OSR-VRChat 源码：监听 /avatar/parameters/OGB/Pen/*（通配），并按其 inserting_self 逻辑反向映射深度。',
-    mappings: [{ oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true }],
-  },
-  {
-    id: 'ogb-socket-full',
-    name: 'OGB Socket 完整（被插入 · 全部轴）',
-    description: '参照 osc.toys / OGB 标准：作为 Orifice/Socket 方，映射全部 SPS 参数轴（深度、姿态、平移、震动）。路径前缀可自行替换为具体孔位（如 Pussy→Ass）。',
-    mappings: [
-      { oscPath: 'OGB/Orf/Pussy/Main/PenOthers', role: 'Depth', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/AngleRight_Raw', role: 'AngleX', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/AngleUp_Raw', role: 'AngleY', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/Twist_Raw', role: 'Twist', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/Surge_Raw', role: 'Surge', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/Sway_Raw', role: 'Sway', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/Pussy/Main/Vibrate', role: 'V0', isOgbSocket: true },
-    ],
-  },
-  {
-    id: 'ogb-plug-full',
-    name: 'OGB Plug 完整（插入方 · 全部轴）',
-    description: '参照 osc.toys / OGB 标准：作为 Pen/Plug 方，使用 OGB/Pen/* 通配路径映射全部 SPS 参数轴。深度默认反向（插入越深值越小）。',
-    mappings: [
-      { oscPath: 'OGB/Pen/*', role: 'Depth', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'AngleX', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'AngleY', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'Twist', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'Surge', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'Sway', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*', role: 'V0', isOgbPlug: true },
-    ],
   },
 ];
 
@@ -636,21 +629,38 @@ function sanitizeStudio(raw, config) {
   };
 }
 
-function isWildcardOscPath(path) {
-  return typeof path === 'string' && path.trim().endsWith('/*');
+function globMatch(pattern, path) {
+  // Split both into segments
+  const pSegs = pattern.split('/');
+  const sSegs = path.split('/');
+  let pi = 0,
+    si = 0;
+  while (pi < pSegs.length && si < sSegs.length) {
+    if (pSegs[pi] === '**') {
+      // ** matches zero or more segments — try all remaining positions
+      for (let end = si; end <= sSegs.length; end++) {
+        if (globMatch(pSegs.slice(pi + 1).join('/'), sSegs.slice(end).join('/'))) return true;
+      }
+      return false;
+    }
+    if (pSegs[pi] === '*' || pSegs[pi] === sSegs[si]) {
+      pi++;
+      si++;
+      continue;
+    }
+    return false;
+  }
+  // Allow trailing ** to match zero remaining
+  if (pi < pSegs.length && pSegs[pi] === '**' && pi + 1 === pSegs.length) return true;
+  return pi === pSegs.length && si === sSegs.length;
 }
 
 function matchesOscPathPattern(pattern, actualPath) {
-  const normalizedPattern = (pattern || '').trim();
-  const normalizedActualPath = (actualPath || '').trim();
-
-  if (!normalizedPattern || !normalizedActualPath) return false;
-
-  if (isWildcardOscPath(normalizedPattern)) {
-    return normalizedActualPath.startsWith(normalizedPattern.slice(0, -1));
-  }
-
-  return normalizedPattern === normalizedActualPath;
+  const p = (pattern || '').trim();
+  const a = (actualPath || '').trim();
+  if (!p || !a) return false;
+  if (!p.includes('*')) return p === a; // exact match fast path
+  return globMatch(p, a);
 }
 
 function getLatestOscPreviewEntry(previewEntries, pattern) {
@@ -869,7 +879,14 @@ function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
   return (
     <Box className="signal-row">
       <Box className="signal-row__grid">
-        <TextField label="参数路径" size="small" value={draft.oscPath} onChange={event => onChange({ oscPath: event.target.value })} />
+        <TextField
+          label="参数路径"
+          size="small"
+          value={draft.oscPath}
+          onChange={event => onChange({ oscPath: event.target.value })}
+          placeholder="例如: OGB/Orf/Pussy/Main/PenOthers"
+          helperText="支持末尾通配 /*，例如 OGB/Pen/Main/* 匹配所有 Pen 参数"
+        />
 
         <FormControl size="small" fullWidth>
           <InputLabel>目标轴</InputLabel>
@@ -2010,6 +2027,13 @@ function App() {
                         <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
                       </Stack>
                     </Box>
+
+                    <Alert severity="info" sx={{ mb: 1.5 }}>
+                      <Typography variant="caption">
+                        <b>参数路径匹配说明</b>：OGB 标准路径形如 <code>OGB/Orf/Pussy/Main/PenOthers</code>（被插入方）或 <code>OGB/Pen/Main/Depth</code>（插入方）。 路径末尾可使用 <code>/*</code>{' '}
+                        通配符匹配所有子路径。参数值将在右侧「参数预览」中实时显示。
+                      </Typography>
+                    </Alert>
 
                     <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
                       <FormControl size="small" sx={{ minWidth: 280 }}>

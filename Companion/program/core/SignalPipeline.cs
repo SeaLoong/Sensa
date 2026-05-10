@@ -53,6 +53,12 @@ public sealed class SignalProcessor
         // 4. Non-linear curve
         v = ApplyCurve(v, _cfg.Curve);
 
+        // 5. Remap to output range (segment mapping)
+        //    [0,1] → [OutputMin, OutputMax]
+        float outMin = Math.Clamp(_cfg.OutputMin, 0f, 1f);
+        float outMax = Math.Clamp(_cfg.OutputMax, outMin, 1f);
+        v = outMin + v * (outMax - outMin);
+
         return Math.Clamp(v, 0f, 1f);
     }
 
@@ -85,15 +91,26 @@ public sealed class SignalProcessor
 
 public sealed class SignalFusion
 {
+    private static float FuseCentered(float current, float candidate)
+    {
+        // For axes centred at 0.5: pick the one furthest from centre
+        float curDev = Math.Abs(current - 0.5f);
+        float canDev = Math.Abs(candidate - 0.5f);
+        return canDev > curDev ? candidate : current;
+    }
+
+    private static float FuseMax(float current, float candidate) =>
+        candidate > current ? candidate : current;
+
     /// <summary>Called each frame with all processed signal values indexed by role.</summary>
     public DeviceCommand Fuse(IReadOnlyList<(SignalRole role, float value)> signals, double deltaMs)
     {
         float depth   = 0f;
-        float angleX  = 0f;
-        float angleY  = 0f;
-        float twist   = 0f;
-        float surge   = 0f;
-        float sway    = 0f;
+        float angleX  = 0.5f;
+        float angleY  = 0.5f;
+        float twist   = 0.5f;
+        float surge   = 0.5f;
+        float sway    = 0.5f;
         float v0 = 0f;
         float v1 = 0f;
         float v2 = 0f;
@@ -104,34 +121,34 @@ public sealed class SignalFusion
             switch (role)
             {
                 case SignalRole.Depth:
-                    depth = Max(depth, value);
+                    depth = FuseMax(depth, value);
                     break;
                 case SignalRole.AngleX:
-                    angleX = value;
+                    angleX = FuseCentered(angleX, value);
                     break;
                 case SignalRole.AngleY:
-                    angleY = value;
+                    angleY = FuseCentered(angleY, value);
                     break;
                 case SignalRole.Twist:
-                    twist = value;
+                    twist = FuseCentered(twist, value);
                     break;
                 case SignalRole.Surge:
-                    surge = value;
+                    surge = FuseCentered(surge, value);
                     break;
                 case SignalRole.Sway:
-                    sway = value;
+                    sway = FuseCentered(sway, value);
                     break;
                 case SignalRole.V0:
-                    v0 = Max(v0, value);
+                    v0 = FuseMax(v0, value);
                     break;
                 case SignalRole.V1:
-                    v1 = Max(v1, value);
+                    v1 = FuseMax(v1, value);
                     break;
                 case SignalRole.V2:
-                    v2 = Max(v2, value);
+                    v2 = FuseMax(v2, value);
                     break;
                 case SignalRole.Auxiliary:
-                    aux = value;
+                    aux = FuseCentered(aux, value);
                     break;
             }
         }
