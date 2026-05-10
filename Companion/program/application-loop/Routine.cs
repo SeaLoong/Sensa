@@ -54,6 +54,7 @@ public sealed class Routine : IDisposable
     public bool          InputActive  => _inputActive;
 
     private int _tickCounter;
+    private DeviceCommand? _lastSentCmd; // for event-driven dedup
 
     // ── Events ─────────────────────────────────────────────────────
     public event Action<string>? OnLog;
@@ -176,6 +177,10 @@ public sealed class Routine : IDisposable
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
     }
 
+    /// <summary>Directly send a command to all outputs (event-driven path for manual/script).</summary>
+    public Task SendToOutputsAsync(DeviceCommand cmd) =>
+        _sendOutputsAsync?.Invoke(cmd) ?? Task.CompletedTask;
+
     // ────────────────────────────────────────────────────────────────
 
     private async Task RunLoopAsync(CancellationToken ct)
@@ -245,25 +250,44 @@ public sealed class Routine : IDisposable
                     $"deltaMs={cmd.DeltaMs:F1}");
             }
 
-            // 6. Transmit — skip entirely during emergency (DSTOP already sent by SendEmergencyAsync)
-            if (!_emergency && _sendOutputsAsync is not null)
+            // 6. Transmit — event-driven: only send when the command actually differs from last sent
+            if (!_emergency && _inputActive)
             {
-                try { await _sendOutputsAsync(cmd); }
-                catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
-            }
-            else if (!_emergency)
-            {
-                if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
+                var changed = _lastSentCmd is null ||
+                    Math.Abs(cmd.L0 - _lastSentCmd.L0) > 0.001f ||
+                    Math.Abs(cmd.R0 - _lastSentCmd.R0) > 0.001f ||
+                    Math.Abs(cmd.R1 - _lastSentCmd.R1) > 0.001f ||
+                    Math.Abs(cmd.R2 - _lastSentCmd.R2) > 0.001f ||
+                    Math.Abs(cmd.L1 - _lastSentCmd.L1) > 0.001f ||
+                    Math.Abs(cmd.L2 - _lastSentCmd.L2) > 0.001f ||
+                    Math.Abs(cmd.V0 - _lastSentCmd.V0) > 0.001f ||
+                    Math.Abs(cmd.V1 - _lastSentCmd.V1) > 0.001f ||
+                    Math.Abs(cmd.V2 - _lastSentCmd.V2) > 0.001f ||
+                    Math.Abs(cmd.A0 - _lastSentCmd.A0) > 0.001f;
+
+                if (changed)
                 {
-                    try { await _intiface.SendAsync(cmd); }
-                    catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+                    _lastSentCmd = cmd;
+                    if (_sendOutputsAsync is not null)
+                    {
+                        try { await _sendOutputsAsync(cmd); }
+                        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
+                    }
+                    else
+                    {
+                        if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
+                        {
+                            try { await _intiface.SendAsync(cmd); }
+                            catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+                        }
+                        if (_save.TCode.Enabled)
+                            _tcode?.Send(cmd);
+                        if (_save.UdpTCode.Enabled)
+                            _tcodeUdp?.Send(cmd);
+                        if (_save.TcpTCode.Enabled)
+                            _tcodeTcp?.Send(cmd);
+                    }
                 }
-                if (_save.TCode.Enabled)
-                    _tcode?.Send(cmd);
-                if (_save.UdpTCode.Enabled)
-                    _tcodeUdp?.Send(cmd);
-                if (_save.TcpTCode.Enabled)
-                    _tcodeTcp?.Send(cmd);
             }
 
             // 7. Record
