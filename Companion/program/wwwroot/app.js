@@ -1042,11 +1042,13 @@ function App() {
   }, [studio]);
 
   useEffect(() => {
-    if (!overview?.loop?.manualCommand || manualSyncBlockedRef.current || manualInitializedRef.current === false || manualRafRef.current) return;
+    // Sync manualDraft from server only during init or when NOT in manual mode
+    if (!overview?.loop?.manualCommand || manualInitializedRef.current === false) return;
+    if (overview?.input?.mode === 'manual') return; // local draft is authoritative during manual input
     const normalized = normalizeManualCommand(overview.loop.manualCommand);
     setManualDraft(normalized);
     manualDraftRef.current = normalized;
-  }, [overview?.loop?.manualCommand]);
+  }, [overview?.loop?.manualCommand, overview?.input?.mode]);
 
   useEffect(() => {
     if (!overview?.input?.script || scriptSettingsInitializedRef.current === false) return;
@@ -1886,6 +1888,17 @@ function App() {
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                     <Chip size="small" variant="outlined" color="primary" label={`当前生效：${formatMode(actualInputMode)}`} />
                     {hasPendingInputMode && <Chip size="small" variant="filled" color="warning" label={`待应用：${formatMode(selectedInputTab)}`} />}
+                  </Stack>
+
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                    {hasPendingInputMode && (
+                      <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>
+                        恢复到当前输入
+                      </Button>
+                    )}
+                    <Button size="small" variant="contained" onClick={() => applyInputMode(selectedInputTab)} disabled={!hasPendingInputMode || busyKey === `mode-${selectedInputTab}`}>
+                      {busyKey === `mode-${selectedInputTab}` ? '切换中…' : '应用输入方式'}
+                    </Button>
                     <FormControlLabel
                       control={
                         <Switch
@@ -1903,17 +1916,6 @@ function App() {
                       }
                       label={<Typography variant="caption">输入开关</Typography>}
                     />
-                  </Stack>
-
-                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    {hasPendingInputMode && (
-                      <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>
-                        恢复到当前输入
-                      </Button>
-                    )}
-                    <Button size="small" variant="contained" onClick={() => applyInputMode(selectedInputTab)} disabled={!hasPendingInputMode || busyKey === `mode-${selectedInputTab}`}>
-                      {busyKey === `mode-${selectedInputTab}` ? '切换中…' : '应用输入方式'}
-                    </Button>
                   </Stack>
                 </Stack>
 
