@@ -53,7 +53,6 @@ public sealed class Routine : IDisposable
     public bool          IsEmergency  => _emergency;
     public bool          InputActive  => _inputActive;
 
-    private long _lastLogTick;
     private int _tickCounter;
 
     // ── Events ─────────────────────────────────────────────────────

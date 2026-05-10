@@ -16,6 +16,9 @@ using Sensa.TransmitIntiface;
 using Sensa.TransmitTCode;
 using Sensa.UiActions;
 
+// Sensa is Windows-only (WMI + Registry for serial port enumeration)
+#pragma warning disable CA1416
+
 Console.Title = "Sensa";
 Console.WriteLine("Sensa Web Service starting…");
 
