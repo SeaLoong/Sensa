@@ -183,20 +183,17 @@ body {
 
 .axis-profile-detail-list {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 8px;
-  margin-top: 4px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
+  margin-top: 2px;
 }
 
 .axis-profile-detail-row {
   display: grid;
-  grid-template-columns: 32px minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  padding: 7px 8px;
-  border-radius: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.82);
+  grid-template-columns: 26px minmax(0, 1fr);
+  gap: 6px;
+  align-items: start;
+  padding: 0;
 }
 
 .axis-profile-detail-row__axis {
@@ -207,7 +204,7 @@ body {
 .axis-profile-detail-row__details {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 4px;
 }
 
 .axis-profile-detail-pill {
@@ -278,9 +275,13 @@ body {
   align-self: stretch;
 }
 
+.osc-preset-description {
+  margin-top: 2px;
+}
+
 .signal-row {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   border-radius: 14px;
   border: 1px solid rgba(148, 163, 184, 0.16);
   background: rgba(255, 255, 255, 0.88);
@@ -296,9 +297,42 @@ body {
 
 .signal-row__controls {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  align-items: start;
+  grid-template-columns: minmax(190px, 0.92fr) minmax(0, 1.08fr) minmax(0, 1.08fr) minmax(170px, 0.74fr);
+  gap: 0;
+  align-items: stretch;
+}
+
+.signal-row__controls > * {
+  min-width: 0;
+}
+
+.signal-row__controls > .range-field {
+  padding: 4px 10px 0;
+}
+
+.signal-row__controls > * + * {
+  border-left: 1px dashed rgba(148, 163, 184, 0.28);
+}
+
+.signal-row__controls > .range-field .range-field__header {
+  min-height: 22px;
+}
+
+.signal-row__controls > .range-field .MuiSlider-root {
+  width: calc(100% - 16px);
+  margin-inline: 8px;
+  padding-top: 10px;
+  padding-bottom: 8px;
+}
+
+.signal-row__status {
+  align-content: center;
+  min-height: 100%;
+  padding: 4px 14px 0 2px;
+}
+
+.signal-row__status .MuiChip-root {
+  background: rgba(248, 250, 252, 0.9);
 }
 
 .signal-row__toggle {
@@ -307,20 +341,14 @@ body {
 }
 
 .signal-row__toggle .MuiFormControlLabel-label {
-  font-size: 0.78rem;
+  font-size: 0.92rem;
+  font-weight: 500;
+  color: #334155;
 }
 
 .signal-row__remove {
   justify-self: end;
   white-space: nowrap;
-}
-
-.signal-row__meta {
-  min-height: 24px;
-}
-
-.signal-row__meta .MuiChip-root {
-  background: rgba(248, 250, 252, 0.9);
 }
 
 .field-help-label {
@@ -341,11 +369,13 @@ body {
 }
 
 .range-field__header {
-  min-height: 18px;
+  min-height: 20px;
+  gap: 10px;
 }
 
 .range-field__value {
   color: #475569;
+  font-size: 0.78rem;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -678,6 +708,29 @@ body {
   .signal-row__header,
   .signal-row__controls {
     grid-template-columns: 1fr;
+  }
+
+  .signal-row__controls {
+    gap: 6px;
+  }
+
+  .signal-row__controls > .range-field {
+    padding: 2px 0 0;
+  }
+
+  .signal-row__controls > * + * {
+    border-left: 0;
+    border-top: 1px dashed rgba(148, 163, 184, 0.28);
+    padding-top: 10px;
+  }
+
+  .signal-row__controls > .range-field .MuiSlider-root {
+    width: calc(100% - 10px);
+    margin-inline: 5px;
+  }
+
+  .signal-row__status {
+    padding: 6px 0 0;
   }
 
   .signal-row__remove {

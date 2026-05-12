@@ -1416,26 +1416,25 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
 
   return (
     <Box className="motion-axis-card">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+      <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5} mb={0.5}>
         <Box>
           <Typography variant="subtitle2">{axisDefinition.axis}</Typography>
           <Typography variant="caption" color="text.secondary">
             {axisDefinition.label}
           </Typography>
         </Box>
-        <Chip size="small" variant="outlined" label={isIgnored ? '忽略' : isLocked ? '锁定' : '普通'} />
-      </Stack>
 
-      <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-        <InputLabel>轴模式</InputLabel>
-        <Select disabled={disabled} value={axisMode} label="轴模式" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ mode: event.target.value })}>
-          {AXIS_MODE_OPTIONS.map(option => (
-            <MenuItem key={`${axisDefinition.axis}-${option.value}`} value={option.value}>
-              {option.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+        <FormControl size="small" sx={{ minWidth: 124, flexShrink: 0 }}>
+          <InputLabel>轴模式</InputLabel>
+          <Select disabled={disabled} value={axisMode} label="轴模式" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ mode: event.target.value })}>
+            {AXIS_MODE_OPTIONS.map(option => (
+              <MenuItem key={`${axisDefinition.axis}-${option.value}`} value={option.value}>
+                {option.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      </Stack>
 
       {isIgnored ? (
         <Typography variant="caption" color="text.secondary">
@@ -1534,7 +1533,7 @@ function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
         <FormControlLabel
           className="signal-row__toggle"
           sx={{ m: 0 }}
-          control={<Switch size="small" checked={Boolean(draft.invertDirection)} onChange={(_, checked) => onChange({ invertDirection: checked })} />}
+          control={<Switch checked={Boolean(draft.invertDirection)} onChange={(_, checked) => onChange({ invertDirection: checked })} />}
           label={<HelpLabel text="反向" title="交换输入最小值 / 输入最大值的方向，常用于深度方向相反或姿态方向相反的参数。" />}
         />
 
@@ -1544,6 +1543,18 @@ function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
       </Box>
 
       <Box className="signal-row__controls">
+        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__status">
+          <Chip size="small" variant="outlined" label={roleLabel} />
+          {latestEntry ? (
+            <>
+              <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
+              {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
+              {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
+            </>
+          ) : (
+            <Chip size="small" variant="outlined" label="未命中实时参数" />
+          )}
+        </Stack>
 
         <RangeField
           label="输入范围"
@@ -1576,19 +1587,6 @@ function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
           onChange={next => onChange({ smoothingAlpha: next })}
         />
       </Box>
-
-      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__meta">
-        <Chip size="small" variant="outlined" label={roleLabel} />
-        {latestEntry ? (
-          <>
-            <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
-            {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
-            {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
-          </>
-        ) : (
-          <Chip size="small" variant="outlined" label="未命中实时参数" />
-        )}
-      </Stack>
     </Box>
   );
 }
@@ -2665,7 +2663,6 @@ function App() {
                     <FormControlLabel
                       control={
                         <Switch
-                          size="small"
                           checked={overview?.loop?.inputActive !== false}
                           onChange={async (_, checked) => {
                             await apiRequest('/api/input/active', {
@@ -2677,7 +2674,7 @@ function App() {
                           }}
                         />
                       }
-                      label={<Typography variant="caption">输入开关</Typography>}
+                      label={<Typography variant="body2">输入开关</Typography>}
                     />
                   </Stack>
                 </Stack>
@@ -2849,7 +2846,7 @@ function App() {
                       </Stack>
                     </Stack>
 
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                    <Typography variant="body2" color="text.secondary" className="osc-preset-description">
                       {selectedOscPresetConfig ? selectedOscPresetConfig.description || '选一套预设可快速生成映射。' : '当前没有可用预设，可先新建一套。'}
                     </Typography>
 
@@ -3036,7 +3033,7 @@ function App() {
                             <Button variant="contained" onClick={() => openProfileDialog(profile.id)}>
                               修改配置
                             </Button>
-                            <Button variant="text" size="small" onClick={() => toggleAxisProfileExpanded(profile.id)}>
+                            <Button variant="text" onClick={() => toggleAxisProfileExpanded(profile.id)}>
                               {isExpanded ? '收起详情' : '展开详情'}
                             </Button>
                             {!profile.isDefault && (
@@ -3345,11 +3342,11 @@ function App() {
         <DialogContent dividers>
           {dialog && (
             <Stack spacing={2}>
-                {outputDialogConflictMessage && (
-                  <Alert severity="warning" variant="outlined">
-                    {outputDialogConflictMessage}
-                  </Alert>
-                )}
+              {outputDialogConflictMessage && (
+                <Alert severity="warning" variant="outlined">
+                  {outputDialogConflictMessage}
+                </Alert>
+              )}
 
               <TextField
                 label={<HelpLabel text="名称" title="仅用于在 WebUI 中区分这台输出设备。" />}
@@ -3399,22 +3396,23 @@ function App() {
                         {serialPorts.map(port => {
                           const owner = serialPortOwners.get(port.portName);
                           return (
-                          <MenuItem key={port.portName} value={port.portName} disabled={Boolean(owner)}>
-                            <Stack direction="row" spacing={1} alignItems="baseline">
-                              <Typography variant="body2">{port.portName}</Typography>
-                              {port.description && port.description !== port.portName && (
-                                <Typography variant="caption" color="text.secondary">
-                                  {port.description}
-                                </Typography>
-                              )}
-                              {owner && (
-                                <Typography variant="caption" color="error.main">
-                                  {`已被 ${getOutputDisplayName(owner)} 使用`}
-                                </Typography>
-                              )}
-                            </Stack>
-                          </MenuItem>
-                        )})}
+                            <MenuItem key={port.portName} value={port.portName} disabled={Boolean(owner)}>
+                              <Stack direction="row" spacing={1} alignItems="baseline">
+                                <Typography variant="body2">{port.portName}</Typography>
+                                {port.description && port.description !== port.portName && (
+                                  <Typography variant="caption" color="text.secondary">
+                                    {port.description}
+                                  </Typography>
+                                )}
+                                {owner && (
+                                  <Typography variant="caption" color="error.main">
+                                    {`已被 ${getOutputDisplayName(owner)} 使用`}
+                                  </Typography>
+                                )}
+                              </Stack>
+                            </MenuItem>
+                          );
+                        })}
                       </Select>
                     </FormControl>
                   </Box>
