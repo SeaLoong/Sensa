@@ -1,5 +1,6 @@
 const {
   Alert,
+  Autocomplete,
   AppBar,
   Box,
   Button,
@@ -1003,6 +1004,24 @@ function getLatestOscPreviewEntry(previewEntries, pattern) {
   return latest ? { ...latest, matchCount: matches.length } : null;
 }
 
+function isOgbOscPath(path) {
+  return (path || '').trim().toUpperCase().startsWith('OGB/');
+}
+
+function compareOscPathSuggestions(left, right) {
+  const leftPath = (left || '').trim();
+  const rightPath = (right || '').trim();
+  const leftPriority = isOgbOscPath(leftPath) ? 0 : 1;
+  const rightPriority = isOgbOscPath(rightPath) ? 0 : 1;
+
+  if (leftPriority !== rightPriority) return leftPriority - rightPriority;
+  return leftPath.localeCompare(rightPath, 'en', { numeric: true, sensitivity: 'base' });
+}
+
+function buildOscPathSuggestions(previewEntries) {
+  return Array.from(new Set((Array.isArray(previewEntries) ? previewEntries : []).map(entry => (entry?.path || '').trim()).filter(Boolean))).sort(compareOscPathSuggestions);
+}
+
 function formatPreviewTimestamp(timestampMs) {
   if (!timestampMs) return '—';
   const value = new Date(timestampMs);
@@ -1500,21 +1519,42 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
   );
 }
 
-function SignalMappingRow({ draft, latestEntry, onChange, onRemove }) {
+function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
   const roleLabel = SIGNAL_ROLE_OPTIONS.find(option => option.value === draft.role)?.label || draft.role;
 
   return (
     <Box className="signal-row">
       <Box className="signal-row__header">
-        <TextField
+        <Autocomplete
+          freeSolo
           fullWidth
           className="signal-row__path"
-          label={<HelpLabel text="参数路径" title="支持精确匹配、单段通配 * 与多段通配 **。多个参数命中同一规则时，后端会取最近更新的一条。" />}
-          size="small"
+          options={Array.isArray(pathOptions) ? pathOptions : []}
           value={draft.oscPath}
-          onChange={event => onChange({ oscPath: event.target.value })}
-          placeholder="例如: OGB/Orf/Pussy/Main/PenOthers"
+          inputValue={draft.oscPath}
+          autoHighlight
+          openOnFocus
+          selectOnFocus
+          clearOnBlur={false}
+          filterOptions={(options, state) => {
+            const keyword = (state.inputValue || '').trim().toLowerCase();
+            if (!keyword) return options;
+            return options.filter(option => option.toLowerCase().includes(keyword));
+          }}
+          onInputChange={(_, nextInputValue, reason) => {
+            if (reason === 'input' || reason === 'reset' || reason === 'clear') {
+              onChange({ oscPath: nextInputValue || '' });
+            }
+          }}
+          renderInput={params => (
+            <TextField
+              {...params}
+              label={<HelpLabel text="参数路径" title="支持精确匹配、单段通配 * 与多段通配 **。多个参数命中同一规则时，后端会取最近更新的一条。" />}
+              size="small"
+              placeholder="例如: OGB/Orf/Pussy/Main/PenOthers"
+            />
+          )}
         />
 
         <FormControl size="small" fullWidth className="signal-row__role">
@@ -2472,6 +2512,7 @@ function App() {
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
   const scriptState = overview?.input?.script || null;
   const oscPreview = overview?.osc?.preview || [];
+  const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(oscPreview), [oscPreview]);
   const sortedOscPreview = useMemo(() => {
     const signals = Array.isArray(signalDrafts) ? signalDrafts.filter(d => d?.oscPath) : [];
     return [...oscPreview]
@@ -2866,6 +2907,7 @@ function App() {
                             key={draft._draftId}
                             draft={draft}
                             latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                            pathOptions={oscPathSuggestions}
                             onChange={patch => updateSignalDraft(draft._draftId, patch)}
                             onRemove={() => removeSignalDraft(draft._draftId)}
                           />
@@ -3033,7 +3075,7 @@ function App() {
                             <Button variant="contained" onClick={() => openProfileDialog(profile.id)}>
                               修改配置
                             </Button>
-                            <Button variant="text" onClick={() => toggleAxisProfileExpanded(profile.id)}>
+                            <Button variant="text" className="config-card__details-toggle" onClick={() => toggleAxisProfileExpanded(profile.id)}>
                               {isExpanded ? '收起详情' : '展开详情'}
                             </Button>
                             {!profile.isDefault && (
@@ -3314,6 +3356,7 @@ function App() {
                       key={draft._draftId}
                       draft={draft}
                       latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                      pathOptions={oscPathSuggestions}
                       onChange={patch => updatePresetDialogSignal(draft._draftId, patch)}
                       onRemove={() => removePresetDialogSignal(draft._draftId)}
                     />

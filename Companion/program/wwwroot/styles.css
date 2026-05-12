@@ -170,6 +170,11 @@ body {
   padding-top: 0;
 }
 
+.config-card__details-toggle {
+  min-height: 36px;
+  padding: 6px 16px;
+}
+
 .config-card--add {
   border-style: dashed;
   background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.9) 100%);
