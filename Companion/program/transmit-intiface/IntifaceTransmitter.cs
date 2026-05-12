@@ -20,6 +20,8 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
 
     private readonly List<ButtplugClientDevice> _devices = new();
     private readonly object _devLock = new();
+    private readonly Dictionary<uint, double> _lastLinearSent = new();
+    private readonly Dictionary<uint, double> _lastVibrateSent = new();
 
     public bool IsConnected => _connected;
     public IReadOnlyList<ButtplugClientDevice> Devices
@@ -29,6 +31,8 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
     }
 
     public event Action<string>? OnLog;
+    public event Action<string>? OnDebugLog;
+    public event Action? DevicesChanged;
 
     public IntifaceTransmitter(IntifaceConfig cfg) => _cfg = cfg;
 
@@ -37,14 +41,40 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
     public async Task ConnectAsync(CancellationToken ct = default)
     {
         _client = new ButtplugClient("Sensa");
-        _client.DeviceAdded    += (_, e) => { lock (_devLock) _devices.Add(e.Device);    OnLog?.Invoke($"Device added: {e.Device.Name}"); };
-        _client.DeviceRemoved  += (_, e) => { lock (_devLock) _devices.Remove(e.Device); OnLog?.Invoke($"Device removed: {e.Device.Name}"); };
-        _client.ServerDisconnect += (_, _) => { _connected = false; OnLog?.Invoke("Intiface disconnected."); };
+        _client.DeviceAdded += (_, e) =>
+        {
+            lock (_devLock) _devices.Add(e.Device);
+            OnLog?.Invoke($"Device added: {e.Device.Name}");
+            DevicesChanged?.Invoke();
+        };
+        _client.DeviceRemoved += (_, e) =>
+        {
+            lock (_devLock)
+            {
+                _devices.Remove(e.Device);
+                _lastLinearSent.Remove(e.Device.Index);
+                _lastVibrateSent.Remove(e.Device.Index);
+            }
+            OnLog?.Invoke($"Device removed: {e.Device.Name}");
+            DevicesChanged?.Invoke();
+        };
+        _client.ServerDisconnect += (_, _) =>
+        {
+            _connected = false;
+            lock (_devLock)
+            {
+                _lastLinearSent.Clear();
+                _lastVibrateSent.Clear();
+            }
+            OnLog?.Invoke("Intiface disconnected.");
+            DevicesChanged?.Invoke();
+        };
 
         // ButtplugClientExtensions.ConnectAsync(client, uri, token)
         await _client.ConnectAsync(new Uri(_cfg.WebsocketAddress), ct);
         _connected = true;
         OnLog?.Invoke($"Intiface connected: {_cfg.WebsocketAddress}");
+        DevicesChanged?.Invoke();
     }
 
     public async Task DisconnectAsync()
@@ -54,7 +84,13 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
         try { await StopAllAsync(); } catch { }
         try { await _client.DisconnectAsync(); } catch { }
         _connected = false;
-        lock (_devLock) _devices.Clear();
+        lock (_devLock)
+        {
+            _devices.Clear();
+            _lastLinearSent.Clear();
+            _lastVibrateSent.Clear();
+        }
+        DevicesChanged?.Invoke();
     }
 
     public async Task StartScanAsync() =>
@@ -86,8 +122,18 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
             {
                 // Position (linear) features
                 var posFeatures = device.GetFeaturesWithOutput(OutputType.Position).ToList();
-                foreach (var f in posFeatures)
-                    await f.RunOutputAsync(DeviceOutput.PositionWithDuration.Percent(position01, durationMs));
+                var shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
+                var emitted = new List<string>();
+                if (shouldSendLinear)
+                {
+                    foreach (var f in posFeatures)
+                        await f.RunOutputAsync(DeviceOutput.PositionWithDuration.Percent(position01, durationMs));
+
+                    lock (_devLock)
+                        _lastLinearSent[device.Index] = position01;
+
+                    emitted.Add($"linear={position01:F3}@{durationMs}ms");
+                }
 
                 // Vibrate features: always update (including sending 0) so motors can stop cleanly.
                 var vibFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).ToList();
@@ -96,9 +142,21 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
                     double vibrateVal = posFeatures.Count == 0
                         ? Math.Clamp(cmd.L0, 0.0, 1.0)    // depth → vibrate on linear-less devices
                         : Math.Clamp(cmd.V0, 0.0, 1.0);
-                    foreach (var f in vibFeatures)
-                        await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal));
+                    var shouldSendVibrate = !_lastVibrateSent.TryGetValue(device.Index, out var lastVibrate) || Math.Abs(lastVibrate - vibrateVal) >= 0.001;
+                    if (shouldSendVibrate)
+                    {
+                        foreach (var f in vibFeatures)
+                            await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal));
+
+                        lock (_devLock)
+                            _lastVibrateSent[device.Index] = vibrateVal;
+
+                        emitted.Add($"vibrate={vibrateVal:F3}");
+                    }
                 }
+
+                if (emitted.Count > 0)
+                    OnDebugLog?.Invoke($"TX {device.Name}#{device.Index} {string.Join(" ", emitted)}");
             }
             catch (Exception ex)
             {
@@ -111,6 +169,12 @@ public sealed class IntifaceTransmitter : IAsyncDisposable
     {
         if (_client is null) return;
         try { await _client.StopAllDevicesAsync(); } catch { }
+        lock (_devLock)
+        {
+            _lastLinearSent.Clear();
+            _lastVibrateSent.Clear();
+        }
+        OnDebugLog?.Invoke("TX StopAll");
     }
 
     public async ValueTask DisposeAsync() => await DisconnectAsync();

@@ -4,7 +4,7 @@ namespace Sensa.Core;
 
 /// <summary>
 /// Processes a single OSC parameter through the signal pipeline:
-///   calibrate [± invert] → EMA smooth → dead zone → curve
+///   calibrate [± invert] → EMA smooth → dead zone → curve → mapped positions
 /// InvertDirection reverses the calibration range so that "no signal"
 /// is always near 0 before the dead zone is applied.
 /// Thread-safe: state (EMA value) is owned by each instance.
@@ -53,10 +53,8 @@ public sealed class SignalProcessor
         // 4. Non-linear curve
         v = ApplyCurve(v, _cfg.Curve);
 
-        // 5. Remap to output range (segment mapping)
-        //    [0,1] → [OutputMin, OutputMax]
-        float outMin = Math.Clamp(_cfg.OutputMin, 0f, 1f);
-        float outMax = Math.Clamp(_cfg.OutputMax, outMin, 1f);
+        // 5. Remap to configured output positions
+        var (outMin, outMax) = ResolveMappedRange(_cfg);
         v = outMin + v * (outMax - outMin);
 
         return Math.Clamp(v, 0f, 1f);
@@ -83,6 +81,23 @@ public sealed class SignalProcessor
         CurveType.SCurve  => v < 0.5f ? 2f * v * v : 1f - 2f * (1f - v) * (1f - v),
         _                 => v,  // Linear
     };
+
+    private static (float Min, float Max) ResolveMappedRange(SignalConfig config)
+    {
+        if (config.MappedMin.HasValue || config.MappedMax.HasValue)
+        {
+            var mappedMin = Math.Clamp(config.MappedMin ?? 0, 0, 999);
+            var mappedMax = Math.Clamp(config.MappedMax ?? 999, 0, 999);
+            if (mappedMin > mappedMax)
+                (mappedMin, mappedMax) = (mappedMax, mappedMin);
+
+            return (mappedMin / 1000f, mappedMax / 1000f);
+        }
+
+        var legacyMin = Math.Clamp(config.OutputMin, 0f, 1f);
+        var legacyMax = Math.Clamp(config.OutputMax, legacyMin, 1f);
+        return (legacyMin, legacyMax);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -102,8 +117,11 @@ public sealed class SignalFusion
     private static float FuseMax(float current, float candidate) =>
         candidate > current ? candidate : current;
 
-    /// <summary>Called each frame with all processed signal values indexed by role.</summary>
-    public DeviceCommand Fuse(IReadOnlyList<(SignalRole role, float value)> signals, double deltaMs)
+    /// <summary>
+    /// Builds an axis patch containing only roles that are actually present in the input set.
+    /// This allows OSC to control a subset of axes without pulling the rest back to defaults.
+    /// </summary>
+    public DeviceAxisPatch FusePatch(IReadOnlyList<(SignalRole role, float value)> signals)
     {
         float depth   = 0f;
         float angleX  = 0.5f;
@@ -111,66 +129,88 @@ public sealed class SignalFusion
         float twist   = 0.5f;
         float surge   = 0.5f;
         float sway    = 0.5f;
-        float v0 = 0f;
-        float v1 = 0f;
-        float v2 = 0f;
-        float aux = 0.5f;
+        float v0      = 0f;
+        float v1      = 0f;
+        float v2      = 0f;
+        float aux     = 0.5f;
+
+        var hasDepth  = false;
+        var hasAngleX = false;
+        var hasAngleY = false;
+        var hasTwist  = false;
+        var hasSurge  = false;
+        var hasSway   = false;
+        var hasV0     = false;
+        var hasV1     = false;
+        var hasV2     = false;
+        var hasAux    = false;
 
         foreach (var (role, value) in signals)
         {
             switch (role)
             {
                 case SignalRole.Depth:
+                    hasDepth = true;
                     depth = FuseMax(depth, value);
                     break;
                 case SignalRole.AngleX:
+                    hasAngleX = true;
                     angleX = FuseCentered(angleX, value);
                     break;
                 case SignalRole.AngleY:
+                    hasAngleY = true;
                     angleY = FuseCentered(angleY, value);
                     break;
                 case SignalRole.Twist:
+                    hasTwist = true;
                     twist = FuseCentered(twist, value);
                     break;
                 case SignalRole.Surge:
+                    hasSurge = true;
                     surge = FuseCentered(surge, value);
                     break;
                 case SignalRole.Sway:
+                    hasSway = true;
                     sway = FuseCentered(sway, value);
                     break;
                 case SignalRole.V0:
+                    hasV0 = true;
                     v0 = FuseMax(v0, value);
                     break;
                 case SignalRole.V1:
+                    hasV1 = true;
                     v1 = FuseMax(v1, value);
                     break;
                 case SignalRole.V2:
+                    hasV2 = true;
                     v2 = FuseMax(v2, value);
                     break;
                 case SignalRole.Auxiliary:
+                    hasAux = true;
                     aux = FuseCentered(aux, value);
                     break;
             }
         }
 
-        // Rotation and linear-offset axes are centred at 0.5.
-        // Input signals [0,1] are scaled to half-range so 0→0.5 and 1→1.0.
-        // Negative (opposite-direction) deflection requires configuring a second
-        // signal with Invert=true for that axis.
-        return new DeviceCommand
-        {
-            L0       = depth,
-            R0       = 0.5f + angleX * 0.5f,
-            R1       = 0.5f + angleY * 0.5f,
-            R2       = 0.5f + twist  * 0.5f,
-            L1       = 0.5f + surge  * 0.5f,
-            L2       = 0.5f + sway   * 0.5f,
-            V0       = v0,
-            V1       = v1,
-            V2       = v2,
-            A0       = aux,
-            DeltaMs  = deltaMs,
-        };
+        var patch = new DeviceAxisPatch();
+        if (hasDepth) patch.Set(DeviceAxis.L0, depth);
+        if (hasSurge) patch.Set(DeviceAxis.L1, surge);
+        if (hasSway) patch.Set(DeviceAxis.L2, sway);
+        if (hasAngleX) patch.Set(DeviceAxis.R1, angleX);
+        if (hasAngleY) patch.Set(DeviceAxis.R2, angleY);
+        if (hasTwist) patch.Set(DeviceAxis.R0, twist);
+        if (hasV0) patch.Set(DeviceAxis.V0, v0);
+        if (hasV1) patch.Set(DeviceAxis.V1, v1);
+        if (hasV2) patch.Set(DeviceAxis.V2, v2);
+        if (hasAux) patch.Set(DeviceAxis.A0, aux);
+        return patch;
+    }
+
+    /// <summary>Legacy full-command fusion, now implemented via patch application on a neutral pose.</summary>
+    public DeviceCommand Fuse(IReadOnlyList<(SignalRole role, float value)> signals, double deltaMs)
+    {
+        var patch = FusePatch(signals);
+        return DeviceAxisHelpers.ApplyPatch(DeviceAxisHelpers.CreateNeutralCommand(deltaMs), patch, deltaMs);
     }
 
     private static float Max(float a, float b) => a > b ? a : b;
@@ -182,51 +222,46 @@ public sealed class SignalFusion
 
 public sealed class VelocityEstimator
 {
-    private const float TCodeMagnitudeScale = 10000f;
-    private const float HundredMillisecondsPerSecond = 10f;
-
     private float _lastPos    = 0.5f;
-    private long  _lastTimeMs = -1;  // -1 = not yet initialised
+    private bool  _hasLastPos;
 
     /// <summary>
-    /// Call each update with the new normalised position [0,1].
-    /// Returns a TCode S-term magnitude clamped to maxVelocity.
-    /// TCode speed is expressed in magnitude units per 100 ms, not normalised units per second.
-    /// Returns 0 on the first call.
+    /// Call on each emitted command with the new normalised position [0,1] and the elapsed time since
+    /// the last emitted command.
+    ///
+    /// Uses the same scale as OSR-VRChat / common TCode tooling: normalised delta converted to a
+    /// 0-1000 axis magnitude and divided by elapsed seconds.
     /// </summary>
-    public int Estimate(float newPos, int maxVelocity = 2000)
+    public int Estimate(float newPos, double deltaMs, int maxVelocity = 2000)
     {
-        long now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-
-        // First call: record baseline, return 0 (no prior data)
-        if (_lastTimeMs < 0)
+        if (!_hasLastPos)
         {
             _lastPos    = newPos;
-            _lastTimeMs = now;
+            _hasLastPos = true;
             return 0;
         }
 
-        long dt = now - _lastTimeMs;
-        if (dt < 1) dt = 1;
+        var dtMs = Math.Max(deltaMs, 1d);
+        var deltaPos = Math.Abs(newPos - _lastPos);
+        var velocity = (deltaPos * 1000d) / (dtMs / 1000d);
 
-        float deltaPos = newPos - _lastPos;
-        float velocity = Math.Abs(deltaPos)
-            * TCodeMagnitudeScale
-            * HundredMillisecondsPerSecond
-            / dt;
-
-        _lastPos    = newPos;
-        _lastTimeMs = now;
+        _lastPos = newPos;
 
         if (velocity <= 0f) return 0;
 
-        return (int)Math.Min(MathF.Ceiling(velocity), maxVelocity);
+        return (int)Math.Min(Math.Ceiling(velocity), maxVelocity);
     }
 
     public void Reset(float pos = 0.5f)
     {
         _lastPos    = pos;
-        _lastTimeMs = -1;  // will re-initialise on next Estimate() call
+        _hasLastPos = false;
+    }
+
+    public void Sync(float pos)
+    {
+        _lastPos = pos;
+        _hasLastPos = true;
     }
 }
 

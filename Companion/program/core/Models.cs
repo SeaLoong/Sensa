@@ -47,10 +47,11 @@ public sealed class ParameterStore
     {
         var ts = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         _store[path] = new Entry(value, ts);
-    OnSet?.Invoke(path, value);
-}
+        OnSet?.Invoke(path, value);
+    }
 
-public event Action<string, OscValue>? OnSet;
+    public event Action<string, OscValue>? OnSet;
+
     /// <summary>
     /// Try to read the latest parameter matching an exact OSC path or a simple
     /// trailing-wildcard pattern such as <c>OGB/Pen/*</c>.
@@ -87,15 +88,12 @@ public event Action<string, OscValue>? OnSet;
         if (!hasGlob)
             return false;
 
-        // Split pattern into segments
-        var patternSegs = pathOrPattern.Split('/');
         var found = false;
         var latestTimestampMs = long.MinValue;
 
         foreach (var (path, current) in _store)
         {
-            var pathSegs = path.Split('/');
-            if (!GlobMatch(patternSegs, pathSegs))
+            if (!MatchesPathPattern(pathOrPattern, path))
                 continue;
 
             if (found && current.TimestampMs <= latestTimestampMs)
@@ -108,6 +106,20 @@ public event Action<string, OscValue>? OnSet;
         }
 
         return found;
+    }
+
+    /// <summary>Checks whether an OSC path matches an exact path or glob pattern.</summary>
+    public static bool MatchesPathPattern(string pathOrPattern, string actualPath)
+    {
+        if (string.IsNullOrWhiteSpace(pathOrPattern) || string.IsNullOrWhiteSpace(actualPath))
+            return false;
+
+        if (!pathOrPattern.Contains('*'))
+            return string.Equals(pathOrPattern, actualPath, StringComparison.Ordinal);
+
+        var patternSegs = pathOrPattern.Split('/');
+        var pathSegs = actualPath.Split('/');
+        return GlobMatch(patternSegs, pathSegs);
     }
 
     /// <summary>Glob-style path segment matching. * matches any single segment; ** matches zero or more segments.</summary>
@@ -160,16 +172,16 @@ public record DeviceCommand
     /// <summary>L0 axis: main stroke position [0,1].</summary>
     public float L0 { get; init; }
 
-    /// <summary>R0 axis: roll (left/right tilt) [0,1] (0.5 = centre).</summary>
+    /// <summary>R0 axis: twist around L0 [0,1] (0.5 = centre).</summary>
     public float R0 { get; init; } = 0.5f;
 
-    /// <summary>R1 axis: pitch (forward/back tilt) [0,1] (0.5 = centre).</summary>
+    /// <summary>R1 axis: roll around L1 [0,1] (0.5 = centre).</summary>
     public float R1 { get; init; } = 0.5f;
 
-    /// <summary>R2 axis: twist (tube rotation around insertion axis) [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
+    /// <summary>R2 axis: pitch around L2 [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
     public float R2 { get; init; } = 0.5f;
 
-    /// <summary>L1 axis: surge (forward/back linear) [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
+    /// <summary>L1 axis: surge (front/back linear; in current TCode UI convention higher values move toward back) [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
     public float L1 { get; init; } = 0.5f;
 
     /// <summary>L2 axis: sway (left/right linear) [0,1] (0.5 = centre). SR6/OSR6 only.</summary>
@@ -190,6 +202,12 @@ public record DeviceCommand
     /// <summary>Elapsed milliseconds since last command (used by transmitters for timing).</summary>
     public double DeltaMs { get; init; }
 
+    /// <summary>
+    /// When true, output layers should drive changed axes using the configured maximum speed
+    /// (or derive an equivalent time interval when emitting I-commands).
+    /// </summary>
+    public bool UseMaxSpeed { get; init; }
+
     public static readonly DeviceCommand Zero = new();
 }
 
@@ -207,7 +225,7 @@ public sealed class SignalConfig
     public float VrchatMin { get; set; } = 0f;
     public float VrchatMax { get; set; } = 1f;
 
-    // Smoothing
+    // EMA smoothing (alpha). Example: 0.4 => 40% new sample + 60% previous output.
     public float SmoothingAlpha { get; set; } = 0.7f;
     public float DeadZone       { get; set; } = 0.01f;
 
@@ -215,11 +233,15 @@ public sealed class SignalConfig
     public CurveType  Curve { get; set; } = CurveType.Linear;
     public SignalRole Role  { get; set; } = SignalRole.Depth;
 
-    // Output range remap [0,1] → [OutputMin, OutputMax]. (default 0/1 = full range)
-    // Allows splitting an axis into segments driven by different OSC parameters.
-    // E.g. AngleRight_Raw maps to [0.5, 1.0], AngleLeft_Raw maps to [0.0, 0.5].
+    // Legacy output range remap [0,1] → [OutputMin, OutputMax].
+    // Kept for backwards compatibility with older saved configs.
     public float OutputMin { get; set; } = 0f;
     public float OutputMax { get; set; } = 1f;
+
+    // Preferred mapped output positions [0,999]. When set, these override OutputMin/OutputMax.
+    // Allows directly placing OSC input onto final device positions.
+    public int? MappedMin { get; set; }
+    public int? MappedMax { get; set; }
 
     // Auto-detected flags (set by OSC path scanner)
     public bool IsOgbSocket { get; set; } = false;
@@ -233,10 +255,10 @@ public sealed class SignalConfig
 public enum SignalRole
 {
     Depth,
-    AngleX,   // → R0 (roll)
-    AngleY,   // → R1 (pitch)
-    Twist,    // → R2 (tube twist)
-    Surge,    // → L1 (forward/back)
+    AngleX,   // → R1 (roll)
+    AngleY,   // → R2 (pitch)
+    Twist,    // → R0 (twist / yaw)
+    Surge,    // → L1 (front/back, higher values = back)
     Sway,     // → L2 (left/right)
     V0,       // main vibration (TCode V0)
     V1,       // second vibration (TCode V1)

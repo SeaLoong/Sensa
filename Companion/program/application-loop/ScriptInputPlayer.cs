@@ -28,6 +28,7 @@ public sealed record ScriptInputSnapshot(
 public sealed class ScriptInputPlayer
 {
     private readonly object _gate = new();
+    private Timer? _playbackTimer;
 
     private List<ScriptInputAction> _actions = new();
     private string _fileName = string.Empty;
@@ -40,14 +41,19 @@ public sealed class ScriptInputPlayer
     private float _lastL0;
     private string _state = "empty";
 
+    public event Action<float>? OnFrame;
+    public event Action? OnStateChanged;
+
     public ScriptInputSnapshot Load(string fileName, Stream stream)
     {
         ArgumentNullException.ThrowIfNull(stream);
 
         var parsed = ParseFunscript(stream);
+        ScriptInputSnapshot snapshot;
 
         lock (_gate)
         {
+            StopPlaybackTimerLocked();
             _actions = parsed.Actions;
             _fileName = string.IsNullOrWhiteSpace(fileName) ? "script.funscript" : fileName;
             _durationMs = parsed.DurationMs;
@@ -56,12 +62,16 @@ public sealed class ScriptInputPlayer
             _playing = false;
             _lastL0 = _actions.Count > 0 ? _actions[0].Pos01 : 0f;
             _state = "stopped";
-            return BuildSnapshotLocked();
+            snapshot = BuildSnapshotLocked();
         }
+
+        OnStateChanged?.Invoke();
+        return snapshot;
     }
 
     public ScriptInputSnapshot Configure(bool? loop = null, double? speed = null)
     {
+        ScriptInputSnapshot snapshot;
         lock (_gate)
         {
             var now = Environment.TickCount64;
@@ -76,12 +86,17 @@ public sealed class ScriptInputPlayer
             if (_playing)
                 _resumeStartedAtMs = now;
 
-            return BuildSnapshotLocked();
+            snapshot = BuildSnapshotLocked();
         }
+
+        OnStateChanged?.Invoke();
+        return snapshot;
     }
 
     public ScriptInputSnapshot Play(bool restart = false, bool? loop = null, double? speed = null)
     {
+        ScriptInputSnapshot snapshot;
+        float currentL0;
         lock (_gate)
         {
             if (_actions.Count == 0)
@@ -103,17 +118,25 @@ public sealed class ScriptInputPlayer
             _playing = true;
             _lastL0 = SampleAtLocked(_resumePositionMs);
             _state = "playing";
+            EnsurePlaybackTimerLocked();
 
-            return BuildSnapshotLocked();
+            snapshot = BuildSnapshotLocked();
+            currentL0 = _lastL0;
         }
+
+        OnFrame?.Invoke(currentL0);
+        OnStateChanged?.Invoke();
+        return snapshot;
     }
 
     public ScriptInputSnapshot Pause()
     {
+        ScriptInputSnapshot snapshot;
         lock (_gate)
         {
             AdvanceLocked(Environment.TickCount64);
             _playing = false;
+            StopPlaybackTimerLocked();
 
             if (_actions.Count == 0)
             {
@@ -124,21 +147,29 @@ public sealed class ScriptInputPlayer
                 _state = _resumePositionMs > 0 ? "paused" : "stopped";
             }
 
-            return BuildSnapshotLocked();
+            snapshot = BuildSnapshotLocked();
         }
+
+        OnStateChanged?.Invoke();
+        return snapshot;
     }
 
     public ScriptInputSnapshot Stop()
     {
+        ScriptInputSnapshot snapshot;
         lock (_gate)
         {
+            StopPlaybackTimerLocked();
             _playing = false;
             _resumePositionMs = 0;
             _resumeStartedAtMs = 0;
             _lastL0 = 0f;
             _state = _actions.Count == 0 ? "empty" : "stopped";
-            return BuildSnapshotLocked();
+            snapshot = BuildSnapshotLocked();
         }
+
+        OnStateChanged?.Invoke();
+        return snapshot;
     }
 
     public ScriptInputSnapshot GetSnapshot()
@@ -165,6 +196,38 @@ public sealed class ScriptInputPlayer
                 DeltaMs = deltaMs,
             };
         }
+    }
+
+    private void HandlePlaybackTick()
+    {
+        float currentL0;
+        bool shouldEmit;
+
+        lock (_gate)
+        {
+            AdvanceLocked(Environment.TickCount64);
+            shouldEmit = _playing && _actions.Count > 0;
+            currentL0 = _lastL0;
+
+            if (!shouldEmit)
+                StopPlaybackTimerLocked();
+        }
+
+        if (shouldEmit)
+            OnFrame?.Invoke(currentL0);
+
+        OnStateChanged?.Invoke();
+    }
+
+    private void EnsurePlaybackTimerLocked()
+    {
+        _playbackTimer ??= new Timer(_ => HandlePlaybackTick(), null, 20, 20);
+        _playbackTimer.Change(20, 20);
+    }
+
+    private void StopPlaybackTimerLocked()
+    {
+        _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite);
     }
 
     private ScriptInputSnapshot BuildSnapshotLocked()
@@ -300,6 +363,11 @@ public sealed class ScriptInputPlayer
 
         actions.Sort(static (left, right) => left.AtMs.CompareTo(right.AtMs));
         return new ParsedScript(actions, Math.Max(actions[^1].AtMs, 1L));
+    }
+
+    ~ScriptInputPlayer()
+    {
+        _playbackTimer?.Dispose();
     }
 
     private sealed record ParsedScript(List<ScriptInputAction> Actions, long DurationMs);

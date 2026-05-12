@@ -2,6 +2,7 @@
 using System.IO.Ports;
 using System.Management;
 using System.Net.WebSockets;
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -14,7 +15,6 @@ using Sensa.Core;
 using Sensa.ServiceRecording;
 using Sensa.TransmitIntiface;
 using Sensa.TransmitTCode;
-using Sensa.UiActions;
 
 // Sensa is Windows-only (WMI + Registry for serial port enumeration)
 #pragma warning disable CA1416
@@ -56,15 +56,13 @@ var paramStore  = new ParameterStore();
 var oscReceiver = new OscReceiver(paramStore, save.Osc.ReceiverHost, save.Osc.ReceiverPort);
 var recorder    = new RecordingBuffer();
 var scriptInput = new ScriptInputPlayer();
-var uiActions   = new UiActionQueue();
 
-var outputManager = new OutputRuntimeManager(save, Log, LogError);
+var outputManager = new OutputRuntimeManager(save, Log, LogDebug, LogError);
 
 var routine = new Routine(
     save,
     paramStore,
     oscReceiver,
-    uiActions,
     recorder: recorder,
     scriptInput: scriptInput,
     sendOutputsAsync: outputManager.SendAsync,
@@ -72,23 +70,116 @@ var routine = new Routine(
 routine.OnLog += Log;
 routine.OnDebugLog += (msg) => LogEntry(msg, LogLevel.Debug);
 
-async Task RunOnLoopAsync(Action action)
+var wsClients = new ConcurrentDictionary<string, WebSocketClientState>();
+var wsShutdown = new CancellationTokenSource();
+
+object BuildStateEnvelope() => new
 {
-    var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-    uiActions.Enqueue(() =>
-    {
-        try
-        {
-            action();
-            tcs.SetResult();
-        }
-        catch (Exception ex)
-        {
-            tcs.SetException(ex);
-        }
-    });
-    await tcs.Task;
+    type = "state",
+    data = BuildOverviewSnapshot(),
+    logs = logBuffer.Snapshot(50),
+};
+
+void RemoveWsClient(string clientId)
+{
+    if (wsClients.TryRemove(clientId, out var client))
+        client.RequestStop();
 }
+
+async Task CloseWsSocketAsync(WebSocketClientState client, WebSocketCloseStatus status, string description, bool abortAfterClose = false)
+{
+    client.RequestStop();
+
+    try
+    {
+        using var timeout = new CancellationTokenSource(abortAfterClose ? TimeSpan.FromMilliseconds(200) : TimeSpan.FromMilliseconds(1000));
+
+        switch (client.Socket.State)
+        {
+            case WebSocketState.Open when abortAfterClose:
+                await client.Socket.CloseOutputAsync(status, description, timeout.Token).ConfigureAwait(false);
+                break;
+            case WebSocketState.Open:
+            case WebSocketState.CloseReceived:
+                await client.Socket.CloseAsync(status, description, timeout.Token).ConfigureAwait(false);
+                break;
+        }
+    }
+    catch { }
+
+    if (abortAfterClose && client.Socket.State is not (WebSocketState.Closed or WebSocketState.None or WebSocketState.Aborted))
+    {
+        try { client.Socket.Abort(); } catch { }
+    }
+}
+
+async Task CloseWsClientAsync(string clientId, WebSocketClientState client, WebSocketCloseStatus status, string description, bool abortAfterClose = false)
+{
+    if (!wsClients.TryRemove(clientId, out _))
+        return;
+
+    await CloseWsSocketAsync(client, status, description, abortAfterClose).ConfigureAwait(false);
+}
+
+async Task CloseAllWsClientsAsync(WebSocketCloseStatus status, string description, bool abortAfterClose = false)
+{
+    wsShutdown.Cancel();
+
+    var snapshot = wsClients.ToArray();
+    if (snapshot.Length == 0)
+        return;
+
+    await Task.WhenAll(snapshot.Select(entry => CloseWsClientAsync(entry.Key, entry.Value, status, description, abortAfterClose))).ConfigureAwait(false);
+}
+
+void QueueClientStatePush(string clientId)
+{
+    if (!wsClients.TryGetValue(clientId, out var client))
+        return;
+
+    client.MarkPending();
+    _ = FlushClientStateAsync(clientId, client);
+}
+
+async Task FlushClientStateAsync(string clientId, WebSocketClientState client)
+{
+    if (!await client.Gate.WaitAsync(0))
+        return;
+
+    try
+    {
+        while (client.ConsumePending())
+        {
+            if (client.IsStopRequested || client.Socket.State != WebSocketState.Open)
+            {
+                RemoveWsClient(clientId);
+                return;
+            }
+
+            var payloadJson = JsonSerializer.Serialize(BuildStateEnvelope(), wsJsonOptions);
+            var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
+            await client.Socket.SendAsync(payloadBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
+        }
+    }
+    catch
+    {
+        RemoveWsClient(clientId);
+    }
+    finally
+    {
+        client.Gate.Release();
+    }
+}
+
+void NotifyStateChanged()
+{
+    foreach (var clientId in wsClients.Keys)
+        QueueClientStatePush(clientId);
+}
+
+routine.StateChanged += NotifyStateChanged;
+outputManager.StateChanged += NotifyStateChanged;
+logBuffer.EntryAdded += _ => NotifyStateChanged();
 
 Task<bool> ConnectTCodeAsync()
 {
@@ -335,6 +426,8 @@ static bool ReadBoolOrDefault(string? raw, bool fallback) =>
 static double ReadDoubleOrDefault(string? raw, double fallback) =>
     double.TryParse(raw, out var parsed) ? parsed : fallback;
 
+static float NormalizeManualInputValue(int raw) => Math.Clamp(raw, 0, 999) / 1000f;
+
 static string FormatOscPreviewValue(OscValue value) =>
     value.Type switch
     {
@@ -360,7 +453,10 @@ app.UseStaticFiles(new StaticFileOptions
         }
     },
 });
-app.UseWebSockets();
+app.UseWebSockets(new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromSeconds(10),
+});
 
 app.MapGet("/api/meta/serial-ports", () => Results.Ok(BuildSerialPortList()));
 app.MapGet("/api/config", () => Results.Ok(save));
@@ -371,11 +467,12 @@ app.MapPut("/api/config", async (SaveFile incoming) =>
 
     try
     {
-        await RunOnLoopAsync(() =>
-        {
-            save.CopyFrom(incoming);
-            routine.RebuildProcessors();
-        });
+        var candidate = new SaveFile();
+        candidate.CopyFrom(incoming);
+        candidate.ValidateUniqueOutputTargets();
+
+        save.CopyFrom(candidate);
+        routine.RebuildProcessors();
 
         if (!string.Equals(previousOscHost, save.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
             || previousOscPort != save.Osc.ReceiverPort)
@@ -398,6 +495,7 @@ app.MapPut("/api/config", async (SaveFile incoming) =>
         await outputManager.ConnectEnabledAsync();
         save.Save();
         Log("[Config] Updated from WebUI.");
+        NotifyStateChanged();
         return Results.Ok(save);
     }
     catch (Exception ex)
@@ -438,23 +536,23 @@ app.MapPut("/api/input/manual", (ManualInputRequest request) =>
 {
     var cmd = new DeviceCommand
     {
-        L0 = Math.Clamp(request.L0, 0f, 1f),
-        R0 = Math.Clamp(request.R0, 0f, 1f),
-        R1 = Math.Clamp(request.R1, 0f, 1f),
-        R2 = Math.Clamp(request.R2, 0f, 1f),
-        L1 = Math.Clamp(request.L1, 0f, 1f),
-        L2 = Math.Clamp(request.L2, 0f, 1f),
-        V0 = Math.Clamp(request.V0, 0f, 1f),
-        V1 = Math.Clamp(request.V1, 0f, 1f),
-        V2 = Math.Clamp(request.V2, 0f, 1f),
-        A0 = Math.Clamp(request.A0, 0f, 1f),
+        L0 = NormalizeManualInputValue(request.L0),
+        R0 = NormalizeManualInputValue(request.R0),
+        R1 = NormalizeManualInputValue(request.R1),
+        R2 = NormalizeManualInputValue(request.R2),
+        L1 = NormalizeManualInputValue(request.L1),
+        L2 = NormalizeManualInputValue(request.L2),
+        V0 = NormalizeManualInputValue(request.V0),
+        V1 = NormalizeManualInputValue(request.V1),
+        V2 = NormalizeManualInputValue(request.V2),
+        A0 = NormalizeManualInputValue(request.A0),
     };
 
     if (request.Enabled)
     {
         routine.SetManualOverride(cmd);
         routine.SetInputMode(InputMode.Manual);
-        LogDebug($"[Input/Manual] HTTP L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2}");
+        LogDebug($"[Input/Manual] HTTP raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0}");
     }
     else
     {
@@ -694,39 +792,25 @@ app.Map("/api/ws", async context =>
         return;
     }
 
-    using var socket = await context.WebSockets.AcceptWebSocketAsync();
-    var buffer = new byte[16384];
-    var stateCts = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted);
-
-    // Background task: push state every ~100ms (approx loop rate)
-    var pushTask = Task.Run(async () =>
+    if (wsShutdown.IsCancellationRequested)
     {
-        while (!stateCts.Token.IsCancellationRequested && socket.State == WebSocketState.Open)
-        {
-            try
-            {
-                var snapshotJson = JsonSerializer.Serialize(new
-                {
-                    type = "state",
-                    data = BuildOverviewSnapshot(),
-                    logs = logBuffer.Snapshot(50),
-                }, wsJsonOptions);
+        context.Response.StatusCode = StatusCodes.Status503ServiceUnavailable;
+        return;
+    }
 
-                var bytes = Encoding.UTF8.GetBytes(snapshotJson);
-                await socket.SendAsync(bytes, WebSocketMessageType.Text, true, stateCts.Token);
-                await Task.Delay(100, stateCts.Token);
-            }
-            catch (OperationCanceledException) { break; }
-            catch (Exception) { break; }
-        }
-    }, stateCts.Token);
+    using var socket = await context.WebSockets.AcceptWebSocketAsync();
+    var clientId = Guid.NewGuid().ToString("N");
+    var client = new WebSocketClientState(socket, context.RequestAborted, wsShutdown.Token);
+    wsClients[clientId] = client;
 
-    // Main loop: receive commands immediately
+    var buffer = new byte[16384];
+    QueueClientStatePush(clientId);
+
     try
     {
-        while (!context.RequestAborted.IsCancellationRequested && socket.State == WebSocketState.Open)
+        while (!client.ConnectionToken.IsCancellationRequested && socket.State == WebSocketState.Open)
         {
-            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), context.RequestAborted);
+            var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), client.ConnectionToken);
             if (result.MessageType == WebSocketMessageType.Close) break;
 
             if (result.MessageType == WebSocketMessageType.Text)
@@ -736,31 +820,36 @@ app.Map("/api/ws", async context =>
                     var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
                     var response = await HandleWebSocketCommand(json);
                     var respBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, wsJsonOptions));
-                    await socket.SendAsync(respBytes, WebSocketMessageType.Text, true, context.RequestAborted);
+                    await socket.SendAsync(respBytes, WebSocketMessageType.Text, true, client.ConnectionToken);
                 }
                 catch (Exception ex)
                 {
                     var errBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { ok = false, error = ex.Message }, wsJsonOptions));
-                    await socket.SendAsync(errBytes, WebSocketMessageType.Text, true, context.RequestAborted);
+                    await socket.SendAsync(errBytes, WebSocketMessageType.Text, true, client.ConnectionToken);
                 }
             }
         }
     }
     catch (OperationCanceledException) { }
+    catch (WebSocketException)
+    {
+        // Browser refresh / abrupt disconnect.
+    }
     finally
     {
-        stateCts.Cancel();
-        try { await pushTask; } catch { }
-        stateCts.Dispose();
+        RemoveWsClient(clientId);
     }
 
-    if (socket.State == WebSocketState.Open)
-        await socket.CloseAsync(WebSocketCloseStatus.NormalClosure, "Closing", CancellationToken.None);
+    await CloseWsSocketAsync(
+        client,
+        wsShutdown.IsCancellationRequested ? WebSocketCloseStatus.EndpointUnavailable : WebSocketCloseStatus.NormalClosure,
+        wsShutdown.IsCancellationRequested ? "Service shutting down" : "Closing").ConfigureAwait(false);
 });
 
 app.Lifetime.ApplicationStopping.Register(() =>
 {
     Log("[Sensa] Shutting down…");
+    CloseAllWsClientsAsync(WebSocketCloseStatus.EndpointUnavailable, "Service shutting down", abortAfterClose: true).GetAwaiter().GetResult();
     recorder.Stop();
     outputManager.DisposeAsync().AsTask().GetAwaiter().GetResult();
     oscReceiver.Stop();
@@ -773,6 +862,7 @@ oscReceiver.Start();
 Log($"[OSC] Listening on {save.Osc.ReceiverHost}:{save.Osc.ReceiverPort}");
 
 await outputManager.ConnectEnabledAsync();
+NotifyStateChanged();
 
 Log($"[WebUI] Available at {uiUrl}");
 
@@ -823,9 +913,22 @@ async Task<object> HandleWebSocketCommand(string json)
                     var updated = JsonSerializer.Deserialize<SaveFile>(body.GetRawText(), wsJsonOptions);
                     if (updated is not null)
                     {
+                        var previousOscHost = save.Osc.ReceiverHost;
+                        var previousOscPort = save.Osc.ReceiverPort;
                         save.CopyFrom(updated);
                         save.Save();
                         routine.RebuildProcessors();
+
+                        if (!string.Equals(previousOscHost, save.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
+                            || previousOscPort != save.Osc.ReceiverPort)
+                        {
+                            oscReceiver.Reconfigure(save.Osc.ReceiverHost, save.Osc.ReceiverPort);
+                            Log($"[OSC] Listening on {save.Osc.ReceiverHost}:{save.Osc.ReceiverPort}");
+                        }
+
+                        await outputManager.ReloadAsync();
+                        await outputManager.ConnectEnabledAsync();
+                        NotifyStateChanged();
                         result = save;
                     }
                 }
@@ -856,27 +959,28 @@ async Task<object> HandleWebSocketCommand(string json)
                     {
                         var cmd = new DeviceCommand
                         {
-                            L0 = Math.Clamp(request.L0, 0f, 1f),
-                            R0 = Math.Clamp(request.R0, 0f, 1f),
-                            R1 = Math.Clamp(request.R1, 0f, 1f),
-                            R2 = Math.Clamp(request.R2, 0f, 1f),
-                            L1 = Math.Clamp(request.L1, 0f, 1f),
-                            L2 = Math.Clamp(request.L2, 0f, 1f),
-                            V0 = Math.Clamp(request.V0, 0f, 1f),
-                            V1 = Math.Clamp(request.V1, 0f, 1f),
-                            V2 = Math.Clamp(request.V2, 0f, 1f),
-                            A0 = Math.Clamp(request.A0, 0f, 1f),
+                            L0 = NormalizeManualInputValue(request.L0),
+                            R0 = NormalizeManualInputValue(request.R0),
+                            R1 = NormalizeManualInputValue(request.R1),
+                            R2 = NormalizeManualInputValue(request.R2),
+                            L1 = NormalizeManualInputValue(request.L1),
+                            L2 = NormalizeManualInputValue(request.L2),
+                            V0 = NormalizeManualInputValue(request.V0),
+                            V1 = NormalizeManualInputValue(request.V1),
+                            V2 = NormalizeManualInputValue(request.V2),
+                            A0 = NormalizeManualInputValue(request.A0),
                         };
                         if (request.Enabled)
                         {
                             routine.SetManualOverride(cmd);
                             routine.SetInputMode(InputMode.Manual);
-                            LogDebug($"[Input/Manual] L0={cmd.L0:F2} R0={cmd.R0:F2} R1={cmd.R1:F2} R2={cmd.R2:F2} L1={cmd.L1:F2} L2={cmd.L2:F2} V0={cmd.V0:F2} V1={cmd.V1:F2} V2={cmd.V2:F2} A0={cmd.A0:F2}");
+                            LogDebug($"[Input/Manual] WS raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0}");
                         }
                         else
                             routine.ClearManualOverride();
 
                         result = new { inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant(), command = routine.ManualOverrideCommand };
+                        NotifyStateChanged();
                     }
                 }
                 break;
@@ -885,17 +989,20 @@ async Task<object> HandleWebSocketCommand(string json)
             {
                 routine.ClearManualOverride();
                 result = new { inputMode = routine.CurrentInputMode.ToString().ToLowerInvariant() };
+                NotifyStateChanged();
                 break;
             }
 
             // ── Emergency ─────────────────────────────────────
             case "/api/control/loop/emergency-stop" when method == "POST":
                 routine.EmergencyStop();
+                NotifyStateChanged();
                 result = new { routine.IsEmergency };
                 break;
 
             case "/api/control/loop/clear-emergency" when method == "POST":
                 routine.ClearEmergency();
+                NotifyStateChanged();
                 result = new { routine.IsEmergency };
                 break;
 
@@ -906,6 +1013,7 @@ async Task<object> HandleWebSocketCommand(string json)
                 {
                     var active = actEl.GetBoolean();
                     routine.SetInputActive(active);
+                    NotifyStateChanged();
                     result = new { active = routine.InputActive };
                 }
                 break;
@@ -918,6 +1026,7 @@ async Task<object> HandleWebSocketCommand(string json)
                     if (Enum.TryParse<InputMode>(modeStr, ignoreCase: true, out var mode))
                     {
                         routine.SetInputMode(mode);
+                        NotifyStateChanged();
                         result = new { mode = routine.CurrentInputMode.ToString().ToLowerInvariant() };
                     }
                 }
@@ -940,9 +1049,20 @@ async Task<object> HandleWebSocketCommand(string json)
                         await DisconnectOutputAsync(outputId);
                         return new { connected = outputManager.IsConnected(outputId) };
                     }),
+                    "scan-start" => await HandleOutputAction(outputId, async () =>
+                    {
+                        await outputManager.StartScanAsync(outputId);
+                        return new { ok = true, outputId };
+                    }),
+                    "scan-stop" => await HandleOutputAction(outputId, async () =>
+                    {
+                        await outputManager.StopScanAsync(outputId);
+                        return new { ok = true, outputId };
+                    }),
                     _ => null
                 };
                 if (result is null) ok = false;
+                else NotifyStateChanged();
                 break;
             }
 
@@ -963,13 +1083,13 @@ async Task<object> HandleWebSocketCommand(string json)
 bool TryMatchOutputAction(string path, out string? outputId, out string? act)
 {
     outputId = null; act = null;
-    // /api/control/output/{id}/connect or /{id}/disconnect
+    // /api/control/output/{id}/connect | disconnect | scan-start | scan-stop
     var segs = path.Split('/');
     if (segs.Length >= 5 && segs[1] == "api" && segs[2] == "control" && segs[3] == "output")
     {
         outputId = segs[4];
         act = segs.Length >= 6 ? segs[5] : null;
-        return act == "connect" || act == "disconnect";
+        return act == "connect" || act == "disconnect" || act == "scan-start" || act == "scan-stop";
     }
     return false;
 }
@@ -987,18 +1107,48 @@ public sealed record InputActiveRequest(bool Active);
 
 public sealed record ManualInputRequest(
     bool Enabled,
-    float L0,
-    float R0,
-    float R1,
-    float R2,
-    float L1,
-    float L2,
-    float V0,
-    float V1,
-    float V2,
-    float A0);
+    int L0,
+    int R0,
+    int R1,
+    int R2,
+    int L1,
+    int L2,
+    int V0,
+    int V1,
+    int V2,
+    int A0);
 
 public sealed record ScriptPlaybackRequest(
     bool Restart,
     bool? Loop,
     double? Speed);
+
+file sealed class WebSocketClientState
+{
+    private readonly CancellationTokenSource _connectionCts;
+    private int _pending;
+    private int _stopRequested;
+
+    public WebSocketClientState(WebSocket socket, CancellationToken requestAborted, CancellationToken shutdownToken)
+    {
+        Socket = socket;
+        _connectionCts = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, shutdownToken);
+    }
+
+    public WebSocket Socket { get; }
+    public SemaphoreSlim Gate { get; } = new(1, 1);
+    public CancellationToken ConnectionToken => _connectionCts.Token;
+    public bool IsStopRequested => _connectionCts.IsCancellationRequested;
+
+    public void MarkPending() => Interlocked.Exchange(ref _pending, 1);
+
+    public bool ConsumePending() => Interlocked.Exchange(ref _pending, 0) == 1;
+
+    public void RequestStop()
+    {
+        if (Interlocked.Exchange(ref _stopRequested, 1) != 0)
+            return;
+
+        try { _connectionCts.Cancel(); } catch { }
+    }
+}

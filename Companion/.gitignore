@@ -1,3 +1,4 @@
 # .NET build outputs
 **/bin/
 **/obj/
+**/artifacts/

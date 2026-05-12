@@ -9,14 +9,18 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
 {
     private readonly SaveFile _save;
     private readonly Action<string> _log;
+    private readonly Action<string> _logDebug;
     private readonly Action<string> _logError;
     private readonly object _sync = new();
     private readonly Dictionary<string, OutputRuntimeEntry> _runtimes = new(StringComparer.OrdinalIgnoreCase);
 
-    public OutputRuntimeManager(SaveFile save, Action<string> log, Action<string> logError)
+    public event Action? StateChanged;
+
+    public OutputRuntimeManager(SaveFile save, Action<string> log, Action<string> logDebug, Action<string> logError)
     {
         _save = save;
         _log = log;
+        _logDebug = logDebug;
         _logError = logError;
         RebuildRuntimes();
     }
@@ -30,7 +34,7 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
             _runtimes.Clear();
             foreach (var output in _save.Outputs)
             {
-                _runtimes[output.Id] = new OutputRuntimeEntry(_save, output, _log, _logError);
+                _runtimes[output.Id] = new OutputRuntimeEntry(_save, output, _log, _logDebug, _logError, () => StateChanged?.Invoke());
             }
         }
 
@@ -49,7 +53,7 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
             _runtimes.Clear();
             foreach (var output in _save.Outputs)
             {
-                _runtimes[output.Id] = new OutputRuntimeEntry(_save, output, _log, _logError);
+                _runtimes[output.Id] = new OutputRuntimeEntry(_save, output, _log, _logDebug, _logError, () => StateChanged?.Invoke());
             }
         }
 
@@ -57,6 +61,8 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
         {
             await runtime.DisposeAsync();
         }
+
+        StateChanged?.Invoke();
     }
 
     public async Task ConnectEnabledAsync()
@@ -76,7 +82,9 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
         if (runtime is null)
             return false;
 
-        return await runtime.ConnectAsync();
+        var connected = await runtime.ConnectAsync();
+        StateChanged?.Invoke();
+        return connected;
     }
 
     public async Task DisconnectAsync(string outputId)
@@ -87,6 +95,8 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
 
         if (runtime is not null)
             await runtime.DisconnectAsync();
+
+        StateChanged?.Invoke();
     }
 
     public Task<bool> ConnectPrimaryAsync(OutputDeviceType type)
@@ -153,6 +163,8 @@ public sealed class OutputRuntimeManager : IAsyncDisposable
         {
             await runtime.EmergencyStopAsync();
         }
+
+        StateChanged?.Invoke();
     }
 
     public Task StartScanAsync(string outputId) =>
@@ -240,30 +252,37 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
     private readonly SaveFile _save;
     private readonly OutputDeviceConfig _output;
     private readonly Action<string> _log;
+    private readonly Action<string> _logDebug;
     private readonly Action<string> _logError;
+    private readonly Action? _notifyChanged;
     private readonly TCodeSerial? _serial;
     private readonly TCodeUdp? _udp;
     private readonly TCodeTcp? _tcp;
     private readonly IntifaceTransmitter? _intiface;
     private IntifaceEngineHost? _intifaceHost;
 
-    public OutputRuntimeEntry(SaveFile save, OutputDeviceConfig output, Action<string> log, Action<string> logError)
+    public OutputRuntimeEntry(SaveFile save, OutputDeviceConfig output, Action<string> log, Action<string> logDebug, Action<string> logError, Action? notifyChanged)
     {
         _save = save;
         _output = output;
         _log = log;
+        _logDebug = logDebug;
         _logError = logError;
+        _notifyChanged = notifyChanged;
 
         switch (_output.Type)
         {
             case OutputDeviceType.TCodeSerial:
                 _serial = new TCodeSerial(_output, () => _save.ResolveMotionProfile(_output.MotionProfileId));
+                _serial.OnDebugLog += message => _logDebug($"[Output/TCodeSerial/{_output.Name}] {message}");
                 break;
             case OutputDeviceType.TCodeUdp:
                 _udp = new TCodeUdp(_output, () => _save.ResolveMotionProfile(_output.MotionProfileId));
+                _udp.OnDebugLog += message => _logDebug($"[Output/TCodeUdp/{_output.Name}] {message}");
                 break;
             case OutputDeviceType.TCodeTcp:
                 _tcp = new TCodeTcp(_output, () => _save.ResolveMotionProfile(_output.MotionProfileId));
+                _tcp.OnDebugLog += message => _logDebug($"[Output/TCodeTcp/{_output.Name}] {message}");
                 break;
             case OutputDeviceType.Intiface:
                 _intiface = new IntifaceTransmitter(new IntifaceConfig
@@ -274,6 +293,8 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
                     Port = _output.Port,
                 });
                 _intiface.OnLog += message => _log($"[Intiface/{_output.Name}] {message}");
+                _intiface.OnDebugLog += message => _logDebug($"[Output/Intiface/{_output.Name}] {message}");
+                _intiface.DevicesChanged += () => _notifyChanged?.Invoke();
                 break;
         }
     }
@@ -301,16 +322,19 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
                     _serial?.Connect();
                     _serial?.Center(); // slow return to centre after connect
                     _log($"[Output] 已连接 {Label}: {_output.ComPort}");
+                    _notifyChanged?.Invoke();
                     return _serial?.IsConnected == true;
                 case OutputDeviceType.TCodeUdp:
                     _udp?.Connect();
                     _udp?.Center();
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
+                    _notifyChanged?.Invoke();
                     return _udp?.IsConnected == true;
                 case OutputDeviceType.TCodeTcp:
                     _tcp?.Connect();
                     _tcp?.Center();
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
+                    _notifyChanged?.Invoke();
                     return _tcp?.IsConnected == true;
                 case OutputDeviceType.Intiface:
                     if (_output.ManageEngineProcess)
@@ -332,6 +356,7 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
                         await _intiface.ConnectAsync();
                     if (_intiface?.IsConnected == true)
                         _log($"[Output] 已连接 {Label}: {_output.WebsocketAddress}");
+                    _notifyChanged?.Invoke();
                     return _intiface?.IsConnected == true;
                 default:
                     return false;
@@ -366,6 +391,7 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
         }
 
         _log($"[Output] 已断开 {Label}");
+        _notifyChanged?.Invoke();
     }
 
     public Task SendAsync(DeviceCommand cmd)
@@ -417,15 +443,12 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
         switch (_output.Type)
         {
             case OutputDeviceType.TCodeSerial:
-                _serial?.Center();
                 _serial?.Dispose();
                 break;
             case OutputDeviceType.TCodeUdp:
-                _udp?.Center();
                 _udp?.Dispose();
                 break;
             case OutputDeviceType.TCodeTcp:
-                _tcp?.Center();
                 _tcp?.Dispose();
                 break;
             case OutputDeviceType.Intiface:
@@ -435,6 +458,8 @@ internal sealed class OutputRuntimeEntry : IAsyncDisposable
                 _intifaceHost = null;
                 break;
         }
+
+        _notifyChanged?.Invoke();
     }
 
     private string Label => $"{_output.Name} ({_output.Id})";

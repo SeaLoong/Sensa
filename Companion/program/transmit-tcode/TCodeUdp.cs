@@ -7,24 +7,21 @@ using Sensa.Core;
 namespace Sensa.TransmitTCode;
 
 /// <summary>
-/// Sends TCode commands over UDP (ASCII + newline).
-/// This is intended for network bridges or firmware that accepts TCode via UDP.
+/// Sends delta-only TCode commands over UDP.
 /// </summary>
 public sealed class TCodeUdp : IDisposable
 {
     private readonly SaveFile? _save;
     private readonly OutputDeviceConfig? _output;
     private readonly Func<TCodeMotionProfile>? _profileResolver;
+    private readonly Dictionary<DeviceAxis, VelocityEstimator> _velocity = DeviceAxisHelpers.All.ToDictionary(axis => axis, axis => new VelocityEstimator());
     private UdpClient? _client;
     private IPEndPoint? _remote;
-
-    private readonly VelocityEstimator _velL0 = new();
-    private readonly VelocityEstimator _velR0 = new();
-    private readonly VelocityEstimator _velR1 = new();
-    private readonly VelocityEstimator _velR2 = new();
-    private readonly VelocityEstimator _velL1 = new();
-    private readonly VelocityEstimator _velL2 = new();
+    private DeviceCommand? _lastSourcePose;
+    private DeviceCommand? _lastEffectivePose;
     private string? _lastLine;
+
+    public event Action<string>? OnDebugLog;
 
     public bool IsConnected => _client is not null && _remote is not null;
 
@@ -49,6 +46,7 @@ public sealed class TCodeUdp : IDisposable
 
         _remote = new IPEndPoint(addr, GetPort());
         _client = new UdpClient(addr.AddressFamily);
+        ResetEmitState();
         Console.WriteLine($"[TCode/UDP] Ready: {host}:{GetPort()}");
     }
 
@@ -57,21 +55,66 @@ public sealed class TCodeUdp : IDisposable
         _client?.Dispose();
         _client = null;
         _remote = null;
+        ResetEmitState();
     }
 
     public void Dispose() => Disconnect();
 
     public void Send(DeviceCommand cmd)
     {
-        if (!IsConnected) return;
-        var line = BuildLine(cmd);
-        if (line.Length == 0) return;
-        if (line == _lastLine) return; // unchanged — skip
+        if (!IsConnected)
+            return;
+
+        var (line, effectivePose) = BuildLine(cmd, forceAll: _lastEffectivePose is null);
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+        if (line == _lastLine)
+            return;
+
+        _lastEffectivePose = effectivePose;
+        _lastSourcePose = cmd;
         _lastLine = line;
+        SyncVelocityToPose(effectivePose);
+        SendRaw(line + "\n");
+        OnDebugLog?.Invoke($"TX {line}");
+    }
+
+    public void Center()
+    {
+        if (!IsConnected)
+            return;
+
+        var centerCommand = DeviceAxisHelpers.CreateCenterCommand(1000);
+        var (line, effectivePose) = BuildLine(centerCommand, forceAll: true, forceInterval: true, durationMsOverride: 1000, padMagnitude: true);
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+
+        _lastEffectivePose = effectivePose;
+        _lastSourcePose = centerCommand;
+        _lastLine = line;
+        SyncVelocityToPose(effectivePose);
+        SendRaw(line + "\n");
+        OnDebugLog?.Invoke($"CENTER {line}");
+    }
+
+    public void EmergencyStop()
+    {
+        if (!IsConnected)
+            return;
+
+        ResetEmitState();
+        SendRaw("DSTOP\n");
+        OnDebugLog?.Invoke("TX DSTOP");
+    }
+
+    private void SendRaw(string text)
+    {
+        if (!IsConnected)
+            return;
 
         try
         {
-            var bytes = Encoding.ASCII.GetBytes(line + "\n");
+            var bytes = Encoding.ASCII.GetBytes(text);
             _client!.Send(bytes, bytes.Length, _remote!);
         }
         catch (Exception ex)
@@ -80,60 +123,135 @@ public sealed class TCodeUdp : IDisposable
         }
     }
 
-    public void Center()
-    {
-        if (!IsConnected) return;
-        SendRaw("L0500I2000 R0500I2000 R1500I2000 R2500I2000 L1500I2000 L2500I2000\n");
-    }
-
-    public void EmergencyStop()
-    {
-        if (!IsConnected) return;
-        SendRaw("DSTOP\n");
-    }
-
-    private void SendRaw(string text)
-    {
-        if (!IsConnected) return;
-        try
-        {
-            var bytes = Encoding.ASCII.GetBytes(text);
-            _client!.Send(bytes, bytes.Length, _remote!);
-        }
-        catch { }
-    }
-
-    private string BuildLine(DeviceCommand cmd)
+    private (string Line, DeviceCommand EffectivePose) BuildLine(
+        DeviceCommand cmd,
+        bool forceAll,
+        bool forceInterval = false,
+        int? durationMsOverride = null,
+        bool padMagnitude = false)
     {
         var profile = ResolveProfile();
+        var previousEffectivePose = _lastEffectivePose ?? DeviceAxisHelpers.CreateNeutralCommand();
+        var previousSourcePose = _lastSourcePose ?? previousEffectivePose;
+        var effectivePose = previousEffectivePose;
         var sb = new StringBuilder();
-        AppendAxis(sb, "L0", cmd.L0, profile.L0, _velL0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R0", cmd.R0, profile.R0, _velR0, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R1", cmd.R1, profile.R1, _velR1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "R2", cmd.R2, profile.R2, _velR2, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L1", cmd.L1, profile.L1, _velL1, (int)cmd.DeltaMs);
-        AppendAxis(sb, "L2", cmd.L2, profile.L2, _velL2, (int)cmd.DeltaMs);
-        return sb.ToString().TrimEnd();
+        var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(cmd.DeltaMs, 1d)), 1);
+        var preferSpeedMode = PreferSpeedMode();
+
+        foreach (var axis in DeviceAxisHelpers.All)
+        {
+            var config = GetAxisConfig(profile, axis);
+            var source = DeviceAxisHelpers.Get(cmd, axis);
+            var previousSource = DeviceAxisHelpers.Get(previousSourcePose, axis);
+            var previousMapped = DeviceAxisHelpers.Get(previousEffectivePose, axis);
+
+            if (config.Mode == TCodeAxisMode.Ignored)
+            {
+                if (forceAll || Math.Abs(previousSource - source) >= 0.0001f)
+                    OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "skip", note: "ignored"));
+                continue;
+            }
+
+            var resolved = ResolveAxisValue(source, config);
+            var remapped = resolved.Remapped;
+            var mapped = resolved.Output;
+            effectivePose = DeviceAxisHelpers.Set(effectivePose, axis, mapped);
+            var sourceChanged = forceAll || Math.Abs(previousSource - source) >= 0.0001f;
+            var mappedChanged = forceAll || Math.Abs(previousMapped - mapped) >= 0.0001f;
+
+            if (!mappedChanged)
+            {
+                if (sourceChanged)
+                    OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "skip", note: "profile-held"));
+                continue;
+            }
+
+            var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
+            var posText = pos.ToString("D3");
+            string term;
+            if (forceInterval)
+            {
+                term = $"I{deltaMs}";
+            }
+            else if (cmd.UseMaxSpeed)
+            {
+                term = preferSpeedMode
+                    ? $"S{config.MaxSpeed}"
+                    : $"I{TCodeAxisTrace.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs)}";
+            }
+            else if (!preferSpeedMode)
+            {
+                term = $"I{deltaMs}";
+            }
+            else
+            {
+                var speed = _velocity[axis].Estimate(mapped, cmd.DeltaMs, config.MaxSpeed);
+                term = $"S{speed}";
+            }
+
+            sb.Append($"{DeviceAxisHelpers.Token(axis)}{posText}{term} ");
+            OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "emit", term: term));
+        }
+
+        return (sb.ToString().TrimEnd(), effectivePose);
     }
 
-    private void AppendAxis(StringBuilder sb, string axis, float value, TCodeAxisConfig axisConfig, VelocityEstimator vel, int deltaMs)
+    private void SyncVelocityToPose(DeviceCommand pose)
     {
-        if (axisConfig.Invert) value = 1f - value;
+        foreach (var axis in DeviceAxisHelpers.All)
+            _velocity[axis].Sync(DeviceAxisHelpers.Get(pose, axis));
+    }
+
+    private static (float Remapped, float Output) ResolveAxisValue(float value, TCodeAxisConfig axisConfig)
+    {
+        if (axisConfig.Mode == TCodeAxisMode.Locked)
+            value = axisConfig.LockValue;
+        if (axisConfig.Invert)
+            value = 1f - value;
+
+        var normalized = Math.Clamp(value, 0f, 1f);
+        var remapped = RemapToRange(normalized, axisConfig);
+        var output = ClampToBounds(remapped, axisConfig);
+        return (remapped, output);
+    }
+
+    private static float RemapToRange(float value, TCodeAxisConfig axisConfig)
+    {
+        var min = Math.Clamp(axisConfig.RemapMin, 0, 999);
+        var max = Math.Clamp(axisConfig.RemapMax, min, 999);
+        return (min + ((max - min) * Math.Clamp(value, 0f, 1f))) / 1000f;
+    }
+
+    private static float ClampToBounds(float value, TCodeAxisConfig axisConfig)
+    {
         var min = Math.Clamp(axisConfig.Min, 0, 999);
         var max = Math.Clamp(axisConfig.Max, min, 999);
-        var mapped = (min + ((max - min) * Math.Clamp(value, 0f, 1f))) / 1000f;
-        var pos = Math.Clamp((int)(mapped * 1000f), 0, 999);
+        var normalized = Math.Clamp(value, 0f, 1f);
+        return Math.Clamp(normalized, min / 1000f, max / 1000f);
+    }
 
-        if (PreferSpeedMode())
-        {
-            var speed = vel.Estimate(mapped, axisConfig.MaxSpeed);
-            sb.Append($"{axis}{pos:D3}S{speed:D4} ");
-        }
-        else
-        {
-            var duration = Math.Max(deltaMs, 1);
-            sb.Append($"{axis}{pos:D3}I{duration:D4} ");
-        }
+    private TCodeAxisConfig GetAxisConfig(TCodeMotionProfile profile, DeviceAxis axis) => axis switch
+    {
+        DeviceAxis.L0 => profile.L0,
+        DeviceAxis.L1 => profile.L1,
+        DeviceAxis.L2 => profile.L2,
+        DeviceAxis.R0 => profile.R0,
+        DeviceAxis.R1 => profile.R1,
+        DeviceAxis.R2 => profile.R2,
+        DeviceAxis.V0 => profile.V0,
+        DeviceAxis.V1 => profile.V1,
+        DeviceAxis.V2 => profile.V2,
+        DeviceAxis.A0 => profile.A0,
+        _ => profile.L0,
+    };
+
+    private void ResetEmitState()
+    {
+        _lastSourcePose = null;
+        _lastEffectivePose = null;
+        _lastLine = null;
+        foreach (var axis in DeviceAxisHelpers.All)
+            _velocity[axis].Reset(DeviceAxisHelpers.NeutralValue(axis));
     }
 
     private string GetHost() => string.IsNullOrWhiteSpace(_output?.Host) ? _save?.UdpTCode.Host ?? "127.0.0.1" : _output.Host;

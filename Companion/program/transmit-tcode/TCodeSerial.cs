@@ -6,35 +6,22 @@ namespace Sensa.TransmitTCode;
 
 /// <summary>
 /// Sends TCode commands to an OSR2/SR6/OSR6 device over a COM serial port.
-/// Speed mode: L0{pos*1000}S{velocity}
-/// Interval mode (fallback): L0{pos*1000}I{durationMs}
 ///
-/// OSR2 drives L0, R0, R1 (3 axes).
-/// SR6/OSR6 drives all six axes: L0, R0, R1, R2 (twist), L1 (surge), L2 (sway).
-/// Unknown axes sent to an OSR2 are silently ignored by the firmware.
-///
-/// Thread-safe: Invoke <see cref="Send"/> from the main loop thread only.
+/// Commands are emitted only for axes whose effective target changed after applying
+/// the motion profile (bounds / invert / lock / ignore). There is no background send loop.
 /// </summary>
 public sealed class TCodeSerial : IDisposable
 {
     private readonly SaveFile? _save;
     private readonly OutputDeviceConfig? _output;
     private readonly Func<TCodeMotionProfile>? _profileResolver;
+    private readonly Dictionary<DeviceAxis, VelocityEstimator> _velocity = DeviceAxisHelpers.All.ToDictionary(axis => axis, axis => new VelocityEstimator());
     private SerialPort? _port;
-    private VelocityEstimator _velL0 = new();
-    private VelocityEstimator _velR0 = new();
-    private VelocityEstimator _velR1 = new();
-    private VelocityEstimator _velR2 = new();
-    private VelocityEstimator _velL1 = new();
-    private VelocityEstimator _velL2 = new();
-    private VelocityEstimator _velV0 = new();
-    private VelocityEstimator _velV1 = new();
-    private VelocityEstimator _velV2 = new();
-    private VelocityEstimator _velA0 = new();
-    private double _pendingDeltaMs;
-    private long _centerDeadlineMs; // 0 = no center in progress
-    private DeviceCommand? _lastSentCmd;
+    private DeviceCommand? _lastSourcePose;
+    private DeviceCommand? _lastEffectivePose;
     private string? _lastSentLine;
+
+    public event Action<string>? OnDebugLog;
 
     public bool IsConnected => _port?.IsOpen == true;
 
@@ -46,17 +33,16 @@ public sealed class TCodeSerial : IDisposable
         _profileResolver = profileResolver;
     }
 
-    // ────────────────────────────────────────────────────────────────
-
     public void Connect()
     {
         Disconnect();
         _port = new SerialPort(GetComPort(), 115200, Parity.None, 8, StopBits.One)
         {
-            ReadTimeout  = 100,
+            ReadTimeout = 100,
             WriteTimeout = 200,
         };
         _port.Open();
+        ResetEmitState();
         Console.WriteLine($"[TCode] Connected to {GetComPort()}");
     }
 
@@ -67,145 +53,214 @@ public sealed class TCodeSerial : IDisposable
             try { _port.WriteLine("DSTOP"); } catch { }
             _port.Close();
         }
+
         _port?.Dispose();
         _port = null;
-        _pendingDeltaMs = 0;
-        _centerDeadlineMs = 0;
+        ResetEmitState();
     }
 
     public void Dispose() => Disconnect();
 
-    // ────────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Send a device command. Maps all TCode axes (L0/L1/L2/R0/R1/R2/V0/V1/V2/A0).
-    /// OSR2 firmware silently ignores unsupported axes; SR6/OSR6 uses all ten.
-    /// </summary>
     public void Send(DeviceCommand cmd)
     {
-        if (_port?.IsOpen != true) return;
-
-        // During center period override position to neutral regardless of loop command
-        if (_centerDeadlineMs > 0)
-        {
-            if (Environment.TickCount64 < _centerDeadlineMs)
-            {
-                // Use the pendingDeltaMs accumulation but override all values to centre
-                _pendingDeltaMs += Math.Max(cmd.DeltaMs, 0);
-                var ci = 1000.0 / Math.Max(GetUpdatesPerSecond(), 10);
-                if (_pendingDeltaMs + 0.001 < ci)
-                    return;
-                // Send another centre command while centering
-                _pendingDeltaMs = 0;
-                try { _port.WriteLine("L0500I2000 L1500I2000 L2500I2000 R0500I2000 R1500I2000 R2500I2000 V0000I2000 V1000I2000 V2000I2000 A0500I2000"); }
-                catch { }
-                return;
-            }
-            _centerDeadlineMs = 0; // centre period done, resume normal operation
-        }
-
-        _pendingDeltaMs += Math.Max(cmd.DeltaMs, 0);
-        var minIntervalMs = 1000.0 / Math.Max(GetUpdatesPerSecond(), 10);
-        if (_pendingDeltaMs + 0.001 < minIntervalMs)
+        if (_port?.IsOpen != true)
             return;
 
-        var sendCmd = cmd with { DeltaMs = Math.Max(_pendingDeltaMs, 1) };
-        _pendingDeltaMs = 0;
-
-        // Skip sending if command unchanged since last send (event-driven optimization)
-        if (_lastSentCmd is not null &&
-            sendCmd.L0 == _lastSentCmd.L0 &&
-            sendCmd.R0 == _lastSentCmd.R0 &&
-            sendCmd.R1 == _lastSentCmd.R1 &&
-            sendCmd.R2 == _lastSentCmd.R2 &&
-            sendCmd.L1 == _lastSentCmd.L1 &&
-            sendCmd.L2 == _lastSentCmd.L2 &&
-            sendCmd.V0 == _lastSentCmd.V0 &&
-            sendCmd.V1 == _lastSentCmd.V1 &&
-            sendCmd.V2 == _lastSentCmd.V2 &&
-            sendCmd.A0 == _lastSentCmd.A0)
+        var (line, effectivePose) = BuildLine(cmd, forceAll: _lastEffectivePose is null);
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+        if (line == _lastSentLine)
             return;
 
-        _lastSentCmd = sendCmd;
-
-        var profile = ResolveProfile();
-
-        var sb = new System.Text.StringBuilder();
-
-        AppendAxis(sb, "L0", sendCmd.L0, profile.L0, _velL0, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "L1", sendCmd.L1, profile.L1, _velL1, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "L2", sendCmd.L2, profile.L2, _velL2, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "R0", sendCmd.R0, profile.R0, _velR0, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "R1", sendCmd.R1, profile.R1, _velR1, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "R2", sendCmd.R2, profile.R2, _velR2, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V0", sendCmd.V0, profile.V0, _velV0, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V1", sendCmd.V1, profile.V1, _velV1, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "V2", sendCmd.V2, profile.V2, _velV2, (int)sendCmd.DeltaMs);
-        AppendAxis(sb, "A0", sendCmd.A0, profile.A0, _velA0, (int)sendCmd.DeltaMs);
-
-        string line = sb.ToString().TrimEnd();
-        if (line.Length == 0) return;
-
-        if (line == _lastSentLine) return; // identical serialised string — skip
+        _lastEffectivePose = effectivePose;
+        _lastSourcePose = cmd;
         _lastSentLine = line;
-        try   { _port.WriteLine(line); }
-        catch (Exception ex) { Console.Error.WriteLine($"[TCode] Write error: {ex.Message}"); }
+        SyncVelocityToPose(effectivePose);
+
+        try
+        {
+            _port.WriteLine(line);
+            OnDebugLog?.Invoke($"TX {line}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[TCode] Write error: {ex.Message}");
+        }
     }
 
-    /// <summary>Slowly return all axes to centre (~2 s). Call once after connect; not for emergency.</summary>
+    /// <summary>Returns active axes to the requested center pose in ~1 second.</summary>
     public void Center()
     {
-        if (_port?.IsOpen != true) return;
-        _centerDeadlineMs = Environment.TickCount64 + 2200; // 2.2s to allow for timing jitter
-        Console.WriteLine($"[TCode] Centering on {GetComPort()}");
-        try { _port.WriteLine("L0500I2000 L1500I2000 L2500I2000 R0500I2000 R1500I2000 R2500I2000 V0000I2000 V1000I2000 V2000I2000 A0500I2000"); }
-        catch { }
+        if (_port?.IsOpen != true)
+            return;
+
+        var centerCommand = DeviceAxisHelpers.CreateCenterCommand(1000);
+        var (line, effectivePose) = BuildLine(centerCommand, forceAll: true, forceInterval: true, durationMsOverride: 1000, padMagnitude: true);
+        if (string.IsNullOrWhiteSpace(line))
+            return;
+
+        _lastEffectivePose = effectivePose;
+        _lastSourcePose = centerCommand;
+        _lastSentLine = line;
+        SyncVelocityToPose(effectivePose);
+
+        try
+        {
+            _port.WriteLine(line);
+            OnDebugLog?.Invoke($"CENTER {line}");
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"[TCode] Center error: {ex.Message}");
+        }
     }
 
-    /// <summary>Emergency stop — sends DSTOP.</summary>
     public void EmergencyStop()
     {
-        if (_port?.IsOpen != true) return;
-        _pendingDeltaMs = 0;
-        try { _port.WriteLine("DSTOP"); }
+        if (_port?.IsOpen != true)
+            return;
+
+        ResetEmitState();
+        try
+        {
+            _port.WriteLine("DSTOP");
+            OnDebugLog?.Invoke("TX DSTOP");
+        }
         catch { }
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  Helpers
-    // ────────────────────────────────────────────────────────────────
-
-    private void AppendAxis(System.Text.StringBuilder sb, string axis, float value,
-                            TCodeAxisConfig axisConfig, VelocityEstimator vel, int deltaMs)
+    private (string Line, DeviceCommand EffectivePose) BuildLine(
+        DeviceCommand cmd,
+        bool forceAll,
+        bool forceInterval = false,
+        int? durationMsOverride = null,
+        bool padMagnitude = false)
     {
-        if (axisConfig.Invert) value = 1f - value;
-        float mapped = MapToRange(value, axisConfig);
-        int   pos    = (int)(mapped * 1000f);
-        pos = Math.Clamp(pos, 0, 999);
+        var profile = ResolveProfile();
+        var previousEffectivePose = _lastEffectivePose ?? DeviceAxisHelpers.CreateNeutralCommand();
+        var previousSourcePose = _lastSourcePose ?? previousEffectivePose;
+        var effectivePose = previousEffectivePose;
+        var sb = new System.Text.StringBuilder();
+        var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(cmd.DeltaMs, 1d)), 1);
+        var preferSpeedMode = PreferSpeedMode();
 
-        if (PreferSpeedMode())
+        foreach (var axis in DeviceAxisHelpers.All)
         {
-            int speed = vel.Estimate(mapped, axisConfig.MaxSpeed);
-            sb.Append($"{axis}{pos:D3}S{speed:D4} ");
+            var config = GetAxisConfig(profile, axis);
+            var source = DeviceAxisHelpers.Get(cmd, axis);
+            var previousSource = DeviceAxisHelpers.Get(previousSourcePose, axis);
+            var previousMapped = DeviceAxisHelpers.Get(previousEffectivePose, axis);
+
+            if (config.Mode == TCodeAxisMode.Ignored)
+            {
+                if (forceAll || Math.Abs(previousSource - source) >= 0.0001f)
+                    OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "skip", note: "ignored"));
+                continue;
+            }
+
+            var resolved = ResolveAxisValue(source, config);
+            var remapped = resolved.Remapped;
+            var mapped = resolved.Output;
+            effectivePose = DeviceAxisHelpers.Set(effectivePose, axis, mapped);
+            var sourceChanged = forceAll || Math.Abs(previousSource - source) >= 0.0001f;
+            var mappedChanged = forceAll || Math.Abs(previousMapped - mapped) >= 0.0001f;
+
+            if (!mappedChanged)
+            {
+                if (sourceChanged)
+                    OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "skip", note: "profile-held"));
+                continue;
+            }
+
+            var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
+            var posText = pos.ToString("D3");
+            string term;
+            if (forceInterval)
+            {
+                term = $"I{deltaMs}";
+            }
+            else if (cmd.UseMaxSpeed)
+            {
+                term = preferSpeedMode
+                    ? $"S{config.MaxSpeed}"
+                    : $"I{TCodeAxisTrace.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs)}";
+            }
+            else if (!preferSpeedMode)
+            {
+                term = $"I{deltaMs}";
+            }
+            else
+            {
+                var speed = _velocity[axis].Estimate(mapped, cmd.DeltaMs, config.MaxSpeed);
+                term = $"S{speed}";
+            }
+
+            sb.Append($"{DeviceAxisHelpers.Token(axis)}{posText}{term} ");
+            OnDebugLog?.Invoke(TCodeAxisTrace.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "emit", term: term));
         }
-        else
-        {
-            int duration = Math.Max(deltaMs, 1);
-            sb.Append($"{axis}{pos:D3}I{duration:D4} ");
-        }
+
+        return (sb.ToString().TrimEnd(), effectivePose);
     }
 
-    /// <summary>Maps normalised [0,1] to device range [Min,Max]/1000.</summary>
-    private static float MapToRange(float v, TCodeAxisConfig axisConfig)
+    private void SyncVelocityToPose(DeviceCommand pose)
+    {
+        foreach (var axis in DeviceAxisHelpers.All)
+            _velocity[axis].Sync(DeviceAxisHelpers.Get(pose, axis));
+    }
+
+    private static (float Remapped, float Output) ResolveAxisValue(float value, TCodeAxisConfig axisConfig)
+    {
+        if (axisConfig.Mode == TCodeAxisMode.Locked)
+            value = axisConfig.LockValue;
+        if (axisConfig.Invert)
+            value = 1f - value;
+
+        var normalized = Math.Clamp(value, 0f, 1f);
+        var remapped = RemapToRange(normalized, axisConfig);
+        var output = ClampToBounds(remapped, axisConfig);
+        return (remapped, output);
+    }
+
+    private static float RemapToRange(float value, TCodeAxisConfig axisConfig)
+    {
+        var min = Math.Clamp(axisConfig.RemapMin, 0, 999);
+        var max = Math.Clamp(axisConfig.RemapMax, min, 999);
+        return (min + ((max - min) * Math.Clamp(value, 0f, 1f))) / 1000f;
+    }
+
+    private static float ClampToBounds(float value, TCodeAxisConfig axisConfig)
     {
         var min = Math.Clamp(axisConfig.Min, 0, 999);
         var max = Math.Clamp(axisConfig.Max, min, 999);
-        return (min + ((max - min) * Math.Clamp(v, 0f, 1f))) / 1000f;
+        var normalized = Math.Clamp(value, 0f, 1f);
+        return Math.Clamp(normalized, min / 1000f, max / 1000f);
+    }
+
+    private TCodeAxisConfig GetAxisConfig(TCodeMotionProfile profile, DeviceAxis axis) => axis switch
+    {
+        DeviceAxis.L0 => profile.L0,
+        DeviceAxis.L1 => profile.L1,
+        DeviceAxis.L2 => profile.L2,
+        DeviceAxis.R0 => profile.R0,
+        DeviceAxis.R1 => profile.R1,
+        DeviceAxis.R2 => profile.R2,
+        DeviceAxis.V0 => profile.V0,
+        DeviceAxis.V1 => profile.V1,
+        DeviceAxis.V2 => profile.V2,
+        DeviceAxis.A0 => profile.A0,
+        _ => profile.L0,
+    };
+
+    private void ResetEmitState()
+    {
+        _lastSourcePose = null;
+        _lastEffectivePose = null;
+        _lastSentLine = null;
+        foreach (var axis in DeviceAxisHelpers.All)
+            _velocity[axis].Reset(DeviceAxisHelpers.NeutralValue(axis));
     }
 
     private string GetComPort() => string.IsNullOrWhiteSpace(_output?.ComPort) ? _save?.TCode.ComPort ?? "COM3" : _output.ComPort;
-
-    private int GetUpdatesPerSecond() => Math.Clamp(_output?.UpdatesPerSecond ?? _save?.TCode.UpdatesPerSecond ?? 50, 10, 240);
 
     private bool PreferSpeedMode() => _output?.PreferSpeedMode ?? _save?.TCode.PreferSpeedMode ?? true;
 

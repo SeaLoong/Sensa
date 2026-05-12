@@ -181,8 +181,80 @@ body {
   display: grid;
 }
 
-.config-summary {
+.axis-profile-detail-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 8px;
+  margin-top: 4px;
+}
+
+.axis-profile-detail-row {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 7px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.axis-profile-detail-row__axis {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.axis-profile-detail-row__details {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.axis-profile-detail-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(241, 245, 249, 0.9);
+  color: #64748b;
+  font-size: 0.73rem;
+  line-height: 1.45;
+  font-variant-numeric: tabular-nums;
+}
+
+.axis-profile-detail-pill--changed {
+  font-weight: 700;
+}
+
+.axis-profile-detail-pill--bounds {
+  color: #1d4ed8;
+  border-color: rgba(96, 165, 250, 0.34);
+  background: rgba(219, 234, 254, 0.9);
+}
+
+.axis-profile-detail-pill--remap {
+  color: #6d28d9;
+  border-color: rgba(167, 139, 250, 0.34);
+  background: rgba(237, 233, 254, 0.92);
+}
+
+.axis-profile-detail-pill--speed {
+  color: #92400e;
+  border-color: rgba(251, 191, 36, 0.34);
+  background: rgba(254, 243, 199, 0.92);
+}
+
+.axis-profile-detail-pill--warning {
+  color: #9a3412;
+  border-color: rgba(251, 146, 60, 0.34);
+  background: rgba(255, 237, 213, 0.95);
+}
+
+.axis-profile-detail-pill--danger {
+  color: #be123c;
+  border-color: rgba(251, 113, 133, 0.34);
+  background: rgba(255, 228, 230, 0.95);
 }
 
 .signal-list {
@@ -198,32 +270,104 @@ body {
   flex: 1 1 280px;
 }
 
-.signal-row {
-  display: grid;
-  gap: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.16);
-  background: rgba(255, 255, 255, 0.88);
-  padding: 14px;
+.osc-preset-toolbar .MuiButton-root {
+  white-space: nowrap;
 }
 
-.signal-row__grid {
+.osc-preset-toolbar .MuiDivider-root {
+  align-self: stretch;
+}
+
+.signal-row {
   display: grid;
-  grid-template-columns: minmax(220px, 1.5fr) repeat(4, minmax(120px, 1fr));
+  gap: 8px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 11px 12px;
+}
+
+.signal-row__header {
+  display: grid;
+  grid-template-columns: minmax(260px, 1.8fr) minmax(160px, 0.95fr) auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.signal-row__controls {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
+  align-items: start;
+}
+
+.signal-row__toggle {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.signal-row__toggle .MuiFormControlLabel-label {
+  font-size: 0.78rem;
+}
+
+.signal-row__remove {
+  justify-self: end;
+  white-space: nowrap;
+}
+
+.signal-row__meta {
+  min-height: 24px;
+}
+
+.signal-row__meta .MuiChip-root {
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.field-help-label {
+  display: inline-block;
+  min-width: 0;
+}
+
+.field-help-label--hint {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: help;
+}
+
+.range-field {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.range-field__header {
+  min-height: 18px;
+}
+
+.range-field__value {
+  color: #475569;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.range-field .MuiSlider-root {
+  padding-top: 8px;
+  padding-bottom: 6px;
 }
 
 .motion-axis-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
 }
 
 .motion-axis-card {
   border-radius: 18px;
   border: 1px solid rgba(148, 163, 184, 0.18);
   background: rgba(255, 255, 255, 0.94);
-  padding: 14px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
 }
 
 .motion-axis-card__range {
@@ -388,24 +532,125 @@ body {
   margin-bottom: 0;
 }
 
+.preset-apply-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.preset-apply-row .MuiFormControl-root {
+  min-width: 0;
+}
+
+.preset-apply-row__button {
+  min-width: 110px;
+  white-space: nowrap;
+}
+
+.log-toolbar {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.log-summary {
+  gap: 8px;
+}
+
 .log-list {
-  max-height: 280px;
+  max-height: 420px;
   overflow: auto;
   border-radius: 16px;
   background: rgba(15, 23, 42, 0.03);
   border: 1px solid rgba(148, 163, 184, 0.16);
-  padding: 10px 12px;
+  padding: 10px;
 }
 
+.log-entry {
+  display: grid;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.log-entry + .log-entry {
+  margin-top: 10px;
+}
+
+.log-entry--plain {
+  border-left: 3px solid rgba(148, 163, 184, 0.3);
+}
+
+.log-entry--level-debug {
+  border-left-color: rgba(100, 116, 139, 0.44);
+}
+
+.log-entry--level-info {
+  border-left-color: rgba(37, 99, 235, 0.42);
+}
+
+.log-entry--level-warning {
+  border-left-color: rgba(217, 119, 6, 0.52);
+  background: rgba(255, 251, 235, 0.76);
+}
+
+.log-entry--level-error {
+  border-left-color: rgba(220, 38, 38, 0.58);
+  background: rgba(254, 242, 242, 0.78);
+}
+
+.log-entry--axis {
+  border-color: rgba(96, 165, 250, 0.26);
+  background: linear-gradient(180deg, rgba(239, 246, 255, 0.94) 0%, rgba(248, 250, 252, 0.92) 100%);
+}
+
+.log-entry--axis-skip {
+  border-color: rgba(148, 163, 184, 0.26);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(255, 255, 255, 0.94) 100%);
+}
+
+.log-entry__meta,
 .log-line {
-  padding: 6px 0;
   font-family: 'Consolas', 'Cascadia Mono', 'JetBrains Mono', monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.log-line + .log-line {
-  border-top: 1px dashed rgba(148, 163, 184, 0.2);
+.log-entry__meta {
+  color: #64748b;
+}
+
+.log-entry__message {
+  font-family: 'Consolas', 'Cascadia Mono', 'JetBrains Mono', monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.axis-trace-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  gap: 6px;
+}
+
+.axis-trace-metric {
+  display: grid;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+}
+
+.axis-trace-metric__label {
+  color: #64748b;
+}
+
+.axis-trace-metric__value {
+  font-family: 'Consolas', 'Cascadia Mono', 'JetBrains Mono', monospace;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {
@@ -430,8 +675,13 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .signal-row__grid {
+  .signal-row__header,
+  .signal-row__controls {
     grid-template-columns: 1fr;
+  }
+
+  .signal-row__remove {
+    justify-self: start;
   }
 
   .motion-axis-grid {
@@ -444,5 +694,18 @@ body {
 
   .dialog-panel__header {
     flex-direction: column;
+  }
+
+  .preset-apply-row {
+    grid-template-columns: 1fr;
+  }
+
+  .preset-apply-row__button {
+    width: 100%;
+  }
+
+  .log-toolbar .MuiFormControl-root,
+  .log-toolbar .MuiTextField-root {
+    width: 100%;
   }
 }

@@ -15,11 +15,11 @@ namespace Sensa.Config;
 public sealed class TCodeConfig
 {
     public string ComPort           { get; set; } = "COM3";
-    public int    MaxPos            { get; set; } = 900;
-    public int    MinPos            { get; set; } = 100;
-    public int    MaxVelocity       { get; set; } = 2000;
+    public int    MaxPos            { get; set; } = 999;
+    public int    MinPos            { get; set; } = 0;
+    public int    MaxVelocity       { get; set; } = 5000;
     public bool   L0Invert          { get; set; } = false;
-    public int    UpdatesPerSecond  { get; set; } = 50;
+    public int    UpdatesPerSecond  { get; set; } = 100;
     public bool   PreferSpeedMode   { get; set; } = true;
     public bool   Enabled           { get; set; } = false;
 }
@@ -40,12 +40,23 @@ public enum OutputDeviceType
     Intiface,
 }
 
+public enum TCodeAxisMode
+{
+    Normal,
+    Locked,
+    Ignored,
+}
+
 public sealed class TCodeAxisConfig
 {
-    public int  Min      { get; set; } = 100;
-    public int  Max      { get; set; } = 900;
-    public int  MaxSpeed { get; set; } = 2000;
-    public bool Invert   { get; set; } = false;
+    public int           Min       { get; set; } = 0;
+    public int           Max       { get; set; } = 999;
+    public int           RemapMin  { get; set; } = 0;
+    public int           RemapMax  { get; set; } = 999;
+    public int           MaxSpeed  { get; set; } = 5000;
+    public bool          Invert    { get; set; } = false;
+    public TCodeAxisMode Mode      { get; set; } = TCodeAxisMode.Normal;
+    public float         LockValue { get; set; } = 0.5f;
 }
 
 public sealed class TCodeMotionProfile
@@ -97,7 +108,7 @@ public sealed class OutputDeviceConfig
     public string           ComPort             { get; set; } = "COM3";
     public string           Host                { get; set; } = "127.0.0.1";
     public int              Port                { get; set; } = 0;
-    public int              UpdatesPerSecond    { get; set; } = 50;
+    public int              UpdatesPerSecond    { get; set; } = 100;
     public bool             PreferSpeedMode     { get; set; } = true;
     public bool             ManageEngineProcess { get; set; } = true;
     public string           WebsocketAddress    { get; set; } = "ws://localhost:12345";
@@ -216,6 +227,7 @@ public sealed class SaveFile
                 var json = File.ReadAllText(path);
                 var loaded = JsonSerializer.Deserialize<SaveFile>(json, JsonOpts) ?? new SaveFile();
                 loaded.NormalizeForRuntime();
+                loaded.ResetTransientRuntimeState();
                 return loaded;
             }
         }
@@ -225,6 +237,7 @@ public sealed class SaveFile
         }
         var empty = new SaveFile();
         empty.NormalizeForRuntime();
+        empty.ResetTransientRuntimeState();
         return empty;
     }
 
@@ -235,7 +248,10 @@ public sealed class SaveFile
             NormalizeForRuntime();
             var path = ConfigPath();
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            var json = JsonSerializer.Serialize(this, JsonOpts);
+            var snapshot = new SaveFile();
+            snapshot.CopyFrom(this);
+            snapshot.ResetTransientRuntimeState();
+            var json = JsonSerializer.Serialize(snapshot, JsonOpts);
             File.WriteAllText(path, json);
         }
         catch (Exception ex)
@@ -343,7 +359,7 @@ public sealed class SaveFile
             AxisProfiles);
         OscMappingPresets = CloneOscMappingPresets(
             SchemaVersion >= 3 ? OscMappingPresets : null);
-        SchemaVersion = 3;
+        SchemaVersion = 4;
 
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "0.0.0.0" : Osc.ReceiverHost;
         Osc.ReceiverPort = Osc.ReceiverPort is > 0 and <= 65535 ? Osc.ReceiverPort : 9001;
@@ -361,11 +377,24 @@ public sealed class SaveFile
         TcpTCode.Host = string.IsNullOrWhiteSpace(TcpTCode.Host) ? "127.0.0.1" : TcpTCode.Host;
         TcpTCode.Port = TcpTCode.Port is > 0 and <= 65535 ? TcpTCode.Port : 9998;
 
-        Signals ??= new List<SignalConfig>();
+        Signals = (Signals ?? new List<SignalConfig>())
+            .Select(CloneSignal)
+            .ToList();
         OscMappingPresets ??= new List<OscMappingPresetConfig>();
         DeviceRoutes ??= new List<DeviceRouteEntry>();
 
         SyncLegacyFieldsFromOutputs();
+    }
+
+    private void ResetTransientRuntimeState()
+    {
+        foreach (var output in Outputs)
+            output.Enabled = false;
+
+        TCode.Enabled = false;
+        UdpTCode.Enabled = false;
+        TcpTCode.Enabled = false;
+        Intiface.Enabled = false;
     }
 
     public AxisProfileConfig GetDefaultAxisProfile()
@@ -402,6 +431,24 @@ public sealed class SaveFile
             .Select(output => Math.Clamp(output.UpdatesPerSecond, 10, 240));
 
         return serialRates.DefaultIfEmpty(Math.Clamp(TCode.UpdatesPerSecond, 10, 240)).Max();
+    }
+
+    public void ValidateUniqueOutputTargets()
+    {
+        var occupiedTargets = new Dictionary<string, OutputDeviceConfig>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var output in Outputs)
+        {
+            foreach (var binding in EnumerateOutputTargetBindings(output))
+            {
+                if (occupiedTargets.TryGetValue(binding.Key, out var existing))
+                {
+                    throw new InvalidOperationException($"输出“{DescribeOutput(existing)}”与“{DescribeOutput(output)}”重复使用{binding.Label}。请改成未被占用的目标。");
+                }
+
+                occupiedTargets[binding.Key] = output;
+            }
+        }
     }
 
     public TCodeMotionProfile ResolveMotionProfile(string? profileId)
@@ -525,6 +572,68 @@ public sealed class SaveFile
         }
     }
 
+    private static string DescribeOutput(OutputDeviceConfig output)
+    {
+        if (!string.IsNullOrWhiteSpace(output.Name))
+            return output.Name.Trim();
+
+        return output.Type switch
+        {
+            OutputDeviceType.TCodeSerial => "TCode 串口",
+            OutputDeviceType.TCodeUdp => "TCode UDP",
+            OutputDeviceType.TCodeTcp => "TCode TCP",
+            OutputDeviceType.Intiface => "Intiface",
+            _ => output.Type.ToString(),
+        };
+    }
+
+    private static IEnumerable<(string Key, string Label)> EnumerateOutputTargetBindings(OutputDeviceConfig output)
+    {
+        switch (output.Type)
+        {
+            case OutputDeviceType.TCodeSerial:
+            {
+                var comPort = NormalizeComPort(output.ComPort);
+                if (!string.IsNullOrWhiteSpace(comPort))
+                    yield return ($"serial:{comPort}", $"串口 {comPort}");
+                yield break;
+            }
+
+            case OutputDeviceType.TCodeUdp:
+            case OutputDeviceType.TCodeTcp:
+            {
+                var host = NormalizeHost(output.Host, "127.0.0.1");
+                var port = NormalizePort(output.Port, output.Type == OutputDeviceType.TCodeUdp ? 9999 : 9998);
+                var label = output.Type == OutputDeviceType.TCodeUdp ? $"UDP 地址 {host}:{port}" : $"TCP 地址 {host}:{port}";
+                yield return ($"net:{output.Type}:{host}:{port}", label);
+                yield break;
+            }
+
+            case OutputDeviceType.Intiface:
+            {
+                var websocketAddress = NormalizeWebsocketAddress(output.WebsocketAddress, "ws://localhost:12345");
+                if (!string.IsNullOrWhiteSpace(websocketAddress))
+                    yield return ($"intiface-ws:{websocketAddress}", $"Intiface 地址 {websocketAddress}");
+
+                if (output.ManageEngineProcess)
+                {
+                    var port = NormalizePort(output.Port, 12345);
+                    yield return ($"intiface-engine:{port}", $"Intiface 引擎端口 {port}");
+                }
+
+                yield break;
+            }
+        }
+    }
+
+    private static string NormalizeComPort(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
+
+    private static string NormalizeHost(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
+
+    private static int NormalizePort(int value, int fallback) => value is > 0 and <= 65535 ? value : fallback;
+
+    private static string NormalizeWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
+
     private static TCodeProfilesConfig CloneProfiles(TCodeProfilesConfig? source, TCodeConfig legacyTCode)
     {
         var legacyGlobal = CreateLegacyProfile(legacyTCode);
@@ -583,6 +692,7 @@ public sealed class SaveFile
         var defaultProfile = result.FirstOrDefault(profile => profile.IsDefault) ?? result[0];
         foreach (var profile in result)
             profile.IsDefault = string.Equals(profile.Id, defaultProfile.Id, StringComparison.OrdinalIgnoreCase);
+        defaultProfile.Name = "全局默认";
 
         if (!result.Any(profile => string.Equals(profile.Id, "global-default", StringComparison.OrdinalIgnoreCase)))
         {
@@ -667,7 +777,7 @@ public sealed class SaveFile
                     ComPort = string.IsNullOrWhiteSpace(item?.ComPort) ? "COM3" : item!.ComPort,
                     Host = string.IsNullOrWhiteSpace(item?.Host) ? "127.0.0.1" : item!.Host,
                     Port = NormalizeOutputPort(type, item?.Port ?? 0),
-                    UpdatesPerSecond = Math.Clamp(item?.UpdatesPerSecond ?? 50, 10, 240),
+                    UpdatesPerSecond = Math.Clamp(item?.UpdatesPerSecond ?? 100, 10, 240),
                     PreferSpeedMode = item?.PreferSpeedMode ?? true,
                     ManageEngineProcess = item?.ManageEngineProcess ?? true,
                     WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
@@ -735,9 +845,9 @@ public sealed class SaveFile
 
     private static bool HasLegacyMotionOverrides(TCodeConfig legacyTCode)
     {
-        return legacyTCode.MinPos != 100
-            || legacyTCode.MaxPos != 900
-            || legacyTCode.MaxVelocity != 2000
+        return legacyTCode.MinPos != 0
+            || legacyTCode.MaxPos != 999
+            || legacyTCode.MaxVelocity != 5000
             || legacyTCode.L0Invert;
     }
 
@@ -747,11 +857,15 @@ public sealed class SaveFile
             return true;
 
         return IsDefaultAxis(profile.L0)
+            && IsDefaultAxis(profile.L1)
+            && IsDefaultAxis(profile.L2)
             && IsDefaultAxis(profile.R0)
             && IsDefaultAxis(profile.R1)
             && IsDefaultAxis(profile.R2)
-            && IsDefaultAxis(profile.L1)
-            && IsDefaultAxis(profile.L2);
+            && IsDefaultAxis(profile.V0)
+            && IsDefaultAxis(profile.V1)
+            && IsDefaultAxis(profile.V2)
+            && IsDefaultAxis(profile.A0);
     }
 
     private static bool IsDefaultAxis(TCodeAxisConfig? axis)
@@ -759,10 +873,14 @@ public sealed class SaveFile
         if (axis is null)
             return true;
 
-        return axis.Min == 100
-            && axis.Max == 900
-            && axis.MaxSpeed == 2000
-            && axis.Invert == false;
+        return axis.Min == 0
+            && axis.Max == 999
+            && axis.RemapMin == 0
+            && axis.RemapMax == 999
+            && axis.MaxSpeed == 5000
+            && axis.Invert == false
+            && axis.Mode == TCodeAxisMode.Normal
+            && Math.Abs(axis.LockValue - 0.5f) < 0.0001f;
     }
 
     private static TCodeMotionProfile CreateLegacyProfile(TCodeConfig legacyTCode)
@@ -790,6 +908,10 @@ public sealed class SaveFile
             R2 = CloneAxis(axis),
             L1 = CloneAxis(axis),
             L2 = CloneAxis(axis),
+            V0 = CloneAxis(axis),
+            V1 = CloneAxis(axis),
+            V2 = CloneAxis(axis),
+            A0 = CloneAxis(axis),
         };
     }
 
@@ -828,19 +950,27 @@ public sealed class SaveFile
     private static bool AreMotionProfilesEqual(TCodeMotionProfile left, TCodeMotionProfile right)
     {
         return AreAxisEqual(left.L0, right.L0)
+            && AreAxisEqual(left.L1, right.L1)
+            && AreAxisEqual(left.L2, right.L2)
             && AreAxisEqual(left.R0, right.R0)
             && AreAxisEqual(left.R1, right.R1)
             && AreAxisEqual(left.R2, right.R2)
-            && AreAxisEqual(left.L1, right.L1)
-            && AreAxisEqual(left.L2, right.L2);
+            && AreAxisEqual(left.V0, right.V0)
+            && AreAxisEqual(left.V1, right.V1)
+            && AreAxisEqual(left.V2, right.V2)
+            && AreAxisEqual(left.A0, right.A0);
     }
 
     private static bool AreAxisEqual(TCodeAxisConfig left, TCodeAxisConfig right)
     {
         return left.Min == right.Min
             && left.Max == right.Max
+            && left.RemapMin == right.RemapMin
+            && left.RemapMax == right.RemapMax
             && left.MaxSpeed == right.MaxSpeed
-            && left.Invert == right.Invert;
+            && left.Invert == right.Invert
+            && left.Mode == right.Mode
+            && Math.Abs(left.LockValue - right.LockValue) < 0.0001f;
     }
 
     private static string NormalizeMotionProfileId(string? profileId, List<AxisProfileConfig> axisProfiles, string defaultProfileId)
@@ -923,11 +1053,15 @@ public sealed class SaveFile
         {
             UseGlobal = useGlobal,
             L0 = CloneAxis(source.L0),
+            L1 = CloneAxis(source.L1),
+            L2 = CloneAxis(source.L2),
             R0 = CloneAxis(source.R0),
             R1 = CloneAxis(source.R1),
             R2 = CloneAxis(source.R2),
-            L1 = CloneAxis(source.L1),
-            L2 = CloneAxis(source.L2),
+            V0 = CloneAxis(source.V0),
+            V1 = CloneAxis(source.V1),
+            V2 = CloneAxis(source.V2),
+            A0 = CloneAxis(source.A0),
         };
     }
 
@@ -956,12 +1090,25 @@ public sealed class SaveFile
         if (min > max)
             (min, max) = (max, min);
 
+        var remapMin = Math.Clamp(source?.RemapMin ?? fallback.RemapMin, 0, 999);
+        var remapMax = Math.Clamp(source?.RemapMax ?? fallback.RemapMax, 0, 999);
+        if (remapMin > remapMax)
+            (remapMin, remapMax) = (remapMax, remapMin);
+
+        var mode = Enum.IsDefined(typeof(TCodeAxisMode), source?.Mode ?? fallback.Mode)
+            ? source?.Mode ?? fallback.Mode
+            : TCodeAxisMode.Normal;
+
         return new TCodeAxisConfig
         {
-            Min      = min,
-            Max      = max,
-            MaxSpeed = Math.Clamp(source?.MaxSpeed ?? fallback.MaxSpeed, 1, 9999),
-            Invert   = source?.Invert ?? fallback.Invert,
+            Min       = min,
+            Max       = max,
+            RemapMin  = remapMin,
+            RemapMax  = remapMax,
+            MaxSpeed  = Math.Clamp(source?.MaxSpeed ?? fallback.MaxSpeed, 0, 9999),
+            Invert    = source?.Invert ?? fallback.Invert,
+            Mode      = mode,
+            LockValue = Math.Clamp(source?.LockValue ?? fallback.LockValue, 0f, 1f),
         };
     }
 
@@ -969,15 +1116,20 @@ public sealed class SaveFile
     {
         return new TCodeAxisConfig
         {
-            Min      = source.Min,
-            Max      = source.Max,
-            MaxSpeed = source.MaxSpeed,
-            Invert   = source.Invert,
+            Min       = source.Min,
+            Max       = source.Max,
+            RemapMin  = source.RemapMin,
+            RemapMax  = source.RemapMax,
+            MaxSpeed  = source.MaxSpeed,
+            Invert    = source.Invert,
+            Mode      = source.Mode,
+            LockValue = source.LockValue,
         };
     }
 
     private static SignalConfig CloneSignal(SignalConfig signal)
     {
+        var (mappedMin, mappedMax) = ResolveMappedSignalRange(signal);
         return new SignalConfig
         {
             OscPath         = signal.OscPath,
@@ -988,10 +1140,31 @@ public sealed class SaveFile
             DeadZone        = signal.DeadZone,
             Curve           = signal.Curve,
             Role            = signal.Role,
+            OutputMin       = signal.OutputMin,
+            OutputMax       = signal.OutputMax,
+            MappedMin       = mappedMin,
+            MappedMax       = mappedMax,
             IsOgbSocket     = signal.IsOgbSocket,
             IsOgbPlug       = signal.IsOgbPlug,
         };
     }
+
+    private static (int Min, int Max) ResolveMappedSignalRange(SignalConfig signal)
+    {
+        if (signal.MappedMin.HasValue || signal.MappedMax.HasValue)
+        {
+            var explicitMin = Math.Clamp(signal.MappedMin ?? 0, 0, 999);
+            var explicitMax = Math.Clamp(signal.MappedMax ?? 999, 0, 999);
+            return explicitMin <= explicitMax ? (explicitMin, explicitMax) : (explicitMax, explicitMin);
+        }
+
+        var legacyMin = ToMappedPosition(signal.OutputMin);
+        var legacyMax = ToMappedPosition(signal.OutputMax);
+        return legacyMin <= legacyMax ? (legacyMin, legacyMax) : (legacyMax, legacyMin);
+    }
+
+    private static int ToMappedPosition(float normalized) =>
+        Math.Clamp((int)Math.Round(Math.Clamp(normalized, 0f, 1f) * 1000f), 0, 999);
 
     private static List<OscMappingPresetConfig> BuildDefaultOscMappingPresets()
     {
@@ -1001,14 +1174,14 @@ public sealed class SaveFile
             {
                 Id = "ogb-socket-full",
                 Name = "OGB Socket · 深度 + 姿态",
-                Description = "利用通配匹配任意 OGB Socket 孔位。深度+四向姿态角。AngleRight→[0.5,1]，AngleLeft→[0,0.5]，组合为完整 0-1。",
+                Description = "利用通配匹配任意 OGB Socket 孔位。深度使用完整行程；左右/上下姿态分别映射到 0-500 / 500-999 两段位置区间。",
                 Mappings = new List<SignalConfig>
                 {
                     new() { OscPath = "OGB/Orf/*/Main/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleRight_Raw", Role = SignalRole.AngleX, OutputMin = 0.5f, OutputMax = 1f, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleLeft_Raw", Role = SignalRole.AngleX, OutputMin = 0f, OutputMax = 0.5f, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleUp_Raw", Role = SignalRole.AngleY, OutputMin = 0.5f, OutputMax = 1f, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleDown_Raw", Role = SignalRole.AngleY, OutputMin = 0f, OutputMax = 0.5f, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleRight_Raw", Role = SignalRole.AngleX, MappedMin = 500, MappedMax = 999, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleLeft_Raw", Role = SignalRole.AngleX, MappedMin = 0, MappedMax = 500, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleUp_Raw", Role = SignalRole.AngleY, MappedMin = 500, MappedMax = 999, IsOgbSocket = true },
+                    new() { OscPath = "OGB/Orf/*/Main/AngleDown_Raw", Role = SignalRole.AngleY, MappedMin = 0, MappedMax = 500, IsOgbSocket = true },
                 },
             },
             new()
@@ -1060,64 +1233,6 @@ public sealed class SaveFile
                 Mappings = new List<SignalConfig>
                 {
                     new() { OscPath = "OGB/Orf/Ass/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-full",
-                Name = "OGB Plug · 深度（插入 / 自插）",
-                Description = "Plug 方标准深度，同时映射 PenOthers+PenSelf。深度自动反向。",
-                Mappings = new List<SignalConfig>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-others",
-                Name = "OGB Plug · 仅插入他人",
-                Description = "仅映射 PenOthers，不包含自插。",
-                Mappings = new List<SignalConfig>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-self",
-                Name = "OGB Plug · 仅自插",
-                Description = "仅映射 PenSelf。需在 Sensa 组件中启用 generateSelfParam。",
-                Mappings = new List<SignalConfig>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "sensa-socket-starter",
-                Name = "Sensa / OGB Socket · 深度 + 姿态起点",
-                Description = "按照 Sensa 生成的 OGB 参数命名，附带单边姿态起始映射。",
-                Mappings = new List<SignalConfig>
-                {
-                    new()
-                    {
-                        OscPath = "OGB/Orf/Pussy/Main/PenOthers",
-                        Role = SignalRole.Depth,
-                        IsOgbSocket = true,
-                    },
-                    new()
-                    {
-                        OscPath = "OGB/Orf/Pussy/Main/AngleRight_Raw",
-                        Role = SignalRole.AngleX,
-                        IsOgbSocket = true,
-                    },
-                    new()
-                    {
-                        OscPath = "OGB/Orf/Pussy/Main/AngleUp_Raw",
-                        Role = SignalRole.AngleY,
-                        IsOgbSocket = true,
-                    },
                 },
             },
         };

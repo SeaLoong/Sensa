@@ -13,6 +13,8 @@ public sealed class ServiceLogBuffer
     private readonly ConcurrentQueue<LogEntry> _entries = new();
     private const int MaxEntries = 2000;
 
+    public event Action<LogEntry>? EntryAdded;
+
     public void Add(string message, LogLevel level = LogLevel.Info)
     {
         var category = ParseCategory(message);
@@ -21,6 +23,7 @@ public sealed class ServiceLogBuffer
         while (_entries.Count > MaxEntries && _entries.TryDequeue(out _))
         {
         }
+        EntryAdded?.Invoke(entry);
     }
 
     public IReadOnlyList<LogEntry> Snapshot(int takeLast = 200, LogLevel? minLevel = null, string? category = null)

@@ -1,285 +1,519 @@
 using Sensa.Config;
 using Sensa.Core;
+using Sensa.ServiceRecording;
 using Sensa.TransmitIntiface;
 using Sensa.TransmitTCode;
-using Sensa.ServiceRecording;
-using Sensa.UiActions;
+using System.Text;
 
 namespace Sensa.ApplicationLoop;
 
 /// <summary>
-/// Event-driven signal processing engine — no loop. Sends are triggered by:
-///   - ParameterStore.OnSet (OSC parameter arrives)
-///   - Manual PUT / WS handler (user moves slider)
-///   - Script timer (funscript frame advances)
+/// Fully event-driven signal router.
+///
+/// State changes are triggered by:
+///   - ParameterStore.OnSet               (OSC parameter arrives)
+///   - Manual input API / WS command      (user updates manual pose)
+///   - ScriptInputPlayer.OnFrame          (script playback timer event)
+///   - Mode / emergency / active toggles  (control-plane events)
+///
+/// There is no continuous send loop. The routine maintains the current desired pose,
+/// and each event applies an axis patch onto that pose. Output transmitters then emit
+/// only the axes that actually changed.
 /// </summary>
 public sealed class Routine : IDisposable
 {
-    private readonly SaveFile            _save;
-    private readonly ParameterStore      _store;
-    private readonly OscReceiver         _osc;
+    private readonly SaveFile _save;
+    private readonly ParameterStore _store;
+    private readonly OscReceiver _osc;
     private readonly IntifaceTransmitter? _intiface;
-    private readonly TCodeSerial?        _tcode;
-    private readonly TCodeUdp?           _tcodeUdp;
-    private readonly TCodeTcp?           _tcodeTcp;
-    private readonly RecordingBuffer?    _recorder;
-    private readonly ScriptInputPlayer   _scriptInput;
-    private readonly UiActionQueue       _actions;
+    private readonly TCodeSerial? _tcode;
+    private readonly TCodeUdp? _tcodeUdp;
+    private readonly TCodeTcp? _tcodeTcp;
+    private readonly RecordingBuffer? _recorder;
+    private readonly ScriptInputPlayer _scriptInput;
     private readonly Func<DeviceCommand, Task>? _sendOutputsAsync;
     private readonly Func<Task>? _emergencyStopAsync;
-    private readonly Timer? _actionTimer;
-    private readonly Timer? _logTimer;
+    private readonly object _sync = new();
+    private readonly SemaphoreSlim _sendGate = new(1, 1);
 
-    // Per-signal processors
     private readonly List<(string Path, SignalProcessor Processor)> _processors = new();
     private readonly SignalFusion _fusion = new();
     private readonly List<(SignalRole, float)> _signals = new();
 
-    private volatile DeviceCommand _lastCommandField = DeviceCommand.Zero;
-    private volatile DeviceCommand _manualOverrideField = DeviceCommand.Zero;
+    private volatile DeviceCommand _currentPose = DeviceAxisHelpers.CreateNeutralCommand();
+    private volatile DeviceCommand _manualPose = DeviceAxisHelpers.CreateNeutralCommand();
     private volatile bool _manualOverrideEnabled;
     private volatile InputMode _inputMode = InputMode.Osc;
     private volatile bool _emergency;
-    private volatile bool _inputActive = true;
-    private DeviceCommand? _lastSentCmd;
+    private volatile bool _inputActive = false;
+    private volatile bool _disposed;
+    private int _oscRefreshQueued;
+    private long _lastEventTimestampMs = Environment.TickCount64;
 
-    public DeviceCommand LastCommand          => _lastCommandField;
-    public DeviceCommand ManualOverrideCommand => _manualOverrideField;
-    public bool          ManualOverrideEnabled => _manualOverrideEnabled;
-    public InputMode     CurrentInputMode      => _inputMode;
-    public bool          IsEmergency           => _emergency;
-    public bool          InputActive           => _inputActive;
+    public DeviceCommand LastCommand => _currentPose;
+    public DeviceCommand ManualOverrideCommand => _manualPose;
+    public bool ManualOverrideEnabled => _manualOverrideEnabled;
+    public InputMode CurrentInputMode => _inputMode;
+    public bool IsEmergency => _emergency;
+    public bool InputActive => _inputActive;
 
     public event Action<string>? OnLog;
     public event Action<string>? OnDebugLog;
+    public event Action? StateChanged;
 
     public Routine(
-        SaveFile            save,
-        ParameterStore      store,
-        OscReceiver         osc,
-        UiActionQueue       actions,
-        IntifaceTransmitter? intiface  = null,
-        TCodeSerial?        tcode     = null,
-        TCodeUdp?           tcodeUdp  = null,
-        TCodeTcp?           tcodeTcp  = null,
-        RecordingBuffer?    recorder  = null,
-        ScriptInputPlayer?  scriptInput = null,
+        SaveFile save,
+        ParameterStore store,
+        OscReceiver osc,
+        IntifaceTransmitter? intiface = null,
+        TCodeSerial? tcode = null,
+        TCodeUdp? tcodeUdp = null,
+        TCodeTcp? tcodeTcp = null,
+        RecordingBuffer? recorder = null,
+        ScriptInputPlayer? scriptInput = null,
         Func<DeviceCommand, Task>? sendOutputsAsync = null,
-        Func<Task>? emergencyStopAsync = null,
-        Func<int>? loopRateResolver = null)
+        Func<Task>? emergencyStopAsync = null)
     {
-        _save     = save;
-        _store    = store;
-        _osc      = osc;
+        _save = save;
+        _store = store;
+        _osc = osc;
         _intiface = intiface;
-        _tcode    = tcode;
+        _tcode = tcode;
         _tcodeUdp = tcodeUdp;
         _tcodeTcp = tcodeTcp;
         _recorder = recorder;
         _scriptInput = scriptInput ?? new ScriptInputPlayer();
-        _actions  = actions;
         _sendOutputsAsync = sendOutputsAsync;
         _emergencyStopAsync = emergencyStopAsync;
 
         RebuildProcessors();
 
-        // Event-driven OSC: fire on every parameter change
-        _store.OnSet += (_, _) => { _ = TrySendAsync(); };
-
-        // Avatar change: reset processors + OSC receiver clears ParameterStore
-        _osc.OnAvatarChange += () =>
-        {
-            foreach (var (_, proc) in _processors) proc.Reset();
-            OnLog?.Invoke("[Routine] Avatar changed — EMA reset.");
-        };
-
-        // Drain UI actions and log periodically (only housekeeping, no sending)
-        _actionTimer = new Timer(_ => DrainActions(), null, 50, 50);
-        _logTimer = new Timer(_ =>
-        {
-            OnDebugLog?.Invoke(
-                $"[Routine] mode={_inputMode} emg={_emergency} " +
-                $"lastSent: L0={_lastSentCmd?.L0:F2} R0={_lastSentCmd?.R0:F2} V0={_lastSentCmd?.V0:F2}");
-        }, null, 1000, 1000);
+        _store.OnSet += HandleOscValueChanged;
+        _osc.OnAvatarChange += HandleAvatarChanged;
+        _scriptInput.OnFrame += HandleScriptFrame;
+        _scriptInput.OnStateChanged += HandleScriptStateChanged;
     }
 
     public void RebuildProcessors()
     {
-        _processors.Clear();
-        foreach (var sig in _save.Signals)
+        lock (_sync)
         {
-            if (string.IsNullOrWhiteSpace(sig.OscPath))
-                continue;
-            _processors.Add((sig.OscPath, new SignalProcessor(sig)));
+            _processors.Clear();
+            foreach (var sig in _save.Signals)
+            {
+                if (string.IsNullOrWhiteSpace(sig.OscPath))
+                    continue;
+                _processors.Add((sig.OscPath, new SignalProcessor(sig)));
+            }
         }
-    }
 
-    // ────────────────────────────────────────────────────────────────
+        if (!_disposed && _inputMode == InputMode.Osc && _inputActive && !_emergency)
+            QueueOscRefresh();
+        else
+            NotifyStateChanged();
+    }
 
     public void EmergencyStop()
     {
+        if (_emergency)
+            return;
+
         _emergency = true;
+        NotifyStateChanged();
         _ = SendEmergencyAsync();
     }
 
     public void ClearEmergency()
     {
+        if (!_emergency)
+            return;
+
         _emergency = false;
-        // Re-send current state after clearing emergency
-        _lastSentCmd = null;
-        _ = TrySendAsync();
+        NotifyStateChanged();
+        _ = ResendCurrentPoseAsync();
     }
 
     public void SetManualOverride(DeviceCommand cmd)
     {
-        _manualOverrideField = cmd;
+        _manualPose = cmd with { DeltaMs = 0d, UseMaxSpeed = true };
         _manualOverrideEnabled = true;
-        OnLog?.Invoke("[Manual] Override enabled.");
-        _ = TrySendAsync();
+        OnLog?.Invoke("[Manual] Pose updated.");
+        NotifyStateChanged();
+
+        if (_inputMode == InputMode.Manual && _inputActive && !_emergency)
+            _ = ApplyPatchAsync(DeviceAxisHelpers.CreatePatchFromCommand(_manualPose), "Manual", useMaxSpeed: true);
     }
 
     public void ClearManualOverride()
     {
-        _manualOverrideField = DeviceCommand.Zero;
         _manualOverrideEnabled = false;
-        OnLog?.Invoke("[Manual] Override cleared.");
+        OnLog?.Invoke("[Manual] Override disabled (baseline preserved).");
+        NotifyStateChanged();
     }
 
     public void SetInputMode(InputMode mode)
     {
-        if (_inputMode == mode) return;
+        if (_inputMode == mode)
+            return;
+
         _inputMode = mode;
-
-        if (mode != InputMode.Manual) _manualOverrideEnabled = false;
-        if (mode != InputMode.Script) _scriptInput.Pause();
-        if (mode != InputMode.Osc) _inputActive = true;
-
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
-        _ = TrySendAsync();
+        NotifyStateChanged();
+
+        if (mode != InputMode.Script)
+            _scriptInput.Pause();
+
+        if (_emergency || !_inputActive)
+            return;
+
+        switch (mode)
+        {
+            case InputMode.Manual when _manualOverrideEnabled:
+                _ = ApplyPatchAsync(DeviceAxisHelpers.CreatePatchFromCommand(_manualPose), "ManualMode", useMaxSpeed: true);
+                break;
+            case InputMode.Osc:
+                QueueOscRefresh();
+                break;
+            case InputMode.Script:
+            {
+                var snapshot = _scriptInput.GetSnapshot();
+                if (snapshot.Loaded)
+                    _ = ApplyScriptPatchAsync(snapshot.CurrentL0, "ScriptMode");
+                break;
+            }
+        }
     }
 
     public void SetInputActive(bool active)
     {
+        if (_inputActive == active)
+            return;
+
         _inputActive = active;
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
-    }
+        NotifyStateChanged();
 
-    /// <summary>
-    /// Event-driven send: called by any trigger (OSC param, manual, script, mode switch).
-    /// Fuses the current input into a DeviceCommand and sends if changed.
-    /// </summary>
-    public async Task TrySendAsync()
-    {
-        if (_emergency || !_inputActive) return;
-
-        DrainActions();
-
-        // Build command from current input mode
-        var deltaMs = 20.0;
-        DeviceCommand cmd;
+        if (!active || _emergency)
+            return;
 
         switch (_inputMode)
         {
-            case InputMode.Manual when _manualOverrideEnabled:
-                cmd = _manualOverrideField with { DeltaMs = deltaMs };
+            case InputMode.Osc:
+                QueueOscRefresh();
                 break;
-            case InputMode.Manual:
-                cmd = DeviceCommand.Zero with { DeltaMs = deltaMs };
+            case InputMode.Manual when _manualOverrideEnabled:
+                _ = ApplyPatchAsync(DeviceAxisHelpers.CreatePatchFromCommand(_manualPose), "ManualActive", useMaxSpeed: true);
                 break;
             case InputMode.Script:
-                cmd = _scriptInput.Sample(deltaMs);
-                break;
-            default: // OSC
-                cmd = FuseOscSignals(deltaMs);
-                break;
-        }
-
-        if (_emergency)
-            cmd = cmd with { L0 = 0f, R0 = 0.5f, R1 = 0.5f, R2 = 0.5f, L1 = 0.5f, L2 = 0.5f, V0 = 0f, V1 = 0f, V2 = 0f, A0 = 0.5f, DeltaMs = deltaMs };
-
-        _lastCommandField = cmd;
-
-        if (CmdEquals(cmd, _lastSentCmd)) return;
-        _lastSentCmd = cmd;
-
-        _recorder?.Push(cmd);
-
-        if (_sendOutputsAsync is not null)
-        {
-            try { await _sendOutputsAsync(cmd); }
-            catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
-        }
-        else
-        {
-            if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
             {
-                try { await _intiface.SendAsync(cmd); }
-                catch (Exception ex) { OnLog?.Invoke($"[Intiface] {ex.Message}"); }
+                var snapshot = _scriptInput.GetSnapshot();
+                if (snapshot.Loaded)
+                    _ = ApplyScriptPatchAsync(snapshot.CurrentL0, "ScriptActive");
+                break;
             }
-            if (_save.TCode.Enabled) _tcode?.Send(cmd);
-            if (_save.UdpTCode.Enabled) _tcodeUdp?.Send(cmd);
-            if (_save.TcpTCode.Enabled) _tcodeTcp?.Send(cmd);
         }
     }
 
-    // ────────────────────────────────────────────────────────────────
-    //  Helpers
-    // ────────────────────────────────────────────────────────────────
-
-    private void DrainActions()
+    private void HandleOscValueChanged(string path, OscValue __)
     {
-        while (_actions.TryDequeue(out var action))
-        {
-            try { action(); }
-            catch (Exception ex) { OnLog?.Invoke($"[UiAction] {ex.Message}"); }
-        }
+        if (_disposed || _inputMode != InputMode.Osc || !_inputActive || _emergency)
+            return;
+
+        if (!HasMatchingOscProcessor(path))
+            return;
+
+        QueueOscRefresh();
     }
 
-    private DeviceCommand FuseOscSignals(double deltaMs)
+    private bool HasMatchingOscProcessor(string oscPath)
+    {
+        if (string.IsNullOrWhiteSpace(oscPath))
+            return false;
+
+        lock (_sync)
+        {
+            foreach (var (pattern, _) in _processors)
+            {
+                if (ParameterStore.MatchesPathPattern(pattern, oscPath))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void HandleAvatarChanged()
+    {
+        lock (_sync)
+        {
+            foreach (var (_, processor) in _processors)
+                processor.Reset();
+        }
+
+        OnLog?.Invoke("[Routine] Avatar changed — EMA reset.");
+        NotifyStateChanged();
+    }
+
+    private void HandleScriptFrame(float l0)
+    {
+        if (_disposed || _inputMode != InputMode.Script || !_inputActive || _emergency)
+            return;
+
+        _ = ApplyScriptPatchAsync(l0, "ScriptFrame");
+    }
+
+    private void HandleScriptStateChanged() => NotifyStateChanged();
+
+    private void QueueOscRefresh()
+    {
+        if (_disposed)
+            return;
+
+        if (Interlocked.Exchange(ref _oscRefreshQueued, 1) != 0)
+            return;
+
+        _ = ProcessQueuedOscRefreshAsync();
+    }
+
+    private async Task ProcessQueuedOscRefreshAsync()
+    {
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            Interlocked.Exchange(ref _oscRefreshQueued, 0);
+
+            if (_disposed)
+                return;
+
+            NotifyStateChanged();
+
+            if (_inputMode != InputMode.Osc || !_inputActive || _emergency)
+                return;
+
+            var patch = BuildOscPatch();
+            if (patch.IsEmpty)
+                return;
+
+            await ApplyPatchCoreAsync(patch, "OSC").ConfigureAwait(false);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
+
+        if (Interlocked.CompareExchange(ref _oscRefreshQueued, 0, 1) == 1)
+            _ = ProcessQueuedOscRefreshAsync();
+    }
+
+    private DeviceAxisPatch BuildOscPatch()
     {
         _signals.Clear();
-        foreach (var (path, proc) in _processors)
+        List<(string Path, SignalProcessor Processor)> processors;
+
+        lock (_sync)
+            processors = new List<(string Path, SignalProcessor Processor)>(_processors);
+
+        foreach (var (path, processor) in processors)
         {
-            if (!_store.TryGetLatest(path, out var entry)) continue;
-            _signals.Add((proc.Config.Role, proc.Process(entry.Value.AsFloat())));
+            if (!_store.TryGetLatest(path, out var matchedPath, out var entry))
+                continue;
+
+            var rawValue = entry.Value.AsFloat();
+            var processedValue = processor.Process(rawValue);
+            _signals.Add((processor.Config.Role, processedValue));
+            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} raw={rawValue:F4} -> {processor.Config.Role}={processedValue:F4}");
         }
-        return _fusion.Fuse(_signals, deltaMs: deltaMs);
+
+        var patch = _fusion.FusePatch(_signals);
+        if (_signals.Count > 0)
+            OnDebugLog?.Invoke($"[Signal/Fuse] {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
+        return patch;
     }
 
-    private static bool CmdEquals(DeviceCommand? a, DeviceCommand? b)
+    private Task ApplyScriptPatchAsync(float l0, string source)
     {
-        if (a is null || b is null) return a is null && b is null;
-        return Math.Abs(a.L0 - b.L0) < 0.001f
-            && Math.Abs(a.R0 - b.R0) < 0.001f
-            && Math.Abs(a.R1 - b.R1) < 0.001f
-            && Math.Abs(a.R2 - b.R2) < 0.001f
-            && Math.Abs(a.L1 - b.L1) < 0.001f
-            && Math.Abs(a.L2 - b.L2) < 0.001f
-            && Math.Abs(a.V0 - b.V0) < 0.001f
-            && Math.Abs(a.V1 - b.V1) < 0.001f
-            && Math.Abs(a.V2 - b.V2) < 0.001f
-            && Math.Abs(a.A0 - b.A0) < 0.001f;
+        var patch = new DeviceAxisPatch();
+        patch.Set(DeviceAxis.L0, l0);
+        return ApplyPatchAsync(patch, source);
+    }
+
+    private async Task ApplyPatchAsync(DeviceAxisPatch patch, string source, bool useMaxSpeed = false)
+    {
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            await ApplyPatchCoreAsync(patch, source, useMaxSpeed).ConfigureAwait(false);
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
+    }
+
+    private async Task ApplyPatchCoreAsync(DeviceAxisPatch patch, string source, bool useMaxSpeed = false)
+    {
+        var deltaMs = ConsumeElapsedMs();
+        var previous = _currentPose;
+        var next = patch.IsEmpty
+            ? previous with { DeltaMs = deltaMs, UseMaxSpeed = useMaxSpeed }
+            : DeviceAxisHelpers.ApplyPatch(previous, patch, deltaMs) with { UseMaxSpeed = useMaxSpeed };
+
+        OnDebugLog?.Invoke($"[Routine/{source}/Patch] delta={deltaMs:F0}ms motion={(useMaxSpeed ? "max-speed" : "auto")} {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
+
+        _currentPose = next;
+
+        if (patch.IsEmpty || DeviceAxisHelpers.Equals(previous, next))
+        {
+            if (!patch.IsEmpty)
+                OnDebugLog?.Invoke($"[Routine/{source}] Patch applied but produced no effective pose change.");
+            NotifyStateChanged();
+            return;
+        }
+
+        OnDebugLog?.Invoke($"[Routine/{source}] L0={next.L0:F3} R0={next.R0:F3} R1={next.R1:F3} R2={next.R2:F3} L1={next.L1:F3} L2={next.L2:F3} V0={next.V0:F3} V1={next.V1:F3} V2={next.V2:F3} A0={next.A0:F3}");
+
+        _recorder?.Push(next);
+        await SendOutputsAsync(next).ConfigureAwait(false);
+        NotifyStateChanged();
+    }
+
+    private async Task ResendCurrentPoseAsync()
+    {
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (_disposed || _emergency || !_inputActive)
+                return;
+
+            var current = _currentPose with { DeltaMs = ConsumeElapsedMs(), UseMaxSpeed = _inputMode == InputMode.Manual && _manualOverrideEnabled };
+            _currentPose = current;
+            OnDebugLog?.Invoke($"[Routine/Resume] Re-sending current pose after state transition.");
+            await SendOutputsAsync(current).ConfigureAwait(false);
+            NotifyStateChanged();
+        }
+        finally
+        {
+            _sendGate.Release();
+        }
+    }
+
+    private async Task SendOutputsAsync(DeviceCommand cmd)
+    {
+        if (_sendOutputsAsync is not null)
+        {
+            try
+            {
+                await _sendOutputsAsync(cmd).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"[Outputs] {ex.Message}");
+            }
+            return;
+        }
+
+        if (_save.Intiface.Enabled && _intiface is { IsConnected: true })
+        {
+            try
+            {
+                await _intiface.SendAsync(cmd).ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                OnLog?.Invoke($"[Intiface] {ex.Message}");
+            }
+        }
+
+        if (_save.TCode.Enabled)
+            _tcode?.Send(cmd);
+        if (_save.UdpTCode.Enabled)
+            _tcodeUdp?.Send(cmd);
+        if (_save.TcpTCode.Enabled)
+            _tcodeTcp?.Send(cmd);
     }
 
     private async Task SendEmergencyAsync()
     {
-        if (_emergencyStopAsync is not null)
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+        try
         {
-            try { await _emergencyStopAsync(); } catch { }
+            if (_emergencyStopAsync is not null)
+            {
+                try
+                {
+                    await _emergencyStopAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+                return;
+            }
+
+            _tcode?.EmergencyStop();
+            _tcodeUdp?.EmergencyStop();
+            _tcodeTcp?.EmergencyStop();
+            if (_intiface is { IsConnected: true })
+            {
+                try
+                {
+                    await _intiface.StopAllAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                }
+            }
+        }
+        finally
+        {
+            _sendGate.Release();
+            NotifyStateChanged();
+        }
+    }
+
+    private double ConsumeElapsedMs()
+    {
+        var now = Environment.TickCount64;
+        var previous = Interlocked.Exchange(ref _lastEventTimestampMs, now);
+        var delta = now - previous;
+        return Math.Max(delta, 1L);
+    }
+
+    private static string FormatPatch(DeviceAxisPatch patch)
+    {
+        var sb = new StringBuilder();
+        foreach (var axis in DeviceAxisHelpers.All)
+        {
+            if (!patch.TryGetValue(axis, out var value))
+                continue;
+
+            if (sb.Length > 0)
+                sb.Append(' ');
+
+            sb.Append(DeviceAxisHelpers.Token(axis));
+            sb.Append('=');
+            sb.Append(value.ToString("F3"));
+        }
+
+        return sb.Length == 0 ? "<empty>" : sb.ToString();
+    }
+
+    private void NotifyStateChanged()
+    {
+        if (_disposed)
             return;
-        }
-        _tcode?.EmergencyStop();
-        _tcodeUdp?.EmergencyStop();
-        _tcodeTcp?.EmergencyStop();
-        if (_intiface is { IsConnected: true })
-        {
-            try { await _intiface.StopAllAsync(); } catch { }
-        }
+        StateChanged?.Invoke();
     }
 
     public void Dispose()
     {
-        _actionTimer?.Dispose();
-        _logTimer?.Dispose();
+        if (_disposed)
+            return;
+
+        _disposed = true;
+        _store.OnSet -= HandleOscValueChanged;
+        _osc.OnAvatarChange -= HandleAvatarChanged;
+        _scriptInput.OnFrame -= HandleScriptFrame;
+        _scriptInput.OnStateChanged -= HandleScriptStateChanged;
+        _sendGate.Dispose();
     }
 }
