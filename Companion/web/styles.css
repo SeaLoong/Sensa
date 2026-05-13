@@ -402,7 +402,9 @@ body {
   background: rgba(255, 255, 255, 0.94);
   padding: 12px;
   display: grid;
+  grid-auto-rows: min-content;
   gap: 10px;
+  align-content: start;
 }
 
 .motion-axis-card__range {

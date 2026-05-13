@@ -76,7 +76,7 @@ const EMPTY_MANUAL = {
 
 const MANUAL_AXES = [
   { key: 'L0', label: 'L0 主轴', min: 0, max: 999, step: 1, description: '主往复轴的逻辑目标值。0 表示最缩回，999 表示最伸出。输出层仍会继续套用轴配置约束。' },
-  { key: 'L1', label: 'L1 前后', min: 0, max: 999, step: 1, description: '前后平移轴的逻辑目标值；按当前 TCode 约定，较小值朝前、较大值朝后，500 附近表示居中。输出层仍会继续套用轴配置约束。' },
+  { key: 'L1', label: 'L1 前后', min: 0, max: 999, step: 1, description: '前后平移轴的逻辑目标值；按 TCode 约定，较小值朝前、较大值朝后，500 附近表示居中。输出层仍会继续套用轴配置约束。' },
   { key: 'L2', label: 'L2 左右', min: 0, max: 999, step: 1, description: '左右平移轴的逻辑目标值；按 TCode 约定，正向为用户左侧；500 附近表示居中。' },
   { key: 'R0', label: 'R0 扭转', min: 0, max: 999, step: 1, description: '绕 L0 轴旋转的扭转逻辑值；500 附近表示居中。' },
   { key: 'R1', label: 'R1 滚转', min: 0, max: 999, step: 1, description: '绕 L1 轴旋转的滚转逻辑值；500 附近表示居中。' },
@@ -89,7 +89,7 @@ const MANUAL_AXES = [
 
 const SIGNAL_ROLE_OPTIONS = [
   { value: 'Depth', label: '主轴行程（L0）' },
-  { value: 'Surge', label: '前后位移（L1，正向=后）' },
+  { value: 'Surge', label: '前后位移（L1）' },
   { value: 'Sway', label: '左右位移（L2）' },
   { value: 'AngleX', label: '滚转（R1）' },
   { value: 'AngleY', label: '俯仰（R2）' },
@@ -1559,7 +1559,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
         <FormControl size="small" fullWidth className="signal-row__role">
           <InputLabel>
-            <HelpLabel text="目标轴" title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则会在后端做融合。" />
+            <HelpLabel text="目标轴" title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则会在后端做融合。当前约定里 L1 为数值小=前、数值大=后。" />
           </InputLabel>
           <Select value={draft.role} label="目标轴" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ role: event.target.value })}>
             {SIGNAL_ROLE_OPTIONS.map(option => (
