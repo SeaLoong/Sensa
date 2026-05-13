@@ -1,0 +1,5 @@
+# .NET build outputs
+**/bin/
+**/obj/
+**/build/
+_build/

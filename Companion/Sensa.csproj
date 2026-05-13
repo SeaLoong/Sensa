@@ -1,0 +1,25 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <Content Include="web\**" Exclude="$(DefaultItemExcludes);$(DefaultExcludesInProjectFolder)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <None Remove="web\**" />
+    <Compile Remove="web\**" />
+    <EmbeddedResource Remove="web\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Buttplug" Version="5.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.0" />
+    <PackageReference Include="System.Management" Version="9.0.*" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <AssemblyName>Sensa</AssemblyName>
+    <RootNamespace>Sensa</RootNamespace>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\artifacts\**;$(MSBuildProjectDirectory)\program\**;$(MSBuildProjectDirectory)\**\artifacts\**;$(MSBuildProjectDirectory)\**\bin\**;$(MSBuildProjectDirectory)\**\obj\**</DefaultItemExcludes>
+  </PropertyGroup>
+
+</Project>
