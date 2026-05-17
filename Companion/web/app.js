@@ -72,6 +72,8 @@ const EMPTY_MANUAL = {
   V1: 0,
   V2: 0,
   A0: 500,
+  A1: 500,
+  A2: 500,
 };
 
 const MANUAL_AXES = [
@@ -85,6 +87,8 @@ const MANUAL_AXES = [
   { key: 'V1', label: 'V1 震动 2', min: 0, max: 999, step: 1, description: '第二路震动逻辑值。0 为关闭，999 为最大。' },
   { key: 'V2', label: 'V2 震动 3', min: 0, max: 999, step: 1, description: '第三路震动逻辑值。0 为关闭，999 为最大。' },
   { key: 'A0', label: 'A0 辅助', min: 0, max: 999, step: 1, description: '辅助通道逻辑值；500 附近表示居中。' },
+  { key: 'A1', label: 'A1 辅助 2', min: 0, max: 999, step: 1, description: '辅助通道 2 逻辑值；500 附近表示居中。' },
+  { key: 'A2', label: 'A2 辅助 3', min: 0, max: 999, step: 1, description: '辅助通道 3 逻辑值；500 附近表示居中。' },
 ];
 
 const SIGNAL_ROLE_OPTIONS = [
@@ -98,6 +102,8 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'V1', label: '震动 2（V1）' },
   { value: 'V2', label: '震动 3（V2）' },
   { value: 'Auxiliary', label: '辅助（A0）' },
+  { value: 'Auxiliary1', label: '辅助 2（A1）' },
+  { value: 'Auxiliary2', label: '辅助 3（A2）' },
 ];
 
 const SIGNAL_CURVE_OPTIONS = [
@@ -110,6 +116,31 @@ const SIGNAL_CURVE_OPTIONS = [
 const COMMAND_MODE_OPTIONS = [
   { value: 'Speed', label: '速度 (S)' },
   { value: 'Interval', label: '时间 (I)' },
+];
+
+const MANUAL_MOTION_MODE_OPTIONS = [
+  { value: 'Default', label: '默认（跟随轴配置）' },
+  { value: 'Speed', label: '速度 (S)' },
+  { value: 'Interval', label: '时间 (I)' },
+];
+
+const OUTPUT_SLOPE_MODE_OPTIONS = [
+  { value: 'None', label: '无（跟随轴配置）' },
+  { value: 'Speed', label: '速度 (S)' },
+  { value: 'Interval', label: '时间 (I)' },
+];
+
+const SPEED_UNIT_BASE_OPTIONS = [
+  { value: 'Per100ms', label: '每 100ms（默认）' },
+  { value: 'PerSecond', label: '每秒' },
+];
+
+const RAMP_TYPE_OPTIONS = [
+  { value: 'None', label: '无' },
+  { value: 'Linear', label: '线性 (=)' },
+  { value: 'EaseIn', label: '缓入 (<)' },
+  { value: 'EaseOut', label: '缓出 (>)' },
+  { value: 'EaseInOut', label: '缓入缓出 (<>)' },
 ];
 
 const AXIS_LIMIT_MIN_SPEED = 1;
@@ -126,6 +157,8 @@ const AXIS_PROFILE_DEFS = [
   { key: 'v1', axis: 'V1', label: '震动 2', minLabel: '最小', maxLabel: '最大' },
   { key: 'v2', axis: 'V2', label: '震动 3', minLabel: '最小', maxLabel: '最大' },
   { key: 'a0', axis: 'A0', label: '辅助通道', minLabel: '最小', maxLabel: '最大' },
+  { key: 'a1', axis: 'A1', label: '辅助通道 2', minLabel: '最小', maxLabel: '最大' },
+  { key: 'a2', axis: 'A2', label: '辅助通道 3', minLabel: '最小', maxLabel: '最大' },
 ];
 
 const DEFAULT_AXIS_PROFILE = {
@@ -137,6 +170,7 @@ const DEFAULT_AXIS_PROFILE = {
   invert: false,
   mode: 'Normal',
   commandMode: 'Speed',
+  rampType: 'None',
   lockValue: 0.5,
 };
 
@@ -182,17 +216,17 @@ function createAxisProfilePresetMotion(presetId) {
 
   switch (presetId) {
     case 'sr6-full':
-      ignoreAxes(['v0', 'v1', 'v2', 'a0']);
+      ignoreAxes(['v0', 'v1', 'v2', 'a0', 'a1', 'a2']);
       return profile;
     case 'osr2-core':
-      ignoreAxes(['l1', 'l2', 'r0', 'v0', 'v1', 'v2', 'a0']);
+      ignoreAxes(['l1', 'l2', 'r0', 'v0', 'v1', 'v2', 'a0', 'a1', 'a2']);
       return profile;
     case 'l0-only':
-      ignoreAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'v0', 'v1', 'v2', 'a0']);
+      ignoreAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'v0', 'v1', 'v2', 'a0', 'a1', 'a2']);
       return profile;
     case 'l0-pose-lock':
       ignoreAxes(['v0', 'v1', 'v2']);
-      lockAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'a0'], 0.5);
+      lockAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'a0', 'a1', 'a2'], 0.5);
       return profile;
     default:
       return profile;
@@ -285,6 +319,8 @@ function createDefaultMotionProfile(useGlobal = false) {
     v1: createDefaultAxisProfileValue('v1'),
     v2: createDefaultAxisProfileValue('v2'),
     a0: createDefaultAxisProfileValue('a0'),
+    a1: createDefaultAxisProfileValue('a1'),
+    a2: createDefaultAxisProfileValue('a2'),
   };
 }
 
@@ -309,6 +345,7 @@ function normalizeAxisProfile(axis, axisKey) {
   const remapMax = Math.max(remapMin, Math.min(999, Number(next.remapMax ?? DEFAULT_AXIS_PROFILE.remapMax)));
   const mode = AXIS_MODE_OPTIONS.some(option => option.value === next.mode) ? next.mode : 'Normal';
   const commandMode = COMMAND_MODE_OPTIONS.some(option => option.value === next.commandMode) ? next.commandMode : 'Speed';
+  const rampType = RAMP_TYPE_OPTIONS.some(option => option.value === next.rampType) ? next.rampType : 'None';
 
   return {
     min,
@@ -319,6 +356,7 @@ function normalizeAxisProfile(axis, axisKey) {
     invert: Boolean(next.invert),
     mode,
     commandMode,
+    rampType,
     lockValue: Math.max(0, Math.min(1, Number(next.lockValue ?? defaultAxisLockValue(axisKey)))),
   };
 }
@@ -339,6 +377,8 @@ function normalizeMotionProfile(profile, useGlobal = false) {
     v1: normalizeAxisProfile(profile?.v1, 'v1'),
     v2: normalizeAxisProfile(profile?.v2, 'v2'),
     a0: normalizeAxisProfile(profile?.a0, 'a0'),
+    a1: normalizeAxisProfile(profile?.a1, 'a1'),
+    a2: normalizeAxisProfile(profile?.a2, 'a2'),
   };
 }
 
@@ -432,6 +472,8 @@ function stripMotionProfile(profile, useGlobal = false) {
     v1: normalized.v1,
     v2: normalized.v2,
     a0: normalized.a0,
+    a1: normalized.a1,
+    a2: normalized.a2,
   };
 }
 
@@ -620,8 +662,28 @@ function normalizeAxisLimitSpeed(value) {
   return Math.max(AXIS_LIMIT_MIN_SPEED, Math.min(AXIS_LIMIT_MAX_SPEED, numeric));
 }
 
+function normalizeManualMotionMode(mode) {
+  return mode === 'Speed' || mode === 'Interval' ? mode : 'Default';
+}
+
+function normalizeManualMotionValueByMode(mode, value) {
+  const normalizedMode = normalizeManualMotionMode(mode);
+  if (normalizedMode === 'Interval') {
+    const numeric = Math.round(Number(value ?? 1000));
+    if (!Number.isFinite(numeric)) return 1000;
+    return Math.max(1, Math.min(60000, numeric));
+  }
+
+  return normalizeAxisLimitSpeed(value);
+}
+
 function formatAxisMotionLimitSummary(commandMode, maxSpeed) {
   return `${normalizeCommandMode(commandMode) === 'Interval' ? 'I' : 'S'} · 速度 ${normalizeAxisLimitSpeed(maxSpeed)}`;
+}
+
+function formatRampTypeSummary(rampType) {
+  const option = RAMP_TYPE_OPTIONS.find(item => item.value === (rampType || 'None'));
+  return `Ramp ${option?.label || '无'}`;
 }
 
 function getAxisMotionLimitFieldConfig(axis) {
@@ -666,6 +728,7 @@ function buildAxisProfileAxisRows(profileCard) {
     pushDetail(`映射 ${current.remapMin}-${current.remapMax}`, current.remapMin !== defaults.remapMin || current.remapMax !== defaults.remapMax, 'remap');
     pushDetail(`边界 ${current.min}-${current.max}`, current.min !== defaults.min || current.max !== defaults.max, 'bounds');
     pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
+    pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, current.rampType !== defaults.rampType ? 'warning' : 'neutral');
 
     if (current.invert) pushDetail('反向', true, 'danger');
 
@@ -679,6 +742,14 @@ function isTCodeOutputType(type) {
 
 function getOutputTypeLabel(type) {
   return OUTPUT_TYPE_BY_VALUE[type]?.label || '输出设备';
+}
+
+function formatSlopeModeLabel(mode) {
+  return OUTPUT_SLOPE_MODE_OPTIONS.find(option => option.value === mode)?.label || '无（跟随轴配置）';
+}
+
+function formatSpeedUnitBaseLabel(base) {
+  return SPEED_UNIT_BASE_OPTIONS.find(option => option.value === base)?.label || '每 100ms（默认）';
 }
 
 function getDefaultOutputPort(type) {
@@ -702,6 +773,14 @@ function normalizeOutputPort(value, fallback) {
 
 function normalizeOutputWebsocketAddress(value, fallback = 'ws://localhost:12345') {
   return (value || fallback).trim() || fallback;
+}
+
+function normalizeOutputSlopeMode(value) {
+  return OUTPUT_SLOPE_MODE_OPTIONS.some(option => option.value === value) ? value : 'None';
+}
+
+function normalizeSpeedUnitBase(value) {
+  return SPEED_UNIT_BASE_OPTIONS.some(option => option.value === value) ? value : 'Per100ms';
 }
 
 function getOutputDisplayName(output) {
@@ -840,6 +919,8 @@ function createOutputConfig(type, config, options = {}) {
     port: getDefaultOutputPort(type),
     manageEngineProcess: true,
     websocketAddress: 'ws://localhost:12345',
+    slopeMode: 'None',
+    speedUnitBase: 'Per100ms',
     ...suggestedTarget,
   };
 }
@@ -859,6 +940,8 @@ function normalizeOutputConfig(output, config, options = {}) {
     port: normalizeOutputPort(output?.port, fallback.port),
     manageEngineProcess: output?.manageEngineProcess !== false,
     websocketAddress: normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
+    slopeMode: isTCodeOutputType(output?.type || fallback.type) ? normalizeOutputSlopeMode(output?.slopeMode ?? fallback.slopeMode) : 'None',
+    speedUnitBase: isTCodeOutputType(output?.type || fallback.type) ? normalizeSpeedUnitBase(output?.speedUnitBase ?? fallback.speedUnitBase) : 'Per100ms',
   };
 }
 
@@ -1165,34 +1248,37 @@ function parseAxisTraceMessage(message) {
     fields[match[1]] = match[2];
   }
 
+  const stage = fields.stage || '';
+  const reason = fields.reason || '';
+
   return {
     axis: axisMatch[1],
-    src: parseAxisTraceNumber(fields.src),
-    prevSrc: parseAxisTraceNumber(fields.prevSrc),
-    prevOut: parseAxisTraceNumber(fields.prevOut),
-    out: parseAxisTraceNumber(fields.out),
-    norm: parseAxisTraceNumber(fields.norm),
-    remap: parseAxisTraceNumber(fields.remap),
-    mapped: parseAxisTraceNumber(fields.mapped),
-    mode: fields.mode || '',
+    src: parseAxisTraceNumber(fields.input),
+    prevSrc: parseAxisTraceNumber(fields.prevInput),
+    prevOut: parseAxisTraceNumber(fields.prevOutput),
+    out: parseAxisTraceNumber(fields.output),
+    norm: parseAxisTraceNumber(fields.normalized),
+    remap: parseAxisTraceNumber(fields.remapped),
+    mapped: parseAxisTraceNumber(fields.clamped),
+    mode: fields.axisMode || '',
     invert: parseAxisTraceBoolean(fields.invert),
     min: parseAxisTraceNumber(fields.min),
     max: parseAxisTraceNumber(fields.max),
     remapMin: parseAxisTraceNumber(fields.remapMin),
     remapMax: parseAxisTraceNumber(fields.remapMax),
     lock: parseAxisTraceNumber(fields.lock),
-    action: fields.action || '',
-    term: fields.term || '',
-    note: fields.note || '',
+    action: stage,
+    term: fields.cmd || '',
+    note: reason,
   };
 }
 
 function formatAxisTraceNote(note) {
   switch ((note || '').toLowerCase()) {
-    case 'ignored':
-      return '轴已忽略';
-    case 'profile-held':
-      return '轴配置后无变化';
+    case 'axis-ignored':
+      return '轴模式为“忽略”，不发送该轴指令';
+    case 'post-profile-unchanged':
+      return '轴配置处理后目标未变化，跳过发送';
     default:
       return note || '';
   }
@@ -1201,11 +1287,15 @@ function formatAxisTraceNote(note) {
 function formatAxisTraceAction(action) {
   switch ((action || '').toLowerCase()) {
     case 'emit':
-      return { label: '已发送', color: 'primary' };
+      return { label: '已发送指令', color: 'primary' };
+    case 'hold':
+      return { label: '目标未变化', color: 'default' };
     case 'skip':
-      return { label: '未发送', color: 'default' };
+      return { label: '目标未变化', color: 'default' };
+    case 'ignored':
+      return { label: '轴已忽略', color: 'warning' };
     default:
-      return { label: action || '未知动作', color: 'default' };
+      return { label: action || '未知阶段', color: 'default' };
   }
 }
 
@@ -1225,8 +1315,8 @@ function formatAxisTraceMode(mode) {
 function formatAxisTraceTerm(term) {
   const text = (term || '').trim().toUpperCase();
   if (!text) return '';
-  if (text.startsWith('S')) return `速度 ${text.slice(1)}`;
-  if (text.startsWith('I')) return `时长 ${text.slice(1)}ms`;
+  if (text.startsWith('S')) return `速度指令 ${text}`;
+  if (text.startsWith('I')) return `时长指令 ${text}`;
   return text;
 }
 
@@ -1255,6 +1345,8 @@ function normalizeManualCommand(command) {
     V1: toManualValue(raw.V1 ?? EMPTY_MANUAL.V1),
     V2: toManualValue(raw.V2 ?? EMPTY_MANUAL.V2),
     A0: toManualValue(raw.A0 ?? EMPTY_MANUAL.A0),
+    A1: toManualValue(raw.A1 ?? EMPTY_MANUAL.A1),
+    A2: toManualValue(raw.A2 ?? EMPTY_MANUAL.A2),
   };
 }
 
@@ -1627,10 +1719,49 @@ function AxisTraceLogEntry({ log, timeStr }) {
   const actionMeta = formatAxisTraceAction(trace.action);
   const modeLabel = formatAxisTraceMode(trace.mode);
   const axisModeLabel = modeLabel ? `${modeLabel}${trace.invert ? ' · 反向' : ''}` : trace.invert ? '反向' : '普通';
-  const rangeLabel = Number.isFinite(trace.min) && Number.isFinite(trace.max) ? `${trace.min}-${trace.max}` : '—';
-  const remapLabel = Number.isFinite(trace.remapMin) && Number.isFinite(trace.remapMax) ? `${trace.remapMin}-${trace.remapMax}` : '—';
-  const lockLabel = Number.isFinite(trace.lock) ? formatAxisPositionFromNormalized(trace.lock) : '—';
   const termLabel = formatAxisTraceTerm(trace.term);
+
+  const metrics = [];
+
+  if (Number.isFinite(trace.prevSrc) || Number.isFinite(trace.src)) {
+    metrics.push({
+      key: 'input',
+      label: '原始输入(0-999)',
+      value: `${formatAxisDisplayValue(trace.prevSrc)} → ${formatAxisDisplayValue(trace.src)}`,
+    });
+  }
+
+  if (Number.isFinite(trace.prevOut) || Number.isFinite(trace.out)) {
+    metrics.push({
+      key: 'output',
+      label: '发送目标(0-999)',
+      value: `${formatAxisDisplayValue(trace.prevOut)} → ${formatAxisDisplayValue(trace.out)}`,
+    });
+  }
+
+  if (Number.isFinite(trace.norm)) {
+    metrics.push({ key: 'normalized', label: '归一化输入(0-1)', value: formatAxisDisplayValue(trace.norm, 3) });
+  }
+
+  if (Number.isFinite(trace.remap)) {
+    metrics.push({ key: 'remapped', label: '重映射后(0-1)', value: formatAxisDisplayValue(trace.remap, 3) });
+  }
+
+  if (Number.isFinite(trace.mapped)) {
+    metrics.push({ key: 'clamped', label: '边界裁剪后(0-1)', value: formatAxisDisplayValue(trace.mapped, 3) });
+  }
+
+  if (Number.isFinite(trace.min) && Number.isFinite(trace.max)) {
+    metrics.push({ key: 'bounds', label: '边界限制', value: `${trace.min}-${trace.max}` });
+  }
+
+  if (Number.isFinite(trace.remapMin) && Number.isFinite(trace.remapMax)) {
+    metrics.push({ key: 'remap-range', label: '映射目标区间', value: `${trace.remapMin}-${trace.remapMax}` });
+  }
+
+  if ((trace.mode || '').toLowerCase() === 'locked' && Number.isFinite(trace.lock)) {
+    metrics.push({ key: 'lock', label: '锁定位置', value: formatAxisPositionFromNormalized(trace.lock) });
+  }
 
   return (
     <Box className={`log-entry log-entry--axis log-entry--axis-${(trace.action || 'unknown').toLowerCase()}`}>
@@ -1651,16 +1782,13 @@ function AxisTraceLogEntry({ log, timeStr }) {
         ) : null}
       </Stack>
 
-      <Box className="axis-trace-grid">
-        <AxisTraceMetric label="输入值" value={`${formatAxisDisplayValue(trace.prevSrc)} → ${formatAxisDisplayValue(trace.src)}`} />
-        <AxisTraceMetric label="逻辑值" value={formatAxisDisplayValue(trace.norm, 3)} />
-        <AxisTraceMetric label="映射后" value={formatAxisDisplayValue(trace.remap, 3)} />
-        <AxisTraceMetric label="最终位置" value={formatAxisDisplayValue(trace.mapped, 3)} />
-        <AxisTraceMetric label="输出值" value={`${formatAxisDisplayValue(trace.prevOut)} → ${formatAxisDisplayValue(trace.out)}`} />
-        <AxisTraceMetric label="边界" value={rangeLabel} />
-        <AxisTraceMetric label="映射区间" value={remapLabel} />
-        <AxisTraceMetric label="锁定" value={lockLabel} />
-      </Box>
+      {metrics.length > 0 && (
+        <Box className="axis-trace-grid">
+          {metrics.map(metric => (
+            <AxisTraceMetric key={metric.key} label={metric.label} value={metric.value} />
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -1766,6 +1894,17 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
             variant="floating"
             className="motion-axis-card__command-select"
             onChange={next => onChange({ commandMode: next })}
+          />
+
+          <SelectField
+            label="RampType"
+            title="非标扩展：在 S/I 指令后附加 = / < / > / <>。若设备不支持，建议使用“无”。"
+            value={RAMP_TYPE_OPTIONS.some(option => option.value === value.rampType) ? value.rampType : 'None'}
+            options={RAMP_TYPE_OPTIONS}
+            disabled={disabled}
+            variant="floating"
+            className="motion-axis-card__command-select"
+            onChange={next => onChange({ rampType: next })}
           />
 
           <Box className="motion-axis-card__command-limit">
@@ -1928,6 +2067,8 @@ function App() {
   const [profileDialog, setProfileDialog] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [manualDraft, setManualDraft] = useState(EMPTY_MANUAL);
+  const [manualMotionMode, setManualMotionMode] = useState('Default');
+  const [manualMotionValue, setManualMotionValue] = useState(100);
   const [manualContinuous, setManualContinuous] = useState(false);
   const [scriptSettings, setScriptSettings] = useState({ loop: false, speed: 1 });
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
@@ -1947,6 +2088,8 @@ function App() {
   const [confirmClearMappings, setConfirmClearMappings] = useState(false);
   const manualTimerRef = useRef(null);
   const manualDraftRef = useRef(EMPTY_MANUAL);
+  const manualMotionModeRef = useRef('Default');
+  const manualMotionValueRef = useRef(100);
   const savedSignalsHashRef = useRef('');
   const scriptSettingsInitializedRef = useRef(false);
   const manualInitializedRef = useRef(false);
@@ -1983,6 +2126,12 @@ function App() {
         const initialManualDraft = normalizeManualCommand(overviewResponse?.runtime?.manualCommand);
         setManualDraft(initialManualDraft);
         manualDraftRef.current = initialManualDraft;
+        const initialManualMode = normalizeManualMotionMode(overviewResponse?.runtime?.manualCommand?.requestedCommandMode);
+        const initialManualMotionValue = normalizeManualMotionValueByMode(initialManualMode, overviewResponse?.runtime?.manualCommand?.requestedMotionValue ?? (initialManualMode === 'Interval' ? 1000 : 100));
+        setManualMotionMode(initialManualMode);
+        manualMotionModeRef.current = initialManualMode;
+        setManualMotionValue(initialManualMotionValue);
+        manualMotionValueRef.current = initialManualMotionValue;
         setScriptSettings({
           loop: Boolean(overviewResponse?.input?.script?.loop),
           speed: Number(overviewResponse?.input?.script?.speed || 1),
@@ -2564,6 +2713,8 @@ function App() {
       V1: toPayloadValue(draft.V1),
       V2: toPayloadValue(draft.V2),
       A0: toPayloadValue(draft.A0),
+      A1: toPayloadValue(draft.A1),
+      A2: toPayloadValue(draft.A2),
     };
   }
 
@@ -2580,6 +2731,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           enabled: true,
+          motionMode: manualMotionModeRef.current === 'Default' ? null : manualMotionModeRef.current,
+          motionValue: normalizeManualMotionValueByMode(manualMotionModeRef.current, manualMotionValueRef.current),
           ...manualDraftToPayload(manualDraftRef.current),
         }),
       }).catch(error => notify(error.message || '手动输入更新失败', 'error'));
@@ -2590,6 +2743,24 @@ function App() {
     const nextDraft = { ...manualDraft, ...patch };
     setManualDraft(nextDraft);
     manualDraftRef.current = nextDraft;
+    scheduleManualContinuousUpdate();
+  }
+
+  function handleManualMotionModeChange(nextMode) {
+    const normalizedMode = normalizeManualMotionMode(nextMode);
+    setManualMotionMode(normalizedMode);
+    manualMotionModeRef.current = normalizedMode;
+
+    const normalizedValue = normalizeManualMotionValueByMode(normalizedMode, manualMotionValueRef.current);
+    setManualMotionValue(normalizedValue);
+    manualMotionValueRef.current = normalizedValue;
+    scheduleManualContinuousUpdate();
+  }
+
+  function handleManualMotionValueChange(nextValue) {
+    const normalizedValue = normalizeManualMotionValueByMode(manualMotionModeRef.current, nextValue);
+    setManualMotionValue(normalizedValue);
+    manualMotionValueRef.current = normalizedValue;
     scheduleManualContinuousUpdate();
   }
 
@@ -2606,6 +2777,8 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           enabled: true,
+          motionMode: manualMotionMode === 'Default' ? null : manualMotionMode,
+          motionValue: normalizeManualMotionValueByMode(manualMotionMode, manualMotionValue),
           ...manualDraftToPayload(manualDraft),
         }),
       });
@@ -2873,6 +3046,14 @@ function App() {
     }).catch(error => notify(error.message || '扫描请求失败', 'error'));
   }
 
+  async function refreshTCodeDeviceInfo(outputId) {
+    await withBusy(`tcode-device-refresh-${outputId}`, async () => {
+      await apiRequest(`/api/control/output/${encodeURIComponent(outputId)}/device-info-refresh`, { method: 'POST' });
+      await refreshOverview();
+      notify('设备信息已刷新', 'success');
+    }).catch(error => notify(error.message || '刷新设备信息失败', 'error'));
+  }
+
   const theme = useMemo(
     () =>
       createTheme({
@@ -3022,6 +3203,10 @@ function App() {
     if (!dialog || !config) return [];
     return getOutputTargetConflicts(config, dialog.outputId, dialog.draft);
   }, [config, dialog]);
+  const outputDialogOverview = useMemo(() => {
+    if (!dialog) return null;
+    return getOutputOverview(overview, dialog.outputId);
+  }, [overview, dialog]);
   const outputDialogConflictMessage = useMemo(() => formatOutputTargetConflictMessage(outputDialogConflicts), [outputDialogConflicts]);
   const hasSerialTargetConflict = outputDialogConflicts.some(conflict => conflict.binding.key.startsWith('serial:'));
   const hasNetworkTargetConflict = outputDialogConflicts.some(conflict => conflict.binding.key.startsWith('net:'));
@@ -3091,13 +3276,48 @@ function App() {
       (acc, log) => {
         if (!log.axisTrace) return acc;
         acc.total += 1;
-        if ((log.axisTrace.action || '').toLowerCase() === 'emit') acc.emit += 1;
-        if ((log.axisTrace.action || '').toLowerCase() === 'skip') acc.skip += 1;
+        const stage = (log.axisTrace.action || '').toLowerCase();
+        if (stage === 'emit') acc.emit += 1;
+        if (stage === 'hold') acc.hold += 1;
+        if (stage === 'ignored') acc.ignored += 1;
         return acc;
       },
-      { total: 0, emit: 0, skip: 0 },
+      { total: 0, emit: 0, hold: 0, ignored: 0 },
     );
   }, [filteredLogs]);
+  const manualMotionField = useMemo(() => {
+    const mode = normalizeManualMotionMode(manualMotionMode);
+    if (mode === 'Interval') {
+      return {
+        label: '指定时长',
+        title: '手动模式固定使用 I 指令，滑条值表示到达目标位置所需时长（毫秒）。',
+        min: 1,
+        max: 60000,
+        step: 1,
+        valueFormatter: next => `${Math.round(Number(next || 0))}ms`,
+      };
+    }
+
+    if (mode === 'Speed') {
+      return {
+        label: '指定速度',
+        title: '手动模式固定使用 S 指令，滑条值即本次手动输出的速度。',
+        min: AXIS_LIMIT_MIN_SPEED,
+        max: AXIS_LIMIT_MAX_SPEED,
+        step: 1,
+        valueFormatter: next => `${Math.round(Number(next || 0))}`,
+      };
+    }
+
+    return {
+      label: '斜率值（默认=速度）',
+      title: '默认模式下不强制 S/I；每个轴仍按各自轴配置决定使用 S 或 I。此滑条值按“速度上限”解释，若轴配置为 I 会自动换算成对应时长。',
+      min: AXIS_LIMIT_MIN_SPEED,
+      max: AXIS_LIMIT_MAX_SPEED,
+      step: 1,
+      valueFormatter: next => `${Math.round(Number(next || 0))}`,
+    };
+  }, [manualMotionMode]);
 
   if (loading) {
     return (
@@ -3533,6 +3753,31 @@ function App() {
                         }
                         label={<HelpLabel text="持续更新" title="开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。" />}
                       />
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="manual-toolbar__motion-controls">
+                        <SelectField
+                          label="斜率方式"
+                          title="默认：按轴配置决定走 S 或 I；速度：全部按 S；时间：全部按 I。"
+                          value={manualMotionMode}
+                          options={MANUAL_MOTION_MODE_OPTIONS}
+                          variant="compact"
+                          className="manual-toolbar__motion-select"
+                          formControlProps={{ sx: { minWidth: 180 } }}
+                          onChange={next => handleManualMotionModeChange(next)}
+                        />
+
+                        <Box className="manual-toolbar__motion-slider">
+                          <ValueSliderField
+                            label={manualMotionField.label}
+                            title={manualMotionField.title}
+                            value={manualMotionValue}
+                            min={manualMotionField.min}
+                            max={manualMotionField.max}
+                            step={manualMotionField.step}
+                            valueFormatter={manualMotionField.valueFormatter}
+                            onChange={next => handleManualMotionValueChange(next)}
+                          />
+                        </Box>
+                      </Stack>
                     </Stack>
                   </Box>
                 </Stack>
@@ -3792,6 +4037,8 @@ function App() {
                       const profileName = isTCodeOutputType(output.type)
                         ? outputState.profileName || getAxisProfile(config, output.motionProfileId)?.name || getDefaultAxisProfile(config)?.name
                         : null;
+                      const tcodeSettings = outputState.tcodeSettings || null;
+                      const tcodeDeviceInfo = outputState.tcodeDeviceInfo || null;
 
                       return (
                         <Card key={output.id} className={`output-card${isEnabled ? ' output-card--enabled' : ' output-card--disabled'}`} variant="outlined">
@@ -3818,7 +4065,38 @@ function App() {
                                 <Chip size="small" variant="outlined" label={typeMeta.shortLabel} />
                                 <Chip size="small" color={!isEnabled ? 'default' : outputState.connected ? 'success' : 'warning'} variant="outlined" label={connectionLabel} />
                                 {profileName && <Chip size="small" variant="outlined" label={`轴配置 · ${profileName}`} />}
+                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`输出斜率 · ${formatSlopeModeLabel(tcodeSettings?.slopeMode || output.slopeMode)}`} />}
+                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`速度基准 · ${formatSpeedUnitBaseLabel(tcodeSettings?.speedUnitBase || output.speedUnitBase)}`} />}
                               </Stack>
+
+                              {isTCodeOutputType(output.type) && (
+                                <Box className="dialog-panel" sx={{ p: 1.25 }}>
+                                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
+                                    <Typography variant="caption" color="text.secondary">
+                                      设备信息（D 指令）
+                                    </Typography>
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      onClick={() => refreshTCodeDeviceInfo(output.id)}
+                                      disabled={busyKey === `tcode-device-refresh-${output.id}` || !outputState.connected}
+                                    >
+                                      刷新
+                                    </Button>
+                                  </Stack>
+                                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                                    <Chip size="small" variant="outlined" label={tcodeDeviceInfo?.supported ? '支持查询' : '不支持查询'} />
+                                    {tcodeDeviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${tcodeDeviceInfo.firmwareVersion}`} />}
+                                    {tcodeDeviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${tcodeDeviceInfo.tcodeVersion}`} />}
+                                    {tcodeDeviceInfo?.status && <Chip size="small" variant="outlined" label={tcodeDeviceInfo.status} />}
+                                  </Stack>
+                                  {Array.isArray(tcodeDeviceInfo?.axisDescriptors) && tcodeDeviceInfo.axisDescriptors.length > 0 && (
+                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
+                                      {tcodeDeviceInfo.axisDescriptors.join(' · ')}
+                                    </Typography>
+                                  )}
+                                </Box>
+                              )}
 
                               {output.type === 'Intiface' && Array.isArray(outputState.devices) && outputState.devices.length > 0 && (
                                 <Box className="device-list">
@@ -3885,8 +4163,9 @@ function App() {
                   <Chip size="small" variant="outlined" label={`可见 ${filteredLogs.length} 条`} />
                   {filteredLogResult.truncated && <Chip size="small" color="warning" variant="outlined" label={`最近 ${LOG_MAX_VISIBLE}/${filteredLogResult.totalMatched}`} />}
                   <Chip size="small" variant="outlined" label={`轴调试 ${visibleAxisLogStats.total}`} />
-                  <Chip size="small" color="primary" variant="outlined" label={`已发送 ${visibleAxisLogStats.emit}`} />
-                  <Chip size="small" variant="outlined" label={`未发送 ${visibleAxisLogStats.skip}`} />
+                  <Chip size="small" color="primary" variant="outlined" label={`输出更新 ${visibleAxisLogStats.emit}`} />
+                  <Chip size="small" variant="outlined" label={`输出保持 ${visibleAxisLogStats.hold}`} />
+                  <Chip size="small" color="warning" variant="outlined" label={`已忽略 ${visibleAxisLogStats.ignored}`} />
                   {logOnlyAxis && <Chip size="small" color="info" variant="outlined" label="已自动包含 debug" />}
                 </Stack>
               </Box>
@@ -3986,15 +4265,70 @@ function App() {
               />
 
               {isTCodeOutputType(dialog.draft.type) && (
-                <SelectField
-                  label="轴配置"
-                  title="选择这台 TCode 输出使用的轴配置。"
-                  value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
-                  options={axisProfiles.map(profile => ({ value: profile.id, label: profile.name }))}
-                  variant="compact"
-                  fullWidth
-                  onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: next } }))}
-                />
+                <>
+                  <SelectField
+                    label="轴配置"
+                    title="选择这台 TCode 输出使用的轴配置。"
+                    value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
+                    options={axisProfiles.map(profile => ({ value: profile.id, label: profile.name }))}
+                    variant="compact"
+                    fullWidth
+                    onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: next } }))}
+                  />
+
+                  <SelectField
+                    label="输出斜率方式"
+                    title="无=按每轴配置；速度=强制全部使用 S；时间=强制全部使用 I。"
+                    value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
+                    options={OUTPUT_SLOPE_MODE_OPTIONS}
+                    variant="compact"
+                    fullWidth
+                    onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, slopeMode: next } }))}
+                  />
+
+                  <SelectField
+                    label="速度单位基准"
+                    title="默认每 100ms。切换为每秒后，仅影响 S 相关速度换算与 I 时长换算。"
+                    value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
+                    options={SPEED_UNIT_BASE_OPTIONS}
+                    variant="compact"
+                    fullWidth
+                    onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, speedUnitBase: next } }))}
+                  />
+
+                  <Alert severity="info" variant="outlined">
+                    速度单位基准默认是 <strong>每 100ms</strong>。若你的设备/固件按“每秒”解释 S 值，可切到“每秒”。
+                  </Alert>
+
+                  <Box className="dialog-panel">
+                    <Box className="dialog-panel__header">
+                      <Typography variant="subtitle2">设备信息（D 指令）</Typography>
+                      <Chip size="small" variant="outlined" label={outputDialogOverview?.connected ? '已连接' : '未连接'} />
+                    </Box>
+
+                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
+                      <Chip size="small" variant="outlined" label={outputDialogOverview?.tcodeDeviceInfo?.supported ? '支持查询' : '不支持查询'} />
+                      {outputDialogOverview?.tcodeDeviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${outputDialogOverview.tcodeDeviceInfo.firmwareVersion}`} />}
+                      {outputDialogOverview?.tcodeDeviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${outputDialogOverview.tcodeDeviceInfo.tcodeVersion}`} />}
+                      {outputDialogOverview?.tcodeDeviceInfo?.status && <Chip size="small" variant="outlined" label={outputDialogOverview.tcodeDeviceInfo.status} />}
+                    </Stack>
+
+                    {Array.isArray(outputDialogOverview?.tcodeDeviceInfo?.axisDescriptors) && outputDialogOverview.tcodeDeviceInfo.axisDescriptors.length > 0 && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                        {outputDialogOverview.tcodeDeviceInfo.axisDescriptors.join(' · ')}
+                      </Typography>
+                    )}
+
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={() => refreshTCodeDeviceInfo(dialog.outputId)}
+                      disabled={busyKey === `tcode-device-refresh-${dialog.outputId}` || !outputDialogOverview?.connected}
+                    >
+                      刷新设备信息
+                    </Button>
+                  </Box>
+                </>
               )}
 
               {dialog.draft.type === 'TCodeSerial' && (

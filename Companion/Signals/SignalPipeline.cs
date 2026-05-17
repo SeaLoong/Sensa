@@ -126,6 +126,10 @@ public sealed class SignalMixer
         var hasV1     = false;
         var hasV2     = false;
         var hasAux    = false;
+        var hasAux1   = false;
+        var aux1      = 0.5f;
+        var hasAux2   = false;
+        var aux2      = 0.5f;
 
         foreach (var (role, value) in signals)
         {
@@ -171,6 +175,14 @@ public sealed class SignalMixer
                     hasAux = true;
                     aux = FuseCentered(aux, value);
                     break;
+                case SignalRole.Auxiliary1:
+                    hasAux1 = true;
+                    aux1 = FuseCentered(aux1, value);
+                    break;
+                case SignalRole.Auxiliary2:
+                    hasAux2 = true;
+                    aux2 = FuseCentered(aux2, value);
+                    break;
             }
         }
 
@@ -185,6 +197,8 @@ public sealed class SignalMixer
         if (hasV1) patch.Set(MotionAxis.V1, v1);
         if (hasV2) patch.Set(MotionAxis.V2, v2);
         if (hasAux) patch.Set(MotionAxis.A0, aux);
+        if (hasAux1) patch.Set(MotionAxis.A1, aux1);
+        if (hasAux2) patch.Set(MotionAxis.A2, aux2);
         return patch;
     }
 
@@ -204,6 +218,8 @@ public sealed class SignalMixer
 
 public sealed class AxisVelocityTracker
 {
+    private const double OutputUnitsPerStroke = 999d;
+
     private float _lastPos    = 0.5f;
     private bool  _hasLastPos;
 
@@ -213,7 +229,7 @@ public sealed class AxisVelocityTracker
     ///
     /// TCode S uses axis-value change per 100ms. A full-stroke move in 1 second therefore maps to 100.
     /// </summary>
-    public int Estimate(float newPos, double deltaMs, int maxVelocity = 200)
+    public int Estimate(float newPos, double deltaMs, int maxVelocity = 200, double speedWindowMs = 100d)
     {
         if (!_hasLastPos)
         {
@@ -230,11 +246,13 @@ public sealed class AxisVelocityTracker
 
         var dtMs = Math.Max(deltaMs, 1d);
         var deltaPos = Math.Abs(newPos - _lastPos);
-        var velocity = (deltaPos * 1000d) / (dtMs / 100d);
+        var deltaUnits = deltaPos * OutputUnitsPerStroke;
+        var velocity = (deltaUnits * Math.Max(speedWindowMs, 1d)) / dtMs;
 
         _lastPos = newPos;
 
-        if (velocity <= 0f) return 0;
+        if (velocity <= 0d)
+            return 0;
 
         return (int)Math.Min(Math.Ceiling(velocity), maxVelocity);
     }

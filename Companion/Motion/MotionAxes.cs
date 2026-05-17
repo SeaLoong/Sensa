@@ -14,6 +14,8 @@ public enum MotionAxis
     V1,
     V2,
     A0,
+    A1,
+    A2,
 }
 
 public sealed class MotionPatch
@@ -54,6 +56,8 @@ public static class MotionAxisHelper
         MotionAxis.V1,
         MotionAxis.V2,
         MotionAxis.A0,
+        MotionAxis.A1,
+        MotionAxis.A2,
     };
 
     public static MotionFrame CreateNeutralFrame(double deltaMs = 0d) => new()
@@ -68,6 +72,8 @@ public static class MotionAxisHelper
         V1 = 0f,
         V2 = 0f,
         A0 = 0.5f,
+        A1 = 0.5f,
+        A2 = 0.5f,
         DeltaMs = deltaMs,
     };
 
@@ -83,6 +89,8 @@ public static class MotionAxisHelper
         V1 = 0f,
         V2 = 0f,
         A0 = 0.5f,
+        A1 = 0.5f,
+        A2 = 0.5f,
         DeltaMs = deltaMs,
     };
 
@@ -98,6 +106,8 @@ public static class MotionAxisHelper
         MotionAxis.V1 => frame.V1,
         MotionAxis.V2 => frame.V2,
         MotionAxis.A0 => frame.A0,
+        MotionAxis.A1 => frame.A1,
+        MotionAxis.A2 => frame.A2,
         _ => 0f,
     };
 
@@ -116,6 +126,8 @@ public static class MotionAxisHelper
             MotionAxis.V1 => frame with { V1 = value },
             MotionAxis.V2 => frame with { V2 = value },
             MotionAxis.A0 => frame with { A0 = value },
+            MotionAxis.A1 => frame with { A1 = value },
+            MotionAxis.A2 => frame with { A2 = value },
             _ => frame,
         };
     }
@@ -163,6 +175,8 @@ public static class MotionAxisHelper
         SignalRole.V1 => MotionAxis.V1,
         SignalRole.V2 => MotionAxis.V2,
         SignalRole.Auxiliary => MotionAxis.A0,
+        SignalRole.Auxiliary1 => MotionAxis.A1,
+        SignalRole.Auxiliary2 => MotionAxis.A2,
         _ => null,
     };
 

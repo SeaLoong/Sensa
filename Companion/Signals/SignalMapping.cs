@@ -26,6 +26,8 @@ public enum SignalRole
     V1,
     V2,
     Auxiliary,
+    Auxiliary1,
+    Auxiliary2,
 }
 
 public enum SignalCurve

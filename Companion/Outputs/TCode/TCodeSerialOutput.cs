@@ -21,10 +21,12 @@ public sealed class TCodeSerialOutput : IDisposable
     private MotionFrame? _lastSourceFrame;
     private MotionFrame? _lastEffectiveFrame;
     private string? _lastSentLine;
+    private TCodeDeviceInfo? _deviceInfo;
 
     public event Action<string>? OnDebugLog;
 
     public bool IsConnected => _port?.IsOpen == true;
+    public TCodeDeviceInfo? DeviceInfo => _deviceInfo;
 
     public TCodeSerialOutput(AppConfig config) => _config = config;
 
@@ -44,6 +46,7 @@ public sealed class TCodeSerialOutput : IDisposable
         };
         _port.Open();
         ResetEmitState();
+        _deviceInfo = QueryDeviceInfo();
         Console.WriteLine($"[TCode] Connected to {GetComPort()}");
     }
 
@@ -57,6 +60,7 @@ public sealed class TCodeSerialOutput : IDisposable
 
         _port?.Dispose();
         _port = null;
+        _deviceInfo = null;
         ResetEmitState();
     }
 
@@ -143,6 +147,7 @@ public sealed class TCodeSerialOutput : IDisposable
         var effectiveFrame = previousEffectiveFrame;
         var sb = new System.Text.StringBuilder();
         var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(frame.DeltaMs, 1d)), 1);
+        var speedWindowMs = ResolveSpeedWindowMs();
 
         foreach (var axis in MotionAxisHelper.All)
         {
@@ -154,7 +159,7 @@ public sealed class TCodeSerialOutput : IDisposable
             if (config.Mode == TCodeAxisMode.Ignored)
             {
                 if (forceAll || Math.Abs(previousSource - source) >= 0.0001f)
-                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "skip", note: "ignored"));
+                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "ignored", note: "axis-ignored"));
                 continue;
             }
 
@@ -168,13 +173,13 @@ public sealed class TCodeSerialOutput : IDisposable
             if (!mappedChanged)
             {
                 if (sourceChanged)
-                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "skip", note: "profile-held"));
+                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "hold", note: "post-profile-unchanged"));
                 continue;
             }
 
             var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
             var posText = pos.ToString("D3");
-            var commandMode = frame.RequestedCommandMode ?? config.CommandMode;
+            var commandMode = ResolveCommandMode(frame, config);
             string term;
             if (forceInterval)
             {
@@ -182,18 +187,24 @@ public sealed class TCodeSerialOutput : IDisposable
             }
             else if (commandMode == TCodeCommandMode.Interval)
             {
+                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
+                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
                 var durationMs = frame.RequestedCommandMode == TCodeCommandMode.Interval
                     ? TCodeAxisDebugFormatter.ResolveRequestedDurationMs(frame, deltaMs)
-                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs);
+                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, effectiveSpeedLimit, deltaMs, speedWindowMs);
                 term = $"I{durationMs}";
             }
             else
             {
+                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
+                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
                 var speed = frame.RequestedCommandMode == TCodeCommandMode.Speed
-                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, config.MaxSpeed), config.MaxSpeed)
-                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, config.MaxSpeed);
+                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, effectiveSpeedLimit), effectiveSpeedLimit)
+                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, effectiveSpeedLimit, speedWindowMs);
                 term = $"S{speed}";
             }
+
+            term = ApplyRampSuffix(term, config.RampType);
 
             sb.Append($"{MotionAxisHelper.Token(axis)}{posText}{term} ");
             OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "emit", term: term));
@@ -248,8 +259,143 @@ public sealed class TCodeSerialOutput : IDisposable
         MotionAxis.V1 => profile.V1,
         MotionAxis.V2 => profile.V2,
         MotionAxis.A0 => profile.A0,
+        MotionAxis.A1 => profile.A1,
+        MotionAxis.A2 => profile.A2,
         _ => profile.L0,
     };
+
+    private TCodeCommandMode ResolveCommandMode(MotionFrame frame, TCodeAxisConfig axis)
+    {
+        return _output?.SlopeMode switch
+        {
+            TCodeSlopeMode.Speed => TCodeCommandMode.Speed,
+            TCodeSlopeMode.Interval => TCodeCommandMode.Interval,
+            _ => frame.RequestedCommandMode ?? axis.CommandMode,
+        };
+    }
+
+    private double ResolveSpeedWindowMs() => _output?.SpeedUnitBase == TCodeSpeedUnitBase.PerSecond ? 1000d : 100d;
+
+    private static string ApplyRampSuffix(string term, TCodeRampType rampType)
+    {
+        var suffix = rampType switch
+        {
+            TCodeRampType.Linear => "=",
+            TCodeRampType.EaseIn => "<",
+            TCodeRampType.EaseOut => ">",
+            TCodeRampType.EaseInOut => "<>",
+            _ => string.Empty,
+        };
+
+        return string.IsNullOrEmpty(suffix) ? term : $"{term}{suffix}";
+    }
+
+    private TCodeDeviceInfo QueryDeviceInfo()
+    {
+        if (_port?.IsOpen != true)
+        {
+            return TCodeDeviceInfo.Unsupported("串口未连接");
+        }
+
+        try
+        {
+            var fw = QuerySingleLine("D0");
+            var ver = QuerySingleLine("D1");
+            var axes = QueryMultiLine("D2");
+
+            return new TCodeDeviceInfo
+            {
+                Supported = true,
+                FirmwareVersion = fw,
+                TCodeVersion = ver,
+                AxisDescriptors = axes,
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+                Status = "ok",
+            };
+        }
+        catch (Exception ex)
+        {
+            return new TCodeDeviceInfo
+            {
+                Supported = true,
+                FirmwareVersion = null,
+                TCodeVersion = null,
+                AxisDescriptors = Array.Empty<string>(),
+                UpdatedAtUtc = DateTimeOffset.UtcNow,
+                Status = $"query-failed:{ex.Message}",
+            };
+        }
+    }
+
+    public void RefreshDeviceInfo()
+    {
+        if (_port?.IsOpen != true)
+        {
+            _deviceInfo = TCodeDeviceInfo.Unsupported("串口未连接");
+            return;
+        }
+
+        _deviceInfo = QueryDeviceInfo();
+    }
+
+    private string? QuerySingleLine(string command)
+    {
+        if (_port?.IsOpen != true)
+            return null;
+
+        var oldTimeout = _port.ReadTimeout;
+        try
+        {
+            _port.DiscardInBuffer();
+            _port.ReadTimeout = 250;
+            _port.WriteLine(command);
+            var line = _port.ReadLine();
+            return string.IsNullOrWhiteSpace(line) ? null : line.Trim();
+        }
+        catch
+        {
+            return null;
+        }
+        finally
+        {
+            _port.ReadTimeout = oldTimeout;
+        }
+    }
+
+    private IReadOnlyList<string> QueryMultiLine(string command)
+    {
+        if (_port?.IsOpen != true)
+            return Array.Empty<string>();
+
+        var lines = new List<string>();
+        var oldTimeout = _port.ReadTimeout;
+        try
+        {
+            _port.DiscardInBuffer();
+            _port.ReadTimeout = 120;
+            _port.WriteLine(command);
+            for (var i = 0; i < 24; i++)
+            {
+                try
+                {
+                    var line = _port.ReadLine();
+                    if (string.IsNullOrWhiteSpace(line))
+                        continue;
+                    lines.Add(line.Trim());
+                }
+                catch (TimeoutException)
+                {
+                    break;
+                }
+            }
+        }
+        finally
+        {
+            _port.ReadTimeout = oldTimeout;
+        }
+
+        return lines;
+    }
 
     private void ResetEmitState()
     {

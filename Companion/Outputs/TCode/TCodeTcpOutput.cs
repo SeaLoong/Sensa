@@ -134,6 +134,7 @@ public sealed class TCodeTcpOutput : IDisposable
         var effectiveFrame = previousEffectiveFrame;
         var sb = new StringBuilder();
         var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(frame.DeltaMs, 1d)), 1);
+        var speedWindowMs = ResolveSpeedWindowMs();
 
         foreach (var axis in MotionAxisHelper.All)
         {
@@ -145,7 +146,7 @@ public sealed class TCodeTcpOutput : IDisposable
             if (config.Mode == TCodeAxisMode.Ignored)
             {
                 if (forceAll || Math.Abs(previousSource - source) >= 0.0001f)
-                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "skip", note: "ignored"));
+                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, previousMapped, previousMapped, config, action: "ignored", note: "axis-ignored"));
                 continue;
             }
 
@@ -159,13 +160,13 @@ public sealed class TCodeTcpOutput : IDisposable
             if (!mappedChanged)
             {
                 if (sourceChanged)
-                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "skip", note: "profile-held"));
+                    OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "hold", note: "post-profile-unchanged"));
                 continue;
             }
 
             var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
             var posText = pos.ToString("D3");
-            var commandMode = frame.RequestedCommandMode ?? config.CommandMode;
+            var commandMode = ResolveCommandMode(frame, config);
             string term;
             if (forceInterval)
             {
@@ -173,18 +174,24 @@ public sealed class TCodeTcpOutput : IDisposable
             }
             else if (commandMode == TCodeCommandMode.Interval)
             {
+                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
+                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
                 var durationMs = frame.RequestedCommandMode == TCodeCommandMode.Interval
                     ? TCodeAxisDebugFormatter.ResolveRequestedDurationMs(frame, deltaMs)
-                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs);
+                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, effectiveSpeedLimit, deltaMs, speedWindowMs);
                 term = $"I{durationMs}";
             }
             else
             {
+                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
+                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
                 var speed = frame.RequestedCommandMode == TCodeCommandMode.Speed
-                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, config.MaxSpeed), config.MaxSpeed)
-                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, config.MaxSpeed);
+                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, effectiveSpeedLimit), effectiveSpeedLimit)
+                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, effectiveSpeedLimit, speedWindowMs);
                 term = $"S{speed}";
             }
+
+            term = ApplyRampSuffix(term, config.RampType);
 
             sb.Append($"{MotionAxisHelper.Token(axis)}{posText}{term} ");
             OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "emit", term: term));
@@ -239,8 +246,36 @@ public sealed class TCodeTcpOutput : IDisposable
         MotionAxis.V1 => profile.V1,
         MotionAxis.V2 => profile.V2,
         MotionAxis.A0 => profile.A0,
+        MotionAxis.A1 => profile.A1,
+        MotionAxis.A2 => profile.A2,
         _ => profile.L0,
     };
+
+    private TCodeCommandMode ResolveCommandMode(MotionFrame frame, TCodeAxisConfig axis)
+    {
+        return _output?.SlopeMode switch
+        {
+            TCodeSlopeMode.Speed => TCodeCommandMode.Speed,
+            TCodeSlopeMode.Interval => TCodeCommandMode.Interval,
+            _ => frame.RequestedCommandMode ?? axis.CommandMode,
+        };
+    }
+
+    private double ResolveSpeedWindowMs() => _output?.SpeedUnitBase == TCodeSpeedUnitBase.PerSecond ? 1000d : 100d;
+
+    private static string ApplyRampSuffix(string term, TCodeRampType rampType)
+    {
+        var suffix = rampType switch
+        {
+            TCodeRampType.Linear => "=",
+            TCodeRampType.EaseIn => "<",
+            TCodeRampType.EaseOut => ">",
+            TCodeRampType.EaseInOut => "<>",
+            _ => string.Empty,
+        };
+
+        return string.IsNullOrEmpty(suffix) ? term : $"{term}{suffix}";
+    }
 
     private void ResetEmitState()
     {

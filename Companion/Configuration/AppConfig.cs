@@ -48,6 +48,28 @@ public enum TCodeCommandMode
     Interval,
 }
 
+public enum TCodeSpeedUnitBase
+{
+    Per100ms,
+    PerSecond,
+}
+
+public enum TCodeSlopeMode
+{
+    None,
+    Speed,
+    Interval,
+}
+
+public enum TCodeRampType
+{
+    None,
+    Linear,
+    EaseIn,
+    EaseOut,
+    EaseInOut,
+}
+
 public sealed class TCodeAxisConfig
 {
     public int           Min       { get; set; } = 0;
@@ -58,6 +80,7 @@ public sealed class TCodeAxisConfig
     public bool          Invert    { get; set; } = false;
     public TCodeAxisMode Mode      { get; set; } = TCodeAxisMode.Normal;
     public TCodeCommandMode CommandMode { get; set; } = TCodeCommandMode.Speed;
+    public TCodeRampType RampType { get; set; } = TCodeRampType.None;
     public float         LockValue { get; set; } = 0.5f;
 }
 
@@ -74,6 +97,8 @@ public sealed class TCodeMotionProfile
     public TCodeAxisConfig V1        { get; set; } = new();
     public TCodeAxisConfig V2        { get; set; } = new();
     public TCodeAxisConfig A0        { get; set; } = new();
+    public TCodeAxisConfig A1        { get; set; } = new();
+    public TCodeAxisConfig A2        { get; set; } = new();
 }
 
 public sealed class TCodeProfilesConfig
@@ -111,6 +136,8 @@ public sealed class OutputDeviceConfig
     public string           Host                { get; set; } = "127.0.0.1";
     public int              Port                { get; set; } = 0;
     public bool             PreferSpeedMode     { get; set; } = true;
+    public TCodeSpeedUnitBase SpeedUnitBase     { get; set; } = TCodeSpeedUnitBase.Per100ms;
+    public TCodeSlopeMode   SlopeMode           { get; set; } = TCodeSlopeMode.None;
     public bool             ManageEngineProcess { get; set; } = true;
     public string           WebsocketAddress    { get; set; } = "ws://localhost:12345";
 }
@@ -723,6 +750,12 @@ public sealed class AppConfig
                 Host = string.IsNullOrWhiteSpace(item?.Host) ? "127.0.0.1" : item!.Host,
                 Port = NormalizeOutputPort(type, item?.Port ?? 0),
                 PreferSpeedMode = item?.PreferSpeedMode ?? true,
+                SpeedUnitBase = Enum.IsDefined(typeof(TCodeSpeedUnitBase), item?.SpeedUnitBase ?? TCodeSpeedUnitBase.Per100ms)
+                    ? item?.SpeedUnitBase ?? TCodeSpeedUnitBase.Per100ms
+                    : TCodeSpeedUnitBase.Per100ms,
+                SlopeMode = Enum.IsDefined(typeof(TCodeSlopeMode), item?.SlopeMode ?? TCodeSlopeMode.None)
+                    ? item?.SlopeMode ?? TCodeSlopeMode.None
+                    : TCodeSlopeMode.None,
                 ManageEngineProcess = item?.ManageEngineProcess ?? true,
                 WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
             });
@@ -820,6 +853,8 @@ public sealed class AppConfig
             V1 = CloneAxis(source.V1),
             V2 = CloneAxis(source.V2),
             A0 = CloneAxis(source.A0),
+            A1 = CloneAxis(source.A1),
+            A2 = CloneAxis(source.A2),
         };
     }
 
@@ -838,6 +873,8 @@ public sealed class AppConfig
             V1        = NormalizeAxis(source?.V1, fallback.V1),
             V2        = NormalizeAxis(source?.V2, fallback.V2),
             A0        = NormalizeAxis(source?.A0, fallback.A0),
+            A1        = NormalizeAxis(source?.A1, fallback.A1),
+            A2        = NormalizeAxis(source?.A2, fallback.A2),
         };
     }
 
@@ -861,6 +898,10 @@ public sealed class AppConfig
             ? source?.CommandMode ?? fallback.CommandMode
             : TCodeCommandMode.Speed;
 
+        var rampType = Enum.IsDefined(typeof(TCodeRampType), source?.RampType ?? fallback.RampType)
+            ? source?.RampType ?? fallback.RampType
+            : TCodeRampType.None;
+
         return new TCodeAxisConfig
         {
             Min       = min,
@@ -873,6 +914,7 @@ public sealed class AppConfig
             Invert    = source?.Invert ?? fallback.Invert,
             Mode      = mode,
             CommandMode = commandMode,
+            RampType = rampType,
             LockValue = Math.Clamp(source?.LockValue ?? fallback.LockValue, 0f, 1f),
         };
     }
@@ -891,6 +933,7 @@ public sealed class AppConfig
             Invert    = source.Invert,
             Mode      = source.Mode,
             CommandMode = source.CommandMode,
+            RampType = source.RampType,
             LockValue = source.LockValue,
         };
     }

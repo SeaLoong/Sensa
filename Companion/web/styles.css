@@ -859,35 +859,31 @@ body {
 
 .manual-toolbar {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: space-between;
   gap: 12px 16px;
-  align-items: flex-start;
+  align-items: center;
 }
 
 .manual-toolbar__actions {
-  flex: 1 1 320px;
-}
-
-.manual-toolbar__motion {
-  flex: 1 1 420px;
-  min-width: min(100%, 420px);
-  display: grid;
-  gap: 10px;
-  justify-items: stretch;
+  flex: 1 1 auto;
+  flex-wrap: nowrap !important;
 }
 
 .manual-toolbar__motion-controls {
-  justify-content: flex-end;
+  justify-content: flex-start;
+  align-items: center;
+  flex-wrap: nowrap !important;
 }
 
 .manual-toolbar__motion-select {
-  min-width: 156px;
+  width: 220px;
+  flex: 0 0 220px;
 }
 
 .manual-toolbar__motion-slider {
-  width: min(100%, 420px);
-  justify-self: end;
+  width: 240px;
+  flex: 0 0 240px;
 }
 
 .script-file-actions {
@@ -1132,15 +1128,27 @@ body {
   .manual-toolbar__motion {
     min-width: 0;
     justify-items: stretch;
+    width: 100%;
   }
 
   .manual-toolbar__motion-controls {
     justify-content: flex-start;
+    flex-wrap: wrap !important;
   }
 
   .manual-toolbar__motion-select,
   .manual-toolbar__motion-slider {
     width: 100%;
+    flex: 1 1 100%;
+  }
+
+  .manual-toolbar {
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  .manual-toolbar__actions {
+    flex-wrap: wrap !important;
   }
 
   .preset-apply-row {

@@ -175,6 +175,9 @@ public sealed class OutputCoordinator : IAsyncDisposable
     public Task StopScanAsync(string outputId) =>
         TryGetConnection(outputId)?.StopScanAsync() ?? Task.CompletedTask;
 
+    public Task RefreshTCodeDeviceInfoAsync(string outputId) =>
+        TryGetConnection(outputId)?.RefreshTCodeDeviceInfoAsync() ?? Task.CompletedTask;
+
     public Task StartPrimaryScanAsync(OutputDeviceType type)
     {
         var output = _config.GetPrimaryOutput(type);
@@ -209,6 +212,16 @@ public sealed class OutputCoordinator : IAsyncDisposable
                 connected = connection?.IsConnected ?? false,
                 profileId = OutputConfigHelpers.IsTCodeOutput(output.Type) ? output.MotionProfileId : null,
                 profileName = OutputConfigHelpers.IsTCodeOutput(output.Type) ? _config.ResolveAxisProfileName(output.MotionProfileId) : null,
+                tcodeSettings = OutputConfigHelpers.IsTCodeOutput(output.Type)
+                    ? new
+                    {
+                        speedUnitBase = output.SpeedUnitBase,
+                        slopeMode = output.SlopeMode,
+                    }
+                    : null,
+                tcodeDeviceInfo = OutputConfigHelpers.IsTCodeOutput(output.Type)
+                    ? connection?.GetTCodeDeviceInfo() ?? TCodeDeviceInfo.Unsupported("未连接")
+                    : null,
                 summary = BuildSummary(output),
                 devices,
             };
@@ -311,6 +324,17 @@ internal sealed class OutputConnection : IAsyncDisposable
     };
 
     public IReadOnlyList<ButtplugClientDevice> Devices => _intiface?.Devices ?? Array.Empty<ButtplugClientDevice>();
+
+    public TCodeDeviceInfo GetTCodeDeviceInfo()
+    {
+        return _output.Type switch
+        {
+            OutputDeviceType.TCodeSerial => _serial?.DeviceInfo ?? TCodeDeviceInfo.Unsupported("未查询"),
+            OutputDeviceType.TCodeUdp => TCodeDeviceInfo.Unsupported("UDP 输出不支持回读 D 指令"),
+            OutputDeviceType.TCodeTcp => TCodeDeviceInfo.Unsupported("TCP 输出当前未实现 D 指令回读"),
+            _ => TCodeDeviceInfo.Unsupported("非 TCode 输出"),
+        };
+    }
 
     public async Task<bool> ConnectAsync()
     {
@@ -440,6 +464,20 @@ internal sealed class OutputConnection : IAsyncDisposable
     public Task StartScanAsync() => _intiface?.StartScanAsync() ?? Task.CompletedTask;
 
     public Task StopScanAsync() => _intiface?.StopScanAsync() ?? Task.CompletedTask;
+
+    public Task RefreshTCodeDeviceInfoAsync()
+    {
+        if (_output.Type != OutputDeviceType.TCodeSerial)
+            return Task.CompletedTask;
+
+        if (_serial?.IsConnected == true)
+        {
+            _serial.RefreshDeviceInfo();
+            _notifyChanged?.Invoke();
+        }
+
+        return Task.CompletedTask;
+    }
 
     public async ValueTask DisposeAsync()
     {

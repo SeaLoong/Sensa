@@ -590,6 +590,8 @@ public static class SensaHost
                 V1 = NormalizeManualInputValue(request.V1),
                 V2 = NormalizeManualInputValue(request.V2),
                 A0 = NormalizeManualInputValue(request.A0),
+                A1 = NormalizeManualInputValue(request.A1),
+                A2 = NormalizeManualInputValue(request.A2),
                 RequestedCommandMode = requestedCommandMode,
                 RequestedMotionValue = requestedMotionValue,
             };
@@ -598,7 +600,7 @@ public static class SensaHost
             {
                 motionRuntime.SetManualOverride(frame);
                 motionRuntime.SetInputMode(RuntimeInputMode.Manual);
-                LogDebug($"[Input/Manual] raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0} motionMode={(requestedCommandMode?.ToString() ?? "profile")} motionValue={(requestedMotionValue?.ToString() ?? "profile")}");
+                LogDebug($"[Input/Manual] raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0} A1={request.A1} A2={request.A2} motionMode={(requestedCommandMode?.ToString() ?? "profile")} motionValue={(requestedMotionValue?.ToString() ?? "profile")}");
             }
             else
             {
@@ -1157,6 +1159,18 @@ public static class SensaHost
             return Results.Ok(new { ok = true, outputId });
         });
 
+        app.MapPost("/api/control/output/{outputId}/device-info-refresh", async (string outputId) =>
+        {
+            var output = config.FindOutput(outputId);
+            if (output is null)
+                return Results.NotFound(new { ok = false, error = "输出不存在。" });
+            if (!OutputConfigHelpers.IsTCodeOutput(output.Type))
+                return Results.BadRequest(new { ok = false, error = "只有 TCode 输出支持设备信息。" });
+
+            await outputCoordinator.RefreshTCodeDeviceInfoAsync(outputId);
+            return Results.Ok(new { ok = true, outputId });
+        });
+
         app.MapPost("/api/control/tcode/connect", async () =>
         {
             var ok = await ConnectTCodeAsync();
@@ -1599,6 +1613,11 @@ public static class SensaHost
                                 await outputCoordinator.StopScanAsync(outputId);
                                 return new { ok = true, outputId };
                             }),
+                            "device-info-refresh" => await HandleOutputAction(outputId, async () =>
+                            {
+                                await outputCoordinator.RefreshTCodeDeviceInfoAsync(outputId);
+                                return new { ok = true, outputId };
+                            }),
                             _ => null,
                         };
 
@@ -1633,7 +1652,7 @@ public static class SensaHost
             {
                 outputId = segments[4];
                 action = segments.Length >= 6 ? segments[5] : null;
-                return action == "connect" || action == "disconnect" || action == "scan-start" || action == "scan-stop";
+                return action == "connect" || action == "disconnect" || action == "scan-start" || action == "scan-stop" || action == "device-info-refresh";
             }
 
             return false;
@@ -1748,7 +1767,12 @@ public static class SensaHost
     private static int? NormalizeManualMotionValue(TCodeCommandMode? mode, int? rawValue)
     {
         if (!mode.HasValue)
-            return null;
+        {
+            if (rawValue is not > 0)
+                return null;
+
+            return Math.Clamp(rawValue.Value, 1, 999);
+        }
 
         var resolvedMode = mode.Value;
 
@@ -1791,6 +1815,8 @@ public sealed record ManualInputRequest(
     int V1,
     int V2,
     int A0,
+    int A1,
+    int A2,
     TCodeCommandMode? MotionMode,
     int? MotionValue);
 
