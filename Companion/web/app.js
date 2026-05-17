@@ -344,9 +344,11 @@ function normalizeMotionProfile(profile, useGlobal = false) {
 
 function normalizeAxisProfileCard(profile, index = 0) {
   const isDefault = Boolean(profile?.isDefault);
+  // 不根据 isDefault 或 index 改变名称；保留原始名称或使用通用默认值
+  const defaultNameByIndex = index === 0 ? '轴配置 1' : `轴配置 ${index + 1}`;
   return {
-    id: (profile?.id || (index === 0 ? 'global-default' : `axis-profile-${index + 1}`)).trim(),
-    name: (profile?.name || (index === 0 ? '全局默认' : `轴配置 ${index + 1}`)).trim(),
+    id: (profile?.id || (isDefault ? 'global-default' : `axis-profile-${index + 1}`)).trim(),
+    name: (profile?.name || defaultNameByIndex).trim(),
     isDefault,
     motion: normalizeMotionProfile(profile?.motion, false),
   };

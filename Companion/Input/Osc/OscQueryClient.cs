@@ -279,11 +279,11 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
     {
         var info = new OscQueryHostInfo
         {
-            Name = ReadString(element, "NAME"),
-            OscIp = ReadString(element, "OSC_IP"),
+            Name = ReadString(element, "NAME") ?? string.Empty,
+            OscIp = ReadString(element, "OSC_IP") ?? string.Empty,
             OscPort = ReadNullableInt(element, "OSC_PORT"),
             OscTransport = ReadString(element, "OSC_TRANSPORT") ?? "UDP",
-            WsIp = ReadString(element, "WS_IP"),
+            WsIp = ReadString(element, "WS_IP") ?? string.Empty,
             WsPort = ReadNullableInt(element, "WS_PORT"),
         };
 

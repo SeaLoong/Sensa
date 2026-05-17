@@ -5,22 +5,19 @@
 html,
 body,
 #app-root {
+  height: 100%;
   min-height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
 }
 
-html,
-body {
-  width: 100%;
-}
-
-#app-root {
-  width: 100%;
-  overflow-x: hidden;
+html {
+  overflow-y: hidden;
 }
 
 body {
+  overflow-y: auto;
   font-family:
     'Roboto',
     'Noto Sans SC',
@@ -29,7 +26,6 @@ body {
     -apple-system,
     sans-serif;
   background: radial-gradient(circle at top left, rgba(37, 99, 235, 0.14), transparent 28%), linear-gradient(180deg, #f8fbff 0%, #f2f6fb 100%);
-  overflow-x: hidden;
 }
 
 .loading-shell {
@@ -46,7 +42,6 @@ body {
 .app-shell {
   min-height: 100vh;
   width: 100%;
-  overflow-x: hidden;
 }
 
 .page-main {
@@ -1161,3 +1156,5 @@ body {
     width: 100%;
   }
 }
+
+

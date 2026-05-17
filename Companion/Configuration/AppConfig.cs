@@ -616,7 +616,7 @@ public sealed class AppConfig
                 var idBase = string.IsNullOrWhiteSpace(item.Id) ? $"axis-profile-{index + 1}" : item.Id.Trim();
                 var id = EnsureUniqueId(idBase, seenIds, $"axis-profile-{index + 1}");
                 var name = string.IsNullOrWhiteSpace(item.Name)
-                    ? (index == 0 ? "全局默认" : $"轴配置 {index + 1}")
+                    ? $"轴配置 {index + 1}"
                     : item.Name.Trim();
 
                 result.Add(new AxisProfileConfig
