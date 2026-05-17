@@ -36,6 +36,7 @@ public sealed class MotionRuntime : IDisposable
     private readonly FunscriptPlayer _scriptPlayer;
     private readonly Func<MotionFrame, Task>? _sendOutputsAsync;
     private readonly Func<Task>? _emergencyStopAsync;
+    private readonly Func<string?>? _preferredOscSourceKeyProvider;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _sendGate = new(1, 1);
 
@@ -46,7 +47,7 @@ public sealed class MotionRuntime : IDisposable
     private volatile MotionFrame _currentFrame = MotionAxisHelper.CreateNeutralFrame();
     private volatile MotionFrame _manualFrame = MotionAxisHelper.CreateNeutralFrame();
     private volatile bool _manualOverrideEnabled;
-    private volatile RuntimeInputMode _inputMode = RuntimeInputMode.Osc;
+    private volatile RuntimeInputMode _inputMode = RuntimeInputMode.Manual;
     private volatile bool _emergency;
     private volatile bool _inputActive = false;
     private volatile bool _disposed;
@@ -75,7 +76,8 @@ public sealed class MotionRuntime : IDisposable
         MotionRecorder? recorder = null,
         FunscriptPlayer? scriptPlayer = null,
         Func<MotionFrame, Task>? sendOutputsAsync = null,
-        Func<Task>? emergencyStopAsync = null)
+        Func<Task>? emergencyStopAsync = null,
+        Func<string?>? preferredOscSourceKeyProvider = null)
     {
         _config = config;
         _store = store;
@@ -88,10 +90,11 @@ public sealed class MotionRuntime : IDisposable
         _scriptPlayer = scriptPlayer ?? new FunscriptPlayer();
         _sendOutputsAsync = sendOutputsAsync;
         _emergencyStopAsync = emergencyStopAsync;
+        _preferredOscSourceKeyProvider = preferredOscSourceKeyProvider;
 
         RebuildProcessors();
 
-        _store.OnSet += HandleOscValueChanged;
+        _store.OnSetWithSource += HandleOscValueChanged;
         _oscReceiver.OnAvatarChange += HandleAvatarChanged;
         _scriptPlayer.OnFrame += HandleScriptFrame;
         _scriptPlayer.OnStateChanged += HandleScriptStateChanged;
@@ -138,13 +141,13 @@ public sealed class MotionRuntime : IDisposable
 
     public void SetManualOverride(MotionFrame frame)
     {
-        _manualFrame = frame with { DeltaMs = 0d, UseMaxSpeed = true };
+        _manualFrame = NormalizeManualFrame(frame);
         _manualOverrideEnabled = true;
         OnLog?.Invoke("[Manual] Pose updated.");
         NotifyStateChanged();
 
         if (_inputMode == RuntimeInputMode.Manual && _inputActive && !_emergency)
-            _ = ApplyPatchAsync(MotionAxisHelper.CreatePatchFromFrame(_manualFrame), "Manual", useMaxSpeed: true);
+            _ = ApplyManualOverrideAsync("Manual");
     }
 
     public void ClearManualOverride()
@@ -172,7 +175,7 @@ public sealed class MotionRuntime : IDisposable
         switch (mode)
         {
             case RuntimeInputMode.Manual when _manualOverrideEnabled:
-                _ = ApplyPatchAsync(MotionAxisHelper.CreatePatchFromFrame(_manualFrame), "ManualMode", useMaxSpeed: true);
+                _ = ApplyManualOverrideAsync("ManualMode");
                 break;
             case RuntimeInputMode.Osc:
                 QueueOscRefresh();
@@ -205,7 +208,7 @@ public sealed class MotionRuntime : IDisposable
                 QueueOscRefresh();
                 break;
             case RuntimeInputMode.Manual when _manualOverrideEnabled:
-                _ = ApplyPatchAsync(MotionAxisHelper.CreatePatchFromFrame(_manualFrame), "ManualActive", useMaxSpeed: true);
+                _ = ApplyManualOverrideAsync("ManualActive");
                 break;
             case RuntimeInputMode.Script:
             {
@@ -217,7 +220,7 @@ public sealed class MotionRuntime : IDisposable
         }
     }
 
-    private void HandleOscValueChanged(string path, OscValue __)
+    private void HandleOscValueChanged(string path, OscValue __, OscSource ___)
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency)
             return;
@@ -253,7 +256,7 @@ public sealed class MotionRuntime : IDisposable
                 processor.Reset();
         }
 
-        OnLog?.Invoke("[MotionRuntime] Avatar changed — EMA reset.");
+        OnLog?.Invoke("[MotionRuntime] Avatar changed — signal processors reset.");
         NotifyStateChanged();
     }
 
@@ -311,6 +314,7 @@ public sealed class MotionRuntime : IDisposable
     private MotionPatch BuildOscPatch()
     {
         _signals.Clear();
+        var preferredSourceKey = _preferredOscSourceKeyProvider?.Invoke();
         List<(string Path, SignalChannelProcessor Processor)> processors;
 
         lock (_sync)
@@ -318,13 +322,14 @@ public sealed class MotionRuntime : IDisposable
 
         foreach (var (path, processor) in processors)
         {
-            if (!_store.TryGetLatest(path, out var matchedPath, out var entry))
+            if (!_store.TryGetLatest(path, preferredSourceKey, out var matchedPath, out var entry))
                 continue;
 
             var rawValue = entry.Value.AsFloat();
             var processedValue = processor.Process(rawValue);
             _signals.Add((processor.Mapping.Role, processedValue));
-            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} raw={rawValue:F4} -> {processor.Mapping.Role}={processedValue:F4}");
+            var sourceLabel = string.IsNullOrWhiteSpace(entry.Source.Label) ? entry.Source.Key : entry.Source.Label;
+            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} source={sourceLabel} raw={rawValue:F4} -> {processor.Mapping.Role}={processedValue:F4}");
         }
 
         var patch = _mixer.FusePatch(_signals);
@@ -340,12 +345,21 @@ public sealed class MotionRuntime : IDisposable
         return ApplyPatchAsync(patch, source);
     }
 
-    private async Task ApplyPatchAsync(MotionPatch patch, string source, bool useMaxSpeed = false)
+    private Task ApplyManualOverrideAsync(string source)
+    {
+        return ApplyPatchAsync(
+            MotionAxisHelper.CreatePatchFromFrame(_manualFrame),
+            source,
+            requestedCommandMode: _manualFrame.RequestedCommandMode,
+            requestedMotionValue: _manualFrame.RequestedMotionValue);
+    }
+
+    private async Task ApplyPatchAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
     {
         await _sendGate.WaitAsync().ConfigureAwait(false);
         try
         {
-            await ApplyPatchCoreAsync(patch, source, useMaxSpeed).ConfigureAwait(false);
+            await ApplyPatchCoreAsync(patch, source, requestedCommandMode, requestedMotionValue).ConfigureAwait(false);
         }
         finally
         {
@@ -353,15 +367,26 @@ public sealed class MotionRuntime : IDisposable
         }
     }
 
-    private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, bool useMaxSpeed = false)
+    private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
     {
-        var deltaMs = ConsumeElapsedMs();
+        var elapsedMs = ConsumeElapsedMs();
+        var deltaMs = requestedCommandMode == TCodeCommandMode.Interval && requestedMotionValue is > 0
+            ? requestedMotionValue.Value
+            : elapsedMs;
         var previous = _currentFrame;
-        var next = patch.IsEmpty
-            ? previous with { DeltaMs = deltaMs, UseMaxSpeed = useMaxSpeed }
-            : MotionAxisHelper.ApplyPatch(previous, patch, deltaMs) with { UseMaxSpeed = useMaxSpeed };
+        var patched = patch.IsEmpty
+            ? previous with { DeltaMs = deltaMs }
+            : MotionAxisHelper.ApplyPatch(previous, patch, deltaMs);
+        var next = patched with
+        {
+            RequestedCommandMode = requestedCommandMode,
+            RequestedMotionValue = requestedMotionValue,
+        };
 
-        OnDebugLog?.Invoke($"[MotionRuntime/{source}/Patch] delta={deltaMs:F0}ms motion={(useMaxSpeed ? "max-speed" : "auto")} {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
+        var motionLabel = requestedCommandMode.HasValue
+            ? $"manual mode={requestedCommandMode.Value} value={requestedMotionValue?.ToString() ?? "default"}"
+            : "auto";
+        OnDebugLog?.Invoke($"[MotionRuntime/{source}/Patch] delta={deltaMs:F0}ms motion={motionLabel} {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
 
         _currentFrame = next;
 
@@ -388,7 +413,15 @@ public sealed class MotionRuntime : IDisposable
             if (_disposed || _emergency || !_inputActive)
                 return;
 
-            var current = _currentFrame with { DeltaMs = ConsumeElapsedMs(), UseMaxSpeed = _inputMode == RuntimeInputMode.Manual && _manualOverrideEnabled };
+            var isManual = _inputMode == RuntimeInputMode.Manual && _manualOverrideEnabled;
+            var current = _currentFrame with
+            {
+                DeltaMs = isManual && _manualFrame.RequestedCommandMode == TCodeCommandMode.Interval
+                    ? (_manualFrame.RequestedMotionValue ?? 1000)
+                    : ConsumeElapsedMs(),
+                RequestedCommandMode = isManual ? _manualFrame.RequestedCommandMode : null,
+                RequestedMotionValue = isManual ? _manualFrame.RequestedMotionValue : null,
+            };
             _currentFrame = current;
             OnDebugLog?.Invoke("[MotionRuntime/Resume] Re-sending current pose after state transition.");
             await SendOutputsAsync(current).ConfigureAwait(false);
@@ -500,6 +533,31 @@ public sealed class MotionRuntime : IDisposable
         return sb.Length == 0 ? "<empty>" : sb.ToString();
     }
 
+    private static MotionFrame NormalizeManualFrame(MotionFrame frame)
+    {
+        if (!frame.RequestedCommandMode.HasValue)
+        {
+            return frame with
+            {
+                DeltaMs = 1000,
+                RequestedCommandMode = null,
+                RequestedMotionValue = null,
+            };
+        }
+
+        var requestedCommandMode = frame.RequestedCommandMode.Value;
+        var requestedMotionValue = requestedCommandMode == TCodeCommandMode.Interval
+            ? (frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 60000) : 1000)
+            : (frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : 100);
+
+        return frame with
+        {
+            DeltaMs = requestedCommandMode == TCodeCommandMode.Interval ? requestedMotionValue : 1000,
+            RequestedCommandMode = requestedCommandMode,
+            RequestedMotionValue = requestedMotionValue,
+        };
+    }
+
     private void NotifyStateChanged()
     {
         if (_disposed)
@@ -513,7 +571,7 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         _disposed = true;
-        _store.OnSet -= HandleOscValueChanged;
+        _store.OnSetWithSource -= HandleOscValueChanged;
         _oscReceiver.OnAvatarChange -= HandleAvatarChanged;
         _scriptPlayer.OnFrame -= HandleScriptFrame;
         _scriptPlayer.OnStateChanged -= HandleScriptStateChanged;

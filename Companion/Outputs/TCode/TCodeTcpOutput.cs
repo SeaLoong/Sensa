@@ -134,7 +134,6 @@ public sealed class TCodeTcpOutput : IDisposable
         var effectiveFrame = previousEffectiveFrame;
         var sb = new StringBuilder();
         var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(frame.DeltaMs, 1d)), 1);
-        var preferSpeedMode = PreferSpeedMode();
 
         foreach (var axis in MotionAxisHelper.All)
         {
@@ -166,24 +165,24 @@ public sealed class TCodeTcpOutput : IDisposable
 
             var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
             var posText = pos.ToString("D3");
+            var commandMode = frame.RequestedCommandMode ?? config.CommandMode;
             string term;
             if (forceInterval)
             {
                 term = $"I{deltaMs}";
             }
-                else if (frame.UseMaxSpeed)
+            else if (commandMode == TCodeCommandMode.Interval)
             {
-                term = preferSpeedMode
-                    ? $"S{config.MaxSpeed}"
-                    : $"I{TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs)}";
-            }
-            else if (!preferSpeedMode)
-            {
-                term = $"I{deltaMs}";
+                var durationMs = frame.RequestedCommandMode == TCodeCommandMode.Interval
+                    ? TCodeAxisDebugFormatter.ResolveRequestedDurationMs(frame, deltaMs)
+                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, config.MaxSpeed, deltaMs);
+                term = $"I{durationMs}";
             }
             else
             {
-                var speed = _velocity[axis].Estimate(mapped, frame.DeltaMs, config.MaxSpeed);
+                var speed = frame.RequestedCommandMode == TCodeCommandMode.Speed
+                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, config.MaxSpeed), config.MaxSpeed)
+                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, config.MaxSpeed);
                 term = $"S{speed}";
             }
 
@@ -255,8 +254,6 @@ public sealed class TCodeTcpOutput : IDisposable
     private string GetHost() => string.IsNullOrWhiteSpace(_output?.Host) ? _config?.TcpTCode.Host ?? "127.0.0.1" : _output.Host;
 
     private int GetPort() => _output?.Port is > 0 and <= 65535 ? _output.Port : _config?.TcpTCode.Port ?? 9998;
-
-    private bool PreferSpeedMode() => _output?.PreferSpeedMode ?? _config?.TCode.PreferSpeedMode ?? true;
 
     private TCodeMotionProfile ResolveProfile() => _profileResolver?.Invoke() ?? _config?.ResolveMotionProfile(TCodeProfileTarget.Tcp) ?? new TCodeMotionProfile();
 }

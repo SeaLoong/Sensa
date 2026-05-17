@@ -6,12 +6,8 @@ public sealed class SignalMapping
     public bool InvertDirection { get; set; }
     public float VrchatMin { get; set; } = 0f;
     public float VrchatMax { get; set; } = 1f;
-    public float SmoothingAlpha { get; set; } = 0.7f;
-    public float DeadZone { get; set; } = 0.01f;
     public SignalCurve Curve { get; set; } = SignalCurve.Linear;
     public SignalRole Role { get; set; } = SignalRole.Depth;
-    public float OutputMin { get; set; } = 0f;
-    public float OutputMax { get; set; } = 1f;
     public int? MappedMin { get; set; }
     public int? MappedMax { get; set; }
     public bool IsOgbSocket { get; set; }

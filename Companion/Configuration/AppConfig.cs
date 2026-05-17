@@ -13,7 +13,7 @@ public sealed class TCodeConfig
     public string ComPort           { get; set; } = "COM3";
     public int    MaxPos            { get; set; } = 999;
     public int    MinPos            { get; set; } = 0;
-    public int    MaxVelocity       { get; set; } = 5000;
+    public int    MaxVelocity       { get; set; } = 999;
     public bool   L0Invert          { get; set; } = false;
     public int    UpdatesPerSecond  { get; set; } = 100;
     public bool   PreferSpeedMode   { get; set; } = true;
@@ -43,15 +43,22 @@ public enum TCodeAxisMode
     Ignored,
 }
 
+public enum TCodeCommandMode
+{
+    Speed,
+    Interval,
+}
+
 public sealed class TCodeAxisConfig
 {
     public int           Min       { get; set; } = 0;
     public int           Max       { get; set; } = 999;
     public int           RemapMin  { get; set; } = 0;
     public int           RemapMax  { get; set; } = 999;
-    public int           MaxSpeed  { get; set; } = 5000;
+    public int           MaxSpeed  { get; set; } = 999;
     public bool          Invert    { get; set; } = false;
     public TCodeAxisMode Mode      { get; set; } = TCodeAxisMode.Normal;
+    public TCodeCommandMode CommandMode { get; set; } = TCodeCommandMode.Speed;
     public float         LockValue { get; set; } = 0.5f;
 }
 
@@ -144,6 +151,9 @@ public sealed class OscReceiverConfig
 {
     public string ReceiverHost { get; set; } = "0.0.0.0";
     public int ReceiverPort { get; set; } = 9001;
+    public bool OscQueryEnabled { get; set; } = true;
+    public string OscQueryUrl { get; set; } = "http://127.0.0.1:9001/";
+    public string PreferredSourcePersistentId { get; set; } = "";
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -182,7 +192,7 @@ public sealed class AppConfig
         .Where(id => !string.IsNullOrWhiteSpace(id))
         .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-    public int                  SchemaVersion { get; set; } = 0;
+    public int                  SchemaVersion { get; set; } = 5;
     public OscReceiverConfig     Osc          { get; set; } = new();
     public WebUiConfig           WebUi        { get; set; } = new();
     public IntifaceConfig         Intiface     { get; set; } = new();
@@ -207,10 +217,21 @@ public sealed class AppConfig
 
     private static string ConfigPath()
     {
-        // LocalApplicationData (%LOCALAPPDATA%) is preferred over Roaming AppData
-        // because config contains machine-specific settings (COM port, device addresses).
-        var appData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        return Path.Combine(appData, "Sensa", "config.json");
+        return Path.Combine(AppContext.BaseDirectory, "config.json");
+    }
+
+    private static AppConfig CreateDefaultConfig()
+    {
+        var empty = new AppConfig
+        {
+            SchemaVersion = 5,
+        };
+
+        empty.TCode.MaxVelocity = 999;
+        empty.Intiface.Enabled = false;
+        empty.NormalizeForRuntime();
+        empty.ResetTransientRuntimeState();
+        return empty;
     }
 
     public static AppConfig Load()
@@ -231,10 +252,7 @@ public sealed class AppConfig
         {
             Console.Error.WriteLine($"[Sensa] Failed to load config: {ex.Message}");
         }
-        var empty = new AppConfig();
-        empty.NormalizeForRuntime();
-        empty.ResetTransientRuntimeState();
-        return empty;
+        return CreateDefaultConfig();
     }
 
     public void Save()
@@ -258,65 +276,29 @@ public sealed class AppConfig
 
     public void CopyFrom(AppConfig other)
     {
-        SchemaVersion = other.SchemaVersion;
+        SchemaVersion = other.SchemaVersion > 0 ? other.SchemaVersion : 5;
 
         var osc = other.Osc ?? new OscReceiverConfig();
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "0.0.0.0" : osc.ReceiverHost;
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
+        Osc.OscQueryEnabled = osc.OscQueryEnabled;
+        Osc.OscQueryUrl = string.IsNullOrWhiteSpace(osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : osc.OscQueryUrl.Trim();
+        Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(osc.PreferredSourcePersistentId) ? string.Empty : osc.PreferredSourcePersistentId.Trim();
 
         var webUi = other.WebUi ?? new WebUiConfig();
         WebUi.Host            = string.IsNullOrWhiteSpace(webUi.Host) ? "127.0.0.1" : webUi.Host;
         WebUi.Port            = webUi.Port;
         WebUi.AutoOpenBrowser = webUi.AutoOpenBrowser;
         WebUi.Title           = string.IsNullOrWhiteSpace(webUi.Title) ? "Sensa WebUI" : webUi.Title;
-
-        var intiface = other.Intiface ?? new IntifaceConfig();
-        Intiface.Enabled             = intiface.Enabled;
-        Intiface.ManageEngineProcess = intiface.ManageEngineProcess;
-        Intiface.WebsocketAddress    = string.IsNullOrWhiteSpace(intiface.WebsocketAddress) ? "ws://localhost:12345" : intiface.WebsocketAddress;
-        Intiface.Port                = intiface.Port;
-
-        var tcode = other.TCode ?? new TCodeConfig();
-        TCode.ComPort          = string.IsNullOrWhiteSpace(tcode.ComPort) ? "COM3" : tcode.ComPort;
-        TCode.MaxPos           = tcode.MaxPos;
-        TCode.MinPos           = tcode.MinPos;
-        TCode.MaxVelocity      = tcode.MaxVelocity;
-        TCode.L0Invert         = tcode.L0Invert;
-        TCode.UpdatesPerSecond = tcode.UpdatesPerSecond;
-        TCode.PreferSpeedMode  = tcode.PreferSpeedMode;
-        TCode.Enabled          = tcode.Enabled;
-        TCodeProfiles          = CloneProfiles(other.TCodeProfiles, tcode);
-
-        var udpTCode = other.UdpTCode ?? new UdpTCodeConfig();
-        UdpTCode.Enabled = udpTCode.Enabled;
-        UdpTCode.Host    = string.IsNullOrWhiteSpace(udpTCode.Host) ? "127.0.0.1" : udpTCode.Host;
-        UdpTCode.Port    = udpTCode.Port;
-
-        var tcpTCode = other.TcpTCode ?? new TcpTCodeConfig();
-        TcpTCode.Enabled = tcpTCode.Enabled;
-        TcpTCode.Host    = string.IsNullOrWhiteSpace(tcpTCode.Host) ? "127.0.0.1" : tcpTCode.Host;
-        TcpTCode.Port    = tcpTCode.Port;
-
-        AxisProfiles = CloneAxisProfiles(
-            SchemaVersion >= 2 ? other.AxisProfiles : null,
-            other.TCodeProfiles,
-            tcode);
-
-        Outputs = CloneOutputs(
-            SchemaVersion >= 2 ? other.Outputs : null,
-            tcode,
-            other.TCodeProfiles,
-            udpTCode,
-            tcpTCode,
-            intiface,
-            AxisProfiles);
+        TCodeProfiles = CloneProfiles(other.TCodeProfiles);
+        AxisProfiles = CloneAxisProfiles(other.AxisProfiles);
+        Outputs = CloneOutputs(other.Outputs, AxisProfiles);
 
         Signals = (other.Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
             .ToList();
 
-        OscMappingPresets = CloneOscMappingPresets(
-            SchemaVersion >= 3 ? other.OscMappingPresets : null);
+        OscMappingPresets = CloneOscMappingPresets(other.OscMappingPresets);
 
         DeviceRoutes = (other.DeviceRoutes ?? new List<DeviceRouteEntry>())
             .Select(route => new DeviceRouteEntry
@@ -339,26 +321,16 @@ public sealed class AppConfig
         TCode ??= new TCodeConfig();
         UdpTCode ??= new UdpTCodeConfig();
         TcpTCode ??= new TcpTCodeConfig();
-        TCodeProfiles = CloneProfiles(TCodeProfiles, TCode);
-
-        AxisProfiles = CloneAxisProfiles(
-            SchemaVersion >= 2 ? AxisProfiles : null,
-            TCodeProfiles,
-            TCode);
-        Outputs = CloneOutputs(
-            SchemaVersion >= 2 ? Outputs : null,
-            TCode,
-            TCodeProfiles,
-            UdpTCode,
-            TcpTCode,
-            Intiface,
-            AxisProfiles);
-        OscMappingPresets = CloneOscMappingPresets(
-            SchemaVersion >= 3 ? OscMappingPresets : null);
-        SchemaVersion = 4;
+        TCodeProfiles = CloneProfiles(TCodeProfiles);
+        AxisProfiles = CloneAxisProfiles(AxisProfiles);
+        Outputs = CloneOutputs(Outputs, AxisProfiles);
+        OscMappingPresets = CloneOscMappingPresets(OscMappingPresets);
+        SchemaVersion = 5;
 
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "0.0.0.0" : Osc.ReceiverHost;
         Osc.ReceiverPort = Osc.ReceiverPort is > 0 and <= 65535 ? Osc.ReceiverPort : 9001;
+        Osc.OscQueryUrl = string.IsNullOrWhiteSpace(Osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : Osc.OscQueryUrl.Trim();
+        Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(Osc.PreferredSourcePersistentId) ? string.Empty : Osc.PreferredSourcePersistentId.Trim();
 
         WebUi.Host            = string.IsNullOrWhiteSpace(WebUi.Host) ? "127.0.0.1" : WebUi.Host;
         WebUi.Title           = string.IsNullOrWhiteSpace(WebUi.Title) ? "Sensa WebUI" : WebUi.Title;
@@ -379,7 +351,7 @@ public sealed class AppConfig
         OscMappingPresets ??= new List<OscMappingPresetConfig>();
         DeviceRoutes ??= new List<DeviceRouteEntry>();
 
-        SyncLegacyFieldsFromOutputs();
+        SyncMirroredFieldsFromOutputs();
     }
 
     private void ResetTransientRuntimeState()
@@ -397,7 +369,7 @@ public sealed class AppConfig
     {
         if (AxisProfiles.Count == 0)
         {
-            AxisProfiles = CloneAxisProfiles(new List<AxisProfileConfig>(), TCodeProfiles, TCode);
+            AxisProfiles = CloneAxisProfiles(new List<AxisProfileConfig>());
         }
 
         return AxisProfiles.FirstOrDefault(profile => profile.IsDefault) ?? AxisProfiles[0];
@@ -497,7 +469,7 @@ public sealed class AppConfig
         };
     }
 
-    private void SyncLegacyFieldsFromOutputs()
+    private void SyncMirroredFieldsFromOutputs()
     {
         var defaultProfile = GetDefaultAxisProfile().Motion;
         var l0 = defaultProfile.L0;
@@ -513,9 +485,9 @@ public sealed class AppConfig
         {
             TCode.ComPort          = string.IsNullOrWhiteSpace(serialOutput.ComPort) ? "COM3" : serialOutput.ComPort;
             TCode.Enabled          = serialOutput.Enabled;
-            TCode.PreferSpeedMode  = serialOutput.PreferSpeedMode;
+            TCode.PreferSpeedMode  = ResolveMotionProfile(serialOutput.MotionProfileId).L0.CommandMode == TCodeCommandMode.Speed;
             TCode.UpdatesPerSecond = Math.Clamp(serialOutput.UpdatesPerSecond, 10, 240);
-            TCodeProfiles.Serial   = BuildLegacyTargetProfile(serialOutput.MotionProfileId);
+            TCodeProfiles.Serial   = BuildMirroredTargetProfile(serialOutput.MotionProfileId);
         }
         else
         {
@@ -530,7 +502,7 @@ public sealed class AppConfig
             UdpTCode.Enabled       = udpOutput.Enabled;
             UdpTCode.Host          = string.IsNullOrWhiteSpace(udpOutput.Host) ? "127.0.0.1" : udpOutput.Host;
             UdpTCode.Port          = udpOutput.Port;
-            TCodeProfiles.Udp      = BuildLegacyTargetProfile(udpOutput.MotionProfileId);
+            TCodeProfiles.Udp      = BuildMirroredTargetProfile(udpOutput.MotionProfileId);
         }
         else
         {
@@ -545,7 +517,7 @@ public sealed class AppConfig
             TcpTCode.Enabled       = tcpOutput.Enabled;
             TcpTCode.Host          = string.IsNullOrWhiteSpace(tcpOutput.Host) ? "127.0.0.1" : tcpOutput.Host;
             TcpTCode.Port          = tcpOutput.Port;
-            TCodeProfiles.Tcp      = BuildLegacyTargetProfile(tcpOutput.MotionProfileId);
+            TCodeProfiles.Tcp      = BuildMirroredTargetProfile(tcpOutput.MotionProfileId);
         }
         else
         {
@@ -630,12 +602,10 @@ public sealed class AppConfig
 
     private static string NormalizeWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
 
-    private static TCodeProfilesConfig CloneProfiles(TCodeProfilesConfig? source, TCodeConfig legacyTCode)
+    private static TCodeProfilesConfig CloneProfiles(TCodeProfilesConfig? source)
     {
-        var legacyGlobal = CreateLegacyProfile(legacyTCode);
-        var globalSource = source?.Global;
-        var useLegacyGlobal = IsDefaultProfile(globalSource) && HasLegacyMotionOverrides(legacyTCode);
-        var global = NormalizeProfile(useLegacyGlobal ? legacyGlobal : globalSource, legacyGlobal, useGlobal: false);
+        var fallback = new TCodeMotionProfile();
+        var global = NormalizeProfile(source?.Global, fallback, useGlobal: false);
 
         return new TCodeProfilesConfig
         {
@@ -646,12 +616,11 @@ public sealed class AppConfig
         };
     }
 
-    private static List<AxisProfileConfig> CloneAxisProfiles(List<AxisProfileConfig>? source, TCodeProfilesConfig? legacyProfiles, TCodeConfig legacyTCode)
+    private static List<AxisProfileConfig> CloneAxisProfiles(List<AxisProfileConfig>? source)
     {
-        var normalizedLegacy = CloneProfiles(legacyProfiles, legacyTCode);
         var result = new List<AxisProfileConfig>();
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        var fallback = normalizedLegacy.Global;
+        var fallback = new TCodeMotionProfile();
 
         if (source is not null)
         {
@@ -681,7 +650,7 @@ public sealed class AppConfig
                 Id = "global-default",
                 Name = "全局默认",
                 IsDefault = true,
-                Motion = CloneMotionProfile(normalizedLegacy.Global, useGlobal: false),
+                Motion = CloneMotionProfile(fallback, useGlobal: false),
             });
         }
 
@@ -736,237 +705,55 @@ public sealed class AppConfig
 
     private static List<OutputDeviceConfig> CloneOutputs(
         List<OutputDeviceConfig>? source,
-        TCodeConfig legacyTCode,
-        TCodeProfilesConfig? legacyProfiles,
-        UdpTCodeConfig legacyUdp,
-        TcpTCodeConfig legacyTcp,
-        IntifaceConfig legacyIntiface,
         List<AxisProfileConfig> axisProfiles)
     {
-        var normalizedLegacy = CloneProfiles(legacyProfiles, legacyTCode);
         var result = new List<OutputDeviceConfig>();
         var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var defaultProfileId = axisProfiles.First(profile => profile.IsDefault).Id;
 
-        if (source is not null)
-        {
-            var counters = new Dictionary<OutputDeviceType, int>();
-            foreach (var item in source)
-            {
-                var type = item?.Type ?? OutputDeviceType.TCodeSerial;
-                counters[type] = counters.TryGetValue(type, out var count) ? count + 1 : 1;
-
-                var id = EnsureUniqueId(item?.Id, seenIds, BuildDefaultOutputId(type, counters[type]));
-                var name = string.IsNullOrWhiteSpace(item?.Name)
-                    ? BuildDefaultOutputName(type, counters[type])
-                    : item!.Name.Trim();
-
-                result.Add(new OutputDeviceConfig
-                {
-                    Id = id,
-                    Name = name,
-                    Type = type,
-                    Enabled = item?.Enabled ?? false,
-                    MotionProfileId = IsTCodeOutput(type)
-                        ? NormalizeMotionProfileId(item?.MotionProfileId, axisProfiles, defaultProfileId)
-                        : defaultProfileId,
-                    ComPort = string.IsNullOrWhiteSpace(item?.ComPort) ? "COM3" : item!.ComPort,
-                    Host = string.IsNullOrWhiteSpace(item?.Host) ? "127.0.0.1" : item!.Host,
-                    Port = NormalizeOutputPort(type, item?.Port ?? 0),
-                    UpdatesPerSecond = Math.Clamp(item?.UpdatesPerSecond ?? 100, 10, 240),
-                    PreferSpeedMode = item?.PreferSpeedMode ?? true,
-                    ManageEngineProcess = item?.ManageEngineProcess ?? true,
-                    WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
-                });
-            }
-
+        if (source is null)
             return result;
+
+        var counters = new Dictionary<OutputDeviceType, int>();
+        foreach (var item in source)
+        {
+            var type = item?.Type ?? OutputDeviceType.TCodeSerial;
+            counters[type] = counters.TryGetValue(type, out var count) ? count + 1 : 1;
+
+            var id = EnsureUniqueId(item?.Id, seenIds, BuildDefaultOutputId(type, counters[type]));
+            var name = string.IsNullOrWhiteSpace(item?.Name)
+                ? BuildDefaultOutputName(type, counters[type])
+                : item!.Name.Trim();
+
+            result.Add(new OutputDeviceConfig
+            {
+                Id = id,
+                Name = name,
+                Type = type,
+                Enabled = item?.Enabled ?? false,
+                MotionProfileId = IsTCodeOutput(type)
+                    ? NormalizeMotionProfileId(item?.MotionProfileId, axisProfiles, defaultProfileId)
+                    : defaultProfileId,
+                ComPort = string.IsNullOrWhiteSpace(item?.ComPort) ? "COM3" : item!.ComPort,
+                Host = string.IsNullOrWhiteSpace(item?.Host) ? "127.0.0.1" : item!.Host,
+                Port = NormalizeOutputPort(type, item?.Port ?? 0),
+                UpdatesPerSecond = Math.Clamp(item?.UpdatesPerSecond ?? 100, 10, 240),
+                PreferSpeedMode = item?.PreferSpeedMode ?? true,
+                ManageEngineProcess = item?.ManageEngineProcess ?? true,
+                WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
+            });
         }
-
-        result.Add(new OutputDeviceConfig
-        {
-            Id = EnsureUniqueId("output-tcode-serial-1", seenIds, "output-tcode-serial-1"),
-            Name = BuildDefaultOutputName(OutputDeviceType.TCodeSerial, 1),
-            Type = OutputDeviceType.TCodeSerial,
-            Enabled = legacyTCode.Enabled,
-            MotionProfileId = normalizedLegacy.Serial.UseGlobal
-                ? defaultProfileId
-                : EnsureAxisProfile(axisProfiles, normalizedLegacy.Serial, "串口轴配置"),
-            ComPort = string.IsNullOrWhiteSpace(legacyTCode.ComPort) ? "COM3" : legacyTCode.ComPort,
-            UpdatesPerSecond = Math.Clamp(legacyTCode.UpdatesPerSecond, 10, 240),
-            PreferSpeedMode = legacyTCode.PreferSpeedMode,
-        });
-
-        result.Add(new OutputDeviceConfig
-        {
-            Id = EnsureUniqueId("output-tcode-udp-1", seenIds, "output-tcode-udp-1"),
-            Name = BuildDefaultOutputName(OutputDeviceType.TCodeUdp, 1),
-            Type = OutputDeviceType.TCodeUdp,
-            Enabled = legacyUdp.Enabled,
-            MotionProfileId = normalizedLegacy.Udp.UseGlobal
-                ? defaultProfileId
-                : EnsureAxisProfile(axisProfiles, normalizedLegacy.Udp, "UDP 轴配置"),
-            Host = string.IsNullOrWhiteSpace(legacyUdp.Host) ? "127.0.0.1" : legacyUdp.Host,
-            Port = NormalizeOutputPort(OutputDeviceType.TCodeUdp, legacyUdp.Port),
-            PreferSpeedMode = legacyTCode.PreferSpeedMode,
-        });
-
-        result.Add(new OutputDeviceConfig
-        {
-            Id = EnsureUniqueId("output-tcode-tcp-1", seenIds, "output-tcode-tcp-1"),
-            Name = BuildDefaultOutputName(OutputDeviceType.TCodeTcp, 1),
-            Type = OutputDeviceType.TCodeTcp,
-            Enabled = legacyTcp.Enabled,
-            MotionProfileId = normalizedLegacy.Tcp.UseGlobal
-                ? defaultProfileId
-                : EnsureAxisProfile(axisProfiles, normalizedLegacy.Tcp, "TCP 轴配置"),
-            Host = string.IsNullOrWhiteSpace(legacyTcp.Host) ? "127.0.0.1" : legacyTcp.Host,
-            Port = NormalizeOutputPort(OutputDeviceType.TCodeTcp, legacyTcp.Port),
-            PreferSpeedMode = legacyTCode.PreferSpeedMode,
-        });
-
-        result.Add(new OutputDeviceConfig
-        {
-            Id = EnsureUniqueId("output-intiface-1", seenIds, "output-intiface-1"),
-            Name = BuildDefaultOutputName(OutputDeviceType.Intiface, 1),
-            Type = OutputDeviceType.Intiface,
-            Enabled = legacyIntiface.Enabled,
-            Port = NormalizeOutputPort(OutputDeviceType.Intiface, legacyIntiface.Port),
-            ManageEngineProcess = legacyIntiface.ManageEngineProcess,
-            WebsocketAddress = string.IsNullOrWhiteSpace(legacyIntiface.WebsocketAddress) ? "ws://localhost:12345" : legacyIntiface.WebsocketAddress,
-        });
 
         return result;
     }
 
-    private static bool HasLegacyMotionOverrides(TCodeConfig legacyTCode)
-    {
-        return legacyTCode.MinPos != 0
-            || legacyTCode.MaxPos != 999
-            || legacyTCode.MaxVelocity != 5000
-            || legacyTCode.L0Invert;
-    }
-
-    private static bool IsDefaultProfile(TCodeMotionProfile? profile)
-    {
-        if (profile is null)
-            return true;
-
-        return IsDefaultAxis(profile.L0)
-            && IsDefaultAxis(profile.L1)
-            && IsDefaultAxis(profile.L2)
-            && IsDefaultAxis(profile.R0)
-            && IsDefaultAxis(profile.R1)
-            && IsDefaultAxis(profile.R2)
-            && IsDefaultAxis(profile.V0)
-            && IsDefaultAxis(profile.V1)
-            && IsDefaultAxis(profile.V2)
-            && IsDefaultAxis(profile.A0);
-    }
-
-    private static bool IsDefaultAxis(TCodeAxisConfig? axis)
-    {
-        if (axis is null)
-            return true;
-
-        return axis.Min == 0
-            && axis.Max == 999
-            && axis.RemapMin == 0
-            && axis.RemapMax == 999
-            && axis.MaxSpeed == 5000
-            && axis.Invert == false
-            && axis.Mode == TCodeAxisMode.Normal
-            && Math.Abs(axis.LockValue - 0.5f) < 0.0001f;
-    }
-
-    private static TCodeMotionProfile CreateLegacyProfile(TCodeConfig legacyTCode)
-    {
-        var axis = new TCodeAxisConfig
-        {
-            Min      = legacyTCode.MinPos,
-            Max      = legacyTCode.MaxPos,
-            MaxSpeed = legacyTCode.MaxVelocity,
-            Invert   = false,
-        };
-
-        return new TCodeMotionProfile
-        {
-            UseGlobal = false,
-            L0 = new TCodeAxisConfig
-            {
-                Min      = legacyTCode.MinPos,
-                Max      = legacyTCode.MaxPos,
-                MaxSpeed = legacyTCode.MaxVelocity,
-                Invert   = legacyTCode.L0Invert,
-            },
-            R0 = CloneAxis(axis),
-            R1 = CloneAxis(axis),
-            R2 = CloneAxis(axis),
-            L1 = CloneAxis(axis),
-            L2 = CloneAxis(axis),
-            V0 = CloneAxis(axis),
-            V1 = CloneAxis(axis),
-            V2 = CloneAxis(axis),
-            A0 = CloneAxis(axis),
-        };
-    }
-
-    private TCodeMotionProfile BuildLegacyTargetProfile(string? motionProfileId)
+    private TCodeMotionProfile BuildMirroredTargetProfile(string? motionProfileId)
     {
         var defaultProfileId = GetDefaultAxisProfile().Id;
         var useGlobal = string.IsNullOrWhiteSpace(motionProfileId)
             || string.Equals(motionProfileId, defaultProfileId, StringComparison.OrdinalIgnoreCase);
 
         return CloneMotionProfile(ResolveMotionProfile(motionProfileId), useGlobal);
-    }
-
-    private static string EnsureAxisProfile(List<AxisProfileConfig> axisProfiles, TCodeMotionProfile profile, string preferredName)
-    {
-        var normalized = CloneMotionProfile(profile, useGlobal: false);
-        normalized.UseGlobal = false;
-
-        var existing = axisProfiles.FirstOrDefault(item => AreMotionProfilesEqual(item.Motion, normalized));
-        if (existing is not null)
-            return existing.Id;
-
-        var seenIds = new HashSet<string>(axisProfiles.Select(profileItem => profileItem.Id), StringComparer.OrdinalIgnoreCase);
-        var id = EnsureUniqueId(Slugify(preferredName), seenIds, $"axis-profile-{axisProfiles.Count + 1}");
-
-        axisProfiles.Add(new AxisProfileConfig
-        {
-            Id = id,
-            Name = preferredName,
-            IsDefault = false,
-            Motion = normalized,
-        });
-
-        return id;
-    }
-
-    private static bool AreMotionProfilesEqual(TCodeMotionProfile left, TCodeMotionProfile right)
-    {
-        return AreAxisEqual(left.L0, right.L0)
-            && AreAxisEqual(left.L1, right.L1)
-            && AreAxisEqual(left.L2, right.L2)
-            && AreAxisEqual(left.R0, right.R0)
-            && AreAxisEqual(left.R1, right.R1)
-            && AreAxisEqual(left.R2, right.R2)
-            && AreAxisEqual(left.V0, right.V0)
-            && AreAxisEqual(left.V1, right.V1)
-            && AreAxisEqual(left.V2, right.V2)
-            && AreAxisEqual(left.A0, right.A0);
-    }
-
-    private static bool AreAxisEqual(TCodeAxisConfig left, TCodeAxisConfig right)
-    {
-        return left.Min == right.Min
-            && left.Max == right.Max
-            && left.RemapMin == right.RemapMin
-            && left.RemapMax == right.RemapMax
-            && left.MaxSpeed == right.MaxSpeed
-            && left.Invert == right.Invert
-            && left.Mode == right.Mode
-            && Math.Abs(left.LockValue - right.LockValue) < 0.0001f;
     }
 
     private static string NormalizeMotionProfileId(string? profileId, List<AxisProfileConfig> axisProfiles, string defaultProfileId)
@@ -1034,15 +821,6 @@ public sealed class AppConfig
         return unique;
     }
 
-    private static string Slugify(string value)
-    {
-        var chars = value
-            .Select(ch => char.IsLetterOrDigit(ch) ? char.ToLowerInvariant(ch) : '-')
-            .ToArray();
-        var text = new string(chars).Trim('-');
-        return string.IsNullOrWhiteSpace(text) ? "axis-profile" : text;
-    }
-
     private static TCodeMotionProfile CloneMotionProfile(TCodeMotionProfile source, bool useGlobal)
     {
         return new TCodeMotionProfile
@@ -1095,18 +873,27 @@ public sealed class AppConfig
             ? source?.Mode ?? fallback.Mode
             : TCodeAxisMode.Normal;
 
+        var commandMode = Enum.IsDefined(typeof(TCodeCommandMode), source?.CommandMode ?? fallback.CommandMode)
+            ? source?.CommandMode ?? fallback.CommandMode
+            : TCodeCommandMode.Speed;
+
         return new TCodeAxisConfig
         {
             Min       = min,
             Max       = max,
             RemapMin  = remapMin,
             RemapMax  = remapMax,
-            MaxSpeed  = Math.Clamp(source?.MaxSpeed ?? fallback.MaxSpeed, 0, 9999),
+            MaxSpeed  = source is not null
+                ? NormalizeSpeedValue(source.MaxSpeed)
+                : Math.Clamp(fallback.MaxSpeed, 1, 999),
             Invert    = source?.Invert ?? fallback.Invert,
             Mode      = mode,
+            CommandMode = commandMode,
             LockValue = Math.Clamp(source?.LockValue ?? fallback.LockValue, 0f, 1f),
         };
     }
+
+    private static int NormalizeSpeedValue(int value) => Math.Clamp(value, 1, 999);
 
     private static TCodeAxisConfig CloneAxis(TCodeAxisConfig source)
     {
@@ -1119,48 +906,29 @@ public sealed class AppConfig
             MaxSpeed  = source.MaxSpeed,
             Invert    = source.Invert,
             Mode      = source.Mode,
+            CommandMode = source.CommandMode,
             LockValue = source.LockValue,
         };
     }
 
     private static SignalMapping CloneSignal(SignalMapping signal)
     {
-        var (mappedMin, mappedMax) = ResolveMappedSignalRange(signal);
+        var mappedMin = Math.Clamp(signal.MappedMin ?? 0, 0, 999);
+        var mappedMax = Math.Clamp(signal.MappedMax ?? 999, mappedMin, 999);
         return new SignalMapping
         {
             OscPath         = signal.OscPath,
             InvertDirection = signal.InvertDirection,
             VrchatMin       = signal.VrchatMin,
             VrchatMax       = signal.VrchatMax,
-            SmoothingAlpha  = signal.SmoothingAlpha,
-            DeadZone        = signal.DeadZone,
             Curve           = signal.Curve,
             Role            = signal.Role,
-            OutputMin       = signal.OutputMin,
-            OutputMax       = signal.OutputMax,
             MappedMin       = mappedMin,
             MappedMax       = mappedMax,
             IsOgbSocket     = signal.IsOgbSocket,
             IsOgbPlug       = signal.IsOgbPlug,
         };
     }
-
-    private static (int Min, int Max) ResolveMappedSignalRange(SignalMapping signal)
-    {
-        if (signal.MappedMin.HasValue || signal.MappedMax.HasValue)
-        {
-            var explicitMin = Math.Clamp(signal.MappedMin ?? 0, 0, 999);
-            var explicitMax = Math.Clamp(signal.MappedMax ?? 999, 0, 999);
-            return explicitMin <= explicitMax ? (explicitMin, explicitMax) : (explicitMax, explicitMin);
-        }
-
-        var legacyMin = ToMappedPosition(signal.OutputMin);
-        var legacyMax = ToMappedPosition(signal.OutputMax);
-        return legacyMin <= legacyMax ? (legacyMin, legacyMax) : (legacyMax, legacyMin);
-    }
-
-    private static int ToMappedPosition(float normalized) =>
-        Math.Clamp((int)Math.Round(Math.Clamp(normalized, 0f, 1f) * 1000f), 0, 999);
 
     private static List<OscMappingPresetConfig> BuildDefaultOscMappingPresets()
     {

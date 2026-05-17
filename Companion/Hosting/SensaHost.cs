@@ -66,9 +66,33 @@ public static class SensaHost
 
         var parameterStore = new OscParameterStore();
         var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort);
+        var oscQueryClient = new OscQueryClient();
         var recorder = new MotionRecorder();
         var scriptPlayer = new FunscriptPlayer();
         var outputCoordinator = new OutputCoordinator(config, Log, LogDebug, LogError);
+        string? selectedOscSourceKey = null;
+
+        string? ResolvePreferredOscSourceKeyForRuntime()
+        {
+            var sources = parameterStore.SnapshotSources();
+            if (sources.Length <= 1)
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey)
+                && sources.Any(source => string.Equals(source.Key, selectedOscSourceKey, StringComparison.Ordinal)))
+            {
+                return selectedOscSourceKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId))
+            {
+                var matched = sources.FirstOrDefault(source => string.Equals(source.PersistentId, config.Osc.PreferredSourcePersistentId, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(matched.Key))
+                    return matched.Key;
+            }
+
+            return null;
+        }
 
         var motionRuntime = new MotionRuntime(
             config,
@@ -77,12 +101,16 @@ public static class SensaHost
             recorder: recorder,
             scriptPlayer: scriptPlayer,
             sendOutputsAsync: outputCoordinator.SendAsync,
-            emergencyStopAsync: outputCoordinator.EmergencyStopAsync);
+            emergencyStopAsync: outputCoordinator.EmergencyStopAsync,
+            preferredOscSourceKeyProvider: ResolvePreferredOscSourceKeyForRuntime);
         motionRuntime.OnLog += Log;
         motionRuntime.OnDebugLog += message => LogEntry(message, RuntimeLogLevel.Debug);
 
         var wsClients = new ConcurrentDictionary<string, WebSocketClientSession>();
         var wsShutdown = new CancellationTokenSource();
+        var oscQueryRefreshGate = new SemaphoreSlim(1, 1);
+        var oscQueryRefreshQueued = 0;
+        var oscQueryRefreshGateDisposed = 0;
 
         object BuildStateEnvelope() => new
         {
@@ -90,6 +118,14 @@ public static class SensaHost
             data = BuildOverviewSnapshot(),
             logs = logBuffer.Snapshot(50),
         };
+
+        void DisposeOscQueryRefreshGate()
+        {
+            if (Interlocked.Exchange(ref oscQueryRefreshGateDisposed, 1) != 0)
+                return;
+
+            oscQueryRefreshGate.Dispose();
+        }
 
         void RemoveWsClient(string clientId)
         {
@@ -190,7 +226,217 @@ public static class SensaHost
                 QueueClientStatePush(clientId);
         }
 
-        motionRuntime.StateChanged += NotifyStateChanged;
+        bool ShouldRunOscListener() => motionRuntime.CurrentInputMode == RuntimeInputMode.Osc && motionRuntime.InputActive;
+
+        string? ResolveSelectedOscSourceKey(OscParameterStore.SourceSnapshot[] sources)
+        {
+            if (sources.Length <= 1)
+                return null;
+
+            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey)
+                && sources.Any(source => string.Equals(source.Key, selectedOscSourceKey, StringComparison.Ordinal)))
+            {
+                return selectedOscSourceKey;
+            }
+
+            if (!string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId))
+            {
+                var matched = sources.FirstOrDefault(source => string.Equals(source.PersistentId, config.Osc.PreferredSourcePersistentId, StringComparison.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(matched.Key))
+                    return matched.Key;
+            }
+
+            return null;
+        }
+
+        object SetOscSourceSelectionCore(string? sourceKey)
+        {
+            var normalizedSourceKey = string.IsNullOrWhiteSpace(sourceKey) ? null : sourceKey.Trim();
+            selectedOscSourceKey = normalizedSourceKey;
+
+            var snapshotSources = parameterStore.SnapshotSources();
+            var selectedSource = snapshotSources.FirstOrDefault(source => string.Equals(source.Key, normalizedSourceKey, StringComparison.Ordinal));
+            config.Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(selectedSource.PersistentId) ? string.Empty : selectedSource.PersistentId;
+            config.Save();
+
+            NotifyStateChanged();
+            return new
+            {
+                ok = true,
+                sourceKey = normalizedSourceKey,
+                persisted = !string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId),
+            };
+        }
+
+        async Task<OscQuerySnapshot> RefreshOscQueryCoreAsync(bool logResult)
+        {
+            var normalizedUrl = config.Osc.OscQueryEnabled
+                ? OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl)
+                : string.Empty;
+            await oscQueryRefreshGate.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                if (string.IsNullOrWhiteSpace(normalizedUrl))
+                {
+                    await oscQueryClient.StopListeningAsync().ConfigureAwait(false);
+                    oscQueryClient.Clear();
+                    return oscQueryClient.Snapshot;
+                }
+
+                var snapshot = await oscQueryClient.RefreshAsync(normalizedUrl, wsShutdown.Token).ConfigureAwait(false);
+                await SyncOscQueryListenAsync(snapshot).ConfigureAwait(false);
+
+                if (logResult)
+                {
+                    if (!string.IsNullOrWhiteSpace(snapshot.Error))
+                        LogError($"[OSCQuery] Sync failed: {snapshot.Error}");
+                    else
+                        Log($"[OSCQuery] Synced {snapshot.Nodes.Count} paths from {(string.IsNullOrWhiteSpace(snapshot.Name) ? snapshot.Url : snapshot.Name)}.");
+                }
+
+                return snapshot;
+            }
+            finally
+            {
+                oscQueryRefreshGate.Release();
+            }
+        }
+
+        async Task SyncOscQueryListenAsync(OscQuerySnapshot snapshot)
+        {
+            try
+            {
+                if (ShouldRunOscListener() && snapshot.SupportsListen)
+                    await oscQueryClient.StartListeningAsync(wsShutdown.Token).ConfigureAwait(false);
+                else
+                    await oscQueryClient.StopListeningAsync().ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (wsShutdown.IsCancellationRequested)
+            {
+            }
+            catch (Exception ex)
+            {
+                LogError($"[OSCQuery] LISTEN connect failed: {ex.Message}");
+            }
+        }
+
+        void QueueOscQueryListenSync()
+        {
+            var snapshot = oscQueryClient.Snapshot;
+            _ = Task.Run(async () =>
+            {
+                await SyncOscQueryListenAsync(snapshot).ConfigureAwait(false);
+                NotifyStateChanged();
+            });
+        }
+
+        void QueueOscQueryRefresh(bool logResult = false)
+        {
+            if (Interlocked.Exchange(ref oscQueryRefreshQueued, 1) != 0)
+                return;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await RefreshOscQueryCoreAsync(logResult).ConfigureAwait(false);
+                    NotifyStateChanged();
+                }
+                catch (OperationCanceledException)
+                {
+                }
+                catch (Exception ex)
+                {
+                    LogError($"[OSCQuery] Sync failed: {ex.Message}");
+                    NotifyStateChanged();
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref oscQueryRefreshQueued, 0);
+                }
+            });
+        }
+
+        void SyncOscServices(bool forceReceiverReconfigure = false, bool forceQueryRefresh = false)
+        {
+            var shouldListen = ShouldRunOscListener();
+
+            if (!shouldListen)
+            {
+                if (oscReceiver.IsRunning)
+                {
+                    oscReceiver.Stop();
+                    Log("[OSC] Listener stopped.");
+                }
+
+                QueueOscQueryListenSync();
+            }
+            else if (!oscReceiver.IsRunning)
+            {
+                oscReceiver.Start();
+                Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+            }
+            else if (forceReceiverReconfigure
+                || !string.Equals(oscReceiver.Host, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
+                || oscReceiver.Port != config.Osc.ReceiverPort)
+            {
+                oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
+                Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+            }
+
+            var normalizedUrl = config.Osc.OscQueryEnabled
+                ? OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl)
+                : string.Empty;
+            if (string.IsNullOrWhiteSpace(normalizedUrl))
+            {
+                oscQueryClient.Clear();
+                QueueOscQueryListenSync();
+                return;
+            }
+
+            var shouldRefreshQuery = shouldListen
+                && (forceQueryRefresh
+                    || !string.Equals(oscQueryClient.Snapshot.Url, normalizedUrl, StringComparison.OrdinalIgnoreCase)
+                    || oscQueryClient.Snapshot.Nodes.Count == 0
+                    || !string.IsNullOrWhiteSpace(oscQueryClient.Snapshot.Error));
+
+            if (shouldRefreshQuery)
+            {
+                QueueOscQueryRefresh(forceQueryRefresh);
+            }
+            else
+            {
+                QueueOscQueryListenSync();
+            }
+        }
+
+        void HandleRuntimeStateChanged()
+        {
+            try
+            {
+                SyncOscServices();
+            }
+            catch (Exception ex)
+            {
+                LogError($"[OSC] {ex.Message}");
+            }
+
+            NotifyStateChanged();
+        }
+
+        oscQueryClient.ValueReceived += (path, value, source) =>
+        {
+            parameterStore.Set(path, value, source);
+        };
+        oscQueryClient.AvatarChanged += () =>
+        {
+            parameterStore.Clear();
+            NotifyStateChanged();
+        };
+        oscQueryClient.StructureChanged += () => QueueOscQueryRefresh();
+        oscQueryClient.ListenStateChanged += NotifyStateChanged;
+
+        motionRuntime.StateChanged += HandleRuntimeStateChanged;
         outputCoordinator.StateChanged += NotifyStateChanged;
         logBuffer.EntryAdded += _ => NotifyStateChanged();
 
@@ -205,6 +451,216 @@ public static class SensaHost
         Task<bool> ConnectOutputAsync(string outputId) => outputCoordinator.ConnectAsync(outputId);
         Task DisconnectOutputAsync(string outputId) => outputCoordinator.DisconnectAsync(outputId);
 
+        async Task<AppConfig> ApplyConfigUpdateAsync(AppConfig incoming)
+        {
+            var previousConfig = new AppConfig();
+            previousConfig.CopyFrom(config);
+            var previousOscHost = config.Osc.ReceiverHost;
+            var previousOscPort = config.Osc.ReceiverPort;
+            var previousOscQueryEnabled = config.Osc.OscQueryEnabled;
+            var previousOscQueryUrl = config.Osc.OscQueryUrl;
+
+            var candidate = new AppConfig();
+            candidate.CopyFrom(incoming);
+            candidate.ValidateUniqueOutputTargets();
+
+            config.CopyFrom(candidate);
+            motionRuntime.RebuildProcessors();
+
+            var receiverChanged = !string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
+                || previousOscPort != config.Osc.ReceiverPort;
+            var queryEnabledChanged = previousOscQueryEnabled != config.Osc.OscQueryEnabled;
+            var queryChanged = !string.Equals(
+                OscQueryClient.NormalizeUrl(previousOscQueryUrl),
+                OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl),
+                StringComparison.OrdinalIgnoreCase);
+
+            try
+            {
+                SyncOscServices(forceReceiverReconfigure: receiverChanged, forceQueryRefresh: queryEnabledChanged || queryChanged);
+                await outputCoordinator.ReloadAsync().ConfigureAwait(false);
+                await outputCoordinator.ConnectEnabledAsync().ConfigureAwait(false);
+                config.Save();
+                Log("[Config] Updated from WebUI.");
+                NotifyStateChanged();
+                return config;
+            }
+            catch
+            {
+                config.CopyFrom(previousConfig);
+                motionRuntime.RebuildProcessors();
+
+                try
+                {
+                    config.Osc.ReceiverHost = previousOscHost;
+                    config.Osc.ReceiverPort = previousOscPort;
+                    config.Osc.OscQueryEnabled = previousOscQueryEnabled;
+                    config.Osc.OscQueryUrl = previousOscQueryUrl;
+                    SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
+                }
+                catch
+                {
+                }
+
+                throw;
+            }
+        }
+
+        object SetInputActiveCore(bool active)
+        {
+            motionRuntime.SetInputActive(active);
+            SyncOscServices();
+            return new { ok = true, active = motionRuntime.InputActive, oscListening = oscReceiver.IsRunning };
+        }
+
+        object SetInputModeCore(string modeText)
+        {
+            if (!Enum.TryParse<RuntimeInputMode>(modeText, ignoreCase: true, out var mode))
+                throw new InvalidOperationException($"Unknown input mode: {modeText}");
+
+            motionRuntime.SetInputMode(mode);
+            SyncOscServices();
+            return new { ok = true, mode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(), oscListening = oscReceiver.IsRunning };
+        }
+
+        object ApplyManualInputCore(ManualInputRequest request)
+        {
+            var requestedCommandMode = NormalizeManualMotionMode(request.MotionMode);
+            var requestedMotionValue = NormalizeManualMotionValue(requestedCommandMode, request.MotionValue);
+            var frame = new MotionFrame
+            {
+                L0 = NormalizeManualInputValue(request.L0),
+                R0 = NormalizeManualInputValue(request.R0),
+                R1 = NormalizeManualInputValue(request.R1),
+                R2 = NormalizeManualInputValue(request.R2),
+                L1 = NormalizeManualInputValue(request.L1),
+                L2 = NormalizeManualInputValue(request.L2),
+                V0 = NormalizeManualInputValue(request.V0),
+                V1 = NormalizeManualInputValue(request.V1),
+                V2 = NormalizeManualInputValue(request.V2),
+                A0 = NormalizeManualInputValue(request.A0),
+                RequestedCommandMode = requestedCommandMode,
+                RequestedMotionValue = requestedMotionValue,
+            };
+
+            if (request.Enabled)
+            {
+                motionRuntime.SetManualOverride(frame);
+                motionRuntime.SetInputMode(RuntimeInputMode.Manual);
+                LogDebug($"[Input/Manual] raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0} motionMode={(requestedCommandMode?.ToString() ?? "profile")} motionValue={(requestedMotionValue?.ToString() ?? "profile")}");
+            }
+            else
+            {
+                motionRuntime.ClearManualOverride();
+                LogDebug("[Input/Manual] Cleared");
+            }
+
+            return new
+            {
+                ok = true,
+                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
+                command = motionRuntime.ManualOverrideCommand,
+            };
+        }
+
+        object ClearManualInputCore()
+        {
+            motionRuntime.ClearManualOverride();
+            return new
+            {
+                ok = true,
+                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
+            };
+        }
+
+        async Task<object> LoadScriptFromStreamCoreAsync(string fileName, Stream content, bool loop, double speed)
+        {
+            scriptPlayer.Load(fileName, content);
+            scriptPlayer.Configure(loop: loop, speed: speed);
+            motionRuntime.SetInputMode(RuntimeInputMode.Script);
+            Log($"[Input/Script] Loaded: {fileName}");
+
+            return await Task.FromResult(new
+            {
+                ok = true,
+                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
+                script = scriptPlayer.GetSnapshot(),
+            }).ConfigureAwait(false);
+        }
+
+        async Task<object> LoadScriptFromTextCoreAsync(ScriptUploadRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.FileName))
+                throw new InvalidOperationException("请先选择脚本文件。");
+            if (string.IsNullOrWhiteSpace(request.Content))
+                throw new InvalidOperationException("脚本内容为空。");
+
+            var buffer = Encoding.UTF8.GetBytes(request.Content);
+            await using var stream = new MemoryStream(buffer, writable: false);
+            return await LoadScriptFromStreamCoreAsync(request.FileName, stream, request.Loop ?? false, request.Speed ?? 1.0).ConfigureAwait(false);
+        }
+
+        object PlayScriptCore(ScriptPlaybackRequest request)
+        {
+            var snapshot = scriptPlayer.Play(request.Restart, request.Loop, request.Speed);
+            motionRuntime.SetInputMode(RuntimeInputMode.Script);
+            Log($"[Input/Script] Playback started: {snapshot.FileName}");
+            return new
+            {
+                ok = true,
+                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
+                script = snapshot,
+            };
+        }
+
+        object PauseScriptCore()
+        {
+            var snapshot = scriptPlayer.Pause();
+            Log("[Input/Script] Playback paused.");
+            return new { ok = true, script = snapshot };
+        }
+
+        object StopScriptCore()
+        {
+            var snapshot = scriptPlayer.Stop();
+            Log("[Input/Script] Playback stopped.");
+            return new { ok = true, script = snapshot };
+        }
+
+        object ConfigureScriptCore(ScriptConfigureRequest request)
+        {
+            var snapshot = scriptPlayer.Configure(request.Loop, request.Speed);
+            LogDebug($"[Input/Script] Settings updated: loop={snapshot.Loop} speed={snapshot.Speed:0.##}x");
+            return new { ok = true, script = snapshot };
+        }
+
+        object SeekScriptCore(ScriptSeekRequest request)
+        {
+            var snapshot = scriptPlayer.Seek(request.PositionMs);
+            LogDebug($"[Input/Script] Seek: {snapshot.PositionMs}ms");
+            return new { ok = true, script = snapshot };
+        }
+
+        object ClearScriptCore()
+        {
+            var snapshot = scriptPlayer.Clear();
+            Log("[Input/Script] Cleared current script.");
+            return new { ok = true, script = snapshot };
+        }
+
+        async Task<object> RefreshOscQueryResultAsync()
+        {
+            if (string.IsNullOrWhiteSpace(OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl)))
+                throw new InvalidOperationException("请先填写 OSCQuery 地址。");
+
+            var snapshot = await RefreshOscQueryCoreAsync(logResult: true).ConfigureAwait(false);
+            NotifyStateChanged();
+            if (!string.IsNullOrWhiteSpace(snapshot.Error))
+                throw new InvalidOperationException(snapshot.Error);
+
+            return new { ok = true, query = snapshot };
+        }
+
         object BuildOverviewSnapshot()
         {
             var command = motionRuntime.LastCommand;
@@ -213,18 +669,29 @@ public static class SensaHost
             var udpOutput = config.GetPrimaryOutput(OutputDeviceType.TCodeUdp);
             var tcpOutput = config.GetPrimaryOutput(OutputDeviceType.TCodeTcp);
             var intifaceOutput = config.GetPrimaryOutput(OutputDeviceType.Intiface);
-            var oscPreview = parameterStore.Snapshot()
-                .OrderByDescending(entry => entry.Value.TimestampMs)
-                .Take(24)
+            var oscSourceSnapshots = parameterStore.SnapshotSources();
+            var effectiveSelectedSourceKey = ResolveSelectedOscSourceKey(oscSourceSnapshots);
+            var oscPreview = parameterStore.SnapshotEntries()
+                .GroupBy(entry => entry.Entry.Source.Key, StringComparer.Ordinal)
+                .SelectMany(group => group
+                    .OrderByDescending(entry => entry.Entry.TimestampMs)
+                    .Take(24))
+                .OrderByDescending(entry => entry.Entry.TimestampMs)
                 .Select(entry => new
                 {
-                    path = entry.Key,
-                    type = entry.Value.Value.Type.ToString().ToLowerInvariant(),
-                    value = FormatOscPreviewValue(entry.Value.Value),
-                    numericValue = entry.Value.Value.AsFloat(),
-                    entry.Value.TimestampMs,
+                    path = entry.Path,
+                    type = entry.Entry.Value.Type.ToString().ToLowerInvariant(),
+                    value = FormatOscPreviewValue(entry.Entry.Value),
+                    numericValue = entry.Entry.Value.AsFloat(),
+                    entry.Entry.TimestampMs,
+                    sourceKey = entry.Entry.Source.Key,
+                    sourceLabel = entry.Entry.Source.Label,
+                    sourcePersistentId = entry.Entry.Source.PersistentId,
+                    sourceAddress = entry.Entry.Source.Address,
+                    sourcePort = entry.Entry.Source.Port,
                 })
                 .ToArray();
+            var oscQuerySnapshot = oscQueryClient.Snapshot;
             var devices = outputCoordinator.GetDevices(intifaceOutput?.Id).Select(device => new
             {
                 name = device.Name,
@@ -256,7 +723,41 @@ public static class SensaHost
                 {
                     config.Osc.ReceiverHost,
                     config.Osc.ReceiverPort,
+                    listening = oscReceiver.IsRunning,
                     preview = oscPreview,
+                    sources = oscSourceSnapshots.Select(source => new
+                    {
+                        key = source.Key,
+                        label = source.Label,
+                        persistentId = source.PersistentId,
+                        address = source.Address,
+                        port = source.Port,
+                        parameterCount = source.ParameterCount,
+                        source.LastSeenTimestampMs,
+                        canPersistSelection = !string.IsNullOrWhiteSpace(source.PersistentId),
+                    }).ToArray(),
+                    selectedSourceKey = effectiveSelectedSourceKey,
+                    preferredSourcePersistentId = config.Osc.PreferredSourcePersistentId,
+                    query = new
+                    {
+                        enabled = config.Osc.OscQueryEnabled,
+                        url = string.IsNullOrWhiteSpace(oscQuerySnapshot.Url) ? OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl) : oscQuerySnapshot.Url,
+                        name = oscQuerySnapshot.Name,
+                        oscIp = oscQuerySnapshot.OscIp,
+                        oscPort = oscQuerySnapshot.OscPort,
+                        oscTransport = oscQuerySnapshot.OscTransport,
+                        supportsListen = oscQuerySnapshot.SupportsListen,
+                        wsIp = oscQuerySnapshot.WsIp,
+                        wsPort = oscQuerySnapshot.WsPort,
+                        webSocketUrl = oscQuerySnapshot.WebSocketUrl,
+                        listenConnected = oscQueryClient.IsListenConnected,
+                        listeningPathCount = oscQueryClient.ListeningPathCount,
+                        streamSourceLabel = oscQueryClient.ListenSource.Label,
+                        streamSourcePersistentId = oscQueryClient.ListenSource.PersistentId,
+                        refreshedAtUtc = oscQuerySnapshot.RefreshedAtUtc,
+                        error = oscQuerySnapshot.Error,
+                        nodes = oscQuerySnapshot.Nodes,
+                    },
                 },
                 tcode = new
                 {
@@ -287,13 +788,22 @@ public static class SensaHost
                 },
                 signals = config.Signals.Select((signal, index) =>
                 {
-                    var hasLatest = parameterStore.TryGetLatest(signal.OscPath, out var matchedPath, out var entry);
+                    var hasLatest = parameterStore.TryGetLatest(signal.OscPath, effectiveSelectedSourceKey, out var matchedPath, out var entry);
                     return new
                     {
                         index,
                         signal,
                         latest = hasLatest
-                            ? new { path = matchedPath, value = entry.Value.AsFloat(), entry.TimestampMs, type = entry.Value.Type.ToString() }
+                            ? new
+                            {
+                                path = matchedPath,
+                                value = entry.Value.AsFloat(),
+                                entry.TimestampMs,
+                                type = entry.Value.Type.ToString(),
+                                sourceKey = entry.Source.Key,
+                                sourceLabel = entry.Source.Label,
+                                sourcePersistentId = entry.Source.PersistentId,
+                            }
                             : null,
                     };
                 }).ToArray(),
@@ -348,41 +858,10 @@ public static class SensaHost
         app.MapGet("/api/config", () => Results.Ok(config));
         app.MapPut("/api/config", async (AppConfig incoming) =>
         {
-            var previousOscHost = config.Osc.ReceiverHost;
-            var previousOscPort = config.Osc.ReceiverPort;
-
             try
             {
-                var candidate = new AppConfig();
-                candidate.CopyFrom(incoming);
-                candidate.ValidateUniqueOutputTargets();
-
-                config.CopyFrom(candidate);
-                motionRuntime.RebuildProcessors();
-
-                if (!string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
-                    || previousOscPort != config.Osc.ReceiverPort)
-                {
-                    try
-                    {
-                        oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
-                        Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
-                    }
-                    catch
-                    {
-                        config.Osc.ReceiverHost = previousOscHost;
-                        config.Osc.ReceiverPort = previousOscPort;
-                        oscReceiver.Reconfigure(previousOscHost, previousOscPort);
-                        throw;
-                    }
-                }
-
-                await outputCoordinator.ReloadAsync();
-                await outputCoordinator.ConnectEnabledAsync();
-                config.Save();
-                Log("[Config] Updated from WebUI.");
-                NotifyStateChanged();
-                return Results.Ok(config);
+                var updated = await ApplyConfigUpdateAsync(incoming).ConfigureAwait(false);
+                return Results.Ok(updated);
             }
             catch (Exception ex)
             {
@@ -392,6 +871,21 @@ public static class SensaHost
         });
         app.MapGet("/api/state/overview", () => Results.Ok(BuildOverviewSnapshot()));
         app.MapGet("/api/state/logs", () => Results.Ok(logBuffer.Snapshot()));
+        app.MapPut("/api/input/osc/source", (OscSourceSelectionRequest request) =>
+        {
+            return Results.Ok(SetOscSourceSelectionCore(request.SourceKey));
+        });
+        app.MapPost("/api/input/oscquery/refresh", async () =>
+        {
+            try
+            {
+                return Results.Ok(await RefreshOscQueryResultAsync().ConfigureAwait(false));
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
+        });
 
         IResult EmergencyStopResult()
         {
@@ -412,63 +906,36 @@ public static class SensaHost
 
         app.MapPut("/api/input/active", (InputActiveRequest request) =>
         {
-            motionRuntime.SetInputActive(request.Active);
-            return Results.Ok(new { ok = true, active = motionRuntime.InputActive });
+            try
+            {
+                return Results.Ok(SetInputActiveCore(request.Active));
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
         });
 
         app.MapPut("/api/input/mode", (InputModeRequest request) =>
         {
-            if (!Enum.TryParse<RuntimeInputMode>(request.Mode, ignoreCase: true, out var mode))
-                return Results.BadRequest(new { ok = false, error = $"Unknown input mode: {request.Mode}" });
-
-            motionRuntime.SetInputMode(mode);
-            return Results.Ok(new { ok = true, mode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant() });
+            try
+            {
+                return Results.Ok(SetInputModeCore(request.Mode));
+            }
+            catch (Exception ex)
+            {
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
         });
 
         app.MapPut("/api/input/manual", (ManualInputRequest request) =>
         {
-            var frame = new MotionFrame
-            {
-                L0 = NormalizeManualInputValue(request.L0),
-                R0 = NormalizeManualInputValue(request.R0),
-                R1 = NormalizeManualInputValue(request.R1),
-                R2 = NormalizeManualInputValue(request.R2),
-                L1 = NormalizeManualInputValue(request.L1),
-                L2 = NormalizeManualInputValue(request.L2),
-                V0 = NormalizeManualInputValue(request.V0),
-                V1 = NormalizeManualInputValue(request.V1),
-                V2 = NormalizeManualInputValue(request.V2),
-                A0 = NormalizeManualInputValue(request.A0),
-            };
-
-            if (request.Enabled)
-            {
-                motionRuntime.SetManualOverride(frame);
-                motionRuntime.SetInputMode(RuntimeInputMode.Manual);
-                LogDebug($"[Input/Manual] HTTP raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0}");
-            }
-            else
-            {
-                motionRuntime.ClearManualOverride();
-                LogDebug("[Input/Manual] Cleared");
-            }
-
-            return Results.Ok(new
-            {
-                ok = true,
-                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
-                command = motionRuntime.ManualOverrideCommand,
-            });
+            return Results.Ok(ApplyManualInputCore(request));
         });
 
         app.MapDelete("/api/input/manual", () =>
         {
-            motionRuntime.ClearManualOverride();
-            return Results.Ok(new
-            {
-                ok = true,
-                inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
-            });
+            return Results.Ok(ClearManualInputCore());
         });
 
         app.MapPost("/api/input/script/load", async (HttpRequest request) =>
@@ -487,17 +954,7 @@ public static class SensaHost
             try
             {
                 using var stream = file.OpenReadStream();
-                scriptPlayer.Load(file.FileName, stream);
-                scriptPlayer.Configure(loop: loop, speed: speed);
-                motionRuntime.SetInputMode(RuntimeInputMode.Script);
-                Log($"[Input/Script] Loaded: {file.FileName}");
-
-                return Results.Ok(new
-                {
-                    ok = true,
-                    inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
-                    script = scriptPlayer.GetSnapshot(),
-                });
+                return Results.Ok(await LoadScriptFromStreamCoreAsync(file.FileName, stream, loop, speed).ConfigureAwait(false));
             }
             catch (Exception ex)
             {
@@ -510,15 +967,7 @@ public static class SensaHost
         {
             try
             {
-                var snapshot = scriptPlayer.Play(request.Restart, request.Loop, request.Speed);
-                motionRuntime.SetInputMode(RuntimeInputMode.Script);
-                Log($"[Input/Script] Playback started: {snapshot.FileName}");
-                return Results.Ok(new
-                {
-                    ok = true,
-                    inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(),
-                    script = snapshot,
-                });
+                return Results.Ok(PlayScriptCore(request));
             }
             catch (Exception ex)
             {
@@ -529,16 +978,43 @@ public static class SensaHost
 
         app.MapPost("/api/input/script/pause", () =>
         {
-            var snapshot = scriptPlayer.Pause();
-            Log("[Input/Script] Playback paused.");
-            return Results.Ok(new { ok = true, script = snapshot });
+            return Results.Ok(PauseScriptCore());
         });
 
         app.MapPost("/api/input/script/stop", () =>
         {
-            var snapshot = scriptPlayer.Stop();
-            Log("[Input/Script] Playback stopped.");
-            return Results.Ok(new { ok = true, script = snapshot });
+            return Results.Ok(StopScriptCore());
+        });
+
+        app.MapPut("/api/input/script/configure", (ScriptConfigureRequest request) =>
+        {
+            try
+            {
+                return Results.Ok(ConfigureScriptCore(request));
+            }
+            catch (Exception ex)
+            {
+                LogError($"[Input/Script] Configure failed: {ex.Message}");
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
+        });
+
+        app.MapPut("/api/input/script/seek", (ScriptSeekRequest request) =>
+        {
+            try
+            {
+                return Results.Ok(SeekScriptCore(request));
+            }
+            catch (Exception ex)
+            {
+                LogError($"[Input/Script] Seek failed: {ex.Message}");
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
+        });
+
+        app.MapDelete("/api/input/script", () =>
+        {
+            return Results.Ok(ClearScriptCore());
         });
 
         app.MapPost("/api/control/intiface/connect", async () =>
@@ -703,23 +1179,36 @@ public static class SensaHost
             {
                 while (!client.ConnectionToken.IsCancellationRequested && socket.State == WebSocketState.Open)
                 {
-                    var result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), client.ConnectionToken);
-                    if (result.MessageType == WebSocketMessageType.Close)
+                    using var messageBuffer = new MemoryStream();
+                    WebSocketReceiveResult? result;
+
+                    do
+                    {
+                        result = await socket.ReceiveAsync(new ArraySegment<byte>(buffer), client.ConnectionToken);
+                        if (result.MessageType == WebSocketMessageType.Close)
+                            break;
+
+                        if (result.Count > 0)
+                            await messageBuffer.WriteAsync(buffer.AsMemory(0, result.Count), client.ConnectionToken).ConfigureAwait(false);
+                    }
+                    while (result is not null && !result.EndOfMessage);
+
+                    if (result?.MessageType == WebSocketMessageType.Close)
                         break;
 
-                    if (result.MessageType == WebSocketMessageType.Text)
+                    if (result?.MessageType == WebSocketMessageType.Text)
                     {
                         try
                         {
-                            var json = Encoding.UTF8.GetString(buffer, 0, result.Count);
-                            var response = await HandleWebSocketCommand(json);
+                            var json = Encoding.UTF8.GetString(messageBuffer.GetBuffer(), 0, checked((int)messageBuffer.Length));
+                            var response = await HandleWebSocketCommand(json).ConfigureAwait(false);
                             var responseBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, wsJsonOptions));
-                            await socket.SendAsync(responseBytes, WebSocketMessageType.Text, true, client.ConnectionToken);
+                            await socket.SendAsync(responseBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
-                            var errorBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { ok = false, error = ex.Message }, wsJsonOptions));
-                            await socket.SendAsync(errorBytes, WebSocketMessageType.Text, true, client.ConnectionToken);
+                            var errorBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { id = string.Empty, ok = false, data = new { error = ex.Message } }, wsJsonOptions));
+                            await socket.SendAsync(errorBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
                         }
                     }
                 }
@@ -750,12 +1239,13 @@ public static class SensaHost
             outputCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
             oscReceiver.Stop();
             oscReceiver.Dispose();
+            oscQueryClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            DisposeOscQueryRefreshGate();
             motionRuntime.Dispose();
             config.Save();
         });
 
-        oscReceiver.Start();
-        Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+        SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
 
         await outputCoordinator.ConnectEnabledAsync();
         NotifyStateChanged();
@@ -779,16 +1269,19 @@ public static class SensaHost
         motionRuntime.Dispose();
         oscReceiver.Stop();
         oscReceiver.Dispose();
+        await oscQueryClient.DisposeAsync();
+        DisposeOscQueryRefreshGate();
         await outputCoordinator.DisposeAsync();
         config.Save();
 
         async Task<object> HandleWebSocketCommand(string json)
         {
+            string? requestId = string.Empty;
             try
             {
                 using var document = JsonDocument.Parse(json);
                 var root = document.RootElement;
-                var id = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : null;
+                requestId = root.TryGetProperty("id", out var idElement) ? idElement.GetString() : string.Empty;
                 var method = root.TryGetProperty("method", out var methodElement) ? methodElement.GetString()?.ToUpperInvariant() : "";
                 var path = root.TryGetProperty("path", out var pathElement) ? pathElement.GetString() ?? string.Empty : string.Empty;
 
@@ -803,30 +1296,22 @@ public static class SensaHost
 
                     case "/api/config" when method == "PUT":
                     {
-                        if (root.TryGetProperty("body", out var body))
+                        if (!root.TryGetProperty("body", out var body))
                         {
-                            var updated = JsonSerializer.Deserialize<AppConfig>(body.GetRawText(), wsJsonOptions);
-                            if (updated is not null)
-                            {
-                                var previousOscHost = config.Osc.ReceiverHost;
-                                var previousOscPort = config.Osc.ReceiverPort;
-                                config.CopyFrom(updated);
-                                config.Save();
-                                motionRuntime.RebuildProcessors();
-
-                                if (!string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
-                                    || previousOscPort != config.Osc.ReceiverPort)
-                                {
-                                    oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
-                                    Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
-                                }
-
-                                await outputCoordinator.ReloadAsync();
-                                await outputCoordinator.ConnectEnabledAsync();
-                                NotifyStateChanged();
-                                result = config;
-                            }
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
                         }
+
+                        var updated = JsonSerializer.Deserialize<AppConfig>(body.GetRawText(), wsJsonOptions);
+                        if (updated is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid config payload." };
+                            break;
+                        }
+
+                        result = await ApplyConfigUpdateAsync(updated).ConfigureAwait(false);
 
                         break;
                     }
@@ -839,53 +1324,58 @@ public static class SensaHost
                         result = logBuffer.Snapshot();
                         break;
 
+                    case "/api/input/osc/source" when method == "PUT":
+                    {
+                        if (!root.TryGetProperty("body", out var body))
+                        {
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
+                        }
+
+                        var request = JsonSerializer.Deserialize<OscSourceSelectionRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid OSC source selection request." };
+                            break;
+                        }
+
+                        result = SetOscSourceSelectionCore(request.SourceKey);
+                        break;
+                    }
+
                     case "/api/meta/serial-ports" when method == "GET":
                         result = BuildSerialPortList();
                         break;
 
+                    case "/api/input/oscquery/refresh" when method == "POST":
+                        result = await RefreshOscQueryResultAsync().ConfigureAwait(false);
+                        break;
+
                     case "/api/input/manual" when method == "PUT":
                     {
-                        if (root.TryGetProperty("body", out var body))
+                        if (!root.TryGetProperty("body", out var body))
                         {
-                            var request = JsonSerializer.Deserialize<ManualInputRequest>(body.GetRawText(), wsJsonOptions);
-                            if (request is not null)
-                            {
-                                var frame = new MotionFrame
-                                {
-                                    L0 = NormalizeManualInputValue(request.L0),
-                                    R0 = NormalizeManualInputValue(request.R0),
-                                    R1 = NormalizeManualInputValue(request.R1),
-                                    R2 = NormalizeManualInputValue(request.R2),
-                                    L1 = NormalizeManualInputValue(request.L1),
-                                    L2 = NormalizeManualInputValue(request.L2),
-                                    V0 = NormalizeManualInputValue(request.V0),
-                                    V1 = NormalizeManualInputValue(request.V1),
-                                    V2 = NormalizeManualInputValue(request.V2),
-                                    A0 = NormalizeManualInputValue(request.A0),
-                                };
-
-                                if (request.Enabled)
-                                {
-                                    motionRuntime.SetManualOverride(frame);
-                                    motionRuntime.SetInputMode(RuntimeInputMode.Manual);
-                                    LogDebug($"[Input/Manual] WS raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0}");
-                                }
-                                else
-                                {
-                                    motionRuntime.ClearManualOverride();
-                                }
-
-                                result = new { inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant(), command = motionRuntime.ManualOverrideCommand };
-                                NotifyStateChanged();
-                            }
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
                         }
+
+                        var request = JsonSerializer.Deserialize<ManualInputRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid manual input request." };
+                            break;
+                        }
+
+                        result = ApplyManualInputCore(request);
 
                         break;
                     }
                     case "/api/input/manual" when method == "DELETE":
-                        motionRuntime.ClearManualOverride();
-                        result = new { inputMode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant() };
-                        NotifyStateChanged();
+                        result = ClearManualInputCore();
                         break;
 
                     case "/api/control/runtime/emergency-stop" when method == "POST":
@@ -907,9 +1397,12 @@ public static class SensaHost
                         if (root.TryGetProperty("body", out var body) && body.TryGetProperty("active", out var activeElement))
                         {
                             var active = activeElement.GetBoolean();
-                            motionRuntime.SetInputActive(active);
-                            NotifyStateChanged();
-                            result = new { active = motionRuntime.InputActive };
+                            result = SetInputActiveCore(active);
+                        }
+                        else
+                        {
+                            ok = false;
+                            result = new { error = "Missing active flag." };
                         }
 
                         break;
@@ -919,14 +1412,109 @@ public static class SensaHost
                         if (root.TryGetProperty("body", out var body) && body.TryGetProperty("mode", out var modeElement))
                         {
                             var modeText = modeElement.GetString() ?? string.Empty;
-                            if (Enum.TryParse<RuntimeInputMode>(modeText, ignoreCase: true, out var mode))
-                            {
-                                motionRuntime.SetInputMode(mode);
-                                NotifyStateChanged();
-                                result = new { mode = motionRuntime.CurrentInputMode.ToString().ToLowerInvariant() };
-                            }
+                            result = SetInputModeCore(modeText);
+                        }
+                        else
+                        {
+                            ok = false;
+                            result = new { error = "Missing mode." };
                         }
 
+                        break;
+                    }
+                    case "/api/input/script/load" when method == "POST":
+                    {
+                        if (!root.TryGetProperty("body", out var body))
+                        {
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
+                        }
+
+                        var request = JsonSerializer.Deserialize<ScriptUploadRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid script upload request." };
+                            break;
+                        }
+
+                        result = await LoadScriptFromTextCoreAsync(request).ConfigureAwait(false);
+                        break;
+                    }
+                    case "/api/input/script/play" when method == "POST":
+                    {
+                        if (!root.TryGetProperty("body", out var body))
+                        {
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
+                        }
+
+                        var request = JsonSerializer.Deserialize<ScriptPlaybackRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid playback request." };
+                            break;
+                        }
+
+                        result = PlayScriptCore(request);
+                        break;
+                    }
+                    case "/api/input/script/pause" when method == "POST":
+                    {
+                        result = PauseScriptCore();
+                        break;
+                    }
+                    case "/api/input/script/stop" when method == "POST":
+                    {
+                        result = StopScriptCore();
+                        break;
+                    }
+                    case "/api/input/script/configure" when method == "PUT":
+                    {
+                        if (!root.TryGetProperty("body", out var body))
+                        {
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
+                        }
+
+                        var request = JsonSerializer.Deserialize<ScriptConfigureRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid script settings request." };
+                            break;
+                        }
+
+                        result = ConfigureScriptCore(request);
+                        break;
+                    }
+                    case "/api/input/script/seek" when method == "PUT":
+                    {
+                        if (!root.TryGetProperty("body", out var body))
+                        {
+                            ok = false;
+                            result = new { error = "Missing request body." };
+                            break;
+                        }
+
+                        var request = JsonSerializer.Deserialize<ScriptSeekRequest>(body.GetRawText(), wsJsonOptions);
+                        if (request is null)
+                        {
+                            ok = false;
+                            result = new { error = "Invalid seek request." };
+                            break;
+                        }
+
+                        result = SeekScriptCore(request);
+                        break;
+                    }
+                    case "/api/input/script" when method == "DELETE":
+                    {
+                        result = ClearScriptCore();
                         break;
                     }
                     case var route when method == "POST" && TryMatchOutputAction(route, out var outputId, out var action):
@@ -975,11 +1563,11 @@ public static class SensaHost
                         break;
                 }
 
-                return new { id, ok, data = result };
+                return new { id = requestId, ok, data = result };
             }
             catch (Exception ex)
             {
-                return new { id = string.Empty, ok = false, data = new { error = ex.Message } };
+                return new { id = requestId, ok = false, data = new { error = ex.Message } };
             }
         }
 
@@ -1100,6 +1688,29 @@ public static class SensaHost
 
     private static float NormalizeManualInputValue(int raw) => Math.Clamp(raw, 0, 999) / 1000f;
 
+    private static TCodeCommandMode? NormalizeManualMotionMode(TCodeCommandMode? rawMode)
+    {
+        return rawMode.HasValue ? rawMode.Value : null;
+    }
+
+    private static int? NormalizeManualMotionValue(TCodeCommandMode? mode, int? rawValue)
+    {
+        if (!mode.HasValue)
+            return null;
+
+        var resolvedMode = mode.Value;
+
+        if (resolvedMode == TCodeCommandMode.Interval)
+        {
+            var requested = rawValue is > 0 ? rawValue.Value : 1000;
+            return Math.Clamp(requested, 1, 60000);
+        }
+
+        var requestedSpeed = rawValue is > 0 ? rawValue.Value : 100;
+
+        return Math.Clamp(requestedSpeed, 1, 999);
+    }
+
     private static string FormatOscPreviewValue(OscValue value) =>
         value.Type switch
         {
@@ -1114,6 +1725,8 @@ public sealed record InputModeRequest(string Mode);
 
 public sealed record InputActiveRequest(bool Active);
 
+public sealed record OscSourceSelectionRequest(string? SourceKey);
+
 public sealed record ManualInputRequest(
     bool Enabled,
     int L0,
@@ -1125,12 +1738,26 @@ public sealed record ManualInputRequest(
     int V0,
     int V1,
     int V2,
-    int A0);
+    int A0,
+    TCodeCommandMode? MotionMode,
+    int? MotionValue);
+
+public sealed record ScriptUploadRequest(
+    string FileName,
+    string Content,
+    bool? Loop,
+    double? Speed);
 
 public sealed record ScriptPlaybackRequest(
     bool Restart,
     bool? Loop,
     double? Speed);
+
+public sealed record ScriptConfigureRequest(
+    bool? Loop,
+    double? Speed);
+
+public sealed record ScriptSeekRequest(long PositionMs);
 
 file sealed class WebSocketClientSession
 {

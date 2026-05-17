@@ -165,6 +165,65 @@ public sealed class FunscriptPlayer
         return snapshot;
     }
 
+    public FunscriptPlaybackSnapshot Clear()
+    {
+        FunscriptPlaybackSnapshot snapshot;
+        lock (_gate)
+        {
+            StopPlaybackTimerLocked();
+            _actions = new List<FunscriptAction>();
+            _fileName = string.Empty;
+            _durationMs = 0;
+            _resumePositionMs = 0;
+            _resumeStartedAtMs = 0;
+            _playing = false;
+            _lastL0 = 0f;
+            _state = "empty";
+            snapshot = BuildSnapshotLocked();
+        }
+
+        OnStateChanged?.Invoke();
+        return snapshot;
+    }
+
+    public FunscriptPlaybackSnapshot Seek(long positionMs)
+    {
+        FunscriptPlaybackSnapshot snapshot;
+        float currentL0;
+
+        lock (_gate)
+        {
+            if (_actions.Count == 0)
+                throw new InvalidOperationException("请先加载脚本文件。");
+
+            var clampedPosition = Math.Clamp(positionMs, 0L, _durationMs);
+            _resumePositionMs = clampedPosition;
+            _resumeStartedAtMs = Environment.TickCount64;
+            _lastL0 = SampleAtLocked(_resumePositionMs);
+
+            if (_resumePositionMs >= _durationMs)
+            {
+                _playing = false;
+                _state = "finished";
+            }
+            else if (_playing)
+            {
+                _state = "playing";
+            }
+            else
+            {
+                _state = _resumePositionMs > 0 ? "paused" : "stopped";
+            }
+
+            snapshot = BuildSnapshotLocked();
+            currentL0 = _lastL0;
+        }
+
+        OnFrame?.Invoke(currentL0);
+        OnStateChanged?.Invoke();
+        return snapshot;
+    }
+
     public FunscriptPlaybackSnapshot GetSnapshot()
     {
         lock (_gate)

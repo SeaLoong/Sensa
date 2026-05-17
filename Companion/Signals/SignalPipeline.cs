@@ -4,15 +4,12 @@ namespace Sensa.Signals;
 
 /// <summary>
 /// Processes a single OSC parameter through the signal pipeline:
-///   calibrate [± invert] → EMA smooth → dead zone → curve → mapped positions
-/// InvertDirection reverses the calibration range so that "no signal"
-/// is always near 0 before the dead zone is applied.
-/// Thread-safe: state (EMA value) is owned by each instance.
+///   calibrate [± invert] → curve → mapped positions
+/// InvertDirection reverses the calibration range before curve mapping.
 /// </summary>
 public sealed class SignalChannelProcessor
 {
     private readonly SignalMapping _mapping;
-    private float _emaValue = 0f;
     private float _observedMin = float.MaxValue;
     private float _observedMax = float.MinValue;
 
@@ -34,8 +31,7 @@ public sealed class SignalChannelProcessor
         if (rawValue < _observedMin) _observedMin = rawValue;
         if (rawValue > _observedMax) _observedMax = rawValue;
 
-        // 1. Calibrate to [0,1]; InvertDirection swaps the range endpoints so
-        //    that the dead zone (applied later) always masks "no signal" → 0.
+        // 1. Calibrate to [0,1]; InvertDirection swaps the range endpoints.
         float vrcMin = _mapping.InvertDirection ? _mapping.VrchatMax : _mapping.VrchatMin;
         float vrcMax = _mapping.InvertDirection ? _mapping.VrchatMin : _mapping.VrchatMax;
         float range = vrcMax - vrcMin;
@@ -43,27 +39,20 @@ public sealed class SignalChannelProcessor
             ? 0f
             : Math.Clamp((rawValue - vrcMin) / range, 0f, 1f);
 
-        // 2. EMA smoothing: v = α*new + (1-α)*old
-        _emaValue = _mapping.SmoothingAlpha * normalised + (1f - _mapping.SmoothingAlpha) * _emaValue;
-        float v = _emaValue;
-
-        // 3. Dead zone
-        if (v < _mapping.DeadZone) v = 0f;
-
-        // 4. Non-linear curve
+        // 2. Non-linear curve
+        float v = normalised;
         v = ApplyCurve(v, _mapping.Curve);
 
-        // 5. Remap to configured output positions
+        // 3. Remap to configured output positions
         var (outMin, outMax) = ResolveMappedRange(_mapping);
         v = outMin + v * (outMax - outMin);
 
         return Math.Clamp(v, 0f, 1f);
     }
 
-    /// <summary>Reset EMA state and observed calibration range (call when the avatar changes).</summary>
+    /// <summary>Reset observed calibration range (call when the avatar changes).</summary>
     public void Reset()
     {
-        _emaValue    = 0f;
         _observedMin = float.MaxValue;
         _observedMax = float.MinValue;
     }
@@ -84,19 +73,12 @@ public sealed class SignalChannelProcessor
 
     private static (float Min, float Max) ResolveMappedRange(SignalMapping mapping)
     {
-        if (mapping.MappedMin.HasValue || mapping.MappedMax.HasValue)
-        {
-            var mappedMin = Math.Clamp(mapping.MappedMin ?? 0, 0, 999);
-            var mappedMax = Math.Clamp(mapping.MappedMax ?? 999, 0, 999);
-            if (mappedMin > mappedMax)
-                (mappedMin, mappedMax) = (mappedMax, mappedMin);
+        var mappedMin = Math.Clamp(mapping.MappedMin ?? 0, 0, 999);
+        var mappedMax = Math.Clamp(mapping.MappedMax ?? 999, 0, 999);
+        if (mappedMin > mappedMax)
+            (mappedMin, mappedMax) = (mappedMax, mappedMin);
 
-            return (mappedMin / 1000f, mappedMax / 1000f);
-        }
-
-        var legacyMin = Math.Clamp(mapping.OutputMin, 0f, 1f);
-        var legacyMax = Math.Clamp(mapping.OutputMax, legacyMin, 1f);
-        return (legacyMin, legacyMax);
+        return (mappedMin / 1000f, mappedMax / 1000f);
     }
 }
 
@@ -229,10 +211,9 @@ public sealed class AxisVelocityTracker
     /// Call on each emitted command with the new normalised position [0,1] and the elapsed time since
     /// the last emitted command.
     ///
-    /// Uses the same scale as OSR-VRChat / common TCode tooling: normalised delta converted to a
-    /// 0-1000 axis magnitude and divided by elapsed seconds.
+    /// TCode S uses axis-value change per 100ms. A full-stroke move in 1 second therefore maps to 100.
     /// </summary>
-    public int Estimate(float newPos, double deltaMs, int maxVelocity = 2000)
+    public int Estimate(float newPos, double deltaMs, int maxVelocity = 200)
     {
         if (!_hasLastPos)
         {
@@ -241,9 +222,15 @@ public sealed class AxisVelocityTracker
             return 0;
         }
 
+        if (maxVelocity <= 0)
+        {
+            _lastPos = newPos;
+            return 0;
+        }
+
         var dtMs = Math.Max(deltaMs, 1d);
         var deltaPos = Math.Abs(newPos - _lastPos);
-        var velocity = (deltaPos * 1000d) / (dtMs / 1000d);
+        var velocity = (deltaPos * 1000d) / (dtMs / 100d);
 
         _lastPos = newPos;
 

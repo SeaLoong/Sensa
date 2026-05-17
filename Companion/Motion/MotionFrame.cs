@@ -1,3 +1,5 @@
+using Sensa.Configuration;
+
 namespace Sensa.Motion;
 
 public record MotionFrame
@@ -13,7 +15,8 @@ public record MotionFrame
     public float V2 { get; init; }
     public float A0 { get; init; } = 0.5f;
     public double DeltaMs { get; init; }
-    public bool UseMaxSpeed { get; init; }
+    public TCodeCommandMode? RequestedCommandMode { get; init; }
+    public int? RequestedMotionValue { get; init; }
 
     public static readonly MotionFrame Zero = new();
 }

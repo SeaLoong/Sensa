@@ -8,7 +8,6 @@ const {
   CardContent,
   CardHeader,
   Chip,
-  Collapse,
   CssBaseline,
   Dialog,
   DialogActions,
@@ -45,10 +44,11 @@ const { useEffect, useMemo, useRef, useState } = React;
 
 const STORAGE_KEY = 'sensa.studio.v4';
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
+const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
 
 const INPUT_MODES = [
-  { value: 'osc', label: 'OSC' },
   { value: 'manual', label: '手动' },
+  { value: 'osc', label: 'OSC' },
   { value: 'script', label: '脚本' },
 ];
 
@@ -62,7 +62,7 @@ const OUTPUT_TYPES = [
 const OUTPUT_TYPE_BY_VALUE = Object.fromEntries(OUTPUT_TYPES.map(item => [item.value, item]));
 
 const EMPTY_MANUAL = {
-  L0: 0,
+  L0: 500,
   L1: 500,
   L2: 500,
   R0: 500,
@@ -100,19 +100,20 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'Auxiliary', label: '辅助（A0）' },
 ];
 
-// Position/rotation axes default to no smoothing (alpha=1); vibration axes default to moderate smoothing
-const DEFAULT_SIGNAL_SMOOTHING = {
-  Depth: 1.0,
-  Surge: 1.0,
-  Sway: 1.0,
-  AngleX: 1.0,
-  AngleY: 1.0,
-  Twist: 1.0,
-  V0: 0.4,
-  V1: 0.4,
-  V2: 0.4,
-  Auxiliary: 1.0,
-};
+const SIGNAL_CURVE_OPTIONS = [
+  { value: 'Linear', label: '线性' },
+  { value: 'EaseIn', label: '缓入' },
+  { value: 'EaseOut', label: '缓出' },
+  { value: 'SCurve', label: '缓入缓出' },
+];
+
+const COMMAND_MODE_OPTIONS = [
+  { value: 'Speed', label: '速度 (S)' },
+  { value: 'Interval', label: '时间 (I)' },
+];
+
+const AXIS_LIMIT_MIN_SPEED = 1;
+const AXIS_LIMIT_MAX_SPEED = 999;
 
 const AXIS_PROFILE_DEFS = [
   { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
@@ -132,9 +133,10 @@ const DEFAULT_AXIS_PROFILE = {
   max: 999,
   remapMin: 0,
   remapMax: 999,
-  maxSpeed: 5000,
+  maxSpeed: 999,
   invert: false,
   mode: 'Normal',
+  commandMode: 'Speed',
   lockValue: 0.5,
 };
 
@@ -142,6 +144,14 @@ const AXIS_MODE_OPTIONS = [
   { value: 'Normal', label: '普通' },
   { value: 'Locked', label: '锁定' },
   { value: 'Ignored', label: '忽略' },
+];
+
+const AXIS_MODE_SELECT_OPTIONS = [
+  { value: 'Normal', mode: 'Normal', invert: false, label: '普通' },
+  { value: 'NormalInverted', mode: 'Normal', invert: true, label: '普通（反向）' },
+  { value: 'Locked', mode: 'Locked', invert: false, label: '锁定' },
+  { value: 'LockedInverted', mode: 'Locked', invert: true, label: '锁定（反向）' },
+  { value: 'Ignored', mode: 'Ignored', invert: false, label: '忽略' },
 ];
 
 function defaultAxisLockValue(axisKey) {
@@ -171,6 +181,9 @@ function createAxisProfilePresetMotion(presetId) {
   };
 
   switch (presetId) {
+    case 'sr6-full':
+      ignoreAxes(['v0', 'v1', 'v2', 'a0']);
+      return profile;
     case 'osr2-core':
       ignoreAxes(['l1', 'l2', 'r0', 'v0', 'v1', 'v2', 'a0']);
       return profile;
@@ -181,7 +194,6 @@ function createAxisProfilePresetMotion(presetId) {
       ignoreAxes(['v0', 'v1', 'v2']);
       lockAxes(['l1', 'l2', 'r0', 'r1', 'r2', 'a0'], 0.5);
       return profile;
-    case 'sr6-full':
     default:
       return profile;
   }
@@ -190,8 +202,8 @@ function createAxisProfilePresetMotion(presetId) {
 const AXIS_PROFILE_PRESETS = [
   {
     id: 'sr6-full',
-    name: 'SR6 / OSR6 全轴',
-    description: '保留全部线性、旋转、震动与辅助轴，适合多轴完整控制。',
+    name: 'SR6 / OSR6 六轴',
+    description: '保留 L0 / L1 / L2 / R0 / R1 / R2 六个主运动轴，默认忽略 V0 / V1 / V2 / A0。',
   },
   {
     id: 'osr2-core',
@@ -296,15 +308,17 @@ function normalizeAxisProfile(axis, axisKey) {
   const remapMin = Math.max(0, Math.min(999, Number(next.remapMin ?? DEFAULT_AXIS_PROFILE.remapMin)));
   const remapMax = Math.max(remapMin, Math.min(999, Number(next.remapMax ?? DEFAULT_AXIS_PROFILE.remapMax)));
   const mode = AXIS_MODE_OPTIONS.some(option => option.value === next.mode) ? next.mode : 'Normal';
+  const commandMode = COMMAND_MODE_OPTIONS.some(option => option.value === next.commandMode) ? next.commandMode : 'Speed';
 
   return {
     min,
     max,
     remapMin,
     remapMax,
-    maxSpeed: Math.max(0, Math.min(9999, Number(next.maxSpeed ?? DEFAULT_AXIS_PROFILE.maxSpeed))),
+    maxSpeed: normalizeAxisLimitSpeed(next.maxSpeed ?? DEFAULT_AXIS_PROFILE.maxSpeed),
     invert: Boolean(next.invert),
     mode,
+    commandMode,
     lockValue: Math.max(0, Math.min(1, Number(next.lockValue ?? defaultAxisLockValue(axisKey)))),
   };
 }
@@ -470,16 +484,10 @@ function formatCompactNumber(value, decimals = 0) {
   return decimals > 0 ? numeric.toFixed(decimals) : `${Math.round(numeric)}`;
 }
 
-function legacyMappedPositionFromOutput(value, fallback) {
-  const numeric = Number(value);
-  if (!Number.isFinite(numeric)) return fallback;
-  return Math.max(0, Math.min(999, Math.round(Math.max(0, Math.min(1, numeric)) * 1000)));
-}
-
 function makeSignalDraft(signal = {}) {
   const role = signal.role || 'Depth';
-  const mappedMinCandidate = signal.mappedMin ?? legacyMappedPositionFromOutput(signal.outputMin, 0);
-  const mappedMaxCandidate = signal.mappedMax ?? legacyMappedPositionFromOutput(signal.outputMax, 999);
+  const mappedMinCandidate = signal.mappedMin ?? 0;
+  const mappedMaxCandidate = signal.mappedMax ?? 999;
   const mappedMin = Math.max(0, Math.min(999, Number(mappedMinCandidate ?? 0)));
   const mappedMax = Math.max(mappedMin, Math.min(999, Number(mappedMaxCandidate ?? 999)));
   return {
@@ -490,8 +498,6 @@ function makeSignalDraft(signal = {}) {
     vrchatMax: 1,
     mappedMin,
     mappedMax,
-    smoothingAlpha: DEFAULT_SIGNAL_SMOOTHING[role] ?? 1.0,
-    deadZone: role === 'V0' || role === 'V1' || role === 'V2' ? 0 : 0.01,
     curve: 'Linear',
     role,
     isOgbSocket: false,
@@ -570,10 +576,6 @@ function stripSignalDraft(signal) {
     vrchatMax: Number(rest.vrchatMax || 0),
     mappedMin,
     mappedMax,
-    outputMin: mappedMin / 1000,
-    outputMax: mappedMax / 1000,
-    smoothingAlpha: Number(rest.smoothingAlpha || 0),
-    deadZone: Number(rest.deadZone || 0),
   };
 }
 
@@ -582,12 +584,56 @@ function computeSignalHash(signals) {
   return JSON.stringify(cleaned);
 }
 
-function describeCommandMode(preferSpeedMode) {
-  return preferSpeedMode ? '按速度 (S)' : '按时间 (I)';
+function normalizeCommandMode(commandMode) {
+  return commandMode === 'Interval' ? 'Interval' : 'Speed';
 }
 
-function describeCommandModeDetail(preferSpeedMode) {
-  return preferSpeedMode ? '发送 S 指令，适合持续跟随当前目标。' : '发送 I 指令，适合定时缓动和回正。';
+function describeCommandMode(commandMode) {
+  return normalizeCommandMode(commandMode) === 'Interval' ? '时间 (I)' : '速度 (S)';
+}
+
+function describeCommandModeDetail(commandMode) {
+  return normalizeCommandMode(commandMode) === 'Interval'
+    ? '发送 I 指令；下方速度限制仍然是同一套速度上限，系统会按当前位移自动换算成对应的 I 时长。'
+    : '发送 S 指令；直接按速度上限约束该轴。';
+}
+
+function getAxisModeSelectValue(axis) {
+  const mode = AXIS_MODE_OPTIONS.some(option => option.value === axis?.mode) ? axis.mode : 'Normal';
+  const invert = Boolean(axis?.invert);
+
+  if (mode === 'Ignored') return 'Ignored';
+  if (mode === 'Locked') return invert ? 'LockedInverted' : 'Locked';
+  return invert ? 'NormalInverted' : 'Normal';
+}
+
+function parseAxisModeSelectValue(value) {
+  const selected = AXIS_MODE_SELECT_OPTIONS.find(option => option.value === value);
+  if (!selected) return { mode: 'Normal', invert: false };
+  return { mode: selected.mode, invert: selected.invert };
+}
+
+function normalizeAxisLimitSpeed(value) {
+  const numeric = Math.round(Number(value ?? DEFAULT_AXIS_PROFILE.maxSpeed));
+  if (!Number.isFinite(numeric)) return DEFAULT_AXIS_PROFILE.maxSpeed;
+  return Math.max(AXIS_LIMIT_MIN_SPEED, Math.min(AXIS_LIMIT_MAX_SPEED, numeric));
+}
+
+function formatAxisMotionLimitSummary(commandMode, maxSpeed) {
+  return `${normalizeCommandMode(commandMode) === 'Interval' ? 'I' : 'S'} · 速度 ${normalizeAxisLimitSpeed(maxSpeed)}`;
+}
+
+function getAxisMotionLimitFieldConfig(axis) {
+  return {
+    label: '速度限制',
+    title: '无论发送 S 还是 I，这里限制的本质都是最大速度上限。选择 I 时，系统会按当前位移把这个速度上限换算成对应时长。',
+    value: normalizeAxisLimitSpeed(axis?.maxSpeed),
+    min: AXIS_LIMIT_MIN_SPEED,
+    max: AXIS_LIMIT_MAX_SPEED,
+    step: 1,
+    valueFormatter: next => `${Math.round(Number(next || 0))}`,
+    toProfileValue: next => normalizeAxisLimitSpeed(next),
+  };
 }
 
 function formatAxisPositionFromNormalized(value) {
@@ -598,7 +644,7 @@ function formatAxisPositionFromNormalized(value) {
 
 function buildAxisProfileAxisRows(profileCard) {
   const motion = normalizeMotionProfile(profileCard?.motion, false);
-  return AXIS_PROFILE_DEFS.map(axis => {
+  return AXIS_PROFILE_DEFS.flatMap(axis => {
     const current = motion[axis.key];
     const defaults = createDefaultAxisProfileValue(axis.key);
     const details = [];
@@ -607,24 +653,22 @@ function buildAxisProfileAxisRows(profileCard) {
       details.push({ label, changed, tone });
     };
 
-    if (current.mode === 'Ignored') {
-      pushDetail('忽略', true, 'warning');
-      return { axis: axis.axis, details };
-    }
+    if (current.mode === 'Ignored') return [];
 
     if (current.mode === 'Locked') {
       pushDetail(`锁定 ${formatAxisPositionFromNormalized(current.lockValue)}`, true, 'warning');
+      pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
       if (current.invert) pushDetail('反向', true, 'danger');
-      return { axis: axis.axis, details };
+      return [{ axis: axis.axis, details }];
     }
 
-    pushDetail(`边界 ${current.min}-${current.max}`, current.min !== defaults.min || current.max !== defaults.max, 'bounds');
     pushDetail(`映射 ${current.remapMin}-${current.remapMax}`, current.remapMin !== defaults.remapMin || current.remapMax !== defaults.remapMax, 'remap');
-    pushDetail(`限速 ${current.maxSpeed}`, current.maxSpeed !== defaults.maxSpeed, 'speed');
+    pushDetail(`边界 ${current.min}-${current.max}`, current.min !== defaults.min || current.max !== defaults.max, 'bounds');
+    pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
 
     if (current.invert) pushDetail('反向', true, 'danger');
 
-    return { axis: axis.axis, details };
+    return [{ axis: axis.axis, details }];
   });
 }
 
@@ -794,7 +838,6 @@ function createOutputConfig(type, config, options = {}) {
     host: '127.0.0.1',
     port: getDefaultOutputPort(type),
     updatesPerSecond: 100,
-    preferSpeedMode: true,
     manageEngineProcess: true,
     websocketAddress: 'ws://localhost:12345',
     ...suggestedTarget,
@@ -815,7 +858,6 @@ function normalizeOutputConfig(output, config, options = {}) {
     host: normalizeOutputHost(output?.host, fallback.host),
     port: normalizeOutputPort(output?.port, fallback.port),
     updatesPerSecond: Number(output?.updatesPerSecond || fallback.updatesPerSecond),
-    preferSpeedMode: output?.preferSpeedMode !== false,
     manageEngineProcess: output?.manageEngineProcess !== false,
     websocketAddress: normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
   };
@@ -833,7 +875,7 @@ function buildOutputSummary(output) {
   if (!output) return '未配置';
   if (output.type === 'TCodeSerial') {
     const portLabel = output.comPort || '未设置串口';
-    return `${portLabel} · ${Math.max(10, Number(output.updatesPerSecond || 100))} Hz · ${describeCommandMode(Boolean(output.preferSpeedMode))}`;
+    return `${portLabel} · ${Math.max(10, Number(output.updatesPerSecond || 100))} Hz`;
   }
   if (output.type === 'TCodeUdp' || output.type === 'TCodeTcp') {
     return `${output.host || '127.0.0.1'}:${output.port || (output.type === 'TCodeUdp' ? 9999 : 9998)}`;
@@ -841,41 +883,68 @@ function buildOutputSummary(output) {
   return output.websocketAddress || 'ws://localhost:12345';
 }
 
-function apiRequest(path, options = {}) {
-  // Use WebSocket when available for all non-FormData requests
-  if (_wsCommandSocket && _wsCommandSocket.readyState === WebSocket.OPEN && !(options.body instanceof FormData)) {
-    return wsRequest(path, options);
-  }
-  return httpRequest(path, options);
-}
-
-function httpRequest(path, options = {}) {
-  return fetch(path, options).then(async response => {
-    const isJson = (response.headers.get('content-type') || '').includes('application/json');
-    const payload = isJson ? await response.json() : await response.text();
-
-    if (!response.ok) {
-      const message = typeof payload === 'string' ? payload : payload?.error || payload?.message || `${response.status} ${response.statusText}`;
-      throw new Error(message);
-    }
-
-    return payload;
-  });
-}
+const WS_REQUEST_TIMEOUT_MS = 15000;
 
 let _wsRequestId = 0;
 const _wsPending = new Map();
 let _wsCommandSocket = null;
+let _wsReadyWaiters = [];
 
 function setWsCommandSocket(socket) {
   _wsCommandSocket = socket;
 }
 
+function resolveWsReadyWaiters(socket = _wsCommandSocket) {
+  if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+  const waiters = _wsReadyWaiters;
+  _wsReadyWaiters = [];
+  waiters.forEach(waiter => {
+    clearTimeout(waiter.timeout);
+    waiter.resolve(socket);
+  });
+}
+
+function rejectWsReadyWaiters(error) {
+  if (_wsReadyWaiters.length === 0) return;
+
+  const reason = error instanceof Error ? error : new Error('实时连接不可用');
+  const waiters = _wsReadyWaiters;
+  _wsReadyWaiters = [];
+  waiters.forEach(waiter => {
+    clearTimeout(waiter.timeout);
+    waiter.reject(reason);
+  });
+}
+
+function waitForWsReady(timeoutMs = WS_REQUEST_TIMEOUT_MS) {
+  if (_wsCommandSocket && _wsCommandSocket.readyState === WebSocket.OPEN) {
+    return Promise.resolve(_wsCommandSocket);
+  }
+
+  return new Promise((resolve, reject) => {
+    const waiter = {
+      resolve,
+      reject,
+      timeout: window.setTimeout(() => {
+        _wsReadyWaiters = _wsReadyWaiters.filter(item => item !== waiter);
+        reject(new Error('实时连接未就绪，请稍后重试。'));
+      }, timeoutMs),
+    };
+
+    _wsReadyWaiters.push(waiter);
+  });
+}
+
+async function apiRequest(path, options = {}) {
+  await waitForWsReady();
+  return wsRequest(path, options);
+}
+
 function clearWsPendingRequests(error) {
   for (const [, pending] of _wsPending) {
     clearTimeout(pending.timeout);
-    if (error) pending.reject(error);
-    else pending.resolve(undefined);
+    pending.reject(error instanceof Error ? error : new Error('实时连接已断开'));
   }
 
   _wsPending.clear();
@@ -884,7 +953,7 @@ function clearWsPendingRequests(error) {
 function wsRequest(path, options = {}) {
   return new Promise((resolve, reject) => {
     if (!_wsCommandSocket || _wsCommandSocket.readyState !== WebSocket.OPEN) {
-      resolve(httpRequest(path, options));
+      reject(new Error('实时连接未建立，请稍后重试。'));
       return;
     }
 
@@ -893,17 +962,13 @@ function wsRequest(path, options = {}) {
     const msg = { id: String(id), method, path };
 
     if (options.body) {
-      if (options.body instanceof FormData) {
-        resolve(httpRequest(path, options));
-        return;
-      }
       msg.body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
     }
 
     const timeout = setTimeout(() => {
       _wsPending.delete(String(id));
-      resolve(httpRequest(path, options));
-    }, 8000);
+      reject(new Error(`请求超时：${path}`));
+    }, WS_REQUEST_TIMEOUT_MS);
 
     _wsPending.set(String(id), { resolve, reject, timeout });
 
@@ -912,7 +977,7 @@ function wsRequest(path, options = {}) {
     } catch (err) {
       _wsPending.delete(String(id));
       clearTimeout(timeout);
-      resolve(httpRequest(path, options));
+      reject(err instanceof Error ? err : new Error('发送请求失败。'));
     }
   });
 }
@@ -954,7 +1019,7 @@ function normalizeSerialPorts(raw) {
 
 function sanitizeStudio(raw, config) {
   return {
-    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : 'osc',
+    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : 'manual',
   };
 }
 
@@ -992,16 +1057,17 @@ function matchesOscPathPattern(pattern, actualPath) {
   return globMatch(p, a);
 }
 
-function getLatestOscPreviewEntry(previewEntries, pattern) {
+function getLatestOscPreviewEntry(previewEntries, pattern, preferredSourceKey = '') {
   const matches = Array.isArray(previewEntries) ? previewEntries.filter(entry => matchesOscPathPattern(pattern, entry?.path || '')) : [];
-  if (matches.length === 0) return null;
+  const candidates = preferredSourceKey ? matches.filter(entry => entry?.sourceKey === preferredSourceKey) : matches;
+  if (candidates.length === 0) return null;
 
-  const latest = matches.reduce((current, entry) => {
+  const latest = candidates.reduce((current, entry) => {
     if (!current) return entry;
     return Number(entry?.timestampMs || 0) > Number(current?.timestampMs || 0) ? entry : current;
   }, null);
 
-  return latest ? { ...latest, matchCount: matches.length } : null;
+  return latest ? { ...latest, matchCount: candidates.length } : null;
 }
 
 function isOgbOscPath(path) {
@@ -1018,8 +1084,25 @@ function compareOscPathSuggestions(left, right) {
   return leftPath.localeCompare(rightPath, 'en', { numeric: true, sensitivity: 'base' });
 }
 
-function buildOscPathSuggestions(previewEntries) {
-  return Array.from(new Set((Array.isArray(previewEntries) ? previewEntries : []).map(entry => (entry?.path || '').trim()).filter(Boolean))).sort(compareOscPathSuggestions);
+function buildOscPathSuggestions(previewEntries, queryNodes = []) {
+  const previewPaths = (Array.isArray(previewEntries) ? previewEntries : []).map(entry => (entry?.path || '').trim());
+  const queryPaths = (Array.isArray(queryNodes) ? queryNodes : []).map(node => (node?.path || '').trim());
+  return Array.from(new Set([...previewPaths, ...queryPaths].filter(Boolean))).sort(compareOscPathSuggestions);
+}
+
+function filterOscPreviewEntriesBySource(previewEntries, sourceKey = '') {
+  if (!sourceKey) return Array.isArray(previewEntries) ? previewEntries : [];
+  return (Array.isArray(previewEntries) ? previewEntries : []).filter(entry => entry?.sourceKey === sourceKey);
+}
+
+function formatOscSourceLabel(source) {
+  if (!source) return '未知来源';
+  return source.label || (source.address && source.port ? `${source.address}:${source.port}` : source.key || '未知来源');
+}
+
+function buildOscSourceSelectionOptions(sources) {
+  const normalizedSources = Array.isArray(sources) ? sources : [];
+  return [{ value: '', label: '自动选择' }, ...normalizedSources.map(source => ({ value: source.key, label: formatOscSourceLabel(source) }))];
 }
 
 function formatPreviewTimestamp(timestampMs) {
@@ -1027,6 +1110,38 @@ function formatPreviewTimestamp(timestampMs) {
   const value = new Date(timestampMs);
   if (Number.isNaN(value.getTime())) return '—';
   return value.toLocaleTimeString();
+}
+
+function applySignalCurve(value, curve) {
+  switch (curve) {
+    case 'EaseIn':
+      return value * value;
+    case 'EaseOut':
+      return 1 - (1 - value) * (1 - value);
+    case 'SCurve':
+      return value < 0.5 ? 2 * value * value : 1 - 2 * (1 - value) * (1 - value);
+    default:
+      return value;
+  }
+}
+
+function computeSignalPreviewOutput(signal, rawValue) {
+  const numericValue = Number(rawValue);
+  if (!signal || !Number.isFinite(numericValue)) return null;
+
+  const inputMin = Number(signal.invertDirection ? signal.vrchatMax : signal.vrchatMin);
+  const inputMax = Number(signal.invertDirection ? signal.vrchatMin : signal.vrchatMax);
+  const range = inputMax - inputMin;
+  const normalized = Math.abs(range) < 0.0001 ? 0 : Math.max(0, Math.min(1, (numericValue - inputMin) / range));
+  const curved = applySignalCurve(normalized, signal.curve);
+  const mappedStart = Math.max(0, Math.min(999, Number(signal.mappedMin ?? 0)));
+  const mappedEnd = Math.max(0, Math.min(999, Number(signal.mappedMax ?? 999)));
+  const mappedPosition = mappedStart + curved * (mappedEnd - mappedStart);
+
+  return {
+    mappedPosition,
+    mappedPositionText: `${Math.max(0, Math.min(999, Math.round(mappedPosition)))}`,
+  };
 }
 
 function parseAxisTraceNumber(value) {
@@ -1157,6 +1272,21 @@ function formatDuration(ms) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(remainder).padStart(2, '0')}`;
 }
 
+function getScriptStateMeta(state) {
+  switch ((state || '').toLowerCase()) {
+    case 'playing':
+      return { label: '播放中', color: 'success' };
+    case 'paused':
+      return { label: '已暂停', color: 'warning' };
+    case 'finished':
+      return { label: '已完成', color: 'primary' };
+    case 'stopped':
+      return { label: '已就绪', color: 'default' };
+    default:
+      return { label: '未加载', color: 'default' };
+  }
+}
+
 function normalizeLogs(entries) {
   if (!Array.isArray(entries)) return [];
 
@@ -1197,7 +1327,7 @@ function buildOutputDialogDraft(outputId, config, serialPorts) {
 
 function mergeOutputDraft(outputId, config, draft) {
   const next = cloneConfig(config);
-  next.schemaVersion = 4;
+  next.schemaVersion = 5;
   next.outputs = getOutputs(config).map(output => {
     if (output.id !== outputId) return output;
     return {
@@ -1243,6 +1373,188 @@ function HelpLabel({ text, title, placement = 'top' }) {
   );
 }
 
+function TooltipHintIcon({ title, placement = 'top', className = '', ariaLabel = '查看说明' }) {
+  if (!title) return null;
+
+  return (
+    <Tooltip title={title} arrow placement={placement}>
+      <Box component="span" tabIndex={0} role="img" aria-label={ariaLabel} className={`field-hint-icon${className ? ` ${className}` : ''}`}>
+        i
+      </Box>
+    </Tooltip>
+  );
+}
+
+function FieldPanel({ label, title, valueText = null, className = '', children }) {
+  return (
+    <Box className={`field-panel${className ? ` ${className}` : ''}`}>
+      <Stack direction="row" justifyContent="space-between" alignItems="center" className="field-panel__header">
+        <Typography variant="caption" color="text.secondary" component="div">
+          <HelpLabel text={label} title={title} />
+        </Typography>
+        <Typography variant="caption" className="field-panel__value">
+          {valueText ?? '\u00A0'}
+        </Typography>
+      </Stack>
+
+      <Box className="field-panel__body">{children}</Box>
+    </Box>
+  );
+}
+
+function SelectField({
+  label,
+  title,
+  value,
+  onChange,
+  options,
+  disabled = false,
+  className = '',
+  variant = 'panel',
+  hintTitle = '',
+  hintPlacement = 'top',
+  formControlProps = {},
+  selectProps = {},
+  menuProps,
+  renderOption,
+  fullWidth,
+}) {
+  const normalizedOptions = Array.isArray(options) ? options : [];
+  const selectedOption = normalizedOptions.find(option => option.value === value) || null;
+  const isInline = variant === 'inline';
+  const isFloating = variant === 'floating';
+  const isCompact = variant === 'compact';
+  const shouldRenderInputLabel = isInline || isFloating || isCompact;
+  const resolvedFullWidth = typeof fullWidth === 'boolean' ? fullWidth : !isCompact;
+
+  const selectControl = (
+    <FormControl
+      size="small"
+      fullWidth={resolvedFullWidth}
+      className={`select-field__control${isFloating ? ' select-field__control--floating' : ''}${isCompact ? ' select-field__control--compact' : ''}`}
+      disabled={disabled}
+      {...formControlProps}
+    >
+      {shouldRenderInputLabel && (
+        <InputLabel
+          className={`select-field__input-label${title && !(isFloating || isCompact) ? ' select-field__input-label--hint' : ''}${isFloating ? ' select-field__input-label--floating' : ''}${isCompact ? ' select-field__input-label--compact' : ''}`}
+        >
+          {isFloating || isCompact ? <HelpLabel text={label} title={title} placement={hintPlacement} /> : label}
+        </InputLabel>
+      )}
+      <Select value={value} label={shouldRenderInputLabel ? label : undefined} MenuProps={menuProps} onChange={event => onChange(event.target.value)} {...selectProps}>
+        {normalizedOptions.map(option => (
+          <MenuItem key={option.value} value={option.value} disabled={Boolean(option.disabled)}>
+            {typeof renderOption === 'function' ? renderOption(option) : option.label}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  if (isCompact) {
+    return <Box className={`select-field select-field--compact${className ? ` ${className}` : ''}`}>{selectControl}</Box>;
+  }
+
+  if (isInline) {
+    const inlineField = (
+      <Box className={`select-field select-field--inline${className ? ` ${className}` : ''}`}>
+        {selectControl}
+        <TooltipHintIcon title={hintTitle} placement={hintPlacement} className="select-field__hint" />
+      </Box>
+    );
+
+    return title ? (
+      <Tooltip title={title} arrow placement="top">
+        <Box>{inlineField}</Box>
+      </Tooltip>
+    ) : (
+      inlineField
+    );
+  }
+
+  if (isFloating) {
+    return <Box className={`select-field select-field--floating${className ? ` ${className}` : ''}`}>{selectControl}</Box>;
+  }
+
+  return (
+    <FieldPanel label={label} title={title} valueText={selectedOption?.label || null} className={`select-field${className ? ` ${className}` : ''}`}>
+      {selectControl}
+    </FieldPanel>
+  );
+}
+
+function SliderControl({ value, onChange, onChangeCommitted, valueFormatter = next => next, className = '', valueLabelDisplay = 'auto', ...props }) {
+  return (
+    <Slider
+      {...props}
+      className={`slider-control${className ? ` ${className}` : ''}`}
+      value={value}
+      valueLabelDisplay={valueLabelDisplay}
+      valueLabelFormat={valueFormatter}
+      onChange={(_, next) => onChange?.(next)}
+      onChangeCommitted={(_, next) => onChangeCommitted?.(next)}
+    />
+  );
+}
+
+function SliderField({
+  label,
+  title,
+  value,
+  onChange,
+  sliderMin,
+  sliderMax,
+  step = 1,
+  min,
+  max,
+  valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)),
+}) {
+  const isRange = Array.isArray(value);
+  const [startValue, endValue] = isRange ? value : [value, value];
+  const minBound = Number.isFinite(min) ? min : sliderMin;
+  const maxBound = Number.isFinite(max) ? max : sliderMax;
+
+  const handleChange = next => {
+    if (isRange) {
+      const [nextStart, nextEnd] = Array.isArray(next) ? next : [next, next];
+      onChange(
+        normalizeRangePair(nextStart, nextEnd, {
+          min: Number.isFinite(minBound) ? minBound : null,
+          max: Number.isFinite(maxBound) ? maxBound : null,
+          step,
+          fallbackStart: startValue,
+          fallbackEnd: endValue,
+        }),
+      );
+      return;
+    }
+
+    onChange(
+      normalizeRangePair(next, next, {
+        min: Number.isFinite(minBound) ? minBound : null,
+        max: Number.isFinite(maxBound) ? maxBound : null,
+        step,
+        fallbackStart: startValue,
+        fallbackEnd: startValue,
+      })[0],
+    );
+  };
+
+  return (
+    <FieldPanel label={label} title={title} valueText={isRange ? `${valueFormatter(startValue)}-${valueFormatter(endValue)}` : valueFormatter(startValue)} className="range-field">
+      <SliderControl
+        min={sliderMin}
+        max={sliderMax}
+        step={step}
+        value={isRange ? [startValue, endValue] : startValue}
+        valueFormatter={valueFormatter}
+        onChange={next => handleChange(next)}
+      />
+    </FieldPanel>
+  );
+}
+
 function RangeField({
   label,
   title,
@@ -1258,98 +1570,40 @@ function RangeField({
   endLabel = '止',
   valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)),
 }) {
-  const [startValue, endValue] = value;
-  const minBound = Number.isFinite(inputMin) ? inputMin : sliderMin;
-  const maxBound = Number.isFinite(inputMax) ? inputMax : sliderMax;
-  const handleChange = (nextStart, nextEnd) => {
-    onChange(
-      normalizeRangePair(nextStart, nextEnd, {
-        min: Number.isFinite(minBound) ? minBound : null,
-        max: Number.isFinite(maxBound) ? maxBound : null,
-        step,
-        fallbackStart: startValue,
-        fallbackEnd: endValue,
-      }),
-    );
-  };
-
   return (
-    <Box className="range-field">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" className="range-field__header">
-        <Typography variant="caption" color="text.secondary" component="div">
-          <HelpLabel text={label} title={title} />
-        </Typography>
-        <Typography variant="caption" className="range-field__value">
-          {`${valueFormatter(startValue)}-${valueFormatter(endValue)}`}
-        </Typography>
-      </Stack>
-
-      <Slider
-        min={sliderMin}
-        max={sliderMax}
-        step={step}
-        value={[startValue, endValue]}
-        valueLabelDisplay="auto"
-        valueLabelFormat={valueFormatter}
-        onChange={(_, next) => handleChange(next[0], next[1])}
-      />
-    </Box>
+    <SliderField
+      label={label}
+      title={title}
+      value={value}
+      onChange={onChange}
+      sliderMin={sliderMin}
+      sliderMax={sliderMax}
+      step={inputStep}
+      min={inputMin}
+      max={inputMax}
+      startLabel={startLabel}
+      endLabel={endLabel}
+      valueFormatter={valueFormatter}
+    />
   );
 }
 
 function ValueSliderField({ label, title, value, onChange, min, max, step = 1, valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)) }) {
-  const handleChange = next => {
-    const normalized = normalizeRangePair(next, next, { min, max, step, fallbackStart: value, fallbackEnd: value })[0];
-    onChange(normalized);
-  };
-
-  return (
-    <Box className="range-field">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" className="range-field__header">
-        <Typography variant="caption" color="text.secondary" component="div">
-          <HelpLabel text={label} title={title} />
-        </Typography>
-        <Typography variant="caption" className="range-field__value">
-          {valueFormatter(value)}
-        </Typography>
-      </Stack>
-
-      <Slider min={min} max={max} step={step} value={value} valueLabelDisplay="auto" valueLabelFormat={valueFormatter} onChange={(_, next) => handleChange(next)} />
-    </Box>
-  );
+  return <SliderField label={label} title={title} value={value} onChange={onChange} sliderMin={min} sliderMax={max} step={step} min={min} max={max} valueFormatter={valueFormatter} />;
 }
 
 function AxisSlider({ axis, value, onChange }) {
-  const axisLabel = (
-    <Typography
-      variant="subtitle2"
-      sx={
-        axis.description
-          ? {
-              textDecoration: 'underline dotted',
-              textUnderlineOffset: '3px',
-              cursor: 'help',
-            }
-          : undefined
-      }
-    >
-      {axis.label}
-    </Typography>
-  );
+  const axisLabel = axis.description ? <HelpLabel text={axis.label} title={axis.description} /> : axis.label;
 
   return (
     <Box className="axis-slider-card">
       <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-        {axis.description ? (
-          <Tooltip title={axis.description} arrow placement="top">
-            {axisLabel}
-          </Tooltip>
-        ) : (
-          axisLabel
-        )}
+        <Typography variant="subtitle2" component="div">
+          {axisLabel}
+        </Typography>
         <Chip size="small" variant="outlined" label={axis.step >= 1 ? `${Math.round(Number(value))}` : Number(value).toFixed(2)} />
       </Stack>
-      <Slider min={axis.min} max={axis.max} step={axis.step} value={value} valueLabelDisplay="auto" onChange={(_, next) => onChange(Number(next))} />
+      <SliderControl min={axis.min} max={axis.max} step={axis.step} value={value} onChange={next => onChange(Number(next))} />
     </Box>
   );
 }
@@ -1432,6 +1686,8 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
   const axisMode = value.mode || 'Normal';
   const isLocked = axisMode === 'Locked';
   const isIgnored = axisMode === 'Ignored';
+  const axisModeSelectValue = getAxisModeSelectValue(value);
+  const motionLimitField = getAxisMotionLimitFieldConfig(value);
 
   return (
     <Box className="motion-axis-card">
@@ -1443,16 +1699,15 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
           </Typography>
         </Box>
 
-        <FormControl size="small" sx={{ minWidth: 124, flexShrink: 0 }}>
-          <InputLabel>轴模式</InputLabel>
-          <Select disabled={disabled} value={axisMode} label="轴模式" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ mode: event.target.value })}>
-            {AXIS_MODE_OPTIONS.map(option => (
-              <MenuItem key={`${axisDefinition.axis}-${option.value}`} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SelectField
+          label="轴模式"
+          value={axisModeSelectValue}
+          options={AXIS_MODE_SELECT_OPTIONS}
+          disabled={disabled}
+          variant="compact"
+          formControlProps={{ sx: { minWidth: 164, flexShrink: 0 } }}
+          onChange={next => onChange(parseAxisModeSelectValue(next))}
+        />
       </Stack>
 
       {isIgnored ? (
@@ -1473,19 +1728,6 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
       ) : (
         <>
           <RangeField
-            label="边界"
-            title="最终输出会被夹在这个位置区间内，适合做限位或保留安全余量；它不会把输入重新缩放到这个区间。"
-            value={[value.min, value.max]}
-            sliderMin={0}
-            sliderMax={999}
-            inputMin={0}
-            inputMax={999}
-            startLabel={axisDefinition.minLabel}
-            endLabel={axisDefinition.maxLabel}
-            onChange={([min, max]) => onChange({ min, max })}
-          />
-
-          <RangeField
             label="映射范围"
             title="先把逻辑值 0~1 缩放到这个设备位置区间，再交给边界做最终夹紧。和“边界”不同，它会主动重映射输出。"
             value={[value.remapMin, value.remapMax]}
@@ -1498,22 +1740,48 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
             onChange={([remapMin, remapMax]) => onChange({ remapMin, remapMax })}
           />
 
-          <ValueSliderField
-            label="速度限制"
-            title="该轴在按速度模式下使用的速度上限；允许范围 0-9999。"
-            value={value.maxSpeed}
-            min={0}
-            max={9999}
-            step={1}
-            onChange={next => onChange({ maxSpeed: next })}
+          <RangeField
+            label="边界范围"
+            title="最终输出会被夹在这个位置区间内，适合做限位或保留安全余量；它不会把输入重新缩放到这个区间。"
+            value={[value.min, value.max]}
+            sliderMin={0}
+            sliderMax={999}
+            inputMin={0}
+            inputMax={999}
+            startLabel={axisDefinition.minLabel}
+            endLabel={axisDefinition.maxLabel}
+            onChange={([min, max]) => onChange({ min, max })}
           />
 
-          <FormControlLabel
-            sx={{ mt: 0.25 }}
-            control={<Switch checked={Boolean(value.invert)} disabled={disabled} onChange={(_, checked) => onChange({ invert: checked })} />}
-            label={<HelpLabel text="反向" title="反向会在锁定 / 映射 / 边界处理之前先翻转 0~1 的逻辑方向。" />}
-          />
         </>
+      )}
+
+      {!isIgnored && (
+        <Box className="motion-axis-card__command-row">
+          <SelectField
+            label="斜率方式"
+            title={describeCommandModeDetail(value.commandMode)}
+            value={normalizeCommandMode(value.commandMode)}
+            options={COMMAND_MODE_OPTIONS}
+            disabled={disabled}
+            variant="floating"
+            className="motion-axis-card__command-select"
+            onChange={next => onChange({ commandMode: next })}
+          />
+
+          <Box className="motion-axis-card__command-limit">
+            <ValueSliderField
+              label={motionLimitField.label}
+              title={motionLimitField.title}
+              value={motionLimitField.value}
+              min={motionLimitField.min}
+              max={motionLimitField.max}
+              step={motionLimitField.step}
+              valueFormatter={motionLimitField.valueFormatter}
+              onChange={next => onChange({ maxSpeed: motionLimitField.toProfileValue(next) })}
+            />
+          </Box>
+        </Box>
       )}
     </Box>
   );
@@ -1521,7 +1789,7 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
 
 function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
-  const roleLabel = SIGNAL_ROLE_OPTIONS.find(option => option.value === draft.role)?.label || draft.role;
+  const liveOutput = computeSignalPreviewOutput(draft, latestEntry?.numericValue);
 
   return (
     <Box className="signal-row">
@@ -1557,18 +1825,16 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           )}
         />
 
-        <FormControl size="small" fullWidth className="signal-row__role">
-          <InputLabel>
-            <HelpLabel text="目标轴" title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则会在后端做融合。当前约定里 L1 为数值小=前、数值大=后。" />
-          </InputLabel>
-          <Select value={draft.role} label="目标轴" MenuProps={{ disableScrollLock: true }} onChange={event => onChange({ role: event.target.value })}>
-            {SIGNAL_ROLE_OPTIONS.map(option => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <SelectField
+          label="目标轴"
+          title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则会在后端做融合。当前约定里 L1 为数值小=前、数值大=后。"
+          value={draft.role}
+          options={SIGNAL_ROLE_OPTIONS}
+          variant="compact"
+          fullWidth
+          className="signal-row__role"
+          onChange={next => onChange({ role: next })}
+        />
 
         <FormControlLabel
           className="signal-row__toggle"
@@ -1584,10 +1850,11 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
       <Box className="signal-row__controls">
         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__status">
-          <Chip size="small" variant="outlined" label={roleLabel} />
           {latestEntry ? (
             <>
               <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
+              {liveOutput && <Chip size="small" color="primary" variant="outlined" label={`实时位置 ${liveOutput.mappedPositionText}`} />}
+              {latestEntry.sourceLabel && <Chip size="small" variant="outlined" label={`来源 ${latestEntry.sourceLabel}`} />}
               {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
               {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
             </>
@@ -1596,36 +1863,37 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           )}
         </Stack>
 
-        <RangeField
-          label="输入范围"
-          title="把原始 OSC 值的最小点校准为逻辑 0、最大点校准为逻辑 1。"
-          value={[draft.vrchatMin, draft.vrchatMax]}
-          sliderMin={inputSliderMin}
-          sliderMax={inputSliderMax}
-          step={0.01}
-          valueFormatter={next => formatCompactNumber(next, 2)}
-          onChange={([vrchatMin, vrchatMax]) => onChange({ vrchatMin, vrchatMax })}
-        />
+        <Box className="signal-row__mapping-controls">
+          <RangeField
+            label="输入范围"
+            title="把原始 OSC 值的某一段校准为逻辑 0~1。比如设成 0.25~0.75，就会把原始 25%~75% 放大成设备完整行程；超出区间的值会被夹到 0/1。"
+            value={[draft.vrchatMin, draft.vrchatMax]}
+            sliderMin={inputSliderMin}
+            sliderMax={inputSliderMax}
+            step={0.01}
+            valueFormatter={next => formatCompactNumber(next, 2)}
+            onChange={([vrchatMin, vrchatMax]) => onChange({ vrchatMin, vrchatMax })}
+          />
 
-        <RangeField
-          label="映射位置"
-          title="校准、平滑、曲线处理后的逻辑 0/1，会被放到这个设备位置区间；范围 0-999。"
-          value={[draft.mappedMin, draft.mappedMax]}
-          sliderMin={0}
-          sliderMax={999}
-          onChange={([mappedMin, mappedMax]) => onChange({ mappedMin, mappedMax })}
-        />
+          <RangeField
+            label="映射范围"
+            title="校准和曲线处理后的逻辑 0/1，会被放到这个设备位置区间；范围 0-999。比如把完整输入限制在设备的 200~800 行程，就在这里设 200~800。"
+            value={[draft.mappedMin, draft.mappedMax]}
+            sliderMin={0}
+            sliderMax={999}
+            onChange={([mappedMin, mappedMax]) => onChange({ mappedMin, mappedMax })}
+          />
 
-        <ValueSliderField
-          label="平滑"
-          title="指数滑动平均。0.4 表示新输出 = 40% 本次值 + 60% 上次结果；越小越平滑，但延迟越明显。"
-          value={draft.smoothingAlpha}
-          min={0}
-          max={1}
-          step={0.01}
-          valueFormatter={next => formatCompactNumber(next, 2)}
-          onChange={next => onChange({ smoothingAlpha: next })}
-        />
+          <SelectField
+            label="映射曲线"
+            title="它改变的是输入值到逻辑目标值的分布，不直接改变最终发给设备的 S/I 形式。缓入适合前段更细，缓出适合后段更细，缓入缓出则让两端更平滑、中段更灵敏。"
+            value={draft.curve || 'Linear'}
+            options={SIGNAL_CURVE_OPTIONS}
+            variant="floating"
+            className="signal-row__curve-field"
+            onChange={next => onChange({ curve: next })}
+          />
+        </Box>
       </Box>
     </Box>
   );
@@ -1635,17 +1903,20 @@ function App() {
   const [config, setConfig] = useState(null);
   const [overview, setOverview] = useState(null);
   const [logs, setLogs] = useState([]);
-  const [studio, setStudio] = useState(() => loadStudio() || { preferredInputTab: 'osc' });
+  const [studio, setStudio] = useState(() => loadStudio() || { preferredInputTab: 'manual' });
   const [serialPorts, setSerialPorts] = useState([]);
-  const [oscDraft, setOscDraft] = useState({ receiverHost: '0.0.0.0', receiverPort: 9001 });
+  const [oscDraft, setOscDraft] = useState({ receiverHost: '0.0.0.0', receiverPort: 9001, oscQueryEnabled: true, oscQueryUrl: DEFAULT_OSCQUERY_URL });
   const [signalDrafts, setSignalDrafts] = useState([]);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
+  const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
   const [profileDialog, setProfileDialog] = useState(null);
   const [dialog, setDialog] = useState(null);
   const [manualDraft, setManualDraft] = useState(EMPTY_MANUAL);
   const [manualContinuous, setManualContinuous] = useState(false);
   const [scriptSettings, setScriptSettings] = useState({ loop: false, speed: 1 });
+  const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
+  const [scriptSeekDragging, setScriptSeekDragging] = useState(false);
   const [selectedScriptFile, setSelectedScriptFile] = useState(null);
   const [scriptFileInputKey, setScriptFileInputKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -1659,8 +1930,6 @@ function App() {
   const [logAxisFilter, setLogAxisFilter] = useState('');
   const [logActionFilter, setLogActionFilter] = useState('');
   const [confirmClearMappings, setConfirmClearMappings] = useState(false);
-  const [expandedAxisProfileIds, setExpandedAxisProfileIds] = useState({});
-
   const manualTimerRef = useRef(null);
   const manualDraftRef = useRef(EMPTY_MANUAL);
   const savedSignalsHashRef = useRef('');
@@ -1672,6 +1941,8 @@ function App() {
 
     async function loadInitial() {
       try {
+        await waitForWsReady();
+
         const [configResponse, overviewResponse, logsResponse, serialPortResponse] = await Promise.all([
           apiRequest('/api/config'),
           apiRequest('/api/state/overview'),
@@ -1688,12 +1959,15 @@ function App() {
         setOscDraft({
           receiverHost: configResponse?.osc?.receiverHost || '0.0.0.0',
           receiverPort: configResponse?.osc?.receiverPort || 9001,
+          oscQueryEnabled: configResponse?.osc?.oscQueryEnabled !== false,
+          oscQueryUrl: configResponse?.osc?.oscQueryUrl || DEFAULT_OSCQUERY_URL,
         });
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
         savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(configResponse?.signals));
         setStudio(previous => sanitizeStudio(previous, configResponse));
-        setManualDraft({ ...EMPTY_MANUAL });
-        manualDraftRef.current = { ...EMPTY_MANUAL };
+        const initialManualDraft = normalizeManualCommand(overviewResponse?.runtime?.manualCommand);
+        setManualDraft(initialManualDraft);
+        manualDraftRef.current = initialManualDraft;
         setScriptSettings({
           loop: Boolean(overviewResponse?.input?.script?.loop),
           speed: Number(overviewResponse?.input?.script?.speed || 1),
@@ -1720,6 +1994,8 @@ function App() {
     setOscDraft({
       receiverHost: config?.osc?.receiverHost || '0.0.0.0',
       receiverPort: config?.osc?.receiverPort || 9001,
+      oscQueryEnabled: config?.osc?.oscQueryEnabled !== false,
+      oscQueryUrl: config?.osc?.oscQueryUrl || DEFAULT_OSCQUERY_URL,
     });
     setSignalDrafts(buildSignalDrafts(config?.signals));
     savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(config?.signals));
@@ -1752,20 +2028,17 @@ function App() {
   }, [overview?.input?.script, busyKey]);
 
   useEffect(() => {
+    if (scriptSeekDragging) return;
+    setScriptSeekDraft(Number(overview?.input?.script?.positionMs || 0));
+  }, [overview?.input?.script?.positionMs, scriptSeekDragging]);
+
+  useEffect(() => {
     if (!selectedScriptFile) return;
     let cancelled = false;
 
     (async () => {
-      const formData = new FormData();
-      formData.append('file', selectedScriptFile);
-      formData.append('loop', String(scriptSettings.loop));
-      formData.append('speed', String(scriptSettings.speed));
-
       try {
-        const result = await apiRequest('/api/input/script/load', {
-          method: 'POST',
-          body: formData,
-        });
+        const result = await uploadScriptFile(selectedScriptFile);
 
         if (cancelled) return;
 
@@ -1803,6 +2076,7 @@ function App() {
       disposed = true;
       window.clearTimeout(retryHandle);
       if (_wsCommandSocket === socket) setWsCommandSocket(null);
+      rejectWsReadyWaiters(new Error('实时连接已关闭'));
       clearWsPendingRequests(new Error('WS disconnected'));
 
       if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
@@ -1823,6 +2097,7 @@ function App() {
       currentSocket.onopen = () => {
         if (_wsCommandSocket !== currentSocket) return;
         setWsState('connected');
+        resolveWsReadyWaiters(currentSocket);
       };
 
       currentSocket.onmessage = event => {
@@ -1840,7 +2115,11 @@ function App() {
             const pending = _wsPending.get(payload.id);
             clearTimeout(pending.timeout);
             _wsPending.delete(payload.id);
-            pending.resolve(payload.data);
+            if (payload.ok === false) {
+              pending.reject(new Error(payload?.data?.error || payload?.error || '请求失败'));
+            } else {
+              pending.resolve(payload.data);
+            }
           }
         } catch {
           // ignore malformed frames
@@ -1856,6 +2135,7 @@ function App() {
         const isCurrentSocket = _wsCommandSocket === currentSocket;
         if (isCurrentSocket) {
           setWsCommandSocket(null);
+          rejectWsReadyWaiters(new Error('实时连接已断开'));
           clearWsPendingRequests(new Error('WS disconnected'));
         }
 
@@ -1902,8 +2182,24 @@ function App() {
     return normalizedPorts;
   }
 
+  async function uploadScriptFile(file) {
+    if (!file) throw new Error('请先选择一个 .funscript 文件');
+
+    const content = await file.text();
+    return apiRequest('/api/input/script/load', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        fileName: file.name,
+        content,
+        loop: scriptSettings.loop,
+        speed: scriptSettings.speed,
+      }),
+    });
+  }
+
   async function persistConfig(nextConfig) {
-    nextConfig.schemaVersion = 4;
+    nextConfig.schemaVersion = 5;
     const saved = await apiRequest('/api/config', {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -1918,17 +2214,35 @@ function App() {
 
     await withBusy('osc-save', async () => {
       const nextConfig = cloneConfig(config);
-      nextConfig.schemaVersion = 4;
+      nextConfig.schemaVersion = 5;
       nextConfig.osc = {
         ...nextConfig.osc,
         receiverHost: (oscDraft.receiverHost || '0.0.0.0').trim() || '0.0.0.0',
         receiverPort: Number(oscDraft.receiverPort || 9001),
+        oscQueryEnabled: Boolean(oscDraft.oscQueryEnabled),
+        oscQueryUrl: (oscDraft.oscQueryUrl || '').trim(),
       };
 
       await persistConfig(nextConfig);
       await refreshOverview();
       notify('OSC 配置已保存', 'success');
     }).catch(error => notify(error.message || '保存 OSC 配置失败', 'error'));
+  }
+
+  async function applyOscSourceSelection(nextSourceKey) {
+    const normalizedSourceKey = nextSourceKey || '';
+    const currentSourceKey = overview?.osc?.selectedSourceKey || '';
+    if (normalizedSourceKey === currentSourceKey) return;
+
+    await withBusy('osc-source', async () => {
+      await apiRequest('/api/input/osc/source', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sourceKey: normalizedSourceKey || null }),
+      });
+      await refreshOverview();
+      notify(normalizedSourceKey ? '已切换参数来源' : '已恢复自动选择参数来源', 'success');
+    }).catch(error => notify(error.message || '切换参数来源失败', 'error'));
   }
 
   function updateSignalDraft(draftId, patch) {
@@ -1954,7 +2268,7 @@ function App() {
 
     await withBusy('osc-mappings-save', async () => {
       const nextConfig = cloneConfig(config);
-      nextConfig.schemaVersion = 4;
+      nextConfig.schemaVersion = 5;
       nextConfig.signals = signalDrafts.map(stripSignalDraft).filter(signal => Boolean(signal.oscPath));
 
       await persistConfig(nextConfig);
@@ -2240,25 +2554,28 @@ function App() {
 
   const manualRafRef = useRef(null);
 
-  function handleManualSliderChange(patch) {
-    const nextDraft = { ...manualDraft, ...patch };
-    setManualDraft(nextDraft);
-    manualDraftRef.current = nextDraft;
+  function scheduleManualContinuousUpdate() {
     if (!manualContinuous) return;
+    if (manualRafRef.current) return;
 
-    if (manualRafRef.current) return; // already scheduled
     manualRafRef.current = requestAnimationFrame(() => {
       manualRafRef.current = null;
-      const draft = manualDraftRef.current;
       apiRequest('/api/input/manual', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           enabled: true,
-          ...manualDraftToPayload(draft),
+          ...manualDraftToPayload(manualDraftRef.current),
         }),
       }).catch(error => notify(error.message || '手动输入更新失败', 'error'));
     });
+  }
+
+  function handleManualSliderChange(patch) {
+    const nextDraft = { ...manualDraft, ...patch };
+    setManualDraft(nextDraft);
+    manualDraftRef.current = nextDraft;
+    scheduleManualContinuousUpdate();
   }
 
   async function applyManualOnce() {
@@ -2302,16 +2619,7 @@ function App() {
     }
 
     await withBusy('script-load', async () => {
-      const formData = new FormData();
-      formData.append('file', selectedScriptFile);
-      formData.append('loop', String(scriptSettings.loop));
-      formData.append('speed', String(scriptSettings.speed));
-
-      const result = await apiRequest('/api/input/script/load', {
-        method: 'POST',
-        body: formData,
-      });
-
+      const result = await uploadScriptFile(selectedScriptFile);
       setSelectedScriptFile(null);
       setScriptFileInputKey(previous => previous + 1);
       setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
@@ -2364,6 +2672,87 @@ function App() {
       await refreshOverview();
       notify('脚本已停止', 'info');
     }).catch(error => notify(error.message || '脚本停止失败', 'error'));
+  }
+
+  async function applyScriptSettings(nextSettings, options = {}) {
+    if (!scriptState?.loaded) return;
+
+    const payload = {
+      loop: Boolean(nextSettings.loop),
+      speed: Math.max(0.1, Math.min(4, Number(nextSettings.speed || 1))),
+    };
+
+    await withBusy('script-configure', async () => {
+      const result = await apiRequest('/api/input/script/configure', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (result?.script) {
+        setScriptSettings({
+          loop: Boolean(result.script.loop),
+          speed: Number(result.script.speed || payload.speed),
+        });
+      }
+
+      if (options.notify) notify('脚本设置已应用', 'success');
+    }).catch(error => {
+      setScriptSettings(previous => ({
+        ...previous,
+        loop: Boolean(scriptState?.loop ?? previous.loop),
+        speed: Number(scriptState?.speed || previous.speed || 1),
+      }));
+      notify(error.message || '脚本设置更新失败', 'error');
+    });
+  }
+
+  async function seekScript(positionMs) {
+    const durationMs = Math.max(0, Number(scriptState?.durationMs || 0));
+    const fallbackPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), durationMs));
+    const clampedPositionMs = Math.max(0, Math.min(Math.round(Number(positionMs || 0)), durationMs));
+
+    if (!scriptState?.loaded) {
+      setScriptSeekDraft(fallbackPositionMs);
+      setScriptSeekDragging(false);
+      return;
+    }
+
+    await withBusy('script-seek', async () => {
+      const result = await apiRequest('/api/input/script/seek', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ positionMs: clampedPositionMs }),
+      });
+
+      if (result?.script) {
+        setScriptSeekDraft(Number(result.script.positionMs || clampedPositionMs));
+      }
+    }).catch(error => {
+      setScriptSeekDraft(fallbackPositionMs);
+      notify(error.message || '脚本定位失败', 'error');
+    });
+
+    setScriptSeekDragging(false);
+  }
+
+  async function clearScript() {
+    await withBusy('script-clear', async () => {
+      const result = await apiRequest('/api/input/script', { method: 'DELETE' });
+      setSelectedScriptFile(null);
+      setScriptFileInputKey(previous => previous + 1);
+      setScriptSeekDraft(0);
+
+      if (result?.script) {
+        setScriptSettings(previous => ({
+          loop: Boolean(result.script.loop ?? previous.loop),
+          speed: Number(result.script.speed || previous.speed || 1),
+        }));
+      }
+
+      await refreshOverview();
+      notify('脚本已卸载', 'info');
+    }).catch(error => notify(error.message || '卸载脚本失败', 'error'));
   }
 
   async function setOutputEnabled(type, enabled) {
@@ -2469,13 +2858,6 @@ function App() {
     }).catch(error => notify(error.message || '扫描请求失败', 'error'));
   }
 
-  function toggleAxisProfileExpanded(profileId) {
-    setExpandedAxisProfileIds(previous => ({
-      ...previous,
-      [profileId]: !previous[profileId],
-    }));
-  }
-
   const theme = useMemo(
     () =>
       createTheme({
@@ -2503,20 +2885,50 @@ function App() {
 
   const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config]);
   const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset]);
+  const selectedOscPresetDescription = selectedOscPresetConfig
+    ? selectedOscPresetConfig.description || '这套预设暂未提供说明。'
+    : oscMappingPresets.length > 0
+      ? '选中预设后可在这里查看说明。'
+      : '当前没有可用预设，可先新建一套。';
 
-  const studioState = studio || { preferredInputTab: 'osc' };
+  const studioState = studio || { preferredInputTab: 'manual' };
   const outputs = getOutputs(config);
   const axisProfiles = getAxisProfiles(config);
-  const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'osc';
+  const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
   const runtimeOverview = overview?.runtime || overview?.loop || null;
   const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
   const scriptState = overview?.input?.script || null;
+  const scriptLoaded = Boolean(scriptState?.loaded);
+  const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
+  const scriptPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), scriptDurationMs || 0));
+  const scriptRemainingMs = Math.max(0, scriptDurationMs - scriptPositionMs);
+  const scriptProgressPercent = scriptDurationMs > 0 ? Math.min(100, (scriptPositionMs / scriptDurationMs) * 100) : 0;
+  const scriptSliderMax = Math.max(scriptDurationMs, 1);
+  const scriptSeekValue = scriptSeekDragging ? scriptSeekDraft : scriptPositionMs;
+  const scriptStateMeta = getScriptStateMeta(scriptState?.state);
+  const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
+  const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
+  const oscListening = Boolean(overview?.osc?.listening);
   const oscPreview = overview?.osc?.preview || [];
-  const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(oscPreview), [oscPreview]);
+  const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : [];
+  const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
+  const hasMultipleOscSources = oscSources.length > 1;
+  const selectedOscSource = selectedOscSourceKey ? oscSources.find(source => source.key === selectedOscSourceKey) || null : null;
+  const selectedOscSourceLabel = selectedOscSource ? formatOscSourceLabel(selectedOscSource) : '自动选择';
+  const oscQuery = overview?.osc?.query || null;
+  const oscQueryNodes = Array.isArray(oscQuery?.nodes) ? oscQuery.nodes : [];
+  const oscSourceSelectionOptions = useMemo(() => buildOscSourceSelectionOptions(oscSources), [oscSources]);
+  const mappingPreviewEntries = useMemo(() => filterOscPreviewEntriesBySource(oscPreview, hasMultipleOscSources ? selectedOscSourceKey : ''), [oscPreview, hasMultipleOscSources, selectedOscSourceKey]);
+  const previewEntriesForSuggestions = useMemo(() => (hasMultipleOscSources && selectedOscSourceKey ? mappingPreviewEntries : oscPreview), [hasMultipleOscSources, selectedOscSourceKey, mappingPreviewEntries, oscPreview]);
+  const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(previewEntriesForSuggestions, oscQueryNodes), [previewEntriesForSuggestions, oscQueryNodes]);
+  const previewEntriesForTab = useMemo(() => {
+    if (!hasMultipleOscSources || previewSourceTab === 'all') return oscPreview;
+    return filterOscPreviewEntriesBySource(oscPreview, previewSourceTab);
+  }, [hasMultipleOscSources, oscPreview, previewSourceTab]);
   const sortedOscPreview = useMemo(() => {
     const signals = Array.isArray(signalDrafts) ? signalDrafts.filter(d => d?.oscPath) : [];
-    return [...oscPreview]
+    return [...previewEntriesForTab]
       .map(entry => {
         const matchingSignals = signals.filter(signal => matchesOscPathPattern(signal.oscPath, entry?.path || ''));
         return { ...entry, _matches: matchingSignals.length > 0 ? matchingSignals : null };
@@ -2527,9 +2939,32 @@ function App() {
         if (leftMatch !== rightMatch) return rightMatch - leftMatch;
         return (left?.path || '').localeCompare(right?.path || '', 'zh-CN', { numeric: true, sensitivity: 'base' });
       });
-  }, [oscPreview, signalDrafts]);
+  }, [previewEntriesForTab, signalDrafts]);
+  const oscQuerySummary = useMemo(() => {
+    if (oscQuery?.enabled === false) return 'OSCQuery 已关闭';
+    if (!oscQuery?.url) return 'OSCQuery 已开启，待填写地址';
+    if (oscQuery?.error) return 'OSCQuery 同步失败';
+    if (oscQuery?.listenConnected) return `LISTEN 已连接 · ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条路径`;
+    if (oscQueryNodes.length > 0) return `已同步 ${oscQueryNodes.length} 条路径`;
+    return 'OSCQuery 自动同步中';
+  }, [oscQuery, oscQueryNodes]);
+
+  useEffect(() => {
+    if (!hasMultipleOscSources) {
+      setPreviewSourceTab(oscSources[0]?.key || 'all');
+      return;
+    }
+
+    setPreviewSourceTab(previous => {
+      if (previous === 'all' || oscSources.some(source => source.key === previous)) return previous;
+      if (selectedOscSourceKey && oscSources.some(source => source.key === selectedOscSourceKey)) return selectedOscSourceKey;
+      return 'all';
+    });
+  }, [hasMultipleOscSources, oscSources, selectedOscSourceKey]);
   const visibleOutputs = outputs;
   const effectiveOutputCount = visibleOutputs.filter(output => Boolean(output.enabled)).length;
+  const inputSwitchDisabled = runtimeOverview?.inputActive === false;
+  const outputWarningMessage = visibleOutputs.length === 0 ? '当前还没有任何输出设备。添加并启用至少一个输出后，输入数据才会真正发送到硬件。' : effectiveOutputCount === 0 ? '当前所有输出都处于禁用状态。即使输入在变化，也不会真正发到任何设备；请先启用至少一个输出。' : '';
   const outputDialogConflicts = useMemo(() => {
     if (!dialog || !config) return [];
     return getOutputTargetConflicts(config, dialog.outputId, dialog.draft);
@@ -2653,7 +3088,7 @@ function App() {
             </Box>
 
             <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} label={formatRealtimeStatus(wsState)} />
-            {actualInputMode === 'osc' && <Chip size="small" color={oscPreview.length > 0 ? 'success' : 'default'} variant="outlined" label={oscPreview.length > 0 ? 'OSC 已连接' : 'OSC 未连接'} />}
+            {actualInputMode === 'osc' && <Chip size="small" color={oscListening ? 'success' : 'default'} variant="outlined" label={oscListening ? `OSC 监听中 · ${oscPreview.length} 项` : 'OSC 未监听'} />}
             <Chip size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
             <Chip size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
 
@@ -2676,6 +3111,12 @@ function App() {
             <CardHeader title="输入" />
             <Divider />
             <CardContent>
+              {inputSwitchDisabled && (
+                <Alert severity="warning" className="section-status-alert">
+                  当前输入开关已关闭。你现在切换输入页签、拖动手动滑条或等待 OSC/脚本更新，都不会真正驱动输出；测试前请先打开右上角的“输入开关”。
+                </Alert>
+              )}
+
               <Box
                 sx={{
                   mb: 2,
@@ -2735,10 +3176,13 @@ function App() {
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
                   <Box className="osc-section-grid">
-                    <Box className="dialog-panel">
+                    <Box className="dialog-panel osc-config-panel">
                       <Box className="dialog-panel__header">
                         <Typography variant="subtitle2">OSC 配置</Typography>
-                        <Chip size="small" variant="outlined" label={`${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001}`} />
+                        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                          <Chip size="small" variant="outlined" label={`${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001}`} />
+                          <Chip size="small" color={oscListening ? 'success' : 'default'} variant="outlined" label={oscListening ? '监听中' : '未监听'} />
+                        </Stack>
                       </Box>
 
                       <Box className="dialog-grid">
@@ -2750,76 +3194,146 @@ function App() {
                           value={oscDraft.receiverPort}
                           onChange={event => setOscDraft(previous => ({ ...previous, receiverPort: Number(event.target.value || 0) }))}
                         />
+                        <TextField
+                          label="OSCQuery 地址"
+                          size="small"
+                          placeholder="例如：http://127.0.0.1:9001/"
+                          value={oscDraft.oscQueryUrl || ''}
+                          onChange={event => setOscDraft(previous => ({ ...previous, oscQueryUrl: event.target.value }))}
+                          sx={{ gridColumn: '1 / -1' }}
+                        />
                       </Box>
 
-                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        <Chip size="small" variant="outlined" label={oscQuerySummary} />
+                        {oscQuery?.name && <Chip size="small" variant="outlined" label={oscQuery.name} />}
+                        {oscQuery?.oscIp && oscQuery?.oscPort && <Chip size="small" variant="outlined" label={`${oscQuery.oscIp}:${oscQuery.oscPort}`} />}
+                        {oscQuery?.supportsListen && <Chip size="small" variant="outlined" label="支持 LISTEN" />}
+                        {oscQuery?.listenConnected && <Chip size="small" color="success" variant="outlined" label={`实时订阅 ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条`} />}
+                        {oscQuery?.refreshedAtUtc && <Chip size="small" variant="outlined" label={`刷新于 ${new Date(oscQuery.refreshedAtUtc).toLocaleTimeString()}`} />}
+                      </Stack>
+
+                      {oscQuery?.error && <Alert severity="warning">{oscQuery.error}</Alert>}
+
+                      <Typography variant="body2" color="text.secondary">
+                        只有在输入方式切到 OSC 且输入开关开启时，后端才会真正启动 OSC 监听；切走后会自动关闭。启用 OSCQuery 后，如果填写了地址，参数树会随 OSC 输入状态自动同步；若对端支持 LISTEN，Sensa 还会按提案自动建立 websocket 订阅来接收实时参数。
+                      </Typography>
+
+                      <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" className="osc-config-panel__actions" sx={{ mt: 1.5 }}>
                         <Button variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>
                           保存配置
                         </Button>
+                        <FormControlLabel
+                          className="osc-config-panel__switch"
+                          control={<Switch checked={Boolean(oscDraft.oscQueryEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryEnabled: checked }))} />}
+                          label={<HelpLabel text="启用 OSCQuery" title="开启后，Sensa 会在 OSC 输入真正启用时自动同步已配置的 OSCQuery 参数树；若对端支持 LISTEN，还会自动订阅实时参数流。关闭后不会主动同步，也不会建立相关 websocket 订阅。" />}
+                          sx={{ m: 0 }}
+                        />
                       </Stack>
                     </Box>
 
-                    <Box className="dialog-panel">
+                    <Box className="dialog-panel osc-preview-panel">
                       <Box className="dialog-panel__header">
                         <Typography variant="subtitle2">参数预览</Typography>
-                        <Chip size="small" variant="outlined" label={`${oscPreview.length} 项`} />
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                          <Chip size="small" variant="outlined" label={`${previewEntriesForTab.length} 项`} />
+                          {hasMultipleOscSources && <Chip size="small" color={selectedOscSourceKey ? 'info' : 'warning'} variant="outlined" label={`驱动来源 · ${selectedOscSourceKey ? selectedOscSourceLabel : '自动'}`} />}
+                          {hasMultipleOscSources && (
+                            <SelectField
+                              label="使用来源"
+                              title="这里决定 Sensa 在多来源同时存在时，OSC 映射预览与实时驱动默认使用哪个来源；下面的标签页只负责浏览。"
+                              value={selectedOscSourceKey}
+                              options={oscSourceSelectionOptions}
+                              variant="compact"
+                              className="osc-preview__source-select"
+                              formControlProps={{ sx: { minWidth: 180 } }}
+                              onChange={applyOscSourceSelection}
+                            />
+                          )}
+                        </Stack>
                       </Box>
 
-                      {oscPreview.length === 0 ? (
-                        <Box className="empty-inline-state">
-                          <Typography color="text.secondary">暂无 OSC 参数</Typography>
-                        </Box>
-                      ) : (
-                        <TableContainer className="osc-preview-table-wrap">
-                          <Table size="small" className="osc-preview-table">
-                            <TableHead>
-                              <TableRow>
-                                <TableCell>参数名称</TableCell>
-                                <TableCell width="110">类型</TableCell>
-                                <TableCell width="120" align="right">
-                                  当前值
-                                </TableCell>
-                                <TableCell width="110" align="right">
-                                  更新时间
-                                </TableCell>
-                              </TableRow>
-                            </TableHead>
-                            <TableBody>
-                              {sortedOscPreview.map(entry => {
-                                const matched = entry._matches;
-                                const tooltipText = matched
-                                  ? matched
-                                      .map(s => {
-                                        const roleLabel = SIGNAL_ROLE_OPTIONS.find(r => r.value === s.role)?.label || s.role || '未分配';
-                                        const invertNote = s.invertDirection ? '（反向）' : '';
-                                        return `${s.oscPath} → ${roleLabel}${invertNote}`;
-                                      })
-                                      .join('；')
-                                  : '';
-
-                                return (
-                                  <Tooltip key={`${entry.path}-${entry.timestampMs}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
-                                    <TableRow
-                                      hover
-                                      sx={{
-                                        backgroundColor: matched ? 'rgba(25, 118, 210, 0.08)' : undefined,
-                                        '&:hover': { backgroundColor: matched ? 'rgba(25, 118, 210, 0.16)' : undefined },
-                                      }}
-                                    >
-                                      <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
-                                        {entry.path}
-                                      </TableCell>
-                                      <TableCell>{entry.type || '—'}</TableCell>
-                                      <TableCell align="right">{entry.value ?? '—'}</TableCell>
-                                      <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
-                                    </TableRow>
-                                  </Tooltip>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </TableContainer>
+                      {hasMultipleOscSources && (
+                        <Alert severity={selectedOscSourceKey ? 'info' : 'warning'} variant="outlined">
+                          检测到多个参数来源。上方标签页只负责浏览；右侧“使用来源”才决定映射预览和实际驱动默认跟哪一路。当前{selectedOscSourceKey ? `已固定为「${selectedOscSourceLabel}」` : '仍处于自动选择模式'}。
+                        </Alert>
                       )}
+
+                      {hasMultipleOscSources && (
+                        <Tabs value={previewSourceTab} onChange={(_, next) => setPreviewSourceTab(next)} variant="scrollable" allowScrollButtonsMobile>
+                          <Tab value="all" label={`全部 (${oscPreview.length})`} />
+                          {oscSources.map(source => (
+                            <Tab key={source.key} value={source.key} label={`${formatOscSourceLabel(source)} (${source.parameterCount || 0})`} />
+                          ))}
+                        </Tabs>
+                      )}
+
+                      <Box className="osc-preview-panel__body">
+                        {previewEntriesForTab.length === 0 ? (
+                          <Box className="empty-inline-state">
+                            <Stack spacing={1} alignItems="center">
+                              <Typography color="text.secondary">暂无 OSC 实时参数</Typography>
+                              {oscQueryNodes.length > 0 && (
+                                <Typography variant="body2" color="text.secondary">
+                                  已从 OSCQuery 同步 {oscQueryNodes.length} 条参数路径，可直接在下方映射输入框中搜索使用。
+                                </Typography>
+                              )}
+                            </Stack>
+                          </Box>
+                        ) : (
+                          <TableContainer className="osc-preview-table-wrap">
+                            <Table size="small" className="osc-preview-table">
+                              <TableHead>
+                                <TableRow>
+                                  {hasMultipleOscSources && <TableCell width="170">来源</TableCell>}
+                                  <TableCell>参数名称</TableCell>
+                                  <TableCell width="110">类型</TableCell>
+                                  <TableCell width="120" align="right">
+                                    当前值
+                                  </TableCell>
+                                  <TableCell width="110" align="right">
+                                    更新时间
+                                  </TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {sortedOscPreview.map(entry => {
+                                  const matched = entry._matches;
+                                  const tooltipText = matched
+                                    ? matched
+                                        .map(s => {
+                                          const roleLabel = SIGNAL_ROLE_OPTIONS.find(r => r.value === s.role)?.label || s.role || '未分配';
+                                          const invertNote = s.invertDirection ? '（反向）' : '';
+                                          return `${s.oscPath} → ${roleLabel}${invertNote}`;
+                                        })
+                                        .join('；')
+                                    : '';
+
+                                  return (
+                                    <Tooltip key={`${entry.path}-${entry.timestampMs}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
+                                      <TableRow
+                                        hover
+                                        sx={{
+                                          backgroundColor: matched ? 'rgba(25, 118, 210, 0.08)' : undefined,
+                                          '&:hover': { backgroundColor: matched ? 'rgba(25, 118, 210, 0.16)' : undefined },
+                                        }}
+                                      >
+                                        {hasMultipleOscSources && <TableCell>{entry.sourceLabel || '—'}</TableCell>}
+                                        <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
+                                          {entry.path}
+                                        </TableCell>
+                                        <TableCell>{entry.type || '—'}</TableCell>
+                                        <TableCell align="right">{entry.value ?? '—'}</TableCell>
+                                        <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
+                                      </TableRow>
+                                    </Tooltip>
+                                  );
+                                })}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        )}
+                      </Box>
                     </Box>
                   </Box>
 
@@ -2833,16 +3347,15 @@ function App() {
                     </Box>
 
                     <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
-                      <FormControl size="small" sx={{ minWidth: 280 }}>
-                        <InputLabel>预设方案</InputLabel>
-                        <Select value={selectedOscPreset} label="预设方案" MenuProps={{ disableScrollLock: true }} onChange={event => setSelectedOscPreset(event.target.value)}>
-                          {oscMappingPresets.map(preset => (
-                            <MenuItem key={preset.id} value={preset.id}>
-                              {preset.name}
-                            </MenuItem>
-                          ))}
-                        </Select>
-                      </FormControl>
+                      <SelectField
+                        label="预设方案"
+                        value={selectedOscPreset}
+                        options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))}
+                        variant="inline"
+                        hintTitle={selectedOscPresetDescription}
+                        className="osc-preset-toolbar__select"
+                        onChange={next => setSelectedOscPreset(next)}
+                      />
 
                       <Divider orientation="vertical" flexItem />
 
@@ -2888,9 +3401,14 @@ function App() {
                       </Stack>
                     </Stack>
 
-                    <Typography variant="body2" color="text.secondary" className="osc-preset-description">
-                      {selectedOscPresetConfig ? selectedOscPresetConfig.description || '选一套预设可快速生成映射。' : '当前没有可用预设，可先新建一套。'}
-                    </Typography>
+                    <Alert severity="info" className="mapping-guide-alert">
+                      <Typography variant="body2" className="mapping-guide-alert__title">
+                        当前映射链路：输入范围 → 曲线 → 映射范围。
+                      </Typography>
+                      <Typography variant="body2">
+                        如果你想把 OSC 的某一段放大成设备全行程，例如原始 <strong>0.25~0.75</strong> 对应设备 <strong>0~999</strong>，请改“输入范围”；如果你想让完整输入只走设备的一部分，例如 <strong>200~800</strong>，请改“映射范围”。
+                      </Typography>
+                    </Alert>
 
                     {signalDrafts.length === 0 ? (
                       <Box className="empty-inline-state">
@@ -2907,7 +3425,7 @@ function App() {
                           <SignalMappingRow
                             key={draft._draftId}
                             draft={draft}
-                            latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                            latestEntry={getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, hasMultipleOscSources ? selectedOscSourceKey : '')}
                             pathOptions={oscPathSuggestions}
                             onChange={patch => updateSignalDraft(draft._draftId, patch)}
                             onRemove={() => removeSignalDraft(draft._draftId)}
@@ -2939,40 +3457,36 @@ function App() {
                     ))}
                   </Box>
 
-                  <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center">
-                    <Tooltip title="使用当前所有滑条值驱动输出设备执行" arrow>
-                      <span>
-                        <Button variant="contained" onClick={applyManualOnce} disabled={busyKey === 'manual-once'}>
-                          更新位置
-                        </Button>
-                      </span>
-                    </Tooltip>
-                    <Tooltip title="把所有滑条回到回正值；开启持续更新时会立即同步到后端。" arrow>
-                      <span>
-                        <Button variant="outlined" onClick={() => handleManualSliderChange({ ...EMPTY_MANUAL })}>
-                          回正
-                        </Button>
-                      </span>
-                    </Tooltip>
-                    <FormControlLabel
-                      control={
-                        <Switch
-                          checked={manualContinuous}
-                          onChange={(_, checked) => {
-                            setManualContinuous(checked);
-                            if (!checked) window.clearTimeout(manualTimerRef.current);
-                          }}
-                        />
-                      }
-                      label={
-                        <Tooltip title="开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。" arrow>
-                          <Box component="span" sx={{ textDecoration: 'underline dotted', textUnderlineOffset: '3px', cursor: 'help' }}>
-                            持续更新
-                          </Box>
-                        </Tooltip>
-                      }
-                    />
-                  </Stack>
+                  <Box className="manual-toolbar">
+                    <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center" className="manual-toolbar__actions">
+                      <Tooltip title="使用当前所有滑条值驱动输出设备执行" arrow>
+                        <span>
+                          <Button variant="contained" onClick={applyManualOnce} disabled={busyKey === 'manual-once'}>
+                            更新位置
+                          </Button>
+                        </span>
+                      </Tooltip>
+                      <Tooltip title="把所有滑条回到回正值；开启持续更新时会立即同步到后端。" arrow>
+                        <span>
+                          <Button variant="outlined" onClick={() => handleManualSliderChange({ ...EMPTY_MANUAL })}>
+                            回正
+                          </Button>
+                        </span>
+                      </Tooltip>
+                      <FormControlLabel
+                        control={
+                          <Switch
+                            checked={manualContinuous}
+                            onChange={(_, checked) => {
+                              setManualContinuous(checked);
+                              if (!checked) window.clearTimeout(manualTimerRef.current);
+                            }}
+                          />
+                        }
+                        label={<HelpLabel text="持续更新" title="开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。" />}
+                      />
+                    </Stack>
+                  </Box>
                 </Stack>
               </TabPanel>
 
@@ -2981,68 +3495,130 @@ function App() {
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">脚本文件</Typography>
-                      <Chip size="small" variant="outlined" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
+                        <Chip size="small" variant="outlined" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
+                      </Stack>
                     </Box>
-                    <Stack direction="row" spacing={1.5} alignItems="center">
-                      <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
-                        {selectedScriptFile ? '加载中…' : '选择脚本'}
+                    <Typography variant="body2" color="text.secondary">
+                      选择 .funscript 文件后会自动加载；加载后可直接调速、切换循环，并拖动进度条定位到任意时刻。
+                    </Typography>
+                    <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center" className="script-file-actions">
+                      <Button component="label" variant="contained" disabled={!!selectedScriptFile || busyKey === 'script-load'}>
+                        {selectedScriptFile ? '加载中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
                         <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
                       </Button>
+                      <Button variant="outlined" color="error" onClick={clearScript} disabled={!scriptLoaded || busyKey === 'script-clear'}>
+                        卸载脚本
+                      </Button>
                       <Typography variant="caption" color="text.secondary">
-                        选择 .funscript 文件后自动加载
+                        {scriptLoaded ? scriptState?.fileName || '已加载脚本' : '支持 .funscript / .json'}
                       </Typography>
                     </Stack>
                   </Box>
 
                   <Box className="metric-grid metric-grid--compact">
-                    <MetricCard label="状态" value={scriptState?.state || 'empty'} tone="accent" />
+                    <MetricCard label="状态" value={scriptStateMeta.label} tone="accent" />
                     <MetricCard label="动作数" value={scriptState?.actionCount ?? 0} tone="default" />
-                    <MetricCard label="进度" value={`${formatDuration(scriptState?.positionMs || 0)} / ${formatDuration(scriptState?.durationMs || 0)}`} tone="primary" />
+                    <MetricCard label="当前位置" value={formatDuration(scriptPositionMs)} tone="primary" />
+                    <MetricCard label="剩余时间" value={formatDuration(scriptRemainingMs)} tone="default" />
+                    <MetricCard label="当前 L0" value={scriptCurrentL0Value} tone="default" />
                   </Box>
 
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">播放控制</Typography>
-                      <Chip size="small" variant="outlined" label={`${scriptSettings.speed.toFixed(2)}x${scriptSettings.loop ? ' · 循环' : ''}`} />
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        <Chip size="small" variant="outlined" label={`${scriptSettings.speed.toFixed(2)}x`} />
+                        <Chip size="small" variant="outlined" label={scriptSettings.loop ? '循环播放' : '单次播放'} />
+                        {scriptLoaded && <Chip size="small" variant="outlined" label={`${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}`} />}
+                      </Stack>
                     </Box>
 
                     <Stack spacing={2}>
-                      <Stack spacing={0.5}>
-                        <Typography variant="caption" color="text.secondary">
-                          播放速度
-                        </Typography>
-                        <Slider
-                          min={0.25}
-                          max={2}
-                          step={0.05}
-                          value={scriptSettings.speed}
-                          valueLabelDisplay="auto"
-                          onChange={(_, next) => setScriptSettings(previous => ({ ...previous, speed: Number(next) }))}
+                      <Box className="script-progress-block">
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" className="script-progress-summary">
+                          <Typography variant="caption" color="text.secondary">
+                            进度定位
+                          </Typography>
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-progress-summary__times">
+                            <Chip size="small" variant="outlined" label={`${Math.round(scriptProgressPercent)}%`} />
+                            <Chip size="small" variant="outlined" label={`剩余 ${formatDuration(scriptRemainingMs)}`} />
+                          </Stack>
+                        </Stack>
+
+                        <SliderControl
+                          min={0}
+                          max={scriptSliderMax}
+                          step={50}
+                          disabled={!scriptLoaded || busyKey === 'script-seek'}
+                          value={scriptSeekValue}
+                          valueFormatter={value => formatDuration(value)}
+                          onChange={next => {
+                            setScriptSeekDragging(true);
+                            setScriptSeekDraft(Number(Array.isArray(next) ? next[0] : next));
+                          }}
+                          onChangeCommitted={next => {
+                            const nextValue = Number(Array.isArray(next) ? next[0] : next);
+                            void seekScript(nextValue);
+                          }}
                         />
-                      </Stack>
 
-                      <FormControlLabel
-                        control={<Switch checked={scriptSettings.loop} onChange={(_, checked) => setScriptSettings(previous => ({ ...previous, loop: checked }))} />}
-                        label={scriptSettings.loop ? '循环播放' : '单次播放'}
-                      />
+                        <LinearProgress variant="determinate" value={scriptLoaded ? scriptProgressPercent : 0} sx={{ height: 8, borderRadius: 4 }} />
+                      </Box>
 
-                      <LinearProgress
-                        variant={scriptState?.durationMs ? 'determinate' : 'indeterminate'}
-                        value={scriptState?.durationMs ? Math.min(100, (scriptState.positionMs / scriptState.durationMs) * 100) : 0}
-                        sx={{ height: 8, borderRadius: 4 }}
-                      />
+                      <Box className="script-control-grid">
+                        <Box>
+                          <Typography variant="caption" color="text.secondary">
+                            播放速度
+                          </Typography>
+                          <SliderControl
+                            min={0.25}
+                            max={2}
+                            step={0.05}
+                            disabled={busyKey === 'script-configure'}
+                            value={scriptSettings.speed}
+                            valueFormatter={value => Number(value).toFixed(2)}
+                            onChange={next => setScriptSettings(previous => ({ ...previous, speed: Number(next) }))}
+                            onChangeCommitted={next => {
+                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
+                              void applyScriptSettings({ ...scriptSettings, speed: nextSpeed });
+                            }}
+                          />
+                        </Box>
 
-                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                        <Button variant="contained" onClick={() => playScript(false)} disabled={busyKey === 'script-play' || busyKey === 'script-load'}>
-                          播放
+                        <Box className="script-toggle-field">
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={scriptSettings.loop}
+                                disabled={busyKey === 'script-configure'}
+                                onChange={async (_, checked) => {
+                                  const nextSettings = { ...scriptSettings, loop: checked };
+                                  setScriptSettings(nextSettings);
+                                  if (scriptLoaded) await applyScriptSettings(nextSettings);
+                                }}
+                              />
+                            }
+                            label={scriptSettings.loop ? '循环播放' : '单次播放'}
+                          />
+                          <Typography variant="caption" color="text.secondary">
+                            {scriptLoaded ? '修改后会立即作用到当前脚本。' : '先设好参数，加载脚本后会自动沿用。'}
+                          </Typography>
+                        </Box>
+                      </Box>
+
+                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-action-row">
+                        <Button variant="contained" onClick={() => playScript(false)} disabled={!scriptLoaded || scriptState?.playing || busyKey === 'script-play' || busyKey === 'script-load'}>
+                          {scriptPrimaryActionLabel}
                         </Button>
-                        <Button variant="outlined" onClick={() => playScript(true)} disabled={!scriptState?.loaded || busyKey === 'script-restart'}>
+                        <Button variant="outlined" onClick={() => playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
                           从头开始
                         </Button>
-                        <Button variant="outlined" color="warning" onClick={pauseScript} disabled={!scriptState?.loaded || busyKey === 'script-pause'}>
+                        <Button variant="outlined" color="warning" onClick={pauseScript} disabled={!scriptLoaded || !scriptState?.playing || busyKey === 'script-pause'}>
                           暂停
                         </Button>
-                        <Button variant="outlined" color="error" onClick={stopScript} disabled={!scriptState?.loaded || busyKey === 'script-stop'}>
+                        <Button variant="outlined" color="error" onClick={stopScript} disabled={!scriptLoaded || busyKey === 'script-stop'}>
                           停止
                         </Button>
                       </Stack>
@@ -3061,7 +3637,6 @@ function App() {
                 {axisProfiles.map(profile => {
                   const usedCount = outputs.filter(output => isTCodeOutputType(output.type) && output.motionProfileId === profile.id).length;
                   const axisRows = buildAxisProfileAxisRows(profile);
-                  const isExpanded = Boolean(expandedAxisProfileIds[profile.id]);
 
                   return (
                     <Card key={profile.id} className="config-card" variant="outlined">
@@ -3071,48 +3646,43 @@ function App() {
                         action={profile.isDefault ? <Chip size="small" color="primary" variant="outlined" label="默认" /> : null}
                       />
                       <CardContent>
-                        <Stack spacing={1.5}>
-                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                            <Button variant="contained" onClick={() => openProfileDialog(profile.id)}>
+                        <Stack spacing={1.5} className="config-card__content-stack">
+                          <Box className="axis-profile-detail-list config-card__axis-list">
+                            {axisRows.map(item => (
+                              <Box key={`${profile.id}-axis-${item.axis}`} className="axis-profile-detail-row">
+                                <Typography variant="caption" className="axis-profile-detail-row__axis">
+                                  {item.axis}
+                                </Typography>
+                                <Box className="axis-profile-detail-row__details">
+                                  {item.details.map(detail => (
+                                    <Box
+                                      key={`${profile.id}-${item.axis}-${detail.label}`}
+                                      component="span"
+                                      className={`axis-profile-detail-pill${detail.changed ? ` axis-profile-detail-pill--changed axis-profile-detail-pill--${detail.tone}` : ''}`}
+                                    >
+                                      {detail.label}
+                                    </Box>
+                                  ))}
+                                </Box>
+                              </Box>
+                            ))}
+                          </Box>
+
+                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="config-card__action-row">
+                            <Button variant="contained" className="config-card__action-button" onClick={() => openProfileDialog(profile.id)}>
                               修改配置
                             </Button>
-                            <Button variant="text" className="config-card__details-toggle" onClick={() => toggleAxisProfileExpanded(profile.id)}>
-                              {isExpanded ? '收起详情' : '展开详情'}
-                            </Button>
                             {!profile.isDefault && (
-                              <Button variant="outlined" onClick={() => setDefaultAxisProfile(profile.id)}>
+                              <Button variant="outlined" className="config-card__action-button" onClick={() => setDefaultAxisProfile(profile.id)}>
                                 设为默认
                               </Button>
                             )}
                             {!profile.isDefault && (
-                              <Button color="error" onClick={() => removeAxisProfile(profile.id)}>
+                              <Button color="error" className="config-card__action-button" onClick={() => removeAxisProfile(profile.id)}>
                                 移除
                               </Button>
                             )}
                           </Stack>
-
-                          <Collapse in={isExpanded} mountOnEnter unmountOnExit>
-                            <Box className="axis-profile-detail-list">
-                              {axisRows.map(item => (
-                                <Box key={`${profile.id}-axis-${item.axis}`} className="axis-profile-detail-row">
-                                  <Typography variant="caption" className="axis-profile-detail-row__axis">
-                                    {item.axis}
-                                  </Typography>
-                                  <Box className="axis-profile-detail-row__details">
-                                    {item.details.map(detail => (
-                                      <Box
-                                        key={`${profile.id}-${item.axis}-${detail.label}`}
-                                        component="span"
-                                        className={`axis-profile-detail-pill${detail.changed ? ` axis-profile-detail-pill--changed axis-profile-detail-pill--${detail.tone}` : ''}`}
-                                      >
-                                        {detail.label}
-                                      </Box>
-                                    ))}
-                                  </Box>
-                                </Box>
-                              ))}
-                            </Box>
-                          </Collapse>
                         </Stack>
                       </CardContent>
                     </Card>
@@ -3121,12 +3691,12 @@ function App() {
 
                 <Card className="config-card config-card--add" variant="outlined">
                   <CardContent>
-                    <Stack spacing={1.5} alignItems="center" justifyContent="center" sx={{ height: '100%', textAlign: 'center' }}>
+                    <Stack spacing={1.5} alignItems="center" justifyContent="center" className="config-card__add-body" sx={{ textAlign: 'center' }}>
                       <Typography variant="subtitle1">新增轴配置</Typography>
                       <Typography variant="body2" color="text.secondary">
                         新建一套可复用的轴限制。
                       </Typography>
-                      <Button variant="contained" onClick={openNewProfileDialog}>
+                      <Button variant="contained" className="config-card__add-button" onClick={openNewProfileDialog}>
                         + 轴配置
                       </Button>
                     </Stack>
@@ -3140,6 +3710,12 @@ function App() {
             <CardHeader title="输出" />
             <Divider />
             <CardContent>
+              {outputWarningMessage && (
+                <Alert severity="warning" className="section-status-alert">
+                  {outputWarningMessage}
+                </Alert>
+              )}
+
               <Stack spacing={2}>
                 <Box className="output-toolbar">
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
@@ -3240,51 +3816,13 @@ function App() {
             <CardContent>
               <Box className="log-toolbar">
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                  <FormControl size="small" sx={{ minWidth: 112 }}>
-                    <InputLabel>级别</InputLabel>
-                    <Select value={logFilterLevel} label="级别" onChange={e => setLogFilterLevel(e.target.value)}>
-                      <MenuItem value="debug">全部日志</MenuItem>
-                      <MenuItem value="info">信息以上</MenuItem>
-                      <MenuItem value="warning">警告以上</MenuItem>
-                      <MenuItem value="error">仅错误</MenuItem>
-                    </Select>
-                  </FormControl>
+                  <SelectField label="级别" value={logFilterLevel} options={[{ value: 'debug', label: '全部日志' }, { value: 'info', label: '信息以上' }, { value: 'warning', label: '警告以上' }, { value: 'error', label: '仅错误' }]} variant="compact" formControlProps={{ sx: { minWidth: 112 } }} onChange={setLogFilterLevel} />
 
-                  <FormControl size="small" sx={{ minWidth: 130 }}>
-                    <InputLabel>分类</InputLabel>
-                    <Select value={logCategoryFilter} label="分类" onChange={e => setLogCategoryFilter(e.target.value)}>
-                      <MenuItem value="">全部分类</MenuItem>
-                      {logCategories.filter(Boolean).map(cat => (
-                        <MenuItem key={cat} value={cat}>
-                          {cat}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectField label="分类" value={logCategoryFilter} options={[{ value: '', label: '全部分类' }, ...logCategories.filter(Boolean).map(cat => ({ value: cat, label: cat }))]} variant="compact" formControlProps={{ sx: { minWidth: 130 } }} onChange={setLogCategoryFilter} />
 
-                  <FormControl size="small" sx={{ minWidth: 110 }}>
-                    <InputLabel>轴</InputLabel>
-                    <Select value={logAxisFilter} label="轴" onChange={e => setLogAxisFilter(e.target.value)}>
-                      <MenuItem value="">全部轴</MenuItem>
-                      {axisLogCatalog.axes.filter(Boolean).map(axis => (
-                        <MenuItem key={axis} value={axis}>
-                          {axis}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectField label="轴" value={logAxisFilter} options={[{ value: '', label: '全部轴' }, ...axisLogCatalog.axes.filter(Boolean).map(axis => ({ value: axis, label: axis }))]} variant="compact" formControlProps={{ sx: { minWidth: 110 } }} onChange={setLogAxisFilter} />
 
-                  <FormControl size="small" sx={{ minWidth: 120 }}>
-                    <InputLabel>结果</InputLabel>
-                    <Select value={logActionFilter} label="结果" onChange={e => setLogActionFilter(e.target.value)}>
-                      <MenuItem value="">全部结果</MenuItem>
-                      {axisLogCatalog.actions.filter(Boolean).map(action => (
-                        <MenuItem key={action} value={action}>
-                          {formatAxisTraceAction(action).label}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectField label="结果" value={logActionFilter} options={[{ value: '', label: '全部结果' }, ...axisLogCatalog.actions.filter(Boolean).map(action => ({ value: action, label: formatAxisTraceAction(action).label }))]} variant="compact" formControlProps={{ sx: { minWidth: 120 } }} onChange={setLogActionFilter} />
 
                   <TextField size="small" placeholder="搜索日志 / 轴 / 备注" value={logSearchText} onChange={event => setLogSearchText(event.target.value)} sx={{ minWidth: 220, flex: '1 1 240px' }} />
 
@@ -3326,7 +3864,7 @@ function App() {
         </Box>
       </Box>
 
-      <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} disableScrollLock fullWidth maxWidth="lg">
+      <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} fullWidth maxWidth="lg">
         <DialogTitle>{presetDialog ? `${presetDialog.name || 'OSC 预设'} · 预设编辑` : 'OSC 预设'}</DialogTitle>
         <DialogContent dividers>
           {presetDialog && (
@@ -3356,7 +3894,7 @@ function App() {
                     <SignalMappingRow
                       key={draft._draftId}
                       draft={draft}
-                      latestEntry={getLatestOscPreviewEntry(oscPreview, draft.oscPath)}
+                      latestEntry={getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, hasMultipleOscSources ? selectedOscSourceKey : '')}
                       pathOptions={oscPathSuggestions}
                       onChange={patch => updatePresetDialogSignal(draft._draftId, patch)}
                       onRemove={() => removePresetDialogSignal(draft._draftId)}
@@ -3381,13 +3919,13 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} disableScrollLock fullWidth maxWidth="md">
+      <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} fullWidth maxWidth="md">
         <DialogTitle>{dialog ? `${getOutputTypeLabel(dialog.draft.type)} 配置` : '输出配置'}</DialogTitle>
         <DialogContent dividers>
           {dialog && (
             <Stack spacing={2}>
               {outputDialogConflictMessage && (
-                <Alert severity="warning" variant="outlined">
+                <Alert severity="warning">
                   {outputDialogConflictMessage}
                 </Alert>
               )}
@@ -3400,22 +3938,15 @@ function App() {
               />
 
               {isTCodeOutputType(dialog.draft.type) && (
-                <FormControl size="small" fullWidth>
-                  <InputLabel>
-                    <HelpLabel text="轴配置" title="选择这台 TCode 输出使用的轴配置。" />
-                  </InputLabel>
-                  <Select
-                    value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
-                    label="轴配置"
-                    onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: event.target.value } }))}
-                  >
-                    {axisProfiles.map(profile => (
-                      <MenuItem key={profile.id} value={profile.id}>
-                        {profile.name}
-                      </MenuItem>
-                    ))}
-                  </Select>
-                </FormControl>
+                <SelectField
+                  label="轴配置"
+                  title="选择这台 TCode 输出使用的轴配置。"
+                  value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
+                  options={axisProfiles.map(profile => ({ value: profile.id, label: profile.name }))}
+                  variant="compact"
+                  fullWidth
+                  onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: next } }))}
+                />
               )}
 
               {dialog.draft.type === 'TCodeSerial' && (
@@ -3426,45 +3957,46 @@ function App() {
                       <Chip size="small" variant="outlined" label={dialog.draft.comPort || '未选择串口'} />
                     </Box>
 
-                    <FormControl size="small" fullWidth error={hasSerialTargetConflict}>
-                      <InputLabel>
-                        <HelpLabel text="串口" title="选择目标 TCode 设备对应的 COM 端口。" />
-                      </InputLabel>
-                      <Select
-                        value={dialog.draft.comPort || ''}
-                        label="串口"
-                        MenuProps={{ disableScrollLock: true }}
-                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: event.target.value } }))}
-                      >
-                        {serialPorts.length === 0 && <MenuItem value="">未检测到串口</MenuItem>}
-                        {serialPorts.map(port => {
-                          const owner = serialPortOwners.get(port.portName);
-                          return (
-                            <MenuItem key={port.portName} value={port.portName} disabled={Boolean(owner)}>
-                              <Stack direction="row" spacing={1} alignItems="baseline">
-                                <Typography variant="body2">{port.portName}</Typography>
-                                {port.description && port.description !== port.portName && (
-                                  <Typography variant="caption" color="text.secondary">
-                                    {port.description}
-                                  </Typography>
-                                )}
-                                {owner && (
-                                  <Typography variant="caption" color="error.main">
-                                    {`已被 ${getOutputDisplayName(owner)} 使用`}
-                                  </Typography>
-                                )}
-                              </Stack>
-                            </MenuItem>
-                          );
-                        })}
-                      </Select>
-                    </FormControl>
+                    <SelectField
+                      label="串口"
+                      title="选择目标 TCode 设备对应的 COM 端口。"
+                      value={dialog.draft.comPort || ''}
+                      options={serialPorts.length === 0 ? [{ value: '', label: '未检测到串口' }] : serialPorts.map(port => {
+                        const owner = serialPortOwners.get(port.portName);
+                        return {
+                          value: port.portName,
+                          label: port.portName,
+                          disabled: Boolean(owner),
+                          port,
+                          owner,
+                        };
+                      })}
+                      variant="compact"
+                      fullWidth
+                      formControlProps={{ error: hasSerialTargetConflict }}
+                      renderOption={option => (
+                        <Stack direction="row" spacing={1} alignItems="baseline">
+                          <Typography variant="body2">{option.label}</Typography>
+                          {option.port?.description && option.port.description !== option.port.portName && (
+                            <Typography variant="caption" color="text.secondary">
+                              {option.port.description}
+                            </Typography>
+                          )}
+                          {option.owner && (
+                            <Typography variant="caption" color="error.main">
+                              {`已被 ${getOutputDisplayName(option.owner)} 使用`}
+                            </Typography>
+                          )}
+                        </Stack>
+                      )}
+                      onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: next } }))}
+                    />
                   </Box>
 
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">实时发送</Typography>
-                      <Chip size="small" color="primary" variant="outlined" label={describeCommandMode(Boolean(dialog.draft.preferSpeedMode))} />
+                      <Chip size="small" color="primary" variant="outlined" label={`${Math.max(10, Number(dialog.draft.updatesPerSecond || 100))} Hz`} />
                     </Box>
 
                     <Box className="dialog-grid">
@@ -3475,28 +4007,6 @@ function App() {
                         value={dialog.draft.updatesPerSecond ?? 100}
                         onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, updatesPerSecond: Number(event.target.value || 0) } }))}
                       />
-
-                      <FormControl size="small" fullWidth>
-                        <InputLabel>
-                          <HelpLabel text="斜率方式" title={describeCommandModeDetail(Boolean(dialog.draft.preferSpeedMode))} />
-                        </InputLabel>
-                        <Select
-                          value={dialog.draft.preferSpeedMode ? 'speed' : 'interval'}
-                          label="斜率方式"
-                          onChange={event =>
-                            setDialog(previous => ({
-                              ...previous,
-                              draft: {
-                                ...previous.draft,
-                                preferSpeedMode: event.target.value === 'speed',
-                              },
-                            }))
-                          }
-                        >
-                          <MenuItem value="speed">按速度 (S)</MenuItem>
-                          <MenuItem value="interval">按时间 (I)</MenuItem>
-                        </Select>
-                      </FormControl>
                     </Box>
                   </Box>
                 </>
@@ -3580,7 +4090,7 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} disableScrollLock fullWidth maxWidth="lg">
+      <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} fullWidth maxWidth="lg">
         <DialogTitle>{profileDialog ? `${profileDialog.name || '轴配置'} · 轴配置` : '轴配置'}</DialogTitle>
         <DialogContent dividers>
           {profileDialog && (
@@ -3600,33 +4110,24 @@ function App() {
                 </Box>
 
                 <Box className="preset-apply-row">
-                  <FormControl size="small" fullWidth>
-                    <InputLabel>轴配置预设</InputLabel>
-                    <Select
-                      value={profileDialog.presetId || ''}
-                      label="轴配置预设"
-                      MenuProps={{ disableScrollLock: true }}
-                      onChange={event => setProfileDialog(previous => ({ ...previous, presetId: event.target.value }))}
-                    >
-                      <MenuItem value="">不使用预设</MenuItem>
-                      {AXIS_PROFILE_PRESETS.map(preset => (
-                        <MenuItem key={preset.id} value={preset.id}>
-                          {preset.name}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <SelectField
+                    label="轴配置预设"
+                    value={profileDialog.presetId || ''}
+                    options={[{ value: '', label: '不使用预设' }, ...AXIS_PROFILE_PRESETS.map(preset => ({ value: preset.id, label: preset.name }))]}
+                    variant="inline"
+                    hintTitle={
+                      profileDialog.presetId
+                        ? AXIS_PROFILE_PRESETS.find(item => item.id === profileDialog.presetId)?.description || '应用后会覆盖当前草稿。'
+                        : '选择一套轴配置预设后，可一键覆盖当前草稿。'
+                    }
+                    className="preset-apply-row__select"
+                    onChange={next => setProfileDialog(previous => ({ ...previous, presetId: next }))}
+                  />
 
                   <Button className="preset-apply-row__button" variant="outlined" disabled={!profileDialog.presetId} onClick={() => applyAxisProfilePresetToDialog(profileDialog.presetId)}>
                     应用预设
                   </Button>
                 </Box>
-
-                {profileDialog.presetId && (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                    {AXIS_PROFILE_PRESETS.find(item => item.id === profileDialog.presetId)?.description || '应用后会覆盖当前草稿。'}
-                  </Typography>
-                )}
               </Box>
 
               <Box className="motion-axis-grid">
@@ -3651,7 +4152,7 @@ function App() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={confirmClearMappings} onClose={() => setConfirmClearMappings(false)} disableScrollLock>
+      <Dialog open={confirmClearMappings} onClose={() => setConfirmClearMappings(false)}>
         <DialogTitle>确认清空映射</DialogTitle>
         <DialogContent>
           <Typography>确定要清空所有 {signalDrafts.length} 条 OSC 轴映射吗？此操作可通过「保存映射」撤销。</Typography>

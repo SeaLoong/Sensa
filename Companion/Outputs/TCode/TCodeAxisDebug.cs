@@ -14,7 +14,23 @@ internal static class TCodeAxisDebugFormatter
         if (deltaUnits <= 0.0001d)
             return 1;
 
-        return Math.Max((int)Math.Ceiling((deltaUnits / maxSpeed) * 1000d), 1);
+        return Math.Max((int)Math.Ceiling((deltaUnits / maxSpeed) * 100d), 1);
+    }
+
+    public static int ResolveRequestedSpeed(MotionFrame frame, int fallbackSpeed)
+    {
+        var requested = frame.RequestedCommandMode == TCodeCommandMode.Speed && frame.RequestedMotionValue is > 0
+            ? frame.RequestedMotionValue.Value
+            : fallbackSpeed;
+        return Math.Clamp(requested, 1, 999);
+    }
+
+    public static int ResolveRequestedDurationMs(MotionFrame frame, int fallbackDurationMs)
+    {
+        var requested = frame.RequestedCommandMode == TCodeCommandMode.Interval && frame.RequestedMotionValue is > 0
+            ? frame.RequestedMotionValue.Value
+            : fallbackDurationMs;
+        return Math.Max(requested, 1);
     }
 
     public static string FormatAxisTrace(MotionAxis axis, float source, float previousSource, float previousMapped, float remapped, float mapped, TCodeAxisConfig config, string action, string? term = null, string? note = null)
