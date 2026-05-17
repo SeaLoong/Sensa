@@ -15,7 +15,6 @@ public sealed class TCodeConfig
     public int    MinPos            { get; set; } = 0;
     public int    MaxVelocity       { get; set; } = 999;
     public bool   L0Invert          { get; set; } = false;
-    public int    UpdatesPerSecond  { get; set; } = 100;
     public bool   PreferSpeedMode   { get; set; } = true;
     public bool   Enabled           { get; set; } = false;
 }
@@ -111,7 +110,6 @@ public sealed class OutputDeviceConfig
     public string           ComPort             { get; set; } = "COM3";
     public string           Host                { get; set; } = "127.0.0.1";
     public int              Port                { get; set; } = 0;
-    public int              UpdatesPerSecond    { get; set; } = 100;
     public bool             PreferSpeedMode     { get; set; } = true;
     public bool             ManageEngineProcess { get; set; } = true;
     public string           WebsocketAddress    { get; set; } = "ws://localhost:12345";
@@ -337,8 +335,6 @@ public sealed class AppConfig
         WebUi.Port            = WebUi.Port is > 0 and <= 65535 ? WebUi.Port : 5086;
 
         TCode.ComPort          = string.IsNullOrWhiteSpace(TCode.ComPort) ? "COM3" : TCode.ComPort;
-        TCode.UpdatesPerSecond = Math.Clamp(TCode.UpdatesPerSecond, 10, 240);
-
         UdpTCode.Host = string.IsNullOrWhiteSpace(UdpTCode.Host) ? "127.0.0.1" : UdpTCode.Host;
         UdpTCode.Port = UdpTCode.Port is > 0 and <= 65535 ? UdpTCode.Port : 9999;
 
@@ -391,15 +387,6 @@ public sealed class AppConfig
         Outputs.FirstOrDefault(output => string.Equals(output.Id, outputId, StringComparison.OrdinalIgnoreCase));
 
     public OutputDeviceConfig? GetPrimaryOutput(OutputDeviceType type) => Outputs.FirstOrDefault(output => output.Type == type);
-
-    public int GetRecommendedLoopRate()
-    {
-        var serialRates = Outputs
-            .Where(output => output.Type == OutputDeviceType.TCodeSerial && output.Enabled)
-            .Select(output => Math.Clamp(output.UpdatesPerSecond, 10, 240));
-
-        return serialRates.DefaultIfEmpty(Math.Clamp(TCode.UpdatesPerSecond, 10, 240)).Max();
-    }
 
     public void ValidateUniqueOutputTargets()
     {
@@ -486,7 +473,6 @@ public sealed class AppConfig
             TCode.ComPort          = string.IsNullOrWhiteSpace(serialOutput.ComPort) ? "COM3" : serialOutput.ComPort;
             TCode.Enabled          = serialOutput.Enabled;
             TCode.PreferSpeedMode  = ResolveMotionProfile(serialOutput.MotionProfileId).L0.CommandMode == TCodeCommandMode.Speed;
-            TCode.UpdatesPerSecond = Math.Clamp(serialOutput.UpdatesPerSecond, 10, 240);
             TCodeProfiles.Serial   = BuildMirroredTargetProfile(serialOutput.MotionProfileId);
         }
         else
@@ -657,7 +643,6 @@ public sealed class AppConfig
         var defaultProfile = result.FirstOrDefault(profile => profile.IsDefault) ?? result[0];
         foreach (var profile in result)
             profile.IsDefault = string.Equals(profile.Id, defaultProfile.Id, StringComparison.OrdinalIgnoreCase);
-        defaultProfile.Name = "全局默认";
 
         if (!result.Any(profile => string.Equals(profile.Id, "global-default", StringComparison.OrdinalIgnoreCase)))
         {
@@ -737,7 +722,6 @@ public sealed class AppConfig
                 ComPort = string.IsNullOrWhiteSpace(item?.ComPort) ? "COM3" : item!.ComPort,
                 Host = string.IsNullOrWhiteSpace(item?.Host) ? "127.0.0.1" : item!.Host,
                 Port = NormalizeOutputPort(type, item?.Port ?? 0),
-                UpdatesPerSecond = Math.Clamp(item?.UpdatesPerSecond ?? 100, 10, 240),
                 PreferSpeedMode = item?.PreferSpeedMode ?? true,
                 ManageEngineProcess = item?.ManageEngineProcess ?? true,
                 WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,

@@ -346,7 +346,7 @@ function normalizeAxisProfileCard(profile, index = 0) {
   const isDefault = Boolean(profile?.isDefault);
   return {
     id: (profile?.id || (index === 0 ? 'global-default' : `axis-profile-${index + 1}`)).trim(),
-    name: isDefault ? '全局默认' : (profile?.name || (index === 0 ? '全局默认' : `轴配置 ${index + 1}`)).trim(),
+    name: (profile?.name || (index === 0 ? '全局默认' : `轴配置 ${index + 1}`)).trim(),
     isDefault,
     motion: normalizeMotionProfile(profile?.motion, false),
   };
@@ -358,7 +358,6 @@ function normalizeAxisProfiles(config) {
   const defaultProfile = profiles.find(profile => profile.isDefault) || profiles[0];
   return profiles.map(profile => ({
     ...profile,
-    name: profile.id === defaultProfile.id ? '全局默认' : profile.name,
     isDefault: profile.id === defaultProfile.id,
   }));
 }
@@ -837,7 +836,6 @@ function createOutputConfig(type, config, options = {}) {
     comPort: '',
     host: '127.0.0.1',
     port: getDefaultOutputPort(type),
-    updatesPerSecond: 100,
     manageEngineProcess: true,
     websocketAddress: 'ws://localhost:12345',
     ...suggestedTarget,
@@ -857,7 +855,6 @@ function normalizeOutputConfig(output, config, options = {}) {
     comPort: normalizeOutputComPort(output?.comPort || fallback.comPort),
     host: normalizeOutputHost(output?.host, fallback.host),
     port: normalizeOutputPort(output?.port, fallback.port),
-    updatesPerSecond: Number(output?.updatesPerSecond || fallback.updatesPerSecond),
     manageEngineProcess: output?.manageEngineProcess !== false,
     websocketAddress: normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
   };
@@ -875,7 +872,7 @@ function buildOutputSummary(output) {
   if (!output) return '未配置';
   if (output.type === 'TCodeSerial') {
     const portLabel = output.comPort || '未设置串口';
-    return `${portLabel} · ${Math.max(10, Number(output.updatesPerSecond || 100))} Hz`;
+    return `${portLabel} · 事件驱动`;
   }
   if (output.type === 'TCodeUdp' || output.type === 'TCodeTcp') {
     return `${output.host || '127.0.0.1'}:${output.port || (output.type === 'TCodeUdp' ? 9999 : 9998)}`;
@@ -1787,6 +1784,10 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
   );
 }
 
+function SignalRowDivider() {
+  return <Divider orientation="vertical" flexItem className="signal-row__divider" />;
+}
+
 function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
   const liveOutput = computeSignalPreviewOutput(draft, latestEntry?.numericValue);
@@ -1849,21 +1850,25 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
       </Box>
 
       <Box className="signal-row__controls">
-        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__status">
-          {latestEntry ? (
-            <>
-              <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
-              {liveOutput && <Chip size="small" color="primary" variant="outlined" label={`实时位置 ${liveOutput.mappedPositionText}`} />}
-              {latestEntry.sourceLabel && <Chip size="small" variant="outlined" label={`来源 ${latestEntry.sourceLabel}`} />}
-              {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
-              {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
-            </>
-          ) : (
-            <Chip size="small" variant="outlined" label="未命中实时参数" />
-          )}
-        </Stack>
+        <Box className="signal-row__section signal-row__section--status">
+          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__status">
+            {latestEntry ? (
+              <>
+                <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
+                {liveOutput && <Chip size="small" color="primary" variant="outlined" label={`实时位置 ${liveOutput.mappedPositionText}`} />}
+                {latestEntry.sourceLabel && <Chip size="small" variant="outlined" label={`来源 ${latestEntry.sourceLabel}`} />}
+                {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
+                {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
+              </>
+            ) : (
+              <Chip size="small" variant="outlined" label="未命中实时参数" />
+            )}
+          </Stack>
+        </Box>
 
-        <Box className="signal-row__mapping-controls">
+        <SignalRowDivider />
+
+        <Box className="signal-row__section signal-row__section--range">
           <RangeField
             label="输入范围"
             title="把原始 OSC 值的某一段校准为逻辑 0~1。比如设成 0.25~0.75，就会把原始 25%~75% 放大成设备完整行程；超出区间的值会被夹到 0/1。"
@@ -1874,7 +1879,11 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
             valueFormatter={next => formatCompactNumber(next, 2)}
             onChange={([vrchatMin, vrchatMax]) => onChange({ vrchatMin, vrchatMax })}
           />
+        </Box>
 
+        <SignalRowDivider />
+
+        <Box className="signal-row__section signal-row__section--range">
           <RangeField
             label="映射范围"
             title="校准和曲线处理后的逻辑 0/1，会被放到这个设备位置区间；范围 0-999。比如把完整输入限制在设备的 200~800 行程，就在这里设 200~800。"
@@ -1883,7 +1892,11 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
             sliderMax={999}
             onChange={([mappedMin, mappedMax]) => onChange({ mappedMin, mappedMax })}
           />
+        </Box>
 
+        <SignalRowDivider />
+
+        <Box className="signal-row__section signal-row__section--curve">
           <SelectField
             label="映射曲线"
             title="它改变的是输入值到逻辑目标值的分布，不直接改变最终发给设备的 S/I 形式。缓入适合前段更细，缓出适合后段更细，缓入缓出则让两端更平滑、中段更灵敏。"
@@ -2417,7 +2430,7 @@ function App() {
     await withBusy(`profile-save-${profileDialog.profileId}`, async () => {
       const nextConfig = cloneConfig(config);
       const existingProfiles = getAxisProfiles(config);
-      const nextProfileName = profileDialog.isDefault ? '全局默认' : (profileDialog.name || '轴配置').trim() || '轴配置';
+      const nextProfileName = (profileDialog.name || '轴配置').trim() || '轴配置';
       const updatedProfile = {
         id: profileDialog.profileId,
         name: nextProfileName,
@@ -2910,6 +2923,8 @@ function App() {
   const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
   const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
   const oscListening = Boolean(overview?.osc?.listening);
+  const oscListenerError = typeof overview?.osc?.listenerError === 'string' ? overview.osc.listenerError.trim() : '';
+  const oscModeActive = actualInputMode === 'osc';
   const oscPreview = overview?.osc?.preview || [];
   const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : [];
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
@@ -2940,14 +2955,50 @@ function App() {
         return (left?.path || '').localeCompare(right?.path || '', 'zh-CN', { numeric: true, sensitivity: 'base' });
       });
   }, [previewEntriesForTab, signalDrafts]);
+  const oscListenerStatus = useMemo(() => {
+    if (actualInputMode !== 'osc') {
+      return {
+        color: 'default',
+        compactLabel: '未启用',
+        toolbarLabel: 'OSC 未启用',
+      };
+    }
+
+    if (oscListening) {
+      return {
+        color: 'success',
+        compactLabel: '监听中',
+        toolbarLabel: `OSC 监听中 · ${oscPreview.length} 项`,
+      };
+    }
+
+    if (oscListenerError) {
+      return {
+        color: 'error',
+        compactLabel: '监听失败',
+        toolbarLabel: 'OSC 监听失败',
+      };
+    }
+
+    return {
+      color: 'warning',
+      compactLabel: '未监听',
+      toolbarLabel: 'OSC 未监听',
+    };
+  }, [actualInputMode, oscListening, oscPreview.length, oscListenerError]);
+  const effectiveOscQueryUrl = useMemo(() => {
+    const overviewUrl = typeof oscQuery?.url === 'string' ? oscQuery.url.trim() : '';
+    if (overviewUrl) return overviewUrl;
+    return (oscDraft.oscQueryUrl || '').trim();
+  }, [oscQuery?.url, oscDraft.oscQueryUrl]);
   const oscQuerySummary = useMemo(() => {
-    if (oscQuery?.enabled === false) return 'OSCQuery 已关闭';
-    if (!oscQuery?.url) return 'OSCQuery 已开启，待填写地址';
+    if (!oscDraft.oscQueryEnabled) return 'OSCQuery 已关闭';
+    if (!effectiveOscQueryUrl) return 'OSCQuery 已开启，待填写地址';
     if (oscQuery?.error) return 'OSCQuery 同步失败';
     if (oscQuery?.listenConnected) return `LISTEN 已连接 · ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条路径`;
     if (oscQueryNodes.length > 0) return `已同步 ${oscQueryNodes.length} 条路径`;
-    return 'OSCQuery 自动同步中';
-  }, [oscQuery, oscQueryNodes]);
+    return 'OSCQuery 已开启';
+  }, [oscDraft.oscQueryEnabled, effectiveOscQueryUrl, oscQuery, oscQueryNodes]);
 
   useEffect(() => {
     if (!hasMultipleOscSources) {
@@ -3088,7 +3139,7 @@ function App() {
             </Box>
 
             <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} label={formatRealtimeStatus(wsState)} />
-            {actualInputMode === 'osc' && <Chip size="small" color={oscListening ? 'success' : 'default'} variant="outlined" label={oscListening ? `OSC 监听中 · ${oscPreview.length} 项` : 'OSC 未监听'} />}
+            <Chip size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.toolbarLabel} />
             <Chip size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
             <Chip size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
 
@@ -3181,7 +3232,7 @@ function App() {
                         <Typography variant="subtitle2">OSC 配置</Typography>
                         <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                           <Chip size="small" variant="outlined" label={`${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001}`} />
-                          <Chip size="small" color={oscListening ? 'success' : 'default'} variant="outlined" label={oscListening ? '监听中' : '未监听'} />
+                          <Chip size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.compactLabel} />
                         </Stack>
                       </Box>
 
@@ -3210,14 +3261,9 @@ function App() {
                         {oscQuery?.oscIp && oscQuery?.oscPort && <Chip size="small" variant="outlined" label={`${oscQuery.oscIp}:${oscQuery.oscPort}`} />}
                         {oscQuery?.supportsListen && <Chip size="small" variant="outlined" label="支持 LISTEN" />}
                         {oscQuery?.listenConnected && <Chip size="small" color="success" variant="outlined" label={`实时订阅 ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条`} />}
-                        {oscQuery?.refreshedAtUtc && <Chip size="small" variant="outlined" label={`刷新于 ${new Date(oscQuery.refreshedAtUtc).toLocaleTimeString()}`} />}
                       </Stack>
 
-                      {oscQuery?.error && <Alert severity="warning">{oscQuery.error}</Alert>}
-
-                      <Typography variant="body2" color="text.secondary">
-                        只有在输入方式切到 OSC 且输入开关开启时，后端才会真正启动 OSC 监听；切走后会自动关闭。启用 OSCQuery 后，如果填写了地址，参数树会随 OSC 输入状态自动同步；若对端支持 LISTEN，Sensa 还会按提案自动建立 websocket 订阅来接收实时参数。
-                      </Typography>
+                      {oscModeActive && oscListenerError && <Alert severity="error">{oscListenerError}</Alert>}
 
                       <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" className="osc-config-panel__actions" sx={{ mt: 1.5 }}>
                         <Button variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>
@@ -3226,7 +3272,7 @@ function App() {
                         <FormControlLabel
                           className="osc-config-panel__switch"
                           control={<Switch checked={Boolean(oscDraft.oscQueryEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryEnabled: checked }))} />}
-                          label={<HelpLabel text="启用 OSCQuery" title="开启后，Sensa 会在 OSC 输入真正启用时自动同步已配置的 OSCQuery 参数树；若对端支持 LISTEN，还会自动订阅实时参数流。关闭后不会主动同步，也不会建立相关 websocket 订阅。" />}
+                          label={<HelpLabel text="启用 OSCQuery" title="开启后，Sensa 会在当前输入模式切到 OSC 时自动同步已配置的 OSCQuery 参数树；若对端支持 LISTEN，还会通过 WebSocket 订阅实时参数流。这个功能在同时运行多个 OSC 程序、需要自动发现、自动配置或区分来源时尤其有用。并不是所有 OSC 程序都支持 OSCQuery 或 LISTEN；关闭后不会主动同步，也不会建立相关 WebSocket 订阅。" />}
                           sx={{ m: 0 }}
                         />
                       </Stack>
@@ -3992,23 +4038,6 @@ function App() {
                       onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: next } }))}
                     />
                   </Box>
-
-                  <Box className="dialog-panel">
-                    <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">实时发送</Typography>
-                      <Chip size="small" color="primary" variant="outlined" label={`${Math.max(10, Number(dialog.draft.updatesPerSecond || 100))} Hz`} />
-                    </Box>
-
-                    <Box className="dialog-grid">
-                      <TextField
-                        label={<HelpLabel text="实时发送频率 (Hz)" title="串口实时刷新的目标频率；越高越跟手，但也更占串口带宽与设备处理时间。" />}
-                        type="number"
-                        size="small"
-                        value={dialog.draft.updatesPerSecond ?? 100}
-                        onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, updatesPerSecond: Number(event.target.value || 0) } }))}
-                      />
-                    </Box>
-                  </Box>
                 </>
               )}
 
@@ -4099,7 +4128,6 @@ function App() {
                 label="配置名称"
                 size="small"
                 value={profileDialog.name || ''}
-                disabled={profileDialog.isDefault}
                 onChange={event => setProfileDialog(previous => ({ ...previous, name: event.target.value }))}
               />
 

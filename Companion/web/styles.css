@@ -268,7 +268,7 @@ body {
   justify-content: flex-start;
   align-items: flex-end;
   gap: 8px;
-  padding-top: 4px;
+  padding-top: 8px;
   margin-top: auto !important;
 }
 
@@ -448,25 +448,32 @@ body {
 
 .signal-row__controls {
   display: grid;
-  grid-template-columns: minmax(240px, 0.9fr) minmax(360px, 1.1fr);
+  grid-template-columns: minmax(220px, 0.9fr) 1px minmax(250px, 1fr) 1px minmax(250px, 1fr) 1px minmax(180px, 0.72fr);
   gap: 12px;
-  align-items: start;
+  align-items: center;
 }
 
 .signal-row__controls > * {
   min-width: 0;
 }
 
-.signal-row__mapping-controls {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(150px, 0.82fr);
-  gap: 12px;
+.signal-row__section {
   min-width: 0;
+  display: grid;
+  align-content: center;
 }
 
-.signal-row__mapping-controls > .field-panel,
-.signal-row__mapping-controls > .select-field--floating,
-.signal-row__mapping-controls > .signal-row__curve-field {
+.signal-row__section--status {
+  padding-top: 10px;
+}
+
+.signal-row__section--curve {
+  align-self: center;
+}
+
+.signal-row__divider {
+  align-self: stretch;
+  border-color: rgba(148, 163, 184, 0.2);
   min-width: 0;
 }
 
@@ -474,14 +481,16 @@ body {
   display: flex;
   align-items: center;
   min-height: 100%;
-  padding: 8px 12px;
-  border-radius: 12px;
-  border: 1px dashed rgba(148, 163, 184, 0.22);
-  background: rgba(248, 250, 252, 0.82);
+  padding: 0;
 }
 
 .signal-row__status .MuiChip-root {
   background: rgba(248, 250, 252, 0.9);
+}
+
+.signal-row__curve-field {
+  min-width: 0;
+  align-self: start;
 }
 
 .signal-row__toggle {
@@ -592,6 +601,7 @@ body {
 .select-field--floating {
   display: grid;
   min-width: 0;
+  padding-top: 10px;
 }
 
 .select-field__control--compact {
@@ -781,7 +791,7 @@ body {
   display: grid !important;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
-  padding-top: 4px;
+  padding-top: 8px;
   margin-top: auto !important;
 }
 
@@ -1076,12 +1086,17 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .signal-row__mapping-controls {
-    grid-template-columns: 1fr;
-  }
-
   .signal-row__controls {
     gap: 6px;
+  }
+
+  .signal-row__section--status,
+  .signal-row__section--curve {
+    padding-top: 0;
+  }
+
+  .signal-row__divider {
+    display: none;
   }
 
   .axis-profile-detail-row__details {

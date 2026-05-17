@@ -111,6 +111,8 @@ public static class SensaHost
         var oscQueryRefreshGate = new SemaphoreSlim(1, 1);
         var oscQueryRefreshQueued = 0;
         var oscQueryRefreshGateDisposed = 0;
+        var oscPreviewStatePushQueued = 0;
+        string? oscListenerError = null;
 
         object BuildStateEnvelope() => new
         {
@@ -226,7 +228,32 @@ public static class SensaHost
                 QueueClientStatePush(clientId);
         }
 
-        bool ShouldRunOscListener() => motionRuntime.CurrentInputMode == RuntimeInputMode.Osc && motionRuntime.InputActive;
+        void QueueOscPreviewStateChanged()
+        {
+            if (wsShutdown.IsCancellationRequested)
+                return;
+
+            if (Interlocked.Exchange(ref oscPreviewStatePushQueued, 1) != 0)
+                return;
+
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await Task.Delay(50, wsShutdown.Token).ConfigureAwait(false);
+                    NotifyStateChanged();
+                }
+                catch (OperationCanceledException) when (wsShutdown.IsCancellationRequested)
+                {
+                }
+                finally
+                {
+                    Interlocked.Exchange(ref oscPreviewStatePushQueued, 0);
+                }
+            });
+        }
+
+        bool ShouldRunOscListener() => motionRuntime.CurrentInputMode == RuntimeInputMode.Osc;
 
         string? ResolveSelectedOscSourceKey(OscParameterStore.SourceSnapshot[] sources)
         {
@@ -363,6 +390,7 @@ public static class SensaHost
 
             if (!shouldListen)
             {
+                oscListenerError = null;
                 if (oscReceiver.IsRunning)
                 {
                     oscReceiver.Stop();
@@ -373,15 +401,37 @@ public static class SensaHost
             }
             else if (!oscReceiver.IsRunning)
             {
-                oscReceiver.Start();
-                Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+                try
+                {
+                    oscReceiver.Start();
+                    oscListenerError = null;
+                    Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+                }
+                catch (Exception ex)
+                {
+                    oscListenerError = $"无法监听 {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}：{ex.Message}";
+                    throw new InvalidOperationException(oscListenerError, ex);
+                }
             }
             else if (forceReceiverReconfigure
                 || !string.Equals(oscReceiver.Host, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
                 || oscReceiver.Port != config.Osc.ReceiverPort)
             {
-                oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
-                Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+                try
+                {
+                    oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
+                    oscListenerError = null;
+                    Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
+                }
+                catch (Exception ex)
+                {
+                    oscListenerError = $"无法监听 {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}：{ex.Message}";
+                    throw new InvalidOperationException(oscListenerError, ex);
+                }
+            }
+            else
+            {
+                oscListenerError = null;
             }
 
             var normalizedUrl = config.Osc.OscQueryEnabled
@@ -428,6 +478,7 @@ public static class SensaHost
         {
             parameterStore.Set(path, value, source);
         };
+        parameterStore.OnSetWithSource += (_, _, _) => QueueOscPreviewStateChanged();
         oscQueryClient.AvatarChanged += () =>
         {
             parameterStore.Clear();
@@ -724,6 +775,7 @@ public static class SensaHost
                     config.Osc.ReceiverHost,
                     config.Osc.ReceiverPort,
                     listening = oscReceiver.IsRunning,
+                    listenerError = oscListenerError,
                     preview = oscPreview,
                     sources = oscSourceSnapshots.Select(source => new
                     {
