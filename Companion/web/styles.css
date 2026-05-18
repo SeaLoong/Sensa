@@ -666,6 +666,10 @@ body {
   align-items: center;
 }
 
+.motion-axis-card__ramp-row {
+  min-width: 0;
+}
+
 .motion-axis-card__command-select,
 .motion-axis-card__command-limit {
   min-width: 0;
@@ -823,6 +827,10 @@ body {
   gap: 12px;
 }
 
+.dialog-grid--two-cols {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .dialog-panel {
   display: grid;
   gap: 14px;
@@ -867,10 +875,12 @@ body {
 
 .manual-toolbar__actions {
   flex: 1 1 auto;
+  width: 100%;
   flex-wrap: nowrap !important;
 }
 
 .manual-toolbar__motion-controls {
+  margin-left: auto;
   justify-content: flex-start;
   align-items: center;
   flex-wrap: nowrap !important;
@@ -1117,6 +1127,10 @@ body {
     grid-template-columns: 1fr;
   }
 
+  .dialog-grid--two-cols {
+    grid-template-columns: 1fr;
+  }
+
   .dialog-panel {
     padding: 14px;
   }
@@ -1132,6 +1146,7 @@ body {
   }
 
   .manual-toolbar__motion-controls {
+    margin-left: 0;
     justify-content: flex-start;
     flex-wrap: wrap !important;
   }

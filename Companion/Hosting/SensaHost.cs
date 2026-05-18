@@ -23,6 +23,9 @@ public static class SensaHost
 {
     // Sensa is Windows-only (WMI + Registry for serial port enumeration)
 #pragma warning disable CA1416
+    private const int ManualDefaultSpeed = 999;
+    private const int ManualDefaultIntervalMs = 100;
+    private const int ManualIntervalMaxMs = 1000;
 
     public static async Task RunAsync(string[] args)
     {
@@ -1768,21 +1771,22 @@ public static class SensaHost
     {
         if (!mode.HasValue)
         {
-            if (rawValue is not > 0)
-                return null;
-
-            return Math.Clamp(rawValue.Value, 1, 999);
+            var resolvedSpeed = rawValue is > 0 ? rawValue.Value : ManualDefaultSpeed;
+            return Math.Clamp(resolvedSpeed, 1, 999);
         }
 
         var resolvedMode = mode.Value;
 
+        if (resolvedMode == TCodeCommandMode.None)
+            return null;
+
         if (resolvedMode == TCodeCommandMode.Interval)
         {
-            var requested = rawValue is > 0 ? rawValue.Value : 1000;
-            return Math.Clamp(requested, 1, 60000);
+            var requested = rawValue is > 0 ? rawValue.Value : ManualDefaultIntervalMs;
+            return Math.Clamp(requested, 1, ManualIntervalMaxMs);
         }
 
-        var requestedSpeed = rawValue is > 0 ? rawValue.Value : 100;
+        var requestedSpeed = rawValue is > 0 ? rawValue.Value : ManualDefaultSpeed;
 
         return Math.Clamp(requestedSpeed, 1, 999);
     }

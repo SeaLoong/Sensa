@@ -219,6 +219,7 @@ public sealed class SignalMixer
 public sealed class AxisVelocityTracker
 {
     private const double OutputUnitsPerStroke = 999d;
+    private const double SpeedWindowMs = 100d;
 
     private float _lastPos    = 0.5f;
     private bool  _hasLastPos;
@@ -229,7 +230,7 @@ public sealed class AxisVelocityTracker
     ///
     /// TCode S uses axis-value change per 100ms. A full-stroke move in 1 second therefore maps to 100.
     /// </summary>
-    public int Estimate(float newPos, double deltaMs, int maxVelocity = 200, double speedWindowMs = 100d)
+    public int Estimate(float newPos, double deltaMs, int maxVelocity = 200)
     {
         if (!_hasLastPos)
         {
@@ -247,7 +248,7 @@ public sealed class AxisVelocityTracker
         var dtMs = Math.Max(deltaMs, 1d);
         var deltaPos = Math.Abs(newPos - _lastPos);
         var deltaUnits = deltaPos * OutputUnitsPerStroke;
-        var velocity = (deltaUnits * Math.Max(speedWindowMs, 1d)) / dtMs;
+        var velocity = (deltaUnits * SpeedWindowMs) / dtMs;
 
         _lastPos = newPos;
 

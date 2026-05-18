@@ -25,6 +25,10 @@ namespace Sensa.Runtime;
 /// </summary>
 public sealed class MotionRuntime : IDisposable
 {
+    private const int ManualDefaultSpeed = 999;
+    private const int ManualDefaultIntervalMs = 100;
+    private const int ManualIntervalMaxMs = 1000;
+
     private readonly AppConfig _config;
     private readonly OscParameterStore _store;
     private readonly OscInputReceiver _oscReceiver;
@@ -417,7 +421,7 @@ public sealed class MotionRuntime : IDisposable
             var current = _currentFrame with
             {
                 DeltaMs = isManual && _manualFrame.RequestedCommandMode == TCodeCommandMode.Interval
-                    ? (_manualFrame.RequestedMotionValue ?? 1000)
+                    ? (_manualFrame.RequestedMotionValue ?? ManualDefaultIntervalMs)
                     : ConsumeElapsedMs(),
                 RequestedCommandMode = isManual ? _manualFrame.RequestedCommandMode : null,
                 RequestedMotionValue = isManual ? _manualFrame.RequestedMotionValue : null,
@@ -537,22 +541,26 @@ public sealed class MotionRuntime : IDisposable
     {
         if (!frame.RequestedCommandMode.HasValue)
         {
+            var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : ManualDefaultSpeed;
             return frame with
             {
                 DeltaMs = 1000,
                 RequestedCommandMode = null,
-                RequestedMotionValue = null,
+                RequestedMotionValue = requestedSpeed,
             };
         }
 
         var requestedCommandMode = frame.RequestedCommandMode.Value;
-        var requestedMotionValue = requestedCommandMode == TCodeCommandMode.Interval
-            ? (frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 60000) : 1000)
-            : (frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : 100);
+        int? requestedMotionValue = requestedCommandMode switch
+        {
+            TCodeCommandMode.None => null,
+            TCodeCommandMode.Interval => frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, ManualIntervalMaxMs) : ManualDefaultIntervalMs,
+            _ => frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : ManualDefaultSpeed,
+        };
 
         return frame with
         {
-            DeltaMs = requestedCommandMode == TCodeCommandMode.Interval ? requestedMotionValue : 1000,
+            DeltaMs = requestedCommandMode == TCodeCommandMode.Interval ? requestedMotionValue ?? ManualDefaultIntervalMs : 1000,
             RequestedCommandMode = requestedCommandMode,
             RequestedMotionValue = requestedMotionValue,
         };

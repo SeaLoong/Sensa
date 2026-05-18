@@ -114,20 +114,22 @@ const SIGNAL_CURVE_OPTIONS = [
 ];
 
 const COMMAND_MODE_OPTIONS = [
-  { value: 'Speed', label: '速度 (S)' },
   { value: 'Interval', label: '时间 (I)' },
+  { value: 'Speed', label: '速度 (S)' },
+  { value: 'None', label: '无' },
 ];
 
 const MANUAL_MOTION_MODE_OPTIONS = [
-  { value: 'Default', label: '默认（跟随轴配置）' },
-  { value: 'Speed', label: '速度 (S)' },
+  { value: 'Default', label: '跟随轴配置' },
   { value: 'Interval', label: '时间 (I)' },
+  { value: 'Speed', label: '速度 (S)' },
 ];
 
 const OUTPUT_SLOPE_MODE_OPTIONS = [
-  { value: 'None', label: '无（跟随轴配置）' },
-  { value: 'Speed', label: '速度 (S)' },
+  { value: 'None', label: '跟随轴配置' },
   { value: 'Interval', label: '时间 (I)' },
+  { value: 'Speed', label: '速度 (S)' },
+  { value: 'NoSlope', label: '无' },
 ];
 
 const SPEED_UNIT_BASE_OPTIONS = [
@@ -136,15 +138,18 @@ const SPEED_UNIT_BASE_OPTIONS = [
 ];
 
 const RAMP_TYPE_OPTIONS = [
-  { value: 'None', label: '无' },
-  { value: 'Linear', label: '线性 (=)' },
-  { value: 'EaseIn', label: '缓入 (<)' },
-  { value: 'EaseOut', label: '缓出 (>)' },
-  { value: 'EaseInOut', label: '缓入缓出 (<>)' },
+  { value: 'None', label: '无', summaryLabel: '无' },
+  { value: 'Linear', label: '线性（=）', summaryLabel: '线性' },
+  { value: 'EaseIn', label: '缓入（<）', summaryLabel: '缓入' },
+  { value: 'EaseOut', label: '缓出（>）', summaryLabel: '缓出' },
+  { value: 'EaseInOut', label: '缓入缓出（<>）', summaryLabel: '缓入缓出' },
 ];
 
 const AXIS_LIMIT_MIN_SPEED = 1;
 const AXIS_LIMIT_MAX_SPEED = 999;
+const MANUAL_DEFAULT_SPEED = 999;
+const MANUAL_DEFAULT_INTERVAL_MS = 100;
+const MANUAL_INTERVAL_MAX_MS = 1000;
 
 const AXIS_PROFILE_DEFS = [
   { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
@@ -169,7 +174,7 @@ const DEFAULT_AXIS_PROFILE = {
   maxSpeed: 999,
   invert: false,
   mode: 'Normal',
-  commandMode: 'Speed',
+  commandMode: 'Interval',
   rampType: 'None',
   lockValue: 0.5,
 };
@@ -344,7 +349,7 @@ function normalizeAxisProfile(axis, axisKey) {
   const remapMin = Math.max(0, Math.min(999, Number(next.remapMin ?? DEFAULT_AXIS_PROFILE.remapMin)));
   const remapMax = Math.max(remapMin, Math.min(999, Number(next.remapMax ?? DEFAULT_AXIS_PROFILE.remapMax)));
   const mode = AXIS_MODE_OPTIONS.some(option => option.value === next.mode) ? next.mode : 'Normal';
-  const commandMode = COMMAND_MODE_OPTIONS.some(option => option.value === next.commandMode) ? next.commandMode : 'Speed';
+  const commandMode = COMMAND_MODE_OPTIONS.some(option => option.value === next.commandMode) ? next.commandMode : 'Interval';
   const rampType = RAMP_TYPE_OPTIONS.some(option => option.value === next.rampType) ? next.rampType : 'None';
 
   return {
@@ -628,17 +633,24 @@ function computeSignalHash(signals) {
 }
 
 function normalizeCommandMode(commandMode) {
-  return commandMode === 'Interval' ? 'Interval' : 'Speed';
+  return COMMAND_MODE_OPTIONS.some(option => option.value === commandMode) ? commandMode : 'Interval';
 }
 
 function describeCommandMode(commandMode) {
-  return normalizeCommandMode(commandMode) === 'Interval' ? '时间 (I)' : '速度 (S)';
+  const normalized = normalizeCommandMode(commandMode);
+  if (normalized === 'None') return '无';
+  return normalized === 'Interval' ? '时间 (I)' : '速度 (S)';
 }
 
 function describeCommandModeDetail(commandMode) {
-  return normalizeCommandMode(commandMode) === 'Interval'
-    ? '发送 I 指令；下方速度限制仍然是同一套速度上限，系统会按当前位移自动换算成对应的 I 时长。'
-    : '发送 S 指令；直接按速度上限约束该轴。';
+  const normalized = normalizeCommandMode(commandMode);
+  if (normalized === 'None') {
+    return '斜率方式为“无”时，只发送位置值。下方速度限制会保留，但当前不会参与输出。';
+  }
+
+  return normalized === 'Interval'
+    ? '发送 I 指令；兼容性通常比 S 更好。下方速度限制仍然表示同一套速度上限，系统会按当前位移自动换算成对应的 I 时长。'
+    : '发送 S 指令；直接按速度上限约束该轴。若设备对 S 支持不稳定，建议优先使用时间 (I)。';
 }
 
 function getAxisModeSelectValue(axis) {
@@ -669,27 +681,33 @@ function normalizeManualMotionMode(mode) {
 function normalizeManualMotionValueByMode(mode, value) {
   const normalizedMode = normalizeManualMotionMode(mode);
   if (normalizedMode === 'Interval') {
-    const numeric = Math.round(Number(value ?? 1000));
-    if (!Number.isFinite(numeric)) return 1000;
-    return Math.max(1, Math.min(60000, numeric));
+    const numeric = Math.round(Number(value ?? MANUAL_DEFAULT_INTERVAL_MS));
+    if (!Number.isFinite(numeric)) return MANUAL_DEFAULT_INTERVAL_MS;
+    return Math.max(1, Math.min(MANUAL_INTERVAL_MAX_MS, numeric));
   }
 
-  return normalizeAxisLimitSpeed(value);
+  return normalizeAxisLimitSpeed(value ?? MANUAL_DEFAULT_SPEED);
 }
 
 function formatAxisMotionLimitSummary(commandMode, maxSpeed) {
-  return `${normalizeCommandMode(commandMode) === 'Interval' ? 'I' : 'S'} · 速度 ${normalizeAxisLimitSpeed(maxSpeed)}`;
+  const normalized = normalizeCommandMode(commandMode);
+  if (normalized === 'None') return '斜率 无';
+  return `${normalized === 'Interval' ? 'I' : 'S'} · 速度 ${normalizeAxisLimitSpeed(maxSpeed)}`;
 }
 
 function formatRampTypeSummary(rampType) {
   const option = RAMP_TYPE_OPTIONS.find(item => item.value === (rampType || 'None'));
-  return `Ramp ${option?.label || '无'}`;
+  return `曲线 ${option?.summaryLabel || '无'}`;
 }
 
 function getAxisMotionLimitFieldConfig(axis) {
+  const commandMode = normalizeCommandMode(axis?.commandMode);
   return {
     label: '速度限制',
-    title: '无论发送 S 还是 I，这里限制的本质都是最大速度上限。选择 I 时，系统会按当前位移把这个速度上限换算成对应时长。',
+    title:
+      commandMode === 'None'
+        ? '当前斜率方式为“无”，因此这个速度限制暂时不会参与输出；切回时间或速度后会继续沿用。'
+        : '无论发送 S 还是 I，这里限制的本质都是最大速度上限。选择 I 时，系统会按当前位移把这个速度上限换算成对应时长。',
     value: normalizeAxisLimitSpeed(axis?.maxSpeed),
     min: AXIS_LIMIT_MIN_SPEED,
     max: AXIS_LIMIT_MAX_SPEED,
@@ -721,6 +739,9 @@ function buildAxisProfileAxisRows(profileCard) {
     if (current.mode === 'Locked') {
       pushDetail(`锁定 ${formatAxisPositionFromNormalized(current.lockValue)}`, true, 'warning');
       pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
+      if ((current.rampType || 'None') !== 'None') {
+        pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, 'warning');
+      }
       if (current.invert) pushDetail('反向', true, 'danger');
       return [{ axis: axis.axis, details }];
     }
@@ -728,7 +749,10 @@ function buildAxisProfileAxisRows(profileCard) {
     pushDetail(`映射 ${current.remapMin}-${current.remapMax}`, current.remapMin !== defaults.remapMin || current.remapMax !== defaults.remapMax, 'remap');
     pushDetail(`边界 ${current.min}-${current.max}`, current.min !== defaults.min || current.max !== defaults.max, 'bounds');
     pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
-    pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, current.rampType !== defaults.rampType ? 'warning' : 'neutral');
+
+    if ((current.rampType || 'None') !== 'None') {
+      pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, 'warning');
+    }
 
     if (current.invert) pushDetail('反向', true, 'danger');
 
@@ -745,7 +769,7 @@ function getOutputTypeLabel(type) {
 }
 
 function formatSlopeModeLabel(mode) {
-  return OUTPUT_SLOPE_MODE_OPTIONS.find(option => option.value === mode)?.label || '无（跟随轴配置）';
+  return OUTPUT_SLOPE_MODE_OPTIONS.find(option => option.value === mode)?.label || '跟随轴配置';
 }
 
 function formatSpeedUnitBaseLabel(base) {
@@ -1270,6 +1294,11 @@ function parseAxisTraceMessage(message) {
     action: stage,
     term: fields.cmd || '',
     note: reason,
+    speedLimit: parseAxisTraceNumber(fields.speedLimit),
+    requestedSpeed: parseAxisTraceNumber(fields.requestedSpeed),
+    logicalSpeed: parseAxisTraceNumber(fields.logicalSpeed),
+    emittedSpeed: parseAxisTraceNumber(fields.emittedSpeed),
+    durationMs: parseAxisTraceNumber(fields.durationMs),
   };
 }
 
@@ -1327,6 +1356,7 @@ function formatAxisDisplayValue(value, decimals = 0) {
 
 function normalizeManualCommand(command) {
   const raw = command || {};
+  const readAxis = axisKey => raw[axisKey] ?? raw[axisKey.charAt(0).toLowerCase() + axisKey.slice(1)];
   const toManualValue = value => {
     const numeric = Number(value ?? 0);
     if (!Number.isFinite(numeric)) return 0;
@@ -1335,18 +1365,18 @@ function normalizeManualCommand(command) {
   };
   return {
     ...EMPTY_MANUAL,
-    L0: toManualValue(raw.L0 ?? EMPTY_MANUAL.L0),
-    L1: toManualValue(raw.L1 ?? EMPTY_MANUAL.L1),
-    L2: toManualValue(raw.L2 ?? EMPTY_MANUAL.L2),
-    R0: toManualValue(raw.R0 ?? EMPTY_MANUAL.R0),
-    R1: toManualValue(raw.R1 ?? EMPTY_MANUAL.R1),
-    R2: toManualValue(raw.R2 ?? EMPTY_MANUAL.R2),
-    V0: toManualValue(raw.V0 ?? EMPTY_MANUAL.V0),
-    V1: toManualValue(raw.V1 ?? EMPTY_MANUAL.V1),
-    V2: toManualValue(raw.V2 ?? EMPTY_MANUAL.V2),
-    A0: toManualValue(raw.A0 ?? EMPTY_MANUAL.A0),
-    A1: toManualValue(raw.A1 ?? EMPTY_MANUAL.A1),
-    A2: toManualValue(raw.A2 ?? EMPTY_MANUAL.A2),
+    L0: toManualValue(readAxis('L0') ?? EMPTY_MANUAL.L0),
+    L1: toManualValue(readAxis('L1') ?? EMPTY_MANUAL.L1),
+    L2: toManualValue(readAxis('L2') ?? EMPTY_MANUAL.L2),
+    R0: toManualValue(readAxis('R0') ?? EMPTY_MANUAL.R0),
+    R1: toManualValue(readAxis('R1') ?? EMPTY_MANUAL.R1),
+    R2: toManualValue(readAxis('R2') ?? EMPTY_MANUAL.R2),
+    V0: toManualValue(readAxis('V0') ?? EMPTY_MANUAL.V0),
+    V1: toManualValue(readAxis('V1') ?? EMPTY_MANUAL.V1),
+    V2: toManualValue(readAxis('V2') ?? EMPTY_MANUAL.V2),
+    A0: toManualValue(readAxis('A0') ?? EMPTY_MANUAL.A0),
+    A1: toManualValue(readAxis('A1') ?? EMPTY_MANUAL.A1),
+    A2: toManualValue(readAxis('A2') ?? EMPTY_MANUAL.A2),
   };
 }
 
@@ -1743,6 +1773,26 @@ function AxisTraceLogEntry({ log, timeStr }) {
     metrics.push({ key: 'normalized', label: '归一化输入(0-1)', value: formatAxisDisplayValue(trace.norm, 3) });
   }
 
+  if (Number.isFinite(trace.requestedSpeed)) {
+    metrics.push({ key: 'requested-speed', label: '请求速度(逻辑)', value: formatAxisDisplayValue(trace.requestedSpeed) });
+  }
+
+  if (Number.isFinite(trace.speedLimit)) {
+    metrics.push({ key: 'speed-limit', label: '速度上限(逻辑)', value: formatAxisDisplayValue(trace.speedLimit) });
+  }
+
+  if (Number.isFinite(trace.logicalSpeed)) {
+    metrics.push({ key: 'logical-speed', label: '逻辑 S 速度', value: formatAxisDisplayValue(trace.logicalSpeed) });
+  }
+
+  if (Number.isFinite(trace.emittedSpeed)) {
+    metrics.push({ key: 'emitted-speed', label: '最终发出 S', value: formatAxisDisplayValue(trace.emittedSpeed) });
+  }
+
+  if (Number.isFinite(trace.durationMs)) {
+    metrics.push({ key: 'duration', label: '最终 I 时长', value: `${formatAxisDisplayValue(trace.durationMs)}ms` });
+  }
+
   if (Number.isFinite(trace.remap)) {
     metrics.push({ key: 'remapped', label: '重映射后(0-1)', value: formatAxisDisplayValue(trace.remap, 3) });
   }
@@ -1788,6 +1838,76 @@ function AxisTraceLogEntry({ log, timeStr }) {
             <AxisTraceMetric key={metric.key} label={metric.label} value={metric.value} />
           ))}
         </Box>
+      )}
+    </Box>
+  );
+}
+
+function getTCodeDeviceInfoView(deviceInfo, connected) {
+  const axisDescriptors = Array.isArray(deviceInfo?.axisDescriptors) ? deviceInfo.axisDescriptors.filter(Boolean) : [];
+  const queryFailed = typeof deviceInfo?.status === 'string' && deviceInfo.status.startsWith('query-failed:');
+  const errorMessage = queryFailed ? deviceInfo.status.slice('query-failed:'.length).trim() : '';
+  const hasPayload = Boolean(deviceInfo?.firmwareVersion || deviceInfo?.tcodeVersion || axisDescriptors.length > 0);
+
+  if (!connected) {
+    return {
+      axisDescriptors,
+      hasPayload,
+      statusText: '未连接',
+      errorMessage: '',
+    };
+  }
+
+  if (errorMessage) {
+    return {
+      axisDescriptors,
+      hasPayload,
+      statusText: `查询失败：${errorMessage}`,
+      errorMessage,
+    };
+  }
+
+  return {
+    axisDescriptors,
+    hasPayload,
+    statusText: hasPayload ? '' : '未查询',
+    errorMessage: '',
+  };
+}
+
+function TCodeDeviceInfoCard({ deviceInfo, connected, onRefresh, busy = false, className = '' }) {
+  const view = getTCodeDeviceInfoView(deviceInfo, connected);
+  const hasVersionTags = Boolean(deviceInfo?.firmwareVersion || deviceInfo?.tcodeVersion);
+
+  return (
+    <Box className={`dialog-panel${className ? ` ${className}` : ''}`}>
+      <Typography variant="subtitle2" component="div">
+        <HelpLabel text="设备信息" title="串口 TCode 输出连接后会尝试读取设备返回的固件版本、TCode 版本以及轴描述；具体能返回哪些内容取决于固件是否实现相应查询。" />
+      </Typography>
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} useFlexGap flexWrap="nowrap">
+        <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
+          {view.hasPayload && hasVersionTags ? (
+            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+              {deviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${deviceInfo.firmwareVersion}`} />}
+              {deviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${deviceInfo.tcodeVersion}`} />}
+            </Stack>
+          ) : (
+            <Typography variant="body2" color={view.errorMessage ? 'error.main' : 'text.secondary'}>
+              {view.hasPayload ? '已查询' : view.statusText}
+            </Typography>
+          )}
+        </Box>
+
+        <Button size="small" variant="text" onClick={onRefresh} disabled={busy || !connected} sx={{ flexShrink: 0 }}>
+          刷新设备信息
+        </Button>
+      </Stack>
+
+      {view.axisDescriptors.length > 0 && (
+        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', wordBreak: 'break-word' }}>
+          {view.axisDescriptors.join(' · ')}
+        </Typography>
       )}
     </Box>
   );
@@ -1884,42 +2004,46 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
       )}
 
       {!isIgnored && (
-        <Box className="motion-axis-card__command-row">
-          <SelectField
-            label="斜率方式"
-            title={describeCommandModeDetail(value.commandMode)}
-            value={normalizeCommandMode(value.commandMode)}
-            options={COMMAND_MODE_OPTIONS}
-            disabled={disabled}
-            variant="floating"
-            className="motion-axis-card__command-select"
-            onChange={next => onChange({ commandMode: next })}
-          />
+        <>
+          <Box className="motion-axis-card__command-row">
+            <SelectField
+              label="斜率方式"
+              title={describeCommandModeDetail(value.commandMode)}
+              value={normalizeCommandMode(value.commandMode)}
+              options={COMMAND_MODE_OPTIONS}
+              disabled={disabled}
+              variant="floating"
+              className="motion-axis-card__command-select"
+              onChange={next => onChange({ commandMode: next })}
+            />
 
-          <SelectField
-            label="RampType"
-            title="非标扩展：在 S/I 指令后附加 = / < / > / <>。若设备不支持，建议使用“无”。"
-            value={RAMP_TYPE_OPTIONS.some(option => option.value === value.rampType) ? value.rampType : 'None'}
-            options={RAMP_TYPE_OPTIONS}
-            disabled={disabled}
-            variant="floating"
-            className="motion-axis-card__command-select"
-            onChange={next => onChange({ rampType: next })}
-          />
+            <Box className="motion-axis-card__command-limit">
+              <ValueSliderField
+                label={motionLimitField.label}
+                title={motionLimitField.title}
+                value={motionLimitField.value}
+                min={motionLimitField.min}
+                max={motionLimitField.max}
+                step={motionLimitField.step}
+                valueFormatter={motionLimitField.valueFormatter}
+                onChange={next => onChange({ maxSpeed: motionLimitField.toProfileValue(next) })}
+              />
+            </Box>
+          </Box>
 
-          <Box className="motion-axis-card__command-limit">
-            <ValueSliderField
-              label={motionLimitField.label}
-              title={motionLimitField.title}
-              value={motionLimitField.value}
-              min={motionLimitField.min}
-              max={motionLimitField.max}
-              step={motionLimitField.step}
-              valueFormatter={motionLimitField.valueFormatter}
-              onChange={next => onChange({ maxSpeed: motionLimitField.toProfileValue(next) })}
+          <Box className="motion-axis-card__ramp-row">
+            <SelectField
+              label="斜率曲线"
+              title="非标准扩展：在 S/I 指令后附加 = / < / > / <>。若设备不支持，建议保持“无”。"
+              value={RAMP_TYPE_OPTIONS.some(option => option.value === value.rampType) ? value.rampType : 'None'}
+              options={RAMP_TYPE_OPTIONS}
+              disabled={disabled}
+              variant="floating"
+              className="motion-axis-card__command-select"
+              onChange={next => onChange({ rampType: next })}
             />
           </Box>
-        </Box>
+        </>
       )}
     </Box>
   );
@@ -2068,7 +2192,7 @@ function App() {
   const [dialog, setDialog] = useState(null);
   const [manualDraft, setManualDraft] = useState(EMPTY_MANUAL);
   const [manualMotionMode, setManualMotionMode] = useState('Default');
-  const [manualMotionValue, setManualMotionValue] = useState(100);
+  const [manualMotionValue, setManualMotionValue] = useState(MANUAL_DEFAULT_SPEED);
   const [manualContinuous, setManualContinuous] = useState(false);
   const [scriptSettings, setScriptSettings] = useState({ loop: false, speed: 1 });
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
@@ -2089,7 +2213,7 @@ function App() {
   const manualTimerRef = useRef(null);
   const manualDraftRef = useRef(EMPTY_MANUAL);
   const manualMotionModeRef = useRef('Default');
-  const manualMotionValueRef = useRef(100);
+  const manualMotionValueRef = useRef(MANUAL_DEFAULT_SPEED);
   const savedSignalsHashRef = useRef('');
   const scriptSettingsInitializedRef = useRef(false);
   const manualInitializedRef = useRef(false);
@@ -2127,7 +2251,10 @@ function App() {
         setManualDraft(initialManualDraft);
         manualDraftRef.current = initialManualDraft;
         const initialManualMode = normalizeManualMotionMode(overviewResponse?.runtime?.manualCommand?.requestedCommandMode);
-        const initialManualMotionValue = normalizeManualMotionValueByMode(initialManualMode, overviewResponse?.runtime?.manualCommand?.requestedMotionValue ?? (initialManualMode === 'Interval' ? 1000 : 100));
+        const initialManualMotionValue = normalizeManualMotionValueByMode(
+          initialManualMode,
+          overviewResponse?.runtime?.manualCommand?.requestedMotionValue ?? (initialManualMode === 'Interval' ? MANUAL_DEFAULT_INTERVAL_MS : MANUAL_DEFAULT_SPEED),
+        );
         setManualMotionMode(initialManualMode);
         manualMotionModeRef.current = initialManualMode;
         setManualMotionValue(initialManualMotionValue);
@@ -3290,9 +3417,9 @@ function App() {
     if (mode === 'Interval') {
       return {
         label: '指定时长',
-        title: '手动模式固定使用 I 指令，滑条值表示到达目标位置所需时长（毫秒）。',
+        title: '手动模式固定使用 I 指令，滑条值表示到达目标位置所需时长（毫秒），当前上限为 1000ms。',
         min: 1,
-        max: 60000,
+        max: MANUAL_INTERVAL_MAX_MS,
         step: 1,
         valueFormatter: next => `${Math.round(Number(next || 0))}ms`,
       };
@@ -3301,7 +3428,7 @@ function App() {
     if (mode === 'Speed') {
       return {
         label: '指定速度',
-        title: '手动模式固定使用 S 指令，滑条值即本次手动输出的速度。',
+        title: '手动模式固定使用 S 指令；这里填写的是逻辑速度，真正发给设备的 S 数值会在每个输出设备里再按轴上限与速度单位基准换算。若设备对 S 支持不稳定，建议优先改用时间 (I) 或跟随轴配置。',
         min: AXIS_LIMIT_MIN_SPEED,
         max: AXIS_LIMIT_MAX_SPEED,
         step: 1,
@@ -3310,8 +3437,8 @@ function App() {
     }
 
     return {
-      label: '斜率值（默认=速度）',
-      title: '默认模式下不强制 S/I；每个轴仍按各自轴配置决定使用 S 或 I。此滑条值按“速度上限”解释，若轴配置为 I 会自动换算成对应时长。',
+      label: '指定速度',
+      title: '跟随轴配置：每个轴按各自轴配置决定使用时间、速度或无。这里填写的是逻辑速度上限；若轴配置为 I，会自动换算成对应时长，若轴配置为 S，则会在对应输出设备里再换算成最终发出的 S 数值。',
       min: AXIS_LIMIT_MIN_SPEED,
       max: AXIS_LIMIT_MAX_SPEED,
       step: 1,
@@ -3756,7 +3883,7 @@ function App() {
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="manual-toolbar__motion-controls">
                         <SelectField
                           label="斜率方式"
-                          title="默认：按轴配置决定走 S 或 I；速度：全部按 S；时间：全部按 I。"
+                          title="跟随轴配置：每个轴按自己的配置决定走时间 / 速度 / 无；时间：全部按 I；速度：全部按 S。"
                           value={manualMotionMode}
                           options={MANUAL_MOTION_MODE_OPTIONS}
                           variant="compact"
@@ -4069,33 +4196,14 @@ function App() {
                                 {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`速度基准 · ${formatSpeedUnitBaseLabel(tcodeSettings?.speedUnitBase || output.speedUnitBase)}`} />}
                               </Stack>
 
-                              {isTCodeOutputType(output.type) && (
-                                <Box className="dialog-panel" sx={{ p: 1.25 }}>
-                                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" sx={{ mb: 0.75 }}>
-                                    <Typography variant="caption" color="text.secondary">
-                                      设备信息（D 指令）
-                                    </Typography>
-                                    <Button
-                                      size="small"
-                                      variant="text"
-                                      onClick={() => refreshTCodeDeviceInfo(output.id)}
-                                      disabled={busyKey === `tcode-device-refresh-${output.id}` || !outputState.connected}
-                                    >
-                                      刷新
-                                    </Button>
-                                  </Stack>
-                                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                                    <Chip size="small" variant="outlined" label={tcodeDeviceInfo?.supported ? '支持查询' : '不支持查询'} />
-                                    {tcodeDeviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${tcodeDeviceInfo.firmwareVersion}`} />}
-                                    {tcodeDeviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${tcodeDeviceInfo.tcodeVersion}`} />}
-                                    {tcodeDeviceInfo?.status && <Chip size="small" variant="outlined" label={tcodeDeviceInfo.status} />}
-                                  </Stack>
-                                  {Array.isArray(tcodeDeviceInfo?.axisDescriptors) && tcodeDeviceInfo.axisDescriptors.length > 0 && (
-                                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 0.75 }}>
-                                      {tcodeDeviceInfo.axisDescriptors.join(' · ')}
-                                    </Typography>
-                                  )}
-                                </Box>
+                              {output.type === 'TCodeSerial' && (
+                                <TCodeDeviceInfoCard
+                                  deviceInfo={tcodeDeviceInfo}
+                                  connected={Boolean(outputState.connected)}
+                                  onRefresh={() => refreshTCodeDeviceInfo(output.id)}
+                                  busy={busyKey === `tcode-device-refresh-${output.id}`}
+                                  className="output-card__device-info"
+                                />
                               )}
 
                               {output.type === 'Intiface' && Array.isArray(outputState.devices) && outputState.devices.length > 0 && (
@@ -4276,58 +4384,31 @@ function App() {
                     onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, motionProfileId: next } }))}
                   />
 
-                  <SelectField
-                    label="输出斜率方式"
-                    title="无=按每轴配置；速度=强制全部使用 S；时间=强制全部使用 I。"
-                    value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
-                    options={OUTPUT_SLOPE_MODE_OPTIONS}
-                    variant="compact"
-                    fullWidth
-                    onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, slopeMode: next } }))}
-                  />
+                  <Box className="dialog-grid dialog-grid--two-cols">
+                    <SelectField
+                      label="输出斜率方式"
+                      title="跟随轴配置=每个轴按自己的配置决定走时间 / 速度 / 无；时间=强制全部使用 I；速度=强制全部使用 S；无=只发位置值。"
+                      value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
+                      options={OUTPUT_SLOPE_MODE_OPTIONS}
+                      variant="compact"
+                      fullWidth
+                      onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, slopeMode: next } }))}
+                    />
 
-                  <SelectField
-                    label="速度单位基准"
-                    title="默认每 100ms。切换为每秒后，仅影响 S 相关速度换算与 I 时长换算。"
-                    value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
-                    options={SPEED_UNIT_BASE_OPTIONS}
-                    variant="compact"
-                    fullWidth
-                    onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, speedUnitBase: next } }))}
-                  />
+                    <SelectField
+                      label="速度单位基准"
+                      title="默认每 100ms。切到每秒后，发送给设备的 S 数值会按秒基准换算。"
+                      value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
+                      options={SPEED_UNIT_BASE_OPTIONS}
+                      variant="compact"
+                      fullWidth
+                      onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, speedUnitBase: next } }))}
+                    />
+                  </Box>
 
                   <Alert severity="info" variant="outlined">
                     速度单位基准默认是 <strong>每 100ms</strong>。若你的设备/固件按“每秒”解释 S 值，可切到“每秒”。
                   </Alert>
-
-                  <Box className="dialog-panel">
-                    <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">设备信息（D 指令）</Typography>
-                      <Chip size="small" variant="outlined" label={outputDialogOverview?.connected ? '已连接' : '未连接'} />
-                    </Box>
-
-                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" sx={{ mb: 1 }}>
-                      <Chip size="small" variant="outlined" label={outputDialogOverview?.tcodeDeviceInfo?.supported ? '支持查询' : '不支持查询'} />
-                      {outputDialogOverview?.tcodeDeviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${outputDialogOverview.tcodeDeviceInfo.firmwareVersion}`} />}
-                      {outputDialogOverview?.tcodeDeviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${outputDialogOverview.tcodeDeviceInfo.tcodeVersion}`} />}
-                      {outputDialogOverview?.tcodeDeviceInfo?.status && <Chip size="small" variant="outlined" label={outputDialogOverview.tcodeDeviceInfo.status} />}
-                    </Stack>
-
-                    {Array.isArray(outputDialogOverview?.tcodeDeviceInfo?.axisDescriptors) && outputDialogOverview.tcodeDeviceInfo.axisDescriptors.length > 0 && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                        {outputDialogOverview.tcodeDeviceInfo.axisDescriptors.join(' · ')}
-                      </Typography>
-                    )}
-
-                    <Button
-                      size="small"
-                      variant="outlined"
-                      onClick={() => refreshTCodeDeviceInfo(dialog.outputId)}
-                      disabled={busyKey === `tcode-device-refresh-${dialog.outputId}` || !outputDialogOverview?.connected}
-                    >
-                      刷新设备信息
-                    </Button>
-                  </Box>
                 </>
               )}
 
@@ -4374,6 +4455,13 @@ function App() {
                       onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, comPort: next } }))}
                     />
                   </Box>
+
+                  <TCodeDeviceInfoCard
+                    deviceInfo={outputDialogOverview?.tcodeDeviceInfo}
+                    connected={Boolean(outputDialogOverview?.connected)}
+                    onRefresh={() => refreshTCodeDeviceInfo(dialog.outputId)}
+                    busy={busyKey === `tcode-device-refresh-${dialog.outputId}`}
+                  />
                 </>
               )}
 

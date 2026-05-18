@@ -147,7 +147,6 @@ public sealed class TCodeSerialOutput : IDisposable
         var effectiveFrame = previousEffectiveFrame;
         var sb = new System.Text.StringBuilder();
         var deltaMs = Math.Max(durationMsOverride ?? (int)Math.Round(Math.Max(frame.DeltaMs, 1d)), 1);
-        var speedWindowMs = ResolveSpeedWindowMs();
 
         foreach (var axis in MotionAxisHelper.All)
         {
@@ -180,34 +179,68 @@ public sealed class TCodeSerialOutput : IDisposable
             var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
             var posText = pos.ToString("D3");
             var commandMode = ResolveCommandMode(frame, config);
+            int? speedLimitForLog = null;
+            int? requestedSpeedForLog = null;
+            int? logicalSpeedForLog = null;
+            int? emittedSpeedForLog = null;
+            int? durationMsForLog = null;
             string term;
             if (forceInterval)
             {
+                durationMsForLog = deltaMs;
                 term = $"I{deltaMs}";
+            }
+            else if (commandMode == TCodeCommandMode.None)
+            {
+                term = string.Empty;
             }
             else if (commandMode == TCodeCommandMode.Interval)
             {
-                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
-                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
+                var requestedLogicalSpeed = TCodeAxisDebugFormatter.HasRequestedSpeed(frame)
+                    ? TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, config.MaxSpeed)
+                    : (int?)null;
+                var logicalSpeedLimit = requestedLogicalSpeed ?? Math.Clamp(config.MaxSpeed, 1, 999);
                 var durationMs = frame.RequestedCommandMode == TCodeCommandMode.Interval
                     ? TCodeAxisDebugFormatter.ResolveRequestedDurationMs(frame, deltaMs)
-                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, effectiveSpeedLimit, deltaMs, speedWindowMs);
+                    : TCodeAxisDebugFormatter.ComputeDurationMs(previousMapped, mapped, logicalSpeedLimit, deltaMs);
+                speedLimitForLog = logicalSpeedLimit;
+                requestedSpeedForLog = requestedLogicalSpeed;
+                durationMsForLog = durationMs;
                 term = $"I{durationMs}";
             }
             else
             {
-                var requestedSpeed = frame.RequestedMotionValue is > 0 ? Math.Clamp(frame.RequestedMotionValue.Value, 1, 999) : config.MaxSpeed;
-                var effectiveSpeedLimit = Math.Clamp(Math.Min(requestedSpeed, config.MaxSpeed), 1, 999);
-                var speed = frame.RequestedCommandMode == TCodeCommandMode.Speed
-                    ? Math.Min(TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, effectiveSpeedLimit), effectiveSpeedLimit)
-                    : _velocity[axis].Estimate(mapped, frame.DeltaMs, effectiveSpeedLimit, speedWindowMs);
-                term = $"S{speed}";
+                var requestedLogicalSpeed = TCodeAxisDebugFormatter.HasRequestedSpeed(frame)
+                    ? TCodeAxisDebugFormatter.ResolveRequestedSpeed(frame, config.MaxSpeed)
+                    : (int?)null;
+                var logicalSpeedLimit = requestedLogicalSpeed ?? Math.Clamp(config.MaxSpeed, 1, 999);
+                var logicalSpeed = requestedLogicalSpeed ?? _velocity[axis].Estimate(mapped, frame.DeltaMs, logicalSpeedLimit);
+                var emittedSpeed = ConvertSpeedToOutputUnits(logicalSpeed);
+                speedLimitForLog = logicalSpeedLimit;
+                requestedSpeedForLog = requestedLogicalSpeed;
+                logicalSpeedForLog = logicalSpeed;
+                emittedSpeedForLog = emittedSpeed;
+                term = $"S{emittedSpeed}";
             }
 
             term = ApplyRampSuffix(term, config.RampType);
 
             sb.Append($"{MotionAxisHelper.Token(axis)}{posText}{term} ");
-            OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(axis, source, previousSource, previousMapped, remapped, mapped, config, action: "emit", term: term));
+            OnDebugLog?.Invoke(TCodeAxisDebugFormatter.FormatAxisTrace(
+                axis,
+                source,
+                previousSource,
+                previousMapped,
+                remapped,
+                mapped,
+                config,
+                action: "emit",
+                term: term,
+                speedLimit: speedLimitForLog,
+                requestedSpeed: requestedSpeedForLog,
+                logicalSpeed: logicalSpeedForLog,
+                emittedSpeed: emittedSpeedForLog,
+                durationMs: durationMsForLog));
         }
 
         return (sb.ToString().TrimEnd(), effectiveFrame);
@@ -270,14 +303,22 @@ public sealed class TCodeSerialOutput : IDisposable
         {
             TCodeSlopeMode.Speed => TCodeCommandMode.Speed,
             TCodeSlopeMode.Interval => TCodeCommandMode.Interval,
+            TCodeSlopeMode.NoSlope => TCodeCommandMode.None,
             _ => frame.RequestedCommandMode ?? axis.CommandMode,
         };
     }
 
-    private double ResolveSpeedWindowMs() => _output?.SpeedUnitBase == TCodeSpeedUnitBase.PerSecond ? 1000d : 100d;
+    private int ConvertSpeedToOutputUnits(int logicalSpeed)
+    {
+        var clamped = Math.Max(logicalSpeed, 0);
+        return _output?.SpeedUnitBase == TCodeSpeedUnitBase.PerSecond ? clamped * 10 : clamped;
+    }
 
     private static string ApplyRampSuffix(string term, TCodeRampType rampType)
     {
+        if (string.IsNullOrWhiteSpace(term))
+            return string.Empty;
+
         var suffix = rampType switch
         {
             TCodeRampType.Linear => "=",

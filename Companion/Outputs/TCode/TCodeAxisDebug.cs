@@ -7,8 +7,9 @@ namespace Sensa.Outputs.TCode;
 internal static class TCodeAxisDebugFormatter
 {
     private const double OutputUnitsPerStroke = 999d;
+    private const double SpeedWindowMs = 100d;
 
-    public static int ComputeDurationMs(float previousMapped, float mapped, int maxSpeed, int fallbackMs, double speedWindowMs = 100d)
+    public static int ComputeDurationMs(float previousMapped, float mapped, int maxSpeed, int fallbackMs)
     {
         if (maxSpeed <= 0)
             return Math.Max(fallbackMs, 1);
@@ -17,16 +18,21 @@ internal static class TCodeAxisDebugFormatter
         if (deltaUnits <= 0.0001d)
             return 1;
 
-        var windowMs = Math.Max(speedWindowMs, 1d);
-        return Math.Max((int)Math.Ceiling((deltaUnits / maxSpeed) * windowMs), 1);
+        return Math.Max((int)Math.Ceiling((deltaUnits / maxSpeed) * SpeedWindowMs), 1);
+    }
+
+    public static bool HasRequestedSpeed(MotionFrame frame)
+    {
+        return frame.RequestedMotionValue is > 0
+            && (!frame.RequestedCommandMode.HasValue || frame.RequestedCommandMode == TCodeCommandMode.Speed);
     }
 
     public static int ResolveRequestedSpeed(MotionFrame frame, int fallbackSpeed)
     {
-        var requested = frame.RequestedCommandMode == TCodeCommandMode.Speed && frame.RequestedMotionValue is > 0
-            ? frame.RequestedMotionValue.Value
+        var requested = HasRequestedSpeed(frame)
+            ? frame.RequestedMotionValue.GetValueOrDefault(fallbackSpeed)
             : fallbackSpeed;
-        return Math.Clamp(requested, 1, 999);
+        return Math.Clamp(requested, 1, Math.Max(fallbackSpeed, 1));
     }
 
     public static int ResolveRequestedDurationMs(MotionFrame frame, int fallbackDurationMs)
@@ -37,7 +43,22 @@ internal static class TCodeAxisDebugFormatter
         return Math.Max(requested, 1);
     }
 
-    public static string FormatAxisTrace(MotionAxis axis, float source, float previousSource, float previousMapped, float remapped, float mapped, TCodeAxisConfig config, string action, string? term = null, string? note = null)
+    public static string FormatAxisTrace(
+        MotionAxis axis,
+        float source,
+        float previousSource,
+        float previousMapped,
+        float remapped,
+        float mapped,
+        TCodeAxisConfig config,
+        string action,
+        string? term = null,
+        string? note = null,
+        int? speedLimit = null,
+        int? requestedSpeed = null,
+        int? logicalSpeed = null,
+        int? emittedSpeed = null,
+        int? durationMs = null)
     {
         var stage = ResolveStage(action, note);
         var reason = ResolveReason(note, stage);
@@ -53,6 +74,21 @@ internal static class TCodeAxisDebugFormatter
 
         if (!string.IsNullOrWhiteSpace(reason))
             payload.Append($" reason={reason}");
+
+        if (speedLimit.HasValue)
+            payload.Append($" speedLimit={speedLimit.Value}");
+
+        if (requestedSpeed.HasValue)
+            payload.Append($" requestedSpeed={requestedSpeed.Value}");
+
+        if (logicalSpeed.HasValue)
+            payload.Append($" logicalSpeed={logicalSpeed.Value}");
+
+        if (emittedSpeed.HasValue)
+            payload.Append($" emittedSpeed={emittedSpeed.Value}");
+
+        if (durationMs.HasValue)
+            payload.Append($" durationMs={durationMs.Value}");
 
         payload.Append($" input={ToManualValue(source)} prevInput={ToManualValue(previousSource)}");
 

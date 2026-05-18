@@ -44,8 +44,9 @@ public enum TCodeAxisMode
 
 public enum TCodeCommandMode
 {
-    Speed,
+    None,
     Interval,
+    Speed,
 }
 
 public enum TCodeSpeedUnitBase
@@ -59,6 +60,7 @@ public enum TCodeSlopeMode
     None,
     Speed,
     Interval,
+    NoSlope,
 }
 
 public enum TCodeRampType
@@ -79,7 +81,7 @@ public sealed class TCodeAxisConfig
     public int           MaxSpeed  { get; set; } = 999;
     public bool          Invert    { get; set; } = false;
     public TCodeAxisMode Mode      { get; set; } = TCodeAxisMode.Normal;
-    public TCodeCommandMode CommandMode { get; set; } = TCodeCommandMode.Speed;
+    public TCodeCommandMode CommandMode { get; set; } = TCodeCommandMode.Interval;
     public TCodeRampType RampType { get; set; } = TCodeRampType.None;
     public float         LockValue { get; set; } = 0.5f;
 }
@@ -896,7 +898,7 @@ public sealed class AppConfig
 
         var commandMode = Enum.IsDefined(typeof(TCodeCommandMode), source?.CommandMode ?? fallback.CommandMode)
             ? source?.CommandMode ?? fallback.CommandMode
-            : TCodeCommandMode.Speed;
+            : TCodeCommandMode.Interval;
 
         var rampType = Enum.IsDefined(typeof(TCodeRampType), source?.RampType ?? fallback.RampType)
             ? source?.RampType ?? fallback.RampType
