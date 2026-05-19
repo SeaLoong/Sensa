@@ -319,7 +319,7 @@ public sealed class AppConfig
         WebUi.Title           = string.IsNullOrWhiteSpace(webUi.Title) ? "Sensa WebUI" : webUi.Title;
         TCodeProfiles = CloneProfiles(other.TCodeProfiles);
         AxisProfiles = CloneAxisProfiles(other.AxisProfiles);
-        Outputs = CloneOutputs(other.Outputs, AxisProfiles);
+        MergeOutputsPreservingReferences(other.Outputs);
 
         Signals = (other.Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
@@ -350,7 +350,7 @@ public sealed class AppConfig
         TcpTCode ??= new TcpTCodeConfig();
         TCodeProfiles = CloneProfiles(TCodeProfiles);
         AxisProfiles = CloneAxisProfiles(AxisProfiles);
-        Outputs = CloneOutputs(Outputs, AxisProfiles);
+        MergeOutputsPreservingReferences(Outputs);
         OscMappingPresets = CloneOscMappingPresets(OscMappingPresets);
         SchemaVersion = 5;
 
@@ -764,6 +764,47 @@ public sealed class AppConfig
         }
 
         return result;
+    }
+
+    private void MergeOutputsPreservingReferences(List<OutputDeviceConfig>? source)
+    {
+        var normalized = CloneOutputs(source, AxisProfiles);
+        var existingById = (Outputs ?? new List<OutputDeviceConfig>())
+            .Where(output => output is not null && !string.IsNullOrWhiteSpace(output.Id))
+            .ToDictionary(output => output.Id, StringComparer.OrdinalIgnoreCase);
+
+        var result = new List<OutputDeviceConfig>(normalized.Count);
+        foreach (var next in normalized)
+        {
+            if (existingById.TryGetValue(next.Id, out var existing) && existing.Type == next.Type)
+            {
+                CopyOutput(existing, next);
+                result.Add(existing);
+            }
+            else
+            {
+                result.Add(next);
+            }
+        }
+
+        Outputs = result;
+    }
+
+    private static void CopyOutput(OutputDeviceConfig target, OutputDeviceConfig source)
+    {
+        target.Id = source.Id;
+        target.Name = source.Name;
+        target.Type = source.Type;
+        target.Enabled = source.Enabled;
+        target.MotionProfileId = source.MotionProfileId;
+        target.ComPort = source.ComPort;
+        target.Host = source.Host;
+        target.Port = source.Port;
+        target.PreferSpeedMode = source.PreferSpeedMode;
+        target.SpeedUnitBase = source.SpeedUnitBase;
+        target.SlopeMode = source.SlopeMode;
+        target.ManageEngineProcess = source.ManageEngineProcess;
+        target.WebsocketAddress = source.WebsocketAddress;
     }
 
     private TCodeMotionProfile BuildMirroredTargetProfile(string? motionProfileId)

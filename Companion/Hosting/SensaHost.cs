@@ -505,6 +505,116 @@ public static class SensaHost
         Task<bool> ConnectOutputAsync(string outputId) => outputCoordinator.ConnectAsync(outputId);
         Task DisconnectOutputAsync(string outputId) => outputCoordinator.DisconnectAsync(outputId);
 
+        static Dictionary<string, OutputDeviceConfig> BuildOutputLookup(IEnumerable<OutputDeviceConfig> outputs)
+        {
+            return outputs
+                .Where(output => output is not null && !string.IsNullOrWhiteSpace(output.Id))
+                .ToDictionary(output => output.Id, StringComparer.OrdinalIgnoreCase);
+        }
+
+        static bool HasOutputTopologyChanges(AppConfig previousConfigSnapshot, AppConfig currentConfigSnapshot)
+        {
+            var previousOutputs = BuildOutputLookup(previousConfigSnapshot.Outputs);
+            var currentOutputs = BuildOutputLookup(currentConfigSnapshot.Outputs);
+            if (previousOutputs.Count != currentOutputs.Count)
+                return true;
+
+            foreach (var (outputId, currentOutput) in currentOutputs)
+            {
+                if (!previousOutputs.TryGetValue(outputId, out var previousOutput))
+                    return true;
+
+                if (previousOutput.Type != currentOutput.Type)
+                    return true;
+            }
+
+            return false;
+        }
+
+        static bool HasOutputConnectionTargetChanged(OutputDeviceConfig? previousOutput, OutputDeviceConfig currentOutput)
+        {
+            if (previousOutput is null)
+                return true;
+
+            if (previousOutput.Type != currentOutput.Type)
+                return true;
+
+            return currentOutput.Type switch
+            {
+                OutputDeviceType.TCodeSerial => !string.Equals(
+                    NormalizeOutputComPort(previousOutput.ComPort),
+                    NormalizeOutputComPort(currentOutput.ComPort),
+                    StringComparison.Ordinal),
+
+                OutputDeviceType.TCodeUdp =>
+                    !string.Equals(NormalizeOutputHost(previousOutput.Host, "127.0.0.1"), NormalizeOutputHost(currentOutput.Host, "127.0.0.1"), StringComparison.Ordinal)
+                    || NormalizeOutputPort(previousOutput.Port, 9999) != NormalizeOutputPort(currentOutput.Port, 9999),
+
+                OutputDeviceType.TCodeTcp =>
+                    !string.Equals(NormalizeOutputHost(previousOutput.Host, "127.0.0.1"), NormalizeOutputHost(currentOutput.Host, "127.0.0.1"), StringComparison.Ordinal)
+                    || NormalizeOutputPort(previousOutput.Port, 9998) != NormalizeOutputPort(currentOutput.Port, 9998),
+
+                OutputDeviceType.Intiface =>
+                    !string.Equals(
+                        NormalizeOutputWebsocketAddress(previousOutput.WebsocketAddress, "ws://localhost:12345"),
+                        NormalizeOutputWebsocketAddress(currentOutput.WebsocketAddress, "ws://localhost:12345"),
+                        StringComparison.Ordinal)
+                    || NormalizeOutputPort(previousOutput.Port, 12345) != NormalizeOutputPort(currentOutput.Port, 12345)
+                    || previousOutput.ManageEngineProcess != currentOutput.ManageEngineProcess,
+
+                _ => false,
+            };
+        }
+
+        static string NormalizeOutputComPort(string? value) => (value ?? string.Empty).Trim().ToUpperInvariant();
+
+        static string NormalizeOutputHost(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
+
+        static int NormalizeOutputPort(int value, int fallback) => value is > 0 and <= 65535 ? value : fallback;
+
+        static string NormalizeOutputWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
+
+        async Task ApplyOutputConfigChangesAsync(AppConfig previousConfigSnapshot)
+        {
+            var previousOutputs = BuildOutputLookup(previousConfigSnapshot.Outputs);
+            var requiresReload = HasOutputTopologyChanges(previousConfigSnapshot, config);
+
+            await outputCoordinator.RunStateChangeBatchAsync(async () =>
+            {
+                if (requiresReload)
+                    await outputCoordinator.ReloadAsync().ConfigureAwait(false);
+
+                foreach (var output in config.Outputs)
+                {
+                    previousOutputs.TryGetValue(output.Id, out var previousOutput);
+                    var isConnected = outputCoordinator.IsConnected(output.Id);
+
+                    if (!output.Enabled)
+                    {
+                        if (isConnected)
+                            await outputCoordinator.DisconnectAsync(output.Id).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    var needsReconnect = HasOutputConnectionTargetChanged(previousOutput, output);
+                    if (needsReconnect)
+                    {
+                        if (isConnected)
+                            await outputCoordinator.DisconnectAsync(output.Id).ConfigureAwait(false);
+
+                        await outputCoordinator.ConnectAsync(output.Id).ConfigureAwait(false);
+                        continue;
+                    }
+
+                    if (previousOutput is null || !previousOutput.Enabled)
+                    {
+                        if (!isConnected)
+                            await outputCoordinator.ConnectAsync(output.Id).ConfigureAwait(false);
+                    }
+                }
+            }).ConfigureAwait(false);
+        }
+
         async Task<AppConfig> ApplyConfigUpdateAsync(AppConfig incoming)
         {
             var previousConfig = new AppConfig();
@@ -532,11 +642,7 @@ public static class SensaHost
             try
             {
                 SyncOscServices(forceReceiverReconfigure: receiverChanged, forceQueryRefresh: queryEnabledChanged || queryChanged);
-                await outputCoordinator.RunStateChangeBatchAsync(async () =>
-                {
-                    await outputCoordinator.ReloadAsync().ConfigureAwait(false);
-                    await outputCoordinator.ConnectEnabledAsync().ConfigureAwait(false);
-                }).ConfigureAwait(false);
+                await ApplyOutputConfigChangesAsync(previousConfig).ConfigureAwait(false);
                 config.Save();
                 Log("[Config] Updated from WebUI.");
                 return config;
@@ -553,6 +659,12 @@ public static class SensaHost
                     config.Osc.OscQueryEnabled = previousOscQueryEnabled;
                     config.Osc.OscQueryUrl = previousOscQueryUrl;
                     SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
+                    outputCoordinator.RebuildConnections();
+                    await outputCoordinator.RunStateChangeBatchAsync(async () =>
+                    {
+                        foreach (var output in config.Outputs.Where(output => output.Enabled))
+                            await outputCoordinator.ConnectAsync(output.Id).ConfigureAwait(false);
+                    }).ConfigureAwait(false);
                 }
                 catch
                 {

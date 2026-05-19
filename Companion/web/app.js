@@ -3306,45 +3306,6 @@ function App() {
     }).catch(error => notify(error.message || '移除轴配置失败', 'error'));
   }
 
-  async function syncOutputConnections(nextStudio, nextConfig, options = {}) {
-    const latestOverview = await refreshOverview();
-    const outputs = getOutputs(nextConfig);
-    const connectionState = Object.fromEntries(outputs.map(output => [output.id, Boolean(getOutputOverview(latestOverview, output.id)?.connected)]));
-    let changed = false;
-
-    for (const output of outputs) {
-      const desired = Boolean(output.enabled);
-      const connected = connectionState[output.id];
-
-      if (options.reconnectOutputId === output.id && desired) {
-        if (connected) {
-          await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/disconnect`, { method: 'POST' }).catch(() => null);
-        }
-        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/connect`, { method: 'POST' });
-        connectionState[output.id] = Boolean(result?.connected);
-        changed = true;
-        if (result?.message) notify(result.message, result.ok === false ? 'error' : 'success');
-        continue;
-      }
-
-      if (desired && !connected) {
-        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/connect`, { method: 'POST' });
-        connectionState[output.id] = Boolean(result?.connected);
-        changed = true;
-        if (result?.message) notify(result.message, result.ok === false ? 'error' : 'success');
-      }
-
-      if (!desired && connected) {
-        const result = await apiRequest(`/api/control/output/${encodeURIComponent(output.id)}/disconnect`, { method: 'POST' });
-        connectionState[output.id] = false;
-        changed = true;
-        if (result?.message && options.announceDisconnect !== false) notify(result.message, 'info');
-      }
-    }
-
-    if (changed) await refreshOverview();
-  }
-
   function selectInputTab(nextMode) {
     setStudio(previous => ({ ...(previous || {}), preferredInputTab: nextMode }));
   }
@@ -3664,13 +3625,13 @@ function App() {
   }
 
   async function setOutputEnabled(type, enabled) {
-    if (!config || !studio) return;
+    if (!config) return;
 
     await withBusy(`output-enable-${type}`, async () => {
       const nextConfig = cloneConfig(config);
       nextConfig.outputs = getOutputs(config).map(output => (output.id === type ? { ...output, enabled } : output));
       const saved = await persistConfig(nextConfig);
-      await syncOutputConnections(studio, saved, { announceDisconnect: false });
+      await refreshOverview();
       notify(`${getOutputConfig(saved, type)?.name || '输出'}${enabled ? ' 已启用' : ' 已禁用'}`, 'success');
     }).catch(error => notify(error.message || '更新输出状态失败', 'error'));
   }
@@ -3707,7 +3668,7 @@ function App() {
       nextConfig.outputs = getOutputs(config).filter(output => output.id !== type);
       const saved = await persistConfig(nextConfig);
       setStudio(nextStudio);
-      await syncOutputConnections(nextStudio, saved, { announceDisconnect: false });
+      await refreshOverview();
       notify(`${removed?.name || '输出'} 已移除`, 'info');
     }).catch(error => notify(error.message || '移除输出失败', 'error'));
   }
@@ -3725,7 +3686,7 @@ function App() {
   }
 
   async function saveOutputDialog() {
-    if (!dialog || !config || !studio) return;
+    if (!dialog || !config) return;
 
     const conflicts = getOutputTargetConflicts(config, dialog.outputId, dialog.draft);
     if (conflicts.length > 0) {
@@ -3737,7 +3698,7 @@ function App() {
       const nextConfig = mergeOutputDraft(dialog.outputId, config, dialog.draft);
       const saved = await persistConfig(nextConfig);
       setDialog(null);
-      await syncOutputConnections(studio, saved, { reconnectOutputId: dialog.outputId, announceDisconnect: false });
+      await refreshOverview();
       notify(`${getOutputConfig(saved, dialog.outputId)?.name || '输出'} 配置已保存`, 'success');
     }).catch(error => notify(error.message || '保存配置失败', 'error'));
   }

@@ -50,18 +50,33 @@ public sealed class OutputCoordinator : IAsyncDisposable
 
     public async Task ReloadAsync()
     {
-        List<OutputConnection> oldConnections;
+        List<OutputConnection> staleConnections;
+        var nextConnections = new Dictionary<string, OutputConnection>(StringComparer.OrdinalIgnoreCase);
         lock (_sync)
         {
-            oldConnections = _connections.Values.ToList();
-            _connections.Clear();
+            var remaining = new Dictionary<string, OutputConnection>(_connections, StringComparer.OrdinalIgnoreCase);
             foreach (var output in _config.Outputs)
             {
-                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
+                if (remaining.TryGetValue(output.Id, out var existing) && existing.CanReuse(output))
+                {
+                    nextConnections[output.Id] = existing;
+                    remaining.Remove(output.Id);
+                    continue;
+                }
+
+                if (existing is not null)
+                    remaining.Remove(output.Id);
+
+                nextConnections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
             }
+
+            staleConnections = remaining.Values.ToList();
+            _connections.Clear();
+            foreach (var entry in nextConnections)
+                _connections[entry.Key] = entry.Value;
         }
 
-        foreach (var connection in oldConnections)
+        foreach (var connection in staleConnections)
         {
             await connection.DisposeAsync();
         }
@@ -85,6 +100,9 @@ public sealed class OutputCoordinator : IAsyncDisposable
 
         if (connection is null)
             return false;
+
+        if (connection.IsConnected)
+            return true;
 
         return await connection.ConnectAsync();
     }
@@ -310,7 +328,8 @@ internal sealed class OutputConnection : IAsyncDisposable
     private readonly TCodeSerialOutput? _serial;
     private readonly TCodeUdpOutput? _udp;
     private readonly TCodeTcpOutput? _tcp;
-    private readonly IntifaceOutputClient? _intiface;
+    private IntifaceOutputClient? _intiface;
+    private string _intifaceConfigKey = string.Empty;
     private EmbeddedIntifaceEngine? _intifaceHost;
 
     public OutputConnection(AppConfig config, OutputDeviceConfig output, Action<string> log, Action<string> logDebug, Action<string> logError, Action? notifyChanged)
@@ -337,19 +356,14 @@ internal sealed class OutputConnection : IAsyncDisposable
                 _tcp.OnDebugLog += message => _logDebug($"[Output/TCodeTcp/{_output.Name}] {message}");
                 break;
             case OutputDeviceType.Intiface:
-                _intiface = new IntifaceOutputClient(new IntifaceConfig
-                {
-                    Enabled = _output.Enabled,
-                    ManageEngineProcess = _output.ManageEngineProcess,
-                    WebsocketAddress = _output.WebsocketAddress,
-                    Port = _output.Port,
-                });
-                _intiface.OnLog += message => _log($"[Intiface/{_output.Name}] {message}");
-                _intiface.OnDebugLog += message => _logDebug($"[Output/Intiface/{_output.Name}] {message}");
-                _intiface.DevicesChanged += () => _notifyChanged?.Invoke();
+                ConfigureIntifaceClient();
                 break;
         }
     }
+
+    public bool CanReuse(OutputDeviceConfig output) =>
+        string.Equals(_output.Id, output.Id, StringComparison.OrdinalIgnoreCase)
+        && _output.Type == output.Type;
 
     public bool IsConnected => _output.Type switch
     {
@@ -377,6 +391,9 @@ internal sealed class OutputConnection : IAsyncDisposable
     {
         try
         {
+            if (IsConnected)
+                return true;
+
             switch (_output.Type)
             {
                 case OutputDeviceType.TCodeSerial:
@@ -400,6 +417,8 @@ internal sealed class OutputConnection : IAsyncDisposable
                     _notifyChanged?.Invoke();
                     return _tcp?.IsConnected == true;
                 case OutputDeviceType.Intiface:
+                    await EnsureIntifaceClientConfiguredAsync();
+
                     if (_output.ManageEngineProcess)
                     {
                         if (_intifaceHost?.IsRunning != true)
@@ -532,6 +551,8 @@ internal sealed class OutputConnection : IAsyncDisposable
             case OutputDeviceType.Intiface:
                 if (_intiface is not null)
                     await _intiface.DisposeAsync();
+                _intiface = null;
+                _intifaceConfigKey = string.Empty;
                 _intifaceHost?.Dispose();
                 _intifaceHost = null;
                 break;
@@ -541,6 +562,42 @@ internal sealed class OutputConnection : IAsyncDisposable
     }
 
     private string Label => $"{_output.Name} ({_output.Id})";
+
+    private void ConfigureIntifaceClient()
+    {
+        _intiface = new IntifaceOutputClient(new IntifaceConfig
+        {
+            Enabled = _output.Enabled,
+            ManageEngineProcess = _output.ManageEngineProcess,
+            WebsocketAddress = _output.WebsocketAddress,
+            Port = _output.Port,
+        });
+        _intiface.OnLog += message => _log($"[Intiface/{_output.Name}] {message}");
+        _intiface.OnDebugLog += message => _logDebug($"[Output/Intiface/{_output.Name}] {message}");
+        _intiface.DevicesChanged += HandleIntifaceDevicesChanged;
+        _intifaceConfigKey = BuildIntifaceConfigKey();
+    }
+
+    private async Task EnsureIntifaceClientConfiguredAsync()
+    {
+        if (_output.Type != OutputDeviceType.Intiface)
+            return;
+
+        var nextConfigKey = BuildIntifaceConfigKey();
+        if (_intiface is not null && string.Equals(_intifaceConfigKey, nextConfigKey, StringComparison.Ordinal))
+            return;
+
+        if (_intiface is not null)
+            await _intiface.DisposeAsync();
+
+        _intiface = null;
+        _intifaceConfigKey = string.Empty;
+        ConfigureIntifaceClient();
+    }
+
+    private string BuildIntifaceConfigKey() => $"{_output.WebsocketAddress}|{_output.Port}|{_output.ManageEngineProcess}";
+
+    private void HandleIntifaceDevicesChanged() => _notifyChanged?.Invoke();
 }
 
 internal static class OutputConfigHelpers
