@@ -685,8 +685,11 @@ public static class SensaHost
 
         object ConfigureScriptCore(ScriptConfigureRequest request)
         {
-            var snapshot = scriptPlayer.Configure(request.Loop, request.Speed);
-            LogDebug($"[Input/Script] Settings updated: loop={snapshot.Loop} speed={snapshot.Speed:0.##}x");
+            var snapshot = scriptPlayer.Configure(request.Loop, request.Speed, request.UpdateLoopRange, request.LoopStartMs, request.LoopEndMs);
+            var loopRangeText = snapshot.LoopRangeActive
+                ? $"{snapshot.LoopStartMs ?? 0}ms-{snapshot.LoopEndMs ?? 0}ms"
+                : "full";
+            LogDebug($"[Input/Script] Settings updated: loop={snapshot.Loop} speed={snapshot.Speed:0.##}x range={loopRangeText}");
             return new { ok = true, script = snapshot };
         }
 
@@ -694,6 +697,13 @@ public static class SensaHost
         {
             var snapshot = scriptPlayer.Seek(request.PositionMs);
             LogDebug($"[Input/Script] Seek: {snapshot.PositionMs}ms");
+            return new { ok = true, script = snapshot };
+        }
+
+        object StepScriptActionCore(int direction)
+        {
+            var snapshot = scriptPlayer.StepAction(direction);
+            LogDebug($"[Input/Script] Step {(direction >= 0 ? "next" : "previous")} action: {snapshot.PositionMs}ms");
             return new { ok = true, script = snapshot };
         }
 
@@ -1065,6 +1075,32 @@ public static class SensaHost
             catch (Exception ex)
             {
                 LogError($"[Input/Script] Seek failed: {ex.Message}");
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
+        });
+
+        app.MapPost("/api/input/script/action-prev", () =>
+        {
+            try
+            {
+                return Results.Ok(StepScriptActionCore(-1));
+            }
+            catch (Exception ex)
+            {
+                LogError($"[Input/Script] Previous action failed: {ex.Message}");
+                return Results.BadRequest(new { ok = false, error = ex.Message });
+            }
+        });
+
+        app.MapPost("/api/input/script/action-next", () =>
+        {
+            try
+            {
+                return Results.Ok(StepScriptActionCore(1));
+            }
+            catch (Exception ex)
+            {
+                LogError($"[Input/Script] Next action failed: {ex.Message}");
                 return Results.BadRequest(new { ok = false, error = ex.Message });
             }
         });
@@ -1581,6 +1617,16 @@ public static class SensaHost
                         result = SeekScriptCore(request);
                         break;
                     }
+                    case "/api/input/script/action-prev" when method == "POST":
+                    {
+                        result = StepScriptActionCore(-1);
+                        break;
+                    }
+                    case "/api/input/script/action-next" when method == "POST":
+                    {
+                        result = StepScriptActionCore(1);
+                        break;
+                    }
                     case "/api/input/script" when method == "DELETE":
                     {
                         result = ClearScriptCore();
@@ -1837,7 +1883,12 @@ public sealed record ScriptPlaybackRequest(
 
 public sealed record ScriptConfigureRequest(
     bool? Loop,
-    double? Speed);
+    double? Speed)
+{
+    public bool UpdateLoopRange { get; init; }
+    public long? LoopStartMs { get; init; }
+    public long? LoopEndMs { get; init; }
+}
 
 public sealed record ScriptSeekRequest(long PositionMs);
 

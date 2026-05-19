@@ -317,9 +317,6 @@ body {
   justify-items: stretch;
 }
 
-.config-card__axis-list {
-}
-
 .axis-profile-detail-row {
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
@@ -898,19 +895,238 @@ body {
 
 .script-file-actions {
   align-items: center;
+  min-width: 0;
 }
 
-.script-progress-block {
+.script-file-chip {
+  max-width: min(100%, 480px);
+}
+
+.script-file-chip .MuiChip-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.script-file-actions__caption {
+  min-width: 0;
+  flex: 1 1 240px;
+  word-break: break-word;
+}
+
+.script-progress-panel,
+.script-speed-panel,
+.script-progress-panel .field-panel__body,
+.script-speed-panel .field-panel__body {
+  min-width: 0;
+}
+
+.script-progress-panel .field-panel__body,
+.script-speed-panel .field-panel__body {
   display: grid;
   gap: 10px;
 }
 
 .script-progress-summary {
   align-items: center;
+  min-width: 0;
 }
 
 .script-progress-summary__times {
   justify-content: flex-end;
+  min-width: 0;
+}
+
+.script-progress-summary__times .MuiChip-root {
+  max-width: 100%;
+}
+
+.script-progress-panel .MuiSlider-root,
+.script-speed-panel .MuiSlider-root {
+  width: calc(100% - 16px);
+  margin-inline: 8px;
+  box-sizing: border-box;
+}
+
+.script-progress-panel__bar {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.script-density {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(248, 250, 252, 0.9);
+  padding: 10px 10px 8px;
+  overflow: hidden;
+}
+
+.script-density--disabled {
+  opacity: 0.72;
+}
+
+.script-density__bars {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(4px, 1fr));
+  align-items: end;
+  gap: 2px;
+  min-height: 48px;
+  min-width: 0;
+}
+
+.script-density__range {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  border-radius: 10px;
+  background: rgba(37, 99, 235, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(37, 99, 235, 0.16);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.script-density__selection {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 12px;
+  background: rgba(249, 115, 22, 0.14);
+  box-shadow: inset 0 0 0 1px rgba(249, 115, 22, 0.32);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.script-density__range-boundary {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 999px;
+  pointer-events: none;
+  transform: translateX(-50%);
+  z-index: 2;
+}
+
+.script-density__range-boundary--start {
+  background: rgba(37, 99, 235, 0.86);
+}
+
+.script-density__range-boundary--end {
+  background: rgba(124, 58, 237, 0.82);
+}
+
+.script-density__bar {
+  appearance: none;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  height: 100%;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: flex-end;
+}
+
+.script-density__bar::before {
+  content: '';
+  display: block;
+  width: 100%;
+  min-height: 4px;
+  height: var(--script-density-height, 10%);
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.46);
+  transition:
+    background-color 0.16s ease,
+    transform 0.16s ease;
+}
+
+.script-density__bar--active::before {
+  background: rgba(37, 99, 235, 0.7);
+}
+
+.script-density__bar:hover::before,
+.script-density__bar:focus-visible::before {
+  background: rgba(37, 99, 235, 0.92);
+  transform: scaleY(1.06);
+}
+
+.script-density__bar:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.script-density__bar:disabled {
+  cursor: default;
+}
+
+.script-density__empty {
+  display: grid;
+  place-items: center;
+  min-height: 48px;
+  width: 100%;
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.script-density__marker {
+  position: absolute;
+  top: 6px;
+  bottom: 6px;
+  width: 2px;
+  border-radius: 999px;
+  background: rgba(220, 38, 38, 0.82);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.78);
+  pointer-events: none;
+  transform: translateX(-50%);
+  z-index: 3;
+}
+
+.script-seek-actions,
+.script-speed-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-width: 0;
+}
+
+.script-seek-actions .MuiButton-root,
+.script-speed-presets .MuiButton-root {
+  min-width: 0;
+}
+
+.script-loop-markers,
+.script-jump-row {
+  min-width: 0;
+}
+
+.script-loop-markers .MuiChip-root {
+  max-width: 100%;
+}
+
+.script-jump-row {
+  align-items: center;
+}
+
+.script-jump-row__input {
+  min-width: min(260px, 100%);
+  flex: 1 1 260px;
+}
+
+.script-jump-row .MuiButton-root {
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.script-loop-hint {
+  display: block;
+  line-height: 1.55;
 }
 
 .script-control-grid {
@@ -918,6 +1134,10 @@ body {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 12px;
   align-items: start;
+}
+
+.script-control-grid > * {
+  min-width: 0;
 }
 
 .script-toggle-field {
@@ -928,6 +1148,17 @@ body {
 
 .script-action-row {
   align-items: center;
+  min-width: 0;
+}
+
+.script-action-row .MuiButton-root {
+  min-width: 0;
+  flex: 1 1 140px;
+}
+
+.script-hotkey-hint {
+  display: block;
+  line-height: 1.55;
 }
 
 .preset-apply-row {
@@ -1164,6 +1395,27 @@ body {
 
   .manual-toolbar__actions {
     flex-wrap: wrap !important;
+  }
+
+  .script-file-actions {
+    align-items: flex-start;
+  }
+
+  .script-seek-actions,
+  .script-speed-presets {
+    gap: 6px;
+  }
+
+  .script-seek-actions .MuiButton-root,
+  .script-speed-presets .MuiButton-root,
+  .script-action-row .MuiButton-root,
+  .script-jump-row .MuiButton-root {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .script-jump-row__input {
+    min-width: 0;
+    flex: 1 1 100%;
   }
 
   .preset-apply-row {

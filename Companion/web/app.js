@@ -133,7 +133,7 @@ const OUTPUT_SLOPE_MODE_OPTIONS = [
 ];
 
 const SPEED_UNIT_BASE_OPTIONS = [
-  { value: 'Per100ms', label: '每 100ms（默认）' },
+  { value: 'Per100ms', label: '每 100ms' },
   { value: 'PerSecond', label: '每秒' },
 ];
 
@@ -150,6 +150,26 @@ const AXIS_LIMIT_MAX_SPEED = 999;
 const MANUAL_DEFAULT_SPEED = 999;
 const MANUAL_DEFAULT_INTERVAL_MS = 100;
 const MANUAL_INTERVAL_MAX_MS = 1000;
+const DEFAULT_SCRIPT_SETTINGS = Object.freeze({ loop: false, speed: 1, loopStartMs: null, loopEndMs: null });
+const DEFAULT_STUDIO_STATE = Object.freeze({
+  preferredInputTab: 'manual',
+  scriptDefaults: Object.freeze({
+    loop: DEFAULT_SCRIPT_SETTINGS.loop,
+    speed: DEFAULT_SCRIPT_SETTINGS.speed,
+  }),
+});
+const SCRIPT_SPEED_MIN = 0.1;
+const SCRIPT_SPEED_MAX = 4;
+const SCRIPT_SPEED_STEP = 0.05;
+const SCRIPT_SPEED_PRESETS = [0.25, 0.5, 1, 1.5, 2, 3, 4];
+const SCRIPT_SEEK_ACTIONS = [
+  { key: 'start', label: '开头', mode: 'absolute', value: 0 },
+  { key: 'back10', label: '-10s', mode: 'relative', value: -10000 },
+  { key: 'back5', label: '-5s', mode: 'relative', value: -5000 },
+  { key: 'forward5', label: '+5s', mode: 'relative', value: 5000 },
+  { key: 'forward10', label: '+10s', mode: 'relative', value: 10000 },
+  { key: 'end', label: '结尾', mode: 'absolute', value: 'end' },
+];
 
 const AXIS_PROFILE_DEFS = [
   { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
@@ -773,7 +793,7 @@ function formatSlopeModeLabel(mode) {
 }
 
 function formatSpeedUnitBaseLabel(base) {
-  return SPEED_UNIT_BASE_OPTIONS.find(option => option.value === base)?.label || '每 100ms（默认）';
+  return SPEED_UNIT_BASE_OPTIONS.find(option => option.value === base)?.label || '每 100ms';
 }
 
 function getDefaultOutputPort(type) {
@@ -1125,7 +1145,8 @@ function normalizeSerialPorts(raw) {
 
 function sanitizeStudio(raw, config) {
   return {
-    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : 'manual',
+    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : DEFAULT_STUDIO_STATE.preferredInputTab,
+    scriptDefaults: normalizeStoredScriptDefaults(raw?.scriptDefaults),
   };
 }
 
@@ -1391,6 +1412,113 @@ function formatDuration(ms) {
   const seconds = totalSeconds % 60;
   const remainder = Math.floor((value % 1000) / 10);
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(remainder).padStart(2, '0')}`;
+}
+
+function normalizeOptionalScriptPositionMs(value, durationMs, fallback = null) {
+  if (value === null || value === undefined || value === '') return fallback;
+
+  const numeric = Math.round(Number(value));
+  if (!Number.isFinite(numeric)) return fallback;
+
+  const max = Number.isFinite(Number(durationMs)) ? Math.max(0, Math.round(Number(durationMs))) : null;
+  return Math.max(0, max === null ? numeric : Math.min(numeric, max));
+}
+
+function normalizeScriptLoopRange(startMs, endMs, durationMs) {
+  let normalizedStartMs = normalizeOptionalScriptPositionMs(startMs, durationMs, null);
+  let normalizedEndMs = normalizeOptionalScriptPositionMs(endMs, durationMs, null);
+
+  if (normalizedStartMs !== null && normalizedEndMs !== null && normalizedEndMs < normalizedStartMs) {
+    [normalizedStartMs, normalizedEndMs] = [normalizedEndMs, normalizedStartMs];
+  }
+
+  return {
+    startMs: normalizedStartMs,
+    endMs: normalizedEndMs,
+    active: normalizedStartMs !== null && normalizedEndMs !== null && normalizedEndMs > normalizedStartMs,
+  };
+}
+
+function parseScriptTimecodeInput(value) {
+  const text = `${value || ''}`.trim().toLowerCase();
+  if (!text) return null;
+
+  if (/^\d+(?:\.\d+)?ms$/.test(text)) {
+    return Math.max(0, Math.round(Number(text.replace(/ms$/, ''))));
+  }
+
+  if (/^\d+(?:\.\d+)?s$/.test(text)) {
+    return Math.max(0, Math.round(Number(text.replace(/s$/, '')) * 1000));
+  }
+
+  if (/^\d+(?:\.\d+)?$/.test(text)) {
+    return Math.max(0, Math.round(Number(text) * 1000));
+  }
+
+  const parts = text.split(':');
+  if (parts.length < 2 || parts.length > 3) return null;
+  if (parts.some(part => !/^\d+(?:\.\d+)?$/.test(part))) return null;
+
+  const tailSeconds = Number(parts[parts.length - 1]);
+  if (!Number.isFinite(tailSeconds)) return null;
+
+  const wholeSeconds = Math.floor(tailSeconds);
+  const fractionMs = Math.round((tailSeconds - wholeSeconds) * 1000);
+  const headValues = parts.slice(0, -1).map(part => Number(part));
+  if (headValues.some(part => !Number.isFinite(part))) return null;
+
+  let totalSeconds = wholeSeconds;
+  if (headValues.length === 1) {
+    totalSeconds += headValues[0] * 60;
+  } else {
+    totalSeconds += (headValues[0] * 3600) + (headValues[1] * 60);
+  }
+
+  return Math.max(0, (totalSeconds * 1000) + fractionMs);
+}
+
+function clampScriptSpeed(value) {
+  const numeric = Number(value);
+  if (!Number.isFinite(numeric)) return DEFAULT_SCRIPT_SETTINGS.speed;
+  return Math.max(SCRIPT_SPEED_MIN, Math.min(SCRIPT_SPEED_MAX, numeric));
+}
+
+function normalizeScriptSettingsState(settings, fallback = DEFAULT_SCRIPT_SETTINGS) {
+  const resolvedFallback = fallback || DEFAULT_SCRIPT_SETTINGS;
+  const durationMs = Math.max(0, Number(settings?.durationMs ?? resolvedFallback.durationMs ?? 0));
+  const loopRange = normalizeScriptLoopRange(settings?.loopStartMs ?? resolvedFallback.loopStartMs ?? null, settings?.loopEndMs ?? resolvedFallback.loopEndMs ?? null, durationMs);
+
+  return {
+    loop: Boolean(settings?.loop ?? resolvedFallback.loop ?? DEFAULT_SCRIPT_SETTINGS.loop),
+    speed: clampScriptSpeed(settings?.speed ?? resolvedFallback.speed ?? DEFAULT_SCRIPT_SETTINGS.speed),
+    loopStartMs: loopRange.startMs,
+    loopEndMs: loopRange.endMs,
+  };
+}
+
+function normalizeStoredScriptDefaults(settings) {
+  return {
+    loop: Boolean(settings?.loop ?? DEFAULT_STUDIO_STATE.scriptDefaults.loop),
+    speed: clampScriptSpeed(settings?.speed ?? DEFAULT_STUDIO_STATE.scriptDefaults.speed),
+  };
+}
+
+function clampScriptPositionMs(positionMs, durationMs) {
+  const numeric = Math.round(Number(positionMs ?? 0));
+  if (!Number.isFinite(numeric)) return 0;
+  const max = Math.max(0, Math.round(Number(durationMs || 0)));
+  return Math.max(0, Math.min(numeric, max));
+}
+
+function formatScriptSpeedLabel(value) {
+  return `${clampScriptSpeed(value).toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')}x`;
+}
+
+function shouldIgnoreScriptShortcutTarget(target) {
+  if (!(target instanceof HTMLElement)) return false;
+  if (target.isContentEditable) return true;
+  if (target.closest('input, textarea, select, button, [role="slider"], .MuiSlider-root')) return true;
+  return false;
 }
 
 function getScriptStateMeta(state) {
@@ -1843,6 +1971,155 @@ function AxisTraceLogEntry({ log, timeStr }) {
   );
 }
 
+function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartMs = null, loopEndMs = null, onSeek, onSetLoopBoundary, onSelectLoopRange, disabled = false }) {
+  const normalizedBins = Array.isArray(bins) ? bins : [];
+  const maxCount = normalizedBins.reduce((currentMax, count) => Math.max(currentMax, Number(count) || 0), 0);
+  const safeDurationMs = Math.max(0, Number(durationMs || 0));
+  const markerPercent = safeDurationMs > 0 ? Math.max(0, Math.min(100, (Number(currentPositionMs || 0) / safeDurationMs) * 100)) : 0;
+  const loopRange = normalizeScriptLoopRange(loopStartMs, loopEndMs, safeDurationMs);
+  const rangeStartPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.startMs / safeDurationMs) * 100)) : 0;
+  const rangeEndPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.endMs / safeDurationMs) * 100)) : 0;
+  const dragStateRef = useRef(null);
+  const suppressNextClickRef = useRef(false);
+  const [dragPreview, setDragPreview] = useState(null);
+  const dragPreviewRange = dragPreview ? normalizeScriptLoopRange(dragPreview.startMs, dragPreview.endMs, safeDurationMs) : null;
+  const previewStartPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.startMs / safeDurationMs) * 100)) : 0;
+  const previewEndPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.endMs / safeDurationMs) * 100)) : 0;
+
+  useEffect(() => {
+    if (!dragStateRef.current) return undefined;
+
+    const clearDragSelection = () => {
+      dragStateRef.current = null;
+      setDragPreview(null);
+    };
+
+    const finalizeDragSelection = event => {
+      const state = dragStateRef.current;
+      if (!state || state.pointerId !== event.pointerId) return;
+
+      if (state.moved) {
+        const nextRange = normalizeScriptLoopRange(state.startMs, state.currentMs, safeDurationMs);
+        if (nextRange.active) {
+          onSelectLoopRange?.(nextRange.startMs, nextRange.endMs);
+        }
+
+        suppressNextClickRef.current = true;
+        window.setTimeout(() => {
+          suppressNextClickRef.current = false;
+        }, 0);
+      }
+
+      clearDragSelection();
+    };
+
+    const cancelDragSelection = event => {
+      const state = dragStateRef.current;
+      if (!state || state.pointerId !== event.pointerId) return;
+      clearDragSelection();
+    };
+
+    window.addEventListener('pointerup', finalizeDragSelection);
+    window.addEventListener('pointercancel', cancelDragSelection);
+
+    return () => {
+      window.removeEventListener('pointerup', finalizeDragSelection);
+      window.removeEventListener('pointercancel', cancelDragSelection);
+    };
+  }, [onSelectLoopRange, safeDurationMs]);
+
+  return (
+    <Box className={`script-density${disabled ? ' script-density--disabled' : ''}`}>
+      {loopRange.active && (
+        <>
+          <Box className="script-density__range" style={{ left: `${rangeStartPercent}%`, width: `${Math.max(rangeEndPercent - rangeStartPercent, 0)}%` }} aria-hidden="true" />
+          <Box className="script-density__range-boundary script-density__range-boundary--start" style={{ left: `${rangeStartPercent}%` }} aria-hidden="true" />
+          <Box className="script-density__range-boundary script-density__range-boundary--end" style={{ left: `${rangeEndPercent}%` }} aria-hidden="true" />
+        </>
+      )}
+
+      {dragPreviewRange?.active && (
+        <Box className="script-density__selection" style={{ left: `${previewStartPercent}%`, width: `${Math.max(previewEndPercent - previewStartPercent, 0)}%` }} aria-hidden="true" />
+      )}
+
+      <Box className="script-density__bars">
+        {normalizedBins.length > 0 ? (
+          normalizedBins.map((count, index) => {
+            const numericCount = Number(count || 0);
+            const heightPercent = maxCount > 0 ? Math.max((numericCount / maxCount) * 100, numericCount > 0 ? 10 : 4) : 4;
+            const targetPositionMs = safeDurationMs > 0 ? Math.round(((index + 0.5) / normalizedBins.length) * safeDurationMs) : 0;
+
+            return (
+              <button
+                key={`script-density-${index}`}
+                type="button"
+                className={`script-density__bar${numericCount > 0 ? ' script-density__bar--active' : ''}`}
+                style={{ '--script-density-height': `${heightPercent}%` }}
+                disabled={disabled}
+                title={safeDurationMs > 0 ? `定位 ${formatDuration(targetPositionMs)}；Shift + 点击设 A，Alt + 点击设 B` : '未加载脚本'}
+                aria-label={safeDurationMs > 0 ? `定位到 ${formatDuration(targetPositionMs)}` : '未加载脚本'}
+                onPointerDown={event => {
+                  if (disabled || safeDurationMs <= 0 || event.button !== 0) return;
+
+                  dragStateRef.current = {
+                    pointerId: event.pointerId,
+                    startMs: targetPositionMs,
+                    currentMs: targetPositionMs,
+                    moved: false,
+                  };
+
+                  setDragPreview({ startMs: targetPositionMs, endMs: targetPositionMs });
+                }}
+                onPointerEnter={event => {
+                  const state = dragStateRef.current;
+                  if (!state || state.pointerId !== event.pointerId) return;
+                  if (state.currentMs === targetPositionMs) return;
+
+                  state.currentMs = targetPositionMs;
+                  state.moved = state.moved || targetPositionMs !== state.startMs;
+                  setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
+                }}
+                onPointerMove={event => {
+                  const state = dragStateRef.current;
+                  if (!state || state.pointerId !== event.pointerId) return;
+                  if (state.currentMs === targetPositionMs) return;
+
+                  state.currentMs = targetPositionMs;
+                  state.moved = state.moved || targetPositionMs !== state.startMs;
+                  setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
+                }}
+                onClick={event => {
+                  if (suppressNextClickRef.current) {
+                    suppressNextClickRef.current = false;
+                    return;
+                  }
+
+                  if (disabled) return;
+                  if (event.shiftKey) {
+                    onSetLoopBoundary?.('start', targetPositionMs);
+                    return;
+                  }
+
+                  if (event.altKey) {
+                    onSetLoopBoundary?.('end', targetPositionMs);
+                    return;
+                  }
+
+                  onSeek?.(targetPositionMs);
+                }}
+              />
+            );
+          })
+        ) : (
+          <Box className="script-density__empty">暂无时间轴摘要</Box>
+        )}
+      </Box>
+
+      <Box className="script-density__marker" style={{ left: `${markerPercent}%` }} aria-hidden="true" />
+    </Box>
+  );
+}
+
 function getTCodeDeviceInfoView(deviceInfo, connected) {
   const axisDescriptors = Array.isArray(deviceInfo?.axisDescriptors) ? deviceInfo.axisDescriptors.filter(Boolean) : [];
   const queryFailed = typeof deviceInfo?.status === 'string' && deviceInfo.status.startsWith('query-failed:');
@@ -2181,7 +2458,7 @@ function App() {
   const [config, setConfig] = useState(null);
   const [overview, setOverview] = useState(null);
   const [logs, setLogs] = useState([]);
-  const [studio, setStudio] = useState(() => loadStudio() || { preferredInputTab: 'manual' });
+  const [studio, setStudio] = useState(() => sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE));
   const [serialPorts, setSerialPorts] = useState([]);
   const [oscDraft, setOscDraft] = useState({ receiverHost: '0.0.0.0', receiverPort: 9001, oscQueryEnabled: true, oscQueryUrl: DEFAULT_OSCQUERY_URL });
   const [signalDrafts, setSignalDrafts] = useState([]);
@@ -2194,9 +2471,10 @@ function App() {
   const [manualMotionMode, setManualMotionMode] = useState('Default');
   const [manualMotionValue, setManualMotionValue] = useState(MANUAL_DEFAULT_SPEED);
   const [manualContinuous, setManualContinuous] = useState(false);
-  const [scriptSettings, setScriptSettings] = useState({ loop: false, speed: 1 });
+  const [scriptSettings, setScriptSettings] = useState(DEFAULT_SCRIPT_SETTINGS);
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
   const [scriptSeekDragging, setScriptSeekDragging] = useState(false);
+  const [scriptJumpInput, setScriptJumpInput] = useState('');
   const [selectedScriptFile, setSelectedScriptFile] = useState(null);
   const [scriptFileInputKey, setScriptFileInputKey] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -2210,13 +2488,11 @@ function App() {
   const [logAxisFilter, setLogAxisFilter] = useState('');
   const [logActionFilter, setLogActionFilter] = useState('');
   const [confirmClearMappings, setConfirmClearMappings] = useState(false);
-  const manualTimerRef = useRef(null);
   const manualDraftRef = useRef(EMPTY_MANUAL);
   const manualMotionModeRef = useRef('Default');
   const manualMotionValueRef = useRef(MANUAL_DEFAULT_SPEED);
   const savedSignalsHashRef = useRef('');
   const scriptSettingsInitializedRef = useRef(false);
-  const manualInitializedRef = useRef(false);
 
   useEffect(() => {
     let disposed = false;
@@ -2234,6 +2510,8 @@ function App() {
 
         if (disposed) return;
 
+        const persistedStudio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE, configResponse);
+
         setConfig(configResponse);
         setOverview(overviewResponse);
         setLogs(normalizeLogs(logsResponse));
@@ -2246,7 +2524,7 @@ function App() {
         });
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
         savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(configResponse?.signals));
-        setStudio(previous => sanitizeStudio(previous, configResponse));
+        setStudio(persistedStudio);
         const initialManualDraft = normalizeManualCommand(overviewResponse?.runtime?.manualCommand);
         setManualDraft(initialManualDraft);
         manualDraftRef.current = initialManualDraft;
@@ -2259,11 +2537,7 @@ function App() {
         manualMotionModeRef.current = initialManualMode;
         setManualMotionValue(initialManualMotionValue);
         manualMotionValueRef.current = initialManualMotionValue;
-        setScriptSettings({
-          loop: Boolean(overviewResponse?.input?.script?.loop),
-          speed: Number(overviewResponse?.input?.script?.speed || 1),
-        });
-        manualInitializedRef.current = true;
+        setScriptSettings(normalizeScriptSettingsState(overviewResponse?.input?.script, persistedStudio.scriptDefaults));
         scriptSettingsInitializedRef.current = true;
       } catch (error) {
         notify(error.message || '初始化失败', 'error');
@@ -2308,20 +2582,155 @@ function App() {
   }, [studio]);
 
   useEffect(() => {
+    if (scriptSettingsInitializedRef.current === false) return;
+
+    setStudio(previous => {
+      const base = sanitizeStudio(previous || DEFAULT_STUDIO_STATE, config);
+      const nextScriptDefaults = normalizeStoredScriptDefaults(scriptSettings);
+
+      if (base.scriptDefaults.loop === nextScriptDefaults.loop && Math.abs(base.scriptDefaults.speed - nextScriptDefaults.speed) < 0.0001) {
+        return previous || base;
+      }
+
+      return {
+        ...base,
+        scriptDefaults: nextScriptDefaults,
+      };
+    });
+  }, [scriptSettings.loop, scriptSettings.speed, config]);
+
+  useEffect(() => {
     if (!overview?.input?.script || scriptSettingsInitializedRef.current === false) return;
     if (busyKey.startsWith('script-')) return;
 
-    setScriptSettings(previous => ({
-      ...previous,
-      loop: Boolean(overview.input.script.loop),
-      speed: Number(overview.input.script.speed || previous.speed || 1),
-    }));
+    setScriptSettings(previous => normalizeScriptSettingsState(overview.input.script, previous));
   }, [overview?.input?.script, busyKey]);
 
   useEffect(() => {
     if (scriptSeekDragging) return;
     setScriptSeekDraft(Number(overview?.input?.script?.positionMs || 0));
   }, [overview?.input?.script?.positionMs, scriptSeekDragging]);
+
+  useEffect(() => {
+    if (selectedInputTab !== 'script') return undefined;
+
+    function handleScriptHotkeys(event) {
+      if (busyKey.startsWith('script-')) return;
+      if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (shouldIgnoreScriptShortcutTarget(event.target)) return;
+
+      switch (event.code) {
+        case 'Space':
+        case 'KeyK': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          if (scriptState?.playing) {
+            void pauseScript();
+          } else {
+            void playScript(false);
+          }
+          return;
+        }
+
+        case 'KeyR': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          void playScript(true);
+          return;
+        }
+
+        case 'KeyJ': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          void stepScriptAction(-1);
+          return;
+        }
+
+        case 'KeyL': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          void stepScriptAction(1);
+          return;
+        }
+
+        case 'BracketLeft': {
+          if (!scriptLoaded || scriptLoopRange.startMs === null) return;
+          event.preventDefault();
+          void jumpToScriptLoopBoundary('start');
+          return;
+        }
+
+        case 'BracketRight': {
+          if (!scriptLoaded || scriptLoopRange.endMs === null) return;
+          event.preventDefault();
+          void jumpToScriptLoopBoundary('end');
+          return;
+        }
+
+        case 'KeyA': {
+          if (!scriptLoaded || !event.shiftKey) break;
+          event.preventDefault();
+          setScriptLoopBoundary('start');
+          return;
+        }
+
+        case 'KeyB': {
+          if (!scriptLoaded || !event.shiftKey) break;
+          event.preventDefault();
+          setScriptLoopBoundary('end');
+          return;
+        }
+
+        case 'KeyC': {
+          if (!scriptLoaded || !event.shiftKey || (scriptLoopRange.startMs === null && scriptLoopRange.endMs === null)) break;
+          event.preventDefault();
+          clearScriptLoopRange();
+          return;
+        }
+
+        case 'Home': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          void seekScript(0);
+          return;
+        }
+
+        case 'End': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          void seekScript(scriptDurationMs);
+          return;
+        }
+
+        case 'ArrowLeft':
+        case 'ArrowRight': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          const direction = event.code === 'ArrowLeft' ? -1 : 1;
+          const deltaMs = direction * (event.shiftKey ? 10000 : 5000);
+          void seekScriptRelative(deltaMs);
+          return;
+        }
+
+        case 'Minus':
+        case 'NumpadSubtract':
+        case 'Equal':
+        case 'NumpadAdd': {
+          if (!scriptLoaded) return;
+          event.preventDefault();
+          const delta = event.code === 'Minus' || event.code === 'NumpadSubtract' ? -0.1 : 0.1;
+          updateScriptSettingsDraft({ speed: clampScriptSpeed(scriptSettings.speed + delta) }, { commit: true });
+          return;
+        }
+
+        default:
+          break;
+      }
+    }
+
+    window.addEventListener('keydown', handleScriptHotkeys);
+    return () => window.removeEventListener('keydown', handleScriptHotkeys);
+  }, [selectedInputTab, scriptLoaded, scriptState?.playing, scriptDurationMs, scriptPositionMs, scriptSeekDragging, scriptSeekDraft, scriptSettings.loop, scriptSettings.speed, scriptSettings.loopStartMs, scriptSettings.loopEndMs, busyKey]);
 
   useEffect(() => {
     if (!selectedScriptFile) return;
@@ -2337,11 +2746,9 @@ function App() {
         setScriptFileInputKey(previous => previous + 1);
         setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
         if (result?.script) {
-          setScriptSettings({
-            loop: Boolean(result.script.loop),
-            speed: Number(result.script.speed || 1),
-          });
+          setScriptSettings(previous => normalizeScriptSettingsState(result.script, previous));
         }
+        setScriptJumpInput('');
         await refreshOverview();
         notify('脚本已加载', 'success');
       } catch (error) {
@@ -2449,6 +2856,22 @@ function App() {
 
   function notify(message, severity = 'info') {
     setSnackbar({ open: true, message, severity });
+  }
+
+  function syncScriptSettingsFromSnapshot(snapshot, fallback = DEFAULT_SCRIPT_SETTINGS) {
+    if (!snapshot) return;
+    setScriptSettings(previous => normalizeScriptSettingsState(snapshot, previous || fallback));
+  }
+
+  function updateScriptSettingsDraft(patch, options = {}) {
+    const nextSettings = normalizeScriptSettingsState({ ...scriptSettings, ...patch }, scriptSettings);
+    setScriptSettings(nextSettings);
+
+    if (options.commit && scriptLoaded) {
+      void applyScriptSettings(nextSettings, options.applyOptions);
+    }
+
+    return nextSettings;
   }
 
   async function withBusy(key, action) {
@@ -2896,7 +3319,6 @@ function App() {
       cancelAnimationFrame(manualRafRef.current);
       manualRafRef.current = null;
     }
-    window.clearTimeout(manualTimerRef.current);
 
     await withBusy('manual-once', async () => {
       await apiRequest('/api/input/manual', {
@@ -2918,35 +3340,12 @@ function App() {
       cancelAnimationFrame(manualRafRef.current);
       manualRafRef.current = null;
     }
-    window.clearTimeout(manualTimerRef.current);
 
     await withBusy('manual-disable', async () => {
       await apiRequest('/api/input/manual', { method: 'DELETE' });
       await refreshOverview();
       notify('手动输入已停用', 'success');
     }).catch(error => notify(error.message || '停用手动输入失败', 'error'));
-  }
-
-  async function uploadScript() {
-    if (!selectedScriptFile) {
-      notify('请先选择一个 .funscript 文件', 'warning');
-      return;
-    }
-
-    await withBusy('script-load', async () => {
-      const result = await uploadScriptFile(selectedScriptFile);
-      setSelectedScriptFile(null);
-      setScriptFileInputKey(previous => previous + 1);
-      setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
-      if (result?.script) {
-        setScriptSettings({
-          loop: Boolean(result.script.loop),
-          speed: Number(result.script.speed || 1),
-        });
-      }
-      await refreshOverview();
-      notify('脚本已加载', 'success');
-    }).catch(error => notify(error.message || '脚本加载失败', 'error'));
   }
 
   async function playScript(restart = false) {
@@ -2961,12 +3360,7 @@ function App() {
         }),
       });
 
-      if (result?.script) {
-        setScriptSettings({
-          loop: Boolean(result.script.loop),
-          speed: Number(result.script.speed || 1),
-        });
-      }
+      syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
       setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
       await refreshOverview();
       notify(restart ? '脚本已重新开始' : '脚本播放中', 'success');
@@ -2992,40 +3386,28 @@ function App() {
   async function applyScriptSettings(nextSettings, options = {}) {
     if (!scriptState?.loaded) return;
 
-    const payload = {
-      loop: Boolean(nextSettings.loop),
-      speed: Math.max(0.1, Math.min(4, Number(nextSettings.speed || 1))),
-    };
+    const payload = normalizeScriptSettingsState(nextSettings, scriptSettings);
 
     await withBusy('script-configure', async () => {
       const result = await apiRequest('/api/input/script/configure', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({ ...payload, updateLoopRange: true }),
       });
 
-      if (result?.script) {
-        setScriptSettings({
-          loop: Boolean(result.script.loop),
-          speed: Number(result.script.speed || payload.speed),
-        });
-      }
+      syncScriptSettingsFromSnapshot(result?.script, payload);
 
-      if (options.notify) notify('脚本设置已应用', 'success');
+      if (options.notify) notify(options.successMessage || '脚本设置已应用', 'success');
     }).catch(error => {
-      setScriptSettings(previous => ({
-        ...previous,
-        loop: Boolean(scriptState?.loop ?? previous.loop),
-        speed: Number(scriptState?.speed || previous.speed || 1),
-      }));
-      notify(error.message || '脚本设置更新失败', 'error');
+      setScriptSettings(previous => normalizeScriptSettingsState(scriptState, previous));
+      notify(error.message || options.errorMessage || '脚本设置更新失败', 'error');
     });
   }
 
   async function seekScript(positionMs) {
     const durationMs = Math.max(0, Number(scriptState?.durationMs || 0));
-    const fallbackPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), durationMs));
-    const clampedPositionMs = Math.max(0, Math.min(Math.round(Number(positionMs || 0)), durationMs));
+    const fallbackPositionMs = clampScriptPositionMs(scriptState?.positionMs || 0, durationMs);
+    const clampedPositionMs = clampScriptPositionMs(positionMs, durationMs);
 
     if (!scriptState?.loaded) {
       setScriptSeekDraft(fallbackPositionMs);
@@ -3051,19 +3433,116 @@ function App() {
     setScriptSeekDragging(false);
   }
 
+  async function seekScriptRelative(deltaMs) {
+    const durationMs = Math.max(0, Number(scriptState?.durationMs || 0));
+    const basePositionMs = clampScriptPositionMs(scriptSeekDragging ? scriptSeekDraft : scriptPositionMs, durationMs);
+    await seekScript(basePositionMs + deltaMs);
+  }
+
+  async function submitScriptJump() {
+    if (!scriptLoaded) return;
+
+    const parsedPositionMs = parseScriptTimecodeInput(scriptJumpInput);
+    if (parsedPositionMs === null) {
+      notify('请输入有效时间码，例如 01:23.45、1:30 或 90', 'warning');
+      return;
+    }
+
+    const clampedPositionMs = clampScriptPositionMs(parsedPositionMs, scriptDurationMs);
+    setScriptJumpInput(formatDuration(clampedPositionMs));
+    await seekScript(clampedPositionMs);
+  }
+
+  async function jumpToScriptLoopBoundary(boundary) {
+    if (!scriptLoaded) return;
+
+    const targetPositionMs = boundary === 'start' ? scriptLoopRange.startMs : scriptLoopRange.endMs;
+    if (targetPositionMs === null || targetPositionMs === undefined) return;
+
+    const clampedPositionMs = clampScriptPositionMs(targetPositionMs, scriptDurationMs);
+    setScriptJumpInput(formatDuration(clampedPositionMs));
+    await seekScript(clampedPositionMs);
+  }
+
+  function applyScriptLoopRange(startMs, endMs) {
+    if (!scriptLoaded) return;
+
+    const nextRange = normalizeScriptLoopRange(startMs, endMs, scriptDurationMs);
+    if (!nextRange.active) return;
+
+    updateScriptSettingsDraft(
+      { loopStartMs: nextRange.startMs, loopEndMs: nextRange.endMs },
+      {
+        commit: true,
+        applyOptions: {
+          notify: true,
+          successMessage: `A-B 区间已设为 ${formatDuration(nextRange.startMs)} → ${formatDuration(nextRange.endMs)}`,
+          errorMessage: '设置 A-B 区间失败',
+        },
+      },
+    );
+  }
+
+  function setScriptLoopBoundary(boundary, positionMs = scriptSeekBasePosition) {
+    if (!scriptLoaded) return;
+
+    const clampedPositionMs = clampScriptPositionMs(positionMs, scriptDurationMs);
+
+    updateScriptSettingsDraft(
+      boundary === 'start' ? { loopStartMs: clampedPositionMs } : { loopEndMs: clampedPositionMs },
+      {
+        commit: true,
+        applyOptions: {
+          notify: true,
+          successMessage: boundary === 'start' ? `A 点已设置为 ${formatDuration(clampedPositionMs)}` : `B 点已设置为 ${formatDuration(clampedPositionMs)}`,
+          errorMessage: boundary === 'start' ? '设置 A 点失败' : '设置 B 点失败',
+        },
+      },
+    );
+  }
+
+  function clearScriptLoopRange() {
+    if (!scriptLoaded) return;
+
+    updateScriptSettingsDraft(
+      { loopStartMs: null, loopEndMs: null },
+      {
+        commit: true,
+        applyOptions: {
+          notify: true,
+          successMessage: 'A-B 区间已清除',
+          errorMessage: '清除 A-B 区间失败',
+        },
+      },
+    );
+  }
+
+  async function stepScriptAction(direction) {
+    if (!scriptState?.loaded) return;
+
+    const route = direction >= 0 ? '/api/input/script/action-next' : '/api/input/script/action-prev';
+    const busyToken = direction >= 0 ? 'script-step-next' : 'script-step-prev';
+
+    await withBusy(busyToken, async () => {
+      const result = await apiRequest(route, { method: 'POST' });
+      if (result?.script) {
+        setScriptSeekDraft(Number(result.script.positionMs || 0));
+        syncScriptSettingsFromSnapshot(result.script, scriptSettings);
+      }
+    }).catch(error => notify(error.message || '脚本动作跳转失败', 'error'));
+
+    setScriptSeekDragging(false);
+  }
+
   async function clearScript() {
     await withBusy('script-clear', async () => {
       const result = await apiRequest('/api/input/script', { method: 'DELETE' });
       setSelectedScriptFile(null);
       setScriptFileInputKey(previous => previous + 1);
       setScriptSeekDraft(0);
+      setScriptJumpInput('');
 
-      if (result?.script) {
-        setScriptSettings(previous => ({
-          loop: Boolean(result.script.loop ?? previous.loop),
-          speed: Number(result.script.speed || previous.speed || 1),
-        }));
-      }
+      syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
 
       await refreshOverview();
       notify('脚本已卸载', 'info');
@@ -3214,7 +3693,7 @@ function App() {
       ? '选中预设后可在这里查看说明。'
       : '当前没有可用预设，可先新建一套。';
 
-  const studioState = studio || { preferredInputTab: 'manual' };
+  const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = getOutputs(config);
   const axisProfiles = getAxisProfiles(config);
   const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
@@ -3228,10 +3707,22 @@ function App() {
   const scriptRemainingMs = Math.max(0, scriptDurationMs - scriptPositionMs);
   const scriptProgressPercent = scriptDurationMs > 0 ? Math.min(100, (scriptPositionMs / scriptDurationMs) * 100) : 0;
   const scriptSliderMax = Math.max(scriptDurationMs, 1);
-  const scriptSeekValue = scriptSeekDragging ? scriptSeekDraft : scriptPositionMs;
+  const scriptSeekValue = scriptSeekDragging ? clampScriptPositionMs(scriptSeekDraft, scriptDurationMs) : scriptPositionMs;
+  const scriptSeekBasePosition = clampScriptPositionMs(scriptSeekValue, scriptDurationMs);
+  const scriptLoopRange = useMemo(() => normalizeScriptLoopRange(scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs), [scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs]);
+  const scriptHasLoopMarkers = scriptLoopRange.startMs !== null || scriptLoopRange.endMs !== null;
+  const scriptActivityBins = Array.isArray(scriptState?.activityBins) ? scriptState.activityBins : [];
   const scriptStateMeta = getScriptStateMeta(scriptState?.state);
   const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
   const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
+  const scriptSpeedLabel = formatScriptSpeedLabel(scriptSettings.speed);
+  const scriptLoopSummaryLabel = scriptSettings.loop ? (scriptLoopRange.active ? 'A-B 循环' : '循环播放') : '单次播放';
+  const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '等待另一侧标记';
+  const scriptLoopStartLabel = scriptLoopRange.startMs === null ? 'A 未设' : `A ${formatDuration(scriptLoopRange.startMs)}`;
+  const scriptLoopEndLabel = scriptLoopRange.endMs === null ? 'B 未设' : `B ${formatDuration(scriptLoopRange.endMs)}`;
+  const scriptLoopLengthMs = scriptLoopRange.active ? Math.max(0, scriptLoopRange.endMs - scriptLoopRange.startMs) : 0;
+  const scriptLoopCoveragePercent = scriptLoopRange.active && scriptDurationMs > 0 ? (scriptLoopLengthMs / scriptDurationMs) * 100 : 0;
+  const scriptCurrentInLoopRange = scriptLoopRange.active ? scriptPositionMs >= scriptLoopRange.startMs && scriptPositionMs < scriptLoopRange.endMs : null;
   const oscListening = Boolean(overview?.osc?.listening);
   const oscListenerError = typeof overview?.osc?.listenerError === 'string' ? overview.osc.listenerError.trim() : '';
   const oscModeActive = actualInputMode === 'osc';
@@ -3874,7 +4365,6 @@ function App() {
                             checked={manualContinuous}
                             onChange={(_, checked) => {
                               setManualContinuous(checked);
-                              if (!checked) window.clearTimeout(manualTimerRef.current);
                             }}
                           />
                         }
@@ -3917,11 +4407,11 @@ function App() {
                       <Typography variant="subtitle2">脚本文件</Typography>
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                         <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
-                        <Chip size="small" variant="outlined" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
+                        <Chip size="small" variant="outlined" className="script-file-chip" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
                       </Stack>
                     </Box>
                     <Typography variant="body2" color="text.secondary">
-                      选择 .funscript 文件后会自动加载；加载后可直接调速、切换循环，并拖动进度条定位到任意时刻。
+                      选择 .funscript 文件后会自动加载；加载后可直接调速、切换循环、设置 A-B 区间，并拖动进度条或输入时间码定位到任意时刻。
                     </Typography>
                     <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center" className="script-file-actions">
                       <Button component="label" variant="contained" disabled={!!selectedScriptFile || busyKey === 'script-load'}>
@@ -3931,7 +4421,7 @@ function App() {
                       <Button variant="outlined" color="error" onClick={clearScript} disabled={!scriptLoaded || busyKey === 'script-clear'}>
                         卸载脚本
                       </Button>
-                      <Typography variant="caption" color="text.secondary">
+                      <Typography variant="caption" color="text.secondary" className="script-file-actions__caption">
                         {scriptLoaded ? scriptState?.fileName || '已加载脚本' : '支持 .funscript / .json'}
                       </Typography>
                     </Stack>
@@ -3949,14 +4439,20 @@ function App() {
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">播放控制</Typography>
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" variant="outlined" label={`${scriptSettings.speed.toFixed(2)}x`} />
-                        <Chip size="small" variant="outlined" label={scriptSettings.loop ? '循环播放' : '单次播放'} />
+                        <Chip size="small" variant="outlined" label={scriptSpeedLabel} />
+                        <Chip size="small" variant="outlined" label={scriptLoopSummaryLabel} />
+                        {scriptHasLoopMarkers && <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `区间 ${scriptLoopRangeSummary}` : `${scriptLoopStartLabel} · ${scriptLoopEndLabel}`} />}
                         {scriptLoaded && <Chip size="small" variant="outlined" label={`${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}`} />}
                       </Stack>
                     </Box>
 
                     <Stack spacing={2}>
-                      <Box className="script-progress-block">
+                      <FieldPanel
+                        label="进度定位"
+                        title="拖动进度条可定位到任意时刻；下方快捷按钮可快速回到开头/结尾，或按固定时长快进快退。时间轴密度条支持直接拖拽生成 A-B 区间。"
+                        valueText={scriptLoaded ? `${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}` : '未加载脚本'}
+                        className="script-progress-panel"
+                      >
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" className="script-progress-summary">
                           <Typography variant="caption" color="text.secondary">
                             进度定位
@@ -3973,6 +4469,7 @@ function App() {
                           step={50}
                           disabled={!scriptLoaded || busyKey === 'script-seek'}
                           value={scriptSeekValue}
+                          className="script-progress-panel__slider"
                           valueFormatter={value => formatDuration(value)}
                           onChange={next => {
                             setScriptSeekDragging(true);
@@ -3984,28 +4481,163 @@ function App() {
                           }}
                         />
 
-                        <LinearProgress variant="determinate" value={scriptLoaded ? scriptProgressPercent : 0} sx={{ height: 8, borderRadius: 4 }} />
-                      </Box>
+                        <LinearProgress variant="determinate" value={scriptLoaded ? scriptProgressPercent : 0} className="script-progress-panel__bar" sx={{ height: 8, borderRadius: 4 }} />
 
-                      <Box className="script-control-grid">
-                        <Box>
-                          <Typography variant="caption" color="text.secondary">
-                            播放速度
-                          </Typography>
-                          <SliderControl
-                            min={0.25}
-                            max={2}
-                            step={0.05}
-                            disabled={busyKey === 'script-configure'}
-                            value={scriptSettings.speed}
-                            valueFormatter={value => Number(value).toFixed(2)}
-                            onChange={next => setScriptSettings(previous => ({ ...previous, speed: Number(next) }))}
-                            onChangeCommitted={next => {
-                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
-                              void applyScriptSettings({ ...scriptSettings, speed: nextSpeed });
+                        <ScriptTimelineDensity
+                          bins={scriptActivityBins}
+                          durationMs={scriptDurationMs}
+                          currentPositionMs={scriptSeekBasePosition}
+                          loopStartMs={scriptLoopRange.startMs}
+                          loopEndMs={scriptLoopRange.endMs}
+                          disabled={!scriptLoaded || busyKey === 'script-seek'}
+                          onSeek={positionMs => {
+                            void seekScript(positionMs);
+                          }}
+                          onSetLoopBoundary={(boundary, positionMs) => {
+                            setScriptLoopBoundary(boundary, positionMs);
+                          }}
+                          onSelectLoopRange={(startMs, endMs) => {
+                            applyScriptLoopRange(startMs, endMs);
+                          }}
+                        />
+
+                        <Box className="script-seek-actions">
+                          {SCRIPT_SEEK_ACTIONS.map(action => {
+                            const targetPositionMs = action.mode === 'relative'
+                              ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
+                              : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
+                            const disabled = !scriptLoaded || busyKey === 'script-seek' || targetPositionMs === scriptSeekBasePosition;
+
+                            return (
+                              <Button
+                                key={action.key}
+                                size="small"
+                                variant="outlined"
+                                disabled={disabled}
+                                onClick={() => {
+                                  if (action.mode === 'relative') {
+                                    void seekScriptRelative(Number(action.value));
+                                    return;
+                                  }
+
+                                  void seekScript(targetPositionMs);
+                                }}
+                              >
+                                {action.label}
+                              </Button>
+                            );
+                          })}
+                        </Box>
+
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-markers">
+                          <Chip size="small" color={scriptLoopRange.startMs === null ? 'default' : 'primary'} variant={scriptLoopRange.startMs === null ? 'outlined' : 'filled'} label={scriptLoopStartLabel} />
+                          <Chip size="small" color={scriptLoopRange.endMs === null ? 'default' : 'secondary'} variant={scriptLoopRange.endMs === null ? 'outlined' : 'filled'} label={scriptLoopEndLabel} />
+                          <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `循环区间 ${scriptLoopRangeSummary}` : '未形成有效 A-B 区间'} />
+                          {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`长度 ${formatDuration(scriptLoopLengthMs)}`} />}
+                          {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`占比 ${Math.round(scriptLoopCoveragePercent)}%`} />}
+                          {scriptLoopRange.active && (
+                            <Chip
+                              size="small"
+                              color={scriptCurrentInLoopRange ? 'success' : 'warning'}
+                              variant="outlined"
+                              label={scriptCurrentInLoopRange ? '当前位置在区间内' : '当前位置在区间外'}
+                            />
+                          )}
+                        </Stack>
+
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="script-jump-row">
+                          <TextField
+                            size="small"
+                            label="时间码跳转"
+                            placeholder="例如 01:23.45 / 90"
+                            value={scriptJumpInput}
+                            disabled={!scriptLoaded || busyKey === 'script-seek'}
+                            className="script-jump-row__input"
+                            onChange={event => setScriptJumpInput(event.target.value)}
+                            onKeyDown={event => {
+                              if (event.key !== 'Enter') return;
+                              event.preventDefault();
+                              void submitScriptJump();
                             }}
                           />
-                        </Box>
+                          <Button size="small" variant="contained" onClick={() => void submitScriptJump()} disabled={!scriptLoaded || busyKey === 'script-seek'}>
+                            跳转
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => void jumpToScriptLoopBoundary('start')}
+                            disabled={!scriptLoaded || scriptLoopRange.startMs === null || busyKey === 'script-seek'}
+                          >
+                            跳到 A
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => void jumpToScriptLoopBoundary('end')}
+                            disabled={!scriptLoaded || scriptLoopRange.endMs === null || busyKey === 'script-seek'}
+                          >
+                            跳到 B
+                          </Button>
+                          <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('start')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
+                            A 点 = 当前
+                          </Button>
+                          <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('end')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
+                            B 点 = 当前
+                          </Button>
+                          <Button size="small" variant="text" color="warning" onClick={clearScriptLoopRange} disabled={!scriptLoaded || !scriptHasLoopMarkers || busyKey === 'script-configure'}>
+                            清除区间
+                          </Button>
+                        </Stack>
+
+                        <Typography variant="caption" color="text.secondary" className="script-loop-hint">
+                          A/B 标记会使用当前播放位置，或你正在拖拽的定位位置；也可以在时间轴密度条上直接 Shift + 点击设 A、Alt + 点击设 B，或直接拖拽一段生成完整 A-B 区间。开启“循环播放”后，如果 A、B 都已设置，就只会在该区间内循环。时间码支持 90、1:30、01:23.45 这几种写法；快捷键支持 [ / ] 跳到 A/B，Shift + A / B 设置 A/B，Shift + C 清除区间。
+                        </Typography>
+                      </FieldPanel>
+
+                      <Box className="script-control-grid">
+                        <FieldPanel
+                          label="播放速度"
+                          title="脚本速度支持 0.1x ~ 4x；下方预设按钮提供常用倍率，便于快速切换。未加载脚本时，修改会先作为默认值保留，并记住到当前浏览器。"
+                          valueText={scriptSpeedLabel}
+                          className="script-speed-panel"
+                        >
+                          <SliderControl
+                            min={SCRIPT_SPEED_MIN}
+                            max={SCRIPT_SPEED_MAX}
+                            step={SCRIPT_SPEED_STEP}
+                            disabled={busyKey === 'script-configure'}
+                            value={clampScriptSpeed(scriptSettings.speed)}
+                            valueFormatter={value => formatScriptSpeedLabel(value)}
+                            onChange={next => {
+                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
+                              updateScriptSettingsDraft({ speed: nextSpeed });
+                            }}
+                            onChangeCommitted={next => {
+                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
+                              updateScriptSettingsDraft({ speed: nextSpeed }, { commit: true });
+                            }}
+                          />
+
+                          <Box className="script-speed-presets">
+                            {SCRIPT_SPEED_PRESETS.map(speed => {
+                              const normalizedSpeed = clampScriptSpeed(speed);
+                              const active = Math.abs(clampScriptSpeed(scriptSettings.speed) - normalizedSpeed) < 0.001;
+
+                              return (
+                                <Button
+                                  key={`script-speed-${speed}`}
+                                  size="small"
+                                  variant={active ? 'contained' : 'outlined'}
+                                  disabled={busyKey === 'script-configure'}
+                                  onClick={() => updateScriptSettingsDraft({ speed: normalizedSpeed }, { commit: true })}
+                                >
+                                  {formatScriptSpeedLabel(normalizedSpeed)}
+                                </Button>
+                              );
+                            })}
+                          </Box>
+                        </FieldPanel>
 
                         <Box className="script-toggle-field">
                           <FormControlLabel
@@ -4013,17 +4645,15 @@ function App() {
                               <Switch
                                 checked={scriptSettings.loop}
                                 disabled={busyKey === 'script-configure'}
-                                onChange={async (_, checked) => {
-                                  const nextSettings = { ...scriptSettings, loop: checked };
-                                  setScriptSettings(nextSettings);
-                                  if (scriptLoaded) await applyScriptSettings(nextSettings);
+                                onChange={(_, checked) => {
+                                  updateScriptSettingsDraft({ loop: checked }, { commit: true });
                                 }}
                               />
                             }
                             label={scriptSettings.loop ? '循环播放' : '单次播放'}
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {scriptLoaded ? '修改后会立即作用到当前脚本。' : '先设好参数，加载脚本后会自动沿用。'}
+                            {scriptLoaded ? '修改后会立即作用到当前脚本；速度与循环偏好也会记住到当前浏览器。' : '先设好参数，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'}
                           </Typography>
                         </Box>
                       </Box>
@@ -4035,6 +4665,12 @@ function App() {
                         <Button variant="outlined" onClick={() => playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
                           从头开始
                         </Button>
+                        <Button variant="outlined" onClick={() => stepScriptAction(-1)} disabled={!scriptLoaded || scriptPositionMs <= 0 || busyKey === 'script-step-prev'}>
+                          上一动作
+                        </Button>
+                        <Button variant="outlined" onClick={() => stepScriptAction(1)} disabled={!scriptLoaded || scriptPositionMs >= scriptDurationMs || busyKey === 'script-step-next'}>
+                          下一动作
+                        </Button>
                         <Button variant="outlined" color="warning" onClick={pauseScript} disabled={!scriptLoaded || !scriptState?.playing || busyKey === 'script-pause'}>
                           暂停
                         </Button>
@@ -4042,6 +4678,10 @@ function App() {
                           停止
                         </Button>
                       </Stack>
+
+                      <Typography variant="caption" color="text.secondary" className="script-hotkey-hint">
+                        快捷键：Space/K 播放或暂停，J/L 上一动作/下一动作，[ / ] 跳到 A/B，Shift + A / B 设置 A/B，Shift + C 清除区间，R 从头开始，←/→ 快退/快进 5 秒，Shift + ←/→ 快退/快进 10 秒，Home/End 跳到开头/结尾，-/+ 调整速度。
+                      </Typography>
                     </Stack>
                   </Box>
                 </Stack>

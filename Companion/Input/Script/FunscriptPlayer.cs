@@ -16,16 +16,27 @@ public sealed record FunscriptPlaybackSnapshot(
     int ActionCount,
     string FileName,
     float CurrentL0,
-    string State);
+    string State)
+{
+    public IReadOnlyList<int> ActivityBins { get; init; } = Array.Empty<int>();
+    public bool LoopRangeActive { get; init; }
+    public long? LoopStartMs { get; init; }
+    public long? LoopEndMs { get; init; }
+}
 
 public sealed class FunscriptPlayer
 {
+    private const int ActivityBinCount = 64;
+
     private readonly object _gate = new();
     private Timer? _playbackTimer;
 
     private List<FunscriptAction> _actions = new();
+    private int[] _activityBins = Array.Empty<int>();
     private string _fileName = string.Empty;
     private bool _loop;
+    private long? _loopStartMs;
+    private long? _loopEndMs;
     private double _speed = 1.0;
     private long _durationMs;
     private long _resumePositionMs;
@@ -48,8 +59,11 @@ public sealed class FunscriptPlayer
         {
             StopPlaybackTimerLocked();
             _actions = parsed.Actions;
+            _activityBins = parsed.ActivityBins;
             _fileName = string.IsNullOrWhiteSpace(fileName) ? "script.funscript" : fileName;
             _durationMs = parsed.DurationMs;
+            _loopStartMs = null;
+            _loopEndMs = null;
             _resumePositionMs = 0;
             _resumeStartedAtMs = 0;
             _playing = false;
@@ -62,7 +76,7 @@ public sealed class FunscriptPlayer
         return snapshot;
     }
 
-    public FunscriptPlaybackSnapshot Configure(bool? loop = null, double? speed = null)
+    public FunscriptPlaybackSnapshot Configure(bool? loop = null, double? speed = null, bool updateLoopRange = false, long? loopStartMs = null, long? loopEndMs = null)
     {
         FunscriptPlaybackSnapshot snapshot;
         lock (_gate)
@@ -75,6 +89,18 @@ public sealed class FunscriptPlayer
 
             if (speed.HasValue)
                 _speed = ClampSpeed(speed.Value);
+
+            if (updateLoopRange)
+            {
+                SetLoopRangeLocked(loopStartMs, loopEndMs);
+
+                var loopWindow = GetLoopWindowLocked();
+                if (_playing && _loop && loopWindow.Active && (_resumePositionMs < loopWindow.StartMs || _resumePositionMs >= loopWindow.EndMs))
+                {
+                    _resumePositionMs = loopWindow.StartMs;
+                    _lastL0 = SampleAtLocked(_resumePositionMs);
+                }
+            }
 
             if (_playing)
                 _resumeStartedAtMs = now;
@@ -104,8 +130,16 @@ public sealed class FunscriptPlayer
             if (speed.HasValue)
                 _speed = ClampSpeed(speed.Value);
 
+            var loopWindow = GetLoopWindowLocked();
+
             if (restart || _resumePositionMs >= _durationMs)
-                _resumePositionMs = 0;
+            {
+                _resumePositionMs = _loop && loopWindow.Active ? loopWindow.StartMs : 0;
+            }
+            else if (_loop && loopWindow.Active && (_resumePositionMs < loopWindow.StartMs || _resumePositionMs >= loopWindow.EndMs))
+            {
+                _resumePositionMs = loopWindow.StartMs;
+            }
 
             _resumeStartedAtMs = now;
             _playing = true;
@@ -172,8 +206,11 @@ public sealed class FunscriptPlayer
         {
             StopPlaybackTimerLocked();
             _actions = new List<FunscriptAction>();
+            _activityBins = Array.Empty<int>();
             _fileName = string.Empty;
             _durationMs = 0;
+            _loopStartMs = null;
+            _loopEndMs = null;
             _resumePositionMs = 0;
             _resumeStartedAtMs = 0;
             _playing = false;
@@ -196,27 +233,26 @@ public sealed class FunscriptPlayer
             if (_actions.Count == 0)
                 throw new InvalidOperationException("请先加载脚本文件。");
 
-            var clampedPosition = Math.Clamp(positionMs, 0L, _durationMs);
-            _resumePositionMs = clampedPosition;
-            _resumeStartedAtMs = Environment.TickCount64;
-            _lastL0 = SampleAtLocked(_resumePositionMs);
+            (snapshot, currentL0) = SeekToPositionLocked(positionMs);
+        }
 
-            if (_resumePositionMs >= _durationMs)
-            {
-                _playing = false;
-                _state = "finished";
-            }
-            else if (_playing)
-            {
-                _state = "playing";
-            }
-            else
-            {
-                _state = _resumePositionMs > 0 ? "paused" : "stopped";
-            }
+        OnFrame?.Invoke(currentL0);
+        OnStateChanged?.Invoke();
+        return snapshot;
+    }
 
-            snapshot = BuildSnapshotLocked();
-            currentL0 = _lastL0;
+    public FunscriptPlaybackSnapshot StepAction(int direction)
+    {
+        FunscriptPlaybackSnapshot snapshot;
+        float currentL0;
+
+        lock (_gate)
+        {
+            if (_actions.Count == 0)
+                throw new InvalidOperationException("请先加载脚本文件。");
+
+            var targetPositionMs = ResolveStepActionTargetLocked(direction);
+            (snapshot, currentL0) = SeekToPositionLocked(targetPositionMs);
         }
 
         OnFrame?.Invoke(currentL0);
@@ -282,9 +318,96 @@ public sealed class FunscriptPlayer
         _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite);
     }
 
+    private (FunscriptPlaybackSnapshot Snapshot, float CurrentL0) SeekToPositionLocked(long positionMs)
+    {
+        var clampedPosition = Math.Clamp(positionMs, 0L, _durationMs);
+        _resumePositionMs = clampedPosition;
+        _resumeStartedAtMs = Environment.TickCount64;
+        _lastL0 = SampleAtLocked(_resumePositionMs);
+
+        if (_resumePositionMs >= _durationMs)
+        {
+            _playing = false;
+            _state = "finished";
+        }
+        else if (_playing)
+        {
+            _state = "playing";
+        }
+        else
+        {
+            _state = _resumePositionMs > 0 ? "paused" : "stopped";
+        }
+
+        return (BuildSnapshotLocked(), _lastL0);
+    }
+
+    private void SetLoopRangeLocked(long? loopStartMs, long? loopEndMs)
+    {
+        var normalizedStart = NormalizeLoopBoundaryMs(loopStartMs);
+        var normalizedEnd = NormalizeLoopBoundaryMs(loopEndMs);
+
+        if (normalizedStart.HasValue && normalizedEnd.HasValue && normalizedEnd.Value < normalizedStart.Value)
+            (normalizedStart, normalizedEnd) = (normalizedEnd, normalizedStart);
+
+        _loopStartMs = normalizedStart;
+        _loopEndMs = normalizedEnd;
+    }
+
+    private (bool Active, long StartMs, long EndMs) GetLoopWindowLocked()
+    {
+        if (_durationMs <= 0)
+            return (false, 0L, 0L);
+
+        if (!_loopStartMs.HasValue || !_loopEndMs.HasValue)
+            return (false, 0L, _durationMs);
+
+        var startMs = NormalizeLoopBoundaryMs(_loopStartMs) ?? 0L;
+        var endMs = NormalizeLoopBoundaryMs(_loopEndMs) ?? _durationMs;
+
+        if (endMs <= startMs)
+            return (false, 0L, _durationMs);
+
+        return (true, startMs, endMs);
+    }
+
+    private long? NormalizeLoopBoundaryMs(long? value)
+    {
+        if (!value.HasValue)
+            return null;
+
+        return Math.Clamp(value.Value, 0L, _durationMs);
+    }
+
+    private long ResolveStepActionTargetLocked(int direction)
+    {
+        if (_actions.Count == 0)
+            return 0L;
+
+        if (direction >= 0)
+        {
+            foreach (var action in _actions)
+            {
+                if (action.AtMs > _resumePositionMs)
+                    return action.AtMs;
+            }
+
+            return _durationMs;
+        }
+
+        for (var index = _actions.Count - 1; index >= 0; index--)
+        {
+            if (_actions[index].AtMs < _resumePositionMs)
+                return _actions[index].AtMs;
+        }
+
+        return 0L;
+    }
+
     private FunscriptPlaybackSnapshot BuildSnapshotLocked()
     {
         var loaded = _actions.Count > 0;
+        var loopWindow = GetLoopWindowLocked();
 
         return new FunscriptPlaybackSnapshot(
             Loaded: loaded,
@@ -297,7 +420,13 @@ public sealed class FunscriptPlayer
             ActionCount: _actions.Count,
             FileName: _fileName,
             CurrentL0: loaded ? _lastL0 : 0f,
-            State: loaded ? _state : "empty");
+            State: loaded ? _state : "empty")
+        {
+            ActivityBins = loaded ? _activityBins : Array.Empty<int>(),
+            LoopRangeActive = loopWindow.Active,
+            LoopStartMs = _loopStartMs,
+            LoopEndMs = _loopEndMs,
+        };
     }
 
     private void AdvanceLocked(long nowMs)
@@ -321,6 +450,33 @@ public sealed class FunscriptPlayer
 
         var elapsedMs = Math.Max(0L, nowMs - _resumeStartedAtMs);
         var advancedPosition = _resumePositionMs + (long)Math.Round(elapsedMs * _speed);
+        var loopWindow = GetLoopWindowLocked();
+
+        if (_loop && loopWindow.Active)
+        {
+            var loopSpanMs = Math.Max(loopWindow.EndMs - loopWindow.StartMs, 1L);
+
+            if (_resumePositionMs < loopWindow.StartMs || _resumePositionMs >= loopWindow.EndMs)
+            {
+                _resumePositionMs = loopWindow.StartMs;
+                _resumeStartedAtMs = nowMs;
+                _lastL0 = SampleAtLocked(_resumePositionMs);
+                _state = "playing";
+                return;
+            }
+
+            if (advancedPosition >= loopWindow.EndMs)
+            {
+                var offsetMs = advancedPosition - loopWindow.StartMs;
+                advancedPosition = loopWindow.StartMs + (offsetMs % loopSpanMs);
+            }
+
+            _resumePositionMs = advancedPosition;
+            _resumeStartedAtMs = nowMs;
+            _lastL0 = SampleAtLocked(_resumePositionMs);
+            _state = "playing";
+            return;
+        }
 
         if (_loop && _durationMs > 0)
         {
@@ -414,7 +570,24 @@ public sealed class FunscriptPlayer
             throw new InvalidDataException("脚本文件中没有可播放的动作数据。");
 
         actions.Sort(static (left, right) => left.AtMs.CompareTo(right.AtMs));
-        return new ParsedScript(actions, Math.Max(actions[^1].AtMs, 1L));
+        var durationMs = Math.Max(actions[^1].AtMs, 1L);
+        return new ParsedScript(actions, durationMs, BuildActivityBins(actions, durationMs));
+    }
+
+    private static int[] BuildActivityBins(IReadOnlyList<FunscriptAction> actions, long durationMs)
+    {
+        if (actions.Count == 0 || durationMs <= 0)
+            return Array.Empty<int>();
+
+        var bins = new int[ActivityBinCount];
+        foreach (var action in actions)
+        {
+            var ratio = Math.Clamp(action.AtMs / (double)durationMs, 0d, 1d);
+            var index = Math.Min((int)Math.Floor(ratio * ActivityBinCount), ActivityBinCount - 1);
+            bins[index]++;
+        }
+
+        return bins;
     }
 
     ~FunscriptPlayer()
@@ -422,5 +595,5 @@ public sealed class FunscriptPlayer
         _playbackTimer?.Dispose();
     }
 
-    private sealed record ParsedScript(List<FunscriptAction> Actions, long DurationMs);
+    private sealed record ParsedScript(List<FunscriptAction> Actions, long DurationMs, int[] ActivityBins);
 }
