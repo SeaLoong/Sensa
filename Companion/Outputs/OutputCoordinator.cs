@@ -15,6 +15,8 @@ public sealed class OutputCoordinator : IAsyncDisposable
     private readonly Action<string> _logError;
     private readonly object _sync = new();
     private readonly Dictionary<string, OutputConnection> _connections = new(StringComparer.OrdinalIgnoreCase);
+    private int _stateChangeBatchDepth;
+    private bool _stateChangePending;
 
     public event Action? StateChanged;
 
@@ -36,7 +38,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
             _connections.Clear();
             foreach (var output in _config.Outputs)
             {
-                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, () => StateChanged?.Invoke());
+                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
             }
         }
 
@@ -55,7 +57,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
             _connections.Clear();
             foreach (var output in _config.Outputs)
             {
-                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, () => StateChanged?.Invoke());
+                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
             }
         }
 
@@ -64,7 +66,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
             await connection.DisposeAsync();
         }
 
-        StateChanged?.Invoke();
+        NotifyStateChanged();
     }
 
     public async Task ConnectEnabledAsync()
@@ -84,9 +86,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
         if (connection is null)
             return false;
 
-        var connected = await connection.ConnectAsync();
-        StateChanged?.Invoke();
-        return connected;
+        return await connection.ConnectAsync();
     }
 
     public async Task DisconnectAsync(string outputId)
@@ -97,8 +97,6 @@ public sealed class OutputCoordinator : IAsyncDisposable
 
         if (connection is not null)
             await connection.DisconnectAsync();
-
-        StateChanged?.Invoke();
     }
 
     public Task<bool> ConnectPrimaryAsync(OutputDeviceType type)
@@ -166,7 +164,32 @@ public sealed class OutputCoordinator : IAsyncDisposable
             await connection.EmergencyStopAsync();
         }
 
-        StateChanged?.Invoke();
+        NotifyStateChanged();
+    }
+
+    public async Task RunStateChangeBatchAsync(Func<Task> action)
+    {
+        lock (_sync)
+            _stateChangeBatchDepth += 1;
+
+        try
+        {
+            await action();
+        }
+        finally
+        {
+            bool shouldNotify;
+            lock (_sync)
+            {
+                _stateChangeBatchDepth = Math.Max(0, _stateChangeBatchDepth - 1);
+                shouldNotify = _stateChangeBatchDepth == 0 && _stateChangePending;
+                if (shouldNotify)
+                    _stateChangePending = false;
+            }
+
+            if (shouldNotify)
+                StateChanged?.Invoke();
+        }
     }
 
     public Task StartScanAsync(string outputId) =>
@@ -259,6 +282,20 @@ public sealed class OutputCoordinator : IAsyncDisposable
     {
         lock (_sync)
             return _connections.TryGetValue(outputId, out var connection) ? connection : null;
+    }
+
+    private void NotifyStateChanged()
+    {
+        lock (_sync)
+        {
+            if (_stateChangeBatchDepth > 0)
+            {
+                _stateChangePending = true;
+                return;
+            }
+        }
+
+        StateChanged?.Invoke();
     }
 }
 

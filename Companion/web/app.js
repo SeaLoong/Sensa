@@ -86,9 +86,9 @@ const MANUAL_AXES = [
   { key: 'V0', label: 'V0 震动', min: 0, max: 999, step: 1, description: '主震动逻辑值。0 为关闭，999 为最大；输出层仍会继续套用轴配置约束。' },
   { key: 'V1', label: 'V1 震动 2', min: 0, max: 999, step: 1, description: '第二路震动逻辑值。0 为关闭，999 为最大。' },
   { key: 'V2', label: 'V2 震动 3', min: 0, max: 999, step: 1, description: '第三路震动逻辑值。0 为关闭，999 为最大。' },
-  { key: 'A0', label: 'A0 辅助', min: 0, max: 999, step: 1, description: '辅助通道逻辑值；500 附近表示居中。' },
-  { key: 'A1', label: 'A1 辅助 2', min: 0, max: 999, step: 1, description: '辅助通道 2 逻辑值；500 附近表示居中。' },
-  { key: 'A2', label: 'A2 辅助 3', min: 0, max: 999, step: 1, description: '辅助通道 3 逻辑值；500 附近表示居中。' },
+  { key: 'A0', label: 'A0 辅助 1', min: 0, max: 999, step: 1, description: '辅助通道 1 的逻辑值；500 附近表示居中。' },
+  { key: 'A1', label: 'A1 辅助 2', min: 0, max: 999, step: 1, description: '辅助通道 2 的逻辑值；500 附近表示居中。' },
+  { key: 'A2', label: 'A2 辅助 3', min: 0, max: 999, step: 1, description: '辅助通道 3 的逻辑值；500 附近表示居中。' },
 ];
 
 const SIGNAL_ROLE_OPTIONS = [
@@ -101,7 +101,7 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'V0', label: '震动（V0）' },
   { value: 'V1', label: '震动 2（V1）' },
   { value: 'V2', label: '震动 3（V2）' },
-  { value: 'Auxiliary', label: '辅助（A0）' },
+  { value: 'Auxiliary', label: '辅助 1（A0）' },
   { value: 'Auxiliary1', label: '辅助 2（A1）' },
   { value: 'Auxiliary2', label: '辅助 3（A2）' },
 ];
@@ -181,7 +181,7 @@ const AXIS_PROFILE_DEFS = [
   { key: 'v0', axis: 'V0', label: '主震动', minLabel: '最小', maxLabel: '最大' },
   { key: 'v1', axis: 'V1', label: '震动 2', minLabel: '最小', maxLabel: '最大' },
   { key: 'v2', axis: 'V2', label: '震动 3', minLabel: '最小', maxLabel: '最大' },
-  { key: 'a0', axis: 'A0', label: '辅助通道', minLabel: '最小', maxLabel: '最大' },
+  { key: 'a0', axis: 'A0', label: '辅助通道 1', minLabel: '最小', maxLabel: '最大' },
   { key: 'a1', axis: 'A1', label: '辅助通道 2', minLabel: '最小', maxLabel: '最大' },
   { key: 'a2', axis: 'A2', label: '辅助通道 3', minLabel: '最小', maxLabel: '最大' },
 ];
@@ -262,22 +262,22 @@ const AXIS_PROFILE_PRESETS = [
   {
     id: 'sr6-full',
     name: 'SR6 / OSR6 六轴',
-    description: '保留 L0 / L1 / L2 / R0 / R1 / R2 六个主运动轴，默认忽略 V0 / V1 / V2 / A0。',
+    description: '保留 L0 / L1 / L2 / R0 / R1 / R2 六个主运动轴，默认忽略 V0 / V1 / V2 以及 A0 / A1 / A2 三个扩展辅助轴。',
   },
   {
     id: 'osr2-core',
     name: 'OSR2 三轴',
-    description: '仅保留 L0 / R1 / R2（滚转 + 俯仰），忽略扭转与其他扩展轴。',
+    description: '仅保留 L0 / R1 / R2（主轴 + 滚转 + 俯仰），忽略 L1 / L2 / R0、V0 / V1 / V2 以及 A0 / A1 / A2。',
   },
   {
     id: 'l0-only',
     name: '仅 L0 主轴',
-    description: '只让主往复轴参与控制，其余全部忽略。',
+    description: '只让 L0 主往复轴参与控制；L1 / L2 / R0 / R1 / R2、V0 / V1 / V2 与 A0 / A1 / A2 全部忽略。',
   },
   {
     id: 'l0-pose-lock',
     name: 'L0 + 固定姿态',
-    description: '保留 L0，自由度姿态轴锁定中位，适合“手动摆好姿态后只让主轴动”的场景。',
+    description: '保留 L0，姿态轴与 A0 / A1 / A2 锁定在中位，V0 / V1 / V2 仍忽略；适合“手动摆好姿态后只让主轴动”的场景。',
   },
 ];
 
@@ -1150,6 +1150,41 @@ function sanitizeStudio(raw, config) {
   };
 }
 
+function buildInitialAppState() {
+  const studio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE);
+  const config = null;
+  const overview = null;
+  const logs = [];
+  const serialPorts = [];
+  const oscDraft = {
+    receiverHost: '0.0.0.0',
+    receiverPort: 9001,
+    oscQueryEnabled: true,
+    oscQueryUrl: DEFAULT_OSCQUERY_URL,
+  };
+  const signalDrafts = [];
+  const manualDraft = EMPTY_MANUAL;
+  const manualMotionMode = 'Default';
+  const manualMotionValue = MANUAL_DEFAULT_SPEED;
+  const scriptSettings = normalizeScriptSettingsState(null, studio.scriptDefaults);
+
+  return {
+    config,
+    overview,
+    logs,
+    studio,
+    serialPorts,
+    oscDraft,
+    signalDrafts,
+    manualDraft,
+    manualMotionMode,
+    manualMotionValue,
+    scriptSettings,
+    loading: true,
+    scriptSettingsInitialized: false,
+  };
+}
+
 function globMatch(pattern, path) {
   // Split both into segments
   const pSegs = pattern.split('/');
@@ -1483,9 +1518,28 @@ function clampScriptSpeed(value) {
   return Math.max(SCRIPT_SPEED_MIN, Math.min(SCRIPT_SPEED_MAX, numeric));
 }
 
-function normalizeScriptSettingsState(settings, fallback = DEFAULT_SCRIPT_SETTINGS) {
+function resolveScriptDurationMs(durationMsOverride, settings, fallback = DEFAULT_SCRIPT_SETTINGS) {
+  const overrideNumeric = Math.round(Number(durationMsOverride));
+  if (Number.isFinite(overrideNumeric) && overrideNumeric >= 0) {
+    return overrideNumeric;
+  }
+
+  const snapshotNumeric = Math.round(Number(settings?.durationMs));
+  if (Number.isFinite(snapshotNumeric) && snapshotNumeric >= 0) {
+    return snapshotNumeric;
+  }
+
+  const fallbackNumeric = Math.round(Number(fallback?.durationMs));
+  if (Number.isFinite(fallbackNumeric) && fallbackNumeric >= 0) {
+    return fallbackNumeric;
+  }
+
+  return 0;
+}
+
+function normalizeScriptSettingsState(settings, fallback = DEFAULT_SCRIPT_SETTINGS, durationMsOverride = null) {
   const resolvedFallback = fallback || DEFAULT_SCRIPT_SETTINGS;
-  const durationMs = Math.max(0, Number(settings?.durationMs ?? resolvedFallback.durationMs ?? 0));
+  const durationMs = resolveScriptDurationMs(durationMsOverride, settings, resolvedFallback);
   const loopRange = normalizeScriptLoopRange(settings?.loopStartMs ?? resolvedFallback.loopStartMs ?? null, settings?.loopEndMs ?? resolvedFallback.loopEndMs ?? null, durationMs);
 
   return {
@@ -2120,11 +2174,28 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
   );
 }
 
+function formatTCodeDeviceInfoTimestamp(value) {
+  if (!value) return '—';
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '—';
+
+  return date.toLocaleString();
+}
+
+function formatTCodeDeviceInfoValue(value, fallback = '—') {
+  const text = `${value || ''}`.trim();
+  return text || fallback;
+}
+
 function getTCodeDeviceInfoView(deviceInfo, connected) {
-  const axisDescriptors = Array.isArray(deviceInfo?.axisDescriptors) ? deviceInfo.axisDescriptors.filter(Boolean) : [];
+  const firmwareVersion = deviceInfo?.firmwareVersion ?? null;
+  const tCodeVersion = deviceInfo?.tCodeVersion ?? deviceInfo?.tcodeVersion ?? null;
+  const axisDescriptors = Array.isArray(deviceInfo?.axisDescriptors) ? deviceInfo.axisDescriptors.map(item => `${item || ''}`.trim()).filter(Boolean) : [];
   const queryFailed = typeof deviceInfo?.status === 'string' && deviceInfo.status.startsWith('query-failed:');
   const errorMessage = queryFailed ? deviceInfo.status.slice('query-failed:'.length).trim() : '';
-  const hasPayload = Boolean(deviceInfo?.firmwareVersion || deviceInfo?.tcodeVersion || axisDescriptors.length > 0);
+  const hasPayload = Boolean(firmwareVersion || tCodeVersion || axisDescriptors.length > 0);
+  const updatedAtText = formatTCodeDeviceInfoTimestamp(deviceInfo?.updatedAtUtc);
 
   if (!connected) {
     return {
@@ -2132,6 +2203,10 @@ function getTCodeDeviceInfoView(deviceInfo, connected) {
       hasPayload,
       statusText: '未连接',
       errorMessage: '',
+      firmwareVersionText: '—',
+      tcodeVersionText: '—',
+      updatedAtText,
+      statusTone: 'default',
     };
   }
 
@@ -2141,50 +2216,86 @@ function getTCodeDeviceInfoView(deviceInfo, connected) {
       hasPayload,
       statusText: `查询失败：${errorMessage}`,
       errorMessage,
+      firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, '未返回'),
+      tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, '未返回'),
+      updatedAtText,
+      statusTone: 'error',
     };
   }
 
   return {
     axisDescriptors,
     hasPayload,
-    statusText: hasPayload ? '' : '未查询',
+    statusText: hasPayload ? '已读取设备信息' : updatedAtText !== '—' ? '已查询' : '尚未查询',
     errorMessage: '',
+    firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, '未返回'),
+    tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, '未返回'),
+    updatedAtText,
+    statusTone: hasPayload ? 'success' : 'warning',
   };
 }
 
 function TCodeDeviceInfoCard({ deviceInfo, connected, onRefresh, busy = false, className = '' }) {
   const view = getTCodeDeviceInfoView(deviceInfo, connected);
-  const hasVersionTags = Boolean(deviceInfo?.firmwareVersion || deviceInfo?.tcodeVersion);
 
   return (
-    <Box className={`dialog-panel${className ? ` ${className}` : ''}`}>
-      <Typography variant="subtitle2" component="div">
-        <HelpLabel text="设备信息" title="串口 TCode 输出连接后会尝试读取设备返回的固件版本、TCode 版本以及轴描述；具体能返回哪些内容取决于固件是否实现相应查询。" />
-      </Typography>
+    <Box className={`dialog-panel tcode-device-info${className ? ` ${className}` : ''}`}>
+      <Box className="tcode-device-info__header">
+        <Typography variant="subtitle2" component="div" className="tcode-device-info__title">
+          <HelpLabel text="设备信息" title="串口 TCode 输出连接后会按 D0 / D1 / D2 查询固件版本、TCode 版本与轴描述；若固件未实现某项查询，对应字段会显示“未返回”。" />
+        </Typography>
 
-      <Stack direction="row" justifyContent="space-between" alignItems="center" spacing={1.5} useFlexGap flexWrap="nowrap">
-        <Box sx={{ minWidth: 0, flex: '1 1 auto' }}>
-          {view.hasPayload && hasVersionTags ? (
-            <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-              {deviceInfo?.firmwareVersion && <Chip size="small" variant="outlined" label={`FW ${deviceInfo.firmwareVersion}`} />}
-              {deviceInfo?.tcodeVersion && <Chip size="small" variant="outlined" label={`TCode ${deviceInfo.tcodeVersion}`} />}
-            </Stack>
-          ) : (
-            <Typography variant="body2" color={view.errorMessage ? 'error.main' : 'text.secondary'}>
-              {view.hasPayload ? '已查询' : view.statusText}
-            </Typography>
-          )}
-        </Box>
-
-        <Button size="small" variant="text" onClick={onRefresh} disabled={busy || !connected} sx={{ flexShrink: 0 }}>
+        <Button size="small" variant="text" className="tcode-device-info__refresh" onClick={onRefresh} disabled={busy || !connected}>
           刷新设备信息
         </Button>
+      </Box>
+
+      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="tcode-device-info__status-row">
+        <Typography variant="body2" className={`tcode-device-info__status tcode-device-info__status--${view.statusTone}`}>
+          {view.statusText}
+        </Typography>
+
+        {view.updatedAtText !== '—' && (
+          <Typography variant="caption" className="tcode-device-info__updated">
+            最近刷新：{view.updatedAtText}
+          </Typography>
+        )}
       </Stack>
 
+      <Box className="tcode-device-info__grid">
+        <Box className="tcode-device-info__field">
+          <Typography variant="caption" color="text.secondary">
+            固件版本（D0）
+          </Typography>
+          <Typography variant="body2" className="tcode-device-info__value">
+            {view.firmwareVersionText}
+          </Typography>
+        </Box>
+
+        <Box className="tcode-device-info__field">
+          <Typography variant="caption" color="text.secondary">
+            TCode 版本（D1）
+          </Typography>
+          <Typography variant="body2" className="tcode-device-info__value">
+            {view.tcodeVersionText}
+          </Typography>
+        </Box>
+      </Box>
+
       {view.axisDescriptors.length > 0 && (
-        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', wordBreak: 'break-word' }}>
-          {view.axisDescriptors.join(' · ')}
-        </Typography>
+        <Box className="tcode-device-info__axes">
+          <Typography variant="caption" color="text.secondary">
+            轴描述（D2）
+          </Typography>
+
+          <Box className="tcode-device-info__axis-list">
+            {view.axisDescriptors.map((descriptor, index) => (
+              <Typography key={`tcode-axis-${index}`} variant="caption" className="tcode-device-info__axis">
+                {descriptor}
+              </Typography>
+            ))}
+          </Box>
+        </Box>
       )}
     </Box>
   );
@@ -2455,29 +2566,30 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 }
 
 function App() {
-  const [config, setConfig] = useState(null);
-  const [overview, setOverview] = useState(null);
-  const [logs, setLogs] = useState([]);
-  const [studio, setStudio] = useState(() => sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE));
-  const [serialPorts, setSerialPorts] = useState([]);
-  const [oscDraft, setOscDraft] = useState({ receiverHost: '0.0.0.0', receiverPort: 9001, oscQueryEnabled: true, oscQueryUrl: DEFAULT_OSCQUERY_URL });
-  const [signalDrafts, setSignalDrafts] = useState([]);
+  const initialState = useMemo(() => buildInitialAppState(), []);
+  const [config, setConfig] = useState(initialState.config);
+  const [overview, setOverview] = useState(initialState.overview);
+  const [logs, setLogs] = useState(initialState.logs);
+  const [studio, setStudio] = useState(initialState.studio);
+  const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
+  const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
+  const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
   const [profileDialog, setProfileDialog] = useState(null);
   const [dialog, setDialog] = useState(null);
-  const [manualDraft, setManualDraft] = useState(EMPTY_MANUAL);
-  const [manualMotionMode, setManualMotionMode] = useState('Default');
-  const [manualMotionValue, setManualMotionValue] = useState(MANUAL_DEFAULT_SPEED);
+  const [manualDraft, setManualDraft] = useState(initialState.manualDraft);
+  const [manualMotionMode, setManualMotionMode] = useState(initialState.manualMotionMode);
+  const [manualMotionValue, setManualMotionValue] = useState(initialState.manualMotionValue);
   const [manualContinuous, setManualContinuous] = useState(false);
-  const [scriptSettings, setScriptSettings] = useState(DEFAULT_SCRIPT_SETTINGS);
+  const [scriptSettings, setScriptSettings] = useState(initialState.scriptSettings);
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
   const [scriptSeekDragging, setScriptSeekDragging] = useState(false);
   const [scriptJumpInput, setScriptJumpInput] = useState('');
   const [selectedScriptFile, setSelectedScriptFile] = useState(null);
   const [scriptFileInputKey, setScriptFileInputKey] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(initialState.loading);
   const [busyKey, setBusyKey] = useState('');
   const [wsState, setWsState] = useState('connecting');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
@@ -2488,11 +2600,11 @@ function App() {
   const [logAxisFilter, setLogAxisFilter] = useState('');
   const [logActionFilter, setLogActionFilter] = useState('');
   const [confirmClearMappings, setConfirmClearMappings] = useState(false);
-  const manualDraftRef = useRef(EMPTY_MANUAL);
-  const manualMotionModeRef = useRef('Default');
-  const manualMotionValueRef = useRef(MANUAL_DEFAULT_SPEED);
-  const savedSignalsHashRef = useRef('');
-  const scriptSettingsInitializedRef = useRef(false);
+  const manualDraftRef = useRef(initialState.manualDraft);
+  const manualMotionModeRef = useRef(initialState.manualMotionMode);
+  const manualMotionValueRef = useRef(initialState.manualMotionValue);
+  const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
+  const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
 
   useEffect(() => {
     let disposed = false;
@@ -2513,7 +2625,7 @@ function App() {
         const persistedStudio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE, configResponse);
 
         setConfig(configResponse);
-        setOverview(overviewResponse);
+  setOverview(overviewResponse);
         setLogs(normalizeLogs(logsResponse));
         setSerialPorts(normalizeSerialPorts(serialPortResponse));
         setOscDraft({
@@ -2864,7 +2976,8 @@ function App() {
   }
 
   function updateScriptSettingsDraft(patch, options = {}) {
-    const nextSettings = normalizeScriptSettingsState({ ...scriptSettings, ...patch }, scriptSettings);
+    const effectiveScriptDurationMs = Math.max(0, Number(overview?.input?.script?.durationMs || 0));
+    const nextSettings = normalizeScriptSettingsState({ ...scriptSettings, ...patch }, scriptSettings, effectiveScriptDurationMs);
     setScriptSettings(nextSettings);
 
     if (options.commit && scriptLoaded) {
@@ -3386,7 +3499,8 @@ function App() {
   async function applyScriptSettings(nextSettings, options = {}) {
     if (!scriptState?.loaded) return;
 
-    const payload = normalizeScriptSettingsState(nextSettings, scriptSettings);
+    const effectiveScriptDurationMs = Math.max(0, Number(overview?.input?.script?.durationMs || 0));
+    const payload = normalizeScriptSettingsState(nextSettings, scriptSettings, effectiveScriptDurationMs);
 
     await withBusy('script-configure', async () => {
       const result = await apiRequest('/api/input/script/configure', {
@@ -3716,13 +3830,22 @@ function App() {
   const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
   const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
   const scriptSpeedLabel = formatScriptSpeedLabel(scriptSettings.speed);
-  const scriptLoopSummaryLabel = scriptSettings.loop ? (scriptLoopRange.active ? 'A-B 循环' : '循环播放') : '单次播放';
-  const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '等待另一侧标记';
   const scriptLoopStartLabel = scriptLoopRange.startMs === null ? 'A 未设' : `A ${formatDuration(scriptLoopRange.startMs)}`;
   const scriptLoopEndLabel = scriptLoopRange.endMs === null ? 'B 未设' : `B ${formatDuration(scriptLoopRange.endMs)}`;
+  const scriptLoopModeLabel = scriptSettings.loop ? '循环播放已开启' : '循环播放已关闭';
+  const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '';
+  const scriptLoopRangeStatusLabel = scriptLoopRange.active ? `A-B ${scriptLoopRangeSummary}` : scriptHasLoopMarkers ? `${scriptLoopStartLabel} · ${scriptLoopEndLabel}` : 'A-B 未设置';
   const scriptLoopLengthMs = scriptLoopRange.active ? Math.max(0, scriptLoopRange.endMs - scriptLoopRange.startMs) : 0;
   const scriptLoopCoveragePercent = scriptLoopRange.active && scriptDurationMs > 0 ? (scriptLoopLengthMs / scriptDurationMs) * 100 : 0;
   const scriptCurrentInLoopRange = scriptLoopRange.active ? scriptPositionMs >= scriptLoopRange.startMs && scriptPositionMs < scriptLoopRange.endMs : null;
+  const scriptLoopModeHelpText = !scriptLoaded
+    ? '先设好速度和循环偏好，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'
+    : scriptSettings.loop
+      ? scriptLoopRange.active
+        ? '已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。'
+        : '已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。'
+      : '已关闭。当前会从当前位置播放到结尾一次。';
+  const scriptTimelineHintText = 'A/B 默认取当前播放位置；若正在拖动进度条，则取拖拽位置。Shift + 点击时间轴设 A，Alt + 点击设 B，直接拖拽一段可生成完整 A-B。开启“循环播放”后：若已设置完整 A-B，则只在 A-B 内循环；否则按整段脚本循环。时间码支持 90、1:30、01:23.45；快捷键支持 [ / ]、Shift + A / B / C。';
   const oscListening = Boolean(overview?.osc?.listening);
   const oscListenerError = typeof overview?.osc?.listenerError === 'string' ? overview.osc.listenerError.trim() : '';
   const oscModeActive = actualInputMode === 'osc';
@@ -4440,27 +4563,21 @@ function App() {
                       <Typography variant="subtitle2">播放控制</Typography>
                       <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
                         <Chip size="small" variant="outlined" label={scriptSpeedLabel} />
-                        <Chip size="small" variant="outlined" label={scriptLoopSummaryLabel} />
-                        {scriptHasLoopMarkers && <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `区间 ${scriptLoopRangeSummary}` : `${scriptLoopStartLabel} · ${scriptLoopEndLabel}`} />}
-                        {scriptLoaded && <Chip size="small" variant="outlined" label={`${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}`} />}
+                        <Chip size="small" color={scriptSettings.loop ? 'success' : 'default'} variant="outlined" label={scriptLoopModeLabel} />
+                        {scriptHasLoopMarkers && <Chip size="small" color={scriptLoopRange.active ? 'primary' : 'warning'} variant="outlined" label={scriptLoopRangeStatusLabel} />}
                       </Stack>
                     </Box>
 
                     <Stack spacing={2}>
                       <FieldPanel
-                        label="进度定位"
-                        title="拖动进度条可定位到任意时刻；下方快捷按钮可快速回到开头/结尾，或按固定时长快进快退。时间轴密度条支持直接拖拽生成 A-B 区间。"
+                        label="时间轴与定位"
+                        title="拖动进度条可精确定位到任意时刻；下方时间轴密度图支持点击跳转、Shift / Alt 设 A/B，以及直接拖拽生成完整 A-B 区间。"
                         valueText={scriptLoaded ? `${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}` : '未加载脚本'}
                         className="script-progress-panel"
                       >
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" className="script-progress-summary">
-                          <Typography variant="caption" color="text.secondary">
-                            进度定位
-                          </Typography>
-                          <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-progress-summary__times">
-                            <Chip size="small" variant="outlined" label={`${Math.round(scriptProgressPercent)}%`} />
-                            <Chip size="small" variant="outlined" label={`剩余 ${formatDuration(scriptRemainingMs)}`} />
-                          </Stack>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-progress-summary">
+                          <Chip size="small" variant="outlined" label={`已播放 ${Math.round(scriptProgressPercent)}%`} />
+                          <Chip size="small" variant="outlined" label={`剩余 ${formatDuration(scriptRemainingMs)}`} />
                         </Stack>
 
                         <SliderControl
@@ -4480,8 +4597,6 @@ function App() {
                             void seekScript(nextValue);
                           }}
                         />
-
-                        <LinearProgress variant="determinate" value={scriptLoaded ? scriptProgressPercent : 0} className="script-progress-panel__bar" sx={{ height: 8, borderRadius: 4 }} />
 
                         <ScriptTimelineDensity
                           bins={scriptActivityBins}
@@ -4532,7 +4647,7 @@ function App() {
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-markers">
                           <Chip size="small" color={scriptLoopRange.startMs === null ? 'default' : 'primary'} variant={scriptLoopRange.startMs === null ? 'outlined' : 'filled'} label={scriptLoopStartLabel} />
                           <Chip size="small" color={scriptLoopRange.endMs === null ? 'default' : 'secondary'} variant={scriptLoopRange.endMs === null ? 'outlined' : 'filled'} label={scriptLoopEndLabel} />
-                          <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `循环区间 ${scriptLoopRangeSummary}` : '未形成有效 A-B 区间'} />
+                          <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `A-B ${scriptLoopRangeSummary}` : scriptHasLoopMarkers ? 'A-B 还差另一侧标记' : 'A-B 未设置'} />
                           {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`长度 ${formatDuration(scriptLoopLengthMs)}`} />}
                           {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`占比 ${Math.round(scriptLoopCoveragePercent)}%`} />}
                           {scriptLoopRange.active && (
@@ -4540,7 +4655,7 @@ function App() {
                               size="small"
                               color={scriptCurrentInLoopRange ? 'success' : 'warning'}
                               variant="outlined"
-                              label={scriptCurrentInLoopRange ? '当前位置在区间内' : '当前位置在区间外'}
+                              label={scriptCurrentInLoopRange ? '当前位置在 A-B 内' : '当前位置在 A-B 外'}
                             />
                           )}
                         </Stack>
@@ -4591,7 +4706,7 @@ function App() {
                         </Stack>
 
                         <Typography variant="caption" color="text.secondary" className="script-loop-hint">
-                          A/B 标记会使用当前播放位置，或你正在拖拽的定位位置；也可以在时间轴密度条上直接 Shift + 点击设 A、Alt + 点击设 B，或直接拖拽一段生成完整 A-B 区间。开启“循环播放”后，如果 A、B 都已设置，就只会在该区间内循环。时间码支持 90、1:30、01:23.45 这几种写法；快捷键支持 [ / ] 跳到 A/B，Shift + A / B 设置 A/B，Shift + C 清除区间。
+                          {scriptTimelineHintText}
                         </Typography>
                       </FieldPanel>
 
@@ -4650,10 +4765,10 @@ function App() {
                                 }}
                               />
                             }
-                            label={scriptSettings.loop ? '循环播放' : '单次播放'}
+                            label="循环播放"
                           />
                           <Typography variant="caption" color="text.secondary">
-                            {scriptLoaded ? '修改后会立即作用到当前脚本；速度与循环偏好也会记住到当前浏览器。' : '先设好参数，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'}
+                            {scriptLoopModeHelpText}
                           </Typography>
                         </Box>
                       </Box>

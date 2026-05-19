@@ -1,4 +1,5 @@
 using System.IO.Ports;
+using System.Text;
 using Sensa.Configuration;
 using Sensa.Motion;
 using Sensa.Signals;
@@ -13,10 +14,16 @@ namespace Sensa.Outputs.TCode;
 /// </summary>
 public sealed class TCodeSerialOutput : IDisposable
 {
+    private static readonly UTF8Encoding StrictUtf8DeviceInfoEncoding = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+    private static readonly UTF8Encoding Utf8DeviceInfoEncoding = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: false);
+    private static readonly Encoding Latin1DeviceInfoEncoding = Encoding.Latin1;
+    private static readonly Encoding? Gb18030DeviceInfoEncoding;
+
     private readonly AppConfig? _config;
     private readonly OutputDeviceConfig? _output;
     private readonly Func<TCodeMotionProfile>? _profileResolver;
     private readonly Dictionary<MotionAxis, AxisVelocityTracker> _velocity = MotionAxisHelper.All.ToDictionary(axis => axis, axis => new AxisVelocityTracker());
+    private readonly object _ioGate = new();
     private SerialPort? _port;
     private MotionFrame? _lastSourceFrame;
     private MotionFrame? _lastEffectiveFrame;
@@ -24,6 +31,27 @@ public sealed class TCodeSerialOutput : IDisposable
     private TCodeDeviceInfo? _deviceInfo;
 
     public event Action<string>? OnDebugLog;
+
+    static TCodeSerialOutput()
+    {
+        try
+        {
+            Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
+        }
+        catch
+        {
+            // 已注册或当前平台无需额外 provider。
+        }
+
+        try
+        {
+            Gb18030DeviceInfoEncoding = Encoding.GetEncoding(54936);
+        }
+        catch
+        {
+            Gb18030DeviceInfoEncoding = null;
+        }
+    }
 
     public bool IsConnected => _port?.IsOpen == true;
     public TCodeDeviceInfo? DeviceInfo => _deviceInfo;
@@ -38,100 +66,107 @@ public sealed class TCodeSerialOutput : IDisposable
 
     public void Connect()
     {
-        Disconnect();
-        _port = new SerialPort(GetComPort(), 115200, Parity.None, 8, StopBits.One)
+        lock (_ioGate)
         {
-            ReadTimeout = 100,
-            WriteTimeout = 200,
-        };
-        _port.Open();
-        ResetEmitState();
-        _deviceInfo = QueryDeviceInfo();
-        Console.WriteLine($"[TCode] Connected to {GetComPort()}");
+            DisconnectCore();
+            _port = new SerialPort(GetComPort(), 115200, Parity.None, 8, StopBits.One)
+            {
+                ReadTimeout = 100,
+                WriteTimeout = 200,
+                Encoding = Utf8DeviceInfoEncoding,
+            };
+            _port.Open();
+            ResetEmitState();
+            _deviceInfo = QueryDeviceInfo();
+            Console.WriteLine($"[TCode] Connected to {GetComPort()}");
+        }
     }
 
     public void Disconnect()
     {
-        if (_port?.IsOpen == true)
+        lock (_ioGate)
         {
-            try { _port.WriteLine("DSTOP"); } catch { }
-            _port.Close();
+            DisconnectCore();
         }
-
-        _port?.Dispose();
-        _port = null;
-        _deviceInfo = null;
-        ResetEmitState();
     }
 
     public void Dispose() => Disconnect();
 
     public void Send(MotionFrame frame)
     {
-        if (_port?.IsOpen != true)
-            return;
-
-        var (line, effectiveFrame) = BuildLine(frame, forceAll: _lastEffectiveFrame is null);
-        if (string.IsNullOrWhiteSpace(line))
-            return;
-        if (line == _lastSentLine)
-            return;
-
-        _lastEffectiveFrame = effectiveFrame;
-        _lastSourceFrame = frame;
-        _lastSentLine = line;
-        SyncVelocityToFrame(effectiveFrame);
-
-        try
+        lock (_ioGate)
         {
-            _port.WriteLine(line);
-            OnDebugLog?.Invoke($"TX {line}");
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[TCode] Write error: {ex.Message}");
+            if (_port?.IsOpen != true)
+                return;
+
+            var (line, effectiveFrame) = BuildLine(frame, forceAll: _lastEffectiveFrame is null);
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+            if (line == _lastSentLine)
+                return;
+
+            _lastEffectiveFrame = effectiveFrame;
+            _lastSourceFrame = frame;
+            _lastSentLine = line;
+            SyncVelocityToFrame(effectiveFrame);
+
+            try
+            {
+                _port.WriteLine(line);
+                OnDebugLog?.Invoke($"TX {line}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[TCode] Write error: {ex.Message}");
+            }
         }
     }
 
     /// <summary>Returns active axes to the requested center pose in ~1 second.</summary>
     public void Center()
     {
-        if (_port?.IsOpen != true)
-            return;
-
-        var centerFrame = MotionAxisHelper.CreateCenterFrame(1000);
-        var (line, effectiveFrame) = BuildLine(centerFrame, forceAll: true, forceInterval: true, durationMsOverride: 1000, padMagnitude: true);
-        if (string.IsNullOrWhiteSpace(line))
-            return;
-
-        _lastEffectiveFrame = effectiveFrame;
-        _lastSourceFrame = centerFrame;
-        _lastSentLine = line;
-        SyncVelocityToFrame(effectiveFrame);
-
-        try
+        lock (_ioGate)
         {
-            _port.WriteLine(line);
-            OnDebugLog?.Invoke($"CENTER {line}");
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[TCode] Center error: {ex.Message}");
+            if (_port?.IsOpen != true)
+                return;
+
+            var centerFrame = MotionAxisHelper.CreateCenterFrame(1000);
+            var (line, effectiveFrame) = BuildLine(centerFrame, forceAll: true, forceInterval: true, durationMsOverride: 1000, padMagnitude: true);
+            if (string.IsNullOrWhiteSpace(line))
+                return;
+
+            _lastEffectiveFrame = effectiveFrame;
+            _lastSourceFrame = centerFrame;
+            _lastSentLine = line;
+            SyncVelocityToFrame(effectiveFrame);
+
+            try
+            {
+                _port.WriteLine(line);
+                OnDebugLog?.Invoke($"CENTER {line}");
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"[TCode] Center error: {ex.Message}");
+            }
         }
     }
 
     public void EmergencyStop()
     {
-        if (_port?.IsOpen != true)
-            return;
-
-        ResetEmitState();
-        try
+        lock (_ioGate)
         {
-            _port.WriteLine("DSTOP");
-            OnDebugLog?.Invoke("TX DSTOP");
+            if (_port?.IsOpen != true)
+                return;
+
+            ResetEmitState();
+            try
+            {
+                _port.WriteLine("DSTOP");
+                OnDebugLog?.Invoke("TX DSTOP");
+            }
+            catch { }
         }
-        catch { }
     }
 
     private (string Line, MotionFrame EffectiveFrame) BuildLine(
@@ -338,11 +373,15 @@ public sealed class TCodeSerialOutput : IDisposable
             return TCodeDeviceInfo.Unsupported("串口未连接");
         }
 
+        OnDebugLog?.Invoke("DEVINFO begin D0 / D1 / D2");
+
         try
         {
             var fw = QuerySingleLine("D0");
             var ver = QuerySingleLine("D1");
             var axes = QueryMultiLine("D2");
+
+            OnDebugLog?.Invoke($"DEVINFO done fw={FormatDeviceInfoSummaryValue(fw)} tcode={FormatDeviceInfoSummaryValue(ver)} axes={axes.Count}");
 
             return new TCodeDeviceInfo
             {
@@ -356,6 +395,8 @@ public sealed class TCodeSerialOutput : IDisposable
         }
         catch (Exception ex)
         {
+            OnDebugLog?.Invoke($"DEVINFO failed {ex.Message}");
+
             return new TCodeDeviceInfo
             {
                 Supported = true,
@@ -370,40 +411,34 @@ public sealed class TCodeSerialOutput : IDisposable
 
     public void RefreshDeviceInfo()
     {
-        if (_port?.IsOpen != true)
+        lock (_ioGate)
         {
-            _deviceInfo = TCodeDeviceInfo.Unsupported("串口未连接");
-            return;
-        }
+            if (_port?.IsOpen != true)
+            {
+                _deviceInfo = TCodeDeviceInfo.Unsupported("串口未连接");
+                OnDebugLog?.Invoke("DEVINFO skipped: 串口未连接");
+                return;
+            }
 
-        _deviceInfo = QueryDeviceInfo();
+            OnDebugLog?.Invoke("DEVINFO refresh requested");
+            _deviceInfo = QueryDeviceInfo();
+        }
     }
 
     private string? QuerySingleLine(string command)
     {
-        if (_port?.IsOpen != true)
-            return null;
-
-        var oldTimeout = _port.ReadTimeout;
-        try
-        {
-            _port.DiscardInBuffer();
-            _port.ReadTimeout = 250;
-            _port.WriteLine(command);
-            var line = _port.ReadLine();
-            return string.IsNullOrWhiteSpace(line) ? null : line.Trim();
-        }
-        catch
-        {
-            return null;
-        }
-        finally
-        {
-            _port.ReadTimeout = oldTimeout;
-        }
+        return QueryLines(command, maxLines: 1, readTimeoutMs: 250).FirstOrDefault();
     }
 
     private IReadOnlyList<string> QueryMultiLine(string command)
+    {
+        if (_port?.IsOpen != true)
+            return Array.Empty<string>();
+
+        return QueryLines(command, maxLines: 24, readTimeoutMs: 120);
+    }
+
+    private IReadOnlyList<string> QueryLines(string command, int maxLines, int readTimeoutMs)
     {
         if (_port?.IsOpen != true)
             return Array.Empty<string>();
@@ -413,22 +448,40 @@ public sealed class TCodeSerialOutput : IDisposable
         try
         {
             _port.DiscardInBuffer();
-            _port.ReadTimeout = 120;
+            _port.ReadTimeout = readTimeoutMs;
+            OnDebugLog?.Invoke($"DEVINFO TX {command}");
             _port.WriteLine(command);
-            for (var i = 0; i < 24; i++)
+
+            for (var i = 0; i < maxLines; i++)
             {
-                try
-                {
-                    var line = _port.ReadLine();
-                    if (string.IsNullOrWhiteSpace(line))
-                        continue;
-                    lines.Add(line.Trim());
-                }
-                catch (TimeoutException)
-                {
+                var rawLine = ReadRawDeviceInfoLine(_port);
+                if (rawLine is null)
                     break;
-                }
+
+                if (rawLine.Length == 0)
+                    continue;
+
+                var (decodedLine, encodingLabel, includeHexInLog) = DecodeDeviceInfoBytes(rawLine);
+                if (string.IsNullOrWhiteSpace(decodedLine))
+                    continue;
+
+                var hexSuffix = includeHexInLog ? $" | HEX {BitConverter.ToString(rawLine)}" : string.Empty;
+                OnDebugLog?.Invoke($"DEVINFO RX {command} [{encodingLabel}] {decodedLine}{hexSuffix}");
+                lines.Add(decodedLine);
             }
+
+            if (lines.Count == 0)
+                OnDebugLog?.Invoke($"DEVINFO RX {command} <no response>");
+        }
+        catch (TimeoutException)
+        {
+            if (lines.Count == 0)
+                OnDebugLog?.Invoke($"DEVINFO RX {command} <timeout>");
+        }
+        catch (Exception ex)
+        {
+            OnDebugLog?.Invoke($"DEVINFO ERR {command} {ex.Message}");
+            throw;
         }
         finally
         {
@@ -436,6 +489,103 @@ public sealed class TCodeSerialOutput : IDisposable
         }
 
         return lines;
+    }
+
+    private static byte[]? ReadRawDeviceInfoLine(SerialPort port)
+    {
+        using var buffer = new MemoryStream();
+
+        while (true)
+        {
+            try
+            {
+                var nextByte = port.ReadByte();
+                if (nextByte < 0)
+                    return buffer.Length > 0 ? buffer.ToArray() : null;
+
+                var value = (byte)nextByte;
+                if (value == (byte)'\n')
+                    return buffer.ToArray();
+
+                if (value == (byte)'\r')
+                    continue;
+
+                buffer.WriteByte(value);
+            }
+            catch (TimeoutException)
+            {
+                return buffer.Length > 0 ? buffer.ToArray() : null;
+            }
+        }
+    }
+
+    private static (string Text, string EncodingLabel, bool IncludeHexInLog) DecodeDeviceInfoBytes(byte[] bytes)
+    {
+        if (bytes.Length == 0)
+            return (string.Empty, "empty", false);
+
+        if (TryDecodeUtf8(bytes, out var utf8Text))
+            return (SanitizeDeviceInfoText(utf8Text), "utf-8", false);
+
+        if (TryDecodeWithEncoding(Gb18030DeviceInfoEncoding, bytes, out var gb18030Text))
+            return (SanitizeDeviceInfoText(gb18030Text), "gb18030", false);
+
+        var fallbackText = SanitizeDeviceInfoText(Utf8DeviceInfoEncoding.GetString(bytes));
+        if (string.IsNullOrWhiteSpace(fallbackText))
+            fallbackText = SanitizeDeviceInfoText(Latin1DeviceInfoEncoding.GetString(bytes));
+
+        var includeHexInLog = fallbackText.Contains('�') || fallbackText.Contains('?');
+        return (fallbackText, "fallback", includeHexInLog);
+    }
+
+    private static bool TryDecodeUtf8(byte[] bytes, out string text)
+    {
+        try
+        {
+            text = StrictUtf8DeviceInfoEncoding.GetString(bytes);
+            return true;
+        }
+        catch (DecoderFallbackException)
+        {
+            text = string.Empty;
+            return false;
+        }
+    }
+
+    private static bool TryDecodeWithEncoding(Encoding? encoding, byte[] bytes, out string text)
+    {
+        if (encoding is null)
+        {
+            text = string.Empty;
+            return false;
+        }
+
+        text = encoding.GetString(bytes);
+        return true;
+    }
+
+    private static string SanitizeDeviceInfoText(string value)
+    {
+        return (value ?? string.Empty)
+            .Replace("\0", string.Empty, StringComparison.Ordinal)
+            .Trim();
+    }
+
+    private static string FormatDeviceInfoSummaryValue(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? "<none>" : value.Trim();
+
+    private void DisconnectCore()
+    {
+        if (_port?.IsOpen == true)
+        {
+            try { _port.WriteLine("DSTOP"); } catch { }
+            _port.Close();
+        }
+
+        _port?.Dispose();
+        _port = null;
+        _deviceInfo = null;
+        ResetEmitState();
     }
 
     private void ResetEmitState()

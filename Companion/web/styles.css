@@ -796,6 +796,11 @@ body {
   padding-bottom: 4px;
 }
 
+.output-card__device-info {
+  min-width: 0;
+  overflow: hidden;
+}
+
 .output-card-actions .MuiButton-root {
   min-width: 0;
   width: 100%;
@@ -843,6 +848,111 @@ body {
   align-items: flex-start;
   gap: 12px;
   margin-bottom: 0;
+}
+
+.tcode-device-info {
+  min-width: 0;
+  gap: 10px;
+  padding: 12px;
+}
+
+.tcode-device-info__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.tcode-device-info__title {
+  min-width: 0;
+}
+
+.tcode-device-info__refresh {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.tcode-device-info__status-row {
+  min-width: 0;
+  gap: 6px;
+}
+
+.tcode-device-info__status {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  font-size: 0.92rem;
+}
+
+.tcode-device-info__status--success {
+  color: #047857;
+}
+
+.tcode-device-info__status--warning {
+  color: #b45309;
+}
+
+.tcode-device-info__status--error {
+  color: #b91c1c;
+}
+
+.tcode-device-info__status--default {
+  color: #475569;
+}
+
+.tcode-device-info__updated {
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.tcode-device-info__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.tcode-device-info__field {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.tcode-device-info__value,
+.tcode-device-info__axis {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tcode-device-info__axes {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.tcode-device-info__axis-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(138px, 1fr));
+  gap: 4px;
+  min-width: 0;
+  max-height: 120px;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.tcode-device-info__axis {
+  display: block;
+  padding: 5px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.82);
+  font-family: 'Consolas', 'Cascadia Mono', 'JetBrains Mono', monospace;
+  line-height: 1.35;
 }
 
 .section-status-alert {
@@ -929,15 +1039,11 @@ body {
 
 .script-progress-summary {
   align-items: center;
-  min-width: 0;
-}
-
-.script-progress-summary__times {
   justify-content: flex-end;
   min-width: 0;
 }
 
-.script-progress-summary__times .MuiChip-root {
+.script-progress-summary .MuiChip-root {
   max-width: 100%;
 }
 
@@ -946,12 +1052,6 @@ body {
   width: calc(100% - 16px);
   margin-inline: 8px;
   box-sizing: border-box;
-}
-
-.script-progress-panel__bar {
-  width: 100%;
-  max-width: 100%;
-  overflow: hidden;
 }
 
 .script-density {
@@ -1142,8 +1242,20 @@ body {
 
 .script-toggle-field {
   display: grid;
-  gap: 6px;
+  gap: 8px;
   align-content: start;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(248, 250, 252, 0.94) 100%);
+}
+
+.script-toggle-field .MuiFormControlLabel-root {
+  margin: 0;
+}
+
+.script-toggle-field .MuiFormControlLabel-label {
+  font-weight: 600;
 }
 
 .script-action-row {
@@ -1368,6 +1480,11 @@ body {
 
   .dialog-panel__header {
     flex-direction: column;
+  }
+
+  .tcode-device-info__header {
+    flex-wrap: wrap;
+    align-items: flex-start;
   }
 
   .manual-toolbar__motion {

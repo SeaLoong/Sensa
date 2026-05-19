@@ -532,11 +532,13 @@ public static class SensaHost
             try
             {
                 SyncOscServices(forceReceiverReconfigure: receiverChanged, forceQueryRefresh: queryEnabledChanged || queryChanged);
-                await outputCoordinator.ReloadAsync().ConfigureAwait(false);
-                await outputCoordinator.ConnectEnabledAsync().ConfigureAwait(false);
+                await outputCoordinator.RunStateChangeBatchAsync(async () =>
+                {
+                    await outputCoordinator.ReloadAsync().ConfigureAwait(false);
+                    await outputCoordinator.ConnectEnabledAsync().ConfigureAwait(false);
+                }).ConfigureAwait(false);
                 config.Save();
                 Log("[Config] Updated from WebUI.");
-                NotifyStateChanged();
                 return config;
             }
             catch
