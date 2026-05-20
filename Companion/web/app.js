@@ -163,12 +163,71 @@ const SCRIPT_SPEED_MAX = 4;
 const SCRIPT_SPEED_STEP = 0.05;
 const SCRIPT_SPEED_PRESETS = [0.25, 0.5, 1, 1.5, 2, 3, 4];
 const SCRIPT_SEEK_ACTIONS = [
-  { key: 'start', label: '开头', mode: 'absolute', value: 0 },
-  { key: 'back10', label: '-10s', mode: 'relative', value: -10000 },
-  { key: 'back5', label: '-5s', mode: 'relative', value: -5000 },
-  { key: 'forward5', label: '+5s', mode: 'relative', value: 5000 },
-  { key: 'forward10', label: '+10s', mode: 'relative', value: 10000 },
-  { key: 'end', label: '结尾', mode: 'absolute', value: 'end' },
+  { key: 'start', label: '开头', mode: 'absolute', value: 0, shortcut: 'Home' },
+  { key: 'back10', label: '-10s', mode: 'relative', value: -10000, shortcut: 'Shift + ←' },
+  { key: 'back5', label: '-5s', mode: 'relative', value: -5000, shortcut: '←' },
+  { key: 'forward5', label: '+5s', mode: 'relative', value: 5000, shortcut: '→' },
+  { key: 'forward10', label: '+10s', mode: 'relative', value: 10000, shortcut: 'Shift + →' },
+  { key: 'end', label: '结尾', mode: 'absolute', value: 'end', shortcut: 'End' },
+];
+const SCRIPT_TIMELINE_GUIDE_ITEMS = [
+  { title: '点击时间轴', description: '立即定位到对应时间点' },
+  { title: 'Shift + 点击', description: '把点击位置写成 A 点' },
+  { title: 'Alt + 点击', description: '把点击位置写成 B 点' },
+  { title: '拖拽一段', description: '直接框选完整 A-B 区间' },
+  { title: 'Esc 取消框选', description: '拖拽选择 A-B 时，可随时放弃当前框选' },
+];
+const SCRIPT_EMPTY_STATE_GUIDE_ITEMS = [
+  { title: '先载入脚本', description: '支持 `.funscript` / `.json`；导入完成后这里会变成可编辑的时间轴工作区。' },
+  { title: '默认偏好会记住', description: '循环开关与时间倍率可以先设置好，当前浏览器会自动记住。' },
+  { title: '载入后立即开工', description: '时间轴拖拽、A-B 框选、关键帧步进和快捷键会在载入后直接可用。' },
+];
+const SCRIPT_SHORTCUT_GROUPS = [
+  {
+    key: 'transport',
+    title: '播放与步进',
+    caption: '最常用的传输控制与关键帧步进。',
+    items: [
+      { shortcut: 'Space / K', label: '播放 / 暂停', description: '在当前时间点继续播放或暂停脚本', requirement: 'loaded' },
+      { shortcut: 'R', label: '从头重播', description: '从脚本开头重新开始播放', requirement: 'loaded' },
+      { shortcut: 'J', label: '上一动作', description: '跳到上一个关键帧，适合逐帧对点', requirement: 'loaded' },
+      { shortcut: 'L', label: '下一动作', description: '跳到下一个关键帧，快速检查节奏', requirement: 'loaded' },
+    ],
+  },
+  {
+    key: 'timeline',
+    title: '时间轴定位',
+    caption: '短距离、长距离和整段跳转拆开显示，不再混成一行。',
+    items: [
+      { shortcut: '←', label: '快退 5 秒', description: '以当前播放位置为基准向前回退 5 秒', requirement: 'loaded' },
+      { shortcut: '→', label: '快进 5 秒', description: '以当前播放位置为基准向后前进 5 秒', requirement: 'loaded' },
+      { shortcut: 'Shift + ←', label: '快退 10 秒', description: '更大步长地回退 10 秒', requirement: 'loaded' },
+      { shortcut: 'Shift + →', label: '快进 10 秒', description: '更大步长地前进 10 秒', requirement: 'loaded' },
+      { shortcut: 'Home', label: '跳到开头', description: '直接把时间轴拉回脚本起点', requirement: 'loaded' },
+      { shortcut: 'End', label: '跳到结尾', description: '直接定位到脚本结尾', requirement: 'loaded' },
+    ],
+  },
+  {
+    key: 'loop',
+    title: 'A-B 区间',
+    caption: '把“设置标记”和“跳到标记”拆开，减少记忆负担。',
+    items: [
+      { shortcut: 'Shift + A', label: '设置 A 点', description: '把当前位置写成循环起点 A', requirement: 'loaded' },
+      { shortcut: 'Shift + B', label: '设置 B 点', description: '把当前位置写成循环终点 B', requirement: 'loaded' },
+      { shortcut: '[', label: '跳到 A 点', description: '快速回到当前已设置的 A 点', requirement: 'loop-start' },
+      { shortcut: ']', label: '跳到 B 点', description: '快速跳到当前已设置的 B 点', requirement: 'loop-end' },
+      { shortcut: 'Shift + C', label: '清除 A-B', description: '移除当前 A-B 区间标记', requirement: 'loop-markers' },
+    ],
+  },
+  {
+    key: 'speed',
+    title: '播放倍率',
+    caption: '这里只改时间倍率，不改 TCode 的 S 速度。',
+    items: [
+      { shortcut: '-', label: '降低倍率', description: '把当前脚本时间倍率降低 0.1x', requirement: 'loaded' },
+      { shortcut: '=（+）', label: '提高倍率', description: '把当前脚本时间倍率提高 0.1x', requirement: 'loaded' },
+    ],
+  },
 ];
 
 const AXIS_PROFILE_DEFS = [
@@ -1660,6 +1719,56 @@ function MetricCard({ label, value, tone = 'default' }) {
   );
 }
 
+function ScriptHotkeyItem({ shortcut, label, description, statusLabel = '', statusColor = 'default' }) {
+  return (
+    <Box className={`script-hotkey-item script-hotkey-item--${statusColor}`}>
+      <Typography variant="caption" component="div" className="script-hotkey-item__key">
+        {shortcut}
+      </Typography>
+      <Box className="script-hotkey-item__body">
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" justifyContent="space-between" className="script-hotkey-item__header">
+          <Typography variant="body2" className="script-hotkey-item__label">
+            {label}
+          </Typography>
+          {statusLabel ? <Chip size="small" color={statusColor} variant="outlined" label={statusLabel} /> : null}
+        </Stack>
+        <Typography variant="body2" color="text.secondary" className="script-hotkey-item__text">
+          {description}
+        </Typography>
+      </Box>
+    </Box>
+  );
+}
+
+function ScriptActionButtonLabel({ label, shortcut = '' }) {
+  return (
+    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" justifyContent="center" className="script-action-button__content">
+      <Box component="span">{label}</Box>
+      {shortcut ? <Box component="span" className="script-action-button__hint">{shortcut}</Box> : null}
+    </Stack>
+  );
+}
+
+function getScriptShortcutAvailability(requirement, context) {
+  if (!context.scriptLoaded) {
+    return { label: '需先载入脚本', color: 'default' };
+  }
+
+  switch (requirement) {
+    case 'loop-start':
+      return context.hasLoopStart ? { label: '可用', color: 'success' } : { label: '需先设 A 点', color: 'warning' };
+
+    case 'loop-end':
+      return context.hasLoopEnd ? { label: '可用', color: 'success' } : { label: '需先设 B 点', color: 'warning' };
+
+    case 'loop-markers':
+      return context.hasLoopMarkers ? { label: '可用', color: 'success' } : { label: '需先设 A / B', color: 'warning' };
+
+    default:
+      return { label: '可用', color: 'success' };
+  }
+}
+
 function HelpLabel({ text, title, placement = 'top' }) {
   const content = (
     <Box component="span" className={`field-help-label${title ? ' field-help-label--hint' : ''}`}>
@@ -2031,14 +2140,56 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
   const safeDurationMs = Math.max(0, Number(durationMs || 0));
   const markerPercent = safeDurationMs > 0 ? Math.max(0, Math.min(100, (Number(currentPositionMs || 0) / safeDurationMs) * 100)) : 0;
   const loopRange = normalizeScriptLoopRange(loopStartMs, loopEndMs, safeDurationMs);
+  const loopStartPercent = loopRange.startMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.startMs / safeDurationMs) * 100)) : null;
+  const loopEndPercent = loopRange.endMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.endMs / safeDurationMs) * 100)) : null;
   const rangeStartPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.startMs / safeDurationMs) * 100)) : 0;
   const rangeEndPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.endMs / safeDurationMs) * 100)) : 0;
   const dragStateRef = useRef(null);
   const suppressNextClickRef = useRef(false);
   const [dragPreview, setDragPreview] = useState(null);
+  const [hoverPreview, setHoverPreview] = useState(null);
   const dragPreviewRange = dragPreview ? normalizeScriptLoopRange(dragPreview.startMs, dragPreview.endMs, safeDurationMs) : null;
   const previewStartPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.startMs / safeDurationMs) * 100)) : 0;
   const previewEndPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.endMs / safeDurationMs) * 100)) : 0;
+  const dragPreviewAnchorMs = dragPreview ? clampScriptPositionMs(dragPreview.startMs, safeDurationMs) : null;
+  const dragPreviewAnchorPercent = dragPreviewAnchorMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewAnchorMs / safeDurationMs) * 100)) : 0;
+  const hoverPreviewPercent = hoverPreview && safeDurationMs > 0 ? Math.max(0, Math.min(100, (hoverPreview.positionMs / safeDurationMs) * 100)) : 0;
+  const previewBadge = (() => {
+    if (dragPreviewRange?.active) {
+      const centerPercent = (previewStartPercent + previewEndPercent) / 2;
+      return {
+        variant: 'range',
+        left: `clamp(92px, ${centerPercent}%, calc(100% - 92px))`,
+        label: `框选 ${formatDuration(dragPreviewRange.startMs)} → ${formatDuration(dragPreviewRange.endMs)}`,
+      };
+    }
+
+    if (dragPreviewAnchorMs !== null) {
+      return {
+        variant: 'anchor',
+        left: `clamp(92px, ${dragPreviewAnchorPercent}%, calc(100% - 92px))`,
+        label: `起点 ${formatDuration(dragPreviewAnchorMs)}`,
+      };
+    }
+
+    if (hoverPreview) {
+      return {
+        variant: 'hover',
+        left: `clamp(92px, ${hoverPreviewPercent}%, calc(100% - 92px))`,
+        label: `预览 ${formatDuration(hoverPreview.positionMs)} · ${hoverPreview.count > 0 ? `密度 ${hoverPreview.count}` : '空白段'}`,
+      };
+    }
+
+    return null;
+  })();
+  const previewMarkerPercent = dragPreviewRange?.active ? null : dragPreviewAnchorMs !== null ? dragPreviewAnchorPercent : hoverPreview ? hoverPreviewPercent : null;
+  const interactionHintText = dragPreviewRange?.active
+    ? `拖拽中：松开后会应用 A-B ${formatDuration(dragPreviewRange.startMs)} → ${formatDuration(dragPreviewRange.endMs)}；按 Esc 可取消。`
+    : dragPreviewAnchorMs !== null
+      ? `已选起点 ${formatDuration(dragPreviewAnchorMs)}，继续拖动可直接框选 A-B。`
+      : hoverPreview
+        ? `预览 ${formatDuration(hoverPreview.positionMs)}；点击定位，Shift / Alt 直接设 A / B。`
+        : '点击可定位，Shift / Alt 设 A / B，拖拽一段可直接生成完整 A-B。';
 
   useEffect(() => {
     if (!dragStateRef.current) return undefined;
@@ -2064,6 +2215,8 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
         }, 0);
       }
 
+      setHoverPreview({ positionMs: state.currentMs, count: state.currentCount || 0 });
+
       clearDragSelection();
     };
 
@@ -2073,12 +2226,20 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
       clearDragSelection();
     };
 
+    const cancelDragSelectionByEscape = event => {
+      if (event.key !== 'Escape' || !dragStateRef.current) return;
+      event.preventDefault();
+      clearDragSelection();
+    };
+
     window.addEventListener('pointerup', finalizeDragSelection);
     window.addEventListener('pointercancel', cancelDragSelection);
+    window.addEventListener('keydown', cancelDragSelectionByEscape);
 
     return () => {
       window.removeEventListener('pointerup', finalizeDragSelection);
       window.removeEventListener('pointercancel', cancelDragSelection);
+      window.removeEventListener('keydown', cancelDragSelectionByEscape);
     };
   }, [onSelectLoopRange, safeDurationMs]);
 
@@ -2094,6 +2255,32 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
 
       {dragPreviewRange?.active && (
         <Box className="script-density__selection" style={{ left: `${previewStartPercent}%`, width: `${Math.max(previewEndPercent - previewStartPercent, 0)}%` }} aria-hidden="true" />
+      )}
+
+      {previewMarkerPercent !== null && <Box className="script-density__preview-marker" style={{ left: `${previewMarkerPercent}%` }} aria-hidden="true" />}
+
+      {previewBadge && (
+        <Box className={`script-density__preview-badge script-density__preview-badge--${previewBadge.variant}`} style={{ left: previewBadge.left }} aria-hidden="true">
+          <Typography variant="caption" className="script-density__preview-text">
+            {previewBadge.label}
+          </Typography>
+        </Box>
+      )}
+
+      {loopStartPercent !== null && (
+        <Box className="script-density__range-tag script-density__range-tag--start" style={{ left: `clamp(76px, ${loopStartPercent}%, calc(100% - 76px))` }} aria-hidden="true">
+          <Typography variant="caption" className="script-density__range-tag-text">
+            A {formatDuration(loopRange.startMs)}
+          </Typography>
+        </Box>
+      )}
+
+      {loopEndPercent !== null && (
+        <Box className="script-density__range-tag script-density__range-tag--end" style={{ left: `clamp(76px, ${loopEndPercent}%, calc(100% - 76px))` }} aria-hidden="true">
+          <Typography variant="caption" className="script-density__range-tag-text">
+            B {formatDuration(loopRange.endMs)}
+          </Typography>
+        </Box>
       )}
 
       <Box className="script-density__bars">
@@ -2119,28 +2306,54 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
                     pointerId: event.pointerId,
                     startMs: targetPositionMs,
                     currentMs: targetPositionMs,
+                    currentCount: numericCount,
                     moved: false,
                   };
 
+                  setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
                   setDragPreview({ startMs: targetPositionMs, endMs: targetPositionMs });
                 }}
                 onPointerEnter={event => {
+                  if (!disabled) {
+                    setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
+                  }
+
                   const state = dragStateRef.current;
                   if (!state || state.pointerId !== event.pointerId) return;
                   if (state.currentMs === targetPositionMs) return;
 
                   state.currentMs = targetPositionMs;
+                  state.currentCount = numericCount;
                   state.moved = state.moved || targetPositionMs !== state.startMs;
                   setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
                 }}
                 onPointerMove={event => {
+                  if (!disabled) {
+                    setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
+                  }
+
                   const state = dragStateRef.current;
                   if (!state || state.pointerId !== event.pointerId) return;
                   if (state.currentMs === targetPositionMs) return;
 
                   state.currentMs = targetPositionMs;
+                  state.currentCount = numericCount;
                   state.moved = state.moved || targetPositionMs !== state.startMs;
                   setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
+                }}
+                onPointerLeave={() => {
+                  if (!dragStateRef.current) {
+                    setHoverPreview(null);
+                  }
+                }}
+                onFocus={() => {
+                  if (disabled || safeDurationMs <= 0) return;
+                  setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
+                }}
+                onBlur={() => {
+                  if (!dragStateRef.current) {
+                    setHoverPreview(null);
+                  }
                 }}
                 onClick={event => {
                   if (suppressNextClickRef.current) {
@@ -2168,6 +2381,25 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
           <Box className="script-density__empty">暂无时间轴摘要</Box>
         )}
       </Box>
+
+      <Box className="script-density__legend" aria-hidden="true">
+        <Box className="script-density__legend-item">
+          <Box className="script-density__legend-swatch script-density__legend-swatch--current" />
+          <Typography variant="caption" color="text.secondary">播放头</Typography>
+        </Box>
+        <Box className="script-density__legend-item">
+          <Box className="script-density__legend-swatch script-density__legend-swatch--preview" />
+          <Typography variant="caption" color="text.secondary">悬停 / 预览</Typography>
+        </Box>
+        <Box className="script-density__legend-item">
+          <Box className="script-density__legend-swatch script-density__legend-swatch--range" />
+          <Typography variant="caption" color="text.secondary">A-B 区间</Typography>
+        </Box>
+      </Box>
+
+      <Typography variant="caption" color="text.secondary" className="script-density__hint">
+        {interactionHintText}
+      </Typography>
 
       <Box className="script-density__marker" style={{ left: `${markerPercent}%` }} aria-hidden="true" />
     </Box>
@@ -2729,6 +2961,7 @@ function App() {
     function handleScriptHotkeys(event) {
       if (busyKey.startsWith('script-')) return;
       if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+      if (event.repeat) return;
       if (shouldIgnoreScriptShortcutTarget(event.target)) return;
 
       switch (event.code) {
@@ -3806,7 +4039,513 @@ function App() {
         ? '已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。'
         : '已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。'
       : '已关闭。当前会从当前位置播放到结尾一次。';
-  const scriptTimelineHintText = 'A/B 默认取当前播放位置；若正在拖动进度条，则取拖拽位置。Shift + 点击时间轴设 A，Alt + 点击设 B，直接拖拽一段可生成完整 A-B。开启“循环播放”后：若已设置完整 A-B，则只在 A-B 内循环；否则按整段脚本循环。时间码支持 90、1:30、01:23.45；快捷键支持 [ / ]、Shift + A / B / C。';
+  const scriptFileLabel = selectedScriptFile?.name || scriptState?.fileName || '未载入脚本';
+  const scriptHeroStatusText = selectedScriptFile
+    ? '正在读取并导入脚本…导入完成后会自动同步到时间轴工作区。'
+    : scriptLoaded
+      ? `当前脚本按 ${scriptSpeedLabel} 播放；${scriptSettings.loop ? (scriptLoopRange.active ? `循环区间为 ${scriptLoopRangeSummary}` : '已开启整段循环') : '当前为单次播放模式'}。`
+      : '选择一个 .funscript / .json 文件后即可进入时间轴工作区，后续可直接拖动时间轴、设置 A-B 和按关键帧步进。';
+  const scriptOutputBehaviorText = '当前脚本模式固定按脚本内容直接发送位置。常规 funscript 只有位置关键帧，因此现在不会再按轴配置或输出配置自动补算 S / I。';
+  const scriptPlaybackRateHelpText = '这里调整的是脚本时间倍率，不是 TCode S 速度；只影响脚本在时间轴上的推进快慢。';
+  const scriptPrimaryTransportBusy = busyKey === 'script-play' || busyKey === 'script-pause';
+  const scriptTransportPrimaryLabel = scriptState?.playing ? '暂停' : scriptPrimaryActionLabel;
+  const scriptLoopAnchorModeLabel = scriptSeekDragging ? '拖拽预览' : '当前播放位置';
+  const scriptLoopAnchorValueLabel = scriptLoaded ? formatDuration(scriptSeekBasePosition) : '未载入';
+  const scriptShortcutScopeText = '快捷键只在脚本页空白区域生效；输入框、按钮和滑条获得焦点时会自动让出键盘，长按按键也不会重复连发。';
+  const scriptTimelineSupportText = scriptLoaded
+    ? `当前 A/B 默认取点基准是「${scriptLoopAnchorModeLabel}」：${scriptLoopAnchorValueLabel}。时间码支持 90、1:30、01:23.45。`
+    : '载入脚本后，这里会显示当前 A/B 默认取点基准，并支持 90、1:30、01:23.45 这类时间码输入。';
+  const scriptTimelinePreviewLabel = !scriptLoaded ? '载入脚本后可拖动定位' : scriptSeekDragging ? `预览 ${formatDuration(scriptSeekBasePosition)}` : `当前 ${formatDuration(scriptPositionMs)}`;
+  const scriptWorkspaceEmptyTitle = selectedScriptFile ? '正在导入脚本…' : '还没有载入脚本';
+  const scriptWorkspaceEmptyDescription = selectedScriptFile
+    ? '脚本文件内容正在读取并同步到 Companion；导入完成后，这里会自动切换成完整时间轴工作区。'
+    : '先选择一个脚本文件，随后就可以在这里拖动时间轴、框选 A-B、用快捷键对点和按关键帧步进。';
+  const scriptShortcutGroups = SCRIPT_SHORTCUT_GROUPS.map(group => ({
+    ...group,
+    items: group.items.map(item => ({
+      ...item,
+      availability: getScriptShortcutAvailability(item.requirement, {
+        scriptLoaded,
+        hasLoopStart: scriptLoopRange.startMs !== null,
+        hasLoopEnd: scriptLoopRange.endMs !== null,
+        hasLoopMarkers: scriptHasLoopMarkers,
+      }),
+    })),
+  }));
+
+  function renderScriptPlayer() {
+    return (
+      <Stack spacing={2.5} className="script-player-shell">
+        <Box className="script-player-hero">
+          <Box className="dialog-panel script-player-hero__main">
+            <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="script-player-hero__header">
+              <Stack spacing={0.75} className="script-player-hero__title">
+                <Typography variant="h6" className="script-player-hero__headline">
+                  脚本播放器
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {scriptHeroStatusText}
+                </Typography>
+              </Stack>
+
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-player-hero__chips">
+                <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
+                <Chip size="small" variant="outlined" label={`倍率 ${scriptSpeedLabel}`} />
+                <Chip size="small" color="primary" variant="outlined" label="纯位置输出" />
+                <Chip size="small" variant="outlined" label={`L0 ${scriptCurrentL0Value}`} />
+                {scriptHasLoopMarkers && <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `A-B ${scriptLoopRangeSummary}` : `${scriptLoopStartLabel} · ${scriptLoopEndLabel}`} />}
+                <Chip size="small" variant="outlined" className="script-file-chip" label={scriptFileLabel} />
+              </Stack>
+            </Stack>
+
+            {selectedScriptFile && <LinearProgress />}
+
+            <Alert severity="info" variant="outlined" className="script-player-hero__notice">
+              <Typography variant="body2">
+                {scriptOutputBehaviorText} <strong>播放倍率只改时间推进，不代表硬件 S 速度。</strong>
+              </Typography>
+            </Alert>
+
+            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-player-hero__actions">
+              <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
+                {selectedScriptFile ? '导入中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
+                <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
+              </Button>
+              <Box className="script-player-hero__transport">
+                <Button
+                  variant="contained"
+                  color={scriptState?.playing ? 'warning' : 'primary'}
+                  onClick={() => {
+                    if (scriptState?.playing) {
+                      void pauseScript();
+                      return;
+                    }
+
+                    void playScript(false);
+                  }}
+                  disabled={!scriptLoaded || scriptPrimaryTransportBusy}
+                >
+                  <ScriptActionButtonLabel label={scriptTransportPrimaryLabel} shortcut="Space / K" />
+                </Button>
+                <Button variant="outlined" onClick={() => void playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
+                  <ScriptActionButtonLabel label="重播" shortcut="R" />
+                </Button>
+                <Button variant="outlined" color="error" onClick={() => void stopScript()} disabled={!scriptLoaded || busyKey === 'script-stop'}>
+                  停止
+                </Button>
+                <Button variant="text" color="error" onClick={() => void clearScript()} disabled={!scriptLoaded || busyKey === 'script-clear'}>
+                  卸载
+                </Button>
+              </Box>
+            </Stack>
+          </Box>
+
+          <Box className="dialog-panel script-player-hero__stats">
+            <Typography variant="subtitle2">播放概览</Typography>
+            <Box className="metric-grid metric-grid--compact script-player-hero__metric-grid">
+              <MetricCard label="状态" value={scriptStateMeta.label} tone="accent" />
+              <MetricCard label="动作数" value={scriptState?.actionCount ?? 0} tone="default" />
+              <MetricCard label="当前位置" value={formatDuration(scriptPositionMs)} tone="primary" />
+              <MetricCard label="总时长" value={formatDuration(scriptDurationMs)} tone="default" />
+              <MetricCard label="剩余时间" value={formatDuration(scriptRemainingMs)} tone="default" />
+              <MetricCard label="当前 L0" value={scriptCurrentL0Value} tone="default" />
+            </Box>
+
+            {scriptLoaded ? (
+              <>
+                <LinearProgress variant="determinate" value={Math.max(0, Math.min(100, scriptProgressPercent))} />
+                <Typography variant="caption" color="text.secondary">
+                  已播放 {Math.round(scriptProgressPercent)}%，{scriptSettings.loop ? '当前可按 A-B / 整段循环继续播放。' : '当前为单次播放流程。'}
+                </Typography>
+              </>
+            ) : (
+              <Typography variant="caption" color="text.secondary" className="script-player-hero__empty">
+                载入脚本后，这里会显示当前位置、关键帧数量和整体进度。
+              </Typography>
+            )}
+          </Box>
+        </Box>
+
+        <Box className="script-player-layout">
+          <Box className="script-player-layout__main">
+            <FieldPanel
+              label="时间轴工作区"
+              title="拖动进度条可精确定位；下方时间轴密度图支持点击跳转、Shift / Alt 设 A/B，以及直接拖拽生成完整 A-B 区间。"
+              valueText={scriptLoaded ? `${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}` : '未加载脚本'}
+              className="script-workspace-panel"
+            >
+              {scriptLoaded ? (
+                <>
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" className="script-workspace__summary">
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      <Chip size="small" variant="outlined" label={`已播放 ${Math.round(scriptProgressPercent)}%`} />
+                      <Chip size="small" variant="outlined" label={`剩余 ${formatDuration(scriptRemainingMs)}`} />
+                      <Chip size="small" variant="outlined" label={scriptLoopModeLabel} />
+                    </Stack>
+
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
+                      {scriptHasLoopMarkers && <Chip size="small" color={scriptLoopRange.active ? 'primary' : 'warning'} variant="outlined" label={scriptLoopRangeStatusLabel} />}
+                      <Chip size="small" variant="outlined" label={`当前 L0 ${scriptCurrentL0Value}`} />
+                      <Chip size="small" variant="outlined" label={`取点基准 ${scriptLoopAnchorModeLabel}`} />
+                    </Stack>
+                  </Stack>
+
+                  <Box className="script-workspace__guide">
+                    {SCRIPT_TIMELINE_GUIDE_ITEMS.map(item => (
+                      <Box key={item.title} className="script-guide-card">
+                        <Typography variant="caption" className="script-guide-card__title">
+                          {item.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" className="script-guide-card__text">
+                          {item.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+
+                  <SliderControl
+                    min={0}
+                    max={scriptSliderMax}
+                    step={50}
+                    disabled={!scriptLoaded || busyKey === 'script-seek'}
+                    value={scriptSeekValue}
+                    className="script-workspace-panel__slider"
+                    valueFormatter={value => formatDuration(value)}
+                    onChange={next => {
+                      setScriptSeekDragging(true);
+                      setScriptSeekDraft(Number(Array.isArray(next) ? next[0] : next));
+                    }}
+                    onChangeCommitted={next => {
+                      const nextValue = Number(Array.isArray(next) ? next[0] : next);
+                      void seekScript(nextValue);
+                    }}
+                  />
+
+                  <Box className="script-workspace__timeline-meta">
+                    <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
+                      {formatDuration(0)}
+                    </Typography>
+                    <Typography variant="caption" className="script-workspace__time script-workspace__time--current">
+                      {scriptTimelinePreviewLabel}
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
+                      {formatDuration(scriptDurationMs)}
+                    </Typography>
+                  </Box>
+
+                  <ScriptTimelineDensity
+                    bins={scriptActivityBins}
+                    durationMs={scriptDurationMs}
+                    currentPositionMs={scriptSeekBasePosition}
+                    loopStartMs={scriptLoopRange.startMs}
+                    loopEndMs={scriptLoopRange.endMs}
+                    disabled={!scriptLoaded || busyKey === 'script-seek'}
+                    onSeek={positionMs => {
+                      void seekScript(positionMs);
+                    }}
+                    onSetLoopBoundary={(boundary, positionMs) => {
+                      setScriptLoopBoundary(boundary, positionMs);
+                    }}
+                    onSelectLoopRange={(startMs, endMs) => {
+                      applyScriptLoopRange(startMs, endMs);
+                    }}
+                  />
+
+                  <Box className="script-seek-actions">
+                    {SCRIPT_SEEK_ACTIONS.map(action => {
+                      const targetPositionMs = action.mode === 'relative'
+                        ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
+                        : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
+                      const disabled = !scriptLoaded || busyKey === 'script-seek' || targetPositionMs === scriptSeekBasePosition;
+
+                      return (
+                        <Button
+                          key={action.key}
+                          size="small"
+                          variant="outlined"
+                          disabled={disabled}
+                          onClick={() => {
+                            if (action.mode === 'relative') {
+                              void seekScriptRelative(Number(action.value));
+                              return;
+                            }
+
+                            void seekScript(targetPositionMs);
+                          }}
+                        >
+                          <ScriptActionButtonLabel label={action.label} shortcut={action.shortcut} />
+                        </Button>
+                      );
+                    })}
+                  </Box>
+
+                  <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="script-jump-row">
+                    <TextField
+                      size="small"
+                      label="时间码跳转"
+                      placeholder="例如 01:23.45 / 90"
+                      value={scriptJumpInput}
+                      disabled={!scriptLoaded || busyKey === 'script-seek'}
+                      className="script-jump-row__input"
+                      onChange={event => setScriptJumpInput(event.target.value)}
+                      onKeyDown={event => {
+                        if (event.key !== 'Enter') return;
+                        event.preventDefault();
+                        void submitScriptJump();
+                      }}
+                    />
+                    <Button size="small" variant="contained" onClick={() => void submitScriptJump()} disabled={!scriptLoaded || busyKey === 'script-seek'}>
+                      跳转
+                    </Button>
+                  </Stack>
+                </>
+              ) : (
+                <Box className="script-workspace-empty">
+                  <Alert severity={selectedScriptFile ? 'info' : 'warning'} variant="outlined" className="script-workspace-empty__notice">
+                    <Typography variant="body2">
+                      <strong>{scriptWorkspaceEmptyTitle}</strong>：{scriptWorkspaceEmptyDescription}
+                    </Typography>
+                  </Alert>
+
+                  <Box className="script-workspace__guide script-workspace__guide--empty">
+                    {SCRIPT_EMPTY_STATE_GUIDE_ITEMS.map(item => (
+                      <Box key={item.title} className="script-guide-card script-guide-card--empty">
+                        <Typography variant="caption" className="script-guide-card__title">
+                          {item.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" className="script-guide-card__text">
+                          {item.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Box>
+              )}
+            </FieldPanel>
+
+            <Box className="script-player-control-grid">
+              <FieldPanel label="时间倍率" title={scriptPlaybackRateHelpText} valueText={scriptSpeedLabel} className="script-rate-panel">
+                <SliderControl
+                  min={SCRIPT_SPEED_MIN}
+                  max={SCRIPT_SPEED_MAX}
+                  step={SCRIPT_SPEED_STEP}
+                  disabled={busyKey === 'script-configure'}
+                  value={clampScriptSpeed(scriptSettings.speed)}
+                  valueFormatter={value => formatScriptSpeedLabel(value)}
+                  onChange={next => {
+                    const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
+                    updateScriptSettingsDraft({ speed: nextSpeed });
+                  }}
+                  onChangeCommitted={next => {
+                    const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
+                    updateScriptSettingsDraft({ speed: nextSpeed }, { commit: true });
+                  }}
+                />
+
+                <Box className="script-speed-presets">
+                  {SCRIPT_SPEED_PRESETS.map(speed => {
+                    const normalizedSpeed = clampScriptSpeed(speed);
+                    const active = Math.abs(clampScriptSpeed(scriptSettings.speed) - normalizedSpeed) < 0.001;
+
+                    return (
+                      <Button
+                        key={`script-speed-${speed}`}
+                        size="small"
+                        variant={active ? 'contained' : 'outlined'}
+                        disabled={busyKey === 'script-configure'}
+                        onClick={() => updateScriptSettingsDraft({ speed: normalizedSpeed }, { commit: true })}
+                      >
+                        {formatScriptSpeedLabel(normalizedSpeed)}
+                      </Button>
+                    );
+                  })}
+                </Box>
+
+                <Typography variant="caption" color="text.secondary">
+                  {scriptPlaybackRateHelpText}
+                </Typography>
+              </FieldPanel>
+
+              <Box className="dialog-panel script-loop-panel">
+                <Box className="dialog-panel__header">
+                  <Typography variant="subtitle2">循环与 A-B</Typography>
+                  <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                    <Chip size="small" color={scriptSettings.loop ? 'success' : 'default'} variant="outlined" label={scriptLoopModeLabel} />
+                    {scriptHasLoopMarkers && <Chip size="small" color={scriptLoopRange.active ? 'primary' : 'warning'} variant="outlined" label={scriptLoopRangeStatusLabel} />}
+                  </Stack>
+                </Box>
+
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={scriptSettings.loop}
+                      disabled={busyKey === 'script-configure'}
+                      onChange={(_, checked) => {
+                        updateScriptSettingsDraft({ loop: checked }, { commit: true });
+                      }}
+                    />
+                  }
+                  label={<Typography variant="body2" sx={{ fontWeight: 600 }}>循环播放</Typography>}
+                />
+
+                <Typography variant="caption" color="text.secondary">
+                  {scriptLoopModeHelpText}
+                </Typography>
+
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-markers">
+                  <Chip size="small" color={scriptLoopRange.startMs === null ? 'default' : 'primary'} variant={scriptLoopRange.startMs === null ? 'outlined' : 'filled'} label={scriptLoopStartLabel} />
+                  <Chip size="small" color={scriptLoopRange.endMs === null ? 'default' : 'secondary'} variant={scriptLoopRange.endMs === null ? 'outlined' : 'filled'} label={scriptLoopEndLabel} />
+                  <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `长度 ${formatDuration(scriptLoopLengthMs)}` : '可先设置 A / B 标记'} />
+                  {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`占比 ${Math.round(scriptLoopCoveragePercent)}%`} />}
+                  {scriptLoopRange.active && <Chip size="small" color={scriptCurrentInLoopRange ? 'success' : 'warning'} variant="outlined" label={scriptCurrentInLoopRange ? '当前位置在 A-B 内' : '当前位置在 A-B 外'} />}
+                </Stack>
+
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-panel__actions">
+                  <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('start')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
+                    <ScriptActionButtonLabel label="A 点 = 当前" shortcut="Shift + A" />
+                  </Button>
+                  <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('end')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
+                    <ScriptActionButtonLabel label="B 点 = 当前" shortcut="Shift + B" />
+                  </Button>
+                  <Button size="small" variant="outlined" onClick={() => void jumpToScriptLoopBoundary('start')} disabled={!scriptLoaded || scriptLoopRange.startMs === null || busyKey === 'script-seek'}>
+                    <ScriptActionButtonLabel label="跳到 A" shortcut="[" />
+                  </Button>
+                  <Button size="small" variant="outlined" onClick={() => void jumpToScriptLoopBoundary('end')} disabled={!scriptLoaded || scriptLoopRange.endMs === null || busyKey === 'script-seek'}>
+                    <ScriptActionButtonLabel label="跳到 B" shortcut="]" />
+                  </Button>
+                  <Button size="small" variant="text" color="warning" onClick={clearScriptLoopRange} disabled={!scriptLoaded || !scriptHasLoopMarkers || busyKey === 'script-configure'}>
+                    <ScriptActionButtonLabel label="清除区间" shortcut="Shift + C" />
+                  </Button>
+                </Stack>
+              </Box>
+
+              <Box className="dialog-panel script-step-panel">
+                <Box className="dialog-panel__header">
+                  <Typography variant="subtitle2">动作步进</Typography>
+                  <Chip size="small" variant="outlined" label={`${scriptState?.actionCount ?? 0} 个关键帧`} />
+                </Box>
+
+                {scriptLoaded ? (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      按脚本关键帧逐步前后跳，适合对点、检查节奏和微调 A-B 区间。
+                    </Typography>
+
+                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-step-panel__actions">
+                      <Button size="small" variant="outlined" onClick={() => void stepScriptAction(-1)} disabled={!scriptLoaded || scriptPositionMs <= 0 || busyKey === 'script-step-prev'}>
+                        <ScriptActionButtonLabel label="上一动作" shortcut="J" />
+                      </Button>
+                      <Button size="small" variant="outlined" onClick={() => void stepScriptAction(1)} disabled={!scriptLoaded || scriptPositionMs >= scriptDurationMs || busyKey === 'script-step-next'}>
+                        <ScriptActionButtonLabel label="下一动作" shortcut="L" />
+                      </Button>
+                    </Stack>
+
+                    <Typography variant="caption" color="text.secondary">
+                      当前位于 {formatDuration(scriptPositionMs)}。如果脚本只含位置关键帧，步进时也只会发送新的位置目标；从头重播请直接按 R。
+                    </Typography>
+                  </>
+                ) : (
+                  <>
+                    <Typography variant="body2" color="text.secondary">
+                      载入脚本后，这里会显示关键帧数量，并支持按关键帧逐步前后跳，适合对点和微调 A-B。
+                    </Typography>
+
+                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-step-panel__placeholder">
+                      <Chip size="small" variant="outlined" label="J 上一动作" />
+                      <Chip size="small" variant="outlined" label="L 下一动作" />
+                      <Chip size="small" variant="outlined" label="R 从头重播" />
+                    </Stack>
+
+                    <Typography variant="caption" color="text.secondary">
+                      现在可以先设置默认倍率和循环偏好；脚本一旦载入，这里的对点工具就会立即接管。
+                    </Typography>
+                  </>
+                )}
+              </Box>
+            </Box>
+          </Box>
+
+          <Box className="script-player-layout__side">
+            <Box className="dialog-panel script-side-panel">
+              <Box className="dialog-panel__header">
+                <Typography variant="subtitle2">输出语义</Typography>
+                <Chip size="small" color="primary" variant="outlined" label="L0 纯位置" />
+              </Box>
+
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-side-panel__chips">
+                <Chip size="small" variant="outlined" label="仅 L0 主轴" />
+                <Chip size="small" variant="outlined" label="不自动补 S / I" />
+                <Chip size="small" variant="outlined" label="倍率 ≠ S 速度" />
+              </Stack>
+
+              <Typography variant="body2" color="text.secondary">
+                当前 Companion 脚本模式会直接按脚本内容输出位置。常规 funscript 只有位置关键帧，所以现在默认发送纯位置指令；输出卡片里的 S/I 覆写不会再替脚本模式自动补算额外斜率。
+              </Typography>
+            </Box>
+
+            <Box className="dialog-panel script-side-panel">
+              <Box className="dialog-panel__header">
+                <Typography variant="subtitle2">快捷键</Typography>
+                <Chip size="small" variant="outlined" label="键盘可直接控" />
+              </Box>
+
+              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
+                {scriptShortcutScopeText}
+              </Typography>
+
+              <Box className="script-hotkey-sections">
+                {scriptShortcutGroups.map(group => (
+                  <Box key={group.key} className="script-hotkey-section">
+                    <Box className="script-hotkey-section__header">
+                      <Typography variant="subtitle2">{group.title}</Typography>
+                      <Typography variant="caption" color="text.secondary" className="script-hotkey-section__caption">
+                        {group.caption}
+                      </Typography>
+                    </Box>
+
+                    <Box className="script-hotkey-grid">
+                      {group.items.map(item => (
+                        <ScriptHotkeyItem
+                          key={`${group.key}-${item.shortcut}`}
+                          shortcut={item.shortcut}
+                          label={item.label}
+                          description={item.description}
+                          statusLabel={item.availability.label}
+                          statusColor={item.availability.color}
+                        />
+                      ))}
+                    </Box>
+                  </Box>
+                ))}
+              </Box>
+            </Box>
+
+            <Box className="dialog-panel script-side-panel">
+              <Box className="dialog-panel__header">
+                <Typography variant="subtitle2">操作状态</Typography>
+                <Chip size="small" color={scriptSeekDragging ? 'info' : 'default'} variant="outlined" label={scriptSeekDragging ? '拖拽预览中' : '常规定位'} />
+              </Box>
+
+              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-side-panel__chips">
+                <Chip size="small" variant="outlined" label={`取点基准 ${scriptLoopAnchorModeLabel}`} />
+                <Chip size="small" variant="outlined" label={`当前取点 ${scriptLoopAnchorValueLabel}`} />
+                <Chip size="small" color={scriptLoaded ? 'success' : 'default'} variant="outlined" label={scriptLoaded ? '快捷键已启用' : '载入后启用快捷键'} />
+              </Stack>
+
+              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
+                {scriptShortcutScopeText}
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
+                {scriptTimelineSupportText}
+              </Typography>
+            </Box>
+          </Box>
+        </Box>
+      </Stack>
+    );
+  }
+
   const oscListening = Boolean(overview?.osc?.listening);
   const oscListenerError = typeof overview?.osc?.listenerError === 'string' ? overview.osc.listenerError.trim() : '';
   const oscModeActive = actualInputMode === 'osc';
@@ -4485,282 +5224,7 @@ function App() {
               </TabPanel>
 
               <TabPanel value="script" current={selectedInputTab}>
-                <Stack spacing={2}>
-                  <Box className="dialog-panel">
-                    <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">脚本文件</Typography>
-                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
-                        <Chip size="small" variant="outlined" className="script-file-chip" label={selectedScriptFile?.name || scriptState?.fileName || '未选择'} />
-                      </Stack>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                      选择 .funscript 文件后会自动加载；加载后可直接调速、切换循环、设置 A-B 区间，并拖动进度条或输入时间码定位到任意时刻。
-                    </Typography>
-                    <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center" className="script-file-actions">
-                      <Button component="label" variant="contained" disabled={!!selectedScriptFile || busyKey === 'script-load'}>
-                        {selectedScriptFile ? '加载中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
-                        <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
-                      </Button>
-                      <Button variant="outlined" color="error" onClick={clearScript} disabled={!scriptLoaded || busyKey === 'script-clear'}>
-                        卸载脚本
-                      </Button>
-                      <Typography variant="caption" color="text.secondary" className="script-file-actions__caption">
-                        {scriptLoaded ? scriptState?.fileName || '已加载脚本' : '支持 .funscript / .json'}
-                      </Typography>
-                    </Stack>
-                  </Box>
-
-                  <Box className="metric-grid metric-grid--compact">
-                    <MetricCard label="状态" value={scriptStateMeta.label} tone="accent" />
-                    <MetricCard label="动作数" value={scriptState?.actionCount ?? 0} tone="default" />
-                    <MetricCard label="当前位置" value={formatDuration(scriptPositionMs)} tone="primary" />
-                    <MetricCard label="剩余时间" value={formatDuration(scriptRemainingMs)} tone="default" />
-                    <MetricCard label="当前 L0" value={scriptCurrentL0Value} tone="default" />
-                  </Box>
-
-                  <Box className="dialog-panel">
-                    <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">播放控制</Typography>
-                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" variant="outlined" label={scriptSpeedLabel} />
-                        <Chip size="small" color={scriptSettings.loop ? 'success' : 'default'} variant="outlined" label={scriptLoopModeLabel} />
-                        {scriptHasLoopMarkers && <Chip size="small" color={scriptLoopRange.active ? 'primary' : 'warning'} variant="outlined" label={scriptLoopRangeStatusLabel} />}
-                      </Stack>
-                    </Box>
-
-                    <Stack spacing={2}>
-                      <FieldPanel
-                        label="时间轴与定位"
-                        title="拖动进度条可精确定位到任意时刻；下方时间轴密度图支持点击跳转、Shift / Alt 设 A/B，以及直接拖拽生成完整 A-B 区间。"
-                        valueText={scriptLoaded ? `${formatDuration(scriptPositionMs)} / ${formatDuration(scriptDurationMs)}` : '未加载脚本'}
-                        className="script-progress-panel"
-                      >
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-progress-summary">
-                          <Chip size="small" variant="outlined" label={`已播放 ${Math.round(scriptProgressPercent)}%`} />
-                          <Chip size="small" variant="outlined" label={`剩余 ${formatDuration(scriptRemainingMs)}`} />
-                        </Stack>
-
-                        <SliderControl
-                          min={0}
-                          max={scriptSliderMax}
-                          step={50}
-                          disabled={!scriptLoaded || busyKey === 'script-seek'}
-                          value={scriptSeekValue}
-                          className="script-progress-panel__slider"
-                          valueFormatter={value => formatDuration(value)}
-                          onChange={next => {
-                            setScriptSeekDragging(true);
-                            setScriptSeekDraft(Number(Array.isArray(next) ? next[0] : next));
-                          }}
-                          onChangeCommitted={next => {
-                            const nextValue = Number(Array.isArray(next) ? next[0] : next);
-                            void seekScript(nextValue);
-                          }}
-                        />
-
-                        <ScriptTimelineDensity
-                          bins={scriptActivityBins}
-                          durationMs={scriptDurationMs}
-                          currentPositionMs={scriptSeekBasePosition}
-                          loopStartMs={scriptLoopRange.startMs}
-                          loopEndMs={scriptLoopRange.endMs}
-                          disabled={!scriptLoaded || busyKey === 'script-seek'}
-                          onSeek={positionMs => {
-                            void seekScript(positionMs);
-                          }}
-                          onSetLoopBoundary={(boundary, positionMs) => {
-                            setScriptLoopBoundary(boundary, positionMs);
-                          }}
-                          onSelectLoopRange={(startMs, endMs) => {
-                            applyScriptLoopRange(startMs, endMs);
-                          }}
-                        />
-
-                        <Box className="script-seek-actions">
-                          {SCRIPT_SEEK_ACTIONS.map(action => {
-                            const targetPositionMs = action.mode === 'relative'
-                              ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
-                              : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
-                            const disabled = !scriptLoaded || busyKey === 'script-seek' || targetPositionMs === scriptSeekBasePosition;
-
-                            return (
-                              <Button
-                                key={action.key}
-                                size="small"
-                                variant="outlined"
-                                disabled={disabled}
-                                onClick={() => {
-                                  if (action.mode === 'relative') {
-                                    void seekScriptRelative(Number(action.value));
-                                    return;
-                                  }
-
-                                  void seekScript(targetPositionMs);
-                                }}
-                              >
-                                {action.label}
-                              </Button>
-                            );
-                          })}
-                        </Box>
-
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-markers">
-                          <Chip size="small" color={scriptLoopRange.startMs === null ? 'default' : 'primary'} variant={scriptLoopRange.startMs === null ? 'outlined' : 'filled'} label={scriptLoopStartLabel} />
-                          <Chip size="small" color={scriptLoopRange.endMs === null ? 'default' : 'secondary'} variant={scriptLoopRange.endMs === null ? 'outlined' : 'filled'} label={scriptLoopEndLabel} />
-                          <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `A-B ${scriptLoopRangeSummary}` : scriptHasLoopMarkers ? 'A-B 还差另一侧标记' : 'A-B 未设置'} />
-                          {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`长度 ${formatDuration(scriptLoopLengthMs)}`} />}
-                          {scriptLoopRange.active && <Chip size="small" variant="outlined" label={`占比 ${Math.round(scriptLoopCoveragePercent)}%`} />}
-                          {scriptLoopRange.active && (
-                            <Chip
-                              size="small"
-                              color={scriptCurrentInLoopRange ? 'success' : 'warning'}
-                              variant="outlined"
-                              label={scriptCurrentInLoopRange ? '当前位置在 A-B 内' : '当前位置在 A-B 外'}
-                            />
-                          )}
-                        </Stack>
-
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="script-jump-row">
-                          <TextField
-                            size="small"
-                            label="时间码跳转"
-                            placeholder="例如 01:23.45 / 90"
-                            value={scriptJumpInput}
-                            disabled={!scriptLoaded || busyKey === 'script-seek'}
-                            className="script-jump-row__input"
-                            onChange={event => setScriptJumpInput(event.target.value)}
-                            onKeyDown={event => {
-                              if (event.key !== 'Enter') return;
-                              event.preventDefault();
-                              void submitScriptJump();
-                            }}
-                          />
-                          <Button size="small" variant="contained" onClick={() => void submitScriptJump()} disabled={!scriptLoaded || busyKey === 'script-seek'}>
-                            跳转
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => void jumpToScriptLoopBoundary('start')}
-                            disabled={!scriptLoaded || scriptLoopRange.startMs === null || busyKey === 'script-seek'}
-                          >
-                            跳到 A
-                          </Button>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            onClick={() => void jumpToScriptLoopBoundary('end')}
-                            disabled={!scriptLoaded || scriptLoopRange.endMs === null || busyKey === 'script-seek'}
-                          >
-                            跳到 B
-                          </Button>
-                          <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('start')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
-                            A 点 = 当前
-                          </Button>
-                          <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('end')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
-                            B 点 = 当前
-                          </Button>
-                          <Button size="small" variant="text" color="warning" onClick={clearScriptLoopRange} disabled={!scriptLoaded || !scriptHasLoopMarkers || busyKey === 'script-configure'}>
-                            清除区间
-                          </Button>
-                        </Stack>
-
-                        <Typography variant="caption" color="text.secondary" className="script-loop-hint">
-                          {scriptTimelineHintText}
-                        </Typography>
-                      </FieldPanel>
-
-                      <Box className="script-control-grid">
-                        <FieldPanel
-                          label="播放速度"
-                          title="脚本速度支持 0.1x ~ 4x；下方预设按钮提供常用倍率，便于快速切换。未加载脚本时，修改会先作为默认值保留，并记住到当前浏览器。"
-                          valueText={scriptSpeedLabel}
-                          className="script-speed-panel"
-                        >
-                          <SliderControl
-                            min={SCRIPT_SPEED_MIN}
-                            max={SCRIPT_SPEED_MAX}
-                            step={SCRIPT_SPEED_STEP}
-                            disabled={busyKey === 'script-configure'}
-                            value={clampScriptSpeed(scriptSettings.speed)}
-                            valueFormatter={value => formatScriptSpeedLabel(value)}
-                            onChange={next => {
-                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
-                              updateScriptSettingsDraft({ speed: nextSpeed });
-                            }}
-                            onChangeCommitted={next => {
-                              const nextSpeed = Number(Array.isArray(next) ? next[0] : next);
-                              updateScriptSettingsDraft({ speed: nextSpeed }, { commit: true });
-                            }}
-                          />
-
-                          <Box className="script-speed-presets">
-                            {SCRIPT_SPEED_PRESETS.map(speed => {
-                              const normalizedSpeed = clampScriptSpeed(speed);
-                              const active = Math.abs(clampScriptSpeed(scriptSettings.speed) - normalizedSpeed) < 0.001;
-
-                              return (
-                                <Button
-                                  key={`script-speed-${speed}`}
-                                  size="small"
-                                  variant={active ? 'contained' : 'outlined'}
-                                  disabled={busyKey === 'script-configure'}
-                                  onClick={() => updateScriptSettingsDraft({ speed: normalizedSpeed }, { commit: true })}
-                                >
-                                  {formatScriptSpeedLabel(normalizedSpeed)}
-                                </Button>
-                              );
-                            })}
-                          </Box>
-                        </FieldPanel>
-
-                        <Box className="script-toggle-field">
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={scriptSettings.loop}
-                                disabled={busyKey === 'script-configure'}
-                                onChange={(_, checked) => {
-                                  updateScriptSettingsDraft({ loop: checked }, { commit: true });
-                                }}
-                              />
-                            }
-                            label="循环播放"
-                          />
-                          <Typography variant="caption" color="text.secondary">
-                            {scriptLoopModeHelpText}
-                          </Typography>
-                        </Box>
-                      </Box>
-
-                      <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-action-row">
-                        <Button variant="contained" onClick={() => playScript(false)} disabled={!scriptLoaded || scriptState?.playing || busyKey === 'script-play' || busyKey === 'script-load'}>
-                          {scriptPrimaryActionLabel}
-                        </Button>
-                        <Button variant="outlined" onClick={() => playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
-                          从头开始
-                        </Button>
-                        <Button variant="outlined" onClick={() => stepScriptAction(-1)} disabled={!scriptLoaded || scriptPositionMs <= 0 || busyKey === 'script-step-prev'}>
-                          上一动作
-                        </Button>
-                        <Button variant="outlined" onClick={() => stepScriptAction(1)} disabled={!scriptLoaded || scriptPositionMs >= scriptDurationMs || busyKey === 'script-step-next'}>
-                          下一动作
-                        </Button>
-                        <Button variant="outlined" color="warning" onClick={pauseScript} disabled={!scriptLoaded || !scriptState?.playing || busyKey === 'script-pause'}>
-                          暂停
-                        </Button>
-                        <Button variant="outlined" color="error" onClick={stopScript} disabled={!scriptLoaded || busyKey === 'script-stop'}>
-                          停止
-                        </Button>
-                      </Stack>
-
-                      <Typography variant="caption" color="text.secondary" className="script-hotkey-hint">
-                        快捷键：Space/K 播放或暂停，J/L 上一动作/下一动作，[ / ] 跳到 A/B，Shift + A / B 设置 A/B，Shift + C 清除区间，R 从头开始，←/→ 快退/快进 5 秒，Shift + ←/→ 快退/快进 10 秒，Home/End 跳到开头/结尾，-/+ 调整速度。
-                      </Typography>
-                    </Stack>
-                  </Box>
-                </Stack>
+                {renderScriptPlayer()}
               </TabPanel>
             </CardContent>
           </Card>

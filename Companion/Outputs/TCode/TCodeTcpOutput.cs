@@ -154,7 +154,13 @@ public sealed class TCodeTcpOutput : IDisposable
             var mapped = resolved.Output;
             effectiveFrame = MotionAxisHelper.Set(effectiveFrame, axis, mapped);
             var sourceChanged = forceAll || Math.Abs(previousSource - source) >= 0.0001f;
-            var mappedChanged = forceAll || Math.Abs(previousMapped - mapped) >= 0.0001f;
+            var commandMode = ResolveCommandMode(frame, config);
+            var previousCommandMode = ResolveCommandMode(previousSourceFrame, config);
+            var motionInstructionChanged = forceAll
+                || commandMode != previousCommandMode
+                || frame.RequestedCommandMode != previousSourceFrame.RequestedCommandMode
+                || frame.RequestedMotionValue != previousSourceFrame.RequestedMotionValue;
+            var mappedChanged = forceAll || Math.Abs(previousMapped - mapped) >= 0.0001f || motionInstructionChanged;
 
             if (!mappedChanged)
             {
@@ -165,7 +171,6 @@ public sealed class TCodeTcpOutput : IDisposable
 
             var pos = Math.Clamp((int)Math.Round(mapped * 1000f), 0, 999);
             var posText = pos.ToString("D3");
-            var commandMode = ResolveCommandMode(frame, config);
             int? speedLimitForLog = null;
             int? requestedSpeedForLog = null;
             int? logicalSpeedForLog = null;
@@ -286,12 +291,15 @@ public sealed class TCodeTcpOutput : IDisposable
 
     private TCodeCommandMode ResolveCommandMode(MotionFrame frame, TCodeAxisConfig axis)
     {
+        if (frame.RequestedCommandMode.HasValue)
+            return frame.RequestedCommandMode.Value;
+
         return _output?.SlopeMode switch
         {
             TCodeSlopeMode.Speed => TCodeCommandMode.Speed,
             TCodeSlopeMode.Interval => TCodeCommandMode.Interval,
             TCodeSlopeMode.NoSlope => TCodeCommandMode.None,
-            _ => frame.RequestedCommandMode ?? axis.CommandMode,
+            _ => axis.CommandMode,
         };
     }
 

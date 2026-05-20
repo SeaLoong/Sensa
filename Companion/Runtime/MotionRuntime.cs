@@ -346,7 +346,7 @@ public sealed class MotionRuntime : IDisposable
     {
         var patch = new MotionPatch();
         patch.Set(MotionAxis.L0, l0);
-        return ApplyPatchAsync(patch, source);
+        return ApplyPatchAsync(patch, source, requestedCommandMode: TCodeCommandMode.None);
     }
 
     private Task ApplyManualOverrideAsync(string source)
@@ -378,6 +378,8 @@ public sealed class MotionRuntime : IDisposable
             ? requestedMotionValue.Value
             : elapsedMs;
         var previous = _currentFrame;
+        var motionRequestChanged = previous.RequestedCommandMode != requestedCommandMode
+            || previous.RequestedMotionValue != requestedMotionValue;
         var patched = patch.IsEmpty
             ? previous with { DeltaMs = deltaMs }
             : MotionAxisHelper.ApplyPatch(previous, patch, deltaMs);
@@ -388,13 +390,13 @@ public sealed class MotionRuntime : IDisposable
         };
 
         var motionLabel = requestedCommandMode.HasValue
-            ? $"manual mode={requestedCommandMode.Value} value={requestedMotionValue?.ToString() ?? "default"}"
+            ? $"requested mode={requestedCommandMode.Value} value={requestedMotionValue?.ToString() ?? "default"}"
             : "auto";
         OnDebugLog?.Invoke($"[MotionRuntime/{source}/Patch] delta={deltaMs:F0}ms motion={motionLabel} {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
 
         _currentFrame = next;
 
-        if (patch.IsEmpty || MotionAxisHelper.AreEqual(previous, next))
+        if (!motionRequestChanged && MotionAxisHelper.AreEqual(previous, next))
         {
             if (!patch.IsEmpty)
                 OnDebugLog?.Invoke($"[MotionRuntime/{source}] Patch applied but produced no effective pose change.");
@@ -423,8 +425,8 @@ public sealed class MotionRuntime : IDisposable
                 DeltaMs = isManual && _manualFrame.RequestedCommandMode == TCodeCommandMode.Interval
                     ? (_manualFrame.RequestedMotionValue ?? ManualDefaultIntervalMs)
                     : ConsumeElapsedMs(),
-                RequestedCommandMode = isManual ? _manualFrame.RequestedCommandMode : null,
-                RequestedMotionValue = isManual ? _manualFrame.RequestedMotionValue : null,
+                RequestedCommandMode = isManual ? _manualFrame.RequestedCommandMode : _currentFrame.RequestedCommandMode,
+                RequestedMotionValue = isManual ? _manualFrame.RequestedMotionValue : _currentFrame.RequestedMotionValue,
             };
             _currentFrame = current;
             OnDebugLog?.Invoke("[MotionRuntime/Resume] Re-sending current pose after state transition.");
