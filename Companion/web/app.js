@@ -611,13 +611,21 @@ function formatCompactNumber(value, decimals = 0) {
   return decimals > 0 ? numeric.toFixed(decimals) : `${Math.round(numeric)}`;
 }
 
+function getSignalSimulationDefaultValue(signal = {}) {
+  const min = Number(signal?.vrchatMin ?? 0);
+  const max = Number(signal?.vrchatMax ?? 1);
+  const safeMin = Number.isFinite(min) ? min : 0;
+  const safeMax = Number.isFinite(max) ? max : 1;
+  return roundToStep((safeMin + safeMax) / 2, 0.01);
+}
+
 function makeSignalDraft(signal = {}) {
   const role = signal.role || 'Depth';
   const mappedMinCandidate = signal.mappedMin ?? 0;
   const mappedMaxCandidate = signal.mappedMax ?? 999;
   const mappedMin = Math.max(0, Math.min(999, Number(mappedMinCandidate ?? 0)));
   const mappedMax = Math.max(mappedMin, Math.min(999, Number(mappedMaxCandidate ?? 999)));
-  return {
+  const next = {
     _draftId: createDraftId('signal'),
     oscPath: '',
     invertDirection: false,
@@ -630,6 +638,12 @@ function makeSignalDraft(signal = {}) {
     isOgbSocket: false,
     isOgbPlug: false,
     ...signal,
+  };
+
+  return {
+    ...next,
+    simulateEnabled: Boolean(next.simulateEnabled),
+    simulatedValue: Number.isFinite(Number(next.simulatedValue)) ? roundToStep(Number(next.simulatedValue), 0.01) : getSignalSimulationDefaultValue(next),
   };
 }
 
@@ -692,7 +706,7 @@ function buildPresetDialogDraft(config, presetId, options = {}) {
 }
 
 function stripSignalDraft(signal) {
-  const { _draftId, ...rest } = signal;
+  const { _draftId, simulateEnabled, simulatedValue, ...rest } = signal;
   const mappedMin = Math.max(0, Math.min(999, Math.round(Number(rest.mappedMin ?? 0))));
   const mappedMaxCandidate = Math.max(0, Math.min(999, Math.round(Number(rest.mappedMax ?? 999))));
   const mappedMax = Math.max(mappedMin, mappedMaxCandidate);
@@ -1362,6 +1376,10 @@ function computeSignalPreviewOutput(signal, rawValue) {
   return {
     mappedPosition,
     mappedPositionText: `${Math.max(0, Math.min(999, Math.round(mappedPosition)))}`,
+    normalized,
+    normalizedText: formatCompactNumber(normalized, 2),
+    curved,
+    curvedText: formatCompactNumber(curved, 2),
   };
 }
 
@@ -2675,7 +2693,11 @@ function SignalRowDivider() {
 
 function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
+  const simulatedValue = Number.isFinite(Number(draft.simulatedValue)) ? Number(draft.simulatedValue) : getSignalSimulationDefaultValue(draft);
+  const [simulationSliderMin, simulationSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax, latestEntry?.numericValue, simulatedValue]);
   const liveOutput = computeSignalPreviewOutput(draft, latestEntry?.numericValue);
+  const simulatedOutput = draft.simulateEnabled ? computeSignalPreviewOutput(draft, simulatedValue) : null;
+  const simulationValueText = formatCompactNumber(simulatedValue, 2);
 
   return (
     <Box className="signal-row">
@@ -2748,7 +2770,48 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
             ) : (
               <Chip size="small" variant="outlined" label="未命中实时参数" />
             )}
+
+            {draft.simulateEnabled && <Chip size="small" color="secondary" variant="outlined" label={`模拟 ${simulationValueText}`} />}
+            {draft.simulateEnabled && simulatedOutput && <Chip size="small" color="secondary" variant="outlined" label={`模拟位置 ${simulatedOutput.mappedPositionText}`} />}
+            {draft.simulateEnabled && !latestEntry && <Chip size="small" color="info" variant="outlined" label="仅本地预览" />}
           </Stack>
+
+          <FormControlLabel
+            className="signal-row__simulation-toggle"
+            sx={{ m: 0 }}
+            control={
+              <Switch
+                checked={Boolean(draft.simulateEnabled)}
+                onChange={(_, checked) => onChange({ simulateEnabled: checked, simulatedValue: checked ? simulatedValue : draft.simulatedValue })}
+              />
+            }
+            label={<HelpLabel text="本地模拟" title="只在当前页面里做预览，不会发给后端，也不会写入配置。适合在没有真实 OSC 参数时，先试输入范围、曲线和映射范围会落到什么设备位置。" />}
+          />
+
+          {draft.simulateEnabled ? (
+            <Box className="signal-row__simulation-field">
+              <ValueSliderField
+                label="模拟参数值"
+                title="本地预览用的原始输入值。拖动它可以直接看到当前输入范围、曲线与映射范围会把这个值变成哪个设备位置。"
+                value={simulatedValue}
+                min={simulationSliderMin}
+                max={simulationSliderMax}
+                step={0.01}
+                valueFormatter={next => formatCompactNumber(next, 2)}
+                onChange={next => onChange({ simulatedValue: roundToStep(Number(next), 0.01) })}
+              />
+
+              {simulatedOutput && (
+                <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">
+                  模拟链路：输入 {simulationValueText} → 归一化 {simulatedOutput.normalizedText} → 曲线后 {simulatedOutput.curvedText} → 位置 {simulatedOutput.mappedPositionText}
+                </Typography>
+              )}
+            </Box>
+          ) : (
+            <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">
+              没有实时参数时，可以先打开本地模拟来预估这条映射会如何落到设备位置；模拟值只用于当前页面预览，不会发送到后端，也不会写入保存配置。
+            </Typography>
+          )}
         </Box>
 
         <SignalRowDivider />
@@ -5116,6 +5179,9 @@ function App() {
                       </Typography>
                       <Typography variant="body2">
                         如果你想把 OSC 的某一段放大成设备全行程，例如原始 <strong>0.25~0.75</strong> 对应设备 <strong>0~999</strong>，请改“输入范围”；如果你想让完整输入只走设备的一部分，例如 <strong>200~800</strong>，请改“映射范围”。
+                      </Typography>
+                      <Typography variant="body2" sx={{ mt: 1 }}>
+                        现在每条映射也支持“本地模拟”——即使暂时没有真实 OSC 参数，也能先拖一个模拟值，预览归一化、曲线以及最终设备位置，再决定要怎么调。
                       </Typography>
                     </Alert>
 

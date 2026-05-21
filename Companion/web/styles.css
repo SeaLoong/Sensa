@@ -440,7 +440,7 @@ body {
 
 .signal-row__controls {
   display: grid;
-  grid-template-columns: minmax(220px, 0.9fr) 1px minmax(250px, 1fr) 1px minmax(250px, 1fr) 1px minmax(180px, 0.72fr);
+  grid-template-columns: minmax(260px, 1.05fr) 1px minmax(250px, 1fr) 1px minmax(250px, 1fr) 1px minmax(180px, 0.72fr);
   gap: 12px;
   align-items: center;
 }
@@ -456,7 +456,8 @@ body {
 }
 
 .signal-row__section--status {
-  padding-top: 10px;
+  align-content: start;
+  gap: 8px;
 }
 
 .signal-row__section--curve {
@@ -478,6 +479,28 @@ body {
 
 .signal-row__status .MuiChip-root {
   background: rgba(248, 250, 252, 0.9);
+}
+
+.signal-row__simulation-toggle {
+  margin: 0;
+  width: fit-content;
+}
+
+.signal-row__simulation-toggle .MuiFormControlLabel-label {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.signal-row__simulation-field {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.signal-row__simulation-note {
+  display: block;
+  line-height: 1.55;
 }
 
 .signal-row__curve-field {
