@@ -46,7 +46,7 @@ public sealed class MotionRuntime : IDisposable
 
     private readonly List<(string Path, SignalChannelProcessor Processor)> _processors = new();
     private readonly SignalMixer _mixer = new();
-    private readonly List<(SignalRole, float)> _signals = new();
+    private readonly List<SignalMixInput> _signals = new();
 
     private volatile MotionFrame _currentFrame = MotionAxisHelper.CreateNeutralFrame();
     private volatile MotionFrame _manualFrame = MotionAxisHelper.CreateNeutralFrame();
@@ -330,10 +330,10 @@ public sealed class MotionRuntime : IDisposable
                 continue;
 
             var rawValue = entry.Value.AsFloat();
-            var processedValue = processor.Process(rawValue);
-            _signals.Add((processor.Mapping.Role, processedValue));
+            var processedSample = processor.ProcessSample(rawValue);
+            _signals.Add(new SignalMixInput(processor.Mapping.Role, processedSample.Output, processedSample.Normalized));
             var sourceLabel = string.IsNullOrWhiteSpace(entry.Source.Label) ? entry.Source.Key : entry.Source.Label;
-            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} source={sourceLabel} raw={rawValue:F4} -> {processor.Mapping.Role}={processedValue:F4}");
+            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} source={sourceLabel} raw={rawValue:F4} norm={processedSample.Normalized:F4} curved={processedSample.Curved:F4} -> {processor.Mapping.Role}={processedSample.Output:F4}");
         }
 
         var patch = _mixer.FusePatch(_signals);

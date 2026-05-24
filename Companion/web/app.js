@@ -106,6 +106,78 @@ const SIGNAL_ROLE_OPTIONS = [
   { value: 'Auxiliary2', label: '辅助 3（A2）' },
 ];
 
+function getSignalRoleLabel(role) {
+  return SIGNAL_ROLE_OPTIONS.find(option => option.value === role)?.label || role || '目标轴';
+}
+
+function getSignalFusionSummary(role) {
+  return '当前会优先采用校准后更深（归一化更高）的一条映射结果';
+}
+
+function getSignalDraftMappedRange(signal) {
+  const mappedMin = Math.max(0, Math.min(999, Math.round(Number(signal?.mappedMin ?? 0))));
+  const mappedMaxCandidate = Math.max(0, Math.min(999, Math.round(Number(signal?.mappedMax ?? 999))));
+  const mappedMax = Math.max(mappedMin, mappedMaxCandidate);
+  return { mappedMin, mappedMax };
+}
+
+function hasSignalRangeOverlap(left, right) {
+  return Math.max(left.mappedMin, right.mappedMin) < Math.min(left.mappedMax, right.mappedMax);
+}
+
+function buildSignalOverlapWarnings(signals) {
+  const normalizedSignals = (Array.isArray(signals) ? signals : [])
+    .map((signal, index) => {
+      const range = getSignalDraftMappedRange(signal);
+      return {
+        index,
+        role: signal?.role || '',
+        oscPath: (signal?.oscPath || '').trim(),
+        mappedMin: range.mappedMin,
+        mappedMax: range.mappedMax,
+      };
+    })
+    .filter(signal => Boolean(signal.role) && Boolean(signal.oscPath));
+
+  const groupedSignals = new Map();
+  normalizedSignals.forEach(signal => {
+    if (!groupedSignals.has(signal.role)) groupedSignals.set(signal.role, []);
+    groupedSignals.get(signal.role).push(signal);
+  });
+
+  const warnings = [];
+
+  groupedSignals.forEach((group, role) => {
+    if (!Array.isArray(group) || group.length < 2) return;
+
+    const overlappingIndexes = new Set();
+    const examples = [];
+
+    for (let i = 0; i < group.length; i += 1) {
+      for (let j = i + 1; j < group.length; j += 1) {
+        if (!hasSignalRangeOverlap(group[i], group[j])) continue;
+        overlappingIndexes.add(i);
+        overlappingIndexes.add(j);
+        if (examples.length < 2) {
+          examples.push(`${group[i].oscPath} ↔ ${group[j].oscPath}`);
+        }
+      }
+    }
+
+    if (overlappingIndexes.size === 0) return;
+
+    warnings.push({
+      role,
+      label: getSignalRoleLabel(role),
+      affectedCount: overlappingIndexes.size,
+      fusionSummary: getSignalFusionSummary(role),
+      examples,
+    });
+  });
+
+  return warnings;
+}
+
 const SIGNAL_CURVE_OPTIONS = [
   { value: 'Linear', label: '线性' },
   { value: 'EaseIn', label: '缓入' },
@@ -2691,6 +2763,19 @@ function SignalRowDivider() {
   return <Divider orientation="vertical" flexItem className="signal-row__divider" />;
 }
 
+function SignalStatusMetric({ label, value, tone = 'default' }) {
+  return (
+    <Box className={`signal-row__metric signal-row__metric--${tone}`}>
+      <Typography variant="caption" className="signal-row__metric-label">
+        {label}
+      </Typography>
+      <Typography variant="body2" className="signal-row__metric-value">
+        {value}
+      </Typography>
+    </Box>
+  );
+}
+
 function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
   const simulatedValue = Number.isFinite(Number(draft.simulatedValue)) ? Number(draft.simulatedValue) : getSignalSimulationDefaultValue(draft);
@@ -2698,6 +2783,26 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
   const liveOutput = computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   const simulatedOutput = draft.simulateEnabled ? computeSignalPreviewOutput(draft, simulatedValue) : null;
   const simulationValueText = formatCompactNumber(simulatedValue, 2);
+  const statusMetrics = latestEntry
+    ? [
+        { key: 'live-input', label: '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
+        { key: 'live-output', label: '预估位置', value: liveOutput?.mappedPositionText || '—', tone: liveOutput ? 'live' : 'muted' },
+      ]
+    : [
+        { key: 'live-input-missing', label: '实时输入', value: '未命中', tone: 'muted' },
+        { key: 'live-output-missing', label: '预估位置', value: '—', tone: 'muted' },
+      ];
+  const visibleStatusMetrics = draft.simulateEnabled
+    ? [
+        { key: 'sim-input', label: '模拟输入', value: simulationValueText, tone: 'simulated' },
+        { key: 'sim-output', label: '模拟位置', value: simulatedOutput?.mappedPositionText || '—', tone: simulatedOutput ? 'simulated' : 'muted' },
+      ]
+    : statusMetrics;
+  const metaSummaryText = !draft.simulateEnabled && latestEntry?.path && latestEntry.path !== draft.oscPath
+      ? `命中 ${latestEntry.path}${latestEntry.matchCount > 1 ? ` · ${latestEntry.matchCount} 条` : ''}`
+      : !draft.simulateEnabled && latestEntry?.matchCount > 1
+        ? `命中 ${latestEntry.matchCount} 条参数`
+        : '';
 
   return (
     <Box className="signal-row">
@@ -2735,7 +2840,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
         <SelectField
           label="目标轴"
-          title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则会在后端做融合。当前约定里 L1 为数值小=前、数值大=后。"
+          title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则在重叠区当前不会叠加，而是优先采用校准后更深（归一化更高）的那条映射结果。当前约定里 L1 为数值小=前、数值大=后。"
           value={draft.role}
           options={SIGNAL_ROLE_OPTIONS}
           variant="compact"
@@ -2758,35 +2863,33 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
       <Box className="signal-row__controls">
         <Box className="signal-row__section signal-row__section--status">
-          <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" className="signal-row__status">
-            {latestEntry ? (
-              <>
-                <Chip size="small" variant="outlined" label={`最新 ${latestEntry.value}`} />
-                {liveOutput && <Chip size="small" color="primary" variant="outlined" label={`实时位置 ${liveOutput.mappedPositionText}`} />}
-                {latestEntry.sourceLabel && <Chip size="small" variant="outlined" label={`来源 ${latestEntry.sourceLabel}`} />}
-                {latestEntry.path && latestEntry.path !== draft.oscPath && <Chip size="small" variant="outlined" label={latestEntry.path} />}
-                {latestEntry.matchCount > 1 && <Chip size="small" variant="outlined" label={`命中 ${latestEntry.matchCount}`} />}
-              </>
-            ) : (
-              <Chip size="small" variant="outlined" label="未命中实时参数" />
-            )}
+          <Box className="signal-row__status-panel">
+            <Box className="signal-row__status-top">
+              {visibleStatusMetrics.map(metric => (
+                <SignalStatusMetric key={metric.key} label={metric.label} value={metric.value} tone={metric.tone} />
+              ))}
 
-            {draft.simulateEnabled && <Chip size="small" color="secondary" variant="outlined" label={`模拟 ${simulationValueText}`} />}
-            {draft.simulateEnabled && simulatedOutput && <Chip size="small" color="secondary" variant="outlined" label={`模拟位置 ${simulatedOutput.mappedPositionText}`} />}
-            {draft.simulateEnabled && !latestEntry && <Chip size="small" color="info" variant="outlined" label="仅本地预览" />}
-          </Stack>
-
-          <FormControlLabel
-            className="signal-row__simulation-toggle"
-            sx={{ m: 0 }}
-            control={
-              <Switch
-                checked={Boolean(draft.simulateEnabled)}
-                onChange={(_, checked) => onChange({ simulateEnabled: checked, simulatedValue: checked ? simulatedValue : draft.simulatedValue })}
+              <FormControlLabel
+                className="signal-row__simulation-toggle signal-row__simulation-toggle--inline"
+                sx={{ m: 0 }}
+                control={
+                  <Switch
+                    checked={Boolean(draft.simulateEnabled)}
+                    onChange={(_, checked) => onChange({ simulateEnabled: checked, simulatedValue: checked ? simulatedValue : draft.simulatedValue })}
+                  />
+                }
+                label={<HelpLabel text="模拟" title="只在当前页面里做预览，不会发给后端，也不会写入配置。适合在没有真实 OSC 参数时，先试输入范围、曲线和映射范围会落到什么设备位置。" />}
               />
-            }
-            label={<HelpLabel text="本地模拟" title="只在当前页面里做预览，不会发给后端，也不会写入配置。适合在没有真实 OSC 参数时，先试输入范围、曲线和映射范围会落到什么设备位置。" />}
-          />
+            </Box>
+
+            {metaSummaryText ? (
+              <Box className="signal-row__meta-list">
+                <Typography variant="caption" color="text.secondary" className="signal-row__meta-text" title={metaSummaryText}>
+                  {metaSummaryText}
+                </Typography>
+              </Box>
+            ) : null}
+          </Box>
 
           {draft.simulateEnabled ? (
             <Box className="signal-row__simulation-field">
@@ -2803,15 +2906,11 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
               {simulatedOutput && (
                 <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">
-                  模拟链路：输入 {simulationValueText} → 归一化 {simulatedOutput.normalizedText} → 曲线后 {simulatedOutput.curvedText} → 位置 {simulatedOutput.mappedPositionText}
+                  模拟：{simulationValueText} → {simulatedOutput.normalizedText} → {simulatedOutput.curvedText} → {simulatedOutput.mappedPositionText}
                 </Typography>
               )}
             </Box>
-          ) : (
-            <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">
-              没有实时参数时，可以先打开本地模拟来预估这条映射会如何落到设备位置；模拟值只用于当前页面预览，不会发送到后端，也不会写入保存配置。
-            </Typography>
-          )}
+          ) : null}
         </Box>
 
         <SignalRowDivider />
@@ -3383,7 +3482,14 @@ function App() {
   function clearSignalDrafts() {
     setSignalDrafts([]);
     setConfirmClearMappings(false);
-    notify('已清空所有映射', 'info');
+    notify('已在当前页面清空映射；如需放弃更改，可点“恢复映射”', 'info');
+  }
+
+  function restoreSignalDrafts() {
+    if (!config) return;
+    setSignalDrafts(buildSignalDrafts(config?.signals));
+    setConfirmClearMappings(false);
+    notify('已恢复到已保存映射', 'info');
   }
 
   async function saveOscMappings() {
@@ -3397,7 +3503,7 @@ function App() {
       await persistConfig(nextConfig);
       await refreshOverview();
       savedSignalsHashRef.current = computeSignalHash(signalDrafts);
-      notify('OSC 映射已保存', 'success');
+      notify('OSC 映射已保存并应用', 'success');
     }).catch(error => notify(error.message || '保存 OSC 映射失败', 'error'));
   }
 
@@ -3410,7 +3516,7 @@ function App() {
 
     const nextDrafts = preset.mappings.map(mapping => makeSignalDraft(mapping));
     setSignalDrafts(previous => (mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts));
-    notify(mode === 'append' ? `已追加预设：${preset.name}` : `已应用预设：${preset.name}`, 'success');
+    notify(mode === 'append' ? `已在当前页面追加预设：${preset.name}；保存后才会真正应用` : `已在当前页面应用预设：${preset.name}；保存后才会真正应用`, 'success');
   }
 
   function openPresetDialog(presetId = null, options = {}) {
@@ -4139,86 +4245,134 @@ function App() {
   function renderScriptPlayer() {
     return (
       <Stack spacing={2.5} className="script-player-shell">
-        <Box className="script-player-hero">
-          <Box className="dialog-panel script-player-hero__main">
-            <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="script-player-hero__header">
-              <Stack spacing={0.75} className="script-player-hero__title">
-                <Typography variant="h6" className="script-player-hero__headline">
-                  脚本播放器
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {scriptHeroStatusText}
-                </Typography>
+        <Box className="script-player-stage">
+          <Box className="dialog-panel script-player-stage__hero">
+            <Box className="script-player-stage__backdrop script-player-stage__backdrop--one" />
+            <Box className="script-player-stage__backdrop script-player-stage__backdrop--two" />
+
+            <Stack spacing={2.5} className="script-player-stage__content">
+              <Stack direction="row" spacing={2} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="script-player-stage__header">
+                <Stack spacing={0.9} className="script-player-stage__title-block">
+                  <Typography variant="overline" className="script-player-stage__eyebrow">
+                    Script session
+                  </Typography>
+                  <Typography variant="h4" className="script-player-stage__headline">
+                    脚本播放器
+                  </Typography>
+                  <Typography variant="subtitle1" className="script-player-stage__file-name">
+                    {scriptFileLabel}
+                  </Typography>
+                  <Typography variant="body1" className="script-player-stage__subline">
+                    {scriptHeroStatusText}
+                  </Typography>
+                </Stack>
+
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-player-stage__chips">
+                  <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
+                  <Chip size="small" variant="outlined" label={`倍率 ${scriptSpeedLabel}`} />
+                  <Chip size="small" color="primary" variant="outlined" label="纯位置输出" />
+                  <Chip size="small" variant="outlined" label={scriptSettings.loop ? '循环模式' : '单次模式'} />
+                </Stack>
               </Stack>
 
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-player-hero__chips">
-                <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
-                <Chip size="small" variant="outlined" label={`倍率 ${scriptSpeedLabel}`} />
-                <Chip size="small" color="primary" variant="outlined" label="纯位置输出" />
-                <Chip size="small" variant="outlined" label={`L0 ${scriptCurrentL0Value}`} />
-                {scriptHasLoopMarkers && <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `A-B ${scriptLoopRangeSummary}` : `${scriptLoopStartLabel} · ${scriptLoopEndLabel}`} />}
-                <Chip size="small" variant="outlined" className="script-file-chip" label={scriptFileLabel} />
-              </Stack>
-            </Stack>
+              {selectedScriptFile && <LinearProgress className="script-player-stage__loader" />}
 
-            {selectedScriptFile && <LinearProgress />}
+              <Box className="script-player-stage__callout">
+                <Typography variant="caption" className="script-player-stage__callout-label">
+                  输出语义
+                </Typography>
+                <Typography variant="body2" className="script-player-stage__callout-text">
+                  {scriptOutputBehaviorText} <strong>播放倍率只改时间推进，不代表硬件 S 速度。</strong>
+                </Typography>
+              </Box>
 
-            <Alert severity="info" variant="outlined" className="script-player-hero__notice">
-              <Typography variant="body2">
-                {scriptOutputBehaviorText} <strong>播放倍率只改时间推进，不代表硬件 S 速度。</strong>
-              </Typography>
-            </Alert>
+              <Box className="script-player-stage__footer">
+                <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-player-stage__actions">
+                  <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
+                    {selectedScriptFile ? '导入中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
+                    <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
+                  </Button>
 
-            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-player-hero__actions">
-              <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
-                {selectedScriptFile ? '导入中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
-                <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
-              </Button>
-              <Box className="script-player-hero__transport">
-                <Button
-                  variant="contained"
-                  color={scriptState?.playing ? 'warning' : 'primary'}
-                  onClick={() => {
-                    if (scriptState?.playing) {
-                      void pauseScript();
-                      return;
-                    }
+                  <Box className="script-player-stage__transport">
+                    <Button
+                      variant="contained"
+                      color={scriptState?.playing ? 'warning' : 'primary'}
+                      onClick={() => {
+                        if (scriptState?.playing) {
+                          void pauseScript();
+                          return;
+                        }
 
-                    void playScript(false);
-                  }}
-                  disabled={!scriptLoaded || scriptPrimaryTransportBusy}
-                >
-                  <ScriptActionButtonLabel label={scriptTransportPrimaryLabel} shortcut="Space / K" />
-                </Button>
-                <Button variant="outlined" onClick={() => void playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
-                  <ScriptActionButtonLabel label="重播" shortcut="R" />
-                </Button>
-                <Button variant="outlined" color="error" onClick={() => void stopScript()} disabled={!scriptLoaded || busyKey === 'script-stop'}>
-                  停止
-                </Button>
-                <Button variant="text" color="error" onClick={() => void clearScript()} disabled={!scriptLoaded || busyKey === 'script-clear'}>
-                  卸载
-                </Button>
+                        void playScript(false);
+                      }}
+                      disabled={!scriptLoaded || scriptPrimaryTransportBusy}
+                    >
+                      <ScriptActionButtonLabel label={scriptTransportPrimaryLabel} shortcut="Space / K" />
+                    </Button>
+                    <Button variant="outlined" onClick={() => void playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
+                      <ScriptActionButtonLabel label="重播" shortcut="R" />
+                    </Button>
+                    <Button variant="outlined" color="error" onClick={() => void stopScript()} disabled={!scriptLoaded || busyKey === 'script-stop'}>
+                      停止
+                    </Button>
+                    <Button variant="text" color="error" onClick={() => void clearScript()} disabled={!scriptLoaded || busyKey === 'script-clear'}>
+                      卸载
+                    </Button>
+                  </Box>
+                </Stack>
+
+                <Box className="script-player-stage__fact-grid">
+                  <Box className="script-player-stage__fact">
+                    <Typography variant="caption" className="script-player-stage__fact-label">
+                      A-B 区间
+                    </Typography>
+                    <Typography variant="body2" className="script-player-stage__fact-value">
+                      {scriptHasLoopMarkers ? scriptLoopRangeStatusLabel : '还没设 A-B，先拖时间轴或用 Shift / Alt 点击取点。'}
+                    </Typography>
+                  </Box>
+
+                  <Box className="script-player-stage__fact">
+                    <Typography variant="caption" className="script-player-stage__fact-label">
+                      当前会话
+                    </Typography>
+                    <Typography variant="body2" className="script-player-stage__fact-value">
+                      {scriptLoaded
+                        ? `${scriptState?.actionCount ?? 0} 个关键帧 · 剩余 ${formatDuration(scriptRemainingMs)} · 当前 L0 ${scriptCurrentL0Value}`
+                        : '载入脚本后，这里会集中显示关键帧数量、剩余时间和当前位置。'}
+                    </Typography>
+                  </Box>
+                </Box>
               </Box>
             </Stack>
           </Box>
 
-          <Box className="dialog-panel script-player-hero__stats">
-            <Typography variant="subtitle2">播放概览</Typography>
-            <Box className="metric-grid metric-grid--compact script-player-hero__metric-grid">
-              <MetricCard label="状态" value={scriptStateMeta.label} tone="accent" />
-              <MetricCard label="动作数" value={scriptState?.actionCount ?? 0} tone="default" />
-              <MetricCard label="当前位置" value={formatDuration(scriptPositionMs)} tone="primary" />
-              <MetricCard label="总时长" value={formatDuration(scriptDurationMs)} tone="default" />
-              <MetricCard label="剩余时间" value={formatDuration(scriptRemainingMs)} tone="default" />
-              <MetricCard label="当前 L0" value={scriptCurrentL0Value} tone="default" />
+          <Box className="dialog-panel script-player-stage__stats">
+            <Stack spacing={0.75}>
+              <Typography variant="overline" className="script-player-stage__eyebrow script-player-stage__eyebrow--muted">
+                Now playing
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                把当前播放的关键数据收进一张卡里，眼睛少跑路，操作更顺手。
+              </Typography>
+            </Stack>
+
+            <Box className="script-player-stage__time-block">
+              <Typography variant="caption" color="text.secondary">
+                当前位置
+              </Typography>
+              <Typography variant="h3" className="script-player-stage__time-value">
+                {formatDuration(scriptPositionMs)}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                总时长 {formatDuration(scriptDurationMs)}
+              </Typography>
             </Box>
 
             {scriptLoaded ? (
               <>
                 <LinearProgress variant="determinate" value={Math.max(0, Math.min(100, scriptProgressPercent))} />
                 <Typography variant="caption" color="text.secondary">
-                  已播放 {Math.round(scriptProgressPercent)}%，{scriptSettings.loop ? '当前可按 A-B / 整段循环继续播放。' : '当前为单次播放流程。'}
+                  已播放 {Math.round(scriptProgressPercent)}%，{scriptSettings.loop ? '当前支持整段或 A-B 循环。' : '当前为单次播放流程。'}
                 </Typography>
               </>
             ) : (
@@ -4226,6 +4380,33 @@ function App() {
                 载入脚本后，这里会显示当前位置、关键帧数量和整体进度。
               </Typography>
             )}
+
+            <Box className="script-player-stage__stat-grid">
+              <Box className="script-player-stage__stat-card">
+                <Typography variant="caption" color="text.secondary">
+                  状态
+                </Typography>
+                <Typography variant="h6">{scriptStateMeta.label}</Typography>
+              </Box>
+              <Box className="script-player-stage__stat-card">
+                <Typography variant="caption" color="text.secondary">
+                  动作数
+                </Typography>
+                <Typography variant="h6">{scriptState?.actionCount ?? 0}</Typography>
+              </Box>
+              <Box className="script-player-stage__stat-card">
+                <Typography variant="caption" color="text.secondary">
+                  剩余
+                </Typography>
+                <Typography variant="h6">{formatDuration(scriptRemainingMs)}</Typography>
+              </Box>
+              <Box className="script-player-stage__stat-card">
+                <Typography variant="caption" color="text.secondary">
+                  当前 L0
+                </Typography>
+                <Typography variant="h6">{scriptCurrentL0Value}</Typography>
+              </Box>
+            </Box>
           </Box>
         </Box>
 
@@ -4238,7 +4419,7 @@ function App() {
               className="script-workspace-panel"
             >
               {scriptLoaded ? (
-                <>
+                <Stack spacing={2} className="script-workspace-panel__stack">
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center" className="script-workspace__summary">
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                       <Chip size="small" variant="outlined" label={`已播放 ${Math.round(scriptProgressPercent)}%`} />
@@ -4253,93 +4434,96 @@ function App() {
                     </Stack>
                   </Stack>
 
-                  <Box className="script-workspace__guide">
-                    {SCRIPT_TIMELINE_GUIDE_ITEMS.map(item => (
-                      <Box key={item.title} className="script-guide-card">
-                        <Typography variant="caption" className="script-guide-card__title">
-                          {item.title}
+                  <Box className="script-workspace__track-shell">
+                    <Stack direction="row" spacing={1.25} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="script-workspace__track-header">
+                      <Stack spacing={0.5} className="script-workspace__track-title">
+                        <Typography variant="subtitle2">主时间轴</Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          把播放、定位和 A-B 选择尽量压进同一视线层级，拖起来像个正经播放器，而不是表单考试现场。
                         </Typography>
-                        <Typography variant="body2" color="text.secondary" className="script-guide-card__text">
-                          {item.description}
-                        </Typography>
-                      </Box>
-                    ))}
-                  </Box>
+                      </Stack>
 
-                  <SliderControl
-                    min={0}
-                    max={scriptSliderMax}
-                    step={50}
-                    disabled={!scriptLoaded || busyKey === 'script-seek'}
-                    value={scriptSeekValue}
-                    className="script-workspace-panel__slider"
-                    valueFormatter={value => formatDuration(value)}
-                    onChange={next => {
-                      setScriptSeekDragging(true);
-                      setScriptSeekDraft(Number(Array.isArray(next) ? next[0] : next));
-                    }}
-                    onChangeCommitted={next => {
-                      const nextValue = Number(Array.isArray(next) ? next[0] : next);
-                      void seekScript(nextValue);
-                    }}
-                  />
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-workspace__track-meta">
+                        <Chip size="small" variant="outlined" label={scriptTimelinePreviewLabel} />
+                        {scriptHasLoopMarkers && <Chip size="small" variant="outlined" label={`区间 ${scriptLoopRange.active ? formatDuration(scriptLoopLengthMs) : '待完成'}`} />}
+                      </Stack>
+                    </Stack>
 
-                  <Box className="script-workspace__timeline-meta">
-                    <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
-                      {formatDuration(0)}
-                    </Typography>
-                    <Typography variant="caption" className="script-workspace__time script-workspace__time--current">
-                      {scriptTimelinePreviewLabel}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
-                      {formatDuration(scriptDurationMs)}
-                    </Typography>
-                  </Box>
+                    <SliderControl
+                      min={0}
+                      max={scriptSliderMax}
+                      step={50}
+                      disabled={!scriptLoaded || busyKey === 'script-seek'}
+                      value={scriptSeekValue}
+                      className="script-workspace-panel__slider"
+                      valueFormatter={value => formatDuration(value)}
+                      onChange={next => {
+                        setScriptSeekDragging(true);
+                        setScriptSeekDraft(Number(Array.isArray(next) ? next[0] : next));
+                      }}
+                      onChangeCommitted={next => {
+                        const nextValue = Number(Array.isArray(next) ? next[0] : next);
+                        void seekScript(nextValue);
+                      }}
+                    />
 
-                  <ScriptTimelineDensity
-                    bins={scriptActivityBins}
-                    durationMs={scriptDurationMs}
-                    currentPositionMs={scriptSeekBasePosition}
-                    loopStartMs={scriptLoopRange.startMs}
-                    loopEndMs={scriptLoopRange.endMs}
-                    disabled={!scriptLoaded || busyKey === 'script-seek'}
-                    onSeek={positionMs => {
-                      void seekScript(positionMs);
-                    }}
-                    onSetLoopBoundary={(boundary, positionMs) => {
-                      setScriptLoopBoundary(boundary, positionMs);
-                    }}
-                    onSelectLoopRange={(startMs, endMs) => {
-                      applyScriptLoopRange(startMs, endMs);
-                    }}
-                  />
+                    <Box className="script-workspace__timeline-meta">
+                      <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
+                        {formatDuration(0)}
+                      </Typography>
+                      <Typography variant="caption" className="script-workspace__time script-workspace__time--current">
+                        {scriptTimelinePreviewLabel}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary" className="script-workspace__time script-workspace__time--edge">
+                        {formatDuration(scriptDurationMs)}
+                      </Typography>
+                    </Box>
 
-                  <Box className="script-seek-actions">
-                    {SCRIPT_SEEK_ACTIONS.map(action => {
-                      const targetPositionMs = action.mode === 'relative'
-                        ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
-                        : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
-                      const disabled = !scriptLoaded || busyKey === 'script-seek' || targetPositionMs === scriptSeekBasePosition;
+                    <ScriptTimelineDensity
+                      bins={scriptActivityBins}
+                      durationMs={scriptDurationMs}
+                      currentPositionMs={scriptSeekBasePosition}
+                      loopStartMs={scriptLoopRange.startMs}
+                      loopEndMs={scriptLoopRange.endMs}
+                      disabled={!scriptLoaded || busyKey === 'script-seek'}
+                      onSeek={positionMs => {
+                        void seekScript(positionMs);
+                      }}
+                      onSetLoopBoundary={(boundary, positionMs) => {
+                        setScriptLoopBoundary(boundary, positionMs);
+                      }}
+                      onSelectLoopRange={(startMs, endMs) => {
+                        applyScriptLoopRange(startMs, endMs);
+                      }}
+                    />
 
-                      return (
-                        <Button
-                          key={action.key}
-                          size="small"
-                          variant="outlined"
-                          disabled={disabled}
-                          onClick={() => {
-                            if (action.mode === 'relative') {
-                              void seekScriptRelative(Number(action.value));
-                              return;
-                            }
+                    <Box className="script-seek-actions">
+                      {SCRIPT_SEEK_ACTIONS.map(action => {
+                        const targetPositionMs = action.mode === 'relative'
+                          ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
+                          : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
+                        const disabled = !scriptLoaded || busyKey === 'script-seek' || targetPositionMs === scriptSeekBasePosition;
 
-                            void seekScript(targetPositionMs);
-                          }}
-                        >
-                          <ScriptActionButtonLabel label={action.label} shortcut={action.shortcut} />
-                        </Button>
-                      );
-                    })}
+                        return (
+                          <Button
+                            key={action.key}
+                            size="small"
+                            variant="outlined"
+                            disabled={disabled}
+                            onClick={() => {
+                              if (action.mode === 'relative') {
+                                void seekScriptRelative(Number(action.value));
+                                return;
+                              }
+
+                              void seekScript(targetPositionMs);
+                            }}
+                          >
+                            <ScriptActionButtonLabel label={action.label} shortcut={action.shortcut} />
+                          </Button>
+                        );
+                      })}
+                    </Box>
                   </Box>
 
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="script-jump-row">
@@ -4361,7 +4545,20 @@ function App() {
                       跳转
                     </Button>
                   </Stack>
-                </>
+
+                  <Box className="script-workspace__guide">
+                    {SCRIPT_TIMELINE_GUIDE_ITEMS.map(item => (
+                      <Box key={item.title} className="script-guide-card">
+                        <Typography variant="caption" className="script-guide-card__title">
+                          {item.title}
+                        </Typography>
+                        <Typography variant="body2" color="text.secondary" className="script-guide-card__text">
+                          {item.description}
+                        </Typography>
+                      </Box>
+                    ))}
+                  </Box>
+                </Stack>
               ) : (
                 <Box className="script-workspace-empty">
                   <Alert severity={selectedScriptFile ? 'info' : 'warning'} variant="outlined" className="script-workspace-empty__notice">
@@ -4529,24 +4726,58 @@ function App() {
           </Box>
 
           <Box className="script-player-layout__side">
-            <Box className="dialog-panel script-side-panel">
+            <Box className="dialog-panel script-side-panel script-side-panel--session">
               <Box className="dialog-panel__header">
-                <Typography variant="subtitle2">输出语义</Typography>
-                <Chip size="small" color="primary" variant="outlined" label="L0 纯位置" />
+                <Typography variant="subtitle2">播放语义与会话状态</Typography>
+                <Chip size="small" color={scriptSeekDragging ? 'info' : 'default'} variant="outlined" label={scriptSeekDragging ? '拖拽预览中' : '常规定位'} />
               </Box>
 
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-side-panel__chips">
-                <Chip size="small" variant="outlined" label="仅 L0 主轴" />
-                <Chip size="small" variant="outlined" label="不自动补 S / I" />
-                <Chip size="small" variant="outlined" label="倍率 ≠ S 速度" />
-              </Stack>
+              <Box className="script-side-panel__section">
+                <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-side-panel__chips">
+                  <Chip size="small" color="primary" variant="outlined" label="L0 纯位置" />
+                  <Chip size="small" variant="outlined" label="仅 L0 主轴" />
+                  <Chip size="small" variant="outlined" label="不自动补 S / I" />
+                  <Chip size="small" variant="outlined" label="倍率 ≠ S 速度" />
+                </Stack>
 
-              <Typography variant="body2" color="text.secondary">
-                当前 Companion 脚本模式会直接按脚本内容输出位置。常规 funscript 只有位置关键帧，所以现在默认发送纯位置指令；输出卡片里的 S/I 覆写不会再替脚本模式自动补算额外斜率。
+                <Typography variant="body2" color="text.secondary">
+                  当前 Companion 脚本模式会直接按脚本内容输出位置。常规 funscript 只有位置关键帧，所以现在默认发送纯位置指令；输出卡片里的 S/I 覆写不会再替脚本模式自动补算额外斜率。
+                </Typography>
+              </Box>
+
+              <Divider />
+
+              <Box className="script-side-panel__info-grid">
+                <Box className="script-side-panel__info-card">
+                  <Typography variant="caption" color="text.secondary">
+                    取点基准
+                  </Typography>
+                  <Typography variant="body2">{scriptLoopAnchorModeLabel}</Typography>
+                </Box>
+                <Box className="script-side-panel__info-card">
+                  <Typography variant="caption" color="text.secondary">
+                    当前取点
+                  </Typography>
+                  <Typography variant="body2">{scriptLoopAnchorValueLabel}</Typography>
+                </Box>
+                <Box className="script-side-panel__info-card">
+                  <Typography variant="caption" color="text.secondary">
+                    快捷键状态
+                  </Typography>
+                  <Typography variant="body2">{scriptLoaded ? '已启用' : '载入后启用'}</Typography>
+                </Box>
+              </Box>
+
+              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
+                {scriptShortcutScopeText}
+              </Typography>
+
+              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
+                {scriptTimelineSupportText}
               </Typography>
             </Box>
 
-            <Box className="dialog-panel script-side-panel">
+            <Box className="dialog-panel script-side-panel script-side-panel--hotkeys">
               <Box className="dialog-panel__header">
                 <Typography variant="subtitle2">快捷键</Typography>
                 <Chip size="small" variant="outlined" label="键盘可直接控" />
@@ -4581,27 +4812,6 @@ function App() {
                   </Box>
                 ))}
               </Box>
-            </Box>
-
-            <Box className="dialog-panel script-side-panel">
-              <Box className="dialog-panel__header">
-                <Typography variant="subtitle2">操作状态</Typography>
-                <Chip size="small" color={scriptSeekDragging ? 'info' : 'default'} variant="outlined" label={scriptSeekDragging ? '拖拽预览中' : '常规定位'} />
-              </Box>
-
-              <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-side-panel__chips">
-                <Chip size="small" variant="outlined" label={`取点基准 ${scriptLoopAnchorModeLabel}`} />
-                <Chip size="small" variant="outlined" label={`当前取点 ${scriptLoopAnchorValueLabel}`} />
-                <Chip size="small" color={scriptLoaded ? 'success' : 'default'} variant="outlined" label={scriptLoaded ? '快捷键已启用' : '载入后启用快捷键'} />
-              </Stack>
-
-              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
-                {scriptShortcutScopeText}
-              </Typography>
-
-              <Typography variant="caption" color="text.secondary" className="script-side-panel__note">
-                {scriptTimelineSupportText}
-              </Typography>
             </Box>
           </Box>
         </Box>
@@ -4727,6 +4937,7 @@ function App() {
     return owners;
   }, [config, dialog, serialPorts]);
   const hasUnsavedMappings = useMemo(() => savedSignalsHashRef.current && computeSignalHash(signalDrafts) !== savedSignalsHashRef.current, [signalDrafts]);
+  const signalOverlapWarnings = useMemo(() => buildSignalOverlapWarnings(signalDrafts), [signalDrafts]);
   const LOG_MAX_VISIBLE = 300;
   const axisLogCatalog = useMemo(() => {
     const axes = new Set();
@@ -5009,7 +5220,6 @@ function App() {
                         <Typography variant="subtitle2">参数预览</Typography>
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                           <Chip size="small" variant="outlined" label={`${previewEntriesForTab.length} 项`} />
-                          {hasMultipleOscSources && <Chip size="small" color={selectedOscSourceKey ? 'info' : 'warning'} variant="outlined" label={`驱动来源 · ${selectedOscSourceKey ? selectedOscSourceLabel : '自动'}`} />}
                           {hasMultipleOscSources && (
                             <SelectField
                               label="使用来源"
@@ -5113,7 +5323,7 @@ function App() {
                     <Box className="dialog-panel__header">
                       <Typography variant="subtitle2">OSC 映射</Typography>
                       <Stack direction="row" spacing={0.5}>
-                        {hasUnsavedMappings && <Chip size="small" color="warning" variant="filled" label="未保存" />}
+                        {hasUnsavedMappings && <Chip size="small" color="warning" variant="filled" label="未保存（仅预览）" />}
                         <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
                       </Stack>
                     </Box>
@@ -5175,15 +5385,29 @@ function App() {
 
                     <Alert severity="info" className="mapping-guide-alert">
                       <Typography variant="body2" className="mapping-guide-alert__title">
-                        当前映射链路：输入范围 → 曲线 → 映射范围。
+                        调映射时，按这个顺序看：输入范围 → 曲线 → 映射范围。
                       </Typography>
                       <Typography variant="body2">
-                        如果你想把 OSC 的某一段放大成设备全行程，例如原始 <strong>0.25~0.75</strong> 对应设备 <strong>0~999</strong>，请改“输入范围”；如果你想让完整输入只走设备的一部分，例如 <strong>200~800</strong>，请改“映射范围”。
+                        “输入范围”决定哪一段 OSC 值会被当成有效输入，适合做截取、放大或反向；例如把原始 <strong>0.25~0.75</strong> 拉满成设备完整行程。
                       </Typography>
                       <Typography variant="body2" sx={{ mt: 1 }}>
-                        现在每条映射也支持“本地模拟”——即使暂时没有真实 OSC 参数，也能先拖一个模拟值，预览归一化、曲线以及最终设备位置，再决定要怎么调。
+                        “曲线”决定中间过程怎么走；“映射范围”决定设备最终只走哪一段位置，例如 <strong>0~999</strong> 或 <strong>200~800</strong>。打开“模拟”后，就算暂时没有实时参数，也能先看这条映射最后会落到哪里。
                       </Typography>
                     </Alert>
+
+                    {signalOverlapWarnings.length > 0 && (
+                      <Alert severity="warning" className="mapping-overlap-alert">
+                        <Typography variant="body2" className="mapping-guide-alert__title">
+                          检测到同轴重叠映射：重叠区不会叠加。
+                        </Typography>
+                        <Typography variant="body2">
+                          {signalOverlapWarnings.map(item => `${item.label} 当前有 ${item.affectedCount} 条规则的映射范围互相重叠，${item.fusionSummary}。进入重叠区后，系统会按“谁更深谁接管”只保留一条输出，所以另一条在部分区间看起来可能像没生效。`).join('；')}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                          建议优先拆成不重叠区间；如果必须重叠，请把它理解成“控制权切换”，而不是“输出叠加”。
+                        </Typography>
+                      </Alert>
+                    )}
 
                     {signalDrafts.length === 0 ? (
                       <Box className="empty-inline-state">
@@ -5213,13 +5437,22 @@ function App() {
                       <Button variant="outlined" onClick={() => addSignalDraft()}>
                         新增映射
                       </Button>
+                      <Button variant="outlined" onClick={restoreSignalDrafts} disabled={!hasUnsavedMappings}>
+                        恢复映射
+                      </Button>
                       <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'} color={hasUnsavedMappings ? 'warning' : 'primary'}>
-                        {hasUnsavedMappings ? '保存映射 ●' : '保存映射'}
+                        {hasUnsavedMappings ? '保存并应用映射 ●' : '保存并应用映射'}
                       </Button>
                       <Button variant="outlined" color="error" onClick={() => setConfirmClearMappings(true)} disabled={signalDrafts.length === 0}>
                         清空映射
                       </Button>
                     </Stack>
+
+                    {hasUnsavedMappings && (
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+                        当前未保存修改只影响此页预览；点击“保存并应用映射”后才会真正重建 Companion 运行时的 OSC 映射。
+                      </Typography>
+                    )}
                   </Box>
                 </Stack>
               </TabPanel>
@@ -5853,7 +6086,7 @@ function App() {
       <Dialog open={confirmClearMappings} onClose={() => setConfirmClearMappings(false)}>
         <DialogTitle>确认清空映射</DialogTitle>
         <DialogContent>
-          <Typography>确定要清空所有 {signalDrafts.length} 条 OSC 轴映射吗？此操作可通过「保存映射」撤销。</Typography>
+          <Typography>确定要清空当前页面里的 {signalDrafts.length} 条 OSC 轴映射吗？若尚未保存，可直接点“恢复映射”回到已保存状态；一旦保存，将以当前清空结果为准。</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmClearMappings(false)}>取消</Button>

@@ -2,6 +2,10 @@ using Sensa.Motion;
 
 namespace Sensa.Signals;
 
+public readonly record struct SignalProcessSample(float Normalized, float Curved, float Output);
+
+public readonly record struct SignalMixInput(SignalRole Role, float Value, float Priority);
+
 /// <summary>
 /// Processes a single OSC parameter through the signal pipeline:
 ///   calibrate [± invert] → curve → mapped positions
@@ -25,7 +29,9 @@ public sealed class SignalChannelProcessor
     /// Process a raw VRChat parameter value and return normalised [0,1] output.
     /// Call once per frame from the main loop.
     /// </summary>
-    public float Process(float rawValue)
+    public float Process(float rawValue) => ProcessSample(rawValue).Output;
+
+    public SignalProcessSample ProcessSample(float rawValue)
     {
         // Track for auto-calibration
         if (rawValue < _observedMin) _observedMin = rawValue;
@@ -40,14 +46,13 @@ public sealed class SignalChannelProcessor
             : Math.Clamp((rawValue - vrcMin) / range, 0f, 1f);
 
         // 2. Non-linear curve
-        float v = normalised;
-        v = ApplyCurve(v, _mapping.Curve);
+        float curved = ApplyCurve(normalised, _mapping.Curve);
 
         // 3. Remap to configured output positions
         var (outMin, outMax) = ResolveMappedRange(_mapping);
-        v = outMin + v * (outMax - outMin);
+        float output = outMin + curved * (outMax - outMin);
 
-        return Math.Clamp(v, 0f, 1f);
+        return new SignalProcessSample(normalised, curved, Math.Clamp(output, 0f, 1f));
     }
 
     /// <summary>Reset observed calibration range (call when the avatar changes).</summary>
@@ -88,119 +93,106 @@ public sealed class SignalChannelProcessor
 
 public sealed class SignalMixer
 {
-    private static float FuseCentered(float current, float candidate)
+    private const float PriorityEpsilon = 0.0001f;
+
+    private readonly record struct SignalChoice(float Value, float Priority);
+
+    private static bool IsCenteredRole(SignalRole role) => role is
+        SignalRole.AngleX or
+        SignalRole.AngleY or
+        SignalRole.Twist or
+        SignalRole.Surge or
+        SignalRole.Sway or
+        SignalRole.Auxiliary or
+        SignalRole.Auxiliary1 or
+        SignalRole.Auxiliary2;
+
+    private static bool PreferCandidateByOutput(SignalRole role, SignalChoice current, SignalChoice candidate)
     {
-        // For axes centred at 0.5: pick the one furthest from centre
-        float curDev = Math.Abs(current - 0.5f);
-        float canDev = Math.Abs(candidate - 0.5f);
-        return canDev > curDev ? candidate : current;
+        if (!IsCenteredRole(role))
+            return candidate.Value > current.Value;
+
+        float curDev = Math.Abs(current.Value - 0.5f);
+        float canDev = Math.Abs(candidate.Value - 0.5f);
+        return canDev > curDev;
     }
 
-    private static float FuseMax(float current, float candidate) =>
-        candidate > current ? candidate : current;
+    private static bool PreferCandidateByPriority(SignalRole role, SignalChoice current, SignalChoice candidate)
+    {
+        if (candidate.Priority > current.Priority + PriorityEpsilon)
+            return true;
+
+        if (candidate.Priority < current.Priority - PriorityEpsilon)
+            return false;
+
+        return PreferCandidateByOutput(role, current, candidate);
+    }
+
+    private static MotionAxis? ResolveAxis(SignalRole role) => role switch
+    {
+        SignalRole.Depth => MotionAxis.L0,
+        SignalRole.Surge => MotionAxis.L1,
+        SignalRole.Sway => MotionAxis.L2,
+        SignalRole.AngleX => MotionAxis.R1,
+        SignalRole.AngleY => MotionAxis.R2,
+        SignalRole.Twist => MotionAxis.R0,
+        SignalRole.V0 => MotionAxis.V0,
+        SignalRole.V1 => MotionAxis.V1,
+        SignalRole.V2 => MotionAxis.V2,
+        SignalRole.Auxiliary => MotionAxis.A0,
+        SignalRole.Auxiliary1 => MotionAxis.A1,
+        SignalRole.Auxiliary2 => MotionAxis.A2,
+        _ => null,
+    };
+
+    private MotionPatch FusePatchCore<T>(
+        IReadOnlyList<T> signals,
+        Func<T, SignalRole> roleSelector,
+        Func<T, float> valueSelector,
+        Func<T, float> prioritySelector,
+        bool usePriority)
+    {
+        var fused = new Dictionary<SignalRole, SignalChoice>();
+
+        foreach (var signal in signals)
+        {
+            var role = roleSelector(signal);
+            var candidate = new SignalChoice(valueSelector(signal), prioritySelector(signal));
+
+            if (!fused.TryGetValue(role, out var current))
+            {
+                fused[role] = candidate;
+                continue;
+            }
+
+            var shouldReplace = usePriority
+                ? PreferCandidateByPriority(role, current, candidate)
+                : PreferCandidateByOutput(role, current, candidate);
+
+            if (shouldReplace)
+                fused[role] = candidate;
+        }
+
+        var patch = new MotionPatch();
+        foreach (var (role, choice) in fused)
+        {
+            var axis = ResolveAxis(role);
+            if (axis.HasValue)
+                patch.Set(axis.Value, choice.Value);
+        }
+
+        return patch;
+    }
 
     /// <summary>
     /// Builds an axis patch containing only roles that are actually present in the input set.
     /// This allows OSC to control a subset of axes without pulling the rest back to defaults.
     /// </summary>
-    public MotionPatch FusePatch(IReadOnlyList<(SignalRole role, float value)> signals)
-    {
-        float depth   = 0f;
-        float angleX  = 0.5f;
-        float angleY  = 0.5f;
-        float twist   = 0.5f;
-        float surge   = 0.5f;
-        float sway    = 0.5f;
-        float v0      = 0f;
-        float v1      = 0f;
-        float v2      = 0f;
-        float aux     = 0.5f;
+    public MotionPatch FusePatch(IReadOnlyList<(SignalRole role, float value)> signals) =>
+        FusePatchCore(signals, signal => signal.role, signal => signal.value, signal => signal.value, usePriority: false);
 
-        var hasDepth  = false;
-        var hasAngleX = false;
-        var hasAngleY = false;
-        var hasTwist  = false;
-        var hasSurge  = false;
-        var hasSway   = false;
-        var hasV0     = false;
-        var hasV1     = false;
-        var hasV2     = false;
-        var hasAux    = false;
-        var hasAux1   = false;
-        var aux1      = 0.5f;
-        var hasAux2   = false;
-        var aux2      = 0.5f;
-
-        foreach (var (role, value) in signals)
-        {
-            switch (role)
-            {
-                case SignalRole.Depth:
-                    hasDepth = true;
-                    depth = FuseMax(depth, value);
-                    break;
-                case SignalRole.AngleX:
-                    hasAngleX = true;
-                    angleX = FuseCentered(angleX, value);
-                    break;
-                case SignalRole.AngleY:
-                    hasAngleY = true;
-                    angleY = FuseCentered(angleY, value);
-                    break;
-                case SignalRole.Twist:
-                    hasTwist = true;
-                    twist = FuseCentered(twist, value);
-                    break;
-                case SignalRole.Surge:
-                    hasSurge = true;
-                    surge = FuseCentered(surge, value);
-                    break;
-                case SignalRole.Sway:
-                    hasSway = true;
-                    sway = FuseCentered(sway, value);
-                    break;
-                case SignalRole.V0:
-                    hasV0 = true;
-                    v0 = FuseMax(v0, value);
-                    break;
-                case SignalRole.V1:
-                    hasV1 = true;
-                    v1 = FuseMax(v1, value);
-                    break;
-                case SignalRole.V2:
-                    hasV2 = true;
-                    v2 = FuseMax(v2, value);
-                    break;
-                case SignalRole.Auxiliary:
-                    hasAux = true;
-                    aux = FuseCentered(aux, value);
-                    break;
-                case SignalRole.Auxiliary1:
-                    hasAux1 = true;
-                    aux1 = FuseCentered(aux1, value);
-                    break;
-                case SignalRole.Auxiliary2:
-                    hasAux2 = true;
-                    aux2 = FuseCentered(aux2, value);
-                    break;
-            }
-        }
-
-        var patch = new MotionPatch();
-        if (hasDepth) patch.Set(MotionAxis.L0, depth);
-        if (hasSurge) patch.Set(MotionAxis.L1, surge);
-        if (hasSway) patch.Set(MotionAxis.L2, sway);
-        if (hasAngleX) patch.Set(MotionAxis.R1, angleX);
-        if (hasAngleY) patch.Set(MotionAxis.R2, angleY);
-        if (hasTwist) patch.Set(MotionAxis.R0, twist);
-        if (hasV0) patch.Set(MotionAxis.V0, v0);
-        if (hasV1) patch.Set(MotionAxis.V1, v1);
-        if (hasV2) patch.Set(MotionAxis.V2, v2);
-        if (hasAux) patch.Set(MotionAxis.A0, aux);
-        if (hasAux1) patch.Set(MotionAxis.A1, aux1);
-        if (hasAux2) patch.Set(MotionAxis.A2, aux2);
-        return patch;
-    }
+    public MotionPatch FusePatch(IReadOnlyList<SignalMixInput> signals) =>
+        FusePatchCore(signals, signal => signal.Role, signal => signal.Value, signal => signal.Priority, usePriority: true);
 
     /// <summary>Legacy full-command fusion, now implemented via patch application on a neutral pose.</summary>
     public MotionFrame Fuse(IReadOnlyList<(SignalRole role, float value)> signals, double deltaMs)
@@ -209,7 +201,11 @@ public sealed class SignalMixer
         return MotionAxisHelper.ApplyPatch(MotionAxisHelper.CreateNeutralFrame(deltaMs), patch, deltaMs);
     }
 
-    private static float Max(float a, float b) => a > b ? a : b;
+    public MotionFrame Fuse(IReadOnlyList<SignalMixInput> signals, double deltaMs)
+    {
+        var patch = FusePatch(signals);
+        return MotionAxisHelper.ApplyPatch(MotionAxisHelper.CreateNeutralFrame(deltaMs), patch, deltaMs);
+    }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
