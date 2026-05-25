@@ -1551,14 +1551,19 @@ body {
   opacity: 0.72;
 }
 
+.script-density__plot {
+  position: relative;
+  min-width: 0;
+}
+
 .script-density__bars {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(4px, 1fr));
+  grid-template-columns: repeat(var(--script-density-bin-count, 1), minmax(0, 1fr));
   align-items: end;
-  gap: 2px;
-  min-height: 48px;
+  gap: 0;
+  min-height: 56px;
   min-width: 0;
 }
 
@@ -1691,7 +1696,8 @@ body {
   appearance: none;
   border: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 1px;
+  box-sizing: border-box;
   min-width: 0;
   height: 100%;
   background: transparent;
@@ -2914,6 +2920,1108 @@ body {
 
   .script-jump-row {
     padding: 12px;
+  }
+}
+
+/* Script player redesign: compact, theme-aligned, tool-first */
+.script-player-shell::before {
+  display: none;
+}
+
+.script-player-toolbar,
+.script-session-panel,
+.script-helper-panel,
+.script-workspace-panel,
+.script-loop-panel,
+.script-step-panel,
+.script-rate-panel {
+  position: relative;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 252, 0.95) 100%);
+  box-shadow: 0 18px 36px rgba(15, 23, 42, 0.06);
+}
+
+.script-player-toolbar::before,
+.script-session-panel::before,
+.script-helper-panel::before,
+.script-workspace-panel::before,
+.script-loop-panel::before,
+.script-step-panel::before,
+.script-rate-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 72px;
+  height: 4px;
+  border-radius: 999px;
+}
+
+.script-player-toolbar::before,
+.script-workspace-panel::before,
+.script-rate-panel::before {
+  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+}
+
+.script-session-panel::before {
+  background: linear-gradient(90deg, #2563eb 0%, #7c3aed 100%);
+}
+
+.script-helper-panel::before,
+.script-step-panel::before {
+  background: linear-gradient(90deg, #7c3aed 0%, #a78bfa 100%);
+}
+
+.script-loop-panel::before {
+  background: linear-gradient(90deg, #f59e0b 0%, #a855f7 100%);
+}
+
+.script-player-toolbar {
+  padding: 18px 20px;
+}
+
+.script-player-toolbar__top,
+.script-player-toolbar__title,
+.script-player-toolbar__chips,
+.script-player-toolbar__controls,
+.script-player-toolbar__transport,
+.script-player-toolbar__metrics,
+.script-session-panel__grid,
+.script-session-panel__chips,
+.script-helper-panel__list,
+.script-empty-state__list {
+  min-width: 0;
+}
+
+.script-player-toolbar__title {
+  flex: 1 1 360px;
+}
+
+.script-player-toolbar__headline {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.script-player-toolbar__file {
+  font-weight: 700;
+  color: #2563eb;
+  overflow-wrap: anywhere;
+}
+
+.script-player-toolbar__summary {
+  max-width: 72ch;
+  line-height: 1.55;
+}
+
+.script-player-toolbar__chips {
+  justify-content: flex-end;
+  flex: 1 1 240px;
+}
+
+.script-player-toolbar__chips .MuiChip-root,
+.script-session-panel__chips .MuiChip-root,
+.script-workspace__summary .MuiChip-root,
+.script-workspace__track-meta .MuiChip-root,
+.script-loop-markers .MuiChip-root,
+.script-side-panel__chips .MuiChip-root {
+  background: rgba(248, 250, 252, 0.9);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+
+.script-player-toolbar__loader,
+.script-session-panel .MuiLinearProgress-root {
+  height: 8px;
+  border-radius: 999px;
+}
+
+.script-session-panel .MuiLinearProgress-root {
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.script-session-panel .MuiLinearProgress-bar,
+.script-player-toolbar .MuiLinearProgress-bar {
+  border-radius: 999px;
+}
+
+.script-player-toolbar__controls {
+  align-items: flex-start;
+}
+
+.script-player-toolbar__controls > .MuiButton-root {
+  min-height: 44px;
+  border-radius: 14px;
+  flex: 0 0 auto;
+  align-self: flex-start;
+}
+
+.script-player-toolbar__transport {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  flex: 1 1 420px;
+  gap: 8px;
+}
+
+.script-player-toolbar__transport .MuiButton-root {
+  min-width: 0;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 14px;
+}
+
+.script-player-toolbar__metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1 1 420px;
+}
+
+.script-player-toolbar__metric,
+.script-session-panel__metric,
+.script-empty-state__item,
+.script-helper-panel__item {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.script-player-toolbar__metric .MuiTypography-body2,
+.script-session-panel__metric .MuiTypography-h6 {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.script-player-layout {
+  grid-template-columns: minmax(0, 1.72fr) minmax(300px, 0.94fr);
+  gap: 16px;
+}
+
+.script-player-layout__main,
+.script-player-layout__side {
+  gap: 16px;
+}
+
+.script-player-layout__side {
+  top: 88px;
+}
+
+.script-player-control-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.script-workspace-panel,
+.script-rate-panel {
+  padding: 18px 20px 20px;
+}
+
+.script-workspace-panel .field-panel__header,
+.script-rate-panel .field-panel__header {
+  min-height: auto;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.script-workspace-panel .field-panel__value,
+.script-rate-panel .field-panel__value {
+  color: #2563eb;
+  font-weight: 700;
+}
+
+.script-workspace__track-shell {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(243, 247, 252, 0.94) 100%);
+}
+
+.script-workspace__track-header,
+.script-workspace__track-title,
+.script-workspace__track-meta {
+  min-width: 0;
+}
+
+.script-workspace__track-title {
+  flex: 1 1 280px;
+}
+
+.script-workspace__track-title .MuiTypography-caption,
+.script-session-panel__progress-note,
+.script-workspace__hintline,
+.script-helper-panel__item-text {
+  line-height: 1.58;
+}
+
+.script-workspace__hintline {
+  display: block;
+  padding-inline: 2px;
+}
+
+.script-empty-state {
+  display: grid;
+  gap: 12px;
+}
+
+.script-empty-state__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+
+.script-empty-state__item-title,
+.script-helper-panel__item-title {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.script-session-panel {
+  padding: 16px;
+}
+
+.script-session-panel__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.script-session-panel__metric .MuiTypography-h6 {
+  font-size: 1.05rem;
+}
+
+.script-session-panel__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.script-helper-panel {
+  padding: 16px;
+}
+
+.script-helper-panel__tabs {
+  min-height: 42px;
+}
+
+.script-helper-panel__tabs .MuiTab-root {
+  min-height: 42px;
+  text-transform: none;
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.script-helper-panel__tabs .MuiTabs-indicator {
+  height: 3px;
+  border-radius: 999px;
+}
+
+.script-helper-panel__body {
+  min-width: 0;
+}
+
+.script-helper-panel__body--hotkeys {
+  max-height: min(56vh, 620px);
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.script-helper-panel__list {
+  display: grid;
+  gap: 10px;
+}
+
+.script-hotkey-sections--compact {
+  gap: 14px;
+}
+
+.script-hotkey-section--compact + .script-hotkey-section--compact {
+  padding-top: 14px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.script-hotkey-section__header--compact {
+  gap: 2px;
+}
+
+.script-hotkey-grid--compact {
+  gap: 8px;
+}
+
+.script-hotkey-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 250, 252, 0.9) 100%);
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.04);
+  cursor: help;
+}
+
+.script-hotkey-item:focus-visible {
+  outline: 2px solid rgba(37, 99, 235, 0.22);
+  outline-offset: 2px;
+}
+
+.script-hotkey-item__key {
+  min-width: 88px;
+  justify-self: start;
+  padding: 5px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(241, 245, 249, 0.92);
+  font-family: 'Consolas', 'Cascadia Mono', 'JetBrains Mono', monospace;
+  font-weight: 700;
+  text-align: center;
+}
+
+.script-hotkey-item__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.script-hotkey-item__label {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.script-hotkey-item__status {
+  display: block;
+}
+
+.script-hotkey-item__status--success {
+  color: #047857;
+}
+
+.script-hotkey-item__status--warning {
+  color: #b45309;
+}
+
+.script-hotkey-item__status--default {
+  color: #64748b;
+}
+
+.script-hotkey-item__status--error {
+  color: #b91c1c;
+}
+
+.script-hotkey-item--success {
+  border-color: rgba(5, 150, 105, 0.18);
+  background: linear-gradient(180deg, rgba(236, 253, 245, 0.86) 0%, rgba(248, 250, 252, 0.94) 100%);
+}
+
+.script-hotkey-item--warning {
+  border-color: rgba(217, 119, 6, 0.18);
+  background: linear-gradient(180deg, rgba(255, 251, 235, 0.9) 0%, rgba(248, 250, 252, 0.94) 100%);
+}
+
+.script-hotkey-item--default {
+  border-color: rgba(148, 163, 184, 0.16);
+}
+
+.script-guide-card,
+.script-player-stage,
+.script-player-stage__hero,
+.script-player-stage__stats {
+  display: none;
+}
+
+@media (max-width: 1200px) {
+  .script-player-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-layout__side {
+    position: static;
+    top: auto;
+  }
+
+  .script-player-toolbar__metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .script-player-toolbar,
+  .script-session-panel,
+  .script-helper-panel,
+  .script-workspace-panel,
+  .script-loop-panel,
+  .script-step-panel,
+  .script-rate-panel {
+    border-radius: 20px;
+  }
+
+  .script-player-toolbar,
+  .script-session-panel,
+  .script-helper-panel,
+  .script-workspace-panel,
+  .script-loop-panel,
+  .script-step-panel,
+  .script-rate-panel {
+    padding: 14px;
+  }
+
+  .script-player-toolbar__top,
+  .script-workspace__track-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .script-player-toolbar__chips {
+    justify-content: flex-start;
+  }
+
+  .script-player-toolbar__transport,
+  .script-player-toolbar__metrics {
+    flex: 1 1 100%;
+    width: 100%;
+  }
+
+  .script-player-toolbar__transport {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-toolbar__transport .MuiButton-root,
+  .script-seek-actions .MuiButton-root,
+  .script-speed-presets .MuiButton-root,
+  .script-loop-panel__actions .MuiButton-root,
+  .script-step-panel__actions .MuiButton-root,
+  .script-jump-row .MuiButton-root {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .script-player-toolbar__metrics,
+  .script-session-panel__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-empty-state__list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .script-player-toolbar__metrics,
+  .script-session-panel__grid {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-toolbar__transport {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-toolbar__transport .MuiButton-root,
+  .script-seek-actions .MuiButton-root,
+  .script-speed-presets .MuiButton-root,
+  .script-loop-panel__actions .MuiButton-root,
+  .script-step-panel__actions .MuiButton-root,
+  .script-jump-row .MuiButton-root {
+    flex: 1 1 100%;
+  }
+
+  .script-hotkey-item {
+    grid-template-columns: 1fr;
+    align-items: start;
+  }
+
+  .script-hotkey-item__key {
+    min-width: 0;
+  }
+}
+
+/* Script player redesign: unified player console */
+.script-player-shell,
+.script-player-console,
+.script-player-console__stack,
+.script-player-console__header,
+.script-player-console__title,
+.script-player-console__header-actions,
+.script-player-console__chips,
+.script-player-console__file-actions,
+.script-player-console__stage,
+.script-player-console__timeline,
+.script-player-console__timebar,
+.script-player-console__summary-panel,
+.script-player-console__overview,
+.script-player-console__overview-chips,
+.script-player-console__transport,
+.script-player-console__dock,
+.script-player-dock,
+.script-player-dock__header,
+.script-player-console__empty-list {
+  min-width: 0;
+}
+
+.script-player-shell {
+  gap: 16px;
+}
+
+.script-player-console {
+  position: relative;
+  overflow: hidden;
+  padding: 18px 20px 20px;
+  border-radius: 26px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+}
+
+.script-player-console::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 18px;
+  width: 84px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.7);
+}
+
+.script-player-console__title {
+  flex: 1 1 340px;
+}
+
+.script-player-console__headline {
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.script-player-console__file {
+  font-weight: 700;
+  color: #2563eb;
+  overflow-wrap: anywhere;
+}
+
+.script-player-console__summary {
+  max-width: 72ch;
+  line-height: 1.55;
+}
+
+.script-player-console__header-actions {
+  flex: 0 1 360px;
+  align-items: flex-end;
+  align-content: start;
+}
+
+.script-player-console__chips {
+  flex: 0 1 auto;
+  justify-content: flex-end;
+}
+
+.script-player-console__chips .MuiChip-root,
+.script-player-console__overview-chips .MuiChip-root {
+  background: rgba(248, 250, 252, 0.96);
+  border-color: rgba(148, 163, 184, 0.2);
+  box-shadow: none;
+}
+
+.script-player-shell .MuiButton-contained {
+  box-shadow: none;
+}
+
+.script-player-shell .MuiButton-contained:hover,
+.script-player-shell .MuiButton-contained:active,
+.script-player-shell .MuiButton-contained.Mui-focusVisible {
+  box-shadow: none;
+}
+
+.script-player-shell .MuiButton-outlined {
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.script-player-shell .MuiButton-outlined:hover {
+  background: rgba(248, 250, 252, 0.96);
+}
+
+.script-player-console__file-actions {
+  flex: 0 0 auto;
+  justify-content: flex-end;
+}
+
+.script-player-console__file-actions > .MuiButton-root {
+  min-height: 40px;
+  border-radius: 12px;
+}
+
+.script-player-console__loader {
+  height: 8px;
+  border-radius: 999px;
+}
+
+.script-player-console__stage {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+  border-radius: 22px;
+  border: 1px solid rgba(96, 165, 250, 0.16);
+  background: rgba(248, 250, 252, 0.88);
+}
+
+.script-player-console__timeline {
+  display: grid;
+  gap: 14px;
+}
+
+.script-player-console__timebar {
+  display: grid;
+  grid-template-columns: minmax(156px, 184px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.script-player-console__clock,
+.script-player-console__stat,
+.script-player-dock {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.script-player-console__clock {
+  align-content: center;
+  gap: 6px;
+  padding: 4px 14px 4px 4px;
+  border: none;
+  border-right: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 0;
+  background: transparent;
+}
+
+.script-player-console__summary-panel {
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.script-player-console__summary-note {
+  display: block;
+  line-height: 1.58;
+  padding-inline: 4px;
+  font-weight: 600;
+}
+
+.script-player-console__stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0;
+  align-content: center;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+.script-player-console__stat .MuiTypography-body2 {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.script-player-console__stat {
+  gap: 3px;
+  padding: 8px 14px;
+  border: none;
+  border-radius: 0;
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  background: transparent;
+}
+
+.script-player-console__stat:first-child {
+  border-left: none;
+}
+
+.script-player-console__clock-value {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.05em;
+  font-weight: 900;
+  color: #0f172a;
+}
+
+.script-player-dock__note,
+.script-player-console__hint {
+  line-height: 1.58;
+}
+
+.script-player-console__progress {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(37, 99, 235, 0.08);
+}
+
+.script-player-console__progress .MuiLinearProgress-bar {
+  border-radius: 999px;
+}
+
+.script-player-console__progress-note {
+  display: block;
+}
+
+.script-player-console__overview-chips {
+  min-width: 0;
+}
+
+.script-player-console__slider {
+  margin-top: 2px;
+}
+
+.script-player-console__timeline-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+}
+
+.script-player-console__time {
+  font-variant-numeric: tabular-nums;
+}
+
+.script-player-console__time--current {
+  font-weight: 700;
+  color: #2563eb;
+}
+
+.script-player-console__hint {
+  display: block;
+  padding-inline: 2px;
+}
+
+.script-player-console__empty {
+  display: grid;
+  gap: 10px;
+}
+
+.script-player-console__empty-callout {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.script-player-console__empty-text {
+  line-height: 1.58;
+}
+
+.script-player-console__empty-chips {
+  min-width: 0;
+}
+
+.script-player-console__empty-chips .MuiChip-root {
+  background: rgba(248, 250, 252, 0.92);
+  border-color: rgba(148, 163, 184, 0.18);
+}
+
+.script-player-console__empty-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.script-player-console__empty-notice {
+  align-items: flex-start;
+}
+
+.script-player-console__empty-notice .MuiAlert-message {
+  width: 100%;
+}
+
+.script-player-console__transport {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+.script-player-console__transport .MuiButton-root {
+  width: 100%;
+  min-height: 46px;
+  border-radius: 16px;
+}
+
+.script-player-console__transport-primary {
+  box-shadow: none;
+}
+
+.script-player-console__dock {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.script-player-dock {
+  gap: 10px;
+  height: 100%;
+  padding: 12px 14px;
+  border-radius: 16px;
+}
+
+.script-player-dock--seek {
+  border-color: rgba(96, 165, 250, 0.18);
+}
+
+.script-player-dock--loop {
+  border-color: rgba(245, 158, 11, 0.18);
+}
+
+.script-player-dock--speed {
+  border-color: rgba(124, 58, 237, 0.16);
+}
+
+.script-player-dock__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.script-player-dock__header--split .MuiFormControlLabel-root {
+  margin: 0;
+}
+
+.script-player-dock__header--split .MuiTypography-body2 {
+  font-weight: 600;
+}
+
+.script-player-dock--seek .script-seek-actions,
+.script-player-dock--loop .script-loop-panel__actions,
+.script-player-dock--speed .script-speed-presets {
+  display: grid;
+  gap: 6px;
+}
+
+.script-player-dock--seek .script-seek-actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.script-player-dock--loop .script-loop-panel__actions {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.script-player-dock--speed .script-speed-presets {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.script-player-dock--seek .script-seek-actions .MuiButton-root,
+.script-player-dock--loop .script-loop-panel__actions .MuiButton-root,
+.script-player-dock--speed .script-speed-presets .MuiButton-root {
+  width: 100%;
+  min-width: 0;
+  min-height: 40px;
+  border-radius: 13px;
+}
+
+.script-player-dock__note {
+  line-height: 1.46;
+}
+
+.script-loop-markers {
+  gap: 6px;
+}
+
+.script-loop-markers .MuiChip-root {
+  height: 28px;
+}
+
+.script-jump-row {
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: stretch;
+}
+
+.script-player-dock--seek .script-jump-row__input {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.script-jump-row .MuiButton-root {
+  min-height: 40px;
+  border-radius: 13px;
+  flex: 0 0 auto;
+}
+
+.script-player-assist {
+  gap: 10px;
+  padding: 10px 4px 0;
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.script-player-assist .script-helper-panel__list {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.script-player-assist .script-helper-panel__item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(248, 250, 252, 0.72);
+  box-shadow: none;
+}
+
+.script-player-assist .script-hotkey-item {
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  box-shadow: none;
+}
+
+.script-player-assist .script-hotkey-item__key {
+  border-radius: 10px;
+  background: rgba(241, 245, 249, 0.86);
+}
+
+.script-player-assist .script-hotkey-item--success {
+  background: rgba(236, 253, 245, 0.76);
+}
+
+.script-player-assist .script-hotkey-item--warning {
+  background: rgba(255, 251, 235, 0.8);
+}
+
+.script-player-assist__body--hotkeys {
+  max-height: min(48vh, 560px);
+}
+
+@media (max-width: 1200px) {
+  .script-player-console__dock {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-assist .script-helper-panel__list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .script-player-console,
+  .script-player-assist {
+    padding: 14px;
+    border-radius: 22px;
+  }
+
+  .script-player-console__header-actions,
+  .script-player-console__chips {
+    justify-content: flex-start;
+    align-items: flex-start;
+  }
+
+  .script-player-console__timebar {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-console__clock {
+    padding: 0 0 10px;
+    border-right: none;
+    border-bottom: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .script-player-console__stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-console__stat {
+    border-left: none;
+    border-top: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .script-player-console__stat:nth-child(-n + 2) {
+    border-top: none;
+  }
+
+  .script-player-console__stat:nth-child(odd) {
+    border-right: 1px solid rgba(148, 163, 184, 0.14);
+  }
+
+  .script-player-console__transport {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-console__transport-primary {
+    grid-column: 1 / -1;
+    order: -1;
+  }
+
+  .script-player-console__dock {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-dock--seek .script-seek-actions,
+  .script-player-dock--loop .script-loop-panel__actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-dock--speed .script-speed-presets {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .script-player-assist .script-helper-panel__list,
+  .script-player-console__empty-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .script-player-console__stats-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-player-console__transport {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-console__transport-primary {
+    grid-column: auto;
+    order: 0;
+  }
+
+  .script-player-console__side-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-dock--seek .script-seek-actions,
+  .script-player-dock--loop .script-loop-panel__actions {
+    grid-template-columns: 1fr;
+  }
+
+  .script-player-dock--speed .script-speed-presets {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .script-jump-row {
+    flex-wrap: wrap;
+  }
+
+  .script-player-console__file-actions,
+  .script-player-console__file-actions > .MuiButton-root {
+    width: 100%;
   }
 }
 
