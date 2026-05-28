@@ -70,6 +70,8 @@ public static class SensaHost
         var parameterStore = new OscParameterStore();
         var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort);
         var oscQueryClient = new OscQueryClient();
+        var oscQueryReceiverService = new OscQueryReceiverService(LogDebug, LogError);
+        var oscHubForwarder = new OscHubForwarder(LogDebug, LogError);
         var recorder = new MotionRecorder();
         var scriptPlayer = new FunscriptPlayer();
         var outputCoordinator = new OutputCoordinator(config, Log, LogDebug, LogError);
@@ -279,6 +281,71 @@ public static class SensaHost
             return null;
         }
 
+        OscParameterStore.SourceSnapshot? ResolveOscHubSource(OscParameterStore.SourceSnapshot[] sources)
+        {
+            var selectedKey = ResolveSelectedOscSourceKey(sources);
+            if (!string.IsNullOrWhiteSpace(selectedKey))
+            {
+                var selectedSource = sources.FirstOrDefault(source => string.Equals(source.Key, selectedKey, StringComparison.Ordinal));
+                return string.IsNullOrWhiteSpace(selectedSource.Key) ? null : selectedSource;
+            }
+
+            return sources.Length == 1 ? sources[0] : null;
+        }
+
+        bool IsOscHubSourceAllowed(OscSource source)
+        {
+            if (!config.Osc.Hub.Enabled)
+                return false;
+
+            var snapshotSources = parameterStore.SnapshotSources();
+            if (snapshotSources.Length == 0)
+            {
+                if (!string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId))
+                {
+                    return !string.IsNullOrWhiteSpace(source.PersistentId)
+                        && string.Equals(config.Osc.PreferredSourcePersistentId, source.PersistentId, StringComparison.OrdinalIgnoreCase);
+                }
+
+                return true;
+            }
+
+            var resolvedSource = ResolveOscHubSource(snapshotSources);
+            if (!resolvedSource.HasValue)
+                return false;
+
+            return string.Equals(resolvedSource.Value.Key, source.Key, StringComparison.Ordinal);
+        }
+
+        void ReplayOscHubSnapshot()
+        {
+            oscHubForwarder.ClearPending();
+
+            if (!config.Osc.Hub.Enabled)
+                return;
+
+            var snapshotSources = parameterStore.SnapshotSources();
+            var resolvedSource = ResolveOscHubSource(snapshotSources);
+            if (!resolvedSource.HasValue)
+                return;
+
+            var sourceKey = resolvedSource.Value.Key;
+            var entries = parameterStore.SnapshotEntries()
+                .Where(entry => string.Equals(entry.Entry.Source.Key, sourceKey, StringComparison.Ordinal))
+                .OrderBy(entry => entry.Path, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            oscHubForwarder.ReplaySnapshot(entries);
+        }
+
+        void ConfigureOscHub(bool replaySnapshot = false)
+        {
+            oscHubForwarder.Configure(config.Osc.Hub);
+
+            if (replaySnapshot)
+                ReplayOscHubSnapshot();
+        }
+
         object SetOscSourceSelectionCore(string? sourceKey)
         {
             var normalizedSourceKey = string.IsNullOrWhiteSpace(sourceKey) ? null : sourceKey.Trim();
@@ -289,6 +356,7 @@ public static class SensaHost
             config.Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(selectedSource.PersistentId) ? string.Empty : selectedSource.PersistentId;
             config.Save();
 
+            ReplayOscHubSnapshot();
             NotifyStateChanged();
             return new
             {
@@ -437,6 +505,15 @@ public static class SensaHost
                 oscListenerError = null;
             }
 
+            try
+            {
+                oscQueryReceiverService.Configure(shouldListen, config.Osc.OscQueryReceiver, config.Osc.ReceiverPort);
+            }
+            catch (Exception ex)
+            {
+                throw new InvalidOperationException($"无法启动 OSCQuery 接收器广播：{ex.Message}", ex);
+            }
+
             var normalizedUrl = config.Osc.OscQueryEnabled
                 ? OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl)
                 : string.Empty;
@@ -481,14 +558,32 @@ public static class SensaHost
         {
             parameterStore.Set(path, value, source);
         };
-        parameterStore.OnSetWithSource += (_, _, _) => QueueOscPreviewStateChanged();
+        parameterStore.OnSetWithSource += (path, value, source) =>
+        {
+            QueueOscPreviewStateChanged();
+
+            if (IsOscHubSourceAllowed(source))
+                oscHubForwarder.ForwardParameter(path, value);
+        };
+        oscReceiver.OnUnhandledPacket += (payload, source) =>
+        {
+            if (IsOscHubSourceAllowed(source))
+                oscHubForwarder.ForwardRawPacket(payload, "OSC raw passthrough");
+        };
+        oscReceiver.OnAvatarChange += () =>
+        {
+            oscHubForwarder.ForwardAvatarChange();
+            NotifyStateChanged();
+        };
         oscQueryClient.AvatarChanged += () =>
         {
             parameterStore.Clear();
+            oscHubForwarder.ForwardAvatarChange();
             NotifyStateChanged();
         };
         oscQueryClient.StructureChanged += () => QueueOscQueryRefresh();
         oscQueryClient.ListenStateChanged += NotifyStateChanged;
+        oscQueryReceiverService.StateChanged += NotifyStateChanged;
 
         motionRuntime.StateChanged += HandleRuntimeStateChanged;
         outputCoordinator.StateChanged += NotifyStateChanged;
@@ -574,6 +669,51 @@ public static class SensaHost
 
         static string NormalizeOutputWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
 
+        static string NormalizeOscHubHost(string? value) => string.IsNullOrWhiteSpace(value) ? "127.0.0.1" : value.Trim().ToLowerInvariant();
+
+        static int NormalizeOscHubPort(int value) => value is > 0 and <= 65535 ? value : 9002;
+
+        static bool HasOscHubConfigChanged(OscReceiverConfig previous, OscReceiverConfig current)
+        {
+            var previousHub = previous.Hub ?? new OscHubConfig();
+            var currentHub = current.Hub ?? new OscHubConfig();
+
+            if (previousHub.Enabled != currentHub.Enabled
+                || previousHub.Mode != currentHub.Mode
+                || previousHub.FixedRateHz != currentHub.FixedRateHz
+                || previousHub.ForwardAvatarChange != currentHub.ForwardAvatarChange)
+            {
+                return true;
+            }
+
+            var previousTargets = (previousHub.Targets ?? new List<OscHubTargetConfig>())
+                .OrderBy(target => target.Id, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var currentTargets = (currentHub.Targets ?? new List<OscHubTargetConfig>())
+                .OrderBy(target => target.Id, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+
+            if (previousTargets.Length != currentTargets.Length)
+                return true;
+
+            for (var index = 0; index < previousTargets.Length; index++)
+            {
+                var left = previousTargets[index];
+                var right = currentTargets[index];
+
+                if (!string.Equals(left.Id, right.Id, StringComparison.OrdinalIgnoreCase)
+                    || !string.Equals(left.Name, right.Name, StringComparison.Ordinal)
+                    || left.Enabled != right.Enabled
+                    || !string.Equals(NormalizeOscHubHost(left.Host), NormalizeOscHubHost(right.Host), StringComparison.Ordinal)
+                    || NormalizeOscHubPort(left.Port) != NormalizeOscHubPort(right.Port))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
         async Task ApplyOutputConfigChangesAsync(AppConfig previousConfigSnapshot)
         {
             var previousOutputs = BuildOutputLookup(previousConfigSnapshot.Outputs);
@@ -627,6 +767,8 @@ public static class SensaHost
             var candidate = new AppConfig();
             candidate.CopyFrom(incoming);
             candidate.ValidateUniqueOutputTargets();
+            candidate.ValidateOscQueryReceiverService();
+            candidate.ValidateOscHubTargets();
 
             config.CopyFrom(candidate);
             motionRuntime.RebuildProcessors();
@@ -638,9 +780,13 @@ public static class SensaHost
                 OscQueryClient.NormalizeUrl(previousOscQueryUrl),
                 OscQueryClient.NormalizeUrl(config.Osc.OscQueryUrl),
                 StringComparison.OrdinalIgnoreCase);
+            var hubChanged = HasOscHubConfigChanged(previousConfig.Osc, config.Osc);
 
             try
             {
+                if (hubChanged)
+                    ConfigureOscHub(replaySnapshot: true);
+
                 SyncOscServices(forceReceiverReconfigure: receiverChanged, forceQueryRefresh: queryEnabledChanged || queryChanged);
                 await ApplyOutputConfigChangesAsync(previousConfig).ConfigureAwait(false);
                 config.Save();
@@ -658,6 +804,7 @@ public static class SensaHost
                     config.Osc.ReceiverPort = previousOscPort;
                     config.Osc.OscQueryEnabled = previousOscQueryEnabled;
                     config.Osc.OscQueryUrl = previousOscQueryUrl;
+                    ConfigureOscHub(replaySnapshot: true);
                     SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
                     outputCoordinator.RebuildConnections();
                     await outputCoordinator.RunStateChangeBatchAsync(async () =>
@@ -724,7 +871,6 @@ public static class SensaHost
                 motionRuntime.ClearManualOverride();
                 LogDebug("[Input/Manual] Cleared");
             }
-
             return new
             {
                 ok = true,
@@ -872,6 +1018,10 @@ public static class SensaHost
                 })
                 .ToArray();
             var oscQuerySnapshot = oscQueryClient.Snapshot;
+            var oscQueryReceiverSnapshot = oscQueryReceiverService.Snapshot;
+            var oscHubSnapshot = oscHubForwarder.BuildSnapshot();
+            var oscHubSource = ResolveOscHubSource(oscSourceSnapshots);
+            var oscHubBlockedBySourceSelection = config.Osc.Hub.Enabled && oscSourceSnapshots.Length > 1 && !oscHubSource.HasValue;
             var devices = outputCoordinator.GetDevices(intifaceOutput?.Id).Select(device => new
             {
                 name = device.Name,
@@ -938,6 +1088,39 @@ public static class SensaHost
                         refreshedAtUtc = oscQuerySnapshot.RefreshedAtUtc,
                         error = oscQuerySnapshot.Error,
                         nodes = oscQuerySnapshot.Nodes,
+                    },
+                    queryReceiver = new
+                    {
+                        enabled = config.Osc.OscQueryReceiver.Enabled,
+                        running = oscQueryReceiverSnapshot.Running,
+                        serviceName = oscQueryReceiverSnapshot.ServiceName,
+                        httpPort = oscQueryReceiverSnapshot.HttpPort,
+                        httpUrl = oscQueryReceiverSnapshot.HttpUrl,
+                        oscPort = oscQueryReceiverSnapshot.OscPort,
+                        advertisedPaths = oscQueryReceiverSnapshot.AdvertisedPaths,
+                        error = oscQueryReceiverSnapshot.Error,
+                    },
+                    hub = new
+                    {
+                        enabled = config.Osc.Hub.Enabled,
+                        mode = oscHubSnapshot.Mode,
+                        fixedRateHz = oscHubSnapshot.FixedRateHz,
+                        forwardAvatarChange = oscHubSnapshot.ForwardAvatarChange,
+                        targetCount = oscHubSnapshot.TargetCount,
+                        activeTargetCount = oscHubSnapshot.ActiveTargetCount,
+                        pendingPacketCount = oscHubSnapshot.PendingPacketCount,
+                        pendingAvatarChange = oscHubSnapshot.PendingAvatarChange,
+                        forwardedPacketCount = oscHubSnapshot.ForwardedPacketCount,
+                        droppedPacketCount = oscHubSnapshot.DroppedPacketCount,
+                        lastForwardedAtUtc = oscHubSnapshot.LastForwardedAtUtc,
+                        lastDroppedAtUtc = oscHubSnapshot.LastDroppedAtUtc,
+                        lastDropReason = oscHubSnapshot.LastDropReason,
+                        blockedBySourceSelection = oscHubBlockedBySourceSelection,
+                        effectiveSourceKey = oscHubSource?.Key ?? string.Empty,
+                        effectiveSourceLabel = oscHubSource?.Label ?? string.Empty,
+                        effectiveSourceParameterCount = oscHubSource?.ParameterCount ?? 0,
+                        canForward = config.Osc.Hub.Enabled && oscHubSnapshot.ActiveTargetCount > 0 && !oscHubBlockedBySourceSelection,
+                        targets = oscHubSnapshot.Targets,
                     },
                 },
                 tcode = new
@@ -1459,11 +1642,14 @@ public static class SensaHost
             oscReceiver.Stop();
             oscReceiver.Dispose();
             oscQueryClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            oscQueryReceiverService.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            oscHubForwarder.Dispose();
             DisposeOscQueryRefreshGate();
             motionRuntime.Dispose();
             config.Save();
         });
 
+        ConfigureOscHub(replaySnapshot: true);
         SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
 
         await outputCoordinator.ConnectEnabledAsync();
@@ -1489,6 +1675,8 @@ public static class SensaHost
         oscReceiver.Stop();
         oscReceiver.Dispose();
         await oscQueryClient.DisposeAsync();
+        await oscQueryReceiverService.DisposeAsync();
+        oscHubForwarder.Dispose();
         DisposeOscQueryRefreshGate();
         await outputCoordinator.DisposeAsync();
         config.Save();

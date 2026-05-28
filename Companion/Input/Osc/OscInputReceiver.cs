@@ -23,6 +23,7 @@ public sealed class OscInputReceiver : IDisposable
     private volatile bool _running;
 
     public event Action? OnAvatarChange;
+    public event Action<byte[], OscSource>? OnUnhandledPacket;
 
     public OscInputReceiver(OscParameterStore store, string host = "0.0.0.0", int port = 9001)
     {
@@ -104,7 +105,7 @@ public sealed class OscInputReceiver : IDisposable
             {
                 byte[] data = _udp!.Receive(ref endPoint);
                 var source = CreateSource(endPoint);
-                OscPacketParser.ParseAvatarPacket(
+                var handled = OscPacketParser.ParseAvatarPacket(
                     data,
                     source,
                     (path, value, resolvedSource) => _store.Set(path, value, resolvedSource),
@@ -113,6 +114,9 @@ public sealed class OscInputReceiver : IDisposable
                         _store.Clear();
                         OnAvatarChange?.Invoke();
                     });
+
+                if (!handled)
+                    OnUnhandledPacket?.Invoke(data, source);
             }
             catch (SocketException) when (!_running)
             {

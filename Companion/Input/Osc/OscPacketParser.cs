@@ -6,23 +6,24 @@ internal static class OscPacketParser
 {
     private const string AvatarParameterPrefix = "/avatar/parameters/";
 
-    public static void ParseAvatarPacket(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange = null)
+    public static bool ParseAvatarPacket(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange = null)
     {
         if (data is null || data.Length < 8)
-            return;
+            return false;
 
-        ParsePacketCore(data, source, onValue, onAvatarChange);
+        return ParsePacketCore(data, source, onValue, onAvatarChange);
     }
 
-    private static void ParsePacketCore(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange)
+    private static bool ParsePacketCore(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange)
     {
         var position = 0;
         var address = ReadOscString(data, ref position);
         if (address is null)
-            return;
+            return false;
 
         if (string.Equals(address, "#bundle", StringComparison.Ordinal))
         {
+            var handled = false;
             position += 8;
             while (position + 4 <= data.Length)
             {
@@ -32,41 +33,41 @@ internal static class OscPacketParser
 
                 var nested = new byte[size];
                 Array.Copy(data, position, nested, 0, size);
-                ParsePacketCore(nested, source, onValue, onAvatarChange);
+                handled |= ParsePacketCore(nested, source, onValue, onAvatarChange);
                 position += size;
             }
 
-            return;
+            return handled;
         }
 
         var typeTag = ReadOscString(data, ref position);
         if (typeTag is null || typeTag.Length < 2 || typeTag[0] != ',')
-            return;
+            return false;
 
         if (string.Equals(address, "/avatar/change", StringComparison.Ordinal))
         {
             onAvatarChange?.Invoke();
-            return;
+            return true;
         }
 
         if (!address.StartsWith(AvatarParameterPrefix, StringComparison.Ordinal))
-            return;
+            return false;
 
         var parameterName = address[AvatarParameterPrefix.Length..];
         if (string.IsNullOrWhiteSpace(parameterName))
-            return;
+            return false;
 
         OscValue value;
         switch (typeTag[1])
         {
             case 'f':
                 if (position + 4 > data.Length)
-                    return;
+                    return false;
                 value = OscValue.FromFloat(ReadFloat(data, ref position));
                 break;
             case 'i':
                 if (position + 4 > data.Length)
-                    return;
+                    return false;
                 value = OscValue.FromInt(ReadInt32(data, ref position));
                 break;
             case 'T':
@@ -76,10 +77,11 @@ internal static class OscPacketParser
                 value = OscValue.FromBool(false);
                 break;
             default:
-                return;
+                return false;
         }
 
         onValue(parameterName, value, source);
+        return true;
     }
 
     private static string? ReadOscString(byte[] data, ref int position)

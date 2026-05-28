@@ -170,6 +170,39 @@ public sealed class IntifaceConfig
     public int    Port                 { get; set; } = 12345;
 }
 
+public enum OscHubMode
+{
+    EventDriven,
+    FixedRate,
+}
+
+public sealed class OscHubTargetConfig
+{
+    public string Id      { get; set; } = "";
+    public string Name    { get; set; } = "";
+    public bool   Enabled { get; set; } = true;
+    public string Host    { get; set; } = "127.0.0.1";
+    public int    Port    { get; set; } = 9002;
+}
+
+public sealed class OscHubConfig
+{
+    public bool                    Enabled             { get; set; } = false;
+    public OscHubMode              Mode                { get; set; } = OscHubMode.EventDriven;
+    public int                     FixedRateHz         { get; set; } = 60;
+    public bool                    ForwardAvatarChange { get; set; } = false;
+    public List<OscHubTargetConfig> Targets            { get; set; } = new();
+}
+
+public sealed class OscQueryReceiverAdvertiseConfig
+{
+    public bool   Enabled           { get; set; } = false;
+    public string ServiceName       { get; set; } = "Sensa";
+    public int    HttpPort          { get; set; } = 9010;
+    public bool   AdvertiseAvatar   { get; set; } = true;
+    public bool   AdvertiseTracking { get; set; } = true;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  OSC receiver config
 // ═══════════════════════════════════════════════════════════════════════
@@ -180,7 +213,9 @@ public sealed class OscReceiverConfig
     public int ReceiverPort { get; set; } = 9001;
     public bool OscQueryEnabled { get; set; } = true;
     public string OscQueryUrl { get; set; } = "http://127.0.0.1:9001/";
+    public OscQueryReceiverAdvertiseConfig OscQueryReceiver { get; set; } = new();
     public string PreferredSourcePersistentId { get; set; } = "";
+    public OscHubConfig Hub { get; set; } = new();
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -310,7 +345,9 @@ public sealed class AppConfig
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
         Osc.OscQueryEnabled = osc.OscQueryEnabled;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : osc.OscQueryUrl.Trim();
+        Osc.OscQueryReceiver = CloneOscQueryReceiverAdvertiseConfig(osc.OscQueryReceiver);
         Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(osc.PreferredSourcePersistentId) ? string.Empty : osc.PreferredSourcePersistentId.Trim();
+        Osc.Hub = CloneOscHubConfig(osc.Hub);
 
         var webUi = other.WebUi ?? new WebUiConfig();
         WebUi.Host            = string.IsNullOrWhiteSpace(webUi.Host) ? "127.0.0.1" : webUi.Host;
@@ -357,7 +394,9 @@ public sealed class AppConfig
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "0.0.0.0" : Osc.ReceiverHost;
         Osc.ReceiverPort = Osc.ReceiverPort is > 0 and <= 65535 ? Osc.ReceiverPort : 9001;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(Osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : Osc.OscQueryUrl.Trim();
+        Osc.OscQueryReceiver = CloneOscQueryReceiverAdvertiseConfig(Osc.OscQueryReceiver);
         Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(Osc.PreferredSourcePersistentId) ? string.Empty : Osc.PreferredSourcePersistentId.Trim();
+        Osc.Hub = CloneOscHubConfig(Osc.Hub);
 
         WebUi.Host            = string.IsNullOrWhiteSpace(WebUi.Host) ? "127.0.0.1" : WebUi.Host;
         WebUi.Title           = string.IsNullOrWhiteSpace(WebUi.Title) ? "Sensa WebUI" : WebUi.Title;
@@ -431,6 +470,52 @@ public sealed class AppConfig
                 }
 
                 occupiedTargets[binding.Key] = output;
+            }
+        }
+    }
+
+    public void ValidateOscQueryReceiverService()
+    {
+        var receiver = Osc?.OscQueryReceiver ?? new OscQueryReceiverAdvertiseConfig();
+        if (!receiver.Enabled)
+            return;
+
+        if (!receiver.AdvertiseAvatar && !receiver.AdvertiseTracking)
+        {
+            throw new InvalidOperationException("OSCQuery 接收器广播至少需要启用 /avatar 或 /tracking/vrsystem 其中之一。");
+        }
+
+        var httpPort = NormalizeOscQueryReceiverHttpPort(receiver.HttpPort);
+        var webUiPort = NormalizePort(WebUi?.Port ?? 5086, 5086);
+        if (httpPort == webUiPort)
+        {
+            throw new InvalidOperationException($"OSCQuery 接收器 HTTP 端口 {httpPort} 与 WebUI 端口 {webUiPort} 冲突。请改用其他端口。");
+        }
+    }
+
+    public void ValidateOscHubTargets()
+    {
+        var occupiedTargets = new Dictionary<string, OscHubTargetConfig>(StringComparer.OrdinalIgnoreCase);
+        var hub = Osc?.Hub ?? new OscHubConfig();
+        var receiverHost = NormalizeHost(Osc?.ReceiverHost, "0.0.0.0");
+        var receiverPort = NormalizePort(Osc?.ReceiverPort ?? 9001, 9001);
+
+        foreach (var target in hub.Targets)
+        {
+            var host = NormalizeHost(target.Host, "127.0.0.1");
+            var port = NormalizePort(target.Port, 9002);
+            var key = $"osc-hub:{host}:{port}";
+
+            if (occupiedTargets.TryGetValue(key, out var existing))
+            {
+                throw new InvalidOperationException($"OSC Hub 目标“{DescribeOscHubTarget(existing)}”与“{DescribeOscHubTarget(target)}”重复使用 UDP 地址 {host}:{port}。请改成未被占用的地址。");
+            }
+
+            occupiedTargets[key] = target;
+
+            if (hub.Enabled && port == receiverPort && IsOscReceiverLoopTarget(host, receiverHost))
+            {
+                throw new InvalidOperationException($"OSC Hub 目标“{DescribeOscHubTarget(target)}”指向当前 OSC 监听端口 {host}:{port}，这会形成回环。请改成其他端口。");
             }
         }
     }
@@ -570,6 +655,16 @@ public sealed class AppConfig
         };
     }
 
+    private static string DescribeOscHubTarget(OscHubTargetConfig target)
+    {
+        if (!string.IsNullOrWhiteSpace(target.Name))
+            return target.Name.Trim();
+
+        var host = NormalizeHost(target.Host, "127.0.0.1");
+        var port = NormalizePort(target.Port, 9002);
+        return $"{host}:{port}";
+    }
+
     private static IEnumerable<(string Key, string Label)> EnumerateOutputTargetBindings(OutputDeviceConfig output)
     {
         switch (output.Type)
@@ -615,7 +710,94 @@ public sealed class AppConfig
 
     private static int NormalizePort(int value, int fallback) => value is > 0 and <= 65535 ? value : fallback;
 
+    private static string NormalizeOscQueryReceiverServiceName(string? value) => string.IsNullOrWhiteSpace(value) ? "Sensa" : value.Trim();
+
+    private static int NormalizeOscQueryReceiverHttpPort(int value) => value is > 0 and <= 65535 ? value : 9010;
+
     private static string NormalizeWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
+
+    private static int NormalizeOscHubRate(int value) => Math.Clamp(value, 1, 240);
+
+    private static bool IsOscAnyHost(string host)
+    {
+        return host == "0.0.0.0"
+            || host == "::"
+            || host == "*"
+            || host.Equals("any", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsOscLoopbackHost(string host)
+    {
+        return host == "127.0.0.1"
+            || host == "::1"
+            || host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsOscReceiverLoopTarget(string targetHost, string receiverHost)
+    {
+        if (IsOscAnyHost(receiverHost))
+            return true;
+
+        if (string.Equals(targetHost, receiverHost, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return IsOscLoopbackHost(targetHost) && IsOscLoopbackHost(receiverHost);
+    }
+
+    private static OscQueryReceiverAdvertiseConfig CloneOscQueryReceiverAdvertiseConfig(OscQueryReceiverAdvertiseConfig? source)
+    {
+        return new OscQueryReceiverAdvertiseConfig
+        {
+            Enabled = source?.Enabled ?? false,
+            ServiceName = NormalizeOscQueryReceiverServiceName(source?.ServiceName),
+            HttpPort = NormalizeOscQueryReceiverHttpPort(source?.HttpPort ?? 9010),
+            AdvertiseAvatar = source?.AdvertiseAvatar ?? true,
+            AdvertiseTracking = source?.AdvertiseTracking ?? true,
+        };
+    }
+
+    private static OscHubConfig CloneOscHubConfig(OscHubConfig? source)
+    {
+        return new OscHubConfig
+        {
+            Enabled = source?.Enabled ?? false,
+            Mode = Enum.IsDefined(typeof(OscHubMode), source?.Mode ?? OscHubMode.EventDriven)
+                ? source?.Mode ?? OscHubMode.EventDriven
+                : OscHubMode.EventDriven,
+            FixedRateHz = NormalizeOscHubRate(source?.FixedRateHz ?? 60),
+            ForwardAvatarChange = source?.ForwardAvatarChange ?? false,
+            Targets = CloneOscHubTargets(source?.Targets),
+        };
+    }
+
+    private static List<OscHubTargetConfig> CloneOscHubTargets(List<OscHubTargetConfig>? source)
+    {
+        var result = new List<OscHubTargetConfig>();
+        var seenIds = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (source is null)
+            return result;
+
+        for (var index = 0; index < source.Count; index++)
+        {
+            var item = source[index] ?? new OscHubTargetConfig();
+            var id = EnsureUniqueId(item.Id, seenIds, $"osc-hub-target-{index + 1}");
+            var host = string.IsNullOrWhiteSpace(item.Host) ? "127.0.0.1" : item.Host.Trim();
+            var port = item.Port is > 0 and <= 65535 ? item.Port : 9002 + index;
+            var name = string.IsNullOrWhiteSpace(item.Name) ? $"Hub 目标 {index + 1}" : item.Name.Trim();
+
+            result.Add(new OscHubTargetConfig
+            {
+                Id = id,
+                Name = name,
+                Enabled = item.Enabled,
+                Host = host,
+                Port = port,
+            });
+        }
+
+        return result;
+    }
 
     private static TCodeProfilesConfig CloneProfiles(TCodeProfilesConfig? source)
     {

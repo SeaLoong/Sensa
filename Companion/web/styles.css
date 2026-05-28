@@ -180,6 +180,47 @@ body {
   flex: 1 1 auto;
 }
 
+.osc-hub-panel {
+  gap: 16px;
+}
+
+.osc-hub-target-list {
+  display: grid;
+  gap: 12px;
+}
+
+.osc-hub-target {
+  display: grid;
+  gap: 10px;
+  border-radius: 16px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+  padding: 12px;
+}
+
+.osc-hub-target--disabled {
+  background: rgba(248, 250, 252, 0.72);
+}
+
+.osc-hub-target__header {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) auto auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.osc-hub-target__toggle {
+  white-space: nowrap;
+}
+
+.osc-hub-target__grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.osc-hub-target__chips {
+  align-items: center;
+}
+
 .osc-preview-table .MuiTableCell-root {
   border-bottom-color: rgba(148, 163, 184, 0.14);
   vertical-align: top;
@@ -2065,6 +2106,10 @@ body {
   .osc-config-panel__actions {
     justify-content: flex-start;
     align-items: flex-start;
+  }
+
+  .osc-hub-target__header {
+    grid-template-columns: 1fr;
   }
 
   .config-cards-row {
