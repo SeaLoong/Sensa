@@ -327,7 +327,7 @@ public static class SensaHost
             return applied;
         }
 
-        bool ShouldRunOscListener() => motionRuntime.CurrentInputMode == RuntimeInputMode.Osc;
+        bool ShouldRunOscListener() => config.Osc.Enabled && motionRuntime.CurrentInputMode == RuntimeInputMode.Osc;
 
         string? ResolveSelectedOscSourceKey(OscParameterStore.SourceSnapshot[] sources)
         {
@@ -866,6 +866,7 @@ public static class SensaHost
         {
             var previousConfig = new AppConfig();
             previousConfig.CopyFrom(config);
+            var previousOscEnabled = config.Osc.Enabled;
             var previousOscHost = config.Osc.ReceiverHost;
             var previousOscPort = config.Osc.ReceiverPort;
             var previousOscQueryEnabled = config.Osc.OscQueryEnabled;
@@ -881,7 +882,8 @@ public static class SensaHost
             config.CopyFrom(candidate);
             motionRuntime.RebuildProcessors();
 
-            var receiverChanged = !string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
+            var receiverChanged = previousOscEnabled != config.Osc.Enabled
+                || !string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
                 || previousOscPort != config.Osc.ReceiverPort;
             var queryEnabledChanged = previousOscQueryEnabled != config.Osc.OscQueryEnabled;
             var queryChanged = !string.Equals(
@@ -908,6 +910,7 @@ public static class SensaHost
 
                 try
                 {
+                    config.Osc.Enabled = previousOscEnabled;
                     config.Osc.ReceiverHost = previousOscHost;
                     config.Osc.ReceiverPort = previousOscPort;
                     config.Osc.OscQueryEnabled = previousOscQueryEnabled;
@@ -1188,6 +1191,7 @@ public static class SensaHost
                 },
                 osc = new
                 {
+                    enabled = config.Osc.Enabled,
                     config.Osc.ReceiverHost,
                     config.Osc.ReceiverPort,
                     listening = oscReceiver.IsRunning,

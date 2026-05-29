@@ -189,7 +189,7 @@ public sealed class OscHubConfig
 {
     public bool                    Enabled             { get; set; } = false;
     public OscHubMode              Mode                { get; set; } = OscHubMode.EventDriven;
-    public int                     FixedRateHz         { get; set; } = 60;
+    public int                     FixedRateHz         { get; set; } = 10;
     public bool                    ForwardAvatarChange { get; set; } = false;
     public List<OscHubTargetConfig> Targets            { get; set; } = new();
 }
@@ -206,7 +206,7 @@ public sealed class OscQueryReceiverAdvertiseConfig
 public sealed class OscQueryPollingConfig
 {
     public bool Enabled { get; set; } = false;
-    public int RateHz   { get; set; } = 5;
+    public int RateHz   { get; set; } = 10;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -215,6 +215,7 @@ public sealed class OscQueryPollingConfig
 
 public sealed class OscReceiverConfig
 {
+    public bool Enabled { get; set; } = true;
     public string ReceiverHost { get; set; } = "0.0.0.0";
     public int ReceiverPort { get; set; } = 9001;
     public bool OscQueryEnabled { get; set; } = true;
@@ -348,6 +349,7 @@ public sealed class AppConfig
         SchemaVersion = other.SchemaVersion > 0 ? other.SchemaVersion : 5;
 
         var osc = other.Osc ?? new OscReceiverConfig();
+        Osc.Enabled = osc.Enabled;
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "0.0.0.0" : osc.ReceiverHost;
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
         Osc.OscQueryEnabled = osc.OscQueryEnabled;
@@ -516,9 +518,10 @@ public sealed class AppConfig
     public void ValidateOscHubTargets()
     {
         var occupiedTargets = new Dictionary<string, OscHubTargetConfig>(StringComparer.OrdinalIgnoreCase);
-        var hub = Osc?.Hub ?? new OscHubConfig();
-        var receiverHost = NormalizeHost(Osc?.ReceiverHost, "0.0.0.0");
-        var receiverPort = NormalizePort(Osc?.ReceiverPort ?? 9001, 9001);
+        var osc = Osc ?? new OscReceiverConfig();
+        var hub = osc.Hub ?? new OscHubConfig();
+        var receiverHost = NormalizeHost(osc.ReceiverHost, "0.0.0.0");
+        var receiverPort = NormalizePort(osc.ReceiverPort, 9001);
 
         foreach (var target in hub.Targets)
         {
@@ -533,7 +536,7 @@ public sealed class AppConfig
 
             occupiedTargets[key] = target;
 
-            if (hub.Enabled && port == receiverPort && IsOscReceiverLoopTarget(host, receiverHost))
+            if (hub.Enabled && osc.Enabled && port == receiverPort && IsOscReceiverLoopTarget(host, receiverHost))
             {
                 throw new InvalidOperationException($"OSC Hub 目标“{DescribeOscHubTarget(target)}”指向当前 OSC 监听端口 {host}:{port}，这会形成回环。请改成其他端口。");
             }
@@ -783,7 +786,7 @@ public sealed class AppConfig
         return new OscQueryPollingConfig
         {
             Enabled = source?.Enabled ?? false,
-            RateHz = NormalizeOscQueryPollingRate(source?.RateHz ?? 5),
+            RateHz = NormalizeOscQueryPollingRate(source?.RateHz ?? 10),
         };
     }
 
@@ -795,7 +798,7 @@ public sealed class AppConfig
             Mode = Enum.IsDefined(typeof(OscHubMode), source?.Mode ?? OscHubMode.EventDriven)
                 ? source?.Mode ?? OscHubMode.EventDriven
                 : OscHubMode.EventDriven,
-            FixedRateHz = NormalizeOscHubRate(source?.FixedRateHz ?? 60),
+            FixedRateHz = NormalizeOscHubRate(source?.FixedRateHz ?? 10),
             ForwardAvatarChange = source?.ForwardAvatarChange ?? false,
             Targets = CloneOscHubTargets(source?.Targets),
         };

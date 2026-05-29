@@ -15,7 +15,7 @@ public sealed class OscHubForwarder : IDisposable
     private Task? _pumpTask;
     private bool _enabled;
     private OscHubMode _mode = OscHubMode.EventDriven;
-    private int _fixedRateHz = 60;
+    private int _fixedRateHz = 10;
     private bool _forwardAvatarChange;
     private bool _pendingAvatarChange;
     private long _forwardedPacketCount;

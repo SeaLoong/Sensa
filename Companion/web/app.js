@@ -45,14 +45,14 @@ const { useEffect, useMemo, useRef, useState } = React;
 const STORAGE_KEY = 'sensa.studio.v4';
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
-const DEFAULT_OSCQUERY_POLLING_RATE = 5;
+const DEFAULT_OSCQUERY_POLLING_RATE = 10;
 const OSCQUERY_POLLING_RATE_MIN = 1;
 const OSCQUERY_POLLING_RATE_MAX = 30;
 const DEFAULT_OSCQUERY_RECEIVER_NAME = 'Sensa';
 const DEFAULT_OSCQUERY_RECEIVER_HTTP_PORT = 9010;
 const DEFAULT_OSC_HUB_TARGET_HOST = '127.0.0.1';
 const DEFAULT_OSC_HUB_TARGET_PORT = 9002;
-const DEFAULT_OSC_HUB_RATE = 60;
+const DEFAULT_OSC_HUB_RATE = 10;
 const OSC_HUB_RATE_MIN = 1;
 const OSC_HUB_RATE_MAX = 240;
 
@@ -861,6 +861,7 @@ function buildOscDraftFromConfig(config) {
   const oscQueryPollingConfig = oscConfig?.oscQueryPolling || {};
   const oscQueryReceiverConfig = oscConfig?.oscQueryReceiver || {};
   return {
+    oscEnabled: oscConfig?.enabled !== false,
     receiverHost: oscConfig?.receiverHost || '0.0.0.0',
     receiverPort: oscConfig?.receiverPort || 9001,
     oscQueryEnabled: oscConfig?.oscQueryEnabled !== false,
@@ -875,7 +876,7 @@ function buildOscDraftFromConfig(config) {
     hubEnabled: hubConfig?.enabled === true,
     hubMode: normalizeOscHubMode(hubConfig?.mode),
     hubFixedRateHz: normalizeOscHubRate(hubConfig?.fixedRateHz, DEFAULT_OSC_HUB_RATE),
-    hubForwardAvatarChange: hubConfig?.forwardAvatarChange === true,
+    hubForwardAvatarChange: hubConfig?.forwardAvatarChange !== false,
     hubTargets: buildOscHubTargetDrafts(hubConfig?.targets),
   };
 }
@@ -1963,7 +1964,7 @@ function mergeOutputDraft(outputId, config, draft) {
 }
 
 function TabPanel({ value, current, children }) {
-  return value === current ? <Box sx={{ pt: 2 }}>{children}</Box> : null;
+  return value === current ? <Box sx={{ pt: 0.75, minWidth: 0, width: '100%' }}>{children}</Box> : null;
 }
 
 function MetricCard({ label, value, tone = 'default' }) {
@@ -2967,40 +2968,49 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
     if (runtimeTarget?.lastSentAtUtc) return { label: '转发正常', color: 'success' };
     return { label: '待收到数据', color: 'warning' };
   })();
+  const endpointSummary = runtimeTarget?.resolvedEndpoint || `${normalizeOscHubHost(target?.host)}:${normalizeOscHubPort(target?.port)}`;
+  const activitySummary = runtimeTarget?.lastSentAtUtc ? `最近 ${formatPreviewTimestamp(runtimeTarget.lastSentAtUtc)}` : '';
 
   return (
     <Box className={`osc-hub-target${isEnabled ? '' : ' osc-hub-target--disabled'}`}>
       <Box className="osc-hub-target__header">
         <TextField
-          label="目标名称"
+          className="osc-hub-target__name"
+          label={<HelpLabel text="目标名称" title="这个名称只用于在当前页面里区分不同 Hub 目标。" />}
           size="small"
           value={target?.name || ''}
           onChange={event => onChange({ name: event.target.value })}
         />
 
-        <FormControlLabel
-          className="osc-hub-target__toggle"
-          sx={{ m: 0 }}
-          control={<Switch checked={Boolean(isEnabled)} onChange={(_, checked) => onChange({ enabled: checked })} />}
-          label={<Typography variant="body2">启用</Typography>}
-        />
+        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="osc-hub-target__actions">
+          <FormControlLabel
+            className="osc-hub-target__toggle"
+            sx={{ m: 0 }}
+            control={<Switch checked={Boolean(isEnabled)} onChange={(_, checked) => onChange({ enabled: checked })} />}
+            label={<Typography variant="body2"><HelpLabel text="启用" title="关闭后会保留这条目标配置，但 Hub 不会向它发包。" /></Typography>}
+          />
 
-        <Button size="small" color="error" onClick={onRemove}>
-          移除
-        </Button>
+          <Tooltip title="移除这个 Hub 目标" arrow>
+            <Button size="small" color="error" onClick={onRemove}>
+              移除
+            </Button>
+          </Tooltip>
+        </Stack>
       </Box>
 
-      <Box className="dialog-grid osc-hub-target__grid">
+      <Box className="osc-hub-target__endpoint-row">
         <TextField
+          className="osc-hub-target__host"
           error={hasConflicts}
-          label="Host"
+          label={<HelpLabel text="目标地址" title="Hub 转发的 UDP 目标地址。通常是 127.0.0.1 或目标程序所在设备的局域网地址。" />}
           size="small"
           value={target?.host || ''}
           onChange={event => onChange({ host: event.target.value })}
         />
         <TextField
+          className="osc-hub-target__port"
           error={hasConflicts}
-          label="Port"
+          label={<HelpLabel text="目标端口" title="Hub 转发的 UDP 目标端口。" />}
           type="number"
           size="small"
           value={target?.port ?? ''}
@@ -3008,13 +3018,19 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
         />
       </Box>
 
-      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="osc-hub-target__chips">
-        <Chip size="small" color={statusMeta.color} variant="outlined" label={statusMeta.label} />
-        <Chip size="small" variant="outlined" label={`${normalizeOscHubHost(target?.host)}:${normalizeOscHubPort(target?.port)}`} />
-        <Chip size="small" variant="outlined" label={`已发 ${runtimeTarget?.sentPackets || 0} 包`} />
-        {runtimeTarget?.resolvedEndpoint && <Chip size="small" variant="outlined" label={`解析到 ${runtimeTarget.resolvedEndpoint}`} />}
-        {runtimeTarget?.lastSentAtUtc && <Chip size="small" variant="outlined" label={`最近 ${formatPreviewTimestamp(runtimeTarget.lastSentAtUtc)}`} />}
-      </Stack>
+      <Box className="osc-hub-target__summary">
+        <Typography variant="caption" className={`osc-hub-target__summary-status osc-hub-target__summary-status--${statusMeta.color}`}>
+          {statusMeta.label}
+        </Typography>
+        <Typography variant="caption" color="text.secondary" className="osc-hub-target__summary-endpoint" title={endpointSummary}>
+          {endpointSummary}
+        </Typography>
+        {activitySummary ? (
+          <Typography variant="caption" color="text.secondary" className="osc-hub-target__summary-activity">
+            {activitySummary}
+          </Typography>
+        ) : <Box />}
+      </Box>
 
       {runtimeError && !hasConflicts && <Alert severity="error" variant="outlined">{runtimeError}</Alert>}
       {hasConflicts && <Alert severity="warning" variant="outlined">{conflictMessages.join('；')}</Alert>}
@@ -3215,6 +3231,7 @@ function App() {
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
+  const [oscSettingsTab, setOscSettingsTab] = useState('basic');
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
   const [profileDialog, setProfileDialog] = useState(null);
@@ -3673,14 +3690,8 @@ function App() {
 
     const hubConflictLookup = buildOscHubTargetConflictLookup(oscDraft);
     const hubConflictMessages = flattenOscHubConflictMessages(hubConflictLookup);
-    const oscQueryReceiverPathCount = Number(Boolean(oscDraft.oscQueryReceiverAdvertiseAvatar)) + Number(Boolean(oscDraft.oscQueryReceiverAdvertiseTracking));
     if (hubConflictMessages.length > 0) {
       notify(hubConflictMessages.join('；'), 'error');
-      return;
-    }
-
-    if (Boolean(oscDraft.oscQueryReceiverEnabled) && oscQueryReceiverPathCount === 0) {
-      notify('OSCQuery 接收器广播至少需要启用 /avatar 或 /tracking/vrsystem 其中之一。', 'error');
       return;
     }
 
@@ -3689,32 +3700,34 @@ function App() {
       nextConfig.schemaVersion = 5;
       nextConfig.osc = {
         ...nextConfig.osc,
+        enabled: Boolean(oscDraft.oscEnabled),
         receiverHost: (oscDraft.receiverHost || '0.0.0.0').trim() || '0.0.0.0',
         receiverPort: Number(oscDraft.receiverPort || 9001),
         oscQueryEnabled: Boolean(oscDraft.oscQueryEnabled),
         oscQueryUrl: (oscDraft.oscQueryUrl || '').trim(),
         oscQueryPolling: {
-          enabled: Boolean(oscDraft.oscQueryPollingEnabled),
+          enabled: Boolean(oscDraft.oscQueryEnabled) && Boolean(oscDraft.oscQueryPollingEnabled),
           rateHz: normalizeOscQueryPollingRate(oscDraft.oscQueryPollingRateHz, DEFAULT_OSCQUERY_POLLING_RATE),
         },
         oscQueryReceiver: {
           enabled: Boolean(oscDraft.oscQueryReceiverEnabled),
           serviceName: (oscDraft.oscQueryReceiverServiceName || DEFAULT_OSCQUERY_RECEIVER_NAME).trim() || DEFAULT_OSCQUERY_RECEIVER_NAME,
           httpPort: Number(oscDraft.oscQueryReceiverHttpPort || DEFAULT_OSCQUERY_RECEIVER_HTTP_PORT),
-          advertiseAvatar: Boolean(oscDraft.oscQueryReceiverAdvertiseAvatar),
-          advertiseTracking: Boolean(oscDraft.oscQueryReceiverAdvertiseTracking),
+          advertiseAvatar: true,
+          advertiseTracking: true,
         },
         hub: {
           enabled: Boolean(oscDraft.hubEnabled),
           mode: normalizeOscHubMode(oscDraft.hubMode),
           fixedRateHz: normalizeOscHubRate(oscDraft.hubFixedRateHz, DEFAULT_OSC_HUB_RATE),
-          forwardAvatarChange: Boolean(oscDraft.hubForwardAvatarChange),
+          forwardAvatarChange: true,
           targets: (Array.isArray(oscDraft.hubTargets) ? oscDraft.hubTargets : []).map(stripOscHubTargetDraft),
         },
       };
 
-      await persistConfig(nextConfig);
+      const savedConfig = await persistConfig(nextConfig);
       await refreshOverview();
+      setOscDraft(buildOscDraftFromConfig(savedConfig));
       notify('OSC / Hub 配置已保存', 'success');
     }).catch(error => notify(error.message || '保存 OSC 配置失败', 'error'));
   }
@@ -4470,6 +4483,7 @@ function App() {
   const runtimeOverview = overview?.runtime || overview?.loop || null;
   const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
+
   const scriptState = overview?.input?.script || null;
   const scriptLoaded = Boolean(scriptState?.loaded);
   const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
@@ -4987,6 +5001,7 @@ function App() {
   const oscListening = Boolean(overview?.osc?.listening);
   const oscListenerError = typeof overview?.osc?.listenerError === 'string' ? overview.osc.listenerError.trim() : '';
   const oscModeActive = actualInputMode === 'osc';
+  const oscConfigEnabled = typeof overview?.osc?.enabled === 'boolean' ? overview.osc.enabled : config?.osc?.enabled !== false;
   const oscPreview = overview?.osc?.preview || [];
   const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : [];
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
@@ -4996,9 +5011,6 @@ function App() {
   const oscQuery = overview?.osc?.query || null;
   const oscQueryPolling = oscQuery?.polling || null;
   const oscQueryReceiver = overview?.osc?.queryReceiver || null;
-  const trackingPreviewEntries = Array.isArray(overview?.osc?.trackingPreview) ? overview.osc.trackingPreview : [];
-  const rawPreviewEntries = Array.isArray(overview?.osc?.rawPreview) ? overview.osc.rawPreview : [];
-  const trackingOrRawPreviewEntries = trackingPreviewEntries.length > 0 ? trackingPreviewEntries : rawPreviewEntries;
   const oscHub = overview?.osc?.hub || null;
   const oscHubTargetsDraft = Array.isArray(oscDraft?.hubTargets) ? oscDraft.hubTargets : [];
   const oscHubRuntimeTargets = Array.isArray(oscHub?.targets) ? oscHub.targets : [];
@@ -5030,11 +5042,19 @@ function App() {
       });
   }, [previewEntriesForTab, signalDrafts]);
   const oscListenerStatus = useMemo(() => {
+    if (!oscConfigEnabled) {
+      return {
+        color: 'default',
+        compactLabel: '已关闭',
+        toolbarLabel: 'OSC 已关闭',
+      };
+    }
+
     if (actualInputMode !== 'osc') {
       return {
         color: 'default',
-        compactLabel: '未启用',
-        toolbarLabel: 'OSC 未启用',
+        compactLabel: '待启用',
+        toolbarLabel: 'OSC 待启用',
       };
     }
 
@@ -5059,7 +5079,7 @@ function App() {
       compactLabel: '未监听',
       toolbarLabel: 'OSC 未监听',
     };
-  }, [actualInputMode, oscListening, oscPreview.length, oscListenerError]);
+  }, [actualInputMode, oscConfigEnabled, oscListening, oscPreview.length, oscListenerError]);
   const effectiveOscQueryUrl = useMemo(() => {
     const overviewUrl = typeof oscQuery?.url === 'string' ? oscQuery.url.trim() : '';
     if (overviewUrl) return overviewUrl;
@@ -5082,17 +5102,10 @@ function App() {
     if (oscQueryPolling?.running) return `轮询 ${oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz}Hz`;
     return '等待首次轮询';
   }, [oscDraft.oscQueryEnabled, oscDraft.oscQueryPollingEnabled, oscDraft.oscQueryPollingRateHz, oscQuery?.supportsListen, oscQueryPolling?.error, oscQueryPolling?.rateHz, oscQueryPolling?.running]);
-  const oscQueryReceiverPaths = Array.isArray(oscQueryReceiver?.advertisedPaths) ? oscQueryReceiver.advertisedPaths : [];
-  const oscQueryReceiverSummary = useMemo(() => {
-    if (!oscDraft.oscQueryReceiverEnabled) return '自动发现已关闭';
-    if (!oscDraft.oscQueryReceiverAdvertiseAvatar && !oscDraft.oscQueryReceiverAdvertiseTracking) return '未声明任何入口';
-    if (oscQueryReceiver?.error) return '广播失败';
-    if (actualInputMode !== 'osc') return '切到 OSC 输入后广播';
-    if (oscQueryReceiver?.receivedSinceStarted) return '已收到数据';
-    if (oscQueryReceiver?.running) return `已广播 ${oscQueryReceiverPaths.length} 条入口`;
-    return '等待启动';
-  }, [actualInputMode, oscDraft.oscQueryReceiverAdvertiseAvatar, oscDraft.oscQueryReceiverAdvertiseTracking, oscDraft.oscQueryReceiverEnabled, oscQueryReceiver?.error, oscQueryReceiver?.receivedSinceStarted, oscQueryReceiver?.running, oscQueryReceiverPaths.length]);
-  const trackingPreviewTitle = trackingPreviewEntries.length > 0 ? 'Tracking 预览' : rawPreviewEntries.length > 0 ? '原始 OSC 预览' : 'Tracking / 原始 OSC 预览';
+  const oscQueryPanelSummary = useMemo(() => {
+    const summary = oscQueryPolling?.running ? oscQueryPollingSummary : oscQuerySummary;
+    return summary === 'OSCQuery 已开启' || summary === 'OSCQuery 同步失败' ? '' : summary;
+  }, [oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary]);
   const oscHubSummary = useMemo(() => {
     if (!oscDraft.hubEnabled) return 'Hub 已关闭';
     if (oscHub?.blockedBySourceSelection) return '等待固定来源';
@@ -5109,6 +5122,15 @@ function App() {
     if (hasMultipleOscSources) return '将跟随已固定来源';
     return oscSources[0] ? `当前来源 · ${formatOscSourceLabel(oscSources[0])}` : '等待实时参数';
   }, [oscDraft.hubEnabled, oscHub?.blockedBySourceSelection, oscHub?.effectiveSourceLabel, hasMultipleOscSources, oscSources]);
+  const oscHubIsFixedRate = normalizeOscHubMode(oscDraft.hubMode) === 'FixedRate';
+  const oscSettingsSummary = useMemo(() => {
+    if (oscSettingsTab === 'query') {
+      const summary = oscQueryPolling?.running ? oscQueryPollingSummary : oscQuerySummary;
+      return summary === 'OSCQuery 同步失败' ? '' : summary;
+    }
+    if (oscSettingsTab === 'hub') return oscHub?.blockedBySourceSelection ? oscHubSourceSummary : oscHubSummary;
+    return `${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001} · ${oscListenerStatus.compactLabel}`;
+  }, [oscDraft.receiverHost, oscDraft.receiverPort, oscHub?.blockedBySourceSelection, oscHubSourceSummary, oscHubSummary, oscListenerStatus.compactLabel, oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary, oscSettingsTab]);
 
   useEffect(() => {
     if (!hasMultipleOscSources) {
@@ -5377,156 +5399,175 @@ function App() {
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
                   <Box className="osc-section-grid">
-                    <Box className="dialog-panel osc-config-panel">
-                      <Box className="dialog-panel__header">
-                        <Typography variant="subtitle2">OSC 配置</Typography>
-                        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                          <Chip size="small" variant="outlined" label={`${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001}`} />
-                          <Chip size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.compactLabel} />
-                        </Stack>
-                      </Box>
-
-                      <Box className="dialog-grid">
-                        <TextField label="监听地址" size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
-                        <TextField
-                          label="监听端口"
-                          type="number"
-                          size="small"
-                          value={oscDraft.receiverPort}
-                          onChange={event => setOscDraft(previous => ({ ...previous, receiverPort: Number(event.target.value || 0) }))}
-                        />
-                        <TextField
-                          label="远端 OSCQuery 地址"
-                          size="small"
-                          placeholder="例如：http://127.0.0.1:9001/"
-                          value={oscDraft.oscQueryUrl || ''}
-                          onChange={event => setOscDraft(previous => ({ ...previous, oscQueryUrl: event.target.value }))}
-                          sx={{ gridColumn: '1 / -1' }}
-                        />
-                      </Box>
-
-                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" variant="outlined" label={oscQuerySummary} />
-                        {oscQuery?.name && <Chip size="small" variant="outlined" label={oscQuery.name} />}
-                        {oscQuery?.oscIp && oscQuery?.oscPort && <Chip size="small" variant="outlined" label={`${oscQuery.oscIp}:${oscQuery.oscPort}`} />}
-                        {oscQuery?.supportsListen && <Chip size="small" variant="outlined" label="支持 LISTEN" />}
-                        {oscQuery?.listenConnected && <Chip size="small" color="success" variant="outlined" label={`实时订阅 ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条`} />}
-                      </Stack>
-
-                      {oscModeActive && oscListenerError && <Alert severity="error">{oscListenerError}</Alert>}
-
-                      <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" className="osc-config-panel__actions" sx={{ mt: 1.5 }}>
-                        <Button variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save' || oscHubConflictMessages.length > 0}>
-                          保存 OSC / Hub 配置
+                    <Box className="dialog-panel osc-settings-panel">
+                      <Box className="dialog-panel__header osc-settings-panel__header">
+                        <Box className="osc-settings-panel__title">
+                          <Typography variant="subtitle2">OSC 设置</Typography>
+                          <Typography variant="caption" color="text.secondary">{oscSettingsSummary}</Typography>
+                        </Box>
+                        <Button size="small" variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>
+                          保存
                         </Button>
-                        <FormControlLabel
-                          className="osc-config-panel__switch"
-                          control={<Switch checked={Boolean(oscDraft.oscQueryEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryEnabled: checked }))} />}
-                          label={<HelpLabel text="启用 OSCQuery 客户端" title="这是“连接别人的 OSCQuery 服务”。开启后，Sensa 会在当前输入模式切到 OSC 时自动同步已配置的远端 OSCQuery 参数树；若对端支持 LISTEN，还会通过 WebSocket 订阅实时参数流。关闭后不会主动同步，也不会建立相关 WebSocket 订阅。" />}
-                          sx={{ m: 0 }}
-                        />
-                      </Stack>
-
-                      <Box className="dialog-grid dialog-grid--two-cols" sx={{ mt: 1.5 }}>
-                        <FormControlLabel
-                          className="osc-config-panel__switch"
-                          sx={{ m: 0 }}
-                          control={<Switch checked={Boolean(oscDraft.oscQueryPollingEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryPollingEnabled: checked }))} />}
-                          label={<HelpLabel text="无 LISTEN 时启用轮询回退" title="当远端 OSCQuery 服务器不支持 LISTEN/WebSocket 推流时，Sensa 可以按固定频率重新抓取参数树中的当前值，并把读到的可读参数重新灌进实时预览与映射链。这个模式默认是保守轮询，不会在对端已支持 LISTEN 时与之并行。" />}
-                        />
-
-                        <TextField
-                          label="轮询频率 (Hz)"
-                          type="number"
-                          size="small"
-                          disabled={!oscDraft.oscQueryPollingEnabled}
-                          value={oscDraft.oscQueryPollingRateHz}
-                          onChange={event => setOscDraft(previous => ({ ...previous, oscQueryPollingRateHz: Number(event.target.value || 0) }))}
-                          helperText="仅在对端不支持 LISTEN 时生效；建议先从 2~10Hz 这种保守值开始。"
-                        />
                       </Box>
 
-                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" variant="outlined" label={oscQueryPollingSummary} />
-                        {oscQueryPolling?.lastPolledAtUtc && <Chip size="small" variant="outlined" label={`最近轮询 ${formatPreviewTimestamp(oscQueryPolling.lastPolledAtUtc)}`} />}
-                        {Number(oscQueryPolling?.lastAppliedValueCount || 0) > 0 && <Chip size="small" variant="outlined" label={`最近应用 ${oscQueryPolling.lastAppliedValueCount} 项`} />}
-                      </Stack>
+                      <Tabs value={oscSettingsTab} onChange={(_, next) => setOscSettingsTab(next)} variant="fullWidth" className="osc-settings-panel__tabs">
+                        <Tab value="basic" label="基础" />
+                        <Tab value="query" label="OSCQuery" />
+                        <Tab value="hub" label="Hub" />
+                      </Tabs>
 
-                      {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">OSCQuery 轮询回退最近一次失败：{oscQueryPolling.error}</Alert>}
+                      <TabPanel value="basic" current={oscSettingsTab}>
+                        <Box className="osc-settings-panel__body">
+                          <FormControlLabel
+                            className="osc-config-panel__switch"
+                            sx={{ m: 0 }}
+                            control={<Switch checked={Boolean(oscDraft.oscEnabled)} disabled={busyKey === 'osc-save'} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscEnabled: checked }))} />}
+                            label={<Typography variant="body2"><HelpLabel text="启用 OSC" title="这是 OSC 接收器本身的配置开关。关闭后会停止本地 UDP OSC 监听；它不会负责切换上方的输入方式，输入方式仍由页面顶部控制。" /></Typography>}
+                          />
 
-                      <Divider sx={{ my: 1.5 }} />
+                          <Box className="osc-settings-panel__field-grid">
+                            <TextField label={<HelpLabel text="监听地址" title="Sensa 本地 UDP OSC 监听地址。通常保持 0.0.0.0 即可。" />} size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
+                            <TextField
+                              label={<HelpLabel text="监听端口" title="Sensa 本地 UDP OSC 监听端口。" />}
+                              type="number"
+                              size="small"
+                              value={oscDraft.receiverPort}
+                              onChange={event => setOscDraft(previous => ({ ...previous, receiverPort: Number(event.target.value || 0) }))}
+                            />
+                          </Box>
 
-                      <Stack spacing={1.5}>
-                        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center">
-                          <Typography variant="subtitle2">VRChat 自动发现接收器</Typography>
-                          <Chip size="small" variant="outlined" label={oscQueryReceiverSummary} />
-                          {oscQueryReceiver?.httpUrl && <Chip size="small" variant="outlined" label={oscQueryReceiver.httpUrl} />}
-                          {oscQueryReceiver?.oscPort ? <Chip size="small" variant="outlined" label={`UDP ${oscQueryReceiver.oscPort}`} /> : null}
-                          {oscQueryReceiver?.serviceName && <Chip size="small" variant="outlined" label={oscQueryReceiver.serviceName} />}
-                          {oscQueryReceiver?.lastReceivedAtUtc && <Chip size="small" variant="outlined" label={`最近数据 ${formatPreviewTimestamp(oscQueryReceiver.lastReceivedAtUtc)}`} />}
-                        </Stack>
+                          {oscModeActive && !oscConfigEnabled && <Alert severity="warning" variant="outlined">当前输入方式仍是 OSC，但 OSC 接收器已关闭，因此不会接收新的 OSC 数据。若要恢复接收，请重新开启“启用 OSC”并保存。</Alert>}
+                          {oscModeActive && oscListenerError && <Alert severity="error" variant="outlined">{oscListenerError}</Alert>}
+                        </Box>
+                      </TabPanel>
 
-                        <Box className="dialog-grid dialog-grid--two-cols">
+                      <TabPanel value="query" current={oscSettingsTab}>
+                        <Box className="osc-settings-panel__body">
+                          <FormControlLabel
+                            className="osc-config-panel__switch"
+                            sx={{ m: 0 }}
+                            control={<Switch checked={Boolean(oscDraft.oscQueryEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryEnabled: checked }))} />}
+                            label={<Typography variant="body2"><HelpLabel text="启用 OSCQuery" title="启用后，Sensa 会连接远端 OSCQuery 服务并同步参数树；如果对端支持 LISTEN，还会建立实时订阅。" /></Typography>}
+                          />
+
+                          <TextField
+                            label={<HelpLabel text="OSCQuery 地址" title="远端 OSCQuery 服务的根地址，例如 http://127.0.0.1:9001/。" />}
+                            size="small"
+                            placeholder="例如：http://127.0.0.1:9001/"
+                            value={oscDraft.oscQueryUrl || ''}
+                            disabled={!oscDraft.oscQueryEnabled}
+                            onChange={event => setOscDraft(previous => ({ ...previous, oscQueryUrl: event.target.value }))}
+                          />
+
+                          <Box className="osc-settings-panel__field-grid osc-settings-panel__field-grid--two">
+                            <FormControlLabel
+                              className="osc-config-panel__switch"
+                              sx={{ m: 0 }}
+                              control={<Switch checked={Boolean(oscDraft.oscQueryPollingEnabled)} disabled={!oscDraft.oscQueryEnabled} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryPollingEnabled: checked }))} />}
+                              label={<Typography variant="body2"><HelpLabel text="轮询回退" title="当对端不支持 LISTEN 时，按固定频率重新拉取可读节点的当前值。" /></Typography>}
+                            />
+
+                            <TextField
+                              label={<HelpLabel text="频率 (Hz)" title="轮询回退的频率。只在启用轮询回退时生效。" />}
+                              type="number"
+                              size="small"
+                              disabled={!oscDraft.oscQueryEnabled || !oscDraft.oscQueryPollingEnabled}
+                              value={oscDraft.oscQueryPollingRateHz}
+                              onChange={event => setOscDraft(previous => ({ ...previous, oscQueryPollingRateHz: Number(event.target.value || 0) }))}
+                            />
+                          </Box>
+
                           <FormControlLabel
                             className="osc-config-panel__switch"
                             sx={{ m: 0 }}
                             control={<Switch checked={Boolean(oscDraft.oscQueryReceiverEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryReceiverEnabled: checked }))} />}
-                            label={<HelpLabel text="广播为 OSCQuery 接收器" title="开启后，Sensa 会在输入方式切到 OSC 时启动一个最小 OSCQuery 服务，并通过 mDNS/Bonjour 广播自己，让 VRChat 能自动发现当前 Sensa，并把 OSC 数据发到当前监听端口。" />}
+                            label={<Typography variant="body2"><HelpLabel text="自动发现" title="把 Sensa 广播成 OSCQuery receiver，方便 VRChat 自动发现并把 OSC 数据送到当前监听端口。" /></Typography>}
                           />
 
-                          <TextField
-                            label="广播名称"
-                            size="small"
-                            value={oscDraft.oscQueryReceiverServiceName || ''}
-                            onChange={event => setOscDraft(previous => ({ ...previous, oscQueryReceiverServiceName: event.target.value }))}
-                          />
+                          {oscQueryPanelSummary ? <Typography variant="caption" color="text.secondary" className="osc-settings-panel__meta">{oscQueryPanelSummary}</Typography> : null}
 
-                          <TextField
-                            label="OSCQuery HTTP 端口"
-                            type="number"
-                            size="small"
-                            value={oscDraft.oscQueryReceiverHttpPort}
-                            onChange={event => setOscDraft(previous => ({ ...previous, oscQueryReceiverHttpPort: Number(event.target.value || 0) }))}
-                            helperText="这个端口仅用于 OSCQuery HTTP 查询与自动发现，不是 UDP 接收端口。"
-                          />
-
-                          <Box />
-
-                          <FormControlLabel
-                            className="osc-config-panel__switch"
-                            sx={{ m: 0 }}
-                            control={<Switch checked={Boolean(oscDraft.oscQueryReceiverAdvertiseAvatar)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryReceiverAdvertiseAvatar: checked }))} />}
-                            label={<HelpLabel text="声明 /avatar" title="告诉 VRChat：Sensa 能接收 /avatar/change 与 /avatar/parameters/* 这一路数据。这是与参数映射、Hub 分发最直接相关的入口。" />}
-                          />
-
-                          <FormControlLabel
-                            className="osc-config-panel__switch"
-                            sx={{ m: 0 }}
-                            control={<Switch checked={Boolean(oscDraft.oscQueryReceiverAdvertiseTracking)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryReceiverAdvertiseTracking: checked }))} />}
-                            label={<HelpLabel text="声明 /tracking/vrsystem" title="告诉 VRChat：Sensa 也愿意接收 head / wrist tracking 流。当前这一路会先作为原始 OSC 包接收，并可继续通过 Hub 透传给下游程序；它不会进入 Sensa 的参数预览与映射列表。" />}
-                          />
+                          {oscQuery?.error && <Alert severity="warning" variant="outlined">OSCQuery：{oscQuery.error}</Alert>}
+                          {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">轮询回退：{oscQueryPolling.error}</Alert>}
+                          {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">自动发现：{oscQueryReceiver.error}</Alert>}
                         </Box>
+                      </TabPanel>
 
-                        <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                          {oscQueryReceiverPaths.map(path => (
-                            <Chip key={path} size="small" variant="outlined" label={path} />
-                          ))}
-                        </Stack>
+                      <TabPanel value="hub" current={oscSettingsTab}>
+                        <Box className="osc-settings-panel__body">
+                          <FormControlLabel
+                            className="osc-config-panel__switch"
+                            sx={{ m: 0 }}
+                            control={<Switch checked={Boolean(oscDraft.hubEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, hubEnabled: checked }))} />}
+                            label={<Typography variant="body2"><HelpLabel text="启用 OSC Hub" title="启用后，Sensa 会把当前实时 OSC 数据转发到下面配置的多个 UDP 目标。" /></Typography>}
+                          />
 
-                        {oscQueryReceiver?.running && !oscQueryReceiver?.receivedSinceStarted && (
-                          <Alert severity="info" variant="outlined">接收器已经在广播，但这次启动后还没有收到新的 UDP 数据。只要 VRChat 成功发现并开始向当前监听端口发包，这里就会变成“已收到数据”。</Alert>
-                        )}
+                          <Box className="osc-settings-panel__field-grid osc-settings-panel__field-grid--two">
+                            <SelectField
+                              label="模式"
+                              title="事件驱动表示参数一变化就立即转发；固定频率表示在每个周期里合并为最新值后再发送。"
+                              value={normalizeOscHubMode(oscDraft.hubMode)}
+                              options={OSC_HUB_MODE_OPTIONS}
+                              variant="compact"
+                              onChange={next => setOscDraft(previous => ({ ...previous, hubMode: next }))}
+                            />
 
-                        {oscQueryReceiver?.receivedSinceStarted && (
-                          <Alert severity="success" variant="outlined">
-                            已在当前广播会话中收到数据
-                            {oscQueryReceiver?.lastSourceLabel ? `，最近来源：${oscQueryReceiver.lastSourceLabel}` : ''}
-                            {oscQueryReceiver?.receivedEventCount ? `，累计事件 ${oscQueryReceiver.receivedEventCount}` : ''}。
-                          </Alert>
-                        )}
+                            <TextField
+                              label={<HelpLabel text="频率 (Hz)" title="仅固定频率模式生效；事件驱动模式下会忽略。" />}
+                              type="number"
+                              size="small"
+                              disabled={!oscHubIsFixedRate}
+                              value={oscDraft.hubFixedRateHz}
+                              onChange={event => setOscDraft(previous => ({ ...previous, hubFixedRateHz: Number(event.target.value || 0) }))}
+                              helperText={oscHubIsFixedRate ? '仅固定频率模式生效' : undefined}
+                            />
+                          </Box>
 
-                        {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">OSCQuery 接收器广播启动失败：{oscQueryReceiver.error}</Alert>}
-                      </Stack>
+                          <Typography variant="caption" color="text.secondary" className="osc-settings-panel__meta">{oscHub?.blockedBySourceSelection ? oscHubSourceSummary : oscHubSummary}</Typography>
+
+                          {oscDraft.hubEnabled && oscHub?.blockedBySourceSelection && (
+                            <Alert severity="warning" variant="outlined">请先在右侧参数预览里固定“使用来源”。</Alert>
+                          )}
+
+                          {oscHubConflictMessages.length > 0 && <Alert severity="warning" variant="outlined">{oscHubConflictMessages.join('；')}</Alert>}
+                          {oscHub?.lastDropReason && Number(oscHub?.droppedPacketCount || 0) > 0 && <Alert severity="error" variant="outlined">最近一次转发失败：{oscHub.lastDropReason}</Alert>}
+
+                          {oscHubTargetsDraft.length === 0 ? (
+                            <Box className="empty-inline-state empty-inline-state--compact">
+                              <Stack spacing={1} alignItems="center">
+                                <Typography color="text.secondary">还没有 Hub 目标</Typography>
+                                <Tooltip title="新增一个 UDP Hub 转发目标" arrow>
+                                  <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>
+                                    新增目标
+                                  </Button>
+                                </Tooltip>
+                              </Stack>
+                            </Box>
+                          ) : (
+                            <Box className="osc-hub-target-list">
+                              {oscHubTargetsDraft.map(target => (
+                                <OscHubTargetRow
+                                  key={target._draftId}
+                                  target={target}
+                                  runtimeTarget={oscHubRuntimeTargetsById.get(target.id) || null}
+                                  conflictMessages={oscHubTargetConflictLookup.get(target._draftId) || []}
+                                  onChange={patch => updateOscHubTargetDraft(target._draftId, patch)}
+                                  onRemove={() => removeOscHubTargetDraft(target._draftId)}
+                                />
+                              ))}
+                            </Box>
+                          )}
+
+                          {oscHubTargetsDraft.length > 0 && (
+                            <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="osc-config-panel__actions">
+                              <Tooltip title="新增一个 UDP Hub 转发目标" arrow>
+                                <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>
+                                  新增目标
+                                </Button>
+                              </Tooltip>
+                            </Stack>
+                          )}
+                        </Box>
+                      </TabPanel>
                     </Box>
 
                     <Box className="dialog-panel osc-preview-panel">
@@ -5549,11 +5590,7 @@ function App() {
                         </Stack>
                       </Box>
 
-                      {hasMultipleOscSources && (
-                        <Alert severity={selectedOscSourceKey ? 'info' : 'warning'} variant="outlined">
-                          检测到多个参数来源。上方标签页只负责浏览；右侧“使用来源”才决定映射预览和实际驱动默认跟哪一路。当前{selectedOscSourceKey ? `已固定为「${selectedOscSourceLabel}」` : '仍处于自动选择模式'}。
-                        </Alert>
-                      )}
+                      {hasMultipleOscSources && <Typography variant="caption" color="text.secondary">当前使用来源：{selectedOscSourceLabel}</Typography>}
 
                       {hasMultipleOscSources && (
                         <Tabs value={previewSourceTab} onChange={(_, next) => setPreviewSourceTab(next)} variant="scrollable" allowScrollButtonsMobile>
@@ -5569,11 +5606,7 @@ function App() {
                           <Box className="empty-inline-state">
                             <Stack spacing={1} alignItems="center">
                               <Typography color="text.secondary">暂无 OSC 实时参数</Typography>
-                              {oscQueryNodes.length > 0 && (
-                                <Typography variant="body2" color="text.secondary">
-                                  已从 OSCQuery 同步 {oscQueryNodes.length} 条参数路径，可直接在下方映射输入框中搜索使用。
-                                </Typography>
-                              )}
+                              {oscQueryNodes.length > 0 && <Typography variant="caption" color="text.secondary">已同步 {oscQueryNodes.length} 条 OSCQuery 路径</Typography>}
                             </Stack>
                           </Box>
                         ) : (
@@ -5631,154 +5664,6 @@ function App() {
                         )}
                       </Box>
                     </Box>
-
-                    <Box className="dialog-panel osc-preview-panel">
-                      <Box className="dialog-panel__header">
-                        <Typography variant="subtitle2">{trackingPreviewTitle}</Typography>
-                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                          <Chip size="small" variant="outlined" label={`${trackingOrRawPreviewEntries.length} 项`} />
-                          {trackingPreviewEntries.length > 0 && <Chip size="small" variant="outlined" label={`Tracking ${trackingPreviewEntries.length}`} />}
-                          {rawPreviewEntries.length > trackingPreviewEntries.length && <Chip size="small" variant="outlined" label={`其他原始 ${rawPreviewEntries.length - trackingPreviewEntries.length}`} />}
-                        </Stack>
-                      </Box>
-
-                      <Box className="osc-preview-panel__body">
-                        {trackingOrRawPreviewEntries.length === 0 ? (
-                          <Box className="empty-inline-state">
-                            <Stack spacing={1} alignItems="center">
-                              <Typography color="text.secondary">还没有收到 tracking / 其他原始 OSC 包</Typography>
-                              <Typography variant="body2" color="text.secondary">这里会显示没有进入参数映射列表、但已经被 Sensa 收到的 `/tracking/*` 等原始 OSC 地址。</Typography>
-                            </Stack>
-                          </Box>
-                        ) : (
-                          <TableContainer className="osc-preview-table-wrap">
-                            <Table size="small" className="osc-preview-table">
-                              <TableHead>
-                                <TableRow>
-                                  <TableCell width="170">来源</TableCell>
-                                  <TableCell>OSC 地址</TableCell>
-                                  <TableCell width="120">TypeTag</TableCell>
-                                  <TableCell width="180">值摘要</TableCell>
-                                  <TableCell width="110" align="right">更新时间</TableCell>
-                                </TableRow>
-                              </TableHead>
-                              <TableBody>
-                                {trackingOrRawPreviewEntries.map(entry => (
-                                  <TableRow key={`${entry.path}-${entry.timestampMs}-${entry.sourceKey || 'raw'}`} hover>
-                                    <TableCell>{entry.sourceLabel || '—'}</TableCell>
-                                    <TableCell className="osc-preview-path">{entry.path || '—'}</TableCell>
-                                    <TableCell>{entry.type || '—'}</TableCell>
-                                    <TableCell>{entry.value || '—'}</TableCell>
-                                    <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
-                                  </TableRow>
-                                ))}
-                              </TableBody>
-                            </Table>
-                          </TableContainer>
-                        )}
-                      </Box>
-                    </Box>
-                  </Box>
-
-                  <Box className="dialog-panel osc-hub-panel">
-                    <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">OSC Hub</Typography>
-                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                        <Chip size="small" variant="outlined" label={oscHubSummary} />
-                        <Chip size="small" variant="outlined" label={`${oscHubEnabledTargetCount}/${oscHubTargetsDraft.length} 个目标`} />
-                        {oscDraft.hubEnabled && <Chip size="small" variant="outlined" label={oscHubSourceSummary} />}
-                      </Stack>
-                    </Box>
-
-                    <Alert severity="info" variant="outlined">
-                      Hub 会把 <strong>Sensa 当前已经收到的实时 OSC 流</strong> 再转发到多个本地 UDP 目标，适合给 VRCT、面捕插件等多个程序同时喂数据。注意：<strong>纯 OSCQuery HTTP 本体只负责查参数树</strong>；如果对端不支持 <strong>LISTEN</strong>，这里不会额外替你做 HTTP 轮询采样。
-                    </Alert>
-
-                    <Box className="dialog-grid dialog-grid--two-cols">
-                      <FormControlLabel
-                        className="osc-config-panel__switch"
-                        sx={{ m: 0 }}
-                        control={<Switch checked={Boolean(oscDraft.hubEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, hubEnabled: checked }))} />}
-                        label={<HelpLabel text="启用 OSC Hub" title="开启后，Sensa 会把当前实时输入的 OSC 参数重新编码并转发到下面配置的多个 UDP 目标。这样其他程序就不必直接去抢 VRChat 的监听端口。" />}
-                      />
-
-                      <FormControlLabel
-                        className="osc-config-panel__switch"
-                        sx={{ m: 0 }}
-                        control={<Switch checked={Boolean(oscDraft.hubForwardAvatarChange)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, hubForwardAvatarChange: checked }))} />}
-                        label={<HelpLabel text="转发 Avatar Change" title="收到 /avatar/change 时，Hub 会额外向所有目标发送一次 avatar change 消息，并清空固定频率模式下尚未发出的旧参数。" />}
-                      />
-
-                      <SelectField
-                        label="转发模式"
-                        title="事件驱动 = 参数一变化就立即转发；固定频率缓冲 = 每个周期只发出该周期内最新的一次值，适合给更喜欢稳定节奏的下游程序。"
-                        value={normalizeOscHubMode(oscDraft.hubMode)}
-                        options={OSC_HUB_MODE_OPTIONS}
-                        variant="compact"
-                        onChange={next => setOscDraft(previous => ({ ...previous, hubMode: next }))}
-                      />
-
-                      <TextField
-                        label="固定频率 (Hz)"
-                        type="number"
-                        size="small"
-                        disabled={normalizeOscHubMode(oscDraft.hubMode) !== 'FixedRate'}
-                        value={oscDraft.hubFixedRateHz}
-                        onChange={event => setOscDraft(previous => ({ ...previous, hubFixedRateHz: Number(event.target.value || 0) }))}
-                        helperText={normalizeOscHubMode(oscDraft.hubMode) === 'FixedRate' ? '建议 30~120Hz；当前模式会把同一路径在周期内的多次变化合并成最后一次。' : '事件驱动模式下无需设置频率。'}
-                      />
-                    </Box>
-
-                    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
-                      <Chip size="small" variant="outlined" label={`运行模式 · ${formatOscHubModeLabel(oscHub?.mode || oscDraft.hubMode)}`} />
-                      <Chip size="small" variant="outlined" label={`活跃目标 ${oscHub?.activeTargetCount || 0}/${oscHubTargetsDraft.length}`} />
-                      <Chip size="small" variant="outlined" label={`已转发 ${oscHub?.forwardedPacketCount || 0} 包`} />
-                      {Number(oscHub?.pendingPacketCount || 0) > 0 && <Chip size="small" variant="outlined" label={`待发 ${oscHub.pendingPacketCount} 包`} />}
-                      {Number(oscHub?.droppedPacketCount || 0) > 0 && <Chip size="small" color="warning" variant="outlined" label={`失败 ${oscHub.droppedPacketCount} 包`} />}
-                      {oscHub?.lastForwardedAtUtc && <Chip size="small" variant="outlined" label={`最近 ${formatPreviewTimestamp(oscHub.lastForwardedAtUtc)}`} />}
-                    </Stack>
-
-                    {oscDraft.hubEnabled && oscHub?.blockedBySourceSelection && (
-                      <Alert severity="warning" variant="outlined">
-                        当前检测到多个 OSC 来源，但 Hub 还没有固定使用哪一路。请先在上方“参数预览”里选择“使用来源”，否则 Hub 会暂停转发，避免把多路来源混在一起发给下游程序。
-                      </Alert>
-                    )}
-
-                    {oscHubConflictMessages.length > 0 && <Alert severity="warning" variant="outlined">{oscHubConflictMessages.join('；')}</Alert>}
-                    {oscHub?.lastDropReason && Number(oscHub?.droppedPacketCount || 0) > 0 && <Alert severity="error" variant="outlined">最近一次转发失败：{oscHub.lastDropReason}</Alert>}
-
-                    {oscHubTargetsDraft.length === 0 ? (
-                      <Box className="empty-inline-state">
-                        <Stack spacing={1.5} alignItems="center">
-                          <Typography color="text.secondary">还没有 Hub 转发目标</Typography>
-                          <Button variant="outlined" onClick={addOscHubTargetDraft}>
-                            新增 Hub 目标
-                          </Button>
-                        </Stack>
-                      </Box>
-                    ) : (
-                      <Box className="osc-hub-target-list">
-                        {oscHubTargetsDraft.map(target => (
-                          <OscHubTargetRow
-                            key={target._draftId}
-                            target={target}
-                            runtimeTarget={oscHubRuntimeTargetsById.get(target.id) || null}
-                            conflictMessages={oscHubTargetConflictLookup.get(target._draftId) || []}
-                            onChange={patch => updateOscHubTargetDraft(target._draftId, patch)}
-                            onRemove={() => removeOscHubTargetDraft(target._draftId)}
-                          />
-                        ))}
-                      </Box>
-                    )}
-
-                    <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="osc-config-panel__actions">
-                      <Button variant="outlined" onClick={addOscHubTargetDraft}>
-                        新增 Hub 目标
-                      </Button>
-                      <Button variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save' || oscHubConflictMessages.length > 0}>
-                        保存 OSC / Hub 配置
-                      </Button>
-                    </Stack>
                   </Box>
 
                   <Box className="dialog-panel">
@@ -5846,14 +5731,8 @@ function App() {
                     </Stack>
 
                     <Alert severity="info" className="mapping-guide-alert">
-                      <Typography variant="body2" className="mapping-guide-alert__title">
-                        调映射时，按这个顺序看：输入范围 → 曲线 → 映射范围。
-                      </Typography>
                       <Typography variant="body2">
-                        “输入范围”决定哪一段 OSC 值会被当成有效输入，适合做截取、放大或反向；例如把原始 <strong>0.25~0.75</strong> 拉满成设备完整行程。
-                      </Typography>
-                      <Typography variant="body2" sx={{ mt: 1 }}>
-                        “曲线”决定中间过程怎么走；“映射范围”决定设备最终只走哪一段位置，例如 <strong>0~999</strong> 或 <strong>200~800</strong>。打开“模拟”后，就算暂时没有实时参数，也能先看这条映射最后会落到哪里。
+                        调映射时按这个顺序看：<strong>输入范围</strong> → <strong>曲线</strong> → <strong>映射范围</strong>。
                       </Typography>
                     </Alert>
 

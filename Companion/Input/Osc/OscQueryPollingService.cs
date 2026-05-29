@@ -97,7 +97,7 @@ public sealed class OscQueryPollingService : IAsyncDisposable, IDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            var rateHz = Snapshot.RateHz <= 0 ? 5 : Snapshot.RateHz;
+            var rateHz = Snapshot.RateHz <= 0 ? 10 : Snapshot.RateHz;
             try
             {
                 var appliedCount = 0;
@@ -223,6 +223,6 @@ public sealed record OscQueryPollingServiceSnapshot
     {
         Enabled = false,
         Running = false,
-        RateHz = 5,
+        RateHz = 10,
     };
 }
