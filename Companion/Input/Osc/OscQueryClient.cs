@@ -52,6 +52,8 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         }
     }
 
+    public OscSource SnapshotSource => BuildSnapshotSource(_snapshot);
+
     public OscSource ListenSource
     {
         get
@@ -658,6 +660,29 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         return new OscSource(key, label, persistentId, wsUri.Host, wsUri.Port);
     }
 
+    public static OscSource BuildSnapshotSource(OscQuerySnapshot snapshot)
+    {
+        if (string.IsNullOrWhiteSpace(snapshot.Url))
+            return OscSource.Unknown;
+
+        var uri = new Uri(snapshot.Url);
+        var address = !string.IsNullOrWhiteSpace(snapshot.OscIp)
+            ? snapshot.OscIp.Trim()
+            : uri.Host;
+        var port = snapshot.OscPort is > 0 and <= 65535
+            ? snapshot.OscPort.Value
+            : uri.Port;
+        var label = !string.IsNullOrWhiteSpace(snapshot.Name)
+            ? snapshot.Name.Trim()
+            : $"OSCQuery {address}:{port}";
+        var key = $"oscquery:{snapshot.Url.Trim().ToLowerInvariant()}";
+        var persistentId = !string.IsNullOrWhiteSpace(snapshot.Name)
+            ? $"oscquery:name:{snapshot.Name.Trim()}"
+            : $"oscquery:url:{snapshot.Url.Trim()}";
+
+        return new OscSource(key, label, persistentId, address, port);
+    }
+
     private static bool CanListen(OscQuerySnapshot snapshot)
     {
         return !string.IsNullOrWhiteSpace(snapshot.Url)
@@ -704,6 +729,7 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         var description = ReadString(element, "DESCRIPTION") ?? string.Empty;
         var access = ReadNullableInt(element, "ACCESS");
         var currentValue = ReadValueSummary(element);
+        var hasParsedValue = TryReadOscValue(element, type, out var parsedValue);
         var range = ReadRange(element);
 
         if (!string.IsNullOrWhiteSpace(path) && !string.IsNullOrWhiteSpace(type))
@@ -716,6 +742,7 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
                 Description = description,
                 Access = access,
                 CurrentValue = currentValue,
+                ParsedValue = hasParsedValue ? parsedValue : null,
                 Min = range.Min,
                 Max = range.Max,
                 AllowedValues = range.AllowedValues,
@@ -752,6 +779,73 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
             JsonValueKind.Array => string.Join(", ", valueElement.EnumerateArray().Select(FormatValueElement).Where(text => !string.IsNullOrWhiteSpace(text))),
             _ => FormatValueElement(valueElement),
         };
+    }
+
+    private static bool TryReadOscValue(JsonElement element, string type, out OscValue value)
+    {
+        value = default;
+        if (string.IsNullOrWhiteSpace(type) || type.Length != 1)
+            return false;
+
+        if (!element.TryGetProperty("VALUE", out var valueElement))
+            return false;
+
+        if (valueElement.ValueKind == JsonValueKind.Array)
+        {
+            var enumerator = valueElement.EnumerateArray();
+            if (!enumerator.MoveNext())
+                return false;
+
+            valueElement = enumerator.Current;
+        }
+
+        switch (type[0])
+        {
+            case 'f':
+            case 'd':
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetSingle(out var floatValue))
+                {
+                    value = OscValue.FromFloat(floatValue);
+                    return true;
+                }
+
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetDouble(out var doubleValue))
+                {
+                    value = OscValue.FromFloat((float)doubleValue);
+                    return true;
+                }
+
+                return false;
+
+            case 'i':
+            case 'h':
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetInt32(out var intValue))
+                {
+                    value = OscValue.FromInt(intValue);
+                    return true;
+                }
+
+                return false;
+
+            case 'T':
+            case 'F':
+                if (valueElement.ValueKind == JsonValueKind.True || valueElement.ValueKind == JsonValueKind.False)
+                {
+                    value = OscValue.FromBool(valueElement.GetBoolean());
+                    return true;
+                }
+
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetInt32(out var boolAsInt))
+                {
+                    value = OscValue.FromBool(boolAsInt != 0);
+                    return true;
+                }
+
+                return false;
+
+            default:
+                return false;
+        }
     }
 
     private static (double? Min, double? Max, IReadOnlyList<string> AllowedValues) ReadRange(JsonElement element)
@@ -868,6 +962,7 @@ public sealed class OscQueryNodeInfo
     public string Description { get; init; } = string.Empty;
     public int? Access { get; init; }
     public string CurrentValue { get; init; } = string.Empty;
+    public OscValue? ParsedValue { get; init; }
     public double? Min { get; init; }
     public double? Max { get; init; }
     public IReadOnlyList<string> AllowedValues { get; init; } = Array.Empty<string>();

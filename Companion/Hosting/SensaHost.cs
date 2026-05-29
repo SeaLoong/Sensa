@@ -70,7 +70,9 @@ public static class SensaHost
         var parameterStore = new OscParameterStore();
         var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort);
         var oscQueryClient = new OscQueryClient();
+        var oscQueryPollingService = new OscQueryPollingService(LogDebug, LogError);
         var oscQueryReceiverService = new OscQueryReceiverService(LogDebug, LogError);
+        var oscPacketPreviewStore = new OscPacketPreviewStore();
         var oscHubForwarder = new OscHubForwarder(LogDebug, LogError);
         var recorder = new MotionRecorder();
         var scriptPlayer = new FunscriptPlayer();
@@ -118,6 +120,16 @@ public static class SensaHost
         var oscQueryRefreshGateDisposed = 0;
         var oscPreviewStatePushQueued = 0;
         string? oscListenerError = null;
+        var oscReceiverActivitySync = new object();
+        DateTimeOffset? oscReceiverLastReceivedAtUtc = null;
+        DateTimeOffset? oscReceiverLastAvatarParameterAtUtc = null;
+        DateTimeOffset? oscReceiverLastRawPacketAtUtc = null;
+        string oscReceiverLastSourceKey = string.Empty;
+        string oscReceiverLastSourceLabel = string.Empty;
+        string? oscReceiverLastSourcePersistentId = null;
+        string oscReceiverLastSourceAddress = string.Empty;
+        int oscReceiverLastSourcePort = 0;
+        long oscReceiverReceivedEventCount = 0;
 
         object BuildStateEnvelope() => new
         {
@@ -256,6 +268,63 @@ public static class SensaHost
                     Interlocked.Exchange(ref oscPreviewStatePushQueued, 0);
                 }
             });
+        }
+
+        static bool IsOscQueryManagedSource(OscSource source)
+        {
+            return !string.IsNullOrWhiteSpace(source.Key)
+                && source.Key.StartsWith("oscquery:", StringComparison.OrdinalIgnoreCase);
+        }
+
+        void RecordOscReceiverActivity(OscSource source, bool avatarParameter = false, bool rawPacket = false)
+        {
+            if (IsOscQueryManagedSource(source))
+                return;
+
+            var timestamp = DateTimeOffset.UtcNow;
+            lock (oscReceiverActivitySync)
+            {
+                oscReceiverLastReceivedAtUtc = timestamp;
+                oscReceiverLastSourceKey = source.Key;
+                oscReceiverLastSourceLabel = source.Label;
+                oscReceiverLastSourcePersistentId = source.PersistentId;
+                oscReceiverLastSourceAddress = source.Address;
+                oscReceiverLastSourcePort = source.Port;
+                oscReceiverReceivedEventCount += 1;
+
+                if (avatarParameter)
+                    oscReceiverLastAvatarParameterAtUtc = timestamp;
+
+                if (rawPacket)
+                    oscReceiverLastRawPacketAtUtc = timestamp;
+            }
+        }
+
+        static bool IsOscQueryNodeReadable(OscQueryNodeInfo node)
+        {
+            var access = node.Access;
+            return !string.IsNullOrWhiteSpace(node.Path)
+                && node.ParsedValue.HasValue
+                && (!access.HasValue || (access.Value & 0x1) != 0);
+        }
+
+        int ApplyOscQueryPolledValues(OscQuerySnapshot snapshot)
+        {
+            if (snapshot.SupportsListen || !string.IsNullOrWhiteSpace(snapshot.Error))
+                return 0;
+
+            var source = OscQueryClient.BuildSnapshotSource(snapshot);
+            var applied = 0;
+            foreach (var node in snapshot.Nodes)
+            {
+                if (!IsOscQueryNodeReadable(node) || !node.ParsedValue.HasValue)
+                    continue;
+
+                parameterStore.Set(node.Path, node.ParsedValue.Value, source);
+                applied += 1;
+            }
+
+            return applied;
         }
 
         bool ShouldRunOscListener() => motionRuntime.CurrentInputMode == RuntimeInputMode.Osc;
@@ -400,6 +469,34 @@ public static class SensaHost
             }
         }
 
+        void ConfigureOscQueryPolling()
+        {
+            var snapshot = oscQueryClient.Snapshot;
+            var shouldPoll = ShouldRunOscListener()
+                && config.Osc.OscQueryEnabled
+                && config.Osc.OscQueryPolling.Enabled
+                && !string.IsNullOrWhiteSpace(snapshot.Url)
+                && !snapshot.SupportsListen
+                && string.IsNullOrWhiteSpace(snapshot.Error);
+
+            oscQueryPollingService.Configure(shouldPoll, config.Osc.OscQueryPolling.RateHz, async cancellationToken =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var refreshed = await RefreshOscQueryCoreAsync(logResult: false).ConfigureAwait(false);
+                var applied = ApplyOscQueryPolledValues(refreshed);
+
+                if (refreshed.SupportsListen || !string.IsNullOrWhiteSpace(refreshed.Error) || !ShouldRunOscListener() || !config.Osc.OscQueryPolling.Enabled)
+                    _ = Task.Run(ConfigureOscQueryPolling, CancellationToken.None);
+
+                if (applied > 0)
+                    QueueOscPreviewStateChanged();
+
+                NotifyStateChanged();
+                return applied;
+            });
+        }
+
         async Task SyncOscQueryListenAsync(OscQuerySnapshot snapshot)
         {
             try
@@ -438,6 +535,7 @@ public static class SensaHost
                 try
                 {
                     await RefreshOscQueryCoreAsync(logResult).ConfigureAwait(false);
+                    ConfigureOscQueryPolling();
                     NotifyStateChanged();
                 }
                 catch (OperationCanceledException)
@@ -521,6 +619,7 @@ public static class SensaHost
             {
                 oscQueryClient.Clear();
                 QueueOscQueryListenSync();
+                ConfigureOscQueryPolling();
                 return;
             }
 
@@ -538,6 +637,8 @@ public static class SensaHost
             {
                 QueueOscQueryListenSync();
             }
+
+            ConfigureOscQueryPolling();
         }
 
         void HandleRuntimeStateChanged()
@@ -560,6 +661,7 @@ public static class SensaHost
         };
         parameterStore.OnSetWithSource += (path, value, source) =>
         {
+            RecordOscReceiverActivity(source, avatarParameter: true);
             QueueOscPreviewStateChanged();
 
             if (IsOscHubSourceAllowed(source))
@@ -567,6 +669,10 @@ public static class SensaHost
         };
         oscReceiver.OnUnhandledPacket += (payload, source) =>
         {
+            RecordOscReceiverActivity(source, rawPacket: true);
+            oscPacketPreviewStore.AddPacket(payload, source);
+            QueueOscPreviewStateChanged();
+
             if (IsOscHubSourceAllowed(source))
                 oscHubForwarder.ForwardRawPacket(payload, "OSC raw passthrough");
         };
@@ -583,6 +689,7 @@ public static class SensaHost
         };
         oscQueryClient.StructureChanged += () => QueueOscQueryRefresh();
         oscQueryClient.ListenStateChanged += NotifyStateChanged;
+        oscQueryPollingService.StateChanged += NotifyStateChanged;
         oscQueryReceiverService.StateChanged += NotifyStateChanged;
 
         motionRuntime.StateChanged += HandleRuntimeStateChanged;
@@ -767,6 +874,7 @@ public static class SensaHost
             var candidate = new AppConfig();
             candidate.CopyFrom(incoming);
             candidate.ValidateUniqueOutputTargets();
+            candidate.ValidateOscQueryPolling();
             candidate.ValidateOscQueryReceiverService();
             candidate.ValidateOscHubTargets();
 
@@ -980,6 +1088,7 @@ public static class SensaHost
                 throw new InvalidOperationException("请先填写 OSCQuery 地址。");
 
             var snapshot = await RefreshOscQueryCoreAsync(logResult: true).ConfigureAwait(false);
+            ConfigureOscQueryPolling();
             NotifyStateChanged();
             if (!string.IsNullOrWhiteSpace(snapshot.Error))
                 throw new InvalidOperationException(snapshot.Error);
@@ -1018,10 +1127,38 @@ public static class SensaHost
                 })
                 .ToArray();
             var oscQuerySnapshot = oscQueryClient.Snapshot;
+            var oscQueryPollingSnapshot = oscQueryPollingService.Snapshot;
             var oscQueryReceiverSnapshot = oscQueryReceiverService.Snapshot;
             var oscHubSnapshot = oscHubForwarder.BuildSnapshot();
             var oscHubSource = ResolveOscHubSource(oscSourceSnapshots);
             var oscHubBlockedBySourceSelection = config.Osc.Hub.Enabled && oscSourceSnapshots.Length > 1 && !oscHubSource.HasValue;
+            var trackingPreview = oscPacketPreviewStore.Snapshot("tracking");
+            var rawPreview = oscPacketPreviewStore.Snapshot();
+            DateTimeOffset? oscReceiverLastSeenAtUtc;
+            DateTimeOffset? oscReceiverLastAvatarParameterSeenAtUtc;
+            DateTimeOffset? oscReceiverLastRawPacketSeenAtUtc;
+            string oscReceiverLastSeenSourceKey;
+            string oscReceiverLastSeenSourceLabel;
+            string? oscReceiverLastSeenSourcePersistentId;
+            string oscReceiverLastSeenSourceAddress;
+            int oscReceiverLastSeenSourcePort;
+            long oscReceiverEventCount;
+            lock (oscReceiverActivitySync)
+            {
+                oscReceiverLastSeenAtUtc = oscReceiverLastReceivedAtUtc;
+                oscReceiverLastAvatarParameterSeenAtUtc = oscReceiverLastAvatarParameterAtUtc;
+                oscReceiverLastRawPacketSeenAtUtc = oscReceiverLastRawPacketAtUtc;
+                oscReceiverLastSeenSourceKey = oscReceiverLastSourceKey;
+                oscReceiverLastSeenSourceLabel = oscReceiverLastSourceLabel;
+                oscReceiverLastSeenSourcePersistentId = oscReceiverLastSourcePersistentId;
+                oscReceiverLastSeenSourceAddress = oscReceiverLastSourceAddress;
+                oscReceiverLastSeenSourcePort = oscReceiverLastSourcePort;
+                oscReceiverEventCount = oscReceiverReceivedEventCount;
+            }
+            var oscQueryReceiverReceivedSinceStarted = oscQueryReceiverSnapshot.Running
+                && oscQueryReceiverSnapshot.StartedAtUtc.HasValue
+                && oscReceiverLastSeenAtUtc.HasValue
+                && oscReceiverLastSeenAtUtc.Value >= oscQueryReceiverSnapshot.StartedAtUtc.Value;
             var devices = outputCoordinator.GetDevices(intifaceOutput?.Id).Select(device => new
             {
                 name = device.Name,
@@ -1087,6 +1224,16 @@ public static class SensaHost
                         streamSourcePersistentId = oscQueryClient.ListenSource.PersistentId,
                         refreshedAtUtc = oscQuerySnapshot.RefreshedAtUtc,
                         error = oscQuerySnapshot.Error,
+                        polling = new
+                        {
+                            enabled = config.Osc.OscQueryPolling.Enabled,
+                            running = oscQueryPollingSnapshot.Running,
+                            rateHz = oscQueryPollingSnapshot.RateHz,
+                            startedAtUtc = oscQueryPollingSnapshot.StartedAtUtc,
+                            lastPolledAtUtc = oscQueryPollingSnapshot.LastPolledAtUtc,
+                            lastAppliedValueCount = oscQueryPollingSnapshot.LastAppliedValueCount,
+                            error = oscQueryPollingSnapshot.LastError,
+                        },
                         nodes = oscQuerySnapshot.Nodes,
                     },
                     queryReceiver = new
@@ -1097,9 +1244,46 @@ public static class SensaHost
                         httpPort = oscQueryReceiverSnapshot.HttpPort,
                         httpUrl = oscQueryReceiverSnapshot.HttpUrl,
                         oscPort = oscQueryReceiverSnapshot.OscPort,
+                        startedAtUtc = oscQueryReceiverSnapshot.StartedAtUtc,
                         advertisedPaths = oscQueryReceiverSnapshot.AdvertisedPaths,
+                        receivedSinceStarted = oscQueryReceiverReceivedSinceStarted,
+                        lastReceivedAtUtc = oscReceiverLastSeenAtUtc,
+                        lastAvatarParameterAtUtc = oscReceiverLastAvatarParameterSeenAtUtc,
+                        lastRawPacketAtUtc = oscReceiverLastRawPacketSeenAtUtc,
+                        lastSourceKey = oscReceiverLastSeenSourceKey,
+                        lastSourceLabel = oscReceiverLastSeenSourceLabel,
+                        lastSourcePersistentId = oscReceiverLastSeenSourcePersistentId,
+                        lastSourceAddress = oscReceiverLastSeenSourceAddress,
+                        lastSourcePort = oscReceiverLastSeenSourcePort,
+                        receivedEventCount = oscReceiverEventCount,
                         error = oscQueryReceiverSnapshot.Error,
                     },
+                    trackingPreview = trackingPreview.Select(entry => new
+                    {
+                        category = entry.Category,
+                        path = entry.Address,
+                        type = entry.TypeTag,
+                        value = entry.ValueSummary,
+                        entry.TimestampMs,
+                        sourceKey = entry.SourceKey,
+                        sourceLabel = entry.SourceLabel,
+                        sourcePersistentId = entry.SourcePersistentId,
+                        sourceAddress = entry.SourceAddress,
+                        sourcePort = entry.SourcePort,
+                    }).ToArray(),
+                    rawPreview = rawPreview.Select(entry => new
+                    {
+                        category = entry.Category,
+                        path = entry.Address,
+                        type = entry.TypeTag,
+                        value = entry.ValueSummary,
+                        entry.TimestampMs,
+                        sourceKey = entry.SourceKey,
+                        sourceLabel = entry.SourceLabel,
+                        sourcePersistentId = entry.SourcePersistentId,
+                        sourceAddress = entry.SourceAddress,
+                        sourcePort = entry.SourcePort,
+                    }).ToArray(),
                     hub = new
                     {
                         enabled = config.Osc.Hub.Enabled,
@@ -1642,6 +1826,7 @@ public static class SensaHost
             oscReceiver.Stop();
             oscReceiver.Dispose();
             oscQueryClient.DisposeAsync().AsTask().GetAwaiter().GetResult();
+            oscQueryPollingService.DisposeAsync().AsTask().GetAwaiter().GetResult();
             oscQueryReceiverService.DisposeAsync().AsTask().GetAwaiter().GetResult();
             oscHubForwarder.Dispose();
             DisposeOscQueryRefreshGate();
@@ -1675,6 +1860,7 @@ public static class SensaHost
         oscReceiver.Stop();
         oscReceiver.Dispose();
         await oscQueryClient.DisposeAsync();
+        await oscQueryPollingService.DisposeAsync();
         await oscQueryReceiverService.DisposeAsync();
         oscHubForwarder.Dispose();
         DisposeOscQueryRefreshGate();

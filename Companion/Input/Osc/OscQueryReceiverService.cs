@@ -136,6 +136,7 @@ public sealed class OscQueryReceiverService : IAsyncDisposable, IDisposable
                 HttpUrl = BuildQueryUrl(config.HttpPort),
                 OscPort = NormalizeOscPort(oscPort),
                 AdvertisedPaths = advertisedPaths,
+                StartedAtUtc = DateTimeOffset.UtcNow,
             }, signature);
 
             _logDebug?.Invoke($"[OSCQuery/Receiver] Advertising {config.ServiceName} on {BuildQueryUrl(config.HttpPort)} → UDP {NormalizeOscPort(oscPort)} ({string.Join(", ", advertisedPaths)})");
@@ -473,6 +474,7 @@ public sealed class OscQueryReceiverServiceSnapshot
     public int HttpPort { get; init; }
     public string HttpUrl { get; init; } = string.Empty;
     public int OscPort { get; init; }
+    public DateTimeOffset? StartedAtUtc { get; init; }
     public IReadOnlyList<string> AdvertisedPaths { get; init; } = Array.Empty<string>();
     public string Error { get; init; } = string.Empty;
 

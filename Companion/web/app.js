@@ -45,6 +45,9 @@ const { useEffect, useMemo, useRef, useState } = React;
 const STORAGE_KEY = 'sensa.studio.v4';
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
+const DEFAULT_OSCQUERY_POLLING_RATE = 5;
+const OSCQUERY_POLLING_RATE_MIN = 1;
+const OSCQUERY_POLLING_RATE_MAX = 30;
 const DEFAULT_OSCQUERY_RECEIVER_NAME = 'Sensa';
 const DEFAULT_OSCQUERY_RECEIVER_HTTP_PORT = 9010;
 const DEFAULT_OSC_HUB_TARGET_HOST = '127.0.0.1';
@@ -754,6 +757,12 @@ function normalizeOscHubRate(value, fallback = DEFAULT_OSC_HUB_RATE) {
   return Math.max(OSC_HUB_RATE_MIN, Math.min(OSC_HUB_RATE_MAX, numeric));
 }
 
+function normalizeOscQueryPollingRate(value, fallback = DEFAULT_OSCQUERY_POLLING_RATE) {
+  const numeric = Math.round(Number(value || fallback));
+  if (!Number.isFinite(numeric)) return fallback;
+  return Math.max(OSCQUERY_POLLING_RATE_MIN, Math.min(OSCQUERY_POLLING_RATE_MAX, numeric));
+}
+
 function makeOscHubTargetDraft(target = {}, options = {}) {
   const index = Math.max(1, Math.round(Number(options.index || 1)));
   const fallbackPort = normalizeOscHubPort(options.port, DEFAULT_OSC_HUB_TARGET_PORT + (index - 1));
@@ -849,12 +858,15 @@ function formatOscHubModeLabel(mode) {
 function buildOscDraftFromConfig(config) {
   const oscConfig = config?.osc || {};
   const hubConfig = oscConfig?.hub || {};
+  const oscQueryPollingConfig = oscConfig?.oscQueryPolling || {};
   const oscQueryReceiverConfig = oscConfig?.oscQueryReceiver || {};
   return {
     receiverHost: oscConfig?.receiverHost || '0.0.0.0',
     receiverPort: oscConfig?.receiverPort || 9001,
     oscQueryEnabled: oscConfig?.oscQueryEnabled !== false,
     oscQueryUrl: oscConfig?.oscQueryUrl || DEFAULT_OSCQUERY_URL,
+    oscQueryPollingEnabled: oscQueryPollingConfig?.enabled === true,
+    oscQueryPollingRateHz: normalizeOscQueryPollingRate(oscQueryPollingConfig?.rateHz, DEFAULT_OSCQUERY_POLLING_RATE),
     oscQueryReceiverEnabled: oscQueryReceiverConfig?.enabled === true,
     oscQueryReceiverServiceName: oscQueryReceiverConfig?.serviceName || DEFAULT_OSCQUERY_RECEIVER_NAME,
     oscQueryReceiverHttpPort: oscQueryReceiverConfig?.httpPort || DEFAULT_OSCQUERY_RECEIVER_HTTP_PORT,
@@ -3681,6 +3693,10 @@ function App() {
         receiverPort: Number(oscDraft.receiverPort || 9001),
         oscQueryEnabled: Boolean(oscDraft.oscQueryEnabled),
         oscQueryUrl: (oscDraft.oscQueryUrl || '').trim(),
+        oscQueryPolling: {
+          enabled: Boolean(oscDraft.oscQueryPollingEnabled),
+          rateHz: normalizeOscQueryPollingRate(oscDraft.oscQueryPollingRateHz, DEFAULT_OSCQUERY_POLLING_RATE),
+        },
         oscQueryReceiver: {
           enabled: Boolean(oscDraft.oscQueryReceiverEnabled),
           serviceName: (oscDraft.oscQueryReceiverServiceName || DEFAULT_OSCQUERY_RECEIVER_NAME).trim() || DEFAULT_OSCQUERY_RECEIVER_NAME,
@@ -4978,7 +4994,11 @@ function App() {
   const selectedOscSource = selectedOscSourceKey ? oscSources.find(source => source.key === selectedOscSourceKey) || null : null;
   const selectedOscSourceLabel = selectedOscSource ? formatOscSourceLabel(selectedOscSource) : '自动选择';
   const oscQuery = overview?.osc?.query || null;
+  const oscQueryPolling = oscQuery?.polling || null;
   const oscQueryReceiver = overview?.osc?.queryReceiver || null;
+  const trackingPreviewEntries = Array.isArray(overview?.osc?.trackingPreview) ? overview.osc.trackingPreview : [];
+  const rawPreviewEntries = Array.isArray(overview?.osc?.rawPreview) ? overview.osc.rawPreview : [];
+  const trackingOrRawPreviewEntries = trackingPreviewEntries.length > 0 ? trackingPreviewEntries : rawPreviewEntries;
   const oscHub = overview?.osc?.hub || null;
   const oscHubTargetsDraft = Array.isArray(oscDraft?.hubTargets) ? oscDraft.hubTargets : [];
   const oscHubRuntimeTargets = Array.isArray(oscHub?.targets) ? oscHub.targets : [];
@@ -5050,18 +5070,29 @@ function App() {
     if (!effectiveOscQueryUrl) return 'OSCQuery 已开启，待填写地址';
     if (oscQuery?.error) return 'OSCQuery 同步失败';
     if (oscQuery?.listenConnected) return `LISTEN 已连接 · ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条路径`;
+    if (oscQueryPolling?.running) return `轮询回退 ${oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz}Hz`;
     if (oscQueryNodes.length > 0) return `已同步 ${oscQueryNodes.length} 条路径`;
     return 'OSCQuery 已开启';
-  }, [oscDraft.oscQueryEnabled, effectiveOscQueryUrl, oscQuery, oscQueryNodes]);
+  }, [oscDraft.oscQueryEnabled, effectiveOscQueryUrl, oscDraft.oscQueryPollingRateHz, oscQuery, oscQueryNodes, oscQueryPolling?.rateHz, oscQueryPolling?.running]);
+  const oscQueryPollingSummary = useMemo(() => {
+    if (!oscDraft.oscQueryEnabled) return 'OSCQuery 客户端未启用';
+    if (!oscDraft.oscQueryPollingEnabled) return '轮询回退已关闭';
+    if (oscQuery?.supportsListen) return '对端支持 LISTEN，无需轮询';
+    if (oscQueryPolling?.error) return '轮询出错';
+    if (oscQueryPolling?.running) return `轮询 ${oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz}Hz`;
+    return '等待首次轮询';
+  }, [oscDraft.oscQueryEnabled, oscDraft.oscQueryPollingEnabled, oscDraft.oscQueryPollingRateHz, oscQuery?.supportsListen, oscQueryPolling?.error, oscQueryPolling?.rateHz, oscQueryPolling?.running]);
   const oscQueryReceiverPaths = Array.isArray(oscQueryReceiver?.advertisedPaths) ? oscQueryReceiver.advertisedPaths : [];
   const oscQueryReceiverSummary = useMemo(() => {
     if (!oscDraft.oscQueryReceiverEnabled) return '自动发现已关闭';
     if (!oscDraft.oscQueryReceiverAdvertiseAvatar && !oscDraft.oscQueryReceiverAdvertiseTracking) return '未声明任何入口';
     if (oscQueryReceiver?.error) return '广播失败';
     if (actualInputMode !== 'osc') return '切到 OSC 输入后广播';
+    if (oscQueryReceiver?.receivedSinceStarted) return '已收到数据';
     if (oscQueryReceiver?.running) return `已广播 ${oscQueryReceiverPaths.length} 条入口`;
     return '等待启动';
-  }, [actualInputMode, oscDraft.oscQueryReceiverAdvertiseAvatar, oscDraft.oscQueryReceiverAdvertiseTracking, oscDraft.oscQueryReceiverEnabled, oscQueryReceiver?.error, oscQueryReceiver?.running, oscQueryReceiverPaths.length]);
+  }, [actualInputMode, oscDraft.oscQueryReceiverAdvertiseAvatar, oscDraft.oscQueryReceiverAdvertiseTracking, oscDraft.oscQueryReceiverEnabled, oscQueryReceiver?.error, oscQueryReceiver?.receivedSinceStarted, oscQueryReceiver?.running, oscQueryReceiverPaths.length]);
+  const trackingPreviewTitle = trackingPreviewEntries.length > 0 ? 'Tracking 预览' : rawPreviewEntries.length > 0 ? '原始 OSC 预览' : 'Tracking / 原始 OSC 预览';
   const oscHubSummary = useMemo(() => {
     if (!oscDraft.hubEnabled) return 'Hub 已关闭';
     if (oscHub?.blockedBySourceSelection) return '等待固定来源';
@@ -5396,6 +5427,33 @@ function App() {
                         />
                       </Stack>
 
+                      <Box className="dialog-grid dialog-grid--two-cols" sx={{ mt: 1.5 }}>
+                        <FormControlLabel
+                          className="osc-config-panel__switch"
+                          sx={{ m: 0 }}
+                          control={<Switch checked={Boolean(oscDraft.oscQueryPollingEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryPollingEnabled: checked }))} />}
+                          label={<HelpLabel text="无 LISTEN 时启用轮询回退" title="当远端 OSCQuery 服务器不支持 LISTEN/WebSocket 推流时，Sensa 可以按固定频率重新抓取参数树中的当前值，并把读到的可读参数重新灌进实时预览与映射链。这个模式默认是保守轮询，不会在对端已支持 LISTEN 时与之并行。" />}
+                        />
+
+                        <TextField
+                          label="轮询频率 (Hz)"
+                          type="number"
+                          size="small"
+                          disabled={!oscDraft.oscQueryPollingEnabled}
+                          value={oscDraft.oscQueryPollingRateHz}
+                          onChange={event => setOscDraft(previous => ({ ...previous, oscQueryPollingRateHz: Number(event.target.value || 0) }))}
+                          helperText="仅在对端不支持 LISTEN 时生效；建议先从 2~10Hz 这种保守值开始。"
+                        />
+                      </Box>
+
+                      <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap">
+                        <Chip size="small" variant="outlined" label={oscQueryPollingSummary} />
+                        {oscQueryPolling?.lastPolledAtUtc && <Chip size="small" variant="outlined" label={`最近轮询 ${formatPreviewTimestamp(oscQueryPolling.lastPolledAtUtc)}`} />}
+                        {Number(oscQueryPolling?.lastAppliedValueCount || 0) > 0 && <Chip size="small" variant="outlined" label={`最近应用 ${oscQueryPolling.lastAppliedValueCount} 项`} />}
+                      </Stack>
+
+                      {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">OSCQuery 轮询回退最近一次失败：{oscQueryPolling.error}</Alert>}
+
                       <Divider sx={{ my: 1.5 }} />
 
                       <Stack spacing={1.5}>
@@ -5405,6 +5463,7 @@ function App() {
                           {oscQueryReceiver?.httpUrl && <Chip size="small" variant="outlined" label={oscQueryReceiver.httpUrl} />}
                           {oscQueryReceiver?.oscPort ? <Chip size="small" variant="outlined" label={`UDP ${oscQueryReceiver.oscPort}`} /> : null}
                           {oscQueryReceiver?.serviceName && <Chip size="small" variant="outlined" label={oscQueryReceiver.serviceName} />}
+                          {oscQueryReceiver?.lastReceivedAtUtc && <Chip size="small" variant="outlined" label={`最近数据 ${formatPreviewTimestamp(oscQueryReceiver.lastReceivedAtUtc)}`} />}
                         </Stack>
 
                         <Box className="dialog-grid dialog-grid--two-cols">
@@ -5453,6 +5512,18 @@ function App() {
                             <Chip key={path} size="small" variant="outlined" label={path} />
                           ))}
                         </Stack>
+
+                        {oscQueryReceiver?.running && !oscQueryReceiver?.receivedSinceStarted && (
+                          <Alert severity="info" variant="outlined">接收器已经在广播，但这次启动后还没有收到新的 UDP 数据。只要 VRChat 成功发现并开始向当前监听端口发包，这里就会变成“已收到数据”。</Alert>
+                        )}
+
+                        {oscQueryReceiver?.receivedSinceStarted && (
+                          <Alert severity="success" variant="outlined">
+                            已在当前广播会话中收到数据
+                            {oscQueryReceiver?.lastSourceLabel ? `，最近来源：${oscQueryReceiver.lastSourceLabel}` : ''}
+                            {oscQueryReceiver?.receivedEventCount ? `，累计事件 ${oscQueryReceiver.receivedEventCount}` : ''}。
+                          </Alert>
+                        )}
 
                         {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">OSCQuery 接收器广播启动失败：{oscQueryReceiver.error}</Alert>}
                       </Stack>
@@ -5554,6 +5625,53 @@ function App() {
                                     </Tooltip>
                                   );
                                 })}
+                              </TableBody>
+                            </Table>
+                          </TableContainer>
+                        )}
+                      </Box>
+                    </Box>
+
+                    <Box className="dialog-panel osc-preview-panel">
+                      <Box className="dialog-panel__header">
+                        <Typography variant="subtitle2">{trackingPreviewTitle}</Typography>
+                        <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                          <Chip size="small" variant="outlined" label={`${trackingOrRawPreviewEntries.length} 项`} />
+                          {trackingPreviewEntries.length > 0 && <Chip size="small" variant="outlined" label={`Tracking ${trackingPreviewEntries.length}`} />}
+                          {rawPreviewEntries.length > trackingPreviewEntries.length && <Chip size="small" variant="outlined" label={`其他原始 ${rawPreviewEntries.length - trackingPreviewEntries.length}`} />}
+                        </Stack>
+                      </Box>
+
+                      <Box className="osc-preview-panel__body">
+                        {trackingOrRawPreviewEntries.length === 0 ? (
+                          <Box className="empty-inline-state">
+                            <Stack spacing={1} alignItems="center">
+                              <Typography color="text.secondary">还没有收到 tracking / 其他原始 OSC 包</Typography>
+                              <Typography variant="body2" color="text.secondary">这里会显示没有进入参数映射列表、但已经被 Sensa 收到的 `/tracking/*` 等原始 OSC 地址。</Typography>
+                            </Stack>
+                          </Box>
+                        ) : (
+                          <TableContainer className="osc-preview-table-wrap">
+                            <Table size="small" className="osc-preview-table">
+                              <TableHead>
+                                <TableRow>
+                                  <TableCell width="170">来源</TableCell>
+                                  <TableCell>OSC 地址</TableCell>
+                                  <TableCell width="120">TypeTag</TableCell>
+                                  <TableCell width="180">值摘要</TableCell>
+                                  <TableCell width="110" align="right">更新时间</TableCell>
+                                </TableRow>
+                              </TableHead>
+                              <TableBody>
+                                {trackingOrRawPreviewEntries.map(entry => (
+                                  <TableRow key={`${entry.path}-${entry.timestampMs}-${entry.sourceKey || 'raw'}`} hover>
+                                    <TableCell>{entry.sourceLabel || '—'}</TableCell>
+                                    <TableCell className="osc-preview-path">{entry.path || '—'}</TableCell>
+                                    <TableCell>{entry.type || '—'}</TableCell>
+                                    <TableCell>{entry.value || '—'}</TableCell>
+                                    <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
+                                  </TableRow>
+                                ))}
                               </TableBody>
                             </Table>
                           </TableContainer>

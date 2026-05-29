@@ -203,6 +203,12 @@ public sealed class OscQueryReceiverAdvertiseConfig
     public bool   AdvertiseTracking { get; set; } = true;
 }
 
+public sealed class OscQueryPollingConfig
+{
+    public bool Enabled { get; set; } = false;
+    public int RateHz   { get; set; } = 5;
+}
+
 // ═══════════════════════════════════════════════════════════════════════
 //  OSC receiver config
 // ═══════════════════════════════════════════════════════════════════════
@@ -213,6 +219,7 @@ public sealed class OscReceiverConfig
     public int ReceiverPort { get; set; } = 9001;
     public bool OscQueryEnabled { get; set; } = true;
     public string OscQueryUrl { get; set; } = "http://127.0.0.1:9001/";
+    public OscQueryPollingConfig OscQueryPolling { get; set; } = new();
     public OscQueryReceiverAdvertiseConfig OscQueryReceiver { get; set; } = new();
     public string PreferredSourcePersistentId { get; set; } = "";
     public OscHubConfig Hub { get; set; } = new();
@@ -345,6 +352,7 @@ public sealed class AppConfig
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
         Osc.OscQueryEnabled = osc.OscQueryEnabled;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : osc.OscQueryUrl.Trim();
+        Osc.OscQueryPolling = CloneOscQueryPollingConfig(osc.OscQueryPolling);
         Osc.OscQueryReceiver = CloneOscQueryReceiverAdvertiseConfig(osc.OscQueryReceiver);
         Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(osc.PreferredSourcePersistentId) ? string.Empty : osc.PreferredSourcePersistentId.Trim();
         Osc.Hub = CloneOscHubConfig(osc.Hub);
@@ -394,6 +402,7 @@ public sealed class AppConfig
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "0.0.0.0" : Osc.ReceiverHost;
         Osc.ReceiverPort = Osc.ReceiverPort is > 0 and <= 65535 ? Osc.ReceiverPort : 9001;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(Osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : Osc.OscQueryUrl.Trim();
+        Osc.OscQueryPolling = CloneOscQueryPollingConfig(Osc.OscQueryPolling);
         Osc.OscQueryReceiver = CloneOscQueryReceiverAdvertiseConfig(Osc.OscQueryReceiver);
         Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(Osc.PreferredSourcePersistentId) ? string.Empty : Osc.PreferredSourcePersistentId.Trim();
         Osc.Hub = CloneOscHubConfig(Osc.Hub);
@@ -491,6 +500,17 @@ public sealed class AppConfig
         {
             throw new InvalidOperationException($"OSCQuery 接收器 HTTP 端口 {httpPort} 与 WebUI 端口 {webUiPort} 冲突。请改用其他端口。");
         }
+    }
+
+    public void ValidateOscQueryPolling()
+    {
+        var osc = Osc ?? new OscReceiverConfig();
+        var polling = osc.OscQueryPolling ?? new OscQueryPollingConfig();
+        if (!polling.Enabled)
+            return;
+
+        if (!osc.OscQueryEnabled)
+            throw new InvalidOperationException("启用 OSCQuery 轮询回退前，请先开启 OSCQuery 客户端。");
     }
 
     public void ValidateOscHubTargets()
@@ -714,6 +734,8 @@ public sealed class AppConfig
 
     private static int NormalizeOscQueryReceiverHttpPort(int value) => value is > 0 and <= 65535 ? value : 9010;
 
+    private static int NormalizeOscQueryPollingRate(int value) => Math.Clamp(value, 1, 30);
+
     private static string NormalizeWebsocketAddress(string? value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback.ToLowerInvariant() : value.Trim().ToLowerInvariant();
 
     private static int NormalizeOscHubRate(int value) => Math.Clamp(value, 1, 240);
@@ -753,6 +775,15 @@ public sealed class AppConfig
             HttpPort = NormalizeOscQueryReceiverHttpPort(source?.HttpPort ?? 9010),
             AdvertiseAvatar = source?.AdvertiseAvatar ?? true,
             AdvertiseTracking = source?.AdvertiseTracking ?? true,
+        };
+    }
+
+    private static OscQueryPollingConfig CloneOscQueryPollingConfig(OscQueryPollingConfig? source)
+    {
+        return new OscQueryPollingConfig
+        {
+            Enabled = source?.Enabled ?? false,
+            RateHz = NormalizeOscQueryPollingRate(source?.RateHz ?? 5),
         };
     }
 
