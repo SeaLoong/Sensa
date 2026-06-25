@@ -1,0 +1,124 @@
+name: VPM 包发布
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'unity/top.sealoong.sensa/**'
+      - '.github/workflows/vpm-publish.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+env:
+  PKG_NAME: top.sealoong.sensa
+  PKG_DIR: unity/top.sealoong.sensa
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 读取包信息
+        id: info
+        run: |
+          echo "version=$(jq -r '.version' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "displayName=$(jq -r '.displayName // .name' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "description=$(jq -r '.description // ""' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "author=$(jq -c '.author // {"name":"SeaLoong"}' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "license=$(jq -r '.license // "MIT"' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "unity=$(jq -r '.unity // "2022.3"' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "vpmDeps=$(jq -c '.vpmDependencies // {}' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+          echo "keywords=$(jq -c '.keywords // []' "$PKG_DIR/package.json")" >> "$GITHUB_OUTPUT"
+
+      - name: 读取已有 VPM 清单
+        id: existing
+        continue-on-error: true
+        run: |
+          curl -sL "https://${{ github.repository_owner }}.github.io/Sensa/vpm.json" \
+            -o existing-vpm.json || echo '{}' > existing-vpm.json
+
+      - name: 构建 VPM 包 ZIP
+        run: |
+          VER="${{ steps.info.outputs.version }}"
+          mkdir -p "output/packages/${PKG_NAME}/${VER}"
+          cd "$PKG_DIR"
+          zip -r "../../output/packages/${PKG_NAME}/${VER}/${PKG_NAME}.zip" . \
+            -x ".*" "*/.*"
+          echo "ZIP 已生成: output/packages/${PKG_NAME}/${VER}/${PKG_NAME}.zip"
+          echo "ZIP_SHA256=$(sha256sum ../../output/packages/${PKG_NAME}/${VER}/${PKG_NAME}.zip | cut -d' ' -f1)" >> "$GITHUB_ENV"
+
+      - name: 生成 VPM 仓库清单
+        run: |
+          VER="${{ steps.info.outputs.version }}"
+          ZIP_URL="https://${{ github.repository_owner }}.github.io/Sensa/packages/${PKG_NAME}/${VER}/${PKG_NAME}.zip"
+
+          # 构建新版条目
+          NEW_ENTRY=$(cat << JSON
+          {
+            "name": "${PKG_NAME}",
+            "displayName": "${{ steps.info.outputs.displayName }}",
+            "version": "${VER}",
+            "description": "${{ steps.info.outputs.description }}",
+            "unity": "${{ steps.info.outputs.unity }}",
+            "author": ${{ steps.info.outputs.author }},
+            "license": "${{ steps.info.outputs.license }}",
+            "keywords": ${{ steps.info.outputs.keywords }},
+            "url": "${ZIP_URL}",
+            "sha256": "${ZIP_SHA256}",
+            "vpmDependencies": ${{ steps.info.outputs.vpmDeps }}
+          }
+          JSON
+          )
+
+          # 读取已有清单并合并，保留历史版本
+          if [ -f existing-vpm.json ] && jq -e --arg pkg "$PKG_NAME" '.packages[$pkg]' existing-vpm.json > /dev/null 2>&1; then
+            # 保留所有已有版本，只添加/覆盖当前版本
+            jq \
+              --arg pkg "$PKG_NAME" \
+              --arg ver "$VER" \
+              --argjson entry "$NEW_ENTRY" \
+              '.packages[$pkg].versions[$ver] = $entry' \
+              existing-vpm.json > output/vpm.json
+          else
+            # 首次发布：全新清单
+            cat > output/vpm.json << JSONEOF
+          {
+            "name": "Sensa",
+            "id": "top.sealoong.sensa.repo",
+            "url": "https://${{ github.repository_owner }}.github.io/Sensa/vpm.json",
+            "author": ${{ steps.info.outputs.author }},
+            "packages": {
+              "${PKG_NAME}": {
+                "versions": {
+                  "${VER}": $NEW_ENTRY
+                }
+              }
+            }
+          }
+          JSONEOF
+          fi
+
+          echo "清单已生成: output/vpm.json"
+          jq . output/vpm.json  # 验证 JSON 合法性
+
+      - name: 上传 Pages 工件
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output
+
+      - name: 部署到 GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
