@@ -20,7 +20,7 @@
     <TargetFramework>net9.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\artifacts\**;$(MSBuildProjectDirectory)\program\**;$(MSBuildProjectDirectory)\**\artifacts\**;$(MSBuildProjectDirectory)\**\bin\**;$(MSBuildProjectDirectory)\**\obj\**</DefaultItemExcludes>
+    <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\..\artifacts\**</DefaultItemExcludes>
   </PropertyGroup>
 
 </Project>

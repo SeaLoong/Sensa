@@ -3,4 +3,15 @@
 **/obj/
 **/build/
 _build/
-Companion/**/*.meta
+artifacts/
+_artifacts/
+
+# IDE
+.vs/
+*.user
+*.suo
+*.DotSettings.user
+
+# OS
+Thumbs.db
+.DS_Store

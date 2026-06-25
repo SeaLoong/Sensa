@@ -1,0 +1,7 @@
+<Project>
+  <!-- Redirect build outputs to repo root -->
+  <PropertyGroup>
+    <BaseOutputPath>$(MSBuildThisFileDirectory)bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>$(MSBuildThisFileDirectory)obj\</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>

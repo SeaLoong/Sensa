@@ -1,5 +1,5 @@
 {
-  "name": "top.sealoong.unitybox.sensa",
+  "name": "top.sealoong.sensa",
   "displayName": "Sensa",
   "version": "0.1.0",
   "description": "VRChat SPS/OGB/TPS contact sensing bridge to Intiface/TCode physical devices.",

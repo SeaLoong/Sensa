@@ -259,7 +259,7 @@ namespace UnityBox.Sensa
                 containerTransform, "PenOthers",
                 tipGo.transform.localPosition,
                 radius: 0.10f,
-                filterTags: socketTags,
+                tags: socketTags,
                 paramName: penOthers,
                 allowOthers: true, allowSelf: false);
 
