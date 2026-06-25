@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sensa — VPM 包源</title>
+  <title>Sensa VPM Repository</title>
   <style>
     :root {
       --bg: #1a1b2f;
@@ -15,7 +15,7 @@
       --border: #2e3055;
       --success: #00cec9;
       --copy-bg: #2d2f52;
-      --radius: 12px;
+      --radius: 16px;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -29,28 +29,25 @@
       align-items: center;
     }
     .container {
-      max-width: 720px;
+      max-width: 560px;
       width: 100%;
-      padding: 40px 20px;
+      padding: 48px 20px;
     }
 
     /* Header */
     header {
       text-align: center;
-      margin-bottom: 40px;
+      margin-bottom: 32px;
     }
     header h1 {
-      font-size: 2.4rem;
-      font-weight: 700;
-      background: linear-gradient(135deg, var(--accent), #a29bfe);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
     }
     header p {
       color: var(--text-dim);
-      margin-top: 8px;
-      font-size: 1.05rem;
+      margin-top: 6px;
+      font-size: 0.95rem;
     }
 
     /* Card */
@@ -58,32 +55,59 @@
       background: var(--card-bg);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 24px 28px;
-      margin-bottom: 20px;
+      padding: 28px 32px;
+      margin-bottom: 16px;
     }
-    .card-title {
-      font-size: 0.85rem;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--text-dim);
-      margin-bottom: 14px;
+    .card-center {
+      text-align: center;
     }
 
-    /* Source URL box */
+    /* VCC Button */
+    .btn-vcc {
+      display: inline-block;
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      padding: 12px 32px;
+      border-radius: 10px;
+      text-decoration: none;
+      transition: background 0.2s, transform 0.15s;
+      cursor: pointer;
+      border: none;
+      width: 100%;
+    }
+    .btn-vcc:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+    }
+    .btn-vcc:active {
+      transform: translateY(0);
+    }
+
+    /* Manual URL */
+    .manual-section {
+      margin-top: 20px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+    .manual-label {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      margin-bottom: 10px;
+    }
     .source-box {
       display: flex;
       align-items: center;
       gap: 10px;
       background: var(--copy-bg);
       border-radius: 8px;
-      padding: 10px 16px;
+      padding: 10px 14px;
       border: 1px solid var(--border);
-      margin-bottom: 16px;
     }
     .source-box code {
       flex: 1;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
       color: var(--accent);
       word-break: break-all;
       user-select: all;
@@ -95,94 +119,87 @@
       border: none;
       border-radius: 6px;
       padding: 6px 14px;
-      font-size: 0.82rem;
+      font-size: 0.8rem;
       cursor: pointer;
       transition: background 0.2s;
+      white-space: nowrap;
     }
     .source-box button:hover { background: var(--accent-hover); }
     .source-box button.copied {
       background: var(--success);
     }
 
-    /* Steps */
-    .steps {
-      list-style: none;
-      counter-reset: step;
-    }
-    .steps li {
-      counter-increment: step;
-      padding: 6px 0 6px 36px;
-      position: relative;
+    /* Note */
+    .note {
       color: var(--text-dim);
+      font-size: 0.82rem;
+      margin-top: 12px;
+      line-height: 1.5;
     }
-    .steps li::before {
-      content: counter(step);
-      position: absolute;
-      left: 0;
-      top: 6px;
-      width: 24px;
-      height: 24px;
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 700;
-      border-radius: 50%;
+    .note a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .note a:hover { text-decoration: underline; }
+
+    /* Separator */
+    .sep {
+      text-align: center;
+      color: var(--text-dim);
+      font-size: 0.78rem;
+      margin: 16px 0;
       display: flex;
       align-items: center;
-      justify-content: center;
+      gap: 12px;
     }
-    .steps li strong { color: var(--text); }
+    .sep::before,
+    .sep::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
 
-    /* Package list */
-    .pkg-item {
+    /* Info row */
+    .info-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
+      padding: 8px 0;
     }
-    .pkg-item:last-child { border-bottom: none; }
-    .pkg-name {
-      font-weight: 600;
-      font-size: 1rem;
+    .info-row + .info-row {
+      border-top: 1px solid var(--border);
     }
-    .pkg-name small {
-      display: block;
-      font-weight: 400;
-      font-size: 0.8rem;
+    .info-label {
       color: var(--text-dim);
-      margin-top: 2px;
+      font-size: 0.88rem;
     }
-    .pkg-version {
+    .info-value {
+      font-size: 0.88rem;
+      text-align: right;
+    }
+    .info-value a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .info-value a:hover { text-decoration: underline; }
+    .tag {
+      display: inline-block;
       background: var(--copy-bg);
-      padding: 4px 12px;
-      border-radius: 6px;
-      font-size: 0.82rem;
+      padding: 2px 10px;
+      border-radius: 4px;
       font-family: monospace;
+      font-size: 0.82rem;
       color: var(--accent);
     }
-
-    /* Badge */
-    .badge {
-      display: inline-block;
-      background: var(--accent);
-      color: #fff;
-      font-size: 0.7rem;
-      font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .badge.info { background: #0984e3; }
 
     /* Footer */
     footer {
       text-align: center;
-      margin-top: 40px;
-      padding: 20px 0;
+      margin-top: 32px;
+      padding: 16px 0;
       color: var(--text-dim);
-      font-size: 0.85rem;
+      font-size: 0.8rem;
     }
     footer a {
       color: var(--accent);
@@ -195,60 +212,48 @@
   <div class="container">
     <header>
       <h1>Sensa</h1>
-      <p>VRChat SPS/OGB/TPS 触点感知桥接 — VPM 包源</p>
+      <p>VRChat SPS/OGB/TPS 触点感知桥接 · VPM 包源</p>
     </header>
 
-    <!-- Source URL -->
-    <div class="card">
-      <div class="card-title">📦 VPM 包源地址</div>
-      <div class="source-box">
-        <code id="vpmUrl">https://SeaLoong.github.io/Sensa/vpm.json</code>
-        <button id="copyBtn" onclick="copyUrl()">复制</button>
-      </div>
-      <p style="color:var(--text-dim);font-size:0.85rem;">
-        在 VCC / ALCOM 中添加此地址作为包源，即可搜索并安装 Sensa。
+    <!-- One-click add -->
+    <div class="card card-center">
+      <p style="margin-bottom:16px;color:var(--text-dim);font-size:0.9rem;">
+        点击下方按钮将 Sensa 仓库添加到 VCC / ALCOM
       </p>
-    </div>
+      <a class="btn-vcc" href="vcc://vpm/addRepo?url=https://SeaLoong.github.io/Sensa/vpm.json">
+        添加到 VCC
+      </a>
 
-    <!-- Installation -->
-    <div class="card">
-      <div class="card-title">📖 安装步骤</div>
-      <ol class="steps">
-        <li>打开 <strong>VCC</strong>（VRChat Creator Companion）或 <strong>ALCOM</strong></li>
-        <li>进入 <strong>Settings</strong> → <strong>Package Sources</strong> → <strong>Add</strong></li>
-        <li>粘贴上面的包源地址，点击 <strong>Add</strong></li>
-        <li>在项目管理中为你的项目添加 <strong>Sensa</strong> 包</li>
-      </ol>
-    </div>
-
-    <!-- Available Packages -->
-    <div class="card">
-      <div class="card-title">📋 可用包</div>
-      <div class="pkg-item">
-        <div>
-          <div class="pkg-name">
-            Sensa
-            <small>VRChat SPS/OGB/TPS contact sensing bridge to Intiface/TCode</small>
-          </div>
+      <div class="manual-section">
+        <div class="manual-label">或手动添加 VPM 源地址：</div>
+        <div class="source-box">
+          <code id="vpmUrl">https://SeaLoong.github.io/Sensa/vpm.json</code>
+          <button id="copyBtn" onclick="copyUrl()">复制</button>
         </div>
-        <div class="pkg-version" id="pkgVersion">v__VERSION__</div>
       </div>
     </div>
 
-    <!-- Links -->
+    <!-- Info -->
     <div class="card">
-      <div class="card-title">🔗 相关链接</div>
-      <div class="pkg-item">
-        <span>GitHub 仓库</span>
-        <a href="https://github.com/SeaLoong/Sensa" target="_blank" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">
-          SeaLoong/Sensa →
-        </a>
+      <div class="info-row">
+        <span class="info-label">包名</span>
+        <span class="info-value"><code>top.sealoong.sensa</code></span>
       </div>
-      <div class="pkg-item">
-        <span>问题反馈</span>
-        <a href="https://github.com/SeaLoong/Sensa/issues" target="_blank" style="color:var(--accent);text-decoration:none;font-size:0.9rem;">
-          Issues →
-        </a>
+      <div class="info-row">
+        <span class="info-label">版本</span>
+        <span class="info-value"><span class="tag" id="pkgVersion">v__VERSION__</span></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">许可</span>
+        <span class="info-value">MIT</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">GitHub</span>
+        <span class="info-value"><a href="https://github.com/SeaLoong/Sensa">SeaLoong/Sensa →</a></span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">问题反馈</span>
+        <span class="info-value"><a href="https://github.com/SeaLoong/Sensa/issues">Issues →</a></span>
       </div>
     </div>
 
@@ -262,7 +267,7 @@
       const btn = document.getElementById('copyBtn');
       const url = document.getElementById('vpmUrl');
       navigator.clipboard.writeText(url.textContent).then(() => {
-        btn.textContent = '已复制 ✓';
+        btn.textContent = '已复制';
         btn.classList.add('copied');
         setTimeout(() => {
           btn.textContent = '复制';

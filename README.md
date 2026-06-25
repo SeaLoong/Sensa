@@ -62,14 +62,14 @@ Unity 包提供 `SensaComponent` 组件，在上传头像时自动生成 VRChat 
 
 ### 安装 VPM 包
 
-1. 打开 VCC / ALCOM → **Settings** → **Package Sources** → **Add**。
-2. 输入仓库地址：
-   ```
-   https://sealoong.github.io/Sensa/vpm.json
-   ```
-3. 添加后，在项目中即可搜索并安装 **Sensa** 包。
+**一键添加：** 访问 [Sensa VPM 包源](https://sealoong.github.io/Sensa/) 点击「添加到 VCC」按钮。
 
-> 每次推送 `unity/top.sealoong.sensa/` 的变更后，GitHub Actions 会自动构建并发布到 Pages。
+或手动添加：
+1. 打开 VCC / ALCOM → **Settings** → **Package Sources** → **Add**
+2. 输入地址：`https://sealoong.github.io/Sensa/vpm.json`
+3. 添加后在项目中搜索并安装 **Sensa** 包
+
+> 每次推送 `unity/top.sealoong.sensa/` 变更后，GitHub Actions 会自动构建并发布到 Pages。
 
 ## 系统要求
 
