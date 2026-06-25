@@ -114,6 +114,12 @@ jobs:
           echo "清单已生成: output/vpm.json"
           jq . output/vpm.json  # 验证 JSON 合法性
 
+      - name: 生成首页
+        run: |
+          VER="${{ steps.info.outputs.version }}"
+          sed "s|__VERSION__|${VER}|g" .github/pages/index.html > output/index.html
+          echo "首页已生成: output/index.html"
+
       - name: 上传 Pages 工件
         uses: actions/upload-pages-artifact@v4
         with:
