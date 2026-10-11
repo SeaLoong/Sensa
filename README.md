@@ -2,6 +2,8 @@
 
 Unity 预制件的依赖、单侧 SPS 安装步骤和定位能力边界见 [兼容性指南](unity/top.sealoong.sensa/COMPATIBILITY.md)。
 
+Shader 形变采样的实验工具与游戏内桥接设计见 [GPU 定位指南](unity/top.sealoong.sensa/GPU-TRACKING.md)。
+
 **VRChat SPS/OGB/TPS 触点感知桥接，驱动 Intiface/TCode 物理设备。**
 
 Sensa 将 VRChat 的 OSC 触点参数实时映射到 Intiface（Buttplug）与 TCode（串口/UDP/TCP）物理输出设备。

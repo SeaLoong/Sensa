@@ -4,6 +4,8 @@ VRChat SPS/OGB/TPS 触点感知桥接，用于在 VRChat 头像上自动生成�
 
 安装前请阅读 [前置依赖、单侧 SPS 根部探针与兼容矩阵](COMPATIBILITY.md)。对方不安装 Sensa 时，可用标准 Root 触点观测相对 XYZ；这不等于完整姿态或准确行程。
 
+Shader 路线见 [SPS GPU 模型探针与桥接设计](GPU-TRACKING.md)：提供编辑器采样源码与离线分析，游戏内 GPU→OSC 桥接尚未实现。
+
 ## 依赖
 
 - VRChat 当前支持的 Unity 2022.3 编辑器版本（通过 VCC 选择）

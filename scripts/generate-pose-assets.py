@@ -92,5 +92,6 @@ for path in list(PACKAGE.rglob('*')):
     elif path.suffix == '.asset': meta += 'NativeFormatImporter:\n  externalObjects: {}\n  mainObjectFileID: 11400000\n'
     elif path.suffix == '.prefab': meta += 'PrefabImporter:\n  externalObjects: {}\n'
     elif path.suffix == '.asmdef': meta += 'AssemblyDefinitionImporter:\n  externalObjects: {}\n'
+    elif path.suffix == '.txt': meta += 'TextScriptImporter:\n  externalObjects: {}\n'
     else: meta += 'DefaultImporter:\n  externalObjects: {}\n'
     write(Path(str(path) + '.meta'), meta)
