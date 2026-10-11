@@ -3,6 +3,8 @@ namespace UnityBox.Sensa
     // Shared verbatim with the desktop project. Changing geometry requires a new protocol version.
     public static class SensaPoseProtocol
     {
+        public const string SpsRootPrefix = "Sensa/SpsRoot/v1";
+        public const string SpsRootTag = "TPS_Pen_Root";
         public const string Prefix = "Sensa/Pose/v1";
         public const float AnchorHalfSpan = 0.06f;
         public const float ReceiverRadius = 0.35f;

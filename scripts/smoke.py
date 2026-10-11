@@ -122,6 +122,15 @@ def main():
                         pose = snapshot['poseTracking']['observations'][0]
                         assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
                         assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
+                        standard = [(path.replace('Sensa/Pose/v1/', 'Sensa/SpsRoot/v1/'), value)
+                                    for path, value in fixture.samples((.025,-.02,-.1),(0,0,0),(0,0,0),radius=.01) if '/Root/' in path]
+                        udp.sendto(fixture.bundle(standard), ('127.0.0.1', osc_port))
+                        time.sleep(.15)
+                        snapshot = command('/api/state/overview', 'GET')
+                        root = snapshot['poseTracking']['spsRoots'][0]
+                        assert root['valid'] and root['sampleCount'] == 8
+                        assert abs(root['position']['x'] - .025) < .0001
+                        assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
                         udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
                         deadline = time.monotonic() + 3
                         while True:
@@ -129,7 +138,7 @@ def main():
                             if snapshot['runtime']['poseBlocked']: break
                             assert time.monotonic() < deadline, 'Lost pose did not block motion'
                     command('/api/input/active', 'PUT', {'active':False})
-                print('HTTP/WS smoke passed: authentication, FT flood, NaN rejection, 24-channel pose reconstruction and loss guard; no devices configured.')
+                print('HTTP/WS smoke passed: authentication, FT flood, NaN rejection, pose reconstruction/loss guard and diagnostic SPS root isolation; no devices configured.')
             finally:
                 process.terminate()
                 try: process.wait(timeout=5)

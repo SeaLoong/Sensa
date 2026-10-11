@@ -10,10 +10,12 @@ namespace UnityBox.Sensa
         {
             DrawDefaultInspector();
             var socket = (SensaPoseSocket)target;
-            EditorGUILayout.HelpBox("+Z 指向孔内。每组 Self/Others 使用 24 个本地 Proximity 接收器。双方必须使用配套三点标记和相同通道；普通 TPS 标签不提供足够的几何信息。缩放必须均匀。", MessageType.Info);
+            EditorGUILayout.HelpBox(socket.standardSpsRoot
+                ? "单侧 SPS 根部定位：每组 Self/Others 使用 8 个接收器，对方只需现有 TPS_Pen_Root 球形 Sender，无需 Sensa。仅测根部 XYZ，不能测尖端、角度或行程；通道字段不用于筛选标准标签。单目标、均匀缩放。"
+                : "+Z 指向孔内。每组 Self/Others 使用 24 个本地 Proximity 接收器。双方必须使用配套三点标记和相同通道；普通 TPS 标签不提供足够的几何信息。缩放必须均匀。", MessageType.Info);
             try { SensaPoseBuilder.Validate(socket); }
             catch (System.Exception ex) { EditorGUILayout.HelpBox(ex.Message, MessageType.Error); }
-            EditorGUILayout.LabelField("协议", SensaPoseProtocol.Prefix);
+            EditorGUILayout.LabelField("协议", socket.standardSpsRoot ? SensaPoseProtocol.SpsRootPrefix : SensaPoseProtocol.Prefix);
             EditorGUILayout.LabelField("孔口半径 / 保证采样范围", "4 cm / 约 24 cm（Socket 局部单位）");
             if (GUILayout.Button("烘焙副本为原生 VRC 预制件")) SensaPoseMenus.Bake(socket.gameObject);
         }
@@ -63,6 +65,8 @@ namespace UnityBox.Sensa
         private const string Package = "Packages/top.sealoong.sensa/";
         [MenuItem("GameObject/Sensa/Spatial Pose Socket", false, 10)]
         public static void Socket() => Create("SensaPoseSocket");
+        [MenuItem("GameObject/Sensa/Single-sided SPS Root Probe", false, 10)]
+        public static void SpsRoot() => Create("SensaSpsRootProbe");
         [MenuItem("GameObject/Sensa/Spatial Pose Plug", false, 10)]
         public static void Plug() => Create("SensaPosePlug");
         private static GameObject Create(string name)

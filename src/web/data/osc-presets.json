@@ -72,7 +72,7 @@
   {
     "id": "sps-socket-depth",
     "name": "VRCFury SPS · Socket 新深度",
-    "description": "NewRoot/NewTip 成对计算深度，按同一来源、同一孔位配对。先从外部靠近一次以估算长度；未校准时保持零。需在 VRCFury 中启用 Haptics/OGB。",
+    "description": "NewRoot/NewTip 成对估算径向深度，按同一来源、同一孔位配对。NewTip 是根部同心长度球，不是真实尖端；不能校正横移/倾斜。先从外部靠近一次估算长度；未校准保持零。需 VRCFury Haptics/OGB。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthersNewTip",

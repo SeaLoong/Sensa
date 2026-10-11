@@ -11,6 +11,23 @@ namespace UnityBox.Sensa.Tests
     public class SensaPoseTests
     {
         [Test]
+        public void StandardProbeCreatesOnlyEightRootReceivers()
+        {
+            var instance = Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Packages/top.sealoong.sensa/Prefabs/SensaSpsRootProbe.prefab"));
+            try
+            {
+                SensaPoseBuilder.ProcessAvatar(instance);
+                var contacts = instance.GetComponentsInChildren<VRCContactReceiver>();
+                Assert.AreEqual(8, contacts.Length);
+                Assert.IsTrue(contacts.All(c => c.localOnly && c.allowOthers && !c.allowSelf));
+                Assert.IsTrue(contacts.All(c => c.collisionTags.SequenceEqual(new[] { "TPS_Pen_Root" })));
+                Assert.IsTrue(contacts.All(c => c.parameter.StartsWith("Sensa/SpsRoot/v1/")));
+                Assert.IsEmpty(instance.GetComponentsInChildren<VRCContactSender>());
+            }
+            finally { Object.DestroyImmediate(instance); }
+        }
+
+        [Test]
         public void SocketCreates24LocalFloatReceivers()
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Packages/top.sealoong.sensa/Prefabs/SensaPoseSocket.prefab");

@@ -2,8 +2,10 @@ namespace Sensa.Signals;
 
 /// <summary>
 /// VRCFury NewRoot/NewTip contacts have a one metre radius. Learn the difference
-/// while the tip is outside; once tip proximity saturates, root distance gives
-/// the remaining exposed length. Pairs must be from the same socket and sender.
+/// while the length sphere is outside; once its proximity saturates, root distance
+/// approximates exposed length. NewTip is a root-centred length sphere, not a tip
+/// landmark; this radial estimate does not correct lateral or angular offsets.
+/// Pairs must be from the same socket and sender.
 /// </summary>
 public sealed class SpsDepthEstimator
 {

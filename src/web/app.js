@@ -1,5 +1,6 @@
 import React from 'react';
 import PosePanel from './PosePanel.jsx';
+import SpsRootPanel from './SpsRootPanel.jsx';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
 import { posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
@@ -3625,7 +3626,9 @@ function App() {
   }
 
   function mapPreviewParameter(entry) {
-    if (entry.path.startsWith('Sensa/Pose/v1/')) {
+    if (entry.path.startsWith('Sensa/SpsRoot/v1/')) {
+      notify('这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。', 'info');
+    } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
     } else if (/New(Root|Tip)$/.test(entry.path)) {
       const prefix = entry.path.replace(/New(Root|Tip)$/, '');
@@ -5346,6 +5349,7 @@ function App() {
                 <Stack spacing={2}>
                   {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
                   <PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} />
+                  <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} />
                   <Box className="osc-section-grid">
                     <Box className="dialog-panel osc-settings-panel">
                       <Box className="dialog-panel__header osc-settings-panel__header">

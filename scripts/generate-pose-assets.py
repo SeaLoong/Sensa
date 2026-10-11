@@ -80,6 +80,7 @@ MonoBehaviour:
 ''')
 profile = f'  profile: {{fileID: 11400000, guid: {guid(PACKAGE / "Profiles/DefaultPair.asset")}, type: 2}}\n'
 write(PACKAGE / 'Prefabs/SensaPoseSocket.prefab', header + obj(0, 'SensaPoseSocket', script='SensaPoseSocket', fields=profile + '  instanceName: Main\n'))
+write(PACKAGE / 'Prefabs/SensaSpsRootProbe.prefab', header + obj(0, 'SensaSpsRootProbe', script='SensaPoseSocket', fields=profile + '  instanceName: SpsRoot\n  standardSpsRoot: 1\n'))
 write(PACKAGE / 'Prefabs/SensaPosePlug.prefab', header + obj(0, 'SensaPosePlug', children=(1, 2), script='SensaPosePlug', fields=profile + '  rootMarker: {fileID: 4000}\n  tipMarker: {fileID: 4001}\n  sideMarker: {fileID: 4002}\n')
       + obj(1, 'Tip', parent=4000, position=(0, 0, .15)) + obj(2, 'Side', parent=4000, position=(.03, 0, 0)))
 

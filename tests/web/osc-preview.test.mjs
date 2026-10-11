@@ -49,3 +49,10 @@ test('pose mapping preview uses decoded depth and refuses mixed sources', () => 
   assert.equal(posePreviewEntry([pose,{...pose,key:'b',sourceKey:'b'}], signal).numericValue, undefined);
   assert.equal(posePreviewEntry([{...pose,engaged:false,reason:'未进入'}], signal).value, '未进入');
 });
+
+test('single-sided root samples are discoverable but explain their missing geometry', () => {
+  const path = 'Sensa/SpsRoot/v1/Main/Others/Root/A0';
+  assert.equal(rankPreview([{path}], [], {category:'pose'}).length, 1);
+  assert.match(parameterMeaning(path), /不能测尖端、朝向或行程/);
+  assert.match(parameterMeaning('OGB/Orf/Main/PenOthersNewTip'), /并非真实尖端/);
+});

@@ -18,7 +18,7 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
   }).filter(entry => (showFaceTracking || !entry.classification?.isFaceTracking || entry._matches || pinned.includes(entry.path))
-    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && entry.path.startsWith('Sensa/Pose/v1/')
+    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && (entry.path.startsWith('Sensa/Pose/v1/') || entry.path.startsWith('Sensa/SpsRoot/v1/'))
       || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))
     .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))
@@ -30,8 +30,9 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
 export function parameterMeaning(path) {
   const leaf = (path || '').split('/').at(-1);
   if (path.startsWith('Sensa/Pose/v1/')) return '定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。';
+  if (path.startsWith('Sensa/SpsRoot/v1/')) return '单侧 SPS 根部阵列的距离样本；8 路共同估计根部 XYZ，仅用于诊断。不能测尖端、朝向或行程，不应直接映射运动输出。';
   if (/NewRoot$/.test(leaf)) return '根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。';
-  if (/NewTip$/.test(leaf)) return '尖端表面到接收器的近接值。饱和不等于已获得准确轴向深度，需要配对信号。';
+  if (/NewTip$/.test(leaf)) return '当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。';
   if (/^Pen(Others|Self)$/.test(leaf)) return '近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。';
   if (/Close$/.test(leaf)) return '近距离接触开关，不是连续行程值。';
   if (/^Touch/.test(leaf)) return '身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。';

@@ -39,7 +39,7 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
         <Stack direction="row" gap={1}><Chip size="small" variant="outlined" label="Sensa Pose v1 · 实验性" /><Button size="small" onClick={() => setShowGuide(v => !v)}>{showGuide ? '收起说明' : '参数含义与安装'}</Button></Stack>
       </Stack>
       {showGuide && <Alert severity="info" sx={{ mt: 1 }}>
-        PenOthers 是生成器定义的接近信号，不是 XYZ 坐标；球面等距离会把横向偏移和深度混在一起。SPS Root/Tip 改善了长度估算，但仍不能独立确定偏移与姿态。
+        PenOthers 是生成器定义的接近信号，不是 XYZ 坐标；球面等距离会把横向偏移和深度混在一起。当前 VRCFury 的 NewTip 实际测量以根部为中心的长度球，并非真实尖端，Root/Tip 仍不能确定偏移与姿态。只在自己一侧安装时，可使用下方的 SPS 根部定位诊断。
         精确方案需双方配套：Unity 中放置 Spatial Pose Socket / Plug 预制件，使用相同通道，将 Root、Tip、Side 对齐实际骨骼，Socket 的 +Z 指向孔内。24 路采样共同定位三个标记。只支持单个匹配目标和均匀缩放；拟合残差不是实际定位精度，也不能排除所有多目标混入。
       </Alert>}
       {!pose ? <Box className="pose-empty"><Typography variant="h6">等待配套定位阵列</Typography><Typography color="text.secondary">普通 OGB 参数会继续显示在下方。安装配套预制件后，这里会显示深度、横向偏移、倾角和扭转。</Typography><Typography variant="caption">路径：Sensa/Pose/v1/实例名/Self 或 Others/标记/A0…A7</Typography></Box> : <>

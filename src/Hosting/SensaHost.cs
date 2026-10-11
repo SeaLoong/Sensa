@@ -16,6 +16,7 @@ using Sensa.Motion;
 using Sensa.Outputs;
 using Sensa.Recording;
 using Sensa.Runtime;
+using Sensa.Signals;
 
 namespace Sensa.Hosting;
 
@@ -1378,7 +1379,8 @@ public static class SensaHost
                     devices,
                 },
                 outputs,
-                poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey },
+                poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey,
+                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey) },
                 recording = new
                 {
                     recorder.IsActive,
