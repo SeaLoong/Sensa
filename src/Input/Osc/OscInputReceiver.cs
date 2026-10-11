@@ -22,10 +22,11 @@ public sealed class OscInputReceiver : IDisposable
     private Thread?     _thread;
     private volatile bool _running;
 
+    public Func<OscSource, bool>? IsSourceAllowed { get; set; }
     public event Action? OnAvatarChange;
     public event Action<byte[], OscSource>? OnUnhandledPacket;
 
-    public OscInputReceiver(OscParameterStore store, string host = "0.0.0.0", int port = 9001)
+    public OscInputReceiver(OscParameterStore store, string host = "127.0.0.1", int port = 9001)
     {
         _store = store;
         _host  = NormalizeHost(host);
@@ -105,13 +106,14 @@ public sealed class OscInputReceiver : IDisposable
             {
                 byte[] data = _udp!.Receive(ref endPoint);
                 var source = CreateSource(endPoint);
+                if (IsSourceAllowed?.Invoke(source) == false) continue;
                 var handled = OscPacketParser.ParseAvatarPacket(
                     data,
                     source,
                     (path, value, resolvedSource) => _store.Set(path, value, resolvedSource),
                     () =>
                     {
-                        _store.Clear();
+                        _store.ClearSource(source.Key);
                         OnAvatarChange?.Invoke();
                     });
 
@@ -131,7 +133,7 @@ public sealed class OscInputReceiver : IDisposable
 
     private static string NormalizeHost(string? host)
     {
-        return string.IsNullOrWhiteSpace(host) ? "0.0.0.0" : host.Trim();
+        return string.IsNullOrWhiteSpace(host) ? "127.0.0.1" : host.Trim();
     }
 
     private static int NormalizePort(int port)

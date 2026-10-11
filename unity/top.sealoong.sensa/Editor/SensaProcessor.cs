@@ -81,6 +81,10 @@ namespace UnityBox.Sensa
         {
             if (comp == null) return;
 
+            if (string.IsNullOrWhiteSpace(comp.instanceName) || comp.instanceName.Contains("/"))
+                throw new System.InvalidOperationException("Sensa instance name must be nonempty and cannot contain '/'.");
+            if (comp.role == BridgeRole.Socket && (comp.socketLength <= 0 || float.IsNaN(comp.socketLength) || float.IsInfinity(comp.socketLength)))
+                throw new System.InvalidOperationException("Sensa socket length must be positive and finite.");
             // Host game object for generated contacts
             var hostGo = comp.gameObject;
 
@@ -96,6 +100,7 @@ namespace UnityBox.Sensa
 
             // Register all parameters via ModularAvatar (networkSynced=false)
             RegisterParameters(maParams, paramList);
+            Object.DestroyImmediate(comp);
         }
 
         // ────────────────────────────────────────────────────────────
@@ -300,26 +305,30 @@ namespace UnityBox.Sensa
             for (int i = 0; i < comp.auxSignals.Count; i++)
             {
                 var aux      = comp.auxSignals[i];
-                string param = $"Sensa/{comp.instanceName}/Aux{i}";
+#if !SENSA_HAS_VRCRAYCAST
+                if (aux.sourceType == AuxSignalSourceType.Raycast)
+                    throw new System.InvalidOperationException("Sensa Raycast requires VRChat SDK 3.10.3 or newer.");
+#endif
+                string param = $"Sensa/{comp.instanceName}/Aux{i}/{aux.role}";
 
                 switch (aux.sourceType)
                 {
                     case AuxSignalSourceType.PhysBone:
-                        CreatePhysBone(host, aux, $"Sensa/{comp.instanceName}/Aux{i}");
+                        CreatePhysBone(host, aux, $"Sensa/{comp.instanceName}/Aux{i}/{aux.role}");
                         // Register only the selected sub-parameter to avoid wasting parameter budget.
                         switch (aux.physBoneSignal)
                         {
                             case PhysBoneSignal.IsGrabbed:
-                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}_IsGrabbed", true));
+                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}/{aux.role}_IsGrabbed", true));
                                 break;
                             case PhysBoneSignal.Stretch:
-                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}_Stretch", false));
+                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}/{aux.role}_Stretch", false));
                                 break;
                             case PhysBoneSignal.Squish:
-                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}_Squish", false));
+                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}/{aux.role}_Squish", false));
                                 break;
                             default: // Angle
-                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}_Angle", false));
+                                paramList.Add(($"Sensa/{comp.instanceName}/Aux{i}/{aux.role}_Angle", false));
                                 break;
                         }
                         break;
@@ -402,7 +411,7 @@ namespace UnityBox.Sensa
             var pb = target.GetComponent<VRCPhysBone>()
                      ?? target.AddComponent<VRCPhysBone>();
             if (!string.IsNullOrEmpty(pb.parameter) && pb.parameter != paramPrefix)
-                Debug.LogWarning($"[Sensa] Overwriting existing PhysBone parameter '{pb.parameter}' on '{target.name}' with '{paramPrefix}'.");
+                throw new System.InvalidOperationException($"Sensa cannot replace existing PhysBone parameter on '{target.name}'. Use ExistingParameter instead.");
             pb.parameter = paramPrefix;
         }
 
@@ -410,10 +419,12 @@ namespace UnityBox.Sensa
         private static void CreateRaycast(GameObject host, AuxSignal aux, string paramPrefix)
         {
             var origin = aux.raycastOrigin != null ? aux.raycastOrigin.gameObject : host;
-            var rc = origin.GetComponent<VRC.SDK3.Dynamics.Raycast.Components.VRCRaycast>()
-                     ?? origin.AddComponent<VRC.SDK3.Dynamics.Raycast.Components.VRCRaycast>();
-            rc.parameter   = paramPrefix;
-            rc.maxDistance = aux.raycastMaxRange;
+            var node = GetOrCreateChild(origin, "Sensa_Raycast_" + paramPrefix.Replace('/', '_'));
+            var rc = node.GetComponent<VRCRaycast>() ?? node.AddComponent<VRCRaycast>();
+            rc.RootTransform = origin.transform;
+            rc.ResultTransform = GetOrCreateChild(node, "Result").transform;
+            rc.Parameter = paramPrefix;
+            rc.Distance = Mathf.Clamp(aux.raycastMaxRange, 0.01f, 1000f);
         }
 #endif
 

@@ -1,3 +1,8 @@
+import React from 'react';
+import * as ReactDOM from 'react-dom/client';
+import * as MaterialUI from '@mui/material';
+import { rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
+import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json';
 const {
   Alert,
   Autocomplete,
@@ -107,6 +112,8 @@ const MANUAL_AXES = [
 ];
 
 const SIGNAL_ROLE_OPTIONS = [
+  { value: 'GateEnable', label: '门控（关闭则停止）' },
+  { value: 'DepthOverride', label: '深度覆盖' },
   { value: 'Depth', label: '主轴行程（L0）' },
   { value: 'Surge', label: '前后位移（L1）' },
   { value: 'Sway', label: '左右位移（L2）' },
@@ -427,54 +434,6 @@ const AXIS_PROFILE_PRESETS = [
   },
 ];
 
-const BUILT_IN_OSC_MAPPING_PRESETS = [
-  {
-    id: 'ogb-socket-full',
-    name: 'OGB Socket · 深度 + 姿态',
-    description: '利用通配匹配任意 OGB Socket 孔位。深度使用完整行程；左右/上下姿态分别映射到 0-500 / 500-999 两段位置区间。',
-    mappings: [
-      { oscPath: 'OGB/Orf/*/Main/PenOthers', role: 'Depth', isOgbSocket: true },
-      { oscPath: 'OGB/Orf/*/Main/AngleRight_Raw', role: 'AngleX', mappedMin: 500, mappedMax: 999, isOgbSocket: true },
-      { oscPath: 'OGB/Orf/*/Main/AngleLeft_Raw', role: 'AngleX', mappedMin: 0, mappedMax: 500, isOgbSocket: true },
-      { oscPath: 'OGB/Orf/*/Main/AngleUp_Raw', role: 'AngleY', mappedMin: 500, mappedMax: 999, isOgbSocket: true },
-      { oscPath: 'OGB/Orf/*/Main/AngleDown_Raw', role: 'AngleY', mappedMin: 0, mappedMax: 500, isOgbSocket: true },
-    ],
-  },
-  {
-    id: 'ogb-plug-full',
-    name: 'OGB Plug · 深度（插入 / 自插）',
-    description: 'Plug 方标准深度参数，同时映射 PenOthers(插入他人)和 PenSelf(自插)。深度自动反向。',
-    mappings: [
-      { oscPath: 'OGB/Pen/*/PenOthers', role: 'Depth', invertDirection: true, isOgbPlug: true },
-      { oscPath: 'OGB/Pen/*/PenSelf', role: 'Depth', invertDirection: true, isOgbPlug: true },
-    ],
-  },
-  {
-    id: 'ogb-plug-others',
-    name: 'OGB Plug · 仅插入他人',
-    description: '仅映射 PenOthers(插入他人深度)，不包含自插。',
-    mappings: [{ oscPath: 'OGB/Pen/*/PenOthers', role: 'Depth', invertDirection: true, isOgbPlug: true }],
-  },
-  {
-    id: 'ogb-plug-self',
-    name: 'OGB Plug · 仅自插',
-    description: '仅映射 PenSelf(自插深度)。需在 Sensa 组件中启用 generateSelfParam。',
-    mappings: [{ oscPath: 'OGB/Pen/*/PenSelf', role: 'Depth', invertDirection: true, isOgbPlug: true }],
-  },
-  {
-    id: 'osr-inserted-pussy',
-    name: 'OSR-VRChat · 被插入（小穴）',
-    description: 'OGB/Orf/Pussy/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。',
-    mappings: [{ oscPath: 'OGB/Orf/Pussy/PenOthers', role: 'Depth', isOgbSocket: true }],
-  },
-  {
-    id: 'osr-inserted-ass',
-    name: 'OSR-VRChat · 被插入（后庭）',
-    description: 'OGB/Orf/Ass/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。',
-    mappings: [{ oscPath: 'OGB/Orf/Ass/PenOthers', role: 'Depth', isOgbSocket: true }],
-  },
-];
-
 const BUILT_IN_OSC_PRESET_IDS = new Set(BUILT_IN_OSC_MAPPING_PRESETS.map(preset => preset.id));
 
 function createDefaultMotionProfile(useGlobal = false) {
@@ -715,6 +674,7 @@ function makeSignalDraft(signal = {}) {
   const next = {
     _draftId: createDraftId('signal'),
     oscPath: '',
+    sourceMode: 'Direct',
     invertDirection: false,
     vrchatMin: 0,
     vrchatMax: 1,
@@ -862,8 +822,10 @@ function buildOscDraftFromConfig(config) {
   const oscQueryReceiverConfig = oscConfig?.oscQueryReceiver || {};
   return {
     oscEnabled: oscConfig?.enabled !== false,
-    receiverHost: oscConfig?.receiverHost || '0.0.0.0',
+    receiverHost: oscConfig?.receiverHost || '127.0.0.1',
     receiverPort: oscConfig?.receiverPort || 9001,
+    inputTimeoutMs: oscConfig?.inputTimeoutMs || 0,
+    allowedSourceAddresses: (oscConfig?.allowedSourceAddresses || []).join(', '),
     oscQueryEnabled: oscConfig?.oscQueryEnabled !== false,
     oscQueryUrl: oscConfig?.oscQueryUrl || DEFAULT_OSCQUERY_URL,
     oscQueryPollingEnabled: oscQueryPollingConfig?.enabled === true,
@@ -1497,78 +1459,6 @@ function buildInitialAppState() {
     loading: true,
     scriptSettingsInitialized: false,
   };
-}
-
-function globMatch(pattern, path) {
-  // Split both into segments
-  const pSegs = pattern.split('/');
-  const sSegs = path.split('/');
-  let pi = 0,
-    si = 0;
-  while (pi < pSegs.length && si < sSegs.length) {
-    if (pSegs[pi] === '**') {
-      // ** matches zero or more segments — try all remaining positions
-      for (let end = si; end <= sSegs.length; end++) {
-        if (globMatch(pSegs.slice(pi + 1).join('/'), sSegs.slice(end).join('/'))) return true;
-      }
-      return false;
-    }
-    if (pSegs[pi] === '*' || pSegs[pi] === sSegs[si]) {
-      pi++;
-      si++;
-      continue;
-    }
-    return false;
-  }
-  // Allow trailing ** to match zero remaining
-  if (pi < pSegs.length && pSegs[pi] === '**' && pi + 1 === pSegs.length) return true;
-  return pi === pSegs.length && si === sSegs.length;
-}
-
-function matchesOscPathPattern(pattern, actualPath) {
-  const p = (pattern || '').trim();
-  const a = (actualPath || '').trim();
-  if (!p || !a) return false;
-  if (!p.includes('*')) return p === a; // exact match fast path
-  return globMatch(p, a);
-}
-
-function getLatestOscPreviewEntry(previewEntries, pattern, preferredSourceKey = '') {
-  const matches = Array.isArray(previewEntries) ? previewEntries.filter(entry => matchesOscPathPattern(pattern, entry?.path || '')) : [];
-  const candidates = preferredSourceKey ? matches.filter(entry => entry?.sourceKey === preferredSourceKey) : matches;
-  if (candidates.length === 0) return null;
-
-  const latest = candidates.reduce((current, entry) => {
-    if (!current) return entry;
-    return Number(entry?.timestampMs || 0) > Number(current?.timestampMs || 0) ? entry : current;
-  }, null);
-
-  return latest ? { ...latest, matchCount: candidates.length } : null;
-}
-
-function isOgbOscPath(path) {
-  return (path || '').trim().toUpperCase().startsWith('OGB/');
-}
-
-function compareOscPathSuggestions(left, right) {
-  const leftPath = (left || '').trim();
-  const rightPath = (right || '').trim();
-  const leftPriority = isOgbOscPath(leftPath) ? 0 : 1;
-  const rightPriority = isOgbOscPath(rightPath) ? 0 : 1;
-
-  if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-  return leftPath.localeCompare(rightPath, 'en', { numeric: true, sensitivity: 'base' });
-}
-
-function buildOscPathSuggestions(previewEntries, queryNodes = []) {
-  const previewPaths = (Array.isArray(previewEntries) ? previewEntries : []).map(entry => (entry?.path || '').trim());
-  const queryPaths = (Array.isArray(queryNodes) ? queryNodes : []).map(node => (node?.path || '').trim());
-  return Array.from(new Set([...previewPaths, ...queryPaths].filter(Boolean))).sort(compareOscPathSuggestions);
-}
-
-function filterOscPreviewEntriesBySource(previewEntries, sourceKey = '') {
-  if (!sourceKey) return Array.isArray(previewEntries) ? previewEntries : [];
-  return (Array.isArray(previewEntries) ? previewEntries : []).filter(entry => entry?.sourceKey === sourceKey);
 }
 
 function formatOscSourceLabel(source) {
@@ -3042,7 +2932,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
   const simulatedValue = Number.isFinite(Number(draft.simulatedValue)) ? Number(draft.simulatedValue) : getSignalSimulationDefaultValue(draft);
   const [simulationSliderMin, simulationSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax, latestEntry?.numericValue, simulatedValue]);
-  const liveOutput = computeSignalPreviewOutput(draft, latestEntry?.numericValue);
+  const liveOutput = draft.sourceMode === 'SpsSocketDepth' ? null : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   const simulatedOutput = draft.simulateEnabled ? computeSignalPreviewOutput(draft, simulatedValue) : null;
   const simulationValueText = formatCompactNumber(simulatedValue, 2);
   const statusMetrics = latestEntry
@@ -3093,13 +2983,14 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           renderInput={params => (
             <TextField
               {...params}
-              label={<HelpLabel text="参数路径" title="支持精确匹配、单段通配 * 与多段通配 **。多个参数命中同一规则时，后端会取最近更新的一条。" />}
+              label={<HelpLabel text="参数路径" title="支持精确匹配、*、**；多个候选路径用分号分隔。所有命中值参与融合，同轴选择校准后强度更高的值；预览显示最近更新值。" />}
               size="small"
               placeholder="例如: OGB/Orf/Pussy/Main/PenOthers"
             />
           )}
         />
 
+        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }]} onChange={sourceMode => onChange({ sourceMode })} />
         <SelectField
           label="目标轴"
           title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则在重叠区当前不会叠加，而是优先采用校准后更深（归一化更高）的那条映射结果。当前约定里 L1 为数值小=前、数值大=后。"
@@ -3231,6 +3122,9 @@ function App() {
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
+  const [previewLimit, setPreviewLimit] = useState(100);
+  const [showFaceTracking, setShowFaceTracking] = useState(false);
+  const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [oscSettingsTab, setOscSettingsTab] = useState('basic');
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
@@ -3263,6 +3157,76 @@ function App() {
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
   const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
+
+  const studioState = studio || DEFAULT_STUDIO_STATE;
+  const outputs = getOutputs(config);
+  const axisProfiles = getAxisProfiles(config);
+  const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
+  const runtimeOverview = overview?.runtime || overview?.loop || null;
+  const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
+  const hasPendingInputMode = selectedInputTab !== actualInputMode;
+
+  const scriptState = overview?.input?.script || null;
+  const scriptLoaded = Boolean(scriptState?.loaded);
+  const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
+  const scriptPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), scriptDurationMs || 0));
+  const scriptRemainingMs = Math.max(0, scriptDurationMs - scriptPositionMs);
+  const scriptProgressPercent = scriptDurationMs > 0 ? Math.min(100, (scriptPositionMs / scriptDurationMs) * 100) : 0;
+  const scriptSliderMax = Math.max(scriptDurationMs, 1);
+  const scriptSeekValue = scriptSeekDragging ? clampScriptPositionMs(scriptSeekDraft, scriptDurationMs) : scriptPositionMs;
+  const scriptSeekBasePosition = clampScriptPositionMs(scriptSeekValue, scriptDurationMs);
+  const scriptLoopRange = useMemo(() => normalizeScriptLoopRange(scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs), [scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs]);
+  const scriptHasLoopMarkers = scriptLoopRange.startMs !== null || scriptLoopRange.endMs !== null;
+  const scriptActivityBins = Array.isArray(scriptState?.activityBins) ? scriptState.activityBins : [];
+  const scriptStateMeta = getScriptStateMeta(scriptState?.state);
+  const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
+  const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
+  const scriptSpeedLabel = formatScriptSpeedLabel(scriptSettings.speed);
+  const scriptLoopStartLabel = scriptLoopRange.startMs === null ? 'A 未设' : `A ${formatDuration(scriptLoopRange.startMs)}`;
+  const scriptLoopEndLabel = scriptLoopRange.endMs === null ? 'B 未设' : `B ${formatDuration(scriptLoopRange.endMs)}`;
+  const scriptLoopModeLabel = scriptSettings.loop ? '循环播放已开启' : '循环播放已关闭';
+  const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '';
+  const scriptLoopLengthMs = scriptLoopRange.active ? Math.max(0, scriptLoopRange.endMs - scriptLoopRange.startMs) : 0;
+  const scriptLoopCoveragePercent = scriptLoopRange.active && scriptDurationMs > 0 ? (scriptLoopLengthMs / scriptDurationMs) * 100 : 0;
+  const scriptCurrentInLoopRange = scriptLoopRange.active ? scriptPositionMs >= scriptLoopRange.startMs && scriptPositionMs < scriptLoopRange.endMs : null;
+  const scriptLoopModeHelpText = !scriptLoaded
+    ? '先设好速度和循环偏好，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'
+    : scriptSettings.loop
+      ? scriptLoopRange.active
+        ? '已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。'
+        : '已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。'
+      : '已关闭。当前会从当前位置播放到结尾一次。';
+  const scriptFileLabel = selectedScriptFile?.name || scriptState?.fileName || '未载入脚本';
+  const scriptHeroStatusText = selectedScriptFile
+    ? '正在读取并导入脚本…导入完成后会自动同步到时间轴工作区。'
+    : scriptLoaded
+      ? `当前脚本按 ${scriptSpeedLabel} 播放；${scriptSettings.loop ? (scriptLoopRange.active ? `循环区间为 ${scriptLoopRangeSummary}` : '已开启整段循环') : '当前为单次播放模式'}。`
+      : '选择一个 .funscript / .json 文件后即可进入时间轴工作区，后续可直接拖动时间轴、设置 A-B 和按关键帧步进。';
+  const scriptOutputBehaviorText = '当前脚本模式固定按脚本内容直接发送位置。常规 funscript 只有位置关键帧，因此现在不会再按轴配置或输出配置自动补算 S / I。';
+  const scriptPlaybackRateHelpText = '这里调整的是脚本时间倍率，不是 TCode S 速度；只影响脚本在时间轴上的推进快慢。';
+  const scriptPrimaryTransportBusy = busyKey === 'script-play' || busyKey === 'script-pause';
+  const scriptTransportPrimaryLabel = scriptState?.playing ? '暂停' : scriptPrimaryActionLabel;
+  const scriptLoopAnchorModeLabel = scriptSeekDragging ? '拖拽预览' : '当前播放位置';
+  const scriptLoopAnchorValueLabel = scriptLoaded ? formatDuration(scriptSeekBasePosition) : '未载入';
+  const scriptShortcutScopeText = '快捷键只在脚本页空白区域生效；输入框、按钮和滑条获得焦点时会自动让出键盘，长按按键也不会重复连发。';
+  const scriptTimelineSupportText = '时间码支持 90、1:30、01:23.45 这类格式。';
+  const scriptTimelinePreviewLabel = !scriptLoaded ? '载入脚本后可拖动定位' : scriptSeekDragging ? `预览 ${formatDuration(scriptSeekBasePosition)}` : `当前 ${formatDuration(scriptPositionMs)}`;
+  const scriptWorkspaceEmptyTitle = selectedScriptFile ? '正在导入脚本…' : '还没有载入脚本';
+  const scriptWorkspaceEmptyDescription = selectedScriptFile
+    ? '脚本文件内容正在读取并同步到 Companion；导入完成后，这里会自动切换成完整时间轴工作区。'
+    : '先选择一个脚本文件，随后就可以在这里拖动时间轴、框选 A-B、用快捷键对点和按关键帧步进。';
+  const scriptShortcutGroups = SCRIPT_SHORTCUT_GROUPS.map(group => ({
+    ...group,
+    items: group.items.map(item => ({
+      ...item,
+      availability: getScriptShortcutAvailability(item.requirement, {
+        scriptLoaded,
+        hasLoopStart: scriptLoopRange.startMs !== null,
+        hasLoopEnd: scriptLoopRange.endMs !== null,
+        hasLoopMarkers: scriptHasLoopMarkers,
+      }),
+    })),
+  }));
 
   useEffect(() => {
     let disposed = false;
@@ -3547,8 +3511,16 @@ function App() {
       }
     }
 
-    function connect() {
+    async function connect() {
       setWsState('connecting');
+      try {
+        const session = await fetch('/api/session', { credentials: 'same-origin' });
+        if (!session.ok) throw new Error('Session rejected');
+      } catch {
+        if (!disposed) { setWsState('error'); retryHandle = window.setTimeout(connect, 3000); }
+        return;
+      }
+      if (disposed) return;
       const currentSocket = new WebSocket(WS_URL);
       socket = currentSocket;
       setWsCommandSocket(currentSocket);
@@ -3614,6 +3586,18 @@ function App() {
       closeSocket('Component disposed');
     };
   }, []);
+
+  async function recordingAction(action) {
+    try {
+      const result = await apiRequest(`/api/recording/${action}`, { method: 'POST' });
+      if (action === 'export') {
+        if (!result.content) { notify('录制为空', 'info'); return; }
+        const url = URL.createObjectURL(new Blob([result.content], { type: 'application/json' }));
+        const link = document.createElement('a'); link.href = url; link.download = result.fileName; link.click();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+    } catch (error) { notify(error.message, 'error'); }
+  }
 
   function notify(message, severity = 'info') {
     setSnackbar({ open: true, message, severity });
@@ -3701,7 +3685,9 @@ function App() {
       nextConfig.osc = {
         ...nextConfig.osc,
         enabled: Boolean(oscDraft.oscEnabled),
-        receiverHost: (oscDraft.receiverHost || '0.0.0.0').trim() || '0.0.0.0',
+        receiverHost: (oscDraft.receiverHost || '127.0.0.1').trim() || '127.0.0.1',
+        inputTimeoutMs: Number(oscDraft.inputTimeoutMs || 0),
+        allowedSourceAddresses: (oscDraft.allowedSourceAddresses || '').split(/[ ,;\n]+/).filter(Boolean),
         receiverPort: Number(oscDraft.receiverPort || 9001),
         oscQueryEnabled: Boolean(oscDraft.oscQueryEnabled),
         oscQueryUrl: (oscDraft.oscQueryUrl || '').trim(),
@@ -4476,76 +4462,6 @@ function App() {
       ? '选中预设后可在这里查看说明。'
       : '当前没有可用预设，可先新建一套。';
 
-  const studioState = studio || DEFAULT_STUDIO_STATE;
-  const outputs = getOutputs(config);
-  const axisProfiles = getAxisProfiles(config);
-  const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
-  const runtimeOverview = overview?.runtime || overview?.loop || null;
-  const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
-  const hasPendingInputMode = selectedInputTab !== actualInputMode;
-
-  const scriptState = overview?.input?.script || null;
-  const scriptLoaded = Boolean(scriptState?.loaded);
-  const scriptDurationMs = Math.max(0, Number(scriptState?.durationMs || 0));
-  const scriptPositionMs = Math.max(0, Math.min(Number(scriptState?.positionMs || 0), scriptDurationMs || 0));
-  const scriptRemainingMs = Math.max(0, scriptDurationMs - scriptPositionMs);
-  const scriptProgressPercent = scriptDurationMs > 0 ? Math.min(100, (scriptPositionMs / scriptDurationMs) * 100) : 0;
-  const scriptSliderMax = Math.max(scriptDurationMs, 1);
-  const scriptSeekValue = scriptSeekDragging ? clampScriptPositionMs(scriptSeekDraft, scriptDurationMs) : scriptPositionMs;
-  const scriptSeekBasePosition = clampScriptPositionMs(scriptSeekValue, scriptDurationMs);
-  const scriptLoopRange = useMemo(() => normalizeScriptLoopRange(scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs), [scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs]);
-  const scriptHasLoopMarkers = scriptLoopRange.startMs !== null || scriptLoopRange.endMs !== null;
-  const scriptActivityBins = Array.isArray(scriptState?.activityBins) ? scriptState.activityBins : [];
-  const scriptStateMeta = getScriptStateMeta(scriptState?.state);
-  const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
-  const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
-  const scriptSpeedLabel = formatScriptSpeedLabel(scriptSettings.speed);
-  const scriptLoopStartLabel = scriptLoopRange.startMs === null ? 'A 未设' : `A ${formatDuration(scriptLoopRange.startMs)}`;
-  const scriptLoopEndLabel = scriptLoopRange.endMs === null ? 'B 未设' : `B ${formatDuration(scriptLoopRange.endMs)}`;
-  const scriptLoopModeLabel = scriptSettings.loop ? '循环播放已开启' : '循环播放已关闭';
-  const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '';
-  const scriptLoopLengthMs = scriptLoopRange.active ? Math.max(0, scriptLoopRange.endMs - scriptLoopRange.startMs) : 0;
-  const scriptLoopCoveragePercent = scriptLoopRange.active && scriptDurationMs > 0 ? (scriptLoopLengthMs / scriptDurationMs) * 100 : 0;
-  const scriptCurrentInLoopRange = scriptLoopRange.active ? scriptPositionMs >= scriptLoopRange.startMs && scriptPositionMs < scriptLoopRange.endMs : null;
-  const scriptLoopModeHelpText = !scriptLoaded
-    ? '先设好速度和循环偏好，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'
-    : scriptSettings.loop
-      ? scriptLoopRange.active
-        ? '已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。'
-        : '已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。'
-      : '已关闭。当前会从当前位置播放到结尾一次。';
-  const scriptFileLabel = selectedScriptFile?.name || scriptState?.fileName || '未载入脚本';
-  const scriptHeroStatusText = selectedScriptFile
-    ? '正在读取并导入脚本…导入完成后会自动同步到时间轴工作区。'
-    : scriptLoaded
-      ? `当前脚本按 ${scriptSpeedLabel} 播放；${scriptSettings.loop ? (scriptLoopRange.active ? `循环区间为 ${scriptLoopRangeSummary}` : '已开启整段循环') : '当前为单次播放模式'}。`
-      : '选择一个 .funscript / .json 文件后即可进入时间轴工作区，后续可直接拖动时间轴、设置 A-B 和按关键帧步进。';
-  const scriptOutputBehaviorText = '当前脚本模式固定按脚本内容直接发送位置。常规 funscript 只有位置关键帧，因此现在不会再按轴配置或输出配置自动补算 S / I。';
-  const scriptPlaybackRateHelpText = '这里调整的是脚本时间倍率，不是 TCode S 速度；只影响脚本在时间轴上的推进快慢。';
-  const scriptPrimaryTransportBusy = busyKey === 'script-play' || busyKey === 'script-pause';
-  const scriptTransportPrimaryLabel = scriptState?.playing ? '暂停' : scriptPrimaryActionLabel;
-  const scriptLoopAnchorModeLabel = scriptSeekDragging ? '拖拽预览' : '当前播放位置';
-  const scriptLoopAnchorValueLabel = scriptLoaded ? formatDuration(scriptSeekBasePosition) : '未载入';
-  const scriptShortcutScopeText = '快捷键只在脚本页空白区域生效；输入框、按钮和滑条获得焦点时会自动让出键盘，长按按键也不会重复连发。';
-  const scriptTimelineSupportText = '时间码支持 90、1:30、01:23.45 这类格式。';
-  const scriptTimelinePreviewLabel = !scriptLoaded ? '载入脚本后可拖动定位' : scriptSeekDragging ? `预览 ${formatDuration(scriptSeekBasePosition)}` : `当前 ${formatDuration(scriptPositionMs)}`;
-  const scriptWorkspaceEmptyTitle = selectedScriptFile ? '正在导入脚本…' : '还没有载入脚本';
-  const scriptWorkspaceEmptyDescription = selectedScriptFile
-    ? '脚本文件内容正在读取并同步到 Companion；导入完成后，这里会自动切换成完整时间轴工作区。'
-    : '先选择一个脚本文件，随后就可以在这里拖动时间轴、框选 A-B、用快捷键对点和按关键帧步进。';
-  const scriptShortcutGroups = SCRIPT_SHORTCUT_GROUPS.map(group => ({
-    ...group,
-    items: group.items.map(item => ({
-      ...item,
-      availability: getScriptShortcutAvailability(item.requirement, {
-        scriptLoaded,
-        hasLoopStart: scriptLoopRange.startMs !== null,
-        hasLoopEnd: scriptLoopRange.endMs !== null,
-        hasLoopMarkers: scriptHasLoopMarkers,
-      }),
-    })),
-  }));
-
   function renderScriptPlayer() {
     const scriptLoopChipLabel = scriptSettings.loop
       ? scriptLoopRange.active
@@ -5027,20 +4943,8 @@ function App() {
     if (!hasMultipleOscSources || previewSourceTab === 'all') return oscPreview;
     return filterOscPreviewEntriesBySource(oscPreview, previewSourceTab);
   }, [hasMultipleOscSources, oscPreview, previewSourceTab]);
-  const sortedOscPreview = useMemo(() => {
-    const signals = Array.isArray(signalDrafts) ? signalDrafts.filter(d => d?.oscPath) : [];
-    return [...previewEntriesForTab]
-      .map(entry => {
-        const matchingSignals = signals.filter(signal => matchesOscPathPattern(signal.oscPath, entry?.path || ''));
-        return { ...entry, _matches: matchingSignals.length > 0 ? matchingSignals : null };
-      })
-      .sort((left, right) => {
-        const leftMatch = left._matches ? 1 : 0;
-        const rightMatch = right._matches ? 1 : 0;
-        if (leftMatch !== rightMatch) return rightMatch - leftMatch;
-        return (left?.path || '').localeCompare(right?.path || '', 'zh-CN', { numeric: true, sensitivity: 'base' });
-      });
-  }, [previewEntriesForTab, signalDrafts]);
+  const rankedOscPreview = useMemo(() => rankPreview(previewEntriesForTab, signalDrafts, { showFaceTracking, search: oscPreviewSearch }), [previewEntriesForTab, signalDrafts, showFaceTracking, oscPreviewSearch]);
+  const sortedOscPreview = rankedOscPreview.slice(0, previewLimit);
   const oscListenerStatus = useMemo(() => {
     if (!oscConfigEnabled) {
       return {
@@ -5358,6 +5262,8 @@ function App() {
                   </Stack>
 
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
+                    <Button size="small" onClick={() => recordingAction(overview?.recording?.isActive ? 'stop' : 'start')}>{overview?.recording?.isActive ? '停止录制' : '录制 L0'}</Button>
+                    <Button size="small" disabled={!overview?.recording?.frameCount} onClick={() => recordingAction('export')}>导出录制 ({overview?.recording?.frameCount || 0})</Button>
                     {hasPendingInputMode && (
                       <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>
                         恢复到当前输入
@@ -5380,7 +5286,7 @@ function App() {
                           }}
                         />
                       }
-                      label={<Typography variant="body2">输入开关</Typography>}
+                      label={<Typography variant="body2">输入开关（关闭停止设备）</Typography>}
                     />
                   </Stack>
                 </Stack>
@@ -5390,6 +5296,7 @@ function App() {
                 </Typography>
               </Box>
 
+              {runtimeOverview?.gateClosed && <Alert severity="info">OSC 门控已关闭，输出已停止；所有门控信号开启后恢复。</Alert>}
               <Tabs value={selectedInputTab} onChange={(_, next) => selectInputTab(next)} variant="scrollable" allowScrollButtonsMobile>
                 {INPUT_MODES.map(item => (
                   <Tab key={item.value} value={item.value} label={item.label} />
@@ -5426,7 +5333,9 @@ function App() {
                           />
 
                           <Box className="osc-settings-panel__field-grid">
-                            <TextField label={<HelpLabel text="监听地址" title="Sensa 本地 UDP OSC 监听地址。通常保持 0.0.0.0 即可。" />} size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
+                            <TextField label="监听地址" helperText="默认仅本机；局域网监听请设置允许来源" size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
+                            <TextField size="small" label="允许来源 IP（留空不限）" value={oscDraft.allowedSourceAddresses} onChange={e => setOscDraft(p => ({ ...p, allowedSourceAddresses: e.target.value }))} />
+                            <TextField size="small" type="number" label="断流停止（毫秒；0 关闭）" helperText="OSC 可能仅在值变化时发送；仅在持续发送的来源上启用。" value={oscDraft.inputTimeoutMs} onChange={e => setOscDraft(p => ({ ...p, inputTimeoutMs: Number(e.target.value) }))} />
                             <TextField
                               label={<HelpLabel text="监听端口" title="Sensa 本地 UDP OSC 监听端口。" />}
                               type="number"
@@ -5573,8 +5482,11 @@ function App() {
                     <Box className="dialog-panel osc-preview-panel">
                       <Box className="dialog-panel__header">
                         <Typography variant="subtitle2">参数预览</Typography>
+                        {rankedOscPreview.length > previewLimit && <Button size="small" onClick={() => setPreviewLimit(previous => previous + 100)}>再显示 100 项</Button>}
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                          <Chip size="small" variant="outlined" label={`${previewEntriesForTab.length} 项`} />
+                          <Chip size="small" variant="outlined" label={`${rankedOscPreview.length} / ${previewEntriesForTab.length} 项`} />
+                          <FormControlLabel control={<Switch size="small" checked={showFaceTracking} onChange={e => setShowFaceTracking(e.target.checked)} />} label="显示 FT" />
+                          <TextField size="small" placeholder="搜索参数路径" value={oscPreviewSearch} onChange={e => setOscPreviewSearch(e.target.value)} />
                           {hasMultipleOscSources && (
                             <SelectField
                               label="使用来源"
@@ -5605,7 +5517,7 @@ function App() {
                         {previewEntriesForTab.length === 0 ? (
                           <Box className="empty-inline-state">
                             <Stack spacing={1} alignItems="center">
-                              <Typography color="text.secondary">暂无 OSC 实时参数</Typography>
+                              <Typography color="text.secondary">暂无符合筛选条件的 OSC 参数（FT 默认隐藏，已映射参数始终显示）</Typography>
                               {oscQueryNodes.length > 0 && <Typography variant="caption" color="text.secondary">已同步 {oscQueryNodes.length} 条 OSCQuery 路径</Typography>}
                             </Stack>
                           </Box>
@@ -5639,7 +5551,7 @@ function App() {
                                     : '';
 
                                   return (
-                                    <Tooltip key={`${entry.path}-${entry.timestampMs}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
+                                    <Tooltip key={`${entry.sourceKey}-${entry.path}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
                                       <TableRow
                                         hover
                                         sx={{
@@ -5650,6 +5562,7 @@ function App() {
                                         {hasMultipleOscSources && <TableCell>{entry.sourceLabel || '—'}</TableCell>}
                                         <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
                                           {entry.path}
+                                          {!matched && entry.classification?.hint && <Typography variant="caption" display="block" color="text.secondary">{entry.classification.hint}</Typography>}
                                         </TableCell>
                                         <TableCell>{entry.type || '—'}</TableCell>
                                         <TableCell align="right">{entry.value ?? '—'}</TableCell>
@@ -5737,15 +5650,15 @@ function App() {
                     </Alert>
 
                     {signalOverlapWarnings.length > 0 && (
-                      <Alert severity="warning" className="mapping-overlap-alert">
+                      <Alert severity="info" className="mapping-overlap-alert">
                         <Typography variant="body2" className="mapping-guide-alert__title">
-                          检测到同轴重叠映射：重叠区不会叠加。
+                          多个参数共同驱动同一输出轴。
                         </Typography>
                         <Typography variant="body2">
                           {signalOverlapWarnings.map(item => `${item.label} 当前有 ${item.affectedCount} 条规则的映射范围互相重叠，${item.fusionSummary}。进入重叠区后，系统会按“谁更深谁接管”只保留一条输出，所以另一条在部分区间看起来可能像没生效。`).join('；')}
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                          建议优先拆成不重叠区间；如果必须重叠，请把它理解成“控制权切换”，而不是“输出叠加”。
+                          多个孔位或协议别名可以映射到同一轴；按校准后的强度融合，不把数值相加。
                         </Typography>
                       </Alert>
                     )}

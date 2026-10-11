@@ -1,0 +1,34 @@
+{
+  "name": "sensa",
+  "version": "0.2.0",
+  "description": "**VRChat SPS/OGB/TPS 触点感知桥接，驱动 Intiface/TCode 物理设备。**",
+  "scripts": {
+    "build:web": "node scripts/build-web.mjs",
+    "test": "npm run lint && node --test tests/web/*.test.mjs",
+    "lint": "eslint src/web/app.js src/web/osc-preview.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/SeaLoong/Sensa.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/SeaLoong/Sensa/issues"
+  },
+  "homepage": "https://github.com/SeaLoong/Sensa#readme",
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "eslint": "10.12.0"
+  },
+  "private": true,
+  "dependencies": {
+    "@emotion/react": "11.14.0",
+    "@emotion/styled": "11.14.0",
+    "@mui/material": "5.18.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  }
+}

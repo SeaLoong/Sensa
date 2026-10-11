@@ -56,6 +56,17 @@ public sealed class MotionRuntime : IDisposable
     private volatile bool _inputActive = false;
     private volatile bool _disposed;
     private int _oscRefreshQueued;
+    private readonly Dictionary<string, SpsDepthEstimator> _spsDepth = new();
+    private readonly System.Threading.Timer _watchdog;
+    private long _activationTimestamp;
+    private long _generation;
+    private bool _patchWorkerRunning;
+    private (MotionPatch Patch, string Source, TCodeCommandMode? Mode, int? Value, long Generation)? _pendingPatch;
+    private volatile bool _gateClosed;
+    private bool _gateStopSent;
+    private volatile bool _forceNextFrame = true;
+    public bool IsGateClosed => _gateClosed;
+    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed;
     private long _lastEventTimestampMs = Environment.TickCount64;
 
     public MotionFrame LastCommand => _currentFrame;
@@ -96,6 +107,7 @@ public sealed class MotionRuntime : IDisposable
         _emergencyStopAsync = emergencyStopAsync;
         _preferredOscSourceKeyProvider = preferredOscSourceKeyProvider;
 
+        _watchdog = new System.Threading.Timer(_ => CheckInputTimeout(), null, 500, 500);
         RebuildProcessors();
 
         _store.OnSetWithSource += HandleOscValueChanged;
@@ -129,6 +141,11 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         _emergency = true;
+        _forceNextFrame = true;
+        _inputActive = false;
+        Interlocked.Increment(ref _generation);
+        lock (_sync) _pendingPatch = null;
+        _scriptPlayer.Pause();
         NotifyStateChanged();
         _ = SendEmergencyAsync();
     }
@@ -140,7 +157,7 @@ public sealed class MotionRuntime : IDisposable
 
         _emergency = false;
         NotifyStateChanged();
-        _ = ResendCurrentPoseAsync();
+        // Clearing emergency never resumes motion; input must be explicitly activated.
     }
 
     public void SetManualOverride(MotionFrame frame)
@@ -166,7 +183,10 @@ public sealed class MotionRuntime : IDisposable
         if (_inputMode == mode)
             return;
 
+        Interlocked.Increment(ref _generation);
+        _gateClosed = false;
         _inputMode = mode;
+        _forceNextFrame = true;
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
         NotifyStateChanged();
 
@@ -196,10 +216,15 @@ public sealed class MotionRuntime : IDisposable
 
     public void SetInputActive(bool active)
     {
+        if (active && _emergency) return;
         if (_inputActive == active)
             return;
 
+        Interlocked.Increment(ref _generation);
+        _activationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         _inputActive = active;
+        _forceNextFrame = true;
+        if (!active) { lock (_sync) _pendingPatch = null; _scriptPlayer.Pause(); _ = SendEmergencyAsync(); }
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
         NotifyStateChanged();
 
@@ -260,7 +285,9 @@ public sealed class MotionRuntime : IDisposable
                 processor.Reset();
         }
 
-        OnLog?.Invoke("[MotionRuntime] Avatar changed — signal processors reset.");
+        lock (_sync) _spsDepth.Clear();
+        if (_inputMode == RuntimeInputMode.Osc && _inputActive) EmergencyStop();
+        OnLog?.Invoke("[MotionRuntime] Avatar changed — signal processors reset; reactivate input when ready.");
         NotifyStateChanged();
     }
 
@@ -301,6 +328,14 @@ public sealed class MotionRuntime : IDisposable
                 return;
 
             var patch = BuildOscPatch();
+            if (_gateClosed)
+            {
+                _forceNextFrame = true;
+                if (!_gateStopSent && _emergencyStopAsync is not null) await _emergencyStopAsync();
+                _gateStopSent = true;
+                return;
+            }
+            _gateStopSent = false;
             if (patch.IsEmpty)
                 return;
 
@@ -324,16 +359,47 @@ public sealed class MotionRuntime : IDisposable
         lock (_sync)
             processors = new List<(string Path, SignalChannelProcessor Processor)>(_processors);
 
+        var gateOpen = true;
+        float? depthOverride = null;
         foreach (var (path, processor) in processors)
         {
-            if (!_store.TryGetLatest(path, preferredSourceKey, out var matchedPath, out var entry))
-                continue;
-
-            var rawValue = entry.Value.AsFloat();
-            var processedSample = processor.ProcessSample(rawValue);
-            _signals.Add(new SignalMixInput(processor.Mapping.Role, processedSample.Output, processedSample.Normalized));
-            var sourceLabel = string.IsNullOrWhiteSpace(entry.Source.Label) ? entry.Source.Key : entry.Source.Label;
-            OnDebugLog?.Invoke($"[Signal/OSC] {(matchedPath == path ? path : $"{path} => {matchedPath}")} source={sourceLabel} raw={rawValue:F4} norm={processedSample.Normalized:F4} curved={processedSample.Curved:F4} -> {processor.Mapping.Role}={processedSample.Output:F4}");
+            var thisGateOpen = false;
+            foreach (var matched in _store.MatchingEntries(path, preferredSourceKey))
+            {
+                var entry = matched.Entry;
+                if (_config.Osc.InputTimeoutMs > 0 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - entry.TimestampMs > _config.Osc.InputTimeoutMs) continue;
+                var rawValue = entry.Value.AsFloat();
+                if (processor.Mapping.SourceMode == "SpsSocketDepth")
+                {
+                    if (!matched.Path.EndsWith("NewRoot", StringComparison.Ordinal)) continue;
+                    var tipPath = matched.Path[..^7] + "NewTip";
+                    if (!_store.TryGetLatest(tipPath, entry.Source.Key, out var tip)) continue;
+                    // OSC can be delta-only: a saturated tip may legitimately remain
+                    // unchanged while root proximity keeps updating. Identity, not
+                    // timestamp proximity, determines whether this is the same pair.
+                    var key = entry.Source.Key + "|" + matched.Path;
+                    lock (_sync)
+                    {
+                        if (!_spsDepth.TryGetValue(key, out var estimator))
+                        {
+                            if (_spsDepth.Count >= 4096) continue;
+                            _spsDepth[key] = estimator = new SpsDepthEstimator();
+                        }
+                        rawValue = estimator.Process(rawValue, tip.Value.AsFloat());
+                    }
+                }
+                var sample = processor.ProcessSample(rawValue);
+                if (processor.Mapping.Role == SignalRole.GateEnable) { thisGateOpen |= sample.Output > .5f; continue; }
+                if (processor.Mapping.Role == SignalRole.DepthOverride) { depthOverride = Math.Max(depthOverride ?? 0, sample.Output); continue; }
+                _signals.Add(new SignalMixInput(processor.Mapping.Role, sample.Output, sample.Normalized));
+            }
+            if (processor.Mapping.Role == SignalRole.GateEnable) gateOpen &= thisGateOpen;
+        }
+        _gateClosed = !gateOpen;
+        if (depthOverride.HasValue)
+        {
+            _signals.RemoveAll(s => s.Role == SignalRole.Depth);
+            _signals.Add(new SignalMixInput(SignalRole.Depth, depthOverride.Value, 1));
         }
 
         var patch = _mixer.FusePatch(_signals);
@@ -358,21 +424,55 @@ public sealed class MotionRuntime : IDisposable
             requestedMotionValue: _manualFrame.RequestedMotionValue);
     }
 
-    private async Task ApplyPatchAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
+    private Task ApplyPatchAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
     {
-        await _sendGate.WaitAsync().ConfigureAwait(false);
-        try
+        lock (_sync)
         {
-            await ApplyPatchCoreAsync(patch, source, requestedCommandMode, requestedMotionValue).ConfigureAwait(false);
+            if (!CanSend) return Task.CompletedTask;
+            _pendingPatch = (patch, source, requestedCommandMode, requestedMotionValue, Interlocked.Read(ref _generation));
+            if (_patchWorkerRunning) return Task.CompletedTask;
+            _patchWorkerRunning = true;
         }
-        finally
+        return Task.Run(async () =>
         {
-            _sendGate.Release();
-        }
+            while (true)
+            {
+                await _sendGate.WaitAsync().ConfigureAwait(false);
+                try
+                {
+                    (MotionPatch Patch, string Source, TCodeCommandMode? Mode, int? Value, long Generation)? pending;
+                    lock (_sync)
+                    {
+                        pending = _pendingPatch; _pendingPatch = null;
+                        if (pending is null) { _patchWorkerRunning = false; return; }
+                    }
+                    var request = pending.Value;
+                    if (CanSend && request.Generation == Interlocked.Read(ref _generation))
+                        await ApplyPatchCoreAsync(request.Patch, request.Source, request.Mode, request.Value);
+                }
+                catch (Exception ex) { OnLog?.Invoke($"[MotionRuntime] {ex.Message}"); }
+                finally { _sendGate.Release(); }
+            }
+        });
+    }
+
+    private void CheckInputTimeout()
+    {
+        if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
+        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        string[] paths;
+        lock (_sync) paths = _processors.Select(p => p.Path).ToArray();
+        if (paths.Length == 0) return;
+        var source = _preferredOscSourceKeyProvider?.Invoke();
+        var last = paths.SelectMany(p => _store.MatchingEntries(p, source)).Select(e => e.Entry.TimestampMs).DefaultIfEmpty(_activationTimestamp).Max();
+        if (now - Math.Max(last, _activationTimestamp) <= _config.Osc.InputTimeoutMs) return;
+        OnLog?.Invoke("[MotionRuntime] OSC input timeout; emergency stop.");
+        EmergencyStop();
     }
 
     private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
     {
+        if (!CanSend) return;
         var elapsedMs = ConsumeElapsedMs();
         var deltaMs = requestedCommandMode == TCodeCommandMode.Interval && requestedMotionValue is > 0
             ? requestedMotionValue.Value
@@ -396,7 +496,7 @@ public sealed class MotionRuntime : IDisposable
 
         _currentFrame = next;
 
-        if (!motionRequestChanged && MotionAxisHelper.AreEqual(previous, next))
+        if (!_forceNextFrame && !motionRequestChanged && MotionAxisHelper.AreEqual(previous, next))
         {
             if (!patch.IsEmpty)
                 OnDebugLog?.Invoke($"[MotionRuntime/{source}] Patch applied but produced no effective pose change.");
@@ -407,6 +507,7 @@ public sealed class MotionRuntime : IDisposable
         OnDebugLog?.Invoke($"[MotionRuntime/{source}] L0={next.L0:F3} R0={next.R0:F3} R1={next.R1:F3} R2={next.R2:F3} L1={next.L1:F3} L2={next.L2:F3} V0={next.V0:F3} V1={next.V1:F3} V2={next.V2:F3} A0={next.A0:F3} A1={next.A1:F3} A2={next.A2:F3}");
 
         _recorder?.Push(next);
+        _forceNextFrame = false;
         await SendOutputsAsync(next).ConfigureAwait(false);
         NotifyStateChanged();
     }
@@ -441,6 +542,7 @@ public sealed class MotionRuntime : IDisposable
 
     private async Task SendOutputsAsync(MotionFrame frame)
     {
+        if (!CanSend) return;
         if (_sendOutputsAsync is not null)
         {
             try
@@ -581,10 +683,12 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         _disposed = true;
+        _watchdog.Dispose();
+        lock (_sync) _pendingPatch = null;
         _store.OnSetWithSource -= HandleOscValueChanged;
         _oscReceiver.OnAvatarChange -= HandleAvatarChanged;
         _scriptPlayer.OnFrame -= HandleScriptFrame;
         _scriptPlayer.OnStateChanged -= HandleScriptStateChanged;
-        _sendGate.Dispose();
+        // Pending workers may still release this managed semaphore after cancellation.
     }
 }

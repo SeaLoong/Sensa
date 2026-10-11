@@ -25,19 +25,20 @@ public sealed class MotionRecorder
 
     public void Start()
     {
-        lock (_frames) _frames.Clear();
-        _startMs = Environment.TickCount64;
-        _active  = true;
+        lock (_frames) { _frames.Clear(); _startMs = Environment.TickCount64; _active = true; }
     }
 
-    public void Stop() => _active = false;
+    public void Stop() { lock (_frames) _active = false; }
 
     /// <summary>Called by the runtime whenever a new motion frame is emitted.</summary>
     public void Push(MotionFrame frame)
     {
-        if (!_active) return;
-        long relMs = Environment.TickCount64 - _startMs;
-        lock (_frames) _frames.Add((relMs, frame.L0));
+        lock (_frames)
+        {
+            if (!_active || !float.IsFinite(frame.L0)) return;
+            if (_frames.Count >= 100000) { _active = false; return; }
+            _frames.Add((Environment.TickCount64 - _startMs, frame.L0));
+        }
     }
 
     /// <summary>Returns a snapshot of all recorded frames (copy).</summary>
@@ -65,7 +66,7 @@ public static class FunscriptExporter
     /// Export the buffer to %USERPROFILE%\Documents\Sensa\recordings\.
     /// Applies Ramer-Douglas-Peucker decimation (ε=0.02) to remove redundant frames.
     /// </summary>
-    public static string Export(MotionRecorder recorder)
+    public static string Serialize(MotionRecorder recorder)
     {
         var frames = recorder.TakeSnapshot();
         if (frames.Count == 0) return "";
@@ -89,14 +90,20 @@ public static class FunscriptExporter
             ["range"]    = 100,
             ["actions"]  = actionsArray,
         };
-        string json = root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+        return root.ToJsonString(new JsonSerializerOptions { WriteIndented = true });
+    }
+
+    public static string Export(MotionRecorder recorder)
+    {
+        var json = Serialize(recorder);
+        if (json.Length == 0) return "";
 
         var dir = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
             "Sensa", "recordings");
         Directory.CreateDirectory(dir);
 
-        string fileName = $"recording_{DateTime.Now:yyyyMMdd_HHmmss}.funscript";
+        string fileName = $"recording_{DateTime.Now:yyyyMMdd_HHmmss_fff}.funscript";
         string path = Path.Combine(dir, fileName);
         File.WriteAllText(path, json);
 

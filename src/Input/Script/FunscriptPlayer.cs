@@ -24,7 +24,7 @@ public sealed record FunscriptPlaybackSnapshot(
     public long? LoopEndMs { get; init; }
 }
 
-public sealed class FunscriptPlayer
+public sealed class FunscriptPlayer : IDisposable
 {
     private const int ActivityBinCount = 64;
 
@@ -293,8 +293,9 @@ public sealed class FunscriptPlayer
 
         lock (_gate)
         {
+            var wasPlaying = _playing;
             AdvanceLocked(Environment.TickCount64);
-            shouldEmit = _playing && _actions.Count > 0;
+            shouldEmit = wasPlaying && _actions.Count > 0;
             currentL0 = _lastL0;
 
             if (!shouldEmit)
@@ -563,6 +564,7 @@ public sealed class FunscriptPlayer
 
             var atMs = Math.Max(atElement.GetInt64(), 0L);
             var pos01 = (float)Math.Clamp(posElement.GetDouble() / 100.0, 0.0, 1.0);
+            if (atMs > 7L * 24 * 60 * 60 * 1000 || actions.Count >= 500000) throw new InvalidDataException("Script exceeds the duration or action limit.");
             actions.Add(new FunscriptAction(atMs, pos01));
         }
 
@@ -590,9 +592,9 @@ public sealed class FunscriptPlayer
         return bins;
     }
 
-    ~FunscriptPlayer()
+    public void Dispose()
     {
-        _playbackTimer?.Dispose();
+        lock (_gate) { _playing = false; _playbackTimer?.Dispose(); _playbackTimer = null; }
     }
 
     private sealed record ParsedScript(List<FunscriptAction> Actions, long DurationMs, int[] ActivityBins);

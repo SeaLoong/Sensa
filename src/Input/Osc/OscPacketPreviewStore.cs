@@ -73,8 +73,9 @@ internal static class OscPacketPreviewParser
         return result;
     }
 
-    private static void AppendEntries(byte[] data, OscSource source, long timestampMs, List<OscPacketPreviewEntry> entries)
+    private static void AppendEntries(byte[] data, OscSource source, long timestampMs, List<OscPacketPreviewEntry> entries, int depth = 0)
     {
+        if (depth > 16 || entries.Count >= 64) return;
         if (data is null || data.Length < 4)
             return;
 
@@ -89,12 +90,12 @@ internal static class OscPacketPreviewParser
             while (position + 4 <= data.Length)
             {
                 var size = ReadInt32(data, ref position);
-                if (size <= 0 || position + size > data.Length)
+                if (size <= 0 || size > data.Length - position)
                     break;
 
                 var nested = new byte[size];
                 Array.Copy(data, position, nested, 0, size);
-                AppendEntries(nested, source, timestampMs, entries);
+                AppendEntries(nested, source, timestampMs, entries, depth + 1);
                 position += size;
             }
 

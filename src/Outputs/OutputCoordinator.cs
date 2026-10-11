@@ -18,6 +18,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
     private int _stateChangeBatchDepth;
     private bool _stateChangePending;
 
+    public Func<bool> CanSend { get; set; } = () => false;
     public event Action? StateChanged;
 
     public OutputCoordinator(AppConfig config, Action<string> log, Action<string> logDebug, Action<string> logError)
@@ -64,8 +65,6 @@ public sealed class OutputCoordinator : IAsyncDisposable
                     continue;
                 }
 
-                if (existing is not null)
-                    remaining.Remove(output.Id);
 
                 nextConnections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
             }
@@ -142,13 +141,21 @@ public sealed class OutputCoordinator : IAsyncDisposable
                 .ToList();
         }
 
-        foreach (var (output, connection) in activeConnections)
+        await Task.WhenAll(activeConnections.Select(item => Task.Run(async () =>
         {
-            if (!output.Enabled || !connection.IsConnected)
-                continue;
+            if (!CanSend() || !item.Output.Enabled || !item.Connection.IsConnected) return;
+            try { await item.Connection.SendAsync(frame, CanSend); }
+            catch (Exception ex) { _logError($"[Output] {ex.Message}"); }
+        })));
+    }
 
-            await connection.SendAsync(frame);
-        }
+    public async Task RefreshUdpAsync(MotionFrame frame)
+    {
+        OutputConnection[] connections;
+        lock (_sync) connections = _config.Outputs.Where(o => o.Enabled && o.Type == OutputDeviceType.TCodeUdp)
+            .Select(o => _connections.GetValueOrDefault(o.Id)).OfType<OutputConnection>().ToArray();
+        foreach (var connection in connections)
+            if (CanSend()) await connection.SendAsync(frame, CanSend);
     }
 
     public bool IsConnected(string? outputId)
@@ -177,10 +184,11 @@ public sealed class OutputCoordinator : IAsyncDisposable
         lock (_sync)
             connections = _connections.Values.ToList();
 
-        foreach (var connection in connections)
+        await Task.WhenAll(connections.Select(connection => Task.Run(async () =>
         {
-            await connection.EmergencyStopAsync();
-        }
+            try { await connection.EmergencyStopAsync(); }
+            catch (Exception ex) { _logError($"[Emergency] {ex.Message}"); }
+        })));
 
         NotifyStateChanged();
     }
@@ -319,6 +327,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
 
 internal sealed class OutputConnection : IAsyncDisposable
 {
+    private readonly SemaphoreSlim _operationGate = new(1, 1);
     private readonly AppConfig _config;
     private readonly OutputDeviceConfig _output;
     private readonly Action<string> _log;
@@ -389,6 +398,13 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async Task<bool> ConnectAsync()
     {
+        await _operationGate.WaitAsync();
+        try { return await ConnectCoreAsync(); }
+        finally { _operationGate.Release(); }
+    }
+
+    private async Task<bool> ConnectCoreAsync()
+    {
         try
         {
             if (IsConnected)
@@ -400,19 +416,19 @@ internal sealed class OutputConnection : IAsyncDisposable
                     if (string.IsNullOrWhiteSpace(_output.ComPort))
                         return false;
                     _serial?.Connect();
-                    _serial?.Center();
+                    // Connecting does not move the device. Motion requires active input.
                     _log($"[Output] 已连接 {Label}: {_output.ComPort}");
                     _notifyChanged?.Invoke();
                     return _serial?.IsConnected == true;
                 case OutputDeviceType.TCodeUdp:
                     _udp?.Connect();
-                    _udp?.Center();
+                    // Connecting does not move the device. Motion requires active input.
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
                     _notifyChanged?.Invoke();
                     return _udp?.IsConnected == true;
                 case OutputDeviceType.TCodeTcp:
                     _tcp?.Connect();
-                    _tcp?.Center();
+                    // Connecting does not move the device. Motion requires active input.
                     _log($"[Output] 已连接 {Label}: {_output.Host}:{_output.Port}");
                     _notifyChanged?.Invoke();
                     return _tcp?.IsConnected == true;
@@ -454,6 +470,13 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async Task DisconnectAsync()
     {
+        await _operationGate.WaitAsync();
+        try { await DisconnectCoreAsync(); }
+        finally { _operationGate.Release(); }
+    }
+
+    private async Task DisconnectCoreAsync()
+    {
         switch (_output.Type)
         {
             case OutputDeviceType.TCodeSerial:
@@ -477,7 +500,14 @@ internal sealed class OutputConnection : IAsyncDisposable
         _notifyChanged?.Invoke();
     }
 
-    public Task SendAsync(MotionFrame frame)
+    public async Task SendAsync(MotionFrame frame, Func<bool>? canSend = null)
+    {
+        await _operationGate.WaitAsync();
+        try { if (canSend?.Invoke() == false) return; await SendCoreAsync(frame); }
+        finally { _operationGate.Release(); }
+    }
+
+    private Task SendCoreAsync(MotionFrame frame)
     {
         switch (_output.Type)
         {
@@ -536,6 +566,13 @@ internal sealed class OutputConnection : IAsyncDisposable
     }
 
     public async ValueTask DisposeAsync()
+    {
+        await _operationGate.WaitAsync();
+        try { await DisposeCoreAsync(); }
+        finally { _operationGate.Release(); }
+    }
+
+    private async ValueTask DisposeCoreAsync()
     {
         switch (_output.Type)
         {

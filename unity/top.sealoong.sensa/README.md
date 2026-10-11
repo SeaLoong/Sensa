@@ -12,7 +12,7 @@ VRChat SPS/OGB/TPS 触点感知桥接，用于在 VRChat 头像上自动生成�
 ## 安装（VCC）
 
 1. 在 VCC / ALCOM 中添加此 VPM 源：
-   - **仓库地址**：`https://github.com/SeaLoong/Sensa`
+   - **仓库地址**：`https://sealoong.github.io/Sensa/vpm.json`
 2. 安装 **Sensa** 包到你的项目。
 3. 在头像的 GameObject 上添加 `Sensa Component` 组件。
 4. 在 Inspector 中配置 Socket/Plug 参数。

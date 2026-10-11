@@ -24,12 +24,11 @@ namespace UnityBox.Sensa
 
     public enum AuxSignalSourceType
     {
-        PhysBone,           // Auto-created VRCPhysBone
-        Contact,            // Auto-created VRCContactReceiver (Proximity)
-#if SENSA_HAS_VRCRAYCAST
-        Raycast,            // Auto-created VRCRaycast (SDK >= 3.10.3)
-#endif
-        ExistingParameter,  // Reference an already-named VRChat parameter
+        PhysBone = 0,
+        Contact = 1,
+        ExistingParameter = 2,
+        Raycast = 3,
+
     }
 
     public enum AuxSignalRole
@@ -192,7 +191,7 @@ namespace UnityBox.Sensa
             for (int i = 0; i < auxSignals.Count; i++)
             {
                 var aux = auxSignals[i];
-                string prefix = $"Sensa/{instanceName}/Aux{i}";
+                string prefix = $"Sensa/{instanceName}/Aux{i}/{aux.role}";
                 if (aux.sourceType == AuxSignalSourceType.ExistingParameter)
                 {
                     if (!string.IsNullOrEmpty(aux.existingParameterName))
@@ -212,6 +211,10 @@ namespace UnityBox.Sensa
                 }
                 else
                 {
+                    #if SENSA_HAS_VRCRAYCAST
+                    if (aux.sourceType == AuxSignalSourceType.Raycast) { list.Add(prefix + "_Hit"); list.Add(prefix + "_Ratio"); }
+                    else
+#endif
                     list.Add(prefix);
                 }
             }

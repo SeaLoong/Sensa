@@ -27,7 +27,7 @@ public sealed class MotionPatch
     public IEnumerable<MotionAxis> Axes => _values.Keys;
     public IEnumerable<KeyValuePair<MotionAxis, float>> Entries => _values;
 
-    public void Set(MotionAxis axis, float value) => _values[axis] = Math.Clamp(value, 0f, 1f);
+    public void Set(MotionAxis axis, float value) { if (float.IsFinite(value)) _values[axis] = Math.Clamp(value, 0f, 1f); }
 
     public bool TryGetValue(MotionAxis axis, out float value) => _values.TryGetValue(axis, out value);
 

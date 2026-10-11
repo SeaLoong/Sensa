@@ -216,8 +216,10 @@ public sealed class OscQueryPollingConfig
 public sealed class OscReceiverConfig
 {
     public bool Enabled { get; set; } = true;
-    public string ReceiverHost { get; set; } = "0.0.0.0";
+    public string ReceiverHost { get; set; } = "127.0.0.1";
     public int ReceiverPort { get; set; } = 9001;
+    public int InputTimeoutMs { get; set; } = 0;
+    public List<string> AllowedSourceAddresses { get; set; } = new();
     public bool OscQueryEnabled { get; set; } = true;
     public string OscQueryUrl { get; set; } = "http://127.0.0.1:9001/";
     public OscQueryPollingConfig OscQueryPolling { get; set; } = new();
@@ -287,7 +289,8 @@ public sealed class AppConfig
 
     private static string ConfigPath()
     {
-        return Path.Combine(AppContext.BaseDirectory, "config.json");
+        return Environment.GetEnvironmentVariable("SENSA_CONFIG_PATH") is { Length: > 0 } path
+            ? Path.GetFullPath(path) : Path.Combine(AppContext.BaseDirectory, "config.json");
     }
 
     private static AppConfig CreateDefaultConfig()
@@ -321,26 +324,34 @@ public sealed class AppConfig
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[Sensa] Failed to load config: {ex.Message}");
+            var path = ConfigPath();
+            if (File.Exists(path)) File.Copy(path, path + ".invalid-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"), overwrite: false);
         }
         return CreateDefaultConfig();
     }
 
+    private static readonly object SaveGate = new();
     public void Save()
     {
-        try
+        lock (SaveGate)
         {
-            NormalizeForRuntime();
             var path = ConfigPath();
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var snapshot = new AppConfig();
             snapshot.CopyFrom(this);
             snapshot.ResetTransientRuntimeState();
             var json = JsonSerializer.Serialize(snapshot, JsonOpts);
-            File.WriteAllText(path, json);
-        }
-        catch (Exception ex)
-        {
-            Console.Error.WriteLine($"[Sensa] Failed to save config: {ex.Message}");
+            var temp = path + "." + Guid.NewGuid().ToString("N") + ".tmp";
+            try
+            {
+                using (var file = new FileStream(temp, FileMode.CreateNew, FileAccess.Write, FileShare.None))
+                {
+                    using var writer = new StreamWriter(file, leaveOpen: true);
+                    writer.Write(json); writer.Flush(); file.Flush(true);
+                }
+                File.Move(temp, path, overwrite: true);
+            }
+            finally { if (File.Exists(temp)) File.Delete(temp); }
         }
     }
 
@@ -350,7 +361,9 @@ public sealed class AppConfig
 
         var osc = other.Osc ?? new OscReceiverConfig();
         Osc.Enabled = osc.Enabled;
-        Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "0.0.0.0" : osc.ReceiverHost;
+        Osc.InputTimeoutMs = Math.Clamp(osc.InputTimeoutMs, 0, 600000);
+        Osc.AllowedSourceAddresses = (osc.AllowedSourceAddresses ?? new()).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => System.Net.IPAddress.TryParse(s.Trim(), out var ip) ? ip.ToString() : throw new ArgumentException($"Invalid OSC source IP: {s}")).Distinct().Take(32).ToList();
+        Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "127.0.0.1" : osc.ReceiverHost;
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
         Osc.OscQueryEnabled = osc.OscQueryEnabled;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : osc.OscQueryUrl.Trim();
@@ -401,7 +414,7 @@ public sealed class AppConfig
         OscMappingPresets = CloneOscMappingPresets(OscMappingPresets);
         SchemaVersion = 5;
 
-        Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "0.0.0.0" : Osc.ReceiverHost;
+        Osc.ReceiverHost = string.IsNullOrWhiteSpace(Osc.ReceiverHost) ? "127.0.0.1" : Osc.ReceiverHost;
         Osc.ReceiverPort = Osc.ReceiverPort is > 0 and <= 65535 ? Osc.ReceiverPort : 9001;
         Osc.OscQueryUrl = string.IsNullOrWhiteSpace(Osc.OscQueryUrl) ? "http://127.0.0.1:9001/" : Osc.OscQueryUrl.Trim();
         Osc.OscQueryPolling = CloneOscQueryPollingConfig(Osc.OscQueryPolling);
@@ -520,7 +533,7 @@ public sealed class AppConfig
         var occupiedTargets = new Dictionary<string, OscHubTargetConfig>(StringComparer.OrdinalIgnoreCase);
         var osc = Osc ?? new OscReceiverConfig();
         var hub = osc.Hub ?? new OscHubConfig();
-        var receiverHost = NormalizeHost(osc.ReceiverHost, "0.0.0.0");
+        var receiverHost = NormalizeHost(osc.ReceiverHost, "127.0.0.1");
         var receiverPort = NormalizePort(osc.ReceiverPort, 9001);
 
         foreach (var target in hub.Targets)
@@ -745,7 +758,7 @@ public sealed class AppConfig
 
     private static bool IsOscAnyHost(string host)
     {
-        return host == "0.0.0.0"
+        return host == "127.0.0.1"
             || host == "::"
             || host == "*"
             || host.Equals("any", StringComparison.OrdinalIgnoreCase);
@@ -1203,10 +1216,11 @@ public sealed class AppConfig
         var mappedMax = Math.Clamp(signal.MappedMax ?? 999, mappedMin, 999);
         return new SignalMapping
         {
-            OscPath         = signal.OscPath,
+            OscPath         = (signal.OscPath ?? "").Trim(),
+            SourceMode      = signal.SourceMode == "SpsSocketDepth" ? "SpsSocketDepth" : "Direct",
             InvertDirection = signal.InvertDirection,
-            VrchatMin       = signal.VrchatMin,
-            VrchatMax       = signal.VrchatMax,
+            VrchatMin       = float.IsFinite(signal.VrchatMin) ? signal.VrchatMin : 0,
+            VrchatMax       = float.IsFinite(signal.VrchatMax) ? signal.VrchatMax : 1,
             Curve           = signal.Curve,
             Role            = signal.Role,
             MappedMin       = mappedMin,
@@ -1218,73 +1232,10 @@ public sealed class AppConfig
 
     private static List<OscMappingPresetConfig> BuildDefaultOscMappingPresets()
     {
-        return new List<OscMappingPresetConfig>
-        {
-            new()
-            {
-                Id = "ogb-socket-full",
-                Name = "OGB Socket · 深度 + 姿态",
-                Description = "利用通配匹配任意 OGB Socket 孔位。深度使用完整行程；左右/上下姿态分别映射到 0-500 / 500-999 两段位置区间。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Orf/*/Main/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleRight_Raw", Role = SignalRole.AngleX, MappedMin = 500, MappedMax = 999, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleLeft_Raw", Role = SignalRole.AngleX, MappedMin = 0, MappedMax = 500, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleUp_Raw", Role = SignalRole.AngleY, MappedMin = 500, MappedMax = 999, IsOgbSocket = true },
-                    new() { OscPath = "OGB/Orf/*/Main/AngleDown_Raw", Role = SignalRole.AngleY, MappedMin = 0, MappedMax = 500, IsOgbSocket = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-full",
-                Name = "OGB Plug · 深度（插入 / 自插）",
-                Description = "Plug 方标准深度，同时映射 PenOthers+PenSelf。深度自动反向。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-others",
-                Name = "OGB Plug · 仅插入他人",
-                Description = "仅映射 PenOthers，不包含自插。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenOthers", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "ogb-plug-self",
-                Name = "OGB Plug · 仅自插",
-                Description = "仅映射 PenSelf。需在 Sensa 组件中启用 generateSelfParam。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Pen/*/PenSelf", Role = SignalRole.Depth, InvertDirection = true, IsOgbPlug = true },
-                },
-            },
-            new()
-            {
-                Id = "osr-inserted-pussy",
-                Name = "OSR-VRChat · 被插入（小穴）",
-                Description = "OGB/Orf/Pussy/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Orf/Pussy/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                },
-            },
-            new()
-            {
-                Id = "osr-inserted-ass",
-                Name = "OSR-VRChat · 被插入（后庭）",
-                Description = "OGB/Orf/Ass/PenOthers 插入深度（仅 Depth 单轴）。直接参考 OSR-VRChat。",
-                Mappings = new List<SignalMapping>
-                {
-                    new() { OscPath = "OGB/Orf/Ass/PenOthers", Role = SignalRole.Depth, IsOgbSocket = true },
-                },
-            },
-        };
+        using var stream = typeof(AppConfig).Assembly.GetManifestResourceStream("Sensa.OscPresets.json")
+            ?? throw new InvalidOperationException("Built-in presets are missing.");
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        options.Converters.Add(new JsonStringEnumConverter());
+        return JsonSerializer.Deserialize<List<OscMappingPresetConfig>>(stream, options) ?? new();
     }
 }

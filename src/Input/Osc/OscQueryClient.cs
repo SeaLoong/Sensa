@@ -27,6 +27,7 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         _httpClient = httpClient ?? new HttpClient
         {
             Timeout = TimeSpan.FromSeconds(6),
+            MaxResponseContentBufferSize = 4 * 1024 * 1024,
         };
         _ownsHttpClient = httpClient is null;
     }
@@ -365,6 +366,7 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
                 if (result.MessageType == WebSocketMessageType.Close)
                     return;
 
+                if (messageBuffer.Length + result.Count > 4 * 1024 * 1024) throw new InvalidDataException("OSCQuery message exceeds 4 MiB.");
                 if (result.Count > 0)
                     await messageBuffer.WriteAsync(buffer.AsMemory(0, result.Count), cancellationToken).ConfigureAwait(false);
             }

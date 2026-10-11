@@ -2,6 +2,7 @@ namespace Sensa.Signals;
 
 public sealed class SignalMapping
 {
+    public string SourceMode { get; set; } = "Direct";
     public string OscPath { get; set; } = "";
     public bool InvertDirection { get; set; }
     public float VrchatMin { get; set; } = 0f;
@@ -28,6 +29,8 @@ public enum SignalRole
     Auxiliary,
     Auxiliary1,
     Auxiliary2,
+    GateEnable,
+    DepthOverride,
 }
 
 public enum SignalCurve

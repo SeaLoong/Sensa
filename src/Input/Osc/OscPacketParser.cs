@@ -14,8 +14,9 @@ internal static class OscPacketParser
         return ParsePacketCore(data, source, onValue, onAvatarChange);
     }
 
-    private static bool ParsePacketCore(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange)
+    private static bool ParsePacketCore(byte[] data, OscSource source, Action<string, OscValue, OscSource> onValue, Action? onAvatarChange, int depth = 0)
     {
+        if (depth > 16) return false;
         var position = 0;
         var address = ReadOscString(data, ref position);
         if (address is null)
@@ -28,12 +29,12 @@ internal static class OscPacketParser
             while (position + 4 <= data.Length)
             {
                 var size = ReadInt32(data, ref position);
-                if (size <= 0 || position + size > data.Length)
+                if (size <= 0 || size > data.Length - position)
                     break;
 
                 var nested = new byte[size];
                 Array.Copy(data, position, nested, 0, size);
-                handled |= ParsePacketCore(nested, source, onValue, onAvatarChange);
+                handled |= ParsePacketCore(nested, source, onValue, onAvatarChange, depth + 1);
                 position += size;
             }
 
@@ -80,6 +81,7 @@ internal static class OscPacketParser
                 return false;
         }
 
+        if (!float.IsFinite(value.AsFloat())) return false;
         onValue(parameterName, value, source);
         return true;
     }

@@ -15,3 +15,11 @@ _artifacts/
 # OS
 Thumbs.db
 .DS_Store
+
+# Frontend
+node_modules/
+src/web/app.bundle.js*
+config.json
+*.tmp
+
+__pycache__/

@@ -32,6 +32,7 @@ public static class SensaHost
         Console.Title = "Sensa";
         Console.WriteLine("Sensa Web Service starting…");
 
+        var configUpdateGate = new SemaphoreSlim(1, 1);
         var config = AppConfig.Load();
         config.NormalizeForRuntime();
         var uiUrl = $"http://{config.WebUi.Host}:{config.WebUi.Port}";
@@ -39,6 +40,7 @@ public static class SensaHost
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
             Args = args,
+            ContentRootPath = AppContext.BaseDirectory,
             WebRootPath = "web",
         });
         builder.WebHost.UseUrls(uiUrl);
@@ -51,7 +53,10 @@ public static class SensaHost
         var wsJsonOptions = new JsonSerializerOptions(JsonSerializerDefaults.Web);
         wsJsonOptions.Converters.Add(new JsonStringEnumConverter());
 
+        builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 4 * 1024 * 1024);
         var app = builder.Build();
+        var accessPolicy = new LocalAccessPolicy();
+        app.Use((context, next) => accessPolicy.InvokeAsync(context, next));
 
         var logBuffer = new RuntimeLogBuffer();
         void Log(string message) => LogEntry(message, RuntimeLogLevel.Info);
@@ -82,11 +87,7 @@ public static class SensaHost
         string? ResolvePreferredOscSourceKeyForRuntime()
         {
             var sources = parameterStore.SnapshotSources();
-            if (sources.Length <= 1)
-                return null;
-
-            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey)
-                && sources.Any(source => string.Equals(source.Key, selectedOscSourceKey, StringComparison.Ordinal)))
+            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey))
             {
                 return selectedOscSourceKey;
             }
@@ -94,8 +95,7 @@ public static class SensaHost
             if (!string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId))
             {
                 var matched = sources.FirstOrDefault(source => string.Equals(source.PersistentId, config.Osc.PreferredSourcePersistentId, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(matched.Key))
-                    return matched.Key;
+                return !string.IsNullOrWhiteSpace(matched.Key) ? matched.Key : "unavailable:" + config.Osc.PreferredSourcePersistentId;
             }
 
             return null;
@@ -110,10 +110,13 @@ public static class SensaHost
             sendOutputsAsync: outputCoordinator.SendAsync,
             emergencyStopAsync: outputCoordinator.EmergencyStopAsync,
             preferredOscSourceKeyProvider: ResolvePreferredOscSourceKeyForRuntime);
+        outputCoordinator.CanSend = () => motionRuntime.CanSend;
+        oscReceiver.IsSourceAllowed = source => config.Osc.AllowedSourceAddresses.Count == 0 || config.Osc.AllowedSourceAddresses.Contains(source.Address);
         motionRuntime.OnLog += Log;
         motionRuntime.OnDebugLog += message => LogEntry(message, RuntimeLogLevel.Debug);
 
         var wsClients = new ConcurrentDictionary<string, WebSocketClientSession>();
+        var wsSlots = new SemaphoreSlim(16, 16);
         var wsShutdown = new CancellationTokenSource();
         var oscQueryRefreshGate = new SemaphoreSlim(1, 1);
         var oscQueryRefreshQueued = 0;
@@ -130,6 +133,23 @@ public static class SensaHost
         string oscReceiverLastSourceAddress = string.Empty;
         int oscReceiverLastSourcePort = 0;
         long oscReceiverReceivedEventCount = 0;
+
+        long stateRevision = 0;
+        long cachedRevision = -1;
+        byte[]? cachedState = null;
+        var stateCacheGate = new object();
+        byte[] StatePayload()
+        {
+            lock (stateCacheGate)
+            {
+                if (cachedState is null || cachedRevision != stateRevision)
+                {
+                    cachedState = JsonSerializer.SerializeToUtf8Bytes(BuildStateEnvelope(), wsJsonOptions);
+                    cachedRevision = stateRevision;
+                }
+                return cachedState;
+            }
+        }
 
         object BuildStateEnvelope() => new
         {
@@ -224,9 +244,10 @@ public static class SensaHost
                         return;
                     }
 
-                    var payloadJson = JsonSerializer.Serialize(BuildStateEnvelope(), wsJsonOptions);
-                    var payloadBytes = Encoding.UTF8.GetBytes(payloadJson);
-                    await client.Socket.SendAsync(payloadBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
+                    var payloadBytes = StatePayload();
+                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(client.ConnectionToken);
+                    timeout.CancelAfter(TimeSpan.FromSeconds(3));
+                    await client.Socket.SendAsync(payloadBytes, WebSocketMessageType.Text, true, timeout.Token).ConfigureAwait(false);
                 }
             }
             catch
@@ -239,11 +260,26 @@ public static class SensaHost
             }
         }
 
-        void NotifyStateChanged()
+        var udpRefreshRunning = 0;
+        using var udpRefreshTimer = new System.Threading.Timer(_ =>
         {
-            foreach (var clientId in wsClients.Keys)
-                QueueClientStatePush(clientId);
-        }
+            if (wsShutdown.IsCancellationRequested || !motionRuntime.CanSend || Interlocked.Exchange(ref udpRefreshRunning, 1) != 0) return;
+            _ = Task.Run(async () =>
+            {
+                try { await outputCoordinator.RefreshUdpAsync(motionRuntime.LastCommand); }
+                catch (Exception ex) { LogError($"[UDP] {ex.Message}"); }
+                finally { Interlocked.Exchange(ref udpRefreshRunning, 0); }
+            });
+        }, null, 1000, 1000);
+        var stateDirty = 1;
+        using var stateTimer = new System.Threading.Timer(_ =>
+        {
+            if (wsShutdown.IsCancellationRequested || Interlocked.Exchange(ref stateDirty, 0) == 0) return;
+            Interlocked.Increment(ref stateRevision);
+            foreach (var clientId in wsClients.Keys) QueueClientStatePush(clientId);
+        }, null, 100, 100);
+        void NotifyStateChanged() => Interlocked.Exchange(ref stateDirty, 1);
+
 
         void QueueOscPreviewStateChanged()
         {
@@ -331,11 +367,7 @@ public static class SensaHost
 
         string? ResolveSelectedOscSourceKey(OscParameterStore.SourceSnapshot[] sources)
         {
-            if (sources.Length <= 1)
-                return null;
-
-            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey)
-                && sources.Any(source => string.Equals(source.Key, selectedOscSourceKey, StringComparison.Ordinal)))
+            if (!string.IsNullOrWhiteSpace(selectedOscSourceKey))
             {
                 return selectedOscSourceKey;
             }
@@ -343,8 +375,7 @@ public static class SensaHost
             if (!string.IsNullOrWhiteSpace(config.Osc.PreferredSourcePersistentId))
             {
                 var matched = sources.FirstOrDefault(source => string.Equals(source.PersistentId, config.Osc.PreferredSourcePersistentId, StringComparison.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(matched.Key))
-                    return matched.Key;
+                return !string.IsNullOrWhiteSpace(matched.Key) ? matched.Key : "unavailable:" + config.Osc.PreferredSourcePersistentId;
             }
 
             return null;
@@ -416,6 +447,12 @@ public static class SensaHost
         }
 
         object SetOscSourceSelectionCore(string? sourceKey)
+        {
+            configUpdateGate.Wait();
+            try { return SetOscSourceSelectionLocked(sourceKey); }
+            finally { configUpdateGate.Release(); }
+        }
+        object SetOscSourceSelectionLocked(string? sourceKey)
         {
             var normalizedSourceKey = string.IsNullOrWhiteSpace(sourceKey) ? null : sourceKey.Trim();
             selectedOscSourceKey = normalizedSourceKey;
@@ -864,6 +901,13 @@ public static class SensaHost
 
         async Task<AppConfig> ApplyConfigUpdateAsync(AppConfig incoming)
         {
+            await configUpdateGate.WaitAsync();
+            try { return await ApplyConfigUpdateCoreAsync(incoming); }
+            finally { configUpdateGate.Release(); }
+        }
+
+        async Task<AppConfig> ApplyConfigUpdateCoreAsync(AppConfig incoming)
+        {
             var previousConfig = new AppConfig();
             previousConfig.CopyFrom(config);
             var previousOscEnabled = config.Osc.Enabled;
@@ -879,6 +923,8 @@ public static class SensaHost
             candidate.ValidateOscQueryReceiverService();
             candidate.ValidateOscHubTargets();
 
+            motionRuntime.SetInputActive(false);
+            await outputCoordinator.EmergencyStopAsync();
             config.CopyFrom(candidate);
             motionRuntime.RebuildProcessors();
 
@@ -1110,17 +1156,14 @@ public static class SensaHost
             var oscSourceSnapshots = parameterStore.SnapshotSources();
             var effectiveSelectedSourceKey = ResolveSelectedOscSourceKey(oscSourceSnapshots);
             var oscPreview = parameterStore.SnapshotEntries()
-                .GroupBy(entry => entry.Entry.Source.Key, StringComparer.Ordinal)
-                .SelectMany(group => group
-                    .OrderByDescending(entry => entry.Entry.TimestampMs)
-                    .Take(24))
-                .OrderByDescending(entry => entry.Entry.TimestampMs)
+                .OrderBy(entry => entry.Path, StringComparer.Ordinal)
                 .Select(entry => new
                 {
                     path = entry.Path,
                     type = entry.Entry.Value.Type.ToString().ToLowerInvariant(),
                     value = FormatOscPreviewValue(entry.Entry.Value),
                     numericValue = entry.Entry.Value.AsFloat(),
+                    classification = OscParameterClassifier.Classify(entry.Path),
                     entry.Entry.TimestampMs,
                     sourceKey = entry.Entry.Source.Key,
                     sourceLabel = entry.Entry.Source.Label,
@@ -1173,6 +1216,7 @@ public static class SensaHost
             var runtimeState = new
             {
                 isEmergency = motionRuntime.IsEmergency,
+                gateClosed = motionRuntime.IsGateClosed,
                 motionRuntime.ManualOverrideEnabled,
                 inputActive = motionRuntime.InputActive,
                 inputMode = motionRuntime.CurrentInputMode,
@@ -1392,7 +1436,7 @@ public static class SensaHost
             {
                 var path = context.Context.Request.Path.Value ?? string.Empty;
                 if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
-                    || path.EndsWith("/app.js", StringComparison.OrdinalIgnoreCase)
+                    || path.EndsWith("/app.bundle.js", StringComparison.OrdinalIgnoreCase)
                     || path.EndsWith("/styles.css", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
@@ -1405,6 +1449,17 @@ public static class SensaHost
         {
             KeepAliveInterval = TimeSpan.FromSeconds(10),
         });
+
+        object RecordingAction(string action)
+        {
+            if (action == "start") recorder.Start();
+            else recorder.Stop();
+            NotifyStateChanged();
+            return action == "export"
+                ? new { fileName = $"sensa-{DateTime.Now:yyyyMMdd-HHmmss}.funscript", content = FunscriptExporter.Serialize(recorder) }
+                : (object)new { recorder.IsActive, recorder.FrameCount };
+        }
+        app.MapPost("/api/recording/{action}", (string action) => action is "start" or "stop" or "export" ? Results.Ok(RecordingAction(action)) : Results.BadRequest());
 
         app.MapGet("/api/meta/serial-ports", () => Results.Ok(BuildSerialPortList()));
         app.MapGet("/api/config", () => Results.Ok(config));
@@ -1745,6 +1800,12 @@ public static class SensaHost
 
         app.Map("/api/ws", async context =>
         {
+            if (!await wsSlots.WaitAsync(0)) { context.Response.StatusCode = 429; return; }
+            try { await HandleWebSocketAsync(context); }
+            finally { wsSlots.Release(); }
+        });
+        async Task HandleWebSocketAsync(HttpContext context)
+        {
             if (!context.WebSockets.IsWebSocketRequest)
             {
                 context.Response.StatusCode = StatusCodes.Status400BadRequest;
@@ -1778,6 +1839,11 @@ public static class SensaHost
                         if (result.MessageType == WebSocketMessageType.Close)
                             break;
 
+                        if (messageBuffer.Length + result.Count > 4 * 1024 * 1024)
+                        {
+                            await socket.CloseOutputAsync(WebSocketCloseStatus.MessageTooBig, "Message exceeds 4 MiB", client.ConnectionToken);
+                            return;
+                        }
                         if (result.Count > 0)
                             await messageBuffer.WriteAsync(buffer.AsMemory(0, result.Count), client.ConnectionToken).ConfigureAwait(false);
                     }
@@ -1793,12 +1859,12 @@ public static class SensaHost
                             var json = Encoding.UTF8.GetString(messageBuffer.GetBuffer(), 0, checked((int)messageBuffer.Length));
                             var response = await HandleWebSocketCommand(json).ConfigureAwait(false);
                             var responseBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(response, wsJsonOptions));
-                            await socket.SendAsync(responseBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
+                            await client.SendAsync(responseBytes).ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
                             var errorBytes = Encoding.UTF8.GetBytes(JsonSerializer.Serialize(new { id = string.Empty, ok = false, data = new { error = ex.Message } }, wsJsonOptions));
-                            await socket.SendAsync(errorBytes, WebSocketMessageType.Text, true, client.ConnectionToken).ConfigureAwait(false);
+                            await client.SendAsync(errorBytes).ConfigureAwait(false);
                         }
                     }
                 }
@@ -1813,13 +1879,12 @@ public static class SensaHost
             finally
             {
                 RemoveWsClient(clientId);
+                await CloseWsSocketAsync(client,
+                    wsShutdown.IsCancellationRequested ? WebSocketCloseStatus.EndpointUnavailable : WebSocketCloseStatus.NormalClosure,
+                    wsShutdown.IsCancellationRequested ? "Service shutting down" : "Closing").ConfigureAwait(false);
+                await client.DisposeAsync();
             }
-
-            await CloseWsSocketAsync(
-                client,
-                wsShutdown.IsCancellationRequested ? WebSocketCloseStatus.EndpointUnavailable : WebSocketCloseStatus.NormalClosure,
-                wsShutdown.IsCancellationRequested ? "Service shutting down" : "Closing").ConfigureAwait(false);
-        });
+        }
 
         app.Lifetime.ApplicationStopping.Register(() =>
         {
@@ -1835,7 +1900,8 @@ public static class SensaHost
             oscHubForwarder.Dispose();
             DisposeOscQueryRefreshGate();
             motionRuntime.Dispose();
-            config.Save();
+            scriptPlayer.Dispose();
+            try { config.Save(); } catch (Exception ex) { LogError($"[Config] {ex.Message}"); }
         });
 
         ConfigureOscHub(replaySnapshot: true);
@@ -1861,6 +1927,7 @@ public static class SensaHost
         await app.RunAsync();
 
         motionRuntime.Dispose();
+        scriptPlayer.Dispose();
         oscReceiver.Stop();
         oscReceiver.Dispose();
         await oscQueryClient.DisposeAsync();
@@ -1942,6 +2009,11 @@ public static class SensaHost
                         break;
                     }
 
+                    case "/api/recording/start" when method == "POST":
+                    case "/api/recording/stop" when method == "POST":
+                    case "/api/recording/export" when method == "POST":
+                        result = RecordingAction(path.Split('/')[^1]);
+                        break;
                     case "/api/meta/serial-ports" when method == "GET":
                         result = BuildSerialPortList();
                         break;
@@ -2337,79 +2409,4 @@ public static class SensaHost
             OscValueType.Bool => value.Bool ? "true" : "false",
             _ => "0",
         };
-}
-
-public sealed record InputModeRequest(string Mode);
-
-public sealed record InputActiveRequest(bool Active);
-
-public sealed record OscSourceSelectionRequest(string? SourceKey);
-
-public sealed record ManualInputRequest(
-    bool Enabled,
-    int L0,
-    int R0,
-    int R1,
-    int R2,
-    int L1,
-    int L2,
-    int V0,
-    int V1,
-    int V2,
-    int A0,
-    int A1,
-    int A2,
-    TCodeCommandMode? MotionMode,
-    int? MotionValue);
-
-public sealed record ScriptUploadRequest(
-    string FileName,
-    string Content,
-    bool? Loop,
-    double? Speed);
-
-public sealed record ScriptPlaybackRequest(
-    bool Restart,
-    bool? Loop,
-    double? Speed);
-
-public sealed record ScriptConfigureRequest(
-    bool? Loop,
-    double? Speed)
-{
-    public bool UpdateLoopRange { get; init; }
-    public long? LoopStartMs { get; init; }
-    public long? LoopEndMs { get; init; }
-}
-
-public sealed record ScriptSeekRequest(long PositionMs);
-
-file sealed class WebSocketClientSession
-{
-    private readonly CancellationTokenSource _connectionCts;
-    private int _pending;
-    private int _stopRequested;
-
-    public WebSocketClientSession(WebSocket socket, CancellationToken requestAborted, CancellationToken shutdownToken)
-    {
-        Socket = socket;
-        _connectionCts = CancellationTokenSource.CreateLinkedTokenSource(requestAborted, shutdownToken);
-    }
-
-    public WebSocket Socket { get; }
-    public SemaphoreSlim Gate { get; } = new(1, 1);
-    public CancellationToken ConnectionToken => _connectionCts.Token;
-    public bool IsStopRequested => _connectionCts.IsCancellationRequested;
-
-    public void MarkPending() => Interlocked.Exchange(ref _pending, 1);
-
-    public bool ConsumePending() => Interlocked.Exchange(ref _pending, 0) == 1;
-
-    public void RequestStop()
-    {
-        if (Interlocked.Exchange(ref _stopRequested, 1) != 0)
-            return;
-
-        try { _connectionCts.Cancel(); } catch { }
-    }
 }

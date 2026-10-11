@@ -71,7 +71,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
         };
 
         // ButtplugClientExtensions.ConnectAsync(client, uri, token)
-        await _client.ConnectAsync(new Uri(_config.WebsocketAddress), ct);
+        await _client.ConnectAsync(new Uri(_config.WebsocketAddress), ct).WaitAsync(TimeSpan.FromSeconds(5), ct);
         _connected = true;
         OnLog?.Invoke($"Intiface connected: {_config.WebsocketAddress}");
         DevicesChanged?.Invoke();
@@ -82,7 +82,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
         if (_client is null) return;
         // Ensure StopAll and Disconnect both run even if StopAll throws.
         try { await StopAllAsync(); } catch { }
-        try { await _client.DisconnectAsync(); } catch { }
+        try { await _client.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(1)); } catch { }
         _connected = false;
         lock (_devLock)
         {
@@ -108,6 +108,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
     public async Task SendAsync(MotionFrame frame)
     {
         if (!_connected) return;
+        using var deadline = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
 
         // L0=0 → top (position=1.0); L0=1 → bottom (position=0.0)
         double position01 = Math.Clamp(1.0 - frame.L0, 0.0, 1.0);
@@ -122,12 +123,16 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
             {
                 // Position (linear) features
                 var posFeatures = device.GetFeaturesWithOutput(OutputType.Position).ToList();
-                var shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
+                bool shouldSendLinear;
+                lock (_devLock) shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
                 var emitted = new List<string>();
                 if (shouldSendLinear)
                 {
                     foreach (var f in posFeatures)
-                        await f.RunOutputAsync(DeviceOutput.PositionWithDuration.Percent(position01, durationMs));
+                    {
+                        deadline.Token.ThrowIfCancellationRequested();
+                        await f.RunOutputAsync(DeviceOutput.PositionWithDuration.Percent(position01, durationMs)).WaitAsync(deadline.Token);
+                    }
 
                     lock (_devLock)
                         _lastLinearSent[device.Index] = position01;
@@ -142,11 +147,15 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                     double vibrateVal = posFeatures.Count == 0
                         ? Math.Clamp(frame.L0, 0.0, 1.0)    // depth → vibrate on linear-less devices
                         : Math.Clamp(frame.V0, 0.0, 1.0);
-                    var shouldSendVibrate = !_lastVibrateSent.TryGetValue(device.Index, out var lastVibrate) || Math.Abs(lastVibrate - vibrateVal) >= 0.001;
+                    bool shouldSendVibrate;
+                    lock (_devLock) shouldSendVibrate = !_lastVibrateSent.TryGetValue(device.Index, out var lastVibrate) || Math.Abs(lastVibrate - vibrateVal) >= 0.001;
                     if (shouldSendVibrate)
                     {
                         foreach (var f in vibFeatures)
-                            await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal));
+                        {
+                            deadline.Token.ThrowIfCancellationRequested();
+                            await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal)).WaitAsync(deadline.Token);
+                        }
 
                         lock (_devLock)
                             _lastVibrateSent[device.Index] = vibrateVal;
@@ -158,6 +167,11 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                 if (emitted.Count > 0)
                     OnDebugLog?.Invoke($"TX {device.Name}#{device.Index} {string.Join(" ", emitted)}");
             }
+            catch (OperationCanceledException) when (deadline.IsCancellationRequested)
+            {
+                OnLog?.Invoke("[Intiface] Output deadline exceeded; remaining device commands discarded.");
+                return;
+            }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"[Intiface] Send error ({device.Name}): {ex.Message}");
@@ -168,7 +182,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
     public async Task StopAllAsync()
     {
         if (_client is null) return;
-        try { await _client.StopAllDevicesAsync(); } catch { }
+        try { await _client.StopAllDevicesAsync().WaitAsync(TimeSpan.FromMilliseconds(500)); } catch { }
         lock (_devLock)
         {
             _lastLinearSent.Clear();
