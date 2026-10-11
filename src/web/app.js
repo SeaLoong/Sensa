@@ -1,7 +1,8 @@
 import React from 'react';
+import PosePanel from './PosePanel.jsx';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
-import { rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
+import { posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json';
 const {
   Alert,
@@ -2932,12 +2933,12 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
   const [inputSliderMin, inputSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax]);
   const simulatedValue = Number.isFinite(Number(draft.simulatedValue)) ? Number(draft.simulatedValue) : getSignalSimulationDefaultValue(draft);
   const [simulationSliderMin, simulationSliderMax] = getDynamicFloatSliderBounds([draft.vrchatMin, draft.vrchatMax, latestEntry?.numericValue, simulatedValue]);
-  const liveOutput = draft.sourceMode === 'SpsSocketDepth' ? null : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
+  const liveOutput = draft.sourceMode === 'SpsSocketDepth' || draft.sourceMode === 'SensaPose' && draft.poseMetric === 'Roll' ? null : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   const simulatedOutput = draft.simulateEnabled ? computeSignalPreviewOutput(draft, simulatedValue) : null;
   const simulationValueText = formatCompactNumber(simulatedValue, 2);
   const statusMetrics = latestEntry
     ? [
-        { key: 'live-input', label: '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
+        { key: 'live-input', label: draft.sourceMode === 'SensaPose' ? '解算输入' : draft.sourceMode === 'SpsSocketDepth' ? '原始采样' : '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
         { key: 'live-output', label: '预估位置', value: liveOutput?.mappedPositionText || '—', tone: liveOutput ? 'live' : 'muted' },
       ]
     : [
@@ -2990,7 +2991,11 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           )}
         />
 
-        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }]} onChange={sourceMode => onChange({ sourceMode })} />
+        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }, { value: 'SensaPose', label: 'Sensa 空间定位' }]} onChange={sourceMode => onChange({ sourceMode })} />
+        {draft.sourceMode === 'SensaPose' && <SelectField label="定位指标" value={draft.poseMetric || 'Depth'} options={[
+          { value: 'Depth', label: '入孔比例 0–1' }, { value: 'OffsetX', label: '孔口 X 偏移（m）' }, { value: 'OffsetY', label: '孔口 Y 偏移（m）' },
+          { value: 'Yaw', label: '偏航（度）' }, { value: 'Pitch', label: '俯仰（度）' }, { value: 'Roll', label: '扭转（度）' },
+        ]} onChange={poseMetric => onChange({ poseMetric })} />}
         <SelectField
           label="目标轴"
           title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则在重叠区当前不会叠加，而是优先采用校准后更深（归一化更高）的那条映射结果。当前约定里 L1 为数值小=前、数值大=后。"
@@ -3124,6 +3129,10 @@ function App() {
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
   const [previewLimit, setPreviewLimit] = useState(100);
   const [showFaceTracking, setShowFaceTracking] = useState(false);
+  const [previewCategory, setPreviewCategory] = useState('all');
+  const [frozenPreview, setFrozenPreview] = useState(null);
+  const [pinnedPaths, setPinnedPaths] = useState(() => readPinnedPaths(localStorage));
+  const [parameterDetail, setParameterDetail] = useState(null);
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [oscSettingsTab, setOscSettingsTab] = useState('basic');
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
@@ -3597,6 +3606,35 @@ function App() {
         setTimeout(() => URL.revokeObjectURL(url), 1000);
       }
     } catch (error) { notify(error.message, 'error'); }
+  }
+
+  function togglePinned(path) {
+    setPinnedPaths(previous => {
+      const next = previous.includes(path) ? previous.filter(p => p !== path) : [path, ...previous].slice(0, 64);
+      try { localStorage.setItem('sensa.osc.pins.v1', JSON.stringify(next)); } catch { /* preference storage may be full */ }
+      return next;
+    });
+  }
+
+  function usePoseRig(pose, full = false) {
+    const preset = BUILT_IN_OSC_MAPPING_PRESETS.find(p => p.id === (full ? 'sensa-pose-full' : 'sensa-pose-depth'));
+    const next = preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` }));
+    const roles = new Set(next.map(mapping => mapping.role));
+    setSignalDrafts(previous => [...previous.filter(mapping => mapping.sourceMode !== 'SensaPose' && !roles.has(mapping.role)), ...next]);
+    notify('已生成精确映射草稿；多来源时先固定使用来源，再保存并应用。', 'info');
+  }
+
+  function mapPreviewParameter(entry) {
+    if (entry.path.startsWith('Sensa/Pose/v1/')) {
+      usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
+    } else if (/New(Root|Tip)$/.test(entry.path)) {
+      const prefix = entry.path.replace(/New(Root|Tip)$/, '');
+      setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: `${prefix}NewRoot;${prefix}NewTip`, sourceMode: 'SpsSocketDepth', role: 'Depth' })]);
+      notify('已添加 Root/Tip 配对草稿，请检查后保存。', 'info');
+    } else {
+      setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: entry.path, role: /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' })]);
+      notify('已添加映射草稿，请确认参数含义、目标轴和范围后保存。', 'info');
+    }
   }
 
   function notify(message, severity = 'info') {
@@ -4919,6 +4957,7 @@ function App() {
   const oscModeActive = actualInputMode === 'osc';
   const oscConfigEnabled = typeof overview?.osc?.enabled === 'boolean' ? overview.osc.enabled : config?.osc?.enabled !== false;
   const oscPreview = overview?.osc?.preview || [];
+  const visibleCatalog = frozenPreview || oscPreview;
   const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : [];
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
   const hasMultipleOscSources = oscSources.length > 1;
@@ -4940,10 +4979,10 @@ function App() {
   const previewEntriesForSuggestions = useMemo(() => (hasMultipleOscSources && selectedOscSourceKey ? mappingPreviewEntries : oscPreview), [hasMultipleOscSources, selectedOscSourceKey, mappingPreviewEntries, oscPreview]);
   const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(previewEntriesForSuggestions, oscQueryNodes), [previewEntriesForSuggestions, oscQueryNodes]);
   const previewEntriesForTab = useMemo(() => {
-    if (!hasMultipleOscSources || previewSourceTab === 'all') return oscPreview;
-    return filterOscPreviewEntriesBySource(oscPreview, previewSourceTab);
-  }, [hasMultipleOscSources, oscPreview, previewSourceTab]);
-  const rankedOscPreview = useMemo(() => rankPreview(previewEntriesForTab, signalDrafts, { showFaceTracking, search: oscPreviewSearch }), [previewEntriesForTab, signalDrafts, showFaceTracking, oscPreviewSearch]);
+    if (!hasMultipleOscSources || previewSourceTab === 'all') return visibleCatalog;
+    return filterOscPreviewEntriesBySource(visibleCatalog, previewSourceTab);
+  }, [hasMultipleOscSources, visibleCatalog, previewSourceTab]);
+  const rankedOscPreview = useMemo(() => rankPreview(previewEntriesForTab, signalDrafts, { showFaceTracking, search: oscPreviewSearch, pinned: pinnedPaths, category: previewCategory }), [previewEntriesForTab, signalDrafts, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory]);
   const sortedOscPreview = rankedOscPreview.slice(0, previewLimit);
   const oscListenerStatus = useMemo(() => {
     if (!oscConfigEnabled) {
@@ -5305,6 +5344,8 @@ function App() {
 
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
+                  {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
+                  <PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} />
                   <Box className="osc-section-grid">
                     <Box className="dialog-panel osc-settings-panel">
                       <Box className="dialog-panel__header osc-settings-panel__header">
@@ -5481,7 +5522,8 @@ function App() {
 
                     <Box className="dialog-panel osc-preview-panel">
                       <Box className="dialog-panel__header">
-                        <Typography variant="subtitle2">参数预览</Typography>
+                        <Typography variant="subtitle2">参数工作台</Typography>
+                        <Button size="small" variant={frozenPreview ? 'contained' : 'text'} onClick={() => setFrozenPreview(previous => previous ? null : [...oscPreview])}>{frozenPreview ? '恢复实时预览' : '冻结预览'}</Button>
                         {rankedOscPreview.length > previewLimit && <Button size="small" onClick={() => setPreviewLimit(previous => previous + 100)}>再显示 100 项</Button>}
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
                           <Chip size="small" variant="outlined" label={`${rankedOscPreview.length} / ${previewEntriesForTab.length} 项`} />
@@ -5502,6 +5544,10 @@ function App() {
                         </Stack>
                       </Box>
 
+                      <Stack direction="row" gap={.5} flexWrap="wrap" sx={{ mb: 1 }}>
+                        {[['all', '全部可见'], ['related', '触觉候选'], ['mapped', '已映射'], ['pose', '定位阵列']].map(([value, label]) => <Chip key={value} size="small" label={label} color={previewCategory === value ? 'primary' : 'default'} onClick={() => { setPreviewCategory(value); setPreviewLimit(100); }} />)}
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>★ 置顶参数会保留显示；冻结仅暂停表格，不停止设备。</Typography>
+                      </Stack>
                       {hasMultipleOscSources && <Typography variant="caption" color="text.secondary">当前使用来源：{selectedOscSourceLabel}</Typography>}
 
                       {hasMultipleOscSources && (
@@ -5526,15 +5572,14 @@ function App() {
                             <Table size="small" className="osc-preview-table">
                               <TableHead>
                                 <TableRow>
-                                  {hasMultipleOscSources && <TableCell width="170">来源</TableCell>}
-                                  <TableCell>参数名称</TableCell>
+                                  <TableCell width="36">置顶</TableCell>{hasMultipleOscSources && <TableCell width="170">来源</TableCell>}<TableCell>参数名称</TableCell>
                                   <TableCell width="110">类型</TableCell>
                                   <TableCell width="120" align="right">
                                     当前值
                                   </TableCell>
                                   <TableCell width="110" align="right">
                                     更新时间
-                                  </TableCell>
+                                  </TableCell><TableCell width="60">操作</TableCell>
                                 </TableRow>
                               </TableHead>
                               <TableBody>
@@ -5551,7 +5596,7 @@ function App() {
                                     : '';
 
                                   return (
-                                    <Tooltip key={`${entry.sourceKey}-${entry.path}`} title={tooltipText || ''} arrow disableHoverListener={!matched}>
+                                    <Tooltip key={`${entry.sourceKey}-${entry.path}`} title={tooltipText || parameterMeaning(entry.path)} arrow>
                                       <TableRow
                                         hover
                                         sx={{
@@ -5559,14 +5604,16 @@ function App() {
                                           '&:hover': { backgroundColor: matched ? 'rgba(25, 118, 210, 0.16)' : undefined },
                                         }}
                                       >
+                                        <TableCell padding="none"><Button size="small" sx={{ minWidth: 28 }} aria-label={`${pinnedPaths.includes(entry.path) ? '取消置顶' : '置顶'} ${entry.path}`} onClick={() => togglePinned(entry.path)}>{pinnedPaths.includes(entry.path) ? '★' : '☆'}</Button></TableCell>
                                         {hasMultipleOscSources && <TableCell>{entry.sourceLabel || '—'}</TableCell>}
                                         <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
-                                          {entry.path}
+                                          <Button variant="text" size="small" className="parameter-name-button" onClick={() => setParameterDetail(entry)}>{entry.path}</Button>
                                           {!matched && entry.classification?.hint && <Typography variant="caption" display="block" color="text.secondary">{entry.classification.hint}</Typography>}
                                         </TableCell>
                                         <TableCell>{entry.type || '—'}</TableCell>
                                         <TableCell align="right">{entry.value ?? '—'}</TableCell>
                                         <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
+                                        <TableCell><Button size="small" onClick={() => mapPreviewParameter(entry)}>映射</Button></TableCell>
                                       </TableRow>
                                     </Tooltip>
                                   );
@@ -5678,7 +5725,7 @@ function App() {
                           <SignalMappingRow
                             key={draft._draftId}
                             draft={draft}
-                            latestEntry={getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, hasMultipleOscSources ? selectedOscSourceKey : '')}
+                            latestEntry={draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
                             pathOptions={oscPathSuggestions}
                             onChange={patch => updateSignalDraft(draft._draftId, patch)}
                             onRemove={() => removeSignalDraft(draft._draftId)}
@@ -6062,7 +6109,7 @@ function App() {
                     <SignalMappingRow
                       key={draft._draftId}
                       draft={draft}
-                      latestEntry={getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, hasMultipleOscSources ? selectedOscSourceKey : '')}
+                      latestEntry={draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
                       pathOptions={oscPathSuggestions}
                       onChange={patch => updatePresetDialogSignal(draft._draftId, patch)}
                       onRemove={() => removePresetDialogSignal(draft._draftId)}
@@ -6350,6 +6397,11 @@ function App() {
         </DialogActions>
       </Dialog>
 
+      <Dialog open={Boolean(parameterDetail)} onClose={() => setParameterDetail(null)} fullWidth maxWidth="sm">
+        <DialogTitle>参数含义</DialogTitle>
+        <DialogContent><Typography sx={{ overflowWrap: 'anywhere', mb: 2 }} fontFamily="monospace">{parameterDetail?.path}</Typography><Typography>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</Typography><Typography variant="caption" display="block" sx={{ mt: 2 }} color="text.secondary">来源：{parameterDetail?.sourceLabel} · 当前值：{parameterDetail?.value} · 提示不等于自动映射。</Typography></DialogContent>
+        <DialogActions><Button onClick={() => setParameterDetail(null)}>关闭</Button><Button onClick={() => { mapPreviewParameter(parameterDetail); setParameterDetail(null); }}>添加映射草稿</Button></DialogActions>
+      </Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={2600} onClose={() => setSnackbar(previous => ({ ...previous, open: false }))}>
         <Alert variant="filled" severity={snackbar.severity}>
           {snackbar.message}

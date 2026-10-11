@@ -3,6 +3,7 @@ namespace Sensa.Signals;
 public sealed class SignalMapping
 {
     public string SourceMode { get; set; } = "Direct";
+    public PoseMetric PoseMetric { get; set; } = PoseMetric.Depth;
     public string OscPath { get; set; } = "";
     public bool InvertDirection { get; set; }
     public float VrchatMin { get; set; } = 0f;

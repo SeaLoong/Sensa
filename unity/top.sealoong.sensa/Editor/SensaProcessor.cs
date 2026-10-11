@@ -30,6 +30,7 @@ namespace UnityBox.Sensa
             InPhase(BuildPhase.Generating)
                 .Run("Sensa/GenerateContacts", ctx =>
                 {
+                    SensaPoseBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     foreach (var comp in ctx.AvatarRootObject
                                             .GetComponentsInChildren<SensaComponent>(true))
                     {
@@ -54,6 +55,7 @@ namespace UnityBox.Sensa
             // Already handled by the NDMF plugin.
             return true;
 #else
+            SensaPoseBuilder.ProcessAvatar(avatarGameObject);
             foreach (var comp in avatarGameObject.GetComponentsInChildren<SensaComponent>(true))
                 SensaProcessor.Process(comp);
             return true;
@@ -459,7 +461,7 @@ namespace UnityBox.Sensa
                     remapTo                = "",
                     internalParameter      = false,
                     isPrefix               = false,
-                    syncType               = ParameterSyncType.NotSynced, // networkSynced=false
+                    syncType               = isBool ? ParameterSyncType.Bool : ParameterSyncType.Float,
                     localOnly              = true,
                     defaultValue           = 0f,
                     saved                  = false,

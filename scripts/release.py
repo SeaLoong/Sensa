@@ -21,6 +21,17 @@ def validate_unity():
             guids.add(match[1])
         elif not Path(str(item) + '.meta').is_file():
             raise ValueError(f'Missing .meta: {item}')
+    for item in list(root.rglob('*.prefab')) + list(root.rglob('*.asset')):
+        text = item.read_text(encoding='utf-8')
+        references = re.findall(r'guid: ([0-9a-f]{32})', text)
+        if any(reference not in guids for reference in references):
+            raise ValueError(f'Unresolved asset/script GUID: {item}')
+        definitions = re.findall(r'^--- !u!\d+ &(\d+)', text, re.M)
+        if len(definitions) != len(set(definitions)):
+            raise ValueError(f'Duplicate file ID: {item}')
+        for reference in re.findall(r'\{fileID: (\d+)\}', text):
+            if reference != '0' and reference not in definitions:
+                raise ValueError(f'Unresolved local reference {reference}: {item}')
     runtime = json.loads((root / 'Runtime/UnityBox.Sensa.asmdef').read_text())
     editor = json.loads((root / 'Editor/UnityBox.Sensa.Editor.asmdef').read_text())
     macro = 'SENSA_HAS_VRCRAYCAST'

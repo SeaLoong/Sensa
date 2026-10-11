@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview } from '../../src/web/osc-preview.js';
+import { matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
 
 test('legacy, nested and alias patterns agree with backend', () => {
   for (const path of ['OGB/Orf/Pussy/PenOthers', 'OGB/Orf/Pussy/Main/PenOthers'])
@@ -29,4 +29,23 @@ test('FT flood cannot hide relevant parameters; explicit mappings remain visible
   assert.equal(rankPreview(entries, [], {showFaceTracking:true}).length, 302);
   assert.equal(rankPreview(entries, [{oscPath:'Face/v2/JawOpen0'}])[0].path, 'Face/v2/JawOpen0');
   assert.equal(rankPreview(entries, [], {search:'Custom'})[0].path, 'Custom/PenOthres');
+});
+
+test('pins, semantic filters and bounded persisted preferences', () => {
+  const entries = [{path:'Face/v2/JawOpen',classification:{isFaceTracking:true,relevance:0}}, {path:'Sensa/Pose/v1/Main/Others/Root/A0',classification:{relevance:100}}, {path:'Other'}];
+  assert.equal(rankPreview(entries, [], {pinned:['Face/v2/JawOpen']})[0].path, 'Face/v2/JawOpen');
+  assert.equal(rankPreview(entries, [], {category:'pose'}).length, 1);
+  assert.equal(rankPreview(entries, [{oscPath:'Other'}], {category:'mapped'})[0].path, 'Other');
+  assert.match(parameterMeaning('OGB/Orf/Main/PenOthers'), /不是通用的位置坐标/);
+  assert.match(parameterMeaning(entries[1].path), /不能直接当作深度/);
+  assert.deepEqual(readPinnedPaths({getItem:() => '{broken'}), []);
+  assert.equal(readPinnedPaths({getItem:() => JSON.stringify(Array(100).fill('a'))}).length, 64);
+});
+
+test('pose mapping preview uses decoded depth and refuses mixed sources', () => {
+  const pose = {key:'a',sourceKey:'a',prefix:'Sensa/Pose/v1/Main/Others',valid:true,engaged:true,depth:.55,intersection:{x:.02,y:0},yaw:20,pitch:0,roll:0,sampleCount:24};
+  const signal = {oscPath:'Sensa/Pose/v1/*/*/**',poseMetric:'Depth'};
+  assert.equal(posePreviewEntry([pose], signal).numericValue, .55);
+  assert.equal(posePreviewEntry([pose,{...pose,key:'b',sourceKey:'b'}], signal).numericValue, undefined);
+  assert.equal(posePreviewEntry([{...pose,engaged:false,reason:'未进入'}], signal).value, '未进入');
 });

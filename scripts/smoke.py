@@ -2,6 +2,7 @@
 import argparse
 import base64
 import json
+import importlib.util
 import os
 from pathlib import Path
 import socket
@@ -106,7 +107,29 @@ def main():
                     assert preview['Face/v2/JawOpen1']['classification']['isFaceTracking']
                     assert 'InvalidFloat' not in preview
                     assert not snapshot['runtime']['inputActive']
-                print('HTTP/WS smoke passed: sessions, origins, concurrent responses, FT flood (300), NaN rejection; no devices enabled.')
+                    fixture_spec = importlib.util.spec_from_file_location('pose_fixture', Path(__file__).with_name('pose-demo.py'))
+                    fixture = importlib.util.module_from_spec(fixture_spec); fixture_spec.loader.exec_module(fixture)
+                    configuration = command('/api/config', 'GET')
+                    assert not configuration['outputs'], 'Smoke test must never enable hardware'
+                    configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
+                    command('/api/config', 'PUT', configuration)
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                        udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
+                        time.sleep(.1)
+                        command('/api/input/active', 'PUT', {'active':True})
+                        time.sleep(.1)
+                        snapshot = command('/api/state/overview', 'GET')
+                        pose = snapshot['poseTracking']['observations'][0]
+                        assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
+                        assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
+                        udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
+                        deadline = time.monotonic() + 3
+                        while True:
+                            time.sleep(.05); snapshot = command('/api/state/overview', 'GET')
+                            if snapshot['runtime']['poseBlocked']: break
+                            assert time.monotonic() < deadline, 'Lost pose did not block motion'
+                    command('/api/input/active', 'PUT', {'active':False})
+                print('HTTP/WS smoke passed: authentication, FT flood, NaN rejection, 24-channel pose reconstruction and loss guard; no devices configured.')
             finally:
                 process.terminate()
                 try: process.wait(timeout=5)

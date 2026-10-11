@@ -1,0 +1,8 @@
+{
+  "name": "UnityBox.Sensa.Tests",
+  "references": ["UnityBox.Sensa", "UnityBox.Sensa.Editor", "VRC.SDK3A", "VRC.SDKBase", "VRC.Dynamics", "nadena.dev.modular-avatar.core"],
+  "includePlatforms": ["Editor"],
+  "optionalUnityReferences": ["TestAssemblies"],
+  "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+  "autoReferenced": false
+}

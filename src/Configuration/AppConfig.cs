@@ -436,6 +436,10 @@ public sealed class AppConfig
         Signals = (Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
             .ToList();
+        if (Signals.Where(s => s.SourceMode == "SensaPose").Select(s => s.OscPath).Distinct(StringComparer.Ordinal).Count() > 1)
+            throw new ArgumentException("精确定位的各轴必须使用同一个 Socket 路径，避免混合不同目标的坐标。");
+        if (Signals.Any(s => s.SourceMode == "SensaPose" && s.Role is SignalRole.GateEnable or SignalRole.DepthOverride))
+            throw new ArgumentException("精确定位请映射到具体输出轴；门控请使用直接映射。");
         OscMappingPresets ??= new List<OscMappingPresetConfig>();
         DeviceRoutes ??= new List<DeviceRouteEntry>();
 
@@ -1217,7 +1221,8 @@ public sealed class AppConfig
         return new SignalMapping
         {
             OscPath         = (signal.OscPath ?? "").Trim(),
-            SourceMode      = signal.SourceMode == "SpsSocketDepth" ? "SpsSocketDepth" : "Direct",
+            SourceMode      = signal.SourceMode is "SpsSocketDepth" or "SensaPose" ? signal.SourceMode : "Direct",
+            PoseMetric      = Enum.IsDefined(signal.PoseMetric) ? signal.PoseMetric : PoseMetric.Depth,
             InvertDirection = signal.InvertDirection,
             VrchatMin       = float.IsFinite(signal.VrchatMin) ? signal.VrchatMin : 0,
             VrchatMax       = float.IsFinite(signal.VrchatMax) ? signal.VrchatMax : 1,

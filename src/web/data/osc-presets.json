@@ -1,5 +1,75 @@
 [
   {
+    "id": "sensa-pose-depth",
+    "name": "Sensa Pose · 几何深度",
+    "description": "配套三标记 / 24 接收器。使用轴线与孔口平面的交点求插入比例。丢失或无效时停止，不回退旧 OGB。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Depth",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ]
+  },
+  {
+    "id": "sensa-pose-full",
+    "name": "Sensa Pose · 六轴（需校准）",
+    "description": "同一对象的深度、偏航、俯仰、扭转与孔口 X/Y 偏移。X/Y 映射到 L2/L1；必须按设备安装方向检查轴与反向。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Depth",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Yaw",
+        "role": "AngleX",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Pitch",
+        "role": "AngleY",
+        "vrchatMin": -65,
+        "vrchatMax": 65
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "Roll",
+        "role": "Twist",
+        "vrchatMin": -180,
+        "vrchatMax": 180
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetX",
+        "role": "Sway",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      },
+      {
+        "oscPath": "Sensa/Pose/v1/*/*/**",
+        "sourceMode": "SensaPose",
+        "poseMetric": "OffsetY",
+        "role": "Surge",
+        "vrchatMin": -0.04,
+        "vrchatMax": 0.04
+      }
+    ]
+  },
+  {
     "id": "sps-socket-depth",
     "name": "VRCFury SPS · Socket 新深度",
     "description": "NewRoot/NewTip 成对计算深度，按同一来源、同一孔位配对。先从外部靠近一次以估算长度；未校准时保持零。需在 VRCFury 中启用 Haptics/OGB。",

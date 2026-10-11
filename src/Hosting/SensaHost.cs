@@ -1217,6 +1217,7 @@ public static class SensaHost
             {
                 isEmergency = motionRuntime.IsEmergency,
                 gateClosed = motionRuntime.IsGateClosed,
+                poseBlocked = motionRuntime.PoseBlocked,
                 motionRuntime.ManualOverrideEnabled,
                 inputActive = motionRuntime.InputActive,
                 inputMode = motionRuntime.CurrentInputMode,
@@ -1377,6 +1378,7 @@ public static class SensaHost
                     devices,
                 },
                 outputs,
+                poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey },
                 recording = new
                 {
                     recorder.IsActive,

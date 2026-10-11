@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <Compile Include="../unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs" Link="Signals/SensaPoseProtocol.cs" />
     <EmbeddedResource Include="web/data/osc-presets.json" LogicalName="Sensa.OscPresets.json" />
     <Content Remove="web\**" />
     <Content Include="web\index.html;web\styles.css;web\app.bundle.js;web\app.bundle.js.LEGAL.txt" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
@@ -18,7 +19,7 @@
 
   <PropertyGroup>
     <AssemblyName>Sensa</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <RootNamespace>Sensa</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>

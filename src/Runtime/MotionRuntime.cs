@@ -65,8 +65,34 @@ public sealed class MotionRuntime : IDisposable
     private volatile bool _gateClosed;
     private bool _gateStopSent;
     private volatile bool _forceNextFrame = true;
+    private readonly object _poseSync = new();
+    private long _poseRevision = -1;
+    private string? _poseSource;
+    private PoseObservation[] _poseObservations = [];
+    private volatile bool _poseBlocked;
+    private int _poseRefreshPending;
+    private volatile bool _usesPose;
+    private string? _rollPoseKey;
+    private ContinuousAngle _continuousRoll = new();
+    public bool PoseBlocked => _poseBlocked;
+    public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
-    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed;
+    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked;
+
+    public PoseObservation[] GetPoseObservations()
+    {
+        lock (_poseSync)
+        {
+            var source = _preferredOscSourceKeyProvider?.Invoke();
+            var revision = _store.Revision;
+            if (revision != _poseRevision || source != _poseSource)
+            {
+                _poseObservations = PoseReconstruction.Observe(_store.SnapshotEntries(), source);
+                _poseRevision = revision; _poseSource = source;
+            }
+            return _poseObservations;
+        }
+    }
     private long _lastEventTimestampMs = Environment.TickCount64;
 
     public MotionFrame LastCommand => _currentFrame;
@@ -128,6 +154,11 @@ public sealed class MotionRuntime : IDisposable
                 _processors.Add((mapping.OscPath, new SignalChannelProcessor(mapping)));
             }
         }
+        ActivePoseKey = null;
+        _rollPoseKey = null;
+        _continuousRoll = new();
+        _usesPose = _config.Signals.Any(s => s.SourceMode == "SensaPose");
+        _poseBlocked = _inputMode == RuntimeInputMode.Osc && _usesPose;
 
         if (!_disposed && _inputMode == RuntimeInputMode.Osc && _inputActive && !_emergency)
             QueueOscRefresh();
@@ -185,6 +216,7 @@ public sealed class MotionRuntime : IDisposable
 
         Interlocked.Increment(ref _generation);
         _gateClosed = false;
+        _poseBlocked = mode == RuntimeInputMode.Osc && _usesPose;
         _inputMode = mode;
         _forceNextFrame = true;
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
@@ -222,6 +254,7 @@ public sealed class MotionRuntime : IDisposable
 
         Interlocked.Increment(ref _generation);
         _activationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
         _inputActive = active;
         _forceNextFrame = true;
         if (!active) { lock (_sync) _pendingPatch = null; _scriptPlayer.Pause(); _ = SendEmergencyAsync(); }
@@ -257,7 +290,18 @@ public sealed class MotionRuntime : IDisposable
         if (!HasMatchingOscProcessor(path))
             return;
 
-        QueueOscRefresh();
+        if (_usesPose)
+        {
+            // Receivers arrive as independent OSC messages. Coalesce a short burst before fitting.
+            if (Interlocked.Exchange(ref _poseRefreshPending, 1) != 0) return;
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(30);
+                Interlocked.Exchange(ref _poseRefreshPending, 0);
+                if (!_disposed) QueueOscRefresh();
+            });
+        }
+        else QueueOscRefresh();
     }
 
     private bool HasMatchingOscProcessor(string oscPath)
@@ -286,6 +330,8 @@ public sealed class MotionRuntime : IDisposable
         }
 
         lock (_sync) _spsDepth.Clear();
+        _rollPoseKey = null;
+        _continuousRoll = new();
         if (_inputMode == RuntimeInputMode.Osc && _inputActive) EmergencyStop();
         OnLog?.Invoke("[MotionRuntime] Avatar changed — signal processors reset; reactivate input when ready.");
         NotifyStateChanged();
@@ -328,7 +374,7 @@ public sealed class MotionRuntime : IDisposable
                 return;
 
             var patch = BuildOscPatch();
-            if (_gateClosed)
+            if (_gateClosed || _poseBlocked)
             {
                 _forceNextFrame = true;
                 if (!_gateStopSent && _emergencyStopAsync is not null) await _emergencyStopAsync();
@@ -361,8 +407,37 @@ public sealed class MotionRuntime : IDisposable
 
         var gateOpen = true;
         float? depthOverride = null;
+        var poseMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPose").ToArray();
+        var poseRoles = poseMappings.Select(p => p.Processor.Mapping.Role).ToHashSet();
+        PoseObservation? chosenPose = null;
+        if (poseMappings.Length > 0)
+        {
+            var observations = GetPoseObservations().Where(p => poseMappings.Any(m => p.Matches(m.Path))).ToArray();
+            // There is no sender identity in Contact OSC values. Never mix coordinate components across sources/rigs.
+            if (!string.IsNullOrEmpty(preferredSourceKey) || observations.Select(p => p.SourceKey).Distinct().Count() <= 1)
+            {
+                chosenPose = observations.Where(p => p.Valid && p.Engaged).OrderByDescending(p => p.Depth).ThenBy(p => p.Key, StringComparer.Ordinal).FirstOrDefault();
+                var previous = observations.FirstOrDefault(p => p.Key == ActivePoseKey && p.Valid && p.Engaged);
+                if (previous is not null && chosenPose is not null && chosenPose.Depth - previous.Depth < .05) chosenPose = previous;
+            }
+        }
+        _poseBlocked = poseMappings.Length > 0 && chosenPose is null;
+        ActivePoseKey = chosenPose?.Key;
+        if (chosenPose is not null && _rollPoseKey != chosenPose.Key) { _rollPoseKey = chosenPose.Key; _continuousRoll = new(); }
+        var roll = chosenPose is null ? 0 : _continuousRoll.Update(chosenPose.Roll);
         foreach (var (path, processor) in processors)
         {
+            if (processor.Mapping.SourceMode == "SensaPose")
+            {
+                if (chosenPose is not null && chosenPose.Matches(path))
+                {
+                    var sample = processor.ProcessSample(processor.Mapping.PoseMetric == PoseMetric.Roll ? roll : chosenPose.GetMetric(processor.Mapping.PoseMetric));
+                    _signals.Add(new SignalMixInput(processor.Mapping.Role, sample.Output, sample.Normalized));
+                }
+                continue;
+            }
+            if (poseRoles.Contains(processor.Mapping.Role)
+                || processor.Mapping.Role == SignalRole.DepthOverride && poseRoles.Contains(SignalRole.Depth)) continue;
             var thisGateOpen = false;
             foreach (var matched in _store.MatchingEntries(path, preferredSourceKey))
             {

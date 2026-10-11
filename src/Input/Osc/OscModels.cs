@@ -67,6 +67,8 @@ public sealed class OscParameterStore
     public const int MaxPaths = 4096;
     public const int MaxSources = 32;
     private long _lastPrune;
+    private long _revision;
+    public long Revision => Interlocked.Read(ref _revision);
     private readonly ConcurrentDictionary<string, OscSource> _sources = new(StringComparer.Ordinal);
 
     public event Action<string, OscValue>? OnSet;
@@ -110,6 +112,7 @@ public sealed class OscParameterStore
             _sources[normalizedSource.Key] = normalizedSource;
         }
         OnSet?.Invoke(normalizedPath, value);
+        Interlocked.Increment(ref _revision);
         OnSetWithSource?.Invoke(normalizedPath, value, normalizedSource);
     }
 
@@ -221,6 +224,7 @@ public sealed class OscParameterStore
                 if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
             }
             _sources.TryRemove(key, out _);
+            Interlocked.Increment(ref _revision);
         }
     }
 
@@ -265,6 +269,7 @@ public sealed class OscParameterStore
     {
         _store.Clear();
         _sources.Clear();
+        Interlocked.Increment(ref _revision);
     }
 
     private string? ResolvePreferredSourceKey(string? preferredSourceKey)

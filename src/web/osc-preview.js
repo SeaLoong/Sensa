@@ -12,17 +12,39 @@ export function globMatch(pattern, path) {
   return row[segments.length];
 }
 
-export function rankPreview(entries, signals = [], { showFaceTracking = false, search = '' } = {}) {
+export function rankPreview(entries, signals = [], { showFaceTracking = false, search = '', pinned = [], category = 'all' } = {}) {
   const term = search.trim().toLowerCase();
   return entries.map(entry => {
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
-  }).filter(entry => (showFaceTracking || !entry.classification?.isFaceTracking || entry._matches)
+  }).filter(entry => (showFaceTracking || !entry.classification?.isFaceTracking || entry._matches || pinned.includes(entry.path))
+    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && entry.path.startsWith('Sensa/Pose/v1/')
+      || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))
-    .sort((a, b) => Number(Boolean(b._matches)) - Number(Boolean(a._matches))
+    .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))
       || (b.classification?.relevance || 0) - (a.classification?.relevance || 0)
       || a.path.localeCompare(b.path, 'en', { numeric: true, sensitivity: 'base' })
       || (a.sourceKey || '').localeCompare(b.sourceKey || ''));
+}
+
+export function parameterMeaning(path) {
+  const leaf = (path || '').split('/').at(-1);
+  if (path.startsWith('Sensa/Pose/v1/')) return '定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。';
+  if (/NewRoot$/.test(leaf)) return '根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。';
+  if (/NewTip$/.test(leaf)) return '尖端表面到接收器的近接值。饱和不等于已获得准确轴向深度，需要配对信号。';
+  if (/^Pen(Others|Self)$/.test(leaf)) return '近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。';
+  if (/Close$/.test(leaf)) return '近距离接触开关，不是连续行程值。';
+  if (/^Touch/.test(leaf)) return '身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。';
+  if (/^Frot/.test(leaf)) return '摩擦近接信号，通常用于振动；不是轴向深度。';
+  if (/^Angle.*Raw$/.test(leaf)) return '侧向接收器的原始近接值，不是角度（度）；受位移与方向共同影响。';
+  return '自定义参数。请确认生成它的组件、量程和方向后再映射。名称相近仅作为查找提示。';
+}
+
+export function readPinnedPaths(storage) {
+  try {
+    const values = JSON.parse(storage.getItem('sensa.osc.pins.v1') || '[]');
+    return Array.isArray(values) ? values.filter(value => typeof value === 'string' && value.length <= 512).slice(0, 64) : [];
+  } catch { return []; }
 }
 
 export function matchesOscPathPattern(pattern, actualPath) {
@@ -45,6 +67,18 @@ export function getLatestOscPreviewEntry(previewEntries, pattern, preferredSourc
   }, null);
 
   return latest ? { ...latest, matchCount: candidates.length } : null;
+}
+
+export function posePreviewEntry(observations, signal, preferredSourceKey = '', activeKey = null) {
+  const candidates = observations.filter(pose => (!preferredSourceKey || pose.sourceKey === preferredSourceKey)
+    && ['Root', 'Tip', 'Side'].some(marker => Array.from({length:8}, (_, i) => `${pose.prefix}/${marker}/A${i}`).some(path => matchesOscPathPattern(signal.oscPath, path))));
+  if (!preferredSourceKey && new Set(candidates.map(p => p.sourceKey)).size > 1)
+    return { path: signal.oscPath, value: '请固定使用来源', matchCount: 0 };
+  const pose = candidates.find(p => p.key === activeKey && p.valid && p.engaged)
+    || [...candidates].sort((a, b) => Number(b.valid && b.engaged) - Number(a.valid && a.engaged) || b.depth - a.depth || a.key.localeCompare(b.key))[0];
+  if (!pose) return null;
+  const numericValue = pose.valid && pose.engaged ? ({Depth:pose.depth,OffsetX:pose.intersection.x,OffsetY:pose.intersection.y,Yaw:pose.yaw,Pitch:pose.pitch,Roll:pose.roll}[signal.poseMetric || 'Depth']) : undefined;
+  return { path: pose.prefix, value: numericValue === undefined ? pose.reason : Number(numericValue.toFixed(4)).toString(), numericValue, timestampMs:pose.timestampMs, sourceKey:pose.sourceKey, sourceLabel:pose.sourceLabel, matchCount:pose.sampleCount };
 }
 
 export function isOgbOscPath(path) {
