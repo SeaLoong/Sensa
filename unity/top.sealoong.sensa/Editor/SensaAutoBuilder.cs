@@ -67,7 +67,7 @@ namespace UnityBox.Sensa
                     if(setup.createPlugGrabHandles){
                         // Keep the visible grip outside SPS's renderer-discovery subtree.
                         var handleFrame=SensaSensorUtility.Child(host.transform,"HandleFrame_"+id);handleFrame.position=frame.position;handleFrame.rotation=frame.rotation;handleFrame.localScale=Vector3.one*(frame.lossyScale.x/host.transform.lossyScale.x);
-                        var follow=handleFrame.gameObject.AddComponent<ParentConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=frame,weight=1});follow.locked=true;follow.constraintActive=true;
+                        var follow=handleFrame.gameObject.AddComponent<ParentConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=frame,weight=1});follow.SetTranslationOffset(0,Vector3.zero);follow.SetRotationOffset(0,Vector3.zero);follow.locked=true;follow.constraintActive=true;
                         var probe=handleFrame.gameObject.AddComponent<SensaPointProbe>();probe.instanceName=id+"_H";probe.reference=handleFrame;probe.createGrabHandle=true;probe.handleLength=Mathf.Clamp(p.length*.5f,.02f,.15f);SensaPointBuilder.Build(probe);UnityEngine.Object.DestroyImmediate(probe);
                     }
                 }
@@ -76,7 +76,7 @@ namespace UnityBox.Sensa
             if(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray){
                 if(setup.pairedSocketTracking || !setup.socketRootTracking || anchors.Count==0 || anchors.Count>16)throw new InvalidOperationException("Shared array requires 1–16 standard-root sockets and no paired socket arrays.");
                 foreach(var anchor in anchors)if(Mathf.Abs(anchor.lossyScale.x-avatar.transform.lossyScale.x)>.0001f)throw new InvalidOperationException("Shared array targets must have the same scale as the avatar root; use Dedicated for scaled sockets.");
-                var moving=SensaSensorUtility.Child(host.transform,"SharedReference");var follow=moving.gameObject.AddComponent<ParentConstraint>();foreach(var anchor in anchors)follow.AddSource(new ConstraintSource{sourceTransform=anchor,weight=0});follow.locked=true;follow.constraintActive=true;
+                var moving=SensaSensorUtility.Child(host.transform,"SharedReference");var follow=moving.gameObject.AddComponent<ParentConstraint>();foreach(var anchor in anchors){int index=follow.AddSource(new ConstraintSource{sourceTransform=anchor,weight=0});follow.SetTranslationOffset(index,Vector3.zero);follow.SetRotationOffset(index,Vector3.zero);}follow.locked=true;follow.constraintActive=true;
                 var array=SensaSensorUtility.Child(moving,"Receivers");var prefix=SensaPoseProtocol.SharedRootPrefix+"/"+setup.groupName+"/Others";SensaSensorUtility.Array(array,prefix,SensaPoseProtocol.SpsRootTag,false);
                 SensaSelectionAnimator.Build(avatar,host,setup.groupName,new[]{array.gameObject},names.ToArray(),follow,prefix);
             }

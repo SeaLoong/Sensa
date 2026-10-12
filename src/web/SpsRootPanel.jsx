@@ -23,7 +23,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
       <Box className="pose-metrics" sx={{ my: 1 }}>
         {[
           [local ? '测量点 X / Y / Z' : '根部 X / Y / Z', root.valid ? `${cm(root.position.x)} / ${cm(root.position.y)} / ${cm(root.position.z)} cm` : '—'],
-          ['根部横向距离', root.valid ? `${cm(Math.hypot(root.position.x, root.position.y))} cm` : '—'],
+          ['横向距离', root.valid ? `${cm(Math.hypot(root.position.x, root.position.y))} cm` : '—'],
           ['球形拟合残差', root.valid ? `${(root.residual * 1000).toFixed(2)} mm` : '—'],
           [local ? '姿态 / 插入比例' : '尖端 / 姿态 / 行程', '不可观测'],
         ].map(([label, value]) => <Box className="pose-metric" key={label}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={700}>{value}</Typography></Box>)}

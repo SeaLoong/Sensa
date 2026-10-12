@@ -10,6 +10,8 @@ using UdonSharpEditor;
 using UdonSharp;
 using VRC.SDK3.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
+using VRC.SDK3.Dynamics.PhysBone.Components;
+using UnityEngine.Animations;
 using VRC.Dynamics;
 using UnityBox.Sensa;
 
@@ -18,6 +20,29 @@ namespace SensaLab
     public static class LabBuilder
     {
         private const string Root = "Assets/SensaLab/Generated";
+        [MenuItem("Tools/Sensa Lab/Add local bone and PB station")]
+        public static void AddLocalProbeStation()
+        {
+            var scene=EditorSceneManager.OpenScene(Root+"/SensaLab.unity");
+            var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Local bone and PB station");
+            if(existing!=null){var existingStation=existing.GetComponent<LocalProbeStation>();if(existingStation==null||existingStation.target==null||existingStation.bone==null)throw new InvalidOperationException("Existing station has incomplete references.");foreach(var renderer in existingStation.target.GetComponentsInChildren<Renderer>(true))if(renderer.transform!=existingStation.target&&!existingStation.bone.ignoreTransforms.Contains(renderer.transform))existingStation.bone.ignoreTransforms.Add(renderer.transform);EditorSceneManager.SaveScene(scene);return;}
+            string path="Assets/SensaLab/Runtime/LocalProbeStation.asset";
+            if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(path)==null){var program=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();program.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/LocalProbeStation.cs");program.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;AssetDatabase.CreateAsset(program,path);}
+            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
+            var origin=new GameObject("Local bone and PB station").transform;origin.position=new Vector3(-1.5f,1.1f,.5f);
+            Transform Child(Transform parent,string name,Vector3 position){var node=new GameObject(name).transform;node.SetParent(parent,false);node.localPosition=position;return node;}
+            var root=Child(origin,"HandleRoot",Vector3.zero);var joint=Child(root,"Joint",Vector3.forward*.05f);var grip=Child(joint,"Grip",Vector3.forward*.05f);
+            var pb=root.gameObject.AddComponent<VRCPhysBone>();pb.rootTransform=root;pb.radius=.025f;pb.pull=.2f;pb.spring=0;pb.maxStretch=.5f;pb.grabMovement=1;pb.allowPosing=VRCPhysBoneBase.AdvancedBool.False;
+            var visual=GameObject.CreatePrimitive(PrimitiveType.Sphere);visual.transform.SetParent(grip,false);visual.transform.localScale=Vector3.one*.04f;UnityEngine.Object.DestroyImmediate(visual.GetComponent<Collider>());pb.ignoreTransforms.Add(visual.transform);
+            var point=Child(origin,"TrackedPoint",Vector3.forward*.1f);var follow=point.gameObject.AddComponent<PositionConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=grip,weight=1});follow.locked=true;follow.constraintActive=true;
+            var sender=point.gameObject.AddComponent<VRCContactSender>();sender.radius=.001f;sender.collisionTags=new List<string>{"SensaLabPoint"};
+            var receivers=new List<VRCContactReceiver>();
+            for(int i=0;i<8;i++){var node=Child(origin,"A"+i,new Vector3(SensaPoseProtocol.AnchorX(i),SensaPoseProtocol.AnchorY(i),SensaPoseProtocol.AnchorZ(i)));var receiver=node.gameObject.AddComponent<VRCContactReceiver>();receiver.radius=SensaPoseProtocol.ReceiverRadius;receiver.collisionTags=new List<string>{"SensaLabPoint"};receivers.Add(receiver);}
+            var canvas=new GameObject("Local probe board",typeof(RectTransform)).AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.transform.SetParent(origin,false);canvas.transform.localPosition=new Vector3(-.5f,.8f,.5f);canvas.transform.localScale=Vector3.one*.002f;((RectTransform)canvas.transform).sizeDelta=new Vector2(1000,650);
+            var text=new GameObject("Local probe status",typeof(RectTransform)).AddComponent<Text>();text.transform.SetParent(canvas.transform,false);text.rectTransform.anchorMin=Vector2.zero;text.rectTransform.anchorMax=Vector2.one;text.rectTransform.offsetMin=Vector2.zero;text.rectTransform.offsetMax=Vector2.zero;text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");text.fontSize=32;text.text="LOCAL BONE / PB PROBE\nEnter Play Mode / ClientSim.\nGrab the small sphere to compare\nlocal coordinates and Contact values.";
+            var station=UdonSharpUndo.AddComponent<LocalProbeStation>(origin.gameObject);station.reference=origin;station.target=grip;station.sender=sender;station.receivers=receivers.ToArray();station.bone=pb;station.status=text;UdonSharpEditorUtility.CopyProxyToUdon(station);
+            EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+        }
         [MenuItem("Tools/Sensa Lab/Export camera-only prototype")]
         public static void ExportCameraPrototype()
         {
@@ -57,11 +82,13 @@ namespace SensaLab
         [MenuItem("Tools/Sensa Lab/Generate test world")]
         public static void Generate()
         {
+            if(!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())return;
             Directory.CreateDirectory(Root);
             foreach (var scriptName in new[] { "LabController", "LabToggle" }) {
                 var path="Assets/SensaLab/Runtime/"+scriptName+".asset";
                 if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(path)!=null) continue;
                 var program=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();
+                program.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;
                 program.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/"+scriptName+".cs");
                 AssetDatabase.CreateAsset(program,path);
             }
@@ -127,6 +154,9 @@ namespace SensaLab
             EditorSceneManager.SaveScene(scene,Root+"/SensaLab.unity");
             EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(Root+"/SensaLab.unity",true)};
             AssetDatabase.SaveAssets();
+            if(!File.Exists(Root+"/CameraOnlyPrototype.prefab"))CreateCameraPrototype();
+            AddCameraStation();
+            AddLocalProbeStation();
             Debug.Log("SENSA_LAB_GENERATED");
         }
         private static Type FindType(string name) => AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).FirstOrDefault(t=>t!=null);

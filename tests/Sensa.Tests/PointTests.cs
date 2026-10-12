@@ -3,10 +3,21 @@ using Sensa.Input.Osc;
 using Sensa.Runtime;
 using Sensa.Signals;
 using Xunit;
+using System.Text.Json;
 
 namespace Sensa.Tests;
 public class PointTests
 {
+    [Fact] public void CapturedWorldSdkSamplesDecodeToObservedPoint()
+    {
+        var assembly=typeof(PointTests).Assembly;
+        using var stream=assembly.GetManifestResourceStream(assembly.GetManifestResourceNames().Single(n=>n.EndsWith("unity-point.json")))!;
+        using var document=JsonDocument.Parse(stream);var root=document.RootElement;
+        Assert.Equal("sensa.point-lab.v1",root.GetProperty("schema").GetString());
+        var values=root.GetProperty("samples").EnumerateArray().Select(v=>v.GetSingle()).ToArray();
+        var observed=root.GetProperty("position");var expected=new PosePoint(observed.GetProperty("x").GetDouble(),observed.GetProperty("y").GetDouble(),observed.GetProperty("z").GetDouble());
+        var fit=PoseReconstruction.FitMarker(values);Assert.True(fit.Valid,fit.Reason);Assert.InRange((fit.Position-expected).Length,0,.0001);
+    }
     private static void Put(OscParameterStore store,string prefix,PosePoint p,OscSource? source=null)
     {var values=PoseTests.Samples(p);for(int i=0;i<8;i++)store.Set(prefix+"/Root/A"+i,OscValue.FromFloat(values[i]),source??OscSource.Unknown);}
     [Fact] public void SharedArrayRejectsOldSamplesAfterSwitch()

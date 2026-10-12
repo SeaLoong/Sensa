@@ -11,6 +11,8 @@ using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.PhysBone.Components;
 using Object=UnityEngine.Object;
+using System.Collections;
+using UnityEngine.TestTools;
 
 namespace UnityBox.Sensa.Tests
 {
@@ -102,6 +104,25 @@ namespace UnityBox.Sensa.Tests
             var setup=avatar.AddComponent<SensaAutoSetup>();setup.createPlugGrabHandles=true;SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.IsEmpty(plug.GetComponentsInChildren<Renderer>(true));Assert.IsNotEmpty(avatar.GetComponentsInChildren<Renderer>(true));
             Assert.IsFalse(avatar.GetComponentInChildren<VRCPhysBone>(true).transform.IsChildOf(plug.transform));
+        }
+        [Test] public void SeparateReferencesCannotReusePointSenderIdentity()
+        {
+            var left=new GameObject("Left").transform;left.SetParent(avatar.transform,false);
+            var right=new GameObject("Right").transform;right.SetParent(avatar.transform,false);
+            var probe=left.gameObject.AddComponent<SensaPointProbe>();probe.target=right;SensaPointBuilder.Build(probe);
+            var other=right.gameObject.AddComponent<SensaPointProbe>();other.target=left;
+            Assert.Throws<InvalidOperationException>(()=>SensaPointBuilder.Build(other));
+        }
+        [UnityTest] public IEnumerator SharedConstraintActuallyMovesToTheSelectedSocket()
+        {
+            Socket("A",new Vector3(0,.1f,0));var b=Socket("B",new Vector3(.15f,.3f,.02f));
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
+            var merge=avatar.GetComponentInChildren<ModularAvatarMergeAnimator>();var controller=(AnimatorController)merge.animator;
+            var clip=(AnimationClip)controller.layers[0].stateMachine.states.Single(s=>s.state.name=="Select 2").state.motion;
+            clip.SampleAnimation(avatar,0);
+            for(int i=0;i<4;i++){EditorApplication.QueuePlayerLoopUpdate();yield return null;}
+            var constraint=avatar.GetComponentInChildren<ParentConstraint>();
+            Assert.That(Vector3.Distance(constraint.transform.position,b.transform.GetChild(0).position),Is.LessThan(.0001f));
         }
     }
 }

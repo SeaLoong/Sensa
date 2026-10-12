@@ -6,6 +6,7 @@ using nadena.dev.modular_avatar.core;
 using UnityEngine;
 using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
+using VRC.SDK3.Avatars.Components;
 
 namespace UnityBox.Sensa
 {
@@ -25,6 +26,8 @@ namespace UnityBox.Sensa
         }
         public static void Parameter(GameObject host,string name,ParameterSyncType type=ParameterSyncType.Float)
         {
+            var avatar=host.GetComponentInParent<VRCAvatarDescriptor>();var root=avatar!=null?avatar.gameObject:host.transform.root.gameObject;
+            if(root.GetComponentsInChildren<ModularAvatarParameters>(true).Any(c=>c.parameters!=null&&c.parameters.Any(p=>p.nameOrPrefix==name)))throw new InvalidOperationException("Generated Sensa parameter conflicts with an existing declaration: "+name);
             var config=host.GetComponent<ModularAvatarParameters>()??host.AddComponent<ModularAvatarParameters>();
             if(config.parameters==null) config.parameters=new List<ParameterConfig>();
             if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException("Duplicate generated parameter: "+name);

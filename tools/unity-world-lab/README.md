@@ -6,6 +6,7 @@ This is a device-free PC Worlds test harness. Open `Generated/SensaLab.unity`.
 - The left small cube pauses motion; the right cube toggles the desktop-output experiment. Desktop output is OFF by default.
 - The third cube toggles the camera-only prototype. Read `CAMERA-PROTOTYPE.md` before trying it; do not enable both output experiments together.
 - GPU readback is deliberately throttled to every six Update frames. The board reports decoded age and maximum callback lag; these are local Udon diagnostics, not external capture latency.
+- The local bone/PB station shows a grabbable sphere, native PhysBone state, target coordinates and eight native Contact samples. The automated run verifies its readout; actual player grabbing remains a client test.
 - The SPS2 Plug/Socket station uses installed VRCFury authoring components and is baked by its normal world build/play hook. Legacy compatibility remains enabled.
 - The paired three-marker sender can stimulate a compatible test avatar, but a world is not a substitute for uploading and wearing that avatar.
 - The visible telemetry panel is deliberately visible for inspection. The separate desktop-output prefab is the experiment for a non-stereo fixed viewport, not a proven invisible avatar bridge.

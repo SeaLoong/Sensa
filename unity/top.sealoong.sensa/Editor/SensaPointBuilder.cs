@@ -7,6 +7,7 @@ using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Dynamics.PhysBone.Components;
 using nadena.dev.modular_avatar.core;
+using VRC.SDK3.Avatars.Components;
 
 namespace UnityBox.Sensa
 {
@@ -33,6 +34,9 @@ namespace UnityBox.Sensa
         {
             var reference=probe.reference!=null?probe.reference:probe.transform;
             if(reference.Find("SensaPoint_"+probe.instanceName)!=null)throw new InvalidOperationException("Point probe is already generated: "+probe.instanceName);
+            string tag="SensaPointV1_"+probe.instanceName;
+            var avatar=reference.GetComponentInParent<VRCAvatarDescriptor>();var owner=avatar!=null?avatar.transform:reference.root;
+            if(owner.GetComponentsInChildren<VRCContactSender>(true).Any(s=>s.collisionTags!=null&&s.collisionTags.Contains(tag)))throw new InvalidOperationException("Point sender identity is already used: "+probe.instanceName);
             var rig=SensaSensorUtility.Child(reference,"SensaPoint_"+probe.instanceName);
             var prefix=(probe.createGrabHandle?SensaPoseProtocol.HandlePrefix:SensaPoseProtocol.PointPrefix)+"/"+probe.instanceName+"/Self";
             var target=probe.target;
@@ -45,11 +49,12 @@ namespace UnityBox.Sensa
                 SensaSensorUtility.Parameter(rig.gameObject,pb.parameter+"_Stretch");
                 var visual=GameObject.CreatePrimitive(PrimitiveType.Sphere);visual.name="Visible grip";visual.transform.SetParent(target,false);visual.transform.localScale=Vector3.one*.02f;
                 UnityEngine.Object.DestroyImmediate(visual.GetComponent<Collider>());
+                pb.ignoreTransforms.Add(visual.transform);
             }
             var marker=SensaSensorUtility.Child(rig,"TrackedPoint");marker.position=target.position;
             var follow=marker.gameObject.AddComponent<PositionConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=target,weight=1});follow.translationOffset=Vector3.zero;follow.locked=true;follow.constraintActive=true;
             var sender=marker.gameObject.AddComponent<VRCContactSender>();sender.radius=SensaPoseProtocol.MarkerRadius;sender.localOnly=true;
-            string tag="SensaPointV1_"+probe.instanceName;sender.collisionTags=new List<string>{tag};
+            sender.collisionTags=new List<string>{tag};
             SensaSensorUtility.Array(rig,prefix,tag,true);
             return rig.gameObject;
         }

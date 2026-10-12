@@ -24,7 +24,7 @@ namespace UnityBox.Sensa
                     var targets=SensaAutoBuilder.Targets(setup,descriptor.gameObject);
                     report=$"目标 {targets.Length}；新增 Contact {SensaAutoBuilder.ContactCost(setup,targets)}\n";
                     int slot=0;
-                    for(int i=0;i<targets.Length;i++){var placement=SensaSpsAdapter.Read(targets[i]);bool socket=targets[i].GetType().FullName==SensaSpsAdapter.SocketType;if(socket)slot++;report+=$"{targets[i].name} [{SensaAutoBuilder.InstanceName(setup,targets[i],descriptor.gameObject)}]"+(socket?$" 槽位 {slot}":"")+$": {placement.position:F3}, 长度 {placement.length:F3}\n";if(!socket&&setup.localPlugTipTracking&&placement.length>.24f)report+="  注意：Tip 超出本地点阵列有效范围，可能无法解算；不要把截断采样当作位置。\n";}
+                    for(int i=0;i<targets.Length;i++){var placement=SensaSpsAdapter.Read(targets[i]);bool socket=targets[i].GetType().FullName==SensaSpsAdapter.SocketType;if(socket)slot++;report+=$"{targets[i].name} [{SensaAutoBuilder.InstanceName(setup,targets[i],descriptor.gameObject)}]"+(socket?$" 槽位 {slot}":"")+$": {placement.position:F3}, 长度 {placement.length:F3}\n";}
                     if(targets.Length==0)report+="没有匹配的 VRCFury SPS 组件。";
                 }catch(Exception ex){report=ex.GetBaseException().Message;}
             }
