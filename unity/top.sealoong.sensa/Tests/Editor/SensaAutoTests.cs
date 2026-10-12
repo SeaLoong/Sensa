@@ -35,6 +35,21 @@ namespace UnityBox.Sensa.Tests
             Assert.AreEqual(new Vector3(.01f,.02f,.1f),bone.localPosition);Assert.IsNull(bone.GetComponent<PositionConstraint>());
             Assert.AreEqual(bone,avatar.GetComponentInChildren<PositionConstraint>().GetSource(0).sourceTransform);
         }
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CompactProbeUsesFourTetrahedralReceiversAndASeparateKnownRadiusSender(bool handle)
+        {
+            var target=new GameObject("Target").transform;target.SetParent(avatar.transform,false);target.localPosition=Vector3.forward*.1f;
+            var probe=avatar.AddComponent<SensaPointProbe>();probe.target=target;probe.compactTracking=true;probe.createGrabHandle=handle;
+            SensaPointBuilder.ProcessAvatar(avatar);
+            var receivers=avatar.GetComponentsInChildren<VRCContactReceiver>();Assert.AreEqual(4,receivers.Length);
+            var sender=avatar.GetComponentInChildren<VRCContactSender>();Assert.AreEqual(SensaPoseProtocol.MarkerRadius,sender.radius);
+            Assert.IsNull(sender.GetComponentInParent<VRCPhysBone>());
+            for(int i=0;i<4;i++){
+                int a=SensaPoseProtocol.CompactAnchorIndex(i);Assert.AreEqual(new Vector3(SensaPoseProtocol.AnchorX(a),SensaPoseProtocol.AnchorY(a),SensaPoseProtocol.AnchorZ(a)),receivers[i].transform.localPosition);
+                Assert.IsTrue(receivers[i].parameter.Contains("/v2/"));
+            }
+        }
         [Test] public void HandleUsesSeparatePhysBoneAndFollowerObjects()
         {
             var probe=avatar.AddComponent<SensaPointProbe>();probe.createGrabHandle=true;SensaPointBuilder.ProcessAvatar(avatar);
@@ -113,9 +128,11 @@ namespace UnityBox.Sensa.Tests
             var other=right.gameObject.AddComponent<SensaPointProbe>();other.target=left;
             Assert.Throws<InvalidOperationException>(()=>SensaPointBuilder.Build(other));
         }
-        [TestCase(SensaArrayPolicy.Exclusive)]
-        [TestCase(SensaArrayPolicy.SharedRootArray)]
-        public void OneSelectorGatesSocketAndEveryPlugHelper(SensaArrayPolicy policy)
+        [TestCase(SensaArrayPolicy.Exclusive,false)]
+        [TestCase(SensaArrayPolicy.SharedRootArray,false)]
+        [TestCase(SensaArrayPolicy.Exclusive,true)]
+        [TestCase(SensaArrayPolicy.SharedRootArray,true)]
+        public void OneSelectorGatesSocketAndEveryPlugHelper(SensaArrayPolicy policy,bool compact)
         {
             var socket=Socket("A Socket",Vector3.zero);
             var type=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(SensaSpsAdapter.PlugType)).First(t=>t!=null);
@@ -123,6 +140,8 @@ namespace UnityBox.Sensa.Tests
             foreach(var field in new[]{"autoRenderer","autoPosition","autoLength","autoRadius"})type.GetField(field).SetValue(component,false);
             type.GetField("unitsInMeters").SetValue(component,true);type.GetField("length").SetValue(component,.16f);type.GetField("radius").SetValue(component,.015f);
             var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=policy;setup.localPlugTipTracking=true;setup.pairedPlugMarkers=true;setup.createPlugGrabHandles=true;
+            setup.compactLocalPoints=compact;
+            Assert.AreEqual(compact?21:29,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));
             SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
@@ -130,7 +149,7 @@ namespace UnityBox.Sensa.Tests
             var states=controller.layers[0].stateMachine.states.Select(s=>s.state).ToArray();
             void Select(int slot){((AnimationClip)states.Single(s=>s.name==(policy==SensaArrayPolicy.SharedRootArray?"Active ":"Select ")+slot).motion).SampleAnimation(avatar,0);}
             Select(2);
-            Assert.AreEqual(16,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);
+            Assert.AreEqual(compact?8:16,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);
             Assert.AreEqual(5,avatar.GetComponentsInChildren<VRCContactSender>().Length);
             Assert.AreEqual(1,avatar.GetComponentsInChildren<VRCPhysBone>().Length);
             Assert.IsTrue(socket.transform.GetChild(0).gameObject.activeInHierarchy,"The Plug's reference frame must remain active");

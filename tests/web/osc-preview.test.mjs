@@ -65,3 +65,12 @@ test('point preview uses decoded local coordinates and refuses ambiguous rigs', 
   assert.equal(pointPreviewEntry([{...point,valid:false,reason:'lost'}],signal).value,'lost');
   assert.equal(pointPreviewEntry([{...point,kind:'SharedRoot'}],signal).numericValue,undefined);
 });
+
+test('compact points are discoverable and never match nonexistent receivers', () => {
+  const prefix='Sensa/Point/v2/Bone/Self';
+  const point={kind:'Point',sourceKey:'a',prefix,valid:true,position:{x:.02,y:0,z:.1},sampleCount:4};
+  assert.equal(rankPreview([{path:`${prefix}/Root/A0`}],[],{category:'pose'}).length,1);
+  assert.equal(pointPreviewEntry([point],{oscPath:`${prefix}/**`}).numericValue,.1);
+  assert.equal(pointPreviewEntry([point],{oscPath:`${prefix}/Root/A7`}).numericValue,undefined);
+  assert.match(parameterMeaning(`${prefix}/Root/A0`),/四路/);
+});

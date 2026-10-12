@@ -62,6 +62,26 @@ public static class PoseReconstruction
     public static readonly PosePoint[] Anchors = Enumerable.Range(0, 8)
         .Select(i => new PosePoint(SensaPoseProtocol.AnchorX(i), SensaPoseProtocol.AnchorY(i), SensaPoseProtocol.AnchorZ(i))).ToArray();
 
+    public static MarkerFit FitLocalTetrahedron(IReadOnlyList<float> proximity)
+    {
+        if (proximity.Count != 4) return new(false, default, 0, 0, "四面体采样不完整");
+        if (proximity.Any(p => !float.IsFinite(p) || p <= .00001f || p >= .99999f))
+            return new(false, default, 0, 0, "本地点离开采样体积或接收器饱和");
+        var position = new PosePoint();
+        Span<double> distances = stackalloc double[4];
+        for (int i = 0; i < 4; i++)
+        {
+            distances[i] = SensaPoseProtocol.ReceiverRadius * (1d - proximity[i]) + SensaPoseProtocol.MarkerRadius;
+            position += Anchors[SensaPoseProtocol.CompactAnchorIndex(i)] * (-distances[i] * distances[i]);
+        }
+        position *= 1d / (8d * SensaPoseProtocol.AnchorHalfSpan * SensaPoseProtocol.AnchorHalfSpan);
+        double error = 0;
+        for (int i = 0; i < 4; i++) error += Math.Pow((position - Anchors[SensaPoseProtocol.CompactAnchorIndex(i)]).Length - distances[i], 2);
+        error = Math.Sqrt(error / 4);
+        bool valid = error <= SensaPoseProtocol.MaximumFitResidual && position.Length <= .245;
+        return new(valid, position, SensaPoseProtocol.MarkerRadius, error, valid ? "" : "四面体拟合不一致或超出范围；检查尺寸、缩放和同标签干扰");
+    }
+
     public static MarkerFit FitMarker(IReadOnlyList<float> proximity)
     {
         if (proximity.Count != 8) return new(false, default, 0, 0, "采样不完整");

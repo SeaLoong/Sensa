@@ -3628,7 +3628,7 @@ function App() {
   }
 
   function mapPreviewParameter(entry) {
-    if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
+    if (/^Sensa\/(Point|Handle)\/v[12]\//.test(entry.path)) {
       usePointRig({prefix:entry.path.split('/').slice(0,5).join('/')});
     } else if (/^Sensa\/(SpsRoot|SharedRoot)\/v1\//.test(entry.path)) {
       notify('这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。', 'info');

@@ -313,7 +313,9 @@ public sealed class MotionRuntime : IDisposable
         {
             if (_processors.Any(p=>p.Processor.Mapping.SourceMode=="SensaPoint")
                 && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
-                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal))) return true;
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.CompactPointPrefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.CompactHandlePrefix+"/",StringComparison.Ordinal))) return true;
             foreach (var (pattern, _) in _processors)
             {
                 if (OscParameterStore.MatchesPathPattern(pattern, oscPath))

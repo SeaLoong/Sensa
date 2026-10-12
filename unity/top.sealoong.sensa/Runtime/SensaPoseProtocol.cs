@@ -6,6 +6,10 @@ namespace UnityBox.Sensa
         public const string SpsRootPrefix = "Sensa/SpsRoot/v1";
         public const string PointPrefix = "Sensa/Point/v1";
         public const string HandlePrefix = "Sensa/Handle/v1";
+        public const string CompactPointPrefix = "Sensa/Point/v2";
+        public const string CompactHandlePrefix = "Sensa/Handle/v2";
+        // Regular tetrahedron, fixed-radius local sender. v1 geometry stays unchanged.
+        public static int CompactAnchorIndex(int index) => index == 0 ? 0 : index == 1 ? 3 : index == 2 ? 5 : 6;
         public const string SharedRootPrefix = "Sensa/SharedRoot/v1";
         public const string SpsRootTag = "TPS_Pen_Root";
         public const string Prefix = "Sensa/Pose/v1";

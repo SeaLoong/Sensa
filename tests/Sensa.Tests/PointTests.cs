@@ -4,10 +4,30 @@ using Sensa.Runtime;
 using Sensa.Signals;
 using Xunit;
 using System.Text.Json;
+using UnityBox.Sensa;
 
 namespace Sensa.Tests;
 public class PointTests
 {
+    [Fact] public void FourKnownRadiusRangesReconstructAcrossTheLocalVolume()
+    {
+        var random=new Random(9271);
+        for(int trial=0;trial<300;trial++) {
+            var expected=new PosePoint((random.NextDouble()-.5)*.2,(random.NextDouble()-.5)*.2,(random.NextDouble()-.5)*.2);
+            var values=Enumerable.Range(0,4).Select(i=>(float)(1-((expected-PoseReconstruction.Anchors[SensaPoseProtocol.CompactAnchorIndex(i)]).Length-SensaPoseProtocol.MarkerRadius)/SensaPoseProtocol.ReceiverRadius)).ToArray();
+            var fit=PoseReconstruction.FitLocalTetrahedron(values);Assert.True(fit.Valid,fit.Reason);Assert.InRange((fit.Position-expected).Length,0,.000001);
+        }
+        Assert.False(PoseReconstruction.FitLocalTetrahedron([.5f,.5f,.5f]).Valid);
+        Assert.False(PoseReconstruction.FitLocalTetrahedron([1,.5f,.5f,.5f]).Valid);
+        Assert.False(PoseReconstruction.FitLocalTetrahedron([float.NaN,.5f,.5f,.5f]).Valid);
+    }
+    [Fact] public void CompactProtocolRejectsWrongIndicesAndDoesNotInventExtraReceivers()
+    {
+        const string prefix="Sensa/Point/v2/Bone/Self";var store=new OscParameterStore();var values=PoseTests.Samples(new(.02,-.03,.1));
+        for(int i=0;i<4;i++)store.Set(prefix+"/Root/A"+i,OscValue.FromFloat(values[SensaPoseProtocol.CompactAnchorIndex(i)]));
+        var point=Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries()));Assert.True(point.Valid);Assert.False(point.Matches(prefix+"/Root/A7"));
+        store.Set(prefix+"/Root/A7",OscValue.FromFloat(.5f));Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
+    }
     [Fact] public void CapturedWorldSdkSamplesDecodeToObservedPoint()
     {
         var assembly=typeof(PointTests).Assembly;
@@ -17,6 +37,8 @@ public class PointTests
         var values=root.GetProperty("samples").EnumerateArray().Select(v=>v.GetSingle()).ToArray();
         var observed=root.GetProperty("position");var expected=new PosePoint(observed.GetProperty("x").GetDouble(),observed.GetProperty("y").GetDouble(),observed.GetProperty("z").GetDouble());
         var fit=PoseReconstruction.FitMarker(values);Assert.True(fit.Valid,fit.Reason);Assert.InRange((fit.Position-expected).Length,0,.0001);
+        var compact=PoseReconstruction.FitLocalTetrahedron(Enumerable.Range(0,4).Select(i=>values[SensaPoseProtocol.CompactAnchorIndex(i)]).ToArray());
+        Assert.True(compact.Valid,compact.Reason);Assert.InRange((compact.Position-expected).Length,0,.0001);
     }
     private static void Put(OscParameterStore store,string prefix,PosePoint p,OscSource? source=null)
     {var values=PoseTests.Samples(p);for(int i=0;i<8;i++)store.Set(prefix+"/Root/A"+i,OscValue.FromFloat(values[i]),source??OscSource.Unknown);}
@@ -29,11 +51,17 @@ public class PointTests
         Put(store,prefix,new(.03,0,.1));var point=Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries()));Assert.True(point.Valid);Assert.False(point.IsLocalPoint);Assert.Equal(2,point.Slot);
         store.Set(prefix+"/Ready",OscValue.FromFloat(0));Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
     }
-    [Fact] public async Task HandleReleaseStopsEvenWithRootOnlyMappingPattern()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task HandleReleaseStopsEvenWithRootOnlyMappingPattern(bool compact)
     {
-        const string prefix="Sensa/Handle/v1/Grip/Self";
+        string prefix="Sensa/Handle/"+(compact?"v2":"v1")+"/Grip/Self";
         var config=new AppConfig{Signals=[new(){OscPath=prefix+"/Root/**",SourceMode="SensaPoint",PointMetric=PointMetric.Z,VrchatMin=0,VrchatMax=.2f}]};config.NormalizeForRuntime();
-        var store=new OscParameterStore();Put(store,prefix,new(.02,0,.1));store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(1));
+        var store=new OscParameterStore();
+        if(compact){var values=PoseTests.Samples(new(.02,0,.1));for(int i=0;i<4;i++)store.Set(prefix+"/Root/A"+i,OscValue.FromFloat(values[SensaPoseProtocol.CompactAnchorIndex(i)]));}
+        else Put(store,prefix,new(.02,0,.1));
+        store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(1));
         using var receiver=new OscInputReceiver(store);var frame=new TaskCompletionSource<Sensa.Motion.MotionFrame>();var stop=new TaskCompletionSource();
         using var runtime=new MotionRuntime(config,store,receiver,sendOutputsAsync:f=>{frame.TrySetResult(f);return Task.CompletedTask;},emergencyStopAsync:()=>{stop.TrySetResult();return Task.CompletedTask;});
         runtime.SetInputMode(RuntimeInputMode.Osc);runtime.SetInputActive(true);

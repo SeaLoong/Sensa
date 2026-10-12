@@ -18,7 +18,7 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
   }).filter(entry => (showFaceTracking || !entry.classification?.isFaceTracking || entry._matches || pinned.includes(entry.path))
-    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(Pose|SpsRoot|Point|Handle|SharedRoot)\/v1\//.test(entry.path)
+    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(Pose|SpsRoot|SharedRoot)\/v1|(Point|Handle)\/v[12])\//.test(entry.path)
       || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))
     .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))
@@ -32,7 +32,7 @@ export function parameterMeaning(path) {
   if (path.startsWith('Sensa/Pose/v1/')) return '定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。';
   if (path.startsWith('Sensa/SpsRoot/v1/')) return '单侧 SPS 根部阵列的距离样本；8 路共同估计根部 XYZ，仅用于诊断。不能测尖端、朝向或行程，不应直接映射运动输出。';
   if (path.startsWith('Sensa/SharedRoot/v1/')) return '共享根部阵列；必须连同 Ready、Slot 与新槽位采样判定，仅用于诊断，不能直接映射行程。';
-  if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return '本地骨骼/PB 测量。8 路共同解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。';
+  if (/^Sensa\/(Point|Handle)\/v[12]\//.test(path)) return '本地骨骼/PB 测量。v1 八路 / v2 四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。';
   if (/NewRoot$/.test(leaf)) return '根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。';
   if (/NewTip$/.test(leaf)) return '当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。';
   if (/^Pen(Others|Self)$/.test(leaf)) return '近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。';
@@ -86,7 +86,7 @@ export function posePreviewEntry(observations, signal, preferredSourceKey = '', 
 
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
   const points = observations.filter(p => ['Point', 'Handle'].includes(p.kind) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
-    && Array.from({length:8}, (_,i) => `${p.prefix}/Root/A${i}`).some(path => matchesOscPathPattern(signal.oscPath,path)));
+    && Array.from({length:/^Sensa\/(Point|Handle)\/v2\//.test(p.prefix)?4:8}, (_,i) => `${p.prefix}/Root/A${i}`).some(path => matchesOscPathPattern(signal.oscPath,path)));
   if (points.length !== 1) return {path:signal.oscPath,value:points.length ? '请限定唯一测量点与来源' : '等待本地点采样'};
   const p = points[0];
   const value = p.valid ? ({X:p.position.x,Y:p.position.y,Z:p.position.z,Distance:Math.hypot(p.position.x,p.position.y,p.position.z)}[signal.pointMetric || 'Z']) : undefined;
