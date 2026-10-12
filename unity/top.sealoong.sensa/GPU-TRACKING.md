@@ -65,6 +65,28 @@ python -X utf8 scripts/analyze-gpu-capture.py path/to/sensa-gpu-capture.json
 
 ## 游戏内可继续实现的桥接
 
+### 本次改进：曲线方向、孔径与采样诊断
+
+离线分析器现在另外输出交点处采样弦方向 `entryTangent`、与入口平面的夹角 `incidenceDegrees`（90° 为垂直进入）、交点后弧长占采样总弧长比例 `sampledArcFractionAfterPlane`，以及 16 段与 32 段折线弧长之差 `coarseToFineArcDifferenceMeters`。材料参数比例与几何弧长比例不再需要混为同一个值。塌缩为零长度的段会拒绝分析，因为该处没有有效方向。
+
+可显式提供校准后的孔径与最小入射角，例如：
+
+```powershell
+python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.04 --min-incidence-degrees 10
+```
+
+默认不猜测 Socket 孔径；显式指定后，中心线在圆孔之外穿越平面、或者入射角过浅，`usable` 会变为 false。半径用世界米，这仍是中心线/圆形入口模型，未计入截面厚度或复杂入口形状。对于折线顶点上的交点，方向取交点后那段弦的方向，不冒充解析曲线切线或最终网格法线。
+
+粗细采样弧长差只能提示采样敏感度，**不是误差上界**：两个采样密度都可能遗漏更小尺度弯曲。后续提高采样数应同步升级 GPU 布局、回读器和协议，而不是插值已有 33 点后宣称增加精度。
+
+### Shader 数据如何离开 GPU，以及时序为什么仍是边界
+
+当前实验按指定相机渲染完成事件读取该相机产生的 SPS 数据纹理，通过目标/玩家 Shader 标识找到 Resolver 单元，调用安装版本的 SPS 曲线函数，在 36×1 浮点纹理中写入头、入口位置/方向和 33 个中心线点，再异步回读到编辑器。世界测试可使用 Udon 的 GPU 回读；头像上传后不能运行这个编辑器 C# 回读逻辑。[VRChat AsyncGPUReadback](https://creators.vrchat.com/worlds/udon/vrc-graphics/asyncgpureadback/)是世界 Udon 能力。
+
+若未来接入桌面编码图块，可靠性需要同时处理：固定输出坐标、帧边界标记/长度/CRC、生产序号、超时停用和跨相机隔离。CRC 只能排除部分损坏，无法识别“完整但过期的一帧”。即使编码器给图块写了当前帧号，源 SPS 纹理如果仍是旧帧，图块也会把旧几何重新包装成新包；必须有源数据新鲜度或同一渲染阶段的保证。当前尚无这一完整桥接保证，新增几何指标不能解决它。
+
+PB/Contact 不经过屏幕图块，因此避免窗口区域随转头移动的那类问题；Shader 中心线则能提供 PB/Contact 看不到的模型形变。二者测量对象不同，不能用 PB 的抓取点冒充渲染曲线，也不能以 GPU 模型快照保证真实设备时序。
+
 本仓库 `tools/unity-world-lab` 已提供相机→RenderTexture→固定视口的原生组件实验预制件生成器，及世界 Udon 的编码/回读测试。编辑器旋转和 CRC 测试已通过；外部程序直接读取隐藏 RenderTexture、头像上传后头显不可见、Spout/窗口捕获时序均未因此得到验证。
 
 候选链路为：**本地 Shader 读取模型 → 本地可见编码图块 → 用户选择 VRChat 窗口与区域 → 桌面捕获解码 → Sensa 独立输入源**。这比尝试让头像运行回读脚本更符合现有平台边界，但尚未实现或验证。
