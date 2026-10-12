@@ -63,7 +63,7 @@ namespace SensaLab
                 File.WriteAllText(ReportDirectory+"/playmode-results.txt",result);
                 bool gpuModel=resolver!=null && CaptureModel(renderers);
                 var probeBoard=GameObject.Find("Local probe status");
-                bool localProbe=probeBoard!=null && probeBoard.GetComponent<Text>().text.Contains("A7=");
+                bool localProbe=probeBoard!=null && probeBoard.GetComponent<Text>().text.Contains("A3=");
                 if(probeBoard!=null)result+="\n"+probeBoard.GetComponent<Text>().text;
                 if(localProbe){var station=GameObject.Find("Local bone and PB station").GetComponent<LocalProbeStation>();File.WriteAllText(ReportDirectory+"/local-point-capture.json",JsonUtility.ToJson(new LocalPointCapture{position=station.reference.InverseTransformPoint(station.target.position),samples=station.receivers.Select(r=>r.CalculateProximity(station.sender)).ToArray(),grabbed=station.bone.IsGrabbed,stretch=station.bone.Stretch},true));}
                 result+="\nLocal PB station running: "+localProbe;

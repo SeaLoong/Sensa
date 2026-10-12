@@ -72,11 +72,11 @@ public static class PoseReconstruction
         for (int i = 0; i < 4; i++)
         {
             distances[i] = SensaPoseProtocol.ReceiverRadius * (1d - proximity[i]) + SensaPoseProtocol.MarkerRadius;
-            position += Anchors[SensaPoseProtocol.CompactAnchorIndex(i)] * (-distances[i] * distances[i]);
+            position += Anchors[SensaPoseProtocol.PointAnchorIndex(i)] * (-distances[i] * distances[i]);
         }
         position *= 1d / (8d * SensaPoseProtocol.AnchorHalfSpan * SensaPoseProtocol.AnchorHalfSpan);
         double error = 0;
-        for (int i = 0; i < 4; i++) error += Math.Pow((position - Anchors[SensaPoseProtocol.CompactAnchorIndex(i)]).Length - distances[i], 2);
+        for (int i = 0; i < 4; i++) error += Math.Pow((position - Anchors[SensaPoseProtocol.PointAnchorIndex(i)]).Length - distances[i], 2);
         error = Math.Sqrt(error / 4);
         bool valid = error <= SensaPoseProtocol.MaximumFitResidual && position.Length <= .245;
         return new(valid, position, SensaPoseProtocol.MarkerRadius, error, valid ? "" : "四面体拟合不一致或超出范围；检查尺寸、缩放和同标签干扰");

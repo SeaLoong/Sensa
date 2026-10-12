@@ -24,7 +24,7 @@ namespace UnityBox.Sensa
         {
             int sockets=targets.Count(c=>c.GetType().FullName==SensaSpsAdapter.SocketType), plugs=targets.Length-sockets;
             return (setup.socketRootTracking?(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && sockets>0?8:sockets*8):0)
-                +(setup.pairedSocketTracking?sockets*24:0)+plugs*((setup.pairedPlugMarkers?3:0)+(setup.localPlugTipTracking?(setup.compactLocalPoints?5:9):0)+(setup.createPlugGrabHandles?(setup.compactLocalPoints?5:9):0));
+                +(setup.pairedSocketTracking?sockets*24:0)+plugs*((setup.pairedPlugMarkers?3:0)+(setup.localPlugTipTracking?5:0)+(setup.createPlugGrabHandles?5:0));
         }
         public static void ProcessAvatar(GameObject avatar)
         {
@@ -75,13 +75,13 @@ namespace UnityBox.Sensa
                     Track(frame.gameObject,slot);
                     var tip=SensaSensorUtility.Child(frame,"Tip");tip.localPosition=Vector3.forward*p.length;
                     if(setup.pairedPlugMarkers){var side=SensaSensorUtility.Child(frame,"Side");side.localPosition=Vector3.right*.03f;var plug=frame.gameObject.AddComponent<SensaPosePlug>();plug.profile=profile;plug.rootMarker=frame;plug.tipMarker=tip;plug.sideMarker=side;SensaPoseBuilder.BuildPlug(plug);UnityEngine.Object.DestroyImmediate(plug);}
-                    if(setup.localPlugTipTracking){var probe=frame.gameObject.AddComponent<SensaPointProbe>();probe.instanceName=id;probe.compactTracking=setup.compactLocalPoints;probe.reference=pointReference;probe.target=tip;Track(SensaPointBuilder.Build(probe),slot);UnityEngine.Object.DestroyImmediate(probe);}
+                    if(setup.localPlugTipTracking){var probe=frame.gameObject.AddComponent<SensaPointProbe>();probe.instanceName=id;probe.reference=pointReference;probe.target=tip;Track(SensaPointBuilder.Build(probe),slot);UnityEngine.Object.DestroyImmediate(probe);}
                     if(setup.createPlugGrabHandles){
                         // Keep the visible grip outside SPS's renderer-discovery subtree.
                         var handleFrame=SensaSensorUtility.Child(host.transform,"HandleFrame_"+id);handleFrame.position=frame.position;handleFrame.rotation=frame.rotation;handleFrame.localScale=Vector3.one*(frame.lossyScale.x/host.transform.lossyScale.x);
                         Track(handleFrame.gameObject,slot);
                         var follow=handleFrame.gameObject.AddComponent<ParentConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=frame,weight=1});follow.SetTranslationOffset(0,Vector3.zero);follow.SetRotationOffset(0,Vector3.zero);follow.locked=true;follow.constraintActive=true;
-                        var probe=handleFrame.gameObject.AddComponent<SensaPointProbe>();probe.instanceName=id+"_H";probe.compactTracking=setup.compactLocalPoints;probe.reference=handleFrame;probe.createGrabHandle=true;probe.handleLength=Mathf.Clamp(p.length*.5f,.02f,.15f);SensaPointBuilder.Build(probe);UnityEngine.Object.DestroyImmediate(probe);
+                        var probe=handleFrame.gameObject.AddComponent<SensaPointProbe>();probe.instanceName=id+"_H";probe.reference=handleFrame;probe.createGrabHandle=true;probe.handleLength=Mathf.Clamp(p.length*.5f,.02f,.15f);SensaPointBuilder.Build(probe);UnityEngine.Object.DestroyImmediate(probe);
                     }
                 }
             }

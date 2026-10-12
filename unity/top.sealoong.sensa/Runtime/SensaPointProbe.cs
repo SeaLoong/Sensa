@@ -13,8 +13,6 @@ namespace UnityBox.Sensa
         [Tooltip("Local avatar bone/landmark to measure. Not required when creating a grab handle.")]
         public Transform target;
         public bool createGrabHandle;
-        [Tooltip("Use four tetrahedral receivers and a known-radius local sender (Point/Handle v2). Update desktop mappings when changing this option.")]
-        public bool compactTracking;
         [Range(.02f, .18f)] public float handleLength = .10f;
     }
 }

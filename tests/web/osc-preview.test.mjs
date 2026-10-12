@@ -58,7 +58,7 @@ test('single-sided root samples are discoverable but explain their missing geome
 });
 
 test('point preview uses decoded local coordinates and refuses ambiguous rigs', () => {
-  const point={kind:'Point',sourceKey:'a',prefix:'Sensa/Point/v1/Bone/Self',valid:true,position:{x:.02,y:-.03,z:.1},sampleCount:8};
+  const point={kind:'Point',sourceKey:'a',prefix:'Sensa/Point/v1/Bone/Self',valid:true,position:{x:.02,y:-.03,z:.1},sampleCount:4};
   const signal={oscPath:'Sensa/Point/v1/**',pointMetric:'Y'};
   assert.equal(pointPreviewEntry([point],signal).numericValue,-.03);
   assert.equal(pointPreviewEntry([point,{...point,sourceKey:'b'}],signal).numericValue,undefined);
@@ -66,8 +66,8 @@ test('point preview uses decoded local coordinates and refuses ambiguous rigs', 
   assert.equal(pointPreviewEntry([{...point,kind:'SharedRoot'}],signal).numericValue,undefined);
 });
 
-test('compact points are discoverable and never match nonexistent receivers', () => {
-  const prefix='Sensa/Point/v2/Bone/Self';
+test('local points are discoverable and never match nonexistent receivers', () => {
+  const prefix='Sensa/Point/v1/Bone/Self';
   const point={kind:'Point',sourceKey:'a',prefix,valid:true,position:{x:.02,y:0,z:.1},sampleCount:4};
   assert.equal(rankPreview([{path:`${prefix}/Root/A0`}],[],{category:'pose'}).length,1);
   assert.equal(pointPreviewEntry([point],{oscPath:`${prefix}/**`}).numericValue,.1);

@@ -142,8 +142,8 @@ def main():
                     configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
                     command('/api/config', 'PUT', configuration)
                     handle_prefix = 'Sensa/Handle/v1/Grip/Self'
-                    values = [(handle_prefix + '/Root/' + path.rsplit('/',1)[1], value)
-                              for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
+                    root_values = [value for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
+                    values = [(handle_prefix + f'/Root/A{i}', root_values[anchor]) for i, anchor in enumerate((0,3,5,6))]
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                         udp.sendto(fixture.bundle(values + [(handle_prefix+'/Handle_IsGrabbed',1)]), ('127.0.0.1',osc_port))
                         time.sleep(.15); command('/api/input/active','PUT',{'active':True}); time.sleep(.15)

@@ -12,7 +12,8 @@ public static class SpsPositionTracking
         string Prefix, string SourceKey, string Kind, int Slot)
     {
         public bool IsLocalPoint => Kind is "Point" or "Handle";
-        public bool Matches(string pattern) => Enumerable.Range(0,Prefix.StartsWith("Sensa/Point/v2/",StringComparison.Ordinal)||Prefix.StartsWith("Sensa/Handle/v2/",StringComparison.Ordinal)?4:8).Any(i=>OscParameterStore.MatchesPathPattern(pattern,$"{Prefix}/Root/A{i}"));
+        public int ExpectedSampleCount => IsLocalPoint ? 4 : 8;
+        public bool Matches(string pattern) => Enumerable.Range(0,ExpectedSampleCount).Any(i=>OscParameterStore.MatchesPathPattern(pattern,$"{Prefix}/Root/A{i}"));
         public float Metric(PointMetric metric) => (float)(metric switch { PointMetric.X=>Position.X,PointMetric.Y=>Position.Y,PointMetric.Distance=>Position.Length,_=>Position.Z });
     }
 
@@ -21,7 +22,7 @@ public static class SpsPositionTracking
         var snapshot=entries.ToArray();
         var lookup=snapshot.ToDictionary(e=>(e.Entry.Source.Key,e.Path),e=>e.Entry);
         return snapshot.Where(e => (string.IsNullOrEmpty(sourceKey) || sourceKey == e.Entry.Source.Key)
-                && new[]{SensaPoseProtocol.SpsRootPrefix,SensaPoseProtocol.PointPrefix,SensaPoseProtocol.HandlePrefix,SensaPoseProtocol.SharedRootPrefix,SensaPoseProtocol.CompactPointPrefix,SensaPoseProtocol.CompactHandlePrefix}.Any(p=>e.Path.StartsWith(p+"/",StringComparison.Ordinal)))
+                && new[]{SensaPoseProtocol.SpsRootPrefix,SensaPoseProtocol.PointPrefix,SensaPoseProtocol.HandlePrefix,SensaPoseProtocol.SharedRootPrefix}.Any(p=>e.Path.StartsWith(p+"/",StringComparison.Ordinal)))
             .Select(e => (Sample: e, Parts: e.Path.Split('/')))
             .Where(e => e.Parts.Length == 7 && e.Parts[4] is "Self" or "Others" && e.Parts[5] == "Root"
                 && e.Parts[6].Length == 2 && e.Parts[6][0] == 'A' && e.Parts[6][1] is >= '0' and <= '7')
@@ -31,11 +32,11 @@ public static class SpsPositionTracking
             {
                 var first = group.First();
                 var samples = group.OrderBy(e => e.Parts[6], StringComparer.Ordinal).ToArray();
-                bool compact=first.Parts[2]=="v2";
+                bool local=first.Parts[1] is "Point" or "Handle";
                 var values=samples.Select(e=>e.Sample.Entry.Value.AsFloat()).ToArray();
-                var fit = compact && samples.Select((s,i)=>s.Parts[6]=="A"+i).All(v=>v)
+                var fit = local && samples.Select((s,i)=>s.Parts[6]=="A"+i).All(v=>v)
                     ? PoseReconstruction.FitLocalTetrahedron(values)
-                    : compact ? new MarkerFit(false,default,0,0,"四面体采样编号不完整") : PoseReconstruction.FitMarker(values);
+                    : local ? new MarkerFit(false,default,0,0,"四面体采样编号不完整") : PoseReconstruction.FitMarker(values);
                 // A radius at the search boundary cannot confirm compatibility with this probe's scale.
                 var valid = fit.Valid && fit.Radius < .0199;
                 string kind=first.Parts[1] switch {"Point"=>"Point","Handle"=>"Handle","SharedRoot"=>"SharedRoot",_=>"SpsRoot"};

@@ -18,7 +18,7 @@ namespace UnityBox.Sensa
             var all=avatar.GetComponentsInChildren<SensaPointProbe>(true);var probes=all.Where(p=>p.enabled).ToArray();
             if(probes.GroupBy(p=>p.instanceName).Any(g=>g.Count()>1))throw new InvalidOperationException("Point probe names must be unique.");
             foreach(var p in probes)Validate(p,avatar.transform);
-            SensaSensorUtility.Budget(avatar,probes.Sum(p=>p.compactTracking?5:9));
+            SensaSensorUtility.Budget(avatar,probes.Length*5);
             foreach(var p in probes)Build(p);
             foreach(var p in all)UnityEngine.Object.DestroyImmediate(p);
         }
@@ -38,9 +38,7 @@ namespace UnityBox.Sensa
             var avatar=reference.GetComponentInParent<VRCAvatarDescriptor>();var owner=avatar!=null?avatar.transform:reference.root;
             if(owner.GetComponentsInChildren<VRCContactSender>(true).Any(s=>s.collisionTags!=null&&s.collisionTags.Contains(tag)))throw new InvalidOperationException("Point sender identity is already used: "+probe.instanceName);
             var rig=SensaSensorUtility.Child(reference,"SensaPoint_"+probe.instanceName);
-            var prefix=(probe.compactTracking
-                ? (probe.createGrabHandle?SensaPoseProtocol.CompactHandlePrefix:SensaPoseProtocol.CompactPointPrefix)
-                : (probe.createGrabHandle?SensaPoseProtocol.HandlePrefix:SensaPoseProtocol.PointPrefix))+"/"+probe.instanceName+"/Self";
+            var prefix=(probe.createGrabHandle?SensaPoseProtocol.HandlePrefix:SensaPoseProtocol.PointPrefix)+"/"+probe.instanceName+"/Self";
             var target=probe.target;
             if(probe.createGrabHandle) {
                 var root=SensaSensorUtility.Child(rig,"HandleRoot");var joint=SensaSensorUtility.Child(root,"Joint");joint.localPosition=Vector3.forward*probe.handleLength*.5f;
@@ -57,7 +55,7 @@ namespace UnityBox.Sensa
             var follow=marker.gameObject.AddComponent<PositionConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=target,weight=1});follow.translationOffset=Vector3.zero;follow.locked=true;follow.constraintActive=true;
             var sender=marker.gameObject.AddComponent<VRCContactSender>();sender.radius=SensaPoseProtocol.MarkerRadius;sender.localOnly=true;
             sender.collisionTags=new List<string>{tag};
-            SensaSensorUtility.Array(rig,prefix,tag,true,probe.compactTracking);
+            SensaSensorUtility.Array(rig,prefix,tag,true,true);
             return rig.gameObject;
         }
     }

@@ -20,8 +20,6 @@ namespace UnityBox.Sensa
         [Tooltip("Reference Socket for local Plug-tip measurements. If exactly one Socket is selected it is chosen automatically.")]
         public GameObject localReferenceSocket;
         public bool createPlugGrabHandles;
-        [Tooltip("Four-receiver local point/PB probes (v2). Does not change standard SPS root or paired pose arrays.")]
-        public bool compactLocalPoints;
         public string pairChannel = "Pair01";
         public SensaArrayPolicy arrayPolicy;
         private void Reset()
