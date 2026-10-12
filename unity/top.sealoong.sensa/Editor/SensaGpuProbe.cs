@@ -12,7 +12,16 @@ namespace UnityBox.Sensa
     /// <summary>Editor-only, explicitly armed single-camera GPU experiment. No avatar runtime component or OSC output.</summary>
     public sealed class SensaGpuProbe : EditorWindow
     {
-        private const string Package = "Packages/top.sealoong.sensa/Editor/";
+        private static string Package
+        {
+            get
+            {
+                var paths = AssetDatabase.FindAssets("SensaGpuProbe t:MonoScript").Select(AssetDatabase.GUIDToAssetPath)
+                    .Where(p => Path.GetFileName(p) == "SensaGpuProbe.cs").ToArray();
+                if (paths.Length != 1) throw new InvalidOperationException("Expected exactly one SensaGpuProbe.cs in the project.");
+                return Path.GetDirectoryName(paths[0]).Replace('\\', '/') + "/";
+            }
+        }
         private const string Generated = "Assets/SensaGpuDiagnostics/SpsGpuProbe.shader";
         private static readonly string[] IdProperties = { "_SPS_Configured", "_SPS_IdLow", "_SPS_IdHigh", "_SPS_PlayerIdLow", "_SPS_PlayerIdHigh" };
         private Camera sourceCamera;
