@@ -9,6 +9,18 @@ using UnityBox.Sensa;
 namespace Sensa.Tests;
 public class PointTests
 {
+    [Fact] public void WorldGeometryCasesAgreeWithDesktopDecoding()
+    {
+        var assembly=typeof(PointTests).Assembly;
+        using var stream=assembly.GetManifestResourceStream(assembly.GetManifestResourceNames().Single(n=>n.EndsWith("unity-point-cases.json")))!;
+        using var document=JsonDocument.Parse(stream);
+        var cases=document.RootElement.GetProperty("cases").EnumerateArray().ToArray();Assert.Equal(11,cases.Length);
+        foreach(var item in cases){
+            var samples=item.GetProperty("samples").EnumerateArray().Select(v=>v.GetSingle()).ToArray();
+            var fit=PoseReconstruction.FitLocalTetrahedron(samples);Assert.True(fit.Valid==item.GetProperty("expectedValid").GetBoolean(),item.GetProperty("name").GetString()+": "+fit.Reason);
+            if(fit.Valid){var p=item.GetProperty("position");var expected=new PosePoint(p.GetProperty("x").GetDouble(),p.GetProperty("y").GetDouble(),p.GetProperty("z").GetDouble());Assert.InRange((fit.Position-expected).Length,0,.0001);}
+        }
+    }
     [Fact] public void FourKnownRadiusRangesReconstructAcrossTheLocalVolume()
     {
         var random=new Random(9271);

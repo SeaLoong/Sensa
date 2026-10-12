@@ -15,6 +15,7 @@ namespace SensaLab
         private const string Key="SensaLab.PlayValidation";
         private static double started;
         [Serializable] private class LocalPointCapture { public string schema="sensa.point-lab.v1";public Vector3 position;public float[] samples;public bool grabbed;public float stretch; }
+        [Serializable] private class CaseBoards { public bool passed; public string[] boards; }
         private static string ReportDirectory => SessionState.GetBool(Key+"Offset",false)?"Validation/offset":"Validation";
         static LabPlayValidation() { EditorApplication.playModeStateChanged+=Changed;EditorApplication.update+=Tick; }
         [MenuItem("Tools/Sensa Lab/Run Play Mode validation (straight)")]
@@ -25,6 +26,7 @@ namespace SensaLab
             SessionState.SetBool(Key+"Offset",offset);
             Directory.CreateDirectory(ReportDirectory);
             LabBuilder.AddLocalProbeStation();
+            LabPointCases.AddCases();
             EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
             if(offset){var socket=GameObject.Find("SPS2 Socket - legacy enabled").transform;socket.position+=new Vector3(.03f,0,0);socket.rotation=Quaternion.Euler(0,25,0);}
             // Explicitly run the installed world baker on the in-memory test scene.
@@ -68,8 +70,12 @@ namespace SensaLab
                 if(localProbe){var station=GameObject.Find("Local bone and PB station").GetComponent<LocalProbeStation>();File.WriteAllText(ReportDirectory+"/local-point-capture.json",JsonUtility.ToJson(new LocalPointCapture{position=station.reference.InverseTransformPoint(station.target.position),samples=station.receivers.Select(r=>r.CalculateProximity(station.sender)).ToArray(),grabbed=station.bone.IsGrabbed,stretch=station.bone.Stretch},true));}
                 result+="\nLocal PB station running: "+localProbe;
                 result+="\nSPS GPU model valid: "+gpuModel;
+                var caseBoards=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).Select(s=>s.status.text).ToArray();
+                bool casesPassed=caseBoards.Length==11 && caseBoards.All(s=>s.Contains("EXPECTED RESULT"));
+                File.WriteAllText(ReportDirectory+"/point-cases-playmode.json",JsonUtility.ToJson(new CaseBoards{passed=casesPassed,boards=caseBoards},true));
+                result+="\nPoint case boards: "+caseBoards.Length+", passed: "+casesPassed;
                 File.WriteAllText(ReportDirectory+"/playmode-results.txt",result);
-                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && Vector3.Distance(moving,origin)>.001f;
+                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && Vector3.Distance(moving,origin)>.001f;
                 SessionState.SetBool(Key+"Passed",pass);
                 File.WriteAllText(ReportDirectory+"/playmode-status.json","{\"passed\":"+(pass?"true":"false")+"}");
                 Debug.Log("SENSA_PLAYMODE_VALIDATION "+pass);
