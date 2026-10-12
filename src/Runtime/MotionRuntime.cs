@@ -90,7 +90,8 @@ public sealed class MotionRuntime : IDisposable
                 _poseObservations = PoseReconstruction.Observe(_store.SnapshotEntries(), source);
                 _poseRevision = revision; _poseSource = source;
             }
-            return _poseObservations;
+            return _config.Osc.InputTimeoutMs<=0 ? _poseObservations : _poseObservations.Select(p=>IsGeometryFresh(p.TimestampMs)
+                ? p : p with {Valid=false,Engaged=false,Reason="坐标数据已超时，等待新的几何采样"}).ToArray();
         }
     }
     private long _lastEventTimestampMs = Environment.TickCount64;
@@ -415,12 +416,12 @@ public sealed class MotionRuntime : IDisposable
         SpsPositionTracking.Observation? chosenPoint=null;
         if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(),preferredSourceKey)
             .Where(p=>p.IsLocalPoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
-            if(points.Length==1 && points[0].Valid)chosenPoint=points[0];}
+            if(points.Length==1 && points[0].Valid && IsGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
         if (poseMappings.Length > 0)
         {
-            var observations = GetPoseObservations().Where(p => poseMappings.Any(m => p.Matches(m.Path))).ToArray();
+            var observations = GetPoseObservations().Where(p => poseMappings.Any(m => p.Matches(m.Path)) && IsGeometryFresh(p.TimestampMs)).ToArray();
             // There is no sender identity in Contact OSC values. Never mix coordinate components across sources/rigs.
             if (!string.IsNullOrEmpty(preferredSourceKey) || observations.Select(p => p.SourceKey).Distinct().Count() <= 1)
             {
@@ -543,15 +544,27 @@ public sealed class MotionRuntime : IDisposable
         });
     }
 
+    private bool IsGeometryFresh(long timestampMs) => _config.Osc.InputTimeoutMs <= 0
+        || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
+
     private void CheckInputTimeout()
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        string[] paths;
-        lock (_sync) paths = _processors.Select(p => p.Path).ToArray();
-        if (paths.Length == 0) return;
+        (string Path,string Mode)[] mappings;
+        lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode)).ToArray();
+        if (mappings.Length == 0) return;
         var source = _preferredOscSourceKeyProvider?.Invoke();
-        var last = paths.SelectMany(p => _store.MatchingEntries(p, source)).Select(e => e.Entry.TimestampMs).DefaultIfEmpty(_activationTimestamp).Max();
+        var pointPaths=mappings.Where(m=>m.Mode=="SensaPoint").Select(m=>m.Path).ToArray();
+        var posePaths=mappings.Where(m=>m.Mode=="SensaPose").Select(m=>m.Path).ToArray();
+        // Metadata or a separate gate must not keep a frozen geometric input alive.
+        // Use the newest geometric sample, since OSC may omit unchanged coordinates.
+        var timestamps=pointPaths.Length>0
+            ? SpsPositionTracking.Observe(_store.SnapshotEntries(),source).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
+            : posePaths.Length>0
+                ? GetPoseObservations().Where(p=>posePaths.Any(p.Matches)).Select(p=>p.TimestampMs)
+                : mappings.SelectMany(m=>_store.MatchingEntries(m.Path,source)).Select(e=>e.Entry.TimestampMs);
+        var last=timestamps.DefaultIfEmpty(_activationTimestamp).Max();
         if (now - Math.Max(last, _activationTimestamp) <= _config.Osc.InputTimeoutMs) return;
         OnLog?.Invoke("[MotionRuntime] OSC input timeout; emergency stop.");
         EmergencyStop();

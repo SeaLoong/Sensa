@@ -1380,7 +1380,7 @@ public static class SensaHost
                 },
                 outputs,
                 poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey,
-                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey) },
+                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey, config.Osc.InputTimeoutMs) },
                 recording = new
                 {
                     recorder.IsActive,

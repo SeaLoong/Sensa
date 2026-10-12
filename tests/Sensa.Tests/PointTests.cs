@@ -74,4 +74,40 @@ public class PointTests
         var config=new AppConfig{Signals=[new(){OscPath="Sensa/Point/v1/A/Self/**",SourceMode="SensaPoint",PointMetric=PointMetric.X}]};config.NormalizeForRuntime();Assert.Equal(PointMetric.X,config.Signals[0].PointMetric);
         config.Signals.Add(new(){OscPath="Sensa/Pose/v1/**",SourceMode="SensaPose"});Assert.Throws<InvalidOperationException>(()=>config.NormalizeForRuntime());
     }
+    [Fact] public async Task FreshGrabCannotReactivateExpiredCoordinates()
+    {
+        const string prefix="Sensa/Handle/v1/Grip/Self";
+        var config=new AppConfig{Signals=[new(){OscPath=prefix+"/**",SourceMode="SensaPoint"}]};
+        config.Osc.InputTimeoutMs=100;config.NormalizeForRuntime();
+        var store=new OscParameterStore();Put(store,prefix,new(.02,0,.1));await Task.Delay(180);
+        store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(1));
+        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries(),maxAgeMs:100)).Valid);
+        using var receiver=new OscInputReceiver(store);var stopped=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);int sent=0;
+        using var runtime=new MotionRuntime(config,store,receiver,sendOutputsAsync:_=>{Interlocked.Increment(ref sent);return Task.CompletedTask;},emergencyStopAsync:()=>{stopped.TrySetResult();return Task.CompletedTask;});
+        runtime.SetInputMode(RuntimeInputMode.Osc);runtime.SetInputActive(true);
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(3));Assert.Equal(0,sent);Assert.False(runtime.CanSend);
+    }
+    [Fact] public async Task ExpiredPoseIsBlockedBeforeTheWatchdogDelay()
+    {
+        var config=new AppConfig{Signals=[new(){OscPath="Sensa/Pose/v1/**",SourceMode="SensaPose"}]};
+        config.Osc.InputTimeoutMs=100;config.NormalizeForRuntime();
+        var store=new OscParameterStore();PoseTests.PutPose(store,new(0,0,-.1),new(0,0,.1),new(.03,0,-.1));await Task.Delay(180);
+        using var receiver=new OscInputReceiver(store);var stopped=new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);int sent=0;
+        using var runtime=new MotionRuntime(config,store,receiver,sendOutputsAsync:_=>{Interlocked.Increment(ref sent);return Task.CompletedTask;},emergencyStopAsync:()=>{stopped.TrySetResult();return Task.CompletedTask;});
+        Assert.False(Assert.Single(runtime.GetPoseObservations()).Valid);
+        runtime.SetInputMode(RuntimeInputMode.Osc);runtime.SetInputActive(true);
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(3));Assert.Equal(0,sent);Assert.False(runtime.CanSend);
+    }
+    [Fact] public async Task MetadataTrafficCannotKeepExpiredPointInputArmed()
+    {
+        const string prefix="Sensa/Handle/v1/Grip/Self";
+        var config=new AppConfig{Signals=[new(){OscPath=prefix+"/**",SourceMode="SensaPoint"}]};
+        config.Osc.InputTimeoutMs=300;config.NormalizeForRuntime();
+        var store=new OscParameterStore();Put(store,prefix,new(.02,0,.1));store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(1));
+        using var receiver=new OscInputReceiver(store);using var runtime=new MotionRuntime(config,store,receiver);
+        runtime.SetInputMode(RuntimeInputMode.Osc);runtime.SetInputActive(true);
+        var deadline=DateTime.UtcNow.AddSeconds(3);
+        while(runtime.InputActive && DateTime.UtcNow<deadline){store.Set(prefix+"/Handle_Stretch",OscValue.FromFloat(.1f));await Task.Delay(30);}
+        Assert.False(runtime.InputActive);Assert.False(runtime.CanSend);
+    }
 }
