@@ -93,6 +93,24 @@ export function pointPreviewEntry(observations, signal, preferredSourceKey = '')
   return {path:p.prefix,value:value === undefined ? p.reason : Number(value.toFixed(4)).toString(),numericValue:value,sourceKey:p.sourceKey,matchCount:p.sampleCount};
 }
 
+export function capturePointEndpoint(point, metric) {
+  if (!point?.valid || !['Point','Handle'].includes(point.kind) || !point.key || !point.position) return null;
+  const {x,y,z} = point.position;
+  const value = {X:x,Y:y,Z:z,Distance:Math.hypot(x,y,z)}[metric];
+  if (![x,y,z,value].every(Number.isFinite)) return null;
+  return {key:point.key,prefix:point.prefix,sourceKey:point.sourceKey,metric,value};
+}
+
+export function calibratedPointDraft(point, metric, zero, full) {
+  if (!point || !['Point','Handle'].includes(point.kind) || !['X','Y','Z','Distance'].includes(metric)) return {error:'请选择本地点与测量轴'};
+  if (!zero || !full) return {error:'请分别采集 0% 和 100% 位置'};
+  if ([zero,full].some(sample=>sample.key!==point.key || sample.prefix!==point.prefix || sample.sourceKey!==point.sourceKey || sample.metric!==metric || !Number.isFinite(sample.value)))
+    return {error:'测量对象、来源或轴已改变，请重新采集'};
+  if (Math.abs(full.value-zero.value)<.001) return {error:'两个位置相距不足 1 mm，请扩大校准范围'};
+  return {draft:{oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:metric,role:'Depth',
+    vrchatMin:Math.min(zero.value,full.value),vrchatMax:Math.max(zero.value,full.value),invertDirection:full.value<zero.value}};
+}
+
 export function isOgbOscPath(path) {
   return (path || '').trim().toUpperCase().startsWith('OGB/');
 }

@@ -3644,9 +3644,9 @@ function App() {
     }
   }
 
-  function usePointRig(point) {
-    setSignalDrafts(previous => [...previous.filter(s=>!['SensaPose','SensaPoint'].includes(s.sourceMode) && s.role!=='Depth'),makeSignalDraft({oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
-    notify('已添加本地 Z 位移草稿；它不是插入比例。请限定来源、校准量程后保存。PB 把手松手时停止该输入。','info');
+  function usePointRig(point, calibrated = null) {
+    setSignalDrafts(previous => [...previous.filter(s=>!['SensaPose','SensaPoint'].includes(s.sourceMode) && s.role!=='Depth'),makeSignalDraft(calibrated || {oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
+    notify(calibrated?'已按采集的轴向和量程生成草稿；请确认来源和目标轴后保存。尚未启用输出。':'已添加本地 Z 位移草稿；请校准量程后保存，或在本地点面板使用两点校准。','info');
   }
 
   function notify(message, severity = 'info') {

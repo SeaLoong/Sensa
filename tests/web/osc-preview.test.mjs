@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
+import { capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
 
 test('legacy, nested and alias patterns agree with backend', () => {
   for (const path of ['OGB/Orf/Pussy/PenOthers', 'OGB/Orf/Pussy/Main/PenOthers'])
@@ -73,4 +73,21 @@ test('local points are discoverable and never match nonexistent receivers', () =
   assert.equal(pointPreviewEntry([point],{oscPath:`${prefix}/**`}).numericValue,.1);
   assert.equal(pointPreviewEntry([point],{oscPath:`${prefix}/Root/A7`}).numericValue,undefined);
   assert.match(parameterMeaning(`${prefix}/Root/A0`),/四路/);
+});
+
+test('point calibration captures axis endpoints and reverses decreasing travel', () => {
+  const point={key:'a',prefix:'Sensa/Point/v1/A/Self',sourceKey:'local',kind:'Point',valid:true,position:{x:.02,y:0,z:.1}};
+  const zero=capturePointEndpoint(point,'X');
+  const full=capturePointEndpoint({...point,position:{x:-.03,y:0,z:.1}},'X');
+  const {draft}=calibratedPointDraft(point,'X',zero,full);
+  assert.equal(draft.vrchatMin,-.03);assert.equal(draft.vrchatMax,.02);assert.equal(draft.invertDirection,true);assert.equal(draft.pointMetric,'X');
+  assert.equal(calibratedPointDraft({...point,valid:false},'X',zero,full).draft.pointMetric,'X');
+  assert.equal(capturePointEndpoint({...point,valid:false},'X'),null);
+  assert.equal(capturePointEndpoint({...point,kind:'SharedRoot'},'X'),null);
+  assert.equal(capturePointEndpoint({...point,position:{x:NaN,y:0,z:0}},'X'),null);
+  assert.equal(calibratedPointDraft({...point,key:'b'},'X',zero,full).draft,undefined);
+  assert.equal(calibratedPointDraft({...point,sourceKey:'other'},'X',zero,full).draft,undefined);
+  assert.equal(calibratedPointDraft(point,'Y',zero,full).draft,undefined);
+  assert.equal(calibratedPointDraft(point,'X',zero,zero).draft,undefined);
+  assert.equal(calibratedPointDraft(point,'X',null,full).draft,undefined);
 });
