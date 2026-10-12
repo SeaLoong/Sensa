@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
+import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
 
 test('legacy, nested and alias patterns agree with backend', () => {
   for (const path of ['OGB/Orf/Pussy/PenOthers', 'OGB/Orf/Pussy/Main/PenOthers'])
@@ -90,4 +90,16 @@ test('point calibration captures axis endpoints and reverses decreasing travel',
   assert.equal(calibratedPointDraft(point,'Y',zero,full).draft,undefined);
   assert.equal(calibratedPointDraft(point,'X',zero,zero).draft,undefined);
   assert.equal(calibratedPointDraft(point,'X',null,full).draft,undefined);
+});
+
+
+test('calibration preview handles reverse travel, clipping and invalid data', () => {
+  const point={key:'p',prefix:'Sensa/Point/v1/P/Self',sourceKey:'local',kind:'Point',valid:true,position:{x:0,y:0,z:.1}};
+  const zero=capturePointEndpoint(point,'Z');
+  const full=capturePointEndpoint({...point,position:{x:0,y:0,z:.05}},'Z');
+  const middle=pointCalibrationProgress({...point,position:{x:0,y:0,z:.075}},'Z',zero,full);
+  assert.ok(Math.abs(middle.percent-50)<1e-8);assert.equal(middle.outside,false);
+  assert.deepEqual(pointCalibrationProgress({...point,position:{x:0,y:0,z:0}},'Z',zero,full),{percent:100,outside:true});
+  assert.equal(pointCalibrationProgress({...point,valid:false},'Z',zero,full),null);
+  assert.equal(pointCalibrationProgress({...point,key:'other'},'Z',zero,full),null);
 });

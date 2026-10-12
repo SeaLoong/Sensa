@@ -111,6 +111,13 @@ export function calibratedPointDraft(point, metric, zero, full) {
     vrchatMin:Math.min(zero.value,full.value),vrchatMax:Math.max(zero.value,full.value),invertDirection:full.value<zero.value}};
 }
 
+export function pointCalibrationProgress(point, metric, zero, full) {
+  const endpoint=capturePointEndpoint(point,metric);
+  if (!endpoint || !calibratedPointDraft(point,metric,zero,full).draft) return null;
+  const raw=(endpoint.value-zero.value)/(full.value-zero.value);
+  return {percent:Math.max(0,Math.min(100,raw*100)),outside:raw<0 || raw>1};
+}
+
 export function isOgbOscPath(path) {
   return (path || '').trim().toUpperCase().startsWith('OGB/');
 }
