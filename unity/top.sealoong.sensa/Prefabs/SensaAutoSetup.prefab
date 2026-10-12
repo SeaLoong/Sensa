@@ -53,4 +53,4 @@ MonoBehaviour:
   localReferenceSocket: {fileID: 0}
   createPlugGrabHandles: 0
   pairChannel: Pair01
-  arrayPolicy: 0
+  arrayPolicy: 1

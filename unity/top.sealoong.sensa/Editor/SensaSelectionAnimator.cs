@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Animations;
 using UnityEditor;
@@ -8,32 +9,47 @@ using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using VRC.SDKBase;
 using nadena.dev.modular_avatar.core;
+using VRC.SDK3.Dynamics.Contact.Components;
+using VRC.SDK3.Dynamics.PhysBone.Components;
 
 namespace UnityBox.Sensa
 {
     public static class SensaSelectionAnimator
     {
-        public static void Build(GameObject avatar,GameObject host,string group,GameObject[] rigs,string[] names,ParentConstraint shared=null,string prefix=null)
+        public static void Build(GameObject avatar,GameObject host,string group,GameObject[] rigs,string[] names,ParentConstraint shared=null,string prefix=null,int[] rigSlots=null,int[] sharedSources=null)
         {
+            rigSlots=rigSlots ?? (shared==null?Enumerable.Range(1,rigs.Length).ToArray():new int[rigs.Length]);
+            sharedSources=sharedSources ?? Enumerable.Range(0,names.Length).ToArray();
+            if(rigSlots.Length!=rigs.Length || sharedSources.Length!=names.Length)throw new ArgumentException("Selection bindings must match the generated rigs and slots.");
+            bool SharedSlot(int slot)=>shared!=null && slot>0 && sharedSources[slot-1]>=0;
             string selector="Sensa/Select/"+group;
             var controller=new AnimatorController{name="Sensa selection "+group};controller.AddParameter(selector,AnimatorControllerParameterType.Int);
             var machine=new AnimatorStateMachine{name="Sensa selection"};controller.AddLayer(new AnimatorControllerLayer{name="Sensa "+group,stateMachine=machine,defaultWeight=1});
             SensaSensorUtility.Parameter(host,selector,ParameterSyncType.Int);
             if(shared!=null){SensaSensorUtility.Parameter(host,prefix+"/Ready",ParameterSyncType.Bool);SensaSensorUtility.Parameter(host,prefix+"/Slot",ParameterSyncType.Int);controller.AddParameter(prefix+"/Ready",AnimatorControllerParameterType.Bool);controller.AddParameter(prefix+"/Slot",AnimatorControllerParameterType.Int);}
-            if(shared!=null)for(int i=0;i<8;i++)controller.AddParameter(prefix+"/Root/A"+i,AnimatorControllerParameterType.Float);
+            // Disabled contacts/PBs may retain Animator values. Clear them explicitly when changing target.
+            var resetParameters=new Dictionary<string,AnimatorControllerParameterType>();
+            foreach(var rig in rigs){
+                foreach(var receiver in rig.GetComponentsInChildren<VRCContactReceiver>(true))resetParameters[receiver.parameter]=AnimatorControllerParameterType.Float;
+                foreach(var bone in rig.GetComponentsInChildren<VRCPhysBone>(true))if(!string.IsNullOrEmpty(bone.parameter)){
+                    resetParameters[bone.parameter+"_IsGrabbed"]=AnimatorControllerParameterType.Bool;
+                    resetParameters[bone.parameter+"_Stretch"]=AnimatorControllerParameterType.Float;
+                }
+            }
+            foreach(var parameter in resetParameters)controller.AddParameter(parameter.Key,parameter.Value);
             AnimationClip Clip(string name,int slot,bool enabled)
             {
                 var clip=new AnimationClip{name=name};
-                for(int i=0;i<rigs.Length;i++)clip.SetCurve(AnimationUtility.CalculateTransformPath(rigs[i].transform,avatar.transform),typeof(GameObject),"m_IsActive",AnimationCurve.Constant(0,.25f,enabled && (shared!=null || slot==i+1)?1:0));
-                if(shared!=null)for(int i=0;i<names.Length;i++)clip.SetCurve(AnimationUtility.CalculateTransformPath(shared.transform,avatar.transform),typeof(ParentConstraint),"m_Sources.Array.data["+i+"].weight",AnimationCurve.Constant(0,.25f,slot==i+1?1:0));
+                for(int i=0;i<rigs.Length;i++)clip.SetCurve(AnimationUtility.CalculateTransformPath(rigs[i].transform,avatar.transform),typeof(GameObject),"m_IsActive",AnimationCurve.Constant(0,.25f,enabled && (rigSlots[i]==0?SharedSlot(slot):slot==rigSlots[i])?1:0));
+                if(shared!=null)for(int i=0;i<shared.sourceCount;i++)clip.SetCurve(AnimationUtility.CalculateTransformPath(shared.transform,avatar.transform),typeof(ParentConstraint),"m_Sources.Array.data["+i+"].weight",AnimationCurve.Constant(0,.25f,SharedSlot(slot)&&sharedSources[slot-1]==i?1:0));
                 return clip;
             }
             void Driver(AnimatorState state,int slot,bool ready)
             {
-                if(shared==null)return;
                 var driver=state.AddStateMachineBehaviour<VRCAvatarParameterDriver>();driver.localOnly=true;
-                driver.parameters=new List<VRC_AvatarParameterDriver.Parameter>{new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Ready",value=ready?1:0}};
-                if(!ready){driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Slot",value=slot});for(int i=0;i<8;i++)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Root/A"+i,value=0});}
+                driver.parameters=new List<VRC_AvatarParameterDriver.Parameter>();
+                if(shared!=null){driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Ready",value=ready&&SharedSlot(slot)?1:0});if(!ready)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Slot",value=SharedSlot(slot)?slot:0});}
+                if(!ready)foreach(var parameter in resetParameters)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=parameter.Key,value=0});
             }
             var off=machine.AddState("Off");off.writeDefaultValues=false;off.motion=Clip("Off",0,false);machine.defaultState=off;Driver(off,0,false);
             var states=new List<AnimatorState>{off};

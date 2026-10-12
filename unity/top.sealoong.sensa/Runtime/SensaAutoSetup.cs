@@ -24,6 +24,8 @@ namespace UnityBox.Sensa
         public SensaArrayPolicy arrayPolicy;
         private void Reset()
         {
+            // Reset affects newly added components; existing serialized Dedicated setups retain their policy.
+            arrayPolicy = SensaArrayPolicy.Exclusive;
             foreach(var component in GetComponents<Component>())
                 if(component!=null && (component.GetType().FullName=="VF.Component.VRCFuryHapticSocket" || component.GetType().FullName=="VF.Component.VRCFuryHapticPlug"))
                 {discoverAll=false;selectedTargets=new List<GameObject>{gameObject};pairedPlugMarkers=component.GetType().FullName=="VF.Component.VRCFuryHapticPlug";break;}
