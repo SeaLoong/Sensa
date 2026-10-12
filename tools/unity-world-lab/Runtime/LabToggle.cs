@@ -5,6 +5,7 @@ namespace SensaLab
     public class LabToggle : UdonSharpBehaviour
     {
         public LabController controller;
-        public override void Interact() { controller.ToggleDesktop(); }
+        public UnityEngine.GameObject target;
+        public override void Interact() { if(target!=null) target.SetActive(!target.activeSelf); else controller.ToggleDesktop(); }
     }
 }

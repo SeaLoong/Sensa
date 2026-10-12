@@ -24,7 +24,7 @@ namespace SensaLab
                 foreach(var name in new[]{"SensaLab/Telemetry","SensaLab/TextureOutput"}) {
                     var shader=Shader.Find(name);Check(shader!=null && shader.isSupported && !ShaderUtil.ShaderHasError(shader),name+" supported");
                 }
-                TestTelemetry(); TestCameraOutput(); TestContacts(); TestGpuAdapter();
+                TestTelemetry(); TestCameraOutput(); TestCameraOnlyRig(); TestContacts(); TestGpuAdapter();
                 CaptureScene();
             } catch(Exception ex) {failed.Add(ex.ToString());}
             var report=new Report { unity=Application.unityVersion,gpu=SystemInfo.graphicsDeviceName,utc=DateTime.UtcNow.ToString("O"),passed=passed.ToArray(),failed=failed.ToArray(),
@@ -99,6 +99,24 @@ namespace SensaLab
                 Check(!Valid(Decode(read.GetPixels32(),256,128)),"Mirror-mode output suppressed (simulated shader global)");
             }finally {Shader.SetGlobalFloat("_VRChatMirrorMode",0);RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(rig);UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);}
         }
+        private static void TestCameraOnlyRig() {
+            var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/SensaLab/Generated/CameraOnlyPrototype.prefab");
+            if(prefab==null){failed.Add("Camera-only prefab missing");return;}
+            var rig=UnityEngine.Object.Instantiate(prefab);rig.SetActive(true);
+            var cameras=rig.GetComponentsInChildren<Camera>();var capture=cameras.First(c=>c.targetTexture!=null);var presenter=cameras.First(c=>c.targetTexture==null);
+            Check(rig.GetComponentsInChildren<VRC.Udon.UdonBehaviour>().Length==0,"Camera-only rig has no Udon dependency");
+            var card=capture.GetComponentInChildren<Renderer>();var pattern=new Material(card.sharedMaterial);card.sharedMaterial=pattern;pattern.SetFloat("_AutoSequence",0);pattern.SetFloat("_Sequence",321);
+            var target=new RenderTexture(256,128,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear);target.Create();presenter.targetTexture=target;presenter.rect=new Rect(0,0,1,1);
+            var read=new Texture2D(256,128,TextureFormat.RGBA32,false,true);var previous=RenderTexture.active;
+            try {
+                capture.targetTexture.Create();
+                foreach(var yaw in new[]{0,60,180}) {
+                    rig.transform.rotation=Quaternion.Euler(20,yaw,0);capture.Render();presenter.Render();RenderTexture.active=target;read.ReadPixels(new Rect(0,0,256,128),0,0);read.Apply();
+                    var bytes=Decode(read.GetPixels32(),256,128);Check(Valid(bytes) && (bytes[4]|bytes[5]<<8)==321,"Private camera to RT to presenter yaw "+yaw);
+                }
+                File.WriteAllBytes("Validation/camera-only.png",read.EncodeToPNG());
+            }finally{RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(rig);UnityEngine.Object.DestroyImmediate(pattern);UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);}
+        }
         private static void TestGpuAdapter() {
             SensaGpuProbe.CheckDependencies();
             Directory.CreateDirectory("Assets/SensaGpuDiagnostics");
@@ -106,6 +124,12 @@ namespace SensaLab
             AssetDatabase.ImportAsset("Assets/SensaGpuDiagnostics/SpsGpuProbe.shader",ImportAssetOptions.ForceSynchronousImport);
             var shader=AssetDatabase.LoadAssetAtPath<Shader>("Assets/SensaGpuDiagnostics/SpsGpuProbe.shader");
             var mat=new Material(shader);var rt=new RenderTexture(36,1,0,RenderTextureFormat.ARGBFloat,RenderTextureReadWrite.Linear);rt.Create();
+            var testRenderer=new GameObject("Property block check").AddComponent<MeshRenderer>();testRenderer.sharedMaterial=mat;
+            var block=new MaterialPropertyBlock();block.SetFloat("_SPS_Configured",1);testRenderer.SetPropertyBlock(block);
+            Check(SensaGpuProbe.ReadProperty(mat,testRenderer,"_SPS_Configured")==1,"Reads animated renderer-wide SPS properties");
+            var indexed=new MaterialPropertyBlock();indexed.SetFloat("_SPS_IdLow",123);testRenderer.SetPropertyBlock(indexed,0);
+            Check(SensaGpuProbe.ReadProperty(mat,testRenderer,"_SPS_Configured")==0,"Per-material property block replaces global overrides");
+            UnityEngine.Object.DestroyImmediate(testRenderer.gameObject);
             var tex=new Texture2D(36,1,TextureFormat.RGBAFloat,false,true);var previous=RenderTexture.active;
             try {
                 mat.SetVector("_SensaSourceSize",new Vector4(1280,720,1,1));Graphics.Blit(Texture2D.blackTexture,rt,mat);

@@ -27,6 +27,8 @@ namespace UnityBox.Sensa
         private Camera sourceCamera;
         private Material resolverMaterial;
         private Material deformMaterial;
+        private Renderer resolverRenderer;
+        private Renderer deformRenderer;
         private Material reader;
         private bool armed, pending;
         private double armedAt;
@@ -84,6 +86,10 @@ namespace UnityBox.Sensa
             {
                 EditorGUI.BeginChangeCheck();
                 sourceCamera = (Camera)EditorGUILayout.ObjectField("Source Camera", sourceCamera, typeof(Camera), true);
+                resolverRenderer = (Renderer)EditorGUILayout.ObjectField("Resolver Renderer", resolverRenderer, typeof(Renderer), true);
+                deformRenderer = (Renderer)EditorGUILayout.ObjectField("Surface Renderer", deformRenderer, typeof(Renderer), true);
+                if (resolverRenderer != null) resolverMaterial = resolverRenderer.sharedMaterials.FirstOrDefault(m => m != null && m.shader.name == "Hidden/VRCFury/SpsResolver");
+                if (deformRenderer != null) deformMaterial = deformRenderer.sharedMaterials.FirstOrDefault(m => m != null && m.HasProperty("_SPS_Overrun"));
                 resolverMaterial = (Material)EditorGUILayout.ObjectField("Baked Resolver Material", resolverMaterial, typeof(Material), true);
                 deformMaterial = (Material)EditorGUILayout.ObjectField("Baked Surface Material", deformMaterial, typeof(Material), true);
                 if (EditorGUI.EndChangeCheck()) { capture = null; status = "采集目标已变化，请重新采集。"; SceneView.RepaintAll(); }
@@ -105,12 +111,12 @@ namespace UnityBox.Sensa
                         foreach (var property in IdProperties)
                         {
                             if (!resolverMaterial.HasProperty(property)) throw new InvalidOperationException("缺少 SPS 属性：" + property);
-                            if (!deformMaterial.HasProperty(property) || resolverMaterial.GetFloat(property) != deformMaterial.GetFloat(property))
+                            if (!deformMaterial.HasProperty(property) || ReadProperty(resolverMaterial, resolverRenderer, property) != ReadProperty(deformMaterial, deformRenderer, property))
                                 throw new InvalidOperationException("表面与 Resolver 材质的 SPS 身份不一致：" + property);
-                            reader.SetFloat(property, resolverMaterial.GetFloat(property));
+                            reader.SetFloat(property, ReadProperty(resolverMaterial, resolverRenderer, property));
                         }
                         if (!deformMaterial.HasProperty("_SPS_Overrun")) throw new InvalidOperationException("表面材质缺少 _SPS_Overrun。");
-                        reader.SetFloat("_SPS_Overrun", deformMaterial.GetFloat("_SPS_Overrun"));
+                        reader.SetFloat("_SPS_Overrun", ReadProperty(deformMaterial, deformRenderer, "_SPS_Overrun"));
                         if (reader.GetFloat("_SPS_Configured") < .5f) throw new InvalidOperationException("材质尚未配置；请在构建预览/Play Mode 中选择生成后的材质。");
                         armed = true; armedAt = EditorApplication.timeSinceStartup;
                         status = "等待所选相机的下一帧（10 秒超时）…";
@@ -153,6 +159,24 @@ namespace UnityBox.Sensa
             }
         }
 
+        public static float ReadProperty(Material material, Renderer renderer, string property)
+        {
+            if (renderer != null)
+            {
+                var block = new MaterialPropertyBlock();
+                var index = Array.IndexOf(renderer.sharedMaterials, material);
+                if (index >= 0)
+                {
+                    renderer.GetPropertyBlock(block, index);
+                    // A per-material block replaces the renderer-wide block.
+                    if (!block.isEmpty) return block.HasFloat(property) ? block.GetFloat(property) : material.GetFloat(property);
+                }
+                renderer.GetPropertyBlock(block);
+                if (block.HasFloat(property)) return block.GetFloat(property);
+            }
+            return material.GetFloat(property);
+        }
+
         private static Material CreateReader()
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Generated));
@@ -171,6 +195,10 @@ namespace UnityBox.Sensa
         {
             if (!armed || pending || camera != sourceCamera) return;
             armed = false;
+            if (resolverMaterial == null || deformMaterial == null || IdProperties.Any(p =>
+                    ReadProperty(resolverMaterial, resolverRenderer, p) != reader.GetFloat(p)
+                    || ReadProperty(deformMaterial, deformRenderer, p) != reader.GetFloat(p)))
+            { status = "等待期间 SPS 身份发生变化，请重新采集。"; Repaint(); return; }
             if (camera.stereoEnabled || camera.pixelWidth < 64 || camera.pixelHeight < 64)
             { status = "采集相机尺寸不足或已进入立体模式。"; Repaint(); return; }
             var result = new Capture { capturedUtc = DateTime.UtcNow.ToString("O"), cameraName = camera.name,

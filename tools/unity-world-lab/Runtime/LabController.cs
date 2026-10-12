@@ -22,6 +22,8 @@ namespace SensaLab
         private bool pending;
         private float clock;
         private int sequence;
+        private int decodedSequence;
+        private int maximumReadbackLag;
         private Color32[] pixels = new Color32[256 * 128];
         private string readback = "Waiting for GPU readback";
 
@@ -41,7 +43,8 @@ namespace SensaLab
                 for (int j = 0; j < 8; j++) crc = ((crc << 1) ^ ((crc & 32768) != 0 ? 4129 : 0)) & 65535;
             }
             bool valid = bytes[0] == 83 && bytes[1] == 78 && bytes[2] == 1 && bytes[3] == 1 && crc == (bytes[14] | bytes[15] << 8);
-            readback = valid ? "CRC OK, frame " + (bytes[4] | bytes[5] << 8) : "INVALID packet (orientation/CRC)";
+            if(valid){decodedSequence=bytes[4] | bytes[5] << 8;maximumReadbackLag=Mathf.Max(maximumReadbackLag,(sequence-decodedSequence)&65535);}
+            readback = valid ? "CRC OK, frame " + decodedSequence : "INVALID packet (orientation/CRC)";
         }
         private void Update()
         {
@@ -55,8 +58,8 @@ namespace SensaLab
             VRCGraphics.Blit(null, telemetryTexture, telemetry);
             if (!pending && sequence % 6 == 0) { pending = true; VRCAsyncGPUReadback.Request(telemetryTexture, 0, this); }
             string values = "";
-            for (int i = 0; i < receivers.Length; i++) values += "A" + i + ": " + receivers[i].CalculateProximity(sender).ToString("F3") + " ";
-            status.text = "SENSA LAB / WORLD\nClick block: pause motion\n" + readback + "\nRoot local: " + local.ToString("F3") + "\n" + values
+            for (int i = 0; i < receivers.Length; i++) values += "A" + i + ": " + receivers[i].CalculateProximity(sender).ToString("F3") + (i % 4 == 3 ? "\n" : "   ");
+            status.text = "SENSA LAB / WORLD\nClick block: pause motion\n" + readback + "\nDecoded age: " + ((sequence-decodedSequence)&65535) + " frames; max callback lag: " + maximumReadbackLag + "\nRoot local: " + local.ToString("F3") + "\n" + values
                 + "\nWorld readback is not an avatar OSC bridge.\nDesktop-only output is OFF by default; headset validation required.";
         }
     }

@@ -1,6 +1,6 @@
 # SPS Shader 形变数据：实验探针与游戏内桥接设计
 
-状态：已提供**编辑器 GPU 采样探针源码、离线几何分析和测试**。尚未完成 Unity Shader 编译/渲染实测，也没有游戏内捕获桥接或设备输出。不要将本页理解为已交付可上传的实时 GPU→OSC 预制件。
+状态：已在独立 Worlds 测试项目中完成 Unity Shader 编译、真实 GPU 渲染、ClientSim Udon 回读及 SPS2 模型采样验证。尚无完整的游戏内捕获桥接或设备输出，也未验证 PCVR 头显可见性。不要将本页理解为已交付可上传的实时 GPU→OSC 预制件。
 
 ## 哪些数据值得读取
 
@@ -31,7 +31,7 @@ Shader 计算运行在 GPU，不会反向更新骨骼、Contact、Animator Float
 1. 满足 [Unity 包依赖](COMPATIBILITY.md)。额外通过官方渠道安装 VRCFury SPS2。适配器核对源版本为 `d048773de971881fb14c5f3b468e59ba2406a2dd`。
 2. 仅支持 PC、Built-in Render Pipeline、非 XR/非立体 Camera、ARGBFloat 和 AsyncGPUReadback。先不要连接硬件。
 3. 使用 SPS 正常的构建预览/Play Mode，让生成后的 Resolver 与表面材质实际出现在渲染场景中；仅选择上传前的作者组件不够。让测试 Socket 和 Plug 同时可见。
-4. 打开 `Tools > Sensa > SPS GPU Model Probe (Experimental)`。指定正在渲染的 Camera、`BakedSpsPlug` 对应的 `Hidden/VRCFury/SpsResolver` 材质和同一 Plug 的已烘焙表面材质。身份属性必须一致。
+4. 打开 `Tools > Sensa > SPS GPU Model Probe (Experimental)`。指定正在渲染的 Camera、`BakedSpsPlug` 对应的 Resolver Renderer 和同一 Plug 的 Surface Renderer，工具自动读取关联材质及 Renderer 属性覆盖。VRCFury 的身份可能由 Animator 写入 MaterialPropertyBlock，仅读共享材质会得到零值。身份属性必须一致；多材质对象需确认选中的是对应 SPS 表面。
 5. 点击“检查依赖并采集下一帧”。工具比对所依赖 SPS include 文件的规范化 SHA256；不匹配时停止。它不会修改、下载或内嵌 VRCFury 源码。不要自行删除校验来绕过未知版本。
 6. 首次生成 `Assets/SensaGpuDiagnostics/SpsGpuProbe.shader`。模板在包中以 `.shader.txt` 保存，所以未安装 VRCFury 的普通 Sensa 项目不会因可选 include 缺失而报 Shader 编译错误。若生成路径有不同内容，工具停止，不覆盖用户编辑。
 7. Shader 编译失败会停止采集。成功后等待所选相机渲染，单次读取 36×1 的线性浮点纹理；10 秒内相机未渲染则超时。33 点快照显示在 Scene 视图，可导出 `sensa.sps-gpu-model.v1` JSON。
@@ -42,7 +42,7 @@ Shader 计算运行在 GPU，不会反向更新骨骼、Contact、Animator Float
 
 - 读取的是指定相机渲染结束时的全局 SPS 纹理。代码保持原相机尺寸用于 SPS 格子寻址，不能按 36×1 的回读尺寸解码原纹理。
 - 校验单元魔数、协议版本、目标 ID、长度、方向与有限值；这些检查**不证明纹理新鲜度**。全局纹理可能保留旧帧或受其他相机影响，当前快照不是连接存活证据。
-- 本次不支持 MaterialPropertyBlock 覆盖/采集期间动画改写材质身份、XR texture array、动态分辨率及多相机交错的可靠性保证。使用简单单相机测试场景验证，不能据此接通硬件。
+- 支持读取 Renderer 全局及逐材质 MaterialPropertyBlock；采集等待期间身份变化会拒绝结果。XR texture array、动态分辨率及多相机交错尚无可靠性保证。使用简单单相机测试场景验证，不能据此接通硬件。
 - `firstSegmentStrength` 小于 1 时，未混合中心线与最终视觉结果可能不一致。即使等于 1，顶点级额外效果仍可能不同。
 - 第一路径点/方向是 Resolver 的模型入口；可能包含半径偏移等处理，不能直接视为模型表面的真实接触平面。
 
@@ -64,6 +64,8 @@ python -X utf8 scripts/analyze-gpu-capture.py path/to/sensa-gpu-capture.json
 `usable` 仅表示满足单次模型平面穿越的分析条件。输出始终标记 `diagnosticOnly`，不发送 OSC，不改变 Sensa 映射，也不接管现有输出。该脚本可处理显式导出的本地 JSON，不会捕获桌面。
 
 ## 游戏内可继续实现的桥接
+
+本仓库 `tools/unity-world-lab` 已提供相机→RenderTexture→固定视口的原生组件实验预制件生成器，及世界 Udon 的编码/回读测试。编辑器旋转和 CRC 测试已通过；外部程序直接读取隐藏 RenderTexture、头像上传后头显不可见、Spout/窗口捕获时序均未因此得到验证。
 
 候选链路为：**本地 Shader 读取模型 → 本地可见编码图块 → 用户选择 VRChat 窗口与区域 → 桌面捕获解码 → Sensa 独立输入源**。这比尝试让头像运行回读脚本更符合现有平台边界，但尚未实现或验证。
 

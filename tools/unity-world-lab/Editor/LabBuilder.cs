@@ -18,6 +18,42 @@ namespace SensaLab
     public static class LabBuilder
     {
         private const string Root = "Assets/SensaLab/Generated";
+        [MenuItem("Tools/Sensa Lab/Export camera-only prototype")]
+        public static void ExportCameraPrototype()
+        {
+            Directory.CreateDirectory("Exports");
+            AssetDatabase.ExportPackage(new[]{Root+"/CameraOnlyPrototype.prefab","Assets/SensaLab/CAMERA-PROTOTYPE.md"},"Exports/Sensa-CameraOnly-Experimental.unitypackage",ExportPackageOptions.IncludeDependencies);
+        }
+        [MenuItem("Tools/Sensa Lab/Add camera-only test station")]
+        public static void AddCameraStation()
+        {
+            var scene=EditorSceneManager.OpenScene(Root+"/SensaLab.unity");
+            if(scene.GetRootGameObjects().Any(g=>g.name=="Camera-only test station"))throw new InvalidOperationException("Camera station already exists.");
+            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
+            var rig=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(Root+"/CameraOnlyPrototype.prefab"));rig.name="Camera-only test station";rig.transform.position=new Vector3(3,1,3);
+            var button=GameObject.CreatePrimitive(PrimitiveType.Cube);button.name="Click: camera-only rig (third cube)";button.transform.position=new Vector3(1,.65f,1.5f);button.transform.localScale=Vector3.one*.2f;
+            var toggle=UdonSharpUndo.AddComponent<LabToggle>(button);toggle.target=rig;UdonSharpEditorUtility.CopyProxyToUdon(toggle);
+            var text=GameObject.Find("Status").GetComponent<Text>();text.fontSize=36;text.text+="\nThird cube: camera-only rig. Do not enable both output experiments together.";
+            EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+        }
+        [MenuItem("Tools/Sensa Lab/Create camera-only prototype prefab")]
+        public static void CreateCameraPrototype()
+        {
+            var path=Root+"/CameraOnlyPrototype.prefab";
+            if(File.Exists(path)) throw new InvalidOperationException("Camera prototype already exists.");
+            var root=new GameObject("CameraOnlyPrototype - enable locally for testing");
+            try {
+                var rt=new RenderTexture(256,128,24,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear){filterMode=FilterMode.Point,antiAliasing=1};AssetDatabase.CreateAsset(rt,Root+"/CameraOnlyData.renderTexture");
+                var data=new Material(Shader.Find("SensaLab/Telemetry"));data.SetFloat("_AutoSequence",1);data.SetFloat("_CameraOnly",1);AssetDatabase.CreateAsset(data,Root+"/CameraOnlyPattern.mat");
+                var camera=new GameObject("Private capture camera").AddComponent<Camera>();camera.transform.SetParent(root.transform,false);camera.orthographic=true;camera.orthographicSize=.5f;camera.nearClipPlane=.01f;camera.farClipPlane=.731f;camera.cullingMask=1<<22;camera.clearFlags=CameraClearFlags.SolidColor;camera.backgroundColor=Color.black;camera.targetTexture=rt;camera.depth=-100;camera.stereoTargetEye=StereoTargetEyeMask.None;
+                var card=GameObject.CreatePrimitive(PrimitiveType.Quad);card.name="Synthetic telemetry - not SPS data";card.transform.SetParent(camera.transform,false);card.transform.localPosition=new Vector3(0,0,.2f);card.transform.localScale=new Vector3(2,1,1);card.layer=22;UnityEngine.Object.DestroyImmediate(card.GetComponent<Collider>());card.GetComponent<Renderer>().sharedMaterial=data;
+                var output=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>(Root+"/DesktopOutputExperiment.prefab"),root.transform);output.name="Desktop presenter";output.SetActive(true);
+                // Keep the presenter outside the private camera's world-space frustum to prevent recursion.
+                output.transform.localPosition=new Vector3(10,0,0);
+                var material=new Material(Shader.Find("SensaLab/TextureOutput")){mainTexture=rt};AssetDatabase.CreateAsset(material,Root+"/CameraOnlyOutput.mat");output.GetComponentInChildren<Renderer>().sharedMaterial=material;
+                root.SetActive(false);PrefabUtility.SaveAsPrefabAsset(root,path);AssetDatabase.SaveAssets();Debug.Log("SENSA_CAMERA_PROTOTYPE_CREATED");
+            }finally{UnityEngine.Object.DestroyImmediate(root);}
+        }
         [MenuItem("Tools/Sensa Lab/Generate test world")]
         public static void Generate()
         {

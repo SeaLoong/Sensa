@@ -1,6 +1,6 @@
 Shader "SensaLab/Telemetry"
 {
-    Properties { _Sequence("Sequence", Float)=0 _Sample("XYZ [-1,1]", Vector)=(0,0,0,0) }
+    Properties { _Sequence("Sequence", Float)=0 _Sample("XYZ [-1,1]", Vector)=(0,0,0,0) _AutoSequence("Test clock (not source freshness)",Float)=0 _CameraOnly("Private test camera only",Float)=0 }
     SubShader { Tags { "Queue"="Overlay" } Pass {
         Cull Off ZWrite Off ZTest Always Blend Off
         CGPROGRAM
@@ -8,10 +8,11 @@ Shader "SensaLab/Telemetry"
         #pragma vertex vert_img
         #pragma fragment frag
         #include "UnityCG.cginc"
-        float _Sequence; float4 _Sample;
+        float _Sequence, _AutoSequence, _CameraOnly; float4 _Sample;
         float4 frag(v2f_img v):SV_Target {
+            if(_CameraOnly>.5 && (unity_OrthoParams.w<.5 || abs(_ProjectionParams.z-.731)>.0001)) discard;
             uint bytes[16];
-            uint seq=(uint)_Sequence & 65535u;
+            uint seq=(uint)(_AutoSequence>.5 ? _Time.y*60 : _Sequence) & 65535u;
             uint3 p=(uint3)round(saturate(_Sample.xyz*.5+.5)*65535);
             bytes[0]=83; bytes[1]=78; bytes[2]=1; bytes[3]=1;
             bytes[4]=seq&255u; bytes[5]=seq>>8;
