@@ -75,7 +75,7 @@ namespace UnityBox.Sensa.Tests
             var states=controller.layers[0].stateMachine.states.Select(s=>s.state).ToArray();Assert.AreEqual(5,states.Length);
             var settle=states.Single(s=>s.name=="Select 2");((AnimationClip)settle.motion).SampleAnimation(avatar,0);
             Assert.AreEqual(1,constraint.GetSource(1).weight);Assert.IsFalse(avatar.GetComponentsInChildren<VRCContactReceiver>(true)[0].gameObject.activeInHierarchy);
-            var driver=settle.behaviours.OfType<VRCAvatarParameterDriver>().Single();Assert.AreEqual(10,driver.parameters.Count);
+            var driver=settle.behaviours.OfType<VRCAvatarParameterDriver>().Single();Assert.AreEqual(11,driver.parameters.Count);
             Assert.AreEqual(1,states.Single(s=>s.name=="Active 2").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Count);
             Assert.IsTrue(settle.transitions.Any(t=>t.hasExitTime&&t.exitTime==1&&t.duration==0));
         }
@@ -84,6 +84,27 @@ namespace UnityBox.Sensa.Tests
             Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.Exclusive;
             Assert.AreEqual(16,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.AreEqual(16,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
+        }
+        [TestCase(SensaArrayPolicy.Exclusive)]
+        [TestCase(SensaArrayPolicy.SharedRootArray)]
+        public void ManyTargetsUseLinearTransitionsWithoutReenteringTheSelectedSlot(SensaArrayPolicy policy)
+        {
+            for(int i=0;i<16;i++)Socket("Socket"+i,Vector3.right*i*.005f);
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=policy;SensaAutoBuilder.ProcessAvatar(avatar);
+            var machine=((AnimatorController)avatar.GetComponentInChildren<ModularAvatarMergeAnimator>().animator).layers[0].stateMachine;
+            Assert.AreEqual(19,machine.anyStateTransitions.Length);
+            Assert.AreEqual(policy==SensaArrayPolicy.SharedRootArray?16:0,machine.states.Sum(s=>s.state.transitions.Length));
+            foreach(var transition in machine.anyStateTransitions){
+                Assert.IsFalse(transition.canTransitionToSelf);Assert.AreEqual(0,transition.duration);
+                var guard=transition.conditions.Single(c=>c.parameter=="Sensa/Internal/Auto/Selected");Assert.AreEqual(AnimatorConditionMode.NotEqual,guard.mode);
+                if(transition.destinationState.name.StartsWith("Select ")){
+                    var slot=int.Parse(transition.destinationState.name.Substring(7));Assert.AreEqual(slot,guard.threshold);
+                    var driver=transition.destinationState.behaviours.OfType<VRCAvatarParameterDriver>().Single();
+                    Assert.AreEqual(slot,driver.parameters.Single(p=>p.name==guard.parameter).value);
+                }
+            }
+            nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
+            Assert.NotNull(avatar.GetComponent<VRCAvatarDescriptor>().expressionsMenu);
         }
         [Test] public void NdmfBuildMergesLocalSelectorAndRemovesAuthoringComponents()
         {

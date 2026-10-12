@@ -23,7 +23,9 @@ namespace UnityBox.Sensa
             if(rigSlots.Length!=rigs.Length || sharedSources.Length!=names.Length)throw new ArgumentException("Selection bindings must match the generated rigs and slots.");
             bool SharedSlot(int slot)=>shared!=null && slot>0 && sharedSources[slot-1]>=0;
             string selector="Sensa/Select/"+group;
+            string current="Sensa/Internal/"+group+"/Selected";
             var controller=new AnimatorController{name="Sensa selection "+group};controller.AddParameter(selector,AnimatorControllerParameterType.Int);
+            controller.AddParameter(current,AnimatorControllerParameterType.Int);
             var machine=new AnimatorStateMachine{name="Sensa selection"};controller.AddLayer(new AnimatorControllerLayer{name="Sensa "+group,stateMachine=machine,defaultWeight=1});
             SensaSensorUtility.Parameter(host,selector,ParameterSyncType.Int);
             if(shared!=null){SensaSensorUtility.Parameter(host,prefix+"/Ready",ParameterSyncType.Bool);SensaSensorUtility.Parameter(host,prefix+"/Slot",ParameterSyncType.Int);controller.AddParameter(prefix+"/Ready",AnimatorControllerParameterType.Bool);controller.AddParameter(prefix+"/Slot",AnimatorControllerParameterType.Int);}
@@ -48,6 +50,7 @@ namespace UnityBox.Sensa
             {
                 var driver=state.AddStateMachineBehaviour<VRCAvatarParameterDriver>();driver.localOnly=true;
                 driver.parameters=new List<VRC_AvatarParameterDriver.Parameter>();
+                if(!ready)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=current,value=slot});
                 if(shared!=null){driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Ready",value=ready&&SharedSlot(slot)?1:0});if(!ready)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=prefix+"/Slot",value=SharedSlot(slot)?slot:0});}
                 if(!ready)foreach(var parameter in resetParameters)driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter{name=parameter.Key,value=0});
             }
@@ -57,15 +60,17 @@ namespace UnityBox.Sensa
                 var move=machine.AddState("Select "+slot);move.writeDefaultValues=false;move.motion=Clip("Settle "+slot,slot,shared==null);Driver(move,slot,false);states.Add(move);
                 if(shared!=null){var active=machine.AddState("Active "+slot);active.writeDefaultValues=false;active.motion=Clip("Active "+slot,slot,true);Driver(active,slot,true);states.Add(active);var settled=move.AddTransition(active);settled.hasExitTime=true;settled.exitTime=1;settled.duration=0;settled.AddCondition(AnimatorConditionMode.Equals,slot,selector);}
             }
-            // Transition only when the selected slot changes. Never restart a settle timer every frame.
+            // One guarded AnyState transition per slot. The entered slot is remembered so
+            // the shared Active state cannot re-enter Select and restart its settle timer.
             for(int slot=0;slot<=names.Length;slot++) {
                 var target=slot==0?off:states[shared==null?slot:slot*2-1];
-                foreach(var source in states) {
-                    if(source==target || shared!=null && slot>0 && source==states[slot*2])continue;
-                    var transition=source.AddTransition(target);transition.hasExitTime=false;transition.duration=0;transition.AddCondition(AnimatorConditionMode.Equals,slot,selector);
-                }
+                var transition=machine.AddAnyStateTransition(target);transition.hasExitTime=false;transition.duration=0;transition.canTransitionToSelf=false;
+                transition.AddCondition(AnimatorConditionMode.Equals,slot,selector);transition.AddCondition(AnimatorConditionMode.NotEqual,slot,current);
             }
-            foreach(var state in states)if(state!=off){var invalid=state.AddTransition(off);invalid.hasExitTime=false;invalid.duration=0;invalid.AddCondition(AnimatorConditionMode.Greater,names.Length,selector);var negative=state.AddTransition(off);negative.hasExitTime=false;negative.duration=0;negative.AddCondition(AnimatorConditionMode.Less,0,selector);}
+            foreach(var condition in new[]{AnimatorConditionMode.Greater,AnimatorConditionMode.Less}){
+                var invalid=machine.AddAnyStateTransition(off);invalid.hasExitTime=false;invalid.duration=0;invalid.canTransitionToSelf=false;
+                invalid.AddCondition(condition,condition==AnimatorConditionMode.Greater?names.Length:0,selector);invalid.AddCondition(AnimatorConditionMode.NotEqual,0,current);
+            }
             var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
             var root=ScriptableObject.CreateInstance<VRCExpressionsMenu>();root.name="Sensa "+group;
             var page=root;
