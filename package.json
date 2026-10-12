@@ -1,6 +1,6 @@
 {
   "name": "sensa",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "**VRChat SPS/OGB/TPS 触点感知桥接，驱动 Intiface/TCode 物理设备。**",
   "scripts": {
     "build:web": "node scripts/build-web.mjs",

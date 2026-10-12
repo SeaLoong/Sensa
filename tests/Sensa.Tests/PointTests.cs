@@ -1,0 +1,43 @@
+using Sensa.Configuration;
+using Sensa.Input.Osc;
+using Sensa.Runtime;
+using Sensa.Signals;
+using Xunit;
+
+namespace Sensa.Tests;
+public class PointTests
+{
+    private static void Put(OscParameterStore store,string prefix,PosePoint p,OscSource? source=null)
+    {var values=PoseTests.Samples(p);for(int i=0;i<8;i++)store.Set(prefix+"/Root/A"+i,OscValue.FromFloat(values[i]),source??OscSource.Unknown);}
+    [Fact] public void SharedArrayRejectsOldSamplesAfterSwitch()
+    {
+        var store=new OscParameterStore();const string prefix="Sensa/SharedRoot/v1/Pool/Others";
+        Put(store,prefix,new(.02,0,.1));
+        store.Set(prefix+"/Slot",OscValue.FromFloat(2));store.Set(prefix+"/Ready",OscValue.FromFloat(1));
+        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
+        Put(store,prefix,new(.03,0,.1));var point=Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries()));Assert.True(point.Valid);Assert.False(point.IsLocalPoint);Assert.Equal(2,point.Slot);
+        store.Set(prefix+"/Ready",OscValue.FromFloat(0));Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
+    }
+    [Fact] public async Task HandleReleaseStopsEvenWithRootOnlyMappingPattern()
+    {
+        const string prefix="Sensa/Handle/v1/Grip/Self";
+        var config=new AppConfig{Signals=[new(){OscPath=prefix+"/Root/**",SourceMode="SensaPoint",PointMetric=PointMetric.Z,VrchatMin=0,VrchatMax=.2f}]};config.NormalizeForRuntime();
+        var store=new OscParameterStore();Put(store,prefix,new(.02,0,.1));store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(1));
+        using var receiver=new OscInputReceiver(store);var frame=new TaskCompletionSource<Sensa.Motion.MotionFrame>();var stop=new TaskCompletionSource();
+        using var runtime=new MotionRuntime(config,store,receiver,sendOutputsAsync:f=>{frame.TrySetResult(f);return Task.CompletedTask;},emergencyStopAsync:()=>{stop.TrySetResult();return Task.CompletedTask;});
+        runtime.SetInputMode(RuntimeInputMode.Osc);runtime.SetInputActive(true);
+        Assert.InRange((await frame.Task.WaitAsync(TimeSpan.FromSeconds(3))).L0,.499f,.501f);
+        store.Set(prefix+"/Handle_IsGrabbed",OscValue.FromFloat(0));await stop.Task.WaitAsync(TimeSpan.FromSeconds(3));Assert.False(runtime.CanSend);
+    }
+    [Fact] public void LocalPointAndRemoteRootRemainDistinct()
+    {
+        var store=new OscParameterStore();Put(store,"Sensa/Point/v1/Bone/Self",new(.02,-.03,.1));Put(store,"Sensa/SpsRoot/v1/Remote/Others",new(0,0,.1));
+        var points=SpsPositionTracking.Observe(store.SnapshotEntries());Assert.Single(points,p=>p.IsLocalPoint);
+        Assert.InRange(points.Single(p=>p.IsLocalPoint).Metric(PointMetric.Y),-.0301f,-.0299f);
+    }
+    [Fact] public void PointMetricSurvivesNormalizationAndMixedFramesAreRejected()
+    {
+        var config=new AppConfig{Signals=[new(){OscPath="Sensa/Point/v1/A/Self/**",SourceMode="SensaPoint",PointMetric=PointMetric.X}]};config.NormalizeForRuntime();Assert.Equal(PointMetric.X,config.Signals[0].PointMetric);
+        config.Signals.Add(new(){OscPath="Sensa/Pose/v1/**",SourceMode="SensaPose"});Assert.Throws<InvalidOperationException>(()=>config.NormalizeForRuntime());
+    }
+}

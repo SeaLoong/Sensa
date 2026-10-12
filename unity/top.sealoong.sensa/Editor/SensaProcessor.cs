@@ -30,6 +30,8 @@ namespace UnityBox.Sensa
             InPhase(BuildPhase.Generating)
                 .Run("Sensa/GenerateContacts", ctx =>
                 {
+                    SensaAutoBuilder.ProcessAvatar(ctx.AvatarRootObject);
+                    SensaPointBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaPoseBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     foreach (var comp in ctx.AvatarRootObject
                                             .GetComponentsInChildren<SensaComponent>(true))
@@ -37,6 +39,7 @@ namespace UnityBox.Sensa
                         SensaProcessor.Process(comp);
                     }
                 });
+            InPhase(BuildPhase.Optimizing).Run("Sensa/CheckFinalContactBudget",ctx=>SensaSensorUtility.Budget(ctx.AvatarRootObject,0));
         }
     }
 #endif
@@ -55,6 +58,8 @@ namespace UnityBox.Sensa
             // Already handled by the NDMF plugin.
             return true;
 #else
+            SensaAutoBuilder.ProcessAvatar(avatarGameObject);
+            SensaPointBuilder.ProcessAvatar(avatarGameObject);
             SensaPoseBuilder.ProcessAvatar(avatarGameObject);
             foreach (var comp in avatarGameObject.GetComponentsInChildren<SensaComponent>(true))
                 SensaProcessor.Process(comp);

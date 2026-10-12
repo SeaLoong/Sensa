@@ -138,7 +138,26 @@ def main():
                             if snapshot['runtime']['poseBlocked']: break
                             assert time.monotonic() < deadline, 'Lost pose did not block motion'
                     command('/api/input/active', 'PUT', {'active':False})
-                print('HTTP/WS smoke passed: authentication, FT flood, NaN rejection, pose reconstruction/loss guard and diagnostic SPS root isolation; no devices configured.')
+                    configuration = command('/api/config', 'GET')
+                    configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
+                    command('/api/config', 'PUT', configuration)
+                    handle_prefix = 'Sensa/Handle/v1/Grip/Self'
+                    values = [(handle_prefix + '/Root/' + path.rsplit('/',1)[1], value)
+                              for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                        udp.sendto(fixture.bundle(values + [(handle_prefix+'/Handle_IsGrabbed',1)]), ('127.0.0.1',osc_port))
+                        time.sleep(.15); command('/api/input/active','PUT',{'active':True}); time.sleep(.15)
+                        snapshot = command('/api/state/overview','GET')
+                        assert abs(snapshot['runtime']['command']['l0']-.5)<.001
+                        assert any(p['kind']=='Handle' and p['valid'] for p in snapshot['poseTracking']['spsRoots'])
+                        udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
+                        deadline=time.monotonic()+3
+                        while True:
+                            time.sleep(.05); snapshot=command('/api/state/overview','GET')
+                            if snapshot['runtime']['poseBlocked']:break
+                            assert time.monotonic()<deadline,'PB release did not stop point input'
+                    command('/api/input/active','PUT',{'active':False})
+                print('HTTP/WS smoke passed: authentication, FT flood, pose/root isolation, local point mapping and PB release guard; no devices configured.')
             finally:
                 process.terminate()
                 try: process.wait(timeout=5)

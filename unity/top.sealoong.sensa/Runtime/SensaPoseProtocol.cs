@@ -4,6 +4,9 @@ namespace UnityBox.Sensa
     public static class SensaPoseProtocol
     {
         public const string SpsRootPrefix = "Sensa/SpsRoot/v1";
+        public const string PointPrefix = "Sensa/Point/v1";
+        public const string HandlePrefix = "Sensa/Handle/v1";
+        public const string SharedRootPrefix = "Sensa/SharedRoot/v1";
         public const string SpsRootTag = "TPS_Pen_Root";
         public const string Prefix = "Sensa/Pose/v1";
         public const float AnchorHalfSpan = 0.06f;

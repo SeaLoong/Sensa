@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
+import { pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry } from '../../src/web/osc-preview.js';
 
 test('legacy, nested and alias patterns agree with backend', () => {
   for (const path of ['OGB/Orf/Pussy/PenOthers', 'OGB/Orf/Pussy/Main/PenOthers'])
@@ -55,4 +55,13 @@ test('single-sided root samples are discoverable but explain their missing geome
   assert.equal(rankPreview([{path}], [], {category:'pose'}).length, 1);
   assert.match(parameterMeaning(path), /不能测尖端、朝向或行程/);
   assert.match(parameterMeaning('OGB/Orf/Main/PenOthersNewTip'), /并非真实尖端/);
+});
+
+test('point preview uses decoded local coordinates and refuses ambiguous rigs', () => {
+  const point={kind:'Point',sourceKey:'a',prefix:'Sensa/Point/v1/Bone/Self',valid:true,position:{x:.02,y:-.03,z:.1},sampleCount:8};
+  const signal={oscPath:'Sensa/Point/v1/**',pointMetric:'Y'};
+  assert.equal(pointPreviewEntry([point],signal).numericValue,-.03);
+  assert.equal(pointPreviewEntry([point,{...point,sourceKey:'b'}],signal).numericValue,undefined);
+  assert.equal(pointPreviewEntry([{...point,valid:false,reason:'lost'}],signal).value,'lost');
+  assert.equal(pointPreviewEntry([{...point,kind:'SharedRoot'}],signal).numericValue,undefined);
 });

@@ -1,0 +1,108 @@
+#if UNITY_INCLUDE_TESTS
+using System;
+using System.Linq;
+using NUnit.Framework;
+using UnityEngine;
+using UnityEngine.Animations;
+using UnityEditor;
+using UnityEditor.Animations;
+using nadena.dev.modular_avatar.core;
+using VRC.SDK3.Avatars.Components;
+using VRC.SDK3.Dynamics.Contact.Components;
+using VRC.SDK3.Dynamics.PhysBone.Components;
+using Object=UnityEngine.Object;
+
+namespace UnityBox.Sensa.Tests
+{
+    public class SensaAutoTests
+    {
+        private GameObject avatar;
+        [SetUp] public void Setup(){avatar=new GameObject("Avatar");avatar.AddComponent<Animator>();avatar.AddComponent<VRCAvatarDescriptor>();}
+        [TearDown] public void Cleanup(){Object.DestroyImmediate(avatar);}
+        private GameObject Socket(string name,Vector3 position)
+        {
+            var type=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(SensaSpsAdapter.SocketType)).FirstOrDefault(t=>t!=null);
+            if(type==null)Assert.Ignore("Optional VRCFury is not installed");
+            var node=new GameObject(name);node.transform.SetParent(avatar.transform,false);node.transform.localPosition=position;node.AddComponent(type);return node;
+        }
+        [Test] public void BoneProbeCreatesEightSelfReceiversWithoutChangingTarget()
+        {
+            var bone=new GameObject("Bone").transform;bone.SetParent(avatar.transform,false);bone.localPosition=new Vector3(.01f,.02f,.1f);
+            var probe=avatar.AddComponent<SensaPointProbe>();probe.target=bone;SensaPointBuilder.ProcessAvatar(avatar);
+            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);Assert.AreEqual(1,avatar.GetComponentsInChildren<VRCContactSender>().Length);
+            Assert.AreEqual(new Vector3(.01f,.02f,.1f),bone.localPosition);Assert.IsNull(bone.GetComponent<PositionConstraint>());
+            Assert.AreEqual(bone,avatar.GetComponentInChildren<PositionConstraint>().GetSource(0).sourceTransform);
+        }
+        [Test] public void HandleUsesSeparatePhysBoneAndFollowerObjects()
+        {
+            var probe=avatar.AddComponent<SensaPointProbe>();probe.createGrabHandle=true;SensaPointBuilder.ProcessAvatar(avatar);
+            var pb=avatar.GetComponentInChildren<VRCPhysBone>();Assert.NotNull(pb);Assert.IsNull(pb.GetComponent<PositionConstraint>());
+            Assert.IsTrue(avatar.GetComponentsInChildren<ModularAvatarParameters>().SelectMany(p=>p.parameters).Any(p=>p.nameOrPrefix.EndsWith("Handle_IsGrabbed")&&p.localOnly));
+        }
+        [Test] public void AutoSelectionPreservesSpsAndPlacesArrayAtSocketOffset()
+        {
+            var selected=Socket("Selected",new Vector3(0,1,0));var ignored=Socket("Ignored",Vector3.right);
+            var source=selected.GetComponents<Component>().Single(SensaSpsAdapter.IsTarget);source.GetType().GetField("position").SetValue(source,new Vector3(.02f,.03f,.04f));
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.discoverAll=false;setup.selectedTargets.Add(selected);
+            var expected=SensaSpsAdapter.Read(source);SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);Assert.IsNotNull(source);Assert.AreEqual(0,ignored.transform.childCount);
+            Assert.That(Vector3.Distance(selected.transform.GetChild(0).localPosition,expected.position),Is.LessThan(.00001));
+        }
+        [Test] public void SharedArrayUsesOneBankAndGuardedAnimator()
+        {
+            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
+            var constraint=avatar.GetComponentInChildren<ParentConstraint>();Assert.AreEqual(2,constraint.sourceCount);
+            var merge=avatar.GetComponentInChildren<ModularAvatarMergeAnimator>();var controller=(AnimatorController)merge.animator;
+            var states=controller.layers[0].stateMachine.states.Select(s=>s.state).ToArray();Assert.AreEqual(5,states.Length);
+            var settle=states.Single(s=>s.name=="Select 2");((AnimationClip)settle.motion).SampleAnimation(avatar,0);
+            Assert.AreEqual(1,constraint.GetSource(1).weight);Assert.IsFalse(avatar.GetComponentsInChildren<VRCContactReceiver>(true)[0].gameObject.activeInHierarchy);
+            var driver=settle.behaviours.OfType<VRCAvatarParameterDriver>().Single();Assert.AreEqual(10,driver.parameters.Count);
+            Assert.AreEqual(1,states.Single(s=>s.name=="Active 2").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Count);
+            Assert.IsTrue(settle.transitions.Any(t=>t.hasExitTime&&t.exitTime==1&&t.duration==0));
+        }
+        [Test] public void DedicatedAndExclusiveHaveDifferentActiveCosts()
+        {
+            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.Exclusive;
+            Assert.AreEqual(16,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.AreEqual(16,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
+        }
+        [Test] public void NdmfBuildMergesLocalSelectorAndRemovesAuthoringComponents()
+        {
+            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;
+            nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
+            var descriptor=avatar.GetComponent<VRCAvatarDescriptor>();
+            Assert.IsNull(avatar.GetComponent<SensaAutoSetup>());
+            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
+            Assert.NotNull(descriptor.expressionsMenu);Assert.NotNull(descriptor.expressionParameters);
+            Assert.IsTrue(descriptor.expressionParameters.parameters.Any(p=>p.name=="Sensa/Select/Auto"&&!p.networkSynced));
+            Assert.IsTrue(descriptor.baseAnimationLayers.Any(layer=>layer.type==VRCAvatarDescriptor.AnimLayerType.FX && layer.animatorController!=null));
+        }
+        [Test] public void LocalTipUsesSocketFrameRatherThanItsOwnMovingPlugFrame()
+        {
+            var socket=Socket("Socket",Vector3.zero);
+            var type=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(SensaSpsAdapter.PlugType)).First(t=>t!=null);
+            var plug=new GameObject("Plug");plug.transform.SetParent(avatar.transform,false);plug.transform.localPosition=Vector3.back*.1f;
+            var component=plug.AddComponent(type);
+            foreach(var field in new[]{"autoRenderer","autoPosition","autoLength","autoRadius"})type.GetField(field).SetValue(component,false);
+            type.GetField("unitsInMeters").SetValue(component,true);type.GetField("length").SetValue(component,.16f);type.GetField("radius").SetValue(component,.015f);
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.localPlugTipTracking=true;setup.pairedPlugMarkers=true;SensaAutoBuilder.ProcessAvatar(avatar);
+            var follower=avatar.GetComponentInChildren<PositionConstraint>();Assert.NotNull(follower);
+            Assert.IsTrue(follower.transform.IsChildOf(socket.transform));Assert.IsTrue(follower.GetSource(0).sourceTransform.IsChildOf(plug.transform));
+            Assert.AreEqual(20,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length+avatar.GetComponentsInChildren<VRCContactSender>(true).Length);
+        }
+        [Test] public void AutomaticGripRendererStaysOutsideSpsDiscoveryTree()
+        {
+            Socket("Socket",Vector3.zero);
+            var type=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(SensaSpsAdapter.PlugType)).First(t=>t!=null);
+            var plug=new GameObject("Plug");plug.transform.SetParent(avatar.transform,false);var component=plug.AddComponent(type);
+            foreach(var field in new[]{"autoRenderer","autoPosition","autoLength","autoRadius"})type.GetField(field).SetValue(component,false);
+            type.GetField("unitsInMeters").SetValue(component,true);type.GetField("length").SetValue(component,.16f);type.GetField("radius").SetValue(component,.015f);
+            var setup=avatar.AddComponent<SensaAutoSetup>();setup.createPlugGrabHandles=true;SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.IsEmpty(plug.GetComponentsInChildren<Renderer>(true));Assert.IsNotEmpty(avatar.GetComponentsInChildren<Renderer>(true));
+            Assert.IsFalse(avatar.GetComponentInChildren<VRCPhysBone>(true).transform.IsChildOf(plug.transform));
+        }
+    }
+}
+#endif

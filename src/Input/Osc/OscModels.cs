@@ -49,7 +49,7 @@ public readonly record struct OscSource(
 
 public sealed class OscParameterStore
 {
-    public readonly record struct Entry(OscValue Value, long TimestampMs, OscSource Source);
+    public readonly record struct Entry(OscValue Value, long TimestampMs, OscSource Source, long Sequence = 0);
 
     public readonly record struct SnapshotEntry(string Path, Entry Entry);
 
@@ -68,6 +68,7 @@ public sealed class OscParameterStore
     public const int MaxSources = 32;
     private long _lastPrune;
     private long _revision;
+    private long _sequence;
     public long Revision => Interlocked.Read(ref _revision);
     private readonly ConcurrentDictionary<string, OscSource> _sources = new(StringComparer.Ordinal);
 
@@ -108,6 +109,7 @@ public sealed class OscParameterStore
                 || (!_sources.ContainsKey(normalizedSource.Key) && _sources.Count >= MaxSources)) return;
             if ((!_store.TryGetValue(normalizedPath, out var existing) || !existing.ContainsKey(normalizedSource.Key)) && _store.Sum(p => p.Value.Count) >= MaxPaths) return;
             var bucket = _store.GetOrAdd(normalizedPath, static _ => new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal));
+            entry = entry with { Sequence = ++_sequence };
             bucket[normalizedSource.Key] = entry;
             _sources[normalizedSource.Key] = normalizedSource;
         }

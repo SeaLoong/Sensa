@@ -3,7 +3,7 @@ import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
-import { posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
+import { pointPreviewEntry, posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json';
 const {
   Alert,
@@ -677,6 +677,7 @@ function makeSignalDraft(signal = {}) {
     _draftId: createDraftId('signal'),
     oscPath: '',
     sourceMode: 'Direct',
+    pointMetric: 'Z',
     invertDirection: false,
     vrchatMin: 0,
     vrchatMax: 1,
@@ -2939,7 +2940,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
   const simulationValueText = formatCompactNumber(simulatedValue, 2);
   const statusMetrics = latestEntry
     ? [
-        { key: 'live-input', label: draft.sourceMode === 'SensaPose' ? '解算输入' : draft.sourceMode === 'SpsSocketDepth' ? '原始采样' : '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
+        { key: 'live-input', label: ['SensaPose','SensaPoint'].includes(draft.sourceMode) ? '解算输入' : draft.sourceMode === 'SpsSocketDepth' ? '原始采样' : '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
         { key: 'live-output', label: '预估位置', value: liveOutput?.mappedPositionText || '—', tone: liveOutput ? 'live' : 'muted' },
       ]
     : [
@@ -2992,7 +2993,8 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           )}
         />
 
-        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }, { value: 'SensaPose', label: 'Sensa 空间定位' }]} onChange={sourceMode => onChange({ sourceMode })} />
+        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }, { value: 'SensaPose', label: 'Sensa 空间定位' }, {value:'SensaPoint',label:'本地骨骼 / PB 位置'}]} onChange={sourceMode => onChange({ sourceMode })} />
+        {draft.sourceMode === 'SensaPoint' && <SelectField label="本地点指标（局部 m）" value={draft.pointMetric || 'Z'} options={['X','Y','Z','Distance'].map(value=>({value,label:value==='Distance'?'距参考原点':value}))} onChange={pointMetric=>onChange({pointMetric})} />}
         {draft.sourceMode === 'SensaPose' && <SelectField label="定位指标" value={draft.poseMetric || 'Depth'} options={[
           { value: 'Depth', label: '入孔比例 0–1' }, { value: 'OffsetX', label: '孔口 X 偏移（m）' }, { value: 'OffsetY', label: '孔口 Y 偏移（m）' },
           { value: 'Yaw', label: '偏航（度）' }, { value: 'Pitch', label: '俯仰（度）' }, { value: 'Roll', label: '扭转（度）' },
@@ -3621,12 +3623,14 @@ function App() {
     const preset = BUILT_IN_OSC_MAPPING_PRESETS.find(p => p.id === (full ? 'sensa-pose-full' : 'sensa-pose-depth'));
     const next = preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` }));
     const roles = new Set(next.map(mapping => mapping.role));
-    setSignalDrafts(previous => [...previous.filter(mapping => mapping.sourceMode !== 'SensaPose' && !roles.has(mapping.role)), ...next]);
+    setSignalDrafts(previous => [...previous.filter(mapping => !['SensaPose','SensaPoint'].includes(mapping.sourceMode) && !roles.has(mapping.role)), ...next]);
     notify('已生成精确映射草稿；多来源时先固定使用来源，再保存并应用。', 'info');
   }
 
   function mapPreviewParameter(entry) {
-    if (entry.path.startsWith('Sensa/SpsRoot/v1/')) {
+    if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
+      usePointRig({prefix:entry.path.split('/').slice(0,5).join('/')});
+    } else if (/^Sensa\/(SpsRoot|SharedRoot)\/v1\//.test(entry.path)) {
       notify('这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。', 'info');
     } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
@@ -3638,6 +3642,11 @@ function App() {
       setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: entry.path, role: /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' })]);
       notify('已添加映射草稿，请确认参数含义、目标轴和范围后保存。', 'info');
     }
+  }
+
+  function usePointRig(point) {
+    setSignalDrafts(previous => [...previous.filter(s=>!['SensaPose','SensaPoint'].includes(s.sourceMode) && s.role!=='Depth'),makeSignalDraft({oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
+    notify('已添加本地 Z 位移草稿；它不是插入比例。请限定来源、校准量程后保存。PB 把手松手时停止该输入。','info');
   }
 
   function notify(message, severity = 'info') {
@@ -5349,7 +5358,7 @@ function App() {
                 <Stack spacing={2}>
                   {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
                   <PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} />
-                  <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} />
+                  <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig} />
                   <Box className="osc-section-grid">
                     <Box className="dialog-panel osc-settings-panel">
                       <Box className="dialog-panel__header osc-settings-panel__header">
@@ -5729,7 +5738,7 @@ function App() {
                           <SignalMappingRow
                             key={draft._draftId}
                             draft={draft}
-                            latestEntry={draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
+                            latestEntry={draft.sourceMode === 'SensaPoint' ? pointPreviewEntry(overview?.poseTracking?.spsRoots || [], draft, selectedOscSourceKey) : draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
                             pathOptions={oscPathSuggestions}
                             onChange={patch => updateSignalDraft(draft._draftId, patch)}
                             onRemove={() => removeSignalDraft(draft._draftId)}
@@ -6113,7 +6122,7 @@ function App() {
                     <SignalMappingRow
                       key={draft._draftId}
                       draft={draft}
-                      latestEntry={draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
+                      latestEntry={draft.sourceMode === 'SensaPoint' ? pointPreviewEntry(overview?.poseTracking?.spsRoots || [], draft, selectedOscSourceKey) : draft.sourceMode === 'SensaPose' ? posePreviewEntry(overview?.poseTracking?.observations || [], draft, selectedOscSourceKey, overview?.poseTracking?.activeKey) : getLatestOscPreviewEntry(mappingPreviewEntries.length > 0 ? mappingPreviewEntries : oscPreview, draft.oscPath, selectedOscSourceKey)}
                       pathOptions={oscPathSuggestions}
                       onChange={patch => updatePresetDialogSignal(draft._draftId, patch)}
                       onRemove={() => removePresetDialogSignal(draft._draftId)}

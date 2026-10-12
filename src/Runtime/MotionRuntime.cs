@@ -157,7 +157,7 @@ public sealed class MotionRuntime : IDisposable
         ActivePoseKey = null;
         _rollPoseKey = null;
         _continuousRoll = new();
-        _usesPose = _config.Signals.Any(s => s.SourceMode == "SensaPose");
+        _usesPose = _config.Signals.Any(s => s.SourceMode is "SensaPose" or "SensaPoint");
         _poseBlocked = _inputMode == RuntimeInputMode.Osc && _usesPose;
 
         if (!_disposed && _inputMode == RuntimeInputMode.Osc && _inputActive && !_emergency)
@@ -311,6 +311,9 @@ public sealed class MotionRuntime : IDisposable
 
         lock (_sync)
         {
+            if (_processors.Any(p=>p.Processor.Mapping.SourceMode=="SensaPoint")
+                && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal))) return true;
             foreach (var (pattern, _) in _processors)
             {
                 if (OscParameterStore.MatchesPathPattern(pattern, oscPath))
@@ -408,7 +411,12 @@ public sealed class MotionRuntime : IDisposable
         var gateOpen = true;
         float? depthOverride = null;
         var poseMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPose").ToArray();
-        var poseRoles = poseMappings.Select(p => p.Processor.Mapping.Role).ToHashSet();
+        var pointMappings = processors.Where(p=>p.Processor.Mapping.SourceMode=="SensaPoint").ToArray();
+        SpsPositionTracking.Observation? chosenPoint=null;
+        if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(),preferredSourceKey)
+            .Where(p=>p.IsLocalPoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
+            if(points.Length==1 && points[0].Valid)chosenPoint=points[0];}
+        var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
         if (poseMappings.Length > 0)
         {
@@ -421,12 +429,16 @@ public sealed class MotionRuntime : IDisposable
                 if (previous is not null && chosenPose is not null && chosenPose.Depth - previous.Depth < .05) chosenPose = previous;
             }
         }
-        _poseBlocked = poseMappings.Length > 0 && chosenPose is null;
+        _poseBlocked = poseMappings.Length > 0 && chosenPose is null || pointMappings.Length>0 && chosenPoint is null;
         ActivePoseKey = chosenPose?.Key;
         if (chosenPose is not null && _rollPoseKey != chosenPose.Key) { _rollPoseKey = chosenPose.Key; _continuousRoll = new(); }
         var roll = chosenPose is null ? 0 : _continuousRoll.Update(chosenPose.Roll);
         foreach (var (path, processor) in processors)
         {
+            if(processor.Mapping.SourceMode=="SensaPoint") {
+                if(chosenPoint!=null && chosenPoint.Matches(path)){var pointSample=processor.ProcessSample(chosenPoint.Metric(processor.Mapping.PointMetric));_signals.Add(new SignalMixInput(processor.Mapping.Role,pointSample.Output,pointSample.Normalized));}
+                continue;
+            }
             if (processor.Mapping.SourceMode == "SensaPose")
             {
                 if (chosenPose is not null && chosenPose.Matches(path))

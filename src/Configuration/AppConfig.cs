@@ -436,6 +436,11 @@ public sealed class AppConfig
         Signals = (Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
             .ToList();
+        if (Signals.Any(s=>s.SourceMode=="SensaPose") && Signals.Any(s=>s.SourceMode=="SensaPoint"))
+            throw new InvalidOperationException("Use one spatial input mode per configuration; do not mix point and pose coordinates.");
+        if (Signals.Where(s => s.SourceMode == "SensaPoint").Select(s => s.OscPath).Distinct(StringComparer.Ordinal).Count() > 1
+            || Signals.Any(s=>s.SourceMode=="SensaPoint" && s.Role is SignalRole.GateEnable or SignalRole.DepthOverride))
+            throw new InvalidOperationException("Point mappings require one shared path pattern and ordinary output roles.");
         if (Signals.Where(s => s.SourceMode == "SensaPose").Select(s => s.OscPath).Distinct(StringComparer.Ordinal).Count() > 1)
             throw new ArgumentException("精确定位的各轴必须使用同一个 Socket 路径，避免混合不同目标的坐标。");
         if (Signals.Any(s => s.SourceMode == "SensaPose" && s.Role is SignalRole.GateEnable or SignalRole.DepthOverride))
@@ -1221,8 +1226,9 @@ public sealed class AppConfig
         return new SignalMapping
         {
             OscPath         = (signal.OscPath ?? "").Trim(),
-            SourceMode      = signal.SourceMode is "SpsSocketDepth" or "SensaPose" ? signal.SourceMode : "Direct",
+            SourceMode      = signal.SourceMode is "SpsSocketDepth" or "SensaPose" or "SensaPoint" ? signal.SourceMode : "Direct",
             PoseMetric      = Enum.IsDefined(signal.PoseMetric) ? signal.PoseMetric : PoseMetric.Depth,
+            PointMetric     = Enum.IsDefined(signal.PointMetric) ? signal.PointMetric : PointMetric.Z,
             InvertDirection = signal.InvertDirection,
             VrchatMin       = float.IsFinite(signal.VrchatMin) ? signal.VrchatMin : 0,
             VrchatMax       = float.IsFinite(signal.VrchatMax) ? signal.VrchatMax : 1,

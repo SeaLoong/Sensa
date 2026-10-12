@@ -1,5 +1,7 @@
 # Sensa
 
+新增 [自动 SPS 配置、本地骨骼/PB 把手与性能策略](unity/top.sealoong.sensa/AUTOMATION.md)：可自动继承 SPS 位置，生成测量组件及选择动画。
+
 Unity 预制件的依赖、单侧 SPS 安装步骤和定位能力边界见 [兼容性指南](unity/top.sealoong.sensa/COMPATIBILITY.md)。
 
 Shader 形变采样的实验工具与游戏内桥接设计见 [GPU 定位指南](unity/top.sealoong.sensa/GPU-TRACKING.md)。

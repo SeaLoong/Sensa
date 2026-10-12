@@ -1,7 +1,7 @@
 {
   "name": "top.sealoong.sensa",
   "displayName": "Sensa",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "VRChat SPS/OGB/TPS contact sensing bridge to Intiface/TCode physical devices.",
   "unity": "2022.3",
   "author": {

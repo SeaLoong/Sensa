@@ -19,7 +19,7 @@
 
   <PropertyGroup>
     <AssemblyName>Sensa</AssemblyName>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <RootNamespace>Sensa</RootNamespace>
     <TargetFramework>net10.0</TargetFramework>
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
