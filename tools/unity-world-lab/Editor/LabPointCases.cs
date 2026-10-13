@@ -28,7 +28,7 @@ namespace SensaLab
             }
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
-            if(existing!=null){EnsurePresentation(existing);EditorSceneManager.SaveScene(scene);return;}
+            if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();return;}
             var parent=new GameObject("Sensa point geometry cases");
             string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing A3","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*.6f,Vector3.one*-.06f,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*.26f,Vector3.zero};
@@ -53,7 +53,7 @@ namespace SensaLab
                 var button=GameObject.CreatePrimitive(PrimitiveType.Cube);button.name="Pause case";button.transform.SetParent(node.transform,false);button.transform.localPosition=Vector3.down*.25f;button.transform.localScale=Vector3.one*.15f;
                 var station=UdonSharpUndo.AddComponent<PointCaseStation>(button);station.caseName=names[i];station.expectation=hints[i];station.reference=frame;station.sender=sender;station.receivers=receivers;station.status=text;station.missingLane=i==8?3:-1;station.expectedValid=valid[i];UdonSharpEditorUtility.CopyProxyToUdon(station);
             }
-            EnsurePresentation(parent);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+            EnsurePresentation(parent);LabPlayability.Apply();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
         }
         private static void EnsurePresentation(GameObject parent)
         {

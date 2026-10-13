@@ -99,3 +99,11 @@ OSC 页面新增 XZ/YZ 投影与三步校准卡片。投影网格显示 ±25 cm 
 - 桌面使用固定 SDK JSON 作解算回归；测试世界不会自动向你的硬件或 Sensa 发送运动。若做 OSC 端到端测试，应使用隔离配置与模拟传输，或单独上传测试头像。
 
 交互 API 依据：[VRChat VRC Pickup](https://creators.vrchat.com/worlds/components/vrc_pickup/)；Pickup 同对象需要 Rigidbody/Collider，跨玩家同步则另需 Object Sync。本测试故意保持本地控制，便于复现实验。
+
+### 移动和可触及布局
+
+`LabPlayability.Apply` 保持测量几何不变，只调整地面、出生点、家具、看板和按钮。`LabLocomotion` 通过 SDK 设置行走 2 m/s、跑动 4 m/s、侧移 2 m/s、跳跃冲量 3.5 和重力 1，并在本地重生后重新应用。
+
+Play Mode 自动验证先调用 ClientSim 的 `CloseMenu`，再临时将控制器的输入依赖替换为 `ClientSimInputBase` 测试实现，驱动一秒前进及一次跳跃；结束后恢复原输入。报告记录真实控制器运动，不能据此宣称实际键盘、手柄或 VRChat 客户端已测试。此测试适配当前安装的 Worlds SDK，升级 SDK 后应重新检查控制器输入接口。
+
+`playability-layout.json` 检查 11 个操作点的地面射线、站立胶囊空间与 0.85–1.15 m 按钮高度；`locomotion-playmode.json` 保存速度、移动距离、跳跃高度及菜单状态。默认菜单打开时不能移动是模拟器的正常行为，手动体验应先关闭菜单并让 Game 视图获得焦点。

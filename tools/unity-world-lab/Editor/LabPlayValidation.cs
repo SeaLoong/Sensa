@@ -6,6 +6,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityBox.Sensa;
+using VRC.SDKBase;
 
 namespace SensaLab
 {
@@ -14,6 +15,15 @@ namespace SensaLab
     {
         private const string Key="SensaLab.PlayValidation";
         private static double started;
+        private static int movementStage;
+        private static Vector3 walkStart;
+        private static float walked, jumpBase, jumpPeak;
+        private static SyntheticInput testInput;
+        private static VRC.SDK3.ClientSim.ClientSimPlayerController testedController;
+        private static VRC.SDK3.ClientSim.IClientSimInput originalInput;
+        private class SyntheticInput : VRC.SDK3.ClientSim.ClientSimInputBase { public float forward;public override float GetMovementHorizontal()=>0;public override float GetMovementVertical()=>forward;public override float GetLookHorizontal()=>0;public override float GetLookVertical()=>0;public override float GetPickupRotateUpDown()=>0;public override float GetPickupRotateLeftRight()=>0;public override float GetPickupRotateCwCcw()=>0;public override float GetPickupManipulateDistance()=>0; }
+        [Serializable] private class LocomotionReport { public bool passed;public float walkSpeed,runSpeed,jumpImpulse,walkedDistance,jumpHeight; public string inputDebug; }
+        private static string inputDebug;
         [Serializable] private class LocalPointCapture { public string schema="sensa.point-lab.v1";public Vector3 position;public float[] samples;public bool grabbed;public float stretch; }
         [Serializable] private class CaseBoards { public bool passed, controlsPassed; public string[] boards; }
         private static string ReportDirectory => SessionState.GetBool(Key+"Offset",false)?"Validation/offset":"Validation";
@@ -45,13 +55,14 @@ namespace SensaLab
         }
         private static void Changed(PlayModeStateChange state) {
             if(SessionState.GetInt(Key,0)==0)return;
-            if(state==PlayModeStateChange.EnteredPlayMode){started=EditorApplication.timeSinceStartup;SessionState.SetInt(Key,2);}
+            if(state==PlayModeStateChange.EnteredPlayMode){started=EditorApplication.timeSinceStartup;movementStage=0;walked=jumpBase=jumpPeak=0;testInput=null;testedController=null;originalInput=null;SessionState.SetInt(Key,2);}
             if(state==PlayModeStateChange.EnteredEditMode){RestorePreference();SessionState.SetInt(Key,0);if(Application.isBatchMode)EditorApplication.Exit(SessionState.GetBool(Key+"Passed",false)?0:1);}
         }
         private static void RestorePreference(){if(SessionState.GetBool(Key+"VrcfuryPreferenceExists",false))EditorPrefs.SetBool("com.vrcfury.playMode",SessionState.GetBool(Key+"VrcfuryPreference",true));else EditorPrefs.DeleteKey("com.vrcfury.playMode");}
         private static void Tick() {
             int stage=SessionState.GetInt(Key,0);if(stage==0)return;
             if(stage==1 && EditorApplication.timeSinceStartup-SessionState.GetFloat(Key+"Started",0)>120){RestorePreference();SessionState.SetInt(Key,0);File.WriteAllText("Validation/playmode-error.txt","Play Mode startup timed out");EditorApplication.Exit(1);return;}
+            if(stage==2)ExerciseLocomotion(EditorApplication.timeSinceStartup-started);
             if(stage!=2 || EditorApplication.timeSinceStartup-started<12)return;
             SessionState.SetInt(Key,3);Directory.CreateDirectory("Validation");
             try {
@@ -84,12 +95,40 @@ namespace SensaLab
                 File.WriteAllText(ReportDirectory+"/point-cases-playmode.json",JsonUtility.ToJson(new CaseBoards{passed=casesPassed,controlsPassed=controlsPassed,boards=caseBoards},true));
                 result+="\nPoint case boards: "+caseBoards.Length+", passed: "+casesPassed;
                 File.WriteAllText(ReportDirectory+"/playmode-results.txt",result);
-                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && Vector3.Distance(moving,origin)>.001f;
+                var player=Networking.LocalPlayer;
+                var locomotion=new LocomotionReport{walkSpeed=player.GetWalkSpeed(),runSpeed=player.GetRunSpeed(),jumpImpulse=player.GetJumpImpulse(),walkedDistance=walked,jumpHeight=jumpPeak-jumpBase,inputDebug=inputDebug};
+                locomotion.passed=locomotion.walkSpeed>=2 && locomotion.runSpeed>=4 && locomotion.jumpImpulse>=3 && walked>.1f && locomotion.jumpHeight>.1f;
+                File.WriteAllText(ReportDirectory+"/locomotion-playmode.json",JsonUtility.ToJson(locomotion,true));
+                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && locomotion.passed && Vector3.Distance(moving,origin)>.001f;
                 SessionState.SetBool(Key+"Passed",pass);
                 File.WriteAllText(ReportDirectory+"/playmode-status.json","{\"passed\":"+(pass?"true":"false")+"}");
                 Debug.Log("SENSA_PLAYMODE_VALIDATION "+pass);
             }catch(Exception ex){File.WriteAllText(ReportDirectory+"/playmode-error.txt",ex.ToString());SessionState.SetBool(Key+"Passed",false);}
             EditorApplication.isPlaying=false;
+        }
+        private static void ExerciseLocomotion(double elapsed)
+        {
+            var player=Networking.LocalPlayer;if(player==null)return;
+            const System.Reflection.BindingFlags flags=System.Reflection.BindingFlags.Instance|System.Reflection.BindingFlags.NonPublic;
+            if(movementStage==0 && elapsed>=3){
+                testedController=Resources.FindObjectsOfTypeAll<VRC.SDK3.ClientSim.ClientSimPlayerController>().FirstOrDefault(c=>!EditorUtility.IsPersistent(c) && c.gameObject.scene.IsValid() && c.gameObject.activeInHierarchy);
+                if(testedController==null){inputDebug="ClientSim controller unavailable";movementStage=5;return;}
+                // ClientSim opens its menu in batch mode; use the SDK action to release movement.
+                var menu=Resources.FindObjectsOfTypeAll<VRC.SDK3.ClientSim.ClientSimMenu>().FirstOrDefault(c=>!EditorUtility.IsPersistent(c) && c.gameObject.scene.IsValid());
+                if(menu!=null)menu.CloseMenu();
+                var field=typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetField("_input",flags);
+                originalInput=(VRC.SDK3.ClientSim.IClientSimInput)field.GetValue(testedController);
+                testedController.Dispose();testInput=new SyntheticInput();field.SetValue(testedController,testInput);
+                typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetMethod("Subscribe",flags).Invoke(testedController,null);
+                walkStart=player.GetPosition();testInput.forward=1;inputDebug="controller="+testedController.name+", enabled="+testedController.enabled+", active="+testedController.gameObject.activeInHierarchy+", position="+testedController.transform.position+", api="+player.GetPosition()+", menu="+typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetField("_menuIsOpen",flags).GetValue(testedController)+", dead="+typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetField("_isDead",flags).GetValue(testedController)+", grounded="+testedController.GetComponent<CharacterController>().isGrounded;movementStage=1;
+            }
+            if(movementStage==1 && elapsed>=4){walked=Vector3.Distance(walkStart,player.GetPosition());inputDebug+=" | end="+testedController.transform.position+", prevInput="+typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetField("_prevInput",flags).GetValue(testedController)+", timeScale="+Time.timeScale;testInput.forward=0;movementStage=2;}
+            if(movementStage==2 && elapsed>=6){jumpBase=jumpPeak=player.GetPosition().y;testInput.SendJumpEvent(true,VRC.Udon.Common.HandType.LEFT);movementStage=3;}
+            if(movementStage==3)jumpPeak=Mathf.Max(jumpPeak,player.GetPosition().y);
+            if(movementStage==3 && elapsed>=9){
+                testedController.Dispose();typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetField("_input",flags).SetValue(testedController,originalInput);
+                typeof(VRC.SDK3.ClientSim.ClientSimPlayerController).GetMethod("Subscribe",flags).Invoke(testedController,null);testInput.Dispose();movementStage=4;
+            }
         }
         private static bool CaptureModel(Renderer[] renderers)
         {
