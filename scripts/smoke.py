@@ -82,7 +82,9 @@ def main():
                     def command(path, method='POST', body=None):
                         marker = 'cmd-' + path
                         ws.sendall(frame({'id':marker,'method':method,'path':path,'body':body}))
+                        deadline=time.monotonic()+30
                         while True:
+                            if time.monotonic()>deadline:raise TimeoutError('No WebSocket response for '+method+' '+path)
                             result = read_frame(ws)
                             if result and result.get('id') == marker:
                                 assert result['ok'], result
