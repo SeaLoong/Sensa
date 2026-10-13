@@ -70,6 +70,226 @@
     ]
   },
   {
+    "id": "sensa-point-z",
+    "name": "Sensa 本地点 · Z 位移（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。不测远端骨骼或 Shader 形变。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Point/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ]
+  },
+  {
+    "id": "sensa-point-xyz",
+    "name": "Sensa 本地点 · 三轴位置（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。不测远端骨骼或 Shader 形变。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Point/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "Sensa/Point/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "X",
+        "role": "Sway",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      },
+      {
+        "oscPath": "Sensa/Point/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Y",
+        "role": "Surge",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      }
+    ]
+  },
+  {
+    "id": "sensa-point-distance",
+    "name": "Sensa 本地点 · 距参考原点（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。不测远端骨骼或 Shader 形变。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Point/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Distance",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ]
+  },
+  {
+    "id": "sensa-handle-z",
+    "name": "Sensa PB 把手 · Z 位移（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。PB 仅在抓取时有效，松手停止。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Handle/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ]
+  },
+  {
+    "id": "sensa-handle-xyz",
+    "name": "Sensa PB 把手 · 三轴位置（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。PB 仅在抓取时有效，松手停止。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Handle/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "Sensa/Handle/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "X",
+        "role": "Sway",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      },
+      {
+        "oscPath": "Sensa/Handle/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Y",
+        "role": "Surge",
+        "vrchatMin": -0.1,
+        "vrchatMax": 0.1
+      }
+    ]
+  },
+  {
+    "id": "sensa-handle-distance",
+    "name": "Sensa PB 把手 · 距参考原点（需校准）",
+    "description": "四接收器本地测量，单位为参考局部米。范围仅为模板，请在量程校准中采集，限定一个实例和来源；三轴必须来自同一实例。PB 仅在抓取时有效，松手停止。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Handle/v1/*/Self/**",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Distance",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ]
+  },
+  {
+    "id": "sensa-aux-vibration",
+    "name": "Sensa · 辅助振动",
+    "description": "只匹配 Unity 中配置的对应辅助角色。Existing Parameter 需替换为实际参数路径。这是标量输入；不要用它解释 Root/SharedRoot 的距离样本。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/**/Vibrate;Sensa/**/Vibrate_Angle;Sensa/**/Vibrate_Stretch;Sensa/**/Vibrate_Squish;Sensa/**/Vibrate_IsGrabbed;Sensa/**/Vibrate_Ratio",
+        "role": "V0"
+      }
+    ]
+  },
+  {
+    "id": "sensa-aux-gate",
+    "name": "Sensa · 辅助门控",
+    "description": "只匹配 Unity 中配置的对应辅助角色。Existing Parameter 需替换为实际参数路径。没有有效门控值时停止输出，作为其他输入的附加规则使用。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/**/GateEnable;Sensa/**/GateEnable_Angle;Sensa/**/GateEnable_Stretch;Sensa/**/GateEnable_Squish;Sensa/**/GateEnable_IsGrabbed;Sensa/**/GateEnable_Hit",
+        "role": "GateEnable"
+      }
+    ]
+  },
+  {
+    "id": "sensa-aux-override",
+    "name": "Sensa · 辅助深度覆盖",
+    "description": "只匹配 Unity 中配置的对应辅助角色。Existing Parameter 需替换为实际参数路径。这是标量输入；不要用它解释 Root/SharedRoot 的距离样本。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/**/DepthOverride;Sensa/**/DepthOverride_Angle;Sensa/**/DepthOverride_Stretch;Sensa/**/DepthOverride_Squish;Sensa/**/DepthOverride_IsGrabbed;Sensa/**/DepthOverride_Ratio",
+        "role": "DepthOverride"
+      }
+    ]
+  },
+  {
+    "id": "sensa-aux-angles",
+    "name": "Sensa · 辅助方向",
+    "description": "来自 AngleX/AngleY 辅助角色的标量输入；不是自动恢复的完整旋转，需要按输出设备校准。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/**/AngleX;Sensa/**/AngleX_Angle;Sensa/**/AngleX_Stretch;Sensa/**/AngleX_Squish;Sensa/**/AngleX_IsGrabbed;Sensa/**/AngleX_Ratio",
+        "role": "AngleX"
+      },
+      {
+        "oscPath": "Sensa/**/AngleY;Sensa/**/AngleY_Angle;Sensa/**/AngleY_Stretch;Sensa/**/AngleY_Squish;Sensa/**/AngleY_IsGrabbed;Sensa/**/AngleY_Ratio",
+        "role": "AngleY"
+      }
+    ]
+  },
+  {
+    "id": "sps-socket-depth-others",
+    "name": "VRCFury SPS · Socket 新深度 · 仅他人",
+    "description": "NewRoot/NewTip 成对估算径向深度，按同一来源、同一孔位配对。NewTip 是根部同心长度球，不是真实尖端；不能校正横移/倾斜。先从外部靠近一次估算长度；未校准保持零。需 VRCFury Haptics/OGB。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthersNewTip",
+        "sourceMode": "SpsSocketDepth",
+        "role": "Depth",
+        "isOgbSocket": true
+      }
+    ]
+  },
+  {
+    "id": "sps-socket-depth-self",
+    "name": "VRCFury SPS · Socket 新深度 · 仅自身",
+    "description": "NewRoot/NewTip 成对估算径向深度，按同一来源、同一孔位配对。NewTip 是根部同心长度球，不是真实尖端；不能校正横移/倾斜。先从外部靠近一次估算长度；未校准保持零。需 VRCFury Haptics/OGB。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/PenSelfNewRoot;OGB/Orf/**/PenSelfNewTip",
+        "sourceMode": "SpsSocketDepth",
+        "role": "Depth",
+        "isOgbSocket": true
+      }
+    ]
+  },
+  {
+    "id": "sps-plug-depth-others",
+    "name": "VRCFury SPS · Plug 深度 · 仅他人",
+    "description": "VRCFury 根部接收器：PenOthers/PenSelf 值越大表示越深，默认不反向。旧 Sensa 尖端接收器请使用旧 OGB Plug 预设并校准。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Pen/**/PenOthers",
+        "role": "Depth",
+        "isOgbPlug": true
+      }
+    ]
+  },
+  {
+    "id": "sps-plug-depth-self",
+    "name": "VRCFury SPS · Plug 深度 · 仅自身",
+    "description": "VRCFury 根部接收器：PenOthers/PenSelf 值越大表示越深，默认不反向。旧 Sensa 尖端接收器请使用旧 OGB Plug 预设并校准。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Pen/**/PenSelf",
+        "role": "Depth",
+        "isOgbPlug": true
+      }
+    ]
+  },
+  {
     "id": "sps-socket-depth",
     "name": "VRCFury SPS · Socket 新深度",
     "description": "NewRoot/NewTip 成对估算径向深度，按同一来源、同一孔位配对。NewTip 是根部同心长度球，不是真实尖端；不能校正横移/倾斜。先从外部靠近一次估算长度；未校准保持零。需 VRCFury Haptics/OGB。",
@@ -146,13 +366,13 @@
     "description": "Plug 方标准深度参数，同时映射 PenOthers(插入他人)和 PenSelf(自插)。深度自动反向。",
     "mappings": [
       {
-        "oscPath": "OGB/Pen/*/PenOthers",
+        "oscPath": "OGB/Pen/**/PenOthers",
         "role": "Depth",
         "invertDirection": true,
         "isOgbPlug": true
       },
       {
-        "oscPath": "OGB/Pen/*/PenSelf",
+        "oscPath": "OGB/Pen/**/PenSelf",
         "role": "Depth",
         "invertDirection": true,
         "isOgbPlug": true
@@ -165,7 +385,7 @@
     "description": "仅映射 PenOthers(插入他人深度)，不包含自插。",
     "mappings": [
       {
-        "oscPath": "OGB/Pen/*/PenOthers",
+        "oscPath": "OGB/Pen/**/PenOthers",
         "role": "Depth",
         "invertDirection": true,
         "isOgbPlug": true
@@ -178,7 +398,7 @@
     "description": "仅映射 PenSelf(自插深度)。需在 Sensa 组件中启用 generateSelfParam。",
     "mappings": [
       {
-        "oscPath": "OGB/Pen/*/PenSelf",
+        "oscPath": "OGB/Pen/**/PenSelf",
         "role": "Depth",
         "invertDirection": true,
         "isOgbPlug": true
@@ -222,8 +442,8 @@
   },
   {
     "id": "sensa-aux",
-    "name": "Sensa · 辅助信号",
-    "description": "按新版 Unity 组件生成的角色路径匹配。GateEnable 无值或关闭时停止输出；多个门控规则必须都开启。ExistingParameter 需手动填写路径。",
+    "name": "Sensa · 辅助信号组合（须按需删减）",
+    "description": "同时包含振动、门控、深度覆盖和方向。仅保留 Unity 实际生成的角色；没有 GateEnable 会停止输出。一般优先使用下方单项预设。",
     "mappings": [
       {
         "oscPath": "Sensa/**/Vibrate;Sensa/**/Vibrate_Angle;Sensa/**/Vibrate_Stretch;Sensa/**/Vibrate_Squish;Sensa/**/Vibrate_IsGrabbed;Sensa/**/Vibrate_Ratio",
