@@ -26,7 +26,7 @@ Still requiring client validation: HMD visibility, avatar camera behavior, remot
 
 ## 新增四点定位测试区
 
-打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。新增区域位于场景前方 Z=4–9 m，11 个编号站分三排摆放，配有独立地面和不透明看板。每站显示 SDK 四路近接值、参考坐标 Truth、解算坐标 Decoded、残差与预期结果。小方块可暂停/恢复该站读数；所有测试不输出设备命令。
+打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。新增区域位于场景前方 Z=4–9 m，11 个编号站分三排摆放，配有独立地面和不透明看板。每站显示 SDK 四路近接值、参考坐标 Truth、解算坐标 Decoded、残差与预期结果。每站白球可抓取移动，左/中/右三个方块分别重置、暂停/恢复、切换 A3 缺采样；所有测试不输出设备命令。
 
 | Case | 场景 | 预期 |
 | --- | --- | --- |
@@ -65,3 +65,37 @@ OSC 页面新增 XZ/YZ 投影与三步校准卡片。投影网格显示 ±25 cm 
 - 窄屏将三步卡片纵向排列，按钮扩展为整行。
 
 截图保存在测试世界 `Validation/`：`ui-calibration-ready.png`（正常与反向量程）、`ui-calibration-invalid.png`（无效输入）、`ui-calibration-narrow.png`（420 px 窄屏）、`point-cases-world.png`（世界总览）、`point-case-detail.png`（单站近景）。UI 截图使用隔离临时配置和模拟 OSC，不是物理设备或 Avatar 实测；输入保持关闭。
+
+
+## 测试世界详细操作路线
+
+本地项目为 `D:/VRChatProjects/Sensa Test World`，仅做本地 Git 回溯，不设置 remote。请用项目指定的 Unity 2022.3.22f1 打开；这里是 Worlds SDK 项目，不安装完整的 Avatar Sensa 包。源码同步脚本只管理 `Assets/SensaLab`，不会下载 SDK、替换场景或改 Git 远程。
+
+### 区域和可见数据
+
+| 区域 | 可以操作什么 | 能看什么 | 不代表什么 |
+| --- | --- | --- | --- |
+| 中央 Contact/运动站 | 左侧小方块暂停/恢复轨迹 | 真实 SDK 近接值与已知移动坐标 | 不是对端玩家 OSC 身份测试 |
+| 左侧 SPS2 站 | 用专用 Play Mode 验证入口烘焙；偏移用例增加横移与倾角 | Resolver 有效性、入口模型、33 点曲线采样 | 不是最终网格/真实设备行程 |
+| 本地 PB 站 | 抓住白色小球、移动、松开 | IsGrabbed、Stretch、局部 XYZ 与四路近接值 | 自动测试没有替真人完成抓取 |
+| 11 个几何 case | 抓取目标球；重置、暂停、切换缺采样 | 四路条形图、真值/解算坐标、残差、位置向量、基准/探索状态 | 不是整个头像上传链路，也不证明多人隔离 |
+| 编码/相机站 | 开关对应实验输出；不要同时启用两种输出实验 | CRC、序号、回读年龄和回调滞后；编码图块 | 不是已验证的头显隐藏区或桌面传输延迟 |
+
+### 11 个 case 的交互
+
+1. 进入 Play Mode / ClientSim，走到 Z=4–9 m 的三排看板。先确认各板报告 EXPECTED RESULT。
+2. 抓取白球，改变前后/横向位置。白球是为了便于抓取的可见把手，它的可见尺寸和 Unity Collider 不等于测量 Sender 的 1 mm 半径。不要用把手外观推断接触几何。
+3. 看四条 A0–A3 条形图：正常读数为蓝色，0/1 或缺路标记为红色/空条。SDK 距离值不是单独的行程；四路必须一起解算。
+4. Truth 是世界里可直接读取的本地 Transform 真值；Decoded 是用四路值重建的位置。位置向量有效时为绿色、无效时为红色。RMS 在无法完整拟合时显示 n/a，低残差也不保证真实客户端精度。
+5. 移动或改变缺路条件后显示 EXPLORING，表示离开了该 case 的初始基准，不应再把原来的预期有效性当成当前动作的答案。
+6. **左方块 Reset**：放下目标并恢复原位置/缺路配置；**中方块 Pause**：冻结读数并显示 PAUSED，再点恢复；**右方块 Missing A3**：切换缺采样注入。Case 09 初始就是缺 A3，切换后可以观察恢复。
+7. 再点 Reset 回到基准，确认 EXPECTED RESULT。操作为本地验证，未加入 Object Sync，因此不应要求其他玩家看到相同的球位置。
+
+### 应怎样验证，而不是只看“通过”
+
+- 编辑器 `Validate point geometry cases` 核对 11 个基准、11 个 Pickup/Rigidbody 配置、22 个复位/故障按钮、四路读数条和位置向量引用，并导出截图/JSON。
+- ClientSim `Run Play Mode validation (straight)` 运行所有状态板，再对第一站实际发送 Udon 自定义事件，验证缺路→无效/空条、重置→有效、暂停/恢复→明确状态。结果 `point-cases-playmode.json` 中有 `controlsPassed`。
+- 这些事件测试验证 Udon 控制逻辑，不模拟 VR 手柄抓取/投掷。真实用户抓取、PCVR 手势与双人交互应手动测试。
+- 桌面使用固定 SDK JSON 作解算回归；测试世界不会自动向你的硬件或 Sensa 发送运动。若做 OSC 端到端测试，应使用隔离配置与模拟传输，或单独上传测试头像。
+
+交互 API 依据：[VRChat VRC Pickup](https://creators.vrchat.com/worlds/components/vrc_pickup/)；Pickup 同对象需要 Rigidbody/Collider，跨玩家同步则另需 Object Sync。本测试故意保持本地控制，便于复现实验。

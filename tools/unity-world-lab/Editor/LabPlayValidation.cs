@@ -15,7 +15,7 @@ namespace SensaLab
         private const string Key="SensaLab.PlayValidation";
         private static double started;
         [Serializable] private class LocalPointCapture { public string schema="sensa.point-lab.v1";public Vector3 position;public float[] samples;public bool grabbed;public float stretch; }
-        [Serializable] private class CaseBoards { public bool passed; public string[] boards; }
+        [Serializable] private class CaseBoards { public bool passed, controlsPassed; public string[] boards; }
         private static string ReportDirectory => SessionState.GetBool(Key+"Offset",false)?"Validation/offset":"Validation";
         static LabPlayValidation() { EditorApplication.playModeStateChanged+=Changed;EditorApplication.update+=Tick; }
         [MenuItem("Tools/Sensa Lab/Run Play Mode validation (straight)")]
@@ -72,7 +72,16 @@ namespace SensaLab
                 result+="\nSPS GPU model valid: "+gpuModel;
                 var caseBoards=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).Select(s=>s.status.text).ToArray();
                 bool casesPassed=caseBoards.Length==11 && caseBoards.All(s=>s.Contains("EXPECTED RESULT"));
-                File.WriteAllText(ReportDirectory+"/point-cases-playmode.json",JsonUtility.ToJson(new CaseBoards{passed=casesPassed,boards=caseBoards},true));
+                var firstCase=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).First();
+                var program=UdonSharpEditor.UdonSharpEditorUtility.GetBackingUdonBehaviour(firstCase);
+                program.SendCustomEvent("ToggleMissing");program.SendCustomEvent("Refresh");
+                bool missingWorked=firstCase.status.text.Contains("MISSING") && firstCase.status.text.Contains("INVALID") && firstCase.sampleBars[3].rectTransform.sizeDelta.x==0;
+                program.SendCustomEvent("ResetCase");program.SendCustomEvent("Refresh");
+                bool resetWorked=firstCase.status.text.Contains("EXPECTED RESULT") && firstCase.sampleBars[3].rectTransform.sizeDelta.x>0;
+                program.SendCustomEvent("TogglePause");bool pauseWorked=firstCase.status.text.Contains("PAUSED");program.SendCustomEvent("TogglePause");
+                bool controlsPassed=missingWorked && resetWorked && pauseWorked && firstCase.status.text.Contains("EXPECTED RESULT");
+                casesPassed=casesPassed && controlsPassed;
+                File.WriteAllText(ReportDirectory+"/point-cases-playmode.json",JsonUtility.ToJson(new CaseBoards{passed=casesPassed,controlsPassed=controlsPassed,boards=caseBoards},true));
                 result+="\nPoint case boards: "+caseBoards.Length+", passed: "+casesPassed;
                 File.WriteAllText(ReportDirectory+"/playmode-results.txt",result);
                 bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && Vector3.Distance(moving,origin)>.001f;

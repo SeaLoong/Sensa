@@ -8,6 +8,43 @@
 
 已核对环境：Unity 2022.3.22f1、Avatars SDK 3.10.5、VRCFury 1.1434.0、MA 1.18.7、NDMF 1.14.8。自动 SPS 配置需要 VRCFury 作者组件；仅有旧 Shader/灯光的对象不会被自动识别。普通本地骨骼/PB 探针不依赖 VRCFury。头像与世界必须使用独立项目，不能混装两个 SDK。
 
+## Unity 侧：从空项目到可以观察
+
+1. 用 VCC/ALCOM 建立或打开 **Avatars** 项目。测试世界必须保留在另一个 Worlds 项目中，不要混装两个 SDK。
+2. 在该 Avatar 项目安装 Modular Avatar（会带入其所需 NDMF），使用自动 SPS 配置时还要安装 VRCFury，并先让原本 SPS Socket/Plug 正常工作。
+3. 当前开发源码可在 Unity 的 `Window > Package Manager > + > Add package from disk` 选择本仓库 `unity/top.sealoong.sensa/package.json`。这一步不会替你安装所有 VPM 依赖；若缺 MA/NDMF/SDK，先用 VCC 解决依赖再导入。已验证的具体依赖版本见本页开头，不代表所有旧版本均经过测试。
+4. 选中带 `VRCAvatarDescriptor` 的 Avatar 根对象，`Add Component > Sensa > Automatic SPS Setup`。保持一个组进行单目标选择；Group Name 使用唯一 ASCII 名字，例如 `Main`。
+5. 默认发现全部 SPS 作者组件。只测指定位置时，关闭 Discover All，把目标 GameObject 拖到 Selected Targets；排除项放到 Excluded Targets。点击“检查目标、自动位置与 Contact 开销”确认识别数量、实例名和位置，出现错误先解决，不要忽略。
+6. 按下表选择能力。不要因为选中了 Plug 就以为所有测量自动启用。
+7. 使用上传/NDMF 构建生成原生组件。作者组件是 EditorOnly，构建副本中会被移除，源头像保持可编辑。无需手动摆放四/八个接收器。不要把 Worlds Udon 脚本放进头像。
+8. 在 VRChat 打开 OSC，并开启相应交互权限。Sensa 生成的菜单初始为 Off，选择本次使用的目标；同时检查 SPS 自身菜单选择正确。两套选择目前不会互相自动同步。
+9. 在桌面 Sensa 开启 OSC 接收并应用 OSC 输入方式，**先不打开输入开关**，到“空间诊断”确认实例、来源、完整采样和有效状态。
+
+| 你想做什么 | Automatic SPS Setup 的关键选项 | 软件侧应该看到什么 |
+| --- | --- | --- |
+| 只观察普通对端 Plug 根部 | Socket Root Tracking；选择自己的 Socket | SpsRoot / Others，8 路，XYZ；仅诊断，不生成行程 |
+| 多 Socket 只测一个、节省注册接收器 | SharedRootArray；相同缩放，最多 16 个有效目标 | SharedRoot、Ready/Slot，切换等待后生效；仍是诊断 |
+| 自己抓一个手柄输入 | Create Plug Grab Handles；选择自己的 SPS Plug | Handle / Self，4 路；抓取才有效，松手停止 |
+| 测自己 Plug 尖端相对自己 Socket | Local Plug Tip Tracking；选择 Plug 与参考 Socket，必要时指定 Local Reference Socket | Point / Self，4 路；测未形变参考尖端，需要两者相对移动 |
+| 双方配对完整参考姿态 | 本地 Socket 开 Paired Socket Tracking；对端 Plug 开 Paired Plug Markers；Pair Channel 一致 | Pose 的 Root/Tip/Side，24 路；可校准六轴 |
+
+### 不依赖 SPS 的本地骨骼探针
+
+在 Avatar 内参考对象上添加 `Sensa > Local Bone or PB Probe`，Target 拖入要测的本地骨骼，Reference 拖入固定参考系（留空使用组件对象）。启用 Create Grab Handle 时会自动创建 PB 手柄，无需 Target。给每个探针不同 Instance Name。生成的 Sender 跟随位置但不继承目标 PB 拉伸；所有测量层级仍须保持正值均匀缩放。
+
+手动方式可用 `SensaLocalPoint.prefab` / `SensaGrabHandle.prefab` / `SensaPoseSocket.prefab` / `SensaPosePlug.prefab`。手动骨骼探针需要你选择参考和目标；自动 SPS 方式才会读取 Socket/Plug 的已有原点、方向、长度。两者生成同类原生组件，但手动摆放不会自动获得多目标选择控制器。
+
+## Sensa 软件侧：观察、选预设、校准
+
+1. 启动 `Sensa.exe`；从源码则先 `npm ci`，使用 `global.json` 指定的 .NET SDK 构建/运行。默认 WebUI 为 `http://127.0.0.1:5086`，默认 OSC 接收为 `127.0.0.1:9001`。OSC UDP 端口和 WebUI HTTP 端口不是同一个设置。
+2. 进入 OSC 输入页，配置并启用监听，点击“应用输入方式”。参数接收和诊断不要求输入开关打开。无数据时先检查 VRChat OSC 开关、端口占用、交互权限以及 Sensa 目标菜单是否仍是 Off。
+3. 在“空间诊断”核对类型、实例、Self/Others 与采样数量。位置无效时先修几何/数据，不要用扩大映射范围掩盖无效状态。多个来源同时在线时固定使用来源。
+4. 在“参数与映射”选择预设：本地点/PB 使用相应 Z、三轴或距原点模板；完整配对使用 Pose；普通 SPS 使用对应 Socket/Plug/触碰预设。Root/SharedRoot/Shader 实验没有直接运动预设。完整的 26 项清单见主 README。
+5. 本地点可到独立“量程校准”页选轴，分别采集期望的 0% 和 100% 位置。例：10 cm→5 cm 会自动反向，7.5 cm 预览 50%。生成草稿会返回参数页；模板范围不是自动校准结果。
+6. 确认目标轴、输入范围、反向、映射范围，然后“保存并应用映射”。多轴模板需逐轴核对；单轴校准生成草稿会替换冲突的精确位置映射，不是自动保留原六轴组合。
+7. 添加输出、选择轴配置并限制行程/速度。连接本身不会移动。最后才启用输入；输出卡显示该传输实际发送的目标，不是机械位置回读。先用隔离模拟或断开设备验证方向。
+8. PB 松手、定位缺失或门控关闭会停止相应输入。断流停止默认关闭，因为增量 OSC 静止时可能不重发；开启时按几何采样而不是无关参数检查超时。
+
 ## 选择目标与能力
 
 - `Discover All`：扫描头像内所有 SPS 作者组件。关闭后用 `Selected Targets` 指定对象；`Excluded Targets` 总是优先。

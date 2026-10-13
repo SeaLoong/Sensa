@@ -16,7 +16,7 @@ namespace UnityBox.Sensa
             try { SensaPoseBuilder.Validate(socket); }
             catch (System.Exception ex) { EditorGUILayout.HelpBox(ex.Message, MessageType.Error); }
             EditorGUILayout.LabelField("协议", socket.standardSpsRoot ? SensaPoseProtocol.SpsRootPrefix : SensaPoseProtocol.Prefix);
-            EditorGUILayout.LabelField("孔口半径 / 保证采样范围", "4 cm / 约 24 cm（Socket 局部单位）");
+            EditorGUILayout.LabelField("孔口半径 / 解算位置上限", "4 cm / 约 24 cm（局部单位；范围内仍可能饱和）");
             if (GUILayout.Button("烘焙副本为原生 VRC 预制件")) SensaPoseMenus.Bake(socket.gameObject);
         }
         private void OnSceneGUI()

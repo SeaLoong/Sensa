@@ -17,16 +17,18 @@ namespace SensaLab
     {
         private const string Root="Assets/SensaLab/Generated";
         [Serializable] private class CaseResult { public string name; public Vector3 position; public float[] samples; public bool expectedValid, actualValid; public float residual; }
-        [Serializable] private class Report { public string schema="sensa.point-cases.v1"; public string unity; public bool passed; public CaseResult[] cases; }
+        [Serializable] private class Report { public string schema="sensa.point-cases.v1"; public string unity; public bool passed, interactiveConfigured; public int buttonCount; public CaseResult[] cases; }
         [MenuItem("Tools/Sensa Lab/Add point geometry cases")]
         public static void AddCases()
         {
             var scene=EditorSceneManager.OpenScene(Root+"/SensaLab.unity");
+            foreach(var script in new[]{"PointCaseStation","PointCaseButton"}){
+                string programPath="Assets/SensaLab/Runtime/"+script+".asset";
+                if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(programPath)==null){var program=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();program.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/"+script+".cs");program.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;AssetDatabase.CreateAsset(program,programPath);}
+            }
+            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
             if(existing!=null){EnsurePresentation(existing);EditorSceneManager.SaveScene(scene);return;}
-            string programPath="Assets/SensaLab/Runtime/PointCaseStation.asset";
-            if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(programPath)==null){var program=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();program.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/PointCaseStation.cs");program.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;AssetDatabase.CreateAsset(program,programPath);}
-            UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var parent=new GameObject("Sensa point geometry cases");
             string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing A3","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*.6f,Vector3.one*-.06f,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*.26f,Vector3.zero};
@@ -62,6 +64,48 @@ namespace SensaLab
                 if(canvas.GetComponent<Image>()!=null)canvas.GetComponent<Image>().enabled=false;
                 if(canvas.transform.parent.Find("Opaque board backing")==null){var panel=GameObject.CreatePrimitive(PrimitiveType.Cube);panel.name="Opaque board backing";panel.transform.SetParent(canvas.transform.parent,false);panel.transform.localPosition=canvas.transform.localPosition+Vector3.forward*.012f;panel.transform.localScale=new Vector3(2.16f,1.17f,.01f);UnityEngine.Object.DestroyImmediate(panel.GetComponent<Collider>());panel.GetComponent<Renderer>().sharedMaterial=material;}
             }
+            foreach(var station in parent.GetComponentsInChildren<PointCaseStation>())EnsureInteraction(station,material);
+        }
+        private static void EnsureInteraction(PointCaseStation station,Material boardMaterial)
+        {
+            var marker=station.sender.gameObject;
+            var collider=marker.GetComponent<SphereCollider>();if(collider==null)collider=marker.AddComponent<SphereCollider>();collider.radius=.04f;
+            var body=marker.GetComponent<Rigidbody>();if(body==null)body=marker.AddComponent<Rigidbody>();body.useGravity=false;body.drag=8;body.angularDrag=8;
+            station.targetBody=body;station.pickup=marker.GetComponent<VRC.SDK3.Components.VRCPickup>();if(station.pickup==null)station.pickup=marker.AddComponent<VRC.SDK3.Components.VRCPickup>();
+            foreach(var mesh in marker.GetComponentsInChildren<MeshRenderer>())if(mesh.transform!=marker.transform)mesh.transform.localScale=Vector3.one*.08f;
+            var canvas=station.status.GetComponentInParent<Canvas>();
+            if(station.sampleBars==null || station.sampleBars.Length!=4){
+                station.sampleBars=new Image[4];
+                for(int lane=0;lane<4;lane++){
+                    var label=new GameObject("Lane label "+lane,typeof(RectTransform)).AddComponent<Text>();label.transform.SetParent(canvas.transform,false);label.font=station.status.font;label.fontSize=26;label.text="A"+lane;
+                    label.rectTransform.anchorMin=label.rectTransform.anchorMax=new Vector2(0,1);label.rectTransform.pivot=new Vector2(0,1);label.rectTransform.anchoredPosition=new Vector2(28,-405-lane*45);label.rectTransform.sizeDelta=new Vector2(100,36);
+                    var background=new GameObject("Lane background "+lane,typeof(RectTransform)).AddComponent<Image>();background.transform.SetParent(canvas.transform,false);background.color=new Color(.12f,.2f,.3f);background.raycastTarget=false;
+                    background.rectTransform.anchorMin=background.rectTransform.anchorMax=new Vector2(0,1);background.rectTransform.pivot=new Vector2(0,1);background.rectTransform.anchoredPosition=new Vector2(140,-413-lane*45);background.rectTransform.sizeDelta=new Vector2(650,14);
+                    var bar=new GameObject("Lane value "+lane,typeof(RectTransform)).AddComponent<Image>();bar.transform.SetParent(background.transform,false);bar.color=Color.cyan;bar.raycastTarget=false;bar.rectTransform.anchorMin=bar.rectTransform.anchorMax=new Vector2(0,1);bar.rectTransform.pivot=new Vector2(0,1);bar.rectTransform.anchoredPosition=Vector2.zero;bar.rectTransform.sizeDelta=new Vector2(0,14);station.sampleBars[lane]=bar;
+                    var anchor=station.receivers[lane].transform;
+                    if(anchor.Find("Visible anchor")==null){var sphere=GameObject.CreatePrimitive(PrimitiveType.Sphere);sphere.name="Visible anchor";sphere.transform.SetParent(anchor,false);sphere.transform.localScale=Vector3.one*.012f;UnityEngine.Object.DestroyImmediate(sphere.GetComponent<Collider>());}
+                }
+            }
+            if(station.positionLine==null){var line=new GameObject("Position vector");line.transform.SetParent(station.reference,false);station.positionLine=line.AddComponent<LineRenderer>();station.positionLine.positionCount=2;station.positionLine.startWidth=station.positionLine.endWidth=.003f;station.positionLine.sharedMaterial=AssetDatabase.GetBuiltinExtraResource<Material>("Default-Line.mat");}
+            foreach(bool missing in new[]{false,true}){
+                string name=missing?"Toggle missing A3":"Reset case";var owner=station.transform.parent;
+                var existing=owner.Find(name);GameObject button;
+                if(existing==null){button=GameObject.CreatePrimitive(PrimitiveType.Cube);button.name=name;button.transform.SetParent(owner,false);button.transform.localPosition=new Vector3(missing?.25f:-.25f,-.25f,0);button.transform.localScale=Vector3.one*.15f;
+                    var control=UdonSharpUndo.AddComponent<PointCaseButton>(button);control.station=station;control.toggleMissing=missing;UdonSharpEditorUtility.CopyProxyToUdon(control);}
+                else button=existing.gameObject;
+                string path=Root+(missing?"/MissingButton.mat":"/ResetButton.mat");var material=AssetDatabase.LoadAssetAtPath<Material>(path);
+                if(material==null){material=new Material(Shader.Find("Unlit/Color"));material.color=missing?new Color(.9f,.4f,.05f):new Color(.05f,.4f,.9f);AssetDatabase.CreateAsset(material,path);}
+                button.GetComponent<Renderer>().sharedMaterial=material;
+                LabelButton(button,missing?"MISSING A3":"RESET",station.status.font);
+            }
+            LabelButton(station.gameObject,"PAUSE",station.status.font);
+            UdonSharpEditorUtility.CopyProxyToUdon(station);
+        }
+        private static void LabelButton(GameObject button,string title,Font font)
+        {
+            if(button.transform.parent.Find(button.name+" label")!=null)return;
+            var canvas=new GameObject(button.name+" label",typeof(RectTransform)).AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.transform.SetParent(button.transform.parent,false);canvas.transform.localPosition=button.transform.localPosition+Vector3.up*.13f;canvas.transform.localScale=Vector3.one*.001f;((RectTransform)canvas.transform).sizeDelta=new Vector2(240,55);
+            var text=canvas.gameObject.AddComponent<Text>();text.font=font;text.fontSize=30;text.alignment=TextAnchor.MiddleCenter;text.text=title;text.raycastTarget=false;
         }
         [MenuItem("Tools/Sensa Lab/Validate point geometry cases")]
         public static void Run()
@@ -73,7 +117,9 @@ namespace SensaLab
                 foreach(var station in stations){station.sender.InitShape();manager.AddContact(station.sender);foreach(var receiver in station.receivers){receiver.InitShape();manager.AddContact(receiver);}}
                 manager.collision.UpdateAndSchedule(.016f,true).Complete();
                 var cases=stations.Select(station=>{station.Refresh();return new CaseResult{name=station.caseName,position=station.reference.InverseTransformPoint(station.sender.transform.position),samples=station.samples.ToArray(),expectedValid=station.expectedValid,actualValid=station.decodedValid,residual=station.residual};}).ToArray();
-                bool passed=cases.All(c=>c.expectedValid==c.actualValid);Directory.CreateDirectory("Validation");File.WriteAllText("Validation/point-cases.json",JsonUtility.ToJson(new Report{unity=Application.unityVersion,passed=passed,cases=cases},true));
+                var buttons=UnityEngine.Object.FindObjectsOfType<PointCaseButton>();
+                bool configured=stations.All(s=>s.pickup!=null && s.targetBody!=null && s.sender.GetComponent<SphereCollider>()!=null && s.sampleBars.Length==4 && s.positionLine!=null) && buttons.Length==22 && buttons.All(b=>b.station!=null);
+                bool passed=cases.All(c=>c.expectedValid==c.actualValid) && configured;Directory.CreateDirectory("Validation");File.WriteAllText("Validation/point-cases.json",JsonUtility.ToJson(new Report{unity=Application.unityVersion,passed=passed,cases=cases,interactiveConfigured=configured,buttonCount=buttons.Length},true));
                 CaptureCases();
                 Debug.Log("SENSA_POINT_CASES "+passed);if(Application.isBatchMode)EditorApplication.Exit(passed?0:1);
             }finally{UnityEngine.Object.DestroyImmediate(go);}
@@ -83,7 +129,7 @@ namespace SensaLab
             var go=new GameObject("Case report camera");var camera=go.AddComponent<Camera>();camera.transform.position=new Vector3(0,7,-1);camera.transform.LookAt(new Vector3(0,1,6));camera.fieldOfView=66;
             var target=new RenderTexture(1600,1000,24);target.Create();camera.targetTexture=target;var read=new Texture2D(1600,1000,TextureFormat.RGB24,false);var previous=RenderTexture.active;
             try{camera.Render();RenderTexture.active=target;read.ReadPixels(new Rect(0,0,1600,1000),0,0);read.Apply();File.WriteAllBytes("Validation/point-cases-world.png",read.EncodeToPNG());
-                camera.transform.position=new Vector3(-3.6f,1.8f,2.3f);camera.transform.LookAt(new Vector3(-3.6f,1.7f,4.3f));camera.fieldOfView=50;camera.Render();RenderTexture.active=target;read.ReadPixels(new Rect(0,0,1600,1000),0,0);read.Apply();File.WriteAllBytes("Validation/point-case-detail.png",read.EncodeToPNG());}
+                camera.transform.position=new Vector3(-3.6f,1.8f,2.3f);camera.transform.LookAt(new Vector3(-3.6f,1.5f,4.3f));camera.fieldOfView=60;camera.Render();RenderTexture.active=target;read.ReadPixels(new Rect(0,0,1600,1000),0,0);read.Apply();File.WriteAllBytes("Validation/point-case-detail.png",read.EncodeToPNG());}
             finally{RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(go);UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);}
         }
     }
