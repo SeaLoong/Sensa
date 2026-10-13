@@ -72,6 +72,7 @@ public sealed class MotionRuntime : IDisposable
     private volatile bool _poseBlocked;
     private int _poseRefreshPending;
     private volatile bool _usesPose;
+    private volatile bool _usesSpsDepth;
     private string? _rollPoseKey;
     private ContinuousAngle _continuousRoll = new();
     public bool PoseBlocked => _poseBlocked;
@@ -159,6 +160,7 @@ public sealed class MotionRuntime : IDisposable
         _rollPoseKey = null;
         _continuousRoll = new();
         _usesPose = _config.Signals.Any(s => s.SourceMode is "SensaPose" or "SensaPoint");
+        _usesSpsDepth = _config.Signals.Any(s => s.SourceMode == "SpsSocketDepth");
         _poseBlocked = _inputMode == RuntimeInputMode.Osc && _usesPose;
 
         if (!_disposed && _inputMode == RuntimeInputMode.Osc && _inputActive && !_emergency)
@@ -291,7 +293,7 @@ public sealed class MotionRuntime : IDisposable
         if (!HasMatchingOscProcessor(path))
             return;
 
-        if (_usesPose)
+        if (_usesPose || _usesSpsDepth)
         {
             // Receivers arrive as independent OSC messages. Coalesce a short burst before fitting.
             if (Interlocked.Exchange(ref _poseRefreshPending, 1) != 0) return;
@@ -315,10 +317,12 @@ public sealed class MotionRuntime : IDisposable
             if (_processors.Any(p=>p.Processor.Mapping.SourceMode=="SensaPoint")
                 && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
                     || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal))) return true;
-            foreach (var (pattern, _) in _processors)
+            foreach (var (pattern, processor) in _processors)
             {
                 if (OscParameterStore.MatchesPathPattern(pattern, oscPath))
                     return true;
+                if (processor.Mapping.SourceMode == "SpsSocketDepth" && oscPath.EndsWith("NewTip", StringComparison.Ordinal)
+                    && OscParameterStore.MatchesPathPattern(pattern, oscPath[..^6] + "NewRoot")) return true;
             }
         }
 
@@ -473,7 +477,7 @@ public sealed class MotionRuntime : IDisposable
                             if (_spsDepth.Count >= 4096) continue;
                             _spsDepth[key] = estimator = new SpsDepthEstimator();
                         }
-                        rawValue = estimator.Process(rawValue, tip.Value.AsFloat());
+                        rawValue = estimator.Process(rawValue, tip.Value.AsFloat(), tip.Sequence);
                     }
                 }
                 var sample = processor.ProcessSample(rawValue);
@@ -551,8 +555,8 @@ public sealed class MotionRuntime : IDisposable
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        (string Path,string Mode)[] mappings;
-        lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode)).ToArray();
+        (string Path,string Mode,SignalRole Role)[] mappings;
+        lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
         if (mappings.Length == 0) return;
         var source = _preferredOscSourceKeyProvider?.Invoke();
         var pointPaths=mappings.Where(m=>m.Mode=="SensaPoint").Select(m=>m.Path).ToArray();
@@ -563,7 +567,7 @@ public sealed class MotionRuntime : IDisposable
             ? SpsPositionTracking.Observe(_store.SnapshotEntries(),source).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
             : posePaths.Length>0
                 ? GetPoseObservations().Where(p=>posePaths.Any(p.Matches)).Select(p=>p.TimestampMs)
-                : mappings.SelectMany(m=>_store.MatchingEntries(m.Path,source)).Select(e=>e.Entry.TimestampMs);
+                : mappings.Where(m=>m.Role!=SignalRole.GateEnable).SelectMany(m=>_store.MatchingEntries(m.Path,source)).Select(e=>e.Entry.TimestampMs);
         var last=timestamps.DefaultIfEmpty(_activationTimestamp).Max();
         if (now - Math.Max(last, _activationTimestamp) <= _config.Osc.InputTimeoutMs) return;
         OnLog?.Invoke("[MotionRuntime] OSC input timeout; emergency stop.");

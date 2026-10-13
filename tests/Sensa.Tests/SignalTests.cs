@@ -84,6 +84,90 @@ public class SignalTests
     }
 
     [Fact]
+    public void SpsCanLearnAShorterReplacementPlugWithoutKeepingThePreviousMaximum()
+    {
+        var depth = new SpsDepthEstimator();
+        Assert.Equal(0, depth.Process(.77f, .96f)); // 20 cm
+        Assert.InRange(depth.Process(.89f, 1), .3999f, .4001f);
+        Assert.Equal(0, depth.Process(.77f, .86f)); // replacement is 10 cm
+        Assert.InRange(depth.Process(.95f, 1), .3999f, .4001f);
+    }
+
+    [Fact]
+    public void SpsDoesNotRelearnLengthFromANewRootAndCachedTip()
+    {
+        var depth = new SpsDepthEstimator();
+        depth.Process(.77f, .96f, 10);
+        Assert.Equal(0, depth.Process(.99f, .96f, 10)); // root arrives first
+        Assert.InRange(depth.Process(.99f, 1, 11), .8999f, .9001f);
+    }
+
+    [Fact]
+    public async Task SpsTipOnlyDeltaRefreshesTheMappedRoot()
+    {
+        const string root = "OGB/Orf/Test/PenSelfNewRoot";
+        const string tip = "OGB/Orf/Test/PenSelfNewTip";
+        var config = new AppConfig { Signals = [new() { OscPath = root, SourceMode = "SpsSocketDepth", Role = SignalRole.Depth }] };
+        config.NormalizeForRuntime();
+        var store = new OscParameterStore(); store.Set(root, OscValue.FromFloat(.77f)); store.Set(tip, OscValue.FromFloat(.96f));
+        using var receiver = new OscInputReceiver(store);
+        var learned = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var moved = new TaskCompletionSource<float>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var runtime = new MotionRuntime(config, store, receiver, sendOutputsAsync: frame =>
+        {
+            learned.TrySetResult(); if(frame.L0 > .3f) moved.TrySetResult(frame.L0); return Task.CompletedTask;
+        });
+        runtime.SetInputMode(RuntimeInputMode.Osc); runtime.SetInputActive(true);
+        await learned.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        store.Set(root, OscValue.FromFloat(.89f));
+        await Task.Delay(70); // root delta has been processed using the cached tip
+        store.Set(tip, OscValue.FromFloat(1)); // must cause a refresh despite matching only NewRoot
+        Assert.InRange(await moved.Task.WaitAsync(TimeSpan.FromSeconds(3)), .399f, .401f); // normalized TCode mapping resolution
+    }
+
+    [Theory]
+    [InlineData(float.NaN, 1)]
+    [InlineData(.8f, float.PositiveInfinity)]
+    [InlineData(1.1f, 1)]
+    [InlineData(.8f, 1.1f)]
+    [InlineData(.9f, .8f)]
+    public void InvalidSpsPairClearsPreviousLength(float root, float tip)
+    {
+        var depth = new SpsDepthEstimator();
+        depth.Process(.77f, .96f);
+        Assert.Equal(0, depth.Process(root, tip));
+        Assert.Equal(0, depth.Process(.89f, 1));
+    }
+
+    [Fact]
+    public async Task GateHeartbeatCannotKeepAnExpiredScalarInputArmed()
+    {
+        var config = new AppConfig { Signals = [
+            new() { OscPath = "Sensa/Lab/Shader/Z", Role = SignalRole.Depth },
+            new() { OscPath = "Sensa/Lab/Shader/Valid", Role = SignalRole.GateEnable }] };
+        config.Osc.InputTimeoutMs = 150; config.NormalizeForRuntime();
+        var store = new OscParameterStore();
+        store.Set("Sensa/Lab/Shader/Z", OscValue.FromFloat(.6f));
+        store.Set("Sensa/Lab/Shader/Valid", OscValue.FromBool(true));
+        using var receiver = new OscInputReceiver(store);
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var runtime = new MotionRuntime(config, store, receiver,
+            sendOutputsAsync: _ => { sent.TrySetResult(); return Task.CompletedTask; },
+            emergencyStopAsync: () => { stopped.TrySetResult(); return Task.CompletedTask; });
+        runtime.SetInputMode(RuntimeInputMode.Osc); runtime.SetInputActive(true);
+        await sent.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var deadline = DateTime.UtcNow.AddSeconds(3);
+        while (runtime.InputActive && DateTime.UtcNow < deadline)
+        {
+            store.Set("Sensa/Lab/Shader/Valid", OscValue.FromBool(true));
+            await Task.Delay(25);
+        }
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(1));
+        Assert.True(runtime.IsEmergency); Assert.False(runtime.InputActive); Assert.False(runtime.CanSend);
+    }
+
+    [Fact]
     public async Task ScriptEmitsFinalFrame()
     {
         using var player = new FunscriptPlayer();
