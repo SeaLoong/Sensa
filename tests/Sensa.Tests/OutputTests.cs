@@ -11,6 +11,28 @@ namespace Sensa.Tests;
 
 public class OutputTests
 {
+    [Fact] public async Task PerOutputPreviewUsesTheTransmittedMappedTargetsAndClearsOnStop()
+    {
+        using var receiver=new UdpClient(new IPEndPoint(IPAddress.Loopback,0));
+        var output=new OutputDeviceConfig{Type=OutputDeviceType.TCodeUdp,Host="127.0.0.1",Port=((IPEndPoint)receiver.Client.LocalEndPoint!).Port};
+        var profile=new TCodeMotionProfile();profile.L0.Invert=true;profile.L0.RemapMin=200;profile.L0.RemapMax=800;profile.L0.Max=600;profile.R0.Mode=TCodeAxisMode.Ignored;
+        using var adapter=new TCodeUdpOutput(output,()=>profile);adapter.Connect();Assert.Empty(adapter.Telemetry.Snapshot.Targets);
+        adapter.Send(MotionAxisHelper.CreateNeutralFrame() with {L0=.25f});
+        var wire=Encoding.ASCII.GetString((await receiver.ReceiveAsync().WaitAsync(TimeSpan.FromSeconds(2))).Buffer);Assert.Contains("L0600",wire);
+        var snapshot=adapter.Telemetry.Snapshot;Assert.Equal("sent",snapshot.State);Assert.NotNull(snapshot.LastSentAtUtc);
+        Assert.Equal(600,snapshot.Targets.Single(t=>t.Key=="L0").Value);Assert.DoesNotContain(snapshot.Targets,t=>t.Key=="R0");
+        adapter.EmergencyStop();Assert.Equal("DSTOP\n",Encoding.ASCII.GetString((await receiver.ReceiveAsync().WaitAsync(TimeSpan.FromSeconds(2))).Buffer));
+        Assert.Equal("stopped",adapter.Telemetry.Snapshot.State);Assert.Empty(adapter.Telemetry.Snapshot.Targets);
+        adapter.Disconnect();Assert.Empty(adapter.Telemetry.Snapshot.Targets);
+    }
+    [Fact] public void TelemetryKeepsIndependentTargetsAndIgnoresInvalidCommands()
+    {
+        var first=new OutputTelemetry();var second=new OutputTelemetry();first.RecordTCode("L0123I50 R00456");second.RecordTCode("L0999");
+        first.RecordTCode("L0456S100 V0000");Assert.Equal(456,first.Snapshot.Targets.Single(t=>t.Key=="R0").Value);Assert.Equal(999,second.Snapshot.Targets.Single().Value);
+        first.RecordTCode("L0NaN DSTOP L099999");Assert.Equal(456,first.Snapshot.Targets.Single(t=>t.Key=="L0").Value);
+        second.RecordTarget("#1/Position","Mock · 位置",25);second.RecordTarget("#1/Vibrate","Mock · 震动",double.NaN);Assert.DoesNotContain(second.Snapshot.Targets,t=>t.Key.EndsWith("Vibrate"));
+        second.RemovePrefix("#1/");Assert.Single(second.Snapshot.Targets);
+    }
     [Fact]
     public async Task ConnectingDoesNotMoveAndReplacingTypeDisposesOldTransport()
     {

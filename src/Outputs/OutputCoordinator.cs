@@ -272,6 +272,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
                     ? connection?.GetTCodeDeviceInfo() ?? TCodeDeviceInfo.Unsupported("未连接")
                     : null,
                 summary = BuildSummary(output),
+                telemetry = connection?.Telemetry,
                 devices,
             };
         }).ToArray();
@@ -384,6 +385,7 @@ internal sealed class OutputConnection : IAsyncDisposable
     };
 
     public IReadOnlyList<ButtplugClientDevice> Devices => _intiface?.Devices ?? Array.Empty<ButtplugClientDevice>();
+    public OutputTelemetrySnapshot? Telemetry => (_serial?.Telemetry ?? _udp?.Telemetry ?? _tcp?.Telemetry ?? _intiface?.Telemetry)?.Snapshot;
 
     public TCodeDeviceInfo GetTCodeDeviceInfo()
     {

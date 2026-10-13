@@ -24,6 +24,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
     private readonly Dictionary<uint, double> _lastVibrateSent = new();
 
     public bool IsConnected => _connected;
+    public OutputTelemetry Telemetry { get; } = new();
     public IReadOnlyList<ButtplugClientDevice> Devices
     {
         // Return a copy so callers get a stable snapshot rather than a live view.
@@ -54,6 +55,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                 _devices.Remove(e.Device);
                 _lastLinearSent.Remove(e.Device.Index);
                 _lastVibrateSent.Remove(e.Device.Index);
+                Telemetry.RemovePrefix($"#{e.Device.Index}/");
             }
             OnLog?.Invoke($"Device removed: {e.Device.Name}");
             DevicesChanged?.Invoke();
@@ -61,6 +63,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
         _client.ServerDisconnect += (_, _) =>
         {
             _connected = false;
+            Telemetry.SetState("idle",clear:true);
             lock (_devLock)
             {
                 _lastLinearSent.Clear();
@@ -84,6 +87,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
         try { await StopAllAsync(); } catch { }
         try { await _client.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(1)); } catch { }
         _connected = false;
+        Telemetry.SetState("idle",clear:true);
         lock (_devLock)
         {
             _devices.Clear();
@@ -117,6 +121,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
         List<ButtplugClientDevice> snapshot;
         lock (_devLock) snapshot = new List<ButtplugClientDevice>(_devices);
 
+        bool failed=false;
         foreach (var device in snapshot)
         {
             try
@@ -136,6 +141,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
 
                     lock (_devLock)
                         _lastLinearSent[device.Index] = position01;
+                    if(posFeatures.Count>0)Telemetry.RecordTarget($"#{device.Index}/Position",$"{device.Name} · 位置",position01*100);
 
                     emitted.Add($"linear={position01:F3}@{durationMs}ms");
                 }
@@ -159,6 +165,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
 
                         lock (_devLock)
                             _lastVibrateSent[device.Index] = vibrateVal;
+                        Telemetry.RecordTarget($"#{device.Index}/Vibrate",$"{device.Name} · 震动",vibrateVal*100);
 
                         emitted.Add($"vibrate={vibrateVal:F3}");
                     }
@@ -170,19 +177,22 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
             catch (OperationCanceledException) when (deadline.IsCancellationRequested)
             {
                 OnLog?.Invoke("[Intiface] Output deadline exceeded; remaining device commands discarded.");
+                Telemetry.SetState("error");
                 return;
             }
             catch (Exception ex)
             {
                 OnLog?.Invoke($"[Intiface] Send error ({device.Name}): {ex.Message}");
+                failed=true;
             }
         }
+        if(failed)Telemetry.SetState("error");
     }
 
     public async Task StopAllAsync()
     {
         if (_client is null) return;
-        try { await _client.StopAllDevicesAsync().WaitAsync(TimeSpan.FromMilliseconds(500)); } catch { }
+        try { await _client.StopAllDevicesAsync().WaitAsync(TimeSpan.FromMilliseconds(500)); Telemetry.SetState("stopped",clear:true); } catch { Telemetry.SetState("error"); }
         lock (_devLock)
         {
             _lastLinearSent.Clear();

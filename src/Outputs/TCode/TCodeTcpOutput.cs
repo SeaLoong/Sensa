@@ -18,6 +18,7 @@ public sealed class TCodeTcpOutput : IDisposable
     private readonly Dictionary<MotionAxis, AxisVelocityTracker> _velocity = MotionAxisHelper.All.ToDictionary(axis => axis, axis => new AxisVelocityTracker());
     private TcpClient? _client;
     private NetworkStream? _stream;
+    public OutputTelemetry Telemetry { get; } = new();
     private MotionFrame? _lastSourceFrame;
     private MotionFrame? _lastEffectiveFrame;
     private string? _lastLine;
@@ -84,6 +85,7 @@ public sealed class TCodeTcpOutput : IDisposable
         _lastSourceFrame = frame;
         _lastLine = line;
         SyncVelocityToFrame(effectiveFrame);
+                Telemetry.RecordTCode(line);
         OnDebugLog?.Invoke($"TX {line}");
     }
 
@@ -104,6 +106,7 @@ public sealed class TCodeTcpOutput : IDisposable
         _lastSourceFrame = centerFrame;
         _lastLine = line;
         SyncVelocityToFrame(effectiveFrame);
+                Telemetry.RecordTCode(line);
         OnDebugLog?.Invoke($"CENTER {line}");
     }
 
@@ -115,7 +118,7 @@ public sealed class TCodeTcpOutput : IDisposable
             return;
 
         ResetEmitState();
-        SendRaw("DSTOP\n");
+        if(SendRaw("DSTOP\n"))Telemetry.SetState("stopped");
         OnDebugLog?.Invoke("TX DSTOP");
     }
 
@@ -149,6 +152,7 @@ public sealed class TCodeTcpOutput : IDisposable
 
     private void ResetEmitState()
     {
+        Telemetry.SetState("idle",clear:true);
         _lastSourceFrame = null;
         _lastEffectiveFrame = null;
         _lastLine = null;

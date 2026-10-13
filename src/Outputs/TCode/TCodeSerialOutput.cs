@@ -25,6 +25,7 @@ public sealed class TCodeSerialOutput : IDisposable
     private readonly Dictionary<MotionAxis, AxisVelocityTracker> _velocity = MotionAxisHelper.All.ToDictionary(axis => axis, axis => new AxisVelocityTracker());
     private readonly object _ioGate = new();
     private SerialPort? _port;
+    public OutputTelemetry Telemetry { get; } = new();
     private MotionFrame? _lastSourceFrame;
     private MotionFrame? _lastEffectiveFrame;
     private string? _lastSentLine;
@@ -112,6 +113,7 @@ public sealed class TCodeSerialOutput : IDisposable
                 _lastSourceFrame = frame;
                 _lastSentLine = line;
                 SyncVelocityToFrame(effectiveFrame);
+                Telemetry.RecordTCode(line);
                 OnDebugLog?.Invoke($"TX {line}");
             }
             catch (Exception ex)
@@ -142,11 +144,13 @@ public sealed class TCodeSerialOutput : IDisposable
                 _lastSourceFrame = centerFrame;
                 _lastSentLine = line;
                 SyncVelocityToFrame(effectiveFrame);
+                Telemetry.RecordTCode(line);
                 OnDebugLog?.Invoke($"CENTER {line}");
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"[TCode] Center error: {ex.Message}");
+                Telemetry.SetState("error");
             }
         }
     }
@@ -162,9 +166,10 @@ public sealed class TCodeSerialOutput : IDisposable
             try
             {
                 _port.WriteLine("DSTOP");
+                Telemetry.SetState("stopped");
                 OnDebugLog?.Invoke("TX DSTOP");
             }
-            catch { }
+            catch { Telemetry.SetState("error"); }
         }
     }
 
@@ -388,7 +393,8 @@ public sealed class TCodeSerialOutput : IDisposable
     {
         if (_port?.IsOpen == true)
         {
-            try { _port.WriteLine("DSTOP"); } catch { }
+            try { _port.WriteLine("DSTOP");
+                Telemetry.SetState("stopped"); } catch { }
             _port.Close();
         }
 
@@ -400,6 +406,7 @@ public sealed class TCodeSerialOutput : IDisposable
 
     private void ResetEmitState()
     {
+        Telemetry.SetState("idle",clear:true);
         _lastSourceFrame = null;
         _lastEffectiveFrame = null;
         _lastSentLine = null;
