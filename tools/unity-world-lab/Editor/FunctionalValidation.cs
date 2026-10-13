@@ -64,6 +64,11 @@ namespace SensaLab
                 if(stage<3)return;
                 CaptureGpu(stations.Single(s=>s.mode==6));
                 ExportTexture(stations.Single(s=>s.mode==5).encoded,"Validation/functional/synthetic-telemetry.png");
+                var transport=stations.Single(s=>s.mode==5);
+                var program=UdonSharpEditorUtility.GetBackingUdonBehaviour(transport);
+                program.SendCustomEvent("Corrupt");
+                try {Graphics.Blit(Texture2D.blackTexture,transport.encoded,transport.encoder);ExportTexture(transport.encoded,"Validation/functional/corrupt-telemetry.png");}
+                finally {program.SendCustomEvent("Corrupt");}
                 var report=new Report{passed=stations.Length==7 && rows.All(r=>r.passed),rows=rows.ToArray()};
                 File.WriteAllText("Validation/functional/results.json",JsonUtility.ToJson(report,true));SessionState.SetBool(Key+"passed",report.passed);
             }
@@ -93,6 +98,8 @@ namespace SensaLab
                 File.WriteAllText("Validation/functional/sps-gpu.json",JsonUtility.ToJson(capture,true));if(!capture.valid)throw new InvalidOperationException("Actual SPS GPU model capture is invalid.");
                 SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-telemetry.png",101);
                 SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-telemetry-next.png",102);
+                SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-recovery-first.png",103);
+                SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-recovery-next.png",104);
                 ExportTexture(view,"Validation/functional/sps-scene.png");
                 camera.transform.position=new Vector3(0,12,-5);camera.transform.LookAt(new Vector3(0,1,7));camera.fieldOfView=70;camera.Render();ExportTexture(view,"Validation/functional/overview.png");
                 camera.transform.position=new Vector3(-4,1.8f,6.1f);camera.transform.LookAt(new Vector3(-4,1.65f,8.25f));camera.fieldOfView=65;camera.Render();ExportTexture(view,"Validation/functional/native-sps-detail.png");

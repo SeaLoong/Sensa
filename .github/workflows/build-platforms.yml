@@ -46,6 +46,12 @@ jobs:
           BUILD_LABEL: ${{ inputs.label }}
         shell: bash
         run: python scripts/build-platform.py --runtime "$TARGET_RID" --label "$BUILD_LABEL"
+      - name: GPU PNG replay, corruption, recovery and motion gate
+        if: matrix.rid == 'win-x64'
+        shell: bash
+        run: |
+          python -m pip install -r scripts/requirements-capture.txt
+          python scripts/smoke-shader-bridge.py --exe artifacts/publish/win-x64/Sensa.exe --first tests/fixtures/shader/sps-telemetry.png --next tests/fixtures/shader/sps-telemetry-next.png --corrupt tests/fixtures/shader/corrupt-telemetry.png --recover-first tests/fixtures/shader/sps-recovery-first.png --recover-next tests/fixtures/shader/sps-recovery-next.png --report artifacts/test-results/win-x64/shader-bridge.json
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: build-${{ matrix.rid }}

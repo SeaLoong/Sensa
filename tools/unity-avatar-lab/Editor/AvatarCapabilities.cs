@@ -21,8 +21,9 @@ namespace SensaAvatarLab
     {
         const string Root="Assets/SensaAvatarLab/Capabilities";
         public static readonly string[] Cases={"Contact","PB","PBContact","SPS","SPSContact","Shader","SPSShader"};
-        [Serializable] class Row {public string name;public bool passed,selfSpsTagsMatch;public int contacts,sensaReceivers,pbHandles;public string[] parameters,contactParameters;}
+        [Serializable] class Row {public string name;public bool passed,selfSpsTagsMatch,shaderFaultAnimationVerified;public int contacts,sensaReceivers,pbHandles;public string[] parameters,contactParameters;}
         [Serializable] class Report {public bool passed;public Row[] cases;}
+        [Serializable] class ShaderBundleReport {public bool passed,crcParameterLocal,sourceHasFaultProperty,outputDefaultsOff;public int cameras;public string bundle;}
         static Transform Child(Transform parent,string name,Vector3 position){var t=new GameObject(name).transform;t.SetParent(parent,false);t.localPosition=position;return t;}
         static Type Type(string name)=>AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).First(t=>t!=null);
         static void Field(Component c,string key,object value)=>c.GetType().GetField(key).SetValue(c,value);
@@ -76,7 +77,7 @@ namespace SensaAvatarLab
                 }
                 if(stimulus!=null)FixtureMenu(avatar,bench.gameObject,stimulus,sps,name);
                 if(sps)OgbMenu(avatar,name);
-                if(name=="Shader")CreateShaderRig(avatar,bench);
+                if(name=="Shader"){CreateShaderRig(avatar,bench);AddShaderFaultControl(avatar);}
                 var emulator=AssetDatabase.LoadAssetAtPath<GameObject>("Packages/vrchat.blackstartx.gesture-manager/GestureManager.prefab");if(emulator!=null)PrefabUtility.InstantiatePrefab(emulator);
                 EditorSceneManager.SaveScene(scene,path);
             }
@@ -130,6 +131,47 @@ namespace SensaAvatarLab
             var output=new Material(Shader.Find("SensaLab/TextureOutput")){mainTexture=rt};AssetDatabase.CreateAsset(output,Root+"/ShaderDesktop.mat");screen.GetComponent<Renderer>().sharedMaterial=output;
             SensaSelectionAnimator.Build(avatar,bench.gameObject,"Shader",new[]{rig},new[]{"Synthetic code (not SPS data)"});
         }
+        static void AddShaderFaultControl(GameObject avatar)
+        {
+            if(avatar.transform.Find("Shader fault controls")!=null)return;
+            var renderer=avatar.GetComponentsInChildren<MeshRenderer>(true).Single(r=>r.name=="Synthetic calibration code");
+            var host=Child(avatar.transform,"Shader fault controls",Vector3.zero).gameObject;
+            const string parameter="Sensa/Lab/CorruptCrc";
+            SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Bool);
+            var controller=AnimatorController.CreateAnimatorControllerAtPath(Root+"/ShaderFault.controller");controller.AddParameter(parameter,AnimatorControllerParameterType.Bool);
+            for(int i=0;i<2;i++)
+            {
+                var clip=new AnimationClip{name=i==0?"Valid CRC":"Corrupt CRC"};
+                clip.SetCurve(AnimationUtility.CalculateTransformPath(renderer.transform,avatar.transform),typeof(MeshRenderer),"material._CorruptCrc",AnimationCurve.Constant(0,1,i));AssetDatabase.CreateAsset(clip,Root+"/ShaderFault"+i+".anim");
+                var state=controller.layers[0].stateMachine.AddState(clip.name);state.motion=clip;state.writeDefaultValues=false;if(i==0)controller.layers[0].stateMachine.defaultState=state;
+                var transition=controller.layers[0].stateMachine.AddAnyStateTransition(state);transition.hasExitTime=false;transition.duration=0;transition.canTransitionToSelf=false;transition.AddCondition(i==0?AnimatorConditionMode.IfNot:AnimatorConditionMode.If,0,parameter);
+            }
+            var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
+            var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name="Corrupt shader CRC",type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=1});AssetDatabase.CreateAsset(menu,Root+"/ShaderFaultMenu.asset");host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
+        }
+        public static void UpgradeShaderFaultControl()
+        {
+            var scene=EditorSceneManager.OpenScene(Root+"/Shader.unity");AddShaderFaultControl(UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+        }
+        [MenuItem("Tools/Sensa Avatar Lab/Inspect Shader SDK bundle")]
+        public static void InspectShaderBundle()
+        {
+            const string path="Builds/Sensa-Chocolat-Shader.vrca";
+            var bundle=AssetBundle.LoadFromFile(path);if(bundle==null)throw new InvalidOperationException("Build the Shader SDK bundle first.");
+            try
+            {
+                var avatar=bundle.LoadAllAssets<GameObject>().Single(g=>g.GetComponent<VRCAvatarDescriptor>()!=null);
+                var parameters=avatar.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters;
+                var report=new ShaderBundleReport{bundle=path,cameras=avatar.GetComponentsInChildren<Camera>(true).Length,
+                    crcParameterLocal=parameters.Any(p=>p.name=="Sensa/Lab/CorruptCrc"&&!p.networkSynced&&p.defaultValue==0),
+                    outputDefaultsOff=parameters.Any(p=>p.name=="Sensa/Select/Shader"&&p.defaultValue==0),
+                    sourceHasFaultProperty=avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r=>r.sharedMaterials).Any(m=>m!=null&&m.shader.name=="SensaLab/Telemetry"&&m.HasProperty("_CorruptCrc"))};
+                report.passed=report.cameras==2&&report.crcParameterLocal&&report.outputDefaultsOff&&report.sourceHasFaultProperty;
+                File.WriteAllText("Validation/sdk-shader-contents.json",JsonUtility.ToJson(report,true));
+                if(!report.passed)throw new InvalidOperationException("Shader SDK bundle contents failed validation.");
+            }
+            finally {bundle.Unload(true);}
+        }
         [MenuItem("Tools/Sensa Avatar Lab/Validate capability matrix")]
         public static void Validate()
         {
@@ -151,7 +193,13 @@ namespace SensaAvatarLab
                     if(name=="PBContact")row.passed&=row.sensaReceivers==4&&handles.Length==1;
                     if(name=="SPS"||name=="SPSShader")row.passed&=row.sensaReceivers==0 && clone.GetComponentsInChildren<Renderer>(true).Any(r=>r.sharedMaterials.Any(m=>m!=null&&m.shader.name=="Hidden/VRCFury/SpsResolver"));
                     if(name=="SPSContact")row.passed&=row.sensaReceivers==12;
-                    if(name=="Shader")row.passed&=clone.GetComponentsInChildren<Camera>(true).Length==2 && row.sensaReceivers==0;
+                    if(name=="Shader")
+                    {
+                        var clips=clone.GetComponent<VRCAvatarDescriptor>().baseAnimationLayers.Where(l=>l.animatorController!=null).SelectMany(l=>l.animatorController.animationClips).Distinct();
+                        var values=clips.SelectMany(clip=>AnimationUtility.GetCurveBindings(clip).Where(b=>b.propertyName=="material._CorruptCrc" && clone.transform.Find(b.path)!=null).SelectMany(b=>AnimationUtility.GetEditorCurve(clip,b).keys.Select(k=>k.value))).ToArray();
+                        row.shaderFaultAnimationVerified=values.Contains(0f)&&values.Contains(1f);
+                        row.passed&=clone.GetComponentsInChildren<Camera>(true).Length==2 && row.sensaReceivers==0 && parameters.Contains("Sensa/Lab/CorruptCrc") && row.shaderFaultAnimationVerified;
+                    }
                     rows.Add(row);
                 }
                 finally{UnityEngine.Object.DestroyImmediate(clone);source.SetActive(true);}

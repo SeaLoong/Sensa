@@ -30,6 +30,7 @@ namespace SensaLab
         public float nativeLength, nativeProximity;
         public int sequence;
         private bool frozen;
+        private bool corrupt;
         private string preset = "REST / OUTSIDE";
         private void Start()
         {
@@ -42,6 +43,7 @@ namespace SensaLab
         public void Offset() { SetPreset(2); }
         public void Outside() { SetPreset(3); }
         public void Freeze() { frozen = !frozen; }
+        public void Corrupt() { corrupt=!corrupt;if(encoder!=null)encoder.SetFloat("_CorruptCrc",corrupt?1:0); }
         public void ToggleOutput() { if(output != null) output.SetActive(!output.activeSelf); }
         private void SetPreset(int value)
         {
@@ -90,7 +92,7 @@ namespace SensaLab
             if(mode == 5)
             {
                 sample = new Vector3(.25f,-.5f,.75f);
-                text += "Synthetic transport fixture: XYZ=(.25,-.50,.75)\nExpected bridge XYZ within 0.00004; Valid=1\nFreeze -> stale Valid=0 after 350 ms.\nThis pattern is NOT an SPS measurement.\n";
+                text += "Synthetic transport fixture: XYZ=(.25,-.50,.75)\nExpected bridge XYZ within 0.00004; Valid=1\nFreeze -> stale Valid=0 after 350 ms.\nCRC corruption: "+corrupt+" (Corrupt toggles fault)\nRecovery requires TWO advancing frames.\nThis pattern is NOT an SPS measurement.\n";
             }
             if(encoder != null)
             {

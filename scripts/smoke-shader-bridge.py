@@ -21,7 +21,12 @@ def main():
     parser.add_argument('--first',required=True,type=Path)
     parser.add_argument('--next',required=True,type=Path)
     parser.add_argument('--report',required=True,type=Path)
+    parser.add_argument('--corrupt',type=Path)
+    parser.add_argument('--recover-first',type=Path)
+    parser.add_argument('--recover-next',type=Path)
     args=parser.parse_args()
+    if any((args.corrupt,args.recover_first,args.recover_next)) and not all((args.corrupt,args.recover_first,args.recover_next)):
+        parser.error('Fault recovery needs --corrupt, --recover-first and --recover-next together')
     web,osc=free_port(socket.SOCK_STREAM),free_port(socket.SOCK_DGRAM)
     with tempfile.TemporaryDirectory(prefix='sensa-shader-smoke-') as folder:
         root=Path(folder);config=root/'config.json';current=root/'frame.png';shutil.copyfile(args.first,current)
@@ -46,7 +51,7 @@ def main():
                 configuration['signals']=[{'oscPath':'Sensa/Lab/Shader/Z','role':'Depth','vrchatMin':0,'vrchatMax':.2},{'oscPath':'Sensa/Lab/Shader/Valid','role':'GateEnable'}]
                 api('/api/config',configuration)
                 api('/api/input/mode',{'mode':'osc'})
-                bridge=subprocess.Popen([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','5','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+                bridge=subprocess.Popen([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
                 def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}
                 def wait_gate(value,timeout=3):
                     until=time.monotonic()+timeout
@@ -57,7 +62,14 @@ def main():
                         time.sleep(.04)
                 wait_gate(0)
                 # Atomically replace the source, matching the editor PNG exporter.
-                next_file=root/'next.png';shutil.copyfile(args.next,next_file);next_file.replace(current)
+                def replace_image(path):
+                    next_file=root/'next.png';shutil.copyfile(path,next_file);next_file.replace(current)
+                def wait_motion_gate(closed):
+                    until=time.monotonic()+2
+                    while api('/api/state/overview')['runtime']['gateClosed']!=closed:
+                        assert time.monotonic()<until,'Motion gate did not change'
+                        time.sleep(.03)
+                replace_image(args.next)
                 fresh=wait_gate(1)
                 expected=(.06,0,.12)
                 for axis,value in zip('XYZ',expected):assert abs(fresh['Sensa/Lab/Shader/'+axis]-value)<.00005
@@ -65,14 +77,18 @@ def main():
                 time.sleep(.1)
                 mapped=api('/api/state/overview')['runtime']['command']['l0']
                 assert abs(mapped-.6)<.001, mapped
+                if args.corrupt:
+                    replace_image(args.corrupt);wait_gate(0);wait_motion_gate(True)
+                    replace_image(args.next);time.sleep(.12)
+                    assert preview()['Sensa/Lab/Shader/Valid']==0,'An old good frame reopened the gate after CRC failure'
+                    replace_image(args.recover_first);time.sleep(.12)
+                    assert preview()['Sensa/Lab/Shader/Valid']==0,'One recovery frame reopened the gate'
+                    replace_image(args.recover_next);wait_gate(1);wait_motion_gate(False)
                 stale=wait_gate(0)
-                until=time.monotonic()+2
-                while not api('/api/state/overview')['runtime']['gateClosed']:
-                    assert time.monotonic()<until,'Stale bridge did not close the motion gate'
-                    time.sleep(.03)
+                wait_motion_gate(True)
                 api('/api/input/active',{'active':False})
                 assert not api('/api/config')['outputs']
-                report={'passed':True,'source':'Two actual Unity SPS GPU-encoded PNG snapshots replayed; not live VR capture','timeoutSeconds':.8,'fresh':fresh,'mappedL0':mapped,'motionGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
+                report={'passed':True,'source':'Actual Unity GPU-encoded PNG snapshots replayed; not live VR capture','timeoutSeconds':.8,'fresh':fresh,'mappedL0':mapped,'crcStopsMotion':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'motionGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
                 args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('Shader PNG -> bridge -> Sensa OSC passed; frozen frame gate closed; no outputs configured.')
             finally:
                 for process in (bridge,service):

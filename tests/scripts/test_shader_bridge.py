@@ -35,7 +35,30 @@ class ShaderBridgeTests(unittest.TestCase):
         self.assertTrue(f.accept({'frame':0},.2))
         self.assertFalse(f.accept({'frame':65534},.3))
         self.assertFalse(f.accept({'frame':0},.6))
-        self.assertTrue(f.accept({'frame':1},.7))
+        self.assertFalse(f.accept({'frame':1},.7))
+        self.assertTrue(f.accept({'frame':2},.8))
+
+    def test_long_capture_gap_requires_two_new_frames(self):
+        f=bridge.Freshness(.35)
+        self.assertFalse(f.accept({'frame':10},0))
+        self.assertTrue(f.accept({'frame':11},.1))
+        self.assertFalse(f.accept({'frame':12},2))
+        self.assertFalse(f.accept({'frame':12},2.1))
+        self.assertTrue(f.accept({'frame':13},2.2))
+
+    def test_capture_error_and_changed_payload_cannot_revalidate_a_duplicate(self):
+        f=bridge.Freshness(.35)
+        sample=lambda frame,x:{'frame':frame,'xyz':[x,0,.12]}
+        self.assertFalse(f.accept(sample(1,.06),0))
+        self.assertTrue(f.accept(sample(2,.06),.01))
+        self.assertFalse(f.accept(sample(2,.07),.02))
+        self.assertFalse(f.accept(sample(2,.06),.03))
+        self.assertFalse(f.accept(sample(3,.06),.04))
+        self.assertTrue(f.accept(sample(4,.06),.05))
+        f.invalidate()
+        self.assertFalse(f.accept(sample(4,.06),.06))
+        self.assertFalse(f.accept(sample(5,.06),.07))
+        self.assertTrue(f.accept(sample(6,.06),.08))
     def test_invalid_output_has_only_a_zero_gate(self):
         packet=bridge.osc_bundle(None,False)
         self.assertIn(b'Sensa/Lab/Shader/Valid',packet)

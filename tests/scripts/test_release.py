@@ -41,7 +41,8 @@ class ReleaseTests(unittest.TestCase):
             (source/'Sensa.exe').write_bytes(b'fixture');(source/'web/app.bundle.js').write_text('fixture',encoding='utf-8')
             with patch('sys.argv',['release.py','app','--tag','v'+version,'--source',str(source),'--output',str(output)]):release.main()
             with zipfile.ZipFile(next(output.glob('*.zip'))) as archive:
-                for name in ('README.md','unity/top.sealoong.sensa/AUTOMATION.md','unity/top.sealoong.sensa/COMPATIBILITY.md','tools/unity-world-lab/README.md'):
+                for name in ('README.md','unity/top.sealoong.sensa/AUTOMATION.md','unity/top.sealoong.sensa/COMPATIBILITY.md','tools/unity-world-lab/README.md',
+                             'scripts/shader-osc-bridge.py','scripts/requirements-capture.txt','tools/unity-world-lab/sensa-preview.json'):
                     self.assertEqual(archive.read(name),(ROOT/name).read_bytes())
     def test_version_mismatch_is_rejected(self):
         with self.assertRaises(ValueError): release.validate_tag('app', 'v99.0.0')

@@ -103,7 +103,8 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
-        for relative in ('tools/unity-world-lab/CAPABILITIES.md', 'tools/unity-avatar-lab/README.md', 'tools/unity-avatar-lab/CAPABILITIES.md'):
+        for relative in ('tools/unity-world-lab/CAPABILITIES.md', 'tools/unity-avatar-lab/README.md', 'tools/unity-avatar-lab/CAPABILITIES.md',
+                         'scripts/shader-osc-bridge.py', 'scripts/requirements-capture.txt', 'tools/unity-world-lab/sensa-preview.json'):
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())

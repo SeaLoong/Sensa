@@ -103,10 +103,10 @@ namespace SensaLab
                 var m=new Material(Shader.Find("SensaLab/TextureOutput")){mainTexture=station.encoded};AssetDatabase.CreateAsset(m,Root+"/DesktopTransport.mat");output.GetComponentInChildren<Renderer>().sharedMaterial=m;output.SetActive(false);station.output=output;
             }
             station.status=Board(root.transform,"Status",new Vector3(0,.85f,.65f),Titles[mode]+"\nEnter Play Mode for actual and expected readings.");
-            string[] actions={"Rest","Near","Offset","Outside","Freeze","ToggleOutput"};
+            string[] actions={"Rest","Near","Offset","Outside","Freeze","ToggleOutput","Corrupt"};
             for(int i=0;i<actions.Length;i++)
             {
-                if(i==5&&mode!=5)continue;
+                if(i>=5&&mode!=5)continue;
                 if((mode==1||mode==2||mode==5)&&i<4)continue;
                 var button=Cube(root.transform,actions[i],new Vector3((i-2.5f)*.22f,-.05f,-.55f),Vector3.one*.12f,Color.HSVToRGB(i/6f,.7f,.8f),true);
                 var action=UdonSharpUndo.AddComponent<CapabilityButton>(button);action.station=station;action.action=actions[i];UdonSharpEditorUtility.CopyProxyToUdon(action);
@@ -128,6 +128,13 @@ namespace SensaLab
             EditorSceneManager.OpenScene(Scene);
             foreach(var station in UnityEngine.Object.FindObjectsOfType<CapabilityStation>())if(station.socket!=null){ConfigureSpsReaders(station);station.socket.position=station.plug.TransformPoint(Vector3.forward*.24f);UdonSharpEditorUtility.CopyProxyToUdon(station);}
             foreach(var station in UnityEngine.Object.FindObjectsOfType<CapabilityStation>())if(station.mode==1||station.mode==2||station.mode==5)foreach(var name in new[]{"Rest","Near","Offset","Outside"}){var t=station.transform.Find(name);if(t!=null)t.gameObject.SetActive(false);t=station.transform.Find(name+" label");if(t!=null)t.gameObject.SetActive(false);}
+            var transport=UnityEngine.Object.FindObjectsOfType<CapabilityStation>().Single(s=>s.mode==5);
+            if(transport.transform.Find("Corrupt")==null)
+            {
+                var button=Cube(transport.transform,"Corrupt",new Vector3(.77f,-.05f,-.55f),Vector3.one*.12f,Color.red,true);
+                var action=UdonSharpUndo.AddComponent<CapabilityButton>(button);action.station=transport;action.action="Corrupt";UdonSharpEditorUtility.CopyProxyToUdon(action);
+                var label=Child(transport.transform,"Corrupt label",button.transform.localPosition+Vector3.up*.13f).gameObject.AddComponent<TextMesh>();label.text="Corrupt";label.fontSize=36;label.characterSize=.015f;label.anchor=TextAnchor.MiddleCenter;
+            }
             EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());AssetDatabase.SaveAssets();
         }
         public static void FinalizeLayouts()

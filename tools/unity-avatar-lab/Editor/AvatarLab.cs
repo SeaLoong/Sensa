@@ -257,14 +257,21 @@ namespace SensaAvatarLab
         }
 
         [MenuItem("Tools/Sensa Avatar Lab/Build Exclusive with SDK (no upload)")]
-        public static async void BuildWithSdk()
+        public static void BuildWithSdk() => BuildSceneWithSdk(Root + "/Exclusive.unity", "Exclusive", "sdk-build");
+
+        [MenuItem("Tools/Sensa Avatar Lab/Build Shader with SDK (no upload)")]
+        public static void BuildShaderWithSdk() => BuildSceneWithSdk("Assets/SensaAvatarLab/Capabilities/Shader.unity", "Shader", "sdk-shader-build");
+
+        private static async void BuildSceneWithSdk(string scenePath, string variant, string reportName)
         {
             PrepareBatchMode();
             bool success = false;
+            string report = "Validation/" + reportName;
+            string destination = "Builds/Sensa-Chocolat-" + variant + ".vrca";
             try
             {
-                File.WriteAllText("Validation/sdk-build.json", "{\"passed\":false,\"uploaded\":false,\"state\":\"building\"}");
-                EditorSceneManager.OpenScene(Root + "/Exclusive.unity");
+                File.WriteAllText(report + ".json", "{\"passed\":false,\"uploaded\":false,\"state\":\"building\"}");
+                EditorSceneManager.OpenScene(scenePath);
                 var avatar = UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;
                 EditorWindow.GetWindow<VRCSdkControlPanel>();
                 await Task.Delay(500);
@@ -273,15 +280,15 @@ namespace SensaAvatarLab
                 string bundle = await builder.Build(avatar);
                 if (string.IsNullOrEmpty(bundle) || !File.Exists(bundle)) throw new InvalidOperationException("SDK did not produce an avatar bundle.");
                 Directory.CreateDirectory("Builds");
-                File.Copy(bundle, "Builds/Sensa-Chocolat-Exclusive.vrca", true);
-                File.WriteAllText("Validation/sdk-build.json", "{\"passed\":true,\"uploaded\":false,\"bundle\":\"Builds/Sensa-Chocolat-Exclusive.vrca\"}");
-                if (File.Exists("Validation/sdk-build-error.txt")) File.Delete("Validation/sdk-build-error.txt");
+                File.Copy(bundle, destination, true);
+                File.WriteAllText(report + ".json", "{\"passed\":true,\"uploaded\":false,\"bundle\":\"" + destination + "\"}");
+                if (File.Exists(report + "-error.txt")) File.Delete(report + "-error.txt");
                 success = true;
             }
             catch (Exception ex)
             {
-                File.WriteAllText("Validation/sdk-build.json", "{\"passed\":false,\"uploaded\":false,\"state\":\"failed\"}");
-                File.WriteAllText("Validation/sdk-build-error.txt", ex.ToString()); Debug.LogException(ex);
+                File.WriteAllText(report + ".json", "{\"passed\":false,\"uploaded\":false,\"state\":\"failed\"}");
+                File.WriteAllText(report + "-error.txt", ex.ToString()); Debug.LogException(ex);
             }
             finally { if (Application.isBatchMode) EditorApplication.Exit(success ? 0 : 1); }
         }

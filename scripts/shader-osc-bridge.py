@@ -41,21 +41,37 @@ class Freshness:
         self.timeout = timeout
         self.last = None
         self.changed_at = -math.inf
-        self.advanced = False
+        self.payload = None
+        self.phase = 0
+        self.reason = 'waiting for two progressing frames'
+
+    def invalidate(self, reason='invalid telemetry'):
+        # Keep the last sequence so an old/frozen frame cannot become a new
+        # baseline just because capture failed or the watchdog expired.
+        self.phase = 0
+        self.reason = reason
 
     def accept(self, sample, now):
         frame = sample['frame']
+        payload = tuple(sample['xyz']) if 'xyz' in sample else None
+        if self.phase and now - self.changed_at > self.timeout:
+            self.invalidate('frozen frame')
         if self.last is None:
             self.last, self.changed_at = frame, now
+            self.payload, self.phase = payload, 1
             return False
-        else:
-            advance = (frame - self.last) & 65535
-            if 0 < advance < 32768:
-                self.last, self.changed_at = frame, now
-                self.advanced = True
-            elif advance:
-                return False
-        return self.advanced and now - self.changed_at <= self.timeout
+        advance = (frame - self.last) & 65535
+        if advance >= 32768:
+            self.invalidate('reordered frame; restart bridge if the producer reset')
+            return False
+        if not advance:
+            if payload != self.payload:
+                self.invalidate('frame ID reused with different coordinates')
+            return self.phase == 2
+        self.last, self.changed_at, self.payload = frame, now, payload
+        self.phase = min(2, self.phase + 1)
+        self.reason = None if self.phase == 2 else 'waiting for a second progressing frame'
+        return self.phase == 2
 
 
 def osc_string(value):
@@ -103,8 +119,10 @@ def main():
                         image = ImageGrab.grab(bbox=(x, y, x+w, y+h), all_screens=True).convert('RGB')
                     sample = decode_pixels(list(image.get_flattened_data()), *image.size)
                     valid = freshness.accept(sample, time.monotonic()) if args.watch or args.port else True
-                    if not valid: error = 'stale or reordered frame'
-                except (OSError, ValueError) as ex: error = str(ex)
+                    if not valid: error = freshness.reason
+                except (OSError, ValueError) as ex:
+                    freshness.invalidate()
+                    error = str(ex)
                 if args.port: udp.sendto(osc_bundle(sample, valid), ('127.0.0.1', args.port))
                 status = (valid, error)
                 if not args.watch or status != last_status: print(json.dumps({'valid': valid, 'sample': sample, 'error': error}), flush=True)

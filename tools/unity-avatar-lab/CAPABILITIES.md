@@ -9,7 +9,7 @@
 | PBContact | 5 | 4 | 1 | 抓把手，观察 `Sensa/Handle/v1/LabCombined/Self/`；四路坐标 + 抓取门控，松手失效 |
 | SPS | 25 | 0 | 0 | 启用 SPS 的 FixtureSocket，先 Outside 学习长度，再 Near/Offset；真实 OGB 参数与 20 cm SPS 表面 |
 | SPSContact | 38 | 12 | 0 | 同上，再选择 Sensa Fixture 的 Plug；本地点相对 Socket：Outside Z≈−.04、Near Z≈.08、Offset X≈−.06/Z≈.08 |
-| Shader | 0 | 0 | 0 | Sensa Shader 菜单默认 Off；启用后测试原生 Camera→RT→桌面图块，合成 XYZ=(.25,−.5,.75)，不含真实 SPS 测量 |
+| Shader | 0 | 0 | 0 | Sensa Shader 菜单默认 Off；合成 XYZ=(.25,−.5,.75)，`Corrupt shader CRC` 注入错误；恢复需两帧新数据，不含真实 SPS 测量 |
 | SPSShader | 25 | 0 | 0 | 真实 SPS + 场景外的编辑器采集 Camera；用 GPU Probe 导出实际模型 PNG，再接图像桥 |
 
 表中的 PB 只统计实验把手，不包含 Chocolat 原本的头发/衣物 PhysBone。原模型动骨不在此次碰撞修改范围内。
@@ -37,5 +37,6 @@ SPSShader 的采集 Camera 在 Avatar 根以外，**不会上传**。当前真�
 - **Create capability matrix**：首次生成七个场景，拒绝覆盖已有修改。
 - **Validate capability matrix**：执行完整 SDK/NDMF/VRCFury 预处理；检查各场景组件数量、SPS Shader 和 PB 配置，写 `Validation/capability-matrix.json`。
 - 原 Exclusive 的 SDK 打包菜单可以重建更新后的完整组合 Avatar；新矩阵的预处理结果不等于每个场景都单独打过 `.vrca`。
+- **Build Shader with SDK (no upload)** 可单独构建合成图像 Avatar；**Inspect Shader SDK bundle** 检查打包后的相机、默认 Off 选择和本地 CRC 故障参数。它仍不验证 VRChat 客户端的相机保留或头显可见性。
 
 所有 Avatar 与 World 保持私人测试用途，当前不自动上传。模型和本地工程不推送到公开仓库。

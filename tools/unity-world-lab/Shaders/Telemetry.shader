@@ -1,6 +1,6 @@
 Shader "SensaLab/Telemetry"
 {
-    Properties { _Sequence("Sequence", Float)=0 _Sample("XYZ [-1,1]", Vector)=(0,0,0,0) _AutoSequence("Test clock (not source freshness)",Float)=0 _CameraOnly("Private test camera only",Float)=0 _Valid("Source valid",Float)=1 }
+    Properties { _Sequence("Sequence", Float)=0 _Sample("XYZ [-1,1]", Vector)=(0,0,0,0) _AutoSequence("Test clock (not source freshness)",Float)=0 _CameraOnly("Private test camera only",Float)=0 _Valid("Source valid",Float)=1 _CorruptCrc("Lab fault injection",Float)=0 }
     SubShader { Tags { "Queue"="Overlay" } Pass {
         Cull Off ZWrite Off ZTest Always Blend Off
         CGPROGRAM
@@ -8,7 +8,7 @@ Shader "SensaLab/Telemetry"
         #pragma vertex vert_img
         #pragma fragment frag
         #include "UnityCG.cginc"
-        float _Sequence, _AutoSequence, _CameraOnly, _Valid; float4 _Sample;
+        float _Sequence, _AutoSequence, _CameraOnly, _Valid, _CorruptCrc; float4 _Sample;
         float4 frag(v2f_img v):SV_Target {
             if(_CameraOnly>.5 && (unity_OrthoParams.w<.5 || abs(_ProjectionParams.z-.731)>.0001)) discard;
             uint bytes[16];
@@ -26,6 +26,7 @@ Shader "SensaLab/Telemetry"
                 for(uint j=0;j<8;j++) crc=((crc<<1)^((crc&32768u)!=0?4129u:0u))&65535u;
             }
             bytes[14]=crc&255u; bytes[15]=crc>>8;
+            if(_CorruptCrc>.5) bytes[14]^=1u;
             uint col=min((uint)(v.uv.x*16),15u), row=min((uint)(v.uv.y*8),7u);
             return float4(((bytes[col]>>row)&1u).xxx,1);
         }
