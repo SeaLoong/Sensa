@@ -2,6 +2,8 @@
 
 项目尚未首次发布。桌面与 Unity 按同一份当前源码配套使用；开发期直接修改初版协议，不维护并行的历史实现。OSC 路径中的 `v1` 是当前格式标识，与应用发布版本无关。本地点/PB 统一为四接收器，外部 SPS Root 保留八接收器。
 
+CI 的桌面 ZIP 附带本 README、Unity 操作指南和测试世界说明，离线也可阅读。它不包含完整 Unity 资产或测试世界工程；Unity 资产使用独立 Unity ZIP 或本仓库源码，测试世界源码在 `tools/unity-world-lab`。
+
 新增 [自动 SPS 配置、本地骨骼/PB 把手与性能策略](unity/top.sealoong.sensa/AUTOMATION.md)：可自动继承 SPS 位置，生成测量组件及选择动画。
 
 Unity 预制件的依赖、单侧 SPS 安装步骤和定位能力边界见 [兼容性指南](unity/top.sealoong.sensa/COMPATIBILITY.md)。

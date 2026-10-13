@@ -77,6 +77,13 @@ def main():
             raise ValueError('Application output is incomplete')
         for name in ('README.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
+        # Keep the README's relative documentation links usable in the desktop archive.
+        for relative in ('unity/top.sealoong.sensa/AUTOMATION.md', 'unity/top.sealoong.sensa/COMPATIBILITY.md',
+                         'unity/top.sealoong.sensa/GPU-TRACKING.md', 'unity/top.sealoong.sensa/README.md',
+                         'tools/unity-world-lab/README.md', 'tools/unity-world-lab/CAMERA-PROTOTYPE.md'):
+            destination = source / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((ROOT / relative).read_bytes())
     name = f'top.sealoong.sensa-{version}.zip' if args.kind == 'unity' else f'Sensa-{version}-win-x64.zip'
     zip_directory(source, output / name)
     digest = hashlib.sha256((output / name).read_bytes()).hexdigest()

@@ -9,12 +9,22 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 import hashlib
+import zipfile
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('release_tools', ROOT / 'scripts/release.py')
 release = importlib.util.module_from_spec(spec); spec.loader.exec_module(release)
 
 class ReleaseTests(unittest.TestCase):
+    def test_desktop_archive_includes_the_linked_usage_guides(self):
+        version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
+        with tempfile.TemporaryDirectory() as folder:
+            source=Path(folder)/'app';output=Path(folder)/'zips';(source/'web').mkdir(parents=True)
+            (source/'Sensa.exe').write_bytes(b'fixture');(source/'web/app.bundle.js').write_text('fixture',encoding='utf-8')
+            with patch('sys.argv',['release.py','app','--tag','v'+version,'--source',str(source),'--output',str(output)]):release.main()
+            with zipfile.ZipFile(next(output.glob('*.zip'))) as archive:
+                for name in ('README.md','unity/top.sealoong.sensa/AUTOMATION.md','unity/top.sealoong.sensa/COMPATIBILITY.md','tools/unity-world-lab/README.md'):
+                    self.assertEqual(archive.read(name),(ROOT/name).read_bytes())
     def test_version_mismatch_is_rejected(self):
         with self.assertRaises(ValueError): release.validate_tag('app', 'v99.0.0')
         with self.assertRaises(ValueError): release.validate_tag('unity', 'unity-v../../escape')
