@@ -207,6 +207,10 @@ SPS2 的形变与触觉数据是不同功能，须启用 VRCFury 的 Haptics/OGB
 
 ## 验证与发布
 
+`Validate` 在 main 推送和 PR 上运行：锁定依赖恢复、前后端/脚本测试、依赖审计、Unity 包元数据校验、DLL 冒烟、自包含 Windows EXE 冒烟，以及应用/Unity 两种 ZIP 的打包演练。`validation-results` artifact 保存测试报告和演练包。普通 CI 不创建 tag、不发布 Release，也不部署 Pages。
+
+Unity 编辑器编译、NDMF、Udon/ClientSim 仍需本地项目验证；CI 的 Unity 元数据校验不能替代这些测试。真正发布分别由 `v*` 与 `unity-v*` tag 触发，必须明确决定发布时才推 tag。Unity Pages 重建依赖已发布的包与校验值，未在本轮触发线上发布。
+
 ```bash
 npm ci
 npm test
