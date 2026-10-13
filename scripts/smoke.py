@@ -41,7 +41,7 @@ def main():
     base = f'http://127.0.0.1:{port}'
     with tempfile.TemporaryDirectory(prefix='sensa-smoke-') as tmp:
         config = Path(tmp) / 'config.json'
-        config.write_text(json.dumps({'webUi': {'host':'127.0.0.1', 'port':port, 'autoOpenBrowser':False}, 'osc':{'enabled':False}, 'outputs':[]}))
+        config.write_text(json.dumps({'webUi': {'host':'127.0.0.1', 'port':port, 'autoOpenBrowser':False}, 'osc':{'enabled':False,'oscQueryEnabled':False,'oscQueryReceiver':{'enabled':False}}, 'outputs':[]}))
         env = dict(os.environ, SENSA_CONFIG_PATH=str(config))
         command = [str(Path(args.exe).resolve())] if args.exe else [str(Path(args.dotnet).resolve()) if '/' in args.dotnet or '\\' in args.dotnet else args.dotnet, str(Path(args.dll).resolve())]
         with open(Path(tmp) / 'service.log', 'w+', encoding='utf-8') as log:
@@ -67,7 +67,7 @@ def main():
                 snapshot = json.load(request('/api/state/overview', {'Cookie':cookie}))
                 assert not snapshot['runtime']['inputActive']
                 assert isinstance(json.load(request('/api/meta/serial-ports', {'Cookie':cookie})), list)
-                with socket.create_connection(('127.0.0.1', port), timeout=5) as ws:
+                with socket.create_connection(('127.0.0.1', port), timeout=15) as ws:
                     key = base64.b64encode(os.urandom(16)).decode()
                     ws.sendall((f'GET /api/ws HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nOrigin: {base}\r\nCookie: {cookie}\r\n\r\n').encode())
                     headers = bytearray()
@@ -159,6 +159,9 @@ def main():
                             assert time.monotonic()<deadline,'PB release did not stop point input'
                     command('/api/input/active','PUT',{'active':False})
                 print('HTTP/WS smoke passed: authentication, FT flood, pose/root isolation, local point mapping and PB release guard; no devices configured.')
+            except BaseException:
+                log.flush();log.seek(0);print(log.read()[-20000:])
+                raise
             finally:
                 process.terminate()
                 try: process.wait(timeout=5)

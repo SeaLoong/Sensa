@@ -117,7 +117,8 @@ def main():
         info['sha256'] = digest
         (output / 'vpm-package.json').write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding='utf-8')
     notes = f'{"Unity VPM package" if args.kind == "unity" else args.runtime+" self-contained build"} {archive_version}\n\nSHA256: `{digest}`\n'
-    (ROOT / 'artifacts/release-notes.txt').write_text(notes, encoding='utf-8')
+    notes_path=ROOT/'artifacts/release-notes.txt';notes_path.parent.mkdir(parents=True,exist_ok=True)
+    notes_path.write_text(notes, encoding='utf-8')
     print(name)
 
 if __name__ == '__main__':
