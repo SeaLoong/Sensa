@@ -466,5 +466,39 @@
         "role": "AngleY"
       }
     ]
+  },
+  {
+    "id": "sensa-lab-pb-stretch",
+    "name": "实验 · PB 原生拉伸（无 Contact）",
+    "description": "只读原生 PhysBone 拉伸；IsGrabbed 为门控。没有 XYZ 定位，松手应停止。测试用路径 Sensa/Lab/PB，真实使用需校准。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Lab/PB_Stretch",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      },
+      {
+        "oscPath": "Sensa/Lab/PB_IsGrabbed",
+        "role": "GateEnable"
+      }
+    ]
+  },
+  {
+    "id": "sensa-lab-shader-z",
+    "name": "实验 · Shader 图像桥接 Z（需校准）",
+    "description": "诊断桥接的 Z 位移模板，0–0.2 米映射到 0–100%；0.12 米预览 60%，不是 SPS 插入深度 40%。Valid 门控会在冻结或 CRC 错误时关闭。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Lab/Shader/Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      },
+      {
+        "oscPath": "Sensa/Lab/Shader/Valid",
+        "role": "GateEnable"
+      }
+    ]
   }
 ]

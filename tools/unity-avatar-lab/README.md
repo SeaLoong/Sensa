@@ -1,5 +1,7 @@
 # Sensa Avatar 测试工程工具
 
+Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITIES.md)，优先按该文档逐项测试。原 Exclusive/Shared 保留作完整组合对照。
+
 为独立 Avatars 项目生成两套 Chocolat 测试场景，使用现成的 SPS 棒棒糖道具、两个可见 Socket 标记和 Sensa 自动配置。工具不上传 Avatar，也不包含模型或付费资源。
 
 ## 准备

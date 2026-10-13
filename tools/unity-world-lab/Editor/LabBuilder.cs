@@ -38,6 +38,7 @@ namespace SensaLab
             Transform Child(Transform parent,string name,Vector3 position){var node=new GameObject(name).transform;node.SetParent(parent,false);node.localPosition=position;return node;}
             var root=Child(origin,"HandleRoot",Vector3.zero);var joint=Child(root,"Joint",Vector3.forward*.05f);var grip=Child(joint,"Grip",Vector3.forward*.05f);
             var pb=root.gameObject.AddComponent<VRCPhysBone>();pb.rootTransform=root;pb.radius=.025f;pb.pull=.2f;pb.spring=0;pb.maxStretch=.5f;pb.grabMovement=1;pb.allowPosing=VRCPhysBoneBase.AdvancedBool.False;
+            pb.allowGrabbing=VRCPhysBoneBase.AdvancedBool.True;pb.allowCollision=VRCPhysBoneBase.AdvancedBool.False;pb.colliders.Clear();
             var visual=GameObject.CreatePrimitive(PrimitiveType.Sphere);visual.transform.SetParent(grip,false);visual.transform.localScale=Vector3.one*.04f;UnityEngine.Object.DestroyImmediate(visual.GetComponent<Collider>());pb.ignoreTransforms.Add(visual.transform);
             var point=Child(origin,"TrackedPoint",Vector3.forward*.1f);var follow=point.gameObject.AddComponent<PositionConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=grip,weight=1});follow.locked=true;follow.constraintActive=true;
             var sender=point.gameObject.AddComponent<VRCContactSender>();sender.radius=.001f;sender.collisionTags=new List<string>{"SensaLabPoint"};

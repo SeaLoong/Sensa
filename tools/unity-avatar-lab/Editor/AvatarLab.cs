@@ -65,7 +65,7 @@ namespace SensaAvatarLab
         [Serializable] public class BuildReport
         {
             public string avatar, utc, unity, error;
-            public bool passed, humanoid, localSelector, spsResolver;
+            public bool passed, humanoid, localSelector, spsResolver, handlesGrabWithoutCollision;
             public int missingScripts, contacts, sensaReceivers, physBones, parameterCost;
             public string[] sensaParameters, shaders;
         }
@@ -235,12 +235,13 @@ namespace SensaAvatarLab
                 contacts = receivers.Length + avatar.GetComponentsInChildren<VRCContactSender>(true).Length,
                 sensaReceivers = receivers.Count(r => r.parameter != null && r.parameter.StartsWith("Sensa/")),
                 physBones = avatar.GetComponentsInChildren<VRCPhysBone>(true).Length,
+                handlesGrabWithoutCollision = avatar.GetComponentsInChildren<VRCPhysBone>(true).Where(b=>b.parameter!=null&&b.parameter.StartsWith("Sensa/")).All(b=>b.allowGrabbing==VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.True && b.allowCollision==VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.False && b.colliders.Count==0 && b.radius>0 && b.GetComponentsInChildren<Collider>().Length==0),
                 parameterCost = descriptor.expressionParameters.CalcTotalCost(),
                 localSelector = parameters.Any(p => p.name == "Sensa/Select/Lab" && !p.networkSynced && p.defaultValue == 0),
                 sensaParameters = parameters.Where(p => p.name.StartsWith("Sensa/")).Select(p => p.name).ToArray(),
                 shaders = shaders, spsResolver = shaders.Any(s => s.Contains("SpsResolver"))
             };
-            report.passed = report.humanoid && report.missingScripts == 0 && report.contacts <= 256 && report.sensaReceivers > 0
+            report.passed = report.humanoid && report.handlesGrabWithoutCollision && report.missingScripts == 0 && report.contacts <= 256 && report.sensaReceivers > 0
                 && report.physBones > 0 && report.localSelector && report.parameterCost <= 256 && report.spsResolver
                 && avatar.GetComponentsInChildren<SensaAutoSetup>(true).Length == 0
                 && avatar.GetComponentsInChildren<SensaPointProbe>(true).Length == 0

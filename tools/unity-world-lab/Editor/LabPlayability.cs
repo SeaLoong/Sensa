@@ -46,7 +46,7 @@ namespace SensaLab
             foreach(string name in new[]{"Click to pause","Click: desktop output experiment","Click: camera-only rig (third cube)"}){var button=GameObject.Find(name);if(button!=null){var p=button.transform.position;p.y=1;button.transform.position=p;button.transform.localScale=Vector3.one*.16f;}}
             var status=GameObject.Find("Status Canvas");if(status!=null){status.transform.position=new Vector3(0,1.8f,3);status.transform.localScale=Vector3.one*.0009f;}
             var localBoard=GameObject.Find("Local probe board");if(localBoard!=null){localBoard.transform.localPosition=new Vector3(-.1f,.5f,.45f);localBoard.transform.localScale=Vector3.one*.0012f;}
-            var local=GameObject.Find("Local bone and PB station");if(local!=null){var pb=local.GetComponentInChildren<VRCPhysBone>();pb.allowGrabbing=VRCPhysBoneBase.AdvancedBool.True;pb.radius=.04f;foreach(var mesh in local.GetComponentsInChildren<MeshRenderer>())mesh.transform.localScale=Vector3.one*.06f;}
+            var local=GameObject.Find("Local bone and PB station");if(local!=null){var pb=local.GetComponentInChildren<VRCPhysBone>();pb.allowGrabbing=VRCPhysBoneBase.AdvancedBool.True;pb.allowCollision=VRCPhysBoneBase.AdvancedBool.False;pb.colliders.Clear();pb.radius=.04f;foreach(var mesh in local.GetComponentsInChildren<MeshRenderer>())mesh.transform.localScale=Vector3.one*.06f;}
             AddWelcome(layout.transform);
             Physics.SyncTransforms();
             var stations=UnityEngine.Object.FindObjectsOfType<PointCaseStation>();var buttons=stations.SelectMany(s=>new[]{s.transform,s.transform.parent.Find("Reset case"),s.transform.parent.Find("Toggle missing A3")}).ToArray();

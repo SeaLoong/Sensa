@@ -22,6 +22,8 @@ def main():
     for source_root, destination in [(ROOT / 'tools/unity-avatar-lab', Path('Assets/SensaAvatarLab')),
                                      (ROOT / 'unity/top.sealoong.sensa', Path('Packages/top.sealoong.sensa'))]:
         sources.extend((p, destination / p.relative_to(source_root)) for p in source_root.rglob('*') if p.is_file())
+    for name in ('Telemetry.shader', 'TextureOutput.shader'):
+        sources.append((ROOT / 'tools/unity-world-lab/Shaders' / name, Path('Assets/SensaAvatarLab/Shaders') / name))
     for source, relative in sources:
         target = project / relative
         if target.exists() and target.read_bytes() != source.read_bytes():

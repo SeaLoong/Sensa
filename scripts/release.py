@@ -103,6 +103,10 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
+        for relative in ('tools/unity-world-lab/CAPABILITIES.md', 'tools/unity-avatar-lab/README.md', 'tools/unity-avatar-lab/CAPABILITIES.md'):
+            destination = source / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((ROOT / relative).read_bytes())
         if (ROOT/'docs').exists():
             for path in (ROOT/'docs').rglob('*.md'):
                 destination=source/path.relative_to(ROOT);destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(path.read_bytes())

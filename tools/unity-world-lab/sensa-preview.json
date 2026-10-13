@@ -1,0 +1,13 @@
+{
+  "webUi": { "host": "127.0.0.1", "port": 5087, "autoOpenBrowser": false },
+  "osc": {
+    "enabled": true,
+    "receiverHost": "127.0.0.1",
+    "receiverPort": 9001,
+    "inputTimeoutMs": 500,
+    "oscQueryEnabled": false,
+    "oscQueryReceiver": { "enabled": false }
+  },
+  "outputs": [],
+  "signals": []
+}

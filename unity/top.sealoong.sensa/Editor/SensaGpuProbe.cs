@@ -34,6 +34,9 @@ namespace UnityBox.Sensa
         private double armedAt;
         private string status = "选择已烘焙的 SPS Resolver 材质与正在渲染的非 VR Camera。";
         private Capture capture;
+        private bool streamPng;
+        private string pngPath = "Validation/sps-telemetry.png";
+        private int pngSequence;
 
         [Serializable] public sealed class Capture
         {
@@ -61,6 +64,7 @@ namespace UnityBox.Sensa
             Camera.onPostRender -= AfterCamera; EditorApplication.update -= Tick;
             SceneView.duringSceneGui -= DrawCapture;
             armed = false;
+            streamPng = false;
             if (reader != null) DestroyImmediate(reader);
         }
         private void DrawCapture(SceneView view)
@@ -126,6 +130,10 @@ namespace UnityBox.Sensa
                 }
             }
             EditorGUILayout.HelpBox(status, capture != null && capture.valid ? MessageType.Info : MessageType.Warning);
+            var stream = EditorGUILayout.Toggle("连续导出实验 PNG", streamPng);
+            if(stream != streamPng) { streamPng=stream; if(!stream)armed=false; }
+            pngPath = EditorGUILayout.TextField("PNG 路径", pngPath);
+            EditorGUILayout.HelpBox("需要测试工程的 SensaLab/Telemetry Shader。勾选后点击采集；PNG 为入口相对中心线根部的世界轴位移（米），不是完整行程。外部 shader-osc-bridge.py 可转发诊断 OSC。仅编辑器运行。",MessageType.Info);
             if (capture != null && capture.valid)
             {
                 EditorGUILayout.LabelField("模型长度（世界米）", capture.worldLength.ToString("F4"));
@@ -221,6 +229,11 @@ namespace UnityBox.Sensa
                         if (request.hasError) { result.reason = "GPU readback failed"; }
                         else Decode(request.GetData<Color>().ToArray(), result);
                         capture = result; status = result.reason; Repaint(); SceneView.RepaintAll();
+                        if(streamPng)
+                        {
+                            try { ExportTelemetryPng(result,pngPath,++pngSequence); armed=true;armedAt=EditorApplication.timeSinceStartup; }
+                            catch(Exception ex) { streamPng=false;status=ex.Message; }
+                        }
                     }
                     finally { pending = false; target.Release(); DestroyImmediate(target); }
                 });
@@ -245,6 +258,24 @@ namespace UnityBox.Sensa
             if (result.firstSegmentStrength.Any(v => v < 0 || v > 1)) return;
             result.worldLength = header.a; result.entryPosition = Point(pixels[1]); result.entryNormal = normal;
             result.valid = true; result.reason = "已采集 GPU 模型；不是最终网格，也不是实时设备输入。";
+        }
+        public static void ExportTelemetryPng(Capture sample,string path,int sequence)
+        {
+            var shader=Shader.Find("SensaLab/Telemetry");
+            if(shader==null)throw new InvalidOperationException("Install the lab Telemetry shader before exporting PNG.");
+            bool valid=sample!=null && sample.valid && sample.centerline!=null && sample.centerline.Length>0;
+            var delta=valid?sample.entryPosition-sample.centerline[0]:Vector3.zero;
+            valid=valid && Finite(delta.x) && Finite(delta.y) && Finite(delta.z) && Mathf.Max(Mathf.Abs(delta.x),Mathf.Abs(delta.y),Mathf.Abs(delta.z))<=1;
+            var material=new Material(shader);material.SetFloat("_Sequence",sequence&65535);material.SetFloat("_Valid",valid?1:0);material.SetVector("_Sample",new Vector4(delta.x,delta.y,delta.z,0));
+            var target=new RenderTexture(256,128,0,RenderTextureFormat.ARGB32,RenderTextureReadWrite.Linear);target.Create();
+            var image=new Texture2D(256,128,TextureFormat.RGBA32,false,true);var previous=RenderTexture.active;
+            try
+            {
+                Graphics.Blit(Texture2D.blackTexture,target,material);RenderTexture.active=target;image.ReadPixels(new Rect(0,0,256,128),0,0);image.Apply();
+                path=Path.GetFullPath(path);Directory.CreateDirectory(Path.GetDirectoryName(path));File.WriteAllBytes(path+".tmp",image.EncodeToPNG());
+                if(File.Exists(path))File.Replace(path+".tmp",path,null);else File.Move(path+".tmp",path);
+            }
+            finally {RenderTexture.active=previous;DestroyImmediate(material);DestroyImmediate(image);target.Release();DestroyImmediate(target);}
         }
         private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
     }

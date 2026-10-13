@@ -1,5 +1,7 @@
 # Sensa 测试世界
 
+**按系统测试请先看[能力矩阵与 Sensa 联动](CAPABILITIES.md)**，打开 `Assets/SensaLab/Functional/FunctionalLab.unity`。下面的 11 站是另一个几何边界回归场景。
+
 这里可以先体验位置测量、PB 手柄和几何异常，不需要连接输出设备。世界不会自动给 Sensa 或硬件发送运动。
 
 ## 进入世界
