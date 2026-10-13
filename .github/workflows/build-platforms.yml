@@ -37,6 +37,9 @@ jobs:
           python-version: '3.14'
       - run: npm ci
       - run: npm test
+      - name: Install failure diagnostics for macOS smoke tests
+        if: runner.os == 'macOS'
+        run: dotnet tool install --global dotnet-stack
       - name: Native tests, self-contained smoke and archive
         env:
           TARGET_RID: ${{ matrix.rid }}

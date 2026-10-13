@@ -6,6 +6,7 @@ import importlib.util
 import os
 from pathlib import Path
 import socket
+import shutil
 import struct
 import subprocess
 import tempfile
@@ -162,6 +163,12 @@ def main():
                     command('/api/input/active','PUT',{'active':False})
                 print('HTTP/WS smoke passed: authentication, FT flood, pose/root isolation, local point mapping and PB release guard; no devices configured.')
             except BaseException:
+                stack_tool = shutil.which('dotnet-stack')
+                if stack_tool and process.poll() is None:
+                    try:
+                        subprocess.run([stack_tool, 'report', '--process-id', str(process.pid)], timeout=30, check=False)
+                    except (OSError, subprocess.TimeoutExpired) as error:
+                        print('Could not collect managed stacks:', error)
                 log.flush();log.seek(0);print(log.read()[-20000:])
                 raise
             finally:
