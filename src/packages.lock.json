@@ -4,9 +4,9 @@
     "net10.0": {
       "Buttplug": {
         "type": "Direct",
-        "requested": "[5.0.0, )",
-        "resolved": "5.0.0",
-        "contentHash": "Gc7yEQS0S1CBeQAUVrAteCdmfXUrLQ8FoKlqZmTffsrDItU+QPl2ij/eVU12geJBRwMXGDB+zFDo7gxE4pGDtA==",
+        "requested": "[5.0.1, )",
+        "resolved": "5.0.1",
+        "contentHash": "ZpOrR4qobE7KEGaFO18YovV4uqhzbFKwGoh9Qr1zz5/PO+jIjB0tedgZPjyYYpromD4cRYiD/n6cOx3jEje86w==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.4"
         }
