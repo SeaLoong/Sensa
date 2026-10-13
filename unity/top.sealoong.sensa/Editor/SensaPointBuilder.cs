@@ -45,6 +45,7 @@ namespace UnityBox.Sensa
                 target=SensaSensorUtility.Child(joint,"Grip");target.localPosition=Vector3.forward*probe.handleLength*.5f;
                 var pb=root.gameObject.AddComponent<VRCPhysBone>();pb.rootTransform=root;pb.radius=.015f;pb.pull=.2f;pb.spring=0;pb.maxStretch=.5f;
                 pb.allowGrabbing=VRCPhysBoneBase.AdvancedBool.True;pb.allowPosing=VRCPhysBoneBase.AdvancedBool.False;pb.grabMovement=1;pb.parameter=prefix+"/Handle";
+                pb.allowCollision=VRCPhysBoneBase.AdvancedBool.False;pb.colliders.Clear();
                 SensaSensorUtility.Parameter(rig.gameObject,pb.parameter+"_IsGrabbed",ParameterSyncType.Bool);
                 SensaSensorUtility.Parameter(rig.gameObject,pb.parameter+"_Stretch");
                 var visual=GameObject.CreatePrimitive(PrimitiveType.Sphere);visual.name="Visible grip";visual.transform.SetParent(target,false);visual.transform.localScale=Vector3.one*.02f;

@@ -54,6 +54,9 @@ namespace UnityBox.Sensa.Tests
         {
             var probe=avatar.AddComponent<SensaPointProbe>();probe.createGrabHandle=true;SensaPointBuilder.ProcessAvatar(avatar);
             var pb=avatar.GetComponentInChildren<VRCPhysBone>();Assert.NotNull(pb);Assert.IsNull(pb.GetComponent<PositionConstraint>());
+            Assert.AreEqual(VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.True,pb.allowGrabbing);
+            Assert.AreEqual(VRC.Dynamics.VRCPhysBoneBase.AdvancedBool.False,pb.allowCollision);
+            Assert.IsEmpty(pb.colliders);Assert.Greater(pb.radius,0);Assert.IsEmpty(pb.GetComponentsInChildren<Collider>());
             Assert.IsTrue(avatar.GetComponentsInChildren<ModularAvatarParameters>().SelectMany(p=>p.parameters).Any(p=>p.nameOrPrefix.EndsWith("Handle_IsGrabbed")&&p.localOnly));
         }
         [Test] public void AutoSelectionPreservesSpsAndPlacesArrayAtSocketOffset()
