@@ -11,7 +11,7 @@ namespace Sensa.Input.Osc;
 ///   /avatar/parameters/{name}
 /// and types: float (f), int (i), true (T), false (F).
 ///
-/// Runs on its own background thread; safe to create and dispose from any thread.
+/// Uses cancellable asynchronous UDP reads; safe to start and stop from any thread.
 /// </summary>
 public sealed class OscInputReceiver : IDisposable
 {
@@ -19,7 +19,8 @@ public sealed class OscInputReceiver : IDisposable
     private string _host;
     private int _port;
     private UdpClient?  _udp;
-    private Thread?     _thread;
+    private readonly object _lifecycle = new();
+    private CancellationTokenSource? _receiveCancellation;
     private volatile bool _running;
 
     public Func<OscSource, bool>? IsSourceAllowed { get; set; }
@@ -39,56 +40,71 @@ public sealed class OscInputReceiver : IDisposable
 
     public void Start()
     {
-        if (_running) return;
-        // Create socket first; if the port is in use this throws before _running is set,
-        // so a subsequent call to Start() will retry instead of silently no-oping.
-        _udp     = new UdpClient(new IPEndPoint(ResolveBindAddress(_host), _port));
-        _running = true;
-        _thread  = new Thread(ReceiveLoop) { IsBackground = true, Name = "OscReceiver" };
-        _thread.Start();
+        lock (_lifecycle)
+        {
+            if (_running) return;
+            // Create socket first; if the port is in use this throws before _running is set,
+            // so a subsequent call to Start() will retry instead of silently no-oping.
+            _udp     = new UdpClient(new IPEndPoint(ResolveBindAddress(_host), _port));
+            var udp = _udp;
+            _receiveCancellation = new CancellationTokenSource();
+            var token = _receiveCancellation.Token;
+            _running = true;
+            _ = Task.Run(() => ReceiveLoopAsync(udp, token));
+        }
     }
 
     public void Reconfigure(string host, int port)
     {
-        host = NormalizeHost(host);
-        port = NormalizePort(port);
-
-        if (string.Equals(_host, host, StringComparison.OrdinalIgnoreCase) && _port == port)
-            return;
-
-        var wasRunning = _running;
-        var previousHost = _host;
-        var previousPort = _port;
-
-        Stop();
-
-        _host = host;
-        _port = port;
-
-        try
+        lock (_lifecycle)
         {
-            if (wasRunning)
-                Start();
-        }
-        catch
-        {
-            _host = previousHost;
-            _port = previousPort;
+            host = NormalizeHost(host);
+            port = NormalizePort(port);
 
-            if (wasRunning)
-                Start();
+            if (string.Equals(_host, host, StringComparison.OrdinalIgnoreCase) && _port == port)
+                return;
 
-            throw;
+            var wasRunning = _running;
+            var previousHost = _host;
+            var previousPort = _port;
+
+            Stop();
+
+            _host = host;
+            _port = port;
+
+            try
+            {
+                if (wasRunning)
+                    Start();
+            }
+            catch
+            {
+                _host = previousHost;
+                _port = previousPort;
+
+                if (wasRunning)
+                    Start();
+
+                throw;
+            }
         }
     }
 
     public void Stop()
     {
-        _running = false;
-        _udp?.Close();
-        _thread?.Join(500);
-        _udp = null;
-        _thread = null;
+        lock (_lifecycle)
+        {
+            _running = false;
+            // A synchronous Receive may keep Close blocked indefinitely on macOS.
+            // Cancel the async read first; each loop owns its socket and token, so a
+            // previous generation can never read from a newly restarted listener.
+            _receiveCancellation?.Cancel();
+            _udp?.Dispose();
+            _receiveCancellation?.Dispose();
+            _udp = null;
+            _receiveCancellation = null;
+        }
     }
 
     public void Dispose() => Stop();
@@ -97,15 +113,16 @@ public sealed class OscInputReceiver : IDisposable
     //  Receive loop
     // ────────────────────────────────────────────────────────────────
 
-    private void ReceiveLoop()
+    private async Task ReceiveLoopAsync(UdpClient udp, CancellationToken cancellationToken)
     {
-        var endPoint = new IPEndPoint(IPAddress.Any, 0);
-        while (_running)
+        while (!cancellationToken.IsCancellationRequested)
         {
             try
             {
-                byte[] data = _udp!.Receive(ref endPoint);
-                var source = CreateSource(endPoint);
+                var packet = await udp.ReceiveAsync(cancellationToken).ConfigureAwait(false);
+                if (cancellationToken.IsCancellationRequested) break;
+                byte[] data = packet.Buffer;
+                var source = CreateSource(packet.RemoteEndPoint);
                 if (IsSourceAllowed?.Invoke(source) == false) continue;
                 var handled = OscPacketParser.ParseAvatarPacket(
                     data,
@@ -120,7 +137,7 @@ public sealed class OscInputReceiver : IDisposable
                 if (!handled)
                     OnUnhandledPacket?.Invoke(data, source);
             }
-            catch (SocketException) when (!_running)
+            catch (Exception) when (cancellationToken.IsCancellationRequested)
             {
                 break; // graceful shutdown
             }

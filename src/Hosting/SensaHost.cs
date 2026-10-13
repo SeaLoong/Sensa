@@ -608,6 +608,7 @@ public static class SensaHost
             {
                 try
                 {
+                    oscReceiver.Reconfigure(config.Osc.ReceiverHost, config.Osc.ReceiverPort);
                     oscReceiver.Start();
                     oscListenerError = null;
                     Log($"[OSC] Listening on {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}");
