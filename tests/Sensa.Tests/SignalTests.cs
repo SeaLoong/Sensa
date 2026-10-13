@@ -65,10 +65,22 @@ public class SignalTests
     {
         var depth = new SpsDepthEstimator();
         Assert.Equal(0, depth.Process(.9f, 1));
-        Assert.Equal(0, depth.Process(.7f, .9f)); // measured 20 cm before entry
-        Assert.InRange(depth.Process(.9f, 1), .49f, .51f);
+        Assert.Equal(0, depth.Process(.71f, .9f)); // native 1 cm Root sender, 20 cm length sphere
+        Assert.InRange(depth.Process(.91f, 1), .49f, .51f);
         Assert.Equal(0, depth.Process(0, 0));
         Assert.Equal(0, depth.Process(.9f, 1));
+    }
+
+    [Fact]
+    public void NativeSpsFixtureRestoresRootRadiusAndRetainsRadialOffsetLimitation()
+    {
+        var depth = new SpsDepthEstimator();
+        Assert.Equal(0, depth.Process(.77f, .96f)); // socket 24 cm from root, length 20 cm
+        Assert.InRange(depth.Process(.89f, 1), .3999f, .4001f); // on axis, 12 cm exposed
+        var radialDistance = MathF.Sqrt(.12f * .12f + .06f * .06f);
+        Assert.InRange(depth.Process(1 - radialDistance + .01f, 1), .3291f, .3293f);
+        // Root saturation cannot resolve distances within its 1 cm sender sphere.
+        Assert.InRange(depth.Process(1, 1), .9499f, .9501f);
     }
 
     [Fact]
