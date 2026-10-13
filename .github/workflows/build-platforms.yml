@@ -1,0 +1,56 @@
+name: Native platform builds
+on:
+  workflow_call:
+    inputs:
+      label:
+        type: string
+        default: ''
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: windows-latest, rid: win-x64}
+          - {runner: windows-11-arm, rid: win-arm64}
+          - {runner: ubuntu-24.04, rid: linux-x64}
+          - {runner: ubuntu-24.04-arm, rid: linux-arm64}
+          - {runner: macos-15-intel, rid: osx-x64}
+          - {runner: macos-15, rid: osx-arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - run: npm ci
+      - run: npm test
+      - name: Native tests, self-contained smoke and archive
+        env:
+          TARGET_RID: ${{ matrix.rid }}
+          BUILD_LABEL: ${{ inputs.label }}
+        shell: bash
+        run: python scripts/build-platform.py --runtime "$TARGET_RID" --label "$BUILD_LABEL"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-${{ matrix.rid }}
+          path: artifacts/platform/${{ matrix.rid }}/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: tests-${{ matrix.rid }}
+          path: artifacts/test-results/${{ matrix.rid }}/
+          if-no-files-found: warn

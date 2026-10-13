@@ -1,4 +1,4 @@
-name: Validate
+name: Validate and preview
 on:
   pull_request:
   push:
@@ -12,47 +12,54 @@ concurrency:
   cancel-in-progress: true
 jobs:
   validate:
-    runs-on: windows-latest
-    timeout-minutes: 25
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
-      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
-        with:
-          global-json-file: global.json
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: '3.12'
+          python-version: '3.14'
       - run: npm ci
       - run: npm test
       - run: npm audit --audit-level=high
-      - run: dotnet restore tests/Sensa.Tests/Sensa.Tests.csproj --locked-mode
-      - run: dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release --no-restore --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results
       - run: python scripts/release.py check-unity
       - run: python -m unittest discover -s tests/scripts
-      - run: python scripts/smoke.py --dll bin/Sensa/Release/net10.0/Sensa.dll
-      - name: Build self-contained app and validate both release archives (no publishing)
-        shell: pwsh
+      - name: Package Unity preview
+        env:
+          BUILD_LABEL: preview.${{ github.run_number }}.${{ github.sha }}
         run: |
-          dotnet publish src/Sensa.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true -o artifacts/ci-publish
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python scripts/smoke.py --exe artifacts/ci-publish/Sensa.exe
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          $appVersion = (Get-Content package.json | ConvertFrom-Json).version
-          $unityVersion = (Get-Content unity/top.sealoong.sensa/package.json | ConvertFrom-Json).version
-          python scripts/release.py app --tag "v$appVersion" --source artifacts/ci-publish --output artifacts/ci-packages/app
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-          python scripts/release.py unity --tag "unity-v$unityVersion" --output artifacts/ci-packages/unity
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - name: Preserve test reports and validated archives
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+          VERSION=$(python -c "import json;print(json.load(open('unity/top.sealoong.sensa/package.json'))['version'])")
+          python scripts/release.py unity --tag "unity-v$VERSION" --label "$BUILD_LABEL" --output artifacts/unity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: validation-results
-          path: |
-            artifacts/test-results/
-            artifacts/ci-packages/
-          if-no-files-found: warn
+          name: build-unity
+          path: artifacts/unity/
+          if-no-files-found: error
+  platforms:
+    uses: ./.github/workflows/build-platforms.yml
+    with:
+      label: preview.${{ github.run_number }}.${{ github.sha }}
+  prerelease:
+    needs: [validate, platforms]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: build-*
+          path: artifacts/downloaded
+      - name: Publish complete prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: python scripts/publish-preview.py

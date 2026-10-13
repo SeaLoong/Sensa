@@ -22,15 +22,13 @@ namespace Sensa.Hosting;
 
 public static class SensaHost
 {
-    // Sensa is Windows-only (WMI + Registry for serial port enumeration)
-#pragma warning disable CA1416
     private const int ManualDefaultSpeed = 999;
     private const int ManualDefaultIntervalMs = 100;
     private const int ManualIntervalMaxMs = 1000;
 
     public static async Task RunAsync(string[] args)
     {
-        Console.Title = "Sensa";
+        if (OperatingSystem.IsWindows()) Console.Title = "Sensa";
         Console.WriteLine("Sensa Web Service starting…");
 
         var configUpdateGate = new SemaphoreSlim(1, 1);
@@ -2291,6 +2289,7 @@ public static class SensaHost
     private static Dictionary<string, string> ReadSerialPortDescriptions()
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!OperatingSystem.IsWindows()) return result;
 
         try
         {
@@ -2348,6 +2347,7 @@ public static class SensaHost
     private static Dictionary<string, string> ReadSerialPortDescriptionsFromRegistry()
     {
         var result = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        if (!OperatingSystem.IsWindows()) return result;
         try
         {
             using var key = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");

@@ -1,4 +1,4 @@
-name: Release Windows app
+name: Release desktop apps
 on:
   push:
     tags: ['v*']
@@ -9,41 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '24'
-          cache: npm
-      - uses: actions/setup-dotnet@26b0ec14cb23fa6904739307f278c14f94c95bf1 # v5
-        with:
-          global-json-file: global.json
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.12'
-      - run: npm ci
-      - run: npm test
-      - run: npm audit --audit-level=high
-      - run: python -m unittest discover -s tests/scripts
-      - run: dotnet restore tests/Sensa.Tests/Sensa.Tests.csproj --locked-mode
-      - run: dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release --no-restore
-      - name: Publish full application
-        shell: pwsh
-        run: |
-          $version = $env:GITHUB_REF_NAME.Substring(1)
-          if ($version -ne (Get-Content package.json | ConvertFrom-Json).version) { throw 'Tag and package version differ' }
-          dotnet publish src/Sensa.csproj -c Release -r win-x64 --self-contained true -p:RestoreLockedMode=true -p:Version=$version -o artifacts/publish
-          if ($LASTEXITCODE) { exit $LASTEXITCODE }
-      - run: python scripts/smoke.py --exe artifacts/publish/Sensa.exe
-      - run: python scripts/release.py app --source artifacts/publish
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-app
-          path: |
-            artifacts/release/
-            artifacts/release-notes.txt
-          if-no-files-found: error
+    uses: ./.github/workflows/build-platforms.yml
   release:
     needs: build
     runs-on: ubuntu-latest
@@ -52,7 +18,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
-          name: release-app
+          pattern: build-*
           path: artifacts
       - name: Create immutable release
         env:
@@ -60,6 +26,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
-          args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --notes-file artifacts/release-notes.txt)
+          args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --generate-notes)
           if [[ "$GITHUB_REF_NAME" == *-* ]]; then args+=(--prerelease); fi
-          gh "${args[@]}" artifacts/release/*
+          mapfile -d '' files < <(find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -print0)
+          gh "${args[@]}" "${files[@]}"

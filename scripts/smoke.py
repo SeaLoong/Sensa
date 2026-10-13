@@ -66,6 +66,7 @@ def main():
                 except urllib.error.HTTPError as error: assert error.code == 403
                 snapshot = json.load(request('/api/state/overview', {'Cookie':cookie}))
                 assert not snapshot['runtime']['inputActive']
+                assert isinstance(json.load(request('/api/meta/serial-ports', {'Cookie':cookie})), list)
                 with socket.create_connection(('127.0.0.1', port), timeout=5) as ws:
                     key = base64.b64encode(os.urandom(16)).decode()
                     ws.sendall((f'GET /api/ws HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nOrigin: {base}\r\nCookie: {cookie}\r\n\r\n').encode())

@@ -10,12 +10,30 @@ from unittest.mock import patch
 import urllib.error
 import hashlib
 import zipfile
+import tarfile
 
 ROOT = Path(__file__).resolve().parents[2]
 spec = importlib.util.spec_from_file_location('release_tools', ROOT / 'scripts/release.py')
 release = importlib.util.module_from_spec(spec); spec.loader.exec_module(release)
 
 class ReleaseTests(unittest.TestCase):
+    def test_unix_archives_are_reproducible_and_preserve_the_launcher_permission(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder);(root/'src').mkdir();(root/'src/Sensa').write_bytes(b'apphost');(root/'src/README.md').write_text('guide')
+            release.tar_directory(root/'src',root/'one.tar.gz');release.tar_directory(root/'src',root/'two.tar.gz')
+            self.assertEqual((root/'one.tar.gz').read_bytes(),(root/'two.tar.gz').read_bytes())
+            with tarfile.open(root/'one.tar.gz') as archive:self.assertEqual(archive.getmember('Sensa').mode,0o755)
+    def test_preview_collection_requires_every_platform_and_valid_checksums(self):
+        spec=importlib.util.spec_from_file_location('preview',ROOT/'scripts/publish-preview.py');preview=importlib.util.module_from_spec(spec);spec.loader.exec_module(preview)
+        with tempfile.TemporaryDirectory() as folder:
+            root=Path(folder)
+            with self.assertRaises(ValueError):preview.collect(root)
+            for rid in (*preview.RUNTIMES,'unity'):
+                path=root/rid;path.mkdir();name='top.sealoong.sensa-0.4.0-preview.zip' if rid=='unity' else 'Sensa-0.4.0-preview-'+rid+('.zip' if rid.startswith('win-') else '.tar.gz')
+                payload=path/name;payload.write_bytes(b'fixture');(path/'SHA256SUMS.txt').write_text(hashlib.sha256(b'fixture').hexdigest()+'  '+name+'\n')
+            self.assertEqual(len(preview.collect(root)),7)
+            (root/'linux-x64'/'Sensa-0.4.0-preview-linux-x64.tar.gz').write_bytes(b'corrupt')
+            with self.assertRaises(ValueError):preview.collect(root)
     def test_desktop_archive_includes_the_linked_usage_guides(self):
         version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
         with tempfile.TemporaryDirectory() as folder:

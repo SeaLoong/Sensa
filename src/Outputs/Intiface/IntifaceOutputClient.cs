@@ -228,7 +228,7 @@ public sealed class EmbeddedIntifaceEngine : IDisposable
         var enginePath = FindEngine();
         if (enginePath is null)
         {
-            Console.Error.WriteLine("[Intiface] intiface-engine.exe not found. " +
+            Console.Error.WriteLine("[Intiface] intiface-engine not found. " +
                                     "Use Intiface Central or place it next to the executable.");
             return false;
         }
@@ -265,11 +265,12 @@ public sealed class EmbeddedIntifaceEngine : IDisposable
 
     private static string? FindEngine()
     {
-        var sibling = Path.Combine(AppContext.BaseDirectory, "intiface-engine.exe");
+        var executable = OperatingSystem.IsWindows() ? "intiface-engine.exe" : "intiface-engine";
+        var sibling = Path.Combine(AppContext.BaseDirectory, executable);
         if (File.Exists(sibling)) return sibling;
 
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
-        var cached = Path.Combine(localAppData, "Sensa", "intiface-engine.exe");
+        var cached = Path.Combine(localAppData, "Sensa", executable);
         if (File.Exists(cached)) return cached;
 
         return null;
