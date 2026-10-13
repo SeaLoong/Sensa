@@ -1,6 +1,8 @@
 import React from 'react';
 import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
+import OutputPositionPanel from './OutputPositionPanel.jsx';
+import HelpDialog from './HelpDialog.jsx';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
 import { pointPreviewEntry, posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
@@ -3138,6 +3140,8 @@ function App() {
   const [parameterDetail, setParameterDetail] = useState(null);
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [oscSettingsTab, setOscSettingsTab] = useState('basic');
+  const [oscWorkspaceTab,setOscWorkspaceTab]=useState('setup');
+  const [helpOpen,setHelpOpen]=useState(false);
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
   const [profileDialog, setProfileDialog] = useState(null);
@@ -3645,6 +3649,7 @@ function App() {
   }
 
   function usePointRig(point, calibrated = null) {
+    setOscWorkspaceTab('setup');
     setSignalDrafts(previous => [...previous.filter(s=>!['SensaPose','SensaPoint'].includes(s.sourceMode) && s.role!=='Depth'),makeSignalDraft(calibrated || {oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
     notify(calibrated?'已按采集的轴向和量程生成草稿；请确认来源和目标轴后保存。尚未启用输出。':'已添加本地 Z 位移草稿；请校准量程后保存，或在本地点面板使用两点校准。','info');
   }
@@ -5258,17 +5263,17 @@ function App() {
             backgroundColor: 'rgba(255,255,255,0.82)',
           }}
         >
-          <Toolbar sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
+          <Toolbar className="studio-toolbar" sx={{ gap: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
             <Box sx={{ mr: 'auto' }}>
               <Typography variant="h6" sx={{ fontWeight: 800 }}>
                 Sensa WebUI
               </Typography>
             </Box>
 
-            <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} label={formatRealtimeStatus(wsState)} />
-            <Chip size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.toolbarLabel} />
-            <Chip size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
-            <Chip size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
+            <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} title={formatRealtimeStatus(wsState)} label={wsState==='connected'?'在线':wsState==='connecting'?'连接中':'离线'} />
+            <Chip className="toolbar-secondary" size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.toolbarLabel} />
+            <Chip className="toolbar-secondary" size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
+            <Chip className="toolbar-secondary" size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
 
             {runtimeOverview?.isEmergency ? (
               <Button variant="contained" color="success" size="small" onClick={clearEmergency} disabled={busyKey === 'emergency-clear'}>
@@ -5282,7 +5287,9 @@ function App() {
           </Toolbar>
         </AppBar>
 
+        <HelpDialog open={helpOpen} onClose={()=>setHelpOpen(false)} />
         <Box className="page-main">
+          <Box className="quick-start"><Typography variant="body2">连接输出 → 设置输入 → 校准映射 → 启用输入</Typography><Button size="small" onClick={()=>setHelpOpen(true)}>使用帮助</Button></Box>
           {runtimeOverview?.isEmergency && <Alert severity="warning">当前已停止所有输出。</Alert>}
 
           <Card className="section-card" variant="outlined">
@@ -5357,8 +5364,12 @@ function App() {
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
                   {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
-                  <PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} />
-                  <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig} />
+                  <Tabs value={oscWorkspaceTab} onChange={(_,value)=>setOscWorkspaceTab(value)} variant="scrollable" allowScrollButtonsMobile aria-label="OSC 工作区">
+                    <Tab value="setup" label="参数与映射"/><Tab value="diagnostics" label="空间诊断"/><Tab value="calibration" label="量程校准"/>
+                  </Tabs>
+                  <Box hidden={oscWorkspaceTab!=='diagnostics'}><PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} /></Box>
+                  <Box hidden={oscWorkspaceTab==='setup'}><SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig} mode={oscWorkspaceTab==='calibration'?'calibration':'diagnostics'} /></Box>
+                  <Box hidden={oscWorkspaceTab!=='setup'}>
                   <Box className="osc-section-grid">
                     <Box className="dialog-panel osc-settings-panel">
                       <Box className="dialog-panel__header osc-settings-panel__header">
@@ -5768,6 +5779,7 @@ function App() {
                       </Typography>
                     )}
                   </Box>
+                  </Box>
                 </Stack>
               </TabPanel>
 
@@ -5989,6 +6001,7 @@ function App() {
                                 {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`速度基准 · ${formatSpeedUnitBaseLabel(tcodeSettings?.speedUnitBase || output.speedUnitBase)}`} />}
                               </Stack>
 
+                              <OutputPositionPanel state={outputState} />
                               {output.type === 'TCodeSerial' && (
                                 <TCodeDeviceInfoCard
                                   deviceInfo={tcodeDeviceInfo}

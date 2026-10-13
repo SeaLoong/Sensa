@@ -17,7 +17,7 @@ function PointProjection({point}) {
   </svg>;
 }
 
-export default function SpsRootPanel({ observations = [], onUsePoint }) {
+export default function SpsRootPanel({ observations = [], onUsePoint, mode = 'diagnostics' }) {
   const [selected, setSelected] = useState('');
   const [metric, setMetric] = useState('Z');
   const [zero, setZero] = useState(null);
@@ -31,7 +31,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   const samePoint = sample => sample && sample.key===root?.key && sample.metric===metric;
   return <Box className="dialog-panel pose-panel">
     <Stack direction="row" gap={1} alignItems="center" useFlexGap flexWrap="wrap">
-      <Typography variant="subtitle1" fontWeight={700}>位置诊断与校准</Typography>
+      <Typography variant="subtitle1" fontWeight={700}>{mode==='calibration'?'量程校准':'位置诊断'}</Typography>
       <Chip size="small" label={local ? '本地骨骼 / PB · 局部坐标' : '单侧 SPS · 诊断'} variant="outlined" />
     </Stack>
     <Typography variant="body2" color="text.secondary" sx={{ my: 1 }}>{local ? '读取自己的骨骼或 PB 把手位置；不是对方的完整姿态，也不是 GPU 形变网格。PB 把手仅在抓取时启用。' : '自己安装根部探针，对方保留标准 TPS_Pen_Root 即可。共享阵列一次只测量一个槽位；不能据此还原尖端、倾角、扭转或插入比例。'}</Typography>
@@ -43,7 +43,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
         {root.kind === 'SharedRoot' && <Chip size="small" label={`共享槽位 ${root.slot || '停用'}`} />}
       </Stack>
       {!root.valid && <Alert severity="warning" sx={{mt:1}}>当前不能采集校准点：{root.reason}。检查目标是否在范围内、采样是否完整；PB 还需保持抓取。</Alert>}
-      <Box className="point-diagnostic-grid">
+      {mode!=='calibration' && <Box className="point-diagnostic-grid">
       <PointProjection point={root}/>
       <Box className="pose-metrics" sx={{ my: 1 }}>
         {[
@@ -53,10 +53,12 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
           [local ? '姿态 / 插入比例' : '尖端 / 姿态 / 行程', '不可观测'],
         ].map(([label, value]) => <Box className="pose-metric" key={label}><Typography variant="caption" color="text.secondary">{label}</Typography><Typography fontWeight={700}>{value}</Typography></Box>)}
       </Box>
-      </Box>
-      {local && <Box className="point-calibration" sx={{my:1}}>
+      </Box>}
+      {mode==='calibration' && !local && <Alert severity="info" sx={{my:2}}>请选择 Point 或 Handle 本地点进行量程校准。标准 SPS Root 和共享根部只有诊断位置，不能当作完整行程。</Alert>}
+      {mode==='calibration' && local && <Box className="point-calibration" sx={{my:1}}>
         <Typography variant="subtitle2">两点量程校准</Typography>
         <Typography variant="caption" color="text.secondary">将目标移到期望的 0% 和 100% 位置，分别采集。PB 把手采集时须保持抓取；生成草稿不会保存配置或启用输出。</Typography>
+        <Box sx={{mt:1}}><Chip size="small" variant="outlined" color={endpoint?'primary':'default'} label={`当前 ${metric==='Distance'?'距原点':metric}：${endpoint?cm(endpoint.value)+' cm':'等待有效采样'}`}/></Box>
         <Stack direction="row" gap={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{my:1}}>
           <FormControl size="small" sx={{minWidth:130}}><InputLabel id="point-axis-label">测量轴</InputLabel><Select labelId="point-axis-label" label="测量轴" value={metric} onChange={e=>{setMetric(e.target.value);setZero(null);setFull(null);}}>{['X','Y','Z','Distance'].map(axis=><MenuItem key={axis} value={axis}>{axis==='Distance'?'距参考原点':axis}</MenuItem>)}</Select></FormControl>
           <Button size="small" onClick={()=>{setZero(null);setFull(null);}}>清除采样</Button>
