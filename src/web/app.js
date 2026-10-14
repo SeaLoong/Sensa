@@ -3,6 +3,7 @@ import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
+import firstRunMotion from './data/first-run-motion.json';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
 import { pointPreviewEntry, posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
@@ -397,6 +398,8 @@ function createAxisProfilePresetMotion(presetId) {
   };
 
   switch (presetId) {
+    case 'osr-first-run':
+      return normalizeMotionProfile(firstRunMotion, false);
     case 'sr6-full':
       ignoreAxes(['v0', 'v1', 'v2', 'a0', 'a1', 'a2']);
       return profile;
@@ -416,6 +419,11 @@ function createAxisProfilePresetMotion(presetId) {
 }
 
 const AXIS_PROFILE_PRESETS = [
+  {
+    id: 'osr-first-run',
+    name: 'OSR 首次测试 · L0 小行程',
+    description: '只输出 L0，逻辑 0–100% 映射为 TCode 400–600，速度上限 100；其他轴忽略。先确认设备中位与允许范围。该模板不是硬件校准，保存不会自动启用运动。',
+  },
   {
     id: 'sr6-full',
     name: 'SR6 / OSR6 六轴',
@@ -5289,6 +5297,10 @@ function App() {
 
         <HelpDialog open={helpOpen} onClose={()=>setHelpOpen(false)} />
         <Box className="page-main">
+          {visibleOutputs.length === 0 && <Alert severity="info" sx={{mb:2}}>
+            第一次使用 OSR？先给 Avatar 添加 Quick Start World Receiver，在测试世界核对 OSC，再连接设备。
+            <Button component="a" href="https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md" target="_blank" rel="noreferrer" size="small">完整入门步骤</Button>
+          </Alert>}
           <Box className="quick-start"><Typography variant="body2">连接输出 → 设置输入 → 校准映射 → 启用输入</Typography><Button size="small" onClick={()=>setHelpOpen(true)}>使用帮助</Button></Box>
           {runtimeOverview?.isEmergency && <Alert severity="warning">当前已停止所有输出。</Alert>}
 

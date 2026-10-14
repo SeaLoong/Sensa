@@ -1,5 +1,9 @@
 # Sensa Avatar 测试工程工具
 
+**新用户链路使用 `Assets/SensaAvatarLab/Capabilities/QuickStart.unity`。** 它是 Chocolat 加一个 Quick Start World Receiver，无 SPS/PB/Shader 夹具；适配测试世界出生点旁 START HERE。步骤见 [OSR 首次使用](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。
+
+生成入口 **Tools → Sensa Avatar Lab → Create first-run avatar**；验证入口 **Validate first-run avatar**；离线上传包构建入口 **Build Quick Start with SDK (no upload)**。生成报告 `Validation/quick-start-avatar.json`，确认两个本地、非保存、默认 0 的参数和右手接收器。已有场景不会被覆盖。SDK 构建并不等于已经上传或验证真实 OSC/硬件。
+
 Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITIES.md)，优先按该文档逐项测试。原 Exclusive/Shared 保留作完整组合对照。
 
 为独立 Avatars 项目生成两套 Chocolat 测试场景，使用现成的 SPS 棒棒糖道具、两个可见 Socket 标记和 Sensa 自动配置。工具不上传 Avatar，也不包含模型或付费资源。

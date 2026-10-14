@@ -1,0 +1,15 @@
+{
+  "useGlobal": false,
+  "l0": { "min": 400, "max": 600, "remapMin": 400, "remapMax": 600, "maxSpeed": 100, "mode": "Normal", "commandMode": "Interval" },
+  "l1": { "mode": "Ignored" },
+  "l2": { "mode": "Ignored" },
+  "r0": { "mode": "Ignored" },
+  "r1": { "mode": "Ignored" },
+  "r2": { "mode": "Ignored" },
+  "v0": { "mode": "Ignored" },
+  "v1": { "mode": "Ignored" },
+  "v2": { "mode": "Ignored" },
+  "a0": { "mode": "Ignored" },
+  "a1": { "mode": "Ignored" },
+  "a2": { "mode": "Ignored" }
+}

@@ -1,6 +1,8 @@
 # 选择映射预设
 
-当前共 28 个内置预设。它们生成映射草稿，不会自动连接设备、启用输入或替代量程校准。通配路径用于发现目标；实际使用应限定到一个实例和来源。
+当前共 29 个内置预设。它们生成映射草稿，不会自动连接设备、启用输入或替代量程校准。通配路径用于发现目标；实际使用应限定到一个实例和来源。
+
+- 首次连接 OSR：选 **入门 · 测试世界 → 我的 Avatar**，按 [首次使用](quick-start.md) 给自己的 Avatar 添加 Quick Start World Receiver，在世界 START HERE 测试。
 
 - 没装 Sensa 定位资产、只使用常规 SPS：先选 SPS Socket/Plug 对应角色，按 Self/Others 筛选。新 Root/Tip 成对输入是近似径向深度，不能校正所有偏移。
 - 自己安装本地点测量：选 `Sensa 本地点` 的 Z/三轴/距离，或优先在校准页按真实采样生成单轴草稿。
@@ -11,6 +13,7 @@
 
 | 预设 | ID | 映射条数 |
 | --- | --- | --- |
+| 入门 · 测试世界 → 我的 Avatar | `sensa-quick-start` | 2 |
 | Sensa Pose · 几何深度 | `sensa-pose-depth` | 1 |
 | Sensa Pose · 六轴（需校准） | `sensa-pose-full` | 6 |
 | Sensa 本地点 · Z 位移（需校准） | `sensa-point-z` | 1 |

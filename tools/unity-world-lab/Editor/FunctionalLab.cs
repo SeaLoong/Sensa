@@ -148,7 +148,7 @@ namespace SensaLab
             if(!collider)UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());
             var material=new Material(Shader.Find("Unlit/Color")){color=color};AssetDatabase.CreateAsset(material,AssetDatabase.GenerateUniqueAssetPath(Root+"/"+name.Replace(" ","_")+".mat"));go.GetComponent<Renderer>().sharedMaterial=material;return go;
         }
-        static Text Board(Transform parent,string name,Vector3 position,string value)
+        public static Text Board(Transform parent,string name,Vector3 position,string value)
         {
             var canvas=new GameObject(name,typeof(RectTransform)).AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.transform.SetParent(parent,false);canvas.transform.localPosition=position;canvas.transform.localScale=Vector3.one*.0013f;((RectTransform)canvas.transform).sizeDelta=new Vector2(1400,760);
             Cube(parent,name+" backing",position+Vector3.forward*.012f,new Vector3(1.82f,.988f,.01f),new Color(.02f,.04f,.07f),false);

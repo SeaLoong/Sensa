@@ -109,7 +109,9 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
         if (ROOT/'docs').exists():
-            for path in (ROOT/'docs').rglob('*.md'):
+            for path in (ROOT/'docs').rglob('*'):
+                if not path.is_file() or path.suffix.lower() not in ('.md', '.png'):
+                    continue
                 destination=source/path.relative_to(ROOT);destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(path.read_bytes())
         (source/'BUILD-INFO.json').write_text(json.dumps({'version':version,'runtime':args.runtime,'label':args.label,'commit':os.environ.get('GITHUB_SHA','')},indent=2)+'\n',encoding='utf-8')
     suffix='zip' if args.kind=='unity' or args.runtime.startswith('win-') else 'tar.gz'

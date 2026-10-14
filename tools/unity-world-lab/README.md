@@ -1,5 +1,11 @@
 # Sensa 测试世界
 
+**新用户请先打开 `Assets/SensaLab/Functional/FunctionalLab.unity`，使用出生点旁的 `00 START HERE`。** 它直接刺激访问者自己 Avatar 的入门接收器，由 VRChat 发 OSC 给 Sensa。组件安装、预设、OSR 连接和预期数值见 [首次使用指南](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。无需图像桥接。
+
+该台默认停止；提供五档阶梯、右手腕靠近可拾取测试球、停止和复位。每次操作最多运行 60 秒，离开 3 米或更换 Avatar 会关闭门控。面板标记 Expected，实际接收与输出要在 Sensa 确认。SDK ClientSim 的世界读数不能替代客户端 Avatar OSC 测试。
+
+更新已有功能世界：先运行安装脚本，再选择 **Tools → Sensa Lab → Add first-run avatar bench**（只新增一次，不覆盖已有台）。自动验证入口 `SensaLab.QuickStartValidation.Run` 生成 `Validation/quick-start/results.json` 和 `bench.png`，验证实际 Udon、SDK Proximity、Stop 与过期状态。结果使用世界内参考接收器，不冒充上传 Avatar 的结果。
+
 **按系统测试请先看[能力矩阵与 Sensa 联动](CAPABILITIES.md)**，打开 `Assets/SensaLab/Functional/FunctionalLab.unity`。下面的 11 站是另一个几何边界回归场景。
 
 这里可以先体验位置测量、PB 手柄和几何异常，不需要连接输出设备。世界不会自动给 Sensa 或硬件发送运动。

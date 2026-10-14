@@ -2,7 +2,9 @@
 
 把 VRChat 的 OSC 参数或动作脚本转换为 Intiface / TCode 设备控制，使用浏览器完成配置和预览。
 
-[下载开发预览版](https://github.com/SeaLoong/Sensa/releases) · [使用指南](docs/guide.md) · [选择预设](docs/presets.md)
+[下载开发预览版](https://github.com/SeaLoong/Sensa/releases) · **[OSR 首次使用](docs/quick-start.md)** · [使用指南](docs/guide.md) · [选择预设](docs/presets.md)
+
+刚买 OSR？先按首次使用指南，用自己的 Avatar 和测试世界验证信号，再连接设备。入门组件自动配置，无需 SPS、手动摆放、摄像机或 Python。设备仍需支持相应 TCode 固件并完成硬件校准。
 
 ## 开始使用
 

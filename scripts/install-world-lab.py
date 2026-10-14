@@ -22,6 +22,7 @@ def main():
     for name in ['SensaGpuProbe.cs', 'SpsGpuProbe.shader.txt', 'SpsGpuDependencies.sha256.txt']:
         sources.append((ROOT / 'unity/top.sealoong.sensa/Editor' / name, Path('Editor') / name))
     sources.append((ROOT / 'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs', Path('Shared/SensaPoseProtocol.cs')))
+    sources.append((ROOT / 'unity/top.sealoong.sensa/Runtime/SensaQuickStartProtocol.cs', Path('Shared/SensaQuickStartProtocol.cs')))
     previous = json.loads(ownership.read_text(encoding='utf-8')) if ownership.exists() else {}
     for source, relative in sources:
         destination = target / relative

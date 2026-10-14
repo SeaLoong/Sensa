@@ -262,6 +262,9 @@ namespace SensaAvatarLab
         [MenuItem("Tools/Sensa Avatar Lab/Build Shader with SDK (no upload)")]
         public static void BuildShaderWithSdk() => BuildSceneWithSdk("Assets/SensaAvatarLab/Capabilities/Shader.unity", "Shader", "sdk-shader-build");
 
+        [MenuItem("Tools/Sensa Avatar Lab/Build Quick Start with SDK (no upload)")]
+        public static void BuildQuickStartWithSdk() => BuildSceneWithSdk(QuickStartAvatar.Scene, "QuickStart", "sdk-quick-start-build");
+
         private static async void BuildSceneWithSdk(string scenePath, string variant, string reportName)
         {
             PrepareBatchMode();

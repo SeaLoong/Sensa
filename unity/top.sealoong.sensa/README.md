@@ -7,7 +7,8 @@
 1. 使用 VCC/ALCOM 打开 **Avatars** 项目，不要安装到 Worlds 项目。
 2. 安装 VRChat Avatars SDK、Modular Avatar 及其 NDMF 依赖。使用 SPS 自动配置时，还需先装好 VRCFury 并配置原本的 SPS。
 3. 解压 Sensa Unity ZIP，在 Package Manager 中选择 **Add package from disk**，指向其中的 `package.json`；也可选择本仓库的同名文件。
-4. 选择 Avatar 根对象，添加 **Sensa → Automatic SPS Setup**。
+4. 首次验证 Avatar → OSC → Sensa：在 Avatar 根添加 **Sensa → Quick Start World Receiver**，重新上传。无需 SPS 或手动摆放，按 [OSR 首次使用指南](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md) 在测试世界体验。
+5. 需要 SPS 定位扩展时，再添加 **Sensa → Automatic SPS Setup**。它默认只有 Root 位置诊断，并不自动生成可用的行程。
 
 当前验证环境和完整依赖说明见 [兼容性指南](COMPATIBILITY.md)。Unity 版本优先跟随 VCC 对该项目的要求。
 

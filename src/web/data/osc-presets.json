@@ -1,5 +1,14 @@
 [
   {
+    "id": "sensa-quick-start",
+    "name": "入门 · 测试世界 → 我的 Avatar",
+    "description": "配合 Avatar 的 Quick Start World Receiver 和世界 START HERE 操作台。无需 SPS、相机或 Python。阶梯测试预期 0/25/50/75/100%，Active 为门控；Stop 关闭门控。只验证链路，不表示 SPS 深度。",
+    "mappings": [
+      {"oscPath": "Sensa/QuickStart/Depth", "role": "Depth", "vrchatMin": 0, "vrchatMax": 1},
+      {"oscPath": "Sensa/QuickStart/Active", "role": "GateEnable"}
+    ]
+  },
+  {
     "id": "sensa-pose-depth",
     "name": "Sensa Pose · 几何深度",
     "description": "配套三标记 / 24 接收器。使用轴线与孔口平面的交点求插入比例。丢失或无效时停止，不回退旧 OGB。",

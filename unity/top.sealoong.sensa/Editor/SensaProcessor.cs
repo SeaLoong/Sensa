@@ -30,6 +30,7 @@ namespace UnityBox.Sensa
             InPhase(BuildPhase.Generating)
                 .Run("Sensa/GenerateContacts", ctx =>
                 {
+                    SensaQuickStartBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaAutoBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaPointBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaPoseBuilder.ProcessAvatar(ctx.AvatarRootObject);
@@ -58,6 +59,7 @@ namespace UnityBox.Sensa
             // Already handled by the NDMF plugin.
             return true;
 #else
+            SensaQuickStartBuilder.ProcessAvatar(avatarGameObject);
             SensaAutoBuilder.ProcessAvatar(avatarGameObject);
             SensaPointBuilder.ProcessAvatar(avatarGameObject);
             SensaPoseBuilder.ProcessAvatar(avatarGameObject);
