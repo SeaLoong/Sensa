@@ -36,12 +36,12 @@ namespace SensaAvatarLab
             EditorSceneManager.CloseScene(shaderScene, true);
             // The bench is self-contained; the SPS prop and measurement selectors retain their original Off defaults.
             EditorSceneManager.SetActiveScene(scene); EditorSceneManager.SaveScene(scene, Scene); AssetDatabase.SaveAssets();
-            Validate();
+            FullFlowInteraction.Upgrade();Validate();
         }
         [Serializable] public class Report
         {
-            public bool passed, shaderDefaultsOff, selectorsDefaultOff, handlesGrabWithoutCollision;
-            public int contacts, cameras, parameterCost;
+            public bool passed, shaderDefaultsOff, selectorsDefaultOff, handlesGrabWithoutCollision, placementBindingsValid, probeGuidesAligned;
+            public int contacts, cameras, parameterCost, movableTargets, unsupportedTextComponents, probeGuideCount;
             public string[] missingAnimatorParameters, menuLabels;
             public string scope;
         }
@@ -73,11 +73,20 @@ namespace SensaAvatarLab
             Menu(descriptor.expressionsMenu);
             var report = new Report { scope = scope, contacts = baseline.contacts, parameterCost = baseline.parameterCost,
                 handlesGrabWithoutCollision = baseline.handlesGrabWithoutCollision,
-                cameras = avatar.GetComponentsInChildren<Camera>(true).Length,
+                cameras = avatar.GetComponentsInChildren<Camera>(true).Length, unsupportedTextComponents=avatar.GetComponentsInChildren<TextMesh>(true).Length,
                 missingAnimatorParameters = required.Distinct().Where(p => !names.Contains(p)).ToArray(), menuLabels = labels.ToArray(),
                 shaderDefaultsOff = parameters.Any(p => p.name == "Sensa/Select/Shader" && p.defaultValue == 0 && !p.saved),
                 selectorsDefaultOff = parameters.Any(p => p.name == "Sensa/Select/Lab" && p.defaultValue == 0 && !p.saved) };
+            report.placementBindingsValid=FullFlowInteraction.InspectBindings(avatar,out report.movableTargets);
+            var guides=avatar.GetComponentsInChildren<MeshRenderer>(true).Where(r=>System.Text.RegularExpressions.Regex.IsMatch(r.name,"^Probe [PC][1-8]$")).ToArray();report.probeGuideCount=guides.Length;
+            report.probeGuidesAligned=guides.Length==28&&guides.All(g=>{
+                int index=int.Parse(g.name.Substring(g.name.Length-1))-1;bool compact=g.name.StartsWith("Probe P");
+                return receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/A"+index)&&
+                    (compact?(r.parameter.StartsWith("Sensa/Point/")||r.parameter.StartsWith("Sensa/Handle/")):(r.parameter.StartsWith("Sensa/Pose/")||r.parameter.StartsWith("Sensa/SpsRoot/")))&&Vector3.Distance(g.transform.position,r.transform.TransformPoint(r.position))<.001f);
+            });
             report.passed = baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
+                && report.placementBindingsValid && report.unsupportedTextComponents==0 && report.probeGuidesAligned
+                && labels.Contains("Place in world")
                 && report.missingAnimatorParameters.Length == 0 && names.Contains(SensaQuickStartProtocol.Depth) && names.Contains(SensaQuickStartProtocol.Active)
                 && parameters.Any(p => p.name == "OGB_ENABLED") && labels.Contains("Enable SPS OSC (local)") && labels.Contains("Corrupt shader CRC");
             return report;

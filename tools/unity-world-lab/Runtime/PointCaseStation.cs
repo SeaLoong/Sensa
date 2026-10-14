@@ -29,6 +29,7 @@ namespace SensaLab
         private bool initialized;
         private Vector3 home;
         private int homeMissingLane;
+        private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857"};
         private void EnsureHome(){if(initialized)return;home=sender.transform.localPosition;homeMissingLane=missingLane;initialized=true;}
         public override void Interact() { TogglePause(); }
         public void TogglePause() { EnsureHome();frozen=!frozen;if(frozen)status.text+="\nPAUSED - click middle cube to resume";else Refresh();nextRefresh=0; }
@@ -47,8 +48,8 @@ namespace SensaLab
             string values="";
             for(int i=0;i<4;i++){
                 samples[i]=i==missingLane?-1:receivers[i].CalculateProximity(sender);
-                if(sampleBars!=null && sampleBars.Length==4){sampleBars[i].rectTransform.sizeDelta=new Vector2(650*Mathf.Clamp01(samples[i]),14);sampleBars[i].color=samples[i]<=.00001f || samples[i]>=.99999f?new Color(1,.35f,.25f):new Color(.2f,.8f,1);}
-                values+="A"+i+"="+(samples[i]<0?"MISSING":samples[i].ToString("F3"))+"  ";
+                if(sampleBars!=null && sampleBars.Length==4)sampleBars[i].rectTransform.sizeDelta=new Vector2(650*Mathf.Clamp01(samples[i]),14);
+                values+="<color="+colors[i]+">P"+(i+1)+"="+(samples[i]<0?"MISSING":samples[i].ToString("F3"))+"</color>  ";
                 if(samples[i]<=.00001f || samples[i]>=.99999f)decodedValid=false;
                 float distance=.35f*(1-samples[i])+.001f;
                 decodedPosition-=receivers[i].transform.localPosition*distance*distance;
@@ -67,7 +68,7 @@ namespace SensaLab
             status.text=caseName+"\n"+expectation+"\nSDK "+values+"\nTruth "+reference.InverseTransformPoint(sender.transform.position).ToString("F3")
                 +"\nDecoded "+(decodedValid?decodedPosition.ToString("F3"):"INVALID")+" | RMS "+(samplesUsable?(residual*1000).ToString("F2")+" mm":"n/a")
                 +"\n"+(atHome?(decodedValid==expectedValid?"EXPECTED RESULT":"CHECK FAILED"):"EXPLORING - reset for baseline")
-                +"\nGrab white ball | Cubes: Reset / Pause / Missing A3\nLocal SDK test; not avatar OSC / device output.";
+                +"\nGrab white ball | Reset / Pause / Missing P4\nP = probe sample, NOT TCode A0/A1/A2.\nLocal SDK test; not avatar OSC / device output.";
         }
     }
 }

@@ -30,10 +30,10 @@ namespace SensaLab
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
             if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();return;}
             var parent=new GameObject("Sensa point geometry cases");
-            string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing A3","10 Beyond fit volume","11 Origin"};
+            string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*.6f,Vector3.one*-.06f,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*.26f,Vector3.zero};
             bool[] valid={true,true,true,false,false,false,true,true,false,false,true};
-            string[] hints={"Valid: forward point","Valid: negative Z is observable","Valid: lateral offset","Invalid: no complete contact volume","Invalid: receiver value reaches 1","Invalid: sender radius is 40 mm, not 1 mm","Valid: uniform scaling preserves local XYZ","Valid: coordinates belong to rotated reference","Invalid: A3 explicitly omitted (fault injection)","Invalid: beyond 0.245 local m fit limit","Valid: point at reference origin"};
+            string[] hints={"Valid: forward point","Valid: negative Z is observable","Valid: lateral offset","Invalid: no complete contact volume","Invalid: receiver value reaches 1","Invalid: sender radius is 40 mm, not 1 mm","Valid: uniform scaling preserves local XYZ","Valid: coordinates belong to rotated reference","Invalid: probe P4 explicitly omitted (fault injection)","Invalid: beyond 0.245 local m fit limit","Valid: point at reference origin"};
             for(int i=0;i<names.Length;i++){
                 var node=new GameObject(names[i]);node.transform.SetParent(parent.transform,false);node.transform.localPosition=new Vector3(-3.6f+(i%4)*2.4f,1,4+(i/4)*2.3f);
                 var frame=new GameObject("Reference").transform;frame.SetParent(node.transform,false);
@@ -77,7 +77,7 @@ namespace SensaLab
             if(station.sampleBars==null || station.sampleBars.Length!=4){
                 station.sampleBars=new Image[4];
                 for(int lane=0;lane<4;lane++){
-                    var label=new GameObject("Lane label "+lane,typeof(RectTransform)).AddComponent<Text>();label.transform.SetParent(canvas.transform,false);label.font=station.status.font;label.fontSize=26;label.text="A"+lane;
+                    var label=new GameObject("Lane label "+lane,typeof(RectTransform)).AddComponent<Text>();label.transform.SetParent(canvas.transform,false);label.font=station.status.font;label.fontSize=26;label.text="P"+(lane+1);label.color=InteractiveLab.ProbeColor(lane);
                     label.rectTransform.anchorMin=label.rectTransform.anchorMax=new Vector2(0,1);label.rectTransform.pivot=new Vector2(0,1);label.rectTransform.anchoredPosition=new Vector2(28,-405-lane*45);label.rectTransform.sizeDelta=new Vector2(100,36);
                     var background=new GameObject("Lane background "+lane,typeof(RectTransform)).AddComponent<Image>();background.transform.SetParent(canvas.transform,false);background.color=new Color(.12f,.2f,.3f);background.raycastTarget=false;
                     background.rectTransform.anchorMin=background.rectTransform.anchorMax=new Vector2(0,1);background.rectTransform.pivot=new Vector2(0,1);background.rectTransform.anchoredPosition=new Vector2(140,-413-lane*45);background.rectTransform.sizeDelta=new Vector2(650,14);
@@ -96,7 +96,7 @@ namespace SensaLab
                 string path=Root+(missing?"/MissingButton.mat":"/ResetButton.mat");var material=AssetDatabase.LoadAssetAtPath<Material>(path);
                 if(material==null){material=new Material(Shader.Find("Unlit/Color"));material.color=missing?new Color(.9f,.4f,.05f):new Color(.05f,.4f,.9f);AssetDatabase.CreateAsset(material,path);}
                 button.GetComponent<Renderer>().sharedMaterial=material;
-                LabelButton(button,missing?"MISSING A3":"RESET",station.status.font);
+                LabelButton(button,missing?"MISSING P4":"RESET",station.status.font);
             }
             LabelButton(station.gameObject,"PAUSE",station.status.font);
             UdonSharpEditorUtility.CopyProxyToUdon(station);

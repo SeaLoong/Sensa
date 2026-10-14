@@ -60,6 +60,7 @@ namespace SensaLab
                     rows.Add(row);
                     if(stage<2)runtime.SendCustomEvent(stage==0?"Near":"Offset");
                 }
+                InteractiveValidation.Step(stage);
                 stage++;
                 if(stage<3)return;
                 CaptureGpu(stations.Single(s=>s.mode==6));
@@ -69,7 +70,7 @@ namespace SensaLab
                 program.SendCustomEvent("Corrupt");
                 try {Graphics.Blit(Texture2D.blackTexture,transport.encoded,transport.encoder);ExportTexture(transport.encoded,"Validation/functional/corrupt-telemetry.png");}
                 finally {program.SendCustomEvent("Corrupt");}
-                var report=new Report{passed=stations.Length==7 && rows.All(r=>r.passed),rows=rows.ToArray()};
+                var report=new Report{passed=stations.Length==7 && rows.All(r=>r.passed) && InteractiveValidation.Passed,rows=rows.ToArray()};
                 File.WriteAllText("Validation/functional/results.json",JsonUtility.ToJson(report,true));SessionState.SetBool(Key+"passed",report.passed);
             }
             catch(Exception ex){File.WriteAllText("Validation/functional/error.txt",ex.ToString());SessionState.SetBool(Key+"passed",false);}
@@ -103,6 +104,8 @@ namespace SensaLab
                 ExportTexture(view,"Validation/functional/sps-scene.png");
                 camera.transform.position=new Vector3(0,12,-5);camera.transform.LookAt(new Vector3(0,1,7));camera.fieldOfView=70;camera.Render();ExportTexture(view,"Validation/functional/overview.png");
                 camera.transform.position=new Vector3(-4,1.8f,6.1f);camera.transform.LookAt(new Vector3(-4,1.65f,8.25f));camera.fieldOfView=65;camera.Render();ExportTexture(view,"Validation/functional/native-sps-detail.png");
+                camera.transform.position=new Vector3(-6.3f,1.9f,-3.6f);camera.transform.LookAt(new Vector3(-5.6f,1.3f,-.5f));camera.fieldOfView=50;camera.Render();ExportTexture(view,"Validation/interaction/native-avatar-zone.png");
+                camera.transform.position=new Vector3(-3.7f,1.3f,2.5f);camera.transform.LookAt(new Vector3(-4,1,3));camera.fieldOfView=65;camera.Render();ExportTexture(view,"Validation/interaction/probe-colors.png");
             }
             finally{RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(reader);UnityEngine.Object.DestroyImmediate(texture);UnityEngine.Object.DestroyImmediate(camera.gameObject);view.Release();data.Release();UnityEngine.Object.DestroyImmediate(view);UnityEngine.Object.DestroyImmediate(data);}
         }

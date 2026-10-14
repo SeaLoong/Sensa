@@ -44,6 +44,7 @@ namespace SensaLab
             for(int mode=0;mode<Titles.Length;mode++)BuildStation(mode,positions[mode]);
             Board(null,"Welcome",new Vector3(-1.5f,1.5f,0),"SENSA CAPABILITY LAB\nFront: Contact | PB | PB + Contact\nMiddle: native SPS | SPS + PB + Contact\nBack: synthetic Shader transport | actual SPS GPU model\nBlue=Rest  Green=Near  Orange=Offset  Red=Outside\nPB: grab handles; collisions disabled.\nSee Assets/SensaLab/CAPABILITIES.md for expected output.");
             EditorSceneManager.SaveScene(scene,Scene);AssetDatabase.SaveAssets();
+            InteractiveLab.Upgrade();
         }
         static Transform Child(Transform parent,string name,Vector3 local){var t=new GameObject(name).transform;t.SetParent(parent,false);t.localPosition=local;return t;}
         static Type Type(string name)=>AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).First(t=>t!=null);

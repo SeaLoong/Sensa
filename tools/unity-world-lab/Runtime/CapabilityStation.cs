@@ -32,6 +32,7 @@ namespace SensaLab
         private bool frozen;
         private bool corrupt;
         private string preset = "REST / OUTSIDE";
+        private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857","#C792EA","#54DED2","#FF975C","#E6E6E6"};
         private void Start()
         {
             if(plug==null)return;
@@ -69,9 +70,9 @@ namespace SensaLab
                     float expected = Mathf.Clamp01(1-Mathf.Max(0,Vector3.Distance(receivers[i].transform.position,target.position)-sender.radius)/receivers[i].radius);
                     float actual = receivers[i].CalculateProximity(sender);
                     contactError = Mathf.Max(contactError,Mathf.Abs(actual-expected));
-                    text += "A"+i+" actual "+actual.ToString("F4")+" expected "+expected.ToString("F4")+"\n";
+                    text += "<color="+colors[i%8]+">Probe P"+(i+1)+"</color> received "+actual.ToString("F4")+" expected "+expected.ToString("F4")+"\n";
                 }
-                text += "Contact max error: "+contactError.ToString("F5")+"\n";
+                text += "P = sensor sample, NOT a TCode output axis\nContact max error: "+contactError.ToString("F5")+"\n";
             }
             if(bone != null) text += "PB grabbed="+bone.IsGrabbed+" stretch="+bone.Stretch.ToString("F3")+"\nRest: grabbed=false, stretch=0. Grab with VR hand.\nNo collisions; no Unity collider on this handle.\n";
             if(socket != null)

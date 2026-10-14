@@ -26,7 +26,7 @@ Still requiring client validation: HMD visibility, avatar camera behavior, remot
 
 ## 新增四点定位测试区
 
-打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。新增区域位于场景前方 Z=4–9 m，11 个编号站分三排摆放，配有独立地面和不透明看板。每站显示 SDK 四路近接值、参考坐标 Truth、解算坐标 Decoded、残差与预期结果。每站白球可抓取移动，左/中/右三个方块分别重置、暂停/恢复、切换 A3 缺采样；所有测试不输出设备命令。
+打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。新增区域位于场景前方 Z=4–9 m，11 个编号站分三排摆放，配有独立地面和不透明看板。每站显示 SDK 四路近接值、参考坐标 Truth、解算坐标 Decoded、残差与预期结果。每站白球可抓取移动，左/中/右三个方块分别重置、暂停/恢复、切换探针 P4 缺采样；所有测试不输出设备命令。
 
 | Case | 场景 | 预期 |
 | --- | --- | --- |
@@ -38,7 +38,7 @@ Still requiring client validation: HMD visibility, avatar camera behavior, remot
 | 06 Wrong radius | Sender 半径 40 mm | 无效，不能按固定 1 mm 解算 |
 | 07 Scale x2 | 参考框架统一缩放 2 倍 | 有效，局部 Z 仍为 0.10 |
 | 08 Rotated frame | 参考框架旋转 (15°,35°,10°) | 有效，局部坐标保持一致 |
-| 09 Missing A3 | 测试程序将 A3 标记为缺失 | 无效，不猜测缺失采样 |
+| 09 Missing P4 | 测试程序将第四个探针（原始字段 A3）标记为缺失 | 无效，不猜测缺失采样 |
 | 10 Beyond fit volume | Z=0.26 | 即便四路有值仍拒绝，超出解算范围 |
 | 11 Origin | 位于参考原点 | 有效，XYZ 接近 0 |
 
@@ -85,10 +85,10 @@ OSC 页面新增 XZ/YZ 投影与三步校准卡片。投影网格显示 ±25 cm 
 
 1. 进入 Play Mode / ClientSim，走到 Z=4–9 m 的三排看板。先确认各板报告 EXPECTED RESULT。
 2. 抓取白球，改变前后/横向位置。白球是为了便于抓取的可见把手，它的可见尺寸和 Unity Collider 不等于测量 Sender 的 1 mm 半径。不要用把手外观推断接触几何。
-3. 看四条 A0–A3 条形图：正常读数为蓝色，0/1 或缺路标记为红色/空条。SDK 距离值不是单独的行程；四路必须一起解算。
+3. 看四条探针 P1–P4 条形图：颜色固定为红、蓝、绿、黄，与接收器中心的小球和标签对应；缺失为空条，饱和与有效性看 Decoded/INVALID。SDK 近接值不是单独的行程；四路必须一起解算。原始字段 A0–A3 与 TCode 辅助轴无关。
 4. Truth 是世界里可直接读取的本地 Transform 真值；Decoded 是用四路值重建的位置。位置向量有效时为绿色、无效时为红色。RMS 在无法完整拟合时显示 n/a，低残差也不保证真实客户端精度。
 5. 移动或改变缺路条件后显示 EXPLORING，表示离开了该 case 的初始基准，不应再把原来的预期有效性当成当前动作的答案。
-6. **左方块 Reset**：放下目标并恢复原位置/缺路配置；**中方块 Pause**：冻结读数并显示 PAUSED，再点恢复；**右方块 Missing A3**：切换缺采样注入。Case 09 初始就是缺 A3，切换后可以观察恢复。
+6. **左方块 Reset**：放下目标并恢复原位置/缺路配置；**中方块 Pause**：冻结读数并显示 PAUSED，再点恢复；**右方块 Missing P4**：切换缺采样注入。Case 09 初始就是缺第四个探针，切换后可以观察恢复。
 7. 再点 Reset 回到基准，确认 EXPECTED RESULT。操作为本地验证，未加入 Object Sync，因此不应要求其他玩家看到相同的球位置。
 
 ### 应怎样验证，而不是只看“通过”

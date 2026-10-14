@@ -2,6 +2,12 @@
 
 两个世界场景统一使用浅灰白纯色地板。生成脚本也采用此配色；已有项目可用 **Tools → Sensa Lab → Use neutral grey-white floors** 更新材质，不改地面碰撞和场景布局。
 
+现在主世界的物理实验架、入门测试球和新增原生 SPS 道具都有 **LEFT / RIGHT / PLACE / HOME** 控制：跟手、固定当前位置、回到原位。原生 SPS 区在出生点左侧 **08 MY AVATAR SPS**，可直接与自己的 Avatar 交互。琥珀色 Plug 对 Avatar Socket；蓝框 Socket 对 Avatar Plug。道具还可直接拿取；抓取后会退出按钮跟手模式。
+
+定位采样显示为 **四点探针 P1–P4** 或 **八点探针 C1–C8**，不是设备输出轴。同一布局内第一到第四个颜色为红、蓝、绿、黄，世界小球、标签、条形图与 Sensa 参数工作台一致。标记是接收器中心，不表示接收范围。两种布局的原始 OSC 字段均从 A0 开始，但空间位置不同；TCode 辅助输出 A0/A1/A2 属于另一层。
+
+更新入口 **Tools → Sensa Lab → Upgrade interactive targets and probe labels**。主场景和几何场景均会增加标记；已有目标位置不会重置。验证记录在 `Validation/interaction/world.json`，其中跟手、玩家移开后放置保持、回原位通过 ClientSim 实际 Udon 测试；Avatar OSC 与真实 VR 抓取需在客户端验收。
+
 **新用户请先打开 `Assets/SensaLab/Functional/FunctionalLab.unity`，使用出生点旁的 `00 START HERE`。** 它直接刺激访问者自己 Avatar 的入门接收器，由 VRChat 发 OSC 给 Sensa。组件安装、预设、OSR 连接和预期数值见 [首次使用指南](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。无需图像桥接。
 
 该台默认停止；提供五档阶梯、右手腕靠近可拾取测试球、停止和复位。每次操作最多运行 60 秒，离开 3 米或更换 Avatar 会关闭门控。面板标记 Expected，实际接收与输出要在 Sensa 确认。SDK ClientSim 的世界读数不能替代客户端 Avatar OSC 测试。
@@ -22,10 +28,10 @@
 
 ## 每张测试台怎么用
 
-- **白球**：抓取并移动，观察坐标和 A0–A3 变化。
+- **白球**：抓取并移动，观察坐标和探针 P1–P4 变化。
 - **蓝色 RESET**：放下球并恢复初始位置。
 - **白色 PAUSE**：冻结/恢复读数；暂停时显示 PAUSED。
-- **橙色 MISSING A3**：切换缺采样，观察无效状态，再复位。
+- **橙色 MISSING P4**：切换第四个探针缺采样，观察无效状态，再复位。
 
 按钮位于约腰部高度，看板位于前方。白球的显示/抓取尺寸是为了容易操作，不等于测量 Sender 的半径。
 
@@ -33,7 +39,7 @@
 | --- | --- |
 | Truth | 世界内可读取的参考局部坐标 |
 | Decoded | 从四路距离重建的位置 |
-| A0–A3 条形图 | 近接值；异常、饱和或缺路显示红色/空条 |
+| P1–P4 条形图 | 近接值；颜色固定对应探针，缺失为空条；是否有效看 Decoded/INVALID |
 | RMS | 拟合一致性，不是实际精度保证；无法拟合时显示 n/a |
 | 绿色/红色连线 | 当前位置有效/无效 |
 | EXPLORING | 你已改变初始条件；复位后再检查基准 |
@@ -50,7 +56,7 @@
 | 06 | 错误 Sender 半径 | 无效 |
 | 07 | 统一缩放 2 倍 | 局部坐标仍一致 |
 | 08 | 旋转参考系 | 局部坐标仍一致 |
-| 09 | 缺 A3 | 无效，切换后可观察恢复 |
+| 09 | 缺 P4 | 无效，切换后可观察恢复 |
 | 10 | 超出解算范围 | 无效，即使四路仍有值 |
 | 11 | 参考原点 | 有效，接近零 |
 

@@ -26,6 +26,7 @@ namespace SensaLab
         private int maximumReadbackLag;
         private Color32[] pixels = new Color32[256 * 128];
         private string readback = "Waiting for GPU readback";
+        private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857","#C792EA","#54DED2","#FF975C","#E6E6E6"};
 
         public override void Interact() { paused = !paused; }
         public void ToggleDesktop() { desktopOutput.SetActive(!desktopOutput.activeSelf); }
@@ -58,9 +59,9 @@ namespace SensaLab
             VRCGraphics.Blit(null, telemetryTexture, telemetry);
             if (!pending && sequence % 6 == 0) { pending = true; VRCAsyncGPUReadback.Request(telemetryTexture, 0, this); }
             string values = "";
-            for (int i = 0; i < receivers.Length; i++) values += "A" + i + ": " + receivers[i].CalculateProximity(sender).ToString("F3") + (i % 4 == 3 ? "\n" : "   ");
+            for (int i = 0; i < receivers.Length; i++) values += "<color="+colors[i%8]+">C" + (i+1) + ": " + receivers[i].CalculateProximity(sender).ToString("F3") + "</color>" + (i % 4 == 3 ? "\n" : "   ");
             status.text = "SENSA LAB / WORLD\nClick block: pause motion\n" + readback + "\nDecoded age: " + ((sequence-decodedSequence)&65535) + " frames; max callback lag: " + maximumReadbackLag + "\nRoot local: " + local.ToString("F3") + "\n" + values
-                + "\nWorld readback is not an avatar OSC bridge.\nDesktop-only output is OFF by default; headset validation required.";
+                + "\nC = cube probe sample, not a TCode output axis.\nWorld readback is not an avatar OSC bridge.\nDesktop-only output is OFF by default; headset validation required.";
         }
     }
 }

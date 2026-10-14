@@ -4,18 +4,43 @@
 
 原 QuickStart 和七个能力场景继续用于隔离问题。FullFlow 的额外组件较多，适合功能验收，不是最低开销的日常 Avatar 模板。
 
+## 先摆好测试道具
+
+打开 Avatar 菜单 **Sensa Test Props**。Palm Socket、Forearm Socket、PB handle、Shader rig 都有同样四个选项：
+
+| 菜单 | 效果 |
+| --- | --- |
+| Home / reset | 回到初始位置 |
+| Left hand / Right hand | 跟随左手或右手；拿到想放的位置 |
+| Place in world | 固定在当前位置；走开后目标留在原地 |
+| Visible labels / probes | 显示或隐藏辅助标记，不改变测量开关 |
+
+棒棒糖沿用自己的 **SPS_Lollipop → LeftHand / RightHand / Fixed / Off**，入口也收进 Sensa Test Props。移动目标不会自动开启 SPS、测量或 Sensa 输出。
+
+常用开关也集中在这里：根菜单 **SPS OSC** 启用原生 haptics 参数，**Measure plug** 选择 Plug 定位；Socket 子菜单的 **Measure this socket** 直接选择该 Socket 测量。Shader rig 内有合成码输出与 CRC 故障开关。原来的 Sensa Lab / Sensa Shader 菜单仍可用，控制的是同一组参数。
+
+方便的自测方式：Socket 放在左手，移动到面前后选 **Place in world**；棒棒糖选 RightHand，右手拿它靠近固定 Socket。测 PB 时也可以把参考架放到面前，再抓小球。新增放置状态不保存，换 Avatar 后回到初始位置。
+
+Socket 的白色中心和金色 +Z 线表示入口及其方向；旁边有目标名称。Plug 的 ROOT / TIP / SIDE 是配对标记位置。四点本地/PB 阵列显示 **P1–P4**，八点 Socket 阵列显示 **C1–C8**。同一布局内第一到第四个颜色为红、蓝、绿、黄；小球直径不是 Contact 接收半径。辅助标记不代表接收器已启用。
+
+**P/C 编号是输入探针**，不是 TCode A0/A1/A2 辅助输出。两种布局的原始 OSC 字段都从 A0 编号，但空间位置不同，不可混用。Sensa 参数工作台按协议类型显示 P 或 C。选择 Measure plug 后，Palm 参考框自动显示 P1–P4，Plug 把手也显示对应 P 阵列；选择 Socket 测量时恢复 C1–C8。同一 Socket 的 Root/Tip/Side 三组八点采样共享 C 阵列位置，以完整路径区分。
+
+QuickStart 是绑定右手腕的链路检查，保持该绑定以匹配世界阶梯台；台上的测试球可以左右手持有或放置。它不是另一个待摆放的 SPS Socket。
+
 ## 先确认软件和世界
 
 运行 Sensa，打开 VRChat OSC，开启 Sensa OSC 接收，选择 OSC 并点击“应用输入方式”。首次测试输出列表保持为空。每次切换下面的测试模式，都先关闭输入，替换成该项需要的映射，保存后再启用；不要叠加上一项的门控。
 
 测试世界主场景为 `Assets/SensaLab/Functional/FunctionalLab.unity`。世界里摆放的 PB/Contact/SPS 工程实验不直接变成你的 Avatar 参数；你自己的入门接收器或 Avatar 组件才是 OSC 来源。
 
+出生区左侧新增 **08 MY AVATAR SPS**：琥珀色世界 Plug 用于碰你的 Avatar Socket，蓝框世界 Socket 用于接你的 Avatar Plug。两者都可拿取，也有 LEFT / RIGHT / PLACE / HOME 控制。启用 Avatar 原生 SPS 与 OGB_ENABLED，再在 Sensa 看实际 OGB 接收值。世界 Contact 可能同时触发 Self/Others，因此请固定实际收到的实例路径。不要把世界本地读数当成 Avatar OSC。
+
 ## 按这个顺序测试
 
 | 步骤 | 在 Avatar / 世界中做什么 | 在 Sensa 看什么 |
 | --- | --- | --- |
 | 1. 完整接收链路 | 在世界 START HERE 点 0/25/50/75/100%，再点 STOP；无需打开 SPS | 导入“入门 · 测试世界 → 我的 Avatar”。Depth 约为对应比例，Active=1；STOP 后 Active=0、门控关闭 |
-| 2. 自己的 PB | 找到腰前偏右的小球，抓住并移动、拉伸、松开。测试把手无实体碰撞 | 导入“Sensa PB 把手 · Z 位移”，限定 `Sensa/Handle/v1/LabHandle/Self/` 和自己的来源；观察四路坐标、IsGrabbed、Stretch。先在量程校准里采集两端；松手应失效 |
+| 2. 自己的 PB | 在 Sensa Test Props 选择 PB handle，放到面前后抓白球，移动、拉伸、松开；把手无实体碰撞 | 导入“Sensa PB 把手 · Z 位移”，限定 `Sensa/Handle/v1/LabHandle/Self/` 和自己的来源；观察 P1–P4、IsGrabbed、Stretch。先校准两端，松手应失效 |
 | 3. SPS 自身交互 | 启用棒棒糖道具；打开 `Enable SPS OSC (local)`，选择左手或左前臂 SPS Socket；把自己的道具靠近该 Socket | 先选择 SPS Socket **仅自身**预设，查看实际 OGB 路径。根/长度成对参数先在未饱和位置采样以学习长度，再靠近；偏轴时结果是径向近似 |
 | 4. 额外定位 | 在 `Sensa Lab` 子菜单选择 Plug 测量，参考左手 Socket；移动道具 | 使用本地点预设并校准。该量测是自己的 Plug 相对参考 Socket 的位置；与原生 SPS 信号分开比较 |
 | 5. 配对/根部诊断 | `Sensa Lab` 切到相应 Socket。配对通道为 `LabPair` | 标准 SPS Root 是诊断；配对 Pose 必须有匹配的 Root/Tip/Side 标记。其他人只有默认 SPS 时不要期待配对姿态有效 |

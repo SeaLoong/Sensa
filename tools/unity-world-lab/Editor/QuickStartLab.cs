@@ -56,6 +56,7 @@ namespace SensaLab
             UdonSharpEditorUtility.CopyProxyToUdon(station);
             Style(station);
             EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
+            InteractiveLab.Upgrade();
         }
         [MenuItem("Tools/Sensa Lab/Refresh first-run bench appearance")]
         public static void RefreshAppearance()

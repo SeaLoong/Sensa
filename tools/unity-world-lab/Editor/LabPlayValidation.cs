@@ -76,7 +76,7 @@ namespace SensaLab
                 File.WriteAllText(ReportDirectory+"/playmode-results.txt",result);
                 bool gpuModel=resolver!=null && CaptureModel(renderers);
                 var probeBoard=GameObject.Find("Local probe status");
-                bool localProbe=probeBoard!=null && probeBoard.GetComponent<Text>().text.Contains("A3=");
+                bool localProbe=probeBoard!=null && probeBoard.GetComponent<Text>().text.Contains("P4=");
                 if(probeBoard!=null)result+="\n"+probeBoard.GetComponent<Text>().text;
                 if(localProbe){var station=GameObject.Find("Local bone and PB station").GetComponent<LocalProbeStation>();File.WriteAllText(ReportDirectory+"/local-point-capture.json",JsonUtility.ToJson(new LocalPointCapture{position=station.reference.InverseTransformPoint(station.target.position),samples=station.receivers.Select(r=>r.CalculateProximity(station.sender)).ToArray(),grabbed=station.bone.IsGrabbed,stretch=station.bone.Stretch},true));}
                 result+="\nLocal PB station running: "+localProbe;
@@ -99,7 +99,7 @@ namespace SensaLab
                 var locomotion=new LocomotionReport{walkSpeed=player.GetWalkSpeed(),runSpeed=player.GetRunSpeed(),jumpImpulse=player.GetJumpImpulse(),walkedDistance=walked,jumpHeight=jumpPeak-jumpBase,inputDebug=inputDebug};
                 locomotion.passed=locomotion.walkSpeed>=2 && locomotion.runSpeed>=4 && locomotion.jumpImpulse>=3 && walked>.1f && locomotion.jumpHeight>.1f;
                 File.WriteAllText(ReportDirectory+"/locomotion-playmode.json",JsonUtility.ToJson(locomotion,true));
-                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && locomotion.passed && Vector3.Distance(moving,origin)>.001f;
+                bool pass=status.Contains("CRC OK") && resolver!=null && gpuModel && localProbe && casesPassed && controlsPassed && locomotion.passed && Vector3.Distance(moving,origin)>.001f;
                 SessionState.SetBool(Key+"Passed",pass);
                 File.WriteAllText(ReportDirectory+"/playmode-status.json","{\"passed\":"+(pass?"true":"false")+"}");
                 Debug.Log("SENSA_PLAYMODE_VALIDATION "+pass);

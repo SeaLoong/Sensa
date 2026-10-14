@@ -33,8 +33,9 @@ export function probePresentation(path) {
   const index = Number(match[3]);
   if ((match[1] === 'Point' || match[1] === 'Handle') && index >= 4) return null;
   const colors = ['#E85D75','#54B7FF','#77D970','#FFC857','#C792EA','#54DED2','#FF975C','#E6E6E6'];
-  return { label: `定位探针 P${index + 1}`, color: colors[index], index, marker: match[2],
-    hint: `P${index + 1} 是 ${match[2]} 的接近度输入样本，对应原始路径后缀 A${index}。与测试场景同色标记对应，不是 TCode 的 A0/A1/A2 辅助输出轴，也不应直接作为行程。` };
+  const prefix = match[1] === 'Point' || match[1] === 'Handle' ? 'P' : 'C';
+  return { label: `定位探针 ${prefix}${index + 1}`, color: colors[index], index, marker: match[2],
+    hint: `${prefix}${index + 1} 是${prefix === 'P' ? '四点' : '八点'}阵列 ${match[2]} 的接近度输入样本，对应原始路径后缀 A${index}。与测试场景同布局、同色标记对应，不是 TCode 的 A0/A1/A2 辅助输出轴，也不应直接作为行程。` };
 }
 
 export function parameterMeaning(path) {
