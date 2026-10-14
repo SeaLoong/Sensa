@@ -1,5 +1,7 @@
 # Sensa 测试世界
 
+两个世界场景统一使用浅灰白纯色地板。生成脚本也采用此配色；已有项目可用 **Tools → Sensa Lab → Use neutral grey-white floors** 更新材质，不改地面碰撞和场景布局。
+
 **新用户请先打开 `Assets/SensaLab/Functional/FunctionalLab.unity`，使用出生点旁的 `00 START HERE`。** 它直接刺激访问者自己 Avatar 的入门接收器，由 VRChat 发 OSC 给 Sensa。组件安装、预设、OSR 连接和预期数值见 [首次使用指南](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。无需图像桥接。
 
 该台默认停止；提供五档阶梯、右手腕靠近可拾取测试球、停止和复位。每次操作最多运行 60 秒，离开 3 米或更换 Avatar 会关闭门控。面板标记 Expected，实际接收与输出要在 Sensa 确认。SDK ClientSim 的世界读数不能替代客户端 Avatar OSC 测试。

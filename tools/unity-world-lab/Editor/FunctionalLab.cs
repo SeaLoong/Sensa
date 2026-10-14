@@ -37,7 +37,7 @@ namespace SensaLab
             var descriptor=new GameObject("World Descriptor").AddComponent<VRCSceneDescriptor>();
             var spawn=new GameObject("Spawn").transform;spawn.position=new Vector3(0,.1f,-2);descriptor.spawns=new[]{spawn};
             UdonSharpUndo.AddComponent<LabLocomotion>(new GameObject("Locomotion"));
-            Cube(null,"Floor",new Vector3(0,-.1f,7),new Vector3(16,.2f,22),new Color(.15f,.2f,.25f),true);
+            Cube(null,"Floor",new Vector3(0,-.1f,7),new Vector3(16,.2f,22),new Color(.78f,.78f,.78f),true);
             var light=new GameObject("Sun").AddComponent<Light>();light.type=LightType.Directional;light.transform.rotation=Quaternion.Euler(40,-30,0);RenderSettings.ambientLight=Color.gray;
             var camera=new GameObject("Reference camera").AddComponent<Camera>();camera.transform.position=new Vector3(0,1.6f,-2);camera.transform.LookAt(new Vector3(0,1.4f,3));descriptor.ReferenceCamera=camera.gameObject;
             var positions=new[]{new Vector3(-4,1,3),new Vector3(0,1,3),new Vector3(4,1,3),new Vector3(-4,1,8),new Vector3(4,1,8),new Vector3(-4,1,13),new Vector3(4,1,13)};

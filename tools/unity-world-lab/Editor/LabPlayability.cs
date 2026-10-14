@@ -26,7 +26,7 @@ namespace SensaLab
             var layout=GameObject.Find("Playability layout");if(layout==null)layout=new GameObject("Playability layout");
             var locomotion=layout.GetComponent<LabLocomotion>();if(locomotion==null)locomotion=UdonSharpUndo.AddComponent<LabLocomotion>(layout);UdonSharpEditorUtility.CopyProxyToUdon(locomotion);
             var floor=GameObject.Find("Floor");if(floor==null)throw new InvalidOperationException("Lab floor missing");floor.transform.position=new Vector3(0,-.1f,4);floor.transform.localScale=new Vector3(16,.2f,16);floor.GetComponent<Collider>().enabled=true;
-            floor.GetComponent<Renderer>().sharedMaterial=ColorMaterial("Walkway",new Color(.18f,.23f,.28f));
+            floor.GetComponent<Renderer>().sharedMaterial=ColorMaterial("Walkway",new Color(.78f,.78f,.78f));
             var caseFloor=GameObject.Find("Case area floor");if(caseFloor!=null){caseFloor.GetComponent<Collider>().enabled=false;caseFloor.GetComponent<Renderer>().enabled=false;}
             var spawn=GameObject.Find("Spawn");spawn.transform.position=new Vector3(0,.1f,-2.5f);spawn.transform.rotation=Quaternion.identity;
             Cube(layout.transform,"Boundary left",new Vector3(-8,.5f,4),new Vector3(.15f,1,16));Cube(layout.transform,"Boundary right",new Vector3(8,.5f,4),new Vector3(.15f,1,16));
