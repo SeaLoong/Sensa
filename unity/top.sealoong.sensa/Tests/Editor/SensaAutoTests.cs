@@ -50,6 +50,28 @@ namespace UnityBox.Sensa.Tests
                 Assert.IsTrue(receivers[i].parameter.Contains("/v1/"));
             }
         }
+        [TestCase(false)]
+        [TestCase(true)]
+        public void StandaloneProbeProvidesWritableContactAndGrabParameters(bool handle)
+        {
+            var target = new GameObject("Target").transform; target.SetParent(avatar.transform, false);
+            var probe = avatar.AddComponent<SensaPointProbe>(); probe.target = target; probe.createGrabHandle = handle;
+            SensaPointBuilder.ProcessAvatar(avatar);
+            var merge = avatar.GetComponentInChildren<ModularAvatarMergeAnimator>(); Assert.NotNull(merge);
+            var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = merge.animator; animator.Rebind();
+            foreach (var receiver in avatar.GetComponentsInChildren<VRCContactReceiver>())
+            {
+                Assert.IsTrue(animator.parameters.Any(p => p.name == receiver.parameter && p.type == AnimatorControllerParameterType.Float));
+                animator.SetFloat(receiver.parameter, .25f); Assert.AreEqual(.25f, animator.GetFloat(receiver.parameter));
+            }
+            if (handle)
+            {
+                var prefix = avatar.GetComponentInChildren<VRCPhysBone>().parameter;
+                Assert.IsTrue(animator.parameters.Any(p => p.name == prefix + "_IsGrabbed" && p.type == AnimatorControllerParameterType.Bool));
+                animator.SetBool(prefix + "_IsGrabbed", true); Assert.IsTrue(animator.GetBool(prefix + "_IsGrabbed"));
+                Assert.IsTrue(animator.parameters.Any(p => p.name == prefix + "_Stretch" && p.type == AnimatorControllerParameterType.Float));
+            }
+        }
         [Test] public void HandleUsesSeparatePhysBoneAndFollowerObjects()
         {
             var probe=avatar.AddComponent<SensaPointProbe>();probe.createGrabHandle=true;SensaPointBuilder.ProcessAvatar(avatar);

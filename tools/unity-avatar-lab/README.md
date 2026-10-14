@@ -1,5 +1,7 @@
 # Sensa Avatar 测试工程工具
 
+**需要一个 Avatar 验证完整流程：打开 `Assets/SensaAvatarLab/Generated/FullFlow.unity`，按 [FullFlow 使用步骤](FULL-FLOW.md)操作。** 已组合入门接收器、原生 SPS、定位、可抓 PB 与默认关闭的 Shader 合成码实验。原来的分项场景用于排错。
+
 **新用户链路使用 `Assets/SensaAvatarLab/Capabilities/QuickStart.unity`。** 它是 Chocolat 加一个 Quick Start World Receiver，无 SPS/PB/Shader 夹具；适配测试世界出生点旁 START HERE。步骤见 [OSR 首次使用](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。
 
 生成入口 **Tools → Sensa Avatar Lab → Create first-run avatar**；验证入口 **Validate first-run avatar**；离线上传包构建入口 **Build Quick Start with SDK (no upload)**。生成报告 `Validation/quick-start-avatar.json`，确认两个本地、非保存、默认 0 的参数和右手接收器。已有场景不会被覆盖。SDK 构建并不等于已经上传或验证真实 OSC/硬件。

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEditor.Animations;
 using UnityEngine.Animations;
 using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
@@ -57,6 +58,18 @@ namespace UnityBox.Sensa
             var sender=marker.gameObject.AddComponent<VRCContactSender>();sender.radius=SensaPoseProtocol.MarkerRadius;sender.localOnly=true;
             sender.collisionTags=new List<string>{tag};
             SensaSensorUtility.Array(rig,prefix,tag,true,true);
+            // Declaring Expression Parameters alone does not create writable FX parameters.
+            var controller = new AnimatorController { name = "Sensa point " + probe.instanceName };
+            foreach (var parameter in rig.GetComponent<ModularAvatarParameters>().parameters)
+                controller.AddParameter(parameter.nameOrPrefix, parameter.syncType == ParameterSyncType.Bool
+                    ? AnimatorControllerParameterType.Bool : AnimatorControllerParameterType.Float);
+            var machine = new AnimatorStateMachine { name = "Sensa point parameters" };
+            var idle = machine.AddState("Ready"); idle.writeDefaultValues = false;
+            idle.motion = new AnimationClip { name = "Sensa point idle" }; machine.defaultState = idle;
+            controller.AddLayer(new AnimatorControllerLayer { name = "Sensa point " + probe.instanceName, stateMachine = machine, defaultWeight = 1 });
+            var merge = rig.gameObject.AddComponent<ModularAvatarMergeAnimator>();
+            merge.animator = controller; merge.layerType = VRCAvatarDescriptor.AnimLayerType.FX;
+            merge.pathMode = MergeAnimatorPathMode.Absolute; merge.matchAvatarWriteDefaults = false;
             return rig.gameObject;
         }
     }

@@ -265,6 +265,9 @@ namespace SensaAvatarLab
         [MenuItem("Tools/Sensa Avatar Lab/Build Quick Start with SDK (no upload)")]
         public static void BuildQuickStartWithSdk() => BuildSceneWithSdk(QuickStartAvatar.Scene, "QuickStart", "sdk-quick-start-build");
 
+        [MenuItem("Tools/Sensa Avatar Lab/Build FullFlow with SDK (no upload)")]
+        public static void BuildFullFlowWithSdk() => BuildSceneWithSdk(FullFlowAvatar.Scene, "FullFlow", "sdk-full-flow-build");
+
         private static async void BuildSceneWithSdk(string scenePath, string variant, string reportName)
         {
             PrepareBatchMode();
@@ -285,6 +288,7 @@ namespace SensaAvatarLab
                 Directory.CreateDirectory("Builds");
                 File.Copy(bundle, destination, true);
                 if (variant == "QuickStart") QuickStartAvatar.InspectBundle();
+                if (variant == "FullFlow") FullFlowAvatar.InspectBundle();
                 File.WriteAllText(report + ".json", "{\"passed\":true,\"uploaded\":false,\"bundle\":\"" + destination + "\"}");
                 if (File.Exists(report + "-error.txt")) File.Delete(report + "-error.txt");
                 success = true;
@@ -297,11 +301,18 @@ namespace SensaAvatarLab
             finally { if (Application.isBatchMode) EditorApplication.Exit(success ? 0 : 1); }
         }
 
-        static void Capture(GameObject avatar, string path)
+        public static void Capture(GameObject avatar, string path)
         {
             var renderers = avatar.GetComponentsInChildren<Renderer>().Where(r => r.enabled).ToArray();
             var bounds = renderers[0].bounds;
             foreach (var renderer in renderers) bounds.Encapsulate(renderer.bounds);
+            // SPS intentionally expands renderer bounds. Frame the humanoid instead of its shader bounds.
+            var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
+            if (descriptor != null && descriptor.ViewPosition.y > .1f)
+            {
+                float height = descriptor.ViewPosition.y * avatar.transform.lossyScale.y;
+                bounds = new Bounds(avatar.transform.position + Vector3.up * height * .55f, new Vector3(height, height * 1.3f, height));
+            }
             var go = new GameObject("Lab preview camera");
             var camera = go.AddComponent<Camera>();
             camera.clearFlags = CameraClearFlags.SolidColor;
