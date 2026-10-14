@@ -284,6 +284,7 @@ namespace SensaAvatarLab
                 if (string.IsNullOrEmpty(bundle) || !File.Exists(bundle)) throw new InvalidOperationException("SDK did not produce an avatar bundle.");
                 Directory.CreateDirectory("Builds");
                 File.Copy(bundle, destination, true);
+                if (variant == "QuickStart") QuickStartAvatar.InspectBundle();
                 File.WriteAllText(report + ".json", "{\"passed\":true,\"uploaded\":false,\"bundle\":\"" + destination + "\"}");
                 if (File.Exists(report + "-error.txt")) File.Delete(report + "-error.txt");
                 success = true;

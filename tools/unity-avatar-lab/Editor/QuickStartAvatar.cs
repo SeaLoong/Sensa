@@ -26,7 +26,7 @@ namespace SensaAvatarLab
             avatar.AddComponent<SensaQuickStart>();
             EditorSceneManager.SaveScene(scene, Scene); AssetDatabase.SaveAssets(); Validate();
         }
-        [Serializable] class Report { public bool passed; public int receivers; public string[] parameters; public float receiverRadius; public string scope = "SDK avatar preprocess; client OSC and hardware unverified"; }
+        [Serializable] class Report { public bool passed; public int receivers; public string[] parameters, animatorParameters; public float receiverRadius; public string scope = "SDK avatar preprocess; client OSC and hardware unverified"; }
         public static void InspectBundle()
         {
             var bundle = AssetBundle.LoadFromFile("Builds/Sensa-Chocolat-QuickStart.vrca");
@@ -37,13 +37,32 @@ namespace SensaAvatarLab
                 var contacts = avatar.GetComponentsInChildren<VRCContactReceiver>(true).Where(r => r.parameter != null && r.parameter.StartsWith("Sensa/QuickStart/")).ToArray();
                 var parameters = avatar.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Where(p => p.name.StartsWith("Sensa/QuickStart/")).ToArray();
                 var report = new Report { receivers = contacts.Length, parameters = parameters.Select(p => p.name).ToArray(), scope = "Read actual SDK .vrca bundle; uploaded client and hardware unverified" };
+                // Bundled controllers are RuntimeAnimatorController, not editor AnimatorController assets.
+                // Read them through a real Animator, as the client does.
+                var probe = new GameObject("Validate bundled animator parameters");
+                try
+                {
+                    var animator = probe.AddComponent<Animator>();
+                    var names = new System.Collections.Generic.HashSet<string>();
+                    foreach (var layer in avatar.GetComponent<VRCAvatarDescriptor>().baseAnimationLayers)
+                    {
+                        if (layer.animatorController == null) continue;
+                        animator.runtimeAnimatorController = layer.animatorController;
+                        animator.Rebind();
+                        foreach (var parameter in animator.parameters)
+                            if (parameter.name.StartsWith("Sensa/QuickStart/")) names.Add(parameter.name);
+                    }
+                    report.animatorParameters = names.ToArray();
+                }
+                finally { UnityEngine.Object.DestroyImmediate(probe); }
                 var depth = contacts.Single(r => r.parameter == SensaQuickStartProtocol.Depth);
                 report.receiverRadius = depth.radius * depth.transform.lossyScale.x;
                 report.passed = contacts.Length == 2 && contacts.All(r => r.localOnly && !r.allowSelf && !r.allowOthers)
                     && report.receiverRadius > 0 && depth.receiverType == VRC.Dynamics.ContactReceiver.ReceiverType.Proximity
                     && contacts.Any(r => r.parameter == SensaQuickStartProtocol.Depth && r.collisionTags.Contains(SensaQuickStartProtocol.DepthTag))
                     && contacts.Any(r => r.parameter == SensaQuickStartProtocol.Active && r.collisionTags.Contains(SensaQuickStartProtocol.ActiveTag))
-                    && parameters.Length == 2 && parameters.All(p => !p.saved && !p.networkSynced && p.defaultValue == 0);
+                    && parameters.Length == 2 && parameters.All(p => !p.saved && !p.networkSynced && p.defaultValue == 0)
+                    && report.parameters.All(name => report.animatorParameters.Contains(name));
                 File.WriteAllText("Validation/sdk-quick-start-contents.json", JsonUtility.ToJson(report, true));
                 if (!report.passed) throw new InvalidOperationException("First-run SDK bundle is missing the expected contacts or local parameters.");
             }

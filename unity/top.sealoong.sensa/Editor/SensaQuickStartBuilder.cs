@@ -3,6 +3,7 @@ using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEditor;
+using UnityEditor.Animations;
 using VRC.Dynamics;
 using VRC.SDK3.Avatars.Components;
 using VRC.SDK3.Dynamics.Contact.Components;
@@ -40,6 +41,18 @@ namespace UnityBox.Sensa
                 SensaQuickStartProtocol.DepthTag, SensaQuickStartProtocol.Depth, false);
             Receiver(host, "Active", eyeHeight * .02f,
                 SensaQuickStartProtocol.ActiveTag, SensaQuickStartProtocol.Active, true);
+            // Expression Parameters declares OSC visibility; Contacts also need writable Animator parameters.
+            var controller = new AnimatorController { name = "Sensa Quick Start parameters" };
+            controller.AddParameter(SensaQuickStartProtocol.Depth, AnimatorControllerParameterType.Float);
+            controller.AddParameter(SensaQuickStartProtocol.Active, AnimatorControllerParameterType.Bool);
+            var machine = new AnimatorStateMachine { name = "Sensa Quick Start" };
+            var idle = machine.AddState("Ready"); idle.writeDefaultValues = false;
+            idle.motion = new AnimationClip { name = "Sensa Quick Start idle" };
+            machine.defaultState = idle;
+            controller.AddLayer(new AnimatorControllerLayer { name = "Sensa Quick Start", stateMachine = machine, defaultWeight = 1 });
+            var merge = host.gameObject.AddComponent<ModularAvatarMergeAnimator>();
+            merge.animator = controller; merge.layerType = VRCAvatarDescriptor.AnimLayerType.FX;
+            merge.pathMode = MergeAnimatorPathMode.Absolute; merge.matchAvatarWriteDefaults = false;
         }
 
         static void Receiver(Transform parent, string name, float worldRadius, string tag, string parameter, bool gate)

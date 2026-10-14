@@ -26,7 +26,7 @@
 3. 选中含 Avatar Descriptor 的 Avatar 根物件，**Add Component → Sensa → Quick Start World Receiver**。只加一个，没有要手调的位置或参数。
 4. 使用 VRChat SDK Build & Publish，设为 **Private**。进入 VRChat 后切换到刚上传的版本。
 
-上传时会在右手骨骼原点自动生成两个本地 Contact：深度 Float、激活 Bool。参数不联网、默认 0、不保存；不增加网络参数位。半径随 Avatar 视点高度计算，世界侧跟随当前身高。这个右手原点通常在手腕，触球时不要只用指尖。
+上传时会在右手骨骼原点自动生成两个本地 Contact：深度 Float、激活 Bool，并自动合并对应 FX 参数控制器。参数不联网、默认 0、不保存；不增加网络参数位。半径随 Avatar 视点高度计算，世界侧跟随当前身高。这个右手原点通常在手腕，触球时不要只用指尖。
 
 测试 Avatar 项目已经提供 `Assets/SensaAvatarLab/Capabilities/QuickStart.unity`：它就是底模加上述组件，没有预先摆好的 SPS 测试夹具。不要把模型资源复制到 Sensa 发布包。
 
