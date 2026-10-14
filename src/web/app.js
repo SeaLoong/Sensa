@@ -6,7 +6,7 @@ import HelpDialog from './HelpDialog.jsx';
 import firstRunMotion from './data/first-run-motion.json';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
-import { pointPreviewEntry, posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
+import { probePresentation, pointPreviewEntry, posePreviewEntry, parameterMeaning, readPinnedPaths, rankPreview, globMatch, matchesOscPathPattern, getLatestOscPreviewEntry, isOgbOscPath, compareOscPathSuggestions, buildOscPathSuggestions, filterOscPreviewEntriesBySource } from './osc-preview.js';
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json';
 const {
   Alert,
@@ -5621,6 +5621,7 @@ function App() {
                               <TableBody>
                                 {sortedOscPreview.map(entry => {
                                   const matched = entry._matches;
+                                  const probe = probePresentation(entry.path);
                                   const tooltipText = matched
                                     ? matched
                                         .map(s => {
@@ -5644,6 +5645,7 @@ function App() {
                                         {hasMultipleOscSources && <TableCell>{entry.sourceLabel || '—'}</TableCell>}
                                         <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
                                           <Button variant="text" size="small" className="parameter-name-button" onClick={() => setParameterDetail(entry)}>{entry.path}</Button>
+                                          {probe && <Typography variant="caption" display="block" title={probe.hint}><Box component="span" sx={{display:'inline-block',width:9,height:9,borderRadius:'50%',bgcolor:probe.color,border:'1px solid #586574',mr:.5}} />{probe.label} · {probe.marker} · 输入采样</Typography>}
                                           {!matched && entry.classification?.hint && <Typography variant="caption" display="block" color="text.secondary">{entry.classification.hint}</Typography>}
                                         </TableCell>
                                         <TableCell>{entry.type || '—'}</TableCell>
