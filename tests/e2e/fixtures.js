@@ -35,7 +35,8 @@ export const test = base.extend({
       await expect.poll(async () => {
         if (app.exitCode !== null) throw new Error(logs.join(''));
         try { const response = await fetch(baseUrl + '/api/session'); cookie = response.headers.get('set-cookie')?.split(';')[0]; return response.status; } catch { return 0; }
-      }, { timeout: 30000 }).toBe(200);
+      }, { timeout: 30000 }).toBe(204);
+      expect(cookie, 'Session endpoint must issue an authentication cookie').toBeTruthy();
       const overview = async () => (await fetch(baseUrl + '/api/state/overview', { headers: { Cookie: cookie } })).json();
       await use({ ...mock, baseUrl, overview, configPath });
     } finally {
@@ -62,7 +63,11 @@ export async function mode(page, name) {
   const apply = page.getByRole('button', { name: '应用输入方式', exact: true });
   if (await apply.isEnabled()) await apply.click();
 }
-export async function active(page, value = true) { await page.getByRole('checkbox', { name: '输入开关（关闭停止设备）', exact: true }).setChecked(value); }
+export async function active(page, value = true) {
+  const toggle = page.getByRole('checkbox', { name: '输入开关（关闭停止设备）', exact: true });
+  if (await toggle.isChecked() !== value) await toggle.click();
+  await expect(toggle).toBeChecked({ checked: value });
+}
 export async function checkpoint(page, locator, name) {
   await expect(page.locator('.MuiSnackbar-root')).toHaveCount(0, { timeout: 15000 });
   await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });

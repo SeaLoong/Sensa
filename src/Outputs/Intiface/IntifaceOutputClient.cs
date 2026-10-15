@@ -127,7 +127,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
             try
             {
                 // Position (linear) features
-                var posFeatures = device.GetFeaturesWithOutput(OutputType.Position).ToList();
+                var posFeatures = IntifacePositionFeatures.For(device);
                 bool shouldSendLinear;
                 lock (_devLock) shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
                 var emitted = new List<string>();
@@ -136,7 +136,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                     foreach (var f in posFeatures)
                     {
                         deadline.Token.ThrowIfCancellationRequested();
-                        await f.RunOutputAsync(DeviceOutput.PositionWithDuration.Percent(position01, durationMs)).WaitAsync(deadline.Token);
+                        await f.RunOutputAsync(IntifacePositionFeatures.Command(f.FeatureDefinition, position01, durationMs)).WaitAsync(deadline.Token);
                     }
 
                     lock (_devLock)

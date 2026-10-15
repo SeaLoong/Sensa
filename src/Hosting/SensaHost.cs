@@ -1209,7 +1209,7 @@ public static class SensaHost
             {
                 name = device.Name,
                 index = device.Index,
-                positionFeatures = device.GetFeaturesWithOutput(OutputType.Position).Count(),
+                positionFeatures = Sensa.Outputs.Intiface.IntifacePositionFeatures.For(device).Count,
                 vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
             }).ToArray();
             var outputs = outputCoordinator.BuildOverview();

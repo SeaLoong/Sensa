@@ -11,6 +11,7 @@ test('manual controls reach all mock transports, record, stop and never auto-res
   await page.getByRole('button', { name: '更新位置', exact: true }).click();
   for (const transport of ['udp', 'tcp', 'serial']) await outputValue(rig, transport, 600);
   await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.HwPositionWithDuration)).toBe(true);
+  await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.Vibrate?.Value === 0)).toBe(true);
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'manual-output');
   await page.getByRole('slider').first().press('Home');
   await page.getByRole('button', { name: '更新位置', exact: true }).click();

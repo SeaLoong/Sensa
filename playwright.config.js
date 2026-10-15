@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Sensa E2E runs only in GitHub Actions. Dispatch e2e.yml; do not run browsers locally.');
 export default defineConfig({
-  testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0,
+  testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0, maxFailures: 3,
   forbidOnly: true, outputDir: 'artifacts/e2e/results',
   reporter: [['line'], ['html', { outputFolder: 'artifacts/e2e/report', open: 'never' }], ['json', { outputFile: 'artifacts/e2e/results.json' }]],
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',

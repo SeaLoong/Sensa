@@ -248,7 +248,7 @@ public sealed class OutputCoordinator : IAsyncDisposable
             {
                 name = device.Name,
                 index = device.Index,
-                positionFeatures = device.GetFeaturesWithOutput(OutputType.Position).Count(),
+                positionFeatures = IntifacePositionFeatures.For(device).Count,
                 vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
             }).ToArray() ?? Array.Empty<object>();
 
