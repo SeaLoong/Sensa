@@ -23,7 +23,7 @@ jobs:
       PYTHONUTF8: '1'
       E2E_UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
       - name: Reject baseline updates from ordinary CI
         if: inputs.update_snapshots && github.event_name != 'workflow_dispatch'
         run: exit 1
