@@ -1,10 +1,12 @@
 """Publish a complete immutable prerelease after all native builds succeed."""
 import hashlib
+import json
 import os
 from pathlib import Path
 import re
 import shutil
 import subprocess
+import time
 
 ROOT=Path(__file__).resolve().parents[1]
 RUNTIMES=('win-x64','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
@@ -24,6 +26,43 @@ def collect(root):
         digest=hashlib.sha256(file.read_bytes()).hexdigest()
         if f'{digest}  {file.name}' not in expected:raise ValueError('Checksum mismatch: '+file.name)
     return files
+
+def verify_draft(release, tag, sha, assets):
+    if (release.get('draft') is not True or release.get('prerelease') is not True
+            or release.get('tag_name') != tag or release.get('target_commitish') != sha):
+        raise ValueError('Release identity or draft/prerelease state changed; refusing to publish')
+    uploaded = release.get('assets', [])
+    by_name = {asset['name']: asset for asset in uploaded}
+    if len(by_name) != len(uploaded) or set(by_name) != {path.name for path in assets}:
+        raise ValueError('Remote release attachments are incomplete or unexpected')
+    for path in assets:
+        remote = by_name[path.name]
+        digest = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
+        if remote.get('state') != 'uploaded' or remote.get('size') != path.stat().st_size or remote.get('digest') != digest:
+            raise ValueError('Remote upload verification failed: ' + path.name)
+
+def upload_and_publish(tag, sha, assets, repository):
+    # Separate creation from uploads. A transient failure must not expose a partial
+    # release. Clobber removes a failed upload stub only within this new draft.
+    for path in assets:
+        for attempt in range(3):
+            try:
+                subprocess.run(['gh','release','upload',tag,str(path),'--clobber'],check=True,timeout=180)
+                break
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                if attempt == 2:
+                    raise
+                print(f'Retrying upload {path.name} ({attempt + 2}/3)', flush=True)
+                time.sleep(3 * (attempt + 1))
+    # The REST lookup by tag cannot see an unpublished draft's uncreated tag.
+    # Resolve the draft through gh, then query its numeric release endpoint.
+    api_url = subprocess.check_output(['gh','release','view',tag,'--json','apiUrl','--jq','.apiUrl'],timeout=60).decode().strip()
+    release_id = api_url.rsplit('/', 1)[-1]
+    if not release_id.isdigit():
+        raise ValueError('Invalid draft release API identity')
+    release = json.loads(subprocess.check_output(['gh','api',f'repos/{repository}/releases/{release_id}'],timeout=60))
+    verify_draft(release, tag, sha, assets)
+    subprocess.run(['gh','release','edit',tag,'--draft=false','--prerelease','--latest=false'],check=True,timeout=60)
 
 def main():
     if os.environ.get('GITHUB_EVENT_NAME')!='push' or os.environ.get('GITHUB_REF')!='refs/heads/main':
@@ -48,9 +87,9 @@ Unity 包需在 Avatar 项目安装相应 SDK、Modular Avatar/NDMF，使用 SPS
 
 使用文档见压缩包 README 和 docs/，校验值见 SHA256SUMS.txt。
 ''',encoding='utf-8')
-    assets=[str(output/p.name) for p in archives]+[str(checksums)]
-    subprocess.run(['gh','release','create',tag,'--target',sha,'--draft','--prerelease','--latest=false','--title',f'Sensa 开发预览 #{number} ({sha[:8]})','--notes-file',str(notes),*assets],check=True)
-    subprocess.run(['gh','release','edit',tag,'--draft=false','--prerelease','--latest=false'],check=True)
+    assets=[output/p.name for p in archives]+[checksums]
+    subprocess.run(['gh','release','create',tag,'--target',sha,'--draft','--prerelease','--latest=false','--title',f'Sensa 开发预览 #{number} ({sha[:8]})','--notes-file',str(notes)],check=True,timeout=60)
+    upload_and_publish(tag, sha, assets, os.environ['GITHUB_REPOSITORY'])
     url=f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/tag/{tag}'
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as report:report.write(f'[下载开发预览]({url})\n')
