@@ -74,6 +74,7 @@ export async function checkpoint(page, locator, name) {
   await expect(page.locator('.MuiSnackbar-root')).toHaveCount(0, { timeout: 15000 });
   const box = await locator.boundingBox(), viewport = page.viewportSize();
   if (!box) throw new Error(`Checkpoint is not visible: ${name}`);
+  expect(box.width, `Checkpoint must fit the viewport, not be clipped by an ancestor: ${name}`).toBeLessThanOrEqual(viewport.width);
   if (box.height > viewport.height) {
     // Sensa scrolls the body inside a height-limited html element. Capturing an
     // oversized locator would include clipped blank areas, not what users see.

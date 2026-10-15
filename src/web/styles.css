@@ -246,7 +246,7 @@ body {
   margin: 0;
 }
 
-.osc-preview-panel {
+.dialog-panel.osc-preview-panel {
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -258,11 +258,16 @@ body {
   display: flex;
   flex: 1 1 auto;
   min-height: 220px;
+  min-width: 0;
+  width: 100%;
 }
 
 .osc-preview-panel__body > .empty-inline-state,
 .osc-preview-panel__body > .osc-preview-table-wrap {
   flex: 1 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .osc-hub-panel {
