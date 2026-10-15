@@ -5,6 +5,7 @@ import argparse
 import binascii
 import json
 import math
+import os
 from pathlib import Path
 import socket
 import struct

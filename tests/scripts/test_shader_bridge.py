@@ -2,9 +2,12 @@ import binascii
 import importlib.util
 from pathlib import Path
 import unittest
+import tempfile
 
 spec=importlib.util.spec_from_file_location('bridge',Path(__file__).resolve().parents[2]/'scripts/shader-osc-bridge.py')
 bridge=importlib.util.module_from_spec(spec);spec.loader.exec_module(bridge)
+smoke_spec=importlib.util.spec_from_file_location('shader_smoke',Path(__file__).resolve().parents[2]/'scripts/smoke-shader-bridge.py')
+smoke=importlib.util.module_from_spec(smoke_spec);smoke_spec.loader.exec_module(smoke)
 
 def fixture():
     data=bytearray(b'SN\x01\x01\x00\x01')
@@ -19,12 +22,12 @@ class ShaderBridgeTests(unittest.TestCase):
             pending = Path(directory) / 'next.png'
             current.write_bytes(b'old frame')
             with bridge.open_frame(current) as original:
-                # Hold the reader open deliberately: ordinary Windows open() blocks
-                # Path.replace here, reproducing the observed CI producer failure.
+                # Hold the reader open deliberately while the producer uses Unity's
+                # replacement primitive. The old handle must retain the old frame.
                 for index in range(20):
                     payload = ('new frame ' + str(index)).encode()
                     pending.write_bytes(payload)
-                    pending.replace(current)
+                    smoke.replace_frame(pending, current)
                     with bridge.open_frame(current) as latest:
                         self.assertEqual(latest.read(), payload)
                 self.assertEqual(original.read(), b'old frame')

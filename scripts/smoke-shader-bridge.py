@@ -11,6 +11,21 @@ import tempfile
 import time
 import urllib.request
 
+def replace_frame(source, target):
+    """Use the same replacement primitive as the Unity File.Replace exporter."""
+    if os.name != 'nt':
+        Path(source).replace(target)
+        return
+    import ctypes
+    from ctypes import wintypes
+    replace = ctypes.WinDLL('kernel32', use_last_error=True).ReplaceFileW
+    replace.argtypes = [wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.LPCWSTR,
+                        wintypes.DWORD, wintypes.LPVOID, wintypes.LPVOID]
+    replace.restype = wintypes.BOOL
+    if not replace(str(Path(target).resolve()), str(Path(source).resolve()), None, 0, None, None):
+        raise ctypes.WinError(ctypes.get_last_error())
+
+
 def free_port(kind):
     with socket.socket(socket.AF_INET,kind) as probe:
         probe.bind(('127.0.0.1',0));return probe.getsockname()[1]
@@ -63,7 +78,7 @@ def main():
                 wait_gate(0)
                 # Atomically replace the source, matching the editor PNG exporter.
                 def replace_image(path):
-                    next_file=root/'next.png';shutil.copyfile(path,next_file);next_file.replace(current)
+                    next_file=root/'next.png';shutil.copyfile(path,next_file);replace_frame(next_file,current)
                 def wait_motion_gate(closed):
                     until=time.monotonic()+2
                     while api('/api/state/overview')['runtime']['gateClosed']!=closed:

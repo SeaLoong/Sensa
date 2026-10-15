@@ -14,6 +14,10 @@
 | [38451096732](https://github.com/SeaLoong/Sensa/actions/runs/38451096732) | 干净环境缺少 `artifacts/release-notes.txt` 父目录；另有 macOS 超时 | `6abbc4e` 创建目录，macOS 修复同上；打包回归与原生冒烟已覆盖 |
 | [28191293931](https://github.com/SeaLoong/Sensa/actions/runs/28191293931) | 旧 VPM 工作流在“部署到 GitHub Pages”返回 404 | 运行日志已过期（410），但 check annotations 保留了“Ensure GitHub Pages has been enabled”错误。当前 Pages API 显示 `build_type=workflow`；旧 `vpm-publish.yml` 已移除，现工作流增加 Pages 前置检查 |
 
+## 2026-10-16：Windows PNG 连续更新冲突
+
+[38805336815](https://github.com/SeaLoong/Sensa/actions/runs/38805336815) 的 WebUI E2E 已通过，但 Windows x64 Shader PNG 回放在替换 frame.png 时出现 WinError 5。修复读取端的 Windows 删除/重命名共享，并让回放使用与 Unity File.Replace 一致的 ReplaceFileW；不能把 Path.replace 在 Windows 上的行为当成同一个原语。没有重跑整个测试或放宽门控断言。新增文件级单元测试保持旧帧句柄打开并连续替换 20 次，核对旧/新内容隔离和句柄释放；完整回放仍只在 CI 运行。[Windows 共享标志说明](https://learn.microsoft.com/en-us/windows/win32/api/fileapi/nf-fileapi-createfilew)。
+
 ## 本次补齐的处理
 
 - Windows ARM 失败发生在安装脚本的 PowerShell/CLR 启动阶段，代码为 `3221225477`、`0x80131506`，与 [.NET 上游问题 #131636](https://github.com/dotnet/runtime/issues/131636) 相符。一次 SDK 安装恢复尝试是对上游偶发故障的缓解，不能声称根除了 CLR 崩溃。第二次失败仍使 job 失败；编译和测试不会重跑或忽略失败。
