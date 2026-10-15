@@ -1,4 +1,4 @@
-import { t, getLocale, subscribeLocale, setLocale, docUrl, diagnostic } from './i18n.js';
+import { localized, t, getLocale, subscribeLocale, setLocale, docUrl, diagnostic } from './i18n.js';
 import { zhCN, enUS } from '@mui/material/locale';
 import React from 'react';
 import PosePanel from './PosePanel.jsx';
@@ -69,25 +69,25 @@ const DEFAULT_OSC_HUB_RATE = 10;
 const OSC_HUB_RATE_MIN = 1;
 const OSC_HUB_RATE_MAX = 240;
 
-const INPUT_MODES = () => ([
+const INPUT_MODES = localized(() => ([
   { value: 'manual', label: t("手动") },
   { value: 'osc', label: 'OSC' },
   { value: 'script', label: t("脚本") },
-]);
+]));
 
-const OUTPUT_TYPES = () => ([
+const OUTPUT_TYPES = localized(() => ([
   { value: 'TCodeSerial', label: t("TCode 串口"), shortLabel: t("串口直连"), scanSupported: false },
   { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
   { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
   { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
-]);
+]));
 
-const OUTPUT_TYPE_BY_VALUE = () => (Object.fromEntries(OUTPUT_TYPES().map(item => [item.value, item])));
+const OUTPUT_TYPE_BY_VALUE = localized(() => (Object.fromEntries(OUTPUT_TYPES().map(item => [item.value, item]))));
 
-const OSC_HUB_MODE_OPTIONS = () => ([
+const OSC_HUB_MODE_OPTIONS = localized(() => ([
   { value: 'EventDriven', label: t("事件驱动") },
   { value: 'FixedRate', label: t("固定频率缓冲") },
-]);
+]));
 
 const EMPTY_MANUAL = {
   L0: 500,
@@ -104,7 +104,7 @@ const EMPTY_MANUAL = {
   A2: 500,
 };
 
-const MANUAL_AXES = () => ([
+const MANUAL_AXES = localized(() => ([
   { key: 'L0', label: t("L0 主轴"), min: 0, max: 999, step: 1, description: t("主往复轴的逻辑目标值。0 表示最缩回，999 表示最伸出。输出层仍会继续套用轴配置约束。") },
   { key: 'L1', label: t("L1 前后"), min: 0, max: 999, step: 1, description: t("前后平移轴的逻辑目标值；按 TCode 约定，较小值朝前、较大值朝后，500 附近表示居中。输出层仍会继续套用轴配置约束。") },
   { key: 'L2', label: t("L2 左右"), min: 0, max: 999, step: 1, description: t("左右平移轴的逻辑目标值；按 TCode 约定，正向为用户左侧；500 附近表示居中。") },
@@ -117,9 +117,9 @@ const MANUAL_AXES = () => ([
   { key: 'A0', label: t("A0 辅助 1"), min: 0, max: 999, step: 1, description: t("辅助通道 1 的逻辑值；500 附近表示居中。") },
   { key: 'A1', label: t("A1 辅助 2"), min: 0, max: 999, step: 1, description: t("辅助通道 2 的逻辑值；500 附近表示居中。") },
   { key: 'A2', label: t("A2 辅助 3"), min: 0, max: 999, step: 1, description: t("辅助通道 3 的逻辑值；500 附近表示居中。") },
-]);
+]));
 
-const SIGNAL_ROLE_OPTIONS = () => ([
+const SIGNAL_ROLE_OPTIONS = localized(() => ([
   { value: 'GateEnable', label: t("门控（关闭则停止）") },
   { value: 'DepthOverride', label: t("深度覆盖") },
   { value: 'Depth', label: t("主轴行程（L0）") },
@@ -134,7 +134,7 @@ const SIGNAL_ROLE_OPTIONS = () => ([
   { value: 'Auxiliary', label: t("辅助 1（A0）") },
   { value: 'Auxiliary1', label: t("辅助 2（A1）") },
   { value: 'Auxiliary2', label: t("辅助 3（A2）") },
-]);
+]));
 
 function getSignalRoleLabel(role) {
   return SIGNAL_ROLE_OPTIONS().find(option => option.value === role)?.label || role || t("目标轴");
@@ -208,44 +208,44 @@ function buildSignalOverlapWarnings(signals) {
   return warnings;
 }
 
-const SIGNAL_CURVE_OPTIONS = () => ([
+const SIGNAL_CURVE_OPTIONS = localized(() => ([
   { value: 'Linear', label: t("线性") },
   { value: 'EaseIn', label: t("缓入") },
   { value: 'EaseOut', label: t("缓出") },
   { value: 'SCurve', label: t("缓入缓出") },
-]);
+]));
 
-const COMMAND_MODE_OPTIONS = () => ([
+const COMMAND_MODE_OPTIONS = localized(() => ([
   { value: 'Interval', label: t("时间 (I)") },
   { value: 'Speed', label: t("速度 (S)") },
   { value: 'None', label: t("无") },
-]);
+]));
 
-const MANUAL_MOTION_MODE_OPTIONS = () => ([
+const MANUAL_MOTION_MODE_OPTIONS = localized(() => ([
   { value: 'Default', label: t("跟随轴配置") },
   { value: 'Interval', label: t("时间 (I)") },
   { value: 'Speed', label: t("速度 (S)") },
-]);
+]));
 
-const OUTPUT_SLOPE_MODE_OPTIONS = () => ([
+const OUTPUT_SLOPE_MODE_OPTIONS = localized(() => ([
   { value: 'None', label: t("跟随轴配置") },
   { value: 'Interval', label: t("时间 (I)") },
   { value: 'Speed', label: t("速度 (S)") },
   { value: 'NoSlope', label: t("无") },
-]);
+]));
 
-const SPEED_UNIT_BASE_OPTIONS = () => ([
+const SPEED_UNIT_BASE_OPTIONS = localized(() => ([
   { value: 'Per100ms', label: t("每 100ms") },
   { value: 'PerSecond', label: t("每秒") },
-]);
+]));
 
-const RAMP_TYPE_OPTIONS = () => ([
+const RAMP_TYPE_OPTIONS = localized(() => ([
   { value: 'None', label: t("无"), summaryLabel: t("无") },
   { value: 'Linear', label: t("线性（=）"), summaryLabel: t("线性") },
   { value: 'EaseIn', label: t("缓入（<）"), summaryLabel: t("缓入") },
   { value: 'EaseOut', label: t("缓出（>）"), summaryLabel: t("缓出") },
   { value: 'EaseInOut', label: t("缓入缓出（<>）"), summaryLabel: t("缓入缓出") },
-]);
+]));
 
 const AXIS_LIMIT_MIN_SPEED = 1;
 const AXIS_LIMIT_MAX_SPEED = 999;
@@ -264,27 +264,27 @@ const SCRIPT_SPEED_MIN = 0.1;
 const SCRIPT_SPEED_MAX = 4;
 const SCRIPT_SPEED_STEP = 0.05;
 const SCRIPT_SPEED_PRESETS = [0.25, 0.5, 1, 1.5, 2, 3, 4];
-const SCRIPT_SEEK_ACTIONS = () => ([
+const SCRIPT_SEEK_ACTIONS = localized(() => ([
   { key: 'start', label: t("开头"), mode: 'absolute', value: 0, shortcut: 'Home' },
   { key: 'back10', label: '-10s', mode: 'relative', value: -10000, shortcut: 'Shift + ←' },
   { key: 'back5', label: '-5s', mode: 'relative', value: -5000, shortcut: '←' },
   { key: 'forward5', label: '+5s', mode: 'relative', value: 5000, shortcut: '→' },
   { key: 'forward10', label: '+10s', mode: 'relative', value: 10000, shortcut: 'Shift + →' },
   { key: 'end', label: t("结尾"), mode: 'absolute', value: 'end', shortcut: 'End' },
-]);
-const SCRIPT_TIMELINE_GUIDE_ITEMS = () => ([
+]));
+const SCRIPT_TIMELINE_GUIDE_ITEMS = localized(() => ([
   { title: t("点击时间轴"), description: t("立即定位到对应时间点") },
   { title: t("Shift + 点击"), description: t("把点击位置写成 A 点") },
   { title: t("Alt + 点击"), description: t("把点击位置写成 B 点") },
   { title: t("拖拽一段"), description: t("直接框选完整 A-B 区间") },
   { title: t("Esc 取消框选"), description: t("拖拽选择 A-B 时，可随时放弃当前框选") },
-]);
-const SCRIPT_EMPTY_STATE_GUIDE_ITEMS = () => ([
+]));
+const SCRIPT_EMPTY_STATE_GUIDE_ITEMS = localized(() => ([
   { title: t("先载入脚本"), description: t("支持 `.funscript` / `.json`；导入完成后这里会变成可编辑的时间轴工作区。") },
   { title: t("默认偏好会记住"), description: t("循环开关与时间倍率可以先设置好，当前浏览器会自动记住。") },
   { title: t("载入后立即开工"), description: t("时间轴拖拽、A-B 框选、关键帧步进和快捷键会在载入后直接可用。") },
-]);
-const SCRIPT_SHORTCUT_GROUPS = () => ([
+]));
+const SCRIPT_SHORTCUT_GROUPS = localized(() => ([
   {
     key: 'transport',
     title: t("播放与步进"),
@@ -330,9 +330,9 @@ const SCRIPT_SHORTCUT_GROUPS = () => ([
       { shortcut: '=（+）', label: t("提高倍率"), description: t("把当前脚本时间倍率提高 0.1x"), requirement: 'loaded' },
     ],
   },
-]);
+]));
 
-const AXIS_PROFILE_DEFS = () => ([
+const AXIS_PROFILE_DEFS = localized(() => ([
   { key: 'l0', axis: 'L0', label: t("主轴行程"), minLabel: t("最小"), maxLabel: t("最大") },
   { key: 'l1', axis: 'L1', label: t("前后位移"), minLabel: t("前"), maxLabel: t("后") },
   { key: 'l2', axis: 'L2', label: t("左右位移"), minLabel: t("右"), maxLabel: t("左") },
@@ -345,7 +345,7 @@ const AXIS_PROFILE_DEFS = () => ([
   { key: 'a0', axis: 'A0', label: t("辅助通道 1"), minLabel: t("最小"), maxLabel: t("最大") },
   { key: 'a1', axis: 'A1', label: t("辅助通道 2"), minLabel: t("最小"), maxLabel: t("最大") },
   { key: 'a2', axis: 'A2', label: t("辅助通道 3"), minLabel: t("最小"), maxLabel: t("最大") },
-]);
+]));
 
 const DEFAULT_AXIS_PROFILE = {
   min: 0,
@@ -360,19 +360,19 @@ const DEFAULT_AXIS_PROFILE = {
   lockValue: 0.5,
 };
 
-const AXIS_MODE_OPTIONS = () => ([
+const AXIS_MODE_OPTIONS = localized(() => ([
   { value: 'Normal', label: t("普通") },
   { value: 'Locked', label: t("锁定") },
   { value: 'Ignored', label: t("忽略") },
-]);
+]));
 
-const AXIS_MODE_SELECT_OPTIONS = () => ([
+const AXIS_MODE_SELECT_OPTIONS = localized(() => ([
   { value: 'Normal', mode: 'Normal', invert: false, label: t("普通") },
   { value: 'NormalInverted', mode: 'Normal', invert: true, label: t("普通（反向）") },
   { value: 'Locked', mode: 'Locked', invert: false, label: t("锁定") },
   { value: 'LockedInverted', mode: 'Locked', invert: true, label: t("锁定（反向）") },
   { value: 'Ignored', mode: 'Ignored', invert: false, label: t("忽略") },
-]);
+]));
 
 function defaultAxisLockValue(axisKey) {
   return axisKey === 'v0' || axisKey === 'v1' || axisKey === 'v2' ? 0 : 0.5;
@@ -421,7 +421,7 @@ function createAxisProfilePresetMotion(presetId) {
   }
 }
 
-const AXIS_PROFILE_PRESETS = () => ([
+const AXIS_PROFILE_PRESETS = localized(() => ([
   {
     id: 'osr-first-run',
     name: t("OSR 首次测试 · L0 小行程"),
@@ -447,7 +447,7 @@ const AXIS_PROFILE_PRESETS = () => ([
     name: t("L0 + 固定姿态"),
     description: t("保留 L0，姿态轴与 A0 / A1 / A2 锁定在中位，V0 / V1 / V2 仍忽略；适合“手动摆好姿态后只让主轴动”的场景。"),
   },
-]);
+]));
 
 const BUILT_IN_OSC_PRESET_IDS = new Set(BUILT_IN_OSC_MAPPING_PRESETS.map(preset => preset.id));
 
@@ -5435,9 +5435,9 @@ function App() {
 
                           {oscQueryPanelSummary ? <Typography variant="caption" color="text.secondary" className="osc-settings-panel__meta">{oscQueryPanelSummary}</Typography> : null}
 
-                          {oscQuery?.error && <Alert severity="warning" variant="outlined">OSCQuery：{oscQuery.error}</Alert>}
-                          {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">{t("轮询回退：")}{oscQueryPolling.error}</Alert>}
-                          {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">{t("自动发现：")}{oscQueryReceiver.error}</Alert>}
+                          {oscQuery?.error && <Alert severity="warning" variant="outlined">OSCQuery：{diagnostic(oscQuery.error)}</Alert>}
+                          {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">{t("轮询回退：")}{diagnostic(oscQueryPolling.error)}</Alert>}
+                          {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">{t("自动发现：")}{diagnostic(oscQueryReceiver.error)}</Alert>}
                         </Box>
                       </TabPanel>
 

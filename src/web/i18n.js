@@ -63,6 +63,16 @@ export function diagnostic(message) {
   }
   return message;
 }
+// Immutable option lists are reused during high-frequency OSC renders, while
+// each locale gets its own translated values.
+export function localized(factory) {
+  const cache = new Map();
+  return () => {
+    const current = getLocale();
+    if (!cache.has(current)) cache.set(current, factory());
+    return cache.get(current);
+  };
+}
 export function docUrl(path) {
   return 'https://github.com/SeaLoong/Sensa/blob/main/' + path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');
 }

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { t, getLocale, setLocale, resolveLocale, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
+import { localized, t, getLocale, setLocale, resolveLocale, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
 import en from '../../src/web/i18n.en.json' with {type:'json'};
 import presets from '../../src/web/data/osc-presets.json' with {type:'json'};
 import { calibratedPointDraft } from '../../src/web/osc-preview.js';
@@ -43,6 +43,17 @@ test('switch updates subscribers, keeps unknown data literal and does not resubs
     setLocale('zh-CN');assert.equal(t('停止输出'),'停止输出');assert.equal(calls,2);
     assert.match(docUrl('docs/guide.md'),/guide\.md$/);
   }finally{stop();setLocale(original);}
+});
+test('option catalogs reuse objects within a locale without stale text after switching', () => {
+  let calls=0;
+  const options=localized(()=>{calls++;return [{value:'manual',label:t('手动')}];});
+  try{
+    setLocale('zh-CN');const zh=options();assert.equal(zh[0].label,'手动');
+    assert.equal(options(),zh);assert.equal(calls,1);
+    setLocale('en-US');const enOptions=options();assert.equal(enOptions[0].label,'Manual');
+    assert.notEqual(enOptions,zh);assert.equal(calls,2);
+    setLocale('zh-CN');assert.equal(options(),zh);assert.equal(calls,2);
+  }finally{setLocale('zh-CN');}
 });
 test('blocked storage does not break switching or lose in-memory choice', () => {
   const descriptor=Object.getOwnPropertyDescriptor(globalThis,'localStorage');
