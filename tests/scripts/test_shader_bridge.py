@@ -13,6 +13,30 @@ def fixture():
     return [(255,255,255) if data[x//16]&(1<<(7-y//16)) else (0,0,0) for y in range(128) for x in range(256)]
 
 class ShaderBridgeTests(unittest.TestCase):
+    def test_frame_reader_allows_atomic_replacement_without_mixing_generations(self):
+        with tempfile.TemporaryDirectory() as directory:
+            current = Path(directory) / '帧.png'
+            pending = Path(directory) / 'next.png'
+            current.write_bytes(b'old frame')
+            with bridge.open_frame(current) as original:
+                # Hold the reader open deliberately: ordinary Windows open() blocks
+                # Path.replace here, reproducing the observed CI producer failure.
+                for index in range(20):
+                    payload = ('new frame ' + str(index)).encode()
+                    pending.write_bytes(payload)
+                    pending.replace(current)
+                    with bridge.open_frame(current) as latest:
+                        self.assertEqual(latest.read(), payload)
+                self.assertEqual(original.read(), b'old frame')
+            current.unlink()  # both native handle and descriptor have been released
+
+    def test_missing_frame_raises_without_creating_a_file(self):
+        with tempfile.TemporaryDirectory() as directory:
+            missing = Path(directory) / 'missing.png'
+            with self.assertRaises(OSError):
+                bridge.open_frame(missing)
+            self.assertFalse(missing.exists())
+
     def test_real_packet_layout_and_vertical_orientation(self):
         image=fixture();result=bridge.decode_pixels(image,256,128)
         self.assertEqual(result['frame'],256)

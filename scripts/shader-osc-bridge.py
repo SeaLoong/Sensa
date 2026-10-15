@@ -11,6 +11,39 @@ import struct
 import time
 
 
+def open_frame(path):
+    """Read one frame without blocking an atomic producer rename on Windows."""
+    if os.name != 'nt':
+        return Path(path).open('rb')
+    import ctypes
+    from ctypes import wintypes
+    import msvcrt
+    kernel = ctypes.WinDLL('kernel32', use_last_error=True)
+    create = kernel.CreateFileW
+    create.argtypes = [wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                       wintypes.LPVOID, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE]
+    create.restype = wintypes.HANDLE
+    close = kernel.CloseHandle
+    close.argtypes = [wintypes.HANDLE]
+    close.restype = wintypes.BOOL
+    # GENERIC_READ, FILE_SHARE_READ | WRITE | DELETE, OPEN_EXISTING.
+    # DELETE sharing also permits replacement/rename while this old frame is read.
+    # https://learn.microsoft.com/windows/win32/api/fileapi/nf-fileapi-createfilew
+    handle = create(str(Path(path).resolve()), 0x80000000, 7, None, 3, 0x80, None)
+    if handle == ctypes.c_void_p(-1).value:
+        raise ctypes.WinError(ctypes.get_last_error())
+    try:
+        descriptor = msvcrt.open_osfhandle(handle, os.O_RDONLY | os.O_BINARY)
+    except BaseException:
+        close(handle)
+        raise
+    try:
+        return os.fdopen(descriptor, 'rb')
+    except BaseException:
+        os.close(descriptor)
+        raise
+
+
 def decode_pixels(pixels, width, height):
     if width < 64 or height < 32:
         raise ValueError('Expected a complete 16 x 8 grid, at least 64 x 32 pixels')
@@ -113,7 +146,8 @@ def main():
                 sample, valid, error = None, False, None
                 try:
                     if args.image:
-                        with Image.open(args.image) as source_image: image = source_image.convert('RGB')
+                        with open_frame(args.image) as frame_file, Image.open(frame_file) as source_image:
+                            image = source_image.convert('RGB')
                     else:
                         x, y, w, h = args.region
                         image = ImageGrab.grab(bbox=(x, y, x+w, y+h), all_screens=True).convert('RGB')
