@@ -1,5 +1,7 @@
 # Camera-only prototype / 纯相机实验
 
+**简体中文** | [English](CAMERA-PROTOTYPE.en.md)
+
 这是用于验证渲染通路的测试图案，不是已完成的 SPS 数据桥接。
 
 `Generated/CameraOnlyPrototype.prefab` 包含两个原生 Unity Camera、一个 RenderTexture、两个显示对象及其 Shader/Material，没有 Udon 或普通 C# 运行时脚本。根对象默认停用。

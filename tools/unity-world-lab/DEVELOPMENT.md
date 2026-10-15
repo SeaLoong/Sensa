@@ -1,5 +1,7 @@
 # Sensa Unity world laboratory
 
+**简体中文** | [English](DEVELOPMENT.en.md)
+
 This is a device-free PC Worlds test harness. Open `Generated/SensaLab.unity`.
 
 - Enter Play Mode / ClientSim to animate the root marker, calculate actual SDK Contact proximity, and run Udon GPU readback with CRC validation.

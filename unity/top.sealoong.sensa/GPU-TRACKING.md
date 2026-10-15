@@ -1,5 +1,7 @@
 # SPS Shader 形变数据：实验探针与游戏内桥接设计
 
+**简体中文** | [English](GPU-TRACKING.en.md)
+
 状态：已验证 Worlds 中的 GPU 渲染、ClientSim 回读、真实 SPS2 模型采样及编码 PNG→外部解码→隔离 Sensa OSC。Editor Probe 支持连续导出 PNG；可上传的纯相机装置仍只生成合成测试码。尚无完整的游戏内真实 SPS 捕获桥接或设备输出，也未验证 PCVR 头显可见性。
 
 具体场景、预期值和命令见[能力测试与联动说明](https://github.com/SeaLoong/Sensa/blob/main/tools/unity-world-lab/CAPABILITIES.md)。连续 PNG 编码入口相对中心线根部的世界轴位移，并非最终网格或直接行程。外部脚本验证 CRC、递增帧序及冻结超时；这些检查仍不能保证底层 Resolver 数据与画面绝对同步。

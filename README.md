@@ -1,5 +1,7 @@
 # Sensa
 
+**简体中文** | [English](README.en.md)
+
 [![main CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml?query=branch%3Amain)
 
 把 VRChat 的 OSC 参数或动作脚本转换为 Intiface / TCode 设备控制，使用浏览器完成配置和预览。
@@ -12,7 +14,7 @@
 
 1. 下载与你的系统、处理器对应的压缩包，解压到可写目录。
 2. Windows 运行 `Sensa.exe`；Linux/macOS 在解包目录运行 `./Sensa`。保留整个目录，不需要另装 .NET。
-3. 打开 **http://127.0.0.1:5086**。
+3. 打开 **http://127.0.0.1:5086**。右上角可切换简体中文 / English，并记住选择；[双语说明](docs/languages.md)。
 4. 添加输出，设置允许的行程和速度；选择手动、OSC 或脚本输入。
 5. 先查看预览并校准，确认方向和范围后再打开输入开关。
 

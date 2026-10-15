@@ -1,5 +1,7 @@
 # 用一个测试 Avatar 验证流程
 
+**简体中文** | [English](FULL-FLOW.en.md)
+
 从上传到软件预览的统一步骤见 [Avatar / 世界 / Sensa 联动路线](https://github.com/SeaLoong/Sensa/blob/main/docs/lab-workflow.md)。切换测试应替换整套草稿；保存配置会关闭输入，检查后需要重新开启。
 
 打开 **`Assets/SensaAvatarLab/Generated/FullFlow.unity`**。这是日常验收入口：Chocolat 底模、原 SPS 棒棒糖、手部 Socket、Sensa 定位、可抓 PB、入门接收器及可选 Shader 编码装置都已配置。无需从分项场景手动拼装。上传时保持 **Private**。

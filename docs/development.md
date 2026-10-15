@@ -1,5 +1,7 @@
 # 开发与验证
 
+**简体中文** | [English](development.en.md)
+
 需要 Node.js 24、Python 3.12+ 和 `global.json` 指定的 .NET SDK。
 
 ```shell
@@ -36,6 +38,8 @@ Unity 编译、NDMF、Udon 和 ClientSim 使用独立本地项目验证；GitHub
 技术参考：[自动生成与几何解算](../unity/top.sealoong.sensa/AUTOMATION.md)、[Shader 实验](../unity/top.sealoong.sensa/GPU-TRACKING.md)、[世界测试实现](../tools/unity-world-lab/DEVELOPMENT.md)。
 
 ## 本地 Unity 套件
+
+当前工作流要求自动 E2E、完整进程冒烟和截图仅在 CI 执行。本机允许编译、EditMode 单元测试和手工体验。下方列出的 PlayMode/功能/几何套件为已有工具能力，仅供具备 Unity 及授权资源的 CI runner 使用，不应在本机作为自动 E2E 运行；公共 CI 当前未配置完整 Unity 工程。
 
 先关闭要测试的项目，安装对应的测试工具源码。测试会创建临时烘焙场景、报告和截图；请先记录自己的场景修改。不要同时手动打开同一个项目。GPU 测试需要图形设备，脚本不会使用 `-nographics`。
 

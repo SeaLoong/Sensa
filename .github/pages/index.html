@@ -212,23 +212,23 @@
   <div class="container">
     <header>
       <h1>Sensa</h1>
-      <p>VRChat SPS/OGB/TPS 触点感知桥接 · VPM 包源</p>
+      <p>VRChat SPS/OGB/TPS 触点感知桥接 · VPM 包源<br><span lang="en">Contact sensing bridge · VPM repository</span></p>
     </header>
 
     <!-- One-click add -->
     <div class="card card-center">
       <p style="margin-bottom:16px;color:var(--text-dim);font-size:0.9rem;">
-        点击下方按钮将 Sensa 仓库添加到 VCC / ALCOM
+        点击下方按钮将 Sensa 仓库添加到 VCC / ALCOM<br><span lang="en">Add the Sensa repository to VCC / ALCOM below</span>
       </p>
       <a class="btn-vcc" href="vcc://vpm/addRepo?url=https://SeaLoong.github.io/Sensa/vpm.json">
-        添加到 VCC
+        添加到 VCC / Add to VCC
       </a>
 
       <div class="manual-section">
-        <div class="manual-label">或手动添加 VPM 源地址：</div>
+        <div class="manual-label">或手动添加 VPM 源地址 / Add this VPM URL manually:</div>
         <div class="source-box">
           <code id="vpmUrl">https://SeaLoong.github.io/Sensa/vpm.json</code>
-          <button id="copyBtn" onclick="copyUrl()">复制</button>
+          <button id="copyBtn" onclick="copyUrl()">复制 / Copy</button>
         </div>
       </div>
     </div>
@@ -236,15 +236,15 @@
     <!-- Info -->
     <div class="card">
       <div class="info-row">
-        <span class="info-label">包名</span>
+        <span class="info-label">包名 / Package</span>
         <span class="info-value"><code>top.sealoong.sensa</code></span>
       </div>
       <div class="info-row">
-        <span class="info-label">版本</span>
+        <span class="info-label">版本 / Version</span>
         <span class="info-value"><span class="tag" id="pkgVersion">v__VERSION__</span></span>
       </div>
       <div class="info-row">
-        <span class="info-label">许可</span>
+        <span class="info-label">许可 / License</span>
         <span class="info-value">MIT</span>
       </div>
       <div class="info-row">
@@ -252,13 +252,14 @@
         <span class="info-value"><a href="https://github.com/SeaLoong/Sensa">SeaLoong/Sensa →</a></span>
       </div>
       <div class="info-row">
-        <span class="info-label">问题反馈</span>
+        <span class="info-label">问题反馈 / Feedback</span>
         <span class="info-value"><a href="https://github.com/SeaLoong/Sensa/issues">Issues →</a></span>
       </div>
     </div>
 
     <footer>
       <p><a href="https://github.com/SeaLoong/Sensa">Sensa</a> · MIT License</p>
+      <p><a href="https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/README.md">中文指南</a> · <a href="https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/README.en.md" lang="en">English guide</a></p>
     </footer>
   </div>
 
@@ -267,12 +268,14 @@
       const btn = document.getElementById('copyBtn');
       const url = document.getElementById('vpmUrl');
       navigator.clipboard.writeText(url.textContent).then(() => {
-        btn.textContent = '已复制';
+        btn.textContent = '已复制 / Copied';
         btn.classList.add('copied');
         setTimeout(() => {
-          btn.textContent = '复制';
+          btn.textContent = '复制 / Copy';
           btn.classList.remove('copied');
         }, 2000);
+      }).catch(() => {
+        btn.textContent = '请手动复制 / Copy manually';
       });
     }
   </script>

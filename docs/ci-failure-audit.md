@@ -1,5 +1,7 @@
 # GitHub Actions 失败记录核对
 
+**简体中文** | [English](ci-failure-audit.en.md)
+
 2026-10-15 通过 GitHub API 查询全部 `status=failure` 运行，共 7 条；分别检查了日志、job 步骤、check annotations，以及对应分支的最新结果。旧运行固定对应旧提交，修复后不会自动更改其红色状态。
 
 | 原失败运行 | 实际失败点 | 修复与当前处理 |

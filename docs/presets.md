@@ -1,5 +1,7 @@
 # 选择映射预设
 
+**简体中文** | [English](presets.en.md)
+
 当前共 29 个内置预设。它们生成映射草稿，不会自动连接设备、启用输入或替代量程校准。通配路径用于发现目标；实际使用应限定到一个实例和来源。
 
 - 首次连接 OSR：选 **入门 · 测试世界 → 我的 Avatar**，按 [首次使用](quick-start.md) 给自己的 Avatar 添加 Quick Start World Receiver，在世界 START HERE 测试。

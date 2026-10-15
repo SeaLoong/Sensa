@@ -1,5 +1,7 @@
 # 能力测试与 Sensa 联动
 
+**简体中文** | [English](CAPABILITIES.en.md)
+
 实际客户端验收先看 [Avatar / 世界 / Sensa 联动路线](https://github.com/SeaLoong/Sensa/blob/main/docs/lab-workflow.md)。本页的工程台读数不会自动成为 Avatar OSC；ClientSim 也不代替穿戴已上传 Avatar 的 VRChat 客户端。
 
 打开 **Assets/SensaLab/Functional/FunctionalLab.unity**。原 `Generated/SensaLab.unity` 保留作几何边界回归；新场景按信号来源划分实验，不把多个位置点算作多个系统。

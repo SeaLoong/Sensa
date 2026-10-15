@@ -7,9 +7,9 @@ namespace UnityBox.Sensa
     public sealed class SensaPoseSocket : MonoBehaviour
     {
         public SensaPoseProfile profile;
-        [Tooltip("Single-sided standard SPS root position only. Does not measure tip, orientation or stroke.")]
+        [Tooltip("仅诊断单侧标准 SPS 根部位置，不测尖端、朝向或行程。\nSingle-sided standard SPS root position only. Does not measure tip, orientation or stroke.")]
         public bool standardSpsRoot;
-        [Tooltip("Unique on this avatar; used in OSC paths. +Z of this object points into the Socket.")]
+        [Tooltip("头像内须唯一，用于 OSC 路径；当前对象 +Z 朝孔内。\nUnique on this avatar; used in OSC paths. +Z of this object points into the Socket.")]
         public string instanceName = "Main";
     }
 }

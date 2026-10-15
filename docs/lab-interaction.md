@@ -1,5 +1,7 @@
 # 测试目标怎么拿、怎么放、怎么看
 
+**简体中文** | [English](lab-interaction.en.md)
+
 打开 Avatar 项目的 `Assets/SensaAvatarLab/Generated/FullFlow.unity` 和世界项目的 `Assets/SensaLab/Functional/FunctionalLab.unity`。本轮更改需要重新构建并私有上传后才会出现在 VRChat；没有自动上传。
 
 ## Avatar 的道具菜单

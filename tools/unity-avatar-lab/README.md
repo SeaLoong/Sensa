@@ -1,5 +1,7 @@
 # Sensa Avatar 测试工程工具
 
+**简体中文** | [English](README.en.md)
+
 **需要一个 Avatar 验证完整流程：打开 `Assets/SensaAvatarLab/Generated/FullFlow.unity`，按 [FullFlow 使用步骤](FULL-FLOW.md)操作。** 已组合入门接收器、原生 SPS、定位、可抓 PB 与默认关闭的 Shader 合成码实验。原来的分项场景用于排错。
 
 FullFlow 新增 **Sensa Test Props**：Socket、PB 参考架和 Shader 架都可切换原位、左手、右手、世界固定；棒棒糖沿用自己的左右手/Fixed 菜单。目标带名称、轴向和同色探针标记，可统一隐藏。生成新 FullFlow 时自动配置；已有场景使用 **Upgrade FullFlow hand and world controls**。标记文字烘焙为静态网格，避免被 VRChat 移除。

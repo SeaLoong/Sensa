@@ -1,5 +1,7 @@
 # Sensa 测试世界
 
+**简体中文** | [English](README.en.md)
+
 两个世界场景统一使用浅灰白纯色地板。生成脚本也采用此配色；已有项目可用 **Tools → Sensa Lab → Use neutral grey-white floors** 更新材质，不改地面碰撞和场景布局。
 
 现在主世界的物理实验架、入门测试球和新增原生 SPS 道具都有 **LEFT / RIGHT / PLACE / HOME** 控制：跟手、固定当前位置、回到原位。原生 SPS 区在出生点左侧 **08 MY AVATAR SPS**，可直接与自己的 Avatar 交互。琥珀色 Plug 对 Avatar Socket；蓝框 Socket 对 Avatar Plug。道具还可直接拿取；抓取后会退出按钮跟手模式。

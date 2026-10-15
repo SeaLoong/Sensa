@@ -64,16 +64,16 @@ namespace UnityBox.Sensa
             EditorGUILayout.Space(4);
             var headerStyle = new GUIStyle(EditorStyles.boldLabel) { fontSize = 13 };
             EditorGUILayout.LabelField("Sensa", headerStyle);
-            EditorGUILayout.LabelField("VRChat SPS/OGB Contact Sensing", EditorStyles.miniLabel);
+            EditorGUILayout.LabelField("VRChat SPS/OGB 触点测量 / VRChat SPS/OGB Contact Sensing", EditorStyles.miniLabel);
             EditorGUILayout.Space(6);
 
             DrawSeparator();
 
             // ── Role & Naming ─────────────────────────────────────────
-            EditorGUILayout.LabelField("Identity", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(_role);
+            EditorGUILayout.LabelField("身份与命名 / Identity", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(_role, SensaInspectorLabels.Label(_role));
             EditorGUILayout.PropertyField(_instanceName,
-                new GUIContent("Instance Name", "Unique name per component; used in OGB parameter path."));
+                new GUIContent("实例名称 / Instance Name", "每个组件须唯一，用于 OGB 参数路径。 / Unique name per component; used in OGB parameter path."));
 
             DrawSeparator();
 
@@ -88,7 +88,7 @@ namespace UnityBox.Sensa
             DrawSeparator();
 
             // ── Aux signals ───────────────────────────────────────────
-            _showAuxSignals = EditorGUILayout.Foldout(_showAuxSignals, "Supplementary Signals", true);
+            _showAuxSignals = EditorGUILayout.Foldout(_showAuxSignals, "辅助信号 / Supplementary Signals", true);
             if (_showAuxSignals)
             {
                 EditorGUI.indentLevel++;
@@ -99,14 +99,14 @@ namespace UnityBox.Sensa
             DrawSeparator();
 
             // ── OSC parameter preview ─────────────────────────────────
-            _showPreview = EditorGUILayout.Foldout(_showPreview, "OSC Parameters (Preview)", true);
+            _showPreview = EditorGUILayout.Foldout(_showPreview, "OSC 参数预览 / OSC Parameters (Preview)", true);
             if (_showPreview)
             {
                 EditorGUI.indentLevel++;
                 var paramList = comp.GetExpectedParameters();
                 if (paramList.Count == 0)
                 {
-                    EditorGUILayout.HelpBox("No parameters — check configuration.", MessageType.Warning);
+                    EditorGUILayout.HelpBox("没有参数，请检查配置。 / No parameters — check configuration.", MessageType.Warning);
                 }
                 else
                 {
@@ -124,12 +124,12 @@ namespace UnityBox.Sensa
             EditorGUILayout.Space(4);
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Preview Contacts (Scene Gizmos)"))
+                if (GUILayout.Button("预览触点（场景辅助线） / Preview Contacts (Scene Gizmos)"))
                     SceneView.RepaintAll();
 
                 if (role == BridgeRole.Socket && comp.depthAxis == null)
                 {
-                    if (GUILayout.Button("Auto-assign depthAxis from Transform"))
+                    if (GUILayout.Button("以当前 Transform 自动指定深度轴 / Auto-assign depthAxis from Transform"))
                     {
                         _depthAxis.objectReferenceValue = comp.transform;
                         serializedObject.ApplyModifiedProperties();
@@ -139,49 +139,49 @@ namespace UnityBox.Sensa
 
             // ── Validation warnings ───────────────────────────────────
             if (role == BridgeRole.Socket && comp.depthAxis == null)
-                EditorGUILayout.HelpBox("depthAxis is not assigned. Contacts will not be generated.", MessageType.Error);
+                EditorGUILayout.HelpBox("未指定 depthAxis，无法生成触点。 / depthAxis is not assigned. Contacts will not be generated.", MessageType.Error);
 
             if (role == BridgeRole.Plug && (comp.tipBone == null || comp.rootBone == null))
-                EditorGUILayout.HelpBox("tipBone or rootBone is not assigned. Senders will not be generated.", MessageType.Error);
+                EditorGUILayout.HelpBox("未指定 tipBone 或 rootBone，无法生成发送器。 / tipBone or rootBone is not assigned. Senders will not be generated.", MessageType.Error);
 
             serializedObject.ApplyModifiedProperties();
         }
 
         private void DrawSocketConfig(SensaComponent comp)
         {
-            EditorGUILayout.LabelField("Orifice Type", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(_orificeType);
+            EditorGUILayout.LabelField("孔位类型 / Orifice Type", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(_orificeType, SensaInspectorLabels.Label(_orificeType));
             if ((OrificeType)_orificeType.enumValueIndex == OrificeType.Custom)
-                EditorGUILayout.PropertyField(_customOrificeType, new GUIContent("Custom Type"));
+                EditorGUILayout.PropertyField(_customOrificeType, new GUIContent("自定义类型 / Custom Type"));
 
             EditorGUILayout.Space(4);
-            EditorGUILayout.LabelField("Socket Config", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Socket 配置 / Socket Config", EditorStyles.boldLabel);
 
             EditorGUILayout.PropertyField(_depthAxis,
-                new GUIContent("Depth Axis", "Bone defining the insertion axis (+Z = inward)."));
+                new GUIContent("深度轴 / Depth Axis", "定义插入方向的骨骼，+Z 朝内。 / Bone defining the insertion axis (+Z = inward)."));
             EditorGUILayout.PropertyField(_socketLength,
-                new GUIContent("Socket Length (m)", "Max insertion depth in metres."));
+                new GUIContent("Socket 长度（米） / Socket Length (m)", "最大插入深度，单位米。 / Max insertion depth in metres."));
             EditorGUILayout.PropertyField(_depthRingCount,
-                new GUIContent("Depth Ring Count", "Number of proximity rings (1–10)."));
+                new GUIContent("深度环数量 / Depth Ring Count", "近接环数量（1–10）。 / Number of proximity rings (1–10)."));
 
             // detectDps is a no-op since TPS_Pen_Penetrating is now always the primary filter;
             // hidden from UI to avoid confusion. The serialized field is retained for backwards compatibility.
             EditorGUILayout.PropertyField(_generateAngleParams,
-                new GUIContent("Generate Angle Params", "Add AngleX/AngleY proximity receivers."));
+                new GUIContent("生成角度参数 / Generate Angle Params", "增加 AngleX/AngleY 近接接收器。 / Add AngleX/AngleY proximity receivers."));
             EditorGUILayout.PropertyField(_generateSelfParam,
-                new GUIContent("Generate Self Param", "Also emit PenSelf parameter."));
+                new GUIContent("生成自身参数 / Generate Self Param", "同时输出 PenSelf 参数。 / Also emit PenSelf parameter."));
         }
 
         private void DrawPlugConfig(SensaComponent comp)
         {
-            EditorGUILayout.LabelField("Plug Config", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("Plug 配置 / Plug Config", EditorStyles.boldLabel);
 
             EditorGUILayout.PropertyField(_tipBone,
-                new GUIContent("Tip Bone", "Tip of the penetrator (TPS_Pen_Penetrating sender placed here)."));
+                new GUIContent("尖端骨骼 / Tip Bone", "尖端位置，放置 TPS_Pen_Penetrating 发送器。 / Tip of the penetrator (TPS_Pen_Penetrating sender placed here)."));
             EditorGUILayout.PropertyField(_rootBone,
-                new GUIContent("Root Bone", "Root of the penetrator (TPS_Pen_Root sender placed here)."));
+                new GUIContent("根部骨骼 / Root Bone", "根部位置，放置 TPS_Pen_Root 发送器。 / Root of the penetrator (TPS_Pen_Root sender placed here)."));
             EditorGUILayout.PropertyField(_selfPenetration,
-                new GUIContent("Self Penetration", "Detect insertion into own sockets."));
+                new GUIContent("自身交互 / Self Penetration", "检测进入自己的 Socket。 / Detect insertion into own sockets."));
         }
 
         // ── Scene Gizmos ──────────────────────────────────────────────

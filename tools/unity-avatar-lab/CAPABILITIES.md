@@ -1,5 +1,7 @@
 # Avatar 能力矩阵
 
+**简体中文** | [English](CAPABILITIES.en.md)
+
 日常验收先用 [FullFlow 综合 Avatar](FULL-FLOW.md)：它把入门接收、SPS、定位、PB 和可选 Shader 合成码实验组合在一个 Avatar 上。下面的单能力场景用于定位具体故障。
 
 打开 `Assets/SensaAvatarLab/Capabilities/` 下的对应场景。每个场景只有一种主要输入链路，底模相同便于控制变量；不是把同一套功能换几个位置。原 Exclusive/Shared 场景保留作完整组合与共享性能对照。

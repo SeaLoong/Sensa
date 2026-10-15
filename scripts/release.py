@@ -94,7 +94,7 @@ def main():
         executable='Sensa.exe' if args.runtime.startswith('win-') else 'Sensa'
         if not (source / executable).is_file() or not (source / 'web/app.bundle.js').is_file():
             raise ValueError('Application output is incomplete')
-        for name in ('README.md', 'LICENSE'):
+        for name in ('README.md', 'README.en.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
         # Keep the README's relative documentation links usable in the desktop archive.
         for relative in ('unity/top.sealoong.sensa/AUTOMATION.md', 'unity/top.sealoong.sensa/COMPATIBILITY.md',
@@ -108,6 +108,12 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
+        # Include matching English guides beside the Chinese originals.
+        for folder in ('unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
+            for path in (ROOT / folder).glob('*.en.md'):
+                destination = source / path.relative_to(ROOT)
+                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination.write_bytes(path.read_bytes())
         if (ROOT/'docs').exists():
             for path in (ROOT/'docs').rglob('*'):
                 if not path.is_file() or path.suffix.lower() not in ('.md', '.png', '.jpg', '.jpeg'):

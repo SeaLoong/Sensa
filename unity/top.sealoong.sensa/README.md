@@ -1,5 +1,7 @@
 # Sensa Unity 资产
 
+**简体中文** | [English](README.en.md)
+
 为 Avatar 添加额外的位置测量、配对姿态或可抓取 PB 手柄。只使用现有 SPS OSC 参数时，不必安装本包。
 
 ## 安装
