@@ -15,6 +15,8 @@ python scripts/release.py check-unity
 
 ## CI 与发布
 
+历史失败的具体日志、原因和对应处理见 [CI 失败核对记录](ci-failure-audit.md)。可以在 GitHub 手动运行 `Validate and preview` 检查 main；手动运行 `Validate and release Unity package` 只验证并打包 Unity 预览工件，不创建 Release 或部署 VPM。
+
 PR 和 main 推送运行校验及六种原生平台构建，每个平台执行后端测试、自包含程序启动和隔离 HTTP/WS/OSC 冒烟，再生成压缩包。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
 
 基础校验通过后才启动六个平台构建。React 与 React DOM 的版本更新和安全更新分别成组提交，避免只升级其中一个导致 `npm ci` 的 peer dependency 冲突；分组规则见 [GitHub 官方说明](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#groups)。这不自动合并依赖升级。

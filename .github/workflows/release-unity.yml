@@ -1,4 +1,4 @@
-name: Release Unity package
+name: Validate and release Unity package
 on:
   push:
     tags: ['unity-v*']
@@ -10,15 +10,24 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build:
-    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     outputs:
       stable: ${{ steps.package.outputs.stable }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - run: python3 -m unittest discover -s tests/scripts
-      - run: python3 scripts/release.py unity
+      - name: Package Unity (manual runs validate without publishing)
         id: package
+        env:
+          BUILD_LABEL: manual.${{ github.run_number }}.${{ github.sha }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == 'workflow_dispatch' ]]; then
+            version=$(python3 -c "import json;print(json.load(open('unity/top.sealoong.sensa/package.json'))['version'])")
+            python3 scripts/release.py unity --tag "unity-v$version" --label "$BUILD_LABEL"
+          else
+            python3 scripts/release.py unity
+          fi
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: release-unity
@@ -28,6 +37,7 @@ jobs:
           if-no-files-found: error
   release:
     needs: build
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -47,7 +57,7 @@ jobs:
           gh "${args[@]}" artifacts/release/*
   pages:
     needs: [build, release]
-    if: ${{ always() && ((needs.release.result == 'success' && needs.build.outputs.stable == 'true') || github.event_name == 'workflow_dispatch') }}
+    if: ${{ always() && needs.release.result == 'success' && needs.build.outputs.stable == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -58,6 +68,10 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+      - name: Check GitHub Pages configuration
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        with:
+          enablement: false
       - name: Rebuild and verify all package links
         env:
           GH_TOKEN: ${{ github.token }}

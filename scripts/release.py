@@ -87,7 +87,7 @@ def main():
     archive_version=version+('-'+args.label if args.label else '')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
-            stream.write(f'stable={str("-" not in version).lower()}\n')
+            stream.write(f'stable={str("-" not in archive_version).lower()}\n')
     output = args.output; output.mkdir(parents=True, exist_ok=True)
     source = args.source or ROOT / 'unity/top.sealoong.sensa'
     if args.kind == 'app':

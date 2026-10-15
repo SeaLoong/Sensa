@@ -17,6 +17,16 @@ spec = importlib.util.spec_from_file_location('release_tools', ROOT / 'scripts/r
 release = importlib.util.module_from_spec(spec); spec.loader.exec_module(release)
 
 class ReleaseTests(unittest.TestCase):
+    def test_labelled_unity_validation_never_advertises_a_stable_release(self):
+        version=json.loads((ROOT/'unity/top.sealoong.sensa/package.json').read_text(encoding='utf-8'))['version']
+        with tempfile.TemporaryDirectory() as folder:
+            output=Path(folder)/'package';metadata=Path(folder)/'outputs.txt'
+            with patch.dict(os.environ,GITHUB_OUTPUT=str(metadata)), patch('sys.argv',[
+                'release.py','unity','--tag','unity-v'+version,'--label','manual.42.test','--output',str(output)]):
+                release.main()
+            self.assertIn('stable=false',metadata.read_text(encoding='utf-8'))
+            self.assertFalse((output/'vpm-package.json').exists())
+            self.assertEqual(len(list(output.glob('*-manual.42.test.zip'))),1)
     def test_unix_archives_are_reproducible_and_preserve_the_launcher_permission(self):
         with tempfile.TemporaryDirectory() as folder:
             root=Path(folder);(root/'src').mkdir();(root/'src/Sensa').write_bytes(b'apphost');(root/'src/README.md').write_text('guide')

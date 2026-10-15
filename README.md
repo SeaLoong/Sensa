@@ -1,5 +1,7 @@
 # Sensa
 
+[![main CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml?query=branch%3Amain)
+
 把 VRChat 的 OSC 参数或动作脚本转换为 Intiface / TCode 设备控制，使用浏览器完成配置和预览。
 
 [下载开发预览版](https://github.com/SeaLoong/Sensa/releases) · **[OSR 首次使用](docs/quick-start.md)** · **[Avatar / 世界 / 软件联动](docs/lab-workflow.md)** · [使用指南](docs/guide.md) · [选择预设](docs/presets.md)
