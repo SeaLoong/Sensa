@@ -47,9 +47,9 @@ export const test = base.extend({
       await mock.close(); await rm(directory, { recursive: true, force: true });
     }
   },
-  page: async ({ page, rig }, use) => {
+  page: async ({ page, rig, locale }, use) => {
     const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(rig.baseUrl); await expect(page.getByRole('button', { name: '使用帮助', exact: true })).toBeVisible();
+    await page.goto(rig.baseUrl); await expect(page.getByRole('button', { name: locale?.startsWith('en') ? 'Help' : '使用帮助', exact: true })).toBeVisible();
     await use(page); expect(errors, 'Browser JavaScript errors').toEqual([]);
   },
 });

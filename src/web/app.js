@@ -1,3 +1,5 @@
+import { t, getLocale, subscribeLocale, setLocale, docUrl, diagnostic } from './i18n.js';
+import { zhCN, enUS } from '@mui/material/locale';
 import React from 'react';
 import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
@@ -67,25 +69,25 @@ const DEFAULT_OSC_HUB_RATE = 10;
 const OSC_HUB_RATE_MIN = 1;
 const OSC_HUB_RATE_MAX = 240;
 
-const INPUT_MODES = [
-  { value: 'manual', label: '手动' },
+const INPUT_MODES = () => ([
+  { value: 'manual', label: t("手动") },
   { value: 'osc', label: 'OSC' },
-  { value: 'script', label: '脚本' },
-];
+  { value: 'script', label: t("脚本") },
+]);
 
-const OUTPUT_TYPES = [
-  { value: 'TCodeSerial', label: 'TCode 串口', shortLabel: '串口直连', scanSupported: false },
+const OUTPUT_TYPES = () => ([
+  { value: 'TCodeSerial', label: t("TCode 串口"), shortLabel: t("串口直连"), scanSupported: false },
   { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
   { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
   { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
-];
+]);
 
-const OUTPUT_TYPE_BY_VALUE = Object.fromEntries(OUTPUT_TYPES.map(item => [item.value, item]));
+const OUTPUT_TYPE_BY_VALUE = () => (Object.fromEntries(OUTPUT_TYPES().map(item => [item.value, item])));
 
-const OSC_HUB_MODE_OPTIONS = [
-  { value: 'EventDriven', label: '事件驱动' },
-  { value: 'FixedRate', label: '固定频率缓冲' },
-];
+const OSC_HUB_MODE_OPTIONS = () => ([
+  { value: 'EventDriven', label: t("事件驱动") },
+  { value: 'FixedRate', label: t("固定频率缓冲") },
+]);
 
 const EMPTY_MANUAL = {
   L0: 500,
@@ -102,44 +104,44 @@ const EMPTY_MANUAL = {
   A2: 500,
 };
 
-const MANUAL_AXES = [
-  { key: 'L0', label: 'L0 主轴', min: 0, max: 999, step: 1, description: '主往复轴的逻辑目标值。0 表示最缩回，999 表示最伸出。输出层仍会继续套用轴配置约束。' },
-  { key: 'L1', label: 'L1 前后', min: 0, max: 999, step: 1, description: '前后平移轴的逻辑目标值；按 TCode 约定，较小值朝前、较大值朝后，500 附近表示居中。输出层仍会继续套用轴配置约束。' },
-  { key: 'L2', label: 'L2 左右', min: 0, max: 999, step: 1, description: '左右平移轴的逻辑目标值；按 TCode 约定，正向为用户左侧；500 附近表示居中。' },
-  { key: 'R0', label: 'R0 扭转', min: 0, max: 999, step: 1, description: '绕 L0 轴旋转的扭转逻辑值；500 附近表示居中。' },
-  { key: 'R1', label: 'R1 滚转', min: 0, max: 999, step: 1, description: '绕 L1 轴旋转的滚转逻辑值；500 附近表示居中。' },
-  { key: 'R2', label: 'R2 俯仰', min: 0, max: 999, step: 1, description: '绕 L2 轴旋转的俯仰逻辑值；500 附近表示居中。' },
-  { key: 'V0', label: 'V0 震动', min: 0, max: 999, step: 1, description: '主震动逻辑值。0 为关闭，999 为最大；输出层仍会继续套用轴配置约束。' },
-  { key: 'V1', label: 'V1 震动 2', min: 0, max: 999, step: 1, description: '第二路震动逻辑值。0 为关闭，999 为最大。' },
-  { key: 'V2', label: 'V2 震动 3', min: 0, max: 999, step: 1, description: '第三路震动逻辑值。0 为关闭，999 为最大。' },
-  { key: 'A0', label: 'A0 辅助 1', min: 0, max: 999, step: 1, description: '辅助通道 1 的逻辑值；500 附近表示居中。' },
-  { key: 'A1', label: 'A1 辅助 2', min: 0, max: 999, step: 1, description: '辅助通道 2 的逻辑值；500 附近表示居中。' },
-  { key: 'A2', label: 'A2 辅助 3', min: 0, max: 999, step: 1, description: '辅助通道 3 的逻辑值；500 附近表示居中。' },
-];
+const MANUAL_AXES = () => ([
+  { key: 'L0', label: t("L0 主轴"), min: 0, max: 999, step: 1, description: t("主往复轴的逻辑目标值。0 表示最缩回，999 表示最伸出。输出层仍会继续套用轴配置约束。") },
+  { key: 'L1', label: t("L1 前后"), min: 0, max: 999, step: 1, description: t("前后平移轴的逻辑目标值；按 TCode 约定，较小值朝前、较大值朝后，500 附近表示居中。输出层仍会继续套用轴配置约束。") },
+  { key: 'L2', label: t("L2 左右"), min: 0, max: 999, step: 1, description: t("左右平移轴的逻辑目标值；按 TCode 约定，正向为用户左侧；500 附近表示居中。") },
+  { key: 'R0', label: t("R0 扭转"), min: 0, max: 999, step: 1, description: t("绕 L0 轴旋转的扭转逻辑值；500 附近表示居中。") },
+  { key: 'R1', label: t("R1 滚转"), min: 0, max: 999, step: 1, description: t("绕 L1 轴旋转的滚转逻辑值；500 附近表示居中。") },
+  { key: 'R2', label: t("R2 俯仰"), min: 0, max: 999, step: 1, description: t("绕 L2 轴旋转的俯仰逻辑值；500 附近表示居中。") },
+  { key: 'V0', label: t("V0 震动"), min: 0, max: 999, step: 1, description: t("主震动逻辑值。0 为关闭，999 为最大；输出层仍会继续套用轴配置约束。") },
+  { key: 'V1', label: t("V1 震动 2"), min: 0, max: 999, step: 1, description: t("第二路震动逻辑值。0 为关闭，999 为最大。") },
+  { key: 'V2', label: t("V2 震动 3"), min: 0, max: 999, step: 1, description: t("第三路震动逻辑值。0 为关闭，999 为最大。") },
+  { key: 'A0', label: t("A0 辅助 1"), min: 0, max: 999, step: 1, description: t("辅助通道 1 的逻辑值；500 附近表示居中。") },
+  { key: 'A1', label: t("A1 辅助 2"), min: 0, max: 999, step: 1, description: t("辅助通道 2 的逻辑值；500 附近表示居中。") },
+  { key: 'A2', label: t("A2 辅助 3"), min: 0, max: 999, step: 1, description: t("辅助通道 3 的逻辑值；500 附近表示居中。") },
+]);
 
-const SIGNAL_ROLE_OPTIONS = [
-  { value: 'GateEnable', label: '门控（关闭则停止）' },
-  { value: 'DepthOverride', label: '深度覆盖' },
-  { value: 'Depth', label: '主轴行程（L0）' },
-  { value: 'Surge', label: '前后位移（L1）' },
-  { value: 'Sway', label: '左右位移（L2）' },
-  { value: 'AngleX', label: '滚转（R1）' },
-  { value: 'AngleY', label: '俯仰（R2）' },
-  { value: 'Twist', label: '扭转（R0）' },
-  { value: 'V0', label: '震动（V0）' },
-  { value: 'V1', label: '震动 2（V1）' },
-  { value: 'V2', label: '震动 3（V2）' },
-  { value: 'Auxiliary', label: '辅助 1（A0）' },
-  { value: 'Auxiliary1', label: '辅助 2（A1）' },
-  { value: 'Auxiliary2', label: '辅助 3（A2）' },
-];
+const SIGNAL_ROLE_OPTIONS = () => ([
+  { value: 'GateEnable', label: t("门控（关闭则停止）") },
+  { value: 'DepthOverride', label: t("深度覆盖") },
+  { value: 'Depth', label: t("主轴行程（L0）") },
+  { value: 'Surge', label: t("前后位移（L1）") },
+  { value: 'Sway', label: t("左右位移（L2）") },
+  { value: 'AngleX', label: t("滚转（R1）") },
+  { value: 'AngleY', label: t("俯仰（R2）") },
+  { value: 'Twist', label: t("扭转（R0）") },
+  { value: 'V0', label: t("震动（V0）") },
+  { value: 'V1', label: t("震动 2（V1）") },
+  { value: 'V2', label: t("震动 3（V2）") },
+  { value: 'Auxiliary', label: t("辅助 1（A0）") },
+  { value: 'Auxiliary1', label: t("辅助 2（A1）") },
+  { value: 'Auxiliary2', label: t("辅助 3（A2）") },
+]);
 
 function getSignalRoleLabel(role) {
-  return SIGNAL_ROLE_OPTIONS.find(option => option.value === role)?.label || role || '目标轴';
+  return SIGNAL_ROLE_OPTIONS().find(option => option.value === role)?.label || role || t("目标轴");
 }
 
 function getSignalFusionSummary(role) {
-  return '当前会优先采用校准后更深（归一化更高）的一条映射结果';
+  return t("当前会优先采用校准后更深（归一化更高）的一条映射结果");
 }
 
 function getSignalDraftMappedRange(signal) {
@@ -206,44 +208,44 @@ function buildSignalOverlapWarnings(signals) {
   return warnings;
 }
 
-const SIGNAL_CURVE_OPTIONS = [
-  { value: 'Linear', label: '线性' },
-  { value: 'EaseIn', label: '缓入' },
-  { value: 'EaseOut', label: '缓出' },
-  { value: 'SCurve', label: '缓入缓出' },
-];
+const SIGNAL_CURVE_OPTIONS = () => ([
+  { value: 'Linear', label: t("线性") },
+  { value: 'EaseIn', label: t("缓入") },
+  { value: 'EaseOut', label: t("缓出") },
+  { value: 'SCurve', label: t("缓入缓出") },
+]);
 
-const COMMAND_MODE_OPTIONS = [
-  { value: 'Interval', label: '时间 (I)' },
-  { value: 'Speed', label: '速度 (S)' },
-  { value: 'None', label: '无' },
-];
+const COMMAND_MODE_OPTIONS = () => ([
+  { value: 'Interval', label: t("时间 (I)") },
+  { value: 'Speed', label: t("速度 (S)") },
+  { value: 'None', label: t("无") },
+]);
 
-const MANUAL_MOTION_MODE_OPTIONS = [
-  { value: 'Default', label: '跟随轴配置' },
-  { value: 'Interval', label: '时间 (I)' },
-  { value: 'Speed', label: '速度 (S)' },
-];
+const MANUAL_MOTION_MODE_OPTIONS = () => ([
+  { value: 'Default', label: t("跟随轴配置") },
+  { value: 'Interval', label: t("时间 (I)") },
+  { value: 'Speed', label: t("速度 (S)") },
+]);
 
-const OUTPUT_SLOPE_MODE_OPTIONS = [
-  { value: 'None', label: '跟随轴配置' },
-  { value: 'Interval', label: '时间 (I)' },
-  { value: 'Speed', label: '速度 (S)' },
-  { value: 'NoSlope', label: '无' },
-];
+const OUTPUT_SLOPE_MODE_OPTIONS = () => ([
+  { value: 'None', label: t("跟随轴配置") },
+  { value: 'Interval', label: t("时间 (I)") },
+  { value: 'Speed', label: t("速度 (S)") },
+  { value: 'NoSlope', label: t("无") },
+]);
 
-const SPEED_UNIT_BASE_OPTIONS = [
-  { value: 'Per100ms', label: '每 100ms' },
-  { value: 'PerSecond', label: '每秒' },
-];
+const SPEED_UNIT_BASE_OPTIONS = () => ([
+  { value: 'Per100ms', label: t("每 100ms") },
+  { value: 'PerSecond', label: t("每秒") },
+]);
 
-const RAMP_TYPE_OPTIONS = [
-  { value: 'None', label: '无', summaryLabel: '无' },
-  { value: 'Linear', label: '线性（=）', summaryLabel: '线性' },
-  { value: 'EaseIn', label: '缓入（<）', summaryLabel: '缓入' },
-  { value: 'EaseOut', label: '缓出（>）', summaryLabel: '缓出' },
-  { value: 'EaseInOut', label: '缓入缓出（<>）', summaryLabel: '缓入缓出' },
-];
+const RAMP_TYPE_OPTIONS = () => ([
+  { value: 'None', label: t("无"), summaryLabel: t("无") },
+  { value: 'Linear', label: t("线性（=）"), summaryLabel: t("线性") },
+  { value: 'EaseIn', label: t("缓入（<）"), summaryLabel: t("缓入") },
+  { value: 'EaseOut', label: t("缓出（>）"), summaryLabel: t("缓出") },
+  { value: 'EaseInOut', label: t("缓入缓出（<>）"), summaryLabel: t("缓入缓出") },
+]);
 
 const AXIS_LIMIT_MIN_SPEED = 1;
 const AXIS_LIMIT_MAX_SPEED = 999;
@@ -262,88 +264,88 @@ const SCRIPT_SPEED_MIN = 0.1;
 const SCRIPT_SPEED_MAX = 4;
 const SCRIPT_SPEED_STEP = 0.05;
 const SCRIPT_SPEED_PRESETS = [0.25, 0.5, 1, 1.5, 2, 3, 4];
-const SCRIPT_SEEK_ACTIONS = [
-  { key: 'start', label: '开头', mode: 'absolute', value: 0, shortcut: 'Home' },
+const SCRIPT_SEEK_ACTIONS = () => ([
+  { key: 'start', label: t("开头"), mode: 'absolute', value: 0, shortcut: 'Home' },
   { key: 'back10', label: '-10s', mode: 'relative', value: -10000, shortcut: 'Shift + ←' },
   { key: 'back5', label: '-5s', mode: 'relative', value: -5000, shortcut: '←' },
   { key: 'forward5', label: '+5s', mode: 'relative', value: 5000, shortcut: '→' },
   { key: 'forward10', label: '+10s', mode: 'relative', value: 10000, shortcut: 'Shift + →' },
-  { key: 'end', label: '结尾', mode: 'absolute', value: 'end', shortcut: 'End' },
-];
-const SCRIPT_TIMELINE_GUIDE_ITEMS = [
-  { title: '点击时间轴', description: '立即定位到对应时间点' },
-  { title: 'Shift + 点击', description: '把点击位置写成 A 点' },
-  { title: 'Alt + 点击', description: '把点击位置写成 B 点' },
-  { title: '拖拽一段', description: '直接框选完整 A-B 区间' },
-  { title: 'Esc 取消框选', description: '拖拽选择 A-B 时，可随时放弃当前框选' },
-];
-const SCRIPT_EMPTY_STATE_GUIDE_ITEMS = [
-  { title: '先载入脚本', description: '支持 `.funscript` / `.json`；导入完成后这里会变成可编辑的时间轴工作区。' },
-  { title: '默认偏好会记住', description: '循环开关与时间倍率可以先设置好，当前浏览器会自动记住。' },
-  { title: '载入后立即开工', description: '时间轴拖拽、A-B 框选、关键帧步进和快捷键会在载入后直接可用。' },
-];
-const SCRIPT_SHORTCUT_GROUPS = [
+  { key: 'end', label: t("结尾"), mode: 'absolute', value: 'end', shortcut: 'End' },
+]);
+const SCRIPT_TIMELINE_GUIDE_ITEMS = () => ([
+  { title: t("点击时间轴"), description: t("立即定位到对应时间点") },
+  { title: t("Shift + 点击"), description: t("把点击位置写成 A 点") },
+  { title: t("Alt + 点击"), description: t("把点击位置写成 B 点") },
+  { title: t("拖拽一段"), description: t("直接框选完整 A-B 区间") },
+  { title: t("Esc 取消框选"), description: t("拖拽选择 A-B 时，可随时放弃当前框选") },
+]);
+const SCRIPT_EMPTY_STATE_GUIDE_ITEMS = () => ([
+  { title: t("先载入脚本"), description: t("支持 `.funscript` / `.json`；导入完成后这里会变成可编辑的时间轴工作区。") },
+  { title: t("默认偏好会记住"), description: t("循环开关与时间倍率可以先设置好，当前浏览器会自动记住。") },
+  { title: t("载入后立即开工"), description: t("时间轴拖拽、A-B 框选、关键帧步进和快捷键会在载入后直接可用。") },
+]);
+const SCRIPT_SHORTCUT_GROUPS = () => ([
   {
     key: 'transport',
-    title: '播放与步进',
-    caption: '最常用的传输控制与关键帧步进。',
+    title: t("播放与步进"),
+    caption: t("最常用的传输控制与关键帧步进。"),
     items: [
-      { shortcut: 'Space / K', label: '播放 / 暂停', description: '在当前时间点继续播放或暂停脚本', requirement: 'loaded' },
-      { shortcut: 'R', label: '从头重播', description: '从脚本开头重新开始播放', requirement: 'loaded' },
-      { shortcut: 'J', label: '上一动作', description: '跳到上一个关键帧，适合逐帧对点', requirement: 'loaded' },
-      { shortcut: 'L', label: '下一动作', description: '跳到下一个关键帧，快速检查节奏', requirement: 'loaded' },
+      { shortcut: 'Space / K', label: t("播放 / 暂停"), description: t("在当前时间点继续播放或暂停脚本"), requirement: 'loaded' },
+      { shortcut: 'R', label: t("从头重播"), description: t("从脚本开头重新开始播放"), requirement: 'loaded' },
+      { shortcut: 'J', label: t("上一动作"), description: t("跳到上一个关键帧，适合逐帧对点"), requirement: 'loaded' },
+      { shortcut: 'L', label: t("下一动作"), description: t("跳到下一个关键帧，快速检查节奏"), requirement: 'loaded' },
     ],
   },
   {
     key: 'timeline',
-    title: '时间轴定位',
-    caption: '短距离、长距离和整段跳转拆开显示，不再混成一行。',
+    title: t("时间轴定位"),
+    caption: t("短距离、长距离和整段跳转拆开显示，不再混成一行。"),
     items: [
-      { shortcut: '←', label: '快退 5 秒', description: '以当前播放位置为基准向前回退 5 秒', requirement: 'loaded' },
-      { shortcut: '→', label: '快进 5 秒', description: '以当前播放位置为基准向后前进 5 秒', requirement: 'loaded' },
-      { shortcut: 'Shift + ←', label: '快退 10 秒', description: '更大步长地回退 10 秒', requirement: 'loaded' },
-      { shortcut: 'Shift + →', label: '快进 10 秒', description: '更大步长地前进 10 秒', requirement: 'loaded' },
-      { shortcut: 'Home', label: '跳到开头', description: '直接把时间轴拉回脚本起点', requirement: 'loaded' },
-      { shortcut: 'End', label: '跳到结尾', description: '直接定位到脚本结尾', requirement: 'loaded' },
+      { shortcut: '←', label: t("快退 5 秒"), description: t("以当前播放位置为基准向前回退 5 秒"), requirement: 'loaded' },
+      { shortcut: '→', label: t("快进 5 秒"), description: t("以当前播放位置为基准向后前进 5 秒"), requirement: 'loaded' },
+      { shortcut: 'Shift + ←', label: t("快退 10 秒"), description: t("更大步长地回退 10 秒"), requirement: 'loaded' },
+      { shortcut: 'Shift + →', label: t("快进 10 秒"), description: t("更大步长地前进 10 秒"), requirement: 'loaded' },
+      { shortcut: 'Home', label: t("跳到开头"), description: t("直接把时间轴拉回脚本起点"), requirement: 'loaded' },
+      { shortcut: 'End', label: t("跳到结尾"), description: t("直接定位到脚本结尾"), requirement: 'loaded' },
     ],
   },
   {
     key: 'loop',
-    title: 'A-B 区间',
-    caption: '把“设置标记”和“跳到标记”拆开，减少记忆负担。',
+    title: t("A-B 区间"),
+    caption: t("把“设置标记”和“跳到标记”拆开，减少记忆负担。"),
     items: [
-      { shortcut: 'Shift + A', label: '设置 A 点', description: '把当前位置写成循环起点 A', requirement: 'loaded' },
-      { shortcut: 'Shift + B', label: '设置 B 点', description: '把当前位置写成循环终点 B', requirement: 'loaded' },
-      { shortcut: '[', label: '跳到 A 点', description: '快速回到当前已设置的 A 点', requirement: 'loop-start' },
-      { shortcut: ']', label: '跳到 B 点', description: '快速跳到当前已设置的 B 点', requirement: 'loop-end' },
-      { shortcut: 'Shift + C', label: '清除 A-B', description: '移除当前 A-B 区间标记', requirement: 'loop-markers' },
+      { shortcut: 'Shift + A', label: t("设置 A 点"), description: t("把当前位置写成循环起点 A"), requirement: 'loaded' },
+      { shortcut: 'Shift + B', label: t("设置 B 点"), description: t("把当前位置写成循环终点 B"), requirement: 'loaded' },
+      { shortcut: '[', label: t("跳到 A 点"), description: t("快速回到当前已设置的 A 点"), requirement: 'loop-start' },
+      { shortcut: ']', label: t("跳到 B 点"), description: t("快速跳到当前已设置的 B 点"), requirement: 'loop-end' },
+      { shortcut: 'Shift + C', label: t("清除 A-B"), description: t("移除当前 A-B 区间标记"), requirement: 'loop-markers' },
     ],
   },
   {
     key: 'speed',
-    title: '播放倍率',
-    caption: '这里只改时间倍率，不改 TCode 的 S 速度。',
+    title: t("播放倍率"),
+    caption: t("这里只改时间倍率，不改 TCode 的 S 速度。"),
     items: [
-      { shortcut: '-', label: '降低倍率', description: '把当前脚本时间倍率降低 0.1x', requirement: 'loaded' },
-      { shortcut: '=（+）', label: '提高倍率', description: '把当前脚本时间倍率提高 0.1x', requirement: 'loaded' },
+      { shortcut: '-', label: t("降低倍率"), description: t("把当前脚本时间倍率降低 0.1x"), requirement: 'loaded' },
+      { shortcut: '=（+）', label: t("提高倍率"), description: t("把当前脚本时间倍率提高 0.1x"), requirement: 'loaded' },
     ],
   },
-];
+]);
 
-const AXIS_PROFILE_DEFS = [
-  { key: 'l0', axis: 'L0', label: '主轴行程', minLabel: '最小', maxLabel: '最大' },
-  { key: 'l1', axis: 'L1', label: '前后位移', minLabel: '前', maxLabel: '后' },
-  { key: 'l2', axis: 'L2', label: '左右位移', minLabel: '右', maxLabel: '左' },
-  { key: 'r0', axis: 'R0', label: '扭转', minLabel: '负向', maxLabel: '正向' },
-  { key: 'r1', axis: 'R1', label: '滚转', minLabel: '负向', maxLabel: '正向' },
-  { key: 'r2', axis: 'R2', label: '俯仰', minLabel: '负向', maxLabel: '正向' },
-  { key: 'v0', axis: 'V0', label: '主震动', minLabel: '最小', maxLabel: '最大' },
-  { key: 'v1', axis: 'V1', label: '震动 2', minLabel: '最小', maxLabel: '最大' },
-  { key: 'v2', axis: 'V2', label: '震动 3', minLabel: '最小', maxLabel: '最大' },
-  { key: 'a0', axis: 'A0', label: '辅助通道 1', minLabel: '最小', maxLabel: '最大' },
-  { key: 'a1', axis: 'A1', label: '辅助通道 2', minLabel: '最小', maxLabel: '最大' },
-  { key: 'a2', axis: 'A2', label: '辅助通道 3', minLabel: '最小', maxLabel: '最大' },
-];
+const AXIS_PROFILE_DEFS = () => ([
+  { key: 'l0', axis: 'L0', label: t("主轴行程"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'l1', axis: 'L1', label: t("前后位移"), minLabel: t("前"), maxLabel: t("后") },
+  { key: 'l2', axis: 'L2', label: t("左右位移"), minLabel: t("右"), maxLabel: t("左") },
+  { key: 'r0', axis: 'R0', label: t("扭转"), minLabel: t("负向"), maxLabel: t("正向") },
+  { key: 'r1', axis: 'R1', label: t("滚转"), minLabel: t("负向"), maxLabel: t("正向") },
+  { key: 'r2', axis: 'R2', label: t("俯仰"), minLabel: t("负向"), maxLabel: t("正向") },
+  { key: 'v0', axis: 'V0', label: t("主震动"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'v1', axis: 'V1', label: t("震动 2"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'v2', axis: 'V2', label: t("震动 3"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'a0', axis: 'A0', label: t("辅助通道 1"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'a1', axis: 'A1', label: t("辅助通道 2"), minLabel: t("最小"), maxLabel: t("最大") },
+  { key: 'a2', axis: 'A2', label: t("辅助通道 3"), minLabel: t("最小"), maxLabel: t("最大") },
+]);
 
 const DEFAULT_AXIS_PROFILE = {
   min: 0,
@@ -358,19 +360,19 @@ const DEFAULT_AXIS_PROFILE = {
   lockValue: 0.5,
 };
 
-const AXIS_MODE_OPTIONS = [
-  { value: 'Normal', label: '普通' },
-  { value: 'Locked', label: '锁定' },
-  { value: 'Ignored', label: '忽略' },
-];
+const AXIS_MODE_OPTIONS = () => ([
+  { value: 'Normal', label: t("普通") },
+  { value: 'Locked', label: t("锁定") },
+  { value: 'Ignored', label: t("忽略") },
+]);
 
-const AXIS_MODE_SELECT_OPTIONS = [
-  { value: 'Normal', mode: 'Normal', invert: false, label: '普通' },
-  { value: 'NormalInverted', mode: 'Normal', invert: true, label: '普通（反向）' },
-  { value: 'Locked', mode: 'Locked', invert: false, label: '锁定' },
-  { value: 'LockedInverted', mode: 'Locked', invert: true, label: '锁定（反向）' },
-  { value: 'Ignored', mode: 'Ignored', invert: false, label: '忽略' },
-];
+const AXIS_MODE_SELECT_OPTIONS = () => ([
+  { value: 'Normal', mode: 'Normal', invert: false, label: t("普通") },
+  { value: 'NormalInverted', mode: 'Normal', invert: true, label: t("普通（反向）") },
+  { value: 'Locked', mode: 'Locked', invert: false, label: t("锁定") },
+  { value: 'LockedInverted', mode: 'Locked', invert: true, label: t("锁定（反向）") },
+  { value: 'Ignored', mode: 'Ignored', invert: false, label: t("忽略") },
+]);
 
 function defaultAxisLockValue(axisKey) {
   return axisKey === 'v0' || axisKey === 'v1' || axisKey === 'v2' ? 0 : 0.5;
@@ -419,33 +421,33 @@ function createAxisProfilePresetMotion(presetId) {
   }
 }
 
-const AXIS_PROFILE_PRESETS = [
+const AXIS_PROFILE_PRESETS = () => ([
   {
     id: 'osr-first-run',
-    name: 'OSR 首次测试 · L0 小行程',
-    description: '只输出 L0，逻辑 0–100% 映射为 TCode 400–600，速度上限 100；其他轴忽略。先确认设备中位与允许范围。该模板不是硬件校准，保存不会自动启用运动。',
+    name: t("OSR 首次测试 · L0 小行程"),
+    description: t("只输出 L0，逻辑 0–100% 映射为 TCode 400–600，速度上限 100；其他轴忽略。先确认设备中位与允许范围。该模板不是硬件校准，保存不会自动启用运动。"),
   },
   {
     id: 'sr6-full',
-    name: 'SR6 / OSR6 六轴',
-    description: '保留 L0 / L1 / L2 / R0 / R1 / R2 六个主运动轴，默认忽略 V0 / V1 / V2 以及 A0 / A1 / A2 三个扩展辅助轴。',
+    name: t("SR6 / OSR6 六轴"),
+    description: t("保留 L0 / L1 / L2 / R0 / R1 / R2 六个主运动轴，默认忽略 V0 / V1 / V2 以及 A0 / A1 / A2 三个扩展辅助轴。"),
   },
   {
     id: 'osr2-core',
-    name: 'OSR2 三轴',
-    description: '仅保留 L0 / R1 / R2（主轴 + 滚转 + 俯仰），忽略 L1 / L2 / R0、V0 / V1 / V2 以及 A0 / A1 / A2。',
+    name: t("OSR2 三轴"),
+    description: t("仅保留 L0 / R1 / R2（主轴 + 滚转 + 俯仰），忽略 L1 / L2 / R0、V0 / V1 / V2 以及 A0 / A1 / A2。"),
   },
   {
     id: 'l0-only',
-    name: '仅 L0 主轴',
-    description: '只让 L0 主往复轴参与控制；L1 / L2 / R0 / R1 / R2、V0 / V1 / V2 与 A0 / A1 / A2 全部忽略。',
+    name: t("仅 L0 主轴"),
+    description: t("只让 L0 主往复轴参与控制；L1 / L2 / R0 / R1 / R2、V0 / V1 / V2 与 A0 / A1 / A2 全部忽略。"),
   },
   {
     id: 'l0-pose-lock',
-    name: 'L0 + 固定姿态',
-    description: '保留 L0，姿态轴与 A0 / A1 / A2 锁定在中位，V0 / V1 / V2 仍忽略；适合“手动摆好姿态后只让主轴动”的场景。',
+    name: t("L0 + 固定姿态"),
+    description: t("保留 L0，姿态轴与 A0 / A1 / A2 锁定在中位，V0 / V1 / V2 仍忽略；适合“手动摆好姿态后只让主轴动”的场景。"),
   },
-];
+]);
 
 const BUILT_IN_OSC_PRESET_IDS = new Set(BUILT_IN_OSC_MAPPING_PRESETS.map(preset => preset.id));
 
@@ -467,7 +469,7 @@ function createDefaultMotionProfile(useGlobal = false) {
   };
 }
 
-function createDefaultAxisProfileCard(name = '全局默认', options = {}) {
+function createDefaultAxisProfileCard(name = t("全局默认"), options = {}) {
   return {
     id: options.id || (options.isDefault ? 'global-default' : createDraftId('axis-profile')),
     name,
@@ -486,9 +488,9 @@ function normalizeAxisProfile(axis, axisKey) {
   const max = Math.max(min, Math.min(999, Number(next.max ?? DEFAULT_AXIS_PROFILE.max)));
   const remapMin = Math.max(0, Math.min(999, Number(next.remapMin ?? DEFAULT_AXIS_PROFILE.remapMin)));
   const remapMax = Math.max(remapMin, Math.min(999, Number(next.remapMax ?? DEFAULT_AXIS_PROFILE.remapMax)));
-  const mode = AXIS_MODE_OPTIONS.some(option => option.value === next.mode) ? next.mode : 'Normal';
-  const commandMode = COMMAND_MODE_OPTIONS.some(option => option.value === next.commandMode) ? next.commandMode : 'Interval';
-  const rampType = RAMP_TYPE_OPTIONS.some(option => option.value === next.rampType) ? next.rampType : 'None';
+  const mode = AXIS_MODE_OPTIONS().some(option => option.value === next.mode) ? next.mode : 'Normal';
+  const commandMode = COMMAND_MODE_OPTIONS().some(option => option.value === next.commandMode) ? next.commandMode : 'Interval';
+  const rampType = RAMP_TYPE_OPTIONS().some(option => option.value === next.rampType) ? next.rampType : 'None';
 
   return {
     min,
@@ -528,7 +530,7 @@ function normalizeMotionProfile(profile, useGlobal = false) {
 function normalizeAxisProfileCard(profile, index = 0) {
   const isDefault = Boolean(profile?.isDefault);
   // 不根据 isDefault 或 index 改变名称；保留原始名称或使用通用默认值
-  const defaultNameByIndex = index === 0 ? '轴配置 1' : `轴配置 ${index + 1}`;
+  const defaultNameByIndex = index === 0 ? t("轴配置 1") : t("轴配置 {0}", [index + 1]);
   return {
     id: (profile?.id || (isDefault ? 'global-default' : `axis-profile-${index + 1}`)).trim(),
     name: (profile?.name || defaultNameByIndex).trim(),
@@ -539,7 +541,7 @@ function normalizeAxisProfileCard(profile, index = 0) {
 
 function normalizeAxisProfiles(config) {
   const source = Array.isArray(config?.axisProfiles) ? config.axisProfiles : [];
-  const profiles = (source.length ? source : [createDefaultAxisProfileCard('全局默认', { isDefault: true })]).map((profile, index) => normalizeAxisProfileCard(profile, index));
+  const profiles = (source.length ? source : [createDefaultAxisProfileCard(t("全局默认"), { isDefault: true })]).map((profile, index) => normalizeAxisProfileCard(profile, index));
   const defaultProfile = profiles.find(profile => profile.isDefault) || profiles[0];
   return profiles.map(profile => ({
     ...profile,
@@ -593,7 +595,7 @@ function buildNewProfileDialogDraft(config) {
   const nextIndex = getAxisProfiles(config).length + 1;
   return {
     profileId: createDraftId('axis-profile'),
-    name: `轴配置 ${nextIndex}`,
+    name: t("轴配置 {0}", [nextIndex]),
     isDefault: false,
     isNew: true,
     presetId: '',
@@ -713,7 +715,7 @@ function buildSignalDrafts(signals) {
 }
 
 function normalizeOscHubMode(value) {
-  return OSC_HUB_MODE_OPTIONS.some(option => option.value === value) ? value : 'EventDriven';
+  return OSC_HUB_MODE_OPTIONS().some(option => option.value === value) ? value : 'EventDriven';
 }
 
 function normalizeOscHubHost(value, fallback = DEFAULT_OSC_HUB_TARGET_HOST) {
@@ -740,7 +742,7 @@ function normalizeOscQueryPollingRate(value, fallback = DEFAULT_OSCQUERY_POLLING
 function makeOscHubTargetDraft(target = {}, options = {}) {
   const index = Math.max(1, Math.round(Number(options.index || 1)));
   const fallbackPort = normalizeOscHubPort(options.port, DEFAULT_OSC_HUB_TARGET_PORT + (index - 1));
-  const fallbackName = options.name || target.name || `Hub 目标 ${index}`;
+  const fallbackName = options.name || target.name || t("Hub 目标 {0}", [index]);
 
   return {
     _draftId: createDraftId('osc-hub-target'),
@@ -806,7 +808,7 @@ function buildOscHubTargetConflictLookup(oscDraft) {
       const previous = occupied.get(key);
       const host = normalizeOscHubHost(target?.host);
       const port = normalizeOscHubPort(target?.port);
-      const message = `UDP 地址 ${host}:${port} 与另一条 Hub 目标重复。`;
+      const message = t("UDP 地址 {0}:{1} 与另一条 Hub 目标重复。", [host, port]);
       appendOscHubConflict(lookup, target?._draftId, message);
       appendOscHubConflict(lookup, previous?._draftId, message);
     } else {
@@ -814,7 +816,7 @@ function buildOscHubTargetConflictLookup(oscDraft) {
     }
 
     if (doesOscHubTargetLoopToReceiver(target, oscDraft?.receiverHost, oscDraft?.receiverPort)) {
-      appendOscHubConflict(lookup, target?._draftId, '目标地址指向当前 Sensa OSC 监听端口，会形成回环。');
+      appendOscHubConflict(lookup, target?._draftId, t("目标地址指向当前 Sensa OSC 监听端口，会形成回环。"));
     }
   });
 
@@ -826,7 +828,7 @@ function flattenOscHubConflictMessages(conflictLookup) {
 }
 
 function formatOscHubModeLabel(mode) {
-  return OSC_HUB_MODE_OPTIONS.find(option => option.value === mode)?.label || '事件驱动';
+  return OSC_HUB_MODE_OPTIONS().find(option => option.value === mode)?.label || t("事件驱动");
 }
 
 function buildOscDraftFromConfig(config) {
@@ -857,7 +859,7 @@ function buildOscDraftFromConfig(config) {
   };
 }
 
-function createOscPresetDraft(name = '新预设', options = {}) {
+function createOscPresetDraft(name = t("新预设"), options = {}) {
   return {
     id: options.id || createDraftId('osc-preset'),
     name,
@@ -869,7 +871,7 @@ function createOscPresetDraft(name = '新预设', options = {}) {
 function normalizeOscPreset(preset, index = 0, options = {}) {
   return {
     id: (preset?.id || `osc-preset-${index + 1}`).trim(),
-    name: (preset?.name || `OSC 预设 ${index + 1}`).trim(),
+    name: (preset?.name || t("OSC 预设 {0}", [index + 1])).trim(),
     description: (preset?.description || '').trim(),
     isBuiltIn: Boolean(options.isBuiltIn),
     mappings: Array.isArray(preset?.mappings) ? preset.mappings.map(mapping => ({ ...stripSignalDraft(makeSignalDraft(mapping)) })).filter(mapping => Boolean(mapping.oscPath)) : [],
@@ -884,7 +886,7 @@ function getCustomOscMappingPresets(config) {
 function getOscMappingPresets(config) {
   const customPresets = getCustomOscMappingPresets(config);
   const customIds = new Set(customPresets.map(preset => preset.id));
-  const builtInPresets = BUILT_IN_OSC_MAPPING_PRESETS.filter(preset => !customIds.has(preset.id)).map((preset, index) => normalizeOscPreset(preset, index, { isBuiltIn: true }));
+  const builtInPresets = BUILT_IN_OSC_MAPPING_PRESETS.filter(preset => !customIds.has(preset.id)).map((preset, index) => normalizeOscPreset({ ...preset, name: t(preset.name), description: t(preset.description) }, index, { isBuiltIn: true }));
 
   return [...builtInPresets, ...customPresets];
 }
@@ -903,7 +905,7 @@ function buildPresetDialogDraft(config, presetId, options = {}) {
 
   return {
     presetId: fromBuiltIn || !preset ? createDraftId('osc-preset') : preset.id,
-    name: preset?.name ? (fromBuiltIn ? `${preset.name} · 自定义` : preset.name) : `OSC 预设 ${customPresetCount + 1}`,
+    name: preset?.name ? (fromBuiltIn ? t("{0} · 自定义", [preset.name]) : preset.name) : t("OSC 预设 {0}", [customPresetCount + 1]),
     description: preset?.description || '',
     isNew: fromBuiltIn || !preset,
     fromBuiltIn,
@@ -932,28 +934,28 @@ function computeSignalHash(signals) {
 }
 
 function normalizeCommandMode(commandMode) {
-  return COMMAND_MODE_OPTIONS.some(option => option.value === commandMode) ? commandMode : 'Interval';
+  return COMMAND_MODE_OPTIONS().some(option => option.value === commandMode) ? commandMode : 'Interval';
 }
 
 function describeCommandMode(commandMode) {
   const normalized = normalizeCommandMode(commandMode);
-  if (normalized === 'None') return '无';
-  return normalized === 'Interval' ? '时间 (I)' : '速度 (S)';
+  if (normalized === 'None') return t("无");
+  return normalized === 'Interval' ? t("时间 (I)") : t("速度 (S)");
 }
 
 function describeCommandModeDetail(commandMode) {
   const normalized = normalizeCommandMode(commandMode);
   if (normalized === 'None') {
-    return '斜率方式为“无”时，只发送位置值。下方速度限制会保留，但当前不会参与输出。';
+    return t("斜率方式为“无”时，只发送位置值。下方速度限制会保留，但当前不会参与输出。");
   }
 
   return normalized === 'Interval'
-    ? '发送 I 指令；兼容性通常比 S 更好。下方速度限制仍然表示同一套速度上限，系统会按当前位移自动换算成对应的 I 时长。'
-    : '发送 S 指令；直接按速度上限约束该轴。若设备对 S 支持不稳定，建议优先使用时间 (I)。';
+    ? t("发送 I 指令；兼容性通常比 S 更好。下方速度限制仍然表示同一套速度上限，系统会按当前位移自动换算成对应的 I 时长。")
+    : t("发送 S 指令；直接按速度上限约束该轴。若设备对 S 支持不稳定，建议优先使用时间 (I)。");
 }
 
 function getAxisModeSelectValue(axis) {
-  const mode = AXIS_MODE_OPTIONS.some(option => option.value === axis?.mode) ? axis.mode : 'Normal';
+  const mode = AXIS_MODE_OPTIONS().some(option => option.value === axis?.mode) ? axis.mode : 'Normal';
   const invert = Boolean(axis?.invert);
 
   if (mode === 'Ignored') return 'Ignored';
@@ -962,7 +964,7 @@ function getAxisModeSelectValue(axis) {
 }
 
 function parseAxisModeSelectValue(value) {
-  const selected = AXIS_MODE_SELECT_OPTIONS.find(option => option.value === value);
+  const selected = AXIS_MODE_SELECT_OPTIONS().find(option => option.value === value);
   if (!selected) return { mode: 'Normal', invert: false };
   return { mode: selected.mode, invert: selected.invert };
 }
@@ -990,23 +992,23 @@ function normalizeManualMotionValueByMode(mode, value) {
 
 function formatAxisMotionLimitSummary(commandMode, maxSpeed) {
   const normalized = normalizeCommandMode(commandMode);
-  if (normalized === 'None') return '斜率 无';
-  return `${normalized === 'Interval' ? 'I' : 'S'} · 速度 ${normalizeAxisLimitSpeed(maxSpeed)}`;
+  if (normalized === 'None') return t("斜率 无");
+  return t("{0} · 速度 {1}", [normalized === 'Interval' ? 'I' : 'S', normalizeAxisLimitSpeed(maxSpeed)]);
 }
 
 function formatRampTypeSummary(rampType) {
-  const option = RAMP_TYPE_OPTIONS.find(item => item.value === (rampType || 'None'));
-  return `曲线 ${option?.summaryLabel || '无'}`;
+  const option = RAMP_TYPE_OPTIONS().find(item => item.value === (rampType || 'None'));
+  return t("曲线 {0}", [option?.summaryLabel || t("无")]);
 }
 
 function getAxisMotionLimitFieldConfig(axis) {
   const commandMode = normalizeCommandMode(axis?.commandMode);
   return {
-    label: '速度限制',
+    label: t("速度限制"),
     title:
       commandMode === 'None'
-        ? '当前斜率方式为“无”，因此这个速度限制暂时不会参与输出；切回时间或速度后会继续沿用。'
-        : '无论发送 S 还是 I，这里限制的本质都是最大速度上限。选择 I 时，系统会按当前位移把这个速度上限换算成对应时长。',
+        ? t("当前斜率方式为“无”，因此这个速度限制暂时不会参与输出；切回时间或速度后会继续沿用。")
+        : t("无论发送 S 还是 I，这里限制的本质都是最大速度上限。选择 I 时，系统会按当前位移把这个速度上限换算成对应时长。"),
     value: normalizeAxisLimitSpeed(axis?.maxSpeed),
     min: AXIS_LIMIT_MIN_SPEED,
     max: AXIS_LIMIT_MAX_SPEED,
@@ -1024,7 +1026,7 @@ function formatAxisPositionFromNormalized(value) {
 
 function buildAxisProfileAxisRows(profileCard) {
   const motion = normalizeMotionProfile(profileCard?.motion, false);
-  return AXIS_PROFILE_DEFS.flatMap(axis => {
+  return AXIS_PROFILE_DEFS().flatMap(axis => {
     const current = motion[axis.key];
     const defaults = createDefaultAxisProfileValue(axis.key);
     const details = [];
@@ -1036,24 +1038,24 @@ function buildAxisProfileAxisRows(profileCard) {
     if (current.mode === 'Ignored') return [];
 
     if (current.mode === 'Locked') {
-      pushDetail(`锁定 ${formatAxisPositionFromNormalized(current.lockValue)}`, true, 'warning');
+      pushDetail(t("锁定 {0}", [formatAxisPositionFromNormalized(current.lockValue)]), true, 'warning');
       pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
       if ((current.rampType || 'None') !== 'None') {
         pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, 'warning');
       }
-      if (current.invert) pushDetail('反向', true, 'danger');
+      if (current.invert) pushDetail(t("反向"), true, 'danger');
       return [{ axis: axis.axis, details }];
     }
 
-    pushDetail(`映射 ${current.remapMin}-${current.remapMax}`, current.remapMin !== defaults.remapMin || current.remapMax !== defaults.remapMax, 'remap');
-    pushDetail(`边界 ${current.min}-${current.max}`, current.min !== defaults.min || current.max !== defaults.max, 'bounds');
+    pushDetail(t("映射 {0}-{1}", [current.remapMin, current.remapMax]), current.remapMin !== defaults.remapMin || current.remapMax !== defaults.remapMax, 'remap');
+    pushDetail(t("边界 {0}-{1}", [current.min, current.max]), current.min !== defaults.min || current.max !== defaults.max, 'bounds');
     pushDetail(formatAxisMotionLimitSummary(current.commandMode, current.maxSpeed));
 
     if ((current.rampType || 'None') !== 'None') {
       pushDetail(formatRampTypeSummary(current.rampType), current.rampType !== defaults.rampType, 'warning');
     }
 
-    if (current.invert) pushDetail('反向', true, 'danger');
+    if (current.invert) pushDetail(t("反向"), true, 'danger');
 
     return [{ axis: axis.axis, details }];
   });
@@ -1064,15 +1066,15 @@ function isTCodeOutputType(type) {
 }
 
 function getOutputTypeLabel(type) {
-  return OUTPUT_TYPE_BY_VALUE[type]?.label || '输出设备';
+  return OUTPUT_TYPE_BY_VALUE()[type]?.label || t("输出设备");
 }
 
 function formatSlopeModeLabel(mode) {
-  return OUTPUT_SLOPE_MODE_OPTIONS.find(option => option.value === mode)?.label || '跟随轴配置';
+  return OUTPUT_SLOPE_MODE_OPTIONS().find(option => option.value === mode)?.label || t("跟随轴配置");
 }
 
 function formatSpeedUnitBaseLabel(base) {
-  return SPEED_UNIT_BASE_OPTIONS.find(option => option.value === base)?.label || '每 100ms';
+  return SPEED_UNIT_BASE_OPTIONS().find(option => option.value === base)?.label || t("每 100ms");
 }
 
 function getDefaultOutputPort(type) {
@@ -1099,11 +1101,11 @@ function normalizeOutputWebsocketAddress(value, fallback = 'ws://localhost:12345
 }
 
 function normalizeOutputSlopeMode(value) {
-  return OUTPUT_SLOPE_MODE_OPTIONS.some(option => option.value === value) ? value : 'None';
+  return OUTPUT_SLOPE_MODE_OPTIONS().some(option => option.value === value) ? value : 'None';
 }
 
 function normalizeSpeedUnitBase(value) {
-  return SPEED_UNIT_BASE_OPTIONS.some(option => option.value === value) ? value : 'Per100ms';
+  return SPEED_UNIT_BASE_OPTIONS().some(option => option.value === value) ? value : 'Per100ms';
 }
 
 function getOutputDisplayName(output) {
@@ -1116,23 +1118,23 @@ function getOutputTargetBindings(output) {
   switch (output.type) {
     case 'TCodeSerial': {
       const comPort = normalizeOutputComPort(output.comPort);
-      return comPort ? [{ key: `serial:${comPort}`, label: `串口 ${comPort}` }] : [];
+      return comPort ? [{ key: `serial:${comPort}`, label: t("串口 {0}", [comPort]) }] : [];
     }
 
     case 'TCodeUdp':
     case 'TCodeTcp': {
       const host = normalizeOutputHost(output.host);
       const port = normalizeOutputPort(output.port, getDefaultOutputPort(output.type));
-      const protocolLabel = output.type === 'TCodeUdp' ? 'UDP 地址' : 'TCP 地址';
+      const protocolLabel = output.type === 'TCodeUdp' ? t("UDP 地址") : t("TCP 地址");
       return [{ key: `net:${output.type}:${host.toLowerCase()}:${port}`, label: `${protocolLabel} ${host}:${port}` }];
     }
 
     case 'Intiface': {
       const websocketAddress = normalizeOutputWebsocketAddress(output.websocketAddress);
-      const bindings = websocketAddress ? [{ key: `intiface-ws:${websocketAddress.toLowerCase()}`, label: `Intiface 地址 ${websocketAddress}` }] : [];
+      const bindings = websocketAddress ? [{ key: `intiface-ws:${websocketAddress.toLowerCase()}`, label: t("Intiface 地址 {0}", [websocketAddress]) }] : [];
       if (output.manageEngineProcess !== false) {
         const port = normalizeOutputPort(output.port, getDefaultOutputPort(output.type));
-        bindings.push({ key: `intiface-engine:${port}`, label: `Intiface 引擎端口 ${port}` });
+        bindings.push({ key: `intiface-engine:${port}`, label: t("Intiface 引擎端口 {0}", [port]) });
       }
       return bindings;
     }
@@ -1233,7 +1235,7 @@ function getOutputTargetConflicts(config, currentOutputId, draft) {
 
 function formatOutputTargetConflictMessage(conflicts) {
   if (!Array.isArray(conflicts) || conflicts.length === 0) return '';
-  return conflicts.map(({ binding, owner }) => `${binding.label} 已被“${getOutputDisplayName(owner)}”占用`).join('；');
+  return conflicts.map(({ binding, owner }) => t("{0} 已被“{1}”占用", [binding.label, getOutputDisplayName(owner)])).join('；');
 }
 
 function getOutputs(config) {
@@ -1293,10 +1295,10 @@ function getOutputOverview(overview, outputId) {
 }
 
 function buildOutputSummary(output) {
-  if (!output) return '未配置';
+  if (!output) return t("未配置");
   if (output.type === 'TCodeSerial') {
-    const portLabel = output.comPort || '未设置串口';
-    return `${portLabel} · 事件驱动`;
+    const portLabel = output.comPort || t("未设置串口");
+    return t("{0} · 事件驱动", [portLabel]);
   }
   if (output.type === 'TCodeUdp' || output.type === 'TCodeTcp') {
     return `${output.host || '127.0.0.1'}:${output.port || (output.type === 'TCodeUdp' ? 9999 : 9998)}`;
@@ -1329,7 +1331,7 @@ function resolveWsReadyWaiters(socket = _wsCommandSocket) {
 function rejectWsReadyWaiters(error) {
   if (_wsReadyWaiters.length === 0) return;
 
-  const reason = error instanceof Error ? error : new Error('实时连接不可用');
+  const reason = error instanceof Error ? error : new Error(t("实时连接不可用"));
   const waiters = _wsReadyWaiters;
   _wsReadyWaiters = [];
   waiters.forEach(waiter => {
@@ -1349,7 +1351,7 @@ function waitForWsReady(timeoutMs = WS_REQUEST_TIMEOUT_MS) {
       reject,
       timeout: window.setTimeout(() => {
         _wsReadyWaiters = _wsReadyWaiters.filter(item => item !== waiter);
-        reject(new Error('实时连接未就绪，请稍后重试。'));
+        reject(new Error(t("实时连接未就绪，请稍后重试。")));
       }, timeoutMs),
     };
 
@@ -1365,7 +1367,7 @@ async function apiRequest(path, options = {}) {
 function clearWsPendingRequests(error) {
   for (const [, pending] of _wsPending) {
     clearTimeout(pending.timeout);
-    pending.reject(error instanceof Error ? error : new Error('实时连接已断开'));
+    pending.reject(error instanceof Error ? error : new Error(t("实时连接已断开")));
   }
 
   _wsPending.clear();
@@ -1374,7 +1376,7 @@ function clearWsPendingRequests(error) {
 function wsRequest(path, options = {}) {
   return new Promise((resolve, reject) => {
     if (!_wsCommandSocket || _wsCommandSocket.readyState !== WebSocket.OPEN) {
-      reject(new Error('实时连接未建立，请稍后重试。'));
+      reject(new Error(t("实时连接未建立，请稍后重试。")));
       return;
     }
 
@@ -1388,7 +1390,7 @@ function wsRequest(path, options = {}) {
 
     const timeout = setTimeout(() => {
       _wsPending.delete(String(id));
-      reject(new Error(`请求超时：${path}`));
+      reject(new Error(t("请求超时：{0}", [path])));
     }, WS_REQUEST_TIMEOUT_MS);
 
     _wsPending.set(String(id), { resolve, reject, timeout });
@@ -1398,7 +1400,7 @@ function wsRequest(path, options = {}) {
     } catch (err) {
       _wsPending.delete(String(id));
       clearTimeout(timeout);
-      reject(err instanceof Error ? err : new Error('发送请求失败。'));
+      reject(err instanceof Error ? err : new Error(t("发送请求失败。")));
     }
   });
 }
@@ -1440,7 +1442,7 @@ function normalizeSerialPorts(raw) {
 
 function sanitizeStudio(raw, config) {
   return {
-    preferredInputTab: INPUT_MODES.some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : DEFAULT_STUDIO_STATE.preferredInputTab,
+    preferredInputTab: INPUT_MODES().some(item => item.value === raw?.preferredInputTab) ? raw.preferredInputTab : DEFAULT_STUDIO_STATE.preferredInputTab,
     scriptDefaults: normalizeStoredScriptDefaults(raw?.scriptDefaults),
   };
 }
@@ -1476,20 +1478,20 @@ function buildInitialAppState() {
 }
 
 function formatOscSourceLabel(source) {
-  if (!source) return '未知来源';
-  return source.label || (source.address && source.port ? `${source.address}:${source.port}` : source.key || '未知来源');
+  if (!source) return t("未知来源");
+  return source.label || (source.address && source.port ? `${source.address}:${source.port}` : source.key || t("未知来源"));
 }
 
 function buildOscSourceSelectionOptions(sources) {
   const normalizedSources = Array.isArray(sources) ? sources : [];
-  return [{ value: '', label: '自动选择' }, ...normalizedSources.map(source => ({ value: source.key, label: formatOscSourceLabel(source) }))];
+  return [{ value: '', label: t("自动选择") }, ...normalizedSources.map(source => ({ value: source.key, label: formatOscSourceLabel(source) }))];
 }
 
 function formatPreviewTimestamp(timestampMs) {
   if (!timestampMs) return '—';
   const value = new Date(timestampMs);
   if (Number.isNaN(value.getTime())) return '—';
-  return value.toLocaleTimeString();
+  return value.toLocaleTimeString(getLocale());
 }
 
 function applySignalCurve(value, curve) {
@@ -1583,9 +1585,9 @@ function parseAxisTraceMessage(message) {
 function formatAxisTraceNote(note) {
   switch ((note || '').toLowerCase()) {
     case 'axis-ignored':
-      return '轴模式为“忽略”，不发送该轴指令';
+      return t("轴模式为“忽略”，不发送该轴指令");
     case 'post-profile-unchanged':
-      return '轴配置处理后目标未变化，跳过发送';
+      return t("轴配置处理后目标未变化，跳过发送");
     default:
       return note || '';
   }
@@ -1594,26 +1596,26 @@ function formatAxisTraceNote(note) {
 function formatAxisTraceAction(action) {
   switch ((action || '').toLowerCase()) {
     case 'emit':
-      return { label: '已发送指令', color: 'primary' };
+      return { label: t("已发送指令"), color: 'primary' };
     case 'hold':
-      return { label: '目标未变化', color: 'default' };
+      return { label: t("目标未变化"), color: 'default' };
     case 'skip':
-      return { label: '目标未变化', color: 'default' };
+      return { label: t("目标未变化"), color: 'default' };
     case 'ignored':
-      return { label: '轴已忽略', color: 'warning' };
+      return { label: t("轴已忽略"), color: 'warning' };
     default:
-      return { label: action || '未知阶段', color: 'default' };
+      return { label: action || t("未知阶段"), color: 'default' };
   }
 }
 
 function formatAxisTraceMode(mode) {
   switch ((mode || '').toLowerCase()) {
     case 'normal':
-      return '普通';
+      return t("普通");
     case 'locked':
-      return '锁定';
+      return t("锁定");
     case 'ignored':
-      return '忽略';
+      return t("忽略");
     default:
       return mode || '';
   }
@@ -1622,8 +1624,8 @@ function formatAxisTraceMode(mode) {
 function formatAxisTraceTerm(term) {
   const text = (term || '').trim().toUpperCase();
   if (!text) return '';
-  if (text.startsWith('S')) return `速度指令 ${text}`;
-  if (text.startsWith('I')) return `时长指令 ${text}`;
+  if (text.startsWith('S')) return t("速度指令 {0}", [text]);
+  if (text.startsWith('I')) return t("时长指令 {0}", [text]);
   return text;
 }
 
@@ -1659,7 +1661,7 @@ function normalizeManualCommand(command) {
 }
 
 function formatMode(mode) {
-  return INPUT_MODES.find(item => item.value === mode)?.label || '未知输入';
+  return INPUT_MODES().find(item => item.value === mode)?.label || t("未知输入");
 }
 
 function formatDuration(ms) {
@@ -1800,15 +1802,15 @@ function shouldIgnoreScriptShortcutTarget(target) {
 function getScriptStateMeta(state) {
   switch ((state || '').toLowerCase()) {
     case 'playing':
-      return { label: '播放中', color: 'success' };
+      return { label: t("播放中"), color: 'success' };
     case 'paused':
-      return { label: '已暂停', color: 'warning' };
+      return { label: t("已暂停"), color: 'warning' };
     case 'finished':
-      return { label: '已完成', color: 'primary' };
+      return { label: t("已完成"), color: 'primary' };
     case 'stopped':
-      return { label: '已就绪', color: 'default' };
+      return { label: t("已就绪"), color: 'default' };
     default:
-      return { label: '未加载', color: 'default' };
+      return { label: t("未加载"), color: 'default' };
   }
 }
 
@@ -1838,9 +1840,9 @@ const LOG_LEVEL_ORDER = ['debug', 'info', 'warning', 'error'];
 const LOG_LEVEL_COLOR = { debug: '#6b7280', info: '#1f2937', warning: '#d97706', error: '#dc2626' };
 
 function formatRealtimeStatus(state) {
-  if (state === 'connected') return '实时连接 在线';
-  if (state === 'connecting') return '实时连接 连接中';
-  return '实时连接 离线';
+  if (state === 'connected') return t("实时连接 在线");
+  if (state === 'connecting') return t("实时连接 连接中");
+  return t("实时连接 离线");
 }
 
 function buildOutputDialogDraft(outputId, config, serialPorts) {
@@ -1917,21 +1919,21 @@ function ScriptActionButtonLabel({ label, shortcut = '' }) {
 
 function getScriptShortcutAvailability(requirement, context) {
   if (!context.scriptLoaded) {
-    return { label: '需先载入脚本', color: 'default' };
+    return { label: t("需先载入脚本"), color: 'default' };
   }
 
   switch (requirement) {
     case 'loop-start':
-      return context.hasLoopStart ? { label: '可用', color: 'success' } : { label: '需先设 A 点', color: 'warning' };
+      return context.hasLoopStart ? { label: t("可用"), color: 'success' } : { label: t("需先设 A 点"), color: 'warning' };
 
     case 'loop-end':
-      return context.hasLoopEnd ? { label: '可用', color: 'success' } : { label: '需先设 B 点', color: 'warning' };
+      return context.hasLoopEnd ? { label: t("可用"), color: 'success' } : { label: t("需先设 B 点"), color: 'warning' };
 
     case 'loop-markers':
-      return context.hasLoopMarkers ? { label: '可用', color: 'success' } : { label: '需先设 A / B', color: 'warning' };
+      return context.hasLoopMarkers ? { label: t("可用"), color: 'success' } : { label: t("需先设 A / B"), color: 'warning' };
 
     default:
-      return { label: '可用', color: 'success' };
+      return { label: t("可用"), color: 'success' };
   }
 }
 
@@ -1951,7 +1953,7 @@ function HelpLabel({ text, title, placement = 'top' }) {
   );
 }
 
-function TooltipHintIcon({ title, placement = 'top', className = '', ariaLabel = '查看说明' }) {
+function TooltipHintIcon({ title, placement = 'top', className = '', ariaLabel = t("查看说明") }) {
   if (!title) return null;
 
   return (
@@ -2144,8 +2146,8 @@ function RangeField({
   inputStep = step,
   inputMin,
   inputMax,
-  startLabel = '起',
-  endLabel = '止',
+  startLabel = t("起"),
+  endLabel = t("止"),
   valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)),
 }) {
   return (
@@ -2205,7 +2207,7 @@ function AxisTraceLogEntry({ log, timeStr }) {
 
   const actionMeta = formatAxisTraceAction(trace.action);
   const modeLabel = formatAxisTraceMode(trace.mode);
-  const axisModeLabel = modeLabel ? `${modeLabel}${trace.invert ? ' · 反向' : ''}` : trace.invert ? '反向' : '普通';
+  const axisModeLabel = modeLabel ? `${modeLabel}${trace.invert ? t(" · 反向") : ''}` : trace.invert ? t("反向") : t("普通");
   const termLabel = formatAxisTraceTerm(trace.term);
 
   const metrics = [];
@@ -2213,7 +2215,7 @@ function AxisTraceLogEntry({ log, timeStr }) {
   if (Number.isFinite(trace.prevSrc) || Number.isFinite(trace.src)) {
     metrics.push({
       key: 'input',
-      label: '原始输入(0-999)',
+      label: t("原始输入(0-999)"),
       value: `${formatAxisDisplayValue(trace.prevSrc)} → ${formatAxisDisplayValue(trace.src)}`,
     });
   }
@@ -2221,53 +2223,53 @@ function AxisTraceLogEntry({ log, timeStr }) {
   if (Number.isFinite(trace.prevOut) || Number.isFinite(trace.out)) {
     metrics.push({
       key: 'output',
-      label: '发送目标(0-999)',
+      label: t("发送目标(0-999)"),
       value: `${formatAxisDisplayValue(trace.prevOut)} → ${formatAxisDisplayValue(trace.out)}`,
     });
   }
 
   if (Number.isFinite(trace.norm)) {
-    metrics.push({ key: 'normalized', label: '归一化输入(0-1)', value: formatAxisDisplayValue(trace.norm, 3) });
+    metrics.push({ key: 'normalized', label: t("归一化输入(0-1)"), value: formatAxisDisplayValue(trace.norm, 3) });
   }
 
   if (Number.isFinite(trace.requestedSpeed)) {
-    metrics.push({ key: 'requested-speed', label: '请求速度(逻辑)', value: formatAxisDisplayValue(trace.requestedSpeed) });
+    metrics.push({ key: 'requested-speed', label: t("请求速度(逻辑)"), value: formatAxisDisplayValue(trace.requestedSpeed) });
   }
 
   if (Number.isFinite(trace.speedLimit)) {
-    metrics.push({ key: 'speed-limit', label: '速度上限(逻辑)', value: formatAxisDisplayValue(trace.speedLimit) });
+    metrics.push({ key: 'speed-limit', label: t("速度上限(逻辑)"), value: formatAxisDisplayValue(trace.speedLimit) });
   }
 
   if (Number.isFinite(trace.logicalSpeed)) {
-    metrics.push({ key: 'logical-speed', label: '逻辑 S 速度', value: formatAxisDisplayValue(trace.logicalSpeed) });
+    metrics.push({ key: 'logical-speed', label: t("逻辑 S 速度"), value: formatAxisDisplayValue(trace.logicalSpeed) });
   }
 
   if (Number.isFinite(trace.emittedSpeed)) {
-    metrics.push({ key: 'emitted-speed', label: '最终发出 S', value: formatAxisDisplayValue(trace.emittedSpeed) });
+    metrics.push({ key: 'emitted-speed', label: t("最终发出 S"), value: formatAxisDisplayValue(trace.emittedSpeed) });
   }
 
   if (Number.isFinite(trace.durationMs)) {
-    metrics.push({ key: 'duration', label: '最终 I 时长', value: `${formatAxisDisplayValue(trace.durationMs)}ms` });
+    metrics.push({ key: 'duration', label: t("最终 I 时长"), value: `${formatAxisDisplayValue(trace.durationMs)}ms` });
   }
 
   if (Number.isFinite(trace.remap)) {
-    metrics.push({ key: 'remapped', label: '重映射后(0-1)', value: formatAxisDisplayValue(trace.remap, 3) });
+    metrics.push({ key: 'remapped', label: t("重映射后(0-1)"), value: formatAxisDisplayValue(trace.remap, 3) });
   }
 
   if (Number.isFinite(trace.mapped)) {
-    metrics.push({ key: 'clamped', label: '边界裁剪后(0-1)', value: formatAxisDisplayValue(trace.mapped, 3) });
+    metrics.push({ key: 'clamped', label: t("边界裁剪后(0-1)"), value: formatAxisDisplayValue(trace.mapped, 3) });
   }
 
   if (Number.isFinite(trace.min) && Number.isFinite(trace.max)) {
-    metrics.push({ key: 'bounds', label: '边界限制', value: `${trace.min}-${trace.max}` });
+    metrics.push({ key: 'bounds', label: t("边界限制"), value: `${trace.min}-${trace.max}` });
   }
 
   if (Number.isFinite(trace.remapMin) && Number.isFinite(trace.remapMax)) {
-    metrics.push({ key: 'remap-range', label: '映射目标区间', value: `${trace.remapMin}-${trace.remapMax}` });
+    metrics.push({ key: 'remap-range', label: t("映射目标区间"), value: `${trace.remapMin}-${trace.remapMax}` });
   }
 
   if ((trace.mode || '').toLowerCase() === 'locked' && Number.isFinite(trace.lock)) {
-    metrics.push({ key: 'lock', label: '锁定位置', value: formatAxisPositionFromNormalized(trace.lock) });
+    metrics.push({ key: 'lock', label: t("锁定位置"), value: formatAxisPositionFromNormalized(trace.lock) });
   }
 
   return (
@@ -2327,7 +2329,7 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
       return {
         variant: 'range',
         left: `clamp(92px, ${centerPercent}%, calc(100% - 92px))`,
-        label: `框选 ${formatDuration(dragPreviewRange.startMs)} → ${formatDuration(dragPreviewRange.endMs)}`,
+        label: t("框选 {0} → {1}", [formatDuration(dragPreviewRange.startMs), formatDuration(dragPreviewRange.endMs)]),
       };
     }
 
@@ -2335,7 +2337,7 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
       return {
         variant: 'anchor',
         left: `clamp(92px, ${dragPreviewAnchorPercent}%, calc(100% - 92px))`,
-        label: `起点 ${formatDuration(dragPreviewAnchorMs)}`,
+        label: t("起点 {0}", [formatDuration(dragPreviewAnchorMs)]),
       };
     }
 
@@ -2343,7 +2345,7 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
       return {
         variant: 'hover',
         left: `clamp(92px, ${hoverPreviewPercent}%, calc(100% - 92px))`,
-        label: `预览 ${formatDuration(hoverPreview.positionMs)} · ${hoverPreview.count > 0 ? `密度 ${hoverPreview.count}` : '空白段'}`,
+        label: t("预览 {0} · {1}", [formatDuration(hoverPreview.positionMs), hoverPreview.count > 0 ? t("密度 {0}", [hoverPreview.count]) : t("空白段")]),
       };
     }
 
@@ -2351,13 +2353,13 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
   })();
   const previewMarkerPercent = dragPreviewRange?.active ? null : dragPreviewAnchorMs !== null ? dragPreviewAnchorPercent : hoverPreview ? hoverPreviewPercent : null;
   const interactionHintText = dragPreviewRange?.active
-    ? `拖拽中：松开后会应用 A-B ${formatDuration(dragPreviewRange.startMs)} → ${formatDuration(dragPreviewRange.endMs)}；按 Esc 可取消。`
+    ? t("拖拽中：松开后会应用 A-B {0} → {1}；按 Esc 可取消。", [formatDuration(dragPreviewRange.startMs), formatDuration(dragPreviewRange.endMs)])
     : dragPreviewAnchorMs !== null
-      ? `已选起点 ${formatDuration(dragPreviewAnchorMs)}，继续拖动可直接框选 A-B。`
+      ? t("已选起点 {0}，继续拖动可直接框选 A-B。", [formatDuration(dragPreviewAnchorMs)])
       : hoverPreview
-        ? `预览 ${formatDuration(hoverPreview.positionMs)}；点击定位，Shift + 点击设 A，Alt + 点击设 B。`
-        : '点击定位；Shift + 点击设 A，Alt + 点击设 B；拖拽可直接框选完整 A-B。';
-  const emptyTimelineText = disabled || safeDurationMs <= 0 ? '载入脚本后这里会显示时间轴摘要。' : '暂无时间轴摘要';
+        ? t("预览 {0}；点击定位，Shift + 点击设 A，Alt + 点击设 B。", [formatDuration(hoverPreview.positionMs)])
+        : t("点击定位；Shift + 点击设 A，Alt + 点击设 B；拖拽可直接框选完整 A-B。");
+  const emptyTimelineText = disabled || safeDurationMs <= 0 ? t("载入脚本后这里会显示时间轴摘要。") : t("暂无时间轴摘要");
 
   useEffect(() => {
     if (!dragStateRef.current) return undefined;
@@ -2466,8 +2468,8 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
                   className={`script-density__bar${numericCount > 0 ? ' script-density__bar--active' : ''}`}
                   style={{ '--script-density-height': `${heightPercent}%` }}
                   disabled={disabled}
-                  title={safeDurationMs > 0 ? `定位 ${formatDuration(targetPositionMs)}；Shift + 点击设 A，Alt + 点击设 B` : '未加载脚本'}
-                  aria-label={safeDurationMs > 0 ? `定位到 ${formatDuration(targetPositionMs)}` : '未加载脚本'}
+                  title={safeDurationMs > 0 ? t("定位 {0}；Shift + 点击设 A，Alt + 点击设 B", [formatDuration(targetPositionMs)]) : t("未加载脚本")}
+                  aria-label={safeDurationMs > 0 ? t("定位到 {0}", [formatDuration(targetPositionMs)]) : t("未加载脚本")}
                   onPointerDown={event => {
                     if (disabled || safeDurationMs <= 0 || event.button !== 0) return;
 
@@ -2559,15 +2561,15 @@ function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartM
           <Box className="script-density__legend" aria-hidden="true">
             <Box className="script-density__legend-item">
               <Box className="script-density__legend-swatch script-density__legend-swatch--current" />
-              <Typography variant="caption" color="text.secondary">播放头</Typography>
+              <Typography variant="caption" color="text.secondary">{t("播放头")}</Typography>
             </Box>
             <Box className="script-density__legend-item">
               <Box className="script-density__legend-swatch script-density__legend-swatch--preview" />
-              <Typography variant="caption" color="text.secondary">悬停 / 预览</Typography>
+              <Typography variant="caption" color="text.secondary">{t("悬停 / 预览")}</Typography>
             </Box>
             <Box className="script-density__legend-item">
               <Box className="script-density__legend-swatch script-density__legend-swatch--range" />
-              <Typography variant="caption" color="text.secondary">A-B 区间</Typography>
+              <Typography variant="caption" color="text.secondary">{t("A-B 区间")}</Typography>
             </Box>
           </Box>
 
@@ -2586,7 +2588,7 @@ function formatTCodeDeviceInfoTimestamp(value) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '—';
 
-  return date.toLocaleString();
+  return date.toLocaleString(getLocale());
 }
 
 function formatTCodeDeviceInfoValue(value, fallback = '—') {
@@ -2607,7 +2609,7 @@ function getTCodeDeviceInfoView(deviceInfo, connected) {
     return {
       axisDescriptors,
       hasPayload,
-      statusText: '未连接',
+      statusText: t("未连接"),
       errorMessage: '',
       firmwareVersionText: '—',
       tcodeVersionText: '—',
@@ -2620,10 +2622,10 @@ function getTCodeDeviceInfoView(deviceInfo, connected) {
     return {
       axisDescriptors,
       hasPayload,
-      statusText: `查询失败：${errorMessage}`,
+      statusText: t("查询失败：{0}", [errorMessage]),
       errorMessage,
-      firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, '未返回'),
-      tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, '未返回'),
+      firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, t("未返回")),
+      tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, t("未返回")),
       updatedAtText,
       statusTone: 'error',
     };
@@ -2632,10 +2634,10 @@ function getTCodeDeviceInfoView(deviceInfo, connected) {
   return {
     axisDescriptors,
     hasPayload,
-    statusText: hasPayload ? '已读取设备信息' : updatedAtText !== '—' ? '已查询' : '尚未查询',
+    statusText: hasPayload ? t("已读取设备信息") : updatedAtText !== '—' ? t("已查询") : t("尚未查询"),
     errorMessage: '',
-    firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, '未返回'),
-    tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, '未返回'),
+    firmwareVersionText: formatTCodeDeviceInfoValue(firmwareVersion, t("未返回")),
+    tcodeVersionText: formatTCodeDeviceInfoValue(tCodeVersion, t("未返回")),
     updatedAtText,
     statusTone: hasPayload ? 'success' : 'warning',
   };
@@ -2648,12 +2650,10 @@ function TCodeDeviceInfoCard({ deviceInfo, connected, onRefresh, busy = false, c
     <Box className={`dialog-panel tcode-device-info${className ? ` ${className}` : ''}`}>
       <Box className="tcode-device-info__header">
         <Typography variant="subtitle2" component="div" className="tcode-device-info__title">
-          <HelpLabel text="设备信息" title="串口 TCode 输出连接后会按 D0 / D1 / D2 查询固件版本、TCode 版本与轴描述；若固件未实现某项查询，对应字段会显示“未返回”。" />
+          <HelpLabel text={t("设备信息")} title={t("串口 TCode 输出连接后会按 D0 / D1 / D2 查询固件版本、TCode 版本与轴描述；若固件未实现某项查询，对应字段会显示“未返回”。")} />
         </Typography>
 
-        <Button size="small" variant="text" className="tcode-device-info__refresh" onClick={onRefresh} disabled={busy || !connected}>
-          刷新设备信息
-        </Button>
+        <Button size="small" variant="text" className="tcode-device-info__refresh" onClick={onRefresh} disabled={busy || !connected}>{t("刷新设备信息")}</Button>
       </Box>
 
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="tcode-device-info__status-row">
@@ -2662,26 +2662,21 @@ function TCodeDeviceInfoCard({ deviceInfo, connected, onRefresh, busy = false, c
         </Typography>
 
         {view.updatedAtText !== '—' && (
-          <Typography variant="caption" className="tcode-device-info__updated">
-            最近刷新：{view.updatedAtText}
+          <Typography variant="caption" className="tcode-device-info__updated">{t("最近刷新：")}{view.updatedAtText}
           </Typography>
         )}
       </Stack>
 
       <Box className="tcode-device-info__grid">
         <Box className="tcode-device-info__field">
-          <Typography variant="caption" color="text.secondary">
-            固件版本（D0）
-          </Typography>
+          <Typography variant="caption" color="text.secondary">{t("固件版本（D0）")}</Typography>
           <Typography variant="body2" className="tcode-device-info__value">
             {view.firmwareVersionText}
           </Typography>
         </Box>
 
         <Box className="tcode-device-info__field">
-          <Typography variant="caption" color="text.secondary">
-            TCode 版本（D1）
-          </Typography>
+          <Typography variant="caption" color="text.secondary">{t("TCode 版本（D1）")}</Typography>
           <Typography variant="body2" className="tcode-device-info__value">
             {view.tcodeVersionText}
           </Typography>
@@ -2690,9 +2685,7 @@ function TCodeDeviceInfoCard({ deviceInfo, connected, onRefresh, busy = false, c
 
       {view.axisDescriptors.length > 0 && (
         <Box className="tcode-device-info__axes">
-          <Typography variant="caption" color="text.secondary">
-            轴描述（D2）
-          </Typography>
+          <Typography variant="caption" color="text.secondary">{t("轴描述（D2）")}</Typography>
 
           <Box className="tcode-device-info__axis-list">
             {view.axisDescriptors.map((descriptor, index) => (
@@ -2717,7 +2710,7 @@ function PlainLogEntry({ log, timeStr }) {
         </Typography>
       )}
       <Typography variant="body2" className="log-entry__message" sx={{ color: LOG_LEVEL_COLOR[log.level] || '#1f2937' }}>
-        {log.message}
+        {diagnostic(log.message)}
       </Typography>
     </Box>
   );
@@ -2741,9 +2734,9 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
         </Box>
 
         <SelectField
-          label="轴模式"
+          label={t("轴模式")}
           value={axisModeSelectValue}
-          options={AXIS_MODE_SELECT_OPTIONS}
+          options={AXIS_MODE_SELECT_OPTIONS()}
           disabled={disabled}
           variant="compact"
           formControlProps={{ sx: { minWidth: 164, flexShrink: 0 } }}
@@ -2752,13 +2745,11 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
       </Stack>
 
       {isIgnored ? (
-        <Typography variant="caption" color="text.secondary">
-          该轴已忽略，不会参与输出。
-        </Typography>
+        <Typography variant="caption" color="text.secondary">{t("该轴已忽略，不会参与输出。")}</Typography>
       ) : isLocked ? (
         <ValueSliderField
-          label="锁定位置"
-          title="锁定模式下，这个轴会固定在指定位置；位置使用 0-999 的设备尺度表示。"
+          label={t("锁定位置")}
+          title={t("锁定模式下，这个轴会固定在指定位置；位置使用 0-999 的设备尺度表示。")}
           value={Number(value.lockValue || 0)}
           min={0}
           max={1}
@@ -2769,21 +2760,21 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
       ) : (
         <>
           <RangeField
-            label="映射范围"
-            title="先把逻辑值 0~1 缩放到这个设备位置区间，再交给边界做最终夹紧。和“边界”不同，它会主动重映射输出。"
+            label={t("映射范围")}
+            title={t("先把逻辑值 0~1 缩放到这个设备位置区间，再交给边界做最终夹紧。和“边界”不同，它会主动重映射输出。")}
             value={[value.remapMin, value.remapMax]}
             sliderMin={0}
             sliderMax={999}
             inputMin={0}
             inputMax={999}
-            startLabel="起点"
-            endLabel="终点"
+            startLabel={t("起点")}
+            endLabel={t("终点")}
             onChange={([remapMin, remapMax]) => onChange({ remapMin, remapMax })}
           />
 
           <RangeField
-            label="边界范围"
-            title="最终输出会被夹在这个位置区间内，适合做限位或保留安全余量；它不会把输入重新缩放到这个区间。"
+            label={t("边界范围")}
+            title={t("最终输出会被夹在这个位置区间内，适合做限位或保留安全余量；它不会把输入重新缩放到这个区间。")}
             value={[value.min, value.max]}
             sliderMin={0}
             sliderMax={999}
@@ -2801,10 +2792,10 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
         <>
           <Box className="motion-axis-card__command-row">
             <SelectField
-              label="斜率方式"
+              label={t("斜率方式")}
               title={describeCommandModeDetail(value.commandMode)}
               value={normalizeCommandMode(value.commandMode)}
-              options={COMMAND_MODE_OPTIONS}
+              options={COMMAND_MODE_OPTIONS()}
               disabled={disabled}
               variant="floating"
               className="motion-axis-card__command-select"
@@ -2827,10 +2818,10 @@ function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
 
           <Box className="motion-axis-card__ramp-row">
             <SelectField
-              label="斜率曲线"
-              title="非标准扩展：在 S/I 指令后附加 = / < / > / <>。若设备不支持，建议保持“无”。"
-              value={RAMP_TYPE_OPTIONS.some(option => option.value === value.rampType) ? value.rampType : 'None'}
-              options={RAMP_TYPE_OPTIONS}
+              label={t("斜率曲线")}
+              title={t("非标准扩展：在 S/I 指令后附加 = / < / > / <>。若设备不支持，建议保持“无”。")}
+              value={RAMP_TYPE_OPTIONS().some(option => option.value === value.rampType) ? value.rampType : 'None'}
+              options={RAMP_TYPE_OPTIONS()}
               disabled={disabled}
               variant="floating"
               className="motion-axis-card__command-select"
@@ -2865,22 +2856,22 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
   const isEnabled = target?.enabled !== false;
   const runtimeError = (runtimeTarget?.lastError || '').trim();
   const statusMeta = (() => {
-    if (!isEnabled) return { label: '已禁用', color: 'default' };
-    if (hasConflicts) return { label: '配置冲突', color: 'error' };
-    if (!runtimeTarget) return { label: '待保存', color: 'primary' };
-    if (runtimeError) return { label: '转发异常', color: 'error' };
-    if (runtimeTarget?.lastSentAtUtc) return { label: '转发正常', color: 'success' };
-    return { label: '待收到数据', color: 'warning' };
+    if (!isEnabled) return { label: t("已禁用"), color: 'default' };
+    if (hasConflicts) return { label: t("配置冲突"), color: 'error' };
+    if (!runtimeTarget) return { label: t("待保存"), color: 'primary' };
+    if (runtimeError) return { label: t("转发异常"), color: 'error' };
+    if (runtimeTarget?.lastSentAtUtc) return { label: t("转发正常"), color: 'success' };
+    return { label: t("待收到数据"), color: 'warning' };
   })();
   const endpointSummary = runtimeTarget?.resolvedEndpoint || `${normalizeOscHubHost(target?.host)}:${normalizeOscHubPort(target?.port)}`;
-  const activitySummary = runtimeTarget?.lastSentAtUtc ? `最近 ${formatPreviewTimestamp(runtimeTarget.lastSentAtUtc)}` : '';
+  const activitySummary = runtimeTarget?.lastSentAtUtc ? t("最近 {0}", [formatPreviewTimestamp(runtimeTarget.lastSentAtUtc)]) : '';
 
   return (
     <Box className={`osc-hub-target${isEnabled ? '' : ' osc-hub-target--disabled'}`}>
       <Box className="osc-hub-target__header">
         <TextField
           className="osc-hub-target__name"
-          label={<HelpLabel text="目标名称" title="这个名称只用于在当前页面里区分不同 Hub 目标。" />}
+          label={<HelpLabel text={t("目标名称")} title={t("这个名称只用于在当前页面里区分不同 Hub 目标。")} />}
           size="small"
           value={target?.name || ''}
           onChange={event => onChange({ name: event.target.value })}
@@ -2891,13 +2882,11 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
             className="osc-hub-target__toggle"
             sx={{ m: 0 }}
             control={<Switch checked={Boolean(isEnabled)} onChange={(_, checked) => onChange({ enabled: checked })} />}
-            label={<Typography variant="body2"><HelpLabel text="启用" title="关闭后会保留这条目标配置，但 Hub 不会向它发包。" /></Typography>}
+            label={<Typography variant="body2"><HelpLabel text={t("启用")} title={t("关闭后会保留这条目标配置，但 Hub 不会向它发包。")} /></Typography>}
           />
 
-          <Tooltip title="移除这个 Hub 目标" arrow>
-            <Button size="small" color="error" onClick={onRemove}>
-              移除
-            </Button>
+          <Tooltip title={t("移除这个 Hub 目标")} arrow>
+            <Button size="small" color="error" onClick={onRemove}>{t("移除")}</Button>
           </Tooltip>
         </Stack>
       </Box>
@@ -2906,7 +2895,7 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
         <TextField
           className="osc-hub-target__host"
           error={hasConflicts}
-          label={<HelpLabel text="目标地址" title="Hub 转发的 UDP 目标地址。通常是 127.0.0.1 或目标程序所在设备的局域网地址。" />}
+          label={<HelpLabel text={t("目标地址")} title={t("Hub 转发的 UDP 目标地址。通常是 127.0.0.1 或目标程序所在设备的局域网地址。")} />}
           size="small"
           value={target?.host || ''}
           onChange={event => onChange({ host: event.target.value })}
@@ -2914,7 +2903,7 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
         <TextField
           className="osc-hub-target__port"
           error={hasConflicts}
-          label={<HelpLabel text="目标端口" title="Hub 转发的 UDP 目标端口。" />}
+          label={<HelpLabel text={t("目标端口")} title={t("Hub 转发的 UDP 目标端口。")} />}
           type="number"
           size="small"
           value={target?.port ?? ''}
@@ -2936,7 +2925,7 @@ function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChang
         ) : <Box />}
       </Box>
 
-      {runtimeError && !hasConflicts && <Alert severity="error" variant="outlined">{runtimeError}</Alert>}
+      {runtimeError && !hasConflicts && <Alert severity="error" variant="outlined">{diagnostic(runtimeError)}</Alert>}
       {hasConflicts && <Alert severity="warning" variant="outlined">{conflictMessages.join('；')}</Alert>}
     </Box>
   );
@@ -2951,23 +2940,23 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
   const simulationValueText = formatCompactNumber(simulatedValue, 2);
   const statusMetrics = latestEntry
     ? [
-        { key: 'live-input', label: ['SensaPose','SensaPoint'].includes(draft.sourceMode) ? '解算输入' : draft.sourceMode === 'SpsSocketDepth' ? '原始采样' : '实时输入', value: latestEntry.value ?? '—', tone: 'live' },
-        { key: 'live-output', label: '预估位置', value: liveOutput?.mappedPositionText || '—', tone: liveOutput ? 'live' : 'muted' },
+        { key: 'live-input', label: ['SensaPose','SensaPoint'].includes(draft.sourceMode) ? t("解算输入") : draft.sourceMode === 'SpsSocketDepth' ? t("原始采样") : t("实时输入"), value: latestEntry.value ?? '—', tone: 'live' },
+        { key: 'live-output', label: t("预估位置"), value: liveOutput?.mappedPositionText || '—', tone: liveOutput ? 'live' : 'muted' },
       ]
     : [
-        { key: 'live-input-missing', label: '实时输入', value: '未命中', tone: 'muted' },
-        { key: 'live-output-missing', label: '预估位置', value: '—', tone: 'muted' },
+        { key: 'live-input-missing', label: t("实时输入"), value: t("未命中"), tone: 'muted' },
+        { key: 'live-output-missing', label: t("预估位置"), value: '—', tone: 'muted' },
       ];
   const visibleStatusMetrics = draft.simulateEnabled
     ? [
-        { key: 'sim-input', label: '模拟输入', value: simulationValueText, tone: 'simulated' },
-        { key: 'sim-output', label: '模拟位置', value: simulatedOutput?.mappedPositionText || '—', tone: simulatedOutput ? 'simulated' : 'muted' },
+        { key: 'sim-input', label: t("模拟输入"), value: simulationValueText, tone: 'simulated' },
+        { key: 'sim-output', label: t("模拟位置"), value: simulatedOutput?.mappedPositionText || '—', tone: simulatedOutput ? 'simulated' : 'muted' },
       ]
     : statusMetrics;
   const metaSummaryText = !draft.simulateEnabled && latestEntry?.path && latestEntry.path !== draft.oscPath
-      ? `命中 ${latestEntry.path}${latestEntry.matchCount > 1 ? ` · ${latestEntry.matchCount} 条` : ''}`
+      ? t("命中 {0}{1}", [latestEntry.path, latestEntry.matchCount > 1 ? t(" · {0} 条", [latestEntry.matchCount]) : ''])
       : !draft.simulateEnabled && latestEntry?.matchCount > 1
-        ? `命中 ${latestEntry.matchCount} 条参数`
+        ? t("命中 {0} 条参数", [latestEntry.matchCount])
         : '';
 
   return (
@@ -2997,24 +2986,24 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           renderInput={params => (
             <TextField
               {...params}
-              label={<HelpLabel text="参数路径" title="支持精确匹配、*、**；多个候选路径用分号分隔。所有命中值参与融合，同轴选择校准后强度更高的值；预览显示最近更新值。" />}
+              label={<HelpLabel text={t("参数路径")} title={t("支持精确匹配、*、**；多个候选路径用分号分隔。所有命中值参与融合，同轴选择校准后强度更高的值；预览显示最近更新值。")} />}
               size="small"
-              placeholder="例如: OGB/Orf/Pussy/Main/PenOthers"
+              placeholder={t("例如: OGB/Orf/Pussy/Main/PenOthers")}
             />
           )}
         />
 
-        <SelectField label="输入解释" value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: '直接映射' }, { value: 'SpsSocketDepth', label: 'SPS Root/Tip 深度' }, { value: 'SensaPose', label: 'Sensa 空间定位' }, {value:'SensaPoint',label:'本地骨骼 / PB 位置'}]} onChange={sourceMode => onChange({ sourceMode })} />
-        {draft.sourceMode === 'SensaPoint' && <SelectField label="本地点指标（局部 m）" value={draft.pointMetric || 'Z'} options={['X','Y','Z','Distance'].map(value=>({value,label:value==='Distance'?'距参考原点':value}))} onChange={pointMetric=>onChange({pointMetric})} />}
-        {draft.sourceMode === 'SensaPose' && <SelectField label="定位指标" value={draft.poseMetric || 'Depth'} options={[
-          { value: 'Depth', label: '入孔比例 0–1' }, { value: 'OffsetX', label: '孔口 X 偏移（m）' }, { value: 'OffsetY', label: '孔口 Y 偏移（m）' },
-          { value: 'Yaw', label: '偏航（度）' }, { value: 'Pitch', label: '俯仰（度）' }, { value: 'Roll', label: '扭转（度）' },
+        <SelectField label={t("输入解释")} value={draft.sourceMode || 'Direct'} options={[{ value: 'Direct', label: t("直接映射") }, { value: 'SpsSocketDepth', label: t("SPS Root/Tip 深度") }, { value: 'SensaPose', label: t("Sensa 空间定位") }, {value:'SensaPoint',label:t("本地骨骼 / PB 位置")}]} onChange={sourceMode => onChange({ sourceMode })} />
+        {draft.sourceMode === 'SensaPoint' && <SelectField label={t("本地点指标（局部 m）")} value={draft.pointMetric || 'Z'} options={['X','Y','Z','Distance'].map(value=>({value,label:value==='Distance'?t("距参考原点"):value}))} onChange={pointMetric=>onChange({pointMetric})} />}
+        {draft.sourceMode === 'SensaPose' && <SelectField label={t("定位指标")} value={draft.poseMetric || 'Depth'} options={[
+          { value: 'Depth', label: t("入孔比例 0–1") }, { value: 'OffsetX', label: t("孔口 X 偏移（m）") }, { value: 'OffsetY', label: t("孔口 Y 偏移（m）") },
+          { value: 'Yaw', label: t("偏航（度）") }, { value: 'Pitch', label: t("俯仰（度）") }, { value: 'Roll', label: t("扭转（度）") },
         ]} onChange={poseMetric => onChange({ poseMetric })} />}
         <SelectField
-          label="目标轴"
-          title="选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则在重叠区当前不会叠加，而是优先采用校准后更深（归一化更高）的那条映射结果。当前约定里 L1 为数值小=前、数值大=后。"
+          label={t("目标轴")}
+          title={t("选择这条 OSC 映射最终驱动的设备轴；同一目标轴的多条规则在重叠区当前不会叠加，而是优先采用校准后更深（归一化更高）的那条映射结果。当前约定里 L1 为数值小=前、数值大=后。")}
           value={draft.role}
-          options={SIGNAL_ROLE_OPTIONS}
+          options={SIGNAL_ROLE_OPTIONS()}
           variant="compact"
           fullWidth
           className="signal-row__role"
@@ -3025,12 +3014,10 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           className="signal-row__toggle"
           sx={{ m: 0 }}
           control={<Switch checked={Boolean(draft.invertDirection)} onChange={(_, checked) => onChange({ invertDirection: checked })} />}
-          label={<HelpLabel text="反向" title="交换输入最小值 / 输入最大值的方向，常用于深度方向相反或姿态方向相反的参数。" />}
+          label={<HelpLabel text={t("反向")} title={t("交换输入最小值 / 输入最大值的方向，常用于深度方向相反或姿态方向相反的参数。")} />}
         />
 
-        <Button size="small" color="error" className="signal-row__remove" onClick={onRemove}>
-          移除
-        </Button>
+        <Button size="small" color="error" className="signal-row__remove" onClick={onRemove}>{t("移除")}</Button>
       </Box>
 
       <Box className="signal-row__controls">
@@ -3050,7 +3037,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
                     onChange={(_, checked) => onChange({ simulateEnabled: checked, simulatedValue: checked ? simulatedValue : draft.simulatedValue })}
                   />
                 }
-                label={<HelpLabel text="模拟" title="只在当前页面里做预览，不会发给后端，也不会写入配置。适合在没有真实 OSC 参数时，先试输入范围、曲线和映射范围会落到什么设备位置。" />}
+                label={<HelpLabel text={t("模拟")} title={t("只在当前页面里做预览，不会发给后端，也不会写入配置。适合在没有真实 OSC 参数时，先试输入范围、曲线和映射范围会落到什么设备位置。")} />}
               />
             </Box>
 
@@ -3066,8 +3053,8 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
           {draft.simulateEnabled ? (
             <Box className="signal-row__simulation-field">
               <ValueSliderField
-                label="模拟参数值"
-                title="本地预览用的原始输入值。拖动它可以直接看到当前输入范围、曲线与映射范围会把这个值变成哪个设备位置。"
+                label={t("模拟参数值")}
+                title={t("本地预览用的原始输入值。拖动它可以直接看到当前输入范围、曲线与映射范围会把这个值变成哪个设备位置。")}
                 value={simulatedValue}
                 min={simulationSliderMin}
                 max={simulationSliderMax}
@@ -3077,8 +3064,7 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
               />
 
               {simulatedOutput && (
-                <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">
-                  模拟：{simulationValueText} → {simulatedOutput.normalizedText} → {simulatedOutput.curvedText} → {simulatedOutput.mappedPositionText}
+                <Typography variant="caption" color="text.secondary" className="signal-row__simulation-note">{t("模拟：")}{simulationValueText} → {simulatedOutput.normalizedText} → {simulatedOutput.curvedText} → {simulatedOutput.mappedPositionText}
                 </Typography>
               )}
             </Box>
@@ -3089,8 +3075,8 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
         <Box className="signal-row__section signal-row__section--range">
           <RangeField
-            label="输入范围"
-            title="把原始 OSC 值的某一段校准为逻辑 0~1。比如设成 0.25~0.75，就会把原始 25%~75% 放大成设备完整行程；超出区间的值会被夹到 0/1。"
+            label={t("输入范围")}
+            title={t("把原始 OSC 值的某一段校准为逻辑 0~1。比如设成 0.25~0.75，就会把原始 25%~75% 放大成设备完整行程；超出区间的值会被夹到 0/1。")}
             value={[draft.vrchatMin, draft.vrchatMax]}
             sliderMin={inputSliderMin}
             sliderMax={inputSliderMax}
@@ -3104,8 +3090,8 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
         <Box className="signal-row__section signal-row__section--range">
           <RangeField
-            label="映射范围"
-            title="校准和曲线处理后的逻辑 0/1，会被放到这个设备位置区间；范围 0-999。比如把完整输入限制在设备的 200~800 行程，就在这里设 200~800。"
+            label={t("映射范围")}
+            title={t("校准和曲线处理后的逻辑 0/1，会被放到这个设备位置区间；范围 0-999。比如把完整输入限制在设备的 200~800 行程，就在这里设 200~800。")}
             value={[draft.mappedMin, draft.mappedMax]}
             sliderMin={0}
             sliderMax={999}
@@ -3117,10 +3103,10 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 
         <Box className="signal-row__section signal-row__section--curve">
           <SelectField
-            label="映射曲线"
-            title="它改变的是输入值到逻辑目标值的分布，不直接改变最终发给设备的 S/I 形式。缓入适合前段更细，缓出适合后段更细，缓入缓出则让两端更平滑、中段更灵敏。"
+            label={t("映射曲线")}
+            title={t("它改变的是输入值到逻辑目标值的分布，不直接改变最终发给设备的 S/I 形式。缓入适合前段更细，缓出适合后段更细，缓入缓出则让两端更平滑、中段更灵敏。")}
             value={draft.curve || 'Linear'}
-            options={SIGNAL_CURVE_OPTIONS}
+            options={SIGNAL_CURVE_OPTIONS()}
             variant="floating"
             className="signal-row__curve-field"
             onChange={next => onChange({ curve: next })}
@@ -3132,7 +3118,8 @@ function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove 
 }
 
 function App() {
-  const initialState = useMemo(() => buildInitialAppState(), []);
+  const locale = React.useSyncExternalStore(subscribeLocale, getLocale);
+  const initialState = useMemo(() => buildInitialAppState(), [getLocale()]);
   const [config, setConfig] = useState(initialState.config);
   const [overview, setOverview] = useState(initialState.overview);
   const [logs, setLogs] = useState(initialState.logs);
@@ -3188,7 +3175,7 @@ function App() {
   const axisProfiles = getAxisProfiles(config);
   const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
   const runtimeOverview = overview?.runtime || overview?.loop || null;
-  const selectedInputTab = INPUT_MODES.some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
+  const selectedInputTab = INPUT_MODES().some(item => item.value === studioState.preferredInputTab) ? studioState.preferredInputTab : actualInputMode;
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
 
   const scriptState = overview?.input?.script || null;
@@ -3200,47 +3187,47 @@ function App() {
   const scriptSliderMax = Math.max(scriptDurationMs, 1);
   const scriptSeekValue = scriptSeekDragging ? clampScriptPositionMs(scriptSeekDraft, scriptDurationMs) : scriptPositionMs;
   const scriptSeekBasePosition = clampScriptPositionMs(scriptSeekValue, scriptDurationMs);
-  const scriptLoopRange = useMemo(() => normalizeScriptLoopRange(scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs), [scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs]);
+  const scriptLoopRange = useMemo(() => normalizeScriptLoopRange(scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs), [scriptSettings.loopStartMs, scriptSettings.loopEndMs, scriptDurationMs, getLocale()]);
   const scriptHasLoopMarkers = scriptLoopRange.startMs !== null || scriptLoopRange.endMs !== null;
   const scriptActivityBins = Array.isArray(scriptState?.activityBins) ? scriptState.activityBins : [];
   const scriptStateMeta = getScriptStateMeta(scriptState?.state);
-  const scriptPrimaryActionLabel = !scriptLoaded ? '播放' : scriptState?.playing ? '播放中' : scriptState?.paused ? '继续播放' : scriptState?.state === 'finished' ? '重新播放' : '播放';
+  const scriptPrimaryActionLabel = !scriptLoaded ? t("播放") : scriptState?.playing ? t("播放中") : scriptState?.paused ? t("继续播放") : scriptState?.state === 'finished' ? t("重新播放") : t("播放");
   const scriptCurrentL0Value = formatAxisPositionFromNormalized(scriptState?.currentL0 || 0);
   const scriptSpeedLabel = formatScriptSpeedLabel(scriptSettings.speed);
-  const scriptLoopStartLabel = scriptLoopRange.startMs === null ? 'A 未设' : `A ${formatDuration(scriptLoopRange.startMs)}`;
-  const scriptLoopEndLabel = scriptLoopRange.endMs === null ? 'B 未设' : `B ${formatDuration(scriptLoopRange.endMs)}`;
-  const scriptLoopModeLabel = scriptSettings.loop ? '循环播放已开启' : '循环播放已关闭';
+  const scriptLoopStartLabel = scriptLoopRange.startMs === null ? t("A 未设") : `A ${formatDuration(scriptLoopRange.startMs)}`;
+  const scriptLoopEndLabel = scriptLoopRange.endMs === null ? t("B 未设") : `B ${formatDuration(scriptLoopRange.endMs)}`;
+  const scriptLoopModeLabel = scriptSettings.loop ? t("循环播放已开启") : t("循环播放已关闭");
   const scriptLoopRangeSummary = scriptLoopRange.active ? `${formatDuration(scriptLoopRange.startMs)} → ${formatDuration(scriptLoopRange.endMs)}` : '';
   const scriptLoopLengthMs = scriptLoopRange.active ? Math.max(0, scriptLoopRange.endMs - scriptLoopRange.startMs) : 0;
   const scriptLoopCoveragePercent = scriptLoopRange.active && scriptDurationMs > 0 ? (scriptLoopLengthMs / scriptDurationMs) * 100 : 0;
   const scriptCurrentInLoopRange = scriptLoopRange.active ? scriptPositionMs >= scriptLoopRange.startMs && scriptPositionMs < scriptLoopRange.endMs : null;
   const scriptLoopModeHelpText = !scriptLoaded
-    ? '先设好速度和循环偏好，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。'
+    ? t("先设好速度和循环偏好，加载脚本后会自动沿用；这些偏好会记住到当前浏览器。")
     : scriptSettings.loop
       ? scriptLoopRange.active
-        ? '已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。'
-        : '已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。'
-      : '已关闭。当前会从当前位置播放到结尾一次。';
-  const scriptFileLabel = selectedScriptFile?.name || scriptState?.fileName || '未载入脚本';
+        ? t("已开启。当前存在完整 A-B 区间，播放时会只在 A-B 区间内循环。")
+        : t("已开启。当前还没有完整 A-B 区间，播放时会按整段脚本循环。")
+      : t("已关闭。当前会从当前位置播放到结尾一次。");
+  const scriptFileLabel = selectedScriptFile?.name || scriptState?.fileName || t("未载入脚本");
   const scriptHeroStatusText = selectedScriptFile
-    ? '正在读取并导入脚本…导入完成后会自动同步到时间轴工作区。'
+    ? t("正在读取并导入脚本…导入完成后会自动同步到时间轴工作区。")
     : scriptLoaded
-      ? `当前脚本按 ${scriptSpeedLabel} 播放；${scriptSettings.loop ? (scriptLoopRange.active ? `循环区间为 ${scriptLoopRangeSummary}` : '已开启整段循环') : '当前为单次播放模式'}。`
-      : '选择一个 .funscript / .json 文件后即可进入时间轴工作区，后续可直接拖动时间轴、设置 A-B 和按关键帧步进。';
-  const scriptOutputBehaviorText = '当前脚本模式固定按脚本内容直接发送位置。常规 funscript 只有位置关键帧，因此现在不会再按轴配置或输出配置自动补算 S / I。';
-  const scriptPlaybackRateHelpText = '这里调整的是脚本时间倍率，不是 TCode S 速度；只影响脚本在时间轴上的推进快慢。';
+      ? t("当前脚本按 {0} 播放；{1}。", [scriptSpeedLabel, scriptSettings.loop ? (scriptLoopRange.active ? t("循环区间为 {0}", [scriptLoopRangeSummary]) : t("已开启整段循环")) : t("当前为单次播放模式")])
+      : t("选择一个 .funscript / .json 文件后即可进入时间轴工作区，后续可直接拖动时间轴、设置 A-B 和按关键帧步进。");
+  const scriptOutputBehaviorText = t("当前脚本模式固定按脚本内容直接发送位置。常规 funscript 只有位置关键帧，因此现在不会再按轴配置或输出配置自动补算 S / I。");
+  const scriptPlaybackRateHelpText = t("这里调整的是脚本时间倍率，不是 TCode S 速度；只影响脚本在时间轴上的推进快慢。");
   const scriptPrimaryTransportBusy = busyKey === 'script-play' || busyKey === 'script-pause';
-  const scriptTransportPrimaryLabel = scriptState?.playing ? '暂停' : scriptPrimaryActionLabel;
-  const scriptLoopAnchorModeLabel = scriptSeekDragging ? '拖拽预览' : '当前播放位置';
-  const scriptLoopAnchorValueLabel = scriptLoaded ? formatDuration(scriptSeekBasePosition) : '未载入';
-  const scriptShortcutScopeText = '快捷键只在脚本页空白区域生效；输入框、按钮和滑条获得焦点时会自动让出键盘，长按按键也不会重复连发。';
-  const scriptTimelineSupportText = '时间码支持 90、1:30、01:23.45 这类格式。';
-  const scriptTimelinePreviewLabel = !scriptLoaded ? '载入脚本后可拖动定位' : scriptSeekDragging ? `预览 ${formatDuration(scriptSeekBasePosition)}` : `当前 ${formatDuration(scriptPositionMs)}`;
-  const scriptWorkspaceEmptyTitle = selectedScriptFile ? '正在导入脚本…' : '还没有载入脚本';
+  const scriptTransportPrimaryLabel = scriptState?.playing ? t("暂停") : scriptPrimaryActionLabel;
+  const scriptLoopAnchorModeLabel = scriptSeekDragging ? t("拖拽预览") : t("当前播放位置");
+  const scriptLoopAnchorValueLabel = scriptLoaded ? formatDuration(scriptSeekBasePosition) : t("未载入");
+  const scriptShortcutScopeText = t("快捷键只在脚本页空白区域生效；输入框、按钮和滑条获得焦点时会自动让出键盘，长按按键也不会重复连发。");
+  const scriptTimelineSupportText = t("时间码支持 90、1:30、01:23.45 这类格式。");
+  const scriptTimelinePreviewLabel = !scriptLoaded ? t("载入脚本后可拖动定位") : scriptSeekDragging ? t("预览 {0}", [formatDuration(scriptSeekBasePosition)]) : t("当前 {0}", [formatDuration(scriptPositionMs)]);
+  const scriptWorkspaceEmptyTitle = selectedScriptFile ? t("正在导入脚本…") : t("还没有载入脚本");
   const scriptWorkspaceEmptyDescription = selectedScriptFile
-    ? '脚本文件内容正在读取并同步到 Companion；导入完成后，这里会自动切换成完整时间轴工作区。'
-    : '先选择一个脚本文件，随后就可以在这里拖动时间轴、框选 A-B、用快捷键对点和按关键帧步进。';
-  const scriptShortcutGroups = SCRIPT_SHORTCUT_GROUPS.map(group => ({
+    ? t("脚本文件内容正在读取并同步到 Companion；导入完成后，这里会自动切换成完整时间轴工作区。")
+    : t("先选择一个脚本文件，随后就可以在这里拖动时间轴、框选 A-B、用快捷键对点和按关键帧步进。");
+  const scriptShortcutGroups = SCRIPT_SHORTCUT_GROUPS().map(group => ({
     ...group,
     items: group.items.map(item => ({
       ...item,
@@ -3294,7 +3281,7 @@ function App() {
         setScriptSettings(normalizeScriptSettingsState(overviewResponse?.input?.script, persistedStudio.scriptDefaults));
         scriptSettingsInitializedRef.current = true;
       } catch (error) {
-        notify(error.message || '初始化失败', 'error');
+        notify(error.message || t("初始化失败"), 'error');
       } finally {
         if (!disposed) setLoading(false);
       }
@@ -3500,10 +3487,10 @@ function App() {
         }
         setScriptJumpInput('');
         await refreshOverview();
-        notify('脚本已加载', 'success');
+        notify(t("脚本已加载"), 'success');
       } catch (error) {
         if (!cancelled) {
-          notify(error.message || '脚本加载失败', 'error');
+          notify(error.message || t("脚本加载失败"), 'error');
           setSelectedScriptFile(null);
           setScriptFileInputKey(previous => previous + 1);
         }
@@ -3524,7 +3511,7 @@ function App() {
       disposed = true;
       window.clearTimeout(retryHandle);
       if (_wsCommandSocket === socket) setWsCommandSocket(null);
-      rejectWsReadyWaiters(new Error('实时连接已关闭'));
+      rejectWsReadyWaiters(new Error(t("实时连接已关闭")));
       clearWsPendingRequests(new Error('WS disconnected'));
 
       if (socket && (socket.readyState === WebSocket.OPEN || socket.readyState === WebSocket.CONNECTING)) {
@@ -3572,7 +3559,7 @@ function App() {
             clearTimeout(pending.timeout);
             _wsPending.delete(payload.id);
             if (payload.ok === false) {
-              pending.reject(new Error(payload?.data?.error || payload?.error || '请求失败'));
+              pending.reject(new Error(payload?.data?.error || payload?.error || t("请求失败")));
             } else {
               pending.resolve(payload.data);
             }
@@ -3591,7 +3578,7 @@ function App() {
         const isCurrentSocket = _wsCommandSocket === currentSocket;
         if (isCurrentSocket) {
           setWsCommandSocket(null);
-          rejectWsReadyWaiters(new Error('实时连接已断开'));
+          rejectWsReadyWaiters(new Error(t("实时连接已断开")));
           clearWsPendingRequests(new Error('WS disconnected'));
         }
 
@@ -3616,7 +3603,7 @@ function App() {
     try {
       const result = await apiRequest(`/api/recording/${action}`, { method: 'POST' });
       if (action === 'export') {
-        if (!result.content) { notify('录制为空', 'info'); return; }
+        if (!result.content) { notify(t("录制为空"), 'info'); return; }
         const url = URL.createObjectURL(new Blob([result.content], { type: 'application/json' }));
         const link = document.createElement('a'); link.href = url; link.download = result.fileName; link.click();
         setTimeout(() => URL.revokeObjectURL(url), 1000);
@@ -3638,23 +3625,23 @@ function App() {
     const next = preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` }));
     setSignalDrafts(next);
     setOscWorkspaceTab('setup');
-    notify('已用此对象替换整套映射草稿，旧门控已移除；固定来源后保存，保存后需重新打开输入。', 'info');
+    notify(t("已用此对象替换整套映射草稿，旧门控已移除；固定来源后保存，保存后需重新打开输入。"), 'info');
   }
 
   function mapPreviewParameter(entry) {
     if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({prefix:entry.path.split('/').slice(0,5).join('/')});
     } else if (/^Sensa\/(SpsRoot|SharedRoot)\/v1\//.test(entry.path)) {
-      notify('这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。', 'info');
+      notify(t("这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。"), 'info');
     } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
     } else if (/New(Root|Tip)$/.test(entry.path)) {
       const prefix = entry.path.replace(/New(Root|Tip)$/, '');
       setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: `${prefix}NewRoot;${prefix}NewTip`, sourceMode: 'SpsSocketDepth', role: 'Depth' })]);
-      notify('已添加 Root/Tip 配对草稿，请检查后保存。', 'info');
+      notify(t("已添加 Root/Tip 配对草稿，请检查后保存。"), 'info');
     } else {
       setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: entry.path, role: /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' })]);
-      notify('已添加映射草稿，请确认参数含义、目标轴和范围后保存。', 'info');
+      notify(t("已添加映射草稿，请确认参数含义、目标轴和范围后保存。"), 'info');
     }
   }
 
@@ -3662,7 +3649,7 @@ function App() {
     setSelectedOscPreset('');
     setOscWorkspaceTab('setup');
     setSignalDrafts([makeSignalDraft(calibrated || {oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
-    notify(calibrated?'已用校准结果替换整套映射草稿，旧门控已移除；确认来源后保存，再手动打开输入。':'已用本地 Z 位移替换整套草稿，旧门控已移除；请先校准量程再保存。','info');
+    notify(calibrated?t("已用校准结果替换整套映射草稿，旧门控已移除；确认来源后保存，再手动打开输入。"):t("已用本地 Z 位移替换整套草稿，旧门控已移除；请先校准量程再保存。"),'info');
   }
 
   function notify(message, severity = 'info') {
@@ -3709,7 +3696,7 @@ function App() {
   }
 
   async function uploadScriptFile(file) {
-    if (!file) throw new Error('请先选择一个 .funscript 文件');
+    if (!file) throw new Error(t("请先选择一个 .funscript 文件"));
 
     const content = await file.text();
     return apiRequest('/api/input/script/load', {
@@ -3780,8 +3767,8 @@ function App() {
       const savedConfig = await persistConfig(nextConfig);
       await refreshOverview();
       setOscDraft(buildOscDraftFromConfig(savedConfig));
-      notify('OSC / Hub 配置已保存', 'success');
-    }).catch(error => notify(error.message || '保存 OSC 配置失败', 'error'));
+      notify(t("OSC / Hub 配置已保存"), 'success');
+    }).catch(error => notify(error.message || t("保存 OSC 配置失败"), 'error'));
   }
 
   async function applyOscSourceSelection(nextSourceKey) {
@@ -3796,8 +3783,8 @@ function App() {
         body: JSON.stringify({ sourceKey: normalizedSourceKey || null }),
       });
       await refreshOverview();
-      notify(normalizedSourceKey ? '已切换参数来源' : '已恢复自动选择参数来源', 'success');
-    }).catch(error => notify(error.message || '切换参数来源失败', 'error'));
+      notify(normalizedSourceKey ? t("已切换参数来源") : t("已恢复自动选择参数来源"), 'success');
+    }).catch(error => notify(error.message || t("切换参数来源失败"), 'error'));
   }
 
   function updateOscHubTargetDraft(draftId, patch) {
@@ -3840,14 +3827,14 @@ function App() {
   function clearSignalDrafts() {
     setSignalDrafts([]);
     setConfirmClearMappings(false);
-    notify('已在当前页面清空映射；如需放弃更改，可点“恢复映射”', 'info');
+    notify(t("已在当前页面清空映射；如需放弃更改，可点“恢复映射”"), 'info');
   }
 
   function restoreSignalDrafts() {
     if (!config) return;
     setSignalDrafts(buildSignalDrafts(config?.signals));
     setConfirmClearMappings(false);
-    notify('已恢复到已保存映射', 'info');
+    notify(t("已恢复到已保存映射"), 'info');
   }
 
   async function saveOscMappings() {
@@ -3861,20 +3848,20 @@ function App() {
       await persistConfig(nextConfig);
       await refreshOverview();
       savedSignalsHashRef.current = computeSignalHash(signalDrafts);
-      notify('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。', 'success');
-    }).catch(error => notify(error.message || '保存 OSC 映射失败', 'error'));
+      notify(t("OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。"), 'success');
+    }).catch(error => notify(error.message || t("保存 OSC 映射失败"), 'error'));
   }
 
   function applyOscPreset(mode = 'replace') {
     const preset = getOscMappingPreset(config, selectedOscPreset);
     if (!preset) {
-      notify('请选择一个预设方案', 'warning');
+      notify(t("请选择一个预设方案"), 'warning');
       return;
     }
 
     const nextDrafts = preset.mappings.map(mapping => makeSignalDraft(mapping));
     setSignalDrafts(previous => (mode === 'append' ? [...previous, ...nextDrafts] : nextDrafts));
-    notify(mode === 'append' ? `已在当前页面追加预设：${preset.name}；保存后才会真正应用` : `已在当前页面应用预设：${preset.name}；保存后才会真正应用`, 'success');
+    notify(mode === 'append' ? t("已在当前页面追加预设：{0}；保存后才会真正应用", [preset.name]) : t("已在当前页面应用预设：{0}；保存后才会真正应用", [preset.name]), 'success');
   }
 
   function openPresetDialog(presetId = null, options = {}) {
@@ -3919,7 +3906,7 @@ function App() {
       const nextConfig = cloneConfig(config);
       const nextPreset = {
         id: presetDialog.presetId,
-        name: (presetDialog.name || 'OSC 预设').trim() || 'OSC 预设',
+        name: (presetDialog.name || t("OSC 预设")).trim() || t("OSC 预设"),
         description: (presetDialog.description || '').trim(),
         mappings: presetDialog.mappings.map(stripSignalDraft).filter(signal => Boolean(signal.oscPath)),
       };
@@ -3930,9 +3917,9 @@ function App() {
       const saved = await persistConfig(nextConfig);
       setSelectedOscPreset(nextPreset.id);
       setPresetDialog(null);
-      notify(`${nextPreset.name} 已保存`, 'success');
+      notify(t("{0} 已保存", [nextPreset.name]), 'success');
       setConfig(saved);
-    }).catch(error => notify(error.message || '保存预设失败', 'error'));
+    }).catch(error => notify(error.message || t("保存预设失败"), 'error'));
   }
 
   async function deleteSelectedPreset() {
@@ -3941,7 +3928,7 @@ function App() {
     const preset = getOscMappingPreset(config, selectedOscPreset);
     if (!preset) return;
     if (preset.isBuiltIn) {
-      notify('内置预设不能删除；如需修改，请复制为自定义预设。', 'warning');
+      notify(t("内置预设不能删除；如需修改，请复制为自定义预设。"), 'warning');
       return;
     }
 
@@ -3953,9 +3940,9 @@ function App() {
       const saved = await persistConfig(nextConfig);
       const nextPresets = getOscMappingPresets({ ...saved, oscMappingPresets: remaining });
       setSelectedOscPreset(nextPresets[0]?.id || '');
-      notify(`${preset.name} 已删除`, 'info');
+      notify(t("{0} 已删除", [preset.name]), 'info');
       setConfig(saved);
-    }).catch(error => notify(error.message || '删除预设失败', 'error'));
+    }).catch(error => notify(error.message || t("删除预设失败"), 'error'));
   }
 
   function updateProfileAxis(axisKey, patch) {
@@ -3975,7 +3962,7 @@ function App() {
   }
 
   function applyAxisProfilePresetToDialog(presetId) {
-    const preset = AXIS_PROFILE_PRESETS.find(item => item.id === presetId);
+    const preset = AXIS_PROFILE_PRESETS().find(item => item.id === presetId);
     if (!preset) return;
 
     setProfileDialog(previous => {
@@ -4004,7 +3991,7 @@ function App() {
     await withBusy(`profile-save-${profileDialog.profileId}`, async () => {
       const nextConfig = cloneConfig(config);
       const existingProfiles = getAxisProfiles(config);
-      const nextProfileName = (profileDialog.name || '轴配置').trim() || '轴配置';
+      const nextProfileName = (profileDialog.name || t("轴配置")).trim() || t("轴配置");
       const updatedProfile = {
         id: profileDialog.profileId,
         name: nextProfileName,
@@ -4024,8 +4011,8 @@ function App() {
       await persistConfig(nextConfig);
       await refreshOverview();
       setProfileDialog(null);
-      notify(`${nextProfileName} 已保存`, 'success');
-    }).catch(error => notify(error.message || '保存轴配置失败', 'error'));
+      notify(t("{0} 已保存", [nextProfileName]), 'success');
+    }).catch(error => notify(error.message || t("保存轴配置失败"), 'error'));
   }
 
   async function setDefaultAxisProfile(profileId) {
@@ -4040,8 +4027,8 @@ function App() {
 
       const saved = await persistConfig(nextConfig);
       await refreshOverview();
-      notify(`默认轴配置已切换为 ${getAxisProfile(saved, profileId).name}`, 'success');
-    }).catch(error => notify(error.message || '设置默认轴配置失败', 'error'));
+      notify(t("默认轴配置已切换为 {0}", [getAxisProfile(saved, profileId).name]), 'success');
+    }).catch(error => notify(error.message || t("设置默认轴配置失败"), 'error'));
   }
 
   async function removeAxisProfile(profileId) {
@@ -4049,7 +4036,7 @@ function App() {
 
     const profile = getAxisProfile(config, profileId);
     if (!profile || profile.isDefault) {
-      notify('默认轴配置不能移除', 'warning');
+      notify(t("默认轴配置不能移除"), 'warning');
       return;
     }
 
@@ -4061,9 +4048,9 @@ function App() {
 
       const saved = await persistConfig(nextConfig);
       await refreshOverview();
-      notify(`${profile.name} 已移除，相关输出已回退到默认轴配置`, 'info');
+      notify(t("{0} 已移除，相关输出已回退到默认轴配置", [profile.name]), 'info');
       setStudio(previous => sanitizeStudio(previous, saved));
-    }).catch(error => notify(error.message || '移除轴配置失败', 'error'));
+    }).catch(error => notify(error.message || t("移除轴配置失败"), 'error'));
   }
 
   function selectInputTab(nextMode) {
@@ -4080,8 +4067,8 @@ function App() {
         body: JSON.stringify({ mode: nextMode }),
       });
       await refreshOverview();
-      notify(`已切换到 ${formatMode(nextMode)}`, 'success');
-    }).catch(error => notify(error.message || '切换输入失败', 'error'));
+      notify(t("已切换到 {0}", [formatMode(nextMode)]), 'success');
+    }).catch(error => notify(error.message || t("切换输入失败"), 'error'));
   }
 
   function manualDraftToPayload(draft) {
@@ -4119,7 +4106,7 @@ function App() {
           motionValue: normalizeManualMotionValueByMode(manualMotionModeRef.current, manualMotionValueRef.current),
           ...manualDraftToPayload(manualDraftRef.current),
         }),
-      }).catch(error => notify(error.message || '手动输入更新失败', 'error'));
+      }).catch(error => notify(error.message || t("手动输入更新失败"), 'error'));
     });
   }
 
@@ -4165,8 +4152,8 @@ function App() {
           ...manualDraftToPayload(manualDraft),
         }),
       });
-      notify('位置已更新', 'success');
-    }).catch(error => notify(error.message || '更新位置失败', 'error'));
+      notify(t("位置已更新"), 'success');
+    }).catch(error => notify(error.message || t("更新位置失败"), 'error'));
   }
 
   async function disableManualInput() {
@@ -4178,8 +4165,8 @@ function App() {
     await withBusy('manual-disable', async () => {
       await apiRequest('/api/input/manual', { method: 'DELETE' });
       await refreshOverview();
-      notify('手动输入已停用', 'success');
-    }).catch(error => notify(error.message || '停用手动输入失败', 'error'));
+      notify(t("手动输入已停用"), 'success');
+    }).catch(error => notify(error.message || t("停用手动输入失败"), 'error'));
   }
 
   async function playScript(restart = false) {
@@ -4197,24 +4184,24 @@ function App() {
       syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
       setStudio(previous => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
       await refreshOverview();
-      notify(restart ? '脚本已重新开始' : '脚本播放中', 'success');
-    }).catch(error => notify(error.message || '脚本播放失败', 'error'));
+      notify(restart ? t("脚本已重新开始") : t("脚本播放中"), 'success');
+    }).catch(error => notify(error.message || t("脚本播放失败"), 'error'));
   }
 
   async function pauseScript() {
     await withBusy('script-pause', async () => {
       await apiRequest('/api/input/script/pause', { method: 'POST' });
       await refreshOverview();
-      notify('脚本已暂停', 'info');
-    }).catch(error => notify(error.message || '脚本暂停失败', 'error'));
+      notify(t("脚本已暂停"), 'info');
+    }).catch(error => notify(error.message || t("脚本暂停失败"), 'error'));
   }
 
   async function stopScript() {
     await withBusy('script-stop', async () => {
       await apiRequest('/api/input/script/stop', { method: 'POST' });
       await refreshOverview();
-      notify('脚本已停止', 'info');
-    }).catch(error => notify(error.message || '脚本停止失败', 'error'));
+      notify(t("脚本已停止"), 'info');
+    }).catch(error => notify(error.message || t("脚本停止失败"), 'error'));
   }
 
   async function applyScriptSettings(nextSettings, options = {}) {
@@ -4232,10 +4219,10 @@ function App() {
 
       syncScriptSettingsFromSnapshot(result?.script, payload);
 
-      if (options.notify) notify(options.successMessage || '脚本设置已应用', 'success');
+      if (options.notify) notify(options.successMessage || t("脚本设置已应用"), 'success');
     }).catch(error => {
       setScriptSettings(previous => normalizeScriptSettingsState(scriptState, previous));
-      notify(error.message || options.errorMessage || '脚本设置更新失败', 'error');
+      notify(error.message || options.errorMessage || t("脚本设置更新失败"), 'error');
     });
   }
 
@@ -4262,7 +4249,7 @@ function App() {
       }
     }).catch(error => {
       setScriptSeekDraft(fallbackPositionMs);
-      notify(error.message || '脚本定位失败', 'error');
+      notify(error.message || t("脚本定位失败"), 'error');
     });
 
     setScriptSeekDragging(false);
@@ -4279,7 +4266,7 @@ function App() {
 
     const parsedPositionMs = parseScriptTimecodeInput(scriptJumpInput);
     if (parsedPositionMs === null) {
-      notify('请输入有效时间码，例如 01:23.45、1:30 或 90', 'warning');
+      notify(t("请输入有效时间码，例如 01:23.45、1:30 或 90"), 'warning');
       return;
     }
 
@@ -4311,8 +4298,8 @@ function App() {
         commit: true,
         applyOptions: {
           notify: true,
-          successMessage: `A-B 区间已设为 ${formatDuration(nextRange.startMs)} → ${formatDuration(nextRange.endMs)}`,
-          errorMessage: '设置 A-B 区间失败',
+          successMessage: t("A-B 区间已设为 {0} → {1}", [formatDuration(nextRange.startMs), formatDuration(nextRange.endMs)]),
+          errorMessage: t("设置 A-B 区间失败"),
         },
       },
     );
@@ -4329,8 +4316,8 @@ function App() {
         commit: true,
         applyOptions: {
           notify: true,
-          successMessage: boundary === 'start' ? `A 点已设置为 ${formatDuration(clampedPositionMs)}` : `B 点已设置为 ${formatDuration(clampedPositionMs)}`,
-          errorMessage: boundary === 'start' ? '设置 A 点失败' : '设置 B 点失败',
+          successMessage: boundary === 'start' ? t("A 点已设置为 {0}", [formatDuration(clampedPositionMs)]) : t("B 点已设置为 {0}", [formatDuration(clampedPositionMs)]),
+          errorMessage: boundary === 'start' ? t("设置 A 点失败") : t("设置 B 点失败"),
         },
       },
     );
@@ -4345,8 +4332,8 @@ function App() {
         commit: true,
         applyOptions: {
           notify: true,
-          successMessage: 'A-B 区间已清除',
-          errorMessage: '清除 A-B 区间失败',
+          successMessage: t("A-B 区间已清除"),
+          errorMessage: t("清除 A-B 区间失败"),
         },
       },
     );
@@ -4364,7 +4351,7 @@ function App() {
         setScriptSeekDraft(Number(result.script.positionMs || 0));
         syncScriptSettingsFromSnapshot(result.script, scriptSettings);
       }
-    }).catch(error => notify(error.message || '脚本动作跳转失败', 'error'));
+    }).catch(error => notify(error.message || t("脚本动作跳转失败"), 'error'));
 
     setScriptSeekDragging(false);
   }
@@ -4380,8 +4367,8 @@ function App() {
       syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
 
       await refreshOverview();
-      notify('脚本已卸载', 'info');
-    }).catch(error => notify(error.message || '卸载脚本失败', 'error'));
+      notify(t("脚本已卸载"), 'info');
+    }).catch(error => notify(error.message || t("卸载脚本失败"), 'error'));
   }
 
   async function setOutputEnabled(type, enabled) {
@@ -4392,8 +4379,8 @@ function App() {
       nextConfig.outputs = getOutputs(config).map(output => (output.id === type ? { ...output, enabled } : output));
       const saved = await persistConfig(nextConfig);
       await refreshOverview();
-      notify(`${getOutputConfig(saved, type)?.name || '输出'}${enabled ? ' 已启用' : ' 已禁用'}`, 'success');
-    }).catch(error => notify(error.message || '更新输出状态失败', 'error'));
+      notify(`${getOutputConfig(saved, type)?.name || t("输出")}${enabled ? t(" 已启用") : t(" 已禁用")}`, 'success');
+    }).catch(error => notify(error.message || t("更新输出状态失败"), 'error'));
   }
 
   async function addOutputCard(type) {
@@ -4413,8 +4400,8 @@ function App() {
       setStudio(previous => sanitizeStudio(previous, saved));
       setDialog({ outputId: nextOutput.id, draft: buildOutputDialogDraft(nextOutput.id, saved, availableSerialPorts) });
       await refreshOverview();
-      notify(`已添加 ${nextOutput.name}`, 'success');
-    }).catch(error => notify(error.message || '添加输出失败', 'error'));
+      notify(t("已添加 {0}", [nextOutput.name]), 'success');
+    }).catch(error => notify(error.message || t("添加输出失败"), 'error'));
   }
 
   async function removeOutputCard(type) {
@@ -4429,8 +4416,8 @@ function App() {
       const saved = await persistConfig(nextConfig);
       setStudio(nextStudio);
       await refreshOverview();
-      notify(`${removed?.name || '输出'} 已移除`, 'info');
-    }).catch(error => notify(error.message || '移除输出失败', 'error'));
+      notify(t("{0} 已移除", [removed?.name || t("输出")]), 'info');
+    }).catch(error => notify(error.message || t("移除输出失败"), 'error'));
   }
 
   async function openOutputDialog(type) {
@@ -4459,40 +4446,40 @@ function App() {
       const saved = await persistConfig(nextConfig);
       setDialog(null);
       await refreshOverview();
-      notify(`${getOutputConfig(saved, dialog.outputId)?.name || '输出'} 配置已保存`, 'success');
-    }).catch(error => notify(error.message || '保存配置失败', 'error'));
+      notify(t("{0} 配置已保存", [getOutputConfig(saved, dialog.outputId)?.name || t("输出")]), 'success');
+    }).catch(error => notify(error.message || t("保存配置失败"), 'error'));
   }
 
   async function emergencyStop() {
     await withBusy('emergency-stop', async () => {
       await apiRequest('/api/control/runtime/emergency-stop', { method: 'POST' });
       await refreshOverview();
-      notify('已停止所有输出', 'warning');
-    }).catch(error => notify(error.message || '急停失败', 'error'));
+      notify(t("已停止所有输出"), 'warning');
+    }).catch(error => notify(error.message || t("急停失败"), 'error'));
   }
 
   async function clearEmergency() {
     await withBusy('emergency-clear', async () => {
       await apiRequest('/api/control/runtime/clear-emergency', { method: 'POST' });
       await refreshOverview();
-      notify('输出已恢复', 'success');
-    }).catch(error => notify(error.message || '解除急停失败', 'error'));
+      notify(t("输出已恢复"), 'success');
+    }).catch(error => notify(error.message || t("解除急停失败"), 'error'));
   }
 
   async function toggleIntifaceScan(start, outputId) {
     const endpoint = start ? `/api/control/output/${encodeURIComponent(outputId)}/scan-start` : `/api/control/output/${encodeURIComponent(outputId)}/scan-stop`;
     await withBusy(start ? 'scan-start' : 'scan-stop', async () => {
       await apiRequest(endpoint, { method: 'POST' });
-      notify(start ? '已请求开始扫描' : '已请求停止扫描', 'info');
-    }).catch(error => notify(error.message || '扫描请求失败', 'error'));
+      notify(start ? t("已请求开始扫描") : t("已请求停止扫描"), 'info');
+    }).catch(error => notify(error.message || t("扫描请求失败"), 'error'));
   }
 
   async function refreshTCodeDeviceInfo(outputId) {
     await withBusy(`tcode-device-refresh-${outputId}`, async () => {
       await apiRequest(`/api/control/output/${encodeURIComponent(outputId)}/device-info-refresh`, { method: 'POST' });
       await refreshOverview();
-      notify('设备信息已刷新', 'success');
-    }).catch(error => notify(error.message || '刷新设备信息失败', 'error'));
+      notify(t("设备信息已刷新"), 'success');
+    }).catch(error => notify(error.message || t("刷新设备信息失败"), 'error'));
   }
 
   const theme = useMemo(
@@ -4516,65 +4503,65 @@ function App() {
           divider: 'rgba(15, 23, 42, 0.08)',
         },
         shape: { borderRadius: 18 },
-      }),
-    [],
+      }, locale === 'zh-CN' ? zhCN : enUS),
+    [getLocale()],
   );
 
-  const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config]);
-  const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset]);
+  const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config, getLocale()]);
+  const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset, getLocale()]);
   const selectedOscPresetDescription = selectedOscPresetConfig
-    ? selectedOscPresetConfig.description || '这套预设暂未提供说明。'
+    ? selectedOscPresetConfig.description || t("这套预设暂未提供说明。")
     : oscMappingPresets.length > 0
-      ? '选中预设后可在这里查看说明。'
-      : '当前没有可用预设，可先新建一套。';
+      ? t("选中预设后可在这里查看说明。")
+      : t("当前没有可用预设，可先新建一套。");
 
   function renderScriptPlayer() {
     const scriptLoopChipLabel = scriptSettings.loop
       ? scriptLoopRange.active
-        ? 'A-B 循环'
-        : '整段循环'
-      : '单次播放';
+        ? t("A-B 循环")
+        : t("整段循环")
+      : t("单次播放");
     const scriptConsoleStatusText = selectedScriptFile
-      ? '脚本正在导入，完成后会自动切入时间轴。'
+      ? t("脚本正在导入，完成后会自动切入时间轴。")
       : scriptLoaded
         ? scriptState?.playing
-          ? '正在播放，可随时定位、步进或调整 A-B。'
+          ? t("正在播放，可随时定位、步进或调整 A-B。")
           : scriptState?.paused
-            ? '已暂停，可继续对点或调整 A-B。'
+            ? t("已暂停，可继续对点或调整 A-B。")
             : scriptState?.state === 'finished'
-              ? '已到结尾，可重播或重新设定区间。'
-              : '已载入，可直接定位、步进或调整 A-B。'
-        : '选择一个 .funscript / .json 文件后，就可以像播放器一样直接拖时间轴、框选 A-B 和按关键帧步进。';
+              ? t("已到结尾，可重播或重新设定区间。")
+              : t("已载入，可直接定位、步进或调整 A-B。")
+        : t("选择一个 .funscript / .json 文件后，就可以像播放器一样直接拖时间轴、框选 A-B 和按关键帧步进。");
     const scriptLoopAssistText = !scriptLoaded
-      ? '载入后可在这里查看 A / B 状态、跳到边界或清除区间。'
+      ? t("载入后可在这里查看 A / B 状态、跳到边界或清除区间。")
       : scriptLoopRange.active
-        ? `当前区间长度 ${formatDuration(scriptLoopLengthMs)}，约占全段 ${Math.round(scriptLoopCoveragePercent)}%。`
+        ? t("当前区间长度 {0}，约占全段 {1}%。", [formatDuration(scriptLoopLengthMs), Math.round(scriptLoopCoveragePercent)])
         : scriptHasLoopMarkers
-          ? '已设置单侧标记；补齐另一侧后就会形成完整 A-B 区间。'
-          : '还没有完整 A-B 区间。';
+          ? t("已设置单侧标记；补齐另一侧后就会形成完整 A-B 区间。")
+          : t("还没有完整 A-B 区间。");
     const scriptProgressNote = scriptLoaded
       ? scriptLoopRange.active
-        ? `已播放 ${Math.round(scriptProgressPercent)}%，当前循环 ${scriptLoopRangeSummary}。`
-        : `已播放 ${Math.round(scriptProgressPercent)}%。`
-      : '载入脚本后这里会显示当前进度。';
+        ? t("已播放 {0}%，当前循环 {1}。", [Math.round(scriptProgressPercent), scriptLoopRangeSummary])
+        : t("已播放 {0}%。", [Math.round(scriptProgressPercent)])
+      : t("载入脚本后这里会显示当前进度。");
     const scriptSeekDockText = scriptLoaded
-      ? `当前取点基准是「${scriptLoopAnchorModeLabel}」。`
-      : '载入后这里会显示当前取点基准。';
-    const scriptSpeedDockText = '只改脚本推进节奏，不改硬件 S 速度。';
+      ? t("当前取点基准是「{0}」。", [scriptLoopAnchorModeLabel])
+      : t("载入后这里会显示当前取点基准。");
+    const scriptSpeedDockText = t("只改脚本推进节奏，不改硬件 S 速度。");
     const scriptEmptyHintLabels = selectedScriptFile
-      ? ['正在同步到 Companion', '导入完成后可直接拖时间轴']
-      : ['支持 .funscript / .json', '记住倍率与循环偏好'];
+      ? [t("正在同步到 Companion"), t("导入完成后可直接拖时间轴")]
+      : [t("支持 .funscript / .json"), t("记住倍率与循环偏好")];
     const scriptSupportItems = [
       {
-        title: '输出方式',
-        text: '脚本模式会按位置关键帧直接输出；倍率只改时间推进，不代表硬件 S 速度。',
+        title: t("输出方式"),
+        text: t("脚本模式会按位置关键帧直接输出；倍率只改时间推进，不代表硬件 S 速度。"),
       },
       {
-          title: '时间码',
+          title: t("时间码"),
         text: scriptTimelineSupportText,
       },
       {
-        title: '键盘范围',
+        title: t("键盘范围"),
         text: scriptShortcutScopeText,
       },
     ];
@@ -4585,9 +4572,7 @@ function App() {
             <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="flex-start" className="script-player-console__header">
               <Stack spacing={0.45} className="script-player-console__title">
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                  <Typography variant="subtitle1" className="script-player-console__headline">
-                    脚本播放器
-                  </Typography>
+                  <Typography variant="subtitle1" className="script-player-console__headline">{t("脚本播放器")}</Typography>
                   <Chip size="small" color={scriptStateMeta.color} variant={scriptLoaded ? 'filled' : 'outlined'} label={scriptStateMeta.label} />
                 </Stack>
                 <Typography variant="body2" className="script-player-console__file">
@@ -4600,19 +4585,17 @@ function App() {
 
               <Stack spacing={1} className="script-player-console__header-actions">
                 <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" className="script-player-console__chips">
-                  <Chip size="small" variant="outlined" label={`倍率 ${scriptSpeedLabel}`} />
+                  <Chip size="small" variant="outlined" label={t("倍率 {0}", [scriptSpeedLabel])} />
                   <Chip size="small" variant="outlined" label={scriptLoopChipLabel} />
-                  {scriptSeekDragging && <Chip size="small" color="info" variant="outlined" label={`预览 ${formatDuration(scriptSeekBasePosition)}`} />}
+                  {scriptSeekDragging && <Chip size="small" color="info" variant="outlined" label={t("预览 {0}", [formatDuration(scriptSeekBasePosition)])} />}
                 </Stack>
 
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-player-console__file-actions">
                   <Button component="label" variant="contained" disabled={!!selectedScriptFile}>
-                    {selectedScriptFile ? '导入中…' : scriptLoaded ? '更换脚本' : '选择脚本'}
+                    {selectedScriptFile ? t("导入中…") : scriptLoaded ? t("更换脚本") : t("选择脚本")}
                     <input key={scriptFileInputKey} hidden type="file" accept=".funscript,.json" onChange={event => setSelectedScriptFile(event.target.files?.[0] || null)} />
                   </Button>
-                  <Button variant="text" color="error" onClick={() => void clearScript()} disabled={!scriptLoaded || busyKey === 'script-clear'}>
-                    卸载
-                  </Button>
+                  <Button variant="text" color="error" onClick={() => void clearScript()} disabled={!scriptLoaded || busyKey === 'script-clear'}>{t("卸载")}</Button>
                 </Stack>
               </Stack>
             </Stack>
@@ -4623,14 +4606,12 @@ function App() {
               <Stack spacing={1.25} className="script-player-console__timeline">
                 <Box className="script-player-console__timebar">
                   <Box className="script-player-console__clock">
-                    <Typography variant="caption" color="text.secondary">
-                      当前时间
-                    </Typography>
+                    <Typography variant="caption" color="text.secondary">{t("当前时间")}</Typography>
                     <Typography variant="h4" className="script-player-console__clock-value">
                       {formatDuration(scriptSeekBasePosition)}
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {scriptSeekDragging ? '拖拽预览中' : '播放位置'}
+                      {scriptSeekDragging ? t("拖拽预览中") : t("播放位置")}
                     </Typography>
                   </Box>
 
@@ -4641,27 +4622,19 @@ function App() {
 
                     <Box className="script-player-console__stats-grid">
                       <Box className="script-player-console__stat">
-                        <Typography variant="caption" color="text.secondary">
-                          总时长
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{t("总时长")}</Typography>
                         <Typography variant="body2">{formatDuration(scriptDurationMs)}</Typography>
                       </Box>
                       <Box className="script-player-console__stat">
-                        <Typography variant="caption" color="text.secondary">
-                          剩余
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{t("剩余")}</Typography>
                         <Typography variant="body2">{formatDuration(scriptRemainingMs)}</Typography>
                       </Box>
                       <Box className="script-player-console__stat">
-                        <Typography variant="caption" color="text.secondary">
-                          动作
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{t("动作")}</Typography>
                         <Typography variant="body2">{scriptState?.actionCount ?? 0}</Typography>
                       </Box>
                       <Box className="script-player-console__stat">
-                        <Typography variant="caption" color="text.secondary">
-                          当前 L0
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary">{t("当前 L0")}</Typography>
                         <Typography variant="body2">{scriptCurrentL0Value}</Typography>
                       </Box>
                     </Box>
@@ -4735,10 +4708,10 @@ function App() {
 
               <Box className="script-player-console__transport">
                 <Button size="small" variant="outlined" onClick={() => void stepScriptAction(-1)} disabled={!scriptLoaded || scriptPositionMs <= 0 || busyKey === 'script-step-prev'}>
-                  <ScriptActionButtonLabel label="上一动作" shortcut="J" />
+                  <ScriptActionButtonLabel label={t("上一动作")} shortcut="J" />
                 </Button>
                 <Button size="small" variant="outlined" onClick={() => void playScript(true)} disabled={!scriptLoaded || busyKey === 'script-restart'}>
-                  <ScriptActionButtonLabel label="重播" shortcut="R" />
+                  <ScriptActionButtonLabel label={t("重播")} shortcut="R" />
                 </Button>
                 <Button
                   variant="contained"
@@ -4756,11 +4729,9 @@ function App() {
                 >
                   <ScriptActionButtonLabel label={scriptTransportPrimaryLabel} shortcut="Space / K" />
                 </Button>
-                <Button size="small" variant="outlined" color="error" onClick={() => void stopScript()} disabled={!scriptLoaded || busyKey === 'script-stop'}>
-                  停止
-                </Button>
+                <Button size="small" variant="outlined" color="error" onClick={() => void stopScript()} disabled={!scriptLoaded || busyKey === 'script-stop'}>{t("停止")}</Button>
                 <Button size="small" variant="outlined" onClick={() => void stepScriptAction(1)} disabled={!scriptLoaded || scriptPositionMs >= scriptDurationMs || busyKey === 'script-step-next'}>
-                  <ScriptActionButtonLabel label="下一动作" shortcut="L" />
+                  <ScriptActionButtonLabel label={t("下一动作")} shortcut="L" />
                 </Button>
               </Box>
             </Box>
@@ -4768,7 +4739,7 @@ function App() {
             <Box className="script-player-console__dock">
               <Box className="script-player-dock script-player-dock--seek">
                 <Box className="script-player-dock__header">
-                  <Typography variant="subtitle2">定位</Typography>
+                  <Typography variant="subtitle2">{t("定位")}</Typography>
                 </Box>
 
                 <Typography variant="caption" color="text.secondary" className="script-player-dock__note">
@@ -4776,7 +4747,7 @@ function App() {
                 </Typography>
 
                 <Box className="script-seek-actions">
-                  {SCRIPT_SEEK_ACTIONS.map(action => {
+                  {SCRIPT_SEEK_ACTIONS().map(action => {
                     const targetPositionMs = action.mode === 'relative'
                       ? clampScriptPositionMs(scriptSeekBasePosition + Number(action.value), scriptDurationMs)
                       : clampScriptPositionMs(action.value === 'end' ? scriptDurationMs : action.value, scriptDurationMs);
@@ -4806,8 +4777,8 @@ function App() {
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="script-jump-row">
                   <TextField
                     size="small"
-                    label="时间码跳转"
-                    placeholder="例如 01:23.45 / 90"
+                    label={t("时间码跳转")}
+                    placeholder={t("例如 01:23.45 / 90")}
                     value={scriptJumpInput}
                     disabled={!scriptLoaded || busyKey === 'script-seek'}
                     className="script-jump-row__input"
@@ -4818,15 +4789,13 @@ function App() {
                       void submitScriptJump();
                     }}
                   />
-                  <Button size="small" variant="contained" onClick={() => void submitScriptJump()} disabled={!scriptLoaded || busyKey === 'script-seek'}>
-                    跳转
-                  </Button>
+                  <Button size="small" variant="contained" onClick={() => void submitScriptJump()} disabled={!scriptLoaded || busyKey === 'script-seek'}>{t("跳转")}</Button>
                 </Stack>
               </Box>
 
               <Box className="script-player-dock script-player-dock--loop">
                 <Box className="script-player-dock__header script-player-dock__header--split">
-                  <Typography variant="subtitle2">循环与 A-B</Typography>
+                  <Typography variant="subtitle2">{t("循环与 A-B")}</Typography>
                   <FormControlLabel
                     control={
                       <Switch
@@ -4837,15 +4806,15 @@ function App() {
                         }}
                       />
                     }
-                    label={<Typography variant="body2" sx={{ fontWeight: 600 }}>循环播放</Typography>}
+                    label={<Typography variant="body2" sx={{ fontWeight: 600 }}>{t("循环播放")}</Typography>}
                   />
                 </Box>
 
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-markers">
                   <Chip size="small" color={scriptLoopRange.startMs === null ? 'default' : 'primary'} variant={scriptLoopRange.startMs === null ? 'outlined' : 'filled'} label={scriptLoopStartLabel} />
                   <Chip size="small" color={scriptLoopRange.endMs === null ? 'default' : 'secondary'} variant={scriptLoopRange.endMs === null ? 'outlined' : 'filled'} label={scriptLoopEndLabel} />
-                  <Chip size="small" variant="outlined" label={scriptLoopRange.active ? `长度 ${formatDuration(scriptLoopLengthMs)}` : '可先设置 A / B 标记'} />
-                  {scriptLoopRange.active && <Chip size="small" color={scriptCurrentInLoopRange ? 'success' : 'warning'} variant="outlined" label={scriptCurrentInLoopRange ? '当前位置在 A-B 内' : '当前位置在 A-B 外'} />}
+                  <Chip size="small" variant="outlined" label={scriptLoopRange.active ? t("长度 {0}", [formatDuration(scriptLoopLengthMs)]) : t("可先设置 A / B 标记")} />
+                  {scriptLoopRange.active && <Chip size="small" color={scriptCurrentInLoopRange ? 'success' : 'warning'} variant="outlined" label={scriptCurrentInLoopRange ? t("当前位置在 A-B 内") : t("当前位置在 A-B 外")} />}
                 </Stack>
 
                 <Typography variant="caption" color="text.secondary" className="script-player-dock__note">
@@ -4854,26 +4823,26 @@ function App() {
 
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="script-loop-panel__actions">
                   <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('start')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
-                    <ScriptActionButtonLabel label="A 点 = 当前" shortcut="Shift + A" />
+                    <ScriptActionButtonLabel label={t("A 点 = 当前")} shortcut="Shift + A" />
                   </Button>
                   <Button size="small" variant="outlined" onClick={() => setScriptLoopBoundary('end')} disabled={!scriptLoaded || busyKey === 'script-configure'}>
-                    <ScriptActionButtonLabel label="B 点 = 当前" shortcut="Shift + B" />
+                    <ScriptActionButtonLabel label={t("B 点 = 当前")} shortcut="Shift + B" />
                   </Button>
                   <Button size="small" variant="outlined" onClick={() => void jumpToScriptLoopBoundary('start')} disabled={!scriptLoaded || scriptLoopRange.startMs === null || busyKey === 'script-seek'}>
-                    <ScriptActionButtonLabel label="跳到 A" shortcut="[" />
+                    <ScriptActionButtonLabel label={t("跳到 A")} shortcut="[" />
                   </Button>
                   <Button size="small" variant="outlined" onClick={() => void jumpToScriptLoopBoundary('end')} disabled={!scriptLoaded || scriptLoopRange.endMs === null || busyKey === 'script-seek'}>
-                    <ScriptActionButtonLabel label="跳到 B" shortcut="]" />
+                    <ScriptActionButtonLabel label={t("跳到 B")} shortcut="]" />
                   </Button>
                   <Button size="small" variant="text" color="warning" onClick={clearScriptLoopRange} disabled={!scriptLoaded || !scriptHasLoopMarkers || busyKey === 'script-configure'}>
-                    <ScriptActionButtonLabel label="清除区间" shortcut="Shift + C" />
+                    <ScriptActionButtonLabel label={t("清除区间")} shortcut="Shift + C" />
                   </Button>
                 </Stack>
               </Box>
 
               <Box className="script-player-dock script-player-dock--speed">
                 <Box className="script-player-dock__header">
-                  <Typography variant="subtitle2">时间倍率</Typography>
+                  <Typography variant="subtitle2">{t("时间倍率")}</Typography>
                   <Chip size="small" variant="outlined" label={scriptSpeedLabel} />
                 </Box>
 
@@ -4923,12 +4892,12 @@ function App() {
 
         <Box className="dialog-panel script-helper-panel script-player-assist">
           <Box className="dialog-panel__header">
-            <Typography variant="subtitle2">补充信息</Typography>
+            <Typography variant="subtitle2">{t("补充信息")}</Typography>
           </Box>
 
           <Tabs value={scriptHelperTab} onChange={(_, next) => setScriptHelperTab(next)} variant="fullWidth" className="script-helper-panel__tabs">
-            <Tab value="help" label="说明" />
-            <Tab value="hotkeys" label="快捷键" />
+            <Tab value="help" label={t("说明")} />
+            <Tab value="hotkeys" label={t("快捷键")} />
           </Tabs>
 
           {scriptHelperTab === 'help' ? (
@@ -4990,118 +4959,118 @@ function App() {
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
   const hasMultipleOscSources = oscSources.length > 1;
   const selectedOscSource = selectedOscSourceKey ? oscSources.find(source => source.key === selectedOscSourceKey) || null : null;
-  const selectedOscSourceLabel = selectedOscSource ? formatOscSourceLabel(selectedOscSource) : '自动选择';
+  const selectedOscSourceLabel = selectedOscSource ? formatOscSourceLabel(selectedOscSource) : t("自动选择");
   const oscQuery = overview?.osc?.query || null;
   const oscQueryPolling = oscQuery?.polling || null;
   const oscQueryReceiver = overview?.osc?.queryReceiver || null;
   const oscHub = overview?.osc?.hub || null;
   const oscHubTargetsDraft = Array.isArray(oscDraft?.hubTargets) ? oscDraft.hubTargets : [];
   const oscHubRuntimeTargets = Array.isArray(oscHub?.targets) ? oscHub.targets : [];
-  const oscHubRuntimeTargetsById = useMemo(() => new Map(oscHubRuntimeTargets.map(target => [target.id, target])), [oscHubRuntimeTargets]);
-  const oscHubTargetConflictLookup = useMemo(() => buildOscHubTargetConflictLookup(oscDraft), [oscDraft]);
-  const oscHubConflictMessages = useMemo(() => flattenOscHubConflictMessages(oscHubTargetConflictLookup), [oscHubTargetConflictLookup]);
+  const oscHubRuntimeTargetsById = useMemo(() => new Map(oscHubRuntimeTargets.map(target => [target.id, target])), [oscHubRuntimeTargets, getLocale()]);
+  const oscHubTargetConflictLookup = useMemo(() => buildOscHubTargetConflictLookup(oscDraft), [oscDraft, getLocale()]);
+  const oscHubConflictMessages = useMemo(() => flattenOscHubConflictMessages(oscHubTargetConflictLookup), [oscHubTargetConflictLookup, getLocale()]);
   const oscHubEnabledTargetCount = oscHubTargetsDraft.filter(target => target?.enabled !== false).length;
   const oscQueryNodes = Array.isArray(oscQuery?.nodes) ? oscQuery.nodes : [];
-  const oscSourceSelectionOptions = useMemo(() => buildOscSourceSelectionOptions(oscSources), [oscSources]);
-  const mappingPreviewEntries = useMemo(() => filterOscPreviewEntriesBySource(oscPreview, hasMultipleOscSources ? selectedOscSourceKey : ''), [oscPreview, hasMultipleOscSources, selectedOscSourceKey]);
-  const previewEntriesForSuggestions = useMemo(() => (hasMultipleOscSources && selectedOscSourceKey ? mappingPreviewEntries : oscPreview), [hasMultipleOscSources, selectedOscSourceKey, mappingPreviewEntries, oscPreview]);
-  const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(previewEntriesForSuggestions, oscQueryNodes), [previewEntriesForSuggestions, oscQueryNodes]);
+  const oscSourceSelectionOptions = useMemo(() => buildOscSourceSelectionOptions(oscSources), [oscSources, getLocale()]);
+  const mappingPreviewEntries = useMemo(() => filterOscPreviewEntriesBySource(oscPreview, hasMultipleOscSources ? selectedOscSourceKey : ''), [oscPreview, hasMultipleOscSources, selectedOscSourceKey, getLocale()]);
+  const previewEntriesForSuggestions = useMemo(() => (hasMultipleOscSources && selectedOscSourceKey ? mappingPreviewEntries : oscPreview), [hasMultipleOscSources, selectedOscSourceKey, mappingPreviewEntries, oscPreview, getLocale()]);
+  const oscPathSuggestions = useMemo(() => buildOscPathSuggestions(previewEntriesForSuggestions, oscQueryNodes), [previewEntriesForSuggestions, oscQueryNodes, getLocale()]);
   const previewEntriesForTab = useMemo(() => {
     if (!hasMultipleOscSources || previewSourceTab === 'all') return visibleCatalog;
     return filterOscPreviewEntriesBySource(visibleCatalog, previewSourceTab);
-  }, [hasMultipleOscSources, visibleCatalog, previewSourceTab]);
-  const rankedOscPreview = useMemo(() => rankPreview(previewEntriesForTab, signalDrafts, { showFaceTracking, search: oscPreviewSearch, pinned: pinnedPaths, category: previewCategory }), [previewEntriesForTab, signalDrafts, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory]);
+  }, [hasMultipleOscSources, visibleCatalog, previewSourceTab, getLocale()]);
+  const rankedOscPreview = useMemo(() => rankPreview(previewEntriesForTab, signalDrafts, { showFaceTracking, search: oscPreviewSearch, pinned: pinnedPaths, category: previewCategory }), [previewEntriesForTab, signalDrafts, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory, getLocale()]);
   const sortedOscPreview = rankedOscPreview.slice(0, previewLimit);
   const oscListenerStatus = useMemo(() => {
     if (!oscConfigEnabled) {
       return {
         color: 'default',
-        compactLabel: '已关闭',
-        toolbarLabel: 'OSC 已关闭',
+        compactLabel: t("已关闭"),
+        toolbarLabel: t("OSC 已关闭"),
       };
     }
 
     if (actualInputMode !== 'osc') {
       return {
         color: 'default',
-        compactLabel: '待启用',
-        toolbarLabel: 'OSC 待启用',
+        compactLabel: t("待启用"),
+        toolbarLabel: t("OSC 待启用"),
       };
     }
 
     if (oscListening) {
       return {
         color: 'success',
-        compactLabel: '监听中',
-        toolbarLabel: `OSC 监听中 · ${oscPreview.length} 项`,
+        compactLabel: t("监听中"),
+        toolbarLabel: t("OSC 监听中 · {0} 项", [oscPreview.length]),
       };
     }
 
     if (oscListenerError) {
       return {
         color: 'error',
-        compactLabel: '监听失败',
-        toolbarLabel: 'OSC 监听失败',
+        compactLabel: t("监听失败"),
+        toolbarLabel: t("OSC 监听失败"),
       };
     }
 
     return {
       color: 'warning',
-      compactLabel: '未监听',
-      toolbarLabel: 'OSC 未监听',
+      compactLabel: t("未监听"),
+      toolbarLabel: t("OSC 未监听"),
     };
-  }, [actualInputMode, oscConfigEnabled, oscListening, oscPreview.length, oscListenerError]);
+  }, [actualInputMode, oscConfigEnabled, oscListening, oscPreview.length, oscListenerError, getLocale()]);
   const effectiveOscQueryUrl = useMemo(() => {
     const overviewUrl = typeof oscQuery?.url === 'string' ? oscQuery.url.trim() : '';
     if (overviewUrl) return overviewUrl;
     return (oscDraft.oscQueryUrl || '').trim();
-  }, [oscQuery?.url, oscDraft.oscQueryUrl]);
+  }, [oscQuery?.url, oscDraft.oscQueryUrl, getLocale()]);
   const oscQuerySummary = useMemo(() => {
-    if (!oscDraft.oscQueryEnabled) return 'OSCQuery 已关闭';
-    if (!effectiveOscQueryUrl) return 'OSCQuery 已开启，待填写地址';
-    if (oscQuery?.error) return 'OSCQuery 同步失败';
-    if (oscQuery?.listenConnected) return `LISTEN 已连接 · ${oscQuery?.listeningPathCount || oscQueryNodes.length} 条路径`;
-    if (oscQueryPolling?.running) return `轮询回退 ${oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz}Hz`;
-    if (oscQueryNodes.length > 0) return `已同步 ${oscQueryNodes.length} 条路径`;
-    return 'OSCQuery 已开启';
-  }, [oscDraft.oscQueryEnabled, effectiveOscQueryUrl, oscDraft.oscQueryPollingRateHz, oscQuery, oscQueryNodes, oscQueryPolling?.rateHz, oscQueryPolling?.running]);
+    if (!oscDraft.oscQueryEnabled) return t("OSCQuery 已关闭");
+    if (!effectiveOscQueryUrl) return t("OSCQuery 已开启，待填写地址");
+    if (oscQuery?.error) return t("OSCQuery 同步失败");
+    if (oscQuery?.listenConnected) return t("LISTEN 已连接 · {0} 条路径", [oscQuery?.listeningPathCount || oscQueryNodes.length]);
+    if (oscQueryPolling?.running) return t("轮询回退 {0}Hz", [oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz]);
+    if (oscQueryNodes.length > 0) return t("已同步 {0} 条路径", [oscQueryNodes.length]);
+    return t("OSCQuery 已开启");
+  }, [oscDraft.oscQueryEnabled, effectiveOscQueryUrl, oscDraft.oscQueryPollingRateHz, oscQuery, oscQueryNodes, oscQueryPolling?.rateHz, oscQueryPolling?.running, getLocale()]);
   const oscQueryPollingSummary = useMemo(() => {
-    if (!oscDraft.oscQueryEnabled) return 'OSCQuery 客户端未启用';
-    if (!oscDraft.oscQueryPollingEnabled) return '轮询回退已关闭';
-    if (oscQuery?.supportsListen) return '对端支持 LISTEN，无需轮询';
-    if (oscQueryPolling?.error) return '轮询出错';
-    if (oscQueryPolling?.running) return `轮询 ${oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz}Hz`;
-    return '等待首次轮询';
-  }, [oscDraft.oscQueryEnabled, oscDraft.oscQueryPollingEnabled, oscDraft.oscQueryPollingRateHz, oscQuery?.supportsListen, oscQueryPolling?.error, oscQueryPolling?.rateHz, oscQueryPolling?.running]);
+    if (!oscDraft.oscQueryEnabled) return t("OSCQuery 客户端未启用");
+    if (!oscDraft.oscQueryPollingEnabled) return t("轮询回退已关闭");
+    if (oscQuery?.supportsListen) return t("对端支持 LISTEN，无需轮询");
+    if (oscQueryPolling?.error) return t("轮询出错");
+    if (oscQueryPolling?.running) return t("轮询 {0}Hz", [oscQueryPolling?.rateHz || oscDraft.oscQueryPollingRateHz]);
+    return t("等待首次轮询");
+  }, [oscDraft.oscQueryEnabled, oscDraft.oscQueryPollingEnabled, oscDraft.oscQueryPollingRateHz, oscQuery?.supportsListen, oscQueryPolling?.error, oscQueryPolling?.rateHz, oscQueryPolling?.running, getLocale()]);
   const oscQueryPanelSummary = useMemo(() => {
     const summary = oscQueryPolling?.running ? oscQueryPollingSummary : oscQuerySummary;
-    return summary === 'OSCQuery 已开启' || summary === 'OSCQuery 同步失败' ? '' : summary;
-  }, [oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary]);
+    return summary === t("OSCQuery 已开启") || summary === t("OSCQuery 同步失败") ? '' : summary;
+  }, [oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary, getLocale()]);
   const oscHubSummary = useMemo(() => {
-    if (!oscDraft.hubEnabled) return 'Hub 已关闭';
-    if (oscHub?.blockedBySourceSelection) return '等待固定来源';
-    if (oscHubEnabledTargetCount === 0) return '暂无启用目标';
-    if (oscHub?.activeTargetCount === 0) return '目标未就绪';
+    if (!oscDraft.hubEnabled) return t("Hub 已关闭");
+    if (oscHub?.blockedBySourceSelection) return t("等待固定来源");
+    if (oscHubEnabledTargetCount === 0) return t("暂无启用目标");
+    if (oscHub?.activeTargetCount === 0) return t("目标未就绪");
     return normalizeOscHubMode(oscDraft.hubMode) === 'FixedRate'
-      ? `固定 ${normalizeOscHubRate(oscDraft.hubFixedRateHz, DEFAULT_OSC_HUB_RATE)}Hz`
-      : '事件驱动';
-  }, [oscDraft.hubEnabled, oscDraft.hubMode, oscDraft.hubFixedRateHz, oscHub?.activeTargetCount, oscHub?.blockedBySourceSelection, oscHubEnabledTargetCount]);
+      ? t("固定 {0}Hz", [normalizeOscHubRate(oscDraft.hubFixedRateHz, DEFAULT_OSC_HUB_RATE)])
+      : t("事件驱动");
+  }, [oscDraft.hubEnabled, oscDraft.hubMode, oscDraft.hubFixedRateHz, oscHub?.activeTargetCount, oscHub?.blockedBySourceSelection, oscHubEnabledTargetCount, getLocale()]);
   const oscHubSourceSummary = useMemo(() => {
-    if (!oscDraft.hubEnabled) return 'Hub 未启用';
-    if (oscHub?.blockedBySourceSelection) return '检测到多个来源，请先固定“使用来源”';
-    if (oscHub?.effectiveSourceLabel) return `当前来源 · ${oscHub.effectiveSourceLabel}`;
-    if (hasMultipleOscSources) return '将跟随已固定来源';
-    return oscSources[0] ? `当前来源 · ${formatOscSourceLabel(oscSources[0])}` : '等待实时参数';
-  }, [oscDraft.hubEnabled, oscHub?.blockedBySourceSelection, oscHub?.effectiveSourceLabel, hasMultipleOscSources, oscSources]);
+    if (!oscDraft.hubEnabled) return t("Hub 未启用");
+    if (oscHub?.blockedBySourceSelection) return t("检测到多个来源，请先固定“使用来源”");
+    if (oscHub?.effectiveSourceLabel) return t("当前来源 · {0}", [oscHub.effectiveSourceLabel]);
+    if (hasMultipleOscSources) return t("将跟随已固定来源");
+    return oscSources[0] ? t("当前来源 · {0}", [formatOscSourceLabel(oscSources[0])]) : t("等待实时参数");
+  }, [oscDraft.hubEnabled, oscHub?.blockedBySourceSelection, oscHub?.effectiveSourceLabel, hasMultipleOscSources, oscSources, getLocale()]);
   const oscHubIsFixedRate = normalizeOscHubMode(oscDraft.hubMode) === 'FixedRate';
   const oscSettingsSummary = useMemo(() => {
     if (oscSettingsTab === 'query') {
       const summary = oscQueryPolling?.running ? oscQueryPollingSummary : oscQuerySummary;
-      return summary === 'OSCQuery 同步失败' ? '' : summary;
+      return summary === t("OSCQuery 同步失败") ? '' : summary;
     }
     if (oscSettingsTab === 'hub') return oscHub?.blockedBySourceSelection ? oscHubSourceSummary : oscHubSummary;
     return `${oscDraft.receiverHost || '0.0.0.0'}:${oscDraft.receiverPort || 9001} · ${oscListenerStatus.compactLabel}`;
-  }, [oscDraft.receiverHost, oscDraft.receiverPort, oscHub?.blockedBySourceSelection, oscHubSourceSummary, oscHubSummary, oscListenerStatus.compactLabel, oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary, oscSettingsTab]);
+  }, [oscDraft.receiverHost, oscDraft.receiverPort, oscHub?.blockedBySourceSelection, oscHubSourceSummary, oscHubSummary, oscListenerStatus.compactLabel, oscQueryPolling?.running, oscQueryPollingSummary, oscQuerySummary, oscSettingsTab, getLocale()]);
 
   useEffect(() => {
     if (!hasMultipleOscSources) {
@@ -5118,16 +5087,16 @@ function App() {
   const visibleOutputs = outputs;
   const effectiveOutputCount = visibleOutputs.filter(output => Boolean(output.enabled)).length;
   const inputSwitchDisabled = runtimeOverview?.inputActive === false;
-  const outputWarningMessage = visibleOutputs.length === 0 ? '当前还没有任何输出设备。添加并启用至少一个输出后，输入数据才会真正发送到硬件。' : effectiveOutputCount === 0 ? '当前所有输出都处于禁用状态。即使输入在变化，也不会真正发到任何设备；请先启用至少一个输出。' : '';
+  const outputWarningMessage = visibleOutputs.length === 0 ? t("当前还没有任何输出设备。添加并启用至少一个输出后，输入数据才会真正发送到硬件。") : effectiveOutputCount === 0 ? t("当前所有输出都处于禁用状态。即使输入在变化，也不会真正发到任何设备；请先启用至少一个输出。") : '';
   const outputDialogConflicts = useMemo(() => {
     if (!dialog || !config) return [];
     return getOutputTargetConflicts(config, dialog.outputId, dialog.draft);
-  }, [config, dialog]);
+  }, [config, dialog, getLocale()]);
   const outputDialogOverview = useMemo(() => {
     if (!dialog) return null;
     return getOutputOverview(overview, dialog.outputId);
-  }, [overview, dialog]);
-  const outputDialogConflictMessage = useMemo(() => formatOutputTargetConflictMessage(outputDialogConflicts), [outputDialogConflicts]);
+  }, [overview, dialog, getLocale()]);
+  const outputDialogConflictMessage = useMemo(() => formatOutputTargetConflictMessage(outputDialogConflicts), [outputDialogConflicts, getLocale()]);
   const hasSerialTargetConflict = outputDialogConflicts.some(conflict => conflict.binding.key.startsWith('serial:'));
   const hasNetworkTargetConflict = outputDialogConflicts.some(conflict => conflict.binding.key.startsWith('net:'));
   const hasIntifaceTargetConflict = outputDialogConflicts.some(conflict => conflict.binding.key.startsWith('intiface-'));
@@ -5141,9 +5110,9 @@ function App() {
     });
 
     return owners;
-  }, [config, dialog, serialPorts]);
-  const hasUnsavedMappings = useMemo(() => savedSignalsHashRef.current && computeSignalHash(signalDrafts) !== savedSignalsHashRef.current, [signalDrafts]);
-  const signalOverlapWarnings = useMemo(() => buildSignalOverlapWarnings(signalDrafts), [signalDrafts]);
+  }, [config, dialog, serialPorts, getLocale()]);
+  const hasUnsavedMappings = useMemo(() => savedSignalsHashRef.current && computeSignalHash(signalDrafts) !== savedSignalsHashRef.current, [signalDrafts, getLocale()]);
+  const signalOverlapWarnings = useMemo(() => buildSignalOverlapWarnings(signalDrafts), [signalDrafts, getLocale()]);
   const LOG_MAX_VISIBLE = 300;
   const axisLogCatalog = useMemo(() => {
     const axes = new Set();
@@ -5159,7 +5128,7 @@ function App() {
       axes: ['', ...Array.from(axes).sort((left, right) => left.localeCompare(right, 'en', { numeric: true }))],
       actions: ['', ...Array.from(actions).sort((left, right) => left.localeCompare(right, 'en', { numeric: true }))],
     };
-  }, [logs]);
+  }, [logs, getLocale()]);
   const filteredLogResult = useMemo(() => {
     const levelIdx = Math.max(LOG_LEVEL_ORDER.indexOf(logFilterLevel), 0);
     const keyword = (logSearchText || '').trim().toLowerCase();
@@ -5186,12 +5155,12 @@ function App() {
       truncated: matched.length > LOG_MAX_VISIBLE,
       visible: matched.length > LOG_MAX_VISIBLE ? matched.slice(matched.length - LOG_MAX_VISIBLE) : matched,
     };
-  }, [logs, logFilterLevel, logCategoryFilter, logSearchText, logOnlyAxis, logAxisFilter, logActionFilter]);
+  }, [logs, logFilterLevel, logCategoryFilter, logSearchText, logOnlyAxis, logAxisFilter, logActionFilter, getLocale()]);
   const filteredLogs = filteredLogResult.visible;
   const logCategories = useMemo(() => {
     const cats = new Set(logs.map(l => l.category).filter(Boolean));
     return ['', ...cats].sort();
-  }, [logs]);
+  }, [logs, getLocale()]);
   const visibleAxisLogStats = useMemo(() => {
     return filteredLogs.reduce(
       (acc, log) => {
@@ -5205,13 +5174,13 @@ function App() {
       },
       { total: 0, emit: 0, hold: 0, ignored: 0 },
     );
-  }, [filteredLogs]);
+  }, [filteredLogs, getLocale()]);
   const manualMotionField = useMemo(() => {
     const mode = normalizeManualMotionMode(manualMotionMode);
     if (mode === 'Interval') {
       return {
-        label: '指定时长',
-        title: '手动模式固定使用 I 指令，滑条值表示到达目标位置所需时长（毫秒），当前上限为 1000ms。',
+        label: t("指定时长"),
+        title: t("手动模式固定使用 I 指令，滑条值表示到达目标位置所需时长（毫秒），当前上限为 1000ms。"),
         min: 1,
         max: MANUAL_INTERVAL_MAX_MS,
         step: 1,
@@ -5221,8 +5190,8 @@ function App() {
 
     if (mode === 'Speed') {
       return {
-        label: '指定速度',
-        title: '手动模式固定使用 S 指令；这里填写的是逻辑速度，真正发给设备的 S 数值会在每个输出设备里再按轴上限与速度单位基准换算。若设备对 S 支持不稳定，建议优先改用时间 (I) 或跟随轴配置。',
+        label: t("指定速度"),
+        title: t("手动模式固定使用 S 指令；这里填写的是逻辑速度，真正发给设备的 S 数值会在每个输出设备里再按轴上限与速度单位基准换算。若设备对 S 支持不稳定，建议优先改用时间 (I) 或跟随轴配置。"),
         min: AXIS_LIMIT_MIN_SPEED,
         max: AXIS_LIMIT_MAX_SPEED,
         step: 1,
@@ -5231,14 +5200,14 @@ function App() {
     }
 
     return {
-      label: '指定速度',
-      title: '跟随轴配置：每个轴按各自轴配置决定使用时间、速度或无。这里填写的是逻辑速度上限；若轴配置为 I，会自动换算成对应时长，若轴配置为 S，则会在对应输出设备里再换算成最终发出的 S 数值。',
+      label: t("指定速度"),
+      title: t("跟随轴配置：每个轴按各自轴配置决定使用时间、速度或无。这里填写的是逻辑速度上限；若轴配置为 I，会自动换算成对应时长，若轴配置为 S，则会在对应输出设备里再换算成最终发出的 S 数值。"),
       min: AXIS_LIMIT_MIN_SPEED,
       max: AXIS_LIMIT_MAX_SPEED,
       step: 1,
       valueFormatter: next => `${Math.round(Number(next || 0))}`,
     };
-  }, [manualMotionMode]);
+  }, [manualMotionMode, getLocale()]);
 
   if (loading) {
     return (
@@ -5249,7 +5218,7 @@ function App() {
             <CardContent>
               <Stack spacing={2}>
                 <Typography variant="h5">Sensa WebUI</Typography>
-                <Typography color="text.secondary">正在同步服务状态与设备配置…</Typography>
+                <Typography color="text.secondary">{t("正在同步服务状态与设备配置…")}</Typography>
                 <LinearProgress />
               </Stack>
             </CardContent>
@@ -5281,40 +5250,36 @@ function App() {
               </Typography>
             </Box>
 
-            <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} title={formatRealtimeStatus(wsState)} label={wsState==='connected'?'在线':wsState==='connecting'?'连接中':'离线'} />
+            <select className="language-select" aria-label="Language / 语言" value={locale} onChange={event => setLocale(event.target.value)}>
+              <option value="zh-CN">简体中文</option>
+              <option value="en-US">English</option>
+            </select>
+            <Chip size="small" color={wsState === 'connected' ? 'success' : wsState === 'connecting' ? 'warning' : 'default'} title={formatRealtimeStatus(wsState)} label={wsState==='connected'?t("在线"):wsState==='connecting'?t("连接中"):t("离线")} />
             <Chip className="toolbar-secondary" size="small" color={oscListenerStatus.color} variant="outlined" label={oscListenerStatus.toolbarLabel} />
-            <Chip className="toolbar-secondary" size="small" variant="outlined" label={`输入方式 ${formatMode(actualInputMode)}`} />
-            <Chip className="toolbar-secondary" size="small" variant="outlined" label={`有效输出 ${effectiveOutputCount}/${visibleOutputs.length}`} />
+            <Chip className="toolbar-secondary" size="small" variant="outlined" label={t("输入方式 {0}", [formatMode(actualInputMode)])} />
+            <Chip className="toolbar-secondary" size="small" variant="outlined" label={t("有效输出 {0}/{1}", [effectiveOutputCount, visibleOutputs.length])} />
 
             {runtimeOverview?.isEmergency ? (
-              <Button variant="contained" color="success" size="small" onClick={clearEmergency} disabled={busyKey === 'emergency-clear'}>
-                恢复输出
-              </Button>
+              <Button variant="contained" color="success" size="small" onClick={clearEmergency} disabled={busyKey === 'emergency-clear'}>{t("恢复输出")}</Button>
             ) : (
-              <Button variant="contained" color="error" size="small" onClick={emergencyStop} disabled={busyKey === 'emergency-stop'}>
-                停止输出
-              </Button>
+              <Button variant="contained" color="error" size="small" onClick={emergencyStop} disabled={busyKey === 'emergency-stop'}>{t("停止输出")}</Button>
             )}
           </Toolbar>
         </AppBar>
 
         <HelpDialog open={helpOpen} onClose={()=>setHelpOpen(false)} />
         <Box className="page-main">
-          {visibleOutputs.length === 0 && <Alert severity="info" sx={{mb:2}}>
-            第一次使用 OSR？先给 Avatar 添加 Quick Start World Receiver，在测试世界核对 OSC，再连接设备。
-            <Button component="a" href="https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md" target="_blank" rel="noreferrer" size="small">完整入门步骤</Button>
+          {visibleOutputs.length === 0 && <Alert severity="info" sx={{mb:2}}>{t("第一次使用 OSR？先给 Avatar 添加 Quick Start World Receiver，在测试世界核对 OSC，再连接设备。")}<Button component="a" href={docUrl("docs/quick-start.md")} target="_blank" rel="noreferrer" size="small">{t("完整入门步骤")}</Button>
           </Alert>}
-          <Box className="quick-start"><Typography variant="body2">连接输出 → 设置输入 → 校准映射 → 启用输入</Typography><Button size="small" onClick={()=>setHelpOpen(true)}>使用帮助</Button></Box>
-          {runtimeOverview?.isEmergency && <Alert severity="warning">当前已停止所有输出。</Alert>}
+          <Box className="quick-start"><Typography variant="body2">{t("连接输出 → 设置输入 → 校准映射 → 启用输入")}</Typography><Button size="small" onClick={()=>setHelpOpen(true)}>{t("使用帮助")}</Button></Box>
+          {runtimeOverview?.isEmergency && <Alert severity="warning">{t("当前已停止所有输出。")}</Alert>}
 
           <Card className="section-card" variant="outlined">
-            <CardHeader title="输入" />
+            <CardHeader title={t("输入")} />
             <Divider />
             <CardContent>
               {inputSwitchDisabled && (
-                <Alert severity="warning" className="section-status-alert">
-                  当前输入开关已关闭。你现在切换输入页签、拖动手动滑条或等待 OSC/脚本更新，都不会真正驱动输出；测试前请先打开右上角的“输入开关”。
-                </Alert>
+                <Alert severity="warning" className="section-status-alert">{t("当前输入开关已关闭。你现在切换输入页签、拖动手动滑条或等待 OSC/脚本更新，都不会真正驱动输出；测试前请先打开右上角的“输入开关”。")}</Alert>
               )}
 
               <Box
@@ -5330,20 +5295,18 @@ function App() {
               >
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" justifyContent="space-between" alignItems="center">
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                    <Chip size="small" variant="outlined" color="primary" label={`当前生效：${formatMode(actualInputMode)}`} />
-                    {hasPendingInputMode && <Chip size="small" variant="filled" color="warning" label={`待应用：${formatMode(selectedInputTab)}`} />}
+                    <Chip size="small" variant="outlined" color="primary" label={t("当前生效：{0}", [formatMode(actualInputMode)])} />
+                    {hasPendingInputMode && <Chip size="small" variant="filled" color="warning" label={t("待应用：{0}", [formatMode(selectedInputTab)])} />}
                   </Stack>
 
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                    <Button size="small" onClick={() => recordingAction(overview?.recording?.isActive ? 'stop' : 'start')}>{overview?.recording?.isActive ? '停止录制' : '录制 L0'}</Button>
-                    <Button size="small" disabled={!overview?.recording?.frameCount} onClick={() => recordingAction('export')}>导出录制 ({overview?.recording?.frameCount || 0})</Button>
+                    <Button size="small" onClick={() => recordingAction(overview?.recording?.isActive ? 'stop' : 'start')}>{overview?.recording?.isActive ? t("停止录制") : t("录制 L0")}</Button>
+                    <Button size="small" disabled={!overview?.recording?.frameCount} onClick={() => recordingAction('export')}>{t("导出录制 (")}{overview?.recording?.frameCount || 0})</Button>
                     {hasPendingInputMode && (
-                      <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>
-                        恢复到当前输入
-                      </Button>
+                      <Button size="small" variant="text" onClick={() => selectInputTab(actualInputMode)}>{t("恢复到当前输入")}</Button>
                     )}
                     <Button size="small" variant="contained" onClick={() => applyInputMode(selectedInputTab)} disabled={!hasPendingInputMode || busyKey === `mode-${selectedInputTab}`}>
-                      {busyKey === `mode-${selectedInputTab}` ? '切换中…' : '应用输入方式'}
+                      {busyKey === `mode-${selectedInputTab}` ? t("切换中…") : t("应用输入方式")}
                     </Button>
                     <FormControlLabel
                       control={
@@ -5359,19 +5322,17 @@ function App() {
                           }}
                         />
                       }
-                      label={<Typography variant="body2">输入开关（关闭停止设备）</Typography>}
+                      label={<Typography variant="body2">{t("输入开关（关闭停止设备）")}</Typography>}
                     />
                   </Stack>
                 </Stack>
 
-                <Typography variant="body2" color="text.secondary">
-                  切页签只切界面；点“应用输入方式”后才会真正生效。
-                </Typography>
+                <Typography variant="body2" color="text.secondary">{t("切页签只切界面；点“应用输入方式”后才会真正生效。")}</Typography>
               </Box>
 
-              {runtimeOverview?.inputActive && runtimeOverview?.gateClosed && <Alert severity="info">OSC 门控已关闭，输出已停止；所有门控信号开启后恢复。</Alert>}
+              {runtimeOverview?.inputActive && runtimeOverview?.gateClosed && <Alert severity="info">{t("OSC 门控已关闭，输出已停止；所有门控信号开启后恢复。")}</Alert>}
               <Tabs value={selectedInputTab} onChange={(_, next) => selectInputTab(next)} variant="scrollable" allowScrollButtonsMobile>
-                {INPUT_MODES.map(item => (
+                {INPUT_MODES().map(item => (
                   <Tab key={item.value} value={item.value} label={item.label} />
                 ))}
               </Tabs>
@@ -5379,9 +5340,9 @@ function App() {
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
                   <OscFlowStatus mappings={config?.signals || []} drafts={signalDrafts} dirty={Boolean(hasUnsavedMappings)} runtime={runtimeOverview || {}} mode={actualInputMode} listening={Boolean(overview?.osc?.listening)} />
-                  {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
-                  <Tabs value={oscWorkspaceTab} onChange={(_,value)=>setOscWorkspaceTab(value)} variant="scrollable" allowScrollButtonsMobile aria-label="OSC 工作区">
-                    <Tab value="setup" label="参数与映射"/><Tab value="diagnostics" label="空间诊断"/><Tab value="calibration" label="量程校准"/>
+                  {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">{t("精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。")}</Alert>}
+                  <Tabs value={oscWorkspaceTab} onChange={(_,value)=>setOscWorkspaceTab(value)} variant="scrollable" allowScrollButtonsMobile aria-label={t("OSC 工作区")}>
+                    <Tab value="setup" label={t("参数与映射")}/><Tab value="diagnostics" label={t("空间诊断")}/><Tab value="calibration" label={t("量程校准")}/>
                   </Tabs>
                   <Box hidden={oscWorkspaceTab!=='diagnostics'}><PosePanel observations={overview?.poseTracking?.observations || []} activeKey={overview?.poseTracking?.activeKey} onUseRig={usePoseRig} /></Box>
                   <Box hidden={oscWorkspaceTab==='setup'}><SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig} mode={oscWorkspaceTab==='calibration'?'calibration':'diagnostics'} /></Box>
@@ -5390,16 +5351,14 @@ function App() {
                     <Box className="dialog-panel osc-settings-panel">
                       <Box className="dialog-panel__header osc-settings-panel__header">
                         <Box className="osc-settings-panel__title">
-                          <Typography variant="subtitle2">OSC 设置</Typography>
+                          <Typography variant="subtitle2">{t("OSC 设置")}</Typography>
                           <Typography variant="caption" color="text.secondary">{oscSettingsSummary}</Typography>
                         </Box>
-                        <Button size="small" variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>
-                          保存
-                        </Button>
+                        <Button size="small" variant="contained" onClick={saveOscConfig} disabled={busyKey === 'osc-save'}>{t("保存")}</Button>
                       </Box>
 
                       <Tabs value={oscSettingsTab} onChange={(_, next) => setOscSettingsTab(next)} variant="fullWidth" className="osc-settings-panel__tabs">
-                        <Tab value="basic" label="基础" />
+                        <Tab value="basic" label={t("基础")} />
                         <Tab value="query" label="OSCQuery" />
                         <Tab value="hub" label="Hub" />
                       </Tabs>
@@ -5410,15 +5369,15 @@ function App() {
                             className="osc-config-panel__switch"
                             sx={{ m: 0 }}
                             control={<Switch checked={Boolean(oscDraft.oscEnabled)} disabled={busyKey === 'osc-save'} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscEnabled: checked }))} />}
-                            label={<Typography variant="body2"><HelpLabel text="启用 OSC" title="这是 OSC 接收器本身的配置开关。关闭后会停止本地 UDP OSC 监听；它不会负责切换上方的输入方式，输入方式仍由页面顶部控制。" /></Typography>}
+                            label={<Typography variant="body2"><HelpLabel text={t("启用 OSC")} title={t("这是 OSC 接收器本身的配置开关。关闭后会停止本地 UDP OSC 监听；它不会负责切换上方的输入方式，输入方式仍由页面顶部控制。")} /></Typography>}
                           />
 
                           <Box className="osc-settings-panel__field-grid">
-                            <TextField label="监听地址" helperText="默认仅本机；局域网监听请设置允许来源" size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
-                            <TextField size="small" label="允许来源 IP（留空不限）" value={oscDraft.allowedSourceAddresses} onChange={e => setOscDraft(p => ({ ...p, allowedSourceAddresses: e.target.value }))} />
-                            <TextField size="small" type="number" label="断流停止（毫秒；0 关闭）" helperText="OSC 可能仅在值变化时发送；仅在持续发送的来源上启用。" value={oscDraft.inputTimeoutMs} onChange={e => setOscDraft(p => ({ ...p, inputTimeoutMs: Number(e.target.value) }))} />
+                            <TextField label={t("监听地址")} helperText={t("默认仅本机；局域网监听请设置允许来源")} size="small" value={oscDraft.receiverHost} onChange={event => setOscDraft(previous => ({ ...previous, receiverHost: event.target.value }))} />
+                            <TextField size="small" label={t("允许来源 IP（留空不限）")} value={oscDraft.allowedSourceAddresses} onChange={e => setOscDraft(p => ({ ...p, allowedSourceAddresses: e.target.value }))} />
+                            <TextField size="small" type="number" label={t("断流停止（毫秒；0 关闭）")} helperText={t("OSC 可能仅在值变化时发送；仅在持续发送的来源上启用。")} value={oscDraft.inputTimeoutMs} onChange={e => setOscDraft(p => ({ ...p, inputTimeoutMs: Number(e.target.value) }))} />
                             <TextField
-                              label={<HelpLabel text="监听端口" title="Sensa 本地 UDP OSC 监听端口。" />}
+                              label={<HelpLabel text={t("监听端口")} title={t("Sensa 本地 UDP OSC 监听端口。")} />}
                               type="number"
                               size="small"
                               value={oscDraft.receiverPort}
@@ -5426,8 +5385,8 @@ function App() {
                             />
                           </Box>
 
-                          {oscModeActive && !oscConfigEnabled && <Alert severity="warning" variant="outlined">当前输入方式仍是 OSC，但 OSC 接收器已关闭，因此不会接收新的 OSC 数据。若要恢复接收，请重新开启“启用 OSC”并保存。</Alert>}
-                          {oscModeActive && oscListenerError && <Alert severity="error" variant="outlined">{oscListenerError}</Alert>}
+                          {oscModeActive && !oscConfigEnabled && <Alert severity="warning" variant="outlined">{t("当前输入方式仍是 OSC，但 OSC 接收器已关闭，因此不会接收新的 OSC 数据。若要恢复接收，请重新开启“启用 OSC”并保存。")}</Alert>}
+                          {oscModeActive && oscListenerError && <Alert severity="error" variant="outlined">{diagnostic(oscListenerError)}</Alert>}
                         </Box>
                       </TabPanel>
 
@@ -5437,13 +5396,13 @@ function App() {
                             className="osc-config-panel__switch"
                             sx={{ m: 0 }}
                             control={<Switch checked={Boolean(oscDraft.oscQueryEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryEnabled: checked }))} />}
-                            label={<Typography variant="body2"><HelpLabel text="启用 OSCQuery" title="启用后，Sensa 会连接远端 OSCQuery 服务并同步参数树；如果对端支持 LISTEN，还会建立实时订阅。" /></Typography>}
+                            label={<Typography variant="body2"><HelpLabel text={t("启用 OSCQuery")} title={t("启用后，Sensa 会连接远端 OSCQuery 服务并同步参数树；如果对端支持 LISTEN，还会建立实时订阅。")} /></Typography>}
                           />
 
                           <TextField
-                            label={<HelpLabel text="OSCQuery 地址" title="远端 OSCQuery 服务的根地址，例如 http://127.0.0.1:9001/。" />}
+                            label={<HelpLabel text={t("OSCQuery 地址")} title={t("远端 OSCQuery 服务的根地址，例如 http://127.0.0.1:9001/。")} />}
                             size="small"
-                            placeholder="例如：http://127.0.0.1:9001/"
+                            placeholder={t("例如：http://127.0.0.1:9001/")}
                             value={oscDraft.oscQueryUrl || ''}
                             disabled={!oscDraft.oscQueryEnabled}
                             onChange={event => setOscDraft(previous => ({ ...previous, oscQueryUrl: event.target.value }))}
@@ -5454,11 +5413,11 @@ function App() {
                               className="osc-config-panel__switch"
                               sx={{ m: 0 }}
                               control={<Switch checked={Boolean(oscDraft.oscQueryPollingEnabled)} disabled={!oscDraft.oscQueryEnabled} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryPollingEnabled: checked }))} />}
-                              label={<Typography variant="body2"><HelpLabel text="轮询回退" title="当对端不支持 LISTEN 时，按固定频率重新拉取可读节点的当前值。" /></Typography>}
+                              label={<Typography variant="body2"><HelpLabel text={t("轮询回退")} title={t("当对端不支持 LISTEN 时，按固定频率重新拉取可读节点的当前值。")} /></Typography>}
                             />
 
                             <TextField
-                              label={<HelpLabel text="频率 (Hz)" title="轮询回退的频率。只在启用轮询回退时生效。" />}
+                              label={<HelpLabel text={t("频率 (Hz)")} title={t("轮询回退的频率。只在启用轮询回退时生效。")} />}
                               type="number"
                               size="small"
                               disabled={!oscDraft.oscQueryEnabled || !oscDraft.oscQueryPollingEnabled}
@@ -5471,14 +5430,14 @@ function App() {
                             className="osc-config-panel__switch"
                             sx={{ m: 0 }}
                             control={<Switch checked={Boolean(oscDraft.oscQueryReceiverEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, oscQueryReceiverEnabled: checked }))} />}
-                            label={<Typography variant="body2"><HelpLabel text="自动发现" title="把 Sensa 广播成 OSCQuery receiver，方便 VRChat 自动发现并把 OSC 数据送到当前监听端口。" /></Typography>}
+                            label={<Typography variant="body2"><HelpLabel text={t("自动发现")} title={t("把 Sensa 广播成 OSCQuery receiver，方便 VRChat 自动发现并把 OSC 数据送到当前监听端口。")} /></Typography>}
                           />
 
                           {oscQueryPanelSummary ? <Typography variant="caption" color="text.secondary" className="osc-settings-panel__meta">{oscQueryPanelSummary}</Typography> : null}
 
                           {oscQuery?.error && <Alert severity="warning" variant="outlined">OSCQuery：{oscQuery.error}</Alert>}
-                          {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">轮询回退：{oscQueryPolling.error}</Alert>}
-                          {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">自动发现：{oscQueryReceiver.error}</Alert>}
+                          {oscQueryPolling?.error && <Alert severity="warning" variant="outlined">{t("轮询回退：")}{oscQueryPolling.error}</Alert>}
+                          {oscQueryReceiver?.error && <Alert severity="error" variant="outlined">{t("自动发现：")}{oscQueryReceiver.error}</Alert>}
                         </Box>
                       </TabPanel>
 
@@ -5488,47 +5447,45 @@ function App() {
                             className="osc-config-panel__switch"
                             sx={{ m: 0 }}
                             control={<Switch checked={Boolean(oscDraft.hubEnabled)} onChange={(_, checked) => setOscDraft(previous => ({ ...previous, hubEnabled: checked }))} />}
-                            label={<Typography variant="body2"><HelpLabel text="启用 OSC Hub" title="启用后，Sensa 会把当前实时 OSC 数据转发到下面配置的多个 UDP 目标。" /></Typography>}
+                            label={<Typography variant="body2"><HelpLabel text={t("启用 OSC Hub")} title={t("启用后，Sensa 会把当前实时 OSC 数据转发到下面配置的多个 UDP 目标。")} /></Typography>}
                           />
 
                           <Box className="osc-settings-panel__field-grid osc-settings-panel__field-grid--two">
                             <SelectField
-                              label="模式"
-                              title="事件驱动表示参数一变化就立即转发；固定频率表示在每个周期里合并为最新值后再发送。"
+                              label={t("模式")}
+                              title={t("事件驱动表示参数一变化就立即转发；固定频率表示在每个周期里合并为最新值后再发送。")}
                               value={normalizeOscHubMode(oscDraft.hubMode)}
-                              options={OSC_HUB_MODE_OPTIONS}
+                              options={OSC_HUB_MODE_OPTIONS()}
                               variant="compact"
                               onChange={next => setOscDraft(previous => ({ ...previous, hubMode: next }))}
                             />
 
                             <TextField
-                              label={<HelpLabel text="频率 (Hz)" title="仅固定频率模式生效；事件驱动模式下会忽略。" />}
+                              label={<HelpLabel text={t("频率 (Hz)")} title={t("仅固定频率模式生效；事件驱动模式下会忽略。")} />}
                               type="number"
                               size="small"
                               disabled={!oscHubIsFixedRate}
                               value={oscDraft.hubFixedRateHz}
                               onChange={event => setOscDraft(previous => ({ ...previous, hubFixedRateHz: Number(event.target.value || 0) }))}
-                              helperText={oscHubIsFixedRate ? '仅固定频率模式生效' : undefined}
+                              helperText={oscHubIsFixedRate ? t("仅固定频率模式生效") : undefined}
                             />
                           </Box>
 
                           <Typography variant="caption" color="text.secondary" className="osc-settings-panel__meta">{oscHub?.blockedBySourceSelection ? oscHubSourceSummary : oscHubSummary}</Typography>
 
                           {oscDraft.hubEnabled && oscHub?.blockedBySourceSelection && (
-                            <Alert severity="warning" variant="outlined">请先在右侧参数预览里固定“使用来源”。</Alert>
+                            <Alert severity="warning" variant="outlined">{t("请先在右侧参数预览里固定“使用来源”。")}</Alert>
                           )}
 
                           {oscHubConflictMessages.length > 0 && <Alert severity="warning" variant="outlined">{oscHubConflictMessages.join('；')}</Alert>}
-                          {oscHub?.lastDropReason && Number(oscHub?.droppedPacketCount || 0) > 0 && <Alert severity="error" variant="outlined">最近一次转发失败：{oscHub.lastDropReason}</Alert>}
+                          {oscHub?.lastDropReason && Number(oscHub?.droppedPacketCount || 0) > 0 && <Alert severity="error" variant="outlined">{t("最近一次转发失败：")}{oscHub.lastDropReason}</Alert>}
 
                           {oscHubTargetsDraft.length === 0 ? (
                             <Box className="empty-inline-state empty-inline-state--compact">
                               <Stack spacing={1} alignItems="center">
-                                <Typography color="text.secondary">还没有 Hub 目标</Typography>
-                                <Tooltip title="新增一个 UDP Hub 转发目标" arrow>
-                                  <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>
-                                    新增目标
-                                  </Button>
+                                <Typography color="text.secondary">{t("还没有 Hub 目标")}</Typography>
+                                <Tooltip title={t("新增一个 UDP Hub 转发目标")} arrow>
+                                  <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>{t("新增目标")}</Button>
                                 </Tooltip>
                               </Stack>
                             </Box>
@@ -5549,10 +5506,8 @@ function App() {
 
                           {oscHubTargetsDraft.length > 0 && (
                             <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="osc-config-panel__actions">
-                              <Tooltip title="新增一个 UDP Hub 转发目标" arrow>
-                                <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>
-                                  新增目标
-                                </Button>
+                              <Tooltip title={t("新增一个 UDP Hub 转发目标")} arrow>
+                                <Button size="small" variant="outlined" onClick={addOscHubTargetDraft}>{t("新增目标")}</Button>
                               </Tooltip>
                             </Stack>
                           )}
@@ -5562,17 +5517,17 @@ function App() {
 
                     <Box className="dialog-panel osc-preview-panel">
                       <Box className="dialog-panel__header">
-                        <Typography variant="subtitle2">参数工作台</Typography>
-                        <Button size="small" variant={frozenPreview ? 'contained' : 'text'} onClick={() => setFrozenPreview(previous => previous ? null : [...oscPreview])}>{frozenPreview ? '恢复实时预览' : '冻结预览'}</Button>
-                        {rankedOscPreview.length > previewLimit && <Button size="small" onClick={() => setPreviewLimit(previous => previous + 100)}>再显示 100 项</Button>}
+                        <Typography variant="subtitle2">{t("参数工作台")}</Typography>
+                        <Button size="small" variant={frozenPreview ? 'contained' : 'text'} onClick={() => setFrozenPreview(previous => previous ? null : [...oscPreview])}>{frozenPreview ? t("恢复实时预览") : t("冻结预览")}</Button>
+                        {rankedOscPreview.length > previewLimit && <Button size="small" onClick={() => setPreviewLimit(previous => previous + 100)}>{t("再显示 100 项")}</Button>}
                         <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                          <Chip size="small" variant="outlined" label={`${rankedOscPreview.length} / ${previewEntriesForTab.length} 项`} />
-                          <FormControlLabel control={<Switch size="small" checked={showFaceTracking} onChange={e => setShowFaceTracking(e.target.checked)} />} label="显示 FT" />
-                          <TextField size="small" placeholder="搜索参数路径" value={oscPreviewSearch} onChange={e => setOscPreviewSearch(e.target.value)} />
+                          <Chip size="small" variant="outlined" label={t("{0} / {1} 项", [rankedOscPreview.length, previewEntriesForTab.length])} />
+                          <FormControlLabel control={<Switch size="small" checked={showFaceTracking} onChange={e => setShowFaceTracking(e.target.checked)} />} label={t("显示 FT")} />
+                          <TextField size="small" placeholder={t("搜索参数路径")} value={oscPreviewSearch} onChange={e => setOscPreviewSearch(e.target.value)} />
                           {hasMultipleOscSources && (
                             <SelectField
-                              label="使用来源"
-                              title="这里决定 Sensa 在多来源同时存在时，OSC 映射预览与实时驱动默认使用哪个来源；下面的标签页只负责浏览。"
+                              label={t("使用来源")}
+                              title={t("这里决定 Sensa 在多来源同时存在时，OSC 映射预览与实时驱动默认使用哪个来源；下面的标签页只负责浏览。")}
                               value={selectedOscSourceKey}
                               options={oscSourceSelectionOptions}
                               variant="compact"
@@ -5585,14 +5540,14 @@ function App() {
                       </Box>
 
                       <Stack direction="row" gap={.5} flexWrap="wrap" sx={{ mb: 1 }}>
-                        {[['all', '全部可见'], ['related', '触觉候选'], ['mapped', '已映射'], ['pose', '定位阵列']].map(([value, label]) => <Chip key={value} size="small" label={label} color={previewCategory === value ? 'primary' : 'default'} onClick={() => { setPreviewCategory(value); setPreviewLimit(100); }} />)}
-                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>★ 置顶参数会保留显示；冻结仅暂停表格，不停止设备。</Typography>
+                        {[['all', t("全部可见")], ['related', t("触觉候选")], ['mapped', t("已映射")], ['pose', t("定位阵列")]].map(([value, label]) => <Chip key={value} size="small" label={label} color={previewCategory === value ? 'primary' : 'default'} onClick={() => { setPreviewCategory(value); setPreviewLimit(100); }} />)}
+                        <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>{t("★ 置顶参数会保留显示；冻结仅暂停表格，不停止设备。")}</Typography>
                       </Stack>
-                      {hasMultipleOscSources && <Typography variant="caption" color="text.secondary">当前使用来源：{selectedOscSourceLabel}</Typography>}
+                      {hasMultipleOscSources && <Typography variant="caption" color="text.secondary">{t("当前使用来源：")}{selectedOscSourceLabel}</Typography>}
 
                       {hasMultipleOscSources && (
                         <Tabs value={previewSourceTab} onChange={(_, next) => setPreviewSourceTab(next)} variant="scrollable" allowScrollButtonsMobile>
-                          <Tab value="all" label={`全部 (${oscPreview.length})`} />
+                          <Tab value="all" label={t("全部 ({0})", [oscPreview.length])} />
                           {oscSources.map(source => (
                             <Tab key={source.key} value={source.key} label={`${formatOscSourceLabel(source)} (${source.parameterCount || 0})`} />
                           ))}
@@ -5603,8 +5558,8 @@ function App() {
                         {previewEntriesForTab.length === 0 ? (
                           <Box className="empty-inline-state">
                             <Stack spacing={1} alignItems="center">
-                              <Typography color="text.secondary">暂无符合筛选条件的 OSC 参数（FT 默认隐藏，已映射参数始终显示）</Typography>
-                              {oscQueryNodes.length > 0 && <Typography variant="caption" color="text.secondary">已同步 {oscQueryNodes.length} 条 OSCQuery 路径</Typography>}
+                              <Typography color="text.secondary">{t("暂无符合筛选条件的 OSC 参数（FT 默认隐藏，已映射参数始终显示）")}</Typography>
+                              {oscQueryNodes.length > 0 && <Typography variant="caption" color="text.secondary">{t("已同步 ")}{oscQueryNodes.length}{t(" 条 OSCQuery 路径")}</Typography>}
                             </Stack>
                           </Box>
                         ) : (
@@ -5612,14 +5567,10 @@ function App() {
                             <Table size="small" className="osc-preview-table">
                               <TableHead>
                                 <TableRow>
-                                  <TableCell width="36">置顶</TableCell>{hasMultipleOscSources && <TableCell width="170">来源</TableCell>}<TableCell>参数名称</TableCell>
-                                  <TableCell width="110">类型</TableCell>
-                                  <TableCell width="120" align="right">
-                                    当前值
-                                  </TableCell>
-                                  <TableCell width="110" align="right">
-                                    更新时间
-                                  </TableCell><TableCell width="60">操作</TableCell>
+                                  <TableCell width="36">{t("置顶")}</TableCell>{hasMultipleOscSources && <TableCell width="170">{t("来源")}</TableCell>}<TableCell>{t("参数名称")}</TableCell>
+                                  <TableCell width="110">{t("类型")}</TableCell>
+                                  <TableCell width="120" align="right">{t("当前值")}</TableCell>
+                                  <TableCell width="110" align="right">{t("更新时间")}</TableCell><TableCell width="60">{t("操作")}</TableCell>
                                 </TableRow>
                               </TableHead>
                               <TableBody>
@@ -5629,8 +5580,8 @@ function App() {
                                   const tooltipText = matched
                                     ? matched
                                         .map(s => {
-                                          const roleLabel = SIGNAL_ROLE_OPTIONS.find(r => r.value === s.role)?.label || s.role || '未分配';
-                                          const invertNote = s.invertDirection ? '（反向）' : '';
+                                          const roleLabel = SIGNAL_ROLE_OPTIONS().find(r => r.value === s.role)?.label || s.role || t("未分配");
+                                          const invertNote = s.invertDirection ? t("（反向）") : '';
                                           return `${s.oscPath} → ${roleLabel}${invertNote}`;
                                         })
                                         .join('；')
@@ -5645,17 +5596,17 @@ function App() {
                                           '&:hover': { backgroundColor: matched ? 'rgba(25, 118, 210, 0.16)' : undefined },
                                         }}
                                       >
-                                        <TableCell padding="none"><Button size="small" sx={{ minWidth: 28 }} aria-label={`${pinnedPaths.includes(entry.path) ? '取消置顶' : '置顶'} ${entry.path}`} onClick={() => togglePinned(entry.path)}>{pinnedPaths.includes(entry.path) ? '★' : '☆'}</Button></TableCell>
+                                        <TableCell padding="none"><Button size="small" sx={{ minWidth: 28 }} aria-label={`${pinnedPaths.includes(entry.path) ? t("取消置顶") : t("置顶")} ${entry.path}`} onClick={() => togglePinned(entry.path)}>{pinnedPaths.includes(entry.path) ? '★' : '☆'}</Button></TableCell>
                                         {hasMultipleOscSources && <TableCell>{entry.sourceLabel || '—'}</TableCell>}
                                         <TableCell className="osc-preview-path" sx={{ fontWeight: matched ? 600 : undefined, color: matched ? 'primary.main' : undefined }}>
                                           <Button variant="text" size="small" className="parameter-name-button" onClick={() => setParameterDetail(entry)}>{entry.path}</Button>
-                                          {probe && <Typography variant="caption" display="block" title={probe.hint}><Box component="span" sx={{display:'inline-block',width:9,height:9,borderRadius:'50%',bgcolor:probe.color,border:'1px solid #586574',mr:.5}} />{probe.label} · {probe.marker} · 输入采样</Typography>}
-                                          {!matched && entry.classification?.hint && <Typography variant="caption" display="block" color="text.secondary">{entry.classification.hint}</Typography>}
+                                          {probe && <Typography variant="caption" display="block" title={probe.hint}><Box component="span" sx={{display:'inline-block',width:9,height:9,borderRadius:'50%',bgcolor:probe.color,border:'1px solid #586574',mr:.5}} />{probe.label} · {probe.marker}{t(" · 输入采样")}</Typography>}
+                                          {!matched && entry.classification?.hint && <Typography variant="caption" display="block" color="text.secondary">{diagnostic(entry.classification.hint)}</Typography>}
                                         </TableCell>
                                         <TableCell>{entry.type || '—'}</TableCell>
                                         <TableCell align="right">{entry.value ?? '—'}</TableCell>
                                         <TableCell align="right" data-testid="osc-timestamp">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
-                                        <TableCell><Button size="small" title={/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'用此定位对象替换整套草稿，包括旧门控；保存前可恢复。':'添加映射草稿；请检查含义后保存。'} onClick={() => mapPreviewParameter(entry)}>{/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'替换草稿':'映射'}</Button></TableCell>
+                                        <TableCell><Button size="small" title={/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?t("用此定位对象替换整套草稿，包括旧门控；保存前可恢复。"):t("添加映射草稿；请检查含义后保存。")} onClick={() => mapPreviewParameter(entry)}>{/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?t("替换草稿"):t("映射")}</Button></TableCell>
                                       </TableRow>
                                     </Tooltip>
                                   );
@@ -5670,16 +5621,16 @@ function App() {
 
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">OSC 映射</Typography>
+                      <Typography variant="subtitle2">{t("OSC 映射")}</Typography>
                       <Stack direction="row" spacing={0.5}>
-                        {hasUnsavedMappings && <Chip size="small" color="warning" variant="filled" label="未保存（仅预览）" />}
-                        <Chip size="small" variant="outlined" label={`${signalDrafts.length} 条`} />
+                        {hasUnsavedMappings && <Chip size="small" color="warning" variant="filled" label={t("未保存（仅预览）")} />}
+                        <Chip size="small" variant="outlined" label={t("{0} 条", [signalDrafts.length])} />
                       </Stack>
                     </Box>
 
                     <Stack className="osc-preset-toolbar" direction="row" spacing={2} useFlexGap flexWrap="wrap" alignItems="center" sx={{ py: 1 }}>
                       <SelectField
-                        label="预设方案"
+                        label={t("预设方案")}
                         value={selectedOscPreset}
                         options={oscMappingPresets.map(preset => ({ value: preset.id, label: preset.name }))}
                         variant="inline"
@@ -5691,74 +5642,57 @@ function App() {
                       <Divider orientation="vertical" flexItem />
 
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                        <Tooltip title="用选中预设的映射替换当前全部映射" arrow>
-                          <Button variant="contained" size="small" onClick={() => applyOscPreset('replace')} disabled={!selectedOscPresetConfig}>
-                            替换草稿
-                          </Button>
+                        <Tooltip title={t("用选中预设的映射替换当前全部映射")} arrow>
+                          <Button variant="contained" size="small" onClick={() => applyOscPreset('replace')} disabled={!selectedOscPresetConfig}>{t("替换草稿")}</Button>
                         </Tooltip>
-                        <Tooltip title="将选中预设的映射追加到当前映射列表" arrow>
-                          <Button variant="outlined" size="small" onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>
-                            追加草稿
-                          </Button>
+                        <Tooltip title={t("将选中预设的映射追加到当前映射列表")} arrow>
+                          <Button variant="outlined" size="small" onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>{t("追加草稿")}</Button>
                         </Tooltip>
                         {selectedOscPresetConfig && (
-                          <Tooltip title={selectedOscPresetConfig.isBuiltIn ? '将内置预设复制为自定义预设以便修改' : '编辑当前预设的名称与映射'} arrow>
+                          <Tooltip title={selectedOscPresetConfig.isBuiltIn ? t("将内置预设复制为自定义预设以便修改") : t("编辑当前预设的名称与映射")} arrow>
                             <Button variant="text" size="small" onClick={() => openPresetDialog(selectedOscPreset)}>
-                              {selectedOscPresetConfig.isBuiltIn ? '复制' : '编辑'}
+                              {selectedOscPresetConfig.isBuiltIn ? t("复制") : t("编辑")}
                             </Button>
                           </Tooltip>
                         )}
-                        <Tooltip title="将当前映射列表保存为一套新的预设方案" arrow>
-                          <Button variant="text" size="small" onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })} disabled={signalDrafts.length === 0}>
-                            另存为预设
-                          </Button>
+                        <Tooltip title={t("将当前映射列表保存为一套新的预设方案")} arrow>
+                          <Button variant="text" size="small" onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })} disabled={signalDrafts.length === 0}>{t("另存为预设")}</Button>
                         </Tooltip>
-                        <Tooltip title="创建一个不带任何映射的空白预设" arrow>
-                          <Button variant="text" size="small" onClick={() => openPresetDialog(null)}>
-                            新建空预设
-                          </Button>
+                        <Tooltip title={t("创建一个不带任何映射的空白预设")} arrow>
+                          <Button variant="text" size="small" onClick={() => openPresetDialog(null)}>{t("新建空预设")}</Button>
                         </Tooltip>
-                        <Tooltip title={selectedOscPresetConfig?.isBuiltIn ? '内置预设不可删除' : '删除选中的自定义预设'} arrow>
+                        <Tooltip title={selectedOscPresetConfig?.isBuiltIn ? t("内置预设不可删除") : t("删除选中的自定义预设")} arrow>
                           <Button
                             color="error"
                             variant="text"
                             size="small"
                             onClick={deleteSelectedPreset}
                             disabled={!selectedOscPresetConfig || Boolean(selectedOscPresetConfig?.isBuiltIn) || busyKey?.startsWith('preset-delete-')}
-                          >
-                            删除
-                          </Button>
+                          >{t("删除")}</Button>
                         </Tooltip>
                       </Stack>
                     </Stack>
 
                     <Alert severity="info" className="mapping-guide-alert">
-                      <Typography variant="body2">
-                        调映射时按这个顺序看：<strong>输入范围</strong> → <strong>曲线</strong> → <strong>映射范围</strong>。
+                      <Typography variant="body2">{t("调映射时按这个顺序看：")}<strong>{t("输入范围")}</strong> → <strong>{t("曲线")}</strong> → <strong>{t("映射范围")}</strong>。
                       </Typography>
                     </Alert>
 
                     {signalOverlapWarnings.length > 0 && (
                       <Alert severity="info" className="mapping-overlap-alert">
-                        <Typography variant="body2" className="mapping-guide-alert__title">
-                          多个参数共同驱动同一输出轴。
-                        </Typography>
+                        <Typography variant="body2" className="mapping-guide-alert__title">{t("多个参数共同驱动同一输出轴。")}</Typography>
                         <Typography variant="body2">
-                          {signalOverlapWarnings.map(item => `${item.label} 当前有 ${item.affectedCount} 条规则的映射范围互相重叠，${item.fusionSummary}。进入重叠区后，系统会按“谁更深谁接管”只保留一条输出，所以另一条在部分区间看起来可能像没生效。`).join('；')}
+                          {signalOverlapWarnings.map(item => t("{0} 当前有 {1} 条规则的映射范围互相重叠，{2}。进入重叠区后，系统会按“谁更深谁接管”只保留一条输出，所以另一条在部分区间看起来可能像没生效。", [item.label, item.affectedCount, item.fusionSummary])).join('；')}
                         </Typography>
-                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                          多个孔位或协议别名可以映射到同一轴；按校准后的强度融合，不把数值相加。
-                        </Typography>
+                        <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>{t("多个孔位或协议别名可以映射到同一轴；按校准后的强度融合，不把数值相加。")}</Typography>
                       </Alert>
                     )}
 
                     {signalDrafts.length === 0 ? (
                       <Box className="empty-inline-state">
                         <Stack spacing={1.5} alignItems="center">
-                          <Typography color="text.secondary">还没有轴映射</Typography>
-                          <Button variant="outlined" onClick={() => addSignalDraft()}>
-                            新增映射
-                          </Button>
+                          <Typography color="text.secondary">{t("还没有轴映射")}</Typography>
+                          <Button variant="outlined" onClick={() => addSignalDraft()}>{t("新增映射")}</Button>
                         </Stack>
                       </Box>
                     ) : (
@@ -5777,24 +5711,16 @@ function App() {
                     )}
 
                     <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" sx={{ mt: 1.5 }}>
-                      <Button variant="outlined" onClick={() => addSignalDraft()}>
-                        新增映射
-                      </Button>
-                      <Button variant="outlined" onClick={restoreSignalDrafts} disabled={!hasUnsavedMappings}>
-                        恢复映射
-                      </Button>
+                      <Button variant="outlined" onClick={() => addSignalDraft()}>{t("新增映射")}</Button>
+                      <Button variant="outlined" onClick={restoreSignalDrafts} disabled={!hasUnsavedMappings}>{t("恢复映射")}</Button>
                       <Button variant="contained" onClick={saveOscMappings} disabled={busyKey === 'osc-mappings-save'} color={hasUnsavedMappings ? 'warning' : 'primary'}>
-                        {hasUnsavedMappings ? '保存并应用映射 ●' : '保存并应用映射'}
+                        {hasUnsavedMappings ? t("保存并应用映射 ●") : t("保存并应用映射")}
                       </Button>
-                      <Button variant="outlined" color="error" onClick={() => setConfirmClearMappings(true)} disabled={signalDrafts.length === 0}>
-                        清空映射
-                      </Button>
+                      <Button variant="outlined" color="error" onClick={() => setConfirmClearMappings(true)} disabled={signalDrafts.length === 0}>{t("清空映射")}</Button>
                     </Stack>
 
                     {hasUnsavedMappings && (
-                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-                        当前未保存修改只影响此页预览；点击“保存并应用映射”后才会真正重建 Companion 运行时的 OSC 映射。
-                      </Typography>
+                      <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>{t("当前未保存修改只影响此页预览；点击“保存并应用映射”后才会真正重建 Companion 运行时的 OSC 映射。")}</Typography>
                     )}
                   </Box>
                   </Box>
@@ -5804,25 +5730,21 @@ function App() {
               <TabPanel value="manual" current={selectedInputTab}>
                 <Stack spacing={2}>
                   <Box className="axis-grid">
-                    {MANUAL_AXES.map(axis => (
+                    {MANUAL_AXES().map(axis => (
                       <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={next => handleManualSliderChange({ [axis.key]: next })} />
                     ))}
                   </Box>
 
                   <Box className="manual-toolbar">
                     <Stack direction="row" spacing={1.5} useFlexGap flexWrap="wrap" alignItems="center" className="manual-toolbar__actions">
-                      <Tooltip title="使用当前所有滑条值驱动输出设备执行" arrow>
+                      <Tooltip title={t("使用当前所有滑条值驱动输出设备执行")} arrow>
                         <span>
-                          <Button variant="contained" onClick={applyManualOnce} disabled={busyKey === 'manual-once'}>
-                            更新位置
-                          </Button>
+                          <Button variant="contained" onClick={applyManualOnce} disabled={busyKey === 'manual-once'}>{t("更新位置")}</Button>
                         </span>
                       </Tooltip>
-                      <Tooltip title="把所有滑条回到回正值；开启持续更新时会立即同步到后端。" arrow>
+                      <Tooltip title={t("把所有滑条回到回正值；开启持续更新时会立即同步到后端。")} arrow>
                         <span>
-                          <Button variant="outlined" onClick={() => handleManualSliderChange({ ...EMPTY_MANUAL })}>
-                            回正
-                          </Button>
+                          <Button variant="outlined" onClick={() => handleManualSliderChange({ ...EMPTY_MANUAL })}>{t("回正")}</Button>
                         </span>
                       </Tooltip>
                       <FormControlLabel
@@ -5834,14 +5756,14 @@ function App() {
                             }}
                           />
                         }
-                        label={<HelpLabel text="持续更新" title="开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。" />}
+                        label={<HelpLabel text={t("持续更新")} title={t("开启后，每次拖动滑条都会立即更新后端；关闭后滑条仅本地预览，须点「更新位置」才会生效。")} />}
                       />
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="manual-toolbar__motion-controls">
                         <SelectField
-                          label="斜率方式"
-                          title="跟随轴配置：每个轴按自己的配置决定走时间 / 速度 / 无；时间：全部按 I；速度：全部按 S。"
+                          label={t("斜率方式")}
+                          title={t("跟随轴配置：每个轴按自己的配置决定走时间 / 速度 / 无；时间：全部按 I；速度：全部按 S。")}
                           value={manualMotionMode}
-                          options={MANUAL_MOTION_MODE_OPTIONS}
+                          options={MANUAL_MOTION_MODE_OPTIONS()}
                           variant="compact"
                           className="manual-toolbar__motion-select"
                           formControlProps={{ sx: { minWidth: 180 } }}
@@ -5873,7 +5795,7 @@ function App() {
           </Card>
 
           <Card className="section-card" variant="outlined">
-            <CardHeader title="配置" />
+            <CardHeader title={t("配置")} />
             <Divider />
             <CardContent>
               <Box className="config-cards-row">
@@ -5885,8 +5807,8 @@ function App() {
                     <Card key={profile.id} className="config-card" variant="outlined">
                       <CardHeader
                         title={profile.name}
-                        subheader={usedCount > 0 ? `${usedCount} 个输出在用` : '未分配输出'}
-                        action={profile.isDefault ? <Chip size="small" color="primary" variant="outlined" label="默认" /> : null}
+                        subheader={usedCount > 0 ? t("{0} 个输出在用", [usedCount]) : t("未分配输出")}
+                        action={profile.isDefault ? <Chip size="small" color="primary" variant="outlined" label={t("默认")} /> : null}
                       />
                       <CardContent>
                         <Stack spacing={1.5} className="config-card__content-stack">
@@ -5912,18 +5834,12 @@ function App() {
                           </Box>
 
                           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="config-card__action-row">
-                            <Button variant="contained" className="config-card__action-button" onClick={() => openProfileDialog(profile.id)}>
-                              修改配置
-                            </Button>
+                            <Button variant="contained" className="config-card__action-button" onClick={() => openProfileDialog(profile.id)}>{t("修改配置")}</Button>
                             {!profile.isDefault && (
-                              <Button variant="outlined" className="config-card__action-button" onClick={() => setDefaultAxisProfile(profile.id)}>
-                                设为默认
-                              </Button>
+                              <Button variant="outlined" className="config-card__action-button" onClick={() => setDefaultAxisProfile(profile.id)}>{t("设为默认")}</Button>
                             )}
                             {!profile.isDefault && (
-                              <Button color="error" className="config-card__action-button" onClick={() => removeAxisProfile(profile.id)}>
-                                移除
-                              </Button>
+                              <Button color="error" className="config-card__action-button" onClick={() => removeAxisProfile(profile.id)}>{t("移除")}</Button>
                             )}
                           </Stack>
                         </Stack>
@@ -5935,13 +5851,9 @@ function App() {
                 <Card className="config-card config-card--add" variant="outlined">
                   <CardContent>
                     <Stack spacing={1.5} alignItems="center" justifyContent="center" className="config-card__add-body" sx={{ textAlign: 'center' }}>
-                      <Typography variant="subtitle1">新增轴配置</Typography>
-                      <Typography variant="body2" color="text.secondary">
-                        新建一套可复用的轴限制。
-                      </Typography>
-                      <Button variant="contained" className="config-card__add-button" onClick={openNewProfileDialog}>
-                        + 轴配置
-                      </Button>
+                      <Typography variant="subtitle1">{t("新增轴配置")}</Typography>
+                      <Typography variant="body2" color="text.secondary">{t("新建一套可复用的轴限制。")}</Typography>
+                      <Button variant="contained" className="config-card__add-button" onClick={openNewProfileDialog}>{t("+ 轴配置")}</Button>
                     </Stack>
                   </CardContent>
                 </Card>
@@ -5950,7 +5862,7 @@ function App() {
           </Card>
 
           <Card className="section-card" variant="outlined">
-            <CardHeader title="输出" />
+            <CardHeader title={t("输出")} />
             <Divider />
             <CardContent>
               {outputWarningMessage && (
@@ -5962,7 +5874,7 @@ function App() {
               <Stack spacing={2}>
                 <Box className="output-toolbar">
                   <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                    {OUTPUT_TYPES.map(output => (
+                    {OUTPUT_TYPES().map(output => (
                       <Button key={output.value} size="small" variant="outlined" onClick={() => addOutputCard(output.value)}>
                         + {output.label}
                       </Button>
@@ -5972,17 +5884,17 @@ function App() {
 
                 {visibleOutputs.length === 0 ? (
                   <Box className="empty-state">
-                    <Typography variant="h6">暂无输出</Typography>
-                    <Typography color="text.secondary">添加一个输出设备</Typography>
+                    <Typography variant="h6">{t("暂无输出")}</Typography>
+                    <Typography color="text.secondary">{t("添加一个输出设备")}</Typography>
                   </Box>
                 ) : (
                   <Box className="outputs-row">
                     {visibleOutputs.map(output => {
                       const outputState = getOutputOverview(overview, output.id) || {};
-                      const typeMeta = OUTPUT_TYPE_BY_VALUE[output.type] || { label: output.type, shortLabel: output.type, scanSupported: false };
+                      const typeMeta = OUTPUT_TYPE_BY_VALUE()[output.type] || { label: output.type, shortLabel: output.type, scanSupported: false };
                       const isEnabled = Boolean(output.enabled);
                       const outputBusy = busyKey === `output-enable-${output.id}`;
-                      const connectionLabel = isEnabled ? (outputState.connected ? '已连接' : '未连接') : '已禁用';
+                      const connectionLabel = isEnabled ? (outputState.connected ? t("已连接") : t("未连接")) : t("已禁用");
                       const summary = buildOutputSummary(output);
                       const profileName = isTCodeOutputType(output.type)
                         ? outputState.profileName || getAxisProfile(config, output.motionProfileId)?.name || getDefaultAxisProfile(config)?.name
@@ -6005,7 +5917,7 @@ function App() {
                                 onClick={() => setOutputEnabled(output.id, !isEnabled)}
                                 disabled={outputBusy}
                               >
-                                {outputBusy ? '处理中…' : isEnabled ? '禁用' : '启用'}
+                                {outputBusy ? t("处理中…") : isEnabled ? t("禁用") : t("启用")}
                               </Button>
                             }
                           />
@@ -6014,9 +5926,9 @@ function App() {
                               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" className="output-card-meta">
                                 <Chip size="small" variant="outlined" label={typeMeta.shortLabel} />
                                 <Chip size="small" color={!isEnabled ? 'default' : outputState.connected ? 'success' : 'warning'} variant="outlined" label={connectionLabel} />
-                                {profileName && <Chip size="small" variant="outlined" label={`轴配置 · ${profileName}`} />}
-                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`输出斜率 · ${formatSlopeModeLabel(tcodeSettings?.slopeMode || output.slopeMode)}`} />}
-                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={`速度基准 · ${formatSpeedUnitBaseLabel(tcodeSettings?.speedUnitBase || output.speedUnitBase)}`} />}
+                                {profileName && <Chip size="small" variant="outlined" label={t("轴配置 · {0}", [profileName])} />}
+                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={t("输出斜率 · {0}", [formatSlopeModeLabel(tcodeSettings?.slopeMode || output.slopeMode)])} />}
+                                {isTCodeOutputType(output.type) && <Chip size="small" variant="outlined" label={t("速度基准 · {0}", [formatSpeedUnitBaseLabel(tcodeSettings?.speedUnitBase || output.speedUnitBase)])} />}
                               </Stack>
 
                               <OutputPositionPanel state={outputState} />
@@ -6040,22 +5952,14 @@ function App() {
 
                               {typeMeta.scanSupported && (
                                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(true, output.id)}>
-                                    开始扫描
-                                  </Button>
-                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(false, output.id)}>
-                                    停止扫描
-                                  </Button>
+                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(true, output.id)}>{t("开始扫描")}</Button>
+                                  <Button size="small" variant="text" onClick={() => toggleIntifaceScan(false, output.id)}>{t("停止扫描")}</Button>
                                 </Stack>
                               )}
 
                               <Box className="output-card-actions">
-                                <Button size="small" variant="outlined" onClick={() => openOutputDialog(output.id)}>
-                                  配置
-                                </Button>
-                                <Button size="small" color="error" onClick={() => removeOutputCard(output.id)}>
-                                  移除
-                                </Button>
+                                <Button size="small" variant="outlined" onClick={() => openOutputDialog(output.id)}>{t("配置")}</Button>
+                                <Button size="small" color="error" onClick={() => removeOutputCard(output.id)}>{t("移除")}</Button>
                               </Box>
                             </Stack>
                           </CardContent>
@@ -6069,52 +5973,52 @@ function App() {
           </Card>
 
           <Card className="section-card" variant="outlined">
-            <CardHeader title="日志" />
+            <CardHeader title={t("日志")} />
             <Divider />
             <CardContent>
               <Box className="log-toolbar">
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center">
-                  <SelectField label="级别" value={logFilterLevel} options={[{ value: 'debug', label: '全部日志' }, { value: 'info', label: '信息以上' }, { value: 'warning', label: '警告以上' }, { value: 'error', label: '仅错误' }]} variant="compact" formControlProps={{ sx: { minWidth: 112 } }} onChange={setLogFilterLevel} />
+                  <SelectField label={t("级别")} value={logFilterLevel} options={[{ value: 'debug', label: t("全部日志") }, { value: 'info', label: t("信息以上") }, { value: 'warning', label: t("警告以上") }, { value: 'error', label: t("仅错误") }]} variant="compact" formControlProps={{ sx: { minWidth: 112 } }} onChange={setLogFilterLevel} />
 
-                  <SelectField label="分类" value={logCategoryFilter} options={[{ value: '', label: '全部分类' }, ...logCategories.filter(Boolean).map(cat => ({ value: cat, label: cat }))]} variant="compact" formControlProps={{ sx: { minWidth: 130 } }} onChange={setLogCategoryFilter} />
+                  <SelectField label={t("分类")} value={logCategoryFilter} options={[{ value: '', label: t("全部分类") }, ...logCategories.filter(Boolean).map(cat => ({ value: cat, label: cat }))]} variant="compact" formControlProps={{ sx: { minWidth: 130 } }} onChange={setLogCategoryFilter} />
 
-                  <SelectField label="轴" value={logAxisFilter} options={[{ value: '', label: '全部轴' }, ...axisLogCatalog.axes.filter(Boolean).map(axis => ({ value: axis, label: axis }))]} variant="compact" formControlProps={{ sx: { minWidth: 110 } }} onChange={setLogAxisFilter} />
+                  <SelectField label={t("轴")} value={logAxisFilter} options={[{ value: '', label: t("全部轴") }, ...axisLogCatalog.axes.filter(Boolean).map(axis => ({ value: axis, label: axis }))]} variant="compact" formControlProps={{ sx: { minWidth: 110 } }} onChange={setLogAxisFilter} />
 
-                  <SelectField label="结果" value={logActionFilter} options={[{ value: '', label: '全部结果' }, ...axisLogCatalog.actions.filter(Boolean).map(action => ({ value: action, label: formatAxisTraceAction(action).label }))]} variant="compact" formControlProps={{ sx: { minWidth: 120 } }} onChange={setLogActionFilter} />
+                  <SelectField label={t("结果")} value={logActionFilter} options={[{ value: '', label: t("全部结果") }, ...axisLogCatalog.actions.filter(Boolean).map(action => ({ value: action, label: formatAxisTraceAction(action).label }))]} variant="compact" formControlProps={{ sx: { minWidth: 120 } }} onChange={setLogActionFilter} />
 
-                  <TextField size="small" placeholder="搜索日志 / 轴 / 备注" value={logSearchText} onChange={event => setLogSearchText(event.target.value)} sx={{ minWidth: 220, flex: '1 1 240px' }} />
+                  <TextField size="small" placeholder={t("搜索日志 / 轴 / 备注")} value={logSearchText} onChange={event => setLogSearchText(event.target.value)} sx={{ minWidth: 220, flex: '1 1 240px' }} />
 
                   <FormControlLabel
                     sx={{ m: 0, ml: 0.5 }}
                     control={<Switch size="small" checked={logOnlyAxis} onChange={(_, checked) => setLogOnlyAxis(checked)} />}
-                    label={<Typography variant="caption">仅看轴调试</Typography>}
+                    label={<Typography variant="caption">{t("仅看轴调试")}</Typography>}
                   />
                 </Stack>
 
                 <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap" alignItems="center" className="log-summary">
-                  <Chip size="small" variant="outlined" label={`可见 ${filteredLogs.length} 条`} />
-                  {filteredLogResult.truncated && <Chip size="small" color="warning" variant="outlined" label={`最近 ${LOG_MAX_VISIBLE}/${filteredLogResult.totalMatched}`} />}
-                  <Chip size="small" variant="outlined" label={`轴调试 ${visibleAxisLogStats.total}`} />
-                  <Chip size="small" color="primary" variant="outlined" label={`输出更新 ${visibleAxisLogStats.emit}`} />
-                  <Chip size="small" variant="outlined" label={`输出保持 ${visibleAxisLogStats.hold}`} />
-                  <Chip size="small" color="warning" variant="outlined" label={`已忽略 ${visibleAxisLogStats.ignored}`} />
-                  {logOnlyAxis && <Chip size="small" color="info" variant="outlined" label="已自动包含 debug" />}
+                  <Chip size="small" variant="outlined" label={t("可见 {0} 条", [filteredLogs.length])} />
+                  {filteredLogResult.truncated && <Chip size="small" color="warning" variant="outlined" label={t("最近 {0}/{1}", [LOG_MAX_VISIBLE, filteredLogResult.totalMatched])} />}
+                  <Chip size="small" variant="outlined" label={t("轴调试 {0}", [visibleAxisLogStats.total])} />
+                  <Chip size="small" color="primary" variant="outlined" label={t("输出更新 {0}", [visibleAxisLogStats.emit])} />
+                  <Chip size="small" variant="outlined" label={t("输出保持 {0}", [visibleAxisLogStats.hold])} />
+                  <Chip size="small" color="warning" variant="outlined" label={t("已忽略 {0}", [visibleAxisLogStats.ignored])} />
+                  {logOnlyAxis && <Chip size="small" color="info" variant="outlined" label={t("已自动包含 debug")} />}
                 </Stack>
               </Box>
 
               <Box className="log-list">
                 {filteredLogs.length === 0 ? (
-                  <Typography color="text.secondary">暂时没有日志。</Typography>
+                  <Typography color="text.secondary">{t("暂时没有日志。")}</Typography>
                 ) : (
                   filteredLogs.map((log, index) => {
                     const ts = log.timestamp ? new Date(log.timestamp) : null;
-                    const timeStr = ts && !Number.isNaN(ts.getTime()) ? ts.toLocaleTimeString() : '';
+                    const timeStr = ts && !Number.isNaN(ts.getTime()) ? ts.toLocaleTimeString(getLocale()) : '';
 
                     if (log.axisTrace) {
-                      return <AxisTraceLogEntry key={`${index}-${log.message}`} log={log} timeStr={timeStr} />;
+                      return <AxisTraceLogEntry key={`${index}-${diagnostic(log.message)}`} log={log} timeStr={timeStr} />;
                     }
 
-                    return <PlainLogEntry key={`${index}-${log.message}`} log={log} timeStr={timeStr} />;
+                    return <PlainLogEntry key={`${index}-${diagnostic(log.message)}`} log={log} timeStr={timeStr} />;
                   })
                 )}
               </Box>
@@ -6124,13 +6028,13 @@ function App() {
       </Box>
 
       <Dialog open={Boolean(presetDialog)} onClose={() => setPresetDialog(null)} fullWidth maxWidth="lg">
-        <DialogTitle>{presetDialog ? `${presetDialog.name || 'OSC 预设'} · 预设编辑` : 'OSC 预设'}</DialogTitle>
+        <DialogTitle>{presetDialog ? t("{0} · 预设编辑", [presetDialog.name || t("OSC 预设")]) : t("OSC 预设")}</DialogTitle>
         <DialogContent dividers>
           {presetDialog && (
             <Stack spacing={2.5}>
-              <TextField label="预设名称" size="small" value={presetDialog.name || ''} onChange={event => setPresetDialog(previous => ({ ...previous, name: event.target.value }))} />
+              <TextField label={t("预设名称")} size="small" value={presetDialog.name || ''} onChange={event => setPresetDialog(previous => ({ ...previous, name: event.target.value }))} />
               <TextField
-                label="说明"
+                label={t("说明")}
                 size="small"
                 multiline
                 minRows={2}
@@ -6141,10 +6045,8 @@ function App() {
               {presetDialog.mappings.length === 0 ? (
                 <Box className="empty-inline-state">
                   <Stack spacing={1.5} alignItems="center">
-                    <Typography color="text.secondary">这套预设还没有映射项</Typography>
-                    <Button variant="outlined" onClick={() => addPresetDialogSignal()}>
-                      新增预设映射
-                    </Button>
+                    <Typography color="text.secondary">{t("这套预设还没有映射项")}</Typography>
+                    <Button variant="outlined" onClick={() => addPresetDialogSignal()}>{t("新增预设映射")}</Button>
                   </Stack>
                 </Box>
               ) : (
@@ -6163,23 +6065,19 @@ function App() {
               )}
 
               <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-                <Button variant="outlined" onClick={() => addPresetDialogSignal()}>
-                  新增预设映射
-                </Button>
+                <Button variant="outlined" onClick={() => addPresetDialogSignal()}>{t("新增预设映射")}</Button>
               </Stack>
             </Stack>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setPresetDialog(null)}>取消</Button>
-          <Button variant="contained" onClick={savePresetDialog} disabled={!presetDialog || busyKey.startsWith('preset-save-')}>
-            保存预设
-          </Button>
+          <Button onClick={() => setPresetDialog(null)}>{t("取消")}</Button>
+          <Button variant="contained" onClick={savePresetDialog} disabled={!presetDialog || busyKey.startsWith('preset-save-')}>{t("保存预设")}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={Boolean(dialog)} onClose={() => setDialog(null)} fullWidth maxWidth="md">
-        <DialogTitle>{dialog ? `${getOutputTypeLabel(dialog.draft.type)} 配置` : '输出配置'}</DialogTitle>
+        <DialogTitle>{dialog ? t("{0} 配置", [getOutputTypeLabel(dialog.draft.type)]) : t("输出配置")}</DialogTitle>
         <DialogContent dividers>
           {dialog && (
             <Stack spacing={2}>
@@ -6190,7 +6088,7 @@ function App() {
               )}
 
               <TextField
-                label={<HelpLabel text="名称" title="仅用于在 WebUI 中区分这台输出设备。" />}
+                label={<HelpLabel text={t("名称")} title={t("仅用于在 WebUI 中区分这台输出设备。")} />}
                 size="small"
                 value={dialog.draft.name || ''}
                 onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, name: event.target.value } }))}
@@ -6199,8 +6097,8 @@ function App() {
               {isTCodeOutputType(dialog.draft.type) && (
                 <>
                   <SelectField
-                    label="轴配置"
-                    title="选择这台 TCode 输出使用的轴配置。"
+                    label={t("轴配置")}
+                    title={t("选择这台 TCode 输出使用的轴配置。")}
                     value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
                     options={axisProfiles.map(profile => ({ value: profile.id, label: profile.name }))}
                     variant="compact"
@@ -6210,29 +6108,27 @@ function App() {
 
                   <Box className="dialog-grid dialog-grid--two-cols">
                     <SelectField
-                      label="输出斜率方式"
-                      title="跟随轴配置=每个轴按自己的配置决定走时间 / 速度 / 无；时间=强制全部使用 I；速度=强制全部使用 S；无=只发位置值。"
+                      label={t("输出斜率方式")}
+                      title={t("跟随轴配置=每个轴按自己的配置决定走时间 / 速度 / 无；时间=强制全部使用 I；速度=强制全部使用 S；无=只发位置值。")}
                       value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
-                      options={OUTPUT_SLOPE_MODE_OPTIONS}
+                      options={OUTPUT_SLOPE_MODE_OPTIONS()}
                       variant="compact"
                       fullWidth
                       onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, slopeMode: next } }))}
                     />
 
                     <SelectField
-                      label="速度单位基准"
-                      title="默认每 100ms。切到每秒后，发送给设备的 S 数值会按秒基准换算。"
+                      label={t("速度单位基准")}
+                      title={t("默认每 100ms。切到每秒后，发送给设备的 S 数值会按秒基准换算。")}
                       value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
-                      options={SPEED_UNIT_BASE_OPTIONS}
+                      options={SPEED_UNIT_BASE_OPTIONS()}
                       variant="compact"
                       fullWidth
                       onChange={next => setDialog(previous => ({ ...previous, draft: { ...previous.draft, speedUnitBase: next } }))}
                     />
                   </Box>
 
-                  <Alert severity="info" variant="outlined">
-                    速度单位基准默认是 <strong>每 100ms</strong>。若你的设备/固件按“每秒”解释 S 值，可切到“每秒”。
-                  </Alert>
+                  <Alert severity="info" variant="outlined">{t("速度单位基准默认是 ")}<strong>{t("每 100ms")}</strong>{t("。若你的设备/固件按“每秒”解释 S 值，可切到“每秒”。")}</Alert>
                 </>
               )}
 
@@ -6240,15 +6136,15 @@ function App() {
                 <>
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">串口连接</Typography>
-                      <Chip size="small" variant="outlined" label={dialog.draft.comPort || '未选择串口'} />
+                      <Typography variant="subtitle2">{t("串口连接")}</Typography>
+                      <Chip size="small" variant="outlined" label={dialog.draft.comPort || t("未选择串口")} />
                     </Box>
 
                     <SelectField
-                      label="串口"
-                      title="选择目标 TCode 设备对应的 COM 端口。"
+                      label={t("串口")}
+                      title={t("选择目标 TCode 设备对应的 COM 端口。")}
                       value={dialog.draft.comPort || ''}
-                      options={serialPorts.length === 0 ? [{ value: '', label: '未检测到串口' }] : serialPorts.map(port => {
+                      options={serialPorts.length === 0 ? [{ value: '', label: t("未检测到串口") }] : serialPorts.map(port => {
                         const owner = serialPortOwners.get(port.portName);
                         return {
                           value: port.portName,
@@ -6271,7 +6167,7 @@ function App() {
                           )}
                           {option.owner && (
                             <Typography variant="caption" color="error.main">
-                              {`已被 ${getOutputDisplayName(option.owner)} 使用`}
+                              {t("已被 {0} 使用", [getOutputDisplayName(option.owner)])}
                             </Typography>
                           )}
                         </Stack>
@@ -6293,21 +6189,21 @@ function App() {
                 <>
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">网络目标</Typography>
+                      <Typography variant="subtitle2">{t("网络目标")}</Typography>
                       <Chip size="small" variant="outlined" label={dialog.draft.type === 'TCodeUdp' ? 'UDP' : 'TCP'} />
                     </Box>
 
                     <Box className="dialog-grid">
                       <TextField
                         error={hasNetworkTargetConflict}
-                        label={<HelpLabel text="Host" title="目标设备的主机名或 IP 地址。" />}
+                        label={<HelpLabel text="Host" title={t("目标设备的主机名或 IP 地址。")} />}
                         size="small"
                         value={dialog.draft.host || ''}
                         onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, host: event.target.value } }))}
                       />
                       <TextField
                         error={hasNetworkTargetConflict}
-                        label={<HelpLabel text="Port" title={dialog.draft.type === 'TCodeUdp' ? '目标设备监听 TCode UDP 的端口。' : '目标设备监听 TCode TCP 的端口。'} />}
+                        label={<HelpLabel text="Port" title={dialog.draft.type === 'TCodeUdp' ? t("目标设备监听 TCode UDP 的端口。") : t("目标设备监听 TCode TCP 的端口。")} />}
                         type="number"
                         size="small"
                         value={dialog.draft.port ?? ''}
@@ -6322,21 +6218,21 @@ function App() {
                 <>
                   <Box className="dialog-panel">
                     <Box className="dialog-panel__header">
-                      <Typography variant="subtitle2">Intiface 连接参数</Typography>
+                      <Typography variant="subtitle2">{t("Intiface 连接参数")}</Typography>
                       <Chip size="small" variant="outlined" label="Buttplug" />
                     </Box>
 
                     <Box className="dialog-grid">
                       <TextField
                         error={hasIntifaceTargetConflict}
-                        label={<HelpLabel text="WebSocket 地址" title="Intiface WebSocket 服务地址，通常指向 Intiface Central 或本地引擎。" />}
+                        label={<HelpLabel text={t("WebSocket 地址")} title={t("Intiface WebSocket 服务地址，通常指向 Intiface Central 或本地引擎。")} />}
                         size="small"
                         value={dialog.draft.websocketAddress || ''}
                         onChange={event => setDialog(previous => ({ ...previous, draft: { ...previous.draft, websocketAddress: event.target.value } }))}
                       />
                       <TextField
                         error={hasIntifaceTargetConflict}
-                        label={<HelpLabel text="端口" title="仅在托管本地 intiface-engine.exe 时使用的监听端口。" />}
+                        label={<HelpLabel text={t("端口")} title={t("仅在托管本地 intiface-engine.exe 时使用的监听端口。")} />}
                         type="number"
                         size="small"
                         value={dialog.draft.port ?? 12345}
@@ -6351,7 +6247,7 @@ function App() {
                           onChange={(_, checked) => setDialog(previous => ({ ...previous, draft: { ...previous.draft, manageEngineProcess: checked } }))}
                         />
                       }
-                      label={<HelpLabel text="由后台托管 intiface-engine.exe" title="开启后，后台会尝试自动启动和停止本地 intiface-engine.exe。" />}
+                      label={<HelpLabel text={t("由后台托管 intiface-engine.exe")} title={t("开启后，后台会尝试自动启动和停止本地 intiface-engine.exe。")} />}
                     />
                   </Box>
                 </>
@@ -6360,20 +6256,18 @@ function App() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDialog(null)}>取消</Button>
-          <Button variant="contained" onClick={saveOutputDialog} disabled={!dialog || busyKey.startsWith('dialog-save-') || outputDialogConflicts.length > 0}>
-            保存
-          </Button>
+          <Button onClick={() => setDialog(null)}>{t("取消")}</Button>
+          <Button variant="contained" onClick={saveOutputDialog} disabled={!dialog || busyKey.startsWith('dialog-save-') || outputDialogConflicts.length > 0}>{t("保存")}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={Boolean(profileDialog)} onClose={() => setProfileDialog(null)} fullWidth maxWidth="lg">
-        <DialogTitle>{profileDialog ? `${profileDialog.name || '轴配置'} · 轴配置` : '轴配置'}</DialogTitle>
+        <DialogTitle>{profileDialog ? t("{0} · 轴配置", [profileDialog.name || t("轴配置")]) : t("轴配置")}</DialogTitle>
         <DialogContent dividers>
           {profileDialog && (
             <Stack spacing={2}>
               <TextField
-                label="配置名称"
+                label={t("配置名称")}
                 size="small"
                 value={profileDialog.name || ''}
                 onChange={event => setProfileDialog(previous => ({ ...previous, name: event.target.value }))}
@@ -6381,33 +6275,31 @@ function App() {
 
               <Box className="dialog-panel">
                 <Box className="dialog-panel__header">
-                  <Typography variant="subtitle2">快速预设</Typography>
-                  {profileDialog.presetId && <Chip size="small" variant="outlined" label={AXIS_PROFILE_PRESETS.find(item => item.id === profileDialog.presetId)?.name || '已选择预设'} />}
+                  <Typography variant="subtitle2">{t("快速预设")}</Typography>
+                  {profileDialog.presetId && <Chip size="small" variant="outlined" label={AXIS_PROFILE_PRESETS().find(item => item.id === profileDialog.presetId)?.name || t("已选择预设")} />}
                 </Box>
 
                 <Box className="preset-apply-row">
                   <SelectField
-                    label="轴配置预设"
+                    label={t("轴配置预设")}
                     value={profileDialog.presetId || ''}
-                    options={[{ value: '', label: '不使用预设' }, ...AXIS_PROFILE_PRESETS.map(preset => ({ value: preset.id, label: preset.name }))]}
+                    options={[{ value: '', label: t("不使用预设") }, ...AXIS_PROFILE_PRESETS().map(preset => ({ value: preset.id, label: preset.name }))]}
                     variant="inline"
                     hintTitle={
                       profileDialog.presetId
-                        ? AXIS_PROFILE_PRESETS.find(item => item.id === profileDialog.presetId)?.description || '应用后会覆盖当前草稿。'
-                        : '选择一套轴配置预设后，可一键覆盖当前草稿。'
+                        ? AXIS_PROFILE_PRESETS().find(item => item.id === profileDialog.presetId)?.description || t("应用后会覆盖当前草稿。")
+                        : t("选择一套轴配置预设后，可一键覆盖当前草稿。")
                     }
                     className="preset-apply-row__select"
                     onChange={next => setProfileDialog(previous => ({ ...previous, presetId: next }))}
                   />
 
-                  <Button className="preset-apply-row__button" variant="outlined" disabled={!profileDialog.presetId} onClick={() => applyAxisProfilePresetToDialog(profileDialog.presetId)}>
-                    应用预设
-                  </Button>
+                  <Button className="preset-apply-row__button" variant="outlined" disabled={!profileDialog.presetId} onClick={() => applyAxisProfilePresetToDialog(profileDialog.presetId)}>{t("应用预设")}</Button>
                 </Box>
               </Box>
 
               <Box className="motion-axis-grid">
-                {AXIS_PROFILE_DEFS.map(axis => (
+                {AXIS_PROFILE_DEFS().map(axis => (
                   <MotionAxisEditor
                     key={`${profileDialog.profileId}-${axis.key}`}
                     axisDefinition={axis}
@@ -6421,34 +6313,30 @@ function App() {
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setProfileDialog(null)}>取消</Button>
-          <Button variant="contained" onClick={saveProfileDialog} disabled={!profileDialog || busyKey.startsWith('profile-save-')}>
-            保存
-          </Button>
+          <Button onClick={() => setProfileDialog(null)}>{t("取消")}</Button>
+          <Button variant="contained" onClick={saveProfileDialog} disabled={!profileDialog || busyKey.startsWith('profile-save-')}>{t("保存")}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={confirmClearMappings} onClose={() => setConfirmClearMappings(false)}>
-        <DialogTitle>确认清空映射</DialogTitle>
+        <DialogTitle>{t("确认清空映射")}</DialogTitle>
         <DialogContent>
-          <Typography>确定要清空当前页面里的 {signalDrafts.length} 条 OSC 轴映射吗？若尚未保存，可直接点“恢复映射”回到已保存状态；一旦保存，将以当前清空结果为准。</Typography>
+          <Typography>{t("确定要清空当前页面里的 ")}{signalDrafts.length}{t(" 条 OSC 轴映射吗？若尚未保存，可直接点“恢复映射”回到已保存状态；一旦保存，将以当前清空结果为准。")}</Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setConfirmClearMappings(false)}>取消</Button>
-          <Button variant="contained" color="error" onClick={clearSignalDrafts}>
-            确认清空
-          </Button>
+          <Button onClick={() => setConfirmClearMappings(false)}>{t("取消")}</Button>
+          <Button variant="contained" color="error" onClick={clearSignalDrafts}>{t("确认清空")}</Button>
         </DialogActions>
       </Dialog>
 
       <Dialog open={Boolean(parameterDetail)} onClose={() => setParameterDetail(null)} fullWidth maxWidth="sm">
-        <DialogTitle>参数含义</DialogTitle>
-        <DialogContent><Typography sx={{ overflowWrap: 'anywhere', mb: 2 }} fontFamily="monospace">{parameterDetail?.path}</Typography><Typography>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</Typography><Typography variant="caption" display="block" sx={{ mt: 2 }} color="text.secondary">来源：{parameterDetail?.sourceLabel} · 当前值：{parameterDetail?.value} · 提示不等于自动映射。</Typography></DialogContent>
-        <DialogActions><Button onClick={() => setParameterDetail(null)}>关闭</Button><Button onClick={() => { mapPreviewParameter(parameterDetail); setParameterDetail(null); }}>添加映射草稿</Button></DialogActions>
+        <DialogTitle>{t("参数含义")}</DialogTitle>
+        <DialogContent><Typography sx={{ overflowWrap: 'anywhere', mb: 2 }} fontFamily="monospace">{parameterDetail?.path}</Typography><Typography>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</Typography><Typography variant="caption" display="block" sx={{ mt: 2 }} color="text.secondary">{t("来源：")}{parameterDetail?.sourceLabel}{t(" · 当前值：")}{parameterDetail?.value}{t(" · 提示不等于自动映射。")}</Typography></DialogContent>
+        <DialogActions><Button onClick={() => setParameterDetail(null)}>{t("关闭")}</Button><Button onClick={() => { mapPreviewParameter(parameterDetail); setParameterDetail(null); }}>{t("添加映射草稿")}</Button></DialogActions>
       </Dialog>
       <Snackbar open={snackbar.open} autoHideDuration={2600} onClose={() => setSnackbar(previous => ({ ...previous, open: false }))}>
         <Alert variant="filled" severity={snackbar.severity}>
-          {snackbar.message}
+          {diagnostic(snackbar.message)}
         </Alert>
       </Snackbar>
     </ThemeProvider>

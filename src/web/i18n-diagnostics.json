@@ -1,0 +1,66 @@
+[
+  [
+    "无法监听 {0}:{1}：{2}",
+    "Cannot listen on {0}:{1}: {2}"
+  ],
+  [
+    "无法启动 OSCQuery 接收器广播：{0}",
+    "Cannot advertise OSCQuery receiver: {0}"
+  ],
+  [
+    "输出“{0}”与“{1}”重复使用{2}。请改成未被占用的目标。",
+    "Outputs “{0}” and “{1}” both use {2}. Choose an unused target."
+  ],
+  [
+    "OSCQuery 接收器 HTTP 端口 {0} 与 WebUI 端口 {1} 冲突。请改用其他端口。",
+    "OSCQuery receiver HTTP port {0} conflicts with WebUI port {1}. Choose another port."
+  ],
+  [
+    "OSC Hub 目标“{0}”与“{1}”重复使用 UDP 地址 {2}:{3}。请改成未被占用的地址。",
+    "Hub targets “{0}” and “{1}” both use UDP {2}:{3}. Choose an unused endpoint."
+  ],
+  [
+    "OSC Hub 目标“{0}”指向当前 OSC 监听端口 {1}:{2}，这会形成回环。请改成其他端口。",
+    "Hub target “{0}” points to OSC listener {1}:{2}, creating a loop. Choose another port."
+  ],
+  [
+    "{0} 已连接。",
+    "{0} connected."
+  ],
+  [
+    "{0} 连接失败。",
+    "{0} connection failed."
+  ],
+  [
+    "{0} 已断开。",
+    "{0} disconnected."
+  ],
+  [
+    "[Output] 已连接 {0}: {1}",
+    "[Output] Connected {0}: {1}"
+  ],
+  [
+    "[Output] 跳过 {0} 连接：内置 Intiface 引擎不可用。",
+    "[Output] Skipped {0}: built-in Intiface engine unavailable."
+  ],
+  [
+    "[Output] 连接失败 {0}: {1}",
+    "[Output] Connection failed {0}: {1}"
+  ],
+  [
+    "[Output] 已断开 {0}",
+    "[Output] Disconnected {0}"
+  ],
+  [
+    "{0} · 位置",
+    "{0} · Position"
+  ],
+  [
+    "{0} · 震动",
+    "{0} · Vibration"
+  ],
+  [
+    "DEVINFO skipped: 串口未连接",
+    "DEVINFO skipped: serial port disconnected"
+  ]
+]

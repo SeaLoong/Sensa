@@ -1,3 +1,4 @@
+import { t, getLocale } from './i18n.js';
 export function globMatch(pattern, path) {
   const patterns = pattern.split('/'), segments = path.split('/');
   if (patterns.length > 64 || segments.length > 64) return false;
@@ -34,8 +35,8 @@ export function probePresentation(path) {
   if ((match[1] === 'Point' || match[1] === 'Handle') && index >= 4) return null;
   const colors = ['#E85D75','#54B7FF','#77D970','#FFC857','#C792EA','#54DED2','#FF975C','#E6E6E6'];
   const prefix = match[1] === 'Point' || match[1] === 'Handle' ? 'P' : 'C';
-  return { label: `定位探针 ${prefix}${index + 1}`, color: colors[index], index, marker: match[2],
-    hint: `${prefix}${index + 1} 是${prefix === 'P' ? '四点' : '八点'}阵列 ${match[2]} 的接近度输入样本，对应原始路径后缀 A${index}。与测试场景同布局、同色标记对应，不是 TCode 的 A0/A1/A2 辅助输出轴，也不应直接作为行程。` };
+  return { label: t("定位探针 {0}{1}", [prefix, index + 1]), color: colors[index], index, marker: match[2],
+    hint: t("{0}{1} 是{2}阵列 {3} 的接近度输入样本，对应原始路径后缀 A{4}。与测试场景同布局、同色标记对应，不是 TCode 的 A0/A1/A2 辅助输出轴，也不应直接作为行程。", [prefix, index + 1, prefix === 'P' ? t("四点") : t("八点"), match[2], index]) };
 }
 
 export function parameterMeaning(path) {
@@ -45,18 +46,18 @@ export function parameterMeaning(path) {
 
 function baseParameterMeaning(path) {
   const leaf = (path || '').split('/').at(-1);
-  if (path.startsWith('Sensa/Pose/v1/')) return '定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。';
-  if (path.startsWith('Sensa/SpsRoot/v1/')) return '单侧 SPS 根部阵列的距离样本；8 路共同估计根部 XYZ，仅用于诊断。不能测尖端、朝向或行程，不应直接映射运动输出。';
-  if (path.startsWith('Sensa/SharedRoot/v1/')) return '共享根部阵列；必须连同 Ready、Slot 与新槽位采样判定，仅用于诊断，不能直接映射行程。';
-  if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return '本地骨骼/PB 测量。四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。';
-  if (/NewRoot$/.test(leaf)) return '根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。';
-  if (/NewTip$/.test(leaf)) return '当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。';
-  if (/^Pen(Others|Self)$/.test(leaf)) return '近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。';
-  if (/Close$/.test(leaf)) return '近距离接触开关，不是连续行程值。';
-  if (/^Touch/.test(leaf)) return '身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。';
-  if (/^Frot/.test(leaf)) return '摩擦近接信号，通常用于振动；不是轴向深度。';
-  if (/^Angle.*Raw$/.test(leaf)) return '侧向接收器的原始近接值，不是角度（度）；受位移与方向共同影响。';
-  return '自定义参数。请确认生成它的组件、量程和方向后再映射。名称相近仅作为查找提示。';
+  if (path.startsWith('Sensa/Pose/v1/')) return t("定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。");
+  if (path.startsWith('Sensa/SpsRoot/v1/')) return t("单侧 SPS 根部阵列的距离样本；8 路共同估计根部 XYZ，仅用于诊断。不能测尖端、朝向或行程，不应直接映射运动输出。");
+  if (path.startsWith('Sensa/SharedRoot/v1/')) return t("共享根部阵列；必须连同 Ready、Slot 与新槽位采样判定，仅用于诊断，不能直接映射行程。");
+  if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t("本地骨骼/PB 测量。四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。");
+  if (/NewRoot$/.test(leaf)) return t("根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。");
+  if (/NewTip$/.test(leaf)) return t("当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。");
+  if (/^Pen(Others|Self)$/.test(leaf)) return t("近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。");
+  if (/Close$/.test(leaf)) return t("近距离接触开关，不是连续行程值。");
+  if (/^Touch/.test(leaf)) return t("身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。");
+  if (/^Frot/.test(leaf)) return t("摩擦近接信号，通常用于振动；不是轴向深度。");
+  if (/^Angle.*Raw$/.test(leaf)) return t("侧向接收器的原始近接值，不是角度（度）；受位移与方向共同影响。");
+  return t("自定义参数。请确认生成它的组件、量程和方向后再映射。名称相近仅作为查找提示。");
 }
 
 export function readPinnedPaths(storage) {
@@ -92,7 +93,7 @@ export function posePreviewEntry(observations, signal, preferredSourceKey = '', 
   const candidates = observations.filter(pose => (!preferredSourceKey || pose.sourceKey === preferredSourceKey)
     && ['Root', 'Tip', 'Side'].some(marker => Array.from({length:8}, (_, i) => `${pose.prefix}/${marker}/A${i}`).some(path => matchesOscPathPattern(signal.oscPath, path))));
   if (!preferredSourceKey && new Set(candidates.map(p => p.sourceKey)).size > 1)
-    return { path: signal.oscPath, value: '请固定使用来源', matchCount: 0 };
+    return { path: signal.oscPath, value: t("请固定使用来源"), matchCount: 0 };
   const pose = candidates.find(p => p.key === activeKey && p.valid && p.engaged)
     || [...candidates].sort((a, b) => Number(b.valid && b.engaged) - Number(a.valid && a.engaged) || b.depth - a.depth || a.key.localeCompare(b.key))[0];
   if (!pose) return null;
@@ -103,7 +104,7 @@ export function posePreviewEntry(observations, signal, preferredSourceKey = '', 
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
   const points = observations.filter(p => ['Point', 'Handle'].includes(p.kind) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
     && Array.from({length:/^Sensa\/(Point|Handle)\/v1\//.test(p.prefix)?4:8}, (_,i) => `${p.prefix}/Root/A${i}`).some(path => matchesOscPathPattern(signal.oscPath,path)));
-  if (points.length !== 1) return {path:signal.oscPath,value:points.length ? '请限定唯一测量点与来源' : '等待本地点采样'};
+  if (points.length !== 1) return {path:signal.oscPath,value:points.length ? t("请限定唯一测量点与来源") : t("等待本地点采样")};
   const p = points[0];
   const value = p.valid ? ({X:p.position.x,Y:p.position.y,Z:p.position.z,Distance:Math.hypot(p.position.x,p.position.y,p.position.z)}[signal.pointMetric || 'Z']) : undefined;
   return {path:p.prefix,value:value === undefined ? p.reason : Number(value.toFixed(4)).toString(),numericValue:value,sourceKey:p.sourceKey,matchCount:p.sampleCount};
@@ -118,11 +119,11 @@ export function capturePointEndpoint(point, metric) {
 }
 
 export function calibratedPointDraft(point, metric, zero, full) {
-  if (!point || !['Point','Handle'].includes(point.kind) || !['X','Y','Z','Distance'].includes(metric)) return {error:'请选择本地点与测量轴'};
-  if (!zero || !full) return {error:'请分别采集 0% 和 100% 位置'};
+  if (!point || !['Point','Handle'].includes(point.kind) || !['X','Y','Z','Distance'].includes(metric)) return {error:t("请选择本地点与测量轴")};
+  if (!zero || !full) return {error:t("请分别采集 0% 和 100% 位置")};
   if ([zero,full].some(sample=>sample.key!==point.key || sample.prefix!==point.prefix || sample.sourceKey!==point.sourceKey || sample.metric!==metric || !Number.isFinite(sample.value)))
-    return {error:'测量对象、来源或轴已改变，请重新采集'};
-  if (Math.abs(full.value-zero.value)<.001) return {error:'两个位置相距不足 1 mm，请扩大校准范围'};
+    return {error:t("测量对象、来源或轴已改变，请重新采集")};
+  if (Math.abs(full.value-zero.value)<.001) return {error:t("两个位置相距不足 1 mm，请扩大校准范围")};
   return {draft:{oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:metric,role:'Depth',
     vrchatMin:Math.min(zero.value,full.value),vrchatMax:Math.max(zero.value,full.value),invertDirection:full.value<zero.value}};
 }

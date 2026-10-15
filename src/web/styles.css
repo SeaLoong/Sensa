@@ -4299,6 +4299,13 @@ body {
 .pose-plot { width: 100%; max-height: 280px; border: 1px solid #dbe7f1; border-radius: 12px; margin-top: 10px; background: #f9fcff; }
 .pose-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: center; }
 .pose-metric { border: 1px solid #e0ebf3; background: #fff; border-radius: 12px; padding: 12px; }
+.language-select { font:inherit; font-size:13px; max-width:110px; min-height:32px; border:1px solid #cbd5e1; border-radius:8px; padding:4px; background:white; color:#0f172a; }
+html[lang="en-US"] .MuiButton-root { text-transform:none; }
+@media(max-width:600px) {
+  .studio-toolbar { flex-wrap:wrap!important; }
+  .studio-toolbar > .MuiChip-root { display:none; }
+  .studio-toolbar > .MuiButton-root { margin-left:auto; }
+}
 .parameter-name-button { text-transform: none !important; text-align: left !important; justify-content: flex-start !important; overflow-wrap: anywhere; }
 @media (max-width: 760px) { .pose-dashboard { grid-template-columns: 1fr; } }
 @media (max-width:600px) { .point-diagnostic-grid .pose-metrics { grid-template-columns:minmax(0,1fr); } .pose-panel .point-calibration { padding:12px; } }
