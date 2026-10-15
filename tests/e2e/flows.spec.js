@@ -119,9 +119,14 @@ test.describe('OSCQuery and Hub', () => {
   test.use({ scenario: 'query' });
   test('discovery and forwarding use real loopback peers', async ({ page, rig }) => {
     await mode(page, 'OSC');
+    await page.getByRole('tab', { name: 'OSCQuery', exact: true }).click();
+    const polling = page.getByRole('checkbox', { name: /轮询回退|当对端不支持 LISTEN/ });
+    await polling.check();
+    await page.locator('.osc-settings-panel').getByRole('button', { name: '保存', exact: true }).click();
     await expect(page.getByRole('button', { name: 'QueryDepth', exact: true })).toBeVisible({ timeout: 20000 });
-    await rig.send([['QueryDepth', .4]]);
     await expect.poll(() => rig.wire.hub.length).toBeGreaterThan(0);
+    await polling.uncheck();
+    await page.locator('.osc-settings-panel').getByRole('button', { name: '保存', exact: true }).click();
     await page.getByRole('tab', { name: 'Hub', exact: true }).click();
     await checkpoint(page, page.locator('.osc-settings-panel'), 'osc-hub');
   });
