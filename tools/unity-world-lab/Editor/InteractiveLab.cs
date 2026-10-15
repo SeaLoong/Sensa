@@ -74,7 +74,7 @@ namespace SensaLab
             if(quick!=null)AddPlacement(quick.transform,quick.pickup,"TEST BALL controls",new Vector3(1.3f,.8f,-.45f),"TOUCH mode: move the ball to your right wrist. This only places the ball; it does not enable input.");
             foreach(var placement in UnityEngine.Object.FindObjectsOfType<LabPlacement>())PositionPanel(placement.transform);
             for(int i=0;i<4;i++){var color=ProbeColor(i);Material("Control"+i,new Color(color.r*.45f,color.g*.45f,color.b*.45f));}
-            EditorSceneManager.SaveScene(scene);
+            LabEncoderMaterials.Prepare();EditorSceneManager.SaveScene(scene);
             scene=EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
             foreach(var station in UnityEngine.Object.FindObjectsOfType<PointCaseStation>())
             {
@@ -91,7 +91,7 @@ namespace SensaLab
             }
             foreach(var station in UnityEngine.Object.FindObjectsOfType<LocalProbeStation>())for(int i=0;i<station.receivers.Length;i++)Mark(station.receivers[i],i);
             foreach(var station in UnityEngine.Object.FindObjectsOfType<LabController>())for(int i=0;i<station.receivers.Length;i++)Mark(station.receivers[i],i,station.receivers.Length);
-            EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();EditorSceneManager.OpenScene(FunctionalLab.Scene);
+            LabEncoderMaterials.Prepare();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();EditorSceneManager.OpenScene(FunctionalLab.Scene);
         }
         static void AddPlacement(Transform host,Transform target,string name,Vector3 position,string instructions)
         {

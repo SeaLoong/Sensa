@@ -23,6 +23,16 @@ Source of truth: `F:/Code/Sensa/tools/unity-world-lab` and the shared Sensa GPU 
 
 Still requiring client validation: HMD visibility, avatar camera behavior, remote interactions, capture latency, minimized/occluded windows, Spout, and device calibration. No real device outputs are enabled by this harness.
 
+## 编码材质与重复运行
+
+Shader 测试台和几何运动台各自使用独立的运行时编码材质。`Runtime encoder material` 是禁用、无网格的 Renderer，只用于通过 `Renderer.material` 取得实例，不会显示编码画面。Udon 不支持材质复制构造函数，因此不要改成 `new Material(...)`。序号、样本和 CRC 故障注入写入运行时实例，退出 Play Mode 时销毁；资产中的初始设置保持原样。
+
+升级旧测试世界：同步源码后执行 `Tools > Sensa Lab > Upgrade isolated encoder materials`，为两个已有场景补齐引用。新生成的场景自动配置。Play Mode 验证也会在临时测试场景中补齐配置，并生成 `material-isolation.json`：既检查各测试台实例独立，也比较退出运行前后的材质内存内容和资产文件。材质隔离失败会使整次验证失败。
+
+几何验证不再自动调用场景生成/布局命令，也不会保存原场景。缺少本地 PB 站或 11 个几何 case 时会提示先通过菜单准备。批量工具另行校验两个原场景的文件内容；测试期间改写原场景会判失败。布局工具只调整 PB 抓取目标的显示大小，不再缩放整站的探针与文字。
+
+可从主仓库使用 [统一验证入口](https://github.com/SeaLoong/Sensa/blob/main/docs/development.md#本地-unity-套件) 顺序运行世界和 Avatar 测试。它为每次运行保存独立日志与报告副本，并拒绝把旧的成功报告当作本次结果。
+
 
 ## 新增四点定位测试区
 

@@ -12,7 +12,7 @@ namespace SensaLab
 {
     public static class LabValidation
     {
-        [Serializable] private class Report { public string unity, gpu, utc; public string[] passed; public string[] failed; public string[] unverified; }
+        [Serializable] private class Report { public string unity, gpu, utc; public bool passed;public string[] checks; public string[] failed; public string[] unverified; }
         private static readonly List<string> passed=new List<string>(), failed=new List<string>();
         private static void Check(bool value,string name) { (value?passed:failed).Add(name); }
         [MenuItem("Tools/Sensa Lab/Run editor GPU validation")]
@@ -21,13 +21,15 @@ namespace SensaLab
             passed.Clear();failed.Clear();Directory.CreateDirectory("Validation");
             try {
                 EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
+                LabMaterialValidation.Capture("Validation/editor");
                 foreach(var name in new[]{"SensaLab/Telemetry","SensaLab/TextureOutput"}) {
                     var shader=Shader.Find(name);Check(shader!=null && shader.isSupported && !ShaderUtil.ShaderHasError(shader),name+" supported");
                 }
                 TestTelemetry(); TestCameraOutput(); TestCameraOnlyRig(); TestContacts(); TestGpuAdapter();
                 CaptureScene();
+                Check(LabMaterialValidation.Finish(false),"Encoder source material unchanged");
             } catch(Exception ex) {failed.Add(ex.ToString());}
-            var report=new Report { unity=Application.unityVersion,gpu=SystemInfo.graphicsDeviceName,utc=DateTime.UtcNow.ToString("O"),passed=passed.ToArray(),failed=failed.ToArray(),
+            var report=new Report { unity=Application.unityVersion,gpu=SystemInfo.graphicsDeviceName,utc=DateTime.UtcNow.ToString("O"),passed=failed.Count==0&&passed.Count>0,checks=passed.ToArray(),failed=failed.ToArray(),
                 unverified=new[]{"VRChat client avatar camera filtering / HMD invisibility", "Spout or window capture timing", "Actual SPS resolver deformation runtime", "Remote-player Contact/OSC integration", "Physical hardware intentionally not connected"} };
             File.WriteAllText("Validation/editor-results.json",JsonUtility.ToJson(report,true));
             Debug.Log("SENSA_LAB_VALIDATION passed="+passed.Count+" failed="+failed.Count);
@@ -81,7 +83,7 @@ namespace SensaLab
             Check(GameObject.Find("Paired Pose Sender / Pair01").GetComponentsInChildren<VRCContactSender>().Length==3,"Three paired native markers");
         }
         private static void TestCameraOutput() {
-            var telemetry=AssetDatabase.LoadAssetAtPath<Material>("Assets/SensaLab/Generated/Telemetry.mat");
+            var telemetry=new Material(AssetDatabase.LoadAssetAtPath<Material>("Assets/SensaLab/Generated/Telemetry.mat"));
             var source=AssetDatabase.LoadAssetAtPath<RenderTexture>("Assets/SensaLab/Generated/Telemetry.renderTexture");
             source.Create();telemetry.SetFloat("_Sequence",12345);Graphics.Blit(Texture2D.blackTexture,source,telemetry);
             var rig=UnityEngine.Object.Instantiate(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/SensaLab/Generated/DesktopOutputExperiment.prefab"));
@@ -97,7 +99,7 @@ namespace SensaLab
                 File.WriteAllBytes("Validation/camera-output.png",read.EncodeToPNG());
                 Shader.SetGlobalFloat("_VRChatMirrorMode",1);camera.Render();RenderTexture.active=target;read.ReadPixels(new Rect(0,0,256,128),0,0);read.Apply();
                 Check(!Valid(Decode(read.GetPixels32(),256,128)),"Mirror-mode output suppressed (simulated shader global)");
-            }finally {Shader.SetGlobalFloat("_VRChatMirrorMode",0);RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(rig);UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);}
+            }finally {Shader.SetGlobalFloat("_VRChatMirrorMode",0);RenderTexture.active=previous;UnityEngine.Object.DestroyImmediate(rig);UnityEngine.Object.DestroyImmediate(read);target.Release();UnityEngine.Object.DestroyImmediate(target);UnityEngine.Object.DestroyImmediate(telemetry);}
         }
         private static void TestCameraOnlyRig() {
             var prefab=AssetDatabase.LoadAssetAtPath<GameObject>("Assets/SensaLab/Generated/CameraOnlyPrototype.prefab");

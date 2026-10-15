@@ -35,9 +35,11 @@ namespace SensaLab
         private static void RunScenario(bool offset) {
             SessionState.SetBool(Key+"Offset",offset);
             Directory.CreateDirectory(ReportDirectory);
-            LabBuilder.AddLocalProbeStation();
-            LabPointCases.AddCases();
             EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
+            if(UnityEngine.Object.FindObjectsOfType<LocalProbeStation>().Length!=1 || UnityEngine.Object.FindObjectsOfType<PointCaseStation>().Length!=11)
+                throw new InvalidOperationException("Prepare the local PB station and eleven point cases through the lab menus before validation. Validation does not rewrite the authoring scene.");
+            LabEncoderMaterials.Prepare();
+            LabMaterialValidation.Capture(ReportDirectory);
             if(offset){var socket=GameObject.Find("SPS2 Socket - legacy enabled").transform;socket.position+=new Vector3(.03f,0,0);socket.rotation=Quaternion.Euler(0,25,0);}
             // Explicitly run the installed world baker on the in-memory test scene.
             // The saved authoring scene is not overwritten.
@@ -56,7 +58,7 @@ namespace SensaLab
         private static void Changed(PlayModeStateChange state) {
             if(SessionState.GetInt(Key,0)==0)return;
             if(state==PlayModeStateChange.EnteredPlayMode){started=EditorApplication.timeSinceStartup;movementStage=0;walked=jumpBase=jumpPeak=0;testInput=null;testedController=null;originalInput=null;SessionState.SetInt(Key,2);}
-            if(state==PlayModeStateChange.EnteredEditMode){RestorePreference();SessionState.SetInt(Key,0);if(Application.isBatchMode)EditorApplication.Exit(SessionState.GetBool(Key+"Passed",false)?0:1);}
+            if(state==PlayModeStateChange.EnteredEditMode){RestorePreference();SessionState.SetInt(Key,0);bool materials=LabMaterialValidation.Finish();if(Application.isBatchMode)EditorApplication.Exit(SessionState.GetBool(Key+"Passed",false)&&materials?0:1);}
         }
         private static void RestorePreference(){if(SessionState.GetBool(Key+"VrcfuryPreferenceExists",false))EditorPrefs.SetBool("com.vrcfury.playMode",SessionState.GetBool(Key+"VrcfuryPreference",true));else EditorPrefs.DeleteKey("com.vrcfury.playMode");}
         private static void Tick() {
@@ -66,6 +68,7 @@ namespace SensaLab
             if(stage!=2 || EditorApplication.timeSinceStartup-started<12)return;
             SessionState.SetInt(Key,3);Directory.CreateDirectory("Validation");
             try {
+                LabMaterialValidation.CheckRuntime();
                 var status=GameObject.Find("Status").GetComponent<Text>().text;
                 var renderers=UnityEngine.Object.FindObjectsOfType<Renderer>();
                 var resolver=renderers.SelectMany(r=>r.sharedMaterials).FirstOrDefault(m=>m!=null && m.shader.name=="Hidden/VRCFury/SpsResolver");

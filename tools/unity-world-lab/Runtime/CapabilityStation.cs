@@ -23,6 +23,8 @@ namespace SensaLab
         private VRCContactSender spsRootSender,spsLengthSender;
         public Text status;
         public Material encoder;
+        public Renderer encoderInstanceHost;
+        private Material runtimeEncoder;
         public RenderTexture encoded;
         public GameObject output;
         public Vector3 sample;
@@ -35,6 +37,7 @@ namespace SensaLab
         private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857","#C792EA","#54DED2","#FF975C","#E6E6E6"};
         private void Start()
         {
+            if(encoderInstanceHost!=null)runtimeEncoder=encoderInstanceHost.material;
             if(plug==null)return;
             var senders=plug.GetComponentsInChildren<VRCContactSender>(true);
             for(int i=0;i<senders.Length;i++){if(senders[i].name=="Sender - Root")spsRootSender=senders[i];if(senders[i].name=="Length")spsLengthSender=senders[i];}
@@ -44,7 +47,8 @@ namespace SensaLab
         public void Offset() { SetPreset(2); }
         public void Outside() { SetPreset(3); }
         public void Freeze() { frozen = !frozen; }
-        public void Corrupt() { corrupt=!corrupt;if(encoder!=null)encoder.SetFloat("_CorruptCrc",corrupt?1:0); }
+        public void Corrupt() { corrupt=!corrupt;if(runtimeEncoder!=null)runtimeEncoder.SetFloat("_CorruptCrc",corrupt?1:0); }
+        private void OnDestroy() { if(runtimeEncoder!=null)Destroy(runtimeEncoder); }
         public void ToggleOutput() { if(output != null) output.SetActive(!output.activeSelf); }
         private void SetPreset(int value)
         {
@@ -95,11 +99,12 @@ namespace SensaLab
                 sample = new Vector3(.25f,-.5f,.75f);
                 text += "Synthetic transport fixture: XYZ=(.25,-.50,.75)\nExpected bridge XYZ within 0.00004; Valid=1\nFreeze -> stale Valid=0 after 350 ms.\nCRC corruption: "+corrupt+" (Corrupt toggles fault)\nRecovery requires TWO advancing frames.\nThis pattern is NOT an SPS measurement.\n";
             }
-            if(encoder != null)
+            if(runtimeEncoder != null)
             {
                 sequence=(sequence+1)&65535;
-                encoder.SetFloat("_Sequence",sequence);encoder.SetVector("_Sample",new Vector4(sample.x,sample.y,sample.z,0));
-                VRCGraphics.Blit(null,encoded,encoder);
+                runtimeEncoder.SetFloat("_Sequence",sequence);runtimeEncoder.SetVector("_Sample",new Vector4(sample.x,sample.y,sample.z,0));
+                runtimeEncoder.SetFloat("_CorruptCrc",corrupt?1:0);
+                VRCGraphics.Blit(null,encoded,runtimeEncoder);
             }
             text += "Ground-truth local XYZ: "+sample.ToString("F3")+"\nWorld Udon does not export avatar OSC.\n";
             text += mode == 6 ? "SPS GPU panel: use editor capture; compare model entry/length.\nPNG bridge paths: Sensa/Lab/Shader/{X,Y,Z,Valid}\n" : "See the station manifest for Sensa paths and test steps.\n";

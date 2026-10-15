@@ -157,7 +157,7 @@ namespace SensaLab
             var toggleBlock=GameObject.CreatePrimitive(PrimitiveType.Cube);toggleBlock.name="Click: desktop output experiment";toggleBlock.transform.position=new Vector3(.5f,.65f,1.5f);toggleBlock.transform.localScale=Vector3.one*.2f;
             var toggle=UdonSharpUndo.AddComponent<LabToggle>(toggleBlock);toggle.controller=controller;UdonSharpEditorUtility.CopyProxyToUdon(toggle);
             CreateSpsStation();
-            EditorSceneManager.SaveScene(scene,Root+"/SensaLab.unity");
+            LabEncoderMaterials.Prepare();EditorSceneManager.SaveScene(scene,Root+"/SensaLab.unity");
             EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(Root+"/SensaLab.unity",true)};
             AssetDatabase.SaveAssets();
             if(!File.Exists(Root+"/CameraOnlyPrototype.prefab"))CreateCameraPrototype();

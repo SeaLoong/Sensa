@@ -16,6 +16,8 @@ namespace SensaLab
         public VRCContactSender sender;
         public Text status;
         public Material telemetry;
+        public Renderer encoderInstanceHost;
+        private Material runtimeTelemetry;
         public RenderTexture telemetryTexture;
         public GameObject desktopOutput;
         private bool paused;
@@ -27,6 +29,9 @@ namespace SensaLab
         private Color32[] pixels = new Color32[256 * 128];
         private string readback = "Waiting for GPU readback";
         private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857","#C792EA","#54DED2","#FF975C","#E6E6E6"};
+
+        private void Start() { if(encoderInstanceHost!=null)runtimeTelemetry=encoderInstanceHost.material; }
+        private void OnDestroy() { if(runtimeTelemetry!=null)Destroy(runtimeTelemetry); }
 
         public override void Interact() { paused = !paused; }
         public void ToggleDesktop() { desktopOutput.SetActive(!desktopOutput.activeSelf); }
@@ -49,14 +54,15 @@ namespace SensaLab
         }
         private void Update()
         {
+            if(runtimeTelemetry==null)return;
             if (!paused) clock += Time.deltaTime;
             mover.position = origin.TransformPoint(new Vector3(.035f * Mathf.Sin(clock), .015f * Mathf.Sin(clock * .7f), .12f * Mathf.Sin(clock * .5f)));
             mover.localRotation = Quaternion.Euler(15 * Mathf.Sin(clock), 25 * Mathf.Sin(clock * .4f), 0);
             sequence = (sequence + 1) & 65535;
-            telemetry.SetFloat("_Sequence", sequence);
+            runtimeTelemetry.SetFloat("_Sequence", sequence);
             Vector3 local = origin.InverseTransformPoint(mover.position);
-            telemetry.SetVector("_Sample", new Vector4(local.x, local.y, local.z, 0));
-            VRCGraphics.Blit(null, telemetryTexture, telemetry);
+            runtimeTelemetry.SetVector("_Sample", new Vector4(local.x, local.y, local.z, 0));
+            VRCGraphics.Blit(null, telemetryTexture, runtimeTelemetry);
             if (!pending && sequence % 6 == 0) { pending = true; VRCAsyncGPUReadback.Request(telemetryTexture, 0, this); }
             string values = "";
             for (int i = 0; i < receivers.Length; i++) values += "<color="+colors[i%8]+">C" + (i+1) + ": " + receivers[i].CalculateProximity(sender).ToString("F3") + "</color>" + (i % 4 == 3 ? "\n" : "   ");

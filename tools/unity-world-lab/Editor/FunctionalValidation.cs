@@ -27,20 +27,30 @@ namespace SensaLab
         public static void Run()
         {
             Directory.CreateDirectory("Validation/functional");EditorSceneManager.OpenScene(FunctionalLab.Scene);
+            SessionState.SetBool(Key+"passed",false);
+            LabEncoderMaterials.Prepare();
+            LabMaterialValidation.Capture("Validation/functional");
             var type=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType("VF.Features.BuildSps")).First(t=>t!=null);
             type.GetMethod("Process").Invoke(null,new object[]{UnityEngine.SceneManagement.SceneManager.GetActiveScene()});
             SessionState.SetBool(Key+"hadPref",EditorPrefs.HasKey("com.vrcfury.playMode"));SessionState.SetBool(Key+"pref",EditorPrefs.GetBool("com.vrcfury.playMode",true));EditorPrefs.SetBool("com.vrcfury.playMode",false);
             EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene(),FunctionalLab.Root+"/BakedValidation.unity");
-            SessionState.SetInt(Key,1);EditorApplication.isPlaying=true;
+            SessionState.SetInt(Key,1);SessionState.SetFloat(Key+"started",(float)EditorApplication.timeSinceStartup);EditorApplication.isPlaying=true;
         }
         static void Changed(PlayModeStateChange state)
         {
             if(SessionState.GetInt(Key,0)==0)return;
             if(state==PlayModeStateChange.EnteredPlayMode){started=EditorApplication.timeSinceStartup;stage=0;rows=new List<Row>();SessionState.SetInt(Key,2);}
-            if(state==PlayModeStateChange.EnteredEditMode){if(SessionState.GetBool(Key+"hadPref",false))EditorPrefs.SetBool("com.vrcfury.playMode",SessionState.GetBool(Key+"pref",true));else EditorPrefs.DeleteKey("com.vrcfury.playMode");SessionState.SetInt(Key,0);if(Application.isBatchMode)EditorApplication.Exit(SessionState.GetBool(Key+"passed",false)?0:1);}
+            if(state==PlayModeStateChange.EnteredEditMode){RestorePreference();SessionState.SetInt(Key,0);bool materials=LabMaterialValidation.Finish();if(Application.isBatchMode)EditorApplication.Exit(SessionState.GetBool(Key+"passed",false)&&materials?0:1);}
         }
+        static void RestorePreference(){if(SessionState.GetBool(Key+"hadPref",false))EditorPrefs.SetBool("com.vrcfury.playMode",SessionState.GetBool(Key+"pref",true));else EditorPrefs.DeleteKey("com.vrcfury.playMode");}
         static void Tick()
         {
+            if(SessionState.GetInt(Key,0)==1 && EditorApplication.timeSinceStartup-SessionState.GetFloat(Key+"started",0)>120)
+            {
+                RestorePreference();SessionState.SetInt(Key,0);SessionState.SetBool(Key+"passed",false);
+                File.WriteAllText("Validation/functional/error.txt","Play Mode startup timed out; check Udon compilation errors in the Unity log.");
+                if(Application.isBatchMode)EditorApplication.Exit(1);return;
+            }
             if(SessionState.GetInt(Key,0)!=2)return;
             double elapsed=EditorApplication.timeSinceStartup-started;
             if(elapsed<4+stage*3)return;
@@ -63,12 +73,13 @@ namespace SensaLab
                 InteractiveValidation.Step(stage);
                 stage++;
                 if(stage<3)return;
+                LabMaterialValidation.CheckRuntime();
                 CaptureGpu(stations.Single(s=>s.mode==6));
                 ExportTexture(stations.Single(s=>s.mode==5).encoded,"Validation/functional/synthetic-telemetry.png");
                 var transport=stations.Single(s=>s.mode==5);
                 var program=UdonSharpEditorUtility.GetBackingUdonBehaviour(transport);
                 program.SendCustomEvent("Corrupt");
-                try {Graphics.Blit(Texture2D.blackTexture,transport.encoded,transport.encoder);ExportTexture(transport.encoded,"Validation/functional/corrupt-telemetry.png");}
+                try {Graphics.Blit(Texture2D.blackTexture,transport.encoded,(Material)program.GetProgramVariable("runtimeEncoder"));ExportTexture(transport.encoded,"Validation/functional/corrupt-telemetry.png");}
                 finally {program.SendCustomEvent("Corrupt");}
                 var report=new Report{passed=stations.Length==7 && rows.All(r=>r.passed) && InteractiveValidation.Passed,rows=rows.ToArray()};
                 File.WriteAllText("Validation/functional/results.json",JsonUtility.ToJson(report,true));SessionState.SetBool(Key+"passed",report.passed);
