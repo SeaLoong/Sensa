@@ -72,8 +72,20 @@ export async function checkpoint(page, locator, name) {
   await page.mouse.move(0, 0);
   await expect(page.getByRole('tooltip')).toHaveCount(0);
   await expect(page.locator('.MuiSnackbar-root')).toHaveCount(0, { timeout: 15000 });
-  await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'Horizontal viewport overflow').toBe(true);
+  const box = await locator.boundingBox(), viewport = page.viewportSize();
+  if (!box) throw new Error(`Checkpoint is not visible: ${name}`);
+  if (box.height > viewport.height - 80) {
+    // Sensa scrolls the body inside a height-limited html element. Capturing an
+    // oversized locator would include clipped blank areas, not what users see.
+    const stride = viewport.height - 100;
+    for (let offset = 0, part = 1; offset < box.height; offset += stride, part++) {
+      await locator.evaluate((element, y) => {
+        document.body.scrollTo({ top: document.body.scrollTop + element.getBoundingClientRect().top + y - 64, behavior: 'instant' });
+      }, offset);
+      await expect(page).toHaveScreenshot(`${name}-part-${part}.png`, { stylePath: 'tests/e2e/screenshot.css' });
+    }
+  } else await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
+  expect(await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= document.documentElement.clientWidth), 'Horizontal viewport overflow').toBe(true);
 }
 export async function outputValue(rig, transport, expected) {
   await expect.poll(() => {
