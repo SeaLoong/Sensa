@@ -69,6 +69,8 @@ export async function active(page, value = true) {
   await expect(toggle).toBeChecked({ checked: value });
 }
 export async function checkpoint(page, locator, name) {
+  await page.mouse.move(0, 0);
+  await expect(page.getByRole('tooltip')).toHaveCount(0);
   await expect(page.locator('.MuiSnackbar-root')).toHaveCount(0, { timeout: 15000 });
   await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'Horizontal viewport overflow').toBe(true);

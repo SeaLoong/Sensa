@@ -11,5 +11,7 @@ export default defineConfig({
   use: { browserName: 'chromium', locale: 'zh-CN', timezoneId: 'Asia/Shanghai', colorScheme: 'light',
     reducedMotion: 'reduce', trace: 'retain-on-failure', screenshot: 'only-on-failure', video: 'retain-on-failure' },
   projects: [{ name: 'desktop', use: { viewport: { width: 1280, height: 900 } } },
-    { name: 'mobile', use: { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true } }],
+    // A narrow CSS viewport, not device emulation: Chromium can then capture
+    // tall elements beyond the viewport without blank mobile compositor tiles.
+    { name: 'mobile', use: { viewport: { width: 390, height: 844 } } }],
 });
