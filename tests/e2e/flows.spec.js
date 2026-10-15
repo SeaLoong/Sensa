@@ -117,6 +117,10 @@ test('help, output editing and profile dialog render without overflow', async ({
   await expect(page.getByRole('dialog').getByRole('button', { name: '保存', exact: true })).toBeDisabled();
   await checkpoint(page, page.getByRole('dialog'), 'output-conflict');
   await page.getByRole('button', { name: '取消', exact: true }).click();
+  const addedOutput = page.locator('.output-card').filter({ hasNotText: 'Mock' });
+  await expect(addedOutput).toHaveCount(1);
+  await addedOutput.getByRole('button', { name: '移除', exact: true }).click();
+  await expect(page.locator('.output-card')).toHaveCount(4);
   await page.getByRole('button', { name: '修改配置', exact: true }).click();
   await page.getByRole('textbox', { name: '配置名称', exact: true }).fill('CI edited profile');
   await checkpoint(page, page.getByRole('dialog'), 'profile-settings');
