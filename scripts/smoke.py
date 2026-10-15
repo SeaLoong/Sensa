@@ -130,8 +130,21 @@ def main():
                     fixture = importlib.util.module_from_spec(fixture_spec); fixture_spec.loader.exec_module(fixture)
                     configuration = command('/api/config', 'GET')
                     assert not configuration['outputs'], 'Smoke test must never enable hardware'
+                    presets = json.loads((Path(__file__).resolve().parents[1] / 'src/web/data/osc-presets.json').read_text(encoding='utf-8'))
+                    configuration['signals'] = next(p['mappings'] for p in presets if p['id'] == 'sensa-quick-start')
+                    command('/api/input/active', 'PUT', {'active':True})
+                    command('/api/config', 'PUT', configuration)
+                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Saving mappings must close input'
+                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                        command('/api/input/active', 'PUT', {'active':True})
+                        for depth in (0, .25, .5, .75, 1):
+                            udp.sendto(fixture.bundle([('Sensa/QuickStart/Depth', depth), ('Sensa/QuickStart/Active', 1)]), ('127.0.0.1', osc_port))
+                            wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'QuickStart step {depth} did not reach Sensa')
+                        udp.sendto(fixture.bundle([('Sensa/QuickStart/Active', 0)]), ('127.0.0.1', osc_port))
+                        wait_overview(lambda s: s['runtime']['gateClosed'], 'World STOP did not close the QuickStart gate')
                     configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
                     command('/api/config', 'PUT', configuration)
+                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from QuickStart must leave input closed'
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                         udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
                         command('/api/input/active', 'PUT', {'active':True})
@@ -149,10 +162,10 @@ def main():
                         assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
                         udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
                         wait_overview(lambda s: s['runtime']['poseBlocked'], 'Lost pose did not block motion')
-                    command('/api/input/active', 'PUT', {'active':False})
                     configuration = command('/api/config', 'GET')
                     configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
                     command('/api/config', 'PUT', configuration)
+                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching to PB must leave input closed'
                     handle_prefix = 'Sensa/Handle/v1/Grip/Self'
                     root_values = [value for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
                     values = [(handle_prefix + f'/Root/A{i}', root_values[anchor]) for i, anchor in enumerate((0,3,5,6))]
@@ -165,7 +178,7 @@ def main():
                         udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
                         wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
                     command('/api/input/active','PUT',{'active':False})
-                print('HTTP/WS smoke passed: authentication, FT flood, pose/root isolation, local point mapping and PB release guard; no devices configured.')
+                print('HTTP/WS smoke passed: authentication, FT flood, QuickStart five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
                 passed = True
             except BaseException:
                 stack_tool = shutil.which('dotnet-stack')

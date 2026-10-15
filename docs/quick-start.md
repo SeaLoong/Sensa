@@ -4,6 +4,8 @@
 
 ## 先选你要做的事
 
+已有 FullFlow 测试 Avatar 和测试世界时，直接按 [三端联动路线](lab-workflow.md) 依次验证 QuickStart、PB、原生 SPS，再考虑定位和 Shader。
+
 | 我想做什么 | Avatar 上需要什么 | Sensa 选什么 |
 | --- | --- | --- |
 | 第一次确认整个链路可用 | 新增 **Quick Start World Receiver** | **入门 · 测试世界 → 我的 Avatar** |

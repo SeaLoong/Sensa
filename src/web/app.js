@@ -3,6 +3,7 @@ import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
+import OscFlowStatus from './OscFlowStatus.jsx';
 import firstRunMotion from './data/first-run-motion.json';
 import * as ReactDOM from 'react-dom/client';
 import * as MaterialUI from '@mui/material';
@@ -3632,11 +3633,12 @@ function App() {
   }
 
   function usePoseRig(pose, full = false) {
+    setSelectedOscPreset('');
     const preset = BUILT_IN_OSC_MAPPING_PRESETS.find(p => p.id === (full ? 'sensa-pose-full' : 'sensa-pose-depth'));
     const next = preset.mappings.map(mapping => makeSignalDraft({ ...mapping, oscPath: `${pose.prefix}/**` }));
-    const roles = new Set(next.map(mapping => mapping.role));
-    setSignalDrafts(previous => [...previous.filter(mapping => !['SensaPose','SensaPoint'].includes(mapping.sourceMode) && !roles.has(mapping.role)), ...next]);
-    notify('已生成精确映射草稿；多来源时先固定使用来源，再保存并应用。', 'info');
+    setSignalDrafts(next);
+    setOscWorkspaceTab('setup');
+    notify('已用此对象替换整套映射草稿，旧门控已移除；固定来源后保存，保存后需重新打开输入。', 'info');
   }
 
   function mapPreviewParameter(entry) {
@@ -3657,9 +3659,10 @@ function App() {
   }
 
   function usePointRig(point, calibrated = null) {
+    setSelectedOscPreset('');
     setOscWorkspaceTab('setup');
-    setSignalDrafts(previous => [...previous.filter(s=>!['SensaPose','SensaPoint'].includes(s.sourceMode) && s.role!=='Depth'),makeSignalDraft(calibrated || {oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
-    notify(calibrated?'已按采集的轴向和量程生成草稿；请确认来源和目标轴后保存。尚未启用输出。':'已添加本地 Z 位移草稿；请校准量程后保存，或在本地点面板使用两点校准。','info');
+    setSignalDrafts([makeSignalDraft(calibrated || {oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:'Z',role:'Depth',vrchatMin:0,vrchatMax:.2})]);
+    notify(calibrated?'已用校准结果替换整套映射草稿，旧门控已移除；确认来源后保存，再手动打开输入。':'已用本地 Z 位移替换整套草稿，旧门控已移除；请先校准量程再保存。','info');
   }
 
   function notify(message, severity = 'info') {
@@ -3858,7 +3861,7 @@ function App() {
       await persistConfig(nextConfig);
       await refreshOverview();
       savedSignalsHashRef.current = computeSignalHash(signalDrafts);
-      notify('OSC 映射已保存并应用', 'success');
+      notify('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。', 'success');
     }).catch(error => notify(error.message || '保存 OSC 映射失败', 'error'));
   }
 
@@ -5366,7 +5369,7 @@ function App() {
                 </Typography>
               </Box>
 
-              {runtimeOverview?.gateClosed && <Alert severity="info">OSC 门控已关闭，输出已停止；所有门控信号开启后恢复。</Alert>}
+              {runtimeOverview?.inputActive && runtimeOverview?.gateClosed && <Alert severity="info">OSC 门控已关闭，输出已停止；所有门控信号开启后恢复。</Alert>}
               <Tabs value={selectedInputTab} onChange={(_, next) => selectInputTab(next)} variant="scrollable" allowScrollButtonsMobile>
                 {INPUT_MODES.map(item => (
                   <Tab key={item.value} value={item.value} label={item.label} />
@@ -5375,6 +5378,7 @@ function App() {
 
               <TabPanel value="osc" current={selectedInputTab}>
                 <Stack spacing={2}>
+                  <OscFlowStatus mappings={config?.signals || []} drafts={signalDrafts} dirty={Boolean(hasUnsavedMappings)} runtime={runtimeOverview || {}} mode={actualInputMode} listening={Boolean(overview?.osc?.listening)} />
                   {runtimeOverview?.inputActive && runtimeOverview?.poseBlocked && <Alert severity="warning">精确定位当前不可用或未进入孔口，输出已停止。请检查下方观测状态；多个来源时先固定使用来源。</Alert>}
                   <Tabs value={oscWorkspaceTab} onChange={(_,value)=>setOscWorkspaceTab(value)} variant="scrollable" allowScrollButtonsMobile aria-label="OSC 工作区">
                     <Tab value="setup" label="参数与映射"/><Tab value="diagnostics" label="空间诊断"/><Tab value="calibration" label="量程校准"/>
@@ -5651,7 +5655,7 @@ function App() {
                                         <TableCell>{entry.type || '—'}</TableCell>
                                         <TableCell align="right">{entry.value ?? '—'}</TableCell>
                                         <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
-                                        <TableCell><Button size="small" onClick={() => mapPreviewParameter(entry)}>映射</Button></TableCell>
+                                        <TableCell><Button size="small" title={/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'用此定位对象替换整套草稿，包括旧门控；保存前可恢复。':'添加映射草稿；请检查含义后保存。'} onClick={() => mapPreviewParameter(entry)}>{/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'替换草稿':'映射'}</Button></TableCell>
                                       </TableRow>
                                     </Tooltip>
                                   );
@@ -5689,12 +5693,12 @@ function App() {
                       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
                         <Tooltip title="用选中预设的映射替换当前全部映射" arrow>
                           <Button variant="contained" size="small" onClick={() => applyOscPreset('replace')} disabled={!selectedOscPresetConfig}>
-                            应用
+                            替换草稿
                           </Button>
                         </Tooltip>
                         <Tooltip title="将选中预设的映射追加到当前映射列表" arrow>
                           <Button variant="outlined" size="small" onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>
-                            追加
+                            追加草稿
                           </Button>
                         </Tooltip>
                         {selectedOscPresetConfig && (

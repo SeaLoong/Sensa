@@ -48,9 +48,10 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
           <Chip size="small" color={pose.engaged ? 'success' : pose.valid ? 'warning' : 'default'} label={pose.reason} />
           <Chip size="small" variant="outlined" label={`${pose.sampleCount}/24 采样`} />
           {activeKey === pose.key && <Chip size="small" color="primary" label="当前控制对象" />}
-          <Button size="small" variant="outlined" onClick={() => onUseRig(pose)}>生成深度映射</Button>
-          <Button size="small" onClick={() => onUseRig(pose, true)}>六轴映射（需校准）</Button>
+          <Button size="small" variant="outlined" onClick={() => onUseRig(pose)}>替换为此对象深度</Button>
+          <Button size="small" onClick={() => onUseRig(pose, true)}>替换为此对象六轴</Button>
         </Stack>
+        <Typography variant="caption" color="text.secondary">替换整套草稿并移除旧门控；六轴仍需校准。保存前可在映射页恢复原配置。</Typography>
         <Box className="pose-dashboard">
           <Box><ToggleButtonGroup exclusive size="small" value={projection} onChange={(_, value) => value && setProjection(value)} aria-label="空间投影"><ToggleButton value="side">侧视深度</ToggleButton><ToggleButton value="front">正视偏移</ToggleButton></ToggleButtonGroup><PosePlot pose={pose} projection={projection} /></Box>
           <Box className="pose-metrics">

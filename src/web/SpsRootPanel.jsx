@@ -57,7 +57,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint, mode = 'di
       {mode==='calibration' && !local && <Alert severity="info" sx={{my:2}}>请选择 Point 或 Handle 本地点进行量程校准。标准 SPS Root 和共享根部只有诊断位置，不能当作完整行程。</Alert>}
       {mode==='calibration' && local && <Box className="point-calibration" sx={{my:1}}>
         <Typography variant="subtitle2">两点量程校准</Typography>
-        <Typography variant="caption" color="text.secondary">将目标移到期望的 0% 和 100% 位置，分别采集。PB 把手采集时须保持抓取；生成草稿不会保存配置或启用输出。</Typography>
+        <Typography variant="caption" color="text.secondary">将目标移到期望的 0% 和 100% 位置，分别采集。PB 把手须保持抓取；结果将替换整套草稿并移除旧门控，保存前可恢复原配置。</Typography>
         <Box sx={{mt:1}}><Chip size="small" variant="outlined" color={endpoint?'primary':'default'} label={`当前 ${metric==='Distance'?'距原点':metric}：${endpoint?cm(endpoint.value)+' cm':'等待有效采样'}`}/></Box>
         <Stack direction="row" gap={1} alignItems="center" useFlexGap flexWrap="wrap" sx={{my:1}}>
           <FormControl size="small" sx={{minWidth:130}}><InputLabel id="point-axis-label">测量轴</InputLabel><Select labelId="point-axis-label" label="测量轴" value={metric} onChange={e=>{setMetric(e.target.value);setZero(null);setFull(null);}}>{['X','Y','Z','Distance'].map(axis=><MenuItem key={axis} value={axis}>{axis==='Distance'?'距参考原点':axis}</MenuItem>)}</Select></FormControl>
@@ -66,7 +66,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint, mode = 'di
         <Box className="point-calibration-steps">
           <Box className="point-calibration-step"><Typography variant="overline">01 · 起点</Typography><Typography variant="h6">{samePoint(zero)?cm(zero.value)+' cm':'待采集'}</Typography><Button variant="outlined" size="small" disabled={!endpoint} onClick={()=>setZero(endpoint)}>采集 0%</Button></Box>
           <Box className="point-calibration-step"><Typography variant="overline">02 · 终点</Typography><Typography variant="h6">{samePoint(full)?cm(full.value)+' cm':'待采集'}</Typography><Button variant="outlined" size="small" disabled={!endpoint} onClick={()=>setFull(endpoint)}>采集 100%</Button></Box>
-          <Box className="point-calibration-step"><Typography variant="overline">03 · 预览与草稿</Typography><Typography variant="h6">{progress?progress.percent.toFixed(1)+'%':'—'}</Typography><LinearProgress variant="determinate" value={progress?.percent||0} sx={{width:'100%',my:1,borderRadius:1}}/><Button variant="contained" size="small" disabled={!calibration.draft} onClick={()=>onUsePoint?.(root,calibration.draft)}>生成校准映射草稿</Button></Box>
+          <Box className="point-calibration-step"><Typography variant="overline">03 · 预览与草稿</Typography><Typography variant="h6">{progress?progress.percent.toFixed(1)+'%':'—'}</Typography><LinearProgress variant="determinate" value={progress?.percent||0} sx={{width:'100%',my:1,borderRadius:1}}/><Button variant="contained" size="small" disabled={!calibration.draft} onClick={()=>onUsePoint?.(root,calibration.draft)}>替换为校准映射</Button></Box>
         </Box>
         {progress?.outside && <Typography variant="caption" color="warning.main">当前位置超出校准量程，预览已限制到 0–100%。</Typography>}
         <Typography variant="caption" color="text.secondary">{calibration.error || (calibration.draft.invertDirection?'量程随坐标减小而增大，已自动反向。':'量程随坐标增大而增大。')}</Typography>
