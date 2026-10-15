@@ -21,6 +21,7 @@ test('manual controls reach all mock transports, record, stop and never auto-res
   const downloaded = page.waitForEvent('download');
   await page.getByRole('button', { name: /导出录制/ }).click();
   const script = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
+  await test.info().attach('recorded.funscript', { body: JSON.stringify(script, null, 2), contentType: 'application/json' });
   expect(script.actions.length).toBeGreaterThanOrEqual(2);
   await page.getByRole('button', { name: '停止输出', exact: true }).click();
   for (const transport of ['udp', 'tcp', 'serial']) await expect.poll(() => rig.wire[transport].at(-1)).toBe('DSTOP');
