@@ -9,6 +9,11 @@ concurrency:
   group: sensa-pages
   cancel-in-progress: false
 jobs:
+  e2e:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/e2e.yml
+    with:
+      update_snapshots: false
   build:
     runs-on: ubuntu-latest
     outputs:
@@ -36,7 +41,7 @@ jobs:
             artifacts/release-notes.txt
           if-no-files-found: error
   release:
-    needs: build
+    needs: [build, e2e]
     if: github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:

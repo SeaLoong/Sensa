@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 
 test('manual controls reach all mock transports, record, stop and never auto-resume', async ({ page, rig }) => {
   await enable(page);
+  expect(rig.wire.serial).toEqual(expect.arrayContaining(['D0', 'D1', 'D2']));
   await checkpoint(page, page.locator('.section-card').first(), 'manual-ready');
   await active(page);
   await page.getByRole('button', { name: '录制 L0', exact: true }).click();
@@ -44,7 +45,13 @@ test('QuickStart OSC steps, FT filtering, preview and gate stop', async ({ page,
   await page.getByRole('checkbox', { name: '显示 FT', exact: true }).check();
   await expect(page.getByRole('button', { name: 'Face/v2/JawOpen0', exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: '显示 FT', exact: true }).uncheck();
-  await checkpoint(page, page.locator('table').filter({ has: page.getByRole('button', { name: 'Sensa/QuickStart/Depth', exact: true }) }), 'osc-parameters');
+  const parameters = page.locator('.osc-preview-table-wrap');
+  await checkpoint(page, parameters, 'osc-parameters');
+  if (await parameters.evaluate(element => element.scrollWidth > element.clientWidth)) {
+    await parameters.evaluate(element => { element.scrollLeft = element.scrollWidth; });
+    await checkpoint(page, parameters, 'osc-parameters-right');
+    await parameters.evaluate(element => { element.scrollLeft = 0; });
+  }
   await rig.send([['Sensa/QuickStart/Active', 0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await checkpoint(page, page.getByLabel('Avatar 世界 软件联动检查'), 'quickstart-stopped');
@@ -130,6 +137,7 @@ test('help, output editing and profile dialog render without overflow', async ({
 
 test('paired pose reconstruction, mapping and lost landmark stop', async ({ page, rig }) => {
   await enable(page, ['Mock UDP']); await mode(page, 'OSC'); await rig.send(poseSamples());
+  await expect.poll(async () => (await rig.overview()).poseTracking.observations.some(p => p.valid && p.engaged && p.sampleCount === 24 && Math.abs(p.depth - .5) < .001)).toBe(true);
   await page.getByRole('tab', { name: '空间诊断', exact: true }).click();
   await expect(page.getByRole('button', { name: '替换为此对象深度', exact: true })).toBeVisible();
   await checkpoint(page, page.locator('.pose-dashboard'), 'paired-pose');
