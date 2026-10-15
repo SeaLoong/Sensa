@@ -1,0 +1,3 @@
+/* Only nondeterministic timestamps / PTY names. Motion values are never masked. */
+[data-testid="output-last-sent"], [data-testid="osc-timestamp"] { visibility: hidden !important; }
+.output-card .MuiCardHeader-subheader { visibility: hidden !important; }

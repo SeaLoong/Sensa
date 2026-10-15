@@ -10,6 +10,6 @@ export default function OutputPositionPanel({state}) {
       <Box className="output-position-heading"><Typography variant="caption" title={target.label}>{target.label}</Typography><Typography variant="caption" fontWeight={700}>{target.maximum===999?Math.round(target.value):target.value.toFixed(1)+'%'} <span className="output-position-unit">/ {target.maximum===999?'999':'100%'}</span></Typography></Box>
       <LinearProgress variant="determinate" value={target.percent} color={preview.phase==='sent'?'primary':'inherit'}/>
     </Box>)}</Box>}
-    <Typography variant="caption" color="text.secondary" component="p" sx={{mt:1}}>显示该输出最近发送的目标值，已包含输出侧映射；不是设备位置传感器回读。{preview.lastSentAtUtc&&` 最近发送 ${new Date(preview.lastSentAtUtc).toLocaleTimeString()}`}</Typography>
+    <Typography variant="caption" color="text.secondary" component="p" sx={{mt:1}}>显示该输出最近发送的目标值，已包含输出侧映射；不是设备位置传感器回读。{preview.lastSentAtUtc&&<span data-testid="output-last-sent">{` 最近发送 ${new Date(preview.lastSentAtUtc).toLocaleTimeString()}`}</span>}</Typography>
   </Box>;
 }

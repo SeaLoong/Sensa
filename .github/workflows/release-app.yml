@@ -8,10 +8,15 @@ concurrency:
   group: release-app-${{ github.ref }}
   cancel-in-progress: false
 jobs:
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+    with:
+      update_snapshots: false
   build:
+    needs: e2e
     uses: ./.github/workflows/build-platforms.yml
   release:
-    needs: build
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     permissions:
       contents: write

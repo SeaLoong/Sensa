@@ -5,7 +5,10 @@
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
     "test": "npm run lint && node --test tests/web/*.test.mjs",
-    "lint": "eslint src/web"
+    "lint": "eslint src/web",
+    "e2e:ci": "playwright test",
+    "e2e:request": "gh workflow run e2e.yml --ref main -f update_snapshots=false",
+    "e2e:baselines": "gh workflow run e2e.yml --ref main -f update_snapshots=true"
   },
   "repository": {
     "type": "git",
@@ -20,8 +23,10 @@
   },
   "homepage": "https://github.com/SeaLoong/Sensa#readme",
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "esbuild": "0.28.2",
-    "eslint": "10.12.0"
+    "eslint": "10.12.0",
+    "ws": "8.22.0"
   },
   "private": true,
   "dependencies": {

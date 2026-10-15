@@ -40,13 +40,18 @@ jobs:
           name: build-unity
           path: artifacts/unity/
           if-no-files-found: error
-  platforms:
+  e2e:
     needs: validate
+    uses: ./.github/workflows/e2e.yml
+    with:
+      update_snapshots: false
+  platforms:
+    needs: [validate, e2e]
     uses: ./.github/workflows/build-platforms.yml
     with:
       label: preview.${{ github.run_number }}.${{ github.sha }}
   prerelease:
-    needs: [validate, platforms]
+    needs: [validate, e2e, platforms]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20

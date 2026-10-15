@@ -5654,7 +5654,7 @@ function App() {
                                         </TableCell>
                                         <TableCell>{entry.type || '—'}</TableCell>
                                         <TableCell align="right">{entry.value ?? '—'}</TableCell>
-                                        <TableCell align="right">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
+                                        <TableCell align="right" data-testid="osc-timestamp">{formatPreviewTimestamp(entry.timestampMs)}</TableCell>
                                         <TableCell><Button size="small" title={/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'用此定位对象替换整套草稿，包括旧门控；保存前可恢复。':'添加映射草稿；请检查含义后保存。'} onClick={() => mapPreviewParameter(entry)}>{/^Sensa\/(Point|Handle|Pose)\//.test(entry.path)?'替换草稿':'映射'}</Button></TableCell>
                                       </TableRow>
                                     </Tooltip>

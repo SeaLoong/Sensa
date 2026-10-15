@@ -15,6 +15,8 @@ python scripts/release.py check-unity
 
 ## CI 与发布
 
+WebUI 端到端和截图比较只在 CI 运行，基线更新、模拟设备与失败排查见 [E2E 指南](e2e.md)。预发布必须等待 E2E 比较通过；候选截图生成任务不会发布。
+
 历史失败的具体日志、原因和对应处理见 [CI 失败核对记录](ci-failure-audit.md)。可以在 GitHub 手动运行 `Validate and preview` 检查 main；手动运行 `Validate and release Unity package` 只验证并打包 Unity 预览工件，不创建 Release 或部署 VPM。
 
 PR 和 main 推送运行校验及六种原生平台构建，每个平台执行后端测试、自包含程序启动和隔离 HTTP/WS/OSC 冒烟，再生成压缩包。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
