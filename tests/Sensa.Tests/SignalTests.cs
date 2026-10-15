@@ -126,6 +126,79 @@ public class SignalTests
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SpsPairAcceptsOneCachedCoordinate(bool refreshTip)
+    {
+        const string root = "OGB/Orf/Test/PenSelfNewRoot";
+        const string tip = "OGB/Orf/Test/PenSelfNewTip";
+        var config = new AppConfig { Signals = [new() { OscPath = root, SourceMode = "SpsSocketDepth" }] };
+        config.Osc.InputTimeoutMs = 150; config.NormalizeForRuntime();
+        var store = new OscParameterStore();
+        store.Set(root, OscValue.FromFloat(.77f)); store.Set(tip, OscValue.FromFloat(.96f));
+        await Task.Delay(220);
+        store.Set(refreshTip ? tip : root, OscValue.FromFloat(refreshTip ? .96f : .77f));
+        using var receiver = new OscInputReceiver(store);
+        var sent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var runtime = new MotionRuntime(config, store, receiver,
+            sendOutputsAsync: _ => { sent.TrySetResult(); return Task.CompletedTask; });
+        runtime.SetInputMode(RuntimeInputMode.Osc); runtime.SetInputActive(true);
+        await sent.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.False(runtime.IsEmergency);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task SpsPairWatchdogTracksEitherCoordinateAndStillStopsOnSilence(bool refreshTip)
+    {
+        const string root = "OGB/Orf/Test/PenSelfNewRoot";
+        const string tip = "OGB/Orf/Test/PenSelfNewTip";
+        var config = new AppConfig { Signals = [new() { OscPath = root, SourceMode = "SpsSocketDepth" }] };
+        config.Osc.InputTimeoutMs = 250; config.NormalizeForRuntime();
+        var store = new OscParameterStore();
+        store.Set(root, OscValue.FromFloat(.77f)); store.Set(tip, OscValue.FromFloat(.96f));
+        using var receiver = new OscInputReceiver(store);
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var runtime = new MotionRuntime(config, store, receiver,
+            emergencyStopAsync: () => { stopped.TrySetResult(); return Task.CompletedTask; });
+        runtime.SetInputMode(RuntimeInputMode.Osc); runtime.SetInputActive(true);
+        var deadline = DateTime.UtcNow.AddMilliseconds(1100);
+        while (DateTime.UtcNow < deadline)
+        {
+            store.Set(refreshTip ? tip : root, OscValue.FromFloat(refreshTip ? .96f : .77f));
+            await Task.Delay(25);
+        }
+        Assert.False(runtime.IsEmergency);
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(2));
+        Assert.True(runtime.IsEmergency); Assert.False(runtime.InputActive);
+    }
+
+    [Theory]
+    [InlineData("OGB/Orf/Test/PenSelfNewTip", "other")]
+    [InlineData("OGB/Orf/Other/PenSelfNewTip", "selected")]
+    public async Task UnrelatedSpsTipCannotKeepTheSelectedPairAlive(string foreignPath, string foreignSource)
+    {
+        const string root = "OGB/Orf/Test/PenSelfNewRoot";
+        var config = new AppConfig { Signals = [new() { OscPath = root, SourceMode = "SpsSocketDepth" }] };
+        config.Osc.InputTimeoutMs = 150; config.NormalizeForRuntime();
+        var store = new OscParameterStore();
+        var source = new OscSource("selected", "selected", null, "127.0.0.1", 1);
+        store.Set(root, OscValue.FromFloat(.77f), source);
+        store.Set(root[..^7] + "NewTip", OscValue.FromFloat(.96f), source);
+        using var receiver = new OscInputReceiver(store);
+        using var runtime = new MotionRuntime(config, store, receiver, preferredOscSourceKeyProvider: () => "selected");
+        runtime.SetInputMode(RuntimeInputMode.Osc); runtime.SetInputActive(true);
+        var deadline = DateTime.UtcNow.AddSeconds(2);
+        while (runtime.InputActive && DateTime.UtcNow < deadline)
+        {
+            store.Set(foreignPath, OscValue.FromFloat(1), source with { Key = foreignSource });
+            await Task.Delay(25);
+        }
+        Assert.True(runtime.IsEmergency);
+    }
+
+    [Theory]
     [InlineData(float.NaN, 1)]
     [InlineData(.8f, float.PositiveInfinity)]
     [InlineData(1.1f, 1)]

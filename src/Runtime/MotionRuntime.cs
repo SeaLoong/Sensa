@@ -459,13 +459,10 @@ public sealed class MotionRuntime : IDisposable
             foreach (var matched in _store.MatchingEntries(path, preferredSourceKey))
             {
                 var entry = matched.Entry;
-                if (_config.Osc.InputTimeoutMs > 0 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - entry.TimestampMs > _config.Osc.InputTimeoutMs) continue;
                 var rawValue = entry.Value.AsFloat();
                 if (processor.Mapping.SourceMode == "SpsSocketDepth")
                 {
-                    if (!matched.Path.EndsWith("NewRoot", StringComparison.Ordinal)) continue;
-                    var tipPath = matched.Path[..^7] + "NewTip";
-                    if (!_store.TryGetLatest(tipPath, entry.Source.Key, out var tip)) continue;
+                    if (!TryGetSpsTip(matched, out var tip, out var timestamp) || !IsGeometryFresh(timestamp)) continue;
                     // OSC can be delta-only: a saturated tip may legitimately remain
                     // unchanged while root proximity keeps updating. Identity, not
                     // timestamp proximity, determines whether this is the same pair.
@@ -480,6 +477,7 @@ public sealed class MotionRuntime : IDisposable
                         rawValue = estimator.Process(rawValue, tip.Value.AsFloat(), tip.Sequence);
                     }
                 }
+                else if (!IsGeometryFresh(entry.TimestampMs)) continue;
                 var sample = processor.ProcessSample(rawValue);
                 if (processor.Mapping.Role == SignalRole.GateEnable) { thisGateOpen |= sample.Output > .5f; continue; }
                 if (processor.Mapping.Role == SignalRole.DepthOverride) { depthOverride = Math.Max(depthOverride ?? 0, sample.Output); continue; }
@@ -551,6 +549,30 @@ public sealed class MotionRuntime : IDisposable
     private bool IsGeometryFresh(long timestampMs) => _config.Osc.InputTimeoutMs <= 0
         || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
 
+    private bool TryGetSpsTip(OscParameterStore.SnapshotEntry root, out OscParameterStore.Entry tip, out long timestamp)
+    {
+        tip = default; timestamp = 0;
+        if (!root.Path.EndsWith("NewRoot", StringComparison.Ordinal)
+            || !_store.TryGetLatest(root.Path[..^7] + "NewTip", root.Entry.Source.Key, out tip)) return false;
+        // Either coordinate can remain unchanged in delta-only OSC. A different
+        // socket, source or gate must never refresh this pair's timeout.
+        timestamp = Math.Max(root.Entry.TimestampMs, tip.TimestampMs);
+        return true;
+    }
+
+    private IEnumerable<long> ScalarInputTimestamps((string Path, string Mode, SignalRole Role)[] mappings, string? source)
+    {
+        foreach (var mapping in mappings.Where(m => m.Role != SignalRole.GateEnable))
+        foreach (var matched in _store.MatchingEntries(mapping.Path, source))
+        {
+            if (mapping.Mode == "SpsSocketDepth")
+            {
+                if (TryGetSpsTip(matched, out _, out var timestamp)) yield return timestamp;
+            }
+            else yield return matched.Entry.TimestampMs;
+        }
+    }
+
     private void CheckInputTimeout()
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
@@ -567,7 +589,7 @@ public sealed class MotionRuntime : IDisposable
             ? SpsPositionTracking.Observe(_store.SnapshotEntries(),source).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
             : posePaths.Length>0
                 ? GetPoseObservations().Where(p=>posePaths.Any(p.Matches)).Select(p=>p.TimestampMs)
-                : mappings.Where(m=>m.Role!=SignalRole.GateEnable).SelectMany(m=>_store.MatchingEntries(m.Path,source)).Select(e=>e.Entry.TimestampMs);
+                : ScalarInputTimestamps(mappings, source);
         var last=timestamps.DefaultIfEmpty(_activationTimestamp).Max();
         if (now - Math.Max(last, _activationTimestamp) <= _config.Osc.InputTimeoutMs) return;
         OnLog?.Invoke("[MotionRuntime] OSC input timeout; emergency stop.");
