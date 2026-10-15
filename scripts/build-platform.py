@@ -18,7 +18,7 @@ def main():
     run('dotnet','test','tests/Sensa.Tests/Sensa.Tests.csproj','-c','Release','--no-restore','--logger','trx;LogFileName=backend.trx','--results-directory',str(ROOT/'artifacts'/'test-results'/args.runtime))
     run('dotnet','publish','src/Sensa.csproj','-c','Release','-r',args.runtime,'--self-contained','true','-p:RestoreLockedMode=true','-o',str(source))
     binary=source/('Sensa.exe' if args.runtime.startswith('win-') else 'Sensa')
-    run(sys.executable,'scripts/smoke.py','--exe',str(binary))
+    run(sys.executable,'scripts/smoke.py','--exe',str(binary),'--report-dir',str(ROOT/'artifacts'/'test-results'/args.runtime/'smoke'))
     version=json.loads((ROOT/'package.json').read_text(encoding='utf-8'))['version']
     tag=os.environ['GITHUB_REF_NAME'] if os.environ.get('GITHUB_REF_TYPE')=='tag' else 'v'+version
     run(sys.executable,'scripts/release.py','app','--tag',tag,'--runtime',args.runtime,'--label',args.label,'--source',str(source),'--output',str(output))

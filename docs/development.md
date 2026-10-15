@@ -17,6 +17,10 @@ python scripts/release.py check-unity
 
 PR 和 main 推送运行校验及六种原生平台构建，每个平台执行后端测试、自包含程序启动和隔离 HTTP/WS/OSC 冒烟，再生成压缩包。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
 
+基础校验通过后才启动六个平台构建。React 与 React DOM 的版本更新和安全更新分别成组提交，避免只升级其中一个导致 `npm ci` 的 peer dependency 冲突；分组规则见 [GitHub 官方说明](https://docs.github.com/en/code-security/reference/supply-chain-security/dependabot-options-reference#groups)。这不自动合并依赖升级。
+
+排查失败时先看出错步骤：`npm ci / ERESOLVE` 是依赖配套问题，HTTP 408 是上传超时，应用冒烟失败则查看 `tests-<平台>` 附件中的 `smoke/service.log` 和 `smoke/result.json`。OSC 断言会在限定时间内等待实际状态，并在失败时输出最后观测值；不会重发输入或重跑整个测试来掩盖失败。历史红色运行记录不会因修复而消失，应核对提交和最新运行。
+
 只有 main 推送且所有检查成功，才自动生成新的 prerelease，带六个桌面包、Unity ZIP 和统一校验文件。预发布 tag 使用运行编号/尝试编号/commit 标识，不移动已有版本。先以 draft 上传完整文件，再公开；PR 无发布权限。
 
 附件逐个上传，单个失败最多尝试三次；公开前核对 GitHub 上的附件名称、上传状态、大小和 SHA-256，以及草稿对应的提交。上传超时、附件不完整或校验失败时保留草稿，不公开残缺版本。

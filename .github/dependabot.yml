@@ -8,6 +8,12 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    groups:
+      react-runtime:
+        patterns: [react, react-dom]
+      react-security:
+        applies-to: security-updates
+        patterns: [react, react-dom]
   - package-ecosystem: github-actions
     directory: /
     schedule:

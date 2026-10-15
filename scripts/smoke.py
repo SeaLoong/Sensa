@@ -34,9 +34,23 @@ def read_frame(sock):
     data = read_exact(sock, size)
     return json.loads(data) if head[0] & 15 == 1 else None
 
+def wait_for_state(fetch, predicate, description, timeout=5):
+    deadline = time.monotonic() + timeout
+    while True:
+        state = fetch()
+        if predicate(state):
+            return state
+        if time.monotonic() >= deadline:
+            raise AssertionError(description + '; last observed state: ' + json.dumps(state, ensure_ascii=False))
+        time.sleep(.05)
+
 def main():
     parser = argparse.ArgumentParser(); parser.add_argument('--dotnet', default='dotnet'); parser.add_argument('--dll'); parser.add_argument('--exe')
+    parser.add_argument('--report-dir', type=Path)
     args = parser.parse_args()
+    report_dir = args.report_dir.resolve() if args.report_dir else None
+    if report_dir: report_dir.mkdir(parents=True, exist_ok=True)
+    passed = False
     with socket.socket() as probe:
         probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
     base = f'http://127.0.0.1:{port}'
@@ -57,10 +71,10 @@ def main():
                         if time.monotonic() > deadline or process.poll() is not None:
                             log.seek(0); raise AssertionError(log.read())
                         time.sleep(.1)
-                assert b'app.bundle.js' in urllib.request.urlopen(base).read()
-                assert len(urllib.request.urlopen(base + '/app.bundle.js').read()) > 1000
+                assert b'app.bundle.js' in urllib.request.urlopen(base, timeout=10).read()
+                assert len(urllib.request.urlopen(base + '/app.bundle.js', timeout=10).read()) > 1000
                 def request(path, headers=None):
-                    return urllib.request.urlopen(urllib.request.Request(base + path, headers=headers or {}))
+                    return urllib.request.urlopen(urllib.request.Request(base + path, headers=headers or {}), timeout=10)
                 try: request('/api/config'); raise AssertionError('Missing authentication accepted')
                 except urllib.error.HTTPError as error: assert error.code == 401
                 try: request('/api/config', {'Cookie':cookie, 'Origin':'http://untrusted.invalid'}); raise AssertionError('Cross origin accepted')
@@ -90,6 +104,8 @@ def main():
                             if result and result.get('id') == marker:
                                 assert result['ok'], result
                                 return result['data']
+                    def wait_overview(predicate, description):
+                        return wait_for_state(lambda: command('/api/state/overview', 'GET'), predicate, description)
                     configuration = command('/api/config', 'GET')
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                         udp.bind(('127.0.0.1', 0)); osc_port = udp.getsockname()[1]
@@ -103,8 +119,7 @@ def main():
                         for name, value in [('OGB/Orf/Test/PenOthers', .8)] + [(f'Face/v2/JawOpen{i}', .5) for i in range(300)] + [('InvalidFloat', float('nan'))]:
                             udp.sendto(osc_string('/avatar/parameters/' + name) + osc_string(',f') + struct.pack('!f', value), ('127.0.0.1', osc_port))
                             time.sleep(.001)
-                    time.sleep(.1)
-                    snapshot = command('/api/state/overview', 'GET')
+                    snapshot = wait_overview(lambda s: len(s['osc']['preview']) >= 250 and any(e['path'] == 'OGB/Orf/Test/PenOthers' for e in s['osc']['preview']), 'OSC flood was not received')
                     preview = {e['path']: e for e in snapshot['osc']['preview']}
                     assert 'OGB/Orf/Test/PenOthers' in preview
                     assert len(preview) >= 250, len(preview)
@@ -119,28 +134,21 @@ def main():
                     command('/api/config', 'PUT', configuration)
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                         udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
-                        time.sleep(.1)
                         command('/api/input/active', 'PUT', {'active':True})
-                        time.sleep(.1)
-                        snapshot = command('/api/state/overview', 'GET')
+                        snapshot = wait_overview(lambda s: len(s['poseTracking']['observations']) > 0 and abs(s['runtime']['command']['l0'] - .5) < .001 and not s['runtime']['poseBlocked'], 'Paired pose did not produce expected L0')
                         pose = snapshot['poseTracking']['observations'][0]
                         assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
                         assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
                         standard = [(path.replace('Sensa/Pose/v1/', 'Sensa/SpsRoot/v1/'), value)
                                     for path, value in fixture.samples((.025,-.02,-.1),(0,0,0),(0,0,0),radius=.01) if '/Root/' in path]
                         udp.sendto(fixture.bundle(standard), ('127.0.0.1', osc_port))
-                        time.sleep(.15)
-                        snapshot = command('/api/state/overview', 'GET')
+                        snapshot = wait_overview(lambda s: any(p['valid'] and p['sampleCount'] == 8 for p in s['poseTracking']['spsRoots']), 'Root diagnostic samples missing')
                         root = snapshot['poseTracking']['spsRoots'][0]
                         assert root['valid'] and root['sampleCount'] == 8
                         assert abs(root['position']['x'] - .025) < .0001
                         assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
                         udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
-                        deadline = time.monotonic() + 3
-                        while True:
-                            time.sleep(.05); snapshot = command('/api/state/overview', 'GET')
-                            if snapshot['runtime']['poseBlocked']: break
-                            assert time.monotonic() < deadline, 'Lost pose did not block motion'
+                        wait_overview(lambda s: s['runtime']['poseBlocked'], 'Lost pose did not block motion')
                     command('/api/input/active', 'PUT', {'active':False})
                     configuration = command('/api/config', 'GET')
                     configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
@@ -150,18 +158,15 @@ def main():
                     values = [(handle_prefix + f'/Root/A{i}', root_values[anchor]) for i, anchor in enumerate((0,3,5,6))]
                     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                         udp.sendto(fixture.bundle(values + [(handle_prefix+'/Handle_IsGrabbed',1)]), ('127.0.0.1',osc_port))
-                        time.sleep(.15); command('/api/input/active','PUT',{'active':True}); time.sleep(.15)
-                        snapshot = command('/api/state/overview','GET')
+                        command('/api/input/active','PUT',{'active':True})
+                        snapshot = wait_overview(lambda s: not s['runtime']['poseBlocked'] and any(p['kind'] == 'Handle' and p['valid'] for p in s['poseTracking']['spsRoots']) and abs(s['runtime']['command']['l0'] - .5) < .001, 'PB input did not produce expected L0')
                         assert abs(snapshot['runtime']['command']['l0']-.5)<.001
                         assert any(p['kind']=='Handle' and p['valid'] for p in snapshot['poseTracking']['spsRoots'])
                         udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
-                        deadline=time.monotonic()+3
-                        while True:
-                            time.sleep(.05); snapshot=command('/api/state/overview','GET')
-                            if snapshot['runtime']['poseBlocked']:break
-                            assert time.monotonic()<deadline,'PB release did not stop point input'
+                        wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
                     command('/api/input/active','PUT',{'active':False})
                 print('HTTP/WS smoke passed: authentication, FT flood, pose/root isolation, local point mapping and PB release guard; no devices configured.')
+                passed = True
             except BaseException:
                 stack_tool = shutil.which('dotnet-stack')
                 if stack_tool and process.poll() is None:
@@ -175,5 +180,9 @@ def main():
                 process.terminate()
                 try: process.wait(timeout=5)
                 except subprocess.TimeoutExpired: process.kill(); process.wait()
+                if report_dir:
+                    log.flush()
+                    shutil.copyfile(Path(tmp) / 'service.log', report_dir / 'service.log')
+                    (report_dir / 'result.json').write_text(json.dumps({'passed': passed, 'outputs': [], 'scope': 'Isolated HTTP/WS/OSC process; no hardware'}, indent=2) + '\n', encoding='utf-8')
 
 if __name__ == '__main__': main()
