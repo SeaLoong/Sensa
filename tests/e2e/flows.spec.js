@@ -1,5 +1,5 @@
 import { test, expect, card, enable, mode, active, checkpoint, outputValue } from './fixtures.js';
-import { pointSamples } from './mocks.js';
+import { pointSamples, poseSamples } from './mocks.js';
 import { readFile } from 'node:fs/promises';
 
 test('manual controls reach all mock transports, record, stop and never auto-resume', async ({ page, rig }) => {
@@ -87,6 +87,8 @@ test('funscript import, playback, pause, stepping and unload', async ({ page, ri
   await enable(page, ['Mock UDP']); await mode(page, '脚本');
   await page.locator('input[type=file]').setInputFiles({ name: 'ci-motion.funscript', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ actions: [{ at: 0, pos: 0 }, { at: 5000, pos: 100 }, { at: 10000, pos: 0 }] })) });
   await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(true);
+  await page.getByRole('checkbox', { name: '循环播放', exact: true }).check();
+  await expect.poll(async () => (await rig.overview()).input.script.loop).toBe(true);
   await active(page); await page.locator('.script-player-console__transport-primary').click();
   await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(true);
   await expect.poll(() => rig.wire.udp.some(s => /L0\d/.test(s))).toBe(true);
@@ -107,12 +109,33 @@ test('help, output editing and profile dialog render without overflow', async ({
   await page.getByRole('button', { name: '关闭帮助', exact: true }).click();
   await card(page, 'Mock UDP').getByRole('button', { name: '配置', exact: true }).click();
   await checkpoint(page, page.getByRole('dialog'), 'udp-settings');
+  await page.getByRole('dialog').getByRole('textbox').first().fill('Mock UDP edited');
+  await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click();
+  await expect(card(page, 'Mock UDP edited')).toBeVisible();
+  await page.getByRole('button', { name: /\+ TCode UDP/i }).click();
+  await page.getByRole('dialog').getByRole('spinbutton').fill('19999');
+  await expect(page.getByRole('dialog').getByRole('button', { name: '保存', exact: true })).toBeDisabled();
+  await checkpoint(page, page.getByRole('dialog'), 'output-conflict');
   await page.getByRole('button', { name: '取消', exact: true }).click();
   await page.getByRole('button', { name: '修改配置', exact: true }).click();
   await page.getByRole('textbox', { name: '配置名称', exact: true }).fill('CI edited profile');
   await checkpoint(page, page.getByRole('dialog'), 'profile-settings');
   await page.getByRole('dialog').getByRole('button', { name: '保存', exact: true }).click();
   await expect(page.getByText('CI edited profile', { exact: true }).first()).toBeVisible();
+});
+
+test('paired pose reconstruction, mapping and lost landmark stop', async ({ page, rig }) => {
+  await enable(page, ['Mock UDP']); await mode(page, 'OSC'); await rig.send(poseSamples());
+  await page.getByRole('tab', { name: '空间诊断', exact: true }).click();
+  await expect(page.getByRole('button', { name: '替换为此对象深度', exact: true })).toBeVisible();
+  await checkpoint(page, page.locator('.pose-dashboard'), 'paired-pose');
+  await page.getByRole('button', { name: '替换为此对象深度', exact: true }).click();
+  await page.getByRole('button', { name: /保存并应用映射/ }).click();
+  await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
+  await active(page); await outputValue(rig, 'udp', 500);
+  await rig.send([['Sensa/Pose/v1/Demo/Others/Tip/A0', 0]]);
+  await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
+  await checkpoint(page, page.getByLabel('Avatar 世界 软件联动检查'), 'pose-landmark-lost');
 });
 
 test.describe('OSCQuery and Hub', () => {

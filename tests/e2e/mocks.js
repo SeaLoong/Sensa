@@ -17,6 +17,11 @@ export function pointSamples(z, grabbed = true) {
   return [0, 3, 5, 6].map((a, i) => [`${prefix}/Root/A${i}`, 1 - (Math.hypot(.02 - (a & 1 ? .06 : -.06), -(a & 2 ? .06 : -.06), z - (a & 4 ? .06 : -.06)) - .001) / .35])
     .concat([[prefix + '/Handle_IsGrabbed', grabbed ? 1 : 0], [prefix + '/Handle_Stretch', .2]]);
 }
+export function poseSamples() {
+  return [['Root', [.02, 0, -.1]], ['Tip', [.02, 0, .1]], ['Side', [.05, 0, -.1]]].flatMap(([marker, position]) =>
+    Array.from({ length: 8 }, (_, a) => [`Sensa/Pose/v1/Demo/Others/${marker}/A${a}`,
+      1 - (Math.hypot(position[0] - (a & 1 ? .06 : -.06), position[1] - (a & 2 ? .06 : -.06), position[2] - (a & 4 ? .06 : -.06)) - .001) / .35]));
+}
 
 export async function startMocks() {
   const wire = { udp: [], tcp: [], serial: [], intiface: [], hub: [] };
