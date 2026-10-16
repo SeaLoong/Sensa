@@ -23,15 +23,26 @@ test('manual controls reach all mock transports, record, stop and never auto-res
   const script = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
   await test.info().attach('recorded.funscript', { body: JSON.stringify(script, null, 2), contentType: 'application/json' });
   expect(script.actions.length).toBeGreaterThanOrEqual(2);
+  expect(rig.intifaceState.stopped).toBe(false);
+  const stopCount = rig.intifaceState.stopCount;
   await page.getByRole('button', { name: '停止输出', exact: true }).click();
   for (const transport of ['udp', 'tcp', 'serial']) await expect.poll(() => rig.wire[transport].at(-1)).toBe('DSTOP');
-  await expect.poll(() => rig.wire.intiface.at(-1)?.StopAllDevices !== undefined).toBe(true);
+  await expect.poll(() => rig.intifaceState.stopCount).toBeGreaterThan(stopCount);
+  const stop = rig.wire.intiface.at(-1)?.StopCmd;
+  expect(stop).toBeDefined();
+  expect(stop.Id).toEqual(expect.any(Number));
+  expect(stop.DeviceIndex).toBeUndefined();
+  expect(stop.FeatureIndex).toBeUndefined();
+  expect(stop.Outputs).not.toBe(false);
+  expect(rig.intifaceState.stopped).toBe(true);
+  await expect(card(page, 'Mock Intiface').getByText('已请求停止', { exact: true })).toBeVisible();
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'emergency-output');
   const count = rig.wire.udp.length;
   await page.getByRole('button', { name: '恢复输出', exact: true }).click();
   await expect(page.getByRole('checkbox', { name: '输入开关（关闭停止设备）', exact: true })).not.toBeChecked();
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(rig.wire.udp.length).toBe(count);
+  expect(rig.intifaceState.stopped).toBe(true);
 });
 
 test('QuickStart OSC steps, FT filtering, preview and gate stop', async ({ page, rig }) => {

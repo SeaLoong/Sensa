@@ -25,6 +25,7 @@ export function poseSamples() {
 
 export async function startMocks() {
   const wire = { udp: [], tcp: [], serial: [], intiface: [], hub: [] };
+  const intifaceState = { stopped: true, stopCount: 0 };
   const udp = dgram.createSocket('udp4'), hub = dgram.createSocket('udp4'), source = dgram.createSocket('udp4');
   udp.on('message', b => wire.udp.push(b.toString().trim()));
   hub.on('message', b => wire.hub.push(b.toString('hex')));
@@ -56,7 +57,14 @@ export async function startMocks() {
       let response;
       if (name === 'RequestServerInfo') response = { ServerInfo: { Id: body.Id, ServerName: 'Sensa CI mock', ProtocolVersionMajor: body.ProtocolVersionMajor, ProtocolVersionMinor: body.ProtocolVersionMinor, MaxPingTime: 0 } };
       else if (name === 'RequestDeviceList') response = { DeviceList: { Id: body.Id, Devices: { '0': device } } };
-      else if (['StartScanning', 'StopScanning', 'StopAllDevices', 'StopDeviceCmd', 'OutputCmd', 'Ping'].includes(name)) response = { Ok: { Id: body.Id } };
+      // v4 StopCmd with no device/feature scope stops every output. Reject the
+      // legacy names so a regression cannot pass a v4 handshake unnoticed.
+      else if (name === 'StopCmd' && body.DeviceIndex === undefined && body.FeatureIndex === undefined && body.Outputs !== false) {
+        intifaceState.stopped = true; intifaceState.stopCount++;
+        response = { Ok: { Id: body.Id } };
+      }
+      else if (name === 'OutputCmd') { intifaceState.stopped = false; response = { Ok: { Id: body.Id } }; }
+      else if (['StartScanning', 'StopScanning', 'Ping'].includes(name)) response = { Ok: { Id: body.Id } };
       else response = { Error: { Id: body.Id, ErrorCode: 3, ErrorMessage: `Unsupported mock message: ${name}` } };
       ws.send(JSON.stringify([response]));
       if (name === 'StartScanning') ws.send(JSON.stringify([{ ScanningFinished: { Id: 0 } }]));
@@ -67,7 +75,7 @@ export async function startMocks() {
     res.end(JSON.stringify(req.url.includes('HOST_INFO') ? { NAME: 'Sensa CI query', OSC_IP: '127.0.0.1', OSC_PORT: ports.source, OSC_TRANSPORT: 'UDP', EXTENSIONS: {} } :
       { FULL_PATH: '/', CONTENTS: { avatar: { FULL_PATH: '/avatar', CONTENTS: { parameters: { FULL_PATH: '/avatar/parameters', CONTENTS: { QueryDepth: { FULL_PATH: '/avatar/parameters/QueryDepth', TYPE: 'f', ACCESS: 1, VALUE: [.65] } } } } } } }));
   }); query.listen(ports.query, '127.0.0.1'); await once(query, 'listening');
-  return { wire, serialPort,
+  return { wire, serialPort, intifaceState,
     send: async entries => { for (const [path, value] of entries) await new Promise((resolve, reject) => source.send(oscPacket(path, value), ports.osc, '127.0.0.1', e => e ? reject(e) : resolve())); },
     breakTcp: () => { for (const client of clients) client.destroy(); },
     close: async () => { serial.kill(); lines.close(); for (const socket of [udp, hub, source]) socket.close(); for (const c of clients) c.destroy(); for (const c of bp.clients) c.terminate(); await Promise.all([new Promise(r => tcp.close(r)), new Promise(r => bp.close(r)), new Promise(r => query.close(r))]); },
