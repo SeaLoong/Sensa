@@ -223,8 +223,8 @@
       },
       "System.CodeDom": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "QWERdKi/tQAx+MbrPxTGcpchqMANnVXNiv2r2tILBBB38E74buD+fABSUhozZ1G9kjbadFB0m+HPFMkhJPeFvA=="
+        "resolved": "10.0.13",
+        "contentHash": "rTW3WGWYugm9qMihqSXXHxAIVP9Ay4ASkYc8CJLDbuscbc88lpO8U/asZpeYb9GiXbD8wNDhRoV5b2JEbHmtow=="
       },
       "System.IO.Ports": {
         "type": "Transitive",
@@ -236,10 +236,10 @@
       },
       "System.Management": {
         "type": "Transitive",
-        "resolved": "10.0.0",
-        "contentHash": "LE3rDZoPzulou78Tsq+3ALhUs4vatQ03v2QWbYVIenVPneUH/+LTUmHyyl098OxIFLQI6sNkZs8YHbUnT/sm3A==",
+        "resolved": "10.0.13",
+        "contentHash": "cL8qiJmJtlSIcAoZH4s07VTxTdddvEP12MFeM+KBZagn4CuD/0SFQsmKn5g9MLfiSrYjdAxIwOTO0kATY9A0UA==",
         "dependencies": {
-          "System.CodeDom": "10.0.0"
+          "System.CodeDom": "10.0.13"
         }
       },
       "Tmds.LibC": {
@@ -293,7 +293,7 @@
           "Buttplug": "[5.0.1, )",
           "Makaretu.Dns.Multicast": "[0.27.0, )",
           "System.IO.Ports": "[10.0.13, )",
-          "System.Management": "[10.0.0, )"
+          "System.Management": "[10.0.13, )"
         }
       }
     }
