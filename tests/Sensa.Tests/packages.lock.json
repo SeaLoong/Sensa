@@ -31,8 +31,8 @@
       },
       "Buttplug": {
         "type": "Transitive",
-        "resolved": "5.0.0",
-        "contentHash": "Gc7yEQS0S1CBeQAUVrAteCdmfXUrLQ8FoKlqZmTffsrDItU+QPl2ij/eVU12geJBRwMXGDB+zFDo7gxE4pGDtA==",
+        "resolved": "5.0.1",
+        "contentHash": "ZpOrR4qobE7KEGaFO18YovV4uqhzbFKwGoh9Qr1zz5/PO+jIjB0tedgZPjyYYpromD4cRYiD/n6cOx3jEje86w==",
         "dependencies": {
           "Newtonsoft.Json": "13.0.4"
         }
@@ -291,7 +291,7 @@
       "sensa": {
         "type": "Project",
         "dependencies": {
-          "Buttplug": "[5.0.0, )",
+          "Buttplug": "[5.0.1, )",
           "Makaretu.Dns.Multicast": "[0.27.0, )",
           "System.IO.Ports": "[10.0.0, )",
           "System.Management": "[10.0.0, )"
