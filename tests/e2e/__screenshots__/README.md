@@ -1,16 +1,16 @@
 # Reviewed CI screenshots / 已审阅 CI 截图
 
-Current baselines contain **60 PNGs**, 30 each for desktop and narrow layouts. Source: [successful candidate 39165087201](https://github.com/SeaLoong/Sensa/actions/runs/39165087201), commit `3a21e8f7b65e057ac9a4adb89dc6c6da16e799b0`. All 40 executions passed with zero skips, flaky retries or run errors before acceptance.
+Current baselines contain **64 PNGs**, 32 each for desktop and narrow layouts. Source: [successful candidate 39171343844](https://github.com/SeaLoong/Sensa/actions/runs/39171343844), commit `b1e1cf9e649a96b43f65be55ae7db4043cb7719d`. All 44 executions passed with zero skips, flaky retries or run errors before acceptance.
 
-当前基线包含 **60 张 PNG**，桌面与窄屏各 30 张。来源为上述成功候选及提交；接受前全部 40 次执行通过，无跳过、重试通过或运行错误。
+当前基线包含 **64 张 PNG**，桌面与窄屏各 32 张。来源为上述成功候选及提交；接受前全部 44 次执行通过，无跳过、重试通过或运行错误。
 
-Every image was reviewed against V1–V6 for TDesign component proportions, typography, button hierarchy, shared edges, flat rows, dialogs, script states and bilingual narrow layouts. The successful candidate's 60 PNGs are byte-identical to the 60 images individually reviewed in diagnostic run 39164298454. That earlier failed run was not accepted; its navigation failure was fixed and the complete suite passed before accepting this set.
+Every image was reviewed against V1–V6 for TDesign proportions, hierarchy, alignment, workflow status, mapping saves, help, recording and bilingual layouts. Of the 60 diagnostic images individually reviewed in failed run 39170374413, 59 are byte-identical to this successful set. The changed desktop mapping image and four new recording images were separately reviewed. The failed run was not accepted; its native-field test locator and connected Intiface routing were fixed before the complete suite passed.
 
-按 V1–V6 逐张检查 TDesign 组件比例、字号、按钮层级、共享边缘、扁平行、弹窗、脚本及双语窄屏。成功候选的 60 张图与诊断运行 39164298454 已逐张审阅的画面逐字节相同；此前失败任务没有被接受，导航错误修复且完整套件通过后才接受本组图片。
+按 V1–V6 逐张检查 TDesign 比例、层级、对齐、流程状态、映射保存、帮助、录制及双语布局。失败诊断运行 39170374413 的 60 张图已逐张审阅，其中 59 张与本成功候选逐字节相同；变化的桌面映射图及四张新增录制图另行审阅。此前失败任务没有被接受，原生字段测试定位器和已连接 Intiface 路由修复后才通过完整套件。
 
-Script transport/options and OSC receiving/forwarding use bounded captures. The workspace scrolls below the persistent header. Captures must fit its real client bounds; no styles or functional content are hidden to repair framing.
+Manual controls, script transport/options, recording and OSC receiving/forwarding use bounded captures. The workspace scrolls below the persistent header. Captures must fit its real client bounds; no functional content is hidden to repair framing. The tight English manual capture does not prove complete focus-ring painting; raw viewport evidence supplies that sample.
 
-脚本主控／选项、OSC 接收／转发分段捕获。正文在常驻顶栏下方独立滚动，截图必须完整容纳于真实滚动区域，不隐藏样式或功能内容修补取景。
+手动、脚本主控／选项、录制及 OSC 接收／转发采用分段捕获。正文在常驻顶栏下方独立滚动，截图必须容纳于真实滚动区域，不隐藏功能内容修补取景。英文手动局部图边界较紧，不证明完整焦点环绘制；该项另看原始视口采样。
 
 - Environment / 环境: `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844.
 - Browser execution and screenshot generation are GitHub Actions only. / 浏览器执行与截图生成仅在 GitHub Actions。
