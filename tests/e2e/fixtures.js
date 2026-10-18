@@ -84,8 +84,9 @@ async function clearScreenshotNotice(page) {
   await page.mouse.move(0, 0);
   const toast = page.locator('.toast');
   await expect(page.locator('.toast[role=alert]'), 'Unexpected UI error / 非预期界面错误').toHaveCount(0);
-  if (await toast.isVisible()) await toast.getByRole('button').click();
-  await expect(toast).toHaveCount(0);
+  // Native dialogs occupy the top layer; let notices expire without pointer interaction.
+  // 原生对话框位于顶层，等待通知自然消失，避免与点击命中及自动关闭竞态。
+  await expect(toast).toHaveCount(0, { timeout: 10000 });
 }
 export async function checkpointViewport(page, name) {
   await clearScreenshotNotice(page);

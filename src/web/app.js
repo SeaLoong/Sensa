@@ -617,8 +617,13 @@ function App() {
     setSnackbar({ open: true, message, severity });
   }
 
-  function syncScriptSettingsFromSnapshot(snapshot, fallback = DEFAULT_SCRIPT_SETTINGS) {
+  function applyScriptSnapshot(snapshot, fallback = DEFAULT_SCRIPT_SETTINGS) {
     if (!snapshot) return;
+    setOverview((previous) => previous ? {
+      ...previous,
+      input: { ...previous.input, script: snapshot },
+    } : previous);
+    setScriptSeekDraft(Number(snapshot.positionMs ?? 0));
     setScriptSettings((previous) => normalizeScriptSettingsState(snapshot, previous || fallback));
   }
 
@@ -1076,7 +1081,7 @@ function App() {
         }),
       });
 
-      syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
+      applyScriptSnapshot(result?.script, scriptSettings);
       setStudio((previous) => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
       await refreshOverview();
       notify(restart ? t('脚本已重新开始') : t('脚本播放中'), 'success');
@@ -1112,7 +1117,7 @@ function App() {
         body: JSON.stringify({ ...payload, updateLoopRange: true }),
       });
 
-      syncScriptSettingsFromSnapshot(result?.script, payload);
+      applyScriptSnapshot(result?.script, payload);
 
       if (options.notify) notify(options.successMessage || t('脚本设置已应用'), 'success');
     }).catch((error) => {
@@ -1139,9 +1144,7 @@ function App() {
         body: JSON.stringify({ positionMs: clampedPositionMs }),
       });
 
-      if (result?.script) {
-        setScriptSeekDraft(Number(result.script.positionMs || clampedPositionMs));
-      }
+      applyScriptSnapshot(result?.script, scriptSettings);
     }).catch((error) => {
       setScriptSeekDraft(fallbackPositionMs);
       notify(error.message || t('脚本定位失败'), 'error');
@@ -1248,10 +1251,7 @@ function App() {
 
     await withBusy(busyToken, async () => {
       const result = await apiRequest(route, { method: 'POST' });
-      if (result?.script) {
-        setScriptSeekDraft(Number(result.script.positionMs || 0));
-        syncScriptSettingsFromSnapshot(result.script, scriptSettings);
-      }
+      applyScriptSnapshot(result?.script, scriptSettings);
     }).catch((error) => notify(error.message || t('脚本动作跳转失败'), 'error'));
 
     setScriptSeekDragging(false);
@@ -1265,7 +1265,7 @@ function App() {
       setScriptSeekDraft(0);
       setScriptJumpInput('');
 
-      syncScriptSettingsFromSnapshot(result?.script, scriptSettings);
+      applyScriptSnapshot(result?.script, scriptSettings);
 
       await refreshOverview();
       notify(t('脚本已卸载'), 'info');
