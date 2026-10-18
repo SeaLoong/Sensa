@@ -1,49 +1,51 @@
-# TDesign WebUI visual and interaction review
+# TDesign WebUI workflow and visual review
 
 [简体中文](ui-visual-review.md) | **English**
 
-Date: 2026-10-19. This record replaces the flat-workbench review following the user's TDesign direction. A code assistant inspected source and actual CI images against [V1–V6](ui-quality.en.md). There is no participant questionnaire, composite aesthetics score or user-preference finding.
+Date: 2026-10-19. This iteration keeps the TDesign palette, 14/22 typography and 32 px regular controls, improving entry points and action hierarchy. It replaces the previous component restyling assessment. Coding agents reviewed source and real CI images against [V1–V6](ui-quality.en.md); there was no participant questionnaire, aggregate beauty score or user-preference study.
 
 ## Evidence
 
-- Before: `fb6e169539b054ddba2de8bb22741945f3561526`, with 60 baselines.
-- Generation source: `3a21e8f7b65e057ac9a4adb89dc6c6da16e799b0`; `e2e-baselines`/`e2e-report` from [successful candidate 39165087201](https://github.com/SeaLoong/Sensa/actions/runs/39165087201).
-- Accepted: 60 PNGs, 30 each at 1280×900 and 390×844. All 60 diagnostic images were individually reviewed; this successful candidate is byte-identical, with final key views reassessed. The earlier failed run was not accepted.
-- Images are fixed at `611822ef91a619e1b1185b9856155ea9d7681964`. All 22 unmasked raw diagnostic viewports and 18 node records were also inspected, including four main-focus views. These samples were captured after analysis and are not atomic snapshots.
+- Before: `04f6f488d77e3f562ba313352395c6913dc4e662`, with 60 baselines.
+- Generation source: `b1e1cf9e649a96b43f65be55ae7db4043cb7719d`; `e2e-baselines` and `e2e-report` from [successful candidate 39171343844](https://github.com/SeaLoong/Sensa/actions/runs/39171343844).
+- Accepted: 64 PNGs, 32 each at 1280×900 and 390×844. All 60 images from diagnostic run 39170374413 were individually reviewed; 59 are byte-identical to the final set. The changed desktop mapping image and four new recording images were reviewed separately. Compared with the previous set, 34 changed and four were added; none were removed.
+- Images are fixed at `0b9956f424c9af088ce2ad07d10f7f7953249a32`. The failed run was not accepted; a later candidate containing the known test-locator error was cancelled.
+- The final report also retains 23 unmasked diagnostic viewports and 19 node records. This iteration reassessed all four main-focus views and the new Intiface review viewport. These samples were collected after analysis and are not atomic snapshots.
 
 ## Findings and reassessment
 
 | Criterion | Change | Observed result |
 | --- | --- | --- |
-| V1 Hierarchy | Group segmented input modes with Apply; standardize filled/outline/text buttons; make Change script secondary and loaded playback primary | Control, script and configuration priorities are distinct, with emergency stop independently reachable. Meets observed criteria |
-| V2 Type and proportions | Reduce common controls from 38 to 32 px; use 14/22 text, 12/20 supporting text and 400/600 weights; start numeric fields at 80 px and grow with content | Primary-axis numbers and sliders align; units, script time and output targets remain complete. Meets observed criteria |
-| V3 Grouping and spacing | Light-gray page, single white work surfaces and 24 px main spacing; flat output/mapping/Hub rows and disclosures for infrequent settings | Input selection, primary actions and advanced settings form clear groups without nested cards/heavy shadows. Meets observed criteria |
-| V4 Color and states | TDesign blue, neutral gray and functional scales; darker steps where necessary for boundaries, text and filled buttons; textual status remains | Normal, selected, disabled, conflict and emergency states are distinguishable. Official tokens alone do not establish beauty or legibility |
-| V5 Alignment and details | Share header/content width and scrollbar gutters; unify native forms, sliders, toggles, tags, tables and dialogs; use an SVG close icon | Primary-axis, output-row, mapping, endpoint, calibration and dialog-edge checks pass. Meets observed criteria |
-| V6 Bilingual narrow layouts | Natural English wrapping, short port columns and longer address fields; independent content scrolling, touch hit areas and forced-color fallback | Observed control, script, receiver/forwarder, help and dialog views are complete. Real touch and system high contrast remain unassessed |
+| V1 Hierarchy | One control status explains the current blocker and next step; Apply is absent for the current mode; script play/stop and stepping are grouped | Running mode, browsed tab and input permission are distinct in the observed states |
+| V2 Type and proportion | Retain TDesign type, control dimensions and numeric-field/slider proportions | Numbers, units, states and main actions remain complete in both languages |
+| V3 Grouping and spacing | Recording becomes an input disclosure; help offers manual, script and OSC entry points; longer explanations are optional | Main flows are shorter; recording and restart confirmation have clear boundaries, reviewed on desktop and narrow layouts |
+| V4 Color and state | Retain brand blue and functional colors with explicit preparation, disarmed, gate and emergency text | State does not depend on color alone; incomplete contrast findings retain manual decisions and limits |
+| V5 Alignment and detail | Put mapping count, draft state, restore and save together near the top; group script actions; let status headings wrap | Key actions are discoverable near the top; columns and dialog edges remain stable, with no new major alignment issue observed |
+| V6 Languages and narrow layout | Translate new workflow, help, connection, vibration and recording text; retain wrapping and touch styles | Observed bilingual layouts are complete; the tight English manual crop requires separate viewport focus evidence |
 
-These judgments apply to specified images; no new blocking or major visual issue was observed. Initial viewport pictures do not prove complete long dialogs, horizontally scrolling tables or closed disclosures.
+These conclusions apply only to the named views. No new blocking or major visual issue was found. Initial viewport images do not prove every long dialog, horizontal table, output variant or closed disclosure.
 
 ## Before and after
 
-| State | Before | TDesign |
+| State | Before | Current |
 | --- | --- | --- |
-| Desktop control | [Before](https://github.com/SeaLoong/Sensa/blob/fb6e169539b054ddba2de8bb22741945f3561526/tests/e2e/__screenshots__/desktop/control-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/611822ef91a619e1b1185b9856155ea9d7681964/tests/e2e/__screenshots__/desktop/control-page.png) |
-| Narrow manual | [Before](https://github.com/SeaLoong/Sensa/blob/fb6e169539b054ddba2de8bb22741945f3561526/tests/e2e/__screenshots__/mobile/english-manual.png) | [Current](https://github.com/SeaLoong/Sensa/blob/611822ef91a619e1b1185b9856155ea9d7681964/tests/e2e/__screenshots__/mobile/english-manual.png) |
-| English header | [Before](https://github.com/SeaLoong/Sensa/blob/fb6e169539b054ddba2de8bb22741945f3561526/tests/e2e/__screenshots__/mobile/english-toolbar.png) | [Current](https://github.com/SeaLoong/Sensa/blob/611822ef91a619e1b1185b9856155ea9d7681964/tests/e2e/__screenshots__/mobile/english-toolbar.png) |
-| Output dialog | [Before](https://github.com/SeaLoong/Sensa/blob/fb6e169539b054ddba2de8bb22741945f3561526/tests/e2e/__screenshots__/mobile/udp-settings.png) | [Current](https://github.com/SeaLoong/Sensa/blob/611822ef91a619e1b1185b9856155ea9d7681964/tests/e2e/__screenshots__/mobile/udp-settings.png) |
-| Script options | [Before](https://github.com/SeaLoong/Sensa/blob/fb6e169539b054ddba2de8bb22741945f3561526/tests/e2e/__screenshots__/mobile/english-script-options.png) | [Current](https://github.com/SeaLoong/Sensa/blob/611822ef91a619e1b1185b9856155ea9d7681964/tests/e2e/__screenshots__/mobile/english-script-options.png) |
+| Desktop control | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/desktop/control-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/desktop/control-page.png) |
+| Narrow help | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/mobile/english-help.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/mobile/english-help.png) |
+| Desktop mappings | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/desktop/osc-mappings-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/desktop/osc-mappings-page.png) |
+| Narrow recording restart | New capture | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/mobile/recording-restart.png) |
 
-## Interaction correctness
+## Interaction and functional correctness
 
-Content scrolls independently below the header. Positioned helper descriptions belong to the workspace containing block rather than expanding document scrolling bounds. Rapid End-key scrolling followed by navigation previously let the old animation move the new page. A workspace key now replaces the scrolling container, stopping the old animation while preserving parent drafts/runtime state. Four navigation checks keep the new page at zero scroll; browsing does not change input mode or permission.
+All 44 executions passed with zero skips, flaky retries or run errors. Four axe groups cover 36 states, including the new Intiface settings state, with zero detected violations in the selected rule subset. Four behavior groups complete 16 checks each, plus four checks that auditing never enables input. Missing checks and run errors are empty. All 20 checks at 320 CSS px pass; keyboard, native-dialog and browse-without-activation boundaries remain.
 
-All 40 executions passed with zero skips, flaky retries or run errors. Four axe audits cover 32 states with zero detected violations in the selected rule subset. Four behavior groups complete 16 checks each, plus four checks that auditing never activates input. All 20 reflow checks at 320 CSS px pass: document height is 800, content starts below the header and has no horizontal overflow. Associated-label clicks, Space, native checkbox semantics and browser forced-color checks pass.
+New regressions verify that unrelated saves preserve mapping/receiver drafts; cancelling restart retains recorded frames while confirmation clears them; stopping/exporting follows recording state; disabling manual input sends stops and never replays the old target on UDP refresh; OGB Touch uses V0 on a vibration-only mock, and explicitly choosing L0 reconnects the client with the new source. No-output configurations remain usable for preview; an Intiface service connection is not presented as available hardware.
+
+The first run found a native datalist field incorrectly selected as a textbox, and a connected Intiface client retaining its old vibration route after saving. Both were fixed without weakening assertions or adding E2E retries. Isolated unit contracts separately cover target lifetimes, last-action-wins duplicate script timestamps and recording the final held duration. See [usage options](usage-scenarios.en.md) for effects and limits.
 
 ## Automated findings and unassessed scope
 
-Reports retain **51 incomplete node occurrences** across states: 28 notification/pin symbol names, 12 star contrast checks, four dialog-title/emergency background computations, four source and two timestamp clipping checks, and one notification overlap. Observed symbol names are meaningful; dialogs, emergency actions and notices are clear; all four main-focus outlines have complete edges. Clipped content after horizontal table scrolling remains unassessed. This is not a complete WCAG pass.
+The report retains **53 incomplete node occurrences**, including repeats: 28 notification/pin names and 25 contrast findings. The latter comprise 12 pin stars, three dialog titles, three emergency backgrounds, four clipped sources, two clipped timestamps and one overlapping notice. Only two occurrences are new relative to the previous 51: the narrow English Intiface title and emergency background. In the inspected image the text is unobscured; post-analysis node bounds leave a gap between title and emergency action, with readable colors. All four main-focus viewport images show complete rings; tight element crops are not full focus-paint evidence.
 
-Real screen readers/voice input, all hover/focus positions, actual 400% zoom, physical phones/coarse pointers, system high contrast, other browsers and all twelve-axis/device variants have not been reviewed comprehensively. Screenshots do not prove Unity/VRChat or physical hardware behavior.
+Unassessed scope includes all right-scrolled table content, screen readers/voice control, actual 400% zoom, physical phones/coarse pointers, system high contrast and other browsers. Recording restart has functional and visual coverage but no separate named axe state; shared Modal keyboard checks do not certify every assistive-technology behavior of that dialog. Unity/VRChat, a real SPS producer and hardware behavior are not proven by this iteration's mocks or screenshots. This is not a complete WCAG conformance claim.
 
-Ordinary main CI must still compare the exact commit with baseline updates disabled before automatic prerelease publication. [Verification workflow](e2e.en.md)
+Ordinary main CI must compare the actual commit with updates disabled before automatic prerelease; a generation candidate cannot replace that comparison. [Verification workflow](e2e.en.md)
