@@ -2,7 +2,7 @@
 
 [简体中文](features.md) | **English**
 
-This page describes current behavior and its limits, with source entry points for further inspection. For operations, use the [User guide](guide.en.md). Sensa sends motion targets; it has no mechanical position-feedback loop. Contact positioning remains an experiment disabled by default.
+This page describes current behavior and its limits, with source entry points for further inspection. For operations, use the [User guide](guide.en.md). Compare prerequisites, effects and limits in [Usage scenarios](usage-scenarios.en.md). Sensa sends motion targets; it has no mechanical position-feedback loop. Contact positioning remains an experiment disabled by default.
 
 ## Browser workbench
 
@@ -28,7 +28,7 @@ Emergency stop is latched; clearing it does not resume motion. Disabled input, c
 
 | Capability | Behavior and conditions |
 | --- | --- |
-| Manual | Twelve-axis targets; single/continuous updates and clearing override; profile-based or explicit I/S motion requests |
+| Manual | Twelve-axis targets; single/live updates, clearing override and profile-based or explicit I/S requests. Disabling disarms and stops only when Manual is the actual mode |
 | OSC UDP | Float/Int/Bool scalars, nested bundles and avatar changes; standard parameter-prefix normalization |
 | Source isolation | Values per source, source selection and persistent-ID preference; browsing does not select the active source |
 | OSCQuery | HOST_INFO/tree, LISTEN subscription, optional polling fallback and local receiver advertisement |
@@ -48,9 +48,9 @@ The catalog is bounded and rejects nonfinite values; expired sources are cleaned
 
 ## Scripts and recording
 
-Funscript loading accepts timed position actions, skips invalid entries, sorts and handles repeated timestamps, and rejects files with no valid actions. Playback interpolates L0 with 0.1–4× speed, full/A–B looping, timecode seeking, action stepping and activity bins. Injected time preserves fractional milliseconds, and final-frame delivery does not depend on when the UI reads a snapshot. [Player](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
+Funscript loading accepts timed position actions, skips invalid entries, keeps the last original action for each repeated timestamp before sorting, and rejects files with no valid actions. Playback interpolates L0 with 0.1–4× speed, full/A–B looping, timecode seeking, action stepping and activity bins. Injected time preserves fractional milliseconds, and final-frame delivery does not depend on when the UI reads a snapshot. [Player](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
 
-Recording buffers timestamped L0 targets up to 100000 frames, simplifies them and exports standard actions JSON. It records before dispatch, without other-axis capture or hardware acknowledgment. [Recording/export](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+Recording buffers timestamped L0 targets, automatically ending at 100000 frames. Stopping preserves the final hold segment; simplification exports standard actions JSON. Active export stops recording; starting again requires confirmation before clearing the buffer. It records before dispatch, without other axes, input/gate/stop events or hardware acknowledgment. [Recording/export](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
 
 ## Outputs and axis profiles
 
@@ -63,7 +63,7 @@ Recording buffers timestamped L0 targets up to 100000 frames, simplifies them an
 
 Each output has an independent name, destination and enablement. TCode outputs select shared or separate profiles: Min/Max, RemapMin/Max, MaxSpeed, Invert, Normal/Locked/Ignored, LockValue, None/Interval/Speed and RampType. Output slope/speed-unit settings affect final encoding. Ignored axes do not automatically center. [TCode encoding](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/TCode/TCodeEncoder.cs)
 
-Intiface selects timed or raw position commands according to advertised capabilities and supports vibration features. A device without those capabilities is not a twelve-axis controller. No Intiface engine is bundled. Per-output telemetry parses sent targets without proving mechanical execution. [Intiface](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs/Intiface), [dispatch](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs), [telemetry](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputTelemetry.cs)
+Intiface selects timed or raw position commands according to advertised capabilities. Vibration independently reads the selected V0/V1/V2/L0 axis, defaulting to V0; vibration-only devices need no position feature, and transitions to zero always send zero. L0 intensity conversion requires explicit selection. Limited devices are not twelve-axis controllers. New outputs default to an existing Central service; explicit managed settings remain supported. No engine is bundled. Per-output telemetry parses sent targets without proving mechanical execution. [Intiface](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs/Intiface), [dispatch](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs), [telemetry](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputTelemetry.cs)
 
 ## Spatial experiment limits
 

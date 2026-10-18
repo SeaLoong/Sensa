@@ -2,25 +2,25 @@
 
 [简体中文](guide.md) | **English**
 
-Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, OSC and Settings**. The top bar always shows the actual mode, input activation, emergency stop, language and help. See [Quick start](quick-start.en.md) for a first device test.
+Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, OSC and Settings**. The top bar always shows the actual mode, input activation, emergency stop, language and help. See [Quick start](quick-start.en.md) for a first device test and [Usage scenarios](usage-scenarios.en.md) to compare prerequisites, effects and limits.
 
 ## Control
 
 1. Disable input first. Add a Serial, UDP, TCP or Intiface output, enter its destination and select an axis profile.
-2. Browse Manual, OSC or Script; browsing does not change the actual mode. Apply the input mode explicitly.
+2. Browse Manual, OSC or Script; browsing does not change the actual mode. Apply appears when the selection differs from the actual mode; click it to switch. Readiness explains current blockers. Shortcuts only browse or focus configuration, without connecting or activating input.
 3. Inspect targets, range and direction, then enable input. A mode change, replacement script or saved configuration requires reactivation.
 
 | Input | Operations |
 | --- | --- |
-| Manual | Adjust the primary axes, then choose Send once; continuous sending follows sliders, and disabling clears the manual override. Ramp and speed are under Send settings; other axes have a separate disclosure |
+| Manual | Adjust the primary axes, then choose Send once; continuous sending follows adjustments without automatic oscillation. Disabling cancels following and clears the override; in Manual mode it also deactivates input and stops output. Ramp and speed are under Send settings; other axes have a separate disclosure |
 | OSC | Save mappings and select a source on the OSC page, then enable input in Control |
 | Script | Choose a funscript first; loading reveals the timeline, speed, looping/A–B, playback, pause, stop, seeking and action stepping |
 
 Pause stops automatic output. Explicit seek/step can still send targets while Script input remains enabled. Stop resets the playback cursor, not the hardware position. Unloading or replacing a file does not resume movement automatically.
 
-Outputs can be enabled, connected, configured and removed independently. TCode outputs select an axis profile; serial device information and Intiface scanning are expandable. No Intiface engine is bundled. With Central, enter its WebSocket address and disable engine-process management. Serial uses 115200, 8N1; firmware and device permissions must match.
+Outputs can be enabled, connected, configured and removed independently. TCode outputs select an axis profile; serial device information and Intiface scanning are expandable. Intiface defaults to an existing Central service: start it, scan for devices and enter its WebSocket address. Managed mode requires a separately installed engine. Vibration defaults to V0, with V1/V2 available; only explicit L0 selection converts depth into intensity. Devices need not support both position and vibration. Serial uses 115200, 8N1; firmware and device permissions must match.
 
-Recording captures L0 targets before dispatch and exports funscript. It is neither a measured mechanical trajectory nor proof of successful transmission. Output previews likewise show command targets.
+Expand Record L0 targets inside Input. It records commands before dispatch and exports funscript, preserving the final value until the actual stop time and ending automatically at 100000 frames. Exporting during recording stops recording. Recording again requires confirmation before clearing the old buffer; cancel to export first. Stopping recording does not deactivate input or stop devices. Neither recordings nor output previews prove measured hardware motion or successful transmission.
 
 Disabling input stops output. Emergency stop stays latched; clearing it still requires reactivation. Stop does not guarantee centering or remove hardware power.
 
@@ -32,7 +32,7 @@ Disabling input stops output. Emergency stop stays latched; clearing it still re
 | Parameters | Search, browse sources, filter categories, freeze, pin, inspect meanings and add mappings |
 | Experimental diagnostics | Inspect Point/Handle/Root/Pose local estimates and failure reasons; experimental permission and two-endpoint calibration |
 
-Replacing/appending presets creates drafts. Save to apply them; Restore discards unsaved edits. Patterns support whole-segment `*`, cross-segment `**`, and semicolon/newline aliases. Prefer a specific instance. **Use source** controls the input source; browsing a source only filters the list.
+Replacing/appending presets creates drafts; the save toolbar below presets shows their state. Fill or remove blank paths before saving. Restore discards unsaved drafts. Saving outputs/axis profiles preserves mapping and receiver drafts, and saving mappings preserves unsaved receiver settings. Reloading the page still initializes from saved configuration. Patterns support whole-segment `*`, cross-segment `**`, and semicolon/newline aliases. Prefer a specific instance. **Use source** controls the input source; browsing a source only filters the list.
 
 FT is hidden by `FT/` and `v2/` namespace prefixes after stripping a full `/avatar/parameters/` prefix. Mapped and pinned entries remain visible; Show FT reveals everything. Shape names such as JawOpen are no longer guessed. Freezing the list does not pause reception or output.
 

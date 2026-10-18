@@ -1,4 +1,4 @@
-import { test, expect, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
+import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
 import { pointSamples, poseSamples } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 import { readFile } from 'node:fs/promises';
@@ -7,8 +7,9 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await enable(page);
   expect(rig.wire.serial).toEqual(expect.arrayContaining(['D0', 'D1', 'D2']));
   await checkpointViewport(page, 'control-page');
-  await checkpoint(page, page.locator('main .section').first(), 'manual-ready');
+  await checkpoint(page, page.locator('.manual-workspace'), 'manual-ready');
   await active(page);
+  await expand(page, '录制 L0 目标');
   await page.getByRole('button', { name: '开始录制', exact: true }).click();
   await page.getByRole('slider', { name: 'L0 主轴', exact: true }).press('End');
   await page.getByRole('button', { name: '发送一次', exact: true }).click();
@@ -27,6 +28,51 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   const script = JSON.parse(await readFile(await (await downloaded).path(), 'utf8'));
   await test.info().attach('recorded.funscript', { body: JSON.stringify(script, null, 2), contentType: 'application/json' });
   expect(script.actions.length).toBeGreaterThanOrEqual(2);
+  const recordedFrames = (await rig.overview()).recording.frameCount;
+  await page.getByRole('button', { name: '重新录制', exact: true }).click();
+  const rerecord = page.getByRole('dialog', { name: '重新录制', exact: true });
+  await expect(rerecord).toBeVisible();
+  await rerecord.getByRole('button', { name: '取消', exact: true }).click();
+  expect((await rig.overview()).recording).toMatchObject({ isActive: false, frameCount: recordedFrames });
+  await page.getByRole('button', { name: '重新录制', exact: true }).click();
+  await rerecord.getByRole('button', { name: '重新录制', exact: true }).click();
+  await expect(rerecord).not.toBeVisible();
+  await expect.poll(async () => (await rig.overview()).recording).toMatchObject({ isActive: true, frameCount: 0 });
+  await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
+  await page.getByRole('button', { name: '发送一次', exact: true }).click();
+  await outputValue(rig, 'udp', 500);
+  await expect.poll(async () => (await rig.overview()).recording.frameCount).toBeGreaterThan(0);
+  const activeDownload = page.waitForEvent('download');
+  await page.getByRole('button', { name: '停止录制并导出', exact: true }).click();
+  const activeScript = JSON.parse(await readFile(await (await activeDownload).path(), 'utf8'));
+  expect(activeScript.actions.length).toBeGreaterThan(0);
+  await expect.poll(async () => (await rig.overview()).recording.isActive).toBe(false);
+
+  const continuous = page.getByRole('checkbox', { name: '连续发送', exact: true });
+  await continuous.check();
+  const manualStopCount = rig.intifaceState.stopCount;
+  await page.getByRole('button', { name: '停用手动', exact: true }).click();
+  await expect(continuous).not.toBeChecked();
+  await expect(page.getByRole('switch', { name: '输入启用', exact: true })).not.toBeChecked();
+  await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
+  for (const transport of ['udp', 'tcp', 'serial']) await expect.poll(() => rig.wire[transport].at(-1)).toBe('DSTOP');
+  await expect.poll(() => rig.intifaceState.stopCount).toBeGreaterThan(manualStopCount);
+  const stoppedAt = Date.now(), motionCount = rig.wire.udp.filter(line => /L0\d/.test(line)).length;
+  const manualRequests = rig.commands.filter(command => command.method === 'PUT' && command.path === '/api/input/manual').length;
+  await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('650');
+  // Observe beyond the actual one-second UDP refresh interval after revoking manual input.
+  // 撤销手动输入后覆盖真实的一秒 UDP 刷新周期，确认编辑和旧目标都不会续发。
+  await expect.poll(() => Date.now() - stoppedAt, { intervals: [100, 250, 500], timeout: 5000 }).toBeGreaterThan(1250);
+  expect(rig.wire.udp.filter(line => /L0\d/.test(line))).toHaveLength(motionCount);
+  expect(rig.commands.filter(command => command.method === 'PUT' && command.path === '/api/input/manual')).toHaveLength(manualRequests);
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
+  await active(page);
+  await expect(page.locator('.control-readiness').getByText(await text(page, '等待手动目标'), { exact: true })).toBeVisible();
+  const reactivatedAt = Date.now();
+  await expect.poll(() => Date.now() - reactivatedAt, { intervals: [100, 250, 500], timeout: 5000 }).toBeGreaterThan(1250);
+  expect(rig.wire.udp.filter(line => /L0\d/.test(line))).toHaveLength(motionCount);
+  expect((await rig.overview()).runtime).toMatchObject({ inputActive: true, manualOverrideEnabled: false });
+  await active(page, false);
   const stopCount = rig.intifaceState.stopCount;
   await page.getByRole('button', { name: '紧急停止', exact: true }).click();
   for (const transport of ['udp','tcp','serial']) await expect.poll(() => rig.wire[transport].at(-1)).toBe('DSTOP');
@@ -215,7 +261,7 @@ test('API session boundary and disabled input cannot command mocks', { tag:['@tr
   const before = rig.wire.udp.filter(line => /L0\d/.test(line)).length;
   await page.getByRole('slider', { name:'L0 主轴', exact:true }).press('End');
   await page.getByRole('button', { name:'发送一次', exact:true }).click();
-  await expect(page.getByText('位置已更新', { exact:true })).toBeVisible();
+  await expect(page.getByText(await text(page, '手动目标已更新'), { exact:true })).toBeVisible();
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(rig.wire.udp.filter(line => /L0\d/.test(line)).length).toBe(before);
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'disabled-input');

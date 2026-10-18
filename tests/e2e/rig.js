@@ -11,7 +11,7 @@ import motion from '../../src/web/data/first-run-motion.json' with { type: 'json
 // 纯配置构建可在不启动 Sensa 或设备的情况下检查。
 export function createRigConfiguration(scenario, serialPort) {
   if (!serialPort?.startsWith('/dev/pts/')) throw new Error('CI pseudo terminal required / 必须使用 CI 伪终端');
-  if (!['quickstart', 'sps', 'query'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
+  if (!['quickstart', 'sps', 'query', 'vibration-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
   return {
     webUi: { host: '127.0.0.1', port: ports.web, autoOpenBrowser: false },
     outputs: [
@@ -52,7 +52,7 @@ export async function startTestRig(peers, scenario, expect) {
     if (failed) throw failed.reason;
   };
   try {
-    peers.reset();
+    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : 'combined' });
     await writeFile(configPath, JSON.stringify(createRigConfiguration(scenario, peers.serialPort)));
     app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll')], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath }, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawnError;
@@ -71,7 +71,7 @@ export async function startTestRig(peers, scenario, expect) {
       } catch { return 0; }
     }, { timeout: 30000 }).toBe(204);
     expect(cookie, 'Session cookie / 会话认证 Cookie').toBeTruthy();
-    peers.reset();
+    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : 'combined' });
     const overview = async () => {
       const response = await fetch(baseUrl + '/api/state/overview', { headers: { Cookie: cookie } });
       if (!response.ok) throw new Error(`Overview rejected / 状态读取失败: ${response.status}`);

@@ -877,6 +877,11 @@ function normalizeOutputSlopeMode(value) {
   return OUTPUT_SLOPE_MODE_OPTIONS().some(option => option.value === value) ? value : 'None';
 }
 
+function normalizeIntifaceVibrationAxis(value) {
+  const axis = String(value ?? '').trim().toUpperCase();
+  return ['V0', 'V1', 'V2', 'L0'].includes(axis) ? axis : 'V0';
+}
+
 function normalizeSpeedUnitBase(value) {
   return SPEED_UNIT_BASE_OPTIONS().some(option => option.value === value) ? value : 'Per100ms';
 }
@@ -905,7 +910,7 @@ function getOutputTargetBindings(output) {
     case 'Intiface': {
       const websocketAddress = normalizeOutputWebsocketAddress(output.websocketAddress);
       const bindings = websocketAddress ? [{ key: `intiface-ws:${websocketAddress.toLowerCase()}`, label: t("Intiface 地址 {0}", [websocketAddress]) }] : [];
-      if (output.manageEngineProcess !== false) {
+      if (output.manageEngineProcess === true) {
         const port = normalizeOutputPort(output.port, getDefaultOutputPort(output.type));
         bindings.push({ key: `intiface-engine:${port}`, label: t("Intiface 引擎端口 {0}", [port]) });
       }
@@ -982,7 +987,7 @@ function buildSuggestedOutputTarget(type, config, serialPorts = [], currentOutpu
     return {
       websocketAddress: `ws://localhost:${port}`,
       port,
-      manageEngineProcess: true,
+      manageEngineProcess: false,
     };
   }
 
@@ -1031,7 +1036,8 @@ function createOutputConfig(type, config, options = {}) {
     comPort: '',
     host: '127.0.0.1',
     port: getDefaultOutputPort(type),
-    manageEngineProcess: true,
+    manageEngineProcess: false,
+    vibrationAxis: 'V0',
     websocketAddress: 'ws://localhost:12345',
     slopeMode: 'None',
     speedUnitBase: 'Per100ms',
@@ -1052,7 +1058,8 @@ function normalizeOutputConfig(output, config, options = {}) {
     comPort: normalizeOutputComPort(output?.comPort || fallback.comPort),
     host: normalizeOutputHost(output?.host, fallback.host),
     port: normalizeOutputPort(output?.port, fallback.port),
-    manageEngineProcess: output?.manageEngineProcess !== false,
+    manageEngineProcess: output?.manageEngineProcess === true,
+    vibrationAxis: normalizeIntifaceVibrationAxis(output?.vibrationAxis),
     websocketAddress: normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
     slopeMode: isTCodeOutputType(output?.type || fallback.type) ? normalizeOutputSlopeMode(output?.slopeMode ?? fallback.slopeMode) : 'None',
     speedUnitBase: isTCodeOutputType(output?.type || fallback.type) ? normalizeSpeedUnitBase(output?.speedUnitBase ?? fallback.speedUnitBase) : 'Per100ms',
@@ -1122,6 +1129,8 @@ function mergeOutputDraft(outputId, config, draft) {
       ...draft,
       type: output.type,
       id: output.id,
+      manageEngineProcess: (draft.manageEngineProcess ?? output.manageEngineProcess) === true,
+      vibrationAxis: normalizeIntifaceVibrationAxis(draft.vibrationAxis ?? output.vibrationAxis),
       motionProfileId: isTCodeOutputType(output.type) ? draft.motionProfileId || getDefaultAxisProfileId(config) : output.motionProfileId,
     };
   });

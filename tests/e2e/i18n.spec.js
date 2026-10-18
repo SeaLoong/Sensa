@@ -18,7 +18,7 @@ test('browser language persists and preserves drafts without control requests', 
   expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(before);
   expect((await rig.overview()).runtime.inputActive).toBe(false); expect(rig.wire.udp).toEqual([]);
   await checkpoint(page,page.locator('.app-header'),'english-toolbar');
-  await checkpoint(page,page.locator('main .section').first(),'english-manual');
+  await checkpoint(page,page.locator('.manual-workspace'),'english-manual');
   await page.getByLabel('Language / 语言').selectOption('zh-CN'); await page.reload();
   await expect(page.getByRole('button',{name:'帮助',exact:true})).toBeVisible(); await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
 });
@@ -68,5 +68,12 @@ test('English presets, script and compact help use localized documentation', {ta
   await page.getByRole('button',{name:'Help',exact:true}).click();
   await expect(page.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
   await expect(page.getByRole('link',{name:await text(page,'Unity 指南'),exact:true})).toHaveAttribute('href',/README\.en\.md$/);
+  await expect(page.getByRole('link',{name:await text(page,'使用方案与限制'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
   await checkpoint(page,page.getByRole('dialog'),'english-help');
+  const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
+  await page.getByRole('button',{name:await text(page,'打开手动'),exact:true}).click();
+  await expect(page.getByRole('dialog')).toBeHidden();
+  await expect(page.locator('#input-tabs-manual')).toBeFocused();
+  expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(beforeBrowse);
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
 });

@@ -26,7 +26,7 @@ export function poseSamples() {
 export async function startMocks() {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Transport peers are CI-only / 模拟传输端仅允许在 CI 启动');
   const wire = { udp: [], tcp: [], serial: [], intiface: [], hub: [] };
-  const intifaceState = { stopped: true, stopCount: 0 };
+  const intifaceState = { stopped: true, stopCount: 0, profile: 'combined' };
   const udp = dgram.createSocket('udp4'), hub = dgram.createSocket('udp4'), source = dgram.createSocket('udp4');
   udp.on('message', b => wire.udp.push(b.toString().trim()));
   hub.on('message', b => wire.hub.push(b.toString('hex')));
@@ -51,13 +51,16 @@ export async function startMocks() {
       '0': { FeatureIndex: 0, FeatureDescription: 'Linear', Output: { HwPositionWithDuration: { Value: [0, 1000], Duration: [0, 60000] } } },
       '1': { FeatureIndex: 1, FeatureDescription: 'Vibration', Output: { Vibrate: { Value: [0, 1000] } } },
     } };
+  const vibrationDevice = { DeviceName: 'CI vibration only', DeviceIndex: 0, DeviceMessageTimingGap: 0,
+    DeviceFeatures: { '0': { FeatureIndex: 0, FeatureDescription: 'Vibration', Output: { Vibrate: { Value: [0, 1000] } } } } };
+  let advertisedDevice = device;
   const bp = new WebSocketServer({ host: '127.0.0.1', port: ports.intiface }); await once(bp, 'listening');
   bp.on('connection', ws => ws.on('message', data => {
     for (const message of JSON.parse(data.toString())) {
       const [name, body] = Object.entries(message)[0]; wire.intiface.push(message);
       let response;
       if (name === 'RequestServerInfo') response = { ServerInfo: { Id: body.Id, ServerName: 'Sensa CI mock', ProtocolVersionMajor: body.ProtocolVersionMajor, ProtocolVersionMinor: body.ProtocolVersionMinor, MaxPingTime: 0 } };
-      else if (name === 'RequestDeviceList') response = { DeviceList: { Id: body.Id, Devices: { '0': device } } };
+      else if (name === 'RequestDeviceList') response = { DeviceList: { Id: body.Id, Devices: { '0': advertisedDevice } } };
       // v4 StopCmd with no device/feature scope stops every output. Reject the
       // legacy names so a regression cannot pass a v4 handshake unnoticed.
       else if (name === 'StopCmd' && body.DeviceIndex === undefined && body.FeatureIndex === undefined && body.Outputs !== false) {
@@ -77,7 +80,10 @@ export async function startMocks() {
       { FULL_PATH: '/', CONTENTS: { avatar: { FULL_PATH: '/avatar', CONTENTS: { parameters: { FULL_PATH: '/avatar/parameters', CONTENTS: { QueryDepth: { FULL_PATH: '/avatar/parameters/QueryDepth', TYPE: 'f', ACCESS: 1, VALUE: [.65] } } } } } } }));
   }); query.listen(ports.query, '127.0.0.1'); await once(query, 'listening');
   return { wire, serialPort, intifaceState,
-    reset: () => {
+    reset: ({ intifaceProfile = 'combined' } = {}) => {
+      if (!['combined', 'vibration-only'].includes(intifaceProfile)) throw new Error('Unknown mock device profile / 未知模拟设备类型');
+      advertisedDevice = intifaceProfile === 'vibration-only' ? vibrationDevice : device;
+      intifaceState.profile = intifaceProfile;
       for (const client of clients) client.destroy();
       for (const client of bp.clients) client.terminate();
       for (const messages of Object.values(wire)) messages.length = 0;

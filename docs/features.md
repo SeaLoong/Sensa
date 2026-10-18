@@ -2,7 +2,7 @@
 
 **简体中文** | [English](features.en.md)
 
-本页描述当前实现与边界，源码索引用于继续查证；操作步骤见[使用指南](guide.md)。程序发送动作目标，没有机械位置反馈闭环。Contact 定位保留为默认关闭的实验估计，不能作为可靠定位承诺。
+本页描述当前实现与边界，源码索引用于继续查证；操作步骤见[使用指南](guide.md)，方案选择、效果与限制见[使用方案](usage-scenarios.md)。程序发送动作目标，没有机械位置反馈闭环。Contact 定位保留为默认关闭的实验估计，不能作为可靠定位承诺。
 
 ## 浏览器工作台
 
@@ -28,7 +28,7 @@ Web 使用 React 和项目自建的 TDesign 风格基本组件。导航位于顶
 
 | 能力 | 实现与条件 |
 | --- | --- |
-| 手动 | 十二轴目标；一次更新、持续更新、清除覆盖；按轴配置或显式 I／S 运动要求 |
+| 手动 | 十二轴目标；一次更新、调整时跟随、清除覆盖；手动停用会关闭许可并停止（其他实际模式不受影响）；按轴配置或显式 I／S 运动要求 |
 | OSC UDP | Float／Int／Bool 标量、嵌套 bundle、Avatar 变更；剥离标准参数地址前缀 |
 | 来源隔离 | 参数按来源保存；选择来源及稳定 ID 偏好；浏览来源不改变实际使用来源 |
 | OSCQuery | HOST_INFO／参数树、LISTEN 订阅、可选轮询回退；本机接收服务广播 |
@@ -48,9 +48,9 @@ SPS Socket 以同来源、同实例 NewRoot／NewTip 学习长度，估计径向
 
 ## 脚本与录制
 
-funscript 接受时间／位置动作，跳过无效动作、排序和处理重复时间；没有有效动作时拒绝。播放插值到 L0，支持 0.1–4 倍速、全段循环、A–B、时码定位、关键帧步进和活动分布。时间由注入时钟驱动，保留分数毫秒，结束帧不依赖界面读取快照的时机。[播放器](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
+funscript 接受时间／位置动作，跳过无效动作，相同时间按原始顺序保留最后一项后排序；没有有效动作时拒绝。播放插值到 L0，支持 0.1–4 倍速、全段循环、A–B、时码定位、关键帧步进和活动分布。时间由注入时钟驱动，保留分数毫秒，结束帧不依赖界面读取快照的时机。[播放器](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
 
-录制缓冲带时间戳的 L0，最多 100000 帧，停止后可简化轨迹并导出标准 actions JSON。录制的是分发前命令，没有其他轴录制或硬件确认。[录制与导出](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+录制缓冲带时间戳的 L0，最多 100000 帧并自动结束；停止时补充最终保持段，之后可简化轨迹并导出标准 actions JSON。活动导出会停止录制，重新录制需确认清空旧缓冲。录制的是分发前命令，不包含其他轴、输入许可、门控或停止事件，也没有硬件确认。[录制与导出](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
 
 ## 输出与轴配置
 
@@ -63,7 +63,7 @@ funscript 接受时间／位置动作，跳过无效动作、排序和处理重�
 
 每个输出有独立名称、连接目标和启用状态。TCode 输出选择共享或独立轴配置：Min／Max、RemapMin／Max、MaxSpeed、Invert、Normal／Locked／Ignored、LockValue、None／Interval／Speed 和 RampType。输出级 slope 与速度单位参与最终编码。忽略的轴不会自动回中。[TCode 编码](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/TCode/TCodeEncoder.cs)
 
-Intiface 根据能力选择定时位置或原始位置命令，支持振动特征；能力不足不能当作完整十二轴设备。程序不包含 Intiface 引擎。每输出遥测解析发送目标，不能证明硬件动作成功。[Intiface](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs/Intiface)、[输出分发](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs)、[遥测](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputTelemetry.cs)
+Intiface 根据能力选择定时位置或原始位置命令；振动独立读取所选 V0／V1／V2／L0，默认 V0，纯振动设备无需位置特征，降至零始终发送零值。L0 转强度须显式选择；能力不足不能当作完整十二轴设备。新输出默认连接已有 Central，显式自管配置仍保留；程序不包含引擎。每输出遥测解析发送目标，不能证明硬件动作成功。[Intiface](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs/Intiface)、[输出分发](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs)、[遥测](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputTelemetry.cs)
 
 ## 空间实验的边界
 

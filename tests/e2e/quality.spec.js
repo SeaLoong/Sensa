@@ -50,6 +50,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       try {
         await expand(page, await label(page, '旋转、震动与辅助轴'));
         await expand(page, await label(page, '发送设置'));
+        await expand(page, await label(page, '录制 L0 目标'));
         await report.audit('control-manual-expanded');
 
         await card(page, 'Mock UDP').getByRole('button', { name: await label(page, '配置'), exact: true }).click();
@@ -131,8 +132,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.keyboard.press('End');
             await expect.poll(() => main.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThanOrEqual(1);
           }
-          const firstControl = page.getByRole('tablist', { name: await label(page, '输入方式'), exact: true })
-            .getByRole('tab', { name: await label(page, '手动'), exact: true });
+          const firstControl = page.locator('.control-readiness').getByRole('button', { name: await label(page, '配置输出'), exact: true });
           await page.keyboard.press('Tab');
           await expect(firstControl).toBeFocused();
           const bounds = await firstControl.evaluate(element => {

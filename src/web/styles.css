@@ -251,8 +251,28 @@ fieldset { min-width: 0; }
 .section:has(> .section__header:only-child) .section__header { margin-bottom: 0; }
 .input-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 24px; }
 .input-panel { min-width: 0; }
-.recording-section .section__header { margin-bottom: 0; }
-.recording-section > p { margin-top: 8px; }
+.control-readiness { margin-bottom: 16px; padding: 8px 12px; border-left: 3px solid var(--accent); background: var(--accent-soft); }
+.control-readiness strong { min-width: 0; font-size: 14px; line-height: 22px; }
+.control-readiness__heading { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; }
+.control-readiness__heading .button { flex-shrink: 0; }
+.readiness-details > summary { min-height: 24px; padding: 0; color: var(--muted); font-size: 12px; line-height: 24px; }
+.readiness-details[open] > summary { margin-bottom: 4px; }
+.control-readiness--warning { border-left-color: var(--warning-text); background: var(--td-warning-color-light); }
+.control-readiness--error { border-left-color: var(--danger); background: var(--td-error-color-light); }
+.control-readiness--success { border-left-color: var(--success-text); background: var(--td-success-color-light); }
+.recording-panel { margin-top: 16px; border-top: 1px solid var(--border); }
+.recording-panel > summary { padding-block: 12px; }
+.recording-panel > summary > .badge { margin-left: 8px; vertical-align: middle; }
+.recording-toolbar > .caption { margin-right: auto; }
+.mapping-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-block: 12px; border-block: 1px solid var(--border); }
+.transport { justify-content: space-between; gap: 12px 24px; }
+.transport__navigation .button { padding-inline: 8px; }
+.usage-choices { display: flex; flex-direction: column; margin-bottom: 16px; }
+.usage-choices > div { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 16px; padding-block: 12px; border-bottom: 1px solid var(--border); }
+.usage-choices > div:first-child { padding-top: 0; }
+.usage-choices strong { font-size: 14px; }
+.help-order { margin-block: 16px; }
+
 
 /* Working surfaces stay flat; repeated rows share columns rather than cards. */
 .manual-workspace { margin-top: 16px; }
@@ -377,7 +397,6 @@ tbody tr:hover { background: #f3f3f3; }
 .file-button { position: relative; overflow: hidden; cursor: pointer; }
 .file-button input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 .file-button:focus-within { outline: 3px solid var(--accent); outline-offset: 3px; }
-.transport { justify-content: flex-start; gap: 8px; }
 .transport .button--primary { min-width: 80px; }
 .script-density__plot { position: relative; height: 72px; padding-top: 8px; overflow: hidden; border-bottom: 1px solid var(--border); background: var(--muted-surface); user-select: none; touch-action: pan-y; }
 .script-density__plot--disabled .script-density__bar { opacity: .65; }
@@ -450,6 +469,8 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .workspace-panel { gap: 16px; }
   .section__header { align-items: flex-start; gap: 12px; margin-bottom: 24px; }
   .section__actions { width: 100%; }
+  .input-section > .section__header { align-items: center; }
+  .input-section > .section__header > .section__actions { width: auto; }
   .section__actions .field { flex: 1 1 150px; min-width: 0; }
   .section__header > .field { width: 100%; }
   .tabs--line { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); width: 100%; }
@@ -491,6 +512,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   :root { --control-height: 44px; --slider-height: 44px; --nav-height: 48px; --icon-hit: 44px; }
   .button { min-width: max(44px, var(--button-height)); min-height: max(44px, var(--button-height)); }
   .tabs [role="tab"], .manual-options > details > summary, .script-player__options > details > summary { min-height: 44px; }
+  .readiness-details > summary { min-height: 44px; }
 }
 @media (forced-colors: active) {
   .toggle input[type="checkbox"] { appearance: auto; forced-color-adjust: auto; border: 0; background: Canvas; color: CanvasText; accent-color: Highlight; }

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { editConfiguration, buildOscDraftFromConfig, buildSignalDrafts, computeSignalHash, getOscMappingPresets, buildPresetDialogDraft, createOutputConfig, getOutputTargetConflicts, buildSuggestedOutputTarget, normalizeAxisProfiles } from '../../src/web/configuration.js';
+import { editConfiguration, buildOutputDialogDraft, buildOscDraftFromConfig, buildSignalDrafts, computeSignalHash, getOscMappingPresets, buildPresetDialogDraft, createOutputConfig, getOutputTargetConflicts, buildSuggestedOutputTarget, normalizeAxisProfiles } from '../../src/web/configuration.js';
 import { computeSignalPreviewOutput } from '../../src/web/osc-workspace.js';
 
 function initial() {
@@ -86,4 +86,26 @@ test('output lifecycle proposes an unoccupied target, prevents collisions and pr
   assert.equal(config.outputs[1].enabled, true);
   config = editConfiguration(config, { kind: 'output-remove', id: output.id });
   assert.equal(config.outputs.length, 1);
+});
+
+test('Intiface starts with Central and explicit vibration routing survives edit/save / Intiface 默认连接 Central，明确振动轴在编辑保存后保留', () => {
+  const source = initial();
+  const output = createOutputConfig('Intiface', source);
+  assert.equal(output.manageEngineProcess, false);
+  assert.equal(output.vibrationAxis, 'V0');
+  const added = editConfiguration(source, { kind: 'output-add', output });
+  for (const [requested, expected] of [['V0', 'V0'], [' v1 ', 'V1'], ['V2', 'V2'], ['L0', 'L0'], ['unknown', 'V0'], [undefined, 'V0']]) {
+    const config = { ...added, outputs: [{ ...output, vibrationAxis: requested, manageEngineProcess: true }] };
+    const draft = buildOutputDialogDraft(output.id, config, []);
+    assert.equal(draft.vibrationAxis, expected);
+    assert.equal(draft.manageEngineProcess, true);
+    const saved = editConfiguration(config, { kind: 'output-save', id: output.id, draft: { ...draft, vibrationAxis: requested } });
+    assert.equal(saved.outputs[0].vibrationAxis, expected);
+    assert.equal(saved.outputs[0].manageEngineProcess, true);
+    assert.equal(saved.outputs[0].id, output.id);
+  }
+  const draft = buildOutputDialogDraft(output.id, added, []);
+  const saved = editConfiguration(added, { kind: 'output-save', id: output.id, draft });
+  assert.equal(saved.outputs[0].manageEngineProcess, false);
+  assert.equal(added.outputs[0].vibrationAxis, 'V0');
 });

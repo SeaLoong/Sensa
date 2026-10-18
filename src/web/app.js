@@ -104,6 +104,7 @@ import SpsRootPanel from './SpsRootPanel.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
+import ControlFlowStatus from './ControlFlowStatus.jsx';
 
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 
@@ -186,10 +187,14 @@ function App() {
   const [logAxisFilter, setLogAxisFilter] = useState('');
   const [logActionFilter, setLogActionFilter] = useState('');
   const [confirmClearMappings, setConfirmClearMappings] = useState(false);
+  const [recordingRestartOpen, setRecordingRestartOpen] = useState(false);
+  const [recordingBusy, setRecordingBusy] = useState(false);
+  const [navigationTarget, setNavigationTarget] = useState(null);
+  const recordingBusyRef = useRef(false);
+  const configSaveRef = useRef(false);
   const manualDraftRef = useRef(initialState.manualDraft);
   const manualMotionModeRef = useRef(initialState.manualMotionMode);
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
-  const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
@@ -201,6 +206,7 @@ function App() {
     ? studioState.preferredInputTab
     : actualInputMode;
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
+  const savedSignalsHash = useMemo(() => computeSignalHash(buildSignalDrafts(config?.signals)), [config?.signals]);
 
   const scriptState = overview?.input?.script || null;
   const scriptLoaded = Boolean(scriptState?.loaded);
@@ -240,7 +246,6 @@ function App() {
         setSerialPorts(normalizeSerialPorts(serialPortResponse));
         setOscDraft(buildOscDraftFromConfig(configResponse));
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
-        savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(configResponse?.signals));
         setStudio(persistedStudio);
         const initialManualDraft = normalizeManualCommand(overviewResponse?.runtime?.manualCommand);
         setManualDraft(initialManualDraft);
@@ -284,9 +289,6 @@ function App() {
   useEffect(() => {
     if (!config) return;
     setStudio((previous) => sanitizeStudio(previous, config));
-    setOscDraft(buildOscDraftFromConfig(config));
-    setSignalDrafts(buildSignalDrafts(config?.signals));
-    savedSignalsHashRef.current = computeSignalHash(buildSignalDrafts(config?.signals));
   }, [config]);
 
   useEffect(() => {
@@ -508,8 +510,13 @@ function App() {
   }, [selectedScriptFile]);
 
   async function recordingAction(action) {
+    if (recordingBusyRef.current) return;
+    recordingBusyRef.current = true;
+    setRecordingBusy(true);
+    clearErrorNotification();
     try {
       const result = await apiRequest(`/api/recording/${action}`, { method: 'POST' });
+      await refreshOverview();
       if (action === 'export') {
         if (!result.content) {
           notify(t('录制为空'), 'info');
@@ -524,6 +531,9 @@ function App() {
       }
     } catch (error) {
       notify(error.message, 'error');
+    } finally {
+      recordingBusyRef.current = false;
+      setRecordingBusy(false);
     }
   }
 
@@ -687,14 +697,20 @@ function App() {
   }
 
   async function persistConfig(nextConfig) {
-    nextConfig.schemaVersion = 5;
-    const saved = await apiRequest('/api/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(nextConfig),
-    });
-    setConfig(saved);
-    return saved;
+    if (configSaveRef.current) throw new Error(t('已有配置正在保存，请稍后重试。'));
+    configSaveRef.current = true;
+    try {
+      nextConfig.schemaVersion = 5;
+      const saved = await apiRequest('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(nextConfig),
+      });
+      setConfig(saved);
+      return saved;
+    } finally {
+      configSaveRef.current = false;
+    }
   }
 
   async function saveOscConfig() {
@@ -708,11 +724,12 @@ function App() {
     }
 
     await withBusy('osc-save', async () => {
-      const nextConfig = editConfiguration(config, { kind: 'osc', draft: oscDraft });
+      const submittedDraft = oscDraft;
+      const nextConfig = editConfiguration(config, { kind: 'osc', draft: submittedDraft });
 
       const savedConfig = await persistConfig(nextConfig);
+      setOscDraft((current) => current === submittedDraft ? buildOscDraftFromConfig(savedConfig) : current);
       await refreshOverview();
-      setOscDraft(buildOscDraftFromConfig(savedConfig));
       notify(t('OSC / Hub 配置已保存'), 'success');
     }).catch((error) => notify(error.message || t('保存 OSC 配置失败'), 'error'));
   }
@@ -794,11 +811,17 @@ function App() {
 
   async function saveOscMappings() {
     if (!config) return;
+    if (hasIncompleteMappings) {
+      notify(t('填写映射路径或移除空白行后再保存。'), 'warning');
+      return;
+    }
 
     await withBusy('osc-mappings-save', async () => {
-      const nextConfig = editConfiguration(config, { kind: 'mappings', drafts: signalDrafts });
+      const submittedDrafts = signalDrafts;
+      const nextConfig = editConfiguration(config, { kind: 'mappings', drafts: submittedDrafts });
 
-      await persistConfig(nextConfig);
+      const savedConfig = await persistConfig(nextConfig);
+      setSignalDrafts((current) => current === submittedDrafts ? buildSignalDrafts(savedConfig.signals) : current);
       await refreshOverview();
       notify(t('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。'), 'success');
     }).catch((error) => notify(error.message || t('保存 OSC 映射失败'), 'error'));
@@ -992,6 +1015,7 @@ function App() {
 
   async function applyInputMode(nextMode) {
     if (!nextMode) return;
+    const focusOrigin = document.activeElement;
 
     await withBusy(`mode-${nextMode}`, async () => {
       await apiRequest('/api/input/mode', {
@@ -1000,6 +1024,11 @@ function App() {
         body: JSON.stringify({ mode: nextMode }),
       });
       await refreshOverview();
+      const modeTab = document.getElementById(`input-tabs-${nextMode}`);
+      if (modeTab?.getAttribute('aria-selected') === 'true'
+        && (document.activeElement === focusOrigin || (!focusOrigin?.isConnected && document.activeElement === document.body))) {
+        modeTab.focus({ preventScroll: true });
+      }
       notify(t('已切换到 {0}，输入已关闭；检查目标后再打开输入。', [formatMode(nextMode)]), 'success');
     }).catch((error) => notify(error.message || t('切换输入失败'), 'error'));
   }
@@ -1059,11 +1088,12 @@ function App() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(manualCommandPayload(manualDraft, manualMotionMode, manualMotionValue)),
       });
-      notify(t('位置已更新'), 'success');
+      notify(t('手动目标已更新'), 'success');
     }).catch((error) => notify(error.message || t('更新位置失败'), 'error'));
   }
 
   async function disableManualInput() {
+    setManualContinuous(false);
     if (manualRafRef.current) {
       cancelAnimationFrame(manualRafRef.current);
       manualRafRef.current = null;
@@ -1416,8 +1446,9 @@ function App() {
   });
   const oscMappingPresets = getOscMappingPresets(config);
   const selectedOscPresetConfig = getOscMappingPreset(config, selectedOscPreset);
+  const hasIncompleteMappings = signalDrafts.some((draft) => !String(draft.oscPath || '').trim());
   const hasUnsavedMappings = Boolean(
-    savedSignalsHashRef.current && computeSignalHash(signalDrafts) !== savedSignalsHashRef.current,
+    config && computeSignalHash(signalDrafts) !== savedSignalsHash,
   );
   const signalOverlapWarnings = buildSignalOverlapWarnings(signalDrafts);
   const outputDialogConflicts = dialog && config ? getOutputTargetConflicts(config, dialog.outputId, dialog.draft) : [];
@@ -1513,6 +1544,38 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [snackbar.open, snackbar.message, snackbar.severity]);
 
+  function navigateWorkflow(destination) {
+    setHelpOpen(false);
+    if (['manual', 'script'].includes(destination)) {
+      setWorkspace('control');
+      selectInputTab(destination);
+      setNavigationTarget(`#input-tabs-${destination}`);
+    } else if (destination === 'outputs') {
+      setWorkspace('control');
+      setNavigationTarget('.outputs-section');
+    } else {
+      setWorkspace('osc');
+      setOscWorkspaceTab(destination === 'osc-diagnostics' ? 'experimental' : 'setup');
+      if (destination === 'osc') selectInputTab('osc');
+      setNavigationTarget(destination === 'osc-settings' ? '.osc-receiver-settings'
+        : destination === 'osc-diagnostics' ? '#osc-tabs-experimental' : '.preset-strip');
+    }
+  }
+
+  useEffect(() => {
+    if (!navigationTarget || helpOpen) return;
+    const region = document.querySelector('main.workspace-scroll')?.querySelector(navigationTarget);
+    if (!region) return;
+    for (let ancestor = region; ancestor; ancestor = ancestor.parentElement) {
+      if (ancestor.tagName === 'DETAILS') ancestor.open = true;
+    }
+    const target = region.matches('button, input, select, summary, [tabindex]') ? region
+      : region.querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary');
+    target?.focus({ preventScroll: true });
+    (region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
+    setNavigationTarget(null);
+  }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen]);
+
   function renderScriptPlayer() {
     return (
       <div className="stack script-player">
@@ -1575,25 +1638,18 @@ function App() {
                 onSelectLoopRange={applyScriptLoopRange}
               />
               <div className="actions transport">
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>
-                  {t('上一动作')}
-                </Button>
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>
-                  {t('重播')}
-                </Button>
-                <Button
-                  tone="primary"
-                  disabled={!scriptLoaded || scriptBusy}
-                  onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}
-                >
-                  {scriptTransportPrimaryLabel}
-                </Button>
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>
-                  {t('停止')}
-                </Button>
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>
-                  {t('下一动作')}
-                </Button>
+                <div className="actions transport__primary">
+                  <Button tone="primary" disabled={!scriptLoaded || scriptBusy}
+                    onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}>
+                    {scriptTransportPrimaryLabel}
+                  </Button>
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>{t('停止')}</Button>
+                </div>
+                <div className="actions transport__navigation">
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>{t('上一动作')}</Button>
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>{t('重播')}</Button>
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>{t('下一动作')}</Button>
+                </div>
               </div>
             </>
           )}
@@ -1705,6 +1761,36 @@ function App() {
           </div>
         )}
       </div>
+    );
+  }
+
+  function renderRecording() {
+    const recording = overview?.recording || {};
+    return (
+      <details className="recording-panel">
+        <summary>
+          {t('录制 L0 目标')}{' '}
+          <Badge tone={recording.isActive ? 'warning' : 'default'}>
+            {recording.isActive ? t('录制中') : recording.frameCount ? t('已停止') : t('待录制')}
+          </Badge>
+        </summary>
+        <div className="stack">
+          <p className="caption muted">{t('记录分发前的 L0 命令，不是设备实测轨迹。')}</p>
+          <div className="actions recording-toolbar">
+            <span className="caption muted">{t('已录制 {0} 帧', [recording.frameCount || 0])}</span>
+            <Button disabled={!online || recording.isActive || recordingBusy}
+              onClick={() => { clearErrorNotification(); if (recording.frameCount) setRecordingRestartOpen(true); else void recordingAction('start'); }}>
+              {recording.frameCount ? t('重新录制') : t('开始录制')}
+            </Button>
+            <Button disabled={!online || !recording.isActive || recordingBusy} onClick={() => recordingAction('stop')}>
+              {t('停止录制')}
+            </Button>
+            <Button tone="primary" disabled={!online || !recording.frameCount || recordingBusy} onClick={() => recordingAction('export')}>
+              {recording.isActive ? t('停止录制并导出') : t('导出录制')}
+            </Button>
+          </div>
+        </div>
+      </details>
     );
   }
 
@@ -1828,6 +1914,15 @@ function App() {
             </Button>
           </div>
         </div>
+        <div className="mapping-toolbar" role="group" aria-label={t('映射保存')}>
+          <div className="actions">
+            <span className="caption muted">{t('{0} 条映射', [signalDrafts.length])}</span>
+            <Badge tone={hasUnsavedMappings || hasIncompleteMappings ? 'warning' : 'default'}>{hasIncompleteMappings ? t('待填写') : hasUnsavedMappings ? t('未保存') : t('已保存')}</Badge>
+            <Button disabled={(!hasUnsavedMappings && !hasIncompleteMappings) || Boolean(busyKey)} onClick={restoreSignalDrafts}>{t('恢复映射')}</Button>
+          </div>
+          <Button tone="primary" disabled={!online || Boolean(busyKey) || hasIncompleteMappings} onClick={saveOscMappings}>{t('保存映射')}</Button>
+        </div>
+        {hasIncompleteMappings && <p className="caption muted">{t('填写映射路径或移除空白行后再保存。')}</p>}
         <details className="inline-details">
           <summary>{t('管理预设')}</summary>
           <div className="actions">
@@ -1848,6 +1943,11 @@ function App() {
           </div>
         </details>
         {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
+        <details className="workflow-details">
+          <summary>{t('映射检查')}</summary>
+          <OscFlowStatus mappings={config?.signals || []} drafts={signalDrafts} dirty={hasUnsavedMappings}
+            runtime={runtimeOverview || {}} mode={actualInputMode} listening={Boolean(overview?.osc?.listening)} />
+        </details>
         {signalOverlapWarnings.length > 0 && <Notice>{t('同轴映射取校准后较高值，不相加。')}</Notice>}
         {signalDrafts.length === 0 ? (
           <p className="empty-state">{t('还没有轴映射')}</p>
@@ -1867,13 +1967,6 @@ function App() {
         )}
         <div className="actions mapping-actions">
           <Button onClick={() => addSignalDraft()}>{t('新增映射')}</Button>
-          <Button disabled={!hasUnsavedMappings} onClick={restoreSignalDrafts}>
-            {t('恢复映射')}
-          </Button>
-          <Button tone="primary" disabled={!online || busyKey === 'osc-mappings-save'} onClick={saveOscMappings}>
-            {t('保存映射')}
-          </Button>
-          {hasUnsavedMappings && <Badge tone="warning">{t('未保存')}</Badge>}
           <Button tone="danger" disabled={!signalDrafts.length} onClick={() => { clearErrorNotification(); setConfirmClearMappings(true); }}>
             {t('清空映射')}
           </Button>
@@ -2202,14 +2295,14 @@ function App() {
             aria-labelledby={`workspace-tabs-${workspace}`}
             className={`workspace-panel workspace-panel--${workspace}`}
           >
-            {!online && (
+            {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
                 {t('连接已断开，命令不会自动重发。')}
               </Notice>
             )}
-            {runtimeOverview?.isEmergency && <Notice tone="error">{t('急停已锁定；解除后仍需重新启用输入。')}</Notice>}
-            {inputActive && runtimeOverview?.gateClosed && <Notice>{t('门控关闭，输出已停止。')}</Notice>}
-            {runtimeOverview?.poseBlocked && runtimeOverview?.spatialInputBlockedReason && (
+            {workspace !== 'control' && runtimeOverview?.isEmergency && <Notice tone="error">{t('急停已锁定；解除后仍需重新启用输入。')}</Notice>}
+            {workspace !== 'control' && inputActive && runtimeOverview?.gateClosed && <Notice>{t('门控关闭，输出已停止。')}</Notice>}
+            {workspace !== 'control' && runtimeOverview?.poseBlocked && runtimeOverview?.spatialInputBlockedReason && (
               <Notice>{diagnostic(runtimeOverview.spatialInputBlockedReason)}</Notice>
             )}
             {workspace === 'control' && (
@@ -2219,6 +2312,10 @@ function App() {
                   className="input-section"
                   actions={<Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>}
                 >
+                  <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
+                    selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
+                    outputStates={overview?.outputs || []} mappings={config?.signals || []}
+                    mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} onNavigate={navigateWorkflow} />
                   <div className="input-toolbar">
                     <Tabs
                       id="input-tabs"
@@ -2228,13 +2325,11 @@ function App() {
                       onChange={selectInputTab}
                       options={INPUT_MODES()}
                     />
-                    <Button
-                      tone="primary"
-                      disabled={!hasPendingInputMode || modeBusy || !online}
-                      onClick={() => applyInputMode(selectedInputTab)}
-                    >
+                    {hasPendingInputMode && <Button
+                      tone="primary" disabled={modeBusy || !online}
+                      onClick={() => applyInputMode(selectedInputTab)}>
                       {t('应用输入方式')}
-                    </Button>
+                    </Button>}
                   </div>
                   {hasPendingInputMode && <p className="caption muted">{t('选择仅用于浏览，应用后才切换输入。')}</p>}
                   <div id="input-tabs-panel" className="input-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
@@ -2271,14 +2366,6 @@ function App() {
                     )}
                     {selectedInputTab === 'osc' && (
                       <div className="stack">
-                        <OscFlowStatus
-                          mappings={config?.signals || []}
-                          drafts={signalDrafts}
-                          dirty={hasUnsavedMappings}
-                          runtime={runtimeOverview || {}}
-                          mode={actualInputMode}
-                          listening={Boolean(overview?.osc?.listening)}
-                        />
                         <div className="actions">
                           <Badge tone={overview?.osc?.listening ? 'success' : 'default'}>
                             {overview?.osc?.listening ? t('监听中') : t('未监听')}
@@ -2290,41 +2377,10 @@ function App() {
                     )}
                     {selectedInputTab === 'script' && renderScriptPlayer()}
                   </div>
+                  {renderRecording()}
                 </Section>
                 {renderOutputs()}
-                <Section
-                  title={t('录制')}
-                  className="recording-section"
-                  actions={
-                    <>
-                      <Badge tone={overview?.recording?.isActive ? 'warning' : 'default'}>
-                        {overview?.recording?.isActive ? t('录制中') : t('待录制')}
-                      </Badge>
-                      <Button
-                        disabled={!online || overview?.recording?.isActive}
-                        onClick={() => recordingAction('start')}
-                      >
-                        {t('开始录制')}
-                      </Button>
-                      <Button
-                        disabled={!online || !overview?.recording?.isActive}
-                        onClick={() => recordingAction('stop')}
-                      >
-                        {t('停止录制')}
-                      </Button>
-                      <Button
-                        disabled={!online || !overview?.recording?.frameCount}
-                        onClick={() => recordingAction('export')}
-                      >
-                        {t('导出录制')}
-                      </Button>
-                    </>
-                  }
-                >
-                  {overview?.recording?.frameCount > 0 && (
-                    <p className="caption muted">{t('{0} 动作', [overview.recording.frameCount])}</p>
-                  )}
-                </Section>
+
               </>
             )}
             {workspace === 'osc' && (
@@ -2617,18 +2673,23 @@ function App() {
                   value={dialog.draft.websocketAddress || ''}
                   onChange={(event) => updateOutput({ websocketAddress: event.target.value })}
                 />
-                <Field
-                  label={t('引擎端口')}
-                  type="number"
-                  min={1}
-                  max={65535}
-                  value={dialog.draft.port ?? 12345}
-                  onChange={(event) => updateOutput({ port: Number(event.target.value) })}
+                <SelectField
+                  label={t('连接方式')}
+                  value={dialog.draft.manageEngineProcess ? 'managed' : 'central'}
+                  options={[{ value: 'central', label: t('连接现有 Intiface Central') }, { value: 'managed', label: t('由 Sensa 启动引擎') }]}
+                  onChange={(value) => updateOutput({ manageEngineProcess: value === 'managed' })}
                 />
-                <Toggle
-                  label={t('托管 Intiface 引擎')}
-                  checked={dialog.draft.manageEngineProcess}
-                  onChange={(manageEngineProcess) => updateOutput({ manageEngineProcess })}
+                {dialog.draft.manageEngineProcess && <Field
+                  label={t('引擎端口')} type="number" min={1} max={65535}
+                  value={dialog.draft.port ?? 12345} onChange={(event) => updateOutput({ port: Number(event.target.value) })}
+                />}
+                <p className="caption muted">{dialog.draft.manageEngineProcess
+                  ? t('Sensa 不附带引擎；自管需另行安装。')
+                  : t('先在 Intiface Central 启动服务并扫描设备。')}</p>
+                <SelectField label={t('振动来源')} value={dialog.draft.vibrationAxis || 'V0'}
+                  options={[{ value: 'V0', label: t('V0 · 主振动') }, { value: 'V1', label: t('V1 · 振动 2') },
+                    { value: 'V2', label: t('V2 · 振动 3') }, { value: 'L0', label: t('L0 · 深度转振动') }]}
+                  onChange={(vibrationAxis) => updateOutput({ vibrationAxis })}
                 />
               </>
             )}
@@ -2781,7 +2842,13 @@ function App() {
           {parameterDetail?.sourceLabel} · {parameterDetail?.value}
         </p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} emergencyAction={emergencyAction} error={modalError} />
+      <Modal open={recordingRestartOpen} title={t('重新录制')} emergencyAction={emergencyAction} error={modalError}
+        onClose={() => setRecordingRestartOpen(false)}
+        actions={<><Button onClick={() => setRecordingRestartOpen(false)}>{t('取消')}</Button>
+          <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
+        <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
+      </Modal>
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>
           <span>{diagnostic(snackbar.message)}</span>
