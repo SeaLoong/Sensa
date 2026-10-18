@@ -41,6 +41,7 @@ Main commits publish previews only after all checks, including E2E screenshot co
 - **Extra avatar tracking or a PB handle:** [Unity installation](unity/top.sealoong.sensa/README.en.md)
 - **Try the test world:** [World guide](tools/unity-world-lab/README.en.md)
 - **Build from source / CI:** [Development](docs/development.en.md)
+- **Complete feature behavior, conditions and limits:** [Features and implementation reference](docs/features.en.md)
 - **Language support and translations:** [Languages](docs/languages.en.md)
 
 Ordinary SPS mapping does not require Sensa's Unity package. Install it for additional measurement features. The WebUI **Help** dialog also contains step-by-step instructions.
