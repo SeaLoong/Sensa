@@ -29,12 +29,12 @@
 
 | 状态 | 修改前 | 修改后 |
 | --- | --- | --- |
-| 窄屏英文手动 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-manual.png) | [当前图](../tests/e2e/__screenshots__/mobile/english-manual.png) |
-| 窄屏参数表 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/osc-parameters.png) | [当前图](../tests/e2e/__screenshots__/mobile/osc-parameters.png) |
-| 英文校准 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-calibration.png) | [当前图](../tests/e2e/__screenshots__/mobile/english-calibration.png) |
-| 英文脚本 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-script.png) | [主控](../tests/e2e/__screenshots__/mobile/english-script.png) · [选项](../tests/e2e/__screenshots__/mobile/english-script-options.png) |
+| 窄屏英文手动 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-manual.png) | [当前图](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-manual.png) |
+| 窄屏参数表 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/osc-parameters.png) | [当前图](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/osc-parameters.png) |
+| 英文校准 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-calibration.png) | [当前图](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-calibration.png) |
+| 英文脚本 | [旧图](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-script.png) | [主控](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-script.png) · [选项](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-script-options.png) |
 
-当前图随基线维护；本轮固定来源是上述提交与 CI 附件。
+修改后图片链接固定到首次接受本轮基线的提交，后续评审另记；生成来源为上述候选提交与 CI 附件。
 
 ## 自动底线与人工判断
 
@@ -44,7 +44,7 @@
 
 incomplete 中的 ×／☆ 按符号功能名称与实际画面审阅，不为迎合字符串比较而把符号塞进名称；这符合 [W3C 对符号标签的解释](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html#symbolic-text-characters)。`nonBmp` 或被遮挡而无法求背景不是实测零对比度。通知文字的已见深底白字可读；表格右侧时间列及部分英文来源 IP 在当前横向位置被裁切，右滚后的可见性仍未评估。最终附件共 73 次 incomplete 节点出现（跨状态重复）：40 次符号名称、16 次星号对比度待判断、5 次通知背景重叠、8 次时间戳裁切、4 次英文来源裁切；不将它们汇总为审美分或伪造全部通过。
 
-普通 main CI 仍须关闭基线更新，比较当前提交的全部图片；候选生成不能提供预发布所需的比较 SHA。[基线来源与限制](../tests/e2e/__screenshots__/README.md)
+普通 main CI 仍须关闭基线更新，比较当前提交的全部图片；候选生成不能提供预发布所需的比较 SHA。[基线来源与限制](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/README.md)
 
 ## 剩余限制
 

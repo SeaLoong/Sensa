@@ -29,12 +29,12 @@ These conclusions apply to the listed states. No blocking or major visual findin
 
 | State | Before | After |
 | --- | --- | --- |
-| Narrow English manual | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-manual.png) | [Current](../tests/e2e/__screenshots__/mobile/english-manual.png) |
-| Narrow parameter table | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/osc-parameters.png) | [Current](../tests/e2e/__screenshots__/mobile/osc-parameters.png) |
-| English calibration | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-calibration.png) | [Current](../tests/e2e/__screenshots__/mobile/english-calibration.png) |
-| English script | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-script.png) | [Controls](../tests/e2e/__screenshots__/mobile/english-script.png) · [Options](../tests/e2e/__screenshots__/mobile/english-script-options.png) |
+| Narrow English manual | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-manual.png) | [Current](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-manual.png) |
+| Narrow parameter table | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/osc-parameters.png) | [Current](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/osc-parameters.png) |
+| English calibration | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-calibration.png) | [Current](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-calibration.png) |
+| English script | [Previous](https://github.com/SeaLoong/Sensa/blob/11894004aceb16ae2e48bdca25203a5d84f25d41/tests/e2e/__screenshots__/mobile/english-script.png) | [Controls](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-script.png) · [Options](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/mobile/english-script-options.png) |
 
-Current images evolve with baseline maintenance. The commit and artifacts above fix this review's source.
+After-image links are fixed at the commit that first accepted these baselines. Future reviews are recorded separately; the candidate commit and artifacts above identify their generation source.
 
 ## Automated floor and manual judgment
 
@@ -44,7 +44,7 @@ The first run exposed reverse Tab containment in dialogs; the fix's boundary foc
 
 Review ×/☆ by their functions and appearance rather than adding literal symbols to accessible names to satisfy string matching. This follows [W3C's symbolic-label explanation](https://www.w3.org/WAI/WCAG22/Understanding/label-in-name.html#symbolic-text-characters). A `nonBmp` result or an obscured background is not a measured zero contrast ratio. Observed notification text is readable on its dark background. Right-hand timestamps and some English source IP cells are clipped at the current horizontal position; their scrolled presentation remains unassessed. Final attachments contain 73 incomplete node occurrences across repeated states: 40 symbolic names, 16 star-contrast reviews, 5 overlapping notification backgrounds, 8 clipped timestamps and 4 clipped English sources. These are neither a beauty score nor an all-pass claim.
 
-Ordinary main CI must still compare every current-commit image with updates disabled. A generation run cannot provide the comparison SHA required by previews. [Baseline provenance and limits](../tests/e2e/__screenshots__/README.md)
+Ordinary main CI must still compare every current-commit image with updates disabled. A generation run cannot provide the comparison SHA required by previews. [Baseline provenance and limits](https://github.com/SeaLoong/Sensa/blob/e3dc3af95150dc1c43fcb320cf3b3489dfaba1a0/tests/e2e/__screenshots__/README.md)
 
 ## Remaining limits
 
