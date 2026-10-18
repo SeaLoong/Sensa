@@ -12,7 +12,7 @@ Both scenes use neutral gray-white floors. Existing projects can use **Tools →
 
 ## Geometry scene
 
-`Assets/SensaLab/Generated/SensaLab.unity` contains separate geometry boundary tests. The local project is `D:/VRChatProjects/Sensa Test World`.
+`Assets/SensaLab/Generated/SensaLab.unity` contains separate geometry boundary tests. Use `<World project>` for your local world project directory.
 
 Walk, run and jump using current client bindings. In ClientSim, close its menu and focus Game view; defaults are WASD, Shift and Space. The 20/40 cm steps near spawn let you try jumping.
 

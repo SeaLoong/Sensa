@@ -8,10 +8,10 @@ Use **`Assets/SensaAvatarLab/Generated/FullFlow.unity`** for a complete flow: Qu
 
 1. Use the project's Unity 2022.3.22f1, Avatars SDK, VRCFury, Modular Avatar/NDMF, lilToon and prop shaders.
 2. Import your licensed Chocolat 1.02 and SPS_Lollipop assets. Templates expect `Assets/Amatousagi/Chocolat/Chocolat.prefab` and `Assets/SeaLoong/SPS_Lollipop/SPS_Lollipop.prefab`.
-3. Close the project, then run `python scripts/install-avatar-lab.py "<avatar project>" --tests` from Sensa and reopen.
+3. Close the project, then run `python scripts/install-avatar-lab.py "<Avatar project>" --tests` from Sensa and reopen.
 4. **Tools → Sensa Avatar Lab → Create authoring scenes** creates missing scenes without overwriting existing edits.
 
-The local project is `D:/VRChatProjects/Sensa Test Avatar`. Keep it local-only; never push proprietary models/textures into public Sensa. Tools contain first-party setup, not paid resources, and do not upload.
+Use `<Avatar project>` for your local avatar project directory. Keep it local-only; never push proprietary models/textures into public Sensa. Tools contain first-party setup, not paid resources, and do not upload.
 
 ## Scenes and menus
 

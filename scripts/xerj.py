@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import socket
 import subprocess
 import sys
@@ -20,14 +21,36 @@ STATE_BASE = (Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData/Local')
               Path(os.environ.get('XDG_STATE_HOME', Path.home() / '.local/state')) / 'sensa')
 STATE = STATE_BASE / 'xerj' / IDENTITY
 STARTUP_TIMEOUT = 110
+XERJ_RELEASE = '1.0.0-rc.96'
 
 
 def executable():
+    """Resolve local installation at runtime; configuration stays portable."""
     value = os.environ.get('XERJ_BIN', '')
-    path = Path(value)
-    if not value or not path.is_absolute() or not path.is_file():
-        raise RuntimeError('Set XERJ_BIN to the absolute path of the installed XERJ binary.')
-    return str(path)
+    if value:
+        value = os.path.expandvars(os.path.expanduser(value))
+        path = Path(value)
+        if path.parent == Path('.'):
+            located = shutil.which(value)
+            if located:
+                return str(Path(located).resolve())
+        if not path.is_absolute():
+            path = ROOT / path
+        if path.is_file():
+            return str(path.resolve())
+        raise RuntimeError('XERJ_BIN does not resolve to an installed executable.')
+    located = shutil.which('xerj')
+    if located:
+        return str(Path(located).resolve())
+    name = 'xerj.exe' if os.name == 'nt' else 'xerj'
+    install = Path(os.environ.get('LOCALAPPDATA', Path.home() / 'AppData/Local')) / 'Programs/xerj'
+    candidates = [ROOT / '.codex/bin' / name, Path.home() / '.local/bin' / name, install / name]
+    candidates.extend(sorted((install / XERJ_RELEASE).glob('*/' + name)))
+    for path in candidates:
+        if path.is_file():
+            return str(path.resolve())
+    raise RuntimeError('Install xerj on PATH, place it in .codex/bin, or set XERJ_BIN to a command '
+                       'or repository-relative path.')
 
 
 def child_environment():

@@ -2,6 +2,7 @@
 
 - After each completed, validated change, commit and push the main Sensa repository. / 每个完成并验证的改动都提交并推送主 Sensa 仓库。
 - Keep unrelated changes out of commits; report actual checks and unverified Unity/hardware behavior. / 提交不夹带无关改动；交付时记录实际验证及未验证的 Unity／硬件行为。
+- Keep documentation and tool configuration portable: use repository-relative paths, environment variables or placeholders; discover local installations at runtime. / 文档与工具配置使用仓库相对路径、环境变量或占位符；本机安装位置在运行时解析。
 - Use `python -X utf8 scripts/verify.py --plan`, then `scripts/verify.py` for affected local checks. Reuse valid receipts; use `--force` only for a justified rerun. Read `docs/development.md` when changing tests, CI, packaging or release behavior. / 先规划再执行受影响检查，复用有效凭据；仅有理由重跑时使用 `--force`。修改测试、CI、打包或发布时阅读开发文档。
 - Browser E2E, full-process smoke, screenshots and World PlayMode suites run only in GitHub Actions. Local static checks, isolated unit tests and Unity EditMode are allowed. Inspect required CI comparisons and image diffs; baseline changes need review. / 浏览器 E2E、完整进程冒烟、截图和世界 PlayMode 仅在 Actions 运行；本机允许静态、隔离单元及 Unity EditMode。核对必要的 CI 比较和差异图，基线变更必须审阅。
 - Main pushes automatically inherit or recover unfinished product verification. Documentation/test-only skips apply only when none is outstanding; intent artifacts and a successor documentation success cannot replace actual required owner-job success. Read `docs/development.md` for continuation rules. / main 自动继承或恢复未完成的产品验证；只有没有待接续验证时才按纯文档／测试跳过产品链。意图 artifact 或后续文档 success 不能替代 owner 必要 jobs 的真实成功；接续规则见开发文档。

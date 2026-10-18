@@ -35,15 +35,59 @@ class XerjTests(unittest.TestCase):
         value = {'root': str(xerj.ROOT), 'url': xerj.URL, **overrides}
         (self.state / 'ready.json').write_text(json.dumps(value), encoding='utf-8')
 
-    def test_requires_explicit_absolute_installed_binary(self):
-        for value in ('', 'xerj', str(self.state / 'missing')):
-            with self.subTest(value=value), patch.dict(os.environ, {'XERJ_BIN': value}), \
-                    self.assertRaisesRegex(RuntimeError, 'absolute path'):
-                xerj.executable()
+    def test_path_installation_needs_no_machine_specific_configuration(self):
         binary = self.state / 'xerj.exe'
+        with patch.dict(os.environ, {'XERJ_BIN': ''}), \
+                patch.object(xerj.shutil, 'which', return_value=str(binary)) as locate:
+            self.assertEqual(xerj.executable(), str(binary.resolve()))
+        locate.assert_called_once_with('xerj')
+
+    def test_binary_override_supports_commands_and_repository_relative_paths(self):
+        binary = self.state / 'tools/xerj.exe'
+        binary.parent.mkdir()
         binary.touch()
-        with patch.dict(os.environ, {'XERJ_BIN': str(binary)}):
-            self.assertEqual(xerj.executable(), str(binary))
+        with patch.object(xerj, 'ROOT', self.state):
+            with patch.dict(os.environ, {'XERJ_BIN': 'tools/xerj.exe'}), \
+                    patch.object(xerj.shutil, 'which', return_value='another-checkout/xerj.exe') as locate:
+                self.assertEqual(xerj.executable(), str(binary.resolve()))
+                locate.assert_not_called()
+            with patch.dict(os.environ, {'XERJ_BIN': 'xerj-custom'}), \
+                    patch.object(xerj.shutil, 'which', return_value=str(binary)):
+                self.assertEqual(xerj.executable(), str(binary.resolve()))
+
+    def test_invalid_explicit_override_does_not_silently_use_another_installation(self):
+        with patch.dict(os.environ, {'XERJ_BIN': 'missing-xerj'}), \
+                patch.object(xerj.shutil, 'which', return_value=None), \
+                patch.object(xerj, 'ROOT', self.state), \
+                self.assertRaisesRegex(RuntimeError, 'does not resolve'):
+            xerj.executable()
+
+    def test_user_local_and_project_installations_are_discovered_at_runtime(self):
+        name = 'xerj.exe' if os.name == 'nt' else 'xerj'
+        options = [self.state / 'project/.codex/bin' / name,
+                   self.state / 'user/.local/bin' / name,
+                   self.state / 'local/Programs/xerj' / name,
+                   self.state / 'local/Programs/xerj' / xerj.XERJ_RELEASE / 'release-native' / name]
+        for binary in options:
+            with self.subTest(location=binary.relative_to(self.state)):
+                binary.parent.mkdir(parents=True, exist_ok=True)
+                binary.touch()
+                try:
+                    with patch.dict(os.environ, {'XERJ_BIN': '', 'LOCALAPPDATA': str(self.state / 'local')}), \
+                            patch.object(xerj.shutil, 'which', return_value=None), \
+                            patch.object(xerj, 'ROOT', self.state / 'project'), \
+                            patch.object(xerj.Path, 'home', return_value=self.state / 'user'):
+                        self.assertEqual(xerj.executable(), str(binary.resolve()))
+                finally:
+                    binary.unlink()
+
+    def test_missing_installation_explains_portable_setup(self):
+        with patch.dict(os.environ, {'XERJ_BIN': '', 'LOCALAPPDATA': str(self.state / 'local')}), \
+                patch.object(xerj.shutil, 'which', return_value=None), \
+                patch.object(xerj, 'ROOT', self.state / 'project'), \
+                patch.object(xerj.Path, 'home', return_value=self.state / 'user'), \
+                self.assertRaisesRegex(RuntimeError, 'repository-relative path'):
+            xerj.executable()
 
     def test_shared_service_lock_excludes_another_owner(self):
         guard = xerj.acquire_lock()

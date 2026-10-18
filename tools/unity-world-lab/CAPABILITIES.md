@@ -51,16 +51,16 @@ Avatar 的原生 haptics 必须打开实验菜单 `Enable SPS OSC (local)`（`OG
 
 ## 图像桥接操作
 
-先使用没有任何输出设备的 Sensa 配置，应用 OSC 输入。脚本不会连接或启用硬件。
+先使用没有任何输出设备的 Sensa 配置，应用 OSC 输入。脚本不会连接或启用硬件。下列命令中的 `<World project>` 请替换为自己的本地世界工程目录。
 
 仓库提供 `tools/unity-world-lab/sensa-preview.json`。在单独 PowerShell 中设置 `$env:SENSA_CONFIG_PATH` 为该文件绝对路径，再运行解压目录的 `Sensa.exe`，打开 `http://127.0.0.1:5087`。它没有输出设备。先关闭其他占用 UDP 9001 的监听程序；应用 OSC 输入后，多个来源并存时在参数工作台固定桥接来源。
 
 ```powershell
 python -m pip install -r scripts/requirements-capture.txt
 # 离线检查一帧；不传 --port 就不会发送网络数据
-python scripts/shader-osc-bridge.py --image "D:/VRChatProjects/Sensa Test World/Validation/functional/sps-telemetry.png"
+python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
 # 读取 GPU Probe 连续更新的 PNG，明确指定本机 Sensa 的 OSC 端口
-python scripts/shader-osc-bridge.py --image "D:/VRChatProjects/Sensa Test World/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
+python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
 # 或读取完整代码区域，坐标为桌面物理像素；示例数字需要按实际区域修改
 python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
 ```

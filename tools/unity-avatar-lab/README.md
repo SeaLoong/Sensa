@@ -18,10 +18,10 @@ Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITI
 
 1. 使用 Unity 2022.3.22f1 与 Avatars SDK；安装 VRCFury、Modular Avatar/NDMF、lilToon，以及 SPS 道具需要的着色器。
 2. 自行导入已获得授权的 Chocolat 1.02 与 SPS_Lollipop。当前场景模板读取 `Assets/Amatousagi/Chocolat/Chocolat.prefab` 和 `Assets/SeaLoong/SPS_Lollipop/SPS_Lollipop.prefab`。
-3. 关闭 Unity，在 Sensa 仓库运行 `python scripts/install-avatar-lab.py "你的 Avatar 项目" --tests`，然后重新打开项目。
+3. 关闭 Unity，在 Sensa 仓库运行 `python scripts/install-avatar-lab.py "<Avatar project>" --tests`，然后重新打开项目。
 4. 选择 **Tools → Sensa Avatar Lab → Create authoring scenes**。已有场景不会被覆盖。
 
-本机项目为 `D:/VRChatProjects/Sensa Test Avatar`，采用本地 Git。不要将模型、纹理或该项目推送到 Sensa 的公开仓库。
+用 `<Avatar project>` 表示自己的本地 Avatar 工程目录，采用本地 Git。不要将模型、纹理或该项目推送到 Sensa 的公开仓库。
 
 ## 两套场景
 

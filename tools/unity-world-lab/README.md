@@ -22,7 +22,7 @@
 
 ## 进入世界
 
-本地项目：`D:/VRChatProjects/Sensa Test World`。使用项目指定的 Unity 打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。
+在自己的本地世界工程目录（下文记为 `<World project>`）中，使用项目指定的 Unity 打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。
 
 可以走动、跑动和跳跃；使用客户端当前绑定的移动/跳跃键。出生点前方是基础实验，继续向前是三排编号测试台。VR 中靠近球体抓取，桌面模式按客户端的拾取提示操作。
 

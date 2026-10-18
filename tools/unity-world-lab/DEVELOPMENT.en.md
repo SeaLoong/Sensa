@@ -2,10 +2,10 @@
 
 [简体中文](DEVELOPMENT.md) | **English**
 
-This is a device-free PC Worlds harness. FunctionalLab separates signal systems; Generated/SensaLab contains geometry boundaries. Source lives in `tools/unity-world-lab`, with shared GPU probe/protocol sources. Sync via:
+This is a device-free PC Worlds harness. FunctionalLab separates signal systems; Generated/SensaLab contains geometry boundaries. Source lives in repository-relative `tools/unity-world-lab`, with shared GPU probe/protocol sources. Replace `<World project>` with your local world project directory, then sync from the Sensa repository root:
 
 ```powershell
-python -X utf8 scripts/install-world-lab.py "D:/VRChatProjects/Sensa Test World"
+python -X utf8 scripts/install-world-lab.py "<World project>"
 ```
 
 The installer refuses locally edited owned files and does not overwrite generated scenes. Scene generators also refuse existing scenes. The project remains local Git with no remote; Library/Temp/Logs/Builds are excluded. DisabledPackages~ retains optional packages excluded after Harmony conflicts.

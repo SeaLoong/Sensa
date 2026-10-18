@@ -1,0 +1,30 @@
+# Copy this file to config.toml in this directory for a trusted Sensa checkout.
+[mcp_servers.xerj-sensa]
+command = 'python'
+env_vars = ['XERJ_BIN']
+args = [
+  '-c',
+  '''
+from pathlib import Path
+import runpy
+
+cwd = Path.cwd().resolve()
+script = next(
+    (root / 'scripts' / 'xerj.py'
+     for root in (cwd, *cwd.parents)
+     if (root / '.xerjignore').is_file()
+     and (root / 'scripts' / 'xerj.py').is_file()),
+    None,
+)
+if script is None:
+    raise SystemExit('Start Codex inside the Sensa checkout to load xerj-sensa.')
+runpy.run_path(str(script), run_name='__main__')
+''',
+  'mcp',
+]
+startup_timeout_sec = 120
+tool_timeout_sec = 60
+enabled_tools = ['xerj_search', 'xerj_map', 'xerj_plan', 'xerj_semantic_search', 'xerj_hybrid_search']
+
+[mcp_servers.xerj-sensa.env]
+XERJ_DISABLE_FEEDBACK = 'true'

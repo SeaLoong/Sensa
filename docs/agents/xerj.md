@@ -29,21 +29,9 @@ The node uses the offline lexical embedder. Its semantic tools use feature hashi
 
 Install a native binary from the [official XERJ releases](https://github.com/xerj-org/xerj/releases). The verified Windows setup uses `v1.0.0-rc.96`: download the archive for your CPU and its `.sha256` companion, compare with `Get-FileHash -Algorithm SHA256`, then extract it. See the [upstream installation guide](https://xerj.org/docs/install) for other platforms.
 
-Create the ignored `.codex/config.toml` with absolute paths appropriate to your machine. Keep existing sections when adding this server. [Codex project MCP configuration](https://developers.openai.com/codex/mcp/) loads for trusted projects.
+Copy the [portable MCP template](../../.codex/config.toml.example) to the ignored `.codex/config.toml`, preserving other servers when merging an existing configuration. [Codex project MCP configuration](https://developers.openai.com/codex/mcp/) loads for trusted projects.
 
-```toml
-[mcp_servers.xerj-sensa]
-command = 'C:\Python314\python.exe'
-args = ['F:\Code\Sensa\scripts\xerj.py', 'mcp']
-cwd = 'F:\Code\Sensa'
-startup_timeout_sec = 120
-tool_timeout_sec = 60
-enabled_tools = ['xerj_search', 'xerj_map', 'xerj_plan', 'xerj_semantic_search', 'xerj_hybrid_search']
-
-[mcp_servers.xerj-sensa.env]
-XERJ_BIN = 'C:\path\to\xerj.exe'
-XERJ_DISABLE_FEEDBACK = 'true'
-```
+The template invokes `python` from PATH and discovers the checkout from the session's current directory or its ancestors, so it also works from a subdirectory. Keep machine paths out of configuration and examples. The launcher discovers `xerj` on PATH, in `.codex/bin/`, or in supported user-local installation locations computed at runtime, including the verified Windows release archive layout. An optional `XERJ_BIN` environment variable can name a command or a repository-relative executable; user-local environment values are supplied at runtime.
 
 Confirm registration with `codex mcp get xerj-sensa`, then restart the MCP server or reopen the project chat to load its tools. The launcher starts the shared local node and file watcher automatically. Diagnostics stay in log files; MCP stdout contains only protocol messages.
 
@@ -53,4 +41,4 @@ The service listens on `127.0.0.1:19200`; XERJ also reserves ports 19201 and 192
 
 The watcher follows `.gitignore` and `.xerjignore`, skips hidden files and external symlinks, and caps files at 10 MiB. Dot directories such as `.github/` and `.codex/` are absent from the index; use `rg --hidden` when looking there. It uses `--no-graph` so additions, deletions and renames reconcile with the index; see [XERJ live reindexing](https://github.com/xerj-org/xerj/blob/v1.0.0-rc.96/docs/LIVE_REINDEXING.md). A failed indexing pass requires another file change or a service restart before it retries. Check the logs when results appear stale.
 
-Set `XERJ_BIN` to the same executable when running the helper from a terminal. Inspect available commands with `python scripts/xerj.py --help`. Stopping the service affects Codex search; the next MCP launch starts it again. This helper never starts Sensa or connects to device transports.
+Use the same installation discovery when running the helper from a terminal; `XERJ_BIN` is optional. Inspect available commands with `python scripts/xerj.py --help`. Stopping the service affects Codex search; the next MCP launch starts it again. This helper never starts Sensa or connects to device transports.

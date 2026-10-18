@@ -47,14 +47,14 @@ Experimental handles allow grabbing, disallow posing and collisions, have an emp
 
 ## Image bridge
 
-Use an isolated Sensa configuration with **no outputs**. The shipped `tools/unity-world-lab/sensa-preview.json` uses WebUI 5087. Set SENSA_CONFIG_PATH to its absolute path before starting Sensa. Free UDP 9001 and pin the bridge source.
+Use an isolated Sensa configuration with **no outputs**. Replace `<World project>` in the commands below with your local world project directory. The shipped `tools/unity-world-lab/sensa-preview.json` uses WebUI 5087. Set SENSA_CONFIG_PATH to its absolute path before starting Sensa. Free UDP 9001 and pin the bridge source.
 
 ```powershell
 python -m pip install -r scripts/requirements-capture.txt
 # Offline: no network without --port
-python scripts/shader-osc-bridge.py --image "D:/VRChatProjects/Sensa Test World/Validation/functional/sps-telemetry.png"
+python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
 # Continuous editor PNG; explicitly opt into local OSC
-python scripts/shader-osc-bridge.py --image "D:/VRChatProjects/Sensa Test World/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
+python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
 # Exact physical-pixel rectangle; replace these example coordinates
 python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
 ```

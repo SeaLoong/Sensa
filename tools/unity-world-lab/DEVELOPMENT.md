@@ -21,7 +21,7 @@ Use `Tools > Sensa Lab > Run editor GPU validation` to write `Validation/editor-
 
 The world project is a separate, local-only Git repository. No remote is configured. Library/Temp/Logs/Builds are excluded. Installed package sources are recorded locally for reproducibility. Optional packages under `DisabledPackages~` are preserved but not loaded: their Harmony versions conflicted with SDK/UdonSharp during initial generation.
 
-Source of truth: `F:/Code/Sensa/tools/unity-world-lab` and the shared Sensa GPU probe/protocol. Sync with `python -X utf8 scripts/install-world-lab.py "D:/VRChatProjects/Sensa Test World"`. The installer refuses to overwrite locally modified owned source files; generated scene assets are not overwritten by the sync. The scene generator also refuses to overwrite an existing scene.
+Source of truth: repository-relative `tools/unity-world-lab` and the shared Sensa GPU probe/protocol. Replace `<World project>` with your local world project directory. From the Sensa repository root, sync with `python -X utf8 scripts/install-world-lab.py "<World project>"`. The installer refuses to overwrite locally modified owned source files; generated scene assets are not overwritten by the sync. The scene generator also refuses to overwrite an existing scene.
 
 Still requiring client validation: HMD visibility, avatar camera behavior, remote interactions, capture latency, minimized/occluded windows, Spout, and device calibration. No real device outputs are enabled by this harness.
 
@@ -58,7 +58,7 @@ Case 09 的 -1 是明确注入的缺采样标记，不是声称 SDK 会返回负
 
 ### 重现与自动检查
 
-1. 主仓库执行 `python -X utf8 scripts/install-world-lab.py "D:/VRChatProjects/Sensa Test World"` 同步自有源码。
+1. 主仓库执行 `python -X utf8 scripts/install-world-lab.py "<World project>"` 同步自有源码。
 2. Unity 菜单 `Tools > Sensa Lab > Add point geometry cases` 添加测试区。已有区不会重复生成，用户修改的位置不被重置。
 3. `Validate point geometry cases` 运行原生 SDK 编辑器测量，写入 `Validation/point-cases.json` 与世界总览/近景截图。
 4. `Run Play Mode validation (straight)` 运行 ClientSim，除了原 SPS/GPU/PB 检查，还要求 11 块 Udon 状态板全部报告预期结果；报告为 `Validation/point-cases-playmode.json`。
@@ -81,7 +81,7 @@ OSC 页面新增 XZ/YZ 投影与三步校准卡片。投影网格显示 ±25 cm 
 
 ## 测试世界详细操作路线
 
-本地项目为 `D:/VRChatProjects/Sensa Test World`，仅做本地 Git 回溯，不设置 remote。请用项目指定的 Unity 2022.3.22f1 打开；这里是 Worlds SDK 项目，不安装完整的 Avatar Sensa 包。源码同步脚本只管理 `Assets/SensaLab`，不会下载 SDK、替换场景或改 Git 远程。
+`<World project>` 表示自己的本地世界工程目录；该工程仅做本地 Git 回溯，不设置 remote。请用项目指定的 Unity 2022.3.22f1 打开；这里是 Worlds SDK 项目，不安装完整的 Avatar Sensa 包。源码同步脚本只管理 `Assets/SensaLab`，不会下载 SDK、替换场景或改 Git 远程。
 
 ### 区域和可见数据
 

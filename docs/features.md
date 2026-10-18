@@ -711,7 +711,7 @@ E2E 在 worker 内复用回环模拟端，但每个测试创建独立 Sensa 进�
 
 ### 本地代码与文档搜索
 
-开发工具 `scripts/xerj.py` 管理共享本地 XERJ 索引，要求 `XERJ_BIN` 指向已安装可执行文件的绝对路径。`python scripts/xerj.py mcp` 复用或自动启动服务并连接 MCP；`serve` 直接运行监督进程，`status` 检查就绪状态并显示状态目录，`stop` 请求停止其管理的子进程。服务绑定 `127.0.0.1:19200`，同时预检 19201／19202 端口，使用 lexical 模式，关闭 rerank 与反馈；先完成初次索引，再启动文件监听，确认本次监听就绪后才发布 ready 标记。每工作区的锁、索引和日志默认存放在仓库外，避免重复启动或误用残留标记；失败或停止会清理受管子进程。它辅助开发时检索代码和文档，不启动 Sensa、不连接设备，也不代替产品验证；源码变更按开发工具检查，既有产品验证的接续仍遵循下一节。[本地搜索管理](https://github.com/SeaLoong/Sensa/blob/main/scripts/xerj.py)、[隔离生命周期契约](https://github.com/SeaLoong/Sensa/blob/main/tests/scripts/test_xerj.py)
+开发工具 `scripts/xerj.py` 管理共享本地 XERJ 索引，从 PATH、仓库工具目录或用户安装目录自动发现可执行文件；可选环境变量 `XERJ_BIN` 支持命令名或仓库相对路径，MCP 配置使用可移植模板。`python scripts/xerj.py mcp` 复用或自动启动服务并连接 MCP；`serve` 直接运行监督进程，`status` 检查就绪状态并显示状态目录，`stop` 请求停止其管理的子进程。服务绑定 `127.0.0.1:19200`，同时预检 19201／19202 端口，使用 lexical 模式，关闭 rerank 与反馈；先完成初次索引，再启动文件监听，确认本次监听就绪后才发布 ready 标记。每工作区的锁、索引和日志默认存放在仓库外，避免重复启动或误用残留标记；失败或停止会清理受管子进程。它辅助开发时检索代码和文档，不启动 Sensa、不连接设备，也不代替产品验证；源码变更按开发工具检查，既有产品验证的接续仍遵循下一节。[本地搜索管理](https://github.com/SeaLoong/Sensa/blob/main/scripts/xerj.py)、[隔离生命周期契约](https://github.com/SeaLoong/Sensa/blob/main/tests/scripts/test_xerj.py)
 
 ### CI 门槛与发布状态机
 
