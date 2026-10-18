@@ -1,5 +1,6 @@
 import { test, expect, card, text, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
 import { pointSamples } from './mocks.js';
+import { assertCalibrationAlignment } from './ui-quality.js';
 
 test.use({locale:'en-US'});
 
@@ -35,9 +36,10 @@ test('English experimental calibration drives only after opt-in and stops on rel
   await expect(page.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText(/^2\.0 \/ -?0\.0 \/ 15\.0 cm$/);
   await page.getByRole('button',{name:await text(page,'采集 100%'),exact:true}).click();
   await expect(page.locator('.calibration-grid output').nth(1)).toHaveText('15.0 cm');
-  await expect(page.getByRole('button',{name:await text(page,'替换为校准映射'),exact:true})).toBeEnabled();
+  await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
+  await assertCalibrationAlignment(page, test.info());
   await checkpoint(page,page.locator('.calibration-grid'),'english-calibration');
-  await page.getByRole('button',{name:await text(page,'替换为校准映射'),exact:true}).click();
+  await page.getByRole('button',{name:await text(page,'替换草稿'),exact:true}).click();
   await oscWorkspace(page,'映射'); await page.getByRole('button',{name:await text(page,'保存映射'),exact:true}).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   await workspace(page,'控制'); await active(page); await feed.set(pointSamples(.1)); await outputValue(rig,'udp',500);
@@ -45,8 +47,19 @@ test('English experimental calibration drives only after opt-in and stops on rel
   await feed.set(pointSamples(.1,false)); await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('English presets, script and compact help use localized documentation', {tag:['@i18n','@visual']}, async ({page}) => {
-  await mode(page,'脚本'); await checkpoint(page,page.locator('.script-player__controls'),'english-script');
+test('English presets, script and compact help use localized documentation', {tag:['@i18n','@visual']}, async ({page,rig}) => {
+  await mode(page,'脚本');
+  await expect(page.getByRole('slider',{name:await text(page,'时间轴'),exact:true})).toHaveCount(0);
+  await checkpoint(page,page.locator('.script-player__controls'),'english-script');
+  await page.locator('input[type=file]').setInputFiles({
+    name:'english-preview.funscript',mimeType:'application/json',
+    buffer:Buffer.from(JSON.stringify({actions:[{at:0,pos:0},{at:5000,pos:100},{at:10000,pos:0}]})),
+  });
+  await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(true);
+  await expect(page.getByRole('button',{name:await text(page,'播放'),exact:true})).toBeEnabled();
+  await expect(page.getByRole('slider',{name:await text(page,'时间轴'),exact:true})).toBeVisible();
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
+  await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
   await expect(page.getByLabel(await text(page,'预设方案'),{exact:true}).locator('option')).toHaveCount(5);

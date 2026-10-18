@@ -1451,7 +1451,7 @@ function App() {
     .slice(-300);
   const manualMotionField =
     manualMotionMode === 'Interval'
-      ? { label: t('指定时长'), min: 1, max: MANUAL_INTERVAL_MAX_MS, format: (value) => `${Math.round(Number(value))} ms` }
+      ? { label: t('指定时长'), min: 1, max: MANUAL_INTERVAL_MAX_MS, unit: 'ms', format: (value) => `${Math.round(Number(value))} ms` }
       : { label: manualMotionMode === 'Speed' ? t('指定速度') : t('速度上限'), min: AXIS_LIMIT_MIN_SPEED, max: AXIS_LIMIT_MAX_SPEED };
   const modeBusy = Boolean(busyKey.startsWith('mode-'));
   const scriptBusy = Boolean(busyKey.startsWith('script-'));
@@ -1548,165 +1548,174 @@ function App() {
                   onChange={(event) => setSelectedScriptFile(event.target.files?.[0] || null)}
                 />
               </label>
-              <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScript}>
-                {t('卸载')}
-              </Button>
+              {scriptLoaded && (
+                <Button disabled={scriptBusy} onClick={clearScript}>
+                  {t('卸载')}
+                </Button>
+              )}
             </div>
           </div>
-          <div className="script-clock">
-            <output>{formatDuration(scriptSeekBasePosition)}</output>
-            <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
-          </div>
-          <SliderControl
-            aria-label={t('时间轴')}
-            min={0}
-            max={scriptSliderMax}
-            step={50}
-            value={scriptSeekValue}
-            disabled={!scriptLoaded || scriptBusy}
-            valueFormatter={formatDuration}
-            onChange={(next) => {
-              setScriptSeekDragging(true);
-              setScriptSeekDraft(next);
-            }}
-            onChangeCommitted={(next) => void seekScript(next)}
-          />
-          <ScriptTimelineDensity
-            bins={scriptActivityBins}
-            durationMs={scriptDurationMs}
-            currentPositionMs={scriptSeekBasePosition}
-            loopStartMs={scriptLoopRange.startMs}
-            loopEndMs={scriptLoopRange.endMs}
-            disabled={!scriptLoaded || scriptBusy}
-            onSeek={seekScript}
-            onSetLoopBoundary={setScriptLoopBoundary}
-            onSelectLoopRange={applyScriptLoopRange}
-          />
-          <div className="actions transport">
-            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>
-              {t('上一动作')}
-            </Button>
-            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>
-              {t('重播')}
-            </Button>
-            <Button
-              tone="primary"
-              disabled={!scriptLoaded || scriptBusy}
-              onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}
-            >
-              {scriptTransportPrimaryLabel}
-            </Button>
-            <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>
-              {t('停止')}
-            </Button>
-            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>
-              {t('下一动作')}
-            </Button>
-          </div>
-          <div className="form-grid">
-            <SelectField
-              label={t('播放倍率')}
-              value={scriptSettings.speed}
-              options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
-                .sort((a, b) => a - b)
-                .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
-              onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-            />
-            <ValueSliderField
-              label={t('自定义倍率')}
-              value={scriptSettings.speed}
-              min={SCRIPT_SPEED_MIN}
-              max={SCRIPT_SPEED_MAX}
-              step={SCRIPT_SPEED_STEP}
-              valueFormatter={formatScriptSpeedLabel}
-              onChange={(speed) => updateScriptSettingsDraft({ speed })}
-              onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-            />
-            <Toggle
-              label={t('循环')}
-              checked={scriptSettings.loop}
-              onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
-            />
-          </div>
-        </div>
-        <div className="stack script-player__options">
-          <details>
-            <summary>{t('定位与 A-B')}</summary>
-            <div className="stack">
-              <div className="actions">
-                <Field
-                  label={t('跳转时间')}
-                  value={scriptJumpInput}
-                  placeholder="01:23.45"
-                  onChange={(event) => setScriptJumpInput(event.target.value)}
-                  onKeyDown={(event) => {
-                    if (event.key === 'Enter') {
-                      event.preventDefault();
-                      void submitScriptJump();
-                    }
-                  }}
+          {scriptLoaded && (
+            <>
+              <div className="script-clock">
+                <output>{formatDuration(scriptSeekBasePosition)}</output>
+                <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
+              </div>
+              <SliderControl
+                aria-label={t('时间轴')}
+                min={0}
+                max={scriptSliderMax}
+                step={50}
+                value={scriptSeekValue}
+                disabled={!scriptLoaded || scriptBusy}
+                valueFormatter={formatDuration}
+                onChange={(next) => {
+                  setScriptSeekDragging(true);
+                  setScriptSeekDraft(next);
+                }}
+                onChangeCommitted={(next) => void seekScript(next)}
+              />
+              <ScriptTimelineDensity
+                bins={scriptActivityBins}
+                durationMs={scriptDurationMs}
+                currentPositionMs={scriptSeekBasePosition}
+                loopStartMs={scriptLoopRange.startMs}
+                loopEndMs={scriptLoopRange.endMs}
+                disabled={!scriptLoaded || scriptBusy}
+                onSeek={seekScript}
+                onSetLoopBoundary={setScriptLoopBoundary}
+                onSelectLoopRange={applyScriptLoopRange}
+              />
+              <div className="actions transport">
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>
+                  {t('上一动作')}
+                </Button>
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>
+                  {t('重播')}
+                </Button>
+                <Button
+                  tone="primary"
+                  disabled={!scriptLoaded || scriptBusy}
+                  onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}
+                >
+                  {scriptTransportPrimaryLabel}
+                </Button>
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>
+                  {t('停止')}
+                </Button>
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>
+                  {t('下一动作')}
+                </Button>
+              </div>
+              <div className="form-grid">
+                <SelectField
+                  label={t('播放倍率')}
+                  value={scriptSettings.speed}
+                  options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
+                    .sort((a, b) => a - b)
+                    .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
+                  onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
                 />
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={submitScriptJump}>
-                  {t('跳转')}
-                </Button>
-                {SCRIPT_SEEK_ACTIONS().map((action) => (
-                  <Button
-                    key={action.key}
-                    disabled={!scriptLoaded || scriptBusy}
-                    onClick={() =>
-                      action.mode === 'relative'
-                        ? seekScriptRelative(action.value)
-                        : seekScript(action.value === 'end' ? scriptDurationMs : action.value)
-                    }
-                  >
-                    {action.label}
-                  </Button>
-                ))}
+                <ValueSliderField
+                  label={t('自定义倍率')}
+                  value={scriptSettings.speed}
+                  min={SCRIPT_SPEED_MIN}
+                  max={SCRIPT_SPEED_MAX}
+                  step={SCRIPT_SPEED_STEP}
+                  valueFormatter={formatScriptSpeedLabel}
+                  unit="×"
+                  onChange={(speed) => updateScriptSettingsDraft({ speed })}
+                  onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+                />
+                <Toggle
+                  label={t('循环')}
+                  checked={scriptSettings.loop}
+                  onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
+                />
               </div>
-              <div className="actions">
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('start')}>
-                  {t('设 A')}
-                </Button>
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('end')}>
-                  {t('设 B')}
-                </Button>
-                <Button
-                  disabled={scriptLoopRange.startMs === null || scriptBusy}
-                  onClick={() => jumpToScriptLoopBoundary('start')}
-                >
-                  {t('跳至 A')}
-                </Button>
-                <Button
-                  disabled={scriptLoopRange.endMs === null || scriptBusy}
-                  onClick={() => jumpToScriptLoopBoundary('end')}
-                >
-                  {t('跳至 B')}
-                </Button>
-                <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScriptLoopRange}>
-                  {t('清除 A-B')}
-                </Button>
-              </div>
-              <p className="muted">
-                A {scriptLoopRange.startMs === null ? '—' : formatDuration(scriptLoopRange.startMs)} · B{' '}
-                {scriptLoopRange.endMs === null ? '—' : formatDuration(scriptLoopRange.endMs)}
-              </p>
-            </div>
-          </details>
-          <details>
-            <summary>{t('快捷键')}</summary>
-            <div className="shortcut-list">
-              {SCRIPT_SHORTCUT_GROUPS()
-                .flatMap((group) => group.items)
-                .map((item) => (
-                  <div key={item.shortcut}>
-                    <kbd>{item.shortcut}</kbd>
-                    <span>{item.label}</span>
-                  </div>
-                ))}
-            </div>
-            <p className="caption muted">{t('仅在脚本页空白处生效；输入框、按钮与滑条保留自己的键盘操作。')}</p>
-          </details>
+            </>
+          )}
         </div>
+        {scriptLoaded && (
+          <div className="stack script-player__options">
+            <details>
+              <summary>{t('定位与 A-B')}</summary>
+              <div className="stack">
+                <div className="actions">
+                  <Field
+                    label={t('跳转时间')}
+                    value={scriptJumpInput}
+                    placeholder="01:23.45"
+                    onChange={(event) => setScriptJumpInput(event.target.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') {
+                        event.preventDefault();
+                        void submitScriptJump();
+                      }
+                    }}
+                  />
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={submitScriptJump}>
+                    {t('跳转')}
+                  </Button>
+                  {SCRIPT_SEEK_ACTIONS().map((action) => (
+                    <Button
+                      key={action.key}
+                      disabled={!scriptLoaded || scriptBusy}
+                      onClick={() =>
+                        action.mode === 'relative'
+                          ? seekScriptRelative(action.value)
+                          : seekScript(action.value === 'end' ? scriptDurationMs : action.value)
+                      }
+                    >
+                      {action.label}
+                    </Button>
+                  ))}
+                </div>
+                <div className="actions">
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('start')}>
+                    {t('设 A')}
+                  </Button>
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('end')}>
+                    {t('设 B')}
+                  </Button>
+                  <Button
+                    disabled={scriptLoopRange.startMs === null || scriptBusy}
+                    onClick={() => jumpToScriptLoopBoundary('start')}
+                  >
+                    {t('跳至 A')}
+                  </Button>
+                  <Button
+                    disabled={scriptLoopRange.endMs === null || scriptBusy}
+                    onClick={() => jumpToScriptLoopBoundary('end')}
+                  >
+                    {t('跳至 B')}
+                  </Button>
+                  <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScriptLoopRange}>
+                    {t('清除 A-B')}
+                  </Button>
+                </div>
+                <p className="muted">
+                  A {scriptLoopRange.startMs === null ? '—' : formatDuration(scriptLoopRange.startMs)} · B{' '}
+                  {scriptLoopRange.endMs === null ? '—' : formatDuration(scriptLoopRange.endMs)}
+                </p>
+              </div>
+            </details>
+            <details>
+              <summary>{t('快捷键')}</summary>
+              <div className="shortcut-list">
+                {SCRIPT_SHORTCUT_GROUPS()
+                  .flatMap((group) => group.items)
+                  .map((item) => (
+                    <div key={item.shortcut}>
+                      <kbd>{item.shortcut}</kbd>
+                      <span>{item.label}</span>
+                    </div>
+                  ))}
+              </div>
+              <p className="caption muted">{t('仅在脚本页空白处生效；输入框、按钮与滑条保留自己的键盘操作。')}</p>
+            </details>
+          </div>
+        )}
       </div>
     );
   }
@@ -1715,6 +1724,8 @@ function App() {
     return (
       <Section
         title={t('输出')}
+        description={t('命令值，非设备回读。')}
+        className="outputs-section"
         actions={
           <>
             <SelectField
@@ -1744,46 +1755,22 @@ function App() {
                 : null;
               return (
                 <article key={output.id} className="output-card">
-                  <header className="section__header">
-                    <div>
+                  <div className="output-identity">
+                    <header className="section__header">
                       <h3>{output.name}</h3>
-                      <p className="mono caption" data-testid={output.type === 'TCodeSerial' ? 'serial-target' : undefined}>{buildOutputSummary(output)}</p>
-                    </div>
-                    <Badge tone={!output.enabled ? 'default' : state.connected ? 'success' : 'warning'}>
-                      {!output.enabled ? t('已禁用') : state.connected ? t('已连接') : t('未连接')}
-                    </Badge>
-                  </header>
-                  <div className="caption muted">
-                    {type.label}
-                    {profile ? ` · ${profile.name}` : ''}
+                      <Badge tone={!output.enabled ? 'default' : state.connected ? 'success' : 'warning'}>
+                        {!output.enabled ? t('已禁用') : state.connected ? t('已连接') : t('未连接')}
+                      </Badge>
+                    </header>
+                    <p className="mono caption wrap" data-testid={output.type === 'TCodeSerial' ? 'serial-target' : undefined}>{buildOutputSummary(output)}</p>
+                    <p className="caption muted">
+                      {type.label}
+                      {profile ? ` · ${profile.name}` : ''}
+                    </p>
                   </div>
                   <OutputPositionPanel state={state} />
-                  {state.lastError && <Notice tone="error">{diagnostic(state.lastError)}</Notice>}
-                  {output.type === 'TCodeSerial' && (
-                    <TCodeDeviceInfoCard
-                      deviceInfo={state.tcodeDeviceInfo}
-                      connected={Boolean(state.connected)}
-                      onRefresh={() => refreshTCodeDeviceInfo(output.id)}
-                      busy={busyKey === `tcode-device-refresh-${output.id}`}
-                    />
-                  )}
-                  {output.type === 'Intiface' && (
-                    <details>
-                      <summary>{t('设备扫描')}</summary>
-                      <div className="actions">
-                        <Button onClick={() => toggleIntifaceScan(true, output.id)}>{t('开始扫描')}</Button>
-                        <Button onClick={() => toggleIntifaceScan(false, output.id)}>{t('停止扫描')}</Button>
-                      </div>
-                      <ul>
-                        {(state.devices || []).map((device) => (
-                          <li key={device.index}>{device.name}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                  <footer className="actions">
+                  <footer className="actions output-actions">
                     <Button
-                      tone={output.enabled ? 'default' : 'primary'}
                       disabled={!online || Boolean(busyKey)}
                       onClick={() => setOutputEnabled(output.id, !output.enabled)}
                     >
@@ -1800,6 +1787,31 @@ function App() {
                       {t('移除')}
                     </Button>
                   </footer>
+                  {state.lastError && <div className="output-detail"><Notice tone="error">{diagnostic(state.lastError)}</Notice></div>}
+                  {output.type === 'TCodeSerial' && (
+                    <div className="output-detail">
+                      <TCodeDeviceInfoCard
+                        deviceInfo={state.tcodeDeviceInfo}
+                        connected={Boolean(state.connected)}
+                        onRefresh={() => refreshTCodeDeviceInfo(output.id)}
+                        busy={busyKey === `tcode-device-refresh-${output.id}`}
+                      />
+                    </div>
+                  )}
+                  {output.type === 'Intiface' && (
+                    <details className="output-detail">
+                      <summary>{t('设备扫描')}</summary>
+                      <div className="actions">
+                        <Button onClick={() => toggleIntifaceScan(true, output.id)}>{t('开始扫描')}</Button>
+                        <Button onClick={() => toggleIntifaceScan(false, output.id)}>{t('停止扫描')}</Button>
+                      </div>
+                      <ul>
+                        {(state.devices || []).map((device) => (
+                          <li key={device.index}>{device.name}</li>
+                        ))}
+                      </ul>
+                    </details>
+                  )}
                 </article>
               );
             })}
@@ -1826,27 +1838,27 @@ function App() {
             <Button onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>
               {t('追加草稿')}
             </Button>
-            <details className="inline-details">
-              <summary>{t('管理预设')}</summary>
-              <div className="actions">
-                <Button disabled={!selectedOscPresetConfig} onClick={() => openPresetDialog(selectedOscPreset)}>
-                  {selectedOscPresetConfig?.isBuiltIn ? t('复制预设') : t('编辑预设')}
-                </Button>
-                <Button onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })}>
-                  {t('另存为预设')}
-                </Button>
-                <Button onClick={() => openPresetDialog(null)}>{t('新建空预设')}</Button>
-                <Button
-                  tone="danger"
-                  disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn}
-                  onClick={deleteSelectedPreset}
-                >
-                  {t('删除预设')}
-                </Button>
-              </div>
-            </details>
           </div>
         </div>
+        <details className="inline-details">
+          <summary>{t('管理预设')}</summary>
+          <div className="actions">
+            <Button disabled={!selectedOscPresetConfig} onClick={() => openPresetDialog(selectedOscPreset)}>
+              {selectedOscPresetConfig?.isBuiltIn ? t('复制预设') : t('编辑预设')}
+            </Button>
+            <Button onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })}>
+              {t('另存为预设')}
+            </Button>
+            <Button onClick={() => openPresetDialog(null)}>{t('新建空预设')}</Button>
+            <Button
+              tone="danger"
+              disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn}
+              onClick={deleteSelectedPreset}
+            >
+              {t('删除预设')}
+            </Button>
+          </div>
+        </details>
         {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
         {signalOverlapWarnings.length > 0 && <Notice>{t('同轴映射取校准后较高值，不相加。')}</Notice>}
         {signalDrafts.length === 0 ? (
@@ -2145,7 +2157,20 @@ function App() {
     <div className="app-shell">
       <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
       <header className="app-header" ref={headerRef}>
-        <h1 className="brand"><a href="#main">Sensa<span>{t('控制台')}</span></a></h1>
+        <h1 className="brand"><a href="#main">Sensa</a></h1>
+        <nav className="workspace-nav">
+          <Tabs
+            id="workspace-tabs"
+            label={t('主导航')}
+            value={workspace}
+            onChange={setWorkspace}
+            options={[
+              { value: 'control', label: t('控制') },
+              { value: 'osc', label: 'OSC' },
+              { value: 'settings', label: t('设置') },
+            ]}
+          />
+        </nav>
         <div className="header-status">
           <Badge tone={online ? 'success' : 'warning'}>
             <span title={formatRealtimeStatus(wsState)}>
@@ -2176,19 +2201,6 @@ function App() {
         </div>
       </header>
       <div className="workspace-shell">
-        <nav className="workspace-nav">
-          <Tabs
-            id="workspace-tabs"
-            label={t('主导航')}
-            value={workspace}
-            onChange={setWorkspace}
-            options={[
-              { value: 'control', label: t('控制') },
-              { value: 'osc', label: 'OSC' },
-              { value: 'settings', label: t('设置') },
-            ]}
-          />
-        </nav>
         <main id="main" className="workspace" tabIndex={-1}>
           <div
             id="workspace-tabs-panel"
@@ -2249,7 +2261,7 @@ function App() {
                             <summary>{t('发送设置')}</summary>
                             <div className="form-grid">
                               <SelectField label={t('斜率方式')} value={manualMotionMode} options={MANUAL_MOTION_MODE_OPTIONS()} onChange={handleManualMotionModeChange} />
-                              <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} onChange={handleManualMotionValueChange} />
+                              <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} unit={manualMotionField.unit} onChange={handleManualMotionValueChange} />
                             </div>
                           </details>
                           <details>
@@ -2288,6 +2300,7 @@ function App() {
                 {renderOutputs()}
                 <Section
                   title={t('录制')}
+                  className="recording-section"
                   actions={
                     <>
                       <Badge tone={overview?.recording?.isActive ? 'warning' : 'default'}>

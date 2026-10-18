@@ -1,5 +1,5 @@
 import { test, expect, card, text, workspace, oscWorkspace, expand, mode } from './fixtures.js';
-import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow } from './ui-quality.js';
+import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow, inspectManualAlignment, inspectOutputAlignment, inspectMappingAlignment, inspectNarrowFormAlignment } from './ui-quality.js';
 
 const auditStates = [
   'control-manual-expanded',
@@ -12,6 +12,7 @@ const auditStates = [
   'axis-profile-dialog',
 ];
 const behaviorChecks = [
+  'manual-alignment', 'output-row-alignment', 'mapping-alignment',
   'skip-link-focus-and-target', 'tabs-keyboard-and-control-boundary', 'native-dialog-focus-trap-escape-return',
   'reflow-320-control', 'target-samples-buttons', 'target-samples-toggle-label', 'target-samples-select-and-slider',
   'reflow-320-mapping-expanded', 'target-samples-fields-and-disclosures', 'reflow-320-parameter-scroll-region',
@@ -112,6 +113,9 @@ for (const locale of ['zh-CN', 'en-US']) {
       test.setTimeout(120000);
       const report = createUiQualityReport(page, info, { kind: 'behavior', plannedChecks: behaviorChecks });
       try {
+        const layout = info.project.name === 'desktop' ? 'columns' : 'stacked';
+        await report.check('manual-alignment / 主轴对齐', () => inspectManualAlignment(page, layout));
+        await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, layout));
         await report.check('skip-link-focus-and-target / 跳过导航的焦点与目标', async () => {
           const skip = page.getByRole('link', { name: await label(page, '跳到主要内容'), exact: true });
           await page.keyboard.press('Tab');
@@ -185,6 +189,9 @@ for (const locale of ['zh-CN', 'en-US']) {
             draftPreservedDuringStop: true, escapeClosed: true, focusRestored: true };
         });
 
+        await oscWorkspace(page, '映射');
+        await report.check('mapping-alignment / 映射控件对齐', () => inspectMappingAlignment(page));
+        await workspace(page, '控制');
         await page.setViewportSize({ width: 320, height: 800 });
         await workspace(page, '控制');
         await report.check('reflow-320-control / 控制页 320 CSS px 重排', () => inspectReflow(page));
@@ -195,7 +202,10 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await oscWorkspace(page, '映射');
         await page.locator('.mapping-row').first().locator('summary').click();
-        await report.check('reflow-320-mapping-expanded / 映射展开时 320 CSS px 重排', () => inspectReflow(page));
+        await report.check('reflow-320-mapping-expanded / 映射展开时 320 CSS px 重排', async () => ({
+          reflow: await inspectReflow(page), alignment: await inspectMappingAlignment(page),
+          fields: await inspectNarrowFormAlignment(page.locator('.mapping-row').first()),
+        }));
         await report.check('target-samples-fields-and-disclosures / 字段与折叠区命中区域抽检', () => inspectBasicTargets(page, page.locator('.mapping-row').first().locator('input:not([type=checkbox]), select, summary'), 'Field and summary'));
 
         await mode(page, 'OSC');
@@ -213,7 +223,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByRole('button', { name: await label(page, '修改配置'), exact: true }).click();
         const profile = page.getByRole('dialog', { name: await label(page, '轴配置'), exact: true });
         await expandFirstAxis(page, profile);
-        await report.check('reflow-320-profile-dialog / 轴配置对话框 320 CSS px 重排', () => inspectReflow(page));
+        await report.check('reflow-320-profile-dialog / 轴配置对话框 320 CSS px 重排', async () => ({
+          reflow: await inspectReflow(page), fields: await inspectNarrowFormAlignment(profile),
+        }));
         await profile.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
         await report.check('checks-never-enable-input / 检查不会启用输入', async () => {
           const inputActive = (await rig.overview()).runtime.inputActive;

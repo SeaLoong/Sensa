@@ -14,7 +14,7 @@ Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, O
 | --- | --- |
 | Manual | Adjust the primary axes, then choose Send once; continuous sending follows sliders, and disabling clears the manual override. Ramp and speed are under Send settings; other axes have a separate disclosure |
 | OSC | Save mappings and select a source on the OSC page, then enable input in Control |
-| Script | Load funscript; set speed, looping or A–B; play, pause, stop, seek and step between actions |
+| Script | Choose a funscript first; loading reveals the timeline, speed, looping/A–B, playback, pause, stop, seeking and action stepping |
 
 Pause stops automatic output. Explicit seek/step can still send targets while Script input remains enabled. Stop resets the playback cursor, not the hardware position. Unloading or replacing a file does not resume movement automatically.
 

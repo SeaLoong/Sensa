@@ -128,7 +128,7 @@ export function Section({ title, description, actions, children, className = '' 
           <h2>{title}</h2>
           {description && <p className="muted">{description}</p>}
         </div>
-        {actions && <div className="actions">{actions}</div>}
+        {actions && <div className="actions section__actions">{actions}</div>}
       </header>
       {children}
     </section>

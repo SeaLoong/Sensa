@@ -28,12 +28,11 @@ export default function OutputPositionPanel({ state }) {
           ))}
         </div>
       )}
-      <p className="caption muted">
-        {t('命令值，非设备回读。')}
-        {preview.lastSentAtUtc && (
-          <span data-testid="output-last-sent"> {new Date(preview.lastSentAtUtc).toLocaleTimeString(getLocale())}</span>
-        )}
-      </p>
+      {preview.lastSentAtUtc && (
+        <p className="caption muted" data-testid="output-last-sent">
+          {t('时间')}: {new Date(preview.lastSentAtUtc).toLocaleTimeString(getLocale())}
+        </p>
+      )}
     </div>
   );
 }

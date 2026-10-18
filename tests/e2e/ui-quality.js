@@ -157,6 +157,7 @@ export function createUiQualityReport(page, info, { kind, plannedStates = [], pl
       } catch (error) {
         entry.status = 'failed';
         entry.error = { name: error?.name || 'Error', message: error?.message || String(error) };
+        if (error?.geometryEvidence) entry.evidence = error.geometryEvidence;
         throw error;
       } finally { report.checks.push(entry); }
     },
@@ -261,6 +262,189 @@ export async function inspectBasicTargets(page, locator, component) {
   const undersized = evidence.filter(target => target.width < 24 || target.height < 24);
   expect(undersized, component + ': sampled hit areas are at least 24 CSS px / 抽测命中区域至少 24 CSS px').toEqual([]);
   return { component, minimumCssPx: 24, samples: evidence };
+}
+
+// Geometric contracts describe shared edges and containment, not an aesthetic score or CSS recipe.
+// 几何契约检查共享边缘与完整容纳，不是美观分数，也不限定 CSS 实现。
+async function geometryGroups(locator, selectors) {
+  requireCi();
+  return locator.evaluateAll((elements, selectors) => {
+    const read = element => {
+      const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+      const range = document.createRange(); range.selectNodeContents(element);
+      const text = range.getBoundingClientRect();
+      return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
+        width: rect.width, height: rect.height, fontSize: parseFloat(style.fontSize),
+        textBottom: text.height ? text.bottom : rect.bottom,
+        visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' };
+    };
+    return elements.map(element => ({ box: read(element), parts: Object.fromEntries(
+      Object.entries(selectors).map(([key, selector]) => [key, [...element.querySelectorAll(selector)].map(read)])),
+    })).filter(group => group.box.visible);
+  }, selectors);
+}
+function only(group, part) {
+  expect(group.parts[part], 'Exactly one visible ' + part + ' / 唯一可见部件').toHaveLength(1);
+  const box = group.parts[part][0];
+  expect(box.visible, part + ' is visible / 部件可见').toBe(true);
+  return box;
+}
+function tolerance(boxes) {
+  // Font-relative slack only absorbs browser subpixel and font metric rounding.
+  // 字体相关容差仅吸收浏览器亚像素与字体度量舍入。
+  return Math.max(1, Math.min(...boxes.map(box => box.fontSize || 12)) * .2);
+}
+function near(values, slack, message) {
+  expect(Math.max(...values) - Math.min(...values), message).toBeLessThanOrEqual(slack);
+}
+function contained(child, parent, slack, message) {
+  expect(child.left, message).toBeGreaterThanOrEqual(parent.left - slack);
+  expect(child.right, message).toBeLessThanOrEqual(parent.right + slack);
+  expect(child.top, message).toBeGreaterThanOrEqual(parent.top - slack);
+  expect(child.bottom, message).toBeLessThanOrEqual(parent.bottom + slack);
+}
+function separate(a, b, slack, message) {
+  const overlapsX = Math.min(a.right, b.right) - Math.max(a.left, b.left) > slack;
+  const overlapsY = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > slack;
+  expect(overlapsX && overlapsY, message).toBe(false);
+}
+function geometricEvidence(evidence, verify) {
+  try { verify(); } catch (error) { error.geometryEvidence = evidence; throw error; }
+  return evidence;
+}
+
+export async function inspectManualAlignment(page, layout) {
+  const groups = await geometryGroups(page.locator('.manual-primary > .value-field'), {
+    label: '.value-field__heading label', number: '.value-field__heading input.number-input',
+    slider: '.value-field__controls input[type=range]',
+  });
+  return geometricEvidence({ layout, groups }, () => {
+    expect(groups, 'Three primary axes / 三个主轴').toHaveLength(3);
+    const slack = tolerance(groups.map(group => group.box));
+    for (const group of groups) {
+      const label = only(group, 'label'), number = only(group, 'number'), slider = only(group, 'slider');
+      for (const box of [label, number, slider]) contained(box, group.box, slack, 'Primary axis containment / 主轴控件完整容纳');
+      near([(label.top + label.bottom) / 2, (number.top + number.bottom) / 2], slack, 'Title and numeric input share a heading row / 标题与数值输入位于同一标题行');
+      separate(label, number, slack, 'Title and numeric input do not overlap / 标题与数值输入不重叠');
+      expect(number.bottom, 'Input heading precedes the slider / 数值标题行在滑条上方').toBeLessThanOrEqual(slider.top + slack);
+      near([slider.right, number.right], slack, 'Numeric input and full-width slider right edge / 数值输入与全宽滑条右沿');
+    }
+    if (layout === 'columns') {
+      near(groups.map(group => group.box.width), slack, 'Primary axes use equal columns / 主轴等宽列');
+      near(groups.map(group => only(group, 'number').bottom), slack, 'Primary numeric input lower edges / 主轴数值输入底沿');
+      near(groups.map(group => only(group, 'label').textBottom), slack, 'Primary title baselines / 主轴标题基线');
+      near(groups.map(group => only(group, 'slider').top), slack, 'Primary sliders share a row / 主轴滑条同排');
+    } else {
+      near(groups.map(group => only(group, 'number').right), slack, 'Stacked numeric input right edges / 堆叠输入右沿');
+    }
+  });
+}
+
+export async function inspectOutputAlignment(page, layout) {
+  const groups = await geometryGroups(page.locator('.output-card'), {
+    identity: ':scope > .output-identity', target: ':scope > .output-position-panel', actions: ':scope > .output-actions',
+  });
+  return geometricEvidence({ layout, groups }, () => {
+    expect(groups, 'Four isolated mock outputs / 四个隔离模拟输出').toHaveLength(4);
+    const slack = tolerance(groups.map(group => group.box));
+    for (const group of groups) {
+      const identity = only(group, 'identity'), target = only(group, 'target'), actions = only(group, 'actions');
+      for (const box of [identity, target, actions]) contained(box, group.box, slack, 'Output row containment / 输出行完整容纳');
+      separate(identity, target, slack, 'Identity and target do not overlap / 名称与目标不重叠');
+      separate(target, actions, slack, 'Target and actions do not overlap / 目标与操作不重叠');
+      separate(identity, actions, slack, 'Identity and actions do not overlap / 名称与操作不重叠');
+      if (layout === 'columns') {
+        expect(identity.right).toBeLessThanOrEqual(target.left + slack);
+        expect(target.right).toBeLessThanOrEqual(actions.left + slack);
+      } else {
+        expect(identity.bottom).toBeLessThanOrEqual(target.top + slack);
+        expect(target.bottom).toBeLessThanOrEqual(actions.top + slack);
+      }
+    }
+    near(groups.map(group => group.box.left), slack, 'Output row left edges / 输出行左沿');
+    near(groups.map(group => group.box.right), slack, 'Output row right edges / 输出行右沿');
+    for (const part of ['identity', 'target', 'actions'])
+      near(groups.map(group => only(group, part).left), slack, 'Shared output ' + part + ' column / 输出对应列');
+  });
+}
+
+export async function inspectMappingAlignment(page) {
+  const groups = await geometryGroups(page.locator('.mapping-row__main'), {
+    path: ':scope > .field:first-child input', target: ':scope > .field select',
+    reverse: ':scope > .toggle', remove: ':scope > button',
+  });
+  return geometricEvidence({ groups }, () => {
+    expect(groups.length, 'At least two saved fixture mappings / 至少两条夹具映射').toBeGreaterThanOrEqual(2);
+    for (const group of groups) {
+      const path = only(group, 'path'), target = only(group, 'target');
+      const reverse = only(group, 'reverse'), remove = only(group, 'remove');
+      const slack = tolerance([path, target, reverse, remove]);
+      for (const box of [path, target, reverse, remove]) contained(box, group.box, slack, 'Mapping control containment / 映射控件完整容纳');
+      near([target.bottom, reverse.bottom, remove.bottom], slack, 'Target, reverse and remove lower edges / 目标、反向与移除底沿');
+      separate(target, reverse, slack, 'Mapping target and reverse do not overlap / 映射目标与反向不重叠');
+      separate(reverse, remove, slack, 'Mapping reverse and remove do not overlap / 映射反向与移除不重叠');
+      separate(path, target, slack, 'Mapping path and target do not overlap / 映射路径与目标不重叠');
+    }
+  });
+}
+
+export async function inspectNarrowFormAlignment(scope) {
+  const groups = await geometryGroups(scope.locator('.form-grid > .field'), {
+    control: ':scope > input:not([type=checkbox]):not([type=range]), :scope > select, :scope > textarea',
+  });
+  const ranges = await geometryGroups(scope.locator('.range-field'), { labels: '.range-field__inputs > label', inputs: '.range-field__inputs > label > input', names: '.range-field__inputs > label > span' });
+  return geometricEvidence({ groups, ranges }, () => {
+    expect(groups.length, 'At least two comparable form controls / 至少两个可比较表单控件').toBeGreaterThanOrEqual(2);
+    const controls = groups.map(group => only(group, 'control'));
+    const slack = tolerance(controls);
+    near(controls.map(box => box.right), slack, 'Single-column form right edges / 单列表单右沿');
+    for (const group of groups) contained(only(group, 'control'), group.box, slack, 'Form field containment / 表单控件完整容纳');
+    expect(ranges.length, 'At least two endpoint ranges / 至少两个端点范围').toBeGreaterThanOrEqual(2);
+    for (const group of ranges) {
+      expect(group.parts.labels).toHaveLength(2);
+      expect(group.parts.inputs).toHaveLength(2);
+      expect(group.parts.names).toHaveLength(2);
+      near(group.parts.inputs.map(box => box.bottom), slack, 'Range endpoint input lower edges / 范围端点输入底沿');
+      near(group.parts.inputs.map(box => box.width), slack, 'Range endpoint input widths / 范围端点输入等宽');
+      for (let index = 0; index < 2; index++) {
+        const name = group.parts.names[index], input = group.parts.inputs[index], label = group.parts.labels[index];
+        expect(name.visible && input.visible).toBe(true);
+        expect(name.bottom, 'Endpoint label is above its input / 端点标签在输入上方').toBeLessThanOrEqual(input.top + slack);
+        contained(input, label, slack, 'Range endpoint containment / 范围端点完整容纳');
+      }
+    }
+  });
+}
+
+export async function assertCalibrationAlignment(page, info) {
+  const groups = await geometryGroups(page.locator('.calibration-grid > div'), {
+    label: ':scope > strong', value: ':scope > output', action: ':scope > button',
+  });
+  const evidence = { groups };
+  await info.attach('calibration-alignment.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+  return geometricEvidence(evidence, () => {
+    expect(groups.length, 'Two calibration endpoints and preview / 两个校准端点与预览').toBeGreaterThanOrEqual(3);
+    const endpoints = groups.slice(0, 2), slack = tolerance(endpoints.map(group => group.box));
+    for (const group of endpoints) {
+      const label = only(group, 'label'), value = only(group, 'value'), action = only(group, 'action');
+      for (const box of [label, value, action]) contained(box, group.box, slack, 'Calibration endpoint containment / 校准端点完整容纳');
+      separate(label, value, slack, 'Calibration label and value do not overlap / 校准标签数值不重叠');
+      separate(value, action, slack, 'Calibration value and action do not overlap / 校准数值操作不重叠');
+    }
+    const horizontalSteps = Math.abs(endpoints[0].box.top - endpoints[1].box.top) <= slack;
+    evidence.layout = horizontalSteps ? 'horizontal-steps' : 'stacked-rows';
+    if (horizontalSteps) {
+      near(endpoints.map(group => only(group, 'label').textBottom), slack, 'Calibration step label baselines / 校准步骤标签基线');
+      near(endpoints.map(group => only(group, 'value').textBottom), slack, 'Calibration step value baselines / 校准步骤数值基线');
+      near(endpoints.map(group => only(group, 'action').top), slack, 'Calibration step action rows / 校准步骤操作同排');
+    } else {
+      for (const part of ['label', 'value', 'action'])
+        near(endpoints.map(group => only(group, part).left - group.box.left), slack, 'Fixed calibration ' + part + ' column / 固定校准列');
+      const actionsBesideValues = endpoints.every(group => only(group, 'action').left >= only(group, 'value').right - slack);
+      if (actionsBesideValues)
+        near(endpoints.map(group => only(group, 'action').left - only(group, 'value').left), slack, 'Allocated value columns do not drift with digits / 数字长度不推挤数值列后的操作');
+    }
+  });
 }
 
 export async function inspectFocusIndicator(locator) {

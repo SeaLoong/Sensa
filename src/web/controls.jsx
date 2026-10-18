@@ -78,6 +78,7 @@ export function ValueSliderField({
   max,
   step = 1,
   valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(step)),
+  unit = '',
   disabled = false,
 }) {
   const id = useId();
@@ -90,7 +91,33 @@ export function ValueSliderField({
         <label htmlFor={id} title={title}>
           {label}
         </label>
-        <output htmlFor={id}>{valueFormatter(value)}</output>
+        <div className="value-field__number">
+          <input
+            className="number-input"
+            aria-describedby={title ? `${id}-hint` : undefined}
+            aria-valuetext={String(valueFormatter(value))}
+            aria-label={t('{0}数值', [label])}
+            type="number"
+            min={min}
+            max={max}
+            step={step}
+            value={value}
+            disabled={disabled}
+            onChange={(event) => {
+              if (event.target.value !== '') {
+                numberDirtyRef.current = true;
+                onChange(normalize(Number(event.target.value)));
+              }
+            }}
+            onBlur={() => {
+              if (numberDirtyRef.current) {
+                numberDirtyRef.current = false;
+                onChangeCommitted?.(value);
+              }
+            }}
+          />
+          {unit && <span className="value-unit">{unit}</span>}
+        </div>
       </div>
       <div className="value-field__controls">
         <SliderControl
@@ -105,28 +132,6 @@ export function ValueSliderField({
           valueFormatter={valueFormatter}
           onChange={(next) => onChange(normalize(next))}
           onChangeCommitted={(next) => onChangeCommitted?.(normalize(next))}
-        />
-        <input
-          className="number-input"
-          aria-label={t('{0}数值', [label])}
-          type="number"
-          min={min}
-          max={max}
-          step={step}
-          value={value}
-          disabled={disabled}
-          onChange={(event) => {
-            if (event.target.value !== '') {
-              numberDirtyRef.current = true;
-              onChange(normalize(Number(event.target.value)));
-            }
-          }}
-          onBlur={() => {
-            if (numberDirtyRef.current) {
-              numberDirtyRef.current = false;
-              onChangeCommitted?.(value);
-            }
-          }}
         />
       </div>
       {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}

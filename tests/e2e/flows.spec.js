@@ -1,5 +1,6 @@
 import { test, expect, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
 import { pointSamples, poseSamples } from './mocks.js';
+import { assertCalibrationAlignment } from './ui-quality.js';
 import { readFile } from 'node:fs/promises';
 
 test('manual controls reach every transport, record, stop and never auto-resume', { tag: ['@transport','@input','@visual'] }, async ({ page, rig }) => {
@@ -15,6 +16,9 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.HwPositionWithDuration)).toBe(true);
   await expect.poll(() => rig.wire.intiface.some(m => m.OutputCmd?.Command?.Vibrate?.Value === 0)).toBe(true);
   await checkpoint(page, card(page, 'Mock UDP').locator('.output-position-panel'), 'manual-output');
+  await page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('500');
+  await page.getByRole('button', { name: '发送一次', exact: true }).click();
+  await outputValue(rig, 'udp', 500);
   await page.getByRole('slider', { name: 'L0 主轴', exact: true }).press('Home');
   await page.getByRole('button', { name: '发送一次', exact: true }).click(); await outputValue(rig, 'udp', 400);
   await page.getByRole('button', { name: '停止录制', exact: true }).click();
@@ -75,9 +79,10 @@ test('PB calibration replaces the previous gate, opts in explicitly and persists
   await expect(page.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText(/^2\.0 \/ -?0\.0 \/ 15\.0 cm$/);
   await page.getByRole('button', { name: '采集 100%', exact: true }).click();
   await expect(page.locator('.calibration-grid output').nth(1)).toHaveText('15.0 cm');
-  await expect(page.getByRole('button', { name: '替换为校准映射', exact: true })).toBeEnabled();
+  await expect(page.getByRole('button', { name: '替换草稿', exact: true })).toBeEnabled();
+  await assertCalibrationAlignment(page, test.info());
   await checkpoint(page, page.locator('.calibration-grid'), 'pb-calibration');
-  await page.getByRole('button', { name: '替换为校准映射', exact: true }).click();
+  await page.getByRole('button', { name: '替换草稿', exact: true }).click();
   await oscWorkspace(page, '映射');
   await expect(page.locator('.mapping-row')).toHaveCount(1);
   await page.getByRole('button', { name: '保存映射', exact: true }).click();

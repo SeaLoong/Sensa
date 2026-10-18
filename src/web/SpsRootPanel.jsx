@@ -181,7 +181,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
                       disabled={!calibration.draft}
                       onClick={() => onUsePoint?.(root, calibration.draft)}
                     >
-                      {t('替换为校准映射')}
+                      {t('替换草稿')}
                     </Button>
                   </div>
                 </div>
