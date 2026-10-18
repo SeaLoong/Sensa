@@ -76,7 +76,11 @@ public sealed class ConfigurationUpdate(
                     NormalizeOutputWebsocketAddress(currentOutput.WebsocketAddress, "ws://localhost:12345"),
                     StringComparison.Ordinal)
                 || NormalizeOutputPort(previousOutput.Port, 12345) != NormalizeOutputPort(currentOutput.Port, 12345)
-                || previousOutput.ManageEngineProcess != currentOutput.ManageEngineProcess,
+                || previousOutput.ManageEngineProcess != currentOutput.ManageEngineProcess
+                || !string.Equals(
+                    IntifaceConfig.NormalizeVibrationAxis(previousOutput.VibrationAxis),
+                    IntifaceConfig.NormalizeVibrationAxis(currentOutput.VibrationAxis),
+                    StringComparison.Ordinal),
 
             _ => false,
         };
