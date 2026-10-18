@@ -262,11 +262,17 @@ public sealed class MotionContracts
     public async Task Pausing_and_stopping_player_stop_outputs_but_explicit_paused_seek_can_move()
     {
         using var rig = new MotionRig();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Output.Sending = _ => release.Task;
         using var stream = new MemoryStream(Encoding.UTF8.GetBytes("""{"actions":[{"at":0,"pos":0},{"at":1000,"pos":100}]}"""));
         rig.Player.Load("test.funscript", stream);
         rig.Activate(RuntimeInputMode.Script); await rig.Output.NextFrame();
         rig.Player.Play(false, false, 1);
         rig.Advance(500);
+        Assert.InRange(rig.Player.GetSnapshot().CurrentL0, .49f, .51f);
+        Assert.Equal(0f, rig.Runtime.LastCommand.L0);
+        release.SetResult();
+        await rig.Output.NextFrame(frame => frame.L0 >= .49f && frame.L0 <= .51f);
         Assert.InRange(rig.Runtime.LastCommand.L0, .49f, .51f);
         rig.Player.Pause(); await rig.Output.NextStop();
         Assert.True(rig.Runtime.InputActive);

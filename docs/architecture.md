@@ -69,6 +69,10 @@ Unity 测试共用 AvatarBuildFixture，覆盖自动生成、Pose 预检和 GPU 
 
 ## 验证与发布
 
-[ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 是影响计划的单一 interface；[verify.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/verify.py) 与 GitHub Actions 使用同一计划。本地成功检查按相关源码、命令和工具链保存 receipt，相关输入变化或失败后失效；未改变的成功检查复用结果。
+[ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 是影响计划的单一 interface；[verify.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/verify.py) 只根据工作区差异与本地内容 receipt 选择静态／单元检查，不读取 GitHub，也不运行 E2E。相关源码、命令或工具链变化及失败使 receipt 失效；未改变的成功检查复用结果。CI 通过 [ci_evidence.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci_evidence.py) 的只读 GitHub adapter 获取真实执行证据，再由计划 module 判断是否接续未完成产品验证。
 
-预发布必须经过当前候选提交的全量 E2E 比较与必要的六平台隔离冒烟。文档／纯测试变更不触发产品预发布；未知路径和差异不可用时保守全量。每次发布后分页核对远端，只保留最近十个已发布预发布；稳定版本、草稿和 Git tags 保留。细节见[开发与验证](development.md)和 [ADR](adr/0002-impact-based-verification.md)。
+预发布必须经过当前候选提交的全量 E2E 比较与必要的六平台隔离冒烟。只有没有待完成产品验证时，文档／纯测试变更才不触发产品链与预发布；上一产品验证失败后的测试修复会自动在当前提交补齐必要检查、E2E、原生构建和预发布。普通 main push 自动判断，不依赖提交消息标记或手工 override。
+
+产品验证记录保留真正负责的执行（owner）。后续 docs-only 遇到 owner 仍在运行时继承记录，不取消或重复启动该产品链；文档执行自己的 success 不能清除 owner 的未完成工作。artifact 只记录意图，必须核对 owner 必要 jobs 的真实成功；skipped、未知、缺失或无法读取证据时保守恢复必要全链。未知路径或差异不可用同样保守处理。
+
+每次发布后分页核对远端，只保留最近十个已发布预发布；稳定版本、草稿和 Git tags 保留。细节见[开发与验证](development.md)和 [ADR](adr/0002-impact-based-verification.md)。

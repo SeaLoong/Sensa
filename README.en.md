@@ -32,7 +32,7 @@ Output cards show the last sent targets, not measured mechanical positions. Disa
 | Mac, Intel | `osx-x64.tar.gz` |
 | Mac, Apple silicon | `osx-arm64.tar.gz` |
 
-Main commits publish previews only after all checks, including E2E screenshot comparisons, pass. Features may still change. macOS previews are unsigned command-line applications. The ZIP starting with `top.sealoong.sensa-` contains Unity assets, not the desktop application.
+Product changes on main publish previews after the necessary checks and full E2E screenshot comparison pass for the same commit; fixes automatically complete interrupted verification. Only the ten newest published prereleases are retained. Features may still change. macOS previews are unsigned command-line applications. The ZIP starting with `top.sealoong.sensa-` contains Unity assets, not the desktop application.
 
 ## Find what you need
 

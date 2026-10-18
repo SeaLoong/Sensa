@@ -18,6 +18,8 @@ python -X utf8 scripts/verify.py
 
 成功检查的 receipt 保存在 `artifacts/verification/`，指纹包含对应源码、命令和工具链。相关内容相同会复用；相关文件改变、验证期间源码改变或检查失败都不会产生可复用成功结果。不要为了更新进度重复运行已经覆盖同一内容的检查。
 
+下表的 CI 范围适用于**没有未完成产品验证**的情况；普通 main push 还会自动接续之前尚未完成的产品验证，规则见下一节。
+
 | 改动 | 必要本地检查 | GitHub Actions |
 | --- | --- | --- |
 | 文档 | 双语、链接和资源约束 | 同样的文档检查；不运行 E2E、不发布 |
@@ -27,17 +29,21 @@ python -X utf8 scripts/verify.py
 | 产品、打包、协议 | 受影响接口检查 | 候选比较及必要六平台构建／隔离冒烟 |
 | 未知路径／无法取得差异 | 保守全量本地检查 | 保守全量验证 |
 
-规则由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 的一个 interface 同时供本地与 CI 使用，具体路径分类以该实现和契约测试为准。Python 全套包含文档检查，不会额外重复该检查。后端契约用 `SkipWebBuild=true`，因此不依赖 Node 或生成 bundle；正常 publish 仍构建并包含 Web 资源。
+路径分类由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 的同一 interface 供本地与 CI 使用，具体范围以实现和契约测试为准。本地 `verify.py` 只使用工作区差异与内容缓存，不读取 GitHub 状态；CI 另外结合负责产品验证的实际执行状态，判断是否需要接续。Python 全套包含文档检查，不会额外重复该检查。后端契约用 `SkipWebBuild=true`，因此不依赖 Node 或生成 bundle；正常 publish 仍构建并包含 Web 资源。
 
 本地入口只打印需要的 E2E、原生冒烟与发布计划，不执行它们。浏览器 E2E、完整进程 smoke、自动截图与 World PlayMode 套件都有 CI-only 保护。不要伪造 GitHub Actions 环境绕过这些限制。
 
 ## CI 和预发布
 
-PR 和 main push 首先计算变更计划，只运行受影响的检查。普通契约测试集中执行一次，六种原生构建不再各重复 npm 与后端单元测试；它们验证自包含程序和隔离的 HTTP／WebSocket／OSC 行为。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
+PR 和 main push 首先计算变更计划。没有未完成产品验证时，只运行当前差异影响的检查；main 会自动接续尚未完成的产品验证，不要求特殊提交消息或手工 override。普通契约测试集中执行一次，六种原生构建不再各重复 npm 与后端单元测试；它们验证自包含程序和隔离的 HTTP／WebSocket／OSC 行为。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
 
 产品候选必须通过当前提交的全量 E2E 截图比较，再进行必要的 Windows／Linux／macOS x64、ARM64 构建。预发布工作流核对 E2E 输出 SHA 与候选 SHA 一致，候选基线生成任务不提供该证明。截图只在 CI 比较，更新和人工审阅见 [E2E 指南](e2e.md)。
 
-main 的验证按提交保留，不会被后续纯文档 push 取消；PR 会取消同 ref 的过期任务。自动预发布发布与清理串行执行。仅影响产品且全部门槛通过的 main push 自动发布；纯文档、纯测试与普通手动验证不发布。
+main 的产品验证有明确负责的执行（owner）。后续纯文档 push 遇到它仍在运行时，只继承待完成记录，不取消或重复启动必要产品 CI。文档工作流自己的 success 不能清除这项记录；必须核对 owner 所有必要 jobs 的实际成功结果。记录 artifact 只表达验证意图，不证明执行通过；缺失 artifact、未知状态或必要 job 被 skipped 都按未完成保守处理。
+
+上一产品验证失败后，修复测试或 Playwright 的普通 main push 会自动在**当前提交**补齐必要产品全链，包括对应检查、全量 E2E、原生构建／隔离冒烟及满足门槛后的预发布，不能因修复只改了测试而漏掉产品验证。无需改变提交消息或手动标记产品改动。没有待接续产品验证时，纯文档、纯测试不发布；普通手动验证也不发布。
+
+PR 会取消同 ref 的过期任务；main 必要产品验证保留。自动预发布发布与清理串行执行；已有必要 CI 运行时沿用其负责关系，避免重复运行。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
 
 需要显式全量验证时可以手动运行 `ci.yml`；需要单独检查浏览器时运行 `e2e.yml`。不要在已有必要 CI 仍运行时重复派发同一提交：
 

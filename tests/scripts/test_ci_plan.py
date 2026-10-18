@@ -43,7 +43,7 @@ class VerificationPlanTests(unittest.TestCase):
                 self.assertEqual(result['e2e_suite'], 'none')
 
     def test_build_tool_changes_keep_the_full_product_gate_even_alongside_development_tools(self):
-        for product_path in ('scripts/build-web.mjs', 'scripts/ci-plan.py', '.github/workflows/ci.yml'):
+        for product_path in ('scripts/build-web.mjs', 'scripts/ci-plan.py', 'scripts/ci_evidence.py', '.github/workflows/ci.yml'):
             with self.subTest(path=product_path):
                 result = plan.plan_changes(['scripts/verify.py', 'eslint.config.js', product_path],
                                            event_name='push', ref='refs/heads/main')

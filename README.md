@@ -31,7 +31,7 @@
 | Mac，Intel | `osx-x64.tar.gz` |
 | Mac，Apple 芯片 | `osx-arm64.tar.gz` |
 
-预览版由通过全部检查的 main 提交自动发布，可能继续调整功能。macOS 预览包是命令行程序，尚未签名公证。Unity 资产是另一个以 `top.sealoong.sensa-` 开头的 ZIP，不是桌面程序。
+影响产品的 main 提交会在必要检查和同一提交的全量 E2E 截图比较通过后自动发布预览版；失败后的修复会自动接续验证。仅保留最近 10 个已发布预览版，功能可能继续调整。macOS 预览包是命令行程序，尚未签名公证。Unity 资产是另一个以 `top.sealoong.sensa-` 开头的 ZIP，不是桌面程序。
 
 ## 按你的需求阅读
 

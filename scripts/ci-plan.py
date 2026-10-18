@@ -65,7 +65,7 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
         elif path.startswith('scripts/') or path.startswith('tools/'):
             enabled.update(('scripts', 'unity', 'e2e', 'platforms'))
             product_changed = True
-            if path == 'scripts/ci-plan.py':
+            if path in ('scripts/ci-plan.py', 'scripts/ci_evidence.py'):
                 enabled.update(FULL)
         else:
             # Workflows, SDK/build settings and new paths fail closed.
@@ -80,6 +80,27 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
         enabled.add('prerelease')
     return {**{flag: flag in enabled for flag in FLAGS}, 'paths': paths,
             'e2e_suite': 'all' if 'e2e' in enabled else 'none', 'reason': reason}
+
+
+def plan_with_evidence(paths, evidence, *, owner_paths=None, event_name='pull_request', ref='', diff_available=True):
+    """Resolve inherited product verification debt without network access.
+    不访问网络，合并继承的产品验证债务。
+    """
+    current = plan_changes(paths, event_name=event_name, ref=ref, diff_available=diff_available)
+    if event_name != 'push' or ref != 'refs/heads/main':
+        return current
+    state = evidence.get('state', 'unknown')
+    owner = evidence.get('owner')
+    if state in ('success', 'running') and owner and owner_paths is not None:
+        owner_delta = plan_changes(owner_paths, event_name='push', ref='refs/heads/main')
+        if state == 'success' and (current['prerelease'] or not owner_delta['prerelease']):
+            return current
+        selected = {flag for flag in FLAGS if current[flag]}
+        if state == 'running' and selected <= {'docs'} and not owner_delta['prerelease']:
+            return {**current, 'reason': 'Product verification still running; retain owner / 产品验证仍在运行，保留负责人'}
+    result = plan_changes(paths, event_name=event_name, ref=ref, diff_available=False)
+    result['reason'] = 'Unverified product debt; restore complete gate / 产品验证债务未清，恢复完整门禁'
+    return result
 
 
 def changed_paths(base, head='HEAD'):
@@ -104,9 +125,25 @@ def main():
     parser.add_argument('--event', default=os.environ.get('GITHUB_EVENT_NAME', 'pull_request'))
     parser.add_argument('--ref', default=os.environ.get('GITHUB_REF', ''))
     parser.add_argument('--format', choices=('json', 'github'), default='json')
+    parser.add_argument('--github-evidence', action='store_true', help='Read main-run verification evidence / 读取 main 运行验证证据')
+    parser.add_argument('--record', type=Path, help='Write verification intent artifact / 写入验证意图工件')
     args = parser.parse_args()
     paths, available = changed_paths(args.base, args.head)
     plan = plan_changes(paths, event_name=args.event, ref=args.ref, diff_available=available)
+    if args.github_evidence and args.event == 'push' and args.ref == 'refs/heads/main':
+        from ci_evidence import GitHubEvidence, GATES, make_record, read_evidence
+        adapter = GitHubEvidence(os.environ['GITHUB_REPOSITORY'], ROOT)
+        evidence = read_evidence(adapter, int(os.environ['GITHUB_RUN_ID']), os.environ['GITHUB_SHA'])
+        owner_paths, owner_available = changed_paths(evidence['owner']['head_sha'], args.head) if evidence.get('owner') else ([], False)
+        plan = plan_with_evidence(paths, evidence, owner_paths=owner_paths if owner_available else None,
+                                  event_name=args.event, ref=args.ref, diff_available=available)
+        if args.record and evidence.get('current'):
+            run = evidence['current']
+            owner = (dict(run_id=run['id'], head_sha=run['head_sha'], required=list(GATES))
+                     if plan['prerelease'] else evidence['owner'])
+            args.record.parent.mkdir(parents=True, exist_ok=True)
+            args.record.write_text(json.dumps(make_record(run, plan, owner, evidence.get('checkpoint_sha')),
+                                              ensure_ascii=True, indent=2) + '\n', encoding='utf-8')
     if args.format == 'github':
         lines = [f'{key}={str(plan[key]).lower()}' for key in FLAGS]
         lines.append(f'e2e_suite={plan["e2e_suite"]}')
