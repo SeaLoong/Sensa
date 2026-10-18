@@ -35,4 +35,10 @@ After review, place the appropriate desktop/mobile PNGs in `tests/e2e/__screensh
 
 Screenshots mask unstable timestamps/runtime addresses, not targets, gates or errors. Tall regions are captured in segments using actual scrolling. Playwright/container upgrades require renewed review. Use Actions reports for the actual commit's results and image conclusions.
 
+## Visual and accessibility evidence
+
+Review substantial visual changes against the [visual assessment framework](ui-quality.en.md): hierarchy, typography, spacing, grouping, color and finish, then inspect proposed PNGs. Baseline comparisons detect unexpected visual changes; aesthetic judgments need screenshots, explicit criteria and reasons.
+
+`quality.spec.js` adds axe-related rules, keyboard, dialog and narrow-layout checks in both languages to the existing browser job. JSON/Markdown evidence lives in `artifacts/e2e/ui-quality/` inside `e2e-report`, retaining violations, incomplete results, missing checks and engine versions. Zero detected violations is neither an aesthetics score nor complete WCAG conformance.
+
 [Development](development.en.md) · [Architecture](architecture.en.md)

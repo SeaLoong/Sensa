@@ -121,4 +121,4 @@ HTTP 文件上传使用 multipart；WS 脚本加载使用 fileName／content。�
 
 桌面构建包含 Web 资源，提供六种平台包；Unity 为独立 ZIP。安装器先核对受管源码，不覆盖用户改动和场景；实验资源不包含付费模型。验证按影响选择并缓存成功本地结果，CI 接续未完成产品链，预发布保留十个。测试程序存在不表示本机、Unity、客户端或硬件已通过；实际结果以对应提交报告为准。[开发与发布](development.md)、[E2E 与基线审阅](e2e.md)
 
-[首页](../README.md) · [定位说明](positioning.md)
+[首页](../README.md) · [定位说明](positioning.md) · [WebUI 视觉审美与质量证据](ui-quality.md)

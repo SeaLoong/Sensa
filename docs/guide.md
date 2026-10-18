@@ -12,7 +12,7 @@
 
 | 输入 | 操作 |
 | --- | --- |
-| 手动 | 调整主轴；其余轴在展开区。一次更新发送当前目标，持续更新跟随滑条，停用清除手动覆盖 |
+| 手动 | 调整主轴后点击“发送一次”；连续发送跟随滑条，停用清除手动覆盖。斜率和速度在“发送设置”，其余轴在单独展开区 |
 | OSC | 在 OSC 页保存映射，再选择来源；返回控制页启用输入 |
 | 脚本 | 载入 funscript，设置倍速、循环或 A–B；播放、暂停、停止、定位和关键帧步进 |
 
@@ -68,4 +68,4 @@ SPS 路径与标量含义见[预设](presets.md)。空间输入默认关闭，�
 
 默认仅本机访问。需要局域网控制时，将 WebUI 监听地址设为适当接口，并在启动前设置 `SENSA_ACCESS_TOKEN`；密码为该 token，Basic 用户名任意，或使用 Bearer 认证。普通 HTTP 不加密，勿直接暴露互联网。语言选择存于当前浏览器；切换语言不改变运行状态或草稿。
 
-[首页](../README.md) · [功能参考](features.md) · [Unity 资产](../unity/top.sealoong.sensa/README.md)
+[首页](../README.md) · [功能参考](features.md) · [WebUI 视觉审美标准](ui-quality.md) · [Unity 资产](../unity/top.sealoong.sensa/README.md)

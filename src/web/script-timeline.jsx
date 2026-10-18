@@ -114,23 +114,12 @@ export function ScriptTimelineDensity({
         <div className="script-density__bars">
           {normalizedBins.length ? (
             normalizedBins.map((count, index) => {
-              const position = Math.round(((index + 0.5) / normalizedBins.length) * duration);
               return (
-                <button
+                <span
                   key={index}
-                  type="button"
                   className="script-density__bar"
+                  aria-hidden="true"
                   style={{ height: `${Math.max(4, (Number(count) / maxCount) * 100)}%` }}
-                  disabled={disabled}
-                  aria-label={t('定位到 {0}', [formatDuration(position)])}
-                  title={t('定位到 {0}', [formatDuration(position)])}
-                  onClick={(event) => {
-                    if (event.detail !== 0) return;
-                    event.stopPropagation();
-                    if (event.shiftKey) onSetLoopBoundary?.('start', position);
-                    else if (event.altKey) onSetLoopBoundary?.('end', position);
-                    else onSeek?.(position);
-                  }}
                 />
               );
             })

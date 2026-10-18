@@ -63,6 +63,7 @@ jobs:
             artifacts/e2e/report/
             artifacts/e2e/results/
             artifacts/e2e/results.json
+            artifacts/e2e/ui-quality/
           if-no-files-found: warn
           retention-days: 14
       - name: Export proposed baselines for review / 导出待人工审阅基线

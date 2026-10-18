@@ -35,4 +35,10 @@ gh workflow run e2e.yml --ref <branch> -f update_snapshots=true
 
 截图只遮蔽不稳定时间／运行地址，不隐藏输出目标、门控或错误。超高区域按真实滚动位置分段捕获；Playwright／容器升级需要重新审阅。实际测试结果和图像结论以对应提交的 Actions 报告为准。
 
+## 视觉与可访问性证据
+
+重要视觉改动按[视觉评审体系](ui-quality.md)检查层级、字体、留白、分组、色彩和细节，再审阅候选 PNG。基线通过只证明预期画面没有意外变化；审美结论需要记录截图、评审准则与具体理由。
+
+`quality.spec.js` 在现有浏览器任务中补充中英状态的 axe 相关规则、键盘、对话框和窄屏重排检查。JSON／Markdown 证据保存在 `artifacts/e2e/ui-quality/` 并包含于 `e2e-report`；保留违规、incomplete、未执行项与版本。零已检测违规不是视觉美感分数，也不代表完整 WCAG 合规。
+
 [开发流程](development.md) · [架构](architecture.md)

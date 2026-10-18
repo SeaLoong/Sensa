@@ -12,6 +12,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
       <select
         id={id}
         aria-labelledby={`${id}-label`}
+        aria-describedby={title ? `${id}-hint` : undefined}
         value={value ?? ''}
         disabled={disabled}
         onChange={(event) => {
@@ -25,6 +26,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
           </option>
         ))}
       </select>
+      {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}
     </div>
   );
 }
@@ -94,6 +96,7 @@ export function ValueSliderField({
         <SliderControl
           id={id}
           aria-label={label}
+          aria-describedby={title ? `${id}-hint` : undefined}
           min={min}
           max={max}
           step={step}
@@ -126,6 +129,7 @@ export function ValueSliderField({
           }}
         />
       </div>
+      {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}
     </div>
   );
 }

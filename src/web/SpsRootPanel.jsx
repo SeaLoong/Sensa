@@ -29,10 +29,10 @@ function PointProjection({ point }) {
           <text x="0" y="-97" textAnchor="middle" fill="#40566f" fontSize="12">
             {axis} / Z
           </text>
-          <text x="72" y="102" fill="#627a92" fontSize="11">
+          <text x="72" y="102" fill="#526177" fontSize="11">
             +{axis}
           </text>
-          <text x="7" y="-65" fill="#627a92" fontSize="11">
+          <text x="7" y="-65" fill="#526177" fontSize="11">
             +Z
           </text>
           {valid ? (
@@ -55,13 +55,13 @@ function PointProjection({ point }) {
               />
             </>
           ) : (
-            <text textAnchor="middle" y="5" fill="#718298" fontSize="12">
+            <text textAnchor="middle" y="5" fill="#526177" fontSize="12">
               {t('等待有效位置')}
             </text>
           )}
         </g>
       ))}
-      <text x="210" y="226" textAnchor="middle" fill="#718298" fontSize="11">
+      <text x="210" y="226" textAnchor="middle" fill="#526177" fontSize="11">
         {t('局部坐标投影 ±25 cm · 并非有效采样区域边界')}
       </text>
     </svg>
@@ -78,7 +78,10 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   const endpoint = capturePointEndpoint(root, metric);
   const calibration = calibratedPointDraft(root, metric, zero, full);
   const progress = pointCalibrationProgress(root, metric, zero, full);
-  const cm = (value) => (value * 100).toFixed(1);
+  const cm = (value) => {
+    const rounded = (value * 100).toFixed(1);
+    return Number(rounded) === 0 ? '0.0' : rounded;
+  };
   const sampleLabel = (sample) =>
     sample && sample.key === root?.key && sample.metric === metric ? cm(sample.value) + ' cm' : t('待采集');
   const reset = () => {

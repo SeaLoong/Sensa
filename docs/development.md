@@ -75,6 +75,10 @@ gh workflow run e2e.yml --ref main -f update_snapshots=false
 
 稳定版仍需要明确请求的 `v*`／`unity-v*` tag；本轮不改基础版本或内部协议版本。预览不进入稳定 VPM 索引。依赖更新仍保留 React/React DOM 配套分组，更新不代表自动合并。
 
+## WebUI 视觉质量
+
+以[视觉评审体系](ui-quality.md)指导排版、留白、色彩和层级调整，并通过已审阅的 CI 截图记录判断依据。自动可访问性／键盘检查作为底线，和已有功能回归一起在 `e2e.yml` 执行；结果随 `e2e-report` 保存，不另建工作流或采集用户遥测。人工视觉评审与问卷研究、自动检测结果分别记录，不能互相冒充。
+
 ## 本机开发与 Unity
 
 开发 UI 可以手工 `dotnet run --project src/Sensa.csproj`；运行设备控制前先选择隔离配置或确认自己的输出。只构建产物可使用 `dotnet publish`。包含完整进程冒烟的 `build-platform.py` 是 CI 入口，不在本机运行。

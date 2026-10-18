@@ -2,10 +2,12 @@ import React from 'react';
 import { t, docUrl } from './i18n.js';
 import { Button, Modal } from './ui.jsx';
 
-export default function HelpDialog({ open, onClose }) {
+export default function HelpDialog({ open, onClose, emergencyAction, error }) {
   return (
     <Modal
       open={open}
+      emergencyAction={emergencyAction}
+      error={error}
       title={t('使用帮助')}
       onClose={onClose}
       actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}

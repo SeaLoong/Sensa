@@ -12,12 +12,13 @@ export function Button({ children, tone = 'default', className = '', ...props })
 export function Field({ label, hint, className = '', multiline = false, ...props }) {
   const id = useId();
   return (
-    <label className={`field ${className}`} htmlFor={id}>
-      <span className="field__label" title={hint}>
+    <div className={`field ${className}`}>
+      <label className="field__label" htmlFor={id} title={hint}>
         {label}
-      </span>
-      {multiline ? <textarea id={id} {...props} /> : <input id={id} {...props} />}
-    </label>
+      </label>
+      {multiline ? <textarea id={id} aria-describedby={hint ? `${id}-hint` : undefined} {...props} /> : <input id={id} aria-describedby={hint ? `${id}-hint` : undefined} {...props} />}
+      {hint && <span className="sr-only" id={`${id}-hint`}>{hint}</span>}
+    </div>
   );
 }
 
@@ -39,7 +40,7 @@ export function Toggle({ label, checked, onChange, disabled = false, role, ...pr
 
 export function Notice({ children, tone = 'info', ...props }) {
   return (
-    <div className={`notice notice--${tone}`} {...props}>
+    <div className={`notice notice--${tone}`} role={tone === 'error' ? 'alert' : undefined} {...props}>
       {children}
     </div>
   );
@@ -49,14 +50,16 @@ export function Badge({ children, tone = 'default' }) {
   return <span className={`badge badge--${tone}`}>{children}</span>;
 }
 
-export function Modal({ open, title, onClose, children, actions, wide = false }) {
+export function Modal({ open, title, onClose, children, actions, emergencyAction, error = '', wide = false }) {
   const ref = useRef(null);
   const titleId = useId();
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    else if (!open && dialog.open) dialog.close();
+    if (open && !dialog.open) {
+      dialog.showModal();
+      dialog.querySelector('.modal__close')?.focus();
+    } else if (!open && dialog.open) dialog.close();
   }, [open]);
   return (
     <dialog
@@ -82,11 +85,17 @@ export function Modal({ open, title, onClose, children, actions, wide = false })
     >
       <header className="modal__header">
         <h2 id={titleId}>{title}</h2>
-        <Button aria-label={t('关闭')} onClick={onClose}>
-          ×
-        </Button>
+        <div className="modal__header-actions">
+          {emergencyAction}
+          <Button className="modal__close" aria-label={t('关闭')} onClick={onClose}>
+            ×
+          </Button>
+        </div>
       </header>
-      <div className="modal__body">{open ? children : null}</div>
+      <div className="modal__body">
+        {open && error && <div className="modal__error"><Notice tone="error">{error}</Notice></div>}
+        {open ? children : null}
+      </div>
       {actions && <footer className="modal__actions">{actions}</footer>}
     </dialog>
   );

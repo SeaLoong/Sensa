@@ -121,4 +121,4 @@ Retained fields do not imply connected features: dynamic WebUi.Title, per-device
 
 Desktop builds include Web resources for six platform targets; Unity ships separately. Installers preflight managed sources and preserve user edits/scenes; paid models are not distributed. Verification selects affected work and reuses successful local receipts; CI recovers unfinished product work and retains ten prereleases. Test implementations are not evidence of local, Unity, client or hardware success. Use reports for the actual commit. [Development/releases](development.en.md), [E2E and baseline review](e2e.en.md)
 
-[Home](../README.en.md) · [Positioning](positioning.en.md)
+[Home](../README.en.md) · [Positioning](positioning.en.md) · [WebUI visual aesthetics and quality evidence](ui-quality.en.md)

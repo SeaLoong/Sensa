@@ -3,7 +3,11 @@ import { t, diagnostic } from './i18n.js';
 import { Badge, Button, Notice } from './ui.jsx';
 import { SelectField } from './controls.jsx';
 
-const number = (value, digits = 1) => (Number.isFinite(Number(value)) ? Number(value).toFixed(digits) : '—');
+const number = (value, digits = 1) => {
+  if (!Number.isFinite(Number(value))) return '—';
+  const rounded = Number(value).toFixed(digits);
+  return Number(rounded) === 0 ? (0).toFixed(digits) : rounded;
+};
 
 function PosePlot({ pose, projection }) {
   const xy = projection === 'front';
@@ -27,11 +31,11 @@ function PosePlot({ pose, projection }) {
       <rect width="400" height="260" fill={`url(#pose-grid-${projection})`} />
       <path d="M0 130H400M200 0V260" stroke="#b1c5d6" strokeDasharray="4 4" />
       {xy ? (
-        <circle cx="200" cy="130" r="18" fill="#ddf8f0" stroke="#12a886" strokeWidth="2" />
+        <circle cx="200" cy="130" r="18" fill="#ddf8f0" stroke="#0f766e" strokeWidth="2" />
       ) : (
         <>
           <rect x="200" y="112" width="150" height="36" fill="#ddf8f0" opacity=".6" />
-          <path d="M200 112V148" stroke="#12a886" strokeWidth="3" />
+          <path d="M200 112V148" stroke="#0f766e" strokeWidth="3" />
         </>
       )}
       <text x="12" y="22" fontSize="12" fill="#526575">
@@ -41,15 +45,15 @@ function PosePlot({ pose, projection }) {
         <>
           <path
             d={`M${root}L${tip}`}
-            stroke={pose.engaged ? '#14866d' : '#de9223'}
+            stroke={pose.engaged ? '#14866d' : '#b45309'}
             strokeWidth="7"
             strokeLinecap="round"
           />
-          <path d={`M${root}L${side}`} stroke="#8a67ca" strokeWidth="3" />
+          <path d={`M${root}L${side}`} stroke="#6d28d9" strokeWidth="3" />
           {[
-            [root, 'Root', '#167c9b'],
-            [tip, 'Tip', '#ee8068'],
-            [side, 'Side', '#8a67ca'],
+            [root, 'Root', '#0e7490'],
+            [tip, 'Tip', '#c2410c'],
+            [side, 'Side', '#6d28d9'],
           ].map(([position, label, color]) => (
             <g key={label}>
               <circle cx={position[0]} cy={position[1]} r="4" fill={color} />
@@ -58,15 +62,15 @@ function PosePlot({ pose, projection }) {
               </text>
             </g>
           ))}
-          <circle cx={intersection[0]} cy={intersection[1]} r="4" fill="white" stroke="#12a886" strokeWidth="2" />
+          <circle cx={intersection[0]} cy={intersection[1]} r="4" fill="white" stroke="#0f766e" strokeWidth="2" />
         </>
       )}
       {!pose.valid && (
-        <text x="200" y="140" textAnchor="middle" fontSize="14" fill="#65798a">
+        <text x="200" y="140" textAnchor="middle" fontSize="14" fill="#526177">
           {t('等待有效的三点定位')}
         </text>
       )}
-      <text x="12" y="245" fontSize="11" fill="#65798a">
+      <text x="12" y="245" fontSize="11" fill="#526177">
         {t('每小格 5 cm · Socket 局部坐标')}
       </text>
     </svg>

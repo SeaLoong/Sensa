@@ -745,5 +745,8 @@
   "上限": "Maximum",
   "映射起点": "Mapping start",
   "映射终点": "Mapping end",
-  "{0}{1}": "{0}{1}"
+  "{0}{1}": "{0}{1}",
+  "OSC 参数表": "OSC parameter table",
+  "跳到主要内容": "Skip to main content",
+  "发送设置": "Send settings"
 }

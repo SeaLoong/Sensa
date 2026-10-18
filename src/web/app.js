@@ -191,6 +191,7 @@ function App() {
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
   const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
+  const headerRef = useRef(null);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = getOutputs(config);
@@ -613,6 +614,10 @@ function App() {
     );
   }
 
+  function clearErrorNotification() {
+    setSnackbar((previous) => previous.severity === 'error' ? { ...previous, open: false } : previous);
+  }
+
   function notify(message, severity = 'info') {
     setSnackbar({ open: true, message, severity });
   }
@@ -644,6 +649,7 @@ function App() {
   }
 
   async function withBusy(key, action) {
+    clearErrorNotification();
     setBusyKey(key);
     try {
       return await action();
@@ -817,6 +823,7 @@ function App() {
   }
 
   function openPresetDialog(presetId = null, options = {}) {
+    clearErrorNotification();
     if (!config) return;
     setPresetDialog(buildPresetDialogDraft(config, presetId, options));
   }
@@ -924,11 +931,13 @@ function App() {
   }
 
   function openProfileDialog(profileId) {
+    clearErrorNotification();
     if (!config) return;
     setProfileDialog(buildProfileDialogDraft(profileId, config));
   }
 
   function openNewProfileDialog() {
+    clearErrorNotification();
     if (!config) return;
     setProfileDialog(buildNewProfileDialogDraft(config));
   }
@@ -1318,6 +1327,7 @@ function App() {
   }
 
   async function openOutputDialog(type) {
+    clearErrorNotification();
     if (!config) return;
     const output = getOutputConfig(config, type);
     if (!output) return;
@@ -1441,12 +1451,22 @@ function App() {
     .slice(-300);
   const manualMotionField =
     manualMotionMode === 'Interval'
-      ? { label: t('指定时长'), min: 1, max: MANUAL_INTERVAL_MAX_MS }
-      : { label: t('指定速度'), min: AXIS_LIMIT_MIN_SPEED, max: AXIS_LIMIT_MAX_SPEED };
+      ? { label: t('指定时长'), min: 1, max: MANUAL_INTERVAL_MAX_MS, format: (value) => `${Math.round(Number(value))} ms` }
+      : { label: manualMotionMode === 'Speed' ? t('指定速度') : t('速度上限'), min: AXIS_LIMIT_MIN_SPEED, max: AXIS_LIMIT_MAX_SPEED };
   const modeBusy = Boolean(busyKey.startsWith('mode-'));
   const scriptBusy = Boolean(busyKey.startsWith('script-'));
   const inputActive = runtimeOverview?.inputActive === true;
   const online = wsState === 'connected';
+  const modalError = snackbar.open && snackbar.severity === 'error' ? diagnostic(snackbar.message) : '';
+  const emergencyAction = (
+    <Button
+      tone={runtimeOverview?.isEmergency ? 'default' : 'danger-solid'}
+      disabled={!online || busyKey === 'emergency-stop' || busyKey === 'emergency-clear'}
+      onClick={runtimeOverview?.isEmergency ? clearEmergency : emergencyStop}
+    >
+      {runtimeOverview?.isEmergency ? t('解除急停') : t('紧急停止')}
+    </Button>
+  );
   const updateOsc = (patch) => setOscDraft((previous) => ({ ...previous, ...patch }));
   const updateOutput = (patch) => setDialog((previous) => ({ ...previous, draft: { ...previous.draft, ...patch } }));
   const latestForDraft = (draft) =>
@@ -1489,10 +1509,21 @@ function App() {
   );
 
   useEffect(() => {
-    if (!snackbar.open) return undefined;
+    if (!snackbar.open || snackbar.severity === 'error') return undefined;
     const timer = window.setTimeout(() => setSnackbar((previous) => ({ ...previous, open: false })), 5000);
     return () => window.clearTimeout(timer);
-  }, [snackbar.open, snackbar.message]);
+  }, [snackbar.open, snackbar.message, snackbar.severity]);
+
+  useEffect(() => {
+    const header = headerRef.current;
+    if (loading || !header) return undefined;
+    const measure = () => document.documentElement.style.setProperty('--header-height', `${Math.ceil(header.getBoundingClientRect().height)}px`);
+    measure();
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
+    observer?.observe(header);
+    window.addEventListener('resize', measure);
+    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
+  }, [loading]);
 
   function renderScriptPlayer() {
     return (
@@ -1839,7 +1870,7 @@ function App() {
             {t('保存映射')}
           </Button>
           {hasUnsavedMappings && <Badge tone="warning">{t('未保存')}</Badge>}
-          <Button tone="danger" disabled={!signalDrafts.length} onClick={() => setConfirmClearMappings(true)}>
+          <Button tone="danger" disabled={!signalDrafts.length} onClick={() => { clearErrorNotification(); setConfirmClearMappings(true); }}>
             {t('清空映射')}
           </Button>
         </div>
@@ -1885,16 +1916,17 @@ function App() {
           </Button>
           <span className="muted">{t('{0} 项', [rankedOscPreview.length])}</span>
         </div>
-        <div className="table-scroll">
+        <div className="table-scroll" tabIndex={0} role="region" aria-label={t('OSC 参数表')}>
           <table className="parameter-table">
+            <caption className="sr-only">{t('OSC 参数表')}</caption>
             <thead>
               <tr>
-                <th>{t('置顶')}</th>
-                <th>{t('参数')}</th>
-                <th>{t('来源')}</th>
-                <th>{t('值')}</th>
-                <th>{t('时间')}</th>
-                <th>{t('操作')}</th>
+                <th scope="col">{t('置顶')}</th>
+                <th scope="col">{t('参数')}</th>
+                <th scope="col">{t('来源')}</th>
+                <th scope="col">{t('值')}</th>
+                <th scope="col">{t('时间')}</th>
+                <th scope="col">{t('操作')}</th>
               </tr>
             </thead>
             <tbody>
@@ -1909,7 +1941,7 @@ function App() {
                     </Button>
                   </td>
                   <td>
-                    <button className="parameter-link" type="button" onClick={() => setParameterDetail(entry)}>
+                    <button className="parameter-link" type="button" onClick={() => { clearErrorNotification(); setParameterDetail(entry); }}>
                       {entry.path}
                     </button>
                   </td>
@@ -2107,10 +2139,9 @@ function App() {
 
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <a className="brand" href="#main">
-          Sensa<span>{t('控制台')}</span>
-        </a>
+      <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
+      <header className="app-header" ref={headerRef}>
+        <h1 className="brand"><a href="#main">Sensa<span>{t('控制台')}</span></a></h1>
         <div className="header-status">
           <Badge tone={online ? 'success' : 'warning'}>
             <span title={formatRealtimeStatus(wsState)}>
@@ -2127,13 +2158,7 @@ function App() {
             disabled={!online || runtimeOverview?.isEmergency || Boolean(busyKey)}
             onChange={setInputActive}
           />
-          <Button
-            tone={runtimeOverview?.isEmergency ? 'default' : 'danger-solid'}
-            disabled={!online || busyKey === 'emergency-stop' || busyKey === 'emergency-clear'}
-            onClick={runtimeOverview?.isEmergency ? clearEmergency : emergencyStop}
-          >
-            {runtimeOverview?.isEmergency ? t('解除急停') : t('紧急停止')}
-          </Button>
+          {emergencyAction}
           <select
             className="language-select"
             aria-label="Language / 语言"
@@ -2143,7 +2168,7 @@ function App() {
             <option value="zh-CN">简体中文</option>
             <option value="en-US">English</option>
           </select>
-          <Button onClick={() => setHelpOpen(true)}>{t('帮助')}</Button>
+          <Button onClick={() => { clearErrorNotification(); setHelpOpen(true); }}>{t('帮助')}</Button>
         </div>
       </header>
       <div className="workspace-shell">
@@ -2160,7 +2185,7 @@ function App() {
             ]}
           />
         </nav>
-        <main id="main" className="workspace">
+        <main id="main" className="workspace" tabIndex={-1}>
           <div
             id="workspace-tabs-panel"
             role="tabpanel"
@@ -2206,60 +2231,30 @@ function App() {
                     {selectedInputTab === 'manual' && (
                       <div className="stack manual-workspace">
                         <div className="manual-primary">
-                          {MANUAL_AXES()
-                            .slice(0, 3)
-                            .map((axis) => (
-                              <AxisSlider
-                                key={axis.key}
-                                axis={axis}
-                                value={manualDraft[axis.key]}
-                                onChange={(next) => handleManualSliderChange({ [axis.key]: next })}
-                              />
-                            ))}
+                          {MANUAL_AXES().slice(0, 3).map((axis) => (
+                            <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
+                          ))}
                         </div>
+                        <div className="actions manual-actions">
+                          <Button tone="primary" onClick={applyManualOnce} disabled={!online || actualInputMode !== 'manual' || busyKey === 'manual-once'}>{t('发送一次')}</Button>
+                          <Toggle label={t('连续发送')} checked={manualContinuous} onChange={setManualContinuous} />
+                          <Button onClick={disableManualInput} disabled={!online}>{t('停用手动')}</Button>
+                        </div>
+                        <details className="manual-settings">
+                          <summary>{t('发送设置')}</summary>
+                          <div className="form-grid">
+                            <SelectField label={t('斜率方式')} value={manualMotionMode} options={MANUAL_MOTION_MODE_OPTIONS()} onChange={handleManualMotionModeChange} />
+                            <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} onChange={handleManualMotionValueChange} />
+                          </div>
+                        </details>
                         <details>
                           <summary>{t('旋转、震动与辅助轴')}</summary>
                           <div className="manual-grid">
-                            {MANUAL_AXES()
-                              .slice(3)
-                              .map((axis) => (
-                                <AxisSlider
-                                  key={axis.key}
-                                  axis={axis}
-                                  value={manualDraft[axis.key]}
-                                  onChange={(next) => handleManualSliderChange({ [axis.key]: next })}
-                                />
-                              ))}
+                            {MANUAL_AXES().slice(3).map((axis) => (
+                              <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
+                            ))}
                           </div>
                         </details>
-                        <div className="form-grid">
-                          <SelectField
-                            label={t('斜率方式')}
-                            value={manualMotionMode}
-                            options={MANUAL_MOTION_MODE_OPTIONS()}
-                            onChange={handleManualMotionModeChange}
-                          />
-                          <ValueSliderField
-                            label={manualMotionField.label}
-                            value={manualMotionValue}
-                            min={manualMotionField.min}
-                            max={manualMotionField.max}
-                            onChange={handleManualMotionValueChange}
-                          />
-                        </div>
-                        <div className="actions">
-                          <Button
-                            tone="primary"
-                            onClick={applyManualOnce}
-                            disabled={!online || actualInputMode !== 'manual' || busyKey === 'manual-once'}
-                          >
-                            {t('发送一次')}
-                          </Button>
-                          <Toggle label={t('连续发送')} checked={manualContinuous} onChange={setManualContinuous} />
-                          <Button onClick={disableManualInput} disabled={!online}>
-                            {t('停用手动')}
-                          </Button>
-                        </div>
                       </div>
                     )}
                     {selectedInputTab === 'osc' && (
@@ -2477,7 +2472,7 @@ function App() {
                         />
                         <Toggle label={t('仅看轴调试')} checked={logOnlyAxis} onChange={setLogOnlyAxis} />
                       </div>
-                      <div className="log-list">
+                      <div className="log-list" tabIndex={0} role="region" aria-label={t('日志')}>
                         {filteredLogs.length ? (
                           filteredLogs.map((log, index) => {
                             const timeStr = log.timestamp
@@ -2502,7 +2497,9 @@ function App() {
         </main>
       </div>
       <Modal
+        emergencyAction={emergencyAction}
         open={Boolean(dialog)}
+        error={modalError}
         title={t('输出设置')}
         onClose={() => setDialog(null)}
         actions={
@@ -2626,7 +2623,9 @@ function App() {
         )}
       </Modal>
       <Modal
+        emergencyAction={emergencyAction}
         open={Boolean(profileDialog)}
+        error={modalError}
         title={t('轴配置')}
         wide
         onClose={() => setProfileDialog(null)}
@@ -2682,7 +2681,9 @@ function App() {
         )}
       </Modal>
       <Modal
+        emergencyAction={emergencyAction}
         open={Boolean(presetDialog)}
+        error={modalError}
         title={t('编辑预设')}
         wide
         onClose={() => setPresetDialog(null)}
@@ -2724,7 +2725,9 @@ function App() {
         )}
       </Modal>
       <Modal
+        emergencyAction={emergencyAction}
         open={confirmClearMappings}
+        error={modalError}
         title={t('清空映射')}
         onClose={() => setConfirmClearMappings(false)}
         actions={
@@ -2739,7 +2742,9 @@ function App() {
         <p>{t('清空当前草稿；保存前可恢复。')}</p>
       </Modal>
       <Modal
+        emergencyAction={emergencyAction}
         open={Boolean(parameterDetail)}
+        error={modalError}
         title={t('参数含义')}
         onClose={() => setParameterDetail(null)}
         actions={
@@ -2763,7 +2768,7 @@ function App() {
           {parameterDetail?.sourceLabel} · {parameterDetail?.value}
         </p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>
           <span>{diagnostic(snackbar.message)}</span>

@@ -75,6 +75,10 @@ After publication, enumerate all release pages and retain the **10 newest publis
 
 Stable publication still requires explicitly requested `v*`/`unity-v*` tags. This work changes no base or internal protocol versions. Previews stay out of the stable VPM index. React/React DOM updates remain grouped; dependency updates are not automatically merged.
 
+## WebUI visual quality
+
+Use the [visual assessment framework](ui-quality.en.md) to guide typography, spacing, color and hierarchy, recording reasons against reviewed CI images. Automated accessibility/keyboard checks provide a floor and run alongside functional regressions in `e2e.yml`; their evidence is retained with `e2e-report`. No additional workflow or user telemetry is introduced. Keep visual inspection, questionnaire research and automated findings distinct.
+
 ## Local development and Unity
 
 Manually run the development UI with `dotnet run --project src/Sensa.csproj`; select an isolated configuration or confirm your own outputs before device control. Use `dotnet publish` for build-only work. `build-platform.py` includes full-process smoke and is a CI-only entry point.

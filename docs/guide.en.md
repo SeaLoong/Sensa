@@ -12,7 +12,7 @@ Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, O
 
 | Input | Operations |
 | --- | --- |
-| Manual | Primary axes appear directly; expand for other axes. Update once, follow slider changes continuously, or clear manual override |
+| Manual | Adjust the primary axes, then choose Send once; continuous sending follows sliders, and disabling clears the manual override. Ramp and speed are under Send settings; other axes have a separate disclosure |
 | OSC | Save mappings and select a source on the OSC page, then enable input in Control |
 | Script | Load funscript; set speed, looping or A–B; play, pause, stop, seek and step between actions |
 
@@ -68,4 +68,4 @@ Configuration defaults to `config.json` beside the program. `SENSA_CONFIG_PATH` 
 
 Access is local by default. For LAN control, bind the WebUI to an appropriate interface and set `SENSA_ACCESS_TOKEN` before startup. Use that token as the Basic password with any username, or use Bearer authentication. Plain HTTP is unencrypted; do not expose it directly to the internet. Language is remembered in the current browser; switching it preserves drafts and runtime state.
 
-[Home](../README.en.md) · [Feature reference](features.en.md) · [Unity assets](../unity/top.sealoong.sensa/README.en.md)
+[Home](../README.en.md) · [Feature reference](features.en.md) · [WebUI visual aesthetics standards](ui-quality.en.md) · [Unity assets](../unity/top.sealoong.sensa/README.en.md)
