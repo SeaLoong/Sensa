@@ -1,5 +1,6 @@
 import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
 import { ports, fixedRootSamples, shaderRootSamples } from './mocks.js';
+import { assertCalibrationAlignment } from './ui-quality.js';
 
 async function savedConfiguration(page, rig) {
   const response = await page.request.get(rig.baseUrl + '/api/config');
@@ -130,7 +131,12 @@ for (const producer of [
       await expect(panel.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText('0.020 / 1.000 / 0.150 本地单位');
       await panel.getByRole('button', { name: '采集 100%', exact: true }).click();
       await expect(panel.locator('.calibration-grid output').nth(1)).toHaveText('0.150 本地单位');
+      await assertCalibrationAlignment(page, info);
       await checkpoint(page, panel.locator('.point-diagnostic-grid'), producer.screenshot);
+      await panel.getByLabel('测量对象', { exact: true }).scrollIntoViewIfNeeded();
+      await info.attach('root-status-viewport.png', { body: await page.screenshot(), contentType: 'image/png' });
+      await panel.locator('.calibration-grid').scrollIntoViewIfNeeded();
+      await info.attach('root-calibration-viewport.png', { body: await page.screenshot(), contentType: 'image/png' });
       await panel.getByRole('button', { name: '替换草稿', exact: true }).click();
       await oscWorkspace(page, '映射');
       await expect(page.locator('.mapping-row')).toHaveCount(1);

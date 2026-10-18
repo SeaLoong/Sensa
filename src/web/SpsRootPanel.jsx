@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { t, diagnostic } from './i18n.js';
+import { t, diagnostic, getLocale } from './i18n.js';
 import { capturePointEndpoint, calibratedPointDraft, pointCalibrationProgress } from './osc-preview.js';
 import { Badge, Button, Notice } from './ui.jsx';
 import { SelectField } from './controls.jsx';
@@ -86,6 +86,8 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
     return Number(rounded) === 0 ? '0.0' : rounded;
   };
   const avatarRoot = root?.coordinateFrame === 'AvatarRootLocal';
+  const reasonParts = root?.reason?.split(' / ');
+  const reason = getLocale() === 'zh-CN' && reasonParts?.length === 2 ? reasonParts[0] : diagnostic(root?.reason);
   const length = (value) => avatarRoot ? Number(value).toFixed(3) : cm(value);
   const unit = avatarRoot ? t('本地单位') : 'cm';
   const sampleLabel = (sample) =>
@@ -126,10 +128,11 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
             }}
           />
           <div className="actions">
-            <Badge tone={root.valid ? 'success' : 'warning'}>{diagnostic(root.reason)}</Badge>
+            <Badge tone={root.valid ? 'success' : 'warning'}>{root.valid ? t('坐标有效') : t('等待有效位置')}</Badge>
             <Badge>{t('{0}/{1} 采样', [root.sampleCount, root.expectedSampleCount || (local ? 4 : 8)])}</Badge>
             <Badge>{root.coordinateFrame === 'AvatarRootLocal' ? t('Avatar 根局部坐标') : t('参考局部坐标')}</Badge>
           </div>
+          {reason && <p className="caption muted wrap">{reason}</p>}
           <div className="point-diagnostic-grid">
             <PointProjection point={root} />
             <dl className="metrics">

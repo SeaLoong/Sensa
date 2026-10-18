@@ -863,5 +863,6 @@
   "已接收原生根点编码；坐标非设备回读 / Native root frame received; coordinates are not device feedback": "Native root frame received; coordinates are not device feedback",
   "等待完整、新鲜且身份匹配的原生根点包 / Waiting for a complete fresh native-root packet with matching identity": "Waiting for a complete fresh native-root packet with matching identity",
   "根点坐标与校准": "Root coordinates and calibration",
+  "坐标有效": "Valid coordinates",
   "中心 {0}/{1}/{2} · ±{3} 本地单位": "Center {0}/{1}/{2} · ±{3} local units"
 }

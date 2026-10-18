@@ -496,10 +496,10 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .modal__header, .modal__actions { padding-block: 12px; }
   .pose-dashboard, .point-diagnostic-grid { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .calibration-grid { grid-template-columns: minmax(0, 1fr); }
-  .calibration-grid > div, .calibration-grid > div:first-child { grid-template-columns: 4rem 4.5rem minmax(0, 1fr); grid-template-rows: auto; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); border-left: 0; }
+  .calibration-grid > div, .calibration-grid > div:first-child { grid-template-columns: 4rem minmax(0, 1fr) minmax(0, 1.2fr); grid-template-rows: auto; align-items: center; gap: 10px; padding: 12px 0; border-top: 1px solid var(--border); border-left: 0; }
   .calibration-grid > div:first-child { border-top: 0; }
   .calibration-grid strong { font-size: 12px; }
-  .calibration-grid output { font-size: 16px; line-height: 24px; }
+  .calibration-grid output { min-width: 0; max-width: 100%; font-size: 16px; line-height: 24px; white-space: normal; overflow-wrap: anywhere; }
   .calibration-grid .button { justify-self: stretch; min-width: 0; width: 100%; padding-inline: 8px; }
   .calibration-grid > div:last-child .button { grid-column: 1 / -1; }
   .toast { bottom: 12px; }

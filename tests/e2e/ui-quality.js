@@ -293,6 +293,9 @@ async function geometryGroups(locator, selectors) {
       return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom,
         width: rect.width, height: rect.height, fontSize: parseFloat(style.fontSize),
         textBottom: text.height ? text.bottom : rect.bottom,
+        textBox: text.height ? { left: text.left, right: text.right, top: text.top, bottom: text.bottom }
+          : { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+        clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
         visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' };
     };
     return elements.map(element => ({ box: read(element), parts: Object.fromEntries(
@@ -447,6 +450,8 @@ export async function assertCalibrationAlignment(page, info) {
       for (const box of [label, value, action]) contained(box, group.box, slack, 'Calibration endpoint containment / 校准端点完整容纳');
       separate(label, value, slack, 'Calibration label and value do not overlap / 校准标签数值不重叠');
       separate(value, action, slack, 'Calibration value and action do not overlap / 校准数值操作不重叠');
+      contained(value.textBox, value, slack, 'Calibration text stays inside its value column / 校准文字完整容纳于数值列');
+      expect(value.scrollWidth, 'Calibration text never overflows into its action / 校准文字不溢入操作列').toBeLessThanOrEqual(value.clientWidth + 1);
     }
     const horizontalSteps = Math.abs(endpoints[0].box.top - endpoints[1].box.top) <= slack;
     evidence.layout = horizontalSteps ? 'horizontal-steps' : 'stacked-rows';
