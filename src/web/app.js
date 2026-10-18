@@ -191,7 +191,6 @@ function App() {
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
   const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
-  const headerRef = useRef(null);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = getOutputs(config);
@@ -1514,17 +1513,6 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [snackbar.open, snackbar.message, snackbar.severity]);
 
-  useEffect(() => {
-    const header = headerRef.current;
-    if (loading || !header) return undefined;
-    const measure = () => document.documentElement.style.setProperty('--header-height', `${Math.ceil(header.getBoundingClientRect().height)}px`);
-    measure();
-    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(measure);
-    observer?.observe(header);
-    window.addEventListener('resize', measure);
-    return () => { observer?.disconnect(); window.removeEventListener('resize', measure); };
-  }, [loading]);
-
   function renderScriptPlayer() {
     return (
       <div className="stack script-player">
@@ -2160,52 +2148,54 @@ function App() {
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
-      <header className="app-header" ref={headerRef}>
-        <h1 className="brand"><a href="#main">Sensa</a></h1>
-        <nav className="workspace-nav">
-          <Tabs
-            id="workspace-tabs"
-            label={t('主导航')}
-            value={workspace}
-            onChange={setWorkspace}
-            options={[
-              { value: 'control', label: t('控制') },
-              { value: 'osc', label: 'OSC' },
-              { value: 'settings', label: t('设置') },
-            ]}
-          />
-        </nav>
-        <div className="header-status">
-          <Badge tone={online ? 'success' : 'warning'}>
-            <span title={formatRealtimeStatus(wsState)}>
-              {online ? t('在线') : wsState === 'connecting' ? t('连接中') : t('离线')}
-            </span>
-          </Badge>
-          <span className="caption muted">{formatMode(actualInputMode)}</span>
-        </div>
-        <div className="header-actions">
-          <Toggle
-            role="switch"
-            label={t('输入启用')}
-            checked={inputActive}
-            disabled={!online || runtimeOverview?.isEmergency || Boolean(busyKey)}
-            onChange={setInputActive}
-          />
-          {emergencyAction}
-          <select
-            className="language-select"
-            aria-label="Language / 语言"
-            value={locale}
-            onChange={(event) => setLocale(event.target.value)}
-          >
-            <option value="zh-CN">简体中文</option>
-            <option value="en-US">English</option>
-          </select>
-          <Button onClick={() => { clearErrorNotification(); setHelpOpen(true); }}>{t('帮助')}</Button>
+      <header className="app-header">
+        <div className="app-header__inner">
+          <h1 className="brand"><a href="#main">Sensa</a></h1>
+          <nav className="workspace-nav">
+            <Tabs
+              id="workspace-tabs"
+              label={t('主导航')}
+              value={workspace}
+              onChange={setWorkspace}
+              options={[
+                { value: 'control', label: t('控制') },
+                { value: 'osc', label: 'OSC' },
+                { value: 'settings', label: t('设置') },
+              ]}
+            />
+          </nav>
+          <div className="header-status">
+            <Badge tone={online ? 'success' : 'warning'}>
+              <span title={formatRealtimeStatus(wsState)}>
+                {online ? t('在线') : wsState === 'connecting' ? t('连接中') : t('离线')}
+              </span>
+            </Badge>
+            <span className="caption muted">{formatMode(actualInputMode)}</span>
+          </div>
+          <div className="header-actions">
+            <Toggle
+              role="switch"
+              label={t('输入启用')}
+              checked={inputActive}
+              disabled={!online || runtimeOverview?.isEmergency || Boolean(busyKey)}
+              onChange={setInputActive}
+            />
+            {emergencyAction}
+            <select
+              className="language-select"
+              aria-label="Language / 语言"
+              value={locale}
+              onChange={(event) => setLocale(event.target.value)}
+            >
+              <option value="zh-CN">简体中文</option>
+              <option value="en-US">English</option>
+            </select>
+            <Button onClick={() => { clearErrorNotification(); setHelpOpen(true); }}>{t('帮助')}</Button>
+          </div>
         </div>
       </header>
-      <div className="workspace-shell">
-        <main id="main" className="workspace" tabIndex={-1}>
+      <main id="main" className="workspace-scroll" tabIndex={-1}>
+        <div className="workspace-shell workspace">
           <div
             id="workspace-tabs-panel"
             role="tabpanel"
@@ -2517,8 +2507,8 @@ function App() {
               </>
             )}
           </div>
-        </main>
-      </div>
+        </div>
+      </main>
       <Modal
         emergencyAction={emergencyAction}
         open={Boolean(dialog)}

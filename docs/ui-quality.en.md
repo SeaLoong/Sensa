@@ -40,7 +40,7 @@ Do not mechanically copy Carbon's 8 px or Fluent's 4 px system, or judge beauty 
 
 ## Flat workbench constraints
 
-Use a white plane and dividers to organize content. Main navigation sits in the header; the header and content share page edges. Output identity, target and actions occupy corresponding columns, details span the row, and narrow screens stack them in the same information order.
+Use a white plane and dividers to organize content. Main navigation sits in the header; the header and content share page edges. Content scrolls independently below the header so navigation cannot cover controls being read or focused. Output identity, target and actions occupy corresponding columns, details span the row, and narrow screens stack them in the same information order.
 
 Common controls share a height. A slider has one editable number with an adjacent unit; equal-width endpoint inputs have labels above them. The script view presents import first and reveals full controls after loading. Infrequent disclosures stay compact and do not displace neighboring first-row controls. Boundaries identify controls and separate groups; outer sections use no rounded cards or decorative shadows.
 

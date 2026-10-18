@@ -123,8 +123,35 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(skip).toBeVisible();
           const indicator = await inspectFocusIndicator(skip);
           await skip.press('Enter');
-          await expect(page.locator('main')).toBeFocused();
-          return { indicator, destination: 'main' };
+          const main = page.locator('main.workspace-scroll');
+          await expect(main).toBeFocused();
+          await info.attach('main-scrollport-focus-viewport', { body: await page.screenshot(), contentType: 'image/png' });
+          const canScroll = await main.evaluate(element => element.scrollHeight > element.clientHeight + 1);
+          if (canScroll) {
+            await page.keyboard.press('End');
+            await expect.poll(() => main.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThanOrEqual(1);
+          }
+          const firstControl = page.getByRole('tablist', { name: await label(page, '输入方式'), exact: true })
+            .getByRole('tab', { name: await label(page, '手动'), exact: true });
+          await page.keyboard.press('Tab');
+          await expect(firstControl).toBeFocused();
+          const bounds = await firstControl.evaluate(element => {
+            const target = element.getBoundingClientRect(), port = element.closest('.workspace-scroll');
+            const rect = port.getBoundingClientRect(), header = document.querySelector('.app-header').getBoundingClientRect();
+            return { target: { top: target.top, bottom: target.bottom, left: target.left, right: target.right },
+              port: { top: rect.top + port.clientTop, bottom: rect.top + port.clientTop + port.clientHeight,
+                left: rect.left + port.clientLeft, right: rect.left + port.clientLeft + port.clientWidth },
+              headerBottom: header.bottom, viewportHeight: innerHeight, workspaceScrollTop: port.scrollTop };
+          });
+          expect(bounds.target.top).toBeGreaterThanOrEqual(Math.max(bounds.port.top, bounds.headerBottom) - 1);
+          expect(bounds.target.bottom).toBeLessThanOrEqual(Math.min(bounds.port.bottom, bounds.viewportHeight) + 1);
+          expect(bounds.target.left).toBeGreaterThanOrEqual(bounds.port.left - 1);
+          expect(bounds.target.right).toBeLessThanOrEqual(bounds.port.right + 1);
+          const emergency = page.locator('.app-header').getByRole('button', { name: await label(page, '紧急停止'), exact: true });
+          await expect(emergency).toBeVisible();
+          await expect(emergency).toBeInViewport({ ratio: 1 });
+          return { indicator, destination: 'main', focusEvidence: 'main-scrollport-focus-viewport', canScroll,
+            tabTarget: await firstControl.getAttribute('id'), bounds, emergencyVisible: true };
         });
 
         await report.check('tabs-keyboard-and-control-boundary / 页签键盘与控制边界', async () => {

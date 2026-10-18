@@ -40,7 +40,7 @@ async function attachIncompleteEvidence(page, info, state, incomplete) {
           throw new Error('Cannot resolve compound, frame or shadow target / 无法定位复合、frame 或 shadow 目标');
         const matches = await page.locator(node.target[0]).evaluateAll(elements => elements.map(element => {
           const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-          let scroll = element.closest('.table-scroll, .log-list, dialog[open]');
+          let scroll = element.closest('.table-scroll, .log-list, dialog[open], .workspace-scroll');
           if (!scroll) {
             let ancestor = element.parentElement;
             while (ancestor) {
@@ -50,6 +50,7 @@ async function attachIncompleteEvidence(page, info, state, incomplete) {
             }
           }
           const scrollStyle = scroll ? getComputedStyle(scroll) : null;
+          const workspace = element.closest('.workspace-scroll'), workspaceBox = workspace?.getBoundingClientRect();
           return {
             rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height,
               top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left },
@@ -64,6 +65,10 @@ async function attachIncompleteEvidence(page, info, state, incomplete) {
               scrollWidth: scroll.scrollWidth, scrollHeight: scroll.scrollHeight,
               overflowX: scrollStyle.overflowX, overflowY: scrollStyle.overflowY,
             } : null,
+            workspaceScroll: workspace ? { top: workspaceBox.top, bottom: workspaceBox.bottom, left: workspaceBox.left,
+              right: workspaceBox.right, scrollTop: workspace.scrollTop, scrollLeft: workspace.scrollLeft,
+              clientWidth: workspace.clientWidth, clientHeight: workspace.clientHeight,
+              scrollWidth: workspace.scrollWidth, scrollHeight: workspace.scrollHeight } : null,
             documentScroll: { x: scrollX, y: scrollY }, viewport: { width: innerWidth, height: innerHeight },
           };
         }));
@@ -229,16 +234,28 @@ export async function inspectReflow(page) {
   const evidence = await page.evaluate(() => {
     const width = document.documentElement.clientWidth;
     const scrollWidth = Math.max(document.documentElement.scrollWidth, document.body.scrollWidth);
-    const scrollRegions = [...document.querySelectorAll('.table-scroll, .log-list, dialog[open]')].map(element => ({
+    const port = document.querySelector('.workspace-scroll'), header = document.querySelector('.app-header');
+    const portBox = port?.getBoundingClientRect(), headerBox = header?.getBoundingClientRect();
+    const workspace = port ? { top: portBox.top, bottom: portBox.bottom, width: port.clientWidth, height: port.clientHeight,
+      scrollWidth: port.scrollWidth, scrollHeight: port.scrollHeight, scrollTop: port.scrollTop, scrollLeft: port.scrollLeft } : null;
+    const documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
+    const scrollRegions = [...document.querySelectorAll('.table-scroll, .log-list, dialog[open], .workspace-scroll')].map(element => ({
       role: element.getAttribute('role') || element.tagName.toLowerCase(),
       label: element.getAttribute('aria-label') || element.getAttribute('aria-labelledby'),
       clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
       clientHeight: element.clientHeight, scrollHeight: element.scrollHeight,
     }));
-    return { width, scrollWidth, height: innerHeight, scrollRegions };
+    return { width, scrollWidth, height: innerHeight, documentHeight, scrollRegions, workspace,
+      headerBottom: headerBox?.bottom ?? null };
   });
   expect(evidence.width).toBe(320);
   expect(evidence.scrollWidth, 'Page reflows at 320 CSS px / 页面在 320 CSS px 重排').toBeLessThanOrEqual(321);
+  expect(evidence.workspace, 'Main scrollport exists / 正文滚动区域存在').not.toBeNull();
+  expect(evidence.workspace.height).toBeGreaterThan(0);
+  expect(evidence.workspace.scrollWidth, 'Workspace reflows without horizontal scrolling / 正文无水平滚动').toBeLessThanOrEqual(evidence.workspace.width + 1);
+  expect(evidence.documentHeight, 'Document does not scroll behind the header / 文档不在顶栏下滚动').toBeLessThanOrEqual(evidence.height + 1);
+  expect(evidence.workspace.top).toBeGreaterThanOrEqual(evidence.headerBottom - 1);
+  expect(evidence.workspace.bottom).toBeLessThanOrEqual(evidence.height + 1);
   for (const region of evidence.scrollRegions.filter(region => region.role === 'dialog'))
     expect(region.scrollWidth, 'Dialog reflows without horizontal scrolling / 对话框无水平滚动').toBeLessThanOrEqual(region.clientWidth + 1);
   return evidence;
