@@ -5,12 +5,13 @@ import { t } from './i18n.js';
 export function SelectField({ label, title, value, onChange, options, disabled = false, className = '' }) {
   const id = useId();
   return (
-    <label className={`field ${className}`} htmlFor={id}>
-      <span className="field__label" title={title}>
+    <div className={`field ${className}`}>
+      <label className="field__label" id={`${id}-label`} htmlFor={id} title={title}>
         {label}
-      </span>
+      </label>
       <select
         id={id}
+        aria-labelledby={`${id}-label`}
         value={value ?? ''}
         disabled={disabled}
         onChange={(event) => {
@@ -24,7 +25,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
           </option>
         ))}
       </select>
-    </label>
+    </div>
   );
 }
 

@@ -27,10 +27,14 @@ test('English experimental calibration drives only after opt-in and stops on rel
   const feed = await rig.startFeed(pointSamples(.05)); await allowSpatial(page);
   await expand(page,await text(page,'本地点与根部')); await expand(page,await text(page,'两点量程校准'));
   await expect.poll(async () => (await rig.overview()).poseTracking.spsRoots.some(point => point.valid && Math.abs(point.position.z-.05)<.001)).toBe(true);
+  await expect(page.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText(/^2\.0 \/ -?0\.0 \/ 5\.0 cm$/);
   await page.getByRole('button',{name:await text(page,'采集 0%'),exact:true}).click();
+  await expect(page.locator('.calibration-grid output').nth(0)).toHaveText('5.0 cm');
   await feed.set(pointSamples(.15));
   await expect.poll(async () => (await rig.overview()).poseTracking.spsRoots.some(point => point.valid && Math.abs(point.position.z-.15)<.001)).toBe(true);
+  await expect(page.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText(/^2\.0 \/ -?0\.0 \/ 15\.0 cm$/);
   await page.getByRole('button',{name:await text(page,'采集 100%'),exact:true}).click();
+  await expect(page.locator('.calibration-grid output').nth(1)).toHaveText('15.0 cm');
   await expect(page.getByRole('button',{name:await text(page,'替换为校准映射'),exact:true})).toBeEnabled();
   await checkpoint(page,page.locator('.calibration-grid'),'english-calibration');
   await page.getByRole('button',{name:await text(page,'替换为校准映射'),exact:true}).click();

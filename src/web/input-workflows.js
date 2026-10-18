@@ -326,7 +326,7 @@ function formatScriptSpeedLabel(value) {
 function shouldIgnoreScriptShortcutTarget(target) {
   if (!target || typeof target.closest !== 'function') return false;
   if (target.isContentEditable) return true;
-  if (target.closest('input, textarea, select, button, [role="slider"], .MuiSlider-root')) return true;
+  if (target.closest('input, textarea, select, button, [role="slider"]')) return true;
   return false;
 }
 
