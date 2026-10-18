@@ -38,6 +38,14 @@ These are project interpretations, not questionnaire items, translations or scor
 
 Do not mechanically copy Carbon's 8 px or Fluent's 4 px system, or judge beauty from framework colors alone. Start with the console's information priorities and implement coherent sizing relationships.
 
+## Flat workbench constraints
+
+Use a white plane and dividers to organize content. Main navigation sits in the header; the header and content share page edges. Output identity, target and actions occupy corresponding columns, details span the row, and narrow screens stack them in the same information order.
+
+Common controls share a height. A slider has one editable number with an adjacent unit; equal-width endpoint inputs have labels above them. The script view presents import first and reveals full controls after loading. Infrequent disclosures stay compact and do not displace neighboring first-row controls. Boundaries identify controls and separate groups; outer sections use no rounded cards or decorative shadows.
+
+These constraints reflect the current product direction. Reassess V1–V6 against actual images. Automated geometry can find alignment, overlap and containment issues; it cannot judge overall beauty.
+
 ## Six human visual criteria
 
 Record each item as **meets / issue / not assessed**, with the commit, locale, viewport and screenshot region. This is a custom Sensa rubric without an aggregate score.

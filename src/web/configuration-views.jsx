@@ -102,7 +102,7 @@ export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) 
 export function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], onChange, onRemove }) {
   return (
     <div className="hub-target stack">
-      <div className="form-grid">
+      <div className="form-grid hub-target__fields">
         <Field
           label={t('目标名称')}
           value={target.name || ''}

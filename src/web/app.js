@@ -1607,37 +1607,37 @@ function App() {
                   {t('下一动作')}
                 </Button>
               </div>
-              <div className="form-grid">
-                <SelectField
-                  label={t('播放倍率')}
-                  value={scriptSettings.speed}
-                  options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
-                    .sort((a, b) => a - b)
-                    .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
-                  onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-                />
-                <ValueSliderField
-                  label={t('自定义倍率')}
-                  value={scriptSettings.speed}
-                  min={SCRIPT_SPEED_MIN}
-                  max={SCRIPT_SPEED_MAX}
-                  step={SCRIPT_SPEED_STEP}
-                  valueFormatter={formatScriptSpeedLabel}
-                  unit="×"
-                  onChange={(speed) => updateScriptSettingsDraft({ speed })}
-                  onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-                />
-                <Toggle
-                  label={t('循环')}
-                  checked={scriptSettings.loop}
-                  onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
-                />
-              </div>
             </>
           )}
         </div>
         {scriptLoaded && (
           <div className="stack script-player__options">
+            <div className="form-grid">
+              <SelectField
+                label={t('播放倍率')}
+                value={scriptSettings.speed}
+                options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
+                  .sort((a, b) => a - b)
+                  .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
+                onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+              />
+              <ValueSliderField
+                label={t('自定义倍率')}
+                value={scriptSettings.speed}
+                min={SCRIPT_SPEED_MIN}
+                max={SCRIPT_SPEED_MAX}
+                step={SCRIPT_SPEED_STEP}
+                valueFormatter={formatScriptSpeedLabel}
+                unit="×"
+                onChange={(speed) => updateScriptSettingsDraft({ speed })}
+                onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+              />
+              <Toggle
+                label={t('循环')}
+                checked={scriptSettings.loop}
+                onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
+              />
+            </div>
             <details>
               <summary>{t('定位与 A-B')}</summary>
               <div className="stack">
@@ -1995,45 +1995,47 @@ function App() {
       <details className="advanced-settings">
         <summary>{t('接收与转发设置')}</summary>
         <div className="stack">
-          <div className="actions">
-            <Toggle
-              label={t('启用 OSC')}
-              checked={oscDraft.oscEnabled}
-              onChange={(oscEnabled) => updateOsc({ oscEnabled })}
-            />
-            <Badge tone={overview?.osc?.listening ? 'success' : 'default'}>
-              {overview?.osc?.listening ? t('监听中') : t('未监听')}
-            </Badge>
+          <div className="stack osc-receiver-settings">
+            <div className="actions">
+              <Toggle
+                label={t('启用 OSC')}
+                checked={oscDraft.oscEnabled}
+                onChange={(oscEnabled) => updateOsc({ oscEnabled })}
+              />
+              <Badge tone={overview?.osc?.listening ? 'success' : 'default'}>
+                {overview?.osc?.listening ? t('监听中') : t('未监听')}
+              </Badge>
+            </div>
+            <div className="form-grid">
+              <Field
+                label={t('监听地址')}
+                value={oscDraft.receiverHost}
+                onChange={(event) => updateOsc({ receiverHost: event.target.value })}
+              />
+              <Field
+                label={t('监听端口')}
+                type="number"
+                min={1}
+                max={65535}
+                value={oscDraft.receiverPort}
+                onChange={(event) => updateOsc({ receiverPort: Number(event.target.value) })}
+              />
+              <Field
+                label={t('允许来源 IP')}
+                value={oscDraft.allowedSourceAddresses}
+                onChange={(event) => updateOsc({ allowedSourceAddresses: event.target.value })}
+              />
+              <Field
+                label={t('断流停止（毫秒；0 关闭）')}
+                hint={t('仅值变化时发送的 OSC 来源不适合设置超时。')}
+                type="number"
+                min={0}
+                value={oscDraft.inputTimeoutMs}
+                onChange={(event) => updateOsc({ inputTimeoutMs: Number(event.target.value) })}
+              />
+            </div>
+            {overview?.osc?.listenerError && <Notice tone="error">{diagnostic(overview.osc.listenerError)}</Notice>}
           </div>
-          <div className="form-grid">
-            <Field
-              label={t('监听地址')}
-              value={oscDraft.receiverHost}
-              onChange={(event) => updateOsc({ receiverHost: event.target.value })}
-            />
-            <Field
-              label={t('监听端口')}
-              type="number"
-              min={1}
-              max={65535}
-              value={oscDraft.receiverPort}
-              onChange={(event) => updateOsc({ receiverPort: Number(event.target.value) })}
-            />
-            <Field
-              label={t('允许来源 IP')}
-              value={oscDraft.allowedSourceAddresses}
-              onChange={(event) => updateOsc({ allowedSourceAddresses: event.target.value })}
-            />
-            <Field
-              label={t('断流停止（毫秒；0 关闭）')}
-              hint={t('仅值变化时发送的 OSC 来源不适合设置超时。')}
-              type="number"
-              min={0}
-              value={oscDraft.inputTimeoutMs}
-              onChange={(event) => updateOsc({ inputTimeoutMs: Number(event.target.value) })}
-            />
-          </div>
-          {overview?.osc?.listenerError && <Notice tone="error">{diagnostic(overview.osc.listenerError)}</Notice>}
           <details>
             <summary>OSCQuery</summary>
             <div className="stack">
@@ -2094,50 +2096,52 @@ function App() {
                 ))}
             </div>
           </details>
-          <details>
-            <summary>OSC Hub</summary>
-            <div className="stack">
-              <Toggle
-                label={t('启用 OSC Hub')}
-                checked={oscDraft.hubEnabled}
-                onChange={(hubEnabled) => updateOsc({ hubEnabled })}
-              />
-              <div className="form-grid">
-                <SelectField
-                  label={t('转发模式')}
-                  value={normalizeOscHubMode(oscDraft.hubMode)}
-                  options={OSC_HUB_MODE_OPTIONS()}
-                  onChange={(hubMode) => updateOsc({ hubMode })}
+          <div className="stack osc-forwarding-settings">
+            <details>
+              <summary>OSC Hub</summary>
+              <div className="stack">
+                <Toggle
+                  label={t('启用 OSC Hub')}
+                  checked={oscDraft.hubEnabled}
+                  onChange={(hubEnabled) => updateOsc({ hubEnabled })}
                 />
-                <Field
-                  label={t('转发频率 (Hz)')}
-                  type="number"
-                  min={1}
-                  max={240}
-                  value={oscDraft.hubFixedRateHz}
-                  disabled={normalizeOscHubMode(oscDraft.hubMode) !== 'FixedRate'}
-                  onChange={(event) => updateOsc({ hubFixedRateHz: Number(event.target.value) })}
-                />
+                <div className="form-grid">
+                  <SelectField
+                    label={t('转发模式')}
+                    value={normalizeOscHubMode(oscDraft.hubMode)}
+                    options={OSC_HUB_MODE_OPTIONS()}
+                    onChange={(hubMode) => updateOsc({ hubMode })}
+                  />
+                  <Field
+                    label={t('转发频率 (Hz)')}
+                    type="number"
+                    min={1}
+                    max={240}
+                    value={oscDraft.hubFixedRateHz}
+                    disabled={normalizeOscHubMode(oscDraft.hubMode) !== 'FixedRate'}
+                    onChange={(event) => updateOsc({ hubFixedRateHz: Number(event.target.value) })}
+                  />
+                </div>
+                {oscHub?.blockedBySourceSelection && <Notice tone="warning">{t('多个来源时需固定使用来源。')}</Notice>}
+                {oscHubTargetsDraft.map((target) => (
+                  <OscHubTargetRow
+                    key={target._draftId}
+                    target={target}
+                    runtimeTarget={oscHub?.targets?.find((item) => item.id === target.id)}
+                    conflictMessages={oscHubConflicts.get(target._draftId) || []}
+                    onChange={(patch) => updateOscHubTargetDraft(target._draftId, patch)}
+                    onRemove={() => removeOscHubTargetDraft(target._draftId)}
+                  />
+                ))}
+                <Button onClick={addOscHubTargetDraft}>{t('新增目标')}</Button>
+                {oscHub?.lastDropReason && <Notice tone="warning">{diagnostic(oscHub.lastDropReason)}</Notice>}
               </div>
-              {oscHub?.blockedBySourceSelection && <Notice tone="warning">{t('多个来源时需固定使用来源。')}</Notice>}
-              {oscHubTargetsDraft.map((target) => (
-                <OscHubTargetRow
-                  key={target._draftId}
-                  target={target}
-                  runtimeTarget={oscHub?.targets?.find((item) => item.id === target.id)}
-                  conflictMessages={oscHubConflicts.get(target._draftId) || []}
-                  onChange={(patch) => updateOscHubTargetDraft(target._draftId, patch)}
-                  onRemove={() => removeOscHubTargetDraft(target._draftId)}
-                />
-              ))}
-              <Button onClick={addOscHubTargetDraft}>{t('新增目标')}</Button>
-              {oscHub?.lastDropReason && <Notice tone="warning">{diagnostic(oscHub.lastDropReason)}</Notice>}
+            </details>
+            <div className="actions">
+              <Button tone="primary" disabled={!online || busyKey === 'osc-save'} onClick={saveOscConfig}>
+                {t('保存 OSC 设置')}
+              </Button>
             </div>
-          </details>
-          <div className="actions">
-            <Button tone="primary" disabled={!online || busyKey === 'osc-save'} onClick={saveOscConfig}>
-              {t('保存 OSC 设置')}
-            </Button>
           </div>
         </div>
       </details>

@@ -201,7 +201,9 @@ test.describe('OSCQuery and Hub', () => {
     await expect.poll(async () => page.request.get(rig.baseUrl + '/api/config').then(response => response.json()).then(config => config.osc.oscQueryPolling.enabled)).toBe(false);
     await expect(page.getByRole('button', { name:'保存 OSC 设置', exact:true })).toBeEnabled();
     await page.locator('summary').filter({ hasText: /^OSCQuery$/ }).click();
-    await expand(page, 'OSC Hub'); await checkpoint(page, page.locator('.advanced-settings'), 'osc-hub');
+    await checkpoint(page, page.locator('.osc-receiver-settings'), 'osc-receiver-settings');
+    await expand(page, 'OSC Hub');
+    await checkpoint(page, page.locator('.osc-forwarding-settings'), 'osc-hub');
   });
 });
 

@@ -39,6 +39,6 @@ Screenshots mask unstable timestamps/runtime addresses, not targets, gates or er
 
 Review substantial visual changes against the [visual assessment framework](ui-quality.en.md): hierarchy, typography, spacing, grouping, color and finish, then inspect proposed PNGs. Baseline comparisons detect unexpected visual changes; aesthetic judgments need screenshots, explicit criteria and reasons.
 
-`quality.spec.js` adds axe-related rules, keyboard, dialog and narrow-layout checks in both languages to the existing browser job. JSON/Markdown evidence lives in `artifacts/e2e/ui-quality/` inside `e2e-report`, retaining violations, incomplete results, missing checks and engine versions. Zero detected violations is neither an aesthetics score nor complete WCAG conformance.
+`quality.spec.js` adds axe-related rules, keyboard, dialog and narrow-layout checks in both languages to the existing browser job. Geometry contracts also inspect primary-axis labels/values/sliders, shared output columns, mapping control edges, narrow forms/range endpoints and endpoint alignment in existing calibration scenarios. They retain raw bounds and require enough samples; fixed colors or pixel positions are not an aesthetics score. JSON/Markdown evidence lives in `artifacts/e2e/ui-quality/` inside `e2e-report`, retaining violations, incomplete results, missing checks and engine versions. Zero detected violations is neither an aesthetics score nor complete WCAG conformance.
 
 [Development](development.en.md) · [Architecture](architecture.en.md)

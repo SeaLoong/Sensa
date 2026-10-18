@@ -99,6 +99,14 @@ export async function checkpoint(page, locator, name) {
   const box = await locator.boundingBox(), viewport = page.viewportSize();
   if (!box) throw new Error('Checkpoint is not visible / 截图目标不可见: ' + name);
   expect(box.width, 'Checkpoint fits viewport / 截图目标不溢出: ' + name).toBeLessThanOrEqual(viewport.width);
+  // Position bounded regions below the real sticky header without changing styles or content.
+  // 用真实滚动把有界区域放到常驻顶栏下方，不改样式或内容。
+  await locator.evaluate((element, height) => {
+    const header = document.querySelector('.app-header');
+    if (element.closest('dialog') || element === header) return;
+    const rect = element.getBoundingClientRect(), offset = (header?.getBoundingClientRect().height || 0) + 8;
+    if (rect.height + offset <= height) window.scrollTo({ top: Math.max(0, scrollY + rect.top - offset), behavior: 'instant' });
+  }, viewport.height);
   await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
   expect(await page.evaluate(() => Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) <= document.documentElement.clientWidth), 'Horizontal viewport overflow / 页面横向溢出').toBe(true);
 }

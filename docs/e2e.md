@@ -39,6 +39,6 @@ gh workflow run e2e.yml --ref <branch> -f update_snapshots=true
 
 重要视觉改动按[视觉评审体系](ui-quality.md)检查层级、字体、留白、分组、色彩和细节，再审阅候选 PNG。基线通过只证明预期画面没有意外变化；审美结论需要记录截图、评审准则与具体理由。
 
-`quality.spec.js` 在现有浏览器任务中补充中英状态的 axe 相关规则、键盘、对话框和窄屏重排检查。JSON／Markdown 证据保存在 `artifacts/e2e/ui-quality/` 并包含于 `e2e-report`；保留违规、incomplete、未执行项与版本。零已检测违规不是视觉美感分数，也不代表完整 WCAG 合规。
+`quality.spec.js` 在现有浏览器任务中补充中英状态的 axe 相关规则、键盘、对话框和窄屏重排检查。几何契约还检查主轴标题／数值／滑条、输出对应列、映射控件底沿、窄屏表单与范围端点，以及既有校准场景的端点对齐；记录原始边界、严格检查样本数，不用固定配色或像素位置充当审美分。JSON／Markdown 证据保存在 `artifacts/e2e/ui-quality/` 并包含于 `e2e-report`；保留违规、incomplete、未执行项与版本。零已检测违规不是视觉美感分数，也不代表完整 WCAG 合规。
 
 [开发流程](development.md) · [架构](architecture.md)
