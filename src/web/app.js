@@ -795,7 +795,6 @@ function App() {
 
       await persistConfig(nextConfig);
       await refreshOverview();
-      savedSignalsHashRef.current = computeSignalHash(signalDrafts);
       notify(t('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。'), 'success');
     }).catch((error) => notify(error.message || t('保存 OSC 映射失败'), 'error'));
   }

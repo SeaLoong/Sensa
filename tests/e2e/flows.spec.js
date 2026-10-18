@@ -97,8 +97,10 @@ test.describe('modern OGB SPS', () => {
     await oscWorkspace(page, '映射');
     await page.getByLabel('预设方案', { exact: true }).selectOption('sps-socket-depth-others');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
+    await expect(page.getByText('未保存', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '保存映射', exact: true }).click();
     await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/*/PenOthersNewRoot');
+    await expect(page.getByText('未保存', { exact: true })).toHaveCount(0);
     await checkpointViewport(page, 'osc-mappings-page');
     await active(page);
     const root = 'OGB/Orf/Test/PenOthersNewRoot', tip = 'OGB/Orf/Test/PenOthersNewTip';
@@ -192,6 +194,7 @@ test.describe('OSCQuery and Hub', () => {
     await polling.uncheck(); await page.getByRole('button', { name:'保存 OSC 设置', exact:true }).click();
     await expect.poll(async () => page.request.get(rig.baseUrl + '/api/config').then(response => response.json()).then(config => config.osc.oscQueryPolling.enabled)).toBe(false);
     await expect(page.getByRole('button', { name:'保存 OSC 设置', exact:true })).toBeEnabled();
+    await page.locator('summary').filter({ hasText: /^OSCQuery$/ }).click();
     await expand(page, 'OSC Hub'); await checkpoint(page, page.locator('.advanced-settings'), 'osc-hub');
   });
 });

@@ -152,6 +152,7 @@ details > .stack, details > .actions, details > .manual-grid { padding: 4px 0 8p
 .range-field legend span { margin-left: 8px; font-weight: 400; font-variant-numeric: tabular-nums; }
 .range-field__inputs { display: flex; gap: 10px; }
 .range-field__inputs label { display: flex; align-items: center; gap: 7px; min-width: 0; color: var(--muted); font-size: 11px; }
+.range-field__inputs label > span { flex-shrink: 0; white-space: nowrap; }
 .range-field__inputs input { font-size: 12px; width: 100%; }
 .mapping-actions { border-top: 1px solid var(--border); padding-top: 16px; }
 .parameter-filters { display: grid; grid-template-columns: minmax(0,1fr) 220px 150px; gap: 14px; }
