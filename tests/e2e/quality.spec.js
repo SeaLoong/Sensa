@@ -197,7 +197,63 @@ for (const locale of ['zh-CN', 'en-US']) {
         await report.check('reflow-320-control / 控制页 320 CSS px 重排', () => inspectReflow(page));
         await expand(page, await label(page, '发送设置'));
         await report.check('target-samples-buttons / 按钮命中区域抽检', () => inspectBasicTargets(page, page.locator('.app-header button, .manual-workspace button'), 'Button'));
-        await report.check('target-samples-toggle-label / 开关标签命中区域抽检', () => inspectBasicTargets(page, page.locator('.app-header .toggle, .manual-workspace .toggle'), 'Toggle label'));
+        await report.check('target-samples-toggle-label / 开关标签命中区域抽检', async () => {
+          const labels = await inspectBasicTargets(page, page.locator('.app-header .toggle, .manual-workspace .toggle'), 'Toggle label');
+          const accessibleName = await label(page, '连续发送');
+          const checkbox = page.locator('.manual-workspace').getByRole('checkbox', { name: accessibleName, exact: true });
+          await expect(checkbox).toBeEnabled();
+          await expect(checkbox).not.toBeChecked();
+          await expect(checkbox).toHaveAccessibleName(accessibleName);
+          const native = await checkbox.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return { tag: element.tagName.toLowerCase(), type: element.type, tabIndex: element.tabIndex,
+              roleAttribute: element.getAttribute('role'), disabled: element.disabled,
+              labelTexts: [...element.labels].map(label => label.textContent.trim()),
+              width: rect.width, height: rect.height };
+          });
+          expect(native.tag).toBe('input');
+          expect(native.type).toBe('checkbox');
+          expect(native.tabIndex).toBeGreaterThanOrEqual(0);
+          expect(native.disabled).toBe(false);
+          expect(native.labelTexts).toContain(accessibleName);
+          const hitArea = await inspectBasicTargets(page, checkbox, 'Native checkbox input');
+          const config = await page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
+          expect(config.outputs.filter(output => output.enabled)).toHaveLength(0);
+          expect((await rig.overview()).runtime.inputActive).toBe(false);
+
+          // Click the real associated text, then use native Space; the painted box size is not a contract.
+          // 点击真实关联文字，再用原生 Space 还原；不把绘制方框尺寸当作契约。
+          const labelText = checkbox.locator('..').locator(':scope > span');
+          await expect(labelText).toHaveText(accessibleName);
+          await labelText.click();
+          await expect(checkbox).toBeChecked();
+          await checkbox.press('Space');
+          await expect(checkbox).not.toBeChecked();
+          const focus = await inspectFocusIndicator(checkbox);
+          let forcedColors;
+          try {
+            await page.emulateMedia({ forcedColors: 'active' });
+            await expect(checkbox).toBeVisible();
+            await expect(checkbox).toHaveAccessibleName(accessibleName);
+            const mediaActive = await page.evaluate(() => matchMedia('(forced-colors: active)').matches);
+            const appearance = await checkbox.evaluate(element => getComputedStyle(element).appearance);
+            expect(mediaActive).toBe(true);
+            expect(appearance).toBe('auto');
+            const hitArea = await inspectBasicTargets(page, checkbox, 'Forced-colors native checkbox');
+            await expect(checkbox).not.toBeChecked();
+            await labelText.click();
+            await expect(checkbox).toBeChecked();
+            await checkbox.press('Space');
+            await expect(checkbox).not.toBeChecked();
+            forcedColors = { mediaActive, appearance, hitArea, labelClickChecked: true, spaceRestoredUnchecked: true,
+              focus: await inspectFocusIndicator(checkbox) };
+          } finally { await page.emulateMedia({ forcedColors: 'none' }); }
+          const inputActive = (await rig.overview()).runtime.inputActive;
+          expect(inputActive).toBe(false);
+          expect(rig.wire.udp.filter(line => /L0\d/.test(line))).toHaveLength(0);
+          return { labels, native, accessibleName, hitArea, labelClickChecked: true, spaceRestoredUnchecked: true,
+            focus, forcedColors, inputActive, enabledOutputs: 0 };
+        });
         await report.check('target-samples-select-and-slider / 选择框与滑条命中区域抽检', () => inspectBasicTargets(page, page.locator('.manual-workspace select, .manual-primary input[type=range]'), 'Select and slider'));
 
         await oscWorkspace(page, '映射');

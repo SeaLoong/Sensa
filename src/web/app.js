@@ -2050,7 +2050,7 @@ function App() {
                 disabled={!oscDraft.oscQueryEnabled}
                 onChange={(event) => updateOsc({ oscQueryUrl: event.target.value })}
               />
-              <div className="form-grid">
+              <div className="form-grid form-grid--rate">
                 <Toggle
                   label={t('轮询回退')}
                   checked={oscDraft.oscQueryPollingEnabled}
@@ -2072,7 +2072,7 @@ function App() {
                 checked={oscDraft.oscQueryReceiverEnabled}
                 onChange={(oscQueryReceiverEnabled) => updateOsc({ oscQueryReceiverEnabled })}
               />
-              <div className="form-grid">
+              <div className="form-grid form-grid--endpoint">
                 <Field
                   label={t('服务名称')}
                   value={oscDraft.oscQueryReceiverServiceName}
@@ -2105,7 +2105,7 @@ function App() {
                   checked={oscDraft.hubEnabled}
                   onChange={(hubEnabled) => updateOsc({ hubEnabled })}
                 />
-                <div className="form-grid">
+                <div className="form-grid form-grid--rate">
                   <SelectField
                     label={t('转发模式')}
                     value={normalizeOscHubMode(oscDraft.hubMode)}
@@ -2604,7 +2604,7 @@ function App() {
               </>
             )}
             {['TCodeUdp', 'TCodeTcp'].includes(dialog.draft.type) && (
-              <div className="form-grid">
+              <div className="form-grid form-grid--endpoint">
                 <Field
                   label={t('目标地址')}
                   value={dialog.draft.host || ''}

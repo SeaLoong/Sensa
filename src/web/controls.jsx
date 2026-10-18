@@ -83,6 +83,9 @@ export function ValueSliderField({
 }) {
   const id = useId();
   const numberDirtyRef = useRef(false);
+  const valueCharacters = Math.min(12, Math.max(4, ...[min, max, value]
+    .filter((candidate) => candidate !== null && candidate !== undefined && Number.isFinite(Number(candidate)))
+    .map((candidate) => String(candidate).length)));
   const normalize = (next) =>
     normalizeRangePair(next, next, { min, max, step, fallbackStart: value, fallbackEnd: value })[0];
   return (
@@ -94,6 +97,7 @@ export function ValueSliderField({
         <div className="value-field__number">
           <input
             className="number-input"
+            style={{ '--value-chars': valueCharacters }}
             aria-describedby={title ? `${id}-hint` : undefined}
             aria-valuetext={String(valueFormatter(value))}
             aria-label={t('{0}数值', [label])}

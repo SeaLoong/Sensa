@@ -44,6 +44,10 @@ Use a white plane and dividers to organize content. Main navigation sits in the 
 
 Common controls share a height. A slider has one editable number with an adjacent unit; equal-width endpoint inputs have labels above them. The script view presents import first and reveals full controls after loading. Infrequent disclosures stay compact and do not displace neighboring first-row controls. Boundaries identify controls and separate groups; outer sections use no rounded cards or decorative shadows.
 
+The project separates **visual size from hit area**. Fine-pointer defaults use 32 px common inputs/buttons, 28 px standalone slider regions and 36 px navigation, with 14 px body, 13 px control text and 12 px labels. Label rows are 20 px, field gaps 6 px and group gaps 12 px. Numeric inputs start at 68 px and grow with finite value length. Ports/rates use short columns while addresses and paths receive remaining space.
+
+Checkboxes paint an 18 px square inside a 24 px native input hit area. Switches paint a 32×20 px track inside a 36×24 px input. Coarse-pointer actions, fields and complete toggle labels retain at least 44 px; forced-color mode falls back to native painting. These are project size roles, not a universal beauty score or complete accessibility proof.
+
 These constraints reflect the current product direction. Reassess V1–V6 against actual images. Automated geometry can find alignment, overlap and containment issues; it cannot judge overall beauty.
 
 ## Six human visual criteria
