@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import { Linter } from 'eslint';
 import { localized, t, getLocale, setLocale, resolveLocale, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
 import en from '../../src/web/i18n.en.json' with { type: 'json' };
 import presets from '../../src/web/data/osc-presets.json' with { type: 'json' };
@@ -17,10 +18,23 @@ test('every source module and built-in preset has matching nonempty translations
     const file = path.join(directory, entry.name);
     return entry.isDirectory() ? files(file) : /\.(js|jsx)$/.test(entry.name) && !entry.name.includes('bundle') ? [file] : [];
   });
+  const linter = new Linter();
   for (const file of files('src/web')) {
-    for (const match of readFileSync(file, 'utf8').matchAll(/\bt\(("(?:[^"\\]|\\.)*")/g)) {
-      const key = JSON.parse(match[1]); assert.ok(en[key], file + ': ' + key);
-    }
+    const keys = [];
+    const messages = linter.verify(readFileSync(file, 'utf8'), {
+      files: ['**/*.{js,jsx}'],
+      languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
+      plugins: { catalog: { rules: { keys: { create: () => ({
+        CallExpression(node) {
+          if (node.callee.type === 'Identifier' && node.callee.name === 't'
+            && node.arguments[0]?.type === 'Literal' && typeof node.arguments[0].value === 'string')
+            keys.push(node.arguments[0].value);
+        },
+      }) } } } },
+      rules: { 'catalog/keys': 'error' },
+    }, { filename: file });
+    assert.deepEqual(messages, [], file);
+    for (const key of keys) assert.ok(en[key], file + ': ' + key);
   }
   for (const preset of presets) for (const field of ['name', 'description']) assert.ok(en[preset[field]], preset.id);
   const placeholders = text => [...text.matchAll(/\{\d+\}/g)].map(match => match[0]).sort();

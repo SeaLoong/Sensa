@@ -6,6 +6,8 @@
 
 具体场景、预期值和命令见[能力测试与联动说明](https://github.com/SeaLoong/Sensa/blob/main/tools/unity-world-lab/CAPABILITIES.md)。连续 PNG 编码入口相对中心线根部的世界轴位移，并非最终网格或直接行程。外部脚本验证 CRC、递增帧序及冻结超时；这些检查仍不能保证底层 Resolver 数据与画面绝对同步。
 
+Contact 解算同样只是默认禁止运动输出的实验估计，不能作为缺失身份、同帧或真实网格信息的可靠回退。[定位说明](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.md)
+
 ## 哪些数据值得读取
 
 SPS2 的 `_VFGridFinal` 是渲染阶段的 Shader 数据纹理。所核对版本的 Plug Resolver 提供根部坐标系、模型长度、目标路径点、路径切线与方向；形变代码利用这些数据沿曲线采样。相比单个 Contact 的径向距离，它能表达弯曲路径。
@@ -19,7 +21,7 @@ SPS2 的 `_VFGridFinal` 是渲染阶段的 Shader 数据纹理。所核对版本
 | 本地 SPS2 Plug / 对方 SPS2 Socket | 本地 Plug Resolver 选择的路径 | 对方不必装 Sensa；需实际渲染、标签/通道匹配且路径有效 |
 | 本地 SPS2 Plug / 对方旧 Socket | 本地 Resolver 的旧版兼容解析 | 取决于旧版标记/灯光是否可见及兼容选项；不能承诺覆盖所有版本 |
 | 本地 Socket / 对方 SPS2 Plug | 未来可研究筛选指向本地 Socket 的远端 Resolver | 本次未实现自动发现；不能用最近对象替代身份匹配；渲染裁剪/多个目标会影响可用性 |
-| 本地 Socket / 对方旧 TPS/DPS Plug | 通常没有对方 SPS2 Resolver 可读 | 无法仅安装一个读取 SPS2 纹理的 Shader 就恢复对方旧 Shader 的最终形变。优先保留 Contact 定位，或单独开发视觉估计 |
+| 本地 Socket / 对方旧 TPS/DPS Plug | 通常没有对方 SPS2 Resolver 可读 | 无法仅安装一个读取 SPS2 纹理的 Shader 就恢复对方旧 Shader 的最终形变；Contact 也只能保留为默认关闭的实验估计 |
 | 任一侧 Shader 被屏蔽、未渲染或数据纹理不可用 | 无可靠模型数据 | 必须报告无效，不能继续使用最后一帧驱动设备 |
 
 知道某个 Socket 的位置也不等于知道哪个 Plug 正在使用它。远端 Resolver 自动发现需以 Socket/Resolver 标识与路径关联筛选，避免同名、多对象、复制头像混入。Shader ID 不是可验证的玩家账号身份。

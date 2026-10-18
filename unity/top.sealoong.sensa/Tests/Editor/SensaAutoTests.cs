@@ -98,13 +98,26 @@ namespace UnityBox.Sensa.Tests
             var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
             var constraint=avatar.GetComponentInChildren<ParentConstraint>();Assert.AreEqual(2,constraint.sourceCount);
-            var merge=avatar.GetComponentInChildren<ModularAvatarMergeAnimator>();var controller=(AnimatorController)merge.animator;
+            var merge=SelectionAnimator();var controller=(AnimatorController)merge.animator;
             var states = States();Assert.AreEqual(5,states.Length);
             var settle=states.Single(s=>s.name=="Select 2");((AnimationClip)settle.motion).SampleAnimation(avatar,0);
             Assert.AreEqual(1,constraint.GetSource(1).weight);Assert.IsFalse(avatar.GetComponentsInChildren<VRCContactReceiver>(true)[0].gameObject.activeInHierarchy);
             var driver=settle.behaviours.OfType<VRCAvatarParameterDriver>().Single();Assert.AreEqual(11,driver.parameters.Count);
             Assert.AreEqual(1,states.Single(s=>s.name=="Active 2").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Count);
             Assert.IsTrue(settle.transitions.Any(t=>t.hasExitTime&&t.exitTime==1&&t.duration==0));
+        }
+        [Test] public void DedicatedRootArrayProvidesWritableFxParametersWithoutASelector()
+        {
+            Socket("Root", Vector3.zero);
+            var setup = avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy = SensaArrayPolicy.Dedicated;
+            SensaAutoBuilder.ProcessAvatar(avatar);
+            var merge = avatar.GetComponentInChildren<ModularAvatarMergeAnimator>(); Assert.NotNull(merge);
+            var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = merge.animator; animator.Rebind();
+            foreach (var receiver in avatar.GetComponentsInChildren<VRCContactReceiver>())
+            {
+                Assert.IsTrue(animator.parameters.Any(parameter => parameter.name == receiver.parameter && parameter.type == AnimatorControllerParameterType.Float));
+                animator.SetFloat(receiver.parameter, .4f); Assert.AreEqual(.4f, animator.GetFloat(receiver.parameter));
+            }
         }
         [Test] public void DedicatedAndExclusiveHaveDifferentActiveCosts()
         {
@@ -118,7 +131,7 @@ namespace UnityBox.Sensa.Tests
         {
             for(int i=0;i<16;i++)Socket("Socket"+i,Vector3.right*i*.005f);
             var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=policy;SensaAutoBuilder.ProcessAvatar(avatar);
-            var machine=((AnimatorController)avatar.GetComponentInChildren<ModularAvatarMergeAnimator>().animator).layers[0].stateMachine;
+            var machine=((AnimatorController)SelectionAnimator().animator).layers[0].stateMachine;
             Assert.AreEqual(19,machine.anyStateTransitions.Length);
             Assert.AreEqual(policy==SensaArrayPolicy.SharedRootArray?16:0,machine.states.Sum(s=>s.state.transitions.Length));
             foreach(var transition in machine.anyStateTransitions){
@@ -172,7 +185,7 @@ namespace UnityBox.Sensa.Tests
             SensaAutoBuilder.ProcessAvatar(avatar);
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
-            var controller=(AnimatorController)avatar.GetComponentInChildren<ModularAvatarMergeAnimator>().animator;
+            var controller=(AnimatorController)SelectionAnimator().animator;
             var states = States();
             void Select(int slot) { SampleState((policy == SensaArrayPolicy.SharedRootArray ? "Active " : "Select ") + slot); }
             Select(2);
@@ -200,7 +213,7 @@ namespace UnityBox.Sensa.Tests
         {
             Socket("A",new Vector3(0,.1f,0));var b=Socket("B",new Vector3(.15f,.3f,.02f));
             var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
-            var merge=avatar.GetComponentInChildren<ModularAvatarMergeAnimator>();var controller=(AnimatorController)merge.animator;
+            var merge=SelectionAnimator();var controller=(AnimatorController)merge.animator;
             var clip=(AnimationClip)controller.layers[0].stateMachine.states.Single(s=>s.state.name=="Select 2").state.motion;
             clip.SampleAnimation(avatar,0);
             for(int i=0;i<4;i++){EditorApplication.QueuePlayerLoopUpdate();yield return null;}

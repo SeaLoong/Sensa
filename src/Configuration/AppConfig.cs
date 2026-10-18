@@ -219,6 +219,7 @@ public sealed class OscReceiverConfig
     public string ReceiverHost { get; set; } = "127.0.0.1";
     public int ReceiverPort { get; set; } = 9001;
     public int InputTimeoutMs { get; set; } = 0;
+    public bool AllowExperimentalSpatialInput { get; set; } = false;
     public List<string> AllowedSourceAddresses { get; set; } = new();
     public bool OscQueryEnabled { get; set; } = true;
     public string OscQueryUrl { get; set; } = "http://127.0.0.1:9001/";
@@ -362,6 +363,7 @@ public sealed class AppConfig
         var osc = other.Osc ?? new OscReceiverConfig();
         Osc.Enabled = osc.Enabled;
         Osc.InputTimeoutMs = Math.Clamp(osc.InputTimeoutMs, 0, 600000);
+        Osc.AllowExperimentalSpatialInput = osc.AllowExperimentalSpatialInput;
         Osc.AllowedSourceAddresses = (osc.AllowedSourceAddresses ?? new()).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => System.Net.IPAddress.TryParse(s.Trim(), out var ip) ? ip.ToString() : throw new ArgumentException($"Invalid OSC source IP: {s}")).Distinct().Take(32).ToList();
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "127.0.0.1" : osc.ReceiverHost;
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;

@@ -1,255 +1,135 @@
-import React from 'react';
+import React, { useId, useRef } from 'react';
 import { formatCompactNumber, normalizeRangePair, precisionFromStep } from './numeric.js';
 import { t } from './i18n.js';
-import { Box, Chip, FormControl, InputLabel, MenuItem, Select, Slider, Stack, Tooltip, Typography } from '@mui/material';
 
-function TabPanel({ value, current, children }) {
-  return value === current ? <Box sx={{ pt: 0.75, minWidth: 0, width: '100%' }}>{children}</Box> : null;
-}
-
-function MetricCard({ label, value, tone = 'default' }) {
+export function SelectField({ label, title, value, onChange, options, disabled = false, className = '' }) {
+  const id = useId();
   return (
-    <Box className={`metric-card metric-card--${tone}`}>
-      <Typography variant="caption" color="text.secondary">
+    <label className={`field ${className}`} htmlFor={id}>
+      <span className="field__label" title={title}>
         {label}
-      </Typography>
-      <Typography variant="h6">{value}</Typography>
-    </Box>
+      </span>
+      <select
+        id={id}
+        value={value ?? ''}
+        disabled={disabled}
+        onChange={(event) => {
+          const option = (options || []).find((item) => String(item.value) === event.target.value);
+          onChange(option ? option.value : event.target.value);
+        }}
+      >
+        {(options || []).map((option) => (
+          <option key={String(option.value)} value={option.value} disabled={Boolean(option.disabled)}>
+            {option.label}
+          </option>
+        ))}
+      </select>
+    </label>
   );
 }
 
-function ScriptHotkeyItem({ shortcut, label, description, statusLabel = '', statusColor = 'default' }) {
-  const tooltipText = `${label}：${description}${statusLabel ? `（${statusLabel}）` : ''}`;
-
-  return (
-    <Tooltip title={tooltipText} arrow placement="top-start">
-      <Box tabIndex={0} className={`script-hotkey-item script-hotkey-item--${statusColor}`}>
-        <Typography variant="caption" component="div" className="script-hotkey-item__key">
-          {shortcut}
-        </Typography>
-        <Box className="script-hotkey-item__body">
-          <Typography variant="body2" className="script-hotkey-item__label">
-            {label}
-          </Typography>
-          {statusLabel ? (
-            <Typography variant="caption" className={`script-hotkey-item__status script-hotkey-item__status--${statusColor}`}>
-              {statusLabel}
-            </Typography>
-          ) : null}
-        </Box>
-      </Box>
-    </Tooltip>
-  );
-}
-
-function ScriptActionButtonLabel({ label, shortcut = '' }) {
-  return (
-    <Stack direction="row" spacing={0.75} useFlexGap flexWrap="wrap" alignItems="center" justifyContent="center" className="script-action-button__content">
-      <Box component="span">{label}</Box>
-      {shortcut ? <Box component="span" className="script-action-button__hint">{shortcut}</Box> : null}
-    </Stack>
-  );
-}
-
-function HelpLabel({ text, title, placement = 'top' }) {
-  const content = (
-    <Box component="span" className={`field-help-label${title ? ' field-help-label--hint' : ''}`}>
-      {text}
-    </Box>
-  );
-
-  return title ? (
-    <Tooltip title={title} arrow placement={placement}>
-      {content}
-    </Tooltip>
-  ) : (
-    content
-  );
-}
-
-function TooltipHintIcon({ title, placement = 'top', className = '', ariaLabel = t("查看说明") }) {
-  if (!title) return null;
-
-  return (
-    <Tooltip title={title} arrow placement={placement}>
-      <Box component="span" tabIndex={0} role="img" aria-label={ariaLabel} className={`field-hint-icon${className ? ` ${className}` : ''}`}>
-        i
-      </Box>
-    </Tooltip>
-  );
-}
-
-function FieldPanel({ label, title, valueText = null, className = '', children }) {
-  return (
-    <Box className={`field-panel${className ? ` ${className}` : ''}`}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" className="field-panel__header">
-        <Typography variant="caption" color="text.secondary" component="div">
-          <HelpLabel text={label} title={title} />
-        </Typography>
-        <Typography variant="caption" className="field-panel__value">
-          {valueText ?? '\u00A0'}
-        </Typography>
-      </Stack>
-
-      <Box className="field-panel__body">{children}</Box>
-    </Box>
-  );
-}
-
-function SelectField({
-  label,
-  title,
+export function SliderControl({
   value,
   onChange,
-  options,
-  disabled = false,
+  onChangeCommitted,
+  valueFormatter = (next) => next,
   className = '',
-  variant = 'panel',
-  hintTitle = '',
-  hintPlacement = 'top',
-  formControlProps = {},
-  selectProps = {},
-  menuProps,
-  renderOption,
-  fullWidth,
+  ...props
 }) {
-  const normalizedOptions = Array.isArray(options) ? options : [];
-  const selectedOption = normalizedOptions.find(option => option.value === value) || null;
-  const isInline = variant === 'inline';
-  const isFloating = variant === 'floating';
-  const isCompact = variant === 'compact';
-  const shouldRenderInputLabel = isInline || isFloating || isCompact;
-  const resolvedFullWidth = typeof fullWidth === 'boolean' ? fullWidth : !isCompact;
-
-  const selectControl = (
-    <FormControl
-      size="small"
-      fullWidth={resolvedFullWidth}
-      className={`select-field__control${isFloating ? ' select-field__control--floating' : ''}${isCompact ? ' select-field__control--compact' : ''}`}
-      disabled={disabled}
-      {...formControlProps}
-    >
-      {shouldRenderInputLabel && (
-        <InputLabel
-          className={`select-field__input-label${title && !(isFloating || isCompact) ? ' select-field__input-label--hint' : ''}${isFloating ? ' select-field__input-label--floating' : ''}${isCompact ? ' select-field__input-label--compact' : ''}`}
-        >
-          {isFloating || isCompact ? <HelpLabel text={label} title={title} placement={hintPlacement} /> : label}
-        </InputLabel>
-      )}
-      <Select value={value} label={shouldRenderInputLabel ? label : undefined} MenuProps={menuProps} onChange={event => onChange(event.target.value)} {...selectProps}>
-        {normalizedOptions.map(option => (
-          <MenuItem key={option.value} value={option.value} disabled={Boolean(option.disabled)}>
-            {typeof renderOption === 'function' ? renderOption(option) : option.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
-
-  if (isCompact) {
-    return <Box className={`select-field select-field--compact${className ? ` ${className}` : ''}`}>{selectControl}</Box>;
-  }
-
-  if (isInline) {
-    const inlineField = (
-      <Box className={`select-field select-field--inline${className ? ` ${className}` : ''}`}>
-        {selectControl}
-        <TooltipHintIcon title={hintTitle} placement={hintPlacement} className="select-field__hint" />
-      </Box>
-    );
-
-    return title ? (
-      <Tooltip title={title} arrow placement="top">
-        <Box>{inlineField}</Box>
-      </Tooltip>
-    ) : (
-      inlineField
-    );
-  }
-
-  if (isFloating) {
-    return <Box className={`select-field select-field--floating${className ? ` ${className}` : ''}`}>{selectControl}</Box>;
-  }
-
+  const dirtyRef = useRef(false);
+  const commit = (event) => {
+    if (!dirtyRef.current) return;
+    dirtyRef.current = false;
+    onChangeCommitted?.(Number(event.currentTarget.value));
+  };
   return (
-    <FieldPanel label={label} title={title} valueText={selectedOption?.label || null} className={`select-field${className ? ` ${className}` : ''}`}>
-      {selectControl}
-    </FieldPanel>
-  );
-}
-
-function SliderControl({ value, onChange, onChangeCommitted, valueFormatter = next => next, className = '', valueLabelDisplay = 'auto', ...props }) {
-  return (
-    <Slider
+    <input
+      type="range"
       {...props}
-      className={`slider-control${className ? ` ${className}` : ''}`}
+      className={`slider-control ${className}`}
       value={value}
-      valueLabelDisplay={valueLabelDisplay}
-      valueLabelFormat={valueFormatter}
-      onChange={(_, next) => onChange?.(next)}
-      onChangeCommitted={(_, next) => onChangeCommitted?.(next)}
+      aria-valuetext={String(valueFormatter(value))}
+      onChange={(event) => {
+        dirtyRef.current = true;
+        onChange?.(Number(event.target.value));
+      }}
+      onPointerUp={commit}
+      onKeyUp={(event) => {
+        if (
+          ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)
+        )
+          commit(event);
+      }}
+      onBlur={commit}
     />
   );
 }
 
-function SliderField({
+export function ValueSliderField({
   label,
   title,
   value,
   onChange,
-  sliderMin,
-  sliderMax,
-  step = 1,
+  onChangeCommitted,
   min,
   max,
-  valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)),
+  step = 1,
+  valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(step)),
+  disabled = false,
 }) {
-  const isRange = Array.isArray(value);
-  const [startValue, endValue] = isRange ? value : [value, value];
-  const minBound = Number.isFinite(min) ? min : sliderMin;
-  const maxBound = Number.isFinite(max) ? max : sliderMax;
-
-  const handleChange = next => {
-    if (isRange) {
-      const [nextStart, nextEnd] = Array.isArray(next) ? next : [next, next];
-      onChange(
-        normalizeRangePair(nextStart, nextEnd, {
-          min: Number.isFinite(minBound) ? minBound : null,
-          max: Number.isFinite(maxBound) ? maxBound : null,
-          step,
-          fallbackStart: startValue,
-          fallbackEnd: endValue,
-        }),
-      );
-      return;
-    }
-
-    onChange(
-      normalizeRangePair(next, next, {
-        min: Number.isFinite(minBound) ? minBound : null,
-        max: Number.isFinite(maxBound) ? maxBound : null,
-        step,
-        fallbackStart: startValue,
-        fallbackEnd: startValue,
-      })[0],
-    );
-  };
-
+  const id = useId();
+  const numberDirtyRef = useRef(false);
+  const normalize = (next) =>
+    normalizeRangePair(next, next, { min, max, step, fallbackStart: value, fallbackEnd: value })[0];
   return (
-    <FieldPanel label={label} title={title} valueText={isRange ? `${valueFormatter(startValue)}-${valueFormatter(endValue)}` : valueFormatter(startValue)} className="range-field">
-      <SliderControl
-        min={sliderMin}
-        max={sliderMax}
-        step={step}
-        value={isRange ? [startValue, endValue] : startValue}
-        valueFormatter={valueFormatter}
-        onChange={next => handleChange(next)}
-      />
-    </FieldPanel>
+    <div className="value-field">
+      <div className="value-field__heading">
+        <label htmlFor={id} title={title}>
+          {label}
+        </label>
+        <output htmlFor={id}>{valueFormatter(value)}</output>
+      </div>
+      <div className="value-field__controls">
+        <SliderControl
+          id={id}
+          aria-label={label}
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          valueFormatter={valueFormatter}
+          onChange={(next) => onChange(normalize(next))}
+          onChangeCommitted={(next) => onChangeCommitted?.(normalize(next))}
+        />
+        <input
+          className="number-input"
+          aria-label={t('{0}数值', [label])}
+          type="number"
+          min={min}
+          max={max}
+          step={step}
+          value={value}
+          disabled={disabled}
+          onChange={(event) => {
+            if (event.target.value !== '') {
+              numberDirtyRef.current = true;
+              onChange(normalize(Number(event.target.value)));
+            }
+          }}
+          onBlur={() => {
+            if (numberDirtyRef.current) {
+              numberDirtyRef.current = false;
+              onChangeCommitted?.(value);
+            }
+          }}
+        />
+      </div>
+    </div>
   );
 }
 
-function RangeField({
+export function RangeField({
   label,
   title,
   value,
@@ -258,48 +138,66 @@ function RangeField({
   sliderMax,
   step = 1,
   inputStep = step,
-  inputMin,
-  inputMax,
-  startLabel = t("起"),
-  endLabel = t("止"),
-  valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)),
+  inputMin = sliderMin,
+  inputMax = sliderMax,
+  startLabel = t('起点'),
+  endLabel = t('终点'),
+  valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(inputStep)),
 }) {
+  const update = (index, next) => {
+    const pair = [...value];
+    pair[index] = next;
+    onChange(
+      normalizeRangePair(pair[0], pair[1], {
+        min: inputMin,
+        max: inputMax,
+        step: inputStep,
+        fallbackStart: value[0],
+        fallbackEnd: value[1],
+      }),
+    );
+  };
   return (
-    <SliderField
-      label={label}
-      title={title}
+    <fieldset className="range-field">
+      <legend title={title}>
+        {label}{' '}
+        <span className="muted">
+          {valueFormatter(value[0])} – {valueFormatter(value[1])}
+        </span>
+      </legend>
+      <div className="range-field__inputs">
+        {[startLabel, endLabel].map((name, index) => (
+          <label key={index}>
+            <span>{name}</span>
+            <input
+              type="number"
+              aria-label={t('{0}{1}', [label, name])}
+              min={inputMin}
+              max={inputMax}
+              step={inputStep}
+              value={value[index]}
+              onChange={(event) => {
+                if (event.target.value !== '') update(index, Number(event.target.value));
+              }}
+            />
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  );
+}
+
+export function AxisSlider({ axis, value, onChange }) {
+  return (
+    <ValueSliderField
+      label={axis.label}
+      title={axis.description}
       value={value}
+      min={axis.min}
+      max={axis.max}
+      step={axis.step}
+      valueFormatter={(next) => (axis.step >= 1 ? Math.round(Number(next)) : Number(next).toFixed(2))}
       onChange={onChange}
-      sliderMin={sliderMin}
-      sliderMax={sliderMax}
-      step={inputStep}
-      min={inputMin}
-      max={inputMax}
-      startLabel={startLabel}
-      endLabel={endLabel}
-      valueFormatter={valueFormatter}
     />
   );
 }
-
-function ValueSliderField({ label, title, value, onChange, min, max, step = 1, valueFormatter = next => formatCompactNumber(next, precisionFromStep(step)) }) {
-  return <SliderField label={label} title={title} value={value} onChange={onChange} sliderMin={min} sliderMax={max} step={step} min={min} max={max} valueFormatter={valueFormatter} />;
-}
-
-function AxisSlider({ axis, value, onChange }) {
-  const axisLabel = axis.description ? <HelpLabel text={axis.label} title={axis.description} /> : axis.label;
-
-  return (
-    <Box className="axis-slider-card">
-      <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-        <Typography variant="subtitle2" component="div">
-          {axisLabel}
-        </Typography>
-        <Chip size="small" variant="outlined" label={axis.step >= 1 ? `${Math.round(Number(value))}` : Number(value).toFixed(2)} />
-      </Stack>
-      <SliderControl min={axis.min} max={axis.max} step={axis.step} value={value} onChange={next => onChange(Number(next))} />
-    </Box>
-  );
-}
-
-export { AxisSlider, HelpLabel, RangeField, ScriptActionButtonLabel, ScriptHotkeyItem, SelectField, SliderControl, TabPanel, ValueSliderField };

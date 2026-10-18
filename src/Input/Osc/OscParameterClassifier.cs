@@ -1,20 +1,10 @@
-using System.Text.RegularExpressions;
-
 namespace Sensa.Input.Osc;
 
 public sealed record OscParameterHint(bool IsFaceTracking, int Relevance, string Hint);
 
 /// <summary>Display hints only: heuristic matches never create device mappings.</summary>
-public static partial class OscParameterClassifier
+public static class OscParameterClassifier
 {
-    // VRCFT Unified Expressions v2 supports arbitrary prefixes and binary suffixes.
-    // https://docs.vrcft.io/docs/tutorial-avatars/tutorial-avatars-extras/parameters
-    [GeneratedRegex(@"(?:^|/)v2/(?:Eye|Brow|Nose|Nasal|Cheek|Jaw|Lip|Mouth|Tongue|Pupil|SoftPalate|Throat|Neck)[A-Za-z0-9_]*$", RegexOptions.IgnoreCase)]
-    private static partial Regex UnifiedExpressions();
-
-    [GeneratedRegex(@"^(?:(?:Left|Right|Combined)?Eye(?:X|Y|Lid.*|Open.*|Wide.*|Squint.*|Squeeze.*)|Eyes[XY]|(?:Eye|Lip|Face)TrackingActive|Jaw(?:Open|Forward|Left|Right)|(?:Lip|Mouth)(?:Smile|Sad|Pout|Suck|Funnel|Pucker|Upper|Lower|Corner|Open|Close|Left|Right).*|Tongue(?:Out|Up|Down|Left|Right|Roll).*?)(?:Negative|[0-9]+)?$", RegexOptions.IgnoreCase)]
-    private static partial Regex LegacyExpressions();
-
     private static readonly string[] KnownNames = ["PenOthers", "PenSelf", "PenOthersNewRoot", "PenOthersNewTip", "PenSelfNewRoot", "PenSelfNewTip", "TouchOthers", "TouchSelf", "FrotOthers", "AngleRight_Raw", "AngleLeft_Raw", "AngleUp_Raw", "AngleDown_Raw"];
 
     private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, OscParameterHint> Cache = new(StringComparer.Ordinal);
@@ -24,8 +14,14 @@ public static partial class OscParameterClassifier
     private static OscParameterHint ClassifyCore(string path)
     {
         var normalized = path.Trim('/');
+        if (normalized.StartsWith("avatar/parameters/", StringComparison.Ordinal))
+            normalized = normalized["avatar/parameters/".Length..];
         var leaf = normalized.Split('/')[^1];
-        if (UnifiedExpressions().IsMatch(normalized) || LegacyExpressions().IsMatch(leaf))
+        // Classify explicit namespaces; similar expression names remain visible.
+        // 只识别明确命名空间；名称相似的自定义参数保持可见。
+        // https://docs.vrcft.io/docs/tutorial-avatars/tutorial-avatars-extras/parameters
+        if (normalized.StartsWith("FT/", StringComparison.OrdinalIgnoreCase)
+            || normalized.StartsWith("v2/", StringComparison.OrdinalIgnoreCase))
             return new(true, 0, "面部追踪参数");
         var segments = normalized.Split('/');
         if (segments.Any(s => s.Equals("OGB", StringComparison.OrdinalIgnoreCase) || s.Equals("Sensa", StringComparison.OrdinalIgnoreCase)))

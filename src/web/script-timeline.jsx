@@ -1,287 +1,151 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { clampScriptPositionMs, formatDuration, normalizeScriptLoopRange } from './input-workflows.js';
 import { t } from './i18n.js';
-import { Box, Typography } from '@mui/material';
-import { useEffect, useRef, useState } from 'react';
 
-function ScriptTimelineDensity({ bins, durationMs, currentPositionMs, loopStartMs = null, loopEndMs = null, onSeek, onSetLoopBoundary, onSelectLoopRange, disabled = false }) {
+export function ScriptTimelineDensity({
+  bins,
+  durationMs,
+  currentPositionMs,
+  loopStartMs = null,
+  loopEndMs = null,
+  onSeek,
+  onSetLoopBoundary,
+  onSelectLoopRange,
+  disabled = false,
+}) {
   const normalizedBins = Array.isArray(bins) ? bins : [];
-  const maxCount = normalizedBins.reduce((currentMax, count) => Math.max(currentMax, Number(count) || 0), 0);
-  const safeDurationMs = Math.max(0, Number(durationMs || 0));
-  const hasTimelineData = normalizedBins.length > 0 && safeDurationMs > 0;
-  const markerPercent = safeDurationMs > 0 ? Math.max(0, Math.min(100, (Number(currentPositionMs || 0) / safeDurationMs) * 100)) : 0;
-  const loopRange = normalizeScriptLoopRange(loopStartMs, loopEndMs, safeDurationMs);
-  const loopStartPercent = loopRange.startMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.startMs / safeDurationMs) * 100)) : null;
-  const loopEndPercent = loopRange.endMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.endMs / safeDurationMs) * 100)) : null;
-  const rangeStartPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.startMs / safeDurationMs) * 100)) : 0;
-  const rangeEndPercent = loopRange.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (loopRange.endMs / safeDurationMs) * 100)) : 0;
-  const dragStateRef = useRef(null);
-  const suppressNextClickRef = useRef(false);
-  const [dragPreview, setDragPreview] = useState(null);
-  const [hoverPreview, setHoverPreview] = useState(null);
-  const dragPreviewRange = dragPreview ? normalizeScriptLoopRange(dragPreview.startMs, dragPreview.endMs, safeDurationMs) : null;
-  const previewStartPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.startMs / safeDurationMs) * 100)) : 0;
-  const previewEndPercent = dragPreviewRange?.active && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewRange.endMs / safeDurationMs) * 100)) : 0;
-  const dragPreviewAnchorMs = dragPreview ? clampScriptPositionMs(dragPreview.startMs, safeDurationMs) : null;
-  const dragPreviewAnchorPercent = dragPreviewAnchorMs !== null && safeDurationMs > 0 ? Math.max(0, Math.min(100, (dragPreviewAnchorMs / safeDurationMs) * 100)) : 0;
-  const hoverPreviewPercent = hoverPreview && safeDurationMs > 0 ? Math.max(0, Math.min(100, (hoverPreview.positionMs / safeDurationMs) * 100)) : 0;
-  const previewBadge = (() => {
-    if (dragPreviewRange?.active) {
-      const centerPercent = (previewStartPercent + previewEndPercent) / 2;
-      return {
-        variant: 'range',
-        left: `clamp(92px, ${centerPercent}%, calc(100% - 92px))`,
-        label: t("框选 {0} → {1}", [formatDuration(dragPreviewRange.startMs), formatDuration(dragPreviewRange.endMs)]),
-      };
-    }
-
-    if (dragPreviewAnchorMs !== null) {
-      return {
-        variant: 'anchor',
-        left: `clamp(92px, ${dragPreviewAnchorPercent}%, calc(100% - 92px))`,
-        label: t("起点 {0}", [formatDuration(dragPreviewAnchorMs)]),
-      };
-    }
-
-    if (hoverPreview) {
-      return {
-        variant: 'hover',
-        left: `clamp(92px, ${hoverPreviewPercent}%, calc(100% - 92px))`,
-        label: t("预览 {0} · {1}", [formatDuration(hoverPreview.positionMs), hoverPreview.count > 0 ? t("密度 {0}", [hoverPreview.count]) : t("空白段")]),
-      };
-    }
-
-    return null;
-  })();
-  const previewMarkerPercent = dragPreviewRange?.active ? null : dragPreviewAnchorMs !== null ? dragPreviewAnchorPercent : hoverPreview ? hoverPreviewPercent : null;
-  const interactionHintText = dragPreviewRange?.active
-    ? t("拖拽中：松开后会应用 A-B {0} → {1}；按 Esc 可取消。", [formatDuration(dragPreviewRange.startMs), formatDuration(dragPreviewRange.endMs)])
-    : dragPreviewAnchorMs !== null
-      ? t("已选起点 {0}，继续拖动可直接框选 A-B。", [formatDuration(dragPreviewAnchorMs)])
-      : hoverPreview
-        ? t("预览 {0}；点击定位，Shift + 点击设 A，Alt + 点击设 B。", [formatDuration(hoverPreview.positionMs)])
-        : t("点击定位；Shift + 点击设 A，Alt + 点击设 B；拖拽可直接框选完整 A-B。");
-  const emptyTimelineText = disabled || safeDurationMs <= 0 ? t("载入脚本后这里会显示时间轴摘要。") : t("暂无时间轴摘要");
-
+  const maxCount = Math.max(1, ...normalizedBins.map(Number));
+  const duration = Math.max(0, Number(durationMs || 0));
+  const dragRef = useRef(null);
+  const suppressClick = useRef(false);
+  const [selection, setSelection] = useState(null);
   useEffect(() => {
-    if (!dragStateRef.current) return undefined;
-
-    const clearDragSelection = () => {
-      dragStateRef.current = null;
-      setDragPreview(null);
-    };
-
-    const finalizeDragSelection = event => {
-      const state = dragStateRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-
-      if (state.moved) {
-        const nextRange = normalizeScriptLoopRange(state.startMs, state.currentMs, safeDurationMs);
-        if (nextRange.active) {
-          onSelectLoopRange?.(nextRange.startMs, nextRange.endMs);
-        }
-
-        suppressNextClickRef.current = true;
-        window.setTimeout(() => {
-          suppressNextClickRef.current = false;
-        }, 0);
-      }
-
-      setHoverPreview({ positionMs: state.currentMs, count: state.currentCount || 0 });
-
-      clearDragSelection();
-    };
-
-    const cancelDragSelection = event => {
-      const state = dragStateRef.current;
-      if (!state || state.pointerId !== event.pointerId) return;
-      clearDragSelection();
-    };
-
-    const cancelDragSelectionByEscape = event => {
-      if (event.key !== 'Escape' || !dragStateRef.current) return;
+    const cancel = (event) => {
+      if (event.key !== 'Escape' || !dragRef.current) return;
       event.preventDefault();
-      clearDragSelection();
+      dragRef.current.cancelled = true;
+      setSelection(null);
     };
-
-    window.addEventListener('pointerup', finalizeDragSelection);
-    window.addEventListener('pointercancel', cancelDragSelection);
-    window.addEventListener('keydown', cancelDragSelectionByEscape);
-
-    return () => {
-      window.removeEventListener('pointerup', finalizeDragSelection);
-      window.removeEventListener('pointercancel', cancelDragSelection);
-      window.removeEventListener('keydown', cancelDragSelectionByEscape);
-    };
-  }, [onSelectLoopRange, safeDurationMs]);
-
+    window.addEventListener('keydown', cancel);
+    return () => window.removeEventListener('keydown', cancel);
+  }, []);
+  const range = normalizeScriptLoopRange(loopStartMs, loopEndMs, duration);
+  const percent = (value) => (duration > 0 ? Math.max(0, Math.min(100, (value / duration) * 100)) : 0);
+  const positionFromPointer = (event, element) => {
+    const rect = element.getBoundingClientRect();
+    return clampScriptPositionMs(((event.clientX - rect.left) / Math.max(rect.width, 1)) * duration, duration);
+  };
+  const finish = (event) => {
+    const state = dragRef.current;
+    if (!state || state.pointerId !== event.pointerId) return;
+    dragRef.current = null;
+    setSelection(null);
+    if (state.cancelled) suppressClick.current = true;
+    if (state.moved && !state.cancelled) {
+      const next = normalizeScriptLoopRange(state.start, state.current, duration);
+      if (next.active) onSelectLoopRange?.(next.startMs, next.endMs);
+      suppressClick.current = true;
+    }
+    if (event.currentTarget.hasPointerCapture(event.pointerId))
+      event.currentTarget.releasePointerCapture(event.pointerId);
+  };
   return (
-    <Box className={`script-density${disabled ? ' script-density--disabled' : ''}`}>
-      <Box className="script-density__plot">
-        {loopRange.active && (
-          <>
-            <Box className="script-density__range" style={{ left: `${rangeStartPercent}%`, width: `${Math.max(rangeEndPercent - rangeStartPercent, 0)}%` }} aria-hidden="true" />
-            <Box className="script-density__range-boundary script-density__range-boundary--start" style={{ left: `${rangeStartPercent}%` }} aria-hidden="true" />
-            <Box className="script-density__range-boundary script-density__range-boundary--end" style={{ left: `${rangeEndPercent}%` }} aria-hidden="true" />
-          </>
+    <div className="script-density">
+      <div
+        className={`script-density__plot${disabled ? ' script-density__plot--disabled' : ''}`}
+        role="group"
+        aria-label={t('动作密度时间轴')}
+        onPointerDown={(event) => {
+          if (disabled || duration <= 0 || event.button !== 0 || event.shiftKey || event.altKey) return;
+          suppressClick.current = false;
+          const position = positionFromPointer(event, event.currentTarget);
+          dragRef.current = {
+            pointerId: event.pointerId,
+            start: position,
+            current: position,
+            startX: event.clientX,
+            moved: false,
+            cancelled: false,
+          };
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const state = dragRef.current;
+          if (!state || state.pointerId !== event.pointerId || state.cancelled) return;
+          state.current = positionFromPointer(event, event.currentTarget);
+          state.moved ||= Math.abs(event.clientX - state.startX) > 5;
+          if (state.moved) setSelection([Math.min(state.start, state.current), Math.max(state.start, state.current)]);
+        }}
+        onPointerUp={finish}
+        onPointerCancel={(event) => {
+          if (dragRef.current) dragRef.current.cancelled = true;
+          finish(event);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === 'Escape' && dragRef.current) {
+            dragRef.current.cancelled = true;
+            setSelection(null);
+          }
+        }}
+        onClick={(event) => {
+          if (suppressClick.current) {
+            suppressClick.current = false;
+            return;
+          }
+          if (disabled || duration <= 0 || event.detail === 0) return;
+          const position = positionFromPointer(event, event.currentTarget);
+          if (event.shiftKey) onSetLoopBoundary?.('start', position);
+          else if (event.altKey) onSetLoopBoundary?.('end', position);
+          else onSeek?.(position);
+        }}
+      >
+        {range.active && (
+          <div
+            className="script-density__range"
+            style={{ left: `${percent(range.startMs)}%`, width: `${percent(range.endMs) - percent(range.startMs)}%` }}
+          />
         )}
-
-        {dragPreviewRange?.active && (
-          <Box className="script-density__selection" style={{ left: `${previewStartPercent}%`, width: `${Math.max(previewEndPercent - previewStartPercent, 0)}%` }} aria-hidden="true" />
+        {selection && (
+          <div
+            className="script-density__selection"
+            style={{ left: `${percent(selection[0])}%`, width: `${percent(selection[1]) - percent(selection[0])}%` }}
+          />
         )}
-
-        {previewMarkerPercent !== null && <Box className="script-density__preview-marker" style={{ left: `${previewMarkerPercent}%` }} aria-hidden="true" />}
-
-        {previewBadge && (
-          <Box className={`script-density__preview-badge script-density__preview-badge--${previewBadge.variant}`} style={{ left: previewBadge.left }} aria-hidden="true">
-            <Typography variant="caption" className="script-density__preview-text">
-              {previewBadge.label}
-            </Typography>
-          </Box>
-        )}
-
-        {loopStartPercent !== null && (
-          <Box className="script-density__range-tag script-density__range-tag--start" style={{ left: `clamp(76px, ${loopStartPercent}%, calc(100% - 76px))` }} aria-hidden="true">
-            <Typography variant="caption" className="script-density__range-tag-text">
-              A {formatDuration(loopRange.startMs)}
-            </Typography>
-          </Box>
-        )}
-
-        {loopEndPercent !== null && (
-          <Box className="script-density__range-tag script-density__range-tag--end" style={{ left: `clamp(76px, ${loopEndPercent}%, calc(100% - 76px))` }} aria-hidden="true">
-            <Typography variant="caption" className="script-density__range-tag-text">
-              B {formatDuration(loopRange.endMs)}
-            </Typography>
-          </Box>
-        )}
-
-        <Box className="script-density__bars" style={{ '--script-density-bin-count': Math.max(normalizedBins.length, 1) }}>
-          {normalizedBins.length > 0 ? (
+        <div className="script-density__bars">
+          {normalizedBins.length ? (
             normalizedBins.map((count, index) => {
-              const numericCount = Number(count || 0);
-              const heightPercent = maxCount > 0 ? Math.max((numericCount / maxCount) * 100, numericCount > 0 ? 10 : 4) : 4;
-              const targetPositionMs = safeDurationMs > 0 ? Math.round(((index + 0.5) / normalizedBins.length) * safeDurationMs) : 0;
-
+              const position = Math.round(((index + 0.5) / normalizedBins.length) * duration);
               return (
                 <button
-                  key={`script-density-${index}`}
+                  key={index}
                   type="button"
-                  className={`script-density__bar${numericCount > 0 ? ' script-density__bar--active' : ''}`}
-                  style={{ '--script-density-height': `${heightPercent}%` }}
+                  className="script-density__bar"
+                  style={{ height: `${Math.max(4, (Number(count) / maxCount) * 100)}%` }}
                   disabled={disabled}
-                  title={safeDurationMs > 0 ? t("定位 {0}；Shift + 点击设 A，Alt + 点击设 B", [formatDuration(targetPositionMs)]) : t("未加载脚本")}
-                  aria-label={safeDurationMs > 0 ? t("定位到 {0}", [formatDuration(targetPositionMs)]) : t("未加载脚本")}
-                  onPointerDown={event => {
-                    if (disabled || safeDurationMs <= 0 || event.button !== 0) return;
-
-                    dragStateRef.current = {
-                      pointerId: event.pointerId,
-                      startMs: targetPositionMs,
-                      currentMs: targetPositionMs,
-                      currentCount: numericCount,
-                      moved: false,
-                    };
-
-                    setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
-                    setDragPreview({ startMs: targetPositionMs, endMs: targetPositionMs });
-                  }}
-                  onPointerEnter={event => {
-                    if (!disabled) {
-                      setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
-                    }
-
-                    const state = dragStateRef.current;
-                    if (!state || state.pointerId !== event.pointerId) return;
-                    if (state.currentMs === targetPositionMs) return;
-
-                    state.currentMs = targetPositionMs;
-                    state.currentCount = numericCount;
-                    state.moved = state.moved || targetPositionMs !== state.startMs;
-                    setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
-                  }}
-                  onPointerMove={event => {
-                    if (!disabled) {
-                      setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
-                    }
-
-                    const state = dragStateRef.current;
-                    if (!state || state.pointerId !== event.pointerId) return;
-                    if (state.currentMs === targetPositionMs) return;
-
-                    state.currentMs = targetPositionMs;
-                    state.currentCount = numericCount;
-                    state.moved = state.moved || targetPositionMs !== state.startMs;
-                    setDragPreview({ startMs: state.startMs, endMs: targetPositionMs });
-                  }}
-                  onPointerLeave={() => {
-                    if (!dragStateRef.current) {
-                      setHoverPreview(null);
-                    }
-                  }}
-                  onFocus={() => {
-                    if (disabled || safeDurationMs <= 0) return;
-                    setHoverPreview({ positionMs: targetPositionMs, count: numericCount });
-                  }}
-                  onBlur={() => {
-                    if (!dragStateRef.current) {
-                      setHoverPreview(null);
-                    }
-                  }}
-                  onClick={event => {
-                    if (suppressNextClickRef.current) {
-                      suppressNextClickRef.current = false;
-                      return;
-                    }
-
-                    if (disabled) return;
-                    if (event.shiftKey) {
-                      onSetLoopBoundary?.('start', targetPositionMs);
-                      return;
-                    }
-
-                    if (event.altKey) {
-                      onSetLoopBoundary?.('end', targetPositionMs);
-                      return;
-                    }
-
-                    onSeek?.(targetPositionMs);
+                  aria-label={t('定位到 {0}', [formatDuration(position)])}
+                  title={t('定位到 {0}', [formatDuration(position)])}
+                  onClick={(event) => {
+                    if (event.detail !== 0) return;
+                    event.stopPropagation();
+                    if (event.shiftKey) onSetLoopBoundary?.('start', position);
+                    else if (event.altKey) onSetLoopBoundary?.('end', position);
+                    else onSeek?.(position);
                   }}
                 />
               );
             })
           ) : (
-            <Box className="script-density__empty">{emptyTimelineText}</Box>
+            <span className="muted">{t('载入脚本后显示时间轴')}</span>
           )}
-        </Box>
-
-        {hasTimelineData && <Box className="script-density__marker" style={{ left: `${markerPercent}%` }} aria-hidden="true" />}
-      </Box>
-
-      {hasTimelineData && (
-        <>
-          <Box className="script-density__legend" aria-hidden="true">
-            <Box className="script-density__legend-item">
-              <Box className="script-density__legend-swatch script-density__legend-swatch--current" />
-              <Typography variant="caption" color="text.secondary">{t("播放头")}</Typography>
-            </Box>
-            <Box className="script-density__legend-item">
-              <Box className="script-density__legend-swatch script-density__legend-swatch--preview" />
-              <Typography variant="caption" color="text.secondary">{t("悬停 / 预览")}</Typography>
-            </Box>
-            <Box className="script-density__legend-item">
-              <Box className="script-density__legend-swatch script-density__legend-swatch--range" />
-              <Typography variant="caption" color="text.secondary">{t("A-B 区间")}</Typography>
-            </Box>
-          </Box>
-
-          <Typography variant="caption" color="text.secondary" className="script-density__hint">
-            {interactionHintText}
-          </Typography>
-        </>
-      )}
-    </Box>
+        </div>
+        {duration > 0 && <div className="script-density__marker" style={{ left: `${percent(currentPositionMs)}%` }} />}
+      </div>
+      <div className="time-labels">
+        <span>{formatDuration(0)}</span>
+        <span>{range.active ? `A ${formatDuration(range.startMs)} — B ${formatDuration(range.endMs)}` : ''}</span>
+        <span>{formatDuration(duration)}</span>
+      </div>
+      <p className="caption muted">{t('点击定位，拖拽设置 A-B；Shift / Alt + 点击设置 A / B。')}</p>
+    </div>
   );
 }
-
-export { ScriptTimelineDensity };

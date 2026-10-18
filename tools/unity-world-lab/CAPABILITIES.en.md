@@ -12,7 +12,7 @@ Open `Assets/SensaLab/Functional/FunctionalLab.unity`; Generated/SensaLab remain
 | --- | --- | --- |
 | 01 Contact only | Grab ball or Near/Offset/Outside | Four SDK proximity samples; formula error <0.0001. Avatar path Sensa/Point/v1/LabContact/Self/Root/A0..A3 |
 | 02 PB only | Grab/stretch/release, no Contacts | IsGrabbed and Stretch, no XYZ. Avatar Sensa/Lab/PB; native PB-stretch preset |
-| 03 PB + Contact | Grab measured PB target | Four coordinates plus grab gate; Avatar LabCombined Handle, calibrate |
+| 03 PB + Contact | Grab measured PB target | Experimental local fit plus grab gate; inspect LabCombined in OSC diagnostics; no default motion preset |
 | 04 Native SPS | Actual VRCFury Plug/Socket; Rest first, then Near/Offset | Real OGB/Orf/FixtureSocket parameters; 20 cm Plug |
 | 05 SPS + PB + Contact | PB moves real Plug; Contact measures PB point | Three readouts together; release before preset baseline comparison |
 | 06 Shader transport | Synthetic (.25,−.5,.75), sequence, Freeze/ToggleOutput/Corrupt | Error <0.00004; frozen >350 ms invalid; real CRC corruption |
@@ -61,7 +61,7 @@ python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
 
 The full 16×8 grid must be present, at least 4×4 pixels per cell. Rectangular stretching is supported, automatic discovery/perspective correction is not. Startup/recovery needs two fresh increasing frames. Duplicate/stale frames cannot restore Valid; changing XYZ under the same sequence is invalid. Freeze, ordering errors, CRC failure and normal exit close Valid. Force-kill/network loss additionally needs Sensa stream timeout; the example sets 500 ms. Restart the bridge when the producer's sequence resets.
 
-Observe `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`. The shader-Z preset maps 0–.2 m to 0–100%: .12 m means **60% displacement**, not the SPS table's 40% insertion. Synthetic .75 m saturates that template and is not a calibration reference.
+Observe `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`. There is no built-in shader-Z preset. A manually configured diagnostic 0–.2 m mapping would mean: .12 m means **60% displacement**, not the SPS table's 40% insertion. Synthetic .75 m saturates that template and is not a calibration reference.
 
 For actual model PNGs, run the baked SPS scene in the editor, open **Tools → Sensa → SPS GPU Model Probe (Experimental)**, select non-stereo Camera and matching Resolver/Surface Renderer, enable continuous PNG export, set the file and capture. The camera must keep rendering. Encoded entry-minus-root uses world axes within ±1 m; invalid/out-of-range data exports invalid packets.
 

@@ -1,0 +1,142 @@
+import React, { useEffect, useId, useRef } from 'react';
+import { t } from './i18n.js';
+
+export function Button({ children, tone = 'default', className = '', ...props }) {
+  return (
+    <button type="button" className={`button button--${tone} ${className}`} {...props}>
+      {children}
+    </button>
+  );
+}
+
+export function Field({ label, hint, className = '', multiline = false, ...props }) {
+  const id = useId();
+  return (
+    <label className={`field ${className}`} htmlFor={id}>
+      <span className="field__label" title={hint}>
+        {label}
+      </span>
+      {multiline ? <textarea id={id} {...props} /> : <input id={id} {...props} />}
+    </label>
+  );
+}
+
+export function Toggle({ label, checked, onChange, disabled = false, role, ...props }) {
+  return (
+    <label className="toggle">
+      <input
+        type="checkbox"
+        role={role}
+        checked={Boolean(checked)}
+        onChange={(event) => onChange(event.target.checked)}
+        disabled={disabled}
+        {...props}
+      />
+      <span>{label}</span>
+    </label>
+  );
+}
+
+export function Notice({ children, tone = 'info', ...props }) {
+  return (
+    <div className={`notice notice--${tone}`} {...props}>
+      {children}
+    </div>
+  );
+}
+
+export function Badge({ children, tone = 'default' }) {
+  return <span className={`badge badge--${tone}`}>{children}</span>;
+}
+
+export function Modal({ open, title, onClose, children, actions, wide = false }) {
+  const ref = useRef(null);
+  const titleId = useId();
+  useEffect(() => {
+    const dialog = ref.current;
+    if (!dialog) return;
+    if (open && !dialog.open) dialog.showModal();
+    else if (!open && dialog.open) dialog.close();
+  }, [open]);
+  return (
+    <dialog
+      ref={ref}
+      aria-labelledby={titleId}
+      className={`modal${wide ? ' modal--wide' : ''}`}
+      onCancel={(event) => {
+        event.preventDefault();
+        onClose();
+      }}
+      onClick={(event) => {
+        if (event.target === event.currentTarget) {
+          const rect = event.currentTarget.getBoundingClientRect();
+          if (
+            event.clientX < rect.left ||
+            event.clientX > rect.right ||
+            event.clientY < rect.top ||
+            event.clientY > rect.bottom
+          )
+            onClose();
+        }
+      }}
+    >
+      <header className="modal__header">
+        <h2 id={titleId}>{title}</h2>
+        <Button aria-label={t('关闭')} onClick={onClose}>
+          ×
+        </Button>
+      </header>
+      <div className="modal__body">{open ? children : null}</div>
+      {actions && <footer className="modal__actions">{actions}</footer>}
+    </dialog>
+  );
+}
+
+export function Section({ title, description, actions, children, className = '' }) {
+  return (
+    <section className={`section ${className}`}>
+      <header className="section__header">
+        <div>
+          <h2>{title}</h2>
+          {description && <p className="muted">{description}</p>}
+        </div>
+        {actions && <div className="actions">{actions}</div>}
+      </header>
+      {children}
+    </section>
+  );
+}
+
+export function Tabs({ id, label, value, onChange, options, className = '' }) {
+  return (
+    <div role="tablist" aria-label={label} className={`tabs ${className}`}>
+      {options.map((option, index) => (
+        <button
+          key={option.value}
+          type="button"
+          role="tab"
+          id={id ? `${id}-${option.value}` : undefined}
+          aria-controls={id ? `${id}-panel` : undefined}
+          aria-selected={value === option.value}
+          tabIndex={value === option.value ? 0 : -1}
+          onClick={() => onChange(option.value)}
+          onKeyDown={(event) => {
+            if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+            event.preventDefault();
+            const offset = event.key === 'ArrowRight' ? 1 : -1;
+            const nextIndex =
+              event.key === 'Home'
+                ? 0
+                : event.key === 'End'
+                  ? options.length - 1
+                  : (index + offset + options.length) % options.length;
+            onChange(options[nextIndex].value);
+            event.currentTarget.parentElement.children[nextIndex]?.focus();
+          }}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  );
+}

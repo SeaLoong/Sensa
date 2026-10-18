@@ -20,17 +20,17 @@
 
 进入 Play Mode，选择 GestureManager，在 Inspector 操作对应菜单。Contact/SPS 用 `Sensa/Lab/Fixture` 控制固定刺激位置；默认 0，Near=1、Offset=2、Far outside=3。SPS 菜单与刺激位置菜单是两个独立开关；SPSContact 还需要选择 Sensa 的测量对象。
 
-**原生 SPS OSC 还要打开 `Enable SPS OSC (local)`**，它设置 VRCFury 的 `OGB_ENABLED`。仅打开 VRChat OSC 或 Socket 不能代替这个开关。自测自己的 Plug 时选择 Sensa 的 Self 预设，不要选 Others。烘焙后的原生 Contact 参数另列在报告的 `contactParameters`，不一定全部出现在 Expression Parameters 列表中。
+**原生 SPS OSC 还要打开 `Enable SPS OSC (local)`**，它设置 VRCFury 的 `OGB_ENABLED`。仅打开 VRChat OSC 或 Socket 不能代替这个开关。自测自己的 Plug 时复制径向估算草稿并改为实际 PenSelfNewRoot 路径；不再有独立 Self 预设。烘焙后的原生 Contact 参数另列在报告的 `contactParameters`，不一定全部出现在 Expression Parameters 列表中。
 
 这三个 SPS 几何夹具的 Plug 特意关闭 Hip Avoidance，允许同一 Avatar、髋部挂载的已知配对互测；原棒棒糖道具与日常 Avatar 的设置不因此改变。
 
 20 cm 基准的 Self NewRoot/NewTip 预期：Outside 约 `.77/.96`，Near 约 `.89/1`，Offset 约 `.875836/1`。Sensa 已补偿原生 1 cm Root Sender 半径，因此学习长度后 Near 约 40%、Offset 约 32.9%。Root 完全饱和时，最后 1 cm 内的距离不可观测，保守输出约 95%，不能据此证明已到几何端点。
 
-PB-only 没有碰撞器或 Contact，不能从其 Stretch 推断完整位置；PBContact 才用四路 Contact 重建位置。所有新实验把手明确允许抓取、禁止碰撞，保持非零抓取半径。真实 VR 抓取和交互权限仍需要客户端手动验证。
+PB-only 没有碰撞器或 Contact，Stretch 只是原生标量；PBContact 的四路仅给出实验局部估计，不证明共同 Sender 或同帧。所有新实验把手明确允许抓取、禁止碰撞，保持非零抓取半径。真实 VR 抓取和交互权限仍需要客户端手动验证。
 
 ## 连接 Sensa
 
-开启 VRChat OSC，先保持 Sensa 输出列表为空，应用 OSC 输入。Contact 选本地点预设；PB 选“实验 · PB 原生拉伸”；PBContact 选 PB 把手预设；SPS 选普通 Socket 预设。必须限定实际实例与来源，不能把不同场景的数据混合。新增实例 ID 以 `Validation/capability-matrix.json` 和实际参数工作台为准。
+开启 VRChat OSC，先保持输出列表为空并应用 OSC。PB 使用“PB · 拉伸”并替换实际 Stretch／IsGrabbed 路径；SPS 使用现代径向模板并按真实 Self／Others 调整。Contact／PBContact 没有默认定位预设，在 OSC → 实验诊断观察；显式实验许可和最旧通道时效仍不能证明定位可靠。限定实际实例与来源，实例 ID 以当前报告及接收值为准。
 
 图像链路、精确预期数值、取图区域和冻结门控说明见 Sensa 仓库 `tools/unity-world-lab/CAPABILITIES.md`。桥接脚本为 `scripts/shader-osc-bridge.py`，输出 `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`。
 

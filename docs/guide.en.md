@@ -1,77 +1,71 @@
-# Sensa user guide
+# User guide
 
 [简体中文](guide.md) | **English**
 
-Start with [First OSR setup](quick-start.en.md) for a new device, or the [three-part workflow](lab-workflow.en.md) for the FullFlow avatar and test world.
+Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, OSC and Settings**. The top bar always shows the actual mode, input activation, emergency stop, language and help. See [Quick start](quick-start.en.md) for a first device test.
 
-## Start and connect outputs
+## Control
 
-Keep the entire extracted directory. Run `Sensa.exe` on Windows, or `./Sensa` in a terminal on Linux/macOS. If extraction loses executable permissions, restore them for the Sensa file. macOS previews are not signed/notarized; follow your system's launch controls or build from source.
+1. Disable input first. Add a Serial, UDP, TCP or Intiface output, enter its destination and select an axis profile.
+2. Browse Manual, OSC or Script; browsing does not change the actual mode. Apply the input mode explicitly.
+3. Inspect targets, range and direction, then enable input. A mode change, replacement script or saved configuration requires reactivation.
 
-Open `http://127.0.0.1:5086`. Keep **Input enabled** off during setup. The top-bar language selector switches between English and Simplified Chinese without reloading, discarding drafts or changing the running input. It does not translate your names or OSC paths.
-
-| Output | Required configuration |
+| Input | Operations |
 | --- | --- |
-| TCode Serial | Device port, such as COM3, /dev/ttyUSB0 or /dev/cu.*; account needs permission to access it |
-| TCode UDP / TCP | Receiver host and port |
-| Intiface | Running Intiface Central WebSocket URL; disable engine management when using Central |
+| Manual | Primary axes appear directly; expand for other axes. Update once, follow slider changes continuously, or clear manual override |
+| OSC | Save mappings and select a source on the OSC page, then enable input in Control |
+| Script | Load funscript; set speed, looping or A–B; play, pause, stop, seek and step between actions |
 
-Sensa does not bundle the Intiface engine. Each TCode output can have its own axis profile. Set stroke, direction and speed limits before testing. Connecting alone does not initiate motion, but an already active input and open gates can send commands as soon as the connection is available.
+Pause stops automatic output. Explicit seek/step can still send targets while Script input remains enabled. Stop resets the playback cursor, not the hardware position. Unloading or replacing a file does not resume movement automatically.
 
-## Select an input
+Outputs can be enabled, connected, configured and removed independently. TCode outputs select an axis profile; serial device information and Intiface scanning are expandable. No Intiface engine is bundled. With Central, enter its WebSocket address and disable engine-process management. Serial uses 115200, 8N1; firmware and device permissions must match.
 
-- **Manual:** adjust sliders and click **Update position**. **Continuous updates** sends slider changes when input is enabled.
-- **OSC:** receive VRChat or other OSC sources.
-- **Script:** load a funscript, check playback range, speed and looping, then play.
+Recording captures L0 targets before dispatch and exports funscript. It is neither a measured mechanical trajectory nor proof of successful transmission. Output previews likewise show command targets.
 
-Tabs change the view only. **Apply input mode** changes the running mode. With input off, you can observe and edit without normal motion output.
+Disabling input stops output. Emergency stop stays latched; clearing it still requires reactivation. Stop does not guarantee centering or remove hardware power.
 
-## Receive VRChat OSC
+## OSC
 
-1. Enable OSC in VRChat. Enable OSC receiving in Sensa and save.
-2. Default OSC listener: `127.0.0.1:9001` UDP. Match the sender's destination; this is separate from WebUI HTTP port 5086.
-3. Apply OSC mode and check **Parameters and mappings**. FT parameters are hidden by default; use **Show FT** when needed.
-4. Pin **Active source** when several sources exist.
-5. Choose a [preset](presets.en.md). Importing creates a draft; inspect it and click **Save and apply mappings**.
+| Tab | Purpose |
+| --- | --- |
+| Mappings | Five built-in presets, custom presets, path/axis/inversion; expand a mapping for range, curve, interpretation and simulation |
+| Parameters | Search, browse sources, filter categories, freeze, pin, inspect meanings and add mappings |
+| Experimental diagnostics | Inspect Point/Handle/Root/Pose local estimates and failure reasons; experimental permission and two-endpoint calibration |
 
-For ordinary SPS choose the matching Socket, Plug or touch preset. Add the [Unity package](../unity/top.sealoong.sensa/README.en.md) only when you need additional tracking.
+Replacing/appending presets creates drafts. Save to apply them; Restore discards unsaved edits. Patterns support whole-segment `*`, cross-segment `**`, and semicolon/newline aliases. Prefer a specific instance. **Use source** controls the input source; browsing a source only filters the list.
 
-OSCQuery can discover readable parameters and subscribe through LISTEN. Polling fallback is optional when LISTEN is unavailable. The OSC Hub forwards selected-source data to configured UDP targets; it rejects duplicate targets and loops back into its own listener.
+FT is hidden by `FT/` and `v2/` namespace prefixes after stripping a full `/avatar/parameters/` prefix. Mapped and pinned entries remain visible; Show FT reveals everything. Shape names such as JawOpen are no longer guessed. Freezing the list does not pause reception or output.
 
-## Calibrate
+Expand reception/forwarding settings below any OSC tab:
 
-The OSC workspace separates **Parameters and mappings**, **Spatial diagnostics** and **Range calibration**.
+- **Listener:** UDP `127.0.0.1:9001` by default. Listening requires actual OSC mode and an enabled receiver; it is unrelated to HTTP 5086.
+- **OSCQuery:** remote directory, live subscriptions and optional polling fallback; local receiver advertisement assists discovery.
+- **Hub:** forwards the selected source to several UDP destinations, event-driven or merged at a fixed rate. Check destinations and avoid loops.
+- **Input timeout:** off by default for ordinary scalars because VRChat may send only changes. When enabled, an outage latches emergency stop. Updating gates does not renew motion data.
 
-For a local point/PB, select X, Y, Z or Distance. Capture the desired 0% and 100% positions. Keep PB grabbed during capture. For example, Z=10 cm at 0% and Z=5 cm at 100% gives 50% at 7.5 cm, with inversion applied automatically.
+See [Presets](presets.en.md) for SPS paths and meanings. Spatial input is disabled by default; complete samples and low residuals still do not prove reliable positioning. See [Positioning](positioning.en.md) for explicit experimental permission, oldest-channel freshness and coordinate limits. Native PB Stretch requires no four-point reconstruction.
 
-**Replace with calibration** replaces the complete mapping draft and removes old gates. Check the target axis and ranges, then save. Saving disables input; re-enable it only after checking received values.
+## Settings
 
-Template ranges are not calibration. Samples cannot mix objects, sources or axes; invalid positions and spans below 1 mm are rejected. Standard and shared SPS roots are diagnostic positions, not complete stroke measurements.
+Axis profiles cover L0–L2, R0–R2, V0–V2 and A0–A2. Each axis has output bounds, remapping range, speed limit, inversion, lock/ignore modes and command settings. The default profile cannot be removed; deleting another redirects its output references to the default. Follow device calibration; template values are not hardware guarantees.
 
-## Interpret output and stop
-
-Output cards show each output's last sent target after its own mapping: TCode 0–999 or Intiface percentages. They do not prove the device reached that position; UDP has no remote acknowledgement.
-
-Input off, closed gates or invalid precise tracking request a stop. Clearing emergency stop does not automatically re-enable input. Stopping does not necessarily center or power off hardware.
+Logs are expandable and filterable by category and level. Preserve the actual error, parameter path, source and last value when troubleshooting.
 
 ## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
-| No OSC values | VRChat OSC, listener/port conflicts, source filters |
-| Values but no motion | Output enabled/connected, applied input mode, input switch, saved mappings, gates and tracking validity |
-| Reversed direction | Calibration endpoints and axis inversion; avoid accidentally inverting twice |
-| Different targets on different outputs | Their independent remap, lock and clamp settings |
-| Invalid coordinates | Missing/saturated samples, range, nonuniform scale or mixed Senders |
-| Stops while stationary | Stream timeout: change-only OSC may not repeat; keep timeout off by default |
-| Port has no friendly name | Select its device path and check OS permissions |
+| No OSC parameters | VRChat OSC, actual OSC mode, saved listener settings, port conflicts and source filtering |
+| Parameters but no movement | Input permission, output enablement/connection, saved mappings, gates and experimental blocking |
+| No SPS match | Actual generator and paths; modern VRCFury differs from older Sensa paths |
+| Reversed movement | Duplicate inversion in mapping and axis profile |
+| Stops while stationary | Input timeout; spatial experiments also expire each contributing channel |
+| Preview changes but hardware does not | Preview is not feedback; check transport, firmware, power and device calibration |
 
-When timeout is enabled, gate updates do not keep stale motion samples alive. Root/Tip updates refresh their own pair; changing to a shorter SPS target requires relearning length from an unsaturated position. Invalid pairs clear learned length.
+## Configuration and access from another device
 
-## Mobile / LAN access
+Configuration defaults to `config.json` beside the program. `SENSA_CONFIG_PATH` selects another location. Preserve configuration when updating; release packages do not contain your device settings.
 
-The UI supports narrow screens. Local access is the default. For another device, configure the WebUI host as `0.0.0.0` as needed and set `SENSA_ACCESS_TOKEN` before launch. Open the computer's LAN address on port 5086; HTTP Basic username can be anything and the password is the token. Plain HTTP is not encrypted; do not expose it directly to the Internet.
+Access is local by default. For LAN control, bind the WebUI to an appropriate interface and set `SENSA_ACCESS_TOKEN` before startup. Use that token as the Basic password with any username, or use Bearer authentication. Plain HTTP is unencrypted; do not expose it directly to the internet. Language is remembered in the current browser; switching it preserves drafts and runtime state.
 
-Settings normally live in `config.json` beside the program; `SENSA_CONFIG_PATH` overrides the location. Preserve your configuration when updating. Language is a browser preference, separate from device configuration.
-
-[Home](../README.en.md)
+[Home](../README.en.md) · [Feature reference](features.en.md) · [Unity assets](../unity/top.sealoong.sensa/README.en.md)

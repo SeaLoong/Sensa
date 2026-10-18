@@ -13,12 +13,19 @@ export function globMatch(pattern, path) {
   return row[segments.length];
 }
 
+// Hide explicit namespaces, including controls unknown to the server classifier.
+// 按明确命名空间前缀隐藏，也覆盖服务端尚未识别的控制参数。
+export function isFaceTrackingPath(path) {
+  const normalized = String(path || '').replace(/^\/+|\/+$/g, '').replace(/^avatar\/parameters\//, '');
+  return /^(?:FT|v2)\//i.test(normalized);
+}
+
 export function rankPreview(entries, signals = [], { showFaceTracking = false, search = '', pinned = [], category = 'all' } = {}) {
   const term = search.trim().toLowerCase();
   return entries.map(entry => {
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
-  }).filter(entry => (showFaceTracking || !entry.classification?.isFaceTracking || entry._matches || pinned.includes(entry.path))
+  }).filter(entry => (showFaceTracking || !isFaceTrackingPath(entry.path) || entry._matches || pinned.includes(entry.path))
     && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(Pose|SpsRoot|SharedRoot)\/v1|(Point|Handle)\/v[12])\//.test(entry.path)
       || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))

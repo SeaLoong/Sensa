@@ -43,11 +43,11 @@ QuickStart 是绑定右手腕的链路检查，保持该绑定以匹配世界阶
 
 | 步骤 | 在 Avatar / 世界中做什么 | 在 Sensa 看什么 |
 | --- | --- | --- |
-| 1. 完整接收链路 | 在世界 START HERE 点 0/25/50/75/100%，再点 STOP；无需打开 SPS | 导入“入门 · 测试世界 → 我的 Avatar”。Depth 约为对应比例，Active=1；STOP 后 Active=0、门控关闭 |
-| 2. 自己的 PB | 在 Sensa Test Props 选择 PB handle，放到面前后抓白球，移动、拉伸、松开；把手无实体碰撞 | 导入“Sensa PB 把手 · Z 位移”，限定 `Sensa/Handle/v1/LabHandle/Self/` 和自己的来源；观察 P1–P4、IsGrabbed、Stretch。先校准两端，松手应失效 |
-| 3. SPS 自身交互 | 启用棒棒糖道具；打开 `Enable SPS OSC (local)`，选择左手或左前臂 SPS Socket；把自己的道具靠近该 Socket | 先选择 SPS Socket **仅自身**预设，查看实际 OGB 路径。根/长度成对参数先在未饱和位置采样以学习长度，再靠近；偏轴时结果是径向近似 |
-| 4. 额外定位 | 在 `Sensa Lab` 子菜单选择 Plug 测量，参考左手 Socket；移动道具 | 使用本地点预设并校准。该量测是自己的 Plug 相对参考 Socket 的位置；与原生 SPS 信号分开比较 |
-| 5. 配对/根部诊断 | `Sensa Lab` 切到相应 Socket。配对通道为 `LabPair` | 标准 SPS Root 是诊断；配对 Pose 必须有匹配的 Root/Tip/Side 标记。其他人只有默认 SPS 时不要期待配对姿态有效 |
+| 1. 完整接收链路 | 在世界 START HERE 点 0/25/50/75/100%，再点 STOP；无需打开 SPS | 导入“链路测试”。Depth 约为对应比例，Active=1；STOP 后 Active=0、门控关闭 |
+| 2. 自己的 PB | 在 Sensa Test Props 选择 PB handle，放到面前后抓白球，移动、拉伸、松开；把手无实体碰撞 | 优先将实际 Handle_Stretch 映射到 Depth、Handle_IsGrabbed 映射到 GateEnable；使用原生 PB 标量，不依赖四点定位。P1–P4 仅用于实验诊断 |
+| 3. SPS 自身交互 | 启用棒棒糖道具；打开 `Enable SPS OSC (local)`，选择左手或左前臂 SPS Socket；把自己的道具靠近该 Socket | 复制“SPS Socket · 径向估算”草稿，将实际 OGB 路径改为 PenSelfNewRoot；同源 NewTip 自动配对。根/长度成对参数先在未饱和位置采样以学习长度，再靠近；偏轴时结果是径向近似 |
+| 4. 额外定位 | 在 `Sensa Lab` 子菜单选择 Plug 测量，参考左手 Socket；移动道具 | OSC → 实验诊断查看 ReferenceLocal 候选估计；默认不驱动输出，不能当作世界或 GPU 表面位置 |
+| 5. 配对/根部诊断 | `Sensa Lab` 切到相应 Socket。配对通道为 `LabPair` | 标准 Root 仅诊断；配对 Pose 也是默认禁止运动的实验。匹配标记和低残差都不证明唯一 Sender 或同帧 |
 | 6. Shader 图像传输 | `Sensa Shader` 选择 `Synthetic code (not SPS data)`；再切换 `Corrupt shader CRC` 检查故障 | 使用显式配置的图像桥接脚本查看 XYZ/Frame/Valid。合成值是 (.25, -.5, .75) 米；CRC 错误应令 Valid=0，恢复需要两个前进帧。结束后 Shader 选择 Off |
 | 7. 设备 | 前面通过后，使用仅 L0 小行程轴配置连接正确设备，再重复第 1 项 | 五档目标约 400/450/500/550/600。卡片是发送目标，不能当作机械实际位置；STOP 和输入关闭应停止发送 |
 

@@ -41,6 +41,7 @@ public sealed class ConfigurationContracts
                 Signals = [new() { OscPath = "custom/depth", VrchatMin = .2f, VrchatMax = .8f, MappedMin = 300, MappedMax = 700 }]
             };
             config.Osc.PreferredSourcePersistentId = "chosen-source";
+            config.Osc.AllowExperimentalSpatialInput = true;
             config.NormalizeForRuntime();
             config.Save(path);
             Assert.True(config.Outputs.Single().Enabled);
@@ -50,11 +51,25 @@ public sealed class ConfigurationContracts
             Assert.False(output.Enabled);
             Assert.False(loaded.UdpTCode.Enabled);
             Assert.Equal("chosen-source", loaded.Osc.PreferredSourcePersistentId);
+            Assert.True(loaded.Osc.AllowExperimentalSpatialInput);
             Assert.Equal("custom/depth", Assert.Single(loaded.Signals).OscPath);
             Assert.Equal(700, loaded.Signals[0].MappedMax);
             Assert.Empty(Directory.GetFiles(Path.GetDirectoryName(path)!, "*.tmp"));
         }
         finally { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+    }
+
+    [Fact]
+    public void ExperimentalContactInputRequiresExplicitOptInAndSurvivesConfigurationCopy()
+    {
+        var active = new AppConfig();
+        Assert.False(active.Osc.AllowExperimentalSpatialInput);
+        var candidate = new AppConfig();
+        candidate.Osc.AllowExperimentalSpatialInput = true;
+        active.CopyFrom(candidate);
+        Assert.True(active.Osc.AllowExperimentalSpatialInput);
+        active.CopyFrom(new AppConfig());
+        Assert.False(active.Osc.AllowExperimentalSpatialInput);
     }
 
     [Fact]

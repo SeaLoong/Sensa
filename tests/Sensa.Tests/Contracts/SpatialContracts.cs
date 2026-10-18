@@ -235,6 +235,85 @@ public sealed class SpatialContracts
         Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries(), maxAgeMs: 100, timeProvider: clock)).Valid);
     }
 
+
+    [Theory]
+    [InlineData(4)]
+    [InlineData(8)]
+    public void NearestOfSeveralSendersCanProduceAZeroResidualGhost(int count)
+    {
+        var anchors = count == 4 ? Enumerable.Range(0, 4).Select(i => PoseReconstruction.Anchors[SensaPoseProtocol.PointAnchorIndex(i)]).ToArray()
+            : PoseReconstruction.Anchors;
+        var senders = anchors.Select(anchor => anchor * 2).ToArray();
+        var samples = anchors.Select(anchor => (float)senders.Max(sender =>
+            1 - ((sender - anchor).Length - SensaPoseProtocol.MarkerRadius) / SensaPoseProtocol.ReceiverRadius)).ToArray();
+        var fit = count == 4 ? PoseReconstruction.FitLocalTetrahedron(samples) : PoseReconstruction.FitMarker(samples);
+        // The ranges exactly match a single sender at the origin, although none is there.
+        // A valid fit is a model estimate, never evidence of sender identity.
+        Assert.True(fit.Valid, fit.Reason);
+        Assert.InRange(fit.Position.Length, 0, .000001);
+        Assert.InRange(fit.Residual, 0, .000001);
+        Assert.All(senders, sender => Assert.True((sender - fit.Position).Length > .20));
+    }
+
+    [Fact]
+    public void CommonWorldTranslationAndRotationCannotBeRecoveredFromRelativeRanges()
+    {
+        var local = new PosePoint(.02, -.03, .1);
+        static PosePoint Move(PosePoint p) => new(-p.Z + 12, p.Y - 3, p.X + 7);
+        var samples = Enumerable.Range(0, 4).Select(i =>
+        {
+            var anchor = PoseReconstruction.Anchors[SensaPoseProtocol.PointAnchorIndex(i)];
+            Assert.InRange(Math.Abs((Move(local) - Move(anchor)).Length - (local - anchor).Length), 0, .000001);
+            return (float)(1 - ((Move(local) - Move(anchor)).Length - SensaPoseProtocol.MarkerRadius) / SensaPoseProtocol.ReceiverRadius);
+        }).ToArray();
+        var fit = PoseReconstruction.FitLocalTetrahedron(samples);
+        Assert.True(fit.Valid, fit.Reason);
+        Assert.InRange((fit.Position - local).Length, 0, .000001);
+        Assert.True((fit.Position - Move(local)).Length > 10);
+    }
+
+    [Fact]
+    public void ANewRangeCannotRefreshExpiredContributingRanges()
+    {
+        const string prefix = "Sensa/Point/v1/Bone/Self";
+        var clock = new ManualTimeProvider();
+        var store = new OscParameterStore(clock);
+        SpatialSamples.Point(store, prefix, new(.02, 0, .1));
+        var oldest = Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).TimestampMs;
+        clock.Advance(TimeSpan.FromMilliseconds(180));
+        Assert.True(store.TryGetLatest(prefix + "/Root/A0", out var first));
+        store.Set(prefix + "/Root/A0", first.Value, first.Source);
+        var estimate = Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries(), maxAgeMs: 100, timeProvider: clock));
+        Assert.Equal(oldest, estimate.TimestampMs);
+        Assert.False(estimate.Valid);
+        Assert.True(estimate.Experimental);
+        Assert.Equal("ReferenceLocal", estimate.CoordinateFrame);
+    }
+
+    [Fact]
+    public void FreshCoordinatesCannotRefreshExpiredHandleGrabState()
+    {
+        const string prefix = "Sensa/Handle/v1/Grip/Self";
+        var clock = new ManualTimeProvider();
+        var store = new OscParameterStore(clock);
+        store.Set(prefix + "/Handle_IsGrabbed", OscValue.FromBool(true), new("test", "test", null, "127.0.0.1", 19000));
+        clock.Advance(TimeSpan.FromMilliseconds(180));
+        SpatialSamples.Point(store, prefix, new(.02, 0, .1));
+        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries(), maxAgeMs: 100, timeProvider: clock)).Valid);
+    }
+
+    [Theory]
+    [InlineData("Point")]
+    [InlineData("Handle")]
+    public void LocalProtocolsCannotClaimRemoteOtherPartySamples(string kind)
+    {
+        var store = new OscParameterStore();
+        var prefix = $"Sensa/{kind}/v1/Remote/Others";
+        SpatialSamples.Point(store, prefix, new(.02, 0, .1));
+        store.Set(prefix + "/Handle_IsGrabbed", OscValue.FromBool(true), new("test", "test", null, "127.0.0.1", 19000));
+        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
+    }
+
     private static JsonDocument Fixture(string suffix)
     {
         var assembly = typeof(SpatialContracts).Assembly;

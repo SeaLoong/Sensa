@@ -13,8 +13,8 @@
 | 站 | 信号与操作 | 预期结果 | 与 Sensa 的关系 |
 | --- | --- | --- | --- |
 | 01 Contact only | 抓白球或选 Near/Offset/Outside；没有 PB | 四路 SDK Proximity 与看板公式结果一致，误差应低于 0.0001 | 对应 Avatar Contact 场景的 `Sensa/Point/v1/LabContact/Self/Root/A0..A3`；世界看板自身不发送 OSC |
-| 02 PB only | 抓取、拉伸、松开球；没有 Contact | 静止 IsGrabbed=false、Stretch=0；抓住为 true，拉伸会变化；没有 XYZ 重建 | Avatar PB 场景使用 `Sensa/Lab/PB_IsGrabbed` 与 `_Stretch`，选“实验 · PB 原生拉伸”预设 |
-| 03 PB + Contact | 抓取 PB 目标，四接收器测其位置 | PB 状态与探针 P1–P4 同时变化；松手后运动映射应失效 | Avatar PBContact 场景的 `Sensa/Handle/v1/LabCombined/Self/`，使用 PB 把手预设并校准 |
+| 02 PB only | 抓取、拉伸、松开球；没有 Contact | 静止 IsGrabbed=false、Stretch=0；抓住为 true，拉伸会变化；没有 XYZ 重建 | Avatar PB 场景使用 `Sensa/Lab/PB_IsGrabbed` 与 `_Stretch`，选“PB · 拉伸”并检查实际前缀 |
+| 03 PB + Contact | 抓取 PB 目标，四接收器测其位置 | PB 状态与 P1–P4 可同时观察；这是实验局部估计，默认禁止运动，松手无效 | Avatar PBContact 场景的 `Sensa/Handle/v1/LabCombined/Self/`，在 OSC → 实验诊断观察；无默认定位预设，输出默认阻断 |
 | 04 原生 SPS | 真实 VRCFury Plug/Socket；先 Rest/Outside，再 Near、Offset | 20 cm 长度、原生球形近接与轴向真值见下表；偏移时两种深度不同 | Avatar SPS 场景使用真正的 `OGB/Orf/FixtureSocket/...` 参数，选择普通 SPS Socket 预设 |
 | 05 SPS + PB + Contact | PB 驱动真实 SPS Plug，Contact 测 PB 点；可移动 Socket | 三种读数可同时观察；先释放 PB 回到静止，再按预设比较；自由抓取时基准会改变 | 原 Exclusive Avatar 是完整组合；独立能力 Avatar 用于先排除单一系统问题 |
 | 06 Shader 传输 | 合成 XYZ=(.25,-.5,.75)，不断改变帧号；Freeze/ToggleOutput/Corrupt | 解码误差小于 0.00004；冻结超过 350 ms 后 Valid=0；Corrupt 注入真实 CRC 错误 | 可通过 PNG 或精确屏幕区域 → Python 桥 → Sensa；明确不是 SPS 测量 |
@@ -71,7 +71,7 @@ python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
 
 示例配置将断流停止设为 500 ms；仍应固定桥接来源，避免其他程序的数据影响测试。采集窗口重开、帧计数重置后，重新启动桥接以建立新的帧序基线。
 
-在参数工作台看 `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`。可选择“实验 · Shader 图像桥接 Z”预设；它只是 0–0.2 m 的位移模板：Z=.12 映射为 60%，**不是**上表的 40% SPS 插入深度。实际运动范围需重新校准。
+在参数工作台看 `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`。不再提供 Shader Z 内置预设；仅作诊断时可手工比较 0–0.2 m 的位移映射：Z=.12 映射为 60%，**不是**上表的 40% SPS 插入深度。实际运动范围需重新校准。
 
 ### 真正 SPS 模型怎样接到 PNG
 

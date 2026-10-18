@@ -24,9 +24,9 @@ test('profile lifecycle keeps one default and repairs output references without 
   assert.throws(() => editConfiguration(config, { kind: 'profile-default', id: 'missing' }));
 });
 
-test('all 29 built-ins round-trip as independent drafts; custom preset lifecycle never changes built-ins / 29 套内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
+test('all five built-ins round-trip as independent drafts; custom presets preserve built-ins / 五套内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 29);
+  assert.equal(builtIns.length, 5);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
     assert.equal(dialog.isNew, true); assert.notEqual(dialog.presetId, preset.id);
@@ -34,9 +34,9 @@ test('all 29 built-ins round-trip as independent drafts; custom preset lifecycle
     const config = editConfiguration(source, { kind: 'preset-save', preset: { id: dialog.presetId, name: 'Custom', mappings: dialog.mappings } });
     const custom = getOscMappingPresets(config).find(p => p.id === dialog.presetId);
     assert.equal(computeSignalHash(buildSignalDrafts(custom.mappings)), draftSnapshot);
-    assert.equal(getOscMappingPresets(config).length, 30);
+    assert.equal(getOscMappingPresets(config).length, 6);
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
-    assert.equal(getOscMappingPresets(removed).length, 29);
+    assert.equal(getOscMappingPresets(removed).length, 5);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
   }
 });
@@ -55,6 +55,8 @@ test('mapping drafts discard simulation metadata and preview the same saved trav
 
 test('OSC save rejects receiver feedback and duplicate destinations, then normalizes a valid draft / OSC 保存拒绝回路与重复目标，再规范有效草稿', () => {
   const source = initial(), draft = buildOscDraftFromConfig(source);
+  assert.equal(draft.allowExperimentalSpatialInput, false);
+  draft.allowExperimentalSpatialInput = true;
   draft.hubEnabled = true;
   draft.hubTargets = [{ _draftId: 'loop', id: 'loop', host: '127.0.0.1', port: draft.receiverPort, enabled: true }];
   assert.throws(() => editConfiguration(source, { kind: 'osc', draft }));
@@ -65,6 +67,8 @@ test('OSC save rejects receiver feedback and duplicate destinations, then normal
   assert.deepEqual(config.osc.allowedSourceAddresses, ['127.0.0.1', '127.0.0.2']);
   assert.equal(config.osc.oscQueryPolling.rateHz, 30);
   assert.equal(config.osc.hub.targets[0]._draftId, undefined);
+  assert.equal(config.osc.allowExperimentalSpatialInput, true);
+  assert.equal(buildOscDraftFromConfig(config).allowExperimentalSpatialInput, true);
 });
 
 test('output lifecycle proposes an unoccupied target, prevents collisions and preserves identity / 输出生命周期建议空闲目标、拒绝冲突并保持标识', () => {

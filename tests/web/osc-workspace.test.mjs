@@ -56,19 +56,29 @@ test('pose and local-point previews use solved metrics and reject ambiguous sour
 });
 
 test('parameter discovery keeps mapped and pinned FT visible without hiding spatial inputs / 参数发现保留已映射和固定的 FT，并显示空间输入', () => {
-  const entries = Array.from({ length: 300 }, (_, i) => ({ path: 'Face/v2/JawOpen' + i, classification: { isFaceTracking: true, relevance: 0 } }));
+  const entries = Array.from({ length: 300 }, (_, i) => ({ path: 'FT/v2/JawOpen' + i, classification: { relevance: 0 } }));
   entries.push({ path: 'OGB/Orf/Main/PenOthers', classification: { relevance: 100 } }, { path: 'Sensa/Point/v1/Bone/Self/Root/A0', classification: { relevance: 80 } }, { path: 'Custom' });
-  const signals = [{ oscPath: 'Face/v2/JawOpen0' }];
+  const signals = [{ oscPath: 'FT/v2/JawOpen0' }];
   assert.equal(rankPreview(entries).length, 3);
   assert.equal(rankPreview(entries, [], { showFaceTracking: true }).length, 303);
-  assert.equal(rankPreview(entries, signals)[0].path, 'Face/v2/JawOpen0');
-  assert.equal(rankPreview(entries, [], { pinned: ['Face/v2/JawOpen1'] })[0].path, 'Face/v2/JawOpen1');
+  assert.equal(rankPreview(entries, signals)[0].path, 'FT/v2/JawOpen0');
+  assert.equal(rankPreview(entries, [], { pinned: ['FT/v2/JawOpen1'] })[0].path, 'FT/v2/JawOpen1');
   assert.equal(rankPreview(entries, [], { category: 'pose' }).length, 1);
   assert.equal(rankPreview(entries, signals, { category: 'mapped' }).length, 1);
   assert.equal(rankPreview(entries, [], { search: 'custom' })[0].path, 'Custom');
   assert.equal(buildOscPathSuggestions([{ path: 'v2/JawOpen' }, { path: 'OGB/Orf/Main/PenOthers' }])[0], 'OGB/Orf/Main/PenOthers');
   assert.deepEqual(readPinnedPaths({ getItem: () => '{' }), []);
   assert.equal(readPinnedPaths({ getItem: () => JSON.stringify(Array(100).fill('a')) }).length, 64);
+});
+
+test('FT prefixes hide unknown parameters without depending on shape names or server hints / FT 前缀隐藏未知参数，无需形状名或服务端提示', () => {
+  const hidden = ['FT/TrackingEnabled', 'FT/v9/UnknownControl', '/avatar/parameters/FT/CustomControl', 'avatar/parameters/FT/CustomControl', 'v2/UnknownControl'];
+  const visible = ['FTools/Depth', 'Custom/FT/Depth', 'JawOpen', 'Face/v2/EyeLeftX', 'OGB/Orf/Main/PenOthersNewRoot'];
+  const entries = [...hidden, ...visible].map(path => ({ path, classification: { isFaceTracking: visible.includes(path) } }));
+  assert.deepEqual(rankPreview(entries).map(entry => entry.path).sort(), [...visible].sort());
+  assert.equal(rankPreview(entries, [], { showFaceTracking: true }).length, entries.length);
+  assert.ok(rankPreview(entries, [{ oscPath: 'FT/TrackingEnabled' }]).some(entry => entry.path === hidden[0]));
+  assert.ok(rankPreview(entries, [], { pinned: [hidden[1]] }).some(entry => entry.path === hidden[1]));
 });
 
 test('wildcard aliases and selected-source preview match only the intended samples / 通配别名与指定来源预览仅匹配预期采样', () => {

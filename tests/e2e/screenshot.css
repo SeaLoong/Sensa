@@ -1,4 +1,4 @@
-/* Only nondeterministic timestamps / PTY names. Motion values are never masked. */
+/* Hide only timestamps and the CI PTY path; never mask target or safety values.
+   仅隐藏时间戳与 CI 伪终端路径；不遮挡目标值或安全状态。 */
 [data-testid="output-last-sent"], [data-testid="osc-timestamp"] { visibility: hidden !important; }
-.osc-hub-target__summary-activity { visibility: hidden !important; }
-.output-card .MuiCardHeader-subheader { visibility: hidden !important; }
+[data-testid="serial-target"] { visibility: hidden !important; }

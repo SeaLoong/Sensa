@@ -1,25 +1,29 @@
-import { localized, t, docUrl } from './i18n.js';
-import React,{useState} from 'react';
-import {Alert,Box,Button,Dialog,DialogActions,DialogContent,DialogTitle,Tab,Tabs,TextField,Typography,useMediaQuery} from '@mui/material';
-import presets from './data/osc-presets.json';
+import React from 'react';
+import { t, docUrl } from './i18n.js';
+import { Button, Modal } from './ui.jsx';
 
-const topics=localized(() => ([
-  {title:t("三端联动"),steps:[t("测试 Avatar 打开 FullFlow，私有上传后在 VRChat 穿戴；世界打开 FunctionalLab，通过 Build & Test 或私有版本进入客户端。ClientSim 本身不发送 Avatar OSC。"),t("先保持 Sensa 输出列表为空。开启 OSC 接收，选择 OSC 并点击“应用输入方式”。"),t("每次换测试先关闭输入，选择预设并“替换草稿”，保存后再打开输入；不要追加上一项的门控。"),t("依次验证 START HERE 五档与 STOP、自己的 PB 抓取与两点校准、08 MY AVATAR SPS 的原生 SPS。"),t("保存配置会关闭输入。看 OSC 页“联动检查”，区分草稿未保存、接收未监听、门控关闭与定位无效。")],note:t("Shader 是单独的实验链路，不是 QuickStart / PB / 原生 SPS 测试的前置条件。")},
-  {title:t("开始使用"),steps:[t("先关闭输入，再添加输出设备并填写连接信息。输入若已开启且门控有效，连接后可能立即发送运动。"),t("在轴配置中限制允许行程、速度和方向，先用小范围验证。"),t("选择手动、OSC 或脚本输入，点击“应用输入方式”。切换页签只浏览界面。"),t("确认映射与预览后，才打开输入开关。输入关闭、急停和断开各有独立状态。")],note:t("停止输出后需要重新启用输入；解除急停不会自动恢复运动。")},
-  {title:t("OSC 与 Unity"),steps:[t("普通 SPS 用户先选择相应参数预设；FT 默认隐藏，可在参数工作台打开。"),t("需要定位时，在 Unity Avatar 根添加 Automatic SPS Setup；选择 Socket/Plug 和需要的能力。"),t("每组默认只选择一个 Sensa 测量目标，初始 Off。Sensa 选择菜单独立于 SPS 本身开关。"),t("标准 Root 只有位置诊断；本地点/PB 是四接收器；配对三点姿态需要对方安装匹配标记。"),t("在“空间诊断”检查有效性和采样。多来源时在参数工作台固定使用来源。")],note:t("Shader 曲线仍是实验路径；世界 Udon 测试不能代替头像上传或实际 PCVR 验证。")},
-  {title:t("校准与映射"),steps:[t("进入 OSC 的“量程校准”子页，选择本地点/PB 和 X/Y/Z/距原点。"),t("把目标移到期望的 0% 位置并采集，再到 100% 位置采集。PB 采样时需保持抓取。"),t("确认方向与百分比预览，生成草稿。小于 1 mm 的量程、无效采样或混合来源不会用于校准。"),t("回到“参数与映射”，检查目标轴、输入范围和映射范围，点击保存并应用映射。"),t("草稿、预览和校准都不会自动启用输出。普通单侧 SPS 根部诊断不提供行程校准。")],note:t("输入范围描述 OSC/局部测量；映射范围描述逻辑目标；每个输出的轴配置还会进一步限制实际发送值。")},
-  {title:t("输出与排错"),steps:[t("每个输出卡显示自己的最近发送目标，而不是全局输入。TCode 为 0–999；Intiface 为设备位置/震动百分比。"),t("数值表示本地传输或 API 已接受的命令，不证明设备已经到位。UDP 没有远端确认；Intiface 位置方向可能与 L0 相反。"),t("没有数值：检查输出是否启用、连接、输入开关、门控和定位有效性。连接后尚未发送时保持空白。"),t("OSC 有值却不动：检查是否应用了 OSC 输入、是否保存映射、来源是否唯一、精确定位是否有效。"),t("输入超时默认关闭；只有持续发送的来源才应设置断流停止，静止的增量 OSC 可能不发包。")],note:t("断开或停止后页面不会把旧目标冒充当前位置；日志用于查看发送异常。")},
-  {title:t("预设选择"),steps:[t("普通 SPS 选择 Socket/Plug 角色，并区分仅他人、仅自身或两者。"),t("本地点/PB 选择 Z、三轴或距原点；路径需限定唯一实例与来源，模板范围仍需校准。"),t("Pose 需要配对标记；辅助信号优先选振动、门控、覆盖或方向单项。")],note:t("Root、SharedRoot 只做诊断；Shader 桥接有独立实验模板，合成码不能当 SPS 行程。导入预设只生成草稿，不启用输出。")},
-  {title:t("OSR 首次测试"),steps:[t("下载对应平台程序并解压运行。Windows 打开 Sensa.exe；浏览器进入 localhost:5086。"),t("在 Avatar 根添加 Sensa / Quick Start World Receiver 并重新上传。只需 Avatars SDK、Modular Avatar/NDMF 和 Sensa；不需要 SPS 或手动摆放。"),t("先不添加输出。开启 VRChat OSC 和 Sensa OSC 接收，应用 OSC 输入方式；导入“入门 · 测试世界 → 我的 Avatar”，替换其他映射并保存。"),t("进入测试世界 START HERE，点击阶梯或 TOUCH。核对 Depth 与 Active 的实际接收值；世界显示的是预期值。"),t("添加 TCode 串口输出，选择自己的端口。串口当前固定 115200；创建并绑定“OSR 首次测试 · L0 小行程”轴配置，按设备校准检查范围。"),t("确认预览后再连接并打开输入。点击 STOP 应关闭门控；测试会在 60 秒或离开操作台后停止。")],note:t("入门组件用于测试链路。日常 SPS 使用原生 OGB 参数和对应预设；Automatic SPS Setup 的默认 Root 只是诊断。世界停止不代表硬件断电或回中。")},
-]));
-export default function HelpDialog({open,onClose}){
-  const [topic,setTopic]=useState(0);const [query,setQuery]=useState('');const narrow=useMediaQuery('(max-width:600px)');
-  const matches=presets.map(p=>({...p,name:t(p.name),description:t(p.description),search:p.name+' '+p.description})).filter(p=>(p.name+' '+p.description+' '+p.search+' '+p.id).toLowerCase().includes(query.trim().toLowerCase()));
-  return <Dialog open={open} onClose={onClose} fullScreen={narrow} fullWidth maxWidth="md"><DialogTitle>{t("使用帮助")}</DialogTitle><DialogContent dividers>
-    <Tabs value={topic} onChange={(_,next)=>setTopic(next)} variant="scrollable" allowScrollButtonsMobile aria-label={t("帮助主题")}>{topics().map((item,i)=><Tab key={item.title} label={item.title} id={`help-tab-${i}`} aria-controls={`help-panel-${i}`}/>)}</Tabs>
-    <Box role="tabpanel" id={`help-panel-${topic}`} aria-labelledby={`help-tab-${topic}`} sx={{pt:2}}><Typography variant="h6">{topics()[topic].title}</Typography><Box component="ol" className="help-steps">{topics()[topic].steps.map(step=><Typography component="li" key={step}>{step}</Typography>)}</Box><Alert severity="info">{topics()[topic].note}</Alert>
-      {topic===5&&<Box sx={{mt:2}}><TextField fullWidth size="small" label={t("搜索预设")} placeholder={t("本地点、PB、Socket、门控")} value={query} onChange={e=>setQuery(e.target.value)}/><Typography variant="caption">{matches.length} / {presets.length}{t(" 个预设")}</Typography>{matches.map(p=><Box key={p.id} sx={{my:1.5,p:1.5,border:'1px solid #dce6f0',borderRadius:2}}><Typography fontWeight={700}>{p.name}</Typography><Typography variant="body2" sx={{my:1}}>{p.description}</Typography><Typography variant="caption" color="text.secondary">{p.mappings.length}{t(" 条映射 · ")}{p.id}</Typography></Box>)}</Box>}
-      <Box sx={{display:'flex',flexWrap:'wrap',gap:1,mt:2}}><Button component="a" href={docUrl("docs/guide.md")} target="_blank" rel="noreferrer">{t("完整使用指南")}</Button><Button component="a" href={docUrl("unity/top.sealoong.sensa/README.md")} target="_blank" rel="noreferrer">{t("Unity 操作指南")}</Button><Button component="a" href={docUrl("tools/unity-world-lab/README.md")} target="_blank" rel="noreferrer">{t("测试世界说明")}</Button></Box>
-    </Box>
-  </DialogContent><DialogActions><Button onClick={onClose}>{t("关闭帮助")}</Button></DialogActions></Dialog>;
+export default function HelpDialog({ open, onClose }) {
+  return (
+    <Modal
+      open={open}
+      title={t('使用帮助')}
+      onClose={onClose}
+      actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}
+    >
+      <ol className="help-steps">
+        <li>{t('添加输出，设置连接与轴范围。')}</li>
+        <li>{t('选择输入方式并应用；OSC 需要保存映射，脚本需要载入文件。')}</li>
+        <li>{t('检查目标后手动启用输入。切换方式、脚本或保存配置会关闭输入。')}</li>
+        <li>{t('紧急停止会锁住输出；解除后仍需重新启用输入。')}</li>
+      </ol>
+      <div className="actions">
+        <a href={docUrl('docs/guide.md')} target="_blank" rel="noreferrer">
+          {t('使用指南')}
+        </a>
+        <a href={docUrl('unity/top.sealoong.sensa/README.md')} target="_blank" rel="noreferrer">
+          {t('Unity 指南')}
+        </a>
+      </div>
+    </Modal>
+  );
 }

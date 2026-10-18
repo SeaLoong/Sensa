@@ -24,11 +24,11 @@ These three SPS fixtures deliberately disable Hip Avoidance to permit known same
 
 For a 20 cm Plug, Self NewRoot/NewTip expects Outside≈.77/.96, Near≈.89/1, Offset≈.875836/1. With root-radius compensation and learned length, Near≈40%, Offset≈32.9%. Fully saturated Root leaves the final 1 cm unknown, so the conservative result is about 95%, not proof of full insertion.
 
-PB-only Stretch is not XYZ. PBContact reconstructs coordinates. New experimental handles allow grabbing, disable collisions and keep a nonzero grab radius; verify real self/other interaction permissions in the client.
+PB-only Stretch is not XYZ. PBContact supplies experimental local estimates without proving a shared Sender/frame. New experimental handles allow grabbing, disable collisions and keep a nonzero grab radius; verify real self/other interaction permissions in the client.
 
 ## Connect to Sensa
 
-Keep outputs empty, enable OSC and apply OSC mode. Contact uses local-point presets; PB uses native PB stretch; PBContact uses handle presets; SPS uses standard Socket presets. Restrict to one actual instance/source. Check Validation/capability-matrix.json and received paths.
+Keep outputs empty and apply OSC mode. Use PB · Stretch with actual Stretch/IsGrabbed paths. Copy the modern radial template and select actual Self/Others paths for SPS. Contact/PBContact have no default positioning preset: observe them in OSC → Experimental diagnostics. Explicit permission and oldest-channel freshness still do not establish reliable positioning. Restrict the actual instance/source and check current reports and received paths.
 
 The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers exact expected values and image bridging to `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`. SPSShader's Camera is outside the avatar and is **not uploaded**. The uploadable Shader scene produces only synthetic code. SDK build success does not prove client camera retention or HMD invisibility.
 

@@ -78,9 +78,12 @@ namespace UnityBox.Sensa.Tests
             return node;
         }
 
+        protected ModularAvatarMergeAnimator SelectionAnimator() => avatar.GetComponentsInChildren<ModularAvatarMergeAnimator>(true)
+            .Single(merge => merge.animator != null && merge.animator.name.StartsWith("Sensa selection ", StringComparison.Ordinal));
+
         protected AnimatorState[] States()
         {
-            var merge = avatar.GetComponentInChildren<ModularAvatarMergeAnimator>();
+            var merge = SelectionAnimator();
             Assert.That(merge, Is.Not.Null);
             return ((AnimatorController)merge.animator).layers[0].stateMachine.states.Select(item => item.state).ToArray();
         }

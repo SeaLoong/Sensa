@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using nadena.dev.modular_avatar.core;
 using UnityEngine;
+using UnityEditor.Animations;
 using VRC.Dynamics;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.SDK3.Avatars.Components;
@@ -45,7 +46,26 @@ namespace UnityBox.Sensa
                 r.receiverType=ContactReceiver.ReceiverType.Proximity;r.localOnly=true;r.allowSelf=self;r.allowOthers=!self;
                 r.collisionTags=new List<string>{tag};r.parameter=prefix+"/Root/A"+i;Parameter(parent.gameObject,r.parameter);receivers.Add(r);
             }
+            WritableParameters(parent.gameObject, "Sensa contacts");
             return receivers.ToArray();
+        }
+        // Expression declarations do not create Animator parameters that Contacts can write.
+        public static void WritableParameters(GameObject host, string label)
+        {
+            var parameters = host.GetComponent<ModularAvatarParameters>();
+            if (parameters == null || parameters.parameters == null || parameters.parameters.Count == 0) return;
+            var controller = new AnimatorController { name = label };
+            foreach (var parameter in parameters.parameters)
+                controller.AddParameter(parameter.nameOrPrefix, parameter.syncType == ParameterSyncType.Bool
+                    ? AnimatorControllerParameterType.Bool : parameter.syncType == ParameterSyncType.Int
+                    ? AnimatorControllerParameterType.Int : AnimatorControllerParameterType.Float);
+            var machine = new AnimatorStateMachine { name = label };
+            var idle = machine.AddState("Ready"); idle.writeDefaultValues = false;
+            idle.motion = new AnimationClip { name = "Sensa parameters idle" }; machine.defaultState = idle;
+            controller.AddLayer(new AnimatorControllerLayer { name = label, stateMachine = machine, defaultWeight = 1 });
+            var merge = host.AddComponent<ModularAvatarMergeAnimator>();
+            merge.animator = controller; merge.layerType = VRCAvatarDescriptor.AnimLayerType.FX;
+            merge.pathMode = MergeAnimatorPathMode.Absolute; merge.matchAvatarWriteDefaults = false;
         }
         public static void Budget(GameObject avatar,int added)
         {

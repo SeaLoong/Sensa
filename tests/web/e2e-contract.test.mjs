@@ -12,6 +12,7 @@ test('all E2E configurations isolate devices and initialize outputs disabled / æ
       if (output.type === 'Intiface') { assert.equal(output.manageEngineProcess, false); assert.match(output.websocketAddress, /^ws:\/\/127\.0\.0\.1:/); }
       if (output.type === 'TCodeSerial') assert.match(output.comPort, /^\/dev\/pts\//);
     }
+    assert.equal(config.osc.allowExperimentalSpatialInput, false);
     assert.equal(config.osc.oscQueryReceiver.enabled, false);
     assert.equal(config.osc.oscQueryEnabled, scenario === 'query');
     config.axisProfiles[0].motion.l0.min = 1;

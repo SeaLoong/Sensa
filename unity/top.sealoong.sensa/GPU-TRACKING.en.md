@@ -4,6 +4,8 @@
 
 Implemented: world GPU rendering/ClientSim readback, actual SPS2 model sampling, continuous editor PNG export and PNG → decoder → isolated Sensa OSC. The uploadable camera rig generates **synthetic codes only**. A complete in-client real-SPS bridge and PCVR invisibility are not established.
 
+Contact reconstruction is also an experimental estimate, disabled for motion by default. It cannot supply missing identity, shared frames or actual mesh geometry as a fallback. See [Positioning](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md).
+
 See [lab capabilities](https://github.com/SeaLoong/Sensa/blob/main/tools/unity-world-lab/CAPABILITIES.en.md) for exact procedures and expected values.
 
 ## What is measured

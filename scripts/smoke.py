@@ -121,6 +121,8 @@ def main():
                     wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'QuickStart step {depth} did not reach Sensa')
                 udp.sendto(fixture.bundle([('Sensa/QuickStart/Active', 0)]), ('127.0.0.1', osc_port))
                 wait_overview(lambda s: s['runtime']['gateClosed'], 'World STOP did not close the QuickStart gate')
+            configuration['osc']['allowExperimentalSpatialInput'] = True
+            configuration['osc']['inputTimeoutMs'] = 5000
             configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
             command('/api/config', 'PUT', configuration)
             assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from QuickStart must leave input closed'

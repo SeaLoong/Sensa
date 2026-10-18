@@ -72,6 +72,13 @@ public sealed class MotionRuntime : IDisposable
     private string? _rollPoseKey;
     private ContinuousAngle _continuousRoll = new();
     public bool PoseBlocked => _poseBlocked;
+    public int SpatialSampleMaxAgeMs => _config.Osc.InputTimeoutMs > 0 ? _config.Osc.InputTimeoutMs : UnityBox.Sensa.SensaPoseProtocol.MaximumSampleAgeMs;
+    public string SpatialInputBlockedReason => _inputMode != RuntimeInputMode.Osc || !_usesPose ? ""
+        : !_config.Osc.AllowExperimentalSpatialInput ? "实验 Contact 定位尚未启用 / Experimental Contact positioning is disabled"
+        : _poseBlocked ? "等待完整且未过期的局部几何采样 / Waiting for complete, fresh local geometry" : "";
+    public string SpatialInputStatus => _inputMode != RuntimeInputMode.Osc || !_usesPose ? ""
+        : SpatialInputBlockedReason.Length > 0 ? SpatialInputBlockedReason
+        : "实验局部估计；非世界或网格位置 / Experimental local estimate; not world or mesh position";
     public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
     public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked
@@ -88,8 +95,8 @@ public sealed class MotionRuntime : IDisposable
                 _poseObservations = PoseReconstruction.Observe(_store.SnapshotEntries(), source);
                 _poseRevision = revision; _poseSource = source;
             }
-            return _config.Osc.InputTimeoutMs<=0 ? _poseObservations : _poseObservations.Select(p=>IsGeometryFresh(p.TimestampMs)
-                ? p : p with {Valid=false,Engaged=false,Reason="坐标数据已超时，等待新的几何采样"}).ToArray();
+            return _poseObservations.Select(p=>IsSpatialGeometryFresh(p.TimestampMs)
+                ? p : p with {Valid=false,Engaged=false,Reason="部分坐标已超时 / A contributing coordinate has expired"}).ToArray();
         }
     }
     private long _lastEventTimestamp;
@@ -409,15 +416,20 @@ public sealed class MotionRuntime : IDisposable
         float? depthOverride = null;
         var poseMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPose").ToArray();
         var pointMappings = processors.Where(p=>p.Processor.Mapping.SourceMode=="SensaPoint").ToArray();
+        if ((poseMappings.Length > 0 || pointMappings.Length > 0) && !_config.Osc.AllowExperimentalSpatialInput)
+        {
+            _poseBlocked = true; ActivePoseKey = null;
+            return new MotionPatch();
+        }
         SpsPositionTracking.Observation? chosenPoint=null;
-        if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(), preferredSourceKey, timeProvider: _timeProvider)
+        if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(), preferredSourceKey, SpatialSampleMaxAgeMs, _timeProvider)
             .Where(p=>p.IsLocalPoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
-            if(points.Length==1 && points[0].Valid && IsGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
+            if(points.Length==1 && points[0].Valid && IsSpatialGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
         if (poseMappings.Length > 0)
         {
-            var observations = GetPoseObservations().Where(p => poseMappings.Any(m => p.Matches(m.Path)) && IsGeometryFresh(p.TimestampMs)).ToArray();
+            var observations = GetPoseObservations().Where(p => poseMappings.Any(m => p.Matches(m.Path)) && IsSpatialGeometryFresh(p.TimestampMs)).ToArray();
             // There is no sender identity in Contact OSC values. Never mix coordinate components across sources/rigs.
             if (!string.IsNullOrEmpty(preferredSourceKey) || observations.Select(p => p.SourceKey).Distinct().Count() <= 1)
             {
@@ -538,6 +550,9 @@ public sealed class MotionRuntime : IDisposable
         });
     }
 
+    private bool IsSpatialGeometryFresh(long timestampMs) =>
+        _timeProvider.GetUtcNow().ToUnixTimeMilliseconds() - timestampMs <= SpatialSampleMaxAgeMs;
+
     private bool IsGeometryFresh(long timestampMs) => _config.Osc.InputTimeoutMs <= 0
         || _timeProvider.GetUtcNow().ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
 
@@ -567,7 +582,7 @@ public sealed class MotionRuntime : IDisposable
 
     private void CheckInputTimeout()
     {
-        if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
+        if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency) return;
         var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         (string Path,string Mode,SignalRole Role)[] mappings;
         lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
@@ -575,15 +590,27 @@ public sealed class MotionRuntime : IDisposable
         var source = _preferredOscSourceKeyProvider?.Invoke();
         var pointPaths=mappings.Where(m=>m.Mode=="SensaPoint").Select(m=>m.Path).ToArray();
         var posePaths=mappings.Where(m=>m.Mode=="SensaPose").Select(m=>m.Path).ToArray();
-        // Metadata or a separate gate must not keep a frozen geometric input alive.
-        // Use the newest geometric sample, since OSC may omit unchanged coordinates.
-        var timestamps=pointPaths.Length>0
-            ? SpsPositionTracking.Observe(_store.SnapshotEntries(), source, timeProvider: _timeProvider).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
-            : posePaths.Length>0
-                ? GetPoseObservations().Where(p=>posePaths.Any(p.Matches)).Select(p=>p.TimestampMs)
-                : ScalarInputTimestamps(mappings, source);
-        var last=timestamps.DefaultIfEmpty(_activationTimestamp).Max();
-        if (now - Math.Max(last, _activationTimestamp) <= _config.Osc.InputTimeoutMs) return;
+        var timeoutMs = pointPaths.Length > 0 || posePaths.Length > 0 ? SpatialSampleMaxAgeMs : _config.Osc.InputTimeoutMs;
+        if (timeoutMs <= 0) return;
+        // A Contact estimate depends on every range. Delta-only silence cannot certify freshness.
+        var inputs = new List<IEnumerable<long>>();
+        if (pointPaths.Length > 0)
+        {
+            var points = SpsPositionTracking.Observe(_store.SnapshotEntries(), source, SpatialSampleMaxAgeMs, _timeProvider)
+                .Where(p => p.IsLocalPoint && pointPaths.Any(p.Matches)).ToArray();
+            // Match BuildOscPatch: several points are ambiguous even if one is fresh.
+            inputs.Add(points.Length == 1 && points[0].Valid ? [points[0].TimestampMs] : []);
+        }
+        if (posePaths.Length > 0)
+        {
+            // A newer, unselected rig cannot extend the target's lifetime.
+            var selected = GetPoseObservations().FirstOrDefault(p => p.Key == ActivePoseKey
+                && p.Valid && p.Engaged && posePaths.Any(p.Matches));
+            inputs.Add(selected is not null ? [selected.TimestampMs] : []);
+        }
+        if (inputs.Count == 0) inputs.Add(ScalarInputTimestamps(mappings, source));
+        if (inputs.All(timestamps => now - Math.Max(timestamps.DefaultIfEmpty(_activationTimestamp).Max(),
+                _activationTimestamp) <= timeoutMs)) return;
         OnLog?.Invoke("[MotionRuntime] OSC input timeout; emergency stop.");
         EmergencyStop();
     }

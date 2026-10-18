@@ -17,6 +17,7 @@ namespace UnityBox.Sensa
         public const float ApertureRadius = 0.04f;
         public const float MaximumTiltDegrees = 65f;
         public const float MaximumFitResidual = 0.002f;
+        public const int MaximumSampleAgeMs = 1000;
         public const int AnchorsPerMarker = 8;
         public static readonly string[] Markers = { "Root", "Tip", "Side" };
         public static float AnchorX(int index) => (index & 1) == 0 ? -AnchorHalfSpan : AnchorHalfSpan;

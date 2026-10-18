@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Sensa.Configuration;
+using Sensa.Input.Osc;
 using Sensa.Motion;
 using Sensa.Outputs.TCode;
 using Sensa.Signals;
@@ -13,10 +14,10 @@ namespace Sensa.Tests.Contracts;
 public sealed class PresetContracts
 {
     [Fact]
-    public void AllTwentyNineShippedPresetsAreDistinctUsableAndNeverPromoteDiagnosticRootsToMotion()
+    public void FiveShippedPresetsAreDistinctUsableAndDoNotRecommendExperimentalSpatialInputs()
     {
         var presets = Presets();
-        Assert.Equal(29, presets.Count);
+        Assert.Equal(new[] { "sensa-quick-start", "sps-socket-depth-others", "sps-plug-depth-others", "sps-touch", "sensa-lab-pb-stretch" }, presets.Select(preset => preset.Id));
         Assert.Equal(presets.Count, presets.Select(preset => preset.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         foreach (var preset in presets)
         {
@@ -30,39 +31,50 @@ public sealed class PresetContracts
             {
                 Assert.False(string.IsNullOrWhiteSpace(mapping.OscPath));
                 Assert.True(float.IsFinite(mapping.VrchatMin) && float.IsFinite(mapping.VrchatMax));
-                Assert.True(mapping.SourceMode is "Direct" or "SpsSocketDepth" or "SensaPose" or "SensaPoint");
-                Assert.False(mapping.OscPath.StartsWith("Sensa/SpsRoot/") || mapping.OscPath.StartsWith("Sensa/SharedRoot/"));
+                Assert.True(mapping.SourceMode is "Direct" or "SpsSocketDepth");
+                Assert.DoesNotContain("Angle", mapping.OscPath);
+                Assert.False(mapping.InvertDirection);
             });
         }
     }
 
+    // VRCFury source declares one sanitized ID segment; legacy body/instance paths
+    // are separate generators and must not be promoted as universal SPS paths.
+    // VRCFury 使用单段清洗后的 ID；旧身体部位/实例路径不能作为通用 SPS 路径。
     [Theory]
-    [InlineData("point", "z", 1)]
-    [InlineData("point", "xyz", 3)]
-    [InlineData("point", "distance", 1)]
-    [InlineData("handle", "z", 1)]
-    [InlineData("handle", "xyz", 3)]
-    [InlineData("handle", "distance", 1)]
-    public void LocalProbeTemplatesUseOneRigAndTheDeclaredMetrics(string kind, string variant, int count)
+    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthersNewRoot", true)]
+    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthersNewTip", false)]
+    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenSelfNewRoot", false)]
+    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthers", false)]
+    [InlineData("sps-socket-depth-others", "OGB/Orf/Pussy/Main/PenOthersNewRoot", false)]
+    [InlineData("sps-plug-depth-others", "OGB/Pen/Main_Plug/PenOthers", true)]
+    [InlineData("sps-plug-depth-others", "OGB/Pen/Main_Plug/PenSelf", false)]
+    [InlineData("sps-plug-depth-others", "OGB/Orf/Main/PenOthers", false)]
+    [InlineData("sps-touch", "OGB/Orf/Hips_Front/TouchOthers", true)]
+    [InlineData("sps-touch", "OGB/Pen/Main_Plug/FrotOthers", true)]
+    [InlineData("sps-touch", "OGB/Orf/Hips_Front/TouchSelf", false)]
+    [InlineData("sps-touch", "OGB/Pen/Main_Plug/TouchOthersClose", false)]
+    [InlineData("sps-touch", "OGB/Orf/Hips_Front/PenOthersNewRoot", false)]
+    public void RecommendedOgbPatternsMatchOnlyTheSelectedModernGeneratorSignals(string id, string path, bool expected)
     {
-        var preset = Assert.Single(Presets(), value => value.Id == $"sensa-{kind}-{variant}");
-        Assert.Equal(count, preset.Mappings.Count);
-        Assert.Single(preset.Mappings.Select(mapping => mapping.OscPath).Distinct());
-        Assert.All(preset.Mappings, mapping => Assert.Equal("SensaPoint", mapping.SourceMode));
-        if (variant == "xyz")
-            Assert.Equal(new[] { PointMetric.X, PointMetric.Y, PointMetric.Z }, preset.Mappings.Select(mapping => mapping.PointMetric).Order().ToArray());
-        else
-            Assert.Equal(variant == "z" ? PointMetric.Z : PointMetric.Distance, preset.Mappings[0].PointMetric);
+        var mapping = Assert.Single(Presets().Single(value => value.Id == id).Mappings);
+        Assert.Equal(expected, OscParameterStore.MatchesPathPattern(mapping.OscPath, path));
     }
 
     [Fact]
-    public void PoseFullTemplateKeepsSixMetricsInOneSpatialRig()
+    public async Task NativePhysBoneStretchUsesItsGrabGateWithoutPositionReconstruction()
     {
-        var preset = Assert.Single(Presets(), value => value.Id == "sensa-pose-full");
-        Assert.Equal(6, preset.Mappings.Count);
-        Assert.Single(preset.Mappings.Select(mapping => mapping.OscPath).Distinct());
-        Assert.All(preset.Mappings, mapping => Assert.Equal("SensaPose", mapping.SourceMode));
-        Assert.Equal(Enum.GetValues<PoseMetric>().Order(), preset.Mappings.Select(mapping => mapping.PoseMetric).Order());
+        var mappings = Presets().Single(value => value.Id == "sensa-lab-pb-stretch").Mappings;
+        Assert.All(mappings, mapping => Assert.Equal("Direct", mapping.SourceMode));
+        using var rig = new MotionRig(mappings.ToArray());
+        rig.Put("Sensa/Lab/PB_Stretch", .75f);
+        rig.Activate();
+        Assert.False(rig.Runtime.CanSend);
+        rig.Put("Sensa/Lab/PB_IsGrabbed", 1);
+        Assert.InRange((await rig.Output.NextFrame()).L0, .74f, .76f);
+        rig.Put("Sensa/Lab/PB_IsGrabbed", 0);
+        await rig.Output.NextStop();
+        Assert.False(rig.Runtime.CanSend);
     }
 
     [Theory]

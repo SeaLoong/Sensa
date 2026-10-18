@@ -4,43 +4,41 @@
 
 [![main CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml?query=branch%3Amain)
 
-把 VRChat 的 OSC 参数或动作脚本转换为 Intiface / TCode 设备控制，使用浏览器完成配置和预览。
+把手动、VRChat OSC 或 funscript 转换为 Intiface／TCode 设备目标。浏览器工作台分为**控制、OSC、设置**，详细配置按需展开。
 
-[下载开发预览版](https://github.com/SeaLoong/Sensa/releases) · **[OSR 首次使用](docs/quick-start.md)** · **[Avatar / 世界 / 软件联动](docs/lab-workflow.md)** · [使用指南](docs/guide.md) · [选择预设](docs/presets.md)
+[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [五项映射预设](docs/presets.md)
 
-刚买 OSR？先按首次使用指南，用自己的 Avatar 和测试世界验证信号，再连接设备。入门组件自动配置，无需 SPS、手动摆放、摄像机或 Python。设备仍需支持相应 TCode 固件并完成硬件校准。
+## 启动
 
-## 开始使用
+1. 下载对应系统／CPU 的桌面包，完整解压到可写目录。
+2. Windows 运行 `Sensa.exe`；Linux／macOS 运行 `./Sensa`。无需另装 .NET。
+3. 打开 **http://127.0.0.1:5086**，先保持输入关闭。
+4. 配置输出和轴限制，选择并应用输入模式，核对预览后启用输入。
 
-1. 下载与你的系统、处理器对应的压缩包，解压到可写目录。
-2. Windows 运行 `Sensa.exe`；Linux/macOS 在解包目录运行 `./Sensa`。保留整个目录，不需要另装 .NET。
-3. 打开 **http://127.0.0.1:5086**。右上角可切换简体中文 / English，并记住选择；[双语说明](docs/languages.md)。
-4. 添加输出，设置允许的行程和速度；选择手动、OSC 或脚本输入。
-5. 先查看预览并校准，确认方向和范围后再打开输入开关。
-
-输出卡片显示最近发送的目标，不是设备位置传感器的实测值。随时可以关闭输入或点击“停止输出”。
-
-## 下载哪个文件？
-
-| 你的电脑 | 文件名中的平台 |
+| 系统 | 包名中的平台 |
 | --- | --- |
-| Windows，Intel / AMD | `win-x64.zip` |
-| Windows，ARM 处理器 | `win-arm64.zip` |
-| Linux，Intel / AMD | `linux-x64.tar.gz` |
-| Linux，ARM64 | `linux-arm64.tar.gz` |
-| Mac，Intel | `osx-x64.tar.gz` |
-| Mac，Apple 芯片 | `osx-arm64.tar.gz` |
+| Windows Intel／AMD、ARM | `win-x64.zip`、`win-arm64.zip` |
+| Linux Intel／AMD、ARM64 | `linux-x64.tar.gz`、`linux-arm64.tar.gz` |
+| macOS Intel、Apple 芯片 | `osx-x64.tar.gz`、`osx-arm64.tar.gz` |
 
-影响产品的 main 提交会在必要检查和同一提交的全量 E2E 截图比较通过后自动发布预览版；失败后的修复会自动接续验证。仅保留最近 10 个已发布预览版，功能可能继续调整。macOS 预览包是命令行程序，尚未签名公证。Unity 资产是另一个以 `top.sealoong.sensa-` 开头的 ZIP，不是桌面程序。
+macOS 预览是未签名公证的命令行程序。以 `top.sealoong.sensa-` 开头的 ZIP 是另行安装的 Unity 资产。
 
-## 按你的需求阅读
+## 当前能力
 
-- **连接设备、设置 OSC、校准和排错** → [Sensa 使用指南](docs/guide.md)
-- **不知道选哪个预设** → [预设选择说明](docs/presets.md)
-- **想在 Avatar 上增加位置测量或 PB 手柄** → [Unity 安装与配置](unity/top.sealoong.sensa/README.md)
-- **想先在测试世界体验** → [测试世界操作说明](tools/unity-world-lab/README.md)
-- **从源码构建或了解 CI** → [开发文档](docs/development.md)
-- **了解使用流程与架构** → [架构与行为契约](docs/architecture.md)
-- **完整了解当前功能、实现条件与限制** → [功能全景与实现说明](docs/features.md)
+- 手动十二轴、funscript 播放／循环／定位、L0 录制导出。
+- OSC 参数发现、前缀隐藏 FT、五项精简预设、自定义映射、OSCQuery 与 Hub。
+- 多输出、独立轴配置、目标预览、显式输入许可和急停。
+- 简体中文／English 与窄屏布局。
+- Unity QuickStart 接收链路、原生 PB 标量及高级实验工具。
 
-普通 SPS 参数映射不要求安装 Sensa 的 Unity 资产；只有额外的位置测量功能需要它。WebUI 的“使用帮助”也可随时查阅操作步骤。
+目标预览不是设备位置回读。Contact 四／八点定位默认禁止驱动输出；它只能提供带假设的参考局部估计，不能证明 Sender 身份、同帧、世界位置或 GPU 表面。[定位原理与重做方向](docs/positioning.md)
+
+已有原生 SPS 参数通常不需要 Sensa Unity 包；现代 Socket 径向估算与 Plug 近接的路径和局限见[预设](docs/presets.md)。首次测试可用 QuickStart World Receiver，不需要 SPS、相机或 Python。
+
+## 文档
+
+[完整功能与源码索引](docs/features.md) · [架构](docs/architecture.md) · [开发与 CI](docs/development.md) · [截图审阅](docs/e2e.md) · [双语支持](docs/languages.md)
+
+[Unity 安装](unity/top.sealoong.sensa/README.md) · [实验流程](docs/lab-workflow.md) · [Avatar 工具](tools/unity-avatar-lab/README.md) · [世界工具](tools/unity-world-lab/README.md)
+
+产品预览要求同一候选通过必要检查、全量 E2E 比较和平台验证；main 会接续未完成验证。只保留最近十个已发布预发布，稳定版、草稿及 Git tags 保留。预览功能仍可能调整；客户端、Unity 和硬件验收以实际报告为准。

@@ -2,77 +2,78 @@
 
 **简体中文** | [English](architecture.en.md)
 
-本次重构保留十二轴、29 套预设、四类输出和全部既有截图场景，以用户操作对应的行为契约组织实现与测试。完整功能见[功能全景](features.md)，验证流程见[开发与验证](development.md)，领域用语见[术语表](../GLOSSARY.md)。
+Sensa 把选定输入转换为十二轴动作目标，再按每个输出的配置分发。浏览器负责操作与预览；后端负责输入许可、配置事务、门控与停止。术语见[术语表](../GLOSSARY.md)，能力边界见[功能参考](features.md)。
 
-## 控制与状态
+## 数据流
 
 ```mermaid
 flowchart LR
-    HTTP[HTTP adapter] --> A[SensaApplication]
+    UI[浏览器工作台] --> A[SensaApplication]
+    HTTP[HTTP adapter] --> A
     WS[WebSocket adapter] --> A
     A --> C[ConfigurationUpdate]
     A --> M[MotionRuntime]
     OSC[OSC / OSCQuery] --> S[OscParameterStore]
     S --> M
     P[FunscriptPlayer] --> M
-    T[TimeProvider] --> M
-    T --> P
     M --> O[IMotionOutput]
     O --> R[OutputCoordinator]
-    O --> F[测试 ProbeOutput]
+    R --> T[TCode / Intiface]
     M --> REC[MotionRecorder]
 ```
 
-- [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) 是控制 module；HTTP 与 WebSocket 是两个真实 adapter。方法、路径、请求体及错误结果只有一份分派实现，multipart 上传也进入同一脚本加载操作。旧 HTTP 操作入口保留其对外行为。
-- [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) 在同一个串行事务中校验、关闭输入、停止输出、应用连接变化并保存；失败时恢复配置与连接。配置复制与处理器重建也在恢复范围内。
-- [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) 管理输入启用、门控、空间有效性、旧请求代次、合并与分发；它只依赖 [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs)，不再分别认识串口、UDP、TCP、Intiface。
-- [OscParameterStore.ChangeAvatar](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) 集中来源生命周期。UDP 和 OSCQuery 都经该入口清数据、复位信号学习状态，并停止已启用的 OSC 输入。混合 OSC bundle 中未消费的消息进入过滤后的原始 bundle，保留嵌套、顺序与 timetag，不再随已处理 Avatar 消息一起丢失。[OSC bundle 语义](https://opensoundcontrol.stanford.edu/spec-1_0.html)
-- 时间由 TimeProvider 注入播放器、运行时、参数存储、位置有效性、录制和 UDP 重播。生产使用系统时钟；测试使用虚拟时钟，不靠等待真实时间或反射私有 watchdog。
-
-## 使用流程的不变量
-
-| 操作 | 输入启用与设备目标 |
+| 边界 | 职责 |
 | --- | --- |
-| 浏览输入页签 | 仅选择界面，不切换实际输入 |
-| 实际改变输入模式 | 关闭输入、停止输出、使旧待发请求失效；需要显式重新启用 |
-| 更新同一手动模式的目标 | 输入已启用时发送；关闭时只保存目标 |
-| 导入或替换脚本 | 先关闭输入，再加载；即使原来已是 Script 也不续动 |
-| 保存完整配置 | 先关闭输入，成功后仍保持关闭 |
-| 紧急停止／解除 | 停止会锁存；解除不重新启用输入 |
-| 暂停、停止、卸载脚本 | 先禁止自动输出及 UDP 刷新，再停止；旧定时帧失效，Stop 的游标归零不是设备归位 |
-| 暂停时显式定位或步进 | Script 输入仍启用时可以发送该目标 |
-| 几何失效／PB 松手 | 关闭几何门控并停止；不回退到同轴旧标量 |
-| 重启 | 不恢复输出启用、输入启用、脚本或运动 |
+| [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | HTTP／WebSocket 共用命令分派；模式、脚本、录制、连接操作 |
+| [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | 串行校验、关闭输入、停止、应用、重连与持久化；失败恢复配置和连接 |
+| [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | 实际模式、输入许可、信号处理、时效、门控、合并、请求代次和停止 |
+| [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | 运行时只依赖动作发送与停止接口；测试替换为隔离输出 |
+| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | 按输出类型和配置分发，不向运行时暴露传输细节 |
+| [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | 来源、参数值、更新时间、序列与 Avatar 生命周期 |
 
-脚本导入会跳过无效动作条目，无任何有效动作时报错；非有限倍速被拒绝。播放器保留小数时间余量，避免分数倍速累积取整误差；在定时器间读取完成快照也不会吞掉最后一帧。录制记录分发前的 L0 目标，不代表传输成功或硬件执行确认。带 ramp 后缀的 TCode 目标现在也进入每输出遥测。
+UDP 与 OSCQuery 共用 Avatar 变更入口：清除对应数据、复位学习状态，停止已启用的 OSC 输入。混合 OSC bundle 的未消费部分保留结构、顺序和 timetag 供转发；参数输入不因此具备按 timetag 调度的完整帧语义。[OSC parser](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscPacketParser.cs)
 
-## 浏览器 module
+## 输入许可是不变量
 
-| module | 集中管理的知识 |
+| 操作 | 后端行为 |
 | --- | --- |
-| [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | 配置草稿、唯一默认轴配置、输出引用修复、连接冲突和保存规则 |
-| [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | 手动请求、脚本时码、循环区间、倍速和输入意图 |
-| [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | 同源会话、请求关联、超时、断线拒绝、重连和关闭；不重放断线期间的动作 |
-| [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js) | OSC 预设、草稿和工作区选择 |
-| [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | 结构化日志、轴调试与诊断筛选 |
-| JSX 视图 | 控件、配置、诊断和时间轴渲染；由 App 组合状态与操作 |
+| 浏览页面或输入页签 | 不改变实际模式和输入许可 |
+| 实际改变输入模式 | 关闭输入，停止输出，使旧待发请求失效 |
+| 替换／导入脚本 | 先关闭输入；即使原来已是 Script 也不续动 |
+| 保存配置 | 先关闭输入；成功后仍保持关闭 |
+| 急停／解除急停 | 急停锁存；解除不恢复运动 |
+| 脚本暂停／停止／卸载 | 停止自动帧和 UDP 刷新；旧定时帧失效 |
+| 暂停时显式定位／步进 | Script 输入仍启用时可发送该目标 |
+| 门控或空间有效性失效 | 停止，不能回退旧同轴标量伪装有效 |
+| 启动程序 | 不恢复输入、输出启用、脚本或运动 |
 
-保留已有布局和中英文词典。规则测试通过与生产调用相同的 interface，不依赖 React 闭包中的私有函数。现有几何解算和协议编码已经有明确职责，保留其实现，避免为拆文件而引入 shallow module。
+输出目标不是位置回读。录制位于分发前，不能证明传输成功；UDP 也没有远端执行确认。
 
-## 测试和工具
+## Web 工作台
 
-.NET 测试按 Configuration、Signal、Spatial、Motion、Script、Recording、OSC、Output、Preset、Intiface 及应用控制契约组织，共用虚拟时钟与隔离输出 fixture。网络 adapter 测试只用回环随机端口。几何 fixture、确定性随机样本、SPS 径向限制及较短目标重新学习都保留。
+Web 使用 React 与本项目的基本组件，样式和控件由 [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx)、[controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx)、[styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) 管理，不依赖 Material UI。
 
-Web 测试从配置、输入、OSC、诊断、实时会话和双语行为观察结果。E2E worker 复用模拟对端，每个场景仍启动独立临时配置和程序进程，设备输出只指向模拟器；旧桌面／窄屏截图覆盖保留，并增加输入切换与脚本停止场景。仅在 GitHub Actions 执行。
+主导航是控制／OSC／设置，详细选项逐层展开。顶栏保留实际模式、输入许可与急停；界面草稿不等于已保存配置。
 
-Unity 测试共用 AvatarBuildFixture，覆盖自动生成、Pose 预检和 GPU 解码；本次不把静态校验写成 Unity 编译或客户端验收。安装器的两个 CLI 共用 [lab_installation.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/lab_installation.py)，完整预检后才写入；两个进程冒烟 CLI 共用 [process_smoke.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/process_smoke.py)，集中隔离配置、会话、超时和清理。World PlayMode／截图套件与完整进程冒烟入口有 CI-only 保护。
+| 模块 | 集中管理的规则 |
+| --- | --- |
+| [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | 配置草稿、默认轴配置、输出引用、目标冲突与保存 |
+| [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | 手动目标、脚本时码、倍速和循环意图 |
+| [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | 同源会话、请求关联、超时、断线拒绝、重连和页面生命周期；不重放旧动作 |
+| [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js) | 预设和映射草稿 |
+| [osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | 路径匹配、FT 前缀过滤、参数预览和实验校准 |
+| [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | 日志与诊断筛选 |
 
-## 验证与发布
+## 空间输入单独隔离
 
-[ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 是影响计划的单一 interface；[verify.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/verify.py) 只根据工作区差异与本地内容 receipt 选择静态／单元检查，不读取 GitHub，也不运行 E2E。相关源码、命令或工具链变化及失败使 receipt 失效；未改变的成功检查复用结果。CI 通过 [ci_evidence.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci_evidence.py) 的只读 GitHub adapter 获取真实执行证据，再由计划 module 判断是否接续未完成产品验证。
+Contact 解算保留为 `ReferenceLocal` 实验估计。默认 `allowExperimentalSpatialInput=false`，旧空间配置也受限；内置目录不再推荐 Point／Pose。所有参与通道采用最旧更新时间，默认空间年龄上限为 1 秒，正值输入超时可覆盖。新鲜并不证明同帧，低残差并不证明同一 Sender。
 
-预发布必须经过当前候选提交的全量 E2E 比较与必要的六平台隔离冒烟。只有没有待完成产品验证时，文档／纯测试变更才不触发产品链与预发布；上一产品验证失败后的测试修复会自动在当前提交补齐必要检查、E2E、原生构建和预发布。普通 main push 自动判断，不依赖提交消息标记或手工 override。
+四个非共面锚点的真实同点距离足以解相对 XYZ，但普通 Proximity 不提供上述身份／批次保证，也观测不到共同世界运动。可信生产者的同批 XYZ＋frameId＋valid 是后续设计条件，当前未实现。[定位论证](positioning.md)
 
-产品验证记录保留真正负责的执行（owner）。后续 docs-only 遇到 owner 仍在运行时继承记录，不取消或重复启动该产品链；文档执行自己的 success 不能清除 owner 的未完成工作。artifact 只记录意图，必须核对 owner 必要 jobs 的真实成功；skipped、未知、缺失或无法读取证据时保守恢复必要全链。未知路径或差异不可用同样保守处理。
+## 验证与工具
 
-main 预览与桌面／Unity tag 的发布和清理共用串行等待队列；已有相同提交或更新自动预览公开时，跳过旧候选。每次发布后分页核对远端，只保留最近十个已发布预发布；稳定版本、草稿和 Git tags 保留。细节见[开发与验证](development.md)和 [ADR](adr/0002-impact-based-verification.md)。
+时间依赖通过 TimeProvider 注入，隔离契约测试用虚拟时钟和 mock transports。网络适配器测试仅用回环随机端口。Unity 测试与元数据检查不冒充上传后的客户端验收。
+
+安装器共用 [lab_installation.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/lab_installation.py)，完整预检后写入；冒烟共用 [process_smoke.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/process_smoke.py)，负责隔离配置、超时和清理。
+
+本地先执行 `python -X utf8 scripts/verify.py --plan`，再执行验证入口；有效 receipt 可复用。浏览器 E2E、截图、完整进程冒烟与 World PlayMode 仅在 Actions。CI 按影响运行，并继承／恢复尚未完成的产品验证；意图 artifact 不能替代真实必要 jobs 成功。预发布要求候选同一 SHA 的全量截图比较及必要产品链，只保留最新十个已发布预发布，保留稳定版、草稿和 tags。[开发流程](development.md)、[E2E](e2e.md)、[决策](adr/0002-impact-based-verification.md)

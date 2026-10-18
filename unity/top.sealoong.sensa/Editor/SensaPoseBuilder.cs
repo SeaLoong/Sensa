@@ -110,6 +110,7 @@ namespace UnityBox.Sensa
                     });
                 }
             }
+            SensaSensorUtility.WritableParameters(socket.gameObject, "Sensa pose " + socket.instanceName);
         }
 
         public static void BuildPlug(SensaPosePlug plug)

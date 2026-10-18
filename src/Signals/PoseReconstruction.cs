@@ -25,6 +25,8 @@ public sealed record PoseObservation
     public required string SourceLabel { get; init; }
     public required string Instance { get; init; }
     public required string Party { get; init; }
+    public string CoordinateFrame => "ReferenceLocal";
+    public bool Experimental => true;
     public bool Valid { get; init; }
     public bool Engaged { get; init; }
     public string Reason { get; init; } = "等待完整的 24 路采样";
@@ -137,7 +139,8 @@ public static class PoseReconstruction
                 Key = group.Key.Source + "|" + group.Key.Prefix, Prefix = group.Key.Prefix,
                 SourceKey = group.Key.Source, SourceLabel = first.Sample.Entry.Source.Label,
                 Instance = first.Parts[3], Party = first.Parts[4], SampleCount = group.Count(),
-                TimestampMs = group.Max(s => s.Sample.Entry.TimestampMs),
+                // Every range contributes to this estimate; one fresh channel cannot refresh the others.
+                TimestampMs = group.Min(s => s.Sample.Entry.TimestampMs),
             };
             var fits = new Dictionary<string, MarkerFit>();
             foreach (var marker in SensaPoseProtocol.Markers)
@@ -171,7 +174,7 @@ public static class PoseReconstruction
             return basis with
             {
                 Valid = true, Engaged = engaged,
-                Reason = engaged ? "空间定位有效" : tilt > SensaPoseProtocol.MaximumTiltDegrees ? "入射角过大或方向反转" : radialOffset > SensaPoseProtocol.ApertureRadius ? "轴线没有穿过孔口" : "尚未进入孔口",
+                Reason = engaged ? "实验局部估计 / Experimental local estimate" : tilt > SensaPoseProtocol.MaximumTiltDegrees ? "入射角过大或方向反转" : radialOffset > SensaPoseProtocol.ApertureRadius ? "轴线没有穿过孔口" : "尚未进入孔口",
                 Root = root, Tip = tip, Side = side, Intersection = intersection, PenLength = length,
                 Depth = engaged ? Math.Clamp(tip.Z / (length * axis.Z), 0, 1) : 0,
                 AxialDepth = Math.Max(0, tip.Z), Yaw = yaw, Pitch = pitch, Roll = roll,

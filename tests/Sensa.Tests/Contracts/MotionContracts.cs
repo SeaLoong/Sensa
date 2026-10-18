@@ -207,6 +207,7 @@ public sealed class MotionContracts
         const string prefix = "Sensa/Handle/v1/Grip/Self";
         using var rig = new MotionRig(new SignalMapping { OscPath = prefix + "/Root/**", SourceMode = "SensaPoint", VrchatMax = .2f });
         rig.Config.Osc.InputTimeoutMs = 100;
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
         SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .1));
         rig.Advance(180);
         rig.Put(prefix + "/Handle_IsGrabbed", 1);
@@ -221,6 +222,7 @@ public sealed class MotionContracts
     {
         const string prefix = "Sensa/Handle/v1/Grip/Self";
         using var rig = new MotionRig(new SignalMapping { OscPath = prefix + "/Root/**", SourceMode = "SensaPoint", VrchatMax = .2f });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
         SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .1));
         rig.Put(prefix + "/Handle_IsGrabbed", 1);
         rig.Activate();
@@ -235,6 +237,7 @@ public sealed class MotionContracts
     {
         using var rig = new MotionRig(new SignalMapping { OscPath = "Sensa/Pose/v1/**", SourceMode = "SensaPose" },
             new SignalMapping { OscPath = "legacy" });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
         rig.Put("legacy", 1);
         foreach (var source in new[] { "a", "b" })
             SpatialSamples.Pose(rig.Store, new(0, 0, -.1), new(0, 0, .1), new(.03, 0, -.1), source: source);
@@ -245,6 +248,104 @@ public sealed class MotionContracts
         rig.Put("Sensa/Pose/v1/Main/Others/Tip/A0", 0, "a"); rig.Advance(30);
         await rig.Output.NextStop();
         Assert.True(rig.Runtime.PoseBlocked);
+    }
+
+
+    [Theory]
+    [InlineData("SensaPose")]
+    [InlineData("SensaPoint")]
+    public async Task ContactSpatialMappingsRemainBlockedUntilExplicitExperimentalOptIn(string mode)
+    {
+        const string prefix = "Sensa/Point/v1/Bone/Self";
+        using var rig = new MotionRig(new SignalMapping { SourceMode = mode,
+            OscPath = mode == "SensaPose" ? "Sensa/Pose/v1/**" : prefix + "/Root/**",
+            VrchatMax = mode == "SensaPose" ? 1 : .2f }, new SignalMapping { OscPath = "legacy" });
+        rig.Put("legacy", 1);
+        if (mode == "SensaPose") SpatialSamples.Pose(rig.Store, new(0, 0, -.1), new(0, 0, .1), new(.03, 0, -.1));
+        else SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .1));
+        rig.Activate(); await rig.Output.NextStop();
+        Assert.True(rig.Runtime.PoseBlocked);
+        Assert.Contains("disabled", rig.Runtime.SpatialInputBlockedReason);
+        Assert.Equal(1000, rig.Runtime.SpatialSampleMaxAgeMs);
+        Assert.Empty(rig.Output.Frames);
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
+        rig.Runtime.RebuildProcessors();
+        Assert.InRange((await rig.Output.NextFrame()).L0, .498f, .502f);
+        Assert.Contains("Experimental local estimate", rig.Runtime.SpatialInputStatus);
+        rig.Config.Osc.AllowExperimentalSpatialInput = false;
+        rig.Runtime.RebuildProcessors(); await rig.Output.NextStop();
+        Assert.False(rig.Runtime.CanSend);
+    }
+
+    [Theory]
+    [InlineData("SensaPose")]
+    [InlineData("SensaPoint")]
+    public async Task OneFreshContactRangeCannotRearmExpiredGeometry(string mode)
+    {
+        const string pointPrefix = "Sensa/Point/v1/Bone/Self";
+        using var rig = new MotionRig(new SignalMapping { SourceMode = mode,
+            OscPath = mode == "SensaPose" ? "Sensa/Pose/v1/**" : pointPrefix + "/Root/**" });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
+        rig.Config.Osc.InputTimeoutMs = 100;
+        if (mode == "SensaPose") SpatialSamples.Pose(rig.Store, new(0, 0, -.1), new(0, 0, .1), new(.03, 0, -.1));
+        else SpatialSamples.Point(rig.Store, pointPrefix, new(.02, 0, .1));
+        rig.Advance(180);
+        var freshPath = mode == "SensaPose" ? "Sensa/Pose/v1/Main/Others/Root/A0" : pointPrefix + "/Root/A0";
+        Assert.True(rig.Store.TryGetLatest(freshPath, out var stale));
+        rig.Put(freshPath, stale.Value.AsFloat());
+        rig.Activate(); await rig.Output.NextStop();
+        Assert.True(rig.Runtime.PoseBlocked);
+        Assert.Empty(rig.Output.Frames);
+    }
+
+    [Fact]
+    public async Task ContactInputWithDefaultScalarTimeoutStillExpiresAfterOneSecond()
+    {
+        const string prefix = "Sensa/Point/v1/Bone/Self";
+        using var rig = new MotionRig(new SignalMapping { SourceMode = "SensaPoint", OscPath = prefix + "/Root/**", VrchatMax = .2f });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
+        SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .1));
+        rig.Activate(); await rig.Output.NextFrame();
+        rig.Advance(1600); await rig.Output.NextStop();
+        Assert.True(rig.Runtime.IsEmergency);
+        Assert.False(rig.Runtime.InputActive);
+    }
+
+    [Fact]
+    public async Task AmbiguousContactPointsCannotKeepTheWatchdogFresh()
+    {
+        const string prefix = "Sensa/Point/v1/Bone/Self";
+        using var rig = new MotionRig(new SignalMapping { SourceMode = "SensaPoint", OscPath = "Sensa/Point/v1/*/Self/Root/**", VrchatMax = .2f });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
+        SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .1));
+        rig.Activate(); await rig.Output.NextFrame();
+        rig.Advance(900);
+        SpatialSamples.Point(rig.Store, prefix, new(.02, 0, .12));
+        SpatialSamples.Point(rig.Store, "Sensa/Point/v1/Other/Self", new(.01, 0, .1));
+        rig.Advance(30); await rig.Output.NextStop();
+        Assert.True(rig.Runtime.PoseBlocked);
+        rig.Advance(570);
+        Assert.True(rig.Runtime.IsEmergency);
+    }
+
+    [Fact]
+    public async Task FreshUnselectedPoseCannotExtendTheSelectedPosesLifetime()
+    {
+        using var rig = new MotionRig(
+            new SignalMapping { SourceMode = "SensaPose", OscPath = "Sensa/Pose/v1/**" },
+            new SignalMapping { OscPath = "activity", Role = SignalRole.V0 });
+        rig.Config.Osc.AllowExperimentalSpatialInput = true;
+        SpatialSamples.Pose(rig.Store, new(0, 0, -.1), new(0, 0, .1), new(.03, 0, -.1));
+        rig.Activate(); await rig.Output.NextFrame();
+        rig.Advance(900);
+        SpatialSamples.Pose(rig.Store, new(0, 0, -.15), new(0, 0, .05), new(.03, 0, -.15), instance: "Other");
+        rig.Put("activity", .75f);
+        rig.Advance(30);
+        await rig.Output.NextFrame(frame => frame.V0 > .74f);
+        Assert.Contains("/Main/", rig.Runtime.ActivePoseKey);
+        rig.Advance(570); await rig.Output.NextStop();
+        Assert.True(rig.Runtime.IsEmergency);
+        Assert.False(rig.Runtime.CanSend);
     }
 
     [Fact]

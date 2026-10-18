@@ -815,6 +815,9 @@ public static class SensaHost
                 isEmergency = motionRuntime.IsEmergency,
                 gateClosed = motionRuntime.IsGateClosed,
                 poseBlocked = motionRuntime.PoseBlocked,
+                spatialInputBlockedReason = motionRuntime.SpatialInputBlockedReason,
+                spatialInputStatus = motionRuntime.SpatialInputStatus,
+                spatialSampleMaxAgeMs = motionRuntime.SpatialSampleMaxAgeMs,
                 motionRuntime.ManualOverrideEnabled,
                 inputActive = motionRuntime.InputActive,
                 inputMode = motionRuntime.CurrentInputMode,
@@ -976,7 +979,7 @@ public static class SensaHost
                 },
                 outputs,
                 poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey,
-                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey, config.Osc.InputTimeoutMs) },
+                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey, motionRuntime.SpatialSampleMaxAgeMs) },
                 recording = new
                 {
                     recorder.IsActive,

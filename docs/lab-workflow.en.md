@@ -1,76 +1,36 @@
-# Test avatar, world and Sensa workflow
+# Lab integration workflow
 
 [简体中文](lab-workflow.md) | **English**
 
-Keep Sensa's output list empty for the first three tests. **Expected** on world boards means a reference value; output cards show sent commands. Neither is hardware position feedback.
+Use your own avatar/world projects and licensed assets. The repository supplies no public world link and uploads nothing automatically. Keep device outputs empty initially. See [Interaction](lab-interaction.en.md) for prop placement.
 
-## Prepare once
+| Stage | Entry point |
+| --- | --- |
+| Avatar project | `Assets/SensaAvatarLab/Generated/FullFlow.unity`, private SDK upload |
+| World project | `Assets/SensaLab/Functional/FunctionalLab.unity`, SDK Build & Test or private upload |
+| VRChat | Wear the new avatar; enable OSC/Contacts and required self interaction |
+| Sensa | Apply OSC mode, listen on default UDP 9001, leave input disabled |
 
-| Where | Open | Action |
-| --- | --- | --- |
-| Avatar Unity project | `Assets/SensaAvatarLab/Generated/FullFlow.unity` | Build and upload **Private**. Do not add duplicate QuickStart/automatic components |
-| World Unity project | `Assets/SensaLab/Functional/FunctionalLab.unity` | SDK Build & Test or private upload; no public/Community Labs publishing |
-| VRChat | Newly uploaded FullFlow avatar | Enable OSC, Contacts and required self-interaction permissions |
-| Sensa | `http://127.0.0.1:5086` | No devices yet; enable OSC receiving, save, select OSC and apply input mode |
+FullFlow already contains QuickStart and experimental components; do not duplicate them. Prop selection, SPS enablement, measurement selection and desktop input permission are separate states.
 
-Unity Play Mode / ClientSim does not emit avatar OSC. Real avatar → Sensa testing requires the VRChat client. For your own avatar, follow [QuickStart](quick-start.en.md).
+## Recommended order
 
-Stop other programs owning UDP 9001. Pin the avatar source when multiple sources exist. The shader bridge uses a separate source; switch back after testing it.
+1. **Reception:** select the five START HERE steps and STOP. Use Connection test with only Depth/Active mappings. Check actual parameters; the world's Expected is not receipt confirmation.
+2. **Native PB:** grab your avatar's PB, map actual `_Stretch` to Depth and `_IsGrabbed` to GateEnable. The template's `Sensa/Lab/PB` is a test path to replace. Release should close the gate. No Contact XYZ is needed.
+3. **Native SPS:** enable avatar SPS/SPS OSC and inspect actual OGB paths. Modern VRCFury Socket uses same-instance NewRoot/NewTip; Plug uses PenOthers/PenSelf. Copy a draft and use its actual Self path for self tests. Separate before approaching to learn length; radial proportion is not arbitrary-pose stroke truth.
+4. **Spatial experiments:** open OSC → Experimental diagnostics and observe Point/Handle/Root/Pose with experimental input disabled. Expand local points/roots for endpoint calibration. Explicit permission does not prove tracking reliability. Root/SharedRoot remain diagnostic-only.
+5. **Shader transport:** Synthetic code tests images, frames, CRC, Valid, freeze and recovery. Fixed (.25, −.5, .75) is not SPS data. Real editor GPU model snapshots also do not establish general live client capture. [Bridge limits](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
-## Every time you change tests
+Before switching tests, disable input, replace/save mappings, then inspect source, actual mode and gates before enabling. Remove unrelated QuickStart Active or other test gates. Ordinary scalar timeout defaults to off; spatial experiments still check the oldest contributing channel, with a default one-second age limit.
 
-1. **Disable input** and turn off unused avatar experiments.
-2. Choose the new preset and **Replace draft**, not Append draft. Retained GateEnable rules all participate.
-3. **Save and apply mappings**. Saving disables input.
-4. Check received OSC, then enable input to inspect running targets. **Workflow checks** identifies inactive listeners/modes, unsaved drafts, gates and invalid tracking.
+## World SPS targets
 
-Calibration and pose replacement buttons also replace the entire draft and remove old gates. Restore mappings before saving to discard the draft. Explicitly add back any custom vibration/auxiliary/gate rules you still need.
+At **08 MY AVATAR SPS**, the amber WORLD PLUG approaches your Socket, while the blue WORLD SOCKET receives your Plug. World Contacts may trigger Self/Others. Choose actual received parameters rather than treating menus or suffixes as identity proof. World values are geometry references, not avatar OSC acknowledgments.
 
-## Test 1: QuickStart signal chain
+## Hardware last
 
-At **00 START HERE**, no SPS or measurement selector is needed.
+Follow [First use](quick-start.en.md) for a small L0 range and verify hardware center/speed. Connect devices only after checking reception and stopping behavior. Cards show commands; low experimental residuals do not justify hardware activation.
 
-- Preset: **Start · Test world → My avatar**, exactly Depth and Active.
-- Five buttons: `Sensa/QuickStart/Depth` ≈ 0/.25/.5/.75/1; Active=1.
-- With input on, logical L0 follows those percentages. STOP sets Active=0 and closes the gate.
-- TOUCH measures right-wrist proximity to the cyan ball. RESET restores and stops. Leaving >3 m or waiting 60 seconds also stops.
+Record commit, Unity/SDK/client versions, object/source, actual paths, sample age, failure reason and stopping behavior. Editor/ClientSim/SDK bundle reports prove only their own checks. Uploaded avatar OSC, physical VR grabbing, HMDs and mechanical behavior need separate acceptance.
 
-No parameters means investigate avatar version, OSC, Contacts and port. Correct parameters with a stationary target means check applied mode, input, saved mappings and source.
-
-## Test 2: Your grabbed PB handle
-
-Avatar menu **Sensa Test Props → PB handle → Left hand / Right hand**. Move it in front of you and **Place in world**. This fixes the reference frame; grab and move the white ball to exercise PB.
-
-1. Replace with **Sensa PB handle · Z displacement (calibrate)**. Find `Sensa/Handle/v1/LabHandle/Self/` and pin the source.
-2. In **Range calibration**, choose LabHandle. Keep it grabbed while capturing 0% and 100%; expect four valid samples and coordinates.
-3. **Replace with calibration**, save, re-enable input and move between endpoints. Releasing should invalidate tracking and stop output.
-
-LabHandle does not need a Socket selection in Sensa Lab. No physical collisions is intentional. Check VRChat PhysBone self-interaction permissions if it cannot be grabbed.
-
-## Test 3: Native SPS
-
-Enable **Sensa Test Props → SPS OSC**. Placement, native SPS activation, Sensa measurement and software input are independent switches.
-
-| Test | Avatar/world action | Sensa |
-| --- | --- | --- |
-| Your Plug into your Socket | Lollipop RightHand; Palm Socket placed in front | SPS Socket new depth · Self only; actual Socket path |
-| World Plug into your Socket | Amber WORLD PLUG at **08 MY AVATAR SPS** | Socket preset and actual observed instance |
-| Your Plug into world Socket | Lollipop into blue WORLD SOCKET | SPS Plug preset and actual observed instance |
-
-Separate the targets first, then approach to learn Root/Tip length. World Contacts can affect Self and Others; suffix alone does not establish origin. World experiment boards are local measurements, not proof of your avatar's OSC.
-
-## Test 4: Additional geometry and shader experiments
-
-- **Measure plug:** local Plug position relative to its reference; calibrate it as a local point.
-- **Measure this socket:** eight C1–C8 root probes; root XYZ is not accurate insertion ratio.
-- **Paired pose:** matching `LabPair` Root/Tip/Side markers are required. Ordinary SPS alone cannot provide full paired pose.
-- **Synthetic code:** shader transport/frame/CRC/Valid test only. Fixed (.25, −.5, .75) is not SPS geometry; a 0–.2 m Z mapping saturates at 100%.
-- **Actual SPS GPU PNG:** exported through the Unity editor GPU Probe. Offset is approximately (.06, 0, .12), so the Z template previews 60%. Follow [image bridging](../tools/unity-world-lab/CAPABILITIES.en.md#image-bridge), check Valid, CRC failure, freeze and recovery.
-
-Shader is optional. Afterwards turn it off, stop the bridge and restore avatar source/preset. Exiting a bridge does not power off hardware.
-
-## Finally connect a device
-
-Follow [QuickStart](quick-start.en.md) to assign the small L0 profile. Repeat five steps: expected sent targets 400/450/500/550/600, other axes ignored. STOP, then disable input. Verify hardware stroke, direction, speed interpretation and firmware independently.
-
-Record avatar upload time, world version, Sensa commit/preview, source, paths, actions, expected/received values and failures. `Validation/latest-suite.json` records automated checks; it does not certify real-client or hardware behavior. Software E2E and screenshots run only in CI; [development notes](development.en.md) explain remaining validation boundaries.
+[Positioning](positioning.en.md) · [Avatar tools](../tools/unity-avatar-lab/README.en.md) · [World tools](../tools/unity-world-lab/README.en.md)

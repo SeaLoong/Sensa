@@ -25,11 +25,11 @@ Start Sensa with no outputs, enable VRChat OSC, enable Sensa receiving and apply
 | Step | Avatar/world action | Inspect in Sensa |
 | --- | --- | --- |
 | QuickStart | START HERE five levels, then STOP; SPS unnecessary | QuickStart Depth≈0/.25/.5/.75/1 and Active gate |
-| Independent PB | Place PB handle reference, grab/move/release | LabHandle four samples, two-point calibration, release stop |
-| Native SPS | Enable SPS OSC; approach enabled Socket with own/world Plug | Actual OGB path and matching Self/Others SPS preset |
-| Local Plug | Measure plug and move relative to Socket | Local Point coordinates; calibrated displacement |
+| Independent PB | Place PB handle reference, grab/stretch/release | Map actual Handle_Stretch to Depth and Handle_IsGrabbed to GateEnable; native scalars need no XYZ |
+| Native SPS | Enable SPS OSC; approach enabled Socket with own/world Plug | Copy the radial template and use actual PenSelfNewRoot for self interaction; paired NewTip is read automatically |
+| Local Plug | Measure plug and move relative to Socket | OSC → Experimental diagnostics: candidate ReferenceLocal estimates, blocked from motion by default |
 | Root diagnostic | Measure this socket | Eight samples and root XYZ, no direct stroke |
-| Paired pose | Matching LabPair Root/Tip/Side | 24 samples, pose and aperture/tilt validity |
+| Paired pose | Matching LabPair Root/Tip/Side | Experimental fit only; matching tags/low residual prove neither one Sender nor a shared frame |
 | Synthetic shader | Enable code, corrupt CRC, freeze/disable | Image bridge Frame/Valid, not SPS geometry |
 
 The **08 MY AVATAR SPS** zone contains an amber 20 cm WORLD PLUG and blue WORLD SOCKET, both with hand/place/home controls and pickups. World Contacts can affect Self/Others; pin the actual instance rather than guessing from suffix. Engineering board values do not prove avatar OSC receipt.

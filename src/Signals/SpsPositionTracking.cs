@@ -11,6 +11,8 @@ public static class SpsPositionTracking
         int SampleCount, bool Valid, PosePoint Position, double Radius, double Residual, string Reason,
         string Prefix, string SourceKey, string Kind, int Slot, long TimestampMs)
     {
+        public string CoordinateFrame => "ReferenceLocal";
+        public bool Experimental => true;
         public bool IsLocalPoint => Kind is "Point" or "Handle";
         public int ExpectedSampleCount => IsLocalPoint ? 4 : 8;
         public bool Matches(string pattern) => Enumerable.Range(0,ExpectedSampleCount).Any(i=>OscParameterStore.MatchesPathPattern(pattern,$"{Prefix}/Root/A{i}"));
@@ -38,9 +40,10 @@ public static class SpsPositionTracking
                     ? PoseReconstruction.FitLocalTetrahedron(values)
                     : local ? new MarkerFit(false,default,0,0,"四面体采样编号不完整") : PoseReconstruction.FitMarker(values);
                 // A radius at the search boundary cannot confirm compatibility with this probe's scale.
-                var valid = fit.Valid && fit.Radius < .0199;
+                var valid = fit.Valid && fit.Radius < .0199 && (!local || first.Parts[4] == "Self");
                 string kind=first.Parts[1] switch {"Point"=>"Point","Handle"=>"Handle","SharedRoot"=>"SharedRoot",_=>"SpsRoot"};
-                var reason=valid ? (kind is "Point" or "Handle" ? "本地点位置有效" : "根部位置有效 · 朝向不可观测")
+                var reason=valid ? (kind is "Point" or "Handle" ? "实验局部估计 / Experimental local estimate" : "实验根部估计；朝向不可观测 / Experimental root estimate; orientation is unobservable")
+                    : local && first.Parts[4] != "Self" ? "本地点仅接受 Self 采样 / Local points require Self samples"
                     : fit.Valid ? "球半径达到拟合上限；检查相对缩放" : fit.Reason;
                 int slot=0;
                 if(kind=="Handle" && (!lookup.TryGetValue((group.Key.Source,group.Key.Prefix+"/Handle_IsGrabbed"),out var grab) || grab.Value.AsFloat()!=1f)) {valid=false;reason="等待抓取 PB 把手";}
@@ -51,8 +54,11 @@ public static class SpsPositionTracking
                     if(slot==0 || !lookup.TryGetValue((group.Key.Source,group.Key.Prefix+"/Ready"),out var ready) || ready.Value.AsFloat()!=1f
                         || ready.Sequence<=selection.Sequence || samples.Any(s=>s.Sample.Entry.Sequence<=selection.Sequence)) {valid=false;reason="共享阵列停用、切换中或等待新槽位采样";}
                 }
-                long timestamp=group.Max(s=>s.Sample.Entry.TimestampMs);
-                if(maxAgeMs>0 && (timeProvider ?? TimeProvider.System).GetUtcNow().ToUnixTimeMilliseconds()-timestamp>maxAgeMs){valid=false;reason="坐标数据已超时，等待新的几何采样";}
+                // No frame id is available: reject old contributing ranges, never imply atomic sampling.
+                long timestamp=group.Min(s=>s.Sample.Entry.TimestampMs);
+                if(kind=="Handle" && lookup.TryGetValue((group.Key.Source,group.Key.Prefix+"/Handle_IsGrabbed"),out var grabbed))
+                    timestamp=Math.Min(timestamp,grabbed.TimestampMs);
+                if(maxAgeMs>0 && (timeProvider ?? TimeProvider.System).GetUtcNow().ToUnixTimeMilliseconds()-timestamp>maxAgeMs){valid=false;reason="部分坐标或抓取状态已超时 / A coordinate or grab state has expired";}
                 return new Observation(group.Key.Source + "|" + group.Key.Prefix, first.Parts[3], first.Parts[4],
                     first.Sample.Entry.Source.Label, samples.Length, valid, valid ? fit.Position : default,
                     fit.Radius, fit.Residual, reason,group.Key.Prefix,group.Key.Source,kind,slot,timestamp);

@@ -37,6 +37,23 @@ namespace UnityBox.Sensa.Tests
             Assert.That(instance.GetComponent<SensaPoseSocket>(), Is.Null);
         }
 
+        [TestCase("SensaPoseSocket")]
+        [TestCase("SensaSpsRootProbe")]
+        public void StandaloneSpatialReceiverParametersAreWritableInFx(string prefab)
+        {
+            var instance = Prefab(prefab); instance.transform.SetParent(avatar.transform, false);
+            SensaPoseBuilder.ProcessAvatar(avatar);
+            var merge = instance.GetComponent<ModularAvatarMergeAnimator>();
+            Assert.That(merge, Is.Not.Null);
+            var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = merge.animator; animator.Rebind();
+            foreach (var receiver in instance.GetComponentsInChildren<VRCContactReceiver>())
+            {
+                Assert.That(animator.parameters.Any(parameter => parameter.name == receiver.parameter && parameter.type == AnimatorControllerParameterType.Float), Is.True);
+                animator.SetFloat(receiver.parameter, .35f);
+                Assert.That(animator.GetFloat(receiver.parameter), Is.EqualTo(.35f));
+            }
+        }
+
         [Test]
         public void PlugCreatesThreePeerVisibleSphericalMarkersWithoutMovingLandmarks()
         {

@@ -1,64 +1,37 @@
-# Dependencies and one-sided SPS tracking
+# Dependencies and observability limits
 
 [简体中文](COMPATIBILITY.md) | **English**
 
-One-sided root probing is implemented. Capsule-axis reconstruction and remote Socket-normal reconstruction remain research directions. Editor/NDMF and synthetic tests do not certify uploaded multiplayer accuracy.
+Sensa Contact arrays are experimental estimators, not general remote tracking. Desktop spatial input is disabled by default. Standard Root/SharedRoot remain diagnostic-only. [Positioning analysis](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md)
 
-## Requirements
+## Dependencies
 
-| Area | Requirement |
-| --- | --- |
-| Project | VCC/ALCOM Avatars project and its supported Unity 2022.3 editor; do not switch to Unity 6 simply because it is newer |
-| Packages | Avatars SDK, Modular Avatar, NDMF; manifest minimums 3.7.0 / 1.10.0 / 1.5.0 are dependency floors, not per-version test claims |
-| Generation | Keep those dependencies for NDMF upload generation; baked copies may still contain MA parameter components |
-| SPS visuals/automatic targets | Separately install/configure VRCFury SPS; Sensa does not ship the deformation shader |
-| Desktop | Sensa supporting these paths, VRChat OSC enabled; source builds use the pinned .NET 10 SDK and Node |
-| Hardware | Correct transport/firmware; Intiface Central installed separately if used; no device is needed for diagnostics |
-| Other avatar | Matching standard Sender exists, is active and interaction is allowed; no Sensa desktop/shared OSC required |
+Use a VCC/ALCOM Avatars project with its pinned Unity, VRChat SDK, Modular Avatar and NDMF versions; exact declarations are in `package.json`. SPS separately requires configured VRCFury. Copying a package does not install missing VPM dependencies. Generated Contact/PB parameters must exist in the actual Animator; expression-parameter declarations alone are insufficient.
 
-The component API was checked against SDK 3.10.5. Use VCC to resolve compatible packages; copying files does not install all dependencies. Gesture Manager is optional. Probes target PC avatars; the checked VRCFury Sender factory only creates Contacts for Desktop, so Android/Quest parity is not promised.
+PC avatars are the primary target. Working SPS deformation does not prove required Root Contacts exist. Version names cannot guarantee all old TPS/DPS/SPS or Quest setups are measurable. Interaction permission, enabled Senders and actual OSC parameters are prerequisites; inspect received values rather than deformation alone. [VRCFury SPS](https://vrcfury.com/sps/)
 
-## Information limits
+## Available information determines capability
 
-| Other side provides | Local setup | Observable | Not observable |
-| --- | --- | --- | --- |
-| TPS_Pen_Root sphere | SensaSpsRootProbe | Root-relative XYZ diagnostics | Real tip, axis, roll, insertion ratio |
-| Sensa Root/Tip/Side markers | SensaPoseSocket, same channel | Straight-reference pose | Final GPU mesh or reliable player identity |
-| Old length sphere / OGB scalar | Existing preset | Approximate proximity/normalized length | Unique 3D position and orientation |
-| Only DPS lights / no Contact / interactions disabled | No adequate Contact source | No reliable Contact observation | Universal one-sided tracking |
+| Information | Possible interpretation | Not guaranteed |
+| --- | --- | --- |
+| Standard small Root sphere | Candidate root-center fit under a sphere model | One person, real tip, orientation, roll or accurate insertion |
+| Root/Tip/Side markers | Straight pose assuming three trusted simultaneous points | Excluding mixed Senders or measuring GPU curve surfaces |
+| OGB NewRoot/NewTip | Concentric-sphere length/radial estimate | Two independent endpoints or unique direction |
+| Proximity scalar/old lights | Generator-specific scalar meaning | General single-sided XYZ |
+| Native PB Stretch/IsGrabbed | Stretch scalar with grab gate | Position/orientation |
 
-“SPS2” or visible deformation does not prove required Contacts exist. SPS2 deformation itself does not require Contacts, and old avatars do not necessarily provide Root tags. Inspect the actual components.
+Modern VRCFury's NewTip length sphere remains root-centered. Rotating the axis does not change concentric-sphere distances; more receivers cannot restore missing orientation. See actual [Preset paths](https://github.com/SeaLoong/Sensa/blob/main/docs/presets.en.md), without obsolete body-location/angle/inversion templates.
 
-## Install a standard root probe
+## Contact array conditions
 
-1. Place `Prefabs/SensaSpsRootProbe.prefab`, or use **GameObject → Sensa → Single-sided SPS Root Probe**.
-2. Align the origin with the reference Socket and +Z inward. Use positive uniform scale through the parent chain. Measurements are local meters: at scale 2, local 1 cm is world 2 cm.
-3. Default Others creates eight local Proximity receivers. Copy the profile before changing Self/Others; both creates 16. Standard Root does not filter players by Pair Channel.
-4. Use a unique instanceName and leave Contact budget for other plugins.
-5. Upload, enable OSC/interactions and inspect `Sensa/SpsRoot/v1/<instance>/<Self|Others>/Root/A0..A7`.
-6. In Spatial diagnostics, all eight samples must be valid. Missing/saturated values, inconsistent fit or radius at the upper bound are rejected. No stroke-mapping button is provided for this diagnostic.
+Correct dimensions, a reference frame, positive uniform scale, unique names and a budget including other plugins are required. Saturation, missing ranges, incorrect radius or mixed sources invalidate fits. Even zero residual can describe a multi-Sender ghost. Official Proximity selects the closest matching Contact per receiver without a common target identity. [VRChat Contacts](https://creators.vrchat.com/common-components/contacts/)
 
-Cube corners are ±6 cm with 35 cm receiver radius, nominal position limit about 24 local cm and fitted radius 0–2 cm. Saturation can invalidate closer positions. No parameters means not received yet; all zero may mean out of range, disabled interaction, absent Sender or inactive setup.
+Root typically has eight ranges, Point/Handle four, and Pose three groups of eight. True same-point ranges from four noncoplanar anchors suffice for relative XYZ. Measurement semantics and synchronization are the current shortfall; eight receivers cannot replace an identity protocol. Output uses oldest-channel freshness with a default one-second limit. Unchanged delta-only OSC may expire.
 
-Several same-tag Senders can mix across receivers. Low residual is not identity proof. Keep one target in range. Change-only OSC silence is not disconnection evidence.
+## Research direction
 
-## Why NewTip is not the actual tip
+A reliable redesign starts with a trusted producer supplying batched XYZ, explicit target/reference/calibration identity, frameId, valid and liveness checks. This is not implemented. Capsule fitting or short-baseline Root/Front reconstruction still faces degeneracy, noise, roll ambiguity and mixed targets; these are not supported features. Shader model snapshots remain a separate experiment without a general real-time client surface-tracking chain.
 
-At the previously inspected VRCFury source revision `d048773de971881fb14c5f3b468e59ba2406a2dd`:
+Synthetic/editor build checks do not substitute for uploaded VRChat, real VR grabbing, GPU/HMD or hardware acceptance. Record data without devices first and report the actual environment's results.
 
-- TPS_Pen_Penetrating is a root-centered sphere with radius equal to length.
-- TPS_Pen_Width is concentric with radius max(0.01, length − 2×radius).
-- TPS_Pen_Root is a roughly 1 cm root sphere.
-- TPS_Pen_Close is an axial envelope capsule.
-
-NewRoot/NewTip receiver names therefore do not denote two spatial endpoints. Rotating concentric spheres leaves all distance observations unchanged. More receivers can locate their center but cannot invent direction. The length sphere also saturates nearby probes and cannot be treated as a second small marker.
-
-## Research directions, not implemented capabilities
-
-Root plus Close-capsule sampling could constrain an axis, but needs separate tests for invisible endcaps, side-only contact, spherical degeneracy, scale and mixed targets. Axial roll remains unobservable. Low RMS alone does not prove a unique solution.
-
-Two remote Socket markers TPS_Orf_Root/TPS_Orf_Norm, about 1 cm apart, could estimate a normal. The short baseline magnifies noise and does not reveal roll. This needs dedicated quality gates and local length calibration.
-
-Assuming a known length and manual alignment could produce a rough estimate, but fails under tilt. It is not enabled automatically. These schemes observe Contacts/bones, not shader-deformed surfaces. Avatars cannot run arbitrary C# or read another player's private OSC to fill in missing information.
-
-References: [Contacts](https://creators.vrchat.com/common-components/contacts/), [SPS](https://vrcfury.com/sps/), [Plug baker](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs), [Socket baker](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs), [GPU route](GPU-TRACKING.en.md).
+[Installation](README.en.md) · [Automation](AUTOMATION.en.md) · [Shader experiments](GPU-TRACKING.en.md)

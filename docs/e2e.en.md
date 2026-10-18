@@ -1,53 +1,38 @@
-# WebUI E2E and screenshot testing
+# E2E and screenshot review
 
 [简体中文](e2e.md) | **English**
 
-E2E runs only in the pinned Playwright Linux container in GitHub Actions. Never start browser tests locally or connect real hardware. `npm run e2e:ci` rejects non-Actions environments.
+Browser E2E, automatic screenshots and full-process smoke run only in GitHub Actions. Do not run them locally or fabricate CI environment variables. Local work uses the affected checks and receipts from `scripts/verify.py`.
 
-Tests start the real backend and WebUI with a temporary configuration. They operate UI controls rather than mocking Sensa's HTTP/WS API. External systems use loopback mocks: OSC UDP, TCode UDP/TCP, Linux PTY serial with D0/D1/D2, Buttplug v4 WebSocket, OSCQuery HTTP and OSC Hub receivers.
+## Coverage
 
-Screenshots and actual outgoing protocol assertions must both pass. Screenshots alone cannot prove a command or stop was sent. Desktop is 1280×900; narrow layout is 390×844, not a physical-phone test. Chinese full workflows and English localization workflows run in both layouts.
+E2E starts the real Sensa backend and WebUI with an independent temporary configuration per scenario. External services/devices are loopback mocks: OSC UDP, TCode UDP/TCP, Linux PTY serial, Buttplug WebSocket and OSCQuery. Sensa HTTP/WS control is not mocked.
+
+Regression areas include Control/OSC/Settings navigation, manual control/recording, QuickStart steps/gates, FT prefixes, presets/mappings, script pause/seeking, profiles/conflicts, permission after mode/script changes, default experimental blocking/explicit activation/expiry, language persistence and draft retention. Assertions check both UI state and mock wire commands; screenshots alone cannot prove stopping.
+
+Desktop 1280×900 and narrow 390×844 use a fixed Playwright Linux container, fonts, locale and timezone. Narrow layout is not a physical phone test; PTY is not a Windows driver. Unity, uploaded VRChat avatars, HMDs and real hardware remain outside browser coverage. [Tests](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e), [fixed environment](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js)
 
 ## Normal changes
 
-1. Run local static/unit checks, commit and push.
-2. Inspect **Validate and preview → e2e / browser**. Failed, canceled or skipped E2E blocks platform builds and prerelease publication. Desktop/Unity tag releases also require E2E.
-3. Download `e2e-report`: inspect expected/actual/diff, failure images, traces, service logs and `mock-wire.json`.
-4. Fix behavior/layout defects. Generate new baselines only for intentional reviewed UI changes.
+1. Run affected local static/unit checks, commit and push.
+2. Inspect the required browser comparison in main CI. With no unfinished product verification, documentation/unit-test-only changes do not duplicate product work.
+3. On failure, download `e2e-report`; inspect expected/actual/diff, traces, service logs and `mock-wire.json`.
+4. Fix incorrect behavior. Update baselines only for reviewed, intentional visual changes; do not hide failures with retries.
 
-## Candidate baselines
+Normal comparison cannot update snapshots, and missing baselines fail. Prereleases require a normal full comparison at the candidate SHA; baseline-generation jobs provide no publication proof.
 
-In **WebUI E2E and screenshots → Run workflow**, choose the branch and enable `update_snapshots`. Local commands below dispatch remotely:
+## Proposed baselines
+
+For intentional layout/component changes, manually run **WebUI E2E and screenshots** in GitHub Actions with `update_snapshots=true`:
 
 ```shell
-npm run e2e:request
-npm run e2e:baselines
 gh workflow run e2e.yml --ref <branch> -f update_snapshots=true
 ```
 
-The candidate run still enforces functional assertions. It neither publishes releases nor commits files. Only after the entire run succeeds, download `e2e-baselines`, inspect every image, copy approved desktop/mobile files into `tests/e2e/__screenshots__/`, commit and push. Then require a normal comparison run to pass.
+This requests remote generation. Wait for functional assertions to pass, then download `e2e-baselines` and inspect every image for layout, readability, overflow, expandable details, dialogs and error states. Downloading an artifact is not approval; partial images from failed runs cannot be accepted automatically.
 
-Normal comparison uses `updateSnapshots: none`; missing baselines fail too. Never copy partial output from a failed run simply to make CI green.
+After review, place the appropriate desktop/mobile PNGs in `tests/e2e/__screenshots__/` and commit them with the implementation. Normal full comparison must then pass. Candidate generation publishes no release and never writes back to Git automatically.
 
-Browser/container versions, viewport, language and timezone are fixed. Masks cover only timestamps and runtime serial endpoints, not targets, gates, errors or calibration values. Oversized panels are scrolled and captured as `*-part-N.png` viewports; smaller panels/dialogs are captured directly. Move the pointer away and wait for tooltips/snackbars before capture.
+Screenshots mask unstable timestamps/runtime addresses, not targets, gates or errors. Tall regions are captured in segments using actual scrolling. Playwright/container upgrades require renewed review. Use Actions reports for the actual commit's results and image conclusions.
 
-## Regression matrix
-
-Nine core, three English and two input-safety scenarios per viewport give **28 tests**. Workers reuse mock peers while every scenario retains an independent temporary configuration and application process. Additional assertions cover disarming on mode/script changes, paused seeking and player stopping. No retries; after three failures the remaining tests stop and are not considered passed.
-
-| Flow | Assertions |
-| --- | --- |
-| Manual/recording | Four mock transports, slider targets, funscript export, emergency stop, no automatic resume |
-| QuickStart/FT | Five UDP steps, TCP/UDP limits, FT hiding/showing, Active gate stop |
-| PB calibration | Four samples, endpoints, old-gate replacement, save disables input, reload, release stop |
-| Native SPS | Root/Tip length learning, radial offset and output targets |
-| Funscript | Upload, loop, play/pause, keyframe step and unload |
-| Paired Pose | 24 samples, spatial view, mapping and lost-marker stop |
-| Configuration/help | Preset search, output rename/add/remove, duplicate endpoint refusal, axis profile save |
-| OSCQuery/Hub | HTTP directory, UI polling fallback, real UDP forwarding, stopping polling |
-| Session/input off | Missing cookie and cross-origin refusal; disabled input sends no motion |
-| English switch | Browser default, persisted override, unsaved slider survives, switch sends no control requests |
-| English calibration | Localized diagnostics, PB capture, mock target and release stop |
-| English help/script | Preset search, matching-language documentation links and narrow-screen screenshots |
-
-Windows COM drivers, real Bluetooth/mechanical devices, Unity/VRChat/HMD, OSCQuery LISTEN, every curve/axis combination and hard network failures are outside this matrix. Unit and platform smoke checks complement it; add meaningful behavioral coverage when new features or failures warrant it.
+[Development](development.en.md) · [Architecture](architecture.en.md)

@@ -24,11 +24,17 @@ public sealed class OscContracts
 
     [Theory]
     [InlineData("v2/JawOpen", true)]
-    [InlineData("Avatar/Face/v2/EyeLeftXNegative", true)]
+    [InlineData("Avatar/Face/v2/EyeLeftXNegative", false)]
     [InlineData("FT/v2/MouthSmileRight4", true)]
-    [InlineData("LeftEyeLidExpanded8", true)]
+    [InlineData("FT/TrackingEnabled", true)]
+    [InlineData("FT/v9/FutureExpression", true)]
+    [InlineData("/avatar/parameters/FT/CustomControl", true)]
+    [InlineData("FTools/Depth", false)]
+    [InlineData("Custom/FT/Depth", false)]
+    [InlineData("LeftEyeLidExpanded8", false)]
+    [InlineData("JawOpen", false)]
     [InlineData("OGB/Orf/Mouth/PenOthers", false)]
-    [InlineData("v2/Depth", false)]
+    [InlineData("v2/Depth", true)]
     public void Classification_is_a_conservative_hint_not_an_implicit_mapping(string path, bool expected)
     {
         Assert.Equal(expected, OscParameterClassifier.Classify(path).IsFaceTracking);

@@ -28,7 +28,7 @@ _Avoid_: Connection / 已连接
 能独立追踪参数和生命周期的发送方身份。 / A sender identity whose parameters and lifecycle can be tracked independently.
 
 **Spatial rig / 空间测量组**:
-在同一参考坐标系内共同定义点位置或姿态的一组传感标记。 / Sensor markers that jointly define a point or pose in one reference frame.
+在同一局部参考框内用于估计点位置或姿态的一组标记；分组本身不证明身份或同步。 / Markers used to estimate a point or pose in one local reference frame; grouping alone proves neither identity nor synchronization.
 
 **Preview release / 预发布**:
 供开发验证的已发布构建快照，区别于稳定版本。 / A published development build snapshot, distinct from a stable release.

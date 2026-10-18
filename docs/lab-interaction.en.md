@@ -53,4 +53,8 @@ P1–P4 form a tetrahedron; C1–C8 form a cube. The raw indices overlap but pos
 
 ![Probe colors](images/probe-colors.png)
 
-Existing ClientSim/SDK build checks cover placement, reset, colors and generated controllers. They do not certify uploaded avatar OSC, physical VR grabbing or hardware. Shader synthetic code is a transport experiment, not real SPS mesh tracking.
+Build/ClientSim checks can inspect placement, reset, colors and generated controllers; actual results belong to the corresponding commit report. They do not certify uploaded avatar OSC, physical VR grabbing or hardware.
+
+P/C labels identify Contact samples only. Position is an experimental local estimate blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. Observe in OSC → Experimental diagnostics; explicit permission does not remove these limits. [Positioning](positioning.en.md)
+
+Shader synthetic code is a transport experiment, not real SPS mesh tracking.

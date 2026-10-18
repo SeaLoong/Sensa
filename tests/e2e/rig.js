@@ -22,11 +22,11 @@ export function createRigConfiguration(scenario, serialPort) {
     ].map(output => ({ ...output, enabled: false, motionProfileId: 'test-profile' })),
     axisProfiles: [{ id: 'test-profile', name: 'CI L0 400-600', isDefault: true, motion: structuredClone(motion) }],
     osc: {
-      enabled: true, receiverHost: '127.0.0.1', receiverPort: ports.osc,
+      enabled: true, receiverHost: '127.0.0.1', receiverPort: ports.osc, allowExperimentalSpatialInput: false,
       oscQueryEnabled: scenario === 'query', oscQueryUrl: `http://127.0.0.1:${ports.query}`, oscQueryReceiver: { enabled: false },
       hub: { enabled: scenario === 'query', mode: 'EventDriven', targets: [{ id: 'mock-hub', name: 'Mock Hub', host: '127.0.0.1', port: ports.hub, enabled: true }] },
     },
-    signals: scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenSelfNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }]
+    signals: scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenOthersNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }]
       : scenario === 'query' ? [{ oscPath: 'QueryDepth', role: 'Depth' }] : structuredClone(presets.find(p => p.id === 'sensa-quick-start').mappings),
   };
 }
@@ -36,7 +36,9 @@ export async function startTestRig(peers, scenario, expect) {
   const directory = await mkdtemp(path.join(tmpdir(), 'sensa-e2e-'));
   const configPath = path.join(directory, 'config.json'), logs = [];
   let app;
+  const feeds = new Set();
   const stop = async () => {
+    const feedResults = await Promise.allSettled([...feeds].map(feed => feed.stop()));
     if (app && app.exitCode === null && app.signalCode === null) {
       const exited = once(app, 'exit');
       app.kill('SIGTERM');
@@ -46,6 +48,8 @@ export async function startTestRig(peers, scenario, expect) {
       if (!closed) { app.kill('SIGKILL'); await exited; }
     }
     await rm(directory, { recursive: true, force: true });
+    const failed = feedResults.find(result => result.status === 'rejected');
+    if (failed) throw failed.reason;
   };
   try {
     peers.reset();
@@ -73,10 +77,35 @@ export async function startTestRig(peers, scenario, expect) {
       if (!response.ok) throw new Error(`Overview rejected / 状态读取失败: ${response.status}`);
       return response.json();
     };
-    return { ...peers, baseUrl, overview, configPath, async close(info) {
-      await stop();
-      await info.attach('service.log', { body: logs.join(''), contentType: 'text/plain' });
-      await info.attach('mock-wire.json', { body: JSON.stringify(peers.wire, null, 2), contentType: 'application/json' });
+    // A feed sends whole range sets and owns at most one pending UDP batch.
+    // 持续输入发送完整通道组，停止会等待在途批次；不会跨场景遗留定时器。
+    const startFeed = async (initial, intervalMs = 80) => {
+      let entries = initial, stopped = false, pending = Promise.resolve(), timer, failure;
+      const emit = async () => {
+        if (stopped) return;
+        pending = peers.send(entries).catch(error => { failure = error; });
+        await pending;
+        if (!stopped && !failure) timer = setTimeout(emit, intervalMs);
+      };
+      const feed = {
+        async set(next) {
+          await pending; clearTimeout(timer);
+          if (stopped) throw new Error('Feed already stopped / 输入已停止');
+          if (failure) throw failure;
+          entries = next; await emit(); if (failure) throw failure;
+        },
+        async stop() { stopped = true; clearTimeout(timer); await pending; feeds.delete(feed); if (failure) throw failure; },
+      };
+      feeds.add(feed);
+      await emit();
+      if (failure) await feed.stop();
+      return feed;
+    };
+    return { ...peers, baseUrl, overview, configPath, startFeed, async close(info) {
+      try { await stop(); } finally {
+        await info.attach('service.log', { body: logs.join(''), contentType: 'text/plain' });
+        await info.attach('mock-wire.json', { body: JSON.stringify(peers.wire, null, 2), contentType: 'application/json' });
+      }
     } };
   } catch (error) { await stop(); throw error; }
 }
