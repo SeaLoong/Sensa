@@ -29,9 +29,11 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   await test.info().attach('recorded.funscript', { body: JSON.stringify(script, null, 2), contentType: 'application/json' });
   expect(script.actions.length).toBeGreaterThanOrEqual(2);
   const recordedFrames = (await rig.overview()).recording.frameCount;
+  await checkpoint(page, page.locator('.recording-panel'), 'recording-controls');
   await page.getByRole('button', { name: '重新录制', exact: true }).click();
   const rerecord = page.getByRole('dialog', { name: '重新录制', exact: true });
   await expect(rerecord).toBeVisible();
+  await checkpoint(page, rerecord, 'recording-restart');
   await rerecord.getByRole('button', { name: '取消', exact: true }).click();
   expect((await rig.overview()).recording).toMatchObject({ isActive: false, frameCount: recordedFrames });
   await page.getByRole('button', { name: '重新录制', exact: true }).click();

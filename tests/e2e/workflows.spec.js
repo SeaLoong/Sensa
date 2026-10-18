@@ -9,7 +9,7 @@ async function savedConfiguration(page, rig) {
 test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保留映射与接收草稿', { tag: ['@config', '@osc'] }, async ({ page, rig }) => {
   const initial = await savedConfiguration(page, rig);
   await oscWorkspace(page, '映射');
-  const path = page.locator('.mapping-row').first().getByRole('textbox', { name: '参数路径', exact: true });
+  const path = page.locator('.mapping-row').first().getByLabel('参数路径', { exact: true });
   const draftPath = 'Custom/WorkflowDepth';
   await path.fill(draftPath);
   await expect(page.locator('.mapping-toolbar').getByText('未保存', { exact: true })).toBeVisible();
