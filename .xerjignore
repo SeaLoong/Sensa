@@ -1,0 +1,47 @@
+# Source and documentation search; build output also follows .gitignore.
+.xerj/
+node_modules/
+**/bin/
+**/obj/
+**/Library/
+**/Temp/
+**/Logs/
+**/UserSettings/
+artifacts/
+_artifacts/
+_build/
+playwright-report/
+test-results/
+docs/images/
+tests/e2e/__screenshots__/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.zip
+*.gz
+*.dll
+*.exe
+*.pdb
+*.log
+*.key
+*.pem
+*.pfx
+*.p12
+
+# XERJ rc.96's Unity mapping ordering breaks live-index generation validation.
+# Keep Unity C# sources/docs searchable; use rg for serialized resources.
+*.meta
+*.unity
+*.prefab
+*.asset
+*.mat
+*.anim
+*.controller
+*.overrideController
+*.playable
+*.renderTexture
+*.physicMaterial
+*.physicsMaterial2D
+*.terrainlayer

@@ -7,6 +7,10 @@
 - Run automated end-to-end tests (browser and full-process smoke) and screenshot generation only in GitHub Actions, never on the local machine. Local static checks and unit tests are allowed. After changes, inspect the CI E2E results and image diffs. Update screenshot baselines only for reviewed, intentional UI changes; never automatically bless failing screenshots. Prereleases must depend on a passing E2E comparison run.
 - During initial development, update internal Sensa protocols in place; do not bump package/protocol versions or add compatibility branches solely for development changes. This does not remove required interoperability with external SPS/OSC formats.
 
+## Code and documentation search
+
+For mechanism discovery across code or documentation, use the `xerj-sensa` MCP search tools when available; read `docs/agents/xerj.md` before the first search or when setting up or troubleshooting the service. Use `rg` for exact text/file lookup and verify retrieved passages against the current source before editing.
+
 ## Agent skills
 
 ### Issue tracker

@@ -25,3 +25,7 @@ config.json
 __pycache__/
 playwright-report/
 test-results/
+
+# Local Codex search service and machine-specific MCP configuration
+.xerj/
+/.codex/config.toml
