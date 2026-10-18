@@ -16,7 +16,7 @@ This page describes current behavior and its limits, with source entry points fo
 | Expandable OSC settings | Listener, source filter, timeout, OSCQuery, polling, receiver advertisement and Hub |
 | Settings | Create/edit/default/remove axis profiles, twelve-axis details and structured log filtering |
 
-The WebUI uses React and project-owned basic components, without Material UI. Navigation sits in the header, with flat sections and dividers. Output rows align identity, target and actions, stacking in that order on narrow screens. Sliders have one editable value, endpoint inputs use equal columns, and the player appears after a script loads. Connection, mapping and diagnostic details expand. Drafts are distinct from saved configuration. Language switching preserves drafts/runtime state; preferences stay in the current browser. Narrow screens use the same functional structure.
+The WebUI uses React and project-owned basic components styled after TDesign. Navigation sits above independently scrolling content. A light-gray page uses single white work surfaces and fine dividers. Input modes use segmented selection grouped with Apply. Output rows align identity, target and actions, stacking in that order on narrow screens. Sliders have one editable value, endpoint inputs use equal columns, and the player appears after a script loads. Connection, mapping and diagnostic details expand. Drafts are distinct from saved configuration. Language switching preserves drafts/runtime state; preferences stay in the current browser. Narrow screens use the same functional structure.
 
 ## Modes, permission and stopping
 

@@ -51,7 +51,7 @@ UDP 与 OSCQuery 共用 Avatar 变更入口：清除对应数据、复位学习�
 
 ## Web 工作台
 
-Web 使用 React 与本项目的基本组件，样式和控件由 [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx)、[controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx)、[styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) 管理，不依赖 Material UI。
+Web 使用 React 与本项目的 TDesign 风格基本组件，样式和控件由 [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx)、[controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx)、[styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) 管理，保持原生输入、键盘交互和对话框语义。
 
 主导航是控制／OSC／设置，详细选项逐层展开。顶栏保留实际模式、输入许可与急停；界面草稿不等于已保存配置。
 

@@ -51,7 +51,7 @@ Targets are not position feedback. Recording happens before dispatch, so it cann
 
 ## Web workbench
 
-The WebUI uses React and project-owned basic components. [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx), [controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx) and [styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) own controls and styling, without Material UI.
+The WebUI uses React and project-owned basic components styled after TDesign. [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx), [controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx) and [styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) own controls and styling while retaining native input, keyboard and dialog semantics.
 
 Control/OSC/Settings are the main destinations, with expandable details. The top bar preserves actual mode, input permission and emergency stop. A browser draft is distinct from saved configuration.
 

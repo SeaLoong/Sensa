@@ -191,7 +191,6 @@ function App() {
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
   const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
-  const workspaceScrollRef = useRef(null);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = getOutputs(config);
@@ -1514,10 +1513,6 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [snackbar.open, snackbar.message, snackbar.severity]);
 
-  useEffect(() => {
-    workspaceScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
-  }, [workspace]);
-
   function renderScriptPlayer() {
     return (
       <div className="stack script-player">
@@ -2199,7 +2194,7 @@ function App() {
           </div>
         </div>
       </header>
-      <main id="main" className="workspace-scroll" ref={workspaceScrollRef} tabIndex={-1}>
+      <main key={workspace} id="main" className="workspace-scroll" tabIndex={-1}>
         <div className="workspace-shell workspace">
           <div
             id="workspace-tabs-panel"
