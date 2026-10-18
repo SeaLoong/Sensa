@@ -107,7 +107,8 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
 
     /// <summary>
     /// Send a MotionFrame to all connected devices.
-    /// Uses Buttplug v5 feature-based API.
+    /// Uses Buttplug v5 feature-based API; vibration always reads the configured axis.
+    /// 使用 Buttplug v5 特征接口；振动始终读取明确配置的轴。
     /// </summary>
     public async Task SendAsync(MotionFrame frame)
     {
@@ -131,7 +132,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                 bool shouldSendLinear;
                 lock (_devLock) shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
                 var emitted = new List<string>();
-                if (shouldSendLinear)
+                if (posFeatures.Count > 0 && shouldSendLinear)
                 {
                     foreach (var f in posFeatures)
                     {
@@ -150,11 +151,17 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                 var vibFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).ToList();
                 if (vibFeatures.Count > 0)
                 {
-                    double vibrateVal = posFeatures.Count == 0
-                        ? Math.Clamp(frame.L0, 0.0, 1.0)    // depth → vibrate on linear-less devices
-                        : Math.Clamp(frame.V0, 0.0, 1.0);
+                    var selectedValue = IntifaceConfig.NormalizeVibrationAxis(_config.VibrationAxis) switch
+                    {
+                        "V1" => frame.V1,
+                        "V2" => frame.V2,
+                        "L0" => frame.L0,
+                        _ => frame.V0,
+                    };
+                    double vibrateVal = float.IsFinite(selectedValue) ? Math.Clamp(selectedValue, 0.0, 1.0) : 0;
                     bool shouldSendVibrate;
-                    lock (_devLock) shouldSendVibrate = !_lastVibrateSent.TryGetValue(device.Index, out var lastVibrate) || Math.Abs(lastVibrate - vibrateVal) >= 0.001;
+                    lock (_devLock) shouldSendVibrate = !_lastVibrateSent.TryGetValue(device.Index, out var lastVibrate)
+                        || (vibrateVal == 0 && lastVibrate != 0) || Math.Abs(lastVibrate - vibrateVal) >= 0.001;
                     if (shouldSendVibrate)
                     {
                         foreach (var f in vibFeatures)

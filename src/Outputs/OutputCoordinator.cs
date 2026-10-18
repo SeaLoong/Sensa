@@ -617,6 +617,7 @@ internal sealed class OutputConnection : IAsyncDisposable
             ManageEngineProcess = _output.ManageEngineProcess,
             WebsocketAddress = _output.WebsocketAddress,
             Port = _output.Port,
+            VibrationAxis = _output.VibrationAxis,
         });
         _intiface.OnLog += message => _log($"[Intiface/{_output.Name}] {message}");
         _intiface.OnDebugLog += message => _logDebug($"[Output/Intiface/{_output.Name}] {message}");
@@ -641,7 +642,7 @@ internal sealed class OutputConnection : IAsyncDisposable
         ConfigureIntifaceClient();
     }
 
-    private string BuildIntifaceConfigKey() => $"{_output.WebsocketAddress}|{_output.Port}|{_output.ManageEngineProcess}";
+    private string BuildIntifaceConfigKey() => $"{_output.WebsocketAddress}|{_output.Port}|{_output.ManageEngineProcess}|{_output.VibrationAxis}";
 
     private void HandleIntifaceDevicesChanged() => _notifyChanged?.Invoke();
 }

@@ -56,6 +56,7 @@ public sealed class MotionRuntime : IDisposable
     private readonly ITimer _watchdog;
     private long _activationTimestamp;
     private long _generation;
+    private long _appliedGeneration = -1;
     private bool _patchWorkerRunning;
     private (MotionPatch Patch, string Source, TCodeCommandMode? Mode, int? Value, long Generation)? _pendingPatch;
     private volatile bool _gateClosed;
@@ -107,6 +108,19 @@ public sealed class MotionRuntime : IDisposable
     public RuntimeInputMode CurrentInputMode => _inputMode;
     public bool IsEmergency => _emergency;
     public bool InputActive => _inputActive;
+
+    /// <summary>Refresh an admitted target, ordered with dispatch and stops. / 按发送与停止顺序刷新本代已接纳目标。</summary>
+    public async Task RefreshCurrentTargetAsync(Func<MotionFrame, Task> refresh)
+    {
+        ArgumentNullException.ThrowIfNull(refresh);
+        await _sendGate.WaitAsync().ConfigureAwait(false);
+        try
+        {
+            if (!CanSend || _appliedGeneration != Interlocked.Read(ref _generation)) return;
+            await refresh(_currentFrame).ConfigureAwait(false);
+        }
+        finally { _sendGate.Release(); }
+    }
 
     public event Action<string>? OnLog;
     public event Action<string>? OnDebugLog;
@@ -206,6 +220,8 @@ public sealed class MotionRuntime : IDisposable
     public void ClearManualOverride()
     {
         _manualOverrideEnabled = false;
+        if (_inputMode == RuntimeInputMode.Manual)
+            SetInputActive(false);
         OnLog?.Invoke("[Manual] Override disabled (baseline preserved).");
         NotifyStateChanged();
     }
@@ -617,6 +633,7 @@ public sealed class MotionRuntime : IDisposable
 
     private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
     {
+        var generation = Interlocked.Read(ref _generation);
         if (!CanSend) return;
         var elapsedMs = ConsumeElapsedMs();
         var deltaMs = requestedCommandMode == TCodeCommandMode.Interval && requestedMotionValue is > 0
@@ -653,15 +670,19 @@ public sealed class MotionRuntime : IDisposable
 
         _recorder?.Push(next);
         _forceNextFrame = false;
-        await SendOutputsAsync(next).ConfigureAwait(false);
+        // A stop/re-arm during dispatch cannot credit this old target to the new activation.
+        // 发送期间停止并重启许可时，不能把旧目标登记到新的许可代次。
+        var dispatched = await SendOutputsAsync(next).ConfigureAwait(false);
+        _appliedGeneration = dispatched ? generation : -1;
+        if (!dispatched) _forceNextFrame = true;
         NotifyStateChanged();
     }
 
-    private async Task SendOutputsAsync(MotionFrame frame)
+    private async Task<bool> SendOutputsAsync(MotionFrame frame)
     {
-        if (!CanSend) return;
-        try { await _output.SendAsync(frame).ConfigureAwait(false); }
-        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
+        if (!CanSend) return false;
+        try { await _output.SendAsync(frame).ConfigureAwait(false); return true; }
+        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); return false; }
     }
 
     private async Task StopOutputsAsync()

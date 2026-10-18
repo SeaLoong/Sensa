@@ -15,6 +15,7 @@ namespace Sensa.Recording;
 /// </summary>
 public sealed class MotionRecorder
 {
+    private const int FrameLimit = 100000;
     private readonly List<(long Ms, float L0)> _frames = new();
     private long _startTimestamp;
     private readonly TimeProvider _timeProvider;
@@ -31,7 +32,22 @@ public sealed class MotionRecorder
         lock (_frames) { _frames.Clear(); _startTimestamp = _timeProvider.GetTimestamp(); _active = true; }
     }
 
-    public void Stop() { lock (_frames) _active = false; }
+    public void Stop()
+    {
+        lock (_frames)
+        {
+            if (!_active) return;
+            _active = false;
+            if (_frames.Count == 0) return;
+
+            // Preserve the final held target through the real stop time.
+            // 保留最后目标一直保持到真实停止时刻的时间段。
+            var last = _frames[^1];
+            var stoppedAt = (long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds;
+            if (stoppedAt > last.Ms && _frames.Count < FrameLimit)
+                _frames.Add((stoppedAt, last.L0));
+        }
+    }
 
     /// <summary>Called by the runtime whenever a new motion frame is emitted.</summary>
     public void Push(MotionFrame frame)
@@ -39,8 +55,11 @@ public sealed class MotionRecorder
         lock (_frames)
         {
             if (!_active || !float.IsFinite(frame.L0)) return;
-            if (_frames.Count >= 100000) { _active = false; return; }
+            if (_frames.Count >= FrameLimit) { _active = false; return; }
             _frames.Add(((long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds, frame.L0));
+            // Capacity completes the recording now, not on a later Push or Stop.
+            // 达到容量即结束录制，不等待后续 Push 或 Stop 才决定结束时刻。
+            if (_frames.Count == FrameLimit) _active = false;
         }
     }
 
@@ -66,7 +85,8 @@ public sealed class MotionRecorder
 public static class FunscriptExporter
 {
     /// <summary>
-    /// Export the buffer to %USERPROFILE%\Documents\Sensa\recordings\.
+    /// Serialize the captured command timeline, including its final held duration.
+    /// 序列化已采集的命令时间线，包括最后持值时长。
     /// Applies Ramer-Douglas-Peucker decimation (ε=0.02) to remove redundant frames.
     /// </summary>
     public static string Serialize(MotionRecorder recorder)

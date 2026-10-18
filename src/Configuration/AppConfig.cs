@@ -140,8 +140,9 @@ public sealed class OutputDeviceConfig
     public bool             PreferSpeedMode     { get; set; } = true;
     public TCodeSpeedUnitBase SpeedUnitBase     { get; set; } = TCodeSpeedUnitBase.Per100ms;
     public TCodeSlopeMode   SlopeMode           { get; set; } = TCodeSlopeMode.None;
-    public bool             ManageEngineProcess { get; set; } = true;
+    public bool             ManageEngineProcess { get; set; } = false;
     public string           WebsocketAddress    { get; set; } = "ws://localhost:12345";
+    public string           VibrationAxis       { get; set; } = "V0";
 }
 
 public sealed class UdpTCodeConfig
@@ -165,9 +166,18 @@ public sealed class TcpTCodeConfig
 public sealed class IntifaceConfig
 {
     public bool   Enabled              { get; set; } = true;
-    public bool   ManageEngineProcess  { get; set; } = true;
+    public bool   ManageEngineProcess  { get; set; } = false;
     public string WebsocketAddress     { get; set; } = "ws://localhost:12345";
     public int    Port                 { get; set; } = 12345;
+    public string VibrationAxis        { get; set; } = "V0";
+
+    public static string NormalizeVibrationAxis(string? value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "V1" => "V1",
+        "V2" => "V2",
+        "L0" => "L0",
+        _ => "V0",
+    };
 }
 
 public enum OscHubMode
@@ -407,6 +417,7 @@ public sealed class AppConfig
         Osc ??= new OscReceiverConfig();
         WebUi ??= new WebUiConfig();
         Intiface ??= new IntifaceConfig();
+        Intiface.VibrationAxis = IntifaceConfig.NormalizeVibrationAxis(Intiface.VibrationAxis);
         TCode ??= new TCodeConfig();
         UdpTCode ??= new UdpTCodeConfig();
         TcpTCode ??= new TcpTCodeConfig();
@@ -680,6 +691,7 @@ public sealed class AppConfig
             Intiface.ManageEngineProcess = intifaceOutput.ManageEngineProcess;
             Intiface.WebsocketAddress    = string.IsNullOrWhiteSpace(intifaceOutput.WebsocketAddress) ? "ws://localhost:12345" : intifaceOutput.WebsocketAddress;
             Intiface.Port                = intifaceOutput.Port;
+            Intiface.VibrationAxis       = intifaceOutput.VibrationAxis;
         }
         else
         {
@@ -998,7 +1010,8 @@ public sealed class AppConfig
                 SlopeMode = Enum.IsDefined(typeof(TCodeSlopeMode), item?.SlopeMode ?? TCodeSlopeMode.None)
                     ? item?.SlopeMode ?? TCodeSlopeMode.None
                     : TCodeSlopeMode.None,
-                ManageEngineProcess = item?.ManageEngineProcess ?? true,
+                ManageEngineProcess = item?.ManageEngineProcess ?? false,
+                VibrationAxis = IntifaceConfig.NormalizeVibrationAxis(item?.VibrationAxis),
                 WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
             });
         }
@@ -1044,6 +1057,7 @@ public sealed class AppConfig
         target.SpeedUnitBase = source.SpeedUnitBase;
         target.SlopeMode = source.SlopeMode;
         target.ManageEngineProcess = source.ManageEngineProcess;
+        target.VibrationAxis = source.VibrationAxis;
         target.WebsocketAddress = source.WebsocketAddress;
     }
 

@@ -40,6 +40,24 @@ public sealed class ScriptContracts
     }
 
     [Fact]
+    public void Duplicate_timestamps_use_the_last_original_action_and_ignore_unrelated_future_actions()
+    {
+        using var player = new FunscriptPlayer(new ManualTimeProvider());
+        const string actions = """{"at":200,"pos":100},{"at":100,"pos":20},{"at":0,"pos":0},{"at":100,"pos":80}""";
+        var state = Load(player, "{\"actions\":[" + actions + "]}");
+        Assert.Equal(.8f, player.Seek(100).CurrentL0);
+        Assert.Equal(3, state.ActionCount);
+        Assert.Equal(state.ActionCount, state.ActivityBins.Sum());
+        Assert.InRange(player.Seek(99).CurrentL0, .791f, .793f);
+        Assert.InRange(player.Seek(101).CurrentL0, .801f, .803f);
+
+        state = Load(player, "{\"actions\":[" + actions + ",{\"at\":300,\"pos\":100}]}");
+        Assert.Equal(.8f, player.Seek(100).CurrentL0);
+        Assert.Equal(4, state.ActionCount);
+        Assert.Equal(state.ActionCount, state.ActivityBins.Sum());
+    }
+
+    [Fact]
     public void Seven_day_limit_rejects_the_script_before_replacing_current_content()
     {
         using var player = new FunscriptPlayer(new ManualTimeProvider());

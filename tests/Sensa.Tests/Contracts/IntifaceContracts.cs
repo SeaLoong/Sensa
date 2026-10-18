@@ -1,5 +1,7 @@
 using Buttplug.Core.Messages;
 using Sensa.Configuration;
+using Sensa.Motion;
+using Sensa.Tests.Support;
 using Sensa.Outputs.Intiface;
 using Xunit;
 
@@ -40,4 +42,91 @@ public sealed class IntifaceContracts
         Assert.Equal("idle", client.Telemetry.Snapshot.State);
         Assert.Empty(client.Telemetry.Snapshot.Targets);
     }
+
+    [Theory]
+    [InlineData(false, "V0", 500)]
+    [InlineData(false, "V1", 250)]
+    [InlineData(false, "V2", 1000)]
+    [InlineData(false, "L0", 750)]
+    [InlineData(false, "invalid", 500)]
+    [InlineData(true, "V0", 500)]
+    [InlineData(true, "V1", 250)]
+    [InlineData(true, "V2", 1000)]
+    [InlineData(true, "L0", 750)]
+    [InlineData(true, "invalid", 500)]
+    public async Task VibrationUsesTheConfiguredAxisForVibrationOnlyAndMixedDevices(bool withPosition, string axis, double expected)
+    {
+        await using var peer = new IntifaceMockServer(withPosition);
+        await using var client = new IntifaceOutputClient(new() { WebsocketAddress = peer.Address, VibrationAxis = axis });
+        var discovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.DevicesChanged += () => { if (client.Devices.Count == 1) discovered.TrySetResult(); };
+        await client.ConnectAsync();
+        await discovered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Empty(peer.Commands);
+        await client.SendAsync(new() { L0 = .75f, V0 = .5f, V1 = .25f, V2 = 1, DeltaMs = 100 });
+        var vibration = await peer.NextCommandAsync(IsVibration);
+        Assert.Equal(expected, vibration.GetProperty("OutputCmd").GetProperty("Command").GetProperty("Vibrate").GetProperty("Value").GetDouble());
+        var positionCommands = peer.Commands.Where(IsPosition).ToArray();
+        if (withPosition)
+            Assert.Equal(250, Assert.Single(positionCommands).GetProperty("OutputCmd").GetProperty("Command").GetProperty("HwPositionWithDuration").GetProperty("Value").GetDouble());
+        else
+            Assert.Empty(positionCommands);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DefaultV0ZeroNeverFallsBackToDepthAndStopClearsTheWireAndTelemetry(bool withPosition)
+    {
+        await using var peer = new IntifaceMockServer(withPosition);
+        await using var client = new IntifaceOutputClient(new() { WebsocketAddress = peer.Address });
+        var discovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.DevicesChanged += () => { if (client.Devices.Count == 1) discovered.TrySetResult(); };
+        await client.ConnectAsync();
+        await discovered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var frame = new MotionFrame { L0 = .75f, V0 = 0, DeltaMs = 100 };
+        foreach (var value in new[] { 0f, .5f, 0f })
+        {
+            await client.SendAsync(frame with { V0 = value });
+            var vibration = await peer.NextCommandAsync(IsVibration);
+            Assert.Equal(value * 1000, vibration.GetProperty("OutputCmd").GetProperty("Command").GetProperty("Vibrate").GetProperty("Value").GetDouble());
+        }
+        await client.StopAllAsync();
+        var stop = (await peer.NextCommandAsync(command => command.TryGetProperty("StopCmd", out _))).GetProperty("StopCmd");
+        Assert.False(stop.TryGetProperty("DeviceIndex", out _));
+        Assert.False(stop.TryGetProperty("FeatureIndex", out _));
+        Assert.Equal("stopped", client.Telemetry.Snapshot.State);
+        Assert.Empty(client.Telemetry.Snapshot.Targets);
+        await client.SendAsync(frame);
+        var afterStop = await peer.NextCommandAsync(IsVibration);
+        Assert.Equal(0, afterStop.GetProperty("OutputCmd").GetProperty("Command").GetProperty("Vibrate").GetProperty("Value").GetDouble());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExplicitZeroStopsEvenWhenThePreviousVibrationIsBelowTheDeltaThreshold(bool withPosition)
+    {
+        await using var peer = new IntifaceMockServer(withPosition);
+        await using var client = new IntifaceOutputClient(new() { WebsocketAddress = peer.Address });
+        var discovered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        client.DevicesChanged += () => { if (client.Devices.Count == 1) discovered.TrySetResult(); };
+        await client.ConnectAsync();
+        await discovered.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        foreach (var value in new[] { .5f, .0005f })
+        {
+            await client.SendAsync(new() { L0 = .75f, V0 = value });
+            await peer.NextCommandAsync(IsVibration);
+        }
+        await client.SendAsync(new() { L0 = .75f, V0 = 0 });
+        var zero = await peer.NextCommandAsync(IsVibration);
+        Assert.Equal(0, zero.GetProperty("OutputCmd").GetProperty("Command").GetProperty("Vibrate").GetProperty("Value").GetDouble());
+    }
+
+    private static bool IsVibration(System.Text.Json.JsonElement message) =>
+        message.TryGetProperty("OutputCmd", out var output) && output.GetProperty("Command").TryGetProperty("Vibrate", out _);
+
+    private static bool IsPosition(System.Text.Json.JsonElement message) =>
+        message.TryGetProperty("OutputCmd", out var output) && output.GetProperty("Command").TryGetProperty("HwPositionWithDuration", out _);
+
 }

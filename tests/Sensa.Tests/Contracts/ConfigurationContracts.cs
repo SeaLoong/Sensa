@@ -176,4 +176,61 @@ public sealed class ConfigurationContracts
         config.Osc.Hub.Targets = [new() { Host = "127.0.0.1", Port = config.Osc.ReceiverPort }];
         Assert.Throws<InvalidOperationException>(() => config.ValidateOscHubTargets());
     }
+
+    [Theory]
+    [InlineData(null, "V0")]
+    [InlineData("unknown", "V0")]
+    [InlineData(" v1 ", "V1")]
+    [InlineData("V2", "V2")]
+    [InlineData("L0", "L0")]
+    public void IntifaceAxisNormalizationPreservesExplicitChoicesAndDefaultsToCentral(string? requested, string expected)
+    {
+        Assert.False(new IntifaceConfig().ManageEngineProcess);
+        Assert.False(new OutputDeviceConfig().ManageEngineProcess);
+        Assert.Equal("V0", new IntifaceConfig().VibrationAxis);
+        var config = new AppConfig
+        {
+            Outputs = [new() { Id = "intiface", Type = OutputDeviceType.Intiface, VibrationAxis = requested! }]
+        };
+        config.NormalizeForRuntime();
+        var output = Assert.Single(config.Outputs);
+        Assert.Equal(expected, output.VibrationAxis);
+        Assert.Equal(expected, config.Intiface.VibrationAxis);
+        Assert.False(output.ManageEngineProcess);
+        var candidate = new AppConfig();
+        candidate.CopyFrom(config);
+        candidate.Outputs[0].VibrationAxis = "L0";
+        candidate.Outputs[0].ManageEngineProcess = true;
+        config.CopyFrom(candidate);
+        Assert.Same(output, Assert.Single(config.Outputs));
+        Assert.Equal("L0", output.VibrationAxis);
+        Assert.True(output.ManageEngineProcess);
+        Assert.True(config.Intiface.ManageEngineProcess);
+    }
+
+    [Fact]
+    public void IntifaceRoutingAndExplicitManagedEngineSurviveSaveWithoutRearmingTheOutput()
+    {
+        var folder = Path.Combine(Path.GetTempPath(), "sensa-intiface-config-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var path = Path.Combine(folder, "config.json");
+            var config = new AppConfig
+            {
+                Outputs = [new() { Id = "intiface", Type = OutputDeviceType.Intiface, Enabled = true,
+                    VibrationAxis = "V2", ManageEngineProcess = true, Port = 19445 }]
+            };
+            config.NormalizeForRuntime();
+            config.Save(path);
+            var restored = AppConfig.Load(path);
+            var output = Assert.Single(restored.Outputs);
+            Assert.False(output.Enabled);
+            Assert.Equal("V2", output.VibrationAxis);
+            Assert.Equal("V2", restored.Intiface.VibrationAxis);
+            Assert.True(output.ManageEngineProcess);
+            Assert.Equal(19445, output.Port);
+        }
+        finally { if (Directory.Exists(folder)) Directory.Delete(folder, recursive: true); }
+    }
+
 }

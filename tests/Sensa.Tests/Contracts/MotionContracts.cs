@@ -22,6 +22,155 @@ public sealed class MotionContracts
     }
 
     [Fact]
+    public async Task Clearing_manual_input_disarms_stops_and_discards_queued_targets()
+    {
+        using var rig = new MotionRig();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Output.Sending = _ => release.Task;
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .1f, V0 = .7f });
+        rig.Activate(RuntimeInputMode.Manual);
+        await rig.Output.NextFrame();
+        try
+        {
+            rig.Runtime.SetManualOverride(new MotionFrame { L0 = .9f, V0 = 1 });
+            rig.Runtime.ClearManualOverride();
+            Assert.False(rig.Runtime.ManualOverrideEnabled);
+            Assert.False(rig.Runtime.InputActive);
+            Assert.False(rig.Runtime.CanSend);
+        }
+        finally { release.TrySetResult(); }
+        await rig.Output.NextStop();
+        Assert.Single(rig.Output.Frames);
+    }
+
+    [Fact]
+    public async Task Refresh_requires_a_target_dispatched_in_the_current_activation_even_after_an_inflight_old_send()
+    {
+        using var rig = new MotionRig();
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        rig.Output.Sending = _ => release.Task;
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .2f });
+        rig.Activate(RuntimeInputMode.Manual);
+        await rig.Output.NextFrame();
+        var refreshed = new List<MotionFrame>();
+        rig.Runtime.ClearManualOverride();
+        rig.Runtime.SetInputActive(true);
+        var pending = rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        release.TrySetResult();
+        await pending.WaitAsync(TimeSpan.FromSeconds(3));
+        await rig.Output.NextStop();
+        Assert.True(rig.Runtime.InputActive);
+        Assert.False(rig.Runtime.ManualOverrideEnabled);
+        Assert.Empty(refreshed);
+        Assert.Single(rig.Output.Frames);
+
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .8f });
+        await rig.Output.NextFrame(frame => frame.L0 == .8f);
+        await rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        Assert.Equal(.8f, Assert.Single(refreshed).L0);
+    }
+
+    [Fact]
+    public async Task Refresh_after_a_mode_switch_waits_for_a_matching_target()
+    {
+        using var rig = new MotionRig(new SignalMapping { OscPath = "Depth" });
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .3f });
+        rig.Activate(RuntimeInputMode.Manual);
+        await rig.Output.NextFrame();
+        rig.Runtime.SetInputMode(RuntimeInputMode.Osc);
+        await rig.Output.NextStop();
+        rig.Runtime.SetInputActive(true);
+        var refreshed = new List<MotionFrame>();
+        await rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        Assert.True(rig.Runtime.CanSend); // The first matching patch remains admissible. / 首个匹配目标仍可进入发送队列。
+        Assert.Empty(refreshed);
+
+        rig.Put("Depth", .7f);
+        await rig.Output.NextFrame(frame => frame.L0 > .69f);
+        await rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        Assert.InRange(Assert.Single(refreshed).L0, .698f, .702f);
+    }
+
+    [Fact]
+    public async Task Refresh_is_serialized_with_stop_and_pending_refresh_cannot_send_after_disarm()
+    {
+        using var rig = new MotionRig();
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .2f });
+        rig.Activate(RuntimeInputMode.Manual);
+        await rig.Output.NextFrame();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var events = new List<string>();
+        var activeRefresh = rig.Runtime.RefreshCurrentTargetAsync(async _ =>
+        {
+            events.Add("refresh-start");
+            entered.TrySetResult();
+            await release.Task;
+            events.Add("refresh-end");
+        });
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        var pendingRefresh = rig.Runtime.RefreshCurrentTargetAsync(_ => { events.Add("pending-refresh"); return Task.CompletedTask; });
+        try
+        {
+            rig.Runtime.ClearManualOverride();
+            Assert.Equal(0, rig.Output.StopCount);
+        }
+        finally { release.TrySetResult(); }
+        await Task.WhenAll(activeRefresh, pendingRefresh).WaitAsync(TimeSpan.FromSeconds(3));
+        await rig.Output.NextStop();
+        await rig.Runtime.RefreshCurrentTargetAsync(_ => { events.Add("after-stop"); return Task.CompletedTask; });
+        Assert.Equal(new[] { "refresh-start", "refresh-end" }, events);
+        Assert.False(rig.Runtime.CanSend);
+    }
+
+    [Fact]
+    public async Task Refresh_does_not_authorize_an_activation_whose_first_dispatch_failed()
+    {
+        using var rig = new MotionRig();
+        rig.Output.Sending = _ => Task.FromException(new IOException("mock dispatch failed"));
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .4f });
+        rig.Activate(RuntimeInputMode.Manual);
+        await rig.Output.NextFrame();
+        var refreshed = new List<MotionFrame>();
+        await rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        Assert.Empty(refreshed);
+
+        rig.Output.Sending = null;
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .4f });
+        await rig.Output.NextFrame();
+        await rig.Runtime.RefreshCurrentTargetAsync(frame => { refreshed.Add(frame); return Task.CompletedTask; });
+        Assert.Equal(.4f, Assert.Single(refreshed).L0);
+    }
+
+    [Theory]
+    [InlineData(RuntimeInputMode.Osc)]
+    [InlineData(RuntimeInputMode.Script)]
+    public async Task Clearing_inactive_manual_input_does_not_stop_the_current_input(RuntimeInputMode mode)
+    {
+        using var rig = new MotionRig(new SignalMapping { OscPath = "Depth" });
+        rig.Runtime.SetManualOverride(new MotionFrame { L0 = .1f });
+        if (mode == RuntimeInputMode.Script)
+        {
+            using var script = new MemoryStream(Encoding.UTF8.GetBytes("""{"actions":[{"at":0,"pos":0},{"at":1000,"pos":100}]}"""));
+            rig.Player.Load("active.funscript", script);
+        }
+        else rig.Put("Depth", .2f);
+        rig.Activate(mode);
+        await rig.Output.NextFrame();
+        var stops = rig.Output.StopCount;
+
+        rig.Runtime.ClearManualOverride();
+        Assert.False(rig.Runtime.ManualOverrideEnabled);
+        Assert.True(rig.Runtime.InputActive);
+        Assert.True(rig.Runtime.CanSend);
+        Assert.Equal(stops, rig.Output.StopCount);
+        if (mode == RuntimeInputMode.Script) rig.Player.Seek(800);
+        else rig.Put("Depth", .8f);
+        Assert.InRange((await rig.Output.NextFrame(frame => frame.L0 > .79f)).L0, .798f, .802f);
+        Assert.Equal(stops, rig.Output.StopCount);
+    }
+
+    [Fact]
     public async Task Manual_draft_requires_activation_and_identical_target_resends_after_stop()
     {
         using var rig = new MotionRig();

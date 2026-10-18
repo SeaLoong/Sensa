@@ -637,7 +637,12 @@ public sealed class FunscriptPlayer : IDisposable
         if (actions.Count == 0)
             throw new InvalidDataException("脚本文件中没有可播放的动作数据。");
 
-        actions.Sort(static (left, right) => left.AtMs.CompareTo(right.AtMs));
+        // Resolve duplicates before sorting so the final original action wins deterministically.
+        // 排序前处理重复时间戳，确定性地保留原文件中最后一条动作。
+        actions = actions.GroupBy(action => action.AtMs)
+            .Select(group => group.Last())
+            .OrderBy(action => action.AtMs)
+            .ToList();
         var durationMs = Math.Max(actions[^1].AtMs, 1L);
         return new ParsedScript(actions, durationMs, BuildActivityBins(actions, durationMs));
     }

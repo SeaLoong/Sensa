@@ -257,10 +257,10 @@ public static class SensaHost
         var udpRefreshRunning = 0;
         using var udpRefreshTimer = new System.Threading.Timer(_ =>
         {
-            if (wsShutdown.IsCancellationRequested || !motionRuntime.CanSend || Interlocked.Exchange(ref udpRefreshRunning, 1) != 0) return;
+            if (wsShutdown.IsCancellationRequested || Interlocked.Exchange(ref udpRefreshRunning, 1) != 0) return;
             _ = Task.Run(async () =>
             {
-                try { await outputCoordinator.RefreshUdpAsync(motionRuntime.LastCommand); }
+                try { await motionRuntime.RefreshCurrentTargetAsync(outputCoordinator.RefreshUdpAsync); }
                 catch (Exception ex) { LogError($"[UDP] {ex.Message}"); }
                 finally { Interlocked.Exchange(ref udpRefreshRunning, 0); }
             });

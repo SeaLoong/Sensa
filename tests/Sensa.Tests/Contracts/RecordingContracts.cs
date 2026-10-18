@@ -58,7 +58,7 @@ public sealed class RecordingContracts
         Assert.Equal(2, actions.GetArrayLength());
         Assert.Equal(0, actions[0].GetProperty("pos").GetInt32());
         Assert.Equal(100, actions[1].GetProperty("pos").GetInt32());
-        Assert.Equal(1000, actions[1].GetProperty("at").GetInt64());
+        Assert.Equal(1010, actions[1].GetProperty("at").GetInt64());
     }
 
     [Fact]
@@ -76,6 +76,6 @@ public sealed class RecordingContracts
         using var json = JsonDocument.Parse(FunscriptExporter.Serialize(recorder));
         var positions = json.RootElement.GetProperty("actions").EnumerateArray().Select(a => a.GetProperty("pos").GetInt32());
         Assert.Contains(100, positions);
-        Assert.Equal(5, recorder.FrameCount);
+        Assert.Equal(6, recorder.FrameCount);
     }
 }
