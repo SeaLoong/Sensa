@@ -75,7 +75,7 @@ Corresponding change:
 Reassessment evidence, outcome and remaining limits:
 ```
 
-The committed visual review record holds this iteration's concrete findings, before/after images and reassessment. This guide does not prefill conclusions about unseen images. Browser execution and automatic screenshots run only in GitHub Actions. [Screenshot/baseline rules](e2e.en.md)
+The [visual review record](ui-visual-review.en.md) holds this iteration's concrete findings, before/after images and reassessment. This guide does not prefill conclusions about unseen images. Browser execution and automatic screenshots run only in GitHub Actions. [Screenshot/baseline rules](e2e.en.md)
 
 ## Accessibility and control: supporting baselines
 
