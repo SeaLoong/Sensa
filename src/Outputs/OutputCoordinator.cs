@@ -531,6 +531,13 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async Task EmergencyStopAsync()
     {
+        await _operationGate.WaitAsync();
+        try { await EmergencyStopCoreAsync(); }
+        finally { _operationGate.Release(); }
+    }
+
+    private async Task EmergencyStopCoreAsync()
+    {
         switch (_output.Type)
         {
             case OutputDeviceType.TCodeSerial:

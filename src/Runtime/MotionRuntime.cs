@@ -49,6 +49,7 @@ public sealed class MotionRuntime : IDisposable
     private volatile RuntimeInputMode _inputMode = RuntimeInputMode.Manual;
     private volatile bool _emergency;
     private volatile bool _inputActive = false;
+    private volatile bool _scriptOutputStopped;
     private volatile bool _disposed;
     private int _oscRefreshQueued;
     private readonly Dictionary<string, SpsDepthEstimator> _spsDepth = new();
@@ -73,7 +74,8 @@ public sealed class MotionRuntime : IDisposable
     public bool PoseBlocked => _poseBlocked;
     public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
-    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked;
+    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked
+        && (_inputMode != RuntimeInputMode.Script || !_scriptOutputStopped);
 
     public PoseObservation[] GetPoseObservations()
     {
@@ -230,6 +232,7 @@ public sealed class MotionRuntime : IDisposable
         _activationTimestamp = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
         _inputActive = active;
+        if (active && _inputMode == RuntimeInputMode.Script) _scriptOutputStopped = false;
         _forceNextFrame = true;
         if (!active) { lock (_sync) _pendingPatch = null; _scriptPlayer.Pause(); _ = SendEmergencyAsync(); }
         OnLog?.Invoke($"[Input] {(active ? "Active" : "Inactive")}.");
@@ -327,6 +330,7 @@ public sealed class MotionRuntime : IDisposable
         if (_disposed || _inputMode != RuntimeInputMode.Script || !_inputActive || _emergency)
             return;
 
+        _scriptOutputStopped = false;
         _ = ApplyScriptPatchAsync(l0, "ScriptFrame");
     }
 
@@ -336,6 +340,7 @@ public sealed class MotionRuntime : IDisposable
     {
         if (_disposed || _inputMode != RuntimeInputMode.Script || !_inputActive || _emergency)
             return;
+        _scriptOutputStopped = true;
         Interlocked.Increment(ref _generation);
         lock (_sync) _pendingPatch = null;
         _forceNextFrame = true;

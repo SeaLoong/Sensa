@@ -29,6 +29,8 @@ public sealed class FunscriptPlayer : IDisposable
     private const int ActivityBinCount = 64;
 
     private readonly object _gate = new();
+    private readonly object _eventGate = new();
+    private long _frameRevision;
     private ITimer? _playbackTimer;
     private readonly TimeProvider _timeProvider;
     private long NowMs => (long)_timeProvider.GetElapsedTime(0, _timeProvider.GetTimestamp()).TotalMilliseconds;
@@ -65,6 +67,7 @@ public sealed class FunscriptPlayer : IDisposable
         lock (_gate)
         {
             StopPlaybackTimerLocked();
+            _frameRevision++;
             _actions = parsed.Actions;
             _activityBins = parsed.ActivityBins;
             _fileName = string.IsNullOrWhiteSpace(fileName) ? "script.funscript" : fileName;
@@ -125,6 +128,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         FunscriptPlaybackSnapshot snapshot;
         float currentL0;
+        long revision;
         lock (_gate)
         {
             if (_actions.Count == 0)
@@ -158,9 +162,10 @@ public sealed class FunscriptPlayer : IDisposable
 
             snapshot = BuildSnapshotLocked();
             currentL0 = _lastL0;
+            revision = ++_frameRevision;
         }
 
-        OnFrame?.Invoke(currentL0);
+        PublishFrame(currentL0, revision);
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -168,25 +173,20 @@ public sealed class FunscriptPlayer : IDisposable
     public FunscriptPlaybackSnapshot Pause()
     {
         FunscriptPlaybackSnapshot snapshot;
-        lock (_gate)
+        lock (_eventGate)
         {
-            AdvanceLocked(NowMs);
-            _playing = false;
-            StopPlaybackTimerLocked();
-
-            if (_actions.Count == 0)
+            lock (_gate)
             {
-                _state = "empty";
+                _frameRevision++;
+                AdvanceLocked(NowMs);
+                _playing = false;
+                _finalFramePending = false;
+                StopPlaybackTimerLocked();
+                _state = _actions.Count == 0 ? "empty" : _resumePositionMs > 0 ? "paused" : "stopped";
+                snapshot = BuildSnapshotLocked();
             }
-            else
-            {
-                _state = _resumePositionMs > 0 ? "paused" : "stopped";
-            }
-
-            snapshot = BuildSnapshotLocked();
+            OnStopped?.Invoke();
         }
-
-        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -194,20 +194,23 @@ public sealed class FunscriptPlayer : IDisposable
     public FunscriptPlaybackSnapshot Stop()
     {
         FunscriptPlaybackSnapshot snapshot;
-        lock (_gate)
+        lock (_eventGate)
         {
-            StopPlaybackTimerLocked();
-            _playing = false;
-            _resumePositionMs = 0;
-            _positionFractionMs = 0;
-            _finalFramePending = false;
-            _resumeStartedAtMs = 0;
-            _lastL0 = 0f;
-            _state = _actions.Count == 0 ? "empty" : "stopped";
-            snapshot = BuildSnapshotLocked();
+            lock (_gate)
+            {
+                _frameRevision++;
+                StopPlaybackTimerLocked();
+                _playing = false;
+                _resumePositionMs = 0;
+                _positionFractionMs = 0;
+                _finalFramePending = false;
+                _resumeStartedAtMs = 0;
+                _lastL0 = 0f;
+                _state = _actions.Count == 0 ? "empty" : "stopped";
+                snapshot = BuildSnapshotLocked();
+            }
+            OnStopped?.Invoke();
         }
-
-        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -215,26 +218,29 @@ public sealed class FunscriptPlayer : IDisposable
     public FunscriptPlaybackSnapshot Clear()
     {
         FunscriptPlaybackSnapshot snapshot;
-        lock (_gate)
+        lock (_eventGate)
         {
-            StopPlaybackTimerLocked();
-            _actions = new List<FunscriptAction>();
-            _activityBins = Array.Empty<int>();
-            _fileName = string.Empty;
-            _durationMs = 0;
-            _loopStartMs = null;
-            _loopEndMs = null;
-            _resumePositionMs = 0;
-            _positionFractionMs = 0;
-            _finalFramePending = false;
-            _resumeStartedAtMs = 0;
-            _playing = false;
-            _lastL0 = 0f;
-            _state = "empty";
-            snapshot = BuildSnapshotLocked();
+            lock (_gate)
+            {
+                _frameRevision++;
+                StopPlaybackTimerLocked();
+                _actions = new List<FunscriptAction>();
+                _activityBins = Array.Empty<int>();
+                _fileName = string.Empty;
+                _durationMs = 0;
+                _loopStartMs = null;
+                _loopEndMs = null;
+                _resumePositionMs = 0;
+                _positionFractionMs = 0;
+                _finalFramePending = false;
+                _resumeStartedAtMs = 0;
+                _playing = false;
+                _lastL0 = 0f;
+                _state = "empty";
+                snapshot = BuildSnapshotLocked();
+            }
+            OnStopped?.Invoke();
         }
-
-        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -243,6 +249,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         FunscriptPlaybackSnapshot snapshot;
         float currentL0;
+        long revision;
 
         lock (_gate)
         {
@@ -250,9 +257,10 @@ public sealed class FunscriptPlayer : IDisposable
                 throw new InvalidOperationException("请先加载脚本文件。");
 
             (snapshot, currentL0) = SeekToPositionLocked(positionMs);
+            revision = ++_frameRevision;
         }
 
-        OnFrame?.Invoke(currentL0);
+        PublishFrame(currentL0, revision);
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -261,6 +269,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         FunscriptPlaybackSnapshot snapshot;
         float currentL0;
+        long revision;
 
         lock (_gate)
         {
@@ -269,9 +278,10 @@ public sealed class FunscriptPlayer : IDisposable
 
             var targetPositionMs = ResolveStepActionTargetLocked(direction);
             (snapshot, currentL0) = SeekToPositionLocked(targetPositionMs);
+            revision = ++_frameRevision;
         }
 
-        OnFrame?.Invoke(currentL0);
+        PublishFrame(currentL0, revision);
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -306,6 +316,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         float currentL0;
         bool shouldEmit;
+        long revision;
 
         lock (_gate)
         {
@@ -314,15 +325,35 @@ public sealed class FunscriptPlayer : IDisposable
             shouldEmit = (wasPlaying || _finalFramePending) && _actions.Count > 0;
             _finalFramePending = false;
             currentL0 = _lastL0;
+            revision = _frameRevision;
 
             if (!shouldEmit)
                 StopPlaybackTimerLocked();
         }
 
         if (shouldEmit)
-            OnFrame?.Invoke(currentL0);
+            PublishFrame(currentL0, revision);
 
         OnStateChanged?.Invoke();
+    }
+
+    private void PublishFrame(float l0, long revision)
+    {
+        // Serialize frame admission with stops without invoking consumers under the state lock.
+        // 帧接纳与停止串行；调用订阅者时不持有播放器状态锁。
+        lock (_eventGate)
+        {
+            var handlers = OnFrame;
+            if (handlers is null) return;
+            foreach (Action<float> handler in handlers.GetInvocationList())
+            {
+                lock (_gate)
+                {
+                    if (revision != _frameRevision) return;
+                }
+                handler(l0);
+            }
+        }
     }
 
     private void EnsurePlaybackTimerLocked()
@@ -629,7 +660,15 @@ public sealed class FunscriptPlayer : IDisposable
 
     public void Dispose()
     {
-        lock (_gate) { _playing = false; _playbackTimer?.Dispose(); _playbackTimer = null; }
+        lock (_eventGate)
+        lock (_gate)
+        {
+            _frameRevision++;
+            _playing = false;
+            _finalFramePending = false;
+            _playbackTimer?.Dispose();
+            _playbackTimer = null;
+        }
     }
 
     private sealed record ParsedScript(List<FunscriptAction> Actions, long DurationMs, int[] ActivityBins);

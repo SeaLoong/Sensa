@@ -394,7 +394,7 @@ Pose 面板标明实验性 Sensa Pose v1，显示 Root、Tip、Side 三个配套
 
 播放器支持导入、更换、卸载 .funscript 或 .json，浏览器提交文本、文件名及循环／倍率偏好。每次载入或替换都先关闭输入，同一 Script 模式内替换也一样；导入或播放可选择 Script 模式，实际模式变化也会关闭输入。播放器显示文件、就绪／播放／暂停／完成状态、位置、总时长、剩余时长、动作数、当前 L0、进度、倍率及单次／整段／A-B 循环状态。[脚本命令](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)、[模式切换](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs)、[播放器界面](https://github.com/SeaLoong/Sensa/blob/main/src/web/app.js)
 
-Pause、Stop 与 Unload 发出播放器停止事件；活动的 Script 运行时会请求输出停止并丢弃待发动作。它们不锁存顶部急停，也不保证设备回零。输入开关可以保持开启，因此暂停后显式 Seek 或关键帧 Step 仍可发送用户检查的目标。[播放器停止事件](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)、[运行时停止处理](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs)、[输入安全场景](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/input-safety.spec.js)
+Pause、Stop 与 Unload 发出播放器停止事件；活动的 Script 运行时先禁止自动输出及 UDP 周期刷新，再请求停止并丢弃待发动作。播放器串行接纳帧与停止，以 revision 拒绝晚到旧帧；每个输出的发送与停止也经过同一操作入口，已获准的发送完成后才发停止命令。它们不锁存顶部急停，也不保证设备回零。输入开关可以保持开启；显式 Play、Seek、关键帧 Step 或重新开启输入可恢复目标输出。[播放器停止事件](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)、[运行时停止处理](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs)、[输入安全场景](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/input-safety.spec.js)
 
 控制包括播放/继续、暂停、停止、从头重播、上一/下一动作关键帧、拖动进度、开头/结尾、±5秒、±10秒和时间码跳转。时间码解析支持普通秒数、s/ms 后缀、分:秒、时:分:秒及小数，跳转夹紧到脚本范围。倍率为 0.1–4x，滑条步长 0.05，快捷值为 0.25、0.5、1、1.5、2、3、4x。[input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js)、[app.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/app.js)
 

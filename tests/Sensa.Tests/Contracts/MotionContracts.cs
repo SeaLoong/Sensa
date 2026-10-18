@@ -285,4 +285,65 @@ public sealed class MotionContracts
         Assert.Equal(1f, rig.Runtime.LastCommand.L0);
         Assert.Equal(0, rig.Player.GetSnapshot().PositionMs);
     }
+    [Fact]
+    public async Task Pausing_latches_automatic_output_permission_until_an_explicit_script_action()
+    {
+        using var rig = new MotionRig();
+        using var script = new MemoryStream(Encoding.UTF8.GetBytes("""{"actions":[{"at":0,"pos":0},{"at":1000,"pos":100}]}"""));
+        rig.Player.Load("pause.funscript", script);
+        rig.Activate(RuntimeInputMode.Script);
+        await rig.Output.NextFrame();
+        rig.Player.Play();
+        rig.Advance(400);
+        await rig.Output.NextFrame(frame => frame.L0 >= .39f);
+        rig.Player.Pause();
+        await rig.Output.NextStop();
+        Assert.True(rig.Runtime.InputActive);
+        Assert.False(rig.Runtime.CanSend);
+        var sent = rig.Output.Frames.Count;
+        rig.Advance(3000);
+        Assert.False(rig.Runtime.CanSend);
+        Assert.Equal(sent, rig.Output.Frames.Count);
+
+        rig.Player.Seek(750);
+        Assert.Equal(.75f, (await rig.Output.NextFrame(frame => frame.L0 == .75f)).L0);
+        Assert.True(rig.Runtime.CanSend);
+        rig.Player.Stop();
+        await rig.Output.NextStop();
+        Assert.False(rig.Runtime.CanSend);
+        rig.Player.Play();
+        await rig.Output.NextFrame(frame => frame.L0 == 0);
+        Assert.True(rig.Runtime.CanSend);
+    }
+
+    [Fact]
+    public async Task A_sample_interrupted_before_runtime_admission_cannot_move_after_the_stop()
+    {
+        var clock = new ManualTimeProvider();
+        using var player = new Sensa.Input.Script.FunscriptPlayer(clock);
+        var pauseBeforeRuntime = false;
+        player.OnFrame += _ =>
+        {
+            if (!pauseBeforeRuntime) return;
+            pauseBeforeRuntime = false;
+            player.Pause();
+        };
+        var output = new ProbeOutput();
+        using var runtime = new MotionRuntime(new AppConfig(), new OscParameterStore(clock), output, scriptPlayer: player, timeProvider: clock);
+        using var script = new MemoryStream(Encoding.UTF8.GetBytes("""{"actions":[{"at":0,"pos":0},{"at":1000,"pos":100}]}"""));
+        player.Load("interrupted.funscript", script);
+        runtime.SetInputMode(RuntimeInputMode.Script);
+        runtime.SetInputActive(true);
+        await output.NextFrame();
+        player.Play();
+        var before = output.Frames.Count;
+        pauseBeforeRuntime = true;
+        clock.Advance(TimeSpan.FromMilliseconds(20));
+        await output.NextStop();
+        Assert.False(runtime.CanSend);
+        Assert.Equal(before, output.Frames.Count);
+        player.Seek(500);
+        Assert.Equal(.5f, (await output.NextFrame(frame => frame.L0 == .5f)).L0);
+    }
+
 }

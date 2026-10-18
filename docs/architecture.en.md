@@ -39,7 +39,7 @@ flowchart LR
 | Import or replace a script | Disarms before loading, even if already in Script mode |
 | Save full configuration | Disarms first and stays disarmed afterward |
 | Emergency stop / clear | Stop latches; clearing does not reactivate |
-| Pause, stop or unload a script | Requests output stop; resetting the cursor does not home hardware |
+| Pause, stop or unload a script | Blocks automatic output and UDP refresh before stopping; old timer frames expire, and resetting the cursor does not home hardware |
 | Explicit paused seek/step | Can send the target while Script input remains enabled |
 | Invalid geometry / PB release | Closes spatial gating and stops, without scalar fallback |
 | Restart | Does not restore output activation, input, loaded script or motion |

@@ -197,6 +197,77 @@ public sealed class OutputContracts
         Assert.False(coordinator.IsConnected("mock"));
     }
 
+
+    [Fact]
+    public async Task Paused_script_cannot_be_replayed_by_periodic_udp_refresh_but_explicit_seek_can_send()
+    {
+        using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var clock = new ManualTimeProvider();
+        var config = new AppConfig { Outputs = [new() { Id = "mock", Type = OutputDeviceType.TCodeUdp, Host = "127.0.0.1", Port = Port(receiver), Enabled = true }] };
+        config.NormalizeForRuntime();
+        await using var coordinator = new OutputCoordinator(config, _ => { }, _ => { }, _ => { });
+        using var player = new Sensa.Input.Script.FunscriptPlayer(clock);
+        using var runtime = new Sensa.Runtime.MotionRuntime(config, new Sensa.Input.Osc.OscParameterStore(clock), coordinator, scriptPlayer: player, timeProvider: clock);
+        coordinator.CanSend = () => runtime.CanSend;
+        Assert.True(await coordinator.ConnectAsync("mock"));
+        using var script = new MemoryStream(Encoding.UTF8.GetBytes("""{"actions":[{"at":0,"pos":0},{"at":1000,"pos":100}]}"""));
+        player.Load("refresh.funscript", script);
+        runtime.SetInputMode(Sensa.Runtime.RuntimeInputMode.Script);
+        runtime.SetInputActive(true);
+        Assert.Contains("L0", await Datagram(receiver));
+        player.Play();
+        clock.Advance(TimeSpan.FromMilliseconds(400));
+        player.Pause();
+        string line;
+        do { line = await Datagram(receiver); } while (line != "DSTOP\n");
+        Assert.True(runtime.InputActive);
+        Assert.False(runtime.CanSend);
+        clock.Advance(TimeSpan.FromSeconds(3));
+        for (var attempt = 0; attempt < 3; attempt++)
+            await coordinator.RefreshUdpAsync(runtime.LastCommand);
+        Assert.Equal(0, receiver.Available);
+        player.Seek(750);
+        Assert.Contains("L0749", await Datagram(receiver));
+        Assert.True(runtime.CanSend);
+    }
+
+    [Fact]
+    public async Task Stop_waits_for_an_admitted_send_and_remains_the_last_wire_command()
+    {
+        using var receiver = new UdpClient(new IPEndPoint(IPAddress.Loopback, 0));
+        var config = new AppConfig { Outputs = [new() { Id = "mock", Type = OutputDeviceType.TCodeUdp, Host = "127.0.0.1", Port = Port(receiver), Enabled = true }] };
+        config.NormalizeForRuntime();
+        var output = config.Outputs.Single(item => item.Id == "mock");
+        await using var connection = new OutputConnection(config, output, _ => { }, _ => { }, _ => { }, null);
+        Assert.True(await connection.ConnectAsync());
+        var admitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sending = Task.Run(() => connection.SendAsync(MotionAxisHelper.CreateNeutralFrame() with { L0 = .6f }, () =>
+        {
+            admitted.SetResult();
+            release.Task.WaitAsync(TimeSpan.FromSeconds(3)).GetAwaiter().GetResult();
+            return true;
+        }));
+        try
+        {
+            await admitted.Task.WaitAsync(TimeSpan.FromSeconds(3));
+            // The direct connection call must synchronously reach its gate. Without it,
+            // UDP stop completes here and overtakes the already admitted frame.
+            // 直接调用必须立即到达同一 gate；否则 UDP 停止会先于已获准的帧完成。
+            var stopping = connection.EmergencyStopAsync();
+            Assert.False(stopping.IsCompleted);
+            release.SetResult();
+            await Task.WhenAll(sending, stopping).WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.Contains("L0599", await Datagram(receiver));
+            Assert.Equal("DSTOP\n", await Datagram(receiver));
+            await connection.SendAsync(MotionAxisHelper.CreateNeutralFrame(), () => false);
+            Assert.Equal(0, receiver.Available);
+            await connection.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(3));
+            Assert.False(connection.IsConnected);
+        }
+        finally { release.TrySetResult(); }
+    }
+
     private static (string Line, MotionFrame EffectiveFrame) Encode(TCodeMotionProfile profile, MotionFrame frame, OutputDeviceConfig? output = null) =>
         TCodeEncoder.BuildLine(profile, output, null, null, Trackers(), null, frame, true);
 

@@ -163,4 +163,54 @@ public sealed class ScriptContracts
         clock.Advance(TimeSpan.FromSeconds(3));
         Assert.Equal(1, frames);
     }
+
+    [Theory]
+    [InlineData("pause")]
+    [InlineData("stop")]
+    [InlineData("clear")]
+    [InlineData("dispose")]
+    public void Stopping_during_frame_publication_invalidates_the_sample_for_later_consumers(string operation)
+    {
+        var clock = new ManualTimeProvider();
+        using var player = new FunscriptPlayer(clock);
+        var observed = new List<float>();
+        var interrupt = false;
+        player.OnFrame += _ =>
+        {
+            if (!interrupt) return;
+            interrupt = false;
+            switch (operation)
+            {
+                case "pause": player.Pause(); break;
+                case "stop": player.Stop(); break;
+                case "clear": player.Clear(); break;
+                case "dispose": player.Dispose(); break;
+            }
+        };
+        player.OnFrame += observed.Add;
+        Load(player);
+        player.Play();
+        Assert.Equal(new[] { 0f }, observed);
+        interrupt = true;
+        clock.Advance(TimeSpan.FromMilliseconds(20));
+        clock.Advance(TimeSpan.FromSeconds(3));
+        Assert.Equal(new[] { 0f }, observed);
+    }
+
+    [Fact]
+    public void Pausing_a_final_sample_before_its_scheduled_tick_cancels_final_frame_delivery()
+    {
+        var clock = new ManualTimeProvider();
+        using var player = new FunscriptPlayer(clock);
+        Load(player, """{"actions":[{"at":0,"pos":100},{"at":1050,"pos":0}]}""");
+        var frames = new List<float>();
+        player.OnFrame += frames.Add;
+        player.Play();
+        clock.Advance(TimeSpan.FromMilliseconds(1055));
+        Assert.Equal("finished", player.GetSnapshot().State);
+        player.Pause();
+        var count = frames.Count;
+        clock.Advance(TimeSpan.FromMilliseconds(5));
+        Assert.Equal(count, frames.Count);
+    }
 }
