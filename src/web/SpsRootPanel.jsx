@@ -90,8 +90,9 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   const reason = getLocale() === 'zh-CN' && reasonParts?.length === 2 ? reasonParts[0] : diagnostic(root?.reason);
   const length = (value) => avatarRoot ? Number(value).toFixed(3) : cm(value);
   const unit = avatarRoot ? t('本地单位') : 'cm';
+  const withUnit = (value, valueUnit = unit) => <>{value}{' '}<span className="measurement-unit">{valueUnit}</span></>;
   const sampleLabel = (sample) =>
-    sample && sample.key === root?.key && sample.metric === metric ? length(sample.value) + ' ' + unit : t('待采集');
+    sample && sample.key === root?.key && sample.metric === metric ? withUnit(length(sample.value)) : t('待采集');
   const reset = () => {
     setZero(null);
     setFull(null);
@@ -139,9 +140,9 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
               {[
                 [
                   t('局部 X / Y / Z'),
-                  root.valid ? `${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)} ${unit}` : '—',
+                  root.valid ? withUnit(`${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)}`) : '—',
                 ],
-                [t('拟合残差'), root.valid ? avatarRoot ? Number(root.residual).toFixed(5) + ' ' + unit : (root.residual * 1000).toFixed(2) + ' mm' : '—'],
+                [t('拟合残差'), root.valid ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
                 [t('姿态 / 插入比例'), t('不可观测')],
               ].map(([label, value]) => (
                 <div key={label}>

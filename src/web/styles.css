@@ -413,6 +413,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 16px 24px; margin: 0; }
 .metrics dt { margin-bottom: 4px; color: var(--muted); font-size: 12px; line-height: 20px; }
 .metrics dd { margin: 0; font-size: 16px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 24px; }
+.measurement-unit { white-space: nowrap; }
 .device-info .metrics { padding-block: 8px; }
 .pose-dashboard, .point-diagnostic-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; gap: 24px; }
 .pose-plot, .point-projection { display: block; width: 100%; max-height: 300px; }
