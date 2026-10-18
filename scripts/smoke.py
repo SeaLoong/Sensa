@@ -95,14 +95,19 @@ def main():
                 data = value.encode() + b'\0'
                 return data + b'\0' * (-len(data) % 4)
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                for name, value in [('OGB/Orf/Test/PenOthers', .8)] + [(f'Face/v2/JawOpen{i}', .5) for i in range(300)] + [('InvalidFloat', float('nan'))]:
+                controls = [('OGB/Orf/Test/PenOthers', .8), ('Face/v2/JawOpen', .5), ('JawOpen', .5), ('Custom/FT/Control', .5)]
+                ft_flood = [(f'FT/UnknownControl{i}', .5) for i in range(150)] + [(f'v2/UnknownControl{i}', .5) for i in range(150)]
+                for name, value in controls + ft_flood + [('InvalidFloat', float('nan'))]:
                     udp.sendto(osc_string('/avatar/parameters/' + name) + osc_string(',f') + struct.pack('!f', value), ('127.0.0.1', osc_port))
                     time.sleep(.001)
             snapshot = wait_overview(lambda s: len(s['osc']['preview']) >= 250 and any(e['path'] == 'OGB/Orf/Test/PenOthers' for e in s['osc']['preview']), 'OSC flood was not received')
             preview = {e['path']: e for e in snapshot['osc']['preview']}
             assert 'OGB/Orf/Test/PenOthers' in preview
             assert len(preview) >= 250, len(preview)
-            assert preview['Face/v2/JawOpen1']['classification']['isFaceTracking']
+            assert preview['FT/UnknownControl1']['classification']['isFaceTracking']
+            assert preview['v2/UnknownControl1']['classification']['isFaceTracking']
+            for path in ('Face/v2/JawOpen', 'JawOpen', 'Custom/FT/Control'):
+                assert not preview[path]['classification']['isFaceTracking'], 'Only FT namespace prefixes are hidden / 仅按 FT 命名空间前缀隐藏'
             assert 'InvalidFloat' not in preview
             assert not snapshot['runtime']['inputActive']
             fixture_spec = importlib.util.spec_from_file_location('pose_fixture', Path(__file__).with_name('pose-demo.py'))
