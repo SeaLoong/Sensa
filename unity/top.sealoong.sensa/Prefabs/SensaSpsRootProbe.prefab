@@ -39,9 +39,10 @@ MonoBehaviour:
   m_GameObject: {fileID: 1000}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 92156f775a3759e4998ceb1c46075e8f, type: 3}
+  m_Script: {fileID: 11500000, guid: 066284af3b2e46409eb99fa4bdb095f8, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  profile: {fileID: 11400000, guid: 3e4613d0e9f0596d8a0014dc7c17a15e, type: 2}
   instanceName: SpsRoot
-  standardSpsRoot: 1
+  target: {fileID: 0}
+  collisionChannel: SpsRootProbe
+  othersDiagnostic: 0

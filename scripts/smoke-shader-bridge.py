@@ -47,45 +47,38 @@ def main():
         shutil.copyfile(args.first, current)
         configuration=api('/api/config')
         assert not configuration['outputs'], 'Only an isolated, device-free configuration is allowed'
-        configuration['signals']=[{'oscPath':'Sensa/Lab/Shader/Z','role':'Depth','vrchatMin':0,'vrchatMax':.2},{'oscPath':'Sensa/Lab/Shader/Valid','role':'GateEnable'}]
-        api('/api/config',configuration)
-        api('/api/input/mode',{'mode':'osc'})
-        assert not api('/api/state/overview')['runtime']['inputActive'], '切换模式必须关闭输入。 / Changing mode must disarm input.'
+        configuration['signals'] = []
+        api('/api/config', configuration)
+        assert not api('/api/state/overview')['runtime']['inputActive'], '诊断回放必须保持输入关闭。 / Diagnostic replay must keep input disarmed.'
+        prefix = 'Sensa/Shader/v1/0/'
         bridge=session.start_child([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}
         def wait_gate(value, timeout=3):
-            return wait_for_state(preview, lambda values: values.get('Sensa/Lab/Shader/Valid') == value,
+            return wait_for_state(preview, lambda values: values.get(prefix + 'Valid') == value,
                                   f'未收到 Valid 门控 / Missing Valid gate={value}', timeout=timeout)
         wait_gate(0)
         # Atomically replace the source, matching the editor PNG exporter.
         def replace_image(path):
             next_file=root/'next.png';shutil.copyfile(path,next_file);replace_frame(next_file,current)
-        def wait_motion_gate(closed):
-            return wait_for_state(lambda: api('/api/state/overview'),
-                                  lambda overview: overview['runtime']['gateClosed'] == closed,
-                                  '运动门控未变化。 / Motion gate did not change.', timeout=2)
         replace_image(args.next)
         fresh=wait_gate(1)
         expected=(.06,0,.12)
-        for axis,value in zip('XYZ',expected):assert abs(fresh['Sensa/Lab/Shader/'+axis]-value)<.00005
-        api('/api/input/active',{'active':True})
-        mapped = wait_for_state(lambda: api('/api/state/overview'),
-                                lambda overview: abs(overview['runtime']['command']['l0'] - .6) < .001,
-                                '新鲜遥测未映射为 L0。 / Fresh telemetry did not map to L0.')['runtime']['command']['l0']
-        assert abs(mapped-.6)<.001, mapped
+        for axis,value in zip('XYZ',expected): assert abs(fresh[prefix + axis]-value)<.00005
+        assert fresh[prefix + 'Profile'] == 0 and fresh[prefix + 'Producer'] == 0
+        assert not api('/api/state/overview')['runtime']['inputActive']
         if args.corrupt:
-            replace_image(args.corrupt);wait_gate(0);wait_motion_gate(True)
+            replace_image(args.corrupt);wait_gate(0)
             replace_image(args.next);time.sleep(.12)
-            assert preview()['Sensa/Lab/Shader/Valid']==0,'An old good frame reopened the gate after CRC failure'
+            assert preview()[prefix + 'Valid']==0,'An old good frame reopened the gate after CRC failure'
             replace_image(args.recover_first);time.sleep(.12)
-            assert preview()['Sensa/Lab/Shader/Valid']==0,'One recovery frame reopened the gate'
-            replace_image(args.recover_next);wait_gate(1);wait_motion_gate(False)
+            assert preview()[prefix + 'Valid']==0,'One recovery frame reopened the gate'
+            replace_image(args.recover_next);wait_gate(1)
         stale=wait_gate(0)
-        wait_motion_gate(True)
-        api('/api/input/active',{'active':False})
+        assert stale[prefix + 'Profile'] == 0 and stale[prefix + 'Producer'] == 0
+        assert not api('/api/state/overview')['runtime']['inputActive']
         assert not api('/api/config')['outputs']
-        report={'passed':True,'source':'Actual Unity GPU-encoded PNG snapshots replayed; not live VR capture','timeoutSeconds':.8,'fresh':fresh,'mappedL0':mapped,'crcStopsMotion':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'motionGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
-        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('Shader PNG → bridge → Sensa OSC 通过；冻结帧关闭门控，未配置设备。 / Shader PNG -> bridge -> Sensa OSC passed; frozen frame gate closed; no outputs configured.')
+        report={'passed':True,'source':'Unity diagnostic Profile0 PNG replay; not native root capture or motion evidence','timeoutSeconds':.8,'fresh':fresh,'profile':0,'inputActive':False,'crcClosesTransportGate':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'transportGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
+        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('诊断 PNG → bridge → OSC 通过；输入保持关闭。 / Diagnostic PNG -> bridge -> OSC passed; input stayed disarmed.')
         session.complete()
 
 

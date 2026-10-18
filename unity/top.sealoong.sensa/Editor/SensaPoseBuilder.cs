@@ -25,7 +25,7 @@ namespace UnityBox.Sensa
             foreach (var plug in plugs)
                 foreach (var marker in new[] { plug.rootMarker, plug.tipMarker, plug.sideMarker })
                     if (!marker.IsChildOf(avatar.transform)) throw new InvalidOperationException("Pose landmarks must belong to the avatar being built.");
-            var added = sockets.Sum(c => (c.standardSpsRoot ? 8 : 24) * ((c.profile.receiveSelf ? 1 : 0) + (c.profile.receiveOthers ? 1 : 0))) + plugs.Length * 3;
+            var added = sockets.Sum(c => 24 * ((c.profile.receiveSelf ? 1 : 0) + (c.profile.receiveOthers ? 1 : 0))) + plugs.Length * 3;
             var existing = avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length + avatar.GetComponentsInChildren<VRCContactSender>(true).Length;
             if (existing + added > 256) throw new InvalidOperationException("Sensa Pose would exceed the avatar's 256 Contact limit.");
             foreach (var socket in sockets) { BuildSocket(socket); Object.DestroyImmediate(socket); }
@@ -36,6 +36,8 @@ namespace UnityBox.Sensa
 
         public static void Validate(SensaPoseSocket socket)
         {
+            if (socket.standardSpsRoot)
+                throw new InvalidOperationException("旧八路 SPS Root 作者已停用。请替换为 SensaFixedRootProbe 或 Automatic SPS Setup，并明确选择真实根部。 / Legacy eight-channel SPS Root authoring is disabled. Replace it with SensaFixedRootProbe or Automatic SPS Setup and select the actual root explicitly.");
             CheckName(socket.instanceName, "Socket instance"); CheckProfile(socket.profile);
             CheckScale(socket.transform);
             if (SensaPoseProtocol.ReceiverRadius * socket.transform.lossyScale.x > 3f)
@@ -89,7 +91,7 @@ namespace UnityBox.Sensa
             {
                 if (self ? !socket.profile.receiveSelf : !socket.profile.receiveOthers) continue;
                 var party = self ? "Self" : "Others";
-                foreach (var marker in socket.standardSpsRoot ? new[] { "Root" } : SensaPoseProtocol.Markers)
+                foreach (var marker in SensaPoseProtocol.Markers)
                 for (var i = 0; i < SensaPoseProtocol.AnchorsPerMarker; i++)
                 {
                     var name = party + "_" + marker + "_A" + i;
@@ -100,8 +102,8 @@ namespace UnityBox.Sensa
                     receiver.shapeType = ContactBase.ShapeType.Sphere;
                     receiver.receiverType = ContactReceiver.ReceiverType.Proximity;
                     receiver.allowSelf = self; receiver.allowOthers = !self; receiver.localOnly = true;
-                    receiver.collisionTags = new List<string> { socket.standardSpsRoot ? SensaPoseProtocol.SpsRootTag : SensaPoseProtocol.Tag(socket.profile.channel, marker) };
-                    receiver.parameter = (socket.standardSpsRoot ? SensaPoseProtocol.SpsRootPrefix : SensaPoseProtocol.Prefix) + "/" + socket.instanceName + "/" + party + "/" + marker + "/A" + i;
+                    receiver.collisionTags = new List<string> { SensaPoseProtocol.Tag(socket.profile.channel, marker) };
+                    receiver.parameter = SensaPoseProtocol.Prefix + "/" + socket.instanceName + "/" + party + "/" + marker + "/A" + i;
                     parameters.parameters.Add(new ParameterConfig
                     {
                         nameOrPrefix = receiver.parameter, remapTo = "", internalParameter = false, isPrefix = false,

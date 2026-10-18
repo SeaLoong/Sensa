@@ -2,7 +2,7 @@
 
 **简体中文** | [English](lab-interaction.en.md)
 
-打开 Avatar 项目的 `Assets/SensaAvatarLab/Generated/FullFlow.unity` 和世界项目的 `Assets/SensaLab/Functional/FunctionalLab.unity`。本轮更改需要重新构建并私有上传后才会出现在 VRChat；没有自动上传。
+这里说明内部实验室道具，不是正式安装或控制方案；实际接入先看[三条路线](usage-scenarios.md)。实验室使用 Avatar 的 `Assets/SensaAvatarLab/Generated/FullFlow.unity` 和世界的 `Assets/SensaLab/Functional/FunctionalLab.unity`；更改需重新构建并私有上传，没有自动上传。
 
 ## Avatar 的道具菜单
 
@@ -18,7 +18,7 @@
 
 名称、入口中心、+Z 方向及探针小球默认可见。**Visible labels / probes** 可统一隐藏辅助标记。标记文字是静态网格，前后两面都可读，不依赖客户端不支持的 TextMesh 组件。
 
-QuickStart 仍绑定右手腕，供入门阶梯台定位；它不是可摆放的 SPS 道具。世界里的测试球可左右手持有或放置。
+QuickStart 仍绑定右手腕，只用于内部阶梯台的合成标量验证，不是正式接入方案或可摆放 SPS 道具，也没有内置阶梯预设。测试映射需手动按实际参数配置；世界里的测试球可左右手持有或放置。
 
 ## 世界里的控制按钮
 
@@ -39,7 +39,7 @@ QuickStart 仍绑定右手腕，供入门阶梯台定位；它不是可摆放的
 - **琥珀色 WORLD PLUG**：20 cm 长，靠近自己 Avatar 上已启用的 Socket；Sensa 观察 Socket 的实际 OGB 参数。
 - **蓝框 WORLD SOCKET**：用自己的 Avatar Plug 靠近它；Sensa 观察 Plug 的实际 OGB 参数。
 
-先在 Avatar 开启 SPS 和 **SPS OSC**。在 Sensa 应用 OSC 输入、导入对应角色预设、保存映射，并固定实际出现的实例路径。世界 Contact 可能同时触发 Self/Others，不能仅凭后缀推断来源。
+先在 Avatar 开启 SPS 和 **SPS OSC**。在 Sensa 选择 OGB / SPS 深度或振动模板，固定实际实例和来源，保存后明确应用 OSC 输入。需要时在接收设置显式启用 OGB 参数心跳；它不授予设备输入许可。世界 Contact 可能同时触发 Self/Others，不能仅凭后缀推断来源。
 
 先让目标分开，再靠近；沿轴对正时，20 cm Plug 的 10 cm 插入量大约对应 50%。横向偏移会暴露原生径向估算的偏差。世界文字是几何说明，**实际 OSC 是否到达，要看 Sensa**。
 
@@ -59,7 +59,7 @@ QuickStart 仍绑定右手腕，供入门阶梯台定位；它不是可摆放的
 
 小球表示接收器中心，实际接收范围比小球大。四面体定位用 **P1–P4**；八点阵列用 **C1–C8**。八点的 C1–C4 同样为红、蓝、绿、黄，C5–C8 为紫、青、橙、浅灰。两种布局的原始字段都从 A0 编号，但并非同一空间位置，所以不能把 P2 当成 C2。
 
-选择 Avatar 的 Measure plug 时，Palm 参考框和 Plug 把手显示实际四点 P 阵列；选择 Socket 测量时恢复八点 C 阵列。同一 Socket 的 Root、Tip、Side 三组八点采样共享 C 位置，通过完整路径区分组别。独立 PB 参考架始终使用 P 阵列。
+这些是旧配对 Pose／PB 实验的显示：Measure plug 显示 Palm 参考框和 Plug 把手的 P 阵列；Socket 测量显示 C 阵列，Root／Tip／Side 组共用 C 位置但路径不同。独立 PB 参考架使用 P 阵列。它们都不是新固定根点协议：新方案把 A0–A3 固定在 Avatar 根下，跟随专用根标记；不能把旧 Socket 八个 C 点或其 A0–A3 子集当作新四锚点。
 
 世界标签、读数、条形图及 Sensa 参数列表使用同一套颜色。软件列表仍保留真实 OSC 路径，旁边增加“定位探针 P# · 输入采样”；设备的 L/R/V/A 轴名称保持原义。
 
@@ -69,6 +69,6 @@ QuickStart 仍绑定右手腕，供入门阶梯台定位；它不是可摆放的
 
 构建和 ClientSim 检查可验证菜单、放置、复位、颜色和生成控制器；实际结果以对应提交报告为准。它们不能证明上传后 Avatar OSC、头显抓取或硬件动作。
 
-P／C 只是 Contact 采样标签。位置是默认禁止运动输出的局部实验估计，四／八路及零残差都不能证明共同 Sender 或同帧。OSC → 实验诊断可观察，实验许可不会消除这些限制。[定位说明](positioning.md)
+旧 P／C 只是 Contact 采样标签；旧配对位置默认禁止运动输出，四／八路及零残差不证明共同 Sender 或同帧。新固定根点使用独立几何、专用 Self 标记、有效性与变化心跳，不应与旧显示混为一谈；仍需实验许可、校准及停止检查。[定位说明](positioning.md)
 
-Shader 当前是合成码传输实验，不能当作真实 SPS 形变定位。
+本实验室 Shader 道具仍是合成码传输测试。包内另有原生 SPS 根点编码，但不是形变网格采样，真实客户端捕获仍待验收。[Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)

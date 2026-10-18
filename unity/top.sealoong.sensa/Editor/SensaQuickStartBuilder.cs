@@ -75,9 +75,7 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.HelpBox("入门测试：上传时自动在右手骨骼生成两个本地 Contact，无需摆放、无需 SPS。进入测试世界的 START HERE 操作台，并在 Sensa 导入“入门 · 测试世界 → 我的 Avatar”预设。它验证信号链路，不测量 SPS 插入深度。\nQuickStart creates two local Contacts on the right hand at upload, without placement or SPS. Use START HERE in the test world and the Start · Test world → My avatar preset. Tests the signal chain, not SPS insertion depth.", MessageType.Info);
-            if (GUILayout.Button("首次使用指南 · 简体中文")) Application.OpenURL("https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md");
-            if (GUILayout.Button("First OSR setup · English")) Application.OpenURL("https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.en.md");
+            EditorGUILayout.HelpBox("仅供实验室合成链路测试；不是 SPS 定位或真实功能验证。\nLab-only synthetic signal fixture; not SPS positioning or proof of real device behavior.", MessageType.Info);
         }
     }
 }

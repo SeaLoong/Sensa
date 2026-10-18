@@ -19,11 +19,11 @@ namespace UnityBox.Sensa
         public static string InstanceName(SensaAutoSetup setup,Component target,GameObject avatar)=>Id(setup.groupName,target,avatar);
         public static bool HasMeasurement(SensaAutoSetup setup,Component target) => target.GetType().FullName==SensaSpsAdapter.SocketType
             ? setup.socketRootTracking || setup.pairedSocketTracking
-            : setup.pairedPlugMarkers || setup.localPlugTipTracking || setup.createPlugGrabHandles;
+            : (setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray) || setup.pairedPlugMarkers || setup.localPlugTipTracking || setup.createPlugGrabHandles;
         public static int ContactCost(SensaAutoSetup setup,Component[] targets)
         {
             int sockets=targets.Count(c=>c.GetType().FullName==SensaSpsAdapter.SocketType), plugs=targets.Length-sockets;
-            return (setup.socketRootTracking?(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && sockets>0?8:sockets*8):0)
+            return (setup.socketRootTracking?(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && sockets>0?8:targets.Length*5):0)
                 +(setup.pairedSocketTracking?sockets*24:0)+plugs*((setup.pairedPlugMarkers?3:0)+(setup.localPlugTipTracking?5:0)+(setup.createPlugGrabHandles?5:0));
         }
         public static void ProcessAvatar(GameObject avatar)
@@ -31,7 +31,7 @@ namespace UnityBox.Sensa
             var all=avatar.GetComponentsInChildren<SensaAutoSetup>(true);var setups=all.Where(s=>s.enabled).ToArray();
             if(setups.GroupBy(s=>s.groupName).Any(g=>g.Count()>1))throw new InvalidOperationException("Sensa auto group names must be unique.");
             var used=new HashSet<Component>();int cost=0;
-            foreach(var setup in setups){SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException("Auto group name must be at most 30 characters.");SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException("No selected SPS targets for "+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException("Two automatic groups select the same SPS target.");cost+=ContactCost(setup,targets);}
+            foreach(var setup in setups){SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException("Auto group name must be at most 30 characters.");SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException("No selected SPS targets for "+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException("Two automatic groups select the same SPS target.");cost+=ContactCost(setup,targets);if(setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray)foreach(var target in targets)SensaFixedRootBuilder.Validate(avatar,Id(setup.groupName,target,avatar),target,Id(setup.groupName,target,avatar));}
             SensaSensorUtility.Budget(avatar,cost);
             // Resolve all placements before generating anything. Unsupported SPS versions fail explicitly.
             var placements=used.ToDictionary(c=>c,SensaSpsAdapter.Read);
@@ -65,10 +65,10 @@ namespace UnityBox.Sensa
                 names.Add((target.GetType().FullName==SensaSpsAdapter.SocketType?"Socket: ":"Plug: ")+target.name+" ["+(names.Count+1)+"]");
                 int slot=names.Count;
                 sharedSources.Add(target.GetType().FullName==SensaSpsAdapter.SocketType?anchors.Count:-1);
+                if(setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray)Track(SensaFixedRootBuilder.Build(avatar,id,target,id,selector:setup.arrayPolicy==SensaArrayPolicy.Exclusive?"Sensa/Select/"+setup.groupName:null,selectedSlot:slot),slot);
                 if(target.GetType().FullName==SensaSpsAdapter.SocketType){
                     // Keep the placement frame alive: local Plug probes may use it as their reference.
                     var sensors=SensaSensorUtility.Child(frame,"Sensors");Track(sensors.gameObject,slot);
-                    if(setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray)SensaSensorUtility.Array(sensors,SensaPoseProtocol.SpsRootPrefix+"/"+id+"/Others",SensaPoseProtocol.SpsRootTag,false);
                     if(setup.pairedSocketTracking){var rig=SensaSensorUtility.Child(sensors,"Paired");var socket=rig.gameObject.AddComponent<SensaPoseSocket>();socket.profile=profile;socket.instanceName=id;SensaPoseBuilder.BuildSocket(socket);UnityEngine.Object.DestroyImmediate(socket);}
                     anchors.Add(frame);
                 }else{

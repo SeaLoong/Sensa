@@ -2,7 +2,7 @@
 
 [简体中文](lab-interaction.md) | **English**
 
-Open `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`. Rebuild and privately upload changes before testing in VRChat.
+This describes internal lab props, not a production installation/control route. Start with the [three integration routes](usage-scenarios.en.md). The lab uses `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`; rebuild and privately upload changes before client testing.
 
 ## Avatar props
 
@@ -16,7 +16,7 @@ The lollipop keeps **SPS_Lollipop → LeftHand / RightHand / Fixed / Off**. The 
 
 Labels, opening centers, +Z arrows and probe balls are visible by default. **Visible labels / probes** hides them without changing measurement. Avatar text is a double-sided static mesh rather than a client-unsupported TextMesh component.
 
-QuickStart stays at the right wrist to match the world bench. It is not a movable SPS prop.
+QuickStart stays at the right wrist solely for the internal synthetic scalar-step bench. It is not a production route or movable SPS prop, and has no built-in step preset. Configure fixture mappings manually from actual parameters.
 
 ## World controls
 
@@ -29,7 +29,7 @@ At **08 MY AVATAR SPS** near spawn:
 - Amber **WORLD PLUG**, 20 cm long: approach your enabled avatar Socket and inspect its actual OGB parameters.
 - Blue **WORLD SOCKET**: approach with your avatar Plug and inspect its actual OGB parameters.
 
-Enable native SPS and SPS OSC, apply OSC mode in Sensa, replace/save the corresponding preset and restrict it to the observed instance. World Contacts can trigger Self/Others; suffixes alone do not prove origin.
+Enable native SPS/SPS OSC. Select the OGB / SPS depth or vibration template, pin the observed instance/source, save and explicitly apply OSC input. If required, explicitly enable the OGB parameter heartbeat in receiver settings; it does not grant device input permission. World Contacts can trigger Self/Others; suffixes alone do not prove origin.
 
 Separate first, then approach. With an aligned 20 cm Plug, 10 cm insertion is about 50%. Lateral offset exposes radial-estimation error. The world explains geometry; Sensa confirms actual receipt.
 
@@ -49,12 +49,12 @@ These identify input samples, **not output axes or stroke percentages**.
 
 P1–P4 form a tetrahedron; C1–C8 form a cube. The raw indices overlap but positions differ, so P2 and C2 are not interchangeable. Balls mark centers, not receiver radii.
 
-**Measure plug** shows P probes on the Palm reference and Plug handle; Socket measurement restores C probes. Root/Tip/Side arrays share C positions but use distinct full paths. Independent PB always uses P probes. Sensa retains the real OSC path next to the color/label; device L/R/V/A axes retain their protocol meaning.
+These displays belong to legacy paired Pose/PB experiments. **Measure plug** shows Palm/Plug P probes; Socket measurement shows C probes, with Root/Tip/Side groups sharing positions but distinct paths. Independent PB uses P probes. This is not the new fixed-root protocol: its A0–A3 anchors stay under the avatar root while a dedicated marker follows the selected root. Do not substitute the Socket's eight C probes, or their first four indices, for the new geometry. Sensa retains real OSC paths; L/R/V/A axes keep their device meaning.
 
 ![Probe colors](images/probe-colors.png)
 
 Build/ClientSim checks can inspect placement, reset, colors and generated controllers; actual results belong to the corresponding commit report. They do not certify uploaded avatar OSC, physical VR grabbing or hardware.
 
-P/C labels identify Contact samples only. Position is an experimental local estimate blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. Observe in OSC → Experimental diagnostics; explicit permission does not remove these limits. [Positioning](positioning.en.md)
+Legacy P/C labels identify Contact samples; paired estimates remain blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. The new fixed-root route has separate geometry, a dedicated Self marker, validity and a changing heartbeat; it is not this legacy display. Experimental permission, calibration and stop checks still apply. [Positioning](positioning.en.md)
 
-Shader synthetic code is a transport experiment, not real SPS mesh tracking.
+This lab's Shader prop remains a synthetic transport test. The package separately provides native SPS root encoding, not deformed-mesh sampling; actual client capture still needs acceptance. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)

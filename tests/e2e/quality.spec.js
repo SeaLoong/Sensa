@@ -9,6 +9,7 @@ const auditStates = [
   'osc-mappings-expanded',
   'osc-parameters-populated',
   'osc-receiving-and-forwarding-expanded',
+  'ogb-control-settings',
   'settings-logs-expanded',
   'axis-profile-dialog',
 ];
@@ -95,6 +96,17 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expand(page, 'OSCQuery');
         await expand(page, 'OSC Hub');
         await report.audit('osc-receiving-and-forwarding-expanded');
+
+        await expand(page, await label(page, 'OGB 参数启用'));
+        const ogbDraft = page.locator('.ogb-control-settings');
+        const activateOgb = ogbDraft.getByRole('checkbox', { name: await label(page, '向 VRChat 启用 OGB 参数'), exact: true });
+        await expect(activateOgb).not.toBeChecked();
+        await activateOgb.check();
+        await expect(ogbDraft.getByRole('textbox', { name: await label(page, 'VRChat 控制 IP'), exact: true })).toBeEnabled();
+        await expect(ogbDraft.getByRole('spinbutton', { name: await label(page, 'VRChat 控制端口'), exact: true })).toBeEnabled();
+        await ogbDraft.scrollIntoViewIfNeeded();
+        await report.audit('ogb-control-settings');
+        await activateOgb.uncheck();
 
         await workspace(page, '设置');
         await expand(page, await label(page, '查看日志'));

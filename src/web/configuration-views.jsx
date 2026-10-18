@@ -151,7 +151,7 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
   ]);
   const preview = draft.simulateEnabled
     ? computeSignalPreviewOutput(draft, simulatedValue)
-    : draft.sourceMode === 'SpsSocketDepth' || (draft.sourceMode === 'SensaPose' && draft.poseMetric === 'Roll')
+    : ['OgbDepth', 'OgbTouch', 'SpsSocketDepth'].includes(draft.sourceMode) || (draft.sourceMode === 'SensaPose' && draft.poseMetric === 'Roll')
       ? null
       : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   return (
@@ -221,7 +221,9 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
               value={draft.sourceMode || 'Direct'}
               options={[
                 { value: 'Direct', label: t('直接映射') },
-                { value: 'SpsSocketDepth', label: t('SPS Root/Tip 深度') },
+                { value: 'OgbDepth', label: t('OGB 新旧自动识别') },
+                { value: 'OgbTouch', label: t('OGB 触碰与门控') },
+                { value: 'SpsSocketDepth', label: t('仅现代 Root/Tip') },
                 { value: 'SensaPose', label: t('三点姿态（实验）') },
                 { value: 'SensaPoint', label: t('本地点位移（实验）') },
               ]}

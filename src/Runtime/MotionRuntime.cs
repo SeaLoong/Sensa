@@ -52,7 +52,7 @@ public sealed class MotionRuntime : IDisposable
     private volatile bool _scriptOutputStopped;
     private volatile bool _disposed;
     private int _oscRefreshQueued;
-    private readonly Dictionary<string, SpsDepthEstimator> _spsDepth = new();
+    private readonly Dictionary<(string Source, string Root), SpsDepthEstimator> _spsDepth = new();
     private readonly ITimer _watchdog;
     private long _activationTimestamp;
     private long _generation;
@@ -160,6 +160,7 @@ public sealed class MotionRuntime : IDisposable
     {
         lock (_sync)
         {
+            _spsDepth.Clear();
             _processors.Clear();
             foreach (var mapping in _config.Signals)
             {
@@ -172,7 +173,7 @@ public sealed class MotionRuntime : IDisposable
         _rollPoseKey = null;
         _continuousRoll = new();
         _usesPose = _config.Signals.Any(s => s.SourceMode is "SensaPose" or "SensaPoint");
-        _usesSpsDepth = _config.Signals.Any(s => s.SourceMode == "SpsSocketDepth");
+        _usesSpsDepth = _config.Signals.Any(s => s.SourceMode is "OgbDepth" or "OgbTouch" or "SpsSocketDepth");
         _poseBlocked = _inputMode == RuntimeInputMode.Osc && _usesPose;
 
         if (!_disposed && _inputMode == RuntimeInputMode.Osc && _inputActive && !_emergency)
@@ -253,6 +254,9 @@ public sealed class MotionRuntime : IDisposable
 
         Interlocked.Increment(ref _generation);
         _activationTimestamp = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+        // No geometry was observed while disarmed: a different plug may now
+        // occupy the same instance. / 未启用期间可能换了 Plug，重新估长。
+        if (active && _inputMode == RuntimeInputMode.Osc) { lock (_sync) _spsDepth.Clear(); }
         if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
         _inputActive = active;
         if (active && _inputMode == RuntimeInputMode.Script) _scriptOutputStopped = false;
@@ -319,11 +323,20 @@ public sealed class MotionRuntime : IDisposable
         {
             if (_processors.Any(p=>p.Processor.Mapping.SourceMode=="SensaPoint")
                 && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
-                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal))) return true;
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaFixedAnchorProtocol.Prefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(ShaderRootTracking.Prefix+"/",StringComparison.Ordinal))) return true;
             foreach (var (pattern, processor) in _processors)
             {
                 if (OscParameterStore.MatchesPathPattern(pattern, oscPath))
                     return true;
+                if (processor.Mapping.SourceMode == "OgbDepth"
+                    && OgbDepthAddress.TryParse(oscPath, out var ogb)
+                    && (OscParameterStore.MatchesPathPattern(pattern, ogb.LegacyPath)
+                        || ogb.IsSocket && OscParameterStore.MatchesPathPattern(pattern, ogb.RootPath))) return true;
+                if (processor.Mapping.SourceMode == "OgbTouch"
+                    && OgbTouchAddress.TryParse(oscPath, out var touch)
+                    && OscParameterStore.MatchesPathPattern(pattern, touch.ValuePath)) return true;
                 if (processor.Mapping.SourceMode == "SpsSocketDepth" && oscPath.EndsWith("NewTip", StringComparison.Ordinal)
                     && OscParameterStore.MatchesPathPattern(pattern, oscPath[..^6] + "NewRoot")) return true;
             }
@@ -439,7 +452,7 @@ public sealed class MotionRuntime : IDisposable
         }
         SpsPositionTracking.Observation? chosenPoint=null;
         if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(), preferredSourceKey, SpatialSampleMaxAgeMs, _timeProvider)
-            .Where(p=>p.IsLocalPoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
+            .Where(p=>p.IsMappablePoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
             if(points.Length==1 && points[0].Valid && IsSpatialGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
@@ -476,28 +489,8 @@ public sealed class MotionRuntime : IDisposable
             if (poseRoles.Contains(processor.Mapping.Role)
                 || processor.Mapping.Role == SignalRole.DepthOverride && poseRoles.Contains(SignalRole.Depth)) continue;
             var thisGateOpen = false;
-            foreach (var matched in _store.MatchingEntries(path, preferredSourceKey))
+            foreach (var rawValue in ReadScalarValues(path, processor.Mapping.SourceMode, preferredSourceKey))
             {
-                var entry = matched.Entry;
-                var rawValue = entry.Value.AsFloat();
-                if (processor.Mapping.SourceMode == "SpsSocketDepth")
-                {
-                    if (!TryGetSpsTip(matched, out var tip, out var timestamp) || !IsGeometryFresh(timestamp)) continue;
-                    // OSC can be delta-only: a saturated tip may legitimately remain
-                    // unchanged while root proximity keeps updating. Identity, not
-                    // timestamp proximity, determines whether this is the same pair.
-                    var key = entry.Source.Key + "|" + matched.Path;
-                    lock (_sync)
-                    {
-                        if (!_spsDepth.TryGetValue(key, out var estimator))
-                        {
-                            if (_spsDepth.Count >= 4096) continue;
-                            _spsDepth[key] = estimator = new SpsDepthEstimator();
-                        }
-                        rawValue = estimator.Process(rawValue, tip.Value.AsFloat(), tip.Sequence);
-                    }
-                }
-                else if (!IsGeometryFresh(entry.TimestampMs)) continue;
                 var sample = processor.ProcessSample(rawValue);
                 if (processor.Mapping.Role == SignalRole.GateEnable) { thisGateOpen |= sample.Output > .5f; continue; }
                 if (processor.Mapping.Role == SignalRole.DepthOverride) { depthOverride = Math.Max(depthOverride ?? 0, sample.Output); continue; }
@@ -572,6 +565,138 @@ public sealed class MotionRuntime : IDisposable
     private bool IsGeometryFresh(long timestampMs) => _config.Osc.InputTimeoutMs <= 0
         || _timeProvider.GetUtcNow().ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
 
+    private sealed record OgbInput(OgbDepthAddress Address, string Source,
+        OscParameterStore.Entry? Root, OscParameterStore.Entry? Tip,
+        OscParameterStore.Entry? Legacy, OscParameterStore.Entry? Close)
+    {
+        public bool ModernActive => Address.IsSocket && (Root?.Value.AsFloat() > 0 || Tip?.Value.AsFloat() > 0);
+        public long Timestamp => ModernActive || Legacy is null
+            ? Math.Max(Root?.TimestampMs ?? 0, Tip?.TimestampMs ?? 0) : Legacy.Value.TimestampMs;
+    }
+
+    private OgbInput[] ReadOgbInputs(string pattern, string? source)
+    {
+        // One snapshot and one result per source/full parent/party. This is not
+        // a same-frame or Contact Sender guarantee. / 快照分组不证明同帧或 Sender 身份。
+        var groups = new Dictionary<(string Source, OgbDepthAddress Address), Dictionary<string, OscParameterStore.Entry>>();
+        foreach (var item in _store.SnapshotEntries())
+        {
+            if (!string.IsNullOrWhiteSpace(source) && item.Entry.Source.Key != source) continue;
+            if (!OgbDepthAddress.TryParse(item.Path, out var address)
+                || !(OscParameterStore.MatchesPathPattern(pattern, address.LegacyPath)
+                    || address.IsSocket && OscParameterStore.MatchesPathPattern(pattern, address.RootPath))) continue;
+            var key = (item.Entry.Source.Key, address);
+            if (!groups.TryGetValue(key, out var entries)) groups[key] = entries = new(StringComparer.Ordinal);
+            entries[item.Path] = item.Entry;
+        }
+        return groups.Select(pair =>
+        {
+            OscParameterStore.Entry? Get(string path) => pair.Value.TryGetValue(path, out var entry) ? entry : null;
+            var address = pair.Key.Address;
+            return new OgbInput(address, pair.Key.Source, Get(address.RootPath),
+                Get(address.TipPath), Get(address.LegacyPath), Get(address.ClosePath));
+        }).ToArray();
+    }
+
+    private static bool IsUnitValue(OscParameterStore.Entry? entry) =>
+        entry is { } value && float.IsFinite(value.Value.AsFloat()) && value.Value.AsFloat() is >= 0 and <= 1;
+
+    private float? ProcessSpsPair(string source, string rootPath, OscParameterStore.Entry? root, OscParameterStore.Entry? tip)
+    {
+        lock (_sync)
+        {
+            var key = (source, rootPath);
+            if (!_spsDepth.TryGetValue(key, out var estimator))
+            {
+                if (_spsDepth.Count >= 4096) return null;
+                _spsDepth[key] = estimator = new SpsDepthEstimator();
+            }
+            if (!IsUnitValue(root) || !IsUnitValue(tip)) { estimator.Reset(); return 0; }
+            return estimator.Process(root!.Value.Value.AsFloat(), tip!.Value.Value.AsFloat(), tip.Value.Sequence);
+        }
+    }
+
+    private void ResetSpsPair(string source, string rootPath)
+    {
+        lock (_sync)
+            if (_spsDepth.TryGetValue((source, rootPath), out var estimator)) estimator.Reset();
+    }
+
+    private sealed record OgbTouchInput(OgbTouchAddress Address, OscParameterStore.Entry? Value, OscParameterStore.Entry? Close)
+    {
+        public long Timestamp => Value?.TimestampMs ?? 0;
+    }
+
+    private OgbTouchInput[] ReadOgbTouchInputs(string pattern, string? source)
+    {
+        var groups = new Dictionary<(string Source, OgbTouchAddress Address), Dictionary<string, OscParameterStore.Entry>>();
+        foreach (var item in _store.SnapshotEntries())
+        {
+            if (!string.IsNullOrWhiteSpace(source) && item.Entry.Source.Key != source) continue;
+            if (!OgbTouchAddress.TryParse(item.Path, out var address)
+                || !OscParameterStore.MatchesPathPattern(pattern, address.ValuePath)) continue;
+            var key = (item.Entry.Source.Key, address);
+            if (!groups.TryGetValue(key, out var entries)) groups[key] = entries = new(StringComparer.Ordinal);
+            entries[item.Path] = item.Entry;
+        }
+        return groups.Select(pair =>
+        {
+            OscParameterStore.Entry? Get(string path) => pair.Value.TryGetValue(path, out var entry) ? entry : null;
+            return new OgbTouchInput(pair.Key.Address, Get(pair.Key.Address.ValuePath), Get(pair.Key.Address.ClosePath));
+        }).ToArray();
+    }
+
+    private IEnumerable<float> ReadScalarValues(string path, string mode, string? source)
+    {
+        if (mode == "OgbTouch")
+        {
+            foreach (var input in ReadOgbTouchInputs(path, source))
+            {
+                if (!IsGeometryFresh(input.Timestamp)) continue;
+                var open = !input.Address.NeedsClose || IsUnitValue(input.Close) && input.Close!.Value.Value.AsFloat() > .5f;
+                yield return open && IsUnitValue(input.Value) ? input.Value!.Value.Value.AsFloat() : 0;
+            }
+            yield break;
+        }
+        if (mode == "OgbDepth")
+        {
+            foreach (var input in ReadOgbInputs(path, source))
+            {
+                if (!IsGeometryFresh(input.Timestamp))
+                {
+                    ResetSpsPair(input.Source, input.Address.RootPath);
+                    continue;
+                }
+                if (input.ModernActive)
+                {
+                    // A positive partial/uncalibrated modern pair suppresses the
+                    // legacy detector; otherwise fallback could jump to full.
+                    // 正值现代通道不回退旧检测器，缺配对或未估长时保持零。
+                    var value = ProcessSpsPair(input.Source, input.Address.RootPath, input.Root, input.Tip);
+                    if (value.HasValue) yield return value.Value;
+                }
+                else
+                {
+                    ResetSpsPair(input.Source, input.Address.RootPath);
+                    var close = !input.Address.IsSocket || input.Address.Party != "Others" || input.Close is null
+                        || IsUnitValue(input.Close) && input.Close.Value.Value.AsFloat() > .5f;
+                    yield return IsUnitValue(input.Legacy) && close ? input.Legacy!.Value.Value.AsFloat() : 0;
+                }
+            }
+            yield break;
+        }
+        foreach (var matched in _store.MatchingEntries(path, source))
+        {
+            if (mode == "SpsSocketDepth")
+            {
+                if (!TryGetSpsTip(matched, out var tip, out var timestamp) || !IsGeometryFresh(timestamp)) continue;
+                var value = ProcessSpsPair(matched.Entry.Source.Key, matched.Path, matched.Entry, tip);
+                if (value.HasValue) yield return value.Value;
+            }
+            else if (IsGeometryFresh(matched.Entry.TimestampMs)) yield return matched.Entry.Value.AsFloat();
+        }
+    }
+
     private bool TryGetSpsTip(OscParameterStore.SnapshotEntry root, out OscParameterStore.Entry tip, out long timestamp)
     {
         tip = default; timestamp = 0;
@@ -586,13 +711,28 @@ public sealed class MotionRuntime : IDisposable
     private IEnumerable<long> ScalarInputTimestamps((string Path, string Mode, SignalRole Role)[] mappings, string? source)
     {
         foreach (var mapping in mappings.Where(m => m.Role != SignalRole.GateEnable))
-        foreach (var matched in _store.MatchingEntries(mapping.Path, source))
         {
-            if (mapping.Mode == "SpsSocketDepth")
+            if (mapping.Mode == "OgbTouch")
             {
-                if (TryGetSpsTip(matched, out _, out var timestamp)) yield return timestamp;
+                foreach (var input in ReadOgbTouchInputs(mapping.Path, source))
+                    if (input.Value.HasValue) yield return input.Timestamp;
+                continue;
             }
-            else yield return matched.Entry.TimestampMs;
+            if (mapping.Mode == "OgbDepth")
+            {
+                // A Close update or fresh suppressed legacy value cannot refresh
+                // the selected modern pair. / Close 或被抑制的旧值不能续期现代配对。
+                foreach (var input in ReadOgbInputs(mapping.Path, source)) yield return input.Timestamp;
+                continue;
+            }
+            foreach (var matched in _store.MatchingEntries(mapping.Path, source))
+            {
+                if (mapping.Mode == "SpsSocketDepth")
+                {
+                    if (TryGetSpsTip(matched, out _, out var timestamp)) yield return timestamp;
+                }
+                else yield return matched.Entry.TimestampMs;
+            }
         }
     }
 
@@ -613,7 +753,7 @@ public sealed class MotionRuntime : IDisposable
         if (pointPaths.Length > 0)
         {
             var points = SpsPositionTracking.Observe(_store.SnapshotEntries(), source, SpatialSampleMaxAgeMs, _timeProvider)
-                .Where(p => p.IsLocalPoint && pointPaths.Any(p.Matches)).ToArray();
+                .Where(p => p.IsMappablePoint && pointPaths.Any(p.Matches)).ToArray();
             // Match BuildOscPatch: several points are ambiguous even if one is fresh.
             inputs.Add(points.Length == 1 && points[0].Valid ? [points[0].TimestampMs] : []);
         }

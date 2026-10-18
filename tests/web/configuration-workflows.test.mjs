@@ -24,9 +24,9 @@ test('profile lifecycle keeps one default and repairs output references without 
   assert.throws(() => editConfiguration(config, { kind: 'profile-default', id: 'missing' }));
 });
 
-test('all five built-ins round-trip as independent drafts; custom presets preserve built-ins / 五套内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
+test('all three built-ins round-trip as independent drafts; custom presets preserve built-ins / 三套内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 5);
+  assert.equal(builtIns.length, 3);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
     assert.equal(dialog.isNew, true); assert.notEqual(dialog.presetId, preset.id);
@@ -34,9 +34,9 @@ test('all five built-ins round-trip as independent drafts; custom presets preser
     const config = editConfiguration(source, { kind: 'preset-save', preset: { id: dialog.presetId, name: 'Custom', mappings: dialog.mappings } });
     const custom = getOscMappingPresets(config).find(p => p.id === dialog.presetId);
     assert.equal(computeSignalHash(buildSignalDrafts(custom.mappings)), draftSnapshot);
-    assert.equal(getOscMappingPresets(config).length, 6);
+    assert.equal(getOscMappingPresets(config).length, 4);
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
-    assert.equal(getOscMappingPresets(removed).length, 5);
+    assert.equal(getOscMappingPresets(removed).length, 3);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
   }
 });
@@ -108,4 +108,24 @@ test('Intiface starts with Central and explicit vibration routing survives edit/
   const saved = editConfiguration(added, { kind: 'output-save', id: output.id, draft });
   assert.equal(saved.outputs[0].manageEngineProcess, false);
   assert.equal(added.outputs[0].vibrationAxis, 'V0');
+});
+
+test('OGB activation remains opt-in, preserves its destination and rejects receiver feedback / OGB 参数启用需明确选择，保留目标并拒绝监听回环', () => {
+  const source = initial();
+  const draft = buildOscDraftFromConfig(source);
+  assert.equal(draft.ogbControlEnabled, false);
+  assert.equal(draft.ogbControlPort, 9000);
+  draft.ogbControlEnabled = true;
+  draft.ogbControlHost = '127.0.0.1';
+  draft.ogbControlPort = 19092;
+  const saved = editConfiguration(source, { kind: 'osc', draft });
+  assert.deepEqual(saved.osc.ogbControl, { enabled: true, host: '127.0.0.1', port: 19092 });
+  assert.equal(buildOscDraftFromConfig(saved).ogbControlEnabled, true);
+  assert.equal(buildOscDraftFromConfig(saved).ogbControlPort, 19092);
+  assert.equal(source.osc.ogbControl, undefined);
+  draft.ogbControlPort = draft.receiverPort;
+  assert.throws(() => editConfiguration(source, { kind: 'osc', draft }));
+  draft.receiverHost = '0.0.0.0';
+  draft.ogbControlHost = '192.0.2.1';
+  assert.throws(() => editConfiguration(source, { kind: 'osc', draft }));
 });

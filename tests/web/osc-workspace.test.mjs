@@ -6,14 +6,14 @@ import { editConfiguration, buildSignalDrafts } from '../../src/web/configuratio
 import { computeSignalPreviewOutput } from '../../src/web/osc-workspace.js';
 
 const point = (z, options = {}) => ({ key: 'point', prefix: 'Sensa/Handle/v1/LabHandle/Self', sourceKey: 'local', kind: 'Handle', valid: true, position: { x: .02, y: 0, z }, sampleCount: 4, ...options });
-const quick = [{ oscPath: 'Sensa/QuickStart/Depth', role: 'Depth' }, { oscPath: 'Sensa/QuickStart/Active', role: 'GateEnable' }];
+const quick = [{ oscPath: 'CI/Depth', role: 'Depth' }, { oscPath: 'CI/Active', role: 'GateEnable' }];
 
 test('PB calibration replaces the previous gate, persists a reverse range and previews motion / PB 校准替换旧门控、保存反向量程并预览运动', () => {
   const zero = capturePointEndpoint(point(.15), 'Z'), full = capturePointEndpoint(point(.05), 'Z');
   const { draft } = calibratedPointDraft(point(.1), 'Z', zero, full);
   assert.equal(draft.invertDirection, true);
   const drafts = buildSignalDrafts([draft]), before = oscWorkflowHints({ mappings: quick, drafts: [...quick, draft], dirty: true, mode: 'osc', listening: true });
-  assert.ok(before.some(h => h.key === 'mixed-tests'));
+  assert.ok(before.some(h => h.key === 'draft'));
   const config = editConfiguration({ signals: quick }, { kind: 'mappings', drafts });
   const hints = oscWorkflowHints({ mappings: config.signals, runtime: { inputActive: false }, mode: 'osc', listening: true });
   assert.ok(hints.some(h => h.key === 'inactive')); assert.ok(!hints.some(h => ['mixed-tests', 'draft', 'geometry', 'gate'].includes(h.key)));
@@ -98,7 +98,7 @@ test('workflow hints distinguish page selection, saved gates, emergency and inva
   assert.deepEqual(oscWorkflowHints(base), []);
   const hints = oscWorkflowHints({ ...base, mode: 'manual', runtime: { inputActive: true, gateClosed: true } });
   assert.ok(hints.some(h => h.key === 'mode'));
-  assert.ok(hints.some(h => h.key === 'gate' && h.text.includes('Sensa/QuickStart/Active')));
+  assert.ok(hints.some(h => h.key === 'gate' && h.text.includes('CI/Active')));
   const blocked = oscWorkflowHints({ ...base, runtime: { isEmergency: true, inputActive: true, poseBlocked: true } });
   assert.ok(blocked.some(h => h.key === 'emergency')); assert.ok(blocked.some(h => h.key === 'geometry'));
   assert.ok(oscWorkflowHints({ listening: false }).some(h => h.key === 'receiver'));
@@ -112,4 +112,20 @@ test('probe labels and signal explanations distinguish diagnostic geometry from 
   for (const path of ['A0', 'TCode/A0', 'OGB/Orf/Test/A0', 'Custom/Root/A0']) assert.equal(probePresentation(path), null);
   const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /不是 TCode/], ['Sensa/Pose/v1/Main/Others/Root/A0', /不能直接当作深度/], ['Sensa/SpsRoot/v1/Main/Others/Root/A0', /不能测尖端、朝向或行程/], ['OGB/Orf/Main/PenOthersNewTip', /并非真实尖端/], ['OGB/Orf/Main/PenOthers', /不是通用的位置坐标/]];
   for (const [path, expected] of explanations) assert.match(parameterMeaning(path), expected);
+});
+
+test('fixed and shader roots share calibration only for a valid self producer / 固定根与Shader根只为有效自身生产端提供校准', () => {
+  for (const kind of ['SpsRoot', 'ShaderRoot']) {
+    const root = z => point(z, { key: kind, prefix: kind === 'SpsRoot' ? 'Sensa/SpsRoot/v1/Socket/Self' : 'Sensa/Shader/v1/42',
+      kind, party: 'Self', isMappablePoint: true, expectedSampleCount: kind === 'ShaderRoot' ? 3 : 4,
+      coordinateFrame: 'AvatarRootLocal' });
+    const zero = capturePointEndpoint(root(.05), 'Z'), full = capturePointEndpoint(root(.15), 'Z');
+    const { draft } = calibratedPointDraft(root(.1), 'Z', zero, full);
+    assert.equal(draft.sourceMode, 'SensaPoint');
+    assert.equal(draft.oscPath, root(.1).prefix + '/**');
+    assert.equal(pointPreviewEntry([root(.1)], draft).numericValue, .1);
+    assert.equal(Math.round(pointCalibrationProgress(root(.1), 'Z', zero, full).percent), 50);
+    assert.equal(capturePointEndpoint({ ...root(.1), party: 'Others', isMappablePoint: false }, 'Z'), null);
+    assert.equal(capturePointEndpoint({ ...root(.1), valid: false }, 'Z'), null);
+  }
 });

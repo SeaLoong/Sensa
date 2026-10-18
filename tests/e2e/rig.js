@@ -4,14 +4,13 @@ import { mkdtemp, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { ports } from './mocks.js';
-import presets from '../../src/web/data/osc-presets.json' with { type: 'json' };
 import motion from '../../src/web/data/first-run-motion.json' with { type: 'json' };
 
 // Pure fixture construction can be checked without starting Sensa or a device.
 // 纯配置构建可在不启动 Sensa 或设备的情况下检查。
 export function createRigConfiguration(scenario, serialPort) {
   if (!serialPort?.startsWith('/dev/pts/')) throw new Error('CI pseudo terminal required / 必须使用 CI 伪终端');
-  if (!['quickstart', 'sps', 'query', 'vibration-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
+  if (!['basic', 'sps', 'query', 'vibration-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
   return {
     webUi: { host: '127.0.0.1', port: ports.web, autoOpenBrowser: false },
     outputs: [
@@ -27,7 +26,7 @@ export function createRigConfiguration(scenario, serialPort) {
       hub: { enabled: scenario === 'query', mode: 'EventDriven', targets: [{ id: 'mock-hub', name: 'Mock Hub', host: '127.0.0.1', port: ports.hub, enabled: true }] },
     },
     signals: scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenOthersNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }]
-      : scenario === 'query' ? [{ oscPath: 'QueryDepth', role: 'Depth' }] : structuredClone(presets.find(p => p.id === 'sensa-quick-start').mappings),
+      : scenario === 'query' ? [{ oscPath: 'QueryDepth', role: 'Depth' }] : [{ oscPath: 'CI/Depth', role: 'Depth' }, { oscPath: 'CI/Active', role: 'GateEnable' }],
   };
 }
 
@@ -79,11 +78,12 @@ export async function startTestRig(peers, scenario, expect) {
     };
     // A feed sends whole range sets and owns at most one pending UDP batch.
     // 持续输入发送完整通道组，停止会等待在途批次；不会跨场景遗留定时器。
-    const startFeed = async (initial, intervalMs = 80) => {
+    const startFeed = async (initial, intervalMs = 80, { bundle = false } = {}) => {
       let entries = initial, stopped = false, pending = Promise.resolve(), timer, failure;
       const emit = async () => {
         if (stopped) return;
-        pending = peers.send(entries).catch(error => { failure = error; });
+        pending = Promise.resolve().then(() => typeof entries === 'function' ? entries() : entries)
+          .then(batch => bundle ? peers.sendBundle(batch) : peers.send(batch)).catch(error => { failure = error; });
         await pending;
         if (!stopped && !failure) timer = setTimeout(emit, intervalMs);
       };

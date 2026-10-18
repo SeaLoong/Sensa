@@ -6,13 +6,16 @@ import { SelectField } from './controls.jsx';
 
 function PointProjection({ point }) {
   const valid = point?.valid && [point.position?.x, point.position?.y, point.position?.z].every(Number.isFinite);
-  const coord = (value) => Math.max(-0.25, Math.min(0.25, value)) * 320;
+  const extent = Number(point?.displayHalfRange) || .25;
+  const avatarRoot = point?.coordinateFrame === 'AvatarRootLocal';
+  const center = point?.displayCenter || { x: 0, y: 0, z: 0 };
+  const coord = (value, field) => Math.max(-extent, Math.min(extent, value - center[field])) * 80 / extent;
   return (
     <svg
       className="point-projection"
       viewBox="0 0 420 230"
       role="img"
-      aria-label={t('测量点在 XZ 和 YZ 平面的投影，参考范围正负 25 厘米')}
+      aria-label={avatarRoot ? t('Avatar 局部坐标投影，参考范围正负 {0} 单位', [extent]) : t('测量点在 XZ 和 YZ 平面的投影，参考半径 {0} 厘米', [extent * 100])}
     >
       {[
         { axis: 'X', field: 'x', offset: 105 },
@@ -40,14 +43,14 @@ function PointProjection({ point }) {
               <line
                 x1="0"
                 y1="0"
-                x2={coord(point.position[field])}
-                y2={-coord(point.position.z)}
+                x2={coord(point.position[field], field)}
+                y2={-coord(point.position.z, 'z')}
                 stroke="#1976d2"
                 strokeWidth="2"
               />
               <circle
-                cx={coord(point.position[field])}
-                cy={-coord(point.position.z)}
+                cx={coord(point.position[field], field)}
+                cy={-coord(point.position.z, 'z')}
                 r="6"
                 fill="#1976d2"
                 stroke="white"
@@ -62,7 +65,7 @@ function PointProjection({ point }) {
         </g>
       ))}
       <text x="210" y="226" textAnchor="middle" fill="#526177" fontSize="11">
-        {t('局部坐标投影 ±25 cm · 并非有效采样区域边界')}
+        {avatarRoot ? t('中心 {0}/{1}/{2} · ±{3} 本地单位', [center.x, center.y, center.z, extent]) : t('局部投影 ±{0} cm · 并非有效采样区域边界', [extent * 100])}
       </text>
     </svg>
   );
@@ -74,7 +77,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   const [zero, setZero] = useState(null);
   const [full, setFull] = useState(null);
   const root = selected ? observations.find((item) => item.key === selected) : observations[0];
-  const local = root && ['Point', 'Handle'].includes(root.kind);
+  const local = root && (['Point', 'Handle'].includes(root.kind) || root.isMappablePoint === true);
   const endpoint = capturePointEndpoint(root, metric);
   const calibration = calibratedPointDraft(root, metric, zero, full);
   const progress = pointCalibrationProgress(root, metric, zero, full);
@@ -82,15 +85,18 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
     const rounded = (value * 100).toFixed(1);
     return Number(rounded) === 0 ? '0.0' : rounded;
   };
+  const avatarRoot = root?.coordinateFrame === 'AvatarRootLocal';
+  const length = (value) => avatarRoot ? Number(value).toFixed(3) : cm(value);
+  const unit = avatarRoot ? t('本地单位') : 'cm';
   const sampleLabel = (sample) =>
-    sample && sample.key === root?.key && sample.metric === metric ? cm(sample.value) + ' cm' : t('待采集');
+    sample && sample.key === root?.key && sample.metric === metric ? length(sample.value) + ' ' + unit : t('待采集');
   const reset = () => {
     setZero(null);
     setFull(null);
   };
   return (
-    <div className="stack">
-      <h3>{t('本地点与根部诊断（实验）')}</h3>
+    <div className="stack" id="sensa-spatial-root" tabIndex={-1}>
+      <h3>{t('根点坐标与校准')}</h3>
       {!root ? (
         <Notice>
           {t('等待阵列采样')}
@@ -121,7 +127,8 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
           />
           <div className="actions">
             <Badge tone={root.valid ? 'success' : 'warning'}>{diagnostic(root.reason)}</Badge>
-            <Badge>{t('{0}/{1} 采样', [root.sampleCount, local ? 4 : 8])}</Badge>
+            <Badge>{t('{0}/{1} 采样', [root.sampleCount, root.expectedSampleCount || (local ? 4 : 8)])}</Badge>
+            <Badge>{root.coordinateFrame === 'AvatarRootLocal' ? t('Avatar 根局部坐标') : t('参考局部坐标')}</Badge>
           </div>
           <div className="point-diagnostic-grid">
             <PointProjection point={root} />
@@ -129,9 +136,9 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
               {[
                 [
                   t('局部 X / Y / Z'),
-                  root.valid ? `${cm(root.position.x)} / ${cm(root.position.y)} / ${cm(root.position.z)} cm` : '—',
+                  root.valid ? `${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)} ${unit}` : '—',
                 ],
-                [t('拟合残差'), root.valid ? (root.residual * 1000).toFixed(2) + ' mm' : '—'],
+                [t('拟合残差'), root.valid ? avatarRoot ? Number(root.residual).toFixed(5) + ' ' + unit : (root.residual * 1000).toFixed(2) + ' mm' : '—'],
                 [t('姿态 / 插入比例'), t('不可观测')],
               ].map(([label, value]) => (
                 <div key={label}>
@@ -194,7 +201,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
               </div>
             </details>
           ) : (
-            <p className="muted">{t('标准 SPS 根部仅供诊断，不生成运动映射。')}</p>
+            <p className="muted">{t('此目标仅供诊断。选择有专用根标记与有效配置的自身目标后才能校准。')}</p>
           )}
         </>
       )}

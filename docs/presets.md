@@ -1,35 +1,41 @@
-# 映射预设
+# 三个映射模板
 
 **简体中文** | [English](presets.en.md)
 
-内置目录只保留五种常见输入。预设生成草稿；检查实际参数、来源和方向后保存，再明确启用输入。它不会连接设备，也不替代设备校准。
+模板描述已存在的参数，不负责安装或生成 SPS。SPS Socket／Plug 的 haptics 共用 OGB 命名；合成阶梯与固定部位别名不再作为内置方案。Sensa SPS 和 Shader 坐标必须选择实际生产端并校准，不能用通配模板猜测坐标量程。
 
-| 预设 | 用途 | 输入路径 |
+| 模板 | 解释器 | 实际输入 |
 | --- | --- | --- |
-| 链路测试 | 测试世界到自己 Avatar 的接收链路；Active 门控 | `Sensa/QuickStart/Depth`、`Sensa/QuickStart/Active` |
-| SPS Socket · 径向估算 | VRCFury 根部／长度球的归一化径向估算 | `OGB/Orf/*/PenOthersNewRoot`，自动读取同源同实例 NewTip |
-| SPS Plug · 近接 | VRCFury Plug 根部近接；默认不反向 | `OGB/Pen/*/PenOthers` |
-| OGB · 触碰振动 | 他人触碰／摩擦映射到 V0 | `OGB/Orf/*/TouchOthers`、`FrotOthers` 及对应 `OGB/Pen/*/` 路径 |
-| PB · 拉伸 | 原生 PhysBone Stretch，IsGrabbed 门控 | `Sensa/Lab/PB_Stretch`、`Sensa/Lab/PB_IsGrabbed`；实际使用须替换 |
+| OGB / SPS · 深度 | `OgbDepth` | 同来源、完整实例、Self／Others 下的现代 Root／Tip 或旧单接近值 |
+| OGB / SPS · 振动 | `OgbTouch` → V0 | Touch／Frot 与其所需的 Close 门控 |
+| PhysBone · 拉伸 | Direct＋GateEnable | `MyPB_Stretch`、`MyPB_IsGrabbed`；将 MyPB 换成实际前缀 |
 
-## 先确认生成器
+## OGB 的新旧兼容
 
-现代 VRCFury 把 Socket 的 OSC ID、Plug 名称中的 `/` 替换为 `_`，因此各占一个路径段。Socket 的现代成对参数是 `PenOthersNewRoot`／`PenOthersNewTip`，自身交互对应 `PenSelfNewRoot`／`PenSelfNewTip`。运行时映射 NewRoot 即可，NewTip 由同一来源、同一实例读取。自身交互可复制草稿后改成实际 Self 路径。[Socket 生成源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L180-L274)
+深度默认匹配 Others：
 
-VRCFury Plug 的 `PenOthers`／`PenSelf` 接收器在根部，半径等于长度；不应套用旧尖端接收器的默认反向。[Plug 生成源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L176-L242)
+```text
+OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
+```
 
-Sensa 传统作者组件采用 `OGB/Orf/<类型>/<实例>/...`，部分旧 Avatar 使用其他路径；这些不能冒充现代 VRCFury 的通用预设。请从参数列表添加实际路径。旧身体部位固定路径、通用 Angle 原始近接组合和默认反向 Plug 模板已移除。
+不需要再把 Tip／Close 添加为独立输出映射。Socket 任一现代通道为正时优先配对；缺另一通道或未估长时为零，不跳到旧的大值。现代通道均零或没有时回退旧 PenOthers；旧 Socket Close 若存在还需开放。Plug 读取自身近接值，不统一反向。旧版并不必然只有一个触发器，官方 OGB v1 已有两种能力；检测实际参数比判断版本更准确。
 
-## 径向估算的边界
+触碰默认匹配：
 
-NewTip 是根部同心的长度球，不是物理尖端。先从外部靠近，在长度球未饱和时学习长度，再计算径向比例；侧向偏移和倾斜仍会改变结果。它不是世界坐标、轴向插入深度或形变表面的真值。更换目标后应重新学习；参数缺失或异常不能靠增加旧别名补齐。定位的完整边界见[定位说明](positioning.md)。
+```text
+OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers
+```
 
-## 自定义与轴配置
+TouchSelf／Others 需同对象对应 Close；Plug FrotOthers 需其 Close，Socket FrotOthers 直接使用。缺门控时不会把原始近接误当触碰。若确实需要原始数值，可以明确改为 Direct。
 
-可以替换／追加预设、编辑单条映射，或把当前映射保存成自定义预设。内置项可复制，不能直接覆盖。删除推荐模板不会删除已经保存的用户映射；旧空间映射默认被实验开关阻断。
+`**` 仅用于发现完整实例；日常控制应固定对象、来源，Self 与 Others 不能交叉配对。Sensa 在同一组内去重，不把新旧信号重复融合。详细规则与固定上游源码见 [OGB 兼容研究](ogb-compatibility.md)。
 
-映射决定“输入是什么、送到哪一轴”；轴配置决定每个输出的限位、反向、速度、锁定和忽略。首次 OSR 测试使用小行程轴配置，并核对设备中位。不要在映射与输出两处重复反向。
+## 使用和保存
 
-没有默认 Contact 定位预设。Point、Handle、Pose 留作高级实验，必须显式开启实验输入；标准 Root／SharedRoot 仅诊断。原生 PB 拉伸不需要重建 XYZ。
+1. 先在参数页确认真实路径。需要时显式启用 `OGB_ENABLED` 心跳。
+2. 选择模板，“替换草稿”后核对路径、角色和范围；追加模板时检查已有门控。
+3. 保存映射会关闭输入；准备状态会区分已保存配置与草稿。
+4. 检查实际来源与输出特征后再启用。振动默认发往 V0；Intiface 要将深度用于振动时，明确选择 L0。
+5. 内置模板不能直接覆盖；复制为自定义模板后修改。
 
-[使用指南](guide.md) · [首次测试](quick-start.md) · [功能参考](features.md)
+原生 PB 的标量校准与坐标端点校准不同；不要给普通 Stretch 凭空添加 XYZ。坐标路线见 [使用方案](usage-scenarios.md) 和 [定位协议](positioning.md)。

@@ -10,7 +10,7 @@
 | --- | --- |
 | 顶栏 | 实时连接、实际输入模式、输入启用、急停／解除、简体中文／English、帮助 |
 | 控制 | 手动／OSC／脚本选择与应用；手动十二轴目标、一次／持续更新、运动参数；输出管理；录制与导出 |
-| OSC → 映射 | 五项内置预设、替换／追加、自定义预设、路径／角色／反向、量程／曲线／映射区间、单条模拟、保存／恢复 |
+| OSC → 映射 | 三项内置预设、替换／追加、自定义预设、路径／角色／反向、量程／曲线／映射区间、单条模拟、保存／恢复 |
 | OSC → 参数 | 搜索、来源浏览、使用来源、分类、冻结、置顶、参数含义、添加映射 |
 | OSC → 实验诊断 | 实验许可、Point／Handle 两端校准、Root／SharedRoot／Pose 观测、局部坐标和异常原因 |
 | OSC 设置展开区 | 监听、来源过滤、超时、OSCQuery、轮询、接收服务发现、Hub |
@@ -42,7 +42,9 @@ Web 使用 React 和项目自建的 TDesign 风格基本组件。导航位于顶
 
 角色对应：Depth／Surge／Sway → L0／L1／L2，Twist／AngleX／AngleY → R0／R1／R2，V0–V2 → 三路振动，Auxiliary／Auxiliary1／Auxiliary2 → A0／A1／A2。角色名不是设备已标定方向。[映射与角色](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalMapping.cs)、[校准与融合](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalPipeline.cs)
 
-SPS Socket 以同来源、同实例 NewRoot／NewTip 学习长度，估计径向比例；NewTip 是根部同心长度球。现代 Plug 近接不默认反向；原生 Touch／Frot 映射振动。五项预设及真实路径集中在[预设指南](presets.md)，不再提供旧 OGB 通用角度、反向和身体部位固定模板。[径向估计](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+三项内置预设是 `ogb-depth`、`ogb-touch`、`native-pb-stretch`。OGB 深度优先使用同来源／实例／Self-Others 的 NewRoot／NewTip，只有无现代配对时才回退旧单近接；现代样本不完整或饱和时拒绝，不静默采用旧值。NewTip 是根部同心长度球，估计的是径向比例。OGB Touch／Frot 独立驱动 V0，并按相同对象要求 Close 门控；PB 使用实际前缀的 Stretch＋IsGrabbed。[预设](presets.md)、[OGB 兼容](ogb-compatibility.md)、[径向估计](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+
+现代 VRCFury 的 OGB 参数可能默认关闭。可在 OSC 设置显式配置 `osc.ogbControl` 的目标，实际 OSC 接收运行时每 5 秒向 VRChat 发送 `OGB_ENABLED=true`，停止或换目标时向旧目标发 false。它不推断来包端口，也不启用设备输入；状态和最后发送时间不是远端接收确认。[启用服务](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OgbControlService.cs)
 
 参数目录受容量限制，丢弃非有限值；来源过期会清理。Avatar 变更清空对应采样和学习状态，并停止 OSC 输入。bundle timetag 可保留用于转发，但标量输入不是完整时序调度器。[OSC 实现](https://github.com/SeaLoong/Sensa/tree/main/src/Input/Osc)
 
@@ -67,9 +69,11 @@ Intiface 根据能力选择定时位置或原始位置命令；振动独立读�
 
 ## 空间实验的边界
 
-Point／Handle 由四面体近接值估计参考局部 XYZ；Root／SharedRoot 用八点拟合球心，始终只诊断；Pose 用 Root／Tip／Side 三组估计直线姿态。所有观测标记为实验、`ReferenceLocal`。默认 `osc.allowExperimentalSpatialInput=false` 阻断 SensaPoint／SensaPose，包括旧配置。
+新的固定根使用 AvatarRootLocal 中四个非共面锚点、半径 2.5 接收球和半径 0.001 的专用 Sender。根点来自明确选中的 Socket／Plug／原生 Contact 中心，独有 tag 减少多个目标混淆。`Sensa/SpsRoot/v1/<id>/Self/Root/A0…A3` 必须同时具有同一 Self 层的 Profile=1、Valid、Scale 与新鲜 Heartbeat；缺少协议元数据的旧八路 Root 只诊断。Avatar 根非均匀缩放、过大半径及自定义根缩放动画在构建时拒绝，运行时 ScaleFactor 超界关闭 Contact。
 
-实验许可开启仍需要完整采样及有效门控。空间年龄取所有通道最旧更新时间，Handle 包括抓取状态；默认 1 秒，正值 `inputTimeoutMs` 覆盖。新鲜度与残差不能证明同帧或同 Sender。四点／八点都有多 Sender 零残差鬼点反例；共同刚体变换、世界位移和 GPU 形变表面也不可由这些距离独立恢复。两端校准只改变映射，不补足缺失的信息。[定位说明与未来可信批次方案](positioning.md)
+原生 Shader 根点生产端用 native Camera／RenderTexture／蒙皮点发布所选 CPU 根的 AvatarRootLocal 坐标；外部 Python 桥只捕获明确注册区域与 producerId，核对帧、CRC、有效性及超时后发送 `Sensa/Shader/v1/<id>`。它是根点捕获，不能当作 SPS GPU 形变曲线或最终可见表面。根点与 Shader 都可在现有本地点面板做两点校准，生成 `SensaPoint` 映射，仍由默认关闭的 `osc.allowExperimentalSpatialInput` 阻断，必须显式许可。
+
+旧 Point／Handle／Pose 保留参考局部实验，使用最旧通道时效，Handle 包括抓取状态；默认 1 秒，正值 `inputTimeoutMs` 覆盖。新固定根允许静止范围缓存，以最多 1250 ms 的 FX 心跳判断活性；32 步计数每步 50 ms，不等于同帧或 Contact 新鲜度证明。新 Shader 另要求帧更新与来源元数据。三者都不能独立恢复 Avatar 世界运动或完整姿态，校准也不补足缺失观测。Others 和 SharedRoot 仍只诊断。[定位说明](positioning.md)、[固定锚点研究](fixed-anchor-research.md)
 
 ## Unity 与实验工具
 
@@ -77,16 +81,16 @@ Unity 包提供构建期作者组件，不是在上传 Avatar 中运行任意 C#
 
 | 模块 | 提供的内容与限制 |
 | --- | --- |
-| QuickStart | 自动右手接收器、Depth／Active、本地初值和 FX 参数；配合世界阶梯台验证接收链路 |
+| 固定 SPS 根部 | Automatic SPS Setup 默认生成固定四锚点 Self 根，Dedicated／Exclusive 支持；独立作者可显式选根，带缩放与协议守卫 |
 | 传统 SensaComponent | Socket／Plug Contacts、环与原始侧向近接；PB／Contact／ExistingParameter／受 SDK 条件约束的 Raycast 辅助信号；不是现代 VRCFury 的相同生成器 |
 | Automatic SPS Setup | 扫描／显式选择已有 SPS，排除目标、菜单选择；Dedicated／Exclusive／SharedRootArray 阵列策略 |
 | Point／Handle／Pose／Root | 实验采样、抓取门控、参考坐标；缩放、命名、参数冲突与 Contact 预算预检 |
 | GPU Model Probe | Editor 中读取已指定 Resolver 的模型快照、中心线与入口数据；固定源版本检查；不是最终网格或通用客户端定位 |
-| 图像桥接 | 外部 PNG／屏幕区域解码、frame／CRC／冻结与 Valid、显式 UDP OSC；传输正确不证明采集源是真实 SPS |
+| 原生 Shader 根点与图像桥 | 生成上传用原生相机／蒙皮点／编码材质，默认 Off；明确区域和 producerId，经 Python 桥发 OSC，冻结／错误失效；真实客户端可见性仍需验收 |
 | Avatar Lab | 能力拆分、QuickStart／FullFlow 场景、放置／贴手、菜单、SDK preprocess 与本地 bundle 检查；依赖用户自己的授权资源 |
 | World Lab | 几何案例、PB／Contact／SPS／Shader 站、START HERE、可交互世界 Plug／Socket、ClientSim／PlayMode 验证入口 |
 
-原生 PB 拉伸不依赖 Contact 位置解算。上传后的真实 Contacts、VR 手柄交互、GPU／头显、Avatar OSC 及硬件仍需要分别验收。世界 Udon 真值不自动成为 Avatar OSC；FullFlow 合成 Shader 码只验证传输。[Unity 指南](../unity/top.sealoong.sensa/README.md)、[自动生成](../unity/top.sealoong.sensa/AUTOMATION.md)、[GPU 实验](../unity/top.sealoong.sensa/GPU-TRACKING.md)、[Avatar 工具](../tools/unity-avatar-lab/README.md)、[世界工具](../tools/unity-world-lab/README.md)
+原生 PB 拉伸不依赖 Contact 位置解算。QuickStart 作者隐藏并仅供内部合成 fixture，不能当作正式 SPS 入门或精度证明。上传后的真实 Contacts、VR 手柄交互、GPU／头显、Avatar OSC 及硬件仍需要分别验收。世界 Udon 真值不自动成为 Avatar OSC；FullFlow 合成 Shader 码只验证传输。[Unity 指南](../unity/top.sealoong.sensa/README.md)、[自动生成](../unity/top.sealoong.sensa/AUTOMATION.md)、[GPU 实验](../unity/top.sealoong.sensa/GPU-TRACKING.md)、[Avatar 工具](../tools/unity-avatar-lab/README.md)、[世界工具](../tools/unity-world-lab/README.md)
 
 ## 服务、配置与 API
 

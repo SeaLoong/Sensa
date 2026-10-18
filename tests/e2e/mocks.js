@@ -12,10 +12,33 @@ export function oscPacket(path, value) {
   const bytes = Buffer.alloc(4); bytes.writeFloatBE(value);
   return Buffer.concat([oscString('/avatar/parameters/' + path), oscString(',f'), bytes]);
 }
+export function oscBundle(entries) {
+  const packets = entries.flatMap(([path, value]) => {
+    const packet = oscPacket(path, value), length = Buffer.alloc(4);
+    length.writeUInt32BE(packet.length);
+    return [length, packet];
+  });
+  return Buffer.concat([oscString('#bundle'), Buffer.from('0000000000000001', 'hex'), ...packets]);
+}
 export function pointSamples(z, grabbed = true) {
   const prefix = 'Sensa/Handle/v1/LabHandle/Self';
   return [0, 3, 5, 6].map((a, i) => [`${prefix}/Root/A${i}`, 1 - (Math.hypot(.02 - (a & 1 ? .06 : -.06), -(a & 2 ? .06 : -.06), z - (a & 4 ? .06 : -.06)) - .001) / .35])
     .concat([[prefix + '/Handle_IsGrabbed', grabbed ? 1 : 0], [prefix + '/Handle_Stretch', .2]]);
+}
+// Independent protocol fixtures, not captured Unity/GPU measurements. / 独立协议夹具，并非 Unity/GPU 实测。
+export function fixedRootSamples(z, heartbeat, valid = true) {
+  const prefix = 'Sensa/SpsRoot/v1/CIFixedRoot/Self';
+  const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  return anchors.map(([x, y, az], index) => [prefix + '/Root/A' + index,
+    1 - (Math.hypot(.02 - x, 1 - y, z - az) - .001) / 2.5])
+    .concat([[prefix + '/Profile', 1], [prefix + '/Valid', valid ? 1 : 0],
+      [prefix + '/Scale', 1], [prefix + '/Heartbeat', heartbeat]]);
+}
+export function shaderRootSamples(z, frame, valid = true) {
+  const prefix = 'Sensa/Shader/v1/42';
+  // This order is the real native-bridge packet contract. / 顺序对应实际原生桥接包契约。
+  return [['Valid', valid ? 1 : 0], ['Frame', frame], ['X', .02], ['Y', 1], ['Z', z], ['Producer', 42], ['Profile', 1]]
+    .map(([name, value]) => [prefix + '/' + name, value]);
 }
 export function poseSamples() {
   return [['Root', [.02, 0, -.1]], ['Tip', [.02, 0, .1]], ['Side', [.05, 0, -.1]]].flatMap(([marker, position]) =>
@@ -90,6 +113,7 @@ export async function startMocks() {
       intifaceState.stopped = true; intifaceState.stopCount = 0;
     },
     send: async entries => { for (const [path, value] of entries) await new Promise((resolve, reject) => source.send(oscPacket(path, value), ports.osc, '127.0.0.1', e => e ? reject(e) : resolve())); },
+    sendBundle: async entries => new Promise((resolve, reject) => source.send(oscBundle(entries), ports.osc, '127.0.0.1', e => e ? reject(e) : resolve())),
     breakTcp: () => { for (const client of clients) client.destroy(); },
     close: async () => { serial.kill(); lines.close(); for (const socket of [udp, hub, source]) socket.close(); for (const c of clients) c.destroy(); for (const c of bp.clients) c.terminate(); await Promise.all([new Promise(r => tcp.close(r)), new Promise(r => bp.close(r)), new Promise(r => query.close(r))]); },
   };

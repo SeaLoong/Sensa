@@ -6,7 +6,7 @@
 
 把手动、VRChat OSC 或 funscript 转换为 Intiface／TCode 设备目标。浏览器工作台分为**控制、OSC、设置**，详细配置按需展开。
 
-[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [五项映射预设](docs/presets.md)
+[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [三项映射预设](docs/presets.md)
 
 ## 启动
 
@@ -26,14 +26,14 @@ macOS 预览是未签名公证的命令行程序。以 `top.sealoong.sensa-` 开
 ## 当前能力
 
 - 手动十二轴、funscript 播放／循环／定位、L0 录制导出。
-- OSC 参数发现、前缀隐藏 FT、五项精简预设、自定义映射、OSCQuery 与 Hub。
+- OSC 参数发现、前缀隐藏 FT、三项精简预设、自定义映射、OSCQuery 与 Hub。
 - 多输出、独立轴配置、目标预览、显式输入许可和急停。
 - 简体中文／English 与窄屏布局。
-- Unity QuickStart 接收链路、原生 PB 标量及高级实验工具。
+- OGB／SPS 自动信号识别、固定四锚点根坐标、原生 Shader 根点捕获与 PB 标量。
 
-目标预览不是设备位置回读。Contact 四／八点定位默认禁止驱动输出；它只能提供带假设的参考局部估计，不能证明 Sender 身份、同帧、世界位置或 GPU 表面。[定位原理与重做方向](docs/positioning.md)
+目标预览不是设备位置回读。已有 OGB／SPS 参数优先使用自动深度或振动预设；必要时显式启用向 VRChat 发送 `OGB_ENABLED` 的心跳，其状态不代表 UDP 接收确认。[兼容与实际路径](docs/ogb-compatibility.md)
 
-已有原生 SPS 参数通常不需要 Sensa Unity 包；现代 Socket 径向估算与 Plug 近接的路径和局限见[预设](docs/presets.md)。首次测试可用 QuickStart World Receiver，不需要 SPS、相机或 Python。
+需要根点时，Unity 作者可为选定 Socket／Plug 生成 Avatar 根局部固定四锚点，或生成原生 Shader 捕获器，通过明确屏幕区域的 Python 桥发布根坐标。两者都在实验诊断中两点校准后生成映射，仍需显式实验许可；它们不测世界位置、完整姿态或 SPS 曲线表面。旧八路 Root 不会被当作新四锚点协议。[定位方案](docs/positioning.md) · [Shader 捕获](unity/top.sealoong.sensa/GPU-TRACKING.md)
 
 ## 文档
 

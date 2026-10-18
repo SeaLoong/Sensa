@@ -51,7 +51,7 @@ Avatar 的原生 haptics 必须打开实验菜单 `Enable SPS OSC (local)`（`OG
 
 ## 图像桥接操作
 
-先使用没有任何输出设备的 Sensa 配置，应用 OSC 输入。脚本不会连接或启用硬件。下列命令中的 `<World project>` 请替换为自己的本地世界工程目录。
+先使用没有任何输出设备的 Sensa 配置，仅观察 OSC 参数，保持输入关闭。脚本不会连接或启用硬件。下列命令中的 `<World project>` 请替换为自己的本地世界工程目录。
 
 仓库提供 `tools/unity-world-lab/sensa-preview.json`。在单独 PowerShell 中设置 `$env:SENSA_CONFIG_PATH` 为该文件绝对路径，再运行解压目录的 `Sensa.exe`，打开 `http://127.0.0.1:5087`。它没有输出设备。先关闭其他占用 UDP 9001 的监听程序；应用 OSC 输入后，多个来源并存时在参数工作台固定桥接来源。
 
@@ -61,17 +61,17 @@ python -m pip install -r scripts/requirements-capture.txt
 python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
 # 读取 GPU Probe 连续更新的 PNG，明确指定本机 Sensa 的 OSC 端口
 python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
-# 或读取完整代码区域，坐标为桌面物理像素；示例数字需要按实际区域修改
-python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
+# 原生根点屏幕捕获必须固定 producer 并按独立指南注册：
+# unity/top.sealoong.sensa/GPU-TRACKING.md
 ```
 
 脚本支持被拉伸的矩形图块，但必须包含完整 16×8 网格、每个格子至少 4×4 像素。不支持自动找码或透视校正。启动及故障恢复均需两帧新的递增序号才置 Valid=1；旧帧和重复帧不能恢复门控。同一帧号的 XYZ 改变也会失效。冻结、乱序、CRC 错误、退出均关闭 Valid；进程被强杀或网络断开时还要依靠 Sensa 的断流停止设置。
 
-桌面发行包现已附带桥接脚本、Pillow 依赖清单和无设备预览配置，可在解压目录执行上述命令。Windows x64 CI 使用真实 GPU 生成的固定 PNG，检查 CRC 故障停用、旧帧拒绝、两帧恢复及最终冻结停止。
+桌面发行包附带桥接脚本、Pillow 依赖清单和无设备预览配置。Windows x64 CI 用固定 GPU PNG 验证 Profile0 传输的 CRC 故障、旧帧拒绝、两帧恢复和冻结失效，输入始终关闭，不作为原生根点或运动证据。
 
 示例配置将断流停止设为 500 ms；仍应固定桥接来源，避免其他程序的数据影响测试。采集窗口重开、帧计数重置后，重新启动桥接以建立新的帧序基线。
 
-在参数工作台看 `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`。不再提供 Shader Z 内置预设；仅作诊断时可手工比较 0–0.2 m 的位移映射：Z=.12 映射为 60%，**不是**上表的 40% SPS 插入深度。实际运动范围需重新校准。
+在参数工作台看 `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}`。Profile0/ID0 仅作诊断预览，不作运动输入或校准参考；.12 m 模型位移与 SPS 插入深度是不同量。Profile1 注册见[包内指南](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。
 
 ### 真正 SPS 模型怎样接到 PNG
 
@@ -80,7 +80,7 @@ python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
 3. 勾选“连续导出实验 PNG”，设置输出文件，点击“检查依赖并采集下一帧”。该 Camera 必须持续渲染。
 4. 外部脚本使用 `--image ... --watch --port ...`，在 Sensa 检查 Valid 与 XYZ。暂停渲染后应失效。
 
-编码的是“入口减去中心线根部”的世界轴位移，范围每轴 ±1 m；超范围或 GPU 数据无效会输出无效包。此链路目前需要 Unity 编辑器，尚未实现上传 Avatar 后自动读取真实 SPS 模型并导出编码图像。纯 Camera 合成码可用于测试客户端的相机保留、截图与可见性，但不能冒充真实 SPS 数据。
+此编辑器链路编码“入口减去中心线根部”的世界轴位移，每轴 ±1 m；超范围或无效 GPU 数据输出无效包。它仍不是上传后的 SPS 模型生产端。包内原生方案采样实际根部 Transform，不采样形变模型；本实验室纯 Camera 合成码也不能冒充真实 SPS 数据。
 
 固定窗口区域减少了转头时代码位置改变的问题，但 CRC/帧号不能证明画面绝无延迟。真实 VRChat 相机裁剪、窗口遮挡、缩放、重投影和头显不可见性仍需验证。
 

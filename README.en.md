@@ -6,7 +6,7 @@
 
 Convert Manual, VRChat OSC or funscript input into Intiface/TCode targets. The browser workbench has **Control, OSC and Settings**, with details expanded when needed.
 
-[Download previews](https://github.com/SeaLoong/Sensa/releases) · [Quick start](docs/quick-start.en.md) · [User guide](docs/guide.en.md) · [Five mapping presets](docs/presets.en.md)
+[Download previews](https://github.com/SeaLoong/Sensa/releases) · [Quick start](docs/quick-start.en.md) · [User guide](docs/guide.en.md) · [Three mapping presets](docs/presets.en.md)
 
 ## Start
 
@@ -26,14 +26,14 @@ macOS previews are unsigned command-line programs. ZIP files starting with `top.
 ## Current capabilities
 
 - Twelve-axis manual control; funscript playback/looping/seeking; L0 recording/export.
-- OSC discovery, FT prefix filtering, five simplified presets, custom mappings, OSCQuery and Hub.
+- OSC discovery, FT prefix filtering, three simplified presets, custom mappings, OSCQuery and Hub.
 - Multiple outputs, independent axis profiles, target previews, explicit input permission and emergency stop.
 - Chinese/English and narrow-screen layout.
-- Unity QuickStart reception, native PB scalars and advanced experiments.
+- OGB/SPS signal recognition, four fixed anchors for root coordinates, native shader root capture and PB scalars.
 
-Target previews are not mechanical feedback. Four/eight-receiver Contact positioning cannot drive output by default. It provides a conditional reference-local estimate without proving Sender identity, shared frames, world position or GPU surfaces. [Positioning principles and redesign](docs/positioning.en.md)
+Target previews are not mechanical feedback. Start with automatic OGB/SPS depth or vibration presets when native parameters exist. If required, explicitly enable the `OGB_ENABLED` heartbeat to VRChat; its status is not a UDP acknowledgment. [Compatibility and paths](docs/ogb-compatibility.en.md)
 
-Existing native SPS parameters normally need no Sensa Unity package. See [Presets](docs/presets.en.md) for modern Socket radial estimation, Plug proximity and their limits. A first reception test can use QuickStart World Receiver without SPS, cameras or Python.
+For root coordinates, Unity authors can generate four anchors fixed in the avatar-root frame or a native shader capture rig for a selected Socket/Plug. An explicit screen-region Python bridge publishes shader coordinates. Both use two-point calibration in Experimental diagnostics and require explicit experimental permission. They do not measure world position, complete pose or the SPS curve surface. Old eight-channel Root samples are not the new protocol. [Positioning](docs/positioning.en.md) · [Shader capture](unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
 ## Documentation
 

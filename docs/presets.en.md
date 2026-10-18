@@ -1,35 +1,41 @@
-# Mapping presets
+# Three mapping templates
 
 [简体中文](presets.md) | **English**
 
-The built-in catalog contains five common inputs. A preset creates drafts: inspect the actual parameters, source and direction, save them, then explicitly enable input. It does not connect hardware or replace device calibration.
+Templates describe existing parameters; they do not install or generate SPS. Socket/Plug haptics share the OGB namespace. Synthetic steps and fixed body aliases are no longer shipped routes. Sensa SPS and Shader coordinates require an actual producer and calibration, not a guessed wildcard travel range.
 
-| Preset | Purpose | Input paths |
+| Template | Interpreter | Real input |
 | --- | --- | --- |
-| Connection test | Test-world to your-avatar reception; Active gate | `Sensa/QuickStart/Depth`, `Sensa/QuickStart/Active` |
-| SPS Socket · Radial estimate | Normalized radial estimate from VRCFury root/length spheres | `OGB/Orf/*/PenOthersNewRoot`; NewTip is read from the same source and instance |
-| SPS Plug · Proximity | VRCFury Plug root proximity, without default inversion | `OGB/Pen/*/PenOthers` |
-| OGB · Touch vibration | Other-player touch/rubbing to V0 | `OGB/Orf/*/TouchOthers`, `FrotOthers`, and corresponding `OGB/Pen/*/` paths |
-| PB · Stretch | Native PhysBone Stretch with an IsGrabbed gate | `Sensa/Lab/PB_Stretch`, `Sensa/Lab/PB_IsGrabbed`; replace these for your avatar |
+| OGB / SPS depth | `OgbDepth` | Modern Root/Tip or legacy proximity at the same source, full instance and Self/Others party |
+| OGB / SPS vibration | `OgbTouch` → V0 | Touch/Frot and their required Close gates |
+| PhysBone stretch | Direct + GateEnable | `MyPB_Stretch`, `MyPB_IsGrabbed`; replace MyPB with the actual prefix |
 
-## Identify the generator first
+## OGB compatibility
 
-Modern VRCFury replaces `/` in a Socket OSC ID or Plug name with `_`, producing one path segment. Modern Socket pairs are `PenOthersNewRoot`/`PenOthersNewTip`, or `PenSelfNewRoot`/`PenSelfNewTip` for self interaction. Map NewRoot; the runtime reads NewTip from the same source and instance. For self interaction, copy a draft and use its actual Self path. [Socket generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L180-L274)
+The depth template defaults to Others:
 
-VRCFury Plug `PenOthers`/`PenSelf` receivers sit at the root with a radius equal to the length. They should not inherit the inversion used by an older tip receiver. [Plug generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L176-L242)
+```text
+OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
+```
 
-Sensa's traditional authoring component uses `OGB/Orf/<type>/<instance>/...`; older avatars may use other paths. These are not universal modern VRCFury presets. Add their actual paths from the parameter list. Fixed body-location paths, generic Angle proximity combinations and default inverted Plug templates have been removed.
+Do not add Tip/Close as independent output mappings. A positive modern Socket channel selects pairing; a missing companion or unlearned length yields zero rather than a high legacy fallback. Both modern channels zero or absent permits legacy PenOthers; an existing legacy Socket Close must also open. Plug uses its proximity without universal inversion. Old versions do not universally have one detector: official OGB v1 already supported both capabilities. Detect actual parameters rather than guessing versions.
 
-## Limits of the radial estimate
+Touch defaults to:
 
-NewTip is a length sphere centered on the root, not a physical tip. Approach from outside to learn length while that sphere is unsaturated; the runtime can then calculate a radial proportion. Lateral offset and tilt still affect it. This is not a world coordinate, axial insertion depth or deformed surface measurement. Relearn after changing targets; missing or invalid parameters cannot be repaired by adding unrelated legacy aliases. See [Positioning](positioning.en.md).
+```text
+OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers
+```
 
-## Custom mappings and axis profiles
+TouchSelf/Others requires the corresponding Close from the same object; Plug FrotOthers requires its Close, while Socket FrotOthers is direct. Missing gates never promote raw proximity into touch. Explicitly choose Direct if raw values are what you want.
 
-Replace or append a preset, edit individual mappings, or save the current mappings as a custom preset. Built-in entries can be copied but cannot be overwritten. Removing a recommended template does not delete saved user mappings; existing spatial mappings are blocked by default by the experimental-input setting.
+`**` discovers full instance paths. Constrain the actual object and source for everyday control; never pair Self with Others. Sensa deduplicates each group rather than fusing modern and legacy signals twice. See [OGB compatibility research](ogb-compatibility.en.md) for complete rules and fixed upstream sources.
 
-Mappings define the input and destination axis. Axis profiles define each output's bounds, inversion, speed, locks and ignored axes. Use the small-stroke profile for a first OSR test and verify its center against your device. Avoid applying the same reversal in both places.
+## Applying and saving
 
-There is no default Contact positioning preset. Point, Handle and Pose remain advanced experiments requiring explicit activation; standard Root/SharedRoot observations are diagnostic-only. Native PB stretch does not require XYZ reconstruction.
+1. Confirm real paths in Parameters. Explicitly enable `OGB_ENABLED` heartbeats if required.
+2. Replace the draft with a template and check paths, roles and ranges; inspect existing gates when appending.
+3. Saving mappings disarms input. Readiness distinguishes saved configuration from drafts.
+4. Check the actual source and output features before arming. Vibration uses V0; explicitly select L0 for Intiface depth-to-vibration.
+5. Copy a built-in into a custom template before editing it.
 
-[User guide](guide.en.md) · [First test](quick-start.en.md) · [Feature reference](features.en.md)
+Native PB scalar calibration differs from coordinate endpoint calibration; ordinary Stretch does not gain XYZ. See [usage routes](usage-scenarios.en.md) and the [positioning contract](positioning.en.md).

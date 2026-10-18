@@ -1,57 +1,68 @@
-# Automation and experimental sampling
+# Automation and fixed-root sampling
 
 [简体中文](AUTOMATION.md) | **English**
 
-Automatic SPS Setup discovers existing SPS targets and generates native components at build time. It reduces authoring work without proving unique Sender identity, a common frame or actual surface geometry. Position estimates cannot drive devices by default. Read [Positioning](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md) first.
+Automatic SPS Setup reads existing SPS Socket/Plug authoring geometry at build time and creates Sensa markers, fixed anchors and native parameters without modifying SPS. Default measurement is a root point, not GPU surface geometry or remote Avatar tracking. Desktop spatial input defaults off. [Principles and limits](COMPATIBILITY.en.md)
 
 ## Minimal setup
 
-After installing dependencies, add **Sensa → Automatic SPS Setup** to the avatar root, choose capabilities and run preflight. VRCFury must already configure the SPS targets correctly. Discover All is the default; alternatively use Selected Targets, with Excluded Targets taking precedence. Avoid assigning one target to duplicate groups; keep group/instance/channel names valid and unique.
+Add **Sensa → Automatic SPS Setup** to the Avatar root after configuring SPS with VRCFury. Discover All is the default; Selected Targets can limit discovery, and Excluded Targets take priority. New components default to Exclusive with an initially Off in-game menu; existing serialized policies are retained. Do not assign one target to duplicate automatic groups.
 
 | Capability | Generated content | Meaning |
 | --- | --- | --- |
-| Socket Root Tracking | Eight standard Root receivers per object | Candidate sphere center, diagnostic-only |
-| Paired Socket Tracking | Eight receivers for each Root/Tip/Side marker | Experimental straight-axis pose from three paired points |
+| Fixed SPS root tracking (socketRootTracking) | 4 fixed Receivers + 1 dedicated Sender per Socket/Plug | Self root position in AvatarRootLocal |
+| Paired Socket Tracking | 8 Receivers for each Root/Tip/Side marker | Advanced three-point straight-pose experiment |
 | Paired Plug Markers | Three matching-channel markers | Undeformed reference points, not GPU tips |
-| Local Plug Tip Tracking | Tetrahedral array at a reference Socket plus local marker | Experimental undeformed-tip estimate relative to that frame |
-| Create Plug Grab Handles | Separate PhysBone handle, ranges and grab state | Grab gating, not handle-orientation tracking |
+| Local Plug Tip Tracking | Tetrahedron at a reference Socket plus local marker | Undeformed-tip experiment relative to that frame |
+| Create Plug Grab Handles | Separate PhysBone handle, samples and grab state | Grab gating, not orientation |
 
-Local Plug Tip Tracking needs a reference Socket; a sole candidate can be selected automatically. Moving target/reference together supplies no world displacement. Handle meshes remain outside SPS renderer searches, while PhysBone and following constraints use different objects. Inspect generation plans, scaling and total Contact usage before upload.
+Local Plug Tip Tracking requires a reference Socket; a sole candidate can be selected automatically. Common target/reference movement supplies no world displacement. Inspect generation plans, positive uniform scale, names and Contact usage from every plugin before upload.
 
-## Local probes and native PB
+For one target, add **Fixed SPS Root Probe** and explicitly select an SPS Socket, Plug, Sensa root component or native Contact. ReadRoot resolves its CPU Transform root centre without guessing from names. Keep instance names and Collision Channels unique. New components generate random channels by default; regenerate after duplication. The packaged `SensaSpsRootProbe.prefab` and **GameObject → Sensa → Fixed-anchor SPS Root Probe** menu now both create the fixed-four-anchor author with an empty target that must be assigned explicitly. Duplicated prefab instances also require unique names/channels. Legacy eight-channel `SensaPoseSocket.standardSpsRoot` builds fail with migration guidance; replace that author. Three-point Pose remains available.
 
-**Local Bone or PB Probe** works without SPS: set Target/Reference or create a handle. Point/Handle use four receivers and Root uses eight. The four-range format is experimental, not a reliability guarantee. Use positive uniform scale throughout the ancestry and unique instance names.
+## Default fixed four anchors
 
-For grab/stretch control, prefer actual PhysBone `_Stretch`+`_IsGrabbed` scalars. They need no position reconstruction. The desktop PB template uses test paths; replace them with your actual prefix.
+Anchors stay in Avatar-root local coordinates, centred on `(0,1,0)`, with a 0.5 half-span and four noncoplanar points. Receiver radius is 2.5 and dedicated Sender radius is 0.001. The Sender follows target-root position/rotation without following target-bone scale, so its radius remains defined by Avatar-root scale.
 
-## Array policies
-
-| Policy | Registered Root receivers | Behavior |
+| Policy | Base root Contact cost | Behavior |
 | --- | --- | --- |
-| Dedicated | 8 × targets | Independent arrays, simultaneous observation |
-| Exclusive | 8 × targets | One selected target; reduces active count only |
-| SharedRootArray | 8 | Shared array follows the selected reference; at most 16 equally scaled targets |
+| Dedicated | 5 per target | Independent Socket and Plug measurements; simultaneous observation |
+| Exclusive | 5 per target | One selected target; reduces active count, not registered total |
+| SharedRootArray | 8 shared Receivers | Legacy moving Socket-array diagnostics, not the fixed-four-anchor protocol |
 
-SharedRootArray uses Slot/Ready and post-switch samples to avoid immediately reusing the previous slot. It still has neither Sender identity nor an atomic sample frame, and cannot provide motion stroke. Include Contacts generated by other plugins in the final budget.
+Base costs exclude optional pose, tip, PB handles and other plugins. Manual Fixed SPS Root Probe Others Diagnostic adds four Receivers, for nine total. Its Others Valid always remains zero and cannot drive output.
 
-## Paths and desktop entry point
+SharedRootArray allows at most 16 eligible, equally scaled targets. Slot/Ready and post-switch samples avoid immediate reuse of an old slot; the moving frame and missing common identity make it unsuitable for motion mapping. Legacy eight-range SpsRoot data is not accepted as the new Profile=1: rebuild fixed-root authors.
 
-| Path | Input |
+## Scale and publication
+
+The Avatar root requires positive uniform scale, with `2.5 × authoredRootScale × ScaleFactor` below approximately 2.999 m. Known root-scale animation and Avatar-root ScaleConstraint are rejected during authoring. Unsupported runtime ScaleFactor disables Contacts and clears Valid/ranges. Scale metadata copies VRChat's built-in ScaleFactor, rather than world scale or arbitrary custom scale animation.
+
+FX copies four Raw values into public values approximately every 0.05 seconds, then advances a 32-step Heartbeat (step i is i/31, wrapping approximately every 1.6 seconds) and publishes Profile, Valid and Scale. Liveness permits unchanged distances to remain cached; it is not an atomic frame, frameId or reliable UDP protocol. NDMF removes authoring components, leaving native runtime components.
+
+## Paths and desktop workflow
+
+The fixed Self root prefix is `Sensa/SpsRoot/v1/<instance>/Self`:
+
+| Relative path | Content |
 | --- | --- |
-| `Sensa/SpsRoot/v1/<instance>/<Self|Others>/Root/A0..A7` | Standard Root diagnostics |
-| `Sensa/SharedRoot/v1/<group>/Others/...` | Shared Root with Slot/Ready |
-| `Sensa/Point/v1/<instance>/Self/Root/A0..A3` | Experimental local point |
-| `Sensa/Handle/v1/<instance>/Self/...` | Experimental handle with grab/stretch state |
-| `Sensa/Pose/v1/<instance>/<Self|Others>/<Root|Tip|Side>/A0..A7` | Experimental paired pose |
+| `/Root/RawA0..RawA3` | Raw Contact proximity read by FX |
+| `/Root/A0..A3` | Four FX-published proximities used by desktop reconstruction |
+| `/Profile` | 1, identifying AvatarRootTetrahedron |
+| `/Valid` | 1 while local, selected and within supported scale |
+| `/Scale` | Built-in ScaleFactor |
+| `/Heartbeat` | 32-step i/31 producer-liveness counter (0–1) |
 
-Apply OSC mode on desktop and open **OSC → Experimental diagnostics**. Expand local points/roots for two-endpoint calibration: select the metric, capture 0%/100%, create drafts and save. Endpoints must share object, source and metric. Root/SharedRoot cannot calibrate motion stroke. Saving never enables input automatically.
+Metadata is directly below Self, **not below Root**. This protocol has no `/Root/Valid`. Optional Others diagnostics use the same structure with Valid=0. Reconstructed coordinates are AvatarRootLocal, not world coordinates.
 
-`osc.allowExperimentalSpatialInput` defaults to false and blocks existing spatial mappings too. Explicit permission still requires complete, fresh contributing channels. Freshness uses the oldest channel, including Handle grab state, with a default one-second limit. Unchanged OSC values may not be resent, and freshness does not prove simultaneity or identity. Successful calibration or low residual is not tracking acceptance.
+Apply OSC mode and open **OSC → Experimental diagnostics → Local points and roots → Two-endpoint calibration**. A fixed Self root supports X/Y/Z/Distance: capture endpoints and save drafts. It requires a unique valid instance, matching source and metric. SharedRoot/Others cannot generate motion mappings. Saving still requires separate experimental permission and input activation.
 
-## Prefabs and build boundaries
+`osc.allowExperimentalSpatialInput` defaults to false and blocks existing spatial mappings too. Fixed roots require Profile=1, Valid=1, positive Scale and a current producer heartbeat. Desktop heartbeat age defaults to one second, with a protocol maximum of 1.25 seconds. It does not establish that every range packet arrived. Point/Handle/Pose still use the oldest contributing channel, including Handle grab state, with a default one-second limit.
 
-SensaAutoSetup, SensaLocalPoint, SensaGrabHandle, SensaPoseSocket/Plug and SensaSpsRootProbe authoring prefabs remain available. Sensor builders check conflicts, names, scale and budgets and create actual FX Animator parameters. Declaring names only in the local expression-parameter list is insufficient for Contact writes.
+## Other experiments and native PB
 
-NDMF generates native components and removes authoring configuration. Menus default to Off; measurement selection is separate from the original SPS menus. Editor/synthetic contracts do not substitute for uploaded-client OSC, real grabbing, mixed Senders, GPU or hardware acceptance.
+Local Bone or PB Probe works independently of SPS using Target/Reference and the older four-range Point/Handle samples. Pose uses three sets of eight ranges. Their reference may move with the target; do not confuse them with the fixed Avatar-root profile. Native PB stretch can directly use `_Stretch`+`_IsGrabbed` without reconstruction; replace MyPB in the desktop template with the real prefix.
 
-[Installation](README.en.md) · [Compatibility](COMPATIBILITY.en.md) · [Shader experiments](GPU-TRACKING.en.md)
+Legacy authoring prefabs and QuickStart remain explicit experiments/development fixtures, rather than default recommendations. Low residuals, successful calibration and synthetic Editor checks do not establish tracking acceptance. Uploaded-client OSC, real grabbing, mixed Senders, GPU and hardware effects need separate validation; this work does not claim them verified.
+
+[Installation](README.en.md) · [Compatibility](COMPATIBILITY.en.md) · [Shader guide](GPU-TRACKING.en.md)

@@ -70,6 +70,7 @@ public static class SensaHost
 
         var parameterStore = new OscParameterStore();
         var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort);
+        using var ogbControl = new OgbControlService(logError: LogError);
         var oscQueryClient = new OscQueryClient();
         var oscQueryPollingService = new OscQueryPollingService(LogDebug, LogError);
         var oscQueryReceiverService = new OscQueryReceiverService(LogDebug, LogError);
@@ -590,6 +591,7 @@ public static class SensaHost
 
             if (!shouldListen)
             {
+                ogbControl.Configure(config.Osc.OgbControl, shouldRun: false);
                 oscListenerError = null;
                 if (oscReceiver.IsRunning)
                 {
@@ -610,6 +612,7 @@ public static class SensaHost
                 }
                 catch (Exception ex)
                 {
+                    ogbControl.Configure(config.Osc.OgbControl, shouldRun: false);
                     oscListenerError = $"无法监听 {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}：{ex.Message}";
                     throw new InvalidOperationException(oscListenerError, ex);
                 }
@@ -626,6 +629,7 @@ public static class SensaHost
                 }
                 catch (Exception ex)
                 {
+                    ogbControl.Configure(config.Osc.OgbControl, shouldRun: false);
                     oscListenerError = $"无法监听 {config.Osc.ReceiverHost}:{config.Osc.ReceiverPort}：{ex.Message}";
                     throw new InvalidOperationException(oscListenerError, ex);
                 }
@@ -634,6 +638,10 @@ public static class SensaHost
             {
                 oscListenerError = null;
             }
+
+            config.ValidateOgbControlTarget();
+            ogbControl.Configure(config.Osc.OgbControl,
+                shouldListen && oscReceiver.IsRunning && motionRuntime.CurrentInputMode == RuntimeInputMode.Osc);
 
             try
             {
@@ -720,6 +728,7 @@ public static class SensaHost
             NotifyStateChanged();
         };
         oscQueryClient.StructureChanged += () => QueueOscQueryRefresh();
+        ogbControl.StateChanged += NotifyStateChanged;
         oscQueryClient.ListenStateChanged += NotifyStateChanged;
         oscQueryPollingService.StateChanged += NotifyStateChanged;
         oscQueryReceiverService.StateChanged += NotifyStateChanged;
@@ -841,6 +850,7 @@ public static class SensaHost
                     config.Osc.ReceiverPort,
                     listening = oscReceiver.IsRunning,
                     listenerError = oscListenerError,
+                    ogbControl = ogbControl.Snapshot(),
                     preview = oscPreview,
                     sources = oscSourceSnapshots.Select(source => new
                     {
@@ -1172,6 +1182,7 @@ public static class SensaHost
         {
             Log("[Sensa] Shutting down…");
             CloseAllWsClientsAsync(WebSocketCloseStatus.EndpointUnavailable, "Service shutting down", abortAfterClose: true).GetAwaiter().GetResult();
+            ogbControl.Dispose();
             recorder.Stop();
             outputCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
             oscReceiver.Stop();
@@ -1208,6 +1219,7 @@ public static class SensaHost
 
         await app.RunAsync();
 
+        ogbControl.Dispose();
         motionRuntime.Dispose();
         scriptPlayer.Dispose();
         oscReceiver.Stop();

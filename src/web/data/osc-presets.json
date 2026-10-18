@@ -1,70 +1,41 @@
 [
   {
-    "id": "sensa-quick-start",
-    "name": "链路测试",
-    "description": "配合 Sensa 测试世界；Active 关闭时停止。",
+    "id": "ogb-depth",
+    "name": "OGB / SPS · 深度",
+    "description": "自动识别新旧 OGB：Root/Tip 优先，旧版单近接回退；固定实际对象后校准。",
     "mappings": [
       {
-        "oscPath": "Sensa/QuickStart/Depth",
+        "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",
+        "sourceMode": "OgbDepth",
+        "role": "Depth"
+      }
+    ]
+  },
+  {
+    "id": "ogb-touch",
+    "name": "OGB / SPS · 振动",
+    "description": "Touch / Frot → V0；自动检查同一对象所需的 Close 门控。",
+    "mappings": [
+      {
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers",
+        "role": "V0",
+        "sourceMode": "OgbTouch"
+      }
+    ]
+  },
+  {
+    "id": "native-pb-stretch",
+    "name": "PhysBone · 拉伸",
+    "description": "将 MyPB 换成实际参数前缀，再校准 Stretch；松手关闭门控。",
+    "mappings": [
+      {
+        "oscPath": "MyPB_Stretch",
         "role": "Depth",
         "vrchatMin": 0,
         "vrchatMax": 1
       },
       {
-        "oscPath": "Sensa/QuickStart/Active",
-        "role": "GateEnable"
-      }
-    ]
-  },
-  {
-    "id": "sps-socket-depth-others",
-    "name": "SPS Socket · 径向估算",
-    "description": "VRCFury NewRoot/NewTip，先从外部靠近校准；不是轴向位置。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/*/PenOthersNewRoot",
-        "sourceMode": "SpsSocketDepth",
-        "role": "Depth",
-        "isOgbSocket": true
-      }
-    ]
-  },
-  {
-    "id": "sps-plug-depth-others",
-    "name": "SPS Plug · 近接",
-    "description": "VRCFury 根部近接；数值越大表示越近，默认不反向。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Pen/*/PenOthers",
-        "role": "Depth",
-        "isOgbPlug": true
-      }
-    ]
-  },
-  {
-    "id": "sps-touch",
-    "name": "OGB · 触碰振动",
-    "description": "TouchOthers / FrotOthers → V0。",
-    "mappings": [
-      {
-        "oscPath": "OGB/Orf/*/TouchOthers;OGB/Orf/*/FrotOthers;OGB/Pen/*/TouchOthers;OGB/Pen/*/FrotOthers",
-        "role": "V0"
-      }
-    ]
-  },
-  {
-    "id": "sensa-lab-pb-stretch",
-    "name": "PB · 拉伸",
-    "description": "测试路径 Sensa/Lab/PB；使用前替换并校准，松手停止。",
-    "mappings": [
-      {
-        "oscPath": "Sensa/Lab/PB_Stretch",
-        "role": "Depth",
-        "vrchatMin": 0,
-        "vrchatMax": 1
-      },
-      {
-        "oscPath": "Sensa/Lab/PB_IsGrabbed",
+        "oscPath": "MyPB_IsGrabbed",
         "role": "GateEnable"
       }
     ]

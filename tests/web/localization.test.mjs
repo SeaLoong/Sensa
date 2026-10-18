@@ -59,7 +59,7 @@ test('switching updates module catalogs and subscribers while user data and diag
     assert.equal(diagnostic('Root: 采样不完整'), 'Root: Incomplete samples');
     assert.equal(diagnostic('unknown firmware response'), 'unknown firmware response');
     assert.match(docUrl('docs/guide.md'), /guide\.en\.md$/);
-    assert.equal(calibratedPointDraft(null, 'Z', null, null).error, 'Select a local point and measurement axis');
+    assert.equal(calibratedPointDraft(null, 'Z', null, null).error, 'Select a mappable point and axis');
     assert.equal(setLocale('invalid'), false); assert.equal(getLocale(), 'en-US');
     setLocale('en-US'); setLocale('zh-CN');
     assert.equal(options(), zh); assert.equal(factories, 2); assert.equal(calls.length, 2);

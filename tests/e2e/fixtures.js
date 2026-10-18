@@ -5,7 +5,7 @@ import { startTestRig } from './rig.js';
 
 export { expect };
 export const test = base.extend({
-  scenario: ['quickstart', { option: true }],
+  scenario: ['basic', { option: true }],
   // Peers are reusable; every scenario owns its process, config and feeds.
   // 模拟端可复用；场景独占进程、配置和持续输入。
   mockPeers: [async ({}, use) => {

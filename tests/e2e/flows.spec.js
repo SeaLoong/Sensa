@@ -92,24 +92,24 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   expect(rig.wire.udp.length).toBe(count); expect(rig.intifaceState.stopped).toBe(true);
 });
 
-test('QuickStart steps, literal FT prefix filtering, parameter preview and gate stop', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
+test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate stop', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP','Mock TCP']); await mode(page, 'OSC'); await active(page);
   await rig.send([...Array.from({ length: 30 }, (_, i) => ['FT/Unlisted' + i, .7]), ...Array.from({ length: 30 }, (_, i) => ['v2/Unlisted' + i, .7]), ['Custom/Face/JawOpen', .2]]);
   for (const [depth,target] of [[0,400],[.25,450],[.5,500],[.75,550],[1,600]]) {
-    await rig.send([['Sensa/QuickStart/Depth', depth],['Sensa/QuickStart/Active',1]]);
+    await rig.send([['CI/Depth', depth],['CI/Active',1]]);
     await outputValue(rig, 'udp', target); await outputValue(rig, 'tcp', target);
   }
   await oscWorkspace(page, '参数');
-  await expect(page.getByRole('button', { name: 'Sensa/QuickStart/Depth', exact: true })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'CI/Depth', exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Custom/Face/JawOpen', exact: true })).toBeVisible();
   for (const path of ['FT/Unlisted0','v2/Unlisted0']) await expect(page.getByRole('button', { name: path, exact: true })).toHaveCount(0);
   await page.getByRole('checkbox', { name: '显示 FT 参数', exact: true }).check();
   for (const path of ['FT/Unlisted0','v2/Unlisted0']) await expect(page.getByRole('button', { name: path, exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: '显示 FT 参数', exact: true }).uncheck();
   await checkpoint(page, page.locator('.table-scroll'), 'osc-parameters');
-  await rig.send([['Sensa/QuickStart/Active',0]]);
+  await rig.send([['CI/Active',0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
-  await workspace(page, '控制'); await checkpoint(page, page.locator('main .section').first(), 'quickstart-stopped');
+  await workspace(page, '控制'); await checkpoint(page, page.locator('main .section').first(), 'osc-gate-stopped');
 });
 
 test('PB calibration replaces the previous gate, opts in explicitly and persists', { tag: ['@osc','@config','@visual'] }, async ({ page, rig }) => {
@@ -148,11 +148,11 @@ test.describe('modern OGB SPS', () => {
   test('modern Socket preset uses NewRoot and NewTip for radial learning', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     await oscWorkspace(page, '映射');
-    await page.getByLabel('预设方案', { exact: true }).selectOption('sps-socket-depth-others');
+    await page.getByLabel('预设方案', { exact: true }).selectOption('ogb-depth');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await expect(page.getByText('未保存', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: '保存映射', exact: true }).click();
-    await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/*/PenOthersNewRoot');
+    await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');
     await expect(page.getByText('未保存', { exact: true })).toHaveCount(0);
     await checkpointViewport(page, 'osc-mappings-page');
     await active(page);

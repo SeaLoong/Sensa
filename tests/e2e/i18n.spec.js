@@ -62,8 +62,8 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
-  await expect(page.getByLabel(await text(page,'预设方案'),{exact:true}).locator('option')).toHaveCount(5);
-  await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('sps-socket-depth-others');
+  await expect(page.getByLabel(await text(page,'预设方案'),{exact:true}).locator('option')).toHaveCount(3);
+  await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
   await expect(page.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
@@ -71,6 +71,7 @@ test('English presets, script and compact help use localized documentation', {ta
   await expect(page.getByRole('link',{name:await text(page,'使用方案与限制'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
   await checkpoint(page,page.getByRole('dialog'),'english-help');
   const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
+  await expand(page, await text(page, '手动与脚本'));
   await page.getByRole('button',{name:await text(page,'打开手动'),exact:true}).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.locator('#input-tabs-manual')).toBeFocused();

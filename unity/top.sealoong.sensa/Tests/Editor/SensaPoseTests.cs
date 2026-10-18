@@ -11,16 +11,16 @@ namespace UnityBox.Sensa.Tests
     public class PoseAuthoringContracts : AvatarBuildFixture
     {
         [Test]
-        public void StandardProbeCreatesOnlyEightRootReceivers()
+        public void LegacyStandardRootAuthorFailsBeforeGeneratingMisidentifiedProtocol()
         {
-            var instance = Prefab("SensaSpsRootProbe");
-            SensaPoseBuilder.ProcessAvatar(instance);
-            var contacts = instance.GetComponentsInChildren<VRCContactReceiver>();
-            Assert.That(contacts, Has.Length.EqualTo(8));
-            Assert.That(contacts.All(contact => contact.localOnly && contact.allowOthers && !contact.allowSelf), Is.True);
-            Assert.That(contacts.All(contact => contact.collisionTags.SequenceEqual(new[] { "TPS_Pen_Root" })), Is.True);
-            Assert.That(contacts.All(contact => contact.parameter.StartsWith("Sensa/SpsRoot/v1/")), Is.True);
+            var instance = Prefab("SensaPoseSocket");
+            instance.GetComponent<SensaPoseSocket>().standardSpsRoot = true;
+            var error = Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(instance));
+            StringAssert.Contains("SensaFixedRootProbe", error.Message);
+            StringAssert.Contains("旧八路", error.Message);
+            Assert.That(instance.GetComponentsInChildren<VRCContactReceiver>(), Is.Empty);
             Assert.That(instance.GetComponentsInChildren<VRCContactSender>(), Is.Empty);
+            Assert.That(instance.GetComponent<SensaPoseSocket>(), Is.Not.Null);
         }
 
         [Test]
@@ -38,7 +38,6 @@ namespace UnityBox.Sensa.Tests
         }
 
         [TestCase("SensaPoseSocket")]
-        [TestCase("SensaSpsRootProbe")]
         public void StandaloneSpatialReceiverParametersAreWritableInFx(string prefab)
         {
             var instance = Prefab(prefab); instance.transform.SetParent(avatar.transform, false);

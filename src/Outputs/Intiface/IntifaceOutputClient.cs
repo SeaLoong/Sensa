@@ -1,4 +1,5 @@
 using Buttplug.Client;
+using Buttplug.Core;
 using Buttplug.Core.Messages;
 using Sensa.Configuration;
 using Sensa.Motion;
@@ -14,6 +15,17 @@ namespace Sensa.Outputs.Intiface;
 /// </summary>
 public sealed class IntifaceOutputClient : IAsyncDisposable
 {
+    static IntifaceOutputClient()
+    {
+        // Buttplug 5.0.1 lazily writes an unguarded static metadata Dictionary.
+        // CLR type initialization serializes these immutable lookups before any
+        // client can connect; normal connections and commands remain concurrent.
+        // 上游元数据字典首次写入无锁；先借 CLR 类型初始化串行预热，连接和命令仍并行。
+        // https://github.com/buttplugio/buttplug-csharp/blob/ec8e6ff175e33dd75778cc91c485ec1a24353915/Buttplug/Core/Messages/ButtplugMessage.cs
+        foreach (var messageType in ButtplugUtils.GetAllMessageTypes())
+            _ = ButtplugMessage.GetName(messageType);
+    }
+
     private readonly IntifaceConfig _config;
     private ButtplugClient? _client;
     private volatile bool _connected;  // written from event thread, read from loop thread

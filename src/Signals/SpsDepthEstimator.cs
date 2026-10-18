@@ -1,22 +1,30 @@
 namespace Sensa.Signals;
 
 /// <summary>
-/// VRCFury NewRoot/NewTip contacts have a one metre radius. Learn the difference
-/// while the length sphere is outside; once its proximity saturates, root distance
-/// approximates exposed length after restoring the 1 cm root sender radius.
-/// NewTip is a root-centred length sphere, not a tip
-/// landmark; this radial estimate does not correct lateral or angular offsets.
-/// Pairs must be from the same socket and sender.
+/// VRCFury's one-metre receivers observe a 1 cm root sphere and a root-centred
+/// length sphere. Their unsaturated difference estimates length; saturation
+/// permits a radial fraction. This is not axial insertion or mesh position.
+/// 一米接收球观测 1 cm 根球和根部同心长度球：未饱和差值估长，饱和后估算径向比例。
+/// The caller must isolate OSC source, complete instance path and Self/Others.
+/// This grouping cannot prove the same Contact Sender or frame.
+/// 调用方隔离 OSC 来源、完整实例路径与 Self/Others；分组不证明同一 Sender 或同帧。
 /// </summary>
 public sealed class SpsDepthEstimator
 {
     private float _length;
     private long? _lastLearnedTipSequence;
+
+    public void Reset()
+    {
+        _length = 0;
+        _lastLearnedTipSequence = null;
+    }
+
     public float Process(float root, float tip, long? tipSequence = null)
     {
         if (!float.IsFinite(root) || !float.IsFinite(tip)
             || root <= .01f || tip <= .01f || root > 1 || tip > 1)
-        { _length = 0; _lastLearnedTipSequence = null; return 0; }
+        { Reset(); return 0; }
         bool canLearn = !tipSequence.HasValue || tipSequence != _lastLearnedTipSequence;
         if (tip < root)
         {

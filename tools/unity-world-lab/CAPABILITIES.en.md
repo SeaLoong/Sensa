@@ -55,20 +55,20 @@ python -m pip install -r scripts/requirements-capture.txt
 python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
 # Continuous editor PNG; explicitly opt into local OSC
 python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
-# Exact physical-pixel rectangle; replace these example coordinates
-python scripts/shader-osc-bridge.py --region 0 900 256 128 --watch --port 9001
+# Native root screen capture requires explicit producer registration:
+# unity/top.sealoong.sensa/GPU-TRACKING.en.md
 ```
 
 The full 16×8 grid must be present, at least 4×4 pixels per cell. Rectangular stretching is supported, automatic discovery/perspective correction is not. Startup/recovery needs two fresh increasing frames. Duplicate/stale frames cannot restore Valid; changing XYZ under the same sequence is invalid. Freeze, ordering errors, CRC failure and normal exit close Valid. Force-kill/network loss additionally needs Sensa stream timeout; the example sets 500 ms. Restart the bridge when the producer's sequence resets.
 
-Observe `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`. There is no built-in shader-Z preset. A manually configured diagnostic 0–.2 m mapping would mean: .12 m means **60% displacement**, not the SPS table's 40% insertion. Synthetic .75 m saturates that template and is not a calibration reference.
+Observe `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}`. Profile0/ID0 is diagnostic preview, not motion input or a calibration reference. The .12 m model displacement differs from the SPS insertion quantity. Profile1 registration uses the [package guide](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
 For actual model PNGs, run the baked SPS scene in the editor, open **Tools → Sensa → SPS GPU Model Probe (Experimental)**, select non-stereo Camera and matching Resolver/Surface Renderer, enable continuous PNG export, set the file and capture. The camera must keep rendering. Encoded entry-minus-root uses world axes within ±1 m; invalid/out-of-range data exports invalid packets.
 
-The uploadable camera rig still produces synthetic code only. Real SPS→PNG currently requires the editor. Fixed output coordinates and CRC do not guarantee zero capture lag or invisibility in an HMD.
+This lab's uploadable camera rig produces synthetic code; its real SPS model PNG requires the editor. The separate package generates a native root-transform producer, not a deformation-model capture. Fixed coordinates/CRC do not guarantee zero lag or HMD invisibility.
 
 ## Reports
 
-Historical capability reports are `Validation/functional/results.json`, `sps-gpu.json` and `sensa-bridge.json`. The bridge report replays GPU PNGs into isolated Sensa, not live VR grabbing. Current automated E2E/screenshots run only in CI. Windows x64 CI tests CRC failure, stale-frame refusal, two-frame recovery and freeze stop with fixed GPU-generated PNGs.
+Historical reports are `Validation/functional/results.json`, `sps-gpu.json` and `sensa-bridge.json`, not live VR grabbing evidence. Current Windows x64 CI checks Profile0 transport CRC failure, stale-frame refusal, two-frame recovery and freeze invalidation with input disarmed and no outputs. Automated E2E/screenshots run only in CI.
 
 [PhysBones](https://creators.vrchat.com/common-components/physbones/) · [SPS](https://vrcfury.com/sps/)

@@ -30,7 +30,7 @@ PB-only Stretch is not XYZ. PBContact supplies experimental local estimates with
 
 Keep outputs empty and apply OSC mode. Use PB · Stretch with actual Stretch/IsGrabbed paths. Copy the modern radial template and select actual Self/Others paths for SPS. Contact/PBContact have no default positioning preset: observe them in OSC → Experimental diagnostics. Explicit permission and oldest-channel freshness still do not establish reliable positioning. Restrict the actual instance/source and check current reports and received paths.
 
-The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers exact expected values and image bridging to `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`. SPSShader's Camera is outside the avatar and is **not uploaded**. The uploadable Shader scene produces only synthetic code. SDK build success does not prove client camera retention or HMD invisibility.
+The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers diagnostic transport at `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}` (Profile0, preview-only). This lab's SPSShader Camera is outside the avatar and is **not uploaded**; its uploadable Shader scene produces synthetic code. The separate [native root capture](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md) uses actual root transforms and nonzero producer/Profile1. SDK build success does not prove client camera retention or HMD invisibility.
 
 ## Build/check tools
 

@@ -14,10 +14,10 @@ namespace Sensa.Tests.Contracts;
 public sealed class PresetContracts
 {
     [Fact]
-    public void FiveShippedPresetsAreDistinctUsableAndDoNotRecommendExperimentalSpatialInputs()
+    public void ShippedPresetsDescribeRealProducersWithoutSyntheticWorldInputs()
     {
         var presets = Presets();
-        Assert.Equal(new[] { "sensa-quick-start", "sps-socket-depth-others", "sps-plug-depth-others", "sps-touch", "sensa-lab-pb-stretch" }, presets.Select(preset => preset.Id));
+        Assert.Equal(new[] { "ogb-depth", "ogb-touch", "native-pb-stretch" }, presets.Select(preset => preset.Id));
         Assert.Equal(presets.Count, presets.Select(preset => preset.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         foreach (var preset in presets)
         {
@@ -31,31 +31,30 @@ public sealed class PresetContracts
             {
                 Assert.False(string.IsNullOrWhiteSpace(mapping.OscPath));
                 Assert.True(float.IsFinite(mapping.VrchatMin) && float.IsFinite(mapping.VrchatMax));
-                Assert.True(mapping.SourceMode is "Direct" or "SpsSocketDepth");
+                Assert.True(mapping.SourceMode is "Direct" or "OgbDepth" or "OgbTouch");
                 Assert.DoesNotContain("Angle", mapping.OscPath);
                 Assert.False(mapping.InvertDirection);
             });
         }
     }
 
-    // VRCFury source declares one sanitized ID segment; legacy body/instance paths
-    // are separate generators and must not be promoted as universal SPS paths.
-    // VRCFury 使用单段清洗后的 ID；旧身体部位/实例路径不能作为通用 SPS 路径。
+    // Both generations use OGB names; parent paths remain exact instance identities in the resolver.
+    // 新旧生成器共用 OGB 命名；解算时完整父路径仍是实例身份。
     [Theory]
-    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthersNewRoot", true)]
-    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthersNewTip", false)]
-    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenSelfNewRoot", false)]
-    [InlineData("sps-socket-depth-others", "OGB/Orf/Hips_Front/PenOthers", false)]
-    [InlineData("sps-socket-depth-others", "OGB/Orf/Pussy/Main/PenOthersNewRoot", false)]
-    [InlineData("sps-plug-depth-others", "OGB/Pen/Main_Plug/PenOthers", true)]
-    [InlineData("sps-plug-depth-others", "OGB/Pen/Main_Plug/PenSelf", false)]
-    [InlineData("sps-plug-depth-others", "OGB/Orf/Main/PenOthers", false)]
-    [InlineData("sps-touch", "OGB/Orf/Hips_Front/TouchOthers", true)]
-    [InlineData("sps-touch", "OGB/Pen/Main_Plug/FrotOthers", true)]
-    [InlineData("sps-touch", "OGB/Orf/Hips_Front/TouchSelf", false)]
-    [InlineData("sps-touch", "OGB/Pen/Main_Plug/TouchOthersClose", false)]
-    [InlineData("sps-touch", "OGB/Orf/Hips_Front/PenOthersNewRoot", false)]
-    public void RecommendedOgbPatternsMatchOnlyTheSelectedModernGeneratorSignals(string id, string path, bool expected)
+    [InlineData("ogb-depth", "OGB/Orf/Hips_Front/PenOthersNewRoot", true)]
+    [InlineData("ogb-depth", "OGB/Orf/Hips_Front/PenOthersNewTip", false)]
+    [InlineData("ogb-depth", "OGB/Orf/Hips_Front/PenSelfNewRoot", false)]
+    [InlineData("ogb-depth", "OGB/Orf/Hips_Front/PenOthers", true)]
+    [InlineData("ogb-depth", "OGB/Orf/Pussy/Main/PenOthersNewRoot", true)]
+    [InlineData("ogb-depth", "OGB/Pen/Main_Plug/PenOthers", true)]
+    [InlineData("ogb-depth", "OGB/Pen/Main_Plug/PenSelf", false)]
+    [InlineData("ogb-depth", "OGB/Orf/Main/PenOthers", true)]
+    [InlineData("ogb-touch", "OGB/Orf/Hips_Front/TouchOthers", true)]
+    [InlineData("ogb-touch", "OGB/Pen/Main_Plug/FrotOthers", true)]
+    [InlineData("ogb-touch", "OGB/Orf/Hips_Front/TouchSelf", false)]
+    [InlineData("ogb-touch", "OGB/Pen/Main_Plug/TouchOthersClose", false)]
+    [InlineData("ogb-touch", "OGB/Orf/Hips_Front/PenOthersNewRoot", false)]
+    public void OgbTemplatesCoverBothGenerationsWithoutSelectingCompanionOrOtherPartySignals(string id, string path, bool expected)
     {
         var mapping = Assert.Single(Presets().Single(value => value.Id == id).Mappings);
         Assert.Equal(expected, OscParameterStore.MatchesPathPattern(mapping.OscPath, path));
@@ -64,15 +63,15 @@ public sealed class PresetContracts
     [Fact]
     public async Task NativePhysBoneStretchUsesItsGrabGateWithoutPositionReconstruction()
     {
-        var mappings = Presets().Single(value => value.Id == "sensa-lab-pb-stretch").Mappings;
+        var mappings = Presets().Single(value => value.Id == "native-pb-stretch").Mappings;
         Assert.All(mappings, mapping => Assert.Equal("Direct", mapping.SourceMode));
         using var rig = new MotionRig(mappings.ToArray());
-        rig.Put("Sensa/Lab/PB_Stretch", .75f);
+        rig.Put("MyPB_Stretch", .75f);
         rig.Activate();
         Assert.False(rig.Runtime.CanSend);
-        rig.Put("Sensa/Lab/PB_IsGrabbed", 1);
+        rig.Put("MyPB_IsGrabbed", 1);
         Assert.InRange((await rig.Output.NextFrame()).L0, .74f, .76f);
-        rig.Put("Sensa/Lab/PB_IsGrabbed", 0);
+        rig.Put("MyPB_IsGrabbed", 0);
         await rig.Output.NextStop();
         Assert.False(rig.Runtime.CanSend);
     }
@@ -83,29 +82,27 @@ public sealed class PresetContracts
     [InlineData(.5f, 500)]
     [InlineData(.75f, 550)]
     [InlineData(1f, 600)]
-    public async Task WorldQuickStartStepsTravelThroughRuntimeAndFirstRunProfileToOnlyL0(float depth, int target)
+    public async Task IsolatedScalarStepsTravelThroughRuntimeAndFirstRunProfileToOnlyL0(float depth, int target)
     {
-        var preset = Presets().Single(value => value.Id == "sensa-quick-start");
-        using var rig = new MotionRig(preset.Mappings.ToArray());
-        rig.Put("Sensa/QuickStart/Depth", depth);
-        rig.Put("Sensa/QuickStart/Active", 1);
+        using var rig = ScalarFixture();
+        rig.Put("CI/Depth", depth);
+        rig.Put("CI/Active", 1);
         rig.Activate();
         var frame = await rig.Output.NextFrame();
         var profile = MotionProfile();
         var (line, effective) = TCodeEncoder.BuildLine(profile, null, null, null, new(), null, frame, true);
         Assert.InRange(effective.L0 * 1000, target - 1f, target + 1f);
         Assert.Matches(@"^L0\d+I\d+$", line);
-        rig.Put("Sensa/QuickStart/Active", 0);
+        rig.Put("CI/Active", 0);
         await rig.Output.NextStop();
         Assert.False(rig.Runtime.CanSend);
     }
 
     [Fact]
-    public void MissingQuickStartActivationCannotArmTheShippedWorldMapping()
+    public void MissingScalarFixtureGateCannotArmMotion()
     {
-        var preset = Presets().Single(value => value.Id == "sensa-quick-start");
-        using var rig = new MotionRig(preset.Mappings.ToArray());
-        rig.Put("Sensa/QuickStart/Depth", .8f);
+        using var rig = ScalarFixture();
+        rig.Put("CI/Depth", .8f);
         rig.Activate();
         Assert.False(rig.Runtime.CanSend);
         Assert.Empty(rig.Output.Frames);
@@ -115,7 +112,7 @@ public sealed class PresetContracts
     public void BuiltInIdsCannotBeShadowedByPersistedCustomPresetCopies()
     {
         var config = new AppConfig { OscMappingPresets = [
-            new() { Id = "sensa-quick-start", Name = "replaced", Mappings = [new() { OscPath = "unsafe" }] },
+            new() { Id = "ogb-depth", Name = "replaced", Mappings = [new() { OscPath = "unsafe" }] },
             new() { Id = "custom", Name = "Custom / 自定义", Mappings = [new() { OscPath = "custom/depth" }] }] };
         config.NormalizeForRuntime();
         Assert.Equal("custom", Assert.Single(config.OscMappingPresets).Id);
@@ -127,9 +124,13 @@ public sealed class PresetContracts
         return JsonSerializer.Deserialize<List<OscMappingPresetConfig>>(stream, Options())!;
     }
 
+    private static MotionRig ScalarFixture() => new(
+        new SignalMapping { OscPath = "CI/Depth", Role = SignalRole.Depth },
+        new SignalMapping { OscPath = "CI/Active", Role = SignalRole.GateEnable });
+
     private static TCodeMotionProfile MotionProfile()
     {
-        using var stream = typeof(PresetContracts).Assembly.GetManifestResourceStream("QuickStart.MotionProfile")!;
+        using var stream = typeof(PresetContracts).Assembly.GetManifestResourceStream("Sensa.TestMotionProfile")!;
         return JsonSerializer.Deserialize<TCodeMotionProfile>(stream, Options())!;
     }
 

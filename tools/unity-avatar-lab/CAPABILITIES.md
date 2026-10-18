@@ -32,9 +32,9 @@ PB-only 没有碰撞器或 Contact，Stretch 只是原生标量；PBContact 的�
 
 开启 VRChat OSC，先保持输出列表为空并应用 OSC。PB 使用“PB · 拉伸”并替换实际 Stretch／IsGrabbed 路径；SPS 使用现代径向模板并按真实 Self／Others 调整。Contact／PBContact 没有默认定位预设，在 OSC → 实验诊断观察；显式实验许可和最旧通道时效仍不能证明定位可靠。限定实际实例与来源，实例 ID 以当前报告及接收值为准。
 
-图像链路、精确预期数值、取图区域和冻结门控说明见 Sensa 仓库 `tools/unity-world-lab/CAPABILITIES.md`。桥接脚本为 `scripts/shader-osc-bridge.py`，输出 `Sensa/Lab/Shader/{X,Y,Z,Frame,Valid}`。
+诊断图像链路及冻结门控见 [World 能力指南](../unity-world-lab/CAPABILITIES.md)。桥输出 `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}`（Profile0，仅预览）。独立的[原生根点捕获](../../unity/top.sealoong.sensa/GPU-TRACKING.md)使用真实根部 Transform、非零 producer 和 Profile1。
 
-SPSShader 的采集 Camera 在 Avatar 根以外，**不会上传**。当前真实 SPS→PNG 依赖编辑器 GPU Probe；Shader 场景可上传的 Camera 装置只生成合成测试码。SDK 允许构建并不证明 VRChat 客户端一定保留相机，也不证明头显看不到图块。
+本实验室 SPSShader 场景的采集 Camera 在 Avatar 根以外，**不会上传**。该场景的真实 SPS 模型→PNG 依赖编辑器 GPU Probe；其可上传 Camera 装置只生成合成码，不等同于包内原生根点生产端。SDK 构建成功不证明客户端相机保留或头显不可见。
 
 ## 重建与检查
 

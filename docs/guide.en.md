@@ -28,7 +28,7 @@ Disabling input stops output. Emergency stop stays latched; clearing it still re
 
 | Tab | Purpose |
 | --- | --- |
-| Mappings | Five built-in presets, custom presets, path/axis/inversion; expand a mapping for range, curve, interpretation and simulation |
+| Mappings | Three built-in presets, custom presets, path/axis/inversion; expand a mapping for range, curve, interpretation and simulation |
 | Parameters | Search, browse sources, filter categories, freeze, pin, inspect meanings and add mappings |
 | Experimental diagnostics | Inspect Point/Handle/Root/Pose local estimates and failure reasons; experimental permission and two-endpoint calibration |
 
@@ -43,7 +43,15 @@ Expand reception/forwarding settings below any OSC tab:
 - **Hub:** forwards the selected source to several UDP destinations, event-driven or merged at a fixed rate. Check destinations and avoid loops.
 - **Input timeout:** off by default for ordinary scalars because VRChat may send only changes. When enabled, an outage latches emergency stop. Updating gates does not renew motion data.
 
-See [Presets](presets.en.md) for SPS paths and meanings. Spatial input is disabled by default; complete samples and low residuals still do not prove reliable positioning. See [Positioning](positioning.en.md) for explicit experimental permission, oldest-channel freshness and coordinate limits. Native PB Stretch requires no four-point reconstruction.
+See [Presets](presets.en.md) for SPS paths and meanings. Native PB Stretch needs no position reconstruction. Spatial input is disabled by default; complete samples and low residuals still do not prove reliable positioning. [Positioning](positioning.en.md) explains freshness and coordinate limits for each producer.
+
+### Three SPS workflows
+
+1. **Existing OGB/SPS parameters:** choose OGB / SPS · Depth or Vibration, identify the actual object in Parameters, then pin paths and calibrate. Depth recognizes modern Root/Tip pairs or legacy proximity; Touch/Frot checks the same object's Close gate. Modern VRCFury may require `OGB_ENABLED`. Expand OGB parameter activation, enter the explicit VRChat control IP/port and save. The default receiver port 9001 differs from VRChat's usual control port 9000. Five-second enable heartbeats and the final false describe sends, not acknowledgment or device-input activation. [Compatibility](ogb-compatibility.en.md)
+2. **Four fixed anchors for a root:** select targets in Unity Automatic SPS Setup. The default Exclusive menu starts Off. Selecting a target publishes four ranges plus Profile/Valid/Scale/Heartbeat. Fixed SPS Root Probe also accepts explicit Sensa-owned or native Contact roots. Anchors stay in AvatarRootLocal while a tiny sender follows the selected root; invalid scale disables measurement. In Experimental diagnostics → local points/roots, choose a valid Self target, capture two positions, Replace draft, inspect and save. A single point gives no complete pose. Old eight-channel Root/SharedRoot data does not substitute for the new protocol.
+3. **Native shader root capture:** add Shader Root Capture, select the SPS target and producerId, then explicitly activate its generated menu after upload. Follow the [GPU/shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) to register an actual pixel region and matching producerId, then send the Python bridge to Sensa's receiver port. Check validity, advancing frames and AvatarRootLocal source before calibrating in the same root panel. Freeze, identity changes or timeout invalidate the data. The native skinned point follows the selected CPU root; it is not an SPS deformation curve or final surface.
+
+The latter two produce experimental spatial mappings and require saving Allow experimental spatial input. Keep device input disabled while checking previews, then test within calibrated axis limits. The QuickStart step bench is an internal synthetic fixture, not the product SPS positioning entry point.
 
 ## Settings
 
@@ -59,7 +67,7 @@ Logs are expandable and filterable by category and level. Preserve the actual er
 | Parameters but no movement | Input permission, output enablement/connection, saved mappings, gates and experimental blocking |
 | No SPS match | Actual generator and paths; modern VRCFury differs from older Sensa paths |
 | Reversed movement | Duplicate inversion in mapping and axis profile |
-| Stops while stationary | Input timeout; spatial experiments also expire each contributing channel |
+| Stops while stationary | Input timeout; legacy Point/Handle use oldest-channel age, fixed roots use producer heartbeat and shader input uses frame freshness |
 | Preview changes but hardware does not | Preview is not feedback; check transport, firmware, power and device calibration |
 
 ## Configuration and access from another device

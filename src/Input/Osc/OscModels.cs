@@ -62,7 +62,7 @@ public sealed class OscParameterStore
         AvatarChanged?.Invoke();
     }
 
-    public readonly record struct Entry(OscValue Value, long TimestampMs, OscSource Source, long Sequence = 0);
+    public readonly record struct Entry(OscValue Value, long TimestampMs, OscSource Source, long Sequence = 0, long ChangedAtMs = 0, long SourceSequence = 0);
 
     public readonly record struct SnapshotEntry(string Path, Entry Entry);
 
@@ -82,6 +82,7 @@ public sealed class OscParameterStore
     private long _lastPrune;
     private long _revision;
     private long _sequence;
+    private readonly Dictionary<string, long> _sourceSequences = new(StringComparer.Ordinal);
     public long Revision => Interlocked.Read(ref _revision);
     private readonly ConcurrentDictionary<string, OscSource> _sources = new(StringComparer.Ordinal);
 
@@ -116,13 +117,24 @@ public sealed class OscParameterStore
                     if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
                 }
                 var liveSources = _store.Values.SelectMany(b => b.Keys).ToHashSet();
-                foreach (var key in _sources.Keys) if (!liveSources.Contains(key)) _sources.TryRemove(key, out _);
+                foreach (var key in _sources.Keys)
+                    if (!liveSources.Contains(key))
+                    {
+                        _sources.TryRemove(key, out _);
+                        _sourceSequences.Remove(key);
+                    }
             }
             if ((!_store.ContainsKey(normalizedPath) && _store.Count >= MaxPaths)
                 || (!_sources.ContainsKey(normalizedSource.Key) && _sources.Count >= MaxSources)) return;
             if ((!_store.TryGetValue(normalizedPath, out var existing) || !existing.ContainsKey(normalizedSource.Key)) && _store.Sum(p => p.Value.Count) >= MaxPaths) return;
             var bucket = _store.GetOrAdd(normalizedPath, static _ => new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal));
-            entry = entry with { Sequence = ++_sequence };
+            // Reception activity is independent from new content. Replayed
+            // frames must not renew their content age. / 重发不续期内容变化时间。
+            var changedAtMs = bucket.TryGetValue(normalizedSource.Key, out var previous) && previous.Value.Equals(value)
+                ? previous.ChangedAtMs : timestampMs;
+            var sourceSequence = _sourceSequences.GetValueOrDefault(normalizedSource.Key) + 1;
+            _sourceSequences[normalizedSource.Key] = sourceSequence;
+            entry = entry with { Sequence = ++_sequence, ChangedAtMs = changedAtMs, SourceSequence = sourceSequence };
             bucket[normalizedSource.Key] = entry;
             _sources[normalizedSource.Key] = normalizedSource;
         }
@@ -239,6 +251,7 @@ public sealed class OscParameterStore
                 if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
             }
             _sources.TryRemove(key, out _);
+            _sourceSequences.Remove(key);
             Interlocked.Increment(ref _revision);
         }
     }
@@ -282,9 +295,13 @@ public sealed class OscParameterStore
 
     public void Clear()
     {
-        _store.Clear();
-        _sources.Clear();
-        Interlocked.Increment(ref _revision);
+        lock (_capacityGate)
+        {
+            _store.Clear();
+            _sources.Clear();
+            _sourceSequences.Clear();
+            Interlocked.Increment(ref _revision);
+        }
     }
 
     private string? ResolvePreferredSourceKey(string? preferredSourceKey)

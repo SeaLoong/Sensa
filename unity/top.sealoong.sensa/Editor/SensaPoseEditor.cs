@@ -11,11 +11,11 @@ namespace UnityBox.Sensa
             SensaInspectorLabels.Draw(serializedObject);
             var socket = (SensaPoseSocket)target;
             EditorGUILayout.HelpBox(socket.standardSpsRoot
-                ? "单侧 SPS 根部定位：每组 Self/Others 使用 8 个接收器，对方只需现有 TPS_Pen_Root 球形 Sender，无需 Sensa。仅测根部 XYZ，不能测尖端、角度或行程；通道字段不用于筛选标准标签。单目标、均匀缩放。\nOne-sided SPS root tracking: 8 receivers per Self/Others group. The other avatar only needs a standard spherical TPS_Pen_Root Sender. Root XYZ only, no tip/orientation/stroke. Channel does not filter standard tags. One target and uniform scale required."
+                ? "旧八路根部作者已停用；请替换为 Fixed-anchor SPS Root Probe 并明确选择真实 SPS 根部。\nLegacy eight-channel root authoring is disabled; replace it with Fixed-anchor SPS Root Probe and select the actual SPS root."
                 : "+Z 指向孔内。每组 Self/Others 使用 24 个本地 Proximity 接收器。双方必须使用配套三点标记和相同通道；普通 TPS 标签不提供足够的几何信息。缩放必须均匀。\n+Z points inward. 24 local Proximity receivers per Self/Others group. Both sides need matching three-point markers and channel; ordinary TPS tags lack this geometry. Uniform scale required.", MessageType.Info);
             try { SensaPoseBuilder.Validate(socket); }
             catch (System.Exception ex) { EditorGUILayout.HelpBox(ex.Message, MessageType.Error); }
-            EditorGUILayout.LabelField("协议 / Protocol", socket.standardSpsRoot ? SensaPoseProtocol.SpsRootPrefix : SensaPoseProtocol.Prefix);
+            EditorGUILayout.LabelField("协议 / Protocol", socket.standardSpsRoot ? "需要迁移 / Migration required" : SensaPoseProtocol.Prefix);
             EditorGUILayout.LabelField("孔口半径 / 解算位置上限 / Aperture radius / position limit", "4 cm / 约 24 cm（局部单位；范围内仍可能饱和） / 4 cm / about 24 cm (local units; saturation can still occur inside)");
             if (GUILayout.Button("烘焙副本为原生 VRC 预制件 / Bake a native VRC prefab copy")) SensaPoseMenus.Bake(socket.gameObject);
         }
@@ -65,7 +65,7 @@ namespace UnityBox.Sensa
         private const string Package = "Packages/top.sealoong.sensa/";
         [MenuItem("GameObject/Sensa/Spatial Pose Socket", false, 10)]
         public static void Socket() => Create("SensaPoseSocket");
-        [MenuItem("GameObject/Sensa/Single-sided SPS Root Probe", false, 10)]
+        [MenuItem("GameObject/Sensa/Fixed-anchor SPS Root Probe", false, 10)]
         public static void SpsRoot() => Create("SensaSpsRootProbe");
         [MenuItem("GameObject/Sensa/Spatial Pose Plug", false, 10)]
         public static void Plug() => Create("SensaPosePlug");

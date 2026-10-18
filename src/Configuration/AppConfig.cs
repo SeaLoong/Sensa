@@ -223,12 +223,34 @@ public sealed class OscQueryPollingConfig
 //  OSC receiver config
 // ═══════════════════════════════════════════════════════════════════════
 
+public sealed class OgbControlConfig
+{
+    public bool Enabled { get; set; } = false;
+    public string Host { get; set; } = "127.0.0.1";
+    public int Port { get; set; } = 9000;
+
+    public System.Net.IPEndPoint ResolveTarget()
+    {
+        var host = Host?.Trim() ?? "";
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) host = "127.0.0.1";
+        if (!System.Net.IPAddress.TryParse(host, out var ip))
+            throw new InvalidOperationException("OGB 控制目标需要单播 IP 地址和有效 UDP 端口。 / OGB control requires a unicast IP address and valid UDP port.");
+        if (ip.IsIPv4MappedToIPv6) ip = ip.MapToIPv4();
+        if (Port is < 1 or > 65535 || ip.Equals(System.Net.IPAddress.Any) || ip.Equals(System.Net.IPAddress.IPv6Any)
+            || ip.Equals(System.Net.IPAddress.Broadcast) || ip.IsIPv6Multicast
+            || ip.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork && ip.GetAddressBytes()[0] is >= 224 and <= 239)
+            throw new InvalidOperationException("OGB 控制目标需要单播 IP 地址和有效 UDP 端口。 / OGB control requires a unicast IP address and valid UDP port.");
+        return new(ip, Port);
+    }
+}
+
 public sealed class OscReceiverConfig
 {
     public bool Enabled { get; set; } = true;
     public string ReceiverHost { get; set; } = "127.0.0.1";
     public int ReceiverPort { get; set; } = 9001;
     public int InputTimeoutMs { get; set; } = 0;
+    public OgbControlConfig OgbControl { get; set; } = new();
     public bool AllowExperimentalSpatialInput { get; set; } = false;
     public List<string> AllowedSourceAddresses { get; set; } = new();
     public bool OscQueryEnabled { get; set; } = true;
@@ -374,6 +396,7 @@ public sealed class AppConfig
         Osc.Enabled = osc.Enabled;
         Osc.InputTimeoutMs = Math.Clamp(osc.InputTimeoutMs, 0, 600000);
         Osc.AllowExperimentalSpatialInput = osc.AllowExperimentalSpatialInput;
+        Osc.OgbControl = CloneOgbControlConfig(osc.OgbControl);
         Osc.AllowedSourceAddresses = (osc.AllowedSourceAddresses ?? new()).Where(s => !string.IsNullOrWhiteSpace(s)).Select(s => System.Net.IPAddress.TryParse(s.Trim(), out var ip) ? ip.ToString() : throw new ArgumentException($"Invalid OSC source IP: {s}")).Distinct().Take(32).ToList();
         Osc.ReceiverHost = string.IsNullOrWhiteSpace(osc.ReceiverHost) ? "127.0.0.1" : osc.ReceiverHost;
         Osc.ReceiverPort = osc.ReceiverPort is > 0 and <= 65535 ? osc.ReceiverPort : 9001;
@@ -434,6 +457,7 @@ public sealed class AppConfig
         Osc.OscQueryReceiver = CloneOscQueryReceiverAdvertiseConfig(Osc.OscQueryReceiver);
         Osc.PreferredSourcePersistentId = string.IsNullOrWhiteSpace(Osc.PreferredSourcePersistentId) ? string.Empty : Osc.PreferredSourcePersistentId.Trim();
         Osc.Hub = CloneOscHubConfig(Osc.Hub);
+        Osc.OgbControl = CloneOgbControlConfig(Osc.OgbControl);
 
         WebUi.Host            = string.IsNullOrWhiteSpace(WebUi.Host) ? "127.0.0.1" : WebUi.Host;
         WebUi.Title           = string.IsNullOrWhiteSpace(WebUi.Title) ? "Sensa WebUI" : WebUi.Title;
@@ -548,6 +572,18 @@ public sealed class AppConfig
 
         if (!osc.OscQueryEnabled)
             throw new InvalidOperationException("启用 OSCQuery 轮询回退前，请先开启 OSCQuery 客户端。");
+    }
+
+    public void ValidateOgbControlTarget()
+    {
+        var control = Osc?.OgbControl ?? new OgbControlConfig();
+        if (!control.Enabled) return;
+        var target = control.ResolveTarget();
+        var receiverHost = NormalizeHost(Osc!.ReceiverHost, "127.0.0.1");
+        if (System.Net.IPAddress.TryParse(receiverHost, out var receiverIp))
+            receiverHost = (receiverIp.IsIPv4MappedToIPv6 ? receiverIp.MapToIPv4() : receiverIp).ToString();
+        if (Osc.Enabled && target.Port == Osc.ReceiverPort && IsOscReceiverLoopTarget(target.Address.ToString(), receiverHost))
+            throw new InvalidOperationException("OGB 控制目标不能指向 Sensa 的 OSC 监听端口。 / OGB control cannot target Sensa's OSC listener.");
     }
 
     public void ValidateOscHubTargets()
@@ -781,7 +817,7 @@ public sealed class AppConfig
 
     private static bool IsOscAnyHost(string host)
     {
-        return host == "127.0.0.1"
+        return host == "0.0.0.0"
             || host == "::"
             || host == "*"
             || host.Equals("any", StringComparison.OrdinalIgnoreCase);
@@ -789,9 +825,9 @@ public sealed class AppConfig
 
     private static bool IsOscLoopbackHost(string host)
     {
-        return host == "127.0.0.1"
-            || host == "::1"
-            || host.Equals("localhost", StringComparison.OrdinalIgnoreCase);
+        return host.Equals("localhost", StringComparison.OrdinalIgnoreCase)
+            || System.Net.IPAddress.TryParse(host, out var ip)
+                && System.Net.IPAddress.IsLoopback(ip.IsIPv4MappedToIPv6 ? ip.MapToIPv4() : ip);
     }
 
     private static bool IsOscReceiverLoopTarget(string targetHost, string receiverHost)
@@ -825,6 +861,13 @@ public sealed class AppConfig
             RateHz = NormalizeOscQueryPollingRate(source?.RateHz ?? 10),
         };
     }
+
+    private static OgbControlConfig CloneOgbControlConfig(OgbControlConfig? source) => new()
+    {
+        Enabled = source?.Enabled ?? false,
+        Host = string.IsNullOrWhiteSpace(source?.Host) ? "127.0.0.1" : source.Host.Trim(),
+        Port = source?.Port is > 0 and <= 65535 ? source.Port : 9000,
+    };
 
     private static OscHubConfig CloneOscHubConfig(OscHubConfig? source)
     {
@@ -1242,7 +1285,7 @@ public sealed class AppConfig
         return new SignalMapping
         {
             OscPath         = (signal.OscPath ?? "").Trim(),
-            SourceMode      = signal.SourceMode is "SpsSocketDepth" or "SensaPose" or "SensaPoint" ? signal.SourceMode : "Direct",
+            SourceMode      = signal.SourceMode is "OgbDepth" or "OgbTouch" or "SpsSocketDepth" or "SensaPose" or "SensaPoint" ? signal.SourceMode : "Direct",
             PoseMetric      = Enum.IsDefined(signal.PoseMetric) ? signal.PoseMetric : PoseMetric.Depth,
             PointMetric     = Enum.IsDefined(signal.PointMetric) ? signal.PointMetric : PointMetric.Z,
             InvertDirection = signal.InvertDirection,

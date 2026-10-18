@@ -169,7 +169,9 @@ public sealed class SpatialContracts
         Assert.True(local.Valid, local.Reason);
         Assert.True(remote.Valid, remote.Reason);
         Assert.Equal(4, local.ExpectedSampleCount);
-        Assert.Equal(8, remote.ExpectedSampleCount);
+        Assert.Equal(4, remote.ExpectedSampleCount);
+        Assert.False(remote.IsMappablePoint);
+        Assert.Equal(SensaFixedAnchorProtocol.CoordinateFrame, remote.CoordinateFrame);
         Assert.InRange(local.Metric(PointMetric.X), .0199f, .0201f);
         Assert.InRange(local.Metric(PointMetric.Y), -.0301f, -.0299f);
         Assert.InRange(local.Metric(PointMetric.Distance), (float)expected.Length - .0001f, (float)expected.Length + .0001f);

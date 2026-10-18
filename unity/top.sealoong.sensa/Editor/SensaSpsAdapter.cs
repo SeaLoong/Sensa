@@ -13,7 +13,28 @@ namespace UnityBox.Sensa
         private static Type Type(string name) => AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).FirstOrDefault(t=>t!=null)
             ?? throw new InvalidOperationException("Install supported VRCFury SPS: missing "+name);
         public static bool IsTarget(Component c) => c!=null && (c.GetType().FullName==SocketType || c.GetType().FullName==PlugType);
-        public static Placement Read(Component component)
+        public sealed class RootPlacement { public Transform root; public Vector3 position; public Quaternion rotation; }
+        public static RootPlacement ReadRoot(Component component)
+        {
+            if (component == null) throw new InvalidOperationException("Choose an explicit SPS root. / 请选择明确的 SPS 根部。");
+            if (IsTarget(component))
+            {
+                var placement = ReadGeometry(component, false);
+                return new RootPlacement { root = component.transform, position = placement.position, rotation = placement.rotation };
+            }
+            if (component is SensaComponent owned)
+            {
+                var root = owned.role == BridgeRole.Socket ? owned.depthAxis : owned.rootBone;
+                if (root == null) throw new InvalidOperationException("Sensa root is not configured. / Sensa 根部尚未配置。");
+                return new RootPlacement { root = root, rotation = Quaternion.identity };
+            }
+            if (component is VRC.Dynamics.ContactBase contact)
+                return new RootPlacement { root = contact.rootTransform != null ? contact.rootTransform : contact.transform,
+                    position = contact.position, rotation = contact.rotation };
+            throw new InvalidOperationException("Unsupported explicit SPS root component. / 不支持此 SPS 根部组件。");
+        }
+        public static Placement Read(Component component) => ReadGeometry(component, true);
+        private static Placement ReadGeometry(Component component, bool requireLength)
         {
             SensaSensorUtility.Uniform(component.transform);
             if(component.GetType().FullName==SocketType) {
@@ -26,7 +47,7 @@ namespace UnityBox.Sensa
             if(sizeMethod==null)throw new InvalidOperationException("Unsupported VRCFury plug geometry API.");
             var size=sizeMethod.Invoke(null,new object[]{component});var type=size.GetType();
             var length=(float)type.GetField("worldLength").GetValue(size)/component.transform.lossyScale.x;
-            if(float.IsNaN(length)||float.IsInfinity(length)||length<.02f)throw new InvalidOperationException("SPS plug length could not be resolved.");
+            if(requireLength && (float.IsNaN(length)||float.IsInfinity(length)||length<.02f))throw new InvalidOperationException("SPS plug length could not be resolved.");
             return new Placement{source=component,position=(Vector3)type.GetField("localPosition").GetValue(size),rotation=(Quaternion)type.GetField("localRotation").GetValue(size),length=length};
         }
     }

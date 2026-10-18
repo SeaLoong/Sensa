@@ -580,21 +580,27 @@ function App() {
   function mapPreviewParameter(entry) {
     if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
-    } else if (/^Sensa\/(SpsRoot|SharedRoot)\/v1\//.test(entry.path)) {
-      notify(t('这是根部阵列诊断样本，不能直接映射行程。请查看单侧 SPS 根部定位面板。'), 'info');
+    } else if (entry.path.startsWith('Sensa/SpsRoot/v1/') || entry.path.startsWith('Sensa/Shader/v1/')) {
+      navigateWorkflow('sensa-sps');
+      notify(t('请在根点面板选择目标并采集两个端点，再生成映射。'), 'info');
+      return 'experimental';
+    } else if (entry.path.startsWith('Sensa/SharedRoot/v1/')) {
+      notify(t('共享根部采样仅供诊断；请使用固定锚点与专用根标记。'), 'info');
     } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
-    } else if (/New(Root|Tip)$/.test(entry.path)) {
-      const prefix = entry.path.replace(/New(Root|Tip)$/, '');
+    } else if (/^OGB\/(Orf|Pen)\/.+\/Pen(Self|Others)(NewRoot|NewTip|Close)?$/.test(entry.path)) {
+      const prefix = entry.path.replace(/(NewRoot|NewTip|Close)$/, '');
       setSignalDrafts((previous) => [
         ...previous,
-        makeSignalDraft({ oscPath: `${prefix}NewRoot;${prefix}NewTip`, sourceMode: 'SpsSocketDepth', role: 'Depth' }),
+        makeSignalDraft({ oscPath: entry.path.startsWith('OGB/Orf/') ? `${prefix}NewRoot;${prefix}` : prefix, sourceMode: 'OgbDepth', role: 'Depth' }),
       ]);
-      notify(t('已添加 Root/Tip 配对草稿，请检查后保存。'), 'info');
+      notify(t('已添加 OGB 自动识别草稿；新旧信号按同一对象配对，请检查范围后保存。'), 'info');
     } else {
       setSignalDrafts((previous) => [
         ...previous,
-        makeSignalDraft({ oscPath: entry.path, role: /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' }),
+        makeSignalDraft({ oscPath: entry.path,
+          sourceMode: /^OGB\/(Orf|Pen)\/.+\/(Touch(Self|Others)|FrotOthers)$/.test(entry.path) ? 'OgbTouch' : 'Direct',
+          role: /Close$|_IsGrabbed$/.test(entry.path) ? 'GateEnable' : /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' }),
       ]);
       notify(t('已添加映射草稿，请确认参数含义、目标轴和范围后保存。'), 'info');
     }
@@ -1555,10 +1561,10 @@ function App() {
       setNavigationTarget('.outputs-section');
     } else {
       setWorkspace('osc');
-      setOscWorkspaceTab(destination === 'osc-diagnostics' ? 'experimental' : 'setup');
+      setOscWorkspaceTab(['osc-diagnostics', 'sensa-sps'].includes(destination) ? 'experimental' : 'setup');
       if (destination === 'osc') selectInputTab('osc');
       setNavigationTarget(destination === 'osc-settings' ? '.osc-receiver-settings'
-        : destination === 'osc-diagnostics' ? '#osc-tabs-experimental' : '.preset-strip');
+        : destination === 'sensa-sps' ? '#sensa-spatial-root' : destination === 'osc-diagnostics' ? '#osc-tabs-experimental' : '.preset-strip');
     }
   }
 
@@ -2051,8 +2057,7 @@ function App() {
                     <Button
                       aria-label={t('映射 {0}', [entry.path])}
                       onClick={() => {
-                        mapPreviewParameter(entry);
-                        setOscWorkspaceTab('setup');
+                        setOscWorkspaceTab(mapPreviewParameter(entry) || 'setup');
                       }}
                     >
                       {t('映射')}
@@ -2117,6 +2122,24 @@ function App() {
             </div>
             {overview?.osc?.listenerError && <Notice tone="error">{diagnostic(overview.osc.listenerError)}</Notice>}
           </div>
+          <details className="ogb-control-settings">
+            <summary>{t('OGB 参数启用')}</summary>
+            <div className="stack">
+              <Toggle label={t('向 VRChat 启用 OGB 参数')} checked={oscDraft.ogbControlEnabled}
+                onChange={(ogbControlEnabled) => updateOsc({ ogbControlEnabled })} />
+              <p className="caption muted">{t('每 5 秒发送 OGB_ENABLED；停止 OSC 时撤销。与设备输入许可独立，UDP 没有接收确认。')}</p>
+              <div className="form-grid">
+                <Field label={t('VRChat 控制 IP')} value={oscDraft.ogbControlHost} disabled={!oscDraft.ogbControlEnabled}
+                  onChange={(event) => updateOsc({ ogbControlHost: event.target.value })} />
+                <Field label={t('VRChat 控制端口')} type="number" min={1} max={65535} value={oscDraft.ogbControlPort} disabled={!oscDraft.ogbControlEnabled}
+                  onChange={(event) => updateOsc({ ogbControlPort: Number(event.target.value) })} />
+              </div>
+              <Badge tone={overview?.osc?.ogbControl?.active ? 'info' : 'default'}>
+                {overview?.osc?.ogbControl?.active ? t('正在发送启用心跳') : t('启用心跳已停止')}
+              </Badge>
+              {overview?.osc?.ogbControl?.lastError && <Notice tone="error">{diagnostic(overview.osc.ogbControl.lastError)}</Notice>}
+            </div>
+          </details>
           <details>
             <summary>OSCQuery</summary>
             <div className="stack">
@@ -2826,9 +2849,9 @@ function App() {
             <Button onClick={() => setParameterDetail(null)}>{t('关闭')}</Button>
             <Button
               onClick={() => {
-                mapPreviewParameter(parameterDetail);
+                const tab = mapPreviewParameter(parameterDetail);
                 setParameterDetail(null);
-                setOscWorkspaceTab('setup');
+                setOscWorkspaceTab(tab || 'setup');
               }}
             >
               {t('添加映射草稿')}

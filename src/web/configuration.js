@@ -630,6 +630,9 @@ function buildOscDraftFromConfig(config) {
     inputTimeoutMs: oscConfig?.inputTimeoutMs || 0,
     allowExperimentalSpatialInput: oscConfig?.allowExperimentalSpatialInput === true,
     allowedSourceAddresses: (oscConfig?.allowedSourceAddresses || []).join(', '),
+    ogbControlEnabled: oscConfig?.ogbControl?.enabled === true,
+    ogbControlHost: oscConfig?.ogbControl?.host || '127.0.0.1',
+    ogbControlPort: oscConfig?.ogbControl?.port || 9000,
     oscQueryEnabled: oscConfig?.oscQueryEnabled !== false,
     oscQueryUrl: oscConfig?.oscQueryUrl || DEFAULT_OSCQUERY_URL,
     oscQueryPollingEnabled: oscQueryPollingConfig?.enabled === true,
@@ -1149,6 +1152,8 @@ export function editConfiguration(config, change) {
     case 'osc': {
       const messages = flattenOscHubConflictMessages(buildOscHubTargetConflictLookup(change.draft));
       if (messages.length) throw new Error(messages.join('；'));
+      if (change.draft.ogbControlEnabled && doesOscHubTargetLoopToReceiver({ host: change.draft.ogbControlHost, port: change.draft.ogbControlPort }, change.draft.receiverHost, change.draft.receiverPort))
+        throw new Error(t('OGB 控制目标不能指向 Sensa 的监听端口。'));
       next.osc = {
         ...next.osc,
         enabled: Boolean(change.draft.oscEnabled),
@@ -1157,6 +1162,11 @@ export function editConfiguration(config, change) {
         allowExperimentalSpatialInput: change.draft.allowExperimentalSpatialInput === true,
         allowedSourceAddresses: (change.draft.allowedSourceAddresses || '').split(/[ ,;\n]+/).filter(Boolean),
         receiverPort: Number(change.draft.receiverPort || 9001),
+        ogbControl: {
+          enabled: change.draft.ogbControlEnabled === true,
+          host: (change.draft.ogbControlHost || '127.0.0.1').trim() || '127.0.0.1',
+          port: normalizeOutputPort(change.draft.ogbControlPort, 9000),
+        },
         oscQueryEnabled: Boolean(change.draft.oscQueryEnabled),
         oscQueryUrl: (change.draft.oscQueryUrl || '').trim(),
         oscQueryPolling: {

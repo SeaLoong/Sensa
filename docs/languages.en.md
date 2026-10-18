@@ -4,7 +4,7 @@
 
 Choose Chinese or English in the top bar. A first visit follows supported browser preferences, falling back to English. The preference is stored in this browser; restricted storage still permits an in-page switch.
 
-UI text, basic controls, five presets, parameter meanings, experimental diagnostics, help and timestamps update together. Switching does not reload, discard drafts, save configuration, change mode or enable input. User names, files, protocol enums and OSC paths remain literal, as do unknown firmware/system/third-party errors.
+UI text, basic controls, three presets (OGB / SPS depth, vibration and PhysBone stretch), parameter meanings, experimental diagnostics, help and timestamps update together. Switching does not reload, discard drafts, save configuration, change mode or enable input. User names, files, protocol enums and OSC paths remain literal, as do unknown firmware/system/third-party errors.
 
 Unity inspectors provide bilingual labels/help while keeping generated protocol identifiers and technical menu names searchable. Public guides have reciprocal language entry points, and desktop archives contain both languages. Updating documentation does not rebuild or upload avatars/worlds.
 

@@ -8,7 +8,7 @@
 
 E2E 启动真实 Sensa 与真实 WebUI，每个场景使用独立临时配置。设备和外部服务用回环模拟器：OSC UDP、TCode UDP／TCP、Linux PTY 串口、Buttplug WebSocket 和 OSCQuery。HTTP／WS 控制不替换为假实现。
 
-回归重点包括控制／OSC／设置导航、手动与录制、QuickStart 五档和门控、FT 前缀、预设与映射、脚本暂停／定位、轴配置与冲突、输入切换／脚本替换许可、实验默认阻断／显式开启／过期停止、双语持久化和草稿保留。功能判断同时核对界面状态与模拟传输命令；截图不能单独证明设备停止。
+回归重点包括控制／OSC／设置导航、手动与录制、独立标量阶梯夹具和门控、FT 前缀、三个预设与映射、脚本暂停／定位、轴配置与冲突、输入切换／脚本替换许可、双语持久化和草稿保留。固定根点与 Shader 根点场景使用独立协议模拟，核对默认阻断、显式许可、两端校准、保存后的映射和失效停止；它们不是 Unity Contact 或真实 GPU 采集证据。OGB 控制另检查显式启用与撤销，以及停止后跨实际五秒周期不会复发启用心跳；设备输入保持关闭。功能判断同时核对界面状态与模拟传输命令；截图不能单独证明设备停止。
 
 桌面 1280×900 与窄屏 390×844 使用固定 Playwright Linux 容器、字体、语言和时区。窄视口不等于真手机；PTY 不等于 Windows 驱动。Unity、上传后 VRChat、头显和真实硬件不在这套浏览器验证内。[测试源码](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)、[固定环境](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js)
 

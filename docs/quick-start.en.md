@@ -1,57 +1,39 @@
-# First use
+# Start with a real input
 
 [简体中文](quick-start.md) | **English**
 
-Verify the software chain before connecting hardware. Sensa does not flash or calibrate firmware; TCode serial uses **115200, 8N1**. You need an uploadable PC avatar and your own test world; there is currently no public world link. Existing FullFlow setups can use the [lab workflow](lab-workflow.en.md).
+Everyday inputs are manual targets, funscript, existing OGB/SPS parameters, or coordinate components you generate. Synthetic steps are development fixtures, not a required installation route.
 
-## 1. Start Sensa with no outputs
+## Startup and a device baseline
 
-Download the desktop package for your system and CPU from [Releases](https://github.com/SeaLoong/Sensa/releases). Extract everything, run `Sensa.exe` or `./Sensa`, and open `http://127.0.0.1:5086`. No separate .NET installation is required.
+1. Download the appropriate desktop package from [Releases](https://github.com/SeaLoong/Sensa/releases), extract everything, and run `Sensa.exe` or `./Sensa`. No separate .NET installation is required.
+2. Open `http://127.0.0.1:5086` with input disarmed. Preview without outputs first, then add firmware-compatible TCode serial/UDP/TCP or connect an already running Intiface Central.
+3. Bind TCode outputs to an axis profile matching actual mechanical calibration. A small numeric preset is not your hardware's safe travel; Intiface executes only declared device features.
+4. Apply Manual in Control and check explicit targets, direction and stopping. Continuous sending follows edits; it does not generate reciprocating motion. Disarming sends a stop. Emergency stop stays latched until explicitly cleared and rearmed.
 
-Do not add devices yet. Keep input disabled in the top bar and open OSC.
+Output cards show commands, not mechanical feedback. A local UDP connection state has no remote acknowledgement.
 
-## 2. Prepare the avatar and world
+## An existing SPS/OGB Avatar
 
-1. Install Modular Avatar/NDMF in a VCC Avatars project. Extract the Unity package to `Packages/top.sealoong.sensa`, with `package.json` directly inside.
-2. Add **Sensa → Quick Start World Receiver** to a Humanoid avatar root. Upload privately through the SDK and wear the new version. It generates Depth/Active receivers and Animator parameters at the right-hand bone origin. No SPS, camera, Python or other-player installation is needed.
-3. Open `Assets/SensaLab/Functional/FunctionalLab.unity` in the world project. Use SDK Build & Test or your privately uploaded version. **00 START HERE** is beside spawn.
-4. Enable OSC and Contacts in VRChat. Sensa receives UDP 9001 by default; avoid another application binding the same port.
+1. Enable OSC in VRChat, apply OSC in Sensa and listen on `127.0.0.1:9001` by default.
+2. Under receiving/forwarding settings, expand OGB parameter activation. Explicitly enable `OGB_ENABLED` heartbeats to VRChat's actual receiving address if needed, commonly `127.0.0.1:9000`. Saving leaves device input disarmed. A heartbeat status is not client acknowledgement.
+3. Inspect actual `OGB/Orf/...` or `OGB/Pen/...` parameters. Replace the draft with the depth or vibration template, constrain its instance/source, check calibration and save.
+4. Depth detects modern Root/Tip or legacy proximity; touch checks the same object's required Close gate. Intiface vibration defaults to V0; depth-to-vibration requires explicitly choosing L0.
+5. Then arm input. Modern radial estimation must first learn length during an outside approach; it is not precise insertion depth. This route usually needs no Sensa Unity package when existing parameters are available.
 
-QuickStart verifies reception; it does not turn an avatar into an SPS avatar. A generated `FullFlow.unity` already includes this component: do not add a duplicate.
+See [OGB compatibility](ogb-compatibility.en.md) for capability detection, precedence and upstream evidence.
 
-## 3. Check actual parameters
+## Direct root coordinates
 
-In Control, select and apply OSC mode. In OSC → Mappings, replace drafts with **Connection test**, then save. Keep only its Depth and Active mappings. Saving leaves input disabled.
+- **Sensa SPS:** Install the Unity package on your own Avatar. Use Fixed SPS Root Probe to select a Socket/Plug root explicitly. The builder generates four fixed anchors, a dedicated marker and validity metadata. Select the target in the root panel, capture endpoints, replace/save the draft, then explicitly allow experimental spatial input before arming.
+- **Shader capture:** Generate native Shader Root Capture, pin a producer ID, select a visible encoded region explicitly and configure the desktop bridge. Calibrate native coordinates in the same root panel. Diagnostic Profile 0 cannot drive motion. A hidden layer is not guaranteed to appear in desktop capture.
 
-Search for `Sensa/QuickStart` in Parameters. Select the five steps on the test bench, then STOP:
+Both routes produce Avatar-root local units, not world positions, device feedback or deformed surfaces. [Route comparison](usage-scenarios.en.md) · [Position and scale](positioning.en.md) · [Shader setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
-| Operation | Actual reception in Sensa |
-| --- | --- |
-| 0/25/50/75/100% | Active=1; Depth≈0/.25/.5/.75/1 |
-| STOP | Active=0; gate closed |
-| TOUCH | Depth rises as the right wrist approaches the cyan sphere |
+## Other inputs and troubleshooting
 
-With no outputs, enable input to inspect the five logical L0 steps. TOUCH uses the right-hand bone origin, usually at the wrist. Desktop users can click the step buttons. RESET restores and stops the bench; walking more than 3 meters away or reaching 60 seconds also closes the test.
+Funscript generates one L0 timeline with looping, rate and seeking, without audio/video synchronization. Native PB uses the actual Stretch/IsGrabbed prefix; MyPB in the template is a placeholder to replace.
 
-The world's Expected value is only an expectation. Compare it with actual Sensa parameters; a changing world display does not prove generated avatar components or delivered OSC.
+If nothing is sent, check actual mode, listening port, real parameters, source, saved mappings, gates, output connection and input permission. Recheck permission after configuration, mode or script changes. Ordinary scalars may be delta-only; fixed-rate forwarding must not impersonate fresh sensing.
 
-## 4. Connect hardware for a small-stroke test
-
-1. Disable input. In Settings, create an axis profile using **OSR first test · small L0 stroke**: L0 only, logical 0–100% to TCode 400–600, speed limit 100. Verify these values against your hardware calibration.
-2. Add a serial output in Control, choose the actual port and bind that profile. Network firmware needs the correct UDP/TCP destination. Save, enable and connect.
-3. Check actual mode and mappings, enable input and repeat the five steps. Sent targets should be about **400, 450, 500, 550, 600**, allowing rounding by 1.
-4. Press world STOP and confirm Active=0, then disable input. Cards show targets, not measured mechanical positions. Stop is not centering or physical power-off.
-
-## Switch to ordinary input
-
-Stop input, select one of the [five current presets](presets.en.md), or add actual parameters. Save replacements and remove the QuickStart Active gate. Native SPS requires enabled Haptics/OSC; some avatars also need `OGB_ENABLED=true`. Neither VRCFury Socket radial estimation nor Plug proximity supplies accurate insertion depth at arbitrary orientations.
-
-PB stretch can use native Stretch plus IsGrabbed directly. Contact position estimates are disabled by default; four proximity samples are not a reliable tracking guarantee. See [Positioning principles and limits](positioning.en.md).
-
-## No data or movement
-
-Check in order: new avatar worn → VRChat OSC/Contacts enabled → actual OSC mode → correct listener port → correct input source → saved mappings → valid gates → connected output → enabled input.
-
-Ordinary scalar timeout defaults to off because unchanged VRChat values may not be resent. The bench's automatic stop also relies on the client sending Active=0; disable input explicitly when finished. See the [User guide](guide.en.md) for transport/configuration troubleshooting.
-
-[Home](../README.en.md) · [World tools](../tools/unity-world-lab/README.en.md) · [Avatar tools](../tools/unity-avatar-lab/README.en.md)
+[User guide](guide.en.md) · [Three mapping templates](presets.en.md) · [Feature reference](features.en.md)

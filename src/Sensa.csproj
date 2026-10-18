@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <Compile Include="../unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs" Link="Signals/SensaPoseProtocol.cs" />
+    <Compile Include="../unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs" Link="Signals/SensaFixedAnchorProtocol.cs" />
     <EmbeddedResource Include="web/data/osc-presets.json" LogicalName="Sensa.OscPresets.json" />
     <InternalsVisibleTo Include="Sensa.Tests" />
     <Content Remove="web\**" />

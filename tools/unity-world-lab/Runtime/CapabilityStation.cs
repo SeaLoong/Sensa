@@ -107,7 +107,7 @@ namespace SensaLab
                 VRCGraphics.Blit(null,encoded,runtimeEncoder);
             }
             text += "Ground-truth local XYZ: "+sample.ToString("F3")+"\nWorld Udon does not export avatar OSC.\n";
-            text += mode == 6 ? "SPS GPU panel: use editor capture; compare model entry/length.\nPNG bridge paths: Sensa/Lab/Shader/{X,Y,Z,Valid}\n" : "See the station manifest for Sensa paths and test steps.\n";
+            text += mode == 6 ? "SPS GPU panel: use editor capture; compare model entry/length.\nDiagnostic PNG: Sensa/Shader/v1/0/{X,Y,Z,Valid}, Profile0\n" : "See the station manifest for Sensa paths and test steps.\n";
             status.text=text;
         }
     }

@@ -3,6 +3,7 @@ import argparse
 import base64
 import json
 import importlib.util
+import math
 import os
 from pathlib import Path
 import socket
@@ -32,6 +33,21 @@ def read_frame(sock):
     if size == 127: size = struct.unpack('!Q', read_exact(sock, 8))[0]
     data = read_exact(sock, size)
     return json.loads(data) if head[0] & 15 == 1 else None
+
+def fixed_root_samples(point, instance='Smoke'):
+    """Independent fixed-four-anchor fixture / 独立的固定四锚点夹具。"""
+    prefix = f'Sensa/SpsRoot/v1/{instance}/Self'
+    # Deliberately separate from Pose's 8 corners, .35 m receiver and moving frame.
+    # 明确独立于 Pose 八点、.35 半径与移动参考框；这里使用 AvatarRootLocal。
+    anchors = ((-.5, .5, -.5), (.5, .5, .5), (.5, 1.5, -.5), (-.5, 1.5, .5))
+    result = []
+    for index, anchor in enumerate(anchors):
+        distance = math.sqrt(sum((point[axis] - anchor[axis]) ** 2 for axis in range(3)))
+        proximity = max(0, min(1, 1 - max(0, distance - .001) / 2.5))
+        result.append((f'{prefix}/Root/A{index}', proximity))
+    return result + [(prefix + '/Profile', 1), (prefix + '/Valid', 1),
+                     (prefix + '/Scale', 1), (prefix + '/Heartbeat', 1 / 31)]
+
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -114,23 +130,22 @@ def main():
             fixture = importlib.util.module_from_spec(fixture_spec); fixture_spec.loader.exec_module(fixture)
             configuration = command('/api/config', 'GET')
             assert not configuration['outputs'], 'Smoke test must never enable hardware'
-            presets = json.loads((Path(__file__).resolve().parents[1] / 'src/web/data/osc-presets.json').read_text(encoding='utf-8'))
-            configuration['signals'] = next(p['mappings'] for p in presets if p['id'] == 'sensa-quick-start')
+            configuration['signals'] = [{'oscPath': 'CI/Depth', 'role': 'Depth'}, {'oscPath': 'CI/Active', 'role': 'GateEnable'}]
             command('/api/input/active', 'PUT', {'active':True})
             command('/api/config', 'PUT', configuration)
             assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Saving mappings must close input'
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                 command('/api/input/active', 'PUT', {'active':True})
                 for depth in (0, .25, .5, .75, 1):
-                    udp.sendto(fixture.bundle([('Sensa/QuickStart/Depth', depth), ('Sensa/QuickStart/Active', 1)]), ('127.0.0.1', osc_port))
-                    wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'QuickStart step {depth} did not reach Sensa')
-                udp.sendto(fixture.bundle([('Sensa/QuickStart/Active', 0)]), ('127.0.0.1', osc_port))
-                wait_overview(lambda s: s['runtime']['gateClosed'], 'World STOP did not close the QuickStart gate')
+                    udp.sendto(fixture.bundle([('CI/Depth', depth), ('CI/Active', 1)]), ('127.0.0.1', osc_port))
+                    wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'OSC scalar step {depth} did not reach Sensa')
+                udp.sendto(fixture.bundle([('CI/Active', 0)]), ('127.0.0.1', osc_port))
+                wait_overview(lambda s: s['runtime']['gateClosed'], 'Fixture STOP did not close the OSC scalar gate')
             configuration['osc']['allowExperimentalSpatialInput'] = True
             configuration['osc']['inputTimeoutMs'] = 5000
             configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
             command('/api/config', 'PUT', configuration)
-            assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from QuickStart must leave input closed'
+            assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from OSC scalar must leave input closed'
             with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
                 udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
                 command('/api/input/active', 'PUT', {'active':True})
@@ -138,14 +153,25 @@ def main():
                 pose = snapshot['poseTracking']['observations'][0]
                 assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
                 assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
-                standard = [(path.replace('Sensa/Pose/v1/', 'Sensa/SpsRoot/v1/'), value)
-                            for path, value in fixture.samples((.025,-.02,-.1),(0,0,0),(0,0,0),radius=.01) if '/Root/' in path]
+                standard = fixed_root_samples((.025, 1.05, -.1))
                 udp.sendto(fixture.bundle(standard), ('127.0.0.1', osc_port))
-                snapshot = wait_overview(lambda s: any(p['valid'] and p['sampleCount'] == 8 for p in s['poseTracking']['spsRoots']), 'Root diagnostic samples missing')
-                root = snapshot['poseTracking']['spsRoots'][0]
-                assert root['valid'] and root['sampleCount'] == 8
+                def fixed_root(state):
+                    return next((point for point in state['poseTracking']['spsRoots']
+                                 if point['kind'] == 'SpsRoot' and point['instance'] == 'Smoke'
+                                 and point['party'] == 'Self'), None)
+                snapshot = wait_overview(lambda s: fixed_root(s) is not None
+                                         and fixed_root(s)['valid']
+                                         and fixed_root(s)['sampleCount'] == 4
+                                         and fixed_root(s)['coordinateFrame'] == 'AvatarRootLocal'
+                                         and abs(fixed_root(s)['position']['x'] - .025) < .0001,
+                                         'Fixed four-anchor root samples missing / 缺少固定四锚点根采样')
+                root = fixed_root(snapshot)
+                assert root['valid'] and root['sampleCount'] == 4
+                assert root['coordinateFrame'] == 'AvatarRootLocal'
                 assert abs(root['position']['x'] - .025) < .0001
-                assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
+                assert abs(root['position']['y'] - 1.05) < .0001
+                assert abs(root['position']['z'] + .1) < .0001
+                assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Unmapped root probe changed pose motion'
                 udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
                 wait_overview(lambda s: s['runtime']['poseBlocked'], 'Lost pose did not block motion')
             configuration = command('/api/config', 'GET')
@@ -164,7 +190,7 @@ def main():
                 udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
                 wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
             command('/api/input/active','PUT',{'active':False})
-        print('HTTP/WS 冒烟通过：身份验证、FT、QuickStart 五档/STOP、保存后关闭输入、Pose/Root 隔离及 PB 释放。 / HTTP/WS smoke passed: authentication, FT flood, QuickStart five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
+        print('HTTP/WS 冒烟通过：身份验证、FT、OSC scalar 五档/STOP、保存后关闭输入、Pose/Root 隔离及 PB 释放。 / HTTP/WS smoke passed: authentication, FT flood, OSC scalar five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
         session.complete()
 
 

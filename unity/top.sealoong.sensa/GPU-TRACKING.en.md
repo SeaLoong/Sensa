@@ -1,78 +1,83 @@
-# SPS shader deformation: probes and bridge experiments
+# SPS shader root capture and model diagnostics
 
 [简体中文](GPU-TRACKING.md) | **English**
 
-Implemented: world GPU rendering/ClientSim readback, actual SPS2 model sampling, continuous editor PNG export and PNG → decoder → isolated Sensa OSC. The uploadable camera rig generates **synthetic codes only**. A complete in-client real-SPS bridge and PCVR invisibility are not established.
+This package has two distinct paths: **native root capture** generates avatar-build components for experimental desktop bridging; **SPS GPU Model Probe** samples deformation models only inside Unity Editor. Synthetic scenes and PNG replay validate transport, not real in-client SPS roots or models.
 
-Contact reconstruction is also an experimental estimate, disabled for motion by default. It cannot supply missing identity, shared frames or actual mesh geometry as a fallback. See [Positioning](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md).
+See the [research record](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md) for primary sources and protocol decisions. Neither path provides final visible mesh geometry, authenticated player identity or a direct device stroke.
 
-See [lab capabilities](https://github.com/SeaLoong/Sensa/blob/main/tools/unity-world-lab/CAPABILITIES.en.md) for exact procedures and expected values.
+## Native root path
 
-## What is measured
+Actual Socket/Plug root → native single-bone point → encoder shader → RenderTexture → desktop presenter camera → explicitly chosen capture region → Python bridge → Sensa OSC.
 
-SPS2's `_VFGridFinal` is a rendering-stage data texture. The inspected Plug Resolver supplies root frame, length, path points/tangents and direction. The probe calls the installed `sps_deform_walk_chain`, reporting an **unblended model centerline** and `firstSegmentStrength`. It copies `_SPS_Overrun` from the selected surface material.
+The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolves the installed VRCFury root position/rotation, generates native cameras/renderers/materials/RT and removes the author. Uploaded avatars do not run the editor reader, arbitrary MonoBehaviour readback or Udon. VRCFury shader source is not copied into this package.
 
-This is not final visible mesh geometry: baked vertex data, blending, activation, radius changes and custom material effects may still alter it. Entry-minus-root PNG values are world-axis displacement, not direct stroke.
+### Setup
 
-| Local / other side | Candidate data | Limit |
-| --- | --- | --- |
-| SPS2 Plug / SPS2 Socket | Local Resolver's chosen path | Other side needs no Sensa; rendering, tags/channel and valid path required |
-| SPS2 Plug / old Socket | Resolver's legacy compatibility | Depends on visible legacy lights/markers and options; not universal |
-| Local Socket / remote SPS2 Plug | Future remote Resolver association | Automatic discovery/identity association is not implemented |
-| Local Socket / old TPS/DPS Plug | Usually no remote SPS2 Resolver | A local SPS2-reading shader cannot recover another old shader's final mesh |
-| Shader blocked, culled or texture unavailable | No reliable model | Must invalidate; stale geometry must not drive output |
+1. Install the [package dependencies](COMPATIBILITY.en.md) and official VRCFury SPS. Use PC Built-in rendering and a geometry-shader-capable graphics backend. Android and Metal are excluded. Begin without hardware outputs.
+2. Add **Sensa → Shader Root Capture (Experimental)** inside the avatar. Set `Sps Target` to an object containing one VRCFury SPS Socket or Plug. The adapter resolves its actual root frame; it does not estimate a root from Contact proximity/radius.
+3. Assign a unique `Producer Id` from 1–65535, such as 42, and pin the same ID in the bridge. This is a local protocol identifier, not a VRChat account identity.
+4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.125). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
+5. Build the avatar normally. Generated shaders live in `Assets/SensaShaderCapture`. Differing existing contents stop the build: establish ownership, back up and move old generated files before retrying. User changes are not overwritten.
+6. Explicitly select **Sensa ShaderCapture_42 → SPS root code / SPS 根点编码**. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
+7. Check desktop code visibility and unwanted pixels in both VR eyes separately. None-eye cameras express Unity eye targeting; actual VRChat composition still needs validation. An arbitrary hidden render layer is not a guaranteed desktop capture channel.
 
-A shader target ID is not verified player identity. Knowing a Socket position does not identify which Plug uses it.
+Multiple producers use distinct camera/material signatures. The bridge must still pin a producer. A visually similar mirror, photo or third-party-camera image is insufficient.
 
-## Why an avatar cannot directly send GPU readback to OSC
+### Coordinates
 
-Shader calculations do not update bones, Contacts or Animator floats. VRCAsyncGPUReadback is a **world Udon** API, not permission to run arbitrary avatar C#. Avatar OSC does not export arbitrary RenderTextures. World GPU→Udon also does not grant general UDP sending.
+Native Profile1 uses `AvatarRootLocal`, center (0,1,0), half-range 1.5 per axis. X/Z range [−1.5,1.5], Y [−0.5,2.5]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
 
-The EditorWindow runs only in Unity. External software cannot simply read a hidden avatar RenderTexture through an ordinary supported OSC interface.
+### Capture registration
 
-## Editor probe setup
+Run from the main Sensa repository using Python with Pillow installed. Replace `LEFT TOP WIDTH HEIGHT` below with the complete code block's **physical-pixel** bounds. Minimum size is 64×32; negative origins support additional monitors.
 
-1. Install the [package dependencies](COMPATIBILITY.en.md) and VRCFury SPS2 from its official distribution. The adapter was inspected against source revision `d048773de971881fb14c5f3b468e59ba2406a2dd`.
-2. Use PC Built-in Render Pipeline, non-XR/non-stereo Camera, ARGBFloat and AsyncGPUReadback. Keep hardware disconnected.
-3. Run normal SPS build preview/Play Mode so baked Resolver and surface actually render; authoring components alone are insufficient.
-4. Open **Tools → Sensa → SPS GPU Model Probe (Experimental)**. Choose the rendering camera, the BakedSpsPlug Resolver Renderer and matching Surface Renderer/material. Identity can live in global/per-material MaterialPropertyBlock, not just shared material.
-5. **Check dependencies and capture next frame** verifies normalized SHA-256 of required installed includes. Unknown versions stop; do not bypass checks.
-6. The tool generates `Assets/SensaGpuDiagnostics/SpsGpuProbe.shader` from the package's `.shader.txt` template. No VRCFury source is downloaded or embedded. Existing differing files are not overwritten.
-7. After the selected camera renders, read a linear 36×1 float texture. Camera inactivity times out after ten seconds. Inspect 33 centerline points and export `sensa.sps-gpu-model.v1` JSON.
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --region LEFT TOP WIDTH HEIGHT --producer-id 42 --save-registration capture.json
+```
 
-The diagnostic shader is for this editor experiment, not an avatar material. Removing VRCFury also requires removing the generated shader that includes it.
+This decodes and saves an explicit ROI/ID/profile without sending OSC. On failure, correct the ROI, window size/scaling or presentation and retry. A saved registration establishes one valid decode, not position accuracy or PCVR acceptance. The registration fixes the coordinate profile; do not edit it to reuse another frame definition.
 
-Addressing uses the original camera dimensions, not the small readback size. Magic/version/identity/length/direction/finite checks do **not** prove texture freshness. Global textures may retain prior frames or be affected by other cameras. Identity changes during capture are rejected. XR arrays, dynamic resolution and interleaved cameras remain unverified.
+Then explicitly forward to the actual Sensa OSC receiver port:
 
-Partial firstSegmentStrength makes model and final visuals differ; even full strength does not account for every vertex effect. Resolver entry is not automatically the actual surface-contact plane.
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch --port 9001 --duration 300
+```
 
-## Offline analysis
+Alternatively specify `--region ... --producer-id 42 --watch --port ...`. Omitting the port decodes only. The bridge does not choose a screen, inject into the game, read process memory, connect devices or activate Sensa input. Recheck/register the ROI after window movement, resolution or display-scaling changes.
+
+Inspect `Sensa/Shader/v1/42/{Valid,Frame,X,Y,Z,Producer,Profile}` in the OSC workspace. Native Profile must be 1 and Producer 42. Synthetic/editor PNG diagnostics use Profile0/ID0 and remain preview-only. Configure the experimental spatial-input permission and two-point calibration through Sensa; explicitly allow input only after checking coordinates, direction and stopping. There is no automatic OGB fallback.
+
+### Freshness and recovery
+
+- Validate grid layout, RGB monochrome thresholds, CRC, producer and coordinate profile. A diagnostic packet reusing the pinned ID is rejected.
+- Initially require two progressing sequences. Duplicate images do not refresh freshness; changed coordinates on one sequence, reorder, invalid source or identity changes close Valid.
+- Default freeze timeout is 0.35 seconds; `--timeout` accepts explicit 0.05–5-second values. Recovery needs two new progressing frames. The old good frame cannot reopen the gate; a producer reset may require a deliberate bridge restart.
+- Valid bundles send Valid, Frame, X, Y, Z, Producer, Profile in order. Invalid/shutdown bundles contain only Valid=0, Producer, Profile, without stale XYZ.
+- Sequence is a render encoder clock, not a final-mesh/animation solve timestamp. CRC neither authenticates a player nor proves source model textures are current.
+
+## Editor SPS model probe
+
+This research path is not an uploaded model producer. It reads SPS2 `_VFGridFinal`, calls the installed `sps_deform_walk_chain` and reports an **unblended centerline**, length, entry and `firstSegmentStrength`, rather than the final mesh surface.
+
+1. Install official VRCFury SPS2. Dependency hashes target source commit `d048773de971881fb14c5f3b468e59ba2406a2dd`. Use PC Built-in rendering, a non-XR/non-stereo camera, ARGBFloat and AsyncGPUReadback.
+2. Render the baked Resolver and surface through normal SPS build preview/Play Mode. Open **Tools → Sensa → SPS GPU Model Probe (Experimental)** and select its Camera, BakedSpsPlug Resolver Renderer and matching Surface Renderer.
+3. **Check dependencies and capture next frame** validates normalized include SHA256 and reads material/MaterialPropertyBlock identities. Unknown dependencies, mismatched identity, shader errors or ten seconds without camera rendering stop capture. No VRCFury implementation is downloaded/bundled.
+4. Generated files under `Assets/SensaGpuDiagnostics` are editor diagnostics. Inspect 33 points and export `sensa.sps-gpu-model.v1` JSON. Continuous PNG export belongs to this editor reader, not the native avatar producer.
+
+SPS player shader IDs are animated at runtime; baked material values may be zero. Global textures can retain old frames. Magic/identity checks or a new encoder clock do not establish model freshness. Knowing a Socket root does not identify its active Plug; old TPS/DPS does not automatically supply an SPS2 Resolver.
+
+Offline analysis uses the standard library without desktop capture or OSC:
 
 ```shell
 python -X utf8 scripts/analyze-gpu-capture.py capture.json
 python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.04 --min-incidence-degrees 10
 ```
 
-This standard-library tool rejects invalid protocol, missing/nonfinite points, non-unit normals, partial blend, tangent/coplanar/reversed/multiple crossings and collapsed segments. It reports:
+Outputs include sampled arc length, material/arc fraction after entry, plane offset, sampled chord direction and incidence. It rejects partial blend, collapsed segments, reversed/multiple/tangent crossings and explicit aperture violations. `usable` describes diagnostic analysis conditions, not device readiness. The 16/32-segment arc difference is not an error bound; a circular opening/centerline model omits thickness and final vertex effects.
 
-- `polylineLengthMeters`: 33-point polyline length; may underestimate a curved path.
-- `materialFractionAfterPlane`: sampled material-coordinate fraction, not device stroke.
-- `sampledArcAfterPlaneMeters` and `sampledArcFractionAfterPlane`: geometric sampled length/fraction.
-- `entryPlaneOffsetMeters`, `entryTangent`, `incidenceDegrees`: crossing offset, sampled chord direction and incidence; 90° is perpendicular.
-- `coarseToFineArcDifferenceMeters`: 16/32-segment sensitivity, **not an error bound**.
+## Verification scope
 
-Explicit aperture/angle limits can reject out-of-opening or shallow crossings. Radius is world meters; this is a centerline/circular-plane model without cross-section thickness. At a polyline vertex, tangent uses the following chord, not an analytic tangent. Both sampling densities may miss smaller bends.
+The 18 isolated Python codec/registration/freshness/OSC contracts passed. Unified Unity EditMode passed three native-capture contracts covering generated components/shader compilation, persistent render bounds, root-local skinning geometry after motion/rotation/scale and multiple-producer camera bindings. No local desktop capture, PlayMode, actual avatar upload, VR client or hardware was exercised.
 
-`usable` only describes the analysis conditions. Output always remains `diagnosticOnly`; this tool does not send OSC, alter mappings or capture your desktop.
-
-## Image transport and timing
-
-A candidate chain is local model shader → encoded blocks → user-selected desktop region → decoder → separate Sensa source. Exact-region/PNG decoding and diagnostic OSC are implemented; the uploadable avatar producer for **real SPS geometry** is not.
-
-Packets use version/identity/validity/sequence/CRC/quantized coordinates. Black/white blocks are preferable to treating float RGBA as screenshot bytes. Test HDR, postprocessing, antialiasing, scale, mirrors, stereo, occlusion, minimization and low frame rate.
-
-CRC detects some corruption, not a valid stale frame. A fresh encoder sequence can still wrap stale Resolver geometry. A fixed viewport reduces region movement during turning but cannot guarantee zero lag, hidden HMD pixels or absolute cross-camera synchronization. The camera-only prototype's editor tests do not establish these guarantees.
-
-Use explicit capture regions; no process injection, memory reading or automatic whole-screen capture. Invalid CRC, target changes, freeze or timeout must invalidate precise input without silent OGB fallback. Compare Contact estimates, model-curve estimates and visible mesh reference separately before drawing accuracy conclusions.
-
-References: [SPS](https://vrcfury.com/sps/), [Resolver layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/resolver/sps_resolver_payload.cginc), [deformation](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/deform/sps_deform_main.cginc), [world readback](https://creators.vrchat.com/worlds/udon/vrc-graphics/asyncgpureadback/), [shader fallback](https://creators.vrchat.com/avatars/shader-fallback-system/). Respect third-party licenses; only Sensa's adapter and dependency hashes are included.
+Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Existing Profile0 PNG CI replay establishes transport/freeze recovery while input remains disarmed. Simulated Profile1 OSC is also not actual GPU capture.

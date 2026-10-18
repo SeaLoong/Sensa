@@ -203,6 +203,7 @@ public sealed class ConfigurationUpdate(
         candidate.ValidateOscQueryPolling();
         candidate.ValidateOscQueryReceiverService();
         candidate.ValidateOscHubTargets();
+        candidate.ValidateOgbControlTarget();
 
         runtime.SetInputActive(false);
         await outputs.EmergencyStopAsync();

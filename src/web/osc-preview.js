@@ -39,6 +39,7 @@ export function probePresentation(path) {
   const match = String(path || '').replace(/^\/avatar\/parameters\//, '').match(/^Sensa\/(Pose|SpsRoot|SharedRoot|Point|Handle)\/v1\/.+\/(Root|Tip|Side)\/A([0-7])$/);
   if (!match) return null;
   const index = Number(match[3]);
+  if (match[1] === 'SpsRoot') return index >= 4 ? null : { label: t('固定锚点 A{0}', [index]), color: ['#E85D75', '#54B7FF', '#77D970', '#FFC857'][index], index, marker: 'Root', hint: t('固定 Avatar 局部锚点的距离样本，必须与专用根标记、配置和心跳共同解算。不是设备输出轴。') };
   if ((match[1] === 'Point' || match[1] === 'Handle') && index >= 4) return null;
   const colors = ['#E85D75','#54B7FF','#77D970','#FFC857','#C792EA','#54DED2','#FF975C','#E6E6E6'];
   const prefix = match[1] === 'Point' || match[1] === 'Handle' ? 'P' : 'C';
@@ -54,7 +55,8 @@ export function parameterMeaning(path) {
 function baseParameterMeaning(path) {
   const leaf = (path || '').split('/').at(-1);
   if (path.startsWith('Sensa/Pose/v1/')) return t("定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。");
-  if (path.startsWith('Sensa/SpsRoot/v1/')) return t("单侧 SPS 根部阵列的距离样本；8 路共同估计根部 XYZ，仅用于诊断。不能测尖端、朝向或行程，不应直接映射运动输出。");
+  if (path.startsWith('Sensa/Shader/v1/')) return t('原生 Shader 根点包：需完整 XYZ、Valid、Frame、Producer 和 Profile，先确认图块来源再校准。');
+  if (path.startsWith('Sensa/SpsRoot/v1/')) return t("Sensa SPS 的四个固定锚点采样，解算选定根标记的 Avatar 局部坐标。需要 Profile、Valid、Scale、Heartbeat；不能测尖端、朝向或行程。");
   if (path.startsWith('Sensa/SharedRoot/v1/')) return t("共享根部阵列；必须连同 Ready、Slot 与新槽位采样判定，仅用于诊断，不能直接映射行程。");
   if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t("本地骨骼/PB 测量。四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。");
   if (/NewRoot$/.test(leaf)) return t("根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。");
@@ -108,9 +110,14 @@ export function posePreviewEntry(observations, signal, preferredSourceKey = '', 
   return { path: pose.prefix, value: numericValue === undefined ? pose.reason : Number(numericValue.toFixed(4)).toString(), numericValue, timestampMs:pose.timestampMs, sourceKey:pose.sourceKey, sourceLabel:pose.sourceLabel, matchCount:pose.sampleCount };
 }
 
+function canMapPoint(point) {
+  return ['Point', 'Handle'].includes(point?.kind) || ['SpsRoot', 'ShaderRoot'].includes(point?.kind) && point.party === 'Self' && point.isMappablePoint === true;
+}
+
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
-  const points = observations.filter(p => ['Point', 'Handle'].includes(p.kind) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
-    && Array.from({length:/^Sensa\/(Point|Handle)\/v1\//.test(p.prefix)?4:8}, (_,i) => `${p.prefix}/Root/A${i}`).some(path => matchesOscPathPattern(signal.oscPath,path)));
+  const points = observations.filter(p => canMapPoint(p) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
+    && (p.kind === 'ShaderRoot' ? ['X', 'Y', 'Z'].map(axis => `${p.prefix}/${axis}`)
+      : Array.from({length:p.expectedSampleCount || 4}, (_,i) => `${p.prefix}/Root/A${i}`)).some(path => matchesOscPathPattern(signal.oscPath,path)));
   if (points.length !== 1) return {path:signal.oscPath,value:points.length ? t("请限定唯一测量点与来源") : t("等待本地点采样")};
   const p = points[0];
   const value = p.valid ? ({X:p.position.x,Y:p.position.y,Z:p.position.z,Distance:Math.hypot(p.position.x,p.position.y,p.position.z)}[signal.pointMetric || 'Z']) : undefined;
@@ -118,7 +125,7 @@ export function pointPreviewEntry(observations, signal, preferredSourceKey = '')
 }
 
 export function capturePointEndpoint(point, metric) {
-  if (!point?.valid || !['Point','Handle'].includes(point.kind) || !point.key || !point.position) return null;
+  if (!point?.valid || !canMapPoint(point) || !point.key || !point.position) return null;
   const {x,y,z} = point.position;
   const value = {X:x,Y:y,Z:z,Distance:Math.hypot(x,y,z)}[metric];
   if (![x,y,z,value].every(Number.isFinite)) return null;
@@ -126,7 +133,7 @@ export function capturePointEndpoint(point, metric) {
 }
 
 export function calibratedPointDraft(point, metric, zero, full) {
-  if (!point || !['Point','Handle'].includes(point.kind) || !['X','Y','Z','Distance'].includes(metric)) return {error:t("请选择本地点与测量轴")};
+  if (!point || !canMapPoint(point) || !['X','Y','Z','Distance'].includes(metric)) return {error:t("请选择可映射的测量点与轴")};
   if (!zero || !full) return {error:t("请分别采集 0% 和 100% 位置")};
   if ([zero,full].some(sample=>sample.key!==point.key || sample.prefix!==point.prefix || sample.sourceKey!==point.sourceKey || sample.metric!==metric || !Number.isFinite(sample.value)))
     return {error:t("测量对象、来源或轴已改变，请重新采集")};
