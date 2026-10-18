@@ -26,6 +26,67 @@ function ruleLines(rule) {
   ];
 }
 
+async function attachIncompleteEvidence(page, info, state, incomplete) {
+  requireCi();
+  const prefix = 'incomplete-' + safeName(state);
+  const evidence = { timing: 'after-analyze-non-atomic', sampledAt: new Date().toISOString(),
+    viewport: page.viewportSize(), url: page.url(), nodes: [], errors: [] };
+  for (const rule of incomplete) {
+    for (const node of rule.nodes) {
+      const entry = { rule: rule.id, target: node.target };
+      evidence.nodes.push(entry);
+      try {
+        if (!Array.isArray(node.target) || node.target.length !== 1 || typeof node.target[0] !== 'string')
+          throw new Error('Cannot resolve compound, frame or shadow target / 无法定位复合、frame 或 shadow 目标');
+        const matches = await page.locator(node.target[0]).evaluateAll(elements => elements.map(element => {
+          const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
+          let scroll = element.closest('.table-scroll, .log-list, dialog[open]');
+          if (!scroll) {
+            let ancestor = element.parentElement;
+            while (ancestor) {
+              const overflow = getComputedStyle(ancestor);
+              if (/auto|scroll/.test(overflow.overflowX + overflow.overflowY)) { scroll = ancestor; break; }
+              ancestor = ancestor.parentElement;
+            }
+          }
+          const scrollStyle = scroll ? getComputedStyle(scroll) : null;
+          return {
+            rect: { x: rect.x, y: rect.y, width: rect.width, height: rect.height,
+              top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left },
+            computed: { color: style.color, backgroundColor: style.backgroundColor, fontFamily: style.fontFamily,
+              fontSize: style.fontSize, fontWeight: style.fontWeight, lineHeight: style.lineHeight,
+              opacity: style.opacity, visibility: style.visibility, position: style.position, zIndex: style.zIndex },
+            scrollRegion: scroll ? {
+              tag: scroll.tagName.toLowerCase(), id: scroll.id,
+              label: scroll.getAttribute('aria-label') || scroll.getAttribute('aria-labelledby'),
+              scrollLeft: scroll.scrollLeft, scrollTop: scroll.scrollTop,
+              clientWidth: scroll.clientWidth, clientHeight: scroll.clientHeight,
+              scrollWidth: scroll.scrollWidth, scrollHeight: scroll.scrollHeight,
+              overflowX: scrollStyle.overflowX, overflowY: scrollStyle.overflowY,
+            } : null,
+            documentScroll: { x: scrollX, y: scrollY }, viewport: { width: innerWidth, height: innerHeight },
+          };
+        }));
+        if (!matches.length) throw new Error('Target is absent after analysis / 分析后已找不到目标');
+        entry.matches = matches;
+      } catch (error) { entry.error = error?.message || String(error); }
+    }
+  }
+  const references = { timing: evidence.timing, errors: evidence.errors };
+  try {
+    const screenshot = await page.screenshot({ fullPage: false });
+    references.screenshotAttachment = prefix + '-viewport.png';
+    evidence.screenshotTakenAt = new Date().toISOString();
+    await info.attach(references.screenshotAttachment, { body: screenshot, contentType: 'image/png' });
+  } catch (error) { evidence.errors.push({ operation: 'viewport-screenshot', message: error?.message || String(error) }); }
+  try {
+    references.detailsAttachment = prefix + '-nodes.json';
+    await info.attach(references.detailsAttachment, { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+  } catch (error) { evidence.errors.push({ operation: 'node-evidence-attachment', message: error?.message || String(error) }); }
+  references.unresolvedTargets = evidence.nodes.filter(node => node.error).map(node => ({ rule: node.rule, target: node.target, error: node.error }));
+  return references;
+}
+
 // Each state keeps the complete axe result, including incomplete node/check evidence.
 // 每个状态保留完整 axe 结果，包括 incomplete 的节点与检查证据。
 export function createUiQualityReport(page, info, { kind, plannedStates = [], plannedChecks = [] }) {
@@ -80,6 +141,10 @@ export function createUiQualityReport(page, info, { kind, plannedStates = [], pl
         results,
       };
       report.states.push(entry);
+      if (results.incomplete.length) {
+        try { entry.reviewEvidence = await attachIncompleteEvidence(page, info, state, results.incomplete); }
+        catch (error) { entry.reviewEvidence = { timing: 'after-analyze-non-atomic', errors: [{ operation: 'review-evidence', message: error?.message || String(error) }] }; }
+      }
       expect.soft(results.violations, state + ': automatically detected WCAG violations / 自动检测到的 WCAG 违规').toEqual([]);
       return entry;
     },
@@ -132,7 +197,9 @@ export function createUiQualityReport(page, info, { kind, plannedStates = [], pl
         ...report.states.flatMap(state => [
           '### ' + state.state, '',
           '- URL: ' + state.url,
-          '- Engine / 引擎: ' + JSON.stringify(state.engine), '',
+          '- Engine / 引擎: ' + JSON.stringify(state.engine),
+          '- Review evidence / 审阅证据: ' + JSON.stringify(state.reviewEvidence || null),
+          '- Incomplete evidence is sampled after analyze and is not an atomic snapshot. / incomplete 现场证据在 analyze 后采样，并非原子快照。', '',
           'Violations / 违规:', ...state.violations.flatMap(ruleLines), '',
           'Incomplete / 待审阅:', ...state.incomplete.flatMap(ruleLines), '',
         ]),

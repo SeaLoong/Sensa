@@ -18,6 +18,20 @@ const behaviorChecks = [
   'reflow-320-settings', 'reflow-320-profile-dialog', 'checks-never-enable-input',
 ];
 const label = (page, zh) => text(page, zh);
+async function attachModalFocus(dialog, info, direction) {
+  const evidence = await dialog.evaluate(element => {
+    const describe = node => node ? {
+      tag: node.tagName.toLowerCase(), id: node.id, role: node.getAttribute('role'),
+      label: node.getAttribute('aria-label'), text: (node.textContent || '').trim().slice(0, 120),
+      disabled: Boolean(node.disabled), tabIndex: node.tabIndex, withinDialog: element.contains(node),
+    } : null;
+    const targets = [...element.querySelectorAll('button, input, select, textarea, a[href], [tabindex]')]
+      .filter(node => !node.disabled && node.tabIndex >= 0 && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
+    return { active: describe(document.activeElement), first: describe(targets[0]),
+      last: describe(targets.at(-1)), dialogOpen: element.open };
+  });
+  await info.attach('modal-focus-' + direction + '.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+}
 async function expandFirstAxis(page, dialog) {
   const axis = dialog.locator('.axis-editor').first();
   if (!await axis.evaluate(element => element.open)) await axis.locator('summary').click();
@@ -141,8 +155,12 @@ for (const locale of ['zh-CN', 'en-US']) {
           const focusable = dialog.locator('button:visible:not([disabled]), input:visible:not([disabled]), select:visible:not([disabled]), textarea:visible:not([disabled]), a[href]:visible, [tabindex="0"]:visible');
           const first = focusable.first(), last = focusable.last();
           await first.focus();
-          await first.press('Shift+Tab'); await expect(last).toBeFocused();
-          await last.press('Tab'); await expect(first).toBeFocused();
+          await first.press('Shift+Tab');
+          await attachModalFocus(dialog, info, 'backward-boundary');
+          await expect(last).toBeFocused();
+          await last.press('Tab');
+          await attachModalFocus(dialog, info, 'forward-boundary');
+          await expect(first).toBeFocused();
           await close.focus();
           const focus = await inspectFocusIndicator(close);
 

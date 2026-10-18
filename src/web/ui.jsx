@@ -66,6 +66,25 @@ export function Modal({ open, title, onClose, children, actions, emergencyAction
       ref={ref}
       aria-labelledby={titleId}
       className={`modal${wide ? ' modal--wide' : ''}`}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
+        const dialog = event.currentTarget;
+        const controls = [...dialog.querySelectorAll('button, input, select, textarea, a[href], summary, [tabindex]')]
+          .filter((element) => element.tabIndex >= 0 && !element.matches(':disabled')
+            && !element.closest('[inert]') && element.getClientRects().length > 0
+            && getComputedStyle(element).visibility === 'visible')
+          .sort((left, right) => (left.tabIndex || Infinity) - (right.tabIndex || Infinity));
+        const first = controls[0], last = controls.at(-1);
+        if (!first) { event.preventDefault(); return; }
+        const active = dialog.ownerDocument.activeElement;
+        if (event.shiftKey && active === first) {
+          event.preventDefault();
+          last.focus();
+        } else if (!event.shiftKey && active === last) {
+          event.preventDefault();
+          first.focus();
+        }
+      }}
       onCancel={(event) => {
         event.preventDefault();
         onClose();

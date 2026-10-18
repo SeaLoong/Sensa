@@ -2240,21 +2240,23 @@ function App() {
                           <Toggle label={t('连续发送')} checked={manualContinuous} onChange={setManualContinuous} />
                           <Button onClick={disableManualInput} disabled={!online}>{t('停用手动')}</Button>
                         </div>
-                        <details className="manual-settings">
-                          <summary>{t('发送设置')}</summary>
-                          <div className="form-grid">
-                            <SelectField label={t('斜率方式')} value={manualMotionMode} options={MANUAL_MOTION_MODE_OPTIONS()} onChange={handleManualMotionModeChange} />
-                            <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} onChange={handleManualMotionValueChange} />
-                          </div>
-                        </details>
-                        <details>
-                          <summary>{t('旋转、震动与辅助轴')}</summary>
-                          <div className="manual-grid">
-                            {MANUAL_AXES().slice(3).map((axis) => (
-                              <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
-                            ))}
-                          </div>
-                        </details>
+                        <div className="manual-options">
+                          <details className="manual-settings">
+                            <summary>{t('发送设置')}</summary>
+                            <div className="form-grid">
+                              <SelectField label={t('斜率方式')} value={manualMotionMode} options={MANUAL_MOTION_MODE_OPTIONS()} onChange={handleManualMotionModeChange} />
+                              <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} onChange={handleManualMotionValueChange} />
+                            </div>
+                          </details>
+                          <details>
+                            <summary>{t('旋转、震动与辅助轴')}</summary>
+                            <div className="manual-grid">
+                              {MANUAL_AXES().slice(3).map((axis) => (
+                                <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
+                              ))}
+                            </div>
+                          </details>
+                        </div>
                       </div>
                     )}
                     {selectedInputTab === 'osc' && (

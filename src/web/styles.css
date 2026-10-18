@@ -124,6 +124,8 @@ progress::-moz-progress-bar { background: var(--accent); }
 .manual-primary .value-field:first-child .value-field__heading { font-size: 13px; }
 .manual-primary .value-field:first-child output { font-size: 18px; }
 .manual-actions { padding-block: 4px 12px; border-bottom: 1px solid var(--border); }
+.manual-options { display: flex; flex-direction: column; gap: 0; }
+.manual-options > details > summary { min-height: 36px; padding-block: 8px; }
 .manual-settings > .form-grid { padding-block: 8px; }
 .value-field__controls { display: flex; align-items: center; gap: 12px; }
 .slider-control { display: block; width: 100%; height: 36px; min-width: 0; accent-color: var(--accent); cursor: pointer; }
@@ -222,7 +224,7 @@ tr:last-child td { border: 0; }
 .transport { justify-content: center; padding: 4px 0; gap: 10px; }
 .transport .button--primary { min-width: 100px; }
 .script-density__plot { position: relative; height: 88px; padding-top: 8px; background: #f8fafc; border-bottom: 1px solid var(--border); user-select: none; touch-action: pan-y; overflow: hidden; border-radius: 6px 6px 0 0; }
-.script-density__plot--disabled { opacity: .65; }
+.script-density__plot--disabled .script-density__bar { opacity: .65; }
 .script-density__bars { display: flex; gap: 2px; align-items: end; height: 100%; position: relative; padding: 0 2px; }
 .script-density__bar { border: 0; padding: 0; flex: 1 1 0; min-width: 1px; border-radius: 2px 2px 0 0; background: #94b8f5; }
 .script-density__bar:hover, .script-density__bar:focus-visible { background: var(--accent); }
@@ -311,7 +313,7 @@ kbd { font: 11px ui-monospace, Consolas, monospace; border: 1px solid var(--bord
   .script-clock output { font-size: 28px; }
 }
 @media (pointer: coarse) {
-  .button, .field input, .field select, .language-select, .number-input, .toggle, summary, .slider-control, .tabs [role="tab"], .parameter-table .button, .parameter-link { min-height: 44px; }
+  .button, .field input, .field select, .language-select, .number-input, .toggle, summary, .manual-options > details > summary, .slider-control, .tabs [role="tab"], .parameter-table .button, .parameter-link { min-height: 44px; }
   .button, .tabs [role="tab"], .parameter-table .button { min-width: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { *, *::before { transition: none !important; scroll-behavior: auto !important; } }
