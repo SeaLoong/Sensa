@@ -198,6 +198,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await report.check('reflow-320-mapping-expanded / 映射展开时 320 CSS px 重排', () => inspectReflow(page));
         await report.check('target-samples-fields-and-disclosures / 字段与折叠区命中区域抽检', () => inspectBasicTargets(page, page.locator('.mapping-row').first().locator('input:not([type=checkbox]), select, summary'), 'Field and summary'));
 
+        await mode(page, 'OSC');
         await oscWorkspace(page, '参数');
         await rig.send([['CI/ReflowDepth', .5]]);
         await expect(page.getByRole('button', { name: 'CI/ReflowDepth', exact: true })).toBeVisible();

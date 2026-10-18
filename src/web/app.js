@@ -1528,181 +1528,185 @@ function App() {
   function renderScriptPlayer() {
     return (
       <div className="stack script-player">
-        <div className="section__header">
-          <div>
-            <h3>{scriptFileLabel}</h3>
-            <span className="muted">
-              {scriptLoadedState.label}
-              {scriptLoaded ? ` · ${scriptState.actionCount} ${t('动作')}` : ''}
-            </span>
+        <div className="stack script-player__controls">
+          <div className="section__header">
+            <div>
+              <h3>{scriptFileLabel}</h3>
+              <span className="muted">
+                {scriptLoadedState.label}
+                {scriptLoaded ? ` · ${scriptState.actionCount} ${t('动作')}` : ''}
+              </span>
+            </div>
+            <div className="actions">
+              <label className="button button--primary file-button">
+                {selectedScriptFile ? t('导入中…') : scriptLoaded ? t('更换脚本') : t('选择脚本')}
+                <input
+                  key={scriptFileInputKey}
+                  type="file"
+                  accept=".funscript,.json"
+                  disabled={Boolean(selectedScriptFile)}
+                  onChange={(event) => setSelectedScriptFile(event.target.files?.[0] || null)}
+                />
+              </label>
+              <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScript}>
+                {t('卸载')}
+              </Button>
+            </div>
           </div>
-          <div className="actions">
-            <label className="button button--primary file-button">
-              {selectedScriptFile ? t('导入中…') : scriptLoaded ? t('更换脚本') : t('选择脚本')}
-              <input
-                key={scriptFileInputKey}
-                type="file"
-                accept=".funscript,.json"
-                disabled={Boolean(selectedScriptFile)}
-                onChange={(event) => setSelectedScriptFile(event.target.files?.[0] || null)}
-              />
-            </label>
-            <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScript}>
-              {t('卸载')}
+          <div className="script-clock">
+            <output>{formatDuration(scriptSeekBasePosition)}</output>
+            <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
+          </div>
+          <SliderControl
+            aria-label={t('时间轴')}
+            min={0}
+            max={scriptSliderMax}
+            step={50}
+            value={scriptSeekValue}
+            disabled={!scriptLoaded || scriptBusy}
+            valueFormatter={formatDuration}
+            onChange={(next) => {
+              setScriptSeekDragging(true);
+              setScriptSeekDraft(next);
+            }}
+            onChangeCommitted={(next) => void seekScript(next)}
+          />
+          <ScriptTimelineDensity
+            bins={scriptActivityBins}
+            durationMs={scriptDurationMs}
+            currentPositionMs={scriptSeekBasePosition}
+            loopStartMs={scriptLoopRange.startMs}
+            loopEndMs={scriptLoopRange.endMs}
+            disabled={!scriptLoaded || scriptBusy}
+            onSeek={seekScript}
+            onSetLoopBoundary={setScriptLoopBoundary}
+            onSelectLoopRange={applyScriptLoopRange}
+          />
+          <div className="actions transport">
+            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>
+              {t('上一动作')}
+            </Button>
+            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>
+              {t('重播')}
+            </Button>
+            <Button
+              tone="primary"
+              disabled={!scriptLoaded || scriptBusy}
+              onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}
+            >
+              {scriptTransportPrimaryLabel}
+            </Button>
+            <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>
+              {t('停止')}
+            </Button>
+            <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>
+              {t('下一动作')}
             </Button>
           </div>
+          <div className="form-grid">
+            <SelectField
+              label={t('播放倍率')}
+              value={scriptSettings.speed}
+              options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
+                .sort((a, b) => a - b)
+                .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
+              onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+            />
+            <ValueSliderField
+              label={t('自定义倍率')}
+              value={scriptSettings.speed}
+              min={SCRIPT_SPEED_MIN}
+              max={SCRIPT_SPEED_MAX}
+              step={SCRIPT_SPEED_STEP}
+              valueFormatter={formatScriptSpeedLabel}
+              onChange={(speed) => updateScriptSettingsDraft({ speed })}
+              onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+            />
+            <Toggle
+              label={t('循环')}
+              checked={scriptSettings.loop}
+              onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
+            />
+          </div>
         </div>
-        <div className="script-clock">
-          <output>{formatDuration(scriptSeekBasePosition)}</output>
-          <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
-        </div>
-        <SliderControl
-          aria-label={t('时间轴')}
-          min={0}
-          max={scriptSliderMax}
-          step={50}
-          value={scriptSeekValue}
-          disabled={!scriptLoaded || scriptBusy}
-          valueFormatter={formatDuration}
-          onChange={(next) => {
-            setScriptSeekDragging(true);
-            setScriptSeekDraft(next);
-          }}
-          onChangeCommitted={(next) => void seekScript(next)}
-        />
-        <ScriptTimelineDensity
-          bins={scriptActivityBins}
-          durationMs={scriptDurationMs}
-          currentPositionMs={scriptSeekBasePosition}
-          loopStartMs={scriptLoopRange.startMs}
-          loopEndMs={scriptLoopRange.endMs}
-          disabled={!scriptLoaded || scriptBusy}
-          onSeek={seekScript}
-          onSetLoopBoundary={setScriptLoopBoundary}
-          onSelectLoopRange={applyScriptLoopRange}
-        />
-        <div className="actions transport">
-          <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(-1)}>
-            {t('上一动作')}
-          </Button>
-          <Button disabled={!scriptLoaded || scriptBusy} onClick={() => playScript(true)}>
-            {t('重播')}
-          </Button>
-          <Button
-            tone="primary"
-            disabled={!scriptLoaded || scriptBusy}
-            onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}
-          >
-            {scriptTransportPrimaryLabel}
-          </Button>
-          <Button disabled={!scriptLoaded || scriptBusy} onClick={stopScript}>
-            {t('停止')}
-          </Button>
-          <Button disabled={!scriptLoaded || scriptBusy} onClick={() => stepScriptAction(1)}>
-            {t('下一动作')}
-          </Button>
-        </div>
-        <div className="form-grid">
-          <SelectField
-            label={t('播放倍率')}
-            value={scriptSettings.speed}
-            options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
-              .sort((a, b) => a - b)
-              .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
-            onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-          />
-          <ValueSliderField
-            label={t('自定义倍率')}
-            value={scriptSettings.speed}
-            min={SCRIPT_SPEED_MIN}
-            max={SCRIPT_SPEED_MAX}
-            step={SCRIPT_SPEED_STEP}
-            valueFormatter={formatScriptSpeedLabel}
-            onChange={(speed) => updateScriptSettingsDraft({ speed })}
-            onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-          />
-          <Toggle
-            label={t('循环')}
-            checked={scriptSettings.loop}
-            onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
-          />
-        </div>
-        <details>
-          <summary>{t('定位与 A-B')}</summary>
-          <div className="stack">
-            <div className="actions">
-              <Field
-                label={t('跳转时间')}
-                value={scriptJumpInput}
-                placeholder="01:23.45"
-                onChange={(event) => setScriptJumpInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') {
-                    event.preventDefault();
-                    void submitScriptJump();
-                  }
-                }}
-              />
-              <Button disabled={!scriptLoaded || scriptBusy} onClick={submitScriptJump}>
-                {t('跳转')}
-              </Button>
-              {SCRIPT_SEEK_ACTIONS().map((action) => (
-                <Button
-                  key={action.key}
-                  disabled={!scriptLoaded || scriptBusy}
-                  onClick={() =>
-                    action.mode === 'relative'
-                      ? seekScriptRelative(action.value)
-                      : seekScript(action.value === 'end' ? scriptDurationMs : action.value)
-                  }
-                >
-                  {action.label}
+        <div className="stack script-player__options">
+          <details>
+            <summary>{t('定位与 A-B')}</summary>
+            <div className="stack">
+              <div className="actions">
+                <Field
+                  label={t('跳转时间')}
+                  value={scriptJumpInput}
+                  placeholder="01:23.45"
+                  onChange={(event) => setScriptJumpInput(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      event.preventDefault();
+                      void submitScriptJump();
+                    }
+                  }}
+                />
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={submitScriptJump}>
+                  {t('跳转')}
                 </Button>
-              ))}
+                {SCRIPT_SEEK_ACTIONS().map((action) => (
+                  <Button
+                    key={action.key}
+                    disabled={!scriptLoaded || scriptBusy}
+                    onClick={() =>
+                      action.mode === 'relative'
+                        ? seekScriptRelative(action.value)
+                        : seekScript(action.value === 'end' ? scriptDurationMs : action.value)
+                    }
+                  >
+                    {action.label}
+                  </Button>
+                ))}
+              </div>
+              <div className="actions">
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('start')}>
+                  {t('设 A')}
+                </Button>
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('end')}>
+                  {t('设 B')}
+                </Button>
+                <Button
+                  disabled={scriptLoopRange.startMs === null || scriptBusy}
+                  onClick={() => jumpToScriptLoopBoundary('start')}
+                >
+                  {t('跳至 A')}
+                </Button>
+                <Button
+                  disabled={scriptLoopRange.endMs === null || scriptBusy}
+                  onClick={() => jumpToScriptLoopBoundary('end')}
+                >
+                  {t('跳至 B')}
+                </Button>
+                <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScriptLoopRange}>
+                  {t('清除 A-B')}
+                </Button>
+              </div>
+              <p className="muted">
+                A {scriptLoopRange.startMs === null ? '—' : formatDuration(scriptLoopRange.startMs)} · B{' '}
+                {scriptLoopRange.endMs === null ? '—' : formatDuration(scriptLoopRange.endMs)}
+              </p>
             </div>
-            <div className="actions">
-              <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('start')}>
-                {t('设 A')}
-              </Button>
-              <Button disabled={!scriptLoaded || scriptBusy} onClick={() => setScriptLoopBoundary('end')}>
-                {t('设 B')}
-              </Button>
-              <Button
-                disabled={scriptLoopRange.startMs === null || scriptBusy}
-                onClick={() => jumpToScriptLoopBoundary('start')}
-              >
-                {t('跳至 A')}
-              </Button>
-              <Button
-                disabled={scriptLoopRange.endMs === null || scriptBusy}
-                onClick={() => jumpToScriptLoopBoundary('end')}
-              >
-                {t('跳至 B')}
-              </Button>
-              <Button disabled={!scriptLoaded || scriptBusy} onClick={clearScriptLoopRange}>
-                {t('清除 A-B')}
-              </Button>
+          </details>
+          <details>
+            <summary>{t('快捷键')}</summary>
+            <div className="shortcut-list">
+              {SCRIPT_SHORTCUT_GROUPS()
+                .flatMap((group) => group.items)
+                .map((item) => (
+                  <div key={item.shortcut}>
+                    <kbd>{item.shortcut}</kbd>
+                    <span>{item.label}</span>
+                  </div>
+                ))}
             </div>
-            <p className="muted">
-              A {scriptLoopRange.startMs === null ? '—' : formatDuration(scriptLoopRange.startMs)} · B{' '}
-              {scriptLoopRange.endMs === null ? '—' : formatDuration(scriptLoopRange.endMs)}
-            </p>
-          </div>
-        </details>
-        <details>
-          <summary>{t('快捷键')}</summary>
-          <div className="shortcut-list">
-            {SCRIPT_SHORTCUT_GROUPS()
-              .flatMap((group) => group.items)
-              .map((item) => (
-                <div key={item.shortcut}>
-                  <kbd>{item.shortcut}</kbd>
-                  <span>{item.label}</span>
-                </div>
-              ))}
-          </div>
-          <p className="caption muted">{t('仅在脚本页空白处生效；输入框、按钮与滑条保留自己的键盘操作。')}</p>
-        </details>
+            <p className="caption muted">{t('仅在脚本页空白处生效；输入框、按钮与滑条保留自己的键盘操作。')}</p>
+          </details>
+        </div>
       </div>
     );
   }
@@ -1923,8 +1927,8 @@ function App() {
               <tr>
                 <th scope="col">{t('置顶')}</th>
                 <th scope="col">{t('参数')}</th>
-                <th scope="col">{t('来源')}</th>
                 <th scope="col">{t('值')}</th>
+                <th scope="col">{t('来源')}</th>
                 <th scope="col">{t('时间')}</th>
                 <th scope="col">{t('操作')}</th>
               </tr>
@@ -1945,8 +1949,8 @@ function App() {
                       {entry.path}
                     </button>
                   </td>
+                  <td className="mono parameter-value">{entry.value ?? '—'}</td>
                   <td className="caption">{entry.sourceLabel || '—'}</td>
-                  <td className="mono">{entry.value ?? '—'}</td>
                   <td data-testid="osc-timestamp" className="caption">
                     {formatPreviewTimestamp(entry.timestampMs)}
                   </td>

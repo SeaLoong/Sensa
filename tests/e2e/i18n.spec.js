@@ -46,7 +46,8 @@ test('English experimental calibration drives only after opt-in and stops on rel
 });
 
 test('English presets, script and compact help use localized documentation', {tag:['@i18n','@visual']}, async ({page}) => {
-  await mode(page,'脚本'); await checkpoint(page,page.locator('.script-player'),'english-script');
+  await mode(page,'脚本'); await checkpoint(page,page.locator('.script-player__controls'),'english-script');
+  await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
   await expect(page.getByLabel(await text(page,'预设方案'),{exact:true}).locator('option')).toHaveCount(5);
   await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('sps-socket-depth-others');

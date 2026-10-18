@@ -130,7 +130,8 @@ test('funscript import, playback, pause, stepping and unload', { tag: ['@input',
   await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(false);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await page.getByRole('button', { name:'下一动作', exact:true }).click(); await outputValue(rig, 'udp', 600);
-  await checkpoint(page, page.locator('.script-player'), 'script-paused-keyframe');
+  await checkpoint(page, page.locator('.script-player__controls'), 'script-paused-keyframe');
+  await checkpoint(page, page.locator('.script-player__options'), 'script-options');
   await page.getByRole('button', { name:'卸载', exact:true }).click();
   await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(false);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
