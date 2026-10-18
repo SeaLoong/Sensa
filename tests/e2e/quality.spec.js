@@ -4,6 +4,7 @@ import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, insp
 const auditStates = [
   'control-manual-expanded',
   'output-settings-dialog',
+  'intiface-settings-dialog',
   'control-script-loaded',
   'osc-mappings-expanded',
   'osc-parameters-populated',
@@ -58,6 +59,14 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(output).toBeVisible();
         await report.audit('output-settings-dialog');
         await output.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
+
+        await card(page, 'Mock Intiface').getByRole('button', { name: await label(page, '配置'), exact: true }).click();
+        const intiface = page.getByRole('dialog', { name: await label(page, '输出设置'), exact: true });
+        await expect(intiface.getByLabel(await label(page, '振动来源'), { exact: true })).toHaveValue('V0');
+        await intiface.getByLabel(await label(page, '连接方式'), { exact: true }).selectOption('managed');
+        await expect(intiface.getByRole('spinbutton', { name: await label(page, '引擎端口'), exact: true })).toBeVisible();
+        await report.audit('intiface-settings-dialog');
+        await intiface.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
 
         await page.getByRole('tablist', { name: await label(page, '输入方式'), exact: true })
           .getByRole('tab', { name: await label(page, '脚本'), exact: true }).click();
