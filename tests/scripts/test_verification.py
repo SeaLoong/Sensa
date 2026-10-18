@@ -223,7 +223,8 @@ class LocalVerificationTests(unittest.TestCase):
         def native(command):
             return [node, cli, *command[1:]] if command[0] == shim else command
 
-        with patch.object(verify, '_native_command', side_effect=native), patch.object(
+        with patch.object(verify.platform, 'platform', return_value='fixture-platform'), patch.object(
+                verify, '_native_command', side_effect=native), patch.object(
                 verify.subprocess, 'run', side_effect=[
                     subprocess.CompletedProcess([], 0, 'v24.0.0\n', ''),
                     subprocess.CompletedProcess([], 0, '11.0.0\n', '')]) as run:
