@@ -99,6 +99,25 @@ class LocalVerificationTests(unittest.TestCase):
         self.assertIn('utf8', self.commands[1])
         self.assertNotIn('test_bilingual_docs.py', self.commands[1])
 
+    def test_documentation_lane_rechecks_privacy_inputs_and_removes_failed_receipts(self):
+        self.write('README.md', 'portable documentation')
+        self.write('.codex/config.toml.example', 'portable')
+        self.assertTrue(self.run_plan(['README.md']))
+        self.assertEqual({command[-1] for command in self.commands},
+                         {'test_bilingual_docs.py', 'test_tool_paths.py'})
+        self.commands.clear()
+        self.assertTrue(self.run_plan(['README.md']))
+        self.assertEqual(self.commands, [])
+
+        self.write('.codex/config.toml.example', 'invalid private location')
+        calls = []
+        def privacy_runner(command, root):
+            calls.append(command)
+            return int(command[-1] == 'test_tool_paths.py')
+        self.assertFalse(self.run_plan(['README.md'], runner=privacy_runner))
+        self.assertEqual(len(calls), 2)
+        self.assertFalse(self.receipt('docs').exists())
+
     def test_unknown_paths_conservatively_select_all_local_lanes(self):
         plan = verify.CI_PLAN.plan_changes(['new-area/new-file.xyz'])
         self.assertEqual(verify.select_local_lanes(plan), ['web', 'backend', 'scripts', 'unity'])

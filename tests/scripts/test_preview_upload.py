@@ -132,6 +132,24 @@ class PreviewCommandTests(unittest.TestCase):
         self.assertEqual([event for event in releases.events if event[0] == 'delete'], [('delete', 1)])
         self.assertFalse(any(event[0] in ('upload', 'publish') for event in releases.events))
 
+    def test_late_or_duplicate_candidates_do_not_package_create_upload_or_publish(self):
+        environment = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main',
+                       'GITHUB_SHA': SHA, 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '2',
+                       'SENSA_E2E_COMPARISON_SHA': SHA, 'GITHUB_REPOSITORY': 'Owner/Repo'}
+        cases = [('preview-43-1-bbbbbbbb', 'b' * 40),
+                 ('preview-42-3-bbbbbbbb', 'b' * 40),
+                 ('preview-41-1-aaaaaaaa', SHA)]
+        for tag, target in cases:
+            releases = FakeReleases([published(50) | {'tag_name': tag, 'target_commitish': target}])
+            with self.subTest(tag=tag), patch.dict(preview.os.environ, environment, clear=True), \
+                    patch('sys.argv', ['publish-preview.py']), \
+                    patch.object(preview, 'GitHubReleases', return_value=releases), \
+                    patch.object(preview, 'collect') as collect, patch.object(preview, 'upload_and_publish') as publish:
+                preview.main()
+            collect.assert_not_called()
+            publish.assert_not_called()
+            self.assertEqual(releases.events, [('list',)])
+
     def test_missing_current_commit_evidence_prevents_any_remote_action(self):
         environment = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main',
                        'GITHUB_SHA': SHA, 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '1'}
@@ -141,6 +159,27 @@ class PreviewCommandTests(unittest.TestCase):
                 self.assertRaises(ValueError):
             preview.main()
         adapter.assert_not_called()
+
+
+class CandidateOrderContracts(unittest.TestCase):
+    def test_newer_run_order_wins_even_when_an_older_candidate_finishes_later(self):
+        newer = published(1) | {'tag_name': 'preview-43-1-bbbbbbbb', 'target_commitish': 'b' * 40}
+        older = published(2) | {'tag_name': 'preview-41-1-cccccccc', 'target_commitish': 'c' * 40}
+        self.assertEqual(preview.superseding_preview([older, newer], SHA, '42', '2'), newer)
+
+    def test_older_manual_stable_and_draft_releases_do_not_suppress_a_new_candidate(self):
+        older = published(1) | {'tag_name': 'preview-41-1-bbbbbbbb', 'target_commitish': 'b' * 40}
+        manual = published(2) | {'tag_name': 'v0.4.0-beta.99'}
+        stable = published(3) | {'tag_name': 'preview-99-1-aaaaaaaa', 'prerelease': False}
+        draft = published(4) | {'tag_name': 'preview-99-1-aaaaaaaa', 'draft': True}
+        self.assertIsNone(preview.superseding_preview([older, manual, stable, draft], SHA, '42', '2'))
+
+    def test_automatic_preview_identity_must_match_its_run_tag_and_commit(self):
+        for target, tag in [('main', 'preview-43-1-aaaaaaaa'),
+                            ('b' * 40, 'preview-43-1-aaaaaaaa'),
+                            ('b' * 40, 'preview-42-2-bbbbbbbb')]:
+            with self.subTest(target=target, tag=tag), self.assertRaises(ValueError):
+                preview.superseding_preview([published(1) | {'tag_name': tag, 'target_commitish': target}], SHA, '42', '2')
 
 
 class PrereleaseRetentionTests(unittest.TestCase):

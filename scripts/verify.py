@@ -19,6 +19,7 @@ CI_PLAN = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(CI_PLAN)
 LOCAL_LANES = ('web', 'backend', 'scripts', 'docs', 'unity')
 CI_ONLY = ('dependencies', 'e2e', 'platforms', 'prerelease')
+DOC_CHECK_PATTERNS = ('test_bilingual_docs.py', 'test_tool_paths.py')
 IGNORED_DIRECTORIES = {'.git', 'node_modules', 'artifacts', '_artifacts', 'bin', 'obj',
                        'build', '_build', '__pycache__', '.venv', '.vs',
                        'playwright-report', 'test-results', '.xerj'}
@@ -64,7 +65,8 @@ def lane_commands(lane, root=ROOT, dotnet=None):
         'backend': [[resolve_dotnet(root, dotnet), 'test', 'tests/Sensa.Tests/Sensa.Tests.csproj',
                      '-c', 'Release', '-p:SkipWebBuild=true', '-p:RestoreLockedMode=true']],
         'scripts': [python + ['-m', 'unittest', 'discover', '-s', 'tests/scripts']],
-        'docs': [python + ['-m', 'unittest', 'discover', '-s', 'tests/scripts', '-p', 'test_bilingual_docs.py']],
+        'docs': [python + ['-m', 'unittest', 'discover', '-s', 'tests/scripts', '-p', pattern]
+                 for pattern in DOC_CHECK_PATTERNS],
         'unity': [python + ['scripts/release.py', 'check-unity']],
     }
     return commands[lane]
@@ -173,7 +175,15 @@ def _relevant(path, lane):
     if lane == 'scripts':
         return path.startswith(('scripts/', 'tests/scripts/', 'tests/fixtures/', 'tools/', 'unity/', 'docs/', '.github/')) or path.endswith('.md') or path in ('package.json', 'package-lock.json')
     if lane == 'docs':
-        return path.endswith(('.md', '.md.meta')) or path.startswith('tests/scripts/test_bilingual_docs') or path == 'unity/top.sealoong.sensa/Editor/SensaInspectorLabels.cs.meta'
+        file = Path(path)
+        return (file.suffix.lower() in ('.md', '.mdx', '.rst', '.toml', '.yaml', '.yml')
+                or path.endswith('.md.meta')
+                or path in {'tests/scripts/' + pattern for pattern in DOC_CHECK_PATTERNS}
+                or file.name in ('.editorconfig', '.gitattributes', '.gitignore', '.mcp.json', '.npmrc', '.xerjignore')
+                or '.config.' in file.name
+                or len(file.parts) == 1 and file.suffix.lower() == '.json'
+                or file.parts[0] in ('.codex', '.vscode', '.devcontainer')
+                or path == 'unity/top.sealoong.sensa/Editor/SensaInspectorLabels.cs.meta')
     if lane == 'unity':
         return path.startswith('unity/') or path == 'scripts/release.py'
     return False

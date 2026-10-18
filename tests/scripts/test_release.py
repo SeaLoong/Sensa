@@ -75,6 +75,16 @@ class ArchiveWorkspace(unittest.TestCase):
         return archive, files
 
 
+class AuthoringGeneratorContracts(ArchiveWorkspace):
+    def test_rebuilding_authoring_assets_preserves_the_shipped_automatic_setup(self):
+        script = self.repository / 'scripts/generate-pose-assets.py'
+        shutil.copyfile(ROOT / 'scripts/generate-pose-assets.py', script)
+        prefab = self.repository / 'unity/top.sealoong.sensa/Prefabs/SensaAutoSetup.prefab'
+        shipped = prefab.read_text(encoding='utf-8')
+        runpy.run_path(str(script), run_name='__main__')
+        self.assertEqual(prefab.read_text(encoding='utf-8'), shipped)
+
+
 class DesktopArchiveContracts(ArchiveWorkspace):
     def test_every_runtime_has_a_complete_self_contained_archive_and_verified_build_identity(self):
         for runtime in release.RUNTIMES:

@@ -75,4 +75,4 @@ Unity 测试共用 AvatarBuildFixture，覆盖自动生成、Pose 预检和 GPU 
 
 产品验证记录保留真正负责的执行（owner）。后续 docs-only 遇到 owner 仍在运行时继承记录，不取消或重复启动该产品链；文档执行自己的 success 不能清除 owner 的未完成工作。artifact 只记录意图，必须核对 owner 必要 jobs 的真实成功；skipped、未知、缺失或无法读取证据时保守恢复必要全链。未知路径或差异不可用同样保守处理。
 
-每次发布后分页核对远端，只保留最近十个已发布预发布；稳定版本、草稿和 Git tags 保留。细节见[开发与验证](development.md)和 [ADR](adr/0002-impact-based-verification.md)。
+main 预览与桌面／Unity tag 的发布和清理共用串行等待队列；已有相同提交或更新自动预览公开时，跳过旧候选。每次发布后分页核对远端，只保留最近十个已发布预发布；稳定版本、草稿和 Git tags 保留。细节见[开发与验证](development.md)和 [ADR](adr/0002-impact-based-verification.md)。

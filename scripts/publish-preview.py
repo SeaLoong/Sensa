@@ -175,6 +175,29 @@ def prune_prereleases(releases, *, keep=RETAIN_PRERELEASES):
     return removed
 
 
+def superseding_preview(releases, sha, number, attempt):
+    """Find an already published identical or newer automatic candidate.
+    查找已公开的相同或更新自动候选，避免迟到运行重新发布旧产品。
+    """
+    candidate = (int(number), int(attempt))
+    matches = []
+    for release in releases:
+        tag = release.get('tag_name')
+        match = re.fullmatch(r'preview-([1-9][0-9]*)-([1-9][0-9]*)-([0-9a-f]{8})', tag) if isinstance(tag, str) else None
+        if not match or release.get('draft') is not False or release.get('prerelease') is not True:
+            continue
+        identity = _published_identity(release)
+        target = identity[2]
+        if not re.fullmatch('[0-9a-f]{40}', target) or not target.startswith(match[3]):
+            raise ValueError('Published preview identity mismatch / 已发布预览身份不一致')
+        order = (int(match[1]), int(match[2]))
+        if target == sha or order > candidate:
+            matches.append((order, identity[0], release))
+        elif order == candidate:
+            raise ValueError('Preview run identity conflicts / 预览运行身份冲突')
+    return max(matches, key=lambda item: (item[0], item[1]))[2] if matches else None
+
+
 def validate_run(environment):
     """Require main-push identity and this commit's full E2E comparison.
     要求 main push 身份及本提交的全量 E2E 比较证据。
@@ -202,6 +225,15 @@ def main():
         return
     sha, number, attempt = validate_run(os.environ)
     releases = GitHubReleases(os.environ['GITHUB_REPOSITORY'])
+    existing = superseding_preview(releases.list(), sha, number, attempt)
+    if existing is not None:
+        url = f'https://github.com/{releases.repository}/releases/tag/{existing["tag_name"]}'
+        message = f'同一或更新预览已发布，跳过旧候选。 / Identical or newer preview already published; skipping candidate. {url}'
+        if os.environ.get('GITHUB_STEP_SUMMARY'):
+            with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as report:
+                report.write(message + '\n')
+        print(message)
+        return
     tag = f'preview-{number}-{attempt}-{sha[:8]}'
     output = ROOT / 'artifacts' / 'preview'
     output.mkdir(parents=True, exist_ok=True)

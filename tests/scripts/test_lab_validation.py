@@ -1,7 +1,10 @@
 """Validation contracts use a fake Unity process and real isolated report files.
 验证契约使用模拟 Unity 进程及真实的隔离报告文件。
 """
+import contextlib
+import io
 import json
+import sys
 import os
 import subprocess
 import time
@@ -132,6 +135,52 @@ class LabCiPolicyContracts(LabFixture):
             with self.subTest(suite=name), patch.dict(os.environ, {'GITHUB_ACTIONS': 'false'}):
                 result = lab.run_suite(name, self.project('avatar'), lab.Path('Unity.exe'), self.root / 'output', 1, run_process=runner)
             self.assertTrue(result['passed'])
+
+
+class LabCommandContracts(LabFixture):
+    def arguments(self, name, *, include_project=True):
+        unity = self.write(self.root / 'Unity.exe', 'isolated placeholder')
+        suite = lab.SUITES[name]
+        args = ['validate-labs.py', '--unity', str(unity), '--suite', name,
+                '--output', str(self.root / ('command-' + name))]
+        if include_project:
+            args += ['--' + suite.project_kind, str(self.project(suite.project_kind))]
+        return args
+
+    def test_every_cli_suite_resolves_its_project_and_writes_the_actual_result(self):
+        for name, suite in lab.SUITES.items():
+            args = self.arguments(name)
+            result = {'suite': name, 'passed': True}
+            with self.subTest(suite=name), patch.object(sys, 'argv', args), \
+                    patch.object(lab, 'require_ci'), \
+                    patch.object(lab, 'run_suite', return_value=result) as execute, \
+                    contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(lab.main(), 0)
+            self.assertEqual(execute.call_args.args[1], self.root / suite.project_kind)
+            summary = json.loads((self.root / ('command-' + name) / 'summary.json').read_text())
+            self.assertTrue(summary['passed'])
+            self.assertEqual(summary['results'], [result])
+
+    def test_missing_project_reports_an_argument_error_without_launching(self):
+        for name in lab.SUITES:
+            with self.subTest(suite=name), patch.object(sys, 'argv', self.arguments(name, include_project=False)), \
+                    patch.object(lab, 'require_ci'), patch.object(lab, 'run_suite') as execute, \
+                    contextlib.redirect_stderr(io.StringIO()) as errors, self.assertRaises(SystemExit) as failure:
+                lab.main()
+            self.assertEqual(failure.exception.code, 2)
+            self.assertIn('--' + lab.SUITES[name].project_kind, errors.getvalue())
+            execute.assert_not_called()
+            self.assertFalse((self.root / ('command-' + name)).exists())
+
+    def test_world_cli_guard_runs_before_output_creation_or_the_process_adapter(self):
+        with patch.dict(os.environ, {'GITHUB_ACTIONS': 'false'}), \
+                patch.object(sys, 'argv', self.arguments('world-editor')), \
+                patch.object(lab, 'run_suite') as execute, contextlib.redirect_stderr(io.StringIO()), \
+                self.assertRaises(SystemExit) as failure:
+            lab.main()
+        self.assertEqual(failure.exception.code, 2)
+        execute.assert_not_called()
+        self.assertFalse((self.root / 'command-world-editor').exists())
 
 
 class ReportEvidenceContracts(LabFixture):

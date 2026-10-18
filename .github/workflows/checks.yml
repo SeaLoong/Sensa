@@ -68,7 +68,9 @@ jobs:
         run: python -m unittest discover -s tests/scripts
       - name: Documentation parity / 双语文档一致性
         if: ${{ inputs.docs && !inputs.scripts && !inputs.unity }}
-        run: python -m unittest discover -s tests/scripts -p test_bilingual_docs.py
+        run: |
+          python -m unittest discover -s tests/scripts -p test_bilingual_docs.py
+          python -m unittest discover -s tests/scripts -p test_tool_paths.py
       - name: Unity metadata / Unity 元数据
         if: inputs.unity
         run: python scripts/release.py check-unity

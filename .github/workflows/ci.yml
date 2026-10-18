@@ -82,6 +82,7 @@ jobs:
     name: Publish verified preview / 发布已验证预览
     concurrency:
       group: sensa-preview-publication
+      queue: max
       cancel-in-progress: false
     needs: [plan, validate, e2e, platforms]
     if: >-

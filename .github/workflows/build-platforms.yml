@@ -48,9 +48,6 @@ jobs:
         with:
           python-version: '3.14'
       - run: npm ci
-      - name: Install macOS smoke diagnostics / 安装 macOS 冒烟诊断
-        if: runner.os == 'macOS'
-        run: dotnet tool install --global dotnet-stack --version 10.0.750501
       - name: Native build, isolated smoke and archive / 原生构建、隔离冒烟与打包
         env:
           TARGET_RID: ${{ matrix.rid }}

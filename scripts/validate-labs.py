@@ -139,7 +139,7 @@ def main():
                 parser.error('World 完整流程与截图仅限 CI。 / World full-flow checks and screenshots are CI-only. ' + str(error))
         project = getattr(args, SUITES[name].project_kind)
         if project is None or not (project / 'ProjectSettings/ProjectVersion.txt').is_file():
-            parser.error(f'{name} requires an existing --{SUITES[name][0]} Unity project')
+            parser.error(f'{name} 需要现有的 --{SUITES[name].project_kind} Unity 工程。 / {name} requires an existing --{SUITES[name].project_kind} Unity project')
     if len(set(args.suite)) != len(args.suite):
         parser.error('Do not repeat a suite in the same run')
     output = (args.output or ROOT / 'artifacts/lab-validation' /
@@ -148,7 +148,7 @@ def main():
     results = []
     for name in args.suite:
         print(f'Running {name}; logs: {output / name}', flush=True)
-        result = run_suite(name, getattr(args, SUITES[name][0]).resolve(), args.unity.resolve(), output, args.timeout)
+        result = run_suite(name, getattr(args, SUITES[name].project_kind).resolve(), args.unity.resolve(), output, args.timeout)
         results.append(result)
         summary = {'passed': len(results) == len(args.suite) and all(r['passed'] for r in results),
                    'requested': args.suite, 'results': results,

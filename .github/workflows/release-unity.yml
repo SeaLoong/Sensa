@@ -44,6 +44,10 @@ jobs:
             artifacts/release-notes.txt
           if-no-files-found: error
   release:
+    concurrency:
+      group: sensa-preview-publication
+      queue: max
+      cancel-in-progress: false
     needs: [build, e2e]
     if: github.event_name == 'push' && needs.e2e.outputs.comparison_sha == github.sha
     runs-on: ubuntu-latest

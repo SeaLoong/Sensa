@@ -22,7 +22,7 @@ The CI scope below assumes **no outstanding product verification**. Ordinary mai
 
 | Change | Necessary local checks | GitHub Actions |
 | --- | --- | --- |
-| Documentation | Bilingual/link/resource contracts | Documentation checks; no E2E or release |
+| Documentation | Bilingual/link/path-privacy/resource contracts | Documentation checks; no E2E or release |
 | Web unit tests | Web lint, interface contracts, build | Web checks; no release |
 | Backend unit tests | Backend contracts | Backend checks; no release |
 | E2E/baselines | Relevant static/unit checks | Necessary full screenshot comparison; no product release |
@@ -43,7 +43,7 @@ Main product verification has a responsible run (owner). When a later documentat
 
 After product verification fails, an ordinary main push fixing tests or Playwright automatically completes the necessary product chain for the **current commit**: affected checks, full E2E, native builds/isolated smoke and prerelease publication once its gates pass. A test-only fix must not lose the outstanding product verification. No commit-message convention or manual product marker is required. Documentation/test-only changes do not publish when no product verification remains outstanding; ordinary manual verification does not publish either.
 
-PRs cancel stale runs for the same ref, while necessary main product verification is preserved. Automatic publication/retention is serialized. Existing necessary CI retains responsibility instead of being duplicated. See [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) for continuation rules and actual-result decisions.
+PRs cancel stale runs for the same ref, while necessary main product verification is preserved. Main previews and desktop/Unity tag publication share the `sensa-preview-publication` queue. `queue: max` preserves pending jobs. A published identical commit or newer automatic candidate suppresses obsolete packaging/publication. Existing necessary CI retains responsibility instead of being duplicated. [GitHub concurrency rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency). See [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) for continuation rules and actual-result decisions.
 
 Dispatch `ci.yml` for justified full verification or `e2e.yml` for browser-only checks. Do not dispatch a duplicate while necessary CI for that commit is already running:
 
@@ -73,4 +73,4 @@ python scripts/install-avatar-lab.py "<Avatar project>" --tests
 
 `validate-labs.py` offers six suites. `world-editor`, `world-functional`, `world-geometry` and `world-offset` involve graphics/PlayMode/screenshots and require an Actions runner with Unity/licensed resources. `avatar-tests` is EditMode; `avatar-build` inspects a local SDK bundle without uploading. Unchanged authoring-scene hashes, fresh reports, zero exit codes and explicit success are required; XML must contain executed passing tests without skips. Each suite defaults to 900 seconds and output directories cannot be reused.
 
-Device tests use temporary configurations and mock transports only. Real VRChat OSC, VR grabbing, HMD visibility, live GPU capture and hardware require separate validation. Never report unexecuted checks as passed. Diagnose failures using their actual reports/last observed state rather than resending input or rerunning an entire scenario to hide failure. See [historical CI findings](ci-failure-audit.en.md).
+Device tests use temporary configurations and mock transports only. Real VRChat OSC, VR grabbing, HMD visibility, live GPU capture and hardware require separate validation. Never report unexecuted checks as passed. Diagnose failures using their actual reports/last observed state rather than resending input or rerunning an entire scenario to hide failure. Use the Actions reports for the corresponding commit as evidence.

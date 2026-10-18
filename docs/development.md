@@ -22,7 +22,7 @@ python -X utf8 scripts/verify.py
 
 | 改动 | 必要本地检查 | GitHub Actions |
 | --- | --- | --- |
-| 文档 | 双语、链接和资源约束 | 同样的文档检查；不运行 E2E、不发布 |
+| 文档 | 双语、链接、路径隐私和资源约束 | 同样的文档检查；不运行 E2E、不发布 |
 | Web 单元测试 | Web lint、接口契约、构建 | Web 检查；不发布 |
 | 后端单元测试 | 后端契约 | 后端检查；不发布 |
 | E2E／截图基线 | 对应静态／单元检查 | 必要的完整截图比较；不发布产品 |
@@ -43,7 +43,7 @@ main 的产品验证有明确负责的执行（owner）。后续纯文档 push �
 
 上一产品验证失败后，修复测试或 Playwright 的普通 main push 会自动在**当前提交**补齐必要产品全链，包括对应检查、全量 E2E、原生构建／隔离冒烟及满足门槛后的预发布，不能因修复只改了测试而漏掉产品验证。无需改变提交消息或手动标记产品改动。没有待接续产品验证时，纯文档、纯测试不发布；普通手动验证也不发布。
 
-PR 会取消同 ref 的过期任务；main 必要产品验证保留。自动预发布发布与清理串行执行；已有必要 CI 运行时沿用其负责关系，避免重复运行。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
+PR 会取消同 ref 的过期任务；main 必要产品验证保留。main 预览、桌面 tag 与 Unity tag 的发布／清理共用 `sensa-preview-publication` 队列，使用 `queue: max` 保留等待任务；已公开相同提交或更新自动候选时，旧候选跳过打包与发布。运行中的必要 CI 沿用负责关系，避免重复运行。[GitHub 并发队列规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
 
 需要显式全量验证时可以手动运行 `ci.yml`；需要单独检查浏览器时运行 `e2e.yml`。不要在已有必要 CI 仍运行时重复派发同一提交：
 
@@ -73,4 +73,4 @@ python scripts/install-avatar-lab.py "<Avatar project>" --tests
 
 `validate-labs.py` 有六套验证。`world-editor`、`world-functional`、`world-geometry`、`world-offset` 会涉及图形／PlayMode／截图，仅供有 Unity 和授权资源的 Actions runner；`avatar-tests` 是 EditMode，`avatar-build` 检查本地 SDK bundle，不上传。原场景哈希、新鲜报告、零退出码与明确成功都必须满足，XML 不能为空或含失败／跳过；默认每套 900 秒，输出目录不得复用。
 
-所有设备测试只使用临时配置和模拟 transport。真实 VRChat OSC、VR 抓取、头显可见性、实时 GPU 捕获及设备动作需另行验收，未执行项不得写成通过。失败排查先读报告中的真实原因，保留最后观测值；不要重发输入或重跑整个测试掩盖失败。历史记录见[CI 失败核对](ci-failure-audit.md)。
+所有设备测试只使用临时配置和模拟 transport。真实 VRChat OSC、VR 抓取、头显可见性、实时 GPU 捕获及设备动作需另行验收，未执行项不得写成通过。失败排查先读报告中的真实原因，保留最后观测值；不要重发输入或重跑整个测试掩盖失败。实际结果以对应提交的 Actions 报告为准。
