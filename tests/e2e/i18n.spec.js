@@ -1,4 +1,4 @@
-import { test, expect, card, checkpoint, outputValue } from './fixtures.js';
+import { test, expect, card, checkpoint, outputValue, waitForInputMode } from './fixtures.js';
 import { pointSamples } from './mocks.js';
 
 test.use({ locale: 'en-US' });
@@ -31,6 +31,7 @@ test('English OSC calibration and diagnostics drive mock output and stop on rele
   await expect(card(page,'Mock UDP').getByText('Connected',{exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'OSC',exact:true}).click();
   await page.getByRole('button',{name:'Apply input mode',exact:true}).click();
+  await waitForInputMode(page, 'osc');
   await rig.send(pointSamples(.05));
   await page.getByRole('tab',{name:'Range calibration',exact:true}).click();
   await expect(page.getByText('Current Z: 5.0 cm',{exact:true})).toBeVisible();

@@ -33,19 +33,25 @@ export const card = (page, name) => page.locator('.output-card').filter({ hasTex
 export async function enable(page, names = ['Mock UDP', 'Mock TCP', 'Mock Serial', 'Mock Intiface']) {
   for (const name of names) { await card(page, name).getByRole('button', { name: '启用', exact: true }).click(); await expect(card(page, name).getByText('已连接', { exact: true })).toBeVisible(); }
 }
+async function authenticatedOverview(page) {
+  const response = await page.request.get(new URL('/api/state/overview', page.url()).href);
+  return response.ok() ? response.json() : null;
+}
+export async function waitForInputMode(page, expectedMode) {
+  await expect.poll(async () => {
+    const overview = await authenticatedOverview(page);
+    return overview?.input?.mode === expectedMode && (expectedMode !== 'osc' || overview.osc?.listening === true);
+  }, { message: 'Input mode and receiver ready / 输入方式及接收器已就绪' }).toBe(true);
+}
 export async function mode(page, name) {
   await page.getByRole('tab', { name, exact: true }).click();
   const apply = page.getByRole('button', { name: '应用输入方式', exact: true });
   const expectedMode = ({ '手动': 'manual', '脚本': 'script', Manual: 'manual', Script: 'script', OSC: 'osc' })[name] || name.toLowerCase();
-  const overviewUrl = new URL('/api/state/overview', page.url()).href;
-  const readMode = async () => {
-    const response = await page.request.get(overviewUrl);
-    return response.ok() ? (await response.json()).input?.mode || null : null;
-  };
+  const readMode = async () => (await authenticatedOverview(page))?.input?.mode || null;
   let currentMode;
   await expect.poll(async () => { currentMode = await readMode(); return currentMode; }, { message: 'Authenticated overview ready / 认证后的状态接口就绪' }).not.toBeNull();
   if (currentMode !== expectedMode) { await expect(apply).toBeEnabled(); await apply.click(); }
-  await expect.poll(readMode, { message: 'Input mode applied / 输入方式已应用' }).toBe(expectedMode);
+  await waitForInputMode(page, expectedMode);
 }
 export async function active(page, value = true) {
   const toggle = page.getByRole('checkbox', { name: '输入开关（关闭停止设备）', exact: true });

@@ -109,9 +109,15 @@ test('funscript import, playback, pause, stepping and unload', { tag: ["@input",
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   await page.getByRole('checkbox', { name: '循环播放', exact: true }).check();
   await expect.poll(async () => (await rig.overview()).input.script.loop).toBe(true);
-  await active(page); await page.locator('.script-player-console__transport-primary').click();
+  await active(page); await outputValue(rig, 'udp', 400);
+  const playbackStart = rig.wire.udp.length;
+  await page.locator('.script-player-console__transport-primary').click();
   await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(true);
-  await expect.poll(() => rig.wire.udp.some(s => /L0\d/.test(s))).toBe(true);
+  await expect.poll(() => {
+    const latest = rig.wire.udp.slice(playbackStart).filter(line => /(?:^|\s)L0\d/.test(line)).at(-1);
+    const value = Number(latest?.match(/(?:^|\s)L0(\d+)/)?.[1]);
+    return value > 400 && value < 600;
+  }, { message: 'Playback emits an interpolated target after the initial pose / 播放在起始姿态后发出插值目标' }).toBe(true);
   await page.locator('.script-player-console__transport-primary').click();
   await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(false);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
