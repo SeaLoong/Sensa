@@ -1,10 +1,18 @@
 # Impact-based verification and preview gates / 按影响验证与预发布门槛
 
+CI 收敛为三个有明确边界的 workflow：`ci.yml` 负责 PR／main 按影响验证、手动全量验证和 main 预览，内联普通检查与平台矩阵；`e2e.yml` 只负责可复用或手动浏览器比较及人工审阅基线；`release.yml` 只由显式 `v*`／`unity-v*` tag push 驱动，复用 CI 后发布对应包，只有 Unity 稳定包发布成功才更新 VPM Pages。标签复用输入只接受匹配的 tag push；Unity 标签不运行六桌面平台，桌面标签仍要求六平台。取消独立 checks/build-platforms workflow、重复标签发布 workflow 和 Unity 重复手动验证入口，避免职责漂移。
+
+plan 之后 validate 与 E2E 并行；平台矩阵只等待 plan／validate，普通接口测试集中执行一次。main 预览与标签发布都必须等必要检查、同一候选 SHA 的全量 E2E 比较和对应构建全部成功。生成候选基线不能提供比较证明；并行化不减少公开门槛，合并后保留 validate／platforms／browser 的既有 owner 证据名称。
+
 同一个保守路径计划选择受影响检查；“文档或纯测试不发布”仅适用于没有未完成产品验证的情况。仅比较当前 push 差异会漏掉“产品 CI 失败后只修测试”的候选，因此 main 普通推送还必须自动继承或恢复负责产品验证的执行（owner），不要求提交消息标记或手工 override。失败后的测试修复在当前提交补齐必要产品检查、全量 E2E、原生构建／隔离冒烟及通过门槛后的预发布。
 
 选择轻量 artifact 保留验证意图与真正 owner，再核对 owner 必要 jobs 的真实结果；artifact 本身和后续文档工作流自己的 success 都不能证明产品通过。docs-only 遇到 owner 仍运行时继承记录，不重复必要产品链；缺失、未知、读取失败或 skipped 的必要结果按未完成保守处理。这个额外证据核对用于避免丢失失败产品验证，同时保留正常文档／测试变更的增量成本。路径与恢复决策见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)，只读执行证据 adapter 见 [ci_evidence.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci_evidence.py)。
 
 本地验证仍只读取工作区差异与内容 receipt，不访问 GitHub，也不运行浏览器 E2E、完整进程 smoke 或截图。成功 receipt 按相关源码、命令及工具链保存，相关变化或失败后失效。CI 预发布必须由同一候选 SHA 的全量 E2E 比较及必要产品链证明；仅保留最近十个已公开预发布，稳定版、草稿与 Git tag 保留。所有会公开或清理预发布的工作流共用可保留等待任务的串行队列；相同提交或更新自动预览已公开时，迟到候选不再打包和发布。
+
+CI converges on three workflows with explicit boundaries: `ci.yml` owns impact-based PR/main verification, manual full verification and main previews, with ordinary checks and native builds inline; `e2e.yml` owns only reusable/manual browser comparison and baselines for human review; `release.yml` accepts only explicit `v*`/`unity-v*` tag pushes, reuses CI and publishes the corresponding packages. Only successful stable Unity publication updates VPM Pages. Reusable release inputs require matching tag pushes. Unity tags omit six desktop builds; desktop tags still require them. Removing standalone checks/build-platforms workflows, duplicate tag-release workflows and the redundant manual Unity validation entry point prevents responsibility drift.
+
+After plan, validate and E2E run in parallel. The native matrix waits only for plan/validate, while ordinary interface tests run once centrally. Main preview and tagged publication both require successful necessary checks, full E2E comparison for the same candidate SHA and corresponding builds. Proposed baselines provide no comparison proof. Parallel execution preserves publication gates, and consolidation retains the existing validate/platforms/browser owner evidence names.
 
 One conservative path plan selects affected checks. “Documentation/test-only changes do not publish” applies only when no product verification is outstanding. Comparing only the current push loses candidates whose product CI failed before a test-only fix. Ordinary main pushes therefore automatically inherit or recover the responsible product run (owner), without commit-message markers or manual overrides. A subsequent test fix completes necessary product checks, full E2E, native builds/isolated smoke and gated prerelease publication for the current commit.
 

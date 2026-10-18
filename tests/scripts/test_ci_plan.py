@@ -1,7 +1,10 @@
 """Verification-plan interface contracts. / 验证计划接口契约."""
 import importlib.util
+import io
+import json
 from pathlib import Path
 import subprocess
+import tempfile
 import unittest
 from unittest.mock import patch
 
@@ -67,6 +70,78 @@ class VerificationPlanTests(unittest.TestCase):
                            ('workflow_dispatch', 'refs/heads/main'), ('push', 'refs/tags/v0.4.0')):
             with self.subTest(event=event, ref=ref):
                 self.assertFalse(plan.plan_changes(['src/Program.cs'], event_name=event, ref=ref)['prerelease'])
+
+    def test_release_tags_select_full_comparison_and_only_the_required_platforms(self):
+        for target, prefix in (('app', 'v'), ('unity', 'unity-v')):
+            for version in ('1.2.3', '1.2.3-rc.1'):
+                with self.subTest(target=target, version=version):
+                    result = plan.plan_release(target, event_name='push', ref='refs/tags/' + prefix + version)
+                    expected = plan.FULL if target == 'app' else plan.FULL - {'platforms'}
+                    self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, expected)
+                    self.assertEqual(result['e2e_suite'], 'all')
+                    self.assertEqual(result['paths'], [])
+                    self.assertFalse(result['prerelease'])
+
+    def test_release_plan_rejects_unknown_targets(self):
+        for target in ('', 'desktop', None):
+            with self.subTest(target=target), self.assertRaises(ValueError):
+                plan.plan_release(target, event_name='push', ref='refs/tags/v1.2.3')
+
+    def test_release_plan_requires_a_matching_complete_tag_from_a_push(self):
+        cases = [
+            ('app', 'pull_request', 'refs/tags/v1.2.3'),
+            ('app', 'workflow_dispatch', 'refs/tags/v1.2.3'),
+            ('app', 'workflow_call', 'refs/tags/v1.2.3'),
+            ('app', 'push', 'refs/heads/v1.2.3'),
+            ('app', 'push', 'v1.2.3'),
+            ('app', 'push', 'refs/tags/unity-v1.2.3'),
+            ('unity', 'push', 'refs/tags/v1.2.3'),
+            ('app', 'push', 'refs/tags/v1.2'),
+            ('app', 'push', 'refs/tags/v1.2.3-'),
+            ('app', 'push', 'refs/tags/v1.2.3+build.4'),
+            ('app', 'push', 'refs/tags/v1.2.3/extra'),
+            ('unity', 'push', 'refs/tags/unity-v1.2.3\n'),
+            ('unity', 'push', ''),
+        ]
+        for target, event, ref in cases:
+            with self.subTest(target=target, event=event, ref=ref), self.assertRaises(ValueError):
+                plan.plan_release(target, event_name=event, ref=ref)
+
+    def test_release_cli_bypasses_diffs_and_main_evidence_without_writing_intent(self):
+        with tempfile.TemporaryDirectory() as directory:
+            record = Path(directory) / 'verification-plan.json'
+            arguments = ['ci-plan.py', '--release-target', 'unity', '--github-evidence', '--record', str(record)]
+            environment = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/tags/unity-v1.2.3'}
+            with patch('sys.argv', arguments), patch.dict(plan.os.environ, environment, clear=True), \
+                    patch.object(plan, 'changed_paths', side_effect=AssertionError('Tag plans must not inspect a diff')), \
+                    patch.object(plan, 'plan_changes', side_effect=AssertionError('Tag plans have an explicit scope')), \
+                    patch.object(plan, 'plan_with_evidence', side_effect=AssertionError('Tag plans must not inherit main debt')), \
+                    patch('sys.stdout', new_callable=io.StringIO) as output:
+                plan.main()
+            result = json.loads(output.getvalue())
+            self.assertFalse(result['platforms'])
+            self.assertTrue(result['e2e'])
+            self.assertFalse(record.exists())
+
+    def test_release_cli_reports_invalid_event_without_falling_back_to_a_path_plan(self):
+        arguments = ['ci-plan.py', '--release-target', 'app', '--event', 'workflow_dispatch', '--ref', 'refs/tags/v1.2.3']
+        with patch('sys.argv', arguments), patch('sys.stderr', new_callable=io.StringIO) as output, \
+                patch.object(plan, 'changed_paths') as changed_paths:
+            with self.assertRaises(SystemExit) as error:
+                plan.main()
+        self.assertEqual(error.exception.code, 2)
+        self.assertIn('matching pushed version tag', output.getvalue())
+        changed_paths.assert_not_called()
+
+    def test_normal_cli_retains_path_based_scope(self):
+        arguments = ['ci-plan.py', '--base', 'base', '--event', 'push', '--ref', 'refs/heads/main']
+        with patch('sys.argv', arguments), patch.dict(plan.os.environ, {}, clear=True), \
+                patch.object(plan, 'changed_paths', return_value=(['README.md'], True)) as changed_paths, \
+                patch('sys.stdout', new_callable=io.StringIO) as output:
+            plan.main()
+        changed_paths.assert_called_once_with('base', 'HEAD')
+        result = json.loads(output.getvalue())
+        self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, {'docs'})
 
     def test_unknown_paths_workflows_and_unavailable_diff_fail_closed(self):
         for paths, available in [(['new-area/file.py'], True), (['.github/workflows/ci.yml'], True),

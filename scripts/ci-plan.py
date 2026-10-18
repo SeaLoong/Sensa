@@ -3,6 +3,7 @@ import argparse
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -82,6 +83,21 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
             'e2e_suite': 'all' if 'e2e' in enabled else 'none', 'reason': reason}
 
 
+def plan_release(target, *, event_name, ref):
+    """Choose explicit tag verification without inheriting main's product debt.
+    选择显式标签验证，不继承 main 的产品验证债务。
+    """
+    if target not in ('app', 'unity'):
+        raise ValueError('Release target must be app or unity / 发布目标必须是 app 或 unity')
+    prefix = 'unity-v' if target == 'unity' else 'v'
+    if event_name != 'push' or not re.fullmatch(
+            'refs/tags/' + re.escape(prefix) + r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', ref):
+        raise ValueError('Release verification requires a matching pushed version tag / 发布验证需要推送匹配的版本标签')
+    enabled = FULL - {'platforms'} if target == 'unity' else FULL
+    return {**{flag: flag in enabled for flag in FLAGS}, 'paths': [],
+            'e2e_suite': 'all', 'reason': f'{target} tag verification / {target} 标签验证'}
+
+
 def plan_with_evidence(paths, evidence, *, owner_paths=None, event_name='pull_request', ref='', diff_available=True):
     """Resolve inherited product verification debt without network access.
     不访问网络，合并继承的产品验证债务。
@@ -125,12 +141,19 @@ def main():
     parser.add_argument('--event', default=os.environ.get('GITHUB_EVENT_NAME', 'pull_request'))
     parser.add_argument('--ref', default=os.environ.get('GITHUB_REF', ''))
     parser.add_argument('--format', choices=('json', 'github'), default='json')
+    parser.add_argument('--release-target', choices=('app', 'unity'), help='Verify an explicitly pushed release tag / 验证显式推送的发布标签')
     parser.add_argument('--github-evidence', action='store_true', help='Read main-run verification evidence / 读取 main 运行验证证据')
     parser.add_argument('--record', type=Path, help='Write verification intent artifact / 写入验证意图工件')
     args = parser.parse_args()
-    paths, available = changed_paths(args.base, args.head)
-    plan = plan_changes(paths, event_name=args.event, ref=args.ref, diff_available=available)
-    if args.github_evidence and args.event == 'push' and args.ref == 'refs/heads/main':
+    if args.release_target:
+        try:
+            plan = plan_release(args.release_target, event_name=args.event, ref=args.ref)
+        except ValueError as error:
+            parser.error(str(error))
+    else:
+        paths, available = changed_paths(args.base, args.head)
+        plan = plan_changes(paths, event_name=args.event, ref=args.ref, diff_available=available)
+    if not args.release_target and args.github_evidence and args.event == 'push' and args.ref == 'refs/heads/main':
         from ci_evidence import GitHubEvidence, GATES, make_record, read_evidence
         adapter = GitHubEvidence(os.environ['GITHUB_REPOSITORY'], ROOT)
         evidence = read_evidence(adapter, int(os.environ['GITHUB_RUN_ID']), os.environ['GITHUB_SHA'])

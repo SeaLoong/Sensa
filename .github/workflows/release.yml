@@ -1,0 +1,129 @@
+name: Release tagged packages / 发布标签版本
+on:
+  push:
+    tags: ['v*', 'unity-v*']
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+concurrency:
+  group: release-${{ github.ref }}
+  queue: max
+  cancel-in-progress: false
+jobs:
+  verify:
+    # The called workflow declares the gated main-preview job too.
+    # 被调工作流也声明了有门禁的 main 预览任务，调用者须允许这些权限。
+    permissions:
+      contents: write
+      actions: read
+    uses: ./.github/workflows/ci.yml
+    with:
+      release_target: ${{ startsWith(github.ref, 'refs/tags/unity-v') && 'unity' || 'app' }}
+
+  unity_package:
+    name: Package tagged Unity assets / 打包标签 Unity 资产
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/unity-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      stable: ${{ steps.package.outputs.stable }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - name: Package actual tag / 打包实际标签
+        id: package
+        run: python scripts/release.py unity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-unity
+          path: |
+            artifacts/release/
+            artifacts/release-notes.txt
+          if-no-files-found: error
+
+  release:
+    name: Publish verified tag / 发布已验证标签
+    concurrency:
+      group: sensa-preview-publication
+      queue: max
+      cancel-in-progress: false
+    needs: [verify, unity_package]
+    if: >-
+      !cancelled() &&
+      needs.verify.result == 'success' &&
+      needs.verify.outputs.comparison_sha == github.sha &&
+      (needs.unity_package.result == 'success' ||
+       (startsWith(github.ref, 'refs/tags/v') && needs.unity_package.result == 'skipped'))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.14'
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: startsWith(github.ref, 'refs/tags/unity-v')
+        with:
+          name: release-unity
+          path: artifacts
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: startsWith(github.ref, 'refs/tags/v')
+        with:
+          pattern: build-*
+          path: artifacts
+      - name: Create immutable release / 创建不可变发布
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          if [[ "$GITHUB_REF_NAME" == unity-v* ]]; then
+            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa Unity $GITHUB_REF_NAME" --notes-file artifacts/release-notes.txt)
+            mapfile -d '' files < <(find artifacts/release -maxdepth 1 -type f -print0)
+          else
+            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --generate-notes)
+            mapfile -d '' files < <(find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -print0)
+          fi
+          version="${GITHUB_REF_NAME#unity-}"
+          if [[ "$version" == *-* ]]; then args+=(--prerelease); fi
+          (( ${#files[@]} > 0 ))
+          gh "${args[@]}" "${files[@]}"
+          if [[ "$version" == *-* ]]; then python scripts/publish-preview.py --prune-only; fi
+
+  pages:
+    concurrency:
+      group: sensa-pages
+      queue: max
+      cancel-in-progress: false
+    needs: [unity_package, release]
+    if: ${{ always() && needs.release.result == 'success' && needs.unity_package.outputs.stable == 'true' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Check GitHub Pages configuration / 检查 GitHub Pages 配置
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+        with:
+          enablement: false
+      - name: Rebuild and verify package links / 重建并验证全部包链接
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/vpm-index.py
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: artifacts/pages
+      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
+        id: deployment

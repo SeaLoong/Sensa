@@ -23,8 +23,8 @@ def main():
     def run(*command):
         subprocess.run(command, cwd=ROOT, check=True)
 
-    # Interface tests already ran once in the checks workflow.
-    # 接口测试已在 checks 工作流运行一次；此处只验证原生可执行文件。
+    # Interface tests already ran once in the CI validation job.
+    # 接口测试已在 CI 验证任务运行一次；此处只验证原生可执行文件。
     run('dotnet', 'publish', 'src/Sensa.csproj', '-c', 'Release', '-r', args.runtime,
         '--self-contained', 'true', '-p:RestoreLockedMode=true', '-o', str(source))
     binary = source / ('Sensa.exe' if args.runtime.startswith('win-') else 'Sensa')

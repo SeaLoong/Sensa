@@ -35,17 +35,34 @@ The local runner only reports required E2E, native smoke and publication work. B
 
 ## CI and prereleases
 
-PR/main pushes compute impact first. With no outstanding product verification, they execute only checks affected by the current diff. Main automatically continues unfinished product verification without special commit messages or manual overrides. Ordinary interface tests run once rather than repeating npm/backend units in every native build. Native runners exercise the self-contained application through isolated HTTP/WebSocket/OSC peers. Windows uses ZIP; Linux/macOS tar.gz preserves executable permissions.
+CI keeps three workflows. Ordinary checks and native builds are inline jobs in `ci.yml`, without separate reusable entry points.
 
-Product candidates require full E2E screenshot comparison for their commit, followed by necessary x64/ARM64 builds on Windows/Linux/macOS. Publication verifies that E2E's comparison SHA matches the candidate SHA; proposed-baseline runs provide no such proof. Screenshot comparison/review happens in CI; see [E2E](e2e.en.md).
+| Workflow | Trigger and scope | Work and boundaries |
+| --- | --- | --- |
+| `ci.yml` | PR/main pushes; manual full verification; reusable tag verification | Owns planning, affected interface checks, E2E, required native builds and automatic main previews. PR/manual runs do not publish. Reusable `release_target=app/unity` accepts only the matching `v*/unity-v*` tag push and does not publish tagged releases itself. |
+| `e2e.yml` | Called by CI; manual browser comparison or proposed baselines | Owns full browser scenarios against the real application, screenshot comparison and reports. Only manual `update_snapshots=true` generates baselines for human review; it returns no successful comparison SHA. No publication or six-platform matrix. |
+| `release.yml` | Explicit `v*`/`unity-v*` tag pushes | Reuses CI for the same commit and publishes the corresponding desktop/Unity packages. Desktop tags require six-platform builds; Unity tags build only the Unity package, without six desktop builds. Only a successfully published stable Unity package updates VPM Pages. No PR, main or manual entry point. |
 
-Main product verification has a responsible run (owner). When a later documentation-only push finds it still running, it inherits the outstanding record without canceling or duplicating necessary product CI. The documentation workflow's own success cannot clear that record: every required owner job must actually succeed. The record artifact expresses verification intent, not successful execution. Missing artifacts, unknown states and skipped required jobs are conservatively treated as unfinished.
+PR/main pushes compute impact first. With no outstanding product verification, they execute only checks affected by the current diff. Main automatically continues unfinished product verification without special commit messages or manual overrides. Dependencies and publication gates are:
+
+| Job/stage | Dependencies and required work |
+| --- | --- |
+| `plan` | Selects paths and main owner continuation; manual runs select full verification, while tag calls select the matching release target. |
+| `validate` | Waits for plan, then centrally runs affected Web, backend, Python, documentation, dependency-audit and Unity metadata checks; ordinary product candidates also package Unity assets. |
+| `e2e` | Waits for plan and runs alongside validate; performs full screenshot comparison for the current commit when required. |
+| `platforms` | Waits for plan and validate, then builds, isolates smoke peers and archives the six Windows/Linux/macOS x64/ARM64 targets when selected. It does not wait for E2E or repeat ordinary interface tests. |
+| Main `prerelease` | Requires a main push selected for publication, successful validate/E2E/platforms, and an E2E comparison SHA equal to the candidate SHA. |
+| Tag `release`/`pages` | Release requires successful reusable CI, an E2E comparison SHA equal to the tag SHA and successful target packaging. Pages additionally requires successful stable Unity publication. |
+
+Interface checks and browser comparison run in parallel; native builds can start once interface checks pass. Publication joins every required result. Proposed-baseline generation provides no comparison proof. Screenshot comparison/review happens in CI; see [E2E](e2e.en.md). Native runners exercise the self-contained application through isolated HTTP/WebSocket/OSC peers. Windows uses ZIP; Linux/macOS tar.gz preserves executable permissions.
+
+Main product verification has a responsible run (owner). Workflow consolidation preserves recognition of the existing validate/platforms/browser evidence names. When a later documentation-only push finds the owner still running, it inherits the outstanding record without canceling or duplicating necessary product CI. The successor documentation run's own success cannot clear that record: every required owner job must actually succeed. The record artifact expresses verification intent, not successful execution. Missing artifacts, unknown states and skipped required jobs are conservatively treated as unfinished.
 
 After product verification fails, an ordinary main push fixing tests or Playwright automatically completes the necessary product chain for the **current commit**: affected checks, full E2E, native builds/isolated smoke and prerelease publication once its gates pass. A test-only fix must not lose the outstanding product verification. No commit-message convention or manual product marker is required. Documentation/test-only changes do not publish when no product verification remains outstanding; ordinary manual verification does not publish either.
 
-PRs cancel stale runs for the same ref, while necessary main product verification is preserved. Main previews and desktop/Unity tag publication share the `sensa-preview-publication` queue. `queue: max` preserves pending jobs. A published identical commit or newer automatic candidate suppresses obsolete packaging/publication. Existing necessary CI retains responsibility instead of being duplicated. [GitHub concurrency rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency). See [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) for continuation rules and actual-result decisions.
+PRs cancel stale runs for the same ref, while necessary main product verification is preserved. Main previews and desktop/Unity tag publication and pruning share the `sensa-preview-publication` queue. `queue: max` preserves pending jobs. A published identical commit or newer automatic candidate suppresses obsolete packaging/publication. Existing necessary CI retains responsibility instead of being duplicated. [GitHub concurrency rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency). See [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) for continuation rules and actual-result decisions.
 
-Dispatch `ci.yml` for justified full verification or `e2e.yml` for browser-only checks. Do not dispatch a duplicate while necessary CI for that commit is already running:
+Dispatch `ci.yml` for justified full verification, including manual Unity verification. Use `e2e.yml` for browser-only checks or proposed baselines for human review. Do not dispatch a duplicate while necessary CI for that commit is already running:
 
 ```shell
 gh workflow run ci.yml --ref main

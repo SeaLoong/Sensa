@@ -7,6 +7,7 @@ import importlib.util
 import io
 import json
 from pathlib import Path
+import re
 import subprocess
 import unittest
 from unittest.mock import patch
@@ -181,6 +182,51 @@ class ProductOwnerContracts(unittest.TestCase):
                 else:
                     jobs[2]['head_sha'] = SHA_B
                 self.assertNotEqual(self.read()['state'], 'success')
+
+    def test_current_workflow_names_and_matrix_satisfy_product_owner_evidence(self):
+        workflow = (ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8')
+        browser_workflow = (ROOT / '.github/workflows/e2e.yml').read_text(encoding='utf-8')
+
+        # Read only the current job indentation and inline include rows, not general YAML.
+        # 仅定位当前任务缩进与行内 include 条目，不实现通用 YAML 解析器。
+        def job_body(source, job_id):
+            marker = '  ' + job_id + ':\n'
+            self.assertEqual(source.count(marker), 1, 'Expected one workflow job: ' + job_id)
+            return re.split(r'(?m)^  [A-Za-z0-9_-]+:\n', source.split(marker, 1)[1], maxsplit=1)[0]
+
+        def job_name(body, job_id):
+            names = re.findall(r'^    name: ([^\n]+)$', body, re.M)
+            self.assertLessEqual(len(names), 1)
+            return names[0] if names else job_id
+
+        platforms = job_body(workflow, 'platforms')
+        include = re.search(r'^        include:\n((?:          [^\n]+\n)+)', platforms, re.M)
+        self.assertIsNotNone(include, 'Expected the explicit platform include matrix')
+        matrix = []
+        for row in include[1].splitlines():
+            match = re.fullmatch(r'          - \{runner: ([A-Za-z0-9.-]+), rid: ([A-Za-z0-9.-]+)\}', row)
+            self.assertIsNotNone(match, 'Unsupported platform matrix row: ' + row)
+            matrix.append(dict(zip(('runner', 'rid'), match.groups())))
+        self.assertCountEqual([item['rid'] for item in matrix], evidence.RUNTIMES)
+        template = job_name(platforms, 'platforms')
+        platform_names = [re.sub(r'\$\{\{\s*matrix\.(runner|rid)\s*\}\}',
+                                 lambda match: item[match[1]], template) for item in matrix]
+        self.assertTrue(all('${{' not in name for name in platform_names))
+
+        e2e = job_body(workflow, 'e2e')
+        self.assertIn('    uses: ./.github/workflows/e2e.yml\n', e2e)
+        browser = job_body(browser_workflow, 'browser')
+        comparison = re.findall(r'^      - name: ([^\n]+)\n        id: comparison$', browser, re.M)
+        self.assertEqual(len(comparison), 1)
+        e2e_name = job_name(e2e, 'e2e') + ' / ' + job_name(browser, 'browser')
+        names = [job_name(job_body(workflow, 'validate'), 'validate'), e2e_name,
+                 *platform_names, job_name(job_body(workflow, 'prerelease'), 'prerelease')]
+        product = self.github.runs[1]
+        jobs = [dict(name=name, status='completed', conclusion='success', run_id=product['id'],
+                     head_sha=product['head_sha'], run_attempt=product['run_attempt'],
+                     steps=[dict(name=comparison[0], conclusion='success')] if name == e2e_name else [])
+                for name in names]
+        self.assertEqual(evidence._owner_state(product, jobs), 'success')
 
     def test_metadata_owner_artifact_and_schema_mismatches_fail_closed(self):
         changes = [('run', 'event', 'pull_request'), ('run', 'head_branch', 'feature'),

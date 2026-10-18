@@ -35,17 +35,34 @@ python -X utf8 scripts/verify.py
 
 ## CI 和预发布
 
-PR 和 main push 首先计算变更计划。没有未完成产品验证时，只运行当前差异影响的检查；main 会自动接续尚未完成的产品验证，不要求特殊提交消息或手工 override。普通契约测试集中执行一次，六种原生构建不再各重复 npm 与后端单元测试；它们验证自包含程序和隔离的 HTTP／WebSocket／OSC 行为。Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
+CI 只保留以下三个 workflow；普通检查和六平台构建内联在 `ci.yml`，不再各建可复用入口。
 
-产品候选必须通过当前提交的全量 E2E 截图比较，再进行必要的 Windows／Linux／macOS x64、ARM64 构建。预发布工作流核对 E2E 输出 SHA 与候选 SHA 一致，候选基线生成任务不提供该证明。截图只在 CI 比较，更新和人工审阅见 [E2E 指南](e2e.md)。
+| Workflow | 工作场景与范围 | 工作内容与边界 |
+| --- | --- | --- |
+| `ci.yml` | PR、main push；手动全量验证；供标签发布复用 | 统一规划、受影响接口检查、E2E、必要平台构建及 main 自动预览。PR／手动运行不发布；复用输入 `release_target=app/unity` 仅接受对应 `v*/unity-v*` tag push，不直接发布标签版本。 |
+| `e2e.yml` | 由 CI 复用；手动浏览器比较或候选基线生成 | 只负责真实应用的浏览器全量场景、截图比较和报告。仅手动 `update_snapshots=true` 生成待人工审阅基线，不提供比较成功 SHA，不发布、不运行六平台矩阵。 |
+| `release.yml` | 显式 `v*`／`unity-v*` tag push | 复用 CI 验证同一提交，发布对应桌面／Unity 标签包。桌面标签要求六平台构建；Unity 标签只构建 Unity 包，不触发六桌面平台。仅成功发布的 Unity 稳定包更新 VPM Pages；无 PR、main 或手动入口。 |
 
-main 的产品验证有明确负责的执行（owner）。后续纯文档 push 遇到它仍在运行时，只继承待完成记录，不取消或重复启动必要产品 CI。文档工作流自己的 success 不能清除这项记录；必须核对 owner 所有必要 jobs 的实际成功结果。记录 artifact 只表达验证意图，不证明执行通过；缺失 artifact、未知状态或必要 job 被 skipped 都按未完成保守处理。
+PR 和 main push 先计算变更计划。没有未完成产品验证时，只运行当前差异影响的检查；main 自动接续尚未完成的产品验证，不要求特殊提交消息或手工 override。执行依赖和发布门槛如下：
+
+| Job／阶段 | 依赖与必要内容 |
+| --- | --- |
+| `plan` | 计算路径影响及 main owner 接续；手动运行选择全量，标签复用选择对应发布目标。 |
+| `validate` | 等待 plan，集中执行受影响的 Web、后端、Python、文档、依赖审计和 Unity 元数据检查；普通产品候选同时打包 Unity 资产。 |
+| `e2e` | 等待 plan，与 validate 并行；需要时执行当前提交的全量截图比较。 |
+| `platforms` | 等待 plan 和 validate，按计划执行 Windows／Linux／macOS x64、ARM64 的六平台构建、隔离冒烟与归档；不等待 E2E，不重复普通接口测试。 |
+| main `prerelease` | 必须是需发布的 main push，且 validate、E2E、platforms 全部成功，E2E 比较 SHA 等于当前候选 SHA。 |
+| 标签 `release`／`pages` | release 必须等复用 CI 成功、E2E 比较 SHA 与标签 SHA 一致、对应包构建成功；pages 还要求 Unity 稳定包发布成功。 |
+
+接口检查与浏览器比较并行，原生构建在接口检查通过后即可开始；公开产物必须汇合所有必要结果。候选基线生成不算截图比较证明。截图只在 CI 比较，更新和人工审阅见 [E2E 指南](e2e.md)。原生构建验证自包含程序和隔离的 HTTP／WebSocket／OSC 行为；Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
+
+main 的产品验证有明确负责的执行（owner），合并 workflow 后继续识别原有 validate／platforms／browser 证据名称。后续纯文档 push 遇到 owner 仍在运行时，只继承待完成记录，不取消或重复启动必要产品 CI。后续文档执行自己的 success 不能清除这项记录；必须核对 owner 所有必要 jobs 的实际成功结果。记录 artifact 只表达验证意图，不证明执行通过；缺失 artifact、未知状态或必要 job 被 skipped 都按未完成保守处理。
 
 上一产品验证失败后，修复测试或 Playwright 的普通 main push 会自动在**当前提交**补齐必要产品全链，包括对应检查、全量 E2E、原生构建／隔离冒烟及满足门槛后的预发布，不能因修复只改了测试而漏掉产品验证。无需改变提交消息或手动标记产品改动。没有待接续产品验证时，纯文档、纯测试不发布；普通手动验证也不发布。
 
-PR 会取消同 ref 的过期任务；main 必要产品验证保留。main 预览、桌面 tag 与 Unity tag 的发布／清理共用 `sensa-preview-publication` 队列，使用 `queue: max` 保留等待任务；已公开相同提交或更新自动候选时，旧候选跳过打包与发布。运行中的必要 CI 沿用负责关系，避免重复运行。[GitHub 并发队列规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
+PR 会取消同 ref 的过期任务；main 必要产品验证保留。main 预览与桌面／Unity 标签发布及清理共用 `sensa-preview-publication` 队列，使用 `queue: max` 保留等待任务；已公开相同提交或更新自动候选时，旧候选跳过打包与发布。运行中的必要 CI 沿用负责关系，避免重复运行。[GitHub 并发队列规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
 
-需要显式全量验证时可以手动运行 `ci.yml`；需要单独检查浏览器时运行 `e2e.yml`。不要在已有必要 CI 仍运行时重复派发同一提交：
+需要显式全量验证时手动运行 `ci.yml`；只检查浏览器或准备人工审阅基线时使用 `e2e.yml`。Unity 手动验证也使用 `ci.yml`。不要在已有必要 CI 仍运行时重复派发同一提交：
 
 ```shell
 gh workflow run ci.yml --ref main
