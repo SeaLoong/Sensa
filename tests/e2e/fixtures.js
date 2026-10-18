@@ -1,56 +1,31 @@
 import { test as base, expect } from '@playwright/test';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
-import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import path from 'node:path';
-import { ports, startMocks } from './mocks.js';
+import { startMocks } from './mocks.js';
+import { startTestRig } from './rig.js';
 
 export { expect };
 export const test = base.extend({
   scenario: ['quickstart', { option: true }],
-  rig: async ({ scenario }, use, info) => {
-    const directory = await mkdtemp(path.join(tmpdir(), 'sensa-e2e-'));
-    const mock = await startMocks();
-    const presets = JSON.parse(await readFile('src/web/data/osc-presets.json', 'utf8'));
-    const motion = JSON.parse(await readFile('src/web/data/first-run-motion.json', 'utf8'));
-    const config = { webUi: { host: '127.0.0.1', port: ports.web, autoOpenBrowser: false }, outputs: [
-      { id: 'udp', name: 'Mock UDP', type: 'TCodeUdp', host: '127.0.0.1', port: ports.udp },
-      { id: 'tcp', name: 'Mock TCP', type: 'TCodeTcp', host: '127.0.0.1', port: ports.tcp },
-      { id: 'serial', name: 'Mock Serial', type: 'TCodeSerial', comPort: mock.serialPort },
-      { id: 'intiface', name: 'Mock Intiface', type: 'Intiface', manageEngineProcess: false, websocketAddress: `ws://127.0.0.1:${ports.intiface}` },
-    ].map(o => ({ ...o, enabled: false, motionProfileId: 'test-profile' })),
-    axisProfiles: [{ id: 'test-profile', name: 'CI L0 400-600', isDefault: true, motion }],
-    osc: { enabled: true, receiverHost: '127.0.0.1', receiverPort: ports.osc, oscQueryEnabled: scenario === 'query', oscQueryUrl: `http://127.0.0.1:${ports.query}`, oscQueryReceiver: { enabled: false },
-      hub: { enabled: scenario === 'query', mode: 'EventDriven', targets: [{ id: 'mock-hub', name: 'Mock Hub', host: '127.0.0.1', port: ports.hub, enabled: true }] } },
-    signals: scenario === 'sps' ? [{ oscPath: 'OGB/Orf/Test/PenSelfNewRoot', sourceMode: 'SpsSocketDepth', role: 'Depth' }] :
-      scenario === 'query' ? [{ oscPath: 'QueryDepth', role: 'Depth' }] : presets.find(p => p.id === 'sensa-quick-start').mappings };
-    const configPath = path.join(directory, 'config.json'); await writeFile(configPath, JSON.stringify(config));
-    const logs = [];
-    const app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll')], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath }, stdio: ['ignore', 'pipe', 'pipe'] });
-    app.stdout.on('data', b => logs.push(b.toString())); app.stderr.on('data', b => logs.push(b.toString()));
-    const baseUrl = `http://127.0.0.1:${ports.web}`;
-    let cookie;
-    try {
-      await expect.poll(async () => {
-        if (app.exitCode !== null) throw new Error(logs.join(''));
-        try { const response = await fetch(baseUrl + '/api/session'); cookie = response.headers.get('set-cookie')?.split(';')[0]; return response.status; } catch { return 0; }
-      }, { timeout: 30000 }).toBe(204);
-      expect(cookie, 'Session endpoint must issue an authentication cookie').toBeTruthy();
-      const overview = async () => (await fetch(baseUrl + '/api/state/overview', { headers: { Cookie: cookie } })).json();
-      await use({ ...mock, baseUrl, overview, configPath });
-    } finally {
-      const exited = once(app, 'exit'); app.kill('SIGTERM');
-      await Promise.race([exited, new Promise(r => setTimeout(r, 3000))]); if (app.exitCode === null) app.kill('SIGKILL');
-      await info.attach('service.log', { body: logs.join(''), contentType: 'text/plain' });
-      await info.attach('mock-wire.json', { body: JSON.stringify(mock.wire, null, 2), contentType: 'application/json' });
-      await mock.close(); await rm(directory, { recursive: true, force: true });
-    }
+  // Reuse loopback peers; every test still gets a fresh process and config.
+  // 复用回环模拟端，但每个测试仍使用独立进程与配置，避免状态串扰。
+  mockPeers: [async ({}, use) => {
+    const peers = await startMocks();
+    try { await use(peers); } finally { await peers.close(); }
+  }, { scope: 'worker' }],
+  rig: async ({ scenario, mockPeers }, use, info) => {
+    const rig = await startTestRig(mockPeers, scenario, expect);
+    try { await use(rig); } finally { await rig.close(info); }
   },
   page: async ({ page, rig, locale }, use) => {
-    const errors = []; page.on('pageerror', error => errors.push(error.message));
-    await page.goto(rig.baseUrl); await expect(page.getByRole('button', { name: locale?.startsWith('en') ? 'Help' : '使用帮助', exact: true })).toBeVisible();
-    await use(page); expect(errors, 'Browser JavaScript errors').toEqual([]);
+    const errors = [];
+    rig.commands = [];
+    page.on('pageerror', error => errors.push(error.message));
+    page.on('websocket', socket => socket.on('framesent', ({ payload }) => {
+      try { const command = JSON.parse(payload.toString()); if (command.method && command.path) rig.commands.push(command); }
+      catch { /* Ignore non-command frames / 忽略非命令帧。 */ }
+    }));
+    await page.goto(rig.baseUrl);
+    await expect(page.getByRole('button', { name: locale?.startsWith('en') ? 'Help' : '使用帮助', exact: true })).toBeVisible();
+    try { await use(page); } finally { expect(errors, 'Browser JavaScript errors / 浏览器 JavaScript 错误').toEqual([]); }
   },
 });
 
@@ -61,7 +36,16 @@ export async function enable(page, names = ['Mock UDP', 'Mock TCP', 'Mock Serial
 export async function mode(page, name) {
   await page.getByRole('tab', { name, exact: true }).click();
   const apply = page.getByRole('button', { name: '应用输入方式', exact: true });
-  if (await apply.isEnabled()) await apply.click();
+  const expectedMode = ({ '手动': 'manual', '脚本': 'script', Manual: 'manual', Script: 'script', OSC: 'osc' })[name] || name.toLowerCase();
+  const overviewUrl = new URL('/api/state/overview', page.url()).href;
+  const readMode = async () => {
+    const response = await page.request.get(overviewUrl);
+    return response.ok() ? (await response.json()).input?.mode || null : null;
+  };
+  let currentMode;
+  await expect.poll(async () => { currentMode = await readMode(); return currentMode; }, { message: 'Authenticated overview ready / 认证后的状态接口就绪' }).not.toBeNull();
+  if (currentMode !== expectedMode) { await expect(apply).toBeEnabled(); await apply.click(); }
+  await expect.poll(readMode, { message: 'Input mode applied / 输入方式已应用' }).toBe(expectedMode);
 }
 export async function active(page, value = true) {
   const toggle = page.getByRole('checkbox', { name: '输入开关（关闭停止设备）', exact: true });

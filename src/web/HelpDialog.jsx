@@ -1,4 +1,4 @@
-import { localized, t, getLocale, diagnostic, docUrl } from './i18n.js';
+import { localized, t, docUrl } from './i18n.js';
 import React,{useState} from 'react';
 import {Alert,Box,Button,Dialog,DialogActions,DialogContent,DialogTitle,Tab,Tabs,TextField,Typography,useMediaQuery} from '@mui/material';
 import presets from './data/osc-presets.json';

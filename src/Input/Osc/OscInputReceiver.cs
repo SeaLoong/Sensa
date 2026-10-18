@@ -124,18 +124,16 @@ public sealed class OscInputReceiver : IDisposable
                 byte[] data = packet.Buffer;
                 var source = CreateSource(packet.RemoteEndPoint);
                 if (IsSourceAllowed?.Invoke(source) == false) continue;
-                var handled = OscPacketParser.ParseAvatarPacket(
+                OscPacketParser.ParseAvatarPacket(
                     data,
                     source,
                     (path, value, resolvedSource) => _store.Set(path, value, resolvedSource),
                     () =>
                     {
-                        _store.ClearSource(source.Key);
+                        _store.ChangeAvatar(source.Key);
                         OnAvatarChange?.Invoke();
-                    });
-
-                if (!handled)
-                    OnUnhandledPacket?.Invoke(data, source);
+                    },
+                    raw => OnUnhandledPacket?.Invoke(raw, source));
             }
             catch (Exception) when (cancellationToken.IsCancellationRequested)
             {

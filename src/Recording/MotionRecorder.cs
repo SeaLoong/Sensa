@@ -16,7 +16,10 @@ namespace Sensa.Recording;
 public sealed class MotionRecorder
 {
     private readonly List<(long Ms, float L0)> _frames = new();
-    private long _startMs = 0;
+    private long _startTimestamp;
+    private readonly TimeProvider _timeProvider;
+
+    public MotionRecorder(TimeProvider? timeProvider = null) => _timeProvider = timeProvider ?? TimeProvider.System;
 
     private volatile bool _active = false;
 
@@ -25,7 +28,7 @@ public sealed class MotionRecorder
 
     public void Start()
     {
-        lock (_frames) { _frames.Clear(); _startMs = Environment.TickCount64; _active = true; }
+        lock (_frames) { _frames.Clear(); _startTimestamp = _timeProvider.GetTimestamp(); _active = true; }
     }
 
     public void Stop() { lock (_frames) _active = false; }
@@ -37,7 +40,7 @@ public sealed class MotionRecorder
         {
             if (!_active || !float.IsFinite(frame.L0)) return;
             if (_frames.Count >= 100000) { _active = false; return; }
-            _frames.Add((Environment.TickCount64 - _startMs, frame.L0));
+            _frames.Add(((long)_timeProvider.GetElapsedTime(_startTimestamp).TotalMilliseconds, frame.L0));
         }
     }
 

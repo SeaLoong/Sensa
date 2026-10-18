@@ -1,4 +1,4 @@
-name: Validate and preview
+name: Validate and preview / 验证与预览
 on:
   workflow_dispatch:
   pull_request:
@@ -9,50 +9,76 @@ permissions:
 env:
   PYTHONUTF8: '1'
 concurrency:
-  group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # Preserve main product verification when a later docs-only commit arrives.
+  # 后续纯文档提交不应取消 main 上尚未完成的产品验证。
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  validate:
+  plan:
+    name: Select necessary checks / 选择必要检查
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 5
+    outputs:
+      web: ${{ steps.plan.outputs.web }}
+      backend: ${{ steps.plan.outputs.backend }}
+      scripts: ${{ steps.plan.outputs.scripts }}
+      docs: ${{ steps.plan.outputs.docs }}
+      unity: ${{ steps.plan.outputs.unity }}
+      dependencies: ${{ steps.plan.outputs.dependencies }}
+      e2e: ${{ steps.plan.outputs.e2e }}
+      platforms: ${{ steps.plan.outputs.platforms }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: '24'
-          cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-      - run: npm ci
-      - run: npm test
-      - run: npm audit --audit-level=high
-      - run: python scripts/release.py check-unity
-      - run: python -m unittest discover -s tests/scripts
-      - name: Package Unity preview
+          fetch-depth: 0
+      - name: Plan changed paths / 规划变更路径
+        id: plan
         env:
-          BUILD_LABEL: preview.${{ github.run_number }}.${{ github.sha }}
-        run: |
-          VERSION=$(python -c "import json;print(json.load(open('unity/top.sealoong.sensa/package.json'))['version'])")
-          python scripts/release.py unity --tag "unity-v$VERSION" --label "$BUILD_LABEL" --output artifacts/unity
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: build-unity
-          path: artifacts/unity/
-          if-no-files-found: error
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: python3 scripts/ci-plan.py --base "$BASE_SHA" --format github
+
+  validate:
+    needs: plan
+    uses: ./.github/workflows/checks.yml
+    with:
+      web: ${{ needs.plan.outputs.web == 'true' }}
+      backend: ${{ needs.plan.outputs.backend == 'true' }}
+      scripts: ${{ needs.plan.outputs.scripts == 'true' }}
+      docs: ${{ needs.plan.outputs.docs == 'true' }}
+      unity: ${{ needs.plan.outputs.unity == 'true' }}
+      dependencies: ${{ needs.plan.outputs.dependencies == 'true' }}
+      package_unity: ${{ needs.plan.outputs.platforms == 'true' }}
+      label: preview.${{ github.run_number }}.${{ github.sha }}
+
   e2e:
-    needs: validate
+    needs: [plan, validate]
+    if: needs.plan.outputs.e2e == 'true'
     uses: ./.github/workflows/e2e.yml
     with:
       update_snapshots: false
+
   platforms:
-    needs: [validate, e2e]
+    needs: [plan, validate, e2e]
+    if: needs.plan.outputs.platforms == 'true'
     uses: ./.github/workflows/build-platforms.yml
     with:
       label: preview.${{ github.run_number }}.${{ github.sha }}
+
   prerelease:
-    needs: [validate, e2e, platforms]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    name: Publish verified preview / 发布已验证预览
+    concurrency:
+      group: sensa-preview-publication
+      cancel-in-progress: false
+    needs: [plan, validate, e2e, platforms]
+    if: >-
+      always() &&
+      needs.plan.outputs.prerelease == 'true' &&
+      needs.validate.result == 'success' &&
+      needs.platforms.result == 'success' &&
+      needs.e2e.result == 'success' &&
+      needs.e2e.outputs.comparison_sha == github.sha &&
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
@@ -66,8 +92,9 @@ jobs:
         with:
           pattern: build-*
           path: artifacts/downloaded
-      - name: Publish complete prerelease
+      - name: Publish and retain latest ten prereleases / 发布并保留最近十个预发布
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
+          SENSA_E2E_COMPARISON_SHA: ${{ needs.e2e.outputs.comparison_sha }}
         run: python scripts/publish-preview.py

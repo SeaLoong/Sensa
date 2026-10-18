@@ -40,6 +40,7 @@
 - **想在 Avatar 上增加位置测量或 PB 手柄** → [Unity 安装与配置](unity/top.sealoong.sensa/README.md)
 - **想先在测试世界体验** → [测试世界操作说明](tools/unity-world-lab/README.md)
 - **从源码构建或了解 CI** → [开发文档](docs/development.md)
+- **了解使用流程与架构** → [架构与行为契约](docs/architecture.md)
 - **完整了解当前功能、实现条件与限制** → [功能全景与实现说明](docs/features.md)
 
 普通 SPS 参数映射不要求安装 Sensa 的 Unity 资产；只有额外的位置测量功能需要它。WebUI 的“使用帮助”也可随时查阅操作步骤。

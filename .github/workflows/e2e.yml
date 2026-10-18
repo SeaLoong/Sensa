@@ -1,6 +1,10 @@
-name: WebUI E2E and screenshots
+name: WebUI E2E and screenshots / WebUI 端到端与截图
 on:
   workflow_call:
+    outputs:
+      comparison_sha:
+        description: Commit verified by full comparison / 全量比较验证的提交
+        value: ${{ jobs.browser.outputs.comparison_sha }}
     inputs:
       update_snapshots:
         type: boolean
@@ -8,23 +12,26 @@ on:
   workflow_dispatch:
     inputs:
       update_snapshots:
-        description: Generate review-only screenshot baselines (never publishes a release)
+        description: Generate review-only baselines / 生成仅供审阅的截图基线
         type: boolean
         default: false
 permissions:
   contents: read
 jobs:
   browser:
+    outputs:
+      comparison_sha: ${{ steps.comparison.outputs.sha }}
     runs-on: ubuntu-24.04
     container: mcr.microsoft.com/playwright:v1.64.1-noble
     timeout-minutes: 25
     env:
       CI: 'true'
+      E2E_SUITE: all
       PYTHONUTF8: '1'
       E2E_UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
-      - name: Reject baseline updates from ordinary CI
+      - name: Reject baseline updates from ordinary CI / 拒绝普通 CI 更新基线
         if: inputs.update_snapshots && github.event_name != 'workflow_dispatch'
         run: exit 1
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
@@ -34,14 +41,20 @@ jobs:
       - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
-      - name: Install deterministic language support and PTY mock runtime
+      - name: Install language support and PTY mock runtime / 安装语言支持与伪终端模拟环境
         run: apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk python3
       - run: npm ci
-      - name: Build real Sensa application
+      - name: Build real Sensa application / 构建真实 Sensa 程序
         run: dotnet publish src/Sensa.csproj -c Release --no-self-contained -p:RestoreLockedMode=true -o artifacts/e2e/app
-      - name: Exercise UI, real transports and screenshot comparisons
+      - name: Exercise UI, transports and screenshot comparisons / 验证界面、传输与截图比较
         run: npm run e2e:ci
-      - name: Retain report, screenshots, diffs, traces and mock traffic
+      - name: Record successful full comparison / 记录全量比较成功
+        id: comparison
+        if: ${{ !inputs.update_snapshots }}
+        run: |
+          test "$E2E_SUITE" = all
+          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+      - name: Retain reports and image diffs / 保留报告与图片差异
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -52,7 +65,7 @@ jobs:
             artifacts/e2e/results.json
           if-no-files-found: warn
           retention-days: 14
-      - name: Export proposed baselines for human review
+      - name: Export proposed baselines for review / 导出待人工审阅基线
         if: always() && inputs.update_snapshots
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

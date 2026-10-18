@@ -17,7 +17,7 @@ public static class SpsPositionTracking
         public float Metric(PointMetric metric) => (float)(metric switch { PointMetric.X=>Position.X,PointMetric.Y=>Position.Y,PointMetric.Distance=>Position.Length,_=>Position.Z });
     }
 
-    public static Observation[] Observe(IEnumerable<OscParameterStore.SnapshotEntry> entries, string? sourceKey = null, int maxAgeMs = 0)
+    public static Observation[] Observe(IEnumerable<OscParameterStore.SnapshotEntry> entries, string? sourceKey = null, int maxAgeMs = 0, TimeProvider? timeProvider = null)
     {
         var snapshot=entries.ToArray();
         var lookup=snapshot.ToDictionary(e=>(e.Entry.Source.Key,e.Path),e=>e.Entry);
@@ -52,7 +52,7 @@ public static class SpsPositionTracking
                         || ready.Sequence<=selection.Sequence || samples.Any(s=>s.Sample.Entry.Sequence<=selection.Sequence)) {valid=false;reason="共享阵列停用、切换中或等待新槽位采样";}
                 }
                 long timestamp=group.Max(s=>s.Sample.Entry.TimestampMs);
-                if(maxAgeMs>0 && DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()-timestamp>maxAgeMs){valid=false;reason="坐标数据已超时，等待新的几何采样";}
+                if(maxAgeMs>0 && (timeProvider ?? TimeProvider.System).GetUtcNow().ToUnixTimeMilliseconds()-timestamp>maxAgeMs){valid=false;reason="坐标数据已超时，等待新的几何采样";}
                 return new Observation(group.Key.Source + "|" + group.Key.Prefix, first.Parts[3], first.Parts[4],
                     first.Sample.Entry.Source.Label, samples.Length, valid, valid ? fit.Position : default,
                     fit.Radius, fit.Residual, reason,group.Key.Prefix,group.Key.Source,kind,slot,timestamp);

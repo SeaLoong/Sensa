@@ -4,7 +4,8 @@
     <Compile Include="../unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs" Link="Signals/SensaPoseProtocol.cs" />
     <EmbeddedResource Include="web/data/osc-presets.json" LogicalName="Sensa.OscPresets.json" />
     <Content Remove="web\**" />
-    <Content Include="web\index.html;web\styles.css;web\app.bundle.js;web\app.bundle.js.LEGAL.txt" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="web\index.html;web\styles.css" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="web\app.bundle.js;web\app.bundle.js.LEGAL.txt" Condition="'$(SkipWebBuild)' != 'true'" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Remove="web\**" />
     <Compile Remove="web\**" />
 

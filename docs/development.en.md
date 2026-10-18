@@ -1,51 +1,70 @@
-# Development and validation
+# Development and verification
 
 [简体中文](development.md) | **English**
 
-Use Node.js 24, Python 3.12+ and the .NET SDK pinned in `global.json`.
+Use Node.js 24, Python 3.12+ and the SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). See [architecture contracts](architecture.en.md) and the [feature reference](features.en.md).
+
+## Verify by impact
+
+Prepare dependencies once, then use the shared local entry point:
 
 ```shell
 npm ci
-npm test
-dotnet restore tests/Sensa.Tests/Sensa.Tests.csproj --locked-mode
-dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release
-python -m unittest discover -s tests/scripts
-python scripts/release.py check-unity
+python -X utf8 scripts/verify.py --plan
+python -X utf8 scripts/verify.py
 ```
 
-For manual development, run `dotnet run --project src/Sensa.csproj`. Build self-contained packages with `scripts/build-platform.py --runtime <RID>`; RIDs combine win/linux/osx with x64/arm64. Run binaries on their matching platform.
+The default compares HEAD with staged, unstaged and untracked working files. Use `--base <ref>` for committed changes, `--all` to select every local lane, and `--force` only when a rerun is justified. `--dotnet <absolute-path>` overrides SDK selection; otherwise the project-isolated `artifacts/toolchain/dotnet/` precedes PATH.
 
-## CI and release gates
+Successful receipts live in `artifacts/verification/`, keyed by relevant sources, commands and toolchain. Unchanged inputs reuse success. Relevant changes, source mutation during verification and failed checks do not produce reusable success. Do not repeat a check merely to update progress.
 
-**Automated browser E2E, full-process smoke tests and screenshot generation run only in GitHub Actions.** Local work uses static checks/unit tests. See [E2E](e2e.en.md) for reviewed baselines and mock transports.
+| Change | Necessary local checks | GitHub Actions |
+| --- | --- | --- |
+| Documentation | Bilingual/link/resource contracts | Documentation checks; no E2E or release |
+| Web unit tests | Web lint, interface contracts, build | Web checks; no release |
+| Backend unit tests | Backend contracts | Backend checks; no release |
+| E2E/baselines | Relevant static/unit checks | Necessary full screenshot comparison; no product release |
+| Product/packaging/protocol | Affected interfaces | Candidate comparison and necessary six-platform builds/smoke |
+| Unknown paths/unavailable diff | Conservative full local checks | Conservative full verification |
 
-Validation runs before E2E comparison. Passing E2E unlocks six native platform jobs, each with backend tests, self-contained packaging and isolated HTTP/WS/OSC smoke checks. Windows packages are ZIP; Linux/macOS use tar.gz preserving execute bits.
+[ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) provides the same interface to local checks and CI. Its implementation/contracts define exact path classification. Python's complete suite includes documentation, so it is not repeated. Backend contracts use `SkipWebBuild=true`, without Node or a generated bundle; normal publication still builds and packages Web assets.
 
-Only a successful main push automatically publishes a prerelease. It contains six desktop archives, the Unity ZIP and checksums. Preview tags include run/attempt/commit identity and never move an existing version. Uploads first go to a draft; names, uploaded states, sizes, SHA-256 and target commit are checked before publishing. Each attachment has at most three upload attempts. Incomplete uploads remain drafts.
+The local runner only reports required E2E, native smoke and publication work. Browser E2E, full-process smoke, automatic screenshots and World PlayMode suites have CI-only guards. Do not spoof the Actions environment to bypass them.
 
-PRs cannot publish. Manual **Validate and preview** only validates/builds. Manual **Validate and release Unity package** creates a preview artifact, with no stable release, tag or VPM deployment. Stable v* / unity-v* publication requires an explicit request. Preview labels do not bump protocol/base versions and do not enter the stable VPM index.
+## CI and prereleases
 
-React and React DOM updates are grouped to prevent peer-dependency conflicts. This does not auto-merge updates. See [historical CI failures](ci-failure-audit.en.md). Diagnose the failed step: ERESOLVE is dependency resolution, HTTP 408 may be upload timeout, and smoke failures have `service.log`/`result.json` in platform test artifacts. Assertions wait for observed state; they do not resend test inputs or retry entire tests to hide failures.
+PR/main pushes compute impact first and execute affected checks. Ordinary interface tests run once rather than repeating npm/backend units in every native build. Native runners exercise the self-contained application through isolated HTTP/WebSocket/OSC peers. Windows uses ZIP; Linux/macOS tar.gz preserves executable permissions.
 
-## Unity projects
+Product candidates require full E2E screenshot comparison for their commit, followed by necessary x64/ARM64 builds on Windows/Linux/macOS. Publication verifies that E2E's comparison SHA matches the candidate SHA; proposed-baseline runs provide no such proof. Screenshot comparison/review happens in CI; see [E2E](e2e.en.md).
 
-The separate Avatar and World projects are local-only repositories; proprietary models/packages never enter Sensa. Install first-party sources with:
+Main validation is preserved per commit so later documentation pushes cannot cancel it. PRs cancel stale runs for the same ref. Automatic preview publication/retention is serialized. Only product-affecting main pushes passing every gate publish automatically; documentation, test-only and ordinary manual verification runs do not publish.
 
-```powershell
-python scripts/install-world-lab.py "D:/VRChatProjects/Sensa Test World"
-python scripts/install-avatar-lab.py "D:/VRChatProjects/Sensa Test Avatar" --tests
+Dispatch `ci.yml` for justified full verification or `e2e.yml` for browser-only checks. Do not dispatch a duplicate while necessary CI for that commit is already running:
+
+```shell
+gh workflow run ci.yml --ref main
+gh workflow run e2e.yml --ref main -f update_snapshots=false
 ```
 
-Use the project's supported Unity version. Save your scene edits before building; do not open a project in two editors. Local compile/EditMode unit checks are allowed. Do not launch automated PlayMode/E2E screenshot suites locally; the current CI does not provision the proprietary full Unity labs.
+Previews begin as drafts. Six desktop archives, a Unity ZIP and combined checksums are uploaded and remotely verified by name/state/size/SHA-256/target commit before publication. Individual uploads get at most three attempts; failure leaves an unpublished draft.
 
-The existing `validate-labs.py` harness provides world-editor, world-functional, world-geometry, world-offset, avatar-tests and avatar-build suites for an appropriately provisioned runner. Functional/geometry suites are integration tests, not unit checks. GPU suites require a graphics device and must not use `-nographics`.
+After publication, enumerate all release pages and retain the **10 newest published prereleases**, including manually tagged prereleases. Immediately recheck numeric ID, tag, target, publication time and state before deletion. Stable releases, drafts and Git tags remain. `publish-preview.py --prune-only` performs real deletion and is used only for authorized retention work.
 
-Reports use a fresh `artifacts/lab-validation/<id>/summary.json`, per-suite Unity/launcher logs and copied reports. Existing output directories are rejected. The harness requires a successful Unity exit, a newly generated explicit pass report and unchanged original world scenes. It stops on failure and kills only processes it launched on timeout. Missing, stale, skipped or zero-test reports are not passes.
+Stable publication still requires explicitly requested `v*`/`unity-v*` tags. This work changes no base or internal protocol versions. Previews stay out of the stable VPM index. React/React DOM updates remain grouped; dependency updates are not automatically merged.
 
-Static Unity package checks cannot certify NDMF, Udon, real VRChat OSC, VR grabbing, HMD visibility or hardware. Validate those manually in your private uploads before claiming end-to-end hardware support.
+## Local development and Unity
 
-## Localization
+Manually run the development UI with `dotnet run --project src/Sensa.csproj`; select an isolated configuration or confirm your own outputs before device control. Use `dotnet publish` for build-only work. `build-platform.py` includes full-process smoke and is a CI-only entry point.
 
-[Language support](languages.en.md) documents catalogs, stable protocol identifiers, Unity bilingual labels and translation checks. UI changes need both desktop and narrow-screen CI review. Add English text and tests when introducing user-facing features.
+Unity compilation/EditMode units may run manually in independent projects. Public CI metadata checks do not replace NDMF, Udon, ClientSim or client validation. Keep the separate world repository local.
 
-Technical references: [automatic generation and geometry](../unity/top.sealoong.sensa/AUTOMATION.en.md), [GPU experiments](../unity/top.sealoong.sensa/GPU-TRACKING.en.md), [world implementation](../tools/unity-world-lab/DEVELOPMENT.en.md).
+Installers preflight every owned source and manifest before writing, preserving user scenes, generated assets and local edits. Do not resolve conflicts by blindly overwriting:
+
+```shell
+python scripts/install-world-lab.py "<World project>"
+python scripts/install-avatar-lab.py "<Avatar project>" --tests
+```
+
+`validate-labs.py` offers six suites. `world-editor`, `world-functional`, `world-geometry` and `world-offset` involve graphics/PlayMode/screenshots and require an Actions runner with Unity/licensed resources. `avatar-tests` is EditMode; `avatar-build` inspects a local SDK bundle without uploading. Unchanged authoring-scene hashes, fresh reports, zero exit codes and explicit success are required; XML must contain executed passing tests without skips. Each suite defaults to 900 seconds and output directories cannot be reused.
+
+Device tests use temporary configurations and mock transports only. Real VRChat OSC, VR grabbing, HMD visibility, live GPU capture and hardware require separate validation. Never report unexecuted checks as passed. Diagnose failures using their actual reports/last observed state rather than resending input or rerunning an entire scenario to hide failure. See [historical CI findings](ci-failure-audit.en.md).

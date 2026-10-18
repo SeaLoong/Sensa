@@ -1,4 +1,4 @@
-import { t, getLocale, diagnostic, docUrl } from './i18n.js';
+import { t, getLocale, diagnostic } from './i18n.js';
 import React, { useState } from 'react';
 import { Alert, Box, Button, Chip, FormControl, InputLabel, MenuItem, Select, Stack, ToggleButton, ToggleButtonGroup, Typography } from '@mui/material';
 

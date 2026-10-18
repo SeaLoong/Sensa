@@ -13,6 +13,7 @@ namespace Sensa.Outputs.TCode;
 public sealed class TCodeUdpOutput : IDisposable
 {
     private readonly object _ioGate = new();
+    private readonly TimeProvider _timeProvider;
     private readonly AppConfig? _config;
     private readonly OutputDeviceConfig? _output;
     private readonly Func<TCodeMotionProfile>? _profileResolver;
@@ -29,12 +30,17 @@ public sealed class TCodeUdpOutput : IDisposable
 
     public bool IsConnected => _client is not null && _remote is not null;
 
-    public TCodeUdpOutput(AppConfig config) => _config = config;
+    public TCodeUdpOutput(AppConfig config, TimeProvider? timeProvider = null)
+    {
+        _config = config;
+        _timeProvider = timeProvider ?? TimeProvider.System;
+    }
 
-    public TCodeUdpOutput(OutputDeviceConfig output, Func<TCodeMotionProfile> profileResolver)
+    public TCodeUdpOutput(OutputDeviceConfig output, Func<TCodeMotionProfile> profileResolver, TimeProvider? timeProvider = null)
     {
         _output = output;
         _profileResolver = profileResolver;
+        _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
     public void Connect() { lock (_ioGate) ConnectCore(); }
@@ -76,7 +82,7 @@ public sealed class TCodeUdpOutput : IDisposable
         if (!IsConnected)
             return;
 
-        var refresh = Environment.TickCount64 - _lastFullSendAt >= 1000;
+        var refresh = _timeProvider.GetElapsedTime(_lastFullSendAt).TotalMilliseconds >= 1000;
         var (line, effectiveFrame) = BuildLine(frame, forceAll: refresh || _lastEffectiveFrame is null);
         if (string.IsNullOrWhiteSpace(line))
             return;
@@ -86,7 +92,7 @@ public sealed class TCodeUdpOutput : IDisposable
         if (!SendRaw(line + "\n")) return;
         _lastEffectiveFrame = effectiveFrame;
         _lastSourceFrame = frame;
-        if (refresh) _lastFullSendAt = Environment.TickCount64;
+        if (refresh) _lastFullSendAt = _timeProvider.GetTimestamp();
         _lastLine = line;
         SyncVelocityToFrame(effectiveFrame);
                 Telemetry.RecordTCode(line);

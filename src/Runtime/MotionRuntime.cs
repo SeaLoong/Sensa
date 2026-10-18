@@ -2,8 +2,6 @@ using Sensa.Configuration;
 using Sensa.Input.Osc;
 using Sensa.Input.Script;
 using Sensa.Motion;
-using Sensa.Outputs.Intiface;
-using Sensa.Outputs.TCode;
 using Sensa.Recording;
 using Sensa.Signals;
 using System.Text;
@@ -31,15 +29,12 @@ public sealed class MotionRuntime : IDisposable
 
     private readonly AppConfig _config;
     private readonly OscParameterStore _store;
-    private readonly OscInputReceiver _oscReceiver;
-    private readonly IntifaceOutputClient? _intifaceOutput;
-    private readonly TCodeSerialOutput? _serialOutput;
-    private readonly TCodeUdpOutput? _udpOutput;
-    private readonly TCodeTcpOutput? _tcpOutput;
+    private readonly IMotionOutput _output;
+    private readonly TimeProvider _timeProvider;
+    private readonly CancellationTokenSource _lifetime = new();
+    private readonly bool _ownsScriptPlayer;
     private readonly MotionRecorder? _recorder;
     private readonly FunscriptPlayer _scriptPlayer;
-    private readonly Func<MotionFrame, Task>? _sendOutputsAsync;
-    private readonly Func<Task>? _emergencyStopAsync;
     private readonly Func<string?>? _preferredOscSourceKeyProvider;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _sendGate = new(1, 1);
@@ -57,7 +52,7 @@ public sealed class MotionRuntime : IDisposable
     private volatile bool _disposed;
     private int _oscRefreshQueued;
     private readonly Dictionary<string, SpsDepthEstimator> _spsDepth = new();
-    private readonly System.Threading.Timer _watchdog;
+    private readonly ITimer _watchdog;
     private long _activationTimestamp;
     private long _generation;
     private bool _patchWorkerRunning;
@@ -95,7 +90,7 @@ public sealed class MotionRuntime : IDisposable
                 ? p : p with {Valid=false,Engaged=false,Reason="坐标数据已超时，等待新的几何采样"}).ToArray();
         }
     }
-    private long _lastEventTimestampMs = Environment.TickCount64;
+    private long _lastEventTimestamp;
 
     public MotionFrame LastCommand => _currentFrame;
     public MotionFrame ManualOverrideCommand => _manualFrame;
@@ -111,35 +106,29 @@ public sealed class MotionRuntime : IDisposable
     public MotionRuntime(
         AppConfig config,
         OscParameterStore store,
-        OscInputReceiver oscReceiver,
-        IntifaceOutputClient? intifaceOutput = null,
-        TCodeSerialOutput? serialOutput = null,
-        TCodeUdpOutput? udpOutput = null,
-        TCodeTcpOutput? tcpOutput = null,
+        IMotionOutput output,
         MotionRecorder? recorder = null,
         FunscriptPlayer? scriptPlayer = null,
-        Func<MotionFrame, Task>? sendOutputsAsync = null,
-        Func<Task>? emergencyStopAsync = null,
-        Func<string?>? preferredOscSourceKeyProvider = null)
+        Func<string?>? preferredOscSourceKeyProvider = null,
+        TimeProvider? timeProvider = null)
     {
         _config = config;
         _store = store;
-        _oscReceiver = oscReceiver;
-        _intifaceOutput = intifaceOutput;
-        _serialOutput = serialOutput;
-        _udpOutput = udpOutput;
-        _tcpOutput = tcpOutput;
+        _output = output ?? throw new ArgumentNullException(nameof(output));
+        _timeProvider = timeProvider ?? store.Clock;
+        _lastEventTimestamp = _timeProvider.GetTimestamp();
+        _ownsScriptPlayer = scriptPlayer is null;
         _recorder = recorder;
-        _scriptPlayer = scriptPlayer ?? new FunscriptPlayer();
-        _sendOutputsAsync = sendOutputsAsync;
-        _emergencyStopAsync = emergencyStopAsync;
+        _scriptPlayer = scriptPlayer ?? new FunscriptPlayer(_timeProvider);
         _preferredOscSourceKeyProvider = preferredOscSourceKeyProvider;
 
-        _watchdog = new System.Threading.Timer(_ => CheckInputTimeout(), null, 500, 500);
+        _watchdog = _timeProvider.CreateTimer(_ => CheckInputTimeout(), null,
+            TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
         RebuildProcessors();
 
         _store.OnSetWithSource += HandleOscValueChanged;
-        _oscReceiver.OnAvatarChange += HandleAvatarChanged;
+        _store.AvatarChanged += HandleAvatarChanged;
+        _scriptPlayer.OnStopped += HandleScriptStopped;
         _scriptPlayer.OnFrame += HandleScriptFrame;
         _scriptPlayer.OnStateChanged += HandleScriptStateChanged;
     }
@@ -217,6 +206,7 @@ public sealed class MotionRuntime : IDisposable
         if (_inputMode == mode)
             return;
 
+        SetInputActive(false);
         Interlocked.Increment(ref _generation);
         _gateClosed = false;
         _poseBlocked = mode == RuntimeInputMode.Osc && _usesPose;
@@ -228,25 +218,6 @@ public sealed class MotionRuntime : IDisposable
         if (mode != RuntimeInputMode.Script)
             _scriptPlayer.Pause();
 
-        if (_emergency || !_inputActive)
-            return;
-
-        switch (mode)
-        {
-            case RuntimeInputMode.Manual when _manualOverrideEnabled:
-                _ = ApplyManualOverrideAsync("ManualMode");
-                break;
-            case RuntimeInputMode.Osc:
-                QueueOscRefresh();
-                break;
-            case RuntimeInputMode.Script:
-            {
-                var snapshot = _scriptPlayer.GetSnapshot();
-                if (snapshot.Loaded)
-                    _ = ApplyScriptPatchAsync(snapshot.CurrentL0, "ScriptMode");
-                break;
-            }
-        }
     }
 
     public void SetInputActive(bool active)
@@ -256,7 +227,7 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         Interlocked.Increment(ref _generation);
-        _activationTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        _activationTimestamp = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
         _inputActive = active;
         _forceNextFrame = true;
@@ -297,14 +268,20 @@ public sealed class MotionRuntime : IDisposable
         {
             // Receivers arrive as independent OSC messages. Coalesce a short burst before fitting.
             if (Interlocked.Exchange(ref _poseRefreshPending, 1) != 0) return;
-            _ = Task.Run(async () =>
-            {
-                await Task.Delay(30);
-                Interlocked.Exchange(ref _poseRefreshPending, 0);
-                if (!_disposed) QueueOscRefresh();
-            });
+            _ = RefreshGeometryAsync();
         }
         else QueueOscRefresh();
+    }
+
+    private async Task RefreshGeometryAsync()
+    {
+        try
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(30), _timeProvider, _lifetime.Token);
+            Interlocked.Exchange(ref _poseRefreshPending, 0);
+            if (!_disposed) QueueOscRefresh();
+        }
+        catch (OperationCanceledException) when (_lifetime.IsCancellationRequested) { }
     }
 
     private bool HasMatchingOscProcessor(string oscPath)
@@ -341,7 +318,7 @@ public sealed class MotionRuntime : IDisposable
         _rollPoseKey = null;
         _continuousRoll = new();
         if (_inputMode == RuntimeInputMode.Osc && _inputActive) EmergencyStop();
-        OnLog?.Invoke("[MotionRuntime] Avatar changed — signal processors reset; reactivate input when ready.");
+        OnLog?.Invoke("[MotionRuntime] Avatar changed; processors reset, reactivate when ready. / Avatar 已更换；处理器已复位，就绪后重新启用输入。");
         NotifyStateChanged();
     }
 
@@ -354,6 +331,16 @@ public sealed class MotionRuntime : IDisposable
     }
 
     private void HandleScriptStateChanged() => NotifyStateChanged();
+
+    private void HandleScriptStopped()
+    {
+        if (_disposed || _inputMode != RuntimeInputMode.Script || !_inputActive || _emergency)
+            return;
+        Interlocked.Increment(ref _generation);
+        lock (_sync) _pendingPatch = null;
+        _forceNextFrame = true;
+        _ = SendEmergencyAsync();
+    }
 
     private void QueueOscRefresh()
     {
@@ -385,7 +372,7 @@ public sealed class MotionRuntime : IDisposable
             if (_gateClosed || _poseBlocked)
             {
                 _forceNextFrame = true;
-                if (!_gateStopSent && _emergencyStopAsync is not null) await _emergencyStopAsync();
+                if (!_gateStopSent) await StopOutputsAsync();
                 _gateStopSent = true;
                 return;
             }
@@ -418,7 +405,7 @@ public sealed class MotionRuntime : IDisposable
         var poseMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPose").ToArray();
         var pointMappings = processors.Where(p=>p.Processor.Mapping.SourceMode=="SensaPoint").ToArray();
         SpsPositionTracking.Observation? chosenPoint=null;
-        if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(),preferredSourceKey)
+        if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(), preferredSourceKey, timeProvider: _timeProvider)
             .Where(p=>p.IsLocalPoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
             if(points.Length==1 && points[0].Valid && IsGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
@@ -547,7 +534,7 @@ public sealed class MotionRuntime : IDisposable
     }
 
     private bool IsGeometryFresh(long timestampMs) => _config.Osc.InputTimeoutMs <= 0
-        || DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
+        || _timeProvider.GetUtcNow().ToUnixTimeMilliseconds() - timestampMs <= _config.Osc.InputTimeoutMs;
 
     private bool TryGetSpsTip(OscParameterStore.SnapshotEntry root, out OscParameterStore.Entry tip, out long timestamp)
     {
@@ -576,7 +563,7 @@ public sealed class MotionRuntime : IDisposable
     private void CheckInputTimeout()
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency || _config.Osc.InputTimeoutMs <= 0) return;
-        var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         (string Path,string Mode,SignalRole Role)[] mappings;
         lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
         if (mappings.Length == 0) return;
@@ -586,7 +573,7 @@ public sealed class MotionRuntime : IDisposable
         // Metadata or a separate gate must not keep a frozen geometric input alive.
         // Use the newest geometric sample, since OSC may omit unchanged coordinates.
         var timestamps=pointPaths.Length>0
-            ? SpsPositionTracking.Observe(_store.SnapshotEntries(),source).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
+            ? SpsPositionTracking.Observe(_store.SnapshotEntries(), source, timeProvider: _timeProvider).Where(p=>p.IsLocalPoint && pointPaths.Any(p.Matches)).Select(p=>p.TimestampMs)
             : posePaths.Length>0
                 ? GetPoseObservations().Where(p=>posePaths.Any(p.Matches)).Select(p=>p.TimestampMs)
                 : ScalarInputTimestamps(mappings, source);
@@ -638,114 +625,31 @@ public sealed class MotionRuntime : IDisposable
         NotifyStateChanged();
     }
 
-    private async Task ResendCurrentPoseAsync()
-    {
-        await _sendGate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (_disposed || _emergency || !_inputActive)
-                return;
-
-            var isManual = _inputMode == RuntimeInputMode.Manual && _manualOverrideEnabled;
-            var current = _currentFrame with
-            {
-                DeltaMs = isManual && _manualFrame.RequestedCommandMode == TCodeCommandMode.Interval
-                    ? (_manualFrame.RequestedMotionValue ?? ManualDefaultIntervalMs)
-                    : ConsumeElapsedMs(),
-                RequestedCommandMode = isManual ? _manualFrame.RequestedCommandMode : _currentFrame.RequestedCommandMode,
-                RequestedMotionValue = isManual ? _manualFrame.RequestedMotionValue : _currentFrame.RequestedMotionValue,
-            };
-            _currentFrame = current;
-            OnDebugLog?.Invoke("[MotionRuntime/Resume] Re-sending current pose after state transition.");
-            await SendOutputsAsync(current).ConfigureAwait(false);
-            NotifyStateChanged();
-        }
-        finally
-        {
-            _sendGate.Release();
-        }
-    }
-
     private async Task SendOutputsAsync(MotionFrame frame)
     {
         if (!CanSend) return;
-        if (_sendOutputsAsync is not null)
-        {
-            try
-            {
-                await _sendOutputsAsync(frame).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                OnLog?.Invoke($"[Outputs] {ex.Message}");
-            }
-            return;
-        }
+        try { await _output.SendAsync(frame).ConfigureAwait(false); }
+        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
+    }
 
-        if (_config.Intiface.Enabled && _intifaceOutput is { IsConnected: true })
-        {
-            try
-            {
-                await _intifaceOutput.SendAsync(frame).ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                OnLog?.Invoke($"[Intiface] {ex.Message}");
-            }
-        }
-
-        if (_config.TCode.Enabled)
-            _serialOutput?.Send(frame);
-        if (_config.UdpTCode.Enabled)
-            _udpOutput?.Send(frame);
-        if (_config.TcpTCode.Enabled)
-            _tcpOutput?.Send(frame);
+    private async Task StopOutputsAsync()
+    {
+        try { await _output.EmergencyStopAsync().ConfigureAwait(false); }
+        catch (Exception ex) { OnLog?.Invoke($"[Outputs] {ex.Message}"); }
     }
 
     private async Task SendEmergencyAsync()
     {
         await _sendGate.WaitAsync().ConfigureAwait(false);
-        try
-        {
-            if (_emergencyStopAsync is not null)
-            {
-                try
-                {
-                    await _emergencyStopAsync().ConfigureAwait(false);
-                }
-                catch
-                {
-                }
-                return;
-            }
-
-            _serialOutput?.EmergencyStop();
-            _udpOutput?.EmergencyStop();
-            _tcpOutput?.EmergencyStop();
-            if (_intifaceOutput is { IsConnected: true })
-            {
-                try
-                {
-                    await _intifaceOutput.StopAllAsync().ConfigureAwait(false);
-                }
-                catch
-                {
-                }
-            }
-        }
-        finally
-        {
-            _sendGate.Release();
-            NotifyStateChanged();
-        }
+        try { await StopOutputsAsync().ConfigureAwait(false); }
+        finally { _sendGate.Release(); NotifyStateChanged(); }
     }
 
     private double ConsumeElapsedMs()
     {
-        var now = Environment.TickCount64;
-        var previous = Interlocked.Exchange(ref _lastEventTimestampMs, now);
-        var delta = now - previous;
-        return Math.Max(delta, 1L);
+        var now = _timeProvider.GetTimestamp();
+        var previous = Interlocked.Exchange(ref _lastEventTimestamp, now);
+        return Math.Max(_timeProvider.GetElapsedTime(previous, now).TotalMilliseconds, 1d);
     }
 
     private static string FormatPatch(MotionPatch patch)
@@ -809,12 +713,15 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         _disposed = true;
+        _lifetime.Cancel();
         _watchdog.Dispose();
         lock (_sync) _pendingPatch = null;
         _store.OnSetWithSource -= HandleOscValueChanged;
-        _oscReceiver.OnAvatarChange -= HandleAvatarChanged;
+        _store.AvatarChanged -= HandleAvatarChanged;
+        _scriptPlayer.OnStopped -= HandleScriptStopped;
         _scriptPlayer.OnFrame -= HandleScriptFrame;
         _scriptPlayer.OnStateChanged -= HandleScriptStateChanged;
+        if (_ownsScriptPlayer) _scriptPlayer.Dispose();
         // Pending workers may still release this managed semaphore after cancellation.
     }
 }

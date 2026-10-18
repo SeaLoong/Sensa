@@ -1,4 +1,4 @@
-import { t, getLocale, diagnostic, docUrl } from './i18n.js';
+import { t, getLocale, diagnostic } from './i18n.js';
 import React from 'react';
 import {Box,Chip,LinearProgress,Typography} from '@mui/material';
 import {outputPreview} from './output-preview.js';

@@ -24,6 +24,7 @@ export function poseSamples() {
 }
 
 export async function startMocks() {
+  if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Transport peers are CI-only / 模拟传输端仅允许在 CI 启动');
   const wire = { udp: [], tcp: [], serial: [], intiface: [], hub: [] };
   const intifaceState = { stopped: true, stopCount: 0 };
   const udp = dgram.createSocket('udp4'), hub = dgram.createSocket('udp4'), source = dgram.createSocket('udp4');
@@ -76,6 +77,12 @@ export async function startMocks() {
       { FULL_PATH: '/', CONTENTS: { avatar: { FULL_PATH: '/avatar', CONTENTS: { parameters: { FULL_PATH: '/avatar/parameters', CONTENTS: { QueryDepth: { FULL_PATH: '/avatar/parameters/QueryDepth', TYPE: 'f', ACCESS: 1, VALUE: [.65] } } } } } } }));
   }); query.listen(ports.query, '127.0.0.1'); await once(query, 'listening');
   return { wire, serialPort, intifaceState,
+    reset: () => {
+      for (const client of clients) client.destroy();
+      for (const client of bp.clients) client.terminate();
+      for (const messages of Object.values(wire)) messages.length = 0;
+      intifaceState.stopped = true; intifaceState.stopCount = 0;
+    },
     send: async entries => { for (const [path, value] of entries) await new Promise((resolve, reject) => source.send(oscPacket(path, value), ports.osc, '127.0.0.1', e => e ? reject(e) : resolve())); },
     breakTcp: () => { for (const client of clients) client.destroy(); },
     close: async () => { serial.kill(); lines.close(); for (const socket of [udp, hub, source]) socket.close(); for (const c of clients) c.destroy(); for (const c of bp.clients) c.terminate(); await Promise.all([new Promise(r => tcp.close(r)), new Promise(r => bp.close(r)), new Promise(r => query.close(r))]); },

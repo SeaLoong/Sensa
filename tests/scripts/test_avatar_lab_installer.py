@@ -1,42 +1,50 @@
+"""Avatar source ownership and package-test contracts. / Avatar 源文件所有权及包测试契约。"""
 import json
-from pathlib import Path
-import subprocess
-import sys
-import tempfile
-import unittest
 
-SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/install-avatar-lab.py'
+from lab_contract_fixtures import LabFixture
 
 
-class AvatarLabInstallerTests(unittest.TestCase):
-    def test_preserves_user_scenes_and_package_edits_and_keeps_existing_testables(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            (root / 'ProjectSettings').mkdir()
-            (root / 'ProjectSettings/ProjectVersion.txt').write_text('2022.3.22f1')
-            (root / 'Packages/com.vrchat.avatars').mkdir(parents=True)
-            (root / 'Packages/com.vrchat.avatars/package.json').write_text('{}')
-            manifest = root / 'Packages/manifest.json'
-            manifest.write_text(json.dumps({'dependencies': {}, 'testables': ['example.tests']}))
-            command = [sys.executable, '-X', 'utf8', str(SCRIPT), str(root), '--tests']
-            result = subprocess.run(command, capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            scene = root / 'Assets/SensaAvatarLab/UserScene.unity'
-            scene.write_text('user content')
-            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
-            self.assertEqual(scene.read_text(), 'user content')
-            self.assertEqual(json.loads(manifest.read_text())['testables'], ['example.tests', 'top.sealoong.sensa'])
-            edited = root / 'Packages/top.sealoong.sensa/Runtime/SensaAutoSetup.cs'
-            edited.write_text('local edits')
-            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
-            self.assertEqual(edited.read_text(), 'local edits')
+class AvatarInstallationContracts(LabFixture):
+    def test_install_update_and_reinstall_preserve_scenes_and_testables(self):
+        project = self.project('avatar')
+        count = self.install(project, 'avatar', enable_tests=True)
+        self.assertGreater(count, 0)
+        scene = self.write(project / 'Assets/SensaAvatarLab/UserScene.unity', 'user scene')
+        package_source = project / 'Packages/top.sealoong.sensa/Runtime/SensaAutoSetup.cs'
+        self.write(self.repository / 'unity/top.sealoong.sensa/Runtime/SensaAutoSetup.cs', 'next package source')
+        self.install(project, 'avatar', enable_tests=True)
+        self.install(project, 'avatar', enable_tests=True)
+        self.assertEqual(package_source.read_text(), 'next package source')
+        self.assertEqual(scene.read_text(), 'user scene')
+        manifest = json.loads((project / 'Packages/manifest.json').read_text())
+        self.assertEqual(manifest['dependencies'], {'keep': '1'})
+        self.assertEqual(manifest['testables'], ['existing.tests', 'top.sealoong.sensa'])
 
-    def test_rejects_a_world_or_empty_project_before_writing(self):
-        with tempfile.TemporaryDirectory() as folder:
-            result = subprocess.run([sys.executable, str(SCRIPT), folder], capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertFalse((Path(folder) / 'Assets').exists())
+    def test_collision_preflight_preserves_every_previously_owned_file(self):
+        project = self.project('avatar')
+        self.install(project, 'avatar')
+        edited = self.write(project / 'Packages/top.sealoong.sensa/Runtime/SensaAutoSetup.cs', 'local changes')
+        other = project / 'Assets/SensaAvatarLab/Editor/AvatarLab.cs'
+        self.write(self.repository / 'tools/unity-avatar-lab/Editor/AvatarLab.cs', 'upstream update')
+        ownership = project / 'Assets/SensaAvatarLab/source-manifest.json'
+        before = ownership.read_bytes()
+        with self.assertRaisesRegex(ValueError, 'Preserve local edits'):
+            self.install(project, 'avatar')
+        self.assertEqual(edited.read_text(), 'local changes')
+        self.assertEqual(other.read_text(), 'avatar source')
+        self.assertEqual(ownership.read_bytes(), before)
 
+    def test_invalid_package_manifest_is_rejected_before_copying(self):
+        for content in ('{', '[]', '{"testables":"not a list"}', '{"testables":[1]}'):
+            project = self.project('avatar')
+            self.write(project / 'Packages/manifest.json', content)
+            with self.subTest(content=content), self.assertRaises(ValueError):
+                self.install(project, 'avatar', enable_tests=True)
+            self.assertFalse((project / 'Assets').exists())
 
-if __name__ == '__main__':
-    unittest.main()
+    def test_world_and_empty_projects_are_rejected_before_writing(self):
+        world = self.project('world')
+        for project in (world, self.root / 'empty'):
+            with self.subTest(project=project), self.assertRaises(ValueError):
+                self.install(project, 'avatar')
+            self.assertFalse((project / 'Assets').exists())

@@ -1,9 +1,9 @@
-"""Run local Unity lab checks, requiring fresh passing reports as well as a zero exit code.
+"""Unity 实验验证：要求新生成的通过报告及零退出码。 / Require fresh passing Unity lab reports and zero exit status.
 
-Does not upload content, connect devices, install packages, or change Git remotes.
-Close the selected project in Unity first. GPU suites deliberately keep graphics enabled.
+关闭目标工程后运行；GPU 验证保留图形模式。 / Close the target project first; GPU suites keep graphics enabled.
 """
 import argparse
+from dataclasses import dataclass
 from datetime import datetime, timezone
 import hashlib
 import json
@@ -13,22 +13,33 @@ import time
 import uuid
 import xml.etree.ElementTree as ET
 
+from process_smoke import require_ci
+
 ROOT = Path(__file__).resolve().parents[1]
+@dataclass(frozen=True)
+class LabSuite:
+    project_kind: str
+    execute_method: str
+    reports: tuple[str, ...] = ()
+    package_tests: bool = False
+    ci_only: bool = False
+
+
 SUITES = {
-    'world-editor': ('world', 'SensaLab.LabValidation.Run', False, [
-        'Validation/editor-results.json', 'Validation/editor/material-isolation.json']),
-    'world-functional': ('world', 'SensaLab.FunctionalValidation.Run', False, [
+    'world-editor': LabSuite('world', 'SensaLab.LabValidation.Run', (
+        'Validation/editor-results.json', 'Validation/editor/material-isolation.json'), ci_only=True),
+    'world-functional': LabSuite('world', 'SensaLab.FunctionalValidation.Run', (
         'Validation/functional/results.json', 'Validation/interaction/world.json',
-        'Validation/functional/material-isolation.json']),
-    'world-geometry': ('world', 'SensaLab.LabPlayValidation.Run', False, [
+        'Validation/functional/material-isolation.json'), ci_only=True),
+    'world-geometry': LabSuite('world', 'SensaLab.LabPlayValidation.Run', (
         'Validation/playmode-status.json', 'Validation/point-cases-playmode.json',
-        'Validation/locomotion-playmode.json', 'Validation/material-isolation.json']),
-    'world-offset': ('world', 'SensaLab.LabPlayValidation.RunOffset', False, [
+        'Validation/locomotion-playmode.json', 'Validation/material-isolation.json'), ci_only=True),
+    'world-offset': LabSuite('world', 'SensaLab.LabPlayValidation.RunOffset', (
         'Validation/offset/playmode-status.json', 'Validation/offset/point-cases-playmode.json',
-        'Validation/offset/locomotion-playmode.json', 'Validation/offset/material-isolation.json']),
-    'avatar-tests': ('avatar', 'SensaAvatarLab.AvatarLab.PrepareTests', False, []),
-    'avatar-build': ('avatar', 'SensaAvatarLab.AvatarLab.BuildFullFlowWithSdk', False, [
-        'Validation/sdk-full-flow-build.json', 'Validation/sdk-full-flow-contents.json']),
+        'Validation/offset/locomotion-playmode.json', 'Validation/offset/material-isolation.json'), ci_only=True),
+    'avatar-tests': LabSuite('avatar', 'SensaAvatarLab.AvatarLab.PrepareTests', package_tests=True),
+    'avatar-build': LabSuite('avatar', 'SensaAvatarLab.AvatarLab.BuildFullFlowWithSdk', (
+        'Validation/sdk-full-flow-build.json', 'Validation/sdk-full-flow-contents.json')),
 }
 
 
@@ -48,7 +59,8 @@ def validate_report(path, before, started_ns):
     if path.suffix == '.xml':
         root = ET.parse(path).getroot()
         total, passed = int(root.get('total', '0')), int(root.get('passed', '0'))
-        if root.tag != 'test-run' or root.get('result') != 'Passed' or total <= 0 or passed != total:
+        if (root.tag != 'test-run' or root.get('result') != 'Passed' or total <= 0 or passed != total
+                or any(int(root.get(key, '0')) != 0 for key in ('failed', 'skipped', 'inconclusive'))):
             raise ValueError(f'Failed, empty or skipped Unity tests: {path}')
     else:
         data = json.loads(path.read_text(encoding='utf-8-sig'))
@@ -57,23 +69,27 @@ def validate_report(path, before, started_ns):
     return current
 
 
-def run_suite(name, project, unity, output, timeout):
-    _, method, quit_after, relative_reports = SUITES[name]
+def run_suite(name, project, unity, output, timeout, *, run_process=None):
+    """Run one suite through a real or isolated process adapter.
+    通过真实或隔离的进程适配器执行一套验证。
+    """
+    suite = SUITES[name]
+    if suite.ci_only:
+        require_ci()
+    run_process = run_process or subprocess.run
     folder = output / name
     folder.mkdir(parents=True, exist_ok=False)
-    reports = [project / item for item in relative_reports]
-    command = [str(unity), '-batchmode', '-projectPath', str(project), '-executeMethod', method,
+    reports = [project / item for item in suite.reports]
+    command = [str(unity), '-batchmode', '-projectPath', str(project), '-executeMethod', suite.execute_method,
                '-logFile', str(folder / 'unity.log')]
-    if quit_after:
-        command.append('-quit')
-    if name == 'avatar-tests':
+    if suite.package_tests:
         results = folder / 'tests.xml'
         command.extend(['-runTests', '-testPlatform', 'EditMode', '-testFilter', 'UnityBox.Sensa.Tests',
                         '-testResults', str(results)])
         reports.append(results)
     before = {path: fingerprint(path) for path in reports}
     authoring = [project / 'Assets/SensaLab/Functional/FunctionalLab.unity',
-                 project / 'Assets/SensaLab/Generated/SensaLab.unity'] if SUITES[name][0] == 'world' else []
+                 project / 'Assets/SensaLab/Generated/SensaLab.unity'] if suite.project_kind == 'world' else []
     source_hashes = {path: fingerprint(path)[1] for path in authoring if path.is_file()}
     started_ns = time.time_ns()
     result = {'suite': name, 'project': str(project), 'passed': False, 'command': command,
@@ -82,7 +98,7 @@ def run_suite(name, project, unity, output, timeout):
         # subprocess.run waits for the actual Unity process on Windows too.
         # Timeout kills only the process launched here, never another open editor.
         with (folder / 'launcher.log').open('w', encoding='utf-8') as log:
-            process = subprocess.run(command, stdout=log, stderr=log, timeout=timeout, check=False)
+            process = run_process(command, stdout=log, stderr=log, timeout=timeout, check=False)
         result['exitCode'] = process.returncode
         if process.returncode != 0:
             raise ValueError(f'Unity exited with code {process.returncode}; see {folder / "unity.log"}')
@@ -116,7 +132,12 @@ def main():
     if not args.unity.is_file() or not 0 < args.timeout < float('inf'):
         parser.error('Expected a Unity executable and a positive finite timeout')
     for name in args.suite:
-        project = getattr(args, SUITES[name][0])
+        if SUITES[name].ci_only:
+            try:
+                require_ci()
+            except RuntimeError as error:
+                parser.error('World 完整流程与截图仅限 CI。 / World full-flow checks and screenshots are CI-only. ' + str(error))
+        project = getattr(args, SUITES[name].project_kind)
         if project is None or not (project / 'ProjectSettings/ProjectVersion.txt').is_file():
             parser.error(f'{name} requires an existing --{SUITES[name][0]} Unity project')
     if len(set(args.suite)) != len(args.suite):

@@ -1,34 +1,54 @@
-import subprocess
-import sys
-import tempfile
-import unittest
-from pathlib import Path
+"""World source ownership and shared-protocol contracts. / World 源文件所有权及共享协议契约。"""
+import json
 
-SCRIPT = Path(__file__).resolve().parents[2] / 'scripts/install-world-lab.py'
+from lab_contract_fixtures import LabFixture
 
 
-class WorldLabInstallerTests(unittest.TestCase):
-    def test_owned_sync_preserves_generated_assets_and_rejects_local_source_edits(self):
-        with tempfile.TemporaryDirectory() as folder:
-            root = Path(folder)
-            (root / 'ProjectSettings').mkdir()
-            (root / 'ProjectSettings/ProjectVersion.txt').write_text('m_EditorVersion: 2022.3.22f1')
-            (root / 'Packages/com.vrchat.worlds').mkdir(parents=True)
-            (root / 'Packages/com.vrchat.worlds/package.json').write_text('{}')
-            command = [sys.executable, '-X', 'utf8', str(SCRIPT), str(root)]
-            result = subprocess.run(command, capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            generated = root / 'Assets/SensaLab/Generated'
-            generated.mkdir(); (generated / 'UserScene.unity').write_text('user content')
-            self.assertEqual(subprocess.run(command, capture_output=True).returncode, 0)
-            self.assertEqual((generated / 'UserScene.unity').read_text(), 'user content')
-            edited = root / 'Assets/SensaLab/Runtime/LabController.cs'
-            edited.write_text('local user edit')
-            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
-            self.assertEqual(edited.read_text(), 'local user edit')
+class WorldInstallationContracts(LabFixture):
+    def test_updates_preserve_generated_assets_and_share_the_same_protocol_sources(self):
+        project = self.project('world')
+        self.install(project, 'world')
+        scene = self.write(project / 'Assets/SensaLab/Generated/UserScene.unity', 'user scene')
+        upstream = self.repository / 'tools/unity-world-lab/Runtime/LabController.cs'
+        self.write(upstream, 'new world source')
+        self.install(project, 'world')
+        self.install(project, 'world')
+        self.assertEqual(scene.read_text(), 'user scene')
+        self.assertEqual((project / 'Assets/SensaLab/Runtime/LabController.cs').read_bytes(), upstream.read_bytes())
+        for name in ('SensaPoseProtocol.cs', 'SensaQuickStartProtocol.cs'):
+            self.assertEqual((project / 'Assets/SensaLab/Shared' / name).read_bytes(),
+                             (self.repository / 'unity/top.sealoong.sensa/Runtime' / name).read_bytes())
 
-    def test_refuses_non_world_project(self):
-        with tempfile.TemporaryDirectory() as folder:
-            result = subprocess.run([sys.executable, str(SCRIPT), folder], capture_output=True)
-            self.assertNotEqual(result.returncode, 0)
-            self.assertFalse((Path(folder) / 'Assets').exists())
+    def test_local_edits_and_unknown_source_collisions_are_preserved(self):
+        project = self.project('world')
+        self.install(project, 'world')
+        edited = self.write(project / 'Assets/SensaLab/Runtime/LabController.cs', 'local edit')
+        with self.assertRaisesRegex(ValueError, 'Preserve local edits'):
+            self.install(project, 'world')
+        self.assertEqual(edited.read_text(), 'local edit')
+        ownership = project / 'Assets/SensaLab/source-manifest.json'
+        ownership.write_text(json.dumps({}), encoding='utf-8')
+        with self.assertRaises(ValueError):
+            self.install(project, 'world')
+        self.assertEqual(edited.read_text(), 'local edit')
+
+    def test_unowned_directory_is_rejected_without_deleting_user_assets(self):
+        project = self.project('world')
+        scene = self.write(project / 'Assets/SensaLab/Generated/UserScene.unity', 'unowned user scene')
+        with self.assertRaisesRegex(ValueError, 'unowned'):
+            self.install(project, 'world')
+        self.assertEqual(scene.read_text(), 'unowned user scene')
+        self.assertFalse((project / 'Assets/SensaLab/source-manifest.json').exists())
+
+    def test_avatar_and_empty_projects_are_rejected_without_writes(self):
+        for project in (self.project('avatar'), self.root / 'empty'):
+            with self.subTest(project=project), self.assertRaises(ValueError):
+                self.install(project, 'world')
+            self.assertFalse((project / 'Assets').exists())
+
+    def test_missing_shared_source_rejects_the_whole_plan_before_writing(self):
+        project = self.project('world')
+        (self.repository / 'unity/top.sealoong.sensa/Runtime/SensaQuickStartProtocol.cs').unlink()
+        with self.assertRaises(FileNotFoundError):
+            self.install(project, 'world')
+        self.assertFalse((project / 'Assets').exists())

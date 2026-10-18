@@ -1,15 +1,14 @@
-"""Replay two Unity-rendered PNG frames through the real bridge into an isolated Sensa process."""
+"""仅在 GitHub Actions 重放 Unity PNG 到隔离 Sensa 进程。 / CI-only Unity PNG replay into an isolated Sensa process."""
 import argparse
 import json
 import os
 from pathlib import Path
 import shutil
-import socket
 import subprocess
 import sys
-import tempfile
 import time
-import urllib.request
+
+from process_smoke import SmokeSession, require_ci, wait_for_state
 
 def replace_frame(source, target):
     """Use the same replacement primitive as the Unity File.Replace exporter."""
@@ -26,90 +25,69 @@ def replace_frame(source, target):
         raise ctypes.WinError(ctypes.get_last_error())
 
 
-def free_port(kind):
-    with socket.socket(socket.AF_INET,kind) as probe:
-        probe.bind(('127.0.0.1',0));return probe.getsockname()[1]
-
 def main():
-    parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--exe',required=True,type=Path)
-    parser.add_argument('--first',required=True,type=Path)
-    parser.add_argument('--next',required=True,type=Path)
-    parser.add_argument('--report',required=True,type=Path)
-    parser.add_argument('--corrupt',type=Path)
-    parser.add_argument('--recover-first',type=Path)
-    parser.add_argument('--recover-next',type=Path)
-    args=parser.parse_args()
-    if any((args.corrupt,args.recover_first,args.recover_next)) and not all((args.corrupt,args.recover_first,args.recover_next)):
-        parser.error('Fault recovery needs --corrupt, --recover-first and --recover-next together')
-    web,osc=free_port(socket.SOCK_STREAM),free_port(socket.SOCK_DGRAM)
-    with tempfile.TemporaryDirectory(prefix='sensa-shader-smoke-') as folder:
-        root=Path(folder);config=root/'config.json';current=root/'frame.png';shutil.copyfile(args.first,current)
-        config.write_text(json.dumps({'webUi':{'host':'127.0.0.1','port':web,'autoOpenBrowser':False},'osc':{'enabled':True,'receiverHost':'127.0.0.1','receiverPort':osc,'oscQueryEnabled':False,'oscQueryReceiver':{'enabled':False}},'outputs':[]}),encoding='utf-8')
-        with (root/'service.log').open('w',encoding='utf-8') as log:
-            service=subprocess.Popen([str(args.exe.resolve())],cwd=root,env=dict(os.environ,SENSA_CONFIG_PATH=str(config)),stdout=log,stderr=log)
-            bridge=None
-            try:
-                base=f'http://127.0.0.1:{web}';deadline=time.monotonic()+30
-                while True:
-                    try:
-                        response=urllib.request.urlopen(base+'/api/session',timeout=1);cookie=response.headers['Set-Cookie'].split(';')[0];break
-                    except OSError:
-                        if time.monotonic()>deadline:raise TimeoutError('Sensa startup timed out')
-                        time.sleep(.1)
-                def api(path,body=None):
-                    data=None if body is None else json.dumps(body).encode()
-                    request=urllib.request.Request(base+path,data=data,method='GET' if body is None else 'PUT',headers={'Cookie':cookie,'Origin':base,'Content-Type':'application/json'})
-                    with urllib.request.urlopen(request,timeout=3) as response:return json.load(response)
-                configuration=api('/api/config')
-                assert not configuration['outputs'], 'Only an isolated, device-free configuration is allowed'
-                configuration['signals']=[{'oscPath':'Sensa/Lab/Shader/Z','role':'Depth','vrchatMin':0,'vrchatMax':.2},{'oscPath':'Sensa/Lab/Shader/Valid','role':'GateEnable'}]
-                api('/api/config',configuration)
-                api('/api/input/mode',{'mode':'osc'})
-                bridge=subprocess.Popen([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
-                def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}
-                def wait_gate(value,timeout=3):
-                    until=time.monotonic()+timeout
-                    while True:
-                        values=preview()
-                        if values.get('Sensa/Lab/Shader/Valid')==value:return values
-                        if time.monotonic()>until:raise AssertionError(f'Missing gate={value}: {values}')
-                        time.sleep(.04)
-                wait_gate(0)
-                # Atomically replace the source, matching the editor PNG exporter.
-                def replace_image(path):
-                    next_file=root/'next.png';shutil.copyfile(path,next_file);replace_frame(next_file,current)
-                def wait_motion_gate(closed):
-                    until=time.monotonic()+2
-                    while api('/api/state/overview')['runtime']['gateClosed']!=closed:
-                        assert time.monotonic()<until,'Motion gate did not change'
-                        time.sleep(.03)
-                replace_image(args.next)
-                fresh=wait_gate(1)
-                expected=(.06,0,.12)
-                for axis,value in zip('XYZ',expected):assert abs(fresh['Sensa/Lab/Shader/'+axis]-value)<.00005
-                api('/api/input/active',{'active':True})
-                time.sleep(.1)
-                mapped=api('/api/state/overview')['runtime']['command']['l0']
-                assert abs(mapped-.6)<.001, mapped
-                if args.corrupt:
-                    replace_image(args.corrupt);wait_gate(0);wait_motion_gate(True)
-                    replace_image(args.next);time.sleep(.12)
-                    assert preview()['Sensa/Lab/Shader/Valid']==0,'An old good frame reopened the gate after CRC failure'
-                    replace_image(args.recover_first);time.sleep(.12)
-                    assert preview()['Sensa/Lab/Shader/Valid']==0,'One recovery frame reopened the gate'
-                    replace_image(args.recover_next);wait_gate(1);wait_motion_gate(False)
-                stale=wait_gate(0)
-                wait_motion_gate(True)
-                api('/api/input/active',{'active':False})
-                assert not api('/api/config')['outputs']
-                report={'passed':True,'source':'Actual Unity GPU-encoded PNG snapshots replayed; not live VR capture','timeoutSeconds':.8,'fresh':fresh,'mappedL0':mapped,'crcStopsMotion':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'motionGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
-                args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('Shader PNG -> bridge -> Sensa OSC passed; frozen frame gate closed; no outputs configured.')
-            finally:
-                for process in (bridge,service):
-                    if process is None:continue
-                    process.terminate()
-                    try:process.wait(timeout=5)
-                    except subprocess.TimeoutExpired:process.kill();process.wait()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--exe', required=True, type=Path, help='Sensa 可执行文件。 / Sensa executable.')
+    parser.add_argument('--first', required=True, type=Path, help='首个 Unity PNG。 / First Unity PNG.')
+    parser.add_argument('--next', required=True, type=Path, help='后继 Unity PNG。 / Next Unity PNG.')
+    parser.add_argument('--report', required=True, type=Path, help='结果 JSON 路径。 / Result JSON path.')
+    parser.add_argument('--corrupt', type=Path, help='CRC 损坏帧。 / Corrupt CRC frame.')
+    parser.add_argument('--recover-first', type=Path, help='首个恢复帧。 / First recovery frame.')
+    parser.add_argument('--recover-next', type=Path, help='第二个恢复帧。 / Second recovery frame.')
+    args = parser.parse_args()
+    try:
+        require_ci()
+    except RuntimeError as error:
+        parser.error(str(error))
+    if any((args.corrupt, args.recover_first, args.recover_next)) and not all((args.corrupt, args.recover_first, args.recover_next)):
+        parser.error('故障恢复需要全部三个帧参数。 / Fault recovery needs --corrupt, --recover-first and --recover-next together.')
+    with SmokeSession([str(args.exe.resolve())], osc_enabled=True, report_dir=args.report.parent / 'process') as session:
+        root, osc, api = session.root, session.osc_port, session.api
+        current = root / 'frame.png'
+        shutil.copyfile(args.first, current)
+        configuration=api('/api/config')
+        assert not configuration['outputs'], 'Only an isolated, device-free configuration is allowed'
+        configuration['signals']=[{'oscPath':'Sensa/Lab/Shader/Z','role':'Depth','vrchatMin':0,'vrchatMax':.2},{'oscPath':'Sensa/Lab/Shader/Valid','role':'GateEnable'}]
+        api('/api/config',configuration)
+        api('/api/input/mode',{'mode':'osc'})
+        assert not api('/api/state/overview')['runtime']['inputActive'], '切换模式必须关闭输入。 / Changing mode must disarm input.'
+        bridge=session.start_child([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
+        def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}
+        def wait_gate(value, timeout=3):
+            return wait_for_state(preview, lambda values: values.get('Sensa/Lab/Shader/Valid') == value,
+                                  f'未收到 Valid 门控 / Missing Valid gate={value}', timeout=timeout)
+        wait_gate(0)
+        # Atomically replace the source, matching the editor PNG exporter.
+        def replace_image(path):
+            next_file=root/'next.png';shutil.copyfile(path,next_file);replace_frame(next_file,current)
+        def wait_motion_gate(closed):
+            return wait_for_state(lambda: api('/api/state/overview'),
+                                  lambda overview: overview['runtime']['gateClosed'] == closed,
+                                  '运动门控未变化。 / Motion gate did not change.', timeout=2)
+        replace_image(args.next)
+        fresh=wait_gate(1)
+        expected=(.06,0,.12)
+        for axis,value in zip('XYZ',expected):assert abs(fresh['Sensa/Lab/Shader/'+axis]-value)<.00005
+        api('/api/input/active',{'active':True})
+        mapped = wait_for_state(lambda: api('/api/state/overview'),
+                                lambda overview: abs(overview['runtime']['command']['l0'] - .6) < .001,
+                                '新鲜遥测未映射为 L0。 / Fresh telemetry did not map to L0.')['runtime']['command']['l0']
+        assert abs(mapped-.6)<.001, mapped
+        if args.corrupt:
+            replace_image(args.corrupt);wait_gate(0);wait_motion_gate(True)
+            replace_image(args.next);time.sleep(.12)
+            assert preview()['Sensa/Lab/Shader/Valid']==0,'An old good frame reopened the gate after CRC failure'
+            replace_image(args.recover_first);time.sleep(.12)
+            assert preview()['Sensa/Lab/Shader/Valid']==0,'One recovery frame reopened the gate'
+            replace_image(args.recover_next);wait_gate(1);wait_motion_gate(False)
+        stale=wait_gate(0)
+        wait_motion_gate(True)
+        api('/api/input/active',{'active':False})
+        assert not api('/api/config')['outputs']
+        report={'passed':True,'source':'Actual Unity GPU-encoded PNG snapshots replayed; not live VR capture','timeoutSeconds':.8,'fresh':fresh,'mappedL0':mapped,'crcStopsMotion':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'motionGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
+        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('Shader PNG → bridge → Sensa OSC 通过；冻结帧关闭门控，未配置设备。 / Shader PNG -> bridge -> Sensa OSC passed; frozen frame gate closed; no outputs configured.')
+        session.complete()
 
-if __name__=='__main__':main()
+
+if __name__ == '__main__':
+    main()

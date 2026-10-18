@@ -1,4 +1,4 @@
-"""Run a device-free HTTP/WebSocket smoke test from an unrelated working directory."""
+"""仅在 GitHub Actions 运行无设备 HTTP/WS/OSC 冒烟。 / CI-only device-free HTTP/WS/OSC smoke."""
 import argparse
 import base64
 import json
@@ -6,13 +6,12 @@ import importlib.util
 import os
 from pathlib import Path
 import socket
-import shutil
 import struct
-import subprocess
-import tempfile
 import time
 import urllib.error
 import urllib.request
+
+from process_smoke import SmokeSession, require_ci, wait_for_state
 
 def frame(payload):
     data = json.dumps(payload).encode(); mask = os.urandom(4)
@@ -34,168 +33,133 @@ def read_frame(sock):
     data = read_exact(sock, size)
     return json.loads(data) if head[0] & 15 == 1 else None
 
-def wait_for_state(fetch, predicate, description, timeout=5):
-    deadline = time.monotonic() + timeout
-    while True:
-        state = fetch()
-        if predicate(state):
-            return state
-        if time.monotonic() >= deadline:
-            raise AssertionError(description + '; last observed state: ' + json.dumps(state, ensure_ascii=False))
-        time.sleep(.05)
-
 def main():
-    parser = argparse.ArgumentParser(); parser.add_argument('--dotnet', default='dotnet'); parser.add_argument('--dll'); parser.add_argument('--exe')
-    parser.add_argument('--report-dir', type=Path)
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--dotnet', default='dotnet', help='dotnet 可执行文件。 / dotnet executable.')
+    executable = parser.add_mutually_exclusive_group(required=True)
+    executable.add_argument('--dll', help='待验证的 Sensa DLL。 / Sensa DLL to verify.')
+    executable.add_argument('--exe', help='待验证的 Sensa 可执行文件。 / Sensa executable to verify.')
+    parser.add_argument('--report-dir', type=Path, help='诊断输出目录。 / Diagnostic output directory.')
     args = parser.parse_args()
+    try:
+        require_ci()
+    except RuntimeError as error:
+        parser.error(str(error))
     report_dir = args.report_dir.resolve() if args.report_dir else None
-    if report_dir: report_dir.mkdir(parents=True, exist_ok=True)
-    passed = False
-    with socket.socket() as probe:
-        probe.bind(('127.0.0.1', 0)); port = probe.getsockname()[1]
-    base = f'http://127.0.0.1:{port}'
-    with tempfile.TemporaryDirectory(prefix='sensa-smoke-') as tmp:
-        config = Path(tmp) / 'config.json'
-        config.write_text(json.dumps({'webUi': {'host':'127.0.0.1', 'port':port, 'autoOpenBrowser':False}, 'osc':{'enabled':False,'oscQueryEnabled':False,'oscQueryReceiver':{'enabled':False}}, 'outputs':[]}))
-        env = dict(os.environ, SENSA_CONFIG_PATH=str(config))
-        command = [str(Path(args.exe).resolve())] if args.exe else [str(Path(args.dotnet).resolve()) if '/' in args.dotnet or '\\' in args.dotnet else args.dotnet, str(Path(args.dll).resolve())]
-        with open(Path(tmp) / 'service.log', 'w+', encoding='utf-8') as log:
-            process = subprocess.Popen(command, cwd=tmp, env=env, stdout=log, stderr=log)
-            try:
-                deadline = time.monotonic() + 25
+    dotnet = str(Path(args.dotnet).resolve()) if '/' in args.dotnet or '\\' in args.dotnet else args.dotnet
+    launch_command = [str(Path(args.exe).resolve())] if args.exe else [dotnet, str(Path(args.dll).resolve())]
+    with SmokeSession(launch_command, report_dir=report_dir) as session:
+        base, port, cookie = session.base, session.port, session.cookie
+        assert b'app.bundle.js' in session.request('/', authenticated=False).read()
+        assert len(session.request('/app.bundle.js', authenticated=False).read()) > 1000
+        def request(path, headers=None):
+            return session.request(path, headers=headers, authenticated=False)
+        try: request('/api/config'); raise AssertionError('Missing authentication accepted')
+        except urllib.error.HTTPError as error: assert error.code == 401
+        try: request('/api/config', {'Cookie':cookie, 'Origin':'http://untrusted.invalid'}); raise AssertionError('Cross origin accepted')
+        except urllib.error.HTTPError as error: assert error.code == 403
+        snapshot = json.load(request('/api/state/overview', {'Cookie':cookie}))
+        assert not snapshot['runtime']['inputActive']
+        assert isinstance(json.load(request('/api/meta/serial-ports', {'Cookie':cookie})), list)
+        with socket.create_connection(('127.0.0.1', port), timeout=15) as ws:
+            key = base64.b64encode(os.urandom(16)).decode()
+            ws.sendall((f'GET /api/ws HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nOrigin: {base}\r\nCookie: {cookie}\r\n\r\n').encode())
+            headers = bytearray()
+            while not headers.endswith(b'\r\n\r\n'): headers.extend(read_exact(ws, 1))
+            assert b'101' in headers
+            for i in range(30): ws.sendall(frame({'id':str(i), 'method':'GET', 'path':'/api/state/overview'}))
+            received = set()
+            while len(received) < 30:
+                message = read_frame(ws)
+                if message and message.get('id') is not None:
+                    assert message['ok']; received.add(message['id'])
+            def command(path, method='POST', body=None):
+                marker = 'cmd-' + path
+                ws.sendall(frame({'id':marker,'method':method,'path':path,'body':body}))
+                deadline=time.monotonic()+30
                 while True:
-                    try:
-                        response = urllib.request.urlopen(base + '/api/session', timeout=1)
-                        cookie = response.headers['Set-Cookie'].split(';')[0]; break
-                    except (OSError, urllib.error.URLError):
-                        if time.monotonic() > deadline or process.poll() is not None:
-                            log.seek(0); raise AssertionError(log.read())
-                        time.sleep(.1)
-                assert b'app.bundle.js' in urllib.request.urlopen(base, timeout=10).read()
-                assert len(urllib.request.urlopen(base + '/app.bundle.js', timeout=10).read()) > 1000
-                def request(path, headers=None):
-                    return urllib.request.urlopen(urllib.request.Request(base + path, headers=headers or {}), timeout=10)
-                try: request('/api/config'); raise AssertionError('Missing authentication accepted')
-                except urllib.error.HTTPError as error: assert error.code == 401
-                try: request('/api/config', {'Cookie':cookie, 'Origin':'http://untrusted.invalid'}); raise AssertionError('Cross origin accepted')
-                except urllib.error.HTTPError as error: assert error.code == 403
-                snapshot = json.load(request('/api/state/overview', {'Cookie':cookie}))
-                assert not snapshot['runtime']['inputActive']
-                assert isinstance(json.load(request('/api/meta/serial-ports', {'Cookie':cookie})), list)
-                with socket.create_connection(('127.0.0.1', port), timeout=15) as ws:
-                    key = base64.b64encode(os.urandom(16)).decode()
-                    ws.sendall((f'GET /api/ws HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\nOrigin: {base}\r\nCookie: {cookie}\r\n\r\n').encode())
-                    headers = bytearray()
-                    while not headers.endswith(b'\r\n\r\n'): headers.extend(read_exact(ws, 1))
-                    assert b'101' in headers
-                    for i in range(30): ws.sendall(frame({'id':str(i), 'method':'GET', 'path':'/api/state/overview'}))
-                    received = set()
-                    while len(received) < 30:
-                        message = read_frame(ws)
-                        if message and message.get('id') is not None:
-                            assert message['ok']; received.add(message['id'])
-                    def command(path, method='POST', body=None):
-                        marker = 'cmd-' + path
-                        ws.sendall(frame({'id':marker,'method':method,'path':path,'body':body}))
-                        deadline=time.monotonic()+30
-                        while True:
-                            if time.monotonic()>deadline:raise TimeoutError('No WebSocket response for '+method+' '+path)
-                            result = read_frame(ws)
-                            if result and result.get('id') == marker:
-                                assert result['ok'], result
-                                return result['data']
-                    def wait_overview(predicate, description):
-                        return wait_for_state(lambda: command('/api/state/overview', 'GET'), predicate, description)
-                    configuration = command('/api/config', 'GET')
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                        udp.bind(('127.0.0.1', 0)); osc_port = udp.getsockname()[1]
-                    configuration['osc'].update(enabled=True, receiverHost='127.0.0.1', receiverPort=osc_port, oscQueryEnabled=False)
-                    command('/api/config', 'PUT', configuration)
-                    command('/api/input/mode', 'PUT', {'mode':'osc'})
-                    def osc_string(value):
-                        data = value.encode() + b'\0'
-                        return data + b'\0' * (-len(data) % 4)
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                        for name, value in [('OGB/Orf/Test/PenOthers', .8)] + [(f'Face/v2/JawOpen{i}', .5) for i in range(300)] + [('InvalidFloat', float('nan'))]:
-                            udp.sendto(osc_string('/avatar/parameters/' + name) + osc_string(',f') + struct.pack('!f', value), ('127.0.0.1', osc_port))
-                            time.sleep(.001)
-                    snapshot = wait_overview(lambda s: len(s['osc']['preview']) >= 250 and any(e['path'] == 'OGB/Orf/Test/PenOthers' for e in s['osc']['preview']), 'OSC flood was not received')
-                    preview = {e['path']: e for e in snapshot['osc']['preview']}
-                    assert 'OGB/Orf/Test/PenOthers' in preview
-                    assert len(preview) >= 250, len(preview)
-                    assert preview['Face/v2/JawOpen1']['classification']['isFaceTracking']
-                    assert 'InvalidFloat' not in preview
-                    assert not snapshot['runtime']['inputActive']
-                    fixture_spec = importlib.util.spec_from_file_location('pose_fixture', Path(__file__).with_name('pose-demo.py'))
-                    fixture = importlib.util.module_from_spec(fixture_spec); fixture_spec.loader.exec_module(fixture)
-                    configuration = command('/api/config', 'GET')
-                    assert not configuration['outputs'], 'Smoke test must never enable hardware'
-                    presets = json.loads((Path(__file__).resolve().parents[1] / 'src/web/data/osc-presets.json').read_text(encoding='utf-8'))
-                    configuration['signals'] = next(p['mappings'] for p in presets if p['id'] == 'sensa-quick-start')
-                    command('/api/input/active', 'PUT', {'active':True})
-                    command('/api/config', 'PUT', configuration)
-                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Saving mappings must close input'
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                        command('/api/input/active', 'PUT', {'active':True})
-                        for depth in (0, .25, .5, .75, 1):
-                            udp.sendto(fixture.bundle([('Sensa/QuickStart/Depth', depth), ('Sensa/QuickStart/Active', 1)]), ('127.0.0.1', osc_port))
-                            wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'QuickStart step {depth} did not reach Sensa')
-                        udp.sendto(fixture.bundle([('Sensa/QuickStart/Active', 0)]), ('127.0.0.1', osc_port))
-                        wait_overview(lambda s: s['runtime']['gateClosed'], 'World STOP did not close the QuickStart gate')
-                    configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
-                    command('/api/config', 'PUT', configuration)
-                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from QuickStart must leave input closed'
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                        udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
-                        command('/api/input/active', 'PUT', {'active':True})
-                        snapshot = wait_overview(lambda s: len(s['poseTracking']['observations']) > 0 and abs(s['runtime']['command']['l0'] - .5) < .001 and not s['runtime']['poseBlocked'], 'Paired pose did not produce expected L0')
-                        pose = snapshot['poseTracking']['observations'][0]
-                        assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
-                        assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
-                        standard = [(path.replace('Sensa/Pose/v1/', 'Sensa/SpsRoot/v1/'), value)
-                                    for path, value in fixture.samples((.025,-.02,-.1),(0,0,0),(0,0,0),radius=.01) if '/Root/' in path]
-                        udp.sendto(fixture.bundle(standard), ('127.0.0.1', osc_port))
-                        snapshot = wait_overview(lambda s: any(p['valid'] and p['sampleCount'] == 8 for p in s['poseTracking']['spsRoots']), 'Root diagnostic samples missing')
-                        root = snapshot['poseTracking']['spsRoots'][0]
-                        assert root['valid'] and root['sampleCount'] == 8
-                        assert abs(root['position']['x'] - .025) < .0001
-                        assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
-                        udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
-                        wait_overview(lambda s: s['runtime']['poseBlocked'], 'Lost pose did not block motion')
-                    configuration = command('/api/config', 'GET')
-                    configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
-                    command('/api/config', 'PUT', configuration)
-                    assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching to PB must leave input closed'
-                    handle_prefix = 'Sensa/Handle/v1/Grip/Self'
-                    root_values = [value for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
-                    values = [(handle_prefix + f'/Root/A{i}', root_values[anchor]) for i, anchor in enumerate((0,3,5,6))]
-                    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-                        udp.sendto(fixture.bundle(values + [(handle_prefix+'/Handle_IsGrabbed',1)]), ('127.0.0.1',osc_port))
-                        command('/api/input/active','PUT',{'active':True})
-                        snapshot = wait_overview(lambda s: not s['runtime']['poseBlocked'] and any(p['kind'] == 'Handle' and p['valid'] for p in s['poseTracking']['spsRoots']) and abs(s['runtime']['command']['l0'] - .5) < .001, 'PB input did not produce expected L0')
-                        assert abs(snapshot['runtime']['command']['l0']-.5)<.001
-                        assert any(p['kind']=='Handle' and p['valid'] for p in snapshot['poseTracking']['spsRoots'])
-                        udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
-                        wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
-                    command('/api/input/active','PUT',{'active':False})
-                print('HTTP/WS smoke passed: authentication, FT flood, QuickStart five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
-                passed = True
-            except BaseException:
-                stack_tool = shutil.which('dotnet-stack')
-                if stack_tool and process.poll() is None:
-                    try:
-                        subprocess.run([stack_tool, 'report', '--process-id', str(process.pid)], timeout=30, check=False)
-                    except (OSError, subprocess.TimeoutExpired) as error:
-                        print('Could not collect managed stacks:', error)
-                log.flush();log.seek(0);print(log.read()[-20000:])
-                raise
-            finally:
-                process.terminate()
-                try: process.wait(timeout=5)
-                except subprocess.TimeoutExpired: process.kill(); process.wait()
-                if report_dir:
-                    log.flush()
-                    shutil.copyfile(Path(tmp) / 'service.log', report_dir / 'service.log')
-                    (report_dir / 'result.json').write_text(json.dumps({'passed': passed, 'outputs': [], 'scope': 'Isolated HTTP/WS/OSC process; no hardware'}, indent=2) + '\n', encoding='utf-8')
+                    if time.monotonic()>deadline:raise TimeoutError('No WebSocket response for '+method+' '+path)
+                    result = read_frame(ws)
+                    if result and result.get('id') == marker:
+                        assert result['ok'], result
+                        return result['data']
+            def wait_overview(predicate, description):
+                return wait_for_state(lambda: command('/api/state/overview', 'GET'), predicate, description)
+            configuration = command('/api/config', 'GET')
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                udp.bind(('127.0.0.1', 0)); osc_port = udp.getsockname()[1]
+            configuration['osc'].update(enabled=True, receiverHost='127.0.0.1', receiverPort=osc_port, oscQueryEnabled=False)
+            command('/api/config', 'PUT', configuration)
+            command('/api/input/mode', 'PUT', {'mode':'osc'})
+            def osc_string(value):
+                data = value.encode() + b'\0'
+                return data + b'\0' * (-len(data) % 4)
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                for name, value in [('OGB/Orf/Test/PenOthers', .8)] + [(f'Face/v2/JawOpen{i}', .5) for i in range(300)] + [('InvalidFloat', float('nan'))]:
+                    udp.sendto(osc_string('/avatar/parameters/' + name) + osc_string(',f') + struct.pack('!f', value), ('127.0.0.1', osc_port))
+                    time.sleep(.001)
+            snapshot = wait_overview(lambda s: len(s['osc']['preview']) >= 250 and any(e['path'] == 'OGB/Orf/Test/PenOthers' for e in s['osc']['preview']), 'OSC flood was not received')
+            preview = {e['path']: e for e in snapshot['osc']['preview']}
+            assert 'OGB/Orf/Test/PenOthers' in preview
+            assert len(preview) >= 250, len(preview)
+            assert preview['Face/v2/JawOpen1']['classification']['isFaceTracking']
+            assert 'InvalidFloat' not in preview
+            assert not snapshot['runtime']['inputActive']
+            fixture_spec = importlib.util.spec_from_file_location('pose_fixture', Path(__file__).with_name('pose-demo.py'))
+            fixture = importlib.util.module_from_spec(fixture_spec); fixture_spec.loader.exec_module(fixture)
+            configuration = command('/api/config', 'GET')
+            assert not configuration['outputs'], 'Smoke test must never enable hardware'
+            presets = json.loads((Path(__file__).resolve().parents[1] / 'src/web/data/osc-presets.json').read_text(encoding='utf-8'))
+            configuration['signals'] = next(p['mappings'] for p in presets if p['id'] == 'sensa-quick-start')
+            command('/api/input/active', 'PUT', {'active':True})
+            command('/api/config', 'PUT', configuration)
+            assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Saving mappings must close input'
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                command('/api/input/active', 'PUT', {'active':True})
+                for depth in (0, .25, .5, .75, 1):
+                    udp.sendto(fixture.bundle([('Sensa/QuickStart/Depth', depth), ('Sensa/QuickStart/Active', 1)]), ('127.0.0.1', osc_port))
+                    wait_overview(lambda s: not s['runtime']['gateClosed'] and abs(s['runtime']['command']['l0'] - depth) <= .0011, f'QuickStart step {depth} did not reach Sensa')
+                udp.sendto(fixture.bundle([('Sensa/QuickStart/Active', 0)]), ('127.0.0.1', osc_port))
+                wait_overview(lambda s: s['runtime']['gateClosed'], 'World STOP did not close the QuickStart gate')
+            configuration['signals'] = [{'oscPath':'Sensa/Pose/v1/*/*/**','sourceMode':'SensaPose','poseMetric':'Depth','role':'Depth','vrchatMin':0,'vrchatMax':1}]
+            command('/api/config', 'PUT', configuration)
+            assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching away from QuickStart must leave input closed'
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                udp.sendto(fixture.bundle(fixture.samples((.02,0,-.1),(.02,0,.1),(.05,0,-.1))), ('127.0.0.1', osc_port))
+                command('/api/input/active', 'PUT', {'active':True})
+                snapshot = wait_overview(lambda s: len(s['poseTracking']['observations']) > 0 and abs(s['runtime']['command']['l0'] - .5) < .001 and not s['runtime']['poseBlocked'], 'Paired pose did not produce expected L0')
+                pose = snapshot['poseTracking']['observations'][0]
+                assert pose['valid'] and pose['engaged'] and pose['sampleCount'] == 24
+                assert abs(snapshot['runtime']['command']['l0'] - .5) < .001
+                standard = [(path.replace('Sensa/Pose/v1/', 'Sensa/SpsRoot/v1/'), value)
+                            for path, value in fixture.samples((.025,-.02,-.1),(0,0,0),(0,0,0),radius=.01) if '/Root/' in path]
+                udp.sendto(fixture.bundle(standard), ('127.0.0.1', osc_port))
+                snapshot = wait_overview(lambda s: any(p['valid'] and p['sampleCount'] == 8 for p in s['poseTracking']['spsRoots']), 'Root diagnostic samples missing')
+                root = snapshot['poseTracking']['spsRoots'][0]
+                assert root['valid'] and root['sampleCount'] == 8
+                assert abs(root['position']['x'] - .025) < .0001
+                assert abs(snapshot['runtime']['command']['l0'] - .5) < .001, 'Diagnostic probe changed motion'
+                udp.sendto(fixture.bundle([('Sensa/Pose/v1/Demo/Others/Tip/A0',0)]), ('127.0.0.1', osc_port))
+                wait_overview(lambda s: s['runtime']['poseBlocked'], 'Lost pose did not block motion')
+            configuration = command('/api/config', 'GET')
+            configuration['signals'] = [{'oscPath':'Sensa/Handle/v1/Grip/Self/**','sourceMode':'SensaPoint','pointMetric':'Z','role':'Depth','vrchatMin':0,'vrchatMax':.2}]
+            command('/api/config', 'PUT', configuration)
+            assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Switching to PB must leave input closed'
+            handle_prefix = 'Sensa/Handle/v1/Grip/Self'
+            root_values = [value for path, value in fixture.samples((.02,0,.1),(0,0,0),(0,0,0)) if '/Root/' in path]
+            values = [(handle_prefix + f'/Root/A{i}', root_values[anchor]) for i, anchor in enumerate((0,3,5,6))]
+            with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
+                udp.sendto(fixture.bundle(values + [(handle_prefix+'/Handle_IsGrabbed',1)]), ('127.0.0.1',osc_port))
+                command('/api/input/active','PUT',{'active':True})
+                snapshot = wait_overview(lambda s: not s['runtime']['poseBlocked'] and any(p['kind'] == 'Handle' and p['valid'] for p in s['poseTracking']['spsRoots']) and abs(s['runtime']['command']['l0'] - .5) < .001, 'PB input did not produce expected L0')
+                assert abs(snapshot['runtime']['command']['l0']-.5)<.001
+                assert any(p['kind']=='Handle' and p['valid'] for p in snapshot['poseTracking']['spsRoots'])
+                udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
+                wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
+            command('/api/input/active','PUT',{'active':False})
+        print('HTTP/WS 冒烟通过：身份验证、FT、QuickStart 五档/STOP、保存后关闭输入、Pose/Root 隔离及 PB 释放。 / HTTP/WS smoke passed: authentication, FT flood, QuickStart five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
+        session.complete()
 
-if __name__ == '__main__': main()
+
+if __name__ == '__main__':
+    main()

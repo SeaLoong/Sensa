@@ -33,7 +33,7 @@ Browser/container versions, viewport, language and timezone are fixed. Masks cov
 
 ## Regression matrix
 
-Nine core scenarios plus three English scenarios per viewport give **24 tests**. No retries; after three failures the remaining tests stop and are not considered passed.
+Nine core, three English and two input-safety scenarios per viewport give **28 tests**. Workers reuse mock peers while every scenario retains an independent temporary configuration and application process. Additional assertions cover disarming on mode/script changes, paused seeking and player stopping. No retries; after three failures the remaining tests stop and are not considered passed.
 
 | Flow | Assertions |
 | --- | --- |

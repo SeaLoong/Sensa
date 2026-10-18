@@ -1,4 +1,4 @@
-import { t, getLocale } from './i18n.js';
+import { t } from './i18n.js';
 const order=['L0','L1','L2','R0','R1','R2','V0','V1','V2','A0','A1','A2'];
 export function outputPreview(state) {
   const telemetry=state?.telemetry;

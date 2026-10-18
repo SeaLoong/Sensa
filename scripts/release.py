@@ -1,4 +1,4 @@
-"""Validate version tags and package immutable release assets (stdlib only)."""
+"""Validate tags and package immutable assets. / 验证标签并打包不可变资产；仅标准库."""
 import argparse
 import hashlib
 import json
@@ -21,21 +21,21 @@ def validate_unity():
         if item.suffix == '.meta':
             match = re.search(r'^guid: ([0-9a-f]{32})$', item.read_text(), re.M)
             if not match or match[1] in guids:
-                raise ValueError(f'Invalid or duplicate GUID: {item}')
+                raise ValueError(f'Invalid or duplicate GUID / GUID 无效或重复: {item}')
             guids.add(match[1])
         elif not Path(str(item) + '.meta').is_file():
-            raise ValueError(f'Missing .meta: {item}')
+            raise ValueError(f'Missing .meta / 缺少 .meta: {item}')
     for item in list(root.rglob('*.prefab')) + list(root.rglob('*.asset')):
         text = item.read_text(encoding='utf-8')
         references = re.findall(r'guid: ([0-9a-f]{32})', text)
         if any(reference not in guids for reference in references):
-            raise ValueError(f'Unresolved asset/script GUID: {item}')
+            raise ValueError(f'Unresolved asset/script GUID / 资产或脚本 GUID 无法解析: {item}')
         definitions = re.findall(r'^--- !u!\d+ &(\d+)', text, re.M)
         if len(definitions) != len(set(definitions)):
-            raise ValueError(f'Duplicate file ID: {item}')
+            raise ValueError(f'Duplicate file ID / 文件 ID 重复: {item}')
         for reference in re.findall(r'\{fileID: (\d+)\}', text):
             if reference != '0' and reference not in definitions:
-                raise ValueError(f'Unresolved local reference {reference}: {item}')
+                raise ValueError(f'Unresolved local reference / 本地引用无法解析 {reference}: {item}')
     runtime = json.loads((root / 'Runtime/UnityBox.Sensa.asmdef').read_text())
     editor = json.loads((root / 'Editor/UnityBox.Sensa.Editor.asmdef').read_text())
     macro = 'SENSA_HAS_VRCRAYCAST'
@@ -45,11 +45,11 @@ def validate_unity():
 def validate_tag(kind, tag):
     prefix = 'unity-v' if kind == 'unity' else 'v'
     if not re.fullmatch(re.escape(prefix) + r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', tag):
-        raise ValueError('Tag must contain a complete semantic version')
+        raise ValueError('Tag must contain a complete semantic version / 标签必须包含完整语义版本')
     version = tag[len(prefix):]
     info = validate_unity() if kind == 'unity' else json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))
     if version != info['version']:
-        raise ValueError(f'Tag version {version} differs from manifest {info["version"]}')
+        raise ValueError(f'Tag/manifest versions differ / 标签与清单版本不一致: {version} / {info["version"]}')
     return version, info
 
 def zip_directory(root, output):
@@ -80,10 +80,10 @@ def main():
     parser.add_argument('--label', default='')
     args = parser.parse_args()
     if args.kind == 'check-unity':
-        validate_unity(); print('Unity package metadata validated'); return
+        validate_unity(); print('Unity package metadata validated / Unity 包元数据验证通过'); return
     version, info = validate_tag(args.kind, args.tag)
     if args.label and not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,95}',args.label):
-        raise ValueError('Invalid build label')
+        raise ValueError('Invalid build label / 构建标识无效')
     archive_version=version+('-'+args.label if args.label else '')
     if os.environ.get('GITHUB_OUTPUT'):
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
@@ -93,8 +93,8 @@ def main():
     if args.kind == 'app':
         executable='Sensa.exe' if args.runtime.startswith('win-') else 'Sensa'
         if not (source / executable).is_file() or not (source / 'web/app.bundle.js').is_file():
-            raise ValueError('Application output is incomplete')
-        for name in ('README.md', 'README.en.md', 'LICENSE'):
+            raise ValueError('Application output is incomplete / 程序输出不完整')
+        for name in ('README.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
         # Keep the README's relative documentation links usable in the desktop archive.
         for relative in ('unity/top.sealoong.sensa/AUTOMATION.md', 'unity/top.sealoong.sensa/COMPATIBILITY.md',
@@ -129,7 +129,7 @@ def main():
         info['url'] = f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/download/{args.tag}/{name}'
         info['sha256'] = digest
         (output / 'vpm-package.json').write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding='utf-8')
-    notes = f'{"Unity VPM package" if args.kind == "unity" else args.runtime+" self-contained build"} {archive_version}\n\nSHA256: `{digest}`\n'
+    notes = f'{"Unity VPM package / Unity VPM 资产包" if args.kind == "unity" else args.runtime+" self-contained build / 自包含程序"} {archive_version}\n\nSHA256 / 校验值: `{digest}`\n'
     notes_path=ROOT/'artifacts/release-notes.txt';notes_path.parent.mkdir(parents=True,exist_ok=True)
     notes_path.write_text(notes, encoding='utf-8')
     print(name)

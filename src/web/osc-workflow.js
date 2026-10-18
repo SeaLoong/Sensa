@@ -1,4 +1,4 @@
-import { t, getLocale } from './i18n.js';
+import { t } from './i18n.js';
 export function oscWorkflowHints({ mappings = [], drafts = [], dirty = false, runtime = {}, mode = '', listening = false }) {
   const hints = [];
   const add = (key, text, severity = 'info') => hints.push({ key, text, severity });

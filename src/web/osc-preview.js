@@ -1,4 +1,4 @@
-import { t, getLocale } from './i18n.js';
+import { t } from './i18n.js';
 export function globMatch(pattern, path) {
   const patterns = pattern.split('/'), segments = path.split('/');
   if (patterns.length > 64 || segments.length > 64) return false;
@@ -62,7 +62,7 @@ function baseParameterMeaning(path) {
 
 export function readPinnedPaths(storage) {
   try {
-    const values = JSON.parse(storage.getItem('sensa.osc.pins.v1') || '[]');
+    const values = JSON.parse((storage || globalThis.localStorage).getItem('sensa.osc.pins.v1') || '[]');
     return Array.isArray(values) ? values.filter(value => typeof value === 'string' && value.length <= 512).slice(0, 64) : [];
   } catch { return []; }
 }

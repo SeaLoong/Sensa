@@ -1,4 +1,4 @@
-import { t, getLocale, diagnostic, docUrl } from './i18n.js';
+import { t, docUrl } from './i18n.js';
 import React from 'react';
 import { Alert, Box, Typography } from '@mui/material';
 import { oscWorkflowHints } from './osc-workflow.js';

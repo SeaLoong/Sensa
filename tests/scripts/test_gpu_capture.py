@@ -1,97 +1,122 @@
-import importlib.util
-from pathlib import Path
-import unittest
+"""Offline GPU geometry contracts. / 离线 GPU 几何契约。"""
+from contextlib import redirect_stderr, redirect_stdout
+import io
 import json
-import subprocess
+import math
 import sys
-import tempfile
+import unittest
+from unittest.mock import patch
 
-spec = importlib.util.spec_from_file_location('gpu_capture', Path(__file__).resolve().parents[2] / 'scripts/analyze-gpu-capture.py')
-gpu = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(gpu)
+from lab_contract_fixtures import LabFixture, load_script
+
+gpu = load_script('analyze-gpu-capture')
 
 
 def capture(points=None):
     return dict(schema='sensa.sps-gpu-model.v1', valid=True, worldLength=.2,
                 entryPosition=dict(x=0, y=0, z=0), entryNormal=dict(x=0, y=0, z=1),
-                centerline=points or [dict(x=.01, y=0, z=-.1 + .2 * i / 32) for i in range(33)],
+                centerline=points if points is not None else [dict(x=.01, y=0, z=-.1 + .2 * i / 32) for i in range(33)],
                 firstSegmentStrength=[1] * 33)
 
 
-class GpuCaptureTests(unittest.TestCase):
-    def test_cli_accepts_explicit_file_and_rejects_corruption(self):
-        with tempfile.TemporaryDirectory() as folder:
-            path = Path(folder) / 'capture.json'
-            path.write_text(json.dumps(capture()), encoding='utf-8')
-            command = [sys.executable, '-X', 'utf8', spec.origin, str(path)]
-            result = subprocess.run(command, capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertTrue(json.loads(result.stdout)['diagnosticOnly'])
-            path.write_text('{broken', encoding='utf-8')
-            result = subprocess.run(command, capture_output=True, text=True)
-            self.assertEqual(result.returncode, 2)
-            self.assertIn('Invalid capture', result.stderr)
+class ModelPlaneCrossingContracts(unittest.TestCase):
+    def test_sampled_and_interpolated_forward_crossings_remain_diagnostic_only(self):
+        for plane_z, expected_arc in ((0, .1), (.003, .097)):
+            with self.subTest(plane_z=plane_z):
+                data = capture()
+                data['entryPosition']['z'] = plane_z
+                result = gpu.analyze(data)
+                self.assertTrue(result['usable'])
+                self.assertTrue(result['diagnosticOnly'])
+                self.assertAlmostEqual(result['sampledArcAfterPlaneMeters'], expected_arc)
+                self.assertAlmostEqual(result['materialFractionAfterPlane'], expected_arc / .2)
+                self.assertAlmostEqual(result['entryPlaneOffsetMeters'], .01)
+                self.assertAlmostEqual(result['incidenceDegrees'], 90)
+                self.assertAlmostEqual(result['coarseToFineArcDifferenceMeters'], 0)
 
-    def test_single_sample_crossing_and_lateral_offset(self):
-        result = gpu.analyze(capture())
+    def test_aperture_and_incidence_are_explicit_acceptance_constraints(self):
+        result = gpu.analyze(capture(), aperture_radius=.02, min_incidence_degrees=10)
         self.assertTrue(result['usable'])
-        self.assertAlmostEqual(result['materialFractionAfterPlane'], .5)
-        self.assertAlmostEqual(result['sampledArcAfterPlaneMeters'], .1)
-        self.assertAlmostEqual(result['entryPlaneOffsetMeters'], .01)
+        self.assertAlmostEqual(result['sampledArcFractionAfterPlane'], .5)
+        self.assertFalse(gpu.analyze(capture(), aperture_radius=.005)['usable'])
+        shallow = capture([dict(x=-.1 + .2 * i / 32, y=0, z=-.001 + .002 * i / 32) for i in range(33)])
+        self.assertFalse(gpu.analyze(shallow, min_incidence_degrees=5)['usable'])
 
-    def test_interpolated_crossing(self):
-        data = capture()
-        data['entryPosition']['z'] = .003
-        result = gpu.analyze(data)
-        self.assertTrue(result['usable'])
-        self.assertAlmostEqual(result['sampledArcAfterPlaneMeters'], .097)
-
-    def test_aperture_incidence_and_sampling_diagnostics(self):
-        result=gpu.analyze(capture(), aperture_radius=.02, min_incidence_degrees=10)
-        self.assertTrue(result['usable'])
-        self.assertAlmostEqual(result['incidenceDegrees'],90)
-        self.assertAlmostEqual(result['sampledArcFractionAfterPlane'],.5)
-        self.assertAlmostEqual(result['coarseToFineArcDifferenceMeters'],0)
-        self.assertFalse(gpu.analyze(capture(),aperture_radius=.005)['usable'])
-        shallow=capture([dict(x=-.1+.2*i/32,y=0,z=-.001+.002*i/32) for i in range(33)])
-        self.assertFalse(gpu.analyze(shallow,min_incidence_degrees=5)['usable'])
-        with self.assertRaises(ValueError):gpu.analyze(capture(),aperture_radius=float('nan'))
-        with self.assertRaises(ValueError):gpu.analyze(capture(),min_incidence_degrees=90)
-
-    def test_collapsed_segment_cannot_supply_direction(self):
-        data=capture();data['centerline'][3]=data['centerline'][2].copy()
-        self.assertFalse(gpu.analyze(data)['usable'])
-
-    def test_curved_length_is_not_straight_chord(self):
+    def test_curved_sampling_uses_arc_length_instead_of_the_endpoint_chord(self):
         points = [dict(x=.1 * (i / 32) ** 2, y=0, z=-.1 + .2 * i / 32) for i in range(33)]
         result = gpu.analyze(capture(points))
         self.assertTrue(result['usable'])
-        self.assertGreater(result['polylineLengthMeters'], (.2**2 + .1**2)**.5)
+        self.assertGreater(result['polylineLengthMeters'], math.hypot(.2, .1))
         self.assertGreater(result['sampledArcAfterPlaneMeters'], .1)
 
-    def test_rejects_partial_blend_missing_target_and_reverse(self):
-        data = capture(); data['firstSegmentStrength'][0] = .5
-        self.assertFalse(gpu.analyze(data)['usable'])
-        data = capture(); data['centerline'].reverse()
-        self.assertFalse(gpu.analyze(data)['usable'])
-        data['valid'] = False
-        with self.assertRaises(ValueError): gpu.analyze(data)
-
-    def test_coplanar_tangent_and_multiple_crossings(self):
-        for zs in ([0] * 33, [abs(i - 16) * .01 for i in range(33)],
-                   [-.1 if i < 8 or 16 <= i < 24 else .1 for i in range(33)]):
-            with self.subTest(zs=zs):
-                data = capture([dict(x=0, y=0, z=z) for z in zs])
+    def test_collapsed_blended_or_reversed_paths_cannot_claim_usable_geometry(self):
+        cases = {
+            'collapsed': lambda data: data['centerline'].__setitem__(3, data['centerline'][2].copy()),
+            'partial blend': lambda data: data['firstSegmentStrength'].__setitem__(0, .5),
+            'reverse': lambda data: data['centerline'].reverse(),
+        }
+        for name, mutate in cases.items():
+            data = capture()
+            mutate(data)
+            with self.subTest(case=name):
                 self.assertFalse(gpu.analyze(data)['usable'])
 
-    def test_rejects_corruption_and_wrong_schema(self):
-        for mutate in (lambda d: d.update(schema='other'),
-                       lambda d: d['centerline'].pop(),
-                       lambda d: d['centerline'][0].update(z=float('nan')),
-                       lambda d: d.update(worldLength=float('inf')),
-                       lambda d: d['entryNormal'].update(z=0)):
-            data = capture(); mutate(data)
-            with self.assertRaises(ValueError): gpu.analyze(data)
+    def test_coplanar_tangent_multiple_crossings_and_endpoint_contacts_are_not_entry(self):
+        cases = (
+            [0] * 33,
+            [abs(i - 16) * .01 for i in range(33)],
+            [-.1 if i < 8 or 16 <= i < 24 else .1 for i in range(33)],
+            [.2 * i / 32 for i in range(33)],
+        )
+        for values in cases:
+            with self.subTest(values=values):
+                self.assertFalse(gpu.analyze(capture([dict(x=0, y=0, z=value) for value in values]))['usable'])
 
 
-if __name__ == '__main__': unittest.main()
+class CaptureValidationContracts(unittest.TestCase):
+    def test_schema_shape_vectors_lengths_and_strengths_are_validated(self):
+        cases = {
+            'schema': lambda data: data.update(schema='other'),
+            'missing target': lambda data: data.update(valid=False),
+            'sample count': lambda data: data['centerline'].pop(),
+            'strength count': lambda data: data['firstSegmentStrength'].pop(),
+            'sample NaN': lambda data: data['centerline'][0].update(z=float('nan')),
+            'sample bound': lambda data: data['centerline'][0].update(x=1000001),
+            'length infinity': lambda data: data.update(worldLength=float('inf')),
+            'length bool': lambda data: data.update(worldLength=True),
+            'zero normal': lambda data: data['entryNormal'].update(z=0),
+            'strength infinity': lambda data: data['firstSegmentStrength'].__setitem__(0, float('inf')),
+            'strength bool': lambda data: data['firstSegmentStrength'].__setitem__(0, True),
+        }
+        for name, mutate in cases.items():
+            data = capture()
+            mutate(data)
+            with self.subTest(case=name), self.assertRaises(ValueError):
+                gpu.analyze(data)
+
+    def test_nonfinite_or_out_of_range_calibration_options_are_rejected(self):
+        for radius in (0, -1, True, float('nan'), float('inf')):
+            with self.subTest(radius=radius), self.assertRaises(ValueError):
+                gpu.analyze(capture(), aperture_radius=radius)
+        for incidence in (-1, 90, True, float('nan'), float('inf')):
+            with self.subTest(incidence=incidence), self.assertRaises(ValueError):
+                gpu.analyze(capture(), min_incidence_degrees=incidence)
+
+
+class AnalyzerCommandContracts(LabFixture):
+    def test_cli_reads_only_the_explicit_file_and_emits_diagnostic_json(self):
+        path = self.write(self.root / 'capture.json', json.dumps(capture()))
+        output = io.StringIO()
+        with patch.object(sys, 'argv', ['analyze-gpu-capture.py', str(path)]), redirect_stdout(output):
+            gpu.main()
+        self.assertTrue(json.loads(output.getvalue())['diagnosticOnly'])
+
+    def test_cli_reports_corruption_wrong_shape_and_oversize_without_a_subprocess(self):
+        for content in ('{broken', '[]', 'x' * 65537):
+            path = self.write(self.root / 'capture.json', content)
+            error = io.StringIO()
+            with self.subTest(size=len(content)), patch.object(sys, 'argv', ['analyze-gpu-capture.py', str(path)]), redirect_stderr(error):
+                with self.assertRaises(SystemExit) as exited:
+                    gpu.main()
+                self.assertEqual(exited.exception.code, 2)
+                self.assertIn('Invalid capture', error.getvalue())

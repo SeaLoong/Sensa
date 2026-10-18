@@ -2,7 +2,7 @@ import { test, expect, card, enable, mode, active, checkpoint, outputValue } fro
 import { pointSamples, poseSamples } from './mocks.js';
 import { readFile } from 'node:fs/promises';
 
-test('manual controls reach all mock transports, record, stop and never auto-resume', async ({ page, rig }) => {
+test('manual controls reach all mock transports, record, stop and never auto-resume', { tag: ["@transport","@input","@visual"] }, async ({ page, rig }) => {
   await enable(page);
   expect(rig.wire.serial).toEqual(expect.arrayContaining(['D0', 'D1', 'D2']));
   await checkpoint(page, page.locator('.section-card').first(), 'manual-ready');
@@ -45,7 +45,7 @@ test('manual controls reach all mock transports, record, stop and never auto-res
   expect(rig.intifaceState.stopped).toBe(true);
 });
 
-test('QuickStart OSC steps, FT filtering, preview and gate stop', async ({ page, rig }) => {
+test('QuickStart OSC steps, FT filtering, preview and gate stop', { tag: ["@osc","@transport","@visual"] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP', 'Mock TCP']); await mode(page, 'OSC'); await active(page);
   await rig.send(Array.from({ length: 60 }, (_, i) => [`Face/v2/JawOpen${i}`, .7]));
   for (const [depth, target] of [[0, 400], [.25, 450], [.5, 500], [.75, 550], [1, 600]]) {
@@ -69,7 +69,7 @@ test('QuickStart OSC steps, FT filtering, preview and gate stop', async ({ page,
   await checkpoint(page, page.getByLabel('Avatar 世界 软件联动检查'), 'quickstart-stopped');
 });
 
-test('PB two-point calibration replaces the old gate and persists on reload', async ({ page, rig }) => {
+test('PB two-point calibration replaces the old gate and persists on reload', { tag: ["@osc","@config","@visual"] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP']); await mode(page, 'OSC');
   await rig.send(pointSamples(.05)); await page.getByRole('tab', { name: '量程校准', exact: true }).click();
   await expect(page.getByText('当前 Z：5.0 cm', { exact: true })).toBeVisible();
@@ -91,7 +91,7 @@ test('PB two-point calibration replaces the old gate and persists on reload', as
 
 test.describe('native SPS', () => {
   test.use({ scenario: 'sps' });
-  test('root/tip learning and offset produce radial output', async ({ page, rig }) => {
+  test('root/tip learning and offset produce radial output', { tag: ["@osc","@transport","@visual"] }, async ({ page, rig }) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC'); await active(page);
     const root = 'OGB/Orf/Test/PenSelfNewRoot', tip = 'OGB/Orf/Test/PenSelfNewTip';
     await rig.send([[root, .77], [tip, .96]]); await outputValue(rig, 'udp', 400);
@@ -102,10 +102,11 @@ test.describe('native SPS', () => {
   });
 });
 
-test('funscript import, playback, pause, stepping and unload', async ({ page, rig }) => {
+test('funscript import, playback, pause, stepping and unload', { tag: ["@input","@transport","@visual"] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP']); await mode(page, '脚本');
   await page.locator('input[type=file]').setInputFiles({ name: 'ci-motion.funscript', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ actions: [{ at: 0, pos: 0 }, { at: 5000, pos: 100 }, { at: 10000, pos: 0 }] })) });
   await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(true);
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
   await page.getByRole('checkbox', { name: '循环播放', exact: true }).check();
   await expect.poll(async () => (await rig.overview()).input.script.loop).toBe(true);
   await active(page); await page.locator('.script-player-console__transport-primary').click();
@@ -113,13 +114,15 @@ test('funscript import, playback, pause, stepping and unload', async ({ page, ri
   await expect.poll(() => rig.wire.udp.some(s => /L0\d/.test(s))).toBe(true);
   await page.locator('.script-player-console__transport-primary').click();
   await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(false);
+  await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
   await page.getByRole('button', { name: /^下一动作/ }).click(); await outputValue(rig, 'udp', 600);
   await checkpoint(page, page.locator('.script-player-console'), 'script-paused-keyframe');
   await page.getByRole('button', { name: '卸载', exact: true }).click();
   await expect.poll(async () => (await rig.overview()).input.script.loaded).toBe(false);
+  await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('help, output editing and profile dialog render without overflow', async ({ page }) => {
+test('help, output editing and profile dialog render without overflow', { tag: ["@config","@visual"] }, async ({ page }) => {
   await page.getByRole('button', { name: '使用帮助', exact: true }).click();
   await checkpoint(page, page.getByRole('dialog'), 'help-workflow');
   await page.getByRole('tab', { name: '预设选择', exact: true }).click();
@@ -147,7 +150,7 @@ test('help, output editing and profile dialog render without overflow', async ({
   await expect(page.getByText('CI edited profile', { exact: true }).first()).toBeVisible();
 });
 
-test('paired pose reconstruction, mapping and lost landmark stop', async ({ page, rig }) => {
+test('paired pose reconstruction, mapping and lost landmark stop', { tag: ["@osc","@transport","@visual"] }, async ({ page, rig }) => {
   await enable(page, ['Mock UDP']); await mode(page, 'OSC'); await rig.send(poseSamples());
   await expect.poll(async () => (await rig.overview()).poseTracking.observations.some(p => p.valid && p.engaged && p.sampleCount === 24 && Math.abs(p.depth - .5) < .001)).toBe(true);
   await page.getByRole('tab', { name: '空间诊断', exact: true }).click();
@@ -164,7 +167,7 @@ test('paired pose reconstruction, mapping and lost landmark stop', async ({ page
 
 test.describe('OSCQuery and Hub', () => {
   test.use({ scenario: 'query' });
-  test('discovery and forwarding use real loopback peers', async ({ page, rig }) => {
+  test('discovery and forwarding use real loopback peers', { tag: ["@osc","@visual"] }, async ({ page, rig }) => {
     await mode(page, 'OSC');
     await page.getByRole('tab', { name: 'OSCQuery', exact: true }).click();
     const polling = page.getByRole('checkbox', { name: /轮询回退|当对端不支持 LISTEN/ });
@@ -179,7 +182,7 @@ test.describe('OSCQuery and Hub', () => {
   });
 });
 
-test('API session boundary and disabled input cannot command mocks', async ({ page, rig }) => {
+test('API session boundary and disabled input cannot command mocks', { tag: ["@transport","@input","@visual"] }, async ({ page, rig }) => {
   expect((await fetch(rig.baseUrl + '/api/config')).status).toBe(401);
   const session = await fetch(rig.baseUrl + '/api/session');
   expect((await fetch(rig.baseUrl + '/api/config', { headers: { Cookie: session.headers.get('set-cookie').split(';')[0], Origin: 'http://untrusted.invalid' } })).status).toBe(403);

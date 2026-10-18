@@ -1,4 +1,4 @@
-import { t, getLocale, diagnostic, docUrl } from './i18n.js';
+import { t, diagnostic } from './i18n.js';
 import React, { useState } from 'react';
 import { Alert, Box, Button, Chip, FormControl, InputLabel, LinearProgress, MenuItem, Select, Stack, Typography } from '@mui/material';
 import { capturePointEndpoint, calibratedPointDraft, pointCalibrationProgress } from './osc-preview.js';

@@ -29,7 +29,11 @@ public sealed class FunscriptPlayer : IDisposable
     private const int ActivityBinCount = 64;
 
     private readonly object _gate = new();
-    private Timer? _playbackTimer;
+    private ITimer? _playbackTimer;
+    private readonly TimeProvider _timeProvider;
+    private long NowMs => (long)_timeProvider.GetElapsedTime(0, _timeProvider.GetTimestamp()).TotalMilliseconds;
+
+    public FunscriptPlayer(TimeProvider? timeProvider = null) => _timeProvider = timeProvider ?? TimeProvider.System;
 
     private List<FunscriptAction> _actions = new();
     private int[] _activityBins = Array.Empty<int>();
@@ -40,12 +44,15 @@ public sealed class FunscriptPlayer : IDisposable
     private double _speed = 1.0;
     private long _durationMs;
     private long _resumePositionMs;
+    private double _positionFractionMs;
+    private bool _finalFramePending;
     private long _resumeStartedAtMs;
     private bool _playing;
     private float _lastL0;
     private string _state = "empty";
 
     public event Action<float>? OnFrame;
+    public event Action? OnStopped;
     public event Action? OnStateChanged;
 
     public FunscriptPlaybackSnapshot Load(string fileName, Stream stream)
@@ -65,6 +72,8 @@ public sealed class FunscriptPlayer : IDisposable
             _loopStartMs = null;
             _loopEndMs = null;
             _resumePositionMs = 0;
+            _positionFractionMs = 0;
+            _finalFramePending = false;
             _resumeStartedAtMs = 0;
             _playing = false;
             _lastL0 = _actions.Count > 0 ? _actions[0].Pos01 : 0f;
@@ -81,7 +90,7 @@ public sealed class FunscriptPlayer : IDisposable
         FunscriptPlaybackSnapshot snapshot;
         lock (_gate)
         {
-            var now = Environment.TickCount64;
+            var now = NowMs;
             AdvanceLocked(now);
 
             if (loop.HasValue)
@@ -121,7 +130,7 @@ public sealed class FunscriptPlayer : IDisposable
             if (_actions.Count == 0)
                 throw new InvalidOperationException("请先加载脚本文件。");
 
-            var now = Environment.TickCount64;
+            var now = NowMs;
             AdvanceLocked(now);
 
             if (loop.HasValue)
@@ -161,7 +170,7 @@ public sealed class FunscriptPlayer : IDisposable
         FunscriptPlaybackSnapshot snapshot;
         lock (_gate)
         {
-            AdvanceLocked(Environment.TickCount64);
+            AdvanceLocked(NowMs);
             _playing = false;
             StopPlaybackTimerLocked();
 
@@ -177,6 +186,7 @@ public sealed class FunscriptPlayer : IDisposable
             snapshot = BuildSnapshotLocked();
         }
 
+        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -189,12 +199,15 @@ public sealed class FunscriptPlayer : IDisposable
             StopPlaybackTimerLocked();
             _playing = false;
             _resumePositionMs = 0;
+            _positionFractionMs = 0;
+            _finalFramePending = false;
             _resumeStartedAtMs = 0;
             _lastL0 = 0f;
             _state = _actions.Count == 0 ? "empty" : "stopped";
             snapshot = BuildSnapshotLocked();
         }
 
+        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -212,6 +225,8 @@ public sealed class FunscriptPlayer : IDisposable
             _loopStartMs = null;
             _loopEndMs = null;
             _resumePositionMs = 0;
+            _positionFractionMs = 0;
+            _finalFramePending = false;
             _resumeStartedAtMs = 0;
             _playing = false;
             _lastL0 = 0f;
@@ -219,6 +234,7 @@ public sealed class FunscriptPlayer : IDisposable
             snapshot = BuildSnapshotLocked();
         }
 
+        OnStopped?.Invoke();
         OnStateChanged?.Invoke();
         return snapshot;
     }
@@ -264,7 +280,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         lock (_gate)
         {
-            AdvanceLocked(Environment.TickCount64);
+            AdvanceLocked(NowMs);
             return BuildSnapshotLocked();
         }
     }
@@ -273,7 +289,7 @@ public sealed class FunscriptPlayer : IDisposable
     {
         lock (_gate)
         {
-            AdvanceLocked(Environment.TickCount64);
+            AdvanceLocked(NowMs);
 
             if (!_playing || _actions.Count == 0)
                 return MotionFrame.Zero with { DeltaMs = deltaMs };
@@ -294,8 +310,9 @@ public sealed class FunscriptPlayer : IDisposable
         lock (_gate)
         {
             var wasPlaying = _playing;
-            AdvanceLocked(Environment.TickCount64);
-            shouldEmit = wasPlaying && _actions.Count > 0;
+            AdvanceLocked(NowMs);
+            shouldEmit = (wasPlaying || _finalFramePending) && _actions.Count > 0;
+            _finalFramePending = false;
             currentL0 = _lastL0;
 
             if (!shouldEmit)
@@ -310,20 +327,23 @@ public sealed class FunscriptPlayer : IDisposable
 
     private void EnsurePlaybackTimerLocked()
     {
-        _playbackTimer ??= new Timer(_ => HandlePlaybackTick(), null, 20, 20);
-        _playbackTimer.Change(20, 20);
+        _playbackTimer ??= _timeProvider.CreateTimer(_ => HandlePlaybackTick(), null,
+            TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(20));
+        _playbackTimer.Change(TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(20));
     }
 
     private void StopPlaybackTimerLocked()
     {
-        _playbackTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+        _playbackTimer?.Change(Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
     }
 
     private (FunscriptPlaybackSnapshot Snapshot, float CurrentL0) SeekToPositionLocked(long positionMs)
     {
         var clampedPosition = Math.Clamp(positionMs, 0L, _durationMs);
         _resumePositionMs = clampedPosition;
-        _resumeStartedAtMs = Environment.TickCount64;
+        _positionFractionMs = 0;
+        _finalFramePending = false;
+        _resumeStartedAtMs = NowMs;
         _lastL0 = SampleAtLocked(_resumePositionMs);
 
         if (_resumePositionMs >= _durationMs)
@@ -436,6 +456,8 @@ public sealed class FunscriptPlayer : IDisposable
         {
             _durationMs = 0;
             _resumePositionMs = 0;
+            _positionFractionMs = 0;
+            _finalFramePending = false;
             _resumeStartedAtMs = 0;
             _playing = false;
             _lastL0 = 0f;
@@ -450,7 +472,10 @@ public sealed class FunscriptPlayer : IDisposable
         }
 
         var elapsedMs = Math.Max(0L, nowMs - _resumeStartedAtMs);
-        var advancedPosition = _resumePositionMs + (long)Math.Round(elapsedMs * _speed);
+        var preciseDelta = elapsedMs * _speed + _positionFractionMs;
+        var wholeDelta = (long)Math.Floor(preciseDelta);
+        _positionFractionMs = preciseDelta - wholeDelta;
+        var advancedPosition = _resumePositionMs + wholeDelta;
         var loopWindow = GetLoopWindowLocked();
 
         if (_loop && loopWindow.Active)
@@ -496,6 +521,7 @@ public sealed class FunscriptPlayer : IDisposable
             _playing = false;
             _lastL0 = SampleAtLocked(_resumePositionMs);
             _state = "finished";
+            _finalFramePending = true;
             return;
         }
 
@@ -541,20 +567,27 @@ public sealed class FunscriptPlayer : IDisposable
         return previous.Pos01 + ((next.Pos01 - previous.Pos01) * t);
     }
 
-    private static double ClampSpeed(double value) => Math.Clamp(value, 0.1, 4.0);
+    private static double ClampSpeed(double value)
+    {
+        if (!double.IsFinite(value))
+            throw new ArgumentOutOfRangeException(nameof(value), "Playback speed must be finite. / 播放速度必须是有限数。");
+        return Math.Clamp(value, 0.1, 4.0);
+    }
 
     private static ParsedScript ParseFunscript(Stream stream)
     {
         using var document = JsonDocument.Parse(stream);
 
-        if (!document.RootElement.TryGetProperty("actions", out var actionsElement) || actionsElement.ValueKind != JsonValueKind.Array)
+        if (document.RootElement.ValueKind != JsonValueKind.Object
+            || !document.RootElement.TryGetProperty("actions", out var actionsElement) || actionsElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("脚本文件缺少 actions 数组。");
 
         var actions = new List<FunscriptAction>();
 
         foreach (var actionElement in actionsElement.EnumerateArray())
         {
-            if (!actionElement.TryGetProperty("at", out var atElement)
+            if (actionElement.ValueKind != JsonValueKind.Object
+                || !actionElement.TryGetProperty("at", out var atElement)
                 || !actionElement.TryGetProperty("pos", out var posElement)
                 || atElement.ValueKind != JsonValueKind.Number
                 || posElement.ValueKind != JsonValueKind.Number)
@@ -562,8 +595,10 @@ public sealed class FunscriptPlayer : IDisposable
                 continue;
             }
 
-            var atMs = Math.Max(atElement.GetInt64(), 0L);
-            var pos01 = (float)Math.Clamp(posElement.GetDouble() / 100.0, 0.0, 1.0);
+            if (!atElement.TryGetInt64(out var rawTime) || !posElement.TryGetDouble(out var rawPosition) || !double.IsFinite(rawPosition))
+                continue;
+            var atMs = Math.Max(rawTime, 0L);
+            var pos01 = (float)Math.Clamp(rawPosition / 100.0, 0.0, 1.0);
             if (atMs > 7L * 24 * 60 * 60 * 1000 || actions.Count >= 500000) throw new InvalidDataException("Script exceeds the duration or action limit.");
             actions.Add(new FunscriptAction(atMs, pos01));
         }

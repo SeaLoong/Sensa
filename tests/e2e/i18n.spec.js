@@ -3,20 +3,19 @@ import { pointSamples } from './mocks.js';
 
 test.use({ locale: 'en-US' });
 
-test('language follows browser, persists and preserves drafts without sending control requests', async ({ page, rig }) => {
+test('language follows browser, persists and preserves drafts without sending control requests', { tag: ['@i18n', '@visual'] }, async ({ page, rig }) => {
   await expect(page.locator('html')).toHaveAttribute('lang','en-US');
   await page.getByRole('slider').first().press('End');
   const slider=page.getByRole('slider').first();
   const draft=await slider.getAttribute('aria-valuenow');
-  const requests=[];
-  page.on('request',r=>{if(r.method()!=='GET')requests.push(r.url());});
+  const commandsBefore = rig.commands.filter(command => command.method !== 'GET').length;
   await page.getByLabel('Language / 语言').selectOption('zh-CN');
   await expect(page.getByRole('button',{name:'使用帮助',exact:true})).toBeVisible();
   await expect(slider).toHaveAttribute('aria-valuenow',draft);
   await page.getByLabel('Language / 语言').selectOption('en-US');
   await expect(page.getByRole('button',{name:'Help',exact:true})).toBeVisible();
   await expect(slider).toHaveAttribute('aria-valuenow',draft);
-  expect(requests).toEqual([]);
+  expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(commandsBefore);
   expect((await rig.overview()).runtime.inputActive).toBe(false);
   expect(rig.wire.udp).toEqual([]);
   await checkpoint(page,page.locator('.studio-toolbar'),'english-toolbar');
@@ -27,7 +26,7 @@ test('language follows browser, persists and preserves drafts without sending co
   await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
 });
 
-test('English OSC calibration and diagnostics drive mock output and stop on release', async ({page,rig})=>{
+test('English OSC calibration and diagnostics drive mock output and stop on release', { tag: ['@i18n', '@visual'] }, async ({page,rig})=>{
   await card(page,'Mock UDP').getByRole('button',{name:'Enable',exact:true}).click();
   await expect(card(page,'Mock UDP').getByText('Connected',{exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'OSC',exact:true}).click();
@@ -51,7 +50,7 @@ test('English OSC calibration and diagnostics drive mock output and stop on rele
   await expect.poll(()=>rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('English presets, script and help use localized text and documentation',async({page})=>{
+test('English presets, script and help use localized text and documentation', { tag: ['@i18n', '@visual'] }, async({page})=>{
   await page.getByRole('tab',{name:'Script',exact:true}).click();
   await checkpoint(page,page.locator('.script-player-console'),'english-script');
   await page.getByRole('button',{name:'Help',exact:true}).click();

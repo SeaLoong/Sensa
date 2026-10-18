@@ -7,7 +7,7 @@ using Sensa.Outputs.TCode;
 
 namespace Sensa.Outputs;
 
-public sealed class OutputCoordinator : IAsyncDisposable
+public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 {
     private readonly AppConfig _config;
     private readonly Action<string> _log;

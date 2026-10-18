@@ -307,11 +307,11 @@ public sealed class AppConfig
         return empty;
     }
 
-    public static AppConfig Load()
+    public static AppConfig Load(string? configPath = null)
     {
         try
         {
-            var path = ConfigPath();
+            var path = string.IsNullOrWhiteSpace(configPath) ? ConfigPath() : Path.GetFullPath(configPath);
             if (File.Exists(path))
             {
                 var json = File.ReadAllText(path);
@@ -324,18 +324,18 @@ public sealed class AppConfig
         catch (Exception ex)
         {
             Console.Error.WriteLine($"[Sensa] Failed to load config: {ex.Message}");
-            var path = ConfigPath();
+            var path = string.IsNullOrWhiteSpace(configPath) ? ConfigPath() : Path.GetFullPath(configPath);
             if (File.Exists(path)) File.Copy(path, path + ".invalid-" + DateTime.UtcNow.ToString("yyyyMMddHHmmssfff"), overwrite: false);
         }
         return CreateDefaultConfig();
     }
 
     private static readonly object SaveGate = new();
-    public void Save()
+    public void Save(string? configPath = null)
     {
         lock (SaveGate)
         {
-            var path = ConfigPath();
+            var path = string.IsNullOrWhiteSpace(configPath) ? ConfigPath() : Path.GetFullPath(configPath);
             Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             var snapshot = new AppConfig();
             snapshot.CopyFrom(this);

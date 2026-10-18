@@ -1,4 +1,4 @@
-name: Native platform builds
+name: Native platform builds / 原生平台构建
 on:
   workflow_call:
     inputs:
@@ -29,7 +29,7 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Install .NET SDK
+      - name: Install .NET SDK / 安装 .NET SDK
         id: dotnet-setup
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         # windows-11-arm can crash inside pwsh before the installer runs:
@@ -37,28 +37,27 @@ jobs:
         continue-on-error: ${{ matrix.rid == 'win-arm64' }}
         with:
           global-json-file: global.json
-      - name: Retry Windows ARM SDK bootstrap once
+      - name: Retry Windows ARM SDK bootstrap / 重试 Windows ARM SDK 安装
         if: matrix.rid == 'win-arm64' && steps.dotnet-setup.outcome == 'failure'
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
         with:
           global-json-file: global.json
-      - name: Verify installed SDK
+      - name: Verify installed SDK / 验证已安装 SDK
         run: dotnet --info
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: '3.14'
       - run: npm ci
-      - run: npm test
-      - name: Install failure diagnostics for macOS smoke tests
+      - name: Install macOS smoke diagnostics / 安装 macOS 冒烟诊断
         if: runner.os == 'macOS'
         run: dotnet tool install --global dotnet-stack --version 10.0.750501
-      - name: Native tests, self-contained smoke and archive
+      - name: Native build, isolated smoke and archive / 原生构建、隔离冒烟与打包
         env:
           TARGET_RID: ${{ matrix.rid }}
           BUILD_LABEL: ${{ inputs.label }}
         shell: bash
         run: python scripts/build-platform.py --runtime "$TARGET_RID" --label "$BUILD_LABEL"
-      - name: GPU PNG replay, corruption, recovery and motion gate
+      - name: GPU replay, recovery and motion gate / GPU 回放、恢复与运动门禁
         if: matrix.rid == 'win-x64'
         shell: bash
         run: |

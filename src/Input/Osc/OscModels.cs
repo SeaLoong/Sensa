@@ -49,6 +49,19 @@ public readonly record struct OscSource(
 
 public sealed class OscParameterStore
 {
+    internal TimeProvider Clock { get; }
+
+    public OscParameterStore(TimeProvider? timeProvider = null) => Clock = timeProvider ?? TimeProvider.System;
+
+    public event Action? AvatarChanged;
+
+    public void ChangeAvatar(string? sourceKey = null)
+    {
+        if (string.IsNullOrWhiteSpace(sourceKey)) Clear();
+        else ClearSource(sourceKey);
+        AvatarChanged?.Invoke();
+    }
+
     public readonly record struct Entry(OscValue Value, long TimestampMs, OscSource Source, long Sequence = 0);
 
     public readonly record struct SnapshotEntry(string Path, Entry Entry);
@@ -87,7 +100,7 @@ public sealed class OscParameterStore
 
         var normalizedPath = path.Trim();
         var normalizedSource = NormalizeSource(source);
-        var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        var timestampMs = Clock.GetUtcNow().ToUnixTimeMilliseconds();
         var entry = new Entry(value, timestampMs, normalizedSource);
         lock (_capacityGate)
         {

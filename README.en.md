@@ -41,6 +41,7 @@ Main commits publish previews only after all checks, including E2E screenshot co
 - **Extra avatar tracking or a PB handle:** [Unity installation](unity/top.sealoong.sensa/README.en.md)
 - **Try the test world:** [World guide](tools/unity-world-lab/README.en.md)
 - **Build from source / CI:** [Development](docs/development.en.md)
+- **Workflow and architecture:** [Architecture and behavior contracts](docs/architecture.en.md)
 - **Complete feature behavior, conditions and limits:** [Features and implementation reference](docs/features.en.md)
 - **Language support and translations:** [Languages](docs/languages.en.md)
 
