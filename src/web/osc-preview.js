@@ -26,7 +26,7 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
   }).filter(entry => (showFaceTracking || !isFaceTrackingPath(entry.path) || entry._matches || pinned.includes(entry.path))
-    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(Pose|SpsRoot|SharedRoot)\/v1|(Point|Handle)\/v[12])\//.test(entry.path)
+    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(Pose|SpsRoot|SharedRoot|Shader)\/v1|(Point|Handle)\/v[12])\//.test(entry.path)
       || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))
     .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))

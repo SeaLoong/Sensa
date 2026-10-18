@@ -64,6 +64,8 @@ test('parameter discovery keeps mapped and pinned FT visible without hiding spat
   assert.equal(rankPreview(entries, signals)[0].path, 'FT/v2/JawOpen0');
   assert.equal(rankPreview(entries, [], { pinned: ['FT/v2/JawOpen1'] })[0].path, 'FT/v2/JawOpen1');
   assert.equal(rankPreview(entries, [], { category: 'pose' }).length, 1);
+  const shaderEntries = [{ path: 'Sensa/Shader/v1/42/Z' }, { path: 'Sensa/Shader/v1/42/Frame' }, { path: 'Custom' }];
+  assert.deepEqual(rankPreview(shaderEntries, [], { category: 'pose' }).map(entry => entry.path), ['Sensa/Shader/v1/42/Frame', 'Sensa/Shader/v1/42/Z']);
   assert.equal(rankPreview(entries, signals, { category: 'mapped' }).length, 1);
   assert.equal(rankPreview(entries, [], { search: 'custom' })[0].path, 'Custom');
   assert.equal(buildOscPathSuggestions([{ path: 'v2/JawOpen' }, { path: 'OGB/Orf/Main/PenOthers' }])[0], 'OGB/Orf/Main/PenOthers');
