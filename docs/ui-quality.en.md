@@ -4,7 +4,7 @@
 
 This guide centers on **visual aesthetics and communication**: coherent composition, color harmony, density, spacing and considered details that help people recognize what matters. Accessibility and control correctness are essential baselines, not substitutes for judging beauty.
 
-Primary sources were checked on 2026-10-19. VisAWI supplies aesthetic constructs; official Carbon/Fluent principles help translate them into six human-review criteria. The project produces no composite aesthetic score and has no participant questionnaire results.
+Primary sources were checked on 2026-10-19. VisAWI supplies aesthetic constructs; official Carbon/Fluent principles help translate them into six human-review criteria, with TDesign defining current component and layout styling. The project produces no composite aesthetic score and has no participant questionnaire results.
 
 ## Roles of the references
 
@@ -38,17 +38,19 @@ These are project interpretations, not questionnaire items, translations or scor
 
 Do not mechanically copy Carbon's 8 px or Fluent's 4 px system, or judge beauty from framework colors alone. Start with the console's information priorities and implement coherent sizing relationships.
 
-## Flat workbench constraints
+## TDesign components and workbench constraints
 
-Use a white plane and dividers to organize content. Main navigation sits in the header; the header and content share page edges. Content scrolls independently below the header so navigation cannot cover controls being read or focused. Output identity, target and actions occupy corresponding columns, details span the row, and narrow screens stack them in the same information order.
+Components and pages follow TDesign styling through independent React/native controls. The [official theme variables](https://github.com/Tencent/tdesign-common/tree/d9734f64af0e863f70e7f2c839a15278ca3d6867/style/web/theme) and [administrative-layout guide](https://github.com/Tencent/tdesign/blob/522dcfd95b1ec5077a4d7c3fc5ff2bd1bd6cc3d0/docs/design/offices_zh-CN.md) inform color scales, type, sizes, radii, spacing and states. The TDesign React runtime is not installed; this is not a complete implementation of its library.
 
-Common controls share a height. A slider has one editable number with an adjacent unit; equal-width endpoint inputs have labels above them. The script view presents import first and reveals full controls after loading. Infrequent disclosures stay compact and do not displace neighboring first-row controls. Boundaries identify controls and separate groups; outer sections use no rounded cards or decorative shadows.
+Main navigation sits above independently scrolling content with shared width and edges. A light-gray page, single white work surfaces and fine dividers organize content; outputs, mappings and configuration remain flat rows. Switching among the three main workspaces returns content to the top. Tabs still browse only; applying an input mode and activating input remain separate explicit operations.
 
-The project separates **visual size from hit area**. Fine-pointer defaults use 32 px common inputs/buttons, 28 px standalone slider regions and 36 px navigation, with 14 px body, 13 px control text and 12 px labels. Label rows are 20 px, field gaps 6 px and group gaps 12 px. Numeric inputs start at 68 px and grow with finite value length. Ports/rates use short columns while addresses and paths receive remaining space.
+Input modes use segmented tabs grouped with Apply; main and OSC navigation use line tabs. Buttons distinguish filled, outlined and text variants while retaining primary, ordinary and danger semantics. Forms, sliders, checkboxes/switches, tags, disclosures, tables, notices and dialogs share normal, hover, focus, selected and disabled states. Script import precedes transport and infrequent options. Emergency stop remains reachable outside scrolling content and inside dialogs.
 
-Checkboxes paint an 18 px square inside a 24 px native input hit area. Switches paint a 32×20 px track inside a 36×24 px input. Coarse-pointer actions, fields and complete toggle labels retain at least 44 px; forced-color mode falls back to native painting. These are project size roles, not a universal beauty score or complete accessibility proof.
+TDesign small/medium/large controls use 24/32/40 px with 12/14/16 px type. Sensa defaults to medium 32 px controls, 14/22 px body/control text and 12/20 px supporting text. Components use 3 px radii, dialogs 9 px, and main work surfaces use 24 px spacing. The brand is `#0052d9`; essential boundaries, ordinary text and filled-button hover/danger states select darker official scale steps where contrast requires.
 
-These constraints reflect the current product direction. Reassess V1–V6 against actual images. Automated geometry can find alignment, overlap and containment issues; it cannot judge overall beauty.
+**Visual size and hit area are separate.** Numeric fields start at 80 px and grow with finite value length within a width cap. Ports/rates use short columns; addresses/paths receive remaining space. Checkboxes retain a 24 px native input and switches use their associated label as the full click target. Coarse-pointer actions, fields and complete toggle labels are at least 44 px; forced-color mode uses native painting. Real touch devices, system high contrast and assistive technologies need separate evidence; CSS rules do not prove those checks passed.
+
+These constraints implement the current direction. V1–V6 still require image-by-image reassessment. Geometry checks detect alignment, overlap and containment issues; they do not judge overall beauty.
 
 ## Six human visual criteria
 

@@ -37,9 +37,14 @@ export function SliderControl({
   onChangeCommitted,
   valueFormatter = (next) => next,
   className = '',
+  style,
   ...props
 }) {
   const dirtyRef = useRef(false);
+  const min = Number(props.min ?? 0), max = Number(props.max ?? 100), current = Number(value);
+  const progress = Number.isFinite(min) && Number.isFinite(max) && Number.isFinite(current) && max > min
+    ? Math.max(0, Math.min(100, ((current - min) / (max - min)) * 100))
+    : 0;
   const commit = (event) => {
     if (!dirtyRef.current) return;
     dirtyRef.current = false;
@@ -50,6 +55,7 @@ export function SliderControl({
       type="range"
       {...props}
       className={`slider-control ${className}`}
+      style={{ ...style, '--slider-progress': `${progress}%` }}
       value={value}
       aria-valuetext={String(valueFormatter(value))}
       onChange={(event) => {

@@ -191,6 +191,7 @@ function App() {
   const manualMotionValueRef = useRef(initialState.manualMotionValue);
   const savedSignalsHashRef = useRef(computeSignalHash(initialState.signalDrafts));
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
+  const workspaceScrollRef = useRef(null);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = getOutputs(config);
@@ -1513,6 +1514,10 @@ function App() {
     return () => window.clearTimeout(timer);
   }, [snackbar.open, snackbar.message, snackbar.severity]);
 
+  useEffect(() => {
+    workspaceScrollRef.current?.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, [workspace]);
+
   function renderScriptPlayer() {
     return (
       <div className="stack script-player">
@@ -1526,7 +1531,7 @@ function App() {
               </span>
             </div>
             <div className="actions">
-              <label className="button button--primary file-button">
+              <label className={`button button--size-medium file-button ${scriptLoaded ? 'button--default button--variant-outline' : 'button--primary button--variant-base'}`}>
                 {selectedScriptFile ? t('导入中…') : scriptLoaded ? t('更换脚本') : t('选择脚本')}
                 <input
                   key={scriptFileInputKey}
@@ -2190,17 +2195,17 @@ function App() {
               <option value="zh-CN">简体中文</option>
               <option value="en-US">English</option>
             </select>
-            <Button onClick={() => { clearErrorNotification(); setHelpOpen(true); }}>{t('帮助')}</Button>
+            <Button variant="text" onClick={() => { clearErrorNotification(); setHelpOpen(true); }}>{t('帮助')}</Button>
           </div>
         </div>
       </header>
-      <main id="main" className="workspace-scroll" tabIndex={-1}>
+      <main id="main" className="workspace-scroll" ref={workspaceScrollRef} tabIndex={-1}>
         <div className="workspace-shell workspace">
           <div
             id="workspace-tabs-panel"
             role="tabpanel"
             aria-labelledby={`workspace-tabs-${workspace}`}
-            className="workspace-panel"
+            className={`workspace-panel workspace-panel--${workspace}`}
           >
             {!online && (
               <Notice tone="warning" role="status">
@@ -2216,28 +2221,28 @@ function App() {
               <>
                 <Section
                   title={t('输入')}
-                  actions={
-                    <>
-                      <Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>
-                      <Button
-                        tone="primary"
-                        disabled={!hasPendingInputMode || modeBusy || !online}
-                        onClick={() => applyInputMode(selectedInputTab)}
-                      >
-                        {t('应用输入方式')}
-                      </Button>
-                    </>
-                  }
+                  className="input-section"
+                  actions={<Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>}
                 >
-                  <Tabs
-                    id="input-tabs"
-                    label={t('输入方式')}
-                    value={selectedInputTab}
-                    onChange={selectInputTab}
-                    options={INPUT_MODES()}
-                  />
+                  <div className="input-toolbar">
+                    <Tabs
+                      id="input-tabs"
+                      label={t('输入方式')}
+                      variant="segmented"
+                      value={selectedInputTab}
+                      onChange={selectInputTab}
+                      options={INPUT_MODES()}
+                    />
+                    <Button
+                      tone="primary"
+                      disabled={!hasPendingInputMode || modeBusy || !online}
+                      onClick={() => applyInputMode(selectedInputTab)}
+                    >
+                      {t('应用输入方式')}
+                    </Button>
+                  </div>
                   {hasPendingInputMode && <p className="caption muted">{t('选择仅用于浏览，应用后才切换输入。')}</p>}
-                  <div id="input-tabs-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
+                  <div id="input-tabs-panel" className="input-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
                     {selectedInputTab === 'manual' && (
                       <div className="stack manual-workspace">
                         <div className="manual-primary">
@@ -2785,7 +2790,7 @@ function App() {
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>
           <span>{diagnostic(snackbar.message)}</span>
-          <Button aria-label={t('关闭通知')} onClick={() => setSnackbar((previous) => ({ ...previous, open: false }))}>
+          <Button variant="text" aria-label={t('关闭通知')} onClick={() => setSnackbar((previous) => ({ ...previous, open: false }))}>
             ×
           </Button>
         </div>

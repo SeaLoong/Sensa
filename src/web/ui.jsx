@@ -1,9 +1,10 @@
 import React, { useEffect, useId, useRef } from 'react';
 import { t } from './i18n.js';
 
-export function Button({ children, tone = 'default', className = '', ...props }) {
+export function Button({ children, tone = 'default', variant, size = 'medium', className = '', ...props }) {
+  const appearance = variant ?? (tone === 'primary' || tone === 'danger-solid' ? 'base' : tone === 'danger' ? 'text' : 'outline');
   return (
-    <button type="button" className={`button button--${tone} ${className}`} {...props}>
+    <button type="button" className={`button button--${tone} button--variant-${appearance} button--size-${size} ${className}`} {...props}>
       {children}
     </button>
   );
@@ -106,8 +107,10 @@ export function Modal({ open, title, onClose, children, actions, emergencyAction
         <h2 id={titleId}>{title}</h2>
         <div className="modal__header-actions">
           {emergencyAction}
-          <Button className="modal__close" aria-label={t('关闭')} onClick={onClose}>
-            ×
+          <Button variant="text" className="modal__close" aria-label={t('关闭')} onClick={onClose}>
+            <svg className="icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" focusable="false">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
           </Button>
         </div>
       </header>
@@ -135,9 +138,9 @@ export function Section({ title, description, actions, children, className = '' 
   );
 }
 
-export function Tabs({ id, label, value, onChange, options, className = '' }) {
+export function Tabs({ id, label, value, onChange, options, variant = 'line', className = '' }) {
   return (
-    <div role="tablist" aria-label={label} className={`tabs ${className}`}>
+    <div role="tablist" aria-label={label} className={`tabs tabs--${variant} ${className}`}>
       {options.map((option, index) => (
         <button
           key={option.value}

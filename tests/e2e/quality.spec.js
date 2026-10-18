@@ -156,12 +156,17 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await report.check('tabs-keyboard-and-control-boundary / 页签键盘与控制边界', async () => {
           const before = await rig.overview();
+          const main = page.locator('main.workspace-scroll');
+          await main.focus();
+          await page.keyboard.press('End');
+          const previousScrollTop = await main.evaluate(element => element.scrollTop);
           const navigation = page.getByRole('tablist', { name: await label(page, '主导航'), exact: true });
           const control = navigation.getByRole('tab', { name: await label(page, '控制'), exact: true });
           await control.focus();
           await control.press('ArrowRight');
           const osc = navigation.getByRole('tab', { name: 'OSC', exact: true });
           await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
+          await expect.poll(() => main.evaluate(element => element.scrollTop), { message: 'Workspace navigation returns to top / 工作区导航回到顶部' }).toBe(0);
           const focus = await inspectFocusIndicator(osc);
           const panel = page.locator('#' + await osc.getAttribute('aria-controls'));
           await expect(panel).toHaveAttribute('aria-labelledby', await osc.getAttribute('id'));
@@ -172,7 +177,8 @@ for (const locale of ['zh-CN', 'en-US']) {
           const after = await rig.overview();
           expect(after.input.mode).toBe(before.input.mode);
           expect(after.runtime.inputActive).toBe(false);
-          return { beforeMode: before.input.mode, afterMode: after.input.mode, focus };
+          return { beforeMode: before.input.mode, afterMode: after.input.mode, focus, previousScrollTop,
+            afterNavigationScrollTop: await main.evaluate(element => element.scrollTop) };
         });
 
         await report.check('native-dialog-focus-trap-escape-return / 原生对话框焦点圈定、Escape 与焦点恢复', async () => {
