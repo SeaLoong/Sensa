@@ -12,7 +12,7 @@ This page describes current behavior and its limits, with source entry points fo
 | Control | Browse/apply Manual/OSC/Script; twelve-axis manual targets, single/continuous updates and motion settings; outputs; recording/export |
 | OSC → Mappings | Three built-in presets, replace/append, custom presets, path/role/inversion, range/curve/remapping, individual simulation, save/restore |
 | OSC → Parameters | Search, browse/use source, categories, freeze, pins, meanings and mapping creation |
-| OSC → Experimental diagnostics | Experimental permission, Point/Handle endpoint calibration, Root/SharedRoot/Pose observations, local coordinates and failure reasons |
+| OSC → Experimental diagnostics | Experimental permission, Point/Handle endpoint calibration, SPS/Shader/Pose observations, local coordinates and failure reasons |
 | Expandable OSC settings | Listener, source filter, timeout, OSCQuery, polling, receiver advertisement and Hub |
 | Settings | Create/edit/default/remove axis profiles, twelve-axis details and structured log filtering |
 
@@ -42,7 +42,7 @@ Emergency stop is latched; clearing it does not resume motion. Disabled input, c
 
 Roles map Depth/Surge/Sway to L0/L1/L2, Twist/AngleX/AngleY to R0/R1/R2, V0–V2 to vibration, and Auxiliary/Auxiliary1/Auxiliary2 to A0/A1/A2. A role name is not a calibrated physical direction. [Mapping/roles](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalMapping.cs), [calibration/fusion](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalPipeline.cs)
 
-The three presets are `ogb-depth`, `ogb-touch` and `native-pb-stretch`. Depth prefers NewRoot/NewTip from the same source/instance/Self-Others party; legacy single-proximity fallback applies only without modern pairing. Incomplete or saturated modern samples are rejected without silently reusing legacy data. NewTip is a root-centered length sphere, yielding a radial proportion. Touch/Frot independently drives V0 with the same object's required Close gate. PB uses the real Stretch and IsGrabbed prefix. [Presets](presets.en.md), [OGB compatibility](ogb-compatibility.en.md), [radial estimator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+The three presets are `ogb-depth`, `ogb-touch` and `native-pb-stretch`. Depth prefers NewRoot/NewTip from the same source/instance/Self-Others party; legacy single-proximity fallback applies only without modern pairing. Incomplete or saturated modern samples are rejected without silently reusing legacy data. NewTip is a root-centered length sphere, yielding a radial proportion. Touch/Frot drives V0 with required same-object Close gates; independent VFH Touch Zones are direct. PB uses the real Stretch and IsGrabbed prefix. [Presets](presets.en.md), [OGB compatibility](ogb-compatibility.en.md), [radial estimator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
 
 Modern VRCFury may leave OGB parameters off. Explicitly configure `osc.ogbControl` in OSC settings to send `OGB_ENABLED=true` to VRChat every five seconds while OSC reception runs. Stopping or retargeting sends false to the old destination. It neither guesses incoming ports nor activates device input. Active status and last-send time do not acknowledge remote reception. [Activation service](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OgbControlService.cs)
 
@@ -69,11 +69,11 @@ Intiface selects timed or raw position commands according to advertised capabili
 
 ## Spatial experiment limits
 
-Fixed roots use four noncoplanar AvatarRootLocal anchors, radius-2.5 receivers and a dedicated radius-0.001 sender. An explicit Socket/Plug/native Contact center and unique tag reduce target mixing. `Sensa/SpsRoot/v1/<id>/Self/Root/A0…A3` requires Profile=1, Valid, Scale and a fresh Heartbeat at the same Self level. Old eight-channel Root data without metadata remains diagnostic. Builds reject nonuniform avatar-root scale, excessive radius and custom root-scale animation; out-of-range runtime ScaleFactor disables Contacts.
+Fixed roots use four noncoplanar P0–P3 anchors in AvatarRootLocal, radius-2.5 receivers and a dedicated radius-0.001 root sender. The only current measurement paths are `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. Sample combines activity/validity; static Profile/Scale and separate Valid/Heartbeat are removed. No older Root/SharedRoot or versioned SPS layout is decoded. Internal guards reject unsupported root scale and disable Contacts before the world-radius cap. [Parameter dictionary](osc-parameters.en.md)
 
-The native shader root producer uses native Cameras, RenderTexture and a skinned point to publish the selected CPU root in AvatarRootLocal. The external Python bridge captures only an explicitly registered region and producerId, validating frame/CRC/validity/timeout before sending `Sensa/Shader/v1/<id>`. Root capture is not the SPS deformation curve or final visible surface. Both root producers use two-point calibration in the existing local-point panel, generating `SensaPoint` mappings still blocked by default `osc.allowExperimentalSpatialInput=false` until explicitly permitted.
+Native root capture uses one None-eye Camera and a skinned point, with payload/CRC computed once per point. The explicit-region bridge emits `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in one ordered bundle, committing Valid last. Diagnostic grids use a separate namespace and create no spatial observations. Root transforms are not SPS deformation curves or final surfaces. Both root routes generate calibrated `SensaPoint` mappings behind explicit experimental/input permission.
 
-Legacy Point/Handle/Pose remain reference-local experiments with oldest-channel age, including Handle grab state: one second by default or positive `inputTimeoutMs`. Fixed roots retain unchanged ranges while requiring FX heartbeat freshness of at most 1250 ms. The 32-step, 50-ms counter is neither atomic sampling nor proof of Contact freshness. Shader input separately requires advancing frames and producer metadata. None independently recovers avatar world motion or complete pose, and calibration adds no missing observability. Others and SharedRoot remain diagnostic. [Positioning](positioning.en.md), [fixed-anchor research](fixed-anchor-research.en.md)
+Independent Point/Handle/Pose experiments retain oldest-channel age, including Handle grab state, with a default 1000 ms or positive input timeout. Fixed roots cache stationary ranges but require a changing Sample, defaulting to 1000 ms and capped at 1250 ms; Shader requires complete packets and a changing Frame within 500 ms. A single point gives no orientation; three-marker Pose provides only reference-local pose, never independent world motion or device feedback. [Positioning](positioning.en.md), [fixed-anchor research](fixed-anchor-research.en.md)
 
 ## Unity and experiment tools
 
@@ -83,10 +83,10 @@ The Unity package contains build-time authoring components, not arbitrary C# run
 | --- | --- |
 | Fixed SPS roots | Automatic SPS Setup defaults to fixed four-anchor Self roots with Dedicated/Exclusive; an explicit author selects other supported roots, with scale/protocol guards |
 | Traditional SensaComponent | Socket/Plug Contacts, rings and raw lateral proximity; PB/Contact/ExistingParameter and SDK-dependent Raycast auxiliary signals; distinct from modern VRCFury generation |
-| Automatic SPS Setup | Discover/select existing SPS, exclusions, menu selection and Dedicated/Exclusive/SharedRootArray policies |
+| Automatic SPS Setup | Discover/select existing SPS, exclusions, menu selection and Dedicated/Exclusive policies |
 | Point/Handle/Pose/Root | Experimental samples, grab gates and reference frames; scale/name/parameter-conflict/Contact-budget preflight |
 | GPU Model Probe | Editor snapshot of a selected Resolver's model centerline/entry data, with pinned-source checks; not final mesh or general client tracking |
-| Native shader roots and image bridge | Generates native cameras/skinned point/encoding materials, initially Off; explicit region/producerId Python-to-OSC bridge invalidates freeze/errors; client visibility still needs acceptance |
+| Native shader roots and image bridge | Generates one native camera/skinned point/encoding materials, initially Off; explicit region/producerId Python-to-OSC bridge invalidates freeze/errors; client visibility still needs acceptance |
 | Avatar Lab | Separate capability scenes, QuickStart/FullFlow, placement/hand following, menus, SDK preprocess and local bundle validation; requires the user's licensed assets |
 | World Lab | Geometry cases, PB/Contact/SPS/Shader stations, START HERE, interactive world Plug/Socket and ClientSim/PlayMode validation entry points |
 

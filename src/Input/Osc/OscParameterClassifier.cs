@@ -24,7 +24,8 @@ public static class OscParameterClassifier
             || normalized.StartsWith("v2/", StringComparison.OrdinalIgnoreCase))
             return new(true, 0, "面部追踪参数");
         var segments = normalized.Split('/');
-        if (segments.Any(s => s.Equals("OGB", StringComparison.OrdinalIgnoreCase) || s.Equals("Sensa", StringComparison.OrdinalIgnoreCase)))
+        if (normalized.StartsWith("VFH/Zone/Touch/", StringComparison.Ordinal)
+            || segments.Any(s => s.Equals("OGB", StringComparison.OrdinalIgnoreCase) || s.Equals("Sensa", StringComparison.OrdinalIgnoreCase)))
             return new(false, 100, "已知触觉参数路径");
         if (KnownNames.Contains(leaf, StringComparer.OrdinalIgnoreCase))
             return new(false, 90, "名称匹配已知触觉参数，请确认来源与含义");

@@ -13,7 +13,7 @@
 | Android 是否支持？ | [Android 限制](https://creators.vrchat.com/platforms/android/quest-content-limitations/)禁止 Avatar Camera，且只允许列出的 Mobile Shader。 | 作者构建拒绝 Android；本轮是 PC Built-in / geometry-shader 路径，Metal 也不在支持范围。 |
 | 隐藏层是否能被桌面捕获？ | [图层说明](https://creators.vrchat.com/worlds/layers/)中的 MirrorReflection 仅用于镜面；世界图层表不能证明 Avatar 上传后的图层保留。 | 不把“隐藏层”当作外部捕获接口。需要实际桌面编码块；遮挡、最小化、图层变更等必须实测。 |
 | 不进双眼是否等于桌面可见？ | Unity [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html)和 [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html)说明引擎的眼目标；[targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html)说明 RT 与屏幕输出。 | 相机选择 None，但 VRChat 的桌面合成、头显不显示仍是独立客户端验收项，不能承诺。 |
-| 如何区分镜面/拍照？ | [VRChat Shader Globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/)公布 CameraMode、MirrorMode，但没有任意 Avatar 相机唯一身份 API。 | 用已公布的全局值拒绝镜面/拍照，再用正交远平面签名隔离两相机。这只是路由条件，不是安全身份。 |
+| 如何区分镜面/拍照？ | [VRChat Shader Globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/)公布 CameraMode、MirrorMode，但没有任意 Avatar 相机唯一身份 API。 | 用已公布的全局值拒绝镜面/拍照，再用每 producer 的正交远平面签名限制编码相机。这只是路由条件，不是安全身份。 |
 
 ## 为什么先实现原生根点，而不是自动读取形变模型
 
@@ -32,13 +32,12 @@
 
 1. Socket/Plug 根部下的 marker；使用 `ReadRoot` 的 local position/rotation。
 2. Avatar 根下单位变换的 SkinnedMeshRenderer，单顶点完全绑定 marker。原生蒙皮结果在 AvatarRootLocal 中，避免把世界米和 Avatar 缩放混算。
-3. 根点编码 Shader、256×128 线性 Point-filter RT、正交编码 Camera。
-4. 第二个 None-eye Camera 和全 viewport 编码呈现网格。输出不是编辑器 PNG 读取器。
-5. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 `SPS root code / SPS 根点编码` 后才开启 rig。
+3. 单个 None-eye 正交 Camera，按配置 viewport 直接输出 NDC 黑白格；不再生成 RT、Quad、第二相机或显示 Shader。
+4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 `SPS root code / SPS 根点编码` 后才开启 rig。
 
 边界使用原生序列化 `m_AABB` / `m_DirtyAABB`，而非仅依赖不持久化的 Renderer.localBounds override；保持每次渲染的骨骼矩阵更新。[Unity Inspector 源码](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs)
 
-所有上传后运行的测量/输出组件都是原生组件；编辑器 builder、MA/NDMF 构建过程并不是 Avatar 运行时脚本。两个生成 Shader 存放在 `Assets/SensaShaderCapture`，已有不同内容时构建停止，不覆盖用户文件。
+所有上传后运行的测量/输出组件都是原生组件；编辑器 builder、MA/NDMF 构建过程并不是 Avatar 运行时脚本。生成的根点 Shader 存放在 `Assets/SensaShaderCapture`，已有不同内容时构建停止，不覆盖用户文件。
 
 ## 坐标与二进制包
 
@@ -55,18 +54,26 @@
 | 12–13 | 非零 16-bit producer ID；不是玩家账号身份 |
 | 14–15 | 前 14 字节的 CRC-CCITT，初值 0xffff |
 
-序号证明编码画面在推进，不证明最终网格、动画状态或其他 Shader 全局纹理同步。黑白编码有抗颜色偏移校验，但 CRC 不是认证，也不是误差上界。
+geometry 阶段为每个蒙皮点构造一次 16 字节和 CRC，打包成 nointerpolation uint4；fragment 仅取对应位，不再逐像素算 CRC。该改动减少重复计算，不代表已经测得客户端性能提升。
+
+量化步长为 3/65535≈0.00004578 局部单位，每轴最大舍入误差为半步；这不是总位置误差。半范围 1.5 是固定坐标边界，不是 Contact 接收半径，不增加第二套半径配置。SN 内部格式 1 是二进制布局标识，不是 OSC 路径版本或旧协议兼容分支。
+
+序号证明编码画面在推进，不证明最终网格、动画状态或其他 Shader 全局纹理同步。黑白编码有抗颜色偏移校验，但 CRC 不是认证。
 
 ## 桌面注册与 OSC
 
 完整操作见[包内指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)。桥不会自动选屏幕；必须显式选择 ROI。发送屏幕 OSC 必须固定 producer ID；注册还固定坐标 profile/center/range。同 ID 的旧诊断坐标格式也会被拒绝。
 
-有效 OSC bundle 按顺序发送 `Sensa/Shader/v1/<ID>/{Valid,Frame,X,Y,Z,Producer,Profile}`；原生 Profile=1。无效时只发送 `Valid=0,Producer,Profile`，不重发旧 XYZ，保留相同目标前缀。旧 synthetic/Editor PNG 的 ID=0、Profile=0 只供解码/预览，不是根点运动输入。
+有效 OSC 单 bundle 严格按 `Sensa/Shader/<非零ID>/{Frame,X,Y,Z,Valid}` 顺序发送，Valid=1 是最后的提交字段。失效只向同一前缀发送 Valid=0，不重发旧 XYZ 或伪增 Frame。ID 已在路径中，坐标系固定为 AvatarRootLocal，因此删除重复 Producer／Profile 参数与路径版本段，不提供旧别名。
+
+Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以立即宣告无效；五项各有用途。ID 仍保留在二进制包里用于校验实际 ROI 中的来源。原生 ID0 无效；合成／Editor 模型诊断只能进入 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`，不生成根点观察。
+
+桌面要求同来源连续五字段，并按 Frame 内容变化时间执行最多 500 ms 存活窗；反复重发同一 Frame 不续期。模 16 位的单调前进、同帧异值和两帧恢复由桥负责；静态 Observe 不额外宣称具有历史防重放状态。
 
 注册文件只证明曾在显式 ROI 解码到该 native 包，不代表完成位置精度或 VR 可见性验收。桥接器仍需两个推进帧；CRC/来源/坐标系错误、同帧不同值、倒序、冻结、超时或退出均关 Valid。冻结后的原帧不会恢复，两张新的推进帧才恢复；source reset 可要求手动重启桥，不能自动换源。
 
 ## 验证与未完成验收
 
-- 本轮 isolated Python `test_shader_bridge.py`：18 项通过。覆盖编码/CRC/RGB、源无效与越界标志、共享坐标范围、来源/profile 锁定、无效 OSC、顺序、冻结/恢复、Windows 文件原子替换、注册校验和 CLI 提前拒绝。未调用桌面捕获或用户设备。
-- 统一 Unity EditMode 中最终 native capture 3 项、fixed-root 9 项共 12/12 通过，零跳过；证据为 artifacts/verification/fixed-root-counter-native-editmode.xml。Native 契约覆盖默认关闭、相机/RT/Shader 编译、持久边界、局部蒙皮几何及多 producer 相机绑定，不含 PlayMode 或实际客户端。
+- 隔离 Python 契约覆盖编码/CRC/RGB、无效源、共享坐标范围、来源/坐标系锁定、五字段顺序、原生与诊断命名空间隔离、冻结/恢复、Windows 文件原子替换、注册和 CLI 提前拒绝。不调用桌面捕获或用户设备。
+- Unity EditMode 契约覆盖默认关闭、单相机直接输出配置、Shader 编译、持久边界、局部蒙皮几何及多 producer 相机绑定。本轮隔离 Python 19/19、统一 Unity EditMode 65/65（含原生捕获 3 项）通过，零跳过；XML 为 artifacts/verification/sps-five-fields-editmode.xml。Unity 使用 nographics 导入／生成 Shader，不是实际 GPU 像素输出或客户端验收。
 - 必须另验：真实 SDK 上传后保留、NDMF/VRCFury 优化交互、实际 native 编码、PC desktop 与 PCVR 合成、头显是否可见、窗口缩放/遮挡/最小化、HDR/后处理/低帧率、延迟及位置参考误差。没有这些证据前保持实验 opt-in，不称可靠世界定位或真实网格跟踪。

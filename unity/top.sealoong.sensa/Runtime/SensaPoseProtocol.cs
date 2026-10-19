@@ -3,13 +3,10 @@ namespace UnityBox.Sensa
     // Shared verbatim with the desktop project. Unreleased initial protocol; desktop and Unity are updated together.
     public static class SensaPoseProtocol
     {
-        public const string SpsRootPrefix = "Sensa/SpsRoot/v1";
         public const string PointPrefix = "Sensa/Point/v1";
         public const string HandlePrefix = "Sensa/Handle/v1";
         // Regular tetrahedron, fixed-radius local sender. Used by all local point and PB probes.
         public static int PointAnchorIndex(int index) => index == 0 ? 0 : index == 1 ? 3 : index == 2 ? 5 : 6;
-        public const string SharedRootPrefix = "Sensa/SharedRoot/v1";
-        public const string SpsRootTag = "TPS_Pen_Root";
         public const string Prefix = "Sensa/Pose/v1";
         public const float AnchorHalfSpan = 0.06f;
         public const float ReceiverRadius = 0.35f;

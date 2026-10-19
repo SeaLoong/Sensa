@@ -33,7 +33,7 @@ macOS previews are unsigned command-line programs. ZIP files starting with `top.
 
 Target previews are not mechanical feedback. Start with automatic OGB/SPS depth or vibration presets when native parameters exist. If required, explicitly enable the `OGB_ENABLED` heartbeat to VRChat; its status is not a UDP acknowledgment. [Compatibility and paths](docs/ogb-compatibility.en.md)
 
-For root coordinates, Unity authors can generate four anchors fixed in the avatar-root frame or a native shader capture rig for a selected Socket/Plug. An explicit screen-region Python bridge publishes shader coordinates. Both use two-point calibration in Experimental diagnostics and require explicit experimental permission. They do not measure world position, complete pose or the SPS curve surface. Old eight-channel Root samples are not the new protocol. [Positioning](docs/positioning.en.md) · [Shader capture](unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+For root coordinates, Unity authors can generate four anchors fixed in the avatar-root frame or a native shader capture rig for a selected Socket/Plug. An explicit screen-region Python bridge publishes shader coordinates. Both use two-point calibration in Experimental diagnostics and require explicit experimental permission. They do not measure world position, complete pose or the SPS curve surface. Sensa SPS accepts only unversioned P0–P3/Sample; Shader uses five ordered fields with separate diagnostics. [Parameter/radius reference](docs/osc-parameters.en.md). [Positioning](docs/positioning.en.md) · [Shader capture](unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
 ## Documentation
 

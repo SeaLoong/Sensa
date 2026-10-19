@@ -580,12 +580,14 @@ function App() {
   function mapPreviewParameter(entry) {
     if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
-    } else if (entry.path.startsWith('Sensa/SpsRoot/v1/') || entry.path.startsWith('Sensa/Shader/v1/')) {
+    } else if (entry.path.startsWith('Sensa/SPS/') || entry.path.startsWith('Sensa/Shader/')) {
       navigateWorkflow('sensa-sps');
       notify(t('请在根点面板选择目标并采集两个端点，再生成映射。'), 'info');
       return 'experimental';
-    } else if (entry.path.startsWith('Sensa/SharedRoot/v1/')) {
-      notify(t('共享根部采样仅供诊断；请使用固定锚点与专用根标记。'), 'info');
+
+    } else if (entry.path.startsWith('Sensa/Diagnostics/Shader/')) {
+      notify(t('诊断参数仅用于传输检查，不生成坐标映射。'), 'info');
+      return oscWorkspaceTab;
     } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
     } else if (/^OGB\/(Orf|Pen)\/.+\/Pen(Self|Others)(NewRoot|NewTip|Close)?$/.test(entry.path)) {
@@ -599,7 +601,7 @@ function App() {
       setSignalDrafts((previous) => [
         ...previous,
         makeSignalDraft({ oscPath: entry.path,
-          sourceMode: /^OGB\/(Orf|Pen)\/.+\/(Touch(Self|Others)|FrotOthers)$/.test(entry.path) ? 'OgbTouch' : 'Direct',
+          sourceMode: /^(OGB\/(Orf|Pen)\/.+\/(Touch(Self|Others)|FrotOthers)|VFH\/Zone\/Touch\/.+\/(Self|Others))$/.test(entry.path) ? 'OgbTouch' : 'Direct',
           role: /Close$|_IsGrabbed$/.test(entry.path) ? 'GateEnable' : /\/(Touch|Frot)/.test(entry.path) ? 'V0' : 'Depth' }),
       ]);
       notify(t('已添加映射草稿，请确认参数含义、目标轴和范围后保存。'), 'info');

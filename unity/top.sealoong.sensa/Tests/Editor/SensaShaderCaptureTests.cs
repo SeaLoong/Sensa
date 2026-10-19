@@ -16,20 +16,21 @@ namespace UnityBox.Sensa.Tests
             Assert.That(rig.activeSelf, Is.False);
             Assert.That(rig.GetComponentsInChildren<MonoBehaviour>(true), Is.Empty);
             var cameras = rig.GetComponentsInChildren<Camera>(true);
-            Assert.That(cameras, Has.Length.EqualTo(2));
+            Assert.That(cameras, Has.Length.EqualTo(1));
             Assert.That(cameras.All(camera => camera.stereoTargetEye == StereoTargetEyeMask.None && !camera.allowHDR && !camera.allowMSAA), Is.True);
-            var capture = cameras.Single(camera => camera.targetTexture != null);
+            var capture = cameras.Single();
+            Assert.That(capture.targetTexture, Is.Null);
+            Assert.That(capture.rect, Is.EqualTo(new Rect(0, 0, .25f, .125f)));
+            Assert.That(capture.clearFlags, Is.EqualTo(CameraClearFlags.Depth));
+            Assert.That(capture.depth, Is.EqualTo(100));
+            Assert.That(rig.GetComponentsInChildren<Renderer>(true), Has.Length.EqualTo(1));
             Assert.That(capture.farClipPlane, Is.EqualTo(1f + 42f / 65536));
-            Assert.That(capture.targetTexture.filterMode, Is.EqualTo(FilterMode.Point));
-            Assert.That(capture.targetTexture.antiAliasing, Is.EqualTo(1));
+
             var skin = rig.GetComponentInChildren<SkinnedMeshRenderer>(true);
             Assert.That(skin.sharedMesh.GetTopology(0), Is.EqualTo(MeshTopology.Points));
             Assert.That(skin.sharedMaterial.GetFloat("_SensaProducerId"), Is.EqualTo(42));
             Assert.That(skin.sharedMaterial.GetFloat("_SensaCameraFar"), Is.EqualTo(capture.farClipPlane));
-            var presenter = cameras.Single(camera => camera.targetTexture == null);
-            Assert.That(presenter.farClipPlane, Is.EqualTo(3f + 42f / 65536));
-            var display = presenter.GetComponentInChildren<MeshRenderer>(true);
-            Assert.That(display.sharedMaterial.GetFloat("_SensaCameraFar"), Is.EqualTo(presenter.farClipPlane));
+
             // Test the persisted inspector bounds, not a transient Renderer.localBounds override.
             var serialized = new SerializedObject(skin);
             var bounds = serialized.FindProperty("m_AABB").boundsValue;
@@ -41,18 +42,18 @@ namespace UnityBox.Sensa.Tests
         }
 
         [Test]
-        public void MultipleNativeProducersUseDistinctCaptureAndPresenterSignatures()
+        public void MultipleNativeProducersUseDistinctDirectCameraSignatures()
         {
             var marker = Child("Root", Vector3.up).transform;
             var first = SensaShaderCaptureBuilder.BuildNativeRig(avatar, marker, 1, new Rect(0, 0, .25f, .125f));
             var second = SensaShaderCaptureBuilder.BuildNativeRig(avatar, marker, 2, new Rect(.25f, 0, .25f, .125f));
             var cameras = first.GetComponentsInChildren<Camera>(true).Concat(second.GetComponentsInChildren<Camera>(true)).ToArray();
-            Assert.That(cameras.Select(camera => camera.farClipPlane).Distinct().Count(), Is.EqualTo(4));
+            Assert.That(cameras.Select(camera => camera.farClipPlane).Distinct().Count(), Is.EqualTo(2));
             foreach (var rig in new[] { first, second })
             {
                 var own = rig.GetComponentsInChildren<Camera>(true);
                 var encoder = rig.GetComponentInChildren<SkinnedMeshRenderer>(true);
-                Assert.That(encoder.sharedMaterial.GetFloat("_SensaCameraFar"), Is.EqualTo(own.Single(camera => camera.targetTexture != null).farClipPlane));
+                Assert.That(encoder.sharedMaterial.GetFloat("_SensaCameraFar"), Is.EqualTo(own.Single().farClipPlane));
             }
         }
 

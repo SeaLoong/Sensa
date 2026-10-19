@@ -12,7 +12,7 @@
 | 控制 | 手动／OSC／脚本选择与应用；手动十二轴目标、一次／持续更新、运动参数；输出管理；录制与导出 |
 | OSC → 映射 | 三项内置预设、替换／追加、自定义预设、路径／角色／反向、量程／曲线／映射区间、单条模拟、保存／恢复 |
 | OSC → 参数 | 搜索、来源浏览、使用来源、分类、冻结、置顶、参数含义、添加映射 |
-| OSC → 实验诊断 | 实验许可、Point／Handle 两端校准、Root／SharedRoot／Pose 观测、局部坐标和异常原因 |
+| OSC → 实验诊断 | 实验许可、Point／Handle 两端校准、SPS／Shader／Pose 观测、局部坐标和异常原因 |
 | OSC 设置展开区 | 监听、来源过滤、超时、OSCQuery、轮询、接收服务发现、Hub |
 | 设置 | 轴配置新增／编辑／默认／移除，十二轴详细设置，结构化日志筛选 |
 
@@ -42,7 +42,7 @@ Web 使用 React 和项目自建的 TDesign 风格基本组件。导航位于顶
 
 角色对应：Depth／Surge／Sway → L0／L1／L2，Twist／AngleX／AngleY → R0／R1／R2，V0–V2 → 三路振动，Auxiliary／Auxiliary1／Auxiliary2 → A0／A1／A2。角色名不是设备已标定方向。[映射与角色](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalMapping.cs)、[校准与融合](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalPipeline.cs)
 
-三项内置预设是 `ogb-depth`、`ogb-touch`、`native-pb-stretch`。OGB 深度优先使用同来源／实例／Self-Others 的 NewRoot／NewTip，只有无现代配对时才回退旧单近接；现代样本不完整或饱和时拒绝，不静默采用旧值。NewTip 是根部同心长度球，估计的是径向比例。OGB Touch／Frot 独立驱动 V0，并按相同对象要求 Close 门控；PB 使用实际前缀的 Stretch＋IsGrabbed。[预设](presets.md)、[OGB 兼容](ogb-compatibility.md)、[径向估计](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+三项内置预设是 `ogb-depth`、`ogb-touch`、`native-pb-stretch`。OGB 深度优先使用同来源／实例／Self-Others 的 NewRoot／NewTip，只有无现代配对时才回退旧单近接；现代样本不完整或饱和时拒绝，不静默采用旧值。NewTip 是根部同心长度球，估计的是径向比例。OGB Touch／Frot 独立驱动 V0，并检查所需的同对象 Close；独立 VFH Touch Zone 直接读取；PB 使用实际前缀的 Stretch＋IsGrabbed。[预设](presets.md)、[OGB 兼容](ogb-compatibility.md)、[径向估计](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
 
 现代 VRCFury 的 OGB 参数可能默认关闭。可在 OSC 设置显式配置 `osc.ogbControl` 的目标，实际 OSC 接收运行时每 5 秒向 VRChat 发送 `OGB_ENABLED=true`，停止或换目标时向旧目标发 false。它不推断来包端口，也不启用设备输入；状态和最后发送时间不是远端接收确认。[启用服务](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OgbControlService.cs)
 
@@ -69,11 +69,11 @@ Intiface 根据能力选择定时位置或原始位置命令；振动独立读�
 
 ## 空间实验的边界
 
-新的固定根使用 AvatarRootLocal 中四个非共面锚点、半径 2.5 接收球和半径 0.001 的专用 Sender。根点来自明确选中的 Socket／Plug／原生 Contact 中心，独有 tag 减少多个目标混淆。`Sensa/SpsRoot/v1/<id>/Self/Root/A0…A3` 必须同时具有同一 Self 层的 Profile=1、Valid、Scale 与新鲜 Heartbeat；缺少协议元数据的旧八路 Root 只诊断。Avatar 根非均匀缩放、过大半径及自定义根缩放动画在构建时拒绝，运行时 ScaleFactor 超界关闭 Contact。
+固定根使用 AvatarRootLocal 中非共面的 P0–P3、半径 2.5 接收球及半径 0.001 的专用根 Sender。当前每对象测量路径仅 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`；Sample 合并活动／失效状态，删除静态 Profile／Scale 及单独 Valid／Heartbeat。不解码旧 Root／SharedRoot 或版本路径。内部缩放守卫拒绝不支持的根尺度，并在世界半径限幅前停用 Contact。[参数字典](osc-parameters.md)
 
-原生 Shader 根点生产端用 native Camera／RenderTexture／蒙皮点发布所选 CPU 根的 AvatarRootLocal 坐标；外部 Python 桥只捕获明确注册区域与 producerId，核对帧、CRC、有效性及超时后发送 `Sensa/Shader/v1/<id>`。它是根点捕获，不能当作 SPS GPU 形变曲线或最终可见表面。根点与 Shader 都可在现有本地点面板做两点校准，生成 `SensaPoint` 映射，仍由默认关闭的 `osc.allowExperimentalSpatialInput` 阻断，必须显式许可。
+原生根点捕获使用单个 None-eye Camera 与蒙皮点，payload／CRC 每点仅算一次。显式区域桥按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 在一个有序 bundle 中最后提交 Valid。诊断图块使用独立路径，不生成空间观测。根 Transform 不是 SPS 形变曲线或最终表面；两条根点路线均校准为 `SensaPoint` 映射，并受实验许可与输入启用限制。
 
-旧 Point／Handle／Pose 保留参考局部实验，使用最旧通道时效，Handle 包括抓取状态；默认 1 秒，正值 `inputTimeoutMs` 覆盖。新固定根允许静止范围缓存，以最多 1250 ms 的 FX 心跳判断活性；32 步计数每步 50 ms，不等于同帧或 Contact 新鲜度证明。新 Shader 另要求帧更新与来源元数据。三者都不能独立恢复 Avatar 世界运动或完整姿态，校准也不补足缺失观测。Others 和 SharedRoot 仍只诊断。[定位说明](positioning.md)、[固定锚点研究](fixed-anchor-research.md)
+独立 Point／Handle／Pose 实验保留最旧通道时效，Handle 包括抓取状态，默认 1000 ms 或正值输入超时。固定根可缓存静止距离，但 Sample 必须变化，正常默认 1000 ms、解码上限 1250 ms；Shader 要求完整包及 500 ms 内变化 Frame。单点没有朝向，三标记 Pose 也只给参考局部姿态，不能独立恢复世界运动或设备回读。[定位说明](positioning.md)、[固定锚点研究](fixed-anchor-research.md)
 
 ## Unity 与实验工具
 
@@ -83,7 +83,7 @@ Unity 包提供构建期作者组件，不是在上传 Avatar 中运行任意 C#
 | --- | --- |
 | 固定 SPS 根部 | Automatic SPS Setup 默认生成固定四锚点 Self 根，Dedicated／Exclusive 支持；独立作者可显式选根，带缩放与协议守卫 |
 | 传统 SensaComponent | Socket／Plug Contacts、环与原始侧向近接；PB／Contact／ExistingParameter／受 SDK 条件约束的 Raycast 辅助信号；不是现代 VRCFury 的相同生成器 |
-| Automatic SPS Setup | 扫描／显式选择已有 SPS，排除目标、菜单选择；Dedicated／Exclusive／SharedRootArray 阵列策略 |
+| Automatic SPS Setup | 扫描／显式选择已有 SPS，排除目标、菜单选择；Dedicated／Exclusive 阵列策略 |
 | Point／Handle／Pose／Root | 实验采样、抓取门控、参考坐标；缩放、命名、参数冲突与 Contact 预算预检 |
 | GPU Model Probe | Editor 中读取已指定 Resolver 的模型快照、中心线与入口数据；固定源版本检查；不是最终网格或通用客户端定位 |
 | 原生 Shader 根点与图像桥 | 生成上传用原生相机／蒙皮点／编码材质，默认 Off；明确区域和 producerId，经 Python 桥发 OSC，冻结／错误失效；真实客户端可见性仍需验收 |

@@ -1,105 +1,120 @@
-# OGB 与 SPS 参数兼容研究
+# OGB 参数、检测几何与 Sensa 支持范围
 
 **简体中文** | [English](ogb-compatibility.en.md)
 
-Sensa 用一个 OGB 深度解释入口读取 Socket、Plug 的现有参数。自动选择依据是**实际参数能力**，不是 SPS／OGB 的产品名称或版本号。输出是归一化设备目标；现代 Socket 也只提供径向估算，不能据此声称获得了真实插入深度、世界坐标或变形网格位置。
+OGB 是应用及一组外部触觉参数约定，SPS 是 Avatar 形变／交互系统，两者不是同一个位置协议。本页解释官方生成器实际产生的参数、消费者怎样使用它们，以及 Sensa 的处理范围。**OGB 的外部路径不会随 Sensa 自有点名 P0–P3、去除路径版本段而改名**；Sensa 自有方案见[定位说明](positioning.md)。
 
-本研究核对官方 OGB v1.0.0、v2.1.30，以及本次研究时 VRCFury main 的固定提交。v1.0.0 已有 Root／Tip 与旧参数回退，因此“旧版 OGB 只有一个 trigger”不是普遍成立的版本划分。[旧 OGB 实现](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)、[当前 OGB 实现](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L150)。
+研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。旧 OGB v1.0.0 已同时读取 Root／Tip 和旧单近接值；“旧版只有一个 trigger”不是可靠的版本划分。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
-## 参数与能力矩阵
+## 先理解半径与数值
 
-下表省略 VRChat 的 `/avatar/parameters/` 前缀。实例可以是完整的多段路径；现代 VRCFury 自己会把实例名中的斜杠替换为下划线。Sensa 保留收到的完整实例父路径，不把末段相同的两个实例合并。
+以下路径省略 `/avatar/parameters/`。Orf 是 Socket，Pen 是 Plug；原点为各自根中心，+Z 为作者的前向。Self／Others 选择本 Avatar 或其他 Avatar，不代表某一个人的身份。
 
-| 实际参数 | Sensa 的解释 | 可以得到什么 |
+| 符号 | 本页含义 |
+| --- | --- |
+| L | Plug 生成时的世界长度 |
+| W | Plug 生成时的世界半径 |
+| e | `min(W, 0.08 m)`，Plug 手触扩展 |
+| D | Socket 手触区域深度；不是对方 Plug 长度 |
+| R、r | 实际 Receiver、球形 Sender 的半径 |
+| H | 胶囊的完整高度，包含两端半球 |
+
+Proximity 是连续 0–1 浮点值；Constant 给出接触存在时的 1、离开时的 0，不能把两者都叫“进入一次的触发器”。VRChat 每个 Receiver 独立选择最近的匹配 Sender；球形接收器按 Sender 最近表面到自身中心计算接近程度。球对球模型为：
+
+```text
+p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
+开始接触的中心距 ≈ R + r；Sender 包含接收器中心时饱和为 1。
+```
+
+因此“Receiver 半径 10 cm”不表示对方中心距恰好 10 cm 才触发；Sender 自己也有大小。胶囊／身体 Sender 应使用最近表面距离，不能套成另一个根球。VRChat 限制缩放后的半径不超过 3 m、宽高深不超过 6 m。[官方 Contacts 行为](https://creators.vrchat.com/common-components/contacts/)
+
+## Socket：`OGB/Orf/<id>`
+
+现代 VRCFury 在启用 OGB Haptics、非 SpsForAll 自动补充目标时生成这组参数。手触区域关闭时，表中标记“需要触摸区”的参数不会生成；现代四个 Root／Tip 不依赖此选项。
+
+| 叶子参数 | 类型、检测对象 | Receiver 几何 | Sensa 自动解释 |
+| --- | --- | --- | --- |
+| PenSelfNewRoot / PenOthersNewRoot | 近接；对应方 Plug 根 Sender | 根中心，球 R=1 m | OgbDepth 的现代配对 |
+| PenSelfNewTip / PenOthersNewTip | 近接；对应方 Plug 长度 Sender | 根中心，球 R=1 m | 配对辅助值，不单独映射 |
+| TouchSelf | 近接；自身 Hand/Finger/Foot | 中心 -D·Z，球 R=D；需要触摸区 | OgbTouch，并要求 TouchSelfClose |
+| TouchOthers | 近接；他人 Head/Hand/Foot/Finger | 同上 | OgbTouch，并要求 TouchOthersClose |
+| TouchSelfClose / TouchOthersClose | Constant；对应身体标签 | 中心 -D/2·Z，胶囊 R=D/2.5、H=D；需要触摸区 | 对应手触门控 |
+| PenOthers | 近接；TPS_Pen_Penetrating | 中心 -D·Z，球 R=D；需要触摸区 | OgbDepth 的旧信号回退 |
+| PenOthersClose | Constant；同一 Plug 标签 | 中心 -D/2·Z，胶囊 R=D/2.5、H=D；需要触摸区 | 存在时约束旧 PenOthers |
+| FrotOthers | 近接；他人 Socket 根标签 | 中心 +0.05·Z，球 R=0.1 m；需要触摸区 | OgbTouch 直接读取 |
+
+D 来自作者 `length`：勾选米制时直接使用，否则乘对象世界 Z 缩放；未给正值时尝试使用 Avatar 视点高度的 5%。不能取得有效触摸区时不生成该区。上表是生成请求值，尺度转换见后文。[Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[D 的来源](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318)
+
+`PenSelf` 是官方 OGB 消费端仍会读取的旧值，但上述现代生成器并未生成 Orf/PenSelf。其旧作者几何不应从 PenOthers 的当前实现推定。现代 Orf 没有 PenSelfClose、FrotOthersClose，亦没有标准 Angle／AngleX／AngleY／AngleZ 参数。
+
+## Plug：`OGB/Pen/<id>`
+
+| 叶子参数 | 类型、检测对象 | Receiver 几何 | Sensa 自动解释 |
+| --- | --- | --- | --- |
+| PenSelf / PenOthers | 近接；对应方 Socket 根标签 | 根中心，球 R=L | OgbDepth 原值，不默认反向 |
+| TouchSelf / TouchOthers | 近接；对应方 Hand/Finger/Foot | 根中心，球 R=L+e | OgbTouch，需要对应 Close |
+| TouchSelfClose / TouchOthersClose | Constant；同上 | 中心 L/2·Z，胶囊 R=W+e、H=L+2e | 手触门控 |
+| FrotOthers | 近接；他人 Plug 包络标签 | 根中心，球 R=L | OgbTouch，需要 FrotOthersClose |
+| FrotOthersClose | Constant；他人 Plug 包络标签 | 中心 L/2·Z，胶囊 R=W+0.08 m、H=L | 摩擦门控 |
+
+Plug 的 TouchOthers 沿用这段生成器中的 SelfContacts 标签集合，不能假定与 Socket 的 BodyContacts 完全相同。上游标签集合分别是 Hand/Finger/Foot 与另加 Head 的集合。[Plug 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256)、[标签定义](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/HapticUtils.cs#L13-L35)
+
+此组没有 PenSelfNewRoot／NewTip、PenOthersNewRoot／NewTip 或 PenSelfClose／PenOthersClose。不能把 Socket 叶子自动套到 Plug。
+
+## Sender 才决定“对方”的大小
+
+这些是检测体，不是额外的 OSC 位置输出：
+
+| 生成对象 | Sender 形状、标签 | 用途 |
 | --- | --- | --- |
-| `OGB/Orf/<实例>/PenOthersNewRoot` 与同实例 `PenOthersNewTip` | 现代 Socket 配对 | 先在球未饱和时估长，随后求径向归一化比例 |
-| `OGB/Orf/<实例>/PenOthers` | 旧 Socket 接近值 | 原始 0–1 强度；若同实例 `PenOthersClose` 存在，还要通过它 |
-| `OGB/Pen/<实例>/PenOthers` | Plug 接近值 | 原始 0–1 强度，不默认反向 |
-| 对应 `PenSelf...` | 自身交互的独立一组 | 不与 Others 配对；内置默认仍选择 Others |
-| `TouchSelf`、`TouchOthers`、`FrotOthers` | 触摸／摩擦强度 | 与深度分开；对应 Close 的条件见下文 |
+| Plug Root | 根中心球 r=0.01 m；TPS_Pen_Root | 现代 Socket NewRoot |
+| Plug Length | 根中心球 r=L；TPS_Pen_Penetrating | 现代 NewTip／旧 PenOthers；**不是尖端点** |
+| Plug WidthHelper | 根中心球 r=max(0.01 m,L-2W)；TPS_Pen_Width | 上游内部宽度辅助，不由 OGB 深度映射直接读取 |
+| Plug Envelope | 中心 L/2·Z；胶囊 R=W、H=L；TPS_Pen_Close | Plug 摩擦／独立触摸区 |
+| Socket Root | 根中心球 r=0.001 m；含 TPS_Orf_Root | Plug 的 PenSelf／PenOthers，以及 Socket FrotOthers |
+| Socket Front | +0.01·Z，球 r=0.001 m；TPS_Orf_Norm 等 | 上游方向辅助；没有对应 OGB Angle 输出 |
 
-现代 Socket 的两个接收球都在 Socket 根部、半径均为 1 m。NewRoot 检测 Plug 根球；NewTip 检测以 Plug 根为中心、半径等于 Plug 长度的球，**它并不是一个位于尖端的标记**。旧 Socket 的 PenOthers 接收球则后移一个配置深度，半径也等于该深度；它不是可套用同一公式的第三个 Root／Tip 通道。[Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L193-L272)。
+例如 Plug/PenOthers 的非零接触中心距约为 L+0.001 m，而非严格 L。现代 NewRoot 与 NewTip 所观测的两个球同心，旋转轴线不改变球心距离；单靠它们不能确定角度、尖端或扭转。[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[Socket Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
 
-Plug 的 PenSelf／PenOthers 接收球位于根部，半径为作者配置的 Plug 长度，检测 Socket 根标签。因此在理想对准条件下，越接近 Plug 根部值越大；不应统一添加反向。Plug 的长度球与 1 cm 根 Sender 也是根部同心球，生成时按世界尺度换算。[Plug 接收器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L255)、[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[世界尺度换算](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/HapticSenderFactory.cs#L24-L40)。
+## 其他真实参数与未支持范围
 
-这里的单参数是 Proximity 浮点值，不是只在进入瞬间触发的 OnEnter。VRChat 的 Proximity 根据最近 Sender 表面到接收器中心的距离给值；存在多个 Sender 时，各 Receiver 各自选择最近者。[VRChat Contacts](https://creators.vrchat.com/common-components/contacts/)。
+| 参数 | 实际含义 | Sensa 当前行为 |
+| --- | --- | --- |
+| OGB_ENABLED | Avatar 输入 bool；启用本地 Orf/Pen Haptics | 显式控制开关；固定目标发真值，5 秒心跳 |
+| VFH/Version/10 | 当前生成器的能力标记路径；不是距离 | 可浏览，不驱动轴 |
+| 旧 `OGB/Pen/<id>/Version/8`、`OGB/Orf/<id>/Version/9`、`VFH/Version/9` | 官方 OGB 仍识别的历史能力标记 | 不用来猜几何或启用输出 |
+| `VFH/Zone/Touch/<id>/Self`、`VFH/Zone/Touch/<id>/Others` | 独立 SPS Touch Zone 近接 | OgbTouch 直接读取 0–1，不要求 Close |
+| `TPS_Internal/Orf/<id>/Depth_In`、`TPS_Internal/Pen/<id>/RootRoot` | 官方 OGB 消费端的原生 TPS 分支 | 不属于 OgbDepth 自动路径；需明确直接映射 |
+| 自定义 Angle／Depth／Trigger 等 | 名字本身不证明类型、方向或单位 | 不生成别名，不宣称为官方标准参数 |
 
-## 统一选择规则
+独立 Touch Zone 是以作者对象为中心、半径为作者 `radius`（默认 0.1 局部单位）的球，`worldScale=false`，故实际半径随对象缩放。它接受身体标签及 Plug 包络，且没有 Orf/Pen 那组 Close 门控；它也没有注册上述 OGB_ENABLED 开关。官方 OGB 的 bridge 与 Sensa OgbTouch 都读取此命名空间；Sensa 仍按完整实例、来源和 Self／Others 隔离，不给它附加不存在的 Close。[Zone 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Feature/VRCFuryHapticTouchReceiverBuilder.cs#L21-L49)、[默认半径](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticTouchReceiver.cs#L4-L7)、[OGB 路径解析](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/bridge.ts#L39-L67)
 
-内置深度映射使用 `sourceMode: OgbDepth`，默认路径为：
+Version 10 是生成器源码中的常量，不是本文建议新增的协议版本。能力检测看参数路径与真实数据，不把标记的 bool 当前值当近接强度。[版本标记生成](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticVersionsService.cs#L16-L29)、[OGB 能力识别](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/main.ts#L108-L120)
 
-```text
-OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
-```
+## 世界尺度与 Socket 估算公式
 
-无需再添加 Tip 或 Close 映射；它们由同一解释器读取。每次按 **OSC 来源键＋完整父路径＋Self／Others** 分组，一组只产生一个深度候选，不把现代 Root 与旧 PenOthers 当成两个强度取最大。
+`worldScale=true` 的生成请求会把位置向量、半径和高度统一除以**构建时**对象的 `worldScale.x`；`false` 则保留作者局部数值。D 的局部长度另乘 Z 缩放，不能把这些单轴换算当作非均匀缩放下的通用正确性保证。Plug／Socket 的 WorldSpace 还通过 ScaleConstraint 保持世界尺度；OGB Receiver 位于 OneSpace 下，不能仅凭选项名承诺所有运行时缩放后仍是 1 m。[Receiver 转换](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/HapticContactsService.cs#L49-L66)、[Sender 转换](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/HapticSenderFactory.cs#L24-L40)、[WorldSpace 约束](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Utils/ConstraintUtils.cs#L9-L25)
 
-1. Socket 的任一现代通道为正时，使用现代配对。配对缺失、数值无效或尚未学到有效长度时给零；不以旧的高值填补。
-2. 现代通道缺失或均为零时，允许旧 PenSelf／PenOthers。Orf 的 PenOthersClose 若存在且未打开，则旧 PenOthers 给零；完全没有 Close 的旧配置仍可读取。
-3. Plug 使用其 PenSelf／PenOthers 原值。不会把 Plug 的路径误当作 Socket Root。
-4. Tip、Close 更新也会重新评估相关深度映射。更换 Avatar、重建映射或重新启用 OSC 输入时清空估长状态，避免沿用未启用期间可能已经更换的 Plug 长度。
-5. 不猜测 `Trigger`、`Depth` 等叶子别名。官方 OGB 另有原生 TPS 的 Depth_In／RootRoot 分支，但它们不等于 OGB 同名参数；本入口不将其改名拼接。自定义信号应明确选择直接映射。
-
-前两项与官方 OGB 的能力优先顺序一致；对“只有一个正值现代通道”的情况，Sensa 额外保守地给零。官方实现有数值配对才进入现代分支。[官方选择逻辑](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)。本地实现见 [OGB 地址解析](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/OgbDepthAddress.cs)、[运行时路由](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs)。
-
-`SpsSocketDepth` 仍能读取已有配置中的现代配对；新增映射优先选择 OgbDepth。旧 Socket 接近值不会被伪造为已经按对方长度归一化的数据。不同实例的候选之后仍按轴混合规则选择，不能由此推断它们属于同一个物体。
-
-## 现代 Socket 的估算模型
-
-以下是 Sensa 基于生成器球形几何建立的模型，不是复制官方 OGB 的采样窗口算法。设 Root／Tip 接近值为 `pRoot`、`pTip`，Sender 根球半径为 `r = 0.01 m`。两个 Receiver 半径都是 1 m，未饱和时近似有：
+在两个 Receiver 同心、半径均为 R、实际 Plug 根球半径为 r，且观察区未饱和时：
 
 ```text
-Plug 长度 L ≈ pTip − pRoot + r
-根部中心距离 d ≈ 1 − pRoot + r
-径向比例 q = clamp(1 − d / L, 0, 1)
+L ≈ R × (pTip - pRoot) + r
+d ≈ R × (1 - pRoot) + r
+径向比例 q = clamp(1 - d / L, 0, 1)
 ```
 
-只有两值有限且在 0–1 内、均高于 0.01，并且长度球尚未接近饱和时才更新长度。长度至少为 0.02 m；同一个缓存 Tip 的序号不会被重复当作新长度测量。Tip 达到饱和阈值后才输出比例；未经过可用的外部估长过程就从内部启动时给零，需要先退出再进入。
+Sensa 当前估算器采用 R=1、r=0.01，故公式简化为此前的 +0.01 修正。这是对已知生成器几何的模型假设，不是读取了实际米制长度。接收半径或根球尺寸因运行时缩放／自定义作者而变化时，该修正不再精确；OGB 这组通道没有携带实际 R／r 元数据。Root 饱和为 1 只说明 d≤r，不能恢复最后这段距离，因此默认径向结果也不保证恰好到 1，仍应校准实际对象。[估算器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
 
-例如 `pRoot=.71, pTip=.90` 对应约 20 cm 长度；之后 `pRoot=.91, pTip=1` 对应约 10 cm 根部距离，输出约 0.5。1 cm 修正来自上游根 Sender 的真实半径；当 Root 本身饱和时，距离也被截断，不能再从信号恢复最后那段距离。见 [Sensa 估算器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)。
+只有完整、有限的 0–1 配对且存在未饱和估长采样时才产生后续径向比例；从内部启动、长度未知时给零，需要先退出再进入。横向偏移、不同 Plug 混入、截断和逐参数异步都会影响结果。OSC 来源键不是 Contact Sender 身份，低残差或参数变动也不等于同帧。
 
-这套模型有明确边界：
+## Sensa 的精简入口与使用条件
 
-- 横向偏移会增大根部距离，旋转不会由这两个同心球单独解出。径向比例不是沿 Plug 轴线的插入比例。
-- 根球与长度球可能分别来自不同 Plug。OSC 来源是发送客户端身份，不是 Contact Sender 身份；如果连续换 Plug 却没有归零或新的未饱和采样，也无法可靠识别长度已变。
-- 逐参数 OSC 更新没有共同 frameId；短暂合并来包和按序号去重只能减少重复采样，不能证明同帧。
-- 可配置的 OSC 超时使用所选现代配对中较新的通道时间，兼容饱和值不变的增量发送。它不证明另一个值仍然物理有效；超时为零表示关闭这项超时检查。被抑制的旧值或 Close 更新不会给现代配对续期。
-- SPS 视觉变形、旧 TPS／DPS 兼容、OGB Haptics 是不同能力。画面发生变形不代表一定生成或发送了这些参数。[SPS 官方说明](https://vrcfury.com/sps/)。
+深度只需一组 OgbDepth，触摸只需一组 OgbTouch；不为每个叶子创建单独预设。现代通道有正值时优先使用现代配对，缺配对／未知长度时给零；现代缺失或均零时才回退同实例旧 PenSelf／PenOthers。OgbTouch 按同来源、完整父路径和功能配对 Close，缺少必需 Close 给零；显式 Direct 可以读取原值。[消费端选择依据](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)、[Sensa 地址解释](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/OgbDepthAddress.cs)
 
-## 先启用 Haptics，再看参数
+现代 VRCFury 把生成实例名中的斜杠替换为下划线；Sensa 虽能保留自定义嵌套父路径，也不把这种扩展称为官方默认。所有辅助值严格留在同一来源／实例／Self 或 Others 内。输入重新启用、更换 Avatar 或重建映射时重新估长；超时使用被选信号，不让被抑制的旧值或 Close 单独续期。
 
-当前 VRCFury 的 OGB Haptics 对象默认关闭，仅在本地 Avatar 且 `OGB_ENABLED` 为真时启用；官方 OGB 每 5 秒发送一次真值。[VRCFury 启用条件](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs#L16-L41)、[官方控制心跳](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/OscConnection.ts#L21-L68)。
+Orf/Pen Haptics 需作者启用构建选项，客户端开启 OSC，并收到 OGB_ENABLED。Sensa 的 `osc.ogbControl` 默认关闭；启用后只向明确配置的单播 IP／localhost 和 UDP 端口发送，不猜来包端口。在 OSC 模式且监听运行时每 5 秒发 true，离开／停用／正常退出向旧目标尝试发 false。它独立于设备输入许可；UDP 发送成功不代表 Avatar 已应答。[上游启用条件](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs#L16-L41)、[官方心跳](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/OscConnection.ts#L21-L68)
 
-Sensa 为此增加显式控制配置：
+推荐先看原始参数，再选深度或振动并校准实际对象；不要添加没有来源证据的 Angle／位置叶子。独立 Zone 已补入原有触摸预设，没有增加预设数量；只有明确的 `VFH/Zone/Touch/<完整id>/Self` 或 `.../Others` 被解析，Version 和任意 VFH 路径不会混成触摸。本文的源码核对与项目契约不替代真实 Avatar 上传、运行时缩放、多 Avatar、GPU／头显或硬件验收。
 
-```json
-{
-  "osc": {
-    "ogbControl": { "enabled": false, "host": "127.0.0.1", "port": 9000 }
-  }
-}
-```
-
-- 默认关闭。确认 Avatar 有 Haptics，VRChat 已启用 OSC 后，填写 **VRChat 的接收 IP／UDP 端口**，再开启 OGB 控制。只接受单播 IP 或 localhost；不把 Sensa 看到的来源发送端口当成目的地。
-- 在 OSC 输入方式、OSC 接收已运行时立即发送 true，随后每 5 秒一次。硬件输入仍可保持未启用，先在参数列表确认数据。
-- 关闭控制、离开 OSC 输入方式、停止监听、修改目标或正常退出时，向旧目标尝试发送 false 并停心跳。异常终止无法保证发出最后一包。
-- 拒绝把控制目的地配置成 Sensa 自己的 OSC 监听端口；切换目标时先关闭旧目标。
-- 状态中的 active 只表示心跳服务运行；UDP 没有应答，发送成功不等于 Avatar 确认启用。别的 OSC 程序也可能写同一个参数。
-
-实现见 [OGB 控制服务](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OgbControlService.cs)；其目标验证与配置复制由 [AppConfig](https://github.com/SeaLoong/Sensa/blob/main/src/Configuration/AppConfig.cs) 管理。
-
-## 触摸与摩擦不等于深度
-
-官方 OGB 对 Orf／Pen 的 TouchSelf、TouchOthers 还检查对应 TouchSelfClose／TouchOthersClose；Pen 的 FrotOthers 检查 FrotOthersClose，Orf 的 FrotOthers 直接读取。Close 通常是胶囊范围的布尔检测，用来约束宽球的接近强度。[官方触摸选择](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L108-L139)。
-
-内置触摸映射使用 `sourceMode: OgbTouch`：按完整实例、来源和功能读取强度与 Close；需要 Close 的通道若缺失 Close 也给零。Close 更新会触发重算，但不能单独给旧的强度样本续期。自定义 `Direct` 仍可明确读取原始强度。
-
-这些强度不会自动获得身份、方向或位置；应把它们路由到振动轴，不能把 Touch 作为 Root／Tip 缺失时的深度替代。
-
-## 验证与未验证范围
-
-[OGB 深度契约](https://github.com/SeaLoong/Sensa/blob/main/tests/Sensa.Tests/Contracts/OgbDepthContracts.cs)覆盖单参数旧输入、现代优先、缺配对保护、Close、嵌套实例、来源与 Self／Others 隔离、缓存 Tip、超时与映射刷新。[触摸契约](https://github.com/SeaLoong/Sensa/blob/main/tests/Sensa.Tests/Contracts/OgbTouchContracts.cs)覆盖各类 Close、跨组拒绝与直接映射保留。[控制契约](https://github.com/SeaLoong/Sensa/blob/main/tests/Sensa.Tests/Contracts/OgbControlContracts.cs)使用虚拟时钟和独立本地 UDP 端口，检查默认关闭、5 秒周期、目标切换、最终 false、幂等停止和回环拒绝。
-
-这些是项目逻辑与模拟传输证据。本轮未在本机运行浏览器、真实 VRChat／Unity 会话或用户硬件；它们不能证明任意 Avatar 已安装所需组件、参数正确生成或实际设备运动与画面一致。下一步验收应先检查参数，再使用隔离输出，最后由用户在明确的设备范围内确认实际效果。
-
-本研究只引用上游源码以解释互通，不捆绑或修改上游实现。[OGB 许可](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/LICENSE)、[VRCFury 许可](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/LICENSE.md)仍适用于各自项目；本文不将它们描述为可任意复制的宽松许可。
+本页只解释互通，不捆绑或修改上游源码。[OGB 许可](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/LICENSE)、[VRCFury 许可](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/LICENSE.md)仍分别适用。

@@ -36,7 +36,7 @@ def read_frame(sock):
 
 def fixed_root_samples(point, instance='Smoke'):
     """Independent fixed-four-anchor fixture / 独立的固定四锚点夹具。"""
-    prefix = f'Sensa/SpsRoot/v1/{instance}/Self'
+    prefix = f'Sensa/SPS/{instance}'
     # Deliberately separate from Pose's 8 corners, .35 m receiver and moving frame.
     # 明确独立于 Pose 八点、.35 半径与移动参考框；这里使用 AvatarRootLocal。
     anchors = ((-.5, .5, -.5), (.5, .5, .5), (.5, 1.5, -.5), (-.5, 1.5, .5))
@@ -44,9 +44,8 @@ def fixed_root_samples(point, instance='Smoke'):
     for index, anchor in enumerate(anchors):
         distance = math.sqrt(sum((point[axis] - anchor[axis]) ** 2 for axis in range(3)))
         proximity = max(0, min(1, 1 - max(0, distance - .001) / 2.5))
-        result.append((f'{prefix}/Root/A{index}', proximity))
-    return result + [(prefix + '/Profile', 1), (prefix + '/Valid', 1),
-                     (prefix + '/Scale', 1), (prefix + '/Heartbeat', 1 / 31)]
+        result.append((f'{prefix}/P{index}', proximity))
+    return result + [(prefix + '/Sample', 1 / 32)]
 
 
 def main():

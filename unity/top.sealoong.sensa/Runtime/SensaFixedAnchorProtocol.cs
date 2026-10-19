@@ -1,12 +1,9 @@
 namespace UnityBox.Sensa
 {
-    // One fixed avatar-root local profile for Unity authors and the desktop solver.
-    // Unity 作者端与桌面解算器共用同一头像根局部坐标定义。
+    // One canonical, incompatible SPS contract shared by Unity and desktop. / Unity 与桌面共用唯一 SPS 契约，不兼容旧路径。
     public static class SensaFixedAnchorProtocol
     {
-        public const string Prefix = "Sensa/SpsRoot/v1";
-        public const string ProfileId = "AvatarRootTetrahedron";
-        public const float ProfileValue = 1f;
+        public const string Prefix = "Sensa/SPS";
         public const string CoordinateFrame = "AvatarRootLocal";
         public const int AnchorCount = 4;
         public const float CenterX = 0f;
@@ -21,13 +18,13 @@ namespace UnityBox.Sensa
         public const float MaximumProximity = .999f;
         public const float MaximumWorldContactRadius = 3f;
         public const float ScaleGuardMargin = .001f;
-        public const float HeartbeatPeriodSeconds = .05f;
-        public const int HeartbeatSteps = 32;
-        public const int MaximumHeartbeatAgeMs = 1250;
-        public const string ProfileSuffix = "/Profile";
-        public const string ValidSuffix = "/Valid";
-        public const string ScaleSuffix = "/Scale";
-        public const string HeartbeatSuffix = "/Heartbeat";
+        public const string SampleSuffix = "/Sample";
+        public const float SamplePeriodSeconds = .05f;
+        public const int SampleSteps = 32;
+        public const int MaximumSampleAgeMs = 1250;
+
+        public static bool IsSampleActive(float sample) => !float.IsNaN(sample) && !float.IsInfinity(sample)
+            && sample > 0 && sample <= 1 && sample * SampleSteps == (int)(sample * SampleSteps);
 
         private static int AnchorBits(int index)
         {

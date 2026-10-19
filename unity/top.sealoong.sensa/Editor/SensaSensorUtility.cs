@@ -34,13 +34,13 @@ namespace UnityBox.Sensa
             if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException("Duplicate generated parameter: "+name);
             config.parameters.Add(new ParameterConfig {nameOrPrefix=name, remapTo="",syncType=type,localOnly=true,saved=false,hasExplicitDefaultValue=true,defaultValue=0});
         }
-        public static VRCContactReceiver[] Array(Transform parent,string prefix,string tag,bool self,bool compact=false)
+        public static VRCContactReceiver[] Array(Transform parent,string prefix,string tag,bool self)
         {
             Uniform(parent);
             if(parent.lossyScale.x*SensaPoseProtocol.ReceiverRadius>3)throw new InvalidOperationException("Scaled receiver exceeds SDK radius limit.");
             var receivers=new List<VRCContactReceiver>();
-            for(int i=0;i<(compact?4:8);i++) {
-                int anchor=compact?SensaPoseProtocol.PointAnchorIndex(i):i;
+            for(int i=0;i<4;i++) {
+                int anchor=SensaPoseProtocol.PointAnchorIndex(i);
                 var node=Child(parent,"A"+i);node.localPosition=new Vector3(SensaPoseProtocol.AnchorX(anchor),SensaPoseProtocol.AnchorY(anchor),SensaPoseProtocol.AnchorZ(anchor));
                 var r=node.gameObject.AddComponent<VRCContactReceiver>();r.radius=SensaPoseProtocol.ReceiverRadius;r.shapeType=ContactBase.ShapeType.Sphere;
                 r.receiverType=ContactReceiver.ReceiverType.Proximity;r.localOnly=true;r.allowSelf=self;r.allowOthers=!self;

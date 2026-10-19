@@ -107,15 +107,15 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
 });
 
 for (const producer of [
-  { kind: 'SpsRoot', prefix: 'Sensa/SpsRoot/v1/CIFixedRoot/Self', screenshot: 'fixed-root-position', sample: fixedRootSamples },
-  { kind: 'ShaderRoot', prefix: 'Sensa/Shader/v1/42', screenshot: 'shader-root-position', sample: shaderRootSamples },
+  { kind: 'SpsRoot', prefix: 'Sensa/SPS/CIFixedRoot', screenshot: 'fixed-root-position', sample: fixedRootSamples },
+  { kind: 'ShaderRoot', prefix: 'Sensa/Shader/42', screenshot: 'shader-root-position', sample: shaderRootSamples },
 ]) {
   test(producer.kind + ' protocol simulation calibrates, requires permission and stops on invalid / 根点协议模拟校准、许可与失效停止',
     { tag: ['@osc', '@input', '@config', '@transport', '@visual'] }, async ({ page, rig }, info) => {
       await enable(page, ['Mock UDP']);
       await mode(page, 'OSC');
       let z = .05, valid = true, sequence = 0;
-      const samples = () => producer.sample(z, producer.kind === 'SpsRoot' ? sequence++ % 32 / 31 : sequence++ % 65536, valid);
+      const samples = () => producer.sample(z, producer.kind === 'SpsRoot' ? (sequence++ % 32 + 1) / 32 : sequence++ % 65536, valid);
       const feed = await rig.startFeed(samples, 80, { bundle: producer.kind === 'ShaderRoot' });
       const observation = async () => (await rig.overview()).poseTracking.spsRoots.find(root => root.kind === producer.kind && root.prefix === producer.prefix);
       await expect.poll(async () => (await observation())?.valid).toBe(true);
@@ -166,7 +166,7 @@ for (const producer of [
       await info.attach('protocol-simulation.json', { body: JSON.stringify({
         producer: producer.kind, prefix: producer.prefix, fixtureOnly: true,
         realUnityOrGpuCapture: false, calibration: [.05, .15], midpoint: .1,
-        permissionRequired: true, invalidStops: true,
+        permissionRequired: true, invalidStops: true, invalidField: producer.kind === 'SpsRoot' ? 'Sample' : 'Valid',
       }, null, 2), contentType: 'application/json' });
     });
 }

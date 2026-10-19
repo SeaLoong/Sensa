@@ -5,18 +5,17 @@ using Xunit;
 
 namespace Sensa.Tests.Contracts;
 
-/// <summary>Native capture packet identity, complete-coordinate intake and disarming.
-/// 原生捕获包身份、完整坐标接入及停止边界。</summary>
+/// <summary>Five-field native packets, diagnostic separation and fail-closed motion.
+/// 原生五字段包、诊断隔离与失效停止。</summary>
 public sealed class ShaderRootContracts
 {
-    private const string Prefix = "Sensa/Shader/v1/42";
+    private const string Prefix = "Sensa/Shader/42";
     private static void Packet(MotionRig rig, float valid = 1, float frame = 1,
-        float x = .2f, float y = 1.1f, float z = .1f, float producer = 42, float profile = 1, string source = "test", bool interleave = false)
+        float x = .2f, float y = 1.1f, float z = .1f, string source = "test", bool interleave = false, string prefix = Prefix)
     {
-        foreach (var entry in new[] { ("Valid", valid), ("Frame", frame), ("X", x), ("Y", y),
-                     ("Z", z), ("Producer", producer), ("Profile", profile) })
+        foreach (var entry in new[] { ("Frame", frame), ("X", x), ("Y", y), ("Z", z), ("Valid", valid) })
         {
-            rig.Put(Prefix + "/" + entry.Item1, entry.Item2, source);
+            rig.Put(prefix + "/" + entry.Item1, entry.Item2, source);
             if (interleave) rig.Put("Other/Noise", .1f, "other");
         }
     }
@@ -24,12 +23,13 @@ public sealed class ShaderRootContracts
         Assert.Single(SpsPositionTracking.Observe(rig.Store.SnapshotEntries(), timeProvider: rig.Clock));
 
     [Fact]
-    public void Native_packet_retains_avatar_root_coordinates_and_exact_target_matching()
+    public void Five_fields_retain_avatar_local_coordinates_and_exact_target_matching()
     {
         using var rig = new MotionRig();
         Packet(rig);
         var point = Observe(rig);
         Assert.True(point.Valid, point.Reason);
+        Assert.Equal(5, rig.Store.SnapshotEntries().Count());
         Assert.Equal("ShaderRoot", point.Kind);
         Assert.Equal("AvatarRootLocal", point.CoordinateFrame);
         Assert.True(point.IsMappablePoint);
@@ -42,7 +42,7 @@ public sealed class ShaderRootContracts
     }
 
     [Fact]
-    public void Unrelated_sources_do_not_interrupt_a_complete_native_packet()
+    public void Unrelated_sources_do_not_interrupt_one_complete_packet()
     {
         using var rig = new MotionRig();
         Packet(rig, interleave: true);
@@ -51,22 +51,42 @@ public sealed class ShaderRootContracts
 
     [Theory]
     [InlineData("Valid", 0)]
-    [InlineData("Profile", 0)]
-    [InlineData("Producer", 41)]
     [InlineData("Frame", 1.5f)]
+    [InlineData("Frame", 65536)]
     [InlineData("X", 2)]
     [InlineData("Y", 3)]
-    public void Invalid_native_metadata_or_coordinates_never_enable_mapping(string field, float value)
+    [InlineData("Z", float.NaN)]
+    public void Invalid_fields_never_enable_mapping(string field, float value)
     {
         using var rig = new MotionRig();
         Packet(rig, valid: field == "Valid" ? value : 1, frame: field == "Frame" ? value : 1,
-            x: field == "X" ? value : .2f, y: field == "Y" ? value : 1.1f,
-            producer: field == "Producer" ? value : 42, profile: field == "Profile" ? value : 1);
+            x: field == "X" ? value : .2f, y: field == "Y" ? value : 1.1f, z: field == "Z" ? value : .1f);
         Assert.False(Observe(rig).Valid);
     }
 
+    [Theory]
+    [InlineData("Sensa/Shader/0")]
+    [InlineData("Sensa/Shader/042")]
+    [InlineData("Sensa/Shader/65536")]
+    public void Native_paths_require_a_canonical_nonzero_16bit_identity(string prefix)
+    {
+        using var rig = new MotionRig();
+        Packet(rig, prefix: prefix);
+        Assert.False(Observe(rig).Valid);
+    }
+
+    [Theory]
+    [InlineData("Sensa/Shader/v1/42")]
+    [InlineData("Sensa/Diagnostics/Shader/0")]
+    public void Old_paths_and_diagnostic_packets_do_not_create_motion_observations(string prefix)
+    {
+        using var rig = new MotionRig();
+        Packet(rig, prefix: prefix);
+        Assert.Empty(SpsPositionTracking.Observe(rig.Store.SnapshotEntries(), timeProvider: rig.Clock));
+    }
+
     [Fact]
-    public void New_frame_or_coordinates_alone_cannot_refresh_an_old_packet()
+    public void Partial_updates_and_repeated_frozen_frames_cannot_refresh_an_old_packet()
     {
         using var rig = new MotionRig();
         Packet(rig);
@@ -86,11 +106,11 @@ public sealed class ShaderRootContracts
     }
 
     [Fact]
-    public void Packet_fields_cannot_be_hydrated_from_different_sources_or_out_of_order()
+    public void Fields_cannot_be_hydrated_from_different_sources_or_out_of_order()
     {
         using var rig = new MotionRig();
         Packet(rig);
-        var entries = rig.Store.SnapshotEntries().Select(entry => entry.Path.EndsWith("/Profile")
+        var entries = rig.Store.SnapshotEntries().Select(entry => entry.Path.EndsWith("/Valid")
             ? entry with { Entry = entry.Entry with { Source = new("other", "other", null, "127.0.0.1", 19001) } } : entry);
         Assert.All(SpsPositionTracking.Observe(entries, timeProvider: rig.Clock), point => Assert.False(point.Valid));
         rig.Put(Prefix + "/Frame", 2);
@@ -99,7 +119,7 @@ public sealed class ShaderRootContracts
     }
 
     [Fact]
-    public async Task Native_protocol_input_is_explicit_and_invalid_capture_stops_the_mock_output()
+    public async Task Clearing_valid_immediately_stops_the_isolated_output()
     {
         using var rig = new MotionRig(new SignalMapping { OscPath = Prefix + "/**", SourceMode = "SensaPoint",
             PointMetric = PointMetric.Z, Role = SignalRole.Depth, VrchatMin = 0, VrchatMax = .2f });
@@ -107,8 +127,7 @@ public sealed class ShaderRootContracts
         Packet(rig);
         rig.Activate();
         Assert.InRange((await rig.Output.NextFrame()).L0, .499f, .501f);
-        var previousStops = rig.Output.StopCount;
-        for (var index = 0; index < previousStops; index++) await rig.Output.NextStop();
+        for (var index = 0; index < rig.Output.StopCount; index++) await rig.Output.NextStop();
         var invalidCapture = rig.Output.NextStop();
         rig.Put(Prefix + "/Valid", 0);
         rig.Advance(31);

@@ -43,6 +43,18 @@ public sealed class OscContracts
     }
 
     [Fact]
+    public void Independent_touch_zones_are_discoverable_before_they_are_mapped()
+    {
+        foreach (var path in new[] { "VFH/Zone/Touch/Chest/Others", "/avatar/parameters/VFH/Zone/Touch/Body/Chest/Self" })
+        {
+            var hint = OscParameterClassifier.Classify(path);
+            Assert.False(hint.IsFaceTracking);
+            Assert.Equal(100, hint.Relevance);
+        }
+        Assert.Equal(10, OscParameterClassifier.Classify("Custom/Body/Others").Relevance);
+    }
+
+    [Fact]
     public void Catalog_rejects_invalid_values_bounds_capacity_and_never_changes_selected_source()
     {
         var store = new OscParameterStore(new ManualTimeProvider());

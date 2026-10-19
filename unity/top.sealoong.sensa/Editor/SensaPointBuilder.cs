@@ -57,7 +57,7 @@ namespace UnityBox.Sensa
             var follow=marker.gameObject.AddComponent<PositionConstraint>();follow.AddSource(new ConstraintSource{sourceTransform=target,weight=1});follow.translationOffset=Vector3.zero;follow.locked=true;follow.constraintActive=true;
             var sender=marker.gameObject.AddComponent<VRCContactSender>();sender.radius=SensaPoseProtocol.MarkerRadius;sender.localOnly=true;
             sender.collisionTags=new List<string>{tag};
-            SensaSensorUtility.Array(rig,prefix,tag,true,true);
+            SensaSensorUtility.Array(rig,prefix,tag,true);
             return rig.gameObject;
         }
     }

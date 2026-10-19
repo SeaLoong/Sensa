@@ -1,59 +1,71 @@
-# 固定锚点 SPS 根部：研究与实现边界
+# 固定 SPS 四点：推导、取舍与证据
 
 **简体中文** | [English](fixed-anchor-research.en.md)
 
-本轮把 SPS 根部方案重新定义为 **AvatarRootLocal 中四个固定锚点，测量一个明确选中的根中心**。这重新打开了旧定位方案的设计结论；旧移动参考八路 Contact 不会自动获得新协议的身份或有效性。
+当前 Sensa SPS 的模型是固定 Avatar 根参考框、四个已知锚点和一个明确选定的专用根标记。每对象的公开测量契约只有 `Sensa/SPS/<id>/P0…P3` 与 `Sample`。不包含版本段、额外元数据组合、远端接收组或旧数据兼容；独立 Point／Handle／Pose 不属于这个模型。
 
-## 几何与协议
+## 一手依据
 
-唯一几何源是 [SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)。按 A0–A3 顺序：
-
-| 锚点 | AvatarRootLocal 坐标 |
-| --- | --- |
-| A0 | (-0.5, 0.5, -0.5) |
-| A1 | (0.5, 0.5, 0.5) |
-| A2 | (0.5, 1.5, -0.5) |
-| A3 | (-0.5, 1.5, 0.5) |
-
-中心为 (0,1,0)，接收球半径 2.5，独立根标记球半径 0.001；这些是头像根局部单位，并非在任意缩放下的世界米。坐标边界是中心各轴 ±1.5，同时必须满足四个球的非饱和覆盖交集；这个立方体的所有角落并不都可测。残差拒绝阈值 0.01 是一致性门槛，不是精度保证。
-
-公开路径为 `Sensa/SpsRoot/v1/<id>/Self/Root/A0…A3`。同一 Self 层另有 `Profile=1`、`Valid`、`Scale`、`Heartbeat`；元数据不放在 Root 层。内部 Contact 写入 `Root/RawA0…RawA3`，FX 每 0.05 秒按顺序复制四路到公开参数，再更新元数据并推进 32 步归一化心跳计数（0…1，周期 1.6 秒，大于 1.25 秒时效窗，以降低二值采样别名）。桌面允许静止时沿用未变化的范围值，但必须检查新协议、许可、有效标记、缩放和心跳。**这不是 OSC 原子采样协议**：复制过程、OSC 分包、丢包与 Contact 更新时序仍可能造成混合样本，心跳只证明 FX 仍在运行。
-
-## 为什么四个值可以解局部位置
-
-[VRChat 官方 Contacts 文档](https://creators.vrchat.com/common-components/contacts/) 将 Proximity 定义为 Sender 最近点相对 Receiver 中心的接近程度；多 Sender 时取最近者。网页没有公布线性方程。本轮还核对了安装的 VRChat SDK 3.10.5 的 ContactManager / CollisionScene 实现；检查副本与包内 VRC.Dynamics.dll 的 SHA-256 相同：
+[官方 Contacts](https://creators.vrchat.com/common-components/contacts/) 说明 Proximity 使用 Sender 最近点、多个 Sender 取最近者，并限制缩放后半径为 3 m。网页未给出线性方程；本次检查安装的 VRChat SDK 3.10.5 ContactManager／CollisionScene 实现，检查副本与包内 VRC.Dynamics.dll 的 SHA-256 相同：
 
 `672093e0c2a52a035979f1ff66478389949f42ffcf7daba5edd8b8da718629a3`
 
-从该实现推导，已知球形 Sender、Receiver 且未饱和时：
+由该实现推导，两个球的中心距离为 d 时：
 
 ```text
-p_i = 1 - clamp(max(0, distance_i - senderRadius) / receiverRadius, 0, 1)
-distance_i = (1 - p_i) * receiverRadius + senderRadius
-2 (anchor_i - anchor_0) · position =
-    |anchor_i|² - |anchor_0|² + distance_0² - distance_i²
+p = 1-clamp(max(0,d-r)/R,0,1)
+d = R(1-p)+r    # only outside saturation
 ```
 
-三个锚点差向量的行列式为 2，非零，因此三个平方距离差唯一给出 XYZ；再用全部球面残差和范围检查拒绝不一致结果。中心 (0,1,0) 到四锚点距离均为 sqrt(0.75)，理想 Proximity 均约 0.653989838。端点 p=0、p=1 只给范围或包含关系，不能按普通距离使用。
+这要求已知球形 Sender 的半径，不可将普通长度球当作点。根位置解析参考固定版本的 VRCFury [Socket](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs)／[Plug baker](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs) 的作者局部姿态；Sensa 自己添加半径 0.001、独有 tag 的小球，不复用不同用途的原 Sender 几何。
 
-整个 Avatar 进行相同平移、旋转，所有相对距离保持不变。因此它能测根相对 Avatar 的运动，不能恢复 Avatar 的世界位移或朝向。增大半径也不会增加全局参考信息，并会放大相同 Proximity 误差对应的距离误差。
+## 四点代数
 
-## 目标身份与缩放守卫
-
-作者明确选择受支持组件，解析实际 CPU 根参考，而非按通用 SPS 标签猜测目标。VRCFury [Socket baker](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs) 和 [Plug baker](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs) 的根位置来自各自解析的局部姿态，现有 Sender 半径和附加用途并不统一。实现保留原 SPS，生成独有自定义 tag 的小球，通过 ParentConstraint 跟随该根；小球与锚点共用 Avatar 根缩放，不继承目标骨骼缩放。Sensa 自有组件使用 depthAxis/rootBone；显式原生 Contact 使用 rootTransform 和 position 偏移。这个中心不包含 SPS shader 的 GPU 曲线形变。
-
-官方 Contacts 将缩放后的世界半径限制为 3 米。构建拒绝非正、非均匀或已经过大的头像根缩放，以及根 ScaleConstraint / 根缩放动画；这些自定义缩放不受内置 ScaleFactor 观测。运行时 FX 使用 [VRChat ScaleFactor 与 IsLocal](https://creators.vrchat.com/avatars/animator-parameters/) 守卫，要求：
+共享定义是 [SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)。中心 c=(0,1,0)、h=0.5，P0–P3 分别为：
 
 ```text
-2.5 * authoredRootScale * ScaleFactor < 3 - 0.001
+(-.5,.5,-.5), (.5,.5,.5), (.5,1.5,-.5), (-.5,1.5,.5)
 ```
 
-超界或未选中时关闭 Contact 并清零有效标记及范围。默认 Self 只接收自己的唯一 tag。可选 Others 仅供诊断，Valid 始终为 false；复制头像、额外同 tag Sender、世界内容或丢包并没有被认证机制解决，不能声称任意远端 Avatar 根可被可靠识别。
+三个相对 P0 的锚点差向量行列式为 2，非零。平方距离差给出三个独立线性约束：
 
-## 本轮证据
+```text
+2(aᵢ-a₀)·position = |aᵢ|²-|a₀|²+d₀²-dᵢ²
+```
 
-真实 Unity 2022.3.22f1 EditMode 共 65 项通过、零失败、零跳过，包含固定根作者的 9 项、原作者回归和新增 ShaderCapture 的 2 项。覆盖固定坐标、独有 Sender、根绑定、参数可写性、NDMF 合并、缩放拒绝及 FX 启停结构/动画；在 nographics 模式导入生成 shader，无编译错误。报告位于忽略的 `artifacts/verification/fixed-root-authors-final-editmode.xml`。随后修改 32 步心跳和多生产端 Shader 隔离后，受影响的固定根 9 项与 ShaderCapture 3 项再次全部通过、零跳过，报告为 `artifacts/verification/fixed-root-counter-native-editmode.xml`；没有无理由重跑其余作者合同。
+正四面体的对称性还给出 `q=-Σ((aᵢ-c)dᵢ²)/(8h²)`，位置为 c+q。中心到四点距离均为 sqrt(0.75)，使用 R=2.5、r=.001 时，四个理想 Proximity 均约 0.653989838。解算再检查四球残差、共同覆盖及局部范围；端点饱和不能反解为精确距离。
 
-公开入口收尾将 `SensaSpsRootProbe.prefab` 原位迁移为固定根作者（保留资产 GUID，目标初始为空）；原八路 standardSpsRoot 分支在生成前拒绝并提供迁移说明。必要的 FixedRoot／Pose EditMode 共 22 项通过、零跳过，包含真实预制件类型、菜单实例、指定目标后四锚点及元数据合同；报告为 `artifacts/verification/fixed-root-public-entry-editmode.xml`。
+共同刚体变换不改变相对距离；共同均匀尺度在 `(s*d-s*r)/(s*R)` 中相消。因此位置属于 AvatarRootLocal，不是世界坐标；SDK 的 3 m 半径限幅或非均匀尺度会破坏这个消去关系。
 
-没有运行本地 PlayMode、浏览器、截图、完整进程冒烟或硬件。真实 VRChat Contact 精度、OSC 更新率与丢包、上传后的约束/FX 行为、GPU 渲染和实际设备仍未验证；合成几何和 EditMode 不能替代这些证据。
+## 为什么保持 R=2.5、h=0.5
+
+以下是模型分析，不是客户端精度测量。令距离雅可比每行为 `Jᵢ=(position-aᵢ)/dᵢ`。中心处 `JᵀJ=(4/3)I`，二范数条件数为 1。假设独立等方差 Proximity 噪声 σp，用当前闭式解一阶传播得到每轴标准差 `sqrt(3)Rσp/2`；较大 R 会放大同一数值噪声，不能声称半径越大越准。
+
+| 相对中心 Z 偏移 1.5 | 最远距离 | 距离雅可比条件数 |
+| --- | --- | --- |
+| h=0.5 | 2.121320 | 3.741657 |
+| h=0.75 | 2.487469 | 2.516611 |
+
+加宽锚点改善这个离中心位置的条件数，但几乎耗尽 2.5 的覆盖余量。将 R 改成 2.0 虽减少数值误差放大，却连当前 h=0.5 的该位置都无法覆盖；将 R 推向 3 又减少可用 Avatar 缩放余量。没有真实根轨迹、噪声和缩放分布能证明替代方案整体更优，所以保持当前值。
+
+有效体积是四球非饱和交集，不是中心各轴 ±1.5 的完整立方体。小球落在某锚点过近处也会饱和而被拒绝。残差阈值 0.01 只检测模型不一致，不是位置误差上界。四个约束没有足够冗余来可靠识别任意坏通道或认证 Sender。
+
+本轮不加滤波。后续若有实测，应分别评估抖动、条件数和延迟，在验证后过滤位置；Sample=0、超时和门控不能经过平滑后才停止。
+
+## 五字段生产链
+
+四个 RawP 仅存在实际 FX Animator，不加入 MA 表达参数；公开 P0–P3 与 Sample 是本地不同步 Float。官方 Contact 可直接写 Animator 参数，OSC 导出由客户端配置决定，故“内部”不等于隐私保证。[OSC 参数](https://docs.vrchat.com/docs/osc-avatar-parameters)
+
+活动状态每约 50 ms 先复制四个 P，再写 `Sample=n/32`（n=1…32）。这些值可由二进制 Float 精确表示；0 专用于停用或守卫失效，1.6 s 完整周期大于 1250 ms 活性窗，降低二值计数采样别名。桌面按内容变化判断，重复同值不续期，静止 P 可缓存。此计数不是原子批次，也不证明物理 Contact 没有冻结或 UDP 没有丢包。
+
+构建拒绝非正／非均匀根尺度、根 ScaleConstraint 与已知根缩放动画。FX 内部使用 IsLocal、ScaleFactor 和选择状态限制 `2.5*authoredRootScale*ScaleFactor` 在约 2.999 m 内，失效关闭 Contacts 并清零。专用标记跟随选中根中心，不继承骨骼尺度；没有共享移动根阵列或远端数据升级路线。
+
+五字段不表示整个 Avatar 的表达参数总数。Automatic Exclusive 另有菜单控制 `Sensa/Select/<group>`：本地不同步、不保存的 Int，显式默认 0，0 为 Off、1…N 选择已排序目标；超出范围保持或回到 Off。此控制可按配置由 OSC 导出，不是测量值；Dedicated 不生成该自动选择参数。独立 Shader 作者的 `Sensa/Select/ShaderCapture_<id>` 也属于 0／1 控制。
+
+## 当前证据与未验证部分
+
+冻结后的包在真实 Unity 2022.3.22f1 nographics EditMode 中一次 **65/65 通过，零失败／跳过**，报告为忽略的 `artifacts/verification/sps-five-fields-editmode.xml`。包含 P0–P3／Sample、内部 RawP 可写但不在最终表达列表、NDMF、固定几何、缩放边界、选择、未知策略拒绝、独立 Point／Pose 和原生 Shader 作者回归。生成 Shader 导入无编译错误，不等于验证实际 GPU 输出。
+
+独立生成器单元合同验证已有 .meta 身份保留、新预制件类型与明确 Target；AvatarLab 变体改为 Exclusive／Dedicated，独立实验标签不改。后续工具死分支与说明清理只作编辑／静态检查，不冒充完整 AvatarLab 工程或场景验收。
+
+没有运行本地 E2E、完整进程冒烟、截图、PlayMode 或设备。客户端 Contacts 精度、采样顺序、约束／动画时序、OSC、真实 GPU／头显和硬件仍需分别验收。[定位契约](positioning.md)

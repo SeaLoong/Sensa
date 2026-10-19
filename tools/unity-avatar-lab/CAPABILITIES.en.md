@@ -2,7 +2,7 @@
 
 [简体中文](CAPABILITIES.md) | **English**
 
-Use [FullFlow](FULL-FLOW.en.md) for daily acceptance. Isolated scenes under `Assets/SensaAvatarLab/Capabilities/` separate input chains using the same base model. Exclusive/Shared remain combined/sharing comparisons.
+Use [FullFlow](FULL-FLOW.en.md) for daily acceptance. Isolated scenes under `Assets/SensaAvatarLab/Capabilities/` separate input chains using the same base model. Exclusive/Dedicated compare exclusive selection with simultaneous measurement.
 
 | Scene | Final Contacts | Sensa receivers | Experimental PB | Operation / result |
 | --- | --- | --- | --- | --- |
@@ -30,7 +30,7 @@ PB-only Stretch is not XYZ. PBContact supplies experimental local estimates with
 
 Keep outputs empty and apply OSC mode. Use PB · Stretch with actual Stretch/IsGrabbed paths. Copy the modern radial template and select actual Self/Others paths for SPS. Contact/PBContact have no default positioning preset: observe them in OSC → Experimental diagnostics. Explicit permission and oldest-channel freshness still do not establish reliable positioning. Restrict the actual instance/source and check current reports and received paths.
 
-The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers diagnostic transport at `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}` (Profile0, preview-only). This lab's SPSShader Camera is outside the avatar and is **not uploaded**; its uploadable Shader scene produces synthetic code. The separate [native root capture](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md) uses actual root transforms and nonzero producer/Profile1. SDK build success does not prove client camera retention or HMD invisibility.
+The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers diagnostic transport at `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` (transport preview only). This lab's SPSShader Camera is outside the avatar and is **not uploaded**; its uploadable Shader scene produces synthetic code. The separate [native root capture](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md) uses actual root transforms at `Sensa/Shader/<nonzero-ID>`; its binary ID and coordinate-mode flag remain. SDK build success does not prove client camera retention or HMD invisibility.
 
 ## Build/check tools
 

@@ -6,11 +6,11 @@
 
 FullFlow 新增 **Sensa Test Props**：Socket、PB 参考架和 Shader 架都可切换原位、左手、右手、世界固定；棒棒糖沿用自己的左右手/Fixed 菜单。目标带名称、轴向和同色探针标记，可统一隐藏。生成新 FullFlow 时自动配置；已有场景使用 **Upgrade FullFlow hand and world controls**。标记文字烘焙为静态网格，避免被 VRChat 移除。
 
-**新用户链路使用 `Assets/SensaAvatarLab/Capabilities/QuickStart.unity`。** 它是 Chocolat 加一个 Quick Start World Receiver，无 SPS/PB/Shader 夹具；适配测试世界出生点旁 START HERE。步骤见 [OSR 首次使用](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。
+**正式使用方案见[快速开始](https://github.com/SeaLoong/Sensa/blob/main/docs/quick-start.md)。** 本目录仅维护开发实验夹具。`Assets/SensaAvatarLab/Capabilities/QuickStart.unity` 是 Chocolat 加合成世界接收器，不是 SPS 定位或真实设备精度证明。
 
 生成入口 **Tools → Sensa Avatar Lab → Create first-run avatar**；验证入口 **Validate first-run avatar**；离线上传包构建入口 **Build Quick Start with SDK (no upload)**。生成报告 `Validation/quick-start-avatar.json`，确认两个本地、非保存、默认 0 的参数和右手接收器。已有场景不会被覆盖。SDK 构建并不等于已经上传或验证真实 OSC/硬件。
 
-Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITIES.md)，优先按该文档逐项测试。原 Exclusive/Shared 保留作完整组合对照。
+Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITIES.md)，优先按该文档逐项测试。Exclusive／Dedicated 用于独占与同时测量对照。
 
 为独立 Avatars 项目生成两套 Chocolat 测试场景，使用现成的 SPS 棒棒糖道具、两个可见 Socket 标记和 Sensa 自动配置。工具不上传 Avatar，也不包含模型或付费资源。
 
@@ -28,9 +28,9 @@ Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITI
 | 场景 | 用途 |
 | --- | --- |
 | `Assets/SensaAvatarLab/Generated/Exclusive.unity` | 独占选择、Socket 根部与配对姿态、Plug 本地点与 PB 手柄 |
-| `Assets/SensaAvatarLab/Generated/Shared.unity` | 两个 Socket 共享根部接收器阵列；不生成配对 Socket 阵列 |
+| `Assets/SensaAvatarLab/Generated/Dedicated.unity` | 多个独立固定根／配对测量同时启用；在 Sensa 固定选择具体实例 |
 
-左手与左前臂的蓝色框标出 Socket；棒棒糖保留原道具菜单及手部绑定。另有独立 PB 把手。SPS 菜单、道具开关和 Sensa 测量选择是独立控制，Sensa 选择默认 Off。测量自己的棒棒糖时选择 Plug；仅观察外部目标根部时选择 Socket。配对姿态需对端匹配的 `LabPair` 标记。
+左手与左前臂的蓝色框标出 Socket；棒棒糖保留原道具菜单及手部绑定。另有独立 PB 把手。SPS 菜单、道具开关和 Sensa 测量选择是独立控制，Sensa 选择默认 Off。测量自己的棒棒糖时选择 Plug；测量自己固定锚点根部时选择 Socket。配对姿态需对端匹配的 `LabPair` 标记。
 
 独立 `LabHandle` 不受目标选择菜单控制；抓住它即可观察自己的四路坐标，松手会使 PB 映射门控失效。棒棒糖自身默认关闭，需要先在道具菜单启用。
 
@@ -40,7 +40,7 @@ Contact、PB、SPS 与 Shader 的独立/组合场景见[能力矩阵](CAPABILITI
 
 - **Validate full build callbacks**：克隆作者模型，执行 SDK 完整预处理回调，检查 NDMF/VRCFury/Sensa 合并后的 Contact、参数、Shader 和组件。不会把烘焙副本覆盖回作者场景。
 - **Build Exclusive with SDK (no upload)**：使用 SDK 公共 Build API 生成本地 `.vrca`，不调用上传 API。需要打开 SDK 面板；构建失败看 `Validation/sdk-build-error.txt`。
-- Unity Test Runner 的 EditMode 测试用于包内几何、共享、NDMF 和 GPU 探针回归。
+- Unity Test Runner 的 EditMode 测试用于包内几何、选择、SPS 五字段、NDMF 和 GPU 探针回归。
 
 结果在项目 `Validation/`，本地构建包在 `Builds/`。预处理通过、SDK 打包通过、真实 VRChat/OSC 测试是不同层次；报告不能代替客户端实测。运行自动检查时不要连接真实输出设备。
 

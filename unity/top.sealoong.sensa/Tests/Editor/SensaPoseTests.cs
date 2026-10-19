@@ -11,19 +11,6 @@ namespace UnityBox.Sensa.Tests
     public class PoseAuthoringContracts : AvatarBuildFixture
     {
         [Test]
-        public void LegacyStandardRootAuthorFailsBeforeGeneratingMisidentifiedProtocol()
-        {
-            var instance = Prefab("SensaPoseSocket");
-            instance.GetComponent<SensaPoseSocket>().standardSpsRoot = true;
-            var error = Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(instance));
-            StringAssert.Contains("SensaFixedRootProbe", error.Message);
-            StringAssert.Contains("旧八路", error.Message);
-            Assert.That(instance.GetComponentsInChildren<VRCContactReceiver>(), Is.Empty);
-            Assert.That(instance.GetComponentsInChildren<VRCContactSender>(), Is.Empty);
-            Assert.That(instance.GetComponent<SensaPoseSocket>(), Is.Not.Null);
-        }
-
-        [Test]
         public void SocketCreatesDistinctLocalFloatReceiversAndConsumesItsAuthoringInput()
         {
             var instance = Prefab("SensaPoseSocket");
@@ -31,6 +18,7 @@ namespace UnityBox.Sensa.Tests
             var contacts = instance.GetComponentsInChildren<VRCContactReceiver>();
             Assert.That(contacts, Has.Length.EqualTo(24));
             Assert.That(contacts.Select(contact => contact.parameter).Distinct().Count(), Is.EqualTo(24));
+            Assert.IsTrue(contacts.All(contact => contact.parameter.StartsWith("Sensa/Pose/v1/", StringComparison.Ordinal)));
             Assert.That(contacts.All(contact => contact.localOnly && contact.allowOthers && !contact.allowSelf), Is.True);
             var parameters = instance.GetComponent<ModularAvatarParameters>().parameters;
             Assert.That(parameters.All(parameter => parameter.syncType == ParameterSyncType.Float && parameter.localOnly), Is.True);

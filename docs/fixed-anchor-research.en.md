@@ -1,59 +1,71 @@
-# Fixed-anchor SPS roots: research and implementation limits
+# Four fixed SPS points: derivation, tradeoffs and evidence
 
 [简体中文](fixed-anchor-research.md) | **English**
 
-The SPS root design now means **four fixed anchors in AvatarRootLocal measuring one explicitly selected root center**. This reopens the earlier positioning design decision. Legacy moving-reference eight-channel Contacts do not acquire the new protocol identity or validity.
+Sensa SPS uses a fixed Avatar-root frame, four known anchors and one explicitly selected dedicated root marker. Its per-object public measurement contract is `Sensa/SPS/<id>/P0…P3` plus `Sample`, without version segments, redundant metadata, remote groups or old-data compatibility. Independent Point/Handle/Pose experiments are separate models.
 
-## Geometry and protocol
+## Primary evidence
 
-[SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) is the single geometry source. A0–A3 are:
-
-| Anchor | AvatarRootLocal coordinate |
-| --- | --- |
-| A0 | (-0.5, 0.5, -0.5) |
-| A1 | (0.5, 0.5, 0.5) |
-| A2 | (0.5, 1.5, -0.5) |
-| A3 | (-0.5, 1.5, 0.5) |
-
-The center is (0,1,0), receiver radius 2.5 and independent marker radius 0.001. These are avatar-root local units, not world meters under arbitrary scale. The position bound is ±1.5 per axis around the center, additionally restricted to the unsaturated intersection of all four spheres; not every corner of that cube is covered. The 0.01 residual threshold rejects inconsistent fits; it does not guarantee accuracy.
-
-Public ranges use `Sensa/SpsRoot/v1/<id>/Self/Root/A0…A3`. The Self level also contains `Profile=1`, `Valid`, `Scale` and `Heartbeat`; metadata is outside Root. Contacts write internal `Root/RawA0…RawA3`. Every 0.05 s, FX copies four values to their public parameters, then updates metadata and advances a 32-step normalized heartbeat counter (0…1, 1.6 s cycle exceeding the 1.25 s freshness window to reduce binary aliasing). The desktop may retain unchanged ranges for a stationary target while requiring protocol identity, permission, validity, scale and a live heartbeat. **OSC samples are not atomic**: copy timing, separate OSC packets, packet loss and Contact update timing can still mix measurements. The heartbeat only proves FX liveness.
-
-## Why four values can determine local position
-
-The [official Contact reference](https://creators.vrchat.com/common-components/contacts/) describes closest-point proximity and nearest-sender aggregation. It does not publish the linear equation. We also inspected ContactManager / CollisionScene from installed VRChat SDK 3.10.5; the inspection copy matches the package VRC.Dynamics.dll SHA-256:
+The [Contact reference](https://creators.vrchat.com/common-components/contacts/) describes closest-point proximity, nearest-sender aggregation and a 3-m post-scaling radius cap. It does not publish the linear equation. We inspected installed SDK 3.10.5 ContactManager/CollisionScene; the inspection copy matches the package VRC.Dynamics.dll SHA-256:
 
 `672093e0c2a52a035979f1ff66478389949f42ffcf7daba5edd8b8da718629a3`
 
-The following is a derivation from that implementation for known spherical shapes outside saturation:
+For two spheres, the implementation implies:
 
 ```text
-p_i = 1 - clamp(max(0, distance_i - senderRadius) / receiverRadius, 0, 1)
-distance_i = (1 - p_i) * receiverRadius + senderRadius
-2 (anchor_i - anchor_0) · position =
-    |anchor_i|² - |anchor_0|² + distance_0² - distance_i²
+p = 1-clamp(max(0,d-r)/R,0,1)
+d = R(1-p)+r    # only outside saturation
 ```
 
-The three anchor-difference vectors have determinant 2, so three squared-distance differences uniquely determine XYZ. All sphere residuals and bounds then reject inconsistent results. At (0,1,0), each distance is sqrt(0.75), giving ideal proximity approximately 0.653989838. Saturated p=0 or p=1 describes a bound or containment, not an ordinary distance.
+Sender radius must be known; a length sphere is not a point. Root placement follows author-local geometry from pinned VRCFury [Socket](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs)/[Plug bakers](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs). Sensa adds its own radius-0.001 sphere and unique tag rather than reusing senders with different purposes.
 
-A common translation and rotation of the whole avatar leaves these distances unchanged. This measures root movement relative to the avatar, not avatar world movement or orientation. A larger radius adds no global reference and increases distance error for the same proximity error.
+## Four-point algebra
 
-## Target identity and scale guards
-
-An author explicitly selects a supported component and resolves its CPU root frame. Generic SPS tags do not identify a point. The pinned VRCFury [Socket baker](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs) and [Plug baker](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs) resolve local root poses but use senders with differing geometry and purposes. Sensa preserves those components and adds a tiny sphere with a unique custom tag, following the resolved root through ParentConstraint. Marker and anchors share avatar-root scale rather than inheriting bone scale. Sensa-owned components resolve depthAxis/rootBone; explicit native Contacts resolve rootTransform and position. This center does not include SPS shader curve deformation.
-
-World radius is capped at 3 m after scaling. Builds reject nonpositive, nonuniform or oversized avatar-root scale, root ScaleConstraint and root-scale animation. Arbitrary custom scale animation is not observed by the built-in ScaleFactor. Runtime FX uses [ScaleFactor and IsLocal](https://creators.vrchat.com/avatars/animator-parameters/) and requires:
+[SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) defines center c=(0,1,0), h=0.5 and P0–P3:
 
 ```text
-2.5 * authoredRootScale * ScaleFactor < 3 - 0.001
+(-.5,.5,-.5), (.5,.5,.5), (.5,1.5,-.5), (-.5,1.5,.5)
 ```
 
-An invalid scale or unselected target disables Contacts and clears validity and ranges. Default Self receivers accept only their own unique tag. Optional Others diagnostics always publish Valid=false. Duplicated avatars, additional matching senders, world content and packet loss are not authenticated or resolved by this scheme; arbitrary remote avatar roots are not reliably identified.
+Three anchor differences from P0 have nonzero determinant 2. Squared-distance differences produce three independent equations:
 
-## Evidence from this change
+```text
+2(aᵢ-a₀)·position = |aᵢ|²-|a₀|²+d₀²-dᵢ²
+```
 
-Unity 2022.3.22f1 EditMode passed 65 tests with zero failures or skips: 9 fixed-root author tests, existing author regressions and 2 new ShaderCapture tests. Coverage includes coordinates, sender identity, root bindings, writable parameters, NDMF merging, rejected scales and FX enable/disable structure and animation. Generated shaders imported in nographics mode without compilation errors. The ignored report is `artifacts/verification/fixed-root-authors-final-editmode.xml`. After the 32-step heartbeat and multi-producer shader isolation changes, all 9 affected fixed-root and 3 ShaderCapture tests passed again with no skips in `artifacts/verification/fixed-root-counter-native-editmode.xml`; unrelated author contracts were not rerun.
+Tetrahedral symmetry also gives `q=-Σ((aᵢ-c)dᵢ²)/(8h²)`, with position c+q. All center distances equal sqrt(0.75); at R=2.5 and r=.001, ideal proximity is approximately 0.653989838. The solver checks four-sphere residuals, coverage and bounds; saturated endpoints cannot be inverted as exact ranges.
 
-The public `SensaSpsRootProbe.prefab` was migrated in place to fixed-root authoring, retaining its asset GUID and requiring an explicit target. Legacy eight-channel standardSpsRoot authoring now fails before generation with migration guidance. All 22 affected FixedRoot/Pose EditMode tests passed without skips, including actual prefab type, menu instantiation and four-anchor/metadata contracts after assigning a target. Report: `artifacts/verification/fixed-root-public-entry-editmode.xml`.
+Common rigid movement preserves distances. Common uniform scale cancels in `(s*d-s*r)/(s*R)`, yielding AvatarRootLocal rather than world coordinates. Nonuniform scale or the SDK 3-m clamp breaks that cancellation.
 
-No local PlayMode, browser, screenshot, full-process smoke or hardware tests ran. Actual VRChat Contact precision, OSC update rate/loss, uploaded constraint/FX behavior, GPU rendering and physical devices remain unverified. Synthetic geometry and EditMode do not replace those checks.
+## Why retain R=2.5 and h=0.5
+
+This is model analysis, not measured client accuracy. Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, giving 2-norm condition number 1. Assuming independent equal-variance proximity noise σp, first-order propagation through the current closed-form solver gives per-axis standard deviation `sqrt(3)Rσp/2`. Larger R amplifies the same numeric noise rather than necessarily improving precision.
+
+| Z offset 1.5 from center | Farthest range | Range Jacobian condition number |
+| --- | --- | --- |
+| h=0.5 | 2.121320 | 3.741657 |
+| h=0.75 | 2.487469 | 2.516611 |
+
+Wider anchors improve conditioning at this off-center point but nearly consume R=2.5 coverage. R=2.0 reduces numeric noise amplification yet cannot cover that point with h=0.5. Moving R toward 3 reduces Avatar-scaling headroom. Without measured root trajectories, noise and scale distributions, none is demonstrably better overall; keep current geometry.
+
+Usable volume is the unsaturated four-sphere intersection, not the whole ±1.5 per-axis cube. A marker too near an anchor also saturates and is rejected. The 0.01 residual threshold detects inconsistency rather than bounding position error. Four constraints lack sufficient redundancy to reliably identify an arbitrary bad channel or authenticate senders.
+
+No filter is added. Future measurements should separate jitter, conditioning and latency, filtering position only after validation. Sample=0, expiry and gates must stop immediately rather than being smoothed.
+
+## Five-field production chain
+
+RawP exists only in the actual FX Animator, absent from MA Expression Parameters. Public P0–P3/Sample are local unsynced Floats. Contacts can write Animator parameters, while client OSC configuration determines export; “internal” is not a privacy guarantee. [OSC parameters](https://docs.vrchat.com/docs/osc-avatar-parameters)
+
+Every approximately 50 ms, active states copy four P values before setting `Sample=n/32` (n=1…32). Binary floats represent these values exactly. Zero is reserved for disabled/rejected states; a 1.6-s cycle exceeds the 1250-ms liveness window, reducing binary-counter aliasing. Desktop uses content-change time, so repeated identical counters cannot renew freshness while unchanged P values can remain cached. The counter proves neither atomicity, physical Contact freshness nor lossless UDP.
+
+Builds reject nonpositive/nonuniform root scale, root ScaleConstraint and known root-scale animation. Internal FX IsLocal/ScaleFactor/selection guards keep `2.5*authoredRootScale*ScaleFactor` within approximately 2.999 m, disabling Contacts and clearing values on invalidity. The dedicated marker follows the selected center without inheriting bone scale. No shared moving array or remote-data upgrade route remains.
+
+Five fields do not describe the Avatar's entire Expression Parameter count. Automatic Exclusive separately exposes menu control `Sensa/Select/<group>`: an unsynced, unsaved local Int with explicit default 0, where 0 is Off and 1…N select ordered targets. Out-of-range values stay or return Off. OSC may export this control according to configuration; it is not a measurement. Dedicated does not generate that automatic selector. Independent shader authoring also uses the 0/1 control `Sensa/Select/ShaderCapture_<id>`.
+
+## Current evidence and limits
+
+The frozen package passed **65/65 tests, zero failures/skips**, in real Unity 2022.3.22f1 nographics EditMode, reported at ignored `artifacts/verification/sps-five-fields-editmode.xml`. Coverage includes P0–P3/Sample, writable RawP absent from final Expression Parameters, NDMF, geometry, scale boundaries, selection, unknown-policy rejection, independent Point/Pose and native shader authoring. Generated shaders imported without compilation errors; actual GPU output was not verified.
+
+An isolated generator test checks retained .meta identity, the current prefab author and explicit Target. AvatarLab variants are Exclusive/Dedicated; independent experiment labels remain unchanged. Subsequent tool dead-branch/documentation cleanup received editing/static checks only, not complete AvatarLab-project or scene acceptance.
+
+No local E2E, full-process smoke, screenshots, PlayMode or device tests ran. Actual Contact precision, sampling order, uploaded constraints/FX, OSC, GPU/HMD and hardware require separate acceptance. [Positioning contract](positioning.en.md)

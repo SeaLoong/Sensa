@@ -13,7 +13,5 @@ namespace UnityBox.Sensa
         public Component target;
         [Tooltip("每个目标独有；复制作者后请重新生成。\nUnique per target; regenerate after duplicating an author.")]
         public string collisionChannel = Guid.NewGuid().ToString("N");
-        [Tooltip("仅发布 Others 诊断；其 Valid 始终为 false，不用于输出。\nPublish Others diagnostics only. Their Valid stays false and cannot drive output.")]
-        public bool othersDiagnostic;
     }
 }

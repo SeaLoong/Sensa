@@ -33,7 +33,7 @@ macOS 预览是未签名公证的命令行程序。以 `top.sealoong.sensa-` 开
 
 目标预览不是设备位置回读。已有 OGB／SPS 参数优先使用自动深度或振动预设；必要时显式启用向 VRChat 发送 `OGB_ENABLED` 的心跳，其状态不代表 UDP 接收确认。[兼容与实际路径](docs/ogb-compatibility.md)
 
-需要根点时，Unity 作者可为选定 Socket／Plug 生成 Avatar 根局部固定四锚点，或生成原生 Shader 捕获器，通过明确屏幕区域的 Python 桥发布根坐标。两者都在实验诊断中两点校准后生成映射，仍需显式实验许可；它们不测世界位置、完整姿态或 SPS 曲线表面。旧八路 Root 不会被当作新四锚点协议。[定位方案](docs/positioning.md) · [Shader 捕获](unity/top.sealoong.sensa/GPU-TRACKING.md)
+需要根点时，Unity 作者可为选定 Socket／Plug 生成 Avatar 根局部固定四锚点，或生成原生 Shader 捕获器，通过明确屏幕区域的 Python 桥发布根坐标。两者都在实验诊断中两点校准后生成映射，仍需显式实验许可；它们不测世界位置、完整姿态或 SPS 曲线表面。Sensa SPS 只接受无版本的 P0–P3／Sample；Shader 使用有序五字段并隔离诊断数据。[参数与半径字典](docs/osc-parameters.md)。[定位方案](docs/positioning.md) · [Shader 捕获](unity/top.sealoong.sensa/GPU-TRACKING.md)
 
 ## 文档
 

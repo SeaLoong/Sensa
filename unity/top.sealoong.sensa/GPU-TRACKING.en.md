@@ -8,9 +8,9 @@ See the [research record](https://github.com/SeaLoong/Sensa/blob/main/docs/shade
 
 ## Native root path
 
-Actual Socket/Plug root → native single-bone point → encoder shader → RenderTexture → desktop presenter camera → explicitly chosen capture region → Python bridge → Sensa OSC.
+Actual Socket/Plug root → native single-bone point → geometry payload/CRC → one None-eye camera directly drawing the viewport → explicit capture region → Python bridge → Sensa OSC.
 
-The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolves the installed VRCFury root position/rotation, generates native cameras/renderers/materials/RT and removes the author. Uploaded avatars do not run the editor reader, arbitrary MonoBehaviour readback or Udon. VRCFury shader source is not copied into this package.
+The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolves the installed VRCFury root position/rotation, generates one native camera, a single-point skinned renderer and an encoder material and removes the author. Uploaded avatars do not run the editor reader, arbitrary MonoBehaviour readback or Udon. VRCFury shader source is not copied into this package.
 
 ### Setup
 
@@ -26,7 +26,7 @@ Multiple producers use distinct camera/material signatures. The bridge must stil
 
 ### Coordinates
 
-Native Profile1 uses `AvatarRootLocal`, center (0,1,0), half-range 1.5 per axis. X/Z range [−1.5,1.5], Y [−0.5,2.5]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
+Native capture uses `AvatarRootLocal`, center (0,1,0), half-range 1.5 per axis. X/Z range [−1.5,1.5], Y [−0.5,2.5]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
 
 ### Capture registration
 
@@ -46,14 +46,15 @@ python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch 
 
 Alternatively specify `--region ... --producer-id 42 --watch --port ...`. Omitting the port decodes only. The bridge does not choose a screen, inject into the game, read process memory, connect devices or activate Sensa input. Recheck/register the ROI after window movement, resolution or display-scaling changes.
 
-Inspect `Sensa/Shader/v1/42/{Valid,Frame,X,Y,Z,Producer,Profile}` in the OSC workspace. Native Profile must be 1 and Producer 42. Synthetic/editor PNG diagnostics use Profile0/ID0 and remain preview-only. Configure the experimental spatial-input permission and two-point calibration through Sensa; explicitly allow input only after checking coordinates, direction and stopping. There is no automatic OGB fallback.
+Inspect `Sensa/Shader/42/{Frame,X,Y,Z,Valid}`. ID is in the path and AvatarRootLocal is fixed: no redundant Producer/Profile, path version segment or old alias. Synthetic/editor model PNGs use only `Sensa/Diagnostics/Shader/0`, without mappable root observations. Configure the experimental spatial-input permission and two-point calibration through Sensa; explicitly allow input only after checking coordinates, direction and stopping. There is no automatic OGB fallback.
 
 ### Freshness and recovery
 
 - Validate grid layout, RGB monochrome thresholds, CRC, producer and coordinate profile. A diagnostic packet reusing the pinned ID is rejected.
 - Initially require two progressing sequences. Duplicate images do not refresh freshness; changed coordinates on one sequence, reorder, invalid source or identity changes close Valid.
 - Default freeze timeout is 0.35 seconds; `--timeout` accepts explicit 0.05–5-second values. Recovery needs two new progressing frames. The old good frame cannot reopen the gate; a producer reset may require a deliberate bridge restart.
-- Valid bundles send Valid, Frame, X, Y, Z, Producer, Profile in order. Invalid/shutdown bundles contain only Valid=0, Producer, Profile, without stale XYZ.
+- One valid bundle sends Frame, X, Y, Z, Valid in order; final Valid=1 commits it. Invalid/shutdown bundles contain only Valid=0 on the same prefix, without stale XYZ or invented frames.
+- The desktop also requires consecutive same-source receipt sequences for the five fields, and checks Frame content-change age up to 500 ms (or a stricter positive input timeout). Forwarding an identical Frame does not refresh it. Modulo-16-bit progression/recovery is enforced by the bridge; the desktop's static snapshot is not an independent historical anti-replay mechanism.
 - Sequence is a render encoder clock, not a final-mesh/animation solve timestamp. CRC neither authenticates a player nor proves source model textures are current.
 
 ## Editor SPS model probe
@@ -78,6 +79,6 @@ Outputs include sampled arc length, material/arc fraction after entry, plane off
 
 ## Verification scope
 
-The 18 isolated Python codec/registration/freshness/OSC contracts passed. Unified Unity EditMode passed three native-capture contracts covering generated components/shader compilation, persistent render bounds, root-local skinning geometry after motion/rotation/scale and multiple-producer camera bindings. No local desktop capture, PlayMode, actual avatar upload, VR client or hardware was exercised.
+Verification covers Python codec/registration/freshness, five-field order and diagnostic isolation. Unity EditMode checks one-camera configuration, shader compilation, persistent bounds, local skinning geometry and multiple-producer bindings. This change passed 19/19 Python and 65/65 Unity EditMode tests (including three native-capture contracts), with zero skips. Unity used nographics shader import/generation. Actual GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients and hardware were not exercised.
 
-Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Existing Profile0 PNG CI replay establishes transport/freeze recovery while input remains disarmed. Simulated Profile1 OSC is also not actual GPU capture.
+Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Internal diagnostic PNG CI replay establishes separate-namespace transport/freeze recovery while input stays disarmed. Simulated native OSC is not actual GPU capture.

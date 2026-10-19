@@ -8,9 +8,9 @@
 
 ## 原生根点路径
 
-流程：实际 Socket/Plug 根部 → 原生单骨骼蒙皮点 → 编码 Shader → RenderTexture → 桌面呈现相机 → 明确选择的捕获区域 → Python 桥 → Sensa OSC。
+流程：实际 Socket/Plug 根部 → 原生单骨骼蒙皮点 → geometry 编码／CRC → 单个 None-eye 相机直接画 viewport → 明确选择的捕获区域 → Python 桥 → Sensa OSC。
 
-作者端 `SensaShaderCapture` 是 IEditorOnly。NDMF 构建时读取安装版本 VRCFury 的根部位置/旋转，生成 Camera、SkinnedMeshRenderer、MeshRenderer、材质与 RT，并移除作者组件。上传后不运行普通 MonoBehaviour 回读器、EditorWindow 或 Udon。不需要把 VRCFury Shader 源码复制到包中。
+作者端 `SensaShaderCapture` 是 IEditorOnly。NDMF 构建时读取安装版本 VRCFury 的根部位置/旋转，生成一个 Camera、单点 SkinnedMeshRenderer 和编码材质，并移除作者组件。上传后不运行普通 MonoBehaviour 回读器、EditorWindow 或 Udon。不需要把 VRCFury Shader 源码复制到包中。
 
 ### 设置
 
@@ -46,14 +46,15 @@ python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch 
 
 也可明确提供 `--region ... --producer-id 42 --watch --port ...`。省略端口只观察解码。脚本不自动选屏幕、不注入游戏、不读进程内存、不连接设备，也不替用户激活 Sensa 输入。移动窗口、改变分辨率或显示缩放后，应重新检查并注册 ROI。
 
-在 OSC 参数工作台核对 `Sensa/Shader/v1/42/{Valid,Frame,X,Y,Z,Producer,Profile}`。真实根点 profile 为 1，Producer 必须为 42；旧合成/Editor PNG profile 为 0、ID 为 0，只作诊断预览。之后按 Sensa 的实验空间输入许可与两点校准流程配置映射；只在坐标、方向和停止行为通过检查后显式允许输入。不会自动回退 OGB。
+在 OSC 参数工作台核对 `Sensa/Shader/42/{Frame,X,Y,Z,Valid}`。ID 在路径中，坐标系固定为 AvatarRootLocal，不再重复发送 Producer／Profile，也没有路径版本段或旧别名。内部合成／Editor 模型 PNG 只发送到 `Sensa/Diagnostics/Shader/0`，不会生成可映射根点。之后按 Sensa 的实验空间输入许可与两点校准流程配置映射；只在坐标、方向和停止行为通过检查后显式允许输入。不会自动回退 OGB。
 
 ### 新鲜度与恢复
 
 - 桥检查 16×8 格式、RGB 黑白阈值、CRC、来源和坐标 profile。固定 ID 后，同 ID 的旧诊断格式也拒绝。
 - 初始等待两个推进序号。重复画面不会续鲜；同一序号却变化的坐标、倒序、无效源位或身份变化均关闭 Valid。
 - 默认冻结超时 0.35 秒，可明确用 `--timeout` 调整（0.05–5 秒）。恢复需两张新的推进帧；原来的好帧不能重新开门。生产端序号重置时可能需要手动重启桥。
-- 有效 bundle 顺序固定为 Valid、Frame、X、Y、Z、Producer、Profile。无效/退出只发 Valid=0、Producer、Profile，不再发送旧 XYZ。
+- 有效单 bundle 顺序固定为 Frame、X、Y、Z、Valid，最后 Valid=1 才提交。无效/退出只发同前缀 Valid=0，不再发送旧 XYZ 或伪增 Frame。
+- 桌面还要求同来源的五字段接收序列连续，并按 Frame 内容变化时间检查，最多 500 ms（正值输入超时可更严格）；反复转发同一 Frame 不续期。桥负责模 16 位前进判定与恢复，桌面的静态快照不提供独立的历史防重放保证。
 - 序号是渲染编码时钟，不是最终网格/动画求解时戳。CRC 不认证玩家身份；它也不能证明底层模型纹理没有旧值。
 
 ## 编辑器 SPS 模型探针
@@ -78,6 +79,6 @@ python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.0
 
 ## 验证范围
 
-本轮隔离 Python 编码/注册/新鲜度/OSC 契约 18 项通过。统一 Unity EditMode 中原生捕获 3 项通过：生成组件/Shader 编译、持久渲染边界、根部移动/旋转/缩放后的局部蒙皮数学和多 producer 相机绑定；没有执行本机桌面捕获、PlayMode、真实 Avatar 上传、VR 客户端或硬件。
+验证覆盖 Python 编码／注册／新鲜度、五字段顺序及诊断隔离；Unity EditMode 检查单相机配置、Shader 编译、持久边界、局部蒙皮数学及多 producer 绑定。本轮 Python 19/19、Unity EditMode 65/65（含原生捕获 3 项）通过，零跳过。Unity 为 nographics 导入／生成 Shader；没有执行实际 GPU 像素输出、本机桌面捕获、PlayMode、真实 Avatar 上传、VR 客户端或硬件。
 
-后续客户端需逐项记录：实际图块、已知移动量误差、窗口缩放/遮挡/最小化、HDR/后处理/抗锯齿、低帧率、桌面延迟、头显可见性、SDK/优化器保留情况。现有 CI 的旧 Profile0 PNG 回放仅证明传输/冻结恢复，输入始终关闭；模拟 Profile1 OSC 也不能代替真实 GPU 采集。
+后续客户端需逐项记录：实际图块、已知移动量误差、窗口缩放/遮挡/最小化、HDR/后处理/抗锯齿、低帧率、桌面延迟、头显可见性、SDK/优化器保留情况。CI 的内部诊断 PNG 回放仅证明独立命名空间中的传输／冻结恢复，输入始终关闭；模拟原生 OSC 也不能代替真实 GPU 采集。

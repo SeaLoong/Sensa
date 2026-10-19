@@ -54,6 +54,11 @@ public sealed class PresetContracts
     [InlineData("ogb-touch", "OGB/Orf/Hips_Front/TouchSelf", false)]
     [InlineData("ogb-touch", "OGB/Pen/Main_Plug/TouchOthersClose", false)]
     [InlineData("ogb-touch", "OGB/Orf/Hips_Front/PenOthersNewRoot", false)]
+    [InlineData("ogb-touch", "VFH/Zone/Touch/Chest/Others", true)]
+    [InlineData("ogb-touch", "VFH/Zone/Touch/Body/Chest/Others", true)]
+    [InlineData("ogb-touch", "VFH/Zone/Touch/Chest/Self", false)]
+    [InlineData("ogb-touch", "VFH/Zone/Touch/Chest/OthersClose", false)]
+    [InlineData("ogb-touch", "VFH/Version/10", false)]
     public void OgbTemplatesCoverBothGenerationsWithoutSelectingCompanionOrOtherPartySignals(string id, string path, bool expected)
     {
         var mapping = Assert.Single(Presets().Single(value => value.Id == id).Mappings);

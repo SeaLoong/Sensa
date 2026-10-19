@@ -17,7 +17,7 @@
     "description": "Touch / Frot → V0；自动检查同一对象所需的 Close 门控。",
     "mappings": [
       {
-        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers",
+        "oscPath": "OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others",
         "role": "V0",
         "sourceMode": "OgbTouch"
       }

@@ -108,22 +108,16 @@ internal static class SpatialSamples
         {
             var distance = (position - FixedAnchorReconstruction.Anchor(i)).Length;
             var proximity = (float)Math.Clamp(1 - Math.Max(0, distance - SensaFixedAnchorProtocol.MarkerRadius) / SensaFixedAnchorProtocol.ReceiverRadius, 0, 1);
-            store.Set($"{prefix}/Root/A{i}", OscValue.FromFloat(proximity), sender);
+            store.Set($"{prefix}/P{i}", OscValue.FromFloat(proximity), sender);
         }
-        store.Set(prefix + SensaFixedAnchorProtocol.ProfileSuffix, OscValue.FromFloat(SensaFixedAnchorProtocol.ProfileValue), sender);
-        store.Set(prefix + SensaFixedAnchorProtocol.ValidSuffix, OscValue.FromFloat(1), sender);
-        store.Set(prefix + SensaFixedAnchorProtocol.ScaleSuffix, OscValue.FromFloat(1), sender);
-        store.Set(prefix + SensaFixedAnchorProtocol.HeartbeatSuffix, OscValue.FromFloat(0), sender);
+        store.Set(prefix + SensaFixedAnchorProtocol.SampleSuffix, OscValue.FromFloat(1 / 32f), sender);
     }
 
     public static void Point(OscParameterStore store, string prefix, PosePoint position, string source = "test")
     {
-        if (prefix.StartsWith(SensaFixedAnchorProtocol.Prefix + "/", StringComparison.Ordinal))
-        { FixedRoot(store, prefix, position, source); return; }
-        var values = Marker(position, prefix.StartsWith("Sensa/SpsRoot/") || prefix.StartsWith("Sensa/SharedRoot/") ? .01 : .001);
-        var local = prefix.StartsWith("Sensa/Point/") || prefix.StartsWith("Sensa/Handle/");
-        for (var i = 0; i < (local ? 4 : 8); i++)
-            store.Set($"{prefix}/Root/A{i}", OscValue.FromFloat(values[local ? SensaPoseProtocol.PointAnchorIndex(i) : i]),
+        var values = Marker(position);
+        for (var i = 0; i < 4; i++)
+            store.Set($"{prefix}/Root/A{i}", OscValue.FromFloat(values[SensaPoseProtocol.PointAnchorIndex(i)]),
                 new(source, source, null, "127.0.0.1", 19000));
     }
 }

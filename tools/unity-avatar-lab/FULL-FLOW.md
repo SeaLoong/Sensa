@@ -27,7 +27,7 @@
 
 Socket 的白色中心和金色 +Z 线表示入口及其方向；旁边有目标名称。Plug 的 ROOT / TIP / SIDE 是配对标记位置。四点本地/PB 阵列显示 **P1–P4**，八点 Socket 阵列显示 **C1–C8**。同一布局内第一到第四个颜色为红、蓝、绿、黄；小球直径不是 Contact 接收半径。辅助标记不代表接收器已启用。
 
-**P/C 编号是输入探针**，不是 TCode A0/A1/A2 辅助输出。两种布局的原始 OSC 字段都从 A0 编号，但空间位置不同，不可混用。Sensa 参数工作台按协议类型显示 P 或 C。选择 Measure plug 后，Palm 参考框自动显示 P1–P4，Plug 把手也显示对应 P 阵列；选择 Socket 测量时恢复 C1–C8。同一 Socket 的 Root/Tip/Side 三组八点采样共享 C 阵列位置，以完整路径区分。
+**此处 P/C 编号是独立 Point／Pose 实验探针**，不是 TCode A0/A1/A2 辅助输出，也不是 Sensa SPS 协议的 P0–P3。两种布局的原始 OSC 字段都从 A0 编号，但空间位置不同，不可混用。Sensa 参数工作台按协议类型显示 P 或 C。选择 Measure plug 后，Palm 参考框自动显示 P1–P4，Plug 把手也显示对应 P 阵列；选择 Socket 测量时恢复 C1–C8。同一 Socket 的 Root/Tip/Side 三组八点采样共享 C 阵列位置，以完整路径区分。
 
 QuickStart 是绑定右手腕的链路检查，保持该绑定以匹配世界阶梯台；台上的测试球可以左右手持有或放置。它不是另一个待摆放的 SPS Socket。
 
@@ -47,7 +47,7 @@ QuickStart 是绑定右手腕的链路检查，保持该绑定以匹配世界阶
 | 2. 自己的 PB | 在 Sensa Test Props 选择 PB handle，放到面前后抓白球，移动、拉伸、松开；把手无实体碰撞 | 优先将实际 Handle_Stretch 映射到 Depth、Handle_IsGrabbed 映射到 GateEnable；使用原生 PB 标量，不依赖四点定位。P1–P4 仅用于实验诊断 |
 | 3. SPS 自身交互 | 启用棒棒糖道具；打开 `Enable SPS OSC (local)`，选择左手或左前臂 SPS Socket；把自己的道具靠近该 Socket | 复制“SPS Socket · 径向估算”草稿，将实际 OGB 路径改为 PenSelfNewRoot；同源 NewTip 自动配对。根/长度成对参数先在未饱和位置采样以学习长度，再靠近；偏轴时结果是径向近似 |
 | 4. 额外定位 | 在 `Sensa Lab` 子菜单选择 Plug 测量，参考左手 Socket；移动道具 | OSC → 实验诊断查看 ReferenceLocal 候选估计；默认不驱动输出，不能当作世界或 GPU 表面位置 |
-| 5. 配对/根部诊断 | `Sensa Lab` 切到相应 Socket。配对通道为 `LabPair` | 标准 Root 仅诊断；配对 Pose 也是默认禁止运动的实验。匹配标记和低残差都不证明唯一 Sender 或同帧 |
+| 5. 固定 SPS 根部／配对姿态 | `Sensa Lab` 选择自己的 Socket／Plug；配对通道为 `LabPair` | 固定根发布 P0–P3 与变化的 Sample 五个 Float，得到 Avatar 根局部坐标；配对 Pose 仍是独立实验。两者都需明确实验许可，单根点不提供姿态或直接行程 |
 | 6. Shader 图像传输 | `Sensa Shader` 选择 `Synthetic code (not SPS data)`；再切换 `Corrupt shader CRC` 检查故障 | 使用显式配置的图像桥接脚本查看 XYZ/Frame/Valid。合成值是 (.25, -.5, .75) 米；CRC 错误应令 Valid=0，恢复需要两个前进帧。结束后 Shader 选择 Off |
 | 7. 设备 | 前面通过后，使用仅 L0 小行程轴配置连接正确设备，再重复第 1 项 | 五档目标约 400/450/500/550/600。卡片是发送目标，不能当作机械实际位置；STOP 和输入关闭应停止发送 |
 

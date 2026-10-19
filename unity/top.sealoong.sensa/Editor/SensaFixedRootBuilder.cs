@@ -15,17 +15,17 @@ namespace UnityBox.Sensa
 {
     public static class SensaFixedRootBuilder
     {
-        public const string TagPrefix = "SensaFixedRoot_";
+        public const string TagPrefix = "SensaSPS_";
         public static void ProcessAvatar(GameObject avatar)
         {
             var all = avatar.GetComponentsInChildren<SensaFixedRootProbe>(true);
             var probes = all.Where(p => p.enabled).ToArray();
             if (probes.GroupBy(p => p.instanceName).Any(g => g.Count() > 1)
                 || probes.GroupBy(p => p.collisionChannel).Any(g => g.Count() > 1))
-                throw new InvalidOperationException("Fixed-root names and collision channels must be unique. / 固定根名称与碰撞通道必须唯一。");
+                throw new InvalidOperationException("SPS names and collision channels must be unique. / SPS 名称与碰撞通道必须唯一。");
             foreach (var probe in probes) Validate(avatar, probe.instanceName, probe.target, probe.collisionChannel);
-            SensaSensorUtility.Budget(avatar, probes.Sum(p => p.othersDiagnostic ? 9 : 5));
-            foreach (var probe in probes) Build(avatar, probe.instanceName, probe.target, probe.collisionChannel, probe.othersDiagnostic);
+            SensaSensorUtility.Budget(avatar, probes.Length * 5);
+            foreach (var probe in probes) Build(avatar, probe.instanceName, probe.target, probe.collisionChannel);
             foreach (var probe in all) UnityEngine.Object.DestroyImmediate(probe);
         }
 
@@ -70,10 +70,10 @@ namespace UnityBox.Sensa
         }
 
         public static GameObject Build(GameObject avatar, string id, Component target, string channel,
-            bool othersDiagnostic = false, string selector = null, int selectedSlot = 0)
+            string selector = null, int selectedSlot = 0)
         {
             Validate(avatar, id, target, channel);
-            SensaSensorUtility.Budget(avatar, othersDiagnostic ? 9 : 5);
+            SensaSensorUtility.Budget(avatar, 5);
             var placement = SensaSpsAdapter.ReadRoot(target);
             var source = SensaSensorUtility.Child(placement.root, "SensaRootSource_" + id);
             source.localPosition = placement.position; source.localRotation = placement.rotation;
@@ -88,86 +88,75 @@ namespace UnityBox.Sensa
             string tag = TagPrefix + channel;
             var sender = marker.gameObject.AddComponent<VRCContactSender>();
             sender.shapeType = ContactBase.ShapeType.Sphere; sender.radius = SensaFixedAnchorProtocol.MarkerRadius;
-            sender.localOnly = !othersDiagnostic; sender.collisionTags = new List<string> { tag };
-            var prefixes = new List<string> { SensaFixedAnchorProtocol.Prefix + "/" + id + "/Self" };
-            if (othersDiagnostic) prefixes.Add(SensaFixedAnchorProtocol.Prefix + "/" + id + "/Others");
-            foreach (string prefix in prefixes)
+            sender.localOnly = true; sender.collisionTags = new List<string> { tag };
+            string prefix = SensaFixedAnchorProtocol.Prefix + "/" + id;
+            string rawPrefix = "Sensa/Internal/SPS/" + id + "/RawP";
+            for (int i = 0; i < SensaFixedAnchorProtocol.AnchorCount; i++)
             {
-                bool self = prefix.EndsWith("/Self", StringComparison.Ordinal);
-                for (int i = 0; i < SensaFixedAnchorProtocol.AnchorCount; i++)
-                {
-                    var node = SensaSensorUtility.Child(contacts.transform, (self ? "SelfA" : "OthersA") + i);
-                    node.localPosition = new Vector3(SensaFixedAnchorProtocol.AnchorX(i), SensaFixedAnchorProtocol.AnchorY(i), SensaFixedAnchorProtocol.AnchorZ(i));
-                    var receiver = node.gameObject.AddComponent<VRCContactReceiver>();
-                    receiver.shapeType = ContactBase.ShapeType.Sphere; receiver.radius = SensaFixedAnchorProtocol.ReceiverRadius;
-                    receiver.receiverType = ContactReceiver.ReceiverType.Proximity; receiver.localOnly = true;
-                    receiver.allowSelf = self; receiver.allowOthers = !self; receiver.collisionTags = new List<string> { tag };
-                    receiver.parameter = prefix + "/Root/RawA" + i;
-                    SensaSensorUtility.Parameter(host, receiver.parameter); SensaSensorUtility.Parameter(host, prefix + "/Root/A" + i);
-                }
-                foreach (string suffix in new[] { SensaFixedAnchorProtocol.ProfileSuffix, SensaFixedAnchorProtocol.ScaleSuffix, SensaFixedAnchorProtocol.HeartbeatSuffix })
-                    SensaSensorUtility.Parameter(host, prefix + suffix);
-                SensaSensorUtility.Parameter(host, prefix + SensaFixedAnchorProtocol.ValidSuffix, ParameterSyncType.Bool);
+                var node = SensaSensorUtility.Child(contacts.transform, "P" + i);
+                node.localPosition = new Vector3(SensaFixedAnchorProtocol.AnchorX(i), SensaFixedAnchorProtocol.AnchorY(i), SensaFixedAnchorProtocol.AnchorZ(i));
+                var receiver = node.gameObject.AddComponent<VRCContactReceiver>();
+                receiver.shapeType = ContactBase.ShapeType.Sphere; receiver.radius = SensaFixedAnchorProtocol.ReceiverRadius;
+                receiver.receiverType = ContactReceiver.ReceiverType.Proximity; receiver.localOnly = true;
+                receiver.allowSelf = true; receiver.allowOthers = false; receiver.collisionTags = new List<string> { tag };
+                // Raw values are FX-only, not Expression Parameters or the public OSC contract. / Raw 仅在 FX 声明，不注册公开表达参数。
+                receiver.parameter = rawPrefix + i;
+                SensaSensorUtility.Parameter(host, prefix + "/P" + i);
             }
-            BuildAnimator(avatar, host, contacts, prefixes, selector, selectedSlot);
-            contacts.SetActive(false); // No measurements until the local scale guard is active. / 守卫生效前禁用测量。
+            SensaSensorUtility.Parameter(host, prefix + SensaFixedAnchorProtocol.SampleSuffix);
+            BuildAnimator(avatar, host, contacts, prefix, rawPrefix, selector, selectedSlot);
+            contacts.SetActive(false);
             return host;
         }
 
-        private static void BuildAnimator(GameObject avatar, GameObject host, GameObject contacts, List<string> prefixes, string selector, int slot)
+        private static void BuildAnimator(GameObject avatar, GameObject host, GameObject contacts, string prefix,
+            string rawPrefix, string selector, int slot)
         {
-            var controller = new AnimatorController { name = "Sensa fixed root " + host.name };
+            var controller = new AnimatorController { name = "Sensa SPS " + host.name };
             foreach (var p in host.GetComponent<ModularAvatarParameters>().parameters)
-                controller.AddParameter(p.nameOrPrefix, p.syncType == ParameterSyncType.Bool ? AnimatorControllerParameterType.Bool : AnimatorControllerParameterType.Float);
+                controller.AddParameter(p.nameOrPrefix, AnimatorControllerParameterType.Float);
+            for (int i = 0; i < SensaFixedAnchorProtocol.AnchorCount; i++)
+                controller.AddParameter(rawPrefix + i, AnimatorControllerParameterType.Float);
             controller.AddParameter(new AnimatorControllerParameter { name = "ScaleFactor", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
             controller.AddParameter("IsLocal", AnimatorControllerParameterType.Bool);
             if (selector != null) controller.AddParameter(selector, AnimatorControllerParameterType.Int);
-            var machine = new AnimatorStateMachine { name = "Fixed root scale guard" };
+            var machine = new AnimatorStateMachine { name = "SPS scale guard" };
             controller.AddLayer(new AnimatorControllerLayer { name = machine.name, stateMachine = machine, defaultWeight = 1 });
-            AnimatorState State(string name, bool active, float heartbeat)
+            AnimatorState State(string name, bool active, float sample)
             {
                 var state = machine.AddState(name); state.writeDefaultValues = false;
                 var clip = new AnimationClip { name = name };
                 clip.SetCurve(AnimationUtility.CalculateTransformPath(contacts.transform, avatar.transform), typeof(GameObject), "m_IsActive",
-                    AnimationCurve.Constant(0, SensaFixedAnchorProtocol.HeartbeatPeriodSeconds, active ? 1 : 0));
+                    AnimationCurve.Constant(0, SensaFixedAnchorProtocol.SamplePeriodSeconds, active ? 1 : 0));
                 state.motion = clip;
                 var driver = state.AddStateMachineBehaviour<VRCAvatarParameterDriver>(); driver.localOnly = true;
                 driver.parameters = new List<VRC_AvatarParameterDriver.Parameter>();
-                foreach (string prefix in prefixes)
+                for (int i = 0; i < SensaFixedAnchorProtocol.AnchorCount; i++)
                 {
-                    for (int i = 0; i < SensaFixedAnchorProtocol.AnchorCount; i++)
-                    {
-                        if (!active) driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + "/Root/RawA" + i, value = 0 });
-                        driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + "/Root/A" + i,
-                            type = active ? VRC_AvatarParameterDriver.ChangeType.Copy : VRC_AvatarParameterDriver.ChangeType.Set,
-                            source = prefix + "/Root/RawA" + i, value = 0 });
-                    }
-                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + SensaFixedAnchorProtocol.ProfileSuffix, value = SensaFixedAnchorProtocol.ProfileValue });
-                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + SensaFixedAnchorProtocol.ScaleSuffix, type = VRC_AvatarParameterDriver.ChangeType.Copy, source = "ScaleFactor" });
-                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + SensaFixedAnchorProtocol.ValidSuffix, value = active && prefix.EndsWith("/Self", StringComparison.Ordinal) ? 1 : 0 });
-                    // Submit last. OSC packets remain independent, not an atomic transaction. / 最后提交，但 OSC 数据包并非原子事务。
-                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + SensaFixedAnchorProtocol.HeartbeatSuffix, value = heartbeat });
+                    if (!active) driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = rawPrefix + i, value = 0 });
+                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + "/P" + i,
+                        type = active ? VRC_AvatarParameterDriver.ChangeType.Copy : VRC_AvatarParameterDriver.ChangeType.Set,
+                        source = rawPrefix + i, value = 0 });
                 }
+                // Submit last. OSC delivery is still not atomic. / 最后提交，但 OSC 传输仍不是原子事务。
+                driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + SensaFixedAnchorProtocol.SampleSuffix, value = sample });
                 return state;
             }
             var off = State("Invalid scale or inactive", false, 0); machine.defaultState = off;
-            var samples = Enumerable.Range(0, SensaFixedAnchorProtocol.HeartbeatSteps)
-                .Select(i => State("Sample " + i, true, (float)i / (SensaFixedAnchorProtocol.HeartbeatSteps - 1))).ToArray();
+            var samples = Enumerable.Range(0, SensaFixedAnchorProtocol.SampleSteps)
+                .Select(i => State("Sample " + i, true, (float)(i + 1) / SensaFixedAnchorProtocol.SampleSteps)).ToArray();
             const float minimum = .000001f;
             float maximum = SensaFixedAnchorProtocol.MaximumScaleFactor(avatar.transform.lossyScale.x);
-            void Valid(AnimatorStateTransition t)
-            {
-                t.duration = 0; t.AddCondition(AnimatorConditionMode.If, 0, "IsLocal");
-                t.AddCondition(AnimatorConditionMode.Greater, minimum, "ScaleFactor");
-                t.AddCondition(AnimatorConditionMode.Less, maximum, "ScaleFactor");
-                if (selector != null) t.AddCondition(AnimatorConditionMode.Equals, slot, selector);
-            }
-            var start = off.AddTransition(samples[0]); start.hasExitTime = false; Valid(start);
+            var start = off.AddTransition(samples[0]); start.duration = 0; start.hasExitTime = false;
+            start.AddCondition(AnimatorConditionMode.If, 0, "IsLocal");
+            start.AddCondition(AnimatorConditionMode.Greater, minimum, "ScaleFactor");
+            start.AddCondition(AnimatorConditionMode.Less, maximum, "ScaleFactor");
+            if (selector != null) start.AddCondition(AnimatorConditionMode.Equals, slot, selector);
             for (int i = 0; i < samples.Length; i++)
             {
-                // AnyState invalid guards remain active at every step; exact safe boundaries must not freeze the heartbeat.
-                // AnyState 失效守卫持续生效；恰在安全边界时不能冻结心跳。
-                var t = samples[i].AddTransition(samples[(i + 1) % samples.Length]); t.hasExitTime = true; t.exitTime = 1; t.duration = 0;
+                // AnyState guards own invalidation; exact safe boundaries keep Sample advancing. / AnyState 处理失效，安全边界仍持续采样。
+                var t = samples[i].AddTransition(samples[(i + 1) % samples.Length]);
+                t.hasExitTime = true; t.exitTime = 1; t.duration = 0;
             }
             void Invalid(AnimatorConditionMode mode, float value, string parameter)
             {
@@ -188,7 +177,7 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.HelpBox("固定 Avatar 根局部四锚点；仅估计明确选中的根中心。输出仍需桌面实验许可。\nFour fixed avatar-root local anchors estimate the explicitly selected root center. Desktop experimental permission is still required.", MessageType.Info);
+            EditorGUILayout.HelpBox("固定 Avatar 根局部四锚点，只测自己的明确根中心；公开 P0–P3 和 Sample。\nFour fixed avatar-root anchors measure your explicitly selected root center; only P0–P3 and Sample are public.", MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
         }
     }

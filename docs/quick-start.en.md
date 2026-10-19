@@ -26,7 +26,7 @@ See [OGB compatibility](ogb-compatibility.en.md) for capability detection, prece
 ## Direct root coordinates
 
 - **Sensa SPS:** Install the Unity package on your own Avatar. Use Fixed SPS Root Probe to select a Socket/Plug root explicitly. The builder generates four fixed anchors, a dedicated marker and validity metadata. Select the target in the root panel, capture endpoints, replace/save the draft, then explicitly allow experimental spatial input before arming.
-- **Shader capture:** Generate native Shader Root Capture, pin a producer ID, select a visible encoded region explicitly and configure the desktop bridge. Calibrate native coordinates in the same root panel. Diagnostic Profile 0 cannot drive motion. A hidden layer is not guaranteed to appear in desktop capture.
+- **Shader capture:** Generate native Shader Root Capture, pin a producer ID, select a visible encoded region explicitly and configure the desktop bridge. Calibrate native coordinates in the same root panel. Diagnostic transport has its own namespace and supplies no spatial coordinates. A hidden layer is not guaranteed to appear in desktop capture. [Fields and radii](osc-parameters.en.md).
 
 Both routes produce Avatar-root local units, not world positions, device feedback or deformed surfaces. [Route comparison](usage-scenarios.en.md) · [Position and scale](positioning.en.md) · [Shader setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 

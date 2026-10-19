@@ -56,7 +56,7 @@ def main():
                                    lambda state: state['input']['mode'] == 'osc' and state['osc']['listening'],
                                    'OSC 接收未就绪。 / OSC receiver is not ready.', timeout=3)
         assert not listening['runtime']['inputActive'], '选择 OSC 不能启用输入。 / Selecting OSC must not arm input.'
-        prefix = 'Sensa/Shader/v1/0/'
+        prefix = 'Sensa/Diagnostics/Shader/0/'
         bridge=session.start_child([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}
         def wait_gate(value, timeout=3):
@@ -70,7 +70,7 @@ def main():
         fresh=wait_gate(1)
         expected=(.06,0,.12)
         for axis,value in zip('XYZ',expected): assert abs(fresh[prefix + axis]-value)<.00005
-        assert fresh[prefix + 'Profile'] == 0 and fresh[prefix + 'Producer'] == 0
+        assert not any(path.startswith('Sensa/Shader/') for path in fresh), 'Diagnostic PNGs must not enter the native motion namespace'
         assert not api('/api/state/overview')['runtime']['inputActive']
         if args.corrupt:
             replace_image(args.corrupt);wait_gate(0)
@@ -80,10 +80,10 @@ def main():
             assert preview()[prefix + 'Valid']==0,'One recovery frame reopened the gate'
             replace_image(args.recover_next);wait_gate(1)
         stale=wait_gate(0)
-        assert stale[prefix + 'Profile'] == 0 and stale[prefix + 'Producer'] == 0
+        assert not any(path.startswith('Sensa/Shader/') for path in stale)
         assert not api('/api/state/overview')['runtime']['inputActive']
         assert not api('/api/config')['outputs']
-        report={'passed':True,'source':'Unity diagnostic Profile0 PNG replay; not native root capture or motion evidence','timeoutSeconds':.8,'fresh':fresh,'profile':0,'inputActive':False,'crcClosesTransportGate':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'transportGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
+        report={'passed':True,'source':'Unity diagnostic PNG replay; separate diagnostic namespace, not native root capture or motion evidence','timeoutSeconds':.8,'fresh':fresh,'diagnosticOnly':True,'inputActive':False,'crcClosesTransportGate':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'transportGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
         args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('诊断 PNG → bridge → OSC 通过；输入保持关闭。 / Diagnostic PNG -> bridge -> OSC passed; input stayed disarmed.')
         session.complete()
 

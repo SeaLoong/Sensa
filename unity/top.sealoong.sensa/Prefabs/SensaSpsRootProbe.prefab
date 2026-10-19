@@ -45,4 +45,3 @@ MonoBehaviour:
   instanceName: SpsRoot
   target: {fileID: 0}
   collisionChannel: SpsRootProbe
-  othersDiagnostic: 0

@@ -22,8 +22,8 @@ namespace UnityBox.Sensa.Tests
             target.position = new Vector3(.02f, .03f, .04f); target.radius = .12f;
             return target;
         }
-        private GameObject Build(VRCContactSender target, bool others = false) =>
-            SensaFixedRootBuilder.Build(avatar, "Root", target, "UniqueChannel", others);
+        private GameObject Build(VRCContactSender target) =>
+            SensaFixedRootBuilder.Build(avatar, "Root", target, "UniqueChannel");
         private AnimatorController Controller(GameObject host) =>
             (AnimatorController)host.GetComponent<ModularAvatarMergeAnimator>().animator;
         [Test] public void FixedAnchorsAndOwnTinySphereUseAvatarRootFrameRatherThanSocketOrOriginalRadius()
@@ -53,42 +53,44 @@ namespace UnityBox.Sensa.Tests
             Assert.AreEqual(Vector3.one, sender.transform.localScale);
             Assert.IsFalse(receivers[0].gameObject.activeInHierarchy);
         }
-        [Test] public void FxSamplesCopyAllFourRangesThenCommitMetadataAndGuardRuntimeScale()
+        [Test] public void FxCopiesFourPrivateRangesThenPublishesOneValidSampleCounter()
         {
             var host = Build(Target()); var controller = Controller(host); var machine = controller.layers[0].stateMachine;
-            string prefix = "Sensa/SpsRoot/v1/Root/Self";
-            foreach (var receiver in host.GetComponentsInChildren<VRCContactReceiver>(true))
-                Assert.IsTrue(controller.parameters.Any(p => p.name == receiver.parameter && p.type == AnimatorControllerParameterType.Float));
-            foreach (string metadata in new[] { "Sensa/SpsRoot/v1/Root/Self/Profile", "Sensa/SpsRoot/v1/Root/Self/Valid",
-                "Sensa/SpsRoot/v1/Root/Self/Scale", "Sensa/SpsRoot/v1/Root/Self/Heartbeat" })
-                Assert.IsTrue(controller.parameters.Any(p => p.name == metadata), metadata);
-            Assert.IsFalse(controller.parameters.Any(p => p.name == "Sensa/SpsRoot/v1/Root/Self/Root/Valid"));
-            var sample = machine.states.Single(s => s.state.name == "Sample 0").state;
-            var writes = sample.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
+            CollectionAssert.AreEquivalent(new[] { "Sensa/SPS/Root/P0", "Sensa/SPS/Root/P1", "Sensa/SPS/Root/P2",
+                "Sensa/SPS/Root/P3", "Sensa/SPS/Root/Sample" }, host.GetComponent<ModularAvatarParameters>().parameters.Select(p => p.nameOrPrefix));
+            var receivers = host.GetComponentsInChildren<VRCContactReceiver>(true);
             for (int i = 0; i < 4; i++)
             {
-                Assert.AreEqual(prefix + "/Root/A" + i, writes[i].name);
-                Assert.AreEqual(prefix + "/Root/RawA" + i, writes[i].source);
+                Assert.AreEqual("Sensa/Internal/SPS/Root/RawP" + i, receivers[i].parameter);
+                Assert.IsTrue(controller.parameters.Any(p => p.name == receivers[i].parameter && p.type == AnimatorControllerParameterType.Float));
+            }
+            var sample = machine.states.Single(s => s.state.name == "Sample 0").state;
+            var writes = sample.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
+            Assert.AreEqual(5, writes.Count);
+            for (int i = 0; i < 4; i++)
+            {
+                Assert.AreEqual("Sensa/SPS/Root/P" + i, writes[i].name);
+                Assert.AreEqual(receivers[i].parameter, writes[i].source);
                 Assert.AreEqual(VRC_AvatarParameterDriver.ChangeType.Copy, writes[i].type);
             }
-            Assert.AreEqual(prefix + "/Heartbeat", writes.Last().name);
-            var beats = machine.states.Where(s => s.state.name.StartsWith("Sample ", StringComparison.Ordinal))
-                .Select(s => s.state.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters
-                    .Single(p => p.name == "Sensa/SpsRoot/v1/Root/Self/Heartbeat").value).ToArray();
-            Assert.AreEqual(32, beats.Length); Assert.Greater(beats.Distinct().Count(), 2);
-            Assert.IsTrue(beats.All(value => value >= 0 && value <= 1));
-            Assert.Greater(SensaFixedAnchorProtocol.HeartbeatSteps * SensaFixedAnchorProtocol.HeartbeatPeriodSeconds * 1000,
-                SensaFixedAnchorProtocol.MaximumHeartbeatAgeMs);
-            Assert.AreEqual(1, writes.Single(p => p.name == prefix + "/Valid").value);
+            Assert.AreEqual("Sensa/SPS/Root/Sample", writes.Last().name); Assert.AreEqual(1f / 32, writes.Last().value);
+            var counts = machine.states.Where(s => s.state.name.StartsWith("Sample ", StringComparison.Ordinal))
+                .Select(s => s.state.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Last().value).ToArray();
+            CollectionAssert.AreEqual(Enumerable.Range(1, 32).Select(i => i / 32f), counts);
+            Assert.IsTrue(counts.All(SensaFixedAnchorProtocol.IsSampleActive));
+            foreach (float invalid in new[] { 0f, -.1f, .1f, 1.01f, float.NaN, float.PositiveInfinity })
+                Assert.IsFalse(SensaFixedAnchorProtocol.IsSampleActive(invalid), invalid.ToString());
+            Assert.Greater(SensaFixedAnchorProtocol.SampleSteps * SensaFixedAnchorProtocol.SamplePeriodSeconds * 1000,
+                SensaFixedAnchorProtocol.MaximumSampleAgeMs);
             var allowed = machine.defaultState.transitions.Single().conditions;
             Assert.IsTrue(allowed.Any(c => c.parameter == "IsLocal" && c.mode == AnimatorConditionMode.If));
             Assert.IsTrue(allowed.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Less && c.threshold < 1.2f));
-            var invalid = machine.anyStateTransitions.Single(t => t.conditions.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Greater));
-            Assert.AreEqual(machine.defaultState, invalid.destinationState);
+            var invalidScale = machine.anyStateTransitions.Single(t => t.conditions.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Greater));
+            Assert.AreEqual(machine.defaultState, invalidScale.destinationState);
             var contacts = host.transform.Find("Contacts").gameObject;
             ((AnimationClip)sample.motion).SampleAnimation(avatar, 0); Assert.IsTrue(contacts.activeSelf);
             ((AnimationClip)machine.defaultState.motion).SampleAnimation(avatar, 0); Assert.IsFalse(contacts.activeSelf);
-            Assert.AreEqual(0, machine.defaultState.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Single(p => p.name == prefix + "/Valid").value);
+            Assert.AreEqual(0, machine.defaultState.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Last().value);
         }
         [Test] public void ScaleGuardEntryAndExitConditionsNeverOverlapAtFormerBoundaryBands()
         {
@@ -120,14 +122,6 @@ namespace UnityBox.Sensa.Tests
             Assert.IsTrue(Enters(1f)); Assert.IsFalse(Exits(1f));
             Assert.IsFalse(Enters(0)); Assert.IsTrue(Exits(0));
             Assert.IsFalse(Enters(maximum + .000001f)); Assert.IsTrue(Exits(maximum + .000001f));
-        }
-        [Test] public void OthersIsExplicitDiagnosticAndCannotAssertValid()
-        {
-            var host = Build(Target(), true);
-            Assert.AreEqual(8, host.GetComponentsInChildren<VRCContactReceiver>(true).Length);
-            Assert.IsFalse(host.GetComponentInChildren<VRCContactSender>(true).localOnly);
-            foreach (var state in Controller(host).layers[0].stateMachine.states)
-                Assert.AreEqual(0, state.state.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Single(p => p.name.Contains("/Others/") && p.name.EndsWith("/Valid")).value);
         }
         [TestCase(2, 1, 1)]
         [TestCase(1.3f, 1.3f, 1.3f)]
@@ -166,12 +160,11 @@ namespace UnityBox.Sensa.Tests
             component.role = BridgeRole.Plug;
             Assert.AreSame(component.rootBone, SensaSpsAdapter.ReadRoot(component).root);
         }
-        [Test] public void PublicRootPrefabRequiresExplicitTargetAndPublishesFixedProfileMetadata()
+        [Test] public void PublicRootPrefabRequiresExplicitTargetAndPublishesExactlyFiveSpsFields()
         {
             var instance = Prefab("SensaSpsRootProbe"); instance.transform.SetParent(avatar.transform, false);
             Assert.IsNull(instance.GetComponent<SensaPoseSocket>());
             var probe = instance.GetComponent<SensaFixedRootProbe>(); Assert.NotNull(probe); Assert.IsNull(probe.target);
-            Assert.IsFalse(probe.othersDiagnostic);
             Assert.Throws<InvalidOperationException>(() => SensaFixedRootBuilder.ProcessAvatar(avatar));
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
             probe.target = Target();
@@ -181,12 +174,10 @@ namespace UnityBox.Sensa.Tests
             Assert.AreEqual(4, host.GetComponentsInChildren<VRCContactReceiver>(true).Length);
             Assert.AreEqual(1, host.GetComponentsInChildren<VRCContactSender>(true).Length);
             var controller = Controller(host);
-            foreach (string metadata in new[] { "Sensa/SpsRoot/v1/SpsRoot/Self/Profile", "Sensa/SpsRoot/v1/SpsRoot/Self/Valid",
-                "Sensa/SpsRoot/v1/SpsRoot/Self/Scale", "Sensa/SpsRoot/v1/SpsRoot/Self/Heartbeat" })
-                Assert.IsTrue(controller.parameters.Any(p => p.name == metadata), metadata);
+            CollectionAssert.AreEquivalent(new[] { "Sensa/SPS/SpsRoot/P0", "Sensa/SPS/SpsRoot/P1", "Sensa/SPS/SpsRoot/P2",
+                "Sensa/SPS/SpsRoot/P3", "Sensa/SPS/SpsRoot/Sample" }, host.GetComponent<ModularAvatarParameters>().parameters.Select(p => p.nameOrPrefix));
             var sample = controller.layers[0].stateMachine.states.Single(s => s.state.name == "Sample 0").state;
-            Assert.AreEqual(1, sample.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters
-                .Single(p => p.name == "Sensa/SpsRoot/v1/SpsRoot/Self/Profile").value);
+            Assert.AreEqual(1f / 32, sample.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Last().value);
             var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = controller; animator.Rebind();
             foreach (var receiver in host.GetComponentsInChildren<VRCContactReceiver>(true))
             {
@@ -215,7 +206,14 @@ namespace UnityBox.Sensa.Tests
             nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
             Assert.IsNull(avatar.GetComponent<SensaFixedRootProbe>());
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
-            Assert.IsTrue(descriptor.expressionParameters.parameters.Any(p => p.name == "Sensa/SpsRoot/v1/Root/Self/Valid" && !p.networkSynced));
+            var exported = descriptor.expressionParameters.parameters.Where(p => p.name.StartsWith("Sensa/SPS/", StringComparison.Ordinal)).ToArray();
+            CollectionAssert.AreEquivalent(new[] { "Sensa/SPS/Root/P0", "Sensa/SPS/Root/P1", "Sensa/SPS/Root/P2",
+                "Sensa/SPS/Root/P3", "Sensa/SPS/Root/Sample" }, exported.Select(p => p.name));
+            Assert.IsTrue(exported.All(p => !p.networkSynced));
+            Assert.IsFalse(descriptor.expressionParameters.parameters.Any(p => p.name.Contains("RawP")));
+            var fx = (AnimatorController)descriptor.baseAnimationLayers.Single(l => l.type == VRCAvatarDescriptor.AnimLayerType.FX).animatorController;
+            foreach (var receiver in avatar.GetComponentsInChildren<VRCContactReceiver>(true).Where(r => r.parameter.Contains("/RawP")))
+                Assert.IsTrue(fx.parameters.Any(p => p.name == receiver.parameter && p.type == AnimatorControllerParameterType.Float));
             Assert.IsTrue(descriptor.baseAnimationLayers.Any(l => l.type == VRCAvatarDescriptor.AnimLayerType.FX && l.animatorController != null));
         }
     }

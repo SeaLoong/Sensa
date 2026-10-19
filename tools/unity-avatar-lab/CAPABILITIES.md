@@ -4,7 +4,7 @@
 
 日常验收先用 [FullFlow 综合 Avatar](FULL-FLOW.md)：它把入门接收、SPS、定位、PB 和可选 Shader 合成码实验组合在一个 Avatar 上。下面的单能力场景用于定位具体故障。
 
-打开 `Assets/SensaAvatarLab/Capabilities/` 下的对应场景。每个场景只有一种主要输入链路，底模相同便于控制变量；不是把同一套功能换几个位置。原 Exclusive/Shared 场景保留作完整组合与共享性能对照。
+打开 `Assets/SensaAvatarLab/Capabilities/` 下的对应场景。每个场景只有一种主要输入链路，底模相同便于控制变量；不是把同一套功能换几个位置。Exclusive／Dedicated 场景分别用于互斥选择与同时测量组合。
 
 | 场景 | 最终 Contact | Sensa 接收器 | 实验 PB | 操作和预期 |
 | --- | --- | --- | --- | --- |
@@ -32,7 +32,7 @@ PB-only 没有碰撞器或 Contact，Stretch 只是原生标量；PBContact 的�
 
 开启 VRChat OSC，先保持输出列表为空并应用 OSC。PB 使用“PB · 拉伸”并替换实际 Stretch／IsGrabbed 路径；SPS 使用现代径向模板并按真实 Self／Others 调整。Contact／PBContact 没有默认定位预设，在 OSC → 实验诊断观察；显式实验许可和最旧通道时效仍不能证明定位可靠。限定实际实例与来源，实例 ID 以当前报告及接收值为准。
 
-诊断图像链路及冻结门控见 [World 能力指南](../unity-world-lab/CAPABILITIES.md)。桥输出 `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}`（Profile0，仅预览）。独立的[原生根点捕获](../../unity/top.sealoong.sensa/GPU-TRACKING.md)使用真实根部 Transform、非零 producer 和 Profile1。
+诊断图像链路及冻结门控见 [World 能力指南](../unity-world-lab/CAPABILITIES.md)。桥输出 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`（仅传输预览）。独立的[原生根点捕获](../../unity/top.sealoong.sensa/GPU-TRACKING.md)使用真实根部 Transform，输出到 `Sensa/Shader/<非零ID>`；二进制 ID 与坐标类型标志仍保留。
 
 本实验室 SPSShader 场景的采集 Camera 在 Avatar 根以外，**不会上传**。该场景的真实 SPS 模型→PNG 依赖编辑器 GPU Probe；其可上传 Camera 装置只生成合成码，不等同于包内原生根点生产端。SDK 构建成功不证明客户端相机保留或头显不可见。
 

@@ -85,61 +85,56 @@ namespace UnityBox.Sensa.Tests
     {
         [Test] public void AutoSelectionPreservesSpsAndFollowsSocketOffsetWithFixedAvatarAnchors()
         {
-            var selected=Socket("Selected",new Vector3(0,1,0));var ignored=Socket("Ignored",Vector3.right);
-            var source=selected.GetComponents<Component>().Single(SensaSpsAdapter.IsTarget);source.GetType().GetField("position").SetValue(source,new Vector3(.02f,.03f,.04f));
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.discoverAll=false;setup.selectedTargets.Add(selected);
-            var expected=SensaSpsAdapter.Read(source);SensaAutoBuilder.ProcessAvatar(avatar);
-            Assert.AreEqual(4,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);Assert.IsNotNull(source);Assert.AreEqual(0,ignored.transform.childCount);
-            Assert.AreEqual(avatar.transform,avatar.GetComponentsInChildren<VRCContactReceiver>(true)[0].transform.parent.parent.parent);
+            var selected=Socket("Selected",new Vector3(0,1,0)); var ignored=Socket("Ignored",Vector3.right);
+            var source=selected.GetComponents<Component>().Single(SensaSpsAdapter.IsTarget);
+            source.GetType().GetField("position").SetValue(source,new Vector3(.02f,.03f,.04f));
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.discoverAll=false; setup.selectedTargets.Add(selected);
+            var expected=SensaSpsAdapter.Read(source); SensaAutoBuilder.ProcessAvatar(avatar);
+            var receivers=avatar.GetComponentsInChildren<VRCContactReceiver>(true);
+            Assert.AreEqual(4,receivers.Length); Assert.NotNull(source); Assert.AreEqual(0,ignored.transform.childCount);
+            Assert.AreEqual(avatar.transform,receivers[0].transform.parent.parent.parent);
             Assert.That(Vector3.Distance(selected.transform.GetChild(0).localPosition,expected.position),Is.LessThan(.00001));
-        }
-        [Test] public void SharedArrayUsesOneBankAndGuardedAnimator()
-        {
-            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
-            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
-            var constraint=avatar.GetComponentInChildren<ParentConstraint>();Assert.AreEqual(2,constraint.sourceCount);
-            var merge=SelectionAnimator();var controller=(AnimatorController)merge.animator;
-            var states = States();Assert.AreEqual(5,states.Length);
-            var settle=states.Single(s=>s.name=="Select 2");((AnimationClip)settle.motion).SampleAnimation(avatar,0);
-            Assert.AreEqual(1,constraint.GetSource(1).weight);Assert.IsFalse(avatar.GetComponentsInChildren<VRCContactReceiver>(true)[0].gameObject.activeInHierarchy);
-            var driver=settle.behaviours.OfType<VRCAvatarParameterDriver>().Single();Assert.AreEqual(11,driver.parameters.Count);
-            Assert.AreEqual(1,states.Single(s=>s.name=="Active 2").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Count);
-            Assert.IsTrue(settle.transitions.Any(t=>t.hasExitTime&&t.exitTime==1&&t.duration==0));
         }
         [Test] public void DedicatedRootArrayProvidesWritableFxParametersWithoutASelector()
         {
-            Socket("Root", Vector3.zero);
-            var setup = avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy = SensaArrayPolicy.Dedicated;
+            Socket("Root",Vector3.zero); var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=SensaArrayPolicy.Dedicated;
             SensaAutoBuilder.ProcessAvatar(avatar);
-            var merge = avatar.GetComponentInChildren<ModularAvatarMergeAnimator>(); Assert.NotNull(merge);
-            var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = merge.animator; animator.Rebind();
-            foreach (var receiver in avatar.GetComponentsInChildren<VRCContactReceiver>(true))
+            var merge=avatar.GetComponentInChildren<ModularAvatarMergeAnimator>(); Assert.NotNull(merge);
+            var animator=avatar.GetComponent<Animator>(); animator.runtimeAnimatorController=merge.animator; animator.Rebind();
+            foreach(var receiver in avatar.GetComponentsInChildren<VRCContactReceiver>(true))
             {
-                Assert.IsTrue(animator.parameters.Any(parameter => parameter.name == receiver.parameter && parameter.type == AnimatorControllerParameterType.Float));
-                animator.SetFloat(receiver.parameter, .4f); Assert.AreEqual(.4f, animator.GetFloat(receiver.parameter));
+                Assert.IsTrue(animator.parameters.Any(p=>p.name==receiver.parameter && p.type==AnimatorControllerParameterType.Float));
+                animator.SetFloat(receiver.parameter,.4f); Assert.AreEqual(.4f,animator.GetFloat(receiver.parameter));
             }
+            Assert.IsFalse(avatar.GetComponentsInChildren<ModularAvatarParameters>(true).SelectMany(p=>p.parameters)
+                .Any(p=>p.nameOrPrefix.Contains("RawP")));
         }
-        [Test] public void DedicatedAndExclusiveHaveDifferentActiveCosts()
+        [Test] public void ExclusiveRootContactCostCountsFourReceiversAndOneSenderPerTarget()
         {
-            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.Exclusive;
-            Assert.AreEqual(10,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));SensaAutoBuilder.ProcessAvatar(avatar);
-            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);Assert.AreEqual(2,avatar.GetComponentsInChildren<VRCContactSender>(true).Length);Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
+            Socket("A",Vector3.zero); Socket("B",Vector3.right*.1f);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=SensaArrayPolicy.Exclusive;
+            Assert.AreEqual(10,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));
+            SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
+            Assert.AreEqual(2,avatar.GetComponentsInChildren<VRCContactSender>(true).Length);
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
         }
-        [TestCase(SensaArrayPolicy.Exclusive)]
-        [TestCase(SensaArrayPolicy.SharedRootArray)]
-        public void ManyTargetsUseLinearTransitionsWithoutReenteringTheSelectedSlot(SensaArrayPolicy policy)
+        [Test] public void ManyTargetsUseLinearTransitionsWithoutReenteringTheSelectedSlot()
         {
-            for(int i=0;i<16;i++)Socket("Socket"+i,Vector3.right*i*.005f);
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=policy;SensaAutoBuilder.ProcessAvatar(avatar);
+            for(int i=0;i<16;i++) Socket("Socket"+i,Vector3.right*i*.005f);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=SensaArrayPolicy.Exclusive;
+            SensaAutoBuilder.ProcessAvatar(avatar);
             var machine=((AnimatorController)SelectionAnimator().animator).layers[0].stateMachine;
             Assert.AreEqual(19,machine.anyStateTransitions.Length);
-            Assert.AreEqual(policy==SensaArrayPolicy.SharedRootArray?16:0,machine.states.Sum(s=>s.state.transitions.Length));
-            foreach(var transition in machine.anyStateTransitions){
-                Assert.IsFalse(transition.canTransitionToSelf);Assert.AreEqual(0,transition.duration);
-                var guard=transition.conditions.Single(c=>c.parameter=="Sensa/Internal/Auto/Selected");Assert.AreEqual(AnimatorConditionMode.NotEqual,guard.mode);
-                if(transition.destinationState.name.StartsWith("Select ")){
-                    var slot=int.Parse(transition.destinationState.name.Substring(7));Assert.AreEqual(slot,guard.threshold);
+            Assert.AreEqual(0,machine.states.Sum(s=>s.state.transitions.Length));
+            foreach(var transition in machine.anyStateTransitions)
+            {
+                Assert.IsFalse(transition.canTransitionToSelf); Assert.AreEqual(0,transition.duration);
+                var guard=transition.conditions.Single(c=>c.parameter=="Sensa/Internal/Auto/Selected");
+                Assert.AreEqual(AnimatorConditionMode.NotEqual,guard.mode);
+                if(transition.destinationState.name.StartsWith("Select "))
+                {
+                    int slot=int.Parse(transition.destinationState.name.Substring(7)); Assert.AreEqual(slot,guard.threshold);
                     var driver=transition.destinationState.behaviours.OfType<VRCAvatarParameterDriver>().Single();
                     Assert.AreEqual(slot,driver.parameters.Single(p=>p.name==guard.parameter).value);
                 }
@@ -149,78 +144,66 @@ namespace UnityBox.Sensa.Tests
         }
         [Test] public void NdmfBuildMergesLocalSelectorAndRemovesAuthoringComponents()
         {
-            Socket("A",Vector3.zero);Socket("B",Vector3.right*.1f);var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;
+            Socket("A",Vector3.zero); Socket("B",Vector3.right*.1f);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=SensaArrayPolicy.Exclusive;
             nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
             var descriptor=avatar.GetComponent<VRCAvatarDescriptor>();
             Assert.IsNull(avatar.GetComponent<SensaAutoSetup>());
             Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length);
-            Assert.NotNull(descriptor.expressionsMenu);Assert.NotNull(descriptor.expressionParameters);
+            Assert.NotNull(descriptor.expressionsMenu); Assert.NotNull(descriptor.expressionParameters);
             Assert.IsTrue(descriptor.expressionParameters.parameters.Any(p=>p.name=="Sensa/Select/Auto"&&!p.networkSynced));
-            Assert.IsTrue(descriptor.baseAnimationLayers.Any(layer=>layer.type==VRCAvatarDescriptor.AnimLayerType.FX && layer.animatorController!=null));
+            Assert.IsTrue(descriptor.baseAnimationLayers.Any(l=>l.type==VRCAvatarDescriptor.AnimLayerType.FX && l.animatorController!=null));
         }
         [Test] public void LocalTipUsesSocketFrameRatherThanItsOwnMovingPlugFrame()
         {
-            var socket=Socket("Socket",Vector3.zero);
-            var plug = Plug("Plug", Vector3.back * .1f);
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.localPlugTipTracking=true;setup.pairedPlugMarkers=true;SensaAutoBuilder.ProcessAvatar(avatar);
-            var follower=avatar.GetComponentInChildren<PositionConstraint>(true);Assert.NotNull(follower);
-            Assert.IsTrue(follower.transform.IsChildOf(socket.transform));Assert.IsTrue(follower.GetSource(0).sourceTransform.IsChildOf(plug.transform));
+            var socket=Socket("Socket",Vector3.zero); var plug=Plug("Plug",Vector3.back*.1f);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.localPlugTipTracking=true; setup.pairedPlugMarkers=true;
+            SensaAutoBuilder.ProcessAvatar(avatar);
+            var follower=avatar.GetComponentInChildren<PositionConstraint>(true); Assert.NotNull(follower);
+            Assert.IsTrue(follower.transform.IsChildOf(socket.transform)); Assert.IsTrue(follower.GetSource(0).sourceTransform.IsChildOf(plug.transform));
             Assert.AreEqual(18,avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length+avatar.GetComponentsInChildren<VRCContactSender>(true).Length);
         }
         [Test] public void AutomaticGripRendererStaysOutsideSpsDiscoveryTree()
         {
-            Socket("Socket",Vector3.zero);
-            var plug = Plug("Plug", Vector3.zero);
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.createPlugGrabHandles=true;SensaAutoBuilder.ProcessAvatar(avatar);
-            Assert.IsEmpty(plug.GetComponentsInChildren<Renderer>(true));Assert.IsNotEmpty(avatar.GetComponentsInChildren<Renderer>(true));
+            Socket("Socket",Vector3.zero); var plug=Plug("Plug",Vector3.zero);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.createPlugGrabHandles=true; SensaAutoBuilder.ProcessAvatar(avatar);
+            Assert.IsEmpty(plug.GetComponentsInChildren<Renderer>(true)); Assert.IsNotEmpty(avatar.GetComponentsInChildren<Renderer>(true));
             Assert.IsFalse(avatar.GetComponentInChildren<VRCPhysBone>(true).transform.IsChildOf(plug.transform));
         }
-        [TestCase(SensaArrayPolicy.Exclusive)]
-        [TestCase(SensaArrayPolicy.SharedRootArray)]
-        public void OneSelectorGatesSocketAndEveryPlugHelper(SensaArrayPolicy policy)
+        [Test] public void OneSelectorGatesSocketAndEveryPlugHelper()
         {
-            var socket=Socket("A Socket",Vector3.zero);
-            var plug = Plug("B Plug", Vector3.zero);
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=policy;setup.localPlugTipTracking=true;setup.pairedPlugMarkers=true;setup.createPlugGrabHandles=true;
-            Assert.AreEqual(policy==SensaArrayPolicy.SharedRootArray?21:23,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));
+            var socket=Socket("A Socket",Vector3.zero); var plug=Plug("B Plug",Vector3.zero);
+            var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=SensaArrayPolicy.Exclusive;
+            setup.localPlugTipTracking=true; setup.pairedPlugMarkers=true; setup.createPlugGrabHandles=true;
+            Assert.AreEqual(23,SensaAutoBuilder.ContactCost(setup,SensaAutoBuilder.Targets(setup,avatar)));
             SensaAutoBuilder.ProcessAvatar(avatar);
-            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
-            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
-            var controller=(AnimatorController)SelectionAnimator().animator;
-            var states = States();
-            void Select(int slot) { SampleState((policy == SensaArrayPolicy.SharedRootArray ? "Active " : "Select ") + slot); }
-            Select(2);
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>()); Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
+            SampleState("Select 2");
             Assert.AreEqual(8,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);
             Assert.AreEqual(5,avatar.GetComponentsInChildren<VRCContactSender>().Length);
             Assert.AreEqual(1,avatar.GetComponentsInChildren<VRCPhysBone>().Length);
-            Assert.IsTrue(socket.transform.GetChild(0).gameObject.activeInHierarchy,"Plug 参考坐标系必须保持启用。 / The Plug reference frame must remain active.");
-            Assert.IsTrue(socket.activeSelf && plug.activeSelf,"保持用户 SPS 对象启用。 / Keep user SPS owner objects enabled.");
-            if(policy==SensaArrayPolicy.SharedRootArray){
-                var parameters=states.Single(s=>s.name=="Active 2").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
-                Assert.AreEqual(0,parameters.Single(p=>p.name.EndsWith("/Ready")).value);
-            }
-            Select(1);
-            Assert.AreEqual(policy==SensaArrayPolicy.SharedRootArray?8:0,avatar.GetComponentsInChildren<VRCContactReceiver>().Length);
-            // Fixed-root Contacts wait for their own IsLocal/ScaleFactor FX guard, not just selector activation.
+            Assert.IsTrue(socket.transform.GetChild(0).gameObject.activeInHierarchy);
+            Assert.IsTrue(socket.activeSelf && plug.activeSelf);
+            SampleState("Select 1");
+            // The root sampler separately awaits its IsLocal/scale/selector guard. / 根采样器还需通过自己的本地/缩放/选择守卫。
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactSender>());
             Assert.IsEmpty(avatar.GetComponentsInChildren<VRCPhysBone>());
-            var resets=states.Single(s=>s.name=="Select 1").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
+            var resets=States().Single(s=>s.name=="Select 1").behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
             Assert.IsTrue(resets.Any(p=>p.name.EndsWith("Handle_IsGrabbed")&&p.value==0));
-            SampleState("Off");
-            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
+            SampleState("Off"); Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>());
             nadena.dev.ndmf.AvatarProcessor.ProcessAvatar(avatar);
-            Assert.IsTrue(avatar.GetComponent<VRCAvatarDescriptor>().baseAnimationLayers.Any(layer=>layer.type==VRCAvatarDescriptor.AnimLayerType.FX && layer.animatorController!=null));
+            Assert.IsTrue(avatar.GetComponent<VRCAvatarDescriptor>().baseAnimationLayers.Any(l=>l.type==VRCAvatarDescriptor.AnimLayerType.FX && l.animatorController!=null));
         }
-        [UnityTest] public IEnumerator SharedConstraintActuallyMovesToTheSelectedSocket()
+        [TestCase(-1)]
+        [TestCase(2)]
+        [TestCase(999)]
+        public void UnknownArrayPoliciesFailBeforeGeneratingAnyContacts(int value)
         {
-            Socket("A",new Vector3(0,.1f,0));var b=Socket("B",new Vector3(.15f,.3f,.02f));
-            var setup=avatar.AddComponent<SensaAutoSetup>();setup.arrayPolicy=SensaArrayPolicy.SharedRootArray;SensaAutoBuilder.ProcessAvatar(avatar);
-            var merge=SelectionAnimator();var controller=(AnimatorController)merge.animator;
-            var clip=(AnimationClip)controller.layers[0].stateMachine.states.Single(s=>s.state.name=="Select 2").state.motion;
-            clip.SampleAnimation(avatar,0);
-            for(int i=0;i<4;i++){EditorApplication.QueuePlayerLoopUpdate();yield return null;}
-            var constraint=avatar.GetComponentInChildren<ParentConstraint>();
-            Assert.That(Vector3.Distance(constraint.transform.position,b.transform.GetChild(0).position),Is.LessThan(.0001f));
+            Socket("Root",Vector3.zero); var setup=avatar.AddComponent<SensaAutoSetup>(); setup.arrayPolicy=(SensaArrayPolicy)value;
+            Assert.Throws<InvalidOperationException>(()=>SensaAutoBuilder.ProcessAvatar(avatar));
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+            Assert.IsNull(avatar.transform.Find("SensaAuto_Auto"));
         }
     }
 }

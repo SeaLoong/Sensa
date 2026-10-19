@@ -1,69 +1,82 @@
-# 根点定位：固定几何、坐标和有效性
+# Sensa SPS 根点：四个 P 与 Sample
 
 **简体中文** | [English](positioning.en.md)
 
-Sensa SPS 现在测量**选定 SPS Socket／Plug 根中心在 AvatarRootLocal 中的坐标**。根点来自已解析的真实作者位置，再由专用小球跟随；四个接收器固定在 Avatar 根下。原始 OGB 近接、三点姿态实验和此专用协议不互相替代。[三条实际路线](usage-scenarios.md)
+Sensa SPS 测量自己选定 Socket／Plug 根中心的 **AvatarRootLocal** 坐标。四个固定接收器和专用小球共用 Avatar 根尺度；坐标不是世界运动、设备回读或 GPU 形变表面。只支持当前五字段契约，不读取、转换或回退任何旧 Sensa SPS 数据。[使用方案](usage-scenarios.md)
 
-## 四个距离怎样还原位置
+## 每对象测量契约
 
-已知四个非共面锚点到**同一个点**的真实距离可以解相对 XYZ。四面体以 `c=(0,1,0)` 为中心、半跨度 `h=0.5`：
+```text
+Sensa/SPS/<id>/P0
+Sensa/SPS/<id>/P1
+Sensa/SPS/<id>/P2
+Sensa/SPS/<id>/P3
+Sensa/SPS/<id>/Sample
+```
 
-| 编号 | 固定锚点 aᵢ |
+P0–P3 是四个 Float Proximity。Sample=0 表示停用或内部守卫失效；活动值依次为 n/32（n=1…32），约每 0.05 秒更新，1.6 秒循环。Sample 活动仍不代表几何有效：四路必须完整、非有限值被拒绝、接近度未饱和，并通过范围与拟合检查。
+
+Contact 先写内部 RawP，FX 在同一状态入口依次复制四路 P，再写 Sample。RawP 只声明为 FX Float，不登记在 Modular Avatar 表达参数；最终 NDMF 合同检查其仍可被 Contact 写入，并且只有五个测量字段导出到表达参数。它不是客户端 OSC 隐私承诺。[作者端](../unity/top.sealoong.sensa/AUTOMATION.md)
+
+## 菜单控制不属于测量值
+
+“五字段”只限定每对象的测量契约，不代表整个 Avatar 只有五个表达参数。Automatic Exclusive 另登记 `Sensa/Select/<group>`：Int、本地不同步、不保存，显式默认 0；0 为 Off，1…N 选择已排序目标，超出范围保持或回到 Off。它是菜单控制，可能按客户端配置通过 OSC 导出；Dedicated 不生成此自动选择参数。独立 Shader 作者也有 `Sensa/Select/ShaderCapture_<id>` 的 0／1 开关。选择菜单不会启用桌面输入或连接设备。
+
+## 四个距离怎样解一个点
+
+共享几何见 [SensaFixedAnchorProtocol](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)。中心 c=(0,1,0)，半跨度 h=0.5：
+
+| 点 | 固定锚点 aᵢ |
 | --- | --- |
-| A0 | (-0.5, 0.5, -0.5) |
-| A1 | (0.5, 0.5, 0.5) |
-| A2 | (0.5, 1.5, -0.5) |
-| A3 | (-0.5, 1.5, 0.5) |
+| P0 | (-0.5, 0.5, -0.5) |
+| P1 | (0.5, 0.5, 0.5) |
+| P2 | (0.5, 1.5, -0.5) |
+| P3 | (-0.5, 1.5, 0.5) |
 
-对未饱和 Proximity `pᵢ`，接收半径 `R=2.5`、专用 Sender 半径 `r=0.001`，球心距离为 `dᵢ=R(1-pᵢ)+r`。令 `bᵢ=aᵢ-c`，则：
-
-```text
-q = -Σ(bᵢ × dᵢ²) / (8h²)
-position = c + q
-residual = sqrt(Σ(|position-aᵢ|-dᵢ)² / 4)
-```
-
-Unity 作者与桌面直接共享同一个 [SensaFixedAnchorProtocol](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)，没有两套可独立漂移的几何设置。接受范围还要满足四路未饱和、共同覆盖、局部边界及残差阈值；0.01 的拟合阈值不是准确度证明。[桌面解算](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
-
-## 覆盖、缩放和单位
-
-- 覆盖区域是四个半径 2.5 球的交集。±1.5 局部边界用于限制解算和显示，不表示其整个立方体均有采样。
-- VRChat 将缩放后 Contact 世界半径限制为 3 m。作者拒绝初始超界／非均匀缩放，FX 同时检查真实 `ScaleFactor` 与作者根缩放；超过余量前关闭 Contact、清样本并将 Valid 置 false。[官方 Contacts](https://creators.vrchat.com/common-components/contacts/)
-- 在没有半径限幅的统一缩放下，共同缩放因子在近接比例中相消，得到作者 Avatar 根局部单位。它不是世界米、设备厘米，也不能恢复 Avatar 的整体世界平移／旋转。
-- 界面以“本地单位”展示新根点与 Shader 坐标。映射通过实际两端校准，不把原始局部 Z 无条件当作机械行程。
-
-## 专用根点的生产端约束
-
-每个目标独立 collision channel；构建时检查本地重名 Sender。小球位于 Avatar 根测量组中，以 ParentConstraint 跟随明确选中的根中心，避免继承目标骨骼缩放改变已知半径。不靠一个通用 TPS 标签猜测目标，也不用普通 1 cm SPS 根球替代专用标记。
-
-Dedicated／Exclusive 自动作者为 Socket 和 Plug 都创建固定根组。一个默认 Self 组占 5 个 Contact；远端诊断另加 4 个 Receiver。Others 的 Valid 始终 false，因为多个 peer、不同尺度和相同通道仍可能混合；普通旧 Avatar 不会自动变成此协议的生产者。
+已知 Receiver 半径 R=2.5、专用 Sender 半径 r=0.001，未饱和时：
 
 ```text
-Sensa/SpsRoot/v1/<id>/Self/Root/A0 ... A3
-Sensa/SpsRoot/v1/<id>/Self/Profile = 1
-Sensa/SpsRoot/v1/<id>/Self/Valid
-Sensa/SpsRoot/v1/<id>/Self/Scale
-Sensa/SpsRoot/v1/<id>/Self/Heartbeat
+dᵢ = R(1-pᵢ) + r
+bᵢ = aᵢ-c
+q = -Σ(bᵢ × dᵢ²)/(8h²)
+position = c+q
+residual = sqrt(Σ(|position-aᵢ|-dᵢ)²/4)
 ```
 
-元数据在 Self 层，只有 A0–A3／RawA0–RawA3 在 Root 层。旧八路根数据缺少新配置时无效，不作为兼容坐标猜解。
+四个已知非共面锚点对同一个已知半径标记的距离足以求 XYZ。零值／满值只能给边界或包含关系，不能当普通距离。0.01 的残差阈值检查模型一致性，不证明准确度。[解算实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-## 静止、时间与停止
+## 覆盖、尺度与保留当前半径的理由
 
-FX 每 0.05 s 将四个内部 RawA 参数复制到公开 A 参数，再写元数据。Heartbeat 为 32 步归一化计数，完整周期 1.6 s 大于 1250 ms 最大存活窗，降低二值翻转与 OSC 采样别名。桌面使用**内容变化时间**，不断重读或转发同一心跳不会续期。
+有效覆盖是四球交集，再扣除饱和区域和数值边界。显示／解算的中心各轴 ±1.5 不保证整个立方体可测。例如相对中心 (0,0,1.5) 的最远锚点距离约 2.121，R=2.5 能覆盖，R=2.0 则不能。
 
-静止范围可以缓存，由专用生产端有效性与活动计数守卫；这解决 delta-only 参数不重复发送时必然超时的问题，同时承担范围缺包／传感器冻结未被单独证明的限制。动画心跳不是 Contact 同帧证明；普通 Avatar OSC 也不保证原子四路提交。30 ms 合并窗口减少暂态混拼，不能把低残差当成目标身份认证。
+较小 R 改善同一 Proximity 噪声对应的距离误差，却缩小覆盖；较宽锚点改善远离中心的条件数，却也缩小共同覆盖。中心的距离雅可比条件数为 1。在上述 Z 偏移处，h=0.5 的条件数约 3.742；h=0.75 可降到 2.517，但最远距离升到 2.487，几乎耗尽 R=2.5 的余量。因此保持 R=2.5、h=0.5、r=0.001，不将一种局部优化宣称为整体最优。[推导与证据](fixed-anchor-research.md)
 
-旧 Point／Handle／Pose 仍按最旧贡献通道检查，默认 1 s；新固定根按变化心跳、Shader 按变化 Frame 检查。正值输入超时可更严格。显式实验许可、唯一目标／来源、有效配置与输入许可缺一都会阻断输出；急停另有保持锁定语义。
+统一尺度 s 未触发限幅时：
 
-## Shader 根点坐标
+```text
+p = 1-(s*d-s*r)/(s*R) = 1-(d-r)/R
+```
 
-原生组件编码当前根点的 AvatarRootLocal XYZ、producer ID、坐标 Profile、Frame 和 CRC；桌面桥从显式区域读取，不执行 Avatar 自定义 C#。桥先检查身份、RGB／CRC、进展帧和恢复状态，再发送有序七字段 OSC bundle。
+得到的是作者根局部单位，仅 s=1 时对应世界米。VRChat 世界半径上限为 3 m；构建拒绝非正／非均匀根尺度、根 ScaleConstraint 和根缩放动画，内部 ScaleFactor 守卫将支持半径限制在约 2.999 m。守卫失效关闭 Contacts、清零 P 和 Sample。公开数据不再重复传输 Scale，守卫仍保留。[官方 Contacts](https://creators.vrchat.com/common-components/contacts/)
 
-桌面只接受 Profile 1、非零匹配 ID、范围有效、同来源连续字段及 500 ms 内变化的 Frame。源内序号避免其他来源穿插造成误停；这些序号检查不是密码身份认证。Profile 0 的模型／合成诊断只预览，不生成运动坐标。多个 Avatar 的实际渲染隔离与 producer ID 碰撞仍须客户端验收。[Shader 正式指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)
+## 目标、时间与停止
 
-## 仍然不能推断什么
+每个目标使用独有 collision channel 和只接收自己的本地小球；ParentConstraint 跟随明确根中心，不继承目标骨骼缩放。Dedicated 可同时观察独立目标，Exclusive 一次选择一个、初始 Off。没有远端接收组或共享移动根阵列。
 
-单个根点不提供尖端、朝向、扭转、变形表面或精确插入比例。未约束普通 Contact 的多个 Sender 能形成低残差鬼点；增加接收器不能替代目标身份。固定锚点排除了“锚点跟着被测对象走”的布局错误，专用 Self 标记收窄了身份模型，但它并未把所有旧 SPS／世界场景变成可靠全局定位器。
+桌面按同一来源、唯一实例分组，检查合法 Sample 的**内容变化时间**。静止 P 可缓存；不断重发同一 Sample 不续期。活动时效上限 1250 ms，正值输入超时可更严格。缺字段、Sample=0、超时、饱和或几何不一致都会阻断／停止；实验许可和输入启用仍是两个独立的明确操作。
 
-[研究与代数反例](fixed-anchor-research.md)保留 SDK 源证据和实际作者测试范围。Unity EditMode／Shader 导入、本地模型契约和 CI 模拟输出不代替 SDK 上传、真实 Contacts／OSC、桌面／头显画面、世界真值误差或硬件验收。
+Sample 最后写入也不构成原子 OSC 提交。时间差、丢包和乱序仍可能混合样本，活动计数不证明 Contact 物理采样持续刷新。Point／Handle／Pose 是独立实验，继续使用最旧参与通道时效，不使用此缓存规则。
+
+本轮不凭未测抖动添加滤波。若以后采用位置滤波，应先验证原始样本、单独测量误差与延迟，并让 Sample=0／过期／门控立即停止；不能把失效状态平滑掉。
+
+## 独立 Shader 根点
+
+Shader 路线直接编码所选 CPU 根的 AvatarRootLocal XYZ。公开路径为 `Sensa/Shader/<id>`，仅 Frame、X、Y、Z、Valid 五字段；producer ID 留在编码与地址中。显式区域桥接验证 RGB／CRC、身份、帧进展和恢复状态后，按该顺序发一个 OSC bundle。桌面要求同来源连续字段与变化 Frame 的 500 ms 内时效；拟合残差显示“—”，因为此路线没有四球距离拟合。
+
+合成／模型图像使用独立诊断命名空间，不能映射运动。CRC 和 producer ID 不是所有者认证；真实相机可见性、其他 Avatar 混合和桌面／头显表现仍需客户端验收。[Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)
+
+## 单点的限度
+
+一个根点不提供尖端、朝向、扭转、精确插入比例或最终变形网格。整个 Avatar 的共同平移和旋转不改变相对距离。专用小球减少普通 Contact 的身份歧义，但不是认证协议。两点校准只定义映射，不补足缺少的观测。
+
+单元、EditMode 和 CI 协议模拟各有范围，不能替代上传、真实 Contacts／OSC、GPU 画面或硬件验收。[研究记录](fixed-anchor-research.md) · [功能参考](features.md)

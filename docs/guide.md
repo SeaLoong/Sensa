@@ -43,12 +43,12 @@ FT 默认按 `FT/`、`v2/` 命名空间前缀隐藏，完整 `/avatar/parameters
 - **Hub**：把选定来源转发到多个 UDP 目标，可按事件或固定频率合并。检查来源与目标，避免回路。
 - **输入超时**：常规标量默认关闭，因 VRChat 可能只发送变化值；启用后断流会急停。门控刷新不等于运动数据刷新。
 
-SPS 路径与标量含义见[预设](presets.md)。原生 PB Stretch 可直接使用，不需要四点解算。空间输入默认关闭，完整采样和低残差也不证明可靠定位；不同生产端的时效与坐标限制见[定位说明](positioning.md)。
+路径、标量与半径含义见[预设](presets.md)和[参数字典](osc-parameters.md)。原生 PB Stretch 可直接使用，不需要四点解算。空间输入默认关闭，完整采样和低残差也不证明可靠定位；不同生产端的时效与坐标限制见[定位说明](positioning.md)。
 
 ### 三条 SPS 使用链路
 
-1. **已有 OGB／SPS 参数**：选择“OGB / SPS · 深度”或“OGB / SPS · 振动”，在参数列表确认具体对象，再固定路径和校准。深度自动识别现代 Root／Tip 配对或旧单近接，Touch／Frot 自动核对相同对象的 Close 门控。现代 VRCFury 可能需要 `OGB_ENABLED`；展开“OGB 参数启用”，明确填写 VRChat 控制 IP／端口并保存。默认接收端口 9001 与 VRChat 控制端口通常 9000 不同；每 5 秒心跳和停止时 false 只是发送状态，没有接收确认，也不启用设备输入。[兼容说明](ogb-compatibility.md)
-2. **固定四锚点根部**：在 Unity 的 Automatic SPS Setup 选择目标，默认 Exclusive 菜单初始 Off；在 Avatar 中选中对应目标后，Sensa 接收该目标的四路范围和 Profile／Valid／Scale／Heartbeat。也可用 Fixed SPS Root Probe 显式选择 Sensa 自有或原生 Contact 根部。锚点固定在 AvatarRootLocal，小球 Sender 跟随所选根；缩放超界会禁用。打开“实验诊断 → 本地点与根部”，选择有效 Self 对象，采集两个位置，点击“替换草稿”，检查并保存映射。单个根点不给完整姿态，旧八路 Root／SharedRoot 不能代替新协议。
+1. **已有 OGB／SPS 参数**：选择“OGB / SPS · 深度”或“OGB / SPS · 振动”，在参数列表确认具体对象，再固定路径和校准。深度自动识别现代 Root／Tip 配对或旧单近接，Touch／Frot 自动核对所需的同对象 Close；独立 VFH Touch Zone 直接读取。现代 VRCFury 可能需要 `OGB_ENABLED`；展开“OGB 参数启用”，明确填写 VRChat 控制 IP／端口并保存。默认接收端口 9001 与 VRChat 控制端口通常 9000 不同；每 5 秒心跳和停止时 false 只是发送状态，没有接收确认，也不启用设备输入。[兼容说明](ogb-compatibility.md)
+2. **固定四锚点根部**：在 Unity Automatic SPS Setup 选目标；Exclusive 初始 Off，Dedicated 可同时测量。每个自身根只发布 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`：Sample=0 停用，活动时 1/32…1 循环。锚点固定在 Avatar 根下，半径 0.001 的 Sender 跟随实际 Socket／Plug 根，接收半径 2.5 并由内部缩放守卫限定覆盖。打开“实验诊断 → 本地点与根部”，固定对象与来源、采集两端、替换草稿并保存；不解码任何旧 Sensa SPS 布局。
 3. **原生 Shader 根点**：添加 Shader Root Capture，选择 SPS 目标和 producerId；上传后显式打开生成的捕获菜单。按 [GPU／Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md) 注册实际像素区域与相同 producerId，用 Python 桥输出到 Sensa 监听端口。检查有效、帧变化与 AvatarRootLocal 来源后，仍在同一根点面板两点校准。截图冻结、身份变化或超时使数据无效；它采集所选 CPU 根的原生蒙皮点，不等于 SPS 形变曲线或最终表面。
 
 后两条生成的是实验空间映射；保存“允许实验空间输入”仍是必要步骤。先保留设备输入关闭核对预览，再按轴限制进行设备测试。QuickStart 阶梯台是内部合成测试工具，不是正式 SPS 定位入口。

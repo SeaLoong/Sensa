@@ -23,10 +23,10 @@ OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
 触碰默认匹配：
 
 ```text
-OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers
+OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
 
-TouchSelf／Others 需同对象对应 Close；Plug FrotOthers 需其 Close，Socket FrotOthers 直接使用。缺门控时不会把原始近接误当触碰。若确实需要原始数值，可以明确改为 Direct。
+TouchSelf／Others 需同对象对应 Close；Plug FrotOthers 需其 Close，Socket FrotOthers 直接使用。缺门控时不会把原始近接误当触碰。独立 `VFH/Zone/Touch/<id>/Self|Others` 直接读取，不需要 Close；其他原始信号仍可明确选择 Direct。
 
 `**` 仅用于发现完整实例；日常控制应固定对象、来源，Self 与 Others 不能交叉配对。Sensa 在同一组内去重，不把新旧信号重复融合。详细规则与固定上游源码见 [OGB 兼容研究](ogb-compatibility.md)。
 

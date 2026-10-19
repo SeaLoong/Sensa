@@ -49,12 +49,12 @@ These identify input samples, **not output axes or stroke percentages**.
 
 P1–P4 form a tetrahedron; C1–C8 form a cube. The raw indices overlap but positions differ, so P2 and C2 are not interchangeable. Balls mark centers, not receiver radii.
 
-These displays belong to legacy paired Pose/PB experiments. **Measure plug** shows Palm/Plug P probes; Socket measurement shows C probes, with Root/Tip/Side groups sharing positions but distinct paths. Independent PB uses P probes. This is not the new fixed-root protocol: its A0–A3 anchors stay under the avatar root while a dedicated marker follows the selected root. Do not substitute the Socket's eight C probes, or their first four indices, for the new geometry. Sensa retains real OSC paths; L/R/V/A axes keep their device meaning.
+These displays belong to legacy paired Pose/PB experiments. **Measure plug** shows Palm/Plug P probes; Socket measurement shows C probes, with Root/Tip/Side groups sharing positions but distinct paths. Independent PB uses P probes. This is not the new fixed-root protocol: its P0–P3 anchors stay under the avatar root while a dedicated marker follows the selected root. Do not substitute the Socket's eight C probes, or their first four indices, for the new geometry. Sensa retains real OSC paths; L/R/V/A axes keep their device meaning.
 
 ![Probe colors](images/probe-colors.png)
 
 Build/ClientSim checks can inspect placement, reset, colors and generated controllers; actual results belong to the corresponding commit report. They do not certify uploaded avatar OSC, physical VR grabbing or hardware.
 
-Legacy P/C labels identify Contact samples; paired estimates remain blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. The new fixed-root route has separate geometry, a dedicated Self marker, validity and a changing heartbeat; it is not this legacy display. Experimental permission, calibration and stop checks still apply. [Positioning](positioning.en.md)
+Legacy P/C labels identify Contact samples; paired estimates remain blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. The new fixed-root route has separate geometry, a dedicated local marker and Sample combining validity/liveness; it is not this legacy display. Experimental permission, calibration and stop checks still apply. [Positioning](positioning.en.md)
 
 This lab's Shader prop remains a synthetic transport test. The package separately provides native SPS root encoding, not deformed-mesh sampling; actual client capture still needs acceptance. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)

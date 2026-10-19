@@ -82,7 +82,7 @@ namespace SensaAvatarLab
             report.probeGuidesAligned=guides.Length==28&&guides.All(g=>{
                 int index=int.Parse(g.name.Substring(g.name.Length-1))-1;bool compact=g.name.StartsWith("Probe P");
                 return receivers.Any(r=>r.parameter!=null&&r.parameter.EndsWith("/A"+index)&&
-                    (compact?(r.parameter.StartsWith("Sensa/Point/")||r.parameter.StartsWith("Sensa/Handle/")):(r.parameter.StartsWith("Sensa/Pose/")||r.parameter.StartsWith("Sensa/SpsRoot/")))&&Vector3.Distance(g.transform.position,r.transform.TransformPoint(r.position))<.001f);
+                    (compact?(r.parameter.StartsWith("Sensa/Point/")||r.parameter.StartsWith("Sensa/Handle/")):r.parameter.StartsWith("Sensa/Pose/"))&&Vector3.Distance(g.transform.position,r.transform.TransformPoint(r.position))<.001f);
             });
             report.passed = baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
                 && report.placementBindingsValid && report.unsupportedTextComponents==0 && report.probeGuidesAligned

@@ -157,21 +157,20 @@ public sealed class SpatialContracts
     }
 
     [Fact]
-    public void StandardRootAndLocalPointStayDistinctAndPointMetricsUseSignedCoordinates()
+    public void LocalPointAndFixedSpsRemainDistinctAndMetricsUseTheirOwnFrames()
     {
         var expected = new PosePoint(.02, -.03, .1);
         var store = new OscParameterStore();
         SpatialSamples.Point(store, "Sensa/Point/v1/Bone/Self", expected);
-        SpatialSamples.Point(store, "Sensa/SpsRoot/v1/Remote/Others", new(0, 0, -.1));
+        SpatialSamples.FixedRoot(store, "Sensa/SPS/Socket", new(.02, 1, -.1));
         var observations = SpsPositionTracking.Observe(store.SnapshotEntries());
         var local = Assert.Single(observations, observation => observation.IsLocalPoint);
-        var remote = Assert.Single(observations, observation => !observation.IsLocalPoint);
+        var root = Assert.Single(observations, observation => observation.Kind == "SpsRoot");
         Assert.True(local.Valid, local.Reason);
-        Assert.True(remote.Valid, remote.Reason);
-        Assert.Equal(4, local.ExpectedSampleCount);
-        Assert.Equal(4, remote.ExpectedSampleCount);
-        Assert.False(remote.IsMappablePoint);
-        Assert.Equal(SensaFixedAnchorProtocol.CoordinateFrame, remote.CoordinateFrame);
+        Assert.True(root.Valid, root.Reason);
+        Assert.Equal(4, root.ExpectedSampleCount);
+        Assert.True(root.IsMappablePoint);
+        Assert.Equal(SensaFixedAnchorProtocol.CoordinateFrame, root.CoordinateFrame);
         Assert.InRange(local.Metric(PointMetric.X), .0199f, .0201f);
         Assert.InRange(local.Metric(PointMetric.Y), -.0301f, -.0299f);
         Assert.InRange(local.Metric(PointMetric.Distance), (float)expected.Length - .0001f, (float)expected.Length + .0001f);
@@ -180,45 +179,27 @@ public sealed class SpatialContracts
     }
 
     [Fact]
-    public void LocalPointRejectsExtraReceiversAndRemoteRootRejectsMissingOrClippedSamples()
+    public void LocalPointRejectsExtraReceivers()
     {
         const string prefix = "Sensa/Point/v1/Bone/Self";
         var store = new OscParameterStore();
         SpatialSamples.Point(store, prefix, new(.02, -.03, .1));
-        var point = Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries()));
-        Assert.True(point.Valid);
-        Assert.False(point.Matches(prefix + "/Root/A7"));
+        Assert.True(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
         store.Set(prefix + "/Root/A7", OscValue.FromFloat(.5f), new("test", "test", null, "127.0.0.1", 19000));
         Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
-        var remote = new OscParameterStore();
-        SpatialSamples.Point(remote, "Sensa/SpsRoot/v1/Remote/Others", new(.02, 0, -.1));
-        Assert.False(Assert.Single(SpsPositionTracking.Observe(remote.SnapshotEntries().Take(7))).Valid);
-        remote.Set("Sensa/SpsRoot/v1/Remote/Others/Root/A0", OscValue.FromFloat(0), new("test", "test", null, "127.0.0.1", 19000));
-        Assert.False(Assert.Single(SpsPositionTracking.Observe(remote.SnapshotEntries())).Valid);
     }
 
     [Fact]
-    public void SharedArrayRequiresFreshSamplesAndReadyAfterEachSlotSelection()
+    public void RemovedSharedRootArrayHasNoDecoder()
     {
         const string prefix = "Sensa/SharedRoot/v1/Pool/Others";
         var store = new OscParameterStore();
         var source = new OscSource("test", "test", null, "127.0.0.1", 19000);
-        SpatialSamples.Point(store, prefix, new(.02, 0, .1));
+        for (var index = 0; index < 8; index++)
+            store.Set(prefix + "/Root/A" + index, OscValue.FromFloat(.5f), source);
         store.Set(prefix + "/Slot", OscValue.FromFloat(2), source);
         store.Set(prefix + "/Ready", OscValue.FromFloat(1), source);
-        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
-        SpatialSamples.Point(store, prefix, new(.03, 0, .1));
-        var selected = Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries()));
-        Assert.True(selected.Valid, selected.Reason);
-        Assert.Equal(2, selected.Slot);
-        Assert.False(selected.IsLocalPoint);
-        store.Set(prefix + "/Slot", OscValue.FromFloat(3), source);
-        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
-        store.Set(prefix + "/Ready", OscValue.FromFloat(1), source);
-        SpatialSamples.Point(store, prefix, new(.01, 0, .1));
-        Assert.True(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
-        store.Set(prefix + "/Ready", OscValue.FromFloat(0), source);
-        Assert.False(Assert.Single(SpsPositionTracking.Observe(store.SnapshotEntries())).Valid);
+        Assert.Empty(SpsPositionTracking.Observe(store.SnapshotEntries()));
     }
 
     [Fact]

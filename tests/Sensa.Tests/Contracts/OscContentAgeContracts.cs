@@ -7,7 +7,7 @@ namespace Sensa.Tests.Contracts;
 /// <summary>Reception versus content age / 收包活动与内容变化时间。</summary>
 public sealed class OscContentAgeContracts
 {
-    private const string FramePath = "Sensa/Shader/v1/Main/Frame";
+    private const string FramePath = "Sensa/Shader/42/Frame";
     private static OscSource Source(string key) => new(key, key, null, "127.0.0.1", 19000);
 
     [Fact]

@@ -23,10 +23,10 @@ Do not add Tip/Close as independent output mappings. A positive modern Socket ch
 Touch defaults to:
 
 ```text
-OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers
+OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
 
-TouchSelf/Others requires the corresponding Close from the same object; Plug FrotOthers requires its Close, while Socket FrotOthers is direct. Missing gates never promote raw proximity into touch. Explicitly choose Direct if raw values are what you want.
+TouchSelf/Others requires the corresponding Close from the same object; Plug FrotOthers requires its Close, while Socket FrotOthers is direct. Missing gates never promote raw proximity into touch. Independent `VFH/Zone/Touch/<id>/Self|Others` is direct and needs no Close. Explicitly choose Direct for other raw signals.
 
 `**` discovers full instance paths. Constrain the actual object and source for everyday control; never pair Self with Others. Sensa deduplicates each group rather than fusing modern and legacy signals twice. See [OGB compatibility research](ogb-compatibility.en.md) for complete rules and fixed upstream sources.
 

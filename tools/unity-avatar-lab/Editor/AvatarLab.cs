@@ -24,7 +24,7 @@ namespace SensaAvatarLab
         public const string Root = "Assets/SensaAvatarLab/Generated";
         const string Model = "Assets/Amatousagi/Chocolat/Chocolat.prefab";
         const string Prop = "Assets/SeaLoong/SPS_Lollipop/SPS_Lollipop.prefab";
-        public static readonly string[] Variants = { "Exclusive", "Shared" };
+        public static readonly string[] Variants = { "Exclusive", "Dedicated" };
         const string WarmupKey = "SensaAvatarLab.Warmup";
         static AvatarLab() { EditorApplication.update += CheckWarmup; }
         public static void Warmup()
@@ -111,9 +111,9 @@ namespace SensaAvatarLab
             setup.groupName = "Lab";
             setup.discoverAll = false;
             setup.selectedTargets = new List<GameObject> { socketA, socketB, plug.gameObject };
-            setup.arrayPolicy = variant == "Shared" ? SensaArrayPolicy.SharedRootArray : SensaArrayPolicy.Exclusive;
+            setup.arrayPolicy = variant == "Dedicated" ? SensaArrayPolicy.Dedicated : SensaArrayPolicy.Exclusive;
             setup.socketRootTracking = true;
-            setup.pairedSocketTracking = variant != "Shared";
+            setup.pairedSocketTracking = true;
             setup.pairedPlugMarkers = true;
             setup.localPlugTipTracking = true;
             setup.localReferenceSocket = socketA;

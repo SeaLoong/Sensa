@@ -55,15 +55,11 @@ namespace UnityBox.Sensa
         {
             var host = Child(avatar.transform, "SensaShaderCapture_" + producerId).gameObject;
             var rig = Child(host.transform, "Native camera output - verify desktop and HMD").gameObject;
-            var encoderShader = EnsureShader("SensaRootTelemetry.shader.txt", "NativeRootTelemetry");
-            var displayShader = EnsureShader("SensaRootDisplay.shader.txt", "NativeRootDisplay");
-            var data = new RenderTexture(256, 128, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear)
-                { name = "Sensa root code " + producerId, filterMode = FilterMode.Point, antiAliasing = 1, useMipMap = false };
-            var material = new Material(encoderShader) { name = "Sensa root encoder " + producerId };
+            var shader = EnsureShader();
+            var material = new Material(shader) { name = "Sensa root encoder " + producerId };
             material.SetFloat("_SensaProducerId", producerId);
-            var captureFar = 1f + producerId / 65536f;
-            var presenterFar = 3f + producerId / 65536f;
-            material.SetFloat("_SensaCameraFar", captureFar);
+            var cameraFar = 1f + producerId / 65536f;
+            material.SetFloat("_SensaCameraFar", cameraFar);
             var encoder = Child(rig.transform, "Native skinned root point").gameObject.AddComponent<SkinnedMeshRenderer>();
             var mesh = new Mesh { name = "Sensa root point " + producerId };
             mesh.vertices = new[] { avatar.transform.InverseTransformPoint(marker.position) };
@@ -71,11 +67,11 @@ namespace UnityBox.Sensa
             mesh.bindposes = new[] { marker.worldToLocalMatrix * encoder.transform.localToWorldMatrix };
             mesh.SetIndices(new[] { 0 }, MeshTopology.Points, 0);
             var center = new Vector3(SensaFixedAnchorProtocol.CenterX, SensaFixedAnchorProtocol.CenterY, SensaFixedAnchorProtocol.CenterZ);
-            // The small explicit bounds keep the point pass in the capture-camera frustum.
-            // 仅为捕获相机设置小型可见边界；测量值来自原生蒙皮，不来自此边界。
             encoder.sharedMesh = mesh;
             encoder.bones = new[] { marker };
             encoder.rootBone = avatar.transform;
+            // Persist the capture-frustum bounds; no runtime script is needed to restore them.
+            // 持久化位于相机视锥内的边界，不依赖运行时脚本恢复。
             var bounds = new Bounds(center + Vector3.forward * .2f, new Vector3(2, 1, .1f));
             mesh.bounds = bounds;
             var serialized = new SerializedObject(encoder);
@@ -83,51 +79,38 @@ namespace UnityBox.Sensa
             serialized.FindProperty("m_DirtyAABB").boolValue = false;
             serialized.ApplyModifiedPropertiesWithoutUndo();
             encoder.sharedMaterial = material;
-            // Keep the serialized capture-frustum bounds instead of recomputing bounds from the moving point.
-            // 固定的原生边界位于持续渲染的捕获相机内，不依赖运行时脚本恢复。
             encoder.updateWhenOffscreen = false;
             encoder.forceMatrixRecalculationPerRender = true;
             encoder.shadowCastingMode = ShadowCastingMode.Off;
             encoder.receiveShadows = false;
             encoder.gameObject.layer = 22;
-            var capture = MakeCamera(Child(rig.transform, "Root code camera").gameObject, center, captureFar, (1 << 22) | (1 << 9) | (1 << 10));
-            capture.targetTexture = data; capture.depth = -100;
-            capture.clearFlags = CameraClearFlags.SolidColor; capture.backgroundColor = Color.black;
-            var presenter = MakeCamera(Child(rig.transform, "Experimental desktop presenter").gameObject, center + Vector3.right * 10, presenterFar, (1 << 23) | (1 << 9) | (1 << 10));
-            presenter.depth = 100; presenter.clearFlags = CameraClearFlags.Depth; presenter.rect = viewport;
-            var card = GameObject.CreatePrimitive(PrimitiveType.Quad); card.name = "Encoded data presenter";
-            card.transform.SetParent(presenter.transform, false); card.transform.localPosition = Vector3.forward * .2f;
-            card.layer = 23; UnityEngine.Object.DestroyImmediate(card.GetComponent<Collider>());
-            var displayMaterial = new Material(displayShader) { name = "Sensa root display " + producerId, mainTexture = data };
-            displayMaterial.SetFloat("_SensaCameraFar", presenterFar);
-            card.GetComponent<Renderer>().sharedMaterial = displayMaterial;
+            var node = Child(rig.transform, "Experimental desktop root code camera").gameObject;
+            node.transform.localPosition = center;
+            var camera = node.AddComponent<Camera>();
+            camera.orthographic = true; camera.orthographicSize = .5f; camera.nearClipPlane = .01f;
+            camera.farClipPlane = cameraFar; camera.cullingMask = (1 << 22) | (1 << 9) | (1 << 10);
+            camera.stereoTargetEye = StereoTargetEyeMask.None;
+            camera.allowHDR = false; camera.allowMSAA = false; camera.useOcclusionCulling = false;
+            // Geometry emits the code directly into this viewport; no intermediate RT/presenter.
+            // 几何阶段直接向该视口输出编码，无中间 RT 或第二呈现相机。
+            camera.depth = 100; camera.clearFlags = CameraClearFlags.Depth; camera.rect = viewport;
             rig.SetActive(false);
             SensaSelectionAnimator.Build(avatar, host, "ShaderCapture_" + producerId, new[] { rig }, new[] { "SPS root code / SPS 根点编码" });
             return rig;
         }
 
-        private static Camera MakeCamera(GameObject node, Vector3 position, float far, int mask)
-        {
-            node.transform.localPosition = position;
-            var camera = node.AddComponent<Camera>();
-            camera.orthographic = true; camera.orthographicSize = .5f; camera.nearClipPlane = .01f;
-            camera.farClipPlane = far; camera.cullingMask = mask; camera.stereoTargetEye = StereoTargetEyeMask.None;
-            camera.allowHDR = false; camera.allowMSAA = false; camera.useOcclusionCulling = false;
-            return camera;
-        }
-
-        private static Shader EnsureShader(string file, string name)
+        private static Shader EnsureShader()
         {
             var script = AssetDatabase.FindAssets("SensaShaderCaptureBuilder t:MonoScript").Select(AssetDatabase.GUIDToAssetPath)
                 .Single(path => Path.GetFileName(path) == "SensaShaderCaptureBuilder.cs");
-            var template = File.ReadAllText(Path.Combine(Path.GetDirectoryName(script), file));
+            var template = File.ReadAllText(Path.Combine(Path.GetDirectoryName(script), "SensaRootTelemetry.shader.txt"));
             string Number(float value) => value.ToString("R", CultureInfo.InvariantCulture);
             template = template.Replace("__CENTER_X__", Number(SensaFixedAnchorProtocol.CenterX))
                 .Replace("__CENTER_Y__", Number(SensaFixedAnchorProtocol.CenterY)).Replace("__CENTER_Z__", Number(SensaFixedAnchorProtocol.CenterZ))
                 .Replace("__HALF_RANGE__", Number(SensaFixedAnchorProtocol.PositionHalfRange));
             const string folder = "Assets/SensaShaderCapture";
             Directory.CreateDirectory(folder);
-            var path = folder + "/" + name + ".shader";
+            var path = folder + "/NativeRootTelemetry.shader";
             if (File.Exists(path) && File.ReadAllText(path) != template)
                 throw new InvalidOperationException("Generated shader differs; preserve and move it before regenerating: / 生成 Shader 已有不同内容，请先备份并移走：" + path);
             if (!File.Exists(path)) File.WriteAllText(path, template);

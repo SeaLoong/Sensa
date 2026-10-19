@@ -6,6 +6,11 @@ ROOT = Path(__file__).resolve().parents[1]
 PACKAGE = ROOT / 'unity/top.sealoong.sensa'
 
 def guid(path):
+    meta = Path(str(path) + '.meta')
+    if meta.is_file():
+        for line in meta.read_text(encoding='utf-8').splitlines():
+            if line.startswith('guid: '):
+                return line[6:].strip()
     return uuid.uuid5(uuid.NAMESPACE_URL, 'https://github.com/SeaLoong/Sensa/' + path.relative_to(ROOT).as_posix()).hex
 
 def write(path, data):
@@ -80,7 +85,7 @@ MonoBehaviour:
 ''')
 profile = f'  profile: {{fileID: 11400000, guid: {guid(PACKAGE / "Profiles/DefaultPair.asset")}, type: 2}}\n'
 write(PACKAGE / 'Prefabs/SensaPoseSocket.prefab', header + obj(0, 'SensaPoseSocket', script='SensaPoseSocket', fields=profile + '  instanceName: Main\n'))
-write(PACKAGE / 'Prefabs/SensaSpsRootProbe.prefab', header + obj(0, 'SensaSpsRootProbe', script='SensaPoseSocket', fields=profile + '  instanceName: SpsRoot\n  standardSpsRoot: 1\n'))
+write(PACKAGE / 'Prefabs/SensaSpsRootProbe.prefab', header + obj(0, 'SensaSpsRootProbe', script='SensaFixedRootProbe', fields='  instanceName: SpsRoot\n  target: {fileID: 0}\n  collisionChannel: SpsRootProbe\n'))
 write(PACKAGE / 'Prefabs/SensaLocalPoint.prefab', header + obj(0, 'SensaLocalPoint', children=(1,), script='SensaPointProbe', fields='  instanceName: Point\n  reference: {fileID: 4000}\n  target: {fileID: 4001}\n  createGrabHandle: 0\n  handleLength: 0.1\n') + obj(1, 'Target', parent=4000, position=(0,0,.1)))
 write(PACKAGE / 'Prefabs/SensaGrabHandle.prefab', header + obj(0, 'SensaGrabHandle', script='SensaPointProbe', fields='  instanceName: Handle\n  reference: {fileID: 4000}\n  target: {fileID: 0}\n  createGrabHandle: 1\n  handleLength: 0.1\n'))
 write(PACKAGE / 'Prefabs/SensaAutoSetup.prefab', header + obj(0, 'SensaAutoSetup', script='SensaAutoSetup', fields='  groupName: Auto\n  discoverAll: 1\n  selectedTargets: []\n  excludedTargets: []\n  socketRootTracking: 1\n  pairedSocketTracking: 0\n  pairedPlugMarkers: 0\n  localPlugTipTracking: 0\n  localReferenceSocket: {fileID: 0}\n  createPlugGrabHandles: 0\n  pairChannel: Pair01\n  arrayPolicy: 1\n'))

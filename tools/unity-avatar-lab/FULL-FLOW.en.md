@@ -14,7 +14,7 @@ The lollipop retains **SPS_Lollipop → LeftHand / RightHand / Fixed / Off**. **
 
 A useful self-test is a world-placed Palm Socket with the lollipop in the right hand. Place the PB reference in front, then grab the white ball; moving its reference alone is not PB stretch.
 
-White centers/gold +Z indicate Socket opening and inward direction. ROOT/TIP/SIDE mark paired points. P1–P4 is tetrahedral local/PB sampling; C1–C8 is cube sampling. Colors are red, blue, green, yellow, then purple, cyan, orange, light gray. Balls mark centers, not receiver radii. Both layouts use raw A0-based paths; they are not TCode auxiliary axes.
+White centers/gold +Z indicate Socket opening and inward direction. ROOT/TIP/SIDE mark paired points. P1–P4 is tetrahedral local/PB sampling; C1–C8 is cube sampling. Colors are red, blue, green, yellow, then purple, cyan, orange, light gray. Balls mark centers, not receiver radii. These independent Point/Pose layouts use A0-based paths; they are not TCode auxiliary axes or the Sensa SPS P0–P3 protocol.
 
 Measure plug changes Palm helpers to P probes; Socket measurement restores C probes. Root/Tip/Side arrays share cube positions but different paths. Independent PB always uses P. QuickStart remains bound to the right wrist, matching the world bench.
 
@@ -28,7 +28,7 @@ Start Sensa with no outputs, enable VRChat OSC, enable Sensa receiving and apply
 | Independent PB | Place PB handle reference, grab/stretch/release | Map actual Handle_Stretch to Depth and Handle_IsGrabbed to GateEnable; native scalars need no XYZ |
 | Native SPS | Enable SPS OSC; approach enabled Socket with own/world Plug | Copy the radial template and use actual PenSelfNewRoot for self interaction; paired NewTip is read automatically |
 | Local Plug | Measure plug and move relative to Socket | OSC → Experimental diagnostics: candidate ReferenceLocal estimates, blocked from motion by default |
-| Root diagnostic | Measure this socket | Eight samples and root XYZ, no direct stroke |
+| Fixed SPS root | Measure your selected Socket/Plug | P0–P3 plus changing Sample; five Float fields and Avatar-root coordinates, not direct stroke |
 | Paired pose | Matching LabPair Root/Tip/Side | Experimental fit only; matching tags/low residual prove neither one Sender nor a shared frame |
 | Synthetic shader | Enable code, corrupt CRC, freeze/disable | Image bridge Frame/Valid, not SPS geometry |
 

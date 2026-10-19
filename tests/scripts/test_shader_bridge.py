@@ -108,17 +108,17 @@ class TelemetryFreshnessContracts(unittest.TestCase):
 class OscTelemetryContracts(unittest.TestCase):
     def test_valid_output_has_an_explicit_gate_frame_and_xyz_float_values(self):
         values = osc_values(bridge.osc_bundle({'frame': 65535, 'xyz': [.25, -.5, .75]}, True))
-        prefix = '/avatar/parameters/Sensa/Shader/v1/0/'
+        prefix = '/avatar/parameters/Sensa/Diagnostics/Shader/0/'
         self.assertEqual(values, {prefix + 'Valid': 1, prefix + 'Frame': 65535,
-                                  prefix + 'X': .25, prefix + 'Y': -.5, prefix + 'Z': .75,
-                                  prefix + 'Producer': 0, prefix + 'Profile': 0})
-        self.assertEqual(list(values), [prefix + name for name in ('Valid', 'Frame', 'X', 'Y', 'Z', 'Producer', 'Profile')])
+                                  prefix + 'X': .25, prefix + 'Y': -.5, prefix + 'Z': .75})
+        self.assertFalse(any('/Sensa/Shader/' in path for path in values))
+        self.assertEqual(list(values), [prefix + name for name in ('Frame', 'X', 'Y', 'Z', 'Valid')])
 
-    def test_invalid_output_has_only_a_zero_gate_and_identity_even_when_old_coordinates_exist(self):
-        prefix = '/avatar/parameters/Sensa/Shader/v1/0/'
+    def test_invalid_output_has_only_a_zero_commit_even_when_old_coordinates_exist(self):
+        prefix = '/avatar/parameters/Sensa/Diagnostics/Shader/0/'
         for sample in (None, {'frame': 1, 'xyz': [.25, -.5, .75]}):
             self.assertEqual(osc_values(bridge.osc_bundle(sample, False)),
-                             {prefix + 'Valid': 0, prefix + 'Producer': 0, prefix + 'Profile': 0})
+                             {prefix + 'Valid': 0})
 
 
 class FrameFileOwnershipContracts(LabFixture):
@@ -176,20 +176,29 @@ class NativeRootCaptureContracts(LabFixture):
         self.assertFalse(freshness.accept(sample(12), .04))
         self.assertTrue(freshness.accept(sample(13), .05))
         output = osc_values(bridge.osc_bundle(sample(13), True))
-        prefix = '/avatar/parameters/Sensa/Shader/v1/42/'
-        self.assertEqual(output[prefix + 'Producer'], 42)
-        self.assertEqual(output[prefix + 'Profile'], 1)
+        prefix = '/avatar/parameters/Sensa/Shader/42/'
+        self.assertEqual(set(output), {prefix + name for name in ('Frame', 'X', 'Y', 'Z', 'Valid')})
+        self.assertEqual(len(bridge.osc_bundle(sample(13), True)), 284)
         self.assertEqual(osc_values(bridge.osc_bundle(sample(13), False)),
-                         {prefix + 'Valid': 0, prefix + 'Producer': 42, prefix + 'Profile': 1})
-        self.assertEqual(osc_values(bridge.osc_bundle(None, False, producer_id=42, profile=1)),
-                         {prefix + 'Valid': 0, prefix + 'Producer': 42, prefix + 'Profile': 1})
-        self.assertEqual(list(output), [prefix + name for name in ('Valid', 'Frame', 'X', 'Y', 'Z', 'Producer', 'Profile')])
+                         {prefix + 'Valid': 0})
+        self.assertEqual(osc_values(bridge.osc_bundle(None, False, producer_id=42, native=True)),
+                         {prefix + 'Valid': 0})
+        self.assertEqual(list(output), [prefix + name for name in ('Frame', 'X', 'Y', 'Z', 'Valid')])
+
+    def test_zero_identity_cannot_serialize_as_native_even_for_invalidation(self):
+        for producer in (0, -1, 65536):
+            with self.subTest(producer=producer), self.assertRaisesRegex(ValueError, 'nonzero producer ID'):
+                bridge.osc_bundle(None, False, producer_id=producer, native=True)
 
     def test_registered_root_never_accepts_a_same_id_diagnostic_coordinate_profile(self):
         freshness = bridge.Freshness(.35, producer_id=42)
-        diagnostic = bridge.decode_pixels(pixels(flags=1, producer_id=42), 256, 128)
+        with self.assertRaisesRegex(ValueError, 'Diagnostic telemetry requires producer ID zero'):
+            bridge.decode_pixels(pixels(flags=1, producer_id=42), 256, 128)
+        diagnostic = {'frame': 1, 'producerId': 42, 'xyz': [0, 1, 0]}
         with self.assertRaisesRegex(ValueError, 'native avatar-root coordinate profile'):
             bridge.validate_source(diagnostic, 42)
+        with self.assertRaisesRegex(ValueError, 'native avatar-root coordinate profile'):
+            bridge.osc_bundle(diagnostic, True, producer_id=42, native=True)
         self.assertFalse(freshness.accept(diagnostic, 0))
         self.assertIsNone(freshness.identity)
         for frame, moment, expected in ((1, .01, False), (2, .02, True)):
@@ -197,12 +206,12 @@ class NativeRootCaptureContracts(LabFixture):
             bridge.validate_source(native, 42)
             self.assertEqual(freshness.accept(native, moment), expected)
 
-    def test_unpinned_diagnostic_preview_still_does_not_silently_retarget(self):
+    def test_unpinned_native_preview_still_does_not_silently_retarget(self):
         freshness = bridge.Freshness()
-        self.assertFalse(freshness.accept({'frame': 1, 'producerId': 1}, 0))
-        self.assertTrue(freshness.accept({'frame': 2, 'producerId': 1}, .01))
-        self.assertFalse(freshness.accept({'frame': 3, 'producerId': 2}, .02))
-        self.assertFalse(freshness.accept({'frame': 4, 'producerId': 2}, .03))
+        self.assertFalse(freshness.accept({'frame': 1, 'producerId': 1, 'coordinateFrame': 'AvatarRootLocal'}, 0))
+        self.assertTrue(freshness.accept({'frame': 2, 'producerId': 1, 'coordinateFrame': 'AvatarRootLocal'}, .01))
+        self.assertFalse(freshness.accept({'frame': 3, 'producerId': 2, 'coordinateFrame': 'AvatarRootLocal'}, .02))
+        self.assertFalse(freshness.accept({'frame': 4, 'producerId': 2, 'coordinateFrame': 'AvatarRootLocal'}, .03))
 
     def test_registration_preserves_explicit_multi_monitor_bounds_and_rejects_other_profiles(self):
         registration = bridge.capture_registration((-1440, 200, 256, 128), 42)

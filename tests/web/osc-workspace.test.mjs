@@ -79,8 +79,8 @@ test('parameter discovery keeps mapped and pinned FT visible without hiding spat
   assert.equal(rankPreview(entries, signals)[0].path, 'FT/v2/JawOpen0');
   assert.equal(rankPreview(entries, [], { pinned: ['FT/v2/JawOpen1'] })[0].path, 'FT/v2/JawOpen1');
   assert.equal(rankPreview(entries, [], { category: 'pose' }).length, 1);
-  const shaderEntries = [{ path: 'Sensa/Shader/v1/42/Z' }, { path: 'Sensa/Shader/v1/42/Frame' }, { path: 'Custom' }];
-  assert.deepEqual(rankPreview(shaderEntries, [], { category: 'pose' }).map(entry => entry.path), ['Sensa/Shader/v1/42/Frame', 'Sensa/Shader/v1/42/Z']);
+  const shaderEntries = [{ path: 'Sensa/Shader/42/Z' }, { path: 'Sensa/Shader/42/Frame' }, { path: 'Custom' }];
+  assert.deepEqual(rankPreview(shaderEntries, [], { category: 'pose' }).map(entry => entry.path), ['Sensa/Shader/42/Frame', 'Sensa/Shader/42/Z']);
   assert.equal(rankPreview(entries, signals, { category: 'mapped' }).length, 1);
   assert.equal(rankPreview(entries, [], { search: 'custom' })[0].path, 'Custom');
   assert.equal(buildOscPathSuggestions([{ path: 'v2/JawOpen' }, { path: 'OGB/Orf/Main/PenOthers' }])[0], 'OGB/Orf/Main/PenOthers');
@@ -127,13 +127,16 @@ test('probe labels and signal explanations distinguish diagnostic geometry from 
   assert.equal(probePresentation('/avatar/parameters/Sensa/Point/v1/Point/Self/Root/A3').label, '定位探针 P4');
   assert.equal(probePresentation('Sensa/Point/v1/Point/Self/Root/A4'), null);
   for (const path of ['A0', 'TCode/A0', 'OGB/Orf/Test/A0', 'Custom/Root/A0']) assert.equal(probePresentation(path), null);
-  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /不是 TCode/], ['Sensa/Pose/v1/Main/Others/Root/A0', /不能直接当作深度/], ['Sensa/SpsRoot/v1/Main/Others/Root/A0', /不能测尖端、朝向或行程/], ['OGB/Orf/Main/PenOthersNewTip', /并非真实尖端/], ['OGB/Orf/Main/PenOthers', /不是通用的位置坐标/]];
+  for (let index = 0; index < 4; index++) assert.equal(probePresentation(`Sensa/SPS/Main/P${index}`).label, `固定锚点 P${index}`);
+  assert.equal(probePresentation('Sensa/SPS/Main/P4'), null);
+  assert.equal(probePresentation('Sensa/SpsRoot/v1/Main/Self/Root/A0'), null);
+  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /不是 TCode/], ['Sensa/Pose/v1/Main/Others/Root/A0', /不能直接当作深度/], ['Sensa/SPS/Main/P0', /不能测尖端或朝向/], ['OGB/Orf/Main/PenOthersNewTip', /并非真实尖端/], ['OGB/Orf/Main/PenOthers', /不是通用的位置坐标/]];
   for (const [path, expected] of explanations) assert.match(parameterMeaning(path), expected);
 });
 
 test('fixed and shader roots share calibration only for a valid self producer / 固定根与Shader根只为有效自身生产端提供校准', () => {
   for (const kind of ['SpsRoot', 'ShaderRoot']) {
-    const root = z => point(z, { key: kind, prefix: kind === 'SpsRoot' ? 'Sensa/SpsRoot/v1/Socket/Self' : 'Sensa/Shader/v1/42',
+    const root = z => point(z, { key: kind, prefix: kind === 'SpsRoot' ? 'Sensa/SPS/Socket' : 'Sensa/Shader/42',
       kind, party: 'Self', isMappablePoint: true, expectedSampleCount: kind === 'ShaderRoot' ? 3 : 4,
       coordinateFrame: 'AvatarRootLocal' });
     const zero = capturePointEndpoint(root(.05), 'Z'), full = capturePointEndpoint(root(.15), 'Z');
@@ -145,4 +148,19 @@ test('fixed and shader roots share calibration only for a valid self producer / 
     assert.equal(capturePointEndpoint({ ...root(.1), party: 'Others', isMappablePoint: false }, 'Z'), null);
     assert.equal(capturePointEndpoint({ ...root(.1), valid: false }, 'Z'), null);
   }
+});
+
+test('parameter dictionary separates proximity, liveness, native coordinates and capabilities / 参数字典区分近接、活性、原生坐标与能力标记', () => {
+  for (const [path, expected] of [
+    ['Sensa/SPS/Main/Sample', /Sample=0.*1\/32/],
+    ['Sensa/SPS/Main/P1', /d=R×\(1−p\)\+r/],
+    ['Sensa/Shader/42/Frame', /16 位循环序号/],
+    ['Sensa/Shader/42/Valid', /单独置 1 不能恢复/],
+    ['Sensa/Shader/42/X', /Avatar 根局部坐标/],
+    ['Sensa/Diagnostics/Shader/0/X', /不产生可映射坐标/],
+    ['VFH/Zone/Touch/Body/Chest/Others', /不需要 Close/],
+    ['VFH/Version/10', /不是距离/],
+    ['OGB/Orf/Main/AngleXRaw', /自定义参数/],
+    ['Custom/PenOthersNewTip', /自定义参数/],
+  ]) assert.match(parameterMeaning(path), expected);
 });

@@ -26,7 +26,7 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
     const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
     return { ...entry, _matches: matches.length ? matches : null };
   }).filter(entry => (showFaceTracking || !isFaceTrackingPath(entry.path) || entry._matches || pinned.includes(entry.path))
-    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(Pose|SpsRoot|SharedRoot|Shader)\/v1|(Point|Handle)\/v[12])\//.test(entry.path)
+    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(?:SPS|Shader)\/|(?:Pose|Point|Handle)\/v1\/)/.test(entry.path)
       || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
     && (!term || entry.path.toLowerCase().includes(term)))
     .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))
@@ -36,10 +36,16 @@ export function rankPreview(entries, signals = [], { showFaceTracking = false, s
 }
 
 export function probePresentation(path) {
-  const match = String(path || '').replace(/^\/avatar\/parameters\//, '').match(/^Sensa\/(Pose|SpsRoot|SharedRoot|Point|Handle)\/v1\/.+\/(Root|Tip|Side)\/A([0-7])$/);
+  const normalized = String(path || '').replace(/^\/avatar\/parameters\//, '');
+  const fixed = /^Sensa\/SPS\/[^/]+\/P([0-3])$/.exec(normalized);
+  if (fixed) {
+    const index = Number(fixed[1]);
+    return { label: t('固定锚点 P{0}', [index]), color: ['#E85D75', '#54B7FF', '#77D970', '#FFC857'][index], index,
+      marker: 'Root', hint: t('固定 Avatar 局部锚点的近接值，P0–P3 与 Sample 共同解算专用根标记。不是坐标或设备输出轴。') };
+  }
+  const match = normalized.match(/^Sensa\/(Pose|Point|Handle)\/v1\/.+\/(Root|Tip|Side)\/A([0-7])$/);
   if (!match) return null;
   const index = Number(match[3]);
-  if (match[1] === 'SpsRoot') return index >= 4 ? null : { label: t('固定锚点 A{0}', [index]), color: ['#E85D75', '#54B7FF', '#77D970', '#FFC857'][index], index, marker: 'Root', hint: t('固定 Avatar 局部锚点的距离样本，必须与专用根标记、配置和心跳共同解算。不是设备输出轴。') };
   if ((match[1] === 'Point' || match[1] === 'Handle') && index >= 4) return null;
   const colors = ['#E85D75','#54B7FF','#77D970','#FFC857','#C792EA','#54DED2','#FF975C','#E6E6E6'];
   const prefix = match[1] === 'Point' || match[1] === 'Handle' ? 'P' : 'C';
@@ -48,24 +54,35 @@ export function probePresentation(path) {
 }
 
 export function parameterMeaning(path) {
-    const probe = probePresentation(path);
-    return (probe ? `${probe.hint} ` : '') + baseParameterMeaning(path);
+  const normalized = String(path || '').replace(/^\/avatar\/parameters\//, '');
+  const probe = probePresentation(normalized);
+  return (probe ? `${probe.hint} ` : '') + baseParameterMeaning(normalized);
 }
 
 function baseParameterMeaning(path) {
-  const leaf = (path || '').split('/').at(-1);
+  const leaf = path.split('/').at(-1);
   if (path.startsWith('Sensa/Pose/v1/')) return t("定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。");
-  if (path.startsWith('Sensa/Shader/v1/')) return t('原生 Shader 根点包：需完整 XYZ、Valid、Frame、Producer 和 Profile，先确认图块来源再校准。');
-  if (path.startsWith('Sensa/SpsRoot/v1/')) return t("Sensa SPS 的四个固定锚点采样，解算选定根标记的 Avatar 局部坐标。需要 Profile、Valid、Scale、Heartbeat；不能测尖端、朝向或行程。");
-  if (path.startsWith('Sensa/SharedRoot/v1/')) return t("共享根部阵列；必须连同 Ready、Slot 与新槽位采样判定，仅用于诊断，不能直接映射行程。");
+  if (/^Sensa\/SPS\/[^/]+\//.test(path)) {
+    if (leaf === 'Sample') return t('Sample=0 表示停用或失效；1/32…1 循环表示生产端活动。冻结会超时停止；它不是距离，也不证明同帧采样。');
+    return t('P0–P3 是 0–1 近接值，大表示靠近固定锚点；按 d=R×(1−p)+r 换算中心距，再解算 Avatar 局部根坐标，不能测尖端或朝向。');
+  }
+  if (path.startsWith('Sensa/Shader/')) {
+    if (leaf === 'Frame') return t('编码画面的 16 位循环序号，用于检查冻结；不是玩家时间、传感器时间或模型更新证明。');
+    if (leaf === 'Valid') return t('Valid=1 是完整坐标包的提交标记；Valid=0 立即使此坐标失效。单独置 1 不能恢复旧坐标。');
+    return t('X/Y/Z 是 Avatar 根局部坐标，有效包顺序为 Frame、X、Y、Z、Valid。对象 ID 在路径中；不需要重复 Producer 或 Profile。');
+  }
+  if (path.startsWith('Sensa/Diagnostics/Shader/')) return t('诊断图块传输，仅供预览；不产生可映射坐标，也不证明真实客户端捕获。');
   if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t("本地骨骼/PB 测量。四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。");
-  if (/NewRoot$/.test(leaf)) return t("根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。");
-  if (/NewTip$/.test(leaf)) return t("当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。");
-  if (/^Pen(Others|Self)$/.test(leaf)) return t("近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。");
-  if (/Close$/.test(leaf)) return t("近距离接触开关，不是连续行程值。");
-  if (/^Touch/.test(leaf)) return t("身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。");
-  if (/^Frot/.test(leaf)) return t("摩擦近接信号，通常用于振动；不是轴向深度。");
-  if (/^Angle.*Raw$/.test(leaf)) return t("侧向接收器的原始近接值，不是角度（度）；受位移与方向共同影响。");
+  if (/^VFH\/Zone\/Touch\/.+\/(Self|Others)$/.test(path)) return t('独立触摸区的近接强度，Self 为自身、Others 为他人；按触摸区半径产生，不需要 Close，不是插入深度。');
+  if (/^(VFH\/Version\/\d+|OGB\/(Pen|Orf)\/.+\/Version\/\d+)$/.test(path)) return t('Haptics 能力标记，用于软件识别；不是距离或输出强度。');
+  if (/^OGB\/(Orf|Pen)\//.test(path)) {
+    if (/^Pen(Self|Others)NewRoot$/.test(leaf)) return t("根部表面到接收器的近接值。与同孔位 NewTip 配对估算长度；单值不能区分偏移与深度。");
+    if (/^Pen(Self|Others)NewTip$/.test(leaf)) return t("当前 VRCFury 中为根部同心长度球的近接值，并非真实尖端位置。饱和不等于准确轴向深度，Root/Tip 配对也无法消除角度歧义。");
+    if (/^Pen(Others|Self)$/.test(leaf)) return t("近接信号：Others 表示他人，Self 表示自身。含义取决于生成器的接收器位置和半径，不是通用的位置坐标。");
+    if (/Close$/.test(leaf)) return t("近距离接触开关，不是连续行程值。");
+    if (/^Touch/.test(leaf)) return t("身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。");
+    if (/^Frot/.test(leaf)) return t("摩擦近接信号，通常用于振动；不是轴向深度。");
+  }
   return t("自定义参数。请确认生成它的组件、量程和方向后再映射。名称相近仅作为查找提示。");
 }
 
@@ -117,7 +134,7 @@ function canMapPoint(point) {
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
   const points = observations.filter(p => canMapPoint(p) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
     && (p.kind === 'ShaderRoot' ? ['X', 'Y', 'Z'].map(axis => `${p.prefix}/${axis}`)
-      : Array.from({length:p.expectedSampleCount || 4}, (_,i) => `${p.prefix}/Root/A${i}`)).some(path => matchesOscPathPattern(signal.oscPath,path)));
+      : Array.from({length:p.expectedSampleCount || 4}, (_,i) => p.kind === 'SpsRoot' ? `${p.prefix}/P${i}` : `${p.prefix}/Root/A${i}`)).some(path => matchesOscPathPattern(signal.oscPath,path)));
   if (points.length !== 1) return {path:signal.oscPath,value:points.length ? t("请限定唯一测量点与来源") : t("等待本地点采样")};
   const p = points[0];
   const value = p.valid ? ({X:p.position.x,Y:p.position.y,Z:p.position.z,Distance:Math.hypot(p.position.x,p.position.y,p.position.z)}[signal.pointMetric || 'Z']) : undefined;

@@ -40,7 +40,7 @@
 
 最终候选 50 次执行全部通过，零跳过、重试通过或运行错误。四组 axe 扫描共 40 状态，相关规则子集 violation 为零。四组行为各完成 16 检查，另四项扫描期间不启用输入的检查通过；缺失检查、fatal 和运行错误为空。320 CSS px 重排、键盘、原生弹窗与浏览不改变输入许可的契约继续通过。
 
-新增根点流程使用独立协议模拟：固定根四个已知距离或 Shader 七字段包，经校准、保存、实验许可门控，产生中点模拟输出；Valid 清除后停止。附件明确 `fixtureOnly=true`、`realUnityOrGpuCapture=false`。它们不运行 Unity 生产端或真实屏幕捕获。OGB 控制用隔离目标验证 true 心跳、离开 OSC 后 false 及跨 5 秒不再发送 true，设备输入始终关闭。
+图片生成流程使用独立协议模拟，经校准、保存和实验许可产生模拟输出。它们记录布局，不是当前线包规格；当前[五字段契约](osc-parameters.md)仍须在普通 CI 比较同一组 70 张基线，纯协议改动不构成重新生成图片的理由。附件明确 `fixtureOnly=true`、`realUnityOrGpuCapture=false`。它们不运行 Unity 生产端或真实屏幕捕获。OGB 控制用隔离目标验证 true 心跳、离开 OSC 后 false 及跨 5 秒不再发送 true，设备输入始终关闭。
 
 OGB 深度、触摸 Close、现代优先／旧单参数回退、来源隔离与失效规则另有单元契约。Unity EditMode 检查作者生成与原生组件，且复现并修正最大缩放附近启用／退出重叠；它不是实际 Contacts／OSC 会话。方案效果与限制见[使用方案](usage-scenarios.md)、[OGB 兼容](ogb-compatibility.md)、[定位](positioning.md)和[Shader 研究](shader-capture-research.md)。
 

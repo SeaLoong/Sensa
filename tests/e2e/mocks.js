@@ -26,18 +26,17 @@ export function pointSamples(z, grabbed = true) {
     .concat([[prefix + '/Handle_IsGrabbed', grabbed ? 1 : 0], [prefix + '/Handle_Stretch', .2]]);
 }
 // Independent protocol fixtures, not captured Unity/GPU measurements. / 独立协议夹具，并非 Unity/GPU 实测。
-export function fixedRootSamples(z, heartbeat, valid = true) {
-  const prefix = 'Sensa/SpsRoot/v1/CIFixedRoot/Self';
+export function fixedRootSamples(z, sample, valid = true) {
+  const prefix = 'Sensa/SPS/CIFixedRoot';
   const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
-  return anchors.map(([x, y, az], index) => [prefix + '/Root/A' + index,
+  return anchors.map(([x, y, az], index) => [prefix + '/P' + index,
     1 - (Math.hypot(.02 - x, 1 - y, z - az) - .001) / 2.5])
-    .concat([[prefix + '/Profile', 1], [prefix + '/Valid', valid ? 1 : 0],
-      [prefix + '/Scale', 1], [prefix + '/Heartbeat', heartbeat]]);
+    .concat([[prefix + '/Sample', valid ? sample : 0]]);
 }
 export function shaderRootSamples(z, frame, valid = true) {
-  const prefix = 'Sensa/Shader/v1/42';
-  // This order is the real native-bridge packet contract. / 顺序对应实际原生桥接包契约。
-  return [['Valid', valid ? 1 : 0], ['Frame', frame], ['X', .02], ['Y', 1], ['Z', z], ['Producer', 42], ['Profile', 1]]
+  const prefix = 'Sensa/Shader/42';
+  // Valid commits the native packet last. Invalid capture sends no stale coordinates. / Valid 最后提交；失效不补发旧坐标。
+  return (valid ? [['Frame', frame], ['X', .02], ['Y', 1], ['Z', z], ['Valid', 1]] : [['Valid', 0]])
     .map(([name, value]) => [prefix + '/' + name, value]);
 }
 export function poseSamples() {

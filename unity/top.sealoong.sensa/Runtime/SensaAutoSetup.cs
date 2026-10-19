@@ -4,7 +4,7 @@ using VRC.SDKBase;
 
 namespace UnityBox.Sensa
 {
-    public enum SensaArrayPolicy { Dedicated, Exclusive, SharedRootArray }
+    public enum SensaArrayPolicy { Dedicated, Exclusive }
     [AddComponentMenu("Sensa/Automatic SPS Setup")]
     [DisallowMultipleComponent]
     public sealed class SensaAutoSetup : MonoBehaviour, IEditorOnly

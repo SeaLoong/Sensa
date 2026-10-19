@@ -23,20 +23,17 @@ test('all E2E configurations isolate devices and initialize outputs disabled / �
   assert.throws(() => createRigConfiguration('unknown', '/dev/pts/42'));
 });
 
-test('fixed-root fixture publishes independent known ranges with party-level metadata / 固定根夹具提供独立已知距离及正确元数据层级', () => {
-  const prefix = 'Sensa/SpsRoot/v1/CIFixedRoot/Self';
-  const samples = fixedRootSamples(.05, 7 / 31);
-  assert.deepEqual(samples.map(([path]) => path), [
-    prefix + '/Root/A0', prefix + '/Root/A1', prefix + '/Root/A2', prefix + '/Root/A3',
-    prefix + '/Profile', prefix + '/Valid', prefix + '/Scale', prefix + '/Heartbeat',
-  ]);
+test('fixed SPS fixture exposes only P0–P3 and Sample / 固定SPS夹具仅公开P0–P3和Sample', () => {
+  const prefix = 'Sensa/SPS/CIFixedRoot';
+  const samples = fixedRootSamples(.05, 7 / 32);
+  assert.deepEqual(samples.map(([path]) => path), ['P0', 'P1', 'P2', 'P3', 'Sample'].map(name => prefix + '/' + name));
   assert.ok(samples.slice(0, 4).every(([, value]) => Number.isFinite(value) && value > 0 && value < 1));
-  assert.notDeepEqual(fixedRootSamples(.15, 8 / 31).slice(0, 4), samples.slice(0, 4));
-  assert.deepEqual(samples.slice(4).map(([, value]) => value), [1, 1, 1, 7 / 31]);
-  assert.equal(fixedRootSamples(.05, 8 / 31, false)[5][1], 0);
+  assert.notDeepEqual(fixedRootSamples(.15, 8 / 32).slice(0, 4), samples.slice(0, 4));
+  assert.equal(samples[4][1], 7 / 32);
+  assert.equal(fixedRootSamples(.05, 8 / 32, false)[4][1], 0);
 });
 
-test('native-root fixture sends seven ordered fields in one immediate OSC bundle / 原生根夹具在单个立即执行 bundle 中发送有序七字段', () => {
+test('native-root fixture commits five ordered fields in one immediate OSC bundle / 原生根夹具以单个bundle按序提交五字段', () => {
   const bytes = oscBundle(shaderRootSamples(.15, 27));
   assert.equal(bytes.subarray(0, 8).toString('ascii'), '#bundle\0');
   assert.equal(bytes.readBigUInt64BE(8), 1n);
@@ -53,10 +50,10 @@ test('native-root fixture sends seven ordered fields in one immediate OSC bundle
     fields.push([packet.subarray(0, end).toString('utf8'), packet.readFloatBE(tagOffset + 4)]);
   }
   assert.equal(offset, bytes.length);
-  const prefix = '/avatar/parameters/Sensa/Shader/v1/42/';
-  assert.deepEqual(fields.map(([path]) => path), ['Valid', 'Frame', 'X', 'Y', 'Z', 'Producer', 'Profile'].map(name => prefix + name));
-  assert.equal(fields[0][1], 1); assert.equal(fields[1][1], 27);
-  assert.ok(Math.abs(fields[4][1] - .15) < .000001);
-  assert.equal(fields[5][1], 42); assert.equal(fields[6][1], 1);
-  assert.equal(shaderRootSamples(.15, 28, false)[0][1], 0);
+  const prefix = '/avatar/parameters/Sensa/Shader/42/';
+  assert.deepEqual(fields.map(([path]) => path), ['Frame', 'X', 'Y', 'Z', 'Valid'].map(name => prefix + name));
+  assert.equal(fields[0][1], 27);
+  assert.ok(Math.abs(fields[3][1] - .15) < .000001);
+  assert.equal(fields[4][1], 1);
+  assert.deepEqual(shaderRootSamples(.15, 28, false), [['Sensa/Shader/42/Valid', 0]]);
 });

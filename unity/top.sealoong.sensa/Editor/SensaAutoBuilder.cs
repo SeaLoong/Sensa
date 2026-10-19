@@ -19,11 +19,11 @@ namespace UnityBox.Sensa
         public static string InstanceName(SensaAutoSetup setup,Component target,GameObject avatar)=>Id(setup.groupName,target,avatar);
         public static bool HasMeasurement(SensaAutoSetup setup,Component target) => target.GetType().FullName==SensaSpsAdapter.SocketType
             ? setup.socketRootTracking || setup.pairedSocketTracking
-            : (setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray) || setup.pairedPlugMarkers || setup.localPlugTipTracking || setup.createPlugGrabHandles;
+            : setup.socketRootTracking || setup.pairedPlugMarkers || setup.localPlugTipTracking || setup.createPlugGrabHandles;
         public static int ContactCost(SensaAutoSetup setup,Component[] targets)
         {
             int sockets=targets.Count(c=>c.GetType().FullName==SensaSpsAdapter.SocketType), plugs=targets.Length-sockets;
-            return (setup.socketRootTracking?(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && sockets>0?8:targets.Length*5):0)
+            return (setup.socketRootTracking?targets.Length*5:0)
                 +(setup.pairedSocketTracking?sockets*24:0)+plugs*((setup.pairedPlugMarkers?3:0)+(setup.localPlugTipTracking?5:0)+(setup.createPlugGrabHandles?5:0));
         }
         public static void ProcessAvatar(GameObject avatar)
@@ -31,7 +31,7 @@ namespace UnityBox.Sensa
             var all=avatar.GetComponentsInChildren<SensaAutoSetup>(true);var setups=all.Where(s=>s.enabled).ToArray();
             if(setups.GroupBy(s=>s.groupName).Any(g=>g.Count()>1))throw new InvalidOperationException("Sensa auto group names must be unique.");
             var used=new HashSet<Component>();int cost=0;
-            foreach(var setup in setups){SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException("Auto group name must be at most 30 characters.");SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException("No selected SPS targets for "+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException("Two automatic groups select the same SPS target.");cost+=ContactCost(setup,targets);if(setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray)foreach(var target in targets)SensaFixedRootBuilder.Validate(avatar,Id(setup.groupName,target,avatar),target,Id(setup.groupName,target,avatar));}
+            foreach(var setup in setups){if(!Enum.IsDefined(typeof(SensaArrayPolicy),setup.arrayPolicy))throw new InvalidOperationException("Unknown Sensa array policy. / 未知 Sensa 阵列策略。");SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException("Auto group name must be at most 30 characters.");SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException("No selected SPS targets for "+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException("Two automatic groups select the same SPS target.");cost+=ContactCost(setup,targets);if(setup.socketRootTracking)foreach(var target in targets)SensaFixedRootBuilder.Validate(avatar,Id(setup.groupName,target,avatar),target,Id(setup.groupName,target,avatar));}
             SensaSensorUtility.Budget(avatar,cost);
             // Resolve all placements before generating anything. Unsupported SPS versions fail explicitly.
             var placements=used.ToDictionary(c=>c,SensaSpsAdapter.Read);
@@ -41,9 +41,6 @@ namespace UnityBox.Sensa
                 if(setup.localPlugTipTracking && Targets(setup,avatar).Any(c=>c.GetType().FullName==SensaSpsAdapter.PlugType)
                     && (setup.localReferenceSocket==null?sockets.Length!=1:!sockets.Any(c=>c.gameObject==setup.localReferenceSocket)))
                     throw new InvalidOperationException("Local tip measurement needs a selected reference Socket; choose one explicitly when there are multiple sockets.");
-                if(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && (setup.pairedSocketTracking || !setup.socketRootTracking || sockets.Length==0 || sockets.Length>16))throw new InvalidOperationException("Shared array requires 1–16 standard-root sockets and no paired socket arrays.");
-                if(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && sockets.Any(c=>Mathf.Abs(c.transform.lossyScale.x-avatar.transform.lossyScale.x)>.0001f))throw new InvalidOperationException("Shared array targets must have the same scale as the avatar root.");
-                if(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray && Targets(setup,avatar).Count(c=>HasMeasurement(setup,c))>16)throw new InvalidOperationException("Shared selection supports at most 16 measured Socket/Plug targets in total.");
             }
             foreach(var setup in setups)Build(avatar,setup,Targets(setup,avatar),placements);
             foreach(var setup in all)UnityEngine.Object.DestroyImmediate(setup);
@@ -52,7 +49,7 @@ namespace UnityBox.Sensa
         {
             var host=SensaSensorUtility.Child(avatar.transform,"SensaAuto_"+setup.groupName).gameObject;
             var profile=ScriptableObject.CreateInstance<SensaPoseProfile>();profile.channel=setup.pairChannel;
-            var rigs=new List<GameObject>();var rigSlots=new List<int>();var anchors=new List<Transform>();var names=new List<string>();var sharedSources=new List<int>();
+            var rigs=new List<GameObject>();var rigSlots=new List<int>();var names=new List<string>();
             void Track(GameObject rig,int slot){rigs.Add(rig);rigSlots.Add(slot);}
             var frames=new Dictionary<Component,Transform>();
             foreach(var target in targets){var placement=placements[target];var node=SensaSensorUtility.Child(target.transform,"Sensa_"+Id(setup.groupName,target,avatar));node.localPosition=placement.position;node.localRotation=placement.rotation;frames[target]=node;}
@@ -64,13 +61,11 @@ namespace UnityBox.Sensa
                 if(!HasMeasurement(setup,target))continue;
                 names.Add((target.GetType().FullName==SensaSpsAdapter.SocketType?"Socket: ":"Plug: ")+target.name+" ["+(names.Count+1)+"]");
                 int slot=names.Count;
-                sharedSources.Add(target.GetType().FullName==SensaSpsAdapter.SocketType?anchors.Count:-1);
-                if(setup.socketRootTracking && setup.arrayPolicy!=SensaArrayPolicy.SharedRootArray)Track(SensaFixedRootBuilder.Build(avatar,id,target,id,selector:setup.arrayPolicy==SensaArrayPolicy.Exclusive?"Sensa/Select/"+setup.groupName:null,selectedSlot:slot),slot);
+                if(setup.socketRootTracking)Track(SensaFixedRootBuilder.Build(avatar,id,target,id,selector:setup.arrayPolicy==SensaArrayPolicy.Exclusive?"Sensa/Select/"+setup.groupName:null,selectedSlot:slot),slot);
                 if(target.GetType().FullName==SensaSpsAdapter.SocketType){
                     // Keep the placement frame alive: local Plug probes may use it as their reference.
                     var sensors=SensaSensorUtility.Child(frame,"Sensors");Track(sensors.gameObject,slot);
                     if(setup.pairedSocketTracking){var rig=SensaSensorUtility.Child(sensors,"Paired");var socket=rig.gameObject.AddComponent<SensaPoseSocket>();socket.profile=profile;socket.instanceName=id;SensaPoseBuilder.BuildSocket(socket);UnityEngine.Object.DestroyImmediate(socket);}
-                    anchors.Add(frame);
                 }else{
                     Track(frame.gameObject,slot);
                     var tip=SensaSensorUtility.Child(frame,"Tip");tip.localPosition=Vector3.forward*p.length;
@@ -86,14 +81,6 @@ namespace UnityBox.Sensa
                 }
             }
             if(setup.arrayPolicy==SensaArrayPolicy.Exclusive && names.Count>0)SensaSelectionAnimator.Build(avatar,host,setup.groupName,rigs.ToArray(),names.ToArray(),rigSlots:rigSlots.ToArray());
-            if(setup.arrayPolicy==SensaArrayPolicy.SharedRootArray){
-                if(setup.pairedSocketTracking || !setup.socketRootTracking || anchors.Count==0 || anchors.Count>16)throw new InvalidOperationException("Shared array requires 1–16 standard-root sockets and no paired socket arrays.");
-                foreach(var anchor in anchors)if(Mathf.Abs(anchor.lossyScale.x-avatar.transform.lossyScale.x)>.0001f)throw new InvalidOperationException("Shared array targets must have the same scale as the avatar root; use Dedicated for scaled sockets.");
-                var moving=SensaSensorUtility.Child(host.transform,"SharedReference");var follow=moving.gameObject.AddComponent<ParentConstraint>();foreach(var anchor in anchors){int index=follow.AddSource(new ConstraintSource{sourceTransform=anchor,weight=0});follow.SetTranslationOffset(index,Vector3.zero);follow.SetRotationOffset(index,Vector3.zero);}follow.locked=true;follow.constraintActive=true;
-                var array=SensaSensorUtility.Child(moving,"Receivers");var prefix=SensaPoseProtocol.SharedRootPrefix+"/"+setup.groupName+"/Others";SensaSensorUtility.Array(array,prefix,SensaPoseProtocol.SpsRootTag,false);
-                Track(array.gameObject,0);
-                SensaSelectionAnimator.Build(avatar,host,setup.groupName,rigs.ToArray(),names.ToArray(),follow,prefix,rigSlots.ToArray(),sharedSources.ToArray());
-            }
             UnityEngine.Object.DestroyImmediate(profile);
         }
     }

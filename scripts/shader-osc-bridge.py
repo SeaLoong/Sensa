@@ -84,7 +84,7 @@ def decode_pixels(pixels, width, height):
                                   xyz=[center + value * AVATAR_ROOT_HALF_RANGE
                                        for center, value in zip(AVATAR_ROOT_CENTER, xyz)])
                 elif producer:
-                    sample['producerId'] = producer
+                    raise ValueError('Diagnostic telemetry requires producer ID zero')
                 return sample
     raise ValueError('Invalid telemetry header, source validity, cell alignment or CRC')
 
@@ -177,16 +177,25 @@ def osc_string(value):
     return data + b'\0' * (-len(data) % 4)
 
 
-def osc_bundle(sample, valid, producer_id=None, profile=None):
+def osc_bundle(sample, valid, producer_id=None, native=None):
     producer_id = (sample or {}).get('producerId', 0) if producer_id is None else producer_id
-    profile = int((sample or {}).get('coordinateFrame') == 'AvatarRootLocal') if profile is None else int(profile)
-    values = [('Valid', float(valid))]
+    native = (sample or {}).get('coordinateFrame') == 'AvatarRootLocal' if native is None else native
+    if native:
+        if type(producer_id) is not int or not 1 <= producer_id <= 65535:
+            raise ValueError('Native OSC requires a nonzero producer ID')
+        if valid:
+            validate_source(sample, producer_id)
+        prefix = 'Sensa/Shader/' + str(producer_id)
+    else:
+        prefix = 'Sensa/Diagnostics/Shader/0'
+    values = []
     if valid:
-        values += [('Frame', sample['frame'])] + list(zip('XYZ', sample['xyz']))
-    values += [('Producer', producer_id), ('Profile', profile)]
+        values = [('Frame', sample['frame'])] + list(zip('XYZ', sample['xyz']))
+    # Valid is the commit marker; invalidation never republishes old coordinates.
+    values.append(('Valid', float(valid)))
     result = osc_string('#bundle') + struct.pack('!Q', 1)
     for name, value in values:
-        packet = osc_string('/avatar/parameters/Sensa/Shader/v1/' + str(producer_id) + '/' + name) + osc_string(',f') + struct.pack('!f', value)
+        packet = osc_string('/avatar/parameters/' + prefix + '/' + name) + osc_string(',f') + struct.pack('!f', value)
         result += struct.pack('!I', len(packet)) + packet
     return result
 

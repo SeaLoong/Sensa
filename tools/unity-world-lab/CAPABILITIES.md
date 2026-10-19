@@ -17,7 +17,7 @@
 | 03 PB + Contact | 抓取 PB 目标，四接收器测其位置 | PB 状态与 P1–P4 可同时观察；这是实验局部估计，默认禁止运动，松手无效 | Avatar PBContact 场景的 `Sensa/Handle/v1/LabCombined/Self/`，在 OSC → 实验诊断观察；无默认定位预设，输出默认阻断 |
 | 04 原生 SPS | 真实 VRCFury Plug/Socket；先 Rest/Outside，再 Near、Offset | 20 cm 长度、原生球形近接与轴向真值见下表；偏移时两种深度不同 | Avatar SPS 场景使用真正的 `OGB/Orf/FixtureSocket/...` 参数，选择普通 SPS Socket 预设 |
 | 05 SPS + PB + Contact | PB 驱动真实 SPS Plug，Contact 测 PB 点；可移动 Socket | 三种读数可同时观察；先释放 PB 回到静止，再按预设比较；自由抓取时基准会改变 | 原 Exclusive Avatar 是完整组合；独立能力 Avatar 用于先排除单一系统问题 |
-| 06 Shader 传输 | 合成 XYZ=(.25,-.5,.75)，不断改变帧号；Freeze/ToggleOutput/Corrupt | 解码误差小于 0.00004；冻结超过 350 ms 后 Valid=0；Corrupt 注入真实 CRC 错误 | 可通过 PNG 或精确屏幕区域 → Python 桥 → Sensa；明确不是 SPS 测量 |
+| 06 Shader 传输 | 合成 XYZ=(.25,-.5,.75)，不断改变帧号；Freeze/ToggleOutput/Corrupt | 解码误差小于 0.00004；冻结超过 350 ms 后 Valid=0；Corrupt 注入真实 CRC 错误 | PNG → Python 桥 → OSC 独立诊断；屏幕区域可只解码观察；明确不是 SPS 测量 |
 | 07 SPS Shader | 真实 SPS Shader、Socket 偏移、GPU 中心线采集 | 长度约 .2 m；Offset 入口相对根部位移约 (.06,0,.12) m | 编辑器 GPU Probe → 连续编码 PNG → 桥 → Sensa；不是可上传的 Avatar C# 脚本 |
 
 原生 SPS 台使用**已知本台 Plug 的实际 SPS Sender**和 SDK `CalculateProximity`，以避免多个实验台混入来源；不是任意远端目标识别实现。World 的 Udon 数值不会自动变成 Avatar OSC。看板上的世界 Transform 是测试真值，不能当作 Avatar 运行时能力。
@@ -67,11 +67,11 @@ python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-tele
 
 脚本支持被拉伸的矩形图块，但必须包含完整 16×8 网格、每个格子至少 4×4 像素。不支持自动找码或透视校正。启动及故障恢复均需两帧新的递增序号才置 Valid=1；旧帧和重复帧不能恢复门控。同一帧号的 XYZ 改变也会失效。冻结、乱序、CRC 错误、退出均关闭 Valid；进程被强杀或网络断开时还要依靠 Sensa 的断流停止设置。
 
-桌面发行包附带桥接脚本、Pillow 依赖清单和无设备预览配置。Windows x64 CI 用固定 GPU PNG 验证 Profile0 传输的 CRC 故障、旧帧拒绝、两帧恢复和冻结失效，输入始终关闭，不作为原生根点或运动证据。
+桌面发行包附带桥接脚本、Pillow 依赖清单和无设备预览配置。Windows x64 CI 用固定 GPU PNG 验证独立诊断命名空间中传输的 CRC 故障、旧帧拒绝、两帧恢复和冻结失效，输入始终关闭，不作为原生根点或运动证据。
 
 示例配置将断流停止设为 500 ms；仍应固定桥接来源，避免其他程序的数据影响测试。采集窗口重开、帧计数重置后，重新启动桥接以建立新的帧序基线。
 
-在参数工作台看 `Sensa/Shader/v1/0/{X,Y,Z,Frame,Valid,Producer,Profile}`。Profile0/ID0 仅作诊断预览，不作运动输入或校准参考；.12 m 模型位移与 SPS 插入深度是不同量。Profile1 注册见[包内指南](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。
+在参数工作台看 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`。此独立命名空间仅是诊断传输，不是原生捕获、空间坐标或校准参考；.12 m 模型位移与 SPS 插入深度是不同量。非零 ID 的原生注册见[包内指南](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。去掉公开 Producer／Profile 不等于移除二进制 ID、坐标标志、Frame 或 CRC。
 
 ### 真正 SPS 模型怎样接到 PNG
 

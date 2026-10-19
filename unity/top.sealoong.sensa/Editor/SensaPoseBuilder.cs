@@ -36,8 +36,6 @@ namespace UnityBox.Sensa
 
         public static void Validate(SensaPoseSocket socket)
         {
-            if (socket.standardSpsRoot)
-                throw new InvalidOperationException("旧八路 SPS Root 作者已停用。请替换为 SensaFixedRootProbe 或 Automatic SPS Setup，并明确选择真实根部。 / Legacy eight-channel SPS Root authoring is disabled. Replace it with SensaFixedRootProbe or Automatic SPS Setup and select the actual root explicitly.");
             CheckName(socket.instanceName, "Socket instance"); CheckProfile(socket.profile);
             CheckScale(socket.transform);
             if (SensaPoseProtocol.ReceiverRadius * socket.transform.lossyScale.x > 3f)
