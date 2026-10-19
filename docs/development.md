@@ -30,7 +30,7 @@ python -X utf8 scripts/verify.py
 | 产品、打包、协议 | 受影响接口检查 | 候选比较及必要六平台构建／隔离冒烟 |
 | 未知路径／无法取得差异 | 保守全量本地检查 | 保守全量验证 |
 
-路径分类由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 的同一 interface 供本地与 CI 使用，具体范围以实现和契约测试为准。本地 `verify.py` 只使用工作区差异与内容缓存，不读取 GitHub 状态；CI 另外结合负责产品验证的实际执行状态，判断是否需要接续。Python 全套包含文档检查，不会额外重复该检查。后端契约用 `SkipWebBuild=true`，因此不依赖 Node 或生成 bundle；正常 publish 仍构建并包含 Web 资源。
+路径分类由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 的同一 interface 供本地与 CI 使用，具体范围以实现和契约测试为准。本地 `verify.py` 只使用工作区差异与内容缓存，不读取 GitHub 状态；CI 另外结合负责产品验证的实际执行状态，判断是否需要接续。Python 全套包含文档检查，不会额外重复该检查。Web lint 覆盖应用及图解脚本，并检查未定义标识符；浏览器全局变量显式列为只读，缺失导入会在构建前失败。后端契约用 `SkipWebBuild=true`，因此不依赖 Node 或生成 bundle；正常 publish 仍构建并包含 Web 资源。
 
 本地入口只打印需要的 E2E、原生冒烟与发布计划，不执行它们。浏览器 E2E、完整进程 smoke、自动截图与 World PlayMode 套件都有 CI-only 保护。不要伪造 GitHub Actions 环境绕过这些限制。
 

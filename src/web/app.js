@@ -88,7 +88,7 @@ import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui
 import { ScriptTimelineDensity } from './script-timeline.jsx';
 import { MotionAxisEditor, OscHubTargetRow, SignalMappingRow } from './configuration-views.jsx';
 import { AxisTraceLogEntry, PlainLogEntry, TCodeDeviceInfoCard } from './diagnostic-views.jsx';
-import { t, getLocale, subscribeLocale, setLocale, diagnostic } from './i18n.js';
+import { t, getLocale, subscribeLocale, setLocale, diagnostic, docUrl } from './i18n.js';
 import {
   pointPreviewEntry,
   posePreviewEntry,

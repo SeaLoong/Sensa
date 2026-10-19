@@ -113,6 +113,86 @@ test('offline parameter geometry renders, responds and preserves bilingual state
     await page.locator('#locale').selectOption('zh-CN');
     await expect(page.locator('#control-z')).toHaveValue('0.5');
     await expect(page.locator('#reference-link')).toHaveAttribute('href', 'osc-parameters.md');
+
+    // Independently check orthographic geometry, including Y, before testing its inverse.
+    // 先以已知正交矩阵独立验证含 Y 的投影，再验证真实拖动的逆变换。
+    await setRange(page, 'x', .1); await setRange(page, 'y', .4);
+    const isoDistance = Math.hypot(.1, .4, .5);
+    await nearCell(page, 'PenOthersNewRoot', 1 - (isoDistance - .01));
+    await nearCell(page, 'PenOthersNewTip', 1 - (isoDistance - .2));
+    const isoMoving = page.locator('#moving-root');
+    await isoMoving.scrollIntoViewIfNeeded();
+    const isoGeometry = await page.locator('#diagram').evaluate(diagram => {
+      const receiver = diagram.querySelector('[data-shape-id="receiver-root"] circle.shape');
+      const sender = diagram.querySelector('[data-shape-id="sender-root"] circle.shape');
+      const movingCircle = diagram.querySelector('#moving-root circle');
+      const matrix = diagram.getScreenCTM();
+      const circle = element => ({ cx: Number(element.getAttribute('cx')),
+        cy: Number(element.getAttribute('cy')), r: Number(element.getAttribute('r')) });
+      return { receiver: circle(receiver), sender: circle(sender), marker: circle(movingCircle),
+        matrix: { a: matrix.a, b: matrix.b, c: matrix.c, d: matrix.d, e: matrix.e, f: matrix.f } };
+    });
+    const isoScale = isoGeometry.receiver.r; // The known receiver radius is exactly 1.
+    expect(isoScale).toBeGreaterThan(0);
+    expect(isoGeometry.sender.r / isoScale).toBeCloseTo(.01, 8);
+    const isoExpected = {
+      x: isoGeometry.receiver.cx + isoScale * (.5 - .1) / Math.sqrt(2),
+      y: isoGeometry.receiver.cy + isoScale * ((.1 + .5) / Math.sqrt(6) - .4 * Math.sqrt(2 / 3)),
+    };
+    expect(isoGeometry.sender.cx).toBeCloseTo(isoExpected.x, 6);
+    expect(isoGeometry.sender.cy).toBeCloseTo(isoExpected.y, 6);
+    expect(isoGeometry.marker.cx).toBeCloseTo(isoExpected.x, 6);
+    expect(isoGeometry.marker.cy).toBeCloseTo(isoExpected.y, 6);
+    const matrix = isoGeometry.matrix;
+    const screenExpected = {
+      x: matrix.a * isoExpected.x + matrix.c * isoExpected.y + matrix.e,
+      y: matrix.b * isoExpected.x + matrix.d * isoExpected.y + matrix.f,
+    };
+    const isoMarkerBox = await isoMoving.locator('circle').first().boundingBox();
+    expect(isoMarkerBox).not.toBeNull();
+    const isoStart = { x: isoMarkerBox.x + isoMarkerBox.width / 2, y: isoMarkerBox.y + isoMarkerBox.height / 2 };
+    expect(Math.abs(isoStart.x - screenExpected.x)).toBeLessThan(.1);
+    expect(Math.abs(isoStart.y - screenExpected.y)).toBeLessThan(.1);
+    await expect(page.locator('#control-x')).toHaveAttribute('step', '0.01');
+    await expect(page.locator('#control-z')).toHaveAttribute('step', '0.01');
+    const isoWorldAt = screen => {
+      const determinant = matrix.a * matrix.d - matrix.b * matrix.c;
+      expect(Math.abs(determinant)).toBeGreaterThan(.000001);
+      const svgX = (matrix.d * (screen.x - matrix.e) - matrix.c * (screen.y - matrix.f)) / determinant;
+      const svgY = (-matrix.b * (screen.x - matrix.e) + matrix.a * (screen.y - matrix.f)) / determinant;
+      const u = (svgX - isoGeometry.receiver.cx) / isoScale;
+      const v = (svgY - isoGeometry.receiver.cy) / isoScale + .4 * Math.sqrt(2 / 3);
+      const snap = (value, min, max) => Math.max(min, Math.min(max, Math.round(value / .01) * .01));
+      return { x: snap((Math.sqrt(6) * v - Math.sqrt(2) * u) / 2, -.6, .6), y: .4,
+        z: snap((Math.sqrt(6) * v + Math.sqrt(2) * u) / 2, -.4, 1.2) };
+    };
+    const isoTargets = [{ x: Math.round(isoStart.x) + 10, y: Math.round(isoStart.y) - 6 },
+      { x: Math.round(isoStart.x) + 20, y: Math.round(isoStart.y) - 10 }];
+    const isoDragEvidence = [];
+    await page.mouse.move(isoStart.x, isoStart.y); await page.mouse.down();
+    for (const target of isoTargets) {
+      const expected = isoWorldAt(target);
+      await page.mouse.move(target.x, target.y, { steps: 4 });
+      await expect.poll(async () => {
+        const actual = await isoMoving.evaluate(element => ({
+          x: Number(element.dataset.x), y: Number(element.dataset.y), z: Number(element.dataset.z),
+        }));
+        return Math.max(Math.abs(actual.x - expected.x), Math.abs(actual.y - expected.y), Math.abs(actual.z - expected.z));
+      }, { message: 'Isometric drag follows CTM, fixed Y and .01 snap / 立体拖动符合CTM、固定Y与.01步长' }).toBeLessThan(1e-8);
+      const actual = await isoMoving.evaluate(element => ({
+        x: Number(element.dataset.x), y: Number(element.dataset.y), z: Number(element.dataset.z),
+      }));
+      isoDragEvidence.push({ target, expected, actual });
+      await nearCell(page, 'PenOthersNewRoot', 1 - (Math.hypot(actual.x, actual.y, actual.z) - .01));
+    }
+    await page.mouse.up();
+    await info.attach('parameter-geometry-isometric-pointer.json', {
+      body: JSON.stringify({ geometry: isoGeometry, expectedMarker: isoExpected, screenExpected, drag: isoDragEvidence }, null, 2),
+      contentType: 'application/json',
+    });
+    // Restore defaults before the XZ checks and representative captures.
+    // 后续 XZ 断言与代表截图前恢复默认几何。
+    await chooseScene(page, 'socket-modern');
     await page.locator('#projection').selectOption('xz');
     await page.locator('#show-dimensions').check();
 

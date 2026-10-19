@@ -65,8 +65,8 @@
       <aside class="readout-panel" aria-labelledby="readout-title">
         <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">参数读数</h2><span class="caption" data-i18n="simulated">几何模拟值</span></div>
         <p id="path-prefix" class="code path"></p>
-        <p class="caption" data-i18n="rowHint">选择一行，突出显示对应的接收器与 Sender。</p>
-        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">参数</th><th data-i18n="raw">原始值</th><th data-i18n="effective">门控后</th></tr></thead><tbody id="values"></tbody></table></div>
+        <p class="caption" data-i18n="rowHint">选择一行突出对应形状。模型门控不包含运行时估长、映射或设备输出。</p>
+        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">参数</th><th data-i18n="raw">原始值</th><th data-i18n="effective">模型门控</th></tr></thead><tbody id="values"></tbody></table></div>
         <div class="metric-list" id="metrics"></div>
         <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">16 × 8 位编码示意</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 160" role="img" aria-label="编码位 / Encoded bits"></svg></div>
         <p class="explanation" id="explanation"></p>
