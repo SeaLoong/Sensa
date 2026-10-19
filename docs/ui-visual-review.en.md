@@ -1,51 +1,55 @@
-# TDesign WebUI workflow and visual review
+# Three integration routes and WebUI visual review
 
 [简体中文](ui-visual-review.md) | **English**
 
-Date: 2026-10-19. This iteration keeps the TDesign palette, 14/22 typography and 32 px regular controls, improving entry points and action hierarchy. It replaces the previous component restyling assessment. Coding agents reviewed source and real CI images against [V1–V6](ui-quality.en.md); there was no participant questionnaire, aggregate beauty score or user-preference study.
+Date: 2026-10-19. This iteration retains the TDesign palette, 14/22 typography and 32 px regular controls, removes synthetic QuickStart from user routes, and organizes real workflows around OGB/SPS, fixed anchors and Shader capture. Coding agents assessed source and CI images against [V1–V6](ui-quality.en.md). There was no participant questionnaire, aggregate beauty score or user-preference study. This replaces the previous 64-image review.
 
 ## Evidence
 
-- Before: `04f6f488d77e3f562ba313352395c6913dc4e662`, with 60 baselines.
-- Generation source: `b1e1cf9e649a96b43f65be55ae7db4043cb7719d`; `e2e-baselines` and `e2e-report` from [successful candidate 39171343844](https://github.com/SeaLoong/Sensa/actions/runs/39171343844).
-- Accepted: 64 PNGs, 32 each at 1280×900 and 390×844. All 60 images from diagnostic run 39170374413 were individually reviewed; 59 are byte-identical to the final set. The changed desktop mapping image and four new recording images were reviewed separately. Compared with the previous set, 34 changed and four were added; none were removed.
-- Images are fixed at `0b9956f424c9af088ce2ad07d10f7f7953249a32`. The failed run was not accepted; a later candidate containing the known test-locator error was cancelled.
-- The final report also retains 23 unmasked diagnostic viewports and 19 node records. This iteration reassessed all four main-focus views and the new Intiface review viewport. These samples were collected after analysis and are not atomic snapshots.
+- Before: `992b234abf4c5850df35a74f3aaa31a6ced6e31a`, with 64 baselines.
+- Generation source: `c4ab8d26725c2e6c81de5ab65f6a0913af92d02f`; `e2e-baselines` / `e2e-report` from [successful candidate 39180559599](https://github.com/SeaLoong/Sensa/actions/runs/39180559599).
+- Accepted: 70 PNGs, 35 each at 1280×900 and 390×844. All 70 initial diagnostic images were individually reviewed. Later sets were compared byte for byte, with changed images and complete root viewports reassessed. The initial failing candidate was not accepted.
+- Images are fixed at `02ca80302b14ad96c292c501c55847f7a6085ffa`. Compared with the previous set, 51 images are byte-identical, 13 changed and six were added. Two old QuickStart gate images were renamed for the actual gate flow; existing state coverage was retained.
+- The report also retains 25 quality viewports, 21 node records, eight fixed/Shader root status and calibration viewports, four text-containment records and four protocol-simulation statements. Evidence was captured after checks; these are not atomic snapshots.
 
 ## Findings and reassessment
 
 | Criterion | Change | Observed result |
 | --- | --- | --- |
-| V1 Hierarchy | One control status explains the current blocker and next step; Apply is absent for the current mode; script play/stop and stepping are grouped | Running mode, browsed tab and input permission are distinct in the observed states |
-| V2 Type and proportion | Retain TDesign type, control dimensions and numeric-field/slider proportions | Numbers, units, states and main actions remain complete in both languages |
-| V3 Grouping and spacing | Recording becomes an input disclosure; help offers manual, script and OSC entry points; longer explanations are optional | Main flows are shorter; recording and restart confirmation have clear boundaries, reviewed on desktop and narrow layouts |
-| V4 Color and state | Retain brand blue and functional colors with explicit preparation, disarmed, gate and emergency text | State does not depend on color alone; incomplete contrast findings retain manual decisions and limits |
-| V5 Alignment and detail | Put mapping count, draft state, restore and save together near the top; group script actions; let status headings wrap | Key actions are discoverable near the top; columns and dialog edges remain stable, with no new major alignment issue observed |
-| V6 Languages and narrow layout | Translate new workflow, help, connection, vibration and recording text; retain wrapping and touch styles | Observed bilingual layouts are complete; the tight English manual crop requires separate viewport focus evidence |
+| V1 Hierarchy | Three actual routes in Help; folded OGB activation settings; short root badges with wrapping reasons | Routes, receiver state and device permission are distinguishable; long diagnostics fit the tested workspace |
+| V2 Typography and numbers | Units stay together in XYZ, residual and calibration values; Shader shows “—” without a fit | Local-unit labels stay intact; direct XYZ does not imply a measured zero residual |
+| V3 Grouping and spacing | Fixed and Shader roots share selection, projections and endpoint calibration; detailed limits stay in guides | Reviewed expanded layouts are consistent, with secondary guidance below primary actions |
+| V4 Colour and meaning | Retained brand blue, functional colours and explicit state text | Valid/waiting, disabled input, experimental permission and emergency stop have text |
+| V5 Alignment and detail | Narrow calibration columns wrap text; values and buttons fit independently; actual text bounds are asserted | Complete 0.050/0.150 local-unit values fit without overlapping buttons; changed images passed review |
+| V6 Languages and narrow layouts | Routes, OGB heartbeat and root calibration remain bilingual; main content scrolls independently | Reviewed Chinese/English desktop and narrow states are complete; all four main-focus samples show the full outline |
 
-These conclusions apply only to the named views. No new blocking or major visual issue was found. Initial viewport images do not prove every long dialog, horizontal table, output variant or closed disclosure.
+The initial 50 executions yielded 48 passes and two mobile root failures from horizontal overflow. Long explanations inside non-wrapping badges and values escaping a fixed calibration column caused them. Both were corrected before full success. Subsequent review found split units, a misleading zero Shader residual and column drift from hidden timestamps. Each was fixed and reassessed. Times now have a fixed 24-hour shape and monospaced digits. Four varied time strings must keep actual column boundaries within 0.1 px; live text is restored before capture. No functional content was hidden, geometry assertions weakened or retries added to accept the images.
 
 ## Before and after
 
 | State | Before | Current |
 | --- | --- | --- |
-| Desktop control | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/desktop/control-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/desktop/control-page.png) |
-| Narrow help | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/mobile/english-help.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/mobile/english-help.png) |
-| Desktop mappings | [Before](https://github.com/SeaLoong/Sensa/blob/04f6f488d77e3f562ba313352395c6913dc4e662/tests/e2e/__screenshots__/desktop/osc-mappings-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/desktop/osc-mappings-page.png) |
-| Narrow recording restart | New capture | [Current](https://github.com/SeaLoong/Sensa/blob/0b9956f424c9af088ce2ad07d10f7f7953249a32/tests/e2e/__screenshots__/mobile/recording-restart.png) |
+| Desktop control | [Before](https://github.com/SeaLoong/Sensa/blob/992b234abf4c5850df35a74f3aaa31a6ced6e31a/tests/e2e/__screenshots__/desktop/control-page.png) | [Current](https://github.com/SeaLoong/Sensa/blob/02ca80302b14ad96c292c501c55847f7a6085ffa/tests/e2e/__screenshots__/desktop/control-page.png) |
+| Narrow English Help | [Before](https://github.com/SeaLoong/Sensa/blob/992b234abf4c5850df35a74f3aaa31a6ced6e31a/tests/e2e/__screenshots__/mobile/english-help.png) | [Current](https://github.com/SeaLoong/Sensa/blob/02ca80302b14ad96c292c501c55847f7a6085ffa/tests/e2e/__screenshots__/mobile/english-help.png) |
+| Fixed root coordinates | New capture | [Desktop](https://github.com/SeaLoong/Sensa/blob/02ca80302b14ad96c292c501c55847f7a6085ffa/tests/e2e/__screenshots__/desktop/fixed-root-position.png) |
+| Shader root coordinates | New capture | [Narrow](https://github.com/SeaLoong/Sensa/blob/02ca80302b14ad96c292c501c55847f7a6085ffa/tests/e2e/__screenshots__/mobile/shader-root-position.png) |
+
+Bounded root images omit complete producer selection, status or calibration. Eight raw viewports and text-containment evidence cover those samples together. Normal scroll clipping does not prove all page content is simultaneously visible.
 
 ## Interaction and functional correctness
 
-All 44 executions passed with zero skips, flaky retries or run errors. Four axe groups cover 36 states, including the new Intiface settings state, with zero detected violations in the selected rule subset. Four behavior groups complete 16 checks each, plus four checks that auditing never enables input. Missing checks and run errors are empty. All 20 checks at 320 CSS px pass; keyboard, native-dialog and browse-without-activation boundaries remain.
+All 50 final executions passed, with no skips, flaky retries or run errors. Four axe groups covered 40 states with zero violations in the selected rule subset. Four behaviour groups each completed 16 checks, plus four checks that auditing never enables input. Missing checks, fatal errors and run errors were empty. The 320 CSS px reflow, keyboard, native-dialog and browse-without-permission contracts continue to pass.
 
-New regressions verify that unrelated saves preserve mapping/receiver drafts; cancelling restart retains recorded frames while confirmation clears them; stopping/exporting follows recording state; disabling manual input sends stops and never replays the old target on UDP refresh; OGB Touch uses V0 on a vibration-only mock, and explicitly choosing L0 reconnects the client with the new source. No-output configurations remain usable for preview; an Intiface service connection is not presented as available hardware.
+New root flows use independent protocol simulations: four known ranges or seven Shader fields pass through calibration, saving and experimental permission to a midpoint mock output; clearing Valid stops it. Attachments explicitly say `fixtureOnly=true` and `realUnityOrGpuCapture=false`. They do not execute a Unity producer or real screen capture. An isolated OGB target verifies true activation, final false on leaving OSC, and no further true over the five-second heartbeat period; device input remains disabled.
 
-The first run found a native datalist field incorrectly selected as a textbox, and a connected Intiface client retaining its old vibration route after saving. Both were fixed without weakening assertions or adding E2E retries. Isolated unit contracts separately cover target lifetimes, last-action-wins duplicate script timestamps and recording the final held duration. See [usage options](usage-scenarios.en.md) for effects and limits.
+Unit contracts separately cover OGB depth, touch Close gates, modern priority/legacy fallback, source isolation and expiry. Unity EditMode checks authoring and native components, and reproduced and fixed overlapping activation/deactivation near the scale limit; it is not a real Contacts/OSC session. Effects and limits are in [usage routes](usage-scenarios.en.md), [OGB compatibility](ogb-compatibility.en.md), [positioning](positioning.en.md) and [Shader research](shader-capture-research.en.md).
 
-## Automated findings and unassessed scope
+## Automated checks and evidence limits
 
-The report retains **53 incomplete node occurrences**, including repeats: 28 notification/pin names and 25 contrast findings. The latter comprise 12 pin stars, three dialog titles, three emergency backgrounds, four clipped sources, two clipped timestamps and one overlapping notice. Only two occurrences are new relative to the previous 51: the narrow English Intiface title and emergency background. In the inspected image the text is unobscured; post-analysis node bounds leave a gap between title and emergency action, with readable colors. All four main-focus viewport images show complete rings; tight element crops are not full focus-paint evidence.
+All **56 incomplete node occurrences** remain recorded, including repeated states: 32 label findings (18 toast-close symbols, 14 pin symbols) and 24 contrast findings (14 pins, three dialog titles, three emergency-background calculations, two clipped sources, one timestamp and one toast overlap). Desktop OGB settings audits include same-page pins/toasts; those states cannot be described as having no incomplete findings.
 
-Unassessed scope includes all right-scrolled table content, screen readers/voice control, actual 400% zoom, physical phones/coarse pointers, system high contrast and other browsers. Recording restart has functional and visual coverage but no separate named axe state; shared Modal keyboard checks do not certify every assistive-technology behavior of that dialog. Unity/VRChat, a real SPS producer and hardware behavior are not proven by this iteration's mocks or screenshots. This is not a complete WCAG conformance claim.
+Reviewed narrow titles and emergency controls have separation, and the main-focus outlines have four visible sides. Raw images do show temporary notifications covering some secondary fields/table content near the bottom. Notifications are dismissible; that limitation remains. Offscreen or header-obscured pins/source nodes cannot be judged from that frame; the full parameter view only adds visible-area evidence. Manual readability does not clear pending automated findings.
 
-Ordinary main CI must compare the actual commit with updates disabled before automatic prerelease; a generation candidate cannot replace that comparison. [Verification workflow](e2e.en.md)
+Root-flow screenshots are Chinese; English root states were not individually captured. Calibrated root states have no dedicated axe scan; flow, screenshots and actual text bounds are their main evidence. Zero violations across 40 states cannot be extrapolated to them or the entire UI. Complete horizontal tables, screen readers/voice, real 400% zoom, physical phones/coarse pointers, system high contrast and other browsers remain unassessed. These simulations do not prove real VRChat uploads, SPS producers, desktop/HMD code blocks, coordinate accuracy or hardware motion. This is not complete WCAG or user-aesthetics certification.
+
+Ordinary main CI must compare the actual commit with updates disabled before an automatic prerelease. A generation candidate cannot replace that comparison. [Verification workflow](e2e.en.md)
