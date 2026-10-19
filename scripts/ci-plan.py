@@ -10,6 +10,12 @@ ROOT = Path(__file__).resolve().parents[1]
 FLAGS = ('web', 'backend', 'scripts', 'docs', 'unity', 'dependencies',
          'e2e', 'platforms', 'prerelease')
 FULL = set(FLAGS) - {'prerelease'}
+INTERACTIVE_DOC_ASSETS = frozenset((
+    'docs/parameter-geometry.html',
+    'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-view.js',
+    'docs/assets/parameter-geometry-style.css',
+))
 
 
 def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=True):
@@ -34,6 +40,10 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
                 enabled.add('docs')
         elif path == 'eslint.config.js':
             enabled.add('web')
+        elif path in INTERACTIVE_DOC_ASSETS:
+            # Interactive documentation needs model and browser checks, not native builds.
+            # 交互文档需要模型与浏览器验证，不触发原生构建或预发布。
+            enabled.update(('web', 'docs', 'e2e'))
         elif path.endswith(('.md', '.md.meta')) or path.startswith('docs/') or path in ('LICENSE', '.gitignore'):
             enabled.add('docs')
         elif path.startswith('tests/web/'):

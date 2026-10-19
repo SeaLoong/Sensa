@@ -4,6 +4,8 @@
 
 Sensa SPS measures your selected Socket/Plug root in **AvatarRootLocal**. Four fixed receivers and a dedicated sphere share Avatar-root scale. Coordinates are not world motion, device feedback or GPU-deformed surfaces. Only the current five-field contract is accepted, without reading, converting or falling back to older Sensa SPS data. [Usage scenarios](usage-scenarios.en.md)
 
+Move the root in the [interactive parameter diagram](parameter-geometry.html?lang=en-US) to inspect four proximity values, local coordinates and saturation limits. This demonstrates the model rather than measured client results.
+
 ## Per-object measurement contract
 
 ```text

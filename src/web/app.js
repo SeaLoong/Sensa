@@ -2863,6 +2863,7 @@ function App() {
       >
         <p className="mono wrap">{parameterDetail?.path}</p>
         <p>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</p>
+        <p><a href={docUrl('docs/parameter-geometry.html')} target="_blank" rel="noreferrer">{t('交互参数图解')}</a></p>
         <p className="muted">
           {parameterDetail?.sourceLabel} · {parameterDetail?.value}
         </p>

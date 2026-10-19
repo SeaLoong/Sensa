@@ -66,6 +66,31 @@ class LocalVerificationTests(unittest.TestCase):
             self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.assertEqual(self.commands, [['different-command']])
 
+    def test_interactive_document_model_and_view_content_invalidate_web_receipts(self):
+        model = 'docs/assets/parameter-geometry-model.js'
+        view = 'docs/assets/parameter-geometry-view.js'
+        for name in (model, view):
+            self.write(name, 'first model or view')
+        self.write('docs/assets/unrelated.js', 'unrelated first')
+        self.assertTrue(self.run_plan([model]))
+        self.assertTrue(self.receipt('web').is_file())
+        self.commands.clear()
+        self.assertTrue(self.run_plan([model]))
+        self.assertEqual(self.commands, [])
+        self.write('docs/assets/unrelated.js', 'unrelated changed')
+        self.assertTrue(self.run_plan([model]))
+        self.assertEqual(self.commands, [])
+        for name in (model, view):
+            with self.subTest(asset=name):
+                previous = json.loads(self.receipt('web').read_text(encoding='utf-8'))['key']
+                self.write(name, 'changed model or view')
+                self.assertTrue(self.run_plan([name]))
+                self.assertEqual(len(self.commands), 2, 'Changed diagram code must rerun Web checks / 图示代码变化必须重跑 Web 检查')
+                self.assertNotEqual(json.loads(self.receipt('web').read_text(encoding='utf-8'))['key'], previous)
+                self.commands.clear()
+                self.assertTrue(self.run_plan([name]))
+                self.assertEqual(self.commands, [])
+
     def test_force_repeats_success_but_failure_removes_receipt_and_stops_lane(self):
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.commands.clear()

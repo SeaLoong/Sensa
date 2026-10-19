@@ -74,5 +74,6 @@ export function localized(factory) {
   };
 }
 export function docUrl(path) {
+  if (path === 'docs/parameter-geometry.html') return '/docs/parameter-geometry.html?lang=' + locale;
   return 'https://github.com/SeaLoong/Sensa/blob/main/' + path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');
 }

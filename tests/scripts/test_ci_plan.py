@@ -19,6 +19,26 @@ class VerificationPlanTests(unittest.TestCase):
         self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, {'docs'})
         self.assertEqual(result['e2e_suite'], 'none')
 
+    def test_interactive_geometry_documents_require_browser_and_model_checks_without_native_publication(self):
+        assets = [
+            'docs/parameter-geometry.html',
+            'docs/assets/parameter-geometry-model.js',
+            'docs/assets/parameter-geometry-view.js',
+            'docs/assets/parameter-geometry-style.css',
+        ]
+        for paths in [[asset] for asset in assets] + [assets, [assets[1].replace('/', '\\'), 'docs/guide.md']]:
+            with self.subTest(paths=paths):
+                result = plan.plan_changes(paths, event_name='push', ref='refs/heads/main')
+                self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, {'web', 'docs', 'e2e'})
+                self.assertEqual(result['e2e_suite'], 'all')
+        other = plan.plan_changes(['docs/other.html', 'docs/assets/other.js', 'docs/assets/other.css'],
+                                  event_name='push', ref='refs/heads/main')
+        self.assertEqual({flag for flag in plan.FLAGS if other[flag]}, {'docs'})
+        for integration in ('src/Sensa.csproj', 'scripts/release.py'):
+            with self.subTest(integration=integration):
+                result = plan.plan_changes(assets + [integration], event_name='push', ref='refs/heads/main')
+                self.assertTrue(all(result[key] for key in ('e2e', 'unity', 'platforms', 'prerelease')))
+
     def test_tests_only_exercise_their_interface_without_publication(self):
         cases = [('tests/web/output.test.mjs', {'web'}),
                  ('tests/Sensa.Tests/OutputTests.cs', {'backend'}),

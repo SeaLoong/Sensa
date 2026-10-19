@@ -4,6 +4,14 @@
 
 本页集中解释公开参数的含义、有效条件与测量边界。使用步骤见[指南](guide.md)，OGB 的逐项参数与生成器证据见[OGB 兼容说明](ogb-compatibility.md)，定位原理见[定位说明](positioning.md)。以下路径省略统一前缀 `/avatar/parameters/`；大小写有意义，`<id>` 是实例名。
 
+可用[交互参数图示](parameter-geometry.html?lang=zh-CN)调整几何并比较参数变化与测量边界；发行包内可离线打开，仅作模型演示。
+
+在 Sensa 的参数详情点击“交互参数图解”，或解压桌面包后双击 `docs/parameter-geometry.html`；保留相邻的 `docs/assets/`。GitHub 中的 HTML 链接显示源码，不是已托管的交互网页。
+
+- 灰色轮廓表示 Socket／Plug 外形参考，蓝色表示 Receiver，橙色表示 Sender。选择参数行可突出对应检测体；实体外形不参与计算。
+- 拖动橙色根点或调整 XYZ、长度、半径，比较原始近接值与 Close 门控结果。XZ 图仍按完整 XYZ 计算；立体投影更适合查看四个非共面锚点。
+- SPS 场景可改变 Sample 和变化寿命，区分几何可解与采样有效；Shader 场景可查看范围、量化与 16×8 位图，失效时不保留有效坐标。图示不连接 OSC、GPU 捕获或设备。
+
 ## 先选择需要的信息
 
 | 参数族 | 提供的信息 | 不能据此得出的信息 |

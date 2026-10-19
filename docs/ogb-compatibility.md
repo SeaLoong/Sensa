@@ -6,6 +6,8 @@ OGB 是应用及一组外部触觉参数约定，SPS 是 Avatar 形变／交互�
 
 研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。旧 OGB v1.0.0 已同时读取 Root／Tip 和旧单近接值；“旧版只有一个 trigger”不是可靠的版本划分。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
+[交互参数图解](parameter-geometry.html?lang=zh-CN)展示以下检测球、Close 胶囊与参数读数。发行包内可离线打开；实体轮廓仅供辨认，不代表实际网格。
+
 ## 先理解半径与数值
 
 以下路径省略 `/avatar/parameters/`。Orf 是 Socket，Pen 是 Plug；原点为各自根中心，+Z 为作者的前向。Self／Others 选择本 Avatar 或其他 Avatar，不代表某一个人的身份。
@@ -74,7 +76,7 @@ Plug 的 TouchOthers 沿用这段生成器中的 SelfContacts 标签集合，不
 | Socket Root | 根中心球 r=0.001 m；含 TPS_Orf_Root | Plug 的 PenSelf／PenOthers，以及 Socket FrotOthers |
 | Socket Front | +0.01·Z，球 r=0.001 m；TPS_Orf_Norm 等 | 上游方向辅助；没有对应 OGB Angle 输出 |
 
-例如 Plug/PenOthers 的非零接触中心距约为 L+0.001 m，而非严格 L。现代 NewRoot 与 NewTip 所观测的两个球同心，旋转轴线不改变球心距离；单靠它们不能确定角度、尖端或扭转。[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[Socket Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+例如 Plug/PenOthers 的非零接触中心距约为 L+0.001 m，而非严格 L。几何图解中的旧 Socket PenOthers 应配对根中心的 Length 球 r=L（TPS_Pen_Penetrating），不能换成 r=0.01 的 Root 球。现代 NewRoot 与 NewTip 所观测的两个球同心，旋转轴线不改变球心距离；单靠它们不能确定角度、尖端或扭转。[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[Socket Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
 
 ## 其他真实参数与未支持范围
 

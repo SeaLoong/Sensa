@@ -1,0 +1,238 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
+
+// The page uses a classic local script: no modules, DOM or network required.
+// 页面使用本地经典脚本；空 vm 环境验证不依赖模块、DOM 或网络。
+const source = readFileSync(new URL('../../docs/assets/parameter-geometry-model.js', import.meta.url), 'utf8');
+const sandbox = vm.createContext({});
+vm.runInContext(source, sandbox, { timeout: 1000 });
+const model = sandbox.SensaParameterGeometry;
+const evaluate = input => model.evaluate(input);
+const field = (scene, name) => scene.values.find(value => value.name === name);
+const shape = (scene, id) => scene.shapes.find(value => value.id === id);
+const plain = value => JSON.parse(JSON.stringify(value));
+const near = (actual, expected, tolerance = 1e-10) =>
+  assert.ok(Math.abs(actual - expected) <= tolerance, actual + ' != ' + expected);
+
+test('offline classic model exposes fresh defaults for every scene / 离线经典模型为各场景提供独立默认值', () => {
+  assert.equal(model.scenarios.length, 10);
+  for (const scenario of model.scenarios) {
+    const defaults = model.defaultsFor(scenario);
+    assert.equal(defaults.scenario, scenario);
+    assert.equal(evaluate(defaults).scenario, scenario);
+    defaults.x = 99;
+    assert.notEqual(model.defaultsFor(scenario).x, 99);
+  }
+  assert.deepEqual(plain(model.defaultsFor('sensa-sps')).x, .02);
+  assert.equal(model.defaultsFor('sensa-sps').y, 1);
+  assert.equal(model.defaultsFor('shader').z, .15);
+});
+
+test('modern Root and NewTip observe different root-centred spheres / 现代 Root 与 NewTip 观测两个根部同心球', () => {
+  const scene = evaluate({ scenario: 'socket-modern', z: .5, L: .2 });
+  near(field(scene, 'PenOthersNewRoot').raw, .51);
+  near(field(scene, 'PenOthersNewTip').raw, .7);
+  near(scene.metrics.unsaturatedLengthEstimate, .2);
+  assert.equal(shape(scene, 'receiver-root').radius, 1);
+  assert.equal(shape(scene, 'receiver-length').radius, 1);
+  assert.equal(shape(scene, 'sender-root').radius, .01);
+  assert.equal(shape(scene, 'sender-length').radius, .2);
+  assert.deepEqual(plain(shape(scene, 'sender-length').center), { x: 0, y: 0, z: .5 });
+  assert.deepEqual(plain(scene.points.plugTip), { x: 0, y: 0, z: .3 });
+  assert.notEqual(shape(scene, 'sender-length').center.z, scene.points.plugTip.z);
+});
+
+test('proximity uses full XYZ while yaw changes the tip but not concentric spheres / 近接按XYZ而旋转仅改变尖端参考', () => {
+  const flat = evaluate({ scenario: 'socket-modern', z: .5 });
+  const raised = evaluate({ scenario: 'socket-modern', z: .3, y: .4, yaw: 90 });
+  near(field(raised, 'PenOthersNewRoot').raw, field(flat, 'PenOthersNewRoot').raw);
+  near(field(raised, 'PenOthersNewTip').raw, field(flat, 'PenOthersNewTip').raw);
+  near(raised.points.plugTip.x, -.2);
+  near(raised.points.plugTip.z, .3);
+  assert.equal(raised.metrics.estimatorRequiresPriorLengthLearning, true);
+});
+
+test('sender radius extends onset and saturation hides centre distance / 发送球半径扩大起始范围且饱和丢失中心距离', () => {
+  const outsideRoot = evaluate({ scenario: 'socket-modern', z: 1.15, L: .2 });
+  assert.equal(field(outsideRoot, 'PenOthersNewRoot').raw, 0);
+  near(field(outsideRoot, 'PenOthersNewTip').raw, .05);
+  const inside = evaluate({ scenario: 'socket-modern', z: .005 });
+  assert.equal(field(inside, 'PenOthersNewRoot').raw, 1);
+  assert.equal(inside.metrics.unsaturatedLengthEstimate, null);
+});
+
+test('legacy socket detects the length sphere and a real Close gate / 旧Socket检测长度球并使用真实Close门控', () => {
+  const scene = evaluate({ scenario: 'socket-legacy', z: .1, D: .15, L: .2, party: 'Self' });
+  near(field(scene, 'PenOthers').raw, 2 / 3);
+  assert.equal(field(scene, 'PenOthersClose').raw, 1);
+  assert.equal(shape(scene, 'sender-length').radius, .2);
+  assert.equal(shape(scene, 'receiver-proximity').center.z, -.15);
+  assert.equal(scene.party, 'Others');
+  assert.equal(field(scene, 'PenSelf'), undefined);
+  const offAxis = evaluate({ scenario: 'socket-legacy', x: .28, z: -.15, L: .2, D: .15 });
+  assert.ok(field(offAxis, 'PenOthers').raw > 0);
+  assert.equal(field(offAxis, 'PenOthers').effective, 0);
+  assert.equal(field(offAxis, 'PenOthers').closeName, 'PenOthersClose');
+});
+
+test('socket touch separates raw proximity from the close capsule / Socket触摸区分原始近接与接近胶囊', () => {
+  const scene = evaluate({ scenario: 'socket-touch', x: .1, z: -.15, senderRadius: .025 });
+  near(field(scene, 'TouchOthers').raw, .5);
+  assert.equal(field(scene, 'TouchOthersClose').raw, 0);
+  assert.equal(field(scene, 'TouchOthers').effective, 0);
+  const largeBody = evaluate({ scenario: 'socket-touch', x: .1, z: -.15, senderRadius: .06 });
+  assert.equal(field(largeBody, 'TouchOthersClose').raw, 1);
+  assert.ok(field(largeBody, 'TouchOthers').effective > 0);
+});
+
+test('plug depth is measured against a 1 mm socket root / Plug深度检测1毫米Socket根球', () => {
+  const scene = evaluate({ scenario: 'plug-depth', z: .15, L: .2 });
+  near(field(scene, 'PenOthers').raw, .255);
+  assert.equal(shape(scene, 'sender-socket-root').radius, .001);
+  assert.deepEqual(plain(shape(scene, 'sender-socket-root').center), { x: 0, y: 0, z: 0 });
+  assert.deepEqual(plain(scene.points.senderRoot), { x: 0, y: 0, z: 0 });
+  assert.equal(shape(scene, 'receiver-depth').center.z, .15);
+  assert.ok(field(evaluate({ scenario: 'plug-depth', z: .2005, L: .2 }), 'PenOthers').raw > 0);
+  assert.equal(field(evaluate({ scenario: 'plug-depth', z: .2011, L: .2 }), 'PenOthers').raw, 0);
+});
+
+test('plug touch caps the extension at 8 cm and height includes end caps / Plug手触扩展上限8厘米且高度含端帽', () => {
+  const scene = evaluate({ scenario: 'plug-touch', L: .6, W: .12 });
+  near(scene.metrics.extraRadius, .08);
+  near(shape(scene, 'receiver-proximity').radius, .68);
+  const close = shape(scene, 'receiver-close');
+  near(close.radius, .2); near(close.height, .76); near(close.center.z, -.3);
+  near(close.a.z, -.12); near(close.b.z, -.48);
+  const beyondCap = evaluate({ scenario: 'plug-touch', L: .4, W: .02, z: -.435, senderRadius: .01 });
+  const insideCap = evaluate({ scenario: 'plug-touch', L: .4, W: .02, z: -.425, senderRadius: .01 });
+  assert.equal(field(beyondCap, 'TouchOthersClose').raw, 0);
+  assert.equal(field(insideCap, 'TouchOthersClose').raw, 1);
+});
+
+test('capsule Sender proximity uses its nearest surface rather than its centre / 胶囊发送器按最近表面而非中心算近接', () => {
+  const capsule = evaluate({ scenario: 'zone', senderShape: 'capsule', senderHeight: .4, senderRadius: .01, x: 0, z: .2 });
+  const sphere = evaluate({ scenario: 'zone', senderRadius: .01, x: 0, z: .2 });
+  near(field(capsule, 'Others').raw, 1);
+  assert.equal(field(sphere, 'Others').raw, 0);
+  const rotated = evaluate({ scenario: 'zone', senderShape: 'capsule', senderHeight: .4, senderRadius: .01, x: 0, z: .2, yaw: 90 });
+  assert.equal(field(rotated, 'Others').raw, 0);
+});
+
+test('crossing capsule interiors and height offsets determine Frot Close / 两胶囊内部相交及高度偏移决定摩擦Close', () => {
+  const state = { scenario: 'plug-frot', L: .6, W: .01, senderLength: .6, senderWidth: .01,
+    x: .3, z: -.3, yaw: 90 };
+  const crossing = evaluate(state);
+  assert.equal(field(crossing, 'FrotOthersClose').raw, 1);
+  near(field(crossing, 'FrotOthers').raw, 1 - .29 / .6);
+  assert.equal(shape(crossing, 'sender-envelope').type, 'capsule');
+  const above = evaluate({ ...state, y: .101 });
+  assert.equal(field(above, 'FrotOthersClose').raw, 0);
+  assert.equal(field(above, 'FrotOthers').effective, 0);
+  const short = shape(evaluate({ scenario: 'plug-frot', L: .1, W: .07 }), 'receiver-close');
+  near(short.effectiveHeight, .3);
+  assert.deepEqual(plain(short.a), plain(short.b));
+});
+
+test('socket Frot and independent Zone keep their actual sender and gate semantics / Socket摩擦和独立Zone保留真实发送器与门控差异', () => {
+  const socket = evaluate({ scenario: 'socket-frot', z: .1 });
+  near(field(socket, 'FrotOthers').raw, .51);
+  assert.equal(shape(socket, 'receiver-frot').center.z, .05);
+  assert.equal(shape(socket, 'sender-socket-root').radius, .001);
+  assert.equal(field(socket, 'FrotOthers').closeName, null);
+  const zone = evaluate({ scenario: 'zone', senderKind: 'plug', x: 0, z: .05 });
+  assert.equal(zone.values.length, 1);
+  assert.equal(zone.values[0].path, 'VFH/Zone/Touch/Example/Others');
+  assert.equal(zone.values[0].closeName, null);
+  assert.equal(shape(zone, 'sender-envelope').height, .2);
+  assert.equal(shape(zone, 'sender-envelope').radius, .03);
+});
+
+test('SPS fits four known noncoplanar anchors in full local XYZ / SPS由四个已知非共面锚点解局部XYZ', () => {
+  const scene = evaluate({ scenario: 'sensa-sps', x: .2, y: .8, z: -.1 });
+  const expected = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  expected.forEach(([x, y, z], index) => {
+    assert.deepEqual(plain(shape(scene, 'receiver-P' + index).center), { x, y, z });
+    near(field(scene, 'P' + index).raw, 1 - (Math.hypot(.2 - x, .8 - y, -.1 - z) - .001) / 2.5);
+  });
+  assert.equal(scene.values.length, 5);
+  assert.equal(scene.metrics.fitValid, true);
+  assert.equal(scene.metrics.valid, true);
+  near(scene.metrics.position.x, .2); near(scene.metrics.position.y, .8); near(scene.metrics.position.z, -.1);
+  near(scene.metrics.residual, 0);
+  near(scene.metrics.conservativeCoverageRadius, 1.6339745962155614);
+});
+
+test('SPS rejects near-anchor saturation and uncovered cube corners / SPS拒绝近锚点饱和与未共同覆盖的立方体角', () => {
+  const blind = evaluate({ scenario: 'sensa-sps', x: -.5, y: .5, z: -.498 });
+  assert.equal(blind.metrics.fitValid, false);
+  assert.equal(blind.metrics.coverageReason, 'proximity-boundary');
+  assert.equal(blind.metrics.position, null);
+  const corner = evaluate({ scenario: 'sensa-sps', x: 1.5, y: 2.5, z: 1.5 });
+  assert.equal(corner.metrics.fitValid, false);
+  assert.equal(corner.metrics.position, null);
+});
+
+test('Sample validity and changing-value age are distinct from geometric fit / Sample有效性和变化寿命与几何拟合分开', () => {
+  for (const sample of [0, .1, -1, 1.01]) {
+    const scene = evaluate({ scenario: 'sensa-sps', sample });
+    assert.equal(scene.metrics.fitValid, true);
+    assert.equal(scene.metrics.active, false);
+    assert.equal(scene.metrics.position, null);
+    assert.equal(field(scene, 'P0').effective, null);
+  }
+  assert.equal(evaluate({ scenario: 'sensa-sps', ageMs: 1000 }).metrics.valid, true);
+  assert.equal(evaluate({ scenario: 'sensa-sps', ageMs: 1001 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'sensa-sps', timeoutMs: 2000, ageMs: 1250 }).metrics.valid, true);
+  assert.equal(evaluate({ scenario: 'sensa-sps', timeoutMs: 2000, ageMs: 1251 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'sensa-sps', timeoutMs: 200, ageMs: 201 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'sensa-sps', timeoutMs: 0 }).metrics.sampleAgeLimitMs, 1000);
+});
+
+test('Shader has no Contact spheres and preserves range endpoints exactly / Shader无Contact球且保留编码范围端点', () => {
+  const scene = evaluate({ scenario: 'shader', x: 1.5, y: -.5, z: 1.5 });
+  assert.equal(scene.shapes.length, 1);
+  assert.equal(scene.shapes[0].role, 'reference');
+  assert.equal(scene.shapes[0].type, 'box');
+  assert.deepEqual(plain(scene.metrics.quantized), { x: 65535, y: 0, z: 65535 });
+  assert.deepEqual(plain(scene.metrics.decoded), { x: 1.5, y: -.5, z: 1.5 });
+  assert.equal(scene.metrics.quantError.length, 0);
+  assert.equal(scene.metrics.valid, true);
+});
+
+test('Shader quantization bounds, CRC bytes and modulo Frame are illustrative and deterministic / Shader量化界CRC字节和模Frame示意可重复', () => {
+  const scene = evaluate({ scenario: 'shader', frame: 65536 });
+  assert.equal(field(scene, 'Frame').raw, 0);
+  near(scene.metrics.quantizationStep, 3 / 65535);
+  assert.ok(scene.metrics.quantError.length <= scene.metrics.spatialQuantizationBound);
+  const zero = evaluate({ scenario: 'shader', x: -1.5, y: -.5, z: -1.5, frame: 0 });
+  // CRC-16/CCITT-FALSE reference from Python binascii.crc_hqx(payload, 0xffff).
+  // 独立参考值来自 Python 标准库，不复用被测 JS CRC。
+  assert.deepEqual(plain(zero.metrics.bytes), [83, 78, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 194, 133]);
+  assert.equal(evaluate({ scenario: 'shader', frame: 65535 }).metrics.bytes[5], 255);
+});
+
+test('Shader invalidation emits only Valid and does not offer stale coordinates / Shader失效只发布Valid且不提供旧坐标', () => {
+  for (const state of [{ x: 1.501 }, { valid: false }, { ageMs: 501 }]) {
+    const scene = evaluate({ scenario: 'shader', ...state });
+    assert.equal(scene.metrics.valid, false);
+    assert.equal(scene.metrics.position, null);
+    assert.deepEqual(plain(scene.values.filter(v => v.emitted).map(v => [v.name, v.raw])), [['Valid', 0]]);
+  }
+  assert.equal(evaluate({ scenario: 'shader', ageMs: 500 }).metrics.valid, true);
+  assert.equal(evaluate({ scenario: 'shader', timeoutMs: 200, ageMs: 201 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'shader', timeoutMs: 9000 }).metrics.frameAgeLimitMs, 500);
+  assert.equal(evaluate({ scenario: 'shader', x: 2 }).metrics.bytes[3], 2);
+  assert.equal(evaluate({ scenario: 'shader', ageMs: 501 }).metrics.bytes[3], 3);
+});
+
+test('model rejects nonfinite inputs and results do not mutate caller state / 模型拒绝非有限输入且不修改调用方状态', () => {
+  for (const state of [{ x: NaN }, { L: 0 }, { W: -1 }, { D: Infinity }, { senderRadius: -1 }, { scenario: 'invented' }]) {
+    assert.throws(() => evaluate(state), /finite|有限|Unknown|未知/);
+  }
+  const state = { scenario: 'socket-modern', x: .1, z: .3 };
+  const first = evaluate(state); first.shapes[0].center.x = 9; first.points.movingRoot.x = 8;
+  assert.deepEqual(state, { scenario: 'socket-modern', x: .1, z: .3 });
+  assert.equal(evaluate(state).shapes[0].center.x, 0);
+});

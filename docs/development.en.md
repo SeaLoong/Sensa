@@ -22,7 +22,8 @@ The CI scope below assumes **no outstanding product verification**. Ordinary mai
 
 | Change | Necessary local checks | GitHub Actions |
 | --- | --- | --- |
-| Documentation | Bilingual/link/path-privacy/resource contracts | Documentation checks; no E2E or release |
+| Static documentation | Bilingual/link/path-privacy/resource contracts | Documentation checks; no E2E or release |
+| Interactive parameter guide (HTML/CSS/JS) | Web contracts/build and documentation checks | Full E2E/screenshot comparison; guide-only changes do not publish |
 | Web unit tests | Web lint, interface contracts, build | Web checks; no release |
 | Backend unit tests | Backend contracts | Backend checks; no release |
 | E2E/baselines | Relevant static/unit checks | Necessary full screenshot comparison; no product release |

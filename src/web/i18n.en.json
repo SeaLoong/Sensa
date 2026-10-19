@@ -868,5 +868,6 @@
   "Haptics 能力标记，用于软件识别；不是距离或输出强度。": "A haptics capability marker for software detection, not distance or output intensity.",
   "诊断参数仅用于传输检查，不生成坐标映射。": "Diagnostic parameters only check transport; no coordinate mapping is created.",
   "SPS 采样停用或活动计数无效／冻结 / SPS sampling is inactive or its counter is invalid/frozen": "SPS sampling is inactive or its counter is invalid/frozen",
-  "需要完整 P0–P3 采样 / Complete P0–P3 samples are required": "Complete P0–P3 samples are required"
+  "需要完整 P0–P3 采样 / Complete P0–P3 samples are required": "Complete P0–P3 samples are required",
+  "交互参数图解": "Interactive parameter guide"
 }

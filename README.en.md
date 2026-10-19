@@ -6,7 +6,7 @@
 
 Convert Manual, VRChat OSC or funscript input into Intiface/TCode targets. The browser workbench has **Control, OSC and Settings**, with details expanded when needed.
 
-[Download previews](https://github.com/SeaLoong/Sensa/releases) · [Quick start](docs/quick-start.en.md) · [User guide](docs/guide.en.md) · [Three mapping presets](docs/presets.en.md)
+[Download previews](https://github.com/SeaLoong/Sensa/releases) · [Quick start](docs/quick-start.en.md) · [User guide](docs/guide.en.md) · [Three mapping presets](docs/presets.en.md) · [Interactive parameter diagram](docs/parameter-geometry.html?lang=en-US)
 
 ## Start
 

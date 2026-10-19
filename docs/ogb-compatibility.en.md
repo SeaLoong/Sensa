@@ -6,6 +6,8 @@ OGB is an application and an external haptics parameter convention. SPS supplies
 
 Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads Root/Tip and legacy proximity: “old OGB has one trigger” is not a reliable version distinction. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
+The [interactive parameter guide](parameter-geometry.html?lang=en-US) shows these receiver spheres, Close capsules and readings. Open it offline from a release archive; the object outlines are visual references, not actual meshes.
+
 ## Radius and values first
 
 Paths omit `/avatar/parameters/`. Orf means Socket; Pen means Plug. Their root centres are the origins, with +Z pointing forward in the author's frame. Self/Others select this or other Avatars, rather than one person's identity.
@@ -75,7 +77,7 @@ These are detection volumes, not additional OSC position outputs:
 | Socket Root | Root-centred sphere r=0.001 m; includes TPS_Orf_Root | Plug PenSelf/PenOthers and Socket FrotOthers |
 | Socket Front | +0.01·Z, sphere r=0.001 m; TPS_Orf_Norm etc. | Upstream direction aid, without an OGB Angle output |
 
-For example, Plug/PenOthers starts contact at approximately L+0.001 m centre distance, rather than exactly L. Modern NewRoot/NewTip observe concentric spheres: rotating their axis does not change centre distance, so they cannot determine angle, tip or roll. [Plug Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108), [Socket Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+For example, Plug/PenOthers starts contact at approximately L+0.001 m centre distance, rather than exactly L. In the geometry illustration, legacy Socket PenOthers must pair with the root-centred Length sphere r=L (TPS_Pen_Penetrating), rather than the r=0.01 Root sphere. Modern NewRoot/NewTip observe concentric spheres: rotating their axis does not change centre distance, so they cannot determine angle, tip or roll. [Plug Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108), [Socket Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
 
 ## Other real parameters and unsupported names
 

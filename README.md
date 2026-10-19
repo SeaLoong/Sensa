@@ -6,7 +6,7 @@
 
 把手动、VRChat OSC 或 funscript 转换为 Intiface／TCode 设备目标。浏览器工作台分为**控制、OSC、设置**，详细配置按需展开。
 
-[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [三项映射预设](docs/presets.md)
+[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [三项映射预设](docs/presets.md) · [交互参数图示](docs/parameter-geometry.html?lang=zh-CN)
 
 ## 启动
 

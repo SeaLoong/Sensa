@@ -12,6 +12,12 @@ import io
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIMES = ('win-x64','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
+PARAMETER_GEOMETRY_ASSETS = (
+    'docs/parameter-geometry.html',
+    'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-view.js',
+    'docs/assets/parameter-geometry-style.css',
+)
 
 def validate_unity():
     root = ROOT / 'unity/top.sealoong.sensa'
@@ -94,6 +100,10 @@ def main():
         executable='Sensa.exe' if args.runtime.startswith('win-') else 'Sensa'
         if not (source / executable).is_file() or not (source / 'web/app.bundle.js').is_file():
             raise ValueError('Application output is incomplete / 程序输出不完整')
+        for relative in PARAMETER_GEOMETRY_ASSETS:
+            published = source / 'web' / relative
+            if not published.is_file() or published.read_bytes() != (ROOT / relative).read_bytes():
+                raise ValueError('Published interactive document is missing or stale / 发布目录的交互文档缺失或过期: ' + relative)
         for name in ('README.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
         # Keep the README's relative documentation links usable in the desktop archive.
@@ -119,6 +129,12 @@ def main():
                 if not path.is_file() or path.suffix.lower() not in ('.md', '.png', '.jpg', '.jpeg'):
                     continue
                 destination=source/path.relative_to(ROOT);destination.parent.mkdir(parents=True,exist_ok=True);destination.write_bytes(path.read_bytes())
+        # Keep this executable-document allowlist narrow and preserve offline relative paths.
+        # 仅复制明确允许的交互文档，保留离线相对路径。
+        for relative in PARAMETER_GEOMETRY_ASSETS:
+            destination = source / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((ROOT / relative).read_bytes())
         (source/'BUILD-INFO.json').write_text(json.dumps({'version':version,'runtime':args.runtime,'label':args.label,'commit':os.environ.get('GITHUB_SHA','')},indent=2)+'\n',encoding='utf-8')
     suffix='zip' if args.kind=='unity' or args.runtime.startswith('win-') else 'tar.gz'
     name = f'top.sealoong.sensa-{archive_version}.zip' if args.kind == 'unity' else f'Sensa-{archive_version}-{args.runtime}.{suffix}'

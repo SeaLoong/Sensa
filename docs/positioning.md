@@ -4,6 +4,8 @@
 
 Sensa SPS 测量自己选定 Socket／Plug 根中心的 **AvatarRootLocal** 坐标。四个固定接收器和专用小球共用 Avatar 根尺度；坐标不是世界运动、设备回读或 GPU 形变表面。只支持当前五字段契约，不读取、转换或回退任何旧 Sensa SPS 数据。[使用方案](usage-scenarios.md)
 
+用[交互参数图示](parameter-geometry.html?lang=zh-CN)移动根点，查看四路近接量、局部坐标与饱和边界。它是模型演示，不是客户端测量结果。
+
 ## 每对象测量契约
 
 ```text

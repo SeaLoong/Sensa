@@ -3,6 +3,7 @@
 """
 import ast
 import hashlib
+from html.parser import HTMLParser
 import importlib.util
 import io
 import json
@@ -15,6 +16,8 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import urllib.error
+from urllib.parse import unquote, urlsplit
+import xml.etree.ElementTree as ET
 import zipfile
 
 from test_bilingual_docs import relative_links
@@ -61,9 +64,17 @@ class ArchiveWorkspace(unittest.TestCase):
                 patch('sys.argv', ['release.py', kind, '--output', str(self.output), *arguments]):
             release.main()
 
-    def app(self, runtime='win-x64'):
+    def prepare_app(self, runtime='win-x64'):
         (self.source / ('Sensa.exe' if runtime.startswith('win-') else 'Sensa')).write_bytes(b'fixture apphost')
         (self.source / 'web/app.bundle.js').write_text('fixture bundle', encoding='utf-8')
+        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
+                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+            destination = self.source / 'web' / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes((self.repository / relative).read_bytes())
+
+    def app(self, runtime='win-x64'):
+        self.prepare_app(runtime)
         self.package('app', '--tag', 'v' + self.version, '--runtime', runtime, '--source', str(self.source))
         archive = next(path for path in self.output.iterdir() if path.name.endswith(('.zip', '.tar.gz')))
         if archive.name.endswith('.zip'):
@@ -125,6 +136,86 @@ class DesktopArchiveContracts(ArchiveWorkspace):
                     local = 'scripts/' + module.split('.')[0] + '.py'
                     if (ROOT / local).is_file():
                         self.assertIn(local, files, f'{name} needs local module / 需要本地模块: {local}')
+
+    def test_interactive_geometry_assets_keep_offline_references_without_packaging_arbitrary_code(self):
+        required = (
+            'docs/parameter-geometry.html',
+            'docs/assets/parameter-geometry-model.js',
+            'docs/assets/parameter-geometry-view.js',
+            'docs/assets/parameter-geometry-style.css',
+        )
+        unrelated = ('docs/unrelated.html', 'docs/assets/unrelated.js', 'docs/assets/unrelated.css')
+        for name in unrelated:
+            path = self.repository / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text('unrelated executable documentation', encoding='utf-8')
+        _, files = self.app()
+        for name in required:
+            with self.subTest(asset=name):
+                self.assertEqual(files[name], (self.repository / name).read_bytes())
+                self.assertEqual(files['web/' + name], files[name])
+        for name in unrelated:
+            self.assertNotIn(name, files)
+
+        references = []
+        class References(HTMLParser):
+            def handle_starttag(self, tag, attrs):
+                references.extend(value for key, value in attrs if key in ('href', 'src') and value)
+        References().feed(files[required[0]].decode('utf-8'))
+        resolved = set()
+        for reference in references:
+            location = urlsplit(reference)
+            if location.scheme or location.netloc or not location.path:
+                continue
+            target = os.path.normpath(str(PurePosixPath('docs') / unquote(location.path))).replace('\\', '/')
+            self.assertIn(target, files, f'Offline HTML reference missing / 离线 HTML 引用缺失: {reference}')
+            resolved.add(target)
+        self.assertTrue(set(required[1:]).issubset(resolved), 'The HTML must load all three local assets / HTML 必须加载三个本地资源')
+
+    def test_missing_published_interactive_assets_are_rejected_before_creating_an_archive(self):
+        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
+                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+            with self.subTest(asset=relative):
+                self.prepare_app()
+                (self.source / 'web' / relative).unlink()
+                with self.assertRaisesRegex(ValueError, 'interactive document is missing or stale'):
+                    self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+                self.assertFalse(any(self.output.glob('*.zip')))
+                self.assertFalse((self.output / 'SHA256SUMS.txt').exists())
+
+    def test_stale_published_interactive_assets_are_rejected_before_creating_an_archive(self):
+        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
+                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+            with self.subTest(asset=relative):
+                self.prepare_app()
+                published = self.source / 'web' / relative
+                published.write_bytes(published.read_bytes() + b'\nstale publish fixture')
+                with self.assertRaisesRegex(ValueError, 'interactive document is missing or stale'):
+                    self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+                self.assertFalse(any(self.output.glob('*.zip')))
+                self.assertFalse((self.output / 'SHA256SUMS.txt').exists())
+
+    def test_interactive_geometry_publish_items_preserve_the_static_web_paths(self):
+        required = {
+            '../docs/parameter-geometry.html': 'web/docs/parameter-geometry.html',
+            '../docs/assets/parameter-geometry-model.js': 'web/docs/assets/parameter-geometry-model.js',
+            '../docs/assets/parameter-geometry-view.js': 'web/docs/assets/parameter-geometry-view.js',
+            '../docs/assets/parameter-geometry-style.css': 'web/docs/assets/parameter-geometry-style.css',
+        }
+        published = {}
+        for item in ET.parse(ROOT / 'src/Sensa.csproj').getroot().iter('Content'):
+            for source in item.get('Include', '').replace('\\', '/').split(';'):
+                if not source.startswith('../docs/'):
+                    continue
+                self.assertNotIn('*', source, 'Executable docs use an exact asset list / 交互文档使用精确资源列表')
+                name = PurePosixPath(source).name
+                extension = PurePosixPath(source).suffix
+                target = item.get('Link', '').replace('\\', '/').replace('%(Filename)', name[:-len(extension)]).replace('%(Extension)', extension)
+                self.assertEqual(item.get('CopyToOutputDirectory'), 'PreserveNewest')
+                self.assertEqual(item.get('CopyToPublishDirectory'), 'PreserveNewest')
+                self.assertEqual(item.get('ExcludeFromSingleFile'), 'true')
+                published[source] = target
+        self.assertEqual(published, required)
 
     def test_packaged_public_documentation_links_work_without_a_source_checkout(self):
         _, files = self.app()

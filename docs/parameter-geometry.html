@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file:; style-src 'self' file:; img-src 'self' file: data:; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Sensa · 参数几何图解 / Parameter geometry</title>
+  <link rel="stylesheet" href="assets/parameter-geometry-style.css">
+  <script defer src="assets/parameter-geometry-model.js"></script>
+  <script defer src="assets/parameter-geometry-view.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <a class="brand" href="osc-parameters.md">Sensa<span data-i18n="brand">参数图解</span></a>
+    <div class="header-tools">
+      <span class="model-tag" data-i18n="modelTag">离线几何模型</span>
+      <label class="language"><span class="sr-only" data-i18n="language">语言</span><select id="locale" aria-label="语言 / Language"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label>
+    </div>
+  </header>
+  <main>
+    <section class="intro">
+      <p class="eyebrow">OGB · SPS · SHADER</p>
+      <h1 data-i18n="title">看见参数背后的形状</h1>
+      <p data-i18n="intro">移动图中的橙色对象，观察接收球、Sender 与参数值。图形与数值来自同一几何模型，不连接 OSC 或设备。</p>
+    </section>
+    <section class="scene-toolbar" aria-label="场景 / Scenario">
+      <label class="scene-picker"><span data-i18n="scenario">测量场景</span>
+        <select id="scene">
+          <optgroup label="OGB / SPS">
+            <option value="socket-modern" data-i18n="socket-modern">Socket · 现代 Root / Tip</option>
+            <option value="socket-legacy" data-i18n="socket-legacy">Socket · 旧近接与 Close</option>
+            <option value="plug-depth" data-i18n="plug-depth">Plug · PenOthers</option>
+            <option value="socket-touch" data-i18n="socket-touch">Socket · Touch / Close</option>
+            <option value="plug-touch" data-i18n="plug-touch">Plug · Touch / Close</option>
+            <option value="socket-frot" data-i18n="socket-frot">Socket · FrotOthers</option>
+            <option value="plug-frot" data-i18n="plug-frot">Plug · Frot / Close</option>
+            <option value="zone" data-i18n="zone">独立 Touch Zone</option>
+          </optgroup>
+          <optgroup label="Sensa">
+            <option value="sensa-sps" data-i18n="sensa-sps">Sensa SPS · 固定 P0–P3</option>
+            <option value="shader" data-i18n="shader">Shader · 坐标与编码</option>
+          </optgroup>
+        </select>
+      </label>
+      <label class="projection-picker"><span data-i18n="projection">投影</span><select id="projection"><option value="xz" data-i18n="xz">XZ 平面投影</option><option value="iso" data-i18n="iso">立体投影</option></select></label>
+      <button id="reset" type="button" data-i18n="reset">复位</button>
+    </section>
+    <section class="workbench" id="workbench">
+      <div class="drawing-panel">
+        <div class="figure-heading"><div><h2 id="scene-title">Socket · 现代 Root / Tip</h2><p id="scene-summary"></p></div><span id="validity" class="status"></span></div>
+        <figure id="figure">
+          <svg id="diagram" viewBox="0 0 960 570" role="group" aria-labelledby="diagram-title diagram-description">
+            <title id="diagram-title">参数几何</title><desc id="diagram-description">接收球、Sender 和移动对象的几何示意。</desc>
+          </svg>
+          <figcaption id="projection-note"></figcaption>
+        </figure>
+        <div class="legend" id="legend">
+          <label><input id="show-receivers" type="checkbox" checked><span class="key receiver-key"></span><span data-i18n="receivers">接收范围</span></label>
+          <label><input id="show-senders" type="checkbox" checked><span class="key sender-key"></span><span data-i18n="senders">Sender 范围</span></label>
+          <label><input id="show-reference" type="checkbox" checked><span class="key reference-key"></span><span data-i18n="reference">实体外形示意</span></label>
+          <label><input id="show-dimensions" type="checkbox" checked><span data-i18n="dimensions">半径与尺寸</span></label>
+          <label class="zoom-label"><span data-i18n="zoom">缩放</span><input id="zoom" type="range" min="0.6" max="2.4" step="0.1" value="1" aria-label="缩放 / Zoom"></label>
+        </div>
+      </div>
+      <aside class="readout-panel" aria-labelledby="readout-title">
+        <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">参数读数</h2><span class="caption" data-i18n="simulated">几何模拟值</span></div>
+        <p id="path-prefix" class="code path"></p>
+        <p class="caption" data-i18n="rowHint">选择一行，突出显示对应的接收器与 Sender。</p>
+        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">参数</th><th data-i18n="raw">原始值</th><th data-i18n="effective">门控后</th></tr></thead><tbody id="values"></tbody></table></div>
+        <div class="metric-list" id="metrics"></div>
+        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">16 × 8 位编码示意</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 160" role="img" aria-label="编码位 / Encoded bits"></svg></div>
+        <p class="explanation" id="explanation"></p>
+      </aside>
+    </section>
+    <section class="controls-panel" aria-labelledby="controls-title">
+      <div class="controls-heading"><h2 id="controls-title" data-i18n="controls">调整几何</h2><p class="caption" data-i18n="dragHint">可拖动橙色中心点；Y 高度由滑条单独控制。方向键也能移动。</p></div>
+      <div class="control-grid">
+        <label class="control" data-control="x"><span data-i18n="x">移动对象 · X</span><output for="control-x"></output><input id="control-x" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
+        <label class="control" data-control="y"><span data-i18n="y">移动对象 · Y</span><output for="control-y"></output><input id="control-y" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
+        <label class="control" data-control="z"><span data-i18n="z">移动对象 · Z</span><output for="control-z"></output><input id="control-z" type="range" min="-0.4" max="1.2" step="0.01" value="0.2"></label>
+        <label class="control" data-control="L"><span data-i18n="length">Plug 长度 L</span><output for="control-L"></output><input id="control-L" type="range" min="0.05" max="0.6" step="0.01" value="0.2"></label>
+        <label class="control" data-control="W"><span data-i18n="width">Plug 半径 W</span><output for="control-W"></output><input id="control-W" type="range" min="0.005" max="0.1" step="0.005" value="0.03"></label>
+        <label class="control" data-control="D"><span data-i18n="depth">Socket 触摸区 D</span><output for="control-D"></output><input id="control-D" type="range" min="0.05" max="0.4" step="0.01" value="0.15"></label>
+        <label class="control" data-control="yaw"><span data-i18n="yaw">Plug 绕根旋转</span><output for="control-yaw"></output><input id="control-yaw" type="range" min="-90" max="90" step="5" value="0"></label>
+        <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">身体 Sender 半径</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
+        <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone 半径</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
+        <label class="control" data-control="sample"><span data-i18n="sample">Sample 计数步</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
+        <label class="control" data-control="ageMs"><span data-i18n="ageMs">距上次变化时间</span><output for="control-ageMs"></output><input id="control-ageMs" type="range" min="0" max="1600" step="50" value="0"></label>
+        <label class="control" data-control="frame"><span data-i18n="frame">编码序号 Frame</span><output for="control-frame"></output><input id="control-frame" type="range" min="0" max="65535" step="1" value="123"></label>
+        <label class="control toggle-control" data-control="valid"><span data-i18n="valid">生产端允许发布</span><input id="control-valid" type="checkbox" checked></label>
+      </div>
+      <p class="caption" id="unit-note"></p>
+    </section>
+    <section class="reading-notes">
+      <div><h2 data-i18n="formulaTitle">读图时记住</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
+      <div><h2 data-i18n="meaningTitle">这些量不等价</h2><p data-i18n="meaning">近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact，灰色外形仅帮助辨认 Socket 与 Plug。</p><p class="caption" data-i18n="sourceNote">尺寸依据固定版本上游源码及 Sensa 当前契约；模型不推断运行时缩放、多个 Sender 或真实客户端行为。</p></div>
+    </section>
+    <footer><a id="reference-link" href="osc-parameters.md" data-i18n="dictionary">参数字典</a><a id="ogb-link" href="ogb-compatibility.md" data-i18n="ogbSources">OGB 几何与来源</a><a id="position-link" href="positioning.md" data-i18n="positioning">SPS 定位原理</a><span data-i18n="offline">无外部图表库 · 无网络连接</span></footer>
+    <noscript><p>需要启用 JavaScript 才能操作图示。静态说明见 <a href="osc-parameters.md">参数字典</a>。 / Enable JavaScript for the interactive diagrams, or read the <a href="osc-parameters.en.md">parameter reference</a>.</p></noscript>
+  </main>
+</body>
+</html>

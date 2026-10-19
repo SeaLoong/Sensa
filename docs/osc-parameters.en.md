@@ -4,6 +4,14 @@
 
 This page explains the public parameters, validity conditions and measurement limits. See the [guide](guide.en.md) for operation, [OGB compatibility](ogb-compatibility.en.md) for the complete upstream parameter tables, and [positioning](positioning.en.md) for the model. Paths below omit the common `/avatar/parameters/` prefix. Names are case sensitive; `<id>` identifies an instance.
 
+Use the [interactive parameter diagram](parameter-geometry.html?lang=en-US) to adjust geometry and compare parameter changes with measurement limits. Open it offline from the extracted desktop archive; it demonstrates the model.
+
+In Sensa, select “Interactive parameter guide” in a parameter's details, or extract a desktop archive and open `docs/parameter-geometry.html`, keeping the adjacent `docs/assets/` folder. GitHub displays HTML source rather than hosting the interactive page.
+
+- Grey outlines identify Socket/Plug references, blue indicates Receivers, and orange indicates Senders. Select a parameter row to highlight its detection shapes; the object outlines do not affect calculations.
+- Drag the orange root or adjust XYZ, length and radius to compare raw proximity with Close gating. XZ drawings still calculate full XYZ distances; the 3D projection helps distinguish four noncoplanar anchors.
+- In SPS, change Sample and its age to distinguish a geometric fit from valid sampling. Shader shows range, quantization and a 16×8 bit grid; invalid readings offer no valid coordinates. The diagrams connect to no OSC stream, GPU capture or device.
+
 ## Choose the information you need
 
 | Parameter family | Information provided | Information it cannot establish |
