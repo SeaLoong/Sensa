@@ -50,6 +50,12 @@ def main():
         configuration['signals'] = []
         api('/api/config', configuration)
         assert not api('/api/state/overview')['runtime']['inputActive'], '诊断回放必须保持输入关闭。 / Diagnostic replay must keep input disarmed.'
+        # Enabling OSC in configuration does not select the actual input mode. / 开启 OSC 配置不等于选择实际输入方式。
+        api('/api/input/mode', {'mode': 'Osc'})
+        listening = wait_for_state(lambda: api('/api/state/overview'),
+                                   lambda state: state['input']['mode'] == 'osc' and state['osc']['listening'],
+                                   'OSC 接收未就绪。 / OSC receiver is not ready.', timeout=3)
+        assert not listening['runtime']['inputActive'], '选择 OSC 不能启用输入。 / Selecting OSC must not arm input.'
         prefix = 'Sensa/Shader/v1/0/'
         bridge=session.start_child([sys.executable,str(Path(__file__).with_name('shader-osc-bridge.py')),'--image',str(current),'--port',str(osc),'--watch','--duration','12','--timeout','.8'],stdout=subprocess.DEVNULL,stderr=subprocess.PIPE)
         def preview():return {x['path']:x['numericValue'] for x in api('/api/state/overview')['osc']['preview']}

@@ -9,7 +9,7 @@ from pathlib import Path
 import subprocess
 import sys
 import unittest
-from unittest.mock import Mock, patch
+from unittest.mock import MagicMock, Mock, patch
 
 from lab_contract_fixtures import LabFixture, load_script
 
@@ -214,6 +214,58 @@ class WaitForObservedStateContracts(unittest.TestCase):
         with self.assertRaises(ConnectionError):
             support.wait_for_state(fetch, lambda state: True, 'expected input')
         fetch.assert_called_once()
+
+
+class ShaderDiagnosticSetupContracts(LabFixture):
+    def test_shader_cli_selects_osc_and_observes_listener_before_bridge_without_activating_input(self):
+        class SetupReached(Exception):
+            pass
+
+        fixture_root = Path(__file__).resolve().parents[2] / 'tests/fixtures/shader'
+        state = {'mode': 'manual', 'listening': False, 'inputActive': False, 'outputs': [], 'polls': 0}
+        configuration = {'outputs': [], 'signals': []}
+        session = Mock(root=self.root, osc_port=19091)
+
+        def api(path, body=None, *, method=None):
+            if path == '/api/config':
+                if body is not None:
+                    self.assertEqual(body['outputs'], [], 'Diagnostic setup must not configure devices')
+                    configuration.update(body)
+                return configuration
+            if path == '/api/input/mode':
+                self.assertEqual((method or 'PUT'), 'PUT')
+                self.assertEqual(body, {'mode': 'Osc'})
+                state['mode'], state['listening'], state['polls'] = 'osc', False, 0
+                return {}
+            if path == '/api/state/overview':
+                if state['mode'] == 'osc':
+                    state['polls'] += 1
+                    state['listening'] = state['polls'] >= 2
+                return {'input': {'mode': state['mode']}, 'osc': {'listening': state['listening']},
+                        'runtime': {'inputActive': state['inputActive']}}
+            self.fail('Unexpected setup operation / 非预期的准备操作: ' + path)
+
+        def launch(command, **options):
+            self.assertEqual(state['mode'], 'osc', 'The current Manual mode has no OSC listener')
+            self.assertTrue(state['listening'], 'Wait for observed listening; mode selection alone is insufficient')
+            self.assertFalse(state['inputActive'])
+            self.assertEqual(configuration['outputs'], [])
+            self.assertEqual(configuration['signals'], [])
+            self.assertIn('--image', command)
+            self.assertIn('--port', command)
+            raise SetupReached()
+
+        session.api.side_effect = api
+        session.start_child.side_effect = launch
+        context = MagicMock()
+        context.__enter__.return_value = session
+        argv = [shader_smoke.__file__, '--exe', 'unused', '--first', str(fixture_root / 'sps-telemetry.png'),
+                '--next', str(fixture_root / 'sps-telemetry-next.png'), '--report', str(self.root / 'report.json')]
+        with patch.object(shader_smoke, 'require_ci'), patch.object(shader_smoke, 'SmokeSession', return_value=context), \
+                patch.object(sys, 'argv', argv), self.assertRaises(SetupReached):
+            shader_smoke.main()
+        self.assertEqual(session.start_child.call_count, 1)
+        self.assertGreaterEqual(state['polls'], 2)
 
 
 class SmokeCiPolicyContracts(unittest.TestCase):
