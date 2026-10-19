@@ -3,7 +3,22 @@ import assert from 'node:assert/strict';
 import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
 import { editConfiguration, buildSignalDrafts } from '../../src/web/configuration.js';
-import { computeSignalPreviewOutput } from '../../src/web/osc-workspace.js';
+import { computeSignalPreviewOutput, formatPreviewTimestamp } from '../../src/web/osc-workspace.js';
+import { getLocale, setLocale } from '../../src/web/i18n.js';
+
+test('OSC times keep a complete fixed-width 24-hour shape across locales / OSC 时间在双语中保持完整定长24小时格式', () => {
+  const previous = getLocale();
+  try {
+    for (const locale of ['zh-CN', 'en-US']) {
+      setLocale(locale);
+      for (const [hour, minute, second, expected] of [[0, 0, 0, '00:00:00'], [8, 11, 11, '08:11:11'], [18, 22, 22, '18:22:22'], [23, 59, 59, '23:59:59']]) {
+        assert.equal(formatPreviewTimestamp(new Date(2026, 9, 19, hour, minute, second).getTime()), expected);
+      }
+      assert.equal(formatPreviewTimestamp(0), '—');
+      assert.equal(formatPreviewTimestamp(NaN), '—');
+    }
+  } finally { setLocale(previous); }
+});
 
 const point = (z, options = {}) => ({ key: 'point', prefix: 'Sensa/Handle/v1/LabHandle/Self', sourceKey: 'local', kind: 'Handle', valid: true, position: { x: .02, y: 0, z }, sampleCount: 4, ...options });
 const quick = [{ oscPath: 'CI/Depth', role: 'Depth' }, { oscPath: 'CI/Active', role: 'GateEnable' }];

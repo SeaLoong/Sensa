@@ -92,7 +92,7 @@ test('manual controls reach every transport, record, stop and never auto-resume'
   expect(rig.wire.udp.length).toBe(count); expect(rig.intifaceState.stopped).toBe(true);
 });
 
-test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate stop', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }) => {
+test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate stop', { tag: ['@osc','@transport','@visual'] }, async ({ page, rig }, info) => {
   await enable(page, ['Mock UDP','Mock TCP']); await mode(page, 'OSC'); await active(page);
   await rig.send([...Array.from({ length: 30 }, (_, i) => ['FT/Unlisted' + i, .7]), ...Array.from({ length: 30 }, (_, i) => ['v2/Unlisted' + i, .7]), ['Custom/Face/JawOpen', .2]]);
   for (const [depth,target] of [[0,400],[.25,450],[.5,500],[.75,550],[1,600]]) {
@@ -106,6 +106,30 @@ test('OSC scalar steps, literal FT prefix filtering, parameter preview and gate 
   await page.getByRole('checkbox', { name: '显示 FT 参数', exact: true }).check();
   for (const path of ['FT/Unlisted0','v2/Unlisted0']) await expect(page.getByRole('button', { name: path, exact: true })).toBeVisible();
   await page.getByRole('checkbox', { name: '显示 FT 参数', exact: true }).uncheck();
+  // Exercise real column layout with varied time digits, then restore live values before capture.
+  // 用不同时间数字检查真实列布局，截图前恢复实时值。
+  await expect(page.locator('.parameter-table tbody tr')).toHaveCount(3);
+  const columns = await page.locator('.parameter-table').evaluate(table => {
+    const cells = [...table.querySelectorAll('[data-testid="osc-timestamp"]')];
+    const original = cells.map(cell => cell.textContent);
+    try {
+      return ['08:11:11', '08:00:00', '18:22:22', '23:59:59'].map(time => {
+        cells.forEach(cell => { cell.textContent = time; });
+        return { time, count: cells.length, bounds: [...table.querySelectorAll('th')].map(cell => {
+          const rect = cell.getBoundingClientRect(); return { left: rect.left, width: rect.width };
+        }) };
+      });
+    } finally { cells.forEach((cell, index) => { cell.textContent = original[index]; }); }
+  });
+  for (const sample of columns) {
+    expect(sample.count).toBe(3);
+    expect(sample.bounds).toHaveLength(6);
+    sample.bounds.forEach((bounds, index) => {
+      expect(Math.abs(bounds.left - columns[0].bounds[index].left)).toBeLessThanOrEqual(.1);
+      expect(Math.abs(bounds.width - columns[0].bounds[index].width)).toBeLessThanOrEqual(.1);
+    });
+  }
+  await info.attach('osc-time-columns.json', { body: JSON.stringify(columns), contentType: 'application/json' });
   await checkpoint(page, page.locator('.table-scroll'), 'osc-parameters');
   await rig.send([['CI/Active',0]]);
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');

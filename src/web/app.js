@@ -2050,7 +2050,7 @@ function App() {
                   </td>
                   <td className="mono parameter-value">{entry.value ?? '—'}</td>
                   <td className="caption">{entry.sourceLabel || '—'}</td>
-                  <td data-testid="osc-timestamp" className="caption">
+                  <td data-testid="osc-timestamp" className="caption mono parameter-time">
                     {formatPreviewTimestamp(entry.timestampMs)}
                   </td>
                   <td>

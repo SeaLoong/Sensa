@@ -15,7 +15,7 @@ function formatPreviewTimestamp(timestampMs) {
   if (!timestampMs) return '—';
   const value = new Date(timestampMs);
   if (Number.isNaN(value.getTime())) return '—';
-  return value.toLocaleTimeString(getLocale());
+  return value.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
 }
 
 function applySignalCurve(value, curve) {
