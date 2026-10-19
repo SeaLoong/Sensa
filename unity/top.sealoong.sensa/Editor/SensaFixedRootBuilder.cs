@@ -153,18 +153,21 @@ namespace UnityBox.Sensa
             var off = State("Invalid scale or inactive", false, 0); machine.defaultState = off;
             var samples = Enumerable.Range(0, SensaFixedAnchorProtocol.HeartbeatSteps)
                 .Select(i => State("Sample " + i, true, (float)i / (SensaFixedAnchorProtocol.HeartbeatSteps - 1))).ToArray();
+            const float minimum = .000001f;
             float maximum = SensaFixedAnchorProtocol.MaximumScaleFactor(avatar.transform.lossyScale.x);
             void Valid(AnimatorStateTransition t)
             {
                 t.duration = 0; t.AddCondition(AnimatorConditionMode.If, 0, "IsLocal");
-                t.AddCondition(AnimatorConditionMode.Greater, 0, "ScaleFactor");
+                t.AddCondition(AnimatorConditionMode.Greater, minimum, "ScaleFactor");
                 t.AddCondition(AnimatorConditionMode.Less, maximum, "ScaleFactor");
                 if (selector != null) t.AddCondition(AnimatorConditionMode.Equals, slot, selector);
             }
             var start = off.AddTransition(samples[0]); start.hasExitTime = false; Valid(start);
             for (int i = 0; i < samples.Length; i++)
             {
-                var t = samples[i].AddTransition(samples[(i + 1) % samples.Length]); t.hasExitTime = true; t.exitTime = 1; Valid(t);
+                // AnyState invalid guards remain active at every step; exact safe boundaries must not freeze the heartbeat.
+                // AnyState 失效守卫持续生效；恰在安全边界时不能冻结心跳。
+                var t = samples[i].AddTransition(samples[(i + 1) % samples.Length]); t.hasExitTime = true; t.exitTime = 1; t.duration = 0;
             }
             void Invalid(AnimatorConditionMode mode, float value, string parameter)
             {
@@ -172,8 +175,8 @@ namespace UnityBox.Sensa
                 t.AddCondition(mode, value, parameter);
             }
             Invalid(AnimatorConditionMode.IfNot, 0, "IsLocal");
-            Invalid(AnimatorConditionMode.Less, .000001f, "ScaleFactor");
-            Invalid(AnimatorConditionMode.Greater, maximum - .000001f, "ScaleFactor");
+            Invalid(AnimatorConditionMode.Less, minimum, "ScaleFactor");
+            Invalid(AnimatorConditionMode.Greater, maximum, "ScaleFactor");
             if (selector != null) Invalid(AnimatorConditionMode.NotEqual, slot, selector);
             var merge = host.AddComponent<ModularAvatarMergeAnimator>(); merge.animator = controller;
             merge.layerType = VRCAvatarDescriptor.AnimLayerType.FX; merge.pathMode = MergeAnimatorPathMode.Absolute; merge.matchAvatarWriteDefaults = false;

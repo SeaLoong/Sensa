@@ -90,6 +90,37 @@ namespace UnityBox.Sensa.Tests
             ((AnimationClip)machine.defaultState.motion).SampleAnimation(avatar, 0); Assert.IsFalse(contacts.activeSelf);
             Assert.AreEqual(0, machine.defaultState.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Single(p => p.name == prefix + "/Valid").value);
         }
+        [Test] public void ScaleGuardEntryAndExitConditionsNeverOverlapAtFormerBoundaryBands()
+        {
+            var machine = Controller(Build(Target())).layers[0].stateMachine;
+            var entry = machine.defaultState.transitions.Single();
+            var exits = machine.anyStateTransitions.Where(t => t.conditions.All(c => c.parameter == "ScaleFactor")).ToArray();
+            bool ScaleCondition(AnimatorCondition condition, float scale) => condition.mode == AnimatorConditionMode.Greater
+                ? scale > condition.threshold : condition.mode == AnimatorConditionMode.Less && scale < condition.threshold;
+            bool Enters(float scale) => entry.conditions.Where(c => c.parameter == "ScaleFactor").All(c => ScaleCondition(c, scale));
+            bool Exits(float scale) => exits.Any(t => t.conditions.All(c => ScaleCondition(c, scale)));
+            var formerUpperOverlap = 1.1995995044708252f;
+            Assert.IsTrue(Enters(formerUpperOverlap), "The still-supported upper-band value should enter. / 上限内合法值应能进入。");
+            Assert.IsFalse(Exits(formerUpperOverlap), "A supported value must not exit at the same time. / 合法值不能同时触发退出。");
+            Assert.IsFalse(Enters(.0000005f), "Sub-minimum scale must not re-enter. / 低于下限不得反复进入。");
+            Assert.IsTrue(Exits(.0000005f));
+            float maximum = SensaFixedAnchorProtocol.MaximumScaleFactor(1);
+            foreach (float scale in new[] { 0f, .0000005f, .000001f, .5f, 1f, formerUpperOverlap, maximum, maximum + .000001f, 1.3f })
+                Assert.IsFalse(Enters(scale) && Exits(scale), "Contradictory scale transitions: " + scale);
+            Assert.IsFalse(Enters(.000001f)); Assert.IsFalse(Exits(.000001f));
+            Assert.IsFalse(Enters(maximum)); Assert.IsFalse(Exits(maximum));
+            // Existing samples must keep committing at exact boundaries; AnyState guards own invalidation.
+            // 已激活采样在精确边界仍持续提交，失效由 AnyState 守卫处理。
+            foreach (var sample in machine.states.Select(s => s.state).Where(s => s != machine.defaultState))
+            {
+                var cycle = sample.transitions.Single();
+                Assert.IsTrue(cycle.hasExitTime); Assert.AreEqual(1, cycle.exitTime); Assert.AreEqual(0, cycle.duration);
+                Assert.IsEmpty(cycle.conditions);
+            }
+            Assert.IsTrue(Enters(1f)); Assert.IsFalse(Exits(1f));
+            Assert.IsFalse(Enters(0)); Assert.IsTrue(Exits(0));
+            Assert.IsFalse(Enters(maximum + .000001f)); Assert.IsTrue(Exits(maximum + .000001f));
+        }
         [Test] public void OthersIsExplicitDiagnosticAndCannotAssertValid()
         {
             var host = Build(Target(), true);
