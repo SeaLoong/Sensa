@@ -142,7 +142,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
                   t('局部 X / Y / Z'),
                   root.valid ? withUnit(`${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)}`) : '—',
                 ],
-                [t('拟合残差'), root.valid ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
+                [t('拟合残差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
                 [t('姿态 / 插入比例'), t('不可观测')],
               ].map(([label, value]) => (
                 <div key={label}>

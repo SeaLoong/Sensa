@@ -125,6 +125,8 @@ for (const producer of [
       await panel.getByLabel('测量对象', { exact: true }).selectOption((await observation()).key);
       await expand(page, '两点量程校准');
       await expect(panel.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText('0.020 / 1.000 / 0.050 本地单位');
+      await expect(panel.locator('.point-diagnostic-grid .metrics dd').nth(1))
+        .toHaveText(producer.kind === 'ShaderRoot' ? '—' : '0.00000 本地单位');
       await panel.getByRole('button', { name: '采集 0%', exact: true }).click();
       await expect(panel.locator('.calibration-grid output').nth(0)).toHaveText('0.050 本地单位');
       z = .15; await feed.set(samples);
