@@ -93,7 +93,7 @@
   };
   let locale = new URLSearchParams(location.search).get('lang') === 'en-US' ? 'en-US' : 'zh-CN';
   let state = Model.defaultsFor($('scene').value);
-  let result, projection, selected = '', dragging = null;
+  let result, projection, selected = '', dragging = null, annotationRatio = 1;
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['sensa-sps', 'shader'].includes(state.scenario);
@@ -105,7 +105,9 @@
     return element;
   };
   const label = (x, y, value, attrs = {}) => {
-    const node = svg('text', { x, y, ...attrs }); node.textContent = value; return node;
+    const dimension = attrs.class === 'dimension-label', axis = attrs.class === 'grid-axis-label';
+    const size = Math.max(axis ? 14 : dimension ? 15 : 16, (axis ? 10 : dimension ? 11 : 12) * annotationRatio);
+    const node = svg('text', { x, y, 'font-size': size, ...attrs }); node.textContent = value; return node;
   };
   function corners(box) {
     return Array.from({ length: 8 }, (_, i) => ({ x: box.center.x + (i & 1 ? .5 : -.5) * box.size.x,
@@ -151,8 +153,13 @@
       if (length < .000001) group.append(svg('circle', { ...attrs, cx: a.x, cy: a.y, r }));
       else {
         const nx = -(b.y - a.y) / length * r, ny = (b.x - a.x) / length * r;
+        const ex = (b.x - a.x) / length * r, ey = (b.y - a.y) / length * r;
+        // Explicit quarter-circle extrema avoid near-diameter arc center cancellation.
+        // 显式经过四分之一圆极点，避免直径端点解圆心时的消减误差。
         const d = 'M ' + (a.x + nx) + ' ' + (a.y + ny) + ' L ' + (b.x + nx) + ' ' + (b.y + ny)
+          + ' A ' + r + ' ' + r + ' 0 0 0 ' + (b.x + ex) + ' ' + (b.y + ey)
           + ' A ' + r + ' ' + r + ' 0 0 0 ' + (b.x - nx) + ' ' + (b.y - ny) + ' L ' + (a.x - nx) + ' ' + (a.y - ny)
+          + ' A ' + r + ' ' + r + ' 0 0 0 ' + (a.x - ex) + ' ' + (a.y - ey)
           + ' A ' + r + ' ' + r + ' 0 0 0 ' + (a.x + nx) + ' ' + (a.y + ny) + ' Z';
         group.append(svg('path', { ...attrs, d }));
       }
@@ -164,7 +171,7 @@
     }
     return group;
   }
-  function references(layer) {
+  function references(layer, annotations) {
     if (!$('show-reference').checked) return;
     const polygon = points => svg('polygon', { class: 'reference', points: points.map(p => { const q = projection.p(p); return q.x + ',' + q.y; }).join(' ') });
     const root = result.points.socketRoot;
@@ -174,7 +181,7 @@
         { x: root.x + w, y: root.y, z: root.z - d }, { x: root.x + w, y: root.y, z: root.z + .012 },
         { x: root.x + w * .66, y: root.y, z: root.z + .012 }, { x: root.x + w * .66, y: root.y, z: root.z - d * .7 },
         { x: root.x - w * .66, y: root.y, z: root.z - d * .7 }, { x: root.x - w * .66, y: root.y, z: root.z + .012 }]));
-      const p = projection.p(root); layer.append(label(p.x, p.y - 40, 'Socket', { 'text-anchor': 'middle' }));
+      const p = projection.p(root); annotations.append(label(p.x, p.y - Math.max(40, 36 * annotationRatio), 'Socket', { 'text-anchor': 'middle' }));
     }
     for (const prefix of ['plug', 'sender']) {
       const a = result.points[prefix + 'Root'], b = result.points[prefix + 'Tip'];
@@ -184,22 +191,28 @@
       layer.append(polygon([{ x: a.x + offset.x, y: a.y, z: a.z + offset.z }, { x: b.x + offset.x * .6, y: b.y, z: b.z + offset.z * .6 },
         { x: b.x - offset.x * .6, y: b.y, z: b.z - offset.z * .6 }, { x: a.x - offset.x, y: a.y, z: a.z - offset.z }]));
       const p = projection.p(a), q = projection.p(b);
-      layer.append(label(p.x + 10, p.y - 19, 'Root'), label(q.x, q.y + 28, 'Tip', { 'text-anchor': 'middle' }));
+      annotations.append(label(p.x + Math.max(10, 12 * annotationRatio), p.y - Math.max(19, 16 * annotationRatio), 'Root'),
+        label(q.x, q.y + Math.max(28, 24 * annotationRatio), 'Tip', { 'text-anchor': 'middle' }));
     }
   }
   function draw() {
     projection = dragging?.projection || projector();
+    annotationRatio = 960 / Math.max($('diagram').getBoundingClientRect().width, 1);
     const title = svg('title', { id: 'diagram-title' }); title.textContent = text(state.scenario);
     const desc = svg('desc', { id: 'diagram-description' }); desc.textContent = text(scenes[state.scenario].summary) + ' ' + text('dragHint');
-    const layer = svg('g');
-    $('diagram').replaceChildren(title, desc, layer);
+    const layer = svg('g'), annotations = svg('g', { 'pointer-events': 'none' }), handles = svg('g');
+    $('diagram').replaceChildren(title, desc, layer, annotations, handles);
     const center = result.points.frameCenter || { x: 0, y: 0, z: 0 };
     const origin = projection.p(center);
     for (const [axis, vector] of [['Z', { x: 0, y: 0, z: 1 }], ['X', { x: 1, y: 0, z: 0 }], ...(projection.iso ? [['Y', { x: 0, y: 1, z: 0 }]] : [])]) {
       const p = projection.p({ x: center.x + vector.x * (spatial() ? 1 : .15), y: center.y + vector.y * (spatial() ? 1 : .15), z: center.z + vector.z * (spatial() ? 1 : .15) });
-      layer.append(svg('line', { class: 'axis', x1: origin.x, y1: origin.y, x2: p.x, y2: p.y }), label(p.x + 8, p.y + 7, '+' + axis, { class: 'grid-axis-label' }));
+      layer.append(svg('line', { class: 'axis', x1: origin.x, y1: origin.y, x2: p.x, y2: p.y }));
+      const distance = Math.hypot(p.x - origin.x, p.y - origin.y) || 1;
+      const ux = (p.x - origin.x) / distance, uy = (p.y - origin.y) / distance;
+      annotations.append(label(p.x + ux * 8 * annotationRatio, p.y + (uy * 8 + 3) * annotationRatio, '+' + axis,
+        { class: 'grid-axis-label', 'text-anchor': ux > .2 ? 'start' : ux < -.2 ? 'end' : 'middle' }));
     }
-    references(layer);
+    references(layer, annotations);
     const field = result.values.find(v => v.name === selected);
     for (const shape of result.shapes) {
       if (shape.role === 'receiver' && !$('show-receivers').checked || shape.role === 'sender' && !$('show-senders').checked) continue;
@@ -208,15 +221,17 @@
       if (shape.id.startsWith('receiver-P')) {
         const p = projection.p(shape.center), i = Number(shape.id.slice(-1));
         layer.append(svg('circle', { class: 'center', cx: p.x, cy: p.y, r: 4 }));
-        layer.append(label(p.x + (i === 0 || i === 2 ? -14 : 14), p.y + (i < 2 ? 24 : -15), 'P' + i, { class: 'anchor-label', 'text-anchor': i === 0 || i === 2 ? 'end' : 'start' }));
+        const dx = Math.max(14, 11 * annotationRatio), dy = i < 2 ? Math.max(24, 20 * annotationRatio) : -Math.max(15, 12 * annotationRatio);
+        annotations.append(label(p.x + (i === 0 || i === 2 ? -dx : dx), p.y + dy, 'P' + i,
+          { class: 'anchor-label', 'text-anchor': i === 0 || i === 2 ? 'end' : 'start' }));
       }
       if ($('show-dimensions').checked && active && shape.radius) {
         const p = projection.p(shape.center), direction = shape.role === 'sender' ? -1 : 1, end = p.x + direction * shape.radius * projection.scale;
         layer.append(svg('line', { class: 'dimension', x1: p.x, y1: p.y, x2: end, y2: p.y }));
-        const x = 36, y = shape.role === 'receiver' ? 30 : 58;
+        const x = Math.max(36, 12 * annotationRatio), y = shape.role === 'receiver' ? Math.max(30, 18 * annotationRatio) : Math.max(58, 38 * annotationRatio);
         const name = shape.role === 'receiver' ? text(['接收器', 'Receiver']) : 'Sender';
         const size = name + ' · R ' + fmt(shape.radius) + (shape.type === 'capsule' ? ' · H ' + fmt(shape.effectiveHeight) + text(['（含帽）', ' incl. caps']) : '');
-        layer.append(label(x, y, size, { class: 'dimension-label' }));
+        annotations.append(label(x, y, size, { class: 'dimension-label' }));
         if (shape.type === 'capsule') {
           const a = projection.p({ x: shape.a.x - shape.axis.x * shape.radius, y: shape.a.y - shape.axis.y * shape.radius, z: shape.a.z - shape.axis.z * shape.radius });
           const b = projection.p({ x: shape.b.x + shape.axis.x * shape.radius, y: shape.b.y + shape.axis.y * shape.radius, z: shape.b.z + shape.axis.z * shape.radius });
@@ -226,14 +241,14 @@
       }
     }
     const p = projection.p(result.points.movingRoot);
-    const ratio = 960 / Math.max($('diagram').getBoundingClientRect().width, 200);
+    const ratio = annotationRatio;
     const moving = svg('g', { id: 'moving-root', tabindex: 0, role: 'group',
       'aria-label': text(['移动根点', 'Move root']) + ': X ' + fmt(state.x) + ', Y ' + fmt(state.y) + ', Z ' + fmt(state.z),
       'aria-describedby': 'projection-note', 'aria-roledescription': text(['二维移动控制', 'Two-dimensional movement control']),
       'data-x': state.x, 'data-y': state.y, 'data-z': state.z });
     moving.append(svg('circle', { class: 'moving-hit', cx: p.x, cy: p.y, r: 14 * ratio }),
       svg('circle', { class: 'moving', cx: p.x, cy: p.y, r: 5 * ratio }));
-    layer.append(moving);
+    handles.append(moving);
     $('projection-note').textContent = text(projection.iso
       ? ['正交立体投影；球的投影半径保持同一比例。', 'Orthographic 3D projection; spheres retain the same radius scale.']
       : ['XZ 投影，不是 Y 切片；Y 仍参与全部距离计算。', 'XZ projection, not a Y slice; Y still contributes to every distance.'])
@@ -382,7 +397,13 @@
   const endDrag = event => { if (dragging?.id === event.pointerId) { dragging = null; render(); } };
   $('diagram').addEventListener('pointerup', endDrag); $('diagram').addEventListener('pointercancel', endDrag);
   $('diagram').addEventListener('lostpointercapture', endDrag);
-  window.addEventListener('resize', () => { const focused = document.activeElement?.id === 'moving-root'; render(); if (focused) $('moving-root').focus({ preventScroll: true }); });
+  window.addEventListener('resize', () => {
+    const markerFocused = document.activeElement?.id === 'moving-root';
+    const rowFocused = document.activeElement?.closest('#values') ? document.activeElement.textContent : null;
+    render();
+    if (markerFocused) $('moving-root').focus({ preventScroll: true });
+    else if (rowFocused) for (const button of $('values').querySelectorAll('button')) if (button.textContent === rowFocused) button.focus({ preventScroll: true });
+  });
   $('diagram').addEventListener('keydown', event => {
     if (!event.target.closest('#moving-root') || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault(); const step = event.shiftKey ? .1 : .01;

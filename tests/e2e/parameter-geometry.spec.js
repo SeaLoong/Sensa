@@ -55,6 +55,29 @@ async function finiteDrawing(page) {
   expect(invalid, 'SVG geometry stays finite / SVG 几何保持有限').toEqual([]);
   await expect(page.locator('#values')).not.toContainText(/NaN|Infinity|undefined/);
   expect(await page.locator('#diagram *').count()).toBeLessThan(2000);
+  const screenFonts = () => page.locator('#diagram').evaluate(diagram => {
+    const viewport = diagram.getBoundingClientRect();
+    return [...diagram.querySelectorAll('text')].flatMap(element => {
+      const style = getComputedStyle(element), box = element.getBoundingClientRect(), matrix = element.getScreenCTM();
+      if (!element.textContent.trim() || style.display === 'none' || style.visibility !== 'visible'
+        || Number(style.opacity) === 0 || box.width <= 0 || box.height <= 0
+        || box.right <= viewport.left || box.left >= viewport.right || box.bottom <= viewport.top || box.top >= viewport.bottom) return [];
+      const axis = element.classList.contains('grid-axis-label');
+      const fontSize = Number.parseFloat(style.fontSize), scale = matrix ? Math.hypot(matrix.c, matrix.d) : NaN;
+      return [{ text: element.textContent, kind: axis ? 'axis' : 'label',
+        fontSize, scale, cssFontSize: fontSize * scale, height: box.height, minimum: axis ? 8.9 : 10.9 }];
+    });
+  });
+  // Font-size inside the viewBox is not its readable size on a narrow screen.
+  // viewBox 内字号不等于窄屏上实际可读字号；只读真实样式和 DOM 屏幕变换。
+  await expect.poll(async () => {
+    const samples = await screenFonts();
+    const failures = samples.filter(sample => !Number.isFinite(sample.cssFontSize)
+      || sample.cssFontSize < sample.minimum || !Number.isFinite(sample.height) || sample.height <= 0);
+    if (samples.filter(sample => sample.kind === 'axis').length < 2) failures.push({ missing: 'two visible SVG axis labels' });
+    return failures;
+  }, { message: 'Visible SVG labels remain about 11 CSS px, axes 9 px / 可见SVG普通标签约11CSS像素、轴标签9像素' }).toEqual([]);
+  return screenFonts();
 }
 async function documentFits(page) {
   const evidence = await page.evaluate(() => ({
@@ -340,13 +363,19 @@ test('offline parameter geometry renders, responds and preserves bilingual state
     // 320 CSS px is reflow coverage, not a physical mobile or browser zoom claim.
     // 320 CSS像素仅验证重排，不代表真机或实际浏览器缩放。
     await page.setViewportSize({ width: 320, height: 844 });
+    // Check resize itself before a scene change can cause another render.
+    // 先检查 resize 自身，避免后续切场景重绘掩盖字号未更新。
+    const resizedFonts = await finiteDrawing(page);
+    await info.attach('parameter-geometry-resized-fonts.json', {
+      body: JSON.stringify(resizedFonts, null, 2), contentType: 'application/json',
+    });
     const reflow = [];
     for (const locale of ['zh-CN', 'en-US']) {
       await page.locator('#locale').selectOption(locale);
       for (const scenario of scenarioIds) {
         await chooseScene(page, scenario);
-        await finiteDrawing(page);
-        reflow.push({ locale, scenario, ...await documentFits(page) });
+        const fonts = await finiteDrawing(page);
+        reflow.push({ locale, scenario, ...await documentFits(page), fonts });
       }
     }
     await info.attach('parameter-geometry-reflow.json', { body: JSON.stringify(reflow, null, 2), contentType: 'application/json' });
@@ -382,7 +411,7 @@ hostedTest('parameter details open the localized interactive guide without devic
         await expect(popup.locator('#reference-link')).toHaveAttribute('href',
           'https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters' + (locale === 'en-US' ? '.en' : '') + '.md');
       } finally { await popup.close(); }
-      await dialog.getByRole('button', { name: await text(page, '关闭'), exact: true }).click();
+      await dialog.locator('.modal__actions').getByRole('button', { name: await text(page, '关闭'), exact: true }).click();
     }
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect(rig.wire.udp).toEqual([]);

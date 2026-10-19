@@ -125,7 +125,7 @@ The bridge checks the pattern, binary ID/flags, CRC and forward modulo-65536 fra
 
 ### Quantization, reduced fields and necessary binary metadata
 
-Each axis spans 3 local units and uses unsigned 16-bit quantization. Its step is `3/65535 ≈ 4.58×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `2.29×10⁻⁵`, or `3.96×10⁻⁵` for the three-axis quantization norm. These are encoding bounds, **not a promise of actual positioning accuracy**. Skinning/frame calculations, rendering/compositing, capture and latency require their own verification.
+Each axis spans 3 local units and uses unsigned 16-bit quantization. Its step is `3/65535 ≈ 4.58×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `2.29×10⁻⁵`, or `3.96×10⁻⁵` for the three-axis quantization norm. These are encoding bounds, **not a promise of actual positioning accuracy**. Skinning/frame calculations, rendering/compositing, capture and latency require their own verification. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows that rule without emulating every GPU single-precision intermediate.
 
 OSC no longer repeats Producer or Profile: the path already carries Producer, while `Sensa/Shader` fixes AvatarRootLocal and its range. The binary pattern retains Producer ID, valid/native-frame flags, CRC and Frame to distinguish the payload before assigning a path and reject damage or freezing. Its binary encoding marker is not an OSC path version. IDs are explicit pairing values, not avatar-owner authentication. There is no redundant PositionXYZ parameter, default filter or separate “detection radius” option.
 

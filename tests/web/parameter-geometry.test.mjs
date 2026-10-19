@@ -213,6 +213,21 @@ test('Shader quantization bounds, CRC bytes and modulo Frame are illustrative an
   assert.equal(evaluate({ scenario: 'shader', frame: 65535 }).metrics.bytes[5], 255);
 });
 
+test('Shader quantization uses nearest-even at ties and preserves adjacent bins / Shader量化半整数取偶且保留相邻区间', () => {
+  const unit = 3 / 65535, delta = unit / 1024;
+  // Exact half-integer inputs include both signs of the local coordinate.
+  // 精确半整数输入覆盖正负局部坐标；相邻值不可用容差一并当作平局。
+  for (const [x, lower, expected] of [[unit, 32768, 32768], [-unit, 32766, 32766], [0, 32767, 32768]]) {
+    assert.equal((x + 1.5) / 3 * 65535, lower + .5);
+    const scene = evaluate({ scenario: 'shader', x, y: 1, z: 0 });
+    assert.equal(scene.metrics.encoded.x, expected);
+    assert.deepEqual(plain(scene.metrics.bytes.slice(6, 8)), [expected & 255, expected >>> 8]);
+    near(field(scene, 'X').raw, expected / 65535 * 3 - 1.5);
+    assert.equal(evaluate({ scenario: 'shader', x: x - delta }).metrics.encoded.x, lower);
+    assert.equal(evaluate({ scenario: 'shader', x: x + delta }).metrics.encoded.x, lower + 1);
+  }
+});
+
 test('Shader invalidation emits only Valid and does not offer stale coordinates / Shader失效只发布Valid且不提供旧坐标', () => {
   for (const state of [{ x: 1.501 }, { valid: false }, { ageMs: 501 }]) {
     const scene = evaluate({ scenario: 'shader', ...state });

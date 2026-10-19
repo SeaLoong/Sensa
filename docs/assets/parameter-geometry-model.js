@@ -43,6 +43,13 @@
   const dot = (a, b) => a.x * b.x + a.y * b.y + a.z * b.z;
   const length = a => Math.hypot(a.x, a.y, a.z);
   const clamp = n => Math.max(0, Math.min(1, n));
+  // Match HLSL round ties-to-even; this does not simulate GPU float32 intermediates.
+  // 匹配 HLSL round 的半整数取偶规则，不仿真 GPU float32 中间运算。
+  function roundEven(value) {
+    const lower = Math.floor(value), fraction = value - lower;
+    if (fraction === .5) return lower % 2 === 0 ? lower : lower + 1;
+    return Math.round(value);
+  }
   function number(input, name, fallback, minimum = -Infinity, exclusive = false) {
     const value = input[name] ?? fallback;
     if (!Number.isFinite(value) || (exclusive ? value <= minimum : value < minimum)) {
@@ -245,7 +252,7 @@
       const inBounds = Math.abs(point.x) <= 1.5 && Math.abs(point.y - 1) <= 1.5 && Math.abs(point.z) <= 1.5;
       const encoded = {}, decoded = {};
       for (const [key, center] of [['x', 0], ['y', 1], ['z', 0]]) {
-        encoded[key] = Math.round(clamp((point[key] - center + 1.5) / 3) * 65535);
+        encoded[key] = roundEven(clamp((point[key] - center + 1.5) / 3) * 65535);
         decoded[key] = center + encoded[key] / 65535 * 3 - 1.5;
       }
       const frameAgeLimitMs = Math.min(timeout > 0 ? timeout : 1000, 500);
@@ -260,6 +267,7 @@
       metrics.quantError = { ...sub(decoded, point), length: length(sub(decoded, point)) };
       metrics.sourceValid = input.valid !== false && inBounds;
       metrics.bridgeFreezeThresholdMs = 350;
+      assumptions.push({ id: 'shader-round', zh: '量化半整数取偶，与 HLSL round 一致；不仿真 GPU float32 中间运算。', en: 'Quantization ties round to even, matching HLSL round; GPU float32 intermediates are not simulated.' });
       // Independent illustrative binary encoding, not captured pixels or CRC authentication.
       // 独立的示意二进制编码，不是实际捕获像素，CRC 也不认证身份。
       const bytes = [83, 78, 1, metrics.sourceValid ? 3 : 2, frame & 255, frame >>> 8];
