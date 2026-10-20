@@ -1,52 +1,52 @@
-# 参数图解与 WebUI 视觉评审
+# 可拖动参数图解与 WebUI 视觉评审
 
 **简体中文** | [English](ui-visual-review.en.md)
 
-日期：2026-10-21。本轮为 OGB、固定 P0–P3 和 Shader 增加离线交互图解与真实 Three.js 视图，沿用 TDesign 配色、扁平布局和常用控件比例。代码助手依据 [V1–V6](ui-quality.md)逐张审图，没有参与者问卷、综合审美分或用户偏好结论。本记录替换上一轮当前状态描述；原应用 70 图的[历史评审](https://github.com/SeaLoong/Sensa/blob/33ea842f9367d63cc10f4f6a2a413f40cd8d9be9/docs/ui-visual-review.md)保留在固定提交中。
+日期：2026-10-21。本轮将全部十个测量场景扩展为可操作三维图，保留 TDesign 配色与扁平布局。代码助手按 [V1–V6](ui-quality.md)审阅 CI 图片，没有参与者问卷、综合审美分或偏好结论。前一组 98 图的[历史记录](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.md)保留在固定提交，本页描述当前接受集。
 
-## 证据与接受范围
+## 证据与范围
 
-- 生成源码：`44e63a6f561aa6eaf0d0f0555cbecfad6965e55c`；[成功候选 39451877629](https://github.com/SeaLoong/Sensa/actions/runs/39451877629) 的 `e2e-report`／`e2e-baselines`。
-- 58 次执行全部首次通过，零跳过、重试通过、失败或运行错误。接受 **98 张 PNG**，1280×900 与 390×844 各 49 张；原应用 70 图逐字节不变。
-- 逐张复评 28 张新增图：现代 Socket、旧 Socket、Plug Touch、Sensa SPS、Shader 的中英文 XZ 图共 20 张；SPS／Shader 的中英文可旋转视图共 8 张。另逐张审阅四张英文立体 SVG 诊断图，保留在报告附件，不是基线。
-- 已接受图固定于 `38a2dd2a29b5445ad228851958c25eff525d690b`。失败或被替代候选的图片均未接受。截图生成使用 `updateSnapshots=all`，不提供预发布所需的同 SHA 普通比较证明。
-- 浏览器与截图只在 Actions 执行。旋转视图使用独立软件 WebGL2 worker 池，其他应用用例保持原浏览器配置。
+- 生成源码：`7096282a24cc2c68e363d70accd56cd3ac0fd6ee`；[成功候选 39467342379](https://github.com/SeaLoong/Sensa/actions/runs/39467342379) 的 `e2e-report`／`e2e-baselines`。
+- 58 次执行全部首次通过，零跳过、重试通过、失败或运行错误。接受 **110 张 PNG**，1280×900 与 390×844 各 55 张；原应用 70 图逐字节不变。
+- 参数图共 40 张：现代 Socket、旧 Socket、Plug Touch、Sensa SPS、Shader × 双语 × XZ／可旋转三维 × 两视口。首轮逐张审阅，后续按字节比对继承同图、对变化图复评；另审阅四张英文立体 SVG 诊断图，它们是附件而非基线。
+- 当前图片固定于 `da2ca1e779fe73054440d6d97f550a2222c6e49a`。先前诊断候选没有接受；最终三维代表图复位目标参数并明确选择 XZ 移动平面。生成时 `updateSnapshots=all`，不能替代最终提交的普通比较。
+- 浏览器与截图只在 Actions 执行。独立文件图解用例共用软件 WebGL2 worker 池，应用用例保留原浏览器配置；图解没有 OSC、网络或设备连接。
 
-## 发现、修改与复评
+## 发现与复评
 
 | 准则 | 本轮调整 | 已见结果 |
 | --- | --- | --- |
-| V1 层级与传达 | 场景／投影在上，图形与读数并列，几何控制在下；解释放在次要区域 | 先看形状，再查对应参数；原始值、模型门控与真实运行时明确区分 |
-| V2 字体与数字 | SVG 按实际屏幕比例设置文字，3D 使用 12 px HTML 标签；数字等宽 | 轴、半径、P0–P3 可读，Sample 的 0.03125 完整；量化误差没有冒充准确度 |
-| V3 分组与留白 | 共用一组图形／读数，窄屏顺序重排；相机按钮独立成组 | 七个相机按钮与 XYZ 调整职责清楚；SPS 大范围球和参考立方体仍有层次 |
-| V4 色彩与含义 | 蓝色 Receiver、橙色移动 Sender／输入、灰色参考；文字标注状态 | 高亮行关联形状；有效、失效和回退不只依赖颜色，Shader 明确没有 Contact 半径 |
-| V5 对齐与几何 | 分离轴标签与 Socket 外形；修正半圆 SVG 数值误差；滑条行共享底边；相机按真实包围范围和视口拟合 | 严格胶囊尺寸断言保留；默认／复位的 Shader 盒体不再裁掉底角；两视口无主要标签冲突 |
-| V6 双语与窄屏 | 中英文代表场景逐张审阅；320 px 自动检查实际文字、控件边界与视锥 | 390 px 已审完整构图；自动重排无整页横向溢出，相邻滑条底边差为 0 |
+| V1 层级与含义 | 图形、读数、调整区保留清楚先后；读数上方突出 `Sensa/SPS/*` 等前缀 | 说明将 * 替换为实际实例后再接行名；完整示例地址在参数按钮标题中，不把星号当实际参数 |
+| V2 字体与数字 | 3D 标签保持 12 px 屏幕字；数值等宽；四锚点选中态用浅白实心底与同色细描边 | P0–P3 可辨，四种选中文字的实际计算对比度均高于 4.79；这项检查不等于全站合规 |
+| V3 分组与操作 | 场景、投影、移动平面和复位同组；相机按钮另组 | 拖橙色目标改变坐标，拖空白旋转相机；390 px 两个选择器与复位同排 |
+| V4 色彩与身份 | P0 蓝、P1 青绿、P2 紫、P3 玫红，贯穿球、标记、尺寸、表格色点及坐标说明 | 参数与锚点一致；名称和状态文字仍可独立辨认，普通 Sender 保持橙色 |
+| V5 外形与标注 | Socket 用带开口的中空旋转截面，Plug 用渐细圆头；以实际实体投影避让文字，并用细引线连接偏移标注 | 现代场景杯口与灰 Plug 不再被文字遮住；Tip 引线连到真正 Plug 端点，不因靠近 Socket 而误指 |
+| V6 双语与窄屏 | 双语代表画面与 320 px 自动重排；保留同排控件底边、完整前缀与数字 | 已审画面没有新增主要裁切或标签冲突；Shader 盒体完整，SPS 四点及读数清楚 |
 
-早期审图发现小字、坐标轴压住外形及滑条错行，逐项修正。首版真实 3D 的 Shader 默认视角裁掉底前角，后按真实几何范围及较窄视场计算相机距离；窄屏 resize 保持方向和相对缩放。最终中英文 Shader 的八角／十二边完整入镜；SPS 四锚点、局部原点、移动标记、三轴及 R=2.500 标签仍清楚。用户主动放大允许裁切，完整入镜要求针对默认构图。
+初版三维标注盖住了小杯口和部分 Plug。先用真实 Lathe 包围盒八角的屏幕投影避让文字；复评又发现现代英文 Tip 文字距真实端点约 63 px，Socket 夹在中间，单纯移开仍会误认。最终只对偏移的实体根点／端点标注补细引线与参考点，不改几何比例、测量或页面布局。小型 OGB 实体与大 Receiver 按同一比例展示，可用相机缩放细看；旧场景默认 Plug 已进入 Socket，不能据该默认姿态声称整个内壁都可见。
 
 | 代表画面 | 桌面 | 窄屏 |
 | --- | --- | --- |
-| Socket Root／Tip | [中文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-en-US.png) |
-| 固定四点 3D | [英文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
-| Shader 3D | [英文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/desktop/parameter-geometry-shader-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/38a2dd2a29b5445ad228851958c25eff525d690b/tests/e2e/__screenshots__/mobile/parameter-geometry-shader-orbit-zh-CN.png) |
+| Socket／Plug 三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-zh-CN.png) |
+| 四锚点三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
+| Plug Touch | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png) |
 
-## 功能与工程证据
+## 交互与工程证据
 
-离线用例直接打开文件，验证无网络／WebSocket、完整 XYZ 计算、真实 SVG 尺寸、鼠标／键盘与独立逆投影、失效读数和双语保留状态；应用用例验证参数详情打开本地化图解，且不启用输入或发送设备命令。
+鼠标实际拖动覆盖 XZ、XY 两平面：独立射线／平面反算与 DOM 步长／范围得到 (0.19,1,0.29)、(0.33,1.11,0.29)，限界样本为 (1.8,1.19,0.29)。真实目标、Sender 与四路近接读数一致，锁定轴及相机不变；背景拖动、键盘、滚轮、按钮和复位仍控制相机。Escape 和切场景结束捕获，不续写旧手势。YZ 另有独立矩阵数学往返检查，未单列真实鼠标流程。
 
-真实 WebGL2 检查非背景像素、零 GL 错误、实际球／边框几何及矩阵。P0–P3 与 R=2.5、专用 Sender r=0.001 均与模型一致；Shader 仅有边长 3、中心 (0,1,0) 的编码范围，没有 Sender／Receiver。独立逆矩阵计算核对八角视锥：默认最大 |NDC| 为 Shader 0.8345 以下、SPS 0.6194 以下，320 px 分别小于 0.7434／0.5554；均满足约定的 |NDC|≤0.9 边界。
+真实 WebGL2 像素非空、GL 错误为零。十个场景的球／胶囊／盒体、Lathe 表面、材料色和矩阵与模型一致；改变 L／W／D 后几何更新。实体不参与 Contact 计算，严格胶囊 BBox 5.5 精度 4 断言继续通过。标签避让独立核对实际矩阵投影和 DOM 边界；引线检查读取真实 SVG／CTM，核对起点、对应标签边缘、方向和可见性，不读取实现端的成功标志。
 
-指针、键盘、滚轮及按钮改变真实相机，参数不变；复位恢复位置及四元数。三轮切换的几何数量稳定，离开视图或上下文丢失后无活动实例；禁用 WebGL2 和受控丢失上下文均回退 SVG，滑条与读数继续可用。320 px 两项目共 40 个 SVG 场景／语言样本、88 组同排滑条以及 16 组 3D 滑条均通过。它们是工程断言，不是逐态人工审美结论。
+三轮切换的几何与纹理数量稳定，仅一个活动实例；退出或上下文丢失后为零。WebGL2 不可用／丢失均回退 SVG，滑条与读数继续可用。两种呈现的 320 px 检查各覆盖十场景×双语，整页宽度保持 320，同排滑条无底边漂移；SPS／Shader 八角仍满足 |NDC|≤0.9 的默认／窄屏边界。SVG 正文约 11 px、轴约 10 px，三维 HTML 标签 12 px。
 
-原应用质量报告仍为 40 个 axe 状态，选定规则子集零检测违规；64 项行为及四项扫描期间不启用输入检查通过，无缺失、fatal 或运行错误。**56 次 incomplete 节点出现**完整保留（跨状态重复）：label 32 次、contrast 24 次，目标指纹与先前一致，未因人工可读性判断而清除。
+原应用质量报告为 40 个 axe 状态，选定规则子集零检测违规；64 项行为与四项扫描期间不启用输入检查通过。**56 次 incomplete 节点出现**仍保留（跨状态重复）：label 32、contrast 24，目标指纹没有增减。四锚点文字色值检查不能清除这些待审项。
 
-## 范围与限制
+## 限制
 
-人工结论限上述 28 张初始模拟图及四张英文立体诊断图。其余五场景有自动功能／重排检查，未逐张完整视觉评审；320 px 是自动重排，不是真实 400% 缩放。自由旋转全过程、所有失效帧、系统高对比、其他浏览器、读屏及实体手机触控仍未评估。
+人工视觉结论限上述五个代表场景的双语 XZ／三维和四张英文立体诊断图；其他五场景有自动几何与重排检查，未逐态完整审图。320 px 是自动重排，不是真实 400% 缩放或实体手机。任意视角、主动深度放大、所有无效帧、读屏、系统高对比与其他浏览器尚未全面评估；放大可能裁切，空间不足时标注使用有限回退。
 
-应用正文在常驻顶栏下独立滚动；独立图解按普通文档滚动。图片不证明视口外、横表右侧或折叠内容。原应用通知可关闭，但可能短暂遮住底部次要内容；原根点流程英文未逐态截图，校准也未单列 axe 状态。应用 40 状态扫描不覆盖新增独立图解，不能外推为整站 WCAG 结论。
+图解是普通文档滚动，应用正文在常驻顶栏下独立滚动。截图不证明视口外列、折叠内容或全部表单。原应用通知可关闭，但可能短暂遮住底部次要内容；原根点流程英文未逐态截图，校准未单列 axe 状态。40 个应用扫描不覆盖独立图解，不能外推完整 WCAG 结论。
 
-模型展示使用当前几何契约；像素证据是这份本地图解的 WebGL 渲染，编码网格是计算示意。没有执行真实 Unity 生产端、VRChat Contacts／OSC 会话、桌面／HMD 编码捕获、实时 GPU 解码或用户设备动作；它们不证明坐标准确度或真实采集可用性。效果与限制见[使用方案](usage-scenarios.md)、[参数字典](osc-parameters.md)、[OGB 兼容](ogb-compatibility.md)及[定位](positioning.md)。
+灰色实体是共享截面示意，不是导入的 Avatar 网格。根坐标不是姿态或世界位置，编码分辨率不是实测精度。本轮未运行真实 Unity 生产端、VRChat Contacts／OSC 会话、桌面／HMD 编码捕获、实时 GPU 解码或用户硬件；浏览器 WebGL 和模拟线包不提供这些证明。见[参数字典](osc-parameters.md)、[OGB 兼容](ogb-compatibility.md)及[定位原理](positioning.md)。
 
-普通 main CI 必须关闭基线更新，在最终提交比较全部 98 图并完成必要产品 jobs，成功后才可自动预发布。生成候选不能替代这项证明。[验证流程](e2e.md)
+普通 main CI 必须关闭基线更新，在最终提交比较全部 110 图。只修改图解时按影响计划运行接口与浏览器检查；无待接续产品验证时不触发原生构建或预发布。[验证流程](e2e.md)

@@ -22,4 +22,3 @@ The guide now shares four anchor colours across spheres, labels and rows, offers
 See the [visual review](../../../docs/ui-visual-review.en.md) and [workflow](../../../docs/e2e.en.md). Ordinary CI compares these PNGs with updates disabled. Publication requires a passing full comparison at the exact candidate SHA; generation alone provides no comparison proof.
 
 详见[视觉评审](../../../docs/ui-visual-review.md)和[流程](../../../docs/e2e.md)。普通 CI 关闭更新比较本组图片；发布要求同一候选 SHA 通过完整比较，生成任务本身不提供比较证明。
-
