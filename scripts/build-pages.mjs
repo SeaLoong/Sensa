@@ -132,6 +132,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   await write('parameter-geometry.html', (await fs.readFile(path.join(source, 'docs/parameter-geometry.html'), 'utf8')).replace('<head>', '<head>\n<meta name="sensa-site-root" content="./">'));
   for (const name of diagramAssets) await write('assets/' + name, await fs.readFile(path.join(source, 'docs/assets', name)));
   await write('.nojekyll', '');
+  // Deployment control files are not public HTTP resources. / 部署控制文件不列入公开 HTTP 资源。
+  emitted.delete('.nojekyll');
   const assets = {};
   for (const name of [...emitted].sort()) assets[name] = createHash('sha256').update(await fs.readFile(path.join(output, name))).digest('hex');
   const manifest = { commit, locales, routes: [...routes.values()].sort(), assets, vpmVersions: versions.sort() };

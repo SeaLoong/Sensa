@@ -72,8 +72,8 @@ HTTP defaults to loopback. `GET /api/session` issues an HttpOnly/SameSite=Strict
 | Configuration/state | GET/PUT `/api/config`; GET `/api/state/overview`, `logs`, `/api/meta/serial-ports` |
 | Input | PUT `/api/input/mode`, `active`, `manual`, `osc/source`; DELETE manual; POST oscquery/refresh |
 | Script | POST load/play/pause/stop/action-prev/action-next; PUT configure/seek; DELETE `/api/input/script` |
-| Recording/runtime | POST `/api/recording/start|stop|export`, `/api/control/runtime/emergency-stop|clear-emergency` |
-| Output | POST `/api/control/output/{outputId}/connect|disconnect|scan-start|scan-stop|device-info-refresh` |
+| Recording/runtime | POST `/api/recording/start\|stop\|export`, `/api/control/runtime/emergency-stop\|clear-emergency` |
+| Output | POST `/api/control/output/{outputId}/connect\|disconnect\|scan-start\|scan-stop\|device-info-refresh` |
 | Realtime | `/api/ws`: {id,method,path,body} requests, {id,ok,data} responses and state pushes |
 
 Script HTTP uses multipart; WS uses fileName/content through the same command. Legacy loop/type-output aliases remain, but multi-output clients use outputId. Retained fields for dynamic WebUi.Title, Intiface DeviceRoutes, special IsOgbSocket/Plug behavior, PreferSpeedMode encoding and ObservedMin/Max suggestions **do not establish wired capabilities**. [Routes](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)

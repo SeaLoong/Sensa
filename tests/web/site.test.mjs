@@ -10,6 +10,8 @@ test('public guides build into bilingual routes with resolvable local links and 
   try {
     const manifest = await buildPages({ output, commit: 'site-unit-fixture' });
     assert.equal(manifest.commit, 'site-unit-fixture');
+    assert.ok((await fs.stat(path.join(output, '.nojekyll'))).isFile());
+    assert.equal(Object.hasOwn(manifest.assets, '.nojekyll'), false);
     for (const route of ['en/README.html', 'zh-CN/README.html', 'en/docs/osc-parameters.html', 'zh-CN/docs/osc-parameters.html',
       'en/unity/top.sealoong.sensa/README.html', 'zh-CN/unity/top.sealoong.sensa/README.html']) assert.ok(manifest.routes.includes(route), route);
     for (const route of ['index.html', ...manifest.routes]) {

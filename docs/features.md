@@ -24,9 +24,9 @@ React 使用自建 TDesign 风格原生组件，无 MUI／Emotion。顶栏与独
 
 实际模式为 Manual／Osc／Script 三选一，浏览不改变它。模式变化、脚本替换、配置保存先关输入并停止。急停锁存，解除不恢复。连接不授予许可；已有有效许可时连接可能收到目标。启动不恢复运动／输出启用／脚本。
 
-- **手动：**十二轴、一次／跟随编辑、清除覆盖；跟随轴配置或显式 Interval(ms)／Speed。跟随编辑不是自动振荡。
-- **脚本：**funscript 无效动作跳过，同时间保留最后一项，再排序；无有效动作拒绝。L0 插值、0.1–4×、循环、A–B、时码、关键帧和密度。暂停／停止／卸载停止自动帧；已许可的显式定位仍可发送。注入时钟保留分数毫秒；没有媒体同步。
-- **OSC：**UDP Float／Int／Bool、嵌套 bundle、Avatar 生命周期、标准参数前缀剥离；丢弃非有限值，目录和来源有容量／过期清理。timetag 可转发，不提供完整调度语义。
+- **手动**：十二轴、一次／跟随编辑、清除覆盖；跟随轴配置或显式 Interval(ms)／Speed。跟随编辑不是自动振荡。
+- **脚本**：funscript 无效动作跳过，同时间保留最后一项，再排序；无有效动作拒绝。L0 插值、0.1–4×、循环、A–B、时码、关键帧和密度。暂停／停止／卸载停止自动帧；已许可的显式定位仍可发送。注入时钟保留分数毫秒；没有媒体同步。
+- **OSC**：UDP Float／Int／Bool、嵌套 bundle、Avatar 生命周期、标准参数前缀剥离；丢弃非有限值，目录和来源有容量／过期清理。timetag 可转发，不提供完整调度语义。
 
 门控／空间失效停止，不回退旧同轴数据。常规 OSC 默认无超时，正值超时对相关断流锁存急停；不同空间模型另有时效。[运行时](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) · [脚本](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
 
@@ -72,8 +72,8 @@ NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setu
 | 配置／状态 | GET/PUT `/api/config`；GET `/api/state/overview`、`logs`、`/api/meta/serial-ports` |
 | 输入 | PUT `/api/input/mode`、`active`、`manual`、`osc/source`；DELETE manual；POST oscquery/refresh |
 | 脚本 | POST load/play/pause/stop/action-prev/action-next；PUT configure/seek；DELETE `/api/input/script` |
-| 录制／运行时 | POST `/api/recording/start|stop|export`、`/api/control/runtime/emergency-stop|clear-emergency` |
-| 输出 | POST `/api/control/output/{outputId}/connect|disconnect|scan-start|scan-stop|device-info-refresh` |
+| 录制／运行时 | POST `/api/recording/start\|stop\|export`、`/api/control/runtime/emergency-stop\|clear-emergency` |
+| 输出 | POST `/api/control/output/{outputId}/connect\|disconnect\|scan-start\|scan-stop\|device-info-refresh` |
 | 实时 | `/api/ws`：请求 {id,method,path,body}、响应 {id,ok,data} 与状态推送 |
 
 脚本 HTTP 为 multipart，WS 使用 fileName/content，进入同一命令实现。旧 loop／按类型输出别名仍有，但多输出用 outputId。WebUi.Title 动态标题、Intiface DeviceRoutes、IsOgbSocket/Plug 特殊行为、PreferSpeedMode 编码选择与 ObservedMin/Max 自动建议等保留字段**不代表已接通能力**。[应用路由](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
