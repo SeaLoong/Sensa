@@ -521,6 +521,53 @@ function expectSpsObjects(snapshot, point = { x: .02, y: 1, z: .15 }) {
   expectWorldPosition(sender, point);
   expectWorldPosition(snapshot.markers.find(marker => marker.id === 'moving-root'), point);
 }
+// Column-major homogeneous transforms; no Three.js projection or framing helper is used.
+// 列主序齐次变换；不借用 Three.js 投影函数或实现端的拟合 helper。
+const transform4 = (matrix, point) => [0, 1, 2, 3].map(row =>
+  point.reduce((sum, value, column) => sum + matrix[column * 4 + row] * value, 0));
+function inverse4(matrix) {
+  const rows = [0, 1, 2, 3].map(row => [
+    ...[0, 1, 2, 3].map(column => matrix[column * 4 + row]),
+    ...[0, 1, 2, 3].map(column => Number(column === row)),
+  ]);
+  for (let column = 0; column < 4; column++) {
+    const pivot = [column, ...Array.from({ length: 3 - column }, (_, i) => column + i + 1)]
+      .reduce((best, row) => Math.abs(rows[row][column]) > Math.abs(rows[best][column]) ? row : best);
+    if (Math.abs(rows[pivot][column]) < 1e-12) throw new Error('Camera matrix is singular / 相机矩阵不可逆');
+    [rows[column], rows[pivot]] = [rows[pivot], rows[column]];
+    const divisor = rows[column][column];
+    rows[column] = rows[column].map(value => value / divisor);
+    for (let row = 0; row < 4; row++) {
+      if (row === column) continue;
+      const factor = rows[row][column];
+      rows[row] = rows[row].map((value, i) => value - factor * rows[column][i]);
+    }
+  }
+  return Array.from({ length: 16 }, (_, i) => rows[i % 4][4 + Math.floor(i / 4)]);
+}
+function frameCornersNdc(snapshot) {
+  const edge = snapshot.objects.find(object => object.role === 'reference' && object.geometry?.type === 'EdgesGeometry');
+  if (!edge) throw new Error('Rendered frame edges are missing / 缺少实际渲染边框');
+  const view = inverse4(snapshot.camera.matrixWorld), bounds = edge.geometry.bounds;
+  return Array.from({ length: 8 }, (_, bits) => {
+    const local = ['x', 'y', 'z'].map((axis, i) => bounds[bits & (1 << i) ? 'max' : 'min'][axis]);
+    const world = transform4(edge.matrixWorld, [...local, 1]);
+    const clip = transform4(snapshot.camera.projectionMatrix, transform4(view, world));
+    return { local, world, clip, ndc: { x: clip[0] / clip[3], y: clip[1] / clip[3], z: clip[2] / clip[3] } };
+  });
+}
+function expectFrameFits(snapshot) {
+  const corners = frameCornersNdc(snapshot);
+  for (const corner of corners) {
+    expect(corner.clip[3]).toBeGreaterThan(0);
+    expect(Object.values(corner.ndc).every(Number.isFinite)).toBe(true);
+    expect(Math.abs(corner.ndc.x)).toBeLessThanOrEqual(.9);
+    expect(Math.abs(corner.ndc.y)).toBeLessThanOrEqual(.9);
+    expect(corner.ndc.z).toBeGreaterThanOrEqual(-1);
+    expect(corner.ndc.z).toBeLessThanOrEqual(1);
+  }
+  return corners;
+}
 async function readyOrbit(page, scenario) {
   await chooseScene(page, scenario, 'orbit');
   await expect(page.locator('#projection')).toHaveValue('orbit');
@@ -610,6 +657,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       await expect(page.locator('[data-camera-action="left"]')).toHaveAttribute('aria-label', 'Rotate left');
       await page.locator('[data-camera-action="reset"]').click();
       const reset = await threeSnapshot(page);
+      expectFrameFits(reset);
       expect(maximumDifference(cameraVector(reset.camera), cameraVector(initial.camera))).toBeLessThan(1e-8);
       expect(await uiGeometry(page)).toEqual(initialUi);
       const resetPixels = await canvasPixels(page);
@@ -675,22 +723,34 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
         for (const scenario of ['sensa-sps', 'shader']) {
           await readyOrbit(page, scenario);
           const pixels = await canvasPixels(page), layout = await orbitLayout(page);
+          const frustum = expectFrameFits(await threeSnapshot(page));
           await page.evaluate(() => document.fonts.ready); await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-orbit-' + locale + '.png', { fullPage: true });
-          evidence.push({ locale, scenario, layout, pixels, three: await threeSnapshot(page) });
+          evidence.push({ locale, scenario, layout, pixels, frustum, three: await threeSnapshot(page) });
         }
       }
       await page.setViewportSize({ width: 320, height: 844 });
+      // Observe resize before reset/scene changes can hide a framing defect.
+      // 在复位或切场景前直接观察 resize，避免后续操作掩盖构图问题。
+      await expect.poll(async () => {
+        const aspect = await page.locator('#three-scene .three-viewport').evaluate(element => element.clientWidth / element.clientHeight);
+        return Math.abs((await threeSnapshot(page)).camera.aspect - aspect);
+      }).toBeLessThan(1e-8);
+      await expect.poll(async () => Math.max(...frameCornersNdc(await threeSnapshot(page))
+        .flatMap(corner => [Math.abs(corner.ndc.x), Math.abs(corner.ndc.y)])))
+        .toBeLessThanOrEqual(.9);
+      const resizedFrustum = expectFrameFits(await threeSnapshot(page));
       for (const locale of ['zh-CN', 'en-US']) {
         await page.locator('#locale').selectOption(locale);
         for (const scenario of ['sensa-sps', 'shader']) {
           await readyOrbit(page, scenario);
-          evidence.push({ locale, scenario, reflow: true, layout: await orbitLayout(page), pixels: await canvasPixels(page) });
+          evidence.push({ locale, scenario, reflow: true, layout: await orbitLayout(page), pixels: await canvasPixels(page),
+            frustum: expectFrameFits(await threeSnapshot(page)) });
         }
       }
       await info.attach('parameter-geometry-webgl.json', { body: JSON.stringify({ initial, initialPixels: originalPixels,
         camera: { pointer: draggedCamera, keyboard: keyedCamera, wheel: wheeledCamera, button: buttonCamera, reset: reset.camera },
-        cycles: cycleEvidence, views: evidence }, null, 2), contentType: 'application/json' });
+        cycles: cycleEvidence, resizedFrustum, views: evidence }, null, 2), contentType: 'application/json' });
       expect(network).toEqual([]); expect(sockets).toEqual([]); expect(errors).toEqual([]);
     });
 

@@ -63,6 +63,8 @@ function create(host) {
   viewport.append(canvas, overlay); host.replaceChildren(viewport, toolbar, hint);
   host.dataset.renderState = 'ready';
   let latest = null, scenario = '', locale = 'zh-CN', disposed = false, lost = false, notifying = false;
+  const frameCenter = new THREE.Vector3(0, 1, 0);
+  let framingRadius = 0, fitDistance = 0;
   const labels = new Map(), shapeObjects = new Map(), visualObjects = new Map();
   const t = key => words[key][locale === 'en-US' ? 1 : 0];
   let api;
@@ -102,6 +104,16 @@ function create(host) {
   const circle = radius => Array.from({ length: 97 }, (_, i) => new THREE.Vector3(Math.cos(i * Math.PI / 48) * radius, Math.sin(i * Math.PI / 48) * radius, 0));
   function build(result) {
     clearObjects(); scenario = result.scenario;
+    frameCenter.copy(vector(result.points.frameCenter || { x: 0, y: 1, z: 0 }));
+    framingRadius = 0;
+    for (const shape of result.shapes) {
+      if (shape.type === 'sphere') framingRadius = Math.max(framingRadius, vector(shape.center).distanceTo(frameCenter) + shape.radius);
+      else if (shape.type === 'box') for (let corner = 0; corner < 8; corner++) {
+        const point = new THREE.Vector3(shape.center.x + (corner & 1 ? .5 : -.5) * shape.size.x,
+          shape.center.y + (corner & 2 ? .5 : -.5) * shape.size.y, shape.center.z + (corner & 4 ? .5 : -.5) * shape.size.z);
+        framingRadius = Math.max(framingRadius, point.distanceTo(frameCenter));
+      }
+    }
     for (const shape of result.shapes) {
       const group = new THREE.Group(); group.name = shape.id; group.position.copy(vector(shape.center));
       group.userData.role = shape.role;
@@ -144,12 +156,18 @@ function create(host) {
     }
     resetView();
   }
+  function fittedDistance(aspect) {
+    const vertical = THREE.MathUtils.degToRad(camera.fov / 2), horizontal = Math.atan(Math.tan(vertical) * aspect);
+    // A bounding sphere subtends asin(radius / distance); use the narrower field with a 15% framing margin.
+    // 用较窄视场容纳包围球，并留 15% 构图边距；不改变几何半径。
+    return framingRadius / Math.sin(Math.min(vertical, horizontal)) * 1.15;
+  }
   function resetView() {
-    if (disposed || lost) return;
-    controls.target.set(0, 1, 0);
-    const distance = scenario === 'sensa-sps' ? 10.2 : 6.2;
-    camera.position.copy(new THREE.Vector3(1.1, .85, 1.35).normalize().multiplyScalar(distance).add(controls.target));
-    camera.up.set(0, 1, 0); controls.minDistance = scenario === 'sensa-sps' ? 4.5 : 2.5; controls.maxDistance = 22;
+    if (disposed || lost || !latest) return;
+    camera.aspect = Math.max(viewport.clientWidth, 1) / Math.max(viewport.clientHeight, 1); camera.updateProjectionMatrix();
+    fitDistance = fittedDistance(camera.aspect); controls.target.copy(frameCenter);
+    camera.position.copy(new THREE.Vector3(1.1, .85, 1.35).normalize().multiplyScalar(fitDistance).add(controls.target));
+    camera.up.set(0, 1, 0); controls.minDistance = scenario === 'sensa-sps' ? 4.5 : 2.5; controls.maxDistance = Math.max(22, fitDistance * 2);
     controls.update(); controls.saveState(); render();
   }
   function positionLabels(width, height) {
@@ -192,7 +210,15 @@ function create(host) {
     if (disposed || lost) return;
     const width = Math.max(viewport.clientWidth, 1), height = Math.max(viewport.clientHeight, 1);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2)); renderer.setSize(width, height, false);
-    camera.aspect = width / height; camera.updateProjectionMatrix(); render();
+    camera.aspect = width / height; camera.updateProjectionMatrix();
+    if (fitDistance > 0) {
+      const nextFit = fittedDistance(camera.aspect), ratio = nextFit / fitDistance;
+      if (Math.abs(ratio - 1) > 1e-8) {
+        camera.position.sub(controls.target).multiplyScalar(ratio).add(controls.target);
+        controls.minDistance *= ratio; controls.maxDistance *= ratio; fitDistance = nextFit; controls.update();
+      }
+    }
+    render();
   }
   function update(options) {
     if (disposed || lost) return;
