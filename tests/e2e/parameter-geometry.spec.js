@@ -554,12 +554,14 @@ async function orbitLayout(page) {
   return { ...layout, labels, canvas: box };
 }
 
-test.describe('offline Three.js rendering / 离线Three.js渲染', () => {
-  // Opt in to software WebGL only for these trusted local-file cases, never the old suites.
-  // 仅为这些可信本地文件场景启用软件WebGL，不修改旧套件或全局浏览器安全配置。
-  test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
+// A separate worker fixture pool preserves Playwright's built-in page/trace/video lifecycle.
+// 独立 worker fixture pool 保留内置 page／trace／video 生命周期，旧测试不继承软件 WebGL 参数。
+const threeTest = test.extend({
+  launchOptions: [{ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }, { scope: 'worker', option: true }],
+});
 
-  test('real WebGL geometry, camera controls and offline orbit views / 真实WebGL几何、相机控制与离线旋转视图',
+threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
+  threeTest('real WebGL geometry, camera controls and offline orbit views / 真实WebGL几何、相机控制与离线旋转视图',
     { tag: ['@visual', '@i18n', '@config'] }, async ({ page }, info) => {
       const network = [], sockets = [], errors = [];
       page.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
@@ -693,7 +695,7 @@ test.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       expect(network).toEqual([]); expect(sockets).toEqual([]); expect(errors).toEqual([]);
     });
 
-  test('unavailable and lost WebGL contexts retain localized SVG and controls / WebGL不可用或丢失后保留本地化SVG与控制',
+  threeTest('unavailable and lost WebGL contexts retain localized SVG and controls / WebGL不可用或丢失后保留本地化SVG与控制',
     { tag: ['@config', '@i18n'] }, async ({ page }, info) => {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
