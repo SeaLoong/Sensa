@@ -536,6 +536,20 @@ function expectWorldPosition(object, expected) {
   for (const [index, value] of [[12, expected.x], [13, expected.y], [14, expected.z], [15, 1]])
     expect(matrix[index]).toBeCloseTo(value, 8);
 }
+function opaqueRgb(value) {
+  expect(value).toMatch(/^rgba?\(/);
+  const components = value.match(/[0-9.]+/g).map(Number);
+  expect(components.length).toBeGreaterThanOrEqual(3);
+  expect(components[3] ?? 1, 'Contrast sample has an opaque color / 对比度样本颜色必须不透明').toBe(1);
+  return components.slice(0, 3);
+}
+function contrastRatio(foreground, background) {
+  const luminance = rgb => rgb.map(component => component / 255).map(component =>
+    component <= .04045 ? component / 12.92 : ((component + .055) / 1.055) ** 2.4)
+    .reduce((sum, component, index) => sum + component * [.2126, .7152, .0722][index], 0);
+  const a = luminance(foreground), b = luminance(background);
+  return (Math.max(a, b) + .05) / (Math.min(a, b) + .05);
+}
 const objectById = (snapshot, id) => {
   const object = snapshot.objects.find(item => item.id === id);
   expect(object, 'Actual Three object exists / 实际Three对象存在: ' + id).toBeTruthy(); return object;
@@ -764,6 +778,36 @@ function expectFrameFits(snapshot) {
   }
   return corners;
 }
+function referenceLabelClearance(snapshot, layout) {
+  // Project the real Lathe bounds using the actual world and camera matrices.
+  // 用真实旋转体包围盒及世界／相机矩阵投影，不读取实现端的避障结论。
+  const canvas = { x: 0, y: 0, width: layout.canvas.width, height: layout.canvas.height };
+  const meshes = snapshot.illustrations.filter(object => object.visible && object.geometry.type === 'LatheGeometry').map(object => {
+    const bounds = object.geometry.bounds;
+    const corners = Array.from({ length: 8 }, (_, bits) => {
+      const local = ['x', 'y', 'z'].map((axis, index) => bounds[bits & (1 << index) ? 'max' : 'min'][axis]);
+      const world = transform4(object.matrixWorld, [...local, 1]);
+      const screen = projectWorld(snapshot, { x: world[0] / world[3], y: world[1] / world[3], z: world[2] / world[3] }, canvas);
+      expect(Number.isFinite(screen.x) && Number.isFinite(screen.y)).toBe(true);
+      return { local, world, screen };
+    });
+    return { id: object.id, corners, rect: { left: Math.min(...corners.map(corner => corner.screen.x)),
+      right: Math.max(...corners.map(corner => corner.screen.x)), top: Math.min(...corners.map(corner => corner.screen.y)),
+      bottom: Math.max(...corners.map(corner => corner.screen.y)) } };
+  });
+  expect(meshes.length).toBeGreaterThan(0);
+  const labels = layout.labels.map(label => ({ id: label.id,
+    left: label.left + layout.viewportBox.x - layout.canvas.x, right: label.right + layout.viewportBox.x - layout.canvas.x,
+    top: label.top + layout.viewportBox.y - layout.canvas.y, bottom: label.bottom + layout.viewportBox.y - layout.canvas.y }));
+  const intersections = meshes.flatMap(mesh => labels.map(label => {
+    const width = Math.max(0, Math.min(mesh.rect.right, label.right) - Math.max(mesh.rect.left, label.left));
+    const height = Math.max(0, Math.min(mesh.rect.bottom, label.bottom) - Math.max(mesh.rect.top, label.top));
+    expect(Math.min(width, height), 'Label leaves the reference mesh visible / 标签不遮挡示意网格: '
+      + mesh.id + ' × ' + label.id + ' (' + width.toFixed(3) + ' × ' + height.toFixed(3) + ' CSS px)').toBeLessThanOrEqual(1);
+    return { mesh: mesh.id, label: label.id, width, height };
+  }));
+  return { meshes, labels, intersections };
+}
 async function readyOrbit(page, scenario) {
   await chooseScene(page, scenario, 'orbit');
   await expect(page.locator('#projection')).toHaveValue('orbit');
@@ -793,7 +837,9 @@ async function orbitLayout(page) {
   const box = await page.locator('#three-scene canvas').boundingBox();
   expect(box).not.toBeNull();
   expect(box.x).toBeGreaterThanOrEqual(-1); expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
-  return { ...layout, labels, canvas: box };
+  const viewportBox = await page.locator('#three-scene .three-viewport').boundingBox();
+  expect(viewportBox).not.toBeNull();
+  return { ...layout, labels, canvas: box, viewportBox };
 }
 
 threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
@@ -806,6 +852,27 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       const url = new URL(guideFile); url.searchParams.set('lang', 'zh-CN');
       await page.goto(url.href);
       await readyOrbit(page, 'sensa-sps');
+      const anchorContrast = [];
+      for (const [index, color] of anchorColors.entries()) {
+        const row = parameter(page, 'P' + index);
+        await row.getByRole('button', { name: 'P' + index, exact: true }).click();
+        const label = page.locator('#three-scene [data-label-id="anchor-P' + index + '"]');
+        await expect(label).toHaveClass(/(?:^|\s)three-label--active(?:\s|$)/);
+        const styles = await label.evaluate(node => {
+          const style = getComputedStyle(node);
+          return { foreground: style.color, background: style.backgroundColor, opacity: Number(style.opacity) };
+        });
+        expect(styles.opacity).toBe(1);
+        const foreground = opaqueRgb(styles.foreground), background = opaqueRgb(styles.background);
+        expect(foreground).toEqual(color.slice(1).match(/../g).map(value => parseInt(value, 16)));
+        const contrast = contrastRatio(foreground, background);
+        expect(contrast, 'Active anchor text contrast / 已选锚点文字对比度: P' + index).toBeGreaterThanOrEqual(4.5);
+        await expect(row).toHaveAttribute('data-anchor-color', color);
+        expect(opaqueRgb(await row.locator('.anchor-swatch').evaluate(node => getComputedStyle(node).backgroundColor))).toEqual(foreground);
+        expectSpsObjects(await threeSnapshot(page));
+        anchorContrast.push({ name: 'P' + index, color, ...styles, contrast });
+      }
+      await parameter(page, 'P0').getByRole('button', { name: 'P0', exact: true }).click();
       const initial = await threeSnapshot(page), initialUi = await uiGeometry(page);
       expectSpsObjects(initial);
       expect(initial.renderer.contextLost).toBe(false);
@@ -975,6 +1042,9 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       expectCapsule(resizedSocket, 'receiver-close', .1, .25, { x: 0, y: 0, z: -.125 }, { x: 0, y: 0, z: 1 });
       expectReferenceMesh(resizedSocket, 'socket', 'socket', { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, .22, .054);
 
+      // Representative views reset geometry and explicitly show the default XZ drag plane.
+      // 代表画面复位几何，并明确显示默认的XZ拖动平面。
+      await page.locator('#drag-plane').selectOption('xz');
       const evidence = [];
       for (const locale of ['zh-CN', 'en-US']) {
         await page.locator('#locale').selectOption(locale);
@@ -983,9 +1053,11 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
           const pixels = await canvasPixels(page), layout = await orbitLayout(page);
           await addressPattern(page, scenario);
           const frustum = ['sensa-sps', 'shader'].includes(scenario) ? expectFrameFits(await threeSnapshot(page)) : null;
+          const referenceClearance = ['socket-modern', 'socket-legacy', 'plug-touch'].includes(scenario)
+            ? referenceLabelClearance(await threeSnapshot(page), layout) : null;
           await page.evaluate(() => document.fonts.ready); await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-orbit-' + locale + '.png', { fullPage: true });
-          evidence.push({ locale, scenario, layout, pixels, frustum, three: await threeSnapshot(page) });
+          evidence.push({ locale, scenario, layout, pixels, frustum, referenceClearance, three: await threeSnapshot(page) });
         }
       }
       await page.setViewportSize({ width: 320, height: 844 });
@@ -1009,7 +1081,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       }
       await info.attach('parameter-geometry-webgl.json', { body: JSON.stringify({ initial, initialPixels: originalPixels,
         camera: { pointer: draggedCamera, keyboard: keyedCamera, wheel: wheeledCamera, button: buttonCamera, reset: reset.camera },
-        cycles: cycleEvidence, drag: dragEvidence, scenes: sceneEvidence,
+        cycles: cycleEvidence, drag: dragEvidence, anchorContrast, scenes: sceneEvidence,
         dimensions: { modern: resizedModern, plug: resizedPlug, socket: resizedSocket },
         resizedFrustum, views: evidence }, null, 2), contentType: 'application/json' });
       expect(network).toEqual([]); expect(sockets).toEqual([]); expect(errors).toEqual([]);

@@ -252,14 +252,36 @@ function create(host) {
     controls.update(); controls.saveState(); render();
   }
   function positionLabels(w, h) {
-    const occupied = [], projected = new THREE.Vector3(), priority = id => id === 'moving-root' ? 0 : id === 'decoded-root' ? 1 : id.startsWith('anchor-') ? 2 : 3;
+    const occupied = [], bodyBounds = [], projected = new THREE.Vector3();
+    const priority = id => id === 'moving-root' ? 0 : id === 'decoded-root' ? 1 : id.startsWith('anchor-') ? 2 : 3;
+    const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    // Reserve each visible lathe's real projected bounds so a tag cannot cover its rim, cavity or tip.
+    // 用真实旋转体包围盒的投影避让标签，保留杯口、内壁和尖端的可见区域。
+    for (const group of illustrations.values()) {
+      const mesh = group.children.find(child => child.isMesh);
+      if (!group.visible || !mesh?.visible || !mesh.material.visible || !frustum.intersectsObject(mesh)) continue;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const box = mesh.geometry.boundingBox;
+      let left = Infinity, top = Infinity, right = -Infinity, bottom = -Infinity, crossesNear = false;
+      for (let corner = 0; corner < 8; corner++) {
+        projected.set(corner & 1 ? box.max.x : box.min.x, corner & 2 ? box.max.y : box.min.y, corner & 4 ? box.max.z : box.min.z).applyMatrix4(mesh.matrixWorld);
+        if (projected.clone().applyMatrix4(camera.matrixWorldInverse).z >= -camera.near) { crossesNear = true; continue; }
+        projected.project(camera);
+        const x = (projected.x + 1) * w / 2, y = (1 - projected.y) * h / 2;
+        left = Math.min(left, x); right = Math.max(right, x); top = Math.min(top, y); bottom = Math.max(bottom, y);
+      }
+      if (crossesNear) bodyBounds.push({ left: 0, top: 0, right: w, bottom: h });
+      else if (Number.isFinite(left) && right >= 0 && bottom >= 0 && left <= w && top <= h)
+        bodyBounds.push({ left: Math.max(0, left - 4), top: Math.max(0, top - 4), right: Math.min(w, right + 4), bottom: Math.min(h, bottom + 4) });
+    }
     for (const [id, item] of [...labels].sort((a, b) => priority(a[0]) - priority(b[0]))) {
       item.object.getWorldPosition(projected); projected.project(camera);
       item.node.hidden = !item.object.visible || item.object.parent === null || projected.z < -1 || projected.z > 1 || Math.abs(projected.x) > 1.2 || Math.abs(projected.y) > 1.2;
       if (item.node.hidden) continue;
       const x = (projected.x + 1) * w / 2, y = (1 - projected.y) * h / 2, labelWidth = item.node.offsetWidth, labelHeight = item.node.offsetHeight;
       const at = (dx, dy) => { const left = Math.max(8, Math.min(w - labelWidth - 8, x + dx)), top = Math.max(8, Math.min(h - labelHeight - 8, y + dy)); return { left, top, right: left + labelWidth, bottom: top + labelHeight }; };
-      const free = rect => !occupied.some(other => rect.left < other.right + 5 && rect.right > other.left - 5 && rect.top < other.bottom + 4 && rect.bottom > other.top - 4);
+      const free = rect => !occupied.some(other => rect.left < other.right + 5 && rect.right > other.left - 5 && rect.top < other.bottom + 4 && rect.bottom > other.top - 4)
+        && !bodyBounds.some(body => rect.left < body.right && rect.right > body.left && rect.top < body.bottom && rect.bottom > body.top);
       let rect = [item.preferred, [14, -24], [14, 12], [-labelWidth - 14, -24], [-labelWidth - 14, 12], [-labelWidth / 2, -42], [-labelWidth / 2, 30]].map(offset => at(...offset)).find(free);
       if (!rect) {
         const candidates = [];
