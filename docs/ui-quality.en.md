@@ -67,6 +67,8 @@ Record each item as **meets / issue / not assessed**, with the commit, locale, v
 
 “Meets” applies only to inspected states, not every page or user. Sample empty/loading/error/hover/focus states too; a single home-page screenshot is insufficient.
 
+For spatial diagrams, also inspect the origin, axes, physical radii versus screen markers, readable labels, and complete composition at default/reset and after narrow resizing. Check normal, invalid and 3D fallback states separately; orbiting must not change parameters. Complete framing applies to default composition; intentional user zoom may crop the scene.
+
 Severity is unweighted: **blocking** obscures or misrepresents a primary state/action; **major** materially damages hierarchy, grouping or reading; **detail** is a local inconsistency. Retain impacts and reasons for unresolved findings; success elsewhere does not cancel them.
 
 ## How to reassess
