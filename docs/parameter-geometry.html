@@ -7,6 +7,7 @@
   <title>Sensa · 参数几何图解 / Parameter geometry</title>
   <link rel="stylesheet" href="assets/parameter-geometry-style.css">
   <script defer src="assets/parameter-geometry-model.js"></script>
+  <script defer src="assets/parameter-geometry-3d.js"></script>
   <script defer src="assets/parameter-geometry-view.js"></script>
 </head>
 <body>
@@ -42,13 +43,15 @@
           </optgroup>
         </select>
       </label>
-      <label class="projection-picker"><span data-i18n="projection">投影</span><select id="projection"><option value="xz" data-i18n="xz">XZ 平面投影</option><option value="iso" data-i18n="iso">立体投影</option></select></label>
+      <label class="projection-picker"><span data-i18n="projection">投影</span><select id="projection"><option value="xz" data-i18n="xz">XZ 平面投影</option><option value="iso" data-i18n="iso">立体投影</option><option value="orbit" data-i18n="orbit" hidden disabled>可旋转 3D</option></select></label>
       <button id="reset" type="button" data-i18n="reset">复位</button>
     </section>
     <section class="workbench" id="workbench">
       <div class="drawing-panel">
         <div class="figure-heading"><div><h2 id="scene-title">Socket · 现代 Root / Tip</h2><p id="scene-summary"></p></div><span id="validity" class="status"></span></div>
         <figure id="figure">
+          <div id="three-scene" class="three-scene" role="group" aria-labelledby="scene-title" hidden></div>
+          <p id="three-fallback" class="three-fallback" role="status" hidden></p>
           <svg id="diagram" viewBox="0 0 960 570" role="group" aria-labelledby="diagram-title diagram-description">
             <title id="diagram-title">参数几何</title><desc id="diagram-description">接收球、Sender 和移动对象的几何示意。</desc>
           </svg>
@@ -95,7 +98,7 @@
       <div><h2 data-i18n="formulaTitle">读图时记住</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
       <div><h2 data-i18n="meaningTitle">这些量不等价</h2><p data-i18n="meaning">近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact，灰色外形仅帮助辨认 Socket 与 Plug。</p><p class="caption" data-i18n="sourceNote">尺寸依据固定版本上游源码及 Sensa 当前契约；模型不推断运行时缩放、多个 Sender 或真实客户端行为。</p></div>
     </section>
-    <footer><a id="reference-link" href="osc-parameters.md" data-i18n="dictionary">参数字典</a><a id="ogb-link" href="ogb-compatibility.md" data-i18n="ogbSources">OGB 几何与来源</a><a id="position-link" href="positioning.md" data-i18n="positioning">SPS 定位原理</a><span data-i18n="offline">无外部图表库 · 无网络连接</span></footer>
+    <footer><a id="reference-link" href="osc-parameters.md" data-i18n="dictionary">参数字典</a><a id="ogb-link" href="ogb-compatibility.md" data-i18n="ogbSources">OGB 几何与来源</a><a id="position-link" href="positioning.md" data-i18n="positioning">SPS 定位原理</a><a href="assets/parameter-geometry-3d.LICENSE.txt" data-i18n="license">Three.js MIT 许可</a><span data-i18n="offline">本地 Three.js · 离线可用</span></footer>
     <noscript><p>需要启用 JavaScript 才能操作图示。静态说明见 <a href="osc-parameters.md">参数字典</a>。 / Enable JavaScript for the interactive diagrams, or read the <a href="osc-parameters.en.md">parameter reference</a>.</p></noscript>
   </main>
 </body>

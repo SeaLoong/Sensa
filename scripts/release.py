@@ -17,6 +17,8 @@ PARAMETER_GEOMETRY_ASSETS = (
     'docs/assets/parameter-geometry-model.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
+    'docs/assets/parameter-geometry-3d.js',
+    'docs/assets/parameter-geometry-3d.LICENSE.txt',
 )
 
 def validate_unity():

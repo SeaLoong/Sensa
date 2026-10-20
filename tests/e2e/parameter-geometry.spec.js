@@ -9,10 +9,13 @@ const scenarioIds = ['socket-modern', 'socket-legacy', 'plug-depth', 'socket-tou
 const parameter = (page, name) => page.locator('#values tr').filter({
   has: page.getByRole('button', { name, exact: true }),
 });
-async function chooseScene(page, scenario) {
+async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);
   await expect(page.locator('#scene')).toHaveValue(scenario);
   await page.locator('#reset').click();
+  // Existing 2D contracts stay explicit when spatial scenes default to 3D.
+  // 空间场景默认三维后，既有二维契约仍明确选择自身投影。
+  await page.locator('#projection').selectOption(projection);
 }
 async function setRange(page, name, value) {
   const control = page.locator('#control-' + name);
@@ -429,6 +432,320 @@ test('offline parameter geometry renders, responds and preserves bilingual state
     expect(sockets, 'Offline guide opens no WebSockets / 离线图解不连WebSocket').toEqual([]);
     expect(errors, 'Offline guide has no JavaScript errors / 离线图解无JavaScript错误').toEqual([]);
   });
+
+// These probes read actual WebGL pixels and Three objects, not a model validity helper.
+// 探针读取真实 WebGL 像素和 Three 对象，不借模型的“正确”标志自证。
+const threeSnapshot = page => page.evaluate(() => window.SensaGeometryView.snapshot().three);
+const threeLifecycle = page => page.evaluate(() => window.SensaParameterGeometry3D.snapshot().lifecycle);
+async function uiGeometry(page) {
+  return page.evaluate(() => ({
+    xyz: ['x', 'y', 'z'].map(key => document.getElementById('control-' + key).value),
+    values: [...document.querySelectorAll('#values tr')].map(row => ({
+      name: row.dataset.name, raw: row.querySelector('[data-column=raw]').dataset.value,
+      effective: row.querySelector('[data-column=effective]').dataset.value,
+    })),
+  }));
+}
+const cameraVector = camera => [...camera.position, ...camera.quaternion, ...camera.target, ...camera.projectionMatrix, camera.zoom];
+function maximumDifference(a, b) {
+  expect(a).toHaveLength(b.length);
+  return Math.max(...a.map((value, index) => Math.abs(value - b[index])));
+}
+async function waitCameraChange(page, before) {
+  await expect.poll(async () => maximumDifference(cameraVector((await threeSnapshot(page)).camera), cameraVector(before)))
+    .toBeGreaterThan(1e-6);
+  return (await threeSnapshot(page)).camera;
+}
+async function canvasPixels(page) {
+  const evidence = await page.locator('#three-scene canvas').evaluate(canvas => {
+    const gl = canvas.getContext('webgl2');
+    if (!gl || gl.isContextLost()) throw new Error('A real, live WebGL2 context is required / 需要真实有效的WebGL2上下文');
+    const width = gl.drawingBufferWidth, height = gl.drawingBufferHeight;
+    const pixels = new Uint8Array(width * height * 4);
+    gl.readPixels(0, 0, width, height, gl.RGBA, gl.UNSIGNED_BYTE, pixels);
+    const colors = new Set(), stride = Math.max(1, Math.floor(width * height / 6000));
+    let sampled = 0, painted = 0, nonBackground = 0, hash = 2166136261;
+    for (let index = 0; index < width * height; index += stride) {
+      const offset = index * 4, rgba = [...pixels.subarray(offset, offset + 4)];
+      colors.add(rgba.join(','));
+      if (rgba[3] > 0) painted++;
+      if (Math.abs(rgba[0] - pixels[0]) + Math.abs(rgba[1] - pixels[1]) + Math.abs(rgba[2] - pixels[2]) > 15) nonBackground++;
+      for (const value of rgba) hash = Math.imul(hash ^ value, 16777619) >>> 0;
+      sampled++;
+    }
+    // A coarse independent image signature supports reset reproducibility without a second golden.
+    // 粗分块图像签名独立验证复位重现，不额外添加基线。
+    const signature = [];
+    for (let by = 0; by < 12; by++) for (let bx = 0; bx < 12; bx++) {
+      const sums = [0, 0, 0]; let count = 0;
+      for (let y = Math.floor(by * height / 12); y < Math.floor((by + 1) * height / 12); y += 3)
+        for (let x = Math.floor(bx * width / 12); x < Math.floor((bx + 1) * width / 12); x += 3) {
+          const offset = (y * width + x) * 4;
+          for (let channel = 0; channel < 3; channel++) sums[channel] += pixels[offset + channel];
+          count++;
+        }
+      signature.push(...sums.map(sum => sum / count));
+    }
+    return { width, height, error: gl.getError(), preserveDrawingBuffer: gl.getContextAttributes().preserveDrawingBuffer,
+      sampled, painted, nonBackground, colors: colors.size, hash, signature };
+  });
+  expect(evidence.width).toBeGreaterThan(100); expect(evidence.height).toBeGreaterThan(100);
+  expect(evidence.error, 'Pixel read has no GL error / 像素读取无GL错误').toBe(0);
+  expect(evidence.preserveDrawingBuffer).toBe(true);
+  expect(evidence.painted).toBeGreaterThan(30);
+  expect(evidence.nonBackground, 'Canvas contains rendered geometry / 画布有实际绘制内容').toBeGreaterThan(30);
+  expect(evidence.colors).toBeGreaterThan(7);
+  return evidence;
+}
+function expectWorldPosition(object, expected) {
+  expect(object).toBeTruthy();
+  for (const [key, value] of Object.entries(expected)) expect(object.worldPosition[key]).toBeCloseTo(value, 8);
+  const matrix = object.matrixWorld;
+  expect(matrix).toHaveLength(16);
+  for (const [index, value] of [[12, expected.x], [13, expected.y], [14, expected.z], [15, 1]])
+    expect(matrix[index]).toBeCloseTo(value, 8);
+}
+function expectSpsObjects(snapshot, point = { x: .02, y: 1, z: .15 }) {
+  const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  expect(snapshot.objects.filter(object => object.role === 'receiver')).toHaveLength(4);
+  anchors.forEach(([x, y, z], index) => {
+    const object = snapshot.objects.find(item => item.id === 'receiver-P' + index);
+    expect(object.geometry.type).toBe('SphereGeometry');
+    expect(object.geometry.parameters.radius).toBe(2.5);
+    expect(object.geometry.vertices).toBeGreaterThan(1000);
+    expect(object.scale).toEqual([1, 1, 1]);
+    expectWorldPosition(object, { x, y, z });
+    for (const diagonal of [0, 5, 10]) expect(object.matrixWorld[diagonal]).toBeCloseTo(1, 8);
+  });
+  const sender = snapshot.objects.find(object => object.id === 'sender-marker');
+  expect(sender.geometry.type).toBe('SphereGeometry'); expect(sender.geometry.parameters.radius).toBe(.001);
+  expectWorldPosition(sender, point);
+  expectWorldPosition(snapshot.markers.find(marker => marker.id === 'moving-root'), point);
+}
+async function readyOrbit(page, scenario) {
+  await chooseScene(page, scenario, 'orbit');
+  await expect(page.locator('#projection')).toHaveValue('orbit');
+  await expect(page.locator('#three-scene')).toBeVisible();
+  await expect(page.locator('#three-scene')).toHaveAttribute('data-render-state', 'ready');
+  await expect(page.locator('#three-scene canvas')).toHaveCount(1);
+  await expect(page.locator('#diagram')).toBeHidden();
+  await expect(page.locator('#three-fallback')).toBeHidden();
+  await expect.poll(async () => (await threeSnapshot(page))?.renderer.render.calls ?? 0).toBeGreaterThan(0);
+}
+async function orbitLayout(page) {
+  const layout = await documentFits(page);
+  const labels = await page.locator('#three-scene [data-label-id]').evaluateAll(nodes => nodes.flatMap(node => {
+    const box = node.getBoundingClientRect(), style = getComputedStyle(node);
+    if (node.hidden || style.display === 'none' || style.visibility !== 'visible' || box.width <= 0 || box.height <= 0) return [];
+    const host = node.closest('.three-viewport').getBoundingClientRect();
+    return [{ id: node.dataset.labelId, text: node.textContent, font: Number.parseFloat(style.fontSize),
+      left: box.left - host.left, right: box.right - host.left, top: box.top - host.top,
+      bottom: box.bottom - host.top, width: host.width, height: host.height }];
+  }));
+  expect(labels.length).toBeGreaterThanOrEqual(4);
+  for (const label of labels) {
+    expect(label.font).toBeGreaterThanOrEqual(label.id.startsWith('axis-') ? 8.9 : 10.9);
+    expect(label.left).toBeGreaterThanOrEqual(-1); expect(label.right).toBeLessThanOrEqual(label.width + 1);
+    expect(label.top).toBeGreaterThanOrEqual(-1); expect(label.bottom).toBeLessThanOrEqual(label.height + 1);
+  }
+  const box = await page.locator('#three-scene canvas').boundingBox();
+  expect(box).not.toBeNull();
+  expect(box.x).toBeGreaterThanOrEqual(-1); expect(box.x + box.width).toBeLessThanOrEqual(page.viewportSize().width + 1);
+  return { ...layout, labels, canvas: box };
+}
+
+test.describe('offline Three.js rendering / 离线Three.js渲染', () => {
+  // Opt in to software WebGL only for these trusted local-file cases, never the old suites.
+  // 仅为这些可信本地文件场景启用软件WebGL，不修改旧套件或全局浏览器安全配置。
+  test.use({ launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] } });
+
+  test('real WebGL geometry, camera controls and offline orbit views / 真实WebGL几何、相机控制与离线旋转视图',
+    { tag: ['@visual', '@i18n', '@config'] }, async ({ page }, info) => {
+      const network = [], sockets = [], errors = [];
+      page.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
+      page.on('websocket', socket => sockets.push(socket.url()));
+      page.on('pageerror', error => errors.push(error.message));
+      const url = new URL(guideFile); url.searchParams.set('lang', 'zh-CN');
+      await page.goto(url.href);
+      await readyOrbit(page, 'sensa-sps');
+      const initial = await threeSnapshot(page), initialUi = await uiGeometry(page);
+      expectSpsObjects(initial);
+      expect(initial.renderer.contextLost).toBe(false);
+      expect(initial.lifecycle.live).toBe(1);
+      const originalPixels = await canvasPixels(page);
+      const canvas = page.locator('#three-scene canvas');
+      await canvas.scrollIntoViewIfNeeded();
+      const area = await canvas.boundingBox();
+      await page.mouse.move(area.x + area.width * .55, area.y + area.height * .45);
+      await page.mouse.down();
+      await page.mouse.move(area.x + area.width * .55 + 22, area.y + area.height * .45 + 13, { steps: 4 });
+      await page.mouse.move(area.x + area.width * .55 + 40, area.y + area.height * .45 + 24, { steps: 4 });
+      await page.mouse.up();
+      const draggedCamera = await waitCameraChange(page, initial.camera);
+      expect((await canvasPixels(page)).hash).not.toBe(originalPixels.hash);
+      expect(await uiGeometry(page)).toEqual(initialUi);
+      expectSpsObjects(await threeSnapshot(page));
+
+      await canvas.focus(); await canvas.press('ArrowRight');
+      const keyedCamera = await waitCameraChange(page, draggedCamera);
+      await expect(canvas).toBeFocused();
+      expect(await uiGeometry(page)).toEqual(initialUi);
+      const distance = camera => Math.hypot(...camera.position.map((value, index) => value - camera.target[index]));
+      await page.mouse.move(area.x + area.width * .5, area.y + area.height * .5);
+      await page.mouse.wheel(0, -120);
+      const wheeledCamera = await waitCameraChange(page, keyedCamera);
+      expect(distance(wheeledCamera)).toBeLessThan(distance(keyedCamera));
+      const zoomButton = page.locator('[data-camera-action="zoom-in"]');
+      await zoomButton.focus(); await zoomButton.press('Enter');
+      const buttonCamera = await waitCameraChange(page, wheeledCamera);
+      expect(distance(buttonCamera)).toBeLessThan(distance(wheeledCamera));
+      expect(await uiGeometry(page)).toEqual(initialUi);
+
+      await page.locator('#locale').selectOption('en-US');
+      await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+      const localized = await threeSnapshot(page);
+      expect(maximumDifference(cameraVector(localized.camera), cameraVector(buttonCamera))).toBeLessThan(1e-8);
+      expect(await uiGeometry(page)).toEqual(initialUi);
+      await expect(page.locator('[data-camera-action="left"]')).toHaveAttribute('aria-label', 'Rotate left');
+      await page.locator('[data-camera-action="reset"]').click();
+      const reset = await threeSnapshot(page);
+      expect(maximumDifference(cameraVector(reset.camera), cameraVector(initial.camera))).toBeLessThan(1e-8);
+      expect(await uiGeometry(page)).toEqual(initialUi);
+      const resetPixels = await canvasPixels(page);
+      expect(maximumDifference(resetPixels.signature, originalPixels.signature)).toBeLessThan(1);
+
+      await setRange(page, 'x', .2); await setRange(page, 'y', 1.2); await setRange(page, 'z', -.1);
+      const moved = await threeSnapshot(page);
+      expectSpsObjects(moved, { x: .2, y: 1.2, z: -.1 });
+      expect(maximumDifference(cameraVector(moved.camera), cameraVector(reset.camera))).toBeLessThan(1e-8);
+      for (const [index, anchor] of [[0, [-.5, .5, -.5]], [1, [.5, .5, .5]], [2, [.5, 1.5, -.5]], [3, [-.5, 1.5, .5]]])
+        await nearCell(page, 'P' + index, 1 - (Math.hypot(.2 - anchor[0], 1.2 - anchor[1], -.1 - anchor[2]) - .001) / 2.5);
+
+      const shownPixels = await canvasPixels(page);
+      await page.locator('#show-receivers').uncheck();
+      expect((await threeSnapshot(page)).objects.filter(object => object.role === 'receiver').every(object => !object.visible)).toBe(true);
+      expect((await canvasPixels(page)).hash).not.toBe(shownPixels.hash);
+      await page.locator('#show-receivers').check();
+      await page.locator('#show-senders').uncheck();
+      expect((await threeSnapshot(page)).objects.find(object => object.id === 'sender-marker').visible).toBe(false);
+      await page.locator('#show-senders').check();
+
+      const cycleEvidence = [];
+      for (let cycle = 0; cycle < 3; cycle++) {
+        await readyOrbit(page, 'shader');
+        const shader = await threeSnapshot(page);
+        expect(shader.objects.filter(object => object.role === 'receiver' || object.role === 'sender')).toHaveLength(0);
+        const box = shader.objects.find(object => object.id === 'encoding-cube');
+        expect(box.geometry.type).toBe('EdgesGeometry');
+        expect(box.geometry.vertices).toBeGreaterThanOrEqual(24);
+        for (const axis of ['x', 'y', 'z'])
+          expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(3, 8);
+        expectWorldPosition(box, { x: 0, y: 1, z: 0 });
+        await canvasPixels(page);
+        await readyOrbit(page, 'sensa-sps');
+        const current = await threeSnapshot(page);
+        expect(current.renderer.instanceId).toBe(initial.renderer.instanceId);
+        expect(current.lifecycle.live).toBe(1);
+        expect(current.renderer.memory.geometries).toBe(initial.renderer.memory.geometries);
+        expect(await page.locator('#three-scene canvas').count()).toBe(1);
+        cycleEvidence.push({ lifecycle: current.lifecycle, memory: current.renderer.memory });
+      }
+      await page.locator('#projection').selectOption('xz');
+      await expect(page.locator('#three-scene canvas')).toHaveCount(0);
+      expect((await threeLifecycle(page)).live).toBe(0);
+      const disposed = await threeLifecycle(page);
+      expect(disposed.created).toBe(disposed.disposed);
+      await page.locator('#projection').selectOption('orbit');
+      const recreated = await threeSnapshot(page);
+      expect(recreated.renderer.instanceId).not.toBe(initial.renderer.instanceId);
+      expect(recreated.lifecycle.live).toBe(1);
+
+      await readyOrbit(page, 'shader');
+      await setRange(page, 'x', .25); await setRange(page, 'y', 1.25); await setRange(page, 'z', -.25);
+      const shader = await threeSnapshot(page);
+      const decoded = { x: 38229 / 65535 * 3 - 1.5, y: 1 + 38229 / 65535 * 3 - 1.5, z: 27306 / 65535 * 3 - 1.5 };
+      expectWorldPosition(shader.markers.find(marker => marker.id === 'moving-root'), { x: .25, y: 1.25, z: -.25 });
+      expectWorldPosition(shader.markers.find(marker => marker.id === 'decoded-root'), decoded);
+      for (const axis of ['X', 'Y', 'Z']) await nearCell(page, axis, decoded[axis.toLowerCase()]);
+
+      const evidence = [];
+      for (const locale of ['zh-CN', 'en-US']) {
+        await page.locator('#locale').selectOption(locale);
+        for (const scenario of ['sensa-sps', 'shader']) {
+          await readyOrbit(page, scenario);
+          const pixels = await canvasPixels(page), layout = await orbitLayout(page);
+          await page.evaluate(() => document.fonts.ready); await page.mouse.move(0, 0);
+          await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-orbit-' + locale + '.png', { fullPage: true });
+          evidence.push({ locale, scenario, layout, pixels, three: await threeSnapshot(page) });
+        }
+      }
+      await page.setViewportSize({ width: 320, height: 844 });
+      for (const locale of ['zh-CN', 'en-US']) {
+        await page.locator('#locale').selectOption(locale);
+        for (const scenario of ['sensa-sps', 'shader']) {
+          await readyOrbit(page, scenario);
+          evidence.push({ locale, scenario, reflow: true, layout: await orbitLayout(page), pixels: await canvasPixels(page) });
+        }
+      }
+      await info.attach('parameter-geometry-webgl.json', { body: JSON.stringify({ initial, initialPixels: originalPixels,
+        camera: { pointer: draggedCamera, keyboard: keyedCamera, wheel: wheeledCamera, button: buttonCamera, reset: reset.camera },
+        cycles: cycleEvidence, views: evidence }, null, 2), contentType: 'application/json' });
+      expect(network).toEqual([]); expect(sockets).toEqual([]); expect(errors).toEqual([]);
+    });
+
+  test('unavailable and lost WebGL contexts retain localized SVG and controls / WebGL不可用或丢失后保留本地化SVG与控制',
+    { tag: ['@config', '@i18n'] }, async ({ page }, info) => {
+      const errors = [];
+      page.on('pageerror', error => errors.push(error.message));
+      const url = new URL(guideFile); url.searchParams.set('lang', 'en-US');
+      await page.goto(url.href); await readyOrbit(page, 'sensa-sps');
+      await page.locator('#three-scene canvas').evaluate(canvas => {
+        const extension = canvas.getContext('webgl2').getExtension('WEBGL_lose_context');
+        if (!extension) throw new Error('Controlled context-loss extension is required / 需要可控上下文丢失扩展');
+        extension.loseContext();
+      });
+      await expect(page.locator('#projection')).toHaveValue('iso');
+      await expect(page.locator('#three-fallback')).toBeVisible();
+      await expect(page.locator('#three-scene')).toHaveAttribute('data-render-state', 'fallback');
+      await expect(page.locator('#three-fallback')).toHaveText('3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.');
+      await expect(page.locator('#diagram')).toBeVisible();
+      await expect(page.locator('#three-scene canvas')).toHaveCount(0);
+      expect((await threeLifecycle(page)).live).toBe(0);
+      await setRange(page, 'z', .25);
+      await nearCell(page, 'P0', 1 - (Math.hypot(.02 + .5, 1 - .5, .25 + .5) - .001) / 2.5);
+      await finiteDrawing(page); await documentFits(page);
+      const lost = await threeLifecycle(page);
+
+      const unavailable = await page.context().newPage();
+      unavailable.on('pageerror', error => errors.push(error.message));
+      try {
+        await unavailable.addInitScript(() => {
+          const original = HTMLCanvasElement.prototype.getContext;
+          HTMLCanvasElement.prototype.getContext = function (type, ...args) {
+            return type === 'webgl2' ? null : original.call(this, type, ...args);
+          };
+        });
+        await unavailable.goto(url.href);
+        await unavailable.locator('#scene').selectOption('shader');
+        await expect(unavailable.locator('#projection')).toHaveValue('iso');
+        await expect(unavailable.locator('#three-fallback')).toHaveText('3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.');
+        await expect(unavailable.locator('#three-fallback')).toBeVisible();
+        await expect(unavailable.locator('#three-scene')).toHaveAttribute('data-render-state', 'fallback');
+        await expect(unavailable.locator('#three-scene canvas')).toHaveCount(0);
+        await expect(unavailable.locator('#diagram')).toBeVisible();
+        await setRange(unavailable, 'x', .25); await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
+        await unavailable.locator('#locale').selectOption('zh-CN');
+        await expect(unavailable.locator('#three-fallback')).toHaveText('本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。');
+        await expect(unavailable.locator('#control-x')).toHaveValue('0.25');
+        await expect(unavailable.locator('#projection option[value="orbit"]')).toBeDisabled();
+        await finiteDrawing(unavailable); await documentFits(unavailable);
+        await info.attach('parameter-geometry-webgl-fallback.json', { body: JSON.stringify({
+          lost, unavailable: await threeLifecycle(unavailable), locale: await unavailable.locator('html').getAttribute('lang'),
+        }, null, 2), contentType: 'application/json' });
+      } finally { await unavailable.close(); }
+      expect(errors).toEqual([]);
+    });
+});
 
 hostedTest('parameter details open the localized interactive guide without device activation / 参数详情打开本地图解而不启用设备',
   { tag: ['@osc', '@i18n', '@config'] }, async ({ page, rig }) => {

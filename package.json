@@ -5,7 +5,7 @@
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
     "test": "npm run lint && node --test tests/web/*.test.mjs",
-    "lint": "eslint src/web docs/assets/parameter-geometry-model.js docs/assets/parameter-geometry-view.js",
+    "lint": "eslint src/web docs/assets/parameter-geometry-model.js docs/assets/parameter-geometry-view.js docs/assets/parameter-geometry-3d-source.js",
     "e2e:ci": "playwright test",
     "e2e:request": "gh workflow run e2e.yml --ref main -f update_snapshots=false",
     "e2e:baselines": "gh workflow run e2e.yml --ref main -f update_snapshots=true"
@@ -32,6 +32,7 @@
   "private": true,
   "dependencies": {
     "react": "18.3.1",
-    "react-dom": "18.3.1"
+    "react-dom": "18.3.1",
+    "three": "0.186.1"
   }
 }

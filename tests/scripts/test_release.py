@@ -23,6 +23,14 @@ import zipfile
 from test_bilingual_docs import relative_links
 
 ROOT = Path(__file__).resolve().parents[2]
+PARAMETER_GEOMETRY_FILES = (
+    'docs/parameter-geometry.html',
+    'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-view.js',
+    'docs/assets/parameter-geometry-style.css',
+    'docs/assets/parameter-geometry-3d.js',
+    'docs/assets/parameter-geometry-3d.LICENSE.txt',
+)
 
 
 def load(name):
@@ -67,8 +75,7 @@ class ArchiveWorkspace(unittest.TestCase):
     def prepare_app(self, runtime='win-x64'):
         (self.source / ('Sensa.exe' if runtime.startswith('win-') else 'Sensa')).write_bytes(b'fixture apphost')
         (self.source / 'web/app.bundle.js').write_text('fixture bundle', encoding='utf-8')
-        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
-                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+        for relative in PARAMETER_GEOMETRY_FILES:
             destination = self.source / 'web' / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((self.repository / relative).read_bytes())
@@ -138,13 +145,9 @@ class DesktopArchiveContracts(ArchiveWorkspace):
                         self.assertIn(local, files, f'{name} needs local module / 需要本地模块: {local}')
 
     def test_interactive_geometry_assets_keep_offline_references_without_packaging_arbitrary_code(self):
-        required = (
-            'docs/parameter-geometry.html',
-            'docs/assets/parameter-geometry-model.js',
-            'docs/assets/parameter-geometry-view.js',
-            'docs/assets/parameter-geometry-style.css',
-        )
-        unrelated = ('docs/unrelated.html', 'docs/assets/unrelated.js', 'docs/assets/unrelated.css')
+        required = PARAMETER_GEOMETRY_FILES
+        unrelated = ('docs/unrelated.html', 'docs/assets/unrelated.js', 'docs/assets/unrelated.css',
+                     'docs/assets/parameter-geometry-3d-source.js', 'docs/assets/unrelated.LICENSE.txt')
         for name in unrelated:
             path = self.repository / name
             path.parent.mkdir(parents=True, exist_ok=True)
@@ -170,11 +173,11 @@ class DesktopArchiveContracts(ArchiveWorkspace):
             target = os.path.normpath(str(PurePosixPath('docs') / unquote(location.path))).replace('\\', '/')
             self.assertIn(target, files, f'Offline HTML reference missing / 离线 HTML 引用缺失: {reference}')
             resolved.add(target)
-        self.assertTrue(set(required[1:]).issubset(resolved), 'The HTML must load all three local assets / HTML 必须加载三个本地资源')
+        runtime_resources = {name for name in required if name.endswith(('.js', '.css'))}
+        self.assertTrue(runtime_resources.issubset(resolved), 'The HTML must load its local runtime scripts and stylesheet / HTML 必须加载本地运行脚本与样式')
 
     def test_missing_published_interactive_assets_are_rejected_before_creating_an_archive(self):
-        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
-                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+        for relative in PARAMETER_GEOMETRY_FILES:
             with self.subTest(asset=relative):
                 self.prepare_app()
                 (self.source / 'web' / relative).unlink()
@@ -184,8 +187,7 @@ class DesktopArchiveContracts(ArchiveWorkspace):
                 self.assertFalse((self.output / 'SHA256SUMS.txt').exists())
 
     def test_stale_published_interactive_assets_are_rejected_before_creating_an_archive(self):
-        for relative in ('docs/parameter-geometry.html', 'docs/assets/parameter-geometry-model.js',
-                         'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-style.css'):
+        for relative in PARAMETER_GEOMETRY_FILES:
             with self.subTest(asset=relative):
                 self.prepare_app()
                 published = self.source / 'web' / relative
@@ -201,6 +203,8 @@ class DesktopArchiveContracts(ArchiveWorkspace):
             '../docs/assets/parameter-geometry-model.js': 'web/docs/assets/parameter-geometry-model.js',
             '../docs/assets/parameter-geometry-view.js': 'web/docs/assets/parameter-geometry-view.js',
             '../docs/assets/parameter-geometry-style.css': 'web/docs/assets/parameter-geometry-style.css',
+            '../docs/assets/parameter-geometry-3d.js': 'web/docs/assets/parameter-geometry-3d.js',
+            '../docs/assets/parameter-geometry-3d.LICENSE.txt': 'web/docs/assets/parameter-geometry-3d.LICENSE.txt',
         }
         published = {}
         for item in ET.parse(ROOT / 'src/Sensa.csproj').getroot().iter('Content'):

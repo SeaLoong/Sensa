@@ -12,7 +12,7 @@
 | 控制 | 手动／OSC／脚本选择与应用；手动十二轴目标、一次／持续更新、运动参数；输出管理；录制与导出 |
 | OSC → 映射 | 三项内置预设、替换／追加、自定义预设、路径／角色／反向、量程／曲线／映射区间、单条模拟、保存／恢复 |
 | OSC → 参数 | 搜索、来源浏览、使用来源、分类、冻结、置顶、参数含义、添加映射 |
-| [交互参数图解](parameter-geometry.html?lang=zh-CN) | 十种检测场景；Socket／Plug 轮廓、Receiver／Sender 尺寸、Close 门控、四锚点和 Shader 编码；双语、离线、拖动及键盘调整，不连接输入或设备 |
+| [交互参数图解](parameter-geometry.html?lang=zh-CN) | 十种检测场景；Socket／Plug 轮廓、Receiver／Sender 尺寸、Close 门控、四锚点和 Shader 编码；双语、离线、XZ 拖点及键盘调整，SPS／Shader 的 Three.js 视图可旋转缩放并回退 SVG，不连接输入或设备 |
 | OSC → 实验诊断 | 实验许可、Point／Handle 两端校准、SPS／Shader／Pose 观测、局部坐标和异常原因 |
 | OSC 设置展开区 | 监听、来源过滤、超时、OSCQuery、轮询、接收服务发现、Hub |
 | 设置 | 轴配置新增／编辑／默认／移除，十二轴详细设置，结构化日志筛选 |

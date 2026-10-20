@@ -25,8 +25,11 @@ class VerificationPlanTests(unittest.TestCase):
             'docs/assets/parameter-geometry-model.js',
             'docs/assets/parameter-geometry-view.js',
             'docs/assets/parameter-geometry-style.css',
+            'docs/assets/parameter-geometry-3d.js',
+            'docs/assets/parameter-geometry-3d.LICENSE.txt',
         ]
-        for paths in [[asset] for asset in assets] + [assets, [assets[1].replace('/', '\\'), 'docs/guide.md']]:
+        inputs = assets + ['docs/assets/parameter-geometry-3d-source.js', 'scripts/build-parameter-geometry.mjs']
+        for paths in [[path] for path in inputs] + [inputs, [inputs[-1].replace('/', '\\'), 'docs/guide.md']]:
             with self.subTest(paths=paths):
                 result = plan.plan_changes(paths, event_name='push', ref='refs/heads/main')
                 self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, {'web', 'docs', 'e2e'})
@@ -34,9 +37,9 @@ class VerificationPlanTests(unittest.TestCase):
         other = plan.plan_changes(['docs/other.html', 'docs/assets/other.js', 'docs/assets/other.css'],
                                   event_name='push', ref='refs/heads/main')
         self.assertEqual({flag for flag in plan.FLAGS if other[flag]}, {'docs'})
-        for integration in ('src/Sensa.csproj', 'scripts/release.py'):
+        for integration in ('src/Sensa.csproj', 'scripts/release.py', 'scripts/build-web.mjs'):
             with self.subTest(integration=integration):
-                result = plan.plan_changes(assets + [integration], event_name='push', ref='refs/heads/main')
+                result = plan.plan_changes(inputs + [integration], event_name='push', ref='refs/heads/main')
                 self.assertTrue(all(result[key] for key in ('e2e', 'unity', 'platforms', 'prerelease')))
 
     def test_tests_only_exercise_their_interface_without_publication(self):

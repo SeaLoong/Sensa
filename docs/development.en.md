@@ -16,6 +16,8 @@ python -X utf8 scripts/verify.py
 
 The default compares HEAD with staged, unstaged and untracked working files. Use `--base <ref>` for committed changes, `--all` to select every local lane, and `--force` only when a rerun is justified. `--dotnet <absolute-path>` overrides SDK selection; otherwise the project-isolated `artifacts/toolchain/dotnet/` precedes PATH.
 
+After changing `docs/assets/parameter-geometry-3d-source.js` or the Three.js dependency, run `npm run build:web` and commit the generated `parameter-geometry-3d.js` and complete MIT notice. They ship with the offline guide. A Web unit check rebuilds from pinned dependencies and rejects stale assets. Ordinary prose edits need no extra build.
+
 Successful receipts live in `artifacts/verification/`, keyed by relevant sources, commands and toolchain. Unchanged inputs reuse success. Relevant changes, source mutation during verification and failed checks do not produce reusable success. Do not repeat a check merely to update progress.
 
 The CI scope below assumes **no outstanding product verification**. Ordinary main pushes also automatically continue unfinished product verification, as described in the next section.

@@ -1,5 +1,5 @@
-/* Offline interactive SVG views. No network, devices, animation loop or HTML injection.
- * 离线交互 SVG：无网络、设备、自动动画或 HTML 注入。 */
+/* Offline interactive SVG/Three.js views. No network, devices, animation loop or HTML injection.
+ * 离线交互 SVG/Three.js：无网络、设备、自动动画或 HTML 注入。 */
 (function () {
   'use strict';
   const Model = window.SensaParameterGeometry;
@@ -10,6 +10,9 @@
     language: ['语言', 'Language'], title: ['看见参数背后的形状', 'See the shapes behind the parameters'],
     intro: ['移动橙色操作点，观察接收范围、Sender 与读数。图示只运行离线几何模型，不连接 OSC 或设备。', 'Move the orange handle to explore receivers, Senders and values. This is an offline geometry model with no OSC or device connection.'],
     scenario: ['测量场景', 'Scenario'], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
+    orbit: ['可旋转 3D', 'Orbit 3D'], license: ['Three.js MIT 许可', 'Three.js MIT license'],
+    fallback: ['本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。', '3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.'],
+    orbitControls: ['XYZ 滑条改变坐标；旋转与缩放只改变视角。', 'XYZ sliders change coordinates; orbit and zoom change only the view.'],
     reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ['Sender 范围', 'Senders'],
     reference: ['实体外形示意', 'Illustrative outlines'], dimensions: ['半径与尺寸', 'Radii and dimensions'], zoom: ['缩放', 'Zoom'],
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
@@ -27,7 +30,7 @@
     meaning: ['近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact；灰色外形只是 Socket 与 Plug 的示意。', 'Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug outlines are illustrative.'],
     sourceNote: ['尺寸依据固定版本上游源码及 Sensa 契约，不推断动态缩放、多个 Sender 或真实客户端行为。', 'Dimensions follow pinned upstream sources and Sensa contracts, without inferring dynamic scale, multiple Senders or actual client behavior.'],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
-    positioning: ['SPS 定位原理', 'SPS positioning'], offline: ['无外部图表库 · 无网络连接', 'No chart library · No network connection'],
+    positioning: ['SPS 定位原理', 'SPS positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
     'socket-modern': ['Socket · 现代 Root / Tip', 'Socket · Modern Root / Tip'],
     'socket-legacy': ['Socket · 旧近接与 Close', 'Socket · Legacy proximity / Close'],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
@@ -94,6 +97,7 @@
   let locale = new URLSearchParams(location.search).get('lang') === 'en-US' ? 'en-US' : 'zh-CN';
   let state = Model.defaultsFor($('scene').value);
   let result, projection, selected = '', dragging = null, annotationRatio = 1;
+  let threeView = null, threeUnavailable = false;
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['sensa-sps', 'shader'].includes(state.scenario);
@@ -366,15 +370,48 @@
       document.querySelector(selector).href = (hosted ? 'https://github.com/SeaLoong/Sensa/blob/main/docs/' : '') + path + suffix;
     }
   }
+  function disposeThree() { threeView?.dispose(); threeView = null; }
+  function fallbackThree() {
+    threeUnavailable = true; disposeThree(); $('three-scene').dataset.renderState = 'fallback'; $('projection').value = 'iso'; drawView();
+  }
+  function drawView() {
+    const orbitOption = $('projection').querySelector('[value="orbit"]');
+    orbitOption.hidden = !spatial(); orbitOption.disabled = !spatial() || threeUnavailable;
+    if (!spatial() && $('projection').value === 'orbit') $('projection').value = 'xz';
+    const orbit = spatial() && $('projection').value === 'orbit' && !threeUnavailable;
+    $('three-scene').hidden = !orbit; $('diagram').hidden = orbit;
+    document.querySelector('.zoom-label').hidden = orbit;
+    $('three-fallback').hidden = !spatial() || !threeUnavailable;
+    $('three-fallback').textContent = text('fallback');
+    if (orbit) {
+      try {
+        if (!threeView) threeView = window.SensaParameterGeometry3D.create($('three-scene'));
+        threeView.update({ result, state, locale, selected, visibility: {
+          receivers: $('show-receivers').checked, senders: $('show-senders').checked,
+          reference: $('show-reference').checked, dimensions: $('show-dimensions').checked,
+        } });
+        if (!threeView) return;
+        projection = null;
+        $('projection-note').textContent = text(['真实比例的可旋转 3D；HTML 标签保持屏幕字号。橙色标记被放大以便观察，不是 Sender 半径。单位：本地单位。', 'Orbit 3D with true geometric scale and screen-sized labels. The orange marker is enlarged for visibility, not the Sender radius. Units: local units.'])
+          + (state.scenario === 'sensa-sps' ? ' ' + text(['四球共有范围扣除饱和区才可测，并非整个方框。', 'Measurable space is the shared sphere coverage minus saturation regions, not the entire box.'])
+            : ' ' + text(['输入点与解码点可能重叠；编码误差以右栏数值为准。', 'Input and decoded points may overlap; use the numeric quantization error at right.']));
+      } catch { fallbackThree(); return; }
+    } else { disposeThree(); draw(); }
+    for (const hint of document.querySelectorAll('[data-i18n="dragHint"]')) hint.textContent = text(orbit ? 'orbitControls' : 'dragHint');
+  }
   function render() {
     result = Model.evaluate(state);
     if (!result.values.some(v => v.name === selected)) selected = result.values[0]?.name || '';
-    localize(); controls(); draw(); readouts();
+    localize(); controls(); readouts(); drawView();
   }
-  $('scene').addEventListener('change', () => { dragging = null; state = Model.defaultsFor($('scene').value); selected = ''; render(); });
+  $('three-scene').addEventListener('sensa-3d-unavailable', fallbackThree);
+  $('scene').addEventListener('change', () => {
+    dragging = null; state = Model.defaultsFor($('scene').value); selected = '';
+    $('projection').value = spatial() ? threeUnavailable ? 'iso' : 'orbit' : 'xz'; render();
+  });
   $('locale').addEventListener('change', () => { locale = $('locale').value; render(); });
-  $('projection').addEventListener('change', render);
-  $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); });
+  $('projection').addEventListener('change', () => { dragging = null; render(); });
+  $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });
   for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
   for (const holder of document.querySelectorAll('[data-control]')) {
     const key = holder.dataset.control, input = $('control-' + key);
@@ -414,6 +451,8 @@
   });
   function freeze(value) { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
   Object.defineProperty(window, 'SensaGeometryView', { value: Object.freeze({ snapshot: () =>
-    freeze(JSON.parse(JSON.stringify({ locale, state, result, projection }))) }), writable: false });
+    freeze(JSON.parse(JSON.stringify({ locale, state, result, projection, projectionMode: $('projection').value, three: threeView?.snapshot() || null }))) }), writable: false });
+  window.addEventListener('pagehide', disposeThree);
+  window.addEventListener('pageshow', event => { if (event.persisted) render(); });
   render();
 })();

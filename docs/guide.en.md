@@ -4,7 +4,7 @@
 
 Open `http://127.0.0.1:5086`. The interface has three destinations: **Control, OSC and Settings**. The top bar always shows the actual mode, input activation, emergency stop, language and help. See [Quick start](quick-start.en.md) for a first device test and [Usage scenarios](usage-scenarios.en.md) to compare prerequisites, effects and limits.
 
-Open the [interactive parameter diagram](parameter-geometry.html?lang=en-US) offline from the extracted desktop archive to explore parameter geometry without connecting devices.
+Open the [interactive parameter diagram](parameter-geometry.html?lang=en-US) offline from the extracted desktop archive to explore parameter geometry without connecting devices. Orbit/zoom the SPS/Shader 3D view and move the target with XYZ sliders. Without WebGL2, it falls back to SVG while readings and 2D controls remain usable.
 
 ## Control
 

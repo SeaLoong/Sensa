@@ -4,7 +4,7 @@
 
 浏览器打开 `http://127.0.0.1:5086`。页面只有**控制、OSC、设置**三个入口；顶栏始终显示实际模式、输入启用、急停、语言和帮助。首次设备测试见[快速开始](quick-start.md)，不同条件的方案、效果与限制见[使用方案](usage-scenarios.md)。
 
-[交互参数图示](parameter-geometry.html?lang=zh-CN)可在发行包内离线打开，用于理解参数与几何的关系，不会连接设备。
+[交互参数图示](parameter-geometry.html?lang=zh-CN)可在发行包内离线打开，用于理解参数与几何的关系，不会连接设备。SPS／Shader 的 3D 视图可旋转、缩放；用 XYZ 滑条移动目标。缺少 WebGL2 时自动回到 SVG，数值及二维操作仍可用。
 
 ## 控制
 

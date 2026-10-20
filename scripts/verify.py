@@ -164,7 +164,7 @@ def _relevant(path, lane):
     if all(single[flag] for flag in CI_PLAN.FULL):
         return True
     if lane == 'web':
-        return path in CI_PLAN.INTERACTIVE_DOC_ASSETS or path.startswith(('src/web/', 'tests/web/', 'tests/e2e/')) or path in (
+        return path in CI_PLAN.INTERACTIVE_DOC_INPUTS or path.startswith(('src/web/', 'tests/web/', 'tests/e2e/')) or path in (
             'package.json', 'package-lock.json', 'node_modules/.package-lock.json',
             'eslint.config.js', 'scripts/build-web.mjs')
     if lane == 'backend':

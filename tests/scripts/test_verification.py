@@ -66,11 +66,20 @@ class LocalVerificationTests(unittest.TestCase):
             self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.assertEqual(self.commands, [['different-command']])
 
-    def test_interactive_document_model_and_view_content_invalidate_web_receipts(self):
-        model = 'docs/assets/parameter-geometry-model.js'
-        view = 'docs/assets/parameter-geometry-view.js'
-        for name in (model, view):
-            self.write(name, 'first model or view')
+    def test_interactive_document_sources_bundles_and_licenses_invalidate_web_receipts(self):
+        inputs = (
+            'docs/assets/parameter-geometry-model.js',
+            'docs/assets/parameter-geometry-view.js',
+            'docs/parameter-geometry.html',
+            'docs/assets/parameter-geometry-style.css',
+            'docs/assets/parameter-geometry-3d-source.js',
+            'docs/assets/parameter-geometry-3d.js',
+            'docs/assets/parameter-geometry-3d.LICENSE.txt',
+            'scripts/build-parameter-geometry.mjs',
+        )
+        model = inputs[0]
+        for name in inputs:
+            self.write(name, 'first interactive document input')
         self.write('docs/assets/unrelated.js', 'unrelated first')
         self.assertTrue(self.run_plan([model]))
         self.assertTrue(self.receipt('web').is_file())
@@ -80,10 +89,10 @@ class LocalVerificationTests(unittest.TestCase):
         self.write('docs/assets/unrelated.js', 'unrelated changed')
         self.assertTrue(self.run_plan([model]))
         self.assertEqual(self.commands, [])
-        for name in (model, view):
+        for name in inputs:
             with self.subTest(asset=name):
                 previous = json.loads(self.receipt('web').read_text(encoding='utf-8'))['key']
-                self.write(name, 'changed model or view')
+                self.write(name, 'changed interactive document input')
                 self.assertTrue(self.run_plan([name]))
                 self.assertEqual(len(self.commands), 2, 'Changed diagram code must rerun Web checks / 图示代码变化必须重跑 Web 检查')
                 self.assertNotEqual(json.loads(self.receipt('web').read_text(encoding='utf-8'))['key'], previous)

@@ -12,7 +12,7 @@ This page describes current behavior and its limits, with source entry points fo
 | Control | Browse/apply Manual/OSC/Script; twelve-axis manual targets, single/continuous updates and motion settings; outputs; recording/export |
 | OSC → Mappings | Three built-in presets, replace/append, custom presets, path/role/inversion, range/curve/remapping, individual simulation, save/restore |
 | OSC → Parameters | Search, browse/use source, categories, freeze, pins, meanings and mapping creation |
-| [Interactive parameter guide](parameter-geometry.html?lang=en-US) | Ten detection scenes; Socket/Plug outlines, Receiver/Sender dimensions, Close gates, fixed anchors and Shader encoding; bilingual, offline, drag/keyboard controls, with no live input or device connection |
+| [Interactive parameter guide](parameter-geometry.html?lang=en-US) | Ten detection scenes; Socket/Plug outlines, Receiver/Sender dimensions, Close gates, fixed anchors and Shader encoding; bilingual, offline, XZ drag/keyboard controls and orbit/zoom SPS/Shader Three.js views with SVG fallback, with no live input or device connection |
 | OSC → Experimental diagnostics | Experimental permission, Point/Handle endpoint calibration, SPS/Shader/Pose observations, local coordinates and failure reasons |
 | Expandable OSC settings | Listener, source filter, timeout, OSCQuery, polling, receiver advertisement and Hub |
 | Settings | Create/edit/default/remove axis profiles, twelve-axis details and structured log filtering |

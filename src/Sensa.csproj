@@ -9,7 +9,7 @@
     <Content Include="web\index.html;web\styles.css" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="web\app.bundle.js;web\app.bundle.js.LEGAL.txt" Condition="'$(SkipWebBuild)' != 'true'" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\docs\parameter-geometry.html" Link="web\docs\parameter-geometry.html" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="..\docs\assets\parameter-geometry-model.js;..\docs\assets\parameter-geometry-view.js;..\docs\assets\parameter-geometry-style.css" Link="web\docs\assets\%(Filename)%(Extension)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\docs\assets\parameter-geometry-model.js;..\docs\assets\parameter-geometry-view.js;..\docs\assets\parameter-geometry-style.css;..\docs\assets\parameter-geometry-3d.js;..\docs\assets\parameter-geometry-3d.LICENSE.txt" Link="web\docs\assets\%(Filename)%(Extension)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Remove="web\**" />
     <Compile Remove="web\**" />
 

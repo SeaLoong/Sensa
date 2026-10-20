@@ -9,8 +9,11 @@
 在 Sensa 的参数详情点击“交互参数图解”，或解压桌面包后双击 `docs/parameter-geometry.html`；保留相邻的 `docs/assets/`。GitHub 中的 HTML 链接显示源码，不是已托管的交互网页。
 
 - 灰色轮廓表示 Socket／Plug 外形参考，蓝色表示 Receiver，橙色表示 Sender。选择参数行可突出对应检测体；实体外形不参与计算。
-- 拖动橙色根点或调整 XYZ、长度、半径，比较原始近接值与 Close 门控结果。XZ 图仍按完整 XYZ 计算；立体投影更适合查看四个非共面锚点。
+- 在 XZ 图拖动橙色操作点，或调整 XYZ、长度、半径，比较原始近接值与 Close 门控结果。XZ 图仍按完整 XYZ 计算。
+- SPS 和 Shader 场景提供真实 3D 视图：拖动旋转、滚轮缩放，也可用视角按钮操作与复位；XYZ 滑条调整目标点。转动相机不会改变目标坐标或参数值。已知锚点、接收球与坐标范围更容易从不同角度分辨。
 - SPS 场景可改变 Sample 和变化寿命，区分几何可解与采样有效；Shader 场景可查看范围、量化与 16×8 位图，失效时不保留有效坐标。图示不连接 OSC、GPU 捕获或设备。
+
+3D 由随文档打包的 Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) 绘制，不依赖 CDN 或联网下载；使用 [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)，不可用或上下文丢失时回退到 SVG。只在操作、数据或尺寸变化时重绘。它是几何呈现，不是 VRChat／GPU 捕获；完整 MIT 声明在相邻的 `assets/parameter-geometry-3d.LICENSE.txt`。
 
 ## 先选择需要的信息
 

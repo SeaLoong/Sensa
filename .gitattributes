@@ -1,1 +1,4 @@
 * text=auto whitespace=cr-at-eol
+# Preserve upstream GLSL string whitespace in the reproducible bundle. / 保留可重建 bundle 内上游 GLSL 字符串空白。
+docs/assets/parameter-geometry-3d.js text eol=lf -whitespace linguist-generated=true
+docs/assets/parameter-geometry-3d.LICENSE.txt text eol=lf

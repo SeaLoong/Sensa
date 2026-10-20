@@ -15,6 +15,12 @@ INTERACTIVE_DOC_ASSETS = frozenset((
     'docs/assets/parameter-geometry-model.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
+    'docs/assets/parameter-geometry-3d.js',
+    'docs/assets/parameter-geometry-3d.LICENSE.txt',
+))
+INTERACTIVE_DOC_INPUTS = INTERACTIVE_DOC_ASSETS | frozenset((
+    'docs/assets/parameter-geometry-3d-source.js',
+    'scripts/build-parameter-geometry.mjs',
 ))
 
 
@@ -40,7 +46,7 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
                 enabled.add('docs')
         elif path == 'eslint.config.js':
             enabled.add('web')
-        elif path in INTERACTIVE_DOC_ASSETS:
+        elif path in INTERACTIVE_DOC_INPUTS:
             # Interactive documentation needs model and browser checks, not native builds.
             # 交互文档需要模型与浏览器验证，不触发原生构建或预发布。
             enabled.update(('web', 'docs', 'e2e'))

@@ -16,6 +16,8 @@ python -X utf8 scripts/verify.py
 
 默认比较 HEAD 与工作区，包含暂存、未暂存和未跟踪文件。已提交变更可指定 `--base <ref>`；`--all` 选择所有本地检查；只有明确需要重跑时使用 `--force`。用 `--dotnet <绝对路径>` 覆盖 SDK，默认优先项目隔离的 `artifacts/toolchain/dotnet/`，否则使用 PATH。
 
+修改 `docs/assets/parameter-geometry-3d-source.js` 或 Three.js 依赖后，先运行 `npm run build:web`，提交生成的 `parameter-geometry-3d.js` 与完整 MIT 声明。它们随离线文档分发；Web 单测会按锁定依赖重新构建比对，拒绝过期资源。普通文档修改无需额外构建。
+
 成功检查的 receipt 保存在 `artifacts/verification/`，指纹包含对应源码、命令和工具链。相关内容相同会复用；相关文件改变、验证期间源码改变或检查失败都不会产生可复用成功结果。不要为了更新进度重复运行已经覆盖同一内容的检查。
 
 下表的 CI 范围适用于**没有未完成产品验证**的情况；普通 main push 还会自动接续之前尚未完成的产品验证，规则见下一节。
