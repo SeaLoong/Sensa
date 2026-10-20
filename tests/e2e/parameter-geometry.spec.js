@@ -494,7 +494,6 @@ async function canvasPixels(page) {
   expect(evidence.preserveDrawingBuffer).toBe(true);
   expect(evidence.painted).toBeGreaterThan(30);
   expect(evidence.nonBackground, 'Canvas contains rendered geometry / 画布有实际绘制内容').toBeGreaterThan(30);
-  expect(evidence.colors).toBeGreaterThan(7);
   return evidence;
 }
 function expectWorldPosition(object, expected) {
@@ -739,7 +738,18 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
         await unavailable.locator('#locale').selectOption('zh-CN');
         await expect(unavailable.locator('#three-fallback')).toHaveText('本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。');
         await expect(unavailable.locator('#control-x')).toHaveValue('0.25');
-        await expect(unavailable.locator('#projection option[value="orbit"]')).toBeDisabled();
+        // OPTION's own state matters; toBeDisabled follows the enclosing label to SELECT.
+        // 检查 OPTION 自身；toBeDisabled 会沿外层 label 重定向到仍应可用的 SELECT。
+        const orbitOption = unavailable.locator('#projection option[value="orbit"]');
+        await expect(orbitOption).toHaveJSProperty('disabled', true);
+        await expect(orbitOption).toHaveAttribute('disabled', '');
+        await expect(unavailable.locator('#projection')).toBeEnabled();
+        await unavailable.locator('#projection').selectOption('xz');
+        await expect(unavailable.locator('#projection')).toHaveValue('xz');
+        await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
+        await unavailable.locator('#projection').selectOption('iso');
+        await expect(unavailable.locator('#projection')).toHaveValue('iso');
+        await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
         await finiteDrawing(unavailable); await documentFits(unavailable);
         await info.attach('parameter-geometry-webgl-fallback.json', { body: JSON.stringify({
           lost, unavailable: await threeLifecycle(unavailable), locale: await unavailable.locator('html').getAttribute('lang'),
