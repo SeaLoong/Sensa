@@ -80,14 +80,40 @@ async function finiteDrawing(page) {
   return screenFonts();
 }
 async function documentFits(page) {
-  const evidence = await page.evaluate(() => ({
-    viewport: document.documentElement.clientWidth,
-    document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
-    svg: (() => { const box = document.querySelector('#diagram').getBoundingClientRect(); return { left: box.left, right: box.right }; })(),
-  }));
+  const evidence = await page.evaluate(() => {
+    const controls = [...document.querySelectorAll('[data-control]')].flatMap(holder => {
+      const input = holder.querySelector('input[type="range"]');
+      if (!input) return [];
+      const box = holder.getBoundingClientRect(), range = input.getBoundingClientRect();
+      const style = getComputedStyle(input);
+      if (box.width <= 0 || box.height <= 0 || range.width <= 0 || range.height <= 0
+        || style.display === 'none' || style.visibility !== 'visible') return [];
+      return [{ name: holder.dataset.control, top: box.top, bottom: range.bottom }];
+    }).sort((a, b) => a.top - b.top);
+    const rows = [];
+    for (const control of controls) {
+      let row = rows.find(candidate => Math.abs(candidate.top - control.top) <= 1);
+      if (!row) { row = { top: control.top, controls: [] }; rows.push(row); }
+      row.controls.push(control);
+    }
+    for (const row of rows) {
+      const bottoms = row.controls.map(control => control.bottom);
+      row.bottomSpread = Math.max(...bottoms) - Math.min(...bottoms);
+    }
+    const svg = document.querySelector('#diagram').getBoundingClientRect();
+    return { viewport: document.documentElement.clientWidth,
+      document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+      svg: { left: svg.left, right: svg.right }, rows };
+  });
   expect(evidence.document, 'No document horizontal overflow / 文档无横向溢出').toBeLessThanOrEqual(evidence.viewport + 1);
   expect(evidence.svg.left).toBeGreaterThanOrEqual(-1);
   expect(evidence.svg.right).toBeLessThanOrEqual(evidence.viewport + 1);
+  // Group by actual row tops, independent of the chosen column count or CSS declarations.
+  // 按实际顶沿识别同排，不读取 CSS 声明，也不固定列数或列宽。
+  for (const row of evidence.rows.filter(row => row.controls.length >= 2)) {
+    expect(row.bottomSpread, 'Same-row range bottoms align / 同排滑杆底沿对齐: '
+      + row.controls.map(control => control.name).join(', ')).toBeLessThanOrEqual(1);
+  }
   return evidence;
 }
 
@@ -359,6 +385,26 @@ test('offline parameter geometry renders, responds and preserves bilingual state
         await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-' + locale + '.png', { fullPage: true });
       }
     }
+
+    // Independent 3D-layout evidence; these attachments are not screenshot baselines.
+    // 独立立体布局证据；仅作为报告附件，不新增截图基线。
+    await page.locator('#locale').selectOption('en-US');
+    for (const scenario of ['sensa-sps', 'shader']) {
+      await chooseScene(page, scenario);
+      await page.locator('#projection').selectOption('iso');
+      const fonts = await finiteDrawing(page);
+      const layout = await documentFits(page);
+      await page.evaluate(() => document.fonts.ready);
+      await page.mouse.move(0, 0);
+      await info.attach('parameter-geometry-' + scenario + '-isometric-en-US.png', {
+        body: await page.screenshot({ fullPage: true }), contentType: 'image/png',
+      });
+      await info.attach('parameter-geometry-' + scenario + '-isometric-en-US.json', {
+        body: JSON.stringify({ locale: 'en-US', scenario, projection: 'iso', fonts, layout }, null, 2),
+        contentType: 'application/json',
+      });
+    }
+    await page.locator('#projection').selectOption('xz');
 
     // 320 CSS px is reflow coverage, not a physical mobile or browser zoom claim.
     // 320 CSS像素仅验证重排，不代表真机或实际浏览器缩放。

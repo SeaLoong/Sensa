@@ -209,8 +209,10 @@
       layer.append(svg('line', { class: 'axis', x1: origin.x, y1: origin.y, x2: p.x, y2: p.y }));
       const distance = Math.hypot(p.x - origin.x, p.y - origin.y) || 1;
       const ux = (p.x - origin.x) / distance, uy = (p.y - origin.y) / distance;
-      annotations.append(label(p.x + ux * 8 * annotationRatio, p.y + (uy * 8 + 3) * annotationRatio, '+' + axis,
-        { class: 'grid-axis-label', 'text-anchor': ux > .2 ? 'start' : ux < -.2 ? 'end' : 'middle' }));
+      const offset = axis === 'X' ? { along: -4, side: 12 } : axis === 'Z' ? { along: 18, side: 18 } : { along: 8, side: 0 };
+      const dx = ux * offset.along - uy * offset.side, dy = uy * offset.along + ux * offset.side + (axis === 'Y' ? 3 : 0);
+      annotations.append(label(p.x + dx * annotationRatio, p.y + dy * annotationRatio, '+' + axis,
+        { class: 'grid-axis-label', 'text-anchor': dx > .2 ? 'start' : dx < -.2 ? 'end' : 'middle' }));
     }
     references(layer, annotations);
     const field = result.values.find(v => v.name === selected);
