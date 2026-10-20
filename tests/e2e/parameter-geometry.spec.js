@@ -808,6 +808,80 @@ function referenceLabelClearance(snapshot, layout) {
   }));
   return { meshes, labels, intersections };
 }
+async function referenceLeaderEvidence(page, snapshot, layout, scenario) {
+  const lines = await page.locator('#three-scene line[data-leader-for]').evaluateAll(nodes => nodes.map(line => {
+    const style = getComputedStyle(line), matrix = line.getScreenCTM();
+    const project = (x, y) => ({ x: matrix.a * x + matrix.c * y + matrix.e, y: matrix.b * x + matrix.d * y + matrix.f });
+    const id = line.dataset.leaderFor;
+    const label = [...document.querySelectorAll('#three-scene [data-label-id]')].find(node => node.dataset.labelId === id);
+    const box = label.getBoundingClientRect();
+    const dot = [...line.ownerSVGElement.querySelectorAll('circle[data-leader-anchor-for]')].find(node => node.dataset.leaderAnchorFor === id);
+    let dotEvidence = null;
+    if (dot) {
+      const transform = dot.getScreenCTM(), styles = getComputedStyle(dot), x = dot.cx.baseVal.value, y = dot.cy.baseVal.value;
+      dotEvidence = { center: { x: transform.a * x + transform.c * y + transform.e, y: transform.b * x + transform.d * y + transform.f },
+        attributes: Object.fromEntries(['cx', 'cy', 'r'].map(name => [name, dot.getAttribute(name)])), radius: dot.r.baseVal.value,
+        fill: styles.fill, pointerEvents: styles.pointerEvents, visibility: styles.visibility, display: styles.display };
+    }
+    return { id, dot: dotEvidence, attributes: Object.fromEntries(['x1', 'y1', 'x2', 'y2'].map(name => [name, line.getAttribute(name)])),
+      matrix: [matrix.a, matrix.b, matrix.c, matrix.d, matrix.e, matrix.f],
+      start: project(line.x1.baseVal.value, line.y1.baseVal.value), end: project(line.x2.baseVal.value, line.y2.baseVal.value),
+      label: { left: box.left, right: box.right, top: box.top, bottom: box.bottom },
+      stroke: style.stroke, strokeWidth: Number.parseFloat(style.strokeWidth), strokeOpacity: Number(style.strokeOpacity),
+      opacity: Number(style.opacity), visibility: style.visibility, display: style.display, pointerEvents: style.pointerEvents,
+      svgPointerEvents: getComputedStyle(line.ownerSVGElement).pointerEvents };
+  }));
+  if (scenario === 'socket-modern') {
+    expect(lines.filter(line => line.id === 'illustration-plug-tip'), 'A displaced modern Plug Tip has a real leader / 现代Plug偏移的Tip标签必须有真实引线').toHaveLength(1);
+  }
+  for (const line of lines) {
+    let point;
+    if (line.id === 'moving-root') point = snapshot.markers.find(marker => marker.id === 'moving-root').worldPosition;
+    else {
+      const match = /^illustration-(.+)-(root|tip)$/.exec(line.id);
+      expect(match, 'Leader names an actual reference / 引线指向实际参考对象').not.toBeNull();
+      const object = snapshot.illustrations.find(item => item.id === match[1]);
+      expect(object).toBeTruthy();
+      const localY = match[2] === 'tip' ? object.geometry.parameters.points.at(-1).y : 0;
+      if (match[2] === 'tip') expect(object.kind).toBe('plug');
+      const world = transform4(object.matrixWorld, [0, localY, 0, 1]);
+      point = { x: world[0] / world[3], y: world[1] / world[3], z: world[2] / world[3] };
+    }
+    // The expected start comes from actual geometry, not the label layout or a leader helper.
+    // 期望起点来自真实几何，不复用标签布局或实现端的引线helper。
+    const expectedStart = projectWorld(snapshot, point, layout.canvas);
+    const expectedEnd = { x: Math.max(line.label.left, Math.min(line.label.right, expectedStart.x)),
+      y: Math.max(line.label.top, Math.min(line.label.bottom, expectedStart.y)) };
+    expect(Math.hypot(line.start.x - expectedStart.x, line.start.y - expectedStart.y), 'Leader starts at the actual reference / 引线始于真实参考点: ' + line.id).toBeLessThanOrEqual(1);
+    // Allow a 1 CSS px gap plus offsetWidth rounding (<=.5), SVG scaling (about .125) and DOM 1/64 px.
+    // 允许1CSS像素间隙，加offsetWidth取整(≤.5)、SVG比例(约.125)及DOM的1/64像素量化。
+    // CI evidence includes a 44.6875 px Socket label rounded to offsetWidth=45: its correct end is about 1.33 px away.
+    // CI实证Socket标签44.6875像素取整为offsetWidth=45，正确线端距真实边界约1.33像素。
+    const edgeGap = { x: line.end.x - expectedEnd.x, y: line.end.y - expectedEnd.y };
+    const direction = { x: expectedStart.x - expectedEnd.x, y: expectedStart.y - expectedEnd.y };
+    const distanceToEdge = Math.hypot(direction.x, direction.y);
+    expect(distanceToEdge).toBeGreaterThan(1);
+    const terminalError = Math.hypot(edgeGap.x, edgeGap.y);
+    const along = (edgeGap.x * direction.x + edgeGap.y * direction.y) / distanceToEdge;
+    const cross = Math.abs(edgeGap.x * direction.y - edgeGap.y * direction.x) / distanceToEdge;
+    expect(terminalError, 'Leader ends on its label nearest edge / 引线止于标签最近边: ' + line.id).toBeLessThanOrEqual(2);
+    expect(Math.abs(along - 1), 'Endpoint stays one pixel toward its reference / 末端仍朝参考点方向留约一像素').toBeLessThanOrEqual(.75);
+    expect(cross, 'Endpoint stays on the reference-to-label line / 末端仍在参考点到标签连线方向').toBeLessThanOrEqual(.75);
+    if (line.id !== 'moving-root') {
+      expect(line.dot, 'Illustrated reference has a visible anchor dot / 示意参考点有可见圆点').not.toBeNull();
+      expect(Math.hypot(line.dot.center.x - expectedStart.x, line.dot.center.y - expectedStart.y)).toBeLessThanOrEqual(1);
+      expect(line.dot.radius).toBeGreaterThan(0); expect(line.dot.fill).not.toBe('none');
+      expect(line.dot.pointerEvents).toBe('none'); expect(line.dot.visibility).toBe('visible'); expect(line.dot.display).not.toBe('none');
+    }
+    expect(Math.hypot(line.end.x - line.start.x, line.end.y - line.start.y)).toBeGreaterThan(1);
+    expect(line.stroke).not.toBe('none'); expect(line.stroke).not.toBe('transparent');
+    expect(line.strokeWidth).toBeGreaterThan(0); expect(line.strokeOpacity * line.opacity).toBeGreaterThan(0);
+    expect(line.visibility).toBe('visible'); expect(line.display).not.toBe('none');
+    expect(line.pointerEvents).toBe('none'); expect(line.svgPointerEvents).toBe('none');
+    Object.assign(line, { referencePoint: point, expectedStart, expectedEnd, terminalError, along, cross });
+  }
+  return lines;
+}
 async function readyOrbit(page, scenario) {
   await chooseScene(page, scenario, 'orbit');
   await expect(page.locator('#projection')).toHaveValue('orbit');
@@ -1055,9 +1129,11 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
           const frustum = ['sensa-sps', 'shader'].includes(scenario) ? expectFrameFits(await threeSnapshot(page)) : null;
           const referenceClearance = ['socket-modern', 'socket-legacy', 'plug-touch'].includes(scenario)
             ? referenceLabelClearance(await threeSnapshot(page), layout) : null;
+          const referenceLeaders = referenceClearance
+            ? await referenceLeaderEvidence(page, await threeSnapshot(page), layout, scenario) : null;
           await page.evaluate(() => document.fonts.ready); await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-orbit-' + locale + '.png', { fullPage: true });
-          evidence.push({ locale, scenario, layout, pixels, frustum, referenceClearance, three: await threeSnapshot(page) });
+          evidence.push({ locale, scenario, layout, pixels, frustum, referenceClearance, referenceLeaders, three: await threeSnapshot(page) });
         }
       }
       await page.setViewportSize({ width: 320, height: 844 });

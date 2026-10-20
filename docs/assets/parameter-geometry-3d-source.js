@@ -56,6 +56,13 @@ function create(host) {
   controls.rotateSpeed = .65; controls.zoomSpeed = .8; controls.touches.TWO = THREE.TOUCH.DOLLY_ROTATE;
   const viewport = element('div', 'three-viewport'), overlay = element('div', 'three-labels');
   overlay.setAttribute('aria-hidden', 'true');
+  const svgNode = (tag, attributes) => {
+    const node = document.createElementNS('http://www.w3.org/2000/svg', tag);
+    for (const [name, value] of Object.entries(attributes)) node.setAttribute(name, String(value));
+    return node;
+  };
+  const leaders = svgNode('svg', { class: 'three-leaders', 'aria-hidden': 'true', 'data-leader-layer': '', width: '100%', height: '100%', 'pointer-events': 'none' });
+  Object.assign(leaders.style, { position: 'absolute', inset: '0', display: 'block', pointerEvents: 'none' }); overlay.append(leaders);
   const toolbar = element('div', 'three-controls'), rotateGroup = element('div', 'three-control-group'), zoomGroup = element('div', 'three-control-group');
   toolbar.setAttribute('role', 'group'); rotateGroup.setAttribute('role', 'group'); zoomGroup.setAttribute('role', 'group');
   const hint = element('p', 'three-hint'); hint.id = host.id + '-hint';
@@ -106,7 +113,7 @@ function create(host) {
   };
   const clearObjects = () => {
     objects.children.slice().forEach(disposeObject); shapeObjects.clear(); illustrations.clear(); markers.clear(); dimensions.clear();
-    labels.clear(); overlay.replaceChildren(); axes = null;
+    labels.clear(); leaders.replaceChildren(); overlay.replaceChildren(leaders); axes = null;
   };
   function endDrag() {
     if (!drag) return;
@@ -252,6 +259,7 @@ function create(host) {
     controls.update(); controls.saveState(); render();
   }
   function positionLabels(w, h) {
+    leaders.setAttribute('viewBox', '0 0 ' + w + ' ' + h); leaders.replaceChildren();
     const occupied = [], bodyBounds = [], projected = new THREE.Vector3();
     const priority = id => id === 'moving-root' ? 0 : id === 'decoded-root' ? 1 : id.startsWith('anchor-') ? 2 : 3;
     const frustum = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
@@ -289,6 +297,17 @@ function create(host) {
         rect = candidates.filter(free).sort((a, b) => Math.hypot(a.left - x, a.top - y) - Math.hypot(b.left - x, b.top - y))[0] || at(...item.preferred);
       }
       item.node.style.left = rect.left + 'px'; item.node.style.top = rect.top + 'px'; occupied.push(rect);
+      if (id.startsWith('illustration-') || id === 'moving-root' && illustrations.size > 0) {
+        const edgeX = Math.max(rect.left, Math.min(rect.right, x)), edgeY = Math.max(rect.top, Math.min(rect.bottom, y));
+        const distance = Math.hypot(x - edgeX, y - edgeY);
+        if (distance > 10) {
+          leaders.append(svgNode('line', { 'data-leader-for': id, x1: x, y1: y,
+            x2: edgeX + (x - edgeX) / distance, y2: edgeY + (y - edgeY) / distance,
+            stroke: window.getComputedStyle(item.node).color || '#40516b', 'stroke-width': 1, 'stroke-opacity': .8, 'vector-effect': 'non-scaling-stroke' }));
+          if (id !== 'moving-root') leaders.append(svgNode('circle', { 'data-leader-anchor-for': id, cx: x, cy: y,
+            r: 1.75, fill: '#40516b', stroke: '#fcfdff', 'stroke-width': 1.5, 'vector-effect': 'non-scaling-stroke' }));
+        }
+      }
     }
   }
   function render() {
