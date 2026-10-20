@@ -21,9 +21,11 @@ internal sealed class IntifaceMockServer : IAsyncDisposable
     private TcpClient? _peer;
     private WebSocket? _socket;
     private int _connectionCount;
+    private int _transportDisconnectCount;
 
     public string Address { get; }
     public int ConnectionCount => Volatile.Read(ref _connectionCount);
+    public int TransportDisconnectCount => Volatile.Read(ref _transportDisconnectCount);
     public IReadOnlyList<JsonElement> Commands => _received.ToArray();
 
     public IntifaceMockServer(bool withPosition)
@@ -52,8 +54,15 @@ internal sealed class IntifaceMockServer : IAsyncDisposable
             {
                 using var peer = await _listener.AcceptTcpClientAsync(_shutdown.Token);
                 _peer = peer;
-                await ServeConnectionAsync(peer);
-                _socket = null;
+                try { await ServeConnectionAsync(peer); }
+                catch (Exception error) when (!_shutdown.IsCancellationRequested
+                    && (error is WebSocketException or SocketException || error is IOException && error is not InvalidDataException))
+                {
+                    // A closed transport ends one session, not the listening peer.
+                    // 传输中止只结束该会话；监听继续，协议／JSON错误仍向外失败。
+                    Interlocked.Increment(ref _transportDisconnectCount);
+                }
+                finally { _socket = null; }
             }
         }
         catch (OperationCanceledException) when (_shutdown.IsCancellationRequested) { }

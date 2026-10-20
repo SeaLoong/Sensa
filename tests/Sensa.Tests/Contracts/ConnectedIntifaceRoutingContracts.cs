@@ -1,9 +1,11 @@
+using System.Net.WebSockets;
 using System.Text.Json;
 using Sensa.Application;
 using Sensa.Configuration;
 using Sensa.Input.Osc;
 using Sensa.Motion;
 using Sensa.Outputs;
+using Sensa.Outputs.Intiface;
 using Sensa.Runtime;
 using Sensa.Tests.Support;
 using Xunit;
@@ -43,13 +45,35 @@ public sealed class ConnectedIntifaceRoutingContracts
 
         Assert.False(runtime.InputActive);
         Assert.Equal("L0", config.Outputs[0].VibrationAxis);
-        Assert.True(outputs.IsConnected("vibrator"));
+        Assert.True(outputs.IsConnected("vibrator"), string.Join("\n", logs));
         Assert.Contains(peer.Commands.Skip(beforeSave), command => command.TryGetProperty("StopCmd", out _));
         Assert.DoesNotContain(peer.Commands.Skip(beforeSave), command => command.TryGetProperty("OutputCmd", out _));
         await DeviceReadyAsync(outputs);
         runtime.SetInputActive(true);
         Assert.Equal(750, VibrationValue(await peer.NextCommandAsync(IsVibration)));
         Assert.Equal(2, peer.ConnectionCount);
+    }
+
+    [Fact]
+    public async Task An_aborted_previous_websocket_does_not_prevent_the_peer_from_accepting_a_new_client()
+    {
+        await using var peer = new IntifaceMockServer(withPosition: false);
+        using (var previous = new ClientWebSocket())
+        {
+            await previous.ConnectAsync(new Uri(peer.Address), CancellationToken.None);
+            previous.Abort();
+        }
+
+        // Cancellation can abort the old transport before a close handshake finishes.
+        // 取消接收可能先中止旧传输；新会话仍必须能完成真实协议握手。
+        await using var next = new IntifaceOutputClient(new() { WebsocketAddress = peer.Address });
+        await next.ConnectAsync();
+        Assert.True(next.IsConnected);
+        Assert.Single(next.Devices);
+        Assert.Equal(2, peer.ConnectionCount);
+        Assert.Equal(1, peer.TransportDisconnectCount);
+        await next.SendAsync(new() { V0 = .5f });
+        Assert.Equal(500, VibrationValue(await peer.NextCommandAsync(IsVibration)));
     }
 
     private static bool IsVibration(JsonElement command) => command.TryGetProperty("OutputCmd", out var output)

@@ -63,7 +63,8 @@ test('@site standalone Pages language, document navigation and independent geome
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await auditHome(page, testInfo, 'en-US');
   await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
-  await page.getByRole('button', { name: 'Switch language / 切换语言' }).click();
+  await page.getByRole('button', { name: '简体中文', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'English', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await expect(page.locator('a[data-doc="docs/quick-start"]')).toHaveAttribute('href', /zh-CN\/docs\/quick-start.html$/);
   await page.reload();
