@@ -1,10 +1,32 @@
 import { test, expect } from '@playwright/test';
 import { test as hostedTest, mode, oscWorkspace, text } from './fixtures.js';
 
+// Only offline guide cases share software WebGL; app fixtures keep their own browser pool.
+// 仅离线图解用例共用软件WebGL，真实应用fixture仍保持独立浏览器配置。
+const threeTest = test.extend({
+  launchOptions: [{ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }, { scope: 'worker', option: true }],
+});
+
 const guideFile = new URL('../../docs/parameter-geometry.html', import.meta.url);
 const goldenScenes = ['socket-modern', 'socket-legacy', 'plug-touch', 'sensa-sps', 'shader'];
 const scenarioIds = ['socket-modern', 'socket-legacy', 'plug-depth', 'socket-touch', 'plug-touch',
   'socket-frot', 'plug-frot', 'zone', 'sensa-sps', 'shader'];
+
+const anchorColors = ['#0052d9', '#07806a', '#8b46c6', '#c63e58'];
+async function addressPattern(page, scenario) {
+  const prefix = scenario === 'sensa-sps' ? 'Sensa/SPS' : scenario === 'shader' ? 'Sensa/Shader'
+    : scenario === 'zone' ? 'VFH/Zone/Touch' : scenario.startsWith('plug-') ? 'OGB/Pen' : 'OGB/Orf';
+  await expect(page.locator('#path-prefix')).toHaveText(prefix + '/*');
+  await expect(page.locator('#path-assembly')).toContainText('*');
+  const rows = page.locator('#values tr');
+  for (let index = 0; index < await rows.count(); index++) {
+    const row = rows.nth(index), name = await row.getAttribute('data-name');
+    const button = row.getByRole('button', { name, exact: true });
+    await expect(button).toHaveAttribute('title', '/avatar/parameters/' + prefix + '/'
+      + (scenario === 'shader' ? '42' : 'Example') + '/' + name);
+    await expect(button).toHaveAttribute('aria-describedby', /(?:^|\s)path-assembly(?:\s|$)/);
+  }
+}
 
 const parameter = (page, name) => page.locator('#values tr').filter({
   has: page.getByRole('button', { name, exact: true }),
@@ -120,7 +142,7 @@ async function documentFits(page) {
   return evidence;
 }
 
-test('offline parameter geometry renders, responds and preserves bilingual state / 离线参数几何图解、交互与双语状态',
+threeTest('offline parameter geometry renders, responds and preserves bilingual state / 离线参数几何图解、交互与双语状态',
   { tag: ['@visual', '@i18n', '@config'] }, async ({ page }, info) => {
     const remoteRequests = [], sockets = [], errors = [];
     page.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) remoteRequests.push(request.url()); });
@@ -329,6 +351,16 @@ test('offline parameter geometry renders, responds and preserves bilingual state
       const [x, y, z] = anchors[i];
       await nearCell(page, 'P' + i, 1 - (Math.hypot(.02 - x, 1 - y, .15 - z) - .001) / 2.5);
     }
+    for (const [index, color] of anchorColors.entries()) {
+      const rgb = 'rgb(' + color.slice(1).match(/../g).map(value => parseInt(value, 16)).join(', ') + ')';
+      const row = parameter(page, 'P' + index), group = page.locator('#diagram [data-shape-id="receiver-P' + index + '"]');
+      await expect(row).toHaveAttribute('data-anchor-index', String(index));
+      await expect(row).toHaveAttribute('data-anchor-color', color);
+      await expect(row.locator('.anchor-swatch')).toHaveCSS('background-color', rgb);
+      await expect(group).toHaveAttribute('data-anchor-color', color);
+      await expect(group.locator('circle.shape')).toHaveCSS('stroke', rgb);
+      await expect(page.locator('#diagram .anchor-label[data-anchor-index="' + index + '"]')).toHaveCSS('fill', rgb);
+    }
     await nearCell(page, 'Sample', 1 / 32);
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
     await setRange(page, 'sample', 0);
@@ -504,6 +536,109 @@ function expectWorldPosition(object, expected) {
   for (const [index, value] of [[12, expected.x], [13, expected.y], [14, expected.z], [15, 1]])
     expect(matrix[index]).toBeCloseTo(value, 8);
 }
+const objectById = (snapshot, id) => {
+  const object = snapshot.objects.find(item => item.id === id);
+  expect(object, 'Actual Three object exists / 实际Three对象存在: ' + id).toBeTruthy(); return object;
+};
+function expectSphere(snapshot, id, radius, center) {
+  const object = objectById(snapshot, id);
+  expect(object.geometry.type).toBe('SphereGeometry');
+  expect(object.geometry.parameters.radius).toBeCloseTo(radius, 10);
+  expectWorldPosition(object, center);
+  return object;
+}
+function expectCapsule(snapshot, id, radius, wholeHeight, center, axis = { x: 0, y: 0, z: -1 }) {
+  const object = objectById(snapshot, id), height = Math.max(wholeHeight, radius * 2);
+  expect(object.geometry.type).toBe('CapsuleGeometry');
+  expect(object.geometry.parameters.radius).toBeCloseTo(radius, 10);
+  // Three's height parameter is the cylinder segment, while Contact H includes both caps.
+  // Three的height是直轴段，Contact的H包含两端帽。
+  expect(object.geometry.parameters.height).toBeCloseTo(height - 2 * radius, 10);
+  expect(object.geometry.bounds.max.y - object.geometry.bounds.min.y).toBeCloseTo(height, 5);
+  expectWorldPosition(object, center);
+  if (height > 2 * radius + 1e-12) {
+    for (const [i, key] of ['x', 'y', 'z'].entries()) expect(object.matrixWorld[4 + i]).toBeCloseTo(axis[key], 8);
+  } else {
+    // A zero-length capsule is a sphere: orientation carries no physical information.
+    // 直轴段为零即球，朝向没有物理含义；三个方向仍须保持真实直径。
+    for (const key of ['x', 'y', 'z']) expect(object.geometry.bounds.max[key] - object.geometry.bounds.min[key]).toBeCloseTo(radius * 2, 5);
+  }
+  return object;
+}
+function expectReferenceMesh(snapshot, id, kind, root, axis, length, radius) {
+  const object = snapshot.illustrations.find(item => item.id === id);
+  expect(object, 'Actual reference mesh exists / 实际示意网格存在: ' + id).toBeTruthy();
+  expect(object.geometry.type).toBe('LatheGeometry');
+  expect(object.geometry.vertices).toBeGreaterThan(100);
+  expectWorldPosition(object, root);
+  expect(object.geometry.positions).toHaveLength(object.geometry.vertices * 3);
+  expect(object.geometry.positions.every(Number.isFinite)).toBe(true);
+  const radial = object.geometry.positions.filter((value, index) => index % 3 === 0)
+    .map((x, index) => Math.hypot(x, object.geometry.positions[index * 3 + 2]));
+  expect(Math.max(...radial)).toBeCloseTo(radius, 5);
+  const points = object.geometry.parameters.points;
+  expect(points.length).toBeGreaterThanOrEqual(6);
+  if (kind === 'plug') {
+    expect(points[0]).toEqual({ x: 0, y: 0 });
+    expect(points.at(-1).x).toBe(0); expect(points.at(-1).y).toBeCloseTo(length, 10);
+    expect(Math.max(...points.map(point => point.x))).toBeCloseTo(radius, 10);
+  } else {
+    expect(points[0]).toEqual(points.at(-1));
+    expect(points.every(point => point.x > 0)).toBe(true);
+  }
+  // Apply the actual object's matrix to its lathe axis: no model outline is used here.
+  // 直接变换真实旋转体轴线，不借用页面模型的轮廓结果。
+  const tip = transform4(object.matrixWorld, [0, length, 0, 1]);
+  for (const [i, key] of ['x', 'y', 'z'].entries()) expect(tip[i]).toBeCloseTo(root[key] + axis[key] * length, 8);
+  return object;
+}
+function expectSceneGeometry(snapshot, scenario) {
+  const zero = { x: 0, y: 0, z: 0 };
+  if (scenario === 'socket-modern') {
+    expectSphere(snapshot, 'receiver-root', 1, zero); expectSphere(snapshot, 'receiver-length', 1, zero);
+    expectSphere(snapshot, 'sender-root', .01, { x: 0, y: 0, z: .35 });
+    expectSphere(snapshot, 'sender-length', .2, { x: 0, y: 0, z: .35 });
+  } else if (scenario === 'socket-legacy' || scenario === 'socket-touch') {
+    expectSphere(snapshot, 'receiver-proximity', .15, { x: 0, y: 0, z: -.15 });
+    expectCapsule(snapshot, 'receiver-close', .06, .15, { x: 0, y: 0, z: -.075 }, { x: 0, y: 0, z: 1 });
+    expectSphere(snapshot, scenario === 'socket-legacy' ? 'sender-length' : 'sender-body',
+      scenario === 'socket-legacy' ? .2 : .025, { x: 0, y: 0, z: scenario === 'socket-legacy' ? .1 : -.1 });
+  } else if (scenario === 'plug-depth') {
+    expectSphere(snapshot, 'receiver-depth', .2, { x: 0, y: 0, z: .15 });
+    expectSphere(snapshot, 'sender-socket-root', .001, zero);
+  } else if (scenario === 'plug-touch' || scenario === 'plug-frot') {
+    const touch = scenario === 'plug-touch';
+    expectSphere(snapshot, 'receiver-proximity', touch ? .23 : .2, zero);
+    expectCapsule(snapshot, 'receiver-close', touch ? .06 : .11, touch ? .26 : .2, { x: 0, y: 0, z: -.1 });
+    if (touch) expectSphere(snapshot, 'sender-body', .025, { x: 0, y: 0, z: -.1 });
+    else expectCapsule(snapshot, 'sender-envelope', .03, .2, { x: .04, y: 0, z: -.1 });
+  } else if (scenario === 'socket-frot') {
+    expectSphere(snapshot, 'receiver-frot', .1, { x: 0, y: 0, z: .05 });
+    expectSphere(snapshot, 'sender-socket-root', .001, { x: 0, y: 0, z: .08 });
+  } else if (scenario === 'zone') {
+    expectSphere(snapshot, 'receiver-zone', .1, zero);
+    expectSphere(snapshot, 'sender-body', .025, { x: .08, y: 0, z: 0 });
+  } else if (scenario === 'sensa-sps') expectSpsObjects(snapshot);
+  else {
+    expect(snapshot.objects.filter(object => object.role === 'receiver' || object.role === 'sender')).toHaveLength(0);
+    const box = objectById(snapshot, 'encoding-cube');
+    expect(box.geometry.type).toBe('EdgesGeometry');
+    expect(box.geometry.vertices).toBeGreaterThanOrEqual(24);
+    for (const axis of ['x', 'y', 'z']) expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(3, 8);
+    expectWorldPosition(box, { x: 0, y: 1, z: 0 });
+  }
+  const socket = ['socket', 'socket', zero, { x: 0, y: 0, z: 1 }, .15, .054];
+  const plug = (id, z, x = 0) => [id, 'plug', { x, y: 0, z }, { x: 0, y: 0, z: -1 }, .2, .03];
+  const references = {
+    'socket-modern': [socket, plug('plug', .35)], 'socket-legacy': [socket, plug('plug', .1)],
+    'socket-touch': [socket], 'socket-frot': [socket,
+      ['socket-other', 'socket', { x: 0, y: 0, z: .08 }, { x: 0, y: 0, z: -1 }, .15, .054]],
+    'plug-depth': [socket, plug('plug', .15)], 'plug-touch': [plug('plug', 0)],
+    'plug-frot': [plug('plug', 0), plug('sender', 0, .04)], zone: [], 'sensa-sps': [], shader: [],
+  }[scenario];
+  expect(snapshot.illustrations).toHaveLength(references.length);
+  for (const reference of references) expectReferenceMesh(snapshot, ...reference);
+}
 function expectSpsObjects(snapshot, point = { x: .02, y: 1, z: .15 }) {
   const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
   expect(snapshot.objects.filter(object => object.role === 'receiver')).toHaveLength(4);
@@ -511,6 +646,9 @@ function expectSpsObjects(snapshot, point = { x: .02, y: 1, z: .15 }) {
     const object = snapshot.objects.find(item => item.id === 'receiver-P' + index);
     expect(object.geometry.type).toBe('SphereGeometry');
     expect(object.geometry.parameters.radius).toBe(2.5);
+    expect(object.material.color).toBe(anchorColors[index]);
+    const marker = snapshot.markers.find(item => item.id === 'anchor-P' + index);
+    expect(marker.material.color).toBe(anchorColors[index]);
     expect(object.geometry.vertices).toBeGreaterThan(1000);
     expect(object.scale).toEqual([1, 1, 1]);
     expectWorldPosition(object, { x, y, z });
@@ -544,6 +682,64 @@ function inverse4(matrix) {
     }
   }
   return Array.from({ length: 16 }, (_, i) => rows[i % 4][4 + Math.floor(i / 4)]);
+}
+function projectWorld(snapshot, point, canvas) {
+  const world = [point.x, point.y, point.z, 1];
+  const clip = transform4(snapshot.camera.projectionMatrix,
+    transform4(inverse4(snapshot.camera.matrixWorld), world));
+  expect(clip[3]).toBeGreaterThan(0);
+  return { x: canvas.x + (clip[0] / clip[3] + 1) * canvas.width / 2,
+    y: canvas.y + (1 - clip[1] / clip[3]) * canvas.height / 2 };
+}
+function planeIntersection(snapshot, screen, canvas, point, plane) {
+  const ndc = [(screen.x - canvas.x) / canvas.width * 2 - 1,
+    1 - (screen.y - canvas.y) / canvas.height * 2];
+  const inverseProjection = inverse4(snapshot.camera.projectionMatrix);
+  const unproject = depth => {
+    const projected = transform4(inverseProjection, [...ndc, depth, 1]);
+    const world = transform4(snapshot.camera.matrixWorld, projected);
+    return world.slice(0, 3).map(value => value / world[3]);
+  };
+  const near = unproject(-1), far = unproject(1);
+  const locked = ['x', 'y', 'z'].find(axis => !plane.includes(axis));
+  const index = ['x', 'y', 'z'].indexOf(locked), denominator = far[index] - near[index];
+  expect(Math.abs(denominator), 'Ray is not parallel to the drag plane / 射线不平行于拖动平面').toBeGreaterThan(1e-8);
+  const distance = (point[locked] - near[index]) / denominator;
+  return Object.fromEntries(['x', 'y', 'z'].map((axis, i) => [axis, near[i] + (far[i] - near[i]) * distance]));
+}
+async function dragTarget(page, plane, wanted) {
+  await page.locator('#drag-plane').selectOption(plane);
+  const canvas = page.locator('#three-scene canvas'); await canvas.scrollIntoViewIfNeeded();
+  const rectangle = await canvas.boundingBox(), before = await threeSnapshot(page);
+  const start = before.markers.find(marker => marker.id === 'moving-root').worldPosition;
+  const from = projectWorld(before, start, rectangle), to = projectWorld(before, wanted, rectangle);
+  const raw = planeIntersection(before, to, rectangle, start, plane);
+  const ranges = await page.locator('[data-control]').evaluateAll(holders => Object.fromEntries(holders
+    .filter(holder => ['x', 'y', 'z'].includes(holder.dataset.control)).map(holder => {
+      const input = holder.querySelector('input'); return [holder.dataset.control,
+        { min: Number(input.min), max: Number(input.max), step: Number(input.step) }];
+    })));
+  const expected = Object.fromEntries(['x', 'y', 'z'].map(axis => {
+    const range = ranges[axis];
+    const value = plane.includes(axis) ? Math.max(range.min, Math.min(range.max,
+      range.min + Math.round((raw[axis] - range.min) / range.step) * range.step)) : start[axis];
+    return [axis, Number(value.toFixed(10))];
+  }));
+  await page.mouse.move(from.x, from.y); await page.mouse.down();
+  expect((await threeSnapshot(page)).drag.active).toBe(true);
+  await page.mouse.move(to.x, to.y, { steps: 4 }); await page.mouse.up();
+  const after = await threeSnapshot(page);
+  expect(after.drag.active).toBe(false);
+  expectWorldPosition(after.markers.find(marker => marker.id === 'moving-root'), expected);
+  expect((await uiGeometry(page)).xyz.map(Number)).toEqual(['x', 'y', 'z'].map(axis => expected[axis]));
+  expect(maximumDifference(cameraVector(after.camera), cameraVector(before.camera))).toBeLessThan(1e-8);
+  expectSpsObjects(after, expected);
+  for (const [index, anchor] of [[0, [-.5, .5, -.5]], [1, [.5, .5, .5]], [2, [.5, 1.5, -.5]], [3, [-.5, 1.5, .5]]]) {
+    const proximity = 1 - (Math.hypot(expected.x - anchor[0], expected.y - anchor[1], expected.z - anchor[2]) - .001) / 2.5;
+    await nearCell(page, 'P' + index, Math.max(0, Math.min(1, proximity)));
+  }
+  return { plane, from, to, raw, expected, actual: after.markers.find(marker => marker.id === 'moving-root'),
+    cameraBefore: before.camera, cameraAfter: after.camera };
 }
 function frameCornersNdc(snapshot) {
   const edge = snapshot.objects.find(object => object.role === 'reference' && object.geometry?.type === 'EdgesGeometry');
@@ -600,12 +796,6 @@ async function orbitLayout(page) {
   return { ...layout, labels, canvas: box };
 }
 
-// A separate worker fixture pool preserves Playwright's built-in page/trace/video lifecycle.
-// 独立 worker fixture pool 保留内置 page／trace／video 生命周期，旧测试不继承软件 WebGL 参数。
-const threeTest = test.extend({
-  launchOptions: [{ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }, { scope: 'worker', option: true }],
-});
-
 threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
   threeTest('real WebGL geometry, camera controls and offline orbit views / 真实WebGL几何、相机控制与离线旋转视图',
     { tag: ['@visual', '@i18n', '@config'] }, async ({ page }, info) => {
@@ -624,10 +814,15 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       const canvas = page.locator('#three-scene canvas');
       await canvas.scrollIntoViewIfNeeded();
       const area = await canvas.boundingBox();
-      await page.mouse.move(area.x + area.width * .55, area.y + area.height * .45);
+      const markerScreen = projectWorld(initial, initial.markers.find(marker => marker.id === 'moving-root').worldPosition, area);
+      const orbitStart = [[.2, .2], [.2, .7], [.7, .2], [.7, .7]].map(([x, y]) =>
+        ({ x: area.x + area.width * x, y: area.y + area.height * y })).sort((a, b) =>
+        Math.hypot(b.x - markerScreen.x, b.y - markerScreen.y) - Math.hypot(a.x - markerScreen.x, a.y - markerScreen.y))[0];
+      expect(Math.hypot(orbitStart.x - markerScreen.x, orbitStart.y - markerScreen.y)).toBeGreaterThan(40);
+      await page.mouse.move(orbitStart.x, orbitStart.y);
       await page.mouse.down();
-      await page.mouse.move(area.x + area.width * .55 + 22, area.y + area.height * .45 + 13, { steps: 4 });
-      await page.mouse.move(area.x + area.width * .55 + 40, area.y + area.height * .45 + 24, { steps: 4 });
+      await page.mouse.move(orbitStart.x + 22, orbitStart.y + 13, { steps: 4 });
+      await page.mouse.move(orbitStart.x + 40, orbitStart.y + 24, { steps: 4 });
       await page.mouse.up();
       const draggedCamera = await waitCameraChange(page, initial.camera);
       expect((await canvasPixels(page)).hash).not.toBe(originalPixels.hash);
@@ -662,6 +857,38 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       expect(await uiGeometry(page)).toEqual(initialUi);
       const resetPixels = await canvasPixels(page);
       expect(maximumDifference(resetPixels.signature, originalPixels.signature)).toBeLessThan(1);
+
+      const dragEvidence = [];
+      dragEvidence.push(await dragTarget(page, 'xz', { x: .193, y: 1, z: .287 }));
+      const afterXz = (await threeSnapshot(page)).markers.find(marker => marker.id === 'moving-root').worldPosition;
+      dragEvidence.push(await dragTarget(page, 'xy', { x: afterXz.x + .137, y: afterXz.y + .113, z: afterXz.z }));
+      await setRange(page, 'x', 1.79);
+      const beforeClamp = (await threeSnapshot(page)).markers.find(marker => marker.id === 'moving-root').worldPosition;
+      dragEvidence.push(await dragTarget(page, 'xy', { ...beforeClamp, x: 1.88, y: beforeClamp.y + .077 }));
+      expect(dragEvidence.at(-1).expected.x).toBe(1.8);
+
+      // Escape cancels a captured target gesture without resuming it on the next move.
+      // Escape取消已捕获的目标拖动，后续移动不能继续写坐标。
+      const cancelSnapshot = await threeSnapshot(page), cancelUi = await uiGeometry(page);
+      await canvas.scrollIntoViewIfNeeded();
+      const cancelBox = await canvas.boundingBox();
+      const cancelPoint = projectWorld(cancelSnapshot, cancelSnapshot.markers.find(marker => marker.id === 'moving-root').worldPosition, cancelBox);
+      await canvas.focus(); await page.mouse.move(cancelPoint.x, cancelPoint.y); await page.mouse.down();
+      expect((await threeSnapshot(page)).drag.active).toBe(true);
+      await canvas.press('Escape');
+      expect((await threeSnapshot(page)).drag.active).toBe(false);
+      await page.mouse.move(cancelPoint.x + 18, cancelPoint.y + 9); await page.mouse.up();
+      expect(await uiGeometry(page)).toEqual(cancelUi);
+      expect(maximumDifference(cameraVector((await threeSnapshot(page)).camera), cameraVector(cancelSnapshot.camera))).toBeLessThan(1e-8);
+
+      await page.mouse.move(cancelPoint.x, cancelPoint.y); await page.mouse.down();
+      expect((await threeSnapshot(page)).drag.active).toBe(true);
+      await page.locator('#scene').selectOption('socket-modern');
+      await expect(page.locator('#projection')).toHaveValue('orbit');
+      expect((await threeSnapshot(page)).drag.active).toBe(false);
+      await page.mouse.move(cancelPoint.x + 18, cancelPoint.y + 9); await page.mouse.up();
+      expectWorldPosition((await threeSnapshot(page)).markers.find(marker => marker.id === 'moving-root'), { x: 0, y: 0, z: .35 });
+      await readyOrbit(page, 'sensa-sps');
 
       await setRange(page, 'x', .2); await setRange(page, 'y', 1.2); await setRange(page, 'z', -.1);
       const moved = await threeSnapshot(page);
@@ -717,13 +944,45 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       expectWorldPosition(shader.markers.find(marker => marker.id === 'decoded-root'), decoded);
       for (const axis of ['X', 'Y', 'Z']) await nearCell(page, axis, decoded[axis.toLowerCase()]);
 
+      const sceneEvidence = [];
+      for (const scenario of scenarioIds) {
+        await page.locator('#projection').selectOption('xz');
+        await page.locator('#scene').selectOption(scenario);
+        await expect(page.locator('#projection'), 'Every scene defaults to real 3D / 每个场景默认真实三维').toHaveValue('orbit');
+        await readyOrbit(page, scenario);
+        const snapshot = await threeSnapshot(page);
+        expectSceneGeometry(snapshot, scenario);
+        expect(snapshot.lifecycle.live).toBe(1);
+        await expect(page.locator('#three-scene canvas')).toHaveCount(1);
+        await addressPattern(page, scenario);
+        sceneEvidence.push({ scenario, three: snapshot, pixels: await canvasPixels(page) });
+      }
+      await readyOrbit(page, 'socket-modern');
+      await setRange(page, 'L', .4); await setRange(page, 'yaw', 90);
+      const resizedModern = await threeSnapshot(page);
+      expectSphere(resizedModern, 'sender-length', .4, { x: 0, y: 0, z: .35 });
+      await nearCell(page, 'PenOthersNewRoot', .66); await nearCell(page, 'PenOthersNewTip', 1);
+      expectReferenceMesh(resizedModern, 'plug', 'plug', { x: 0, y: 0, z: .35 }, { x: -1, y: 0, z: 0 }, .4, .03);
+      await readyOrbit(page, 'plug-touch');
+      await setRange(page, 'L', .4); await setRange(page, 'W', .02);
+      const resizedPlug = await threeSnapshot(page);
+      expectSphere(resizedPlug, 'receiver-proximity', .42, { x: 0, y: 0, z: 0 });
+      expectCapsule(resizedPlug, 'receiver-close', .04, .44, { x: 0, y: 0, z: -.2 });
+      expectReferenceMesh(resizedPlug, 'plug', 'plug', { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: -1 }, .4, .02);
+      await readyOrbit(page, 'socket-legacy'); await setRange(page, 'D', .25);
+      const resizedSocket = await threeSnapshot(page);
+      expectSphere(resizedSocket, 'receiver-proximity', .25, { x: 0, y: 0, z: -.25 });
+      expectCapsule(resizedSocket, 'receiver-close', .1, .25, { x: 0, y: 0, z: -.125 }, { x: 0, y: 0, z: 1 });
+      expectReferenceMesh(resizedSocket, 'socket', 'socket', { x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 1 }, .22, .054);
+
       const evidence = [];
       for (const locale of ['zh-CN', 'en-US']) {
         await page.locator('#locale').selectOption(locale);
-        for (const scenario of ['sensa-sps', 'shader']) {
+        for (const scenario of goldenScenes) {
           await readyOrbit(page, scenario);
           const pixels = await canvasPixels(page), layout = await orbitLayout(page);
-          const frustum = expectFrameFits(await threeSnapshot(page));
+          await addressPattern(page, scenario);
+          const frustum = ['sensa-sps', 'shader'].includes(scenario) ? expectFrameFits(await threeSnapshot(page)) : null;
           await page.evaluate(() => document.fonts.ready); await page.mouse.move(0, 0);
           await expect(page).toHaveScreenshot('parameter-geometry-' + scenario + '-orbit-' + locale + '.png', { fullPage: true });
           evidence.push({ locale, scenario, layout, pixels, frustum, three: await threeSnapshot(page) });
@@ -742,15 +1001,17 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       const resizedFrustum = expectFrameFits(await threeSnapshot(page));
       for (const locale of ['zh-CN', 'en-US']) {
         await page.locator('#locale').selectOption(locale);
-        for (const scenario of ['sensa-sps', 'shader']) {
+        for (const scenario of scenarioIds) {
           await readyOrbit(page, scenario);
           evidence.push({ locale, scenario, reflow: true, layout: await orbitLayout(page), pixels: await canvasPixels(page),
-            frustum: expectFrameFits(await threeSnapshot(page)) });
+            frustum: ['sensa-sps', 'shader'].includes(scenario) ? expectFrameFits(await threeSnapshot(page)) : null });
         }
       }
       await info.attach('parameter-geometry-webgl.json', { body: JSON.stringify({ initial, initialPixels: originalPixels,
         camera: { pointer: draggedCamera, keyboard: keyedCamera, wheel: wheeledCamera, button: buttonCamera, reset: reset.camera },
-        cycles: cycleEvidence, resizedFrustum, views: evidence }, null, 2), contentType: 'application/json' });
+        cycles: cycleEvidence, drag: dragEvidence, scenes: sceneEvidence,
+        dimensions: { modern: resizedModern, plug: resizedPlug, socket: resizedSocket },
+        resizedFrustum, views: evidence }, null, 2), contentType: 'application/json' });
       expect(network).toEqual([]); expect(sockets).toEqual([]); expect(errors).toEqual([]);
     });
 

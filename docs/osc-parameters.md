@@ -8,10 +8,12 @@
 
 在 Sensa 的参数详情点击“交互参数图解”，或解压桌面包后双击 `docs/parameter-geometry.html`；保留相邻的 `docs/assets/`。GitHub 中的 HTML 链接显示源码，不是已托管的交互网页。
 
-- 灰色轮廓表示 Socket／Plug 外形参考，蓝色表示 Receiver，橙色表示 Sender。选择参数行可突出对应检测体；实体外形不参与计算。
+- 灰色立体外形表示带开口／内壁的 Socket 和渐细圆头 Plug，仅作参考，不参与计算。普通 Receiver 为蓝色、Sender 为橙色；SPS 的 P0／P1／P2／P3 分别固定为蓝／青绿／紫／玫红，球、标签与参数行保持一致。选择参数行可突出对应检测体。
 - 在 XZ 图拖动橙色操作点，或调整 XYZ、长度、半径，比较原始近接值与 Close 门控结果。XZ 图仍按完整 XYZ 计算。
-- SPS 和 Shader 场景提供真实 3D 视图：拖动旋转、滚轮缩放，也可用视角按钮操作与复位；XYZ 滑条调整目标点。转动相机不会改变目标坐标或参数值。已知锚点、接收球与坐标范围更容易从不同角度分辨。
+- 所有场景提供真实 3D 视图：拖动橙色目标点移动，拖空白处旋转，滚轮缩放；可选择 XZ／XY／YZ 移动平面，剩余一轴保持不变。坐标按滑条步长和范围吸附／限界，XYZ 滑条仍可精确调整。相机按钮与复位只改变视角；场景复位恢复默认参数。
 - SPS 场景可改变 Sample 和变化寿命，区分几何可解与采样有效；Shader 场景可查看范围、量化与 16×8 位图，失效时不保留有效坐标。图示不连接 OSC、GPU 捕获或设备。
+
+读数上方的 `Sensa/SPS/*` 等是实例前缀模板：`*` 替换成实际实例名，再加 `/` 与表格行名。例如 `Sensa/SPS/Example` + `/P0` 对应完整 VRChat OSC 地址 `/avatar/parameters/Sensa/SPS/Example/P0`；星号不是要原样发送的参数名。行内保留完整示例路径。Shader 的实例必须是规定范围的十进制 Producer ID。
 
 3D 由随文档打包的 Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) 绘制，不依赖 CDN 或联网下载；使用 [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)，不可用或上下文丢失时回退到 SVG。只在操作、数据或尺寸变化时重绘。它是几何呈现，不是 VRChat／GPU 捕获；完整 MIT 声明在相邻的 `assets/parameter-geometry-3d.LICENSE.txt`。
 

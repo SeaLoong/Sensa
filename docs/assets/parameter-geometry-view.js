@@ -12,7 +12,9 @@
     scenario: ['测量场景', 'Scenario'], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
     orbit: ['可旋转 3D', 'Orbit 3D'], license: ['Three.js MIT 许可', 'Three.js MIT license'],
     fallback: ['本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。', '3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.'],
-    orbitControls: ['XYZ 滑条改变坐标；旋转与缩放只改变视角。', 'XYZ sliders change coordinates; orbit and zoom change only the view.'],
+    orbitControls: ['拖动橙色目标移动；拖动空白处旋转，滚轮／双指缩放。', 'Drag the orange target to move it; drag empty space to orbit, wheel/pinch to zoom.'],
+    dragPlane: ['拖动平面', 'Drag plane'], pathPrefix: ['参数前缀', 'Parameter prefix'],
+    pathAssembly: ['将 * 替换为实例名；完整地址 = /avatar/parameters/ + 前缀 + /行名。', 'Replace * with the instance name. Full address = /avatar/parameters/ + prefix + /row name.'],
     reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ['Sender 范围', 'Senders'],
     reference: ['实体外形示意', 'Illustrative outlines'], dimensions: ['半径与尺寸', 'Radii and dimensions'], zoom: ['缩放', 'Zoom'],
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
@@ -27,7 +29,7 @@
     ageMs: ['距上次变化时间', 'Age since last change'], frame: ['编码序号 Frame', 'Encoded Frame'],
     valid: ['生产端允许发布', 'Producer permits publishing'],
     formulaTitle: ['读图时记住', 'Reading the model'], meaningTitle: ['这些量不等价', 'Different quantities'],
-    meaning: ['近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact；灰色外形只是 Socket 与 Plug 的示意。', 'Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug outlines are illustrative.'],
+    meaning: ['近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact；灰色 Socket／Plug 轮廓仅为示意，不是 Avatar 网格。', 'Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug profiles are illustrations, not Avatar meshes.'],
     sourceNote: ['尺寸依据固定版本上游源码及 Sensa 契约，不推断动态缩放、多个 Sender 或真实客户端行为。', 'Dimensions follow pinned upstream sources and Sensa contracts, without inferring dynamic scale, multiple Senders or actual client behavior.'],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
     positioning: ['SPS 定位原理', 'SPS positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
@@ -102,6 +104,14 @@
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['sensa-sps', 'shader'].includes(state.scenario);
   const units = () => spatial() ? text(['本地单位', 'local units']) : 'm';
+  const anchorIndex = id => { const match = /^receiver-P([0-3])$/.exec(id); return match ? Number(match[1]) : null; };
+  function tintAnchor(node, index) {
+    if (index === null) return node;
+    const color = Model.anchorColors[index];
+    node.classList.add('anchor-colored'); node.style.setProperty('--anchor-color', color);
+    node.dataset.anchorIndex = String(index); node.dataset.anchorColor = color;
+    return node;
+  }
   const svg = (tag, attrs = {}, children = []) => {
     const element = document.createElementNS(NS, tag);
     for (const [name, value] of Object.entries(attrs)) if (value !== undefined) element.setAttribute(name, String(value));
@@ -128,6 +138,11 @@
       if (shape.type === 'box') corners(shape).forEach(p => add(p));
       else if (!spatial()) { add(shape.a, shape.radius); add(shape.b, shape.radius); }
     }
+    for (const body of result.illustrations) for (const point of body.profile) {
+      add({ x: body.root.x + body.axis.x * point.t * body.length,
+        y: body.root.y + body.axis.y * point.t * body.length,
+        z: body.root.z + body.axis.z * point.t * body.length }, point.r * body.radius);
+    }
     Object.values(result.points).forEach(p => add(p, .025));
     const width = Math.max(right - left, spatial() ? 3 : .4), height = Math.max(bottom - top, spatial() ? 3 : .4);
     const scale = Math.min(780 / width, 400 / height) * Number($('zoom').value);
@@ -146,7 +161,9 @@
       'data-radius': shape.radius, 'data-height': shape.height, 'data-effective-height': shape.effectiveHeight,
       'data-world-x': shape.center.x, 'data-world-y': shape.center.y, 'data-world-z': shape.center.z });
     const highlight = selected && active ? ' active-shape' : selected && !active ? ' inactive-shape' : '';
-    const attrs = { class: 'shape ' + shape.role + highlight };
+    const index = anchorIndex(shape.id);
+    tintAnchor(group, index);
+    const attrs = { class: 'shape ' + shape.role + highlight + (index === null ? '' : ' anchor-colored') };
     const tooltip = svg('title'); tooltip.textContent = shape.id + (shape.radius ? ' · R=' + fmt(shape.radius) + ' ' + units() : ''); group.append(tooltip);
     if (shape.type === 'sphere') {
       const p = projection.p(shape.center);
@@ -177,26 +194,42 @@
   }
   function references(layer, annotations) {
     if (!$('show-reference').checked) return;
-    const polygon = points => svg('polygon', { class: 'reference', points: points.map(p => { const q = projection.p(p); return q.x + ',' + q.y; }).join(' ') });
-    const root = result.points.socketRoot;
-    if (root) {
-      const w = .07, d = Math.min(state.D, .22);
-      layer.append(polygon([{ x: root.x - w, y: root.y, z: root.z + .012 }, { x: root.x - w, y: root.y, z: root.z - d },
-        { x: root.x + w, y: root.y, z: root.z - d }, { x: root.x + w, y: root.y, z: root.z + .012 },
-        { x: root.x + w * .66, y: root.y, z: root.z + .012 }, { x: root.x + w * .66, y: root.y, z: root.z - d * .7 },
-        { x: root.x - w * .66, y: root.y, z: root.z - d * .7 }, { x: root.x - w * .66, y: root.y, z: root.z + .012 }]));
-      const p = projection.p(root); annotations.append(label(p.x, p.y - Math.max(40, 36 * annotationRatio), 'Socket', { 'text-anchor': 'middle' }));
-    }
-    for (const prefix of ['plug', 'sender']) {
-      const a = result.points[prefix + 'Root'], b = result.points[prefix + 'Tip'];
-      if (!a || !b) continue;
-      const dx = b.x - a.x, dz = b.z - a.z, length = Math.hypot(dx, dz) || 1, w = state.W;
-      const offset = { x: -dz / length * w, z: dx / length * w };
-      layer.append(polygon([{ x: a.x + offset.x, y: a.y, z: a.z + offset.z }, { x: b.x + offset.x * .6, y: b.y, z: b.z + offset.z * .6 },
-        { x: b.x - offset.x * .6, y: b.y, z: b.z - offset.z * .6 }, { x: a.x - offset.x, y: a.y, z: a.z - offset.z }]));
-      const p = projection.p(a), q = projection.p(b);
-      annotations.append(label(p.x + Math.max(10, 12 * annotationRatio), p.y - Math.max(19, 16 * annotationRatio), 'Root'),
-        label(q.x, q.y + Math.max(28, 24 * annotationRatio), 'Tip', { 'text-anchor': 'middle' }));
+    const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
+    const normalize = value => { const size = Math.hypot(value.x, value.y, value.z) || 1; return { x: value.x / size, y: value.y / size, z: value.z / size }; };
+    const viewNormal = cross({ x: projection.ux, y: projection.uy, z: projection.uz }, { x: projection.vx, y: projection.vy, z: projection.vz });
+    const path = points => points.map((point, i) => { const p = projection.p(point); return (i ? 'L ' : 'M ') + p.x + ' ' + p.y; }).join(' ') + ' Z';
+    for (const body of result.illustrations) {
+      const axis = normalize(body.axis);
+      let radial = cross(axis, viewNormal);
+      if (Math.hypot(radial.x, radial.y, radial.z) < 1e-8) radial = cross(axis, Math.abs(axis.y) < .9 ? { x: 0, y: 1, z: 0 } : { x: 1, y: 0, z: 0 });
+      radial = normalize(radial);
+      const other = normalize(cross(axis, radial));
+      const point = (t, r, angle = 0) => ({
+        x: body.root.x + axis.x * t * body.length + (radial.x * Math.cos(angle) + other.x * Math.sin(angle)) * r * body.radius,
+        y: body.root.y + axis.y * t * body.length + (radial.y * Math.cos(angle) + other.y * Math.sin(angle)) * r * body.radius,
+        z: body.root.z + axis.z * t * body.length + (radial.z * Math.cos(angle) + other.z * Math.sin(angle)) * r * body.radius,
+      });
+      const group = svg('g', { 'data-illustration-id': body.id, 'data-illustration-kind': body.kind,
+        'data-length': body.length, 'data-radius': body.radius });
+      const side = sign => body.profile.map(sample => point(sample.t, sample.r * sign));
+      if (body.kind === 'socket') {
+        // Mirrored closed wall sections keep the cavity open; rim circles project as ellipses.
+        // 两侧闭合壁截面保留孔洞；开口圆按当前视角投影为椭圆。
+        for (const sign of [1, -1]) group.append(svg('path', { class: 'reference reference-socket', d: path(side(sign)) }));
+        const mouthIndex = body.profile.reduce((best, sample, i, profile) => sample.t > profile[best].t ? i : best, 0);
+        for (const sample of [body.profile[mouthIndex], body.profile[Math.min(mouthIndex + 1, body.profile.length - 1)]]) {
+          const ring = Array.from({ length: 49 }, (_, i) => point(sample.t, sample.r, i * Math.PI / 24));
+          group.append(svg('path', { class: 'reference-rim', d: path(ring) }));
+        }
+        const p = projection.p(body.root);
+        annotations.append(label(p.x, p.y - Math.max(40, 36 * annotationRatio), 'Socket', { 'text-anchor': 'middle' }));
+      } else {
+        group.append(svg('path', { class: 'reference reference-plug', d: path([...side(1), ...side(-1).reverse()]) }));
+        const p = projection.p(body.root), q = projection.p(point(1, 0));
+        annotations.append(label(p.x + Math.max(10, 12 * annotationRatio), p.y - Math.max(19, 16 * annotationRatio), 'Root'),
+          label(q.x, q.y + Math.max(28, 24 * annotationRatio), 'Tip', { 'text-anchor': 'middle' }));
+      }
+      layer.append(group);
     }
   }
   function draw() {
@@ -226,18 +259,18 @@
       layer.append(drawShape(shape, active));
       if (shape.id.startsWith('receiver-P')) {
         const p = projection.p(shape.center), i = Number(shape.id.slice(-1));
-        layer.append(svg('circle', { class: 'center', cx: p.x, cy: p.y, r: 4 }));
+        layer.append(tintAnchor(svg('circle', { class: 'center', cx: p.x, cy: p.y, r: 4 }), i));
         const dx = Math.max(14, 11 * annotationRatio), dy = i < 2 ? Math.max(24, 20 * annotationRatio) : -Math.max(15, 12 * annotationRatio);
-        annotations.append(label(p.x + (i === 0 || i === 2 ? -dx : dx), p.y + dy, 'P' + i,
-          { class: 'anchor-label', 'text-anchor': i === 0 || i === 2 ? 'end' : 'start' }));
+        annotations.append(tintAnchor(label(p.x + (i === 0 || i === 2 ? -dx : dx), p.y + dy, 'P' + i,
+          { class: 'anchor-label', 'text-anchor': i === 0 || i === 2 ? 'end' : 'start' }), i));
       }
       if ($('show-dimensions').checked && active && shape.radius) {
         const p = projection.p(shape.center), direction = shape.role === 'sender' ? -1 : 1, end = p.x + direction * shape.radius * projection.scale;
-        layer.append(svg('line', { class: 'dimension', x1: p.x, y1: p.y, x2: end, y2: p.y }));
+        layer.append(tintAnchor(svg('line', { class: 'dimension', x1: p.x, y1: p.y, x2: end, y2: p.y }), anchorIndex(shape.id)));
         const x = Math.max(36, 12 * annotationRatio), y = shape.role === 'receiver' ? Math.max(30, 18 * annotationRatio) : Math.max(58, 38 * annotationRatio);
         const name = shape.role === 'receiver' ? text(['接收器', 'Receiver']) : 'Sender';
         const size = name + ' · R ' + fmt(shape.radius) + (shape.type === 'capsule' ? ' · H ' + fmt(shape.effectiveHeight) + text(['（含帽）', ' incl. caps']) : '');
-        annotations.append(label(x, y, size, { class: 'dimension-label' }));
+        annotations.append(tintAnchor(label(x, y, size, { class: 'dimension-label' }), anchorIndex(shape.id)));
         if (shape.type === 'capsule') {
           const a = projection.p({ x: shape.a.x - shape.axis.x * shape.radius, y: shape.a.y - shape.axis.y * shape.radius, z: shape.a.z - shape.axis.z * shape.radius });
           const b = projection.p({ x: shape.b.x + shape.axis.x * shape.radius, y: shape.b.y + shape.axis.y * shape.radius, z: shape.b.z + shape.axis.z * shape.radius });
@@ -268,7 +301,14 @@
       const row = document.createElement('tr'); row.dataset.name = value.name; row.classList.toggle('selected', selected === value.name);
       if (value.emitted === false) row.title = text(['未发送；仅展示编码计算', 'Not sent; encoding computation only']);
       const name = document.createElement('td'), button = document.createElement('button');
-      button.type = 'button'; button.textContent = value.name; button.setAttribute('aria-pressed', String(selected === value.name));
+      button.type = 'button'; button.setAttribute('aria-pressed', String(selected === value.name));
+      button.title = '/avatar/parameters/' + value.path; button.setAttribute('aria-describedby', 'path-assembly');
+      if (state.scenario === 'sensa-sps' && /^P[0-3]$/.test(value.name)) {
+        const index = Number(value.name[1]), swatch = document.createElement('span');
+        swatch.className = 'anchor-swatch'; swatch.setAttribute('aria-hidden', 'true');
+        tintAnchor(row, index); button.append(tintAnchor(swatch, index));
+      }
+      button.append(document.createTextNode(value.name));
       button.addEventListener('click', () => { selected = value.name; render(); $('values').querySelectorAll('button').forEach(b => { if (b.textContent === value.name) b.focus({ preventScroll: true }); }); });
       name.append(button); row.append(name);
       for (const column of ['raw', 'effective']) {
@@ -279,7 +319,9 @@
       }
       $('values').append(row);
     }
-    $('path-prefix').textContent = result.values[0]?.path.slice(0, result.values[0].path.lastIndexOf('/')) || '';
+    const examplePrefix = result.values[0]?.path.slice(0, result.values[0].path.lastIndexOf('/')) || '';
+    $('path-prefix').textContent = examplePrefix.slice(0, examplePrefix.lastIndexOf('/')) + '/*';
+    $('path-assembly').textContent = text('pathAssembly');
     const list = [], add = (name, value) => list.push([text(name), value]);
     const m = result.metrics, field = result.values.find(v => v.name === selected);
     if (field?.axisDistance !== undefined) add(['最近轴距（完整 XYZ）', 'Nearest axis distance (full XYZ)'], fmt(field.axisDistance) + ' ' + units());
@@ -308,6 +350,7 @@
     for (const [name, value] of list) {
       const row = document.createElement('div'), dt = document.createElement('span'), dd = document.createElement('strong');
       row.className = 'metric';
+      if (state.scenario === 'sensa-sps' && /^P[0-3]$/.test(name)) tintAnchor(row, Number(name[1]));
       dt.textContent = name; dd.textContent = value; row.append(dt, dd); $('metrics').append(row);
     }
     const ownValidity = spatial();
@@ -357,6 +400,12 @@
           : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (spatial() ? '' : ' ' + units());
       }
     }
+    const receiverKey = $('receiver-key'); receiverKey.replaceChildren();
+    receiverKey.classList.toggle('is-multiple', state.scenario === 'sensa-sps');
+    if (state.scenario === 'sensa-sps') Model.anchorColors.forEach((_, index) => {
+      const swatch = document.createElement('span'); swatch.className = 'anchor-key-color';
+      receiverKey.append(tintAnchor(swatch, index));
+    });
     $('unit-note').textContent = spatial()
       ? text(['Avatar 根局部单位；共同世界平移不会改变这些坐标。图中方框为编码／显示边界，不是 Contact 共同覆盖保证。', 'Avatar-root local units; common world movement does not change these coordinates. The box is an encoding/display boundary, not guaranteed Contact coverage.'])
       : text(['米制示意，作者缩放假定为 1；胶囊 H 含端帽，尺寸以模型读数为准。', 'Metre illustration with authored scale assumed one. Capsule H includes caps; use model dimensions.']);
@@ -376,25 +425,27 @@
   }
   function drawView() {
     const orbitOption = $('projection').querySelector('[value="orbit"]');
-    orbitOption.hidden = !spatial(); orbitOption.disabled = !spatial() || threeUnavailable;
-    if (!spatial() && $('projection').value === 'orbit') $('projection').value = 'xz';
-    const orbit = spatial() && $('projection').value === 'orbit' && !threeUnavailable;
+    orbitOption.hidden = false; orbitOption.disabled = threeUnavailable;
+    const orbit = $('projection').value === 'orbit' && !threeUnavailable;
+    document.querySelector('.scene-toolbar').classList.toggle('is-orbit', orbit);
     $('three-scene').hidden = !orbit; $('diagram').toggleAttribute('hidden', orbit);
     document.querySelector('.zoom-label').hidden = orbit;
-    $('three-fallback').hidden = !spatial() || !threeUnavailable;
+    $('drag-plane-control').hidden = !orbit; $('drag-plane').disabled = !orbit;
+    $('three-fallback').hidden = !threeUnavailable;
     $('three-fallback').textContent = text('fallback');
     if (orbit) {
       try {
         if (!threeView) threeView = window.SensaParameterGeometry3D.create($('three-scene'));
-        threeView.update({ result, state, locale, selected, visibility: {
+        threeView.update({ result, state, locale, selected, onMove: move, dragPlane: $('drag-plane').value, visibility: {
           receivers: $('show-receivers').checked, senders: $('show-senders').checked,
           reference: $('show-reference').checked, dimensions: $('show-dimensions').checked,
         } });
         if (!threeView) return;
         projection = null;
-        $('projection-note').textContent = text(['真实比例的可旋转 3D；HTML 标签保持屏幕字号。橙色标记被放大以便观察，不是 Sender 半径。单位：本地单位。', 'Orbit 3D with true geometric scale and screen-sized labels. The orange marker is enlarged for visibility, not the Sender radius. Units: local units.'])
-          + (state.scenario === 'sensa-sps' ? ' ' + text(['四球共有范围扣除饱和区才可测，并非整个方框。', 'Measurable space is the shared sphere coverage minus saturation regions, not the entire box.'])
-            : ' ' + text(['输入点与解码点可能重叠；编码误差以右栏数值为准。', 'Input and decoded points may overlap; use the numeric quantization error at right.']));
+        $('projection-note').textContent = text(['可旋转 3D，标签保持屏幕字号。橙色拖动目标被放大显示，不代表 Sender 半径。单位：', 'Orbit 3D with screen-sized labels. The enlarged orange drag target is not the Sender radius. Units: ']) + units() + '. '
+          + (state.scenario === 'sensa-sps' ? text(['四球共有范围扣除饱和区才可测，并非整个方框。', 'Measurable space is the shared sphere coverage minus saturation regions, not the entire box.'])
+            : state.scenario === 'shader' ? text(['输入点与解码预览可能重叠；误差以数值为准。', 'Input and decoded preview may overlap; use the numeric error.'])
+              : text(['作者缩放假定为 1；灰色外形是示意，不是 Avatar 网格。', 'Authored scale is assumed one; gray profiles illustrate shapes, not Avatar meshes.']));
       } catch { fallbackThree(); return; }
     } else { disposeThree(); draw(); }
     for (const hint of document.querySelectorAll('[data-i18n="dragHint"]')) hint.textContent = text(orbit ? 'orbitControls' : 'dragHint');
@@ -407,22 +458,30 @@
   $('three-scene').addEventListener('sensa-3d-unavailable', fallbackThree);
   $('scene').addEventListener('change', () => {
     dragging = null; state = Model.defaultsFor($('scene').value); selected = '';
-    $('projection').value = spatial() ? threeUnavailable ? 'iso' : 'orbit' : 'xz'; render();
+    $('projection').value = threeUnavailable ? 'iso' : 'orbit'; render();
   });
   $('locale').addEventListener('change', () => { locale = $('locale').value; render(); });
   $('projection').addEventListener('change', () => { dragging = null; render(); });
+  $('drag-plane').addEventListener('change', () => { dragging = null; render(); });
   $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });
   for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
   for (const holder of document.querySelectorAll('[data-control]')) {
     const key = holder.dataset.control, input = $('control-' + key);
     input.addEventListener('input', () => { state[key] = key === 'valid' ? input.checked : Number(input.value) / (key === 'sample' ? 32 : 1); render(); });
   }
-  const move = (x, z) => {
-    for (const [key, value] of [['x', x], ['z', z]]) {
+  const move = point => {
+    if (!['x', 'y', 'z'].every(key => Number.isFinite(point[key]))) return;
+    let changed = false;
+    for (const key of ['x', 'y', 'z']) {
+      // A plane's locked coordinate must retain its exact committed value.
+      // 平面锁定的坐标保留原始提交值，不重新量化。
+      if (point[key] === state[key]) continue;
       const input = $('control-' + key), step = Number(input.step);
-      state[key] = Math.max(Number(input.min), Math.min(Number(input.max), Math.round(value / step) * step));
+      const value = Math.max(Number(input.min), Math.min(Number(input.max), point[key]));
+      const next = Number((Math.round(value / step) * step).toFixed(10));
+      if (next !== state[key]) { state[key] = next; changed = true; }
     }
-    render();
+    if (changed) render();
   };
   $('diagram').addEventListener('pointerdown', event => {
     if (event.button !== 0 || !event.target.closest('#moving-root')) return;
@@ -431,12 +490,13 @@
   $('diagram').addEventListener('pointermove', event => {
     if (!dragging || event.pointerId !== dragging.id) return;
     const p = new DOMPoint(event.clientX, event.clientY).matrixTransform($('diagram').getScreenCTM().inverse());
-    const world = dragging.projection.inverse(p.x, p.y, state.y); move(world.x, world.z);
+    const world = dragging.projection.inverse(p.x, p.y, state.y); move({ x: world.x, y: state.y, z: world.z });
   });
   const endDrag = event => { if (dragging?.id === event.pointerId) { dragging = null; render(); } };
   $('diagram').addEventListener('pointerup', endDrag); $('diagram').addEventListener('pointercancel', endDrag);
   $('diagram').addEventListener('lostpointercapture', endDrag);
   window.addEventListener('resize', () => {
+    dragging = null;
     const markerFocused = document.activeElement?.id === 'moving-root';
     const rowFocused = document.activeElement?.closest('#values') ? document.activeElement.textContent : null;
     render();
@@ -446,12 +506,13 @@
   $('diagram').addEventListener('keydown', event => {
     if (!event.target.closest('#moving-root') || !['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) return;
     event.preventDefault(); const step = event.shiftKey ? .1 : .01;
-    move(state.x + (event.key === 'ArrowUp' ? step : event.key === 'ArrowDown' ? -step : 0), state.z + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0));
+    move({ x: state.x + (event.key === 'ArrowUp' ? step : event.key === 'ArrowDown' ? -step : 0),
+      y: state.y, z: state.z + (event.key === 'ArrowRight' ? step : event.key === 'ArrowLeft' ? -step : 0) });
     $('moving-root').focus({ preventScroll: true });
   });
   function freeze(value) { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
   Object.defineProperty(window, 'SensaGeometryView', { value: Object.freeze({ snapshot: () =>
-    freeze(JSON.parse(JSON.stringify({ locale, state, result, projection, projectionMode: $('projection').value, three: threeView?.snapshot() || null }))) }), writable: false });
+    freeze(JSON.parse(JSON.stringify({ locale, state, result, projection, projectionMode: $('projection').value, dragPlane: $('drag-plane').value, three: threeView?.snapshot() || null }))) }), writable: false });
   window.addEventListener('pagehide', disposeThree);
   window.addEventListener('pageshow', event => { if (event.persisted) render(); });
   render();

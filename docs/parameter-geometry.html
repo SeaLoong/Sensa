@@ -43,7 +43,8 @@
           </optgroup>
         </select>
       </label>
-      <label class="projection-picker"><span data-i18n="projection">投影</span><select id="projection"><option value="xz" data-i18n="xz">XZ 平面投影</option><option value="iso" data-i18n="iso">立体投影</option><option value="orbit" data-i18n="orbit" hidden disabled>可旋转 3D</option></select></label>
+      <label class="projection-picker"><span data-i18n="projection">投影</span><select id="projection"><option value="xz" data-i18n="xz">XZ 平面投影</option><option value="iso" data-i18n="iso">立体投影</option><option value="orbit" data-i18n="orbit" selected>可旋转 3D</option></select></label>
+      <label id="drag-plane-control" class="drag-plane-picker"><span data-i18n="dragPlane">拖动平面</span><select id="drag-plane"><option value="xz">XZ</option><option value="xy">XY</option><option value="yz">YZ</option></select></label>
       <button id="reset" type="button" data-i18n="reset">复位</button>
     </section>
     <section class="workbench" id="workbench">
@@ -58,7 +59,7 @@
           <figcaption id="projection-note"></figcaption>
         </figure>
         <div class="legend" id="legend">
-          <label><input id="show-receivers" type="checkbox" checked><span class="key receiver-key"></span><span data-i18n="receivers">接收范围</span></label>
+          <label><input id="show-receivers" type="checkbox" checked><span id="receiver-key" class="key receiver-key"></span><span data-i18n="receivers">接收范围</span></label>
           <label><input id="show-senders" type="checkbox" checked><span class="key sender-key"></span><span data-i18n="senders">Sender 范围</span></label>
           <label><input id="show-reference" type="checkbox" checked><span class="key reference-key"></span><span data-i18n="reference">实体外形示意</span></label>
           <label><input id="show-dimensions" type="checkbox" checked><span data-i18n="dimensions">半径与尺寸</span></label>
@@ -67,7 +68,8 @@
       </div>
       <aside class="readout-panel" aria-labelledby="readout-title">
         <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">参数读数</h2><span class="caption" data-i18n="simulated">几何模拟值</span></div>
-        <p id="path-prefix" class="code path"></p>
+        <div class="path-heading"><span class="caption" data-i18n="pathPrefix">参数前缀</span><code id="path-prefix" class="code path"></code></div>
+        <p id="path-assembly" class="caption path-assembly"></p>
         <p class="caption" data-i18n="rowHint">选择一行突出对应形状。模型门控不包含运行时估长、映射或设备输出。</p>
         <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">参数</th><th data-i18n="raw">原始值</th><th data-i18n="effective">模型门控</th></tr></thead><tbody id="values"></tbody></table></div>
         <div class="metric-list" id="metrics"></div>

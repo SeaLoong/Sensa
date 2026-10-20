@@ -16,6 +16,15 @@
     Object.freeze({ x: .5, y: 1.5, z: -.5 }),
     Object.freeze({ x: -.5, y: 1.5, z: .5 }),
   ]);
+  // Stable identities across spheres, markers and parameter rows. / 球、标记与参数行共用固定身份色。
+  const anchorColors = Object.freeze(['#0052d9', '#07806a', '#8b46c6', '#c63e58']);
+  // Revolved reference surfaces only; these profiles never enter Contact calculations.
+  // 仅供旋转生成示意表面；截面从不参与 Contact 计算。
+  const plugProfile = [[0, 0], [0, .82], [.025, .92], [.07, .99], [.14, 1], [.65, .97],
+    [.8, .89], [.9, .71], [.965, .42], [.995, .14], [1, 0]];
+  const socketProfile = [[-.9, .44], [-.88, .62], [-.74, .8], [-.42, .94], [-.12, 1],
+    [0, .99], [.035, .95], [.045, .85], [.02, .75], [-.04, .67], [-.16, .6], [-.45, .48],
+    [-.72, .38], [-.88, .34], [-.9, .44]];
   const sources = Object.freeze({
     sockets: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L255',
     plugs: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256',
@@ -141,7 +150,11 @@
     if (!['body', 'plug'].includes(senderKind) || !['sphere', 'capsule'].includes(senderShape)) {
       throw new RangeError('Invalid sender shape / 无效发送器形状');
     }
-    const shapes = [], values = [], points = { movingRoot: { ...point } }, metrics = {};
+    const shapes = [], illustrations = [], values = [], points = { movingRoot: { ...point } }, metrics = {};
+    const illustrate = (id, kind, root, direction, size, radius) => illustrations.push({
+      id, kind, root: { ...root }, axis: { ...direction }, length: size, radius,
+      profile: (kind === 'socket' ? socketProfile : plugProfile).map(([t, r]) => ({ t, r })),
+    });
     const assumptions = [
       { id: 'illustration', zh: '单一匹配 Sender 的几何示意，不是实测或 VRChat 运行时仿真。', en: 'One matching Sender: geometry illustration, not a measurement or VRChat runtime simulation.' },
       { id: 'scale', zh: 'OGB 假定构建缩放为 1，以米示意；Sensa 空间量使用根局部单位，不推断动态缩放。', en: 'OGB assumes build scale 1 with metre illustrations; Sensa spatial values use root-local units. Dynamic scaling is not inferred.' },
@@ -152,9 +165,11 @@
     const opening = position => {
       points.socketRoot = { ...position }; points.socketOpening = { ...position };
       points.socketForward = add(position, { x: 0, y: 0, z: .1 });
+      illustrate('socket', 'socket', position, { x: 0, y: 0, z: 1 }, Math.min(D, .22), Math.max(.045, W * 1.8));
     };
     const plug = (position, direction, size = L, prefix = 'plug') => {
       points[prefix + 'Root'] = { ...position }; points[prefix + 'Tip'] = add(position, mul(direction, size));
+      illustrate(prefix, 'plug', position, direction, size, prefix === 'sender' ? senderWidth : W);
     };
     const envelope = () => capsule('sender-envelope', 'sender', add(point, mul(axis, senderLength / 2)),
       senderWidth, senderLength, axis, 'TPS_Pen_Close');
@@ -199,6 +214,7 @@
       gated(scenario === 'socket-legacy' ? 'PenOthers' : 'Touch' + party, receiver, close, sender, 'OGB/Orf/Example');
     } else if (scenario === 'socket-frot') {
       opening(origin()); points.senderRoot = { ...point };
+      illustrate('socket-other', 'socket', point, { x: 0, y: 0, z: -1 }, Math.min(D, .22), Math.max(.045, W * 1.8));
       const receiver = put(sphere('receiver-frot', 'receiver', { x: 0, y: 0, z: .05 }, .1, 'TPS_Orf_Root'));
       field('FrotOthers', receiver, put(sphere('sender-socket-root', 'sender', point, .001, 'TPS_Orf_Root')));
     } else if (scenario === 'plug-depth') {
@@ -302,9 +318,9 @@
         bounds.minZ = Math.min(bounds.minZ, position.z - radius); bounds.maxZ = Math.max(bounds.maxZ, position.z + radius);
       }
     }
-    return { scenario, party, shapes, values, points, metrics, bounds, assumptions,
+    return { scenario, party, shapes, illustrations, values, points, metrics, bounds, assumptions,
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
-  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources });
+  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors });
 })(globalThis);

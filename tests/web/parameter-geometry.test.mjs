@@ -30,6 +30,50 @@ test('offline classic model exposes fresh defaults for every scene / 离线经�
   assert.equal(model.defaultsFor('shader').z, .15);
 });
 
+test('four anchor identities keep distinct immutable colors / 四个锚点身份保持独立且不可变的配色', () => {
+  assert.deepEqual(plain(model.anchorColors), ['#0052d9', '#07806a', '#8b46c6', '#c63e58']);
+  assert.equal(new Set(model.anchorColors).size, 4);
+  assert.equal(Object.isFrozen(model.anchorColors), true);
+  assert.throws(() => { model.anchorColors[0] = '#000000'; }, /read only|只读/);
+  assert.equal(model.anchorColors[0], '#0052d9');
+});
+
+test('reference profiles close their surfaces and follow root, yaw and local dimensions / 示意截面闭合且遵循根点朝向与局部尺寸', () => {
+  const scene = evaluate({ scenario: 'socket-modern', x: .1, y: .2, z: .3, yaw: 90, L: .6, W: .12, D: .15 });
+  const plug = scene.illustrations.find(item => item.kind === 'plug');
+  const socket = scene.illustrations.find(item => item.kind === 'socket');
+  assert.deepEqual(plain(plug.root), { x: .1, y: .2, z: .3 });
+  near(plug.axis.x, -1); near(plug.axis.y, 0); near(plug.axis.z, 0);
+  near(plug.length, .6); near(plug.radius, .12);
+  assert.equal(plug.profile[0].t, 0); assert.equal(plug.profile[0].r, 0);
+  assert.equal(plug.profile.at(-1).t, 1); assert.equal(plug.profile.at(-1).r, 0);
+  const tip = ['x', 'y', 'z'].map(axis => plug.root[axis] + plug.axis[axis] * plug.length);
+  near(tip[0], -.5); near(tip[1], .2); near(tip[2], .3);
+  near(Math.max(...plug.profile.map(point => point.r)) * plug.radius, .12);
+  assert.deepEqual(plain(socket.profile[0]), plain(socket.profile.at(-1)));
+  assert.ok(socket.profile.every(point => point.r > 0), 'Socket stays hollow instead of closing onto its axis / Socket保留中空截面');
+  const secondSocket = evaluate({ scenario: 'socket-frot', x: .1, z: .2 }).illustrations.find(item => item.id === 'socket-other');
+  assert.equal(secondSocket.kind, 'socket');
+  assert.deepEqual(plain(secondSocket.root), { x: .1, y: 0, z: .2 });
+  assert.deepEqual(plain(secondSocket.axis), { x: 0, y: 0, z: -1 });
+  assert.ok(socket.profile.some(point => point.t < 0));
+  assert.ok(socket.profile.some(point => point.t > 0));
+  for (const surface of scene.illustrations) {
+    near(Math.hypot(surface.axis.x, surface.axis.y, surface.axis.z), 1);
+    assert.ok(surface.profile.length >= 6);
+    assert.ok(surface.profile.every(point => Number.isFinite(point.t) && Number.isFinite(point.r) && point.r >= 0));
+  }
+  // A reference surface must not move or resize either of the actual Contact senders.
+  // 示意表面不能改变真正 Contact 发送球的位置或半径。
+  near(shape(scene, 'sender-root').radius, .01);
+  near(shape(scene, 'sender-length').radius, .6);
+  assert.deepEqual(plain(shape(scene, 'sender-length').center), { x: .1, y: .2, z: .3 });
+  plug.profile[1].r = 99; plug.root.x = 99;
+  const fresh = evaluate({ scenario: 'socket-modern', x: .1, y: .2, z: .3, yaw: 90, L: .6, W: .12 });
+  assert.ok(fresh.illustrations.find(item => item.kind === 'plug').profile.every(point => point.r <= 1));
+  assert.equal(fresh.illustrations.find(item => item.kind === 'plug').root.x, .1);
+});
+
 test('modern Root and NewTip observe different root-centred spheres / 现代 Root 与 NewTip 观测两个根部同心球', () => {
   const scene = evaluate({ scenario: 'socket-modern', z: .5, L: .2 });
   near(field(scene, 'PenOthersNewRoot').raw, .51);
