@@ -1,20 +1,15 @@
-# Camera-only prototype
+# Synthetic camera-only prototype
 
 [简体中文](CAMERA-PROTOTYPE.md) | **English**
 
-This is a rendering-path test pattern, not a finished SPS bridge.
+This retained lab prototype is **not** the package's current single-camera native SPS root producer. It renders a synthetic test pattern and requires no Udon or arbitrary Avatar runtime script.
 
-`Generated/CameraOnlyPrototype.prefab` contains two native Unity Cameras, one RenderTexture, two display objects and their shaders/materials. No Udon or ordinary runtime C# is required. The root defaults inactive.
+`Generated/CameraOnlyPrototype.prefab` starts inactive. Its private camera writes a 256×128 RenderTexture; a separate presenter camera reads it into a fixed desktop viewport. Shader sequence is a test clock, not source freshness. Layer/camera signatures and None-eye settings are engineering guards, not proof of invisible HMD composition.
 
-- Private capture camera writes the test pattern into a 256×128 RenderTexture.
-- Desktop presenter reads it and attempts to draw a fixed bottom-left desktop region. stereoTargetEye=None and shader guards exclude stereo/mirror rendering.
-- Sequence comes from a shader test clock; it does not prove SPS source freshness. XYZ is synthetic.
-- Fixed projection features and Layer 22 separate the experiment. This is not a reliable VRChat camera-identity API; layer/culling behavior after upload needs testing. Do not modify world/other-player layers to accommodate it.
+The world's third cube controls this prototype; another cube controls a different Udon output experiment. Test only one at a time. Inspect desktop and both VR eyes for unwanted output, lag, resizing, mirrors, facing away and disabling.
 
-The world's third cube controls this experiment; the second controls another Udon output experiment. Do not enable both. HMD visibility, desktop overlay and VR composition still need real-client checks.
+**Tools → Sensa Lab → Export camera-only prototype** exports an experimental unitypackage for a separate Avatars project. Keep it off/local and do not import Worlds SDK/Udon into that project. It does not replace [native root capture and registration](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
-With outputs disconnected, test stationary view, fast head turns, facing away, mirrors, resizing and disabling. Inspect both HMD and desktop: does code appear, move, lag or remain after disabling?
+Historical editor render/CRC results are not uploaded-client retention, PCVR isolation or external capture timing. Automatic rendering, PlayMode and screenshots are CI-only under the current policy.
 
-**Tools → Sensa Lab → Export camera-only prototype** creates `Exports/Sensa-CameraOnly-Experimental.unitypackage` for a separate Avatars project. Do not mix Worlds SDK/Udon into it. Keep the imported rig off and local-only; do not synchronize camera activation to other players.
-
-Previously verified: actual Camera→RT→Presenter rendering and rotated CRC decoding in Unity 2022.3.22f1 on AMD RX 6750 XT. Unverified: full client camera retention, PCVR isolation, external capture timing and cross-client behavior. A passing non-stereo editor test does not mean “completely invisible in the headset”.
+[World setup and language](README.md) · [Transport](CAPABILITIES.en.md)

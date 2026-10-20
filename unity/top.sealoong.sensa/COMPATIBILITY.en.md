@@ -1,45 +1,41 @@
-# Dependencies, scale and observability
+# Dependencies and measurement limits
 
 [简体中文](COMPATIBILITY.md) | **English**
 
-Sensa SPS supports only the current four fixed anchors, dedicated local root marker and five-field contract. It estimates the selected root in AvatarRootLocal, without compatibility with any older Sensa SPS data or arbitrary remote Avatar, world-position or GPU-mesh tracking.
+Use the dependencies in `package.json`; configure official VRCFury SPS separately. Unsupported geometry APIs fail explicitly without guessing placement or modifying upstream source. External OGB interoperability remains separate from Sensa's incompatible internal SPS protocol.
 
-## Dependencies and interoperability
+## What each route observes
 
-Use an Avatars project with dependencies from `package.json`. Configure VRCFury SPS targets first. Unsupported upstream geometry APIs fail explicitly, without guessing positions or changing VRCFury source. External OGB paths and Touch/Depth capabilities remain interoperable and separate from this contract. [OGB research](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.en.md)
-
-Contacts write actual FX Animator parameters, not necessarily Expression Parameters. RawP exists only in FX; measurement fields P0–P3 and Sample enter local, unsynced public Expression Parameters. Exclusive also exposes the unsynced, unsaved menu-control Int `Sensa/Select/<group>`, default 0 (Off), with 1…N selecting ordered targets; OSC may export it. Dedicated does not generate this automatic selector. Actual OSC export still depends on client configuration. [Contacts](https://creators.vrchat.com/common-components/contacts/), [OSC parameters](https://docs.vrchat.com/docs/osc-avatar-parameters)
-
-## Capability boundaries
-
-| Input | Provides | Does not provide |
+| Input | Provides | Does not establish |
 | --- | --- | --- |
-| Sensa SPS four P values + changing Sample | Selected local root XYZ/Distance in AvatarRootLocal | World motion, tip, orientation, twist, GPU surface or atomic frames |
-| Independent Root/Tip/Side Pose | Straight-pose experiment in a known paired frame | Exclusion of mixed senders or a complete GPU curve |
-| OGB NewRoot/NewTip | Root-centered sphere length/radial estimate | Two independent endpoints or unique direction |
-| Native PB Stretch/IsGrabbed | Stretch intensity and grab gate | XYZ/orientation |
-| Shader root capture | Root coding from an independent producer | Proof of real rendering from passing Contact tests |
+| Fixed P0–P3 + changing Sample | One selected root in AvatarRootLocal | World motion, orientation, twist, tip or GPU surface |
+| Paired Root/Tip/Side Pose | Straight-pose experiment in a known paired frame | Unique Sender identity or a complete curved mesh |
+| OGB NewRoot/NewTip | Root-sphere length/radial estimate | Two independently measured endpoints |
+| Native PB Stretch/IsGrabbed | Stretch intensity and grab gate | XYZ or orientation |
+| Native shader root | Encoded root Transform, separate rendering/bridge | Successful real-client capture from Contact test results |
 
-Four known noncoplanar anchors and true distances to one point determine local XYZ. Common rigid movement leaves distances unchanged, so Avatar world translation/rotation cannot be recovered. Coordinates use Avatar-root units, not meters under arbitrary scaling; display bounds do not guarantee common sphere coverage.
+Four true distances to known noncoplanar anchors identify a local point. Common rigid motion leaves distances unchanged. Coordinates are local units, not arbitrary-scale world meters. The ±1.5 display box is not guaranteed shared sphere coverage.
 
 ## Radius and scale
 
-Receiver radius is 2.5 and sender radius 0.001. With unsaturated samples and common uniform scale, `p=1-(d-r)/R`, hence `d=(1-p)R+r`: the common scale cancels. Nonuniform scale or SDK radius clamping breaks that model.
+With unsaturated spherical samples and common uniform scale, `p=1−(d−r)/R`, so `d=(1−p)R+r`; common scale cancels in local units. Here R=2.5 and r=0.001. Nonuniform scale and SDK radius clamping invalidate this model.
 
-VRChat caps world radius at 3 m after scaling. Builds reject nonpositive, nonuniform or oversized Avatar-root scale, root ScaleConstraint and root-scale animation. Internal FX IsLocal/ScaleFactor/selection guards permit activity within approximately 2.999 m and clear Sample/ranges on invalidity. The marker follows position/rotation without inheriting bone scale.
+VRChat caps scaled world radius at 3 m. Builds reject invalid root scale and known root-scale animation/constraints; internal IsLocal/ScaleFactor/selection guards clear P/Sample on invalidity, keeping the receiver within approximately 2.999 m. Target-bone scale is not inherited by the marker.
 
-Keep current geometry without guessing new radii or filters from unmeasured noise. Smaller R reduces position error for a given proximity error but shrinks coverage; wider anchors improve conditioning away from the center but shrink common coverage. Low residual does not guarantee accuracy. Position filtering must not delay Sample=0, expiry or gate stops.
+A smaller receiver reduces coordinate error for a given proximity error but loses coverage; wider anchors improve some conditioning while reducing shared coverage. No filter or radius change is claimed as a measured accuracy improvement. Low residual is consistency, not accuracy; filtering must never delay invalidity or stop gates. [Official Contacts](https://creators.vrchat.com/common-components/contacts/)
 
-## Sample and failure behavior
+## Parameters and lifecycle
 
-`Sensa/SPS/<id>` exposes only P0–P3 and Sample. Zero means the producer is not permitted; active n/32 values (n=1…32) still require geometric validation. Steps are approximately 50 ms, cycling in 1.6 s. Desktop liveness follows content changes to Sample with a 1250-ms cap. Missing/nonfinite fields, invalid counts, saturation, inconsistent fits and expiry cannot drive output.
+The measurement contract is only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`, with no old alias, moving shared array or Others branch. Float measurement fields are local and unsynced Expression Parameters. RawP stays internal FX. Exclusive additionally exposes an unsynced, unsaved Int menu selector; [full meanings](AUTOMATION.en.md).
 
-No Others group or shared moving root array is generated. Unique tags and Self filtering reduce target mixing without authenticating owners. Publishing Sample last does not create an atomic OSC packet: timing, loss, duplication and reordering can still mix data. Explicit experimental permission remains necessary.
+Sample=0, invalid counter, missing/nonfinite values, saturation, inconsistent fit or expiry cannot drive motion. A changing legal counter proves publication activity only; it does not prove atomically sampled Contacts, lossless UDP or ownership. Unique tags and Self filters reduce mixing without authenticating identity.
 
-Point/Handle/Pose remain independent experiments with oldest-contributing-channel age; Sample does not validate them. Older Sensa SPS configurations are not converted: rebuild the Avatar and save new mappings.
+Point/Handle/Pose keep separate protocols and oldest-contributing-channel freshness. Rebuild older Sensa SPS avatars/mappings instead of converting them.
 
-## Acceptance limits
+## Language and acceptance
 
-Unit/EditMode verifies generated coordinates, writable internal parameters, public fields, menus, scale guards and budgets. It does not establish uploaded-client OSC, VR grabbing, GPU/HMD, remote Avatar or hardware behavior. World Udon truth and synthetic image replay are not automatically real Avatar capture evidence.
+Editor locale selection is presentation-only and persists in user preferences, not avatar data. Stable menu registration paths, serialized field names, enum values and OSC identifiers remain English IDs. Baked Avatar menu labels use the author's build-time language, not a per-client runtime translator.
 
-[Installation](README.en.md) · [Automation](AUTOMATION.en.md) · [Separate shader acceptance](GPU-TRACKING.en.md) · [Positioning](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md)
+EditMode checks generated geometry, writable FX, parameters, menus, scale guards and budgets. It does not prove uploaded OSC, VR grabbing, remote avatars, desktop/HMD rendering or hardware. World Transform truth and synthetic replay are different evidence from actual Avatar capture.
+
+[Install](README.md) · [Automation](AUTOMATION.en.md) · [Shader acceptance](GPU-TRACKING.en.md) · [Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)

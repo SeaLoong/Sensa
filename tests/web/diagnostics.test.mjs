@@ -2,6 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { outputPreview } from '../../src/web/output-preview.js';
 import { normalizeLogs, getTCodeDeviceInfoView } from '../../src/web/diagnostics.js';
+import { setLocale } from '../../src/web/i18n.js';
+
+// These diagnostic expectations explicitly use Chinese. / 这些诊断预期明确使用中文目录。
+setLocale('zh-CN');
 
 test('output telemetry follows connection and stop lifecycle, never inventing targets / 输出遥测遵循连接与停止生命周期，不生成虚构目标', () => {
   const telemetry = { state: 'sent', lastSentAtUtc: '2026-10-18T00:00:00Z', targets: [

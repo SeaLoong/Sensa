@@ -1,91 +1,51 @@
-# 能力测试与 Sensa 联动
+# 世界能力与传输
 
 **简体中文** | [English](CAPABILITIES.en.md)
 
-实际客户端验收先看 [Avatar / 世界 / Sensa 联动路线](https://github.com/SeaLoong/Sensa/blob/main/docs/lab-workflow.md)。本页的工程台读数不会自动成为 Avatar OSC；ClientSim 也不代替穿戴已上传 Avatar 的 VRChat 客户端。
+[安装、语言与交互](README.zh-CN.md)。FunctionalLab 将下列路线分开；看板是世界局部观测，不证明 Avatar OSC 已接收。
 
-打开 **Assets/SensaLab/Functional/FunctionalLab.unity**。原 `Generated/SensaLab.unity` 保留作几何边界回归；新场景按信号来源划分实验，不把多个位置点算作多个系统。
+| 测试站 | 观测 | 不能证明 |
+| --- | --- | --- |
+| Contact | 对明确 Sender 的四路 SDK 样本 | 多玩家 Sender 身份 |
+| PB | 可抓把手的 IsGrabbed 与 Stretch | XYZ 或设备物理回读 |
+| PB + Contact | 局部拟合与抓取门控 | 共同原子采样 |
+| 原生 SPS | 实际 fixture Plug／Socket 与 OGB 几何 | 未上传头像时不能证明 Avatar 参数已接收 |
+| SPS + PB + Contact | 独立标量和局部读数 | 不能混为同一深度信号 |
+| Shader 传输 | 合成 XYZ、前进帧、CRC／冻结故障 | SPS 根或模型采集 |
+| SPS Shader | 编辑器未混合中心线与入口 | 最终可见网格或可上传任意 C# 读取器 |
 
-在 ClientSim 中关闭菜单、点击 Game 视图后走到测试台。按钮文字表示功能：Rest、Near、Offset、Outside、Freeze。PB-only/PB+Contact 主要通过真实抓取操作，只有 Freeze 读数按钮；纯传输台另有 ToggleOutput。测量、暂停和导出均不连接设备。
+原生 SPS 站使用已知 Sender 和 SDK CalculateProximity。世界真值来自工具拥有 fixture；这项能力不能外推到任意 Avatar。
 
-## 每站测什么
+## 已知几何参考
 
-| 站 | 信号与操作 | 预期结果 | 与 Sensa 的关系 |
-| --- | --- | --- | --- |
-| 01 Contact only | 抓白球或选 Near/Offset/Outside；没有 PB | 四路 SDK Proximity 与看板公式结果一致，误差应低于 0.0001 | 对应 Avatar Contact 场景的 `Sensa/Point/v1/LabContact/Self/Root/A0..A3`；世界看板自身不发送 OSC |
-| 02 PB only | 抓取、拉伸、松开球；没有 Contact | 静止 IsGrabbed=false、Stretch=0；抓住为 true，拉伸会变化；没有 XYZ 重建 | Avatar PB 场景使用 `Sensa/Lab/PB_IsGrabbed` 与 `_Stretch`，选“PB · 拉伸”并检查实际前缀 |
-| 03 PB + Contact | 抓取 PB 目标，四接收器测其位置 | PB 状态与 P1–P4 可同时观察；这是实验局部估计，默认禁止运动，松手无效 | Avatar PBContact 场景的 `Sensa/Handle/v1/LabCombined/Self/`，在 OSC → 实验诊断观察；无默认定位预设，输出默认阻断 |
-| 04 原生 SPS | 真实 VRCFury Plug/Socket；先 Rest/Outside，再 Near、Offset | 20 cm 长度、原生球形近接与轴向真值见下表；偏移时两种深度不同 | Avatar SPS 场景使用真正的 `OGB/Orf/FixtureSocket/...` 参数，选择普通 SPS Socket 预设 |
-| 05 SPS + PB + Contact | PB 驱动真实 SPS Plug，Contact 测 PB 点；可移动 Socket | 三种读数可同时观察；先释放 PB 回到静止，再按预设比较；自由抓取时基准会改变 | 原 Exclusive Avatar 是完整组合；独立能力 Avatar 用于先排除单一系统问题 |
-| 06 Shader 传输 | 合成 XYZ=(.25,-.5,.75)，不断改变帧号；Freeze/ToggleOutput/Corrupt | 解码误差小于 0.00004；冻结超过 350 ms 后 Valid=0；Corrupt 注入真实 CRC 错误 | PNG → Python 桥 → OSC 独立诊断；屏幕区域可只解码观察；明确不是 SPS 测量 |
-| 07 SPS Shader | 真实 SPS Shader、Socket 偏移、GPU 中心线采集 | 长度约 .2 m；Offset 入口相对根部位移约 (.06,0,.12) m | 编辑器 GPU Probe → 连续编码 PNG → 桥 → Sensa；不是可上传的 Avatar C# 脚本 |
+独立 Point fixture 使用 Sender 半径 .001、Receiver 半径 .35 和自己的四面体局部框架。(0,0,.10) 的四值约 .48541/.48541/.73483/.73483；(.06,0,.10) 约 .40627/.51463/.79683/.60286。它**不是** R=2.5 的固定 SPS P0–P3 布局。
 
-原生 SPS 台使用**已知本台 Plug 的实际 SPS Sender**和 SDK `CalculateProximity`，以避免多个实验台混入来源；不是任意远端目标识别实现。World 的 Udon 数值不会自动变成 Avatar OSC。看板上的世界 Transform 是测试真值，不能当作 Avatar 运行时能力。
+已知 20 cm SPS Plug 中，Socket 位于 (0,0,.24)、(0,0,.12)、(.06,0,.12) 分别代表 Outside、Near、Offset。Near／Offset 的轴向真值都是 40%，径向估计约为 40%／32.9%。OGB 归一化、SDK 有符号距离、根解码与模型位移不是同一量。
 
-### Contact 基准（半径 1 mm，接收器 0.35 m）
+另行启用原生 **SPS OSC／OGB_ENABLED**，固定实际路径和来源；严格接触边界或完全饱和值不保证可用的运行时估计。
 
-| 位置，米 | P1（原始 A0） | P2（原始 A1） | P3（原始 A2） | P4（原始 A3） |
-| --- | --- | --- | --- | --- |
-| Baseline (0,0,.10) | .48541 | .48541 | .73483 | .73483 |
-| Near (0,0,.05) | .60593 | .60593 | .75874 | .75874 |
-| Offset (.06,0,.10) | .40627 | .51463 | .79683 | .60286 |
-| Outside (0,0,.60) | 0 | 0 | 0 | 0 |
+## 诊断图像桥
 
-### SPS 基准（20 cm Plug，根部到 Socket 的距离）
+使用隔离 Sensa 配置，保持**输出为空、输入关闭**；转发前启用 OSC 接收并应用 OSC 模式。`sensa-preview.json` 使用 WebUI 5087，需明确将 `SENSA_CONFIG_PATH` 指向所选文件；下列 9001 只是接收端口示例。
 
-| 操作 | Socket 相对 Plug 根的位置 | SDK 带符号近接，米 | 轴向深度真值 | 径向近似深度 |
-| --- | --- | --- | --- | --- |
-| Rest / Outside | (0,0,.24) | +.04 | 0 | 0 |
-| Near | (0,0,.12) | −.08 | .400 | .400 |
-| Offset | (.06,0,.12) | −.06584 | .400 | .32918 |
-
-SDK 近接为距离量，不是 OGB 的归一化行程。Avatar 普通 SPS 预设仍需先在未饱和位置学习长度；旧参数、新 Root/Tip 配对和 Shader 模型不是同一种量。SPS Shader 采集是未混合模型中心线，不能证明最终表面网格精度。
-
-Avatar 的原生 haptics 必须打开实验菜单 `Enable SPS OSC (local)`（`OGB_ENABLED=true`）；测试自己身上的 Plug 时选 Self。Sensa Root/Tip 估算已补偿原生 1 cm Root Sender 半径；Root 饱和后的最后 1 cm 不能准确解出，因此保持保守估计。
-
-## PB 抓取与碰撞
-
-实验把手设置 `Allow Grabbing=True`、`Allow Posing=False`、`Allow Collision=False`，碰撞器列表为空，可见球没有 Unity Collider。PB 的正半径用于抓取判定，不能为了关闭碰撞把它设为零。Contact Sender/Receiver 是测量组件，并不是会推开动骨的物理碰撞器。
-
-自动检查验证了配置和静止读数；真实抓取仍需手动测试，并检查 VRChat 自交互/对他人交互权限。这里的动骨使用 VRChat PhysBone，不要求安装旧 Dynamic Bone。
-
-## 图像桥接操作
-
-先使用没有任何输出设备的 Sensa 配置，仅观察 OSC 参数，保持输入关闭。脚本不会连接或启用硬件。下列命令中的 `<World project>` 请替换为自己的本地世界工程目录。
-
-仓库提供 `tools/unity-world-lab/sensa-preview.json`。在单独 PowerShell 中设置 `$env:SENSA_CONFIG_PATH` 为该文件绝对路径，再运行解压目录的 `Sensa.exe`，打开 `http://127.0.0.1:5087`。它没有输出设备。先关闭其他占用 UDP 9001 的监听程序；应用 OSC 输入后，多个来源并存时在参数工作台固定桥接来源。
-
-```powershell
+```shell
 python -m pip install -r scripts/requirements-capture.txt
-# 离线检查一帧；不传 --port 就不会发送网络数据
-python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
-# 读取 GPU Probe 连续更新的 PNG，明确指定本机 Sensa 的 OSC 端口
-python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
-# 原生根点屏幕捕获必须固定 producer 并按独立指南注册：
-# unity/top.sealoong.sensa/GPU-TRACKING.md
+python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png"
+python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
 ```
 
-脚本支持被拉伸的矩形图块，但必须包含完整 16×8 网格、每个格子至少 4×4 像素。不支持自动找码或透视校正。启动及故障恢复均需两帧新的递增序号才置 Valid=1；旧帧和重复帧不能恢复门控。同一帧号的 XYZ 改变也会失效。冻结、乱序、CRC 错误、退出均关闭 Valid；进程被强杀或网络断开时还要依靠 Sensa 的断流停止设置。
+省略 `--port` 只解码，不发 OSC。完整 16×8 网格每格至少 4×4 像素；支持矩形拉伸，不支持自动发现或透视矫正。
 
-桌面发行包附带桥接脚本、Pillow 依赖清单和无设备预览配置。Windows x64 CI 用固定 GPU PNG 验证独立诊断命名空间中传输的 CRC 故障、旧帧拒绝、两帧恢复和冻结失效，输入始终关闭，不作为原生根点或运动证据。
+启动／恢复需要两个新的前进帧。重复／过期帧、同序号改变 XYZ、CRC／顺序故障和冻结不能重新开门，退出会清零有效性。强杀／丢网还需要 Sensa 输入超时；生产端序号重置后可能要重启桥。
 
-示例配置将断流停止设为 500 ms；仍应固定桥接来源，避免其他程序的数据影响测试。采集窗口重开、帧计数重置后，重新启动桥接以建立新的帧序基线。
+只观察 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`；这是诊断传输，不是可映射原生根或校准来源。非零 `Sensa/Shader/<id>` 使用独立[原生根注册](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。移除公开 Producer／Profile 不等于移除二进制 ID、坐标模式、Frame 或 CRC。
 
-在参数工作台看 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`。此独立命名空间仅是诊断传输，不是原生捕获、空间坐标或校准参考；.12 m 模型位移与 SPS 插入深度是不同量。非零 ID 的原生注册见[包内指南](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。去掉公开 Producer／Profile 不等于移除二进制 ID、坐标标志、Frame 或 CRC。
+实际编辑器模型 PNG 需要已烘焙 Resolver／表面和正在渲染的非立体相机，通过 **Tools → Sensa → SPS GPU Model Probe (Experimental)** 采集。其入口减根的世界轴位移不等于轴向插入；世界可上传相机实验仍是合成数据。
 
-### 真正 SPS 模型怎样接到 PNG
+## 报告与验收
 
-1. 在 World/Avatar 的 SPS Shader 场景进入 Play Mode，让 VRCFury 烘焙并正常渲染 SPS。
-2. 打开 **Tools → Sensa → SPS GPU Model Probe (Experimental)**，选择非立体 Camera、对应烘焙 Resolver Renderer 和表面 Renderer。
-3. 勾选“连续导出实验 PNG”，设置输出文件，点击“检查依赖并采集下一帧”。该 Camera 必须持续渲染。
-4. 外部脚本使用 `--image ... --watch --port ...`，在 Sensa 检查 Valid 与 XYZ。暂停渲染后应失效。
+读取对应修订的 `Validation/` 报告检查组件、样本、CRC 和冻结恢复。诊断冒烟始终输入关闭、无输出，不是原生图像捕获或硬件运动。自动 E2E／PlayMode／截图仅在 CI 执行。
 
-此编辑器链路编码“入口减去中心线根部”的世界轴位移，每轴 ±1 m；超范围或无效 GPU 数据输出无效包。它仍不是上传后的 SPS 模型生产端。包内原生方案采样实际根部 Transform，不采样形变模型；本实验室纯 Camera 合成码也不能冒充真实 SPS 数据。
+PB 抓取权限、多语字体／HMD 可读性、上传 OSC、相机保留、镜面、HDR／AA、捕获延迟及多人行为仍须真实客户端验收。
 
-固定窗口区域减少了转头时代码位置改变的问题，但 CRC/帧号不能证明画面绝无延迟。真实 VRChat 相机裁剪、窗口遮挡、缩放、重投影和头显不可见性仍需验证。
-
-## 自动验证和报告
-
-菜单 **Tools → Sensa Lab → Validate capability world in Play Mode** 检查各系统、Near/Offset、PB 碰撞配置、真实 SPS GPU 采样并导出 PNG。看 `Validation/functional/results.json`、`sps-gpu.json` 和 `sensa-bridge.json`。最后一份是两帧真实 GPU PNG 重放到隔离 Sensa 的端到端结果，不是实时 VR 抓取结果。
-
-参考：[VRChat PhysBones](https://creators.vrchat.com/common-components/physbones/)、[VRCFury SPS](https://vrcfury.com/sps/)。
+[开发说明](DEVELOPMENT.md) · [相机实验](CAMERA-PROTOTYPE.md) · [图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)

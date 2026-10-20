@@ -1,85 +1,57 @@
-# Three actual integration routes
+# Choose an integration route
 
 [简体中文](usage-scenarios.md) | **English**
 
-SPS haptics uses OGB parameters; Socket and Plug are two sides of the same system. Sensa offers existing-parameter intake, fixed-anchor positioning and encoded-image capture. The [parameter and radius reference](osc-parameters.en.md) explains fields, units and activation ranges. Synthetic steps remain internal regression fixtures, not user routes.
+Choose based on the data you actually have, then configure the output. SPS is an Avatar deformation/interaction system whose external haptics use OGB parameters. Sensa SPS is a separately generated fixed-root measurement, not the same protocol.
 
-| Route | Requirements | Data and effect | Current limits |
-| --- | --- | --- | --- |
-| OGB / SPS | An avatar actually publishing haptics parameters | Modern Root/Tip or legacy proximity drives depth; touch drives vibration | Radial/proximity estimates, not exact XYZ or axial insertion depth |
-| Sensa SPS | A buildable PC avatar with an explicitly selected Socket/Plug root | Fixed P0–P3 plus a dedicated marker reconstruct AvatarRootLocal coordinates for axis calibration | Own roots only; coverage, scale and non-atomic OSC constraints |
-| Shader capture | A generated encoder and an actually capturable desktop grid | Root coordinates → ID/CRC/frame grid → selected-region decoding → calibration | PC experiment; hidden layers need not be desktop-visible; client/HMD acceptance remains open |
+| Route | Prerequisite | Result |
+| --- | --- | --- |
+| Existing OGB / SPS | Use haptics parameters already exposed by an Avatar | Radial depth estimate or touch intensity |
+| Sensa SPS | Build your own Avatar and select its actual Socket/Plug root | Your root's AvatarRootLocal XYZ |
+| Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root XYZ from an explicit ROI |
 
-These routes produce device commands, not device-position feedback. Outputs use TCode serial/UDP/TCP or Intiface features; a connected service does not prove physical execution.
+All three produce command targets, not device feedback. Manual/script input can establish direction and range first. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
 
-## 1. OGB / SPS: existing parameters
+## Existing OGB / SPS
 
-Apply OSC input mode, confirm the listener and actual source, and observe `OGB/Orf/...`, `OGB/Pen/...` or independent `VFH/Zone/Touch/...` paths.
+1. Apply OSC, check listener/source and inspect real `OGB/Orf/…`, `OGB/Pen/…` or `VFH/Zone/Touch/…` paths.
+2. If OGB_ENABLED is required, explicitly enable its heartbeat and configure the **VRChat receive port**, commonly 9000. Sensa listens on 9001 by default; these are different destinations.
+3. Choose “OGB / SPS · Depth” or “Vibration”, fix object/source, check range, direction and Close gates, save, then activate input.
 
-- Explicitly enable the OGB activation heartbeat in receiver settings. Its target is **VRChat's receiver**, commonly `127.0.0.1:9000`; Sensa listens on 9001 by default. It sends true every five seconds and attempts false on leaving OSC/stopping. It defaults off, grants no device permission and has no UDP acknowledgment.
-- OGB / SPS depth prefers modern pairs from one source, full instance and Self/Others party. Missing companions or unlearned length yield zero. Both modern values zero/absent permit legacy fallback. Plug values are not universally inverted.
-- OGB / SPS vibration uses Touch/Frot with required Close gates. Independent VFH Touch Zones are direct and need no invented Close.
-- Pin the actual object/source, verify range and direction, save, then activate input. Avatar/mapping changes and reactivation clear learned modern length.
-- NewTip is a root-centered length sphere, not a tip marker. Offset, rotation, multiple Senders and runtime scaling constrain estimates; names cannot establish real coordinates.
+Modern Socket uses Root/Tip from the same source, full instance and Self/Others category. It learns length from unsaturated samples; incomplete pairs or unknown length yield zero. Legacy proximity is considered only when modern values are absent or both zero. Plug uses the raw value. Touch and Plug Frot require their actual Close gates; Socket Frot and standalone Touch Zones follow their own rules.
 
-Official OGB v1 already had Root/Tip and legacy fallback. Application-version labels cannot reliably divide single/paired detectors. [Full fields and generator radii](ogb-compatibility.en.md) · [Three presets](presets.en.md)
+NewTip is a **root-centered length sphere**, not a tip coordinate. Rotation, lateral offset, multiple Senders, scale and asynchronous channels limit the result. OGB v1 already had modern and legacy branches; software age does not identify geometry. [Presets](presets.en.md) · [External generators and radii](ogb-compatibility.en.md)
 
-## 2. Sensa SPS: four fixed anchors
+## Sensa SPS fixed anchors
 
-Add **Sensa → Fixed SPS Root Probe** and select an actual Socket/Plug, Sensa Component or supported native Contact root. A dedicated radius-0.001 marker follows that root; four radius-2.5 receivers remain under the avatar root.
+Use **Fixed SPS Root Probe** or **Automatic SPS Setup**, selecting a supported actual root. Four radius-2.5 Receivers stay under the Avatar root; a dedicated radius-.001 Sender follows the selected root center:
 
-| Anchor | AvatarRootLocal |
-| --- | --- |
-| P0 | (-0.5, 0.5, -0.5) |
-| P1 | (0.5, 0.5, 0.5) |
-| P2 | (0.5, 1.5, -0.5) |
-| P3 | (-0.5, 1.5, 0.5) |
+`P0=(-.5,.5,-.5)`, `P1=(.5,.5,.5)`, `P2=(.5,1.5,-.5)`, `P3=(-.5,1.5,.5)`.
 
-The per-object measurement paths are:
+Only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` are public measurements. P values are proximity, not coordinates. Sample=0 is invalid; activity cycles through n/32 (n=1…32), nominally every 50 ms. Repeating a value does not refresh it. Default change age is 1000 ms, capped at 1250 ms. Optional menu selectors are extra controls, outside those five measurements.
 
-```text
-Sensa/SPS/<object>/P0
-Sensa/SPS/<object>/P1
-Sensa/SPS/<object>/P2
-Sensa/SPS/<object>/P3
-Sensa/SPS/<object>/Sample
-```
+Fix the object in the root panel, choose X/Y/Z or distance from origin, capture endpoints, inspect preview, replace the draft and save. Then explicitly allow experimental spatial input and activate input. Missing/frozen samples, inconsistent geometry or failed scale guards block and stop.
 
-P0–P3 are proximities, not XYZ. Unsaturated centre distance is `d=2.5×(1−p)+0.001`. Sample=0 means inactive/invalid; active states cycle 1/32…1 every 50 ms, combining validity and liveness. Repeating a counter value does not renew it. Profile, Scale, Valid, Heartbeat and Self/Others path layers are removed, with no old eight-range or version-path aliases.
+Units belong to the Avatar root and equal world meters only at unit scale. The four-ball intersection and saturation constrain coverage. One root supplies no orientation, world motion, tip or GPU surface. [Positioning/stopping](positioning.en.md) · [Unity installation](../unity/top.sealoong.sensa/README.md) · [Derivation](fixed-anchor-research.en.md)
 
-1. Pin the target/source in the parameter page and open the root panel.
-2. Select X/Y/Z/distance, capture actual 0%/100% endpoints, preview, replace the draft and save.
-3. Explicitly permit experimental spatial input, then activate. Sample=0, freezing/expiry, missing samples or inconsistent geometry blocks and stops input.
+## Shader root encoding and region capture
 
-Unity and desktop share geometry; ScaleFactor/IsLocal guard validity inside FX. RawP is FX-only rather than a public expression parameter. Optional local menu Int controls at `Sensa/Select/<group>` are outside these five measurement fields and may still be exported by OSC. Only dedicated roots on the local avatar are measured; Automatic SPS Setup retains Dedicated/Exclusive policies.
+Use **Shader Root Capture (Experimental)** with an actual root and nonzero producer ID. The build generates a native skinned point, one None-eye Camera and Shader. Its local menu starts Off; there is no custom post-upload C# reader.
 
-Radii use authored local units. The valid volume is the intersection of four spheres, with an SDK world-radius cap of 3 m. Authoring/runtime scale guards disable before clamping; nonuniform or custom animated root scale is rejected. One point supplies no orientation, tip, surface or exact insertion ratio, and Sample proves no atomic Contact frame. [Positioning and coverage](positioning.en.md) · [Installation](../unity/top.sealoong.sensa/README.en.md) · [Design evidence](fixed-anchor-research.en.md)
+1. Enable encoding in the actual client and confirm that a desktop surface visibly contains it.
+2. Select a physical-pixel ROI and producer ID, check decode-only first, then register and explicitly choose the OSC destination.
+3. The bridge checks ID, coordinate flags, CRC and modulo-65536 forward frames. Default freezing is 350 ms; startup/recovery requires two advancing frames.
+4. A valid bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 last. Invalidity sends only Valid=0.
+5. Calibrate/save in the root panel, then grant experimental and input permissions separately.
 
-## 3. Shader: root encoding and explicit region capture
+The desktop also checks same-source contiguous fields, coordinate bounds and at most 500 ms of Frame change age. Public Producer/Profile were removed; binary ID, coordinate flag, CRC and Frame remain. Diagnostic ID0 uses `Sensa/Diagnostics/Shader/0` and creates no motion root.
 
-Add **Sensa → Shader Root Capture (Experimental)**, select the actual Socket/Plug root and assign a nonzero producer ID. The builder generates a native skinned point, one None-eye Camera and encoding Shader, initially off in a local menu. No custom avatar readback C# runs.
+The cube is X/Z=[−1.5,1.5], Y=[−.5,2.5], not a Contact radius. A 16-bit quantization step is not measured accuracy. This captures the CPU root Transform, not final SPS deformation. Hidden layers, mirrors, HMD and desktop compositing are different surfaces and require actual acceptance. [Commands](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Implementation/sources](shader-capture-research.en.md)
 
-1. Enable the code in the actual client and confirm a visible desktop grid.
-2. Explicitly select physical-pixel bounds and producer ID. Check decode-only first, then save registration and explicitly choose the OSC port.
-3. The bridge checks black/white thresholds, CRC, ID, coordinate mode and advancing frames. Freezing, old frames or wrong regions send only Valid=0; recovery requires two advancing frames.
-4. Native packets use `Sensa/Shader/<nonzero-ID>`, ordered `Frame, X, Y, Z, Valid` inside one bundle, with Valid=1 committed last. Invalidity sends Valid=0 alone.
-5. Calibrate in the same root panel and explicitly permit experimental spatial input.
+## Other inputs and tools
 
-The path already identifies the producer, so OSC Producer/Profile are removed. Binary identity, coordinate-mode bit, CRC and frame counter remain. Desktop validates five consecutive same-source fields, bounds and changing-Frame age; the bridge owns modulo-forward/recovery checks. Diagnostic grids use `Sensa/Diagnostics/Shader/0`, transport-preview only, with no coordinate mapping.
+Twelve-axis manual input and single-L0 funscripts need no Contact solve. Native PB uses actual Stretch/IsGrabbed prefixes for scalar control; L0 recording captures pre-distribution targets. OSCQuery/Hub discover and forward without establishing position semantics.
 
-Shader uses no Contact trigger radius. Its fixed encoding cube is X/Z=[−1.5,1.5], Y=[−0.5,2.5], in avatar-root local units. The 16-bit quantization step is about 0.00004578, not real accuracy. One camera and once-per-point CRC remove redundant rendering work; actual client performance was not benchmarked.
+Independent Point/Handle/Pose and lab QuickStart/synthetic Shader fixtures remain internal tools, not compatibility layers or accuracy evidence for these routes. [Lab workflow](lab-workflow.en.md)
 
-Mirror layers, VR hidden layers, HMD composition and desktop mirrors are different surfaces. Confirm the selected region is actually capturable. [Setup/commands](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Implementation research](shader-capture-research.en.md)
-
-## Base inputs and auxiliary tools
-
-- **Manual:** Twelve-axis targets establish connection/direction/range; continuous mode follows edits, without automatic oscillation.
-- **funscript:** One L0 timeline with speed, looping, A–B and seeking; no audiovisual synchronization.
-- **Native PB:** Actual Stretch + IsGrabbed provides scalar control. Replace MyPB with the real prefix; it supplies no XYZ.
-- **L0 recording:** Records pre-dispatch commands, holds the last value through stop and confirms before clearing a re-recording; no multi-axis, gate events, video clock or device feedback.
-- **OSC Hub/OSCQuery:** Forwarding, discovery, subscription or polling; packet frequency does not prove sensor changes.
-- **Independent Point/Handle/three-marker Pose experiments:** Retain their own measurement models, with no compatibility role in the new SPS contract; they cannot replace producer acceptance.
-
-## Verification limits
-
-Isolated contracts cover geometry, fields, sources and lifecycles; Unity EditMode covers authoring/native components; CI browser/mock-wire checks cover interaction to simulated output. Actual uploads, Contacts/OSC, desktop/HMD grids, coordinate accuracy and hardware motion require separate acceptance. [Feature reference](features.en.md) · [Visual review](ui-visual-review.en.md)
+Isolated contracts, EditMode and CI mock wires prove their respective boundaries. Real uploads, Contacts/OSC, desktop/HMD capture, accuracy and mechanical behavior need separate acceptance. [Features](features.en.md)

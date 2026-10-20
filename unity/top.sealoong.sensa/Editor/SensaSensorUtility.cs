@@ -16,28 +16,28 @@ namespace UnityBox.Sensa
         public static Transform Child(Transform parent, string name)
         { var node = new GameObject(name).transform; node.SetParent(parent, false); return node; }
         public static void Name(string value)
-        { if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value,"^[A-Za-z0-9_-]{1,48}$")) throw new InvalidOperationException("Sensa names require 1–48 ASCII letters, digits, '_' or '-'."); }
+        { if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value,"^[A-Za-z0-9_-]{1,48}$")) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa names require 1–48 ASCII letters, digits, '_' or '-'.")); }
         public static void Uniform(Transform transform)
         {
             for(var t=transform;t!=null;t=t.parent) {
                 var s=t.localScale;
                 if(s.x<=0 || float.IsNaN(s.x+s.y+s.z) || float.IsInfinity(s.x+s.y+s.z) || Mathf.Abs(s.x-s.y)>.0001f*s.x || Mathf.Abs(s.x-s.z)>.0001f*s.x)
-                    throw new InvalidOperationException("Sensa requires positive uniform scale: "+t.name);
+                    throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa requires positive uniform scale: ")+t.name);
             }
         }
         public static void Parameter(GameObject host,string name,ParameterSyncType type=ParameterSyncType.Float)
         {
             var avatar=host.GetComponentInParent<VRCAvatarDescriptor>();var root=avatar!=null?avatar.gameObject:host.transform.root.gameObject;
-            if(root.GetComponentsInChildren<ModularAvatarParameters>(true).Any(c=>c.parameters!=null&&c.parameters.Any(p=>p.nameOrPrefix==name)))throw new InvalidOperationException("Generated Sensa parameter conflicts with an existing declaration: "+name);
+            if(root.GetComponentsInChildren<ModularAvatarParameters>(true).Any(c=>c.parameters!=null&&c.parameters.Any(p=>p.nameOrPrefix==name)))throw new InvalidOperationException(SensaEditorLocalization.Text("Generated Sensa parameter conflicts with an existing declaration: ")+name);
             var config=host.GetComponent<ModularAvatarParameters>()??host.AddComponent<ModularAvatarParameters>();
             if(config.parameters==null) config.parameters=new List<ParameterConfig>();
-            if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException("Duplicate generated parameter: "+name);
+            if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException(SensaEditorLocalization.Text("Duplicate generated parameter: ")+name);
             config.parameters.Add(new ParameterConfig {nameOrPrefix=name, remapTo="",syncType=type,localOnly=true,saved=false,hasExplicitDefaultValue=true,defaultValue=0});
         }
         public static VRCContactReceiver[] Array(Transform parent,string prefix,string tag,bool self)
         {
             Uniform(parent);
-            if(parent.lossyScale.x*SensaPoseProtocol.ReceiverRadius>3)throw new InvalidOperationException("Scaled receiver exceeds SDK radius limit.");
+            if(parent.lossyScale.x*SensaPoseProtocol.ReceiverRadius>3)throw new InvalidOperationException(SensaEditorLocalization.Text("Scaled receiver exceeds SDK radius limit."));
             var receivers=new List<VRCContactReceiver>();
             for(int i=0;i<4;i++) {
                 int anchor=SensaPoseProtocol.PointAnchorIndex(i);
@@ -70,7 +70,7 @@ namespace UnityBox.Sensa
         public static void Budget(GameObject avatar,int added)
         {
             int existing=avatar.GetComponentsInChildren<VRCContactSender>(true).Length+avatar.GetComponentsInChildren<VRCContactReceiver>(true).Length;
-            if(existing+added>256)throw new InvalidOperationException($"Sensa Contact budget exceeded: existing {existing} + generated {added} > 256.");
+            if(existing+added>256)throw new InvalidOperationException(SensaEditorLocalization.Format("Sensa Contact budget exceeded: existing {0} + generated {1} > 256.", existing, added));
         }
     }
 }

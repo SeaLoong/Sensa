@@ -96,7 +96,33 @@
       formula: ['q=round(clamp((p−center+1.5)/3)×65535)；步长=3/65535。越界不因量化夹紧变成有效；Frame/X/Y/Z/Valid 按顺序提交。', 'q=round(clamp((p−center+1.5)/3)×65535); step=3/65535. Clamping does not validate an out-of-bounds source. Frame/X/Y/Z/Valid commit in order.'],
     },
   };
-  let locale = new URLSearchParams(location.search).get('lang') === 'en-US' ? 'en-US' : 'zh-CN';
+  // Keep this small classic-script resolver aligned with src/web/i18n.js; the guide also works from file://.
+  // 与应用保持同一优先级；不引入额外资产或模块加载，使独立文件仍可离线打开。
+  const LOCALE_STORAGE_KEY = 'sensa.locale';
+  function normalizeLocale(value) {
+    if (typeof value !== 'string') return null;
+    const language = value.trim().replaceAll('_', '-').toLowerCase();
+    if (/^zh(?:-[a-z0-9]{1,8})*$/.test(language)) return 'zh-CN';
+    if (/^en(?:-[a-z0-9]{1,8})*$/.test(language)) return 'en-US';
+    return null;
+  }
+  function initialLocale() {
+    let requested, saved;
+    const languages = [];
+    try { requested = new URLSearchParams(location.search).get('lang'); } catch { /* Unavailable location. */ }
+    try { saved = window.localStorage.getItem(LOCALE_STORAGE_KEY); } catch { /* Restricted file/private storage. */ }
+    try { if (Array.isArray(navigator.languages)) languages.push(...navigator.languages); } catch { /* Unavailable preferences. */ }
+    try { languages.push(navigator.language); } catch { /* Unavailable fallback preference. */ }
+    return [requested, saved, ...languages].map(normalizeLocale).find(Boolean) || 'en-US';
+  }
+  function rememberLocale(next) {
+    try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory choice still works. */ }
+    try {
+      const url = new URL(location.href);
+      if (url.searchParams.has('lang')) { url.searchParams.set('lang', next); window.history.replaceState(window.history.state, '', url); }
+    } catch { /* A restricted file URL/history does not prevent switching. */ }
+  }
+  let locale = initialLocale();
   let state = Model.defaultsFor($('scene').value);
   let result, projection, selected = '', dragging = null, annotationRatio = 1;
   let threeView = null, threeUnavailable = false;
@@ -415,8 +441,11 @@
     for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = text(node.dataset.i18n);
     $('scene-title').textContent = text(state.scenario); $('scene-summary').textContent = text(scenes[state.scenario].summary);
     const suffix = locale === 'en-US' ? '.en.md' : '.md', hosted = /^https?:$/.test(location.protocol);
+    const siteRoot = document.querySelector('meta[name="sensa-site-root"]')?.content;
     for (const [selector, path] of [['.brand', 'osc-parameters'], ['#reference-link', 'osc-parameters'], ['#ogb-link', 'ogb-compatibility'], ['#position-link', 'positioning']]) {
-      document.querySelector(selector).href = (hosted ? 'https://github.com/SeaLoong/Sensa/blob/main/docs/' : '') + path + suffix;
+      document.querySelector(selector).href = siteRoot
+        ? new URL((locale === 'zh-CN' ? 'zh-CN' : 'en') + '/docs/' + path + '.html', new URL(siteRoot, location.href)).href
+        : (hosted ? 'https://github.com/SeaLoong/Sensa/blob/main/docs/' : '') + path + suffix;
     }
   }
   function disposeThree() { threeView?.dispose(); threeView = null; }
@@ -460,7 +489,7 @@
     dragging = null; state = Model.defaultsFor($('scene').value); selected = '';
     $('projection').value = threeUnavailable ? 'iso' : 'orbit'; render();
   });
-  $('locale').addEventListener('change', () => { locale = $('locale').value; render(); });
+  $('locale').addEventListener('change', () => { locale = normalizeLocale($('locale').value) || 'en-US'; rememberLocale(locale); render(); });
   $('projection').addEventListener('change', () => { dragging = null; render(); });
   $('drag-plane').addEventListener('change', () => { dragging = null; render(); });
   $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });

@@ -51,7 +51,7 @@ class ArchiveWorkspace(unittest.TestCase):
         self.root = Path(self.folder.name)
         self.repository = self.root / 'repository'
         self.repository.mkdir()
-        for name in ('README.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE', 'package.json'):
+        for name in ('README.md', 'README.zh-CN.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE', 'package.json'):
             shutil.copyfile(ROOT / name, self.repository / name)
         for directory in ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
             shutil.copytree(ROOT / directory, self.repository / directory)
@@ -251,6 +251,32 @@ class DesktopArchiveContracts(ArchiveWorkspace):
         self.assertFalse(self.output.exists())
 
 
+class EnglishReleaseNotesContracts(unittest.TestCase):
+    def test_preview_notes_lead_with_english_and_keep_complete_chinese_and_exact_commit(self):
+        notes = preview.preview_notes('a' * 40)
+        english, chinese = notes.split('## 简体中文', 1)
+        self.assertTrue(english.startswith('Development preview'))
+        self.assertIn('a' * 40, english)
+        self.assertIn('a' * 40, chinese)
+        self.assertIn('SHA256SUMS.txt', english)
+        self.assertIn('SHA256SUMS.txt', chinese)
+        self.assertIn('parameter-geometry.html?lang=en-US', english)
+        self.assertIn('parameter-geometry.html?lang=zh-CN', chinese)
+        self.assertIn('Real hardware', english)
+        self.assertIn('真实硬件', chinese)
+        with self.assertRaises(ValueError):
+            preview.preview_notes('../bad')
+
+    def test_tagged_desktop_notes_include_both_languages_and_reject_invalid_identity(self):
+        module = load('tag-release-notes')
+        notes = module.release_notes('v0.4.0-test')
+        self.assertTrue(notes.startswith('Sensa v0.4.0-test'))
+        self.assertIn('## 简体中文', notes)
+        self.assertIn('127.0.0.1:5086', notes)
+        with self.assertRaises(ValueError):
+            module.release_notes('v../unsafe')
+
+
 class UnityPublicationMetadataContracts(ArchiveWorkspace):
     def test_preview_unity_candidate_never_advertises_a_stable_vpm_package(self):
         metadata = self.root / 'outputs.txt'
@@ -335,8 +361,6 @@ class VpmHistoryContracts(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root = Path(self.folder.name)
-        (self.root / '.github/pages').mkdir(parents=True)
-        (self.root / '.github/pages/index.html').write_text('version=__VERSION__', encoding='utf-8')
         self.package = b'fixture zip bytes'
         digest = hashlib.sha256(self.package).hexdigest()
         self.base = 'https://Owner.github.io/Repo'
@@ -359,13 +383,14 @@ class VpmHistoryContracts(unittest.TestCase):
             return io.BytesIO(json.dumps(self.history).encode())
         return io.BytesIO(self.responses[url])
 
-    def build(self):
+    def build(self, *, allow_empty=False):
         original = Path.cwd()
         try:
             os.chdir(self.root)
             with patch.dict(os.environ, GITHUB_REPOSITORY='Owner/Repo', PAGES_BASE_URL=self.base), \
                     patch('urllib.request.urlopen', side_effect=self.fetch), \
-                    patch('subprocess.check_output', return_value=json.dumps(self.pages)) as query:
+                    patch('subprocess.check_output', return_value=json.dumps(self.pages)) as query, \
+                    patch('sys.argv', ['vpm-index.py', *(['--allow-empty'] if allow_empty else [])]):
                 runpy.run_path(str(ROOT / 'scripts/vpm-index.py'))
             command = query.call_args.args[0]
             self.assertIn('--paginate', command)
@@ -382,7 +407,14 @@ class VpmHistoryContracts(unittest.TestCase):
         copied = self.root / 'artifacts/pages/packages/top.sealoong.sensa/0.1.0/top.sealoong.sensa.zip'
         self.assertEqual(copied.read_bytes(), self.package)
         self.assertEqual(versions['0.1.0']['url'], self.previous['url'])
-        self.assertEqual((self.root / 'artifacts/pages/index.html').read_text(encoding='utf-8'), 'version=0.2.0')
+        self.assertFalse((self.root / 'artifacts/pages/index.html').exists())
+
+    def test_documentation_site_can_explicitly_publish_an_empty_stable_index(self):
+        self.history = {}
+        self.pages = []
+        index = self.build(allow_empty=True)
+        self.assertEqual(index['packages']['top.sealoong.sensa']['versions'], {})
+        self.assertFalse((self.root / 'artifacts/pages/index.html').exists())
 
     def test_corrupt_current_or_historical_archive_aborts_index_generation(self):
         for location in (self.current['url'], self.previous['url']):

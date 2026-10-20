@@ -32,7 +32,7 @@ namespace SensaLab
         private string[] colors={"#E85D75","#54B7FF","#77D970","#FFC857"};
         private void EnsureHome(){if(initialized)return;home=sender.transform.localPosition;homeMissingLane=missingLane;initialized=true;}
         public override void Interact() { TogglePause(); }
-        public void TogglePause() { EnsureHome();frozen=!frozen;if(frozen)status.text+="\nPAUSED - click middle cube to resume";else Refresh();nextRefresh=0; }
+        public void TogglePause() { EnsureHome();frozen=!frozen;if(frozen){var local=status.GetComponent<LabLocalizedText>();status.text=(local!=null?local.OriginalText():status.text)+"\nPAUSED - click middle cube to resume";}else Refresh();nextRefresh=0; }
         public void ResetCase(){EnsureHome();if(pickup!=null)pickup.Drop();if(targetBody!=null){targetBody.velocity=Vector3.zero;targetBody.angularVelocity=Vector3.zero;}sender.transform.localPosition=home;missingLane=homeMissingLane;frozen=false;nextRefresh=0;}
         public void ToggleMissing(){EnsureHome();missingLane=missingLane<0?3:-1;frozen=false;nextRefresh=0;}
         private void Update()

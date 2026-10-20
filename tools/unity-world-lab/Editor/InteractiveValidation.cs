@@ -20,7 +20,7 @@ namespace SensaLab
         {
             if(stage==0)
             {
-                report=new Report();var root=GameObject.Find("08 MY AVATAR SPS");if(root==null)throw new InvalidOperationException("Missing avatar SPS test area.");
+                report=new Report();var root=GameObject.Find("08 MY AVATAR SPS");if(root==null)throw new InvalidOperationException(LabEditorLocalization.Text("Missing avatar SPS test area."));
                 props=root.GetComponentsInChildren<LabPlacement>();report.placements=UnityEngine.Object.FindObjectsOfType<LabPlacement>().Length;
                 var plug=root.transform.Find("World SPS Plug");var socket=root.transform.Find("World SPS Socket");
                 var senders=plug.GetComponentsInChildren<VRCContactSender>(true);

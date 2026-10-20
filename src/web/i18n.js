@@ -3,23 +3,28 @@ import english from './i18n.en.json' with { type: 'json' };
 import diagnostics from './i18n-diagnostics.json' with { type: 'json' };
 
 export const LOCALE_STORAGE_KEY = 'sensa.locale';
-export const locales = ['zh-CN', 'en-US'];
-export function resolveLocale(saved, languages = []) {
-  if (locales.includes(saved)) return saved;
-  for (const language of languages) {
-    if (/^zh(?:-|$)/i.test(language)) return 'zh-CN';
-    if (/^en(?:-|$)/i.test(language)) return 'en-US';
-  }
-  return 'en-US';
+export const locales = Object.freeze(['zh-CN', 'en-US']);
+export function normalizeLocale(value) {
+  if (typeof value !== 'string') return null;
+  const language = value.trim().replaceAll('_', '-').toLowerCase();
+  if (/^zh(?:-[a-z0-9]{1,8})*$/.test(language)) return 'zh-CN';
+  if (/^en(?:-[a-z0-9]{1,8})*$/.test(language)) return 'en-US';
+  return null;
 }
-function initialLocale() {
-  // Pure helpers remain deterministic in Node/unit tests.
-  if (typeof window === 'undefined') return 'zh-CN';
-  let saved;
-  try { saved = window.localStorage.getItem(LOCALE_STORAGE_KEY); } catch { /* Private/restricted storage. */ }
-  return resolveLocale(saved, window.navigator.languages || [window.navigator.language]);
+export function resolveLocale(saved, languages = [], requested = null) {
+  const preferences = Array.isArray(languages) ? languages : [];
+  return [requested, saved, ...preferences].map(normalizeLocale).find(Boolean) || 'en-US';
 }
-let locale = initialLocale();
+export function detectLocale(browser = {}) {
+  let requested, saved;
+  const languages = [];
+  try { requested = new URLSearchParams(browser.location?.search || '').get('lang'); } catch { /* Unavailable location. */ }
+  try { saved = browser.localStorage?.getItem(LOCALE_STORAGE_KEY); } catch { /* Private/restricted storage. */ }
+  try { if (Array.isArray(browser.navigator?.languages)) languages.push(...browser.navigator.languages); } catch { /* Unavailable preferences. */ }
+  try { languages.push(browser.navigator?.language); } catch { /* Unavailable fallback preference. */ }
+  return resolveLocale(saved, languages, requested);
+}
+let locale = detectLocale(typeof window === 'undefined' ? {} : window);
 const listeners = new Set();
 export const getLocale = () => locale;
 export function subscribeLocale(listener) {
@@ -29,9 +34,16 @@ export function subscribeLocale(listener) {
 function applyDocumentLocale() {
   if (typeof document !== 'undefined') document.documentElement.lang = locale;
 }
-export function setLocale(next) {
-  if (!locales.includes(next)) return false;
+export function setLocale(value) {
+  const next = normalizeLocale(value);
+  if (!next) return false;
   try { globalThis.localStorage?.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory switch still works. */ }
+  try {
+    if (typeof window !== 'undefined') {
+      const url = new URL(window.location.href);
+      if (url.searchParams.has('lang')) { url.searchParams.set('lang', next); window.history.replaceState(window.history.state, '', url); }
+    }
+  } catch { /* Restricted history does not prevent switching. */ }
   if (locale === next) return true;
   locale = next;
   applyDocumentLocale();
@@ -75,5 +87,8 @@ export function localized(factory) {
 }
 export function docUrl(path) {
   if (path === 'docs/parameter-geometry.html') return '/docs/parameter-geometry.html?lang=' + locale;
-  return 'https://github.com/SeaLoong/Sensa/blob/main/' + path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');
+  const localizedPath = /(?:^|\/)README\.md$/.test(path)
+    ? path.replace(/README\.md$/, locale === 'zh-CN' ? 'README.zh-CN.md' : 'README.md')
+    : path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');
+  return 'https://github.com/SeaLoong/Sensa/blob/main/' + localizedPath;
 }

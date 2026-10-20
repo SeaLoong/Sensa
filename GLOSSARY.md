@@ -1,48 +1,26 @@
-# Sensa
+# Sensa terminology / Sensa 术语
 
-Sensa 将虚拟交互或动作轨迹转换为设备控制目标。 / Sensa translates virtual interactions or motion trajectories into device targets.
+Sensa translates virtual interactions or motion trajectories into device targets. / Sensa 将虚拟交互或动作轨迹转换为设备目标。Use these terms consistently in code, UI and documentation. / 代码、界面与文档沿用以下含义。
 
-## Language / 术语
+| Term / 术语 | Definition / 定义 |
+| --- | --- |
+| **Motion target / 动作目标** | Desired normalized position or intensity sent toward an output, not physical sensor feedback. / 准备发送的归一化位置或强度，不是设备回读。 |
+| **Input mode / 输入模式** | The actual Manual, Osc or Script category, one at a time; browsing a tab does not apply it. / 实际手动、OSC 或脚本类别，同一时刻一种；浏览页签不应用模式。 |
+| **Input activation / 输入启用** | Explicit permission for the actual input to drive outputs. Configuration, mode or script changes disarm it. / 当前输入驱动输出的明确许可；配置、模式或脚本变更会关闭。 |
+| **Emergency stop / 紧急停止** | A latched stop that closes input; clearing it does not reactivate. / 关闭输入的锁存停止；解除不自动启用。 |
+| **Output / 输出** | A named destination with independent connection and enablement. Connection alone grants no input permission. / 有独立连接与启用状态的命名目标；连接不授予输入许可。 |
+| **Axis profile / 轴配置** | Reusable ranges, limits, direction and motion settings for output axes. / 可复用的轴映射范围、限位、方向与运动配置。 |
+| **Draft / 草稿** | Edited browser configuration before successful persistence, separate from runtime state. / 成功保存前的浏览器编辑内容，与运行状态分开。 |
+| **OSC source / OSC 来源** | A tracked transport/source identity with independent values and lifecycle; not authenticated Contact Sender identity. / 独立跟踪值与生命周期的来源身份，不是 Contact Sender 认证。 |
+| **Spatial rig / 空间测量组** | Markers interpreted in one local frame; grouping alone proves neither common identity nor synchronization. / 在一个局部框解释的标记组；分组不证明共同身份或同步。 |
+| **Avatar-root coordinates / Avatar 根局部坐标** | Position relative to the selected Avatar root and authored local scale, excluding common world motion. / 相对所选 Avatar 根及作者局部尺度的位置，不包含共同世界运动。 |
+| **Dedicated root marker / 专用根标记** | A known-radius marker following an explicitly selected root center on its own measurement channel. / 已知半径、跟随明确根中心并使用独立测量通道的标记。 |
+| **Sampling activity / 采样活动** | Continuing producer publication, not proof of sensor freshness, atomic sampling or target identity. / 生产端持续发布，不证明传感器刷新、原子采样或身份。 |
+| **Native root capture / 原生根点捕获** | Permitted Avatar render components encode a root; an explicit desktop region is decoded. Not final-mesh feedback. / 允许的原生组件编码根点，再解码明确桌面区域；不是最终网格回读。 |
+| **Model gate / 模型门控** | An explorer's simulated validity/gating result, excluding runtime learning, mapping and device output. / 图解中的模拟有效性／门控，不含运行时估长、映射或设备输出。 |
+| **Preview release / 预发布** | A published development snapshot, separate from stable releases and the stable-only VPM index. / 已公开开发快照，与稳定发布及仅稳定版 VPM 分开。 |
+| **Presentation locale / 呈现语言** | UI/document language preference, never a change to protocol names or numeric culture. / 界面／文档语言偏好，不改协议标识或数值文化。 |
 
-**Motion target / 动作目标**:
-期望发送给设备的归一化运动或强度，不是设备传感器回读。 / Desired normalized movement or intensity, not physical sensor feedback.
-_Avoid_: Actual position / 实测位置
+Avoid “actual position” for command telemetry, “connected” for input permission, “world position” for AvatarRootLocal, and “mesh tracking” for root capture. / 不把命令遥测叫实测位置、连接叫输入许可、AvatarRootLocal 叫世界位置、根捕获叫网格跟踪。
 
-**Input mode / 输入模式**:
-当前选择的手动、OSC 或脚本输入类别，同一时刻只有一种。 / The selected manual, OSC or script input category, one at a time.
-
-**Input activation / 输入启用**:
-用户明确允许当前输入驱动输出的状态；更换输入方式或脚本后需要重新启用。 / Explicit permission for the current input to drive outputs; changing the mode or script requires reactivation.
-_Avoid_: Connection / 已连接
-
-**Emergency stop / 紧急停止**:
-关闭输入并保持停止，直至用户解除并重新启用。 / A latched stop that closes input until cleared and explicitly reactivated.
-
-**Output / 输出**:
-具有独立连接目标与启用状态的命名设备控制通道。 / A named device-control destination with its own connection target and activation.
-
-**Axis profile / 轴配置**:
-为一组输出轴定义映射范围、限位、方向和运动方式的可复用配置。 / Reusable mapping ranges, limits, direction and motion settings for output axes.
-
-**OSC source / OSC 来源**:
-能独立追踪参数和生命周期的发送方身份。 / A sender identity whose parameters and lifecycle can be tracked independently.
-
-**Spatial rig / 空间测量组**:
-在同一局部参考框内用于估计点位置或姿态的一组标记；分组本身不证明身份或同步。 / Markers used to estimate a point or pose in one local reference frame; grouping alone proves neither identity nor synchronization.
-
-**Avatar-root coordinates / Avatar 根局部坐标**:
-以所选 Avatar 根为原点和坐标轴、采用作者局部尺度的位置，不包含整体世界运动或设备位置。 / Position in the selected Avatar root's frame and authored local scale, excluding global world motion and device position.
-_Avoid_: World position / 世界位置
-
-**Dedicated root marker / 专用根标记**:
-明确跟随所选 Socket／Plug 根中心、与自己的测量通道配对的标记。 / A marker explicitly following a selected Socket/Plug root center and paired with its measurement channel.
-
-**Sampling activity / 采样活动**:
-生产端仍在周期发布测量快照的状态，不证明传感器更新、同帧采样或目标身份。 / A producer continuing to publish measurement snapshots, without proving sensor updates, atomic sampling or target identity.
-
-**Native root capture / 原生根点捕获**:
-由 Avatar 允许的原生渲染组件生成根点编码、再从明确选择的桌面区域解码的输入。 / Root encoding generated by permitted native Avatar render components and decoded from an explicitly selected desktop region.
-_Avoid_: Mesh feedback / 网格回读
-
-**Preview release / 预发布**:
-供开发验证的已发布构建快照，区别于稳定版本。 / A published development build snapshot, distinct from a stable release.
+[Architecture](docs/architecture.en.md) · [中文架构](docs/architecture.md) · [Control ADR / 控制决策](docs/adr/0001-control-and-input-activation.md)

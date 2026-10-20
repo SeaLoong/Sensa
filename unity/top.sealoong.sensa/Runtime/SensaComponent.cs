@@ -89,56 +89,51 @@ namespace UnityBox.Sensa
     public class SensaComponent : MonoBehaviour
     {
         // ── Role ──────────────────────────────────────────────────────
-        [Header("Role")]
-        [Tooltip("Socket = orifice/receiver (被插入). Plug = penetrator/sender (插入).")]
+        [Tooltip("Socket = orifice/receiver. Plug = penetrator/sender.")]
         public BridgeRole role = BridgeRole.Socket;
 
         // ── Naming ────────────────────────────────────────────────────
-        [Header("Naming")]
-        [Tooltip("OGB 路径中的孔位类型。\nOrifice type used in OGB parameter path: OGB/Orf/{orificeType}/{instanceName}/*")]
+        [Tooltip("Orifice type used in OGB parameter path: OGB/Orf/{orificeType}/{instanceName}/*")]
         public OrificeType orificeType = OrificeType.Pussy;
 
-        [Tooltip("Custom 类型时使用的自定义孔位字符串。\nCustom orifice type string (used when OrificeType = Custom).")]
+        [Tooltip("Custom orifice type string (used when OrificeType = Custom).")]
         public string customOrificeType = "Custom";
 
-        [Tooltip("用于 OGB 路径的实例名；同一头像中须唯一。\nInstance name used in OGB parameter path. Must be unique per avatar if multiple Sensa components exist.")]
+        [Tooltip("Instance name used in OGB parameter path. Must be unique per avatar if multiple Sensa components exist.")]
         public string instanceName = "Main";
 
         // ── Socket config ─────────────────────────────────────────────
-        [Header("Socket (Orifice) Config")]
-        [Tooltip("定义插入轴的骨骼；+Z 朝内。\nBone that defines the insertion axis. +Z points inward.")]
+        [Tooltip("Bone that defines the insertion axis. +Z points inward.")]
         public Transform depthAxis;
 
-        [Tooltip("最大插入深度，单位米。\nMaximum insertion depth in metres.")]
+        [Tooltip("Maximum insertion depth in metres.")]
         public float socketLength = 0.15f;
 
-        [Tooltip("沿插入轴生成的深度环接收器数量（1–10）。\nNumber of depth-ring VRCContactReceivers to create along the insertion axis (1..10).")]
+        [Tooltip("Number of depth-ring VRCContactReceivers to create along the insertion axis (1..10).")]
         [Range(1, 10)]
         public int depthRingCount = 5;
 
-        [Tooltip("此字段已无作用，现代 SPS Plug 的标准 TPS_Pen_Penetrating 标签始终包含在过滤中。\nDeprecated \u2014 TPS_Pen_Penetrating is now always included in filter tags and is the primary standard tag for all modern SPS Plugs. This field has no effect.")]
+        [Tooltip("Deprecated — TPS_Pen_Penetrating is now always included in filter tags and is the primary standard tag for all modern SPS Plugs. This field has no effect.")]
         public bool detectDps = true;
 
-        [Tooltip("生成 AngleX/AngleY 参数（四个侧向近接触点）。\nGenerate AngleX / AngleY OSC parameters (four lateral proximity Contacts).")]
+        [Tooltip("Generate AngleX / AngleY OSC parameters (four lateral proximity Contacts).")]
         public bool generateAngleParams = true;
 
-        [Tooltip("除 PenOthers 外生成自身交互 PenSelf 参数。\nEmit PenSelf parameter (self-insertion depth) in addition to PenOthers.")]
+        [Tooltip("Emit PenSelf parameter (self-insertion depth) in addition to PenOthers.")]
         public bool generateSelfParam = false;
 
         // ── Plug config ───────────────────────────────────────────────
-        [Header("Plug (Penetrator) Config")]
-        [Tooltip("尖端骨骼，放置 TPS_Pen_Penetrating 发送器。\nTip bone of the penetrator (places the TPS_Pen_Penetrating ContactSender).")]
+        [Tooltip("Tip bone of the penetrator (places the TPS_Pen_Penetrating ContactSender).")]
         public Transform tipBone;
 
-        [Tooltip("根部骨骼，放置 TPS_Pen_Root 发送器。\nRoot bone of the penetrator (places the TPS_Pen_Root ContactSender).")]
+        [Tooltip("Root bone of the penetrator (places the TPS_Pen_Root ContactSender).")]
         public Transform rootBone;
 
-        [Tooltip("同时检测自身交互，增加本地深度接收器。\nAlso detect self-penetration (adds a receiver for local-only depth).")]
+        [Tooltip("Also detect self-penetration (adds a receiver for local-only depth).")]
         public bool selfPenetration = false;
 
         // ── Aux signals ────────────────────────────────────────────────
-        [Header("Supplementary Signals")]
-        [Tooltip("额外的 PhysBone/Contact/Raycast 信号，分别映射到设备角色。\nAdditional PhysBone / Contact / Raycast signals. Each is wired to a device role.")]
+        [Tooltip("Additional PhysBone / Contact / Raycast signals. Each is wired to a device role.")]
         public List<AuxSignal> auxSignals = new List<AuxSignal>();
 
         // ── Helpers ────────────────────────────────────────────────────

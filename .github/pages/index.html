@@ -1,283 +1,31 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!doctype html>
+<html lang="en-US">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sensa VPM Repository</title>
-  <style>
-    :root {
-      --bg: #1a1b2f;
-      --card-bg: #232540;
-      --text: #e8e8f0;
-      --text-dim: #9898b0;
-      --accent: #6c5ce7;
-      --accent-hover: #7f6ff0;
-      --border: #2e3055;
-      --success: #00cec9;
-      --copy-bg: #2d2f52;
-      --radius: 16px;
-    }
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-    .container {
-      max-width: 560px;
-      width: 100%;
-      padding: 48px 20px;
-    }
-
-    /* Header */
-    header {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-    header h1 {
-      font-size: 2rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-    }
-    header p {
-      color: var(--text-dim);
-      margin-top: 6px;
-      font-size: 0.95rem;
-    }
-
-    /* Card */
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: var(--radius);
-      padding: 28px 32px;
-      margin-bottom: 16px;
-    }
-    .card-center {
-      text-align: center;
-    }
-
-    /* VCC Button */
-    .btn-vcc {
-      display: inline-block;
-      background: var(--accent);
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      padding: 12px 32px;
-      border-radius: 10px;
-      text-decoration: none;
-      transition: background 0.2s, transform 0.15s;
-      cursor: pointer;
-      border: none;
-      width: 100%;
-    }
-    .btn-vcc:hover {
-      background: var(--accent-hover);
-      transform: translateY(-1px);
-    }
-    .btn-vcc:active {
-      transform: translateY(0);
-    }
-
-    /* Manual URL */
-    .manual-section {
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
-    .manual-label {
-      font-size: 0.82rem;
-      color: var(--text-dim);
-      margin-bottom: 10px;
-    }
-    .source-box {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: var(--copy-bg);
-      border-radius: 8px;
-      padding: 10px 14px;
-      border: 1px solid var(--border);
-    }
-    .source-box code {
-      flex: 1;
-      font-size: 0.78rem;
-      color: var(--accent);
-      word-break: break-all;
-      user-select: all;
-    }
-    .source-box button {
-      flex-shrink: 0;
-      background: var(--accent);
-      color: #fff;
-      border: none;
-      border-radius: 6px;
-      padding: 6px 14px;
-      font-size: 0.8rem;
-      cursor: pointer;
-      transition: background 0.2s;
-      white-space: nowrap;
-    }
-    .source-box button:hover { background: var(--accent-hover); }
-    .source-box button.copied {
-      background: var(--success);
-    }
-
-    /* Note */
-    .note {
-      color: var(--text-dim);
-      font-size: 0.82rem;
-      margin-top: 12px;
-      line-height: 1.5;
-    }
-    .note a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .note a:hover { text-decoration: underline; }
-
-    /* Separator */
-    .sep {
-      text-align: center;
-      color: var(--text-dim);
-      font-size: 0.78rem;
-      margin: 16px 0;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .sep::before,
-    .sep::after {
-      content: '';
-      flex: 1;
-      height: 1px;
-      background: var(--border);
-    }
-
-    /* Info row */
-    .info-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-    }
-    .info-row + .info-row {
-      border-top: 1px solid var(--border);
-    }
-    .info-label {
-      color: var(--text-dim);
-      font-size: 0.88rem;
-    }
-    .info-value {
-      font-size: 0.88rem;
-      text-align: right;
-    }
-    .info-value a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    .info-value a:hover { text-decoration: underline; }
-    .tag {
-      display: inline-block;
-      background: var(--copy-bg);
-      padding: 2px 10px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 0.82rem;
-      color: var(--accent);
-    }
-
-    /* Footer */
-    footer {
-      text-align: center;
-      margin-top: 32px;
-      padding: 16px 0;
-      color: var(--text-dim);
-      font-size: 0.8rem;
-    }
-    footer a {
-      color: var(--accent);
-      text-decoration: none;
-    }
-    footer a:hover { text-decoration: underline; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Sensa documentation, Unity authoring tools and an interactive OSC parameter explorer.">
+<meta name="color-scheme" content="light">
+<title>Sensa — Contact, coordinates, control</title>
+<link rel="stylesheet" href="site.css">
+<script defer src="site.js"></script>
 </head>
-<body>
-  <div class="container">
-    <header>
-      <h1>Sensa</h1>
-      <p>VRChat SPS/OGB/TPS 触点感知桥接 · VPM 包源<br><span lang="en">Contact sensing bridge · VPM repository</span></p>
-    </header>
-
-    <!-- One-click add -->
-    <div class="card card-center">
-      <p style="margin-bottom:16px;color:var(--text-dim);font-size:0.9rem;">
-        点击下方按钮将 Sensa 仓库添加到 VCC / ALCOM<br><span lang="en">Add the Sensa repository to VCC / ALCOM below</span>
-      </p>
-      <a class="btn-vcc" href="vcc://vpm/addRepo?url=https://SeaLoong.github.io/Sensa/vpm.json">
-        添加到 VCC / Add to VCC
-      </a>
-
-      <div class="manual-section">
-        <div class="manual-label">或手动添加 VPM 源地址 / Add this VPM URL manually:</div>
-        <div class="source-box">
-          <code id="vpmUrl">https://SeaLoong.github.io/Sensa/vpm.json</code>
-          <button id="copyBtn" onclick="copyUrl()">复制 / Copy</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Info -->
-    <div class="card">
-      <div class="info-row">
-        <span class="info-label">包名 / Package</span>
-        <span class="info-value"><code>top.sealoong.sensa</code></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">版本 / Version</span>
-        <span class="info-value"><span class="tag" id="pkgVersion">v__VERSION__</span></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">许可 / License</span>
-        <span class="info-value">MIT</span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">GitHub</span>
-        <span class="info-value"><a href="https://github.com/SeaLoong/Sensa">SeaLoong/Sensa →</a></span>
-      </div>
-      <div class="info-row">
-        <span class="info-label">问题反馈 / Feedback</span>
-        <span class="info-value"><a href="https://github.com/SeaLoong/Sensa/issues">Issues →</a></span>
-      </div>
-    </div>
-
-    <footer>
-      <p><a href="https://github.com/SeaLoong/Sensa">Sensa</a> · MIT License</p>
-      <p><a href="https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/README.md">中文指南</a> · <a href="https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/README.en.md" lang="en">English guide</a></p>
-    </footer>
-  </div>
-
-  <script>
-    function copyUrl() {
-      const btn = document.getElementById('copyBtn');
-      const url = document.getElementById('vpmUrl');
-      navigator.clipboard.writeText(url.textContent).then(() => {
-        btn.textContent = '已复制 / Copied';
-        btn.classList.add('copied');
-        setTimeout(() => {
-          btn.textContent = '复制 / Copy';
-          btn.classList.remove('copied');
-        }, 2000);
-      }).catch(() => {
-        btn.textContent = '请手动复制 / Copy manually';
-      });
-    }
-  </script>
-</body>
-</html>
+<body data-home data-vpm="__VPM_AVAILABLE__">
+<a class="skip" href="#content">Skip to content / 跳到正文</a>
+<header><a class="brand" href="./">Sensa<span data-en>Documentation</span><span data-zh hidden>文档</span></a>
+<nav aria-label="Navigation / 导航"><a data-doc="docs/guide" href="en/docs/guide.html"><span data-en>Guides</span><span data-zh hidden>使用指南</span></a><a data-diagram href="parameter-geometry.html"><span data-en>Parameter explorer</span><span data-zh hidden>参数图解</span></a><a href="https://github.com/SeaLoong/Sensa">GitHub</a><button type="button" id="language" aria-label="Switch language / 切换语言">简体中文</button></nav></header>
+<main id="content" class="home" tabindex="-1">
+<section class="hero"><div><p class="eyebrow">VRChat · OSC · Unity</p><h1 data-en>From contact<br>to control.</h1><h1 data-zh hidden>让触点信息<br>变成可用信号。</h1>
+<p class="intro" data-en>Connect avatar contact signals to local device outputs. Understand the parameters, build a compatible avatar, and inspect the full path in one place.</p>
+<p class="intro" data-zh hidden>将 Avatar 触点信号连接到本地设备输出。在这里了解参数、配置兼容的 Avatar，并检查完整的数据流程。</p>
+<div class="actions"><a class="button primary" data-doc="docs/quick-start" href="en/docs/quick-start.html"><span data-en>Get started</span><span data-zh hidden>开始使用</span></a><a class="button" href="https://github.com/SeaLoong/Sensa/releases"><span data-en>Download preview</span><span data-zh hidden>下载预览版</span></a></div>
+<p class="caption" data-en>Local browser UI · Windows, Linux &amp; macOS · English / 简体中文</p><p class="caption" data-zh hidden>本地浏览器界面 · Windows、Linux 与 macOS · 中英双语</p></div>
+<div class="hero-visual" role="img" aria-label="Contact signals flow through Sensa to local outputs / 触点信号通过 Sensa 到本地输出"><div class="flow-source"><i></i><span>Avatar / Unity</span><code>OGB · Sensa SPS · Shader</code></div><div class="flow-line"><span>OSC</span></div><div class="flow-core">Sensa<small data-en>inspect · map · control</small><small data-zh hidden>观察 · 映射 · 控制</small></div><div class="flow-line"><span>Intiface / TCode</span></div><div class="flow-source"><i></i><span data-en>Local outputs</span><span data-zh hidden>本地输出</span><code data-en>Explicit activation</code><code data-zh hidden>明确启用后输出</code></div></div></section>
+<section class="entry-grid" aria-label="Explore Sensa / 了解 Sensa">
+<a data-doc="docs/usage-scenarios" href="en/docs/usage-scenarios.html"><span class="index">01</span><h2 data-en>Choose an input</h2><h2 data-zh hidden>选择输入方案</h2><p data-en>Compare external OGB contact signals, fixed-anchor Sensa SPS and encoded Shader capture, including their limits.</p><p data-zh hidden>比较外部 OGB 触点、固定锚点 Sensa SPS 与 Shader 编码捕获，了解各自能力和限制。</p><span class="arrow" aria-hidden="true">↗</span></a>
+<a data-diagram href="parameter-geometry.html"><span class="index">02</span><h2 data-en>See the geometry</h2><h2 data-zh hidden>看懂空间参数</h2><p data-en>Rotate the 3D view, drag the target, and watch radii and OSC readings change. Works without the application.</p><p data-zh hidden>旋转三维视图、拖动目标点，观察半径和 OSC 读数变化。无需安装或启动软件。</p><span class="arrow" aria-hidden="true">↗</span></a>
+<a data-doc="unity/top.sealoong.sensa/README" href="en/unity/top.sealoong.sensa/README.html"><span class="index">03</span><h2 data-en>Author in Unity</h2><h2 data-zh hidden>在 Unity 中配置</h2><p data-en>Install the avatar package, understand the prefab components, and validate with the isolated labs.</p><p data-zh hidden>安装 Avatar 组件包、理解预制件组件，并通过隔离实验工程验证。</p><span class="arrow" aria-hidden="true">↗</span></a></section>
+<section class="package-section"><div><p class="eyebrow">UNITY PACKAGE</p><h2 data-en>Add Sensa to your project</h2><h2 data-zh hidden>将 Sensa 加入工程</h2><p data-en>Development previews include the Unity ZIP. Use the package guide for dependencies and installation; a preview is not a stable VPM release.</p><p data-zh hidden>开发预览附带 Unity ZIP。依赖和安装方式见组件包指南；预览版不等于 VPM 正式版。</p><p id="vpm-status" class="caption" role="status"><span data-en>__VPM_STATUS_EN__</span><span data-zh hidden>__VPM_STATUS_ZH__</span></p></div>
+<div class="package-actions"><a class="button" data-doc="unity/top.sealoong.sensa/README" href="en/unity/top.sealoong.sensa/README.html"><span data-en>Installation guide</span><span data-zh hidden>安装指南</span></a><a id="vcc" class="button primary" __VPM_INSTALL_HIDDEN__ href="__VPM_INSTALL_URL__"><span data-en>Add to VCC</span><span data-zh hidden>添加到 VCC</span></a><button id="copy-vpm" type="button" hidden><span data-en>Copy VPM URL</span><span data-zh hidden>复制 VPM 地址</span></button></div></section>
+<section class="more-links"><a data-doc="docs/osc-parameters" href="en/docs/osc-parameters.html"><span data-en>OSC parameter reference →</span><span data-zh hidden>OSC 参数参考 →</span></a><a data-doc="docs/development" href="en/docs/development.html"><span data-en>Development &amp; verification →</span><span data-zh hidden>开发与验证 →</span></a><a data-doc="docs/languages" href="en/docs/languages.html"><span data-en>Language preferences →</span><span data-zh hidden>语言设置 →</span></a></section>
+<footer><span>Sensa · MIT · SeaLoong</span><span data-en>Experimental tracking and real-device behavior need their own validation.</span><span data-zh hidden>实验定位及真实设备行为需要单独验证。</span></footer></main>
+</body></html>

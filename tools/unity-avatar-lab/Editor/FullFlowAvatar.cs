@@ -20,7 +20,7 @@ namespace SensaAvatarLab
         public static void Create()
         {
             AvatarLab.PrepareTests();
-            if (File.Exists(Scene)) throw new InvalidOperationException("FullFlow already exists; preserve your edits before recreating.");
+            if (File.Exists(Scene)) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow already exists; preserve your edits before recreating."));
             var scene = EditorSceneManager.OpenScene(AvatarLab.Root + "/Exclusive.unity");
             var avatar = UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;
             avatar.name = "Sensa Chocolat FullFlow";
@@ -35,7 +35,7 @@ namespace SensaAvatarLab
             var controls = UnityEngine.Object.Instantiate(source.transform.Find("Shader fault controls").gameObject, avatar.transform, false); controls.name = "Shader fault controls";
             EditorSceneManager.CloseScene(shaderScene, true);
             // The bench is self-contained; the SPS prop and measurement selectors retain their original Off defaults.
-            EditorSceneManager.SetActiveScene(scene); EditorSceneManager.SaveScene(scene, Scene); AssetDatabase.SaveAssets();
+            EditorSceneManager.SetActiveScene(scene); EditorSceneManager.SaveScene(scene, Scene); AvatarLabLocalization.SaveAssets();
             FullFlowInteraction.Upgrade();Validate();
         }
         [Serializable] public class Report
@@ -86,9 +86,9 @@ namespace SensaAvatarLab
             });
             report.passed = baseline.passed && report.cameras == 2 && report.shaderDefaultsOff && report.selectorsDefaultOff
                 && report.placementBindingsValid && report.unsupportedTextComponents==0 && report.probeGuidesAligned
-                && labels.Contains("Place in world")
+                && labels.Any(label => AvatarLabLocalization.Original(label) == "Place in world")
                 && report.missingAnimatorParameters.Length == 0 && names.Contains(SensaQuickStartProtocol.Depth) && names.Contains(SensaQuickStartProtocol.Active)
-                && parameters.Any(p => p.name == "OGB_ENABLED") && labels.Contains("Enable SPS OSC (local)") && labels.Contains("Corrupt shader CRC");
+                && parameters.Any(p => p.name == "OGB_ENABLED") && labels.Any(label => AvatarLabLocalization.Original(label) == "Enable SPS OSC (local)") && labels.Any(label => AvatarLabLocalization.Original(label) == "Corrupt shader CRC");
             return report;
         }
         [MenuItem("Tools/Sensa Avatar Lab/Validate full-flow test avatar")]
@@ -99,24 +99,24 @@ namespace SensaAvatarLab
             var clone = UnityEngine.Object.Instantiate(source); clone.name = source.name + "(Clone)"; source.SetActive(false);
             try
             {
-                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException("FullFlow SDK preprocess failed.");
+                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow SDK preprocess failed."));
                 var report = Inspect(clone, "SDK preprocessing; client OSC, VR grabbing and hardware not tested");
                 Directory.CreateDirectory("Validation"); File.WriteAllText("Validation/full-flow.json", JsonUtility.ToJson(report, true));
                 AvatarLab.Capture(clone, "Validation/avatar-FullFlow.png");
-                if (!report.passed) throw new InvalidOperationException("FullFlow contract failed. See Validation/full-flow.json");
+                if (!report.passed) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow contract failed. See Validation/full-flow.json"));
             }
             finally { UnityEngine.Object.DestroyImmediate(clone); source.SetActive(true); }
         }
         public static void InspectBundle()
         {
             var bundle = AssetBundle.LoadFromFile("Builds/Sensa-Chocolat-FullFlow.vrca");
-            if (bundle == null) throw new InvalidOperationException("Build FullFlow first.");
+            if (bundle == null) throw new InvalidOperationException(AvatarLabLocalization.Text("Build FullFlow first."));
             try
             {
                 var avatar = bundle.LoadAllAssets<GameObject>().Single(g => g.GetComponent<VRCAvatarDescriptor>() != null);
                 var report = Inspect(avatar, "Actual SDK bundle; client OSC, VR grabbing and hardware not tested");
                 File.WriteAllText("Validation/sdk-full-flow-contents.json", JsonUtility.ToJson(report, true));
-                if (!report.passed) throw new InvalidOperationException("FullFlow bundle contract failed.");
+                if (!report.passed) throw new InvalidOperationException(AvatarLabLocalization.Text("FullFlow bundle contract failed."));
             }
             finally { bundle.Unload(true); }
         }

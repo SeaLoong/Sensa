@@ -1,5 +1,7 @@
 # Impact-based verification and preview gates / 按影响验证与预发布门槛
 
+> The Pages distribution decision below is superseded by [ADR 0004](0004-standalone-bilingual-documentation.md): documentation now has an independent fourth workflow. Product verification, release and continuation gates remain applicable. / 下文的 Pages 分发决策已由 [ADR 0004](0004-standalone-bilingual-documentation.md) 替代：文档采用独立的第四个工作流。产品验证、发布和接续门槛继续有效。
+
 CI 收敛为三个有明确边界的 workflow：`ci.yml` 负责 PR／main 按影响验证、手动全量验证和 main 预览，内联普通检查与平台矩阵；`e2e.yml` 只负责可复用或手动浏览器比较及人工审阅基线；`release.yml` 只由显式 `v*`／`unity-v*` tag push 驱动，复用 CI 后发布对应包，只有 Unity 稳定包发布成功才更新 VPM Pages。标签复用输入只接受匹配的 tag push；Unity 标签不运行六桌面平台，桌面标签仍要求六平台。取消独立 checks/build-platforms workflow、重复标签发布 workflow 和 Unity 重复手动验证入口，避免职责漂移。
 
 plan 之后 validate 与 E2E 并行；平台矩阵只等待 plan／validate，普通接口测试集中执行一次。main 预览与标签发布都必须等必要检查、同一候选 SHA 的全量 E2E 比较和对应构建全部成功。生成候选基线不能提供比较证明；并行化不减少公开门槛，合并后保留 validate／platforms／browser 的既有 owner 证据名称。

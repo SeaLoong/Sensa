@@ -17,7 +17,7 @@ namespace UnityBox.Sensa
         public bool pairedSocketTracking;
         public bool pairedPlugMarkers;
         public bool localPlugTipTracking;
-        [Tooltip("本地 Plug 尖端的参考 Socket；仅选中一个 Socket 时自动采用。\nReference Socket for local Plug-tip measurements. If exactly one Socket is selected it is chosen automatically.")]
+        [Tooltip("Reference Socket for local Plug-tip measurements. If exactly one Socket is selected it is chosen automatically.")]
         public GameObject localReferenceSocket;
         public bool createPlugGrabHandles;
         public string pairChannel = "Pair01";

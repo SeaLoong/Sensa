@@ -39,7 +39,7 @@ def install_lab(project, lab, *, enable_tests=False, repository=ROOT):
     else:
         editor = repository / 'unity/top.sealoong.sensa/Editor'
         sources.extend((editor / name, target / 'Editor' / name)
-                       for name in ('SensaGpuProbe.cs', 'SpsGpuProbe.shader.txt', 'SpsGpuDependencies.sha256.txt'))
+                       for name in ('SensaGpuProbe.cs', 'SensaEditorLocalization.cs', 'SpsGpuProbe.shader.txt', 'SpsGpuDependencies.sha256.txt'))
         runtime = repository / 'unity/top.sealoong.sensa/Runtime'
         sources.extend((runtime / name, target / 'Shared' / name)
                        for name in ('SensaPoseProtocol.cs', 'SensaQuickStartProtocol.cs'))

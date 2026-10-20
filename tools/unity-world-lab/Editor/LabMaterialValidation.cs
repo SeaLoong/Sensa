@@ -24,7 +24,7 @@ namespace SensaLab
             var materials=UnityEngine.Object.FindObjectsOfType<CapabilityStation>().Select(s=>s.encoder)
                 .Concat(UnityEngine.Object.FindObjectsOfType<LabController>().Select(s=>s.telemetry)).Where(m=>m!=null).Distinct();
             var report=new Report{sources=materials.Select(m=>new Row{path=AssetDatabase.GetAssetPath(m),values=Snapshot(m),file=File.ReadAllText(AssetDatabase.GetAssetPath(m))}).ToArray()};
-            if(report.sources.Length==0)throw new InvalidOperationException("No encoder materials to validate.");
+            if(report.sources.Length==0)throw new InvalidOperationException(LabEditorLocalization.Text("No encoder materials to validate."));
             SessionState.SetString(Key,JsonUtility.ToJson(report));SessionState.SetString(Key+"Directory",directory);
         }
         public static void CheckRuntime()
@@ -34,7 +34,7 @@ namespace SensaLab
                 if(station.encoder!=null)Check(station,station.encoder,"runtimeEncoder",instances);
             foreach(var station in UnityEngine.Object.FindObjectsOfType<LabController>())
                 if(station.telemetry!=null)Check(station,station.telemetry,"runtimeTelemetry",instances);
-            if(instances.Count==0)throw new InvalidOperationException("No runtime encoder instances found.");
+            if(instances.Count==0)throw new InvalidOperationException(LabEditorLocalization.Text("No runtime encoder instances found."));
             var report=JsonUtility.FromJson<Report>(SessionState.GetString(Key,""));report.runtimeInstances=true;
             SessionState.SetString(Key,JsonUtility.ToJson(report));
         }
@@ -58,7 +58,7 @@ namespace SensaLab
             report.checkedUtc=DateTime.UtcNow.ToString("O");
             var directory=SessionState.GetString(Key+"Directory","");Directory.CreateDirectory(directory);
             File.WriteAllText(directory+"/material-isolation.json",JsonUtility.ToJson(report,true));
-            if(!report.passed)Debug.LogError("Sensa encoder material isolation failed.");
+            if(!report.passed)Debug.LogError(LabEditorLocalization.Text("Sensa encoder material isolation failed."));
             return report.passed;
         }
     }

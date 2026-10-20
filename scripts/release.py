@@ -106,7 +106,7 @@ def main():
             published = source / 'web' / relative
             if not published.is_file() or published.read_bytes() != (ROOT / relative).read_bytes():
                 raise ValueError('Published interactive document is missing or stale / 发布目录的交互文档缺失或过期: ' + relative)
-        for name in ('README.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE'):
+        for name in ('README.md', 'README.zh-CN.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
         # Keep the README's relative documentation links usable in the desktop archive.
         for relative in ('unity/top.sealoong.sensa/AUTOMATION.md', 'unity/top.sealoong.sensa/COMPATIBILITY.md',
@@ -120,9 +120,9 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
-        # Include matching English guides beside the Chinese originals.
+        # Include canonical READMEs and every paired guide. / 包含正式 README 与全部双语指南。
         for folder in ('unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
-            for path in (ROOT / folder).glob('*.en.md'):
+            for path in (ROOT / folder).glob('*.md'):
                 destination = source / path.relative_to(ROOT)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 destination.write_bytes(path.read_bytes())
@@ -147,7 +147,22 @@ def main():
         info['url'] = f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/download/{args.tag}/{name}'
         info['sha256'] = digest
         (output / 'vpm-package.json').write_text(json.dumps(info, ensure_ascii=False, indent=2), encoding='utf-8')
-    notes = f'{"Unity VPM package / Unity VPM 资产包" if args.kind == "unity" else args.runtime+" self-contained build / 自包含程序"} {archive_version}\n\nSHA256 / 校验值: `{digest}`\n'
+    label = 'Unity VPM package' if args.kind == 'unity' else args.runtime + ' self-contained build'
+    chinese = 'Unity VPM 资产包' if args.kind == 'unity' else args.runtime + ' 自包含程序'
+    notes = f'''{label} {archive_version}
+
+See the [installation and usage guides](https://sealoong.github.io/Sensa/). The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) works without installing Sensa.
+
+SHA256: `{digest}`
+
+## 简体中文
+
+{chinese} {archive_version}
+
+请阅读[安装与使用文档](https://sealoong.github.io/Sensa/?lang=zh-CN)。[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)无需安装 Sensa。
+
+SHA256 校验值：`{digest}`
+'''
     notes_path=ROOT/'artifacts/release-notes.txt';notes_path.parent.mkdir(parents=True,exist_ok=True)
     notes_path.write_text(notes, encoding='utf-8')
     print(name)

@@ -121,7 +121,10 @@ test('workflow hints distinguish page selection, saved gates, emergency and inva
   assert.ok(oscWorkflowHints({ listening: false }).some(h => h.key === 'receiver'));
 });
 
-test('probe labels and signal explanations distinguish diagnostic geometry from output axes / 探针标签与信号说明区分诊断几何和输出轴', () => {
+test('probe labels and signal explanations distinguish diagnostic geometry from output axes / 探针标签与信号说明区分诊断几何和输出轴', t => {
+  const previous = getLocale();
+  t.after(() => setLocale(previous));
+  setLocale('zh-CN');
   assert.equal(probePresentation('Sensa/Handle/v1/LabHandle/Self/Root/A0').label, '定位探针 P1');
   assert.equal(probePresentation('Sensa/Pose/v1/Socket/Others/Tip/A7').label, '定位探针 C8');
   assert.equal(probePresentation('/avatar/parameters/Sensa/Point/v1/Point/Self/Root/A3').label, '定位探针 P4');
@@ -150,7 +153,10 @@ test('fixed and shader roots share calibration only for a valid self producer / 
   }
 });
 
-test('parameter dictionary separates proximity, liveness, native coordinates and capabilities / 参数字典区分近接、活性、原生坐标与能力标记', () => {
+test('parameter dictionary separates proximity, liveness, native coordinates and capabilities / 参数字典区分近接、活性、原生坐标与能力标记', t => {
+  const previous = getLocale();
+  t.after(() => setLocale(previous));
+  setLocale('zh-CN');
   for (const [path, expected] of [
     ['Sensa/SPS/Main/Sample', /Sample=0.*1\/32/],
     ['Sensa/SPS/Main/P1', /d=R×\(1−p\)\+r/],

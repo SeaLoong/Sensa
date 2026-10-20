@@ -2,20 +2,19 @@
 
 [简体中文](osc-parameters.md) | **English**
 
-This page explains the public parameters, validity conditions and measurement limits. See the [guide](guide.en.md) for operation, [OGB compatibility](ogb-compatibility.en.md) for the complete upstream parameter tables, and [positioning](positioning.en.md) for the model. Paths below omit the common `/avatar/parameters/` prefix. Names are case sensitive; `<id>` identifies an instance.
+This is the field/validity reference. Choose a [route](usage-scenarios.en.md), then establish the [workbench flow](guide.en.md). Paths omit `/avatar/parameters/`, are case sensitive, and require a real instance in place of `<id>`; never transmit placeholders literally.
 
-Use the [interactive parameter diagram](parameter-geometry.html?lang=en-US) to adjust geometry and compare parameter changes with measurement limits. Open it offline from the extracted desktop archive; it demonstrates the model.
+## Explore the values
 
-In Sensa, select “Interactive parameter guide” in a parameter's details, or extract a desktop archive and open `docs/parameter-geometry.html`, keeping the adjacent `docs/assets/` folder. GitHub displays HTML source rather than hosting the interactive page.
+The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) runs independently from Sensa, automatically selects language and accepts explicit [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN). Application details open the bundled local page. Extracted `docs/parameter-geometry.html` works offline with adjacent assets. The GitHub HTML source page is not the interactive entry.
 
-- Grey reference surfaces show a Socket with a rim/inner wall and a tapered round-tip Plug; they do not affect calculations. Ordinary Receivers are blue and Senders orange. SPS P0/P1/P2/P3 have stable blue/teal/purple/rose identities across spheres, labels and parameter rows. Select a row to highlight its detection shapes. Displaced root/tip labels use fine leader lines to their reference points.
-- Drag the orange handle in XZ or adjust XYZ, length and radius to compare raw proximity with Close gating. XZ drawings still calculate full XYZ distances.
-- Every scene offers real 3D: drag the orange target to move it, drag empty space to orbit, and scroll to zoom. Choose XZ/XY/YZ for movement; the remaining axis stays fixed. Coordinates snap/clamp to the slider steps and ranges; XYZ sliders remain available for precise changes. Camera controls/reset change only the view; scene reset restores default parameters.
-- In SPS, change Sample and its age to distinguish a geometric fit from valid sampling. Shader shows range, quantization and a 16×8 bit grid; invalid readings offer no valid coordinates. The diagrams connect to no OSC stream, GPU capture or device.
+All ten scenes provide 3D/SVG, plane dragging and precise sliders. Blue Receiver/orange Sender radii follow the model; gray Socket/Plug surfaces are references only. SPS colors match spheres, labels and rows; displaced root/tip labels have leaders to actual reference points. The enlarged orange hit marker is not the Sender size.
 
-Prefixes such as `Sensa/SPS/*` above the readings are instance templates: replace `*` with the actual instance, then append `/` and the row name. For example, `Sensa/SPS/Example` + `/P0` gives the complete VRChat OSC address `/avatar/parameters/Sensa/SPS/Example/P0`. Do not send the asterisk literally. Rows retain complete example paths. Shader instances must be decimal Producer IDs in the specified range.
+“Model gate” demonstrates validity/Close only, excluding runtime length learning, mapping and device output. XZ is a projection, not a slice; Y still affects calculations. Shader bridge freeze at 350 ms differs from desktop rejection at 500 ms. The explorer connects to no OSC, GPU capture or device.
 
-Three.js and [OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) are bundled locally, without a CDN or runtime download. Rendering uses [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html), with SVG fallback when unavailable or lost. Redraws occur on interaction, data or size changes. This is geometry rendering, not VRChat/GPU capture. The complete MIT notice is in the adjacent `assets/parameter-geometry-3d.LICENSE.txt`.
+Prefixes such as `Sensa/SPS/*` are templates: replace * with the actual name, then append the leaf. `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader instead requires the decimal ID specified below.
+
+Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship locally without a CDN. [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html) failure falls back to SVG. The complete MIT notice is `assets/parameter-geometry-3d.LICENSE.txt`. [Explorer operation](guide.en.md)
 
 ## Choose the information you need
 
@@ -90,7 +89,7 @@ d = R × (1 - p) + r
 
 Here d is anchor-center to marker-center distance. The r correction accounts for Proximity measuring the Sender surface nearest the Receiver center. True distances to four known noncoplanar anchors uniquely determine this local XYZ. The implementation also requires RMS distance residual≤0.01 and X/Z=[-1.5,1.5], Y=[-0.5,2.5]. A small residual demonstrates consistency with this model, not accuracy or identity. [VRChat Contact definition](https://creators.vrchat.com/common-components/contacts/), [reconstruction](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands, rather than the entire display cube. A sphere centered at c with radius approximately `2.5 - √3×0.5 ≈ 1.63` gives a conservative common-coverage scale; the p thresholds further constrain actual validity. The p<0.999 ceiling requires d>0.0035, excluding approximately **0.0035 local units** around each anchor (3.5 mm in a local metre scale). The p>0.001 floor requires d<2.4985. These local distances are not fixed world-metre distances for every avatar.
+Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands, rather than the entire display cube. A sphere centered at c with radius approximately `2.5 - √3×0.5 ≈ 1.63` is only a geometric inscribed reference for the four-ball intersection, not a guaranteed measurable sphere. Proximity thresholds, saturation holes and numerical boundaries further constrain validity. The p<0.999 ceiling requires d>0.0035, excluding approximately **0.0035 local units** around each anchor (3.5 mm in a local metre scale). The p>0.001 floor requires d<2.4985. These local distances are not fixed world-metre distances for every avatar.
 
 ### Scaling, sampling and menu control boundaries
 

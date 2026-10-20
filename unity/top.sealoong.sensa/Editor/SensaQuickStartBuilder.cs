@@ -17,7 +17,7 @@ namespace UnityBox.Sensa
         {
             var all = avatar.GetComponentsInChildren<SensaQuickStart>(true);
             var enabled = all.Where(c => c.enabled && c.gameObject.activeInHierarchy).ToArray();
-            if (enabled.Length > 1) throw new InvalidOperationException("Only one Sensa Quick Start World Receiver is allowed per avatar.");
+            if (enabled.Length > 1) throw new InvalidOperationException(SensaEditorLocalization.Text("Only one Sensa Quick Start World Receiver is allowed per avatar."));
             if (enabled.Length == 1) Build(avatar);
             foreach (var component in all) UnityEngine.Object.DestroyImmediate(component);
         }
@@ -27,14 +27,14 @@ namespace UnityBox.Sensa
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
             var animator = avatar.GetComponent<Animator>();
             if (descriptor == null || animator == null || !animator.isHuman)
-                throw new InvalidOperationException("Sensa Quick Start requires a humanoid Avatar Descriptor and Animator on the avatar root.");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Quick Start requires a humanoid Avatar Descriptor and Animator on the avatar root."));
             var hand = animator.GetBoneTransform(HumanBodyBones.RightHand);
-            if (hand == null) throw new InvalidOperationException("Sensa Quick Start requires a mapped RightHand bone.");
+            if (hand == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Quick Start requires a mapped RightHand bone."));
             SensaSensorUtility.Uniform(hand);
             float eyeHeight = descriptor.ViewPosition.y * avatar.transform.lossyScale.y;
             if (float.IsNaN(eyeHeight) || float.IsInfinity(eyeHeight) || eyeHeight < .1f || eyeHeight > 5f)
-                throw new InvalidOperationException("Sensa Quick Start requires an avatar view height between 0.1 and 5 metres.");
-            if (hand.Find("SensaQuickStart") != null) throw new InvalidOperationException("Sensa Quick Start has already been generated.");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Quick Start requires an avatar view height between 0.1 and 5 metres."));
+            if (hand.Find("SensaQuickStart") != null) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Quick Start has already been generated."));
             SensaSensorUtility.Budget(avatar, 2);
             var host = SensaSensorUtility.Child(hand, "SensaQuickStart");
             Receiver(host, "Depth", eyeHeight * SensaQuickStartProtocol.RadiusPerEyeHeight,
@@ -75,7 +75,8 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.HelpBox("仅供实验室合成链路测试；不是 SPS 定位或真实功能验证。\nLab-only synthetic signal fixture; not SPS positioning or proof of real device behavior.", MessageType.Info);
+            SensaEditorLocalization.DrawLanguageSelector();
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Lab-only synthetic signal fixture; not SPS positioning or proof of real device behavior."), MessageType.Info);
         }
     }
 }

@@ -2,20 +2,19 @@
 
 **简体中文** | [English](osc-parameters.en.md)
 
-本页集中解释公开参数的含义、有效条件与测量边界。使用步骤见[指南](guide.md)，OGB 的逐项参数与生成器证据见[OGB 兼容说明](ogb-compatibility.md)，定位原理见[定位说明](positioning.md)。以下路径省略统一前缀 `/avatar/parameters/`；大小写有意义，`<id>` 是实例名。
+本页是字段与有效条件参考；先按[使用方案](usage-scenarios.md)选路线，再按[工作台指南](guide.md)建立控制链。下文省略 `/avatar/parameters/`，大小写有意义，`<id>` 必须换真实实例，不原样发送占位符。
 
-可用[交互参数图示](parameter-geometry.html?lang=zh-CN)调整几何并比较参数变化与测量边界；发行包内可离线打开，仅作模型演示。
+## 用图解理解数值
 
-在 Sensa 的参数详情点击“交互参数图解”，或解压桌面包后双击 `docs/parameter-geometry.html`；保留相邻的 `docs/assets/`。GitHub 中的 HTML 链接显示源码，不是已托管的交互网页。
+[公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)独立于 Sensa，自动识别语言，也支持 [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)／[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用详情打开随包本地页面；解压后也可直接打开 `docs/parameter-geometry.html`，保留相邻 assets 离线使用。GitHub HTML 源码页不是交互入口。
 
-- 灰色立体外形表示带开口／内壁的 Socket 和渐细圆头 Plug，仅作参考，不参与计算。普通 Receiver 为蓝色、Sender 为橙色；SPS 的 P0／P1／P2／P3 分别固定为蓝／青绿／紫／玫红，球、标签与参数行保持一致。选择参数行可突出对应检测体；偏移的根点／端点标签以细引线关联真实参考位置。
-- 在 XZ 图拖动橙色操作点，或调整 XYZ、长度、半径，比较原始近接值与 Close 门控结果。XZ 图仍按完整 XYZ 计算。
-- 所有场景提供真实 3D 视图：拖动橙色目标点移动，拖空白处旋转，滚轮缩放；可选择 XZ／XY／YZ 移动平面，剩余一轴保持不变。坐标按滑条步长和范围吸附／限界，XYZ 滑条仍可精确调整。相机按钮与复位只改变视角；场景复位恢复默认参数。
-- SPS 场景可改变 Sample 和变化寿命，区分几何可解与采样有效；Shader 场景可查看范围、量化与 16×8 位图，失效时不保留有效坐标。图示不连接 OSC、GPU 捕获或设备。
+十场景均有 3D 与 SVG、平面拖动和精确滑条。蓝 Receiver／橙 Sender 的真实半径按模型计算；灰 Socket／Plug 仅参考截面。SPS 四色贯穿球、标签与参数行；偏移根／端点标签用引线关联真实参考点。橙色操作点是放大的命中标记，不是 Sender 尺寸。
 
-读数上方的 `Sensa/SPS/*` 等是实例前缀模板：`*` 替换成实际实例名，再加 `/` 与表格行名。例如 `Sensa/SPS/Example` + `/P0` 对应完整 VRChat OSC 地址 `/avatar/parameters/Sensa/SPS/Example/P0`；星号不是要原样发送的参数名。行内保留完整示例路径。Shader 的实例必须是规定范围的十进制 Producer ID。
+“模型门控”仅是演示有效性／Close，不包含运行时估长、映射和设备输出。XZ 是投影而非切片，Y 仍参与计算。Shader 350 ms 桥冻结与 500 ms 桌面拒绝是不同层。图解不接 OSC、GPU 捕获或设备。
 
-3D 由随文档打包的 Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) 绘制，不依赖 CDN 或联网下载；使用 [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)，不可用或上下文丢失时回退到 SVG。只在操作、数据或尺寸变化时重绘。它是几何呈现，不是 VRChat／GPU 捕获；完整 MIT 声明在相邻的 `assets/parameter-geometry-3d.LICENSE.txt`。
+读数前缀如 `Sensa/SPS/*` 是实例模板：以实际名字换 * 后拼接行名。例如 `Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 则是下文规定的十进制数。
+
+Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随本地资源打包，无 CDN；[WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)失败回退 SVG。完整 MIT 声明随 `assets/parameter-geometry-3d.LICENSE.txt` 分发。[图解操作](guide.md)
 
 ## 先选择需要的信息
 
@@ -90,7 +89,7 @@ d = R × (1 - p) + r
 
 d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-1.5,1.5]、Y=[-0.5,2.5] 内；残差小只表示该模型自洽，不是精度或身份认证。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-可用空间是**四个球形覆盖区的交集**再扣除饱和区与边界，不是整个显示立方体。以 c 为中心、半径约 `2.5 - √3×0.5 ≈ 1.63` 的球给出保守共同覆盖尺度；实际有效区域仍受 p 阈值限制。上限 p<0.999 要求 d>0.0035，故每个锚点附近约 **0.0035 局部单位**（以局部米计为 3.5 mm）的区域被排除；下限 p>0.001 对应 d<2.4985。不能把这些局部长度直接当成任何 Avatar 的世界米数。
+可用空间是**四个球形覆盖区的交集**再扣除饱和区与边界，不是整个显示立方体。以 c 为中心、半径约 `2.5 - √3×0.5 ≈ 1.63` 的球只是四球交集的几何内接参考，不是保证可测球；p 阈值、饱和孔和数值边界进一步缩小有效区域。上限 p<0.999 要求 d>0.0035，故每个锚点附近约 **0.0035 局部单位**（以局部米计为 3.5 mm）的区域被排除；下限 p>0.001 对应 d<2.4985。不能把这些局部长度直接当成任何 Avatar 的世界米数。
 
 ### 缩放、采样与菜单控制的边界
 

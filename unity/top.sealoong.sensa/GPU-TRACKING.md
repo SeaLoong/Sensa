@@ -6,6 +6,10 @@
 
 官方能力、源代码核验与协议设计见[研究记录](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.md)。两条路径都不提供最终可见网格或可信玩家身份，也不能把根点变化直接当作设备行程。
 
+[包安装与语言](README.zh-CN.md) · [交互几何图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+
+Inspector、帮助和错误文字跟随 Sensa 编辑器语言偏好；菜单注册路径保留稳定英文 ID。Avatar 菜单标题使用作者构建时语言，不带运行时按客户端翻译的脚本。
+
 ## 原生根点路径
 
 流程：实际 Socket/Plug 根部 → 原生单骨骼蒙皮点 → geometry 编码／CRC → 单个 None-eye 相机直接画 viewport → 明确选择的捕获区域 → Python 桥 → Sensa OSC。
@@ -19,7 +23,7 @@
 3. 设置唯一的 `Producer Id`（1–65535），例如 42；此值必须与桌面桥固定值相同。它只是本地协议标识，不是 VRC 用户身份。
 4. `Desktop Viewport` 是归一化屏幕区域，默认 (0,0,0.25,0.125)。需要先在实际客户端找到完整黑白图块，再确定桌面像素 ROI；不要直接把这四个归一化值传给 Python。
 5. 正常构建 Avatar。生成 Shader 位于 `Assets/SensaShaderCapture`。若已有不同内容，构建会停止：先确认文件所有权，备份并移走旧生成文件再重试，不会覆盖用户编辑。
-6. 表达菜单 **Sensa ShaderCapture_42 → SPS root code / SPS 根点编码** 显式启用。默认 **Off**，只有本地穿戴者允许开启；关闭菜单会停止 rig。
+6. 在表达菜单 **Sensa ShaderCapture_42** 显式选择根点编码项，标题跟随作者所选语言。默认关闭，只有本地穿戴者允许开启；关闭菜单会停止 rig。
 7. 分别确认 PC 桌面窗口是否出现图块、VR 双眼是否出现不希望的画面。None-eye Camera 表达 Unity 眼目标设置，不能代替 VRChat 的实际合成验收。不存在“任意隐藏层都能被桌面抓到”的保证。
 
 多 producer 使用各自的相机/材质签名，桥仍必须固定目标 ID。镜面、拍照相机或第三方相机不能仅凭视觉相似就作为有效来源。
@@ -79,6 +83,6 @@ python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.0
 
 ## 验证范围
 
-验证覆盖 Python 编码／注册／新鲜度、五字段顺序及诊断隔离；Unity EditMode 检查单相机配置、Shader 编译、持久边界、局部蒙皮数学及多 producer 绑定。本轮 Python 19/19、Unity EditMode 65/65（含原生捕获 3 项）通过，零跳过。Unity 为 nographics 导入／生成 Shader；没有执行实际 GPU 像素输出、本机桌面捕获、PlayMode、真实 Avatar 上传、VR 客户端或硬件。
+编码／注册／新鲜度契约覆盖五字段顺序和诊断隔离；Unity EditMode 契约覆盖单相机配置、Shader 导入／编译、持久边界、局部蒙皮数学和多 producer 绑定。实际检查的修订与结果以验证凭据为准，不沿用历史测试总数。nographics Shader 导入不能证明真实 GPU 像素输出、本机桌面捕获、PlayMode、Avatar 上传、VR 客户端或硬件。
 
 后续客户端需逐项记录：实际图块、已知移动量误差、窗口缩放/遮挡/最小化、HDR/后处理/抗锯齿、低帧率、桌面延迟、头显可见性、SDK/优化器保留情况。CI 的内部诊断 PNG 回放仅证明独立命名空间中的传输／冻结恢复，输入始终关闭；模拟原生 OSC 也不能代替真实 GPU 采集。

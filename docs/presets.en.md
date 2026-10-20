@@ -1,41 +1,41 @@
-# Three mapping templates
+# Three built-in mapping templates
 
 [简体中文](presets.md) | **English**
 
-Templates describe existing parameters; they do not install or generate SPS. Socket/Plug haptics share the OGB namespace. Synthetic steps and fixed body aliases are no longer shipped routes. Sensa SPS and Shader coordinates require an actual producer and calibration, not a guessed wildcard travel range.
+Templates reduce repeated setup. They grant no input permission and do not ensure an Avatar generated the parameters. Inspect actual source/paths before choosing one, then check direction, range and gates. [Choose a route](usage-scenarios.en.md)
 
-| Template | Interpreter | Real input |
+| Template ID | Purpose | Default destination |
 | --- | --- | --- |
-| OGB / SPS depth | `OgbDepth` | Modern Root/Tip or legacy proximity at the same source, full instance and Self/Others party |
-| OGB / SPS vibration | `OgbTouch` → V0 | Touch/Frot and their required Close gates |
-| PhysBone stretch | Direct + GateEnable | `MyPB_Stretch`, `MyPB_IsGrabbed`; replace MyPB with the actual prefix |
+| `ogb-depth` | Modern Socket radial estimate, legacy Socket or Plug proximity | Depth → L0 |
+| `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |
+| `native-pb-stretch` | Native PB Stretch/IsGrabbed | Depth + GateEnable |
 
-## OGB compatibility
+## OGB / SPS · Depth
 
-The depth template defaults to Others:
+The default Others aliases are:
 
 ```text
 OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
 ```
 
-Do not add Tip/Close as independent output mappings. A positive modern Socket channel selects pairing; a missing companion or unlearned length yields zero rather than a high legacy fallback. Both modern channels zero or absent permits legacy PenOthers; an existing legacy Socket Close must also open. Plug uses its proximity without universal inversion. Old versions do not universally have one detector: official OGB v1 already supported both capabilities. Detect actual parameters rather than guessing versions.
+OgbDepth finds modern NewTip within the same source, complete instance and Self/Others category. Positive modern values take priority. An incomplete pair or unknown learned length yields zero instead of hiding behind a high legacy value. Legacy proximity is considered only when modern values are absent/both zero; legacy Socket Close gates it when present. Plug values are not universally inverted.
 
-Touch defaults to:
+NewTip is a root-centered length sphere. The result is radial, not general axial insertion or XYZ. Separate the actual objects before approaching. Avatar/mapping changes and reactivation clear learning. [Geometry/limits](ogb-compatibility.en.md)
+
+## OGB / SPS · Vibration
 
 ```text
 OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
 
-TouchSelf/Others requires the corresponding Close from the same object; Plug FrotOthers requires its Close, while Socket FrotOthers is direct. Missing gates never promote raw proximity into touch. Independent `VFH/Zone/Touch/<id>/Self|Others` is direct and needs no Close. Explicitly choose Direct for other raw signals.
+OgbTouch pairs ordinary Touch with same-instance Close; Plug Frot also needs Close. Socket Frot and standalone VFH Zones read directly without inventing a Close. For Intiface vibration, confirm V0 as the source; L0-to-vibration requires an explicit choice.
 
-`**` discovers full instance paths. Constrain the actual object and source for everyday control; never pair Self with Others. Sensa deduplicates each group rather than fusing modern and legacy signals twice. See [OGB compatibility research](ogb-compatibility.en.md) for complete rules and fixed upstream sources.
+## Native PB · Stretch
 
-## Applying and saving
+The template uses `MyPB_Stretch` and `MyPB_IsGrabbed`. Replace MyPB with the actual PhysBone prefix. Grab opens GateEnable; releasing should close it. This is a scalar signal, not local XYZ, and needs no Contact reconstruction.
 
-1. Confirm real paths in Parameters. Explicitly enable `OGB_ENABLED` heartbeats if required.
-2. Replace the draft with a template and check paths, roles and ranges; inspect existing gates when appending.
-3. Saving mappings disarms input. Readiness distinguishes saved configuration from drafts.
-4. Check the actual source and output features before arming. Vibration uses V0; explicitly select L0 for Intiface depth-to-vibration.
-5. Copy a built-in into a custom template before editing it.
+## Apply and customize
 
-Native PB scalar calibration differs from coordinate endpoint calibration; ordinary Stretch does not gain XYZ. See [usage routes](usage-scenarios.en.md) and the [positioning contract](positioning.en.md).
+Replace removes the current mappings; append retains them. Both edit a draft first. Verify real paths/roles and save; saving disarms input, so activate it explicitly afterward. For Self, change the category rather than mixing auxiliary values from different objects.
+
+Custom presets can be saved/removed. Internal QuickStart steps, legacy Point/Pose and Shader diagnostics have no built-ins. Configure synthetic fixtures manually; they are not production routes. Generate experimental root mappings through endpoint calibration. [Mapping guide](guide.en.md) · [Dictionary](osc-parameters.en.md)

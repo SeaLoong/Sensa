@@ -17,7 +17,7 @@ namespace UnityBox.Sensa
         public static void ProcessAvatar(GameObject avatar)
         {
             var all=avatar.GetComponentsInChildren<SensaPointProbe>(true);var probes=all.Where(p=>p.enabled).ToArray();
-            if(probes.GroupBy(p=>p.instanceName).Any(g=>g.Count()>1))throw new InvalidOperationException("Point probe names must be unique.");
+            if(probes.GroupBy(p=>p.instanceName).Any(g=>g.Count()>1))throw new InvalidOperationException(SensaEditorLocalization.Text("Point probe names must be unique."));
             foreach(var p in probes)Validate(p,avatar.transform);
             SensaSensorUtility.Budget(avatar,probes.Length*5);
             foreach(var p in probes)Build(p);
@@ -27,17 +27,17 @@ namespace UnityBox.Sensa
         {
             SensaSensorUtility.Name(probe.instanceName);
             var reference=probe.reference!=null?probe.reference:probe.transform;SensaSensorUtility.Uniform(reference);
-            if(!reference.IsChildOf(avatar))throw new InvalidOperationException("Point reference must belong to this avatar.");
-            if(!probe.createGrabHandle && (probe.target==null || !probe.target.IsChildOf(avatar)))throw new InvalidOperationException("Choose a target bone on this avatar.");
-            if(probe.createGrabHandle && (float.IsNaN(probe.handleLength) || probe.handleLength<.02f || probe.handleLength>.18f))throw new InvalidOperationException("Handle length must be between 2 and 18 local cm.");
+            if(!reference.IsChildOf(avatar))throw new InvalidOperationException(SensaEditorLocalization.Text("Point reference must belong to this avatar."));
+            if(!probe.createGrabHandle && (probe.target==null || !probe.target.IsChildOf(avatar)))throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a target bone on this avatar."));
+            if(probe.createGrabHandle && (float.IsNaN(probe.handleLength) || probe.handleLength<.02f || probe.handleLength>.18f))throw new InvalidOperationException(SensaEditorLocalization.Text("Handle length must be between 2 and 18 local cm."));
         }
         public static GameObject Build(SensaPointProbe probe)
         {
             var reference=probe.reference!=null?probe.reference:probe.transform;
-            if(reference.Find("SensaPoint_"+probe.instanceName)!=null)throw new InvalidOperationException("Point probe is already generated: "+probe.instanceName);
+            if(reference.Find("SensaPoint_"+probe.instanceName)!=null)throw new InvalidOperationException(SensaEditorLocalization.Text("Point probe is already generated: ")+probe.instanceName);
             string tag="SensaPointV1_"+probe.instanceName;
             var avatar=reference.GetComponentInParent<VRCAvatarDescriptor>();var owner=avatar!=null?avatar.transform:reference.root;
-            if(owner.GetComponentsInChildren<VRCContactSender>(true).Any(s=>s.collisionTags!=null&&s.collisionTags.Contains(tag)))throw new InvalidOperationException("Point sender identity is already used: "+probe.instanceName);
+            if(owner.GetComponentsInChildren<VRCContactSender>(true).Any(s=>s.collisionTags!=null&&s.collisionTags.Contains(tag)))throw new InvalidOperationException(SensaEditorLocalization.Text("Point sender identity is already used: ")+probe.instanceName);
             var rig=SensaSensorUtility.Child(reference,"SensaPoint_"+probe.instanceName);
             var prefix=(probe.createGrabHandle?SensaPoseProtocol.HandlePrefix:SensaPoseProtocol.PointPrefix)+"/"+probe.instanceName+"/Self";
             var target=probe.target;

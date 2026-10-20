@@ -31,13 +31,13 @@ namespace SensaAvatarLab
         static void Sphere(Transform parent,string name,Vector3 position,int color,float size)
         {var go=GameObject.CreatePrimitive(PrimitiveType.Sphere);go.name=name;go.transform.SetParent(parent,false);go.transform.localPosition=position;go.transform.localScale=Vector3.one*size;UnityEngine.Object.DestroyImmediate(go.GetComponent<Collider>());go.GetComponent<Renderer>().sharedMaterial=Mat(color);}
         static void Text(Transform parent,string value,Vector3 position,int color,float size=.007f)
-        {var text=Child(parent,"Label "+value.Replace("\n"," "),position).gameObject.AddComponent<TextMesh>();text.text=value;text.fontSize=48;text.characterSize=size;text.anchor=TextAnchor.MiddleCenter;text.color=ColorFor(color);}
+        {var text=Child(parent,"Label "+value.Replace("\n"," "),position).gameObject.AddComponent<TextMesh>();text.text=AvatarLabLocalization.Label(value);text.fontSize=48;text.characterSize=size;text.anchor=TextAnchor.MiddleCenter;text.color=ColorFor(color);}
         [MenuItem("Tools/Sensa Avatar Lab/Upgrade FullFlow hand and world controls")]
         public static void Upgrade()
         {
             AvatarLab.PrepareTests();Directory.CreateDirectory(Root);AssetDatabase.Refresh();
             var scene=EditorSceneManager.OpenScene(FullFlowAvatar.Scene);var avatar=UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;
-            if(avatar.transform.Find("Sensa Test Controls")!=null){RepairMenus(avatar);EnsurePlugGuides(avatar);EnsureGuideLayouts(avatar);BakeLabels(avatar);AssetDatabase.SaveAssets();EditorSceneManager.SaveScene(scene);return;}
+            if(avatar.transform.Find("Sensa Test Controls")!=null){RepairMenus(avatar);EnsurePlugGuides(avatar);EnsureGuideLayouts(avatar);BakeLabels(avatar);AvatarLabLocalization.SaveAssets();EditorSceneManager.SaveScene(scene);return;}
             var host=Child(avatar.transform,"Sensa Test Controls",Vector3.zero).gameObject;
             var controller=AnimatorController.CreateAnimatorControllerAtPath(Root+"/Placement.controller");controller.RemoveLayer(0);
             var rootMenu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();rootMenu.name="Sensa test props";AssetDatabase.CreateAsset(rootMenu,Root+"/PropsMenu.asset");
@@ -61,7 +61,7 @@ namespace SensaAvatarLab
             if(shader!=null){Placement(avatar,host,controller,rootMenu,shader,"Shader","Shader rig");var hints=Child(shader,"Sensa visible guides",Vector3.zero);Text(hints,"SHADER (TEST)",Vector3.up*.1f,4,.005f);Sphere(hints,"Reference",Vector3.zero,4,.025f);markerGroups.Add(hints.gameObject);}
             // The original lollipop already has LeftHand / RightHand / Fixed controls; link the same menu here.
             var original=avatar.GetComponentsInChildren<ModularAvatarMenuInstaller>(true).Select(i=>i.menuToAppend).FirstOrDefault(m=>m!=null&&m.controls.Any(c=>c.name=="SPS_Lollipop"));
-            if(original!=null){var item=original.controls.First(c=>c.name=="SPS_Lollipop");rootMenu.controls.Add(new VRCExpressionsMenu.Control{name="Plug / Lollipop",type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=item.subMenu});}
+            if(original!=null){var item=original.controls.First(c=>c.name=="SPS_Lollipop");rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Plug / Lollipop"),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=item.subMenu});}
             else
             {
                 MovePropMenu(avatar,rootMenu);
@@ -77,10 +77,10 @@ namespace SensaAvatarLab
                 AssetDatabase.AddObjectToAsset(clip,controller);var state=machine.AddState(clip.name);state.motion=clip;state.writeDefaultValues=false;if(value==1)machine.defaultState=state;
                 var transition=machine.AddAnyStateTransition(state);transition.duration=0;transition.hasExitTime=false;transition.canTransitionToSelf=false;transition.AddCondition(value==1?AnimatorConditionMode.If:AnimatorConditionMode.IfNot,0,Hints);
             }
-            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name="Visible labels / probes",type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=Hints},value=1});
-            var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name="Sensa Test Props",type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=rootMenu});AssetDatabase.CreateAsset(menu,Root+"/Installer.asset");host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
+            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Visible labels / probes"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=Hints},value=1});
+            var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Sensa Test Props"),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=rootMenu});AssetDatabase.CreateAsset(menu,Root+"/Installer.asset");host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
             var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
-            RepairMenus(avatar);EnsurePlugGuides(avatar);EnsureGuideLayouts(avatar);BakeLabels(avatar);AssetDatabase.SaveAssets();EditorSceneManager.SaveScene(scene);
+            RepairMenus(avatar);EnsurePlugGuides(avatar);EnsureGuideLayouts(avatar);BakeLabels(avatar);AvatarLabLocalization.SaveAssets();EditorSceneManager.SaveScene(scene);
         }
         static bool IsGuide(Transform node) {for(var p=node.parent;p!=null;p=p.parent)if(p.name=="Sensa visible guides")return true;return false;}
         static void EnsureGuideLayouts(GameObject avatar)
@@ -126,16 +126,16 @@ namespace SensaAvatarLab
             var rootMenu=AssetDatabase.LoadAssetAtPath<VRCExpressionsMenu>(Root+"/PropsMenu.asset");rootMenu.controls.Clear();
             string[] ids={"Palm","Forearm","PB","Shader"};string[] titles={"Palm Socket","Forearm Socket","PB handle","Shader rig"};string[] states={"Home / reset","Left hand","Right hand","Place in world"};
             var setup=avatar.GetComponent<SensaAutoSetup>();var measured=SensaAutoBuilder.Targets(setup,avatar).Where(c=>SensaAutoBuilder.HasMeasurement(setup,c)).ToArray();
-            VRCExpressionsMenu.Control Toggle(string title,string parameter,float value)=>new VRCExpressionsMenu.Control{name=title,type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=value};
+            VRCExpressionsMenu.Control Toggle(string title,string parameter,float value)=>new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(title),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=value};
             for(int i=0;i<ids.Length;i++)
             {
                 var menu=AssetDatabase.LoadAssetAtPath<VRCExpressionsMenu>(Root+"/"+ids[i]+"Menu.asset");menu.controls.Clear();
-                for(int value=0;value<4;value++)menu.controls.Add(new VRCExpressionsMenu.Control{name=states[value],type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name="Sensa/Lab/Place/"+ids[i]},value=value});
+                for(int value=0;value<4;value++)menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(states[value]),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name="Sensa/Lab/Place/"+ids[i]},value=value});
                 if(i<2){int index=Array.FindIndex(measured,c=>c.name.Contains(ids[i]));if(index>=0)menu.controls.Add(Toggle("Measure this socket","Sensa/Select/"+setup.groupName,index+1));}
                 if(i==3){menu.controls.Add(Toggle("Code output (synthetic)","Sensa/Select/Shader",1));menu.controls.Add(Toggle("Corrupt CRC (test)","Sensa/Lab/CorruptCrc",1));}
-                EditorUtility.SetDirty(menu);rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=titles[i],type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});
+                EditorUtility.SetDirty(menu);rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(titles[i]),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});
             }
-            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name="Visible labels / probes",type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=Hints},value=1});
+            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Visible labels / probes"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=Hints},value=1});
             rootMenu.controls.Add(Toggle("SPS OSC","OGB_ENABLED",1));
             int plugIndex=Array.FindIndex(measured,c=>c.GetType().FullName==SensaSpsAdapter.PlugType);if(plugIndex>=0)rootMenu.controls.Add(Toggle("Measure plug","Sensa/Select/"+setup.groupName,plugIndex+1));
             EditorUtility.SetDirty(rootMenu);MovePropMenu(avatar,rootMenu);
@@ -159,9 +159,19 @@ namespace SensaAvatarLab
         static void BakeLabels(GameObject avatar)
         {
             var labels=avatar.GetComponentsInChildren<TextMesh>(true).Where(t=>IsGuide(t.transform)).ToArray();if(labels.Length==0)return;
-            var font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");font.RequestCharactersInTexture(new string(Enumerable.Range(32,95).Select(i=>(char)i).ToArray()),48,FontStyle.Normal);
+            var font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+            var characters=labels.SelectMany(label=>label.text).Concat(Enumerable.Range(32,95).Select(i=>(char)i)).Distinct().ToArray();
+            font.RequestCharactersInTexture(new string(characters),48,FontStyle.Normal);
+            foreach(var label in labels) {
+                if(label.text.Any(character=>!char.IsWhiteSpace(character)&&!font.GetCharacterInfo(character,out _,48))) {
+                    label.text=AvatarLabLocalization.OriginalLabel(label.text);
+                    Debug.LogWarning("Lab label font has missing glyphs; using the stable English label. / 实验标签字体缺少字形，使用稳定英文标签。");
+                }
+            }
+            characters=labels.SelectMany(label=>label.text).Concat(Enumerable.Range(32,95).Select(i=>(char)i)).Distinct().ToArray();
+            font.RequestCharactersInTexture(new string(characters),48,FontStyle.Normal);
             // Imports can repack the editor's dynamic font atlas. Snapshot UVs before importing anything.
-            var glyphs=new Dictionary<char,CharacterInfo>();foreach(char c in Enumerable.Range(32,95).Select(i=>(char)i)){if(font.GetCharacterInfo(c,out var glyph,48))glyphs[c]=glyph;}
+            var glyphs=new Dictionary<char,CharacterInfo>();foreach(char c in characters){if(font.GetCharacterInfo(c,out var glyph,48))glyphs[c]=glyph;}
             float lineHeight=font.lineHeight;
             string atlasPath=AssetDatabase.GenerateUniqueAssetPath(Root+"/LabelAtlas.png");
             var source=font.material.mainTexture;var rt=RenderTexture.GetTemporary(source.width,source.height,0,RenderTextureFormat.ARGB32);
@@ -199,7 +209,7 @@ namespace SensaAvatarLab
                 mesh.SetVertices(vertices);mesh.SetUVs(0,uv);mesh.SetTriangles(triangles,0);mesh.SetColors(colors);mesh.RecalculateBounds();mesh.RecalculateNormals();AssetDatabase.CreateAsset(mesh,AssetDatabase.GenerateUniqueAssetPath(Root+"/Label"+labelIndex+".asset"));
                 var go=text.gameObject;UnityEngine.Object.DestroyImmediate(text);var filter=go.AddComponent<MeshFilter>();filter.sharedMesh=mesh;go.GetComponent<MeshRenderer>().sharedMaterial=material;
             }
-            AssetDatabase.SaveAssets();
+            AvatarLabLocalization.SaveAssets();
         }
         [MenuItem("Tools/Sensa Avatar Lab/Rebake FullFlow marker labels")]
         public static void RebakeLabels()
@@ -215,7 +225,7 @@ namespace SensaAvatarLab
                 if(value.StartsWith("SHADER"))value="SHADER (TEST)";
                 var go=filter.gameObject;
                 if(probe){var center=go.transform.parent.Find("Probe "+value);if(center!=null)go.transform.localPosition=center.localPosition+Vector3.up*(center.localPosition.z<0?-.02f:.02f);}
-                UnityEngine.Object.DestroyImmediate(filter);var text=go.AddComponent<TextMesh>();text.text=value;text.color=color;text.fontSize=48;text.characterSize=.0035f;text.anchor=TextAnchor.MiddleCenter;go.name="Label "+value;
+                UnityEngine.Object.DestroyImmediate(filter);var text=go.AddComponent<TextMesh>();text.text=AvatarLabLocalization.Label(value);text.color=color;text.fontSize=48;text.characterSize=.0035f;text.anchor=TextAnchor.MiddleCenter;go.name="Label "+value;
             }
             BakeLabels(avatar);EditorSceneManager.SaveScene(scene);FullFlowAvatar.Validate();
         }
@@ -271,7 +281,7 @@ namespace SensaAvatarLab
             string parameter="Sensa/Lab/Place/"+id;SensaSensorUtility.Parameter(host,parameter,ParameterSyncType.Int);controller.AddParameter(parameter,AnimatorControllerParameterType.Int);
             var machine=new AnimatorStateMachine{name=label};AssetDatabase.AddObjectToAsset(machine,controller);controller.layers=controller.layers.Concat(new[]{new AnimatorControllerLayer{name=label,stateMachine=machine,defaultWeight=1}}).ToArray();
             var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.name=label;AssetDatabase.CreateAsset(menu,Root+"/"+id+"Menu.asset");
-            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=label,type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});
+            rootMenu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(label),type=VRCExpressionsMenu.Control.ControlType.SubMenu,subMenu=menu});
             string[] labels={"Home / reset","Left hand","Right hand","Place in world"};string path=AnimationUtility.CalculateTransformPath(target,avatar.transform);
             for(int mode=0;mode<4;mode++)
             {
@@ -280,7 +290,7 @@ namespace SensaAvatarLab
                 if(mode!=3)for(int source=0;source<3;source++)clip.SetCurve(path,typeof(VRCParentConstraint),"Sources.source"+source+".Weight",AnimationCurve.Constant(0,1,mode==source?1:0));
                 AssetDatabase.AddObjectToAsset(clip,controller);var state=machine.AddState(labels[mode]);state.motion=clip;state.writeDefaultValues=false;if(mode==0)machine.defaultState=state;
                 var transition=machine.AddAnyStateTransition(state);transition.duration=0;transition.hasExitTime=false;transition.canTransitionToSelf=false;transition.AddCondition(AnimatorConditionMode.Equals,mode,parameter);
-                menu.controls.Add(new VRCExpressionsMenu.Control{name=labels[mode],type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=mode});
+                menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(labels[mode]),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=mode});
             }
         }
         static void Guides(Transform parent,string title,int count)

@@ -1,12 +1,10 @@
-# 开发与验证
+# 开发、验证与发布
 
 **简体中文** | [English](development.en.md)
 
-需要 Node.js 24、Python 3.12+ 和 [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json) 指定的 .NET SDK。架构与使用流程见[架构契约](architecture.md)，完整功能见[功能说明](features.md)。
+需要 Node.js 24、Python 3.12+ 和 [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json) 指定的 .NET SDK。先理解[架构边界](architecture.md)，再按实际影响选择验证；不要用重复全量运行代替分析。
 
-## 按影响验证
-
-首次准备依赖后，用同一入口规划和执行本地检查：
+## 本地检查与凭据
 
 ```shell
 npm ci
@@ -14,87 +12,70 @@ python -X utf8 scripts/verify.py --plan
 python -X utf8 scripts/verify.py
 ```
 
-默认比较 HEAD 与工作区，包含暂存、未暂存和未跟踪文件。已提交变更可指定 `--base <ref>`；`--all` 选择所有本地检查；只有明确需要重跑时使用 `--force`。用 `--dotnet <绝对路径>` 覆盖 SDK，默认优先项目隔离的 `artifacts/toolchain/dotnet/`，否则使用 PATH。
+默认比较 HEAD 与暂存／未暂存／未跟踪工作区；已提交变更可传 `--base <ref>`，`--all` 选全部本地检查，`--force` 仅用于有理由的重跑。SDK 默认优先 `artifacts/toolchain/dotnet/` 再 PATH，可用 `--dotnet <path>` 覆盖。
 
-修改 `docs/assets/parameter-geometry-3d-source.js` 或 Three.js 依赖后，先运行 `npm run build:web`，提交生成的 `parameter-geometry-3d.js` 与完整 MIT 声明。它们随离线文档分发；Web 单测会按锁定依赖重新构建比对，拒绝过期资源。普通文档修改无需额外构建。
+成功 receipt 位于 `artifacts/verification/`，指纹覆盖相关内容、命令和工具链。相同内容复用；失败、相关变化或运行期间源码变化不产生可复用成功结果。Python 全套包含文档检查，不重复执行；后端单元以 SkipWebBuild=true 隔离 Web 构建。
 
-成功检查的 receipt 保存在 `artifacts/verification/`，指纹包含对应源码、命令和工具链。相关内容相同会复用；相关文件改变、验证期间源码改变或检查失败都不会产生可复用成功结果。不要为了更新进度重复运行已经覆盖同一内容的检查。
+修改 Three.js 源码／依赖后运行 `npm run build:web`，提交可再现的 `docs/assets/parameter-geometry-3d.js` 与完整 `3d.LICENSE.txt`。运行文件是经典 IIFE，支持 file 离线；ESM 源不是另一个运行时资源。普通 Markdown 不需要重建该 bundle。站点用 `npm run build:pages` 生成 `artifacts/pages/`，不启动 Sensa。
 
-下表的 CI 范围适用于**没有未完成产品验证**的情况；普通 main push 还会自动接续之前尚未完成的产品验证，规则见下一节。
+## 哪些验证在哪里执行
 
-| 改动 | 必要本地检查 | GitHub Actions |
+| 变更 | 本地 | Actions |
 | --- | --- | --- |
-| 静态文档 | 双语、链接、路径隐私和资源约束 | 同样的文档检查；不运行 E2E、不发布 |
-| 交互参数图解（HTML／CSS／JS） | Web 契约、构建及文档检查 | 全量 E2E／截图比较；单独修改图解不发布 |
-| Web 单元测试 | Web lint、接口契约、构建 | Web 检查；不发布 |
-| 后端单元测试 | 后端契约 | 后端检查；不发布 |
-| E2E／截图基线 | 对应静态／单元检查 | 必要的完整截图比较；不发布产品 |
-| 产品、打包、协议 | 受影响接口检查 | 候选比较及必要六平台构建／隔离冒烟 |
-| 未知路径／无法取得差异 | 保守全量本地检查 | 保守全量验证 |
+| Markdown／文档站 | 文档／链接／站点构建契约 | 文档检查；站点变化由独立 Pages 流程验证发布 |
+| 交互图解 HTML/CSS/JS | Web lint／模型与构建契约／文档 | 全量浏览器比较，独立离线与真实图形检查 |
+| Web／后端测试 | 受影响 lint／单元／构建 | 对应接口检查；无待接续产品任务时不发布 |
+| E2E／基线 | 静态／单元 | 必要全量比较，不自动更新基线 |
+| 产品／协议／打包 | 受影响接口 | 同 SHA 比较与必要平台构建／隔离冒烟 |
+| 未知差异 | 保守本地全量 | 保守产品验证 |
 
-路径分类由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 的同一 interface 供本地与 CI 使用，具体范围以实现和契约测试为准。本地 `verify.py` 只使用工作区差异与内容缓存，不读取 GitHub 状态；CI 另外结合负责产品验证的实际执行状态，判断是否需要接续。Python 全套包含文档检查，不会额外重复该检查。Web lint 覆盖应用及图解脚本，并检查未定义标识符；浏览器全局变量显式列为只读，缺失导入会在构建前失败。后端契约用 `SkipWebBuild=true`，因此不依赖 Node 或生成 bundle；正常 publish 仍构建并包含 Web 资源。
+以上纯文档／测试跳过只适用于**没有未完成产品验证**。分类由 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) 与契约决定；本地规划不读取 GitHub 状态，CI 另检查产品 owner 的实际结果。
 
-本地入口只打印需要的 E2E、原生冒烟与发布计划，不执行它们。浏览器 E2E、完整进程 smoke、自动截图与 World PlayMode 套件都有 CI-only 保护。不要伪造 GitHub Actions 环境绕过这些限制。
+浏览器 E2E、截图、完整进程冒烟与 World PlayMode **仅在 Actions**。本地入口只报告这些计划；不得伪造 CI 环境绕过。隔离单元／静态／Unity EditMode 可本地运行，设备测试只用临时配置与模拟传输。[E2E 细节](e2e.md)
 
-## CI 和预发布
+## 四个工作流
 
-CI 只保留以下三个 workflow；普通检查和六平台构建内联在 `ci.yml`，不再各建可复用入口。
-
-| Workflow | 工作场景与范围 | 工作内容与边界 |
-| --- | --- | --- |
-| `ci.yml` | PR、main push；手动全量验证；供标签发布复用 | 统一规划、受影响接口检查、E2E、必要平台构建及 main 自动预览。PR／手动运行不发布；复用输入 `release_target=app/unity` 仅接受对应 `v*/unity-v*` tag push，不直接发布标签版本。 |
-| `e2e.yml` | 由 CI 复用；手动浏览器比较或候选基线生成 | 只负责真实应用的浏览器全量场景、截图比较和报告。仅手动 `update_snapshots=true` 生成待人工审阅基线，不提供比较成功 SHA，不发布、不运行六平台矩阵。 |
-| `release.yml` | 显式 `v*`／`unity-v*` tag push | 复用 CI 验证同一提交，发布对应桌面／Unity 标签包。桌面标签要求六平台构建；Unity 标签只构建 Unity 包，不触发六桌面平台。仅成功发布的 Unity 稳定包更新 VPM Pages；无 PR、main 或手动入口。 |
-
-PR 和 main push 先计算变更计划。没有未完成产品验证时，只运行当前差异影响的检查；main 自动接续尚未完成的产品验证，不要求特殊提交消息或手工 override。执行依赖和发布门槛如下：
-
-| Job／阶段 | 依赖与必要内容 |
+| Workflow | 责任与发布边界 |
 | --- | --- |
-| `plan` | 计算路径影响及 main owner 接续；手动运行选择全量，标签复用选择对应发布目标。 |
-| `validate` | 等待 plan，集中执行受影响的 Web、后端、Python、文档、依赖审计和 Unity 元数据检查；普通产品候选同时打包 Unity 资产。 |
-| `e2e` | 等待 plan，与 validate 并行；需要时执行当前提交的全量截图比较。 |
-| `platforms` | 等待 plan 和 validate，按计划执行 Windows／Linux／macOS x64、ARM64 的六平台构建、隔离冒烟与归档；不等待 E2E，不重复普通接口测试。 |
-| main `prerelease` | 必须是需发布的 main push，且 validate、E2E、platforms 全部成功，E2E 比较 SHA 等于当前候选 SHA。 |
-| 标签 `release`／`pages` | release 必须等复用 CI 成功、E2E 比较 SHA 与标签 SHA 一致、对应包构建成功；pages 还要求 Unity 稳定包发布成功。 |
+| `ci.yml` | PR、main、手动全量及标签复用；统一规划、接口、必要 E2E／六平台；仅符合条件 main 自动预览 |
+| `e2e.yml` | 复用或手动正常比较；仅手动 update_snapshots=true 生成待审图片，不提供发布比较凭据 |
+| `release.yml` | 明确 v*／unity-v* 标签；复用同 SHA 验证后发布相应产品 |
+| `pages.yml` | main 文档／站点变更及手动文档构建，另供 Unity 稳定发布刷新；静态站点独立验证部署，不发布产品 |
 
-接口检查与浏览器比较并行，原生构建在接口检查通过后即可开始；公开产物必须汇合所有必要结果。候选基线生成不算截图比较证明。截图只在 CI 比较，更新和人工审阅见 [E2E 指南](e2e.md)。原生构建验证自包含程序和隔离的 HTTP／WebSocket／OSC 行为；Windows 使用 ZIP，Linux/macOS 使用保留执行位的 tar.gz。
+Pages 规则由 [ADR 0004](adr/0004-standalone-bilingual-documentation.md)说明，取代旧“必须等待 Unity 稳定版才发布文档”的耦合。站点构建双语 Markdown、保留六资产独立图解，运行专用浏览器导航／语言检查后部署**同一产物**。稳定包刷新使用当前 main 文档，不能让旧标签覆盖新指南。
 
-main 的产品验证有明确负责的执行（owner），合并 workflow 后继续识别原有 validate／platforms／browser 证据名称。后续纯文档 push 遇到 owner 仍在运行时，只继承待完成记录，不取消或重复启动必要产品 CI。后续文档执行自己的 success 不能清除这项记录；必须核对 owner 所有必要 jobs 的实际成功结果。记录 artifact 只表达验证意图，不证明执行通过；缺失 artifact、未知状态或必要 job 被 skipped 都按未完成保守处理。
+VPM 只收录正式 Unity 包，并保留已校验历史索引与同源归档。不能用 GitHub 当前稳定 Release 数量推断历史 VPM 不存在；网络／摘要错误须失败，不可伪装空索引。只有确实没有可验证稳定包时允许文档站显示不可用。预览和当前开发不自动变成 VPM 正式版。
 
-上一产品验证失败后，修复测试或 Playwright 的普通 main push 会自动在**当前提交**补齐必要产品全链，包括对应检查、全量 E2E、原生构建／隔离冒烟及满足门槛后的预发布，不能因修复只改了测试而漏掉产品验证。无需改变提交消息或手动标记产品改动。没有待接续产品验证时，纯文档、纯测试不发布；普通手动验证也不发布。
+## 产品 owner 与汇合门槛
 
-PR 会取消同 ref 的过期任务；main 必要产品验证保留。main 预览与桌面／Unity 标签发布及清理共用 `sensa-preview-publication` 队列，使用 `queue: max` 保留等待任务；已公开相同提交或更新自动候选时，旧候选跳过打包与发布。运行中的必要 CI 沿用负责关系，避免重复运行。[GitHub 并发队列规则](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency)。恢复规则与实际结果判定见 [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py)。
+plan 决定差异与 main 接续；validate 与必要 E2E 可并行。六平台等待 plan／validate，不必等待 E2E，但发布必须汇合所有必要成功和**候选 SHA 的全量正常比较**。手动候选生成不算比较；手动全量 CI 不发布。
 
-需要显式全量验证时手动运行 `ci.yml`；只检查浏览器或准备人工审阅基线时使用 `e2e.yml`。Unity 手动验证也使用 `ci.yml`。不要在已有必要 CI 仍运行时重复派发同一提交：
+main 后续文档 push 遇到运行中 owner，只继承待完成记录，不取消／复制必要产品链。后续文档 success 或 intent artifact 都不能清除待验项；必须读 owner 必要 jobs 的实际成功。缺失／未知／必要 skipped 均按未完成保守处理。
+
+产品失败后的测试／配置修复 push 会在当前提交恢复必要全链，不能因“只改测试”跳过。没有待接续项时，普通文档／测试不发布。PR 取消过期同 ref；main 产品任务保留。发布与清理共用 `sensa-preview-publication` 队列，旧于已公开候选的任务跳过；不要对仍运行的同提交重复派发。
+
+明确需要时才手动调用：
 
 ```shell
 gh workflow run ci.yml --ref main
 gh workflow run e2e.yml --ref main -f update_snapshots=false
 ```
 
-预发布先建立 draft，上传六个桌面包、Unity ZIP 和统一校验文件，核对远端附件名称、状态、大小、SHA-256 和目标提交后才公开。单文件上传最多三次；失败保留未公开草稿。
+## 产物与保留
 
-发布后分页读取所有 release，以发布时间排序，只保留最近 **10 个已发布 prerelease**，包括手工版本的预发布。每次删除前重新核对数字 ID、tag、目标、发布时间和状态；稳定版、草稿与 Git tag 不删除。独立清理入口是 `publish-preview.py --prune-only`，它会真实删除旧预发布，只在已授权的保留任务中运行。
+桌面提供 Windows／Linux／macOS × x64／ARM64。Windows ZIP，Linux/macOS tar.gz 保留执行位；Unity ZIP 与校验文件一并审计。预发布先 draft，核对远端附件名、状态、大小、SHA-256 与提交后公开；单文件上传有界重试，失败保留未公开草稿。
 
-稳定版仍需要明确请求的 `v*`／`unity-v*` tag；本轮不改基础版本或内部协议版本。预览不进入稳定 VPM 索引。依赖更新仍保留 React/React DOM 配套分组，更新不代表自动合并。
+发布后分页列出 release，按发布时间保留最新 **10 个已发布 prerelease**。删除前重新核对数字 ID、tag、目标、时间与状态；稳定版、草稿和 Git tag 不删除。`publish-preview.py --prune-only` 会真实删除，只用于已授权保留任务。稳定版必须有明确授权标签，普通预览不升级版本或新增内部兼容分支。
 
-## WebUI 视觉质量
+## Unity 与实验工程
 
-以[视觉评审体系](ui-quality.md)指导排版、留白、色彩和层级调整，并通过已审阅的 CI 截图记录判断依据。自动可访问性／键盘检查作为底线，和已有功能回归一起在 `e2e.yml` 执行；结果随 `e2e-report` 保存，不另建工作流或采集用户遥测。人工视觉评审与问卷研究、自动检测结果分别记录，不能互相冒充。
-
-## 本机开发与 Unity
-
-开发 UI 可以手工 `dotnet run --project src/Sensa.csproj`；运行设备控制前先选择隔离配置或确认自己的输出。只构建产物可使用 `dotnet publish`。包含完整进程冒烟的 `build-platform.py` 是 CI 入口，不在本机运行。
-
-Unity 编译和 EditMode 单元测试可在独立工程手工运行。公开 CI 的 Unity 元数据检查不能替代 NDMF、Udon、ClientSim 或真实客户端验收；独立世界工程保持本地，不推送。
-
-安装器先验证全部受管源码和 manifest，再写入，保留用户场景、生成资产和本地修改。不要通过覆盖冲突来“修复”安装：
+Unity 编译／EditMode 可在独立工程运行；元数据检查不能代替 NDMF、Udon、ClientSim 或上传后验收。World 仓库保持本地无 remote。安装前预检所有受管源码／manifest，冲突不覆盖用户资产：
 
 ```shell
 python scripts/install-world-lab.py "<World project>"
 python scripts/install-avatar-lab.py "<Avatar project>" --tests
 ```
 
-`validate-labs.py` 有六套验证。`world-editor`、`world-functional`、`world-geometry`、`world-offset` 会涉及图形／PlayMode／截图，仅供有 Unity 和授权资源的 Actions runner；`avatar-tests` 是 EditMode，`avatar-build` 检查本地 SDK bundle，不上传。原场景哈希、新鲜报告、零退出码与明确成功都必须满足，XML 不能为空或含失败／跳过；默认每套 900 秒，输出目录不得复用。
+`validate-labs.py` 的 world-editor／functional／geometry／offset 涉及图形、PlayMode 或截图，只在授权 Actions runner。avatar-tests 是 EditMode；avatar-build 是 SDK bundle，不上传。每套使用新报告目录、原场景摘要、退出码与明确成功；空 XML、失败或跳过不能算通过。
 
-所有设备测试只使用临时配置和模拟 transport。真实 VRChat OSC、VR 抓取、头显可见性、实时 GPU 捕获及设备动作需另行验收，未执行项不得写成通过。失败排查先读报告中的真实原因，保留最后观测值；不要重发输入或重跑整个测试掩盖失败。实际结果以对应提交的 Actions 报告为准。
+人工视觉按 [V1–V6](ui-quality.md)审图，自动 axe／键盘是独立底线。真实 OSC、VR 抓取、HMD、GPU 捕获、准确度与设备动作须另验；结果始终链接实际提交报告，不在通用指南硬编码易过时总数。

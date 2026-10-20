@@ -83,11 +83,12 @@ jobs:
           GH_REPO: ${{ github.repository }}
         shell: bash
         run: |
+          python scripts/tag-release-notes.py --tag "$GITHUB_REF_NAME" --output artifacts/tag-release-notes.md
           if [[ "$GITHUB_REF_NAME" == unity-v* ]]; then
             args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa Unity $GITHUB_REF_NAME" --notes-file artifacts/release-notes.txt)
             mapfile -d '' files < <(find artifacts/release -maxdepth 1 -type f -print0)
           else
-            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --generate-notes)
+            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --generate-notes --notes-file artifacts/tag-release-notes.md)
             mapfile -d '' files < <(find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -print0)
           fi
           version="${GITHUB_REF_NAME#unity-}"
@@ -97,33 +98,10 @@ jobs:
           if [[ "$version" == *-* ]]; then python scripts/publish-preview.py --prune-only; fi
 
   pages:
-    concurrency:
-      group: sensa-pages
-      queue: max
-      cancel-in-progress: false
     needs: [unity_package, release]
     if: ${{ always() && needs.release.result == 'success' && needs.unity_package.outputs.stable == 'true' }}
-    runs-on: ubuntu-24.04
-    timeout-minutes: 10
     permissions:
       contents: read
       pages: write
       id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Check GitHub Pages configuration / 检查 GitHub Pages 配置
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-        with:
-          enablement: false
-      - name: Rebuild and verify package links / 重建并验证全部包链接
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 scripts/vpm-index.py
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
-        with:
-          path: artifacts/pages
-      - uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
-        id: deployment
+    uses: ./.github/workflows/pages.yml

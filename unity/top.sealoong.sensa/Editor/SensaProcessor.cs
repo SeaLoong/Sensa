@@ -93,9 +93,9 @@ namespace UnityBox.Sensa
             if (comp == null) return;
 
             if (string.IsNullOrWhiteSpace(comp.instanceName) || comp.instanceName.Contains("/"))
-                throw new System.InvalidOperationException("Sensa instance name must be nonempty and cannot contain '/'.");
+                throw new System.InvalidOperationException(SensaEditorLocalization.Text("Sensa instance name must be nonempty and cannot contain '/'."));
             if (comp.role == BridgeRole.Socket && (comp.socketLength <= 0 || float.IsNaN(comp.socketLength) || float.IsInfinity(comp.socketLength)))
-                throw new System.InvalidOperationException("Sensa socket length must be positive and finite.");
+                throw new System.InvalidOperationException(SensaEditorLocalization.Text("Sensa socket length must be positive and finite."));
             // Host game object for generated contacts
             var hostGo = comp.gameObject;
 
@@ -124,7 +124,7 @@ namespace UnityBox.Sensa
             // Validate
             if (comp.depthAxis == null)
             {
-                Debug.LogWarning($"[Sensa] {host.name}: depthAxis is null. Skipping socket generation.");
+                Debug.LogWarning(SensaEditorLocalization.Format("[Sensa] {0}: depthAxis is null. Skipping socket generation.", host.name));
                 return;
             }
 
@@ -231,7 +231,7 @@ namespace UnityBox.Sensa
         {
             if (comp.tipBone == null || comp.rootBone == null)
             {
-                Debug.LogWarning($"[Sensa] {host.name}: tipBone or rootBone is null. Skipping plug generation.");
+                Debug.LogWarning(SensaEditorLocalization.Format("[Sensa] {0}: tipBone or rootBone is null. Skipping plug generation.", host.name));
                 return;
             }
 
@@ -318,7 +318,7 @@ namespace UnityBox.Sensa
                 var aux      = comp.auxSignals[i];
 #if !SENSA_HAS_VRCRAYCAST
                 if (aux.sourceType == AuxSignalSourceType.Raycast)
-                    throw new System.InvalidOperationException("Sensa Raycast requires VRChat SDK 3.10.3 or newer.");
+                    throw new System.InvalidOperationException(SensaEditorLocalization.Text("Sensa Raycast requires VRChat SDK 3.10.3 or newer."));
 #endif
                 string param = $"Sensa/{comp.instanceName}/Aux{i}/{aux.role}";
 
@@ -422,7 +422,7 @@ namespace UnityBox.Sensa
             var pb = target.GetComponent<VRCPhysBone>()
                      ?? target.AddComponent<VRCPhysBone>();
             if (!string.IsNullOrEmpty(pb.parameter) && pb.parameter != paramPrefix)
-                throw new System.InvalidOperationException($"Sensa cannot replace existing PhysBone parameter on '{target.name}'. Use ExistingParameter instead.");
+                throw new System.InvalidOperationException(SensaEditorLocalization.Format("Sensa cannot replace existing PhysBone parameter on '{0}'. Use ExistingParameter instead.", target.name));
             pb.parameter = paramPrefix;
         }
 

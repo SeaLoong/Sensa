@@ -1,41 +1,41 @@
-# 三个映射模板
+# 三个内置映射模板
 
 **简体中文** | [English](presets.en.md)
 
-模板描述已存在的参数，不负责安装或生成 SPS。SPS Socket／Plug 的 haptics 共用 OGB 命名；合成阶梯与固定部位别名不再作为内置方案。Sensa SPS 和 Shader 坐标必须选择实际生产端并校准，不能用通配模板猜测坐标量程。
+模板减少重复配置，不授予输入许可，也不保证 Avatar 已生成参数。先看真实来源／地址，再选择模板并检查方向、量程与门控。[方案选择](usage-scenarios.md)
 
-| 模板 | 解释器 | 实际输入 |
+| 模板 ID | 用途 | 默认输出 |
 | --- | --- | --- |
-| OGB / SPS · 深度 | `OgbDepth` | 同来源、完整实例、Self／Others 下的现代 Root／Tip 或旧单接近值 |
-| OGB / SPS · 振动 | `OgbTouch` → V0 | Touch／Frot 与其所需的 Close 门控 |
-| PhysBone · 拉伸 | Direct＋GateEnable | `MyPB_Stretch`、`MyPB_IsGrabbed`；将 MyPB 换成实际前缀 |
+| `ogb-depth` | 现代 Socket 径向估算、旧 Socket 或 Plug 近接 | Depth → L0 |
+| `ogb-touch` | Touch／Frot 或独立 VFH Touch Zone | V0 |
+| `native-pb-stretch` | 原生 PB Stretch＋IsGrabbed | Depth＋GateEnable |
 
-## OGB 的新旧兼容
+## OGB / SPS · 深度
 
-深度默认匹配 Others：
+默认读取 Others，路径别名为：
 
 ```text
 OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
 ```
 
-不需要再把 Tip／Close 添加为独立输出映射。Socket 任一现代通道为正时优先配对；缺另一通道或未估长时为零，不跳到旧的大值。现代通道均零或没有时回退旧 PenOthers；旧 Socket Close 若存在还需开放。Plug 读取自身近接值，不统一反向。旧版并不必然只有一个触发器，官方 OGB v1 已有两种能力；检测实际参数比判断版本更准确。
+OgbDepth 从同来源、完整实例与 Self／Others 类别寻找辅助现代 NewTip。现代正值存在时优先配对；缺另一通道、没有可靠估长样本时给零，不用旧高值掩盖。现代均零／缺失才回退旧近接；Socket 的旧 Close 若存在则参与门控。Plug 原值不统一反向。
 
-触碰默认匹配：
+NewTip 是根部长度球；结果是径向比例，不是通用轴向插入或 XYZ。实际对象需要先分开再靠近，改变 Avatar／映射／重新启用会清除学习。[几何和限制](ogb-compatibility.md)
+
+## OGB / SPS · 振动
 
 ```text
 OGB/Orf/**/TouchOthers;OGB/Orf/**/FrotOthers;OGB/Pen/**/TouchOthers;OGB/Pen/**/FrotOthers;VFH/Zone/Touch/**/Others
 ```
 
-TouchSelf／Others 需同对象对应 Close；Plug FrotOthers 需其 Close，Socket FrotOthers 直接使用。缺门控时不会把原始近接误当触碰。独立 `VFH/Zone/Touch/<id>/Self|Others` 直接读取，不需要 Close；其他原始信号仍可明确选择 Direct。
+OgbTouch 为普通 Touch 配对同实例 Close；Plug Frot 也需要 Close。Socket Frot 和独立 VFH Zone 直接读取，不虚构不存在的 Close。若 Intiface 接收振动，确认其来源为 V0；L0 转振动必须另行明确选择。
 
-`**` 仅用于发现完整实例；日常控制应固定对象、来源，Self 与 Others 不能交叉配对。Sensa 在同一组内去重，不把新旧信号重复融合。详细规则与固定上游源码见 [OGB 兼容研究](ogb-compatibility.md)。
+## 原生 PB · 拉伸
 
-## 使用和保存
+模板使用 `MyPB_Stretch` 和 `MyPB_IsGrabbed`。把 MyPB 换成实际 PhysBone 参数前缀；抓取打开 GateEnable，松手应关门。它是标量信号，不提供局部 XYZ，也不要求 Contact 解算。
 
-1. 先在参数页确认真实路径。需要时显式启用 `OGB_ENABLED` 心跳。
-2. 选择模板，“替换草稿”后核对路径、角色和范围；追加模板时检查已有门控。
-3. 保存映射会关闭输入；准备状态会区分已保存配置与草稿。
-4. 检查实际来源与输出特征后再启用。振动默认发往 V0；Intiface 要将深度用于振动时，明确选择 L0。
-5. 内置模板不能直接覆盖；复制为自定义模板后修改。
+## 应用与自定义
 
-原生 PB 的标量校准与坐标端点校准不同；不要给普通 Stretch 凭空添加 XYZ。坐标路线见 [使用方案](usage-scenarios.md) 和 [定位协议](positioning.md)。
+“替换”移除当前映射，“追加”保留它们；两者都先修改草稿。检查实际路径和角色后保存，配置保存会关闭输入，再明确启用。需 Self 时修改实际类别，不混接不同对象的辅助值。
+
+可保存／移除自定义预设。内部 QuickStart 阶梯、旧 Point／Pose、Shader 诊断均没有内置模板；合成夹具应手动配置，不作为正式方案。实验根点应使用面板的两端校准生成映射。[映射操作](guide.md) · [参数字典](osc-parameters.md)

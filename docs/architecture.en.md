@@ -2,78 +2,77 @@
 
 [简体中文](architecture.md) | **English**
 
-Sensa converts the selected input into twelve-axis motion targets and dispatches them through each output's configuration. The browser provides controls and previews; the backend owns input permission, configuration transactions, gates and stops. See the [Glossary](../GLOSSARY.md) and [Feature reference](features.en.md).
+The backend turns one actual input into twelve-axis targets and distributes them through output configurations. The browser owns intentions and drafts; the backend owns permission, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
 
-## Data flow
+## One command boundary
 
 ```mermaid
 flowchart LR
-    UI[Browser workbench] --> A[SensaApplication]
-    HTTP[HTTP adapter] --> A
-    WS[WebSocket adapter] --> A
-    A --> C[ConfigurationUpdate]
-    A --> M[MotionRuntime]
-    OSC[OSC / OSCQuery] --> S[OscParameterStore]
-    S --> M
-    P[FunscriptPlayer] --> M
-    M --> O[IMotionOutput]
-    O --> R[OutputCoordinator]
-    R --> T[TCode / Intiface]
-    M --> REC[MotionRecorder]
+  Browser --> HTTP[HTTP / WebSocket adapter]
+  HTTP --> App[SensaApplication]
+  App --> Config[ConfigurationUpdate]
+  App --> Runtime[MotionRuntime]
+  OSC[OSC / OSCQuery] --> Store[OscParameterStore]
+  Store --> Runtime
+  Script[FunscriptPlayer] --> Runtime
+  Runtime --> Record[MotionRecorder]
+  Runtime --> Output[IMotionOutput / OutputCoordinator]
+  Output --> Devices[TCode / Intiface]
 ```
 
-| Boundary | Responsibility |
+| Module | Rules it owns |
 | --- | --- |
-| [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | Shared HTTP/WebSocket command dispatch for modes, scripts, recording and connections |
-| [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarming, stopping, application, reconnection and persistence; restores configuration/connections after failure |
-| [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, signal processing, freshness, gates, merging, request generations and stopping |
-| [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Runtime depends only on send/stop operations; tests substitute isolated outputs |
-| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Dispatches by output type/configuration without exposing transports to the runtime |
-| [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Source identity, values, update times, sequences and avatar lifecycle |
+| [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | Shared command dispatch, mode/script/recording/connection operations |
+| [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarm, stop, reconnect and persistence; configuration/connection rollback |
+| [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, gates, fusion, freshness, request generations and stop |
+| [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Send/stop seam replaceable by isolated tests |
+| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Output types, profiles and transport lifecycle without exposing protocols to runtime |
+| [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Sources, values, receive/change timestamps, sequences and Avatar lifecycle |
 
-UDP and OSCQuery share the avatar-change entry point: clear affected data, reset learned state and stop enabled OSC input. Unconsumed parts of mixed OSC bundles preserve structure, order and timetags for forwarding. Parameter intake does not thereby gain atomic frame semantics or full timetag scheduling. [OSC parser](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscPacketParser.cs)
+UDP and OSCQuery share Avatar-change cleanup, resetting caches/learning and stopping OSC. Unconsumed bundles preserve structure, order and timetags for forwarding. Input interpretation is not atomic timetag-based frame scheduling.
 
-## Input permission is an invariant
+## Permission and stopping invariants
 
-| Operation | Backend behavior |
+| Event | Required behavior |
 | --- | --- |
-| Browse pages or input tabs | Preserve actual mode and input permission |
-| Change actual input mode | Disable input, stop outputs and invalidate pending old requests |
-| Replace/load a script | Disable input first, including replacement within Script mode |
-| Save configuration | Disable input and leave it disabled after success |
-| Emergency stop / clear | Latch the stop; clearing does not resume movement |
-| Pause/stop/unload script | Stop automatic frames and UDP refresh; invalidate old timer frames |
-| Explicit seek/step while paused | May send a target while Script input remains enabled |
-| Gate or spatial validity fails | Stop without substituting an old scalar for invalid spatial input |
-| Start application | Do not restore input, output enablement, scripts or movement |
+| Browse navigation/input tabs | Keep actual mode and permission unchanged |
+| Change mode, replace script, save configuration | Disarm/stop first; invalidate old pending requests |
+| Emergency stop/clear | Latch stop; clearing does not reactivate |
+| Pause/stop/unload script | Stop automatic frames/UDP refresh; explicitly permitted seek/step may still send |
+| Gate/spatial invalidity | Stop without falling back to stale same-axis values |
+| Startup | Do not restore input, enabled outputs, scripts or motion |
 
-Targets are not position feedback. Recording happens before dispatch, so it cannot prove delivery; UDP provides no execution acknowledgment.
+Connection grants no permission, but an already active input may send its valid current target to a new connection. Recording precedes distribution. Command telemetry, recordings and UDP sends do not establish mechanical execution.
 
-## Web workbench
+## Signal and spatial validity
 
-The WebUI uses React and project-owned basic components styled after TDesign. [ui.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/ui.jsx), [controls.jsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/controls.jsx) and [styles.css](https://github.com/SeaLoong/Sensa/blob/main/src/web/styles.css) own controls and styling while retaining native input, keyboard and dialog semantics.
+Ordinary scalar processing matches paths/source/role, then calibrates, inverts, curves, fuses and gates. OgbDepth/OgbTouch interpret external parameters without renaming their protocol. Spatial input has a separate default-off experimental permission.
 
-Control/OSC/Settings are the main destinations, with expandable details. The top bar preserves actual mode, input permission and emergency stop. A browser draft is distinct from saved configuration.
-
-| Module | Centralized rules |
+| Family | Coordinate/freshness rules |
 | --- | --- |
-| [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | Drafts, default profiles, output references, destination conflicts and saving |
-| [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | Manual targets, script timecodes, speed and looping intent |
-| [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | Same-origin sessions, correlation, timeout, disconnect rejection, reconnection and page lifecycle; no action replay |
-| [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js) | Presets and mapping drafts |
-| [osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | Path matching, FT prefix filtering, previews and experimental calibration |
-| [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | Log and diagnostic filtering |
+| Legacy Point/Handle/Pose | ReferenceLocal; oldest participating channel, including Handle grab; default 1000 ms or positive timeout |
+| Fixed Sensa SPS | AvatarRootLocal; known P0–P3 geometry, unsaturated inputs and residual checks; stationary P may cache, changing Sample defaults to 1000 ms, capped at 1250 ms |
+| Native Shader | AvatarRootLocal; same-source contiguous Frame/X/Y/Z/Valid with Valid last; Frame change age at most 500 ms; bridge separately owns monotonicity/freeze/two-frame recovery |
 
-## Spatial input is isolated
+A dedicated marker narrows Sender ambiguity without proving atomic frames. Distances from four known non-coplanar anchors locate one local point, not world motion, orientation or a GPU surface. [Positioning](positioning.en.md) and the [dictionary](osc-parameters.en.md) define protocols, equations and stop conditions.
 
-Contact reconstruction remains an experimental `ReferenceLocal` estimate. `allowExperimentalSpatialInput=false` by default also blocks existing spatial configurations; the catalog no longer recommends Point/Pose. Freshness uses the oldest contributing update, with a default one-second spatial age limit overridden by a positive input timeout. Fresh does not prove simultaneous; low residual does not prove one Sender.
+## Browser modules
 
-Four noncoplanar anchors with true ranges to one point can determine relative XYZ. Ordinary Proximity supplies neither the required identity nor batch guarantees, and cannot reveal common world motion. A trusted producer supplying batched XYZ+frameId+valid is a future design requirement, not an implemented feature. [Positioning analysis](positioning.en.md)
+React retains native controls, dialogs and semantic labels. TDesign styling requires neither MUI nor the TDesign React runtime. The header carries actual state/permission while content scrolls separately. Drafts differ from saved configuration.
 
-## Verification and tools
+| File | Responsibility |
+| --- | --- |
+| [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | Normalize drafts, output references, conflicts and saves |
+| [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | Manual/script intentions and timecodes |
+| [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | Same-origin session, correlation, timeout, disconnect rejection/reconnect without replay |
+| [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js) / [osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | Preset drafts, matching, filters, preview and calibration |
+| [i18n.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/i18n.js) | URL/preference/environment locale, document routing and text |
+| [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | Log/state filtering |
 
-TimeProvider injects time dependencies; isolated contract tests use virtual time and mock transports. Network adapters use random loopback ports. Unity tests and metadata checks do not substitute for uploaded-client acceptance.
+The standalone explorer uses local classic scripts, a pure model and bundled Three.js, with no application session/device dependency. Pages statically publishes Markdown and the same six explorer assets, outside the motion runtime.
 
-Installers share [lab_installation.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/lab_installation.py) and preflight before writing. Smoke runners share [process_smoke.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/process_smoke.py) for configuration isolation, deadlines and cleanup.
+## Verification seams
 
-Locally, plan with `python -X utf8 scripts/verify.py --plan`, then run the verification entry point; valid receipts are reused. Browser E2E, screenshots, full-process smoke and World PlayMode run only in Actions. CI selects affected work and inherits/recovers unfinished product verification; intent artifacts never replace actual required job success. Prereleases require full comparison and the necessary product chain at the candidate SHA. Retain the ten newest published prereleases while preserving stable releases, drafts and tags. [Development](development.en.md), [E2E](e2e.en.md), [decision](adr/0002-impact-based-verification.md)
+TimeProvider injects time. Isolated tests use virtual clocks, loopback ports and mock transports. Installers preflight managed files before writing and retain user changes; shared smoke tooling owns process cleanup.
+
+Plan affected local checks and reuse valid receipts. Browsers, screenshots, process smoke and World PlayMode run only in Actions. [Development](development.en.md) defines continuation/release gates. EditMode, metadata and browser mocks do not prove uploaded-client or hardware behavior.

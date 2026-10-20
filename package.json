@@ -1,9 +1,10 @@
 {
   "name": "sensa",
   "version": "0.4.0",
-  "description": "**VRChat SPS/OGB/TPS 触点感知桥接，驱动 Intiface/TCode 物理设备。**",
+  "description": "Local VRChat contact and tracking bridge with a browser UI and Unity authoring tools.",
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
+    "build:pages": "node scripts/build-pages.mjs",
     "test": "npm run lint && node --test tests/web/*.test.mjs",
     "lint": "eslint src/web docs/assets/parameter-geometry-model.js docs/assets/parameter-geometry-view.js docs/assets/parameter-geometry-3d-source.js",
     "e2e:ci": "playwright test",
@@ -27,6 +28,7 @@
     "@playwright/test": "1.64.1",
     "esbuild": "0.28.2",
     "eslint": "10.13.0",
+    "markdown-it": "15.0.3",
     "ws": "8.22.0"
   },
   "private": true,

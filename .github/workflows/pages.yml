@@ -1,0 +1,95 @@
+name: Documentation site / 文档站
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+      - 'docs/**'
+      - '.github/pages/**'
+      - '.github/workflows/pages.yml'
+      - 'scripts/build-pages.mjs'
+      - 'scripts/vpm-index.py'
+      - 'tests/e2e/site.spec.js'
+      - 'tests/web/site.test.mjs'
+      - 'playwright.config.js'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+concurrency:
+  group: sensa-pages
+  queue: max
+  cancel-in-progress: false
+env:
+  PYTHONUTF8: '1'
+jobs:
+  build:
+    name: Build and verify standalone site / 构建验证独立文档站
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Stable package refreshes use current docs, not old tag contents.
+          # 正式包刷新使用当前文档，避免旧标签覆盖站点。
+          ref: ${{ startsWith(github.ref, 'refs/tags/') && 'main' || github.ref }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Verify site generator / 验证文档站生成器
+        run: node --test tests/web/site.test.mjs
+      - name: Preserve verified stable package history / 保留已验证正式包历史
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: python3 scripts/vpm-index.py --allow-empty
+      - name: Build bilingual documents and offline explorer / 构建双语文档与独立图解
+        run: GITHUB_SHA="$(git rev-parse HEAD)" npm run build:pages
+      - name: Install browser and Chinese fonts / 安装浏览器与中文字体
+        run: |
+          npx playwright install --with-deps chromium
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Verify navigation, language and standalone explorer / 验证导航语言与独立图解
+        env:
+          E2E_SUITE: site
+          E2E_UPDATE_SNAPSHOTS: 'false'
+          SENSA_SITE_DIRECTORY: artifacts/pages
+        run: npm run e2e:ci
+      - name: Retain verification and preview images / 保留验证与预览图片
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pages-verification
+          path: |
+            artifacts/e2e/report/
+            artifacts/e2e/results/
+            artifacts/e2e/results.json
+            artifacts/pages/site-manifest.json
+          retention-days: 14
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: artifacts/pages
+  deploy:
+    name: Publish verified documentation / 发布已验证文档
+    needs: build
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/unity-v')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        with:
+          enablement: false
+      - name: Deploy immutable verified artifact / 部署已验证的不可变产物
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

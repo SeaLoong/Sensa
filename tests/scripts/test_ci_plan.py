@@ -42,6 +42,14 @@ class VerificationPlanTests(unittest.TestCase):
                 result = plan.plan_changes(inputs + [integration], event_name='push', ref='refs/heads/main')
                 self.assertTrue(all(result[key] for key in ('e2e', 'unity', 'platforms', 'prerelease')))
 
+    def test_standalone_site_uses_local_contracts_without_product_publication(self):
+        for path in ('.github/pages/index.html', '.github/pages/site.js', '.github/workflows/pages.yml',
+                     'scripts/build-pages.mjs', 'scripts/vpm-index.py', 'tests/e2e/site.spec.js'):
+            with self.subTest(path=path):
+                result = plan.plan_changes([path], event_name='push', ref='refs/heads/main')
+                self.assertEqual({flag for flag in plan.FLAGS if result[flag]}, {'web', 'scripts', 'docs'})
+                self.assertEqual(result['e2e_suite'], 'none')
+
     def test_tests_only_exercise_their_interface_without_publication(self):
         cases = [('tests/web/output.test.mjs', {'web'}),
                  ('tests/Sensa.Tests/OutputTests.cs', {'backend'}),

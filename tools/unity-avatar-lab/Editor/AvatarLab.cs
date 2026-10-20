@@ -57,7 +57,7 @@ namespace SensaAvatarLab
             else if (EditorApplication.timeSinceStartup - started > 120)
             {
                 SessionState.EraseFloat(WarmupKey);
-                Debug.LogError("VRCFury temporary package initialization timed out.");
+                Debug.LogError(AvatarLabLocalization.Text("VRCFury temporary package initialization timed out."));
                 if (Application.isBatchMode) EditorApplication.Exit(1);
             }
         }
@@ -72,10 +72,10 @@ namespace SensaAvatarLab
 
         static Type FindType(string name) => AppDomain.CurrentDomain.GetAssemblies()
             .Select(a => a.GetType(name)).FirstOrDefault(t => t != null)
-            ?? throw new InvalidOperationException("Required component unavailable: " + name);
+            ?? throw new InvalidOperationException(AvatarLabLocalization.Text("Required component unavailable: ") + name);
         static void Set(Component component, string field, object value) => component.GetType().GetField(field).SetValue(component, value);
         static GameObject Load(string path) => AssetDatabase.LoadAssetAtPath<GameObject>(path)
-            ?? throw new InvalidOperationException("Import the licensed resource first: " + path);
+            ?? throw new InvalidOperationException(AvatarLabLocalization.Text("Import the licensed resource first: ") + path);
 
         [MenuItem("Tools/Sensa Avatar Lab/Create authoring scenes")]
         public static void CreateScenes()
@@ -85,21 +85,21 @@ namespace SensaAvatarLab
             AssetDatabase.Refresh();
             foreach (var variant in Variants) CreateScene(variant);
             EditorSceneManager.OpenScene(Root + "/Exclusive.unity");
-            AssetDatabase.SaveAssets();
+            AvatarLabLocalization.SaveAssets();
         }
 
         static void CreateScene(string variant)
         {
             var scenePath = Root + "/" + variant + ".unity";
-            if (File.Exists(scenePath)) throw new InvalidOperationException("Scene already exists; preserve your edits before rebuilding: " + scenePath);
+            if (File.Exists(scenePath)) throw new InvalidOperationException(AvatarLabLocalization.Text("Scene already exists; preserve your edits before rebuilding: ") + scenePath);
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             var avatar = (GameObject)PrefabUtility.InstantiatePrefab(Load(Model));
             avatar.name = "Sensa Chocolat " + variant;
             avatar.transform.position = Vector3.zero;
             var animator = avatar.GetComponent<Animator>();
-            if (animator == null || !animator.isHuman) throw new InvalidOperationException("The base model needs a valid Humanoid rig.");
+            if (animator == null || !animator.isHuman) throw new InvalidOperationException(AvatarLabLocalization.Text("The base model needs a valid Humanoid rig."));
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
-            if (descriptor == null) throw new InvalidOperationException("The base model needs an Avatar Descriptor.");
+            if (descriptor == null) throw new InvalidOperationException(AvatarLabLocalization.Text("The base model needs an Avatar Descriptor."));
             var pipeline = avatar.GetComponent<PipelineManager>() ?? avatar.AddComponent<PipelineManager>();
             pipeline.blueprintId = "";
             var prop = (GameObject)PrefabUtility.InstantiatePrefab(Load(Prop), avatar.transform);
@@ -158,7 +158,7 @@ namespace SensaAvatarLab
 
         static GameObject Socket(GameObject avatar, Transform bone, string name, Vector3 offset)
         {
-            if (bone == null) throw new InvalidOperationException("Required humanoid bone missing: " + name);
+            if (bone == null) throw new InvalidOperationException(AvatarLabLocalization.Text("Required humanoid bone missing: ") + name);
             var go = new GameObject(name);
             go.transform.SetParent(bone, false);
             go.transform.position = bone.position + offset;
@@ -202,7 +202,7 @@ namespace SensaAvatarLab
                 source.SetActive(false);
                 try
                 {
-                    if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException("SDK preprocessing rejected the avatar.");
+                    if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException(AvatarLabLocalization.Text("SDK preprocessing rejected the avatar."));
                     var report = Inspect(clone);
                     WriteReport(report, variant);
                     passed &= report.passed;
@@ -216,7 +216,7 @@ namespace SensaAvatarLab
                 finally { UnityEngine.Object.DestroyImmediate(clone); source.SetActive(true); }
             }
             EditorSceneManager.OpenScene(Root + "/Exclusive.unity");
-            if (!passed) throw new InvalidOperationException("Avatar build validation failed; see Validation/build-*.json.");
+            if (!passed) throw new InvalidOperationException(AvatarLabLocalization.Text("Avatar build validation failed; see Validation/build-*.json."));
             Debug.Log("SENSA_AVATAR_PREPROCESS_PASSED");
         }
 
@@ -281,10 +281,10 @@ namespace SensaAvatarLab
                 var avatar = UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;
                 EditorWindow.GetWindow<VRCSdkControlPanel>();
                 await Task.Delay(500);
-                if (!VRCSdkControlPanel.TryGetBuilder<IVRCSdkAvatarBuilderApi>(out var builder)) throw new InvalidOperationException("SDK builder unavailable.");
+                if (!VRCSdkControlPanel.TryGetBuilder<IVRCSdkAvatarBuilderApi>(out var builder)) throw new InvalidOperationException(AvatarLabLocalization.Text("SDK builder unavailable."));
                 builder.SelectAvatar(avatar);
                 string bundle = await builder.Build(avatar);
-                if (string.IsNullOrEmpty(bundle) || !File.Exists(bundle)) throw new InvalidOperationException("SDK did not produce an avatar bundle.");
+                if (string.IsNullOrEmpty(bundle) || !File.Exists(bundle)) throw new InvalidOperationException(AvatarLabLocalization.Text("SDK did not produce an avatar bundle."));
                 Directory.CreateDirectory("Builds");
                 File.Copy(bundle, destination, true);
                 if (variant == "QuickStart") QuickStartAvatar.InspectBundle();

@@ -142,6 +142,63 @@ async function documentFits(page) {
   return evidence;
 }
 
+
+threeTest('the offline guide negotiates language and persists a manual choice without resetting the diagram / 离线图解协商语言并保存选择且不重置几何',
+  { tag: ['@i18n', '@config'] }, async ({ page }) => {
+    const cases = [
+      { name: 'URL Chinese variant', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'URL English variant', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'en-US', switchAndReload: true },
+      { name: 'saved Chinese variant', saved: 'zh_HK', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'unsupported URL preserves choice', requested: 'fr-FR', saved: 'zh-CN', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'ordered later Chinese', languages: ['fr-FR', 'zh_Hant_TW', 'en-US'], expected: 'zh-CN' },
+      { name: 'ordered English first', languages: ['fr-FR', 'EN_gb', 'zh-CN'], expected: 'en-US' },
+      { name: 'empty list uses language', languages: [], language: 'zh_TW', expected: 'zh-CN' },
+      { name: 'unsupported environment', languages: ['fr-FR', 'de-DE'], language: 'fr-FR', expected: 'en-US' },
+      { name: 'denied storage', denied: true, languages: ['fr-FR', 'zh-HK'], expected: 'zh-CN' },
+    ];
+    for (const scenario of cases) await threeTest.step(scenario.name, async () => {
+      const child = await page.context().newPage(), errors = [], network = [];
+      child.on('pageerror', error => errors.push(error.message));
+      child.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
+      await child.addInitScript(({ languages, language, saved, denied }) => {
+        Object.defineProperty(navigator, 'languages', { configurable: true, value: languages });
+        Object.defineProperty(navigator, 'language', { configurable: true, value: language || 'en-US' });
+        if (denied) Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
+        else if (window.name !== 'locale-fixture-ready') {
+          if (saved === undefined) localStorage.removeItem('sensa.locale'); else localStorage.setItem('sensa.locale', saved);
+          window.name = 'locale-fixture-ready';
+        }
+      }, scenario);
+      try {
+        const url = new URL(guideFile); if (scenario.requested) url.searchParams.set('lang', scenario.requested);
+        await child.goto(url.href);
+        await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
+        await expect(child.locator('#locale')).toHaveValue(scenario.expected);
+        await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US' ? 'See the shapes behind the parameters' : '看见参数背后的形状');
+        if (scenario.switchAndReload) {
+          await chooseScene(child, 'socket-modern', 'iso'); await setRange(child, 'z', .41);
+          await parameter(child, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true }).click();
+          await child.locator('#show-dimensions').uncheck();
+          await child.locator('#locale').selectOption('zh-CN');
+          await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          await expect(child.locator('#scene')).toHaveValue('socket-modern'); await expect(child.locator('#projection')).toHaveValue('iso');
+          await expect(child.locator('#control-z')).toHaveValue('0.41'); await expect(child.locator('#show-dimensions')).not.toBeChecked();
+          await expect(parameter(child, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true })).toHaveAttribute('aria-pressed', 'true');
+          await nearCell(child, 'PenOthersNewRoot', .6);
+          expect(new URL(child.url()).searchParams.get('lang')).toBe('zh-CN');
+          expect(await child.evaluate(() => localStorage.getItem('sensa.locale'))).toBe('zh-CN');
+          await child.reload(); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          await child.goto(guideFile.href); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+        }
+        if (scenario.denied) {
+          await child.locator('#locale').selectOption('en-US');
+          await expect(child.locator('h1')).toHaveText('See the shapes behind the parameters');
+        }
+        expect(errors).toEqual([]); expect(network).toEqual([]);
+      } finally { await child.close(); }
+    });
+  });
+
 threeTest('offline parameter geometry renders, responds and preserves bilingual state / 离线参数几何图解、交互与双语状态',
   { tag: ['@visual', '@i18n', '@config'] }, async ({ page }, info) => {
     const remoteRequests = [], sockets = [], errors = [];

@@ -50,7 +50,7 @@ namespace SensaLab
                 if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(path)==null){var p=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();p.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/"+name+".cs");p.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;AssetDatabase.CreateAsset(p,path);}
             }
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
-            var scene=EditorSceneManager.OpenScene(FunctionalLab.Scene);
+            var scene=LabEditorLocalization.OpenScene(FunctionalLab.Scene);
             foreach(var station in UnityEngine.Object.FindObjectsOfType<CapabilityStation>())
             {
                 for(int i=0;i<station.receivers.Length;i++)Mark(station.receivers[i],i);
@@ -74,8 +74,8 @@ namespace SensaLab
             if(quick!=null)AddPlacement(quick.transform,quick.pickup,"TEST BALL controls",new Vector3(1.3f,.8f,-.45f),"TOUCH mode: move the ball to your right wrist. This only places the ball; it does not enable input.");
             foreach(var placement in UnityEngine.Object.FindObjectsOfType<LabPlacement>())PositionPanel(placement.transform);
             for(int i=0;i<4;i++){var color=ProbeColor(i);Material("Control"+i,new Color(color.r*.45f,color.g*.45f,color.b*.45f));}
-            LabEncoderMaterials.Prepare();EditorSceneManager.SaveScene(scene);
-            scene=EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
+            LabEncoderMaterials.Prepare();LabEditorLocalization.SaveScene(scene);
+            scene=LabEditorLocalization.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
             foreach(var station in UnityEngine.Object.FindObjectsOfType<PointCaseStation>())
             {
                 station.caseName=station.caseName.Replace("A3","P4");station.expectation=station.expectation.Replace("A3","P4");
@@ -91,7 +91,7 @@ namespace SensaLab
             }
             foreach(var station in UnityEngine.Object.FindObjectsOfType<LocalProbeStation>())for(int i=0;i<station.receivers.Length;i++)Mark(station.receivers[i],i);
             foreach(var station in UnityEngine.Object.FindObjectsOfType<LabController>())for(int i=0;i<station.receivers.Length;i++)Mark(station.receivers[i],i,station.receivers.Length);
-            LabEncoderMaterials.Prepare();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();EditorSceneManager.OpenScene(FunctionalLab.Scene);
+            LabEncoderMaterials.Prepare();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();LabEditorLocalization.OpenScene(FunctionalLab.Scene);
         }
         static void AddPlacement(Transform host,Transform target,string name,Vector3 position,string instructions)
         {

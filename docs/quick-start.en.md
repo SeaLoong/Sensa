@@ -1,39 +1,44 @@
-# Start with a real input
+# First run
 
 [简体中文](quick-start.md) | **English**
 
-Everyday inputs are manual targets, funscript, existing OGB/SPS parameters, or coordinate components you generate. Synthetic steps are development fixtures, not a required installation route.
+Verify one small-range command path before attaching live data. To understand the geometry first, open the [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US); it requires neither a device nor a running Sensa.
 
-## Startup and a device baseline
+## 1. Start
 
-1. Download the appropriate desktop package from [Releases](https://github.com/SeaLoong/Sensa/releases), extract everything, and run `Sensa.exe` or `./Sensa`. No separate .NET installation is required.
-2. Open `http://127.0.0.1:5086` with input disarmed. Preview without outputs first, then add firmware-compatible TCode serial/UDP/TCP or connect an already running Intiface Central.
-3. Bind TCode outputs to an axis profile matching actual mechanical calibration. A small numeric preset is not your hardware's safe travel; Intiface executes only declared device features.
-4. Apply Manual in Control and check explicit targets, direction and stopping. Continuous sending follows edits; it does not generate reciprocating motion. Disarming sends a stop. Emergency stop stays latched until explicitly cleared and rearmed.
+Download your operating system/CPU archive from [Releases](https://github.com/SeaLoong/Sensa/releases), extract it, run Sensa and open `http://127.0.0.1:5086`. Configuration defaults to `config.json` beside the program; `SENSA_CONFIG_PATH` selects another file. Use isolated configuration for initial testing instead of reusing real-device destinations.
 
-Output cards show commands, not mechanical feedback. A local UDP connection state has no remote acknowledgement.
+The UI detects language from URL, saved choice and system preferences, with a manual switch. [Language rules](languages.en.md)
 
-## An existing SPS/OGB Avatar
+## 2. Add an output
 
-1. Enable OSC in VRChat, apply OSC in Sensa and listen on `127.0.0.1:9001` by default.
-2. Under receiving/forwarding settings, expand OGB parameter activation. Explicitly enable `OGB_ENABLED` heartbeats to VRChat's actual receiving address if needed, commonly `127.0.0.1:9000`. Saving leaves device input disarmed. A heartbeat status is not client acknowledgement.
-3. Inspect actual `OGB/Orf/...` or `OGB/Pen/...` parameters. Replace the draft with the depth or vibration template, constrain its instance/source, check calibration and save.
-4. Depth detects modern Root/Tip or legacy proximity; touch checks the same object's required Close gate. Intiface vibration defaults to V0; depth-to-vibration requires explicitly choosing L0.
-5. Then arm input. Modern radial estimation must first learn length during an outside approach; it is not precise insertion depth. This route usually needs no Sensa Unity package when existing parameters are available.
+Use “Control” to add an output:
 
-See [OGB compatibility](ogb-compatibility.en.md) for capability detection, precedence and upstream evidence.
+| Type | Check |
+| --- | --- |
+| TCode serial | Correct port, 115200/8N1, no other process holding it |
+| TCode UDP/TCP | Actual host, port and transport; UDP has no execution acknowledgement |
+| Intiface | Start an existing Central, then enter its service address; new outputs do not manage an engine |
+| Intiface vibration | V0 by default; choose V1/V2, or explicitly L0 to convert depth into intensity |
 
-## Direct root coordinates
+After saving, explicitly enable that output and connect. Output values are recently sent commands, not device positions. Use “Settings” for axis range, limits, inversion and speed; start with a very small safe range.
 
-- **Sensa SPS:** Install the Unity package on your own Avatar. Use Fixed SPS Root Probe to select a Socket/Plug root explicitly. The builder generates four fixed anchors, a dedicated marker and validity metadata. Select the target in the root panel, capture endpoints, replace/save the draft, then explicitly allow experimental spatial input before arming.
-- **Shader capture:** Generate native Shader Root Capture, pin a producer ID, select a visible encoded region explicitly and configure the desktop bridge. Calibrate native coordinates in the same root panel. Diagnostic transport has its own namespace and supplies no spatial coordinates. A hidden layer is not guaranteed to appear in desktop capture. [Fields and radii](osc-parameters.en.md).
+## 3. Check manual direction and stop
 
-Both routes produce Avatar-root local units, not world positions, device feedback or deformed surfaces. [Route comparison](usage-scenarios.en.md) · [Position and scale](positioning.en.md) · [Shader setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+Apply “Manual”, explicitly enable input and send one small target. Continuous sending follows edits; it does not oscillate automatically. Check that emergency stop closes input. Clearing it requires a separate reactivation and does not resume motion.
 
-## Other inputs and troubleshooting
+Connecting does not activate input, but an already active input may send its current valid target immediately after connection. Configuration changes, mode changes and script replacement disarm input.
 
-Funscript generates one L0 timeline with looping, rate and seeking, without audio/video synchronization. Native PB uses the actual Stretch/IsGrabbed prefix; MyPB in the template is a placeholder to replace.
+## 4. Attach one input
 
-If nothing is sent, check actual mode, listening port, real parameters, source, saved mappings, gates, output connection and input permission. Recheck permission after configuration, mode or script changes. Ordinary scalars may be delta-only; fixed-rate forwarding must not impersonate fresh sensing.
+- **OSC:** apply OSC, check the default `127.0.0.1:9001` listener and actual source, then inspect real parameter addresses. Choose one of the [three templates](presets.en.md), check ranges/gates, save and activate input. OGB may require the explicit enable heartbeat in receiver settings; its destination is normally VRChat on 9000, not Sensa on 9001.
+- **Script:** load a valid funscript and inspect its L0 timeline, speed and loop. Apply Script, activate input and play. Pause stops automatic frames, but explicit seek/step can still send a target while Script input is active. Stop resets the cursor, not the mechanism.
+- **Experimental root:** follow the [route guide](usage-scenarios.en.md), establish the producer, verify object/source/validity, capture two endpoints and save the mapping. Then separately allow experimental spatial input and activate input.
 
-[User guide](guide.en.md) · [Three mapping templates](presets.en.md) · [Feature reference](features.en.md)
+A familiar parameter name does not establish accurate position. Modern OGB estimates a radial ratio; fixed SPS and Shader provide Avatar-root-local positions. [Positioning](positioning.en.md)
+
+## 5. Keep a reviewable result
+
+Use L0 recording when needed. Stop preserves the last-value duration; exporting an active recording stops recording but does not disable input. Restart requires confirmation, and cancel preserves the old buffer. Recording excludes other axes, gate/stop events and hardware feedback.
+
+On failure, disable input and inspect actual mode, source, mapping, gates and logs. Repeated reconnects or resends can hide the cause. [Full guide](guide.en.md) · [Features](features.en.md) · [Home](../README.md)

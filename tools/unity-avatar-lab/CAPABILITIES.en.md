@@ -1,41 +1,35 @@
-# Avatar capability matrix
+# Isolated Avatar capabilities
 
 [简体中文](CAPABILITIES.md) | **English**
 
-Use [FullFlow](FULL-FLOW.en.md) for daily acceptance. Isolated scenes under `Assets/SensaAvatarLab/Capabilities/` separate input chains using the same base model. Exclusive/Dedicated compare exclusive selection with simultaneous measurement.
+Use [FullFlow](FULL-FLOW.en.md) for integrated interaction and `Assets/SensaAvatarLab/Capabilities/` to isolate a route. Source and generated menu languages are described in [README](README.md).
 
-| Scene | Final Contacts | Sensa receivers | Experimental PB | Operation / result |
-| --- | --- | --- | --- | --- |
-| Contact | 5 | 4 | 0 | Baseline/Near/Offset/Far outside; LabContact Point, baseline (0,0,.1) |
-| PB | 0 | 0 | 1 | Grab/stretch/release; Sensa/Lab/PB_IsGrabbed and _Stretch, no XYZ |
-| PBContact | 5 | 4 | 1 | LabCombined Handle, four samples plus grab gate |
-| SPS | 25 | 0 | 0 | Enable FixtureSocket, Outside to learn length, Near/Offset; actual OGB and 20 cm SPS surface |
-| SPSContact | 38 | 12 | 0 | Select Fixture Plug measurement; local tip Outside Z≈−.04, Near Z≈.08, Offset X≈−.06/Z≈.08 |
-| Shader | 0 | 0 | 0 | Default off; synthetic (.25,−.5,.75), CRC fault, two-fresh-frame recovery |
-| SPSShader | 25 | 0 | 0 | Real SPS plus editor capture Camera outside avatar root |
+| Scene | Isolates | Boundary |
+| --- | --- | --- |
+| Contact | Four-sample local Point | Known fixture geometry, not remote identity |
+| PB | Native Stretch / IsGrabbed | Intensity and gate, no XYZ |
+| PBContact | PB target plus Point/Handle samples | Experimental local position; grab/age gates still required |
+| SPS | Native VRCFury Socket/Plug and OGB | Enable OGB_ENABLED and actual Socket/Plug |
+| SPSContact | Native SPS plus Sensa measurements | Separate fixed-root/local/Pose fields, not one interchangeable array |
+| Shader | Synthetic code and CRC/freeze recovery | Diagnostic transport, not an actual root |
+| SPSShader | SPS model with an editor capture camera | Camera outside the Avatar is not uploaded |
 
-PB counts exclude Chocolat's original hair/clothing. Original model PhysBones are not modified by experimental collision settings.
+Read current preprocess reports for Contact/PB/parameter counts: installed dependencies and enabled capabilities affect totals. Do not infer active Contact cost from the size of an Exclusive selection menu.
 
-In Play Mode, select GestureManager and operate menus. Contact/SPS fixture position uses `Sensa/Lab/Fixture`: default=0, Near=1, Offset=2, Far outside=3. Native SPS activation is separate; SPSContact also needs a Sensa target selection.
+## Reference actions
 
-Enable **Enable SPS OSC (local)** / OGB_ENABLED. VRChat OSC and Socket activation alone do not replace it. For your own Plug use Self. Native Contact parameters may not all appear in Expression Parameters; inspect the report's contactParameters.
+Fixture position `Sensa/Lab/Fixture` uses 0=baseline, 1=Near, 2=Offset, 3=Far outside. Native SPS and Sensa target selection remain separate. Hip Avoidance is deliberately disabled in these specific same-avatar SPS fixtures, not in unrelated original models.
 
-These three SPS fixtures deliberately disable Hip Avoidance to permit known same-avatar hip-mounted interaction. The original lollipop/daily-avatar settings are unchanged.
+For the known 20 cm Plug, modern Self Root/Tip geometry predicts Outside≈.77/.96, Near≈.89/1 and Offset≈.875836/1. Corrected radial estimates are about 40% and 32.9%; saturation leaves the last centimeter unobservable. These are fixture/model references, not a measured client accuracy claim.
 
-For a 20 cm Plug, Self NewRoot/NewTip expects Outside≈.77/.96, Near≈.89/1, Offset≈.875836/1. With root-radius compensation and learned length, Near≈40%, Offset≈32.9%. Fully saturated Root leaves the final 1 cm unknown, so the conservative result is about 95%, not proof of full insertion.
+PB handles permit grabbing while disabling collisions and posing. Visible spheres are not collision or measurement radii. Actual self/other permissions and hand interaction still require client checks.
 
-PB-only Stretch is not XYZ. PBContact supplies experimental local estimates without proving a shared Sender/frame. New experimental handles allow grabbing, disable collisions and keep a nonzero grab radius; verify real self/other interaction permissions in the client.
+## Inspect in Sensa
 
-## Connect to Sensa
+Apply OSC mode with input off and outputs empty. Use actual PB Stretch/IsGrabbed paths for the native PB route. For OGB, choose the correct external family and source, enable native haptics parameters, and learn paired length outside saturation. Fixed SPS uses only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`; root observations require calibration and explicit experimental permission.
 
-Keep outputs empty and apply OSC mode. Use PB · Stretch with actual Stretch/IsGrabbed paths. Copy the modern radial template and select actual Self/Others paths for SPS. Contact/PBContact have no default positioning preset: observe them in OSC → Experimental diagnostics. Explicit permission and oldest-channel freshness still do not establish reliable positioning. Restrict the actual instance/source and check current reports and received paths.
+Independent Point/Handle/Pose do not inherit the fixed-root cache or Sample semantics. Synthetic/editor image output belongs only to `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`, without a mappable native root. Native `Sensa/Shader/<nonzero-ID>` is a separate [producer and registration flow](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
-The [world capability guide](../unity-world-lab/CAPABILITIES.en.md) covers diagnostic transport at `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` (transport preview only). This lab's SPSShader Camera is outside the avatar and is **not uploaded**; its uploadable Shader scene produces synthetic code. The separate [native root capture](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md) uses actual root transforms at `Sensa/Shader/<nonzero-ID>`; its binary ID and coordinate-mode flag remain. SDK build success does not prove client camera retention or HMD invisibility.
+Validation checks generated components, writable parameters, budgets, shaders and default-off state. SDK packaging is not upload, VR grabbing, real image capture or hardware validation. Automated E2E/PlayMode/screenshots are CI-only.
 
-## Build/check tools
-
-**Create capability matrix** creates seven scenes without overwriting edits. **Validate capability matrix** runs SDK/NDMF/VRCFury preprocessing and checks component counts, SPS shaders and PB settings; it does not mean every scene has a separately built .vrca.
-
-**Build Shader with SDK (no upload)** and **Inspect Shader SDK bundle** check the synthetic rig's cameras, default-off selection and local CRC parameter. Client visibility remains a separate manual test. Automated E2E/screenshots run only in CI.
-
-All Avatar/World uploads remain private. Tools do not upload automatically; local models/projects do not go to the public repository.
+[World capabilities](../unity-world-lab/CAPABILITIES.en.md) · [Geometry diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)

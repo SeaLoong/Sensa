@@ -37,14 +37,14 @@ namespace SensaLab
             Directory.CreateDirectory(ReportDirectory);
             EditorSceneManager.OpenScene("Assets/SensaLab/Generated/SensaLab.unity");
             if(UnityEngine.Object.FindObjectsOfType<LocalProbeStation>().Length!=1 || UnityEngine.Object.FindObjectsOfType<PointCaseStation>().Length!=11)
-                throw new InvalidOperationException("Prepare the local PB station and eleven point cases through the lab menus before validation. Validation does not rewrite the authoring scene.");
+                throw new InvalidOperationException(LabEditorLocalization.Text("Prepare the local PB station and eleven point cases through the lab menus before validation. Validation does not rewrite the authoring scene."));
             LabEncoderMaterials.Prepare();
             LabMaterialValidation.Capture(ReportDirectory);
             if(offset){var socket=GameObject.Find("SPS2 Socket - legacy enabled").transform;socket.position+=new Vector3(.03f,0,0);socket.rotation=Quaternion.Euler(0,25,0);}
             // Explicitly run the installed world baker on the in-memory test scene.
             // The saved authoring scene is not overwritten.
             var baker=AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType("VF.Features.BuildSps")).FirstOrDefault(t=>t!=null);
-            if(baker==null)throw new InvalidOperationException("VRCFury world baker is unavailable");
+            if(baker==null)throw new InvalidOperationException(LabEditorLocalization.Text("VRCFury world baker is unavailable"));
             baker.GetMethod("Process").Invoke(null,new object[]{UnityEngine.SceneManagement.SceneManager.GetActiveScene()});
             Directory.CreateDirectory("Validation");
             File.WriteAllText(ReportDirectory+"/preplay-bake.txt",string.Join("\n",UnityEngine.Object.FindObjectsOfType<Renderer>().Select(r=>r.name+": "+string.Join(",",r.sharedMaterials.Where(m=>m!=null).Select(m=>m.shader.name)))));
@@ -69,7 +69,7 @@ namespace SensaLab
             SessionState.SetInt(Key,3);Directory.CreateDirectory("Validation");
             try {
                 LabMaterialValidation.CheckRuntime();
-                var status=GameObject.Find("Status").GetComponent<Text>().text;
+                var status=LabEditorLocalization.Original(GameObject.Find("Status").GetComponent<Text>());
                 var renderers=UnityEngine.Object.FindObjectsOfType<Renderer>();
                 var resolver=renderers.SelectMany(r=>r.sharedMaterials).FirstOrDefault(m=>m!=null && m.shader.name=="Hidden/VRCFury/SpsResolver");
                 var moving=GameObject.Find("Moving Root").transform.position;
@@ -84,16 +84,16 @@ namespace SensaLab
                 if(localProbe){var station=GameObject.Find("Local bone and PB station").GetComponent<LocalProbeStation>();File.WriteAllText(ReportDirectory+"/local-point-capture.json",JsonUtility.ToJson(new LocalPointCapture{position=station.reference.InverseTransformPoint(station.target.position),samples=station.receivers.Select(r=>r.CalculateProximity(station.sender)).ToArray(),grabbed=station.bone.IsGrabbed,stretch=station.bone.Stretch},true));}
                 result+="\nLocal PB station running: "+localProbe;
                 result+="\nSPS GPU model valid: "+gpuModel;
-                var caseBoards=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).Select(s=>s.status.text).ToArray();
+                var caseBoards=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).Select(s=>LabEditorLocalization.Original(s.status)).ToArray();
                 bool casesPassed=caseBoards.Length==11 && caseBoards.All(s=>s.Contains("EXPECTED RESULT"));
                 var firstCase=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).First();
                 var program=UdonSharpEditor.UdonSharpEditorUtility.GetBackingUdonBehaviour(firstCase);
                 program.SendCustomEvent("ToggleMissing");program.SendCustomEvent("Refresh");
-                bool missingWorked=firstCase.status.text.Contains("MISSING") && firstCase.status.text.Contains("INVALID") && firstCase.sampleBars[3].rectTransform.sizeDelta.x==0;
+                bool missingWorked=LabEditorLocalization.Original(firstCase.status).Contains("MISSING") && LabEditorLocalization.Original(firstCase.status).Contains("INVALID") && firstCase.sampleBars[3].rectTransform.sizeDelta.x==0;
                 program.SendCustomEvent("ResetCase");program.SendCustomEvent("Refresh");
-                bool resetWorked=firstCase.status.text.Contains("EXPECTED RESULT") && firstCase.sampleBars[3].rectTransform.sizeDelta.x>0;
-                program.SendCustomEvent("TogglePause");bool pauseWorked=firstCase.status.text.Contains("PAUSED");program.SendCustomEvent("TogglePause");
-                bool controlsPassed=missingWorked && resetWorked && pauseWorked && firstCase.status.text.Contains("EXPECTED RESULT");
+                bool resetWorked=LabEditorLocalization.Original(firstCase.status).Contains("EXPECTED RESULT") && firstCase.sampleBars[3].rectTransform.sizeDelta.x>0;
+                program.SendCustomEvent("TogglePause");bool pauseWorked=LabEditorLocalization.Original(firstCase.status).Contains("PAUSED");program.SendCustomEvent("TogglePause");
+                bool controlsPassed=missingWorked && resetWorked && pauseWorked && LabEditorLocalization.Original(firstCase.status).Contains("EXPECTED RESULT");
                 casesPassed=casesPassed && controlsPassed;
                 File.WriteAllText(ReportDirectory+"/point-cases-playmode.json",JsonUtility.ToJson(new CaseBoards{passed=casesPassed,controlsPassed=controlsPassed,boards=caseBoards},true));
                 result+="\nPoint case boards: "+caseBoards.Length+", passed: "+casesPassed;

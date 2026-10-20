@@ -16,7 +16,7 @@ namespace UnityBox.Sensa
     public sealed class SensaShaderCapturePlugin : Plugin<SensaShaderCapturePlugin>
     {
         public override string QualifiedName => "top.sealoong.sensa.shader-capture";
-        public override string DisplayName => "Sensa native root capture";
+        public override string DisplayName => SensaEditorLocalization.Text("Sensa native root capture");
         protected override void Configure() => InPhase(BuildPhase.Generating)
             .Run("Sensa/GenerateNativeRootCapture", context => SensaShaderCaptureBuilder.ProcessAvatar(context.AvatarRootObject));
     }
@@ -29,18 +29,18 @@ namespace UnityBox.Sensa
             var authors = avatar.GetComponentsInChildren<SensaShaderCapture>(true);
             var active = authors.Where(author => author.enabled).ToArray();
             if (active.GroupBy(author => author.producerId).Any(group => group.Count() > 1))
-                throw new InvalidOperationException("Shader producer IDs must be unique. / Shader producer ID 必须唯一。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Shader producer IDs must be unique."));
             foreach (var author in active)
             {
                 if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android || GraphicsSettings.currentRenderPipeline != null)
-                    throw new InvalidOperationException("Native root capture requires PC Built-in rendering. / 根点捕获需要 PC Built-in 渲染。");
+                    throw new InvalidOperationException(SensaEditorLocalization.Text("Native root capture requires PC Built-in rendering."));
                 if (author.producerId < 1 || author.producerId > 65535 || author.spsTarget == null || !author.spsTarget.transform.IsChildOf(avatar.transform))
-                    throw new InvalidOperationException("Choose one SPS target inside this avatar and a producer ID from 1–65535. / 选择头像内的 SPS 目标和 1–65535 producer ID。");
+                    throw new InvalidOperationException(SensaEditorLocalization.Text("Choose one SPS target inside this avatar and a producer ID from 1–65535."));
                 var targets = author.spsTarget.GetComponents<Component>().Where(SensaSpsAdapter.IsTarget).ToArray();
-                if (targets.Length != 1) throw new InvalidOperationException("The selected object must contain exactly one SPS Socket or Plug. / 选中对象必须包含一个 SPS Socket 或 Plug。");
+                if (targets.Length != 1) throw new InvalidOperationException(SensaEditorLocalization.Text("The selected object must contain exactly one SPS Socket or Plug."));
                 var rect = author.desktopViewport;
                 if (!Finite(rect.x) || !Finite(rect.y) || !Finite(rect.width) || !Finite(rect.height) || rect.x < 0 || rect.y < 0 || rect.width < .05f || rect.height < .05f || rect.xMax > 1 || rect.yMax > 1)
-                    throw new InvalidOperationException("The desktop rectangle must fit within normalized 0–1 bounds. / 桌面区域必须位于归一化 0–1 边界内。");
+                    throw new InvalidOperationException(SensaEditorLocalization.Text("The desktop rectangle must fit within normalized 0–1 bounds."));
                 SensaSensorUtility.Uniform(avatar.transform);
                 var placement = SensaSpsAdapter.ReadRoot(targets[0]);
                 var marker = Child(placement.root, "SensaShaderRoot_" + author.producerId);
@@ -95,7 +95,7 @@ namespace UnityBox.Sensa
             // 几何阶段直接向该视口输出编码，无中间 RT 或第二呈现相机。
             camera.depth = 100; camera.clearFlags = CameraClearFlags.Depth; camera.rect = viewport;
             rig.SetActive(false);
-            SensaSelectionAnimator.Build(avatar, host, "ShaderCapture_" + producerId, new[] { rig }, new[] { "SPS root code / SPS 根点编码" });
+            SensaSelectionAnimator.Build(avatar, host, "ShaderCapture_" + producerId, new[] { rig }, new[] { SensaEditorLocalization.Text("SPS root code") });
             return rig;
         }
 
@@ -112,11 +112,11 @@ namespace UnityBox.Sensa
             Directory.CreateDirectory(folder);
             var path = folder + "/NativeRootTelemetry.shader";
             if (File.Exists(path) && File.ReadAllText(path) != template)
-                throw new InvalidOperationException("Generated shader differs; preserve and move it before regenerating: / 生成 Shader 已有不同内容，请先备份并移走：" + path);
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Generated shader differs; preserve and move it before regenerating:") + path);
             if (!File.Exists(path)) File.WriteAllText(path, template);
             AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
-            if (shader == null || ShaderUtil.ShaderHasError(shader)) throw new InvalidOperationException("Native root shader did not compile. / 根点 Shader 编译失败。");
+            if (shader == null || ShaderUtil.ShaderHasError(shader)) throw new InvalidOperationException(SensaEditorLocalization.Text("Native root shader did not compile."));
             return shader;
         }
 

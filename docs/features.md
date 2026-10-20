@@ -2,128 +2,80 @@
 
 **简体中文** | [English](features.en.md)
 
-本页描述当前实现与边界，源码索引用于继续查证；操作步骤见[使用指南](guide.md)，方案选择、效果与限制见[使用方案](usage-scenarios.md)。程序发送动作目标，没有机械位置反馈闭环。Contact 定位保留为默认关闭的实验估计，不能作为可靠定位承诺。
+本页按产品边界列出已实现能力与限制。操作顺序见[指南](guide.md)，方案选择见[使用方案](usage-scenarios.md)，协议数值见[参数字典](osc-parameters.md)。Sensa 发送动作目标，没有硬件反馈闭环。
 
 ## 浏览器工作台
 
-| 入口 | 当前功能 |
+| 区域 | 能力 |
 | --- | --- |
-| 顶栏 | 实时连接、实际输入模式、输入启用、急停／解除、简体中文／English、帮助 |
-| 控制 | 手动／OSC／脚本选择与应用；手动十二轴目标、一次／持续更新、运动参数；输出管理；录制与导出 |
-| OSC → 映射 | 三项内置预设、替换／追加、自定义预设、路径／角色／反向、量程／曲线／映射区间、单条模拟、保存／恢复 |
-| OSC → 参数 | 搜索、来源浏览、使用来源、分类、冻结、置顶、参数含义、添加映射 |
-| [交互参数图解](parameter-geometry.html?lang=zh-CN) | 十种检测场景；Socket／Plug 轮廓、Receiver／Sender 尺寸、Close 门控、四锚点和 Shader 编码；双语、离线、XZ 拖点及键盘调整，SPS／Shader 的 Three.js 视图可旋转缩放并回退 SVG，不连接输入或设备 |
-| OSC → 实验诊断 | 实验许可、Point／Handle 两端校准、SPS／Shader／Pose 观测、局部坐标和异常原因 |
-| OSC 设置展开区 | 监听、来源过滤、超时、OSCQuery、轮询、接收服务发现、Hub |
-| 设置 | 轴配置新增／编辑／默认／移除，十二轴详细设置，结构化日志筛选 |
+| 常驻顶栏 | 实时会话、实际模式、输入许可、急停／解除、语言与帮助 |
+| 控制 | 浏览／应用输入；手动十二轴、脚本、输出管理、准备状态与 L0 录制 |
+| OSC 映射 | 三个内置模板、自定义预设、替换／追加、草稿保存／恢复、路径／角色／曲线／量程／模拟 |
+| OSC 参数 | 来源浏览与实际使用分开；搜索、冻结、分类、置顶、FT 前缀显示、含义与添加映射 |
+| OSC 设置 | UDP 接收、来源、超时、OGB 心跳、OSCQuery、服务广播与 Hub |
+| 实验诊断 | 根点／Point／Handle／Pose、原因与局部读数、两端校准、明确实验许可 |
+| 设置 | 十二轴配置、默认与引用管理、结构化日志 |
 
-Web 使用 React 和项目自建的 TDesign 风格基本组件。导航位于顶栏，正文在下方独立滚动；浅灰页面以单层白色工作面和细分隔组织内容。输入方式使用分段选择，与应用按钮同组；输出按名称／目标／操作成行排列，窄屏依次重排。滑条只保留一个可编辑数值，范围端点使用等宽输入列；脚本载入后才展示播放器。连接、映射和诊断详情展开查看。浏览器草稿和已保存配置分离；切换语言保留草稿和运行状态，偏好存于当前浏览器。窄屏使用同一功能结构。
+React 使用自建 TDesign 风格原生组件，无 MUI／Emotion。顶栏与独立滚动正文共用边缘；输出是对应列的扁平条目。低频选项展开，脚本未载入时只呈现导入入口。草稿与已保存状态分开，语言切换不重置草稿。[语言](languages.md) · [视觉规则](ui-quality.md)
 
-## 模式、许可与停止
+[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)包含十场景的真实 3D、XZ／立体 SVG、精确滑条、指定平面拖动、参数联动与 Shader 位图。Socket／Plug 是参考截面；它不连接输入或设备，模型门控不包含运行时估长或映射。Three.js 随包离线分发，WebGL 不可用时回退 SVG。
 
-实际输入为 Manual／Osc／Script 三选一。浏览页面不切换模式；切换实际模式、替换脚本或保存完整配置会关闭输入并停止输出。连接设备不会自动打开输入许可；如果输入已经开启且有有效目标，连接后可能输出。
+## 运行时与输入
 
-急停锁存，解除后不自动恢复动作。输入关闭、门控关闭和空间失效会停止。脚本暂停／停止／卸载停止自动帧与 UDP 刷新；显式暂停定位／步进仍可在已启用 Script 输入时发送。Stop 重置播放游标，不是设备归位。程序启动不恢复输入、输出启用、脚本或运动状态。[运行时](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs)、[应用控制](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
+实际模式为 Manual／Osc／Script 三选一，浏览不改变它。模式变化、脚本替换、配置保存先关输入并停止。急停锁存，解除不恢复。连接不授予许可；已有有效许可时连接可能收到目标。启动不恢复运动／输出启用／脚本。
 
-## 输入与信号
+- **手动：**十二轴、一次／跟随编辑、清除覆盖；跟随轴配置或显式 Interval(ms)／Speed。跟随编辑不是自动振荡。
+- **脚本：**funscript 无效动作跳过，同时间保留最后一项，再排序；无有效动作拒绝。L0 插值、0.1–4×、循环、A–B、时码、关键帧和密度。暂停／停止／卸载停止自动帧；已许可的显式定位仍可发送。注入时钟保留分数毫秒；没有媒体同步。
+- **OSC：**UDP Float／Int／Bool、嵌套 bundle、Avatar 生命周期、标准参数前缀剥离；丢弃非有限值，目录和来源有容量／过期清理。timetag 可转发，不提供完整调度语义。
 
-| 能力 | 实现与条件 |
+门控／空间失效停止，不回退旧同轴数据。常规 OSC 默认无超时，正值超时对相关断流锁存急停；不同空间模型另有时效。[运行时](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) · [脚本](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
+
+## 信号解释与网络辅助
+
+路径支持精确、完整段 `*`、跨段 `**`、分号／换行别名。来源独立，Avatar 变化清缓存／估长并停止 OSC。FT 隐藏只匹配剥离标准前缀后的 `FT/`／`v2/`，已映射和置顶保留，不猜表情名。
+
+校准、反向、Linear／EaseIn／EaseOut／SCurve 与输出区间先于角色融合。同角色优先较高归一化值，平手按强度或距中位偏差选择；只修改实际出现轴。GateEnable 必须全部开放，DepthOverride 可覆盖深度。
+
+| 角色 | 目标轴 |
 | --- | --- |
-| 手动 | 十二轴目标；一次更新、调整时跟随、清除覆盖；手动停用会关闭许可并停止（其他实际模式不受影响）；按轴配置或显式 I／S 运动要求 |
-| OSC UDP | Float／Int／Bool 标量、嵌套 bundle、Avatar 变更；剥离标准参数地址前缀 |
-| 来源隔离 | 参数按来源保存；选择来源及稳定 ID 偏好；浏览来源不改变实际使用来源 |
-| OSCQuery | HOST_INFO／参数树、LISTEN 订阅、可选轮询回退；本机接收服务广播 |
-| Hub | 多 UDP 目标、事件驱动／固定频率合并、来源选择、发送／丢弃统计；保留未消费原始包的 bundle 结构 |
-| 路径匹配 | 精确匹配、完整段 `*`、跨段 `**`、分号／换行别名；启发式提示不会自动建映射 |
-| FT 过滤 | 移除标准 OSC 前缀后按 `FT/`／`v2/` 前缀隐藏；映射／置顶保留，不靠面形名称猜测 |
-| 标量处理 | 校准范围、反向、Linear／EaseIn／EaseOut／SCurve、输出区间 |
-| 融合 | 同角色优先校准后归一化更高的输入；平手按输出强度或距中位偏差择优；只修改实际出现的轴 |
-| 门控／覆盖 | 每条 GateEnable 必须有开放值；DepthOverride 可覆盖普通深度 |
-| 超时 | 常规 OSC 默认关闭；启用时 relevant 数据断流锁存急停；空间另有默认时效门槛 |
+| Depth／Surge／Sway | L0／L1／L2 |
+| Twist／AngleX／AngleY | R0／R1／R2 |
+| V0／V1／V2 | 同名振动轴 |
+| Auxiliary／Auxiliary1／Auxiliary2 | A0／A1／A2 |
 
-角色对应：Depth／Surge／Sway → L0／L1／L2，Twist／AngleX／AngleY → R0／R1／R2，V0–V2 → 三路振动，Auxiliary／Auxiliary1／Auxiliary2 → A0／A1／A2。角色名不是设备已标定方向。[映射与角色](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalMapping.cs)、[校准与融合](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalPipeline.cs)
+OgbDepth 现代配对优先，缺配对／未估长给零；现代缺失／均零才旧近接回退。OgbTouch 检查对应 Close，独立 Zone 无虚构门控。三模板不包含合成阶梯或空间输入。[OGB](ogb-compatibility.md) · [预设](presets.md)
 
-三项内置预设是 `ogb-depth`、`ogb-touch`、`native-pb-stretch`。OGB 深度优先使用同来源／实例／Self-Others 的 NewRoot／NewTip，只有无现代配对时才回退旧单近接；现代样本不完整或饱和时拒绝，不静默采用旧值。NewTip 是根部同心长度球，估计的是径向比例。OGB Touch／Frot 独立驱动 V0，并检查所需的同对象 Close；独立 VFH Touch Zone 直接读取；PB 使用实际前缀的 Stretch＋IsGrabbed。[预设](presets.md)、[OGB 兼容](ogb-compatibility.md)、[径向估计](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+OSCQuery 支持 HOST_INFO／树／LISTEN 与可选轮询；本机可广播接收服务。Hub 支持多 UDP 目标、来源筛选、事件／定频合并和统计，未消费原包保留 bundle。OGB_ENABLED 默认关闭，只向明确目标在实际 OSC 运行时每 5 秒发 true，停止尝试 false；无远端确认，不授予设备许可。
 
-现代 VRCFury 的 OGB 参数可能默认关闭。可在 OSC 设置显式配置 `osc.ogbControl` 的目标，实际 OSC 接收运行时每 5 秒向 VRChat 发送 `OGB_ENABLED=true`，停止或换目标时向旧目标发 false。它不推断来包端口，也不启用设备输入；状态和最后发送时间不是远端接收确认。[启用服务](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OgbControlService.cs)
+## 输出、轴配置和录制
 
-参数目录受容量限制，丢弃非有限值；来源过期会清理。Avatar 变更清空对应采样和学习状态，并停止 OSC 输入。bundle timetag 可保留用于转发，但标量输入不是完整时序调度器。[OSC 实现](https://github.com/SeaLoong/Sensa/tree/main/src/Input/Osc)
+TCode 支持串口 115200／8N1、端口友好名称和 D0／D1／D2 查询，以及 UDP／TCP 增量编码、必要刷新与停止。每输出有独立启用、目标和轴配置。十二轴支持 Min／Max、RemapMin／Max、MaxSpeed、Invert、Normal／Locked／Ignored、LockValue、None／Interval／Speed 与 RampType；忽略不意味着回中。
 
-## 脚本与录制
+Intiface 使用 Buttplug WebSocket、扫描和设备特征。位置按能力选择定时／原始命令，L0 方向转换为 1−L0；振动独立选 V0／V1／V2／显式 L0，默认 V0，微小值降零仍发零，纯振动设备可用。新输出默认外部 Central，显式自管配置保留，但不附引擎。改变已连接振动轴走保存事务并重建客户端。[输出源码](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs)
 
-funscript 接受时间／位置动作，跳过无效动作，相同时间按原始顺序保留最后一项后排序；没有有效动作时拒绝。播放插值到 L0，支持 0.1–4 倍速、全段循环、A–B、时码定位、关键帧步进和活动分布。时间由注入时钟驱动，保留分数毫秒，结束帧不依赖界面读取快照的时机。[播放器](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
+录制分发前 L0，停止补末值保持段，最多 100000 帧自动结束，简化后导出 funscript。活动导出先停录制，重录确认后才清空；停止录制不关输入。它不记录其他轴、许可／门控／停止事件或硬件反馈。[录制源码](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
 
-录制缓冲带时间戳的 L0，最多 100000 帧并自动结束；停止时补充最终保持段，之后可简化轨迹并导出标准 actions JSON。活动导出会停止录制，重新录制需确认清空旧缓冲。录制的是分发前命令，不包含其他轴、输入许可、门控或停止事件，也没有硬件确认。[录制与导出](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+## Unity 与空间实验
 
-## 输出与轴配置
+默认禁止空间驱动。固定 SPS 的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。旧 Point／Handle／Pose 保留 ReferenceLocal 最旧参与通道规则。它们都不是世界／网格／设备位置。[定位](positioning.md)
 
-| 输出 | 当前行为 |
+NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，独立固定根作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 是 Editor 模型快照，不是客户端生产链。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
+
+## 配置、访问与 API
+
+配置默认程序旁 `config.json`，可用 `SENSA_CONFIG_PATH`。唯一默认轴配置、目标冲突、引用修复与持久化集中管理；保存串行关闭输入／停止／重连，失败恢复配置与连接。
+
+默认 loopback HTTP。浏览器通过 `GET /api/session` 获取 HttpOnly／SameSite=Strict Cookie；LAN 需明确 `SENSA_ACCESS_TOKEN`，接受 Bearer 或 Basic 密码，校验 Origin／Host／跨站请求。HTTP 不加密，不应直接暴露互联网。消息大小、并发与发送时间有界。[访问策略](https://github.com/SeaLoong/Sensa/blob/main/src/Hosting/LocalAccessPolicy.cs)
+
+| API | 操作 |
 | --- | --- |
-| TCode 串口 | 115200、8N1；端口枚举、Windows 友好名称、D0／D1／D2 设备信息查询 |
-| TCode UDP | 目标地址／端口；增量指令、必要全量刷新、停止；无远端确认 |
-| TCode TCP | 流式连接、增量编码、停止和连接错误处理 |
-| Intiface／Buttplug | 外部 WebSocket 服务、可选本地引擎管理、扫描／停止扫描、设备特征识别与停止 |
+| 配置／状态 | GET/PUT `/api/config`；GET `/api/state/overview`、`logs`、`/api/meta/serial-ports` |
+| 输入 | PUT `/api/input/mode`、`active`、`manual`、`osc/source`；DELETE manual；POST oscquery/refresh |
+| 脚本 | POST load/play/pause/stop/action-prev/action-next；PUT configure/seek；DELETE `/api/input/script` |
+| 录制／运行时 | POST `/api/recording/start|stop|export`、`/api/control/runtime/emergency-stop|clear-emergency` |
+| 输出 | POST `/api/control/output/{outputId}/connect|disconnect|scan-start|scan-stop|device-info-refresh` |
+| 实时 | `/api/ws`：请求 {id,method,path,body}、响应 {id,ok,data} 与状态推送 |
 
-每个输出有独立名称、连接目标和启用状态。TCode 输出选择共享或独立轴配置：Min／Max、RemapMin／Max、MaxSpeed、Invert、Normal／Locked／Ignored、LockValue、None／Interval／Speed 和 RampType。输出级 slope 与速度单位参与最终编码。忽略的轴不会自动回中。[TCode 编码](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/TCode/TCodeEncoder.cs)
+脚本 HTTP 为 multipart，WS 使用 fileName/content，进入同一命令实现。旧 loop／按类型输出别名仍有，但多输出用 outputId。WebUi.Title 动态标题、Intiface DeviceRoutes、IsOgbSocket/Plug 特殊行为、PreferSpeedMode 编码选择与 ObservedMin/Max 自动建议等保留字段**不代表已接通能力**。[应用路由](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
 
-Intiface 根据能力选择定时位置或原始位置命令；振动独立读取所选 V0／V1／V2／L0，默认 V0，纯振动设备无需位置特征，降至零始终发送零值。L0 转强度须显式选择；能力不足不能当作完整十二轴设备。新输出默认连接已有 Central，显式自管配置仍保留；程序不包含引擎。每输出遥测解析发送目标，不能证明硬件动作成功。[Intiface](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs/Intiface)、[输出分发](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs)、[遥测](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputTelemetry.cs)
-
-## 空间实验的边界
-
-固定根使用 AvatarRootLocal 中非共面的 P0–P3、半径 2.5 接收球及半径 0.001 的专用根 Sender。当前每对象测量路径仅 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`；Sample 合并活动／失效状态，删除静态 Profile／Scale 及单独 Valid／Heartbeat。不解码旧 Root／SharedRoot 或版本路径。内部缩放守卫拒绝不支持的根尺度，并在世界半径限幅前停用 Contact。[参数字典](osc-parameters.md)
-
-原生根点捕获使用单个 None-eye Camera 与蒙皮点，payload／CRC 每点仅算一次。显式区域桥按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 在一个有序 bundle 中最后提交 Valid。诊断图块使用独立路径，不生成空间观测。根 Transform 不是 SPS 形变曲线或最终表面；两条根点路线均校准为 `SensaPoint` 映射，并受实验许可与输入启用限制。
-
-独立 Point／Handle／Pose 实验保留最旧通道时效，Handle 包括抓取状态，默认 1000 ms 或正值输入超时。固定根可缓存静止距离，但 Sample 必须变化，正常默认 1000 ms、解码上限 1250 ms；Shader 要求完整包及 500 ms 内变化 Frame。单点没有朝向，三标记 Pose 也只给参考局部姿态，不能独立恢复世界运动或设备回读。[定位说明](positioning.md)、[固定锚点研究](fixed-anchor-research.md)
-
-## Unity 与实验工具
-
-Unity 包提供构建期作者组件，不是在上传 Avatar 中运行任意 C#。依赖以[包清单](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/package.json)为准；NDMF 生成 Contacts、PhysBone、约束、Animator 参数和菜单，再清理作者配置。新传感器参数须同时进入实际 FX Animator 与本地参数配置，不能只登记名字。[传感器生成工具](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSensorUtility.cs)
-
-| 模块 | 提供的内容与限制 |
-| --- | --- |
-| 固定 SPS 根部 | Automatic SPS Setup 默认生成固定四锚点 Self 根，Dedicated／Exclusive 支持；独立作者可显式选根，带缩放与协议守卫 |
-| 传统 SensaComponent | Socket／Plug Contacts、环与原始侧向近接；PB／Contact／ExistingParameter／受 SDK 条件约束的 Raycast 辅助信号；不是现代 VRCFury 的相同生成器 |
-| Automatic SPS Setup | 扫描／显式选择已有 SPS，排除目标、菜单选择；Dedicated／Exclusive 阵列策略 |
-| Point／Handle／Pose／Root | 实验采样、抓取门控、参考坐标；缩放、命名、参数冲突与 Contact 预算预检 |
-| GPU Model Probe | Editor 中读取已指定 Resolver 的模型快照、中心线与入口数据；固定源版本检查；不是最终网格或通用客户端定位 |
-| 原生 Shader 根点与图像桥 | 生成上传用原生相机／蒙皮点／编码材质，默认 Off；明确区域和 producerId，经 Python 桥发 OSC，冻结／错误失效；真实客户端可见性仍需验收 |
-| Avatar Lab | 能力拆分、QuickStart／FullFlow 场景、放置／贴手、菜单、SDK preprocess 与本地 bundle 检查；依赖用户自己的授权资源 |
-| World Lab | 几何案例、PB／Contact／SPS／Shader 站、START HERE、可交互世界 Plug／Socket、ClientSim／PlayMode 验证入口 |
-
-原生 PB 拉伸不依赖 Contact 位置解算。QuickStart 作者隐藏并仅供内部合成 fixture，不能当作正式 SPS 入门或精度证明。上传后的真实 Contacts、VR 手柄交互、GPU／头显、Avatar OSC 及硬件仍需要分别验收。世界 Udon 真值不自动成为 Avatar OSC；FullFlow 合成 Shader 码只验证传输。[Unity 指南](../unity/top.sealoong.sensa/README.md)、[自动生成](../unity/top.sealoong.sensa/AUTOMATION.md)、[GPU 实验](../unity/top.sealoong.sensa/GPU-TRACKING.md)、[Avatar 工具](../tools/unity-avatar-lab/README.md)、[世界工具](../tools/unity-world-lab/README.md)
-
-## 服务、配置与 API
-
-配置默认写入程序旁 `config.json`，可由 `SENSA_CONFIG_PATH` 指定。配置归一化、唯一默认轴配置、目标占用冲突和引用修复集中管理；保存通过关闭输入、停止、应用／重连、持久化的串行事务，失败恢复配置与连接。[配置](https://github.com/SeaLoong/Sensa/blob/main/src/Configuration/AppConfig.cs)、[事务](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs)
-
-默认 loopback HTTP；浏览器经 `GET /api/session` 获取 HttpOnly／SameSite=Strict Cookie。LAN 需要显式 `SENSA_ACCESS_TOKEN`，接受 Bearer 或 Basic 密码；检查 Origin／Host／cross-site，禁止跨站控制。HTTPS 才提供加密，普通 HTTP 不适合直接互联网暴露。HTTP／WS 消息有大小限制和并发／发送超时约束。[访问策略](https://github.com/SeaLoong/Sensa/blob/main/src/Hosting/LocalAccessPolicy.cs)、[宿主](https://github.com/SeaLoong/Sensa/blob/main/src/Hosting/SensaHost.cs)
-
-| API 组 | 路径与操作 |
-| --- | --- |
-| 配置／状态 | GET／PUT `/api/config`；GET `/api/state/overview`、`/api/state/logs`、`/api/meta/serial-ports` |
-| 输入 | PUT `/api/input/mode`、`active`、`manual`；DELETE `manual`；PUT `osc/source`；POST `oscquery/refresh` |
-| 脚本 | POST `/api/input/script/load`、`play`、`pause`、`stop`、`action-prev`、`action-next`；PUT `configure`、`seek`；DELETE `/api/input/script` |
-| 录制 | POST `/api/recording/start`、`stop`、`export` |
-| 运行时 | POST `/api/control/runtime/emergency-stop`、`clear-emergency` |
-| 指定输出 | POST `/api/control/output/{outputId}/connect`、`disconnect`、`scan-start`、`scan-stop`、`device-info-refresh` |
-| 实时会话 | `/api/ws`，请求 `{id, method, path, body}`，响应 `{id, ok, data}`，另有状态推送 |
-
-HTTP 文件上传使用 multipart；WS 脚本加载使用 fileName／content。两者进入同一命令实现。旧 loop 和按类型主输出别名仍保留；多输出应使用 outputId。总览包含 runtime、input.script、OSC 来源／参数／Query／Hub、输出、空间状态、录制与 signals；兼容镜像字段不是另一套运行状态。[命令路由](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)、[请求契约](https://github.com/SeaLoong/Sensa/blob/main/src/Hosting/ApiContracts.cs)
-
-以下保留字段不代表接通的功能：WebUi.Title 动态标题、Intiface DeviceRoutes 逐设备路由、IsOgbSocket／IsOgbPlug 特殊后端行为、PreferSpeedMode 布尔编码选择、ObservedMin／Max 自动校准建议。以实际调用链为准。
-
-## 工程与源码索引
-
-| 区域 | 源码入口 |
-| --- | --- |
-| 启动与控制 | [Program](https://github.com/SeaLoong/Sensa/blob/main/src/Program.cs)、[Hosting](https://github.com/SeaLoong/Sensa/tree/main/src/Hosting)、[Application](https://github.com/SeaLoong/Sensa/tree/main/src/Application) |
-| 输入与处理 | [OSC](https://github.com/SeaLoong/Sensa/tree/main/src/Input/Osc)、[Script](https://github.com/SeaLoong/Sensa/tree/main/src/Input/Script)、[Signals](https://github.com/SeaLoong/Sensa/tree/main/src/Signals)、[Runtime](https://github.com/SeaLoong/Sensa/tree/main/src/Runtime) |
-| 输出与录制 | [Motion](https://github.com/SeaLoong/Sensa/tree/main/src/Motion)、[Outputs](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs)、[Recording](https://github.com/SeaLoong/Sensa/tree/main/src/Recording) |
-| 浏览器 | [Web](https://github.com/SeaLoong/Sensa/tree/main/src/web)、[架构职责表](architecture.md) |
-| Unity 与场景 | [Unity package](https://github.com/SeaLoong/Sensa/tree/main/unity/top.sealoong.sensa)、[Avatar Lab](https://github.com/SeaLoong/Sensa/tree/main/tools/unity-avatar-lab)、[World Lab](https://github.com/SeaLoong/Sensa/tree/main/tools/unity-world-lab) |
-| 验证与发布 | [scripts](https://github.com/SeaLoong/Sensa/tree/main/scripts)、[tests](https://github.com/SeaLoong/Sensa/tree/main/tests)、[workflows](https://github.com/SeaLoong/Sensa/tree/main/.github/workflows) |
-
-桌面构建包含 Web 资源，提供六种平台包；Unity 为独立 ZIP。安装器先核对受管源码，不覆盖用户改动和场景；实验资源不包含付费模型。验证按影响选择并缓存成功本地结果，CI 接续未完成产品链，预发布保留十个。测试程序存在不表示本机、Unity、客户端或硬件已通过；实际结果以对应提交报告为准。[开发与发布](development.md)、[E2E 与基线审阅](e2e.md)
-
-[首页](../README.md) · [定位说明](positioning.md) · [WebUI 视觉审美与质量证据](ui-quality.md)
+[架构](architecture.md) · [开发与发布](development.md) · [E2E](e2e.md)提供源码边界与验证规则。CI、元数据、EditMode、模拟线包分别只证明自己的检查；真实客户端、GPU／HMD、准确度和机械动作仍需验收。

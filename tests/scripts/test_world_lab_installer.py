@@ -15,6 +15,8 @@ class WorldInstallationContracts(LabFixture):
         self.install(project, 'world')
         self.assertEqual(scene.read_text(), 'user scene')
         self.assertEqual((project / 'Assets/SensaLab/Runtime/LabController.cs').read_bytes(), upstream.read_bytes())
+        self.assertEqual((project / 'Assets/SensaLab/Editor/SensaEditorLocalization.cs').read_bytes(),
+                         (self.repository / 'unity/top.sealoong.sensa/Editor/SensaEditorLocalization.cs').read_bytes())
         for name in ('SensaPoseProtocol.cs', 'SensaQuickStartProtocol.cs'):
             self.assertEqual((project / 'Assets/SensaLab/Shared' / name).read_bytes(),
                              (self.repository / 'unity/top.sealoong.sensa/Runtime' / name).read_bytes())

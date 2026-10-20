@@ -1,70 +1,61 @@
-# World lab implementation and validation
+# World implementation and validation
 
 [简体中文](DEVELOPMENT.md) | **English**
 
-This is a device-free PC Worlds harness. FunctionalLab separates signal systems; Generated/SensaLab contains geometry boundaries. Source lives in repository-relative `tools/unity-world-lab`, with shared GPU probe/protocol sources. Replace `<World project>` with your local world project directory, then sync from the Sensa repository root:
+[Installation and language](README.md). Managed source lives under repository-relative `tools/unity-world-lab/{Editor,Runtime}`; generated scenes/assets live in the target project's `Assets/SensaLab`. Installation protects local edits and generated scenes. The independent project stays local without a Git remote.
 
-```powershell
-python -X utf8 scripts/install-world-lab.py "<World project>"
-```
+## Presentation and runtime boundaries
 
-The installer refuses locally edited owned files and does not overwrite generated scenes. Scene generators also refuse existing scenes. The project remains local Git with no remote; Library/Temp/Logs/Builds are excluded. DisabledPackages~ retains optional packages excluded after Harmony conflicts.
+Editor locale selection changes tool UI and newly generated captions. World automatic language uses `VRCPlayerApi.GetCurrentLanguage()` and `OnLanguageChanged`, inspected in Worlds SDK 3.10.5. The installed SDK must expose those Udon APIs; older versions are not presumed compatible. The local session player-tag override takes priority; language is not synchronized.
 
-## Runtime systems
+The six dynamic HUDs translate known phrases through UGUI `Text`, preserving English status/measurement source. Udon does not expose `TextMesh.text` in the checked SDK: static TextMesh therefore retains the original name/Transform/ID/text with its Renderer disabled, while the Editor creates English/Chinese display children. Runtime only uses `SetActive` to switch them, with no per-frame static-text polling.
 
-- Native SDK CalculateProximity measures known Contact Senders; four local samples reconstruct points.
-- Udon GPU readback runs every six Update frames, validating packet CRC and displaying age/callback lag. These are not external capture latency.
-- PhysBone stations expose a grabbable sphere, native state and measured coordinates.
-- SPS2 uses installed VRCFury authoring and its normal world baking hook, with legacy compatibility retained.
-- Paired markers can stimulate a compatible avatar, but wearing an uploaded avatar is still required for avatar OSC.
-- Visible telemetry is deliberately inspectable. Camera-only fixed-viewport output is an experiment, not a proven hidden avatar bridge.
+Localization preserves original objects, parameter paths, event methods, diagnostic JSON keys and fixture state. User-defined names and unknown technical text remain verbatim.
 
-See [capabilities and exact numerical references](CAPABILITIES.en.md) and [interaction guide](https://github.com/SeaLoong/Sensa/blob/main/docs/lab-interaction.en.md).
+Runtime Udon uses supported SDK APIs; it does not reflect editor types or construct arbitrary library objects. Static/baked Avatar labels are authoring-time assets and require explicit regeneration/upgrade, not runtime translation.
+
+Native SDK CalculateProximity samples a specific known Sender. Udon GPU readback validates CRC and reports local age/callback lag, not external capture latency. PhysBone stations separate grabbing, native scalar state and local geometry. Actual Avatar OSC requires a separately uploaded/worn Avatar.
 
 ## Material isolation
 
-Functional shader and geometry stations use independent runtime encoder materials. A disabled meshless **Runtime encoder material** Renderer provides a cloned `Renderer.material`. Udon does not support `new Material(...)`; do not substitute that constructor.
+Shader and geometry stations use separate runtime encoder materials obtained through a disabled meshless Renderer and `Renderer.material`. Udon cannot use `new Material(...)`; sequence/CRC updates must not modify shared assets.
 
-Sequence/sample/CRC writes affect runtime instances, destroyed when Play Mode ends, not material assets. **Upgrade isolated encoder materials** updates existing scenes. The validation harness checks instance separation and asset/memory contents before/after, producing `material-isolation.json`.
+Explicit **Upgrade isolated encoder materials** updates existing scene bindings. Temporary validation checks instance separation and material content restoration. Generators and geometry validation must not overwrite original scenes or silently recreate missing stations.
 
-Geometry validation no longer invokes layout/scene generation or saves original scenes. Missing PB stations/cases must be prepared through menus. Only pickup display size is adjusted; whole probe frames/text are not rescaled.
+## Independent Point geometry cases
 
-## Eleven geometry cases
-
-Stations at Z=4–9 m display SDK proximity, Truth, Decoded, RMS, expected state and a position vector.
+These eleven cases use the old independent local Point frame, **not** fixed SPS P0–P3:
 
 | Case | Baseline | Expected |
 | --- | --- | --- |
 | Front | (.02,−.03,.10) | Valid |
 | Behind | Z=−.10 | Valid, no mirror |
-| Lateral | X=.13,Y=−.05 | Valid |
+| Lateral | X=.13, Y=−.05 | Valid |
 | No contact | Z=.60 | Invalid |
-| Saturated | Sender at receiver center | Invalid |
-| Wrong radius | Sender radius .04 | Invalid for fixed .001 solver |
-| Scale ×2 | Uniform reference scale | Local Z=.10 |
-| Rotated frame | (15°,35°,10°) | Local coordinates unchanged |
+| Saturation | Sender at receiver center | Invalid |
+| Wrong radius | Sender .04 instead of .001 | Invalid under the fixed solver |
+| Scale ×2 | Uniform reference scale | Same local coordinates |
+| Rotated frame | (15°,35°,10°) | Same local coordinates |
 | Missing P4 | Explicit missing A3 | Invalid |
-| Beyond volume | Z=.26 | Invalid even if all values exist |
+| Beyond fit volume | Z=.26 | Invalid despite nonzero samples |
 | Origin | Zero | Valid |
 
-Case 09's −1 is injected missing-data state, not an SDK proximity claim. Each case uses distinct tags and a specific Sender; it does not establish multiplayer identity isolation. RMS is fit consistency, not real accuracy.
+Case 09's −1 is injected missing data, not an SDK proximity claim. Each case uses distinct tags and a specific Sender; low residual and fixed fixture identity are not live multiplayer proof.
 
-Grabbing the white ball leaves the baseline and shows EXPLORING. RESET drops/restores it; PAUSE freezes readings and marks PAUSED; MISSING P4 toggles the injected gap. P1–P4 bars and center markers share colors. Their visible sphere size is not receiver or Sender radius. Local-only objects are not Object Sync.
+Grab to explore, reset to restore the baseline, pause to freeze readings and Missing P4 to inject/recover a gap. Helpers show centers rather than physical Contact radii. Controls and positions are local without Object Sync.
 
-## Validation artifacts
+## Checks and reports
 
-Historical editor checks write editor-results.json, telemetry.png, camera-output.png, world-preview.png and point-cases.json. PlayMode checks bake a temporary scene, run ClientSim/Udon/SPS sampling and save reports under Validation/ and Validation/offset/. The harness restores the VRCFury preference after avoiding a duplicate PlayMode rebuild. BakedPlayValidation.unity references temporary assets and must be rebuilt rather than treated as a permanent scene.
+**Tools → Sensa Lab → Validate localization (Editor only)** compiles Udon and checks pure Editor presentation, without generating user lab scenes, entering PlayMode or operating devices. Read its actual result for the checked revision; it is not client, font/glyph or HMD acceptance.
 
-The desktop fixture `tests/Sensa.Tests/Fixtures/unity-point-cases.json` records actual SDK samples. Valid cases must reconstruct within 0.1 mm of those offline coordinates; this is data-consistency tolerance, not live accuracy.
+Package unit/EditMode tests can run locally. Automated world PlayMode, full-process smoke, browser checks and all screenshots run only in Actions; do not run historical capture menus as a local automated substitute. Manual private-client exploration is separate.
 
-Reports include controlsPassed for missing-sample→invalid, reset→valid and pause/resume behavior. Scripted Udon events do not simulate real hand grabbing. Layout/locomotion reports inspect usable heights, floor space, actual simulated controller travel and jumping, not real keyboard/HMD behavior.
+Historical `Validation/` reports include point cases, material isolation, local control events and simulated locomotion. Their temporary baked scenes reference transient VRCFury assets and must be rebuilt when required. Scripted events do not reproduce real hand grabbing; simulated controller travel does not certify actual keyboard/HMD use.
 
-**Current policy:** automated E2E, full-process smoke and screenshot generation run only in CI. Do not execute these historical PlayMode screenshot menus as local automated checks. Local compile/EditMode unit checks and manual private-world exploration are separate. The public CI does not provision the full proprietary Unity projects.
+`tests/Sensa.Tests/Fixtures/unity-point-cases.json` preserves recorded SDK samples for offline solver consistency. A small comparison tolerance on that fixture is not a live accuracy bound. Use actual receipts and logs for the checked revision, not historical test totals or PNG names.
 
-## UI diagnostics
+Desktop calibration observes values and builds a draft; it does not arm input. Fixed-root and shader observations use their own coordinate units and freshness gates. Invalid observations preserve captured endpoints but cannot produce valid motion targets.
 
-Sensa has XZ/YZ projections and separate calibration. The ±25 cm grid is a visual reference, not a guaranteed valid volume. Capture 0% and 100%; a 10→5 cm range auto-inverts and 7.5 cm previews 50%. Out-of-range preview clamps to 0–100%. Invalid samples hide position/progress and disable capture while preserving recorded endpoints. Missing objects require reselection; changing target/axis clears endpoints.
+Still requiring real-client tests: language/font coverage, grabbing/releasing, fast target changes, multiple same-tag Senders, scale, OSC loss/reordering, camera/shader retention, HMD visibility and physical calibration. No harness automatically connects devices or uploads.
 
-Current WebUI screenshots are produced by the [CI E2E suite](https://github.com/SeaLoong/Sensa/blob/main/docs/e2e.en.md), including English/Chinese desktop and narrow layouts.
-
-Still requiring real-client validation: grabbing/releasing, rapid target switching, multiple same-tag players, avatar scale, OSC packet loss, shader culling, camera retention, HMD visibility, external capture lag and actual hardware calibration. No lab automatically enables hardware.
+[Capabilities](CAPABILITIES.en.md) · [Main verification policy](https://github.com/SeaLoong/Sensa/blob/main/docs/development.en.md)

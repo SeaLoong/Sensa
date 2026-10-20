@@ -1,44 +1,52 @@
 # Sensa
 
-**简体中文** | [English](README.en.md)
+[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) · [Downloads](https://github.com/SeaLoong/Sensa/releases)
 
-[![main CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml?query=branch%3Amain)
+[![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 
-把手动、VRChat OSC 或 funscript 转换为 Intiface／TCode 设备目标。浏览器工作台分为**控制、OSC、设置**，详细配置按需展开。
+**Turn virtual interactions and funscript timelines into device targets.** Sensa is a local desktop service with a browser workbench, TCode serial/UDP/TCP outputs and Intiface/Buttplug support.
 
-[下载预览版](https://github.com/SeaLoong/Sensa/releases) · [快速开始](docs/quick-start.md) · [使用指南](docs/guide.md) · [三项映射预设](docs/presets.md) · [交互参数图示](docs/parameter-geometry.html?lang=zh-CN)
+## Start with a small, explicit control loop
 
-## 启动
+1. Download the archive for Windows, Linux or macOS, x64 or ARM64, and extract it.
+2. Run Sensa and open **http://127.0.0.1:5086**. New sessions start with input and outputs disabled.
+3. Add an output, check its destination, **enable that output** and connect. For Intiface, start Central separately.
+4. Apply **Manual**, enable input and send a small target to check direction/range. Disable input before preparing OSC or a funscript; apply that mode and enable input again when ready.
 
-1. 下载对应系统／CPU 的桌面包，完整解压到可写目录。
-2. Windows 运行 `Sensa.exe`；Linux／macOS 运行 `./Sensa`。无需另装 .NET。
-3. 打开 **http://127.0.0.1:5086**，先保持输入关闭。
-4. 配置输出和轴限制，选择并应用输入模式，核对预览后启用输入。
+Keep emergency stop within reach. Clearing it does not resume input. Configuration saves, mode changes and script replacement require input to be enabled again. Displayed positions are **commands, not hardware feedback**.
 
-| 系统 | 包名中的平台 |
-| --- | --- |
-| Windows Intel／AMD、ARM | `win-x64.zip`、`win-arm64.zip` |
-| Linux Intel／AMD、ARM64 | `linux-x64.tar.gz`、`linux-arm64.tar.gz` |
-| macOS Intel、Apple 芯片 | `osx-x64.tar.gz`、`osx-arm64.tar.gz` |
+[First run](docs/quick-start.en.md) · [Workbench guide](docs/guide.en.md) · [All features](docs/features.en.md)
 
-macOS 预览是未签名公证的命令行程序。以 `top.sealoong.sensa-` 开头的 ZIP 是另行安装的 Unity 资产。
+## Choose the data you actually have
 
-## 当前能力
+| Route | What it provides | Main limitation |
+| --- | --- | --- |
+| **Existing OGB / SPS** | Modern Root/Tip radial estimates, legacy proximity and touch intensity | External interoperability; not XYZ or universally accurate insertion depth |
+| **Sensa SPS** | Four fixed anchors P0–P3 and a dedicated marker reconstruct a selected root in Avatar-root coordinates | Own Avatar only; experimental coverage, scale and sampling constraints |
+| **Shader capture** | A native root encoder, explicit desktop region and checked image bridge supply root coordinates | PC experiment; real VRChat/HMD capture remains unverified |
 
-- 手动十二轴、funscript 播放／循环／定位、L0 录制导出。
-- OSC 参数发现、前缀隐藏 FT、三项精简预设、自定义映射、OSCQuery 与 Hub。
-- 多输出、独立轴配置、目标预览、显式输入许可和急停。
-- 简体中文／English 与窄屏布局。
-- OGB／SPS 自动信号识别、固定四锚点根坐标、原生 Shader 根点捕获与 PB 标量。
+Sensa SPS uses five measurement fields, `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. Four known, non-coplanar distances can locate one point; arbitrary four proximity values cannot establish target identity or a shared frame. Shader capture uses `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}`; it samples a root Transform, not the final deformed mesh. Both require explicit experimental permission and calibrated mapping.
 
-目标预览不是设备位置回读。已有 OGB／SPS 参数优先使用自动深度或振动预设；必要时显式启用向 VRChat 发送 `OGB_ENABLED` 的心跳，其状态不代表 UDP 接收确认。[兼容与实际路径](docs/ogb-compatibility.md)
+[Route selection](docs/usage-scenarios.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Positioning and limits](docs/positioning.en.md) · [OGB compatibility](docs/ogb-compatibility.en.md)
 
-需要根点时，Unity 作者可为选定 Socket／Plug 生成 Avatar 根局部固定四锚点，或生成原生 Shader 捕获器，通过明确屏幕区域的 Python 桥发布根坐标。两者都在实验诊断中两点校准后生成映射，仍需显式实验许可；它们不测世界位置、完整姿态或 SPS 曲线表面。Sensa SPS 只接受无版本的 P0–P3／Sample；Shader 使用有序五字段并隔离诊断数据。[参数与半径字典](docs/osc-parameters.md)。[定位方案](docs/positioning.md) · [Shader 捕获](unity/top.sealoong.sensa/GPU-TRACKING.md)
+## Explore before connecting
 
-## 文档
+The [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) needs no running Sensa or device. Ten simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.
 
-[完整功能与源码索引](docs/features.md) · [架构](docs/architecture.md) · [开发与 CI](docs/development.md) · [截图审阅](docs/e2e.md) · [双语支持](docs/languages.md)
+The release also includes `docs/parameter-geometry.html` and its local assets for offline use. Browser language is detected automatically; an explicit choice is saved. Use [?lang=en-US](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) to choose a language directly.
 
-[Unity 安装](unity/top.sealoong.sensa/README.md) · [实验流程](docs/lab-workflow.md) · [Avatar 工具](tools/unity-avatar-lab/README.md) · [世界工具](tools/unity-world-lab/README.md)
+## Unity and releases
 
-产品预览要求同一候选通过必要检查、全量 E2E 比较和平台验证；main 会接续未完成验证。只保留最近十个已发布预发布，稳定版、草稿及 Git tags 保留。预览功能仍可能调整；客户端、Unity 和硬件验收以实际报告为准。
+The [Unity authoring package](unity/top.sealoong.sensa/README.md) generates permitted native Avatar components during builds. It does not run arbitrary Avatar C# after upload. Avatar and World labs are optional development tools requiring your own licensed resources.
+
+Desktop previews and a Unity ZIP are available in [Releases](https://github.com/SeaLoong/Sensa/releases). **VPM lists stable Unity packages only**, preserving verified historical versions and archives. GitHub having no current stable release does not erase that history. The site reports unavailable only when no verified package exists; previews/current development are not stable VPM releases.
+
+The [documentation site](https://sealoong.github.io/Sensa/) publishes independently from main; it does not wait for a stable Unity release. [Language behavior](docs/languages.en.md)
+
+## Development and evidence
+
+See [architecture](docs/architecture.en.md), [verification workflow](docs/development.en.md) and [visual review](docs/ui-visual-review.en.md). Plan local checks with `python -X utf8 scripts/verify.py --plan`, then run `scripts/verify.py`. Browser E2E, screenshots, process smoke and World PlayMode run in Actions; device tests use mock transports.
+
+Automated geometry, authoring and mock-wire checks do not establish real VRChat Contacts, client capture, HMD visibility, positioning accuracy or physical device behavior.
+
+[MIT license](LICENSE) · [Terminology](GLOSSARY.md)

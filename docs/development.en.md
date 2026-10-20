@@ -1,12 +1,10 @@
-# Development and verification
+# Development, verification and releases
 
 [简体中文](development.md) | **English**
 
-Use Node.js 24, Python 3.12+ and the SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). See [architecture contracts](architecture.en.md) and the [feature reference](features.en.md).
+Use Node.js 24, Python 3.12+ and the .NET SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). Understand [architectural seams](architecture.en.md), then verify actual impact rather than repeatedly running everything.
 
-## Verify by impact
-
-Prepare dependencies once, then use the shared local entry point:
+## Local checks and receipts
 
 ```shell
 npm ci
@@ -14,87 +12,70 @@ python -X utf8 scripts/verify.py --plan
 python -X utf8 scripts/verify.py
 ```
 
-The default compares HEAD with staged, unstaged and untracked working files. Use `--base <ref>` for committed changes, `--all` to select every local lane, and `--force` only when a rerun is justified. `--dotnet <absolute-path>` overrides SDK selection; otherwise the project-isolated `artifacts/toolchain/dotnet/` precedes PATH.
+The default compares HEAD with staged/unstaged/untracked changes. Use `--base <ref>` for committed changes, `--all` for all local checks and `--force` only for a justified rerun. SDK discovery prefers `artifacts/toolchain/dotnet/`, then PATH; override with `--dotnet <path>`.
 
-After changing `docs/assets/parameter-geometry-3d-source.js` or the Three.js dependency, run `npm run build:web` and commit the generated `parameter-geometry-3d.js` and complete MIT notice. They ship with the offline guide. A Web unit check rebuilds from pinned dependencies and rejects stale assets. Ordinary prose edits need no extra build.
+Successful receipts in `artifacts/verification/` fingerprint relevant contents, command and toolchain. Identical inputs reuse them; failures, relevant edits or source changes during verification do not create reusable success. Python's full suite includes docs checks without duplication. Backend units use SkipWebBuild=true to isolate Web building.
 
-Successful receipts live in `artifacts/verification/`, keyed by relevant sources, commands and toolchain. Unchanged inputs reuse success. Relevant changes, source mutation during verification and failed checks do not produce reusable success. Do not repeat a check merely to update progress.
+After changing Three.js source/dependencies, run `npm run build:web` and commit reproducible `docs/assets/parameter-geometry-3d.js` plus its complete `3d.LICENSE.txt`. The runtime is a classic offline/file-compatible IIFE; ESM source is not another runtime asset. Ordinary Markdown needs no bundle rebuild. `npm run build:pages` creates `artifacts/pages/` without starting Sensa.
 
-The CI scope below assumes **no outstanding product verification**. Ordinary main pushes also automatically continue unfinished product verification, as described in the next section.
+## Where verification runs
 
-| Change | Necessary local checks | GitHub Actions |
+| Change | Local | Actions |
 | --- | --- | --- |
-| Static documentation | Bilingual/link/path-privacy/resource contracts | Documentation checks; no E2E or release |
-| Interactive parameter guide (HTML/CSS/JS) | Web contracts/build and documentation checks | Full E2E/screenshot comparison; guide-only changes do not publish |
-| Web unit tests | Web lint, interface contracts, build | Web checks; no release |
-| Backend unit tests | Backend contracts | Backend checks; no release |
-| E2E/baselines | Relevant static/unit checks | Necessary full screenshot comparison; no product release |
-| Product/packaging/protocol | Affected interfaces | Candidate comparison and necessary six-platform builds/smoke |
-| Unknown paths/unavailable diff | Conservative full local checks | Conservative full verification |
+| Markdown/site | Docs/link/site-build contracts | Docs checks; separate Pages verification/deployment |
+| Interactive HTML/CSS/JS | Web lint/model/build/docs contracts | Full browser comparison, offline and actual rendering checks |
+| Web/backend tests | Affected lint/units/build | Corresponding checks; no publication without outstanding product work |
+| E2E/baselines | Static/units | Required full comparison; never automatic baseline updates |
+| Product/protocol/package | Affected interfaces | Same-SHA comparison and necessary platform builds/mock smoke |
+| Unknown diff | Conservative local all | Conservative product verification |
 
-[ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) provides the same path-classification interface to local checks and CI; its implementation/contracts define the exact scope. Local `verify.py` uses only working-tree differences and content receipts, without reading GitHub state. CI additionally checks the actual run responsible for product verification to decide whether work must continue. Python's complete suite includes documentation, so it is not repeated. Web lint covers the app and diagram scripts and rejects undefined identifiers, with browser globals explicitly read-only; missing imports fail before build. Backend contracts use `SkipWebBuild=true`, without Node or a generated bundle; normal publication still builds and packages Web assets.
+Docs/test-only skips apply **only with no unfinished product verification**. [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) and contracts own classification. Local planning does not read GitHub status; CI separately checks the product owner's actual results.
 
-The local runner only reports required E2E, native smoke and publication work. Browser E2E, full-process smoke, automatic screenshots and World PlayMode suites have CI-only guards. Do not spoof the Actions environment to bypass them.
+Browsers, screenshots, full-process smoke and World PlayMode run **only in Actions**. Local planning reports them without executing. Never forge CI environment to bypass guards. Isolated units/static/Unity EditMode may run locally; device tests use temporary config and mock transports. [E2E](e2e.en.md)
 
-## CI and prereleases
+## Four workflows
 
-CI keeps three workflows. Ordinary checks and native builds are inline jobs in `ci.yml`, without separate reusable entry points.
-
-| Workflow | Trigger and scope | Work and boundaries |
-| --- | --- | --- |
-| `ci.yml` | PR/main pushes; manual full verification; reusable tag verification | Owns planning, affected interface checks, E2E, required native builds and automatic main previews. PR/manual runs do not publish. Reusable `release_target=app/unity` accepts only the matching `v*/unity-v*` tag push and does not publish tagged releases itself. |
-| `e2e.yml` | Called by CI; manual browser comparison or proposed baselines | Owns full browser scenarios against the real application, screenshot comparison and reports. Only manual `update_snapshots=true` generates baselines for human review; it returns no successful comparison SHA. No publication or six-platform matrix. |
-| `release.yml` | Explicit `v*`/`unity-v*` tag pushes | Reuses CI for the same commit and publishes the corresponding desktop/Unity packages. Desktop tags require six-platform builds; Unity tags build only the Unity package, without six desktop builds. Only a successfully published stable Unity package updates VPM Pages. No PR, main or manual entry point. |
-
-PR/main pushes compute impact first. With no outstanding product verification, they execute only checks affected by the current diff. Main automatically continues unfinished product verification without special commit messages or manual overrides. Dependencies and publication gates are:
-
-| Job/stage | Dependencies and required work |
+| Workflow | Responsibility/publication boundary |
 | --- | --- |
-| `plan` | Selects paths and main owner continuation; manual runs select full verification, while tag calls select the matching release target. |
-| `validate` | Waits for plan, then centrally runs affected Web, backend, Python, documentation, dependency-audit and Unity metadata checks; ordinary product candidates also package Unity assets. |
-| `e2e` | Waits for plan and runs alongside validate; performs full screenshot comparison for the current commit when required. |
-| `platforms` | Waits for plan and validate, then builds, isolates smoke peers and archives the six Windows/Linux/macOS x64/ARM64 targets when selected. It does not wait for E2E or repeat ordinary interface tests. |
-| Main `prerelease` | Requires a main push selected for publication, successful validate/E2E/platforms, and an E2E comparison SHA equal to the candidate SHA. |
-| Tag `release`/`pages` | Release requires successful reusable CI, an E2E comparison SHA equal to the tag SHA and successful target packaging. Pages additionally requires successful stable Unity publication. |
+| `ci.yml` | PR/main/manual all/tag reuse; planning, interfaces, needed E2E/six platforms; eligible main previews only |
+| `e2e.yml` | Reused/manual normal comparison; manual update_snapshots=true creates review candidates, not release comparison evidence |
+| `release.yml` | Explicit v*/unity-v* tags; corresponding product release after same-SHA verification |
+| `pages.yml` | Main docs/site changes and manual docs builds, plus stable Unity refresh; independently verified static deployment, no product release |
 
-Interface checks and browser comparison run in parallel; native builds can start once interface checks pass. Publication joins every required result. Proposed-baseline generation provides no comparison proof. Screenshot comparison/review happens in CI; see [E2E](e2e.en.md). Native runners exercise the self-contained application through isolated HTTP/WebSocket/OSC peers. Windows uses ZIP; Linux/macOS tar.gz preserves executable permissions.
+[ADR 0004](adr/0004-standalone-bilingual-documentation.md) replaces the old requirement to wait for stable Unity publication before updating docs. Pages renders both languages, retains the six-asset explorer, runs site-only navigation/language browser checks, then deploys **that same artifact**. Stable refreshes use current main docs so an old tag cannot overwrite newer guidance.
 
-Main product verification has a responsible run (owner). Workflow consolidation preserves recognition of the existing validate/platforms/browser evidence names. When a later documentation-only push finds the owner still running, it inherits the outstanding record without canceling or duplicating necessary product CI. The successor documentation run's own success cannot clear that record: every required owner job must actually succeed. The record artifact expresses verification intent, not successful execution. Missing artifacts, unknown states and skipped required jobs are conservatively treated as unfinished.
+VPM contains stable Unity packages only and preserves verified historical indexes/same-origin archives. Current GitHub stable-release count does not determine historical VPM availability. Network/hash failures must fail instead of masquerading as an empty index. Only genuinely absent verified packages allow an unavailable state. Previews/current development do not become stable VPM packages.
 
-After product verification fails, an ordinary main push fixing tests or Playwright automatically completes the necessary product chain for the **current commit**: affected checks, full E2E, native builds/isolated smoke and prerelease publication once its gates pass. A test-only fix must not lose the outstanding product verification. No commit-message convention or manual product marker is required. Documentation/test-only changes do not publish when no product verification remains outstanding; ordinary manual verification does not publish either.
+## Product ownership and gates
 
-PRs cancel stale runs for the same ref, while necessary main product verification is preserved. Main previews and desktop/Unity tag publication and pruning share the `sensa-preview-publication` queue. `queue: max` preserves pending jobs. A published identical commit or newer automatic candidate suppresses obsolete packaging/publication. Existing necessary CI retains responsibility instead of being duplicated. [GitHub concurrency rules](https://docs.github.com/en/actions/how-tos/write-workflows/choose-when-workflows-run/control-workflow-concurrency). See [ci-plan.py](https://github.com/SeaLoong/Sensa/blob/main/scripts/ci-plan.py) for continuation rules and actual-result decisions.
+Plan determines impact/main recovery. Validate and required E2E can run in parallel. Six platforms wait for plan/validate, not E2E, but publication joins all required successes and a **normal full comparison of the candidate SHA**. Candidate generation is not comparison evidence; manual full CI does not publish.
 
-Dispatch `ci.yml` for justified full verification, including manual Unity verification. Use `e2e.yml` for browser-only checks or proposed baselines for human review. Do not dispatch a duplicate while necessary CI for that commit is already running:
+A later docs push inherits a running owner's unfinished intent without cancelling/duplicating the product chain. Its success or an intent artifact cannot clear that work: inspect actual required owner-job success. Missing/unknown/required-skipped results remain incomplete.
+
+Test/config fixes after product failure recover the required chain at the current commit even when only tests changed. Without outstanding work, ordinary docs/tests do not publish. PR cancels superseded refs; main product work remains. Publication/pruning share `sensa-preview-publication`; candidates older than an already published one skip. Do not duplicate a still-running same-commit workflow.
+
+Only when needed:
 
 ```shell
 gh workflow run ci.yml --ref main
 gh workflow run e2e.yml --ref main -f update_snapshots=false
 ```
 
-Previews begin as drafts. Six desktop archives, a Unity ZIP and combined checksums are uploaded and remotely verified by name/state/size/SHA-256/target commit before publication. Individual uploads get at most three attempts; failure leaves an unpublished draft.
+## Artifacts and retention
 
-After publication, enumerate all release pages and retain the **10 newest published prereleases**, including manually tagged prereleases. Immediately recheck numeric ID, tag, target, publication time and state before deletion. Stable releases, drafts and Git tags remain. `publish-preview.py --prune-only` performs real deletion and is used only for authorized retention work.
+Desktop builds cover Windows/Linux/macOS × x64/ARM64. Windows uses ZIP; Linux/macOS tar.gz retain executable bits. Audit Unity ZIP/checksums too. Previews start as drafts and verify remote names, states, sizes, SHA-256 and commit before publication. Upload retries are bounded; failure retains an unpublished draft.
 
-Stable publication still requires explicitly requested `v*`/`unity-v*` tags. This work changes no base or internal protocol versions. Previews stay out of the stable VPM index. React/React DOM updates remain grouped; dependency updates are not automatically merged.
+After publication, paginate releases and retain the newest **ten published prereleases** by publication time. Recheck numeric ID, tag, target, time and state before each deletion. Preserve stable releases, drafts and Git tags. `publish-preview.py --prune-only` really deletes and belongs only to an authorized retention task. Stable tags need explicit authorization; previews do not justify version bumps/internal compatibility branches.
 
-## WebUI visual quality
+## Unity and lab projects
 
-Use the [visual assessment framework](ui-quality.en.md) to guide typography, spacing, color and hierarchy, recording reasons against reviewed CI images. Automated accessibility/keyboard checks provide a floor and run alongside functional regressions in `e2e.yml`; their evidence is retained with `e2e-report`. No additional workflow or user telemetry is introduced. Keep visual inspection, questionnaire research and automated findings distinct.
-
-## Local development and Unity
-
-Manually run the development UI with `dotnet run --project src/Sensa.csproj`; select an isolated configuration or confirm your own outputs before device control. Use `dotnet publish` for build-only work. `build-platform.py` includes full-process smoke and is a CI-only entry point.
-
-Unity compilation/EditMode units may run manually in independent projects. Public CI metadata checks do not replace NDMF, Udon, ClientSim or client validation. Keep the separate world repository local.
-
-Installers preflight every owned source and manifest before writing, preserving user scenes, generated assets and local edits. Do not resolve conflicts by blindly overwriting:
+Compile/EditMode in an isolated Unity project. Metadata checks do not establish NDMF, Udon, ClientSim or uploaded-client behavior. The World repo stays local without a remote. Installers preflight managed files/manifests; conflicts must not overwrite user assets:
 
 ```shell
 python scripts/install-world-lab.py "<World project>"
 python scripts/install-avatar-lab.py "<Avatar project>" --tests
 ```
 
-`validate-labs.py` offers six suites. `world-editor`, `world-functional`, `world-geometry` and `world-offset` involve graphics/PlayMode/screenshots and require an Actions runner with Unity/licensed resources. `avatar-tests` is EditMode; `avatar-build` inspects a local SDK bundle without uploading. Unchanged authoring-scene hashes, fresh reports, zero exit codes and explicit success are required; XML must contain executed passing tests without skips. Each suite defaults to 900 seconds and output directories cannot be reused.
+world-editor/functional/geometry/offset in `validate-labs.py` involve graphics, PlayMode or screenshots and require an authorized Actions runner. avatar-tests is EditMode; avatar-build checks an SDK bundle without uploading. Each suite needs a fresh output directory, original-scene hashes, exit code and explicit success; empty XML, failures or skips do not count.
 
-Device tests use temporary configurations and mock transports only. Real VRChat OSC, VR grabbing, HMD visibility, live GPU capture and hardware require separate validation. Never report unexecuted checks as passed. Diagnose failures using their actual reports/last observed state rather than resending input or rerunning an entire scenario to hide failure. Use the Actions reports for the corresponding commit as evidence.
+Review images using [V1–V6](ui-quality.en.md); axe/keyboard checks are separate baselines. Real OSC, VR grabs, HMD/GPU capture, accuracy and mechanisms need acceptance. Link actual commit reports instead of hard-coding changing totals in generic guidance.

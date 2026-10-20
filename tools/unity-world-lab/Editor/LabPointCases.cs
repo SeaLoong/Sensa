@@ -21,14 +21,14 @@ namespace SensaLab
         [MenuItem("Tools/Sensa Lab/Add point geometry cases")]
         public static void AddCases()
         {
-            var scene=EditorSceneManager.OpenScene(Root+"/SensaLab.unity");
+            var scene=LabEditorLocalization.OpenScene(Root+"/SensaLab.unity");
             foreach(var script in new[]{"PointCaseStation","PointCaseButton"}){
                 string programPath="Assets/SensaLab/Runtime/"+script+".asset";
                 if(AssetDatabase.LoadAssetAtPath<UdonSharpProgramAsset>(programPath)==null){var program=ScriptableObject.CreateInstance<UdonSharpProgramAsset>();program.sourceCsScript=AssetDatabase.LoadAssetAtPath<MonoScript>("Assets/SensaLab/Runtime/"+script+".cs");program.ScriptVersion=UdonSharpProgramVersion.CurrentVersion;AssetDatabase.CreateAsset(program,programPath);}
             }
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
-            if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();return;}
+            if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();return;}
             var parent=new GameObject("Sensa point geometry cases");
             string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*.6f,Vector3.one*-.06f,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*.26f,Vector3.zero};
@@ -53,7 +53,7 @@ namespace SensaLab
                 var button=GameObject.CreatePrimitive(PrimitiveType.Cube);button.name="Pause case";button.transform.SetParent(node.transform,false);button.transform.localPosition=Vector3.down*.25f;button.transform.localScale=Vector3.one*.15f;
                 var station=UdonSharpUndo.AddComponent<PointCaseStation>(button);station.caseName=names[i];station.expectation=hints[i];station.reference=frame;station.sender=sender;station.receivers=receivers;station.status=text;station.missingLane=i==8?3:-1;station.expectedValid=valid[i];UdonSharpEditorUtility.CopyProxyToUdon(station);
             }
-            EnsurePresentation(parent);LabPlayability.Apply();EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+            EnsurePresentation(parent);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();
         }
         private static void EnsurePresentation(GameObject parent)
         {
@@ -111,7 +111,7 @@ namespace SensaLab
         public static void Run()
         {
             AddCases();var stations=UnityEngine.Object.FindObjectsOfType<PointCaseStation>().OrderBy(s=>s.caseName).ToArray();
-            if(stations.Length!=11)throw new InvalidOperationException("Expected eleven point case stations.");
+            if(stations.Length!=11)throw new InvalidOperationException(LabEditorLocalization.Text("Expected eleven point case stations."));
             var go=new GameObject("Editor case contact manager");var manager=go.AddComponent<VRC.Dynamics.ContactManager>();manager.Awake();
             try{
                 foreach(var station in stations){station.sender.InitShape();manager.AddContact(station.sender);foreach(var receiver in station.receivers){receiver.InitShape();manager.AddContact(receiver);}}

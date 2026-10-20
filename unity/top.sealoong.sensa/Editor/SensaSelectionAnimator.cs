@@ -19,7 +19,7 @@ namespace UnityBox.Sensa
         {
             rigSlots = rigSlots ?? Enumerable.Range(1, rigs.Length).ToArray();
             if (rigSlots.Length != rigs.Length || rigSlots.Any(slot => slot < 1 || slot > names.Length))
-                throw new ArgumentException("Selection bindings must match generated rigs and slots. / 选择绑定必须对应生成对象与槽位。");
+                throw new ArgumentException(SensaEditorLocalization.Text("Selection bindings must match generated rigs and slots."));
             string selector = "Sensa/Select/" + group, current = "Sensa/Internal/" + group + "/Selected";
             var controller = new AnimatorController { name = "Sensa selection " + group };
             controller.AddParameter(selector, AnimatorControllerParameterType.Int); controller.AddParameter(current, AnimatorControllerParameterType.Int);
@@ -72,9 +72,9 @@ namespace UnityBox.Sensa
                 if (page.controls.Count == 7 && i < names.Length)
                 {
                     var next = ScriptableObject.CreateInstance<VRCExpressionsMenu>(); next.name = "Sensa more";
-                    page.controls.Add(new VRCExpressionsMenu.Control { name = "More", type = VRCExpressionsMenu.Control.ControlType.SubMenu, subMenu = next }); page = next;
+                    page.controls.Add(new VRCExpressionsMenu.Control { name = SensaEditorLocalization.Text("More"), type = VRCExpressionsMenu.Control.ControlType.SubMenu, subMenu = next }); page = next;
                 }
-                page.controls.Add(new VRCExpressionsMenu.Control { name = i == 0 ? "Off" : names[i - 1], type = VRCExpressionsMenu.Control.ControlType.Toggle,
+                page.controls.Add(new VRCExpressionsMenu.Control { name = i == 0 ? SensaEditorLocalization.Text("Off") : names[i - 1], type = VRCExpressionsMenu.Control.ControlType.Toggle,
                     parameter = new VRCExpressionsMenu.Control.Parameter { name = selector }, value = i });
             }
             var menu = ScriptableObject.CreateInstance<VRCExpressionsMenu>(); menu.name = "Sensa installer";

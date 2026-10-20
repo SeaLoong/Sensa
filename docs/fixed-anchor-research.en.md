@@ -1,8 +1,10 @@
-# Four fixed SPS points: derivation, tradeoffs and evidence
+# Fixed SPS anchors: evidence and tradeoffs
 
 [简体中文](fixed-anchor-research.md) | **English**
 
-Sensa SPS uses a fixed Avatar-root frame, four known anchors and one explicitly selected dedicated root marker. Its per-object public measurement contract is `Sensa/SPS/<id>/P0…P3` plus `Sample`, without version segments, redundant metadata, remote groups or old-data compatibility. Independent Point/Handle/Pose experiments are separate models.
+This research asks why four distances locate a root, why R=2.5/h=.5 remain, and what the producer actually proves about sampling. The implementation uses a fixed Avatar-root frame, a selected dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. It does not infer a point from arbitrary proximity values.
+
+Use [routes](usage-scenarios.en.md) for setup, [positioning](positioning.en.md) for reception gates and the [dictionary](osc-parameters.en.md) for fields. This page retains pinned sources, derivations and unmeasured assumptions rather than presenting model analysis as client accuracy.
 
 ## Primary evidence
 
@@ -62,10 +64,10 @@ Builds reject nonpositive/nonuniform root scale, root ScaleConstraint and known 
 
 Five fields do not describe the Avatar's entire Expression Parameter count. Automatic Exclusive separately exposes menu control `Sensa/Select/<group>`: an unsynced, unsaved local Int with explicit default 0, where 0 is Off and 1…N select ordered targets. Out-of-range values stay or return Off. OSC may export this control according to configuration; it is not a measurement. Dedicated does not generate that automatic selector. Independent shader authoring also uses the 0/1 control `Sensa/Select/ShaderCapture_<id>`.
 
-## Current evidence and limits
+## Scope of existing evidence
 
-The frozen package passed **65/65 tests, zero failures/skips**, in real Unity 2022.3.22f1 nographics EditMode, reported at ignored `artifacts/verification/sps-five-fields-editmode.xml`. Coverage includes P0–P3/Sample, writable RawP absent from final Expression Parameters, NDMF, geometry, scale boundaries, selection, unknown-policy rejection, independent Point/Pose and native shader authoring. Generated shaders imported without compilation errors; actual GPU output was not verified.
+Unity nographics EditMode checks authoring, P0–P3/Sample, internal RawP versus final Expression Parameters, NDMF, geometry, scale/selection guards, unknown-policy rejection and independent experiment regressions. Its ignored local report is `artifacts/verification/sps-five-fields-editmode.xml`. Successful shader import is not GPU pixel output. Read exact counts/versions in the report and associated commit.
 
-An isolated generator test checks retained .meta identity, the current prefab author and explicit Target. AvatarLab variants are Exclusive/Dedicated; independent experiment labels remain unchanged. Subsequent tool dead-branch/documentation cleanup received editing/static checks only, not complete AvatarLab-project or scene acceptance.
+Generator contracts also check retained .meta identity, prefab author type and explicit Target. AvatarLab uses Exclusive/Dedicated while independent experiments retain their labels; tool dead-code/docs cleanup is not complete scene acceptance.
 
-No local E2E, full-process smoke, screenshots, PlayMode or device tests ran. Actual Contact precision, sampling order, uploaded constraints/FX, OSC, GPU/HMD and hardware require separate acceptance. [Positioning contract](positioning.en.md)
+These checks do not establish uploaded Contact error distributions, sampling timing, constraints/FX, actual OSC, GPU/HMD or hardware behavior. Future measurements should retain root trajectories, scale, packet ages/loss and error, without substituting low residual for measured accuracy. [Verification](development.en.md)

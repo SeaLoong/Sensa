@@ -44,6 +44,12 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
             enabled.add('scripts')
             if path.endswith('.md'):
                 enabled.add('docs')
+        elif (path.startswith('.github/pages/') or path in (
+                '.github/workflows/pages.yml', 'scripts/build-pages.mjs', 'scripts/vpm-index.py',
+                'tests/web/site.test.mjs', 'tests/e2e/site.spec.js')):
+            # Standalone site has its own browser/deployment gate; no native app builds.
+            # 独立站点单独验证与部署，不触发原生程序构建。
+            enabled.update(('web', 'scripts', 'docs'))
         elif path == 'eslint.config.js':
             enabled.add('web')
         elif path in INTERACTIVE_DOC_INPUTS:

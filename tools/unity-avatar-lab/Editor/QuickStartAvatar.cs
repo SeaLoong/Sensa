@@ -18,19 +18,19 @@ namespace SensaAvatarLab
         public static void Create()
         {
             AvatarLab.PrepareTests();
-            if (File.Exists(Scene)) throw new InvalidOperationException("Preserve existing first-run avatar edits before recreating.");
+            if (File.Exists(Scene)) throw new InvalidOperationException(AvatarLabLocalization.Text("Preserve existing first-run avatar edits before recreating."));
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
             var avatar = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Amatousagi/Chocolat/Chocolat.prefab"));
             avatar.name = "Sensa Quick Start";
             avatar.GetComponent<VRC.Core.PipelineManager>().blueprintId = "";
             avatar.AddComponent<SensaQuickStart>();
-            EditorSceneManager.SaveScene(scene, Scene); AssetDatabase.SaveAssets(); Validate();
+            EditorSceneManager.SaveScene(scene, Scene); AvatarLabLocalization.SaveAssets(); Validate();
         }
         [Serializable] class Report { public bool passed; public int receivers; public string[] parameters, animatorParameters; public float receiverRadius; public string scope = "SDK avatar preprocess; client OSC and hardware unverified"; }
         public static void InspectBundle()
         {
             var bundle = AssetBundle.LoadFromFile("Builds/Sensa-Chocolat-QuickStart.vrca");
-            if (bundle == null) throw new InvalidOperationException("Build the first-run SDK bundle first.");
+            if (bundle == null) throw new InvalidOperationException(AvatarLabLocalization.Text("Build the first-run SDK bundle first."));
             try
             {
                 var avatar = bundle.LoadAllAssets<GameObject>().Single(g => g.GetComponent<VRCAvatarDescriptor>() != null);
@@ -64,7 +64,7 @@ namespace SensaAvatarLab
                     && parameters.Length == 2 && parameters.All(p => !p.saved && !p.networkSynced && p.defaultValue == 0)
                     && report.parameters.All(name => report.animatorParameters.Contains(name));
                 File.WriteAllText("Validation/sdk-quick-start-contents.json", JsonUtility.ToJson(report, true));
-                if (!report.passed) throw new InvalidOperationException("First-run SDK bundle is missing the expected contacts or local parameters.");
+                if (!report.passed) throw new InvalidOperationException(AvatarLabLocalization.Text("First-run SDK bundle is missing the expected contacts or local parameters."));
             }
             finally { bundle.Unload(true); }
         }
@@ -76,7 +76,7 @@ namespace SensaAvatarLab
             var clone = UnityEngine.Object.Instantiate(source); source.SetActive(false);
             try
             {
-                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException("SDK rejected first-run avatar.");
+                if (!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone)) throw new InvalidOperationException(AvatarLabLocalization.Text("SDK rejected first-run avatar."));
                 var receivers = clone.GetComponentsInChildren<VRCContactReceiver>(true).Where(r => r.parameter != null && r.parameter.StartsWith("Sensa/QuickStart/")).ToArray();
                 var parameters = clone.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Where(p => p.name.StartsWith("Sensa/QuickStart/")).ToArray();
                 var depth = receivers.Single(r => r.parameter == SensaQuickStartProtocol.Depth);
@@ -90,7 +90,7 @@ namespace SensaAvatarLab
                     && clone.GetComponentsInChildren<SensaQuickStart>(true).Length == 0
                     && depth.transform.IsChildOf(clone.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.RightHand));
                 Directory.CreateDirectory("Validation"); File.WriteAllText("Validation/quick-start-avatar.json", JsonUtility.ToJson(report, true));
-                if (!report.passed) throw new InvalidOperationException("First-run avatar contract failed.");
+                if (!report.passed) throw new InvalidOperationException(AvatarLabLocalization.Text("First-run avatar contract failed."));
             }
             finally { UnityEngine.Object.DestroyImmediate(clone); source.SetActive(true); }
         }

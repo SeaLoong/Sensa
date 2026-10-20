@@ -2,7 +2,7 @@ import { defineConfig } from '@playwright/test';
 
 if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Sensa E2E runs only in GitHub Actions; dispatch e2e.yml. / Sensa E2E 仅允许在 GitHub Actions 执行，请触发 e2e.yml。');
 const suite = process.env.E2E_SUITE || 'all';
-if (!['all', 'visual', 'transport', 'input', 'osc', 'config', 'i18n', 'quality'].includes(suite))
+if (!['all', 'visual', 'transport', 'input', 'osc', 'config', 'i18n', 'quality', 'site'].includes(suite))
   throw new Error('Unknown E2E suite / 未知 E2E 套件: ' + suite);
 export default defineConfig({
   testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0, maxFailures: 3,

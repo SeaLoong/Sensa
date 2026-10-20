@@ -13,7 +13,7 @@ namespace SensaLab
             foreach (var path in new[] { "Assets/SensaLab/Functional/Floor.mat", "Assets/SensaLab/Generated/Walkway.mat" })
             {
                 var material = AssetDatabase.LoadAssetAtPath<Material>(path);
-                if (material == null) throw new InvalidOperationException("Generate the test worlds first: " + path);
+                if (material == null) throw new InvalidOperationException(LabEditorLocalization.Text("Generate the test worlds first: ") + path);
                 material.shader = Shader.Find("Unlit/Color");
                 material.color = new Color(.78f, .78f, .78f);
                 EditorUtility.SetDirty(material);

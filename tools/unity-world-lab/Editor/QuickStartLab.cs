@@ -28,8 +28,8 @@ namespace SensaLab
                 }
             }
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions { IsEditorBuild = true });
-            EditorSceneManager.OpenScene(FunctionalLab.Scene);
-            if (GameObject.Find("00 START HERE") != null) throw new InvalidOperationException("First-run bench already exists; preserve scene edits before rebuilding.");
+            LabEditorLocalization.OpenScene(FunctionalLab.Scene);
+            if (GameObject.Find("00 START HERE") != null) throw new InvalidOperationException(LabEditorLocalization.Text("First-run bench already exists; preserve scene edits before rebuilding."));
             var root = new GameObject("00 START HERE"); root.transform.position = new Vector3(1.4f, 0, .6f);
             var station = UdonSharpUndo.AddComponent<QuickStartStation>(root);
             station.depthSender = Sender(root.transform, "Depth stimulus", SensaQuickStartProtocol.DepthTag);
@@ -55,15 +55,15 @@ namespace SensaLab
             }
             UdonSharpEditorUtility.CopyProxyToUdon(station);
             Style(station);
-            EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
+            LabEditorLocalization.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
             InteractiveLab.Upgrade();
         }
         [MenuItem("Tools/Sensa Lab/Refresh first-run bench appearance")]
         public static void RefreshAppearance()
         {
-            EditorSceneManager.OpenScene(FunctionalLab.Scene);
+            LabEditorLocalization.OpenScene(FunctionalLab.Scene);
             Style(UnityEngine.Object.FindObjectOfType<QuickStartStation>());
-            EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
+            LabEditorLocalization.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene()); AssetDatabase.SaveAssets();
         }
         static void Style(QuickStartStation station)
         {

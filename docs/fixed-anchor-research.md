@@ -1,8 +1,10 @@
-# 固定 SPS 四点：推导、取舍与证据
+# 固定 SPS 四锚点：依据与取舍
 
 **简体中文** | [English](fixed-anchor-research.en.md)
 
-当前 Sensa SPS 的模型是固定 Avatar 根参考框、四个已知锚点和一个明确选定的专用根标记。每对象的公开测量契约只有 `Sensa/SPS/<id>/P0…P3` 与 `Sample`。不包含版本段、额外元数据组合、远端接收组或旧数据兼容；独立 Point／Handle／Pose 不属于这个模型。
+本研究回答三个问题：为什么四个距离能解一个根点、为何保留 R=2.5／h=.5、以及生产端能提供怎样的采样证据。结论已落实为固定 Avatar 根参考、明确根标记与 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`；不是继续尝试从任意四个普通近接值猜位置。
+
+操作看[方案](usage-scenarios.md)，接收门槛看[定位](positioning.md)，逐字段规则看[字典](osc-parameters.md)。这里保留固定来源、推导与尚未测量的假设；不把模型分析写成真实客户端精度报告。
 
 ## 一手依据
 
@@ -62,10 +64,10 @@ d = R(1-p)+r    # only outside saturation
 
 五字段不表示整个 Avatar 的表达参数总数。Automatic Exclusive 另有菜单控制 `Sensa/Select/<group>`：本地不同步、不保存的 Int，显式默认 0，0 为 Off、1…N 选择已排序目标；超出范围保持或回到 Off。此控制可按配置由 OSC 导出，不是测量值；Dedicated 不生成该自动选择参数。独立 Shader 作者的 `Sensa/Select/ShaderCapture_<id>` 也属于 0／1 控制。
 
-## 当前证据与未验证部分
+## 已有证据的范围
 
-冻结后的包在真实 Unity 2022.3.22f1 nographics EditMode 中一次 **65/65 通过，零失败／跳过**，报告为忽略的 `artifacts/verification/sps-five-fields-editmode.xml`。包含 P0–P3／Sample、内部 RawP 可写但不在最终表达列表、NDMF、固定几何、缩放边界、选择、未知策略拒绝、独立 Point／Pose 和原生 Shader 作者回归。生成 Shader 导入无编译错误，不等于验证实际 GPU 输出。
+Unity nographics EditMode 检查生产作者、P0–P3／Sample、内部 RawP 与最终表达列表、NDMF、几何、缩放／选择守卫、未知策略拒绝和独立实验回归；对应本地报告保存在忽略的 `artifacts/verification/sps-five-fields-editmode.xml`。生成 Shader 导入无错误不等于 GPU 像素输出。具体次数和版本以原报告及提交为准。
 
-独立生成器单元合同验证已有 .meta 身份保留、新预制件类型与明确 Target；AvatarLab 变体改为 Exclusive／Dedicated，独立实验标签不改。后续工具死分支与说明清理只作编辑／静态检查，不冒充完整 AvatarLab 工程或场景验收。
+生成器契约还检查 .meta 身份、预制件作者类型与明确 Target。AvatarLab 使用 Exclusive／Dedicated，独立实验标签保留；工具死分支／文档清理不冒充完整场景验收。
 
-没有运行本地 E2E、完整进程冒烟、截图、PlayMode 或设备。客户端 Contacts 精度、采样顺序、约束／动画时序、OSC、真实 GPU／头显和硬件仍需分别验收。[定位契约](positioning.md)
+尚未由这些证据确定：上传后 Contacts 的误差分布、采样时序、约束／FX、真实 OSC、GPU／HMD 和硬件行为。后续实测需保存根轨迹、尺度、丢包／年龄和误差，不以低残差代替真实误差。[验证规则](development.md)

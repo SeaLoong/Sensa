@@ -214,6 +214,44 @@ def validate_run(environment):
     return sha, number, attempt
 
 
+def preview_notes(sha):
+    """English-first release notes with a complete Chinese translation.
+    英语默认发布说明，附完整中文译文。
+    """
+    if not re.fullmatch('[0-9a-f]{40}', sha):
+        raise ValueError('Invalid release commit / 发布提交无效')
+    return f'''Development preview · `{sha}`
+
+Self-contained Windows, Linux and macOS applications for x64 and ARM64, plus the Unity avatar package.
+
+Choose the archive for your OS and processor. Extract the complete directory; run Sensa.exe on Windows or ./Sensa on Linux/macOS. Open http://127.0.0.1:5086 . No separate .NET installation is required.
+
+Start with observation and configure your inputs before explicitly activating outputs. Language is detected automatically; English and Simplified Chinese can also be selected manually.
+
+This candidate passed full E2E screenshot comparison for this commit and isolated platform smoke checks. Real hardware, signing/notarization and PCVR behavior remain unverified. Avatar projects require the matching VRChat SDK and Modular Avatar/NDMF; SPS automation also requires VRCFury.
+
+[Read the documentation](https://sealoong.github.io/Sensa/) · [Open the standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+
+Verify downloads against SHA256SUMS.txt. Development previews do not update the stable VPM index. Only the latest ten published prereleases are retained; stable releases, drafts and Git tags are preserved.
+
+## 简体中文
+
+开发预览 · `{sha}`
+
+提供 Windows、Linux 和 macOS 的 x64、ARM64 自包含程序，以及 Unity Avatar 组件包。
+
+选择与系统和处理器对应的压缩包，保留完整目录。Windows 运行 Sensa.exe；Linux/macOS 运行 ./Sensa；浏览器打开 http://127.0.0.1:5086 。无需另装 .NET。
+
+先观察并配置输入，再明确启用输出。语言自动识别，也可手动选择英语或简体中文。
+
+此候选通过了本提交的全量 E2E 截图比较和各平台隔离冒烟。真实硬件、签名／公证及 PCVR 行为尚未验收。Avatar 工程需要对应 VRChat SDK 与 Modular Avatar/NDMF；SPS 自动配置还需要 VRCFury。
+
+[阅读文档](https://sealoong.github.io/Sensa/?lang=zh-CN) · [打开独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+
+通过 SHA256SUMS.txt 核对下载。开发预览不更新 VPM 正式索引。仅保留最新十个已发布预发布；稳定版、草稿与 Git tag 保留。
+'''
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--prune-only', action='store_true',
@@ -243,37 +281,15 @@ def main():
     checksums = output / 'SHA256SUMS.txt'
     checksums.write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in archives), encoding='utf-8')
     notes = ROOT / 'artifacts' / 'preview-notes.md'
-    notes.write_text(f'''开发预览 / Development preview · `{sha}`
-
-Windows / Linux / macOS 的 x64 与 ARM64 自包含程序，以及独立 Unity 资产包。
-Self-contained Windows / Linux / macOS applications for x64 and ARM64, plus the Unity package.
-
-按系统和处理器选择文件。Windows 解压后运行 Sensa.exe；Linux/macOS 解包后运行 ./Sensa。
-Select your OS and processor. Extract and run Sensa.exe on Windows or ./Sensa on Linux/macOS.
-
-打开 http://127.0.0.1:5086 。保留完整目录；无需另装 .NET。
-Open http://127.0.0.1:5086 . Keep the complete directory; no separate .NET installation is needed.
-
-此候选已通过本提交的全量 E2E 截图比较及各平台隔离冒烟。真实硬件、签名/公证和 PCVR 行为尚未验收。
-This candidate passed full E2E screenshot comparisons for this commit and isolated platform smoke checks. Real hardware, signing/notarization and PCVR remain unverified.
-
-Unity Avatar 项目需相应 SDK 和 Modular Avatar/NDMF；SPS 自动配置另需 VRCFury。
-Unity Avatar projects need the matching SDK and Modular Avatar/NDMF; SPS automation also needs VRCFury.
-
-此预览不更新 VPM 稳定索引。仅保留最近十个已发布预发布；稳定版、草稿与 Git tag 保留。
-This preview does not update the stable VPM index. Only the latest ten published prereleases are retained; stable releases, drafts and Git tags are preserved.
-
-使用文档见压缩包 README 和 docs/；校验值见 SHA256SUMS.txt。
-See the packaged README and docs/ for usage, and SHA256SUMS.txt for checksums.
-''', encoding='utf-8')
+    notes.write_text(preview_notes(sha), encoding='utf-8')
     assets = [output / path.name for path in archives] + [checksums]
-    releases.create(tag, sha, f'Sensa 开发预览 / Development preview #{number} ({sha[:8]})', notes)
+    releases.create(tag, sha, f'Sensa Development Preview #{number} ({sha[:8]})', notes)
     upload_and_publish(tag, sha, assets, releases)
     removed = prune_prereleases(releases)
     url = f'https://github.com/{releases.repository}/releases/tag/{tag}'
     if os.environ.get('GITHUB_STEP_SUMMARY'):
         with open(os.environ['GITHUB_STEP_SUMMARY'], 'a', encoding='utf-8') as report:
-            report.write(f'[下载开发预览 / Download preview]({url})\n\n')
+            report.write(f'[Download preview / 下载开发预览]({url})\n\n')
             report.write(f'Removed old prereleases / 已清理旧预发布: {len(removed)}\n')
     print(url)
 

@@ -13,10 +13,14 @@ GUIDE_FOLDERS = ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 't
 
 
 def guide_pairs(root=ROOT):
-    chinese = [root / 'README.md']
+    pairs = [(root / 'README.zh-CN.md', root / 'README.md')]
     for folder in GUIDE_FOLDERS:
-        chinese.extend(sorted(path for path in (root / folder).glob('*.md') if not path.name.endswith('.en.md')))
-    return [(path, path.with_name(path.stem + '.en.md')) for path in chinese]
+        base = root / folder
+        if (base / 'README.md').exists():
+            pairs.append((base / 'README.zh-CN.md', base / 'README.md'))
+        pairs.extend((page, page.with_name(page.stem + '.en.md')) for page in sorted(base.glob('*.md'))
+                     if not page.name.endswith(('.en.md', '.zh-CN.md')) and page.name != 'README.md')
+    return pairs
 
 
 def relative_links(markdown):
@@ -61,7 +65,7 @@ class PublicGuideContracts(unittest.TestCase):
 
     def test_domain_glossary_and_architecture_decisions_contain_both_languages(self):
         glossary = (ROOT / 'GLOSSARY.md').read_text(encoding='utf-8')
-        definitions = re.findall(r'(?m)^\*\*[^\n]+\*\*:\s*\n([^\n]+)', glossary)
+        definitions = re.findall(r'(?m)^\| \*\*[^|]+\*\* \| (.+) \|$', glossary)
         self.assertTrue(definitions, 'The glossary needs domain definitions / 术语表需要领域定义')
         for definition in definitions:
             with self.subTest(definition=definition):
@@ -77,7 +81,7 @@ class PublicGuideContracts(unittest.TestCase):
 
     def test_unity_english_guides_and_inspector_entry_point_have_distinct_asset_guids(self):
         package = ROOT / 'unity/top.sealoong.sensa'
-        assets = [*package.glob('*.en.md'), package / 'Editor/SensaInspectorLabels.cs']
+        assets = [*package.glob('*.en.md'), *package.glob('*.zh-CN.md'), package / 'Editor/SensaInspectorLabels.cs']
         guids = []
         for asset in assets:
             with self.subTest(asset=asset.relative_to(ROOT).as_posix()):

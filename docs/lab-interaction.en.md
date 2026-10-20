@@ -1,60 +1,53 @@
-# Hold, place and identify test targets
+# Lab props: hold, place and interpret
 
 [简体中文](lab-interaction.md) | **English**
 
-This describes internal lab props, not a production installation/control route. Start with the [three integration routes](usage-scenarios.en.md). The lab uses `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`; rebuild and privately upload changes before client testing.
+This page is for internal Avatar/World Labs. See [routes](usage-scenarios.en.md) for production use. Generated scenes are `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`. Rebuild/private-upload after changes; nothing uploads automatically.
 
-## Avatar props
+## Avatar menus
 
-Under **Sensa Test Props**, Palm Socket, Forearm Socket, PB handle and Shader rig offer:
+In **Sensa Test Props**, choose Palm Socket, Forearm Socket, PB handle or Shader rig:
 
-1. **Left hand / Right hand** to follow a hand.
-2. Move into position and choose **Place in world**; the prop stays when you walk away.
-3. **Home / reset** returns to the initial pose; select a hand again to retrieve it.
+1. Left hand/Right hand follows that hand.
+2. Place in world stops following and keeps the location.
+3. Home / reset returns home; select a hand again to retrieve it.
 
-The lollipop keeps **SPS_Lollipop → LeftHand / RightHand / Fixed / Off**. The same menu contains **SPS OSC**, **Measure plug**, per-socket **Measure this socket**, and shader synthetic/CRC switches. Placement alone does not enable measurement or software output.
+The lollipop retains SPS_Lollipop → LeftHand/RightHand/Fixed/Off. Menus also expose SPS OSC, Measure plug, Socket's Measure this socket and synthetic Shader/CRC-fault controls. Placement, measurement, SPS activation and device permission are distinct.
 
-Labels, opening centers, +Z arrows and probe balls are visible by default. **Visible labels / probes** hides them without changing measurement. Avatar text is a double-sided static mesh rather than a client-unsupported TextMesh component.
+Names, entry centers, +Z and probes start visible; Visible labels / probes hides helpers. Text uses double-sided static meshes, not post-upload TextMesh. Menus use build-time language; per-player World language needs client acceptance. [Languages](languages.en.md)
 
-QuickStart stays at the right wrist solely for the internal synthetic scalar-step bench. It is not a production route or movable SPS prop, and has no built-in step preset. Configure fixture mappings manually from actual parameters.
+QuickStart stays on the right wrist for internal scalar steps, not as a production SPS prop. No built-in step preset exists: configure actual paths manually. World test balls can be held/placed.
 
-## World controls
+## World buttons and native SPS area
 
-The physical rack, QuickStart ball and native SPS props provide **LEFT / RIGHT / PLACE / HOME**. Directly grabbing a pickup exits button-follow mode. Moving a PB reference frame does not stretch the PB; grab its ball for that. These are local actions and never operate OSR hardware directly.
+LEFT/RIGHT follow the local player's hand, PLACE stays put, HOME releases/resets. Direct grabbing exits button-follow mode. Moving a PB reference frame does not stretch its bone; grab the PB ball. Buttons affect local props, not devices.
 
-## Native SPS with your avatar
+08 MY AVATAR SPS contains:
 
-At **08 MY AVATAR SPS** near spawn:
+- Amber WORLD PLUG: 20 cm, approaching your Socket.
+- Blue WORLD SOCKET: receiving your Avatar's Plug.
 
-- Amber **WORLD PLUG**, 20 cm long: approach your enabled avatar Socket and inspect its actual OGB parameters.
-- Blue **WORLD SOCKET**: approach with your avatar Plug and inspect its actual OGB parameters.
+Enable Avatar SPS/SPS OSC, fix Sensa instance/source and choose depth/vibration. Explicitly enable OGB heartbeat if required; it grants no device permission. Separate then approach. Ten centimeters into an aligned 20 cm Plug is only an approximate 50% reference; lateral offset exposes radial error. Self/Others does not authenticate players; World text is not an OSC receipt.
 
-Enable native SPS/SPS OSC. Select the OGB / SPS depth or vibration template, pin the observed instance/source, save and explicitly apply OSC input. If required, explicitly enable the OGB parameter heartbeat in receiver settings; it does not grant device input permission. World Contacts can trigger Self/Others; suffixes alone do not prove origin.
+![Native SPS Avatar area](images/native-sps-avatar-zone.png)
 
-Separate first, then approach. With an aligned 20 cm Plug, 10 cm insertion is about 50%. Lateral offset exposes radial-estimation error. The world explains geometry; Sensa confirms actual receipt.
+## Legacy P/C colors are not fixed anchors
 
-![Native SPS station](images/native-sps-avatar-zone.png)
+Paired Pose/PB experiments retain these sample labels, not device axes or travel percentages:
 
-## P and C probe labels
-
-These identify input samples, **not output axes or stroke percentages**.
-
-| Layout marker | Color | Raw suffix |
+| Marker | Color | Legacy leaf |
 | --- | --- | --- |
-| P1 / C1 | Red | A0 |
-| P2 / C2 | Blue | A1 |
-| P3 / C3 | Green | A2 |
-| P4 / C4 | Yellow | A3 |
-| C5–C8 | Purple, cyan, orange, light gray | A4–A7 |
+| P1/P2/P3/P4 | Red/blue/green/yellow | A0/A1/A2/A3 |
+| C5/C6/C7/C8 | Purple/cyan/orange/light gray | A4/A5/A6/A7 |
 
-P1–P4 form a tetrahedron; C1–C8 form a cube. The raw indices overlap but positions differ, so P2 and C2 are not interchangeable. Balls mark centers, not receiver radii.
+Tetrahedra use P1–P4; eight-point arrays use C1–C8. C1–C4 reuse red/blue/green/yellow but differ spatially: P2 is not C2. Measure plug shows Palm/Plug-handle P frames; Socket uses C arrays, with Root/Tip/Side sharing locations but separate paths. Independent PB frames also use P.
 
-These displays belong to legacy paired Pose/PB experiments. **Measure plug** shows Palm/Plug P probes; Socket measurement shows C probes, with Root/Tip/Side groups sharing positions but distinct paths. Independent PB uses P probes. This is not the new fixed-root protocol: its P0–P3 anchors stay under the avatar root while a dedicated marker follows the selected root. Do not substitute the Socket's eight C probes, or their first four indices, for the new geometry. Sensa retains real OSC paths; L/R/V/A axes keep their device meaning.
+New Sensa SPS uses **P0–P3 fixed under the Avatar root** and a dedicated moving marker, colored blue/teal/purple/rose. Neither old C arrays nor their A0–A3 subset are those anchors. Lists retain real paths; L/R/V/A remain device-command axes.
 
-![Probe colors](images/probe-colors.png)
+![Legacy probe centers/colors](images/probe-colors.png)
 
-Build/ClientSim checks can inspect placement, reset, colors and generated controllers; actual results belong to the corresponding commit report. They do not certify uploaded avatar OSC, physical VR grabbing or hardware.
+## Acceptance boundaries
 
-Legacy P/C labels identify Contact samples; paired estimates remain blocked from motion by default. Four/eight samples and zero residual prove neither one Sender nor one frame. The new fixed-root route has separate geometry, a dedicated local marker and Sample combining validity/liveness; it is not this legacy display. Experimental permission, calibration and stop checks still apply. [Positioning](positioning.en.md)
+Build/ClientSim checks can establish menus, placement, reset and generated controllers, not uploaded Avatar OSC, HMD grabbing or hardware. Legacy spatial motion defaults blocked; channel count/low residual proves neither common Sender nor atomic frames.
 
-This lab's Shader prop remains a synthetic transport test. The package separately provides native SPS root encoding, not deformed-mesh sampling; actual client capture still needs acceptance. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+New fixed roots have their own geometry/Sample and still require opt-in, calibration and stop checks. Lab Shader props are synthetic transport fixtures. Native root encoding has a separate producer and still does not sample the deformed mesh. [Positioning](positioning.en.md) · [Workflow](lab-workflow.en.md) · [Shader](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)

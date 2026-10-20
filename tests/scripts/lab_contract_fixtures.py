@@ -39,6 +39,7 @@ class LabFixture(unittest.TestCase):
             'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs': 'pose protocol',
             'unity/top.sealoong.sensa/Runtime/SensaQuickStartProtocol.cs': 'quick start protocol',
             'unity/top.sealoong.sensa/Editor/SensaGpuProbe.cs': 'gpu reader',
+            'unity/top.sealoong.sensa/Editor/SensaEditorLocalization.cs': 'editor localization',
             'unity/top.sealoong.sensa/Editor/SpsGpuProbe.shader.txt': 'gpu shader',
             'unity/top.sealoong.sensa/Editor/SpsGpuDependencies.sha256.txt': 'dependencies',
         }.items():

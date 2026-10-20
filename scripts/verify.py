@@ -166,7 +166,10 @@ def _relevant(path, lane):
     if lane == 'web':
         return path in CI_PLAN.INTERACTIVE_DOC_INPUTS or path.startswith(('src/web/', 'tests/web/', 'tests/e2e/')) or path in (
             'package.json', 'package-lock.json', 'node_modules/.package-lock.json',
-            'eslint.config.js', 'scripts/build-web.mjs')
+            'eslint.config.js', 'scripts/build-web.mjs', 'scripts/build-pages.mjs', 'GLOSSARY.md') or path.startswith('.github/pages/') or (
+                path.endswith('.md') and (Path(path).parent.as_posix() in ('.', 'docs', 'unity/top.sealoong.sensa',
+                    'tools/unity-world-lab', 'tools/unity-avatar-lab') and Path(path).name != 'AGENTS.md'
+                    or path.startswith('docs/adr/')))
     if lane == 'backend':
         return (path.startswith('src/') and not path.startswith('src/web/')
                 or path.startswith(('src/web/data/', 'tests/Sensa.Tests/', 'tests/fixtures/'))

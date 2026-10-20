@@ -107,7 +107,7 @@ namespace SensaLab
             {
                 camera.Render();reader.SetVector("_SensaSourceSize",new Vector4(1600,1000,1,1));Graphics.Blit(Texture2D.blackTexture,data,reader);RenderTexture.active=data;texture.ReadPixels(new Rect(0,0,36,1),0,0);texture.Apply();
                 var capture=new SensaGpuProbe.Capture{capturedUtc=DateTime.UtcNow.ToString("O"),cameraName=camera.name,width=1600,height=1000,unityVersion=Application.unityVersion,overrun=1};SensaGpuProbe.Decode(texture.GetPixels(),capture);
-                File.WriteAllText("Validation/functional/sps-gpu.json",JsonUtility.ToJson(capture,true));if(!capture.valid)throw new InvalidOperationException("Actual SPS GPU model capture is invalid.");
+                File.WriteAllText("Validation/functional/sps-gpu.json",JsonUtility.ToJson(capture,true));if(!capture.valid)throw new InvalidOperationException(LabEditorLocalization.Text("Actual SPS GPU model capture is invalid."));
                 SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-telemetry.png",101);
                 SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-telemetry-next.png",102);
                 SensaGpuProbe.ExportTelemetryPng(capture,"Validation/functional/sps-recovery-first.png",103);

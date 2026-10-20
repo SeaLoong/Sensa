@@ -4,6 +4,7 @@ Unavailable assets abort deployment. Legacy Pages packages are copied only after
 hash verification, so the first migration does not silently strand old versions.
 """
 import hashlib
+import sys
 import json
 import os
 from pathlib import Path
@@ -61,8 +62,7 @@ for version, entry in old.get('packages', {}).get('top.sealoong.sensa', {}).get(
     target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(data)
     versions[version] = dict(entry, url=f'{base}/packages/top.sealoong.sensa/{version}/top.sealoong.sensa.zip')
 
-if not versions: raise ValueError('Refusing to deploy an empty package index')
+if not versions and '--allow-empty' not in sys.argv:
+    raise ValueError('Refusing to deploy an empty package index')
 index = {'name':'Sensa', 'id':'top.sealoong.sensa.repo', 'url':base + '/vpm.json', 'author':{'name':'SeaLoong'}, 'packages':{'top.sealoong.sensa':{'versions':versions}}}
 (output / 'vpm.json').write_text(json.dumps(index, ensure_ascii=False, indent=2), encoding='utf-8')
-latest = max(versions, key=lambda v: tuple(map(int, v.split('-')[0].split('.'))))
-(output / 'index.html').write_text(Path('.github/pages/index.html').read_text(encoding='utf-8').replace('__VERSION__', latest), encoding='utf-8')

@@ -1,8 +1,10 @@
-# Shader root capture: implementation and research
+# Shader capture: native roots to desktop regions
 
 [简体中文](shader-capture-research.md) | **English**
 
-Checked 2026-10-19. This change implements **SPS Socket/Plug root Transform → native skinning → shader code → explicitly selected desktop region → OSC**. It measures avatar-root local coordinates, not the final deformed mesh. The native producer is implemented; Unity builds, avatar upload and desktop/PCVR composition require separate acceptance evidence.
+This research separates an implementable producer from unproven client behavior. The current chain is **selected SPS root Transform → native skinned point → one-Camera block → explicit ROI decode → OSC**, not final deformed mesh sampling. A hidden render layer is not automatically a desktop capture interface.
+
+Primary evidence was checked on 2026-10-19 and source revisions are pinned below; newer versions need fresh review. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
 
 ## Primary-source findings and decisions
 
@@ -73,8 +75,12 @@ The desktop requires five consecutive same-source fields and a maximum 500 ms Fr
 
 Saving registration establishes only that a valid native packet was decoded in the chosen ROI. It does not establish accuracy or VR visibility. The bridge requires two progressing frames. CRC/source/profile failure, changed coordinates on a duplicate sequence, reorder, freeze, timeout or shutdown closes Valid. Replaying the old good frame does not restore it; two new progressing frames are required. Producer reset may require a deliberate bridge restart rather than automatic retargeting.
 
-## Verification boundaries
+## Evidence and remaining acceptance
 
-- Isolated Python contracts cover codec/CRC/RGB, invalid sources, shared coordinates, identity/frame locking, five-field order, namespace separation, freeze/recovery, Windows atomic replacement, registration and pre-capture CLI rejection, without desktop capture or user devices.
-- Unity EditMode contracts cover Off state, one-camera direct output configuration, shader compilation, persistent bounds, local skinning geometry and multiple-producer bindings. This change passed 19/19 isolated Python and 65/65 unified Unity EditMode tests (including three native-capture contracts), with zero skips; XML: artifacts/verification/sps-five-fields-editmode.xml. Unity used nographics shader import/generation, not actual GPU pixel output or client acceptance.
-- Separate acceptance remains necessary for SDK upload retention, NDMF/VRCFury optimization, actual native rendering, desktop/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. Until that evidence exists, keep experimental opt-in and avoid claims of reliable world localization or final-mesh tracking.
+Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame locking, ordered five fields, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
+
+Unity EditMode checks default Off, one-camera direct output, shader import, persistent bounds, skinned coordinates and multiple-producer binding. The ignored report is `artifacts/verification/sps-five-fields-editmode.xml`; nographics import/generation is not actual GPU rendering. Exact counts belong to the original report.
+
+Separate acceptance remains for SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. Default bridge freeze is 350 ms, earlier than the desktop's 500 ms rejection limit; the latter is not actual bridge validity.
+
+Keep experimental opt-in until measured. Do not promise reliable world localization, final-mesh tracking or measured client performance gains. [Positioning](positioning.en.md) · [Verification](development.en.md)

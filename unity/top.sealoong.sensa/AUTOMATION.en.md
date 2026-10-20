@@ -1,53 +1,57 @@
-# SPS automation and the five-field contract
+# SPS authoring and generated parameters
 
 [简体中文](AUTOMATION.md) | **English**
 
-Automatic SPS Setup reads existing Socket/Plug authoring geometry and generates dedicated markers and fixed anchors without changing SPS. Only the current `Sensa/SPS/<id>` contract is supported, with no old modes, shared moving array or protocol fallback.
+[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. It supports only the current `Sensa/SPS/<id>` contract.
 
-## Targets and selection
+## Targets and scope
 
-Add **Sensa → Automatic SPS Setup** at the Avatar root. Discover All finds supported VRCFury authors; Selected Targets narrows them, with Excluded Targets taking priority. Assign each target to one automatic group.
+Discover All finds supported VRCFury authors; Selected Targets narrows the set and Excluded Targets takes priority. Give every automatic group a unique name and assign a target to one group only. Inspect targets and Contact cost before building.
 
-| Capability | Base cost and meaning |
+| Capability | Generated scope |
 | --- | --- |
-| Fixed SPS root tracking | Four receivers and one dedicated sender per Socket/Plug |
-| Paired Socket Tracking | Eight receivers per Root/Tip/Side marker, an independent pose experiment |
-| Paired Plug Markers | Three paired markers, not GPU tips |
-| Local Plug Tip Tracking | Four-point array at a reference Socket and an undeformed-tip marker |
-| Create Plug Grab Handles | Independent PB handle and grab gate |
+| Fixed SPS root tracking | Four fixed receivers and one dedicated sender per target |
+| Paired Socket tracking | Independent Root/Tip/Side Pose receiver arrays |
+| Paired Plug markers | Three reference markers, without GPU deformation |
+| Local Plug tip tracking | Local point relative to an explicitly selected reference Socket |
+| Plug PB handles | Independent grabbable handle, Stretch and grab gate |
 
-Only Dedicated (simultaneous) and Exclusive (one selected target, initially Off) remain. Exclusive reduces active objects, not registered Contact count. Unknown serialized policies fail the build. Optional capabilities and other plugins count toward the budget. Local Plug Tip needs a reference Socket; a sole candidate can be selected automatically.
+Exclusive enables one measured target per group, initially Off; Dedicated enables simultaneous measurement. Selection reduces active objects, not the registered Contact budget. Optional capabilities and other plugins count too. Unknown policies fail the build.
 
-A single target can use Fixed SPS Root Probe or `SensaSpsRootProbe.prefab`. **GameObject → Sensa → Fixed-anchor SPS Root Probe** creates the same author. Target starts empty and must explicitly reference a real SPS/Sensa/native Contact root. Duplicated prefab instances need unique names/channels. ReadRoot resolves the CPU Transform center, not GPU deformation.
+For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Fixed-anchor SPS Root Probe**. Target deliberately starts empty. Select the actual SPS/Sensa/native Contact root; duplicated instances need unique names and collision channels. The adapter reads the CPU root frame, not its GPU surface.
 
-## Fixed geometry
+## Geometry and five measurement fields
 
-`Runtime/SensaFixedAnchorProtocol.cs` is the shared source, with fixed P0–P3 ordering:
+`Runtime/SensaFixedAnchorProtocol.cs` is shared with the desktop solver.
 
 | Point | AvatarRootLocal |
 | --- | --- |
-| P0 | (-0.5, 0.5, -0.5) |
+| P0 | (−0.5, 0.5, −0.5) |
 | P1 | (0.5, 0.5, 0.5) |
-| P2 | (0.5, 1.5, -0.5) |
-| P3 | (-0.5, 1.5, 0.5) |
+| P2 | (0.5, 1.5, −0.5) |
+| P3 | (−0.5, 1.5, 0.5) |
 
-Receiver radius is 2.5 and marker radius 0.001. Anchors stay under the Avatar root; ParentConstraint follows target position/rotation while retaining the shared uniform root scale. Only your own dedicated-tag sphere is received; no Others group is generated.
+Receiver radius is 2.5, marker radius 0.001. Anchors and marker share the Avatar-root scale; ParentConstraint follows the selected root's position/rotation without inheriting target-bone scale. Only the dedicated Self tag is received.
 
-## Public data and internal FX
-
-| Path | Meaning |
+| Public suffix under `Sensa/SPS/<id>` | Meaning |
 | --- | --- |
-| `Sensa/SPS/<id>/P0…P3` | Four Float Proximity values, not XYZ |
-| `Sensa/SPS/<id>/Sample` | 0 invalid; n/32 (n=1…32) active counter |
+| `P0` … `P3` | Four Float Proximity values, not XYZ |
+| `Sample` | 0 invalid; n/32 (n=1…32) active publication counter |
 
-Active states copy four internal RawP values to P0–P3 before committing Sample approximately every 0.05 seconds, cycling in 1.6 seconds. RawP, IsLocal and ScaleFactor participate in internal FX; RawP is not registered in Expression Parameters. Exclusive separately registers the local, unsynced, unsaved Expression Parameter Int `Sensa/Select/<group>`, default 0 (Off), with 1…N selecting ordered targets and out-of-range values returning Off. Dedicated does not generate this automatic selector. It may be exported through OSC as a menu control, not as one of the five measurement fields; it does not enable desktop input or connect devices. FX-only is neither a security boundary nor a client export privacy guarantee.
+About every 50 ms, FX copies four internal RawP values then publishes Sample. The 32-step cycle lasts 1.6 seconds. RawP is not registered in Expression Parameters; FX-only does not guarantee privacy or absence from client OSC exports.
 
-Avatar-root scale must be positive and uniform. Known root-scale animation/ScaleConstraint fails the build. Internal ScaleFactor guards disable Contacts and clear P/Sample before receiver world radius exceeds approximately 2.999 m. Unselected or nonlocal states also invalidate. Removing public Scale does not remove scale validation.
+## Control parameters and language
 
-## Desktop and experiment limits
+Exclusive separately registers local, unsynced, unsaved Int `Sensa/Select/<group>`: default 0 is Off, 1…N selects ordered targets, out-of-range returns Off. It may appear in OSC but is a **menu control**, not a measurement. Dedicated has no automatic selector. No selector enables desktop input or connects devices.
 
-Apply OSC mode and select one instance/source. Four P values must be complete, unsaturated and consistent with the model; Sample must be legal and changing. Unchanged distances can remain cached, with a 1250-ms protocol liveness cap. Resending the same Sample does not renew freshness. Zero, invalidity or expiry stops output; Sample does not prove atomic sampling or lossless delivery.
+Sensa's language preference changes Inspector/help/error text and generated menu captions. User names, parameter names, enum values and menu slots remain unchanged. Generated Avatar menu text is fixed at authoring/build time; it does not follow each client's language.
 
-Capture two endpoints in the root panel, replace and save mappings. Experimental permission and input activation remain separate explicit actions. Old Sensa SPS paths are not converted: rebuild the Avatar and mappings after upgrading. Independent Point/Handle/Pose experiments do not use this relaxed freshness rule.
+## Validation and stops
 
-[Installation](README.en.md) · [Dependencies and limits](COMPATIBILITY.en.md) · [Independent shader capture](GPU-TRACKING.en.md)
+Nonpositive/nonuniform root scale, root ScaleConstraint and known root-scale animation fail the build. IsLocal, ScaleFactor and selection guards disable Contacts and clear P/Sample when invalid, before the receiver exceeds approximately 2.999 world meters.
+
+Desktop reconstruction needs four complete, unsaturated, consistent values and a legal changing Sample. Unchanged P values may remain cached. Sample content-change age has a 1250-ms protocol cap; a positive input timeout can be stricter. Resending an unchanged Sample cannot renew activity. Publication order is not atomic OSC delivery or Sender authentication.
+
+Capture two endpoints, replace the mapping draft, inspect and save it; separately allow experimental spatial input and activate input. Zero/invalid/expired observations stop motion. Older Sensa SPS data is unsupported. Independent Point/Handle/Pose keep their own oldest-channel rules.
+
+[Limits](COMPATIBILITY.en.md) · [Native shader route](GPU-TRACKING.en.md)

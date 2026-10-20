@@ -1,8 +1,10 @@
-# Shader 根点捕获：实现与研究记录
+# Shader 捕获：从原生根点到桌面区域
 
 **简体中文** | [English](shader-capture-research.en.md)
 
-核验日期：2026-10-19。结论：本轮增加的是 **SPS Socket/Plug 根部 Transform → 原生蒙皮 → Shader 编码 → 用户明确选择的桌面区域 → OSC**。它采样头像根局部坐标，不采样最终形变网格。原生生产端已实现；Unity 构建、实际上传、客户端窗口与 PCVR 合成结果需要各自验收，不能从 Python 测试推导。
+本研究区分能实现的生产链和不能据此承诺的客户端行为。当前实现是 **所选 SPS 根 Transform → 原生蒙皮点 → 单 Camera 图块 → 明确 ROI 解码 → OSC**，不采样最终形变网格。隐藏渲染层并不自动成为桌面捕获接口。
+
+以下一手资料核验于 2026-10-19，源码固定到所列提交；新版本需要重新核对。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页保留设计理由与未完成验收。
 
 ## 官方能力与本轮决策
 
@@ -72,8 +74,12 @@ Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以�
 
 注册文件只证明曾在显式 ROI 解码到该 native 包，不代表完成位置精度或 VR 可见性验收。桥接器仍需两个推进帧；CRC/来源/坐标系错误、同帧不同值、倒序、冻结、超时或退出均关 Valid。冻结后的原帧不会恢复，两张新的推进帧才恢复；source reset 可要求手动重启桥，不能自动换源。
 
-## 验证与未完成验收
+## 验证证据与缺口
 
-- 隔离 Python 契约覆盖编码/CRC/RGB、无效源、共享坐标范围、来源/坐标系锁定、五字段顺序、原生与诊断命名空间隔离、冻结/恢复、Windows 文件原子替换、注册和 CLI 提前拒绝。不调用桌面捕获或用户设备。
-- Unity EditMode 契约覆盖默认关闭、单相机直接输出配置、Shader 编译、持久边界、局部蒙皮几何及多 producer 相机绑定。本轮隔离 Python 19/19、统一 Unity EditMode 65/65（含原生捕获 3 项）通过，零跳过；XML 为 artifacts/verification/sps-five-fields-editmode.xml。Unity 使用 nographics 导入／生成 Shader，不是实际 GPU 像素输出或客户端验收。
-- 必须另验：真实 SDK 上传后保留、NDMF/VRCFury 优化交互、实际 native 编码、PC desktop 与 PCVR 合成、头显是否可见、窗口缩放/遮挡/最小化、HDR/后处理/低帧率、延迟及位置参考误差。没有这些证据前保持实验 opt-in，不称可靠世界定位或真实网格跟踪。
+隔离 Python 契约检查编码／CRC／RGB、共享坐标、ID／坐标系锁定、有序五字段、原生／诊断隔离、冻结／恢复、注册、Windows 原子替换及捕获前 CLI 拒绝；不读取桌面或操作用户设备。
+
+Unity EditMode 检查默认 Off、单相机直接输出、Shader 导入、持久边界、蒙皮坐标与多 producer 绑定；对应忽略报告为 `artifacts/verification/sps-five-fields-editmode.xml`。nographics 导入／生成不是实际 GPU 渲染，具体数量以原报告为准。
+
+仍须分别验收 SDK 上传保留、NDMF／VRCFury 优化交互、native 编码像素、PC／PCVR 合成、HMD 可见性、窗口缩放／遮挡／最小化、HDR／后处理／低帧率、延迟及参考位置误差。桥的默认冻结 350 ms 早于桌面 500 ms 拒绝上限，不能将后者描述为实际桥的有效期。
+
+完成这些前保持实验 opt-in，不承诺可靠世界定位、真实网格跟踪或客户端性能提升。[定位边界](positioning.md) · [验证流程](development.md)

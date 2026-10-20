@@ -176,7 +176,7 @@ test('readiness and command timeouts, send failures and malformed bodies release
   await r.tick(100); await timedOut;
   r.peers[0].open();
   await assert.rejects(r.session.request('/invalid', { body: '{' }), SyntaxError);
-  const slow = r.session.request('/slow'); const expired = assert.rejects(slow, /超时|timeout/i);
+  const slow = r.session.request('/slow'); const expired = assert.rejects(slow, /超时|timeout|timed out/i);
   await flush(); await r.tick(100); await expired;
   r.peers[0].sendError = new Error('wire failed');
   await assert.rejects(r.session.request('/send'), /wire failed/);

@@ -33,7 +33,7 @@ namespace SensaAvatarLab
             Directory.CreateDirectory(Root);AssetDatabase.Refresh();
             foreach(var name in Cases)
             {
-                string path=Root+"/"+name+".unity";if(File.Exists(path))throw new InvalidOperationException("Refusing to replace "+path);
+                string path=Root+"/"+name+".unity";if(File.Exists(path))throw new InvalidOperationException(AvatarLabLocalization.Text("Refusing to replace ")+path);
                 var scene=EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects,NewSceneMode.Single);
                 var avatar=(GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Amatousagi/Chocolat/Chocolat.prefab"));avatar.name="Sensa Capability "+name;
                 avatar.GetComponent<VRC.Core.PipelineManager>().blueprintId="";
@@ -81,20 +81,20 @@ namespace SensaAvatarLab
                 var emulator=AssetDatabase.LoadAssetAtPath<GameObject>("Packages/vrchat.blackstartx.gesture-manager/GestureManager.prefab");if(emulator!=null)PrefabUtility.InstantiatePrefab(emulator);
                 EditorSceneManager.SaveScene(scene,path);
             }
-            AssetDatabase.SaveAssets();EditorSceneManager.OpenScene(Root+"/Contact.unity");
+            AvatarLabLocalization.SaveAssets();EditorSceneManager.OpenScene(Root+"/Contact.unity");
         }
         static void OgbMenu(GameObject avatar,string name)
         {
             if(avatar.transform.Find("Lab OSC enable")!=null)return;
             string path=Root+"/"+name+"OgbMenu.asset";var menu=AssetDatabase.LoadAssetAtPath<VRCExpressionsMenu>(path);
-            if(menu==null){menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name="Enable SPS OSC (local)",type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name="OGB_ENABLED"},value=1});AssetDatabase.CreateAsset(menu,path);}
+            if(menu==null){menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Enable SPS OSC (local)"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name="OGB_ENABLED"},value=1});AssetDatabase.CreateAsset(menu,path);}
             var host=Child(avatar.transform,"Lab OSC enable",Vector3.zero);host.gameObject.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
         }
         public static void UpgradeOgbMenus()
         {
             foreach(var name in new[]{"SPS","SPSContact","SPSShader"}){var scene=EditorSceneManager.OpenScene(Root+"/"+name+".unity");var avatar=UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;OgbMenu(avatar,name);foreach(var plug in avatar.GetComponentsInChildren<Component>(true).Where(c=>c!=null&&c.GetType().FullName==SensaSpsAdapter.PlugType))Field(plug,"useHipAvoidance",false);EditorSceneManager.SaveScene(scene);}
             foreach(var name in AvatarLab.Variants){var scene=EditorSceneManager.OpenScene(AvatarLab.Root+"/"+name+".unity");OgbMenu(UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject,name);EditorSceneManager.SaveScene(scene);}
-            AssetDatabase.SaveAssets();
+            AvatarLabLocalization.SaveAssets();
         }
         static Transform Visual(Transform parent,string name,Vector3 position,Vector3 scale)
         {
@@ -114,7 +114,7 @@ namespace SensaAvatarLab
                 AssetDatabase.CreateAsset(clip,Root+"/"+name+"_"+i+".anim");var state=controller.layers[0].stateMachine.AddState(labels[i]);state.motion=clip;state.writeDefaultValues=false;
                 if(i==0)controller.layers[0].stateMachine.defaultState=state;
                 var transition=controller.layers[0].stateMachine.AddAnyStateTransition(state);transition.hasExitTime=false;transition.duration=0;transition.canTransitionToSelf=false;transition.AddCondition(AnimatorConditionMode.Equals,i,parameter);
-                menu.controls.Add(new VRCExpressionsMenu.Control{name=labels[i],type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=i});
+                menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text(labels[i]),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=i});
             }
             var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
             host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
@@ -147,17 +147,17 @@ namespace SensaAvatarLab
                 var transition=controller.layers[0].stateMachine.AddAnyStateTransition(state);transition.hasExitTime=false;transition.duration=0;transition.canTransitionToSelf=false;transition.AddCondition(i==0?AnimatorConditionMode.IfNot:AnimatorConditionMode.If,0,parameter);
             }
             var merge=host.AddComponent<ModularAvatarMergeAnimator>();merge.animator=controller;merge.layerType=VRCAvatarDescriptor.AnimLayerType.FX;merge.pathMode=MergeAnimatorPathMode.Absolute;merge.matchAvatarWriteDefaults=false;
-            var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name="Corrupt shader CRC",type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=1});AssetDatabase.CreateAsset(menu,Root+"/ShaderFaultMenu.asset");host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
+            var menu=ScriptableObject.CreateInstance<VRCExpressionsMenu>();menu.controls.Add(new VRCExpressionsMenu.Control{name=AvatarLabLocalization.Text("Corrupt shader CRC"),type=VRCExpressionsMenu.Control.ControlType.Toggle,parameter=new VRCExpressionsMenu.Control.Parameter{name=parameter},value=1});AssetDatabase.CreateAsset(menu,Root+"/ShaderFaultMenu.asset");host.AddComponent<ModularAvatarMenuInstaller>().menuToAppend=menu;
         }
         public static void UpgradeShaderFaultControl()
         {
-            var scene=EditorSceneManager.OpenScene(Root+"/Shader.unity");AddShaderFaultControl(UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject);EditorSceneManager.SaveScene(scene);AssetDatabase.SaveAssets();
+            var scene=EditorSceneManager.OpenScene(Root+"/Shader.unity");AddShaderFaultControl(UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject);EditorSceneManager.SaveScene(scene);AvatarLabLocalization.SaveAssets();
         }
         [MenuItem("Tools/Sensa Avatar Lab/Inspect Shader SDK bundle")]
         public static void InspectShaderBundle()
         {
             const string path="Builds/Sensa-Chocolat-Shader.vrca";
-            var bundle=AssetBundle.LoadFromFile(path);if(bundle==null)throw new InvalidOperationException("Build the Shader SDK bundle first.");
+            var bundle=AssetBundle.LoadFromFile(path);if(bundle==null)throw new InvalidOperationException(AvatarLabLocalization.Text("Build the Shader SDK bundle first."));
             try
             {
                 var avatar=bundle.LoadAllAssets<GameObject>().Single(g=>g.GetComponent<VRCAvatarDescriptor>()!=null);
@@ -168,7 +168,7 @@ namespace SensaAvatarLab
                     sourceHasFaultProperty=avatar.GetComponentsInChildren<Renderer>(true).SelectMany(r=>r.sharedMaterials).Any(m=>m!=null&&m.shader.name=="SensaLab/Telemetry"&&m.HasProperty("_CorruptCrc"))};
                 report.passed=report.cameras==2&&report.crcParameterLocal&&report.outputDefaultsOff&&report.sourceHasFaultProperty;
                 File.WriteAllText("Validation/sdk-shader-contents.json",JsonUtility.ToJson(report,true));
-                if(!report.passed)throw new InvalidOperationException("Shader SDK bundle contents failed validation.");
+                if(!report.passed)throw new InvalidOperationException(AvatarLabLocalization.Text("Shader SDK bundle contents failed validation."));
             }
             finally {bundle.Unload(true);}
         }
@@ -181,7 +181,7 @@ namespace SensaAvatarLab
                 EditorSceneManager.OpenScene(Root+"/"+name+".unity");var source=UnityEngine.Object.FindObjectOfType<VRCAvatarDescriptor>().gameObject;var clone=UnityEngine.Object.Instantiate(source);clone.name=source.name+"(Clone)";source.SetActive(false);
                 try
                 {
-                    if(!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone))throw new InvalidOperationException("Build callbacks rejected "+name);
+                    if(!VRCBuildPipelineCallbacks.OnPreprocessAvatar(clone))throw new InvalidOperationException(AvatarLabLocalization.Text("Build callbacks rejected ")+name);
                     var receivers=clone.GetComponentsInChildren<VRCContactReceiver>(true);var senders=clone.GetComponentsInChildren<VRCContactSender>(true);
                     var handles=clone.GetComponentsInChildren<VRCPhysBone>(true).Where(b=>b.parameter!=null&&b.parameter.StartsWith("Sensa/")).ToArray();
                     var parameters=clone.GetComponent<VRCAvatarDescriptor>().expressionParameters.parameters.Select(p=>p.name).ToArray();
@@ -205,7 +205,7 @@ namespace SensaAvatarLab
                 finally{UnityEngine.Object.DestroyImmediate(clone);source.SetActive(true);}
             }
             Directory.CreateDirectory("Validation");var report=new Report{passed=rows.All(r=>r.passed),cases=rows.ToArray()};File.WriteAllText("Validation/capability-matrix.json",JsonUtility.ToJson(report,true));
-            if(!report.passed)throw new InvalidOperationException("Capability matrix failed.");
+            if(!report.passed)throw new InvalidOperationException(AvatarLabLocalization.Text("Capability matrix failed."));
             EditorSceneManager.OpenScene(Root+"/Contact.unity");
         }
     }

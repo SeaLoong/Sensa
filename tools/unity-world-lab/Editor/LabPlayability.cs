@@ -17,7 +17,7 @@ namespace SensaLab
         private const string Root="Assets/SensaLab/Generated";
         [Serializable] private class LayoutReport {public bool passed;public int stations;public float minButtonHeight,maxButtonHeight;public bool continuousFloor,clearStandingAreas;}
         [MenuItem("Tools/Sensa Lab/Make world walkable and reachable")]
-        public static void Configure(){EditorSceneManager.OpenScene(Root+"/SensaLab.unity");Apply();EditorSceneManager.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());AssetDatabase.SaveAssets();}
+        public static void Configure(){LabEditorLocalization.OpenScene(Root+"/SensaLab.unity");Apply();LabEditorLocalization.SaveScene(UnityEngine.SceneManagement.SceneManager.GetActiveScene());AssetDatabase.SaveAssets();}
         public static void Apply()
         {
             string asset="Assets/SensaLab/Runtime/LabLocomotion.asset";
@@ -25,7 +25,7 @@ namespace SensaLab
             UdonSharp.Compiler.UdonSharpCompilerV1.CompileSync(new UdonSharp.Compiler.UdonSharpCompileOptions{IsEditorBuild=true});
             var layout=GameObject.Find("Playability layout");if(layout==null)layout=new GameObject("Playability layout");
             var locomotion=layout.GetComponent<LabLocomotion>();if(locomotion==null)locomotion=UdonSharpUndo.AddComponent<LabLocomotion>(layout);UdonSharpEditorUtility.CopyProxyToUdon(locomotion);
-            var floor=GameObject.Find("Floor");if(floor==null)throw new InvalidOperationException("Lab floor missing");floor.transform.position=new Vector3(0,-.1f,4);floor.transform.localScale=new Vector3(16,.2f,16);floor.GetComponent<Collider>().enabled=true;
+            var floor=GameObject.Find("Floor");if(floor==null)throw new InvalidOperationException(LabEditorLocalization.Text("Lab floor missing"));floor.transform.position=new Vector3(0,-.1f,4);floor.transform.localScale=new Vector3(16,.2f,16);floor.GetComponent<Collider>().enabled=true;
             floor.GetComponent<Renderer>().sharedMaterial=ColorMaterial("Walkway",new Color(.78f,.78f,.78f));
             var caseFloor=GameObject.Find("Case area floor");if(caseFloor!=null){caseFloor.GetComponent<Collider>().enabled=false;caseFloor.GetComponent<Renderer>().enabled=false;}
             var spawn=GameObject.Find("Spawn");spawn.transform.position=new Vector3(0,.1f,-2.5f);spawn.transform.rotation=Quaternion.identity;
@@ -38,7 +38,7 @@ namespace SensaLab
                 var board=station.status.GetComponentInParent<Canvas>();board.transform.localPosition=new Vector3(0,.6f,.35f);board.transform.localScale=Vector3.one*.00125f;
                 var backing=owner.Find("Opaque board backing");backing.localPosition=board.transform.localPosition+Vector3.forward*.012f;backing.localScale=new Vector3(1.5f,.8125f,.01f);
                 foreach(string name in new[]{"Reset case","Pause case","Toggle missing A3"}){
-                    var button=owner.Find(name);if(button==null)throw new InvalidOperationException("Case control missing: "+name);
+                    var button=owner.Find(name);if(button==null)throw new InvalidOperationException(LabEditorLocalization.Text("Case control missing: ")+name);
                     var pos=button.localPosition;pos.y=-.02f;pos.z=-.45f;button.localPosition=pos;button.localScale=Vector3.one*.14f;
                     var label=owner.Find(name+" label");if(label!=null)label.localPosition=pos+Vector3.up*.13f;
                 }
@@ -55,7 +55,7 @@ namespace SensaLab
             var report=new LayoutReport{stations=stations.Length,minButtonHeight=buttons.Min(t=>t.position.y),maxButtonHeight=buttons.Max(t=>t.position.y),continuousFloor=ground,clearStandingAreas=clear};
             report.passed=stations.Length==11 && report.minButtonHeight>=.85f && report.maxButtonHeight<=1.15f && ground && clear;
             Directory.CreateDirectory("Validation");File.WriteAllText("Validation/playability-layout.json",JsonUtility.ToJson(report,true));
-            if(!report.passed)throw new InvalidOperationException("Playability layout validation failed; see Validation/playability-layout.json");
+            if(!report.passed)throw new InvalidOperationException(LabEditorLocalization.Text("Playability layout validation failed; see Validation/playability-layout.json"));
         }
         private static Material ColorMaterial(string name,Color color)
         {

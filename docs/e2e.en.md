@@ -1,46 +1,51 @@
-# E2E and screenshot review
+# Browser verification and screenshot baselines
 
 [简体中文](e2e.md) | **English**
 
-Browser E2E, automatic screenshots and full-process smoke run only in GitHub Actions. Do not run them locally or fabricate CI environment variables. Local work uses the affected checks and receipts from `scripts/verify.py`.
+Browser E2E, screenshots and full-process smoke run only in GitHub Actions. Locally plan affected static/units with `scripts/verify.py --plan`, execute and reuse receipts. Never forge CI environment.
 
-## Coverage
+## Three browser boundaries
 
-E2E starts the real Sensa backend and WebUI with an independent temporary configuration per scenario. External services/devices are loopback mocks: OSC UDP, TCode UDP/TCP, Linux PTY serial, Buttplug WebSocket and OSCQuery. Sensa HTTP/WS control is not mocked.
+| Suite | Runs for real | Dependencies/limits |
+| --- | --- | --- |
+| Sensa application | Service, HTTP/WS and UI | Loopback OSC, TCode UDP/TCP, Linux PTY, Buttplug WS and OSCQuery mocks; not hardware/VRChat |
+| Standalone explorer | File HTML, six local assets, SVG/software WebGL2 | No Sensa/network/devices; not native GPU capture |
+| Documentation site | Built Pages artifact and isolated static server | Navigation/language/mobile layout/public explorer; no product chain |
 
-The parameter guide also has an independent local-file case without an app process or mock devices. It checks no network requests, actual SVG dimensions, linked readings, languages, keyboard controls and narrow reflow, with bilingual screenshots for five representative scenes. A separate integration case starts real Sensa to verify the parameter-details link and packaged HTML/scripts. Orbit views for all scenes also check real WebGL2 nonempty pixels, Three.js positions/radii/reference surfaces, anchor colours, camera motion without parameter changes, independent ray/plane reconstruction of target dragging and its locked axis, coordinate steps/bounds, cancellation and disposal. Five representative scenes also retain bilingual 3D images. Controlled missing/lost contexts verify SVG fallback. CI software WebGL renders this local guide; it does not stand in for real VRChat/Shader capture.
+Application integration also checks bundled explorer links/assets. The fourth workflow owns site checks independently of stable Unity. VPM reflects verified stable history, not fabricated development releases. [Development/gates](development.en.md)
 
-Regression areas include Control/OSC/Settings navigation, manual control/recording, independent scalar-step fixtures/gates, FT prefixes, the three presets/mappings, script pause/seeking, profiles/conflicts, permission after mode/script changes, language persistence and draft retention. Independent fixed-root and Shader-root protocol fixtures check default blocking, explicit permission, endpoint calibration, saved mappings and invalidation stops; they are not Unity Contact or actual GPU capture evidence. OGB control separately checks explicit enablement/final disable and the absence of renewed enable heartbeats beyond the real five-second interval after stopping, with device input remaining disarmed. Assertions check UI state and mock wire commands; screenshots alone cannot prove stopping.
+## Meaningful behavior assertions
 
-Desktop 1280×900 and narrow 390×844 use a fixed Playwright Linux container, fonts, locale and timezone. Narrow layout is not a physical phone test; PTY is not a Windows driver. Unity, uploaded VRChat avatars, HMDs and real hardware remain outside browser coverage. [Tests](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e), [fixed environment](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js)
+Application cases check UI and mock wires together: browse/apply mode, permission, manual/script pause/seek, recording/restart, output configuration, FT prefixes, three templates, saved mappings/conflicts, profiles, sources, gates and invalidity stops. Synthetic steps are an independent scalar fixture, not a built-in QuickStart template.
 
-## Normal changes
+Fixed SPS/Shader cases send explicitly simulated protocols to check default blocking, opt-in, endpoint calibration, persistence and invalidity. They prove neither Unity Contacts nor real capture. OGB heartbeat checks enable/revoke and no renewed enable across a five-second stop interval while device input stays closed.
 
-1. Run affected local static/unit checks, commit and push.
-2. Inspect the required browser comparison in main CI. With no unfinished product verification, documentation/unit-test-only changes do not duplicate product work.
-3. On failure, download `e2e-report`; inspect expected/actual/diff, traces, service logs and `mock-wire.json`.
-4. Fix incorrect behavior. Update baselines only for reviewed, intentional visual changes; do not hide failures with retries.
+Locale cases cover URL/saved/full ordered browser preferences/English fallback, denied storage, persistence and preserved drafts/explorer state. Golden language is explicit, separate from environment negotiation. [Language contract](languages.en.md)
 
-Normal comparison cannot update snapshots, and missing baselines fail. Prereleases require a normal full comparison at the candidate SHA; baseline-generation jobs provide no publication proof.
+Explorer cases independently inspect SVG radii/capsules, values, keyboard, aligned sliders and 320 reflow. WebGL checks actual non-background pixels, object matrices/geometry/colors/reference surfaces, camera-data separation, XZ/XY ray-plane drag/locked axes/step/clamp/cancel, dimension updates and resource cleanup. It also checks default/reset framing, label clearance/leaders and constructor/context-loss fallback. The report defines exact YZ/numeric coverage; a control's presence is not an executed flow.
 
-## Proposed baselines
+## Environment and failures
 
-For intentional layout/component changes, manually run **WebUI E2E and screenshots** in GitHub Actions with `update_snapshots=true`:
+Desktop 1280×900 and narrow 390×844 use locked Playwright Linux, fonts, locale and timezone; 320 is a separate reflow check. A narrow viewport is not a phone, and PTY is not a Windows driver. [Config](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js) · [Tests](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
+
+On failure, download `e2e-report` and inspect expected/actual/diff, trace, service logs, mock-wire and last observations. Fix behavior in implementation. Update baselines only for reviewed intentional changes, without weakened assertions, automatic retries or resends hiding failures.
+
+## Generate and accept candidates
+
+Normal comparisons cannot update images; missing baselines fail. Prereleases require normal full comparison of the candidate SHA. For intentional visual changes, remotely dispatch:
 
 ```shell
 gh workflow run e2e.yml --ref <branch> -f update_snapshots=true
 ```
 
-This requests remote generation. Wait for functional assertions to pass, then download `e2e-baselines` and inspect every image for layout, readability, overflow, expandable details, dialogs and error states. Downloading an artifact is not approval; partial images from failed runs cannot be accepted automatically.
+Wait for required behavior, download `e2e-baselines`, then review full/local images by locale/viewport. Partial images from failures are diagnostic only; downloading is not acceptance. Record commit, run, image, concrete findings/fixes and limits before copying reviewed files into `tests/e2e/__screenshots__/`. Commit with implementation and run normal comparison. Candidate generation publishes nothing and never writes back to Git.
 
-After review, place the appropriate desktop/mobile PNGs in `tests/e2e/__screenshots__/` and commit them with the implementation. Normal full comparison must then pass. Candidate generation publishes no release and never writes back to Git automatically.
+Mask only unstable times/runtime addresses, not targets, gates or errors. Split long content by real sections/scroll positions; do not infer unseen content. Byte-identical images may inherit recorded reviews; changed images require inspection.
 
-Screenshots mask unstable timestamps/runtime addresses, not targets, gates or errors. Tall regions are captured in segments using actual scrolling. Playwright/container upgrades require renewed review. Use Actions reports for the actual commit's results and image conclusions.
+## Interpret evidence honestly
 
-## Visual and accessibility evidence
+Use [V1–V6](ui-quality.en.md) for hierarchy, typography, grouping, color, alignment and bilingual integrity. Equal screenshots establish regression stability, not an aesthetic survey. [Review history](ui-visual-review.en.md) records fixed evidence.
 
-Review substantial visual changes against the [visual assessment framework](ui-quality.en.md): hierarchy, typography, spacing, grouping, color and finish, then inspect proposed PNGs. Baseline comparisons detect unexpected visual changes; aesthetic judgments need screenshots, explicit criteria and reasons.
+The axe subset, keyboard/dialog focus, targets, reflow and geometry in `quality.spec.js` are automatically detectable baselines. Preserve violations, incomplete, versions, URLs/locales/viewports and unexecuted items under `artifacts/e2e/ui-quality/` and the report. Zero violations neither certifies full WCAG nor replaces visual, screen-reader or touch acceptance.
 
-`quality.spec.js` adds axe-related rules, keyboard, dialog and narrow-layout checks in both languages to the existing browser job. Geometry contracts also inspect primary-axis labels/values/sliders, shared output columns, mapping control edges, narrow forms/range endpoints and endpoint alignment in existing calibration scenarios. They retain raw bounds and require enough samples; fixed colors or pixel positions are not an aesthetics score. JSON/Markdown evidence lives in `artifacts/e2e/ui-quality/` inside `e2e-report`, retaining violations, incomplete results, missing checks and engine versions. Zero detected violations is neither an aesthetics score nor complete WCAG conformance.
-
-[Development](development.en.md) · [Architecture](architecture.en.md)
+Read actual pass/skip/retry/image counts from each Actions report. Unity uploads, actual Contacts/OSC, HMD/desktop encoding and physical stops are outside this suite.

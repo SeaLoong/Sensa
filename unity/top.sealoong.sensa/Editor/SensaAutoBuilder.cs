@@ -29,18 +29,18 @@ namespace UnityBox.Sensa
         public static void ProcessAvatar(GameObject avatar)
         {
             var all=avatar.GetComponentsInChildren<SensaAutoSetup>(true);var setups=all.Where(s=>s.enabled).ToArray();
-            if(setups.GroupBy(s=>s.groupName).Any(g=>g.Count()>1))throw new InvalidOperationException("Sensa auto group names must be unique.");
+            if(setups.GroupBy(s=>s.groupName).Any(g=>g.Count()>1))throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa auto group names must be unique."));
             var used=new HashSet<Component>();int cost=0;
-            foreach(var setup in setups){if(!Enum.IsDefined(typeof(SensaArrayPolicy),setup.arrayPolicy))throw new InvalidOperationException("Unknown Sensa array policy. / 未知 Sensa 阵列策略。");SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException("Auto group name must be at most 30 characters.");SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException("No selected SPS targets for "+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException("Two automatic groups select the same SPS target.");cost+=ContactCost(setup,targets);if(setup.socketRootTracking)foreach(var target in targets)SensaFixedRootBuilder.Validate(avatar,Id(setup.groupName,target,avatar),target,Id(setup.groupName,target,avatar));}
+            foreach(var setup in setups){if(!Enum.IsDefined(typeof(SensaArrayPolicy),setup.arrayPolicy))throw new InvalidOperationException(SensaEditorLocalization.Text("Unknown Sensa array policy."));SensaSensorUtility.Name(setup.groupName);if(setup.groupName.Length>30)throw new InvalidOperationException(SensaEditorLocalization.Text("Auto group name must be at most 30 characters."));SensaSensorUtility.Name(setup.pairChannel);var targets=Targets(setup,avatar);if(targets.Length==0)throw new InvalidOperationException(SensaEditorLocalization.Text("No selected SPS targets for ")+setup.groupName);foreach(var target in targets)if(!used.Add(target))throw new InvalidOperationException(SensaEditorLocalization.Text("Two automatic groups select the same SPS target."));cost+=ContactCost(setup,targets);if(setup.socketRootTracking)foreach(var target in targets)SensaFixedRootBuilder.Validate(avatar,Id(setup.groupName,target,avatar),target,Id(setup.groupName,target,avatar));}
             SensaSensorUtility.Budget(avatar,cost);
             // Resolve all placements before generating anything. Unsupported SPS versions fail explicitly.
             var placements=used.ToDictionary(c=>c,SensaSpsAdapter.Read);
             foreach(var setup in setups) {
-                if(avatar.transform.Find("SensaAuto_"+setup.groupName)!=null)throw new InvalidOperationException("This auto group is already generated: "+setup.groupName);
+                if(avatar.transform.Find("SensaAuto_"+setup.groupName)!=null)throw new InvalidOperationException(SensaEditorLocalization.Text("This auto group is already generated: ")+setup.groupName);
                 var sockets=Targets(setup,avatar).Where(c=>c.GetType().FullName==SensaSpsAdapter.SocketType).ToArray();
                 if(setup.localPlugTipTracking && Targets(setup,avatar).Any(c=>c.GetType().FullName==SensaSpsAdapter.PlugType)
                     && (setup.localReferenceSocket==null?sockets.Length!=1:!sockets.Any(c=>c.gameObject==setup.localReferenceSocket)))
-                    throw new InvalidOperationException("Local tip measurement needs a selected reference Socket; choose one explicitly when there are multiple sockets.");
+                    throw new InvalidOperationException(SensaEditorLocalization.Text("Local tip measurement needs a selected reference Socket; choose one explicitly when there are multiple sockets."));
             }
             foreach(var setup in setups)Build(avatar,setup,Targets(setup,avatar),placements);
             foreach(var setup in all)UnityEngine.Object.DestroyImmediate(setup);

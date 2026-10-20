@@ -1,121 +1,61 @@
-# Sensa Unity world laboratory
+# 世界实现与验证
 
 **简体中文** | [English](DEVELOPMENT.en.md)
 
-This is a device-free PC Worlds test harness. Open `Generated/SensaLab.unity`.
+[安装与语言](README.zh-CN.md)。受管源位于仓库相对路径 `tools/unity-world-lab/{Editor,Runtime}`，生成场景／资产位于目标工程 `Assets/SensaLab`。安装保护本地修改和已有场景；独立工程保持本地、不设置 Git 远端。
 
-- Enter Play Mode / ClientSim to animate the root marker, calculate actual SDK Contact proximity, and run Udon GPU readback with CRC validation.
-- The left small cube pauses motion; the right cube toggles the desktop-output experiment. Desktop output is OFF by default.
-- The third cube toggles the camera-only prototype. Read `CAMERA-PROTOTYPE.md` before trying it; do not enable both output experiments together.
-- GPU readback is deliberately throttled to every six Update frames. The board reports decoded age and maximum callback lag; these are local Udon diagnostics, not external capture latency.
-- The local bone/PB station shows a grabbable sphere, native PhysBone state, target coordinates and four native Contact samples. The automated run verifies its readout; actual player grabbing remains a client test.
-- The SPS2 Plug/Socket station uses installed VRCFury authoring components and is baked by its normal world build/play hook. Legacy compatibility remains enabled.
-- The paired three-marker sender can stimulate a compatible test avatar, but a world is not a substitute for uploading and wearing that avatar.
-- The visible telemetry panel is deliberately visible for inspection. The separate desktop-output prefab is the experiment for a non-stereo fixed viewport, not a proven invisible avatar bridge.
+## 呈现与运行时边界
 
-Use `Tools > Sensa Lab > Run editor GPU validation` to write `Validation/editor-results.json`, `telemetry.png`, `camera-output.png`, and `world-preview.png` in the project root. It executes GPU rendering, packet CRC checks, camera rotations, SDK proximity calculations, and the optional SPS adapter's shader compilation/invalid-source checks. These are not HMD tests.
+编辑器语言影响工具界面和新生成标题。世界自动语言使用 `VRCPlayerApi.GetCurrentLanguage()` 与 `OnLanguageChanged`，已在 Worlds SDK 3.10.5 核对；安装的 SDK 必须暴露这些 Udon API，不假定旧版本兼容。本地玩家标签的会话偏好优先，语言不同步。
 
-`Tools > Sensa > SPS GPU Model Probe (Experimental)` opens the model readback window. Select the baked Resolver and surface material after SPS has baked. It reads an unblended model centerline, not final mesh geometry.
+六类动态 HUD 通过 UGUI `Text` 翻译已知短语，保留英文状态／测量源。所核 SDK 的 Udon 不暴露 `TextMesh.text`，因此静态 TextMesh 保留原名／Transform／ID／原文并禁用原 Renderer，由编辑器生成英／中文显示子对象；运行时只用 `SetActive` 切显隐，不逐帧轮询静态文字。
 
-`Tools > Sensa Lab > Run Play Mode validation (straight)` and `(offset and tilted)` bake a temporary scene and run a 12-second ClientSim check with real Udon readback and real SPS GPU sampling. Reports are in `Validation/` and `Validation/offset/`. The harness temporarily disables VRCFury's second Play Mode rebuild after explicitly baking, and restores the previous preference on exit. Use these menu entries for reproducible SPS tests; the original authoring scene remains unchanged. `Generated/BakedPlayValidation.unity` is a disposable preview referencing VRCFury temporary assets; rebuild it through the menu, not as a standalone permanent scene.
+本地化保留原对象、参数路径、事件方法、诊断 JSON 键和 fixture 状态；用户名称和未知技术文本保持原文。
 
-The world project is a separate, local-only Git repository. No remote is configured. Library/Temp/Logs/Builds are excluded. Installed package sources are recorded locally for reproducibility. Optional packages under `DisabledPackages~` are preserved but not loaded: their Harmony versions conflicted with SDK/UdonSharp during initial generation.
+运行时 Udon 只用 SDK 支持的 API，不反射编辑器类型、不创建任意库对象。静态／烘焙 Avatar 标签是作者资产，需明确重新生成或升级，不是运行时翻译。
 
-Source of truth: repository-relative `tools/unity-world-lab` and the shared Sensa GPU probe/protocol. Replace `<World project>` with your local world project directory. From the Sensa repository root, sync with `python -X utf8 scripts/install-world-lab.py "<World project>"`. The installer refuses to overwrite locally modified owned source files; generated scene assets are not overwritten by the sync. The scene generator also refuses to overwrite an existing scene.
+原生 SDK CalculateProximity 对明确已知 Sender 采样。Udon GPU 回读验证 CRC、报告本地年龄／回调滞后，不是外部捕获延迟。PhysBone 站将抓取、原生标量和局部几何分开；实际 Avatar OSC 仍需另行上传并穿戴头像。
 
-Still requiring client validation: HMD visibility, avatar camera behavior, remote interactions, capture latency, minimized/occluded windows, Spout, and device calibration. No real device outputs are enabled by this harness.
+## 材质隔离
 
-## 编码材质与重复运行
+Shader 与几何站通过禁用、无网格 Renderer 的 `Renderer.material` 获取独立运行时编码材质。Udon 不能使用 `new Material(...)`，序号／CRC 写入不得修改共享资产。
 
-Shader 测试台和几何运动台各自使用独立的运行时编码材质。`Runtime encoder material` 是禁用、无网格的 Renderer，只用于通过 `Renderer.material` 取得实例，不会显示编码画面。Udon 不支持材质复制构造函数，因此不要改成 `new Material(...)`。序号、样本和 CRC 故障注入写入运行时实例，退出 Play Mode 时销毁；资产中的初始设置保持原样。
+明确执行 **Upgrade isolated encoder materials** 更新旧场景绑定；临时验证检查实例隔离与材质内容恢复。生成器和几何检查不得覆盖原场景，也不能静默补造缺少的站点。
 
-升级旧测试世界：同步源码后执行 `Tools > Sensa Lab > Upgrade isolated encoder materials`，为两个已有场景补齐引用。新生成的场景自动配置。Play Mode 验证也会在临时测试场景中补齐配置，并生成 `material-isolation.json`：既检查各测试台实例独立，也比较退出运行前后的材质内存内容和资产文件。材质隔离失败会使整次验证失败。
+## 独立 Point 几何用例
 
-几何验证不再自动调用场景生成/布局命令，也不会保存原场景。缺少本地 PB 站或 11 个几何 case 时会提示先通过菜单准备。批量工具另行校验两个原场景的文件内容；测试期间改写原场景会判失败。布局工具只调整 PB 抓取目标的显示大小，不再缩放整站的探针与文字。
+以下十一项采用独立本地点框架，**不是**固定 SPS P0–P3：
 
-可从主仓库使用 [统一验证入口](https://github.com/SeaLoong/Sensa/blob/main/docs/development.md#本地-unity-套件) 顺序运行世界和 Avatar 测试。它为每次运行保存独立日志与报告副本，并拒绝把旧的成功报告当作本次结果。
-
-
-## 新增四点定位测试区
-
-打开 `Assets/SensaLab/Generated/SensaLab.unity`，进入 Play Mode / ClientSim。新增区域位于场景前方 Z=4–9 m，11 个编号站分三排摆放，配有独立地面和不透明看板。每站显示 SDK 四路近接值、参考坐标 Truth、解算坐标 Decoded、残差与预期结果。每站白球可抓取移动，左/中/右三个方块分别重置、暂停/恢复、切换探针 P4 缺采样；所有测试不输出设备命令。
-
-| Case | 场景 | 预期 |
+| 用例 | 基准 | 预期 |
 | --- | --- | --- |
-| 01 Front | (0.02, -0.03, 0.10) 局部位置 | 有效，解算接近 Truth |
-| 02 Behind | Z=-0.10 | 有效，负 Z 不被镜像成正 Z |
-| 03 Lateral | X=0.13、Y=-0.05 | 有效，横向偏移可以分辨 |
-| 04 No contact | Z=0.60 | 无效，采样超出接触范围 |
-| 05 Saturated | Sender 位于一个接收器中心 | 无效，该路达到 1 |
-| 06 Wrong radius | Sender 半径 40 mm | 无效，不能按固定 1 mm 解算 |
-| 07 Scale x2 | 参考框架统一缩放 2 倍 | 有效，局部 Z 仍为 0.10 |
-| 08 Rotated frame | 参考框架旋转 (15°,35°,10°) | 有效，局部坐标保持一致 |
-| 09 Missing P4 | 测试程序将第四个探针（原始字段 A3）标记为缺失 | 无效，不猜测缺失采样 |
-| 10 Beyond fit volume | Z=0.26 | 即便四路有值仍拒绝，超出解算范围 |
-| 11 Origin | 位于参考原点 | 有效，XYZ 接近 0 |
+| Front | (.02,−.03,.10) | 有效 |
+| Behind | Z=−.10 | 有效，不镜像 |
+| Lateral | X=.13、Y=−.05 | 有效 |
+| No contact | Z=.60 | 无效 |
+| Saturation | Sender 在接收器中心 | 无效 |
+| Wrong radius | Sender .04，而非 .001 | 按固定模型拒绝 |
+| Scale ×2 | 参考框均匀缩放 | 局部坐标不变 |
+| Rotated frame | (15°,35°,10°) | 局部坐标不变 |
+| Missing P4 | 明确缺少 A3 | 无效 |
+| Beyond fit volume | Z=.26 | 即便有值仍无效 |
+| Origin | 原点 | 有效 |
 
-Case 09 的 -1 是明确注入的缺采样标记，不是声称 SDK 会返回负近接值。各站使用独立标签；本测试直接调用指定 Sender 的 `CalculateProximity`，不证明多玩家最近 Sender 选择或身份隔离。所有尺寸按参考局部单位解释，残差不是实测精度保证。
+Case 09 的 −1 是注入缺数据，不是 SDK 近接断言。各用例使用独立标签和明确 Sender；低残差或已知 fixture 身份不证明多人客户端行为。
 
-### 重现与自动检查
+抓取后探索，复位恢复基准，暂停冻结读数，Missing P4 注入／恢复缺路。辅助标记显示中心，不是物理 Contact 半径；控制和位置本地有效，无 Object Sync。
 
-1. 主仓库执行 `python -X utf8 scripts/install-world-lab.py "<World project>"` 同步自有源码。
-2. Unity 菜单 `Tools > Sensa Lab > Add point geometry cases` 添加测试区。已有区不会重复生成，用户修改的位置不被重置。
-3. `Validate point geometry cases` 运行原生 SDK 编辑器测量，写入 `Validation/point-cases.json` 与世界总览/近景截图。
-4. `Run Play Mode validation (straight)` 运行 ClientSim，除了原 SPS/GPU/PB 检查，还要求 11 块 Udon 状态板全部报告预期结果；报告为 `Validation/point-cases-playmode.json`。
-5. 桌面测试资源 `tests/Sensa.Tests/Fixtures/unity-point-cases.json` 保存实际 SDK 样本。后端回归逐 case 检查有效性，且有效样本必须与记录坐标相差小于 0.1 mm。这个阈值仅用于同一离线测试数据的一致性，不能外推为客户端定位精度。
+## 检查与报告
 
-需要手工补测的场景：真实玩家抓取/松开 PB；上传头像后快速切换多个 SPS 目标；多个玩家同时进入同标签接触范围；不同 Avatar 缩放；真实 OSC 丢包和镜头/Shader 裁剪。编辑器和 ClientSim 通过不能代替这些验证。
+**Tools → Sensa Lab → Validate localization (Editor only)** 只做 Udon 编译与纯编辑器呈现检查，不生成用户实验场景、不进入 PlayMode、不操作设备。结果以实际修订的报告为准，不是客户端、字体／字形或 HMD 验收。
 
-## 页面诊断与截图说明
+本机可运行包单元／EditMode。自动世界 PlayMode、完整进程冒烟、浏览器检查和全部截图仅在 Actions；不能把历史采集菜单当本机自动化替代。手动私有客户端探索是独立活动。
 
-OSC 页面新增 XZ/YZ 投影与三步校准卡片。投影网格显示 ±25 cm 范围，仅用于观察局部位置，不表示整个方框都是有效采样区。
+历史 `Validation/` 报告包含几何、材质隔离、本地控制事件和模拟移动。临时烘焙场景引用 VRCFury 临时资产，必要时应重建。脚本事件不模拟真人抓取，模拟控制器移动也不证明真实键盘／HMD。
 
-- 选择测量对象和 X/Y/Z/距原点，分别采集 0% 与 100%。例：Z=10 cm 为起点、5 cm 为终点，Z=7.5 cm 应预览为 50%。
-- 量程方向自动识别；范围之外的预览限制到 0–100%，同时显示提示。
-- 无效采样隐藏位置点和百分比，禁用采集，保留已记录的端点。生成已有端点的草稿不等于启用输出。
-- 目标消失时要求重新选择，不自动把其他目标作为原目标。切换轴或手动选择新目标会清除旧端点。
-- 窄屏将三步卡片纵向排列，按钮扩展为整行。
+`tests/Sensa.Tests/Fixtures/unity-point-cases.json` 保存已记录 SDK 样本，用于离线解算一致性；该 fixture 的小误差阈值不是实时精度上界。以实际修订的凭据和日志为准，不沿用历史测试总数或 PNG 名称。
 
-截图保存在测试世界 `Validation/`：`ui-calibration-ready.png`（正常与反向量程）、`ui-calibration-invalid.png`（无效输入）、`ui-calibration-narrow.png`（420 px 窄屏）、`point-cases-world.png`（世界总览）、`point-case-detail.png`（单站近景）。UI 截图使用隔离临时配置和模拟 OSC，不是物理设备或 Avatar 实测；输入保持关闭。
+桌面校准观察数据并生成草稿，不启用输入。固定根与 Shader 各用自己的单位和时效；观测无效时保留端点，但不能生成有效动作目标。
 
+仍需真实客户端测试：语言／字体覆盖、抓取／松开、快速切换、多个同标签 Sender、缩放、OSC 丢包／乱序、相机／Shader 保留、HMD 可见性与物理校准。工具不会自动连接设备或上传。
 
-## 测试世界详细操作路线
-
-`<World project>` 表示自己的本地世界工程目录；该工程仅做本地 Git 回溯，不设置 remote。请用项目指定的 Unity 2022.3.22f1 打开；这里是 Worlds SDK 项目，不安装完整的 Avatar Sensa 包。源码同步脚本只管理 `Assets/SensaLab`，不会下载 SDK、替换场景或改 Git 远程。
-
-### 区域和可见数据
-
-| 区域 | 可以操作什么 | 能看什么 | 不代表什么 |
-| --- | --- | --- | --- |
-| 中央 Contact/运动站 | 左侧小方块暂停/恢复轨迹 | 真实 SDK 近接值与已知移动坐标 | 不是对端玩家 OSC 身份测试 |
-| 左侧 SPS2 站 | 用专用 Play Mode 验证入口烘焙；偏移用例增加横移与倾角 | Resolver 有效性、入口模型、33 点曲线采样 | 不是最终网格/真实设备行程 |
-| 本地 PB 站 | 抓住白色小球、移动、松开 | IsGrabbed、Stretch、局部 XYZ 与四路近接值 | 自动测试没有替真人完成抓取 |
-| 11 个几何 case | 抓取目标球；重置、暂停、切换缺采样 | 四路条形图、真值/解算坐标、残差、位置向量、基准/探索状态 | 不是整个头像上传链路，也不证明多人隔离 |
-| 编码/相机站 | 开关对应实验输出；不要同时启用两种输出实验 | CRC、序号、回读年龄和回调滞后；编码图块 | 不是已验证的头显隐藏区或桌面传输延迟 |
-
-### 11 个 case 的交互
-
-1. 进入 Play Mode / ClientSim，走到 Z=4–9 m 的三排看板。先确认各板报告 EXPECTED RESULT。
-2. 抓取白球，改变前后/横向位置。白球是为了便于抓取的可见把手，它的可见尺寸和 Unity Collider 不等于测量 Sender 的 1 mm 半径。不要用把手外观推断接触几何。
-3. 看四条探针 P1–P4 条形图：颜色固定为红、蓝、绿、黄，与接收器中心的小球和标签对应；缺失为空条，饱和与有效性看 Decoded/INVALID。SDK 近接值不是单独的行程；四路必须一起解算。原始字段 A0–A3 与 TCode 辅助轴无关。
-4. Truth 是世界里可直接读取的本地 Transform 真值；Decoded 是用四路值重建的位置。位置向量有效时为绿色、无效时为红色。RMS 在无法完整拟合时显示 n/a，低残差也不保证真实客户端精度。
-5. 移动或改变缺路条件后显示 EXPLORING，表示离开了该 case 的初始基准，不应再把原来的预期有效性当成当前动作的答案。
-6. **左方块 Reset**：放下目标并恢复原位置/缺路配置；**中方块 Pause**：冻结读数并显示 PAUSED，再点恢复；**右方块 Missing P4**：切换缺采样注入。Case 09 初始就是缺第四个探针，切换后可以观察恢复。
-7. 再点 Reset 回到基准，确认 EXPECTED RESULT。操作为本地验证，未加入 Object Sync，因此不应要求其他玩家看到相同的球位置。
-
-### 应怎样验证，而不是只看“通过”
-
-- 编辑器 `Validate point geometry cases` 核对 11 个基准、11 个 Pickup/Rigidbody 配置、22 个复位/故障按钮、四路读数条和位置向量引用，并导出截图/JSON。
-- ClientSim `Run Play Mode validation (straight)` 运行所有状态板，再对第一站实际发送 Udon 自定义事件，验证缺路→无效/空条、重置→有效、暂停/恢复→明确状态。结果 `point-cases-playmode.json` 中有 `controlsPassed`。
-- 这些事件测试验证 Udon 控制逻辑，不模拟 VR 手柄抓取/投掷。真实用户抓取、PCVR 手势与双人交互应手动测试。
-- 桌面使用固定 SDK JSON 作解算回归；测试世界不会自动向你的硬件或 Sensa 发送运动。若做 OSC 端到端测试，应使用隔离配置与模拟传输，或单独上传测试头像。
-
-交互 API 依据：[VRChat VRC Pickup](https://creators.vrchat.com/worlds/components/vrc_pickup/)；Pickup 同对象需要 Rigidbody/Collider，跨玩家同步则另需 Object Sync。本测试故意保持本地控制，便于复现实验。
-
-### 移动和可触及布局
-
-`LabPlayability.Apply` 保持测量几何不变，只调整地面、出生点、家具、看板和按钮。`LabLocomotion` 通过 SDK 设置行走 2 m/s、跑动 4 m/s、侧移 2 m/s、跳跃冲量 3.5 和重力 1，并在本地重生后重新应用。
-
-Play Mode 自动验证先调用 ClientSim 的 `CloseMenu`，再临时将控制器的输入依赖替换为 `ClientSimInputBase` 测试实现，驱动一秒前进及一次跳跃；结束后恢复原输入。报告记录真实控制器运动，不能据此宣称实际键盘、手柄或 VRChat 客户端已测试。此测试适配当前安装的 Worlds SDK，升级 SDK 后应重新检查控制器输入接口。
-
-`playability-layout.json` 检查 11 个操作点的地面射线、站立胶囊空间与 0.85–1.15 m 按钮高度；`locomotion-playmode.json` 保存速度、移动距离、跳跃高度及菜单状态。默认菜单打开时不能移动是模拟器的正常行为，手动体验应先关闭菜单并让 Game 视图获得焦点。
+[能力](CAPABILITIES.md) · [主验证策略](https://github.com/SeaLoong/Sensa/blob/main/docs/development.md)

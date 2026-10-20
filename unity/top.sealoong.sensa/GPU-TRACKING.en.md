@@ -6,6 +6,10 @@ This package has two distinct paths: **native root capture** generates avatar-bu
 
 See the [research record](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md) for primary sources and protocol decisions. Neither path provides final visible mesh geometry, authenticated player identity or a direct device stroke.
 
+[Package installation and language](README.md) · [Interactive geometry](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+
+Inspector, help and error text follow Sensa's Editor language preference. Menu registration paths stay stable English IDs. Avatar menu captions use the author's build-time language, without a runtime client-language script.
+
 ## Native root path
 
 Actual Socket/Plug root → native single-bone point → geometry payload/CRC → one None-eye camera directly drawing the viewport → explicit capture region → Python bridge → Sensa OSC.
@@ -19,7 +23,7 @@ The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolv
 3. Assign a unique `Producer Id` from 1–65535, such as 42, and pin the same ID in the bridge. This is a local protocol identifier, not a VRChat account identity.
 4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.125). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
 5. Build the avatar normally. Generated shaders live in `Assets/SensaShaderCapture`. Differing existing contents stop the build: establish ownership, back up and move old generated files before retrying. User changes are not overwritten.
-6. Explicitly select **Sensa ShaderCapture_42 → SPS root code / SPS 根点编码**. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
+6. Explicitly select the generated **Sensa ShaderCapture_42** root-code item. Its caption follows the author's chosen language. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
 7. Check desktop code visibility and unwanted pixels in both VR eyes separately. None-eye cameras express Unity eye targeting; actual VRChat composition still needs validation. An arbitrary hidden render layer is not a guaranteed desktop capture channel.
 
 Multiple producers use distinct camera/material signatures. The bridge must still pin a producer. A visually similar mirror, photo or third-party-camera image is insufficient.
@@ -79,6 +83,6 @@ Outputs include sampled arc length, material/arc fraction after entry, plane off
 
 ## Verification scope
 
-Verification covers Python codec/registration/freshness, five-field order and diagnostic isolation. Unity EditMode checks one-camera configuration, shader compilation, persistent bounds, local skinning geometry and multiple-producer bindings. This change passed 19/19 Python and 65/65 Unity EditMode tests (including three native-capture contracts), with zero skips. Unity used nographics shader import/generation. Actual GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients and hardware were not exercised.
+Codec/registration/freshness contracts cover five-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Use the receipt for the actual checked revision rather than a historical test count. Nographics shader import is not proof of real GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients or hardware.
 
 Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Internal diagnostic PNG CI replay establishes separate-namespace transport/freeze recovery while input stays disarmed. Simulated native OSC is not actual GPU capture.

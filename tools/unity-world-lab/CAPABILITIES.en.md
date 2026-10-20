@@ -1,74 +1,51 @@
-# Capability tests and Sensa integration
+# World capabilities and transport
 
 [简体中文](CAPABILITIES.md) | **English**
 
-For real-client acceptance use the [avatar/world/Sensa workflow](https://github.com/SeaLoong/Sensa/blob/main/docs/lab-workflow.en.md). World boards do not automatically become avatar OSC.
+[Install, language and interaction](README.md). FunctionalLab separates the following routes; its boards are world-local observations, not proof of Avatar OSC.
 
-Open `Assets/SensaLab/Functional/FunctionalLab.unity`; Generated/SensaLab remains the geometry regression scene. In ClientSim close the menu and focus Game view. Rest/Near/Offset/Outside/Freeze buttons control fixtures; PB stations use real grabbing. None connects hardware.
-
-## Stations
-
-| Station | Input/action | Expected / Sensa relationship |
+| Station | Observes | Does not establish |
 | --- | --- | --- |
-| 01 Contact only | Grab ball or Near/Offset/Outside | Four SDK proximity samples; formula error <0.0001. Avatar path Sensa/Point/v1/LabContact/Self/Root/A0..A3 |
-| 02 PB only | Grab/stretch/release, no Contacts | IsGrabbed and Stretch, no XYZ. Avatar Sensa/Lab/PB; native PB-stretch preset |
-| 03 PB + Contact | Grab measured PB target | Experimental local fit plus grab gate; inspect LabCombined in OSC diagnostics; no default motion preset |
-| 04 Native SPS | Actual VRCFury Plug/Socket; Rest first, then Near/Offset | Real OGB/Orf/FixtureSocket parameters; 20 cm Plug |
-| 05 SPS + PB + Contact | PB moves real Plug; Contact measures PB point | Three readouts together; release before preset baseline comparison |
-| 06 Shader transport | Synthetic (.25,−.5,.75), sequence, Freeze/ToggleOutput/Corrupt | Error <0.00004; frozen >350 ms invalid; real CRC corruption |
-| 07 SPS Shader | Actual shader, moved Socket, GPU centerline | Length ≈.2 m; Offset entry-minus-root ≈(.06,0,.12); editor PNG bridge |
+| Contact | Four SDK samples against one specific Sender | Multiplayer Sender identity |
+| PB | IsGrabbed and Stretch from a grabbable handle | XYZ or physical device feedback |
+| PB + Contact | Local fit and grab gate | Shared atomic sampling |
+| Native SPS | Actual fixture Plug/Socket and OGB geometry | Received Avatar parameters without an uploaded Avatar |
+| SPS + PB + Contact | Independent scalar and local readouts | One interchangeable depth signal |
+| Shader transport | Synthetic XYZ, advancing frame, CRC/freeze faults | SPS root or model capture |
+| SPS Shader | Editor unblended centerline and entry | Final visible mesh or uploadable arbitrary C# reader |
 
-The native SPS station uses its **known specific Sender** and SDK CalculateProximity, not arbitrary remote identity detection. World Transform truth is not an avatar runtime capability.
+The native SPS station uses a known Sender and SDK CalculateProximity. World truth is available because the harness owns the fixtures; that ability does not transfer to arbitrary Avatars.
 
-## Reference values
+## Known-geometry references
 
-Contact radius 1 mm, Receiver radius .35 m:
+The independent Point fixture uses Sender radius .001 and Receiver radius .35, with its own tetrahedral local frame. At (0,0,.10), four values are about .48541/.48541/.73483/.73483; at (.06,0,.10), about .40627/.51463/.79683/.60286. This is **not** the R=2.5 fixed SPS P0–P3 layout.
 
-| Position (m) | P1/A0 | P2/A1 | P3/A2 | P4/A3 |
-| --- | --- | --- | --- | --- |
-| (0,0,.10) | .48541 | .48541 | .73483 | .73483 |
-| (0,0,.05) | .60593 | .60593 | .75874 | .75874 |
-| (.06,0,.10) | .40627 | .51463 | .79683 | .60286 |
-| (0,0,.60) | 0 | 0 | 0 | 0 |
+For the known 20 cm SPS Plug, Socket positions (0,0,.24), (0,0,.12) and (.06,0,.12) represent Outside, Near and Offset. Axial Near/Offset truth is 40%, while the radial estimate is about 40%/32.9%. OGB normalization, SDK signed distance, root decoding and model displacement are different quantities.
 
-SPS 20 cm Plug, Socket relative to Plug root:
+Enable native **SPS OSC / OGB_ENABLED** separately. Actual paths and source matter; exact Contact tangency and fully saturated values do not guarantee a useful runtime estimate.
 
-| State | Position | Signed SDK proximity (m) | Axial depth truth | Radial estimate |
-| --- | --- | --- | --- | --- |
-| Rest/Outside | (0,0,.24) | +.04 | 0 | 0 |
-| Near | (0,0,.12) | −.08 | .400 | .400 |
-| Offset | (.06,0,.12) | −.06584 | .400 | .32918 |
+## Diagnostic image bridge
 
-SDK distance, OGB normalization, Root/Tip estimation and shader model measurements are different quantities. Enable **SPS OSC** / **Enable SPS OSC (local)**, which sets OGB_ENABLED. For your own Plug use Self. Sensa compensates the 1 cm root radius, but saturation leaves the last centimeter unobservable.
+Use an isolated Sensa configuration with **outputs empty and input off**, enable its OSC receiver and apply OSC mode before forwarding. `sensa-preview.json` uses WebUI 5087; set `SENSA_CONFIG_PATH` explicitly to your selected file. Port 9001 below is an example receiver port.
 
-## PB behavior
-
-Experimental handles allow grabbing, disallow posing and collisions, have an empty collision list and no Unity Collider on the visible sphere. Keep a nonzero PhysBone radius for grabbing. Contacts measure; they are not PB collision objects. Actual grabbing/self-interaction permissions still need client testing. No old Dynamic Bone package is required.
-
-## Image bridge
-
-Use an isolated Sensa configuration with **no outputs**. Replace `<World project>` in the commands below with your local world project directory. The shipped `tools/unity-world-lab/sensa-preview.json` uses WebUI 5087. Set SENSA_CONFIG_PATH to its absolute path before starting Sensa. Free UDP 9001 and pin the bridge source.
-
-```powershell
+```shell
 python -m pip install -r scripts/requirements-capture.txt
-# Offline: no network without --port
-python scripts/shader-osc-bridge.py --image "<World project>/Validation/functional/sps-telemetry.png"
-# Continuous editor PNG; explicitly opt into local OSC
-python scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
-# Native root screen capture requires explicit producer registration:
-# unity/top.sealoong.sensa/GPU-TRACKING.en.md
+python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png"
+python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/sps-telemetry.png" --watch --duration 300 --port 9001
 ```
 
-The full 16×8 grid must be present, at least 4×4 pixels per cell. Rectangular stretching is supported, automatic discovery/perspective correction is not. Startup/recovery needs two fresh increasing frames. Duplicate/stale frames cannot restore Valid; changing XYZ under the same sequence is invalid. Freeze, ordering errors, CRC failure and normal exit close Valid. Force-kill/network loss additionally needs Sensa stream timeout; the example sets 500 ms. Restart the bridge when the producer's sequence resets.
+Without `--port`, decoding does not send OSC. The full 16×8 grid needs at least 4×4 pixels per cell. Rectangular stretching is supported, automatic discovery and perspective correction are not.
 
-Observe `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`. This separate namespace is diagnostic transport, not native capture, spatial coordinates or a calibration reference. The .12 m model displacement differs from the SPS insertion quantity. Nonzero-ID native root registration uses the [package guide](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Removing public Producer/Profile fields does not remove binary ID, coordinate flag, Frame or CRC.
+Startup/recovery requires two new progressing frames. Duplicate/stale frames, changed XYZ under one sequence, CRC/order faults and freeze cannot restore validity; exit clears it. Force-kill/network loss also needs Sensa's input timeout. A producer sequence reset may require restarting the bridge.
 
-For actual model PNGs, run the baked SPS scene in the editor, open **Tools → Sensa → SPS GPU Model Probe (Experimental)**, select non-stereo Camera and matching Resolver/Surface Renderer, enable continuous PNG export, set the file and capture. The camera must keep rendering. Encoded entry-minus-root uses world axes within ±1 m; invalid/out-of-range data exports invalid packets.
+Inspect only `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`. It is diagnostic transport, not a mappable native root or calibration source. Nonzero `Sensa/Shader/<id>` follows the separate [native root registration](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Binary ID, coordinate mode, Frame and CRC remain even though public Producer/Profile fields were removed.
 
-This lab's uploadable camera rig produces synthetic code; its real SPS model PNG requires the editor. The separate package generates a native root-transform producer, not a deformation-model capture. Fixed coordinates/CRC do not guarantee zero lag or HMD invisibility.
+Actual editor model PNGs need the baked Resolver/surface and a rendering non-stereo camera in **Tools → Sensa → SPS GPU Model Probe (Experimental)**. Their entry-minus-root world-axis displacement is not axial insertion. The world's uploadable camera experiment remains synthetic.
 
-## Reports
+## Reports and acceptance
 
-Historical reports are `Validation/functional/results.json`, `sps-gpu.json` and `sensa-bridge.json`, not live VR grabbing evidence. Current Windows x64 CI checks diagnostic-namespace transport CRC failure, stale-frame refusal, two-frame recovery and freeze invalidation with input disarmed and no outputs. Automated E2E/screenshots run only in CI.
+Read revision-specific `Validation/` reports for component checks, samples, CRC and freeze recovery. Diagnostic smoke keeps input disarmed with no outputs; it is not native image capture or hardware motion. Automated E2E/PlayMode/screenshots run only in CI.
 
-[PhysBones](https://creators.vrchat.com/common-components/physbones/) · [SPS](https://vrcfury.com/sps/)
+PB grabbing permissions, multilingual fonts/HMD readability, actual uploaded OSC, camera retention, mirrors, HDR/AA, capture latency and multi-player behavior still need real-client acceptance.
+
+[Development](DEVELOPMENT.en.md) · [Camera experiment](CAMERA-PROTOTYPE.en.md) · [Diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)

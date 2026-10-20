@@ -1,12 +1,14 @@
-# OGB 参数、检测几何与 Sensa 支持范围
+# OGB 互通与检测几何
 
 **简体中文** | [English](ogb-compatibility.en.md)
 
-OGB 是应用及一组外部触觉参数约定，SPS 是 Avatar 形变／交互系统，两者不是同一个位置协议。本页解释官方生成器实际产生的参数、消费者怎样使用它们，以及 Sensa 的处理范围。**OGB 的外部路径不会随 Sensa 自有点名 P0–P3、去除路径版本段而改名**；Sensa 自有方案见[定位说明](positioning.md)。
+OGB 是外部 haptics 参数约定和消费应用；SPS 提供 Avatar 形变／交互。它们不是 XYZ 协议。本页按 Socket、Plug、Sender 与消费者分别列出事实，避免从相似名字猜测不存在的参数。
+
+使用前先确认：Avatar 确实生成参数；OSC 到达正确来源；所需 OGB_ENABLED 已明确启用；现代辅助值属于同一完整实例／类别；触摸所需 Close 真正存在。Sensa 只提供[深度与振动两个 OGB 模板](presets.md)，不为每个叶子再建预设。
+
+**外部 OGB 路径保持上游规范**，不会因 Sensa 自有 P0–P3 或去路径版本段而改名。自己的固定根点／Shader 另见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可查看下文检测球与胶囊，灰实体不代表真实网格。
 
 研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。旧 OGB v1.0.0 已同时读取 Root／Tip 和旧单近接值；“旧版只有一个 trigger”不是可靠的版本划分。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
-
-[交互参数图解](parameter-geometry.html?lang=zh-CN)展示以下检测球、Close 胶囊与参数读数。发行包内可离线打开；实体轮廓仅供辨认，不代表实际网格。
 
 ## 先理解半径与数值
 

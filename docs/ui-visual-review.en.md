@@ -1,8 +1,10 @@
-# Draggable parameter diagrams and WebUI visual review
+# Archived visual review: draggable parameter explorer
 
 [简体中文](ui-visual-review.md) | **English**
 
-Date: 2026-10-21. This iteration gives all ten measurement scenes interactive 3D while retaining the TDesign palette and flat layout. Coding agents reviewed CI images against [V1–V6](ui-quality.en.md); there was no questionnaire, aggregate beauty score or preference study. The previous 98-image [review](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.en.md) remains at a fixed commit. This page describes the current accepted set.
+This is a **2026-10-21 review tied to fixed source and images**, not a live main-branch dashboard. It records findings and acceptance for ten-scene 3D, actual target dragging, label clearance and leaders. Later automatic-language/site work needs its own CI evidence and cannot inherit this page as an executed result.
+
+Coding agents inspected actual CI images using [V1–V6](ui-quality.en.md), retaining TDesign colors/flat layout. There was no questionnaire, aggregate aesthetic score or preference study. The earlier 98-image review remains at a [fixed commit](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.en.md).
 
 ## Evidence and scope
 
@@ -49,4 +51,4 @@ The guide scrolls normally; the application scrolls below a persistent header. I
 
 Gray bodies are shared profile illustrations, not imported Avatar meshes. Root coordinates are not orientation/world position, and encoding resolution is not measured accuracy. No real Unity producer, VRChat Contacts/OSC session, desktop/HMD encoding capture, real-time GPU decoding or user hardware ran. Browser WebGL and simulated packets do not establish those behaviours. See [parameters](osc-parameters.en.md), [OGB compatibility](ogb-compatibility.en.md) and [positioning](positioning.en.md).
 
-Ordinary main CI must compare all 110 images with updates disabled at the final commit. Guide-only edits select interface/browser checks; without outstanding product verification they do not trigger native builds or preview publication. [Verification workflow](e2e.en.md)
+Historical acceptance cannot replace normal comparison of a new commit. Later main runs keep updates disabled and compare all images required by the current implementation; read the actual count in that report. Guide changes follow impact planning and do not trigger native builds or previews without outstanding product work. [Verification workflow](e2e.en.md)

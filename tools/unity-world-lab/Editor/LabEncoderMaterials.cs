@@ -28,7 +28,7 @@ namespace SensaLab
         public static void Upgrade()
         {
             foreach(var path in new[]{FunctionalLab.Scene,"Assets/SensaLab/Generated/SensaLab.unity"})
-                if(File.Exists(path)){var scene=EditorSceneManager.OpenScene(path);Prepare();EditorSceneManager.SaveScene(scene);}
+                if(File.Exists(path)){var scene=LabEditorLocalization.OpenScene(path);Prepare();LabEditorLocalization.SaveScene(scene);}
             AssetDatabase.SaveAssets();
         }
     }

@@ -22,7 +22,7 @@ namespace UnityBox.Sensa
             var probes = all.Where(p => p.enabled).ToArray();
             if (probes.GroupBy(p => p.instanceName).Any(g => g.Count() > 1)
                 || probes.GroupBy(p => p.collisionChannel).Any(g => g.Count() > 1))
-                throw new InvalidOperationException("SPS names and collision channels must be unique. / SPS 名称与碰撞通道必须唯一。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("SPS names and collision channels must be unique."));
             foreach (var probe in probes) Validate(avatar, probe.instanceName, probe.target, probe.collisionChannel);
             SensaSensorUtility.Budget(avatar, probes.Length * 5);
             foreach (var probe in probes) Build(avatar, probe.instanceName, probe.target, probe.collisionChannel);
@@ -33,26 +33,26 @@ namespace UnityBox.Sensa
         {
             SensaSensorUtility.Name(id); SensaSensorUtility.Name(channel);
             if (target == null || !target.transform.IsChildOf(avatar.transform) && target.transform != avatar.transform)
-                throw new InvalidOperationException("Select a supported root on this avatar. / 请选择当前头像上的受支持根部。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Select a supported root on this avatar."));
             SensaSensorUtility.Uniform(avatar.transform);
             ValidateRootScaleAnimation(avatar);
             if (!SensaFixedAnchorProtocol.IsScaleSupported(avatar.transform.lossyScale.x, 1))
-                throw new InvalidOperationException("Fixed-root receiver exceeds the 3 m world-radius limit. / 固定根接收器超出 3 米世界半径限制。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed-root receiver exceeds the 3 m world-radius limit."));
             var placement = SensaSpsAdapter.ReadRoot(target);
             if (placement.root != avatar.transform && !placement.root.IsChildOf(avatar.transform))
-                throw new InvalidOperationException("The selected root must belong to this avatar. / 所选根部必须属于当前头像。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
             string tag = TagPrefix + channel;
             if (avatar.GetComponentsInChildren<VRCContactSender>(true).Any(s => s.collisionTags != null && s.collisionTags.Contains(tag)))
-                throw new InvalidOperationException("Fixed-root collision channel already has a sender. / 固定根碰撞通道已有发送器。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed-root collision channel already has a sender."));
             if (avatar.transform.Find("SensaFixedRoot_" + id) != null)
-                throw new InvalidOperationException("Fixed-root instance already exists. / 固定根实例已经存在。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed-root instance already exists."));
         }
 
         private static void ValidateRootScaleAnimation(GameObject avatar)
         {
             // ScaleFactor observes VRChat avatar scaling, not arbitrary root scale animation. / ScaleFactor 不观测任意根缩放动画。
             if (avatar.GetComponent<ScaleConstraint>() != null)
-                throw new InvalidOperationException("Fixed anchors do not support an avatar-root ScaleConstraint. / 固定锚点不支持头像根 ScaleConstraint。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed anchors do not support an avatar-root ScaleConstraint."));
             var controllers = new List<RuntimeAnimatorController>();
             var animator = avatar.GetComponent<Animator>();
             if (animator != null && animator.runtimeAnimatorController != null) controllers.Add(animator.runtimeAnimatorController);
@@ -66,7 +66,7 @@ namespace UnityBox.Sensa
                 .Where(m => m.animator != null && (m.pathMode == MergeAnimatorPathMode.Absolute || m.transform == avatar.transform)).Select(m => m.animator));
             if (controllers.Distinct().SelectMany(c => c.animationClips).Distinct().Any(c => AnimationUtility.GetCurveBindings(c)
                 .Any(b => b.path == "" && b.type == typeof(Transform) && b.propertyName.StartsWith("m_LocalScale", StringComparison.Ordinal))))
-                throw new InvalidOperationException("Fixed anchors do not support animated avatar-root scale. / 固定锚点不支持头像根缩放动画。");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed anchors do not support animated avatar-root scale."));
         }
 
         public static GameObject Build(GameObject avatar, string id, Component target, string channel,
@@ -177,7 +177,7 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.HelpBox("固定 Avatar 根局部四锚点，只测自己的明确根中心；公开 P0–P3 和 Sample。\nFour fixed avatar-root anchors measure your explicitly selected root center; only P0–P3 and Sample are public.", MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Four fixed avatar-root anchors measure your explicitly selected root center; only P0–P3 and Sample are public."), MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
         }
     }

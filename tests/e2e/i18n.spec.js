@@ -23,6 +23,63 @@ test('browser language persists and preserves drafts without control requests', 
   await expect(page.getByRole('button',{name:'帮助',exact:true})).toBeVisible(); await expect(page.locator('html')).toHaveAttribute('lang','zh-CN');
 });
 
+
+test('URL, explicit preference and ordered environment languages choose the UI without activating input / URL、显式偏好与有序环境语言选择界面但不启用输入',
+  { tag: ['@i18n', '@config'] }, async ({ page, rig }) => {
+    const cases = [
+      { name: 'URL Chinese variant', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'URL English variant', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'en-US', switchAndReload: true },
+      { name: 'canonical saved choice', saved: 'zh_HK', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'invalid URL preserves supported choice', requested: 'de-DE', saved: 'zh-CN', languages: ['en-US'], expected: 'zh-CN' },
+      { name: 'ordered later Chinese', saved: 'bad', languages: ['fr-FR', 'zh_Hant_TW', 'en-US'], expected: 'zh-CN' },
+      { name: 'ordered English first', languages: ['fr-FR', 'EN_gb', 'zh-CN'], expected: 'en-US' },
+      { name: 'empty languages uses language', languages: [], language: 'zh_TW', expected: 'zh-CN' },
+      { name: 'unsupported environment', languages: ['fr-FR', 'de-DE'], language: 'fr-FR', expected: 'en-US' },
+      { name: 'denied storage', denied: true, languages: ['fr-FR', 'zh-HK'], expected: 'zh-CN' },
+    ];
+    for (const scenario of cases) await test.step(scenario.name, async () => {
+      const child = await page.context().newPage(), errors = [], commands = [];
+      child.on('pageerror', error => errors.push(error.message));
+      child.on('websocket', socket => socket.on('framesent', ({ payload }) => {
+        try { const command = JSON.parse(payload.toString()); if (command.method && command.path) commands.push(command); }
+        catch { /* Ignore non-command frames / 忽略非命令帧。 */ }
+      }));
+      await child.addInitScript(({ languages, language, saved, denied }) => {
+        Object.defineProperty(navigator, 'languages', { configurable: true, value: languages });
+        Object.defineProperty(navigator, 'language', { configurable: true, value: language || 'en-US' });
+        if (denied) Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
+        else if (window.name !== 'locale-fixture-ready') {
+          if (saved === undefined) localStorage.removeItem('sensa.locale'); else localStorage.setItem('sensa.locale', saved);
+          window.name = 'locale-fixture-ready';
+        }
+      }, scenario);
+      try {
+        const url = new URL(rig.baseUrl); if (scenario.requested) url.searchParams.set('lang', scenario.requested);
+        await child.goto(url.href);
+        await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
+        await expect(child.getByRole('button', { name: scenario.expected === 'en-US' ? 'Help' : '帮助', exact: true })).toBeVisible();
+        await expect(child.getByLabel('Language / 语言', { exact: true })).toHaveValue(scenario.expected);
+        if (scenario.switchAndReload) {
+          const slider = child.getByRole('slider', { name: await text(child, 'L0 主轴'), exact: true });
+          await slider.press('End'); const draft = await slider.inputValue();
+          await child.getByLabel('Language / 语言', { exact: true }).selectOption('zh-CN');
+          await expect(child.getByRole('slider', { name: 'L0 主轴', exact: true })).toHaveValue(draft);
+          expect(new URL(child.url()).searchParams.get('lang')).toBe('zh-CN');
+          expect(await child.evaluate(() => localStorage.getItem('sensa.locale'))).toBe('zh-CN');
+          await child.reload(); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          const withoutOverride = new URL(rig.baseUrl); await child.goto(withoutOverride.href);
+          await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+        }
+        if (scenario.denied) {
+          await child.getByLabel('Language / 语言', { exact: true }).selectOption('en-US');
+          await expect(child.getByRole('button', { name: 'Help', exact: true })).toBeVisible();
+        }
+        expect(commands.filter(command => command.method !== 'GET')).toEqual([]);
+        expect((await rig.overview()).runtime.inputActive).toBe(false); expect(rig.wire.udp).toEqual([]);
+        expect(errors).toEqual([]);
+      } finally { await child.close(); }
+    });
+  });
 test('English experimental calibration drives only after opt-in and stops on release', {tag:['@i18n','@visual']}, async ({page,rig}) => {
   await enable(page,['Mock UDP']); await mode(page,'OSC');
   const feed = await rig.startFeed(pointSamples(.05)); await allowSpatial(page);
@@ -67,7 +124,7 @@ test('English presets, script and compact help use localized documentation', {ta
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();
   await expect(page.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
-  await expect(page.getByRole('link',{name:await text(page,'Unity 指南'),exact:true})).toHaveAttribute('href',/README\.en\.md$/);
+  await expect(page.getByRole('link',{name:await text(page,'Unity 指南'),exact:true})).toHaveAttribute('href',/\/README\.md$/);
   await expect(page.getByRole('link',{name:await text(page,'使用方案与限制'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
   await checkpoint(page,page.getByRole('dialog'),'english-help');
   const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;

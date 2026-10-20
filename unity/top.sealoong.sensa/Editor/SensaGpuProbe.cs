@@ -18,7 +18,7 @@ namespace UnityBox.Sensa
             {
                 var paths = AssetDatabase.FindAssets("SensaGpuProbe t:MonoScript").Select(AssetDatabase.GUIDToAssetPath)
                     .Where(p => Path.GetFileName(p) == "SensaGpuProbe.cs").ToArray();
-                if (paths.Length != 1) throw new InvalidOperationException("Expected exactly one SensaGpuProbe.cs in the project.");
+                if (paths.Length != 1) throw new InvalidOperationException(SensaEditorLocalization.Text("Expected exactly one SensaGpuProbe.cs in the project."));
                 return Path.GetDirectoryName(paths[0]).Replace('\\', '/') + "/";
             }
         }
@@ -32,7 +32,7 @@ namespace UnityBox.Sensa
         private Material reader;
         private bool armed, pending;
         private double armedAt;
-        private string status = "选择已烘焙的 SPS Resolver 材质与正在渲染的非 VR Camera。 / Select a baked SPS Resolver material and a rendering non-VR Camera.";
+        private string status = "Select a baked SPS Resolver material and a rendering non-VR Camera.";
         private Capture capture;
         private bool streamPng;
         private string pngPath = "Validation/sps-telemetry.png";
@@ -56,7 +56,7 @@ namespace UnityBox.Sensa
         }
 
         [MenuItem("Tools/Sensa/SPS GPU Model Probe (Experimental)")]
-        public static void Open() => GetWindow<SensaGpuProbe>("Sensa GPU Probe");
+        public static void Open() => GetWindow<SensaGpuProbe>(SensaEditorLocalization.Text("Sensa GPU Probe"));
 
         private void OnEnable() { Camera.onPostRender += AfterCamera; EditorApplication.update += Tick; SceneView.duringSceneGui += DrawCapture; }
         private void OnDisable()
@@ -74,78 +74,79 @@ namespace UnityBox.Sensa
             {
                 Handles.DrawAAPolyLine(3, capture.centerline);
                 Handles.DrawLine(capture.entryPosition, capture.entryPosition + capture.entryNormal * .05f);
-                Handles.Label(capture.centerline[0], "Sensa GPU 模型快照 · 非实时网格 / Sensa GPU model snapshot · not a live mesh");
+                Handles.Label(capture.centerline[0], SensaEditorLocalization.Text("Sensa GPU model snapshot · not a live mesh"));
             }
         }
         private void Tick()
         {
             if (armed && EditorApplication.timeSinceStartup - armedAt > 10)
-            { armed = false; status = "等待渲染超时：确认相机启用、Game 视图正在渲染。 / Render timed out: enable the camera and keep the Game view rendering."; Repaint(); }
+            { armed = false; status = SensaEditorLocalization.Text("Render timed out: enable the camera and keep the Game view rendering."); Repaint(); }
         }
 
         private void OnGUI()
         {
-            EditorGUILayout.HelpBox("编辑器实验，不可作为头像脚本上传。读取 SPS 的未混合中心线路径；不是最终网格，也不生成设备输出。仅支持 Built-in、非立体相机。 / Editor experiment, not an uploadable avatar script. Reads an unblended SPS centerline, not the final mesh; no device output. Built-in pipeline and non-stereo camera only.", MessageType.Info);
+            SensaEditorLocalization.DrawLanguageSelector();
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Editor experiment, not an uploadable avatar script. Reads an unblended SPS centerline, not the final mesh; no device output. Built-in pipeline and non-stereo camera only."), MessageType.Info);
             using (new EditorGUI.DisabledScope(armed || pending))
             {
                 EditorGUI.BeginChangeCheck();
-                sourceCamera = (Camera)EditorGUILayout.ObjectField("采集相机 / Source Camera", sourceCamera, typeof(Camera), true);
-                resolverRenderer = (Renderer)EditorGUILayout.ObjectField("Resolver 渲染器 / Resolver Renderer", resolverRenderer, typeof(Renderer), true);
-                deformRenderer = (Renderer)EditorGUILayout.ObjectField("表面渲染器 / Surface Renderer", deformRenderer, typeof(Renderer), true);
+                sourceCamera = (Camera)EditorGUILayout.ObjectField(SensaEditorLocalization.Text("Source Camera"), sourceCamera, typeof(Camera), true);
+                resolverRenderer = (Renderer)EditorGUILayout.ObjectField(SensaEditorLocalization.Text("Resolver Renderer"), resolverRenderer, typeof(Renderer), true);
+                deformRenderer = (Renderer)EditorGUILayout.ObjectField(SensaEditorLocalization.Text("Surface Renderer"), deformRenderer, typeof(Renderer), true);
                 if (resolverRenderer != null) resolverMaterial = resolverRenderer.sharedMaterials.FirstOrDefault(m => m != null && m.shader.name == "Hidden/VRCFury/SpsResolver");
                 if (deformRenderer != null) deformMaterial = deformRenderer.sharedMaterials.FirstOrDefault(m => m != null && m.HasProperty("_SPS_Overrun"));
-                resolverMaterial = (Material)EditorGUILayout.ObjectField("烘焙 Resolver 材质 / Baked Resolver Material", resolverMaterial, typeof(Material), true);
-                deformMaterial = (Material)EditorGUILayout.ObjectField("烘焙表面材质 / Baked Surface Material", deformMaterial, typeof(Material), true);
-                if (EditorGUI.EndChangeCheck()) { capture = null; status = "采集目标已变化，请重新采集。 / Capture target changed; capture again."; SceneView.RepaintAll(); }
-                if (GUILayout.Button("检查依赖并采集下一帧 / Check dependencies and capture next frame"))
+                resolverMaterial = (Material)EditorGUILayout.ObjectField(SensaEditorLocalization.Text("Baked Resolver Material"), resolverMaterial, typeof(Material), true);
+                deformMaterial = (Material)EditorGUILayout.ObjectField(SensaEditorLocalization.Text("Baked Surface Material"), deformMaterial, typeof(Material), true);
+                if (EditorGUI.EndChangeCheck()) { capture = null; status = SensaEditorLocalization.Text("Capture target changed; capture again."); SceneView.RepaintAll(); }
+                if (GUILayout.Button(SensaEditorLocalization.Text("Check dependencies and capture next frame")))
                 {
                     capture = null;
                     try
                     {
-                        if (sourceCamera == null || resolverMaterial == null || deformMaterial == null) throw new InvalidOperationException("请指定相机、已烘焙 Resolver 及表面材质。 / Specify camera, baked Resolver and surface material.");
+                        if (sourceCamera == null || resolverMaterial == null || deformMaterial == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Specify camera, baked Resolver and surface material."));
                         if (GraphicsSettings.currentRenderPipeline != null || sourceCamera.stereoEnabled)
-                            throw new InvalidOperationException("仅支持 Built-in 非立体 Camera；暂不验证 XR/URP。 / Only Built-in non-stereo Camera is supported; XR/URP are unverified.");
+                            throw new InvalidOperationException(SensaEditorLocalization.Text("Only Built-in non-stereo Camera is supported; XR/URP are unverified."));
                         if (!SystemInfo.supportsAsyncGPUReadback || !SystemInfo.SupportsRenderTextureFormat(RenderTextureFormat.ARGBFloat))
-                            throw new InvalidOperationException("GPU 必须支持 AsyncGPUReadback 和 ARGBFloat。 / GPU must support AsyncGPUReadback and ARGBFloat.");
+                            throw new InvalidOperationException(SensaEditorLocalization.Text("GPU must support AsyncGPUReadback and ARGBFloat."));
                         if (resolverMaterial.shader == null || resolverMaterial.shader.name != "Hidden/VRCFury/SpsResolver")
-                            throw new InvalidOperationException("请选择 BakedSpsPlug 的 SPS Resolver 材质，而不是表面材质。 / Select BakedSpsPlug's SPS Resolver material, not its surface material.");
+                            throw new InvalidOperationException(SensaEditorLocalization.Text("Select BakedSpsPlug's SPS Resolver material, not its surface material."));
                         CheckDependencies();
                         if (reader != null) DestroyImmediate(reader);
                         reader = CreateReader();
                         foreach (var property in IdProperties)
                         {
-                            if (!resolverMaterial.HasProperty(property)) throw new InvalidOperationException("缺少 SPS 属性： / Missing SPS property:" + property);
+                            if (!resolverMaterial.HasProperty(property)) throw new InvalidOperationException(SensaEditorLocalization.Text("Missing SPS property:") + property);
                             if (!deformMaterial.HasProperty(property) || ReadProperty(resolverMaterial, resolverRenderer, property) != ReadProperty(deformMaterial, deformRenderer, property))
-                                throw new InvalidOperationException("表面与 Resolver 材质的 SPS 身份不一致： / Surface and Resolver SPS identity mismatch:" + property);
+                                throw new InvalidOperationException(SensaEditorLocalization.Text("Surface and Resolver SPS identity mismatch:") + property);
                             reader.SetFloat(property, ReadProperty(resolverMaterial, resolverRenderer, property));
                         }
-                        if (!deformMaterial.HasProperty("_SPS_Overrun")) throw new InvalidOperationException("表面材质缺少 _SPS_Overrun。 / Surface material lacks _SPS_Overrun.");
+                        if (!deformMaterial.HasProperty("_SPS_Overrun")) throw new InvalidOperationException(SensaEditorLocalization.Text("Surface material lacks _SPS_Overrun."));
                         reader.SetFloat("_SPS_Overrun", ReadProperty(deformMaterial, deformRenderer, "_SPS_Overrun"));
-                        if (reader.GetFloat("_SPS_Configured") < .5f) throw new InvalidOperationException("材质尚未配置；请在构建预览/Play Mode 中选择生成后的材质。 / Material is not configured. Select generated materials in build preview/Play Mode.");
+                        if (reader.GetFloat("_SPS_Configured") < .5f) throw new InvalidOperationException(SensaEditorLocalization.Text("Material is not configured. Select generated materials in build preview/Play Mode."));
                         armed = true; armedAt = EditorApplication.timeSinceStartup;
-                        status = "等待所选相机的下一帧（10 秒超时）… / Waiting for selected camera's next frame (10-second timeout)…";
+                        status = SensaEditorLocalization.Text("Waiting for selected camera's next frame (10-second timeout)…");
                         EditorApplication.QueuePlayerLoopUpdate();
                     }
                     catch (Exception ex) { status = ex.Message; }
                 }
             }
-            EditorGUILayout.HelpBox(status, capture != null && capture.valid ? MessageType.Info : MessageType.Warning);
-            var stream = EditorGUILayout.Toggle("连续导出实验 PNG / Continuously export experimental PNG", streamPng);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text(status), capture != null && capture.valid ? MessageType.Info : MessageType.Warning);
+            var stream = EditorGUILayout.Toggle(SensaEditorLocalization.Text("Continuously export experimental PNG"), streamPng);
             if(stream != streamPng) { streamPng=stream; if(!stream)armed=false; }
-            pngPath = EditorGUILayout.TextField("PNG 路径 / PNG path", pngPath);
-            EditorGUILayout.HelpBox("需要测试工程的 SensaLab/Telemetry Shader。勾选后点击采集；PNG 为入口相对中心线根部的世界轴位移（米），不是完整行程。外部 shader-osc-bridge.py 可转发诊断 OSC。仅编辑器运行。\nRequires the lab's SensaLab/Telemetry shader. Enable then capture. PNG encodes entry minus centerline root in world-axis meters, not full stroke. shader-osc-bridge.py can forward diagnostic OSC. Editor only.",MessageType.Info);
+            pngPath = EditorGUILayout.TextField(SensaEditorLocalization.Text("PNG path"), pngPath);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Requires the lab's SensaLab/Telemetry shader. Enable then capture. PNG encodes entry minus centerline root in world-axis meters, not full stroke. shader-osc-bridge.py can forward diagnostic OSC. Editor only."),MessageType.Info);
             if (capture != null && capture.valid)
             {
-                EditorGUILayout.LabelField("模型长度（世界米） / Model length (world meters)", capture.worldLength.ToString("F4"));
-                EditorGUILayout.Vector3Field("第一路径点 / First path point", capture.entryPosition);
-                EditorGUILayout.Vector3Field("路径方向 / Path direction", capture.entryNormal);
-                EditorGUILayout.LabelField("中心线采样 / Centerline samples", "33 点；Alpha 为 firstSegmentStrength / 33 points; Alpha is firstSegmentStrength");
-                EditorGUILayout.LabelField("快照时间 UTC / Snapshot UTC", capture.capturedUtc);
+                EditorGUILayout.LabelField(SensaEditorLocalization.Text("Model length (world meters)"), capture.worldLength.ToString("F4"));
+                EditorGUILayout.Vector3Field(SensaEditorLocalization.Text("First path point"), capture.entryPosition);
+                EditorGUILayout.Vector3Field(SensaEditorLocalization.Text("Path direction"), capture.entryNormal);
+                EditorGUILayout.LabelField(SensaEditorLocalization.Text("Centerline samples"), SensaEditorLocalization.Text("33 points; Alpha is firstSegmentStrength"));
+                EditorGUILayout.LabelField(SensaEditorLocalization.Text("Snapshot UTC"), capture.capturedUtc);
             }
             using (new EditorGUI.DisabledScope(capture == null || pending))
-                if (GUILayout.Button("导出诊断 JSON / Export diagnostic JSON"))
+                if (GUILayout.Button(SensaEditorLocalization.Text("Export diagnostic JSON")))
                 {
-                    var path = EditorUtility.SaveFilePanel("Export GPU model sample", "", "sensa-gpu-capture", "json");
+                    var path = EditorUtility.SaveFilePanel(SensaEditorLocalization.Text("Export GPU model sample"), "", "sensa-gpu-capture", "json");
                     if (!string.IsNullOrEmpty(path)) File.WriteAllText(path, JsonUtility.ToJson(capture, true));
                 }
         }
@@ -158,11 +159,11 @@ namespace UnityBox.Sensa
                 if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
                 var parts = line.Split(new[] { ' ' }, 2, StringSplitOptions.RemoveEmptyEntries);
                 var path = "Packages/com.vrcfury.vrcfury/" + parts[1];
-                if (!File.Exists(path)) throw new InvalidOperationException("未安装受支持的 SPS2 Shader 文件： / Supported SPS2 shader file is not installed:" + path);
+                if (!File.Exists(path)) throw new InvalidOperationException(SensaEditorLocalization.Text("Supported SPS2 shader file is not installed:") + path);
                 using (var hash = SHA256.Create())
                 {
                     var actual = BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(File.ReadAllText(path).Replace("\r\n", "\n")))).Replace("-", "").ToLowerInvariant();
-                    if (actual != parts[0]) throw new InvalidOperationException("SPS Shader 版本与实验适配器不匹配： / SPS shader version does not match this adapter:" + path + "。需复核适配器，不能跳过检查。 / . Review the adapter; do not bypass the check.");
+                    if (actual != parts[0]) throw new InvalidOperationException(SensaEditorLocalization.Text("SPS shader version does not match this adapter:") + path + SensaEditorLocalization.Text(". Review the adapter; do not bypass the check."));
                 }
             }
         }
@@ -190,12 +191,12 @@ namespace UnityBox.Sensa
             Directory.CreateDirectory(Path.GetDirectoryName(Generated));
             var template = File.ReadAllText(Package + "SpsGpuProbe.shader.txt");
             if (File.Exists(Generated) && File.ReadAllText(Generated) != template)
-                throw new InvalidOperationException("生成路径已有不同内容；请先备份并移走  / Generated path has different contents; back up and move it first: " + Generated);
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Generated path has different contents; back up and move it first:") + Generated);
             if (!File.Exists(Generated)) File.WriteAllText(Generated, template);
             AssetDatabase.ImportAsset(Generated, ImportAssetOptions.ForceSynchronousImport);
             var shader = AssetDatabase.LoadAssetAtPath<Shader>(Generated);
             if (shader == null || !shader.isSupported || ShaderUtil.ShaderHasError(shader))
-                throw new InvalidOperationException("GPU 探针 Shader 编译失败，请检查 Unity Console；未开始采集。 / GPU probe shader compilation failed. Check Unity Console; capture has not started.");
+                throw new InvalidOperationException(SensaEditorLocalization.Text("GPU probe shader compilation failed. Check Unity Console; capture has not started."));
             return new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
         }
 
@@ -206,9 +207,9 @@ namespace UnityBox.Sensa
             if (resolverMaterial == null || deformMaterial == null || IdProperties.Any(p =>
                     ReadProperty(resolverMaterial, resolverRenderer, p) != reader.GetFloat(p)
                     || ReadProperty(deformMaterial, deformRenderer, p) != reader.GetFloat(p)))
-            { status = "等待期间 SPS 身份发生变化，请重新采集。 / SPS identity changed while waiting; capture again."; Repaint(); return; }
+            { status = SensaEditorLocalization.Text("SPS identity changed while waiting; capture again."); Repaint(); return; }
             if (camera.stereoEnabled || camera.pixelWidth < 64 || camera.pixelHeight < 64)
-            { status = "采集相机尺寸不足或已进入立体模式。 / Capture camera is too small or has entered stereo mode."; Repaint(); return; }
+            { status = SensaEditorLocalization.Text("Capture camera is too small or has entered stereo mode."); Repaint(); return; }
             var result = new Capture { capturedUtc = DateTime.UtcNow.ToString("O"), cameraName = camera.name,
                 unityVersion = Application.unityVersion, width = camera.pixelWidth, height = camera.pixelHeight,
                 overrun = reader.GetFloat("_SPS_Overrun") };
@@ -217,7 +218,7 @@ namespace UnityBox.Sensa
             var previous = RenderTexture.active;
             try
             {
-                if (!target.Create()) throw new InvalidOperationException("无法创建浮点采样纹理。 / Cannot create floating-point sample texture.");
+                if (!target.Create()) throw new InvalidOperationException(SensaEditorLocalization.Text("Cannot create floating-point sample texture."));
                 reader.SetVector("_SensaSourceSize", new Vector4(camera.pixelWidth, camera.pixelHeight, 1f + 1f / camera.pixelWidth, 1f + 1f / camera.pixelHeight));
                 Graphics.Blit(Texture2D.blackTexture, target, reader);
                 pending = true;
@@ -245,7 +246,7 @@ namespace UnityBox.Sensa
 
         public static void Decode(Color[] pixels, Capture result)
         {
-            result.valid = false; result.reason = "无有效 SPS 路径或数据损坏 / No valid SPS path or corrupt data";
+            result.valid = false; result.reason = "No valid SPS path or corrupt data";
             if (pixels == null || pixels.Length != 36 || pixels.Any(p => !Finite(p.r) || !Finite(p.g) || !Finite(p.b) || !Finite(p.a)
                 || Mathf.Abs(p.r) > 1e6f || Mathf.Abs(p.g) > 1e6f || Mathf.Abs(p.b) > 1e6f)) return;
             var header = pixels[0];
@@ -257,12 +258,12 @@ namespace UnityBox.Sensa
             result.firstSegmentStrength = pixels.Skip(3).Select(p => p.a).ToArray();
             if (result.firstSegmentStrength.Any(v => v < 0 || v > 1)) return;
             result.worldLength = header.a; result.entryPosition = Point(pixels[1]); result.entryNormal = normal;
-            result.valid = true; result.reason = "已采集 GPU 模型；不是最终网格，也不是实时设备输入。 / GPU model captured; not final mesh or live device input.";
+            result.valid = true; result.reason = "GPU model captured; not final mesh or live device input.";
         }
         public static void ExportTelemetryPng(Capture sample,string path,int sequence)
         {
             var shader=Shader.Find("SensaLab/Telemetry");
-            if(shader==null)throw new InvalidOperationException("Install the lab Telemetry shader before exporting PNG.");
+            if(shader==null)throw new InvalidOperationException(SensaEditorLocalization.Text("Install the lab Telemetry shader before exporting PNG."));
             bool valid=sample!=null && sample.valid && sample.centerline!=null && sample.centerline.Length>0;
             var delta=valid?sample.entryPosition-sample.centerline[0]:Vector3.zero;
             valid=valid && Finite(delta.x) && Finite(delta.y) && Finite(delta.z) && Mathf.Max(Mathf.Abs(delta.x),Mathf.Abs(delta.y),Mathf.Abs(delta.z))<=1;

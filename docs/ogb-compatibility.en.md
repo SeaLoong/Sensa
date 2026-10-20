@@ -1,12 +1,14 @@
-# OGB parameters, detection geometry and Sensa support
+# OGB interoperability and detection geometry
 
 [简体中文](ogb-compatibility.md) | **English**
 
-OGB is an application and an external haptics parameter convention. SPS supplies Avatar deformation/interactions; these are not one position protocol. This page distinguishes generated parameters, consumer behavior and Sensa support. **External OGB paths are not renamed by Sensa's own P0–P3 naming or removal of path version segments**. See [Positioning](positioning.en.md) for Sensa's own scheme.
+OGB is an external haptics convention/consumer; SPS supplies Avatar deformation/interactions. Neither is an XYZ protocol. This page separates Socket, Plug, Sender and consumer facts rather than guessing leaves from similar names.
+
+Before mapping, confirm the Avatar generated real parameters, OSC reaches the intended source, required OGB_ENABLED was explicitly enabled, modern auxiliary values share the complete instance/category and necessary Close exists. Sensa offers [two OGB templates](presets.en.md), depth and vibration, not a preset for every leaf.
+
+**External OGB paths retain upstream naming** regardless of Sensa's P0–P3 names or removal of internal path versions. Fixed roots/Shader have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) illustrates the following spheres/capsules; gray surfaces are not actual meshes.
 
 Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads Root/Tip and legacy proximity: “old OGB has one trigger” is not a reliable version distinction. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
-
-The [interactive parameter guide](parameter-geometry.html?lang=en-US) shows these receiver spheres, Close capsules and readings. Open it offline from a release archive; the object outlines are visual references, not actual meshes.
 
 ## Radius and values first
 
