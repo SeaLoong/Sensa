@@ -379,7 +379,7 @@
     orbitOption.hidden = !spatial(); orbitOption.disabled = !spatial() || threeUnavailable;
     if (!spatial() && $('projection').value === 'orbit') $('projection').value = 'xz';
     const orbit = spatial() && $('projection').value === 'orbit' && !threeUnavailable;
-    $('three-scene').hidden = !orbit; $('diagram').hidden = orbit;
+    $('three-scene').hidden = !orbit; $('diagram').toggleAttribute('hidden', orbit);
     document.querySelector('.zoom-label').hidden = orbit;
     $('three-fallback').hidden = !spatial() || !threeUnavailable;
     $('three-fallback').textContent = text('fallback');
