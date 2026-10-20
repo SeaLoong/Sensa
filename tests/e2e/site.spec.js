@@ -74,9 +74,13 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.locator('a[data-doc="docs/quick-start"]').click();
   await expect(page).toHaveURL(/zh-CN\/docs\/quick-start.html$/);
   await expect(page.locator('article h1')).toBeVisible();
+  expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('pages-guide-zh.png'), fullPage: true });
   await page.locator('header [data-locale="en"]').click();
   await expect(page).toHaveURL(/en\/docs\/quick-start.html$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+  expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('pages-guide-en.png'), fullPage: true });
   await page.locator('header a[href*="parameter-geometry.html"]').click();
   await expect(page.locator('#scene')).toBeVisible();
   await page.locator('#scene').selectOption('sensa-sps');

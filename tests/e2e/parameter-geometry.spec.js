@@ -144,7 +144,7 @@ async function documentFits(page) {
 
 
 threeTest('the offline guide negotiates language and persists a manual choice without resetting the diagram / 离线图解协商语言并保存选择且不重置几何',
-  { tag: ['@i18n', '@config'] }, async ({ page }) => {
+  { tag: ['@i18n', '@config'] }, async ({ page, browser }, info) => {
     const cases = [
       { name: 'URL Chinese variant', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'zh-CN' },
       { name: 'URL English variant', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'en-US', switchAndReload: true },
@@ -157,7 +157,16 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
       { name: 'denied storage', denied: true, languages: ['fr-FR', 'zh-HK'], expected: 'zh-CN' },
     ];
     for (const scenario of cases) await threeTest.step(scenario.name, async () => {
-      const child = await page.context().newPage(), errors = [], network = [];
+      // File-page preferences must not leak from a previous scenario. Keep reload/navigation in this context.
+      // 隔离上一场景的文件页偏好；同场景的刷新与导航仍使用此上下文。
+      const context = await browser.newContext({ viewport: page.viewportSize(), locale: 'zh-CN', timezoneId: 'Asia/Shanghai',
+        colorScheme: 'light', reducedMotion: 'reduce' });
+      const child = await context.newPage(), errors = [], network = [], snapshots = [];
+      const capture = async phase => snapshots.push({ phase, ...await child.evaluate(() => ({
+        url: location.href, locale: document.documentElement.lang, selected: document.getElementById('locale')?.value,
+        languages: [...navigator.languages], language: navigator.language,
+        saved: (() => { try { return localStorage.getItem('sensa.locale'); } catch { return 'storage-denied'; } })(),
+      })) });
       child.on('pageerror', error => errors.push(error.message));
       child.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
       await child.addInitScript(({ languages, language, saved, denied }) => {
@@ -175,6 +184,7 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
         await expect(child.locator('#locale')).toHaveValue(scenario.expected);
         await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US' ? 'See the shapes behind the parameters' : '看见参数背后的形状');
+        await capture('initial');
         if (scenario.switchAndReload) {
           await chooseScene(child, 'socket-modern', 'iso'); await setRange(child, 'z', .41);
           await parameter(child, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true }).click();
@@ -187,15 +197,25 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
           await nearCell(child, 'PenOthersNewRoot', .6);
           expect(new URL(child.url()).searchParams.get('lang')).toBe('zh-CN');
           expect(await child.evaluate(() => localStorage.getItem('sensa.locale'))).toBe('zh-CN');
-          await child.reload(); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
-          await child.goto(guideFile.href); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          await capture('switched');
+          await child.reload(); await capture('reloaded');
+          await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          await child.goto(guideFile.href); await capture('without-url-override');
+          await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
         }
         if (scenario.denied) {
           await child.locator('#locale').selectOption('en-US');
           await expect(child.locator('h1')).toHaveText('See the shapes behind the parameters');
         }
         expect(errors).toEqual([]); expect(network).toEqual([]);
-      } finally { await child.close(); }
+      } finally {
+        try {
+          await info.attach('offline-locale-' + scenario.name.replaceAll(' ', '-') + '.json', {
+            body: JSON.stringify({ scenario: scenario.name, viewport: page.viewportSize(), snapshots, errors, network }, null, 2),
+            contentType: 'application/json',
+          });
+        } finally { await context.close(); }
+      }
     });
   });
 
