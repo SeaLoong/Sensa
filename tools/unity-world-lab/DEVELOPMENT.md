@@ -24,23 +24,25 @@ Shader 与几何站通过禁用、无网格 Renderer 的 `Renderer.material` 获
 
 ## 独立 Point 几何用例
 
-以下十一项采用独立本地点框架，**不是**固定 SPS P0–P3：
+以下十一项采用独立本地点框架，**不是**固定 SPS P0–P3。当前生成器使用 2 m 接收半径、±0.35 m 测量点各轴偏移；表中位置为参考局部坐标：
 
 | 用例 | 基准 | 预期 |
 | --- | --- | --- |
 | Front | (.02,−.03,.10) | 有效 |
 | Behind | Z=−.10 | 有效，不镜像 |
 | Lateral | X=.13、Y=−.05 | 有效 |
-| No contact | Z=.60 | 无效 |
+| No contact | Z=3（接收半径×1.5） | 无效 |
 | Saturation | Sender 在接收器中心 | 无效 |
 | Wrong radius | Sender .04，而非 .001 | 按固定模型拒绝 |
-| Scale ×2 | 参考框均匀缩放 | 局部坐标不变 |
+| Scale ×1.25 | 参考框均匀缩放，接收球世界半径为 2.5 m，低于 SDK 的 3 m 上限 | 局部坐标不变 |
 | Rotated frame | (15°,35°,10°) | 局部坐标不变 |
 | Missing P4 | 明确缺少 A3 | 无效 |
-| Beyond fit volume | Z=.26 | 即便有值仍无效 |
+| Beyond fit volume | Z=PositionRadius+.02，约 1.414 m | 即便有值仍无效 |
 | Origin | 原点 | 有效 |
 
 Case 09 的 −1 是注入缺数据，不是 SDK 近接断言。各用例使用独立标签和明确 Sender；低残差或已知 fixture 身份不证明多人客户端行为。
+
+已保存的场景可能保留旧几何；安装新源码不会自动重建这些对象。对照场景中实际 Receiver 尺寸和 Sender 位置检查，不能只根据当前生成器推断已有场景已经升级。
 
 抓取后探索，复位恢复基准，暂停冻结读数，Missing P4 注入／恢复缺路。辅助标记显示中心，不是物理 Contact 半径；控制和位置本地有效，无 Object Sync。
 
@@ -48,14 +50,14 @@ Case 09 的 −1 是注入缺数据，不是 SDK 近接断言。各用例使用�
 
 **Tools → Sensa Lab → Validate localization (Editor only)** 只做 Udon 编译与纯编辑器呈现检查，不生成用户实验场景、不进入 PlayMode、不操作设备。结果以实际修订的报告为准，不是客户端、字体／字形或 HMD 验收。
 
-本机可运行包单元／EditMode。自动世界 PlayMode、完整进程冒烟、浏览器检查和全部截图仅在 Actions；不能把历史采集菜单当本机自动化替代。手动私有客户端探索是独立活动。
+本机可按开发任务选择包单元／EditMode 检查。发布 CI 执行单元、浏览器 E2E 与隔离原生冒烟，不代替本世界的 Unity／PlayMode 检查。场景观察、采集和私有客户端探索由开发者按需另行安排；历史报告不是当前代码的执行结果。
 
 历史 `Validation/` 报告包含几何、材质隔离、本地控制事件和模拟移动。临时烘焙场景引用 VRCFury 临时资产，必要时应重建。脚本事件不模拟真人抓取，模拟控制器移动也不证明真实键盘／HMD。
 
-`tests/Sensa.Tests/Fixtures/unity-point-cases.json` 保存已记录 SDK 样本，用于离线解算一致性；该 fixture 的小误差阈值不是实时精度上界。以实际修订的凭据和日志为准，不沿用历史测试总数或 PNG 名称。
+`tests/Sensa.Tests/Fixtures/unity-point-cases.json` 保存旧 0.35 m／±0.06 m 布局的 SDK 样本，仅用于历史数据的离线一致性检查，不是当前 2 m 布局的新采集结果。该样本的小误差阈值不是实时精度上界；以实际修订的报告为准，不沿用历史测试总数或 PNG 名称。
 
 桌面校准观察数据并生成草稿，不启用输入。固定根与 Shader 各用自己的单位和时效；观测无效时保留端点，但不能生成有效动作目标。
 
 仍需真实客户端测试：语言／字体覆盖、抓取／松开、快速切换、多个同标签 Sender、缩放、OSC 丢包／乱序、相机／Shader 保留、HMD 可见性与物理校准。工具不会自动连接设备或上传。
 
-[能力](CAPABILITIES.md) · [主验证策略](https://github.com/SeaLoong/Sensa/blob/main/docs/development.md)
+[能力](CAPABILITIES.md) · [构建与发布](https://github.com/SeaLoong/Sensa/blob/main/docs/development.md)

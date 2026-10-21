@@ -1,0 +1,14 @@
+changelog:
+  exclude:
+    labels: [skip-changelog]
+  categories:
+    - title: Features / 新功能
+      labels: [enhancement, feature]
+    - title: Fixes / 修复
+      labels: [bug, fix]
+    - title: Documentation / 文档
+      labels: [documentation]
+    - title: Maintenance / 维护
+      labels: [maintenance, dependencies]
+    - title: Other changes / 其他改进
+      labels: ['*']

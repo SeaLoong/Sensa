@@ -30,14 +30,14 @@ namespace SensaLab
             var existing=scene.GetRootGameObjects().FirstOrDefault(g=>g.name=="Sensa point geometry cases");
             if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();return;}
             var parent=new GameObject("Sensa point geometry cases");
-            string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
+            string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x1.25","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
             var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*(SensaPoseProtocol.ReceiverRadius*1.5f),Vector3.one*-SensaPoseProtocol.AnchorHalfSpan,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*(SensaPoseProtocol.PositionRadius+.02f),Vector3.zero};
             bool[] valid={true,true,true,false,false,false,true,true,false,false,true};
             string[] hints={"Valid: forward point","Valid: negative Z is observable","Valid: lateral offset","Invalid: no complete contact volume","Invalid: receiver value reaches 1","Invalid: sender radius is 40 mm, not 1 mm","Valid: uniform scaling preserves local XYZ","Valid: coordinates belong to rotated reference","Invalid: probe P4 explicitly omitted (fault injection)","Invalid: beyond the shared local fit radius","Valid: point at reference origin"};
             for(int i=0;i<names.Length;i++){
                 var node=new GameObject(names[i]);node.transform.SetParent(parent.transform,false);node.transform.localPosition=new Vector3(-3.6f+(i%4)*2.4f,1,4+(i/4)*2.3f);
                 var frame=new GameObject("Reference").transform;frame.SetParent(node.transform,false);
-                if(i==6)frame.localScale=Vector3.one*2;
+                if(i==6)frame.localScale=Vector3.one*1.25f;
                 if(i==7)frame.localRotation=Quaternion.Euler(15,35,10);
                 var marker=GameObject.CreatePrimitive(PrimitiveType.Sphere);marker.name="Sender";marker.transform.SetParent(frame,false);marker.transform.localPosition=positions[i];UnityEngine.Object.DestroyImmediate(marker.GetComponent<Collider>());
                 // The visible sphere is a child so its display scale cannot alter the contact radius.

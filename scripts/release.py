@@ -51,7 +51,9 @@ def validate_unity():
     return info
 
 def validate_tag(kind, tag):
-    prefix = 'unity-v' if kind == 'unity' else 'v'
+    # Combined releases use vX.Y.Z; existing unity-vX.Y.Z packages remain readable.
+    # 统一发布使用 vX.Y.Z，同时保留旧 Unity 标签的打包入口。
+    prefix = 'unity-v' if kind == 'unity' and tag.startswith('unity-v') else 'v'
     if not re.fullmatch(re.escape(prefix) + r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', tag):
         raise ValueError('Tag must contain a complete semantic version / 标签必须包含完整语义版本')
     version = tag[len(prefix):]
@@ -90,6 +92,9 @@ def main():
     if args.kind == 'check-unity':
         validate_unity(); print('Unity package metadata validated / Unity 包元数据验证通过'); return
     version, info = validate_tag(args.kind, args.tag)
+    source_commit = os.environ.get('SENSA_SOURCE_COMMIT') or os.environ.get('GITHUB_SHA', '')
+    if source_commit and not re.fullmatch(r'[0-9a-f]{40}', source_commit):
+        raise ValueError('Source commit must be a full SHA / 源码提交必须是完整 SHA')
     if args.label and not re.fullmatch(r'[a-zA-Z0-9][a-zA-Z0-9.-]{0,95}',args.label):
         raise ValueError('Invalid build label / 构建标识无效')
     archive_version=version+('-'+args.label if args.label else '')
@@ -137,7 +142,7 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
-        (source/'BUILD-INFO.json').write_text(json.dumps({'version':version,'runtime':args.runtime,'label':args.label,'commit':os.environ.get('GITHUB_SHA','')},indent=2)+'\n',encoding='utf-8')
+        (source/'BUILD-INFO.json').write_text(json.dumps({'version':version,'runtime':args.runtime,'label':args.label,'commit':source_commit},indent=2)+'\n',encoding='utf-8')
     suffix='zip' if args.kind=='unity' or args.runtime.startswith('win-') else 'tar.gz'
     name = f'top.sealoong.sensa-{archive_version}.zip' if args.kind == 'unity' else f'Sensa-{archive_version}-{args.runtime}.{suffix}'
     (zip_directory if suffix=='zip' else tar_directory)(source, output / name)

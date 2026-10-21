@@ -42,6 +42,6 @@ Native SPS activation, OGB_ENABLED, measurement selection, prop visibility and d
 
 Package EditMode tests cover geometry, parameters, selection and authoring behavior. SDK preprocessing works on clones; explicit **Build … with SDK (no upload)** commands create local bundles. Reports in `Validation/` and bundles in `Builds/` are revision-specific evidence, not automatically current results.
 
-Automated PlayMode, browser/full-process smoke and screenshots run only in CI. Local static/isolated unit/EditMode checks are allowed. Manual private-client exploration is separate; keep input off and outputs empty before every route change. No tool connects hardware or uploads automatically.
+Release CI runs units, browser E2E and isolated native smoke. Avatar Unity/EditMode/PlayMode and private-client checks remain separate. Keep input off and outputs empty before every route change. No tool connects hardware or uploads automatically.
 
 [FullFlow](FULL-FLOW.en.md) · [Capability matrix](CAPABILITIES.en.md) · [Unity package](../../unity/top.sealoong.sensa/README.md)

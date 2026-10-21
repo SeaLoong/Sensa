@@ -45,10 +45,10 @@ The 500 ms in `tools/unity-world-lab/sensa-preview.json` is explicit internal pr
 
 The amber WORLD PLUG in 08 MY AVATAR SPS approaches your Socket; the blue WORLD SOCKET receives your Plug. World Contacts may trigger Self/Others. Expected labels/bars are geometric references, not Avatar OSC acknowledgements; inspect actual Sensa values.
 
-Per-player automatic World language/local switching is being integrated and needs runtime acceptance. Avatar menu text is generated at build time, not translated per player. [Language boundaries](languages.en.md)
+World text follows VRChat's current language and language-change event. The local panel offers Auto / English / 简体中文; an explicit choice applies only to that player's current session. Existing scenes need their display-language bindings refreshed, and uploaded-client fonts/layout still need manual inspection. Avatar menu text is generated at build time, not translated per player. [Language boundaries](languages.en.md)
 
 ## Record evidence
 
 Record commit, Unity/SDK/client versions, object/source, actual paths, change ages, stops and whether data was simulated. Editor, SDK bundle and ClientSim prove separate boundaries. Real uploads, Contacts/OSC, VR grabs, desktop/HMD blocks, accuracy and mechanisms need separate acceptance.
 
-Browsers, full-process smoke, screenshots and World PlayMode run only in Actions. Device tests use mocks locally too. [Workflow](development.en.md) · [Avatar tools](../tools/unity-avatar-lab/README.md) · [World tools](../tools/unity-world-lab/README.md)
+CI runs units, browser E2E and isolated process checks. These do not replace the lab's Unity/World PlayMode or actual-client checks, which developers arrange separately as needed. Automated device-related checks use mock transports. [Development and releases](development.en.md) · [Avatar tools](../tools/unity-avatar-lab/README.md) · [World tools](../tools/unity-world-lab/README.md)

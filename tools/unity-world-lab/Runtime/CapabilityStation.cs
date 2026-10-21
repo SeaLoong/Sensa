@@ -6,6 +6,7 @@ using VRC.SDK3.Dynamics.PhysBone.Components;
 using VRC.SDK3.Rendering;
 using VRC.SDKBase;
 using com.vrcfury.udon;
+using UnityBox.Sensa;
 
 namespace SensaLab
 {
@@ -57,7 +58,7 @@ namespace SensaLab
                 socket.position = plug.TransformPoint(value == 1 ? new Vector3(0,0,.12f) : value == 2 ? new Vector3(.06f,0,.12f) : new Vector3(0,0,.24f));
                 socket.rotation = plug.rotation;
             }
-            else if(bone == null && target != null) target.position = reference.TransformPoint(value == 2 ? new Vector3(.06f,0,.1f) : value == 3 ? new Vector3(0,0,.6f) : value == 1 ? new Vector3(0,0,.05f) : new Vector3(0,0,.1f));
+            else if(bone == null && target != null) target.position = reference.TransformPoint(value == 2 ? new Vector3(.06f,0,.1f) : value == 3 ? new Vector3(0,0,SensaPoseProtocol.ReceiverRadius*1.5f) : value == 1 ? new Vector3(0,0,.05f) : new Vector3(0,0,.1f));
             preset = value == 1 ? "NEAR" : value == 2 ? "OFFSET" : value == 3 ? "OUTSIDE" : "REST / OUTSIDE";
         }
         private void Update()

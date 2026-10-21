@@ -44,4 +44,4 @@ The six dynamic HUDs localize known UI phrases through UGUI `Text`, preserving t
 
 ## Maintenance
 
-Add both translations for user-facing text; preserve identifiers and raw exceptions. Tests cover normalization, precedence, denied storage and state preservation. Browser conclusions belong to the corresponding CI report. [Development](development.en.md) · [User guide](guide.en.md)
+Add both translations for user-facing text and preserve identifiers/raw exceptions. CI isolated units and browser E2E check normalization, precedence, denied storage and state preservation; read actual reports for the selected commit. Fonts and layout still need page inspection rather than being inferred from build success. [Development and releases](development.en.md) · [User guide](guide.en.md)

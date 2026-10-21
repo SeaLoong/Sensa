@@ -45,13 +45,13 @@ VisAWI 全版是经研究验证的 18 项用户感知问卷，VisAWI-S 四项短
 
 ## 评审过程
 
-1. 固定提交、CI run、artifact、语言／视口／状态，比较相同数据；不要把内容变化误认为设计提升。
+1. 固定提交、图片来源、语言／视口／状态；有构建运行或附件时一并记录。比较相同数据，不把内容变化误认为设计提升。
 2. 先看完整构图，再看字、数字、间距、边缘与状态；写具体观察，不只写“现代”。
 3. 将问题对应具体设计变更，再审实际新图。字节相同图可继承明确记录，变化图重看。
-4. 独立核对行为／可访问底线，记录剩余限制后才接受基线。
+4. 独立核对行为与可访问性，记录人工复评结果及尚未检查的范围。
 
 ```text
-提交 / CI run / artifact / 图片：
+提交 / 构建运行（如有） / 图片来源：
 语言 / 视口 / 状态：
 V1–V6 与结论：
 具体区域、观察、严重度：
@@ -59,11 +59,11 @@ V1–V6 与结论：
 剩余未评估内容：
 ```
 
-浏览器与截图仅在 Actions。[基线规则](e2e.md)
+浏览器与截图在 Actions 执行。视觉评审仍需人工查看实际图片并记录来源，普通比较通过不表示所有设计问题都已审阅。[浏览器验证与基线](e2e.md)
 
-## 自动检查是底线
+## 可访问性检查
 
-[quality.spec.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/quality.spec.js)和[ui-quality.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/ui-quality.js)保留 axe 版本、标签、URL／语言／视口、完整 violations／incomplete 与行为结果；报告进入 `e2e-report`。只扫描选定规则与状态，不能外推全部 AA。[WAI 工具限制](https://www.w3.org/WAI/test-evaluate/tools/selecting/)
+按实际页面检查文字对比、控件名称、键盘操作、焦点、重排和状态播报。CI 的 [quality.spec.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/quality.spec.js) 与 [ui-quality.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/ui-quality.js) 保留 axe 版本、URL／语言／视口、完整 violations 和 incomplete，报告进入 `e2e-report`。只扫描选定状态不能外推全部 AA。[WAI 工具限制](https://www.w3.org/WAI/test-evaluate/tools/selecting/)
 
 - 常规文字参考 4.5:1，大字 3:1，必要非文字 3:1。[文字](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)／[控件](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 - AA 目标 24×24 CSS px 有例外；项目粗指针 44 是额外设计目标，不是统一 AA 下限。[目标尺寸](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)

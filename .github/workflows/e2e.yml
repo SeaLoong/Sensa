@@ -6,6 +6,9 @@ on:
         description: Commit verified by full comparison / 全量比较验证的提交
         value: ${{ jobs.browser.outputs.comparison_sha }}
     inputs:
+      source_commit:
+        type: string
+        required: true
       update_snapshots:
         type: boolean
         default: false
@@ -29,8 +32,11 @@ jobs:
       E2E_SUITE: all
       PYTHONUTF8: '1'
       E2E_UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
+      SENSA_SOURCE_COMMIT: ${{ inputs.source_commit || github.sha }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_commit || github.sha }}
       - name: Reject baseline updates from ordinary CI / 拒绝普通 CI 更新基线
         if: inputs.update_snapshots && github.event_name != 'workflow_dispatch'
         run: exit 1
@@ -55,7 +61,7 @@ jobs:
         run: |
           test "$E2E_SUITE" = all
           node scripts/e2e-summary-reporter.mjs --verify-comparison artifacts/e2e/summary.json
-          echo "sha=$GITHUB_SHA" >> "$GITHUB_OUTPUT"
+          echo "sha=$SENSA_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
       - name: Publish current browser result summary / 发布本次浏览器结果摘要
         if: always()
         env:
@@ -66,6 +72,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: e2e-report
+          overwrite: true
           path: |
             artifacts/e2e/report/
             artifacts/e2e/results/
@@ -80,6 +87,7 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: e2e-baselines
+          overwrite: true
           path: tests/e2e/__screenshots__/
           if-no-files-found: warn
           retention-days: 14

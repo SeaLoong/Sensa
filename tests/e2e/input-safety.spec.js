@@ -1,4 +1,4 @@
-import { test, expect, card, enable, mode, active, oscWorkspace, expand, allowSpatial, outputValue } from './fixtures.js';
+import { test, expect, text, card, enable, mode, active, oscWorkspace, expand, allowSpatial, outputValue } from './fixtures.js';
 import { poseSamples } from './mocks.js';
 
 const scriptFile = name => ({name,mimeType:'application/json',buffer:Buffer.from(JSON.stringify({actions:[{at:0,pos:0},{at:60000,pos:100}]}))});
@@ -37,6 +37,62 @@ test('paused scripts stop transport while explicit stepping can inspect a target
   await page.getByRole('button',{name:'卸载',exact:true}).click();
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
+
+test('changing the actual OSC source stops output until explicitly enabled again / 切换实际 OSC 来源后须重新启用输入',
+  {tag:['@input','@osc','@transport']}, async ({page,rig}, info) => {
+    await enable(page,['Mock UDP']); await mode(page,'OSC');
+    let depth = .25, receivedBatches = 0;
+    const feed = await rig.startFeed(() => {
+      receivedBatches++;
+      return [['CI/Depth',depth],['CI/Active',1]];
+    });
+    const motionLines = () => rig.wire.udp.filter(line => /L0\d/.test(line));
+    const stops = () => rig.wire.udp.filter(line => line === 'DSTOP').length;
+    const receivedDepth = async () => (await rig.overview()).signals
+      .find(row => row.signal.oscPath === 'CI/Depth')?.latest?.value;
+    try {
+      await expect.poll(async () => (await rig.overview()).osc.sources.length).toBe(1);
+      const sourceKey = (await rig.overview()).osc.sources[0].key;
+      await active(page); await outputValue(rig,'udp',450);
+      await oscWorkspace(page,'参数');
+      const source = page.getByRole('combobox',{name:await text(page,'使用来源'),exact:true});
+      await expect(source).toHaveValue('');
+      const previousStops = stops();
+      await source.selectOption(sourceKey);
+      await expect.poll(async () => (await rig.overview()).osc.selectedSourceKey).toBe(sourceKey);
+      await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
+      await expect(page.getByRole('switch',{name:await text(page,'输入启用'),exact:true})).not.toBeChecked();
+      await expect.poll(stops).toBeGreaterThan(previousStops);
+      await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
+      const stoppedMotionCount = motionLines().length, batchesAtStop = receivedBatches;
+      depth = .75;
+      await expect.poll(receivedDepth).toBe(depth);
+      await expect.poll(() => receivedBatches).toBeGreaterThan(batchesAtStop + 2);
+      expect(motionLines()).toHaveLength(stoppedMotionCount);
+
+      await active(page); await outputValue(rig,'udp',550);
+      const stopsBeforeSameSelection = stops();
+      const response = await page.request.put(rig.baseUrl + '/api/input/osc/source',{data:{sourceKey}});
+      expect(response.ok()).toBe(true);
+      expect((await rig.overview()).runtime.inputActive).toBe(true);
+      depth = .5;
+      await outputValue(rig,'udp',500);
+      expect(stops()).toBe(stopsBeforeSameSelection);
+
+      await source.selectOption('');
+      await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
+      await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
+      const automaticMotionCount = motionLines().length, automaticBatches = receivedBatches;
+      depth = .9;
+      await expect.poll(receivedDepth).toBeCloseTo(depth,5);
+      await expect.poll(() => receivedBatches).toBeGreaterThan(automaticBatches + 2);
+      expect(motionLines()).toHaveLength(automaticMotionCount);
+      await active(page); await outputValue(rig,'udp',580);
+      await info.attach('osc-source-transition.json',{body:JSON.stringify({sourceKey,
+        stoppedOnExplicitSelection:true,stoppedOnAutomaticSelection:true,
+        sameSourcePreservesActivation:true,receivedBatches}),contentType:'application/json'});
+    } finally { await feed.stop(); }
+  });
 
 test('one live Contact channel cannot revive the other expired ranges / 单路更新不能复活其余过期距离', {tag:['@input','@osc','@transport']}, async ({page,rig}) => {
   await enable(page,['Mock UDP']); await mode(page,'OSC');

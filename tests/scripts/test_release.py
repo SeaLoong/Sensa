@@ -11,6 +11,7 @@ import os
 from pathlib import Path, PurePosixPath
 import runpy
 import shutil
+import sys
 import tarfile
 import tempfile
 import unittest
@@ -36,12 +37,13 @@ PARAMETER_GEOMETRY_FILES = (
 def load(name):
     spec = importlib.util.spec_from_file_location('release_contract_' + name, ROOT / 'scripts' / (name + '.py'))
     module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
+    with patch.object(sys, 'path', [str(ROOT / 'scripts'), *sys.path]):
+        spec.loader.exec_module(module)
     return module
 
 
 release = load('release')
-preview = load('publish-preview')
+preview = load('publish-release')
 
 
 class ArchiveWorkspace(unittest.TestCase):
@@ -118,6 +120,19 @@ class DesktopArchiveContracts(ArchiveWorkspace):
                 self.assertEqual((self.output / 'SHA256SUMS.txt').read_text(encoding='utf-8'), f'{digest}  {archive.name}\n')
                 self.assertEqual(files['web/app.bundle.js'], b'fixture bundle')
                 self.assertIn('Sensa.exe' if runtime.startswith('win-') else 'Sensa', files)
+
+    def test_build_identity_uses_resolved_source_instead_of_the_dispatch_commit(self):
+        with patch.dict(os.environ, SENSA_SOURCE_COMMIT='b' * 40):
+            _, files = self.app()
+        self.assertEqual(json.loads(files['BUILD-INFO.json'])['commit'], 'b' * 40)
+
+    def test_invalid_resolved_source_cannot_be_written_to_a_release_archive(self):
+        self.prepare_app()
+        for commit in ('main', 'abc1234', '../escape', 'z' * 40):
+            with self.subTest(commit=commit), patch.dict(os.environ, SENSA_SOURCE_COMMIT=commit), \
+                    self.assertRaisesRegex(ValueError, 'Source commit'):
+                self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+        self.assertFalse(self.output.exists())
 
     def test_desktop_package_contains_both_languages_domain_docs_and_bridge_local_dependencies(self):
         _, files = self.app()
@@ -253,28 +268,25 @@ class DesktopArchiveContracts(ArchiveWorkspace):
 
 class EnglishReleaseNotesContracts(unittest.TestCase):
     def test_preview_notes_lead_with_english_and_keep_complete_chinese_and_exact_commit(self):
-        notes = preview.preview_notes('a' * 40)
+        module = load('release_notes')
+        notes = module.compose_release_notes('preview', '0.4.0', 'preview-42-1-aaaaaaaa', 'a' * 40,
+                                             'Owner/Repo', '## Changes\n\n* Fix a published issue')
         english, chinese = notes.split('## 简体中文', 1)
-        self.assertTrue(english.startswith('Development preview'))
         self.assertIn('a' * 40, english)
         self.assertIn('a' * 40, chinese)
         self.assertIn('SHA256SUMS.txt', english)
         self.assertIn('SHA256SUMS.txt', chinese)
         self.assertIn('parameter-geometry.html?lang=en-US', english)
         self.assertIn('parameter-geometry.html?lang=zh-CN', chinese)
-        self.assertIn('Real hardware', english)
-        self.assertIn('真实硬件', chinese)
-        with self.assertRaises(ValueError):
-            preview.preview_notes('../bad')
+        self.assertIn('Fix a published issue', notes)
 
-    def test_tagged_desktop_notes_include_both_languages_and_reject_invalid_identity(self):
-        module = load('tag-release-notes')
-        notes = module.release_notes('v0.4.0-test')
-        self.assertTrue(notes.startswith('Sensa v0.4.0-test'))
+    def test_stable_notes_include_both_languages_and_the_automatic_changelog(self):
+        module = load('release_notes')
+        notes = module.compose_release_notes('stable', '0.4.0', 'v0.4.0', 'b' * 40,
+                                             'Owner/Repo', '* Improve publishing (#42)')
         self.assertIn('## 简体中文', notes)
         self.assertIn('127.0.0.1:5086', notes)
-        with self.assertRaises(ValueError):
-            module.release_notes('v../unsafe')
+        self.assertIn('Improve publishing (#42)', notes)
 
 
 class UnityPublicationMetadataContracts(ArchiveWorkspace):
@@ -302,6 +314,14 @@ class UnityPublicationMetadataContracts(ArchiveWorkspace):
         self.assertEqual(manifest['sha256'], hashlib.sha256(archive.read_bytes()).hexdigest())
         self.assertEqual(manifest['url'], f'https://github.com/Owner/Repo/releases/download/unity-v{self.unity_version}/{archive.name}')
         self.assertEqual(manifest_path.read_bytes(), original)
+
+    def test_combined_stable_release_uses_the_canonical_tag_for_vpm_downloads(self):
+        self.package('unity', '--tag', 'v' + self.unity_version)
+        archive = next(self.output.glob('*.zip'))
+        manifest = json.loads((self.output / 'vpm-package.json').read_text(encoding='utf-8'))
+        self.assertEqual(manifest['version'], self.unity_version)
+        self.assertEqual(manifest['sha256'], hashlib.sha256(archive.read_bytes()).hexdigest())
+        self.assertEqual(manifest['url'], f'https://github.com/Owner/Repo/releases/download/v{self.unity_version}/{archive.name}')
 
 
 class ReproducibleArchiveContracts(unittest.TestCase):
@@ -408,6 +428,23 @@ class VpmHistoryContracts(unittest.TestCase):
         self.assertEqual(copied.read_bytes(), self.package)
         self.assertEqual(versions['0.1.0']['url'], self.previous['url'])
         self.assertFalse((self.root / 'artifacts/pages/index.html').exists())
+
+    def test_combined_stable_release_supplies_the_same_verified_vpm_history(self):
+        legacy_host = self.host
+        self.host = self.host.replace('/unity-v0.2.0', '/v0.2.0')
+        self.release['tag_name'] = 'v0.2.0'
+        self.current['url'] = self.current['url'].replace(legacy_host, self.host)
+        for asset in self.release['assets']:
+            asset['browser_download_url'] = asset['browser_download_url'].replace(legacy_host, self.host)
+        self.responses[self.current['url']] = self.package
+        index = self.build()
+        self.assertEqual(set(index['packages']['top.sealoong.sensa']['versions']), {'0.1.0', '0.2.0'})
+        self.assertEqual(index['packages']['top.sealoong.sensa']['versions']['0.2.0']['url'], self.current['url'])
+
+    def test_canonical_tag_cannot_publish_a_manifest_for_another_version(self):
+        self.release['tag_name'] = 'v0.3.0'
+        with self.assertRaisesRegex(ValueError, 'identity'):
+            self.build()
 
     def test_documentation_site_can_explicitly_publish_an_empty_stable_index(self):
         self.history = {}

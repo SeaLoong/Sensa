@@ -86,4 +86,4 @@ Unity EditMode 检查默认 Off、单相机直接输出、Shader 导入、持久
 
 仍须分别验收 SDK 上传保留、NDMF／VRCFury 优化交互、native 编码像素、PC／PCVR 合成、HMD 可见性、窗口缩放／遮挡／最小化、HDR／后处理／低帧率、延迟及参考位置误差。桥的默认冻结 350 ms 早于桌面 500 ms 拒绝上限，不能将后者描述为实际桥的有效期。
 
-完成这些前保持实验 opt-in，不承诺可靠世界定位、真实网格跟踪或客户端性能提升。[定位边界](positioning.md) · [验证流程](development.md)
+完成这些前保持实验 opt-in，不承诺可靠世界定位、真实网格跟踪或客户端性能提升。[定位边界](positioning.md) · [构建与发布](development.md)

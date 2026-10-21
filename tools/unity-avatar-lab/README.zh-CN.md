@@ -42,6 +42,6 @@ python -X utf8 scripts/install-avatar-lab.py "<Avatar project>" --tests
 
 包 EditMode 检查几何、参数、选择和作者行为。SDK 预处理使用克隆；明确的 **Build … with SDK (no upload)** 命令生成本地包。`Validation/` 报告和 `Builds/` 包只对应所记录修订，不自动代表当前结果。
 
-自动 PlayMode、浏览器／完整进程冒烟和截图仅在 CI 执行；本机允许静态、隔离单元和 EditMode。手动私有客户端探索是另一类活动，切换路线前保持输入关闭、输出为空。工具不会连接硬件或自动上传。
+发布 CI 执行单元、浏览器 E2E 和隔离原生冒烟；Avatar 的 Unity／EditMode／PlayMode 与私有客户端行为需另行检查。切换路线前保持输入关闭、输出为空，工具不会连接硬件或自动上传。
 
 [FullFlow](FULL-FLOW.md) · [能力矩阵](CAPABILITIES.md) · [Unity 包](../../unity/top.sealoong.sensa/README.zh-CN.md)

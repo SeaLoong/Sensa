@@ -45,13 +45,13 @@ Severity is blocking (main state/action obscured or misleading), major (substant
 
 ## Review process
 
-1. Fix commit/run/artifact/language/viewport/state and compare equivalent data; content differences are not design improvements.
+1. Fix the commit, image source, language, viewport and state; retain build runs/artifacts when available. Compare equivalent data rather than treating content changes as design improvements.
 2. Inspect full composition, then text, numerals, gaps, edges and states. Describe observations rather than “modern”.
 3. Map issues to concrete design changes and inspect actual new images. Recorded byte-identical images may inherit review; changed images need inspection.
-4. Check behavior/accessibility separately, then accept baselines with remaining limits.
+4. Check behavior/accessibility separately and record the manual reassessment plus unassessed scope.
 
 ```text
-Commit / CI run / artifact / image:
+Commit / build run (if any) / image source:
 Language / viewport / state:
 V1–V6 and result:
 Region, observation and severity:
@@ -59,11 +59,11 @@ Change and re-review evidence:
 Remaining unassessed content:
 ```
 
-Browsers/screenshots run only in Actions. [Baseline rules](e2e.en.md)
+Browsers and screenshots run in Actions. Visual review still requires inspecting actual images and retaining their source. Passing normal comparison does not mean every design issue was assessed. [Browser verification and baselines](e2e.en.md)
 
-## Automation is a baseline
+## Accessibility checks
 
-[quality.spec.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/quality.spec.js) and [ui-quality.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/ui-quality.js) preserve axe version/tags/URL/locale/viewport, full violations/incomplete and behavior results in `e2e-report`. Selected rules/states cannot establish full AA. [WAI limits](https://www.w3.org/WAI/test-evaluate/tools/selecting/)
+Inspect actual text contrast, control names, keyboard operation, focus, reflow and state announcements. CI [quality.spec.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/quality.spec.js) and [ui-quality.js](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/ui-quality.js) retain axe version, URL/locale/viewport and complete violations/incomplete output in `e2e-report`. Selected states cannot establish full AA. [WAI limits](https://www.w3.org/WAI/test-evaluate/tools/selecting/)
 
 - Ordinary text uses 4.5:1, large text 3:1 and necessary non-text information 3:1 as references. [Text](https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html)/[controls](https://www.w3.org/WAI/WCAG22/Understanding/non-text-contrast.html)
 - AA 24×24 CSS px targets have exceptions; the project's coarse-pointer 44 px is an additional goal, not a universal AA minimum. [Targets](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)

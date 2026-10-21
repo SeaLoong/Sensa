@@ -32,7 +32,7 @@ New automatic setups use Exclusive, initially Off. Dedicated permits simultaneou
 
 Check the green common-coverage slices in Unity Scene: a point must be inside all four receivers to be positioned. Small orange regions indicate saturation blind spots near anchors. Shader instead shows its full encoding box and has no Contact radius.
 
-When updating from the old 2.5-radius/0.5-half-span geometry, rebuild the Avatar, replace old generated components and update the desktop app together. Do not mix geometry generations.
+When geometry or generated components change, rebuild the Avatar and use the desktop app with the matching shared protocol. Replace the generated components as a complete set.
 
 Coordinates use Avatar-root local units. Common world movement leaves them unchanged. Uniform scale is required; build checks and internal ScaleFactor guards enforce the world-radius limit. The display box is not guaranteed Contact coverage. [Geometry, public/control parameters and stops](AUTOMATION.en.md)
 

@@ -1,0 +1,81 @@
+name: Check the selected source / 检查选定源码
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        type: string
+        required: true
+      require_main:
+        type: boolean
+        default: false
+      run_e2e:
+        description: Only the maintenance workflow disables normal comparison / 仅维护工作流可先跳过普通比较
+        type: boolean
+        default: true
+    outputs:
+      commit:
+        value: ${{ jobs.units.outputs.commit }}
+      comparison_sha:
+        value: ${{ jobs.e2e.outputs.comparison_sha }}
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+jobs:
+  units:
+    name: Unit and source checks / 单元与源码检查
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+    steps:
+      - name: Require main for stable release / 正式发布须选择 main
+        if: inputs.require_main
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: test "$WORKFLOW_REF" = refs/heads/main
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_ref }}
+      - name: Pin source for all following jobs / 固定后续全部任务的源码
+        id: source
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.14'
+      - run: npm ci
+      - name: Web lint, unit tests and build / Web 规范、单元与构建
+        run: |
+          npm test
+          npm run build:web
+      - name: Backend unit tests / 后端单元测试
+        run: >-
+          dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release
+          -p:RestoreLockedMode=true -p:SkipWebBuild=true
+          --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results/backend
+      - name: Script and documentation contracts / 脚本与文档契约
+        run: python -X utf8 -m unittest discover -s tests/scripts
+      - name: Unity package metadata / Unity 包元数据
+        run: python scripts/release.py check-unity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: tests-backend
+          path: artifacts/test-results/backend/
+          overwrite: true
+          if-no-files-found: warn
+
+  e2e:
+    needs: units
+    if: inputs.run_e2e
+    uses: ./.github/workflows/e2e.yml
+    with:
+      source_commit: ${{ needs.units.outputs.commit }}
+      update_snapshots: false

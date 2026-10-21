@@ -41,9 +41,9 @@ Common rigid movement preserves distances. Common uniform scale cancels in `(s*d
 
 ## Why use R=2 and h=0.35?
 
-R is the radius of one receiver sphere; h is an anchor's offset from the layout center along each coordinate axis. These are independent dimensions. The old R=2.5, h=0.5 layout did not have a 0.5 m receiver range. Straight-line anchor-to-center distance is √3h, and anchor-to-anchor distance is 2√2h: approximately 0.866 m and 1.414 m in that layout. See the [dimension comparison](positioning.en.md#how-do-25-m-05-m-and-usable-coverage-differ) for the distinctions.
+R is the radius of one receiver sphere; h is an anchor's offset from the layout center along each coordinate axis. These are independent dimensions. Current R=2 m and h=0.35 m give an anchor-to-center distance of √3h≈0.606 m and anchor-to-anchor distance of 2√2h≈0.990 m. The [dimension guide](positioning.en.md) distinguishes these distances from usable coverage.
 
-The new default reduces receiver radius from 2.5 to 2 local meters and tetrahedral half-span from 0.5 to 0.35. Anchor separation becomes 2√2h≈0.990 m. At a fixed receiver radius, bringing the anchors closer increases common coverage while retaining a noncoplanar arrangement. The new 2-m receivers still provide less absolute coverage than the previous 2.5-m receivers; the change favors lower noise gain and more scaling headroom. The implementation keeps one shared geometry; arbitrary author-only radius changes would make desktop decoding incorrect.
+Four anchors form a noncoplanar layout. At a fixed receiver radius, bringing them closer increases common coverage while affecting conditioning away from the center. The selected 2 m radius balances coverage and SDK scaling headroom. The implementation keeps one shared geometry; arbitrary author-only radius changes would make desktop decoding incorrect.
 
 For a marker radius r=.001 and strict .001<p<.999, valid center distance lies between .003 and 1.999. The common region is the intersection of those four distance shells, clipped by the ±2 coordinate box. Its outer bounds contain a centered ball of radius `1.999−√3×.35≈1.392782`; small saturated holes near anchors remain excluded. This describes spatial coverage, not a guarantee that sampling and scale checks pass.
 
@@ -54,7 +54,7 @@ For a marker radius r=.001 and strict .001<p<.999, valid center distance lies be
 
 The 1-m value illustrates the tradeoff, rather than an exposed protocol preset. Compared with that 1-m example, the 2-m choice gives much more common coverage. It is not a mathematically proven optimum for every Avatar or movement path.
 
-Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, so the 2-norm condition number is 1. Assuming independent equal-variance proximity noise σp, first-order center propagation gives per-axis standard deviation `sqrt(3)Rσp/2`. Reducing R from 2.5 to 2 reduces this particular noise gain by 20%; it is not a measured precision improvement. Closer anchors worsen conditioning away from the center, so future client measurements must include the intended trajectories rather than only the center.
+Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, so the 2-norm condition number is 1. Assuming independent equal-variance proximity noise σp, first-order center propagation gives per-axis standard deviation `sqrt(3)Rσp/2`, approximately `1.732σp` at current R=2. This is a model estimate rather than measured precision. Closer anchors can worsen conditioning away from the center, so client measurements should include intended trajectories rather than only the center.
 
 The 0.01 residual threshold detects inconsistency, rather than bounding actual error. Four constraints lack enough redundancy to reliably identify every bad channel or authenticate a sender. No filter is added: invalid Sample, expiry and gating must stop immediately, without smoothing their effect.
 
@@ -70,7 +70,7 @@ Five fields do not describe the Avatar's entire Expression Parameter count. Auto
 
 ## Scope of existing evidence
 
-Earlier Unity nographics EditMode runs checked authoring, P0–P3/Sample, internal RawP versus final Expression Parameters, NDMF, geometry, scale/selection guards, unknown-policy rejection and independent experiment regressions. Reports such as ignored `artifacts/verification/sps-five-fields-editmode.xml` belong to those original revisions and may not exist in a new checkout. They do not validate this revision's 2-m geometry. The changed Unity builders require fresh Unity CI and real-client measurements; current isolated tests only cover their own math/contracts. Successful shader import is not GPU pixel output. Read exact counts/versions in each actual report and associated commit.
+Earlier Unity nographics EditMode runs checked authoring, P0–P3/Sample, internal RawP versus final Expression Parameters, NDMF, geometry, scale/selection guards, unknown-policy rejection and independent experiment regressions. Reports such as ignored `artifacts/verification/sps-five-fields-editmode.xml` belong to those original revisions and may not exist in a new checkout. They do not validate the current 2 m geometry. Current CI runs units, E2E and native mock checks; arrange Editor inspection and real-client measurement separately after changing Unity builders. Isolated checks cover their own math/contracts, and successful shader import is not GPU pixel output. Read exact counts/versions in each actual report and associated commit.
 
 Generator contracts also check retained .meta identity, prefab author type and explicit Target. AvatarLab uses Exclusive/Dedicated while independent experiments retain their labels; tool dead-code/docs cleanup is not complete scene acceptance.
 

@@ -45,10 +45,10 @@ OGB 使用深度／振动统一模板，不按 Socket／Plug 再拆预设；需�
 
 08 MY AVATAR SPS 的琥珀 WORLD PLUG 可接近自己的 Socket，蓝框 WORLD SOCKET 接收自己的 Plug。World Contact 可能触发 Self／Others；世界 Expected／图条是几何预期，不是 Avatar OSC 回执，以 Sensa 实际参数为准。
 
-世界每玩家自动语言和本地切换正在接入，运行时仍需验收。Avatar 菜单文字是构建时语言，不会逐玩家自动翻译。[语言边界](languages.md)
+世界文字使用 VRChat 当前语言，并响应语言变化；本地面板可在 Auto／English／简体中文之间切换，明确选择仅对当前玩家会话生效。已有场景需刷新显示语言，上传客户端的字体和布局仍需手动检查。Avatar 菜单文字是构建时语言，不会逐玩家自动翻译。[语言边界](languages.md)
 
 ## 证据记录
 
 记录提交、Unity／SDK／客户端版本、对象／来源、真实路径、变化年龄、停止行为及是否使用模拟。Editor、SDK bundle、ClientSim 只证明各自边界；真实上传、Contacts／OSC、VR 抓取、桌面／HMD 图块、准确度和机械动作分别验收。
 
-浏览器、完整进程、截图与 World PlayMode 仅在 Actions；本机设备测试也只能使用 mock。[开发规则](development.md) · [Avatar 工具](../tools/unity-avatar-lab/README.zh-CN.md) · [World 工具](../tools/unity-world-lab/README.zh-CN.md)
+CI 运行单元、浏览器 E2E 与隔离进程检查，不代替实验室的 Unity／World PlayMode 和实际客户端检查。后者由开发者按需另行安排，设备相关自动检查使用模拟传输。[开发与发布](development.md) · [Avatar 工具](../tools/unity-avatar-lab/README.zh-CN.md) · [World 工具](../tools/unity-world-lab/README.zh-CN.md)

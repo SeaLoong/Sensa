@@ -60,7 +60,7 @@ Inspect `Sensa/Shader/42/{Frame,X,Y,Z,Valid}`. ID is in the path and AvatarRootL
 
 The outer two-module band is a fixed alignment pattern, similar in purpose to a QR code's positioning marks. The central 16×8 modules hold changing payload bits. A valid edge can use either of its two complementary pattern lines, and at least three of the four edges must match. This tolerates one damaged edge while keeping the data area strictly checked.
 
-The bridge searches at most one module left/right and up/down within the selected region. It does not correct scale, rotation or perspective. Every payload module must pass the monochrome test and the whole payload must pass CRC; damaged data bits are rejected rather than guessed. Re-register after window resizing or display-scale changes. Existing registrations with the old 1.5 half-range must also be recreated after updating the Avatar encoder and bridge.
+The bridge searches at most one module left/right and up/down within the selected region. It does not correct scale, rotation or perspective. Every payload module must pass the monochrome test and the whole payload must pass CRC; damaged data bits are rejected rather than guessed. Registration must match the current AvatarRootLocal center (0,1,0) and half-range 2 on each axis. Re-register after changing window size, display scale or encoder configuration.
 
 These marks help alignment, not time synchronization. They cannot remove rendering/capture delay. A delayed but changing image can still decode; measure end-to-end latency separately. `Frame` detects duplicates and freezing as described below. Internal diagnostic PNG/lab codes remain a separate 16×8 format with a 64×32 minimum; they do not produce a motion root.
 

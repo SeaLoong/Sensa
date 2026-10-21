@@ -78,4 +78,4 @@ NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setu
 
 脚本 HTTP 为 multipart，WS 使用 fileName/content，进入同一命令实现。旧 loop／按类型输出别名仍有，但多输出用 outputId。WebUi.Title 动态标题、Intiface DeviceRoutes、IsOgbSocket/Plug 特殊行为、PreferSpeedMode 编码选择与 ObservedMin/Max 自动建议等保留字段**不代表已接通能力**。[应用路由](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
 
-[架构](architecture.md) · [开发与发布](development.md) · [E2E](e2e.md)提供源码边界与验证规则。CI、元数据、EditMode、模拟线包分别只证明自己的检查；真实客户端、GPU／HMD、准确度和机械动作仍需验收。
+[架构](architecture.md)说明源码边界，[开发与发布](development.md)说明检查、构建、预发布、正式发布和文档部署。发布前会运行单元检查和浏览器 E2E；真实客户端、GPU／HMD、定位准确度和设备动作仍须单独验收。

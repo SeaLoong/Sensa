@@ -18,7 +18,7 @@
 
 ## 已知几何参考
 
-独立 Point fixture 使用 Sender 半径 .001、Receiver 半径 .35 和自己的四面体局部框架。(0,0,.10) 的四值约 .48541/.48541/.73483/.73483；(.06,0,.10) 约 .40627/.51463/.79683/.60286。它**不是** R=2.5 的固定 SPS P0–P3 布局。
+独立 Point fixture 使用半径 0.001 的 Sender、半径 2 的 Receiver，以及各轴偏移 ±0.35 的四面体布局。生成器和解码器共同读取 `SensaPoseProtocol`；数值以当前场景的实际接近值为准。该场景围绕独立参考对象布局，不使用固定 SPS 的 AvatarRootLocal 坐标或 Sample 计数。
 
 已知 20 cm SPS Plug 中，Socket 位于 (0,0,.24)、(0,0,.12)、(.06,0,.12) 分别代表 Outside、Near、Offset。Near／Offset 的轴向真值都是 40%，径向估计约为 40%／32.9%。OGB 归一化、SDK 有符号距离、根解码与模型位移不是同一量。
 
@@ -44,7 +44,7 @@ python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/
 
 ## 报告与验收
 
-读取对应修订的 `Validation/` 报告检查组件、样本、CRC 和冻结恢复。诊断冒烟始终输入关闭、无输出，不是原生图像捕获或硬件运动。自动 E2E／PlayMode／截图仅在 CI 执行。
+需要检查实验场景时，使用对应修订的 `Validation/` 报告核对组件、样本、CRC 和冻结恢复。诊断时保持输入关闭、输出为空。发布 CI 运行单元检查和浏览器 E2E；它们不能代替此世界的 Unity／ClientSim／PlayMode 检查，也不证明原生图像捕获或硬件运动已经验收。
 
 PB 抓取权限、多语字体／HMD 可读性、上传 OSC、相机保留、镜面、HDR／AA、捕获延迟及多人行为仍须真实客户端验收。
 

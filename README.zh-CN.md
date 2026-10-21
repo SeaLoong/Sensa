@@ -39,14 +39,14 @@
 
 能编辑自己 Avatar 的用户，可以安装 [Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，添加根点测量或 Shader 捕获。只读取已有 OGB 参数时无需安装。Avatar／World 实验工具供开发与验证使用，需要自己的授权资源。
 
-[Releases](https://github.com/SeaLoong/Sensa/releases)提供桌面预览版与 Unity ZIP。使用 VCC／ALCOM 安装时，**VPM 只提供已发布的 Unity 正式版**；预览版需要从 Releases 单独下载。请按实际安装版本阅读对应说明。
+[Releases](https://github.com/SeaLoong/Sensa/releases)中的正式版和自动预发布都包含六个桌面构建与 Unity ZIP。使用 VCC／ALCOM 安装时，**VPM 只提供已发布的 Unity 正式版**；预览版需要从 Releases 单独下载。请按实际安装版本阅读对应说明。
 
 [文档站](https://sealoong.github.io/Sensa/)独立随 main 发布，不等待 Unity 稳定版。[语言规则](docs/languages.md)
 
-## 开发与证据
+## 开发与发布
 
-参见[架构](docs/architecture.md)、[验证流程](docs/development.md)、[E2E 状态](docs/e2e-status.md)和[已归档视觉评审](docs/ui-visual-review.md)。本机先用 `python -X utf8 scripts/verify.py --plan` 规划，再运行 `scripts/verify.py`。浏览器 E2E、截图、完整进程冒烟与 World PlayMode 仅在 Actions；设备测试使用模拟传输。
+推送到 `main` 会执行单元测试与完整 E2E，通过后构建并发布 pre-release。正式版只需在 Actions 运行 [release.yml](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)：它检查并构建最新 `main`，默认选择下一个补丁版本并自动生成发布说明，也可填写新的版本号。文档修改通过站点 E2E 后自动部署，无需另外操作 Pages。
 
-几何、作者生成与模拟线包检查不能证明真实 VRChat Contacts、客户端捕获、头显可见性、定位准确度或机械动作。
+发布要求当前提交的单元测试、普通 E2E 比较、原生冒烟和完整产物全部通过。检查使用隔离配置与模拟传输，不表示真实客户端或设备已验收。详见[开发与发布](docs/development.md)、[架构](docs/architecture.md)、[浏览器验证记录](docs/e2e-status.md)与[手动维护 E2E](docs/e2e.md)。
 
 [MIT 许可](LICENSE) · [术语表](GLOSSARY.md)

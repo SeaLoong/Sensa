@@ -10,6 +10,6 @@
 
 **Tools → Sensa Lab → Export camera-only prototype** 导出实验 unitypackage 到独立 Avatars 工程。保持关闭且本地，不要把 Worlds SDK／Udon 混入该工程。它不代替[原生根捕获与注册](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。
 
-历史编辑器渲染／CRC 结果不等于上传客户端保留、PCVR 隔离或外部捕获时序。按当前策略，自动渲染、PlayMode 和截图只在 CI 执行。
+历史编辑器渲染／CRC 结果不等于上传客户端保留、PCVR 隔离或外部捕获时序。发布 CI 的单元、浏览器与原生模拟检查不覆盖本原型的 Unity 渲染或 PlayMode；原型需要另外检查。
 
 [世界安装与语言](README.zh-CN.md) · [传输](CAPABILITIES.md)

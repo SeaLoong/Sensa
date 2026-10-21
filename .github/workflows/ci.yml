@@ -1,243 +1,60 @@
-name: Validate and preview / 验证与预览
+name: Build and preview / 构建与自动预发布
 on:
-  workflow_call:
-    inputs:
-      release_target:
-        description: Explicit tag target, app or unity / 显式标签目标
-        type: string
-        required: true
-    outputs:
-      comparison_sha:
-        description: Commit verified by full comparison / 全量比较验证的提交
-        value: ${{ jobs.e2e.outputs.comparison_sha }}
-  workflow_dispatch:
-  pull_request:
   push:
     branches: [main]
+  pull_request:
+  workflow_dispatch:
 permissions:
   contents: read
-env:
-  PYTHONUTF8: '1'
 concurrency:
-  # Preserve main product verification when a later docs-only commit arrives.
-  # 后续纯文档提交不应取消 main 上尚未完成的产品验证。
-  group: ci-${{ github.event_name }}-${{ github.event_name == 'pull_request' && github.ref || format('{0}-{1}', github.ref, github.sha) }}
+  group: build-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
-  plan:
-    name: Select necessary checks / 选择必要检查
-    permissions:
-      contents: read
-      actions: read
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      web: ${{ steps.plan.outputs.web }}
-      backend: ${{ steps.plan.outputs.backend }}
-      scripts: ${{ steps.plan.outputs.scripts }}
-      docs: ${{ steps.plan.outputs.docs }}
-      unity: ${{ steps.plan.outputs.unity }}
-      dependencies: ${{ steps.plan.outputs.dependencies }}
-      e2e: ${{ steps.plan.outputs.e2e }}
-      platforms: ${{ steps.plan.outputs.platforms }}
-      prerelease: ${{ steps.plan.outputs.prerelease }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-      - name: Plan changed paths / 规划变更路径
-        id: plan
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TARGET: ${{ inputs.release_target }}
-        run: |
-          if [[ -n "$RELEASE_TARGET" ]]; then
-            python3 scripts/ci-plan.py --release-target "$RELEASE_TARGET" --format github
-          else
-            python3 scripts/ci-plan.py --base "$BASE_SHA" --format github --github-evidence --record artifacts/verification-plan/verification-plan.json
-          fi
-      - name: Retain verification intent / 保留验证意图
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: verification-plan-${{ github.run_attempt }}
-          overwrite: true
-          path: artifacts/verification-plan/verification-plan.json
-          if-no-files-found: warn
-          retention-days: 30
-
-  validate:
-    # Keep evidence names stable across the consolidation. / 合并后保持证据名称稳定。
-    name: validate / Verify affected interfaces / 验证受影响接口
-    needs: plan
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        if: (needs.plan.outputs.web == 'true') || (needs.plan.outputs.dependencies == 'true')
-        with:
-          node-version: '24'
-          cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        if: (needs.plan.outputs.scripts == 'true') || (needs.plan.outputs.docs == 'true') || (needs.plan.outputs.unity == 'true')
-        with:
-          python-version: '3.14'
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        if: (needs.plan.outputs.backend == 'true')
-        with:
-          global-json-file: global.json
-      - run: npm ci
-        if: (needs.plan.outputs.web == 'true') || (needs.plan.outputs.dependencies == 'true')
-      - name: Web lint and interface tests / Web 规范与接口测试
-        if: (needs.plan.outputs.web == 'true')
-        run: |
-          npm test
-          npm run build:web
-      - name: Audit changed dependencies / 审计变更依赖
-        if: (needs.plan.outputs.dependencies == 'true')
-        run: npm audit --audit-level=high
-      - name: Backend interface tests / 后端接口测试
-        if: (needs.plan.outputs.backend == 'true')
-        run: |
-          dotnet restore tests/Sensa.Tests/Sensa.Tests.csproj --locked-mode
-          dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release --no-restore -p:SkipWebBuild=true --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results/backend
-      - name: Python interface tests / Python 接口测试
-        if: (needs.plan.outputs.scripts == 'true') || (needs.plan.outputs.unity == 'true')
-        run: python -m unittest discover -s tests/scripts
-      - name: Documentation parity / 双语文档一致性
-        if: ${{ (needs.plan.outputs.docs == 'true') && !(needs.plan.outputs.scripts == 'true') && !(needs.plan.outputs.unity == 'true') }}
-        run: |
-          python -m unittest discover -s tests/scripts -p test_bilingual_docs.py
-          python -m unittest discover -s tests/scripts -p test_tool_paths.py
-      - name: Unity metadata / Unity 元数据
-        if: (needs.plan.outputs.unity == 'true')
-        run: python scripts/release.py check-unity
-      - name: Package complete candidate Unity assets / 打包完整候选 Unity 资产
-        if: (needs.plan.outputs.platforms == 'true' && inputs.release_target == '')
-        env:
-          BUILD_LABEL: preview.${{ github.run_number }}.${{ github.sha }}
-        run: |
-          VERSION=$(python -c "import json;print(json.load(open('unity/top.sealoong.sensa/package.json'))['version'])")
-          python scripts/release.py unity --tag "unity-v$VERSION" --label "$BUILD_LABEL" --output artifacts/unity
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: (needs.plan.outputs.platforms == 'true' && inputs.release_target == '')
-        with:
-          name: build-unity
-          path: artifacts/unity/
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always() && (needs.plan.outputs.backend == 'true')
-        with:
-          name: tests-backend
-          path: artifacts/test-results/backend/
-          if-no-files-found: warn
-
-  # Browser comparison runs alongside interface checks. / 浏览器比较与接口检查并行。
-  e2e:
-    needs: plan
-    if: needs.plan.outputs.e2e == 'true'
-    uses: ./.github/workflows/e2e.yml
+  checks:
+    uses: ./.github/workflows/checks.yml
     with:
-      update_snapshots: false
+      source_ref: ${{ github.sha }}
 
-  platforms:
-    name: platforms / build (${{ matrix.runner }}, ${{ matrix.rid }})
-    needs: [plan, validate]
-    if: needs.plan.outputs.platforms == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - {runner: windows-latest, rid: win-x64}
-          - {runner: windows-11-arm, rid: win-arm64}
-          - {runner: ubuntu-24.04, rid: linux-x64}
-          - {runner: ubuntu-24.04-arm, rid: linux-arm64}
-          - {runner: macos-15-intel, rid: osx-x64}
-          - {runner: macos-15, rid: osx-arm64}
-    runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: '24'
-          cache: npm
-      - name: Install .NET SDK / 安装 .NET SDK
-        id: dotnet-setup
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        # windows-11-arm can crash inside pwsh before the installer runs:
-        # https://github.com/dotnet/runtime/issues/131636
-        continue-on-error: ${{ matrix.rid == 'win-arm64' }}
-        with:
-          global-json-file: global.json
-      - name: Retry Windows ARM SDK bootstrap / 重试 Windows ARM SDK 安装
-        if: matrix.rid == 'win-arm64' && steps.dotnet-setup.outcome == 'failure'
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
-        with:
-          global-json-file: global.json
-      - name: Verify installed SDK / 验证已安装 SDK
-        run: dotnet --info
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-      - run: npm ci
-      - name: Native build, isolated smoke and archive / 原生构建、隔离冒烟与打包
-        env:
-          TARGET_RID: ${{ matrix.rid }}
-          BUILD_LABEL: ${{ inputs.release_target == '' && format('preview.{0}.{1}', github.run_number, github.sha) || '' }}
-        shell: bash
-        run: python scripts/build-platform.py --runtime "$TARGET_RID" --label "$BUILD_LABEL"
-      - name: GPU replay, recovery and motion gate / GPU 回放、恢复与运动门禁
-        if: matrix.rid == 'win-x64'
-        shell: bash
-        run: |
-          python -m pip install -r scripts/requirements-capture.txt
-          python scripts/smoke-shader-bridge.py --exe artifacts/publish/win-x64/Sensa.exe --first tests/fixtures/shader/sps-telemetry.png --next tests/fixtures/shader/sps-telemetry-next.png --corrupt tests/fixtures/shader/corrupt-telemetry.png --recover-first tests/fixtures/shader/sps-recovery-first.png --recover-next tests/fixtures/shader/sps-recovery-next.png --report artifacts/test-results/win-x64/shader-bridge.json
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: build-${{ matrix.rid }}
-          path: artifacts/platform/${{ matrix.rid }}/
-          if-no-files-found: error
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: always()
-        with:
-          name: tests-${{ matrix.rid }}
-          path: artifacts/test-results/${{ matrix.rid }}/
-          if-no-files-found: warn
+  build:
+    needs: checks
+    uses: ./.github/workflows/build.yml
+    with:
+      source_ref: ${{ needs.checks.outputs.commit }}
+      channel: preview
 
-  prerelease:
-    name: Publish verified preview / 发布已验证预览
-    concurrency:
-      group: sensa-preview-publication
-      queue: max
-      cancel-in-progress: false
-    needs: [plan, validate, e2e, platforms]
-    if: >-
-      !cancelled() &&
-      needs.plan.outputs.prerelease == 'true' &&
-      needs.validate.result == 'success' &&
-      needs.platforms.result == 'success' &&
-      needs.e2e.result == 'success' &&
-      needs.e2e.outputs.comparison_sha == github.sha &&
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
+  preview:
+    name: Publish development preview / 发布开发预览
+    needs: [checks, build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write
+    concurrency:
+      group: sensa-release-publication
+      queue: max
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          pattern: build-*
+          pattern: distribution-*
           path: artifacts/downloaded
-      - name: Publish and retain latest ten prereleases / 发布并保留最近十个预发布
+      - name: Publish archives and generated notes / 发布压缩包与自动说明
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          SENSA_E2E_COMPARISON_SHA: ${{ needs.e2e.outputs.comparison_sha }}
-        run: python scripts/publish-preview.py
+          SENSA_E2E_COMPARISON_SHA: ${{ needs.checks.outputs.comparison_sha }}
+          BUILD_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+          PREVIOUS_TAG: ${{ needs.build.outputs.previous_tag }}
+        run: >-
+          python scripts/publish-release.py --channel preview
+          --version "$BUILD_VERSION" --tag "$RELEASE_TAG" --commit "$SOURCE_COMMIT"
+          --previous-tag "$PREVIOUS_TAG" --assets artifacts/downloaded

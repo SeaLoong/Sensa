@@ -9,7 +9,7 @@
     "lint": "eslint src/web docs/assets/parameter-geometry-model.js docs/assets/parameter-geometry-view.js docs/assets/parameter-geometry-3d-source.js",
     "e2e:ci": "playwright test",
     "e2e:request": "gh workflow run e2e.yml --ref main -f update_snapshots=false",
-    "e2e:baselines": "gh workflow run e2e.yml --ref main -f update_snapshots=true"
+    "e2e:baselines": "gh workflow run update-e2e.yml --ref main -f mode=screenshots"
   },
   "repository": {
     "type": "git",

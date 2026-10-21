@@ -31,7 +31,7 @@ For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Fixe
 | P2 | (0.35, 1.35, −0.35) |
 | P3 | (−0.35, 1.35, 0.35) |
 
-Receiver radius is 2.5, marker radius 0.001. Anchors and marker share the Avatar-root scale; ParentConstraint follows the selected root's position/rotation without inheriting target-bone scale. Only the dedicated Self tag is received.
+Receiver radius is 2, marker radius 0.001. Anchors and marker share the Avatar-root scale; ParentConstraint follows the selected root's position/rotation without inheriting target-bone scale. Only the dedicated Self tag is received.
 
 | Public suffix under `Sensa/SPS/<id>` | Meaning |
 | --- | --- |

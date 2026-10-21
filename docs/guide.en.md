@@ -37,7 +37,7 @@ Export produces funscript actions and can simplify the curve. It excludes other 
 
 ### Parameters and sources
 
-Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
+Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Changing the actual source disables input and clears the previous source's mapping-processing state; inspect the new source before enabling input again. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
 
 The parameter table shows at most 100 rows per page; use Previous/Next to continue or Page to jump directly. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
 
@@ -54,7 +54,7 @@ Disable input first, then narrow the problem using what the UI shows. Change one
 | The list keeps old values while other status changes | Look for the Continue preview button | Resume the list with that button; disable input or use emergency stop to stop device motion |
 | An output is connected but does not move | Check the header's actual input mode and activation, then read Mapping checks | Confirm the source, mapped range and additional conditions before explicitly enabling input; connection alone grants no motion permission |
 
-When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. See [E2E status](e2e-status.en.md) for current automated results; describe the device's own response separately for a hardware problem.
+When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. Read automated outcomes from that commit's Actions run and the [browser verification record](e2e-status.en.md). Describe the device's own response separately for a hardware problem.
 
 ### Turn a parameter into motion (mapping)
 

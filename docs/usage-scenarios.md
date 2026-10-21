@@ -60,4 +60,4 @@ NewTip 是**根中心的长度球**，不是尖端坐标；旋转、侧向偏移
 
 独立 Point／Handle／Pose 与实验室 QuickStart、合成 Shader 码仍供内部验证；它们不是三条正式路线的兼容层或精度证明。[实验室](lab-workflow.md)
 
-隔离契约、EditMode 和 CI mock wire 分别检查自己的边界。真实上传、Contacts／OSC、桌面／HMD 捕获、准确度和机械动作仍需独立验收。[完整功能](features.md)
+CI 中的隔离单元、浏览器 E2E 和模拟传输检查各自边界；Unity EditMode 与实际客户端另行安排。真实上传、Contacts／OSC、桌面／HMD 捕获、准确度和机械动作仍需独立验收。[完整功能](features.md)

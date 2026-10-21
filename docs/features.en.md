@@ -78,4 +78,4 @@ HTTP defaults to loopback. `GET /api/session` issues an HttpOnly/SameSite=Strict
 
 Script HTTP uses multipart; WS uses fileName/content through the same command. Legacy loop/type-output aliases remain, but multi-output clients use outputId. Retained fields for dynamic WebUi.Title, Intiface DeviceRoutes, special IsOgbSocket/Plug behavior, PreferSpeedMode encoding and ObservedMin/Max suggestions **do not establish wired capabilities**. [Routes](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
 
-[Architecture](architecture.en.md), [development/release](development.en.md) and [E2E](e2e.en.md) define seams and verification. CI, metadata, EditMode and mock wires prove only their checks. Real clients, GPU/HMD, accuracy and mechanisms still need acceptance.
+[Architecture](architecture.en.md) explains source boundaries; [development/release](development.en.md) covers checks, builds, previews, stable releases and documentation deployment. Unit checks and browser E2E run before publication. Real clients, GPU/HMD, positioning accuracy and device behavior still require separate acceptance.

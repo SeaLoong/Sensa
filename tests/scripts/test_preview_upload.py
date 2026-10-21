@@ -1,21 +1,28 @@
-"""Preview lifecycle and retention contracts using a fake GitHub adapter.
-使用伪 GitHub 适配器验证预览生命周期与保留契约；绝不访问远端。
-"""
+"""Checked publication contracts with fake GitHub and process adapters."""
 from datetime import datetime, timedelta, timezone
 import hashlib
 import importlib.util
 import json
+import os
 from pathlib import Path
 import random
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 
-SPEC = importlib.util.spec_from_file_location('preview_upload', Path(__file__).resolve().parents[2] / 'scripts/publish-preview.py')
+ROOT = Path(__file__).resolve().parents[2]
+SPEC = importlib.util.spec_from_file_location('release_publication', ROOT / 'scripts/publish-release.py')
 preview = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(preview)
+with patch.object(sys, 'path', [str(ROOT / 'scripts'), *sys.path]):
+    SPEC.loader.exec_module(preview)
 SHA = 'a' * 40
+VERSION = '0.4.0'
+TAG = 'preview-42-1-aaaaaaaa'
+ENV = {'GITHUB_ACTIONS': 'true', 'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main',
+       'GITHUB_SHA': SHA, 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '1',
+       'GITHUB_RUN_ID': '123', 'GITHUB_REPOSITORY': 'Owner/Repo', 'SENSA_E2E_COMPARISON_SHA': SHA}
 
 
 def published(number, **changes):
@@ -25,8 +32,12 @@ def published(number, **changes):
                 draft=False, prerelease=True, **changes)
 
 
+def asset(path):
+    return {'name': path.name, 'size': path.stat().st_size, 'state': 'uploaded',
+            'digest': 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()}
+
+
 class FakeReleases:
-    """In-memory adapter records observable mutations. / 内存适配器记录可观察变更."""
     repository = 'Owner/Repo'
 
     def __init__(self, releases=()):
@@ -34,19 +45,32 @@ class FakeReleases:
         self.listing = [dict(release) for release in releases]
         self.events = []
         self.upload_errors = []
-        self.remote = None
+        self.remote = next((release for release in self.releases.values() if release.get('draft')), None)
 
     def upload(self, tag, path):
         self.events.append(('upload', tag, path.name))
         if self.upload_errors:
             raise self.upload_errors.pop(0)
+        self.remote['assets'] = [item for item in self.remote['assets'] if item['name'] != path.name] + [asset(path)]
 
     def draft(self, tag):
         self.events.append(('draft', tag))
         return self.remote
 
-    def publish(self, tag):
-        self.events.append(('publish', tag))
+    def publish(self, tag, channel='preview'):
+        self.events.append(('publish', tag, channel))
+
+    def create(self, tag, sha, title, notes, channel):
+        self.events.append(('create', tag, sha, channel))
+        self.remote = {'draft': True, 'prerelease': channel == 'preview', 'tag_name': tag,
+                       'target_commitish': sha, 'assets': []}
+
+    def generated_notes(self, tag, sha, previous_tag):
+        self.events.append(('notes', previous_tag))
+        return '* Added a feature in #1 by @author'
+
+    def verify_tag_target(self, tag, sha):
+        self.events.append(('tag', tag, sha))
 
     def list(self):
         self.events.append(('list',))
@@ -61,25 +85,25 @@ class FakeReleases:
         del self.releases[release_id]
 
 
-class PreviewPublicationTests(unittest.TestCase):
+class PublicationTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.path = Path(self.temp.name) / 'fixture.zip'
         self.path.write_bytes(b'fixture')
         self.releases = FakeReleases()
-        self.releases.remote = {
-            'draft': True, 'prerelease': True, 'tag_name': 'preview-test', 'target_commitish': SHA,
-            'assets': [{'name': self.path.name, 'size': 7, 'state': 'uploaded',
-                        'digest': 'sha256:' + hashlib.sha256(b'fixture').hexdigest()}]}
+        self.releases.remote = {'draft': True, 'prerelease': True, 'tag_name': TAG,
+                                'target_commitish': SHA, 'assets': []}
 
-    def publish(self):
-        preview.upload_and_publish('preview-test', SHA, [self.path], self.releases, pause=lambda _: None)
+    def publish(self, channel='preview'):
+        preview.upload_and_publish(TAG, SHA, [self.path], self.releases, channel=channel, pause=lambda _: None)
 
     def test_retry_then_publish_only_after_remote_asset_verification(self):
         self.releases.upload_errors = [subprocess.CalledProcessError(1, 'gh')]
         self.publish()
-        self.assertEqual([event[0] for event in self.releases.events], ['upload', 'upload', 'draft', 'publish'])
+        self.assertEqual(sum(event[0] == 'upload' for event in self.releases.events), 2)
+        self.assertEqual(self.releases.events[-2:], [('draft', TAG), ('publish', TAG, 'preview')])
+        preview.verify_draft(self.releases.remote, TAG, SHA, [self.path])
 
     def test_exhausted_upload_remains_private(self):
         for error in (subprocess.CalledProcessError(1, 'gh'), subprocess.TimeoutExpired('gh', 180)):
@@ -88,77 +112,191 @@ class PreviewPublicationTests(unittest.TestCase):
                 self.releases.upload_errors = [error] * 3
                 with self.assertRaises(type(error)):
                     self.publish()
-                self.assertEqual([event[0] for event in self.releases.events], ['upload'] * 3)
+                self.assertEqual(sum(event[0] == 'upload' for event in self.releases.events), 3)
+                self.assertFalse(any(event[0] == 'publish' for event in self.releases.events))
 
-    def test_wrong_incomplete_or_duplicate_remote_asset_prevents_publication(self):
-        original = json.loads(json.dumps(self.releases.remote))
-        cases = [{**original, 'assets': []}, {**original, 'assets': original['assets'] * 2}]
-        for field, value in [('size', 0), ('digest', 'sha256:bad'), ('state', 'starter'), ('name', 'unknown.zip')]:
-            release = json.loads(json.dumps(original))
-            release['assets'][0][field] = value
-            cases.append(release)
-        for release in cases:
-            with self.subTest(release=release):
-                self.releases.remote = release
+    def test_already_uploaded_identical_asset_is_not_overwritten(self):
+        self.releases.remote['assets'] = [asset(self.path)]
+        self.publish()
+        self.assertFalse(any(event[0] == 'upload' for event in self.releases.events))
+        self.assertEqual(self.releases.events[-1], ('publish', TAG, 'preview'))
+
+    def test_stale_or_unexpected_draft_assets_are_not_overwritten(self):
+        good = asset(self.path)
+        for assets in ([dict(good, digest='sha256:other')], [dict(good, size=0)],
+                       [dict(good, name='unknown.zip')], [good, good]):
+            with self.subTest(assets=assets):
+                self.releases.remote['assets'] = assets
                 self.releases.events.clear()
                 with self.assertRaises(ValueError):
                     self.publish()
-                self.assertNotIn('publish', [event[0] for event in self.releases.events])
+                self.assertFalse(any(event[0] in ('upload', 'publish') for event in self.releases.events))
 
-    def test_wrong_release_identity_prevents_publication(self):
+    def test_wrong_or_published_release_identity_prevents_any_upload(self):
+        original = dict(self.releases.remote)
         for change in ({'draft': False}, {'prerelease': False}, {'target_commitish': 'b' * 40}, {'tag_name': 'v1.0.0'}):
+            with self.subTest(change=change):
+                self.releases.remote = original | change
+                self.releases.events.clear()
+                with self.assertRaises(ValueError):
+                    self.publish()
+                self.assertFalse(any(event[0] in ('upload', 'publish') for event in self.releases.events))
+
+    def test_stable_channel_verifies_stable_draft_before_publishing(self):
+        self.releases.remote['prerelease'] = False
+        self.publish('stable')
+        self.assertEqual(self.releases.events[-1], ('publish', TAG, 'stable'))
+
+    def test_run_gate_uses_trigger_pinned_source_and_same_commit_comparison(self):
+        self.assertEqual(preview.validate_run(ENV, 'preview', VERSION, TAG, SHA), ('42', '1'))
+        stable = ENV | {'GITHUB_EVENT_NAME': 'workflow_dispatch', 'GITHUB_SHA': 'b' * 40}
+        self.assertEqual(preview.validate_run(stable, 'stable', VERSION, 'v0.4.0', SHA), ('42', '1'))
+        for change in ({'GITHUB_ACTIONS': 'false'}, {'GITHUB_EVENT_NAME': 'workflow_dispatch'},
+                       {'GITHUB_REF': 'refs/heads/other'}, {'GITHUB_SHA': 'b' * 40},
+                       {'GITHUB_RUN_NUMBER': '0'}, {'GITHUB_RUN_ATTEMPT': ''}):
             with self.subTest(change=change), self.assertRaises(ValueError):
-                preview.verify_draft(self.releases.remote | change, 'preview-test', SHA, [self.path])
+                preview.validate_run(ENV | change, 'preview', VERSION, TAG, SHA)
 
-    def test_run_gate_requires_main_push_and_same_commit_comparison(self):
-        valid = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main', 'GITHUB_SHA': SHA,
-                 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '1', 'SENSA_E2E_COMPARISON_SHA': SHA}
-        self.assertEqual(preview.validate_run(valid), (SHA, '42', '1'))
-        for change in ({'GITHUB_EVENT_NAME': 'workflow_dispatch'}, {'GITHUB_REF': 'refs/heads/other'},
-                       {'GITHUB_SHA': 'invalid'}, {'GITHUB_RUN_NUMBER': 'invalid'},
-                       {'GITHUB_RUN_ATTEMPT': ''}, {'SENSA_E2E_COMPARISON_SHA': ''},
-                       {'SENSA_E2E_COMPARISON_SHA': 'b' * 40}):
-            with self.subTest(change=change), self.assertRaises(ValueError):
-                preview.validate_run(valid | change)
+    def test_missing_or_stale_comparison_blocks_both_channels_before_any_process_or_remote_action(self):
+        for channel in ('preview', 'stable'):
+            for receipt in ('', 'b' * 40):
+                environment = ENV | {'GITHUB_EVENT_NAME': 'push' if channel == 'preview' else 'workflow_dispatch',
+                                     'SENSA_E2E_COMPARISON_SHA': receipt}
+                tag = TAG if channel == 'preview' else 'v' + VERSION
+                with self.subTest(channel=channel, receipt=receipt), \
+                        patch.dict(preview.os.environ, environment, clear=True), \
+                        patch.object(sys, 'argv', ['publish-release.py', '--channel', channel, '--version', VERSION,
+                            '--tag', tag, '--commit', SHA, '--assets', 'unused']), \
+                        patch.object(preview, 'GitHubReleases') as adapter, \
+                        patch.object(preview.subprocess, 'check_output') as process, \
+                        self.assertRaisesRegex(ValueError, 'Current-commit full E2E comparison'):
+                    preview.main()
+                adapter.assert_not_called()
+                process.assert_not_called()
+
+    def test_rerun_failed_jobs_reuses_the_successful_plan_attempt(self):
+        self.assertEqual(preview.validate_run(ENV | {'GITHUB_RUN_ATTEMPT': '2'},
+                                            'preview', VERSION, TAG, SHA), ('42', '1'))
+        for tag in ('preview-42-3-aaaaaaaa', 'preview-43-1-aaaaaaaa', 'preview-42-1-bbbbbbbb'):
+            with self.subTest(tag=tag), self.assertRaises(ValueError):
+                preview.validate_run(ENV | {'GITHUB_RUN_ATTEMPT': '2'}, 'preview', VERSION, tag, SHA)
 
 
-class PreviewCommandTests(unittest.TestCase):
-    def test_prune_only_does_not_create_upload_or_publish_a_release(self):
-        releases = FakeReleases([published(number) for number in range(1, 12)])
-        with patch.dict(preview.os.environ, GITHUB_REPOSITORY='Owner/Repo'), \
-                patch('sys.argv', ['publish-preview.py', '--prune-only']), \
-                patch.object(preview, 'GitHubReleases', return_value=releases):
+def write_archives(root, channel):
+    label = '-preview.42.1.aaaaaaaa' if channel == 'preview' else ''
+    for runtime in (*preview.RUNTIMES, 'unity'):
+        directory = root / runtime
+        directory.mkdir(parents=True)
+        name = (f'top.sealoong.sensa-{VERSION}{label}.zip' if runtime == 'unity' else
+                f'Sensa-{VERSION}{label}-{runtime}' + ('.zip' if runtime.startswith('win-') else '.tar.gz'))
+        path = directory / name
+        path.write_bytes(runtime.encode())
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        (directory / 'SHA256SUMS.txt').write_text(f'{digest}  {name}\n')
+        if runtime == 'unity' and channel == 'stable':
+            manifest = {'name': 'top.sealoong.sensa', 'version': VERSION, 'sha256': digest,
+                        'url': f'https://github.com/Owner/Repo/releases/download/v{VERSION}/{name}'}
+            (directory / 'vpm-package.json').write_text(json.dumps(manifest))
+
+
+class ReleaseCommandTests(unittest.TestCase):
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.temp.cleanup)
+        self.root = Path(self.temp.name)
+        self.inputs = self.root / 'incoming'
+
+    def main(self, channel, releases, previous=''):
+        tag = TAG if channel == 'preview' else 'v' + VERSION
+        environment = ENV | {'GITHUB_EVENT_NAME': 'push' if channel == 'preview' else 'workflow_dispatch'}
+        if channel == 'stable':
+            environment['GITHUB_SHA'] = 'b' * 40  # main may advance after dispatch.
+        with patch.dict(preview.os.environ, environment, clear=True), patch.object(preview, 'ROOT', self.root), \
+                patch.object(sys, 'argv', ['publish-release.py', '--channel', channel, '--version', VERSION,
+                    '--tag', tag, '--commit', SHA, '--previous-tag', previous, '--assets', str(self.inputs)]), \
+                patch.object(preview, 'GitHubReleases', return_value=releases), \
+                patch.object(preview.subprocess, 'check_output', side_effect=[SHA, SHA + '\0Direct fix <code> #1\n']):
             preview.main()
-        self.assertEqual([event for event in releases.events if event[0] == 'delete'], [('delete', 1)])
-        self.assertFalse(any(event[0] in ('upload', 'publish') for event in releases.events))
 
-    def test_late_or_duplicate_candidates_do_not_package_create_upload_or_publish(self):
-        environment = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main',
-                       'GITHUB_SHA': SHA, 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '2',
-                       'SENSA_E2E_COMPARISON_SHA': SHA, 'GITHUB_REPOSITORY': 'Owner/Repo'}
-        cases = [('preview-43-1-bbbbbbbb', 'b' * 40),
-                 ('preview-42-3-bbbbbbbb', 'b' * 40),
-                 ('preview-41-1-aaaaaaaa', SHA)]
-        for tag, target in cases:
+    def test_first_stable_release_uploads_all_downloads_without_preview_base(self):
+        write_archives(self.inputs, 'stable')
+        releases = FakeReleases()
+        with patch.object(preview, 'prune_prereleases') as prune:
+            self.main('stable', releases)
+        prune.assert_not_called()
+        self.assertFalse(any(event[0] == 'notes' for event in releases.events))
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 9)
+        self.assertIn(('publish', 'v0.4.0', 'stable'), releases.events)
+        notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
+        self.assertIn('Direct fix', notes)
+        self.assertNotIn('<code>', notes)
+        self.assertIn('passed unit checks and the full browser screenshot comparison', notes)
+        self.assertIn('通过单元检查和完整浏览器截图比较', notes)
+        checksums = (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text()
+        self.assertIn('vpm-package.json', checksums)
+        self.assertEqual(len(checksums.splitlines()), 8)
+
+    def test_preview_uses_explicit_stable_base_and_keeps_direct_commits(self):
+        write_archives(self.inputs, 'preview')
+        releases = FakeReleases([published(1) | {'tag_name': 'v0.3.0', 'prerelease': False}])
+        self.main('preview', releases, previous='v0.3.0')
+        self.assertIn(('notes', 'v0.3.0'), releases.events)
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 8)
+        notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
+        self.assertIn('Added a feature', notes)
+        self.assertIn('Direct fix', notes)
+        self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
+
+    def test_notes_base_ignores_unpublished_tag_hints_and_drafts(self):
+        write_archives(self.inputs, 'stable')
+        releases = FakeReleases([published(1) | {'tag_name': 'unity-v0.2.0', 'prerelease': False},
+                                 published(2) | {'tag_name': 'v0.3.0', 'prerelease': False, 'draft': True}])
+        self.main('stable', releases, previous='v0.3.0')
+        self.assertIn(('notes', 'unity-v0.2.0'), releases.events)
+        self.assertNotIn(('notes', 'v0.3.0'), releases.events)
+
+    def test_late_or_duplicate_preview_has_no_publication_mutations(self):
+        for tag, target in [('preview-43-1-bbbbbbbb', 'b' * 40), ('preview-41-1-aaaaaaaa', SHA)]:
             releases = FakeReleases([published(50) | {'tag_name': tag, 'target_commitish': target}])
-            with self.subTest(tag=tag), patch.dict(preview.os.environ, environment, clear=True), \
-                    patch('sys.argv', ['publish-preview.py']), \
-                    patch.object(preview, 'GitHubReleases', return_value=releases), \
-                    patch.object(preview, 'collect') as collect, patch.object(preview, 'upload_and_publish') as publish:
-                preview.main()
-            collect.assert_not_called()
-            publish.assert_not_called()
+            self.main('preview', releases)
             self.assertEqual(releases.events, [('list',)])
 
-    def test_missing_current_commit_evidence_prevents_any_remote_action(self):
-        environment = {'GITHUB_EVENT_NAME': 'push', 'GITHUB_REF': 'refs/heads/main',
-                       'GITHUB_SHA': SHA, 'GITHUB_RUN_NUMBER': '42', 'GITHUB_RUN_ATTEMPT': '1'}
-        with patch.dict(preview.os.environ, environment, clear=True), \
-                patch('sys.argv', ['publish-preview.py']), \
-                patch.object(preview, 'GitHubReleases') as adapter, \
-                self.assertRaises(ValueError):
-            preview.main()
-        adapter.assert_not_called()
+    def test_published_stable_tag_is_immutable(self):
+        releases = FakeReleases([published(50) | {'tag_name': 'v0.4.0', 'prerelease': False}])
+        with self.assertRaises(ValueError):
+            self.main('stable', releases)
+        self.assertFalse(any(event[0] in ('create', 'upload', 'publish') for event in releases.events))
+
+    def test_archive_channel_and_vpm_identity_must_match_resolved_release(self):
+        write_archives(self.inputs, 'preview')
+        with self.assertRaisesRegex(ValueError, 'version/channel'):
+            preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
+        manifest = self.inputs / 'unity/vpm-package.json'
+        manifest.write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'Previews'):
+            preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
+        manifest.unlink()
+        for path in self.inputs.rglob('*preview.42.1.aaaaaaaa*'):
+            path.rename(path.with_name(path.name.replace('-preview.42.1.aaaaaaaa', '')))
+        for directory in self.inputs.iterdir():
+            path = next(item for item in directory.iterdir() if item.name != 'SHA256SUMS.txt')
+            (directory / 'SHA256SUMS.txt').write_text(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n')
+        with self.assertRaisesRegex(ValueError, 'VPM manifest'):
+            preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
+        manifest.write_text('{}')
+        with self.assertRaisesRegex(ValueError, 'VPM metadata'):
+            preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
+
+    def test_direct_commit_history_is_bounded_with_full_compare_link(self):
+        history = ''.join(f'{i:040x}\0Fix {i} [link](bad)\n' for i in range(101))
+        with patch.object(preview.subprocess, 'check_output', return_value=history):
+            notes = preview.commit_notes('Owner/Repo', SHA, 'v0.3.0')
+        self.assertEqual(notes.count('](https://github.com/Owner/Repo/commit/'), 100)
+        self.assertIn('latest 100', notes)
+        self.assertIn('/compare/v0.3.0...', notes)
+        self.assertIn(r'\[link\]', notes)
+        with self.assertRaises(ValueError):
+            preview.commit_notes('Owner/Repo', SHA, 'preview-41-1-aaaaaaaa')
 
 
 class CandidateOrderContracts(unittest.TestCase):
@@ -268,13 +406,43 @@ class GitHubAdapterTests(unittest.TestCase):
                 response['url'].encode(), json.dumps(response).encode()]) as query, \
                 patch.object(preview.subprocess, 'run') as run:
             self.assertEqual(adapter.draft('preview-test'), response)
-            adapter.create('preview-test', SHA, 'Preview / 预览', Path('notes.md'))
+            adapter.create('preview-test', SHA, 'Preview / 预览', Path('notes.md'), 'preview')
             adapter.upload('preview-test', Path('asset.zip'))
             adapter.publish('preview-test')
         self.assertEqual(query.call_args.args[0][-1], 'repos/Owner/Repo/releases/123')
         for call in run.call_args_list:
             command = call.args[0]
             self.assertEqual(command[command.index('--repo') + 1], 'Owner/Repo')
+
+    def test_stable_publication_sets_latest_and_preview_never_does(self):
+        adapter = preview.GitHubReleases('Owner/Repo')
+        for channel, latest in [('stable', 'true'), ('preview', 'false')]:
+            with patch.object(preview.subprocess, 'run') as run:
+                adapter.publish('v0.4.0', channel)
+            self.assertIn('--latest=' + latest, run.call_args.args[0])
+            self.assertIn('--prerelease=' + str(channel == 'preview').lower(), run.call_args.args[0])
+
+    def test_generated_notes_always_pass_an_explicit_stable_base(self):
+        adapter = preview.GitHubReleases('Owner/Repo')
+        for base in ('v0.3.0', 'unity-v0.3.0'):
+            with patch.object(preview.subprocess, 'check_output', return_value=b'{"body":"Merged PR #1"}') as query:
+                self.assertEqual(adapter.generated_notes(TAG, SHA, base), 'Merged PR #1')
+            self.assertIn('previous_tag_name=' + base, query.call_args.args[0])
+        for base in ('', TAG, 'v0.3.0-beta.1'):
+            with self.subTest(base=base), self.assertRaises(ValueError):
+                adapter.generated_notes(TAG, SHA, base)
+
+    def test_existing_lightweight_and_annotated_tags_must_point_to_pinned_source(self):
+        adapter = preview.GitHubReleases('Owner/Repo')
+        commit_ref = {'ref': 'refs/tags/v0.4.0', 'object': {'type': 'commit', 'sha': SHA}}
+        annotation = {'ref': 'refs/tags/v0.4.0', 'object': {'type': 'tag', 'sha': 'b' * 40}}
+        for replies in ([[]], [[commit_ref]], [[annotation], {'object': {'type': 'commit', 'sha': SHA}}]):
+            with self.subTest(replies=replies), patch.object(preview.subprocess, 'check_output',
+                    side_effect=[json.dumps(item).encode() for item in replies]):
+                adapter.verify_tag_target('v0.4.0', SHA)
+        with patch.object(preview.subprocess, 'check_output', return_value=json.dumps([commit_ref]).encode()), \
+                self.assertRaisesRegex(ValueError, 'different commit'):
+            adapter.verify_tag_target('v0.4.0', 'c' * 40)
 
     def test_invalid_repository_and_release_ids_are_rejected(self):
         for repository in ('../Repo', 'Owner/../Repo', 'Owner/Repo?other=1', 'Owner', '/Repo'):

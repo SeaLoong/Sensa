@@ -44,6 +44,6 @@ python -X utf8 scripts/install-world-lab.py "<World project>"
 
 [能力说明](CAPABILITIES.md)区分原生标量、已知几何估计和诊断编码；[开发说明](DEVELOPMENT.md)描述生成器与报告；[相机原型](CAMERA-PROTOTYPE.md)是另一条合成实验。
 
-自动 PlayMode／完整进程检查和截图仅在 CI 运行。静态、隔离单元和 EditMode 不证明 VR 抓取、上传 OSC、HMD 可见性、桌面捕获或硬件。fixture 是本地、无 Object Sync 对象，不会自动发送设备动作。输出实验保持关闭，测试时明确逐个启用。
+发布 CI 包含单元、浏览器 E2E 与隔离原生冒烟；Unity／World PlayMode 和真实客户端需另外检查。静态、隔离单元和 EditMode 不证明 VR 抓取、上传 OSC、HMD 可见性、桌面捕获或硬件。fixture 是本地、无 Object Sync 对象，不会自动发送设备动作。输出实验保持关闭，测试时明确逐个启用。
 
 [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可独立在线使用，仓库和桌面 ZIP 保留离线页面。

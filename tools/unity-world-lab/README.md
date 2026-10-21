@@ -44,6 +44,6 @@ Geometry stations have reset, pause and injected-missing-sample controls. Visibl
 
 [Capabilities](CAPABILITIES.en.md) distinguishes native scalars, known-geometry estimates and diagnostic code. [Development](DEVELOPMENT.en.md) describes generators and reports; [camera prototype](CAMERA-PROTOTYPE.en.md) is a separate synthetic experiment.
 
-Automated PlayMode/full-process checks and screenshots are CI-only. Static/isolated unit/EditMode checks do not prove VR grabbing, uploaded OSC, HMD visibility, desktop capture or hardware. Fixtures are local without Object Sync and never automatically send device motion. Keep output experiments off until deliberately testing one at a time.
+Release CI includes units, browser E2E and isolated native smoke; Unity/World PlayMode and real-client inspection remain separate. Static/isolated unit/EditMode checks do not prove VR grabbing, uploaded OSC, HMD visibility, desktop capture or hardware. Fixtures are local without Object Sync and never automatically send device motion. Keep output experiments off until deliberately testing one at a time.
 
 [Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) work independently online; the repository and desktop ZIP retain the offline page.

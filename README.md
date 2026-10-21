@@ -39,14 +39,14 @@ The release also includes `docs/parameter-geometry.html` and its local assets fo
 
 If you can edit your own Avatar, install the [Unity package](unity/top.sealoong.sensa/README.md) for root measurement or Shader capture. Reading existing OGB parameters does not require it. Avatar and World labs are optional development/validation tools requiring your own licensed resources.
 
-Desktop previews and a Unity ZIP are available in [Releases](https://github.com/SeaLoong/Sensa/releases). **VPM offers published stable Unity packages only** for VCC/ALCOM. Download preview versions separately from Releases, and follow the instructions for the version you installed.
+Stable releases and automatic pre-releases in [Releases](https://github.com/SeaLoong/Sensa/releases) include all six desktop builds and a Unity ZIP. **VPM offers published stable Unity packages only** for VCC/ALCOM. Download preview versions separately from Releases, and follow the instructions for the version you installed.
 
 The [documentation site](https://sealoong.github.io/Sensa/) publishes independently from main; it does not wait for a stable Unity release. [Language behavior](docs/languages.en.md)
 
-## Development and evidence
+## Development and publication
 
-See [architecture](docs/architecture.en.md), [verification workflow](docs/development.en.md), [E2E status](docs/e2e-status.en.md) and the [archived visual review](docs/ui-visual-review.en.md). Plan local checks with `python -X utf8 scripts/verify.py --plan`, then run `scripts/verify.py`. Browser E2E, screenshots, process smoke and World PlayMode run in Actions; device tests use mock transports.
+Pushes to `main` run unit tests and full E2E, then build and publish a pre-release after success. For a stable release, run [release.yml](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml) in Actions: it checks/builds latest `main`, selects the next patch version by default and generates release notes. An optional version field allows an explicit new version. Documentation changes deploy automatically after site E2E, without a separate Pages action.
 
-Automated geometry, authoring and mock-wire checks do not establish real VRChat Contacts, client capture, HMD visibility, positioning accuracy or physical device behavior.
+Publication requires the selected commit's unit tests, normal E2E comparison, native smoke checks and complete artifacts to pass. These checks use isolated configuration and mock transports; they do not establish real-client or hardware acceptance. See [development and releases](docs/development.en.md), [architecture](docs/architecture.en.md), the [browser verification record](docs/e2e-status.en.md) and [manual E2E maintenance](docs/e2e.en.md).
 
 [MIT license](LICENSE) · [Terminology](GLOSSARY.md)

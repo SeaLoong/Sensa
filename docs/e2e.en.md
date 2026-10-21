@@ -2,67 +2,50 @@
 
 [简体中文](e2e.md) | **English**
 
-Browser E2E, screenshots and full-process smoke run only in GitHub Actions. Locally plan affected static/units with `scripts/verify.py --plan`, execute and reuse receipts. Never forge CI environment.
+E2E participates in automatic CI and stable-release checks. Unit tests and a full normal browser comparison must pass before release artifacts are built and published. Application and site outcomes stay separate: successful documentation deployment does not replace an application comparison. [Development and releases](development.en.md)
 
-## Three browser boundaries
+## What actually runs?
 
-| Suite | Runs for real | Dependencies/limits |
+| Scope | Actual execution | Limits |
 | --- | --- | --- |
-| Sensa application | Service, HTTP/WS and UI | Loopback OSC, TCode UDP/TCP, Linux PTY, Buttplug WS and OSCQuery mocks; not hardware/VRChat |
-| Standalone explorer | File HTML, six local assets, SVG/software WebGL2 | No Sensa/network/devices; not native GPU capture |
-| Documentation site | Built Pages artifact and isolated static server | Navigation/language/mobile layout/public explorer; no product chain |
+| Sensa application | Real service, HTTP/WebSocket, browser and loopback mock transports | No real devices or VRChat client |
+| Standalone explorer | Six local assets, SVG, software WebGL2, dragging and fallback | Not a Unity producer or native GPU capture |
+| Documentation site | Built artifact navigation, bilingual section links and narrow-screen scrolling | Does not replace application behavior or screenshot checks |
 
-Application integration also checks bundled explorer links/assets. The fourth workflow owns site checks independently of stable Unity. VPM reflects verified stable history, not fabricated development releases. [Development/gates](development.en.md)
+Large-catalog cases continuously update 4,096 simulated parameters, checking the 100-row page limit, direct navigation, full-catalog filtering, freezing and source-specific details. Other cases check actual input permission, modes, mapping saves, disconnection and invalidity stops together with mock transports. Device configuration remains isolated, never automatically activating the user's hardware.
 
-## Meaningful behavior assertions
+Desktop 1280×900 and narrow 390×844 use a fixed browser environment; 320px is a separate reflow check. A narrow viewport is not a physical phone, and simulated inputs are not uploaded Avatars. [Test source](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
 
-Application cases check UI and mock wires together: browse/apply mode, permission, manual/script pause/seek, recording/restart, output configuration, FT prefixes, three templates, saved mappings/conflicts, profiles, sources, gates and invalidity stops. Synthetic steps are an independent scalar fixture, not a built-in QuickStart template.
+## Where is the current result?
 
-Fixed SPS/Shader cases send explicitly simulated protocols to check default blocking, opt-in, endpoint calibration, persistence and invalidity. They prove neither Unity Contacts nor real capture. OGB heartbeat checks enable/revoke and no renewed enable across a five-second stop interval while device input stays closed.
+Open the Actions run's Job summary, then download application `e2e-report` or site `pages-verification`. `summary.json`/`summary.md` retain the commit, attempt, suite, screenshot mode, projects, viewports and failures. Maintain the [verification record](e2e-status.en.md) from observed results; updating test source is not an executed pass.
 
-Locale cases cover URL/saved/full ordered browser preferences/English fallback, denied storage, persistence and preserved drafts/explorer state. Golden language is explicit, separate from environment negotiation. [Language contract](languages.en.md)
-
-The large-catalog scenario continuously updates 4,096 simulated parameters, checking the 100-row page limit, direct page selection, filter reset and search across the full catalog. Detail cases check live updates, frozen samples, the opening sample after a source disappears, and isolation of identical paths from different sources. Site cases also check corresponding sections after language switching and keyboard scrolling of tables/code at 320px.
-
-Explorer cases independently inspect SVG radii/capsules, values, keyboard, aligned sliders and 320 reflow. WebGL checks actual non-background pixels, object matrices/geometry/colors/reference surfaces, camera-data separation, XZ/XY ray-plane drag/locked axes/step/clamp/cancel, dimension updates and resource cleanup. It also checks default/reset framing, label clearance/leaders and constructor/context-loss fallback. The report defines exact YZ/numeric coverage; a control's presence is not an executed flow.
-
-## Environment and failures
-
-Desktop 1280×900 and narrow 390×844 use locked Playwright Linux, fonts, locale and timezone; 320 is a separate reflow check. A narrow viewport is not a phone, and PTY is not a Windows driver. [Config](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js) · [Tests](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
-
-On failure, download `e2e-report` and inspect expected/actual/diff, trace, service logs, mock-wire and last observations. Fix behavior in implementation. Update baselines only for reviewed intentional changes, without weakened assertions, automatic retries or resends hiding failures.
-
-## Read the current result
-
-Start with the Actions run's Job summary, then download `e2e-report` for the application or `pages-verification` for the site. Both retain `summary.json` and `summary.md` with the commit, run attempt, suite, image mode, projects/viewports and failing assertions. Maintain [confirmed run outcomes](e2e-status.en.md) separately instead of placing changing pass totals in general guidance.
-
-| Summary field | Meaning |
+| Outcome | Meaning |
 | --- | --- |
 | `passed` / `failed` | Cases that actually passed / failed |
-| `expectedFailure` | A declared expected failure that did fail; not a pass |
-| `flaky` | Inconsistent results across attempts; not a clean pass |
-| `skipped` | Explicitly skipped cases |
-| `notRun` / `interrupted` | Cases not executed / interrupted during execution |
-| Runner / Command | The browser runner's reported status / the command's final Actions outcome; check both |
+| `expectedFailure` / `flaky` | Expected failure / inconsistent attempts; not clean passes |
+| `skipped` | Explicitly skipped |
+| `notRun` / `interrupted` | Not executed / interrupted during execution |
+| Runner / Command | Browser runner status / final Actions command outcome; inspect both |
 
-If installation/build fails before a valid current report exists, the summary records “not run” and zero observed cases without inventing a count for unloaded tests. Cases suppressed by the failure limit remain `notRun`. Release comparison evidence requires every case in the unfiltered desktop and narrow-screen suites to pass in normal comparison mode for the current commit and run. Candidate images, empty runs, filtering/sharding, skips and retry passes cannot replace it.
+Without a valid current report, the summary records not-run and zero observed cases without inventing a count for unloaded tests. Publication comparison evidence requires a normal comparison for the current commit/run with every desktop and narrow-screen case passing. Empty runs, filtering/sharding, skips, retry passes and candidate mode cannot replace it.
 
-## Generate and accept candidates
+## What should happen after screenshot failure?
 
-Normal comparisons cannot update images; missing baselines fail. Prereleases require normal full comparison of the candidate SHA. For intentional visual changes, remotely dispatch:
+Inspect expected/actual/diff, trace, service logs and last observations first. Fix behavior/layout defects in the implementation. Intentional visual changes require image review before baseline updates. Ordinary CI cannot write baselines automatically, and missing images fail.
 
-```shell
-gh workflow run e2e.yml --ref <branch> -f update_snapshots=true
-```
+## How do I update E2E manually?
 
-Wait for required behavior, download `e2e-baselines`, then review full/local images by locale/viewport. Partial images from failures are diagnostic only; downloading is not acceptance. Record commit, run, image, concrete findings/fixes and limits before copying reviewed files into `tests/e2e/__screenshots__/`. Commit with implementation and run normal comparison. Candidate generation publishes nothing and never writes back to Git.
+Run [`update-e2e.yml`](https://github.com/SeaLoong/Sensa/actions/workflows/update-e2e.yml) in Actions. Default `screenshots` mode needs no AI key. It runs the browser against current code and produces candidate images, reports and a review PR. It neither writes directly to `main` nor merges automatically.
 
-Mask only unstable times/runtime addresses, not targets, gates or errors. Split long content by real sections/scroll positions; do not infer unseen content. Byte-identical images may inherit recorded reviews; changed images require inspection.
+Optional `agent` mode requires an `OPENAI_API_KEY` repository Actions secret. The agent maintains tests only under `tests/e2e/`, then candidates are captured. Use the default mode without that secret; an unexecuted agent step is not a pass. The repository must also allow Actions to create Pull Requests.
 
-## Interpret evidence honestly
+Inspect actual/expected/diff, test edits and run results in the PR by language and viewport. Accept intentional visual changes while retaining necessary behavior assertions. The maintenance branch triggers normal CI; decide whether to merge after normal comparison and manual review succeed. Candidate capture publishes no product and is not normal-comparison evidence.
 
-Use [V1–V6](ui-quality.en.md) for hierarchy, typography, grouping, color, alignment and bilingual integrity. Equal screenshots establish regression stability, not an aesthetic survey. [Review history](ui-visual-review.en.md) records fixed evidence.
+For report artifacts alone, `e2e.yml` still supports manual `update_snapshots=true` with `e2e-baselines` and `e2e-report` downloads. Partial screenshots from failed tasks are diagnostic, not automatic acceptance.
 
-The axe subset, keyboard/dialog focus, targets, reflow and geometry in `quality.spec.js` are automatically detectable baselines. Preserve violations, incomplete, versions, URLs/locales/viewports and unexecuted items under `artifacts/e2e/ui-quality/` and the report. Zero violations neither certifies full WCAG nor replaces visual, screen-reader or touch acceptance.
+## Manual and real-environment boundaries
 
-Read actual pass/skip/retry/image counts from each Actions report. Unity uploads, actual Contacts/OSC, HMD/desktop encoding and physical stops are outside this suite.
+Use [V1–V6](ui-quality.en.md) for hierarchy, type, grouping, color, alignment and bilingual completeness. Axe and keyboard checks cover an automatically detectable subset; retain incomplete and unexecuted scope. Zero violations do not certify full WCAG compliance. Historical acceptance is recorded in the [visual review archive](ui-visual-review.en.md).
+
+Unity uploads, actual Contacts/OSC, HMD/desktop encoding and physical stops still need separate acceptance. Reports identify simulated sources; browser or loopback outcomes must not be described as hardware passes.

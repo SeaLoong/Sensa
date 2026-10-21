@@ -30,6 +30,6 @@ PB 把手允许抓取，禁止碰撞和摆姿；可见球体不等于碰撞或�
 
 独立 Point／Handle／Pose 不继承固定根缓存或 Sample 语义。合成／编辑器图像只使用 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`，不会变成可映射原生根。原生 `Sensa/Shader/<非零 ID>` 是独立[生产端与注册流程](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。
 
-校验检查生成组件、可写参数、预算、Shader 和默认关闭状态。SDK 打包不等于上传、VR 抓取、真实图像捕获或硬件验收。自动 E2E／PlayMode／截图仅在 CI 执行。
+检查实验头像时，应核对生成组件、可写参数、预算、Shader 和默认关闭状态。发布 CI 运行单元检查和浏览器 E2E；头像的 Unity 构建、EditMode 和客户端行为仍须另外检查。SDK 打包完成也不表示上传、VR 抓取、真实图像捕获或硬件行为已经验收。
 
 [世界能力](../unity-world-lab/CAPABILITIES.md) · [几何图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)

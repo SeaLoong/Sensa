@@ -186,7 +186,7 @@ namespace SensaLab
             { "04 No contact", "04 无触点" },
             { "05 Saturated", "05 饱和" },
             { "06 Wrong radius", "06 错误半径" },
-            { "07 Scale x2", "07 二倍缩放" },
+            { "07 Scale x1.25", "07 一点二五倍缩放" },
             { "08 Rotated frame", "08 旋转参考系" },
             { "09 Missing P4", "09 缺失 P4" },
             { "10 Beyond fit volume", "10 超出拟合范围" },

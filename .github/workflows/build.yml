@@ -1,0 +1,154 @@
+name: Build distribution archives / 构建发行包
+on:
+  workflow_call:
+    inputs:
+      source_ref:
+        description: Resolve this source once, then pin every build / 一次解析源码并固定全部构建
+        type: string
+        required: true
+      channel:
+        type: string
+        required: true
+      version:
+        description: Optional stable version override / 可选正式版本号
+        type: string
+        default: ''
+    outputs:
+      commit:
+        value: ${{ jobs.plan.outputs.commit }}
+      version:
+        value: ${{ jobs.plan.outputs.version }}
+      tag:
+        value: ${{ jobs.plan.outputs.tag }}
+      previous_tag:
+        value: ${{ jobs.plan.outputs.previous_tag }}
+permissions:
+  contents: read
+env:
+  PYTHONUTF8: '1'
+jobs:
+  plan:
+    name: Fix source and version / 固定源码与版本
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      commit: ${{ steps.plan.outputs.commit }}
+      version: ${{ steps.plan.outputs.version }}
+      tag: ${{ steps.plan.outputs.tag }}
+      label: ${{ steps.plan.outputs.label }}
+      previous_tag: ${{ steps.plan.outputs.previous_tag }}
+    steps:
+      - name: Require main for stable release / 正式发布须选择 main
+        if: inputs.channel == 'stable'
+        env:
+          WORKFLOW_REF: ${{ github.ref }}
+        run: test "$WORKFLOW_REF" = refs/heads/main
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.14'
+      - name: Select one build identity / 确定本次构建身份
+        id: plan
+        env:
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+          REQUESTED_VERSION: ${{ inputs.version }}
+        run: python scripts/prepare-release.py --channel "$RELEASE_CHANNEL" --version "$REQUESTED_VERSION"
+
+  desktop:
+    name: Desktop / 桌面 (${{ matrix.rid }})
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: windows-latest, rid: win-x64}
+          - {runner: windows-11-arm, rid: win-arm64}
+          - {runner: ubuntu-24.04, rid: linux-x64}
+          - {runner: ubuntu-24.04-arm, rid: linux-arm64}
+          - {runner: macos-15-intel, rid: osx-x64}
+          - {runner: macos-15, rid: osx-arm64}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    env:
+      SENSA_SOURCE_COMMIT: ${{ needs.plan.outputs.commit }}
+      BUILD_VERSION: ${{ needs.plan.outputs.version }}
+      BUILD_LABEL: ${{ needs.plan.outputs.label }}
+      TARGET_RID: ${{ matrix.rid }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install .NET SDK / 安装 .NET SDK
+        id: dotnet-setup
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        continue-on-error: ${{ matrix.rid == 'win-arm64' }}
+        with:
+          global-json-file: global.json
+      - name: Retry Windows ARM SDK bootstrap / 重试 Windows ARM SDK 安装
+        if: matrix.rid == 'win-arm64' && steps.dotnet-setup.outcome == 'failure'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.14'
+      - name: Set build workspace version / 设置构建工作区版本
+        run: python scripts/prepare-release.py --apply-version "$BUILD_VERSION"
+        shell: bash
+      - run: npm ci
+      - name: Build and archive / 构建与打包
+        shell: bash
+        run: python scripts/build-platform.py --runtime "$TARGET_RID" --version "$BUILD_VERSION" --label "$BUILD_LABEL" --smoke
+      - name: Shader bridge replay and recovery / Shader 桥接回放与恢复
+        if: matrix.rid == 'win-x64'
+        shell: bash
+        run: |
+          python -m pip install -r scripts/requirements-capture.txt
+          python scripts/smoke-shader-bridge.py --exe artifacts/publish/win-x64/Sensa.exe --first tests/fixtures/shader/sps-telemetry.png --next tests/fixtures/shader/sps-telemetry-next.png --corrupt tests/fixtures/shader/corrupt-telemetry.png --recover-first tests/fixtures/shader/sps-recovery-first.png --recover-next tests/fixtures/shader/sps-recovery-next.png --report artifacts/test-results/win-x64/shader-bridge.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: distribution-${{ matrix.rid }}
+          overwrite: true
+          path: artifacts/platform/${{ matrix.rid }}/
+          if-no-files-found: error
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        if: always()
+        with:
+          name: tests-${{ matrix.rid }}
+          path: artifacts/test-results/${{ matrix.rid }}/
+          overwrite: true
+          if-no-files-found: warn
+
+  unity:
+    name: Unity avatar package / Unity Avatar 组件包
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      SENSA_SOURCE_COMMIT: ${{ needs.plan.outputs.commit }}
+      BUILD_VERSION: ${{ needs.plan.outputs.version }}
+      BUILD_LABEL: ${{ needs.plan.outputs.label }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.plan.outputs.commit }}
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.14'
+      - name: Set build workspace version / 设置构建工作区版本
+        run: python scripts/prepare-release.py --apply-version "$BUILD_VERSION"
+      - name: Package Unity assets / 打包 Unity 资产
+        run: python scripts/release.py unity --tag "v$BUILD_VERSION" --label "$BUILD_LABEL" --output artifacts/unity
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: distribution-unity
+          overwrite: true
+          path: artifacts/unity/
+          if-no-files-found: error

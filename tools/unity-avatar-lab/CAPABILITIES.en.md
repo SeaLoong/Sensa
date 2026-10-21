@@ -30,6 +30,6 @@ Apply OSC mode with input off and outputs empty. Use actual PB Stretch/IsGrabbed
 
 Independent Point/Handle/Pose do not inherit the fixed-root cache or Sample semantics. Synthetic/editor image output belongs only to `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`, without a mappable native root. Native `Sensa/Shader/<nonzero-ID>` is a separate [producer and registration flow](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
-Validation checks generated components, writable parameters, budgets, shaders and default-off state. SDK packaging is not upload, VR grabbing, real image capture or hardware validation. Automated E2E/PlayMode/screenshots are CI-only.
+When checking an experimental avatar, inspect generated components, writable parameters, budgets, shaders and default-off state. Release CI runs unit checks and browser E2E; the avatar's Unity build, EditMode and client behavior need separate checks. A completed SDK package does not validate uploading, VR grabbing, real image capture or hardware behavior.
 
 [World capabilities](../unity-world-lab/CAPABILITIES.en.md) · [Geometry diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)

@@ -1,105 +1,72 @@
-name: Release tagged packages / 发布标签版本
+name: Publish Release / 发布正式版
 on:
-  push:
-    tags: ['v*', 'unity-v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Optional X.Y.Z; blank selects the next version / 可选版本号，留空自动递增
+        type: string
+        required: false
+        default: ''
 permissions:
   contents: read
-env:
-  PYTHONUTF8: '1'
 concurrency:
-  group: release-${{ github.ref }}
+  group: sensa-stable-release
   queue: max
   cancel-in-progress: false
 jobs:
-  verify:
-    # The called workflow declares the gated main-preview job too.
-    # 被调工作流也声明了有门禁的 main 预览任务，调用者须允许这些权限。
-    permissions:
-      contents: write
-      actions: read
-    uses: ./.github/workflows/ci.yml
+  checks:
+    uses: ./.github/workflows/checks.yml
     with:
-      release_target: ${{ startsWith(github.ref, 'refs/tags/unity-v') && 'unity' || 'app' }}
+      source_ref: main
+      require_main: true
 
-  unity_package:
-    name: Package tagged Unity assets / 打包标签 Unity 资产
-    needs: verify
-    if: startsWith(github.ref, 'refs/tags/unity-v')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    outputs:
-      stable: ${{ steps.package.outputs.stable }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
-        with:
-          python-version: '3.14'
-      - name: Package actual tag / 打包实际标签
-        id: package
-        run: python scripts/release.py unity
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-unity
-          path: |
-            artifacts/release/
-            artifacts/release-notes.txt
-          if-no-files-found: error
+  build:
+    needs: checks
+    uses: ./.github/workflows/build.yml
+    with:
+      source_ref: ${{ needs.checks.outputs.commit }}
+      channel: stable
+      version: ${{ inputs.version }}
 
-  release:
-    name: Publish verified tag / 发布已验证标签
-    concurrency:
-      group: sensa-preview-publication
-      queue: max
-      cancel-in-progress: false
-    needs: [verify, unity_package]
-    if: >-
-      !cancelled() &&
-      needs.verify.result == 'success' &&
-      needs.verify.outputs.comparison_sha == github.sha &&
-      (needs.unity_package.result == 'success' ||
-       (startsWith(github.ref, 'refs/tags/v') && needs.unity_package.result == 'skipped'))
+  publish:
+    name: Publish stable downloads / 发布正式下载
+    needs: [checks, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
       contents: write
+    concurrency:
+      group: sensa-release-publication
+      queue: max
+      cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: startsWith(github.ref, 'refs/tags/unity-v')
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
-          name: release-unity
-          path: artifacts
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        if: startsWith(github.ref, 'refs/tags/v')
-        with:
-          pattern: build-*
-          path: artifacts
-      - name: Create immutable release / 创建不可变发布
+          pattern: distribution-*
+          path: artifacts/downloaded
+      - name: Publish archives and generated notes / 发布压缩包与自动说明
         env:
           GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-        shell: bash
-        run: |
-          python scripts/tag-release-notes.py --tag "$GITHUB_REF_NAME" --output artifacts/tag-release-notes.md
-          if [[ "$GITHUB_REF_NAME" == unity-v* ]]; then
-            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa Unity $GITHUB_REF_NAME" --notes-file artifacts/release-notes.txt)
-            mapfile -d '' files < <(find artifacts/release -maxdepth 1 -type f -print0)
-          else
-            args=(release create "$GITHUB_REF_NAME" --verify-tag --title "Sensa $GITHUB_REF_NAME" --generate-notes --notes-file artifacts/tag-release-notes.md)
-            mapfile -d '' files < <(find artifacts -type f \( -name '*.zip' -o -name '*.tar.gz' \) -print0)
-          fi
-          version="${GITHUB_REF_NAME#unity-}"
-          if [[ "$version" == *-* ]]; then args+=(--prerelease); fi
-          (( ${#files[@]} > 0 ))
-          gh "${args[@]}" "${files[@]}"
-          if [[ "$version" == *-* ]]; then python scripts/publish-preview.py --prune-only; fi
+          SENSA_E2E_COMPARISON_SHA: ${{ needs.checks.outputs.comparison_sha }}
+          BUILD_VERSION: ${{ needs.build.outputs.version }}
+          RELEASE_TAG: ${{ needs.build.outputs.tag }}
+          SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+          PREVIOUS_TAG: ${{ needs.build.outputs.previous_tag }}
+        run: >-
+          python scripts/publish-release.py --channel stable
+          --version "$BUILD_VERSION" --tag "$RELEASE_TAG" --commit "$SOURCE_COMMIT"
+          --previous-tag "$PREVIOUS_TAG" --assets artifacts/downloaded
 
   pages:
-    needs: [unity_package, release]
-    if: ${{ always() && needs.release.result == 'success' && needs.unity_package.outputs.stable == 'true' }}
+    name: Refresh documentation and VPM / 刷新文档与 VPM
+    needs: publish
     permissions:
       contents: read
       pages: write

@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import E2ESummaryReporter from '../../scripts/e2e-summary-reporter.mjs';
 import {
   buildE2ESummary,
@@ -398,6 +400,60 @@ test('reporter replaces stale output and preserves the runner failure instead of
     for (const name of names) {
       if (oldEnvironment[name] === undefined) delete process.env[name];
       else process.env[name] = oldEnvironment[name];
+    }
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('stable release reports and CLI verification bind to the pinned source rather than the dispatch SHA', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'sensa-e2e-pinned-source-'));
+  const originalDirectory = process.cwd();
+  const reporterPath = fileURLToPath(new URL('../../scripts/e2e-summary-reporter.mjs', import.meta.url));
+  const environment = {
+    GITHUB_SHA: 'c'.repeat(40), SENSA_SOURCE_COMMIT: metadata.commit,
+    GITHUB_REPOSITORY: metadata.repository, GITHUB_RUN_ID: metadata.runId,
+    GITHUB_RUN_ATTEMPT: metadata.attempt, E2E_SUITE: 'all', E2E_UPDATE_SNAPSHOTS: 'false',
+    E2E_COMMAND_OUTCOME: 'success', GITHUB_STEP_SUMMARY: join(directory, 'job-summary.md'),
+  };
+  const previous = Object.fromEntries(Object.keys(environment).map(name => [name, process.env[name]]));
+  try {
+    process.chdir(directory);
+    Object.assign(process.env, environment);
+    const reporter = new E2ESummaryReporter();
+    const config = { argv: ['node', '/path/playwright/cli.js', 'test'], updateSnapshots: 'none',
+      grep: /.*/, grepInvert: null, shard: null,
+      projects: ['desktop', 'mobile'].map(name => ({ name, grep: /.*/, grepInvert: null,
+        ignoreSnapshots: false, use: { viewport: { width: 1280, height: 900 } } })) };
+    reporter.onBegin(config, { allTests: () => [testcase('desktop'), testcase('mobile', { project: 'mobile' })] });
+    reporter.onEnd(completed);
+    const reportPath = join(directory, 'artifacts/e2e/summary.json');
+    assert.equal(JSON.parse(readFileSync(reportPath, 'utf8')).commit, metadata.commit);
+    const finalize = spawnSync(process.execPath, [reporterPath, '--finalize-report', reportPath],
+      { env: { ...process.env, ...environment }, encoding: 'utf8' });
+    assert.equal(finalize.status, 0, finalize.stderr);
+    const finalized = JSON.parse(readFileSync(reportPath, 'utf8'));
+    assert.equal(finalized.commit, metadata.commit);
+    assert.equal(finalized.status, 'passed');
+    assert.equal(finalized.counts.passed, 2);
+    assert.equal(finalized.commandOutcome, 'success');
+    const valid = spawnSync(process.execPath, [reporterPath, '--verify-comparison', reportPath],
+      { env: { ...process.env, ...environment }, encoding: 'utf8' });
+    assert.equal(valid.status, 0, valid.stderr);
+    const wrongSource = spawnSync(process.execPath, [reporterPath, '--verify-comparison', reportPath],
+      { env: { ...process.env, ...environment, SENSA_SOURCE_COMMIT: environment.GITHUB_SHA }, encoding: 'utf8' });
+    assert.equal(wrongSource.status, 1);
+    const stale = spawnSync(process.execPath, [reporterPath, '--finalize-report', reportPath],
+      { env: { ...process.env, ...environment, SENSA_SOURCE_COMMIT: environment.GITHUB_SHA }, encoding: 'utf8' });
+    assert.equal(stale.status, 0, stale.stderr);
+    const replaced = JSON.parse(readFileSync(reportPath, 'utf8'));
+    assert.equal(replaced.commit, environment.GITHUB_SHA);
+    assert.equal(replaced.status, 'not-run');
+    assert.equal(replaced.counts.passed, 0);
+  } finally {
+    process.chdir(originalDirectory);
+    for (const name of Object.keys(environment)) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
     }
     rmSync(directory, { recursive: true, force: true });
   }

@@ -175,26 +175,26 @@ class LocalVerificationTests(unittest.TestCase):
         self.assertTrue(self.run_plan(['new-area/new-file.xyz']))
         self.assertEqual(len(self.commands), 5)
 
-    def test_ci_only_plan_and_no_changes_execute_nothing(self):
-        for plan in ({'e2e': True, 'platforms': True, 'prerelease': True}, verify.CI_PLAN.plan_changes([])):
-            with self.subTest(plan=plan):
-                self.assertTrue(verify.run_verification(plan, root=self.root, runner=self.runner,
-                                                      tools=lambda *_: self.fail('Toolchain probe forbidden / 禁止探测工具')))
-                self.assertEqual(self.commands, [])
+    def test_empty_local_plan_executes_nothing(self):
+        self.assertTrue(verify.run_verification(verify.CI_PLAN.plan_changes([]), root=self.root, runner=self.runner,
+                                              tools=lambda *_: self.fail('Toolchain probe forbidden / 禁止探测工具')))
+        self.assertEqual(self.commands, [])
         with patch.object(verify, 'discover_changes', return_value=([], True)), patch.object(verify, 'run_verification') as run:
             with contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(verify.main([]), 0)
             run.assert_not_called()
 
-    def test_plan_option_only_prints_json_and_all_includes_ci_requirements(self):
+    def test_plan_option_only_prints_local_json_and_all_selects_local_lanes(self):
         with patch.object(verify, 'discover_changes', return_value=(['README.md'], True)), patch.object(verify, 'run_verification') as run:
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 self.assertEqual(verify.main(['--all', '--plan']), 0)
             summary = json.loads(output.getvalue())
             self.assertEqual(summary['local_lanes'], ['web', 'backend', 'scripts', 'unity'])
-            self.assertIn('e2e', summary['github_actions_only'])
-            self.assertIn('platforms', summary['github_actions_only'])
+            self.assertNotIn('github_actions_only', summary)
+            self.assertNotIn('e2e', summary)
+            self.assertNotIn('platforms', summary)
+            self.assertNotIn('prerelease', summary)
             run.assert_not_called()
 
     def test_git_changes_include_dirty_staged_untracked_and_requested_base(self):

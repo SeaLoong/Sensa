@@ -8,6 +8,7 @@ import sys
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import urllib.error
 import urllib.request
@@ -25,13 +26,13 @@ def fetch(url):
 releases = json.loads(subprocess.check_output(['gh', 'api', '--paginate', '--slurp', f'repos/{repository}/releases?per_page=100'], text=True))
 for page in releases:
     for release in page:
-        if release['draft'] or release['prerelease'] or not release['tag_name'].startswith('unity-v'):
+        if release['draft'] or release['prerelease'] or not re.fullmatch(r'(?:unity-)?v\d+\.\d+\.\d+', release['tag_name']):
             continue
         manifests = [a for a in release['assets'] if a['name'] == 'vpm-package.json']
         if not manifests:
             continue
         entry = json.loads(fetch(manifests[0]['browser_download_url']))
-        if entry['name'] != 'top.sealoong.sensa' or release['tag_name'] != 'unity-v' + entry['version']:
+        if entry['name'] != 'top.sealoong.sensa' or release['tag_name'] not in ('v' + entry['version'], 'unity-v' + entry['version']):
             raise ValueError('Release manifest identity mismatch')
         allowed = {a['browser_download_url'] for a in release['assets']}
         if entry['url'] not in allowed or hashlib.sha256(fetch(entry['url'])).hexdigest() != entry['sha256']:
@@ -56,7 +57,7 @@ for version, entry in old.get('packages', {}).get('top.sealoong.sensa', {}).get(
     data = fetch(entry['url'])
     if hashlib.sha256(data).hexdigest() != entry['sha256']:
         raise ValueError('Historical package checksum mismatch')
-    if not __import__('re').fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', version): raise ValueError('Invalid historical version')
+    if not re.fullmatch(r'\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?', version): raise ValueError('Invalid historical version')
     if entry['version'] != version: raise ValueError('Historical version mismatch')
     target = output / 'packages/top.sealoong.sensa' / version / 'top.sealoong.sensa.zip'
     target.parent.mkdir(parents=True, exist_ok=True); target.write_bytes(data)

@@ -18,7 +18,6 @@ _SPEC = importlib.util.spec_from_file_location('sensa_ci_plan', ROOT / 'scripts/
 CI_PLAN = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(CI_PLAN)
 LOCAL_LANES = ('web', 'backend', 'scripts', 'docs', 'unity')
-CI_ONLY = ('dependencies', 'e2e', 'platforms', 'prerelease')
 DOC_CHECK_PATTERNS = ('test_bilingual_docs.py', 'test_tool_paths.py')
 IGNORED_DIRECTORIES = {'.git', 'node_modules', 'artifacts', '_artifacts', 'bin', 'obj',
                        'build', '_build', '__pycache__', '.venv', '.vs',
@@ -267,14 +266,10 @@ def main(argv=None):
     args = parser.parse_args(argv)
     paths, available = discover_changes(ROOT, args.base)
     plan = CI_PLAN.plan_changes(paths, diff_available=available and not args.all)
-    summary = {**plan, 'local_lanes': select_local_lanes(plan),
-               'github_actions_only': [lane for lane in CI_ONLY if plan.get(lane)]}
+    summary = {**plan, 'local_lanes': select_local_lanes(plan)}
     print(json.dumps(summary, ensure_ascii=True, indent=2))
     if args.plan:
         return 0
-    if summary['github_actions_only']:
-        print('GitHub Actions required; local execution omitted / 以下验证需要 GitHub Actions，本地不执行: '
-              + ', '.join(summary['github_actions_only']))
     if not summary['local_lanes']:
         print('No affected local checks / 没有受影响的本地检查')
         return 0

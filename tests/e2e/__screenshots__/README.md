@@ -1,6 +1,6 @@
-# Reviewed CI screenshots / 已审阅 CI 截图
+# Screenshot baseline review record / 截图基线评审记录
 
-Current baselines contain **110 PNGs**, 55 each for desktop and narrow layouts. Source: [successful candidate 39467342379](https://github.com/SeaLoong/Sensa/actions/runs/39467342379), commit `7096282a24cc2c68e363d70accd56cd3ac0fd6ee`. All **58 executions** passed on retry 0 with zero skips, flaky retries or run errors before acceptance.
+This records the accepted **110 PNGs**, 55 each for desktop and narrow layouts, from [candidate 39467342379](https://github.com/SeaLoong/Sensa/actions/runs/39467342379), commit `7096282a24cc2c68e363d70accd56cd3ac0fd6ee`. All **58 executions** passed on retry 0 with zero skips, flaky retries or run errors before acceptance. This historical review is not a passing result for later commits.
 
 当前基线包含 **110 张 PNG**，桌面与窄屏各 55 张，来源为上述成功候选及提交。接受前 **58 次执行**均首次通过，无跳过、重试通过或运行错误。
 
@@ -19,6 +19,6 @@ The guide now shares four anchor colours across spheres, labels and rows, offers
 - The application scrolls below a persistent header; the guide scrolls as a normal document. Images do not prove offscreen columns or closed content. / 应用正文在常驻顶栏下独立滚动，图解按普通文档滚动；图片不证明视口外列或折叠内容。
 - Diagrams and root flows are simulations, without a questionnaire score, complete WCAG conclusion, physical-phone, Unity/VRChat/HMD, real GPU capture or hardware certification. / 图解与根点流程为模拟，不提供问卷分数、完整 WCAG 结论、实体手机、Unity／VRChat／HMD、真实 GPU 捕获或硬件认证。
 
-See the [visual review](../../../docs/ui-visual-review.en.md) and [workflow](../../../docs/e2e.en.md). Ordinary CI compares these PNGs with updates disabled. Publication requires a passing full comparison at the exact candidate SHA; generation alone provides no comparison proof.
+See the [visual review](../../../docs/ui-visual-review.en.md) and [current E2E maintenance flow](../../../docs/e2e.en.md). Ordinary CI compares PNGs with updates disabled. The manual update workflow proposes changes on a draft PR; review changed images before accepting them and run normal comparison for the resulting commit. Candidate generation alone provides no comparison proof.
 
-详见[视觉评审](../../../docs/ui-visual-review.md)和[流程](../../../docs/e2e.md)。普通 CI 关闭更新比较本组图片；发布要求同一候选 SHA 通过完整比较，生成任务本身不提供比较证明。
+详见[视觉评审](../../../docs/ui-visual-review.md)和[当前 E2E 维护流程](../../../docs/e2e.md)。普通 CI 关闭图片更新；手动更新工作流通过草稿 PR 提出改动，审阅变化图片后再接受，并为最终提交运行普通比较。候选生成本身不提供比较证明。

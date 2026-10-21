@@ -37,4 +37,4 @@ The image bridge's diagnostic namespace cannot calibrate native root observation
 
 Generator/upgrade commands protect existing assets. Validation preprocesses a clone and records Contacts, FX declarations, menus and default-off state; explicit SDK build commands package locally without uploading. Inspect the report generated for the actual revision rather than copying historical counts.
 
-Automated integration, PlayMode and screenshots are CI-only. Before any later manual device test, validate the real device's calibration, limits and stop behavior through the main Sensa guide. Sent targets are commands, not mechanical feedback. Never commit licensed models or independent-project assets here.
+Release CI runs units, browser and native mock checks. The experimental Avatar's Unity/PlayMode and actual-client checks remain separate. Before a separate device test, validate calibration, limits and stopping through the main Sensa guide. Sent targets are commands, not mechanical feedback. Never commit licensed models or independent-project assets here.

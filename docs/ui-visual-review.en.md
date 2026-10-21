@@ -2,9 +2,9 @@
 
 [简体中文](ui-visual-review.md) | **English**
 
-This is a **2026-10-21 review tied to fixed source and images**, not a live main-branch dashboard. It records findings and acceptance for ten-scene 3D, actual target dragging, label clearance and leaders. Later automatic-language/site work needs its own CI evidence and cannot inherit this page as an executed result.
+This is a **2026-10-21 review tied to fixed source and images**, not a live main-branch dashboard. It records findings and acceptance for ten-scene 3D, actual target dragging, label clearance and leaders. Current CI runs units and E2E; later changes need their own reports and cannot inherit this page as an executed result.
 
-Use [E2E status](e2e-status.en.md) for the current commit's execution results. That page distinguishes updated cases, actual test outcomes and images still awaiting review; this page's fixed images and historical counts remain unchanged.
+The [browser verification record](e2e-status.en.md) retains inspected outcomes and unreviewed images; [development and releases](development.en.md) describes current CI. This page's fixed images and historical counts remain unchanged.
 
 Coding agents inspected actual CI images using [V1–V6](ui-quality.en.md), retaining TDesign colors/flat layout. There was no questionnaire, aggregate aesthetic score or preference study. The earlier 98-image review remains at a [fixed commit](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.en.md).
 
@@ -14,7 +14,7 @@ Coding agents inspected actual CI images using [V1–V6](ui-quality.en.md), reta
 - All 58 executions passed on retry 0, with zero skips, flaky retries, failures or run errors. Accepted **110 PNGs**, 55 each at 1280×900 and 390×844. The original 70 application images are byte-identical.
 - The 40 parameter images cover modern Socket, legacy Socket, Plug Touch, Sensa SPS and Shader × two languages × XZ/orbit × two viewports. Every initial image was inspected; later sets inherit byte-identical evidence and reassess changes. Four English isometric SVG diagnostics were also inspected; they are attachments rather than goldens.
 - Current images are fixed at `da2ca1e779fe73054440d6d97f550a2222c6e49a`. Earlier diagnostic candidates were not accepted. Final orbit representatives reset target parameters and explicitly select XZ movement. Generation uses `updateSnapshots=all`, not ordinary-comparison proof for the final commit.
-- Browsers and captures run only in Actions. Local-file guide cases share a software WebGL2 worker pool; application cases retain their original browser configuration. The guide has no OSC, network or device connection.
+- That browser/capture run executed in Actions. Local-file guide cases shared a software WebGL2 worker pool; application cases retained their original browser configuration. The guide had no OSC, network or device connection.
 
 ## Findings and reassessment
 
@@ -53,4 +53,4 @@ The guide scrolls normally; the application scrolls below a persistent header. I
 
 Gray bodies are shared profile illustrations, not imported Avatar meshes. Root coordinates are not orientation/world position, and encoding resolution is not measured accuracy. No real Unity producer, VRChat Contacts/OSC session, desktop/HMD encoding capture, real-time GPU decoding or user hardware ran. Browser WebGL and simulated packets do not establish those behaviours. See [parameters](osc-parameters.en.md), [OGB compatibility](ogb-compatibility.en.md) and [positioning](positioning.en.md).
 
-Historical acceptance cannot replace normal comparison of a new commit. Later main runs keep updates disabled and compare all images required by the current implementation; read the actual count in that report. Guide changes follow impact planning and do not trigger native builds or previews without outstanding product work. [Verification workflow](e2e.en.md)
+Historical acceptance applies only to the source and images above; it does not establish that a newer interface was inspected. Later commits need their own normal-comparison results. Review changed images and record actual observations/unassessed scope; candidate capture cannot replace a passing comparison. See [development and releases](development.en.md) and [browser verification](e2e.en.md).

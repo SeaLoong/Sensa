@@ -10,6 +10,6 @@ The world's third cube controls this prototype; another cube controls a differen
 
 **Tools → Sensa Lab → Export camera-only prototype** exports an experimental unitypackage for a separate Avatars project. Keep it off/local and do not import Worlds SDK/Udon into that project. It does not replace [native root capture and registration](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
-Historical editor render/CRC results are not uploaded-client retention, PCVR isolation or external capture timing. Automatic rendering, PlayMode and screenshots are CI-only under the current policy.
+Historical editor render/CRC results are not uploaded-client retention, PCVR isolation or external capture timing. Release CI units, browser and native mock checks do not cover this prototype's Unity rendering or PlayMode. Inspect it as separate work.
 
 [World setup and language](README.md) · [Transport](CAPABILITIES.en.md)

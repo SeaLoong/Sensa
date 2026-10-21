@@ -75,4 +75,4 @@ The standalone explorer uses local classic scripts, a pure model and bundled Thr
 
 TimeProvider injects time. Isolated tests use virtual clocks, loopback ports and mock transports. Installers preflight managed files before writing and retain user changes; shared smoke tooling owns process cleanup.
 
-Plan affected local checks and reuse valid receipts. Browsers, screenshots, process smoke and World PlayMode run only in Actions. [Development](development.en.md) defines continuation/release gates. EditMode, metadata and browser mocks do not prove uploaded-client or hardware behavior.
+CI requires units, full E2E and isolated native smoke before publication; browser/process checks use mock transports. World PlayMode and real-client checks are separate work. See [development and releases](development.en.md). EditMode, metadata and browser mocks do not prove uploaded-client or hardware behavior.

@@ -18,7 +18,7 @@ The native SPS station uses a known Sender and SDK CalculateProximity. World tru
 
 ## Known-geometry references
 
-The independent Point fixture uses Sender radius .001 and Receiver radius .35, with its own tetrahedral local frame. At (0,0,.10), four values are about .48541/.48541/.73483/.73483; at (.06,0,.10), about .40627/.51463/.79683/.60286. This is **not** the R=2.5 fixed SPS P0–P3 layout.
+The independent Point fixture uses a 0.001-radius Sender, 2-radius Receivers and tetrahedral axis offsets of ±0.35. Its generator and decoder both read `SensaPoseProtocol`; inspect actual proximity readings in the current scene. The layout uses its own reference object, without the fixed SPS AvatarRootLocal frame or Sample counter.
 
 For the known 20 cm SPS Plug, Socket positions (0,0,.24), (0,0,.12) and (.06,0,.12) represent Outside, Near and Offset. Axial Near/Offset truth is 40%, while the radial estimate is about 40%/32.9%. OGB normalization, SDK signed distance, root decoding and model displacement are different quantities.
 
@@ -44,7 +44,7 @@ Actual editor model PNGs need the baked Resolver/surface and a rendering non-ste
 
 ## Reports and acceptance
 
-Read revision-specific `Validation/` reports for component checks, samples, CRC and freeze recovery. Diagnostic smoke keeps input disarmed with no outputs; it is not native image capture or hardware motion. Automated E2E/PlayMode/screenshots run only in CI.
+When checking an experimental scene, use its revision-specific `Validation/` reports for components, samples, CRC and freeze recovery. Keep input disarmed and outputs empty during diagnostics. Release CI runs unit checks and browser E2E; these do not replace this world's Unity/ClientSim/PlayMode checks or validate native image capture and hardware motion.
 
 PB grabbing permissions, multilingual fonts/HMD readability, actual uploaded OSC, camera retention, mirrors, HDR/AA, capture latency and multi-player behavior still need real-client acceptance.
 

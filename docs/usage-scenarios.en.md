@@ -60,4 +60,4 @@ Twelve-axis manual input and single-L0 funscripts need no Contact solve. Native 
 
 Independent Point/Handle/Pose and lab QuickStart/synthetic Shader fixtures remain internal tools, not compatibility layers or accuracy evidence for these routes. [Lab workflow](lab-workflow.en.md)
 
-Isolated contracts, EditMode and CI mock wires prove their respective boundaries. Real uploads, Contacts/OSC, desktop/HMD capture, accuracy and mechanical behavior need separate acceptance. [Features](features.en.md)
+CI isolated units, browser E2E and mock transports check their own boundaries; Unity EditMode and actual clients are separate work. Real uploads, Contacts/OSC, desktop/HMD capture, accuracy and mechanical behavior need separate acceptance. [Features](features.en.md)

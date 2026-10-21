@@ -104,7 +104,7 @@ function environmentMetadata(config) {
   const none = value => value == null || Array.isArray(value) && value.length === 0;
   const candidate = process.env.E2E_UPDATE_SNAPSHOTS === 'true' || config && config.updateSnapshots !== 'none';
   return {
-    commit: process.env.GITHUB_SHA || null, repository: process.env.GITHUB_REPOSITORY || null,
+    commit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA || null, repository: process.env.GITHUB_REPOSITORY || null,
     runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
     suite: process.env.E2E_SUITE || 'all', baselineMode: candidate ? 'candidate' : 'comparison',
     projects: projects.map(project => project.name),
@@ -185,11 +185,13 @@ export default class E2ESummaryReporter {
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     if (process.argv[2] === '--finalize-report' && process.argv[3]) {
-      finalizeE2ESummary(resolve(process.argv[3]), { commandOutcome: process.env.E2E_COMMAND_OUTCOME });
+      const summary = finalizeE2ESummary(resolve(process.argv[3]), { commandOutcome: process.env.E2E_COMMAND_OUTCOME });
+      const counts = ['total', ...OUTCOMES].map(key => `${key}=${summary.counts[key]}`).join(', ');
+      console.log(`::notice title=Browser result::${annotation(`commit=${summary.commit}, suite=${summary.suite}, mode=${summary.baselineMode}, runner=${summary.status}, command=${summary.commandOutcome}; ${counts}`)}`);
     } else {
       if (process.argv[2] !== '--verify-comparison' || !process.argv[3]) throw new Error('Usage: --verify-comparison <summary.json> | --finalize-report <summary.json>');
       verifyComparisonSummary(JSON.parse(readFileSync(process.argv[3], 'utf8')), {
-        commit: process.env.GITHUB_SHA, repository: process.env.GITHUB_REPOSITORY,
+        commit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA, repository: process.env.GITHUB_REPOSITORY,
         runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT, suite: process.env.E2E_SUITE,
       });
       console.log('Current-commit full browser comparison verified / 当前提交完整浏览器比较已确认');
