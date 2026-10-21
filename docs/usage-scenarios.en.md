@@ -8,7 +8,7 @@ If you cannot edit the Avatar, use the OGB parameters it already provides. If yo
 | --- | --- | --- |
 | Existing OGB / SPS | Use haptics parameters already exposed by an Avatar | Radial depth estimate or touch intensity |
 | Sensa SPS | Build your own Avatar and select its actual Socket/Plug root | Your root's left/right, up/down and forward/back position relative to the Avatar |
-| Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root XYZ from an explicit ROI |
+| Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root coordinates read from the desktop block you select |
 
 All three produce command targets, not device feedback. Manual/script input can establish direction and range first. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
 
@@ -32,7 +32,7 @@ Inspect the green common detection region in Unity or the explorer before placin
 
 The five measurements are `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. P values are proximity, not coordinates. Sample=0 is invalid; activity cycles through n/32 (n=1…32), nominally every 50 ms. Repeating a value does not refresh it. Default change age is 1000 ms, capped at 1250 ms. Optional menu selectors are extra controls, outside those five measurements.
 
-Fix the object in the root panel, choose X/Y/Z or distance from origin, capture endpoints, inspect preview, replace the draft and save. Then explicitly allow experimental spatial input and activate input. Missing/frozen samples, inconsistent geometry or failed scale guards block and stop.
+Fix the object in the root panel, choose X/Y/Z or distance from origin, capture endpoints, inspect preview, replace the draft and save. Then explicitly allow experimental spatial input and activate input. Missing or frozen samples, inconsistent geometry or failed scale checks invalidate the coordinates and stop the related motion.
 
 After updating from the older geometry, rebuild the Avatar and replace its previous generated measurement components before using the updated desktop app. Mixed geometry cannot be decoded correctly.
 
@@ -40,10 +40,10 @@ Units belong to the Avatar root and equal world meters only at unit scale. The f
 
 ## Shader root encoding and region capture
 
-Use **Shader Root Capture (Experimental)** with an actual root and nonzero producer ID. The build generates a native skinned point, one None-eye Camera and Shader. Its local menu starts Off; there is no custom post-upload C# reader.
+Add **Shader Root Capture (Experimental)** in Unity, choose the root to measure and assign an object number from 1–65535 (Producer ID). Select the same number in the desktop bridge. The build creates the components that draw the root position as a block. Encoding starts Off in the uploaded Avatar’s menu and must be enabled explicitly.
 
 1. Enable encoding in the actual client and confirm that a desktop surface visibly contains it.
-2. Select the full code block's physical-pixel capture region (ROI), at least 80×48, and the same object ID. Check decode-only first, then register and explicitly choose the OSC destination.
+2. Select a physical-pixel capture region (ROI) tightly fitted to the complete block’s outer edges, at least 80×48, and the same object ID. Do not add arbitrary blank margins: the bridge uses this width and height to calculate module size. Check decode-only first, then save the capture settings and explicitly choose the OSC destination.
 3. The native block uses 20×12 modules: fixed edge locators surround the 16×8 data area. One damaged edge and small translation can be tolerated; payload CRC, object ID, coordinate flags and forward-frame checks still apply. Default freezing is 350 ms; startup/recovery requires two advancing frames.
 4. A valid bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 last. Invalidity sends only Valid=0.
 5. Calibrate/save in the root panel, then grant experimental and input permissions separately.

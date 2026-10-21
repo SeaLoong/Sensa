@@ -11,11 +11,34 @@ function buildOscSourceSelectionOptions(sources) {
   return [{ value: '', label: t("自动选择") }, ...normalizedSources.map(source => ({ value: source.key, label: formatOscSourceLabel(source) }))];
 }
 
+const timeFormatters = new Map();
+
 function formatPreviewTimestamp(timestampMs) {
   if (!timestampMs) return '—';
   const value = new Date(timestampMs);
   if (Number.isNaN(value.getTime())) return '—';
-  return value.toLocaleTimeString(getLocale(), { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' });
+  const locale = getLocale();
+  if (!timeFormatters.has(locale)) timeFormatters.set(locale, new Intl.DateTimeFormat(locale,
+    { hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }));
+  return timeFormatters.get(locale).format(value);
+}
+
+// A large catalog stays searchable in full while at most one page is mounted.
+// Clamp a page after removals without dropping the remaining reachable rows.
+export function paginateOscPreview(entries, requestedPage = 0, pageSize = 100) {
+  const size = Number.isInteger(pageSize) && pageSize > 0 ? Math.min(pageSize, 100) : 100;
+  const count = entries.length, pages = Math.max(1, Math.ceil(count / size));
+  const page = Math.min(pages - 1, Math.max(0, Number.isFinite(requestedPage) ? Math.floor(requestedPage) : 0));
+  const offset = page * size;
+  return { entries: entries.slice(offset, offset + size), page, pages, total: count,
+    first: count ? offset + 1 : 0, last: Math.min(count, offset + size) };
+}
+
+// Browsing OSC does not apply the OSC input mode. Catalog work follows the
+// visible workspace/editor, including a preset dialog opened elsewhere.
+export function oscCatalogVisibility(workspace, tab, presetDialogOpen = false) {
+  return { mappingEditorVisible: Boolean(presetDialogOpen) || workspace === 'osc' && tab === 'setup',
+    parameterBrowserVisible: workspace === 'osc' && tab === 'parameters' };
 }
 
 function applySignalCurve(value, curve) {

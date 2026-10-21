@@ -1,4 +1,4 @@
-import React, { useId } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import {
   AXIS_MODE_SELECT_OPTIONS,
   COMMAND_MODE_OPTIONS,
@@ -16,6 +16,7 @@ import { getDynamicFloatSliderBounds } from './numeric.js';
 import { RangeField, SelectField, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
 import { t, diagnostic } from './i18n.js';
+import { mappingPathSuggestions } from './mapping-path-suggestions.js';
 
 export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
   const mode = value.mode || 'Normal';
@@ -140,6 +141,9 @@ export function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], 
 
 export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
   const pathListId = useId();
+  const [pathFocused, setPathFocused] = useState(false);
+  const pathSuggestions = useMemo(() => mappingPathSuggestions(pathOptions, draft.oscPath, { focused: pathFocused }),
+    [pathOptions, draft.oscPath, pathFocused]);
   const simulatedValue = Number.isFinite(Number(draft.simulatedValue))
     ? Number(draft.simulatedValue)
     : getSignalSimulationDefaultValue(draft);
@@ -159,13 +163,15 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
       <div className="mapping-row__main">
         <Field
           label={t('参数路径')}
-          hint={t('支持 *、**；多个路径用分号分隔。')}
+          hint={t('输入路径片段查找建议；支持 *、**，多个路径用分号分隔。')}
           value={draft.oscPath}
           list={pathListId}
+          onFocus={() => setPathFocused(true)}
+          onBlur={() => setPathFocused(false)}
           onChange={(event) => onChange({ oscPath: event.target.value })}
         />
         <datalist id={pathListId}>
-          {(pathOptions || []).map((path) => (
+          {pathSuggestions.map((path) => (
             <option key={path} value={path} />
           ))}
         </datalist>

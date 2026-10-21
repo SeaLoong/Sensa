@@ -79,6 +79,9 @@ public sealed class OscParameterStore
     private readonly object _capacityGate = new();
     public const int MaxPaths = 4096;
     public const int MaxSources = 32;
+    private int _entryCount;
+    private readonly Dictionary<string, int> _sourceEntryCounts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, long> _sourceLastSeen = new(StringComparer.Ordinal);
     private long _lastPrune;
     private long _revision;
     private long _sequence;
@@ -108,26 +111,17 @@ public sealed class OscParameterStore
             if (timestampMs - _lastPrune > 10000)
             {
                 _lastPrune = timestampMs;
-                var lastSeen = _store.Values.SelectMany(bucket => bucket.Values)
-                    .GroupBy(item => item.Source.Key).ToDictionary(group => group.Key, group => group.Max(item => item.TimestampMs));
-                foreach (var pair in _store)
-                {
-                    foreach (var item in pair.Value)
-                        if (timestampMs - lastSeen.GetValueOrDefault(item.Key) > 300000) pair.Value.TryRemove(item.Key, out _);
-                    if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
-                }
-                var liveSources = _store.Values.SelectMany(b => b.Keys).ToHashSet();
-                foreach (var key in _sources.Keys)
-                    if (!liveSources.Contains(key))
-                    {
-                        _sources.TryRemove(key, out _);
-                        _sourceSequences.Remove(key);
-                    }
+                // At most 32 source clocks need checking. Do not rebuild the entire
+                // parameter catalog on the OSC receive path merely to find idle sources.
+                var expired = _sourceLastSeen.Where(pair => timestampMs - pair.Value > 300000)
+                    .Select(pair => pair.Key).ToArray();
+                foreach (var key in expired) RemoveSource(key);
             }
-            if ((!_store.ContainsKey(normalizedPath) && _store.Count >= MaxPaths)
+            var existed = _store.TryGetValue(normalizedPath, out var existing)
+                && existing.ContainsKey(normalizedSource.Key);
+            if ((!existed && _entryCount >= MaxPaths)
                 || (!_sources.ContainsKey(normalizedSource.Key) && _sources.Count >= MaxSources)) return;
-            if ((!_store.TryGetValue(normalizedPath, out var existing) || !existing.ContainsKey(normalizedSource.Key)) && _store.Sum(p => p.Value.Count) >= MaxPaths) return;
-            var bucket = _store.GetOrAdd(normalizedPath, static _ => new ConcurrentDictionary<string, Entry>(StringComparer.Ordinal));
+            var bucket = _store.GetOrAdd(normalizedPath, static _ => new ConcurrentDictionary<string, Entry>(1, 1, StringComparer.Ordinal));
             // Reception activity is independent from new content. Replayed
             // frames must not renew their content age. / 重发不续期内容变化时间。
             var changedAtMs = bucket.TryGetValue(normalizedSource.Key, out var previous) && previous.Value.Equals(value)
@@ -136,6 +130,12 @@ public sealed class OscParameterStore
             _sourceSequences[normalizedSource.Key] = sourceSequence;
             entry = entry with { Sequence = ++_sequence, ChangedAtMs = changedAtMs, SourceSequence = sourceSequence };
             bucket[normalizedSource.Key] = entry;
+            if (!existed)
+            {
+                _entryCount++;
+                _sourceEntryCounts[normalizedSource.Key] = _sourceEntryCounts.GetValueOrDefault(normalizedSource.Key) + 1;
+            }
+            _sourceLastSeen[normalizedSource.Key] = timestampMs;
             _sources[normalizedSource.Key] = normalizedSource;
         }
         OnSet?.Invoke(normalizedPath, value);
@@ -238,22 +238,50 @@ public sealed class OscParameterStore
         return row[path.Length];
     }
 
-    public SnapshotEntry[] MatchingEntries(string pattern, string? sourceKey = null) => SnapshotEntries()
-        .Where(e => (string.IsNullOrWhiteSpace(sourceKey) || e.Entry.Source.Key == sourceKey) && MatchesPathPattern(pattern, e.Path)).ToArray();
+    public SnapshotEntry[] MatchingEntries(string pattern, string? sourceKey = null)
+    {
+        if (string.IsNullOrWhiteSpace(pattern)) return [];
+        var entries = new List<SnapshotEntry>();
+        void AddBucket(string path, ConcurrentDictionary<string, Entry> bucket)
+        {
+            if (!string.IsNullOrWhiteSpace(sourceKey))
+            {
+                if (bucket.TryGetValue(sourceKey, out var entry)) entries.Add(new SnapshotEntry(path, entry));
+            }
+            else foreach (var entry in bucket) entries.Add(new SnapshotEntry(path, entry.Value));
+        }
+        // Most mappings name one exact parameter. Copying all face/expression
+        // parameters for each mapping made receive processing scale with the catalog.
+        if (!pattern.Contains('*') && !pattern.Contains(';') && !pattern.Contains('\n'))
+        {
+            if (_store.TryGetValue(pattern, out var bucket)) AddBucket(pattern, bucket);
+        }
+        else foreach (var path in _store)
+            if (MatchesPathPattern(pattern, path.Key)) AddBucket(path.Key, path.Value);
+        return entries.ToArray();
+    }
 
     public void ClearSource(string key)
     {
         lock (_capacityGate)
         {
-            foreach (var pair in _store)
-            {
-                pair.Value.TryRemove(key, out _);
-                if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
-            }
-            _sources.TryRemove(key, out _);
-            _sourceSequences.Remove(key);
+            RemoveSource(key);
             Interlocked.Increment(ref _revision);
         }
+    }
+
+    // The caller owns _capacityGate, including when removing expired sources during Set.
+    private void RemoveSource(string key)
+    {
+        foreach (var pair in _store)
+        {
+            if (pair.Value.TryRemove(key, out _)) _entryCount--;
+            if (pair.Value.IsEmpty) _store.TryRemove(pair.Key, out _);
+        }
+        _sources.TryRemove(key, out _);
+        _sourceSequences.Remove(key);
+        _sourceEntryCounts.Remove(key);
+        _sourceLastSeen.Remove(key);
     }
 
     public IEnumerable<string> AllPaths => _store.Keys;
@@ -263,32 +291,70 @@ public sealed class OscParameterStore
             .Select(entry => new KeyValuePair<string, Entry>(entry.Path, entry.Entry))
             .ToArray();
 
-    public SnapshotEntry[] SnapshotEntries() =>
-        _store
-            .SelectMany(static pathEntry => pathEntry.Value.Values.Select(entry => new SnapshotEntry(pathEntry.Key, entry)))
-            .ToArray();
+    public SnapshotEntry[] SnapshotEntries() => SnapshotEntriesCore(null, null);
+
+    /// <summary>Copy only entries in an ordinal path prefix and optional exact source.</summary>
+    public SnapshotEntry[] SnapshotEntries(string pathPrefix, string? sourceKey = null)
+    {
+        ArgumentNullException.ThrowIfNull(pathPrefix);
+        return SnapshotEntriesCore(pathPrefix, sourceKey);
+    }
+
+    private SnapshotEntry[] SnapshotEntriesCore(string? pathPrefix, string? sourceKey)
+    {
+        var entries = pathPrefix is null ? new SnapshotEntry[Math.Clamp(Volatile.Read(ref _entryCount), 0, MaxPaths)] : [];
+        var count = 0;
+        // ConcurrentDictionary.Values materializes an array and takes all bucket locks.
+        // Enumerating pairs directly avoids one array and LINQ iterator per parameter.
+        foreach (var path in _store)
+        {
+            if (pathPrefix is not null && !path.Key.StartsWith(pathPrefix, StringComparison.Ordinal)) continue;
+            foreach (var entry in path.Value)
+            {
+                if (!string.IsNullOrEmpty(sourceKey) && entry.Key != sourceKey) continue;
+                if (count == entries.Length) Array.Resize(ref entries, Math.Max(4, count * 2));
+                entries[count++] = new SnapshotEntry(path.Key, entry.Value);
+            }
+        }
+        // Receivers may add/remove entries during this non-blocking snapshot.
+        if (count != entries.Length) Array.Resize(ref entries, count);
+        return entries;
+    }
 
     public SourceSnapshot[] SnapshotSources()
     {
-        var snapshots = SnapshotEntries();
-        var grouped = snapshots
-            .GroupBy(snapshot => snapshot.Entry.Source.Key, StringComparer.Ordinal)
-            .Select(group =>
-            {
-                var first = group.First().Entry.Source;
-                return new SourceSnapshot(
-                    first.Key,
-                    first.Label,
-                    first.PersistentId,
-                    first.Address,
-                    first.Port,
-                    group.Select(item => item.Path).Distinct(StringComparer.Ordinal).Count(),
-                    group.Max(item => item.Entry.TimestampMs));
-            })
-            .OrderByDescending(source => source.LastSeenTimestampMs)
-            .ToArray();
+        lock (_capacityGate)
+        {
+            return _sources.Values.Select(source => new SourceSnapshot(source.Key, source.Label,
+                    source.PersistentId, source.Address, source.Port, _sourceEntryCounts[source.Key],
+                    _sourceLastSeen[source.Key]))
+                .OrderByDescending(source => source.LastSeenTimestampMs).ToArray();
+        }
+    }
 
-        return grouped;
+    internal static SourceSnapshot[] SourcesFromSnapshot(IReadOnlyList<SnapshotEntry> entries)
+    {
+        var sources = new Dictionary<string, (SourceSnapshot Snapshot, long Sequence)>(StringComparer.Ordinal);
+        foreach (var snapshot in entries)
+        {
+            var source = snapshot.Entry.Source;
+            if (sources.TryGetValue(source.Key, out var previous))
+            {
+                // Several packets can arrive in the same millisecond. Sequence, not
+                // enumeration order or timestamp ties, identifies the newest metadata.
+                var newest = snapshot.Entry.Sequence >= previous.Sequence ? source
+                    : new OscSource(previous.Snapshot.Key, previous.Snapshot.Label, previous.Snapshot.PersistentId,
+                        previous.Snapshot.Address, previous.Snapshot.Port);
+                sources[source.Key] = (new SourceSnapshot(newest.Key, newest.Label, newest.PersistentId,
+                    newest.Address, newest.Port, previous.Snapshot.ParameterCount + 1,
+                    Math.Max(previous.Snapshot.LastSeenTimestampMs, snapshot.Entry.TimestampMs)),
+                    Math.Max(previous.Sequence, snapshot.Entry.Sequence));
+            }
+            else sources[source.Key] = (new SourceSnapshot(source.Key, source.Label, source.PersistentId,
+                source.Address, source.Port, 1, snapshot.Entry.TimestampMs), snapshot.Entry.Sequence);
+        }
+        return sources.Values.Select(source => source.Snapshot)
+            .OrderByDescending(source => source.LastSeenTimestampMs).ToArray();
     }
 
     public int SourceCount => _sources.Count;
@@ -298,6 +364,9 @@ public sealed class OscParameterStore
         lock (_capacityGate)
         {
             _store.Clear();
+            _entryCount = 0;
+            _sourceEntryCounts.Clear();
+            _sourceLastSeen.Clear();
             _sources.Clear();
             _sourceSequences.Clear();
             Interlocked.Increment(ref _revision);

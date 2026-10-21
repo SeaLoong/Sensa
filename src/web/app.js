@@ -81,8 +81,8 @@ import {
 } from './input-workflows.js';
 import { attachPageLifecycle, createInitialSnapshotLoader, createRealtimeSession } from './realtime-session.js';
 import { loadStudio, saveStudio, sanitizeStudio } from './preferences.js';
-import { LOG_LEVEL_ORDER, formatAxisTraceAction, formatRealtimeStatus, normalizeLogs } from './diagnostics.js';
-import { buildOscSourceSelectionOptions, formatPreviewTimestamp } from './osc-workspace.js';
+import { LOG_LEVEL_ORDER, createLogNormalizer, formatAxisTraceAction, formatRealtimeStatus } from './diagnostics.js';
+import { buildOscSourceSelectionOptions, oscCatalogVisibility } from './osc-workspace.js';
 import { AxisSlider, SelectField, SliderControl, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.jsx';
 import { ScriptTimelineDensity } from './script-timeline.jsx';
@@ -94,9 +94,9 @@ import {
   posePreviewEntry,
   parameterMeaning,
   readPinnedPaths,
-  rankPreview,
-  getLatestOscPreviewEntry,
-  buildOscPathSuggestions,
+  createOscPreviewRanker,
+  createOscPreviewLookup,
+  createOscPathSuggester,
   filterOscPreviewEntriesBySource,
 } from './osc-preview.js';
 import PosePanel from './PosePanel.jsx';
@@ -104,7 +104,10 @@ import SpsRootPanel from './SpsRootPanel.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
+import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
+
+const EMPTY_OSC_CATALOG = Object.freeze([]);
 
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 
@@ -146,12 +149,13 @@ function App() {
   const [config, setConfig] = useState(initialState.config);
   const [overview, setOverview] = useState(initialState.overview);
   const [logs, setLogs] = useState(initialState.logs);
+  const [normalizeLogSnapshot] = useState(createLogNormalizer);
+  const [logDetailsOpen, setLogDetailsOpen] = useState(false);
   const [studio, setStudio] = useState(initialState.studio);
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
-  const [previewLimit, setPreviewLimit] = useState(100);
   const [showFaceTracking, setShowFaceTracking] = useState(false);
   const [previewCategory, setPreviewCategory] = useState('all');
   const [frozenPreview, setFrozenPreview] = useState(null);
@@ -198,8 +202,8 @@ function App() {
   const scriptSettingsInitializedRef = useRef(initialState.scriptSettingsInitialized);
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
-  const outputs = getOutputs(config);
-  const axisProfiles = getAxisProfiles(config);
+  const outputs = useMemo(() => getOutputs(config), [config]);
+  const axisProfiles = useMemo(() => getAxisProfiles(config), [config, locale]);
   const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
   const runtimeOverview = overview?.runtime || overview?.loop || null;
   const selectedInputTab = INPUT_MODES().some((item) => item.value === studioState.preferredInputTab)
@@ -242,7 +246,7 @@ function App() {
 
         setConfig(configResponse);
         setOverview(overviewResponse);
-        setLogs(normalizeLogs(logsResponse));
+        setLogs(normalizeLogSnapshot(logsResponse));
         setSerialPorts(normalizeSerialPorts(serialPortResponse));
         setOscDraft(buildOscDraftFromConfig(configResponse));
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
@@ -277,14 +281,14 @@ function App() {
       },
       onSnapshot: (snapshot, entries) => {
         setOverview(snapshot);
-        setLogs(normalizeLogs(entries));
+        setLogs(normalizeLogSnapshot(entries));
       },
     });
     return () => {
       initial.dispose();
       detach();
     };
-  }, [realtime]);
+  }, [realtime, normalizeLogSnapshot]);
 
   useEffect(() => {
     if (!config) return;
@@ -331,7 +335,10 @@ function App() {
     if (!overview?.input?.script || scriptSettingsInitializedRef.current === false) return;
     if (busyKey.startsWith('script-')) return;
 
-    setScriptSettings((previous) => normalizeScriptSettingsState(overview.input.script, previous));
+    setScriptSettings((previous) => {
+      const next = normalizeScriptSettingsState(overview.input.script, previous);
+      return Object.keys(next).every(key => next[key] === previous[key]) ? previous : next;
+    });
   }, [overview?.input?.script, busyKey]);
 
   useEffect(() => {
@@ -1406,7 +1413,7 @@ function App() {
     await withBusy('emergency-clear', async () => {
       await apiRequest('/api/control/runtime/clear-emergency', { method: 'POST' });
       await refreshOverview();
-      notify(t('输出已恢复'), 'success');
+      notify(t('急停已解除，请检查后重新启用输入。'), 'success');
     }).catch((error) => notify(error.message || t('解除急停失败'), 'error'));
   }
 
@@ -1428,44 +1435,51 @@ function App() {
     }).catch((error) => notify(error.message || t('刷新设备信息失败'), 'error'));
   }
 
-  const oscPreview = overview?.osc?.preview || [];
-  const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : [];
+  const oscPreview = overview?.osc?.preview || EMPTY_OSC_CATALOG;
+  const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : EMPTY_OSC_CATALOG;
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
   const hasMultipleOscSources = oscSources.length > 1;
-  const mappingPreviewEntries = filterOscPreviewEntriesBySource(
-    oscPreview,
-    hasMultipleOscSources ? selectedOscSourceKey : '',
-  );
+  const { mappingEditorVisible, parameterBrowserVisible } = oscCatalogVisibility(workspace, oscWorkspaceTab, Boolean(presetDialog));
+  const mappingPreviewEntries = useMemo(() => mappingEditorVisible
+    ? filterOscPreviewEntriesBySource(oscPreview, hasMultipleOscSources ? selectedOscSourceKey : '') : EMPTY_OSC_CATALOG,
+  [mappingEditorVisible, oscPreview, hasMultipleOscSources, selectedOscSourceKey]);
+  const lookupOscPreview = useMemo(() => createOscPreviewLookup(mappingPreviewEntries), [mappingPreviewEntries]);
   const oscQuery = overview?.osc?.query;
   const oscHub = overview?.osc?.hub;
   const oscHubTargetsDraft = Array.isArray(oscDraft.hubTargets) ? oscDraft.hubTargets : [];
-  const oscHubConflicts = buildOscHubTargetConflictLookup(oscDraft);
-  const oscPathSuggestions = buildOscPathSuggestions(mappingPreviewEntries, oscQuery?.nodes || []);
+  const oscHubConflicts = useMemo(() => buildOscHubTargetConflictLookup(oscDraft), [oscDraft, locale]);
+  const suggestOscPaths = useMemo(() => createOscPathSuggester(), []);
+  const oscPathSuggestions = useMemo(() => mappingEditorVisible
+    ? suggestOscPaths(mappingPreviewEntries, oscQuery?.nodes || EMPTY_OSC_CATALOG) : EMPTY_OSC_CATALOG,
+  [mappingEditorVisible, mappingPreviewEntries, oscQuery?.nodes, suggestOscPaths]);
   const visibleCatalog = frozenPreview || oscPreview;
-  const sourceCatalog =
-    previewSourceTab === 'all'
-      ? visibleCatalog
-      : visibleCatalog.filter((entry) => entry.sourceKey === previewSourceTab);
-  const rankedOscPreview = rankPreview(sourceCatalog, signalDrafts, {
-    showFaceTracking,
-    search: oscPreviewSearch,
-    pinned: pinnedPaths,
-    category: previewCategory,
-  });
-  const oscMappingPresets = getOscMappingPresets(config);
-  const selectedOscPresetConfig = getOscMappingPreset(config, selectedOscPreset);
-  const hasIncompleteMappings = signalDrafts.some((draft) => !String(draft.oscPath || '').trim());
+  const sourceCatalog = useMemo(() => !parameterBrowserVisible ? EMPTY_OSC_CATALOG : previewSourceTab === 'all'
+    ? visibleCatalog : visibleCatalog.filter(entry => entry.sourceKey === previewSourceTab),
+  [parameterBrowserVisible, visibleCatalog, previewSourceTab]);
+  const rankOscPreview = useMemo(() => createOscPreviewRanker(), []);
+  const rankedOscPreview = useMemo(() => parameterBrowserVisible ? rankOscPreview(sourceCatalog, signalDrafts, {
+    showFaceTracking, search: oscPreviewSearch, pinned: pinnedPaths, category: previewCategory,
+  }) : EMPTY_OSC_CATALOG,
+  [parameterBrowserVisible, sourceCatalog, signalDrafts, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory, rankOscPreview]);
+  const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config, locale]);
+  const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset, locale]);
+  const hasIncompleteMappings = useMemo(() => signalDrafts.some((draft) => !String(draft.oscPath || '').trim()), [signalDrafts]);
+  const signalDraftsHash = useMemo(() => computeSignalHash(signalDrafts), [signalDrafts]);
   const hasUnsavedMappings = Boolean(
-    config && computeSignalHash(signalDrafts) !== savedSignalsHash,
+    config && signalDraftsHash !== savedSignalsHash,
   );
-  const signalOverlapWarnings = buildSignalOverlapWarnings(signalDrafts);
-  const outputDialogConflicts = dialog && config ? getOutputTargetConflicts(config, dialog.outputId, dialog.draft) : [];
+  const signalOverlapWarnings = useMemo(() => buildSignalOverlapWarnings(signalDrafts), [signalDrafts, locale]);
+  const outputDialogConflicts = useMemo(() => dialog && config ? getOutputTargetConflicts(config, dialog.outputId, dialog.draft) : [], [dialog, config, locale]);
   const outputDialogOverview = dialog ? getOutputOverview(overview, dialog.outputId) : null;
   const outputDialogConflictMessage = formatOutputTargetConflictMessage(outputDialogConflicts);
-  const logCategories = [...new Set(logs.map((entry) => entry.category).filter(Boolean))].sort();
-  const logAxes = [...new Set(logs.map((entry) => entry.axisTrace?.axis).filter(Boolean))].sort();
-  const logActions = [...new Set(logs.map((entry) => entry.axisTrace?.action).filter(Boolean))].sort();
-  const filteredLogs = logs
+  const showLogs = workspace === 'settings' && logDetailsOpen;
+  const logCategories = useMemo(() => showLogs ? [...new Set(logs.map((entry) => entry.category).filter(Boolean))].sort() : [], [logs, showLogs]);
+  const logAxes = useMemo(() => showLogs ? [...new Set(logs.map((entry) => entry.axisTrace?.axis).filter(Boolean))].sort() : [], [logs, showLogs]);
+  const logActions = useMemo(() => showLogs ? [...new Set(logs.map((entry) => entry.axisTrace?.action).filter(Boolean))].sort() : [], [logs, showLogs]);
+  const filteredLogs = useMemo(() => {
+    if (!showLogs) return [];
+    const needle = logSearchText.trim().toLowerCase();
+    return logs
     .filter((log) => {
       if (
         !logOnlyAxis &&
@@ -1480,13 +1494,13 @@ function App() {
         (logActionFilter && log.axisTrace?.action !== logActionFilter)
       )
         return false;
-      const needle = logSearchText.trim().toLowerCase();
       return (
         !needle ||
         [log.message, log.category, ...Object.values(log.axisTrace || {})].join(' ').toLowerCase().includes(needle)
       );
     })
     .slice(-300);
+  }, [logs, showLogs, logOnlyAxis, logFilterLevel, logCategoryFilter, logAxisFilter, logActionFilter, logSearchText]);
   const manualMotionField =
     manualMotionMode === 'Interval'
       ? { label: t('指定时长'), min: 1, max: MANUAL_INTERVAL_MAX_MS, unit: 'ms', format: (value) => `${Math.round(Number(value))} ms` }
@@ -1517,7 +1531,7 @@ function App() {
             selectedOscSourceKey,
             overview?.poseTracking?.activeKey,
           )
-        : getLatestOscPreviewEntry(mappingPreviewEntries, draft.oscPath, selectedOscSourceKey);
+        : lookupOscPreview(draft.oscPath, selectedOscSourceKey);
 
   async function setInputActive(active) {
     await withBusy('input-active', async () => {
@@ -1551,6 +1565,10 @@ function App() {
     const timer = window.setTimeout(() => setSnackbar((previous) => ({ ...previous, open: false })), 5000);
     return () => window.clearTimeout(timer);
   }, [snackbar.open, snackbar.message, snackbar.severity]);
+
+  useEffect(() => {
+    if (workspace !== 'settings') setLogDetailsOpen(false);
+  }, [workspace]);
 
   function navigateWorkflow(destination) {
     setHelpOpen(false);
@@ -2021,59 +2039,11 @@ function App() {
           </Button>
           <span className="muted">{t('{0} 项', [rankedOscPreview.length])}</span>
         </div>
-        <div className="table-scroll" tabIndex={0} role="region" aria-label={t('OSC 参数表')}>
-          <table className="parameter-table">
-            <caption className="sr-only">{t('OSC 参数表')}</caption>
-            <thead>
-              <tr>
-                <th scope="col">{t('置顶')}</th>
-                <th scope="col">{t('参数')}</th>
-                <th scope="col">{t('值')}</th>
-                <th scope="col">{t('来源')}</th>
-                <th scope="col">{t('时间')}</th>
-                <th scope="col">{t('操作')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rankedOscPreview.slice(0, previewLimit).map((entry) => (
-                <tr key={`${entry.sourceKey}-${entry.path}`} className={entry._matches?.length ? 'is-mapped' : ''}>
-                  <td>
-                    <Button
-                      aria-label={`${pinnedPaths.includes(entry.path) ? t('取消置顶') : t('置顶')} ${entry.path}`}
-                      onClick={() => togglePinned(entry.path)}
-                    >
-                      {pinnedPaths.includes(entry.path) ? '★' : '☆'}
-                    </Button>
-                  </td>
-                  <td>
-                    <button className="parameter-link" type="button" onClick={() => { clearErrorNotification(); setParameterDetail(entry); }}>
-                      {entry.path}
-                    </button>
-                  </td>
-                  <td className="mono parameter-value">{entry.value ?? '—'}</td>
-                  <td className="caption">{entry.sourceLabel || '—'}</td>
-                  <td data-testid="osc-timestamp" className="caption mono parameter-time">
-                    {formatPreviewTimestamp(entry.timestampMs)}
-                  </td>
-                  <td>
-                    <Button
-                      aria-label={t('映射 {0}', [entry.path])}
-                      onClick={() => {
-                        setOscWorkspaceTab(mapPreviewParameter(entry) || 'setup');
-                      }}
-                    >
-                      {t('映射')}
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {!rankedOscPreview.length && <p className="empty-state">{t('暂无匹配参数')}</p>}
-        </div>
-        {rankedOscPreview.length > previewLimit && (
-          <Button onClick={() => setPreviewLimit((previous) => previous + 100)}>{t('再显示 100 项')}</Button>
-        )}
+        <OscParameterTable entries={rankedOscPreview} pinnedPaths={pinnedPaths}
+          filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
+          onTogglePinned={togglePinned}
+          onInspect={entry => { clearErrorNotification(); setParameterDetail(entry); }}
+          onMap={entry => setOscWorkspaceTab(mapPreviewParameter(entry) || 'setup')} />
       </div>
     );
   }
@@ -2517,9 +2487,9 @@ function App() {
                   </div>
                 </Section>
                 <Section title={t('日志')}>
-                  <details>
+                  <details open={logDetailsOpen} onToggle={(event) => setLogDetailsOpen(event.currentTarget.open)}>
                     <summary>{t('查看日志')}</summary>
-                    <div className="stack">
+                    {logDetailsOpen && <div className="stack">
                       <div className="form-grid">
                         <SelectField
                           label={t('级别')}
@@ -2582,7 +2552,7 @@ function App() {
                           <p className="muted">{t('暂时没有日志。')}</p>
                         )}
                       </div>
-                    </div>
+                    </div>}
                   </details>
                 </Section>
               </>

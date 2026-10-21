@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { outputPreview } from '../../src/web/output-preview.js';
-import { normalizeLogs, getTCodeDeviceInfoView } from '../../src/web/diagnostics.js';
+import { createLogNormalizer, normalizeLogs, getTCodeDeviceInfoView } from '../../src/web/diagnostics.js';
 import { setLocale } from '../../src/web/i18n.js';
 
 // These diagnostic expectations explicitly use Chinese. / 这些诊断预期明确使用中文目录。
@@ -40,4 +40,39 @@ test('firmware diagnostics preserve a failed query without claiming a disconnect
   const disconnected = getTCodeDeviceInfoView(info, false);
   assert.equal(disconnected.statusText, '未连接'); assert.equal(disconnected.firmwareVersionText, '—');
   assert.equal(getTCodeDeviceInfoView(null, true).statusTone, 'warning');
+});
+
+test('repeated wire snapshots reuse log parsing without hiding new or changed entries', () => {
+  const normalize = createLogNormalizer();
+  const wire = Array.from({ length: 300 }, (_, index) => ({
+    Message: `AXIS L0 stage=emit input=${index / 300} output=${index} cmd=I`,
+    Timestamp: `sample-${index}`, Level: 'DEBUG', Category: ' Axis ',
+  }));
+  const first = normalize(wire);
+  assert.deepEqual(first, normalizeLogs(wire));
+  assert.strictEqual(normalize(structuredClone(wire)), first);
+  const appended = normalize([...structuredClone(wire).slice(1), { message: 'new', level: 'error' }]);
+  assert.equal(appended.length, 300);
+  assert.strictEqual(appended[0], first[1]);
+  assert.equal(appended.at(-1).message, 'new');
+  const changed = [...wire];
+  changed[1] = { ...wire[1], Level: 'ERROR', Timestamp: 'changed', Category: 'Other' };
+  const result = normalize(changed);
+  assert.deepEqual(result, normalizeLogs(changed));
+  assert.notStrictEqual(result[1], first[1]);
+  assert.strictEqual(result[2], first[2]);
+  assert.deepEqual(normalize(null), []);
+  assert.notStrictEqual(normalize(wire)[0], first[0], 'Clearing releases previous snapshot rows');
+});
+
+test('log reuse keeps duplicate messages with distinct metadata and order', () => {
+  const normalize = createLogNormalizer();
+  const wire = ['repeat', { message: 'repeat', level: 'info', timestamp: 'a' },
+    { message: 'repeat', level: 'error', timestamp: 'b' }, '', null, {}];
+  const first = normalize(wire);
+  assert.deepEqual(first, normalizeLogs(wire));
+  assert.strictEqual(normalize(structuredClone(wire)), first);
+  const reversed = normalize([...wire].reverse());
+  assert.deepEqual(reversed, normalizeLogs([...wire].reverse()));
+  assert.strictEqual(reversed[1], first[2]);
 });

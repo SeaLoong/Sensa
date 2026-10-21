@@ -20,6 +20,14 @@ After changing Three.js source/dependencies, run `npm run build:web` and commit 
 
 ## Where verification runs
 
+Measure catalog ranking independently:
+
+```shell
+node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-ranking.json
+```
+
+Add `--base <Git-ref>` to compare with a version before the change. The script uses 4,096/10,000 parameters and 120 mappings, reporting median cold ranking and value-only update times without starting a server, browser or device. These timings exclude JSON parsing, React rendering and browser layout, so they are not frame-rate measurements. Local static rendering tests check that the actual table mounts at most 100 rows; Actions runs `catalog-performance.spec.js` to check live updates, pagination, full-catalog search, freezing and path suggestions.
+
 | Change | Local | Actions |
 | --- | --- | --- |
 | Markdown/site | Docs/link/site-build contracts | Docs checks; separate Pages verification/deployment |

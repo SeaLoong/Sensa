@@ -1,9 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, buildOscPathSuggestions, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
+import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, createOscPreviewLookup, buildOscPathSuggestions, createOscPathSuggester, createOscPreviewRanker, compileOscPathPattern, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
 import { editConfiguration, buildSignalDrafts } from '../../src/web/configuration.js';
-import { computeSignalPreviewOutput, formatPreviewTimestamp } from '../../src/web/osc-workspace.js';
+import { computeSignalPreviewOutput, formatPreviewTimestamp, paginateOscPreview, oscCatalogVisibility } from '../../src/web/osc-workspace.js';
 import { getLocale, setLocale } from '../../src/web/i18n.js';
 
 test('OSC times keep a complete fixed-width 24-hour shape across locales / OSC 时间在双语中保持完整定长24小时格式', () => {
@@ -169,4 +169,130 @@ test('parameter dictionary separates proximity, liveness, native coordinates and
     ['OGB/Orf/Main/AngleXRaw', /自定义参数/],
     ['Custom/PenOthersNewTip', /自定义参数/],
   ]) assert.match(parameterMeaning(path), expected);
+});
+
+test('compiled OSC selectors preserve aliases, exact paths and bounded wildcard semantics / 编译后的选择器保留别名、精确路径与通配边界', () => {
+  const selector = compileOscPathPattern(' A/*; B/**\nExact ');
+  assert.equal(selector, compileOscPathPattern(' A/*; B/**\nExact '));
+  for (const path of ['A/x', 'B', 'B/x/y', ' Exact ']) assert.equal(selector(path), true, path);
+  for (const path of ['', 'A', 'A/x/y', 'Exact/child', 'prefix/Exact']) assert.equal(selector(path), false, path);
+  assert.equal(compileOscPathPattern('A/*')(Array(66).fill('x').join('/')), false);
+  assert.equal(compileOscPathPattern(Array(66).fill('**').join('/'))('A'), false);
+  assert.equal(compileOscPathPattern(Array.from({length:33}, (_, i) => `Path${i}`).join(';'))('Path32'), false);
+  assert.equal(compileOscPathPattern('A/x*y')('A/xy'), false);
+});
+
+test('cached catalog order keeps fresh values and source identity across updates and mutations / 缓存排序在更新与原位修改后保留新值和来源身份', () => {
+  const rank = createOscPreviewRanker();
+  const entries = [
+    { path:'Custom/2', sourceKey:'b', classification:{relevance:0}, value:'old', timestampMs:1 },
+    { path:'Custom/10', sourceKey:'a', classification:{relevance:0}, value:'old', timestampMs:1 },
+    { path:'Custom/2', sourceKey:'a', classification:{relevance:0}, value:'old', timestampMs:1 },
+    { path:'FT/Hidden', sourceKey:'a', classification:{relevance:0}, value:'old', timestampMs:1 },
+  ];
+  const signals = [{oscPath:'Custom/10', name:'old mapping'}], pinned=[];
+  const identity = rows => rows.map(row => `${row.path}:${row.sourceKey}`);
+  assert.deepEqual(identity(rank(entries, signals)), ['Custom/10:a','Custom/2:a','Custom/2:b']);
+  const updated = entries.map(entry => ({...entry, value:'new',timestampMs:50,sourceLabel:'fresh label'}));
+  const replacement = [{oscPath:'Custom/10', name:'new mapping'}];
+  const fresh = rank(updated, replacement);
+  assert.ok(fresh.every(row => row.value === 'new' && row.timestampMs === 50 && row.sourceLabel === 'fresh label'));
+  assert.equal(fresh[0]._matches[0], replacement[0]);
+  replacement[0].oscPath='FT/Hidden';
+  assert.equal(rank(updated, replacement)[0].path,'FT/Hidden');
+  pinned.push('Custom/2');
+  assert.deepEqual(identity(rank(updated, replacement,{pinned})),['Custom/2:a','Custom/2:b','FT/Hidden:a','Custom/10:a']);
+  pinned.length=0;
+  updated[1].classification.relevance=90;
+  assert.deepEqual(identity(rank(updated,[],{pinned})),['Custom/10:a','Custom/2:a','Custom/2:b']);
+  updated.reverse();
+  updated.find(entry=>entry.sourceKey==='b').sourceKey='0';
+  assert.deepEqual(identity(rank(updated,[])),['Custom/10:a','Custom/2:0','Custom/2:a']);
+  assert.deepEqual(identity(rank(updated,[],{category:'all', search:'2'})),['Custom/2:0','Custom/2:a']);
+  assert.equal(rank([], replacement).length,0);
+});
+
+test('large catalogs retain every matching or pinned entry while mounted pages remain bounded / 大量参数保留全部匹配与置顶项且页面行数有上限', () => {
+  const entries=Array.from({length:10001},(_,index)=>({path:`Custom/Parameter${index}`,sourceKey:index%2?'a':'b',value:String(index)}));
+  entries.push({path:'FT/HiddenButMapped',sourceKey:'a'}, {path:'FT/HiddenButPinned',sourceKey:'b'});
+  const signal={oscPath:'FT/HiddenButMapped'};
+  const ranked=createOscPreviewRanker()(entries,[signal],{pinned:['FT/HiddenButPinned']});
+  assert.equal(ranked.length,10003);
+  assert.equal(ranked[0].path,'FT/HiddenButPinned');
+  assert.equal(ranked[1]._matches[0],signal);
+  const seen=new Set();
+  for(let page=0;page<101;page++) {
+    const current=paginateOscPreview(ranked,page);
+    assert.ok(current.entries.length<=100);
+    for(const entry of current.entries) seen.add(`${entry.path}:${entry.sourceKey}`);
+  }
+  assert.equal(seen.size,10003);
+  assert.equal(paginateOscPreview(ranked,100).entries.length,3);
+  assert.equal(paginateOscPreview(ranked,Infinity).page,0);
+  assert.equal(paginateOscPreview(ranked,-3).page,0);
+  assert.equal(paginateOscPreview(ranked,999).page,100);
+  assert.equal(paginateOscPreview(ranked,0,5000).entries.length,100);
+  assert.deepEqual(paginateOscPreview([],20),{entries:[],page:0,pages:1,total:0,first:0,last:0});
+  const shrunk=paginateOscPreview(ranked.slice(0,7),100);
+  assert.equal(shrunk.page,0); assert.equal(shrunk.entries.length,7);
+});
+
+test('path suggestion cache tracks catalog structure rather than live values / 路径建议缓存跟踪目录变化而不是实时数值', () => {
+  const suggest=createOscPathSuggester();
+  const preview=[{path:'Custom/2',classification:{relevance:0},value:'old'},{path:'OGB/Orf/Main/PenOthers',classification:{relevance:80}}];
+  const query=[{path:'Custom/10'}];
+  const initial=suggest(preview,query);
+  assert.deepEqual(initial,['OGB/Orf/Main/PenOthers','Custom/2','Custom/10']);
+  assert.equal(suggest(preview.map(entry=>({...entry,value:'new',timestampMs:25})),query),initial);
+  preview[0].classification.relevance=100;
+  assert.deepEqual(suggest(preview,query),['Custom/2','OGB/Orf/Main/PenOthers','Custom/10']);
+  query[0].path='Custom/1';
+  assert.deepEqual(suggest(preview,query),['Custom/2','OGB/Orf/Main/PenOthers','Custom/1']);
+  assert.deepEqual(suggest([],[]),[]);
+  assert.deepEqual(buildOscPathSuggestions(null,null),[]);
+});
+
+test('catalog visibility follows the editor workspace rather than applied input / 参数目录跟随浏览工作区而不是实际输入模式', () => {
+  assert.deepEqual(oscCatalogVisibility('osc','parameters'),{mappingEditorVisible:false,parameterBrowserVisible:true});
+  assert.deepEqual(oscCatalogVisibility('osc','setup'),{mappingEditorVisible:true,parameterBrowserVisible:false});
+  for(const workspace of ['control','devices','logs']) for(const tab of ['setup','parameters','experimental'])
+    assert.deepEqual(oscCatalogVisibility(workspace,tab),{mappingEditorVisible:false,parameterBrowserVisible:false});
+  assert.deepEqual(oscCatalogVisibility('osc','experimental'),{mappingEditorVisible:false,parameterBrowserVisible:false});
+  assert.deepEqual(oscCatalogVisibility('control','setup',true),{mappingEditorVisible:true,parameterBrowserVisible:false});
+});
+
+test('indexed mapping previews preserve aliases, source filters, match counts and first-winner ties / 映射索引保留别名、来源筛选、匹配数和时间相同时的顺序', () => {
+  const entries=[
+    {path:' A/x ',sourceKey:'first',timestampMs:10,value:'one'},
+    {path:'A/x',sourceKey:'second',timestampMs:20,value:'two'},
+    {path:'A/y',sourceKey:'first',timestampMs:10,value:'three'},
+    {path:'B',sourceKey:'first',timestampMs:NaN,value:'four'},
+    {path:'B/x/y',sourceKey:'first',timestampMs:5,value:'five'},
+    {path:'C/x',sourceKey:'third',timestampMs:-5,value:'six'},
+  ];
+  const lookup=createOscPreviewLookup(entries);
+  for(const pattern of ['A/x','A/*','A/**','A/*; B/**\nC/x','A/x;A/*','**','B/**','A/y','Missing','',Array(66).fill('**').join('/')])
+    for(const source of ['', 'first', 'second', 'missing']) assert.deepEqual(lookup(pattern,source),getLatestOscPreviewEntry(entries,pattern,source),`${pattern} / ${source}`);
+  assert.equal(lookup('A/*','first').value,'one');
+  assert.equal(lookup('A/x;A/*').matchCount,3);
+  assert.equal(lookup('**').matchCount,6);
+  entries[0].value='new'; entries[0].timestampMs=50;
+  assert.equal(lookup('A/x').value,'new');
+  assert.equal(lookup('A/x').sourceKey,'first');
+  assert.equal(lookup('A/x','second').value,'two');
+});
+
+test('exact mapping lookups do not rescan a large catalog for each mapping / 精确映射逐行查询不再重复扫描大型目录', () => {
+  let pathReads=0;
+  const entries=Array.from({length:10000},(_,index)=>({
+    get path(){pathReads++;return `Custom/Parameter${index}`;},
+    sourceKey:'local',timestampMs:index,value:String(index),
+  }));
+  const lookup=createOscPreviewLookup(entries);
+  pathReads=0;
+  for(let index=0;index<120;index++) {
+    const row=lookup(`Custom/Parameter${index}`,'local');
+    assert.equal(row.numericValue,undefined); assert.equal(row.value,String(index)); assert.equal(row.matchCount,1);
+  }
+  assert.ok(pathReads<=120,`${pathReads} path reads after indexing`);
 });

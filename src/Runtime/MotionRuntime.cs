@@ -93,7 +93,7 @@ public sealed class MotionRuntime : IDisposable
             var revision = _store.Revision;
             if (revision != _poseRevision || source != _poseSource)
             {
-                _poseObservations = PoseReconstruction.Observe(_store.SnapshotEntries(), source);
+                _poseObservations = PoseReconstruction.Observe(_store.SnapshotEntries(UnityBox.Sensa.SensaPoseProtocol.Prefix + "/", source), source);
                 _poseRevision = revision; _poseSource = source;
             }
             return _poseObservations.Select(p=>IsSpatialGeometryFresh(p.TimestampMs)

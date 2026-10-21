@@ -37,7 +37,9 @@ Export produces funscript actions and can simplify the curve. It excludes other 
 
 ### Parameters and sources
 
-Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Search, categories, freeze and pinning narrow the list. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
+Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
+
+The parameter table shows at most 100 rows per page; use Previous/Next to continue. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
 
 Details explain leaves, current values and mapping uses; the explorer link opens the local offline page. A present parameter is neither a mapping nor permission to move. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
 
@@ -45,7 +47,7 @@ Details explain leaves, current values and mapping uses; the explorer link opens
 
 The top toolbar groups presets, replace/append, save and restore. There are only [three built-ins](presets.en.md): depth, vibration and native PB. Custom presets remain available.
 
-Each row selects path, role and inversion; advanced fields set input range, curve and output interval. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Local single-row simulation checks transforms, not actual reception. A successful save clears the draft's unsaved indicator and disarms input.
+Each row selects path, role and inversion; advanced fields set input range, curve and output interval. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Local single-row simulation checks transforms, not actual reception. A successful save clears the draft's unsaved indicator and disarms input.
 
 A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Remove unwanted template conditions; an internal test fixture's Active requirement should not restrict actual data.
 
@@ -60,7 +62,7 @@ Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and 
 
 ### Control from root position: inspect, then calibrate
 
-Spatial permission defaults off. SPS/Shader root panels show object, source, local coordinates, validity and reasons. Legacy Point/Handle/Pose experiments retain separate models and must not be mixed.
+Spatial permission defaults off. SPS/Shader root panels show object, source, local coordinates, validity and reasons. Point/Handle/Pose are independent experiments with separate models and must not be mixed.
 
 Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalidity stops without falling back to old scalar data on that axis. These are local coordinates, not device/world/final-mesh positions. [Positioning conditions](positioning.en.md)
 

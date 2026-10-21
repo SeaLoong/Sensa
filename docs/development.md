@@ -20,6 +20,14 @@ python -X utf8 scripts/verify.py
 
 ## 哪些验证在哪里执行
 
+大量参数的纯前端排序可以单独测量：
+
+```shell
+node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-ranking.json
+```
+
+可加 `--base <Git引用>` 与改动前版本对比。脚本检查 4096／10000 个参数和 120 条映射，分别报告首次排序与仅数值变化时的中位耗时；不启动服务、浏览器或设备。结果不包含 JSON 解析、React 渲染和浏览器布局，不能当作实际帧率。实际组件的本地静态渲染检查保证参数表最多挂载 100 行；持续更新、翻页、全目录搜索、冻结和路径建议的交互检查由 Actions 中的 `catalog-performance.spec.js` 执行。
+
 | 变更 | 本地 | Actions |
 | --- | --- | --- |
 | Markdown／文档站 | 文档／链接／站点构建契约 | 文档检查；站点变化由独立 Pages 流程验证发布 |

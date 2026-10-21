@@ -759,9 +759,10 @@ public static class SensaHost
             var udpOutput = config.GetPrimaryOutput(OutputDeviceType.TCodeUdp);
             var tcpOutput = config.GetPrimaryOutput(OutputDeviceType.TCodeTcp);
             var intifaceOutput = config.GetPrimaryOutput(OutputDeviceType.Intiface);
-            var oscSourceSnapshots = parameterStore.SnapshotSources();
+            var oscEntries = parameterStore.SnapshotEntries();
+            var oscSourceSnapshots = OscParameterStore.SourcesFromSnapshot(oscEntries);
             var effectiveSelectedSourceKey = ResolveSelectedOscSourceKey(oscSourceSnapshots);
-            var oscPreview = parameterStore.SnapshotEntries()
+            var oscPreview = oscEntries
                 .OrderBy(entry => entry.Path, StringComparer.Ordinal)
                 .Select(entry => new
                 {
@@ -989,7 +990,7 @@ public static class SensaHost
                 },
                 outputs,
                 poseTracking = new { observations = motionRuntime.GetPoseObservations(), activeKey = motionRuntime.ActivePoseKey,
-                    spsRoots = SpsPositionTracking.Observe(parameterStore.SnapshotEntries(), selectedOscSourceKey, motionRuntime.SpatialSampleMaxAgeMs) },
+                    spsRoots = SpsPositionTracking.Observe(oscEntries, selectedOscSourceKey, motionRuntime.SpatialSampleMaxAgeMs) },
                 recording = new
                 {
                     recorder.IsActive,

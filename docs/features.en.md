@@ -11,12 +11,12 @@ This page lists implemented capabilities and boundaries. Use the [guide](guide.e
 | Persistent header | Realtime session, actual mode, input permission, emergency stop/clear, language/help |
 | Control | Browse/apply input, twelve-axis manual, scripts, outputs, readiness and L0 recording |
 | OSC mappings | Three built-ins/custom presets, replace/append, draft save/restore, paths/roles/curves/ranges/simulation |
-| OSC parameters | Separate browse/use source, search/freeze/categories/pins, FT-prefix display, meaning and add mapping |
+| OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
 | Settings | Twelve-axis profiles, defaults/references and structured logs |
 
-React uses custom TDesign-style native components without MUI/Emotion. Header/content share edges with independent content scrolling and aligned output rows. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
+Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
 
 The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has ten scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Socket/Plug surfaces are reference profiles. It connects to no inputs/devices; model gates omit runtime learning/mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
 
@@ -57,9 +57,9 @@ Recording captures pre-distribution L0, preserves final holds, ends at 100000 fr
 
 ## Unity and spatial experiments
 
-Spatial motion defaults blocked. Fixed SPS `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Legacy Point/Handle/Pose retain ReferenceLocal oldest-participant ages. None provides world/mesh/device position. [Positioning](positioning.en.md)
+Spatial motion defaults blocked. Fixed SPS `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. None provides world/mesh/device position. [Positioning](positioning.en.md)
 
-NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive; independent fixed-root authoring selects actual roots. Legacy SensaComponent, PB and Point/Handle/Pose retain their own models. GPU Model Probe is an Editor snapshot, not the client production chain. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
+NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive; independent fixed-root authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe is an Editor snapshot, not the client production chain. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
 
 ## Configuration, access and API
 
@@ -69,7 +69,7 @@ HTTP defaults to loopback. `GET /api/session` issues an HttpOnly/SameSite=Strict
 
 | API | Operations |
 | --- | --- |
-| Configuration/state | GET/PUT `/api/config`; GET `/api/state/overview`, `logs`, `/api/meta/serial-ports` |
+| Configuration/state | GET/PUT `/api/config`; GET `/api/state/overview`, `/api/state/logs`, `/api/meta/serial-ports` |
 | Input | PUT `/api/input/mode`, `active`, `manual`, `osc/source`; DELETE manual; POST oscquery/refresh |
 | Script | POST load/play/pause/stop/action-prev/action-next; PUT configure/seek; DELETE `/api/input/script` |
 | Recording/runtime | POST `/api/recording/start\|stop\|export`, `/api/control/runtime/emergency-stop\|clear-emergency` |

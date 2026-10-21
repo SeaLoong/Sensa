@@ -1,6 +1,12 @@
 import { t } from './i18n.js';
-export function globMatch(pattern, path) {
-  const patterns = pattern.split('/'), segments = path.split('/');
+// Reuse the ICU collator and compiled patterns across live snapshots. Neither
+// cache stores incoming values, so data freshness always comes from the caller.
+const pathCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+const sourceCollator = new Intl.Collator();
+const compiledPatterns = new Map();
+const MAX_COMPILED_PATTERNS = 256;
+
+function matchSegments(patterns, segments) {
   if (patterns.length > 64 || segments.length > 64) return false;
   let row = new Array(segments.length + 1).fill(false); row[0] = true;
   for (const segment of patterns) {
@@ -13,6 +19,54 @@ export function globMatch(pattern, path) {
   return row[segments.length];
 }
 
+export function globMatch(pattern, path) {
+  return matchSegments(pattern.split('/'), path.split('/'));
+}
+
+export function compileOscPathPattern(pattern) {
+  const text = (pattern || '').trim();
+  if (compiledPatterns.has(text)) {
+    const existing = compiledPatterns.get(text);
+    compiledPatterns.delete(text); compiledPatterns.set(text, existing);
+    return existing;
+  }
+  const alternatives = (/[;\n]/.test(text) ? text.split(/[;\n]/).filter(Boolean).slice(0, 32) : [text])
+    .map(value => value.trim()).filter(Boolean).map(value => {
+      const segments = value.split('/');
+      return { exact: !value.includes('*'), text: value, segments,
+        required: segments.filter(segment => segment && segment !== '*' && segment !== '**').map(segment => '/' + segment + '/') };
+    });
+  const matcher = actualPath => {
+    const actual = (actualPath || '').trim();
+    if (!actual) return false;
+    let segments;
+    const framed = '/' + actual + '/';
+    return alternatives.some(value => value.exact ? value.text === actual
+      : value.required.every(segment => framed.includes(segment))
+        && matchSegments(value.segments, segments || (segments = actual.split('/'))));
+  };
+  compiledPatterns.set(text, matcher);
+  if (compiledPatterns.size > MAX_COMPILED_PATTERNS) compiledPatterns.delete(compiledPatterns.keys().next().value);
+  return matcher;
+}
+
+function mappingIndex(signals) {
+  const exact = new Map(), wildcard = [];
+  signals.forEach((signal, index) => {
+    const pattern = (signal.oscPath || '').trim();
+    if (!pattern) return;
+    if (!/[*;\n]/.test(pattern)) {
+      const matches = exact.get(pattern) || [];
+      matches.push(index); exact.set(pattern, matches);
+    } else wildcard.push({ index, matches: compileOscPathPattern(pattern) });
+  });
+  return path => {
+    const result = [...(exact.get(path.trim()) || [])];
+    for (const mapping of wildcard) if (mapping.matches(path)) result.push(mapping.index);
+    return result.sort((a, b) => a - b);
+  };
+}
+
 // Hide explicit namespaces, including controls unknown to the server classifier.
 // 按明确命名空间前缀隐藏，也覆盖服务端尚未识别的控制参数。
 export function isFaceTrackingPath(path) {
@@ -20,19 +74,58 @@ export function isFaceTrackingPath(path) {
   return /^(?:FT|v2)\//i.test(normalized);
 }
 
-export function rankPreview(entries, signals = [], { showFaceTracking = false, search = '', pinned = [], category = 'all' } = {}) {
-  const term = search.trim().toLowerCase();
-  return entries.map(entry => {
-    const matches = signals.filter(s => matchesOscPathPattern(s.oscPath, entry.path));
-    return { ...entry, _matches: matches.length ? matches : null };
-  }).filter(entry => (showFaceTracking || !isFaceTrackingPath(entry.path) || entry._matches || pinned.includes(entry.path))
-    && (category === 'all' || category === 'mapped' && entry._matches || category === 'pose' && /^Sensa\/(?:(?:SPS|Shader)\/|(?:Pose|Point|Handle)\/v1\/)/.test(entry.path)
-      || category === 'related' && (entry._matches || pinned.includes(entry.path) || entry.classification?.relevance >= 40))
-    && (!term || entry.path.toLowerCase().includes(term)))
-    .sort((a, b) => Number(pinned.includes(b.path)) - Number(pinned.includes(a.path)) || Number(Boolean(b._matches)) - Number(Boolean(a._matches))
-      || (b.classification?.relevance || 0) - (a.classification?.relevance || 0)
-      || a.path.localeCompare(b.path, 'en', { numeric: true, sensitivity: 'base' })
-      || (a.sourceKey || '').localeCompare(b.sourceKey || ''));
+function selectPreview(entries, signals, { showFaceTracking = false, search = '', pinned = [], category = 'all' } = {}) {
+  const term = search.trim().toLowerCase(), pinnedSet = new Set(pinned), matchPath = mappingIndex(signals);
+  const pathMatches = new Map();
+  const selected = [];
+  entries.forEach((entry, index) => {
+    const path = entry.path;
+    if (term && !path.toLowerCase().includes(term)) return;
+    if (category === 'pose' && !/^Sensa\/(?:(?:SPS|Shader)\/|(?:Pose|Point|Handle)\/v1\/)/.test(path)) return;
+    if (!pathMatches.has(path)) pathMatches.set(path, matchPath(path));
+    const matches = pathMatches.get(path), mapped = matches.length > 0, isPinned = pinnedSet.has(path);
+    if (!showFaceTracking && isFaceTrackingPath(path) && !mapped && !isPinned) return;
+    if (category === 'mapped' && !mapped) return;
+    if (category === 'related' && !mapped && !isPinned && !(entry.classification?.relevance >= 40)) return;
+    if (!['all', 'mapped', 'related', 'pose'].includes(category)) return;
+    selected.push({ index, path, sourceKey: entry.sourceKey || '', matches, mapped, pinned: isPinned,
+      relevance: entry.classification?.relevance || 0 });
+  });
+  return selected.sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.mapped) - Number(a.mapped)
+    || b.relevance - a.relevance || pathCollator.compare(a.path, b.path) || sourceCollator.compare(a.sourceKey, b.sourceKey));
+}
+
+function previewRows(entries, signals, selected) {
+  return selected.map(row => ({ ...entries[row.index], _matches: row.mapped ? row.matches.map(index => signals[index]) : null }));
+}
+
+export function rankPreview(entries, signals = [], options = {}) {
+  return previewRows(entries, signals, selectPreview(entries, signals, options));
+}
+
+// Ranking depends on identities, relevance and filter settings, not on the live
+// numeric values or timestamps. Keep only the latest catalog's structure and
+// matched mapping indices; rebuild when even an in-place configuration changes.
+export function createOscPreviewRanker() {
+  let previousEntries = [], previousPatterns = [], previousPinned = [], previousOptions = {}, selected;
+  return (entries, signals = [], options = {}) => {
+    const showFaceTracking = options.showFaceTracking || false, search = (options.search || '').trim().toLowerCase();
+    const category = options.category || 'all', pinned = options.pinned || [];
+    const same = selected && previousEntries.length === entries.length && previousPatterns.length === signals.length
+      && previousPinned.length === pinned.length && previousPinned.every((path, index) => path === pinned[index])
+      && previousOptions.showFaceTracking === showFaceTracking && previousOptions.search === search && previousOptions.category === category
+      && previousPatterns.every((pattern, index) => pattern === signals[index].oscPath)
+      && previousEntries.every((entry, index) => entry.path === entries[index].path && entry.sourceKey === entries[index].sourceKey
+        && entry.relevance === (entries[index].classification?.relevance || 0));
+    if (!same) {
+      selected = selectPreview(entries, signals, options);
+      previousEntries = entries.map(entry => ({ path: entry.path, sourceKey: entry.sourceKey, relevance: entry.classification?.relevance || 0 }));
+      previousPatterns = signals.map(signal => signal.oscPath);
+      previousPinned = [...pinned];
+      previousOptions = { showFaceTracking, search, category };
+    }
+    return previewRows(entries, signals, selected);
+  };
 }
 
 export function probePresentation(path) {
@@ -94,25 +187,60 @@ export function readPinnedPaths(storage) {
 }
 
 export function matchesOscPathPattern(pattern, actualPath) {
-  const p = (pattern || '').trim();
-  const a = (actualPath || '').trim();
-  if (!p || !a) return false;
-  if (/[;\n]/.test(p)) return p.split(/[;\n]/).filter(Boolean).slice(0, 32).some(item => matchesOscPathPattern(item.trim(), a));
-  if (!p.includes('*')) return p === a; // exact match fast path
-  return globMatch(p, a);
+  return compileOscPathPattern(pattern)(actualPath);
 }
 
 export function getLatestOscPreviewEntry(previewEntries, pattern, preferredSourceKey = '') {
-  const matches = Array.isArray(previewEntries) ? previewEntries.filter(entry => matchesOscPathPattern(pattern, entry?.path || '')) : [];
-  const candidates = preferredSourceKey ? matches.filter(entry => entry?.sourceKey === preferredSourceKey) : matches;
-  if (candidates.length === 0) return null;
+  const match = compileOscPathPattern(pattern);
+  let latest = null, matchCount = 0;
+  for (const entry of Array.isArray(previewEntries) ? previewEntries : []) {
+    if ((preferredSourceKey && entry?.sourceKey !== preferredSourceKey) || !match(entry?.path)) continue;
+    matchCount++;
+    if (!latest || Number(entry?.timestampMs || 0) > Number(latest?.timestampMs || 0)) latest = entry;
+  }
+  return latest ? { ...latest, matchCount } : null;
+}
 
-  const latest = candidates.reduce((current, entry) => {
-    if (!current) return entry;
-    return Number(entry?.timestampMs || 0) > Number(current?.timestampMs || 0) ? entry : current;
-  }, null);
-
-  return latest ? { ...latest, matchCount: candidates.length } : null;
+// One immutable incoming snapshot, indexed once for all mapping-row previews.
+// Exact paths avoid catalog scans; wildcard aliases share bounded candidate lists.
+export function createOscPreviewLookup(previewEntries) {
+  const entries = Array.isArray(previewEntries) ? previewEntries : [], byPath = new Map(), byRoot = new Map();
+  const add = (map, key, index) => { const values = map.get(key) || []; values.push(index); map.set(key, values); };
+  entries.forEach((entry, index) => {
+    const path = (entry?.path || '').trim();
+    if (!path) return;
+    add(byPath, path, index); add(byRoot, path.split('/', 1)[0], index);
+  });
+  const candidatesByPattern = new Map();
+  return (pattern, preferredSourceKey = '') => {
+    const text = (pattern || '').trim();
+    let candidates = candidatesByPattern.get(text);
+    if (!candidates) {
+      const alternatives = (/[;\n]/.test(text) ? text.split(/[;\n]/).filter(Boolean).slice(0, 32) : [text])
+        .map(value => value.trim()).filter(Boolean);
+      const indices = new Set();
+      for (const alternative of alternatives) {
+        if (!alternative.includes('*')) {
+          for (const index of byPath.get(alternative) || []) indices.add(index);
+        } else {
+          const first = alternative.split('/', 1)[0], match = compileOscPathPattern(alternative);
+          const possible = first === '*' || first === '**' ? entries.keys() : byRoot.get(first) || [];
+          for (const index of possible) if (match(entries[index]?.path)) indices.add(index);
+        }
+      }
+      candidates = [...indices].sort((a, b) => a - b);
+      candidatesByPattern.set(text, candidates);
+      if (candidatesByPattern.size > MAX_COMPILED_PATTERNS) candidatesByPattern.delete(candidatesByPattern.keys().next().value);
+    }
+    let latest = null, matchCount = 0;
+    for (const index of candidates) {
+      const entry = entries[index];
+      if (preferredSourceKey && entry.sourceKey !== preferredSourceKey) continue;
+      matchCount++;
+      if (!latest || Number(entry?.timestampMs || 0) > Number(latest?.timestampMs || 0)) latest = entry;
+    }
+    return latest ? { ...latest, matchCount } : null;
+  };
 }
 
 export function posePreviewEntry(observations, signal, preferredSourceKey = '', activeKey = null) {
@@ -177,15 +305,31 @@ export function compareOscPathSuggestions(left, right) {
   const rightPriority = isOgbOscPath(rightPath) ? 0 : 1;
 
   if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-  return leftPath.localeCompare(rightPath, 'en', { numeric: true, sensitivity: 'base' });
+  return pathCollator.compare(leftPath, rightPath);
 }
 
 export function buildOscPathSuggestions(previewEntries, queryNodes = []) {
-  const previewPaths = (Array.isArray(previewEntries) ? previewEntries : []).map(entry => (entry?.path || '').trim());
-  const queryPaths = (Array.isArray(queryNodes) ? queryNodes : []).map(node => (node?.path || '').trim());
-  const hints = new Map(previewEntries.map(e => [e.path, e.classification]));
+  const preview = Array.isArray(previewEntries) ? previewEntries : [], nodes = Array.isArray(queryNodes) ? queryNodes : [];
+  const previewPaths = preview.map(entry => (entry?.path || '').trim());
+  const queryPaths = nodes.map(node => (node?.path || '').trim());
+  const hints = new Map(preview.map(e => [e.path, e.classification]));
   return Array.from(new Set([...previewPaths, ...queryPaths].filter(Boolean))).sort((a, b) =>
     (hints.get(b)?.relevance || 0) - (hints.get(a)?.relevance || 0) || compareOscPathSuggestions(a, b));
+}
+
+export function createOscPathSuggester() {
+  let previousPreview = [], previousQuery = [], suggestions;
+  return (previewEntries, queryNodes = []) => {
+    const preview = Array.isArray(previewEntries) ? previewEntries : [], nodes = Array.isArray(queryNodes) ? queryNodes : [];
+    if (!suggestions || previousPreview.length !== preview.length || previousQuery.length !== nodes.length
+      || !previousPreview.every((entry, index) => entry.path === preview[index].path && entry.relevance === (preview[index].classification?.relevance || 0))
+      || !previousQuery.every((path, index) => path === nodes[index].path)) {
+      suggestions = buildOscPathSuggestions(preview, nodes);
+      previousPreview = preview.map(entry => ({ path: entry.path, relevance: entry.classification?.relevance || 0 }));
+      previousQuery = nodes.map(node => node.path);
+    }
+    return suggestions;
+  };
 }
 
 export function filterOscPreviewEntriesBySource(previewEntries, sourceKey = '') {

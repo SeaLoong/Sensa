@@ -11,12 +11,12 @@
 | 常驻顶栏 | 实时会话、实际模式、输入许可、急停／解除、语言与帮助 |
 | 控制 | 浏览／应用输入；手动十二轴、脚本、输出管理、准备状态与 L0 录制 |
 | OSC 映射 | 三个内置模板、自定义预设、替换／追加、草稿保存／恢复、路径／角色／曲线／量程／模拟 |
-| OSC 参数 | 来源浏览与实际使用分开；搜索、冻结、分类、置顶、FT 前缀显示、含义与添加映射 |
+| OSC 参数 | 来源浏览与实际使用分开；完整目录搜索、每页最多 100 项、冻结、分类、置顶、FT 前缀显示、含义与添加映射 |
 | OSC 设置 | UDP 接收、来源、超时、OGB 心跳、OSCQuery、服务广播与 Hub |
 | 实验诊断 | 根点／Point／Handle／Pose、原因与局部读数、两端校准、明确实验许可 |
 | 设置 | 十二轴配置、默认与引用管理、结构化日志 |
 
-React 使用自建 TDesign 风格原生组件，无 MUI／Emotion。顶栏与独立滚动正文共用边缘；输出是对应列的扁平条目。低频选项展开，脚本未载入时只呈现导入入口。草稿与已保存状态分开，语言切换不重置草稿。[语言](languages.md) · [视觉规则](ui-quality.md)
+常用操作直接显示，较少使用的选项展开后可见。顶栏保留急停入口；正文可独立滚动，设备按行显示名称、目标和操作。脚本未载入时只显示导入入口。草稿与已保存状态分开，语言切换保留当前草稿。[语言](languages.md) · [视觉规则](ui-quality.md)
 
 [独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)包含十场景的真实 3D、XZ／立体 SVG、精确滑条、指定平面拖动、参数联动与 Shader 位图。Socket／Plug 是参考截面；它不连接输入或设备，模型门控不包含运行时估长或映射。Three.js 随包离线分发，WebGL 不可用时回退 SVG。
 
@@ -57,7 +57,7 @@ Intiface 使用 Buttplug WebSocket、扫描和设备特征。位置按能力选�
 
 ## Unity 与空间实验
 
-默认禁止空间驱动。固定 SPS 的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。旧 Point／Handle／Pose 保留 ReferenceLocal 最旧参与通道规则。它们都不是世界／网格／设备位置。[定位](positioning.md)
+默认禁止空间驱动。固定 SPS 的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们都不是世界／网格／设备位置。[定位](positioning.md)
 
 NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，独立固定根作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 是 Editor 模型快照，不是客户端生产链。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
 
@@ -69,7 +69,7 @@ NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setu
 
 | API | 操作 |
 | --- | --- |
-| 配置／状态 | GET/PUT `/api/config`；GET `/api/state/overview`、`logs`、`/api/meta/serial-ports` |
+| 配置／状态 | GET/PUT `/api/config`；GET `/api/state/overview`、`/api/state/logs`、`/api/meta/serial-ports` |
 | 输入 | PUT `/api/input/mode`、`active`、`manual`、`osc/source`；DELETE manual；POST oscquery/refresh |
 | 脚本 | POST load/play/pause/stop/action-prev/action-next；PUT configure/seek；DELETE `/api/input/script` |
 | 录制／运行时 | POST `/api/recording/start\|stop\|export`、`/api/control/runtime/emergency-stop\|clear-emergency` |

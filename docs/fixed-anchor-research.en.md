@@ -2,7 +2,7 @@
 
 [简体中文](fixed-anchor-research.md) | **English**
 
-This research asks why four distances locate a root, why R=2/h=.35 are used, and what the producer actually proves about sampling. The implementation uses a fixed Avatar-root frame, a selected dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. It does not infer a point from arbitrary proximity values.
+This research asks why four distances locate a root, why the receiver radius is 2 m with anchor offsets of ±0.35 m along each axis, and what the producer actually proves about sampling. The implementation uses a fixed Avatar-root frame, a selected dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. It does not infer a point from arbitrary proximity values.
 
 Use [routes](usage-scenarios.en.md) for setup, [positioning](positioning.en.md) for reception gates and the [dictionary](osc-parameters.en.md) for fields. This page retains pinned sources, derivations and unmeasured assumptions rather than presenting model analysis as client accuracy.
 
@@ -41,6 +41,8 @@ Common rigid movement preserves distances. Common uniform scale cancels in `(s*d
 
 ## Why use R=2 and h=0.35?
 
+R is the radius of one receiver sphere; h is an anchor's offset from the layout center along each coordinate axis. These are independent dimensions. The old R=2.5, h=0.5 layout did not have a 0.5 m receiver range. Straight-line anchor-to-center distance is √3h, and anchor-to-anchor distance is 2√2h: approximately 0.866 m and 1.414 m in that layout. See the [dimension comparison](positioning.en.md#how-do-25-m-05-m-and-usable-coverage-differ) for the distinctions.
+
 The new default reduces receiver radius from 2.5 to 2 local meters and tetrahedral half-span from 0.5 to 0.35. Anchor separation becomes 2√2h≈0.990 m. At a fixed receiver radius, bringing the anchors closer increases common coverage while retaining a noncoplanar arrangement. The new 2-m receivers still provide less absolute coverage than the previous 2.5-m receivers; the change favors lower noise gain and more scaling headroom. The implementation keeps one shared geometry; arbitrary author-only radius changes would make desktop decoding incorrect.
 
 For a marker radius r=.001 and strict .001<p<.999, valid center distance lies between .003 and 1.999. The common region is the intersection of those four distance shells, clipped by the ±2 coordinate box. Its outer bounds contain a centered ball of radius `1.999−√3×.35≈1.392782`; small saturated holes near anchors remain excluded. This describes spatial coverage, not a guarantee that sampling and scale checks pass.
@@ -50,7 +52,7 @@ For a marker radius r=.001 and strict .001<p<.999, valid center distance lies be
 | 1 m | 0.394 m | 2.999× |
 | 2 m, selected | 1.393 m | 1.4995× |
 
-The 1-m value illustrates the tradeoff, rather than an exposed protocol preset. The 2-m choice gives much more common coverage. It is not a mathematically proven optimum for every Avatar or movement path.
+The 1-m value illustrates the tradeoff, rather than an exposed protocol preset. Compared with that 1-m example, the 2-m choice gives much more common coverage. It is not a mathematically proven optimum for every Avatar or movement path.
 
 Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, so the 2-norm condition number is 1. Assuming independent equal-variance proximity noise σp, first-order center propagation gives per-axis standard deviation `sqrt(3)Rσp/2`. Reducing R from 2.5 to 2 reduces this particular noise gain by 20%; it is not a measured precision improvement. Closer anchors worsen conditioning away from the center, so future client measurements must include the intended trajectories rather than only the center.
 

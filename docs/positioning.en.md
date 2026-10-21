@@ -19,6 +19,23 @@ Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a
 
 The default receiver radius is **2 m**, with approximately **0.99 m** between anchors. These are Avatar-root local units, directly equal to world meters only when authored and runtime root scales are one. Geometry is currently fixed and shared: changing only a Unity radius would make desktop reconstruction use the wrong model.
 
+### How do 2.5 m, 0.5 m and usable coverage differ?
+
+In the earlier description, **2.5 m was each receiver sphere's radius**. **0.5 m was each anchor's offset from the center along X, Y and Z**, which determines where the four receivers are placed. It was neither a receiver radius nor the distance between anchors.
+
+| Dimension | Previous fixed SPS layout | Current fixed SPS layout |
+| --- | --- | --- |
+| Radius R of each receiver sphere | 2.5 m | 2 m |
+| Anchor offset h along each coordinate axis | ±0.5 m | ±0.35 m |
+| Straight-line distance from anchor to layout center, √3h | About 0.866 m | About 0.606 m |
+| Straight-line distance between any two anchors, 2√2h | About 1.414 m | About 0.990 m |
+
+For example, the previous layout's first anchor was 0.5 m left, down and behind the center. A sphere centered there extended another 2.5 m in every direction. The target still needed to be measured by all four receivers, so none of these dimensions alone describes usable coverage. The displayed coordinate box has a separate meaning: it bounds the coordinates accepted by the solver.
+
+Independent Point/Handle/Pose previously used a different, small layout: a 0.35 m receiver radius, ±0.06 m axis offsets and an approximately 0.245 m reconstruction limit from its reference origin. That was not the old fixed SPS 2.5 m layout.
+
+### Positions of the current four anchors
+
 | Anchor | Coordinates relative to Avatar root |
 | --- | --- |
 | P0 | (−0.35, 0.65, −0.35) |

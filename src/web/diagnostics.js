@@ -126,6 +126,33 @@ function normalizeLogs(entries) {
     .filter(Boolean);
 }
 
+// The server sends a new array for every state message, usually containing the
+// same logs. Reuse normalized rows without retaining entries outside that snapshot.
+export function createLogNormalizer() {
+  let previous = [], cache = new Map();
+  return entries => {
+    const next = [], nextCache = new Map();
+    for (const entry of Array.isArray(entries) ? entries : []) {
+      const plain = typeof entry === 'string';
+      if (!plain && (!entry || typeof entry !== 'object')) continue;
+      const message = plain ? entry : entry.message || entry.Message || '';
+      if (!plain && !message) continue;
+      const level = plain ? 'info' : (entry.level || entry.Level || 'info').toLowerCase();
+      const category = plain ? 'General' : (entry.category || entry.Category || 'General').trim();
+      const timestamp = plain ? undefined : entry.timestamp || entry.Timestamp || null;
+      const key = JSON.stringify([plain, message, level, category, timestamp]);
+      const cached = nextCache.get(key) || cache.get(key);
+      const row = cached && cached.timestamp === timestamp ? cached : normalizeLogs([entry])[0];
+      next.push(row);
+      nextCache.set(key, row);
+    }
+    cache = nextCache;
+    if (previous.length === next.length && next.every((row, index) => row === previous[index])) return previous;
+    previous = next;
+    return next;
+  };
+}
+
 const LOG_LEVEL_ORDER = ['debug', 'info', 'warning', 'error'];
 
 const LOG_LEVEL_COLOR = { debug: '#6b7280', info: '#1f2937', warning: '#d97706', error: '#dc2626' };

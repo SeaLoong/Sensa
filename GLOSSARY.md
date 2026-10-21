@@ -15,6 +15,9 @@ Sensa translates virtual interactions or motion trajectories into device targets
 | **Spatial rig / 空间测量组** | Markers interpreted in one local frame; grouping alone proves neither common identity nor synchronization. / 在一个局部框解释的标记组；分组不证明共同身份或同步。 |
 | **Avatar-root coordinates / Avatar 根局部坐标** | Position relative to the selected Avatar root and authored local scale, excluding common world motion. / 相对所选 Avatar 根及作者局部尺度的位置，不包含共同世界运动。 |
 | **Dedicated root marker / 专用根标记** | A known-radius marker following an explicitly selected root center on its own measurement channel. / 已知半径、跟随明确根中心并使用独立测量通道的标记。 |
+| **Receiver radius / 接收半径** | Distance from one Contact receiver’s center to its spherical boundary; it is not the common coverage of an array. / 单个 Contact 接收器中心到球形边界的距离，不是整组测量点的共同覆盖范围。 |
+| **Anchor axis offset / 测量点各轴偏移** | An anchor’s X/Y/Z offsets from the array center; these differ from its straight-line distance to that center. / 测量点相对布局中心的 X／Y／Z 偏移，不等于测量点到中心的直线距离。 |
+| **Common measurable region / 共同可测区域** | Positions satisfying all required receivers’ unsaturated distance measurements and reconstruction bounds; sampling freshness is checked separately. / 同时满足全部必需接收器的未饱和距离测量及解算边界的位置区域，采样是否新鲜另行检查。 |
 | **Sampling activity / 采样活动** | Continuing producer publication, not proof of sensor freshness, atomic sampling or target identity. / 生产端持续发布，不证明传感器刷新、原子采样或身份。 |
 | **Native root capture / 原生根点捕获** | Permitted Avatar render components encode a root; an explicit desktop region is decoded. Not final-mesh feedback. / 允许的原生组件编码根点，再解码明确桌面区域；不是最终网格回读。 |
 | **Model gate / 模型门控** | An explorer's simulated validity/gating result, excluding runtime learning, mapping and device output. / 图解中的模拟有效性／门控，不含运行时估长、映射或设备输出。 |

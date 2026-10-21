@@ -12,7 +12,7 @@ public static class SpsPositionTracking
         string Prefix, string SourceKey, string Kind, long TimestampMs)
     {
         public string CoordinateFrame => Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.CoordinateFrame : "ReferenceLocal";
-        public double DisplayHalfRange => Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.PositionHalfRange : .25;
+        public double DisplayHalfRange => Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.PositionHalfRange : SensaPoseProtocol.PositionRadius;
         public PosePoint DisplayCenter => Kind is "SpsRoot" or "ShaderRoot" ? new(SensaFixedAnchorProtocol.CenterX,
             SensaFixedAnchorProtocol.CenterY, SensaFixedAnchorProtocol.CenterZ) : default;
         public bool Experimental => true;
@@ -33,12 +33,15 @@ public static class SpsPositionTracking
     public static Observation[] Observe(IEnumerable<OscParameterStore.SnapshotEntry> entries,
         string? sourceKey = null, int maxAgeMs = 0, TimeProvider? timeProvider = null)
     {
-        var snapshot = entries.ToArray();
-        var lookup = snapshot.ToDictionary(entry => (entry.Entry.Source.Key, entry.Path), entry => entry.Entry);
+        var snapshot = entries as OscParameterStore.SnapshotEntry[] ?? entries.ToArray();
+        // Face/expression parameters do not participate in local-point reconstruction.
+        // Build only the small lookup needed for local samples and Handle_IsGrabbed.
+        var localSnapshot = snapshot.Where(entry => (string.IsNullOrEmpty(sourceKey) || sourceKey == entry.Entry.Source.Key)
+            && (entry.Path.StartsWith(SensaPoseProtocol.PointPrefix + "/", StringComparison.Ordinal)
+                || entry.Path.StartsWith(SensaPoseProtocol.HandlePrefix + "/", StringComparison.Ordinal))).ToArray();
+        var lookup = localSnapshot.ToDictionary(entry => (entry.Entry.Source.Key, entry.Path), entry => entry.Entry);
         var now = (timeProvider ?? TimeProvider.System).GetUtcNow().ToUnixTimeMilliseconds();
-        var localPoints = snapshot.Where(entry => (string.IsNullOrEmpty(sourceKey) || sourceKey == entry.Entry.Source.Key)
-                && new[] { SensaPoseProtocol.PointPrefix, SensaPoseProtocol.HandlePrefix }
-                    .Any(prefix => entry.Path.StartsWith(prefix + "/", StringComparison.Ordinal)))
+        var localPoints = localSnapshot
             .Select(entry => (Sample: entry, Parts: entry.Path.Split('/')))
             .Where(entry => entry.Parts.Length == 7 && entry.Parts[4] is "Self" or "Others"
                 && entry.Parts[5] == "Root" && entry.Parts[6].Length == 2

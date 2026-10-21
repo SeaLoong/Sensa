@@ -351,6 +351,7 @@
   "已停止所有输出": "All outputs stopped",
   "急停失败": "Emergency stop failed",
   "输出已恢复": "Outputs restored",
+  "急停已解除，请检查后重新启用输入。": "Emergency stop cleared. Check your setup before enabling input again.",
   "解除急停失败": "Failed to clear emergency stop",
   "已请求开始扫描": "Scan start requested",
   "已请求停止扫描": "Scan stop requested",
@@ -675,6 +676,7 @@
   "清空当前草稿；保存前可恢复。": "Clear the current draft; restore it before saving if needed.",
   "关闭通知": "Dismiss notification",
   "支持 *、**；多个路径用分号分隔。": "Use * or **; separate paths with semicolons.",
+  "输入路径片段查找建议；支持 *、**，多个路径用分号分隔。": "Type part of a path to find suggestions. Supports * and **; separate multiple paths with semicolons.",
   "移除映射": "Remove mapping",
   "范围与高级设置": "Ranges and advanced settings",
   "三点姿态（实验）": "Three-point pose (experimental)",
@@ -900,5 +902,9 @@
   "Valid=1 表示桥接程序已发送完整坐标，Sensa 才能使用；Valid=0 会立即停用这组位置。单独置 1 不能恢复旧坐标。": "Valid=1 marks complete coordinates sent by the bridge as available for use; Valid=0 immediately invalidates this position group. Sending 1 alone cannot restore old coordinates.",
   "X/Y/Z 是 Avatar 根局部坐标，即相对 Avatar 的左右、上下和前后位置，不是世界坐标。桥接程序按 Frame、X、Y、Z、Valid 的顺序发送一组完整更新。": "X/Y/Z are Avatar-root local coordinates: left/right, up/down and front/back relative to the Avatar, not world coordinates. The bridge sends a complete update in Frame, X, Y, Z, Valid order.",
   "这是用于检查捕获与传输的测试画面数据，不产生可映射坐标。它通过测试后，仍需在真实客户端检查位置捕获。": "This test-image data checks capture and transport; it does not produce mappable coordinates. Real-client position capture still needs verification after this test passes.",
-  "测量本地骨骼或 PhysBone（PB）把手相对参考对象的位置。需要四路距离；PB 把手只在抓取时有效。它不测量远端 Avatar 或 Shader 变形后的网格。": "Measures a local bone or PhysBone (PB) handle relative to a reference object using four distances. A PB handle is valid only while grabbed. This does not measure a remote Avatar or a Shader-deformed mesh."
+  "测量本地骨骼或 PhysBone（PB）把手相对参考对象的位置。需要四路距离；PB 把手只在抓取时有效。它不测量远端 Avatar 或 Shader 变形后的网格。": "Measures a local bone or PhysBone (PB) handle relative to a reference object using four distances. A PB handle is valid only while grabbed. This does not measure a remote Avatar or a Shader-deformed mesh.",
+  "上一页": "Previous page",
+  "下一页": "Next page",
+  "显示第 {0}–{1} 项，共 {2} 项": "Showing {0}–{1} of {2}",
+  "OSC 参数分页": "OSC parameter pages"
 }
