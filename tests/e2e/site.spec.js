@@ -146,15 +146,15 @@ test('@site wide document tables and code remain keyboard scrollable at 320 pixe
   await page.setViewportSize({ width: 320, height: 800 });
   const evidence = [];
   for (const locale of ['zh-CN', 'en']) {
-    await page.goto(new URL(locale + '/docs/development.html', base).href);
-    await page.evaluate(() => document.fonts.ready);
     const areas = [
-      { kind: 'table', area: page.locator('.doc-scroll').filter({ has: page.locator('table') }).first(),
+      { kind: 'table', documentName: 'positioning', area: page.locator('.doc-scroll').filter({ has: page.locator('table') }).first(),
         label: locale === 'zh-CN' ? '表格；内容超宽时可横向滚动' : 'Table; scroll horizontally when needed' },
-      { kind: 'code', area: page.locator('.doc-scroll').filter({ hasText: 'node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-ranking.json' }).first(),
+      { kind: 'code', documentName: 'development', area: page.locator('.doc-scroll').filter({ hasText: 'node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-ranking.json' }).first(),
         label: locale === 'zh-CN' ? '代码示例；内容超宽时可横向滚动' : 'Code example; scroll horizontally when needed' },
     ];
-    for (const { kind, area, label } of areas) {
+    for (const { kind, documentName, area, label } of areas) {
+      await page.goto(new URL(locale + '/docs/' + documentName + '.html', base).href);
+      await page.evaluate(() => document.fonts.ready);
       await area.scrollIntoViewIfNeeded();
       await expect(area).toHaveAttribute('role', 'region');
       await expect(area).toHaveAttribute('aria-label', label);
@@ -168,8 +168,8 @@ test('@site wide document tables and code remain keyboard scrollable at 320 pixe
         scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, scrollLeft: node.scrollLeft,
         focused: node === document.activeElement,
       })) });
+      expect(await page.locator('body').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
     }
-    expect(await page.locator('body').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
   }
   await info.attach('document-keyboard-scroll.json', { body: JSON.stringify(evidence), contentType: 'application/json' });
 });

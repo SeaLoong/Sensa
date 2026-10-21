@@ -6,10 +6,11 @@ This records browser runs that were actually inspected; it is not a live dashboa
 
 ## Recorded runs
 
-These entries were last checked on 2026-10-22 at 05:42 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
+These entries were last checked on 2026-10-22 at 07:01 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
 
 | Commit | Scope | Run | Outcome observed at the time |
 | --- | --- | --- | --- |
+| `6356a89` | Documentation site E2E | [39690227009](https://github.com/SeaLoong/Sensa/actions/runs/39690227009) | 6/8 passed, 2 failed, no skipped or unrun cases. The narrow-screen fixture still assumed the development guide's two-column table would overflow. It now uses the positioning guide's genuinely wide table; a later run must confirm the correction |
 | [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | Application interfaces and full browser comparison | [39680217981](https://github.com/SeaLoong/Sensa/actions/runs/39680217981) | Interface checks succeeded; browser job failed with the three screenshot failures below; complete counts and unexecuted scope were not read |
 | [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | Documentation build, browser navigation and deployment | [39680217958](https://github.com/SeaLoong/Sensa/actions/runs/39680217958) | Succeeded overall; exact case counts were not read |
 | `6aa31cb` | Application interfaces and browser comparison | [39677023629](https://github.com/SeaLoong/Sensa/actions/runs/39677023629) | Failed overall; complete failing cases, counts and images were not obtained, so not all causes were confirmed |
@@ -30,4 +31,4 @@ Unexecuted cases are not inferred to have passed, and historical image reviews d
 
 ## How should later outcomes be recorded?
 
-After checks/E2E finish, verify the commit, run link, suite and screenshot mode, then record actual passed/failed/skipped/unrun/interrupted scope from `summary.json`/`summary.md`. Fill counts only after reading the report and record image acceptance only after inspecting actual/expected/diff. Maintenance candidate PRs and normal comparison results remain separate; generated candidates are not passes. [Execution and maintenance](e2e.en.md)
+After checks/E2E finish, verify the commit, run link, suite and screenshot mode, then record actual passed/failed/skipped/unrun/interrupted scope from `summary.json`/`summary.md` or the corresponding `Browser result` annotation. Fill counts only after reading the report and record image acceptance only after inspecting actual/expected/diff. Maintenance candidate PRs and normal comparison results remain separate; generated candidates are not passes. [Execution and maintenance](e2e.en.md)
