@@ -2,7 +2,7 @@
 
 [简体中文](features.md) | **English**
 
-This page lists implemented capabilities and boundaries. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa sends targets without a hardware-feedback loop.
+This page summarizes implemented features and their operating conditions. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa converts input into device motion targets.
 
 ## Browser workbench
 
@@ -18,7 +18,7 @@ This page lists implemented capabilities and boundaries. Use the [guide](guide.e
 
 Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
 
-The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has ten scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Socket/Plug surfaces are reference profiles. It connects to no inputs/devices; model gates omit runtime learning/mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
+The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has ten scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Choose actual parameter names to observe readings as a target approaches, enters or meets a contact region, then use those readings to choose a mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
 
 ## Runtime and inputs
 
@@ -43,9 +43,9 @@ Calibration, inversion, Linear/EaseIn/EaseOut/SCurve and output intervals preced
 | V0/V1/V2 | Same-name vibration |
 | Auxiliary/Auxiliary1/Auxiliary2 | A0/A1/A2 |
 
-OgbDepth prioritizes modern pairs, yielding zero for incomplete/unlearned data; legacy fallback requires absent/both-zero modern values. OgbTouch checks required Close; standalone Zones have no invented gate. The three templates exclude synthetic steps and spatial input. [OGB](ogb-compatibility.en.md) · [Presets](presets.en.md)
+OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**, estimating length from a same-instance pair and unsaturated samples before converting to a depth trend; incomplete learning yields zero. Missing or both-zero channels permit **SPS1 · PenOthers / PenOthersClose**, using its depth signal and published proximity condition. OgbTouch combines Touch/Plug Frot with the corresponding Close. Socket Frot and independent Zones read intensity directly. The three built-ins cover depth, vibration and PB stretch. [OGB](ogb-compatibility.en.md) · [Presets](presets.en.md)
 
-OSCQuery supports HOST_INFO/trees/LISTEN, optional polling and local receiver advertisement. Hub offers multiple UDP targets, source filtering, event/fixed-rate merging and statistics, preserving unconsumed bundle structure. OGB_ENABLED defaults off, sends true to an explicit target every five seconds during actual OSC reception, and attempts false on stop; there is no acknowledgement or device permission.
+OSCQuery supports HOST_INFO/trees/LISTEN, optional polling and local receiver advertisement. Hub offers multiple UDP targets, source filtering, event/fixed-rate merging and statistics, preserving unconsumed bundle structure. OGB_ENABLED defaults off. When enabled, it sends true to the configured target every five seconds during OSC reception and attempts false on stop, maintaining Avatar parameter publication.
 
 ## Outputs, profiles and recording
 
@@ -57,9 +57,9 @@ Recording captures pre-distribution L0, preserves final holds, ends at 100000 fr
 
 ## Unity and spatial experiments
 
-Spatial motion defaults blocked. Fixed SPS `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. None provides world/mesh/device position. [Positioning](positioning.en.md)
+Spatial motion defaults blocked. Fixed SPS `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
 
-NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive; independent fixed-root authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe is an Editor snapshot, not the client production chain. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
+NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive; independent fixed-root authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe provides Editor model snapshots for checking author settings. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
 
 ## Configuration, access and API
 
@@ -78,4 +78,4 @@ HTTP defaults to loopback. `GET /api/session` issues an HttpOnly/SameSite=Strict
 
 Script HTTP uses multipart; WS uses fileName/content through the same command. Legacy loop/type-output aliases remain, but multi-output clients use outputId. Retained fields for dynamic WebUi.Title, Intiface DeviceRoutes, special IsOgbSocket/Plug behavior, PreferSpeedMode encoding and ObservedMin/Max suggestions **do not establish wired capabilities**. [Routes](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
 
-[Architecture](architecture.en.md) explains source boundaries; [development/release](development.en.md) covers checks, builds, previews, stable releases and documentation deployment. Unit checks and browser E2E run before publication. Real clients, GPU/HMD, positioning accuracy and device behavior still require separate acceptance.
+[Architecture](architecture.en.md) explains source boundaries; [development/release](development.en.md) covers checks, builds, previews, stable releases and documentation deployment. Unit checks and browser E2E run before publication. Check direction, response and stopping with the client and device used for actual linkage.

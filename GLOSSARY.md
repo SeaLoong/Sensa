@@ -1,29 +1,29 @@
 # Sensa terminology / Sensa 术语
 
-Sensa translates virtual interactions or motion trajectories into device targets. / Sensa 将虚拟交互或动作轨迹转换为设备目标。Use these terms consistently in code, UI and documentation. / 代码、界面与文档沿用以下含义。
+Sensa translates virtual interactions or motion trajectories into device targets. These definitions explain the terms used in its interface, documentation and code. / Sensa 将虚拟交互或动作轨迹转换为设备目标。以下定义说明界面、文档与代码中的常用词，方便对应配置和运行结果。
 
 | Term / 术语 | Definition / 定义 |
 | --- | --- |
-| **Motion target / 动作目标** | Desired normalized position or intensity sent toward an output, not physical sensor feedback. / 准备发送的归一化位置或强度，不是设备回读。 |
-| **Input mode / 输入模式** | The actual Manual, Osc or Script category, one at a time; browsing a tab does not apply it. / 实际手动、OSC 或脚本类别，同一时刻一种；浏览页签不应用模式。 |
-| **Input activation / 输入启用** | Explicit permission for the actual input to drive outputs. Configuration, mode or script changes disarm it. / 当前输入驱动输出的明确许可；配置、模式或脚本变更会关闭。 |
-| **Emergency stop / 紧急停止** | A latched stop that closes input; clearing it does not reactivate. / 关闭输入的锁存停止；解除不自动启用。 |
-| **Output / 输出** | A named destination with independent connection and enablement. Connection alone grants no input permission. / 有独立连接与启用状态的命名目标；连接不授予输入许可。 |
-| **Axis profile / 轴配置** | Reusable ranges, limits, direction and motion settings for output axes. / 可复用的轴映射范围、限位、方向与运动配置。 |
-| **Draft / 草稿** | Edited browser configuration before successful persistence, separate from runtime state. / 成功保存前的浏览器编辑内容，与运行状态分开。 |
-| **OSC source / OSC 来源** | A tracked transport/source identity with independent values and lifecycle; not authenticated Contact Sender identity. / 独立跟踪值与生命周期的来源身份，不是 Contact Sender 认证。 |
-| **Spatial rig / 空间测量组** | Markers interpreted in one local frame; grouping alone proves neither common identity nor synchronization. / 在一个局部框解释的标记组；分组不证明共同身份或同步。 |
-| **Avatar-root coordinates / Avatar 根局部坐标** | Position relative to the selected Avatar root and authored local scale, excluding common world motion. / 相对所选 Avatar 根及作者局部尺度的位置，不包含共同世界运动。 |
-| **Dedicated root marker / 专用根标记** | A known-radius marker following an explicitly selected root center on its own measurement channel. / 已知半径、跟随明确根中心并使用独立测量通道的标记。 |
-| **Receiver radius / 接收半径** | Distance from one Contact receiver’s center to its spherical boundary; it is not the common coverage of an array. / 单个 Contact 接收器中心到球形边界的距离，不是整组测量点的共同覆盖范围。 |
-| **Anchor axis offset / 测量点各轴偏移** | An anchor’s X/Y/Z offsets from the array center; these differ from its straight-line distance to that center. / 测量点相对布局中心的 X／Y／Z 偏移，不等于测量点到中心的直线距离。 |
-| **Common measurable region / 共同可测区域** | Positions satisfying all required receivers’ unsaturated distance measurements and reconstruction bounds; sampling freshness is checked separately. / 同时满足全部必需接收器的未饱和距离测量及解算边界的位置区域，采样是否新鲜另行检查。 |
-| **Sampling activity / 采样活动** | Continuing producer publication, not proof of sensor freshness, atomic sampling or target identity. / 生产端持续发布，不证明传感器刷新、原子采样或身份。 |
-| **Native root capture / 原生根点捕获** | Permitted Avatar render components encode a root; an explicit desktop region is decoded. Not final-mesh feedback. / 允许的原生组件编码根点，再解码明确桌面区域；不是最终网格回读。 |
-| **Model gate / 模型门控** | An explorer's simulated validity/gating result, excluding runtime learning, mapping and device output. / 图解中的模拟有效性／门控，不含运行时估长、映射或设备输出。 |
-| **Preview release / 预发布** | A published development snapshot, separate from stable releases and the stable-only VPM index. / 已公开开发快照，与稳定发布及仅稳定版 VPM 分开。 |
-| **Presentation locale / 呈现语言** | UI/document language preference, never a change to protocol names or numeric culture. / 界面／文档语言偏好，不改协议标识或数值文化。 |
+| **Motion target / 动作目标** | The normalized position or intensity Sensa intends to send to an output. Check physical movement on the device itself. / Sensa 准备发给输出的位置或强度，通常用 0～1 表示；实际移动情况通过观察设备确认。 |
+| **Input mode / 输入模式** | The Manual, OSC or Script mode currently applied. Use “Apply input mode” to select the one that drives outputs; tabs let you inspect and prepare settings. / 当前已应用的手动、OSC 或脚本方式。同一时刻使用一种，通过“应用输入方式”切换；页签用于查看和准备设置。 |
+| **Input activation / 输入启用** | The switch that lets the applied input drive outputs. Configuration, mode or script changes turn it off; enable it again when ready. / 允许当前输入驱动输出的开关。配置、模式或脚本变更后会关闭，准备好再启用。 |
+| **Emergency stop / 紧急停止** | A stop state that closes input and stays active until cleared. After clearing it, enable input separately when ready. / 立即关闭输入并保持的停止状态。先解除急停，准备好后再单独启用输入。 |
+| **Output / 输出** | A named device or service destination. Each output has its own connection and enabled state; input activation controls whether it receives motion targets. / 接收命令的设备或服务目标，带名称、连接状态和独立启用开关；输入启用状态决定它能否接收动作目标。 |
+| **Axis profile / 轴配置** | A reusable set of axis ranges, limits, directions and motion settings, selected when configuring a TCode output. / 可重复使用的轴范围、限位、方向和运动设置，配置 TCode 输出时选择使用。 |
+| **Draft / 草稿** | Configuration edits in the browser waiting to be saved. Save successfully to apply the configuration to the running service. / 浏览器中等待保存的配置改动，保存成功后应用到运行服务。 |
+| **OSC source / OSC 来源** | The transport/source identity used to keep incoming values and their arrival/disconnection state separate. Contact Sender identity requires its own verification. / 用于分别记录参数值及到达、断线状态的传输来源；Contact Sender 的身份另行核对。 |
+| **Spatial rig / 空间测量组** | Markers interpreted in the same local coordinate frame. Check their target identity and sampling synchronization separately. / 使用同一局部坐标系解释的一组标记，目标身份和采样同步情况分别检查。 |
+| **Avatar-root coordinates / Avatar 根局部坐标** | A position measured relative to the selected Avatar root, using its authored local scale. Moving or rotating the whole Avatar preserves this relative position. / 以选定的 Avatar 根为参照、按制作时的局部尺度表示的位置。整个 Avatar 一起移动或转身时，该相对位置保持不变。 |
+| **Dedicated root marker / 专用根标记** | A marker with a known radius, following the selected root center and publishing through its own measurement channel. / 半径已知、跟随选定根点中心、使用独立测量通道的标记。 |
+| **Receiver radius / 接收半径** | Distance from one Contact receiver’s center to its spherical boundary. Combine the required receivers’ usable regions to determine the measurement array's common coverage. / 单个 Contact 接收器中心到球形边界的距离。整组覆盖范围由各必需接收器的有效区域共同决定。 |
+| **Anchor axis offset / 测量点各轴偏移** | An anchor’s separate X/Y/Z displacements from the array center. Its straight-line distance is the length of that three-component vector. / 测量点相对布局中心在 X／Y／Z 三个方向上的偏移。到中心的直线距离由这三个分量合成。 |
+| **Common measurable region / 共同可测区域** | Positions where every required receiver provides an unsaturated distance measurement and reconstruction stays within bounds. Sampling freshness is checked separately. / 所有必需接收器都能提供未饱和距离测量、且解算结果处于边界内的位置区域；采样新鲜度另行检查。 |
+| **Sampling activity / 采样活动** | An indication that the producer continues publishing. Sensor freshness, simultaneous sampling and target identity require separate checks. / 表示生产端仍在持续发布。传感器新鲜度、同一时刻采样和目标身份分别检查。 |
+| **Native root capture / 原生根点捕获** | Avatar render components encode a selected root position, and a desktop reader decodes the chosen screen region. The result describes that root position. / Avatar 渲染组件将选定根点的位置编码，桌面读取程序再解码指定屏幕区域，得到该根点的位置。 |
+| **Model gate / 模型门控** | The parameter explorer's simulated validity and motion conditions. Runtime length estimation, mapping and device output are evaluated in Sensa itself. / 参数图解中模拟的有效性与动作条件。运行时估长、映射和设备输出在 Sensa 中检查。 |
+| **Preview release / 预发布** | A downloadable development snapshot in Releases. Use VPM for published stable Unity packages. / Releases 中可下载的开发快照；通过 VPM 安装的是已发布的 Unity 正式版。 |
+| **Presentation locale / 呈现语言** | The language used for interface and documentation text. Protocol identifiers and numeric formats follow their fixed technical conventions. / 界面与文档文字使用的语言；协议标识和数值格式遵循固定的技术约定。 |
 
-Avoid “actual position” for command telemetry, “connected” for input permission, “world position” for AvatarRootLocal, and “mesh tracking” for root capture. / 不把命令遥测叫实测位置、连接叫输入许可、AvatarRootLocal 叫世界位置、根捕获叫网格跟踪。
+Use “command target” for outgoing motion values, “connected” for transport status, “Avatar-root coordinates” for AvatarRootLocal, and “root capture” for encoded root measurements. / 发出的动作值称为“命令目标”，传输状态称为“已连接”，AvatarRootLocal 称为“Avatar 根局部坐标”，根点编码测量称为“根点捕获”。
 
 [Architecture](docs/architecture.en.md) · [中文架构](docs/architecture.md) · [Control ADR / 控制决策](docs/adr/0001-control-and-input-activation.md)

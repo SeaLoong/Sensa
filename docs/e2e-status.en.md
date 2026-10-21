@@ -6,10 +6,13 @@ This records browser runs that were actually inspected; it is not a live dashboa
 
 ## Recorded runs
 
-These entries were last checked on 2026-10-22 at 07:36 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
+These entries were last checked on 2026-10-22 at 07:51 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
 
 | Commit | Scope | Run | Outcome observed at the time |
 | --- | --- | --- | --- |
+| `13561e2` | Manual E2E candidate capture | [39694553003](https://github.com/SeaLoong/Sensa/actions/runs/39694553003) | All 74 cases passed, every other outcome zero. Candidate export succeeded; PR creation was skipped by the workflow dependency condition. The condition has been corrected for the next run; images remain pending review |
+| `13561e2` | Full normal application comparison | [39694552959](https://github.com/SeaLoong/Sensa/actions/runs/39694552959) | 74 total: 4 passed, 3 failed, 67 not run; every other outcome zero. The first three screenshot differences are listed below; builds/publication stopped |
+| `13561e2` | Documentation site E2E and deployment | [39694552866](https://github.com/SeaLoong/Sensa/actions/runs/39694552866) | All 8 cases passed, every other outcome zero; deployment succeeded |
 | `ef87e41` | Manual E2E candidate capture | [39692194138](https://github.com/SeaLoong/Sensa/actions/runs/39692194138) | All 74 browser cases passed, every other outcome zero. The following proposal export step failed, so no branch/PR or image acceptance followed. Container Git handling and failure annotations have been added for the next run |
 | `ef87e41` | Documentation site E2E and automatic deployment | [39692193225](https://github.com/SeaLoong/Sensa/actions/runs/39692193225) | All 8 cases passed, with every other outcome zero; deployment succeeded |
 | `6a9941f` | Full normal application browser comparison | [39691447010](https://github.com/SeaLoong/Sensa/actions/runs/39691447010) | 74 total: 11 passed, 3 failed, 60 not run; every other outcome was zero. The same three old screenshot-baseline differences below remain; builds and publication did not run |
@@ -26,15 +29,15 @@ These entries were last checked on 2026-10-22 at 07:36 China Standard Time (UTC+
 
 ## Located differences without image acceptance
 
-Latest source: [public annotations for the 6a9941f browser job](https://github.com/SeaLoong/Sensa/actions/runs/39691447010/job/119538579292). The differences match those previously reported for `b3fc2db` and `330ba6e`. These are assertion reports, not accepted baselines.
+Source: [public annotations for the 13561e2 browser job](https://github.com/SeaLoong/Sensa/actions/runs/39694552959/job/119548908931). These are the first differences reported before the failure limit was reached. Images remain pending review.
 
-| Desktop image | Result reported at the time |
+| Desktop image | Reported difference |
 | --- | --- |
-| `english-help.png` | Baseline 560×622, actual 560×662; 12,061 pixels differed |
-| `paired-pose.png` | 1,123 pixels differed |
-| `help-workflow.png` | Baseline 560×492, actual 560×562; 13,084 pixels differed |
+| `help-workflow.png` | Baseline 560×492, current 560×582; 14,012 pixels differed |
+| `osc-mappings-page.png` | 2,667 pixels differed |
+| `recording-controls.png` | 1,047 pixels differed |
 
-Unexecuted cases are not inferred to have passed, and historical image reviews do not establish results for another commit. See the [visual review archive](ui-visual-review.en.md) for the original review scope.
+Historical review scope is retained in the [visual review archive](ui-visual-review.en.md).
 
 ## How should later outcomes be recorded?
 

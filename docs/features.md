@@ -2,7 +2,7 @@
 
 **简体中文** | [English](features.en.md)
 
-本页按产品边界列出已实现能力与限制。操作顺序见[指南](guide.md)，方案选择见[使用方案](usage-scenarios.md)，协议数值见[参数字典](osc-parameters.md)。Sensa 发送动作目标，没有硬件反馈闭环。
+本页汇总已实现的功能及使用条件。操作顺序见[指南](guide.md)，方案选择见[使用方案](usage-scenarios.md)，协议数值见[参数字典](osc-parameters.md)。Sensa 将输入转换为设备动作目标。
 
 ## 浏览器工作台
 
@@ -18,7 +18,7 @@
 
 常用操作直接显示，较少使用的选项展开后可见。顶栏保留急停入口；正文可独立滚动，设备按行显示名称、目标和操作。脚本未载入时只显示导入入口。草稿与已保存状态分开，语言切换保留当前草稿。[语言](languages.md) · [视觉规则](ui-quality.md)
 
-[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)包含十场景的真实 3D、XZ／立体 SVG、精确滑条、指定平面拖动、参数联动与 Shader 位图。Socket／Plug 是参考截面；它不连接输入或设备，模型门控不包含运行时估长或映射。Three.js 随包离线分发，WebGL 不可用时回退 SVG。
+[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)包含十场景的真实 3D、XZ／立体 SVG、精确滑条、指定平面拖动、参数联动与 Shader 位图。选择实际参数名后，可观察目标靠近、进入和触碰区域时的数值变化，再据此选择映射。Three.js 随包离线分发，WebGL 不可用时回退 SVG。
 
 ## 运行时与输入
 
@@ -43,9 +43,9 @@
 | V0／V1／V2 | 同名振动轴 |
 | Auxiliary／Auxiliary1／Auxiliary2 | A0／A1／A2 |
 
-OgbDepth 现代配对优先，缺配对／未估长给零；现代缺失／均零才旧近接回退。OgbTouch 检查对应 Close，独立 Zone 无虚构门控。三模板不包含合成阶梯或空间输入。[OGB](ogb-compatibility.md) · [预设](presets.md)
+OgbDepth 优先使用 **SPS2 · PenOthersNewRoot / PenOthersNewTip**，从同实例配对和未饱和样本估算长度，再换算深浅趋势；尚未就绪时输出零。两路缺失或均零时，使用 **SPS1 · PenOthers / PenOthersClose** 的深浅信号与已发布的接近条件。OgbTouch 将 Touch／Plug Frot 与对应 Close 配合使用；Socket Frot 和独立 Zone 直接读取接近强度。三种内置模板分别用于深度、振动和 PB 拉伸。[OGB](ogb-compatibility.md) · [预设](presets.md)
 
-OSCQuery 支持 HOST_INFO／树／LISTEN 与可选轮询；本机可广播接收服务。Hub 支持多 UDP 目标、来源筛选、事件／定频合并和统计，未消费原包保留 bundle。OGB_ENABLED 默认关闭，只向明确目标在实际 OSC 运行时每 5 秒发 true，停止尝试 false；无远端确认，不授予设备许可。
+OSCQuery 支持 HOST_INFO／树／LISTEN 与可选轮询；本机可广播接收服务。Hub 支持多 UDP 目标、来源筛选、事件／定频合并和统计，未消费原包保留 bundle。OGB_ENABLED 默认关闭，启用后向配置目标在实际 OSC 接收期间每 5 秒发 true，停止时尝试 false，用于维持 Avatar 的参数发布。
 
 ## 输出、轴配置和录制
 
@@ -57,9 +57,9 @@ Intiface 使用 Buttplug WebSocket、扫描和设备特征。位置按能力选�
 
 ## Unity 与空间实验
 
-默认禁止空间驱动。固定 SPS 的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们都不是世界／网格／设备位置。[定位](positioning.md)
+默认禁止空间驱动。固定 SPS 的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们的坐标分别相对 Avatar 或指定参考对象，适合校准为局部移动动作。[定位](positioning.md)
 
-NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，独立固定根作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 是 Editor 模型快照，不是客户端生产链。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
+NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，独立固定根作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 提供 Editor 中的模型快照，便于检查作者设置。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
 
 ## 配置、访问与 API
 
@@ -78,4 +78,4 @@ NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setu
 
 脚本 HTTP 为 multipart，WS 使用 fileName/content，进入同一命令实现。旧 loop／按类型输出别名仍有，但多输出用 outputId。WebUi.Title 动态标题、Intiface DeviceRoutes、IsOgbSocket/Plug 特殊行为、PreferSpeedMode 编码选择与 ObservedMin/Max 自动建议等保留字段**不代表已接通能力**。[应用路由](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
 
-[架构](architecture.md)说明源码边界，[开发与发布](development.md)说明检查、构建、预发布、正式发布和文档部署。发布前会运行单元检查和浏览器 E2E；真实客户端、GPU／HMD、定位准确度和设备动作仍须单独验收。
+[架构](architecture.md)说明源码边界，[开发与发布](development.md)说明检查、构建、预发布、正式发布和文档部署。发布前运行单元检查和浏览器 E2E；实际联动按所选客户端与设备检查方向、响应和停止。
