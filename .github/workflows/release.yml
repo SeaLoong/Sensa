@@ -34,7 +34,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:
-      contents: write
+      contents: read
     concurrency:
       group: sensa-release-publication
       queue: max
@@ -44,6 +44,7 @@ jobs:
         with:
           ref: ${{ needs.build.outputs.commit }}
           fetch-depth: 0
+          persist-credentials: false
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
@@ -51,9 +52,13 @@ jobs:
         with:
           pattern: distribution-*
           path: artifacts/downloaded
+      - name: Check publication credential / 检查发布凭据
+        env:
+          GH_TOKEN: ${{ secrets.SENSA_PAT }}
+        run: test -n "$GH_TOKEN" || { echo '::error::Configure the SENSA_PAT repository Actions secret / 请配置仓库 Actions 密钥 SENSA_PAT'; exit 1; }
       - name: Publish archives and generated notes / 发布压缩包与自动说明
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SENSA_PAT }}
           SENSA_E2E_COMPARISON_SHA: ${{ needs.checks.outputs.comparison_sha }}
           BUILD_VERSION: ${{ needs.build.outputs.version }}
           RELEASE_TAG: ${{ needs.build.outputs.tag }}

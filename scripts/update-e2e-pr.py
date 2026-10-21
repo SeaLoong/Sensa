@@ -197,11 +197,18 @@ def publish_proposal(root, source_commit, directory, environment):
     run, attempt, repository = run_identity(environment)
     manifest = json.loads((directory / 'proposal.json').read_text(encoding='utf-8'))
     patch = (directory / 'proposal.patch').read_bytes()
+    candidate_attempt = str(manifest.get('attempt', ''))
     if (manifest.get('schema') != 1 or manifest.get('commit') != source_commit
-            or manifest.get('runId') != run or manifest.get('attempt') != attempt
+            or manifest.get('runId') != run or not re.fullmatch(r'[1-9][0-9]*', candidate_attempt)
+            or int(candidate_attempt) > int(attempt)
             or manifest.get('repository') != repository or manifest.get('mode') not in ('screenshots', 'agent')
             or manifest.get('patchSha256') != hashlib.sha256(patch).hexdigest()):
         raise ValueError('Proposal identity or digest changed / 候选身份或摘要已变化')
+    counts = manifest.get('counts', {})
+    if (not isinstance(counts, dict) or not all(type(counts.get(key)) is int and counts[key] >= 0 for key in ('total', *OUTCOMES))
+            or counts['total'] <= 0 or counts['passed'] != counts['total']
+            or any(counts[key] for key in OUTCOMES if key != 'passed')):
+        raise ValueError('Proposal does not retain successful candidate counts / 候选缺少成功用例计数')
     files = manifest.get('files')
     if not isinstance(files, list) or not files or any(not isinstance(item, dict) for item in files):
         raise ValueError('Proposal has no changed files / 候选没有变化文件')
@@ -216,12 +223,12 @@ def publish_proposal(root, source_commit, directory, environment):
     git(root, 'commit', '-m', 'Update E2E candidates for ' + source_commit[:8])
     git(root, 'push', 'origin', 'HEAD:refs/heads/' + branch)
     url = f'https://github.com/{repository}/actions/runs/{run}'
-    body = (f'Candidate updates for `{source_commit}` from [Actions run]({url}).\n\n'
+    body = (f'Candidate updates for `{source_commit}` from [Actions run]({url}), candidate attempt {candidate_attempt}.\n\n'
             f'Candidate cases: {manifest["counts"]["passed"]}/{manifest["counts"]["total"]} passed; '
             'normal comparison and image review are still required. / 候选用例已通过，仍须普通比较与审图。\n\n'
             f'{manifest["counts"]["passed"]} passing candidate cases; {len(files)} changed files.\n\n'
             '**Draft: images and assertion changes require human review. This workflow does not approve baselines or merge.**\n\n'
-            'Review expected/actual/diff, behavior assertions and both viewports. A separate normal comparison is dispatched on this branch.\n\n'
+            'Review expected/actual/diff, behavior assertions and both viewports. The PAT-created pull request starts normal comparison CI automatically.\n\n'
             '**草稿：图片及断言变化须人工审阅；此任务不会批准基线或合并。** 请检查差异图、行为断言与两个视口。\n')
     with tempfile.TemporaryDirectory(prefix='sensa-e2e-pr-') as temporary:
         body_file = Path(temporary) / 'body.md'
@@ -233,18 +240,14 @@ def publish_proposal(root, source_commit, directory, environment):
         except subprocess.CalledProcessError:
             append_summary(environment, f'### Draft PR was not created / 草稿 PR 创建失败\n\n'
                 f'The candidate branch `{branch}` was pushed and is retained. / 候选分支已推送并保留。\n\n'
-                'GitHub rejected PR creation. Check token pull-request permissions and Settings → Actions → General → '
-                'Allow GitHub Actions to create and approve pull requests. No merge or baseline approval occurred. / '
-                '请检查令牌权限及仓库允许 Actions 创建 PR 的设置；未合并或批准基线。')
+                'GitHub rejected PR creation. Check SENSA_PAT repository access, Contents/Pull requests write permissions '
+                'and any organization approval requirement. No merge or baseline approval occurred. / '
+                '请检查 SENSA_PAT 的仓库访问权、Contents/Pull requests 写入权限及组织审批要求；未合并或批准基线。')
             raise
     append_summary(environment, f'### Draft E2E proposal / E2E 草稿候选\n\n{pr_url}\n\nBranch: `{branch}`. '
                    'Images remain unreviewed. / 图片仍待人工审阅。')
-    try:
-        subprocess.run(['gh', 'workflow', 'run', 'ci.yml', '--repo', repository, '--ref', branch], cwd=root, check=True)
-    except subprocess.CalledProcessError:
-        append_summary(environment, 'Normal CI dispatch failed; the draft PR and branch remain available. / '
-                       '普通 CI 派发失败，草稿 PR 与分支仍保留。')
-        raise
+    # SENSA_PAT-created PRs emit pull_request events. Explicit dispatch would
+    # duplicate the normal CI that GitHub starts for the newly opened PR.
     return pr_url
 
 

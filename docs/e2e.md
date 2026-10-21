@@ -38,7 +38,9 @@ E2E 参与自动 CI 和正式发布检查。单元测试与完整普通浏览器
 
 在 Actions 运行 [`update-e2e.yml`](https://github.com/SeaLoong/Sensa/actions/workflows/update-e2e.yml)。默认 `screenshots` 模式不需要 AI 密钥，基于当前代码运行浏览器并生成候选图片、报告和待审 PR。工作流不直接修改 `main`，也不自动合并。
 
-选择 `agent` 模式时，需要预先在仓库 Actions secrets 中配置 `OPENAI_API_KEY`；代理只维护 `tests/e2e/` 中的测试，再运行候选采集。没有该密钥时应使用默认模式，不把未执行的代理步骤写成通过。仓库还须允许 Actions 创建 Pull Request。
+推送候选分支和创建待审 PR 使用仓库 Actions secret `SENSA_PAT`；PR 事件自动启动普通 CI，候选采集与代理步骤不接收此密钥。[密钥用途与权限](development.md#工作流使用哪些密钥)
+
+选择 `agent` 模式时，还需在仓库 Actions secrets 中配置 `OPENAI_API_KEY`；代理只维护 `tests/e2e/` 中的测试，再运行候选采集。没有该密钥时应使用默认模式，不把未执行的代理步骤写成通过。外部代理可用自身已获授权的 GitHub 身份启动工作流，无需读取或复制 Actions secret。
 
 打开生成的 PR，按语言和视口查看 actual／expected／diff、测试改动及运行结果。只接受有意的界面变化，保留必要行为断言。维护分支会触发普通 CI；普通比较通过和人工审阅完成后，再决定合并。候选采集本身不发布产品，也不能作为普通比较凭据。
 

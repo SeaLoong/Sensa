@@ -28,6 +28,28 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_repository_write_secret_is_confined_to_trusted_publication_jobs(self):
+        allowed = {'ci.yml': 'preview', 'release.yml': 'publish', 'update-e2e.yml': 'proposal'}
+        for path in WORKFLOWS.glob('*.yml'):
+            source = path.read_text(encoding='utf-8')
+            self.assertNotIn('secrets: inherit', source)
+            for name, body in jobs(source).items():
+                with self.subTest(workflow=path.name, job=name):
+                    if name != allowed.get(path.name):
+                        self.assertNotIn('secrets.SENSA_PAT', body)
+                        continue
+                    self.assertIn('GH_TOKEN: ${{ secrets.SENSA_PAT }}', body)
+                    self.assertIn('test -n "$GH_TOKEN"', body)
+                    self.assertIn('      contents: read', body)
+                    if name == 'proposal':
+                        self.assertIn('token: ${{ secrets.SENSA_PAT }}', body)
+                    else:
+                        self.assertIn('persist-credentials: false', body)
+        maintenance = jobs(workflow('update-e2e.yml'))
+        self.assertNotIn('gh workflow run', maintenance['proposal'])
+        self.assertIn('persist-credentials: false', maintenance['agent'])
+        self.assertIn('persist-credentials: false', maintenance['candidates'])
+
     def test_checks_pin_the_tested_source_before_running_full_normal_comparison(self):
         source = workflow('checks.yml')
         scopes = jobs(source)

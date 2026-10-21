@@ -12,6 +12,8 @@ Release notes combine changes/contributors since the previous stable release wit
 
 Manual `update-e2e.yml` maintenance generates candidate images and a review PR, then runs ordinary branch CI without writing to main or merging automatically. Default screenshot mode requires no AI key; optional agent mode uses a repository `OPENAI_API_KEY` secret to maintain E2E tests. Candidate generation and ordinary comparison remain separate evidence.
 
+Trusted Release publication and E2E branch/PR steps use the repository `SENSA_PAT` secret; the new PR automatically triggers normal CI. Read-only checks, candidate capture and the Codex agent do not receive this token. External callers dispatch through their own authorized GitHub identity; Actions secrets are not exposed to them.
+
 用户要求只需手动运行一个工作流，就能从最新 main 发布正式版，同时保留自动预发布和自动文档部署。单元测试与 E2E 必须在 CI 中通过后才能发布。版本默认自动选择下一个补丁号，也可明确指定。此决策替代 [ADR 0002](0002-impact-based-verification.md) 中复杂的影响规划与验证接续规则；[ADR 0004](0004-standalone-bilingual-documentation.md) 的独立双语文档站仍然保留。
 
 `ci.yml` 为 PR／main 执行检查与构建，只在 main 自动预发布。`release.yml` 通过 workflow_dispatch 启动，解析一次最新 main，全部任务固定使用该提交。共用 `checks.yml` 执行单元测试，并通过 `e2e.yml` 完成全量普通比较；成功后 `build.yml` 生成六个桌面压缩包与 Unity ZIP，执行隔离原生进程冒烟及 Windows Shader 桥模拟回放。发布必须取得当前提交的检查、普通 E2E 和所有构建成功，不使用旧 owner 记录或跨提交接续状态。
@@ -21,3 +23,5 @@ Manual `update-e2e.yml` maintenance generates candidate images and a review PR, 
 发布说明组合上一正式版以来的改动与贡献者、双语安装下载信息、提交／运行链接、校验值与实际验证范围，不把浏览器或模拟结果当作硬件验收。远端完整资产核对成功后才公开草稿；只清理超出最近十个的已公开预发布，保留正式版、草稿和标签。Pages 构建静态产物并通过站点 E2E 后自动部署，正式发布后自动刷新 VPM。
 
 手动 `update-e2e.yml` 生成候选图片与待审 PR，再运行维护分支的普通 CI，不直接写入 main 或自动合并。默认截图模式不需要 AI 密钥；可选代理模式使用仓库 `OPENAI_API_KEY` secret 维护 E2E 测试。候选生成与普通比较分别记录，不能互相替代。
+
+受信任的 Release 发布以及 E2E 分支推送、PR 创建步骤使用仓库 `SENSA_PAT` secret；新 PR 自动触发普通 CI。只读检查、候选采集和 Codex 代理不接收该令牌。外部调用者使用自身已获授权的 GitHub 身份启动工作流，不能读取 Actions 中的密钥。

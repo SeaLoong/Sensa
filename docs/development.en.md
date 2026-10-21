@@ -40,6 +40,12 @@ Automatic selection considers the repository version and existing stable tags. A
 
 Each run depends on the required checks and builds for its own commit. It does not substitute earlier task successes or maintain verification-continuation records across commits.
 
+## Which secrets do workflows use?
+
+The repository Actions secret `SENSA_PAT` publishes Releases, pushes E2E candidate branches and creates review PRs. Creating the PR automatically triggers normal CI. Only those write steps receive the secret; unit tests, browser tests and the optional Codex agent do not. For a fine-grained PAT, grant Contents and Pull requests read/write access to Sensa only. Missing credentials stop writes, and their values are never printed in logs.
+
+Default screenshot maintenance needs no AI key. Only `agent` mode additionally uses `OPENAI_API_KEY`. An external agent dispatches workflows with its own authorized GitHub identity. It cannot read a stored Actions secret, and no key needs to be copied into a conversation.
+
 ## How are release notes generated?
 
 The notes combine GitHub change information with fixed bilingual usage details:

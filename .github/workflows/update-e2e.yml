@@ -183,13 +183,16 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
-      contents: write
-      pull-requests: write
-      actions: write
+      contents: read
     steps:
+      - name: Check repository write credential / 检查仓库写入凭据
+        env:
+          GH_TOKEN: ${{ secrets.SENSA_PAT }}
+        run: test -n "$GH_TOKEN" || { echo '::error::Configure the SENSA_PAT repository Actions secret / 请配置仓库 Actions 密钥 SENSA_PAT'; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.source.outputs.commit }}
+          token: ${{ secrets.SENSA_PAT }}
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
@@ -197,8 +200,8 @@ jobs:
         with:
           name: e2e-update-proposal
           path: artifacts/e2e-update
-      - name: Push candidate branch, create draft and dispatch CI / 推送候选分支、创建草稿并派发 CI
+      - name: Push candidate branch and open draft PR / 推送候选分支并创建草稿 PR
         env:
-          GH_TOKEN: ${{ github.token }}
+          GH_TOKEN: ${{ secrets.SENSA_PAT }}
           SOURCE_COMMIT: ${{ needs.source.outputs.commit }}
         run: python scripts/update-e2e-pr.py publish --source-commit "$SOURCE_COMMIT" --proposal artifacts/e2e-update

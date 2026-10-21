@@ -38,7 +38,9 @@ Inspect expected/actual/diff, trace, service logs and last observations first. F
 
 Run [`update-e2e.yml`](https://github.com/SeaLoong/Sensa/actions/workflows/update-e2e.yml) in Actions. Default `screenshots` mode needs no AI key. It runs the browser against current code and produces candidate images, reports and a review PR. It neither writes directly to `main` nor merges automatically.
 
-Optional `agent` mode requires an `OPENAI_API_KEY` repository Actions secret. The agent maintains tests only under `tests/e2e/`, then candidates are captured. Use the default mode without that secret; an unexecuted agent step is not a pass. The repository must also allow Actions to create Pull Requests.
+The repository Actions secret `SENSA_PAT` pushes the candidate branch and creates its review PR. The PR event automatically starts normal CI. Candidate capture and agent steps do not receive the secret. [Secret usage and permissions](development.en.md#which-secrets-do-workflows-use)
+
+Optional `agent` mode additionally requires an `OPENAI_API_KEY` repository Actions secret. The agent maintains tests only under `tests/e2e/`, then candidates are captured. Use the default mode without that secret; an unexecuted agent step is not a pass. An external agent can dispatch the workflow using its own authorized GitHub identity, without reading or copying an Actions secret.
 
 Inspect actual/expected/diff, test edits and run results in the PR by language and viewport. Accept intentional visual changes while retaining necessary behavior assertions. The maintenance branch triggers normal CI; decide whether to merge after normal comparison and manual review succeed. Candidate capture publishes no product and is not normal-comparison evidence.
 

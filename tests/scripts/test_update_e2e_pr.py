@@ -147,7 +147,7 @@ class ProposalContracts(unittest.TestCase):
             with self.subTest(text=text), self.assertRaises(ValueError):
                 proposal.validate_files(self.root, [CASE], 'agent')
 
-    def test_publisher_pushes_only_candidate_branch_opens_draft_then_dispatches_normal_ci(self):
+    def test_publisher_can_retry_a_validated_candidate_then_open_one_draft_without_duplicate_ci(self):
         (self.root / IMAGE).write_bytes(PNG + b'changed')
         self.export()
         proposal.git(self.root, 'reset', '--hard', 'HEAD')
@@ -170,16 +170,16 @@ class ProposalContracts(unittest.TestCase):
             return real_run(command, **kwargs)
         with patch.object(proposal.subprocess, 'check_output', side_effect=query), \
                 patch.object(proposal.subprocess, 'run', side_effect=run):
-            url = proposal.publish_proposal(self.root, self.commit, self.output, self.environment)
+            url = proposal.publish_proposal(self.root, self.commit, self.output,
+                                            self.environment | {'GITHUB_RUN_ATTEMPT': '3'})
         self.assertEqual(url, 'https://github.com/Owner/Repo/pull/9')
         self.assertEqual(commands[0][1:3], ['pr', 'create'])
-        self.assertEqual(commands[1], ['gh', 'workflow', 'run', 'ci.yml', '--repo', 'Owner/Repo',
-                                      '--ref', 'codex/e2e-update-1234-2'])
+        self.assertEqual(len(commands), 1, 'PAT-created PR already starts normal CI')
         refs = subprocess.check_output(['git', '--git-dir', str(origin), 'for-each-ref', '--format=%(refname)'], text=True)
-        self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-2')
+        self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-3')
         self.assertEqual(proposal.git(self.root, 'diff', '--name-only', self.commit, 'HEAD').decode().strip(), IMAGE)
 
-    def test_blocked_pr_creation_preserves_the_pushed_branch_and_reports_settings(self):
+    def test_blocked_pr_creation_preserves_the_pushed_branch_and_reports_token_permissions(self):
         (self.root / IMAGE).write_bytes(PNG + b'changed')
         self.export()
         proposal.git(self.root, 'reset', '--hard', 'HEAD')
@@ -196,7 +196,7 @@ class ProposalContracts(unittest.TestCase):
         refs = subprocess.check_output(['git', '--git-dir', str(origin), 'for-each-ref', '--format=%(refname)'], text=True)
         self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-2')
         self.assertIn('branch', (self.area / 'job.md').read_text())
-        self.assertIn('Allow GitHub Actions', (self.area / 'job.md').read_text())
+        self.assertIn('SENSA_PAT', (self.area / 'job.md').read_text())
 
     def test_tampered_proposal_is_rejected_before_creating_a_branch(self):
         (self.root / IMAGE).write_bytes(PNG + b'changed')
@@ -206,6 +206,16 @@ class ProposalContracts(unittest.TestCase):
         with self.assertRaises(ValueError):
             proposal.publish_proposal(self.root, self.commit, self.output, self.environment)
         self.assertEqual(proposal.git(self.root, 'rev-parse', 'HEAD').decode().strip(), self.commit)
+
+    def test_future_attempt_or_missing_counts_are_rejected_before_applying_patch(self):
+        (self.root / IMAGE).write_bytes(PNG + b'changed')
+        original = self.export()
+        proposal.git(self.root, 'reset', '--hard', 'HEAD')
+        for changes in ({'attempt': '3'}, {'counts': None}, {'counts': dict(original['counts'], passed=0)}):
+            (self.output / 'proposal.json').write_text(json.dumps(original | changes), encoding='utf-8')
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                proposal.publish_proposal(self.root, self.commit, self.output, self.environment)
+            self.assertEqual(proposal.git(self.root, 'diff', '--name-only', 'HEAD'), b'')
 
 
 if __name__ == '__main__':
