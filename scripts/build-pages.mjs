@@ -9,8 +9,8 @@ const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
 const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt'];
 const words = {
-  en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Download preview', navigation: 'Navigation', top: 'On this page' },
-  'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载预览版', navigation: '导航', top: '本页目录' },
+  en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Download preview', navigation: 'Navigation', top: 'On this page', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
+  'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载预览版', navigation: '导航', top: '本页目录', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
 };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to) || path.posix.basename(to);
@@ -18,8 +18,13 @@ const localeOf = file => file.endsWith('.en.md') || /(^|\/)README\.md$/.test(fil
 const slugOf = file => file.replace(/(?:\.en|\.zh-CN)?\.md$/, '');
 const isAlias = file => /(^|\/)README\.en\.md$/.test(file);
 
+export function mapDocumentHeadings(outline, translated) {
+  if (outline.length !== translated.length || !outline.every((heading, index) => heading.tag === translated[index].tag)) return {};
+  return Object.fromEntries(outline.map((heading, index) => [heading.id, translated[index].id]));
+}
+
 export async function buildPages({ source = root, output = path.join(root, 'artifacts/pages'), commit = process.env.GITHUB_SHA || '' } = {}) {
-  const documents = new Map(), routes = new Map(), emitted = new Set(), links = [], headings = new Map();
+  const documents = new Map(), routes = new Map(), emitted = new Set(), links = [], headings = new Map(), outlines = new Map(), rendered = [];
   for (const folder of folders) {
     for (const name of await fs.readdir(path.join(source, folder))) {
       if (!name.endsWith('.md') || (folder === '' && !name.startsWith('README'))) continue;
@@ -48,6 +53,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   const shell = (document, body, toc) => {
     const { locale, route } = document, t = words[locale], other = locale === 'en' ? 'zh-CN' : 'en';
     const buddy = routes.get(other + ':' + document.slug) || other + '/README.html';
+    const outline = outlines.get(route) || [], buddyOutline = outlines.get(buddy) || [];
+    const headingMap = routes.has(other + ':' + document.slug) ? mapDocumentHeadings(outline, buddyOutline) : {};
     const href = target => escape(relative(route, target));
     const nav = ['README', 'docs/quick-start', 'docs/guide', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
     const navigation = nav.map(key => {
@@ -55,17 +62,25 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       return item ? '<a' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(titleOf(item)) + '</a>' : '';
     }).join('');
     return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa documentation') + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href('site.css') + '"><script defer src="' + href('site.js') + '"></script></head><body><a class="skip" href="#content">Skip to content / 跳到正文</a>'
-      + '<header><a class="brand" href="' + href('index.html') + '">Sensa<span>' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '?lang=' + (locale === 'en' ? 'en-US' : locale) + '">' + t.diagram + '</a><a href="https://github.com/SeaLoong/Sensa/releases">' + t.download + '</a><a data-locale="' + other + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
+      + '<header><a class="brand" href="' + href('index.html') + '">Sensa<span>' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '?lang=' + (locale === 'en' ? 'en-US' : locale) + '">' + t.diagram + '</a><a href="https://github.com/SeaLoong/Sensa/releases">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
       + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><nav>' + navigation + '</nav></details><main id="content" tabindex="-1"><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
   };
   for (const document of documents.values()) {
-    const toc = [], seen = new Map(), ids = new Set();
+    const toc = [], seen = new Map(), ids = new Set(), outline = [];
     const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
+    const scrollRegion = label => '<div class="doc-scroll" role="region" tabindex="0" aria-label="' + escape(label) + '">';
+    md.renderer.rules.table_open = (tokens, index, options, env, render) => scrollRegion(words[document.locale].table) + render.renderToken(tokens, index, options);
+    md.renderer.rules.table_close = (tokens, index, options, env, render) => render.renderToken(tokens, index, options) + '</div>\n';
+    const fence = md.renderer.rules.fence, codeBlock = md.renderer.rules.code_block;
+    md.renderer.rules.fence = (...args) => scrollRegion(words[document.locale].code) + fence(...args) + '</div>\n';
+    md.renderer.rules.code_block = (...args) => scrollRegion(words[document.locale].code) + codeBlock(...args) + '</div>\n';
     md.renderer.rules.heading_open = (tokens, index, options, env, render) => {
       const title = tokens[index + 1].content;
       const base = title.toLowerCase().replace(/<[^>]*>/g, '').replace(/[^\p{L}\p{N}_\s-]/gu, '').trim().replace(/\s/g, '-');
       const count = seen.get(base) || 0, id = base + (count ? '-' + count : '');
       seen.set(base, count + 1); ids.add(id); tokens[index].attrSet('id', id);
+      tokens[index].attrSet('tabindex', '-1');
+      outline.push({ id, tag: tokens[index].tag });
       if (tokens[index].tag === 'h2') toc.push({ id, title });
       return render.renderToken(tokens, index, options);
     };
@@ -106,10 +121,12 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     await walk(tokens);
     const body = md.renderer.render(tokens, md.options, {});
     headings.set(document.route, ids);
-    await write(document.route, shell(document, body, toc));
+    outlines.set(document.route, outline);
+    rendered.push({ document, body, toc });
   }
   const failures = links.filter(x => x.fragment && headings.has(x.to) && !headings.get(x.to).has(decodeURIComponent(x.fragment)));
   if (failures.length) throw new Error('Broken documentation anchors:\n' + failures.map(x => x.from + ' -> ' + x.to + '#' + x.fragment).join('\n'));
+  for (const { document, body, toc } of rendered) await write(document.route, shell(document, body, toc));
   let versions = [], vpmUrl = '';
   try {
     const index = JSON.parse(await fs.readFile(path.join(output, 'vpm.json'), 'utf8'));

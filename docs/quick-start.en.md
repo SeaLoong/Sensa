@@ -21,7 +21,9 @@ Use “Control” to add an output: the device or service that will receive Sens
 | Intiface | Start an existing Central, then enter its service address; new outputs do not manage an engine |
 | Intiface vibration | V0 by default; choose V1/V2, or explicitly L0 to convert depth into intensity |
 
-Save, enable that output and connect. In “Settings”, reduce the axis travel range and speed first, and reverse direction if needed. Displayed values are recently sent targets; observe the device itself to check whether it reached them.
+For a TCode output, first edit its axis profile in Settings: reduce travel and speed, and reverse direction if needed. Select that profile when saving the output. TCode axis profiles do not apply to Intiface. For Intiface, check the range/speed limits and stop controls provided by your device or Central, then test with small manual targets.
+
+Check the destination and configuration before enabling the output and connecting. Displayed values are recently sent targets; observe the device itself to check whether it reached them.
 
 ## 3. Check manual direction and stop
 

@@ -185,7 +185,8 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         await child.goto(url.href);
         await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
         await expect(child.locator('#locale')).toHaveValue(scenario.expected);
-        await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US' ? 'See the shapes behind the parameters' : '看见参数背后的形状');
+        await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US'
+          ? 'Move the target to see where detection works' : '移动目标，了解何时能够检测');
         await capture('initial');
         if (scenario.switchAndReload) {
           await chooseScene(child, 'socket-modern', 'iso'); await setRange(child, 'z', .41);
@@ -207,7 +208,7 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         }
         if (scenario.denied) {
           await child.locator('#locale').selectOption('en-US');
-          await expect(child.locator('h1')).toHaveText('See the shapes behind the parameters');
+          await expect(child.locator('h1')).toHaveText('Move the target to see where detection works');
         }
         expect(errors).toEqual([]); expect(network).toEqual([]);
       } finally {

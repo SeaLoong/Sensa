@@ -906,5 +906,12 @@
   "上一页": "Previous page",
   "下一页": "Next page",
   "显示第 {0}–{1} 项，共 {2} 项": "Showing {0}–{1} of {2}",
-  "OSC 参数分页": "OSC parameter pages"
+  "OSC 参数分页": "OSC parameter pages",
+  "页码": "Page",
+  "预览已冻结；这不会停止 OSC 接收或正在进行的设备动作。": "Preview is frozen. This does not stop OSC reception or ongoing device motion.",
+  "随接收更新": "Updates as samples arrive",
+  "冻结的样本": "Frozen sample",
+  "参数已离开当前目录，显示打开时的样本。": "This parameter has left the catalog. Showing the sample from when this dialog opened.",
+  "实时连接尚未就绪，显示最近收到的样本。": "The live connection is not ready. Showing the most recently received sample.",
+  "接收时间：{0}": "Received at: {0}"
 }

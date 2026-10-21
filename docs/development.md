@@ -41,6 +41,8 @@ node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-rankin
 
 浏览器 E2E、截图、完整进程冒烟与 World PlayMode **仅在 Actions**。本地入口只报告这些计划；不得伪造 CI 环境绕过。隔离单元／静态／Unity EditMode 可本地运行，设备测试只用临时配置与模拟传输。[E2E 细节](e2e.md)
 
+应用与 Pages 测试都用 `scripts/e2e-summary-reporter.mjs` 记录本次结果，并在命令结束后通过 `always()` 步骤写入 Job summary 和报告附件。即使提前失败，也必须明确标记未运行；不得沿用其他提交、运行或尝试次数的成功报告。新增交互时同时更新 E2E 行为断言，推送后核对实际运行，再更新[验证记录](e2e-status.md)。图片接受记录单独维护，不能由摘要自动批准。
+
 ## 四个工作流
 
 | Workflow | 责任与发布边界 |

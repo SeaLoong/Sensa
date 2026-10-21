@@ -45,7 +45,7 @@ The [documentation site](https://sealoong.github.io/Sensa/) publishes independen
 
 ## Development and evidence
 
-See [architecture](docs/architecture.en.md), [verification workflow](docs/development.en.md) and [visual review](docs/ui-visual-review.en.md). Plan local checks with `python -X utf8 scripts/verify.py --plan`, then run `scripts/verify.py`. Browser E2E, screenshots, process smoke and World PlayMode run in Actions; device tests use mock transports.
+See [architecture](docs/architecture.en.md), [verification workflow](docs/development.en.md), [E2E status](docs/e2e-status.en.md) and the [archived visual review](docs/ui-visual-review.en.md). Plan local checks with `python -X utf8 scripts/verify.py --plan`, then run `scripts/verify.py`. Browser E2E, screenshots, process smoke and World PlayMode run in Actions; device tests use mock transports.
 
 Automated geometry, authoring and mock-wire checks do not establish real VRChat Contacts, client capture, HMD visibility, positioning accuracy or physical device behavior.
 

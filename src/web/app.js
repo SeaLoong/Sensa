@@ -82,7 +82,7 @@ import {
 import { attachPageLifecycle, createInitialSnapshotLoader, createRealtimeSession } from './realtime-session.js';
 import { loadStudio, saveStudio, sanitizeStudio } from './preferences.js';
 import { LOG_LEVEL_ORDER, createLogNormalizer, formatAxisTraceAction, formatRealtimeStatus } from './diagnostics.js';
-import { buildOscSourceSelectionOptions, oscCatalogVisibility } from './osc-workspace.js';
+import { buildOscSourceSelectionOptions, formatOscParameterDetailStatus, formatPreviewTimestamp, oscCatalogVisibility, resolveOscParameterDetail } from './osc-workspace.js';
 import { AxisSlider, SelectField, SliderControl, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.jsx';
 import { ScriptTimelineDensity } from './script-timeline.jsx';
@@ -1453,6 +1453,8 @@ function App() {
     ? suggestOscPaths(mappingPreviewEntries, oscQuery?.nodes || EMPTY_OSC_CATALOG) : EMPTY_OSC_CATALOG,
   [mappingEditorVisible, mappingPreviewEntries, oscQuery?.nodes, suggestOscPaths]);
   const visibleCatalog = frozenPreview || oscPreview;
+  const visibleParameterDetail = useMemo(() => resolveOscParameterDetail(parameterDetail, visibleCatalog,
+    { frozen: Boolean(frozenPreview), connected: wsState === 'connected' }), [parameterDetail, visibleCatalog, frozenPreview, wsState]);
   const sourceCatalog = useMemo(() => !parameterBrowserVisible ? EMPTY_OSC_CATALOG : previewSourceTab === 'all'
     ? visibleCatalog : visibleCatalog.filter(entry => entry.sourceKey === previewSourceTab),
   [parameterBrowserVisible, visibleCatalog, previewSourceTab]);
@@ -2039,6 +2041,7 @@ function App() {
           </Button>
           <span className="muted">{t('{0} 项', [rankedOscPreview.length])}</span>
         </div>
+        {frozenPreview && <Notice>{t('预览已冻结；这不会停止 OSC 接收或正在进行的设备动作。')}</Notice>}
         <OscParameterTable entries={rankedOscPreview} pinnedPaths={pinnedPaths}
           filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
           onTogglePinned={togglePinned}
@@ -2821,7 +2824,7 @@ function App() {
             <Button onClick={() => setParameterDetail(null)}>{t('关闭')}</Button>
             <Button
               onClick={() => {
-                const tab = mapPreviewParameter(parameterDetail);
+                const tab = mapPreviewParameter(visibleParameterDetail.entry);
                 setParameterDetail(null);
                 setOscWorkspaceTab(tab || 'setup');
               }}
@@ -2835,8 +2838,12 @@ function App() {
         <p>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</p>
         <p><a href={docUrl('docs/parameter-geometry.html')} target="_blank" rel="noreferrer">{t('交互参数图解')}</a></p>
         <p className="muted">
-          {parameterDetail?.sourceLabel} · {parameterDetail?.value}
+          {visibleParameterDetail?.entry.sourceLabel || t('未知来源')} · <span data-testid="parameter-detail-value">{visibleParameterDetail?.entry.value ?? '—'}</span>
         </p>
+        {visibleParameterDetail && <>
+          <p className="caption muted" data-testid="parameter-detail-status">{formatOscParameterDetailStatus(visibleParameterDetail.mode)}</p>
+          <p className="caption muted" data-testid="parameter-detail-time">{t('接收时间：{0}', [formatPreviewTimestamp(visibleParameterDetail.entry.timestampMs)])}</p>
+        </>}
       </Modal>
       <Modal open={recordingRestartOpen} title={t('重新录制')} emergencyAction={emergencyAction} error={modalError}
         onClose={() => setRecordingRestartOpen(false)}

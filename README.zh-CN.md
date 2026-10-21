@@ -45,7 +45,7 @@
 
 ## 开发与证据
 
-参见[架构](docs/architecture.md)、[验证流程](docs/development.md)和[视觉审阅](docs/ui-visual-review.md)。本机先用 `python -X utf8 scripts/verify.py --plan` 规划，再运行 `scripts/verify.py`。浏览器 E2E、截图、完整进程冒烟与 World PlayMode 仅在 Actions；设备测试使用模拟传输。
+参见[架构](docs/architecture.md)、[验证流程](docs/development.md)、[E2E 状态](docs/e2e-status.md)和[已归档视觉评审](docs/ui-visual-review.md)。本机先用 `python -X utf8 scripts/verify.py --plan` 规划，再运行 `scripts/verify.py`。浏览器 E2E、截图、完整进程冒烟与 World PlayMode 仅在 Actions；设备测试使用模拟传输。
 
 几何、作者生成与模拟线包检查不能证明真实 VRChat Contacts、客户端捕获、头显可见性、定位准确度或机械动作。
 

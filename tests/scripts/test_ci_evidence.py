@@ -218,6 +218,12 @@ class ProductOwnerContracts(unittest.TestCase):
         browser = job_body(browser_workflow, 'browser')
         comparison = re.findall(r'^      - name: ([^\n]+)\n        id: comparison$', browser, re.M)
         self.assertEqual(len(comparison), 1)
+        comparison_step = re.split(r'(?m)^      - ', browser.split('        id: comparison\n', 1)[1], maxsplit=1)[0]
+        self.assertIn('if: ${{ !inputs.update_snapshots }}', comparison_step)
+        self.assertNotIn('always()', comparison_step)
+        self.assertNotIn('continue-on-error', browser)
+        self.assertLess(comparison_step.index('--verify-comparison artifacts/e2e/summary.json'),
+                        comparison_step.index('echo "sha=$GITHUB_SHA"'))
         e2e_name = job_name(e2e, 'e2e') + ' / ' + job_name(browser, 'browser')
         names = [job_name(job_body(workflow, 'validate'), 'validate'), e2e_name,
                  *platform_names, job_name(job_body(workflow, 'prerelease'), 'prerelease')]
@@ -227,6 +233,26 @@ class ProductOwnerContracts(unittest.TestCase):
                      steps=[dict(name=comparison[0], conclusion='success')] if name == e2e_name else [])
                 for name in names]
         self.assertEqual(evidence._owner_state(product, jobs), 'success')
+
+    def test_both_browser_workflows_retain_current_results_even_after_command_failure(self):
+        for workflow_name, command_id, artifact_name in (
+                ('e2e.yml', 'browser_tests', 'e2e-report'),
+                ('pages.yml', 'site_tests', 'pages-verification')):
+            with self.subTest(workflow=workflow_name):
+                source = (ROOT / '.github/workflows' / workflow_name).read_text(encoding='utf-8')
+                steps = re.split(r'(?m)^      - ', source)
+                command = next(step for step in steps if f'        id: {command_id}\n' in step)
+                self.assertIn('run: npm run e2e:ci', command)
+                self.assertNotIn('continue-on-error', command)
+                self.assertNotIn('|| true', command)
+                finalizer = next(step for step in steps if '--finalize-report artifacts/e2e/summary.json' in step)
+                self.assertIn('if: always()', finalizer)
+                self.assertIn(f'E2E_COMMAND_OUTCOME: ${{{{ steps.{command_id}.outcome }}}}', finalizer)
+                artifact = next(step for step in steps if f'name: {artifact_name}\n' in step)
+                self.assertIn('if: always()', artifact)
+                self.assertIn('artifacts/e2e/summary.json', artifact)
+                self.assertIn('artifacts/e2e/summary.md', artifact)
+                self.assertLess(source.index('--finalize-report'), source.index(f'name: {artifact_name}\n'))
 
     def test_metadata_owner_artifact_and_schema_mismatches_fail_closed(self):
         changes = [('run', 'event', 'pull_request'), ('run', 'head_branch', 'feature'),

@@ -50,6 +50,8 @@ for (const count of [0, 100, 101, 4096, 12000]) {
       const navigation = html.slice(html.indexOf('<nav'));
       assert.equal((navigation.match(/<button\b/g) || []).length, 2);
       assert.equal((navigation.match(/<button[^>]+disabled=""/g) || []).length, 1);
+      assert.match(navigation, /<select\b/);
+      assert.equal((navigation.match(/<option\b/g) || []).length, Math.ceil(count / 100));
     }
   });
 }

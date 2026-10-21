@@ -41,6 +41,8 @@ Docs/test-only skips apply **only with no unfinished product verification**. [ci
 
 Browsers, screenshots, full-process smoke and World PlayMode run **only in Actions**. Local planning reports them without executing. Never forge CI environment to bypass guards. Isolated units/static/Unity EditMode may run locally; device tests use temporary config and mock transports. [E2E](e2e.en.md)
 
+Application and Pages tests use `scripts/e2e-summary-reporter.mjs` to record the current result. An `always()` step finalizes the command outcome into the Job summary and report artifacts. Early failures must explicitly record unrun scope, never reuse success from another commit, run or attempt. Update E2E behavior assertions with each new interaction, inspect the executed result after pushing, then maintain the [verification record](e2e-status.en.md). Image acceptance remains a separate review and cannot be approved by the summary.
+
 ## Four workflows
 
 | Workflow | Responsibility/publication boundary |

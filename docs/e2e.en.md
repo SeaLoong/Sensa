@@ -22,6 +22,8 @@ Fixed SPS/Shader cases send explicitly simulated protocols to check default bloc
 
 Locale cases cover URL/saved/full ordered browser preferences/English fallback, denied storage, persistence and preserved drafts/explorer state. Golden language is explicit, separate from environment negotiation. [Language contract](languages.en.md)
 
+The large-catalog scenario continuously updates 4,096 simulated parameters, checking the 100-row page limit, direct page selection, filter reset and search across the full catalog. Detail cases check live updates, frozen samples, the opening sample after a source disappears, and isolation of identical paths from different sources. Site cases also check corresponding sections after language switching and keyboard scrolling of tables/code at 320px.
+
 Explorer cases independently inspect SVG radii/capsules, values, keyboard, aligned sliders and 320 reflow. WebGL checks actual non-background pixels, object matrices/geometry/colors/reference surfaces, camera-data separation, XZ/XY ray-plane drag/locked axes/step/clamp/cancel, dimension updates and resource cleanup. It also checks default/reset framing, label clearance/leaders and constructor/context-loss fallback. The report defines exact YZ/numeric coverage; a control's presence is not an executed flow.
 
 ## Environment and failures
@@ -29,6 +31,21 @@ Explorer cases independently inspect SVG radii/capsules, values, keyboard, align
 Desktop 1280×900 and narrow 390×844 use locked Playwright Linux, fonts, locale and timezone; 320 is a separate reflow check. A narrow viewport is not a phone, and PTY is not a Windows driver. [Config](https://github.com/SeaLoong/Sensa/blob/main/playwright.config.js) · [Tests](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
 
 On failure, download `e2e-report` and inspect expected/actual/diff, trace, service logs, mock-wire and last observations. Fix behavior in implementation. Update baselines only for reviewed intentional changes, without weakened assertions, automatic retries or resends hiding failures.
+
+## Read the current result
+
+Start with the Actions run's Job summary, then download `e2e-report` for the application or `pages-verification` for the site. Both retain `summary.json` and `summary.md` with the commit, run attempt, suite, image mode, projects/viewports and failing assertions. Maintain [confirmed run outcomes](e2e-status.en.md) separately instead of placing changing pass totals in general guidance.
+
+| Summary field | Meaning |
+| --- | --- |
+| `passed` / `failed` | Cases that actually passed / failed |
+| `expectedFailure` | A declared expected failure that did fail; not a pass |
+| `flaky` | Inconsistent results across attempts; not a clean pass |
+| `skipped` | Explicitly skipped cases |
+| `notRun` / `interrupted` | Cases not executed / interrupted during execution |
+| Runner / Command | The browser runner's reported status / the command's final Actions outcome; check both |
+
+If installation/build fails before a valid current report exists, the summary records “not run” and zero observed cases without inventing a count for unloaded tests. Cases suppressed by the failure limit remain `notRun`. Release comparison evidence requires every case in the unfiltered desktop and narrow-screen suites to pass in normal comparison mode for the current commit and run. Candidate images, empty runs, filtering/sharding, skips and retry passes cannot replace it.
 
 ## Generate and accept candidates
 

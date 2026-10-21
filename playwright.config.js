@@ -8,7 +8,7 @@ export default defineConfig({
   testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0, maxFailures: 3,
   forbidOnly: true, outputDir: 'artifacts/e2e/results',
   grep: suite === 'all' ? undefined : new RegExp('@' + suite + '\\b'),
-  reporter: [['line'], ['html', { outputFolder: 'artifacts/e2e/report', open: 'never' }], ['json', { outputFile: 'artifacts/e2e/results.json' }]],
+  reporter: [['line'], ['html', { outputFolder: 'artifacts/e2e/report', open: 'never' }], ['json', { outputFile: 'artifacts/e2e/results.json' }], ['./scripts/e2e-summary-reporter.mjs']],
   snapshotPathTemplate: '{testDir}/__screenshots__/{projectName}/{arg}{ext}',
   updateSnapshots: process.env.E2E_UPDATE_SNAPSHOTS === 'true' ? 'all' : 'none',
   expect: { timeout: 10000, toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.001 } },

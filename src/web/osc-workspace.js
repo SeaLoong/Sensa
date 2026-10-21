@@ -41,6 +41,25 @@ export function oscCatalogVisibility(workspace, tab, presetDialogOpen = false) {
     parameterBrowserVisible: workspace === 'osc' && tab === 'parameters' };
 }
 
+// A detail dialog follows the selected transport identity, never another source
+// that happens to publish the same path. Frozen rows retain their chosen sample.
+export function resolveOscParameterDetail(selected, entries, { frozen = false, connected = true } = {}) {
+  if (!selected) return null;
+  const current = (Array.isArray(entries) ? entries : []).find(entry => entry.path === selected.path
+    && (entry.sourceKey || '') === (selected.sourceKey || ''));
+  return { entry: current || selected,
+    mode: frozen ? 'frozen' : !current ? 'missing' : !connected ? 'offline' : 'live' };
+}
+
+export function formatOscParameterDetailStatus(mode) {
+  switch (mode) {
+    case 'frozen': return t('冻结的样本');
+    case 'missing': return t('参数已离开当前目录，显示打开时的样本。');
+    case 'offline': return t('实时连接尚未就绪，显示最近收到的样本。');
+    default: return t('随接收更新');
+  }
+}
+
 function applySignalCurve(value, curve) {
   switch (curve) {
     case 'EaseIn':

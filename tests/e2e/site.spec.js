@@ -113,3 +113,63 @@ test('@site language priority, unsupported preferences and Chinese variants', as
     } finally { await context.close(); }
   }
 });
+
+test('@site document language changes preserve the current section and discard unknown fragments', async ({ page }, info) => {
+  const zhId = '3-检查手动方向和停止', enId = '3-check-manual-direction-and-stop';
+  await page.goto(new URL('zh-CN/docs/quick-start.html#' + encodeURIComponent(zhId), base).href);
+  const chinese = page.getByRole('heading', { name: '3. 检查手动方向和停止', exact: true });
+  await expect(chinese).toHaveAttribute('id', zhId);
+  await expect(chinese).toBeInViewport();
+  const englishLink = page.locator('header [data-locale="en"]');
+  await expect(englishLink).toHaveAttribute('href', new URL('en/docs/quick-start.html#' + enId, base).href);
+  await englishLink.click();
+  await expect(page).toHaveURL(new URL('en/docs/quick-start.html#' + enId, base).href);
+  const english = page.getByRole('heading', { name: '3. Check manual direction and stop', exact: true });
+  await expect(english).toHaveAttribute('tabindex', '-1');
+  await expect(english).toBeInViewport();
+  await page.locator('header [data-locale="zh-CN"]').click();
+  await expect(page).toHaveURL(new URL('zh-CN/docs/quick-start.html#' + encodeURIComponent(zhId), base).href);
+  await expect(chinese).toBeInViewport();
+
+  await page.evaluate(() => { location.hash = 'unknown-section'; });
+  await expect(englishLink).toHaveAttribute('href', new URL('en/docs/quick-start.html', base).href);
+  await englishLink.click();
+  await expect(page).toHaveURL(new URL('en/docs/quick-start.html', base).href);
+  await expect(page.locator('article h1')).toBeInViewport();
+  await info.attach('document-section-navigation.json', { body: JSON.stringify({
+    chinese: zhId, english: enId, roundTripPreserved: true, unknownFragmentFallsBackToTop: true,
+    viewport: page.viewportSize(),
+  }), contentType: 'application/json' });
+});
+
+test('@site wide document tables and code remain keyboard scrollable at 320 pixels', async ({ page }, info) => {
+  await page.setViewportSize({ width: 320, height: 800 });
+  const evidence = [];
+  for (const locale of ['zh-CN', 'en']) {
+    await page.goto(new URL(locale + '/docs/development.html', base).href);
+    await page.evaluate(() => document.fonts.ready);
+    const areas = [
+      { kind: 'table', area: page.locator('.doc-scroll').filter({ has: page.locator('table') }).first(),
+        label: locale === 'zh-CN' ? '表格；内容超宽时可横向滚动' : 'Table; scroll horizontally when needed' },
+      { kind: 'code', area: page.locator('.doc-scroll').filter({ hasText: 'node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-ranking.json' }).first(),
+        label: locale === 'zh-CN' ? '代码示例；内容超宽时可横向滚动' : 'Code example; scroll horizontally when needed' },
+    ];
+    for (const { kind, area, label } of areas) {
+      await area.scrollIntoViewIfNeeded();
+      await expect(area).toHaveAttribute('role', 'region');
+      await expect(area).toHaveAttribute('aria-label', label);
+      await expect(area).toHaveAttribute('tabindex', '0');
+      expect(await area.evaluate(node => node.scrollWidth > node.clientWidth + 1)).toBe(true);
+      await area.focus();
+      await expect(area).toBeFocused();
+      await area.press('ArrowRight');
+      await expect.poll(() => area.evaluate(node => node.scrollLeft)).toBeGreaterThan(0);
+      evidence.push({ locale, kind, ...await area.evaluate(node => ({
+        scrollWidth: node.scrollWidth, clientWidth: node.clientWidth, scrollLeft: node.scrollLeft,
+        focused: node === document.activeElement,
+      })) });
+    }
+    expect(await page.locator('body').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+  }
+  await info.attach('document-keyboard-scroll.json', { body: JSON.stringify(evidence), contentType: 'application/json' });
+});

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { t } from './i18n.js';
 import { Button } from './ui.jsx';
+import { SelectField } from './controls.jsx';
 import { formatPreviewTimestamp, paginateOscPreview } from './osc-workspace.js';
 
 export default function OscParameterTable({ entries, pinnedPaths, filterKey, onTogglePinned, onInspect, onMap }) {
@@ -50,6 +51,9 @@ export default function OscParameterTable({ entries, pinnedPaths, filterKey, onT
       {page.total > 100 && (
         <nav className="actions" aria-label={t('OSC 参数分页')}>
           <Button disabled={page.page === 0} onClick={() => selectPage(page.page - 1)}>{t('上一页')}</Button>
+          <SelectField label={t('页码')} value={page.page + 1}
+            options={Array.from({ length: page.pages }, (_, index) => ({ value: index + 1, label: String(index + 1) }))}
+            onChange={value => selectPage(Number(value) - 1)} />
           <span className="muted" role="status">{t('显示第 {0}–{1} 项，共 {2} 项', [page.first, page.last, page.total])}</span>
           <Button disabled={page.page === page.pages - 1} onClick={() => selectPage(page.page + 1)}>{t('下一页')}</Button>
         </nav>

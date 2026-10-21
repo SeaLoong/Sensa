@@ -8,9 +8,11 @@ on:
       - '.github/pages/**'
       - '.github/workflows/pages.yml'
       - 'scripts/build-pages.mjs'
+      - 'scripts/e2e-summary-reporter.mjs'
       - 'scripts/vpm-index.py'
       - 'tests/e2e/site.spec.js'
       - 'tests/web/site.test.mjs'
+      - 'tests/web/e2e-summary.test.mjs'
       - 'playwright.config.js'
       - 'package.json'
       - 'package-lock.json'
@@ -54,11 +56,19 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends fonts-noto-cjk
       - name: Verify navigation, language and standalone explorer / 验证导航语言与独立图解
+        id: site_tests
         env:
           E2E_SUITE: site
           E2E_UPDATE_SNAPSHOTS: 'false'
           SENSA_SITE_DIRECTORY: artifacts/pages
         run: npm run e2e:ci
+      - name: Publish current site result summary / 发布本次站点结果摘要
+        if: always()
+        env:
+          E2E_SUITE: site
+          E2E_UPDATE_SNAPSHOTS: 'false'
+          E2E_COMMAND_OUTCOME: ${{ steps.site_tests.outcome }}
+        run: node scripts/e2e-summary-reporter.mjs --finalize-report artifacts/e2e/summary.json
       - name: Retain verification and preview images / 保留验证与预览图片
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -68,6 +78,8 @@ jobs:
             artifacts/e2e/report/
             artifacts/e2e/results/
             artifacts/e2e/results.json
+            artifacts/e2e/summary.json
+            artifacts/e2e/summary.md
             artifacts/pages/site-manifest.json
           retention-days: 14
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0

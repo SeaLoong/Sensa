@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { buildPages } from '../../scripts/build-pages.mjs';
+import vm from 'node:vm';
+import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
 
 test('public guides build into bilingual routes with resolvable local links and offline diagram assets', async () => {
   const output = await fs.mkdtemp(path.join(os.tmpdir(), 'sensa-site-'));
@@ -29,6 +30,18 @@ test('public guides build into bilingual routes with resolvable local links and 
     const packageGuide = await fs.readFile(path.join(output, 'en/unity/top.sealoong.sensa/README.html'), 'utf8');
     assert.match(packageGuide, /href="\.\.\/\.\.\/docs\/ogb-compatibility\.html"/);
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);
+    const guide = await fs.readFile(path.join(output, 'en/docs/guide.html'), 'utf8');
+    const translatedGuide = await fs.readFile(path.join(output, 'zh-CN/docs/guide.html'), 'utf8');
+    const headingMap = JSON.parse(guide.match(/data-heading-map="([^"]+)"/)[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
+    assert.ok(Object.keys(headingMap).length > 3, 'Language links map corresponding sections');
+    for (const [original, translated] of Object.entries(headingMap)) {
+      assert.ok(guide.includes('id="' + original + '" tabindex="-1"'));
+      assert.ok(translatedGuide.includes('id="' + translated + '" tabindex="-1"'));
+    }
+    const parameterGuide = await fs.readFile(path.join(output, 'en/docs/osc-parameters.html'), 'utf8');
+    assert.match(parameterGuide, /<div class="doc-scroll" role="region" tabindex="0" aria-label="Table; scroll horizontally when needed"><table>/);
+    const developmentGuide = await fs.readFile(path.join(output, 'en/docs/development.html'), 'utf8');
+    assert.match(developmentGuide, /<div class="doc-scroll" role="region" tabindex="0" aria-label="Code example; scroll horizontally when needed"><pre>/);
     const review = await fs.readFile(path.join(output, 'en/docs/ui-visual-review.html'), 'utf8');
     const reviewSource = await fs.readFile(new URL('../../docs/ui-visual-review.en.md', import.meta.url), 'utf8');
     const pinned = reviewSource.match(/https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/[0-9a-f]{7,40}\/[^)\s]+\.md/)?.[0];
@@ -59,4 +72,48 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.doesNotMatch(installLink, /\bhidden\b/);
     assert.ok(installLink.includes('href="vcc://vpm/addRepo?url=' + encodeURIComponent(historical.url) + '"'));
   } finally { await fs.rm(output, { recursive: true, force: true }); }
+});
+
+test('language section maps require a matching outline instead of guessing from mismatched headings', () => {
+  const original = [{ tag: 'h1', id: 'guide' }, { tag: 'h2', id: 'first' }, { tag: 'h3', id: 'detail' }];
+  const translated = [{ tag: 'h1', id: '使用指南' }, { tag: 'h2', id: '开始' }, { tag: 'h3', id: '细节' }];
+  assert.deepEqual(mapDocumentHeadings(original, translated), { guide: '使用指南', first: '开始', detail: '细节' });
+  assert.deepEqual(mapDocumentHeadings(original, translated.slice(0, 2)), {});
+  assert.deepEqual(mapDocumentHeadings(original, translated.map(heading => ({ ...heading, tag: 'h2' }))), {});
+});
+
+test('document enhancement preserves heading links and makes only overflowing examples keyboard stops', async () => {
+  const source = await fs.readFile(new URL('../../.github/pages/site.js', import.meta.url), 'utf8');
+  const location = new URL('https://example.test/Sensa/en/docs/guide.html#first');
+  const events = new Map(), clicks = new Map(), storage = new Map();
+  const link = { href: 'https://example.test/Sensa/zh-CN/docs/guide.html',
+    dataset: { locale: 'zh-CN', headingMap: JSON.stringify({ first: '开始' }) },
+    addEventListener: (name, action) => clicks.set(name, action) };
+  const wide = { scrollWidth: 900, clientWidth: 300, tabIndex: 0, firstElementChild: {} };
+  const narrow = { scrollWidth: 299, clientWidth: 300, tabIndex: 0, firstElementChild: {} };
+  const observed = [];
+  vm.runInNewContext(source, { URL, location, navigator: { languages: ['en-US'], language: 'en-US' },
+    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+    document: { body: { hasAttribute: () => false },
+      querySelectorAll: selector => selector === '[data-locale]' ? [link] : selector === '.doc-scroll' ? [wide, narrow] : [],
+      fonts: { ready: Promise.resolve() } },
+    window: { addEventListener: (name, action) => events.set(name, action) },
+    matchMedia: () => ({ matches: false }),
+    ResizeObserver: class { observe(node) { observed.push(node); } },
+  });
+  await Promise.resolve();
+  assert.equal(new URL(link.href).hash, '#' + encodeURIComponent('开始'));
+  assert.equal(wide.tabIndex, 0);
+  assert.equal(narrow.tabIndex, -1);
+  assert.deepEqual(observed, [wide, wide.firstElementChild, narrow, narrow.firstElementChild]);
+  location.hash = '#content'; events.get('hashchange')();
+  assert.equal(new URL(link.href).hash, '#content');
+  location.hash = '#unknown'; events.get('hashchange')();
+  assert.equal(new URL(link.href).hash, '');
+  location.hash = '#%invalid'; events.get('hashchange')();
+  assert.equal(new URL(link.href).hash, '');
+  wide.scrollWidth = 300; events.get('resize')();
+  assert.equal(wide.tabIndex, -1);
+  clicks.get('click')();
+  assert.equal(storage.get('sensa.locale'), 'zh-CN');
 });

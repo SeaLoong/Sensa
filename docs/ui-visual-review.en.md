@@ -4,6 +4,8 @@
 
 This is a **2026-10-21 review tied to fixed source and images**, not a live main-branch dashboard. It records findings and acceptance for ten-scene 3D, actual target dragging, label clearance and leaders. Later automatic-language/site work needs its own CI evidence and cannot inherit this page as an executed result.
 
+Use [E2E status](e2e-status.en.md) for the current commit's execution results. That page distinguishes updated cases, actual test outcomes and images still awaiting review; this page's fixed images and historical counts remain unchanged.
+
 Coding agents inspected actual CI images using [V1–V6](ui-quality.en.md), retaining TDesign colors/flat layout. There was no questionnaire, aggregate aesthetic score or preference study. The earlier 98-image review remains at a [fixed commit](https://github.com/SeaLoong/Sensa/blob/9ffca1ea6361aad4ca9d7b53e8b96a1e86038142/docs/ui-visual-review.en.md).
 
 ## Evidence and scope

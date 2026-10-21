@@ -41,7 +41,29 @@
   } else {
     // Explicit documentation routes keep their language, irrespective of stored preferences.
     // 明确文档语言路由不被已有偏好覆盖。
-    document.querySelectorAll('[data-locale]').forEach(x => x.addEventListener('click', () => save(x.dataset.locale)));
+    document.querySelectorAll('[data-locale]').forEach(link => {
+      const target = new URL(link.href, location.href);
+      let headings = {};
+      try { headings = JSON.parse(link.dataset.headingMap || '{}'); } catch { /* Older static pages have no map. */ }
+      const updateTarget = () => {
+        let heading;
+        try { heading = decodeURIComponent(location.hash.slice(1)); } catch { heading = ''; }
+        target.hash = Object.hasOwn(headings, heading) ? headings[heading] : heading === 'content' ? 'content' : '';
+        link.href = target.href;
+      };
+      updateTarget();
+      window.addEventListener('hashchange', updateTarget);
+      link.addEventListener('click', () => save(link.dataset.locale));
+    });
+    const scrollAreas = [...document.querySelectorAll('.doc-scroll')];
+    const updateScrollAreas = () => scrollAreas.forEach(area => { area.tabIndex = area.scrollWidth > area.clientWidth + 1 ? 0 : -1; });
+    updateScrollAreas();
+    if (typeof ResizeObserver === 'function') {
+      const observer = new ResizeObserver(updateScrollAreas);
+      scrollAreas.forEach(area => { observer.observe(area); if (area.firstElementChild) observer.observe(area.firstElementChild); });
+    }
+    window.addEventListener('resize', updateScrollAreas);
+    document.fonts?.ready?.then(updateScrollAreas);
     if (matchMedia('(max-width: 760px)').matches) document.querySelector('.navigation')?.removeAttribute('open');
   }
 })();

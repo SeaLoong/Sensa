@@ -39,9 +39,22 @@ Export produces funscript actions and can simplify the curve. It excludes other 
 
 Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
 
-The parameter table shows at most 100 rows per page; use Previous/Next to continue. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
+The parameter table shows at most 100 rows per page; use Previous/Next to continue or Page to jump directly. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
 
-Details explain leaves, current values and mapping uses; the explorer link opens the local offline page. A present parameter is neither a mapping nor permission to move. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
+Details follow updates for the same path and source and show the sample's receive time; freezing the preview also freezes the detail sample. If the parameter leaves the catalog, details retain the sample from when they opened. If the connection is not ready, they show the most recently received sample, with the corresponding status. The explorer link opens the local offline page. A present parameter is neither a mapping nor permission to move. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
+
+### Where should I look when something does not work?
+
+Disable input first, then narrow the problem using what the UI shows. Change one of the source, path or range at a time so you can tell which change helped.
+
+| What you see | Check first | Next step |
+| --- | --- | --- |
+| A parameter is missing | Clear Search parameters, select all categories/sources, and enable Show FT parameters if needed | If the list stays empty, check the actual OSC mode, running listener and the sender's destination port |
+| Parameters change, but a mapping row has no matching reading | Compare Use source and the row's complete path; check whether it is still marked unsaved | Correct one setting, save the mappings and inspect the reading again; saving disarms input |
+| The list keeps old values while other status changes | Look for the Continue preview button | Resume the list with that button; disable input or use emergency stop to stop device motion |
+| An output is connected but does not move | Check the header's actual input mode and activation, then read Mapping checks | Confirm the source, mapped range and additional conditions before explicitly enabling input; connection alone grants no motion permission |
+
+When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. See [E2E status](e2e-status.en.md) for current automated results; describe the device's own response separately for a hardware problem.
 
 ### Turn a parameter into motion (mapping)
 
@@ -71,6 +84,8 @@ Fix the object you want to observe. Select left/right X, up/down Y, forward/back
 Axis profiles support adding, choosing a default, copying/editing and removing. The sole default cannot be deleted directly; references are repaired by policy. Each axis has range, remapping, maximum speed, inversion, locked/ignored modes and None/Interval/Speed/Ramp settings. Logs can be filtered by severity; keep raw diagnostics for investigation.
 
 Help links to [routes](usage-scenarios.en.md), the [parameter dictionary](osc-parameters.en.md) and installation. UI and explorer language follow [automatic detection and explicit choice](languages.en.md); switching preserves drafts.
+
+When a document heading has a counterpart, switching language keeps that section; otherwise the new document opens at the top. Tables and code examples wider than the screen scroll horizontally. With a keyboard, Tab into the overflowing region, then use the left/right arrow keys to scroll.
 
 ## Explorer boundaries
 
