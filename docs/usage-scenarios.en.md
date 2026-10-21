@@ -2,7 +2,7 @@
 
 [简体中文](usage-scenarios.md) | **English**
 
-If you cannot edit the Avatar, use the OGB parameters it already provides. If you can rebuild your own Avatar and need three-dimensional root position, choose Sensa SPS or experimental Shader capture. SPS itself provides Avatar deformation/interactions; Sensa SPS adds this project's own measurement components.
+Existing OGB parameters offer a direct starting point for depth or touch linkage. If you can build your own Avatar, add Sensa SPS measurement components or use experimental Shader capture to obtain the selected root’s three-dimensional position.
 
 | Route | Prerequisite | Result |
 | --- | --- | --- |
@@ -10,7 +10,7 @@ If you cannot edit the Avatar, use the OGB parameters it already provides. If yo
 | Sensa SPS | Build your own Avatar and select its actual Socket/Plug root | Your root's left/right, up/down and forward/back position relative to the Avatar |
 | Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root coordinates read from the desktop block you select |
 
-All three produce command targets, not device feedback. Manual/script input can establish direction and range first. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
+All three turn virtual interaction into device motion targets. Start with manual/script input to confirm device direction and travel, then connect the parameters. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
 
 ## Existing OGB / SPS
 
@@ -18,9 +18,11 @@ All three produce command targets, not device feedback. Manual/script input can 
 2. If OGB_ENABLED is required, explicitly enable its heartbeat and configure the **VRChat receive port**, commonly 9000. Sensa listens on 9001 by default; these are different destinations.
 3. Choose “OGB / SPS · Depth” or “Vibration”, fix object/source, check range, direction and Close gates, save, then activate input.
 
-Modern Socket uses Root/Tip from the same source, full instance and Self/Others category. It learns length from unsaturated samples; incomplete pairs or unknown length yield zero. Legacy proximity is considered only when modern values are absent or both zero. Plug uses the raw value. Touch and Plug Frot require their actual Close gates; Socket Frot and standalone Touch Zones follow their own rules.
+**SPS2 · PenOthersNewRoot / PenOthersNewTip**: two proximity readings describe the same Plug’s root and length sphere. Sensa pairs the same source, instance and category, learns length from unsaturated samples, then calculates a depth trend. An incomplete pair or unknown length yields zero.
 
-NewTip is a **root-centered length sphere**, not a tip coordinate. Rotation, lateral offset, multiple Senders, scale and asynchronous channels limit the result. OGB v1 already had modern and legacy branches; software age does not identify geometry. [Presets](presets.en.md) · [External generators and radii](ogb-compatibility.en.md)
+**SPS1 · PenOthers / PenOthersClose**: `PenOthers` describes a depth trend; `PenOthersClose` reports whether the target enters the Socket’s effective nearby region. Sensa considers SPS1 when SPS2 is absent or both readings are zero, using Close when published. A Plug’s single value is read directly.
+
+Approach aligned with the Socket corresponds most directly to entering depth. Sideways movement, tilt and authored dimensions also affect readings, so calibrate the intended motion start and end. `Touch` describes intensity in a touch region, and Plug `FrotOthers` describes close or brushing contact; each uses its matching Close condition. Socket Frot and standalone Touch Zones read their respective values directly. [Presets](presets.en.md) · [External generators and radii](ogb-compatibility.en.md)
 
 ## Sensa SPS fixed anchors
 
@@ -28,36 +30,36 @@ Add **Fixed SPS Root Probe** or **Automatic SPS Setup** in Unity and explicitly 
 
 `P0=(-.35,.65,-.35)`, `P1=(.35,.65,.35)`, `P2=(.35,1.35,-.35)`, `P3=(-.35,1.35,.35)`.
 
-Inspect the green common detection region in Unity or the explorer before placing the target. All four receivers must measure it; the entire coordinate box is not detectable.
+Inspect the green common detection region in Unity or the explorer before placing the target. The intersection of all four receiver spheres provides the spatial conditions for reconstruction.
 
-The five measurements are `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. P values are proximity, not coordinates. Sample=0 is invalid; activity cycles through n/32 (n=1…32), nominally every 50 ms. Repeating a value does not refresh it. Default change age is 1000 ms, capped at 1250 ms. Optional menu selectors are extra controls, outside those five measurements.
+The five measurements are `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. P0–P3 describe proximity at the four measurement anchors. Sample=0 is invalid; activity cycles through n/32 (n=1…32), nominally every 50 ms. Repeating a value does not refresh it. Default change age is 1000 ms, capped at 1250 ms. Optional menu selectors are extra controls, outside those five measurements.
 
 Fix the object in the root panel, choose X/Y/Z or distance from origin, capture endpoints, inspect preview, replace the draft and save. Then explicitly allow experimental spatial input and activate input. Missing or frozen samples, inconsistent geometry or failed scale checks invalidate the coordinates and stop the related motion.
 
-After updating from the older geometry, rebuild the Avatar and replace its previous generated measurement components before using the updated desktop app. Mixed geometry cannot be decoded correctly.
+Unity measurement components and desktop use the same shared geometry.
 
-Units belong to the Avatar root and equal world meters only at unit scale. The four-ball intersection and saturation constrain coverage. One root supplies no orientation, world motion, tip or GPU surface. [Positioning/stopping](positioning.en.md) · [Unity installation](../unity/top.sealoong.sensa/README.md) · [Derivation](fixed-anchor-research.en.md)
+Units belong to the Avatar root and equal world meters only at unit scale. The green common region and saturation around measurement anchors define usable coverage. [Positioning/stopping](positioning.en.md) · [Unity installation](../unity/top.sealoong.sensa/README.md) · [Derivation](fixed-anchor-research.en.md)
 
 ## Shader root encoding and region capture
 
 Add **Shader Root Capture (Experimental)** in Unity, choose the root to measure and assign an object number from 1–65535 (Producer ID). Select the same number in the desktop bridge. The build creates the components that draw the root position as a block. Encoding starts Off in the uploaded Avatar’s menu and must be enabled explicitly.
 
 1. Enable encoding in the actual client and confirm that a desktop surface visibly contains it.
-2. Select a physical-pixel capture region (ROI) tightly fitted to the complete block’s outer edges, at least 80×48, and the same object ID. Do not add arbitrary blank margins: the bridge uses this width and height to calculate module size. Check decode-only first, then save the capture settings and explicitly choose the OSC destination.
+2. Select a physical-pixel capture region (ROI) tightly fitted to the complete block’s outer edges, at least 80×48, and the same object ID. The bridge uses the region width and height to calculate module size, so fit its boundaries to the complete block. Check decode-only first, then save the capture settings and explicitly choose the OSC destination.
 3. The native block uses 20×12 modules: fixed edge locators surround the 16×8 data area. One damaged edge and small translation can be tolerated; payload CRC, object ID, coordinate flags and forward-frame checks still apply. Default freezing is 350 ms; startup/recovery requires two advancing frames.
 4. A valid bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 last. Invalidity sends only Valid=0.
 5. Calibrate/save in the root panel, then grant experimental and input permissions separately.
 
-The desktop also checks same-source contiguous fields, coordinate bounds and at most 500 ms of Frame change age. Public Producer/Profile were removed; binary ID, coordinate flag, CRC and Frame remain. Diagnostic ID0 uses `Sensa/Diagnostics/Shader/0` and creates no motion root.
+The desktop also checks same-source contiguous fields, coordinate bounds and at most 500 ms of Frame change age. The path carries the object ID; the binary block contains ID, coordinate flags, CRC and Frame. Diagnostic ID0 uses `Sensa/Diagnostics/Shader/0` to check the capture chain.
 
-Update the Avatar encoder and bridge together, then recreate the capture registration: old half-range-1.5 registrations are rejected. Edge locators improve alignment, not rendering delay or source freshness.
+Use the same encoding configuration for Avatar and bridge. Edge markers help correct small capture offsets.
 
-The cube is X/Z=[−2,2], Y=[−1,3], not a Contact radius. A 16-bit quantization step is not measured accuracy. This captures the CPU root Transform, not final SPS deformation. Hidden layers, mirrors, HMD and desktop compositing are different surfaces and require actual acceptance. [Commands](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Implementation/sources](shader-capture-research.en.md)
+The coordinate bounds are X/Z=[−2,2], Y=[−1,3]. Readings describe the selected Transform root center relative to the Avatar. The 16-bit encoding provides fine numeric steps; actual response also depends on rendering, desktop composition and capture. Check direction, latency and validity using your chosen desktop or headset surface. [Commands](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Implementation/sources](shader-capture-research.en.md)
 
 ## Other inputs and tools
 
-Twelve-axis manual input and single-L0 funscripts need no Contact solve. Native PB uses actual Stretch/IsGrabbed prefixes for scalar control; L0 recording captures pre-distribution targets. OSCQuery/Hub discover and forward without establishing position semantics.
+Twelve-axis manual input and single-L0 funscripts help establish device travel. Native PB uses Stretch/IsGrabbed parameters for scalar control; L0 recording saves pre-distribution motion targets. OSCQuery/Hub discover parameters and forward messages.
 
-Independent Point/Handle/Pose and lab QuickStart/synthetic Shader fixtures remain internal tools, not compatibility layers or accuracy evidence for these routes. [Lab workflow](lab-workflow.en.md)
+Independent Point/Handle/Pose, lab QuickStart and synthetic Shader patterns help explore measurement models and check sampling and transport. [Lab workflow](lab-workflow.en.md)
 
-CI isolated units, browser E2E and mock transports check their own boundaries; Unity EditMode and actual clients are separate work. Real uploads, Contacts/OSC, desktop/HMD capture, accuracy and mechanical behavior need separate acceptance. [Features](features.en.md)
+After configuration, check that parameters follow movement in the client, then verify device direction, response and stopping with a small travel range. See the [browser verification record](e2e-status.en.md) for automated outcomes. [Features](features.en.md)

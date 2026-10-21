@@ -22,24 +22,24 @@
     <section class="intro">
       <p class="eyebrow">OGB · SPS · SHADER</p>
       <h1 data-i18n="title">Move the target to see where detection works</h1>
-      <p data-i18n="intro">Choose a feature, then drag the orange target. See its detection range and how values change. All values are simulated; no devices are controlled.</p>
+      <p data-i18n="intro">Choose a parameter group and drag the orange target to explore approach, contact and entry. Socket is the receiving area; Plug is the part that approaches it.</p>
     </section>
     <section class="scene-toolbar" aria-label="场景 / Scenario">
-      <label class="scene-picker"><span data-i18n="scenario">Scenario</span>
+      <label class="scene-picker"><span data-i18n="scenario">Parameter group</span>
         <select id="scene">
           <optgroup label="OGB / SPS">
-            <option value="socket-modern" data-i18n="socket-modern">Socket · Modern Root / Tip</option>
-            <option value="socket-legacy" data-i18n="socket-legacy">Socket · Legacy proximity / Close</option>
+            <option value="socket-modern" data-i18n="socket-modern">SPS2 · PenOthersNewRoot / PenOthersNewTip</option>
+            <option value="socket-legacy" data-i18n="socket-legacy">SPS1 · PenOthers / PenOthersClose</option>
             <option value="plug-depth" data-i18n="plug-depth">Plug · PenOthers</option>
-            <option value="socket-touch" data-i18n="socket-touch">Socket · Touch / Close</option>
-            <option value="plug-touch" data-i18n="plug-touch">Plug · Touch / Close</option>
+            <option value="socket-touch" data-i18n="socket-touch">Socket · TouchOthers / TouchOthersClose</option>
+            <option value="plug-touch" data-i18n="plug-touch">Plug · TouchOthers / TouchOthersClose</option>
             <option value="socket-frot" data-i18n="socket-frot">Socket · FrotOthers</option>
-            <option value="plug-frot" data-i18n="plug-frot">Plug · Frot / Close</option>
-            <option value="zone" data-i18n="zone">Independent Touch Zone</option>
+            <option value="plug-frot" data-i18n="plug-frot">Plug · FrotOthers / FrotOthersClose</option>
+            <option value="zone" data-i18n="zone">Touch Zone · Others</option>
           </optgroup>
           <optgroup label="Sensa">
-            <option value="sensa-sps" data-i18n="sensa-sps">Sensa SPS · Fixed P0–P3</option>
-            <option value="shader" data-i18n="shader">Shader · Coordinates and encoding</option>
+            <option value="sensa-sps" data-i18n="sensa-sps">Sensa SPS · P0 / P1 / P2 / P3 / Sample</option>
+            <option value="shader" data-i18n="shader">Shader · X / Y / Z</option>
           </optgroup>
         </select>
       </label>
@@ -49,7 +49,7 @@
     </section>
     <section class="workbench" id="workbench">
       <div class="drawing-panel">
-        <div class="figure-heading"><div><h2 id="scene-title">Socket · Modern Root / Tip</h2><p id="scene-summary"></p></div><span id="validity" class="status"></span></div>
+        <div class="figure-heading"><div><h2 id="scene-title">SPS2 · PenOthersNewRoot / PenOthersNewTip</h2><p id="scene-summary"></p></div><span id="validity" class="status"></span></div>
         <figure id="figure">
           <div id="three-scene" class="three-scene" role="group" aria-labelledby="scene-title" hidden></div>
           <p id="three-fallback" class="three-fallback" role="status" hidden></p>
@@ -60,7 +60,7 @@
         </figure>
         <div class="legend" id="legend">
           <label><input id="show-receivers" type="checkbox" checked><span id="receiver-key" class="key receiver-key"></span><span data-i18n="receivers">Receivers</span></label>
-          <label><input id="show-senders" type="checkbox" checked><span class="key sender-key"></span><span data-i18n="senders">Senders</span></label>
+          <label><input id="show-senders" type="checkbox" checked><span class="key sender-key"></span><span data-i18n="senders">Target detection shapes</span></label>
           <label><input id="show-reference" type="checkbox" checked><span class="key reference-key"></span><span data-i18n="reference">Illustrative outlines</span></label>
           <label id="coverage-legend"><input id="show-coverage" type="checkbox" checked><span class="key coverage-key"></span><span data-i18n="coverage">Detection region</span></label>
           <label><input id="show-dimensions" type="checkbox" checked><span data-i18n="dimensions">Radii and dimensions</span></label>
@@ -71,8 +71,9 @@
         <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">Parameter values</h2><span class="caption" data-i18n="simulated">Simulated geometry</span></div>
         <div class="path-heading"><span class="caption" data-i18n="pathPrefix">Parameter prefix</span><code id="path-prefix" class="code path"></code></div>
         <p id="path-assembly" class="caption path-assembly"></p>
-        <p class="caption" data-i18n="rowHint">Select a parameter to highlight its detection shapes. Usable values pass this guide’s checks; the app still needs an input and explicit output activation.</p>
+        <p class="caption" data-i18n="rowHint">Select a parameter to read its meaning and highlight its range. Raw values come from geometry; usable values also apply Close or signal state.</p>
         <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Raw</th><th data-i18n="effective">Usable value</th></tr></thead><tbody id="values"></tbody></table></div>
+        <p id="parameter-meaning" class="caption" aria-live="polite"></p>
         <div class="metric-list" id="metrics"></div>
         <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">20 × 12 encoded grid with edge markers</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 192" role="img" aria-label="编码位 / Encoded bits"></svg></div>
         <p class="explanation" id="explanation"></p>
@@ -88,10 +89,10 @@
         <label class="control" data-control="W"><span data-i18n="width">Plug radius W</span><output for="control-W"></output><input id="control-W" type="range" min="0.005" max="0.1" step="0.005" value="0.03"></label>
         <label class="control" data-control="D"><span data-i18n="depth">Socket region D</span><output for="control-D"></output><input id="control-D" type="range" min="0.05" max="0.4" step="0.01" value="0.15"></label>
         <label class="control" data-control="yaw"><span data-i18n="yaw">Plug root rotation</span><output for="control-yaw"></output><input id="control-yaw" type="range" min="-90" max="90" step="5" value="0"></label>
-        <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Body Sender radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
+        <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Touching object radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
         <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone radius</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
       </div>
-      <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">Simulate signal loss or a stalled source</summary><p class="caption" data-i18n="validHint">This only changes the demonstration. Clear it to simulate the source reporting invalid data; it does not grant publishing or device-output permission.</p><div class="control-grid">
+      <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">Simulate signal loss or a stalled source</summary><p class="caption" data-i18n="validHint">Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals.</p><div class="control-grid">
         <label class="control" data-control="sample"><span data-i18n="sample">Sample counter step</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
         <label class="control" data-control="ageMs"><span data-i18n="ageMs">Age since last change</span><output for="control-ageMs"></output><input id="control-ageMs" type="range" min="0" max="1600" step="50" value="0"></label>
         <label class="control" data-control="frame"><span data-i18n="frame">Encoded Frame</span><output for="control-frame"></output><input id="control-frame" type="range" min="0" max="65535" step="1" value="123"></label>
@@ -100,8 +101,8 @@
       <p class="caption" id="unit-note"></p>
     </section>
     <section class="reading-notes">
-      <div><h2 data-i18n="formulaTitle">Reading the model</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
-      <div><h2 data-i18n="meaningTitle">Different quantities</h2><p data-i18n="meaning">Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug profiles are illustrations, not Avatar meshes.</p><p class="caption" data-i18n="sourceNote">Dimensions follow pinned upstream sources and Sensa contracts, without inferring dynamic scale, multiple Senders or actual client behavior.</p></div>
+      <div><h2 data-i18n="formulaTitle">How values are calculated</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
+      <div><h2 data-i18n="meaningTitle">Understanding the values</h2><p data-i18n="meaning">A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction.</p><p class="caption" data-i18n="sourceNote">Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources.</p></div>
     </section>
     <footer><a id="reference-link" href="osc-parameters.en.md" data-i18n="dictionary">Parameter dictionary</a><a id="ogb-link" href="ogb-compatibility.en.md" data-i18n="ogbSources">OGB geometry and sources</a><a id="position-link" href="positioning.en.md" data-i18n="positioning">SPS positioning</a><a href="assets/parameter-geometry-3d.LICENSE.txt" data-i18n="license">Three.js MIT license</a><span data-i18n="offline">Local Three.js · Works offline</span></footer>
     <noscript><p>需要启用 JavaScript 才能操作图示。静态说明见 <a href="osc-parameters.md">参数字典</a>。 / Enable JavaScript for the interactive diagrams, or read the <a href="osc-parameters.en.md">parameter reference</a>.</p></noscript>

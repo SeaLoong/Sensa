@@ -21,13 +21,29 @@ test('offline classic model exposes fresh defaults for every scene / 离线经�
   for (const scenario of model.scenarios) {
     const defaults = model.defaultsFor(scenario);
     assert.equal(defaults.scenario, scenario);
-    assert.equal(evaluate(defaults).scenario, scenario);
+    const scene = evaluate(defaults);
+    assert.equal(scene.scenario, scenario);
+    for (const value of scene.values) {
+      assert.equal(value.meaning.length, 2);
+      assert.ok(value.meaning.every(text => typeof text === 'string' && text.trim()));
+    }
     defaults.x = 99;
     assert.notEqual(model.defaultsFor(scenario).x, 99);
   }
   assert.deepEqual(plain(model.defaultsFor('sensa-sps')).x, .02);
   assert.equal(model.defaultsFor('sensa-sps').y, 1);
   assert.equal(model.defaultsFor('shader').z, .15);
+});
+
+test('parameter names are alphabetical with each base before its Close partner / 参数按字典序排列且基本名在 Close 前', () => {
+  for (const [scenario, names] of [
+    ['socket-modern', ['PenOthersNewRoot', 'PenOthersNewTip']],
+    ['socket-legacy', ['PenOthers', 'PenOthersClose']],
+    ['socket-touch', ['TouchOthers', 'TouchOthersClose']],
+    ['plug-frot', ['FrotOthers', 'FrotOthersClose']],
+    ['sensa-sps', ['P0', 'P1', 'P2', 'P3', 'Sample']],
+    ['shader', ['Frame', 'Valid', 'X', 'Y', 'Z']],
+  ]) assert.deepEqual(plain(evaluate({ scenario }).values.map(value => value.name)), names);
 });
 
 test('four anchor identities keep distinct immutable colors / 四个锚点身份保持独立且不可变的配色', () => {

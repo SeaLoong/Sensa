@@ -133,7 +133,7 @@ test('probe labels and signal explanations distinguish diagnostic geometry from 
   for (let index = 0; index < 4; index++) assert.equal(probePresentation(`Sensa/SPS/Main/P${index}`).label, `固定接收器 P${index}`);
   assert.equal(probePresentation('Sensa/SPS/Main/P4'), null);
   assert.equal(probePresentation('Sensa/SpsRoot/v1/Main/Self/Root/A0'), null);
-  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /不是 TCode/], ['Sensa/Pose/v1/Main/Others/Root/A0', /不能直接当作深度/], ['Sensa/SPS/Main/P0', /不能测尖端或朝向/], ['OGB/Orf/Main/PenOthersNewTip', /并非真实尖端/], ['OGB/Orf/Main/PenOthers', /不是通用的位置坐标/]];
+  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /整组读数计算位置/], ['Sensa/Pose/v1/Main/Others/Root/A0', /完整测量组计算位置/], ['Sensa/SPS/Main/P0', /根部相对 Avatar 的位置/], ['OGB/Orf/Main/PenOthersNewTip', /SPS2 · PenOthersNewTip.*以根部为球心/], ['OGB/Orf/Main/PenOthers', /SPS1 · PenOthers.*Close/]];
   for (const [path, expected] of explanations) assert.match(parameterMeaning(path), expected);
 });
 
@@ -161,14 +161,33 @@ test('parameter dictionary separates proximity, liveness, native coordinates and
     ['Sensa/SPS/Main/Sample', /Sample=0.*1\/32/],
     ['Sensa/SPS/Main/P1', /d=R×\(1−p\)\+r/],
     ['Sensa/Shader/42/Frame', /16 位循环序号/],
-    ['Sensa/Shader/42/Valid', /单独置 1 不能恢复/],
+    ['Sensa/Shader/42/Valid', /恢复时需重新发送完整坐标/],
     ['Sensa/Shader/42/X', /Avatar 根局部坐标/],
-    ['Sensa/Diagnostics/Shader/0/X', /不产生可映射坐标/],
-    ['VFH/Zone/Touch/Body/Chest/Others', /不需要 Close/],
-    ['VFH/Version/10', /不是距离/],
+    ['Sensa/Diagnostics/Shader/0/X', /检查捕获与传输/],
+    ['VFH/Zone/Touch/Body/Chest/Others', /按自身半径检测/],
+    ['VFH/Version/10', /识别当前 Avatar 支持/],
     ['OGB/Orf/Main/AngleXRaw', /自定义参数/],
     ['Custom/PenOthersNewTip', /自定义参数/],
   ]) assert.match(parameterMeaning(path), expected);
+});
+
+test('Close descriptions keep SPS1 depth gates distinct from touch and friction gates / Close说明区分SPS1深度与触摸摩擦开关', t => {
+  const previous = getLocale();
+  t.after(() => setLocale(previous));
+  for (const locale of ['zh-CN', 'en-US']) {
+    setLocale(locale);
+    const plug = parameterMeaning('OGB/Pen/Main/PenOthers');
+    assert.ok(plug.startsWith('Plug · PenOthers'));
+    assert.doesNotMatch(plug, /SPS1|Close/);
+    assert.ok(parameterMeaning('OGB/Orf/Main/PenOthers').startsWith('SPS1 · PenOthers'));
+    for (const leaf of ['PenOthersClose', 'PenSelfClose'])
+      assert.ok(parameterMeaning(`OGB/Orf/Main/${leaf}`).startsWith(`SPS1 · ${leaf}`));
+    for (const leaf of ['TouchOthersClose', 'TouchSelfClose', 'FrotOthersClose']) {
+      const meaning = parameterMeaning(`OGB/Pen/Main/${leaf}`);
+      assert.ok(meaning.startsWith(leaf + (locale === 'zh-CN' ? '：' : ':')));
+      assert.doesNotMatch(meaning, /SPS1|SPS2/);
+    }
+  }
 });
 
 test('compiled OSC selectors preserve aliases, exact paths and bounded wildcard semantics / 编译后的选择器保留别名、精确路径与通配边界', () => {

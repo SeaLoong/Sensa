@@ -1,5 +1,5 @@
-/* Pure offline geometry, not a runtime measurement or VRChat simulator.
- * 离线纯几何示意，不是运行时测量或 VRChat 仿真器。
+/* Offline geometry for exploring Contact shapes and parameter meanings.
+ * 离线几何模型：了解 Contact 形状与参数含义。
  * Generator evidence / 生成器证据: VRCFury 6bd33f4cb453df816c943a335e47f64e6a37e188;
  * see docs/ogb-compatibility.md for source links and runtime-scale limits.
  */
@@ -187,6 +187,55 @@
       containsTarget: coverageContains(point, scenario), sliceY: point.y, slice, holes,
       exclusions: isSps ? anchors.map(anchor => ({ center: { ...anchor }, radius: near })) : [] };
   }
+  function meaningFor(scenario, name) {
+    if (scenario === 'socket-modern') return name.endsWith('NewRoot')
+      ? ['Plug 根点越靠近 Socket 入口，数值越大。它与 NewTip 配合，用于估算根点距离、Plug 长度和进入程度。',
+        'Increases as the Plug root approaches the Socket opening. Paired with NewTip, it helps estimate root distance, Plug length and depth.']
+      : ['长度球以 Plug 根点为中心，半径等于 Plug 长度。它的接近值与 NewRoot 的差值帮助估算长度，再换算进入程度。',
+        'The length sphere is centered on the Plug root with a radius equal to Plug length. Its proximity difference from NewRoot helps estimate length and then depth.'];
+    if (scenario === 'socket-legacy') return name.endsWith('Close')
+      ? ['Socket 附近的接触检测开关：匹配目标进入检测区域时为 1，离开时为 0。Sensa 据此决定何时使用 PenOthers。',
+        'A contact-region switch near the Socket: 1 while a matching target overlaps the region, 0 after it leaves. Sensa uses it to gate PenOthers.']
+      : ['沿 Socket 对准方向进入时，可用它观察进入深度的变化。Close 为 1 时读数参与联动。Plug 长度和侧移会影响读数；倾斜时，相同读数也可能对应不同的实际深度。',
+        'Use it to follow depth changes while entering along the Socket axis, with Close=1 gating the interaction. Plug length and sideways offset affect the reading; when tilted, the same reading can correspond to different actual depths.'];
+    if (scenario === 'plug-depth') return [
+      '从 Plug 一侧感知 Socket 入口到根点的距离。入口越靠近根点，数值越大；对齐时可用来表现进入深度。',
+      'Measures proximity from the Plug side to the Socket opening. The closer the opening is to the Plug root, the higher the value; alignment makes it useful for depth.'];
+    if (scenario === 'socket-touch' || scenario === 'plug-touch') {
+      const target = scenario === 'socket-touch' ? 'Socket' : 'Plug';
+      const owner = name.includes('Self') ? ['自身 Avatar', 'your own Avatar'] : ['其他 Avatar', 'another Avatar'];
+      return name.endsWith('Close')
+        ? [`${owner[0]} 的身体接触标记进入 ${target} 的接触区域时为 1，离开时为 0。它为 Touch 提供接触确认。`,
+          `1 while a body contact marker on ${owner[1]} overlaps the ${target} contact region, 0 after it leaves. It confirms contact for Touch.`]
+        : [`${owner[0]} 的身体接触标记靠近 ${target} 的程度，越靠近数值越大。经过 Close 确认后的可用值可用于调节触感强度。`,
+          `How closely a body contact marker on ${owner[1]} approaches the ${target}; closer gives a higher value. The Close-gated value can adjust feedback intensity.`];
+    }
+    if (scenario === 'socket-frot') return [
+      '另一处 Socket 的入口标记靠近当前入口前方的小范围时，数值增大，可用于两处贴近时的触感联动。',
+      'Increases as another Socket opening marker approaches the small region in front of this opening, for feedback when the two come close.'];
+    if (scenario === 'plug-frot') return name.endsWith('Close')
+      ? ['两个 Plug 的接触包络相交时为 1，分开时为 0。它为 FrotOthers 提供接触确认。',
+        '1 while the two Plug contact envelopes overlap, 0 when separated. It confirms contact for FrotOthers.']
+      : ['另一处 Plug 靠近当前 Plug 的程度。Close 确认接触后，可用值随靠近程度变化，适合调节贴近时的触感强度。',
+        'How closely another Plug approaches this Plug. Once Close confirms contact, the gated value can adjust feedback intensity as they approach.'];
+    if (scenario === 'zone') return name === 'Self'
+      ? ['自己身上的身体或 Plug 标记靠近自定义区域时，数值增大，可用于该区域的局部触感。',
+        'Increases as a body or Plug marker on your own Avatar approaches this custom region, for localized feedback.']
+      : ['他人身上的身体或 Plug 标记靠近自定义区域时，数值增大，可用于该区域的局部触感。',
+        'Increases as a body or Plug marker on another Avatar approaches this custom region, for localized feedback.'];
+    if (scenario === 'sensa-sps') return name === 'Sample'
+      ? ['测量组件持续采样的计数。约每 50 ms 前进一档，在 1/32 到 1 之间循环；0 表示测量停用。',
+        'The measurement activity counter. It advances roughly every 50 ms, cycling from 1/32 to 1; 0 means measurement is disabled.']
+      : [`根点标记到测量点 ${name} 的接近值，越近数值越大。P0–P3 一起用于还原根点的 X、Y、Z 位置。`,
+        `Proximity of the root marker to anchor ${name}; closer gives a higher value. P0–P3 together reconstruct the root's X, Y and Z position.`];
+    if (name === 'Frame') return ['编码画面的序号，帮助桌面程序确认新画面正在持续到达。',
+      'The encoded image sequence number, used to check that new images keep arriving.'];
+    if (name === 'Valid') return ['解码结果的可用标志：有效数据随 Valid=1 提交；失效时发送 Valid=0，使联动停止并等待新样本。',
+      'The decoded-data availability flag. Valid data is committed with Valid=1; Valid=0 stops the interaction until fresh data is available.'];
+    const axes = { X: ['左右', 'left/right'], Y: ['上下', 'up/down'], Z: ['前后', 'forward/back'] };
+    return [`根点相对 Avatar 根的${axes[name][0]}坐标。可将选定的两个位置校准为设备行程的起点与终点。`,
+      `The root's ${axes[name][1]} coordinate relative to the Avatar root. Calibrate two chosen positions as the start and end of the device travel.`];
+  }
   function evaluate(input = {}) {
     const scenario = input.scenario ?? 'socket-modern';
     if (!scenarios.includes(scenario)) throw new RangeError('Unknown scenario / 未知场景: ' + scenario);
@@ -214,10 +263,10 @@
       profile: (kind === 'socket' ? socketProfile : plugProfile).map(([t, r]) => ({ t, r })),
     });
     const assumptions = [
-      { id: 'illustration', zh: '单一匹配 Sender 的几何示意，不是实测或 VRChat 运行时仿真。', en: 'One matching Sender: geometry illustration, not a measurement or VRChat runtime simulation.' },
-      { id: 'scale', zh: 'OGB 假定构建缩放为 1，以米示意；Sensa 空间量使用根局部单位，不推断动态缩放。', en: 'OGB assumes build scale 1 with metre illustrations; Sensa spatial values use root-local units. Dynamic scaling is not inferred.' },
-      { id: 'projection', zh: ['sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；在二维图中，接收球轮廓是投影，绿色区域表示所选 Y 高度的切片。' : '数值按完整 XYZ 算距离；XZ 图只作投影，不是 Y 切片。', en: ['sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. In the 2D view, receiver outlines are projections; green shows a slice at the selected Y.' : 'Values use full XYZ distances. The XZ drawing is a projection, not a Y slice.' },
-      { id: 'caps', zh: '胶囊高度包含端帽；恰好相切的 Constant 边界不作客户端时序承诺。', en: 'Capsule height includes caps. Exact Constant tangency is not a client timing guarantee.' },
+      { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
+      { id: 'scale', zh: 'OGB 图形按作者缩放为 1、以米展示；Sensa 空间量使用 Avatar 根局部单位。', en: 'OGB shapes are shown in metres at authored scale 1; Sensa spatial values use Avatar-root local units.' },
+      { id: 'projection', zh: ['sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: ['sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
+      { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];
     const put = shape => { shapes.push(shape); return shape; };
     const opening = position => {
@@ -258,7 +307,7 @@
         ? t.raw - r.raw + .01 : null;
       metrics.idealKnownLengthRadialRatio = clamp(1 - metrics.centerDistance / L);
       metrics.estimatorRequiresPriorLengthLearning = true;
-      assumptions.push({ id: 'root-centred-tip', zh: 'NewTip 观测根中心长度球，不是尖端；理想径向比例不等于运行时已完成估长。', en: 'NewTip observes a root-centered length sphere, not the tip; the ideal ratio does not imply runtime length learning.' });
+      assumptions.push({ id: 'root-centred-tip', zh: 'NewTip 使用以 Plug 根点为中心的长度球。图中已知 L，用于演示距离与进入程度的关系；桌面程序先根据变化样本估算长度。', en: 'NewTip uses a length sphere centered on the Plug root. The guide uses a known L to illustrate distance and depth; the desktop first learns length from changing samples.' });
     } else if (scenario === 'socket-legacy' || scenario === 'socket-touch') {
       opening(origin());
       const receiver = put(sphere('receiver-proximity', 'receiver', { x: 0, y: 0, z: -D }, D,
@@ -341,7 +390,7 @@
       metrics.quantError = { ...sub(decoded, point), length: length(sub(decoded, point)) };
       metrics.sourceValid = input.valid !== false && inBounds;
       metrics.bridgeFreezeThresholdMs = 350;
-      assumptions.push({ id: 'shader-round', zh: '量化半整数取偶，与 HLSL round 一致；不仿真 GPU float32 中间运算。', en: 'Quantization ties round to even, matching HLSL round; GPU float32 intermediates are not simulated.' });
+      assumptions.push({ id: 'shader-round', zh: '量化采用与 HLSL round 相同的半整数取偶规则；本页显示编码前后的坐标差。', en: 'Quantization uses the same ties-to-even rule as HLSL round; this guide shows the coordinate difference before and after encoding.' });
       // Independent illustrative binary encoding, not captured pixels or CRC authentication.
       // 独立的示意二进制编码，不是实际捕获像素，CRC 也不认证身份。
       const bytes = [83, 78, 1, metrics.sourceValid ? 3 : 2, frame & 255, frame >>> 8];
@@ -376,6 +425,8 @@
         bounds.minZ = Math.min(bounds.minZ, position.z - radius); bounds.maxZ = Math.max(bounds.maxZ, position.z + radius);
       }
     }
+    values.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
+    values.forEach(value => { value.meaning = meaningFor(scenario, value.name); });
     return { scenario, party, shapes, illustrations, values, points, metrics, bounds, assumptions,
       coverage: ['sensa-sps', 'shader'].includes(scenario) ? coverageFor(point, scenario) : null,
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };

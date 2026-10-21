@@ -2,7 +2,7 @@
 
 [简体中文](quick-start.md) | **English**
 
-First check that the device moves and stops as expected over a small range, then attach VRChat or a motion script. To explore the parameters first, open the [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US); it requires neither a device nor a running Sensa.
+First check that the device moves and stops as expected over a small range, then attach VRChat or a motion script. To explore the parameters first, open the [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) directly in your browser.
 
 ## 1. Start
 
@@ -21,26 +21,26 @@ Use “Control” to add an output: the device or service that will receive Sens
 | Intiface | Start an existing Central, then enter its service address; new outputs do not manage an engine |
 | Intiface vibration | V0 by default; choose V1/V2, or explicitly L0 to convert depth into intensity |
 
-For a TCode output, first edit its axis profile in Settings: reduce travel and speed, and reverse direction if needed. Select that profile when saving the output. TCode axis profiles do not apply to Intiface. For Intiface, check the range/speed limits and stop controls provided by your device or Central, then test with small manual targets.
+For a TCode output, first edit its axis profile in Settings: reduce travel and speed, and reverse direction if needed. Select that profile when saving the output. Intiface range/speed limits and stop controls come from your device or Central; check those settings, then test with small manual targets.
 
 Check the destination and configuration before enabling the output and connecting. Displayed values are recently sent targets; observe the device itself to check whether it reached them.
 
 ## 3. Check manual direction and stop
 
-Select “Manual”, click “Apply input mode”, then “Enable input”. Send one small target and check the direction. Continuous sending follows your target edits rather than oscillating automatically. Try emergency stop: it should close input immediately. Clearing it still requires you to enable input again.
+Select “Manual”, click “Apply input mode”, then “Enable input”. Send one small target and check the direction. Continuous sending repeats the target you set; edit the target to change position. Try emergency stop: it should close input immediately. After clearing it, enable input again when ready.
 
-Connecting does not activate input, but an already active input may send its current valid target immediately after connection. Configuration changes, mode changes and script replacement disarm input.
+An already active input may send its current valid target immediately after connection, so check the input state before connecting. Configuration changes, mode changes and script replacement disable input; enable it again when ready.
 
 ## 4. Attach one input
 
-- **OSC:** apply OSC, check the default `127.0.0.1:9001` listener and actual source, then inspect real parameter addresses. Choose one of the [three templates](presets.en.md), check the input range and conditions that permit motion (gates), then save and enable input. OGB may require the explicit enable heartbeat in receiver settings; its destination is normally VRChat on 9000, not Sensa on 9001.
-- **Script:** load a valid funscript and inspect its L0 timeline, speed and loop. Apply Script, activate input and play. Pause stops automatic frames, but explicit seek/step can still send a target while Script input is active. Stop resets the cursor, not the mechanism.
+- **OSC:** apply OSC, check the default `127.0.0.1:9001` listener and actual source, then inspect real parameter addresses. Choose one of the [three templates](presets.en.md), check the input range and conditions that permit motion (gates), then save and enable input. OGB may require the explicit enable heartbeat in receiver settings: heartbeats go to VRChat, normally on 9000; Sensa receives parameters on 9001.
+- **Script:** load a valid funscript and inspect its L0 timeline, speed and loop. Apply Script, activate input and play. Pause stops automatic frames; explicit seek/step can still send a target while Script input is active. Stop resets the playback cursor to the beginning. Use emergency stop when you need to stop the device.
 - **Experimental root:** follow the [route guide](usage-scenarios.en.md) to configure Avatar measurement components or the desktop code reader. Confirm the correct object and valid coordinates in the panel. Record the motion start and end, map them to 0% and 100% output, and save. Then allow experimental spatial input and enable input.
 
 Parameters have different meanings: OGB usually reports proximity or estimated depth; Sensa SPS and Shader report a selected root in three dimensions relative to the Avatar. [Positioning](positioning.en.md)
 
 ## 5. Keep a reviewable result
 
-Use L0 recording when needed. Stop preserves the last-value duration; exporting an active recording stops recording but does not disable input. Restart requires confirmation, and cancel preserves the old buffer. Recording excludes other axes, gate/stop events and hardware feedback.
+Use L0 recording to capture depth targets. Read other axes and device state in their panels and logs. Stopping recording preserves the last-value duration. Exporting an active recording stops recording and leaves input in its current state. Restart requires confirmation, and cancel preserves the old buffer.
 
-On failure, disable input and inspect actual mode, source, mapping, gates and logs. Repeated reconnects or resends can hide the cause. [Full guide](guide.en.md) · [Features](features.en.md) · [Home](../README.md)
+On failure, disable input and inspect actual mode, source, mapping, gates and logs in order. Resolve the cause before resuming. [Full guide](guide.en.md) · [Features](features.en.md) · [Home](../README.md)

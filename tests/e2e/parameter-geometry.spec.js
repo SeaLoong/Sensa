@@ -239,6 +239,10 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     // Independent distances: R=1, root r=.01, length-sphere r=.2, centre distance=.5.
     // 独立预期：接收球1、根球.01、长度球.2、中心距.5。
     await chooseScene(page, 'socket-modern');
+    await expect(page.locator('#scene-title')).toHaveText('SPS2 · PenOthersNewRoot / PenOthersNewTip');
+    expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
+      .toEqual(['PenOthersNewRoot', 'PenOthersNewTip']);
+    await expect(page.locator('#parameter-meaning')).toContainText('Socket');
     await setRange(page, 'z', .5);
     await nearCell(page, 'PenOthersNewRoot', .51);
     await nearCell(page, 'PenOthersNewTip', .7);
@@ -252,10 +256,13 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     // Selecting a parameter and changing language must retain geometry and highlight.
     // 参数选择和语言切换保留几何与高亮，不重置为默认值。
     await parameter(page, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true }).click();
+    await expect(page.locator('#parameter-meaning')).toContainText('长度球');
     await page.locator('#projection').selectOption('iso');
     await page.locator('#show-dimensions').uncheck();
     await page.locator('#locale').selectOption('en-US');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+    await expect(page.locator('#scene-title')).toHaveText('SPS2 · PenOthersNewRoot / PenOthersNewTip');
+    await expect(page.locator('#parameter-meaning')).toContainText('length sphere');
     await expect(page.locator('#control-z')).toHaveValue('0.5');
     await expect(page.locator('#scene')).toHaveValue('socket-modern');
     await expect(page.locator('#projection')).toHaveValue('iso');
@@ -401,6 +408,13 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     });
 
     await chooseScene(page, 'socket-legacy');
+    await expect(page.locator('#scene-title')).toHaveText('SPS1 · PenOthers / PenOthersClose');
+    expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
+      .toEqual(['PenOthers', 'PenOthersClose']);
+    await expect(page.locator('#parameter-meaning')).toContainText('深度');
+    await parameter(page, 'PenOthersClose').getByRole('button', { name: 'PenOthersClose', exact: true }).click();
+    await expect(page.locator('#parameter-meaning')).toContainText('接触');
+    await parameter(page, 'PenOthers').getByRole('button', { name: 'PenOthers', exact: true }).click();
     await nearCell(page, 'PenOthers', 2 / 3);
     await nearCell(page, 'PenOthersClose', 1);
     await setRange(page, 'x', .28); await setRange(page, 'z', -.15);
@@ -455,6 +469,8 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
 
     await chooseScene(page, 'shader');
     await expect(page.locator('#values tr')).toHaveCount(5);
+    expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
+      .toEqual(['Frame', 'Valid', 'X', 'Y', 'Z']);
     await expect(page.locator('#diagram [data-shape-id^="receiver-"]')).toHaveCount(0);
     await expect(page.locator('#diagram [data-shape-id^="sender-"]')).toHaveCount(0);
     await nearCell(page, 'Valid', 1);

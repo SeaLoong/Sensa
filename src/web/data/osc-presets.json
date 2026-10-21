@@ -2,7 +2,7 @@
   {
     "id": "ogb-depth",
     "name": "OGB / SPS · 深度",
-    "description": "自动识别新旧 OGB：Root/Tip 优先，旧版单近接回退；固定实际对象后校准。",
+    "description": "自动识别 SPS2 · PenOthersNewRoot / PenOthersNewTip，以及 SPS1 · PenOthers / PenOthersClose。选择要使用的对象后校准动作范围。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",

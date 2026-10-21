@@ -2,52 +2,57 @@
 
 **简体中文** | [English](osc-parameters.en.md)
 
-本页是字段与有效条件参考；先按[使用方案](usage-scenarios.md)选路线，再按[工作台指南](guide.md)建立控制链。下文省略 `/avatar/parameters/`，大小写有意义，`<id>` 必须换真实实例，不原样发送占位符。
+本页是字段与有效条件参考；先按[使用方案](usage-scenarios.md)选路线，再按[工作台指南](guide.md)建立控制链。下文省略 `/avatar/parameters/`，路径区分大小写，`<id>` 使用实际实例名。
 
 ## 用图解理解数值
 
-[公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)独立于 Sensa，自动识别语言，也支持 [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)／[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用详情打开随包本地页面；解压后也可直接打开 `docs/parameter-geometry.html`，保留相邻 assets 离线使用。GitHub HTML 源码页不是交互入口。
+[公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)支持自动识别语言，也可直接打开[简体中文](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)或[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用参数详情会打开随包附带的页面；解压后保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
 
-十场景均有 3D 与 SVG、平面拖动和精确滑条。蓝 Receiver／橙 Sender 的真实半径按模型计算；灰 Socket／Plug 仅参考截面。SPS 四色贯穿球、标签与参数行；偏移根／端点标签用引线关联真实参考点。橙色操作点是放大的命中标记，不是 Sender 尺寸。
+先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。Sensa SPS 的四个颜色关联测量球、标签和参数行。
 
-“模型门控”仅是演示有效性／Close，不包含运行时估长、映射和设备输出。XZ 是投影而非切片，Y 仍参与计算。Shader 350 ms 桥冻结与 500 ms 桌面拒绝是不同层。图解不接 OSC、GPU 捕获或设备。
+图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，Sensa SPS 的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
 
-读数前缀如 `Sensa/SPS/*` 是实例模板：以实际名字换 * 后拼接行名。例如 `Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 则是下文规定的十进制数。
+参数按名称字典序显示，同一前缀的短名称在前，例如 `PenOthers` 在 `PenOthersClose` 之前。前缀中的 `*` 代表实例名：`Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 使用下文规定的十进制数。
 
-Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随本地资源打包，无 CDN；[WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)失败回退 SVG。完整 MIT 声明随 `assets/parameter-geometry-3d.LICENSE.txt` 分发。[图解操作](guide.md)
+Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随资源打包；[WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)不可用时切换 SVG。MIT 声明位于 `assets/parameter-geometry-3d.LICENSE.txt`。[图解操作](guide.md)
 
 ## 先选择需要的信息
 
-| 参数族 | 提供的信息 | 不能据此得出的信息 |
+| 参数族 | 提供的信息 | 常见用途 |
 | --- | --- | --- |
-| `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | 外部 Socket／Plug 的近接、触摸、接近门控与径向比例估算 | 任意 XYZ、可靠插入深度、对方身份 |
-| `VFH/Zone/Touch/<id>/Self`／`Others` | 独立触摸区的近接强度 | 根位置、插入深度 |
-| `Sensa/SPS/<id>/P0…P3`、`Sample` | 专用小球根标记在 Avatar 根局部坐标中的估计位置 | 世界位置、姿态、最终 GPU 形变表面 |
-| `Sensa/Shader/<id>/Frame`、`X`、`Y`、`Z`、`Valid` | 原生根点编码经桌面桥解码的 Avatar 根局部位置 | Contact 距离、最终 GPU 形变表面、设备回读 |
-| `Sensa/Diagnostics/Shader/0/…` | Shader 图案、捕获与 OSC 传输诊断 | 可以映射到动作的有效根坐标 |
+| `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | Socket／Plug 的进入深浅趋势、触碰强度和接近状态 | 深度或振动联动 |
+| `VFH/Zone/Touch/<id>/Others`／`Self` | 选定触摸区域的接近强度 | 区域触碰联动 |
+| `Sensa/SPS/<id>/P0…P3`、`Sample` | 选定根点相对 Avatar 的三维位置 | 按左右、上下、前后移动控制动作 |
+| `Sensa/Shader/<id>/Frame`、`Valid`、`X`、`Y`、`Z` | 从屏幕图块解码的根点相对位置 | 用画面编码获得三维位置 |
+| `Sensa/Diagnostics/Shader/0/…` | 图案、捕获与 OSC 传输诊断 | 检查捕获链路 |
 
-Sensa 自有 SPS 只有下文这一套契约：没有 `v1` 路径段，不兼容旧 A0–A3、八点共享阵列或旧 Profile／Scale／Valid／Heartbeat／Self／Others 结构。Unity 生产端与桌面必须一起更新。外部 OGB 路径与能力版本由上游定义，不随此精简改名。
+Sensa SPS 的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
 
 ## OGB 与 VRCFury 参数
 
-Orf 表示 Socket，Pen 表示 Plug。`Self` 与 `Others` 是 Contact 过滤类别，不是玩家认证；Sensa 按 OSC 来源、完整实例父路径与类别配对，不拼接不同来源或实例。上游完整生成表、球／胶囊中心与半径、旧消费路径和 Sensa 支持范围均在[OGB 详表](ogb-compatibility.md)。
+`Orf` 表示 Socket，`Pen` 表示 Plug。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。
 
-| 参数／路径 | 含义与 Sensa 处理 |
-| --- | --- |
-| Orf 的 `PenSelfNewRoot`／`PenOthersNewRoot` | Plug 根球在同心 Receiver 内的近接值；现代径向估算的一半 |
-| Orf 的 `PenSelfNewTip`／`PenOthersNewTip` | 同一根中心的大球近接值，用于估算 Plug 长度；名字带 Tip，不是末端位置坐标 |
-| Orf／Pen 的 `PenSelf`／`PenOthers` | 旧式单近接信号；现代配对缺失或均零时，OgbDepth 才考虑同实例回退。Orf 若同时发布 `PenOthersClose`，则以它门控；未发布时保留旧单值兼容 |
-| `TouchSelf`／`TouchOthers` 与对应 `…Close` | Touch 是 0–1 近接值，Close 是 Constant 接近门控；OgbTouch 缺少必需 Close 时给零 |
-| `FrotOthers` | 摩擦近接值；Pen 需要 `FrotOthersClose`，Orf 不需要 Close |
-| `VFH/Zone/Touch/<完整id>/Self`／`Others` | 独立 Zone，OgbTouch 直接读取 0–1，不要求或猜测 Close |
-| `VFH/Version/…`、历史 OGB Version 路径 | 上游能力标志，不是近接或位置；不会当作触摸强度 |
-| `OGB_ENABLED` | Sensa 可显式启用的发送方向布尔心跳；固定目标默认关闭。在 OSC 模式且监听运行时每 5 秒发送 true，离开时尝试 false。它不启用设备输入 |
+| 参数／路径 | 怎样理解读数 | Sensa 的处理 |
+| --- | --- | --- |
+| `FrotOthers` | 两个匹配外形靠近、贴合或擦过时的接近强度 | Plug 与 `FrotOthersClose` 配合；Socket 直接使用该值 |
+| `FrotOthersClose` | Plug 周围是否有匹配目标进入有效接近区，0 为离开、1 为接近 | 为 Plug 的 Frot 提供附加条件 |
+| Orf／Pen 的 `PenOthers`／`PenSelf` | Socket 的 SPS1 信号或 Plug 的深浅趋势；正对 Socket 靠近时，可用来理解逐渐进入的程度 | Socket 在 SPS2 配对缺失或两值均零时使用；Plug 直接读取 |
+| Orf 的 `PenOthersClose` | 匹配目标是否进入 Socket 周围的有效接近区，0 为离开、1 为接近 | 发布该值时，以它作为 SPS1 深度的接近条件；单值来源按自身路径读取 |
+| Orf 的 `PenOthersNewRoot`／`PenSelfNewRoot` | SPS2 中 Plug 根部靠近 Socket 的程度 | 与同实例 `NewTip` 配对，参与长度估计和深度换算 |
+| Orf 的 `PenOthersNewTip`／`PenSelfNewTip` | SPS2 中以根部为中心的长度球与 Socket 的接近程度 | 两路未饱和样本用于估长，再换算进入深浅的趋势 |
+| `TouchOthers`／`TouchSelf` | 身体或匹配目标靠近触碰区域时的连续强度，范围 0–1 | 与对应 `Touch…Close` 配合使用 |
+| `TouchOthersClose`／`TouchSelfClose` | 匹配目标是否进入相应触碰区域，0 为离开、1 为接近 | Close 为 1 时采用 Touch 强度，为 0 时输出零 |
+| `VFH/Zone/Touch/<完整id>/Others`／`Self` | 指定区域内的连续接近强度，越靠近区域中心通常越大 | OgbTouch 直接读取 0–1 |
+| `VFH/Version/…`、历史 OGB Version 路径 | 上游支持能力的标志 | 用于识别参数能力 |
+| `OGB_ENABLED` | 向 Avatar 表示接收服务正在工作 | 按配置目标每 5 秒发送 true，停用时尝试 false；默认关闭 |
 
-现代 VRCFury 不会生成上表所有旧式组合；例如不能凭命名规律构造 Pen NewRoot／NewTip 或 AngleX／Y／Z。OgbDepth 的现代模型采用 Receiver 半径 R=1、根球半径 r=0.01 的假设，得到径向比例，不直接测量轴向插入；作者几何、运行时缩放、不同 Sender 混入和饱和都会影响结果。Touch 的球／胶囊形状也不共享一个固定“触发半径”。[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)、[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)
+深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。SPS2 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
+
+实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
 
 ## Sensa SPS：四路近接与一个活动样本
 
-生产端为明确选择的 Socket／Plug 根中心建立一个专用球形 Sender，四个球形 Receiver 固定在 Avatar 根坐标中，只接受自己的专用碰撞通道。每实例共五个 Contact。它测量 CPU Transform 根中心，不采样最终 SPS 形变网格。[生产端](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
+生产端为明确选择的 Socket／Plug 根中心建立一个专用球形 Sender，四个球形 Receiver 固定在 Avatar 根坐标中，只接受自己的专用碰撞通道。每实例共五个 Contact，跟踪所选 Transform 根中心。[生产端](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 
 ### 五个公开测量参数
 
@@ -59,15 +64,15 @@ Orf 表示 Socket，Pen 表示 Plug。`Self` 与 `Others` 是 Contact 过滤类�
 | `Sensa/SPS/<id>/P1` | 锚点 P1 的同类观测 | 同上 |
 | `Sensa/SPS/<id>/P2` | 锚点 P2 的同类观测 | 同上 |
 | `Sensa/SPS/<id>/P3` | 锚点 P3 的同类观测 | 同上 |
-| `Sensa/SPS/<id>/Sample` | 合并“本实例当前有效／活动”的计数；不是坐标分量 | 0 表示失效；有效值仅 `n/32`，整数 n=1…32 |
+| `Sensa/SPS/<id>/Sample` | 表示本实例当前有效性与采样活动的计数 | 0 表示失效；有效值仅 `n/32`，整数 n=1…32 |
 
-FX 每个采样状态目标持续 0.05 秒：先复制 RawP0–RawP3 到 P0–P3，再写 Sample；Sample 从 1/32 到 1 循环，目标周期 1.6 秒。实际动画、Contact 更新和 OSC 传输可能延迟或丢失，不能据此宣称严格 20 Hz 或同帧原子快照。静止的 P 值允许缓存，Sample 必须变化。[共享常量](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)、[接收检查](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedRootTracking.cs)
+FX 每个采样状态目标持续 0.05 秒：先复制 RawP0–RawP3 到 P0–P3，再写 Sample；Sample 从 1/32 到 1 循环，目标周期 1.6 秒。更新节奏还受动画、Contact 与 OSC 调度影响。根点静止时沿用最近的 P 值，并通过变化的 Sample 检查采样是否持续。[共享常量](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)、[接收检查](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedRootTracking.cs)
 
 Sample 的寿命按**值最后变化时间 ChangedAt**计算，正常运行时**默认 1000 ms**。运行时使用正数 InputTimeoutMs 配置，否则回退为 1000 ms；解码器再将其上限限制为 1250 ms。因此配置更小会更严格，配置超过 1250 ms 也不会延长上限。重复发送同一个 Sample 只更新接收时间，不续期。缺少参数、Sample=0、非 n/32、冻结、超时或拟合失败均使坐标失效。[运行时寿命选择](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs#L76)
 
-### 菜单控制不计入测量字段
+### 菜单选择测量目标
 
-每对象五个 Float 不代表整个 Avatar 只有五个参数。Automatic 的 Exclusive 策略还生成 `Sensa/Select/<group>`，类型 Int，默认 0=Off，1…N 按 Targets 顺序选择对象；Dedicated 没有该组选择器。这个控制项由 MA 注册为表达参数，`localOnly=true`、`saved=false`，不做网络同步或跨重载保存；它仍可能按 VRChat OSC 配置可见，不能把“本地”理解为“绝不发送 OSC”。[选择器实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)、[MA 参数规则](https://modular-avatar.nadena.dev/docs/reference/parameters)、[VRChat OSC 配置](https://docs.vrchat.com/docs/osc-avatar-parameters)
+除每对象的五个测量 Float 外，Automatic 的 Exclusive 策略还生成 `Sensa/Select/<group>`，类型 Int，默认 0=Off，1…N 按 Targets 顺序选择对象；Dedicated 没有该组选择器。这个控制项由 MA 注册为表达参数，`localOnly=true`、`saved=false`，每次加载从默认值开始，按 VRChat OSC 配置决定可见性。[选择器实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)、[MA 参数规则](https://modular-avatar.nadena.dev/docs/reference/parameters)、[VRChat OSC 配置](https://docs.vrchat.com/docs/osc-avatar-parameters)
 
 ### 固定几何、距离公式与范围
 
@@ -87,11 +92,11 @@ p = clamp(1 - max(0, d - r) / R, 0, 1)
 d = R × (1 - p) + r
 ```
 
-d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-2,2]、Y=[-1,3] 内；残差小只表示该模型自洽，不是精度或身份认证。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-2,2]、Y=[-1,3] 内；残差反映四路距离与计算位置的一致程度。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-可用空间是**四个球形覆盖区的交集**再扣除饱和区与边界，不是整个显示立方体。以 c 为中心、半径约 `2 - √3×0.35 ≈ 1.394` 的球只是四球交集的几何内接参考，不是保证可测球；p 阈值、饱和孔和数值边界进一步缩小有效区域。上限 p<0.999 要求 d>0.003，故每个锚点附近约 **0.003 局部单位**（以局部米计为 3 mm）的区域被排除；下限 p>0.001 对应 d<1.999。不能把这些局部长度直接当成任何 Avatar 的世界米数。
+可用空间是**四个球形覆盖区的交集**，扣除饱和区与边界。以 c 为中心、半径约 `2 - √3×0.35 ≈ 1.394` 的球提供内接参考；p 阈值、饱和孔和数值边界进一步限定实际有效区域。上限 p<0.999 要求 d>0.003，故每个锚点附近约 **0.003 局部单位**（以局部米计为 3 mm）的区域被排除；下限 p>0.001 对应 d<1.999。世界尺寸随 Avatar 根缩放变化。
 
-### 缩放、采样与菜单控制的边界
+### 缩放、采样与菜单控制
 
 设作者 Avatar 根的均匀世界缩放为 s_author，VRChat 的缩放因子为 ScaleFactor，则 Receiver 世界半径为 `2 × s_author × ScaleFactor`。官方 Contact 半径上限为缩放后的 3 m；生产端预留 0.001 m，使用：
 
@@ -101,48 +106,48 @@ maxScale = (3 - 0.001) / (2 × s_author)
 
 超出门限时停用 Contact、清零公开采样并写 Sample=0；构建时拒绝不受支持的非均匀 Avatar 根缩放、根 ScaleConstraint 与根缩放动画。目标骨骼可以缩放，专用标记只跟随根中心，不把目标缩放带入已知球半径。s_author=1 且 ScaleFactor=1 时一个局部单位才等于一世界米。[门控实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)、[VRChat 缩放后限制](https://creators.vrchat.com/common-components/contacts/)
 
-RawP0–RawP3 仅供内部 FX 采样，不注册为公开 Expression 参数；ScaleFactor、IsLocal 是用于缩放和本地运行门控的内置参数。上文的 `Sensa/Select/<group>` 则是可按 OSC 配置导出的菜单控制项，不是 FX-only；其内部状态记忆与菜单参数承担不同角色。它们都不是额外的根位置测量字段。公开命名空间已固定几何与坐标框，Sample 同时承担失效和活动状态，因此不再另行导出 Profile、Scale、Valid、Heartbeat 或 Self／Others，也无需每帧重复这些元数据。内部 FX 名称不属于公开契约，但这不承诺客户端绝不会暴露它们。
+RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放检查和本地运行，`Sensa/Select/<group>` 用于菜单选择。公开根位置测量固定为 P0–P3 与 Sample，坐标框和几何由共享定义提供。
 
-专用通道与 AllowSelf 收窄了模型，仍不能证明每个 P 来自同一 Contact 帧，也不是抵御恶意相同标签的身份认证。共同刚体世界移动不会改变此局部坐标；网络中的其他 Avatar 和 GPU 表面不属于这个测量契约。
+专用通道与 AllowSelf 将测量限定到本 Avatar 的根标记。整体走动或转身时，读数保持相对 Avatar 的局部意义；测量时序和误差的检查方法见[定位说明](positioning.md)。
 
 ## Shader：直接根坐标与传输活性
 
-原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。**它不使用 Contact，没有触发半径**；其范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。其坐标范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### 五个公开测量参数
 
-`<id>` 为明确选定的 Producer ID，十进制 1…65535，无前导零，例如 `Sensa/Shader/7/X`。这五个测量字段由桌面桥以 OSC Float 发送，不是 Avatar 内声明的五个 Expression 参数。
+`<id>` 为明确选定的 Producer ID，十进制 1…65535，无前导零，例如 `Sensa/Shader/7/X`。这五个测量字段由桌面桥以 OSC Float 发送。
 
 Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=开启原生捕获 rig。例如 `Sensa/Select/ShaderCapture_42`。它同样是 MA 注册的表达参数，`localOnly=true`、`saved=false`，可能按 OSC 配置可见。内部 `Sensa/Internal/ShaderCapture_<ID>/Selected` 是 FX 的 Int 状态记忆，默认 0、由本地 Driver 写入 0／1，不注册为表达参数。[生成入口](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs)、[选择状态机](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
 | 叶子 | 含义与有效条件 |
 | --- | --- |
 | `Frame` | 0…65535 的整数，名义按 60 Hz 时间步生成并按 16 位回绕；约 18.2 分钟绕回一次 |
+| `Valid` | 1 提交本次有效包；0 使根坐标立即失效 |
 | `X` | 根中心局部 X，有限且位于 [-2,2] |
 | `Y` | 根中心局部 Y，有限且位于 [-1,3] |
 | `Z` | 根中心局部 Z，有限且位于 [-2,2] |
-| `Valid` | 1 提交本次有效包；0 使根坐标立即失效 |
 
-有效包按 **Frame → X → Y → Z → Valid=1** 的顺序发送，Valid 最后提交。失效只发 Valid=0，不重发旧 XYZ。桌面要求同一 OSC 来源、同一完整 Producer 路径下五字段连续接收；别的来源不会打断本来源的序列，插入本来源的其他消息则不能冒充完整坐标包。Frame 的 ChangedAt 寿命最多 500 ms，并与更短的正数配置超时取较小值；相同 Frame 持续重发也会过期。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
+有效包按 **Frame → X → Y → Z → Valid=1** 的顺序发送，Valid 最后提交。失效只发 Valid=0，不重发旧 XYZ。桌面要求同一 OSC 来源、同一完整 Producer 路径下五字段连续接收；各来源独立组包，同来源中插入其他消息时重新等待完整五字段。Frame 的 ChangedAt 寿命最多 500 ms，并与更短的正数配置超时取较小值；相同 Frame 持续重发也会过期。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-桥先检查图案、二进制 ID／标志、CRC 和模 65536 的向前帧序；反向／大幅跳序、同 Frame 不同 XYZ、身份变化或冻结会失效。启动或失效后需要重新建立两帧向前采样才恢复；默认桥冻结门限 350 ms。回绕可以正常向前推进，生产端重置为旧序列可能需要显式重启桥。连续字段与 CRC 是传输检查，不证明 UDP 事务原子性、真实用户身份或测量精度。
+桥先检查图案、二进制 ID／标志、CRC 和模 65536 的向前帧序；反向／大幅跳序、同 Frame 不同 XYZ、身份变化或冻结会失效。启动或失效后需要重新建立两帧向前采样才恢复；默认桥冻结门限 350 ms。回绕可以正常向前推进，生产端重置为旧序列可能需要显式重启桥。连续字段和 CRC 共同检查包结构与数据完整性。
 
 ### 量化、精简字段与必要的二进制元数据
 
-每轴长度 4 的区间使用 16 位无符号量化，步长 `4/65535 ≈ 6.10×10⁻⁵` 局部单位；理想舍入的单轴半步约 `3.05×10⁻⁵`，三轴合成量化误差上限约 `5.29×10⁻⁵`。这些只是编码量化界，**不是实际定位精度承诺**；蒙皮／坐标框计算、渲染合成、捕获与帧延迟仍需单独验收。Shader 的 [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 在恰好半整数时取最近偶数；图解遵循此舍入规则，但不模拟 GPU 的全部单精度中间运算。
+每轴长度 4 的区间使用 16 位无符号量化，步长 `4/65535 ≈ 6.10×10⁻⁵` 局部单位；理想舍入的单轴半步约 `3.05×10⁻⁵`，三轴合成量化误差上限约 `5.29×10⁻⁵`。这些数值描述数字编码的量化误差。实际定位误差还取决于坐标框计算、渲染合成、捕获与帧延迟，可通过已知位置测量。Shader 的 [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 在恰好半整数时取最近偶数；图解沿用这一舍入规则。
 
-OSC 中不再重复 Producer 或 Profile：Producer 已在路径中，`Sensa/Shader` 已固定 AvatarRootLocal 与范围。二进制图案仍保留 Producer ID、有效／原生坐标标志、CRC 与 Frame，以便在解释路径前区分来源、拒绝损坏和冻结；二进制编码标记也不是 OSC 路径版本。ID 只是显式配对值，不是 Avatar 所有者认证。没有额外 PositionXYZ 参数，也没有默认滤波或独立“检测半径”选项。
+对象 ID 位于 OSC 路径中，`Sensa/Shader` 固定坐标框与范围。二进制图案保留对象 ID、有效／原生坐标标志、CRC 与 Frame，分别用于配对、识别坐标类型、检查数据和判断画面是否推进。
 
-## 诊断、点、姿态与设备的区别
+## 诊断与位置相关信息
 
-`Sensa/Diagnostics/Shader/0/Frame|X|Y|Z|Valid` 使用相同的五字段传输形式，但来自诊断编码，XYZ 为 [-1,1] 的诊断归一化值。ID=0 不属于原生 Producer；此命名空间**不产生可映射的根坐标，不参与自动空间映射**。显式 Direct 虽能读取原始标量，也不会赋予它位置语义。Valid=1 仅说明诊断链当前可传输，不会把合成图案升级成真实 Avatar 根位置。[诊断分流](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+`Sensa/Diagnostics/Shader/0/Frame|X|Y|Z|Valid` 使用五字段传输形式，XYZ 为 [-1,1] 的诊断值，可用来检查图案生成、区域捕获和 OSC 传输。ID=0 在诊断命名空间中处理；原生根位置使用 1…65535 的对象 ID。[诊断分流](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
-| 概念 | 所需信息与边界 |
+| 概念 | 提供的信息与使用方式 |
 | --- | --- |
-| 一个点／根中心 | 三个坐标；SPS 与 Shader 本页方案都只提供这一项 |
-| 姿态／方向 | 需要额外独立方向或多个有几何意义的点；单根 XYZ 不能给出旋转 |
-| 世界位置 | 还需要可信世界参考及其变换；AvatarRootLocal 不包含共同世界平移／旋转 |
-| 最终 GPU 表面 | 需要对具体形变算法与目标表面采样；本页根点捕获没有实现该能力 |
-| 设备位置或强度 | 本页值只能经显式映射形成动作目标，不能替代设备传感器回读 |
+| 根点位置 | 三个坐标，表示所选根中心相对 Avatar 的左右、上下、前后位置 |
+| 姿态／方向 | 通过独立方向信息或具有已知布局的多个点计算旋转 |
+| 世界位置 | 结合世界参考对象与坐标变换，描述场景中的位置 |
+| 最终形变表面 | 根据具体形变算法采样所需的表面点 |
+| 设备位置或强度 | 由参数映射产生动作目标，通过设备自身的反馈确认实际响应 |
 
-独立的 Point／Handle／Pose 实验输入不与以上命名空间互换，也不能用其同名点自动补齐 SPS。空间动作仍需用户明确允许实验空间输入、选择相应来源与映射、启用当前输入；看到参数不等于允许设备动作。完整运行条件与未验证的真实客户端／多 Avatar／GPU／硬件边界见[定位说明](positioning.md)与[Shader 研究记录](shader-capture-research.md)。
+独立 Point／Handle／Pose 实验使用各自的参考对象和完整字段。空间联动的启动步骤是：允许实验空间输入，选择来源与映射，再启用当前输入。运行条件与实际客户端检查方法见[定位说明](positioning.md)与[Shader 研究记录](shader-capture-research.md)。

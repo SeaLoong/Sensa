@@ -8,7 +8,7 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
       onClose={onClose} actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}>
       <div className="usage-choices">
         <div>
-          <div><strong>OGB / SPS</strong><p className="caption muted">{t('Avatar 已配置 OGB 或 SPS？从收到的接触参数开始，选择目标后校准动作范围。')}</p></div>
+          <div><strong>OGB / SPS</strong><p className="caption muted">{t('接收 OGB / SPS 接触参数后，选择要使用的对象，再校准动作范围。SPS2 使用 PenOthersNewRoot / PenOthersNewTip，SPS1 使用 PenOthers / PenOthersClose。')}</p></div>
           {onNavigate && <Button onClick={() => onNavigate('osc')}>{t('配置 OGB')}</Button>}
         </div>
         <div>
@@ -20,7 +20,7 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
           <a href={docUrl('unity/top.sealoong.sensa/GPU-TRACKING.md')} target="_blank" rel="noreferrer">{t('捕获设置')}</a>
         </div>
       </div>
-      <p className="caption muted">{t('这些入口只浏览，不会启用输入或连接输出。')}</p>
+      <p className="caption muted">{t('打开入口后可查看和配置；完成检查后，在控制页连接输出并启用输入。')}</p>
       <details className="help-order">
         <summary>{t('手动与脚本')}</summary>
         <div className="actions">

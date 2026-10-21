@@ -13,7 +13,7 @@
 3. Add an output, check its destination, **enable that output** and connect. For Intiface, start Central separately.
 4. Apply **Manual**, enable input and send a small target to check direction/range. Disable input before preparing OSC or a funscript; apply that mode and enable input again when ready.
 
-Keep emergency stop within reach. Clearing it does not resume input. Configuration saves, mode changes and script replacement require input to be enabled again. Displayed positions are **commands, not hardware feedback**.
+Keep emergency stop within reach. After clearing it, saving configuration, changing modes or replacing a script, enable input again when ready. Displayed positions are **command targets**; check the device itself to confirm its movement.
 
 [First run](docs/quick-start.en.md) · [Workbench guide](docs/guide.en.md) · [All features](docs/features.en.md)
 
@@ -21,7 +21,7 @@ Keep emergency stop within reach. Clearing it does not resume input. Configurati
 
 | Route | What it provides | Main limitation |
 | --- | --- | --- |
-| **Existing OGB / SPS** | Read the proximity, touch and depth-related parameters your Avatar already provides | No Avatar changes; usually estimates depth rather than three-dimensional position |
+| **Existing OGB / SPS** | Read the proximity, touch and depth-related parameters your Avatar already provides | Use the Avatar's existing parameters; check which SPS1 or SPS2 signals it sends |
 | **Sensa SPS** | Add measurement components to your Avatar and calculate the selected root relative to it | Requires rebuilding your own Avatar; the target must stay inside the detectable region |
 | **Shader capture** | Draw root coordinates as a black-and-white code block and read them from the desktop | PC experiment; the full block must be visible, and real VRChat/headset behavior remains unverified |
 
@@ -31,22 +31,22 @@ A “root” is the Socket/Plug starting point you select in Unity. Its position
 
 ## Explore before connecting
 
-The [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) needs no running Sensa or device. Ten simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.
+Open the [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly in your browser. Ten simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.
 
 The release also includes `docs/parameter-geometry.html` and its local assets for offline use. Browser language is detected automatically; an explicit choice is saved. Use [?lang=en-US](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) to choose a language directly.
 
 ## Unity and releases
 
-If you can edit your own Avatar, install the [Unity package](unity/top.sealoong.sensa/README.md) for root measurement or Shader capture. Reading existing OGB parameters does not require it. Avatar and World labs are optional development/validation tools requiring your own licensed resources.
+Install the [Unity package](unity/top.sealoong.sensa/README.md) to add root measurement or Shader capture to your own Avatar. For existing OGB parameters, connect through the OSC settings. Avatar and World labs provide development and validation tools using your own licensed resources.
 
 Stable releases and automatic pre-releases in [Releases](https://github.com/SeaLoong/Sensa/releases) include all six desktop builds and a Unity ZIP. **VPM offers published stable Unity packages only** for VCC/ALCOM. Download preview versions separately from Releases, and follow the instructions for the version you installed.
 
-The [documentation site](https://sealoong.github.io/Sensa/) publishes independently from main; it does not wait for a stable Unity release. [Language behavior](docs/languages.en.md)
+The [documentation site](https://sealoong.github.io/Sensa/) updates automatically from main. [Language behavior](docs/languages.en.md)
 
 ## Development and publication
 
 Pushes to `main` run unit tests and full E2E, then build and publish a pre-release after success. For a stable release, run [release.yml](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml) in Actions: it checks/builds latest `main`, selects the next patch version by default and generates release notes. An optional version field allows an explicit new version. Documentation changes deploy automatically after site E2E, without a separate Pages action.
 
-Publication requires the selected commit's unit tests, normal E2E comparison, native smoke checks and complete artifacts to pass. These checks use isolated configuration and mock transports; they do not establish real-client or hardware acceptance. See [development and releases](docs/development.en.md), [architecture](docs/architecture.en.md), the [browser verification record](docs/e2e-status.en.md) and [manual E2E maintenance](docs/e2e.en.md).
+Publication requires the selected commit's unit tests, normal E2E comparison, native smoke checks and complete artifacts to pass. These checks use isolated configuration and mock transports; real-client and hardware behavior receive separate acceptance checks. See [development and releases](docs/development.en.md), [architecture](docs/architecture.en.md), the [browser verification record](docs/e2e-status.en.md) and [manual E2E maintenance](docs/e2e.en.md).
 
 [MIT license](LICENSE) · [Terminology](GLOSSARY.md)

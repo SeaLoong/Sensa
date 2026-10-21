@@ -6,10 +6,12 @@ This records browser runs that were actually inspected; it is not a live dashboa
 
 ## Recorded runs
 
-These entries were last checked on 2026-10-22 at 07:13 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
+These entries were last checked on 2026-10-22 at 07:36 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
 
 | Commit | Scope | Run | Outcome observed at the time |
 | --- | --- | --- | --- |
+| `ef87e41` | Manual E2E candidate capture | [39692194138](https://github.com/SeaLoong/Sensa/actions/runs/39692194138) | All 74 browser cases passed, every other outcome zero. The following proposal export step failed, so no branch/PR or image acceptance followed. Container Git handling and failure annotations have been added for the next run |
+| `ef87e41` | Documentation site E2E and automatic deployment | [39692193225](https://github.com/SeaLoong/Sensa/actions/runs/39692193225) | All 8 cases passed, with every other outcome zero; deployment succeeded |
 | `6a9941f` | Full normal application browser comparison | [39691447010](https://github.com/SeaLoong/Sensa/actions/runs/39691447010) | 74 total: 11 passed, 3 failed, 60 not run; every other outcome was zero. The same three old screenshot-baseline differences below remain; builds and publication did not run |
 | `6a9941f` | Documentation site E2E and automatic deployment | [39691446947](https://github.com/SeaLoong/Sensa/actions/runs/39691446947) | All 8 cases passed, with every other outcome zero. Site build and deployment succeeded |
 | `b3fc2db` | Full normal application browser comparison | [39690646114](https://github.com/SeaLoong/Sensa/actions/runs/39690646114) | 74 total: 11 passed, 3 failed, 60 not run; expected failures, flaky, skipped and interrupted were all zero. Failures are the three old screenshot-baseline differences below. Unrun cases are not passes; publication was blocked |

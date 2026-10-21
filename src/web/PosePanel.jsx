@@ -86,7 +86,7 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
   return (
     <div className="stack">
       <h3>{t('三点姿态（实验）')}</h3>
-      <p className="muted">{t('在发送端设置根部、尖端和侧面三个标记，在接收端安装配套测量组，才能计算位置和朝向；普通 OGB 距离信号不包含这些信息。')}</p>
+      <p className="muted">{t('在发送端设置根部、尖端和侧面三个标记，并在接收端安装配套测量组，即可计算位置和朝向。')}</p>
       {!pose ? (
         <Notice>
           {t('尚未收到三点定位数据，请检查双方的 Unity 设置和 OSC 接收。')}
@@ -144,7 +144,7 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
               {t('生成六轴草稿')}
             </Button>
           </div>
-          <p className="caption muted">{t('生成后会替换整套映射草稿，保存后才生效。拟合误差表示各路距离是否相互吻合，不能当作实际定位精度。')}</p>
+          <p className="caption muted">{t('生成后会替换整套映射草稿，保存后生效。拟合误差用于检查各路距离是否吻合；实际精度需用已知位置另行测量。')}</p>
         </>
       )}
     </div>

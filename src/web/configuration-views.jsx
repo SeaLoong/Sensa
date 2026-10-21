@@ -227,9 +227,9 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
               value={draft.sourceMode || 'Direct'}
               options={[
                 { value: 'Direct', label: t('直接映射') },
-                { value: 'OgbDepth', label: t('OGB 新旧自动识别') },
+                { value: 'OgbDepth', label: t('SPS1 / SPS2 自动识别') },
                 { value: 'OgbTouch', label: t('OGB 触碰与门控') },
-                { value: 'SpsSocketDepth', label: t('仅现代 Root/Tip') },
+                { value: 'SpsSocketDepth', label: t('SPS2 · PenOthersNewRoot / PenOthersNewTip') },
                 { value: 'SensaPose', label: t('三点姿态（实验）') },
                 { value: 'SensaPoint', label: t('本地点位移（实验）') },
               ]}

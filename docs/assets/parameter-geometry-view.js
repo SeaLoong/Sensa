@@ -8,94 +8,94 @@
   const dictionary = {
     brand: ['参数图解', 'Parameter geometry'], modelTag: ['交互原理演示', 'Interactive guide'],
     language: ['语言', 'Language'], title: ['移动目标，了解何时能够检测', 'Move the target to see where detection works'],
-    intro: ['先选择要了解的功能，再拖动橙色目标。图中展示检测范围和参数如何变化；所有读数都是演示，不会控制设备。', 'Choose a feature, then drag the orange target. See its detection range and how values change. All values are simulated; no devices are controlled.'],
-    scenario: ['测量场景', 'Scenario'], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
+    intro: ["选择参数组，拖动橙色目标，观察靠近、接触与进入区域时的读数变化。Socket 表示接收部位，Plug 表示与它配合的一端。", "Choose a parameter group and drag the orange target to explore approach, contact and entry. Socket is the receiving area; Plug is the part that approaches it."],
+    scenario: ["参数组", "Parameter group"], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
     orbit: ['可旋转 3D', 'Orbit 3D'], license: ['Three.js MIT 许可', 'Three.js MIT license'],
     fallback: ['本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。', '3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.'],
     orbitControls: ['拖动橙色目标移动；拖动空白处旋转，滚轮／双指缩放。', 'Drag the orange target to move it; drag empty space to orbit, wheel/pinch to zoom.'],
     dragPlane: ['拖动平面', 'Drag plane'], pathPrefix: ['参数前缀', 'Parameter prefix'],
     pathAssembly: ['将 * 替换为实例名；完整地址 = /avatar/parameters/ + 前缀 + /行名。', 'Replace * with the instance name. Full address = /avatar/parameters/ + prefix + /row name.'],
-    reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ['目标发出的检测范围', 'Target signal shapes'],
+    reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ["目标检测形状", "Target detection shapes"],
     reference: ['实体外形示意', 'Illustrative outlines'], dimensions: ['半径与尺寸', 'Radii and dimensions'], zoom: ['缩放', 'Zoom'],
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
-    rowHint: ['点击参数名可突出对应的检测形状。“可用值”表示通过本页条件检查后的演示结果；实际应用还需选择输入并启用输出。', 'Select a parameter to highlight its detection shapes. Usable values pass this guide’s checks; the app still needs an input and explicit output activation.'],
+    rowHint: ["点击参数名，查看含义并突出对应范围。原始值来自几何计算，可用值结合了 Close 或信号状态。", "Select a parameter to read its meaning and highlight its range. Raw values come from geometry; usable values also apply Close or signal state."],
     parameter: ['参数', 'Parameter'], raw: ['原始值', 'Raw'], effective: ['可用值', 'Usable value'],
     grid: ['20 × 12 编码图块（边缘用于定位）', '20 × 12 encoded grid with edge markers'], controls: ['调整几何', 'Adjust geometry'],
     dragHint: ['拖动橙色操作点仅改变 X/Z，Y 由滑条控制。方向键：左右 Z、上下 X；Shift 加速。', 'Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.'],
     x: ['移动对象 · X', 'Moving object · X'], y: ['移动对象 · Y', 'Moving object · Y'], z: ['移动对象 · Z', 'Moving object · Z'],
     length: ['Plug 长度 L', 'Plug length L'], width: ['Plug 半径 W', 'Plug radius W'], depth: ['Socket 区域 D', 'Socket region D'],
-    yaw: ['Plug 绕根旋转', 'Plug root rotation'], senderRadius: ['身体 Sender 半径', 'Body Sender radius'],
+    yaw: ['Plug 绕根旋转', 'Plug root rotation'], senderRadius: ["触碰对象半径", "Touching object radius"],
     zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['活动计数 Sample（0 表示停止）', 'Activity counter Sample (0 means stopped)'],
     ageMs: ['距上次变化时间', 'Age since last change'], frame: ['编码序号 Frame', 'Encoded Frame'],
     valid: ['模拟收到有效样本', 'Simulate a valid sample'],
     coverage: ['可检测区域', 'Detection region'], simulation: ['模拟信号中断与停更', 'Simulate signal loss or a stalled source'],
-    validHint: ['此项只改变本页演示：取消后模拟发送端报告无效数据；它不是应用中的发布或输出权限。', 'This only changes the demonstration. Clear it to simulate the source reporting invalid data; it does not grant publishing or device-output permission.'],
-    formulaTitle: ['读图时记住', 'Reading the model'], meaningTitle: ['这些量不等价', 'Different quantities'],
-    meaning: ['近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact；灰色 Socket／Plug 轮廓仅为示意，不是 Avatar 网格。', 'Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug profiles are illustrations, not Avatar meshes.'],
-    sourceNote: ['尺寸依据固定版本上游源码及 Sensa 契约，不推断动态缩放、多个 Sender 或真实客户端行为。', 'Dimensions follow pinned upstream sources and Sensa contracts, without inferring dynamic scale, multiple Senders or actual client behavior.'],
+    validHint: ["勾选表示收到有效样本；取消可观察信号失效后的读数。调整停更时间，可比较正常更新与信号停更的效果。", "Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals."],
+    formulaTitle: ["数值怎样算出", "How values are calculated"], meaningTitle: ["怎样理解这些数值", "Understanding the values"],
+    meaning: ["0–1 的接近值描述匹配对象由远到近的变化，Close=1 表示进入对应接触范围。X/Y/Z 给出目标相对参考点的位置。彩色球或胶囊画出检测范围，灰色轮廓帮助辨认 Socket、Plug 与朝向。", "A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction."],
+    sourceNote: ["尺寸与计算依据来自引用的上游实现及 Sensa 定义，详细参数地址和来源见下方链接。", "Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources."],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
     positioning: ['SPS 定位原理', 'SPS positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
-    'socket-modern': ['Socket · 现代 Root / Tip', 'Socket · Modern Root / Tip'],
-    'socket-legacy': ['Socket · 旧近接与 Close', 'Socket · Legacy proximity / Close'],
+    'socket-modern': ["SPS2 · PenOthersNewRoot / PenOthersNewTip", "SPS2 · PenOthersNewRoot / PenOthersNewTip"],
+    'socket-legacy': ["SPS1 · PenOthers / PenOthersClose", "SPS1 · PenOthers / PenOthersClose"],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
-    'socket-touch': ['Socket · Touch / Close', 'Socket · Touch / Close'],
-    'plug-touch': ['Plug · Touch / Close', 'Plug · Touch / Close'],
+    'socket-touch': ["Socket · TouchOthers / TouchOthersClose", "Socket · TouchOthers / TouchOthersClose"],
+    'plug-touch': ["Plug · TouchOthers / TouchOthersClose", "Plug · TouchOthers / TouchOthersClose"],
     'socket-frot': ['Socket · FrotOthers', 'Socket · FrotOthers'],
-    'plug-frot': ['Plug · Frot / Close', 'Plug · Frot / Close'],
-    zone: ['独立 Touch Zone', 'Independent Touch Zone'],
-    'sensa-sps': ['Sensa SPS · 四点定位', 'Sensa SPS · Four-point positioning'],
-    shader: ['Shader · 从画面读取位置', 'Shader · Read position from an image'],
+    'plug-frot': ["Plug · FrotOthers / FrotOthersClose", "Plug · FrotOthers / FrotOthersClose"],
+    zone: ["Touch Zone · Others", "Touch Zone · Others"],
+    'sensa-sps': ["Sensa SPS · P0 / P1 / P2 / P3 / Sample", "Sensa SPS · P0 / P1 / P2 / P3 / Sample"],
+    shader: ["Shader · X / Y / Z", "Shader · X / Y / Z"],
   };
   const scenes = {
     'socket-modern': {
-      summary: ['两个 R=1 接收球同心重合；橙色根球 r=0.01，长度球 r=L 也位于根部。', 'Two concentric R=1 receivers overlap. The orange root sphere has r=0.01; the r=L length sphere is also root-centered.'],
-      explanation: ['NewTip 不是尖端坐标。已知 L 的理想径向参考仅用于理解几何，不是 Sensa 已完成估长后的输出；倾角与横移仍有歧义。', 'NewTip is not a tip coordinate. The ideal radial reference uses known L; it is not Sensa output after learned-length estimation. Tilt and lateral offset remain ambiguous.'],
-      formula: ['p = clamp(1 − max(0,d−r)/R)。两路未饱和时长度估计为 Tip−Root+0.01；理想参考为 clamp(1−d/L)。', 'p = clamp(1 − max(0,d−r)/R). When both channels are unsaturated, length estimate = Tip−Root+0.01; ideal reference = clamp(1−d/L).'],
+      summary: ["NewRoot 随 Plug 根部靠近 Socket 入口而增大；NewTip 与它配合，提供长度辅助信息。", "NewRoot increases as the Plug root approaches the Socket entrance. NewTip pairs with it to provide length information."],
+      explanation: ["两路配合用于估算进入程度：NewRoot 反映根部距离，NewTip 观测同一根部的长度球。下方径向参考采用滑块中的已知长度 L；侧向偏移也会改变这个距离。", "The pair helps estimate entry: NewRoot reflects root distance, while NewTip observes a length sphere at the same root. The radial reference below uses the known slider length L; sideways movement also changes this distance."],
+      formula: ["两只接收球 R=1，根球 r=0.01，长度球 r=L。p=clamp(1−max(0,d−r)/R)；两路未饱和时，估长=NewTip−NewRoot+0.01，已知 L 的径向参考=clamp(1−d/L)。", "Both receivers have R=1; the root sphere has r=0.01 and the length sphere r=L. p=clamp(1−max(0,d−r)/R). With both channels unsaturated, estimated length=NewTip−NewRoot+0.01; the radial reference for known L is clamp(1−d/L)."],
     },
     'socket-legacy': {
-      summary: ['近接球位于 z=−D、R=D；Close 胶囊中心 z=−D/2，r=D/2.5，高 D。', 'The proximity sphere is at z=−D with R=D; Close is a capsule at z=−D/2, r=D/2.5, height D.'],
-      explanation: ['原始近接可能非零而 Close 仍关闭。门控后才是此模型可消费的标量，不是 XYZ 或准确插入百分比。', 'Raw proximity may be positive while Close is off. The gated result is a consumable scalar, not XYZ or an accurate insertion percentage.'],
-      formula: ['近接按球心到 Sender 表面的距离计算；Close 按球／胶囊最近轴距判断，恰好相切不算开启。', 'Proximity uses receiver-center to Sender-surface distance; Close uses closest sphere/capsule axis distance, with exact tangency excluded.'],
+      summary: ["PenOthers 可用来观察进入 Socket 区域的深浅趋势；PenOthersClose=1 表示同一目标已进入入口附近的接触范围。", "PenOthers follows the depth trend as a Plug enters the Socket region. PenOthersClose=1 means that target has entered the contact region near the entrance."],
+      explanation: ["沿入口方向靠近时，PenOthers 通常逐渐增大。Close 为 1 时，本页把接近值作为联动参考；横向距离、Plug 长度和区域 D 也会影响读数。", "PenOthers usually rises when approaching along the entrance direction. While Close is 1, the proximity value becomes the interaction reference. Lateral distance, Plug length and region D also affect the reading."],
+      formula: ["接近检测球中心 z=−D、R=D；Close 胶囊中心 z=−D/2、r=D/2.5、高 D。接近值按球心到目标表面的距离计算；Close=[最近轴距 < 双方半径之和]。", "The proximity sphere is centered at z=−D with R=D; the Close capsule is centered at z=−D/2 with r=D/2.5 and height D. Proximity uses distance to the target surface; Close=[nearest axis distance < sum of radii]."],
     },
     'plug-depth': {
-      summary: ['R=L 接收球随 Plug 根移动；Socket 根部小球 r=0.001 固定在原点。', 'The R=L receiver follows the Plug root; the Socket root sphere, r=0.001, stays at the origin.'],
-      explanation: ['这是 Plug 侧的单近接值，Sensa 按原值使用；旋转灰色 Plug 不会让根部球形观测变成轴向深度。', 'This is the Plug-side single proximity value, consumed without universal inversion. Rotating the gray Plug does not turn a root-centered sphere into axial depth.'],
-      formula: ['p = clamp(1 − max(0,d−0.001)/L)。灰色尖端只帮助理解朝向，不是本参数的测量点。', 'p = clamp(1 − max(0,d−0.001)/L). The gray tip illustrates direction; it is not this parameter’s measurement point.'],
+      summary: ["Plug 一侧的 PenOthers 感知 Socket 入口：Plug 根部越靠近入口，读数越大。", "On the Plug side, PenOthers senses the Socket entrance: the reading rises as the Plug root approaches it."],
+      explanation: ["这个值可作为进入程度的联动参考，再把实际动作两端的读数校准为设备行程。它随根部到入口的直线距离变化，轴向和侧向移动都会参与。", "Use this value as an entry reference, then calibrate the readings at the ends of the intended movement to the device travel. It follows the straight-line distance from root to entrance, including movement along and across the axis."],
+      formula: ["R=L 的接收球跟随 Plug 根部，入口标记球 r=0.001 位于 Socket 根部。p=clamp(1−max(0,d−0.001)/L)；灰色尖端帮助辨认 Plug 朝向。", "An R=L receiver follows the Plug root; an r=0.001 entrance marker sits at the Socket root. p=clamp(1−max(0,d−0.001)/L). The gray tip shows Plug direction."],
     },
     'socket-touch': {
-      summary: ['身体 Sender 进入 Socket 后方的近接球，并由同区域 Close 胶囊门控。', 'A body Sender enters the proximity sphere behind the Socket; a Close capsule gates that region.'],
-      explanation: ['Touch 是近接强度，Close 是接近门控。这里模拟一个匹配的身体 Sender，不把它当作根点定位。', 'Touch is proximity intensity and Close is a presence gate. One matching body Sender is modeled, without root localization.'],
-      formula: ['球：p=clamp(1−max(0,d−r)/R)。Close：轴距小于双方半径之和时为 1。', 'Sphere: p=clamp(1−max(0,d−r)/R). Close is 1 when axis distance is less than the sum of radii.'],
+      summary: ["TouchOthers 描述手指、手等触碰 Socket 附近区域时的接近程度；TouchOthersClose 确认进入同一接触范围。", "TouchOthers describes a finger, hand or similar body contact approaching the Socket region. TouchOthersClose confirms entry into that contact region."],
+      explanation: ["可把 TouchOthers 理解为触碰强度的参考，Close 负责确认接触区域。调整 D，可观察入口附近的触碰范围怎样随深度一起变化。", "Treat TouchOthers as a touch-intensity reference, with Close confirming the contact region. Adjust D to see how the region near the entrance grows with its depth."],
+      formula: ["接近检测球中心 z=−D、R=D，Close 胶囊中心 z=−D/2。p=clamp(1−max(0,d−r)/R)；最近轴距小于双方半径之和时 Close=1。", "The proximity sphere is centered at z=−D with R=D; the Close capsule is centered at z=−D/2. p=clamp(1−max(0,d−r)/R). Close=1 when nearest axis distance is smaller than the sum of radii."],
     },
     'plug-touch': {
-      summary: ['e=min(W,0.08)；近接球 R=L+e，Close 胶囊 r=W+e、高 L+2e。', 'e=min(W,0.08): proximity R=L+e; Close capsule r=W+e, height L+2e.'],
-      explanation: ['身体 Sender 的最近表面决定近接；只有同对象的 Close 开启，门控后 Touch 才非零。', 'The nearest body-Sender surface determines proximity. Effective Touch requires that same object’s Close gate.'],
-      formula: ['胶囊高度包含端帽，轴段长=max(0,H−2r)；不能把整个高度都画成直轴段。', 'Capsule height includes both caps; axis length=max(0,H−2r). The entire height is not the straight segment.'],
+      summary: ["TouchOthers 描述身体与 Plug 触碰区域的接近程度；TouchOthersClose 确认目标进入包围 Plug 的胶囊范围。", "TouchOthers describes body contact approaching the Plug’s touch region. TouchOthersClose confirms entry into the capsule around the Plug."],
+      explanation: ["贴近并沿外形移动时，TouchOthers 的变化可用于调节联动强度。半径 W 影响外侧覆盖，长度 L 影响沿 Plug 轴线的覆盖。", "As contact approaches and moves along the shape, TouchOthers can guide interaction intensity. Radius W affects the outer reach; length L affects coverage along the Plug axis."],
+      formula: ["e=min(W,0.08)；接近检测球 R=L+e，Close 胶囊 r=W+e、高 L+2e。胶囊高度包含两端半球，直轴段长=max(0,H−2r)。", "e=min(W,0.08). The proximity sphere has R=L+e; the Close capsule has r=W+e and height L+2e. Capsule height includes both rounded caps; straight-axis length=max(0,H−2r)."],
     },
     'socket-frot': {
-      summary: ['Socket 前方 z=0.05、R=0.1 的球感知另一 Socket 的 r=0.001 根球。', 'A sphere at z=0.05 with R=0.1 senses another Socket’s r=0.001 root sphere.'],
-      explanation: ['Socket FrotOthers 不另设 Close 门控；这里读原始球形近接，不代表正在使用哪个 Plug。', 'Socket FrotOthers has no separate Close gate. It is spherical proximity, not identification of an active Plug.'],
-      formula: ['p = clamp(1 − max(0,d−0.001)/0.1)。', 'p = clamp(1 − max(0,d−0.001)/0.1).'],
+      summary: ["FrotOthers 反映两个 Socket 入口附近区域贴近的程度。", "FrotOthers reflects how closely the areas near two Socket entrances approach each other."],
+      explanation: ["对方入口越靠近前置检测球，读数越大。Sensa 直接使用该接近值，作为贴近或摩擦时的强度参考。", "The reading rises as the other entrance approaches the forward detection sphere. Sensa uses this proximity value directly as an intensity reference for close contact or rubbing."],
+      formula: ["接收球中心 z=0.05、R=0.1；对方入口标记半径 r=0.001。p=clamp(1−max(0,d−0.001)/0.1)。", "The receiver is centered at z=0.05 with R=0.1; the other entrance marker has r=0.001. p=clamp(1−max(0,d−0.001)/0.1)."],
     },
     'plug-frot': {
-      summary: ['近接球 R=L；Close 胶囊 r=W+0.08、高 L；Sender 也是带端帽的 Plug 包络。', 'Proximity R=L; Close capsule r=W+0.08, height L; the Sender is also a capped Plug envelope.'],
-      explanation: ['原始 Frot 非零并不保证两个胶囊接近。模型用双方轴段的真实最近距离计算 Close；本示意双方共用 L/W。', 'Positive raw Frot does not prove the two capsules are close. Close uses their nearest axis-segment distance. This illustration shares L/W for both Plugs.'],
-      formula: ['Close = [最近轴距 < r_receiver+r_sender]；有效值 = Close × 原始近接。', 'Close = [nearest axis distance < r_receiver+r_sender]; effective value = Close × raw proximity.'],
+      summary: ["FrotOthers 描述两个 Plug 外形贴近时的接近程度；FrotOthersClose 确认双方检测包络已经相交。", "FrotOthers describes two Plug shapes approaching each other. FrotOthersClose confirms that their detection envelopes overlap."],
+      explanation: ["这组参数可作为表面摩擦的联动参考：Close 确定接触范围，再用 FrotOthers 调节强度。旋转或侧向移动会改变双方最近距离。", "Use this pair as a reference for surface rubbing: Close confirms the contact region, then FrotOthers guides intensity. Rotation and sideways movement change the nearest distance between the shapes."],
+      formula: ["接近检测球 R=L；Close 胶囊 r=W+0.08、高 L。Close=[最近轴距 < 双方半径之和]；可用值=Close×原始接近值。此图双方共用 L/W。", "The proximity sphere has R=L; the Close capsule has r=W+0.08 and height L. Close=[nearest axis distance < sum of radii]; usable value=Close×raw proximity. Both Plugs share L/W in this illustration."],
     },
-    zone: {
-      summary: ['独立球形 Touch Zone 直接发布匹配 Sender 的近接强度，不要求 Close。', 'An independent spherical Touch Zone publishes matching-Sender proximity directly, without Close.'],
-      explanation: ['这是 VFH/Zone/Touch 的独立区域，不是 OGB 版本标志或 Socket 根位置。', 'This is an independent VFH/Zone/Touch region, not an OGB version flag or Socket root position.'],
-      formula: ['区域 R 与身体 Sender 半径 r 可独立改变；所有 XYZ 都参与距离。', 'Zone R and body-Sender radius r vary independently; all XYZ components contribute to distance.'],
+    'zone': {
+      summary: ["Others 显示他人触碰指定 Touch Zone 时的接近程度。", "Others reports proximity when another avatar touches the selected Touch Zone."],
+      explanation: ["Touch Zone 可放在希望响应触碰的位置，例如身体表面的一小块区域。调整半径，可观察触碰开始生效的范围；数值可直接作为触碰强度参考。", "Place a Touch Zone wherever contact should create a response, such as a small area on the body surface. Adjust its radius to explore the reach, then use the value directly as a touch-intensity reference."],
+      formula: ["接收区域为半径 R 的球；触碰对象半径 r 可独立调整。p=clamp(1−max(0,d−r)/R)，距离由完整 XYZ 计算。", "The receiver is a sphere of radius R; the touching object’s radius r varies independently. p=clamp(1−max(0,d−r)/R), using full XYZ distance."],
     },
     'sensa-sps': {
-      summary: ['四个固定检测点各有 2 米接收半径；移动目标携带 1 毫米专用标记。绿色区域是四个检测点都能测量的位置。', 'Four fixed points each have a 2 m receiver radius. A 1 mm dedicated marker follows the target. Green shows positions all four points can measure.'],
-      explanation: ['目标必须同时处于四个接收范围内，才能由四个距离求出位置。超出范围、贴近检测点导致读数饱和，或活动计数停止变化时，位置不可用。', 'The target must stay within all four receivers so four distances can determine its position. Leaving coverage, saturating a receiver at close range, or a stalled activity counter makes the position unavailable.'],
-      formula: ['每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球共同覆盖并裁剪到坐标边界得到；检测点旁 3 毫米的饱和区不可用。图形边缘为采样近似，是否有效以读数为准。', 'Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope is the four-sphere intersection clipped to coordinate limits, excluding 3 mm saturation regions. Its drawn edge is sampled; the numeric check determines validity.'],
+      summary: ["P0–P3 四个固定测量点各有 2 米接收半径，感知跟随目标的 1 毫米标记；绿色区域表示四路共同可测的位置。", "Four fixed points, P0–P3, each have a 2 m receiver radius and sense a 1 mm marker following the target. Green shows positions all four can measure."],
+      explanation: ["P0–P3 提供四个方向的距离线索，Sample 持续变化表示测量仍在更新。解算出的 X/Y/Z 可用于左右、高低、前后的联动；目标越过绿色范围时，可用位置暂停。", "P0–P3 provide distance clues from four directions; a changing Sample shows continued measurement updates. The reconstructed X/Y/Z can guide side-to-side, height and forward/back interaction. Usable position pauses when the target leaves coverage."],
+      formula: ["每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球交集与坐标边界共同决定，并避开测量点旁 3 毫米的饱和区。边缘采用采样绘制，有效性由数值检查判定。", "Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope combines the four-sphere intersection with coordinate bounds and excludes 3 mm saturation regions near the anchors. Its edge is sampled; numeric checks determine validity."],
     },
-    shader: {
-      summary: ['Shader 把目标相对 Avatar 根的位置写进画面，桌面工具再读取图块。绿色方框是可编码范围：中心各方向 2 米。', 'The Shader writes the target’s position relative to the avatar root into an image; the desktop tool reads the grid. The green box is the encodable range: 2 m from its center along each axis.'],
-      explanation: ['边缘固定图案帮助找回轻微移动的图块；中间 16×8 位保存坐标等数据。固定像素本来就不随位置变化。校验失败或画面停更会停用位置；边缘标记不能消除渲染延迟。', 'Fixed edge patterns help reacquire a slightly shifted grid; the middle 16×8 bits hold coordinates and other data. Those marker pixels are intentionally constant. Failed checks or a stalled image invalidate the position. Markers cannot remove rendering latency.'],
-      formula: ['q=round(clamp((p−center+2)/4)×65535)，每格步长约 0.061 毫米。这只是数字编码的分辨率，不是实测精度。超过绿色方框的坐标会失效。', 'q=round(clamp((p−center+2)/4)×65535), a step of about 0.061 mm. This is numeric encoding resolution, not measured accuracy. Coordinates outside the green box are invalid.'],
+    'shader': {
+      summary: ["X/Y/Z 表示目标相对 Avatar 根的位置。Shader 将坐标写入画面中的图块，桌面工具读取后即可用于位置联动。", "X/Y/Z locate the target relative to the avatar root. The Shader writes them into an image grid for the desktop tool to read and use for position-based interaction."],
+      explanation: ["绿色方框覆盖中心各方向 2 米。边缘固定图案用于定位，中间 16×8 位记录坐标等数据；Frame 随画面推进，Valid 标记坐标是否可用。", "The green box extends 2 m from its center along each axis. Fixed edge patterns locate the grid; the middle 16×8 bits carry coordinates and other data. Frame advances with the image, and Valid marks usable coordinates."],
+      formula: ["q=round(clamp((p−center+2)/4)×65535)，每级坐标间隔约 0.061 毫米，描述编码的细分程度。图块需通过校验并保持更新；桥默认在停更 350 ms 后报告 Valid=0。", "q=round(clamp((p−center+2)/4)×65535). Each coordinate level is about 0.061 mm apart, describing the encoding subdivisions. The grid must pass checks and keep updating; the bridge reports Valid=0 after a default 350 ms stall."],
     },
   };
   // Keep this small classic-script resolver aligned with src/web/i18n.js; the guide also works from file://.
@@ -332,10 +332,10 @@
     handles.append(moving);
     $('projection-note').textContent = text(projection.iso
       ? ['正交立体投影；球的投影半径保持同一比例。', 'Orthographic 3D projection; spheres retain the same radius scale.']
-      : spatial() ? ['接收球轮廓是 XZ 投影；绿色区域为所选 Y 高度的切片，Y 仍参与全部距离计算。', 'Receiver outlines are XZ projections; green is a slice at the selected Y. Values use all XYZ components.'] : ['XZ 投影，不是 Y 切片；Y 仍参与全部距离计算。', 'XZ projection, not a Y slice; Y still contributes to every distance.'])
-      + ' ' + text(['橙色操作柄不是 Sender 半径；灰色外形仅为示意。单位：', 'The orange handle is not the Sender radius; gray outlines are illustrative. Units: ']) + units()
+      : spatial() ? ['接收球轮廓是 XZ 投影；绿色区域为所选 Y 高度的切片，Y 仍参与全部距离计算。', 'Receiver outlines are XZ projections; green is a slice at the selected Y. Values use all XYZ components.'] : ['完整 XYZ 关系投影到 XZ 平面；Y 仍参与距离计算。', 'Full XYZ geometry projected onto the XZ plane; Y still contributes to distance.'])
+      + ' ' + text(['橙色操作点为便于拖动而放大；灰色轮廓帮助辨认外形。单位：', 'The orange handle is enlarged for dragging; gray outlines identify the shapes. Units: ']) + units()
       + (state.scenario === 'sensa-sps' ? ' ' + text(['绿色展示当前 Y 高度的可测切片；彩色接收球轮廓是投影。', 'Green shows the measurable slice at the selected Y; colored receiver outlines are projections.']) : '')
-      + (!spatial() ? ' ' + text(['本场景 Socket +Z 向外，Plug 在 yaw=0 时朝 −Z；这不是作者 Plug 原生 +Z 的旋转定义。', 'Here Socket +Z points outward and yaw=0 aims the Plug along −Z; this is not the authored Plug’s native +Z rotation definition.']) : '');
+      + (!spatial() ? ' ' + text(['此图 Socket +Z 朝外，yaw=0 时 Plug 朝向 −Z，便于观察入口与靠近方向。', 'Here Socket +Z points outward; at yaw=0 the Plug points toward −Z to show its approach to the entrance.']) : '');
   }
   function readouts() {
     $('values').replaceChildren();
@@ -344,7 +344,8 @@
       if (value.emitted === false) row.title = text(['未发送；仅展示编码计算', 'Not sent; encoding computation only']);
       const name = document.createElement('td'), button = document.createElement('button');
       button.type = 'button'; button.setAttribute('aria-pressed', String(selected === value.name));
-      button.title = '/avatar/parameters/' + value.path; button.setAttribute('aria-describedby', 'path-assembly');
+      button.title = '/avatar/parameters/' + value.path;
+      button.setAttribute('aria-describedby', selected === value.name ? 'path-assembly parameter-meaning' : 'path-assembly');
       if (state.scenario === 'sensa-sps' && /^P[0-3]$/.test(value.name)) {
         const index = Number(value.name[1]), swatch = document.createElement('span');
         swatch.className = 'anchor-swatch'; swatch.setAttribute('aria-hidden', 'true');
@@ -366,6 +367,8 @@
     $('path-assembly').textContent = text('pathAssembly');
     const list = [], add = (name, value) => list.push([text(name), value]);
     const m = result.metrics, field = result.values.find(v => v.name === selected);
+    const meaning = field?.meaning ? field.name + ' · ' + text(field.meaning) : text('rowHint');
+    if ($('parameter-meaning').textContent !== meaning) $('parameter-meaning').textContent = meaning;
     if (field?.axisDistance !== undefined) add(['最近轴距（完整 XYZ）', 'Nearest axis distance (full XYZ)'], fmt(field.axisDistance) + ' ' + units());
     if (m.centerDistance !== undefined) {
       add(['根中心距离', 'Root-center distance'], fmt(m.centerDistance) + ' m');
@@ -376,7 +379,7 @@
       add(['当前位置在检测范围内', 'Target inside detection region'], text(result.coverage.containsTarget ? ['是', 'Yes'] : ['否', 'No']));
       add(['中心周围保守覆盖半径', 'Conservative coverage around center'], fmt(m.conservativeCoverageRadius) + ' ' + units());
       add(['拟合 XYZ', 'Fitted XYZ'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
-      add(['拟合残差（非精度）', 'Fit residual (not accuracy)'], fmt(m.residual, 6));
+      add(['四路距离拟合残差', 'Four-distance fit residual'], fmt(m.residual, 6));
       add(['Sample 内容年龄 / 上限', 'Sample content age / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
       add(['活动 / 几何拟合', 'Activity / geometry fit'], String(m.active) + ' / ' + String(m.fitValid));
       for (const shape of result.shapes.filter(s => s.id.startsWith('receiver-P'))) add(shape.id.slice(-2), ['x', 'y', 'z'].map(k => fmt(shape.center[k], 1)).join(' / '));
@@ -385,7 +388,7 @@
       add(['输入 XYZ', 'Input XYZ'], ['x', 'y', 'z'].map(k => fmt(state[k])).join(' / '));
       add(['16 位量化 X / Y / Z', '16-bit quantized X / Y / Z'], ['x', 'y', 'z'].map(k => m.encoded[k]).join(' / '));
       add(['解码 XYZ', 'Decoded XYZ'], ['x', 'y', 'z'].map(k => fmt(m.decodedPosition[k], 5)).join(' / '));
-      add(['编码量化误差（非精度）', 'Quantization error (not accuracy)'], fmt(m.quantError.length, 7) + ' ' + units());
+      add(['编码前后位置差', 'Position difference after encoding'], fmt(m.quantError.length, 7) + ' ' + units());
       add(['桌面接收年龄上限', 'Desktop intake age ceiling'], m.frameAgeLimitMs + ' ms');
       add(['实际桥默认冻结门限', 'Actual bridge default freeze threshold'], m.bridgeFreezeThresholdMs + ' ms');
       if (state.ageMs > m.bridgeFreezeThresholdMs) add(['实际桥会先行停用', 'Actual bridge would already stop'], 'Valid=0');
@@ -495,10 +498,10 @@
         } });
         if (!threeView) return;
         projection = null;
-        $('projection-note').textContent = text(['可旋转 3D，标签保持屏幕字号。橙色拖动目标被放大显示，不代表 Sender 半径。单位：', 'Orbit 3D with screen-sized labels. The enlarged orange drag target is not the Sender radius. Units: ']) + units() + '. '
+        $('projection-note').textContent = text(['拖动空白处旋转视角；橙色操作点放大显示，方便选取。单位：', 'Drag empty space to orbit; the orange handle is enlarged for easy selection. Units: ']) + units() + '. '
           + (state.scenario === 'sensa-sps' ? text(['绿色外形是四球共同可测区域；检测点附近的微小饱和区除外。', 'The green envelope is the shared measurable region, excluding tiny saturation regions near the anchors.'])
-            : state.scenario === 'shader' ? text(['绿色方框是可编码范围，不代表捕获相机看到的空间；输入点与解码点可能重叠。', 'The green box is the encoding range, not the capture camera’s field of view. Input and decoded points may overlap.'])
-              : text(['作者缩放假定为 1；灰色外形是示意，不是 Avatar 网格。', 'Authored scale is assumed one; gray profiles illustrate shapes, not Avatar meshes.']));
+            : state.scenario === 'shader' ? text(['绿色方框表示坐标编码范围；桌面工具框选画面中的图块。位置一致时，输入点与解码点会重合。', 'The green box shows coordinate encoding bounds; select the image grid in the desktop tool. Input and decoded points overlap when their positions match.'])
+              : text(['图中作者缩放为 1，灰色轮廓用于观察 Socket、Plug 与朝向。', 'Authored scale is one; gray outlines show Socket, Plug and direction.']));
       } catch { fallbackThree(); return; }
     } else { disposeThree(); draw(); }
     for (const hint of document.querySelectorAll('[data-i18n="dragHint"]')) hint.textContent = text(orbit ? 'orbitControls' : 'dragHint');

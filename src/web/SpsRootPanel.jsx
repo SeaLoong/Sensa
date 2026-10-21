@@ -65,7 +65,7 @@ function PointProjection({ point }) {
         </g>
       ))}
       <text x="210" y="226" textAnchor="middle" fill="#526177" fontSize="11">
-        {avatarRoot ? t('中心 {0}/{1}/{2} · ±{3} 本地单位', [center.x, center.y, center.z, extent]) : t('局部投影 ±{0} cm · 并非有效采样区域边界', [extent * 100])}
+        {avatarRoot ? t('中心 {0}/{1}/{2} · ±{3} 本地单位', [center.x, center.y, center.z, extent]) : t('绘图范围 ±{0} cm · 有效范围见覆盖区域图', [extent * 100])}
       </text>
     </svg>
   );
@@ -100,7 +100,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   return (
     <div className="stack" id="sensa-spatial-root" tabIndex={-1}>
       <h3>{t('根点坐标与校准')}</h3>
-      <p className="muted">{t('查看测量点相对参考对象的位置，再把移动范围转换为 0%–100% 动作。Avatar 根局部坐标以 Avatar 为参考，随 Avatar 一起移动，不是世界坐标。')}</p>
+      <p className="muted">{t('查看测量点的位置，再把移动范围转换为 0%–100% 动作。坐标以所选参考对象为原点；Avatar 根局部坐标会随 Avatar 一起移动。')}</p>
       {!root ? (
         <Notice>
           {t('尚未收到位置数据，请先完成 Unity 定位设置，并检查 OSC 接收或 Shader 桥接程序。')}
@@ -144,7 +144,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
                   root.valid ? withUnit(`${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)}`) : '—',
                 ],
                 [t('距离拟合误差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
-                [t('朝向与插入比例'), t('单个点无法确定')],
+                [t('朝向与插入比例'), t('需要三点测量')],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -206,11 +206,11 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
               </div>
             </details>
           ) : (
-            <p className="muted">{t('当前对象只能查看数据。请选择已配置专用根部标记、且坐标有效的自身对象来校准动作。')}</p>
+            <p className="muted">{t('要校准动作，请选择已配置专用根部标记、且坐标有效的自身对象。')}</p>
           )}
         </>
       )}
-      <p className="caption muted">{t('位置有效仅表示当前数据可用于计算。距离拟合误差越小，各路测量越一致，但不等于实际定位越准确；一个点也无法判断朝向。')}</p>
+      <p className="caption muted">{t('“坐标有效”表示当前数据通过计算检查。拟合误差用于查看各路距离的一致性；实际精度请用已知位置测量，朝向需使用三点定位。')}</p>
     </div>
   );
 }

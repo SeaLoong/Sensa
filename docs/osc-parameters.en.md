@@ -2,52 +2,57 @@
 
 [简体中文](osc-parameters.md) | **English**
 
-This is the field/validity reference. Choose a [route](usage-scenarios.en.md), then establish the [workbench flow](guide.en.md). Paths omit `/avatar/parameters/`, are case sensitive, and require a real instance in place of `<id>`; never transmit placeholders literally.
+This is the field/validity reference. Choose a [route](usage-scenarios.en.md), then establish the [workbench flow](guide.en.md). Paths omit `/avatar/parameters/`, are case sensitive, and use a real instance name in place of `<id>`.
 
 ## Explore the values
 
-The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) runs independently from Sensa, automatically selects language and accepts explicit [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN). Application details open the bundled local page. Extracted `docs/parameter-geometry.html` works offline with adjacent assets. The GitHub HTML source page is not the interactive entry.
+The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) selects language automatically and has direct [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) and [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) links. Application parameter details open the bundled page. Keep its adjacent assets to open extracted `docs/parameter-geometry.html` offline.
 
-All ten scenes provide 3D/SVG, plane dragging and precise sliders. Blue Receiver/orange Sender radii follow the model; gray Socket/Plug surfaces are references only. SPS colors match spheres, labels and rows; displaced root/tip labels have leaders to actual reference points. The enlarged orange hit marker is not the Sender size.
+Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All ten scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. Sensa SPS colors connect each measurement sphere to its label and parameter row.
 
-“Model gate” demonstrates validity/Close only, excluding runtime length learning, mapping and device output. XZ is a projection, not a slice; Y still affects calculations. Shader bridge freeze at 350 ms differs from desktop rejection at 500 ms. The explorer connects to no OSC, GPU capture or device.
+Distances use complete XYZ coordinates. XZ projects space onto a plane; the green Sensa SPS region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
 
-Prefixes such as `Sensa/SPS/*` are templates: replace * with the actual name, then append the leaf. `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader instead requires the decimal ID specified below.
+Parameters appear in dictionary order, with a shorter shared prefix first: `PenOthers` precedes `PenOthersClose`. A prefix's `*` represents an instance name: `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader IDs use the decimal form below.
 
-Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship locally without a CDN. [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html) failure falls back to SVG. The complete MIT notice is `assets/parameter-geometry-3d.LICENSE.txt`. [Explorer operation](guide.en.md)
+Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship with the assets; unavailable [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html) falls back to SVG. The MIT notice is `assets/parameter-geometry-3d.LICENSE.txt`. [Explorer operation](guide.en.md)
 
 ## Choose the information you need
 
-| Parameter family | Information provided | Information it cannot establish |
+| Parameter family | Information provided | Typical use |
 | --- | --- | --- |
-| `OGB/Orf/<id>/…`, `OGB/Pen/<id>/…` | External Socket/Plug proximity, touch, close gates and a radial ratio estimate | Arbitrary XYZ, reliable insertion depth or the other person's identity |
-| `VFH/Zone/Touch/<id>/Self` / `Others` | Proximity intensity of an independent touch zone | Root position or insertion depth |
-| `Sensa/SPS/<id>/P0…P3`, `Sample` | Estimated position of a dedicated spherical root marker in avatar-root coordinates | World position, orientation or the final GPU-deformed surface |
-| `Sensa/Shader/<id>/Frame`, `X`, `Y`, `Z`, `Valid` | Avatar-root position decoded from native root telemetry by the desktop bridge | Contact distance, the final GPU-deformed surface or device feedback |
-| `Sensa/Diagnostics/Shader/0/…` | Shader pattern, capture and OSC transport diagnostics | A valid root position available for motion mapping |
+| `OGB/Orf/<id>/…`, `OGB/Pen/<id>/…` | Socket/Plug depth trends, touch intensity and presence | Depth or vibration linkage |
+| `VFH/Zone/Touch/<id>/Others` / `Self` | Approach intensity inside a selected touch zone | Zone-based touch linkage |
+| `Sensa/SPS/<id>/P0…P3`, `Sample` | Selected root's three-dimensional position relative to the Avatar | Mapping left/right, up/down or forward/back movement |
+| `Sensa/Shader/<id>/Frame`, `Valid`, `X`, `Y`, `Z` | Root-relative coordinates decoded from a screen block | Obtaining three-dimensional position through image encoding |
+| `Sensa/Diagnostics/Shader/0/…` | Pattern, capture and OSC transport diagnostics | Checking the capture chain |
 
-Sensa's SPS has exactly the contract below: no `v1` path segment and no compatibility with old A0–A3, shared eight-point arrays, or the former Profile/Scale/Valid/Heartbeat/Self/Others structure. Update the Unity producer and desktop together. External OGB paths and capability versions remain defined by upstream; this simplification does not rename them.
+Sensa SPS Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
 
 ## OGB and VRCFury parameters
 
-Orf means Socket; Pen means Plug. `Self` and `Others` are Contact filters, not player authentication. Sensa pairs by OSC source, complete instance parent path and category, without combining different sources or instances. The [OGB tables](ogb-compatibility.en.md) list the complete generated parameters, sphere/capsule centers and radii, legacy consumer paths and Sensa support.
+`Orf` means Socket and `Pen` means Plug. `Self` filters matching targets on your own Avatar; `Others` filters matching targets on other Avatars. Sensa pairs by OSC source, complete instance path and category. **SPS2 · PenOthersNewRoot / PenOthersNewTip** and **SPS1 · PenOthers / PenOthersClose** identify the explorer's two parameter geometries.
 
-| Parameter/path | Meaning and Sensa behavior |
-| --- | --- |
-| Orf `PenSelfNewRoot` / `PenOthersNewRoot` | Proximity of the Plug root sphere inside a concentric Receiver; one half of modern radial estimation |
-| Orf `PenSelfNewTip` / `PenOthersNewTip` | Proximity of a larger sphere at the same root center, used to estimate Plug length; Tip does not mean a tip position coordinate |
-| Orf/Pen `PenSelf` / `PenOthers` | Legacy single proximity. OgbDepth considers a same-instance fallback only when the modern pair is absent or both zero; Orf uses `PenOthersClose` as a gate when published, retaining old single-value compatibility when absent |
-| `TouchSelf` / `TouchOthers` and their `…Close` | Touch is 0–1 proximity; Close is a Constant gate. OgbTouch returns zero without a required Close |
-| `FrotOthers` | Rubbing proximity; Pen requires `FrotOthersClose`, Orf does not |
-| `VFH/Zone/Touch/<complete-id>/Self` / `Others` | Independent Zone; OgbTouch reads 0–1 directly without requiring or inventing Close |
-| `VFH/Version/…`, historical OGB Version paths | Upstream capability flags, not proximity or position; never interpreted as touch intensity |
-| `OGB_ENABLED` | An outbound Boolean heartbeat users can explicitly enable in Sensa; its fixed destination is off by default. Sends true every five seconds while OSC mode is listening and attempts false on exit. It does not activate device input |
+| Parameter/path | Reading meaning | Sensa behavior |
+| --- | --- | --- |
+| `FrotOthers` | Approach intensity as two matching shapes move close, meet or brush past | Plug uses `FrotOthersClose`; Socket reads the value directly |
+| `FrotOthersClose` | Whether a matching target enters the Plug's effective nearby region: 0 away, 1 nearby | An additional condition for Plug Frot |
+| Orf/Pen `PenOthers` / `PenSelf` | Socket SPS1 or Plug depth trend; movement aligned with the Socket can be understood as gradually entering | Socket uses it when the SPS2 pair is absent or both values are zero; Plug reads it directly |
+| Orf `PenOthersClose` | Whether a matching target enters the Socket's effective nearby region: 0 away, 1 nearby | When published, gates SPS1 depth; single-value sources retain their own path behavior |
+| Orf `PenOthersNewRoot` / `PenSelfNewRoot` | SPS2 approach of the Plug root toward the Socket | Pairs with the same instance's `NewTip` for length estimation and depth conversion |
+| Orf `PenOthersNewTip` / `PenSelfNewTip` | SPS2 approach of the root-centered length sphere toward the Socket | Unsaturated pairs estimate length, then yield a depth trend |
+| `TouchOthers` / `TouchSelf` | Continuous 0–1 intensity as a body or matching target approaches the touch region | Used with its corresponding `Touch…Close` |
+| `TouchOthersClose` / `TouchSelfClose` | Whether a matching target enters that touch region: 0 away, 1 nearby | Close=1 admits Touch intensity; Close=0 yields zero |
+| `VFH/Zone/Touch/<complete-id>/Others` / `Self` | Continuous proximity in a chosen zone, usually increasing toward its center | OgbTouch reads 0–1 directly |
+| `VFH/Version/…`, historical OGB Version paths | Upstream capability flags | Identifying supported parameter features |
+| `OGB_ENABLED` | Tells the Avatar that the receiving service is running | Sends true to the configured destination every five seconds and attempts false when stopped; off by default |
 
-Modern VRCFury does not generate every legacy combination above. Do not invent Pen NewRoot/NewTip or AngleX/Y/Z by naming pattern. Sensa's modern OgbDepth model assumes Receiver radius R=1 and root-sphere radius r=0.01 to estimate a radial ratio, rather than directly measuring axial insertion. Authored geometry, runtime scaling, mixed Senders and saturation affect the result. Touch spheres/capsules do not share one fixed “trigger radius.” [Pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs), [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)
+Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. SPS2 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
+
+Use the parameters actually exposed by your Avatar. The [OGB tables](ogb-compatibility.en.md) give complete generated paths, shapes and dimensions, based on the [pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs) and [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts).
 
 ## Sensa SPS: four proximities and one activity sample
 
-The producer places one dedicated spherical Sender at the explicitly selected Socket/Plug root center. Four spherical Receivers stay fixed in avatar-root coordinates and accept only their own dedicated collision channel. Each instance uses five Contacts. This measures the CPU Transform root center, not the final SPS-deformed mesh. [Producer](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
+The producer places one dedicated spherical Sender at the explicitly selected Socket/Plug root center. Four spherical Receivers stay fixed in avatar-root coordinates and accept only their own dedicated collision channel. Each instance uses five Contacts to track the selected Transform root center. [Producer](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 
 ### Five public measurement parameters
 
@@ -59,15 +64,15 @@ All values are Floats. Each `<id>` occupies one path segment; instance names and
 | `Sensa/SPS/<id>/P1` | The equivalent observation at anchor P1 | Same |
 | `Sensa/SPS/<id>/P2` | The equivalent observation at anchor P2 | Same |
 | `Sensa/SPS/<id>/P3` | The equivalent observation at anchor P3 | Same |
-| `Sensa/SPS/<id>/Sample` | Combined current validity/activity counter for this instance; not a coordinate | 0 means invalid; active values are exactly `n/32`, integer n=1…32 |
+| `Sensa/SPS/<id>/Sample` | Counter for this instance’s current validity and sampling activity | 0 means invalid; active values are exactly `n/32`, integer n=1…32 |
 
-Each FX sampling state targets 0.05 seconds: copy RawP0–RawP3 into P0–P3, then write Sample. Sample cycles from 1/32 through 1, targeting a 1.6-second cycle. Animation, Contact updates and OSC delivery can be delayed or lost; this does not guarantee exactly 20 Hz or an atomic same-frame snapshot. Stationary P values may be cached, but Sample must change. [Shared constants](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs), [receiver checks](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedRootTracking.cs)
+Each FX sampling state targets 0.05 seconds: copy RawP0–RawP3 into P0–P3, then write Sample. Sample cycles from 1/32 through 1, targeting a 1.6-second cycle. Animation, Contact and OSC scheduling affect the update rhythm. Stationary roots reuse their latest P values while a changing Sample checks continued sampling. [Shared constants](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs), [receiver checks](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedRootTracking.cs)
 
 Sample lifetime uses **ChangedAt, when its value last changed**, with a **1000 ms default in normal operation**. Runtime uses a positive configured InputTimeoutMs or falls back to 1000 ms; the decoder then caps that value at 1250 ms. A smaller setting is stricter, while a setting above 1250 ms cannot extend the cap. Repeated receipt of the same Sample updates receipt time without extending that lifetime. Missing parameters, Sample=0, a non-n/32 value, freezing, timeout or a failed fit invalidate the coordinates. [Runtime lifetime selection](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs#L76)
 
-### Menu controls are separate from measurements
+### Choose the measurement target from the menu
 
-Five Floats per object does not mean five parameters for the whole avatar. Automatic's Exclusive strategy also generates `Sensa/Select/<group>`, an Int defaulting to 0=Off, with 1…N selecting objects in Targets order. Dedicated has no such group selector. MA registers this as an Expression parameter with `localOnly=true` and `saved=false`: no network synchronization or persistence across reloads. It may still be visible according to VRChat OSC configuration; “local” does not mean “never sent over OSC.” [Selector implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs), [MA parameter rules](https://modular-avatar.nadena.dev/docs/reference/parameters), [VRChat OSC configuration](https://docs.vrchat.com/docs/osc-avatar-parameters)
+Alongside each object's five measurement Floats, Automatic's Exclusive strategy generates `Sensa/Select/<group>`, an Int defaulting to 0=Off, with 1…N selecting objects in Targets order. Dedicated has no such group selector. MA registers this Expression parameter with `localOnly=true` and `saved=false`. It starts from its default on loading, with visibility determined by VRChat OSC configuration. [Selector implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs), [MA parameter rules](https://modular-avatar.nadena.dev/docs/reference/parameters), [VRChat OSC configuration](https://docs.vrchat.com/docs/osc-avatar-parameters)
 
 ### Fixed geometry, distance and coverage
 
@@ -87,11 +92,11 @@ p = clamp(1 - max(0, d - r) / R, 0, 1)
 d = R × (1 - p) + r
 ```
 
-Here d is anchor-center to marker-center distance. The r correction accounts for Proximity measuring the Sender surface nearest the Receiver center. True distances to four known noncoplanar anchors uniquely determine this local XYZ. The implementation also requires RMS distance residual≤0.01 and X/Z=[-2,2], Y=[-1,3]. A small residual demonstrates consistency with this model, not accuracy or identity. [VRChat Contact definition](https://creators.vrchat.com/common-components/contacts/), [reconstruction](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+Here d is anchor-center to marker-center distance. The r correction accounts for Proximity measuring the Sender surface nearest the Receiver center. True distances to four known noncoplanar anchors uniquely determine this local XYZ. The implementation also requires RMS distance residual≤0.01 and X/Z=[-2,2], Y=[-1,3]. Residual measures agreement between the four distances and the calculated position. [VRChat Contact definition](https://creators.vrchat.com/common-components/contacts/), [reconstruction](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands, rather than the entire display cube. A sphere centered at c with radius approximately `2 - √3×0.35 ≈ 1.394` is only a geometric inscribed reference for the four-ball intersection, not a guaranteed measurable sphere. Proximity thresholds, saturation holes and numerical boundaries further constrain validity. The p<0.999 ceiling requires d>0.003, excluding approximately **0.003 local units** around each anchor (3 mm in a local metre scale). The p>0.001 floor requires d<1.999. These local distances are not fixed world-metre distances for every avatar.
+Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands. A sphere centered at c with radius approximately `2 - √3×0.35 ≈ 1.394` provides an inscribed reference; proximity thresholds, saturation holes and numerical boundaries further define valid positions. The p<0.999 ceiling requires d>0.003, excluding approximately **0.003 local units** around each anchor (3 mm in a local metre scale). The p>0.001 floor requires d<1.999. World dimensions follow the Avatar root scale.
 
-### Scaling, sampling and menu control boundaries
+### Scaling, sampling and menu controls
 
 Let s_author be the authored uniform avatar-root world scale and ScaleFactor the VRChat scaling factor. Receiver world radius is `2 × s_author × ScaleFactor`. Contacts have a 3 m radius limit after scaling; the producer reserves 0.001 m and uses:
 
@@ -101,48 +106,48 @@ maxScale = (3 - 0.001) / (2 × s_author)
 
 Beyond the gate, it disables Contacts, clears public samples and writes Sample=0. Builds reject unsupported nonuniform avatar-root scale, a root ScaleConstraint and root scale animation. Target bones may scale; the dedicated marker follows the root center without inheriting that target scale into its known sphere radius. One local unit equals one world metre only when s_author=1 and ScaleFactor=1. [Gate implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs), [VRChat scaled limits](https://creators.vrchat.com/common-components/contacts/)
 
-RawP0–RawP3 are internal FX sampling parameters, not registered public Expression parameters. ScaleFactor and IsLocal are built-ins used for scaling and local-execution gates. The `Sensa/Select/<group>` menu control above may be exported according to OSC configuration; it is not FX-only, and its internal state memory serves a different role. None of these are additional root-position measurements. The public namespace fixes geometry and frame, while Sample covers invalidity and activity, so Profile, Scale, Valid, Heartbeat and Self/Others are no longer exported separately or repeated every frame. Internal FX names are outside the public contract; this does not promise that a client can never expose them.
+RawP0–RawP3 serve internal FX sampling. ScaleFactor and IsLocal support scaling checks and local execution; `Sensa/Select/<group>` supports menu selection. Public root-position measurements are P0–P3 and Sample, with geometry and frame supplied by their shared definition.
 
-Dedicated channels and AllowSelf narrow the model. They do not prove every P belongs to one Contact frame or authenticate against deliberately colliding tags. Common rigid world movement does not change these local coordinates. Other networked avatars and GPU surfaces are outside this measurement contract.
+Dedicated channels and AllowSelf select this Avatar’s root marker. Readings retain their Avatar-relative meaning as the whole Avatar walks or turns. See [positioning](positioning.en.md) for timing and error checks.
 
 ## Shader: direct root coordinates and transport activity
 
-Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. **It uses no Contacts and has no trigger radius.** Its encoding cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. Its coordinate cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### Five public measurement parameters
 
-`<id>` is the explicitly selected Producer ID, decimal 1…65535 without leading zeros; for example, `Sensa/Shader/7/X`. These five measurement fields are sent as OSC Floats by the desktop bridge; they are not five Expression parameters declared inside the avatar.
+`<id>` is the explicitly selected Producer ID, decimal 1…65535 without leading zeros; for example, `Sensa/Shader/7/X`. These five measurement fields are sent as OSC Floats by the desktop bridge.
 
 A separate Shader menu control is `Sensa/Select/ShaderCapture_<ID>`: an Int defaulting to 0=Off, with 1 enabling the native capture rig; for example, `Sensa/Select/ShaderCapture_42`. This is also an MA-registered Expression parameter with `localOnly=true` and `saved=false`, potentially visible according to OSC configuration. Internal `Sensa/Internal/ShaderCapture_<ID>/Selected` is FX Int state memory, default 0, written locally as 0/1 by a Driver and not registered as an Expression parameter. [Build entry point](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs), [selection state machine](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
 | Leaf | Meaning and validity |
 | --- | --- |
 | `Frame` | Integer 0…65535, generated nominally in 60 Hz time steps with 16-bit wraparound, approximately every 18.2 minutes |
+| `Valid` | 1 commits this valid packet; 0 invalidates the root coordinates immediately |
 | `X` | Finite local root-center X in [-2,2] |
 | `Y` | Finite local root-center Y in [-1,3] |
 | `Z` | Finite local root-center Z in [-2,2] |
-| `Valid` | 1 commits this valid packet; 0 invalidates the root coordinates immediately |
 
-Valid packets send **Frame → X → Y → Z → Valid=1**, committing Valid last. Invalidation sends only Valid=0, without republishing old XYZ. Desktop requires five consecutive fields under the same complete Producer path from the same OSC source. Other sources do not interrupt this source's sequence; interleaved messages from this source cannot impersonate a complete coordinate packet. Frame's ChangedAt lifetime is capped at 500 ms, shortened by a smaller positive configured timeout. Continuously resending an unchanged Frame still expires. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
+Valid packets send **Frame → X → Y → Z → Valid=1**, committing Valid last. Invalidation sends only Valid=0, without republishing old XYZ. Desktop requires five consecutive fields under the same complete Producer path from the same OSC source. Each source is assembled independently; another message from the same source restarts the wait for all five fields. Frame's ChangedAt lifetime is capped at 500 ms, shortened by a smaller positive configured timeout. Continuously resending an unchanged Frame still expires. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-The bridge checks the pattern, binary ID/flags, CRC and forward modulo-65536 frame progression. Reversed/large jumps, changed XYZ under the same Frame, identity changes and freezing invalidate it. Startup or recovery must establish two forward samples; the bridge's default freeze threshold is 350 ms. Normal wraparound progresses forward; a producer reset to an old sequence may require explicitly restarting the bridge. Consecutive fields and CRC check transport; they do not establish atomic UDP transactions, real user identity or measurement accuracy.
+The bridge checks the pattern, binary ID/flags, CRC and forward modulo-65536 frame progression. Reversed/large jumps, changed XYZ under the same Frame, identity changes and freezing invalidate it. Startup or recovery must establish two forward samples; the bridge's default freeze threshold is 350 ms. Normal wraparound progresses forward; a producer reset to an old sequence may require explicitly restarting the bridge. Consecutive fields and CRC check packet structure and data integrity.
 
 ### Quantization, reduced fields and necessary binary metadata
 
-Each axis spans 4 local units and uses unsigned 16-bit quantization. Its step is `4/65535 ≈ 6.10×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `3.05×10⁻⁵`, or `5.29×10⁻⁵` for the three-axis quantization norm. These are encoding bounds, **not a promise of actual positioning accuracy**. Skinning/frame calculations, rendering/compositing, capture and latency require their own verification. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows that rule without emulating every GPU single-precision intermediate.
+Each axis spans 4 local units and uses unsigned 16-bit quantization. Its step is `4/65535 ≈ 6.10×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `3.05×10⁻⁵`, or `5.29×10⁻⁵` for the three-axis quantization norm. These values describe digital quantization error. Actual error also depends on frame calculations, rendering/compositing, capture and latency, and can be measured against known positions. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows the same rounding rule.
 
-OSC no longer repeats Producer or Profile: the path already carries Producer, while `Sensa/Shader` fixes AvatarRootLocal and its range. The binary pattern retains Producer ID, valid/native-frame flags, CRC and Frame to distinguish the payload before assigning a path and reject damage or freezing. Its binary encoding marker is not an OSC path version. IDs are explicit pairing values, not avatar-owner authentication. There is no redundant PositionXYZ parameter, default filter or separate “detection radius” option.
+The OSC path carries the object ID, while `Sensa/Shader` fixes the coordinate frame and range. The binary pattern retains object ID, valid/native-frame flags, CRC and Frame for pairing, identifying coordinate type, checking data and detecting image progression.
 
-## Diagnostics, points, orientation and devices
+## Diagnostics and position-related information
 
-`Sensa/Diagnostics/Shader/0/Frame|X|Y|Z|Valid` uses the same five-field transport layout with diagnostic encoding and normalized diagnostic XYZ in [-1,1]. ID=0 is not a native Producer. This namespace **produces no mappable root coordinates and does not participate in automatic spatial mapping**. An explicit Direct mapping can read raw scalars without making them positions. Valid=1 only indicates a live diagnostic transport; it cannot turn a synthetic pattern into an actual avatar-root position. [Diagnostic separation](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+`Sensa/Diagnostics/Shader/0/Frame|X|Y|Z|Valid` uses five fields with diagnostic XYZ in [-1,1]. Use it to check pattern generation, region capture and OSC transport. ID=0 stays in the diagnostic namespace; native root positions use object IDs 1…65535. [Diagnostic handling](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
-| Concept | Required information and limit |
+| Concept | Information and use |
 | --- | --- |
-| One point/root center | Three coordinates; both schemes on this page provide only this |
-| Pose/orientation | An independent direction or multiple geometrically meaningful points; one root XYZ cannot establish rotation |
-| World position | A trusted world reference and its transform; AvatarRootLocal excludes common world translation/rotation |
-| Final GPU surface | Sampling tied to the specific deformation algorithm and target surface; this root capture does not implement it |
-| Device position/intensity | These values can become motion targets through explicit mapping; they cannot replace device sensor feedback |
+| Root position | Three coordinates describing the selected root center relative to the Avatar |
+| Pose/orientation | Rotation calculated from independent direction information or multiple points with a known layout |
+| World position | Scene position obtained with a world reference and coordinate transform |
+| Final deformed surface | Surface points sampled according to the specific deformation algorithm |
+| Device position/intensity | Motion targets produced through mapping, with actual response checked through the device's feedback |
 
-Separate experimental Point/Handle/Pose inputs are not interchangeable with these namespaces; similarly named points cannot fill missing SPS fields. Spatial motion still requires explicit experimental-spatial permission, the selected source and mapping, and activation of the current input. Seeing parameters does not authorize device movement. See [positioning](positioning.en.md) and the [Shader research record](shader-capture-research.en.md) for operating conditions and unverified real-client, multi-avatar, GPU and hardware behavior.
+Independent Point/Handle/Pose experiments use their own reference objects and complete field sets. To start spatial linkage, allow experimental spatial input, choose the source and mapping, then activate the current input. See [positioning](positioning.en.md) and the [Shader research record](shader-capture-research.en.md) for operating conditions and real-client verification methods.

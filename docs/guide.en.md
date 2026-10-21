@@ -4,44 +4,44 @@
 
 The workbench has three areas: Control for manual input, scripts and devices; OSC for receiving parameters and turning them into motion; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
 
-## Why does choosing a tab not start motion?
+## Prepare, apply the input mode, then enable input
 
-Browsing Manual/OSC/Script selects what you edit. “Apply input mode” changes the actual mode; then “Enable input” allows that mode to control devices. Readiness lists missing steps without enabling them automatically. With no output, add one directly; help routes only navigate and never issue control.
+Prepare values and outputs in Manual/OSC/Script, select “Apply input mode”, then “Enable input” to start linkage. The header always shows the current mode, and readiness lists the steps still required. Use Add output to connect a device, or choose an integration route from Help.
 
-Saving configuration, changing actual mode or replacing a script disarms and stops first. Emergency stop is latched; clearing does not resume. Output connection and enablement are independent; an already active valid input may send after a new connection. Browser reconnects do not replay unfinished requests.
+Saving configuration, changing the active mode or importing/replacing a script disables input and stops first. Enable input again after clearing emergency stop. Outputs manage connection and enablement separately; a newly connected, enabled output receives the current valid target while input is running.
 
 ## Control
 
 ### Manual and script
 
-Manual initially shows L0/L1/L2. Rotation, vibration and auxiliary axes are expandable, giving twelve axes in total. Edit a number/slider and send once, or allow continuous following of edits. “Send settings” selects the axis configuration, explicit duration I (ms), or speed S. The default value is a speed limit, not a duration. Clearing overrides does not center the device.
+Manual initially shows L0/L1/L2. Rotation, vibration and auxiliary axes are expandable, giving twelve axes in total. Edit a number/slider and send once, or allow continuous following of edits. “Send settings” selects the axis configuration, explicit duration I (ms), or speed S. The default value is a speed limit. Clear overrides restores the sending settings from the axis profile.
 
-Loading a funscript reveals its clock, density and transport. It supports 0.1–4× speed, looping, A–B, timecodes and keyframe navigation. Pause preserves the cursor; Stop resets it; unload clears the file. Explicit seek/step can still send while Script input is active and paused. There is no media synchronization or mechanical homing.
+Loading a funscript reveals its clock, density and transport. It supports 0.1–4× speed, looping, A–B, timecodes and keyframe navigation. Pause preserves the cursor; Stop resets it; unload clears the file. With Script input enabled, explicit seek/step can send the selected target while paused.
 
 ### Outputs
 
 Each row presents identity, target and actions. Edit, enable, connect or disconnect; expand diagnostics when needed.
 
 - TCode serial uses 115200/8N1, port discovery and device information requests. UDP/TCP require an explicit address and port.
-- Intiface defaults to an external Central. Engine port applies only to explicit managed mode; the engine is not bundled. Scan, stop scanning and inspect device features.
-- Vibration defaults to V0, with V1/V2 or explicit L0 available. Position features use their own supported commands; vibration-only devices do not need position features. Zero V0 does not fall back to nonzero L0.
-- Axis profiles set TCode travel range, direction, limits and motion. Positions and timestamps in output details record sent commands, rather than actual device positions.
+- Intiface defaults to a separately running Central, with device scanning and feature details. Set the engine port in managed mode when using your own managed engine.
+- Vibration defaults to V0, with V1/V2 or L0 available. Intensity follows the selected axis; devices with position features use their corresponding position commands.
+- Axis profiles set TCode travel range, direction, limits and motion. Positions and timestamps in output details record the latest motion targets sent.
 
 ### L0 recording
 
-Record pre-distribution L0 commands, independently of hardware feedback. Stop preserves the final hold duration; recording ends automatically at 100000 frames. Exporting while active stops recording, but stopping recording does not disable input. Restart confirms clearing the old buffer; cancel preserves it.
+Record pre-distribution L0 motion targets. Stop preserves the final hold duration; recording ends automatically at 100000 frames. Exporting while active stops recording, but stopping recording does not disable input. Restart confirms clearing the old buffer; cancel preserves it.
 
-Export produces funscript actions and can simplify the curve. It excludes other axes, input permission, gate/stop events, media clocks and device confirmation, so it is not a complete safety event log.
+Export produces single-axis funscript actions, with optional curve simplification for later playback or editing.
 
 ## OSC
 
 ### Parameters and sources
 
-Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Changing the actual source disables input and clears the previous source's mapping-processing state; inspect the new source before enabling input again. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” recognizes only FT/v2 root prefixes; mapped and pinned values remain visible, without guessing blendshape names.
+Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Changing the actual source disables input and clears the previous source's mapping-processing state; inspect the new source before enabling input again. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” controls visibility of FT/v2-prefixed values; mapped and pinned parameters remain visible.
 
 The parameter table shows at most 100 rows per page; use Previous/Next to continue or Page to jump directly. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
 
-Details follow updates for the same path and source and show the sample's receive time; freezing the preview also freezes the detail sample. If the parameter leaves the catalog, details retain the sample from when they opened. If the connection is not ready, they show the most recently received sample, with the corresponding status. The explorer link opens the local offline page. A present parameter is neither a mapping nor permission to move. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
+Details follow updates for the same path and source and show the sample's receive time; freezing the preview also freezes the detail sample. If the parameter leaves the catalog, details retain the sample from when they opened. If the connection is not ready, they show the most recently received sample, with the corresponding status. The explorer link opens the local offline page. Create and save a mapping for the parameter, then enable input to start linkage. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
 
 ### Where should I look when something does not work?
 
@@ -52,7 +52,7 @@ Disable input first, then narrow the problem using what the UI shows. Change one
 | A parameter is missing | Clear Search parameters, select all categories/sources, and enable Show FT parameters if needed | If the list stays empty, check the actual OSC mode, running listener and the sender's destination port |
 | Parameters change, but a mapping row has no matching reading | Compare Use source and the row's complete path; check whether it is still marked unsaved | Correct one setting, save the mappings and inspect the reading again; saving disarms input |
 | The list keeps old values while other status changes | Look for the Continue preview button | Resume the list with that button; disable input or use emergency stop to stop device motion |
-| An output is connected but does not move | Check the header's actual input mode and activation, then read Mapping checks | Confirm the source, mapped range and additional conditions before explicitly enabling input; connection alone grants no motion permission |
+| An output is connected but does not move | Check the header's actual input mode and activation, then read Mapping checks | Confirm the source, mapped range and conditions, then enable input to start linkage |
 
 When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. Read automated outcomes from that commit's Actions run and the [browser verification record](e2e-status.en.md). Describe the device's own response separately for a hardware problem.
 
@@ -60,9 +60,9 @@ When reporting a problem, include the steps, actual mode, selected source and co
 
 The top toolbar groups presets, replace/append, save and restore. There are only [three built-ins](presets.en.md): depth, vibration and native PB. Custom presets remain available.
 
-Each row selects path, role and inversion; advanced fields set input range, curve and output interval. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Local single-row simulation checks transforms, not actual reception. A successful save clears the draft's unsaved indicator and disarms input.
+Each row selects path, role and inversion; advanced fields set input range, curve and output interval. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Single-row simulation previews the input range, curve and output-interval conversion. A successful save clears the draft's unsaved indicator and disarms input.
 
-A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Remove unwanted template conditions; an internal test fixture's Active requirement should not restrict actual data.
+A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Keep conditions that match the chosen signal, such as Close for a touch region.
 
 ### Reception, discovery and forwarding
 
@@ -70,14 +70,14 @@ Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and 
 
 - Ordinary OSC timeout defaults to 0/off for change-only senders; a positive timeout latches emergency stop when relevant data expires.
 - OSCQuery supports parameter trees/HOST_INFO, LISTEN subscriptions, optional polling and advertising the local receiver.
-- Hub forwards to multiple UDP targets on events or at a fixed rate, preserving unconsumed raw bundle structure. Counts are not execution acknowledgements.
-- OGB enable heartbeat defaults off and requires an explicit VRChat destination, commonly port 9000. It sends true every five seconds while actual OSC reception runs and attempts false on stopping; it grants no device permission.
+- Hub forwards to multiple UDP targets on events or at a fixed rate, preserving unconsumed raw bundle structure. Counts show forwarding activity.
+- OGB enable heartbeat defaults off and requires an explicit VRChat destination, commonly port 9000. It sends true every five seconds while OSC reception runs and attempts false on stopping.
 
 ### Control from root position: inspect, then calibrate
 
-Spatial permission defaults off. SPS/Shader root panels show object, source, local coordinates, validity and reasons. Point/Handle/Pose are independent experiments with separate models and must not be mixed.
+SPS/Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
 
-Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalidity stops without falling back to old scalar data on that axis. These are local coordinates, not device/world/final-mesh positions. [Positioning conditions](positioning.en.md)
+Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
 
 ## Settings and help
 
@@ -87,8 +87,10 @@ Help links to [routes](usage-scenarios.en.md), the [parameter dictionary](osc-pa
 
 When a document heading has a counterpart, switching language keeps that section; otherwise the new document opens at the top. Tables and code examples wider than the screen scroll horizontally. With a keyboard, Tab into the overflowing region, then use the left/right arrow keys to scroll.
 
-## Explorer boundaries
+## Explore approach, contact and position
 
 The [online version](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) is standalone; releases also include `docs/parameter-geometry.html`. All ten scenes have 3D, XZ and isometric SVG. Dragging the 3D target changes only the selected plane's axes; background drag rotates. Camera reset preserves parameters. Sliders remain available and WebGL failure falls back to SVG.
 
-Gray surfaces are reference profiles; the orange interaction marker is not the actual Sender radius. The explorer's validity state answers whether the current simulated conditions produce a usable measurement. It does not enable actual input, change Sensa configuration or send device commands. “Simulate a valid sample” compares valid and invalid samples; unchecking it invalidates the simulated values. Explorer images and mocks do not establish real-client or hardware acceptance. [Evidence](ui-visual-review.en.md) · [Home](../README.md)
+Choose **SPS2 · PenOthersNewRoot / PenOthersNewTip** or **SPS1 · PenOthers / PenOthersClose** to see how approach toward a Socket changes depth-related readings. Touch, Frot and zone scenes show their corresponding touch intensities. Dictionary ordering places a shorter shared prefix first, helping you compare readings with actual OSC paths.
+
+Gray profiles show relative placement; blue and orange shapes show detection regions, with an enlarged orange drag handle. Green marks measurable positions. Check “Simulate a valid sample” for normal readings and clear it to see invalid samples. Explore the values before configuring, then establish a mapping and check actual linkage in the workbench. [Evidence](ui-visual-review.en.md) · [Home](../README.md)

@@ -1803,7 +1803,7 @@ function App() {
           </Badge>
         </summary>
         <div className="stack">
-          <p className="caption muted">{t('记录分发前的 L0 命令，不是设备实测轨迹。')}</p>
+          <p className="caption muted">{t('记录输出分发前的 L0 动作目标，可导出为 funscript。')}</p>
           <div className="actions recording-toolbar">
             <span className="caption muted">{t('已录制 {0} 帧', [recording.frameCount || 0])}</span>
             <Button disabled={!online || recording.isActive || recordingBusy}
