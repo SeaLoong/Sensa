@@ -1,7 +1,50 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { createRigConfiguration } from '../e2e/rig.js';
-import { fixedRootSamples, shaderRootSamples, oscBundle } from '../e2e/mocks.js';
+import { pointSamples, fixedRootSamples, poseSamples, shaderRootSamples, oscBundle } from '../e2e/mocks.js';
+
+const sharedGeometry = (protocol) => {
+  const source = readFileSync(new URL('../../unity/top.sealoong.sensa/Runtime/' + protocol, import.meta.url), 'utf8');
+  const constant = name => Number(source.match(new RegExp('const float ' + name + '\\s*=\\s*([.\\d]+)f;'))?.[1]);
+  const geometry = { radius: constant('ReceiverRadius'), span: constant('AnchorHalfSpan'), marker: constant('MarkerRadius') };
+  assert.ok(Object.values(geometry).every(Number.isFinite), protocol);
+  return geometry;
+};
+
+function reconstruct(proximity, anchors, { radius, span, marker }, center = [0, 0, 0]) {
+  assert.ok(proximity.every(value => Number.isFinite(value) && value > 0 && value < 1));
+  const squared = proximity.map(value => (radius * (1 - value) + marker) ** 2);
+  return center.map((coordinate, axis) => coordinate - anchors.reduce((sum, anchor, index) =>
+    sum + (anchor[axis] - coordinate) * squared[index], 0) / (anchors.length * 2 * span ** 2));
+}
+
+const assertPosition = (actual, expected) => actual.forEach((value, axis) => assert.ok(Math.abs(value - expected[axis]) < 1e-12,
+  `axis ${axis}: ${value} != ${expected[axis]}`));
+
+test('E2E spatial fixtures reconstruct known positions with the shared Unity geometry / E2E 空间夹具匹配共享几何', () => {
+  const pose = sharedGeometry('SensaPoseProtocol.cs'), fixed = sharedGeometry('SensaFixedAnchorProtocol.cs');
+  const cube = Array.from({ length: 8 }, (_, index) => [1, 2, 4].map(bit => index & bit ? pose.span : -pose.span));
+  const tetrahedron = [0, 3, 5, 6].map(index => cube[index]);
+  const center = [0, 1, 0], fixedAnchors = [0, 5, 3, 6].map(index => center.map((coordinate, axis) =>
+    coordinate + (index & (1 << axis) ? fixed.span : -fixed.span)));
+  for (const z of [.05, .15, 1.2]) {
+    const pointValues = new Map(pointSamples(z)), fixedValues = new Map(fixedRootSamples(z, 1 / 32));
+    const pointRanges = Array.from({ length: 4 }, (_, i) => pointValues.get('Sensa/Handle/v1/LabHandle/Self/Root/A' + i));
+    const fixedRanges = Array.from({ length: 4 }, (_, i) => fixedValues.get('Sensa/SPS/CIFixedRoot/P' + i));
+    assertPosition(reconstruct(pointRanges, tetrahedron, pose), [.02, 0, z]);
+    assertPosition(reconstruct(fixedRanges, fixedAnchors, fixed, center), [.02, 1, z]);
+  }
+  assert.equal(pointSamples(.15, false).find(([path]) => path.endsWith('/Handle_IsGrabbed'))[1], 0);
+  const samples = poseSamples();
+  for (const [marker, position] of [['Root', [.02, 0, -.1]], ['Tip', [.02, 0, .1]], ['Side', [.05, 0, -.1]]]) {
+    const ranges = samples.filter(([path]) => path.includes('/' + marker + '/'));
+    assert.equal(ranges.length, 8);
+    const values = new Map(ranges);
+    const proximity = Array.from({ length: 8 }, (_, i) => values.get('Sensa/Pose/v1/Demo/Others/' + marker + '/A' + i));
+    assertPosition(reconstruct(proximity, cube, pose), position);
+  }
+});
 
 test('all E2E configurations isolate devices and initialize outputs disabled / 所有 E2E 配置隔离设备且默认关闭输出', () => {
   for (const scenario of ['basic', 'sps', 'query', 'vibration-only']) {

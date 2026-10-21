@@ -22,15 +22,15 @@ export function oscBundle(entries) {
 }
 export function pointSamples(z, grabbed = true) {
   const prefix = 'Sensa/Handle/v1/LabHandle/Self';
-  return [0, 3, 5, 6].map((a, i) => [`${prefix}/Root/A${i}`, 1 - (Math.hypot(.02 - (a & 1 ? .06 : -.06), -(a & 2 ? .06 : -.06), z - (a & 4 ? .06 : -.06)) - .001) / .35])
+  return [0, 3, 5, 6].map((a, i) => [`${prefix}/Root/A${i}`, 1 - (Math.hypot(.02 - (a & 1 ? .35 : -.35), -(a & 2 ? .35 : -.35), z - (a & 4 ? .35 : -.35)) - .001) / 2])
     .concat([[prefix + '/Handle_IsGrabbed', grabbed ? 1 : 0], [prefix + '/Handle_Stretch', .2]]);
 }
 // Independent protocol fixtures, not captured Unity/GPU measurements. / 独立协议夹具，并非 Unity/GPU 实测。
 export function fixedRootSamples(z, sample, valid = true) {
   const prefix = 'Sensa/SPS/CIFixedRoot';
-  const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  const anchors = [[-.35, .65, -.35], [.35, .65, .35], [.35, 1.35, -.35], [-.35, 1.35, .35]];
   return anchors.map(([x, y, az], index) => [prefix + '/P' + index,
-    1 - (Math.hypot(.02 - x, 1 - y, z - az) - .001) / 2.5])
+    1 - (Math.hypot(.02 - x, 1 - y, z - az) - .001) / 2])
     .concat([[prefix + '/Sample', valid ? sample : 0]]);
 }
 export function shaderRootSamples(z, frame, valid = true) {
@@ -42,7 +42,7 @@ export function shaderRootSamples(z, frame, valid = true) {
 export function poseSamples() {
   return [['Root', [.02, 0, -.1]], ['Tip', [.02, 0, .1]], ['Side', [.05, 0, -.1]]].flatMap(([marker, position]) =>
     Array.from({ length: 8 }, (_, a) => [`Sensa/Pose/v1/Demo/Others/${marker}/A${a}`,
-      1 - (Math.hypot(position[0] - (a & 1 ? .06 : -.06), position[1] - (a & 2 ? .06 : -.06), position[2] - (a & 4 ? .06 : -.06)) - .001) / .35]));
+      1 - (Math.hypot(position[0] - (a & 1 ? .35 : -.35), position[1] - (a & 2 ? .35 : -.35), position[2] - (a & 4 ? .35 : -.35)) - .001) / 2]));
 }
 
 export async function startMocks() {
