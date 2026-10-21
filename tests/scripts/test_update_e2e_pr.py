@@ -78,6 +78,14 @@ class ProposalContracts(unittest.TestCase):
         self.assertEqual((self.area / 'outputs').read_text(), 'changed=false\n')
         self.assertIn('No changes', (self.area / 'job.md').read_text())
 
+    def test_container_owned_checkout_can_export_without_changing_global_git_config(self):
+        (self.root / IMAGE).write_bytes(PNG + b'changed')
+        (self.root / CASE).write_text("test('updated sample', () => expect(1).toBe(1));\n", encoding='utf-8')
+        with patch.dict(os.environ, {'GIT_TEST_ASSUME_DIFFERENT_OWNER': '1'}):
+            proposal.assert_source(self.root, self.commit)
+            manifest = self.export('agent')
+        self.assertEqual({item['path'] for item in manifest['files']}, {IMAGE, CASE})
+
     def test_candidate_proof_rejects_stale_filtered_skipped_and_unexecuted_reports(self):
         for key, value in (('commit', 'b' * 40), ('runId', '999'), ('attempt', '1'), ('suite', 'site'),
                            ('baselineMode', 'comparison'), ('status', 'failed'), ('selectionComplete', False),

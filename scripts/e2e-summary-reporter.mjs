@@ -187,7 +187,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     if (process.argv[2] === '--finalize-report' && process.argv[3]) {
       const summary = finalizeE2ESummary(resolve(process.argv[3]), { commandOutcome: process.env.E2E_COMMAND_OUTCOME });
       const counts = ['total', ...OUTCOMES].map(key => `${key}=${summary.counts[key]}`).join(', ');
-      console.log(`::notice title=Browser result::${annotation(`commit=${summary.commit}, suite=${summary.suite}, mode=${summary.baselineMode}, runner=${summary.status}, command=${summary.commandOutcome}; ${counts}`)}`);
+      console.log(`::notice title=Browser result::${annotation(`commit=${summary.commit}, suite=${summary.suite}, mode=${summary.baselineMode}, runner=${summary.status}, command=${summary.commandOutcome}, selectionComplete=${summary.selectionComplete}, snapshotsCompared=${summary.snapshotsCompared}; ${counts}`)}`);
     } else {
       if (process.argv[2] !== '--verify-comparison' || !process.argv[3]) throw new Error('Usage: --verify-comparison <summary.json> | --finalize-report <summary.json>');
       verifyComparisonSummary(JSON.parse(readFileSync(process.argv[3], 'utf8')), {

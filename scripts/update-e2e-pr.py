@@ -17,8 +17,13 @@ ASSERTIONS = re.compile(r'\bexpect(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\(')
 
 
 def git(root, *arguments, input=None):
-    return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *arguments],
-                                   cwd=root, input=input)
+    try:
+        return subprocess.check_output(['git', '-c', 'safe.directory=' + str(root.resolve()),
+                                        '-c', 'core.hooksPath=/dev/null', *arguments],
+                                       cwd=root, input=input, stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError as error:
+        detail = error.stderr.decode('utf-8', errors='replace').strip()[-1500:]
+        raise ValueError(f'Git {arguments[0]} failed / Git 操作失败: {detail}') from error
 
 
 def sha(value):
@@ -84,7 +89,8 @@ def validate_files(root, paths, mode):
             raise ValueError('Invalid candidate PNG / 候选 PNG 无效: ' + name)
         if name.endswith('.js'):
             text = path.read_text(encoding='utf-8')
-            exists = subprocess.run(['git', 'cat-file', '-e', 'HEAD:' + name], cwd=root,
+            exists = subprocess.run(['git', '-c', 'safe.directory=' + str(root.resolve()),
+                                     'cat-file', '-e', 'HEAD:' + name], cwd=root,
                                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL).returncode == 0
             original = git(root, 'show', 'HEAD:' + name).decode('utf-8') if exists else ''
             if len(FORBIDDEN.findall(text)) > len(FORBIDDEN.findall(original)):
@@ -240,9 +246,8 @@ def publish_proposal(root, source_commit, directory, environment):
         except subprocess.CalledProcessError:
             append_summary(environment, f'### Draft PR was not created / 草稿 PR 创建失败\n\n'
                 f'The candidate branch `{branch}` was pushed and is retained. / 候选分支已推送并保留。\n\n'
-                'GitHub rejected PR creation. Check SENSA_PAT repository access, Contents/Pull requests write permissions '
-                'and any organization approval requirement. No merge or baseline approval occurred. / '
-                '请检查 SENSA_PAT 的仓库访问权、Contents/Pull requests 写入权限及组织审批要求；未合并或批准基线。')
+                'GitHub rejected PR creation. Check the failed step and SENSA_PAT configuration. / '
+                '请查看失败步骤并检查 SENSA_PAT 配置。')
             raise
     append_summary(environment, f'### Draft E2E proposal / E2E 草稿候选\n\n{pr_url}\n\nBranch: `{branch}`. '
                    'Images remain unreviewed. / 图片仍待人工审阅。')
@@ -274,4 +279,9 @@ def main(argv=None):
 
 
 if __name__ == '__main__':
-    main()
+    try:
+        main()
+    except Exception as error:
+        detail = str(error).replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+        print('::error title=E2E proposal::' + detail, flush=True)
+        raise
