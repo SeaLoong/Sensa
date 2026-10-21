@@ -156,6 +156,22 @@ namespace UnityBox.Sensa
     [CustomEditor(typeof(SensaShaderCapture))]
     public sealed class SensaShaderCaptureEditor : Editor
     {
-        public override void OnInspectorGUI() => SensaInspectorLabels.Draw(serializedObject);
+        public override void OnInspectorGUI()
+        {
+            SensaInspectorLabels.Draw(serializedObject);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("The scene-view box shows the coordinate range that the image can encode. The target must remain inside it, and the desktop capture must still contain the complete data area. A visible box does not confirm that VRChat or your headset displays the image."), MessageType.Info);
+        }
+        private void OnSceneGUI()
+        {
+            var author = (SensaShaderCapture)target;
+            var avatar = author.GetComponentInParent<VRC.SDK3.Avatars.Components.VRCAvatarDescriptor>();
+            if (avatar == null) return;
+            using (new Handles.DrawingScope(new Color(.12f, .8f, .45f), avatar.transform.localToWorldMatrix))
+            {
+                var center = new Vector3(SensaFixedAnchorProtocol.CenterX, SensaFixedAnchorProtocol.CenterY, SensaFixedAnchorProtocol.CenterZ);
+                Handles.DrawWireCube(center, Vector3.one * (2 * SensaFixedAnchorProtocol.PositionHalfRange));
+                Handles.Label(center, SensaEditorLocalization.Text("Shader coordinate range; image capture must be verified separately"));
+            }
+        }
     }
 }

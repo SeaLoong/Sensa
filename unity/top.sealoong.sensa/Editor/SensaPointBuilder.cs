@@ -27,6 +27,8 @@ namespace UnityBox.Sensa
         {
             SensaSensorUtility.Name(probe.instanceName);
             var reference=probe.reference!=null?probe.reference:probe.transform;SensaSensorUtility.Uniform(reference);
+            if (SensaPoseProtocol.ReceiverRadius * reference.lossyScale.x > 3f)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Pose receiver radius exceeds VRChat's 3 metre limit at this scale."));
             if(!reference.IsChildOf(avatar))throw new InvalidOperationException(SensaEditorLocalization.Text("Point reference must belong to this avatar."));
             if(!probe.createGrabHandle && (probe.target==null || !probe.target.IsChildOf(avatar)))throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a target bone on this avatar."));
             if(probe.createGrabHandle && (float.IsNaN(probe.handleLength) || probe.handleLength<.02f || probe.handleLength>.18f))throw new InvalidOperationException(SensaEditorLocalization.Text("Handle length must be between 2 and 18 local cm."));

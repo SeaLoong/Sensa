@@ -75,7 +75,9 @@ namespace SensaLab
             manager.collision.UpdateAndSchedule(.016f,true).Complete();
             try {
             foreach(var receiver in receivers) {
-                var expected=1-Mathf.Max(0,Vector3.Distance(receiver.transform.position,sender.transform.position)-.01f)/.35f;
+                var senderRadius=sender.radius*sender.transform.lossyScale.x;
+                var receiverRadius=receiver.radius*receiver.transform.lossyScale.x;
+                var expected=Mathf.Clamp01(1-Mathf.Max(0,Vector3.Distance(receiver.transform.position,sender.transform.position)-senderRadius)/receiverRadius);
                 var actual=receiver.CalculateProximity(sender);
                 Check(Mathf.Abs(actual-expected)<.0001f,"SDK proximity "+receiver.name);
             }

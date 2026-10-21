@@ -14,11 +14,11 @@ Use the dependencies in `package.json`; configure official VRCFury SPS separatel
 | Native PB Stretch/IsGrabbed | Stretch intensity and grab gate | XYZ or orientation |
 | Native shader root | Encoded root Transform, separate rendering/bridge | Successful real-client capture from Contact test results |
 
-Four true distances to known noncoplanar anchors identify a local point. Common rigid motion leaves distances unchanged. Coordinates are local units, not arbitrary-scale world meters. The ±1.5 display box is not guaranteed shared sphere coverage.
+Four true distances to known noncoplanar anchors identify a local point. Common rigid motion leaves distances unchanged. Coordinates are local units, not arbitrary-scale world meters. The ±2 display box is not guaranteed shared sphere coverage.
 
 ## Radius and scale
 
-With unsaturated spherical samples and common uniform scale, `p=1−(d−r)/R`, so `d=(1−p)R+r`; common scale cancels in local units. Here R=2.5 and r=0.001. Nonuniform scale and SDK radius clamping invalidate this model.
+With unsaturated spherical samples and common uniform scale, `p=1−(d−r)/R`, so `d=(1−p)R+r`; common scale cancels in local units. Here R=2 and r=0.001. Nonuniform scale and SDK radius clamping invalidate this model.
 
 VRChat caps scaled world radius at 3 m. Builds reject invalid root scale and known root-scale animation/constraints; internal IsLocal/ScaleFactor/selection guards clear P/Sample on invalidity, keeping the receiver within approximately 2.999 m. Target-bone scale is not inherited by the marker.
 

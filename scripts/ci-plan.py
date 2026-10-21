@@ -79,7 +79,7 @@ def plan_changes(paths, *, event_name='pull_request', ref='', diff_available=Tru
             product_changed = True
         elif path.startswith('unity/'):
             enabled.update(('unity', 'scripts', 'e2e', 'platforms'))
-            if path.endswith('/SensaPoseProtocol.cs'):
+            if path.endswith(('/SensaPoseProtocol.cs', '/SensaFixedAnchorProtocol.cs')):
                 enabled.add('backend')
             product_changed = True
         elif path in ('package.json', 'package-lock.json'):

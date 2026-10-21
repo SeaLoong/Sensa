@@ -8,15 +8,15 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
       onClose={onClose} actions={<Button onClick={onClose}>{t('关闭帮助')}</Button>}>
       <div className="usage-choices">
         <div>
-          <div><strong>OGB / SPS</strong><p className="caption muted">{t('读取现有 OGB 参数，自动兼容 Root/Tip 与单触发器。')}</p></div>
+          <div><strong>OGB / SPS</strong><p className="caption muted">{t('Avatar 已配置 OGB 或 SPS？从收到的接触参数开始，选择目标后校准动作范围。')}</p></div>
           {onNavigate && <Button onClick={() => onNavigate('osc')}>{t('配置 OGB')}</Button>}
         </div>
         <div>
-          <div><strong>Sensa SPS</strong><p className="caption muted">{t('固定四锚点与专用根标记，还原 Avatar 局部坐标。')}</p></div>
+          <div><strong>Sensa SPS</strong><p className="caption muted">{t('在 Unity 中安装四个固定接收器和根部标记，测量根部相对 Avatar 的位置。')}</p></div>
           {onNavigate && <Button onClick={() => onNavigate('sensa-sps')}>{t('查看根点')}</Button>}
         </div>
         <div>
-          <div><strong>{t('Shader 捕获')}</strong><p className="caption muted">{t('根点编码图块经明确选择的屏幕区域解码，需配置生产端与捕获。')}</p></div>
+          <div><strong>{t('Shader 捕获')}</strong><p className="caption muted">{t('在 Unity 中生成根部位置编码画面，再按指南选择屏幕捕获区域，由桥接程序读取坐标。')}</p></div>
           <a href={docUrl('unity/top.sealoong.sensa/GPU-TRACKING.md')} target="_blank" rel="noreferrer">{t('捕获设置')}</a>
         </div>
       </div>
@@ -27,7 +27,7 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
           {onNavigate && <Button onClick={() => onNavigate('manual')}>{t('打开手动')}</Button>}
           {onNavigate && <Button onClick={() => onNavigate('script')}>{t('打开脚本')}</Button>}
         </div>
-        <p className="caption muted">{t('手动用于检查设备；funscript 提供 L0 时间线。')}</p>
+        <p className="caption muted">{t('用手动滑块检查动作方向和范围；加载 funscript 后可按时间播放直线运动。')}</p>
       </details>
       <div className="actions">
         <a href={docUrl('docs/usage-scenarios.md')} target="_blank" rel="noreferrer">{t('使用方案与限制')}</a>

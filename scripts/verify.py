@@ -173,7 +173,8 @@ def _relevant(path, lane):
     if lane == 'backend':
         return (path.startswith('src/') and not path.startswith('src/web/')
                 or path.startswith(('src/web/data/', 'tests/Sensa.Tests/', 'tests/fixtures/'))
-                or path == 'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs'
+                or path in ('unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs',
+                            'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs')
                 or path == 'global.json' or path.endswith(('.props', '.targets', '.config', '.sln', '.slnx')))
     if lane == 'scripts':
         return path.startswith(('scripts/', 'tests/scripts/', 'tests/fixtures/', 'tools/', 'unity/', 'docs/', '.github/')) or path.endswith('.md') or path in ('package.json', 'package-lock.json')

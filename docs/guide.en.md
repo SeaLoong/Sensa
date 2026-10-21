@@ -2,11 +2,11 @@
 
 [简体中文](guide.md) | **English**
 
-The workbench has three areas: Control, OSC and Settings. The header shows connection, actual input mode, input permission and emergency stop. Content scrolls separately; stop is also available inside dialogs. Components are native controls with Sensa's TDesign styling. Start with [First run](quick-start.en.md).
+The workbench has three areas: Control for manual input, scripts and devices; OSC for receiving parameters and turning them into motion; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
 
-## Browsing, applying and activating
+## Why does choosing a tab not start motion?
 
-Browsing Manual/OSC/Script selects what you edit. “Apply input mode” changes the actual mode; “Enable input” grants a separate permission. Readiness lists missing steps without activating input. With no output, add one directly; help routes only navigate and never issue control.
+Browsing Manual/OSC/Script selects what you edit. “Apply input mode” changes the actual mode; then “Enable input” allows that mode to control devices. Readiness lists missing steps without enabling them automatically. With no output, add one directly; help routes only navigate and never issue control.
 
 Saving configuration, changing actual mode or replacing a script disarms and stops first. Emergency stop is latched; clearing does not resume. Output connection and enablement are independent; an already active valid input may send after a new connection. Browser reconnects do not replay unfinished requests.
 
@@ -25,7 +25,7 @@ Each row presents identity, target and actions. Edit, enable, connect or disconn
 - TCode serial uses 115200/8N1, port discovery and device information requests. UDP/TCP require an explicit address and port.
 - Intiface defaults to an external Central. Engine port applies only to explicit managed mode; the engine is not bundled. Scan, stop scanning and inspect device features.
 - Vibration defaults to V0, with V1/V2 or explicit L0 available. Position features use their own supported commands; vibration-only devices do not need position features. Zero V0 does not fall back to nonzero L0.
-- Axis profiles set TCode range, direction, limits and motion. Displayed positions/timestamps are command telemetry, not execution feedback.
+- Axis profiles set TCode travel range, direction, limits and motion. Positions and timestamps in output details record sent commands, rather than actual device positions.
 
 ### L0 recording
 
@@ -41,13 +41,13 @@ Apply OSC and check reception before inspecting parameters. Browsing a source di
 
 Details explain leaves, current values and mapping uses; the explorer link opens the local offline page. A present parameter is neither a mapping nor permission to move. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
 
-### Mappings
+### Turn a parameter into motion (mapping)
 
 The top toolbar groups presets, replace/append, save and restore. There are only [three built-ins](presets.en.md): depth, vibration and native PB. Custom presets remain available.
 
 Each row selects path, role and inversion; advanced fields set input range, curve and output interval. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Local single-row simulation checks transforms, not actual reception. A successful save clears the draft's unsaved indicator and disarms input.
 
-GateEnable adds a gate; DepthOverride can replace ordinary depth. See [Features](features.en.md) for fusion rules. Remove unwanted template gates instead of leaving an internal fixture's Active requirement on production data.
+A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Remove unwanted template conditions; an internal test fixture's Active requirement should not restrict actual data.
 
 ### Reception, discovery and forwarding
 
@@ -58,11 +58,11 @@ Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and 
 - Hub forwards to multiple UDP targets on events or at a fixed rate, preserving unconsumed raw bundle structure. Counts are not execution acknowledgements.
 - OGB enable heartbeat defaults off and requires an explicit VRChat destination, commonly port 9000. It sends true every five seconds while actual OSC reception runs and attempts false on stopping; it grants no device permission.
 
-### Experimental diagnostics and calibration
+### Control from root position: inspect, then calibrate
 
 Spatial permission defaults off. SPS/Shader root panels show object, source, local coordinates, validity and reasons. Legacy Point/Handle/Pose experiments retain separate models and must not be mixed.
 
-Fix an object, select X/Y/Z or distance from origin, capture the 0%/100% endpoints, inspect preview, replace the draft and save. Then separately allow experimental spatial input and activate the current input. Invalidity stops without falling back to old scalar data on that axis. These are local coordinates, not device/world/final-mesh positions. [Positioning conditions](positioning.en.md)
+Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalidity stops without falling back to old scalar data on that axis. These are local coordinates, not device/world/final-mesh positions. [Positioning conditions](positioning.en.md)
 
 ## Settings and help
 
@@ -74,4 +74,4 @@ Help links to [routes](usage-scenarios.en.md), the [parameter dictionary](osc-pa
 
 The [online version](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) is standalone; releases also include `docs/parameter-geometry.html`. All ten scenes have 3D, XZ and isometric SVG. Dragging the 3D target changes only the selected plane's axes; background drag rotates. Camera reset preserves parameters. Sliders remain available and WebGL failure falls back to SVG.
 
-Gray surfaces are reference profiles; the orange interaction marker is not the actual Sender radius. “Model gate” excludes Sensa runtime length learning, mapping and device output. Explorer images and mocks do not establish real-client or hardware acceptance. [Evidence](ui-visual-review.en.md) · [Home](../README.md)
+Gray surfaces are reference profiles; the orange interaction marker is not the actual Sender radius. The explorer's validity state answers whether the current simulated conditions produce a usable measurement. It does not enable actual input, change Sensa configuration or send device commands. “Simulate a valid sample” compares valid and invalid samples; unchecking it invalidates the simulated values. Explorer images and mocks do not establish real-client or hardware acceptance. [Evidence](ui-visual-review.en.md) · [Home](../README.md)

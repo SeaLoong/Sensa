@@ -26,9 +26,13 @@ The historical VPM index may offer an older package. Development previews do not
 
 New automatic setups use Exclusive, initially Off. Dedicated permits simultaneous measurements. Target selection, native SPS activation, desktop input activation and device connection are separate controls.
 
-## Fixed SPS contract
+## What does fixed SPS generate?
 
-`Sensa/SPS/<id>/P0` through `P3` are four Proximity values; `Sample` is 0 when invalid and advances through n/32 (n=1…32) while active. Four known noncoplanar anchors reconstruct a local point. They share center (0,1,0), half-span 0.5, receiver radius 2.5 and dedicated marker radius 0.001. Only Self is generated, at five Contacts per target.
+`Sensa/SPS/<id>/P0` through `P3` are four Proximity values; `Sample` is 0 when invalid and advances through n/32 (n=1…32) while active. Four known noncoplanar anchors reconstruct a local point. They share center (0,1,0), half-span 0.35, receiver radius 2 and dedicated marker radius 0.001. Only Self is generated, at five Contacts per target.
+
+Check the green common-coverage slices in Unity Scene: a point must be inside all four receivers to be positioned. Small orange regions indicate saturation blind spots near anchors. Shader instead shows its full encoding box and has no Contact radius.
+
+When updating from the old 2.5-radius/0.5-half-span geometry, rebuild the Avatar, replace old generated components and update the desktop app together. Do not mix geometry generations.
 
 Coordinates use Avatar-root local units. Common world movement leaves them unchanged. Uniform scale is required; build checks and internal ScaleFactor guards enforce the world-radius limit. The display box is not guaranteed Contact coverage. [Geometry, public/control parameters and stops](AUTOMATION.en.md)
 

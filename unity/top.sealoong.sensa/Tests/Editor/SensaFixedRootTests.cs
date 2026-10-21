@@ -40,7 +40,7 @@ namespace UnityBox.Sensa.Tests
             {
                 Assert.AreEqual(new Vector3(SensaFixedAnchorProtocol.AnchorX(i), SensaFixedAnchorProtocol.AnchorY(i), SensaFixedAnchorProtocol.AnchorZ(i)),
                     avatar.transform.InverseTransformPoint(receivers[i].transform.position));
-                Assert.AreEqual(2.5f, receivers[i].radius);
+                Assert.AreEqual(2f, receivers[i].radius);
                 Assert.IsTrue(receivers[i].allowSelf && !receivers[i].allowOthers && receivers[i].localOnly);
             }
             var sender = host.GetComponentInChildren<VRCContactSender>(true);
@@ -84,7 +84,7 @@ namespace UnityBox.Sensa.Tests
                 SensaFixedAnchorProtocol.MaximumSampleAgeMs);
             var allowed = machine.defaultState.transitions.Single().conditions;
             Assert.IsTrue(allowed.Any(c => c.parameter == "IsLocal" && c.mode == AnimatorConditionMode.If));
-            Assert.IsTrue(allowed.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Less && c.threshold < 1.2f));
+            Assert.IsTrue(allowed.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Less && c.threshold > 1.49f && c.threshold < 1.5f));
             var invalidScale = machine.anyStateTransitions.Single(t => t.conditions.Any(c => c.parameter == "ScaleFactor" && c.mode == AnimatorConditionMode.Greater));
             Assert.AreEqual(machine.defaultState, invalidScale.destinationState);
             var contacts = host.transform.Find("Contacts").gameObject;
@@ -124,7 +124,7 @@ namespace UnityBox.Sensa.Tests
             Assert.IsFalse(Enters(maximum + .000001f)); Assert.IsTrue(Exits(maximum + .000001f));
         }
         [TestCase(2, 1, 1)]
-        [TestCase(1.3f, 1.3f, 1.3f)]
+        [TestCase(1.6f, 1.6f, 1.6f)]
         public void InvalidAuthoredScaleFailsBeforeGeneration(float x, float y, float z)
         {
             var target = Target(); avatar.transform.localScale = new Vector3(x,y,z);

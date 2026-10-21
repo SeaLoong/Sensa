@@ -11,14 +11,14 @@ namespace Sensa.Tests.Contracts;
 public sealed class SpatialContracts
 {
     [Fact]
-    public void CapturedUnityWorldCasesAndCapturedPointDecodeAsSpecified()
+    public void HistoricalUnityCapturesRetainTheirOriginalGeometryAndDoNotValidateCurrentReceivers()
     {
         using var casesDocument = Fixture("unity-point-cases.json");
         var cases = casesDocument.RootElement.GetProperty("cases").EnumerateArray().ToArray();
         Assert.Equal(11, cases.Length);
         foreach (var item in cases)
         {
-            var fit = PoseReconstruction.FitLocalTetrahedron(item.GetProperty("samples").EnumerateArray().Select(value => value.GetSingle()).ToArray());
+            var fit = HistoricalCapture(item.GetProperty("samples").EnumerateArray().Select(value => value.GetSingle()).ToArray());
             Assert.True(fit.Valid == item.GetProperty("expectedValid").GetBoolean(), item.GetProperty("name").GetString() + ": " + fit.Reason);
             if (fit.Valid) Assert.InRange((fit.Position - Point(item.GetProperty("position"))).Length, 0, .0001);
         }
@@ -27,9 +27,57 @@ public sealed class SpatialContracts
         Assert.Equal("sensa.point-lab.v1", captured.GetProperty("schema").GetString());
         var samples = captured.GetProperty("samples").EnumerateArray().Select(value => value.GetSingle()).ToArray();
         Assert.Equal(4, samples.Length);
-        var result = PoseReconstruction.FitLocalTetrahedron(samples);
+        var result = HistoricalCapture(samples);
         Assert.True(result.Valid, result.Reason);
         Assert.InRange((result.Position - Point(captured.GetProperty("position"))).Length, 0, .0001);
+        Assert.False(PoseReconstruction.FitLocalTetrahedron(samples).Valid);
+    }
+
+    // These SDK measurements were captured with the previous 0.35 m / 0.06 m geometry.
+    // Keep their provenance intact. This test-only replay does not add a production legacy decoder.
+    private static MarkerFit HistoricalCapture(float[] proximity)
+    {
+        const double radius = .35, span = .06, marker = .001;
+        var anchors = new[] { new PosePoint(-span, -span, -span), new PosePoint(span, span, -span),
+            new PosePoint(span, -span, span), new PosePoint(-span, span, span) };
+        if (proximity.Length != 4 || proximity.Any(p => !float.IsFinite(p) || p <= .00001f || p >= .99999f))
+            return new(false, default, marker, 0, "Historical capture is incomplete or saturated");
+        var distances = proximity.Select(p => radius * (1d - p) + marker).ToArray();
+        var point = new PosePoint();
+        for (int i = 0; i < 4; i++) point += anchors[i] * (-distances[i] * distances[i]);
+        point *= 1 / (8 * span * span);
+        var residual = Math.Sqrt(Enumerable.Range(0, 4).Average(i => Math.Pow((point - anchors[i]).Length - distances[i], 2)));
+        return new(residual <= .002 && point.Length <= .245, point, marker, residual, "Historical geometry replay");
+    }
+
+    [Theory]
+    [InlineData(1.1, .2, -.3)]
+    [InlineData(-.7, -.8, .6)]
+    [InlineData(0, 0, 1.38)]
+    public void CurrentTwoMetreArraysRecoverMetreScalePositions(double x, double y, double z)
+    {
+        var expected = new PosePoint(x, y, z);
+        var samples = SpatialSamples.Marker(expected);
+        var tetrahedron = PoseReconstruction.FitLocalTetrahedron(Enumerable.Range(0, 4)
+            .Select(i => samples[SensaPoseProtocol.PointAnchorIndex(i)]).ToArray());
+        var full = PoseReconstruction.FitMarker(samples);
+        Assert.True(tetrahedron.Valid, tetrahedron.Reason);
+        Assert.True(full.Valid, full.Reason);
+        Assert.InRange((tetrahedron.Position - expected).Length, 0, .00001);
+        Assert.InRange((full.Position - expected).Length, 0, .00003);
+    }
+
+    [Fact]
+    public void CurrentArrayFitLimitAndAnchorSaturationAreStillRejected()
+    {
+        var outside = SpatialSamples.Marker(new(0, 0, SensaPoseProtocol.PositionRadius + .02));
+        Assert.False(PoseReconstruction.FitMarker(outside).Valid);
+        Assert.False(PoseReconstruction.FitLocalTetrahedron(Enumerable.Range(0, 4)
+            .Select(i => outside[SensaPoseProtocol.PointAnchorIndex(i)]).ToArray()).Valid);
+        var saturated = SpatialSamples.Marker(PoseReconstruction.Anchors[0]);
+        Assert.False(PoseReconstruction.FitMarker(saturated).Valid);
+        Assert.False(PoseReconstruction.FitLocalTetrahedron(Enumerable.Range(0, 4)
+            .Select(i => saturated[SensaPoseProtocol.PointAnchorIndex(i)]).ToArray()).Valid);
     }
 
     [Fact]

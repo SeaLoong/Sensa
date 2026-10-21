@@ -200,7 +200,7 @@ namespace SensaLab
             { "Valid: uniform scaling preserves local XYZ", "有效：均匀缩放保留局部 XYZ" },
             { "Valid: coordinates belong to rotated reference", "有效：坐标属于旋转参考系" },
             { "Invalid: probe P4 explicitly omitted (fault injection)", "无效：明确缺失 P4（故障注入）" },
-            { "Invalid: beyond 0.245 local m fit limit", "无效：超出 0.245 局部米拟合限制" },
+            { "Invalid: beyond the shared local fit radius", "无效：超出当前协议允许的局部测量范围" },
             { "Valid: point at reference origin", "有效：点位于参考原点" },
             { "RESET", "复位" },
             { "PAUSE", "暂停" },

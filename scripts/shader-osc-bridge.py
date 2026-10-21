@@ -12,7 +12,7 @@ import struct
 import time
 
 AVATAR_ROOT_CENTER = (0.0, 1.0, 0.0)
-AVATAR_ROOT_HALF_RANGE = 1.5
+AVATAR_ROOT_HALF_RANGE = 2.0
 REGISTRATION_SCHEMA = 'sensa.shader-capture.v1'
 
 
@@ -49,51 +49,143 @@ def open_frame(path):
         raise
 
 
+NATIVE_COLUMNS, NATIVE_ROWS = 20, 12
+
+
+def edge_bit(column, row):
+    """Asymmetric, complementary edge bands; logical origin is bottom left."""
+    if row < 2:
+        return ((0xD3A6B >> column) & 1) ^ row
+    if row >= 10:
+        return ((0x69C57 >> column) & 1) ^ (row - 10)
+    if column < 2:
+        return ((0xA5 >> (row - 2)) & 1) ^ column
+    return ((0x6E >> (row - 2)) & 1) ^ (column - 18)
+
+
+def _cell(pixels, width, height, x, y, redundant=False):
+    x, y = int(x), int(y)
+    if not 1 <= x < width - 1 or not 1 <= y < height - 1:
+        return None
+    votes = [0, 0]
+    for dy in (-1, 0, 1):
+        for dx in (-1, 0, 1):
+            pixel = pixels[(y + dy) * width + x + dx][:3]
+            if len(pixel) != 3 or max(pixel) - min(pixel) > 20:
+                continue
+            if min(pixel) > 215:
+                votes[1] += 1
+            elif max(pixel) < 40:
+                votes[0] += 1
+    required = 6 if redundant else 9
+    return 0 if votes[0] >= required else 1 if votes[1] >= required else None
+
+
+def _packet(values, native):
+    if values[:3] != b'SN\x01' or values[3] != (3 if native else 1):
+        return None
+    if binascii.crc_hqx(values[:14], 0xffff) != int.from_bytes(values[14:], 'little'):
+        return None
+    xyz = [int.from_bytes(values[i:i+2], 'little') / 65535 * 2 - 1 for i in (6, 8, 10)]
+    sample = {'frame': int.from_bytes(values[4:6], 'little'), 'xyz': xyz}
+    producer = int.from_bytes(values[12:14], 'little')
+    if native:
+        if producer == 0:
+            raise ValueError('Native root telemetry requires a nonzero producer ID')
+        sample.update(producerId=producer, coordinateFrame='AvatarRootLocal',
+                      xyz=[center + value * AVATAR_ROOT_HALF_RANGE
+                           for center, value in zip(AVATAR_ROOT_CENTER, xyz)])
+    elif producer:
+        raise ValueError('Diagnostic telemetry requires producer ID zero')
+    return sample
+
+
+def _native_pixels(pixels, width, height):
+    if width < 80 or height < 48:
+        return None
+    pitch_x, pitch_y = width / NATIVE_COLUMNS, height / NATIVE_ROWS
+    # Give each side independent evidence: damaged corners must not
+    # invalidate an otherwise intact neighboring edge.
+    sides = [[[(column, row) for column in range(2, 18)] for row in rows]
+             for rows in ((0, 1), (10, 11))]
+    sides += [[[(column, row) for row in range(2, 10)] for column in columns]
+              for columns in ((0, 1), (18, 19))]
+    # Search only one module around the explicitly selected rectangle. The
+    # border absorbs this translation; never scan the desktop or repair data.
+    offsets = sorted(((x / 4, y / 4) for y in range(-4, 5) for x in range(-4, 5)),
+                     key=lambda pair: abs(pair[0]) + abs(pair[1]))
+    for flip in (True, False):
+        for offset_x, offset_y in offsets:
+            def read(column, row, redundant=False):
+                screen_row = 11 - row if flip else row
+                return _cell(pixels, width, height,
+                             (column + .5 + offset_x) * pitch_x,
+                             (screen_row + .5 + offset_y) * pitch_y, redundant)
+            intact = 0
+            for side in sides:
+                # Either complementary line can identify an edge; losing its
+                # outer line to a small crop does not consume payload bits.
+                for line in side:
+                    errors = 0
+                    for column, row in line:
+                        if read(column, row, True) != edge_bit(column, row):
+                            errors += 1
+                            if errors > 1:
+                                break
+                    if errors <= 1:
+                        intact += 1
+                        break
+            if intact < 3:
+                continue
+            values = bytearray(16)
+            for column in range(16):
+                for row in range(8):
+                    bit = read(column + 2, row + 2)
+                    if bit is None:
+                        break
+                    values[column] |= bit << row
+                else:
+                    continue
+                break
+            else:
+                sample = _packet(values, native=True)
+                if sample is not None:
+                    return sample
+    return None
+
+
 def decode_pixels(pixels, width, height):
     if width < 64 or height < 32 or len(pixels) != width * height:
-        raise ValueError('Expected a complete 16 x 8 grid, at least 64 x 32 pixels')
+        raise ValueError('Expected a complete grid: native 20 x 12 (80 x 48 px), diagnostic 16 x 8 (64 x 32 px)')
+    native = _native_pixels(pixels, width, height)
+    if native is not None:
+        return native
+    # Diagnostic lab images have a separate 16 x 8 layout and can never be
+    # interpreted as native input. There is no unframed native fallback.
     for flip in (True, False):
         values = bytearray(16)
         for column in range(16):
             for row in range(8):
-                x = int((column + .5) * width / 16)
-                y = int(((7 - row if flip else row) + .5) * height / 8)
-                samples = [pixels[(y + dy) * width + x + dx][:3]
-                           for dy in (-1, 0, 1) for dx in (-1, 0, 1)]
-                # Read every color channel; a bright red/blue overlay is not a white cell.
-                channels = [value for pixel in samples for value in pixel]
-                if any(len(pixel) != 3 or max(pixel) - min(pixel) > 20 for pixel in samples):
+                bit = _cell(pixels, width, height, (column + .5) * width / 16,
+                            ((7 - row if flip else row) + .5) * height / 8)
+                if bit is None:
                     break
-                if min(channels) > 215:
-                    values[column] |= 1 << row
-                elif max(channels) >= 40:
-                    break
+                values[column] |= bit << row
             else:
                 continue
             break
         else:
-            header_valid = values[:3] == b'SN\x01' and values[3] in (1, 3)
-            if header_valid and binascii.crc_hqx(values[:14], 0xffff) == int.from_bytes(values[14:], 'little'):
-                xyz = [int.from_bytes(values[i:i+2], 'little') / 65535 * 2 - 1 for i in (6, 8, 10)]
-                sample = {'frame': int.from_bytes(values[4:6], 'little'), 'xyz': xyz}
-                producer = int.from_bytes(values[12:14], 'little')
-                if values[3] & 2:
-                    if producer == 0:
-                        raise ValueError('Native root telemetry requires a nonzero producer ID')
-                    sample.update(producerId=producer, coordinateFrame='AvatarRootLocal',
-                                  xyz=[center + value * AVATAR_ROOT_HALF_RANGE
-                                       for center, value in zip(AVATAR_ROOT_CENTER, xyz)])
-                elif producer:
-                    raise ValueError('Diagnostic telemetry requires producer ID zero')
+            sample = _packet(values, native=False)
+            if sample is not None:
                 return sample
-    raise ValueError('Invalid telemetry header, source validity, cell alignment or CRC')
+    raise ValueError('Invalid telemetry edge markers, header, source validity, cell alignment or CRC')
 
 
 def capture_registration(region, producer_id):
     if not isinstance(region, (list, tuple)) or len(region) != 4 or any(type(value) is not int for value in region):
         raise ValueError('Registration requires four integer physical-pixel bounds')
-    if region[2] < 64 or region[3] < 32 or region[2] > 8192 or region[3] > 8192:
-        raise ValueError('Capture rectangle must be 64..8192 by 32..8192 physical pixels')
+    if region[2] < 80 or region[3] < 48 or region[2] > 8192 or region[3] > 8192:
+        raise ValueError('Native capture rectangle must be 80..8192 by 48..8192 physical pixels')
     if type(producer_id) is not int or not 1 <= producer_id <= 65535:
         raise ValueError('Registration requires an explicit producer ID from 1..65535')
     return {'schema': REGISTRATION_SCHEMA, 'region': list(region), 'producerId': producer_id,
@@ -225,7 +317,7 @@ def main():
     if not .05 <= args.timeout <= 5 or not 0 < args.duration <= 3600: parser.error('Invalid time limit')
     if args.producer_id is not None and not 1 <= args.producer_id <= 65535: parser.error('Invalid producer ID')
     if args.region:
-        if args.region[2] < 64 or args.region[3] < 32 or args.region[2] > 8192 or args.region[3] > 8192:
+        if args.region[2] < 80 or args.region[3] < 48 or args.region[2] > 8192 or args.region[3] > 8192:
             parser.error('Invalid capture rectangle size')
         if args.port and args.producer_id is None:
             parser.error('Screen-to-OSC requires --producer-id or --registration')

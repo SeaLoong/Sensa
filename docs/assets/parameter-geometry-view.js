@@ -6,28 +6,30 @@
   const NS = 'http://www.w3.org/2000/svg';
   const $ = id => document.getElementById(id);
   const dictionary = {
-    brand: ['参数图解', 'Parameter geometry'], modelTag: ['离线几何模型', 'Offline geometry model'],
-    language: ['语言', 'Language'], title: ['看见参数背后的形状', 'See the shapes behind the parameters'],
-    intro: ['移动橙色操作点，观察接收范围、Sender 与读数。图示只运行离线几何模型，不连接 OSC 或设备。', 'Move the orange handle to explore receivers, Senders and values. This is an offline geometry model with no OSC or device connection.'],
+    brand: ['参数图解', 'Parameter geometry'], modelTag: ['交互原理演示', 'Interactive guide'],
+    language: ['语言', 'Language'], title: ['移动目标，了解何时能够检测', 'Move the target to see where detection works'],
+    intro: ['先选择要了解的功能，再拖动橙色目标。图中展示检测范围和参数如何变化；所有读数都是演示，不会控制设备。', 'Choose a feature, then drag the orange target. See its detection range and how values change. All values are simulated; no devices are controlled.'],
     scenario: ['测量场景', 'Scenario'], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
     orbit: ['可旋转 3D', 'Orbit 3D'], license: ['Three.js MIT 许可', 'Three.js MIT license'],
     fallback: ['本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。', '3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.'],
     orbitControls: ['拖动橙色目标移动；拖动空白处旋转，滚轮／双指缩放。', 'Drag the orange target to move it; drag empty space to orbit, wheel/pinch to zoom.'],
     dragPlane: ['拖动平面', 'Drag plane'], pathPrefix: ['参数前缀', 'Parameter prefix'],
     pathAssembly: ['将 * 替换为实例名；完整地址 = /avatar/parameters/ + 前缀 + /行名。', 'Replace * with the instance name. Full address = /avatar/parameters/ + prefix + /row name.'],
-    reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ['Sender 范围', 'Senders'],
+    reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ['目标发出的检测范围', 'Target signal shapes'],
     reference: ['实体外形示意', 'Illustrative outlines'], dimensions: ['半径与尺寸', 'Radii and dimensions'], zoom: ['缩放', 'Zoom'],
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
-    rowHint: ['选择一行突出对应形状。模型门控不包含运行时估长、映射或设备输出。', 'Select a row to highlight its shapes. Model gate excludes runtime length learning, mappings and device output.'],
-    parameter: ['参数', 'Parameter'], raw: ['原始值', 'Raw'], effective: ['模型门控', 'Model gate'],
-    grid: ['16 × 8 位编码示意', '16 × 8 encoded bits'], controls: ['调整几何', 'Adjust geometry'],
+    rowHint: ['点击参数名可突出对应的检测形状。“可用值”表示通过本页条件检查后的演示结果；实际应用还需选择输入并启用输出。', 'Select a parameter to highlight its detection shapes. Usable values pass this guide’s checks; the app still needs an input and explicit output activation.'],
+    parameter: ['参数', 'Parameter'], raw: ['原始值', 'Raw'], effective: ['可用值', 'Usable value'],
+    grid: ['20 × 12 编码图块（边缘用于定位）', '20 × 12 encoded grid with edge markers'], controls: ['调整几何', 'Adjust geometry'],
     dragHint: ['拖动橙色操作点仅改变 X/Z，Y 由滑条控制。方向键：左右 Z、上下 X；Shift 加速。', 'Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.'],
     x: ['移动对象 · X', 'Moving object · X'], y: ['移动对象 · Y', 'Moving object · Y'], z: ['移动对象 · Z', 'Moving object · Z'],
     length: ['Plug 长度 L', 'Plug length L'], width: ['Plug 半径 W', 'Plug radius W'], depth: ['Socket 区域 D', 'Socket region D'],
     yaw: ['Plug 绕根旋转', 'Plug root rotation'], senderRadius: ['身体 Sender 半径', 'Body Sender radius'],
-    zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['Sample 计数步', 'Sample counter step'],
+    zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['活动计数 Sample（0 表示停止）', 'Activity counter Sample (0 means stopped)'],
     ageMs: ['距上次变化时间', 'Age since last change'], frame: ['编码序号 Frame', 'Encoded Frame'],
-    valid: ['生产端允许发布', 'Producer permits publishing'],
+    valid: ['模拟收到有效样本', 'Simulate a valid sample'],
+    coverage: ['可检测区域', 'Detection region'], simulation: ['模拟信号中断与停更', 'Simulate signal loss or a stalled source'],
+    validHint: ['此项只改变本页演示：取消后模拟发送端报告无效数据；它不是应用中的发布或输出权限。', 'This only changes the demonstration. Clear it to simulate the source reporting invalid data; it does not grant publishing or device-output permission.'],
     formulaTitle: ['读图时记住', 'Reading the model'], meaningTitle: ['这些量不等价', 'Different quantities'],
     meaning: ['近接值不是 XYZ，根坐标不是姿态，编码分辨率不是实测精度。球／胶囊是 Contact；灰色 Socket／Plug 轮廓仅为示意，不是 Avatar 网格。', 'Proximity is not XYZ, a root position is not orientation, and encoding resolution is not measured accuracy. Spheres/capsules represent Contacts; gray Socket/Plug profiles are illustrations, not Avatar meshes.'],
     sourceNote: ['尺寸依据固定版本上游源码及 Sensa 契约，不推断动态缩放、多个 Sender 或真实客户端行为。', 'Dimensions follow pinned upstream sources and Sensa contracts, without inferring dynamic scale, multiple Senders or actual client behavior.'],
@@ -41,8 +43,8 @@
     'socket-frot': ['Socket · FrotOthers', 'Socket · FrotOthers'],
     'plug-frot': ['Plug · Frot / Close', 'Plug · Frot / Close'],
     zone: ['独立 Touch Zone', 'Independent Touch Zone'],
-    'sensa-sps': ['Sensa SPS · 固定 P0–P3', 'Sensa SPS · Fixed P0–P3'],
-    shader: ['Shader · 坐标与编码', 'Shader · Coordinates and encoding'],
+    'sensa-sps': ['Sensa SPS · 四点定位', 'Sensa SPS · Four-point positioning'],
+    shader: ['Shader · 从画面读取位置', 'Shader · Read position from an image'],
   };
   const scenes = {
     'socket-modern': {
@@ -86,14 +88,14 @@
       formula: ['区域 R 与身体 Sender 半径 r 可独立改变；所有 XYZ 都参与距离。', 'Zone R and body-Sender radius r vary independently; all XYZ components contribute to distance.'],
     },
     'sensa-sps': {
-      summary: ['四锚点固定在 Avatar 根下；专用 r=0.001 标记移动，Receiver R=2.5。', 'Four anchors stay fixed under the avatar root; a dedicated r=0.001 marker moves, with Receiver R=2.5.'],
-      explanation: ['Sample=0 或超时使输出无效。静止 P 值可缓存，活动计数必须变化；低残差不证明身份、原子采样或实际定位精度。', 'Sample=0 or expiry invalidates output. Stationary P values may be cached, but the activity counter must change. Low residual proves neither identity, atomic sampling nor actual accuracy.'],
-      formula: ['dᵢ=2.5(1−Pᵢ)+0.001。四个已知非共面锚点还原一个局部点；有效区是四球交集扣除饱和区，并非整个方框。', 'dᵢ=2.5(1−Pᵢ)+0.001. Four known noncoplanar anchors recover one local point. Valid space is their shared coverage minus saturation regions, not the entire box.'],
+      summary: ['四个固定检测点各有 2 米接收半径；移动目标携带 1 毫米专用标记。绿色区域是四个检测点都能测量的位置。', 'Four fixed points each have a 2 m receiver radius. A 1 mm dedicated marker follows the target. Green shows positions all four points can measure.'],
+      explanation: ['目标必须同时处于四个接收范围内，才能由四个距离求出位置。超出范围、贴近检测点导致读数饱和，或活动计数停止变化时，位置不可用。', 'The target must stay within all four receivers so four distances can determine its position. Leaving coverage, saturating a receiver at close range, or a stalled activity counter makes the position unavailable.'],
+      formula: ['每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球共同覆盖并裁剪到坐标边界得到；检测点旁 3 毫米的饱和区不可用。图形边缘为采样近似，是否有效以读数为准。', 'Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope is the four-sphere intersection clipped to coordinate limits, excluding 3 mm saturation regions. Its drawn edge is sampled; the numeric check determines validity.'],
     },
     shader: {
-      summary: ['没有 Contact 或触发半径：将根坐标量化为 16 位，编码为带 ID、Frame 与 CRC 的图块。', 'No Contact or trigger radius: quantize root coordinates to 16 bits and encode a grid with ID, Frame and CRC.'],
-      explanation: ['这里只模拟编码与桌面 500 ms 接收上限。实际桥默认 350 ms 就先发 Valid=0；下方 16×8 图不是实际捕获像素或客户端验收。', 'This models encoding and the desktop’s 500 ms intake ceiling. The actual bridge normally sends Valid=0 after 350 ms. The 16×8 grid is not captured pixels or client acceptance.'],
-      formula: ['q=round(clamp((p−center+1.5)/3)×65535)；步长=3/65535。越界不因量化夹紧变成有效；Frame/X/Y/Z/Valid 按顺序提交。', 'q=round(clamp((p−center+1.5)/3)×65535); step=3/65535. Clamping does not validate an out-of-bounds source. Frame/X/Y/Z/Valid commit in order.'],
+      summary: ['Shader 把目标相对 Avatar 根的位置写进画面，桌面工具再读取图块。绿色方框是可编码范围：中心各方向 2 米。', 'The Shader writes the target’s position relative to the avatar root into an image; the desktop tool reads the grid. The green box is the encodable range: 2 m from its center along each axis.'],
+      explanation: ['边缘固定图案帮助找回轻微移动的图块；中间 16×8 位保存坐标等数据。固定像素本来就不随位置变化。校验失败或画面停更会停用位置；边缘标记不能消除渲染延迟。', 'Fixed edge patterns help reacquire a slightly shifted grid; the middle 16×8 bits hold coordinates and other data. Those marker pixels are intentionally constant. Failed checks or a stalled image invalidate the position. Markers cannot remove rendering latency.'],
+      formula: ['q=round(clamp((p−center+2)/4)×65535)，每格步长约 0.061 毫米。这只是数字编码的分辨率，不是实测精度。超过绿色方框的坐标会失效。', 'q=round(clamp((p−center+2)/4)×65535), a step of about 0.061 mm. This is numeric encoding resolution, not measured accuracy. Coordinates outside the green box are invalid.'],
     },
   };
   // Keep this small classic-script resolver aligned with src/web/i18n.js; the guide also works from file://.
@@ -218,6 +220,19 @@
     }
     return group;
   }
+  function drawCoverage(layer) {
+    if (!result.coverage || !$('show-coverage').checked) return;
+    const coverage = result.coverage;
+    const path = coverage.slice.map((point, index) => {
+      const p = projection.p(point); return (index ? 'L ' : 'M ') + p.x + ' ' + p.y;
+    }).join(' ') + ' Z';
+    if (coverage.slice.length) layer.append(svg('path', { class: 'coverage-region', d: path,
+      'data-coverage-kind': coverage.kind, 'data-slice-y': coverage.sliceY, 'fill-rule': 'evenodd' }));
+    for (const hole of coverage.holes) {
+      const p = projection.p(hole.center);
+      layer.append(svg('circle', { class: 'coverage-exclusion', cx: p.x, cy: p.y, r: hole.radius * projection.scale }));
+    }
+  }
   function references(layer, annotations) {
     if (!$('show-reference').checked) return;
     const cross = (a, b) => ({ x: a.y * b.z - a.z * b.y, y: a.z * b.x - a.x * b.z, z: a.x * b.y - a.y * b.x });
@@ -277,6 +292,7 @@
       annotations.append(label(p.x + dx * annotationRatio, p.y + dy * annotationRatio, '+' + axis,
         { class: 'grid-axis-label', 'text-anchor': dx > .2 ? 'start' : dx < -.2 ? 'end' : 'middle' }));
     }
+    drawCoverage(layer);
     references(layer, annotations);
     const field = result.values.find(v => v.name === selected);
     for (const shape of result.shapes) {
@@ -316,9 +332,9 @@
     handles.append(moving);
     $('projection-note').textContent = text(projection.iso
       ? ['正交立体投影；球的投影半径保持同一比例。', 'Orthographic 3D projection; spheres retain the same radius scale.']
-      : ['XZ 投影，不是 Y 切片；Y 仍参与全部距离计算。', 'XZ projection, not a Y slice; Y still contributes to every distance.'])
+      : spatial() ? ['接收球轮廓是 XZ 投影；绿色区域为所选 Y 高度的切片，Y 仍参与全部距离计算。', 'Receiver outlines are XZ projections; green is a slice at the selected Y. Values use all XYZ components.'] : ['XZ 投影，不是 Y 切片；Y 仍参与全部距离计算。', 'XZ projection, not a Y slice; Y still contributes to every distance.'])
       + ' ' + text(['橙色操作柄不是 Sender 半径；灰色外形仅为示意。单位：', 'The orange handle is not the Sender radius; gray outlines are illustrative. Units: ']) + units()
-      + (state.scenario === 'sensa-sps' ? ' ' + text(['R=2.5 接收球可能超出放大视口；方框不代表全部可测。', 'R=2.5 receivers may extend beyond this enlarged view; the box is not all measurable.']) : '')
+      + (state.scenario === 'sensa-sps' ? ' ' + text(['绿色展示当前 Y 高度的可测切片；彩色接收球轮廓是投影。', 'Green shows the measurable slice at the selected Y; colored receiver outlines are projections.']) : '')
       + (!spatial() ? ' ' + text(['本场景 Socket +Z 向外，Plug 在 yaw=0 时朝 −Z；这不是作者 Plug 原生 +Z 的旋转定义。', 'Here Socket +Z points outward and yaw=0 aims the Plug along −Z; this is not the authored Plug’s native +Z rotation definition.']) : '');
   }
   function readouts() {
@@ -357,6 +373,8 @@
       add(['已知 L 的理想径向参考', 'Ideal radial reference with known L'], fmt(m.idealKnownLengthRadialRatio * 100, 1) + '%');
     }
     if (state.scenario === 'sensa-sps') {
+      add(['当前位置在检测范围内', 'Target inside detection region'], text(result.coverage.containsTarget ? ['是', 'Yes'] : ['否', 'No']));
+      add(['中心周围保守覆盖半径', 'Conservative coverage around center'], fmt(m.conservativeCoverageRadius) + ' ' + units());
       add(['拟合 XYZ', 'Fitted XYZ'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
       add(['拟合残差（非精度）', 'Fit residual (not accuracy)'], fmt(m.residual, 6));
       add(['Sample 内容年龄 / 上限', 'Sample content age / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
@@ -393,9 +411,13 @@
     $('encoding').hidden = state.scenario !== 'shader';
     if (state.scenario === 'shader') {
       $('bit-grid').replaceChildren();
-      for (let column = 0; column < 16; column++) for (let row = 0; row < 8; row++) {
-        const bit = result.metrics.bytes[column] >> (7 - row) & 1;
-        $('bit-grid').append(svg('rect', { x: column * 20, y: row * 20, width: 20, height: 20, fill: bit ? '#fff' : '#182131', 'data-byte': column, 'data-bit': 7 - row, 'data-value': bit }));
+      for (let column = 0; column < 20; column++) for (let screenRow = 0; screenRow < 12; screenRow++) {
+        const row = 11 - screenRow;
+        const bit = Model.encodedBit(result.metrics.bytes, column, row);
+        const edge = column < 2 || column >= 18 || row < 2 || row >= 10;
+        $('bit-grid').append(svg('rect', { x: column * 16, y: screenRow * 16, width: 16, height: 16,
+          fill: bit ? '#fff' : edge ? '#075c50' : '#182131', 'data-byte': edge ? undefined : column - 2,
+          'data-bit': edge ? undefined : row - 2, 'data-edge': String(edge), 'data-value': bit }));
       }
       const bytes = result.metrics.bytes; $('crc').textContent = 'CRC ' + (bytes[14] | bytes[15] << 8).toString(16).toUpperCase().padStart(4, '0') + ' · ID 42';
     }
@@ -409,13 +431,15 @@
     if (['socket-touch', 'plug-touch', 'zone'].includes(state.scenario)) allowed.add('senderRadius');
     if (state.scenario === 'zone') allowed.add('zoneRadius');
     if (spatial()) ['ageMs', 'valid'].forEach(k => allowed.add(k));
+    $('signal-simulation').hidden = !spatial();
+    $('coverage-legend').hidden = !spatial();
     if (state.scenario === 'sensa-sps') allowed.add('sample');
     if (state.scenario === 'shader') allowed.add('frame');
     for (const holder of document.querySelectorAll('[data-control]')) {
       const key = holder.dataset.control, input = $('control-' + key); holder.hidden = !allowed.has(key);
       if (['x', 'y', 'z'].includes(key)) {
-        input.min = spatial() ? key === 'y' ? '-0.8' : '-1.8' : key === 'z' ? '-0.4' : '-0.6';
-        input.max = spatial() ? key === 'y' ? '2.8' : '1.8' : key === 'z' ? '1.2' : '0.6';
+        input.min = spatial() ? key === 'y' ? '-1.3' : '-2.3' : key === 'z' ? '-0.4' : '-0.6';
+        input.max = spatial() ? key === 'y' ? '3.3' : '2.3' : key === 'z' ? '1.2' : '0.6';
       }
       if (key === 'valid') input.checked = state.valid;
       else {
@@ -433,7 +457,7 @@
       receiverKey.append(tintAnchor(swatch, index));
     });
     $('unit-note').textContent = spatial()
-      ? text(['Avatar 根局部单位；共同世界平移不会改变这些坐标。图中方框为编码／显示边界，不是 Contact 共同覆盖保证。', 'Avatar-root local units; common world movement does not change these coordinates. The box is an encoding/display boundary, not guaranteed Contact coverage.'])
+      ? text(['坐标相对 Avatar 根：X 左右、Y 高度、Z 前后；在作者缩放为 1 时单位对应米。绿色是检测范围，灰色框是允许的坐标边界。', 'Coordinates relative to the avatar root: X side-to-side, Y height, Z front-to-back. Units correspond to metres at authored scale 1. Green is detection coverage; the gray box is the coordinate limit.'])
       : text(['米制示意，作者缩放假定为 1；胶囊 H 含端帽，尺寸以模型读数为准。', 'Metre illustration with authored scale assumed one. Capsule H includes caps; use model dimensions.']);
   }
   function localize() {
@@ -467,13 +491,13 @@
         if (!threeView) threeView = window.SensaParameterGeometry3D.create($('three-scene'));
         threeView.update({ result, state, locale, selected, onMove: move, dragPlane: $('drag-plane').value, visibility: {
           receivers: $('show-receivers').checked, senders: $('show-senders').checked,
-          reference: $('show-reference').checked, dimensions: $('show-dimensions').checked,
+          reference: $('show-reference').checked, coverage: $('show-coverage').checked, dimensions: $('show-dimensions').checked,
         } });
         if (!threeView) return;
         projection = null;
         $('projection-note').textContent = text(['可旋转 3D，标签保持屏幕字号。橙色拖动目标被放大显示，不代表 Sender 半径。单位：', 'Orbit 3D with screen-sized labels. The enlarged orange drag target is not the Sender radius. Units: ']) + units() + '. '
-          + (state.scenario === 'sensa-sps' ? text(['四球共有范围扣除饱和区才可测，并非整个方框。', 'Measurable space is the shared sphere coverage minus saturation regions, not the entire box.'])
-            : state.scenario === 'shader' ? text(['输入点与解码预览可能重叠；误差以数值为准。', 'Input and decoded preview may overlap; use the numeric error.'])
+          + (state.scenario === 'sensa-sps' ? text(['绿色外形是四球共同可测区域；检测点附近的微小饱和区除外。', 'The green envelope is the shared measurable region, excluding tiny saturation regions near the anchors.'])
+            : state.scenario === 'shader' ? text(['绿色方框是可编码范围，不代表捕获相机看到的空间；输入点与解码点可能重叠。', 'The green box is the encoding range, not the capture camera’s field of view. Input and decoded points may overlap.'])
               : text(['作者缩放假定为 1；灰色外形是示意，不是 Avatar 网格。', 'Authored scale is assumed one; gray profiles illustrate shapes, not Avatar meshes.']));
       } catch { fallbackThree(); return; }
     } else { disposeThree(); draw(); }
@@ -493,7 +517,7 @@
   $('projection').addEventListener('change', () => { dragging = null; render(); });
   $('drag-plane').addEventListener('change', () => { dragging = null; render(); });
   $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });
-  for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
+  for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-coverage', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
   for (const holder of document.querySelectorAll('[data-control]')) {
     const key = holder.dataset.control, input = $('control-' + key);
     input.addEventListener('input', () => { state[key] = key === 'valid' ? input.checked : Number(input.value) / (key === 'sample' ? 32 : 1); render(); });

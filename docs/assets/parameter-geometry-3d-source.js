@@ -75,7 +75,7 @@ function create(host) {
   canvas.tabIndex = 0; canvas.setAttribute('role', 'group'); canvas.setAttribute('aria-describedby', hint.id);
   viewport.append(canvas, overlay); host.replaceChildren(viewport, toolbar, hint); host.dataset.renderState = 'ready';
   let latest = null, scenario = '', locale = 'zh-CN', disposed = false, lost = false, notifying = false, drag = null;
-  let dragPlane = 'xz', fitDistance = 0, framingRadius = 1, width = 0, height = 0, axes = null;
+  let dragPlane = 'xz', fitDistance = 0, framingRadius = 1, width = 0, height = 0, axes = null, coverageObject = null;
   const frameCenter = new THREE.Vector3(), raycaster = new THREE.Raycaster();
   const labels = new Map(), shapeObjects = new Map(), illustrations = new Map(), markers = new Map(), dimensions = new Map();
   const t = key => words[key][locale === 'en-US' ? 1 : 0];
@@ -113,7 +113,7 @@ function create(host) {
   };
   const clearObjects = () => {
     objects.children.slice().forEach(disposeObject); shapeObjects.clear(); illustrations.clear(); markers.clear(); dimensions.clear();
-    labels.clear(); leaders.replaceChildren(); overlay.replaceChildren(leaders); axes = null;
+    labels.clear(); leaders.replaceChildren(); overlay.replaceChildren(leaders); axes = null; coverageObject = null;
   };
   function endDrag() {
     if (!drag) return;
@@ -174,6 +174,43 @@ function create(host) {
         label(id, anchor, 'P' + anchorIndex(shape), 'three-label--anchor', [[-36, 10], [14, 12], [-36, -24], [14, -24]][anchorIndex(shape)], color).classList.toggle('three-label--active', active);
       }
     }
+  }
+  function syncCoverage(result, visibility) {
+    const coverage = result.coverage;
+    if (!coverage) { disposeObject(coverageObject); coverageObject = null; return; }
+    if (!coverageObject) {
+      let geometry;
+      if (coverage.kind === 'encoding-cube') {
+        geometry = new THREE.BoxGeometry(coverage.halfRange * 2, coverage.halfRange * 2, coverage.halfRange * 2);
+      } else {
+        // Ray/sphere intersections locate each outer boundary sample; no bounding-sphere approximation.
+        // 逐方向解四球交集的外边界，避免用保守内切球代替真实范围。
+        const vertices = [], indices = [], latitudeCount = 32, longitudeCount = 64;
+        for (let latitude = 0; latitude <= latitudeCount; latitude++) {
+          const angle = latitude * Math.PI / latitudeCount;
+          for (let longitude = 0; longitude <= longitudeCount; longitude++) {
+            const azimuth = longitude * 2 * Math.PI / longitudeCount;
+            const direction = { x: Math.sin(angle) * Math.cos(azimuth), y: Math.cos(angle), z: Math.sin(angle) * Math.sin(azimuth) };
+            const radius = globalThis.SensaParameterGeometry.coverageRadius(direction);
+            vertices.push(direction.x * radius, direction.y * radius, direction.z * radius);
+            if (latitude < latitudeCount && longitude < longitudeCount) {
+              const a = latitude * (longitudeCount + 1) + longitude, b = a + longitudeCount + 1;
+              indices.push(a, b, a + 1, b, b + 1, a + 1);
+            }
+          }
+        }
+        geometry = new THREE.BufferGeometry(); geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3)); geometry.setIndex(indices);
+      }
+      coverageObject = new THREE.Group(); coverageObject.name = 'detection-region';
+      const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color: '#07806a', transparent: true, opacity: .17, depthWrite: false, side: THREE.DoubleSide }));
+      mesh.name = 'detection-region:surface'; coverageObject.add(mesh);
+      for (const exclusion of coverage.exclusions) {
+        const hole = new THREE.Mesh(new THREE.SphereGeometry(exclusion.radius, 12, 8), new THREE.MeshBasicMaterial({ color: '#a23d67', depthWrite: false }));
+        hole.position.copy(vector(exclusion.center).sub(vector(coverage.center))); coverageObject.add(hole);
+      }
+      objects.add(coverageObject);
+    }
+    coverageObject.position.copy(vector(coverage.center)); coverageObject.visible = visibility.coverage !== false;
   }
   function syncIllustrations(result, visibility) {
     const ids = new Set((result.illustrations || []).map(item => item.id));
@@ -352,7 +389,7 @@ function create(host) {
     const nextPlane = ['xz', 'xy', 'yz'].includes(options.dragPlane) ? options.dragPlane : 'xz', changed = options.result.scenario !== scenario;
     if (changed || nextPlane !== dragPlane) endDrag(); latest = options; locale = options.locale === 'en-US' ? 'en-US' : 'zh-CN'; dragPlane = nextPlane;
     if (changed) { clearObjects(); scenario = options.result.scenario; }
-    syncShapes(options.result, options.selected, options.visibility || {}); syncIllustrations(options.result, options.visibility || {}); syncMarkers(options.result);
+    syncShapes(options.result, options.selected, options.visibility || {}); syncCoverage(options.result, options.visibility || {}); syncIllustrations(options.result, options.visibility || {}); syncMarkers(options.result);
     if (changed) resetView(); if (disposed || lost) return;
     syncDimensions(options.result, options.selected, options.visibility || {});
     for (const [name, button] of buttons) { button.setAttribute('aria-label', t(name)); button.title = t(name); }
@@ -427,7 +464,7 @@ function create(host) {
       status: disposed ? 'disposed' : lost ? 'fallback' : 'ready', scenario,
       camera: { position: camera.position.toArray(), quaternion: camera.quaternion.toArray(), target: controls.target.toArray(), matrixWorld: camera.matrixWorld.toArray(),
         projectionMatrix: camera.projectionMatrix.toArray(), zoom: camera.zoom, fov: camera.fov, aspect: camera.aspect, near: camera.near, far: camera.far },
-      objects: [...shapeObjects.values()].map(snapshotObject), illustrations: [...illustrations.values()].map(snapshotObject),
+      objects: [...shapeObjects.values()].map(snapshotObject), coverage: coverageObject ? snapshotObject(coverageObject) : null, illustrations: [...illustrations.values()].map(snapshotObject),
       markers: [...markers.values()].filter(object => object.isPoints).map(object => ({ id: object.name, visible: object.visible, position: coordinates(object.position),
         worldPosition: coordinates(object.getWorldPosition(new THREE.Vector3())), matrixWorld: object.matrixWorld.toArray(), color: '#' + object.material.color.getHexString(),
         material: { color: '#' + object.material.color.getHexString(), type: object.material.type, size: object.material.size } })),

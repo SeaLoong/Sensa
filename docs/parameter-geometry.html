@@ -14,15 +14,15 @@
   <header class="page-header">
     <a class="brand" href="osc-parameters.en.md">Sensa<span data-i18n="brand">Parameter geometry</span></a>
     <div class="header-tools">
-      <span class="model-tag" data-i18n="modelTag">Offline geometry model</span>
+      <span class="model-tag" data-i18n="modelTag">Interactive guide</span>
       <label class="language"><span class="sr-only" data-i18n="language">Language</span><select id="locale" aria-label="语言 / Language"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label>
     </div>
   </header>
   <main>
     <section class="intro">
       <p class="eyebrow">OGB · SPS · SHADER</p>
-      <h1 data-i18n="title">See the shapes behind the parameters</h1>
-      <p data-i18n="intro">Move the orange handle to explore receivers, Senders and values. This is an offline geometry model with no OSC or device connection.</p>
+      <h1 data-i18n="title">Move the target to see where detection works</h1>
+      <p data-i18n="intro">Choose a feature, then drag the orange target. See its detection range and how values change. All values are simulated; no devices are controlled.</p>
     </section>
     <section class="scene-toolbar" aria-label="场景 / Scenario">
       <label class="scene-picker"><span data-i18n="scenario">Scenario</span>
@@ -62,6 +62,7 @@
           <label><input id="show-receivers" type="checkbox" checked><span id="receiver-key" class="key receiver-key"></span><span data-i18n="receivers">Receivers</span></label>
           <label><input id="show-senders" type="checkbox" checked><span class="key sender-key"></span><span data-i18n="senders">Senders</span></label>
           <label><input id="show-reference" type="checkbox" checked><span class="key reference-key"></span><span data-i18n="reference">Illustrative outlines</span></label>
+          <label id="coverage-legend"><input id="show-coverage" type="checkbox" checked><span class="key coverage-key"></span><span data-i18n="coverage">Detection region</span></label>
           <label><input id="show-dimensions" type="checkbox" checked><span data-i18n="dimensions">Radii and dimensions</span></label>
           <label class="zoom-label"><span data-i18n="zoom">Zoom</span><input id="zoom" type="range" min="0.6" max="2.4" step="0.1" value="1" aria-label="缩放 / Zoom"></label>
         </div>
@@ -70,10 +71,10 @@
         <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">Parameter values</h2><span class="caption" data-i18n="simulated">Simulated geometry</span></div>
         <div class="path-heading"><span class="caption" data-i18n="pathPrefix">Parameter prefix</span><code id="path-prefix" class="code path"></code></div>
         <p id="path-assembly" class="caption path-assembly"></p>
-        <p class="caption" data-i18n="rowHint">Select a row to highlight its shapes. Model gate excludes runtime length learning, mappings and device output.</p>
-        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Raw</th><th data-i18n="effective">Model gate</th></tr></thead><tbody id="values"></tbody></table></div>
+        <p class="caption" data-i18n="rowHint">Select a parameter to highlight its detection shapes. Usable values pass this guide’s checks; the app still needs an input and explicit output activation.</p>
+        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Raw</th><th data-i18n="effective">Usable value</th></tr></thead><tbody id="values"></tbody></table></div>
         <div class="metric-list" id="metrics"></div>
-        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">16 × 8 encoded bits</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 160" role="img" aria-label="编码位 / Encoded bits"></svg></div>
+        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">20 × 12 encoded grid with edge markers</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 192" role="img" aria-label="编码位 / Encoded bits"></svg></div>
         <p class="explanation" id="explanation"></p>
       </aside>
     </section>
@@ -89,11 +90,13 @@
         <label class="control" data-control="yaw"><span data-i18n="yaw">Plug root rotation</span><output for="control-yaw"></output><input id="control-yaw" type="range" min="-90" max="90" step="5" value="0"></label>
         <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Body Sender radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
         <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone radius</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
+      </div>
+      <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">Simulate signal loss or a stalled source</summary><p class="caption" data-i18n="validHint">This only changes the demonstration. Clear it to simulate the source reporting invalid data; it does not grant publishing or device-output permission.</p><div class="control-grid">
         <label class="control" data-control="sample"><span data-i18n="sample">Sample counter step</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
         <label class="control" data-control="ageMs"><span data-i18n="ageMs">Age since last change</span><output for="control-ageMs"></output><input id="control-ageMs" type="range" min="0" max="1600" step="50" value="0"></label>
         <label class="control" data-control="frame"><span data-i18n="frame">Encoded Frame</span><output for="control-frame"></output><input id="control-frame" type="range" min="0" max="65535" step="1" value="123"></label>
-        <label class="control toggle-control" data-control="valid"><span data-i18n="valid">Producer permits publishing</span><input id="control-valid" type="checkbox" checked></label>
-      </div>
+        <label class="control toggle-control" data-control="valid"><span data-i18n="valid">Simulate a valid sample</span><input id="control-valid" type="checkbox" checked></label>
+      </div></details>
       <p class="caption" id="unit-note"></p>
     </section>
     <section class="reading-notes">

@@ -2,7 +2,7 @@
 
 [简体中文](fixed-anchor-research.md) | **English**
 
-This research asks why four distances locate a root, why R=2.5/h=.5 remain, and what the producer actually proves about sampling. The implementation uses a fixed Avatar-root frame, a selected dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. It does not infer a point from arbitrary proximity values.
+This research asks why four distances locate a root, why R=2/h=.35 are used, and what the producer actually proves about sampling. The implementation uses a fixed Avatar-root frame, a selected dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. It does not infer a point from arbitrary proximity values.
 
 Use [routes](usage-scenarios.en.md) for setup, [positioning](positioning.en.md) for reception gates and the [dictionary](osc-parameters.en.md) for fields. This page retains pinned sources, derivations and unmeasured assumptions rather than presenting model analysis as client accuracy.
 
@@ -23,36 +23,38 @@ Sender radius must be known; a length sphere is not a point. Root placement foll
 
 ## Four-point algebra
 
-[SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) defines center c=(0,1,0), h=0.5 and P0–P3:
+[SensaFixedAnchorProtocol.cs](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) defines center c=(0,1,0), h=0.35 and P0–P3:
 
 ```text
-(-.5,.5,-.5), (.5,.5,.5), (.5,1.5,-.5), (-.5,1.5,.5)
+(-.35,.65,-.35), (.35,.65,.35), (.35,1.35,-.35), (-.35,1.35,.35)
 ```
 
-Three anchor differences from P0 have nonzero determinant 2. Squared-distance differences produce three independent equations:
+Three anchor differences from P0 have nonzero determinant 0.686. Squared-distance differences produce three independent equations:
 
 ```text
 2(aᵢ-a₀)·position = |aᵢ|²-|a₀|²+d₀²-dᵢ²
 ```
 
-Tetrahedral symmetry also gives `q=-Σ((aᵢ-c)dᵢ²)/(8h²)`, with position c+q. All center distances equal sqrt(0.75); at R=2.5 and r=.001, ideal proximity is approximately 0.653989838. The solver checks four-sphere residuals, coverage and bounds; saturated endpoints cannot be inverted as exact ranges.
+Tetrahedral symmetry also gives `q=-Σ((aᵢ-c)dᵢ²)/(8h²)`, with position c+q. All center distances equal √3×0.35≈0.606218; at R=2 and r=.001, ideal proximity is approximately 0.697391109. The solver checks four-sphere residuals, coverage and bounds; saturated endpoints cannot be inverted as exact ranges.
 
 Common rigid movement preserves distances. Common uniform scale cancels in `(s*d-s*r)/(s*R)`, yielding AvatarRootLocal rather than world coordinates. Nonuniform scale or the SDK 3-m clamp breaks that cancellation.
 
-## Why retain R=2.5 and h=0.5
+## Why use R=2 and h=0.35?
 
-This is model analysis, not measured client accuracy. Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, giving 2-norm condition number 1. Assuming independent equal-variance proximity noise σp, first-order propagation through the current closed-form solver gives per-axis standard deviation `sqrt(3)Rσp/2`. Larger R amplifies the same numeric noise rather than necessarily improving precision.
+The new default reduces receiver radius from 2.5 to 2 local meters and tetrahedral half-span from 0.5 to 0.35. Anchor separation becomes 2√2h≈0.990 m. At a fixed receiver radius, bringing the anchors closer increases common coverage while retaining a noncoplanar arrangement. The new 2-m receivers still provide less absolute coverage than the previous 2.5-m receivers; the change favors lower noise gain and more scaling headroom. The implementation keeps one shared geometry; arbitrary author-only radius changes would make desktop decoding incorrect.
 
-| Z offset 1.5 from center | Farthest range | Range Jacobian condition number |
+For a marker radius r=.001 and strict .001<p<.999, valid center distance lies between .003 and 1.999. The common region is the intersection of those four distance shells, clipped by the ±2 coordinate box. Its outer bounds contain a centered ball of radius `1.999−√3×.35≈1.392782`; small saturated holes near anchors remain excluded. This describes spatial coverage, not a guarantee that sampling and scale checks pass.
+
+| Receiver radius, same h=.35 | Centered outer-bound radius | Approximate uniform scale headroom at authored scale 1 |
 | --- | --- | --- |
-| h=0.5 | 2.121320 | 3.741657 |
-| h=0.75 | 2.487469 | 2.516611 |
+| 1 m | 0.394 m | 2.999× |
+| 2 m, selected | 1.393 m | 1.4995× |
 
-Wider anchors improve conditioning at this off-center point but nearly consume R=2.5 coverage. R=2.0 reduces numeric noise amplification yet cannot cover that point with h=0.5. Moving R toward 3 reduces Avatar-scaling headroom. Without measured root trajectories, noise and scale distributions, none is demonstrably better overall; keep current geometry.
+The 1-m value illustrates the tradeoff, rather than an exposed protocol preset. The 2-m choice gives much more common coverage. It is not a mathematically proven optimum for every Avatar or movement path.
 
-Usable volume is the unsaturated four-sphere intersection, not the whole ±1.5 per-axis cube. A marker too near an anchor also saturates and is rejected. The 0.01 residual threshold detects inconsistency rather than bounding position error. Four constraints lack sufficient redundancy to reliably identify an arbitrary bad channel or authenticate senders.
+Let range Jacobian rows be `Jᵢ=(position-aᵢ)/dᵢ`. At the center, `JᵀJ=(4/3)I`, so the 2-norm condition number is 1. Assuming independent equal-variance proximity noise σp, first-order center propagation gives per-axis standard deviation `sqrt(3)Rσp/2`. Reducing R from 2.5 to 2 reduces this particular noise gain by 20%; it is not a measured precision improvement. Closer anchors worsen conditioning away from the center, so future client measurements must include the intended trajectories rather than only the center.
 
-No filter is added. Future measurements should separate jitter, conditioning and latency, filtering position only after validation. Sample=0, expiry and gates must stop immediately rather than being smoothed.
+The 0.01 residual threshold detects inconsistency, rather than bounding actual error. Four constraints lack enough redundancy to reliably identify every bad channel or authenticate a sender. No filter is added: invalid Sample, expiry and gating must stop immediately, without smoothing their effect.
 
 ## Five-field production chain
 
@@ -60,13 +62,13 @@ RawP exists only in the actual FX Animator, absent from MA Expression Parameters
 
 Every approximately 50 ms, active states copy four P values before setting `Sample=n/32` (n=1…32). Binary floats represent these values exactly. Zero is reserved for disabled/rejected states; a 1.6-s cycle exceeds the 1250-ms liveness window, reducing binary-counter aliasing. Desktop uses content-change time, so repeated identical counters cannot renew freshness while unchanged P values can remain cached. The counter proves neither atomicity, physical Contact freshness nor lossless UDP.
 
-Builds reject nonpositive/nonuniform root scale, root ScaleConstraint and known root-scale animation. Internal FX IsLocal/ScaleFactor/selection guards keep `2.5*authoredRootScale*ScaleFactor` within approximately 2.999 m, disabling Contacts and clearing values on invalidity. The dedicated marker follows the selected center without inheriting bone scale. No shared moving array or remote-data upgrade route remains.
+Builds reject nonpositive/nonuniform root scale, root ScaleConstraint and known root-scale animation. Internal FX IsLocal/ScaleFactor/selection guards keep `2*authoredRootScale*ScaleFactor` within approximately 2.999 m, disabling Contacts and clearing values on invalidity. The dedicated marker follows the selected center without inheriting bone scale. No shared moving array or remote-data upgrade route remains.
 
 Five fields do not describe the Avatar's entire Expression Parameter count. Automatic Exclusive separately exposes menu control `Sensa/Select/<group>`: an unsynced, unsaved local Int with explicit default 0, where 0 is Off and 1…N select ordered targets. Out-of-range values stay or return Off. OSC may export this control according to configuration; it is not a measurement. Dedicated does not generate that automatic selector. Independent shader authoring also uses the 0/1 control `Sensa/Select/ShaderCapture_<id>`.
 
 ## Scope of existing evidence
 
-Unity nographics EditMode checks authoring, P0–P3/Sample, internal RawP versus final Expression Parameters, NDMF, geometry, scale/selection guards, unknown-policy rejection and independent experiment regressions. Its ignored local report is `artifacts/verification/sps-five-fields-editmode.xml`. Successful shader import is not GPU pixel output. Read exact counts/versions in the report and associated commit.
+Earlier Unity nographics EditMode runs checked authoring, P0–P3/Sample, internal RawP versus final Expression Parameters, NDMF, geometry, scale/selection guards, unknown-policy rejection and independent experiment regressions. Reports such as ignored `artifacts/verification/sps-five-fields-editmode.xml` belong to those original revisions and may not exist in a new checkout. They do not validate this revision's 2-m geometry. The changed Unity builders require fresh Unity CI and real-client measurements; current isolated tests only cover their own math/contracts. Successful shader import is not GPU pixel output. Read exact counts/versions in each actual report and associated commit.
 
 Generator contracts also check retained .meta identity, prefab author type and explicit Target. AvatarLab uses Exclusive/Dedicated while independent experiments retain their labels; tool dead-code/docs cleanup is not complete scene acceptance.
 

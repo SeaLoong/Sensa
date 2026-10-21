@@ -4,9 +4,9 @@
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 
-**把虚拟交互和 funscript 轨迹转换为设备控制目标。** Sensa 是本机桌面服务，浏览器工作台支持 TCode 串口／UDP／TCP，以及 Intiface／Buttplug。
+**让设备跟随 VRChat 交互或 funscript 动作脚本。** Sensa 在你的电脑上运行，通过浏览器配置输入和设备。它支持 TCode 串口／UDP／TCP，以及 Intiface／Buttplug。界面显示准备发送给设备的位置或强度。
 
-## 先建立一个明确的小量程闭环
+## 第一次使用：先检查方向和行程
 
 1. 下载 Windows、Linux 或 macOS 的 x64／ARM64 压缩包并解压。
 2. 运行 Sensa，打开 **http://127.0.0.1:5086**。新会话的输入和输出默认关闭。
@@ -17,15 +17,15 @@
 
 [首次使用](docs/quick-start.md) · [工作台指南](docs/guide.md) · [功能参考](docs/features.md)
 
-## 按实际数据选择方案
+## 我应该选择哪种接入方式？
 
 | 路线 | 提供什么 | 主要限制 |
 | --- | --- | --- |
-| **已有 OGB / SPS** | 现代 Root／Tip 径向估算、旧近接与触摸强度 | 外部互通，不是 XYZ 或通用准确插入深度 |
-| **Sensa SPS** | 固定 P0–P3 和专用标记，重建所选根点的 Avatar 根局部位置 | 仅自己的 Avatar；覆盖、缩放和采样仍属实验限制 |
-| **Shader 捕获** | 原生根点编码、明确桌面区域与校验桥输出根坐标 | PC 实验；真实 VRChat／HMD 捕获尚未验收 |
+| **已有 OGB / SPS** | 读取 Avatar 已有的接近、触摸和深度相关参数 | 无需修改 Avatar；通常只能估算深度，不能获得三维位置 |
+| **Sensa SPS** | 在自己的 Avatar 上添加测量组件，计算所选根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
+| **Shader 捕获** | 将根点位置画成黑白编码图块，由桌面程序读取 | PC 实验方案；需要图块完整可见，真实 VRChat／头显效果尚待验证 |
 
-Sensa SPS 每对象有五个测量字段：`Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`。四个已知非共面锚点到同一点的距离足以定位；任意四个近接值不能证明目标身份或共同采样帧。Shader 使用 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}`，测根 Transform，不测最终形变网格。两者都需要实验许可与校准映射。
+这里的“根点”是你在 Unity 中选定的 Socket／Plug 起点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。Sensa SPS 和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。
 
 [方案选择](docs/usage-scenarios.md) · [OSC 字典](docs/osc-parameters.md) · [定位与限制](docs/positioning.md) · [OGB 兼容](docs/ogb-compatibility.md)
 
@@ -37,9 +37,9 @@ Sensa SPS 每对象有五个测量字段：`Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`
 
 ## Unity 与发布
 
-[Unity 作者包](unity/top.sealoong.sensa/README.zh-CN.md)在构建时生成允许上传的原生 Avatar 组件，不在上传后运行任意 C#。Avatar／World 实验工具为可选开发设施，需要自己的授权资源。
+能编辑自己 Avatar 的用户，可以安装 [Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，添加根点测量或 Shader 捕获。只读取已有 OGB 参数时无需安装。Avatar／World 实验工具供开发与验证使用，需要自己的授权资源。
 
-[Releases](https://github.com/SeaLoong/Sensa/releases)提供桌面预览与 Unity ZIP。**VPM 只收录 Unity 正式包**，保留已校验历史版本及归档。GitHub 当前没有稳定 Release 不等于历史 VPM 不存在；只有没有可验证包时才显示不可用，预览和当前开发不自动成为 VPM 正式版。
+[Releases](https://github.com/SeaLoong/Sensa/releases)提供桌面预览版与 Unity ZIP。使用 VCC／ALCOM 安装时，**VPM 只提供已发布的 Unity 正式版**；预览版需要从 Releases 单独下载。请按实际安装版本阅读对应说明。
 
 [文档站](https://sealoong.github.io/Sensa/)独立随 main 发布，不等待 Unity 稳定版。[语言规则](docs/languages.md)
 

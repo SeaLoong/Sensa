@@ -195,21 +195,21 @@ test('socket Frot and independent Zone keep their actual sender and gate semanti
 
 test('SPS fits four known noncoplanar anchors in full local XYZ / SPS由四个已知非共面锚点解局部XYZ', () => {
   const scene = evaluate({ scenario: 'sensa-sps', x: .2, y: .8, z: -.1 });
-  const expected = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  const expected = [[-.35, .65, -.35], [.35, .65, .35], [.35, 1.35, -.35], [-.35, 1.35, .35]];
   expected.forEach(([x, y, z], index) => {
     assert.deepEqual(plain(shape(scene, 'receiver-P' + index).center), { x, y, z });
-    near(field(scene, 'P' + index).raw, 1 - (Math.hypot(.2 - x, .8 - y, -.1 - z) - .001) / 2.5);
+    near(field(scene, 'P' + index).raw, 1 - (Math.hypot(.2 - x, .8 - y, -.1 - z) - .001) / 2);
   });
   assert.equal(scene.values.length, 5);
   assert.equal(scene.metrics.fitValid, true);
   assert.equal(scene.metrics.valid, true);
   near(scene.metrics.position.x, .2); near(scene.metrics.position.y, .8); near(scene.metrics.position.z, -.1);
   near(scene.metrics.residual, 0);
-  near(scene.metrics.conservativeCoverageRadius, 1.6339745962155614);
+  near(scene.metrics.conservativeCoverageRadius, 1.999 - Math.sqrt(3) * .35);
 });
 
 test('SPS rejects near-anchor saturation and uncovered cube corners / SPS拒绝近锚点饱和与未共同覆盖的立方体角', () => {
-  const blind = evaluate({ scenario: 'sensa-sps', x: -.5, y: .5, z: -.498 });
+  const blind = evaluate({ scenario: 'sensa-sps', x: -.35, y: .65, z: -.348 });
   assert.equal(blind.metrics.fitValid, false);
   assert.equal(blind.metrics.coverageReason, 'proximity-boundary');
   assert.equal(blind.metrics.position, null);
@@ -235,12 +235,12 @@ test('Sample validity and changing-value age are distinct from geometric fit / S
 });
 
 test('Shader has no Contact spheres and preserves range endpoints exactly / Shader无Contact球且保留编码范围端点', () => {
-  const scene = evaluate({ scenario: 'shader', x: 1.5, y: -.5, z: 1.5 });
+  const scene = evaluate({ scenario: 'shader', x: 2, y: -1, z: 2 });
   assert.equal(scene.shapes.length, 1);
   assert.equal(scene.shapes[0].role, 'reference');
   assert.equal(scene.shapes[0].type, 'box');
   assert.deepEqual(plain(scene.metrics.quantized), { x: 65535, y: 0, z: 65535 });
-  assert.deepEqual(plain(scene.metrics.decoded), { x: 1.5, y: -.5, z: 1.5 });
+  assert.deepEqual(plain(scene.metrics.decoded), { x: 2, y: -1, z: 2 });
   assert.equal(scene.metrics.quantError.length, 0);
   assert.equal(scene.metrics.valid, true);
 });
@@ -248,9 +248,9 @@ test('Shader has no Contact spheres and preserves range endpoints exactly / Shad
 test('Shader quantization bounds, CRC bytes and modulo Frame are illustrative and deterministic / Shader量化界CRC字节和模Frame示意可重复', () => {
   const scene = evaluate({ scenario: 'shader', frame: 65536 });
   assert.equal(field(scene, 'Frame').raw, 0);
-  near(scene.metrics.quantizationStep, 3 / 65535);
+  near(scene.metrics.quantizationStep, 4 / 65535);
   assert.ok(scene.metrics.quantError.length <= scene.metrics.spatialQuantizationBound);
-  const zero = evaluate({ scenario: 'shader', x: -1.5, y: -.5, z: -1.5, frame: 0 });
+  const zero = evaluate({ scenario: 'shader', x: -2, y: -1, z: -2, frame: 0 });
   // CRC-16/CCITT-FALSE reference from Python binascii.crc_hqx(payload, 0xffff).
   // 独立参考值来自 Python 标准库，不复用被测 JS CRC。
   assert.deepEqual(plain(zero.metrics.bytes), [83, 78, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 194, 133]);
@@ -258,22 +258,22 @@ test('Shader quantization bounds, CRC bytes and modulo Frame are illustrative an
 });
 
 test('Shader quantization uses nearest-even at ties and preserves adjacent bins / Shader量化半整数取偶且保留相邻区间', () => {
-  const unit = 3 / 65535, delta = unit / 1024;
+  const unit = 4 / 65535, delta = unit / 1024;
   // Exact half-integer inputs include both signs of the local coordinate.
   // 精确半整数输入覆盖正负局部坐标；相邻值不可用容差一并当作平局。
   for (const [x, lower, expected] of [[unit, 32768, 32768], [-unit, 32766, 32766], [0, 32767, 32768]]) {
-    assert.equal((x + 1.5) / 3 * 65535, lower + .5);
+    assert.equal((x + 2) / 4 * 65535, lower + .5);
     const scene = evaluate({ scenario: 'shader', x, y: 1, z: 0 });
     assert.equal(scene.metrics.encoded.x, expected);
     assert.deepEqual(plain(scene.metrics.bytes.slice(6, 8)), [expected & 255, expected >>> 8]);
-    near(field(scene, 'X').raw, expected / 65535 * 3 - 1.5);
+    near(field(scene, 'X').raw, expected / 65535 * 4 - 2);
     assert.equal(evaluate({ scenario: 'shader', x: x - delta }).metrics.encoded.x, lower);
     assert.equal(evaluate({ scenario: 'shader', x: x + delta }).metrics.encoded.x, lower + 1);
   }
 });
 
 test('Shader invalidation emits only Valid and does not offer stale coordinates / Shader失效只发布Valid且不提供旧坐标', () => {
-  for (const state of [{ x: 1.501 }, { valid: false }, { ageMs: 501 }]) {
+  for (const state of [{ x: 2.001 }, { valid: false }, { ageMs: 501 }]) {
     const scene = evaluate({ scenario: 'shader', ...state });
     assert.equal(scene.metrics.valid, false);
     assert.equal(scene.metrics.position, null);
@@ -282,7 +282,7 @@ test('Shader invalidation emits only Valid and does not offer stale coordinates 
   assert.equal(evaluate({ scenario: 'shader', ageMs: 500 }).metrics.valid, true);
   assert.equal(evaluate({ scenario: 'shader', timeoutMs: 200, ageMs: 201 }).metrics.valid, false);
   assert.equal(evaluate({ scenario: 'shader', timeoutMs: 9000 }).metrics.frameAgeLimitMs, 500);
-  assert.equal(evaluate({ scenario: 'shader', x: 2 }).metrics.bytes[3], 2);
+  assert.equal(evaluate({ scenario: 'shader', x: 2.01 }).metrics.bytes[3], 2);
   assert.equal(evaluate({ scenario: 'shader', ageMs: 501 }).metrics.bytes[3], 3);
 });
 
@@ -294,4 +294,60 @@ test('model rejects nonfinite inputs and results do not mutate caller state / �
   const first = evaluate(state); first.shapes[0].center.x = 9; first.points.movingRoot.x = 8;
   assert.deepEqual(state, { scenario: 'socket-modern', x: .1, z: .3 });
   assert.equal(evaluate(state).shapes[0].center.x, 0);
+});
+
+
+test('coverage uses all four strict distance shells and the coordinate box / 覆盖区遵循四路距离界与坐标边界', () => {
+  const geometry = model.spsGeometry;
+  assert.equal(geometry.receiverRadius, 2);
+  assert.equal(geometry.anchorHalfSpan, .35);
+  assert.equal(geometry.positionHalfRange, 2);
+  const center = { x: 0, y: 1, z: 0 };
+  assert.equal(model.coverageContains(center), true);
+  assert.equal(model.coverageContains({ x: .35, y: .65, z: .35 }), false, 'anchor saturation is excluded');
+  assert.equal(model.coverageContains({ x: 2, y: 3, z: 2 }), false, 'cube corner lacks all four ranges');
+  assert.equal(model.coverageContains({ x: 2, y: 3, z: 2 }, 'shader'), true, 'Shader has no Contact coverage limit');
+  assert.equal(model.coverageContains({ x: 2.001, y: 1, z: 0 }, 'shader'), false);
+  assert.equal(model.coverageContains({ x: NaN, y: 1, z: 0 }), false);
+  for (const y of [-1, -.25, .65, 1, 1.35, 2.25, 3]) for (const x of [-1.9, -.7, 0, .7, 1.9]) for (const z of [-1.9, -.7, 0, .7, 1.9]) {
+    const point = { x, y, z }, scene = evaluate({ scenario: 'sensa-sps', ...point });
+    assert.equal(scene.coverage.containsTarget, scene.metrics.fitValid, JSON.stringify(point));
+  }
+});
+
+test('drawn detection boundary is computed from all receiver spheres / 可测外形由全部接收球计算', () => {
+  const origin = { x: 0, y: 1, z: 0 };
+  for (let i = 0; i < 40; i++) {
+    const angle = i * Math.PI / 20, direction = { x: Math.cos(angle), y: 0, z: Math.sin(angle) };
+    const radius = model.coverageRadius(direction);
+    assert.ok(radius > 0 && radius < 2);
+    const at = factor => ({ x: origin.x + direction.x * radius * factor, y: 1, z: direction.z * radius * factor });
+    assert.equal(model.coverageContains(at(.99999)), true);
+    assert.equal(model.coverageContains(at(1.00001)), false);
+  }
+  const slice = evaluate({ scenario: 'sensa-sps', y: .65 }).coverage;
+  assert.equal(slice.slice.length, 128);
+  assert.equal(slice.holes.length, 2);
+  assert.equal(slice.kind, 'contact-intersection');
+  assert.equal(evaluate({ scenario: 'sensa-sps', y: -1 }).coverage.slice.length, 0);
+  assert.equal(evaluate({ scenario: 'shader', y: -1 }).coverage.slice.length, 128);
+});
+
+
+test('native encoding keeps asymmetric markers at the edge and changing payload in the center / 原生编码边缘定位而中央携带变化数据', () => {
+  const first = evaluate({ scenario: 'shader', x: -.4, frame: 1 }).metrics.bytes;
+  const next = evaluate({ scenario: 'shader', x: .6, frame: 2 }).metrics.bytes;
+  let edgeCount = 0, changedPayload = 0;
+  const bitsAsWord = (row, start, length) => Array.from({ length }, (_, i) => model.encodedBit(first, start + i, row) << i).reduce((a, b) => a | b);
+  assert.equal(bitsAsWord(0, 0, 20), 0xD3A6B);
+  assert.equal(bitsAsWord(1, 0, 20), 0x2C594);
+  assert.equal(bitsAsWord(10, 0, 20), 0x69C57);
+  assert.equal(bitsAsWord(11, 0, 20), 0x963A8);
+  for (let column = 0; column < 20; column++) for (let row = 0; row < 12; row++) {
+    const a = model.encodedBit(first, column, row), b = model.encodedBit(next, column, row);
+    if (column < 2 || column >= 18 || row < 2 || row >= 10) { edgeCount++; assert.equal(a, b); }
+    else { assert.equal(a, first[column - 2] >> (row - 2) & 1); changedPayload += Number(a !== b); }
+  }
+  assert.equal(edgeCount, 112);
+  assert.ok(changedPayload > 0);
 });

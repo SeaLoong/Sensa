@@ -14,7 +14,9 @@ namespace UnityBox.Sensa
             try { SensaPoseBuilder.Validate(socket); }
             catch (System.Exception ex) { EditorGUILayout.HelpBox(ex.Message, MessageType.Error); }
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Protocol"), SensaPoseProtocol.Prefix);
-            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Aperture radius / position limit"), SensaEditorLocalization.Text("4 cm / about 24 cm (local units; saturation can still occur inside)"));
+            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Aperture radius / position limit"),
+                SensaEditorLocalization.Format("4 cm / {0:F2} m; receiver radius 2 m", SensaPoseProtocol.PositionRadius));
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Green scene-view slices show where all required distances can be measured. Orange anchor centers are excluded because the signal saturates. Tracking a point does not mean it has entered the 4 cm opening."), MessageType.Info);
             if (GUILayout.Button(SensaEditorLocalization.Text("Bake a native VRC prefab copy"))) SensaPoseMenus.Bake(socket.gameObject);
         }
         private void OnSceneGUI()
@@ -32,6 +34,86 @@ namespace UnityBox.Sensa
                     Handles.Label(point, "A" + i);
                 }
                 Handles.Label(Vector3.forward * .16f, SensaEditorLocalization.Text("+Z inward"));
+            }
+            SensaCoverageGizmos.Pose(socket.transform, false);
+        }
+    }
+
+    // Scene-view cross sections of the actual common receiver volume, not four overlapping
+    // receiver outlines mistaken for a fully measurable box. Distances are in the authored frame.
+    internal static class SensaCoverageGizmos
+    {
+        internal static void Fixed(Transform frame)
+        {
+            var center = new Vector3(SensaFixedAnchorProtocol.CenterX, SensaFixedAnchorProtocol.CenterY, SensaFixedAnchorProtocol.CenterZ);
+            var anchors = new Vector3[SensaFixedAnchorProtocol.AnchorCount];
+            for (int i = 0; i < anchors.Length; i++)
+                anchors[i] = new Vector3(SensaFixedAnchorProtocol.AnchorX(i), SensaFixedAnchorProtocol.AnchorY(i), SensaFixedAnchorProtocol.AnchorZ(i));
+            Draw(frame, center, anchors, SensaFixedAnchorProtocol.MaximumCenterDistance,
+                SensaFixedAnchorProtocol.MinimumCenterDistance, SensaFixedAnchorProtocol.PositionHalfRange, float.PositiveInfinity);
+        }
+
+        internal static void Pose(Transform frame, bool tetrahedron)
+        {
+            var anchors = new Vector3[tetrahedron ? 4 : 8];
+            for (int i = 0; i < anchors.Length; i++)
+            {
+                int index = tetrahedron ? SensaPoseProtocol.PointAnchorIndex(i) : i;
+                anchors[i] = new Vector3(SensaPoseProtocol.AnchorX(index), SensaPoseProtocol.AnchorY(index), SensaPoseProtocol.AnchorZ(index));
+            }
+            Draw(frame, Vector3.zero, anchors, SensaPoseProtocol.ReceiverRadius * (1 - SensaPoseProtocol.MinimumProximity) + SensaPoseProtocol.MarkerRadius,
+                SensaPoseProtocol.ReceiverRadius * (1 - SensaPoseProtocol.MaximumProximity) + SensaPoseProtocol.MarkerRadius,
+                float.PositiveInfinity, SensaPoseProtocol.PositionRadius);
+        }
+
+        internal static float Boundary(Vector3 direction, Vector3 center, Vector3[] anchors,
+            float maximumDistance, float halfRange, float positionRadius)
+        {
+            float limit = positionRadius;
+            if (!float.IsPositiveInfinity(halfRange))
+                limit = Mathf.Min(limit, halfRange / Mathf.Max(Mathf.Abs(direction.x), Mathf.Abs(direction.y), Mathf.Abs(direction.z)));
+            foreach (var anchor in anchors)
+            {
+                var offset = anchor - center;
+                float projection = Vector3.Dot(direction, offset);
+                float discriminant = maximumDistance * maximumDistance - offset.sqrMagnitude + projection * projection;
+                if (discriminant <= 0) return 0;
+                limit = Mathf.Min(limit, projection + Mathf.Sqrt(discriminant));
+            }
+            return Mathf.Max(0, limit);
+        }
+
+        private static void Draw(Transform frame, Vector3 center, Vector3[] anchors, float maximumDistance,
+            float minimumDistance, float halfRange, float positionRadius)
+        {
+            using (new Handles.DrawingScope(frame.localToWorldMatrix))
+            {
+                for (int plane = 0; plane < 3; plane++)
+                {
+                    const int steps = 96;
+                    var points = new Vector3[steps + 1];
+                    for (int i = 0; i < steps; i++)
+                    {
+                        float angle = 2 * Mathf.PI * i / steps;
+                        var direction = plane == 0 ? new Vector3(Mathf.Cos(angle), Mathf.Sin(angle), 0)
+                            : plane == 1 ? new Vector3(Mathf.Cos(angle), 0, Mathf.Sin(angle)) : new Vector3(0, Mathf.Cos(angle), Mathf.Sin(angle));
+                        points[i] = center + direction * Boundary(direction, center, anchors, maximumDistance, halfRange, positionRadius);
+                    }
+                    points[steps] = points[0];
+                    Handles.color = new Color(.12f, .8f, .45f, .035f);
+                    Handles.DrawAAConvexPolygon(points);
+                    Handles.color = new Color(.12f, .8f, .45f, .75f);
+                    Handles.DrawAAPolyLine(2, points);
+                }
+                for (int i = 0; i < anchors.Length; i++)
+                {
+                    Handles.color = new Color(1, .5f, .1f, .9f);
+                    foreach (var normal in new[] { Vector3.up, Vector3.right, Vector3.forward })
+                        Handles.DrawWireDisc(anchors[i], normal, minimumDistance);
+                    Handles.Label(anchors[i], "P" + i);
+                }
+                Handles.color = new Color(.12f, .8f, .45f);
+                Handles.Label(center, SensaEditorLocalization.Text("Common measurable volume; orange centers excluded"));
             }
         }
     }

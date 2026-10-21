@@ -10,7 +10,7 @@ import unittest
 from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
-TEMPLATE = ROOT / '.codex/config.toml.example'
+TEMPLATE = ROOT / 'docs/agents/examples/codex-config.toml'
 HTTP_URL = re.compile(r"""https?://[^\s<>"'\x60]+""")
 LOCAL_FILE_URL = re.compile(r'file://(?:/|[^/\s])')
 WINDOWS_PATH = re.compile(
@@ -91,6 +91,19 @@ class PortableToolPathsTests(unittest.TestCase):
         self.assertNotIn('XERJ_BIN', self.server.get('env', {}))
         self.assertIn('XERJ_BIN', self.server['env_vars'])
         self.assertIsNone(private_path(TEMPLATE.read_text(encoding='utf-8')))
+
+    def test_all_local_codex_configuration_is_ignored_but_example_is_shared(self):
+        paths = ['.codex/config.toml', '.codex/auth.json', '.codex/bin/xerj',
+                 '.codex/log/session.log']
+        ignored = subprocess.check_output(
+            ['git', 'check-ignore', '--no-index', *paths], cwd=ROOT, text=True,
+        ).splitlines()
+        self.assertEqual(ignored, paths)
+        example = subprocess.run(
+            ['git', 'check-ignore', '--no-index', TEMPLATE.relative_to(ROOT).as_posix()],
+            cwd=ROOT, capture_output=True, check=False,
+        )
+        self.assertEqual(example.returncode, 1)
 
     def test_bootstrap_finds_checkout_from_root_and_nested_directory(self):
         nested = self.checkout / 'src/nested'

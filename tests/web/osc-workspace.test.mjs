@@ -130,7 +130,7 @@ test('probe labels and signal explanations distinguish diagnostic geometry from 
   assert.equal(probePresentation('/avatar/parameters/Sensa/Point/v1/Point/Self/Root/A3').label, '定位探针 P4');
   assert.equal(probePresentation('Sensa/Point/v1/Point/Self/Root/A4'), null);
   for (const path of ['A0', 'TCode/A0', 'OGB/Orf/Test/A0', 'Custom/Root/A0']) assert.equal(probePresentation(path), null);
-  for (let index = 0; index < 4; index++) assert.equal(probePresentation(`Sensa/SPS/Main/P${index}`).label, `固定锚点 P${index}`);
+  for (let index = 0; index < 4; index++) assert.equal(probePresentation(`Sensa/SPS/Main/P${index}`).label, `固定接收器 P${index}`);
   assert.equal(probePresentation('Sensa/SPS/Main/P4'), null);
   assert.equal(probePresentation('Sensa/SpsRoot/v1/Main/Self/Root/A0'), null);
   const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /不是 TCode/], ['Sensa/Pose/v1/Main/Others/Root/A0', /不能直接当作深度/], ['Sensa/SPS/Main/P0', /不能测尖端或朝向/], ['OGB/Orf/Main/PenOthersNewTip', /并非真实尖端/], ['OGB/Orf/Main/PenOthers', /不是通用的位置坐标/]];

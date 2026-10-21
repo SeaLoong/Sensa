@@ -1,30 +1,38 @@
-# Positioning: what is observable and when to stop
+# Root positioning: coverage and coordinate meaning
 
 [简体中文](positioning.md) | **English**
 
-Distances from four known non-coplanar anchors to **one point** determine local XYZ. Four is not inherently insufficient. Ordinary Contact values may instead lack a known common target, reference frame or sampling instant. Sensa therefore separates fixed roots, Shader and legacy paired experiments; spatial motion defaults off.
+Sensa can calculate the three-dimensional position of the Socket/Plug **root** you select in Unity, relative to the Avatar. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position unchanged. One root supplies no orientation, tip position or final deformed surface.
 
-| Route | Meaning | Validity evidence |
+Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) first.
+
+| Route | What you obtain | What invalidates it |
 | --- | --- | --- |
-| Sensa SPS | Your selected root center in AvatarRootLocal | Dedicated marker, known anchors, consistent geometry, changing Sample |
-| Shader | Encoded root center in AvatarRootLocal | Binary/ROI checks, ordered coordinate packet, changing Frame |
-| Independent Point/Handle/Pose | Estimate in its own reference frame | Oldest participant and geometry/grab checks; not upgraded into fixed SPS |
-| OGB Root/Tip | Radial proximity ratio | Same-instance pair/learned length, not XYZ |
+| Sensa SPS | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
+| Shader capture | Root coordinates read from a screen code, also AvatarRootLocal | Out-of-range coordinates, failed code alignment/checks or frozen images |
+| Independent Point/Handle/Pose | Experimental position/orientation in its own reference frame | Expired participating parameters or unmet pairing/grab/geometry conditions |
+| Existing OGB Root/Tip | Proximity and a depth estimate | Missing pairs or unmet length-learning conditions; it does not supply XYZ |
 
-One point supplies no orientation, world motion, tip or final GPU surface. Commands are not device feedback. [Routes](usage-scenarios.en.md) · [Interactive model](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+## Sensa SPS: all four receivers must measure the target
 
-## Fixed SPS geometry
+Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a regular tetrahedron. A very small dedicated marker follows your selected root. Each receiver measures a distance to that marker; the desktop calculates its position from those four distances.
 
-The Avatar root is the reference; c=(0,1,0), h=.5:
+The default receiver radius is **2 m**, with approximately **0.99 m** between anchors. These are Avatar-root local units, directly equal to world meters only when authored and runtime root scales are one. Geometry is currently fixed and shared: changing only a Unity radius would make desktop reconstruction use the wrong model.
 
-| Anchor | Coordinates |
+| Anchor | Coordinates relative to Avatar root |
 | --- | --- |
-| P0 | (-.5,.5,-.5) |
-| P1 | (.5,.5,.5) |
-| P2 | (.5,1.5,-.5) |
-| P3 | (-.5,1.5,.5) |
+| P0 | (−0.35, 0.65, −0.35) |
+| P1 | (0.35, 0.65, 0.35) |
+| P2 | (0.35, 1.35, −0.35) |
+| P3 | (−0.35, 1.35, 0.35) |
 
-Receivers have R=2.5. A dedicated r=.001 marker follows the selected actual root center. Outside saturation:
+**Coverage is the intersection of all four spheres**, excluding receiver boundaries and small saturated regions near the anchors. It is neither one radius-2-m sphere nor the entire displayed coordinate box. A centered region of approximately 1.393 m radius lies within the outer detection bounds around (0,1,0), but still excludes the small saturation holes near anchors. Unity and web coverage displays explain this spatial limit; sampling, scale and consistency checks must also pass.
+
+Using 2 m with closer anchors balances coverage, numeric noise amplification and Avatar-scaling headroom. A 1-m radius substantially shrinks common coverage; making anchor spacing arbitrarily small weakens reconstruction away from the center. These are model choices, not measured precision claims. [Derivation and tradeoffs](fixed-anchor-research.en.md)
+
+### How distances become a position
+
+For readers checking the algorithm: receiver radius R=2, marker radius r=.001, center c=(0,1,0), tetrahedral half-span h=.35. Outside saturation, proximity p and center distance d obey:
 
 ```text
 p = clamp(1 - max(0,d-r)/R, 0, 1)
@@ -33,40 +41,47 @@ q = -Σ((aᵢ-c)dᵢ²)/(8h²)
 position = c+q
 ```
 
-Omitting r confuses surface and center distance. Reception requires strict .001<p<.999, RMS distance residual≤.01, X/Z=[−1.5,1.5] and Y=[−.5,2.5]. Residual measures model consistency, not accuracy or identity. [Shared geometry](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [Solver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+Omitting r confuses marker-surface and center distance. Reception requires strict .001<p<.999, four-distance RMS residual≤.01, and coordinate bounds X/Z=[−2,2], Y=[−1,3]. Residual describes agreement between the calculated position and ranges; it is neither a position-error bound nor sender authentication. [Shared definition](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [Desktop solver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-Coverage is the four-ball intersection minus saturation/threshold boundaries, **not the whole displayed cube**. Saturation holes also exist near anchors. Increasing R amplifies the same proximity noise and reduces scale headroom rather than offering a free improvement. [Derivation/tradeoffs](fixed-anchor-research.en.md)
+## Why can a stationary position stay valid while stopped sampling expires?
 
-## Five fields and activity
+Each object sends `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. P0–P3 are proximity values. `Sample` is a counter showing that the measurement components continue publishing: zero means disabled/invalid; active values cycle through n/32, n=1…32, approximately every 50 ms.
 
-Each object has only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` measurement Floats. RawP stays in FX. Sampling states copy P values before writing Sample. Zero is inactive/invalid; active states nominally cycle through n/32, n=1…32, every 50 ms, for a 1.6-second cycle.
+Unchanged P values are normal for a stationary root; **Sample must continue changing**. The desktop defaults to a 1000-ms change interval. Positive `InputTimeoutMs` can change it, with a decoder cap of 1250 ms. Receiving the same Sample again does not renew validity. Missing fields, illegal/zero counters, freezing, expiry or failed geometry invalidate the position.
 
-Stationary P values may cache; **Sample content must change**. Repeating a value updates reception but not ChangedAt. Runtime defaults to 1000 ms; a positive InputTimeoutMs replaces this, still capped at 1250 ms by the decoder. Missing/illegal/zero/frozen/expired samples or inconsistent geometry invalidate. This is not proof of exact 20 Hz, atomic Contact frames or a physically updating sensor.
+This counter shows continued publication. It does not establish that all four Contacts updated at one exact instant or that the underlying measurements are fresh. The public protocol accepts no old Root/SharedRoot, A0–A3 or Profile/Scale/Valid/Heartbeat aliases; independent Point/Pose values cannot fill missing fields.
 
-There are no old v1, Root/SharedRoot, A0–A3 or Profile/Scale/Valid/Heartbeat aliases. Independent Point/Pose cannot fill missing fields. Five measurements per object do not mean five Avatar parameters overall: Exclusive may add local Int `Sensa/Select/<group>`, default 0=Off. It is a control, potentially visible over OSC.
+Avatar menus may also expose `Sensa/Select/<group>`: 0 is Off and 1…N select targets. It is an extra menu control, outside the five measurements, and does not enable desktop input.
 
-## Scale and reference frame
+## What does Avatar scaling change?
 
-A shared rigid transform preserves distances; uniform shared scale cancels in the ratio. Local units equal world meters only when authored/runtime scales are both one. The marker does not inherit target-bone scale. Builds reject nonpositive/nonuniform root scale, root ScaleConstraint and known root scaling animation.
+Shared translation and rotation preserve relative distances; shared uniform scale cancels in the range ratio. Nonuniform scale or SDK radius clamping breaks that relationship. Builds therefore reject nonpositive/nonuniform root scale, root ScaleConstraint and known root-scale animation. The dedicated marker does not inherit target-bone scale.
 
-The SDK world Contact radius limit is 3 m. FX uses IsLocal/ScaleFactor to disable and clear before `2.5×authorScale×ScaleFactor` exceeds about 2.999 m. Guards do not eliminate all client timing risks or authenticate against matching malicious tags. [Official Contacts](https://creators.vrchat.com/common-components/contacts/)
+The SDK world Contact radius cap is 3 m. Internal FX disables measurement and clears values before `2×authorScale×ScaleFactor` exceeds approximately 2.999 m. This guard cannot remove every client-timing risk or authenticate senders using the same tag. [Official Contacts](https://creators.vrchat.com/common-components/contacts/)
 
-## Shader roots
+## Shader: coordinate coverage and image recognition are separate
 
-A native skinned point and one Camera encode the chosen root Transform. The cube matches fixed SPS, but there is **no Contact trigger radius**. The bridge locks an explicit ROI/nonzero ID, verifies internal format, coordinate flags, CRC and modulo-65536 forward frames. Default freeze is 350 ms; startup/recovery requires two advancing frames.
+Shader capture draws the same root position as a black-and-white block, read by the Python desktop bridge. It has no Contact trigger radius: its full allowed box is **X/Z=[−2,2], Y=[−1,3]**. Separately, the code must appear inside the selected screen region.
 
-One valid OSC bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}`, with Valid=1 last. Invalidity sends only Valid=0. Desktop checks same-source contiguous sequences, finite bounded XYZ, integer Frame and change age≤500 ms, or a shorter positive timeout. The desktop limit does not mean the normal bridge stays valid between 350 and 500 ms.
+The native code uses 20×12 modules. Its central 16×8 modules contain data; a fixed two-module border helps identify orientation and alignment. Fixed modules intentionally remain unchanged as coordinates move. The bridge tolerates damage to one of the four edges and tries small translation corrections within the selected region; payload data must still pass CRC. It does not automatically correct rotation, perspective or scale, or repair damaged payload bits.
 
-Producer is in the path and Profile is fixed by the namespace; neither repeats publicly. Binary ID/coordinate flags/CRC/Frame remain necessary. `Sensa/Diagnostics/Shader/0` creates no point. Advancing encoded pixels do not prove a fresh final mesh or another Shader's global texture. [Research](shader-capture-research.en.md) · [Setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+Edge markers reduce recognition failures caused by small image offsets; **they do not remove rendering latency**. `Frame` detects duplicates/freezing: the default bridge invalidates after 350 ms without progress, and startup/recovery requires two new advancing frames. Even advancing codes do not establish a fresh final mesh or another Shader's texture. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Encoding design](shader-capture-research.en.md)
 
-## Legacy Point/Handle/Pose
+A valid OSC bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 committing last. Invalidity sends only Valid=0. The desktop additionally checks one source, contiguous fields, finite coordinates and Frame change age, rejecting beyond 500 ms or a stricter positive input timeout. The normal bridge already expires at 350 ms; 500 ms is an additional desktop rejection limit.
 
-These remain experiments in ReferenceLocal and cannot be mixed with the fixed frame. All participating channels use their oldest timestamp, default 1000 ms or positive input timeout, including Handle grab. Another target's fresh data must not renew an ambiguous/selected target. Low residual still proves neither shared Sender nor atomic sampling.
+The path identifies the object and the namespace fixes AvatarRootLocal, so repeated Producer/Profile fields are unnecessary. Internal diagnostics under `Sensa/Diagnostics/Shader/0` do not create mappable roots.
 
-Three markers can construct a local pose; without an external reference they cannot observe common world motion. Closest-Sender selection especially undermines the assumption that every channel observes one point. Interpolation/smoothing must not hide invalidity.
+## What does “Simulate a valid sample” mean on the web page?
 
-## From observation to output
+It only changes the explorer: checked simulates a valid sample; unchecked simulates the sender reporting invalid data. It does not upload an Avatar, grant software-publication permission, control real measurement components or enable a device. Explorer validity also excludes desktop mappings and device output.
 
-Fix object/source, capture X/Y/Z/distance endpoints, inspect preview, replace the draft and save. Saving disarms. Then separately allow experimental spatial input and activate actual OSC. Seeing values, calibration or clearing stop grants no permission.
+## From coordinates to motion
 
-Invalidity stops without stale same-axis fallback. Accuracy, latency and stop behavior need real-client measurement. EditMode, simulated packets and browser images do not establish uploads, Contacts/OSC, desktop/HMD capture or mechanisms. [Dictionary](osc-parameters.en.md) · [Guide](guide.en.md)
+1. Fix the object and source in the root panel. Check valid coordinates and expected movement direction.
+2. Select X/Y/Z or distance from the Avatar origin. Capture the desired motion start and end as 0% and 100%.
+3. Inspect the preview, replace the mapping draft and save. Saving disables input.
+4. Allow experimental spatial input, then enable actual OSC input.
+
+Invalidity stops without falling back to an old scalar on the same axis. Independent Point/Handle/Pose use their own reference frames and oldest participating channel timestamps; Handle also includes grab conditions. They cannot be mixed with fixed roots. Three markers can estimate local orientation but cannot observe shared world motion without an external reference.
+
+Accuracy, latency and stopping still need real-client measurements. Unit tests, Unity EditMode and browser images prove their respective boundaries, not Avatar upload, real Contacts/OSC, desktop/headset capture or mechanical behavior. [Parameter dictionary](osc-parameters.en.md) · [Workbench guide](guide.en.md)

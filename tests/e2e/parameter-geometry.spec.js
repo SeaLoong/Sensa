@@ -35,12 +35,14 @@ async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);
   await expect(page.locator('#scene')).toHaveValue(scenario);
   await page.locator('#reset').click();
+  await page.locator('#signal-simulation').evaluate(node => { node.open = false; });
   // Existing 2D contracts stay explicit when spatial scenes default to 3D.
   // 空间场景默认三维后，既有二维契约仍明确选择自身投影。
   await page.locator('#projection').selectOption(projection);
 }
 async function setRange(page, name, value) {
   const control = page.locator('#control-' + name);
+  if (['sample', 'ageMs', 'frame', 'valid'].includes(name)) await page.locator('#signal-simulation').evaluate(node => { node.open = true; });
   await expect(control).toBeVisible();
   // Set a precise geometry fixture through the native input event.
   // 通过原生输入事件设置精确几何；真实键盘交互另有独立断言。
@@ -423,10 +425,11 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
 
     await chooseScene(page, 'sensa-sps');
     await expect(page.locator('#values tr')).toHaveCount(5);
-    const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+    await expect(page.locator('#diagram [data-coverage-kind="contact-intersection"]')).toBeVisible();
+    const anchors = [[-.35, .65, -.35], [.35, .65, .35], [.35, 1.35, -.35], [-.35, 1.35, .35]];
     for (let i = 0; i < anchors.length; i++) {
       const [x, y, z] = anchors[i];
-      await nearCell(page, 'P' + i, 1 - (Math.hypot(.02 - x, 1 - y, .15 - z) - .001) / 2.5);
+      await nearCell(page, 'P' + i, 1 - (Math.hypot(.02 - x, 1 - y, .15 - z) - .001) / 2);
     }
     for (const [index, color] of anchorColors.entries()) {
       const rgb = 'rgb(' + color.slice(1).match(/../g).map(value => parseInt(value, 16)).join(', ') + ')';
@@ -455,10 +458,11 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await expect(page.locator('#diagram [data-shape-id^="sender-"]')).toHaveCount(0);
     await nearCell(page, 'Valid', 1);
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
-    await expect(page.locator('#bit-grid rect')).toHaveCount(128);
-    await setRange(page, 'x', -1.5); await setRange(page, 'y', -.5); await setRange(page, 'z', -1.5);
+    await expect(page.locator('#bit-grid rect')).toHaveCount(240);
+    await expect(page.locator('#bit-grid rect[data-edge="true"]')).toHaveCount(112);
+    await setRange(page, 'x', -2); await setRange(page, 'y', -1); await setRange(page, 'z', -2);
     await setRange(page, 'frame', 0);
-    const bitCells = await page.locator('#bit-grid rect').evaluateAll(cells => cells.map(cell => ({
+    const bitCells = await page.locator('#bit-grid rect[data-edge="false"]').evaluateAll(cells => cells.map(cell => ({
       byte: Number(cell.dataset.byte), bit: Number(cell.dataset.bit), value: Number(cell.dataset.value),
       x: Number(cell.getAttribute('x')), y: Number(cell.getAttribute('y')), fill: cell.getAttribute('fill'),
     })));
@@ -469,8 +473,8 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
       const bit = bytes[cell.byte] >> cell.bit & 1;
       expect(cell.value).toBe(bit);
       expect(cell.fill).toBe(bit ? '#fff' : '#182131');
-      expect(cell.x).toBe(cell.byte * 20);
-      expect(cell.y).toBe((7 - cell.bit) * 20);
+      expect(cell.x).toBe((cell.byte + 2) * 16);
+      expect(cell.y).toBe((9 - cell.bit) * 16);
     }
     await setRange(page, 'frame', 65535);
     await nearCell(page, 'Frame', 65535);
@@ -731,12 +735,15 @@ function expectSceneGeometry(snapshot, scenario) {
   for (const reference of references) expectReferenceMesh(snapshot, ...reference);
 }
 function expectSpsObjects(snapshot, point = { x: .02, y: 1, z: .15 }) {
-  const anchors = [[-.5, .5, -.5], [.5, .5, .5], [.5, 1.5, -.5], [-.5, 1.5, .5]];
+  const anchors = [[-.35, .65, -.35], [.35, .65, .35], [.35, 1.35, -.35], [-.35, 1.35, .35]];
   expect(snapshot.objects.filter(object => object.role === 'receiver')).toHaveLength(4);
+  expect(snapshot.coverage.id).toBe('detection-region');
+  expect(snapshot.coverage.visible).toBe(true);
+  expect(snapshot.coverage.material.color).toBe('#07806a');
   anchors.forEach(([x, y, z], index) => {
     const object = snapshot.objects.find(item => item.id === 'receiver-P' + index);
     expect(object.geometry.type).toBe('SphereGeometry');
-    expect(object.geometry.parameters.radius).toBe(2.5);
+    expect(object.geometry.parameters.radius).toBe(2);
     expect(object.material.color).toBe(anchorColors[index]);
     const marker = snapshot.markers.find(item => item.id === 'anchor-P' + index);
     expect(marker.material.color).toBe(anchorColors[index]);
@@ -825,8 +832,8 @@ async function dragTarget(page, plane, wanted) {
   expect((await uiGeometry(page)).xyz.map(Number)).toEqual(['x', 'y', 'z'].map(axis => expected[axis]));
   expect(maximumDifference(cameraVector(after.camera), cameraVector(before.camera))).toBeLessThan(1e-8);
   expectSpsObjects(after, expected);
-  for (const [index, anchor] of [[0, [-.5, .5, -.5]], [1, [.5, .5, .5]], [2, [.5, 1.5, -.5]], [3, [-.5, 1.5, .5]]]) {
-    const proximity = 1 - (Math.hypot(expected.x - anchor[0], expected.y - anchor[1], expected.z - anchor[2]) - .001) / 2.5;
+  for (const [index, anchor] of [[0, [-.35, .65, -.35]], [1, [.35, .65, .35]], [2, [.35, 1.35, -.35]], [3, [-.35, 1.35, .35]]]) {
+    const proximity = 1 - (Math.hypot(expected.x - anchor[0], expected.y - anchor[1], expected.z - anchor[2]) - .001) / 2;
     await nearCell(page, 'P' + index, Math.max(0, Math.min(1, proximity)));
   }
   return { plane, from, to, raw, expected, actual: after.markers.find(marker => marker.id === 'moving-root'),
@@ -1112,8 +1119,8 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       const moved = await threeSnapshot(page);
       expectSpsObjects(moved, { x: .2, y: 1.2, z: -.1 });
       expect(maximumDifference(cameraVector(moved.camera), cameraVector(reset.camera))).toBeLessThan(1e-8);
-      for (const [index, anchor] of [[0, [-.5, .5, -.5]], [1, [.5, .5, .5]], [2, [.5, 1.5, -.5]], [3, [-.5, 1.5, .5]]])
-        await nearCell(page, 'P' + index, 1 - (Math.hypot(.2 - anchor[0], 1.2 - anchor[1], -.1 - anchor[2]) - .001) / 2.5);
+      for (const [index, anchor] of [[0, [-.35, .65, -.35]], [1, [.35, .65, .35]], [2, [.35, 1.35, -.35]], [3, [-.35, 1.35, .35]]])
+        await nearCell(page, 'P' + index, 1 - (Math.hypot(.2 - anchor[0], 1.2 - anchor[1], -.1 - anchor[2]) - .001) / 2);
 
       const shownPixels = await canvasPixels(page);
       await page.locator('#show-receivers').uncheck();
@@ -1157,7 +1164,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       await readyOrbit(page, 'shader');
       await setRange(page, 'x', .25); await setRange(page, 'y', 1.25); await setRange(page, 'z', -.25);
       const shader = await threeSnapshot(page);
-      const decoded = { x: 38229 / 65535 * 3 - 1.5, y: 1 + 38229 / 65535 * 3 - 1.5, z: 27306 / 65535 * 3 - 1.5 };
+      const decoded = { x: 36863 / 65535 * 4 - 2, y: 1 + 36863 / 65535 * 4 - 2, z: 28672 / 65535 * 4 - 2 };
       expectWorldPosition(shader.markers.find(marker => marker.id === 'moving-root'), { x: .25, y: 1.25, z: -.25 });
       expectWorldPosition(shader.markers.find(marker => marker.id === 'decoded-root'), decoded);
       for (const axis of ['X', 'Y', 'Z']) await nearCell(page, axis, decoded[axis.toLowerCase()]);
@@ -1259,7 +1266,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       await expect(page.locator('#three-scene canvas')).toHaveCount(0);
       expect((await threeLifecycle(page)).live).toBe(0);
       await setRange(page, 'z', .25);
-      await nearCell(page, 'P0', 1 - (Math.hypot(.02 + .5, 1 - .5, .25 + .5) - .001) / 2.5);
+      await nearCell(page, 'P0', 1 - (Math.hypot(.02 + .35, 1 - .65, .25 + .35) - .001) / 2);
       await finiteDrawing(page); await documentFits(page);
       const lost = await threeLifecycle(page);
 
@@ -1280,7 +1287,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
         await expect(unavailable.locator('#three-scene')).toHaveAttribute('data-render-state', 'fallback');
         await expect(unavailable.locator('#three-scene canvas')).toHaveCount(0);
         await expect(unavailable.locator('#diagram')).toBeVisible();
-        await setRange(unavailable, 'x', .25); await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
+        await setRange(unavailable, 'x', .25); await nearCell(unavailable, 'X', 36863 / 65535 * 4 - 2);
         await unavailable.locator('#locale').selectOption('zh-CN');
         await expect(unavailable.locator('#three-fallback')).toHaveText('本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。');
         await expect(unavailable.locator('#control-x')).toHaveValue('0.25');
@@ -1292,10 +1299,10 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
         await expect(unavailable.locator('#projection')).toBeEnabled();
         await unavailable.locator('#projection').selectOption('xz');
         await expect(unavailable.locator('#projection')).toHaveValue('xz');
-        await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
+        await nearCell(unavailable, 'X', 36863 / 65535 * 4 - 2);
         await unavailable.locator('#projection').selectOption('iso');
         await expect(unavailable.locator('#projection')).toHaveValue('iso');
-        await nearCell(unavailable, 'X', 38229 / 65535 * 3 - 1.5);
+        await nearCell(unavailable, 'X', 36863 / 65535 * 4 - 2);
         await finiteDrawing(unavailable); await documentFits(unavailable);
         await info.attach('parameter-geometry-webgl-fallback.json', { body: JSON.stringify({
           lost, unavailable: await threeLifecycle(unavailable), locale: await unavailable.locator('html').getAttribute('lang'),

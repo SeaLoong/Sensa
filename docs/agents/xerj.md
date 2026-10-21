@@ -29,7 +29,7 @@ The node uses the offline lexical embedder. Its semantic tools use feature hashi
 
 Install a native binary from the [official XERJ releases](https://github.com/xerj-org/xerj/releases). The verified Windows setup uses `v1.0.0-rc.96`: download the archive for your CPU and its `.sha256` companion, compare with `Get-FileHash -Algorithm SHA256`, then extract it. See the [upstream installation guide](https://xerj.org/docs/install) for other platforms.
 
-Copy the [portable MCP template](../../.codex/config.toml.example) to the ignored `.codex/config.toml`, preserving other servers when merging an existing configuration. [Codex project MCP configuration](https://developers.openai.com/codex/mcp/) loads for trusted projects.
+Copy the [portable MCP template](examples/codex-config.toml) to `.codex/config.toml` (create the local directory if needed), preserving other servers when merging an existing configuration. The entire `.codex/` directory is ignored; only the portable example under `docs/agents/examples/` is tracked. [Codex project MCP configuration](https://developers.openai.com/codex/mcp/) loads for trusted projects.
 
 The template invokes `python` from PATH and discovers the checkout from the session's current directory or its ancestors, so it also works from a subdirectory. Keep machine paths out of configuration and examples. The launcher discovers `xerj` on PATH, in `.codex/bin/`, or in supported user-local installation locations computed at runtime, including the verified Windows release archive layout. An optional `XERJ_BIN` environment variable can name a command or a repository-relative executable; user-local environment values are supplied at runtime.
 

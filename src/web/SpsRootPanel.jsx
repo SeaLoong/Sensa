@@ -100,9 +100,10 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
   return (
     <div className="stack" id="sensa-spatial-root" tabIndex={-1}>
       <h3>{t('根点坐标与校准')}</h3>
+      <p className="muted">{t('查看测量点相对参考对象的位置，再把移动范围转换为 0%–100% 动作。Avatar 根局部坐标以 Avatar 为参考，随 Avatar 一起移动，不是世界坐标。')}</p>
       {!root ? (
         <Notice>
-          {t('等待阵列采样')}
+          {t('尚未收到位置数据，请先完成 Unity 定位设置，并检查 OSC 接收或 Shader 桥接程序。')}
           {selected && (
             <Button
               onClick={() => {
@@ -142,8 +143,8 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
                   t('局部 X / Y / Z'),
                   root.valid ? withUnit(`${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)}`) : '—',
                 ],
-                [t('拟合残差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
-                [t('姿态 / 插入比例'), t('不可观测')],
+                [t('距离拟合误差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
+                [t('朝向与插入比例'), t('单个点无法确定')],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -156,7 +157,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
             <details>
               <summary>{t('两点量程校准')}</summary>
               <div className="stack">
-                <p className="muted">{t('分别采集 0% 与 100% 位置；PB 把手需保持抓取。')}</p>
+                <p className="muted">{t('先选移动方向，把测量点移到动作起点并采集 0%，再移到终点并采集 100%。PB 把手在采集时需保持抓取。')}</p>
                 <SelectField
                   label={t('测量轴')}
                   value={metric}
@@ -205,11 +206,11 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
               </div>
             </details>
           ) : (
-            <p className="muted">{t('此目标仅供诊断。选择有专用根标记与有效配置的自身目标后才能校准。')}</p>
+            <p className="muted">{t('当前对象只能查看数据。请选择已配置专用根部标记、且坐标有效的自身对象来校准动作。')}</p>
           )}
         </>
       )}
-      <p className="caption muted">{t('已知接收器几何与一致的距离模型才支持求解单个点；点位置不能确定完整姿态。')}</p>
+      <p className="caption muted">{t('位置有效仅表示当前数据可用于计算。距离拟合误差越小，各路测量越一致，但不等于实际定位越准确；一个点也无法判断朝向。')}</p>
     </div>
   );
 }

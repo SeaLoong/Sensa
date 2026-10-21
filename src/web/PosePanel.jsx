@@ -58,7 +58,7 @@ function PosePlot({ pose, projection }) {
             <g key={label}>
               <circle cx={position[0]} cy={position[1]} r="4" fill={color} />
               <text x={position[0] + 7} y={position[1] - 8} fontSize="11" fill={color}>
-                {label}
+                {label === 'Root' ? t('根部') : label === 'Tip' ? t('尖端') : t('侧面')}
               </text>
             </g>
           ))}
@@ -71,7 +71,7 @@ function PosePlot({ pose, projection }) {
         </text>
       )}
       <text x="12" y="245" fontSize="11" fill="#526177">
-        {t('每小格 5 cm · Socket 局部坐标')}
+        {t('每小格 5 cm · 以接收端孔口为参考')}
       </text>
     </svg>
   );
@@ -86,10 +86,10 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
   return (
     <div className="stack">
       <h3>{t('三点姿态（实验）')}</h3>
-      <p className="muted">{t('需要双方匹配的 Root、Tip、Side 标记。普通 OGB 距离信号不能还原完整位置和姿态。')}</p>
+      <p className="muted">{t('在发送端设置根部、尖端和侧面三个标记，在接收端安装配套测量组，才能计算位置和朝向；普通 OGB 距离信号不包含这些信息。')}</p>
       {!pose ? (
         <Notice>
-          {t('等待配套定位阵列')}
+          {t('尚未收到三点定位数据，请检查双方的 Unity 设置和 OSC 接收。')}
           {selected && <Button onClick={() => setSelected('')}>{t('重新选择')}</Button>}
         </Notice>
       ) : (
@@ -127,7 +127,7 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
                 ],
                 [t('偏航 / 俯仰'), pose.valid ? `${number(pose.yaw)}° / ${number(pose.pitch)}°` : '—'],
                 [t('扭转'), pose.valid ? `${number(pose.roll)}°` : '—'],
-                [t('最大拟合残差'), `${number(pose.residual * 1000, 2)} mm`],
+                [t('最大拟合误差'), `${number(pose.residual * 1000, 2)} mm`],
               ].map(([label, value]) => (
                 <div key={label}>
                   <dt>{label}</dt>
@@ -144,7 +144,7 @@ export default function PosePanel({ observations = [], activeKey, onUseRig }) {
               {t('生成六轴草稿')}
             </Button>
           </div>
-          <p className="caption muted">{t('替换整套草稿；残差只反映拟合一致性，不代表实际精度。')}</p>
+          <p className="caption muted">{t('生成后会替换整套映射草稿，保存后才生效。拟合误差表示各路距离是否相互吻合，不能当作实际定位精度。')}</p>
         </>
       )}
     </div>

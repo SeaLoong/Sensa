@@ -100,6 +100,18 @@ class LocalVerificationTests(unittest.TestCase):
                 self.assertTrue(self.run_plan([name]))
                 self.assertEqual(self.commands, [])
 
+    def test_shared_fixed_geometry_changes_invalidate_backend_receipt(self):
+        protocol = 'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs'
+        self.write(protocol, 'const float ReceiverRadius = 2.5f;')
+        self.assertTrue(self.run_plan([protocol]))
+        self.assertTrue(self.receipt('backend').is_file())
+        self.commands.clear()
+        self.assertTrue(self.run_plan([protocol]))
+        self.assertEqual(self.commands, [])
+        self.write(protocol, 'const float ReceiverRadius = 2f;')
+        self.assertTrue(self.run_plan([protocol]))
+        self.assertTrue(any('dotnet' in command[0] for command in self.commands))
+
     def test_force_repeats_success_but_failure_removes_receipt_and_stops_lane(self):
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.commands.clear()
@@ -135,7 +147,7 @@ class LocalVerificationTests(unittest.TestCase):
 
     def test_documentation_lane_rechecks_privacy_inputs_and_removes_failed_receipts(self):
         self.write('README.md', 'portable documentation')
-        self.write('.codex/config.toml.example', 'portable')
+        self.write('docs/agents/examples/codex-config.toml', 'portable')
         self.assertTrue(self.run_plan(['README.md']))
         self.assertEqual({command[-1] for command in self.commands},
                          {'test_bilingual_docs.py', 'test_tool_paths.py'})
@@ -143,7 +155,7 @@ class LocalVerificationTests(unittest.TestCase):
         self.assertTrue(self.run_plan(['README.md']))
         self.assertEqual(self.commands, [])
 
-        self.write('.codex/config.toml.example', 'invalid private location')
+        self.write('docs/agents/examples/codex-config.toml', 'invalid private location')
         calls = []
         def privacy_runner(command, root):
             calls.append(command)

@@ -20,6 +20,8 @@ namespace UnityBox.Sensa.Tests
             Assert.That(contacts.Select(contact => contact.parameter).Distinct().Count(), Is.EqualTo(24));
             Assert.IsTrue(contacts.All(contact => contact.parameter.StartsWith("Sensa/Pose/v1/", StringComparison.Ordinal)));
             Assert.That(contacts.All(contact => contact.localOnly && contact.allowOthers && !contact.allowSelf), Is.True);
+            Assert.That(contacts.All(contact => contact.radius == 2f), Is.True);
+            Assert.That(contacts.All(contact => Mathf.Abs(contact.transform.localPosition.x) == .35f), Is.True);
             var parameters = instance.GetComponent<ModularAvatarParameters>().parameters;
             Assert.That(parameters.All(parameter => parameter.syncType == ParameterSyncType.Float && parameter.localOnly), Is.True);
             Assert.That(instance.GetComponent<SensaPoseSocket>(), Is.Null);
@@ -104,6 +106,15 @@ namespace UnityBox.Sensa.Tests
             SensaPoseBuilder.ProcessAvatar(instance);
             Assert.That(instance.GetComponent<SensaPoseSocket>(), Is.Null);
             Assert.That(instance.GetComponentsInChildren<VRCContactReceiver>(), Is.Empty);
+        }
+
+        [Test]
+        public void ReceiverScaleLimitFailsBeforeAddingContacts()
+        {
+            var instance = Prefab("SensaPoseSocket");
+            instance.transform.localScale = Vector3.one * 1.6f;
+            Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(instance));
+            Assert.IsEmpty(instance.GetComponentsInChildren<VRCContactReceiver>());
         }
 
         [Test]

@@ -26,10 +26,10 @@ For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Fixe
 
 | Point | AvatarRootLocal |
 | --- | --- |
-| P0 | (−0.5, 0.5, −0.5) |
-| P1 | (0.5, 0.5, 0.5) |
-| P2 | (0.5, 1.5, −0.5) |
-| P3 | (−0.5, 1.5, 0.5) |
+| P0 | (−0.35, 0.65, −0.35) |
+| P1 | (0.35, 0.65, 0.35) |
+| P2 | (0.35, 1.35, −0.35) |
+| P3 | (−0.35, 1.35, 0.35) |
 
 Receiver radius is 2.5, marker radius 0.001. Anchors and marker share the Avatar-root scale; ParentConstraint follows the selected root's position/rotation without inheriting target-bone scale. Only the dedicated Self tag is received.
 

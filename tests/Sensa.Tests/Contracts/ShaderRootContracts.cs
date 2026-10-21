@@ -53,8 +53,11 @@ public sealed class ShaderRootContracts
     [InlineData("Valid", 0)]
     [InlineData("Frame", 1.5f)]
     [InlineData("Frame", 65536)]
-    [InlineData("X", 2)]
-    [InlineData("Y", 3)]
+    [InlineData("X", 2.001f)]
+    [InlineData("X", -2.001f)]
+    [InlineData("Y", 3.001f)]
+    [InlineData("Y", -1.001f)]
+    [InlineData("Z", 2.001f)]
     [InlineData("Z", float.NaN)]
     public void Invalid_fields_never_enable_mapping(string field, float value)
     {
@@ -62,6 +65,18 @@ public sealed class ShaderRootContracts
         Packet(rig, valid: field == "Valid" ? value : 1, frame: field == "Frame" ? value : 1,
             x: field == "X" ? value : .2f, y: field == "Y" ? value : 1.1f, z: field == "Z" ? value : .1f);
         Assert.False(Observe(rig).Valid);
+    }
+
+    [Theory]
+    [InlineData(-2, -1, -2)]
+    [InlineData(2, 3, 2)]
+    public void Current_two_metre_encoding_boundaries_are_valid(float x, float y, float z)
+    {
+        using var rig = new MotionRig();
+        Packet(rig, x: x, y: y, z: z);
+        var point = Observe(rig);
+        Assert.True(point.Valid, point.Reason);
+        Assert.Equal(new PosePoint(x, y, z), point.Position);
     }
 
     [Theory]

@@ -8,9 +8,15 @@ namespace UnityBox.Sensa
         // Regular tetrahedron, fixed-radius local sender. Used by all local point and PB probes.
         public static int PointAnchorIndex(int index) => index == 0 ? 0 : index == 1 ? 3 : index == 2 ? 5 : 6;
         public const string Prefix = "Sensa/Pose/v1";
-        public const float AnchorHalfSpan = 0.06f;
-        public const float ReceiverRadius = 0.35f;
+        public const float AnchorHalfSpan = 0.35f;
+        public const float ReceiverRadius = 2f;
         public const float MarkerRadius = 0.001f;
+        public const float MinimumProximity = .00001f;
+        public const float MaximumProximity = .99999f;
+        // A conservative outer fit radius; tiny saturated regions around anchors remain excluded.
+        // Scale anchor spacing with receiver range to preserve directional conditioning.
+        public const float PositionRadius = ReceiverRadius * (1f - MinimumProximity) + MarkerRadius
+            - 1.7320508f * AnchorHalfSpan - .001f;
         public const float ApertureRadius = 0.04f;
         public const float MaximumTiltDegrees = 65f;
         public const float MaximumFitResidual = 0.002f;

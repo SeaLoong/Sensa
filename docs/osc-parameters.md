@@ -71,14 +71,14 @@ Sample 的寿命按**值最后变化时间 ChangedAt**计算，正常运行时**
 
 ### 固定几何、距离公式与范围
 
-所有坐标与半径均为 **Avatar 根局部单位**：中心 c=(0,1,0)，半跨度 h=0.5，Receiver 半径 R=2.5，标记半径 r=0.001。
+所有坐标与半径均为 **Avatar 根局部单位**：中心 c=(0,1,0)，半跨度 h=0.35，Receiver 半径 R=2，标记半径 r=0.001。
 
 | 锚点 | 局部坐标 |
 | --- | --- |
-| P0 | (-0.5, 0.5, -0.5) |
-| P1 | (0.5, 0.5, 0.5) |
-| P2 | (0.5, 1.5, -0.5) |
-| P3 | (-0.5, 1.5, 0.5) |
+| P0 | (-0.35, 0.65, -0.35) |
+| P1 | (0.35, 0.65, 0.35) |
+| P2 | (0.35, 1.35, -0.35) |
+| P3 | (-0.35, 1.35, 0.35) |
 
 球形 Sender 与 Receiver 的未饱和近接模型及反算为：
 
@@ -87,16 +87,16 @@ p = clamp(1 - max(0, d - r) / R, 0, 1)
 d = R × (1 - p) + r
 ```
 
-d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-1.5,1.5]、Y=[-0.5,2.5] 内；残差小只表示该模型自洽，不是精度或身份认证。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-2,2]、Y=[-1,3] 内；残差小只表示该模型自洽，不是精度或身份认证。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-可用空间是**四个球形覆盖区的交集**再扣除饱和区与边界，不是整个显示立方体。以 c 为中心、半径约 `2.5 - √3×0.5 ≈ 1.63` 的球只是四球交集的几何内接参考，不是保证可测球；p 阈值、饱和孔和数值边界进一步缩小有效区域。上限 p<0.999 要求 d>0.0035，故每个锚点附近约 **0.0035 局部单位**（以局部米计为 3.5 mm）的区域被排除；下限 p>0.001 对应 d<2.4985。不能把这些局部长度直接当成任何 Avatar 的世界米数。
+可用空间是**四个球形覆盖区的交集**再扣除饱和区与边界，不是整个显示立方体。以 c 为中心、半径约 `2 - √3×0.35 ≈ 1.394` 的球只是四球交集的几何内接参考，不是保证可测球；p 阈值、饱和孔和数值边界进一步缩小有效区域。上限 p<0.999 要求 d>0.003，故每个锚点附近约 **0.003 局部单位**（以局部米计为 3 mm）的区域被排除；下限 p>0.001 对应 d<1.999。不能把这些局部长度直接当成任何 Avatar 的世界米数。
 
 ### 缩放、采样与菜单控制的边界
 
-设作者 Avatar 根的均匀世界缩放为 s_author，VRChat 的缩放因子为 ScaleFactor，则 Receiver 世界半径为 `2.5 × s_author × ScaleFactor`。官方 Contact 半径上限为缩放后的 3 m；生产端预留 0.001 m，使用：
+设作者 Avatar 根的均匀世界缩放为 s_author，VRChat 的缩放因子为 ScaleFactor，则 Receiver 世界半径为 `2 × s_author × ScaleFactor`。官方 Contact 半径上限为缩放后的 3 m；生产端预留 0.001 m，使用：
 
 ```text
-maxScale = (3 - 0.001) / (2.5 × s_author)
+maxScale = (3 - 0.001) / (2 × s_author)
 ```
 
 超出门限时停用 Contact、清零公开采样并写 Sample=0；构建时拒绝不受支持的非均匀 Avatar 根缩放、根 ScaleConstraint 与根缩放动画。目标骨骼可以缩放，专用标记只跟随根中心，不把目标缩放带入已知球半径。s_author=1 且 ScaleFactor=1 时一个局部单位才等于一世界米。[门控实现](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)、[VRChat 缩放后限制](https://creators.vrchat.com/common-components/contacts/)
@@ -107,7 +107,7 @@ RawP0–RawP3 仅供内部 FX 采样，不注册为公开 Expression 参数；Sc
 
 ## Shader：直接根坐标与传输活性
 
-原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。**它不使用 Contact，没有触发半径**；其范围是编码立方体 X/Z=[-1.5,1.5]、Y=[-0.5,2.5]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。**它不使用 Contact，没有触发半径**；其范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### 五个公开测量参数
 
@@ -118,9 +118,9 @@ Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=�
 | 叶子 | 含义与有效条件 |
 | --- | --- |
 | `Frame` | 0…65535 的整数，名义按 60 Hz 时间步生成并按 16 位回绕；约 18.2 分钟绕回一次 |
-| `X` | 根中心局部 X，有限且位于 [-1.5,1.5] |
-| `Y` | 根中心局部 Y，有限且位于 [-0.5,2.5] |
-| `Z` | 根中心局部 Z，有限且位于 [-1.5,1.5] |
+| `X` | 根中心局部 X，有限且位于 [-2,2] |
+| `Y` | 根中心局部 Y，有限且位于 [-1,3] |
+| `Z` | 根中心局部 Z，有限且位于 [-2,2] |
 | `Valid` | 1 提交本次有效包；0 使根坐标立即失效 |
 
 有效包按 **Frame → X → Y → Z → Valid=1** 的顺序发送，Valid 最后提交。失效只发 Valid=0，不重发旧 XYZ。桌面要求同一 OSC 来源、同一完整 Producer 路径下五字段连续接收；别的来源不会打断本来源的序列，插入本来源的其他消息则不能冒充完整坐标包。Frame 的 ChangedAt 寿命最多 500 ms，并与更短的正数配置超时取较小值；相同 Frame 持续重发也会过期。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
@@ -129,7 +129,7 @@ Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=�
 
 ### 量化、精简字段与必要的二进制元数据
 
-每轴长度 3 的区间使用 16 位无符号量化，步长 `3/65535 ≈ 4.58×10⁻⁵` 局部单位；理想舍入的单轴半步约 `2.29×10⁻⁵`，三轴合成量化误差上限约 `3.96×10⁻⁵`。这些只是编码量化界，**不是实际定位精度承诺**；蒙皮／坐标框计算、渲染合成、捕获与帧延迟仍需单独验收。Shader 的 [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 在恰好半整数时取最近偶数；图解遵循此舍入规则，但不模拟 GPU 的全部单精度中间运算。
+每轴长度 4 的区间使用 16 位无符号量化，步长 `4/65535 ≈ 6.10×10⁻⁵` 局部单位；理想舍入的单轴半步约 `3.05×10⁻⁵`，三轴合成量化误差上限约 `5.29×10⁻⁵`。这些只是编码量化界，**不是实际定位精度承诺**；蒙皮／坐标框计算、渲染合成、捕获与帧延迟仍需单独验收。Shader 的 [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 在恰好半整数时取最近偶数；图解遵循此舍入规则，但不模拟 GPU 的全部单精度中间运算。
 
 OSC 中不再重复 Producer 或 Profile：Producer 已在路径中，`Sensa/Shader` 已固定 AvatarRootLocal 与范围。二进制图案仍保留 Producer ID、有效／原生坐标标志、CRC 与 Frame，以便在解释路径前区分来源、拒绝损坏和冻结；二进制编码标记也不是 OSC 路径版本。ID 只是显式配对值，不是 Avatar 所有者认证。没有额外 PositionXYZ 参数，也没有默认滤波或独立“检测半径”选项。
 

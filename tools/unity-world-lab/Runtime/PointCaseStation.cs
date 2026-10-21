@@ -1,4 +1,5 @@
 using UdonSharp;
+using UnityBox.Sensa;
 using UnityEngine;
 using UnityEngine.UI;
 using VRC.SDK3.Dynamics.Contact.Components;
@@ -50,19 +51,19 @@ namespace SensaLab
                 samples[i]=i==missingLane?-1:receivers[i].CalculateProximity(sender);
                 if(sampleBars!=null && sampleBars.Length==4)sampleBars[i].rectTransform.sizeDelta=new Vector2(650*Mathf.Clamp01(samples[i]),14);
                 values+="<color="+colors[i]+">P"+(i+1)+"="+(samples[i]<0?"MISSING":samples[i].ToString("F3"))+"</color>  ";
-                if(samples[i]<=.00001f || samples[i]>=.99999f)decodedValid=false;
-                float distance=.35f*(1-samples[i])+.001f;
+                if(samples[i]<=SensaPoseProtocol.MinimumProximity || samples[i]>=SensaPoseProtocol.MaximumProximity)decodedValid=false;
+                float distance=SensaPoseProtocol.ReceiverRadius*(1-samples[i])+SensaPoseProtocol.MarkerRadius;
                 decodedPosition-=receivers[i].transform.localPosition*distance*distance;
             }
-            decodedPosition/=8*.06f*.06f;
+            decodedPosition/=8*SensaPoseProtocol.AnchorHalfSpan*SensaPoseProtocol.AnchorHalfSpan;
             bool samplesUsable=decodedValid;
             for(int i=0;i<4;i++){
-                float distance=.35f*(1-samples[i])+.001f;
+                float distance=SensaPoseProtocol.ReceiverRadius*(1-samples[i])+SensaPoseProtocol.MarkerRadius;
                 float error=Vector3.Distance(decodedPosition,receivers[i].transform.localPosition)-distance;
                 residual+=error*error;
             }
             residual=Mathf.Sqrt(residual/4);
-            decodedValid=decodedValid && residual<=.002f && decodedPosition.magnitude<=.245f;
+            decodedValid=decodedValid && residual<=SensaPoseProtocol.MaximumFitResidual && decodedPosition.magnitude<=SensaPoseProtocol.PositionRadius;
             if(positionLine!=null){positionLine.SetPosition(0,reference.position);positionLine.SetPosition(1,sender.transform.position);positionLine.startColor=positionLine.endColor=decodedValid?Color.green:Color.red;}
             bool atHome=Vector3.Distance(sender.transform.localPosition,home)<.001f && missingLane==homeMissingLane;
             status.text=caseName+"\n"+expectation+"\nSDK "+values+"\nTruth "+reference.InverseTransformPoint(sender.transform.position).ToString("F3")

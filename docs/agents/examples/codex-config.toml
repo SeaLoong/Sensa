@@ -1,4 +1,5 @@
-# Copy this file to config.toml in this directory for a trusted Sensa checkout.
+# Copy this example to .codex/config.toml inside a trusted Sensa checkout.
+# The entire .codex directory is local and excluded from Git.
 [mcp_servers.xerj-sensa]
 command = 'python'
 env_vars = ['XERJ_BIN']

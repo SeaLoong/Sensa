@@ -53,7 +53,12 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             SensaInspectorLabels.Draw(serializedObject);
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Select a reference frame and local bone; no manual probe placement. Each tetrahedron uses 4 Receivers + 1 Sender. Optional PB handles export grab and Stretch. Constraints and PhysBone act on separate objects. Approximate range: 24 local cm. Does not measure GPU-deformed meshes."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Choose the reference frame and bone to track. Sensa creates four 2 m receivers and one small marker automatically. The green scene-view slices show the usable tracking area, about 1.39 m from the frame origin; tiny orange saturation zones are excluded. Optional grab handles also report grabbing and stretching. This tracks the bone, not Shader-deformed mesh vertices."), MessageType.Info);
+        }
+        private void OnSceneGUI()
+        {
+            var probe = (SensaPointProbe)target;
+            SensaCoverageGizmos.Pose(probe.reference != null ? probe.reference : probe.transform, true);
         }
     }
 }

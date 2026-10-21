@@ -10,11 +10,12 @@
     'socket-modern', 'socket-legacy', 'socket-touch', 'socket-frot',
     'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'sensa-sps', 'shader',
   ]);
+  const spsGeometry = Object.freeze({ receiverRadius: 2, markerRadius: .001, anchorHalfSpan: .35, positionHalfRange: 2, minProximity: .001, maxProximity: .999 });
   const anchors = Object.freeze([
-    Object.freeze({ x: -.5, y: .5, z: -.5 }),
-    Object.freeze({ x: .5, y: .5, z: .5 }),
-    Object.freeze({ x: .5, y: 1.5, z: -.5 }),
-    Object.freeze({ x: -.5, y: 1.5, z: .5 }),
+    Object.freeze({ x: -.35, y: .65, z: -.35 }),
+    Object.freeze({ x: .35, y: .65, z: .35 }),
+    Object.freeze({ x: .35, y: 1.35, z: -.35 }),
+    Object.freeze({ x: -.35, y: 1.35, z: .35 }),
   ]);
   // Stable identities across spheres, markers and parameter rows. / 球、标记与参数行共用固定身份色。
   const anchorColors = Object.freeze(['#0052d9', '#07806a', '#8b46c6', '#c63e58']);
@@ -58,6 +59,15 @@
     const lower = Math.floor(value), fraction = value - lower;
     if (fraction === .5) return lower % 2 === 0 ? lower : lower + 1;
     return Math.round(value);
+  }
+  function encodedBit(bytes, column, row) {
+    // Native grid origin is bottom-left; two edge modules locate the central 16×8 payload.
+    // 原生图块以左下为原点；两格边缘定位中央 16×8 数据区。
+    if (row < 2) return (0xD3A6B >> column & 1) ^ row;
+    if (row >= 10) return (0x69C57 >> column & 1) ^ (row - 10);
+    if (column < 2) return (0xA5 >> (row - 2) & 1) ^ column;
+    if (column >= 18) return (0x6E >> (row - 2) & 1) ^ (column - 18);
+    return bytes[column - 2] >> (row - 2) & 1;
   }
   function number(input, name, fallback, minimum = -Infinity, exclusive = false) {
     const value = input[name] ?? fallback;
@@ -114,20 +124,68 @@
       separation: axisDistance - receiver.radius - sender.radius };
   }
   function fitSps(proximity) {
-    if (proximity.some(p => p <= .001 || p >= .999)) {
+    if (proximity.some(p => p <= spsGeometry.minProximity || p >= spsGeometry.maxProximity)) {
       return { fitValid: false, coverageReason: 'proximity-boundary', fittedPosition: null, residual: null };
     }
     const center = { x: 0, y: 1, z: 0 };
-    const distances = proximity.map(p => 2.5 * (1 - p) + .001);
+    const distances = proximity.map(p => spsGeometry.receiverRadius * (1 - p) + spsGeometry.markerRadius);
     let offset = origin();
-    anchors.forEach((anchor, i) => { offset = add(offset, mul(sub(anchor, center), -(distances[i] ** 2) / 2)); });
+    anchors.forEach((anchor, i) => { offset = add(offset, mul(sub(anchor, center), -(distances[i] ** 2) / (8 * spsGeometry.anchorHalfSpan ** 2))); });
     const position = add(center, offset);
     const residual = Math.sqrt(distances.reduce((sum, d, i) =>
       sum + (length(sub(position, anchors[i])) - d) ** 2, 0) / 4);
-    const bounded = Math.abs(offset.x) <= 1.5 && Math.abs(offset.y) <= 1.5 && Math.abs(offset.z) <= 1.5;
+    const bounded = Math.abs(offset.x) <= spsGeometry.positionHalfRange && Math.abs(offset.y) <= spsGeometry.positionHalfRange && Math.abs(offset.z) <= spsGeometry.positionHalfRange;
     const fitValid = bounded && residual <= .01;
     return { fitValid, coverageReason: !bounded ? 'outside-coordinate-cube' : residual > .01 ? 'fit-residual' : 'ok',
       fittedPosition: fitValid ? position : null, residual };
+  }
+  function coverageContains(point, scenario = 'sensa-sps') {
+    if (!['x', 'y', 'z'].every(key => Number.isFinite(point[key]))) return false;
+    const half = spsGeometry.positionHalfRange;
+    if (Math.abs(point.x) > half || Math.abs(point.y - 1) > half || Math.abs(point.z) > half) return false;
+    if (scenario === 'shader') return true;
+    const near = spsGeometry.receiverRadius * (1 - spsGeometry.maxProximity) + spsGeometry.markerRadius;
+    const far = spsGeometry.receiverRadius * (1 - spsGeometry.minProximity) + spsGeometry.markerRadius;
+    return anchors.every(anchor => { const distance = length(sub(point, anchor)); return distance > near && distance < far; });
+  }
+  function coverageRadius(direction, y = 1, slice = false) {
+    const half = spsGeometry.positionHalfRange, center = { x: 0, y, z: 0 };
+    if (Math.abs(y - 1) > half) return null;
+    let radius = Infinity;
+    for (const key of ['x', 'y', 'z']) if (direction[key] !== 0) {
+      const boundary = key === 'y' ? 1 + Math.sign(direction[key]) * half : Math.sign(direction[key]) * half;
+      radius = Math.min(radius, (boundary - center[key]) / direction[key]);
+    }
+    const far = spsGeometry.receiverRadius * (1 - spsGeometry.minProximity) + spsGeometry.markerRadius;
+    for (const anchor of anchors) {
+      const delta = sub(center, anchor), along = dot(delta, direction), discriminant = along * along + far * far - dot(delta, delta);
+      if (discriminant < 0) return null;
+      radius = Math.min(radius, -along + Math.sqrt(discriminant));
+    }
+    // A high/low slice can be empty even though a ray intersects an individual sphere.
+    if (slice && !anchors.every(anchor => length(sub(center, anchor)) < far)) return null;
+    return radius > 0 ? radius : null;
+  }
+  function coverageFor(point, scenario) {
+    const isSps = scenario === 'sensa-sps', center = { x: 0, y: 1, z: 0 }, half = spsGeometry.positionHalfRange;
+    const near = spsGeometry.receiverRadius * (1 - spsGeometry.maxProximity) + spsGeometry.markerRadius;
+    const far = spsGeometry.receiverRadius * (1 - spsGeometry.minProximity) + spsGeometry.markerRadius;
+    const slice = [];
+    if (Math.abs(point.y - 1) <= half) for (let index = 0; index < 128; index++) {
+      const angle = index * Math.PI / 64, direction = { x: Math.cos(angle), y: 0, z: Math.sin(angle) };
+      const radius = isSps ? coverageRadius(direction, point.y, true) : half / Math.max(Math.abs(direction.x), Math.abs(direction.z));
+      if (radius === null) break;
+      slice.push(add({ x: 0, y: point.y, z: 0 }, mul(direction, radius)));
+    }
+    const holes = isSps ? anchors.flatMap(anchor => {
+      const squared = near * near - (point.y - anchor.y) ** 2;
+      return squared > 0 ? [{ center: { x: anchor.x, y: point.y, z: anchor.z }, radius: Math.sqrt(squared) }] : [];
+    }) : [];
+    return { kind: isSps ? 'contact-intersection' : 'encoding-cube', center, halfRange: half,
+      receiverRadius: isSps ? spsGeometry.receiverRadius : null,
+      nearDistance: isSps ? near : null, farDistance: isSps ? far : null,
+      containsTarget: coverageContains(point, scenario), sliceY: point.y, slice, holes,
+      exclusions: isSps ? anchors.map(anchor => ({ center: { ...anchor }, radius: near })) : [] };
   }
   function evaluate(input = {}) {
     const scenario = input.scenario ?? 'socket-modern';
@@ -158,7 +216,7 @@
     const assumptions = [
       { id: 'illustration', zh: '单一匹配 Sender 的几何示意，不是实测或 VRChat 运行时仿真。', en: 'One matching Sender: geometry illustration, not a measurement or VRChat runtime simulation.' },
       { id: 'scale', zh: 'OGB 假定构建缩放为 1，以米示意；Sensa 空间量使用根局部单位，不推断动态缩放。', en: 'OGB assumes build scale 1 with metre illustrations; Sensa spatial values use root-local units. Dynamic scaling is not inferred.' },
-      { id: 'projection', zh: '数值按完整 XYZ 算距离；XZ 图只作投影，不是 Y 切片。', en: 'Values use full XYZ distances. The XZ drawing is a projection, not a Y slice.' },
+      { id: 'projection', zh: ['sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；在二维图中，接收球轮廓是投影，绿色区域表示所选 Y 高度的切片。' : '数值按完整 XYZ 算距离；XZ 图只作投影，不是 Y 切片。', en: ['sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. In the 2D view, receiver outlines are projections; green shows a slice at the selected Y.' : 'Values use full XYZ distances. The XZ drawing is a projection, not a Y slice.' },
       { id: 'caps', zh: '胶囊高度包含端帽；恰好相切的 Constant 边界不作客户端时序承诺。', en: 'Capsule height includes caps. Exact Constant tangency is not a client timing guarantee.' },
     ];
     const put = shape => { shapes.push(shape); return shape; };
@@ -243,7 +301,7 @@
       points.root = { ...point }; points.frameCenter = { x: 0, y: 1, z: 0 };
       const sender = put(sphere('sender-marker', 'sender', point, .001, 'DedicatedSelf'));
       anchors.forEach((anchor, index) => {
-        field('P' + index, put(sphere('receiver-P' + index, 'receiver', anchor, 2.5, 'DedicatedSelf')),
+        field('P' + index, put(sphere('receiver-P' + index, 'receiver', anchor, spsGeometry.receiverRadius, 'DedicatedSelf')),
           sender, 'proximity', 'Sample', 'Sensa/SPS/Example');
       });
       const sample = input.valid === false ? 0 : number(input, 'sample', 1 / 32);
@@ -254,31 +312,31 @@
       metrics.valid = metrics.fitValid && metrics.active;
       metrics.reason = !metrics.fitValid ? metrics.coverageReason : !metrics.active ? 'sample-inactive-or-stale' : 'ok';
       metrics.position = metrics.valid ? metrics.fittedPosition : null;
-      metrics.conservativeCoverageRadius = 2.5 - Math.sqrt(3) * .5;
+      metrics.conservativeCoverageRadius = spsGeometry.receiverRadius * (1 - spsGeometry.minProximity) + spsGeometry.markerRadius - Math.sqrt(3) * spsGeometry.anchorHalfSpan;
       values.forEach(v => { v.effective = metrics.valid ? v.raw : null; });
       values.push({ name: 'Sample', path: 'Sensa/SPS/Example/Sample', type: 'counter',
         raw: sample, value: sample, effective: sample, emitted: true, receiverId: null, senderId: null, closeName: null });
-      put({ id: 'coordinate-cube', role: 'reference', type: 'box', center: { x: 0, y: 1, z: 0 }, size: { x: 3, y: 3, z: 3 } });
+      put({ id: 'coordinate-cube', role: 'reference', type: 'box', center: { x: 0, y: 1, z: 0 }, size: { x: 4, y: 4, z: 4 } });
     } else {
       points.root = { ...point }; points.frameCenter = { x: 0, y: 1, z: 0 };
       const frameInput = number(input, 'frame', 0);
       if (!Number.isInteger(frameInput)) throw new RangeError('Frame must be an integer / Frame 必须为整数');
       const frame = ((frameInput % 65536) + 65536) % 65536;
       const ageMs = number(input, 'ageMs', 0, 0), timeout = number(input, 'timeoutMs', 1000);
-      const inBounds = Math.abs(point.x) <= 1.5 && Math.abs(point.y - 1) <= 1.5 && Math.abs(point.z) <= 1.5;
+      const inBounds = Math.abs(point.x) <= 2 && Math.abs(point.y - 1) <= 2 && Math.abs(point.z) <= 2;
       const encoded = {}, decoded = {};
       for (const [key, center] of [['x', 0], ['y', 1], ['z', 0]]) {
-        encoded[key] = roundEven(clamp((point[key] - center + 1.5) / 3) * 65535);
-        decoded[key] = center + encoded[key] / 65535 * 3 - 1.5;
+        encoded[key] = roundEven(clamp((point[key] - center + 2) / 4) * 65535);
+        decoded[key] = center + encoded[key] / 65535 * 4 - 2;
       }
       const frameAgeLimitMs = Math.min(timeout > 0 ? timeout : 1000, 500);
       Object.assign(metrics, { inBounds, encoded, decodedPosition: decoded, frameAgeLimitMs,
         valid: input.valid !== false && inBounds && ageMs <= frameAgeLimitMs,
-        quantizationStep: 3 / 65535, singleAxisQuantizationBound: 1.5 / 65535,
-        spatialQuantizationBound: Math.sqrt(3) * 1.5 / 65535 });
+        quantizationStep: 4 / 65535, singleAxisQuantizationBound: 2 / 65535,
+        spatialQuantizationBound: Math.sqrt(3) * 2 / 65535 });
       metrics.position = metrics.valid ? decoded : null;
       metrics.reason = !inBounds ? 'outside-coordinate-cube' : !metrics.valid ? 'invalid-or-stale-frame' : 'ok';
-      metrics.normalized = { x: point.x / 1.5, y: (point.y - 1) / 1.5, z: point.z / 1.5 };
+      metrics.normalized = { x: point.x / 2, y: (point.y - 1) / 2, z: point.z / 2 };
       metrics.quantized = { ...encoded }; metrics.decoded = { ...decoded };
       metrics.quantError = { ...sub(decoded, point), length: length(sub(decoded, point)) };
       metrics.sourceValid = input.valid !== false && inBounds;
@@ -301,7 +359,7 @@
           raw: value, value, effective: metrics.valid || name === 'Valid' ? value : null,
           emitted: metrics.valid || name === 'Valid', receiverId: null, senderId: null, closeName: null });
       }
-      put({ id: 'encoding-cube', role: 'reference', type: 'box', center: { x: 0, y: 1, z: 0 }, size: { x: 3, y: 3, z: 3 } });
+      put({ id: 'encoding-cube', role: 'reference', type: 'box', center: { x: 0, y: 1, z: 0 }, size: { x: 4, y: 4, z: 4 } });
     }
     // Reference roots are illustration points, not extra Contact/OSC fields.
     // 参考根点只供示意，不新增 Contact 或 OSC 参数。
@@ -319,8 +377,9 @@
       }
     }
     return { scenario, party, shapes, illustrations, values, points, metrics, bounds, assumptions,
+      coverage: ['sensa-sps', 'shader'].includes(scenario) ? coverageFor(point, scenario) : null,
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
-  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors });
+  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, coverageContains, coverageRadius, encodedBit });
 })(globalThis);

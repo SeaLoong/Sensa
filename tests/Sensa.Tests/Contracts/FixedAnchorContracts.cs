@@ -12,6 +12,29 @@ public sealed class FixedAnchorContracts
 {
     private const string Prefix = "Sensa/SPS/Socket";
 
+    [Fact]
+    public void TwoMetreReceiversCoverAMetreScaleCommonRegionWithoutClaimingTheWholeBox()
+    {
+        Assert.Equal(2f, SensaFixedAnchorProtocol.ReceiverRadius);
+        Assert.Equal(.35f, SensaFixedAnchorProtocol.AnchorHalfSpan);
+        foreach (var position in new[] { new PosePoint(0, 1, 0), new(1.2, 1, 0), new(-.7, 1.8, -.6), new(0, -.3, 0) })
+        {
+            using var rig = new MotionRig();
+            SpatialSamples.FixedRoot(rig.Store, Prefix, position);
+            var fit = Observe(rig);
+            Assert.True(fit.Valid, fit.Reason);
+            Assert.InRange((fit.Position - position).Length, 0, .00001);
+        }
+        foreach (var position in new[] { new PosePoint(2, 3, 2), FixedAnchorReconstruction.Anchor(0) })
+        {
+            using var rig = new MotionRig();
+            SpatialSamples.FixedRoot(rig.Store, Prefix, position);
+            Assert.False(Observe(rig).Valid);
+        }
+        Assert.True(SensaFixedAnchorProtocol.IsScaleSupported(1, 1.4));
+        Assert.False(SensaFixedAnchorProtocol.IsScaleSupported(1, 1.5));
+    }
+
     [Theory]
     [InlineData(0, 1, 0)]
     [InlineData(.5, 1.8, -.3)]

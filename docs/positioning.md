@@ -1,30 +1,38 @@
-# 定位：能测什么，何时必须停止
+# 根点定位：在哪里能测到，坐标表示什么
 
 **简体中文** | [English](positioning.en.md)
 
-四个已知、非共面的锚点到**同一点**的距离足以确定局部 XYZ。问题不在“四”太少，而在普通 Contact 参数不一定来自已知同一点、共同参考框或同一时刻。Sensa 因此将固定根点、Shader 与旧配对实验分开，空间驱动默认关闭。
+Sensa 可以计算你在 Unity 中选定的 Socket／Plug **根点**相对 Avatar 的三维位置。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身，不会改变这个相对位置。一个根点不能提供物体朝向、尖端位置或形变后表面。
 
-| 方案 | 位置含义 | 有效性依据 |
+先按下面的条件选择方案，再观察坐标，最后校准为设备动作。需要逐步设置时看[接入方案](usage-scenarios.md)；想先尝试模型，可打开[交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)。
+
+| 方案 | 你能得到什么 | 什么时候会失效 |
 | --- | --- | --- |
-| Sensa SPS | 自己选定根中心的 AvatarRootLocal | 专用标记、固定锚点、几何一致、变化 Sample |
-| Shader | 编码根中心的 AvatarRootLocal | 二进制／ROI 校验、有序坐标包、变化 Frame |
-| 独立 Point／Handle／Pose | 相应参考框的局部估计 | 最旧参与通道、几何／抓取条件；不升级成固定 SPS |
-| OGB Root／Tip | 径向接近比例 | 同实例配对与估长；不是 XYZ |
+| Sensa SPS | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
+| Shader 捕获 | 从屏幕编码图块读出的根点位置，同为 AvatarRootLocal | 坐标越界、图块无法定位或校验失败、画面冻结 |
+| 独立 Point／Handle／Pose | 各自参考对象下的位置或姿态实验 | 参与参数过期，或配对／抓取／几何条件不满足 |
+| 已有 OGB Root／Tip | 接近程度和深度估算 | 参数配对缺失或估长条件不满足；它不提供 XYZ |
 
-单点没有姿态、世界运动、尖端或最终 GPU 表面。命令也没有设备回读。[方案选择](usage-scenarios.md) · [交互模型](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+## Sensa SPS：目标必须同时被四个接收球测到
 
-## 固定 SPS 的几何
+Sensa 在 Avatar 根下放置四个固定测量点（P0–P3），围成正四面体。一个很小的专用标记跟随你选择的根点。四个接收器分别测量到该标记的距离，桌面程序据此计算位置。
 
-Avatar 根为固定参考，c=(0,1,0)、h=.5：
+默认接收半径为 **2 m**，测量点之间约 **0.99 m**。这些数值按 Avatar 根局部单位定义；只有作者和运行时的根缩放都为 1，才直接等于世界米。当前使用共享固定几何，不能只在 Unity 中改半径而让桌面仍按旧值解算。
 
-| 锚点 | 坐标 |
+| 测量点 | 相对 Avatar 根的坐标 |
 | --- | --- |
-| P0 | (-.5,.5,-.5) |
-| P1 | (.5,.5,.5) |
-| P2 | (.5,1.5,-.5) |
-| P3 | (-.5,1.5,.5) |
+| P0 | (−0.35, 0.65, −0.35) |
+| P1 | (0.35, 0.65, 0.35) |
+| P2 | (0.35, 1.35, −0.35) |
+| P3 | (−0.35, 1.35, 0.35) |
 
-四个 Receiver 半径 R=2.5；专用根标记半径 r=.001，只跟随明确选择的根中心。局部近接与距离关系在未饱和区为：
+**可测区域是四个球的交集**，并去掉接收边界和测量点附近的饱和区。它不是单个半径 2 m 的球，也不是图中完整的坐标方框。围绕中心 (0,1,0)，约 1.393 m 半径的中心区域位于外侧检测边界以内，但其中仍要排除测量点附近的小饱和孔。Unity 和网页的覆盖显示用于判断这一空间限制；实际有效性还要通过采样、缩放和一致性检查。
+
+选择 2 m 同时缩短点间距，是覆盖范围、噪声放大和 Avatar 缩放余量之间的取舍。1 m 会明显缩小四球共同区域；无限缩短间距又会削弱离中心位置的解算稳定性。此默认值是模型设计，不是实测精度承诺。[推导与取舍](fixed-anchor-research.md)
+
+### 距离如何转换为位置
+
+以下细节供需要核查算法的用户阅读。接收半径 R=2、标记半径 r=.001，中心 c=(0,1,0)，四面体半跨度 h=.35。未饱和时，接近值 p 与中心距离 d 的关系是：
 
 ```text
 p = clamp(1 - max(0,d-r)/R, 0, 1)
@@ -33,40 +41,47 @@ q = -Σ((aᵢ-c)dᵢ²)/(8h²)
 position = c+q
 ```
 
-不能省略 r，把 Sender 表面距离当中心距。接收要求严格 .001<p<.999、RMS 距离残差≤.01，以及 X/Z=[−1.5,1.5]、Y=[−.5,2.5]。残差只是模型一致性，不是误差上界或身份认证。[共享几何](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [解算](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+r 不能省略，否则会把标记表面距离当作中心距离。程序要求严格 .001<p<.999、四路距离的 RMS 残差≤.01，并将坐标限制在 X/Z=[−2,2]、Y=[−1,3]。残差是“计算位置与四路距离是否一致”的指标，不是实际位置误差上界，也不能证明发送者身份。[共享定义](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [桌面解算](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-有效区域是四球交集扣除饱和／阈值边界，**不覆盖整个显示立方体**。锚点附近也有饱和孔。扩大接收半径会放大同一近接噪声，并减少缩放余量，不是无代价的优化。[推导和取舍](fixed-anchor-research.md)
+## 为什么静止时坐标可以有效，停止采样却会失效？
 
-## 五字段与活性
+每个对象发送 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`。P0–P3 是四个接近值；`Sample` 是测量组件持续工作的计数：0 表示停用或无效，启用后约每 50 ms 在 n/32（n=1…32）间循环。
 
-每对象只有 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 五个测量 Float。RawP 只在 FX；本地采样状态先复制四路 P，再写 Sample。Sample=0 是停用／无效；有效时约每 50 ms 循环 n/32，n=1…32，名义周期 1.6 s。
+根点静止时，P 值不变是正常的；**Sample 必须继续变化**。桌面默认允许 1000 ms 的变化间隔，正数 `InputTimeoutMs` 可以调整，但解码上限为 1250 ms。重复收到同一个 Sample 不会延长有效期。缺字段、非法计数、Sample=0、冻结、超时或几何拟合失败都会使位置失效。
 
-静止 P 可缓存；**Sample 内容必须变化**。重复同值只更新接收时间，不续期 ChangedAt。运行时默认 1000 ms；正数 InputTimeoutMs 可替代，解码上限仍为 1250 ms。缺字段、非法步值、Sample=0、冻结、超时或拟合失败都会失效。这不是严格 20 Hz、原子 Contact 帧或物理传感器活性证明。
+这个计数说明测量组件仍在发布，不能证明四个 Contact 在严格同一时刻更新，也不能证明底层测量没有冻结。公开协议不接受旧 Root／SharedRoot、A0–A3 或 Profile／Scale／Valid／Heartbeat 别名；独立 Point／Pose 的值不能补齐它。
 
-没有旧 v1、Root／SharedRoot、A0–A3 或 Profile／Scale／Valid／Heartbeat 别名。独立 Point／Pose 协议不参与补齐。每对象五测量也不表示整个 Avatar 只有五参数：Exclusive 可生成本地 Int 菜单 `Sensa/Select/<group>`，默认 0=Off；它不是测量，且可能被 OSC 导出。
+Avatar 菜单还可能出现 `Sensa/Select/<group>`：0 为关闭，1…N 选择目标。它是额外的菜单控制，不属于五个测量字段，也不会启用桌面输入。
 
-## 缩放与参考框
+## Avatar 缩放会有什么影响？
 
-共同刚体运动不改变局部距离；共同均匀尺度在距离比中消去。局部单位仅在作者／运行时尺度均为 1 时等于世界米。专用标记不继承目标骨骼尺度；构建拒绝非正、非均匀根尺度、根 ScaleConstraint 与已知根缩放动画。
+共同平移和转身不改变相对距离；共同均匀缩放可在距离比中抵消。非均匀缩放或 SDK 对半径的限幅会破坏这一关系，因此构建会拒绝非正／非均匀根尺度、根 ScaleConstraint 和已知根缩放动画。专用标记不继承目标骨骼的缩放。
 
-SDK 的世界 Contact 半径上限是 3 m。FX 用 IsLocal／ScaleFactor 在 `2.5×authorScale×ScaleFactor` 超过约 2.999 m 前停用并清零。该保护不能消除所有客户端时序风险，也不是对恶意相同 tag 的认证。[官方 Contacts](https://creators.vrchat.com/common-components/contacts/)
+SDK 的世界 Contact 半径上限为 3 m。内部 FX 会在 `2×authorScale×ScaleFactor` 超过约 2.999 m 前停用测量并清零。该保护不能消除所有客户端时序风险，也不能认证使用同一标签的发送者。[官方 Contacts 说明](https://creators.vrchat.com/common-components/contacts/)
 
-## Shader 根点
+## Shader：可编码区域与屏幕识别是两个条件
 
-原生蒙皮点与单 Camera 编码所选根 Transform，范围与固定 SPS 相同，但**没有 Contact 触发半径**。桥显式锁定 ROI／非零 ID，校验内部格式、坐标位、CRC 和模 65536 向前帧；默认 350 ms 冻结失效，启动／恢复需两帧推进。
+Shader 将同一个根点的位置画成黑白图块，再由 Python 桌面桥读取。它没有 Contact 触发半径：坐标允许的范围是 **X/Z=[−2,2]、Y=[−1,3] 的完整方框**；图块本身则必须出现在所选屏幕区域中。
 
-有效 OSC 一个 bundle 按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 发送，Valid=1 最后；失效仅发 Valid=0。桌面要求同来源连续序列、有限范围内 XYZ、整数 Frame，以及内容变化年龄≤500 ms（正数更短配置优先）。桌面窗口是拒绝上限，不能说 350–500 ms 期间实际桥仍有效。
+原生图块为 20×12 格，中间 16×8 格存数据，外侧两格宽的固定图案帮助定位方向和对齐。固定格不随坐标变化是有意设计。桌面桥允许四边中的一边损坏，并在所选区域内尝试小幅平移校正；数据仍必须通过 CRC 校验。它不自动适应旋转、透视或尺寸变化，也不修补损坏的数据位。
 
-Producer 已在路径，Profile 固定在命名空间，故公开字段不重复；二进制 ID／坐标标志／CRC／Frame 仍必要。诊断 `Sensa/Diagnostics/Shader/0` 不生成点。图块编码在推进也不证明最终网格或其他 Shader 全局纹理新鲜。[Shader 证据](shader-capture-research.md) · [设置指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)
+边缘标记可以减少小幅画面偏移引起的识别失败，**不能消除图形延迟**。帧号 `Frame` 用于发现重复和冻结：默认超过 350 ms 不推进即失效，启动和恢复均需两个新的推进帧。即使帧号持续变化，也不证明最终网格或其他 Shader 纹理已经更新。[捕获设置](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [编码设计](shader-capture-research.md)
 
-## 旧 Point／Handle／Pose
+有效 OSC 按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 顺序在一个 bundle 中发送，Valid=1 最后提交；失效只发送 Valid=0。桌面还检查同一来源、字段连续性、有限坐标和 Frame 变化时间，最多接受 500 ms 的变化年龄，较短的正数输入超时优先。正常桥在 350 ms 已冻结失效，500 ms 是桌面的额外拒绝上限。
 
-这些保留实验使用，各自参考框是 ReferenceLocal，不与上述固定坐标混拼。所有参与通道取最旧更新时间，默认 1000 ms 或正数输入超时；Handle 包括抓取值。多目标／配对歧义不能由另一目标的新值续期。低残差仍不证明共同 Sender／同帧。
+对象 ID 已写在路径中，坐标系固定为 AvatarRootLocal，不需要重复的 Producer／Profile 字段。内部诊断 `Sensa/Diagnostics/Shader/0` 不会生成可映射根点。
 
-三标记可构造局部姿态，但没有外部世界参考就观测不到整体世界运动。普通 Proximity 的最近 Sender 选择尤其容易破坏“每路是同一点”的假设；不应通过插值或平滑掩盖失效。
+## 网页中“模拟收到有效样本”是什么？
 
-## 从观察到输出
+它只控制图解中的模拟状态：勾选时模拟收到有效样本，取消时模拟发送端报告无效数据。它不上传 Avatar、不允许发布软件、不控制实际测量组件，也不会启用设备。网页的有效状态还不包含桌面映射和设备输出。
 
-固定对象／来源，采集 X／Y／Z／距原点的两端，预览后替换草稿并保存。保存关闭输入。再分别允许实验空间输入并启用实际 OSC；许可不会由看到参数、校准或解除急停自动获得。
+## 从观察坐标到控制动作
 
-失效停止且不能回退旧同轴标量。精度、延迟和停止行为须在真实客户端单独测量；EditMode／模拟包／浏览器图像不证明上传、Contact／OSC、桌面／头显捕获或机械动作。[参数字典](osc-parameters.md) · [操作指南](guide.md)
+1. 在根点面板固定对象和来源，先确认位置有效且变化方向符合预期。
+2. 选择 X、Y、Z 或距 Avatar 原点的距离，分别采集动作起点和终点，对应 0% 与 100%。
+3. 检查预览后替换映射草稿并保存。保存会关闭输入。
+4. 允许实验空间输入，再启用实际 OSC 输入。
+
+失效时停止，不回退到同轴的旧标量。独立 Point／Handle／Pose 使用各自参考框和最旧参与通道的时效；Handle 还包括抓取条件，不能与固定根点混用。三个标记可推算局部姿态，但不能凭空观测整体世界运动。
+
+精度、延迟和停止行为仍须在真实客户端测量。单元测试、Unity EditMode 和浏览器图像只能验证各自边界，不能代替 Avatar 上传、真实 Contacts／OSC、桌面／头显捕获或机械动作的验收。[参数字典](osc-parameters.md) · [操作指南](guide.md)

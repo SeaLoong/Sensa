@@ -4,9 +4,9 @@
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 
-**Turn virtual interactions and funscript timelines into device targets.** Sensa is a local desktop service with a browser workbench, TCode serial/UDP/TCP outputs and Intiface/Buttplug support.
+**Let devices follow VRChat interactions or funscript motion scripts.** Sensa runs on your computer, with a browser interface for inputs and devices. It supports TCode serial/UDP/TCP and Intiface/Buttplug. Displayed values are the positions or intensities Sensa intends to send.
 
-## Start with a small, explicit control loop
+## First use: check direction and travel
 
 1. Download the archive for Windows, Linux or macOS, x64 or ARM64, and extract it.
 2. Run Sensa and open **http://127.0.0.1:5086**. New sessions start with input and outputs disabled.
@@ -17,15 +17,15 @@ Keep emergency stop within reach. Clearing it does not resume input. Configurati
 
 [First run](docs/quick-start.en.md) · [Workbench guide](docs/guide.en.md) · [All features](docs/features.en.md)
 
-## Choose the data you actually have
+## Which integration should I use?
 
 | Route | What it provides | Main limitation |
 | --- | --- | --- |
-| **Existing OGB / SPS** | Modern Root/Tip radial estimates, legacy proximity and touch intensity | External interoperability; not XYZ or universally accurate insertion depth |
-| **Sensa SPS** | Four fixed anchors P0–P3 and a dedicated marker reconstruct a selected root in Avatar-root coordinates | Own Avatar only; experimental coverage, scale and sampling constraints |
-| **Shader capture** | A native root encoder, explicit desktop region and checked image bridge supply root coordinates | PC experiment; real VRChat/HMD capture remains unverified |
+| **Existing OGB / SPS** | Read the proximity, touch and depth-related parameters your Avatar already provides | No Avatar changes; usually estimates depth rather than three-dimensional position |
+| **Sensa SPS** | Add measurement components to your Avatar and calculate the selected root relative to it | Requires rebuilding your own Avatar; the target must stay inside the detectable region |
+| **Shader capture** | Draw root coordinates as a black-and-white code block and read them from the desktop | PC experiment; the full block must be visible, and real VRChat/headset behavior remains unverified |
 
-Sensa SPS uses five measurement fields, `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`. Four known, non-coplanar distances can locate one point; arbitrary four proximity values cannot establish target identity or a shared frame. Shader capture uses `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}`; it samples a root Transform, not the final deformed mesh. Both require explicit experimental permission and calibrated mapping.
+A “root” is the Socket/Plug starting point you select in Unity. Its position relative to the Avatar changes when that point moves within the Avatar; walking or turning the entire Avatar leaves it unchanged. With Sensa SPS or Shader capture, inspect coordinates and calibrate their range before enabling experimental spatial input. The [positioning guide](docs/positioning.en.md) explains the measurements and limits.
 
 [Route selection](docs/usage-scenarios.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Positioning and limits](docs/positioning.en.md) · [OGB compatibility](docs/ogb-compatibility.en.md)
 
@@ -37,9 +37,9 @@ The release also includes `docs/parameter-geometry.html` and its local assets fo
 
 ## Unity and releases
 
-The [Unity authoring package](unity/top.sealoong.sensa/README.md) generates permitted native Avatar components during builds. It does not run arbitrary Avatar C# after upload. Avatar and World labs are optional development tools requiring your own licensed resources.
+If you can edit your own Avatar, install the [Unity package](unity/top.sealoong.sensa/README.md) for root measurement or Shader capture. Reading existing OGB parameters does not require it. Avatar and World labs are optional development/validation tools requiring your own licensed resources.
 
-Desktop previews and a Unity ZIP are available in [Releases](https://github.com/SeaLoong/Sensa/releases). **VPM lists stable Unity packages only**, preserving verified historical versions and archives. GitHub having no current stable release does not erase that history. The site reports unavailable only when no verified package exists; previews/current development are not stable VPM releases.
+Desktop previews and a Unity ZIP are available in [Releases](https://github.com/SeaLoong/Sensa/releases). **VPM offers published stable Unity packages only** for VCC/ALCOM. Download preview versions separately from Releases, and follow the instructions for the version you installed.
 
 The [documentation site](https://sealoong.github.io/Sensa/) publishes independently from main; it does not wait for a stable Unity release. [Language behavior](docs/languages.en.md)
 

@@ -67,7 +67,7 @@ public static class PoseReconstruction
     public static MarkerFit FitLocalTetrahedron(IReadOnlyList<float> proximity)
     {
         if (proximity.Count != 4) return new(false, default, 0, 0, "四面体采样不完整");
-        if (proximity.Any(p => !float.IsFinite(p) || p <= .00001f || p >= .99999f))
+        if (proximity.Any(p => !float.IsFinite(p) || p <= SensaPoseProtocol.MinimumProximity || p >= SensaPoseProtocol.MaximumProximity))
             return new(false, default, 0, 0, "本地点离开采样体积或接收器饱和");
         var position = new PosePoint();
         Span<double> distances = stackalloc double[4];
@@ -80,14 +80,14 @@ public static class PoseReconstruction
         double error = 0;
         for (int i = 0; i < 4; i++) error += Math.Pow((position - Anchors[SensaPoseProtocol.PointAnchorIndex(i)]).Length - distances[i], 2);
         error = Math.Sqrt(error / 4);
-        bool valid = error <= SensaPoseProtocol.MaximumFitResidual && position.Length <= .245;
+        bool valid = error <= SensaPoseProtocol.MaximumFitResidual && position.Length <= SensaPoseProtocol.PositionRadius;
         return new(valid, position, SensaPoseProtocol.MarkerRadius, error, valid ? "" : "四面体拟合不一致或超出范围；检查尺寸、缩放和同标签干扰");
     }
 
     public static MarkerFit FitMarker(IReadOnlyList<float> proximity)
     {
         if (proximity.Count != 8) return new(false, default, 0, 0, "采样不完整");
-        if (proximity.Any(p => !float.IsFinite(p) || p <= 0.00001f || p >= .99999f))
+        if (proximity.Any(p => !float.IsFinite(p) || p <= SensaPoseProtocol.MinimumProximity || p >= SensaPoseProtocol.MaximumProximity))
             return new(false, default, 0, 0, "标记离开采样体积或接收器饱和");
         // For a spherical sender: surface distance = R*(1-proximity).
         // Sender radius is fitted as a nuisance parameter, accounting for differing avatar scales.
@@ -117,7 +117,7 @@ public static class PoseReconstruction
             if (At(left).Error < At(right).Error) high = right; else low = left;
         }
         bestRadius = (low + high) / 2; best = At(bestRadius);
-        var valid = best.Error <= SensaPoseProtocol.MaximumFitResidual && best.Position.Length <= .245;
+        var valid = best.Error <= SensaPoseProtocol.MaximumFitResidual && best.Position.Length <= SensaPoseProtocol.PositionRadius;
         return new(valid, best.Position, bestRadius, best.Error, valid ? "" : "几何拟合不一致或超出有效体积；检查混入的发送器与缩放");
     }
 

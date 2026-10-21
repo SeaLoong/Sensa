@@ -2,7 +2,9 @@
 
 [简体中文](GPU-TRACKING.md) | **English**
 
-This package has two distinct paths: **native root capture** generates avatar-build components for experimental desktop bridging; **SPS GPU Model Probe** samples deformation models only inside Unity Editor. Synthetic scenes and PNG replay validate transport, not real in-client SPS roots or models.
+To read the root you select in Unity, **native root capture** draws its position as a black-and-white code on your desktop. A Python bridge reads that code and sends coordinates to Sensa. This is an experimental PC route; follow the steps below before enabling device input.
+
+**SPS GPU Model Probe** is a separate Unity Editor research tool for examining deformation models. Its screenshots and synthetic PNG replays do not establish real in-client tracking.
 
 See the [research record](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md) for primary sources and protocol decisions. Neither path provides final visible mesh geometry, authenticated player identity or a direct device stroke.
 
@@ -12,7 +14,9 @@ Inspector, help and error text follow Sensa's Editor language preference. Menu r
 
 ## Native root path
 
-Actual Socket/Plug root → native single-bone point → geometry payload/CRC → one None-eye camera directly drawing the viewport → explicit capture region → Python bridge → Sensa OSC.
+Selected Socket/Plug root → black-and-white coordinate code → selected desktop capture region → Python bridge → Sensa OSC.
+
+The generated camera requests no stereo-eye output (`None`); whether the code is visible on the desktop and absent from the headset still needs checking in the actual client.
 
 The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolves the installed VRCFury root position/rotation, generates one native camera, a single-point skinned renderer and an encoder material and removes the author. Uploaded avatars do not run the editor reader, arbitrary MonoBehaviour readback or Udon. VRCFury shader source is not copied into this package.
 
@@ -21,8 +25,8 @@ The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolv
 1. Install the [package dependencies](COMPATIBILITY.en.md) and official VRCFury SPS. Use PC Built-in rendering and a geometry-shader-capable graphics backend. Android and Metal are excluded. Begin without hardware outputs.
 2. Add **Sensa → Shader Root Capture (Experimental)** inside the avatar. Set `Sps Target` to an object containing one VRCFury SPS Socket or Plug. The adapter resolves its actual root frame; it does not estimate a root from Contact proximity/radius.
 3. Assign a unique `Producer Id` from 1–65535, such as 42, and pin the same ID in the bridge. This is a local protocol identifier, not a VRChat account identity.
-4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.125). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
-5. Build the avatar normally. Generated shaders live in `Assets/SensaShaderCapture`. Differing existing contents stop the build: establish ownership, back up and move old generated files before retrying. User changes are not overwritten.
+4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.15). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
+5. Build the avatar normally. Generated shaders live in `Assets/SensaShaderCapture`. When updating an older encoder, `NativeRootTelemetry.shader` may still contain the previous format, and the build will stop on that difference. Check ownership, back up and move the old generated file, then rebuild so the current encoder is generated. Preserve any custom edits separately; the builder will not overwrite them. Update the desktop app and bridge together and recreate the capture registration.
 6. Explicitly select the generated **Sensa ShaderCapture_42** root-code item. Its caption follows the author's chosen language. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
 7. Check desktop code visibility and unwanted pixels in both VR eyes separately. None-eye cameras express Unity eye targeting; actual VRChat composition still needs validation. An arbitrary hidden render layer is not a guaranteed desktop capture channel.
 
@@ -30,11 +34,11 @@ Multiple producers use distinct camera/material signatures. The bridge must stil
 
 ### Coordinates
 
-Native capture uses `AvatarRootLocal`, center (0,1,0), half-range 1.5 per axis. X/Z range [−1.5,1.5], Y [−0.5,2.5]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
+Native capture uses `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z range [−2,2], Y [−1,3]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
 
 ### Capture registration
 
-Run from the main Sensa repository using Python with Pillow installed. Replace `LEFT TOP WIDTH HEIGHT` below with the complete code block's **physical-pixel** bounds. Minimum size is 64×32; negative origins support additional monitors.
+Run from the main Sensa repository using Python with Pillow installed. Replace `LEFT TOP WIDTH HEIGHT` below with the complete code block's **physical-pixel** bounds. The native 20×12-module block needs at least 80×48 physical pixels. Select its nominal full size, including all border modules. Negative origins support additional monitors. Small translation is tolerated within this region; do not enlarge it arbitrarily or expect automatic scale detection.
 
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --region LEFT TOP WIDTH HEIGHT --producer-id 42 --save-registration capture.json
@@ -51,6 +55,14 @@ python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch 
 Alternatively specify `--region ... --producer-id 42 --watch --port ...`. Omitting the port decodes only. The bridge does not choose a screen, inject into the game, read process memory, connect devices or activate Sensa input. Recheck/register the ROI after window movement, resolution or display-scaling changes.
 
 Inspect `Sensa/Shader/42/{Frame,X,Y,Z,Valid}`. ID is in the path and AvatarRootLocal is fixed: no redundant Producer/Profile, path version segment or old alias. Synthetic/editor model PNGs use only `Sensa/Diagnostics/Shader/0`, without mappable root observations. Configure the experimental spatial-input permission and two-point calibration through Sensa; explicitly allow input only after checking coordinates, direction and stopping. There is no automatic OGB fallback.
+
+### Why do some modules stay unchanged?
+
+The outer two-module band is a fixed alignment pattern, similar in purpose to a QR code's positioning marks. The central 16×8 modules hold changing payload bits. A valid edge can use either of its two complementary pattern lines, and at least three of the four edges must match. This tolerates one damaged edge while keeping the data area strictly checked.
+
+The bridge searches at most one module left/right and up/down within the selected region. It does not correct scale, rotation or perspective. Every payload module must pass the monochrome test and the whole payload must pass CRC; damaged data bits are rejected rather than guessed. Re-register after window resizing or display-scale changes. Existing registrations with the old 1.5 half-range must also be recreated after updating the Avatar encoder and bridge.
+
+These marks help alignment, not time synchronization. They cannot remove rendering/capture delay. A delayed but changing image can still decode; measure end-to-end latency separately. `Frame` detects duplicates and freezing as described below. Internal diagnostic PNG/lab codes remain a separate 16×8 format with a 64×32 minimum; they do not produce a motion root.
 
 ### Freshness and recovery
 

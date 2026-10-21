@@ -52,9 +52,19 @@ Shader "Hidden/Sensa/NativeRootTelemetry"
             stream.RestartStrip();
         }
         float4 frag(g2f input):SV_Target {
-            uint column=min((uint)(input.uv.x*16),15u),row=min((uint)(input.uv.y*8),7u);
-            uint bit=((column&3u)*8u)+row;
-            uint value=(input.packet[column>>2]>>bit)&1u;
+            // Two-module, asymmetric edge bands locate the payload without
+            // spending coordinate bits on alignment. CRC still protects data.
+            uint column=min((uint)(input.uv.x*20),19u),row=min((uint)(input.uv.y*12),11u);
+            uint value;
+            if(row<2u) value=((0xD3A6Bu>>column)&1u)^row;
+            else if(row>=10u) value=((0x69C57u>>column)&1u)^(row-10u);
+            else if(column<2u) value=((0xA5u>>(row-2u))&1u)^column;
+            else if(column>=18u) value=((0x6Eu>>(row-2u))&1u)^(column-18u);
+            else {
+                column-=2u;row-=2u;
+                uint bit=((column&3u)*8u)+row;
+                value=(input.packet[column>>2]>>bit)&1u;
+            }
             return float4(value.xxx,1);
         }
         ENDCG

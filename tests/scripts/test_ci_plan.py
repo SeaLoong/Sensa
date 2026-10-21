@@ -92,7 +92,8 @@ class VerificationPlanTests(unittest.TestCase):
                 self.assertEqual(result['e2e_suite'], 'all')
 
     def test_embedded_presets_and_shared_pose_protocol_also_verify_backend(self):
-        for path in ('src/web/data/osc-presets.json', 'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs'):
+        for path in ('src/web/data/osc-presets.json', 'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs',
+                     'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs'):
             with self.subTest(path=path):
                 self.assertTrue(plan.plan_changes([path])['backend'])
 

@@ -44,22 +44,26 @@ The uploaded measurement/output components are native; the editor builder and MA
 
 ## Coordinate and packet contract
 
-Shared `SensaFixedAnchorProtocol`: `AvatarRootLocal`, center (0,1,0), half-range 1.5 per axis. X/Z range [−1.5,1.5], Y [−0.5,2.5]. Units are avatar-root local units; they equal meters directly only when authored and runtime root scales are one. Nonfinite/out-of-range samples clear validity rather than pretending a clamped position is real.
+Shared `SensaFixedAnchorProtocol`: `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z range [−2,2], Y [−1,3]. Units are avatar-root local units; they equal meters directly only when authored and runtime root scales are one. Nonfinite/out-of-range samples clear validity rather than pretending a clamped position is real.
 
-The 16-column × 8-row monochrome grid represents 16 bytes:
+The native monochrome code uses 20 columns × 12 rows. A two-module border surrounds the 16-column × 8-row payload, which represents 16 bytes:
 
 | Bytes | Meaning |
 | --- | --- |
 | 0–2 | SN magic and internal format 1 |
 | 3 | bit0 valid; bit1 AvatarRootLocal; native valid flags=3 |
 | 4–5 | Little-endian 16-bit render encoder sequence, approximately 60 Hz |
-| 6–11 | 16-bit X/Y/Z, decoded as center + normalized × 1.5 |
+| 6–11 | 16-bit X/Y/Z, decoded as center + normalized × 2 |
 | 12–13 | Nonzero 16-bit producer ID, not account identity |
 | 14–15 | CRC-CCITT of the first 14 bytes, initial value 0xffff |
 
 Geometry builds the 16-byte payload and CRC once per skinned point, passing a nointerpolation uint4 to the fragment stage, which only reads the appropriate bit. This removes repeated per-pixel CRC work without claiming a measured client performance gain.
 
-The quantization step is 3/65535≈0.00004578 local units, with at most half-step rounding error per axis; this is not total position error. Half-range 1.5 is a fixed coordinate boundary, not a Contact receiver radius or another configurable radius. SN internal format 1 identifies binary layout, rather than an OSC path version or development compatibility branch.
+The quantization step is 4/65535≈0.00006104 local units, with at most half-step rounding error per axis; this is not total position error. Half-range 2 is a fixed coordinate boundary, not a Contact receiver radius or another configurable radius. SN internal format 1 identifies binary layout, rather than an OSC path version or development compatibility branch.
+
+Fixed border cells intentionally do not change with position. The four edges carry asymmetric, complementary line patterns. An edge may match either of its two lines, with a bounded one-module error; at least three edges must match. Edge-cell sampling allows a 6-of-9 monochrome majority, while payload cells require all nine samples to agree. The explicit ROI must be at least 80×48 physical pixels. Translation search is bounded to one module per axis within that region. No scale/rotation/perspective recovery is claimed.
+
+This adds redundancy to the alignment marks rather than error correction to position data. A damaged payload or mixed-frame payload must pass the unchanged CRC-CCITT or be rejected; like all finite CRCs, it has a nonzero collision probability. One damaged edge is tolerated; two missing edges or any missing payload are rejected. Fixed locators cannot remove render/capture latency. A changing but delayed frame can decode, so actual end-to-end delay still requires measurement. The separate diagnostic 16×8 format remains unchanged and cannot masquerade as native capture.
 
 The sequence demonstrates advancing encoded rendering, not final mesh or animation/global-texture synchronization. Chroma/CRC checks detect corruption, not authenticated ownership.
 

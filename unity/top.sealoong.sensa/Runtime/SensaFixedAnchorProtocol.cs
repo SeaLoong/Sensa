@@ -9,13 +9,16 @@ namespace UnityBox.Sensa
         public const float CenterX = 0f;
         public const float CenterY = 1f;
         public const float CenterZ = 0f;
-        public const float AnchorHalfSpan = .5f;
-        public const float ReceiverRadius = 2.5f;
+        public const float AnchorHalfSpan = .35f;
+        public const float ReceiverRadius = 2f;
         public const float MarkerRadius = .001f;
-        public const float PositionHalfRange = 1.5f;
+        public const float PositionHalfRange = 2f;
         public const float MaximumFitResidual = .01f;
         public const float MinimumProximity = .001f;
         public const float MaximumProximity = .999f;
+        // All four ranges must remain strictly between the saturation thresholds.
+        public const float MinimumCenterDistance = ReceiverRadius * (1f - MaximumProximity) + MarkerRadius;
+        public const float MaximumCenterDistance = ReceiverRadius * (1f - MinimumProximity) + MarkerRadius;
         public const float MaximumWorldContactRadius = 3f;
         public const float ScaleGuardMargin = .001f;
         public const string SampleSuffix = "/Sample";

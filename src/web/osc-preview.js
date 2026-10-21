@@ -40,8 +40,8 @@ export function probePresentation(path) {
   const fixed = /^Sensa\/SPS\/[^/]+\/P([0-3])$/.exec(normalized);
   if (fixed) {
     const index = Number(fixed[1]);
-    return { label: t('固定锚点 P{0}', [index]), color: ['#E85D75', '#54B7FF', '#77D970', '#FFC857'][index], index,
-      marker: 'Root', hint: t('固定 Avatar 局部锚点的近接值，P0–P3 与 Sample 共同解算专用根标记。不是坐标或设备输出轴。') };
+    return { label: t('固定接收器 P{0}', [index]), color: ['#E85D75', '#54B7FF', '#77D970', '#FFC857'][index], index,
+      marker: 'Root', hint: t('此接收器测量根部标记离它有多近。需要 P0–P3 四路距离和 Sample 更新信号，才能计算位置。') };
   }
   const match = normalized.match(/^Sensa\/(Pose|Point|Handle)\/v1\/.+\/(Root|Tip|Side)\/A([0-7])$/);
   if (!match) return null;
@@ -50,7 +50,7 @@ export function probePresentation(path) {
   const colors = ['#E85D75','#54B7FF','#77D970','#FFC857','#C792EA','#54DED2','#FF975C','#E6E6E6'];
   const prefix = match[1] === 'Point' || match[1] === 'Handle' ? 'P' : 'C';
   return { label: t("定位探针 {0}{1}", [prefix, index + 1]), color: colors[index], index, marker: match[2],
-    hint: t("{0}{1} 是{2}阵列 {3} 的接近度输入样本，对应原始路径后缀 A{4}。与测试场景同布局、同色标记对应，不是 TCode 的 A0/A1/A2 辅助输出轴，也不应直接作为行程。", [prefix, index + 1, prefix === 'P' ? t("四点") : t("八点"), match[2], index]) };
+    hint: t("{0}{1} 是{2}测量组中 {3} 标记的一路距离读数，对应路径末尾 A{4} 和场景中的同色标记。它不是 TCode 输出轴，也不能直接用作设备行程。", [prefix, index + 1, prefix === 'P' ? t("四点") : t("八点"), match[2], index]) };
 }
 
 export function parameterMeaning(path) {
@@ -61,18 +61,18 @@ export function parameterMeaning(path) {
 
 function baseParameterMeaning(path) {
   const leaf = path.split('/').at(-1);
-  if (path.startsWith('Sensa/Pose/v1/')) return t("定位阵列的一个距离样本，必须与同一对象的其余采样一起解算；不能直接当作深度。");
+  if (path.startsWith('Sensa/Pose/v1/')) return t('这是一个接收器的距离读数。请使用同一对象的完整测量组计算位置和朝向，不能直接当作深度。');
   if (/^Sensa\/SPS\/[^/]+\//.test(path)) {
-    if (leaf === 'Sample') return t('Sample=0 表示停用或失效；1/32…1 循环表示生产端活动。冻结会超时停止；它不是距离，也不证明同帧采样。');
-    return t('P0–P3 是 0–1 近接值，大表示靠近固定锚点；按 d=R×(1−p)+r 换算中心距，再解算 Avatar 局部根坐标，不能测尖端或朝向。');
+    if (leaf === 'Sample') return t('Sample=0 表示测量已停用或失效；1/32…1 循环变化表示 Avatar 正在发送更新。停止变化后，Sensa 会在超时时停用这组位置；它不保证四路距离来自同一帧。');
+    return t('P0–P3 的值在 0–1 之间，越大表示根部标记越靠近接收器。Sensa 用四路读数计算根部相对 Avatar 的位置，不能测尖端或朝向。距离换算：d=R×(1−p)+r。');
   }
   if (path.startsWith('Sensa/Shader/')) {
-    if (leaf === 'Frame') return t('编码画面的 16 位循环序号，用于检查冻结；不是玩家时间、传感器时间或模型更新证明。');
-    if (leaf === 'Valid') return t('Valid=1 是完整坐标包的提交标记；Valid=0 立即使此坐标失效。单独置 1 不能恢复旧坐标。');
-    return t('X/Y/Z 是 Avatar 根局部坐标，有效包顺序为 Frame、X、Y、Z、Valid。对象 ID 在路径中；不需要重复 Producer 或 Profile。');
+    if (leaf === 'Frame') return t('Frame 是编码画面的 16 位循环序号。Sensa 用它检测画面是否冻结；序号前进不代表画面没有延迟，也不能证明模型已更新。');
+    if (leaf === 'Valid') return t('Valid=1 表示桥接程序已发送完整坐标，Sensa 才能使用；Valid=0 会立即停用这组位置。单独置 1 不能恢复旧坐标。');
+    return t('X/Y/Z 是 Avatar 根局部坐标，即相对 Avatar 的左右、上下和前后位置，不是世界坐标。桥接程序按 Frame、X、Y、Z、Valid 的顺序发送一组完整更新。');
   }
-  if (path.startsWith('Sensa/Diagnostics/Shader/')) return t('诊断图块传输，仅供预览；不产生可映射坐标，也不证明真实客户端捕获。');
-  if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t("本地骨骼/PB 测量。四路解算参考坐标系内的位置；PB 把手仅在抓取时有效。这不是远端 SPS 或 GPU 网格位置。");
+  if (path.startsWith('Sensa/Diagnostics/Shader/')) return t('这是用于检查捕获与传输的测试画面数据，不产生可映射坐标。它通过测试后，仍需在真实客户端检查位置捕获。');
+  if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t('测量本地骨骼或 PhysBone（PB）把手相对参考对象的位置。需要四路距离；PB 把手只在抓取时有效。它不测量远端 Avatar 或 Shader 变形后的网格。');
   if (/^VFH\/Zone\/Touch\/.+\/(Self|Others)$/.test(path)) return t('独立触摸区的近接强度，Self 为自身、Others 为他人；按触摸区半径产生，不需要 Close，不是插入深度。');
   if (/^(VFH\/Version\/\d+|OGB\/(Pen|Orf)\/.+\/Version\/\d+)$/.test(path)) return t('Haptics 能力标记，用于软件识别；不是距离或输出强度。');
   if (/^OGB\/(Orf|Pen)\//.test(path)) {

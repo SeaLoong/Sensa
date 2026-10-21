@@ -13,9 +13,9 @@ def samples(root, tip, side, instance='Demo', party='Others', radius=.001):
     result = []
     for marker, point in [('Root', root), ('Tip', tip), ('Side', side)]:
         for i in range(8):
-            anchor = tuple(.06 if i & (1 << axis) else -.06 for axis in range(3))
+            anchor = tuple(.35 if i & (1 << axis) else -.35 for axis in range(3))
             distance = math.sqrt(sum((point[k] - anchor[k]) ** 2 for k in range(3)))
-            value = max(0, min(1, 1 - max(0, distance - radius) / .35))
+            value = max(0, min(1, 1 - max(0, distance - radius) / 2))
             result.append((f'Sensa/Pose/v1/{instance}/{party}/{marker}/A{i}', value))
     return result
 

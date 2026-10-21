@@ -13,6 +13,6 @@ namespace UnityBox.Sensa
         [Tooltip("Explicitly pin this ID in the desktop bridge; it is not player identity.")]
         public int producerId = 1;
         [Tooltip("Normalized desktop presentation rectangle; VRChat/HMD composition is not guaranteed.")]
-        public Rect desktopViewport = new Rect(0, 0, .25f, .125f);
+        public Rect desktopViewport = new Rect(0, 0, .25f, .15f);
     }
 }

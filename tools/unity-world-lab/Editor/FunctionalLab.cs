@@ -78,7 +78,7 @@ namespace SensaLab
             {
                 var tracked=Child(root.transform,"Contact marker",Vector3.forward*.1f);station.sender=tracked.gameObject.AddComponent<VRCContactSender>();station.sender.radius=.001f;
                 station.sender.collisionTags=new List<string>{"SensaCapability"+mode};station.receivers=new VRCContactReceiver[4];
-                for(int i=0;i<4;i++){int a=SensaPoseProtocol.PointAnchorIndex(i);var t=Child(root.transform,"A"+i,new Vector3(SensaPoseProtocol.AnchorX(a),SensaPoseProtocol.AnchorY(a),SensaPoseProtocol.AnchorZ(a)));var r=t.gameObject.AddComponent<VRCContactReceiver>();r.radius=.35f;r.receiverType=ContactReceiver.ReceiverType.Proximity;r.collisionTags=new List<string>{"SensaCapability"+mode};station.receivers[i]=r;}
+                for(int i=0;i<4;i++){int a=SensaPoseProtocol.PointAnchorIndex(i);var t=Child(root.transform,"A"+i,new Vector3(SensaPoseProtocol.AnchorX(a),SensaPoseProtocol.AnchorY(a),SensaPoseProtocol.AnchorZ(a)));var r=t.gameObject.AddComponent<VRCContactReceiver>();r.radius=SensaPoseProtocol.ReceiverRadius;r.receiverType=ContactReceiver.ReceiverType.Proximity;r.collisionTags=new List<string>{"SensaCapability"+mode};station.receivers[i]=r;}
             }
             else station.receivers=new VRCContactReceiver[0];
             if(mode==3||mode==4||mode==6)

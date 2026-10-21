@@ -177,8 +177,14 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Four fixed avatar-root anchors measure your explicitly selected root center; only P0–P3 and Sample are public."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track the selected root point with four 2 m receivers. The green scene-view slices show their common measurable volume; the whole coordinate box is not covered. Keep the target away from the tiny orange saturation zones at the anchor centers."), MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
+        }
+        private void OnSceneGUI()
+        {
+            var probe = (SensaFixedRootProbe)target;
+            var avatar = probe.GetComponentInParent<VRCAvatarDescriptor>();
+            if (avatar != null) SensaCoverageGizmos.Fixed(avatar.transform);
         }
     }
 }

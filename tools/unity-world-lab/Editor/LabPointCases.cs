@@ -31,9 +31,9 @@ namespace SensaLab
             if(existing!=null){EnsurePresentation(existing);LabPlayability.Apply();LabEditorLocalization.SaveScene(scene);AssetDatabase.SaveAssets();return;}
             var parent=new GameObject("Sensa point geometry cases");
             string[] names={"01 Front","02 Behind","03 Lateral","04 No contact","05 Saturated","06 Wrong radius","07 Scale x2","08 Rotated frame","09 Missing P4","10 Beyond fit volume","11 Origin"};
-            var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*.6f,Vector3.one*-.06f,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*.26f,Vector3.zero};
+            var positions=new[]{new Vector3(.02f,-.03f,.1f),new Vector3(.02f,.01f,-.1f),new Vector3(.13f,-.05f,.08f),Vector3.forward*(SensaPoseProtocol.ReceiverRadius*1.5f),Vector3.one*-SensaPoseProtocol.AnchorHalfSpan,Vector3.forward*.1f,Vector3.forward*.1f,new Vector3(.02f,.03f,.1f),Vector3.forward*.1f,Vector3.forward*(SensaPoseProtocol.PositionRadius+.02f),Vector3.zero};
             bool[] valid={true,true,true,false,false,false,true,true,false,false,true};
-            string[] hints={"Valid: forward point","Valid: negative Z is observable","Valid: lateral offset","Invalid: no complete contact volume","Invalid: receiver value reaches 1","Invalid: sender radius is 40 mm, not 1 mm","Valid: uniform scaling preserves local XYZ","Valid: coordinates belong to rotated reference","Invalid: probe P4 explicitly omitted (fault injection)","Invalid: beyond 0.245 local m fit limit","Valid: point at reference origin"};
+            string[] hints={"Valid: forward point","Valid: negative Z is observable","Valid: lateral offset","Invalid: no complete contact volume","Invalid: receiver value reaches 1","Invalid: sender radius is 40 mm, not 1 mm","Valid: uniform scaling preserves local XYZ","Valid: coordinates belong to rotated reference","Invalid: probe P4 explicitly omitted (fault injection)","Invalid: beyond the shared local fit radius","Valid: point at reference origin"};
             for(int i=0;i<names.Length;i++){
                 var node=new GameObject(names[i]);node.transform.SetParent(parent.transform,false);node.transform.localPosition=new Vector3(-3.6f+(i%4)*2.4f,1,4+(i/4)*2.3f);
                 var frame=new GameObject("Reference").transform;frame.SetParent(node.transform,false);
@@ -46,7 +46,7 @@ namespace SensaLab
                 var receivers=new VRCContactReceiver[4];
                 for(int lane=0;lane<4;lane++){
                     int a=SensaPoseProtocol.PointAnchorIndex(lane);var corner=new GameObject("A"+lane);corner.transform.SetParent(frame,false);corner.transform.localPosition=new Vector3(SensaPoseProtocol.AnchorX(a),SensaPoseProtocol.AnchorY(a),SensaPoseProtocol.AnchorZ(a));
-                    var receiver=corner.AddComponent<VRCContactReceiver>();receiver.radius=.35f;receiver.collisionTags=new List<string>{"SensaLabCase"+i};receivers[lane]=receiver;
+                    var receiver=corner.AddComponent<VRCContactReceiver>();receiver.radius=SensaPoseProtocol.ReceiverRadius;receiver.collisionTags=new List<string>{"SensaLabCase"+i};receivers[lane]=receiver;
                 }
                 var canvas=new GameObject("Case board",typeof(RectTransform)).AddComponent<Canvas>();canvas.renderMode=RenderMode.WorldSpace;canvas.transform.SetParent(node.transform,false);canvas.transform.localPosition=new Vector3(0,.75f,.3f);canvas.transform.localScale=Vector3.one*.0018f;((RectTransform)canvas.transform).sizeDelta=new Vector2(1200,650);
                 var text=new GameObject("Case status",typeof(RectTransform)).AddComponent<Text>();text.transform.SetParent(canvas.transform,false);text.rectTransform.anchorMin=Vector2.zero;text.rectTransform.anchorMax=Vector2.one;text.rectTransform.offsetMin=Vector2.zero;text.rectTransform.offsetMax=Vector2.zero;text.font=Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");text.fontSize=30;text.text=names[i]+"\n"+hints[i]+"\nEnter Play Mode for native SDK samples.";

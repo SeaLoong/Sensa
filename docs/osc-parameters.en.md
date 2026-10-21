@@ -71,14 +71,14 @@ Five Floats per object does not mean five parameters for the whole avatar. Autom
 
 ### Fixed geometry, distance and coverage
 
-Coordinates and radii use **avatar-root local units**: center c=(0,1,0), half-span h=0.5, Receiver radius R=2.5 and marker radius r=0.001.
+Coordinates and radii use **avatar-root local units**: center c=(0,1,0), half-span h=0.35, Receiver radius R=2 and marker radius r=0.001.
 
 | Anchor | Local coordinate |
 | --- | --- |
-| P0 | (-0.5, 0.5, -0.5) |
-| P1 | (0.5, 0.5, 0.5) |
-| P2 | (0.5, 1.5, -0.5) |
-| P3 | (-0.5, 1.5, 0.5) |
+| P0 | (-0.35, 0.65, -0.35) |
+| P1 | (0.35, 0.65, 0.35) |
+| P2 | (0.35, 1.35, -0.35) |
+| P3 | (-0.35, 1.35, 0.35) |
 
 For a spherical Sender and Receiver, the unsaturated proximity model and inverse are:
 
@@ -87,16 +87,16 @@ p = clamp(1 - max(0, d - r) / R, 0, 1)
 d = R × (1 - p) + r
 ```
 
-Here d is anchor-center to marker-center distance. The r correction accounts for Proximity measuring the Sender surface nearest the Receiver center. True distances to four known noncoplanar anchors uniquely determine this local XYZ. The implementation also requires RMS distance residual≤0.01 and X/Z=[-1.5,1.5], Y=[-0.5,2.5]. A small residual demonstrates consistency with this model, not accuracy or identity. [VRChat Contact definition](https://creators.vrchat.com/common-components/contacts/), [reconstruction](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+Here d is anchor-center to marker-center distance. The r correction accounts for Proximity measuring the Sender surface nearest the Receiver center. True distances to four known noncoplanar anchors uniquely determine this local XYZ. The implementation also requires RMS distance residual≤0.01 and X/Z=[-2,2], Y=[-1,3]. A small residual demonstrates consistency with this model, not accuracy or identity. [VRChat Contact definition](https://creators.vrchat.com/common-components/contacts/), [reconstruction](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
 
-Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands, rather than the entire display cube. A sphere centered at c with radius approximately `2.5 - √3×0.5 ≈ 1.63` is only a geometric inscribed reference for the four-ball intersection, not a guaranteed measurable sphere. Proximity thresholds, saturation holes and numerical boundaries further constrain validity. The p<0.999 ceiling requires d>0.0035, excluding approximately **0.0035 local units** around each anchor (3.5 mm in a local metre scale). The p>0.001 floor requires d<2.4985. These local distances are not fixed world-metre distances for every avatar.
+Usable space is the **intersection of four spherical coverage regions**, excluding saturation and boundary bands, rather than the entire display cube. A sphere centered at c with radius approximately `2 - √3×0.35 ≈ 1.394` is only a geometric inscribed reference for the four-ball intersection, not a guaranteed measurable sphere. Proximity thresholds, saturation holes and numerical boundaries further constrain validity. The p<0.999 ceiling requires d>0.003, excluding approximately **0.003 local units** around each anchor (3 mm in a local metre scale). The p>0.001 floor requires d<1.999. These local distances are not fixed world-metre distances for every avatar.
 
 ### Scaling, sampling and menu control boundaries
 
-Let s_author be the authored uniform avatar-root world scale and ScaleFactor the VRChat scaling factor. Receiver world radius is `2.5 × s_author × ScaleFactor`. Contacts have a 3 m radius limit after scaling; the producer reserves 0.001 m and uses:
+Let s_author be the authored uniform avatar-root world scale and ScaleFactor the VRChat scaling factor. Receiver world radius is `2 × s_author × ScaleFactor`. Contacts have a 3 m radius limit after scaling; the producer reserves 0.001 m and uses:
 
 ```text
-maxScale = (3 - 0.001) / (2.5 × s_author)
+maxScale = (3 - 0.001) / (2 × s_author)
 ```
 
 Beyond the gate, it disables Contacts, clears public samples and writes Sample=0. Builds reject unsupported nonuniform avatar-root scale, a root ScaleConstraint and root scale animation. Target bones may scale; the dedicated marker follows the root center without inheriting that target scale into its known sphere radius. One local unit equals one world metre only when s_author=1 and ScaleFactor=1. [Gate implementation](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs), [VRChat scaled limits](https://creators.vrchat.com/common-components/contacts/)
@@ -107,7 +107,7 @@ Dedicated channels and AllowSelf narrow the model. They do not prove every P bel
 
 ## Shader: direct root coordinates and transport activity
 
-Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. **It uses no Contacts and has no trigger radius.** Its encoding cube is X/Z=[-1.5,1.5], Y=[-0.5,2.5], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. **It uses no Contacts and has no trigger radius.** Its encoding cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### Five public measurement parameters
 
@@ -118,9 +118,9 @@ A separate Shader menu control is `Sensa/Select/ShaderCapture_<ID>`: an Int defa
 | Leaf | Meaning and validity |
 | --- | --- |
 | `Frame` | Integer 0…65535, generated nominally in 60 Hz time steps with 16-bit wraparound, approximately every 18.2 minutes |
-| `X` | Finite local root-center X in [-1.5,1.5] |
-| `Y` | Finite local root-center Y in [-0.5,2.5] |
-| `Z` | Finite local root-center Z in [-1.5,1.5] |
+| `X` | Finite local root-center X in [-2,2] |
+| `Y` | Finite local root-center Y in [-1,3] |
+| `Z` | Finite local root-center Z in [-2,2] |
 | `Valid` | 1 commits this valid packet; 0 invalidates the root coordinates immediately |
 
 Valid packets send **Frame → X → Y → Z → Valid=1**, committing Valid last. Invalidation sends only Valid=0, without republishing old XYZ. Desktop requires five consecutive fields under the same complete Producer path from the same OSC source. Other sources do not interrupt this source's sequence; interleaved messages from this source cannot impersonate a complete coordinate packet. Frame's ChangedAt lifetime is capped at 500 ms, shortened by a smaller positive configured timeout. Continuously resending an unchanged Frame still expires. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
@@ -129,7 +129,7 @@ The bridge checks the pattern, binary ID/flags, CRC and forward modulo-65536 fra
 
 ### Quantization, reduced fields and necessary binary metadata
 
-Each axis spans 3 local units and uses unsigned 16-bit quantization. Its step is `3/65535 ≈ 4.58×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `2.29×10⁻⁵`, or `3.96×10⁻⁵` for the three-axis quantization norm. These are encoding bounds, **not a promise of actual positioning accuracy**. Skinning/frame calculations, rendering/compositing, capture and latency require their own verification. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows that rule without emulating every GPU single-precision intermediate.
+Each axis spans 4 local units and uses unsigned 16-bit quantization. Its step is `4/65535 ≈ 6.10×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `3.05×10⁻⁵`, or `5.29×10⁻⁵` for the three-axis quantization norm. These are encoding bounds, **not a promise of actual positioning accuracy**. Skinning/frame calculations, rendering/compositing, capture and latency require their own verification. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows that rule without emulating every GPU single-precision intermediate.
 
 OSC no longer repeats Producer or Profile: the path already carries Producer, while `Sensa/Shader` fixes AvatarRootLocal and its range. The binary pattern retains Producer ID, valid/native-frame flags, CRC and Frame to distinguish the payload before assigning a path and reject damage or freezing. Its binary encoding marker is not an OSC path version. IDs are explicit pairing values, not avatar-owner authentication. There is no redundant PositionXYZ parameter, default filter or separate “detection radius” option.
 
