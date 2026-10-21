@@ -14,6 +14,7 @@ import {
 const metadata = {
   commit: 'a'.repeat(40), runId: '12345', attempt: '2', repository: 'SeaLoong/Sensa',
   suite: 'all', baselineMode: 'comparison', projects: ['desktop', 'mobile'], selectionComplete: true,
+  snapshotsCompared: true,
 };
 const completed = { status: 'passed', startTime: new Date('2026-10-22T00:00:00Z'), duration: 1250 };
 const comparison = { commit: metadata.commit, runId: metadata.runId, attempt: metadata.attempt, suite: 'all' };
@@ -127,6 +128,8 @@ test('inconsistent or empty evidence cannot be promoted by changing aggregate co
     value => { value.tests[0].attempts = []; },
     value => { value.tests[0].attempts[0].status = 'failed'; },
     value => { value.globalErrors = undefined; },
+    value => { value.selectionComplete = 'false'; },
+    value => { value.snapshotsCompared = 'false'; },
   ]) {
     const changed = structuredClone(summary);
     change(changed);
@@ -147,6 +150,8 @@ test('partial projects and filtered or sharded runs cannot produce a full compar
     buildE2ESummary([testcase('unknown project', { project: '' })], completed, metadata),
     buildE2ESummary(cases, completed, { ...metadata, selectionComplete: false }),
     buildE2ESummary(cases, completed, { ...metadata, selectionComplete: undefined }),
+    buildE2ESummary(cases, completed, { ...metadata, snapshotsCompared: false }),
+    buildE2ESummary(cases, completed, { ...metadata, snapshotsCompared: undefined }),
   ]) assert.throws(() => verifyComparisonSummary(summary, comparison));
 });
 
@@ -190,7 +195,6 @@ test('missing, stale and malformed reports become zero-observation current-run s
       ['stale-run', JSON.stringify({ ...original, runId: '99999' })],
       ['stale-attempt', JSON.stringify({ ...original, attempt: '1' })],
       ['other-suite', JSON.stringify({ ...original, suite: 'site' })],
-      ['candidate', JSON.stringify({ ...original, baselineMode: 'candidate' })],
       ['malformed-json', '{"schema":'],
       ['malformed-counts', JSON.stringify({ ...original, counts: { ...original.counts, passed: -1 } })],
       ['inconsistent-counts', JSON.stringify({ ...original, counts: { ...original.counts, total: 99, passed: 99 } })],
@@ -223,6 +227,38 @@ test('missing, stale and malformed reports become zero-observation current-run s
       assert.match(readFileSync(join(directory, name, 'summary.md'), 'utf8'), /Tests cannot be counted as passed/, name);
       assert.throws(() => verifyComparisonSummary(result, comparison), name);
     }
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test('finalization preserves actual candidate generation and never upgrades it to a comparison', () => {
+  const directory = mkdtempSync(join(tmpdir(), 'sensa-e2e-actual-candidate-'));
+  const reportPath = join(directory, 'summary.json');
+  const cases = [testcase('desktop'), testcase('mobile', { project: 'mobile' })];
+  try {
+    const candidate = buildE2ESummary(cases, completed, {
+      ...metadata, baselineMode: 'candidate', snapshotsCompared: false,
+    });
+    writeFileSync(reportPath, JSON.stringify(candidate));
+    const retained = finalizeE2ESummary(reportPath, { metadata, commandOutcome: 'success', stepSummary: '' });
+    assert.deepEqual(retained, { ...candidate, commandOutcome: 'success' });
+    assert.equal(retained.counts.passed, 2);
+    assert.equal(retained.baselineMode, 'candidate');
+    assert.equal(retained.snapshotsCompared, false);
+    assert.match(renderE2ESummary(retained), /Candidate images only/);
+    assert.throws(() => verifyComparisonSummary(retained, comparison));
+
+    writeFileSync(reportPath, JSON.stringify(buildE2ESummary(cases, completed, metadata)));
+    const rejected = finalizeE2ESummary(reportPath, {
+      metadata: { ...metadata, baselineMode: 'candidate', snapshotsCompared: false },
+      commandOutcome: 'success', stepSummary: '',
+    });
+    assert.equal(rejected.baselineMode, 'candidate');
+    assert.equal(rejected.counts.total, 0);
+    assert.deepEqual(rejected.tests, []);
+    assert.equal(rejected.status, 'not-run');
+    assert.throws(() => verifyComparisonSummary(rejected, comparison));
   } finally {
     rmSync(directory, { recursive: true, force: true });
   }
@@ -287,7 +323,8 @@ test('reporter replaces stale output and preserves the runner failure instead of
     const reporter = new E2ESummaryReporter();
     const cases = [testcase('bad\n::error::title', { outcome: 'unexpected',
       results: [attempt('failed', { errors: [{ message: 'Expected value\nreceived other value' }] })] })];
-    reporter.onBegin({ projects: [{ name: 'desktop', use: { viewport: { width: 1280, height: 900 } } }] },
+    reporter.onBegin({ argv: ['node', '/path/playwright/cli.js', 'test'], updateSnapshots: 'none',
+      projects: [{ name: 'desktop', ignoreSnapshots: false, use: { viewport: { width: 1280, height: 900 } } }] },
       { allTests: () => cases });
     assert.equal(existsSync('artifacts/e2e/summary.json'), false);
     assert.equal(existsSync('artifacts/e2e/summary.md'), false);
@@ -319,23 +356,40 @@ test('reporter replaces stale output and preserves the runner failure instead of
     assert.equal(failedBeforeBegin.counts.total, 0);
     assert.deepEqual(failedBeforeBegin.globalErrors, ['Configuration could not load']);
     assert.throws(() => verifyComparisonSummary(failedBeforeBegin, comparison));
-    const completeConfig = { grep: /.*/, grepInvert: null, shard: null,
-      projects: ['desktop', 'mobile'].map(name => ({ name, grep: /.*/, grepInvert: null,
+    const completeConfig = { argv: ['node', '/path/playwright/cli.js', 'test'],
+      updateSnapshots: 'none', grep: /.*/, grepInvert: null, shard: null,
+      projects: ['desktop', 'mobile'].map(name => ({ name, grep: /.*/, grepInvert: null, ignoreSnapshots: false,
         use: { viewport: { width: name === 'desktop' ? 1280 : 390, height: 900 } } })) };
     const fullSuite = { allTests: () => [testcase('desktop'), testcase('mobile', { project: 'mobile' })] };
-    for (const [config, complete] of [
+    for (const [config, complete, snapshotsCompared = true, baselineMode = 'comparison'] of [
       [completeConfig, true],
       [{ ...completeConfig, shard: { current: 1, total: 2 } }, false],
       [{ ...completeConfig, grep: /one-test/ }, false],
       [{ ...completeConfig, grepInvert: /excluded/ }, false],
       [{ ...completeConfig, projects: completeConfig.projects.map(project => ({ ...project, grep: /limited/ })) }, false],
+      ...[
+        ['tests/e2e/example.spec.js'], ['--grep', 'one-test'], ['--last-failed'],
+        ['--project', 'desktop'], ['--shard', '1/2'],
+      ].map(extra => [{ ...completeConfig, argv: [...completeConfig.argv, ...extra] }, false]),
+      [{ ...completeConfig, argv: ['node', '/path/playwright/cli.js', 'test-server'] }, false],
+      [{ ...completeConfig, argv: undefined }, false],
+      [{ ...completeConfig, projects: completeConfig.projects.map((project, index) => ({
+        ...project, ignoreSnapshots: index === 0,
+      })) }, true, false],
+      [{ ...completeConfig, projects: completeConfig.projects.map(project => ({ ...project, ignoreSnapshots: undefined })) }, true, false],
+      ...['all', 'changed', 'missing', 'default'].map(updateSnapshots => [
+        { ...completeConfig, updateSnapshots }, true, false, 'candidate',
+      ]),
+      [{ ...completeConfig, argv: [...completeConfig.argv, '--update-snapshots'], updateSnapshots: 'all' }, false, false, 'candidate'],
     ]) {
       const scoped = new E2ESummaryReporter();
       scoped.onBegin(config, fullSuite);
       assert.equal(scoped.onEnd(completed), undefined);
       const report = JSON.parse(readFileSync('artifacts/e2e/summary.json', 'utf8'));
       assert.equal(report.selectionComplete, complete);
-      if (complete) assert.doesNotThrow(() => verifyComparisonSummary(report, comparison));
+      assert.equal(report.snapshotsCompared, snapshotsCompared);
+      assert.equal(report.baselineMode, baselineMode);
+      if (complete && snapshotsCompared && baselineMode === 'comparison') assert.doesNotThrow(() => verifyComparisonSummary(report, comparison));
       else assert.throws(() => verifyComparisonSummary(report, comparison));
     }
   } finally {

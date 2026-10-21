@@ -36,11 +36,12 @@ export function buildE2ESummary(tests, result, metadata, globalErrors = []) {
       project: test.parent.project()?.name || '', file: relative(process.cwd(), test.location.file).replaceAll('\\', '/'),
       line: test.location.line, expectedStatus: test.expectedStatus, outcome, attempts };
   });
-  const { commit, repository, runId, attempt, suite, baselineMode, projects, viewports, selectionComplete } = metadata;
+  const { commit, repository, runId, attempt, suite, baselineMode, projects, viewports, selectionComplete, snapshotsCompared } = metadata;
   const runUrl = /^[\w.-]+\/[\w.-]+$/.test(repository || '') && /^[1-9]\d*$/.test(String(runId || ''))
     ? `https://github.com/${repository}/actions/runs/${runId}` : null;
   return { schema: 1, commit, repository, runId: String(runId || ''), attempt: String(attempt || ''), runUrl,
-    suite, baselineMode, projects: projects || [], viewports: viewports || [], selectionComplete: selectionComplete === true, status: result.status,
+    suite, baselineMode, projects: projects || [], viewports: viewports || [], selectionComplete: selectionComplete === true,
+    snapshotsCompared: snapshotsCompared === true, status: result.status,
     startTime: result.startTime instanceof Date ? result.startTime.toISOString() : null,
     durationMs: result.duration, counts, globalErrors: globalErrors.map(messageOf), tests: cases };
 }
@@ -59,6 +60,7 @@ export function renderE2ESummary(summary) {
     + `| Outcome | Count |\n| --- | ---: |\n${rows}\n\n`
     + `Projects: ${summary.projects.map(html).join(', ') || 'none'}\n\n`
     + `Viewports: ${summary.viewports.map(item => `${html(item.name)} ${html(item.width)}×${html(item.height)}`).join(', ') || 'not configured'}\n\n`
+    + `Snapshot comparisons enabled / 截图比较已启用: **${summary.snapshotsCompared ? 'yes' : 'no'}**\n\n`
     + (summary.runUrl ? `[Actions run](${summary.runUrl})\n\n` : '')
     + (summary.baselineMode === 'candidate' ? '**Candidate images only; this is not a normal-comparison receipt. / 仅生成待审图片，不是普通比较通过凭据。**\n\n' : '')
     + (counts.total === 0 || counts.notRun || counts.skipped || counts.interrupted ? '**Coverage is incomplete; zero, skipped, unrun and interrupted cases are not passes. / 覆盖不完整，空运行、跳过、未运行和中断不计为通过。**\n\n' : '')
@@ -78,7 +80,7 @@ export function verifyComparisonSummary(summary, expected) {
   const counts = summary.counts;
   const requiredProjects = ['desktop', 'mobile'];
   const observedProjects = new Set(summary.tests?.map(test => test.project));
-  if (!summary.selectionComplete || summary.projects?.length !== requiredProjects.length
+  if (summary.selectionComplete !== true || summary.snapshotsCompared !== true || summary.projects?.length !== requiredProjects.length
       || !requiredProjects.every(project => summary.projects.includes(project) && observedProjects.has(project))
       || observedProjects.size !== requiredProjects.length
       || Object.hasOwn(summary, 'commandOutcome') && summary.commandOutcome !== 'success')
@@ -100,14 +102,20 @@ function environmentMetadata(config) {
   const projects = config?.projects || [];
   const all = value => Array.isArray(value) ? value.length === 1 && all(value[0]) : value?.source === '.*' && value.flags === '';
   const none = value => value == null || Array.isArray(value) && value.length === 0;
+  const candidate = process.env.E2E_UPDATE_SNAPSHOTS === 'true' || config && config.updateSnapshots !== 'none';
   return {
     commit: process.env.GITHUB_SHA || null, repository: process.env.GITHUB_REPOSITORY || null,
     runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
-    suite: process.env.E2E_SUITE || 'all', baselineMode: process.env.E2E_UPDATE_SNAPSHOTS === 'true' ? 'candidate' : 'comparison',
+    suite: process.env.E2E_SUITE || 'all', baselineMode: candidate ? 'candidate' : 'comparison',
     projects: projects.map(project => project.name),
     viewports: projects.filter(project => project.use.viewport).map(project => ({ name: project.name, ...project.use.viewport })),
-    selectionComplete: Boolean(config && !config.shard && all(config.grep) && none(config.grepInvert)
+    // CLI file/grep/last-failed filters are not reflected in FullConfig.grep.
+    // Only the workflow's plain `playwright test` command proves full selection.
+    selectionComplete: Boolean(config && config.argv?.length === 3 && config.argv[2] === 'test'
+      && !config.shard && all(config.grep) && none(config.grepInvert)
       && projects.every(project => all(project.grep) && none(project.grepInvert))),
+    snapshotsCompared: Boolean(config && !candidate && projects.length
+      && projects.every(project => project.ignoreSnapshots === false)),
   };
 }
 
@@ -133,7 +141,8 @@ export function finalizeE2ESummary(reportPath, { metadata = environmentMetadata(
     summary = JSON.parse(readFileSync(reportPath, 'utf8'));
     current = summary.schema === 1 && summary.commit === metadata.commit && summary.runId === String(metadata.runId || '')
       && summary.repository === metadata.repository && summary.attempt === String(metadata.attempt || '')
-      && summary.suite === metadata.suite && summary.baselineMode === metadata.baselineMode && hasConsistentObservations(summary);
+      && summary.suite === metadata.suite && (summary.baselineMode === metadata.baselineMode
+        || metadata.baselineMode === 'comparison' && summary.baselineMode === 'candidate') && hasConsistentObservations(summary);
   } catch { /* A missing/invalid report means no completed run evidence. */ }
   const markdownPath = resolve(dirname(reportPath), 'summary.md');
   if (!current) summary = buildE2ESummary([], { status: commandOutcome === 'cancelled' ? 'interrupted' : 'not-run', duration: 0 }, metadata,
