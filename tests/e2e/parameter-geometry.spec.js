@@ -720,7 +720,7 @@ function expectSceneGeometry(snapshot, scenario) {
     const box = objectById(snapshot, 'encoding-cube');
     expect(box.geometry.type).toBe('EdgesGeometry');
     expect(box.geometry.vertices).toBeGreaterThanOrEqual(24);
-    for (const axis of ['x', 'y', 'z']) expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(3, 8);
+    for (const axis of ['x', 'y', 'z']) expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(4, 8);
     expectWorldPosition(box, { x: 0, y: 1, z: 0 });
   }
   const socket = ['socket', 'socket', zero, { x: 0, y: 0, z: 1 }, .15, .054];
@@ -1088,10 +1088,13 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       dragEvidence.push(await dragTarget(page, 'xz', { x: .193, y: 1, z: .287 }));
       const afterXz = (await threeSnapshot(page)).markers.find(marker => marker.id === 'moving-root').worldPosition;
       dragEvidence.push(await dragTarget(page, 'xy', { x: afterXz.x + .137, y: afterXz.y + .113, z: afterXz.z }));
-      await setRange(page, 'x', 1.79);
+      // The guide permits positions beyond the ±2 m measurement bounds; clamp at its actual slider limit.
+      // 图解允许展示 ±2 m 测量边界外的位置；拖动须在滑块的实际上限处截断。
+      await expect(page.locator('#control-x')).toHaveAttribute('max', '2.3');
+      await setRange(page, 'x', 2.29);
       const beforeClamp = (await threeSnapshot(page)).markers.find(marker => marker.id === 'moving-root').worldPosition;
-      dragEvidence.push(await dragTarget(page, 'xy', { ...beforeClamp, x: 1.88, y: beforeClamp.y + .077 }));
-      expect(dragEvidence.at(-1).expected.x).toBe(1.8);
+      dragEvidence.push(await dragTarget(page, 'xy', { ...beforeClamp, x: 2.38, y: beforeClamp.y + .077 }));
+      expect(dragEvidence.at(-1).expected.x).toBe(2.3);
 
       // Escape cancels a captured target gesture without resuming it on the next move.
       // Escape取消已捕获的目标拖动，后续移动不能继续写坐标。
@@ -1141,7 +1144,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
         expect(box.geometry.type).toBe('EdgesGeometry');
         expect(box.geometry.vertices).toBeGreaterThanOrEqual(24);
         for (const axis of ['x', 'y', 'z'])
-          expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(3, 8);
+          expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(4, 8);
         expectWorldPosition(box, { x: 0, y: 1, z: 0 });
         await canvasPixels(page);
         await readyOrbit(page, 'sensa-sps');

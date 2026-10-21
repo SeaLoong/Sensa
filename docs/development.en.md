@@ -42,7 +42,7 @@ Each run depends on the required checks and builds for its own commit. It does n
 
 ## Which secrets do workflows use?
 
-The repository Actions secret `SENSA_PAT` publishes Releases, pushes E2E candidate branches and creates review PRs. Creating the PR automatically triggers normal CI. Only those write steps receive the secret; unit tests, browser tests and the optional Codex agent do not. For a fine-grained PAT, grant Contents and Pull requests read/write access to Sensa only. Missing credentials stop writes, and their values are never printed in logs.
+The repository Actions secret `SENSA_PAT` publishes Releases, pushes E2E candidate branches and creates review PRs. Creating the PR automatically triggers normal CI. Only those write steps receive the secret; unit tests, browser tests and the optional Codex agent do not. For a fine-grained PAT, grant Contents, Pull requests and Workflows write access to Sensa only. Workflows supports publishing the pinned commit: if default-branch workflow files change during the build, [GitHub's create-release rules](https://docs.github.com/en/rest/releases/releases#create-a-release) require that permission. A classic PAT needs the corresponding `repo` and `workflow` scopes. Missing credentials stop writes, and their values are never printed in logs.
 
 Default screenshot maintenance needs no AI key. Only `agent` mode additionally uses `OPENAI_API_KEY`. An external agent dispatches workflows with its own authorized GitHub identity. It cannot read a stored Actions secret, and no key needs to be copied into a conversation.
 

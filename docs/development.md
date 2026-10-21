@@ -42,7 +42,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，全部通过后构建、
 
 ## 工作流使用哪些密钥？
 
-仓库 Actions secret `SENSA_PAT` 用于发布 Release，以及推送 E2E 候选分支、创建待审 PR。PR 创建后自动触发普通 CI。密钥只传给这些写入步骤，单元测试、浏览器测试和可选 Codex 代理均不接收。若使用 fine-grained PAT，仅需授权 Sensa 仓库的 Contents 和 Pull requests 读写权限；密钥缺失时停止写入，不在日志中输出其内容。
+仓库 Actions secret `SENSA_PAT` 用于发布 Release，以及推送 E2E 候选分支、创建待审 PR。PR 创建后自动触发普通 CI。密钥只传给这些写入步骤，单元测试、浏览器测试和可选 Codex 代理均不接收。若使用 fine-grained PAT，授权 Sensa 仓库的 Contents、Pull requests 和 Workflows 写入权限。Workflows 用于发布固定提交：构建期间若默认分支的工作流文件发生变化，[GitHub 创建 Release 的规则](https://docs.github.com/en/rest/releases/releases#create-a-release)要求此权限；classic PAT 对应 `repo` 与 `workflow` scope。密钥缺失时停止写入，不在日志中输出其内容。
 
 默认 E2E 截图更新不需要 AI 密钥。只有 `agent` 模式额外使用 `OPENAI_API_KEY`。外部代理调用工作流时使用自身已获授权的 GitHub 身份，不能读取 Actions 中保存的 secret，也不需要把密钥复制到对话中。
 
