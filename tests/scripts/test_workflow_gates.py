@@ -46,6 +46,11 @@ class WorkflowGateContracts(unittest.TestCase):
                     else:
                         self.assertIn('persist-credentials: false', body)
         maintenance = jobs(workflow('update-e2e.yml'))
+        self.assertIn("!cancelled() && needs.source.result == 'success' && needs.candidates.result == 'success'", maintenance['proposal'])
+        self.assertIn("needs.candidates.outputs.changed == 'true'", maintenance['proposal'])
+        self.assertIn("!cancelled() && inputs.mode == 'agent'", maintenance['agent'])
+        self.assertIn("inputs.mode == 'agent' && needs.agent.result == 'success'", maintenance['candidates'])
+        self.assertIn("inputs.mode == 'screenshots' && needs.agent.result == 'skipped'", maintenance['candidates'])
         self.assertNotIn('gh workflow run', maintenance['proposal'])
         self.assertIn('persist-credentials: false', maintenance['agent'])
         self.assertIn('persist-credentials: false', maintenance['candidates'])

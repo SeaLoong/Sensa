@@ -49,7 +49,7 @@ jobs:
   agent:
     name: Propose test changes with Codex / Codex 提议测试改动
     needs: [source, units]
-    if: inputs.mode == 'agent'
+    if: ${{ !cancelled() && inputs.mode == 'agent' && needs.source.result == 'success' && needs.units.result == 'success' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     outputs:
@@ -104,7 +104,7 @@ jobs:
   candidates:
     name: Generate and check candidates / 生成并检查候选
     needs: [source, units, agent]
-    if: ${{ !cancelled() && needs.source.result == 'success' && needs.units.result == 'success' && (needs.agent.result == 'success' || needs.agent.result == 'skipped') }}
+    if: ${{ !cancelled() && needs.source.result == 'success' && needs.units.result == 'success' && ((inputs.mode == 'agent' && needs.agent.result == 'success') || (inputs.mode == 'screenshots' && needs.agent.result == 'skipped')) }}
     runs-on: ubuntu-24.04
     container: mcr.microsoft.com/playwright:v1.64.1-noble
     timeout-minutes: 30
@@ -179,7 +179,7 @@ jobs:
   proposal:
     name: Open a draft PR and run normal comparison / 创建草稿 PR 并运行普通比较
     needs: [source, candidates]
-    if: needs.candidates.outputs.changed == 'true'
+    if: ${{ !cancelled() && needs.source.result == 'success' && needs.candidates.result == 'success' && needs.candidates.outputs.changed == 'true' }}
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
