@@ -18,10 +18,12 @@ async function savePointDraft(page, rig, panel, metric, role) {
   await panel.getByRole('button', { name: '替换草稿', exact: true }).click();
   await oscWorkspace(page, '映射');
   await expect(page.locator('.mapping-row')).toHaveCount(1);
-  await page.getByRole('button', { name: '保存映射', exact: true }).click();
+  const saveMappings = page.getByRole('button', { name: '保存映射', exact: true });
+  await saveMappings.click();
   await expect.poll(async () => (await saved(page, rig)).signals[0]).toMatchObject({
     sourceMode: 'SensaPoint', oscPath: prefix + '/**', pointMetric: metric, role,
   });
+  await expect(saveMappings).toBeEnabled();
 }
 
 test('SDK Contact metre coordinates calibrate, contact loss and frozen activity stop / Contact 米制坐标校准、离开与活动冻结停止',
@@ -33,7 +35,9 @@ test('SDK Contact metre coordinates calibrate, contact loss and frozen activity 
       return contactRootSamples(z, sample, valid, { velocityZ: .2 + (++velocitySequence % 10) * .01 });
     };
     const feed = await rig.startFeed(samples, 80);
-    await expect.poll(async () => (await contactObservation(rig))?.valid).toBe(true);
+    await expect.poll(() => contactObservation(rig), {
+      message: 'Initial Contact position sample is valid / Contact 位置采样初始化有效',
+    }).toMatchObject({ valid: true });
     expect(await contactObservation(rig)).toMatchObject({ coordinateFrame: 'AvatarRootMeters', coordinateUnit: 'm',
       sampleCount: 3, expectedSampleCount: 3, displayHalfRange: 2, supportsVelocity: true });
     const panel = await contactPanel(page, rig);
@@ -84,7 +88,9 @@ test.describe('SDK Contact vibration-only peer / Contact 纯振动模拟端', ()
       let speed = 0, sequence = 0;
       const samples = () => contactRootSamples(.1, (sequence++ % 32 + 1) / 32, true, { velocityZ: speed });
       const feed = await rig.startFeed(samples, 80);
-      await expect.poll(async () => (await contactObservation(rig))?.valid).toBe(true);
+      await expect.poll(() => contactObservation(rig), {
+        message: 'Initial Contact speed sample is valid / Contact 速度采样初始化有效',
+      }).toMatchObject({ valid: true });
       const panel = await contactPanel(page, rig);
       await panel.getByLabel('测量指标', { exact: true }).selectOption('Speed');
       await expect(panel.getByTestId('point-speed')).toContainText('0.000');

@@ -2239,7 +2239,7 @@ function App() {
               </div>
             </details>
             <div className="actions">
-              <Button tone="primary" disabled={!online || busyKey === 'osc-save'} onClick={saveOscConfig}>
+              <Button tone="primary" disabled={!online || Boolean(busyKey)} onClick={saveOscConfig}>
                 {t('保存 OSC 设置')}
               </Button>
             </div>
@@ -2451,7 +2451,7 @@ function App() {
                             ? t('实验空间输入已允许')
                             : t('实验空间输入未允许')}
                         </Badge>
-                        <Button tone="primary" onClick={saveOscConfig} disabled={!online || busyKey === 'osc-save'}>
+                        <Button tone="primary" onClick={saveOscConfig} disabled={!online || Boolean(busyKey)}>
                           {t('保存实验设置')}
                         </Button>
                       </div>
@@ -2596,7 +2596,7 @@ function App() {
             <Button onClick={() => setDialog(null)}>{t('取消')}</Button>
             <Button
               tone="primary"
-              disabled={!online || busyKey.startsWith('dialog-save-') || outputDialogConflicts.length > 0}
+              disabled={!online || Boolean(busyKey) || outputDialogConflicts.length > 0}
               onClick={saveOutputDialog}
             >
               {t('保存输出')}
@@ -2728,7 +2728,7 @@ function App() {
             <Button onClick={() => setProfileDialog(null)}>{t('取消')}</Button>
             <Button
               tone="primary"
-              disabled={!online || busyKey.startsWith('profile-save-')}
+              disabled={!online || Boolean(busyKey)}
               onClick={saveProfileDialog}
             >
               {t('保存轴配置')}
@@ -2784,7 +2784,7 @@ function App() {
         actions={
           <>
             <Button onClick={() => setPresetDialog(null)}>{t('取消')}</Button>
-            <Button tone="primary" disabled={!online || busyKey.startsWith('preset-save-')} onClick={savePresetDialog}>
+            <Button tone="primary" disabled={!online || Boolean(busyKey)} onClick={savePresetDialog}>
               {t('保存预设')}
             </Button>
           </>

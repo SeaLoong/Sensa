@@ -77,7 +77,9 @@ export async function allowSpatial(page, value = true) {
   await oscWorkspace(page, '实验诊断');
   await page.getByRole('checkbox', { name: await text(page, '允许实验空间输入'), exact: true }).setChecked(value);
   await page.getByRole('button', { name: await text(page, '保存实验设置'), exact: true }).click();
-  await expect.poll(async () => page.request.get(new URL('/api/config', page.url()).href).then(response => response.json()).then(config => config.osc.allowExperimentalSpatialInput)).toBe(value);
+  await expect.poll(async () => page.request.get(new URL('/api/config', page.url()).href).then(response => response.json()).then(config => config.osc.allowExperimentalSpatialInput), {
+    message: 'Spatial input permission saved / 空间输入许可已保存',
+  }).toBe(value);
   await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
 }
 async function clearScreenshotNotice(page) {

@@ -6,7 +6,15 @@ import { fileURLToPath } from 'node:url';
 const OUTCOMES = ['passed', 'expectedFailure', 'failed', 'flaky', 'skipped', 'notRun', 'interrupted'];
 const clean = value => String(value ?? '').replace(/\u001b\[[0-9;]*m/g, '');
 const html = value => clean(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
-const messageOf = error => clean(error?.message || error?.stack || error).slice(0, 6000);
+const messageOf = error => {
+  const message = clean(error?.message || error?.stack || error);
+  const stack = clean(error?.stack || '');
+  const location = error?.location;
+  const source = location?.file && Number.isInteger(location.line)
+    ? `${relative(process.cwd(), location.file).replaceAll('\\', '/')}:${location.line}${location.column ? `:${location.column}` : ''}\n`
+    : '';
+  return (source + (stack && stack.includes(message) ? stack : message + (stack ? `\n${stack}` : ''))).slice(0, 6000);
+};
 
 function classify(test, last) {
   if (!last) return 'notRun';

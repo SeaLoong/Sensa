@@ -50,6 +50,24 @@ test('summary keeps passed, expected failures, skips and unexecuted cases distin
   assert.throws(() => verifyComparisonSummary(summary, comparison));
 });
 
+test('summary retains the assertion location and stack alongside its message', () => {
+  const file = join(process.cwd(), 'tests/e2e/contact-tracking.spec.js');
+  const error = {
+    message: 'Expected valid Contact data, received false',
+    stack: 'Error: Expected valid Contact data, received false\n    at contact-tracking.spec.js:87:42',
+    location: { file, line: 87, column: 42 },
+  };
+  const summary = buildE2ESummary([testcase('Contact readiness', { outcome: 'unexpected',
+    results: [attempt('failed', { errors: [error] })] })], { ...completed, status: 'failed' }, metadata);
+  const detail = summary.tests[0].attempts[0].errors[0];
+  assert.ok(detail.startsWith('tests/e2e/contact-tracking.spec.js:87:42\n'));
+  assert.match(detail, /Expected valid Contact data, received false/);
+  assert.match(detail, /at contact-tracking\.spec\.js:87:42/);
+  assert.equal(detail.match(/Expected valid Contact data, received false/g)?.length, 1);
+  assert.equal(summary.tests[0].line, 12, 'The declaration remains separate from the assertion location');
+  assert.throws(() => verifyComparisonSummary(summary, comparison));
+});
+
 test('retries and unexpectedly passing expected failures do not count as clean passes', () => {
   const summary = buildE2ESummary([
     testcase('passes on retry', { outcome: 'flaky', results: [attempt('failed'), attempt('passed', { retry: 1 })] }),
