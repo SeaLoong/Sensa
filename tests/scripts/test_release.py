@@ -26,6 +26,7 @@ from test_bilingual_docs import relative_links
 ROOT = Path(__file__).resolve().parents[2]
 PARAMETER_GEOMETRY_FILES = (
     'docs/parameter-geometry.html',
+    'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
@@ -215,6 +216,7 @@ class DesktopArchiveContracts(ArchiveWorkspace):
     def test_interactive_geometry_publish_items_preserve_the_static_web_paths(self):
         required = {
             '../docs/parameter-geometry.html': 'web/docs/parameter-geometry.html',
+            '../docs/assets/osc-parameter-reference.js': 'web/docs/assets/osc-parameter-reference.js',
             '../docs/assets/parameter-geometry-model.js': 'web/docs/assets/parameter-geometry-model.js',
             '../docs/assets/parameter-geometry-view.js': 'web/docs/assets/parameter-geometry-view.js',
             '../docs/assets/parameter-geometry-style.css': 'web/docs/assets/parameter-geometry-style.css',

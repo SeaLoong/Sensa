@@ -68,6 +68,7 @@ class LocalVerificationTests(unittest.TestCase):
 
     def test_interactive_document_sources_bundles_and_licenses_invalidate_web_receipts(self):
         inputs = (
+            'docs/assets/osc-parameter-reference.js',
             'docs/assets/parameter-geometry-model.js',
             'docs/assets/parameter-geometry-view.js',
             'docs/parameter-geometry.html',

@@ -22,7 +22,15 @@ Receiver 的制作半径为 2 个 Avatar 根局部单位，标记半径为 0.001
 
 SDK 的公开开关是 **`advancedProximityParameters`**，类型为 Bool，适用于 Proximity Receiver。基参数名为 `Proximity` 时，SDK 写入 `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`。
 
-SDK 还会按碰撞标签写入 `_CollisionTag_<tag>` Bool。组件为自己的专用标签在 FX 中声明这个状态，并在停用时清零；公开 OSC 字段为下文列出的十二项。
+[VRChat 官方 Contacts 说明](https://creators.vrchat.com/common-components/contacts/)介绍了 Receiver 的检测模式：Constant 报告匹配目标是否进入检测区，Proximity 则报告 0–1 的连续接近值。本页高级位置／速度字段按[官方 Beta 安装包](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2)中的测量实现解释；Sensa 另外提供 `Radius` 与 `Sample`，用于覆盖范围和活动检查。图解的[“OSC 参数含义与来源”](parameter-geometry.html#parameter-reference)和工作台参数详情均可逐项阅读测量定义、联动用法与来源。
+
+| 要了解什么 | 对应参数 | 读数怎样理解 |
+| --- | --- | --- |
+| 目标在哪里 | `Proximity_SenderLocalPositionX/Y/Z` | 相对接收器原点的左右、上下、前后位移，单位米；可沿选定轴校准动作范围 |
+| 动作有多快、往哪边动 | `Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` | 近似接触点处的相对速度，单位 m/s；分量保留方向，模长便于控制运动强弱 |
+| 接近程度怎样变化 | `Proximity`、`Proximity_ProximitySpeed` | 接近值为 0–1，变化率为接近值／秒；便于观察进入接收范围后的靠近与退出 |
+
+SDK 还会按碰撞标签写入 `_CollisionTag_<tag>` Bool。组件为自己的专用标签在 FX 中声明这个状态，并在停用时清零；十二项公开 OSC 字段见[参数字典](osc-parameters.md)。
 
 位置描述**发送形状中点相对接收形状中点的位移**，再旋转到接收形状的坐标轴。运行时使用接收形状旋转的逆变换，保留物理米单位，未除以 Transform 缩放或 Receiver 半径。球形的中点就是球心，胶囊使用其形状中点。因此，Sensa 的专用零偏移 Receiver 建立 **AvatarRootMeters**：原点在 Avatar 根，各轴跟随根旋转，单位为物理米。SPS 四点定位和 Shader 捕获继续使用 **AvatarRootLocal**，其单位按制作时的 Avatar 根尺度解释。
 
@@ -47,7 +55,7 @@ position = inverse(receiverShapeRotation)
 
 `contact-position` 与 `contact-speed` [预设](presets.md)提供起始映射，将 `Root` 替换为实际实例并校准量程。使用 **X、Y、Z 或 Distance**，按校准后的方向或距 Avatar 原点的距离联动。细微局部动作可沿一轴采集希望的起点和终点，例如将根点少量前后位移映射为有限的深度范围。已有 OGB 深度信号适合其作者几何下的深浅趋势；Contact 坐标方便选择具体的动作轴。
 
-使用 **VelocityX、VelocityY、VelocityZ 或 Speed** 映射运动强弱，或通过 **ProximitySpeed** 观察接收区内靠近／退出的强度。需要触碰确认的效果，可另用 Touch／Close 信号作为接触条件。采集适当端点、检查预览并保存映射，再启用实验空间输入和实际 OSC 输入。校准、曲线、输出限位、输入启用与失效停止沿用现有空间流程。
+使用 **VelocityX、VelocityY、VelocityZ 或 Speed** 映射运动强弱，或通过 **ProximitySpeed** 观察接收区内靠近／退出的强度。需要限定动作生效范围时，可另用 Touch／Close 信号作为区域条件。采集适当端点、检查预览并保存映射，再启用实验空间输入和实际 OSC 输入。校准、曲线、输出限位、输入启用与失效停止沿用现有空间流程。
 
 位置和速度提供不同控制：静止根点可保持按位置生成的目标，速度目标则可回到校准的零速水平。在实际客户端检查方向、响应和停止，再以小输出范围确认设备响应。[工作台指南](guide.md) · [定位说明](positioning.md)
 

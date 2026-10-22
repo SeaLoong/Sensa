@@ -22,7 +22,15 @@ The authored Receiver radius is 2 Avatar-root local units and the marker radius 
 
 The SDK public switch is **`advancedProximityParameters`**, a Bool used by Proximity Receivers. If the base parameter is `Proximity`, the SDK writes `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`.
 
-The SDK also writes a `_CollisionTag_<tag>` Bool for each collision tag. The component declares this state in FX for its dedicated tag and clears it while inactive. The public OSC contract contains the twelve fields listed below.
+The [official VRChat Contacts guide](https://creators.vrchat.com/common-components/contacts/) describes Receiver detection modes: Constant reports whether a matching target entered the detection region, while Proximity reports a continuous 0–1 approach value. The advanced position/velocity fields here follow the measurement implementation in the [official beta package](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2). Sensa adds `Radius` and `Sample` for coverage and activity checks. The explorer's [“OSC parameter meanings and sources”](parameter-geometry.html#parameter-reference) section and workbench parameter details provide measurement definitions, linkage uses and sources for individual fields.
+
+| What you want to know | Parameters | How to read them |
+| --- | --- | --- |
+| Where the target is | `Proximity_SenderLocalPositionX/Y/Z` | Left/right, up/down and forward/back displacement from the Receiver origin, in metres; calibrate movement along a chosen axis |
+| How fast it moves and in which direction | `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` | Relative velocity near the contact point, in m/s; components retain direction, while magnitude supports movement-strength mapping |
+| How proximity changes | `Proximity`, `Proximity_ProximitySpeed` | Proximity is 0–1; its change rate uses proximity units/s. Use them to inspect approach and withdrawal inside the detection range |
+
+The SDK also writes a `_CollisionTag_<tag>` Bool for each collision tag. The component declares this state in FX for its dedicated tag and clears it while inactive. The [dictionary](osc-parameters.en.md) lists the twelve-field public OSC contract.
 
 Position describes the **Sender shape midpoint relative to the Receiver shape midpoint**, rotated into Receiver shape axes. The runtime applies inverse shape rotation without dividing by transform scale or Receiver radius. A sphere's midpoint is its center; a capsule uses its shape midpoint. Sensa's dedicated zero-offset Receiver therefore establishes **AvatarRootMeters**: origin at the Avatar root, axes following its rotation, and physical metre units. SPS four-anchor tracking and Shader capture continue to use **AvatarRootLocal**, whose units follow the authored Avatar scale.
 
@@ -47,7 +55,7 @@ When no Sender is selected, the SDK writes type 0 and zero position/velocity. Se
 
 The `contact-position` and `contact-speed` [presets](presets.en.md) provide starting mappings; replace `Root` with the actual instance and calibrate their ranges. Use **X, Y, Z or Distance** to map a calibrated direction or distance from the Avatar origin. For subtle local movement, capture the desired start and end along one axis: for example, map a small forward/back root displacement to a limited depth range. Existing OGB depth signals remain useful for their authored depth trends; Contact coordinates let you select a specific movement axis.
 
-Use **VelocityX, VelocityY, VelocityZ or Speed** to map movement strength, or **ProximitySpeed** for approach/withdrawal intensity inside the Receiver. A touch/Close signal can provide a separate contact condition when the intended effect needs touch confirmation. Capture suitable endpoints, inspect the preview, save the mapping, then enable experimental spatial input and the actual OSC input. Calibration, curves, output limits, activation and invalidity stops follow the existing spatial flow.
+Use **VelocityX, VelocityY, VelocityZ or Speed** to map movement strength, or **ProximitySpeed** for approach/withdrawal intensity inside the Receiver. A Touch/Close signal can provide a separate region condition when motion should apply only inside a selected detection area. Capture suitable endpoints, inspect the preview, save the mapping, then enable experimental spatial input and the actual OSC input. Calibration, curves, output limits, activation and invalidity stops follow the existing spatial flow.
 
 Position and speed provide different controls: a stationary root holds its position-based target while its velocity-based target can return to the calibrated zero-speed level. Check direction, response and stopping in the actual client, then use a small output range to verify the device response. [Workbench guide](guide.en.md) · [Positioning](positioning.en.md)
 

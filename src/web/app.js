@@ -92,7 +92,6 @@ import { t, getLocale, subscribeLocale, setLocale, diagnostic, docUrl } from './
 import {
   pointPreviewEntry,
   posePreviewEntry,
-  parameterMeaning,
   readPinnedPaths,
   createOscPreviewRanker,
   createOscPreviewLookup,
@@ -107,6 +106,7 @@ import OscFlowStatus from './OscFlowStatus.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
 import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
+import OscParameterReference from './OscParameterReference.jsx';
 import { buildComputedDrafts, computeComputedHash, computedDraftIncomplete, computedMappingPreviews, expandMappingSources } from './computed-signals.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
@@ -2858,7 +2858,7 @@ function App() {
         }
       >
         <p className="mono wrap">{parameterDetail?.path}</p>
-        <p>{parameterDetail ? parameterMeaning(parameterDetail.path) : ''}</p>
+        {parameterDetail && <OscParameterReference path={parameterDetail.path} />}
         <p><a href={docUrl('docs/parameter-geometry.html')} target="_blank" rel="noreferrer">{t('交互参数图解')}</a></p>
         <p className="muted">
           {visibleParameterDetail?.entry.sourceLabel || t('未知来源')} · <span data-testid="parameter-detail-value">{visibleParameterDetail?.entry.value ?? '—'}</span>

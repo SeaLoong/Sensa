@@ -182,14 +182,16 @@ function baseParameterMeaning(path) {
     if (/^Pen(Self|Others)NewRoot$/.test(leaf)) return t("SPS2 · {0}：测量根部表面与接收器的接近程度。与同一对象的 NewTip 配对后，Sensa 估算长度并计算插入比例。", [leaf]);
     if (/^Pen(Self|Others)NewTip$/.test(leaf)) return t("SPS2 · {0}：测量以根部为球心、半径等于长度的球体接近程度。与 NewRoot 配对估算长度；实际插入比例也会受到横向偏移和角度影响。", [leaf]);
     if (/^Pen(Others|Self)$/.test(leaf)) return path.startsWith('OGB/Orf/')
-      ? t("SPS1 · {0}：接收器的接近程度，数值越大表示接触越近。使用同一对象的 Close 判断是否进入接触范围，再校准动作行程。", [leaf])
+      ? leaf === 'PenSelf'
+        ? t('SPS1 · PenSelf：自身目标的连续接近读数，可按希望的浅端与深端直接校准动作行程。')
+        : t("SPS1 · {0}：接收器的接近程度，数值越大表示接触越近。使用同一对象的 Close 判断是否进入接触范围，再校准动作行程。", [leaf])
       : t('Plug · {0}：感知 Socket 入口到 Plug 根部的接近程度。对齐时可作为进入深度参考，再将两端读数校准为设备行程。', [leaf]);
-    if (/^Pen(Self|Others)Close$/.test(leaf)) return t("SPS1 · {0}：进入近距离接触范围时打开，离开时关闭。配合同一对象的 PenOthers 或 PenSelf 控制动作何时生效。", [leaf]);
-    if (/Close$/.test(leaf)) return t('{0}：接触范围开关，进入对应的触摸或摩擦范围时打开，离开时关闭。与同一对象的接触强度配对，控制振动何时生效。', [leaf]);
-    if (/^Touch/.test(leaf)) return t("身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。");
-    if (/^Frot/.test(leaf)) return t("摩擦接触强度，可映射为振动；数值含义由接收器的位置和半径决定。");
+    if (path.startsWith('OGB/Orf/') && leaf === 'PenOthersClose') return t('SPS1 · PenOthersClose：匹配目标进入有效检测区时为 1，离开时为 0，配合 PenOthers 控制动作何时生效。');
+    if (/^Touch(Self|Others)Close$/.test(leaf) || path.startsWith('OGB/Pen/') && leaf === 'FrotOthersClose') return t('{0}：接触范围开关，进入对应的触摸或摩擦范围时打开，离开时关闭。与同一对象的接触强度配对，控制振动何时生效。', [leaf]);
+    if (/^Touch(Self|Others)$/.test(leaf)) return t("身体触碰信号，通常用于振动强度；具体数值取决于 Contact 的设置。");
+    if (leaf === 'FrotOthers') return t("摩擦接触强度，可映射为振动；数值含义由接收器的位置和半径决定。");
   }
-  return t("自定义参数。请确认生成它的组件、量程和方向后再映射。名称相近仅作为查找提示。");
+  return t('自定义参数由 Avatar 或发送程序定义，可按它的用途、数值范围与变化方向设置映射，并选择合适的校准端点。');
 }
 
 export function readPinnedPaths(storage) {

@@ -93,6 +93,14 @@ fieldset { min-width: 0; }
 .caption { font-size: 12px; line-height: 20px; }
 .mono { font-family: "Cascadia Code", ui-monospace, SFMono-Regular, Consolas, monospace; }
 .wrap { overflow-wrap: anywhere; }
+.parameter-reference { min-width: 0; overflow-wrap: anywhere; }
+.parameter-reference__intro, .parameter-reference__text { gap: 8px; }
+.parameter-reference__facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 12px; margin: 0; }
+.parameter-reference__facts > div { min-width: 0; padding: 12px; background: var(--muted-surface); border-radius: var(--radius); }
+.parameter-reference__facts dt { color: var(--muted); font-size: 12px; }
+.parameter-reference__facts dd { margin: 4px 0 0; }
+.parameter-reference__sources { margin: 0; padding-left: 20px; }
+.parameter-reference__sources li + li { margin-top: 4px; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .icon { display: block; flex-shrink: 0; width: 16px; height: 16px; }
 .skip-link { position: fixed; top: 8px; left: 12px; z-index: 60; transform: translateY(-180%); padding: 8px 16px; border-radius: var(--radius); color: #fff; background: var(--accent); }

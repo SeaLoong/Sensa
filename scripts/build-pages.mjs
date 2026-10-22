@@ -7,7 +7,7 @@ import MarkdownIt from 'markdown-it';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
-const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt'];
+const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
   en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Download preview', navigation: 'Navigation', top: 'On this page', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
   'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载预览版', navigation: '导航', top: '本页目录', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },

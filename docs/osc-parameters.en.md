@@ -2,7 +2,7 @@
 
 [简体中文](osc-parameters.md) | **English**
 
-This is the field/validity reference. Choose a [route](usage-scenarios.en.md), then establish the [workbench flow](guide.en.md). Paths omit `/avatar/parameters/`, are case sensitive, and use a real instance name in place of `<id>`.
+First identify whether a parameter describes position, proximity or movement strength, then calibrate the mapping with your intended start and end movements. This page explains each field's meaning, units, direction and common linkage uses. See [integration routes](usage-scenarios.en.md) and the [workbench guide](guide.en.md) for setup. Paths omit `/avatar/parameters/`, are case sensitive, and use a real instance name in place of `<id>`.
 
 ## Explore the values
 
@@ -10,11 +10,25 @@ The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) 
 
 Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All eleven scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. SPS four-anchor tracking colors connect each measurement sphere to its label and parameter row.
 
+The [“OSC parameter meanings and sources”](parameter-geometry.html#parameter-reference) section below the controls explains every field in the selected group. Expand an actual parameter name to read what it measures, its range and units, linkage suggestions, and its official or project source. In the workbench, open **OSC → Parameters** and select a parameter name to read the same explanations in “Parameter meaning.” Confirm its complete path before adding a mapping draft.
+
 Distances use complete XYZ coordinates. XZ projects space onto a plane; the green SPS four-anchor tracking region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
 
 Parameters appear in dictionary order, with a shorter shared prefix first: `PenOthers` precedes `PenOthersClose`. A prefix's `*` represents an instance name: `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader IDs use the decimal form below.
 
 Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship with the assets; unavailable [WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html) falls back to SVG. The MIT notice is `assets/parameter-geometry-3d.LICENSE.txt`. [Explorer operation](guide.en.md)
+
+## Where the explanations come from
+
+“Measurement definition” explains how a value is produced; “Linkage use” helps you choose a mapping. The page labels the following sources and paraphrases official explanations in plain language:
+
+| Source | What it defines | References |
+| --- | --- | --- |
+| Official VRChat sources | Contact detection, native SDK position/velocity reports and Raycast hit/distance | [Official Contacts guide](https://creators.vrchat.com/common-components/contacts/), [official beta package for advanced Proximity](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2), [Raycast parameters](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
+| VRCFury/OGB implementation | Generated `PenOthers`, `NewRoot`, `NewTip`, `Touch`, `Frot` and `Close` names, detection shapes and pairing | [Pinned Socket generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273), [pinned Plug generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256), [OGB interoperability](ogb-compatibility.en.md) |
+| Sensa protocol and application guidance | Four-anchor reconstruction, `Sample`/`Radius`, Shader `Frame`/`Valid`, and converting readings into motion targets | [Positioning and units](positioning.en.md), [Contact route](contact-sdk.en.md), [computed signals](computed-signals.en.md) |
+
+The general Contacts guide explains detection behavior. The official beta package above establishes the specific advanced Proximity suffixes, coordinate frame and velocity meaning used here. The [Contact guide](contact-sdk.en.md) retains the relevant methods and package hashes for verification.
 
 ## Choose the information you need
 
@@ -40,17 +54,17 @@ To combine parameters, create a [computed signal](computed-signals.en.md) for a 
 | --- | --- | --- |
 | `FrotOthers` | Approach intensity as two matching shapes move close, meet or brush past | Plug uses `FrotOthersClose`; Socket reads the value directly |
 | `FrotOthersClose` | Whether a matching target enters the Plug's effective nearby region: 0 away, 1 nearby | An additional condition for Plug Frot |
-| Orf/Pen `PenOthers` / `PenSelf` | Socket SPS1 or Plug depth trend; movement aligned with the Socket can be understood as gradually entering | Socket uses it when the SPS2 pair is absent or both values are zero; Plug reads it directly |
+| Orf/Pen `PenOthers` / `PenSelf` | Continuous 0–1 proximity. The Socket SPS1 value follows an entering-depth trend; the Plug value changes as the Socket entrance approaches its root | Calibrate your intended shallow and deep endpoints; Socket uses it when the SPS2 pair is absent or both values are zero, while Plug reads it directly |
 | Orf `PenOthersClose` | Whether a matching target enters the Socket's effective nearby region: 0 away, 1 nearby | When published, gates SPS1 depth; single-value sources retain their own path behavior |
-| Orf `PenOthersNewRoot` / `PenSelfNewRoot` | SPS2 approach of the Plug root toward the Socket | Pairs with the same instance's `NewTip` for length estimation and depth conversion |
-| Orf `PenOthersNewTip` / `PenSelfNewTip` | SPS2 approach of the root-centered length sphere toward the Socket | Unsaturated pairs estimate length, then yield a depth trend |
+| Orf `PenOthersNewRoot` / `PenSelfNewRoot` | SPS2 proximity from the small Plug-root sphere to the Socket Receiver, from 0 to 1 | Pairs with the same instance's `NewTip` for length estimation and depth conversion |
+| Orf `PenOthersNewTip` / `PenSelfNewTip` | SPS2 proximity from a sphere centered on the Plug root whose radius equals Plug length, from 0 to 1 | Unsaturated pairs estimate length, then yield a depth trend |
 | `TouchOthers` / `TouchSelf` | Continuous 0–1 intensity as a body or matching target approaches the touch region | Used with its corresponding `Touch…Close` |
 | `TouchOthersClose` / `TouchSelfClose` | Whether a matching target enters that touch region: 0 away, 1 nearby | Close=1 admits Touch intensity; Close=0 yields zero |
 | `VFH/Zone/Touch/<complete-id>/Others` / `Self` | Continuous proximity in a chosen zone, usually increasing toward its center | OgbTouch reads 0–1 directly |
 | `VFH/Version/…`, historical OGB Version paths | Upstream capability flags | Identifying supported parameter features |
 | `OGB_ENABLED` | Tells the Avatar that the receiving service is running | Sends true to the configured destination every five seconds and attempts false when stopped; off by default |
 
-Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. SPS2 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
+Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. `Close=1` means a matching target entered that Contact's effective region, making it useful as a condition for motion. Authored shapes determine how that region relates to the body's visible outline. SPS2 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
 
 Use the parameters actually exposed by your Avatar. The [OGB tables](ogb-compatibility.en.md) give complete generated paths, shapes and dimensions, based on the [pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs) and [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts).
 
@@ -68,7 +82,7 @@ The prefix is `Sensa/<id>/Aux<index>/<role>`: `<index>` is the supplementary sig
 
 With a 0.3 m range and a hit 0.1 m away, `_Distance` is approximately 0.1 and `_Ratio` approximately 1/3. Check `_Hit` before reading distance: the generated component uses the SDK's default `DoNothing` miss behavior. On a miss, `_Hit=false` and both distances retain their latest hit values, initially zero before the first hit.
 
-These are the native `VRCRaycast` report fields. All three receive local, unsynced Expression Parameter declarations and matching FX types. The APIs and bindings were also checked in the minimum supported version, 3.10.3. [Unity configuration](../unity/top.sealoong.sensa/AUTOMATION.en.md) · [Official SDK 3.10.3 package](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
+These are the native `VRCRaycast` report fields. The [official Raycast parameter reference](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) explains hit state, distance ratio, world distance and the available miss behaviors. Sensa declares local, unsynced Expression Parameters and matching FX types for all three. The APIs and bindings were also checked in the minimum supported version, 3.10.3. [Unity configuration](../unity/top.sealoong.sensa/AUTOMATION.en.md) · [Official SDK 3.10.3 package](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
 
 ## Contact direct tracking (SDK Beta): twelve public fields
 
@@ -76,20 +90,22 @@ Use a dedicated spherical Sender on the selected own root and one Proximity Rece
 
 All paths start with `Sensa/Contact/<id>/`; `<id>` occupies one path segment. The table follows dictionary order, with the shorter shared prefix first. `Proximity_SenderType` is Int; the other eleven fields are Floats.
 
-| Leaf | Meaning and units | Validity/use |
+| Leaf | What it tells you | Linkage use |
 | --- | --- | --- |
-| `Proximity` | Native proximity, 0–1 | Sensa requires `0 < p ≤ 1` |
-| `Proximity_ProximitySpeed` | Signed Proximity change rate, proximity units/s | Finite; leaving can create a transient |
-| `Proximity_SenderLocalPositionX` | Sender shape midpoint relative to Receiver shape midpoint, X in metres | Finite; negative coordinates are valid |
-| `Proximity_SenderLocalPositionY` | Same position, Y in metres | Same |
-| `Proximity_SenderLocalPositionZ` | Same position, Z in metres | Same |
-| `Proximity_SenderType` | 0 none, 1 own Avatar, 2 other Avatar, 3 world Sender | Dedicated Sensa root measurement requires 1 |
-| `Proximity_SenderVelocityMagnitude` | Magnitude of relative contact-point velocity, m/s | Finite and nonnegative; zero is valid |
-| `Proximity_SenderVelocityX` | Relative contact-point velocity in Receiver X axes, m/s | Finite; includes angular-motion effects |
-| `Proximity_SenderVelocityY` | Same velocity, Y in m/s | Same |
-| `Proximity_SenderVelocityZ` | Same velocity, Z in m/s | Same |
-| `Radius` | Actual Receiver world radius in metres | Finite, `0 < Radius ≤ 3`; updated with ScaleFactor |
-| `Sample` | Sensa producer-activity counter | 0 invalid; active values exactly n/32, n=1…32 |
+| `Proximity` | Selected-target proximity, 0–1; usually increases as the target's signal shape approaches the Receiver center | Inspect entry into the detection range; Sensa root measurement uses positive values |
+| `Proximity_ProximitySpeed` | How much proximity changes per second; positive means an increasing reading and negative a decreasing reading, in proximity units/s | Distinguish approach and withdrawal strength; calibrate the intended direction. Exit can produce a transient |
+| `Proximity_SenderLocalPositionX` | Sender shape midpoint displacement from Receiver shape midpoint, X in metres | Map left/right displacement under Sensa's Avatar-root reference to one axis; signed values retain direction |
+| `Proximity_SenderLocalPositionY` | The same position's Y component, in metres | Control motion with up/down displacement and calibrate the desired lower and upper endpoints |
+| `Proximity_SenderLocalPositionZ` | The same position's Z component, in metres | Control forward/back movement or entering depth, calibrated to the intended shallow and deep endpoints |
+| `Proximity_SenderType` | SDK-selected target category: 0 none, 1 own Avatar, 2 other Avatar, 3 world Sender | Identify the selected target category; Sensa's dedicated root route uses 1 |
+| `Proximity_SenderVelocityMagnitude` | Relative speed near the contact point, in m/s, always ≥0; zero can describe rest | Map movement speed to vibration or another intensity, with rest at the calibrated zero-speed level |
+| `Proximity_SenderVelocityX` | Relative contact-point velocity along Receiver X, in m/s, including angular-motion effects | Control the direction or strength of left/right movement; signs represent positive/negative axis motion |
+| `Proximity_SenderVelocityY` | The same velocity's Y component, in m/s | Control the direction or strength of up/down movement |
+| `Proximity_SenderVelocityZ` | The same velocity's Z component, in m/s | Control the direction or strength of back-and-forth movement |
+| `Radius` | Sensa Receiver's current world radius, in metres, `0 < Radius ≤ 3`, updated with ScaleFactor | Inspect coverage and the measurement boundary after scaling |
+| `Sample` | Sensa producer-activity counter; cycles through n/32 (n=1…32), with 0 disabled/invalid | Check continued measurement updates alongside complete-field validity |
+
+For example, changing Z from 0.05 m to 0.15 m means 0.10 m of movement along the Receiver's Z axis; calibrate those endpoints to your desired motion range. A relative speed of 0.4 m/s describes movement speed at that moment. A Proximity change rate of 0.4/s describes proximity increasing by 0.4 per second. Choose position, velocity or proximity-change mapping according to these meanings.
 
 The SDK selects the matching Sender with greatest strictly positive Proximity. It rotates midpoint displacement by inverse Receiver shape rotation, retaining metres without scale/radius normalization. The reported velocity is relative velocity near the contact point, including angular terms. Rotating shapes can make it differ from the derivative of midpoint position. No selected Sender writes type 0 and zero XYZ/velocity. The SDK supplies no timestamp, sequence or stable Sender ID.
 

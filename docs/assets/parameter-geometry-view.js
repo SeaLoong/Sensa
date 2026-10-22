@@ -36,6 +36,11 @@
     meaning: ["0–1 的接近值描述匹配对象由远到近的变化，Close=1 表示进入对应接触范围。X/Y/Z 给出目标相对参考点的位置。彩色球或胶囊画出检测范围，灰色轮廓帮助辨认 Socket、Plug 与朝向。", "A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction."],
     sourceNote: ["尺寸与计算依据来自引用的上游实现及 Sensa 定义，详细参数地址和来源见下方链接。", "Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources."],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
+    parameterReferenceTitle: ['OSC 参数含义与来源', 'OSC parameter meanings and sources'],
+    parameterReferenceIntro: ['逐项查看参数含义、测量规则与联动用法。来源分别注明 VRChat SDK 报告、VRCFury 生成参数与 Sensa 自有协议字段。', 'Read each parameter’s meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa’s own protocol fields.'],
+    parameterReferenceRange: ['数值范围', 'Range'], parameterReferenceUnit: ['单位', 'Unit'], parameterReferenceType: ['参数类型', 'Parameter type'],
+    parameterReferenceUsage: ['联动用法', 'Interaction use'], parameterReferenceSources: ['说明来源', 'Sources'],
+    parameterReferenceSelected: ['当前选中：', 'Selected: '],
     positioning: ['定位原理', 'Positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
     exploreTopics: ['按用途阅读：', 'Read by use: '], positionTopic: ['位置', 'position'], depthTopic: ['进入程度', 'depth'], touchTopic: ['触碰', 'touch'],
     'socket-modern': ["SPS2 · PenOthersNewRoot / PenOthersNewTip", "SPS2 · PenOthersNewRoot / PenOthersNewTip"],
@@ -137,6 +142,8 @@
   let state = Model.defaultsFor($('scene').value);
   let result, projection, selected = '', dragging = null, annotationRatio = 1;
   let threeView = null, threeUnavailable = false;
+  let referenceKey = '', referenceSelection = '';
+  const referenceCards = new Map();
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['contact-sdk', 'sensa-sps', 'shader'].includes(state.scenario);
@@ -440,6 +447,80 @@
       const bytes = result.metrics.bytes; $('crc').textContent = 'CRC ' + (bytes[14] | bytes[15] << 8).toString(16).toUpperCase().padStart(4, '0') + ' · ID 42';
     }
   }
+  function parameterReferences() {
+    // Descriptions are static for a parameter group. Preserve details state and
+    // keyboard focus while pointer drags update the geometric values above.
+    // 参数组说明保持静态；拖动只更新上方几何，保留展开状态和键盘焦点。
+    const key = state.scenario + '|' + locale;
+    if (referenceKey !== key) {
+      referenceKey = key; referenceSelection = ''; referenceCards.clear();
+      const cards = document.createDocumentFragment();
+      const paragraph = (parent, value, testId) => {
+        if (!value) return;
+        const node = document.createElement('p'); node.textContent = value;
+        node.dataset.testid = testId; parent.append(node);
+      };
+      for (const field of result.values) {
+        const reference = window.SensaOscParameterReference?.lookup(field.path, locale);
+        const card = document.createElement('details'); card.className = 'parameter-reference-card';
+        card.dataset.testid = 'parameter-reference-card'; card.dataset.parameterName = field.name;
+        card.dataset.referencePath = field.path;
+        const summary = document.createElement('summary'), name = document.createElement('code');
+        name.className = 'parameter-reference-name'; name.textContent = field.name; summary.append(name);
+        if (reference?.title && reference.title !== field.name) {
+          const title = document.createElement('span'); title.className = 'parameter-reference-subtitle';
+          title.textContent = reference.title; summary.append(title);
+        }
+        card.append(summary);
+        const body = document.createElement('div'); body.className = 'parameter-reference-body';
+        paragraph(body, reference?.summary || text(field.meaning || ''), 'parameter-reference-summary');
+        if (reference?.definition) {
+          const label = document.createElement('h3'); label.textContent = reference.definitionLabel;
+          label.dataset.testid = 'parameter-reference-definition-label'; body.append(label);
+          paragraph(body, reference.definition, 'parameter-reference-definition');
+        }
+        const facts = document.createElement('dl'); facts.className = 'parameter-reference-facts';
+        for (const [property, label, testId] of [
+          ['range', 'parameterReferenceRange', 'range'], ['unit', 'parameterReferenceUnit', 'unit'],
+          ['valueType', 'parameterReferenceType', 'type'],
+        ]) {
+          if (!reference?.[property]) continue;
+          const fact = document.createElement('div'), term = document.createElement('dt'), value = document.createElement('dd');
+          term.textContent = text(label); value.textContent = reference[property];
+          value.dataset.testid = 'parameter-reference-' + testId; fact.append(term, value); facts.append(fact);
+        }
+        if (facts.childElementCount) body.append(facts);
+        if (reference?.usage) {
+          const heading = document.createElement('h3'); heading.textContent = text('parameterReferenceUsage'); body.append(heading);
+          paragraph(body, reference.usage, 'parameter-reference-usage');
+        }
+        const sourceHeading = document.createElement('h3'); sourceHeading.textContent = text('parameterReferenceSources'); body.append(sourceHeading);
+        const sources = document.createElement('ul'); sources.className = 'parameter-reference-sources';
+        sources.dataset.testid = 'parameter-reference-sources';
+        const fallbackDocument = spatial() ? 'osc-parameters' : 'ogb-compatibility';
+        const references = reference?.sources?.length ? reference.sources : [{
+          label: text(spatial() ? 'dictionary' : 'ogbSources'),
+          url: 'https://github.com/SeaLoong/Sensa/blob/main/docs/' + fallbackDocument + (locale === 'en-US' ? '.en' : '') + '.md',
+        }];
+        for (const source of references) {
+          if (!/^https:\/\//.test(source.url || '')) continue;
+          const item = document.createElement('li'), link = document.createElement('a');
+          link.href = source.url; link.textContent = source.label; link.target = '_blank'; link.rel = 'noreferrer';
+          if (source.kind) item.dataset.sourceKind = source.kind;
+          item.append(link); sources.append(item);
+        }
+        body.append(sources); card.append(body); cards.append(card); referenceCards.set(field.name, card);
+      }
+      $('parameter-reference-cards').replaceChildren(cards);
+    }
+    if (referenceSelection !== selected) {
+      referenceSelection = selected;
+      for (const [name, card] of referenceCards) card.dataset.selected = String(name === selected);
+      const card = referenceCards.get(selected);
+      if (card) card.open = true;
+      $('parameter-reference-selection').textContent = text('parameterReferenceSelected') + selected;
+    }
+  }
   function controls() {
     const allowed = new Set(['x', 'y', 'z']);
     if (['socket-modern', 'socket-legacy', 'plug-depth', 'plug-touch', 'plug-frot'].includes(state.scenario)) allowed.add('L');
@@ -529,7 +610,7 @@
   function render() {
     result = Model.evaluate(state);
     if (!result.values.some(v => v.name === selected)) selected = result.values[0]?.name || '';
-    localize(); controls(); readouts(); drawView();
+    localize(); controls(); readouts(); parameterReferences(); drawView();
   }
   $('three-scene').addEventListener('sensa-3d-unavailable', fallbackThree);
   $('scene').addEventListener('change', () => {

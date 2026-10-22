@@ -14,6 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RUNTIMES = ('win-x64','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
 PARAMETER_GEOMETRY_ASSETS = (
     'docs/parameter-geometry.html',
+    'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',

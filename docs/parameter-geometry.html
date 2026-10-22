@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="assets/parameter-geometry-style.css">
   <script defer src="assets/parameter-geometry-model.js"></script>
   <script defer src="assets/parameter-geometry-3d.js"></script>
+  <script defer src="assets/osc-parameter-reference.js"></script>
   <script defer src="assets/parameter-geometry-view.js"></script>
 </head>
 <body>
@@ -109,6 +110,12 @@
     <section class="reading-notes">
       <div><h2 data-i18n="formulaTitle">How values are calculated</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
       <div><h2 data-i18n="meaningTitle">Understanding the values</h2><p data-i18n="meaning">A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction.</p><p class="caption" data-i18n="sourceNote">Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources.</p></div>
+    </section>
+    <section id="parameter-reference" class="parameter-reference" data-testid="parameter-reference" aria-labelledby="parameter-reference-title">
+      <h2 id="parameter-reference-title" data-i18n="parameterReferenceTitle">OSC parameter meanings and sources</h2>
+      <p class="caption" data-i18n="parameterReferenceIntro">Read each parameter's meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa's own protocol fields.</p>
+      <p id="parameter-reference-selection" class="caption" aria-live="polite"></p>
+      <div id="parameter-reference-cards" class="parameter-reference-cards"></div>
     </section>
     <footer><a id="reference-link" href="osc-parameters.en.md" data-i18n="dictionary">Parameter dictionary</a><a id="ogb-link" href="ogb-compatibility.en.md" data-i18n="ogbSources">OGB geometry and sources</a><a id="position-link" href="positioning.en.md" data-i18n="positioning">Positioning</a><a href="assets/parameter-geometry-3d.LICENSE.txt" data-i18n="license">Three.js MIT license</a><span data-i18n="offline">Local Three.js · Works offline</span></footer>
     <noscript><p>需要启用 JavaScript 才能操作图示。静态说明见 <a href="osc-parameters.md">参数字典</a>。 / Enable JavaScript for the interactive diagrams, or read the <a href="osc-parameters.en.md">parameter reference</a>.</p></noscript>

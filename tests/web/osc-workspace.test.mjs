@@ -254,8 +254,9 @@ test('Close descriptions keep SPS1 depth gates distinct from touch and friction 
     assert.ok(plug.startsWith('Plug · PenOthers'));
     assert.doesNotMatch(plug, /SPS1|Close/);
     assert.ok(parameterMeaning('OGB/Orf/Main/PenOthers').startsWith('SPS1 · PenOthers'));
-    for (const leaf of ['PenOthersClose', 'PenSelfClose'])
-      assert.ok(parameterMeaning(`OGB/Orf/Main/${leaf}`).startsWith(`SPS1 · ${leaf}`));
+    assert.ok(parameterMeaning('OGB/Orf/Main/PenOthersClose').startsWith('SPS1 · PenOthersClose'));
+    assert.doesNotMatch(parameterMeaning('OGB/Orf/Main/PenSelf'), /Close/);
+    assert.match(parameterMeaning('OGB/Orf/Main/PenSelfClose'), locale === 'zh-CN' ? /自定义参数/ : /Custom parameters/);
     for (const leaf of ['TouchOthersClose', 'TouchSelfClose', 'FrotOthersClose']) {
       const meaning = parameterMeaning(`OGB/Pen/Main/${leaf}`);
       assert.ok(meaning.startsWith(leaf + (locale === 'zh-CN' ? '：' : ':')));

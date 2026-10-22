@@ -4,6 +4,12 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## OSC parameter explanations and official sources (verification in progress)
+
+On 2026-10-23 (Beijing time), the explorer adds per-parameter explanations, and workbench details use the same bilingual definitions, with ranges, actual parameter types, units, interaction uses and sources. Definitions distinguish the official VRChat SDK, VRCFury/OGB and Sensa protocols. Review corrected Close/Shader Float transport types, the SPS2 length sphere, historical PenSelf, velocity units and Raycast miss behavior. [Parameter explanations and sources](osc-parameters.en.md)
+
+Isolated local checks passed: **143 Web**, **497 .NET**, **237 Python** tests, Unity package metadata and a build of **84 documentation routes**. The complete browser suite remains 88 cases; expanded assertions cover every illustrated field, bilingual sources, workbench details, preserved expansion/focus and narrow-layout scrolling. Four new detail-window candidates are included. Full-page candidates and observed run counts will be recorded after Actions finishes; acceptance requires individual inspection and complete normal comparison.
+
 ## Computed signals
 
 On 2026-10-23 (Beijing time), this change adds multi-input calculations, reusable intermediate results and mapping controls. Current isolated local checks passed: **134 Web**, **237 Python**, **497 .NET** tests and a build of **84 documentation routes**. Regression checks cover path-prefix caching, wildcard refresh and zero-segment matching; tracked-input labels also update when switching language. Three-point opening offsets in calculations and mappings are labeled in reference-local units. [Feature and operation](computed-signals.en.md)

@@ -2,7 +2,7 @@
 
 **简体中文** | [English](osc-parameters.en.md)
 
-本页是字段与有效条件参考；先按[使用方案](usage-scenarios.md)选路线，再按[工作台指南](guide.md)建立控制链。下文省略 `/avatar/parameters/`，路径区分大小写，`<id>` 使用实际实例名。
+先看参数描述的是位置、接近程度还是运动强弱，再用希望的动作起点和终点校准映射。本页说明各字段的含义、单位、变化方向和常见联动用途；接入步骤见[使用方案](usage-scenarios.md)与[工作台指南](guide.md)。下文省略 `/avatar/parameters/`，路径区分大小写，`<id>` 使用实际实例名。
 
 ## 用图解理解数值
 
@@ -10,11 +10,25 @@
 
 先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十一个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。SPS 四点定位的四个颜色关联测量球、标签和参数行。
 
+页面下方的[“OSC 参数含义与来源”](parameter-geometry.html#parameter-reference)列出当前参数组的说明。展开实际参数名，可查看它测量什么、范围与单位、怎样用于联动，以及对应的官方或项目来源。工作台中打开 **OSC → 参数**，点击参数名称，也可在“参数含义”中阅读这些解释；先确认完整路径，再添加映射草稿。
+
 图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，SPS 四点定位的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
 
 参数按名称字典序显示，同一前缀的短名称在前，例如 `PenOthers` 在 `PenOthersClose` 之前。前缀中的 `*` 代表实例名：`Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 使用下文规定的十进制数。
 
 Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随资源打包；[WebGL2](https://threejs.org/docs/pages/WebGLRenderer.html)不可用时切换 SVG。MIT 声明位于 `assets/parameter-geometry-3d.LICENSE.txt`。[图解操作](guide.md)
+
+## 说明来自哪里
+
+“测量定义”说明参数怎样产生，“联动用法”帮助选择映射。页面按以下来源标注，官方说明采用便于理解的译述：
+
+| 来源 | 负责说明什么 | 参考资料 |
+| --- | --- | --- |
+| VRChat 官方 | Contact 的检测方式、SDK 原生坐标／速度报告和 Raycast 命中／距离 | [Contacts 官方说明](https://creators.vrchat.com/common-components/contacts/)、[高级 Proximity 所用官方 Beta 安装包](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2)、[Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
+| VRCFury／OGB 实现 | `PenOthers`、`NewRoot`、`NewTip`、`Touch`、`Frot` 和 `Close` 的生成名称、检测形状与配对方式 | [固定 Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[固定 Plug 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256)、[OGB 互通详解](ogb-compatibility.md) |
+| Sensa 协议与应用解释 | 四点解算、`Sample`／`Radius`、Shader 的 `Frame`／`Valid`，以及如何把读数变成动作目标 | [定位与单位](positioning.md)、[Contact 方案](contact-sdk.md)、[计算信号](computed-signals.md) |
+
+通用 Contacts 文档解释检测规则；本页高级 Proximity 字段的具体后缀、坐标框和速度语义来自上表官方 Beta 安装包实现，[Contact 说明](contact-sdk.md)保留了对应方法和包摘要，方便复核。
 
 ## 先选择需要的信息
 
@@ -40,17 +54,17 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 | --- | --- | --- |
 | `FrotOthers` | 两个匹配外形靠近、贴合或擦过时的接近强度 | Plug 与 `FrotOthersClose` 配合；Socket 直接使用该值 |
 | `FrotOthersClose` | Plug 周围是否有匹配目标进入有效接近区，0 为离开、1 为接近 | 为 Plug 的 Frot 提供附加条件 |
-| Orf／Pen 的 `PenOthers`／`PenSelf` | Socket 的 SPS1 信号或 Plug 的深浅趋势；正对 Socket 靠近时，可用来理解逐渐进入的程度 | Socket 在 SPS2 配对缺失或两值均零时使用；Plug 直接读取 |
+| Orf／Pen 的 `PenOthers`／`PenSelf` | 连续 0–1 接近值。Socket 的 SPS1 参数可理解为进入深浅趋势；Plug 参数随 Socket 入口靠近其根部而变化 | 以希望的浅端、深端校准；Socket 在 SPS2 配对缺失或两值均零时使用，Plug 直接读取 |
 | Orf 的 `PenOthersClose` | 匹配目标是否进入 Socket 周围的有效接近区，0 为离开、1 为接近 | 发布该值时，以它作为 SPS1 深度的接近条件；单值来源按自身路径读取 |
-| Orf 的 `PenOthersNewRoot`／`PenSelfNewRoot` | SPS2 中 Plug 根部靠近 Socket 的程度 | 与同实例 `NewTip` 配对，参与长度估计和深度换算 |
-| Orf 的 `PenOthersNewTip`／`PenSelfNewTip` | SPS2 中以根部为中心的长度球与 Socket 的接近程度 | 两路未饱和样本用于估长，再换算进入深浅的趋势 |
+| Orf 的 `PenOthersNewRoot`／`PenSelfNewRoot` | SPS2 中 Plug 根部小球到 Socket 接收器的接近值，范围 0–1 | 与同实例 `NewTip` 配对，参与长度估计和深度换算 |
+| Orf 的 `PenOthersNewTip`／`PenSelfNewTip` | SPS2 中以 Plug 根部为球心、半径为 Plug 长度的球体所产生的接近值，范围 0–1 | 两路未饱和样本用于估长，再换算进入深浅的趋势 |
 | `TouchOthers`／`TouchSelf` | 身体或匹配目标靠近触碰区域时的连续强度，范围 0–1 | 与对应 `Touch…Close` 配合使用 |
 | `TouchOthersClose`／`TouchSelfClose` | 匹配目标是否进入相应触碰区域，0 为离开、1 为接近 | Close 为 1 时采用 Touch 强度，为 0 时输出零 |
 | `VFH/Zone/Touch/<完整id>/Others`／`Self` | 指定区域内的连续接近强度，越靠近区域中心通常越大 | OgbTouch 直接读取 0–1 |
 | `VFH/Version/…`、历史 OGB Version 路径 | 上游支持能力的标志 | 用于识别参数能力 |
 | `OGB_ENABLED` | 向 Avatar 表示接收服务正在工作 | 按配置目标每 5 秒发送 true，停用时尝试 false；默认关闭 |
 
-深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。SPS2 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
+深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。`Close=1` 表示匹配目标进入该 Contact 定义的有效区域，适合作为动作生效条件；身体外形与区域边界的关系由作者的形状设置决定。SPS2 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
 
 实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
 
@@ -68,7 +82,7 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 量程为 0.3 m、命中距离为 0.1 m 时，`_Distance` 约为 0.1，`_Ratio` 约为 1/3。先用 `_Hit` 确认命中，再读取距离：当前生成组件采用 SDK 默认的 `DoNothing` 未命中行为，未命中时 `_Hit=false`，两路距离保留最近的命中值，首次命中前为 0。
 
-三字段对应官方 SDK 的原生 `VRCRaycast` 报告，均声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。已核对最低支持版本 3.10.3 的 API 与参数绑定。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 3.10.3 安装包](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
+三字段对应官方 SDK 的原生 `VRCRaycast` 报告；[官方 Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters)解释了命中、距离比例和世界距离，以及未命中行为的选择。Sensa 将它们声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。已核对最低支持版本 3.10.3 的 API 与参数绑定。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 3.10.3 安装包](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
 
 ## Contact 直接定位（SDK Beta）：十二个公开字段
 
@@ -76,20 +90,22 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 全部路径以 `Sensa/Contact/<id>/` 开头，`<id>` 只占一层路径。下表按字典序排列，共享前缀的短名称在前。`Proximity_SenderType` 为 Int，其余十一个字段为 Float。
 
-| 叶子 | 含义与单位 | 有效条件／用途 |
+| 叶子 | 它告诉你什么 | 怎样用于联动 |
 | --- | --- | --- |
-| `Proximity` | 原生接近值，0–1 | Sensa 要求 `0 < p ≤ 1` |
-| `Proximity_ProximitySpeed` | Proximity 的带符号变化率，接近值／秒 | 有限；退出可产生短暂读数 |
-| `Proximity_SenderLocalPositionX` | 发送形状中点相对接收形状中点的位置，X，米 | 有限；负坐标有效 |
-| `Proximity_SenderLocalPositionY` | 同一位置的 Y，米 | 同上 |
-| `Proximity_SenderLocalPositionZ` | 同一位置的 Z，米 | 同上 |
-| `Proximity_SenderType` | 0 无，1 自身 Avatar，2 其他 Avatar，3 世界 Sender | Sensa 专用根点测量要求 1 |
-| `Proximity_SenderVelocityMagnitude` | 相对接触点速度的模长，m/s | 有限且非负；零有效 |
-| `Proximity_SenderVelocityX` | Receiver X 轴下的相对接触点速度，m/s | 有限，包含角运动影响 |
-| `Proximity_SenderVelocityY` | 同一速度的 Y，m/s | 同上 |
-| `Proximity_SenderVelocityZ` | 同一速度的 Z，m/s | 同上 |
-| `Radius` | Receiver 实际世界半径，米 | 有限，`0 < Radius ≤ 3`；随 ScaleFactor 更新 |
-| `Sample` | Sensa 生产端活动计数 | 0 失效；有效值为 n/32，n=1…32 |
+| `Proximity` | 所选目标的接近程度，0–1；目标信号形状越靠近 Receiver 中心，读数通常越大 | 查看目标是否进入检测范围；Sensa 根点测量使用正值 |
+| `Proximity_ProximitySpeed` | 接近值每秒增减多少；正值表示读数增大，负值表示读数减小，单位为接近值／秒 | 区分靠近与退出的变化强弱，按所需方向校准；退出时可出现短暂读数 |
+| `Proximity_SenderLocalPositionX` | Sender 形状中点相对 Receiver 形状中点的 X 位移，米 | 在 Sensa 的 Avatar 根参考下，单独用左右位移控制一个轴；正负值保留方向 |
+| `Proximity_SenderLocalPositionY` | 同一位置的 Y 分量，米 | 用上下位移控制动作，按需要的低端与高端校准 |
+| `Proximity_SenderLocalPositionZ` | 同一位置的 Z 分量，米 | 用前后位移或进入程度控制动作，按需要的浅端与深端校准 |
+| `Proximity_SenderType` | SDK 当前选中的目标类别：0 无，1 自身 Avatar，2 其他 Avatar，3 世界 Sender | 确认参数来自哪类目标；Sensa 专用根点方案使用 1 |
+| `Proximity_SenderVelocityMagnitude` | 近似接触点处的相对速率，m/s，始终 ≥0；静止时可为 0 | 将动作快慢映射为振动或其他强度，零速对应校准后的静止水平 |
+| `Proximity_SenderVelocityX` | Receiver X 轴方向的相对接触点速度，m/s，含角运动影响 | 控制左右运动的方向或强弱；正负值分别表示沿该轴正向、反向运动 |
+| `Proximity_SenderVelocityY` | 同一速度的 Y 分量，m/s | 控制上下运动的方向或强弱 |
+| `Proximity_SenderVelocityZ` | 同一速度的 Z 分量，m/s | 控制往返运动的方向或强弱 |
+| `Radius` | Sensa Receiver 当前的世界半径，米，`0 < Radius ≤ 3`，随 ScaleFactor 更新 | 查看覆盖范围与缩放后的测量边界 |
+| `Sample` | Sensa 生产端活动计数；n/32（n=1…32）循环推进，0 表示停用或失效 | 用于判断测量是否持续更新，配合完整字段检查输入有效性 |
+
+例如，Z 从 0.05 m 变到 0.15 m 表示沿接收器 Z 轴移动了 0.10 m，可将这两个端点校准为希望的动作范围。相对速率 0.4 m/s 描述该时刻的运动快慢；Proximity 变化率 0.4/s 则描述接近值每秒增加 0.4。按这三种含义分别选择位置、速度或接近变化的映射。
 
 SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象。中点位移通过接收形状旋转的逆变换转换，保留米单位，未按缩放或半径归一化。报告速度取近似接触点处的相对速度，包含角运动项；形状旋转时，可能与中点位置的导数不同。没有选中 Sender 时，SDK 写入类型 0 和零 XYZ／速度。原生报告未提供时间戳、序号或稳定 Sender ID。
 

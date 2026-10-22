@@ -11,6 +11,7 @@ FLAGS = ('web', 'backend', 'scripts', 'docs', 'unity')
 FULL = set(FLAGS)
 INTERACTIVE_DOC_ASSETS = frozenset((
     'docs/parameter-geometry.html',
+    'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',

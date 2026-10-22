@@ -49,7 +49,8 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.ok(review.includes('href="' + pinned + '"'), 'Pinned research references stay external');
     assert.match(await fs.readFile(path.join(output, 'parameter-geometry.html'), 'utf8'), /name="sensa-site-root" content="\.\/"/);
     const files = Object.keys(manifest.assets).filter(x => x.startsWith('assets/'));
-    assert.equal(files.length, 5);
+    assert.equal(files.length, 6);
+    assert.ok(files.includes('assets/osc-parameter-reference.js'));
     assert.deepEqual(manifest.vpmVersions, []);
     assert.match(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /data-vpm="false"/);
     for (const asset of files) assert.match(manifest.assets[asset], /^[a-f0-9]{64}$/);

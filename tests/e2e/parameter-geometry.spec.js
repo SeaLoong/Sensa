@@ -31,6 +31,41 @@ async function addressPattern(page, scenario) {
 const parameter = (page, name) => page.locator('#values tr').filter({
   has: page.getByRole('button', { name, exact: true }),
 });
+const referenceCard = (page, name) => page.locator('#parameter-reference details[data-parameter-name="' + name + '"]');
+async function referenceCards(page) {
+  const names = await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name));
+  const cards = await page.locator('#parameter-reference details').evaluateAll(nodes => nodes.map(node => ({
+    name: node.dataset.parameterName, path: node.dataset.referencePath,
+    summary: node.querySelector('[data-testid="parameter-reference-summary"]')?.textContent.trim(),
+    definition: node.querySelector('[data-testid="parameter-reference-definition"]')?.textContent.trim(),
+    definitionLabel: node.querySelector('[data-testid="parameter-reference-definition-label"]')?.textContent.trim(),
+    range: node.querySelector('[data-testid="parameter-reference-range"]')?.textContent.trim(),
+    unit: node.querySelector('[data-testid="parameter-reference-unit"]')?.textContent.trim(),
+    usage: node.querySelector('[data-testid="parameter-reference-usage"]')?.textContent.trim(),
+    sources: [...node.querySelectorAll('[data-testid="parameter-reference-sources"] a')]
+      .map(link => ({ label: link.textContent.trim(), href: link.href })),
+  })));
+  expect(cards.map(card => card.name), 'Every displayed parameter has its own explanation / 每个展示参数均有独立说明').toEqual(names);
+  for (const card of cards) {
+    expect(card.path.endsWith('/' + card.name)).toBe(true);
+    for (const key of ['summary', 'definition', 'definitionLabel', 'range', 'unit', 'usage'])
+      expect(card[key], card.name + ' · ' + key).toBeTruthy();
+    expect(card.sources.length, card.name + ' has cited definitions / 有定义来源').toBeGreaterThan(0);
+    expect(card.sources.every(source => source.label && /^https:\/\//.test(source.href))).toBe(true);
+  }
+  return cards;
+}
+async function parameterDetailCheckpoint(page, dialog, name) {
+  // Match the shared checkpoint's notice handling; only the received time is dynamic here.
+  // 沿用共用截图的通知规则，此夹具仅接收时间会变化。
+  await page.mouse.move(0, 0);
+  await expect(page.locator('.toast[role=alert]'), 'Unexpected UI error / 非预期界面错误').toHaveCount(0);
+  await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10000 });
+  await dialog.evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
+  await expect(dialog).toHaveScreenshot(name + '.png', {
+    stylePath: 'tests/e2e/screenshot.css', mask: [dialog.getByTestId('parameter-detail-time')],
+  });
+}
 async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);
   await expect(page.locator('#scene')).toHaveValue(scenario);
@@ -257,12 +292,20 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     // 参数选择和语言切换保留几何与高亮，不重置为默认值。
     await parameter(page, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true }).click();
     await expect(page.locator('#parameter-meaning')).toContainText('长度球');
+    const tipReference = referenceCard(page, 'PenOthersNewTip');
+    await expect(tipReference).toHaveAttribute('data-selected', 'true');
+    await expect(tipReference).toHaveJSProperty('open', true);
+    await expect(tipReference.getByTestId('parameter-reference-definition-label')).toContainText('VRCFury');
+    await expect(tipReference.getByTestId('parameter-reference-definition')).toContainText('球');
+    await expect(tipReference.getByTestId('parameter-reference-sources').locator('a[href^="https://github.com/VRCFury/VRCFury/"]').first()).toBeVisible();
     await page.locator('#projection').selectOption('iso');
     await page.locator('#show-dimensions').uncheck();
     await page.locator('#locale').selectOption('en-US');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
     await expect(page.locator('#scene-title')).toHaveText('SPS2 · PenOthersNewRoot / PenOthersNewTip');
     await expect(page.locator('#parameter-meaning')).toContainText('length sphere');
+    await expect(tipReference.getByTestId('parameter-reference-definition')).toContainText(/sphere/i);
+    await expect(tipReference.getByTestId('parameter-reference-usage')).toContainText(/depth/i);
     await expect(page.locator('#control-z')).toHaveValue('0.5');
     await expect(page.locator('#scene')).toHaveValue('socket-modern');
     await expect(page.locator('#projection')).toHaveValue('iso');
@@ -274,6 +317,17 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await page.locator('#locale').selectOption('zh-CN');
     await expect(page.locator('#control-z')).toHaveValue('0.5');
     await expect(page.locator('#reference-link')).toHaveAttribute('href', 'osc-parameters.md');
+    // A geometry redraw preserves the reader's chosen disclosure and keyboard focus.
+    // 调整几何时保留读者的展开选择及键盘焦点。
+    const tipSummary = tipReference.locator('summary');
+    await tipSummary.click();
+    await expect(tipReference).toHaveJSProperty('open', false);
+    await tipSummary.focus();
+    await setRange(page, 'z', .5);
+    await expect(tipSummary).toBeFocused();
+    await expect(tipReference).toHaveJSProperty('open', false);
+    await tipSummary.press('Enter');
+    await expect(tipReference).toHaveJSProperty('open', true);
 
     // Independently check orthographic geometry, including Y, before testing its inverse.
     // 先以已知正交矩阵独立验证含 Y 的投影，再验证真实拖动的逆变换。
@@ -414,6 +468,12 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await expect(page.locator('#parameter-meaning')).toContainText('深度');
     await parameter(page, 'PenOthersClose').getByRole('button', { name: 'PenOthersClose', exact: true }).click();
     await expect(page.locator('#parameter-meaning')).toContainText('接触');
+    const closeReference = referenceCard(page, 'PenOthersClose');
+    await expect(closeReference).toHaveAttribute('data-selected', 'true');
+    await expect(closeReference).toHaveJSProperty('open', true);
+    await expect(closeReference.getByTestId('parameter-reference-definition-label')).toContainText('VRCFury');
+    await expect(closeReference.getByTestId('parameter-reference-range')).toContainText(/0.*1/);
+    await expect(closeReference.getByTestId('parameter-reference-usage')).toContainText(/门控|条件|开关/);
     await parameter(page, 'PenOthers').getByRole('button', { name: 'PenOthers', exact: true }).click();
     await nearCell(page, 'PenOthers', 2 / 3);
     await nearCell(page, 'PenOthersClose', 1);
@@ -555,8 +615,13 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
       await page.locator('#locale').selectOption(locale);
       for (const scenario of scenarioIds) {
         await chooseScene(page, scenario);
+        if (scenario === 'contact-sdk') {
+          await parameter(page, 'Proximity_SenderVelocityMagnitude').getByRole('button').click();
+          await expect(referenceCard(page, 'Proximity_SenderVelocityMagnitude')).toHaveJSProperty('open', true);
+        }
         const fonts = await finiteDrawing(page);
-        reflow.push({ locale, scenario, ...await documentFits(page), fonts });
+        const explanations = await referenceCards(page);
+        reflow.push({ locale, scenario, ...await documentFits(page), fonts, explanations });
       }
     }
     await info.attach('parameter-geometry-reflow.json', { body: JSON.stringify(reflow, null, 2), contentType: 'application/json' });
@@ -1341,10 +1406,12 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
 });
 
 hostedTest('parameter details open the localized interactive guide without device activation / 参数详情打开本地图解而不启用设备',
-  { tag: ['@osc', '@i18n', '@config'] }, async ({ page, rig }) => {
+  { tag: ['@osc', '@i18n', '@config', '@visual'] }, async ({ page, rig }) => {
     await mode(page, 'OSC');
     const path = 'OGB/Orf/GeometryGuide/PenOthersNewRoot';
-    await rig.send([[path, .51]]);
+    const contactSpeedPath = 'Sensa/Contact/Guide/Proximity_SenderVelocityMagnitude';
+    const proximitySpeedPath = 'Sensa/Contact/Guide/Proximity_ProximitySpeed';
+    await rig.send([[path, .51], [contactSpeedPath, .4], [proximitySpeedPath, -.2]]);
     await oscWorkspace(page, '参数');
     await expect(page.getByRole('button', { name: path, exact: true })).toBeVisible();
     const before = rig.commands.filter(command => command.method !== 'GET').length;
@@ -1352,6 +1419,11 @@ hostedTest('parameter details open the localized interactive guide without devic
       await page.getByLabel('Language / 语言', { exact: true }).selectOption(locale);
       await page.getByRole('button', { name: path, exact: true }).click();
       const dialog = page.getByRole('dialog', { name: await text(page, '参数含义'), exact: true });
+      await expect(dialog.getByRole('heading', { name: /VRCFury/ })).toBeVisible();
+      await expect(dialog.getByTestId('parameter-reference-definition')).toContainText(/根|root/i);
+      await expect(dialog.getByTestId('parameter-reference-range')).not.toHaveText('');
+      await expect(dialog.getByTestId('parameter-reference-usage')).toBeVisible();
+      await expect(dialog.getByTestId('parameter-reference-sources').locator('a[href^="https://github.com/VRCFury/VRCFury/"]').first()).toBeVisible();
       const link = dialog.getByRole('link', { name: await text(page, '交互参数图解'), exact: true });
       await expect(link).toHaveAttribute('href', '/docs/parameter-geometry.html?lang=' + locale);
       await expect(link).toHaveAttribute('target', '_blank');
@@ -1368,6 +1440,32 @@ hostedTest('parameter details open the localized interactive guide without devic
           'https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters' + (locale === 'en-US' ? '.en' : '') + '.md');
       } finally { await popup.close(); }
       await dialog.locator('.modal__actions').getByRole('button', { name: await text(page, '关闭'), exact: true }).click();
+      for (const [parameterPath, unit, definition] of [
+        [contactSpeedPath, 'm/s', /接触点|contact point/i],
+        [proximitySpeedPath, '1/s', /变化率|change|rate/i],
+      ]) {
+        await page.getByRole('button', { name: parameterPath, exact: true }).click();
+        await expect(dialog.getByTestId('parameter-reference-unit')).toHaveText(unit);
+        await expect(dialog.getByTestId('parameter-reference-definition')).toContainText(definition);
+        await expect(dialog.getByTestId('parameter-reference-usage')).toBeVisible();
+        const source = dialog.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first();
+        await expect(source).toBeVisible();
+        if (parameterPath === contactSpeedPath)
+          await parameterDetailCheckpoint(page, dialog, 'osc-parameter-reference-contact-speed-' + locale);
+        await source.scrollIntoViewIfNeeded();
+        await expect(source).toBeInViewport();
+        const layout = await source.evaluate(link => {
+          const modal = link.closest('dialog'), box = link.getBoundingClientRect();
+          return { top: box.top, bottom: box.bottom,
+            headingBottom: modal.querySelector('.modal__header').getBoundingClientRect().bottom,
+            actionsTop: modal.querySelector('.modal__actions').getBoundingClientRect().top,
+            width: modal.clientWidth, scrollWidth: modal.scrollWidth };
+        });
+        expect(layout.top, 'Sources remain below the sticky header / 来源位于常驻标题下方').toBeGreaterThanOrEqual(layout.headingBottom - 1);
+        expect(layout.bottom, 'Sources remain above the sticky actions / 来源位于常驻操作上方').toBeLessThanOrEqual(layout.actionsTop + 1);
+        expect(layout.scrollWidth, 'Details have no horizontal overflow / 详情无横向溢出').toBeLessThanOrEqual(layout.width + 1);
+        await dialog.locator('.modal__actions').getByRole('button', { name: await text(page, '关闭'), exact: true }).click();
+      }
     }
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect(rig.wire.udp).toEqual([]);
@@ -1385,6 +1483,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
       'Proximity_SenderVelocityMagnitude', 'Proximity_SenderVelocityX', 'Proximity_SenderVelocityY',
       'Proximity_SenderVelocityZ', 'Radius', 'Sample'];
     expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name))).toEqual(names);
+    expect((await referenceCards(page)).map(card => card.name)).toEqual(names);
     await setRange(page, 'x', -.25); await setRange(page, 'y', 1); await setRange(page, 'z', .15);
     await setRange(page, 'vx', .3); await setRange(page, 'vy', .4); await setRange(page, 'vz', 0);
     await nearCell(page, 'Proximity_SenderLocalPositionX', -.25);
@@ -1394,9 +1493,23 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(page.locator('#parameter-meaning')).toContainText('米');
     await parameter(page, 'Proximity_SenderVelocityMagnitude').getByRole('button').click();
     await expect(page.locator('#parameter-meaning')).toContainText('m/s');
+    const speedReference = referenceCard(page, 'Proximity_SenderVelocityMagnitude');
+    await expect(speedReference).toHaveAttribute('data-selected', 'true');
+    await expect(speedReference.getByTestId('parameter-reference-unit')).toHaveText('m/s');
+    await expect(speedReference.getByTestId('parameter-reference-definition')).toContainText('接触点');
+    await expect(speedReference.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first()).toBeVisible();
+    await parameter(page, 'Proximity_ProximitySpeed').getByRole('button').click();
+    await expect(referenceCard(page, 'Proximity_ProximitySpeed').getByTestId('parameter-reference-unit')).toHaveText('1/s');
+    await parameter(page, 'Sample').getByRole('button').click();
+    const sampleReference = referenceCard(page, 'Sample');
+    await expect(sampleReference.getByTestId('parameter-reference-definition-label')).toContainText('Sensa');
+    await expect(sampleReference.getByTestId('parameter-reference-sources').locator('a[href^="https://github.com/SeaLoong/Sensa/"]').first()).toBeVisible();
+    await parameter(page, 'Proximity_SenderVelocityMagnitude').getByRole('button').click();
     await page.locator('#locale').selectOption('en-US');
     await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking (SDK Beta)');
     await expect(page.locator('#parameter-meaning')).toContainText('m/s');
+    await expect(speedReference.getByTestId('parameter-reference-unit')).toHaveText('m/s');
+    await expect(speedReference.getByTestId('parameter-reference-definition')).toContainText(/contact point/i);
     await setRange(page, 'x', 0); await setRange(page, 'y', 0); await setRange(page, 'z', 0);
     await setRange(page, 'vx', 0); await setRange(page, 'vy', 0);
     await nearCell(page, 'Proximity_SenderType', 1);
