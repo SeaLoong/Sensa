@@ -84,6 +84,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.locator('header a[href*="parameter-geometry.html"]').click();
   await expect(page.locator('#scene')).toBeVisible();
   await page.locator('#scene').selectOption('sensa-sps');
+  await expect(page.locator('#scene-title')).toHaveText('SPS four-anchor tracking');
   await expect(page.locator('#path-prefix')).toHaveText('Sensa/SPS/*');
   await expect(page.locator('#three-scene')).toHaveAttribute('data-render-state', 'ready');
   await expect(page.locator('#three-scene canvas')).toBeVisible();

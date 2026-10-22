@@ -2,7 +2,7 @@
 
 [简体中文](lab-workflow.md) | **English**
 
-Avatar/World Labs provide development scenes for checking measurement behavior. For everyday integration, choose [OGB, four-anchor tracking, Contact direct tracking or Shader](usage-scenarios.en.md). Use your own Unity projects and licensed resources, then build or upload privately through the SDK. Start with input off and no outputs.
+Avatar/World Labs provide development scenes for checking measurement behavior. For everyday integration, choose [OGB, SPS four-anchor tracking, Contact direct tracking or Shader](usage-scenarios.en.md). Use your own Unity projects and licensed resources, then build or upload privately through the SDK. Start with input off and no outputs.
 
 ## Preparation and entry points
 
@@ -22,13 +22,13 @@ FullFlow already contains internal QuickStart/experiments; do not add duplicates
 | Synthetic scalar | START HERE five steps/STOP and wrist QuickStart values/conditions | Compare each step, then check stopping through STOP and a closed condition |
 | Native PB | Stretch amount and IsGrabbed state | Grab and stretch, then release and check stopping |
 | OGB / SPS | SPS2 · PenOthersNewRoot / PenOthersNewTip, or SPS1 · PenOthers / PenOthersClose | Fix object/source, separate then approach, and check depth trend and Close presence |
-| Four-anchor tracking | Dedicated root, P0–P3, changing Sample and endpoint calibration | Move along one axis; check local direction and stopping after sample invalidity |
+| SPS four-anchor tracking | Dedicated root, P0–P3, changing Sample and endpoint calibration | Move along one axis; check local direction and stopping after sample invalidity |
 | Contact direct tracking (SDK Beta) | Add `SensaContactRootProbe` separately and follow [Contact setup](contact-sdk.en.md) for a dedicated own root; inspect metre-based XYZ, relative velocity in m/s, `Radius`, `Sample` and `Proximity_SenderType=1` (Self) | Calibrate position or speed; check stopping after leaving Receiver coverage or Sample activity freezing |
 | Shader | Native block, capture region, object ID, CRC and advancing Frame | Move the selected root and check decoded position; obscure/freeze the block and check invalidity |
 
 Configure synthetic Depth/GateEnable **manually** from actual paths. After the experiment, replace those paths and conditions with actual linkage parameters. Use the Avatar’s PhysBone prefix in place of MyPB in the PB template.
 
-Use the OGB depth or vibration template and enable the heartbeat to VRChat as required by the Avatar. Four-anchor tracking uses Dedicated/Exclusive authoring and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`.
+Use the OGB depth or vibration template and enable the heartbeat to VRChat as required by the Avatar. SPS four-anchor tracking uses Dedicated/Exclusive authoring and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`.
 
 Native Shader uses one Camera, an actual CPU root and nonzero ID, sending `Sensa/Shader/<id>` after explicit ROI selection. FullFlow synthetic code and Editor Model Probe PNG use `Sensa/Diagnostics/Shader/0` to check encoding, capture and transport. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
@@ -37,7 +37,7 @@ Native Shader uses one Camera, an actual CPU root and nonzero ID, sending `Sensa
 Disable input, remove the previous mappings/gates, save, verify actual mode/source/validity, then explicitly reactivate. Check each model’s sampling-time rule separately:
 
 - Legacy Point/Handle/Pose use the oldest participant, including grab.
-- Four-anchor tracking uses changing Sample, default 1000 ms/cap 1250 ms; stationary P can cache.
+- SPS four-anchor tracking uses changing Sample, default 1000 ms/cap 1250 ms; stationary P can cache.
 - Contact direct tracking checks changing Sample with an age cap of 1000 ms, shortened by a smaller positive input timeout; zero coordinates and zero velocity remain valid when the other validity conditions hold.
 - Shader bridge defaults to 350 ms freeze; desktop Frame change age caps at 500 ms.
 

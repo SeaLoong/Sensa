@@ -92,7 +92,9 @@ test('Contact catalog retains native parameter names and ordinal prefix-first or
   ]) assert.match(parameterMeaning('Sensa/Contact/Root/' + leaf), meaning);
   assert.equal(probePresentation('Sensa/Contact/Root/Proximity_SenderLocalPositionX'), null);
   assert.equal(pointTrackingLabel(contact(.1)), 'Contact 直接定位（SDK Beta）');
-  assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), '四点定位');
+  assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), 'SPS 四点定位');
+  setLocale('en-US');
+  assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), 'SPS four-anchor tracking');
 });
 
 test('PB calibration replaces the previous gate, persists a reverse range and previews motion / PB 校准替换旧门控、保存反向量程并预览运动', () => {

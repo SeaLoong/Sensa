@@ -10,7 +10,7 @@
 
 原生 SPS／道具开关、**SPS OSC**（OGB_ENABLED）、**Measure plug／Measure this socket**、Shader 选择和桌面输入相互独立。菜单采用作者生成时语言，下文英文名用于标识对应 fixture 操作。
 
-Socket 白色中心和 +Z 表示入口／向内方向；Root／Tip／Side 是配对参考标记。辅助 P1–P4、C1–C8 属于使用 A0 字段的独立 Point／Pose 实验，**不是**固定 SPS 的 P0–P3、TCode 辅助轴或 Contact 半径示意。固定根参数必须单独按其协议观察。
+Socket 白色中心和 +Z 表示入口／向内方向；Root／Tip／Side 是配对参考标记。辅助 P1–P4、C1–C8 属于使用 A0 字段的独立 Point／Pose 实验，**不是**SPS 四点定位 的 P0–P3、TCode 辅助轴或 Contact 半径示意。SPS 四点定位参数必须单独按其协议观察。
 
 ## 路线分开检查
 
@@ -20,14 +20,14 @@ Sensa 保持无输出、输入关闭；应用 OSC 模式、启用接收并观察
 | --- | --- | --- |
 | PB | 放置参考架，抓白球、拉伸、松开 | 实际 Stretch 与 IsGrabbed 门控；标量 PB 不依赖 XYZ |
 | 原生 SPS | 开启 SPS 与 OGB_ENABLED，移动已启用 Plug／Socket | 实际 Self／Others 路径；饱和前学习根／长度通道，再看径向估计 |
-| 固定 SPS 根点 | 选择自己的根测量 | `Sensa/SPS/<id>/P0…P3` 与变化 `Sample`，Avatar 根局部坐标 |
+| SPS 四点定位 | 选择自己的根测量 | `Sensa/SPS/<id>/P0…P3` 与变化 `Sample`，Avatar 根局部坐标 |
 | 独立本地点／Pose | 相对选中参考移动，或使用相同 LabPair 标记 | 独立实验估计、最旧通道时效，默认无动作许可 |
 | 合成 Shader | 开启编码、破坏 CRC、冻结／关闭 | 诊断 Frame／XYZ／Valid 传输，不是 SPS 测量 |
 | QuickStart | 使用实验室五档后 STOP | 仅合成 Depth／Active fixture；不要求或提供产品预设 |
 
 原生 SPS 应固定实际实例／来源，不依据世界道具外观猜 Self／Others。世界 **08 MY AVATAR SPS** 提供琥珀色 Plug 和蓝色 Socket，但看板不证明 Avatar OSC 已接收。
 
-固定 SPS 还需明确实验许可、两点校准和单独启用输入。单根不是姿态或直接设备行程。[当前包契约](../../unity/top.sealoong.sensa/AUTOMATION.md)
+SPS 四点定位 还需明确实验许可、两点校准和单独启用输入。单根不是姿态或直接设备行程。[当前包契约](../../unity/top.sealoong.sensa/AUTOMATION.md)
 
 ## Shader 与证据
 

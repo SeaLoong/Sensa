@@ -177,7 +177,7 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
-            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Four-anchor tracking"), EditorStyles.boldLabel);
+            EditorGUILayout.LabelField(SensaEditorLocalization.Text("SPS four-anchor tracking"), EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track the chosen bone, marker, SPS component, Sensa component or Contact root with four fixed receivers. Radius is 2 Avatar-root authored units; at root scale 1 this is 2 m. Green scene slices show common coverage. Keep the target outside the tiny orange saturation zones."), MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
         }

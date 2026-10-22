@@ -30,7 +30,7 @@ python -X utf8 scripts/install-world-lab.py "<World project>"
 
 道具提供 LEFT／RIGHT／PLACE／HOME；直接抓起会退出随手模式。**08 MY AVATAR SPS** 的琥珀色 Plug 测自己的 Socket，蓝色 Socket 测自己的 Plug。Avatar 原生 SPS 和 OGB_ENABLED 必须另行启用。
 
-几何站有复位、暂停和注入缺采样控制；可见抓取球大小不等于 Contact 半径。P1–P4、C1–C8 是采用 A0 字段的独立实验布局，不是固定 SPS P0–P3 或 TCode 辅助轴。
+几何站有复位、暂停和注入缺采样控制；可见抓取球大小不等于 Contact 半径。P1–P4、C1–C8 是采用 A0 字段的独立实验布局，不是 SPS 四点定位 P0–P3 或 TCode 辅助轴。
 
 | 读数 | 含义 |
 | --- | --- |

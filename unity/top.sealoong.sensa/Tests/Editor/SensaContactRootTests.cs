@@ -46,7 +46,7 @@ namespace UnityBox.Sensa.Tests
             {
                 var error = Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.RequireSupport(typeof(OldReceiver)));
                 StringAssert.Contains("3.10.6-beta.2", error.Message);
-                StringAssert.Contains("Four-anchor tracking", error.Message);
+                StringAssert.Contains("SPS four-anchor tracking", error.Message);
             }
             Assert.AreEqual(typeof(VRCContactReceiver).GetField("advancedProximityParameters")?.FieldType == typeof(bool),
                 SensaContactRootBuilder.IsSupported);

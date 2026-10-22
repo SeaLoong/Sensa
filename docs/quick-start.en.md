@@ -38,7 +38,7 @@ An already active input may send its current valid target immediately after conn
 - **Contact direct tracking (SDK Beta):** install the supported beta SDK and build a dedicated own-root Sender/Receiver using the [Contact setup](contact-sdk.en.md). Inspect `Sensa/Contact/<id>/…`; calibrate X/Y/Z/Distance for local movement, or velocity/Speed/ProximitySpeed for movement strength. Save, allow experimental spatial input and enable OSC input.
 - **Experimental root:** follow the [route guide](usage-scenarios.en.md) to configure Avatar measurement components or the desktop code reader. Confirm the correct object and valid coordinates in the panel. Record the motion start and end, map them to 0% and 100% output, and save. Then allow experimental spatial input and enable input.
 
-Parameters have different meanings: OGB usually reports proximity or estimated depth; four-anchor tracking and Shader report a selected root in three dimensions relative to the Avatar. Contact direct tracking reports metre-based position plus relative velocity. [Positioning](positioning.en.md)
+Parameters have different meanings: OGB usually reports proximity or estimated depth; SPS four-anchor tracking and Shader report a selected root in three dimensions relative to the Avatar. Contact direct tracking reports metre-based position plus relative velocity. [Positioning](positioning.en.md)
 
 ## 5. Keep a reviewable result
 

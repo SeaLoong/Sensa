@@ -2,14 +2,14 @@
 
 [简体中文](positioning.md) | **English**
 
-Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to the Avatar. Select a supported SPS Socket/Plug, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
+Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to the Avatar. Select a supported SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
 
 Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) first.
 
 | Route | What you obtain | What invalidates it |
 | --- | --- | --- |
 | Contact direct tracking (SDK Beta) | Selected root in AvatarRootMeters, with relative contact-point velocity | Leaving the dedicated Receiver, invalid complete fields or stopped activity |
-| Four-anchor tracking | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
+| SPS four-anchor tracking | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
 | Shader capture | Root coordinates read from a screen code, also AvatarRootLocal | Out-of-range coordinates, failed code alignment/checks or frozen images |
 | Independent Point/Handle/Pose | Experimental position/orientation in its own reference frame | Expired participating parameters or unmet pairing/grab/geometry conditions |
 | SPS2 · PenOthersNewRoot / PenOthersNewTip; SPS1 · PenOthers / PenOthersClose | Depth trends and presence, useful for depth-linked motion | Missing pairs, unmet length-learning conditions or a closed Close gate |
@@ -24,9 +24,9 @@ The SDK reports the Sender shape midpoint relative to the Receiver shape midpoin
 
 Each instance publishes twelve fields under `Sensa/Contact/<id>/`. Native report fields are accompanied by Sensa's `Radius` and changing `Sample`. Sample cycles through n/32, n=1…32, nominally every 50 ms; its change age is at most 1000 ms, shortened by a smaller positive input timeout. The desktop requires the complete same-source instance, positive Proximity, type 1 (own Avatar), finite values and supported radius/position bounds. Contact loss, Sample=0, frozen activity or invalid values stop the related motion. [Field dictionary](osc-parameters.en.md)
 
-## Four-anchor tracking: all four receivers must measure the target
+## SPS four-anchor tracking: all four receivers must measure the target
 
-Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a regular tetrahedron. A very small dedicated marker follows your selected root. Each receiver measures a distance to that marker; the desktop calculates its position from those four distances.
+Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a regular tetrahedron. A very small dedicated marker follows your selected SPS Socket/Plug root. Each receiver measures a distance to that marker; the desktop calculates its position from those four distances. Explicit bone/marker Transforms, Sensa and native Contact targets use the same SPS root protocol.
 
 The default receiver radius is **2 m**, with approximately **0.99 m** between anchors. These are Avatar-root local units, directly equal to world meters only when authored and runtime root scales are one. Unity and desktop share fixed geometry so every range is reconstructed using the same dimensions.
 

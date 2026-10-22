@@ -2,14 +2,14 @@
 
 **简体中文** | [English](positioning.en.md)
 
-Sensa 可以读取你在 Unity 中选定的**根点**相对 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
+Sensa 可以读取你在 Unity 中选定的**根点**相对 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
 
 先按下面的条件选择方案，再观察坐标，最后校准为设备动作。需要逐步设置时看[接入方案](usage-scenarios.md)；想先尝试模型，可打开[交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)。
 
 | 方案 | 你能得到什么 | 什么时候会失效 |
 | --- | --- | --- |
 | Contact 直接定位（SDK Beta） | AvatarRootMeters 根点位置及相对接触点速度 | 离开专用接收区、完整字段非法或活动停止 |
-| 四点定位 | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
+| SPS 四点定位 | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
 | Shader 捕获 | 从屏幕编码图块读出的根点位置，同为 AvatarRootLocal | 坐标越界、图块无法定位或校验失败、画面冻结 |
 | 独立 Point／Handle／Pose | 各自参考对象下的位置或姿态实验 | 参与参数过期，或配对／抓取／几何条件不满足 |
 | SPS2 · PenOthersNewRoot / PenOthersNewTip；SPS1 · PenOthers / PenOthersClose | 进入深浅的变化趋势与接近状态，适合深度联动 | 参数配对缺失、估长条件不满足，或 Close 条件关闭 |
@@ -24,9 +24,9 @@ SDK 报告发送形状中点相对接收形状中点的位移，旋转到 Receiv
 
 每实例在 `Sensa/Contact/<id>/` 下发布十二字段，原生报告另配 Sensa 的 `Radius` 与变化的 `Sample`。Sample 目标每 50 ms 在 n/32（n=1…32）间循环，变化寿命最多 1000 ms，较短的正数输入超时优先。桌面要求同来源实例字段完整、Proximity 为正、类型为 1（自身 Avatar）、数值有限且半径／位置边界受支持。Contact 消失、Sample=0、活动冻结或数值非法时，相关动作停止。[字段字典](osc-parameters.md)
 
-## 四点定位：目标必须同时被四个接收球测到
+## SPS 四点定位：目标必须同时被四个接收球测到
 
-Sensa 在 Avatar 根下放置四个固定测量点（P0–P3），围成正四面体。一个很小的专用标记跟随你选择的根点。四个接收器分别测量到该标记的距离，桌面程序据此计算位置。
+Sensa 在 Avatar 根下放置四个固定测量点（P0–P3），围成正四面体。一个很小的专用标记跟随你选择的 SPS Socket／Plug 根点。四个接收器分别测量到该标记的距离，桌面程序据此计算位置。明确选择骨骼／标记 Transform、Sensa 或原生 Contact 时，也沿用同一 SPS 根点协议。
 
 默认接收半径为 **2 m**，测量点之间约 **0.99 m**。这些数值按 Avatar 根局部单位定义；只有作者和运行时的根缩放都为 1，才直接等于世界米。Unity 与桌面使用同一套固定几何，保证四路距离按相同尺寸解算。
 

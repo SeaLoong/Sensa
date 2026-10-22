@@ -8,20 +8,20 @@ Sensa 的 Unity 脚本保存制作设置。构建 Avatar 时，NDMF 在构建副
 
 | 方式与预制件 | 适合读取什么 | 坐标与要求 |
 | --- | --- | --- |
-| 四点定位：`SensaSpsRootProbe.prefab` | 骨骼、标记或 SPS 根点的位置 | `AvatarRootLocal` 制作单位；四个 Receiver 和一个 Sender |
+| SPS 四点定位：`SensaSpsRootProbe.prefab` | SPS Socket／Plug 根点的位置，也可明确选择骨骼或标记 | `AvatarRootLocal` 制作单位；四个 Receiver 和一个 Sender |
 | Contact 直接定位（SDK Beta）：`SensaContactRootProbe.prefab` | 根点位置、相对速度及接近值变化率 | `AvatarRootMeters` 米制坐标；一个 Receiver 和一个 Sender；需要高级 Proximity 参数 |
 | Shader 根点捕获：`SensaShaderCapture.prefab` | 将根点坐标编码为桌面图块后读取 | `AvatarRootLocal` 制作单位；PC Built-in、支持 geometry shader 的图形后端与桌面桥 |
 | Point／Handle／Pose | 自定义参照下的点、可抓把手或配对姿态 | 使用各自的参照、协议及采样时效 |
 
 三个根点预制件的 `Target` 都可明确指定自己 Avatar 内的骨骼／空物体 `Transform`、SPS Socket／Plug、Sensa Component 或原生 Contact。骨骼与普通标记可以直接作为目标；选择原生 Contact 时读取其形状中心，选择 SPS 时读取其作者根点几何。[定位和单位](positioning.md) · [Contact SDK 报告](contact-sdk.md)
 
-多个现成 SPS 目标可使用 **Automatic SPS Setup**，统一选择四点或 Contact 直接定位。只测根点时只读取位置和旋转；开启尖端、配对 Plug 标记或抓取把手时才需要 Plug 长度。Shader 捕获通过独立作者预制件配置自己的 Producer ID 与桌面区域。
+多个现成 SPS 目标可使用 **Automatic SPS Setup**，统一选择 SPS 四点定位或 Contact 直接定位。只测根点时只读取位置和旋转；开启尖端、配对 Plug 标记或抓取把手时才需要 Plug 长度。Shader 捕获通过独立作者预制件配置自己的 Producer ID 与桌面区域。
 
 ## 放置并配置预制件
 
 1. 安装 Unity 组件包的 VPM 依赖：NDMF **1.5.0+**、Modular Avatar **1.10.0+** 及配套 VRChat Avatars SDK。使用 SPS 作者目标时另装官方 VRCFury。Contact 直接定位需提供 `advancedProximityParameters` 的 SDK，已核对 **3.10.6-beta.2**。
 2. 从 **GameObject → Sensa** 创建所选方式，或把对应预制件放到 Avatar 层级内。检查 `Target` 指向希望测量的根点。
-3. 四点和 Contact 预制件默认实例名为 `Root`。测量多个点时使用不同的实例名，例如 `Root`、`Chest`、`Hand`。`Collision Channel` 留空时按实例名稳定分配；仅在需要手动管理通道时填写覆盖值。复制后改实例名即可得到独立的自动通道。
+3. SPS 四点定位和 Contact 预制件默认实例名为 `Root`。测量多个点时使用不同的实例名，例如 `Root`、`Chest`、`Hand`。`Collision Channel` 留空时按实例名稳定分配；仅在需要手动管理通道时填写覆盖值。复制后改实例名即可得到独立的自动通道。
 4. Shader 捕获使用唯一的 `Producer Id`（1–65535），并在桌面桥固定同一 ID。按[Shader 设置](../unity/top.sealoong.sensa/GPU-TRACKING.md)配置呈现区域和捕获注册。
 5. 正常执行 Avatar 构建或使用 NDMF 的处理后预览。在生成层级中检查测量组件，再按桌面指南检查参数、校准和输入启用。
 
@@ -55,7 +55,7 @@ Sensa 使用一个 NDMF 生成入口。包依赖中已包含 NDMF 与 Modular Av
 | NDMF Optimizing，SDK 顺序 `-1025` | Sensa 在 MA 的同阶段处理之后检查作者清理和此时的 Contact 数量 |
 | SDK 默认清理，顺序 `-1024` | 清理 EditorOnly 对象和 IEditorOnly 脚本；生成的标准组件继续进入 SDK 构建 |
 
-每次构建通过 `BuildContext.GetState` 记录已生成状态。四点、Contact、Shader 与其他作者共用这一调度，运行时协议各自保持独立。SDK 的 `-1026` 检查只诊断残留设置，实际生成始终在前段 NDMF 执行。
+每次构建通过 `BuildContext.GetState` 记录已生成状态。SPS 四点定位、Contact、Shader 与其他作者共用这一调度，运行时协议各自保持独立。SDK 的 `-1026` 检查只诊断残留设置，实际生成始终在前段 NDMF 执行。
 
 表中的数字对应下列已核验版本。VRCFury 当前还会延后 SDK 的组件清理；Sensa 自行完成作者清理，因此也适用 SDK 的默认顺序。其他工具可注册更晚的 SDK 回调，Contact 数量检查描述的是 Sensa 所在的 NDMF 检查点。
 
@@ -65,7 +65,7 @@ Sensa 使用一个 NDMF 生成入口。包依赖中已包含 NDMF 与 Modular Av
 
 Sensa 创建供 MA 合并的临时 Animator／菜单／参数，交给 NDMF 保存构建资产。原生根点 Shader 随包提供，位于 `Runtime/Shaders/SensaRootTelemetry.shader`；构建直接引用该资产。更新组件包后重新构建即可采用当前编码器。
 
-基础 `SensaComponent` 的原生 Contact 持续跟随配置的轴／骨骼，相关参数在 FX 中保持可写。Socket 量程与 Contact 尺寸使用所选轴的局部单位，轴缩放为 1 时数值等于米；四点和 Contact 直接定位仍分别采用上表的坐标契约。补充 Contact 信号配置与 Sender 相同的碰撞标签；已有参数信号只引用原参数，保留它原来的类型。
+基础 `SensaComponent` 的原生 Contact 持续跟随配置的轴／骨骼，相关参数在 FX 中保持可写。Socket 量程与 Contact 尺寸使用所选轴的局部单位，轴缩放为 1 时数值等于米；SPS 四点定位和 Contact 直接定位仍分别采用上表的坐标契约。补充 Contact 信号配置与 Sender 相同的碰撞标签；已有参数信号只引用原参数，保留它原来的类型。
 
 ## 官方资料与核验范围
 

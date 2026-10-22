@@ -1,4 +1,4 @@
-# Fixed SPS anchors: evidence and tradeoffs
+# SPS four-anchor tracking: evidence and tradeoffs
 
 [简体中文](fixed-anchor-research.md) | **English**
 

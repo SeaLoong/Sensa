@@ -2,7 +2,7 @@
 
 **简体中文** | [English](contact-sdk.en.md)
 
-Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点的位置和相对速度，使用一个专用球形 Sender 和一个球形 Receiver。构建自己的 Avatar 时，可安装 **VRChat Avatars SDK 3.10.6-beta.2** 或提供同一能力的后续 SDK，再明确选择此方案。Automatic SPS Setup 默认仍使用四点定位。
+Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点的位置和相对速度，使用一个专用球形 Sender 和一个球形 Receiver。构建自己的 Avatar 时，可安装 **VRChat Avatars SDK 3.10.6-beta.2** 或提供同一能力的后续 SDK，再明确选择此方案。Automatic SPS Setup 默认仍使用 SPS 四点定位。
 
 官方 [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) 发布于 **2026 年 10 月 20 日北京时间 05:50（10 月 19 日 21:50 UTC）**。本说明依据该安装包的 Editor 源码和运行时程序集。此 Beta 在真实 Unity／VRChat 客户端中的参数发布与 OSC 链路尚待验收；隔离测试和 CI 按各自记录的范围验证实现。
 
@@ -24,7 +24,7 @@ SDK 的公开开关是 **`advancedProximityParameters`**，类型为 Bool，适�
 
 SDK 还会按碰撞标签写入 `_CollisionTag_<tag>` Bool。组件为自己的专用标签在 FX 中声明这个状态，并在停用时清零；公开 OSC 字段为下文列出的十二项。
 
-位置描述**发送形状中点相对接收形状中点的位移**，再旋转到接收形状的坐标轴。运行时使用接收形状旋转的逆变换，保留物理米单位，未除以 Transform 缩放或 Receiver 半径。球形的中点就是球心，胶囊使用其形状中点。因此，Sensa 的专用零偏移 Receiver 建立 **AvatarRootMeters**：原点在 Avatar 根，各轴跟随根旋转，单位为物理米。四点定位和 Shader 捕获继续使用 **AvatarRootLocal**，其单位按制作时的 Avatar 根尺度解释。
+位置描述**发送形状中点相对接收形状中点的位移**，再旋转到接收形状的坐标轴。运行时使用接收形状旋转的逆变换，保留物理米单位，未除以 Transform 缩放或 Receiver 半径。球形的中点就是球心，胶囊使用其形状中点。因此，Sensa 的专用零偏移 Receiver 建立 **AvatarRootMeters**：原点在 Avatar 根，各轴跟随根旋转，单位为物理米。SPS 四点定位和 Shader 捕获继续使用 **AvatarRootLocal**，其单位按制作时的 Avatar 根尺度解释。
 
 ```text
 position = inverse(receiverShapeRotation)

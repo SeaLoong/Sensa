@@ -2,12 +2,12 @@
 
 [简体中文](usage-scenarios.md) | **English**
 
-Existing OGB parameters offer a direct starting point for depth or touch linkage. If you can build your own Avatar, add four-anchor or Contact direct tracking components, or use experimental Shader capture to obtain the selected root’s three-dimensional position.
+Existing OGB parameters offer a direct starting point for depth or touch linkage. If you can build your own Avatar, add SPS four-anchor tracking or Contact direct tracking components, or use experimental Shader capture to obtain the selected root’s three-dimensional position.
 
 | Route | Prerequisite | Result |
 | --- | --- | --- |
 | Existing OGB / SPS | Use haptics parameters already exposed by an Avatar | Radial depth estimate or touch intensity |
-| Four-anchor tracking | Build your own Avatar and select its actual Socket/Plug root | Your root's left/right, up/down and forward/back position relative to the Avatar |
+| SPS four-anchor tracking | Build your own Avatar and select its SPS Socket/Plug root | Your root's left/right, up/down and forward/back position relative to the Avatar |
 | Contact direct tracking (SDK Beta) | Build your own Avatar with the supported beta SDK and a dedicated own-root channel | Root position in metres and relative velocity in m/s |
 | Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root coordinates read from the desktop block you select |
 
@@ -27,15 +27,15 @@ Approach aligned with the Socket corresponds most directly to entering depth. Si
 
 ## Contact direct tracking (SDK Beta)
 
-Install SDK 3.10.6-beta.2 or a later SDK exposing advanced Proximity parameters. In **Automatic SPS Setup**, explicitly choose **Contact direct tracking (SDK Beta)** under the root tracking method; its default remains **Four-anchor tracking**. Alternatively, add `SensaContactRootProbe` directly. Select an actual own SPS, Sensa or native Contact root. Explicit Sensa/native roots work independently of VRCFury.
+Install SDK 3.10.6-beta.2 or a later SDK exposing advanced Proximity parameters. In **Automatic SPS Setup**, explicitly choose **Contact direct tracking (SDK Beta)** under the root tracking method; its default remains **SPS four-anchor tracking**. Alternatively, add `SensaContactRootProbe` directly. Select an actual own SPS, Sensa or native Contact root. Explicit Sensa/native roots work independently of VRCFury.
 
 Sensa generates one tiny spherical Sender following that root and one 2-local-unit Receiver at the Avatar origin with aligned axes. Each authoring component uses a unique channel and Self-only reception. `Sensa/Contact/<id>/…` supplies twelve fields: native position/velocity/proximity reports plus Sensa Radius and Sample. Position is in AvatarRootMeters, velocity in m/s, and ProximitySpeed in proximity units/s. Radius tracks actual world scale and the 3 m limit; Sample changes nominally every 50 ms and expires within 1000 ms.
 
 Inspect the object and source in the root panel. Calibrate **X/Y/Z/Distance** for local movement, or **VelocityX/Y/Z/Speed/ProximitySpeed** for movement strength, save, then enable spatial and OSC input. A calibrated axis can capture subtle depth trends; Touch/Close can add touch confirmation. Contact loss, invalid fields or frozen activity stops the related motion. Single-point position and velocity are supported; multi-point orientation remains a later extension. Real Unity-client/OSC beta acceptance awaits validation. [Setup, full semantics and package evidence](contact-sdk.en.md)
 
-## Four-anchor tracking
+## SPS four-anchor tracking
 
-Add **Four-anchor tracking** (`SensaFixedRootProbe`) or **Automatic SPS Setup** in Unity and explicitly select the supported SPS, Sensa or native Contact root. Four 2-m receivers stay under the Avatar root; a small 0.001-m marker follows that selected root. Anchor spacing is approximately 0.99 m:
+Add **SPS four-anchor tracking** (`SensaFixedRootProbe`) or **Automatic SPS Setup** in Unity and explicitly select the SPS Socket/Plug root. Explicit bone/empty-object Transforms, Sensa and native Contact targets use the same SPS root protocol. Four Receivers of radius 2 avatar-root local units stay under the Avatar root; a small marker of radius 0.001 follows the selected root. Anchor spacing is approximately 0.99 local units:
 
 `P0=(-.35,.65,-.35)`, `P1=(.35,.65,.35)`, `P2=(.35,1.35,-.35)`, `P3=(-.35,1.35,.35)`.
 

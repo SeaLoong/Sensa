@@ -8,9 +8,9 @@
 
 [公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)支持自动识别语言，也可直接打开[简体中文](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)或[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用参数详情会打开随包附带的页面；解压后保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
 
-先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十一个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。四点定位的四个颜色关联测量球、标签和参数行。
+先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十一个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。SPS 四点定位的四个颜色关联测量球、标签和参数行。
 
-图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，四点定位的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
+图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，SPS 四点定位的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
 
 参数按名称字典序显示，同一前缀的短名称在前，例如 `PenOthers` 在 `PenOthersClose` 之前。前缀中的 `*` 代表实例名：`Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 使用下文规定的十进制数。
 
@@ -28,7 +28,7 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 | `Sensa/Shader/<id>/Frame`、`Valid`、`X`、`Y`、`Z` | 从屏幕图块解码的根点相对位置 | 用画面编码获得三维位置 |
 | `Sensa/Diagnostics/Shader/0/…` | 图案、捕获与 OSC 传输诊断 | 检查捕获链路 |
 
-四点定位的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
+SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
 
 ## OGB 与 VRCFury 参数
 
@@ -66,7 +66,7 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 
 量程为 0.3 m、命中距离为 0.1 m 时，`_Distance` 约为 0.1，`_Ratio` 约为 1/3。先用 `_Hit` 确认命中，再读取距离：当前生成组件采用 SDK 默认的 `DoNothing` 未命中行为，未命中时 `_Hit=false`，两路距离保留最近的命中值，首次命中前为 0。
 
-三字段对应官方 SDK 的原生 `VRCRaycast` 报告，均声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 安装包](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.avatars-3.10.6-beta.2.zip)
+三字段对应官方 SDK 的原生 `VRCRaycast` 报告，均声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。已核对最低支持版本 3.10.3 的 API 与参数绑定。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 3.10.3 安装包](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
 
 ## Contact 直接定位（SDK Beta）：十二个公开字段
 
@@ -93,9 +93,9 @@ SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象。中点
 
 桌面要求同一来源与完整实例的十二字段齐全、类型为 Self、Proximity 为正、数值有限、位置在 Radius 边界及小量数值容差内，且 Radius 受支持。Sample 目标每 50 ms 推进，按 ChangedAt 检查的年龄上限为 **1000 ms**；较短的正数 InputTimeoutMs 优先，重复相同计数不续期。Contact 消失、字段缺失、Radius／坐标非法或活动停用／冻结时，相关空间动作停止。
 
-Contact 直接定位通过 SensaPoint 映射 **X／Y／Z／Distance** 或 **VelocityX／VelocityY／VelocityZ／Speed／ProximitySpeed**。端点校准、曲线、输出限位、空间启用与停止沿用现有流程。四点定位的 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 和按制作尺度解释的 AvatarRootLocal 保留既有定义。[定位说明](positioning.md) · [工作台](guide.md)
+Contact 直接定位通过 SensaPoint 映射 **X／Y／Z／Distance** 或 **VelocityX／VelocityY／VelocityZ／Speed／ProximitySpeed**。端点校准、曲线、输出限位、空间启用与停止沿用现有流程。SPS 四点定位的 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 和按制作尺度解释的 AvatarRootLocal 保留既有定义。[定位说明](positioning.md) · [工作台](guide.md)
 
-## 四点定位：四路近接与一个活动样本
+## SPS 四点定位：四路近接与一个活动样本
 
 生产端为明确选择的 Socket／Plug 根中心建立一个专用球形 Sender，四个球形 Receiver 固定在 Avatar 根坐标中，只接受自己的专用碰撞通道。每实例共五个 Contact，跟踪所选 Transform 根中心。[生产端](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 
@@ -157,7 +157,7 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 
 ## Shader：直接根坐标与传输活性
 
-原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。其坐标范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。其坐标范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### 五个公开测量参数
 

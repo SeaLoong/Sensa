@@ -18,7 +18,7 @@ The native SPS station uses a known Sender and SDK CalculateProximity. World tru
 
 ## Known-geometry references
 
-The independent Point fixture uses a 0.001-radius Sender, 2-radius Receivers and tetrahedral axis offsets of ±0.35. Its generator and decoder both read `SensaPoseProtocol`; inspect actual proximity readings in the current scene. The layout uses its own reference object, without the fixed SPS AvatarRootLocal frame or Sample counter.
+The independent Point fixture uses a 0.001-radius Sender, 2-radius Receivers and tetrahedral axis offsets of ±0.35. Its generator and decoder both read `SensaPoseProtocol`; inspect actual proximity readings in the current scene. The layout uses its own reference object, without the SPS four-anchor tracking AvatarRootLocal frame or Sample counter.
 
 For the known 20 cm SPS Plug, Socket positions (0,0,.24), (0,0,.12) and (.06,0,.12) represent Outside, Near and Offset. Axial Near/Offset truth is 40%, while the radial estimate is about 40%/32.9%. OGB normalization, SDK signed distance, root decoding and model displacement are different quantities.
 

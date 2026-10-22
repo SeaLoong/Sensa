@@ -38,7 +38,7 @@ TCode 输出先在“设置”中编辑轴配置，缩小移动范围、降低�
 - **Contact 直接定位（SDK Beta）**：按 [Contact 设置](contact-sdk.md)安装受支持的 Beta SDK，并构建专用自身根点 Sender／Receiver。检查 `Sensa/Contact/<id>/…`；局部动作校准 X／Y／Z／Distance，运动强弱校准速度／Speed／ProximitySpeed。保存后允许实验空间输入并启用 OSC 输入。
 - **实验根点**：先按[方案指南](usage-scenarios.md)设置 Avatar 测量组件或桌面图块读取程序。确认面板显示正确对象且坐标有效，再分别记录动作起点和终点，把它们对应到输出的 0% 和 100%，保存映射。最后允许实验空间输入并启用输入。
 
-不同参数表达不同含义：OGB 通常提供接近程度或深度估算；四点定位与 Shader 提供所选根点相对 Avatar 的三维位置，Contact 直接定位提供米制位置和相对速度。[定位说明](positioning.md)
+不同参数表达不同含义：OGB 通常提供接近程度或深度估算；SPS 四点定位与 Shader 提供所选根点相对 Avatar 的三维位置，Contact 直接定位提供米制位置和相对速度。[定位说明](positioning.md)
 
 ## 5. 保存可复查的结果
 

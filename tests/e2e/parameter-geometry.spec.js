@@ -511,6 +511,8 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
       await expect(page.locator('html')).toHaveAttribute('lang', locale);
       for (const scenario of goldenScenes) {
         await chooseScene(page, scenario);
+        if (scenario === 'sensa-sps') await expect(page.locator('#scene-title')).toHaveText(
+          locale === 'zh-CN' ? 'SPS 四点定位' : 'SPS four-anchor tracking');
         await page.locator('#projection').selectOption('xz');
         await finiteDrawing(page); await documentFits(page);
         await page.evaluate(() => document.fonts.ready);

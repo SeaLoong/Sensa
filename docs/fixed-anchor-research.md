@@ -1,4 +1,4 @@
-# 固定 SPS 四锚点：依据与取舍
+# SPS 四点定位：依据与取舍
 
 **简体中文** | [English](fixed-anchor-research.en.md)
 

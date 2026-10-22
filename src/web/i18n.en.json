@@ -958,7 +958,7 @@
   "相对速率（m/s）": "Relative speed (m/s)",
   "接近值变化率（/s）": "Proximity change rate (/s)",
   "Contact 直接定位（SDK Beta）": "Contact direct tracking (SDK Beta)",
-  "四点定位": "Four-anchor tracking",
+  "SPS 四点定位": "SPS four-anchor tracking",
   "两个采样值过于接近，请扩大变化范围": "The sample values are too close. Use a wider range.",
   "Avatar 根坐标投影，参考范围正负 {0} 米": "Avatar-root projection, reference range plus or minus {0} metres",
   "中心 {0}/{1}/{2} · ±{3} m": "Centre {0}/{1}/{2} · ±{3} m",
@@ -976,6 +976,6 @@
   "Contact · 速度强度（SDK Beta）": "Contact · Speed intensity (SDK Beta)",
   "专用 Contact 相对速率 → V0；将 Root 换成实际对象，再按 m/s 校准强度范围。": "Dedicated Contact relative speed to V0. Replace Root with the actual target, then calibrate the intensity range in m/s.",
   "根点定位": "Root tracking",
-  "Unity 可选择四点定位或 Contact 直接定位（SDK Beta）。四点定位计算根点位置，Contact 直接定位还提供相对速度；在根点面板选择目标后，校准位置行程或速度强度。": "In Unity, choose Four-anchor tracking or Contact direct tracking (SDK Beta). Four-anchor tracking calculates root position; Contact direct tracking also reports relative velocity. Select a target in the root panel, then calibrate position travel or speed intensity.",
+  "Unity 可选择 SPS 四点定位或 Contact 直接定位（SDK Beta）。SPS 四点定位测量 Socket 或 Plug 的根点位置，Contact 直接定位还提供相对速度；在根点面板选择目标后，校准位置行程或速度强度。": "In Unity, choose SPS four-anchor tracking or Contact direct tracking (SDK Beta). SPS four-anchor tracking measures the Socket or Plug root position; Contact direct tracking also reports relative velocity. Select a target in the root panel, then calibrate position travel or speed intensity.",
   "Contact SDK 设置": "Contact SDK setup"
 }

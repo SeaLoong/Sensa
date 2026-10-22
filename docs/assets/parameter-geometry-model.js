@@ -33,7 +33,7 @@
     contacts: 'https://creators.vrchat.com/common-components/contacts/',
     contactSdk: 'https://creators.vrchat.com/common-components/contacts/#advanced-proximity-parameters',
     sps: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs',
-    shader: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt',
+    shader: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader',
   });
   function defaultsFor(scenario = 'socket-modern') {
     if (!scenarios.includes(scenario)) throw new RangeError('Unknown scenario / 未知场景: ' + scenario);
@@ -305,7 +305,7 @@
     });
     const assumptions = [
       { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
-      { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2 reports position and velocity on Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; four-anchor tracking and Shader use Avatar-root local units.' },
+      { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2 reports position and velocity on Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
       { id: 'projection', zh: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
       { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];

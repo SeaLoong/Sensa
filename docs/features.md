@@ -57,9 +57,9 @@ Intiface 使用 Buttplug WebSocket、扫描和设备特征。位置按能力选�
 
 ## Unity 与空间实验
 
-默认禁止空间驱动。四点定位的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。Contact 直接定位（SDK Beta）用一个专用自身根点 Sender 和一个 Receiver，发布十二个 `Sensa/Contact/<id>/…` 字段，提供 AvatarRootMeters 位置与接触点相对速度；Sample 变化寿命最多 1000 ms，Radius 随 ScaleFactor 更新并受 3 m 门控保护。SensaPoint 支持 X／Y／Z／Distance 与 VelocityX／Y／Z／Speed／ProximitySpeed，沿用现有校准与停止行为。[Beta 前提与源码依据](contact-sdk.md)。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们的坐标分别相对 Avatar 或指定参考对象，适合校准为局部移动动作。[定位](positioning.md)
+默认禁止空间驱动。SPS 四点定位的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。Contact 直接定位（SDK Beta）用一个专用自身根点 Sender 和一个 Receiver，发布十二个 `Sensa/Contact/<id>/…` 字段，提供 AvatarRootMeters 位置与接触点相对速度；Sample 变化寿命最多 1000 ms，Radius 随 ScaleFactor 更新并受 3 m 门控保护。SensaPoint 支持 X／Y／Z／Distance 与 VelocityX／Y／Z／Speed／ProximitySpeed，沿用现有校准与停止行为。[Beta 前提与源码依据](contact-sdk.md)。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们的坐标分别相对 Avatar 或指定参考对象，适合校准为局部移动动作。[定位](positioning.md)
 
-NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，并明确选择根点定位方式：默认四点定位，安装受支持的 Beta SDK 后可选 Contact 直接定位。独立 Contact 作者也支持明确的 Sensa／原生根点，无需 VRCFury；单点提供位置与速度，多点姿态留待后续。独立固定根作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 提供 Editor 中的模型快照，便于检查作者设置。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
+NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，并明确选择根点定位方式：默认 SPS 四点定位，安装受支持的 Beta SDK 后可选 Contact 直接定位。独立 Contact 作者也支持明确的 Sensa／原生根点，无需 VRCFury；单点提供位置与速度，多点姿态留待后续。独立 SPS 四点定位作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 提供 Editor 中的模型快照，便于检查作者设置。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
 
 ## 配置、访问与 API
 

@@ -2,7 +2,7 @@
 
 [简体中文](AUTOMATION.md) | **English**
 
-[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to Four-anchor tracking; Contact direct tracking (SDK Beta) is an explicit alternative. These routes and separate Shader capture share one NDMF generation entry point; see the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for timing.
+[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to SPS four-anchor tracking; Contact direct tracking (SDK Beta) is an explicit alternative. These routes and separate Shader capture share one NDMF generation entry point; see the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for timing.
 
 ## Targets and scope
 
@@ -10,7 +10,7 @@ Discover All finds supported VRCFury authors; Selected Targets narrows the set a
 
 | Capability | Generated scope |
 | --- | --- |
-| Four-anchor tracking | Four fixed receivers and one dedicated sender per target |
+| SPS four-anchor tracking | Four fixed receivers and one dedicated sender per target |
 | Contact direct tracking (SDK Beta) | One dedicated Sender/Receiver pair per root; native XYZ and velocity |
 | Paired Socket tracking | Independent Root/Tip/Side Pose receiver arrays |
 | Paired Plug markers | Three reference markers, without GPU deformation |
@@ -19,23 +19,23 @@ Discover All finds supported VRCFury authors; Selected Targets narrows the set a
 
 Exclusive enables one measured target per group, initially Off; Dedicated enables simultaneous measurement. Selection reduces active objects, not the registered Contact budget. Optional capabilities and other plugins count too. Unknown policies fail the build.
 
-For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking (SDK Beta)**. Both accept an Avatar bone/empty-object Transform, SPS, Sensa Component or native Contact as Target. The adapter reads the selected root frame. Instances default to `Root`; give duplicates unique instance names. An empty Collision Channel derives a stable channel from that name, or you can enter a manual override.
+For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → SPS four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking (SDK Beta)**. Both accept an Avatar bone/empty-object Transform, SPS, Sensa Component or native Contact as Target. The adapter reads the selected root frame. Instances default to `Root`; give duplicates unique instance names. An empty Collision Channel derives a stable channel from that name, or you can enter a manual override.
 
 Separate Shader capture uses `SensaShaderCapture.prefab` or **GameObject → Sensa → Shader Root Capture (Experimental)**. It accepts the same Target types and has its own Producer ID and desktop rectangle. [Shader setup](GPU-TRACKING.en.md)
 
 ## Contact direct tracking (SDK Beta)
 
-Choose the root tracking method in Automatic SPS Setup. Four-anchor tracking remains the default on stable SDK installations. Contact direct tracking requires an SDK with `advancedProximityParameters` (verified against 3.10.6-beta.2); selecting it on an older SDK fails with an installation/alternative instruction.
+Choose the root tracking method in Automatic SPS Setup. SPS four-anchor tracking remains the default on stable SDK installations. Contact direct tracking requires an SDK with `advancedProximityParameters` (verified against 3.10.6-beta.2); selecting it on an older SDK fails with an installation/alternative instruction.
 
 `Runtime/SensaContactProtocol.cs` defines `Sensa/Contact/<id>`. One 2-unit Proximity Receiver sits at the Avatar root with zero shape offset and root-aligned axes; a separate 0.001-unit Sender follows the selected root. Existing SPS Contacts are unchanged. The SDK writes ten native reports: `Proximity`, Int `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`. Other public fields are Float. The SDK also writes `Proximity_CollisionTag_<tag>` for the dedicated collision tag. Sensa declares this Bool in FX and clears it while inactive; it stays outside the twelve public Expression Parameter declarations. Client OSC visibility is checked separately.
 
 XYZ uses `AvatarRootMeters`: Avatar-root origin and rotation axes, in metres without dividing by authored root scale. Velocity is SDK relative collision-point velocity in m/s; ProximitySpeed is change of normalized proximity per second. A single point has no orientation. `Radius` reports the actual world receiver radius, including authored scale and ScaleFactor. `Sample` cycles n/32 every approximately 50 ms; both controls reset to zero when inactive. The clock proves producer activity, not an atomic SDK frame or Sender authentication. Desktop activity expires after at most 1000 ms; unchanged coordinates may be cached while Sample advances. Presence and SenderType are checked separately, so zero position/velocity can be valid stationary data.
 
-The same IsLocal, scale and selection guards apply. Contact direct tracking counts two Contacts per target; Four-anchor tracking counts five. All native report parameters and both controls are local, unsynced and unsaved. Both methods use the desktop spatial permission, calibration and input activation controls. [SDK semantics and limits](https://github.com/SeaLoong/Sensa/blob/main/docs/contact-sdk.en.md).
+The same IsLocal, scale and selection guards apply. Contact direct tracking counts two Contacts per target; SPS four-anchor tracking counts five. All native report parameters and both controls are local, unsynced and unsaved. Both methods use the desktop spatial permission, calibration and input activation controls. [SDK semantics and limits](https://github.com/SeaLoong/Sensa/blob/main/docs/contact-sdk.en.md).
 
 The package includes EditMode contracts for feature detection, generated parameters, placement, scale guards and selection resets. Positive SDK build contracts require the beta API and skip when it is absent. These contracts have not been executed in a stable or beta Unity Editor for this change; package metadata checks and SDK assembly inspection do not establish Unity-client or hardware acceptance.
 
-## Four-anchor geometry and five measurement fields
+## SPS four-anchor tracking geometry and five measurement fields
 
 `Runtime/SensaFixedAnchorProtocol.cs` is shared with the desktop solver.
 
@@ -75,10 +75,10 @@ The build first checks that bones, PhysBones, Raycast references and other targe
 
 Both root routes require positive uniform root scale and check root ScaleConstraint and known root-scale animation. IsLocal, ScaleFactor and selection guards disable Contacts and clear the route's public values while inactive, before the Receiver exceeds approximately 2.999 world metres.
 
-Four-anchor desktop reconstruction needs four complete, unsaturated, consistent values and a legal changing Sample. Unchanged P values may remain cached. Sample content-change age has a 1250-ms protocol cap; a positive input timeout can be stricter. Resending an unchanged Sample cannot renew activity. Publication order is not atomic OSC delivery or Sender authentication.
+SPS four-anchor tracking desktop reconstruction needs four complete, unsaturated, consistent values and a legal changing Sample. Unchanged P values may remain cached. Sample content-change age has a 1250-ms protocol cap; a positive input timeout can be stricter. Resending an unchanged Sample cannot renew activity. Publication order is not atomic OSC delivery or Sender authentication.
 
 Contact direct tracking requires all twelve fields from the same source and instance, positive Proximity, SenderType=1, supported Radius/position bounds and Sample change age at most 1000 ms. Valid contact can report zero coordinates and zero velocity; contact loss or invalid/frozen activity stops the related motion.
 
-For either route, capture two endpoints, replace the mapping draft, inspect and save it; separately allow experimental spatial input and activate input. Missing, invalid or expired observations stop motion. Rebuild older Sensa SPS Avatars and mappings against the current four-anchor contract. Independent Point/Handle/Pose keep their own oldest-channel rules.
+For either route, capture two endpoints, replace the mapping draft, inspect and save it; separately allow experimental spatial input and activate input. Missing, invalid or expired observations stop motion. Rebuild older Sensa SPS Avatars and mappings against the current SPS four-anchor tracking contract. Independent Point/Handle/Pose keep their own oldest-channel rules.
 
 [Limits](COMPATIBILITY.en.md) · [Native shader route](GPU-TRACKING.en.md)

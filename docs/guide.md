@@ -75,7 +75,7 @@ funscript 导入后显示时间、轨迹密度与播放控制。支持 0.1–4 �
 
 ### 用根点位置控制动作：先观察，再校准
 
-四点定位、Contact 与 Shader 根点面板显示对象、来源、相对 Avatar 的坐标与当前测量状态。Contact 直接定位使用物理米（AvatarRootMeters），四点定位和 Shader 使用按制作尺度解释的 Avatar 根单位（AvatarRootLocal）。Point／Handle／Pose 实验则分别显示相对各自参考对象的测量。空间输入默认关闭，完成观察与校准后再启用。
+SPS 四点定位、Contact 与 Shader 根点面板显示对象、来源、相对 Avatar 的坐标与当前测量状态。Contact 直接定位使用物理米（AvatarRootMeters），SPS 四点定位和 Shader 使用按制作尺度解释的 Avatar 根单位（AvatarRootLocal）。Point／Handle／Pose 实验则分别显示相对各自参考对象的测量。空间输入默认关闭，完成观察与校准后再启用。
 
 先固定要观察的对象，再选择左右 X、上下 Y、前后 Z，或距 Avatar 原点的距离。将目标移到期望的动作起点，采集为 0%；移到终点，采集为 100%。检查预览方向和范围，确认后替换映射草稿并保存。最后分别允许实验空间输入和启用当前输入。坐标失效时，相应动作停止。可先用小行程检查局部移动方向与设备动作是否一致。[定位条件](positioning.md)
 

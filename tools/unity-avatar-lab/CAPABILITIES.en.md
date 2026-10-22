@@ -10,7 +10,7 @@ Use [FullFlow](FULL-FLOW.en.md) for integrated interaction and `Assets/SensaAvat
 | PB | Native Stretch / IsGrabbed | Intensity and gate, no XYZ |
 | PBContact | PB target plus Point/Handle samples | Experimental local position; grab/age gates still required |
 | SPS | Native VRCFury Socket/Plug and OGB | Enable OGB_ENABLED and actual Socket/Plug |
-| SPSContact | Native SPS plus Sensa measurements | Separate fixed-root/local/Pose fields, not one interchangeable array |
+| SPSContact | Native SPS plus Sensa measurements | Separate SPS four-anchor tracking/local/Pose fields, not one interchangeable array |
 | Shader | Synthetic code and CRC/freeze recovery | Diagnostic transport, not an actual root |
 | SPSShader | SPS model with an editor capture camera | Camera outside the Avatar is not uploaded |
 
@@ -26,9 +26,9 @@ PB handles permit grabbing while disabling collisions and posing. Visible sphere
 
 ## Inspect in Sensa
 
-Apply OSC mode with input off and outputs empty. Use actual PB Stretch/IsGrabbed paths for the native PB route. For OGB, choose the correct external family and source, enable native haptics parameters, and learn paired length outside saturation. Fixed SPS uses only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`; root observations require calibration and explicit experimental permission.
+Apply OSC mode with input off and outputs empty. Use actual PB Stretch/IsGrabbed paths for the native PB route. For OGB, choose the correct external family and source, enable native haptics parameters, and learn paired length outside saturation. SPS four-anchor tracking uses only `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`; root observations require calibration and explicit experimental permission.
 
-Independent Point/Handle/Pose do not inherit the fixed-root cache or Sample semantics. Synthetic/editor image output belongs only to `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`, without a mappable native root. Native `Sensa/Shader/<nonzero-ID>` is a separate [producer and registration flow](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
+Independent Point/Handle/Pose do not inherit the SPS four-anchor tracking cache or Sample semantics. Synthetic/editor image output belongs only to `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`, without a mappable native root. Native `Sensa/Shader/<nonzero-ID>` is a separate [producer and registration flow](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md).
 
 When checking an experimental avatar, inspect generated components, writable parameters, budgets, shaders and default-off state. Release CI runs unit checks and browser E2E; the avatar's Unity build, EditMode and client behavior need separate checks. A completed SDK package does not validate uploading, VR grabbing, real image capture or hardware behavior.
 

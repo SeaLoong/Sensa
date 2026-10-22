@@ -76,7 +76,7 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             SensaEditorLocalization.DrawLanguageSelector();
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Lab-only synthetic signal fixture; not SPS positioning or proof of real device behavior."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Synthetic lab signal fixture for testing the desktop input pipeline."), MessageType.Info);
         }
     }
 }

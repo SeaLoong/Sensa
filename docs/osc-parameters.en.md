@@ -8,9 +8,9 @@ This is the field/validity reference. Choose a [route](usage-scenarios.en.md), t
 
 The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) selects language automatically and has direct [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) and [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) links. Application parameter details open the bundled page. Keep its adjacent assets to open extracted `docs/parameter-geometry.html` offline.
 
-Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All eleven scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. Four-anchor tracking colors connect each measurement sphere to its label and parameter row.
+Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All eleven scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. SPS four-anchor tracking colors connect each measurement sphere to its label and parameter row.
 
-Distances use complete XYZ coordinates. XZ projects space onto a plane; the green Four-anchor tracking region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
+Distances use complete XYZ coordinates. XZ projects space onto a plane; the green SPS four-anchor tracking region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
 
 Parameters appear in dictionary order, with a shorter shared prefix first: `PenOthers` precedes `PenOthersClose`. A prefix's `*` represents an instance name: `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader IDs use the decimal form below.
 
@@ -28,7 +28,7 @@ Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship
 | `Sensa/Shader/<id>/Frame`, `Valid`, `X`, `Y`, `Z` | Root-relative coordinates decoded from a screen block | Obtaining three-dimensional position through image encoding |
 | `Sensa/Diagnostics/Shader/0/…` | Pattern, capture and OSC transport diagnostics | Checking the capture chain |
 
-Four-anchor tracking Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
+SPS four-anchor tracking Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
 
 ## OGB and VRCFury parameters
 
@@ -66,7 +66,7 @@ The prefix is `Sensa/<id>/Aux<index>/<role>`: `<index>` is the supplementary sig
 
 With a 0.3 m range and a hit 0.1 m away, `_Distance` is approximately 0.1 and `_Ratio` approximately 1/3. Check `_Hit` before reading distance: the generated component uses the SDK's default `DoNothing` miss behavior. On a miss, `_Hit=false` and both distances retain their latest hit values, initially zero before the first hit.
 
-These are the native `VRCRaycast` report fields. All three receive local, unsynced Expression Parameter declarations and matching FX types. [Unity configuration](../unity/top.sealoong.sensa/AUTOMATION.en.md) · [Official SDK package](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.avatars-3.10.6-beta.2.zip)
+These are the native `VRCRaycast` report fields. All three receive local, unsynced Expression Parameter declarations and matching FX types. The APIs and bindings were also checked in the minimum supported version, 3.10.3. [Unity configuration](../unity/top.sealoong.sensa/AUTOMATION.en.md) · [Official SDK 3.10.3 package](https://github.com/vrchat/packages/releases/download/3.10.3/com.vrchat.avatars-3.10.3.zip)
 
 ## Contact direct tracking (SDK Beta): twelve public fields
 
@@ -93,9 +93,9 @@ The SDK selects the matching Sender with greatest strictly positive Proximity. I
 
 The desktop requires all twelve fields from one source and complete instance, Self type, positive Proximity, finite values, position within the Radius bound plus a small numeric tolerance and supported Radius. Sample advances nominally every 50 ms. Its ChangedAt age is capped at **1000 ms**, shortened by a smaller positive InputTimeoutMs; unchanged repeats do not renew it. Loss of contact, incomplete values, invalid Radius/coordinates or frozen/disabled activity stops the related spatial motion.
 
-Contact direct tracking maps through SensaPoint using **X/Y/Z/Distance** or **VelocityX/VelocityY/VelocityZ/Speed/ProximitySpeed**. Endpoint calibration, curves, output limits, spatial activation and stopping use the existing flow. Four-anchor `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` and its authored-unit AvatarRootLocal frame retain their existing definition. [Positioning](positioning.en.md) · [Workbench](guide.en.md)
+Contact direct tracking maps through SensaPoint using **X/Y/Z/Distance** or **VelocityX/VelocityY/VelocityZ/Speed/ProximitySpeed**. Endpoint calibration, curves, output limits, spatial activation and stopping use the existing flow. SPS four-anchor tracking `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` and its authored-unit AvatarRootLocal frame retain their existing definition. [Positioning](positioning.en.md) · [Workbench](guide.en.md)
 
-## Four-anchor tracking: four proximities and one activity sample
+## SPS four-anchor tracking: four proximities and one activity sample
 
 The producer places one dedicated spherical Sender at the explicitly selected Socket/Plug root center. Four spherical Receivers stay fixed in avatar-root coordinates and accept only their own dedicated collision channel. Each instance uses five Contacts to track the selected Transform root center. [Producer](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 
@@ -157,7 +157,7 @@ Dedicated channels and AllowSelf select this Avatar’s root marker. Readings re
 
 ## Shader: direct root coordinates and transport activity
 
-Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. Its coordinate cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. Its coordinate cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### Five public measurement parameters
 

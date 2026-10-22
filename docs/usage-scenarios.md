@@ -2,12 +2,12 @@
 
 **简体中文** | [English](usage-scenarios.en.md)
 
-使用 Avatar 已有的 OGB 参数，是开始深度或触碰联动最直接的方式。能构建自己的 Avatar 时，还可添加四点定位或 Contact 直接定位组件，或使用实验性 Shader 捕获，读取选定根点的三维位置。
+使用 Avatar 已有的 OGB 参数，是开始深度或触碰联动最直接的方式。能构建自己的 Avatar 时，还可添加 SPS 四点定位或 Contact 直接定位组件，或使用实验性 Shader 捕获，读取选定根点的三维位置。
 
 | 路线 | 适合的条件 | 结果 |
 | --- | --- | --- |
 | 已有 OGB / SPS | 只能使用 Avatar 已发布的 haptics 参数 | 深度径向估算或触摸强度 |
-| 四点定位 | 能构建自己的 Avatar，能明确选择真实 Socket／Plug 根 | 根点相对 Avatar 的左右、上下、前后位置 |
+| SPS 四点定位 | 能构建自己的 Avatar，能明确选择 SPS Socket／Plug 根点 | 根点相对 Avatar 的左右、上下、前后位置 |
 | Contact 直接定位（SDK Beta） | 使用受支持的 Beta SDK 构建自己的 Avatar，并配置专用自身根点通道 | 米制根点位置和 m/s 相对速度 |
 | Shader 捕获 | 能构建 PC 原生编码器，桌面画面实际可见图块 | 读取你框选的桌面图块，获得根点三维坐标 |
 
@@ -27,15 +27,15 @@
 
 ## Contact 直接定位（SDK Beta）
 
-安装 SDK 3.10.6-beta.2 或提供高级 Proximity 参数的后续 SDK。在 **Automatic SPS Setup** 的根点定位方式中明确选择 **Contact 直接定位（SDK Beta）**，默认仍为**四点定位**；也可直接添加 `SensaContactRootProbe`。选择自己实际的 SPS、Sensa 或原生 Contact 根点；明确选择 Sensa／原生根点时，可独立于 VRCFury 使用。
+安装 SDK 3.10.6-beta.2 或提供高级 Proximity 参数的后续 SDK。在 **Automatic SPS Setup** 的根点定位方式中明确选择 **Contact 直接定位（SDK Beta）**，默认仍为**SPS 四点定位**；也可直接添加 `SensaContactRootProbe`。选择自己实际的 SPS、Sensa 或原生 Contact 根点；明确选择 Sensa／原生根点时，可独立于 VRCFury 使用。
 
 Sensa 生成跟随根点的微小球形 Sender，并在 Avatar 原点放置各轴对齐、半径 2 个局部单位的 Receiver。每个作者组件使用唯一通道和 Self-only 接收。`Sensa/Contact/<id>/…` 提供十二字段：原生位置／速度／接近报告，加上 Sensa 的 Radius 和 Sample。位置使用 AvatarRootMeters，速度为 m/s，ProximitySpeed 为接近值／秒。Radius 跟随实际世界缩放并受 3 m 上限约束；Sample 目标每 50 ms 变化，最多 1000 ms 过期。
 
 在根点面板检查对象与来源，局部动作校准 **X／Y／Z／Distance**，运动强弱校准 **VelocityX／Y／Z／Speed／ProximitySpeed**，保存后启用空间和 OSC 输入。校准轴可读取细微深浅趋势，Touch／Close 可增加触碰确认；Contact 消失、字段非法或活动冻结时，相关动作停止。当前支持单点位置与速度，多点姿态留待后续；真实 Unity 客户端／OSC Beta 链路尚待验收。[设置、完整语义与安装包依据](contact-sdk.md)
 
-## 四点定位
+## SPS 四点定位
 
-在 Unity 添加**四点定位**（`SensaFixedRootProbe`）或 **Automatic SPS Setup**，明确选择受支持的 SPS、Sensa 或原生 Contact 根点。四个半径 2 m 的接收器固定在 Avatar 根下，一个半径 0.001 m 的小标记跟随所选根点；测量点间距约 0.99 m：
+在 Unity 添加**SPS 四点定位**（`SensaFixedRootProbe`）或 **Automatic SPS Setup**，明确选择 SPS Socket／Plug 根点。骨骼／空物体 Transform、Sensa 与原生 Contact 也可作为明确目标，沿用同一 SPS 根点协议。四个半径 2 个局部单位的接收器固定在 Avatar 根下，一个半径 0.001 的小标记跟随所选根点；测量点间距约 0.99 个局部单位：
 
 `P0=(-.35,.65,-.35)`、`P1=(.35,.65,.35)`、`P2=(.35,1.35,-.35)`、`P3=(-.35,1.35,.35)`。
 

@@ -31,7 +31,7 @@ LEFT／RIGHT 跟随本地对应手，PLACE 留在原地，HOME 放下并复位�
 
 ![原生 SPS 与 Avatar 交互区域](images/native-sps-avatar-zone.png)
 
-## 旧 P／C 颜色不是新固定四锚点
+## Point／Pose 布局与 SPS 四点定位
 
 旧配对 Pose／PB 实验保留以下采样标签，它们不是设备轴或行程百分比：
 
@@ -42,7 +42,7 @@ LEFT／RIGHT 跟随本地对应手，PLACE 留在原地，HOME 放下并复位�
 
 四面体用 P1–P4，八点用 C1–C8；C1–C4 沿用红蓝绿黄，但位置不同，不能把 P2 当 C2。Measure plug 展示 Palm 参考框／Plug 把手 P 阵列，Socket 展示 C 阵列，Root／Tip／Side 共享 C 位置但路径不同；独立 PB 参考架也用 P。
 
-四点定位使用固定在 Avatar 根下的 **P0–P3** 加专用移动根标记，配色为蓝／青绿／紫／玫红。旧八个 C 点或 A0–A3 子集不能当作这四个锚点。参数列表保留真实路径；输出 L/R/V/A 轴仍是设备命令轴。
+SPS 四点定位使用固定在 Avatar 根下的 **P0–P3** 加专用移动根标记，配色为蓝／青绿／紫／玫红。旧八个 C 点或 A0–A3 子集不能当作这四个锚点。参数列表保留真实路径；输出 L/R/V/A 轴仍是设备命令轴。
 
 ![旧探针中心与对应颜色](images/probe-colors.png)
 
@@ -50,4 +50,4 @@ LEFT／RIGHT 跟随本地对应手，PLACE 留在原地，HOME 放下并复位�
 
 菜单、放置、复位和生成控制器可以由相应构建／ClientSim 检查，但不证明上传后的 Avatar OSC、HMD 抓取或硬件。旧配对实验默认禁止空间驱动；通道数量或低残差不证明同一 Sender／同帧。
 
-四点定位使用独立几何和 Sample，仍须实验许可、校准与停止检查。本实验室 Shader 道具为合成传输测试；原生根点编码另有生产作者，也不等于形变网格采样。[定位](positioning.md) · [实验顺序](lab-workflow.md) · [Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)
+SPS 四点定位使用独立几何和 Sample，仍须实验许可、校准与停止检查。本实验室 Shader 道具为合成传输测试；原生根点编码另有生产作者，也不等于形变网格采样。[定位](positioning.md) · [实验顺序](lab-workflow.md) · [Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)

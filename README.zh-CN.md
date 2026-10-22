@@ -22,11 +22,11 @@
 | 路线 | 提供什么 | 主要限制 |
 | --- | --- | --- |
 | **已有 OGB / SPS** | 读取 Avatar 已有的接近、触摸和深度相关参数 | 使用 Avatar 现有参数，先确认实际发送的是 SPS1 还是 SPS2 信号 |
-| **四点定位** | 在自己的 Avatar 上添加测量组件，计算所选根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
+| **SPS 四点定位** | 在自己的 Avatar 上添加测量组件，计算 SPS Socket／Plug 根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
 | **[Contact 直接定位（SDK Beta）](docs/contact-sdk.md)** | 用一个专用 Receiver 读取所选根点的位置和相对速度 | 需要 Beta SDK 并重新构建自己的 Avatar；目标位于接收覆盖内 |
 | **Shader 捕获** | 将根点位置画成黑白编码图块，由桌面程序读取 | PC 实验方案；需要图块完整可见，真实 VRChat／头显效果尚待验证 |
 
-这里的“根点”是你在 Unity 中选定的起点，例如 SPS Socket／Plug、Sensa 或原生 Contact 根点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。四点定位、Contact 直接定位和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。Contact 直接定位使用 SDK 3.10.6-beta.2 和物理米单位，速度值可校准为动作强度；真实客户端／OSC Beta 链路尚待验收。
+这里的“根点”是你在 Unity 中选定的起点，例如 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。明确选择 Transform、Sensa 或原生 Contact 时，SPS 四点定位沿用同一根点协议。SPS 四点定位、Contact 直接定位和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。Contact 直接定位使用 SDK 3.10.6-beta.2 和物理米单位，速度值可校准为动作强度；真实客户端／OSC Beta 链路尚待验收。
 
 [方案选择](docs/usage-scenarios.md) · [OSC 字典](docs/osc-parameters.md) · [定位与限制](docs/positioning.md) · [OGB 兼容](docs/ogb-compatibility.md)
 

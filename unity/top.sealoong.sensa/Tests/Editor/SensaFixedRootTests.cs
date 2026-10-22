@@ -190,7 +190,7 @@ namespace UnityBox.Sensa.Tests
             try
             {
                 Selection.activeGameObject = avatar;
-                SensaPoseMenus.SpsRoot();
+                Assert.IsTrue(EditorApplication.ExecuteMenuItem("GameObject/Sensa/SPS four-anchor tracking"));
                 var created = Own(Selection.activeGameObject);
                 Assert.AreEqual(avatar.transform, created.transform.parent);
                 Assert.NotNull(created.GetComponent<SensaFixedRootProbe>());

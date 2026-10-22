@@ -47,7 +47,7 @@
     'plug-frot': ["Plug · FrotOthers / FrotOthersClose", "Plug · FrotOthers / FrotOthersClose"],
     zone: ["Touch Zone · Others", "Touch Zone · Others"],
     'contact-sdk': ['Contact 直接定位（SDK Beta）', 'Contact direct tracking (SDK Beta)'],
-    'sensa-sps': ['四点定位', 'Four-anchor tracking'],
+    'sensa-sps': ['SPS 四点定位', 'SPS four-anchor tracking'],
     shader: ["Shader · X / Y / Z", "Shader · X / Y / Z"],
   };
   const scenes = {
@@ -97,7 +97,7 @@
       formula: ['d 为双方形状中点距离，p=clamp(1−max(0,d−0.001)/2)。p>0 时选择 Sender，实际覆盖延伸到距原点小于 2.001 m。XYZ 为双方形状中点之差乘 Receiver 逆旋转，以米保留世界尺度；SDK 速度包含近似接触点的旋转影响，速度大小=√(Vx²+Vy²+Vz²)，ProximitySpeed 单位为 1/s。', 'With d the distance between shape midpoints, p=clamp(1−max(0,d−0.001)/2). A Sender is selected at p>0, extending coverage to a distance strictly below 2.001 m. XYZ is the difference between shape midpoints with inverse Receiver rotation, in metres retaining world scale. SDK velocity includes angular effects at an approximate contact point; its magnitude is √(Vx²+Vy²+Vz²), while ProximitySpeed uses 1/s.'],
     },
     'sensa-sps': {
-      summary: ["P0–P3 四个固定测量点各有 2 米接收半径，感知跟随目标的 1 毫米标记；绿色区域表示四路共同可测的位置。", "Four fixed points, P0–P3, each have a 2 m receiver radius and sense a 1 mm marker following the target. Green shows positions all four can measure."],
+      summary: ["P0–P3 四个固定测量点各有 2 米接收半径，感知跟随 SPS Socket 或 Plug 根点的 1 毫米标记；绿色区域表示四路共同可测的位置。", "Four fixed points, P0–P3, each have a 2 m receiver radius and sense a 1 mm marker following the SPS Socket or Plug root. Green shows positions all four can measure."],
       explanation: ["P0–P3 提供四个方向的距离线索，Sample 持续变化表示测量仍在更新。解算出的 X/Y/Z 可用于左右、高低、前后的联动；目标越过绿色范围时，可用位置暂停。", "P0–P3 provide distance clues from four directions; a changing Sample shows continued measurement updates. The reconstructed X/Y/Z can guide side-to-side, height and forward/back interaction. Usable position pauses when the target leaves coverage."],
       formula: ["每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球交集与坐标边界共同决定，并避开测量点旁 3 毫米的饱和区。边缘采用采样绘制，有效性由数值检查判定。", "Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope combines the four-sphere intersection with coordinate bounds and excludes 3 mm saturation regions near the anchors. Its edge is sampled; numeric checks determine validity."],
     },

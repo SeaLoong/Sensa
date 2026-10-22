@@ -17,7 +17,7 @@ namespace UnityBox.Sensa
     public static class SensaContactRootBuilder
     {
         public const string TagPrefix = "SensaContact_";
-        private const string RequiredSdk = "Contact direct tracking (SDK Beta) requires advanced proximity parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose Four-anchor tracking.";
+        private const string RequiredSdk = "Contact direct tracking (SDK Beta) requires advanced proximity parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose SPS four-anchor tracking.";
 
         // Reflection keeps the package loadable on stable SDKs without the beta field.
         internal static FieldInfo AdvancedProximityField(Type receiverType)
@@ -185,7 +185,7 @@ namespace UnityBox.Sensa
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta)"), EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Choose a bone, marker, SPS component, Sensa component or native Contact as the root. A dedicated Sender and Receiver report position in avatar-root axes (m) and relative contact-point velocity (m/s). Sample indicates publishing activity. Verify parameter delivery and motion in the client."), MessageType.Info);
             if (!SensaContactRootBuilder.IsSupported)
-                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced proximity parameters, or choose Four-anchor tracking."), MessageType.Warning);
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced proximity parameters, or choose SPS four-anchor tracking."), MessageType.Warning);
             SensaInspectorLabels.Draw(serializedObject);
         }
         private void OnSceneGUI()

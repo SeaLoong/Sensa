@@ -12,7 +12,7 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
           {onNavigate && <Button onClick={() => onNavigate('osc')}>{t('配置 OGB')}</Button>}
         </div>
         <div>
-          <div><strong>{t('根点定位')}</strong><p className="caption muted">{t('Unity 可选择四点定位或 Contact 直接定位（SDK Beta）。四点定位计算根点位置，Contact 直接定位还提供相对速度；在根点面板选择目标后，校准位置行程或速度强度。')}</p></div>
+          <div><strong>{t('根点定位')}</strong><p className="caption muted">{t('Unity 可选择 SPS 四点定位或 Contact 直接定位（SDK Beta）。SPS 四点定位测量 Socket 或 Plug 的根点位置，Contact 直接定位还提供相对速度；在根点面板选择目标后，校准位置行程或速度强度。')}</p></div>
           <div className="actions">
             {onNavigate && <Button onClick={() => onNavigate('sensa-sps')}>{t('查看根点')}</Button>}
             <a href={docUrl('docs/contact-sdk.md')} target="_blank" rel="noreferrer">{t('Contact SDK 设置')}</a>

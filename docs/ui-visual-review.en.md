@@ -32,7 +32,7 @@ Initial 3D tags covered the small Socket opening and part of the Plug. Actual La
 | Representative view | Desktop | Narrow |
 | --- | --- | --- |
 | Socket/Plug 3D | [English](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png) | [Chinese](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-zh-CN.png) |
-| Four anchors in 3D | [English](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [Chinese](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
+| SPS four-anchor tracking in 3D | [English](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [Chinese](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
 | Plug Touch | [Chinese](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-zh-CN.png) | [English](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png) |
 
 ## Interaction and engineering evidence

@@ -10,7 +10,7 @@ Open `Assets/SensaAvatarLab/Generated/FullFlow.unity`. It combines the licensed 
 
 Native SPS/prop activation, **SPS OSC** (OGB_ENABLED), **Measure plug / Measure this socket**, shader selection and desktop input are independent controls. Menus use the author's generated language; English names here identify the stable fixture operation.
 
-White Socket centers and +Z show entry/inward direction. Root/Tip/Side are paired reference landmarks. Helper P1–P4 and C1–C8 belong to independent Point/Pose experiments with A0-based fields. They are **not** fixed SPS P0–P3, TCode auxiliary axes, or a visualization of Contact radius. Fixed-root parameters must be inspected as their own protocol.
+White Socket centers and +Z show entry/inward direction. Root/Tip/Side are paired reference landmarks. Helper P1–P4 and C1–C8 belong to independent Point/Pose experiments with A0-based fields. They are **not** SPS four-anchor tracking P0–P3, TCode auxiliary axes, or a visualization of Contact radius. SPS four-anchor tracking parameters must be inspected as their own protocol.
 
 ## Keep routes separate
 
@@ -20,14 +20,14 @@ Start Sensa with no outputs and input off. Apply OSC mode, enable receiving and 
 | --- | --- | --- |
 | PB | Place reference, grab/stretch/release the white handle | Actual Stretch plus IsGrabbed gate; scalar PB needs no XYZ |
 | Native SPS | Activate SPS and OGB_ENABLED; move an enabled Plug against a Socket | Actual Self/Others paths; root/paired length channel before saturation, then radial estimate |
-| Fixed SPS root | Select your own root measurement | `Sensa/SPS/<id>/P0…P3` and changing `Sample`; Avatar-root coordinates |
+| SPS four-anchor tracking | Select your own root measurement | `Sensa/SPS/<id>/P0…P3` and changing `Sample`; Avatar-root coordinates |
 | Independent local/Pose | Move relative to the chosen reference, or use matching LabPair landmarks | Separate experimental estimate, oldest-channel freshness; no default motion permission |
 | Synthetic shader | Enable code, corrupt CRC, freeze/disable | Diagnostic Frame/XYZ/Valid transport; not an SPS measurement |
 | QuickStart | Use the lab's five levels then STOP | Synthetic Depth/Active fixture only; no product preset is required or supplied |
 
 For native SPS, inspect the actual instance/source instead of choosing Self/Others solely from a world prop's appearance. The **08 MY AVATAR SPS** world station provides an amber Plug and a blue Socket; its board values are not proof of Avatar OSC receipt.
 
-Fixed SPS requires explicit experimental permission, two-point calibration and separate input activation. A single root is not a pose or direct device stroke. [Current package contract](../../unity/top.sealoong.sensa/AUTOMATION.en.md)
+SPS four-anchor tracking requires explicit experimental permission, two-point calibration and separate input activation. A single root is not a pose or direct device stroke. [Current package contract](../../unity/top.sealoong.sensa/AUTOMATION.en.md)
 
 ## Shader and evidence
 

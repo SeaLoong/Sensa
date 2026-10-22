@@ -30,7 +30,7 @@ For an existing open scene, use **Tools → Sensa Lab → Refresh display langua
 
 World props offer LEFT / RIGHT / PLACE / HOME; directly grabbing exits hand-follow mode. **08 MY AVATAR SPS** has an amber Plug for your Socket and a blue Socket for your Plug. Native Avatar SPS and OGB_ENABLED must be enabled separately.
 
-Geometry stations have reset, pause and injected-missing-sample controls. Visible pickup size is not Contact radius. P1–P4 and C1–C8 are independent lab layouts using A0-based samples, not fixed SPS P0–P3 or TCode auxiliary axes.
+Geometry stations have reset, pause and injected-missing-sample controls. Visible pickup size is not Contact radius. P1–P4 and C1–C8 are independent lab layouts using A0-based samples, not SPS four-anchor tracking P0–P3 or TCode auxiliary axes.
 
 | Reading | Interpretation |
 | --- | --- |

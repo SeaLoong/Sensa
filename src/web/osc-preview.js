@@ -296,7 +296,7 @@ export function pointMetricValue(point, metric) {
 
 export function pointTrackingLabel(point) {
   if (point?.kind === 'ContactRoot') return t('Contact 直接定位（SDK Beta）');
-  if (point?.kind === 'SpsRoot') return t('四点定位');
+  if (point?.kind === 'SpsRoot') return t('SPS 四点定位');
   return point?.kind || '';
 }
 

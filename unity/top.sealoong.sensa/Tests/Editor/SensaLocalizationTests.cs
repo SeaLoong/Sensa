@@ -118,10 +118,12 @@ namespace UnityBox.Sensa.Tests
                 var path = source.propertyPath;
                 var tokens = source.enumNames.ToArray();
                 Assert.AreEqual("Signal source", SensaInspectorLabels.Label(source).text);
+                Assert.AreEqual("SPS four-anchor tracking", SensaInspectorLabels.EnumLabel(nameof(SensaRootTrackingMethod.FourAnchor)).text);
                 Assert.AreEqual("Raycast maximum range (m)", SensaInspectorLabels.Label(aux.FindPropertyRelative("raycastMaxRange")).text);
                 Assert.AreEqual("Enable gate", SensaInspectorLabels.EnumLabel(role.enumNames[role.enumValueIndex]).text);
                 locale.Preference = "zh-CN";
                 Assert.AreEqual("信号来源", SensaInspectorLabels.Label(source).text);
+                Assert.AreEqual("SPS 四点定位", SensaInspectorLabels.EnumLabel(nameof(SensaRootTrackingMethod.FourAnchor)).text);
                 Assert.AreEqual("启用门控", SensaInspectorLabels.EnumLabel(role.enumNames[role.enumValueIndex]).text);
                 Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("depthAxis")).tooltip, Does.Contain("朝内"));
                 Assert.AreEqual("Socket 量程（轴局部单位）", SensaInspectorLabels.Label(serialized.FindProperty("socketLength")).text);

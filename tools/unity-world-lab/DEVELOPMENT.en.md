@@ -24,7 +24,7 @@ Explicit **Upgrade isolated encoder materials** updates existing scene bindings.
 
 ## Independent Point geometry cases
 
-These eleven cases use an independent local Point frame, **not** fixed SPS P0–P3. The current generator uses 2 m receivers and ±0.35 m anchor offsets along each axis. Positions below are reference-local:
+These eleven cases use an independent local Point frame, **not** SPS four-anchor tracking P0–P3. The current generator uses 2 m receivers and ±0.35 m anchor offsets along each axis. Positions below are reference-local:
 
 | Case | Baseline | Expected |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ Historical `Validation/` reports include point cases, material isolation, local 
 
 `tests/Sensa.Tests/Fixtures/unity-point-cases.json` preserves SDK samples from the old 0.35 m / ±0.06 m layout for offline historical-data consistency checks. It is not a new capture of the current 2 m layout. Its small comparison tolerance is not a live accuracy bound. Use reports for the checked revision rather than historical test totals or PNG names.
 
-Desktop calibration observes values and builds a draft; it does not arm input. Fixed-root and shader observations use their own coordinate units and freshness gates. Invalid observations preserve captured endpoints but cannot produce valid motion targets.
+Desktop calibration observes values and builds a draft; it does not arm input. SPS four-anchor tracking and shader observations use their own coordinate units and freshness gates. Invalid observations preserve captured endpoints but cannot produce valid motion targets.
 
 Still requiring real-client tests: language/font coverage, grabbing/releasing, fast target changes, multiple same-tag Senders, scale, OSC loss/reordering, camera/shader retention, HMD visibility and physical calibration. No harness automatically connects devices or uploads.
 

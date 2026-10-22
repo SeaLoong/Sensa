@@ -4,11 +4,22 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## SPS four-anchor tracking naming
+
+On 2026-10-23 (Beijing time), public names are standardized as “SPS 四点定位” and “SPS four-anchor tracking” across application help, root types, the parameter explorer, Unity menus and bilingual documentation. Actual candidate capture, individual image inspection and full normal comparison results will be recorded here after completion.
+
 ## Unity authoring components and build pipeline
 
 On 2026-10-23 (Beijing time), isolated local checks passed: **126 Web** and **230 Python** tests, Unity package metadata and an **80-page documentation build**; **46 C# files** passed C# 9 syntax parsing. Parsing checks syntax only; Unity Editor compilation, EditMode execution and client acceptance remain pending. [Implementation, setup and official evidence](unity-build.en.md)
 
-Site E2E now checks both build-guide entries, language switching, build timing and official reference links, with guide screenshots for both languages attached to the run report. This change retains the 122 reviewed comparison baselines. The first [Pages run 39817289697](https://github.com/SeaLoong/Sensa/actions/runs/39817289697) on `46db6f8` had **6/8 passed and 2 failed**, every other outcome zero: the new assertion searched for a full path while the correct generated link was relative. The assertion now locates its visible name and verifies the destination after clicking. Inspected full application E2E, six native builds/isolated smoke and Pages results will be added after the corrected run completes.
+Site E2E now checks both build-guide entries, language switching, build timing and official reference links, with guide screenshots for both languages attached to the run report. This change retains the 122 reviewed comparison baselines.
+
+| Commit | Scope | Run | Inspected outcome |
+| --- | --- | --- | --- |
+| `d7246c1` | Full normal comparison and six native builds | [39817899186](https://github.com/SeaLoong/Sensa/actions/runs/39817899186) | **80/80 passed**, every other outcome zero; complete selection and normal screenshot comparison; all six native builds/isolated smoke checks, Windows Shader bridge replay and Unity packaging passed |
+| `d7246c1` | Documentation site checks and deployment | [39817899027](https://github.com/SeaLoong/Sensa/actions/runs/39817899027) | **8/8 passed**, every other outcome zero; bilingual build guide, official reference entries and narrow layouts checked, automatic deployment succeeded |
+
+The full comparison disables image updates, with `selectionComplete=true` and `snapshotsCompared=true`. The separate site-only selection contains 8 cases. The first [Pages run 39817289697](https://github.com/SeaLoong/Sensa/actions/runs/39817289697) on `46db6f8` had **6/8 passed and 2 failed**, every other outcome zero: the new assertion searched for a full path while the correct generated link was relative. It now locates the visible name and verifies the destination after clicking. The superseded full run [39817289668](https://github.com/SeaLoong/Sensa/actions/runs/39817289668) was intentionally cancelled after pushing the fix; its browser result does not count as complete acceptance.
 
 ## Contact SDK adaptation
 
@@ -20,7 +31,7 @@ On 2026-10-22, isolated local checks passed: **126 Web**, **434 backend** and **
 | `1d46aa9` | Full normal comparison and six native builds | [39794320594](https://github.com/SeaLoong/Sensa/actions/runs/39794320594/attempts/2) | **80/80 passed**, every other outcome zero; attempt 2 completed full normal comparison, with all six native builds/smoke checks, Windows Shader bridge replay and Unity packaging passed |
 | `8e77ba4` | Documentation site checks and deployment | [39792230278](https://github.com/SeaLoong/Sensa/actions/runs/39792230278) | **8/8 passed**, every other outcome zero; Contact explorer/guide entries checked, automatic deployment succeeded |
 
-Full application cases cover Contact metre-position calibration, stationary zero velocity, speed calibration, actual mock Depth/V0 transport output, and stops after contact loss or a frozen activity counter. Explorer cases check all twelve fields, ordering, independent position/velocity controls, boundaries and Sample invalidity, alongside four-anchor/Shader regressions. The separate site-only selection contains 8 cases.
+Full application cases cover Contact metre-position calibration, stationary zero velocity, speed calibration, actual mock Depth/V0 transport output, and stops after contact loss or a frozen activity counter. Explorer cases check all twelve fields, ordering, independent position/velocity controls, boundaries and Sample invalidity, alongside SPS four-anchor/Shader regressions. The separate site-only selection contains 8 cases.
 
 ## Image inspection
 

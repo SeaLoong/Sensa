@@ -25,14 +25,14 @@
 | V3 分组与操作 | 场景、投影、移动平面和复位同组；相机按钮另组 | 拖橙色目标改变坐标，拖空白旋转相机；390 px 两个选择器与复位同排 |
 | V4 色彩与身份 | P0 蓝、P1 青绿、P2 紫、P3 玫红，贯穿球、标记、尺寸、表格色点及坐标说明 | 参数与锚点一致；名称和状态文字仍可独立辨认，普通 Sender 保持橙色 |
 | V5 外形与标注 | Socket 用带开口的中空旋转截面，Plug 用渐细圆头；以实际实体投影避让文字，并用细引线连接偏移标注 | 现代场景杯口与灰 Plug 不再被文字遮住；Tip 引线连到真正 Plug 端点，不因靠近 Socket 而误指 |
-| V6 双语与窄屏 | 双语代表画面与 320 px 自动重排；保留同排控件底边、完整前缀与数字 | 已审画面没有新增主要裁切或标签冲突；Shader 盒体完整，SPS 四点及读数清楚 |
+| V6 双语与窄屏 | 双语代表画面与 320 px 自动重排；保留同排控件底边、完整前缀与数字 | 已审画面没有新增主要裁切或标签冲突；Shader 盒体完整，SPS 四点定位及读数清楚 |
 
 初版三维标注盖住了小杯口和部分 Plug。先用真实 Lathe 包围盒八角的屏幕投影避让文字；复评又发现现代英文 Tip 文字距真实端点约 63 px，Socket 夹在中间，单纯移开仍会误认。最终只对偏移的实体根点／端点标注补细引线与参考点，不改几何比例、测量或页面布局。小型 OGB 实体与大 Receiver 按同一比例展示，可用相机缩放细看；旧场景默认 Plug 已进入 Socket，不能据该默认姿态声称整个内壁都可见。
 
 | 代表画面 | 桌面 | 窄屏 |
 | --- | --- | --- |
 | Socket／Plug 三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-zh-CN.png) |
-| 四锚点三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
+| SPS 四点定位三维 | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png) | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png) |
 | Plug Touch | [中文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-zh-CN.png) | [英文](https://github.com/SeaLoong/Sensa/blob/da2ca1e779fe73054440d6d97f550a2222c6e49a/tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png) |
 
 ## 交互与工程证据

@@ -6,7 +6,7 @@ OGB parameters describe Avatar approach, entry and touch interactions, which Sen
 
 Find the actual source and complete path in the parameter list, then choose the [depth or vibration template](presets.en.md). **SPS2 · PenOthersNewRoot / PenOthersNewTip** pairs two readings to estimate a depth trend; **SPS1 · PenOthers / PenOthersClose** combines its depth signal with an effective nearby region. Keep pairs within one source, instance and Self/Others category, and enable the Avatar’s OGB_ENABLED heartbeat when needed.
 
-**External OGB paths retain upstream names.** Sensa fixed-root and Shader parameters have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) shows the detection spheres and capsules, with gray profiles to explain relative Socket/Plug placement.
+**External OGB paths retain upstream names.** Sensa SPS four-anchor tracking and Shader parameters have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) shows the detection spheres and capsules, with gray profiles to explain relative Socket/Plug placement.
 
 Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads `PenOthersNewRoot`/`PenOthersNewTip` and `PenOthers`. The explorer’s SPS1/SPS2 labels identify parameter geometry; use the paths actually published by the Avatar. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
@@ -120,7 +120,7 @@ Only complete finite 0–1 pairs with a usable unsaturated length observation su
 
 ## Dedicated Contact direct tracking (SDK Beta)
 
-SDK 3.10.6-beta.2 also exposes native Sender midpoint position and relative contact-point velocity through advanced Proximity parameters. Sensa uses a separate `Sensa/Contact/<id>/…` instance with one unique-channel own-root Sender and one Avatar-root Receiver. Position is in physical metres (AvatarRootMeters), velocity in m/s; movement strength can be calibrated with VelocityX/Y/Z, Speed or ProximitySpeed. Four-anchor tracking keeps `Sensa/SPS/<id>/P0…P3+Sample`, and existing OGB paths and the depth/touch models above keep their published meanings.
+SDK 3.10.6-beta.2 also exposes native Sender midpoint position and relative contact-point velocity through advanced Proximity parameters. Sensa uses a separate `Sensa/Contact/<id>/…` instance with one unique-channel own-root Sender and one Avatar-root Receiver. Position is in physical metres (AvatarRootMeters), velocity in m/s; movement strength can be calibrated with VelocityX/Y/Z, Speed or ProximitySpeed. SPS four-anchor tracking keeps `Sensa/SPS/<id>/P0…P3+Sample`, and existing OGB paths and the depth/touch models above keep their published meanings.
 
 Choose this route when authoring your own root measurement. Explicit Sensa/native Contact roots work independently of VRCFury. For body linkage, a calibrated position axis can follow subtle depth trends and a Touch/Close condition can confirm contact. [Beta setup, source evidence and field semantics](contact-sdk.en.md) · [Dictionary](osc-parameters.en.md)
 

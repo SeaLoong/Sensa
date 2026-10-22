@@ -18,7 +18,7 @@
 
 ## 已知几何参考
 
-独立 Point fixture 使用半径 0.001 的 Sender、半径 2 的 Receiver，以及各轴偏移 ±0.35 的四面体布局。生成器和解码器共同读取 `SensaPoseProtocol`；数值以当前场景的实际接近值为准。该场景围绕独立参考对象布局，不使用固定 SPS 的 AvatarRootLocal 坐标或 Sample 计数。
+独立 Point fixture 使用半径 0.001 的 Sender、半径 2 的 Receiver，以及各轴偏移 ±0.35 的四面体布局。生成器和解码器共同读取 `SensaPoseProtocol`；数值以当前场景的实际接近值为准。该场景围绕独立参考对象布局，不使用 SPS 四点定位 的 AvatarRootLocal 坐标或 Sample 计数。
 
 已知 20 cm SPS Plug 中，Socket 位于 (0,0,.24)、(0,0,.12)、(.06,0,.12) 分别代表 Outside、Near、Offset。Near／Offset 的轴向真值都是 40%，径向估计约为 40%／32.9%。OGB 归一化、SDK 有符号距离、根解码与模型位移不是同一量。
 

@@ -2,7 +2,7 @@
 
 [简体中文](contact-sdk.md) | **English**
 
-Contact direct tracking reads the selected root's position and relative velocity from VRChat's advanced Proximity parameters. It uses one dedicated spherical Sender and one spherical Receiver. Choose this route when building your own Avatar with **VRChat Avatars SDK 3.10.6-beta.2**, or a later SDK exposing the same feature. Four-anchor tracking remains the default in Automatic SPS Setup.
+Contact direct tracking reads the selected root's position and relative velocity from VRChat's advanced Proximity parameters. It uses one dedicated spherical Sender and one spherical Receiver. Choose this route when building your own Avatar with **VRChat Avatars SDK 3.10.6-beta.2**, or a later SDK exposing the same feature. SPS four-anchor tracking remains the default in Automatic SPS Setup.
 
 The official [3.10.6-beta.2 release](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) was published on **20 October 2026 at 05:50 China Standard Time (19 October, 21:50 UTC)**. This reference follows that package's Editor source and runtime assembly. Real Unity/VRChat-client parameter delivery and OSC acceptance for this beta await validation; isolated tests and CI cover their stated implementation scope.
 
@@ -24,7 +24,7 @@ The SDK public switch is **`advancedProximityParameters`**, a Bool used by Proxi
 
 The SDK also writes a `_CollisionTag_<tag>` Bool for each collision tag. The component declares this state in FX for its dedicated tag and clears it while inactive. The public OSC contract contains the twelve fields listed below.
 
-Position describes the **Sender shape midpoint relative to the Receiver shape midpoint**, rotated into Receiver shape axes. The runtime applies inverse shape rotation without dividing by transform scale or Receiver radius. A sphere's midpoint is its center; a capsule uses its shape midpoint. Sensa's dedicated zero-offset Receiver therefore establishes **AvatarRootMeters**: origin at the Avatar root, axes following its rotation, and physical metre units. Four-anchor tracking and Shader capture continue to use **AvatarRootLocal**, whose units follow the authored Avatar scale.
+Position describes the **Sender shape midpoint relative to the Receiver shape midpoint**, rotated into Receiver shape axes. The runtime applies inverse shape rotation without dividing by transform scale or Receiver radius. A sphere's midpoint is its center; a capsule uses its shape midpoint. Sensa's dedicated zero-offset Receiver therefore establishes **AvatarRootMeters**: origin at the Avatar root, axes following its rotation, and physical metre units. SPS four-anchor tracking and Shader capture continue to use **AvatarRootLocal**, whose units follow the authored Avatar scale.
 
 ```text
 position = inverse(receiverShapeRotation)

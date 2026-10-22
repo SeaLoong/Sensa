@@ -75,7 +75,7 @@ Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and 
 
 ### Control from root position: inspect, then calibrate
 
-Four-anchor, Contact and Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Contact direct tracking uses physical metres (AvatarRootMeters); four-anchor and Shader use authored Avatar-root units (AvatarRootLocal). Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
+SPS four-anchor tracking, Contact and Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Contact direct tracking uses physical metres (AvatarRootMeters); SPS four-anchor tracking and Shader use authored Avatar-root units (AvatarRootLocal). Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
 
 Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Contact direct tracking also offers VelocityX/Y/Z and Speed in m/s, plus ProximitySpeed in proximity units/s; use these to calibrate movement strength. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
 
