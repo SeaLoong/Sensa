@@ -2,43 +2,30 @@
 
 [简体中文](e2e-status.md) | **English**
 
-This records browser runs that were actually inspected; it is not a live dashboard. Current CI requires units and a full normal E2E comparison before building/publishing, with separate site E2E for documentation. Read the current commit's [Actions](https://github.com/SeaLoong/Sensa/actions) status and the [development/release guide](development.en.md).
+This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
-## Recorded runs
+## Current review
 
-These entries were last checked on 2026-10-22 at 07:51 China Standard Time (UTC+8). Their results apply to those commits, not to a new commit's checks.
+Last checked: 2026-10-22 at 08:20 China Standard Time (UTC+8).
 
-| Commit | Scope | Run | Outcome observed at the time |
+| Commit | Scope | Run | Inspected outcome |
 | --- | --- | --- | --- |
-| `13561e2` | Manual E2E candidate capture | [39694553003](https://github.com/SeaLoong/Sensa/actions/runs/39694553003) | All 74 cases passed, every other outcome zero. Candidate export succeeded; PR creation was skipped by the workflow dependency condition. The condition has been corrected for the next run; images remain pending review |
-| `13561e2` | Full normal application comparison | [39694552959](https://github.com/SeaLoong/Sensa/actions/runs/39694552959) | 74 total: 4 passed, 3 failed, 67 not run; every other outcome zero. The first three screenshot differences are listed below; builds/publication stopped |
-| `13561e2` | Documentation site E2E and deployment | [39694552866](https://github.com/SeaLoong/Sensa/actions/runs/39694552866) | All 8 cases passed, every other outcome zero; deployment succeeded |
-| `ef87e41` | Manual E2E candidate capture | [39692194138](https://github.com/SeaLoong/Sensa/actions/runs/39692194138) | All 74 browser cases passed, every other outcome zero. The following proposal export step failed, so no branch/PR or image acceptance followed. Container Git handling and failure annotations have been added for the next run |
-| `ef87e41` | Documentation site E2E and automatic deployment | [39692193225](https://github.com/SeaLoong/Sensa/actions/runs/39692193225) | All 8 cases passed, with every other outcome zero; deployment succeeded |
-| `6a9941f` | Full normal application browser comparison | [39691447010](https://github.com/SeaLoong/Sensa/actions/runs/39691447010) | 74 total: 11 passed, 3 failed, 60 not run; every other outcome was zero. The same three old screenshot-baseline differences below remain; builds and publication did not run |
-| `6a9941f` | Documentation site E2E and automatic deployment | [39691446947](https://github.com/SeaLoong/Sensa/actions/runs/39691446947) | All 8 cases passed, with every other outcome zero. Site build and deployment succeeded |
-| `b3fc2db` | Full normal application browser comparison | [39690646114](https://github.com/SeaLoong/Sensa/actions/runs/39690646114) | 74 total: 11 passed, 3 failed, 60 not run; expected failures, flaky, skipped and interrupted were all zero. Failures are the three old screenshot-baseline differences below. Unrun cases are not passes; publication was blocked |
-| `b3fc2db` | Documentation site E2E and automatic deployment | [39690646060](https://github.com/SeaLoong/Sensa/actions/runs/39690646060) | All 8 cases passed, with every other outcome zero. Site build and deployment succeeded, confirming the narrow-screen table fixture correction |
-| `b3fc2db` | Manual E2E candidate capture | [39690660505](https://github.com/SeaLoong/Sensa/actions/runs/39690660505) | 74 total: 72 passed, 2 failed, every other outcome zero with no unrun cases. Both desktop and narrow-screen offline Three.js geometry cases expected `1.8` but received `1.88`. The proposal was not exported, no maintenance branch or PR was created, and no images were accepted |
-| `6356a89` | Documentation site E2E | [39690227009](https://github.com/SeaLoong/Sensa/actions/runs/39690227009) | 6/8 passed, 2 failed, no skipped or unrun cases. The narrow-screen fixture incorrectly assumed the development guide's two-column table would overflow. Using the positioning guide's genuinely wide table fixed it, as confirmed by the later `b3fc2db` run |
-| [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | Application interfaces and full browser comparison | [39680217981](https://github.com/SeaLoong/Sensa/actions/runs/39680217981) | Interface checks succeeded; browser job failed with the three screenshot failures below; complete counts and unexecuted scope were not read |
-| [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | Documentation build, browser navigation and deployment | [39680217958](https://github.com/SeaLoong/Sensa/actions/runs/39680217958) | Succeeded overall; exact case counts were not read |
-| `6aa31cb` | Application interfaces and browser comparison | [39677023629](https://github.com/SeaLoong/Sensa/actions/runs/39677023629) | Failed overall; complete failing cases, counts and images were not obtained, so not all causes were confirmed |
-| `6aa31cb` | Documentation build and browser navigation | [39677023513](https://github.com/SeaLoong/Sensa/actions/runs/39677023513) | Succeeded overall; this did not validate application screenshots or real devices |
-| `c713db3` | Application interfaces and browser comparison | [39669246139](https://github.com/SeaLoong/Sensa/actions/runs/39669246139) | Failed overall |
+| `c698c70` | Manual E2E candidate capture | [39696164927](https://github.com/SeaLoong/Sensa/actions/runs/39696164927) | All 74 cases passed, every other outcome zero; export succeeded and automatically created [draft PR #15](https://github.com/SeaLoong/Sensa/pull/15) |
+| `6df338e` (PR merge commit) | Full normal E2E comparison | [39697659875](https://github.com/SeaLoong/Sensa/actions/runs/39697659875/job/119559195039) | All 74 cases passed, every other outcome zero; full selection and image comparison confirmed, image updates disabled; units passed and downstream platform builds are running |
+| `c698c70` | Documentation site E2E and automatic deployment | [39696165429](https://github.com/SeaLoong/Sensa/actions/runs/39696165429) | All 8 cases passed, every other outcome zero; deployment succeeded |
 
-## Located differences without image acceptance
+The candidate run updates images; normal comparison keeps image updates disabled and independently checks all cases. PR merge commit `6df338e` has exactly the same Git tree as image commit `2b850c4`. `SENSA_PAT` successfully pushed the candidate branch and created its PR, whose event automatically started normal CI.
 
-Source: [public annotations for the 13561e2 browser job](https://github.com/SeaLoong/Sensa/actions/runs/39694552959/job/119548908931). These are the first differences reported before the failure limit was reached. Images remain pending review.
+## Image review
 
-| Desktop image | Reported difference |
-| --- | --- |
-| `help-workflow.png` | Baseline 560×492, current 560×582; 14,012 pixels differed |
-| `osc-mappings-page.png` | 2,667 pixels differed |
-| `recording-controls.png` | 1,047 pixels differed |
+Coding assistants individually inspected all **55 changed images** in PR #15: 27 desktop and 28 narrow-layout PNGs. They include 40 bilingual parameter diagrams and 15 application images covering help, mappings, recording and root explanations. The full baseline retains 110 PNGs; the other 55 remain byte-identical.
 
-Historical review scope is retained in the [visual review archive](ui-visual-review.en.md).
+Review covered full parameter names, alphabetical order with shorter prefixes first, parameter meanings, wrapping, controls and geometry labels. SPS1/SPS2 titles and explanations, Sensa SPS shared sphere coverage, and Shader edge markers/payload were readable. No new visual issues were found in the changed images. Images were accepted after individual inspection and the full normal comparison. See the [screenshot review record](../tests/e2e/__screenshots__/README.md) for provenance and scope.
 
-## How should later outcomes be recorded?
+Earlier normal comparisons first reported help, mapping and recording differences against older baselines; these intentional wording changes are included in this candidate. Successful export and PR creation also confirmed the container Git and optional-job dependency fixes. Earlier run records remain at a [fixed historical revision](https://github.com/SeaLoong/Sensa/blob/c698c70177cc9b746567e12c59860d9217bf49c4/docs/e2e-status.en.md); earlier image reviews remain in the [visual review archive](ui-visual-review.en.md).
 
-After checks/E2E finish, verify the commit, run link, suite and screenshot mode, then record actual passed/failed/skipped/unrun/interrupted scope from `summary.json`/`summary.md` or the corresponding `Browser result` annotation. Fill counts only after reading the report and record image acceptance only after inspecting actual/expected/diff. Maintenance candidate PRs and normal comparison results remain separate; generated candidates are not passes. [Execution and maintenance](e2e.en.md)
+## Maintaining this record
+
+After a run completes, verify its commit, link, suite and screenshot mode, then record passed, failed, skipped, unrun, flaky and interrupted counts from `summary.json`/`summary.md` or the `Browser result` annotation. Image acceptance records both actual inspection scope and a normal comparison result.
+
+This review covers simulated browser behavior, layout and documentation navigation. Unity/VRChat, real GPU capture, physical touchscreens and hardware interactions receive separate acceptance checks. Accessibility details remain in each run's report.

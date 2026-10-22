@@ -2,43 +2,30 @@
 
 **简体中文** | [English](e2e-status.en.md)
 
-此页记录实际核对过的浏览器运行，不是实时仪表盘。当前 CI 要求单元测试与完整普通 E2E 通过后再构建和发布；文档站另有站点 E2E。最新状态以当前提交的 [Actions](https://github.com/SeaLoong/Sensa/actions) 为准，操作见[开发与发布](development.md)。
+此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。检查顺序、发布和维护方式见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
-## 已记录的运行
+## 本轮结果
 
-最近一次核对下列记录：2026-10-22 07:51（北京时间）。这些是相应提交的结果，不能替代新提交的检查。
+最近核对：2026-10-22 08:20（北京时间）。
 
-| 提交 | 验证范围 | 运行 | 当时观察到的结果 |
+| 提交 | 范围 | 运行 | 已核对的结果 |
 | --- | --- | --- | --- |
-| `13561e2` | 手动 E2E 候选采集 | [39694553003](https://github.com/SeaLoong/Sensa/actions/runs/39694553003) | 74 项全部通过，其他结果均为 0；候选导出成功，创建 PR 因工作流依赖条件被跳过。已修正条件，待下一轮确认；图片仍待审阅 |
-| `13561e2` | 应用完整普通比较 | [39694552959](https://github.com/SeaLoong/Sensa/actions/runs/39694552959) | 共 74 项：4 通过、3 失败、67 未执行，其他结果均为 0；下方记录最先报告的 3 个截图差异，构建与发布停止 |
-| `13561e2` | 文档站 E2E 与部署 | [39694552866](https://github.com/SeaLoong/Sensa/actions/runs/39694552866) | 8 项全部通过，其他结果均为 0；自动部署成功 |
-| `ef87e41` | 手动 E2E 候选采集 | [39692194138](https://github.com/SeaLoong/Sensa/actions/runs/39692194138) | 浏览器 74 项全部通过，其他结果均为 0。后续候选导出步骤失败，未生成分支／PR，也未接受图片；已补充容器 Git 处理和失败注释，待后续运行确认导出 |
-| `ef87e41` | 文档站 E2E 与自动部署 | [39692193225](https://github.com/SeaLoong/Sensa/actions/runs/39692193225) | 8 项全部通过，其他结果均为 0；自动部署成功 |
-| `6a9941f` | 应用完整普通浏览器比较 | [39691447010](https://github.com/SeaLoong/Sensa/actions/runs/39691447010) | 共 74 项：11 通过、3 失败、60 未执行；其他结果均为 0。仍为下方 3 个旧截图基线差异；构建与发布未执行 |
-| `6a9941f` | 文档站 E2E 与自动部署 | [39691446947](https://github.com/SeaLoong/Sensa/actions/runs/39691446947) | 8 项全部通过，其他结果均为 0；站点构建与部署成功 |
-| `b3fc2db` | 应用完整普通浏览器比较 | [39690646114](https://github.com/SeaLoong/Sensa/actions/runs/39690646114) | 共 74 项：11 通过、3 失败、60 未执行；预期失败、不稳定、跳过和中断均为 0。失败为下方 3 个旧截图基线差异；后续未执行用例不算通过，发布已阻止 |
-| `b3fc2db` | 文档站 E2E 与自动部署 | [39690646060](https://github.com/SeaLoong/Sensa/actions/runs/39690646060) | 8 项全部通过，其他结果均为 0；站点构建与部署成功，确认窄屏表格测试修正有效 |
-| `b3fc2db` | 手动 E2E 候选采集 | [39690660505](https://github.com/SeaLoong/Sensa/actions/runs/39690660505) | 共 74 项：72 通过、2 失败，其他结果均为 0，无未执行项。桌面和窄屏的离线 Three.js 几何用例均出现预期 `1.8`、实际 `1.88` 的断言差异；候选未导出，未创建维护分支或 PR，未接受图片 |
-| `6356a89` | 文档站 E2E | [39690227009](https://github.com/SeaLoong/Sensa/actions/runs/39690227009) | 8 项中 6 通过、2 失败，无跳过或未执行；窄屏测试误以为开发指南的两列表格会溢出。改用定位指南的真实超宽表格后，后续 `b3fc2db` 运行通过 |
-| [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | 应用接口与完整浏览器比较 | [39680217981](https://github.com/SeaLoong/Sensa/actions/runs/39680217981) | 接口检查成功；浏览器任务失败，公开注释列出下方 3 个截图比较失败；完整计数与未执行范围未读取 |
-| [`330ba6e`](https://github.com/SeaLoong/Sensa/commit/330ba6e6e58b431c038e80db1a692f89fb9c8f1c) | 文档站构建、浏览器导航与部署 | [39680217958](https://github.com/SeaLoong/Sensa/actions/runs/39680217958) | 整体成功；具体用例数未读取 |
-| `6aa31cb` | 应用接口与浏览器比较 | [39677023629](https://github.com/SeaLoong/Sensa/actions/runs/39677023629) | 整体失败；未取得完整失败用例、数量和图片，原因未全部确认 |
-| `6aa31cb` | 文档站构建与浏览器导航 | [39677023513](https://github.com/SeaLoong/Sensa/actions/runs/39677023513) | 整体成功，不代表应用截图或真实设备通过 |
-| `c713db3` | 应用接口与浏览器比较 | [39669246139](https://github.com/SeaLoong/Sensa/actions/runs/39669246139) | 整体失败 |
+| `c698c70` | 手动 E2E 候选采集 | [39696164927](https://github.com/SeaLoong/Sensa/actions/runs/39696164927) | 74 项全部通过，其余结果均为 0；导出成功，并自动创建[草稿 PR #15](https://github.com/SeaLoong/Sensa/pull/15) |
+| `6df338e`（PR 合并提交） | 完整普通 E2E 比较 | [39697659875](https://github.com/SeaLoong/Sensa/actions/runs/39697659875/job/119559195039) | 74 项全部通过，其余结果均为 0；完整选择与截图比较均已确认，图片更新关闭；单元检查通过，后续平台构建执行中 |
+| `c698c70` | 文档站 E2E 与自动部署 | [39696165429](https://github.com/SeaLoong/Sensa/actions/runs/39696165429) | 8 项全部通过，其余结果均为 0；自动部署成功 |
 
-## 已定位但未审图的差异
+候选运行使用图片更新模式；普通比较关闭图片更新，独立核对全部用例。PR 合并提交 `6df338e` 的 Git 树与图片提交 `2b850c4` 完全一致。`SENSA_PAT` 已实际完成推送候选分支、创建 PR，PR 事件自动启动普通 CI。
 
-来源：[13561e2 浏览器任务的公开注释](https://github.com/SeaLoong/Sensa/actions/runs/39694552959/job/119548908931)。以下是达到失败上限前最先报告的差异，图片仍待审阅。
+## 本轮图片评审
 
-| 桌面图片 | 报告的差异 |
-| --- | --- |
-| `help-workflow.png` | 基线 560×492，当前 560×582；14,012 像素不同 |
-| `osc-mappings-page.png` | 2,667 像素不同 |
-| `recording-controls.png` | 1,047 像素不同 |
+代码助手逐张审阅了 PR #15 的 **55 张变化图**：桌面 27 张、窄屏 28 张。包括 40 张双语参数图，以及帮助、映射、录制和根点相关的 15 张应用图。完整基线保留 110 张 PNG，其余 55 张逐字节不变。
 
-历史图片审阅范围保留在[视觉评审存档](ui-visual-review.md)。
+已核对完整参数名、字典序与短前缀顺序、参数含义、长文本换行、控件和图形标签。SPS1／SPS2 的标题和解释、Sensa SPS 的四球共同覆盖区、Shader 的边缘标记与数据区均显示清楚，变化图中未发现新的视觉问题。图片经逐张审阅及完整普通比较后接受。详细来源与范围见[截图评审记录](../tests/e2e/__screenshots__/README.md)。
 
-## 后续结果怎样更新？
+此前普通比较在旧基线上首先报告帮助、映射和录制三处差异；本轮候选包含这些有意的文案变化。早期容器 Git 导出及可选任务依赖条件问题已由本轮成功导出、创建 PR 的运行确认修复。较早的运行记录保留于[固定历史版本](https://github.com/SeaLoong/Sensa/blob/c698c70177cc9b746567e12c59860d9217bf49c4/docs/e2e-status.md)，历史图片评审见[视觉评审存档](ui-visual-review.md)。
 
-检查和 E2E 结束后，先核对本次提交、运行链接、套件和截图模式，再记录 `summary.json`／`summary.md` 或对应 `Browser result` 注释中的实际通过、失败、跳过、未执行和中断范围。只有取得报告才填数量；审过 actual／expected／diff 后才能记录图片接受。维护工作流产生的候选 PR 与普通比较分别记录，不把“已生成候选”写成通过。[运行与维护流程](e2e.md)
+## 怎样继续维护记录？
+
+完成运行后核对提交、运行链接、套件和截图模式，再从 `summary.json`／`summary.md` 或 `Browser result` 注释记录通过、失败、跳过、未执行、不稳定与中断数量。接受图片时同时记录实际审阅范围和普通比较结果。
+
+本轮覆盖模拟浏览器行为、页面布局和文档导航。Unity／VRChat、真实 GPU 捕获、实体触屏和设备交互另行验收；可访问性明细保留在各次运行报告中。
