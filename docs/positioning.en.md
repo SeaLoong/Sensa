@@ -41,7 +41,7 @@ The **receiver radius** describes how far each sphere extends from its center. *
 | Anchor-to-center distance √3h | About 0.606 m | How far one anchor is from the center |
 | Distance between any two anchors, 2√2h | About 0.990 m | Spacing between two receiver centers |
 
-A position can be reconstructed when the target enters the common region of all four receivers. The box shows accepted coordinate bounds, while green shows measurable positions within them. Independent Point/Handle/Pose also use 2 m receivers and ±0.35 m offsets, with an origin defined by their selected reference object.
+A position can be reconstructed when the target enters the common region of all four receivers. The box shows accepted coordinate bounds, while green shows measurable positions within them. Independent Point/Handle/Pose use the same radius of 2 and offsets of ±0.35 in the selected reference object’s local units, with that object defining the origin. These lengths equal world metres directly when its cumulative world scale is one. Opening offsets in calculations and mappings retain local units.
 
 ### Positions of the current four anchors
 

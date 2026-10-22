@@ -26,7 +26,7 @@ function ComputedInputRow({ input, index, operation, signals, pathOptions, point
               <datalist id={listId}>{suggestions.map(path => <option key={path} value={path} />)}</datalist></>}
         {input.sourceMode === 'SensaPoint' && <SelectField label={t('测量指标')} value={input.pointMetric} options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(input.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)} onChange={pointMetric => onChange({ pointMetric })} />}
         {input.sourceMode === 'SensaPose' && <SelectField label={t('定位指标')} value={input.poseMetric} options={[
-          { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（m）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（m）') },
+          { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（局部单位）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（局部单位）') },
           { value: 'Yaw', label: t('偏航（度）') }, { value: 'Pitch', label: t('俯仰（度）') }, { value: 'Roll', label: t('扭转（度）') },
         ]} onChange={poseMetric => onChange({ poseMetric })} />}
         {operation === 'WeightedAverage' && <Field label={t('权重')} type="number" min="0" step="any" value={input.weight} onChange={event => onChange({ weight: event.target.value === '' ? '' : Number(event.target.value) })} />}

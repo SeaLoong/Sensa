@@ -178,7 +178,7 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
         />
         {draft.sourceMode === 'SensaPoint' && <SelectField label={t('测量指标')} value={draft.pointMetric || 'Z'} options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)} onChange={pointMetric => onChange({ pointMetric })} />}
         {draft.sourceMode === 'SensaPose' && <SelectField label={t('定位指标')} value={draft.poseMetric || 'Depth'} options={[
-          { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（m）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（m）') },
+          { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（局部单位）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（局部单位）') },
           { value: 'Yaw', label: t('偏航（度）') }, { value: 'Pitch', label: t('俯仰（度）') }, { value: 'Roll', label: t('扭转（度）') },
         ]} onChange={poseMetric => onChange({ poseMetric })} />}
       </div>
