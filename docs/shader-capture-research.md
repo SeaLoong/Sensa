@@ -2,9 +2,9 @@
 
 **简体中文** | [English](shader-capture-research.en.md)
 
-本研究区分能实现的生产链和不能据此承诺的客户端行为。当前实现是 **所选 SPS 根 Transform → 原生蒙皮点 → 单 Camera 图块 → 明确 ROI 解码 → OSC**，不采样最终形变网格。隐藏渲染层并不自动成为桌面捕获接口。
+本页记录原生根点捕获的设计与客户端验收范围。当前链路为 **所选根点参照 → 原生蒙皮点 → 单 Camera 图块 → 明确 ROI 解码 → OSC**，提供所选根点的位置。目标可为 Avatar 内明确选择的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa Component 或原生 Contact；桌面图块可见性、头显画面与端到端延迟通过实际客户端检查。
 
-以下一手资料核验于 2026-10-19，源码固定到所列提交；新版本需要重新核对。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页保留设计理由与未完成验收。
+以下 Shader 上游资料核验于 2026-10-19，源码固定到所列提交；Sensa 当前结构于 2026-10-23 更新。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页保留设计理由与未完成验收。
 
 ## 官方能力与本轮决策
 
@@ -23,23 +23,23 @@
 
 - [SPS 单元布局](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc)有目标 ID、玩家 Shader ID、根部位置/方向/缩放等，没有源几何帧序号。当前编码器时钟不能证明旧全局纹理已经刷新。
 - [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs)在运行时通过 Animator 随机生成并驱动材质玩家 ID。[SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs)负责材质/Resolver 绑定。只复制构建时共享材质中的 ID 不是可靠绑定。
-- 本轮直接调用适配器 `ReadRoot`，读取安装版本 Socket/Plug 的实际作者根部位置/旋转，生成跟随该根部的单骨骼采样点。不复制 VRCFury Shader 或另写近似形变算法。
+- 适配器 `ReadRoot` 统一解析明确选择的根点参照：SPS Socket／Plug 使用其作者根点几何，骨骼／空物体 Transform、Sensa Component 与原生 Contact 使用各自的根点定义。生成的单骨骼采样点跟随该参照；SPS 目标的形变仍由安装的 VRCFury 处理。
 - 旧 `SensaGpuProbe` 仍是 EditorWindow：调用所安装 SPS 的曲线函数采样未混合中心线。它与本轮根点生产端、旧合成 PNG fixture 是三种不同证据。
 
 未来若实现模型生产端，仍需解决运行时 ID 绑定、同一渲染阶段/源几何新鲜度、XR texture array、模型与最终网格之间的差异，不能给旧纹理套一个新编码时钟后称为新鲜模型。
 
 ## 原生生产端的具体结构
 
-`SensaShaderCapture` 提供目标对象、非零 `producerId`、归一化桌面 viewport。独立 NDMF builder 生成：
+通过 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`，在 `SensaShaderCapture` 中指定 `Target`、非零 `producerId` 和归一化桌面 viewport。统一的 `SensaPlugin` 在 NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** 读取配置，调用 Shader 生成器创建：
 
-1. Socket/Plug 根部下的 marker；使用 `ReadRoot` 的 local position/rotation。
+1. 所选根点参照下的 marker，使用 `ReadRoot` 解析出的 local position／rotation。
 2. Avatar 根下单位变换的 SkinnedMeshRenderer，单顶点完全绑定 marker。原生蒙皮结果在 AvatarRootLocal 中，避免把世界米和 Avatar 缩放混算。
 3. 单个 None-eye 正交 Camera，按配置 viewport 直接输出 NDC 黑白格；不再生成 RT、Quad、第二相机或显示 Shader。
-4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 `SPS root code / SPS 根点编码` 后才开启 rig。
+4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 **Root position code／根点位置编码** 后开启 rig。菜单项文字采用构建时的编辑器语言。
 
 边界使用原生序列化 `m_AABB` / `m_DirtyAABB`，而非仅依赖不持久化的 Renderer.localBounds override；保持每次渲染的骨骼矩阵更新。[Unity Inspector 源码](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs)
 
-所有上传后运行的测量/输出组件都是原生组件；编辑器 builder、MA/NDMF 构建过程并不是 Avatar 运行时脚本。生成的根点 Shader 存放在 `Assets/SensaShaderCapture`，已有不同内容时构建停止，不覆盖用户文件。
+上传后的测量与图块输出由生成的原生组件完成；`IEditorOnly` 作者脚本在构建副本生成完成后移除。编码器直接引用包内 `Runtime/Shaders/SensaRootTelemetry.shader`，临时网格和材质随构建引用交给 NDMF 保存，动画、参数与菜单交给 MA 合并。构建阶段与上游依据见[Unity 构建指南](unity-build.md)。
 
 ## 坐标与二进制包
 

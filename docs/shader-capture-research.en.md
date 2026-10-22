@@ -2,9 +2,9 @@
 
 [简体中文](shader-capture-research.md) | **English**
 
-This research separates an implementable producer from unproven client behavior. The current chain is **selected SPS root Transform → native skinned point → one-Camera block → explicit ROI decode → OSC**, not final deformed mesh sampling. A hidden render layer is not automatically a desktop capture interface.
+This page records native root capture design and client acceptance scope. The current chain is **selected root frame → native skinned point → one-Camera block → explicit ROI decode → OSC**, reporting the selected root's position. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
 
-Primary evidence was checked on 2026-10-19 and source revisions are pinned below; newer versions need fresh review. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
+Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-23. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
 
 ## Primary-source findings and decisions
 
@@ -25,22 +25,22 @@ The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb1
 
 [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs) generates and animates player material IDs at runtime; [SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs) binds materials/Resolvers. Copying baked shared-material IDs is insufficient.
 
-The new producer calls `ReadRoot` to resolve the installed Socket/Plug's actual authored root frame, then samples a native single-bone point following that frame. It does not copy SPS shader code or approximate deformation. The existing EditorWindow probe still samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
+The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native single-bone sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
 
 A future model producer must solve runtime identity binding, source freshness/render ordering, XR arrays and the distinction between model and final mesh. Rewrapping stale geometry with an advancing transport sequence is insufficient.
 
 ## Native structure
 
-`SensaShaderCapture` exposes a target, nonzero producer ID and normalized desktop viewport. Its separate NDMF builder creates:
+Create **GameObject → Sensa → Shader Root Capture (Experimental)** or add `SensaShaderCapture.prefab`, then set `Target`, a nonzero `producerId` and normalized desktop viewport on `SensaShaderCapture`. The shared `SensaPlugin` reads these settings at NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** and calls the Shader generator to create:
 
 1. A root marker under the resolved source, applying `ReadRoot` local position/rotation.
 2. An identity-transform SkinnedMeshRenderer under the avatar root, with one vertex fully bound to the marker. Native skinning yields AvatarRootLocal values without mixing world meters and root scale.
 3. One None-eye orthographic camera emitting the NDC code directly into its configured viewport, without a RenderTexture, Quad, second camera or display shader.
-4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. `SPS root code / SPS 根点编码` activates the rig.
+4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code／根点位置编码** activates the rig, with the caption chosen in the build-time Editor language.
 
 Bounds use serialized `m_AABB` / `m_DirtyAABB`, rather than relying only on a transient Renderer.localBounds override; skin matrices recalculate per render. See the [Unity inspector source](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs).
 
-The uploaded measurement/output components are native; the editor builder and MA/NDMF processing do not become avatar runtime scripts. The generated root shader lives in `Assets/SensaShaderCapture`; differing existing files stop generation instead of being overwritten.
+Generated native components perform measurement and image output after upload. The `IEditorOnly` author script is removed after generation on the build copy. The encoder directly references the packaged `Runtime/Shaders/SensaRootTelemetry.shader`; NDMF saves referenced temporary meshes and materials, while MA merges animation, parameters and menus. See the [Unity build guide](unity-build.en.md) for phases and official evidence.
 
 ## Coordinate and packet contract
 
