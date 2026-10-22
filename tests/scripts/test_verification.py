@@ -150,7 +150,7 @@ class LocalVerificationTests(unittest.TestCase):
         self.write('docs/agents/examples/codex-config.toml', 'portable')
         self.assertTrue(self.run_plan(['README.md']))
         self.assertEqual({command[-1] for command in self.commands},
-                         {'test_bilingual_docs.py', 'test_tool_paths.py'})
+                         {'test_bilingual_docs.py', 'test_tool_paths.py', 'test_release.py'})
         self.commands.clear()
         self.assertTrue(self.run_plan(['README.md']))
         self.assertEqual(self.commands, [])

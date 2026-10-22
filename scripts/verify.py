@@ -18,7 +18,7 @@ _SPEC = importlib.util.spec_from_file_location('sensa_ci_plan', ROOT / 'scripts/
 CI_PLAN = importlib.util.module_from_spec(_SPEC)
 _SPEC.loader.exec_module(CI_PLAN)
 LOCAL_LANES = ('web', 'backend', 'scripts', 'docs', 'unity')
-DOC_CHECK_PATTERNS = ('test_bilingual_docs.py', 'test_tool_paths.py')
+DOC_CHECK_PATTERNS = ('test_bilingual_docs.py', 'test_tool_paths.py', 'test_release.py')
 IGNORED_DIRECTORIES = {'.git', 'node_modules', 'artifacts', '_artifacts', 'bin', 'obj',
                        'build', '_build', '__pycache__', '.venv', '.vs',
                        'playwright-report', 'test-results', '.xerj'}
