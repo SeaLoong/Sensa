@@ -4,6 +4,17 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
+## 计算信号（验证进行中）
+
+2026-10-23（北京时间），本轮新增多输入计算、可复用中间结果与映射界面。当前本地隔离检查通过：Web **133 项**、Python **237 项**、.NET **494 项**，以及 **84 个文档页面**构建。路径前缀缓存减少无关参数的通配符匹配，并通过三项刷新回归检查。[功能与操作](computed-signals.md)
+
+| 提交 | 范围 | 运行 | 核对结果 |
+| --- | --- | --- | --- |
+| `9e700cf` | 完整候选采集 | [39837678118，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39837678118/attempts/1) | 总计 **88 项：2 通过、3 失败、83 未执行**；预期失败、不稳定、跳过、中断均为 0；完整选择、候选模式，`snapshotsCompared=false` |
+| `9e700cf` | 文档站检查与自动部署 | [39837667830](https://github.com/SeaLoong/Sensa/actions/runs/39837667830) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
+
+两次运行固定源码 `9e700cfebb9436a2cd99fbd25d0c50d9c06150a1`。候选失败来自新增 E2E 对 `input[list]` 使用 textbox 角色定位，导致中英文加权平均与 SPS 路径断言找不到字段；现已改为按字段标签定位，保留原有行为断言。等待重新完成完整候选采集、逐张审图与完整普通比较，本轮基线尚未接受。
+
 ## SPS 四点定位命名
 
 2026-10-23（北京时间），公开名称统一为“SPS 四点定位”与“SPS four-anchor tracking”，覆盖应用帮助、根点类型、参数图解、Unity 菜单和双语文档。

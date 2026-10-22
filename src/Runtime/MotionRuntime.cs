@@ -73,7 +73,7 @@ public sealed class MotionRuntime : IDisposable
     private ComputedSignalEvaluator _computedEvaluator = new([]);
     private ComputedSignalInputConfig[] _computedInputs = [];
     private HashSet<string> _computedExactPaths = new(StringComparer.Ordinal);
-    private string[] _computedPatterns = [];
+    private (string Pattern, string Prefix)[] _computedPatterns = [];
     private bool _usesComputedSpatial;
     private volatile bool _usesComputed;
     private volatile bool _computedInputBlocked;
@@ -204,7 +204,9 @@ public sealed class MotionRuntime : IDisposable
                 .Select(input => input.OscPath).Distinct(StringComparer.Ordinal).ToArray();
             _computedExactPaths = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) < 0)
                 .ToHashSet(StringComparer.Ordinal);
-            _computedPatterns = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) >= 0).ToArray();
+            _computedPatterns = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) >= 0)
+                .Select(path => (path, path.IndexOfAny([';', '\n']) >= 0 ? "" : path[..path.IndexOf('*')]))
+                .ToArray();
             _usesComputedSpatial = _computedInputs.Any(input => input.SourceMode is "SensaPoint" or "SensaPose");
         }
         ActivePoseKey = null;
@@ -366,7 +368,8 @@ public sealed class MotionRuntime : IDisposable
         lock (_sync)
         {
             if (_computedExactPaths.Contains(oscPath)
-                || _computedPatterns.Any(pattern => OscParameterStore.MatchesPathPattern(pattern, oscPath))) return true;
+                || _computedPatterns.Any(pattern => oscPath.StartsWith(pattern.Prefix, StringComparison.Ordinal)
+                    && OscParameterStore.MatchesPathPattern(pattern.Pattern, oscPath))) return true;
             if (_usesComputedSpatial
                 && (oscPath.StartsWith("Sensa/", StringComparison.Ordinal)
                     || oscPath.StartsWith(ShaderRootTracking.Prefix + "/", StringComparison.Ordinal))) return true;

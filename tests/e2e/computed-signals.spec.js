@@ -38,7 +38,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(rows).toHaveCount(2);
         for (const [index, path, weight] of [[0, 'CI/A', 1], [1, 'CI/B', 3]]) {
           await rows.nth(index).getByRole('combobox', { name: await text(page, '输入类型'), exact: true }).selectOption('Direct');
-          await rows.nth(index).getByRole('textbox', { name: await text(page, '参数路径'), exact: true }).fill(path);
+          await rows.nth(index).getByLabel(await text(page, '参数路径'), { exact: true }).fill(path);
           await rows.nth(index).getByRole('spinbutton', { name: await text(page, '权重'), exact: true }).fill(String(weight));
         }
         const mappings = page.locator('.mapping-row');
@@ -162,7 +162,7 @@ test('SPS four-anchor solved coordinates feed calculations with spatial permissi
     const trackedInput = rootCalculation.getByTestId('computed-input-row').first();
     await expect(trackedInput.getByRole('combobox', { name: await text(page, '已识别的测量对象'), exact: true })).toHaveValue(prefix + '/**');
     await expect(trackedInput.getByRole('combobox', { name: await text(page, '测量指标'), exact: true })).toHaveValue('Z');
-    await expect(trackedInput.getByRole('textbox', { name: await text(page, '参数路径'), exact: true })).toHaveValue(prefix + '/**');
+    await expect(trackedInput.getByLabel(await text(page, '参数路径'), { exact: true })).toHaveValue(prefix + '/**');
     await allowSpatial(page);
     await expect.poll(async () => (await computation(rig, id))?.value).toBeCloseTo(.15, 5);
     await active(page); await outputValue(rig, 'udp', 500);

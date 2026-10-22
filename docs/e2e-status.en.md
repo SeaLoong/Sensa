@@ -4,6 +4,17 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## Computed signals (verification in progress)
+
+On 2026-10-23 (Beijing time), this change adds multi-input calculations, reusable intermediate results and mapping controls. Current isolated local checks passed: **133 Web**, **237 Python**, **494 .NET** tests and a build of **84 documentation routes**. A path-prefix cache reduces wildcard matching for unrelated parameters, with three refresh regression checks passing. [Feature and operation](computed-signals.en.md)
+
+| Commit | Scope | Run | Inspected outcome |
+| --- | --- | --- | --- |
+| `9e700cf` | Full candidate capture | [39837678118, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39837678118/attempts/1) | **88 total: 2 passed, 3 failed, 83 unrun**; expected failures, flaky, skipped and interrupted all zero; complete selection, candidate mode, `snapshotsCompared=false` |
+| `9e700cf` | Documentation site checks and deployment | [39837667830](https://github.com/SeaLoong/Sensa/actions/runs/39837667830) | **8/8 passed**, every other outcome zero; site-only selection, `selectionComplete=false`, `snapshotsCompared=true`, automatic deployment succeeded |
+
+Both runs pin source `9e700cfebb9436a2cd99fbd25d0c50d9c06150a1`. Candidate failures came from new E2E locators searching `input[list]` by the textbox role, leaving Chinese/English weighted-average and SPS path assertions unable to find their fields. Locators now use field labels while preserving the behavior assertions. Full candidate capture, individual image review and full normal comparison remain pending; this change's baselines have not been accepted.
+
 ## SPS four-anchor tracking naming
 
 On 2026-10-23 (Beijing time), public names are standardized as “SPS 四点定位” and “SPS four-anchor tracking” across application help, root types, the parameter explorer, Unity menus and bilingual documentation.

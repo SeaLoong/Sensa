@@ -37,6 +37,24 @@ public sealed class ComputedRuntimeContracts
         for (var index = alreadyRead; index < rig.Output.StopCount; index++) await rig.Output.NextStop();
     }
 
+    [Theory]
+    [InlineData("Input/*")]
+    [InlineData("Other/**;Input/A")]
+    [InlineData("Other/A\nInput/A")]
+    public async Task CalculationPatternsRefreshWhenAMatchingParameterChanges(string pattern)
+    {
+        using var rig = new MotionRig();
+        Configure(rig, Calculation(Scalar(pattern)));
+        rig.Put("Input/A", .2f);
+        rig.Activate();
+        Assert.Equal(.2f * .999f, (await rig.Output.NextFrame()).L0, 5);
+        rig.Put("Unrelated/Expression", .9f);
+        rig.Put("Input/A", .8f);
+        rig.Advance(30);
+        Assert.Equal(.8f * .999f, (await rig.Output.NextFrame(frame => frame.L0 > .7f)).L0, 5);
+        Assert.False(rig.Runtime.ComputedInputBlocked);
+    }
+
     [Fact]
     public void ExactScalarAndPatternsRequireOneParameterFromOneSource()
     {
