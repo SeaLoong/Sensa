@@ -38,18 +38,21 @@ public sealed class ComputedRuntimeContracts
     }
 
     [Theory]
-    [InlineData("Input/*")]
-    [InlineData("Other/**;Input/A")]
-    [InlineData("Other/A\nInput/A")]
-    public async Task CalculationPatternsRefreshWhenAMatchingParameterChanges(string pattern)
+    [InlineData("Input/*", "Input/A")]
+    [InlineData("Other/**;Input/A", "Input/A")]
+    [InlineData("Other/A\nInput/A", "Input/A")]
+    [InlineData("Input/**", "Input")]
+    [InlineData("Input/**/**", "Input")]
+    [InlineData("Other/**;Input/**", "Input")]
+    public async Task CalculationPatternsRefreshWhenAMatchingParameterChanges(string pattern, string path)
     {
         using var rig = new MotionRig();
         Configure(rig, Calculation(Scalar(pattern)));
-        rig.Put("Input/A", .2f);
+        rig.Put(path, .2f);
         rig.Activate();
         Assert.Equal(.2f * .999f, (await rig.Output.NextFrame()).L0, 5);
         rig.Put("Unrelated/Expression", .9f);
-        rig.Put("Input/A", .8f);
+        rig.Put(path, .8f);
         rig.Advance(30);
         Assert.Equal(.8f * .999f, (await rig.Output.NextFrame(frame => frame.L0 > .7f)).L0, 5);
         Assert.False(rig.Runtime.ComputedInputBlocked);

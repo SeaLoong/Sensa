@@ -61,7 +61,7 @@ public sealed class ComputedSignalResolver
         else
         {
             var prefixes = pattern.Split([';', '\n'], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
-                .Take(32).Select(part => part.Contains('*') ? part[..part.IndexOf('*')] : part).ToArray();
+                .Take(32).Select(part => part.Contains('*') ? part[..part.IndexOf('*')].TrimEnd('/') : part).ToArray();
             matches = _entries.Where(entry => prefixes.Any(prefix => entry.Path.StartsWith(prefix, StringComparison.Ordinal))
                 && OscParameterStore.MatchesPathPattern(pattern, entry.Path)).Take(2).ToArray();
         }
