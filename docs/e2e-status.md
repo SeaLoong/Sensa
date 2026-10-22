@@ -4,19 +4,23 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
-## OSC 参数释义与官方来源（验证进行中）
+## OSC 参数释义与官方来源
 
 2026-10-23（北京时间），图解新增逐项参数说明，工作台详情使用同一套双语定义，提供数值范围、实际参数类型、单位、联动用法和来源。定义区分 VRChat 官方 SDK、VRCFury／OGB 与 Sensa 协议；核对并修正了 Close／Shader 的 Float 传输类型、SPS2 长度球、历史 PenSelf、速度量纲和 Raycast 未命中行为。[参数说明与来源](osc-parameters.md)
 
-本地隔离检查已通过：Web **143 项**、.NET **497 项**、Python **237 项**、Unity 包元数据，以及 **84 个文档页面**构建。完整浏览器套件仍为 88 项，扩展断言覆盖全部图解字段、双语来源、工作台详情、折叠／焦点保持及窄屏滚动。已逐张打开全部 55 张新增／变化候选，选择 52 张：48 张图解全页与 4 张详情窗口；3 张无关实时读数／边缘变化恢复旧基线。当前共 138 张 PNG，另外 86 张既有图片保留原字节。未发现新增阻断或主要视觉问题，等待关闭图片更新的完整普通比较后接受。[逐张审阅记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
+本地隔离检查已通过：Web **143 项**、.NET **497 项**、Python **237 项**、Unity 包元数据，以及 **84 个文档页面**构建。完整浏览器套件仍为 88 项，扩展断言覆盖全部图解字段、双语来源、工作台详情、折叠／焦点保持及窄屏滚动。已逐张打开全部 55 张新增／变化候选，选择 52 张：48 张图解全页与 4 张详情窗口；3 张无关实时读数／边缘变化恢复旧基线。当前共 138 张 PNG，另外 86 张既有图片保留原字节。未发现新增阻断或主要视觉问题；逐张审阅和关闭图片更新的完整普通比较均已通过，本轮基线已接受。[逐张审阅记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
 | 提交 | 范围 | 运行 | 核对结果 |
 | --- | --- | --- | --- |
 | `280c838` | 完整候选采集 | [39853817326，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39853817326/attempts/1) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，导出至 PR #19 |
 | `280c838` | 首轮普通比较（未完成） | [39853785392](https://github.com/SeaLoong/Sensa/actions/runs/39853785392) | **35 通过、3 失败、50 未执行**，其余结果均为 0；完整选择、普通截图比较；失败为新增详情基线缺失与两张图解全页有意变化 |
 | `280c838` | 文档站检查与自动部署 | [39853785382](https://github.com/SeaLoong/Sensa/actions/runs/39853785382) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
+| `b141d8e` | 筛选后完整普通比较 | [39856717268，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/2) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=true`，关闭图片更新 |
+| `b141d8e` | 六平台构建与隔离冒烟完成 | [39856717268，第 3 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/3) | 全部六平台构建／隔离冒烟、Windows Shader 桥回放与 Unity 打包通过；复用已通过的完整浏览器比较，PR 不发布预览 |
 
-上述运行固定源码 `280c8387762e60b4ae12c97faee6de41c3e2eaf0`，原候选图片提交 `71e1de8eeb88f1c7c4f4132e5be63495c270a2a0`。来源复核同时将 PhysBone 参考链接更新为官方当前页面。
+候选、首轮 main 普通比较与站点运行固定源码 `280c8387762e60b4ae12c97faee6de41c3e2eaf0`，原候选图片提交 `71e1de8eeb88f1c7c4f4132e5be63495c270a2a0`。来源复核同时将 PhysBone 参考链接更新为官方当前页面。
+
+普通比较固定源码 `b141d8e25a75f0d7c60ccf46c301d80c8ca874e4`，Git 树与已审阅 PR #19 提交 `7aca23ab071c4b4bb330437c2ede19b3f9ab5bed` 完全一致。第 1 次尝试在依赖安装的两次 130 秒预算后以 124 退出，浏览器未执行，报告总计／执行数为 0，`selectionComplete=false`、`snapshotsCompared=false`。第 2 次尝试在同一提交上重跑失败任务，安装成功后完整通过。 第 2 次尝试的六平台构建／打包均成功，Windows x64 后续 Shader 桥回放步骤以 1 退出，API 注释没有提供具体原因；第 3 次尝试仅重跑失败任务，在相同源码上通过，其他成功结果保持不变。
 
 ## 计算信号
 

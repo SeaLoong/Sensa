@@ -4,19 +4,23 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
-## OSC parameter explanations and official sources (verification in progress)
+## OSC parameter explanations and official sources
 
 On 2026-10-23 (Beijing time), the explorer adds per-parameter explanations, and workbench details use the same bilingual definitions, with ranges, actual parameter types, units, interaction uses and sources. Definitions distinguish the official VRChat SDK, VRCFury/OGB and Sensa protocols. Review corrected Close/Shader Float transport types, the SPS2 length sphere, historical PenSelf, velocity units and Raycast miss behavior. [Parameter explanations and sources](osc-parameters.en.md)
 
-Isolated local checks passed: **143 Web**, **497 .NET**, **237 Python** tests, Unity package metadata and a build of **84 documentation routes**. The complete browser suite remains 88 cases; expanded assertions cover every illustrated field, bilingual sources, workbench details, preserved expansion/focus and narrow-layout scrolling. All 55 new/changed candidates were individually opened. The selected 52 images contain 48 full-page explorer images and four detail windows; three unrelated live-reading/edge variations retain their previous baselines. The set contains 138 PNGs, with 86 existing images unchanged. No new blocking or major visual issue was found; acceptance awaits a complete normal comparison with image updates disabled. [Individual inspection record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
+Isolated local checks passed: **143 Web**, **497 .NET**, **237 Python** tests, Unity package metadata and a build of **84 documentation routes**. The complete browser suite remains 88 cases; expanded assertions cover every illustrated field, bilingual sources, workbench details, preserved expansion/focus and narrow-layout scrolling. All 55 new/changed candidates were individually opened. The selected 52 images contain 48 full-page explorer images and four detail windows; three unrelated live-reading/edge variations retain their previous baselines. The set contains 138 PNGs, with 86 existing images unchanged. No new blocking or major visual issue was found; the baselines are accepted after a complete normal comparison with image updates disabled. [Individual inspection record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
 | Commit | Scope | Run | Inspected outcome |
 | --- | --- | --- | --- |
 | `280c838` | Full candidate capture | [39853817326, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39853817326/attempts/1) | **88/88 passed**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=false`, exported to PR #19 |
 | `280c838` | Initial normal comparison, incomplete | [39853785392](https://github.com/SeaLoong/Sensa/actions/runs/39853785392) | **35 passed, 3 failed, 50 unrun**, every other outcome zero; complete selection and normal image comparison; one new detail baseline missing and two intentionally changed full-page explorer images |
 | `280c838` | Documentation checks and deployment | [39853785382](https://github.com/SeaLoong/Sensa/actions/runs/39853785382) | **8/8 passed**, every other outcome zero; site-only selection, `selectionComplete=false`, `snapshotsCompared=true`, deployed successfully |
+| `b141d8e` | Filtered complete normal comparison | [39856717268, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/2) | **88/88 passed**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=true`, image updates disabled |
+| `b141d8e` | Six native builds and isolated smoke completed | [39856717268, attempt 3](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/3) | All six native builds/isolated smoke checks, Windows Shader bridge replay and Unity packaging passed; reuses the passed full browser comparison; PR publication skipped |
 
-These runs pin source `280c8387762e60b4ae12c97faee6de41c3e2eaf0`; raw candidate image commit is `71e1de8eeb88f1c7c4f4132e5be63495c270a2a0`. Source review also updates the PhysBone reference to its current official page.
+Candidate, initial main comparison and site runs pin source `280c8387762e60b4ae12c97faee6de41c3e2eaf0`; raw candidate image commit is `71e1de8eeb88f1c7c4f4132e5be63495c270a2a0`. Source review also updates the PhysBone reference to its current official page.
+
+Normal comparison pins source `b141d8e25a75f0d7c60ccf46c301d80c8ca874e4`, whose Git tree exactly matches reviewed PR #19 head `7aca23ab071c4b4bb330437c2ede19b3f9ab5bed`. Attempt 1 reached both 130-second dependency-install limits and exited 124 before browsers ran: total/executed cases were zero, `selectionComplete=false`, `snapshotsCompared=false`. Attempt 2 retried failed jobs on that unchanged commit, installed dependencies and passed the complete suite. All six builds/archives succeeded in attempt 2, but the following Windows x64 Shader replay step exited 1; API annotations provided no specific cause. Attempt 3 reran only the failed job on the same source and passed, preserving the other successful results.
 
 ## Computed signals
 

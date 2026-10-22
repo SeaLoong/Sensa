@@ -37,9 +37,17 @@ No new blocking or major V1–V6 issue was found. Chinese/English text, full par
 
 ## Full normal comparison / 完整普通比较
 
-**Pending:** the reviewed selection still requires a complete normal comparison with image updates disabled before acceptance.
+[Normal run 39856717268, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/2) passed **88/88 cases**, every other outcome zero, with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`. Pinned source `b141d8e25a75f0d7c60ccf46c301d80c8ca874e4` has exactly the same Git tree as reviewed PR head `7aca23ab071c4b4bb330437c2ede19b3f9ab5bed`. **The baselines are accepted after individual inspection and this full normal comparison.**
 
-**待完成：**此处记录了实际审图范围；关闭图片更新的完整普通比较通过后再接受本轮基线。
+上述第 2 次尝试 **88/88 通过**，其余结果均为 0；关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true`。固定源码的 Git 树与已审阅 PR 提交完全一致，本轮基线经逐张审阅及完整普通比较后接受。
+
+Attempt 1 pinned the same source but reached the dependency installer's two 130-second limits (exit 124). Browser execution did not start: the report records `runner=not-run`, zero total/executed cases, `selectionComplete=false` and `snapshotsCompared=false`. Attempt 2 retried failed jobs on that unchanged source and installed dependencies successfully.
+
+第 1 次尝试固定同一源码，在依赖安装的两次 130 秒预算后以 124 退出；浏览器未执行，报告总数／执行数均为 0，两个完整比较标记均为 false。第 2 次尝试只重跑失败任务，成功安装依赖后完成比较。
+
+[Attempt 3](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/3) completed all six native builds/isolated smoke checks and Unity packaging. It reran only the Windows x64 job: attempt 2 built/archived successfully but the subsequent Shader replay step exited 1 without a specific cause in API annotations. The same-source retry passed; the completed browser comparison remains the attempt-2 result.
+
+第 3 次尝试仅重跑 Windows x64 失败任务，并通过回放；六平台构建／隔离冒烟和 Unity 打包已完成。第 2 次尝试的构建／打包成功，后续 Shader 回放以 1 退出，现有 API 注释未提供具体原因；浏览器比较沿用第 2 次尝试的完整成功结果。
 
 The initial [main comparison 39853785392](https://github.com/SeaLoong/Sensa/actions/runs/39853785392), on source `280c838`, reported **35 passed, 3 failed and 50 unrun** out of 88; every other outcome zero, `selectionComplete=true`, `snapshotsCompared=true`. Failures were one missing new detail baseline and two intentionally taller explorer pages. This incomplete run is not acceptance.
 
