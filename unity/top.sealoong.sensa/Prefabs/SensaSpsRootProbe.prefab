@@ -42,6 +42,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 066284af3b2e46409eb99fa4bdb095f8, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  instanceName: SpsRoot
+  instanceName: Root
   target: {fileID: 0}
-  collisionChannel: SpsRootProbe
+  collisionChannel:

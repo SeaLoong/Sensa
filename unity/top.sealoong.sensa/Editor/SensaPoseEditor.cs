@@ -1,5 +1,8 @@
+using System.Collections.Generic;
+using System.Linq;
 using UnityEditor;
 using UnityEngine;
+using VRC.SDK3.Avatars.Components;
 
 namespace UnityBox.Sensa
 {
@@ -17,7 +20,6 @@ namespace UnityBox.Sensa
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Aperture radius / position limit"),
                 SensaEditorLocalization.Format("4 cm / {0:F2} m; receiver radius 2 m", SensaPoseProtocol.PositionRadius));
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Green scene-view slices show where all required distances can be measured. Orange anchor centers are excluded because the signal saturates. Tracking a point does not mean it has entered the 4 cm opening."), MessageType.Info);
-            if (GUILayout.Button(SensaEditorLocalization.Text("Bake a native VRC prefab copy"))) SensaPoseMenus.Bake(socket.gameObject);
         }
         private void OnSceneGUI()
         {
@@ -127,7 +129,6 @@ namespace UnityBox.Sensa
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Root and Tip define the straight axis; Side defines twist. Reference actual bone markers if needed. Uses three tiny spherical Senders without changing SPS deformation. One target per channel at a time."), MessageType.Info);
             try { SensaPoseBuilder.Validate((SensaPosePlug)target); }
             catch (System.Exception ex) { EditorGUILayout.HelpBox(ex.Message, MessageType.Error); }
-            if (GUILayout.Button(SensaEditorLocalization.Text("Bake a native VRC prefab copy"))) SensaPoseMenus.Bake(((SensaPosePlug)target).gameObject);
         }
         private void OnSceneGUI()
         {
@@ -149,15 +150,74 @@ namespace UnityBox.Sensa
         public static void SpsRoot() => Create("SensaSpsRootProbe");
         [MenuItem("GameObject/Sensa/Contact direct tracking (SDK Beta)", false, 10)]
         public static void ContactRoot() => Create("SensaContactRootProbe");
+        [MenuItem("GameObject/Sensa/Shader Root Capture (Experimental)", false, 10)]
+        public static void ShaderCapture() => Create("SensaShaderCapture");
+        [MenuItem("GameObject/Sensa/Automatic SPS Setup", false, 10)]
+        public static void Automatic() => Create("SensaAutoSetup");
+        [MenuItem("GameObject/Sensa/Local Bone or PB Probe", false, 10)]
+        public static void Point() => Create("SensaLocalPoint");
+        [MenuItem("GameObject/Sensa/PB Grab Handle", false, 10)]
+        public static void Handle() => Create("SensaGrabHandle");
         [MenuItem("GameObject/Sensa/Spatial Pose Plug", false, 10)]
         public static void Plug() => Create("SensaPosePlug");
         private static GameObject Create(string name)
         {
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(Package + "Prefabs/" + name + ".prefab");
+            if (prefab == null) throw new System.InvalidOperationException(SensaEditorLocalization.Text("Install the complete Sensa package: the authoring prefab is missing.") + " " + name);
+            var selected = Selection.activeTransform;
             var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefab);
+            if (selected != null) instance.transform.SetParent(selected, false);
+            try { ConfigureCreatedAuthor(instance, selected); }
+            catch { Object.DestroyImmediate(instance); throw; }
             Undo.RegisterCreatedObjectUndo(instance, SensaEditorLocalization.Text("Create Sensa pose rig"));
-            if (Selection.activeTransform != null) instance.transform.SetParent(Selection.activeTransform, false);
             Selection.activeGameObject = instance; return instance;
+        }
+        private static void ConfigureCreatedAuthor(GameObject instance, Transform selected)
+        {
+            var avatar = selected != null ? selected.GetComponentInParent<VRCAvatarDescriptor>() : null;
+            var scope = avatar != null ? avatar.transform : selected != null ? selected.root : instance.transform;
+            var target = SelectedRoot(selected);
+            var usedNames = new HashSet<string>(scope.GetComponentsInChildren<SensaFixedRootProbe>(true)
+                .Where(probe => probe.gameObject != instance).Select(probe => probe.instanceName)
+                .Concat(scope.GetComponentsInChildren<SensaContactRootProbe>(true)
+                    .Where(probe => probe.gameObject != instance).Select(probe => probe.instanceName)), System.StringComparer.Ordinal);
+            string rootName = "Root";
+            for (int suffix = 2; usedNames.Contains(rootName); suffix++) rootName = "Root_" + suffix;
+            var fixedRoot = instance.GetComponent<SensaFixedRootProbe>();
+            if (fixedRoot != null) { fixedRoot.instanceName = rootName; fixedRoot.target = target; PrefabUtility.RecordPrefabInstancePropertyModifications(fixedRoot); }
+            var contactRoot = instance.GetComponent<SensaContactRootProbe>();
+            if (contactRoot != null) { contactRoot.instanceName = rootName; contactRoot.target = target; PrefabUtility.RecordPrefabInstancePropertyModifications(contactRoot); }
+            var shader = instance.GetComponent<SensaShaderCapture>();
+            if (shader != null)
+            {
+                var used = new HashSet<int>(scope.GetComponentsInChildren<SensaShaderCapture>(true)
+                    .Where(probe => probe != shader).Select(probe => probe.producerId));
+                shader.producerId = Enumerable.Range(1, 65535).FirstOrDefault(id => !used.Contains(id));
+                if (shader.producerId == 0) throw new System.InvalidOperationException(SensaEditorLocalization.Text("Choose an unused Shader producer ID from 1–65535."));
+                shader.target = target;
+                PrefabUtility.RecordPrefabInstancePropertyModifications(shader);
+            }
+            var setup = instance.GetComponent<SensaAutoSetup>();
+            if (setup != null)
+            {
+                var groups = new HashSet<string>(scope.GetComponentsInChildren<SensaAutoSetup>(true)
+                    .Where(author => author != setup).Select(author => author.groupName), System.StringComparer.Ordinal);
+                string group = "Auto";
+                for (int suffix = 2; groups.Contains(group); suffix++) group = "Auto_" + suffix;
+                setup.groupName = group;
+                if (selected != null && selected.GetComponents<Component>().Count(SensaSpsAdapter.IsTarget) == 1)
+                { setup.discoverAll = false; setup.selectedTargets = new List<GameObject> { selected.gameObject }; }
+                PrefabUtility.RecordPrefabInstancePropertyModifications(setup);
+            }
+        }
+        private static Component SelectedRoot(Transform selected)
+        {
+            if (selected == null) return null;
+            var roots = selected.GetComponents<Component>().Where(component => !(component is Transform) && SensaSpsAdapter.IsRootTarget(component)).ToArray();
+            if (roots.Length == 1) return roots[0];
+            // A selected bone/marker is explicit. An Avatar descriptor or multiple root components need a choice.
+            // 明确选择骨骼／标记即可使用其 Transform；Avatar 根或多组件对象留待用户选择。
+            return roots.Length == 0 && selected.GetComponent<VRCAvatarDescriptor>() == null ? selected : null;
         }
         [MenuItem("GameObject/Sensa/Local Calibration Pair", false, 10)]
         public static void CalibrationPair()
@@ -172,21 +232,6 @@ namespace UnityBox.Sensa
             plug.GetComponent<SensaPosePlug>().profile = profile;
             plug.transform.localPosition = new Vector3(0, 0, -.10f);
             Selection.activeGameObject = parent;
-        }
-        public static void Bake(GameObject source)
-        {
-            foreach (var plug in source.GetComponentsInChildren<SensaPosePlug>(true))
-                foreach (var marker in new[] { plug.rootMarker, plug.tipMarker, plug.sideMarker })
-                    if (marker != null && !marker.IsChildOf(source.transform))
-                    {
-                        EditorUtility.DisplayDialog("Sensa Pose", SensaEditorLocalization.Text("Standalone baking requires markers inside the selected object. External bone references need full-avatar NDMF processing."), SensaEditorLocalization.Text("OK"));
-                        return;
-                    }
-            var path = EditorUtility.SaveFilePanelInProject(SensaEditorLocalization.Text("Bake native VRC contacts"), source.name + "_Baked", "prefab", SensaEditorLocalization.Text("Save a copy; the authoring prefab stays editable."));
-            if (string.IsNullOrEmpty(path)) return;
-            var copy = Object.Instantiate(source);
-            try { SensaPoseBuilder.ProcessAvatar(copy); PrefabUtility.SaveAsPrefabAsset(copy, path); }
-            finally { Object.DestroyImmediate(copy); }
         }
     }
 }

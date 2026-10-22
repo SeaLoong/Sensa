@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using VRC.SDKBase;
 
 namespace UnityBox.Sensa
 {
@@ -67,10 +68,15 @@ namespace UnityBox.Sensa
         public Transform physBoneRoot;
 
         // Contact
+        [Tooltip("Contact radius in this object local units. At scale 1, one unit is one metre.")]
         public float contactRadius = 0.04f;
+        [Tooltip("Contact tags shared with the Sender. Choose 1–16 nonempty tags.")]
+        public List<string> contactTags = new List<string> { "TPS_Pen_Penetrating" };
 
         // Raycast
+        [Tooltip("Ray origin and direction. Uses this object when empty; local +Z points along the ray.")]
         public Transform raycastOrigin;
+        [Tooltip("Maximum ray distance in metres, greater than 0 and up to 1000. Independent of origin scale.")]
         public float raycastMaxRange = 0.3f;
     }
 
@@ -79,14 +85,13 @@ namespace UnityBox.Sensa
     // -----------------------------------------------------------------
 
     /// <summary>
-    /// Sensa — VRChat SPS/OGB contact-sensing component.
-    /// Drop onto any avatar GameObject.  The NDMF processor (or SDK
-    /// pre-process callback) will read this component and inject the
-    /// required VRC Contact/PhysBone components automatically.
+    /// Editor-only authoring settings for native VRChat Contact and PhysBone signals.
+    /// The Sensa build pipeline reads these settings on the avatar build copy,
+    /// generates native components and Animator parameters, then removes this component.
     /// </summary>
     [AddComponentMenu("Sensa/Sensa Component")]
     [DisallowMultipleComponent]
-    public class SensaComponent : MonoBehaviour
+    public class SensaComponent : MonoBehaviour, IEditorOnly
     {
         // ── Role ──────────────────────────────────────────────────────
         [Tooltip("Socket = orifice/receiver. Plug = penetrator/sender.")]
@@ -106,7 +111,7 @@ namespace UnityBox.Sensa
         [Tooltip("Bone that defines the insertion axis. +Z points inward.")]
         public Transform depthAxis;
 
-        [Tooltip("Maximum insertion depth in metres.")]
+        [Tooltip("Socket range in the depth axis local units. At scale 1, one unit is one metre.")]
         public float socketLength = 0.15f;
 
         [Tooltip("Number of depth-ring VRCContactReceivers to create along the insertion axis (1..10).")]
@@ -149,7 +154,7 @@ namespace UnityBox.Sensa
         public string OgbPenBasePath => $"OGB/Pen/{instanceName}";
 
         /// <summary>Returns all OSC parameter paths that this component will generate.</summary>
-        public List<string> GetExpectedParameters()
+        public List<string> GetExpectedParameters(bool includeExistingParameters = true)
         {
             var list = new List<string>();
             if (role == BridgeRole.Socket)
@@ -183,13 +188,15 @@ namespace UnityBox.Sensa
                 if (selfPenetration) list.Add($"{OgbPenBasePath}/TouchSelf");
             }
 
+            if (auxSignals == null) return list;
             for (int i = 0; i < auxSignals.Count; i++)
             {
                 var aux = auxSignals[i];
+                if (aux == null) continue;
                 string prefix = $"Sensa/{instanceName}/Aux{i}/{aux.role}";
                 if (aux.sourceType == AuxSignalSourceType.ExistingParameter)
                 {
-                    if (!string.IsNullOrEmpty(aux.existingParameterName))
+                    if (includeExistingParameters && !string.IsNullOrEmpty(aux.existingParameterName))
                         list.Add(aux.existingParameterName);
                 }
                 else if (aux.sourceType == AuxSignalSourceType.PhysBone)
@@ -207,7 +214,12 @@ namespace UnityBox.Sensa
                 else
                 {
                     #if SENSA_HAS_VRCRAYCAST
-                    if (aux.sourceType == AuxSignalSourceType.Raycast) { list.Add(prefix + "_Hit"); list.Add(prefix + "_Ratio"); }
+                    if (aux.sourceType == AuxSignalSourceType.Raycast)
+                    {
+                        list.Add(prefix + "_Hit");
+                        list.Add(prefix + "_Ratio");
+                        list.Add(prefix + "_Distance");
+                    }
                     else
 #endif
                     list.Add(prefix);

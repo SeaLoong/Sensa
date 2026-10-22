@@ -22,6 +22,7 @@ Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship
 | --- | --- | --- |
 | `OGB/Orf/<id>/…`, `OGB/Pen/<id>/…` | Socket/Plug depth trends, touch intensity and presence | Depth or vibration linkage |
 | `VFH/Zone/Touch/<id>/Others` / `Self` | Approach intensity inside a selected touch zone | Zone-based touch linkage |
+| `Sensa/<id>/Aux<index>/<role>_…` | Raycast hit state, normalized distance and distance in metres | Hit conditions and surface-distance linkage |
 | `Sensa/Contact/<id>/Proximity…`, `Radius`, `Sample` | Selected root position in metres and relative velocity in m/s | Calibrated local movement or movement strength |
 | `Sensa/SPS/<id>/P0…P3`, `Sample` | Selected root's three-dimensional position relative to the Avatar | Mapping left/right, up/down or forward/back movement |
 | `Sensa/Shader/<id>/Frame`, `Valid`, `X`, `Y`, `Z` | Root-relative coordinates decoded from a screen block | Obtaining three-dimensional position through image encoding |
@@ -50,6 +51,22 @@ Four-anchor tracking Unity components and desktop share the five fields and fixe
 Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. SPS2 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
 
 Use the parameters actually exposed by your Avatar. The [OGB tables](ogb-compatibility.en.md) give complete generated paths, shapes and dimensions, based on the [pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs) and [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts).
+
+## Supplementary Raycast signals: hit and distance
+
+Choose Raycast in `SensaComponent` supplementary signals to measure surface distance from an origin along its local **+Z** axis. An empty origin uses the component's own object. Configure a positive maximum range up to 1000 metres. This feature requires **VRChat SDK 3.10.3+**. Sensa explicitly disables `ApplyTransformScale`, keeping the range in metres.
+
+The prefix is `Sensa/<id>/Aux<index>/<role>`: `<index>` is the supplementary signal's zero-based index, and `<role>` is its Inspector role identifier, such as `Vibrate` or `GateEnable`. The role distinguishes parameter names; choose the desired control use in the desktop mapping. For example, the first `Vibrate` signal on instance `Body` exposes:
+
+| Path | Type and meaning | Use |
+| --- | --- | --- |
+| `Sensa/Body/Aux0/Vibrate_Distance` | Float; world distance from origin to hit point, in metres | Calibrate the desired physical-distance range |
+| `Sensa/Body/Aux0/Vibrate_Hit` | Bool; true when the ray currently hits | Use as a `GateEnable` condition to consume distance while hit |
+| `Sensa/Body/Aux0/Vibrate_Ratio` | Float; hit distance normalized between zero and maximum range, 0–1 | 0 is the origin and 1 is the range end; invert when mapping approach intensity |
+
+With a 0.3 m range and a hit 0.1 m away, `_Distance` is approximately 0.1 and `_Ratio` approximately 1/3. Check `_Hit` before reading distance: the generated component uses the SDK's default `DoNothing` miss behavior. On a miss, `_Hit=false` and both distances retain their latest hit values, initially zero before the first hit.
+
+These are the native `VRCRaycast` report fields. All three receive local, unsynced Expression Parameter declarations and matching FX types. [Unity configuration](../unity/top.sealoong.sensa/AUTOMATION.en.md) · [Official SDK package](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.avatars-3.10.6-beta.2.zip)
 
 ## Contact direct tracking (SDK Beta): twelve public fields
 

@@ -170,12 +170,12 @@ namespace UnityBox.Sensa.Tests
             probe.target = Target();
             SensaFixedRootBuilder.ProcessAvatar(avatar);
             Assert.IsNull(instance.GetComponent<SensaFixedRootProbe>());
-            var host = avatar.transform.Find("SensaFixedRoot_SpsRoot").gameObject;
+            var host = avatar.transform.Find("SensaFixedRoot_Root").gameObject;
             Assert.AreEqual(4, host.GetComponentsInChildren<VRCContactReceiver>(true).Length);
             Assert.AreEqual(1, host.GetComponentsInChildren<VRCContactSender>(true).Length);
             var controller = Controller(host);
-            CollectionAssert.AreEquivalent(new[] { "Sensa/SPS/SpsRoot/P0", "Sensa/SPS/SpsRoot/P1", "Sensa/SPS/SpsRoot/P2",
-                "Sensa/SPS/SpsRoot/P3", "Sensa/SPS/SpsRoot/Sample" }, host.GetComponent<ModularAvatarParameters>().parameters.Select(p => p.nameOrPrefix));
+            CollectionAssert.AreEquivalent(new[] { "Sensa/SPS/Root/P0", "Sensa/SPS/Root/P1", "Sensa/SPS/Root/P2",
+                "Sensa/SPS/Root/P3", "Sensa/SPS/Root/Sample" }, host.GetComponent<ModularAvatarParameters>().parameters.Select(p => p.nameOrPrefix));
             var sample = controller.layers[0].stateMachine.states.Single(s => s.state.name == "Sample 0").state;
             Assert.AreEqual(1f / 32, sample.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.Last().value);
             var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = controller; animator.Rebind();

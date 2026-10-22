@@ -37,7 +37,7 @@ namespace UnityBox.Sensa
             var all = avatar.GetComponentsInChildren<SensaContactRootProbe>(true);
             var probes = all.Where(p => p.enabled).ToArray();
             if (probes.GroupBy(p => p.instanceName).Any(g => g.Count() > 1)
-                || probes.GroupBy(p => p.collisionChannel).Any(g => g.Count() > 1))
+                || probes.GroupBy(p => SensaSensorUtility.ResolveRootChannel(p.instanceName, p.collisionChannel)).Any(g => g.Count() > 1))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Contact root names and collision channels must be unique."));
             foreach (var probe in probes) Validate(avatar, probe.instanceName, probe.target, probe.collisionChannel);
             SensaSensorUtility.Budget(avatar, probes.Length * 2);
@@ -48,7 +48,7 @@ namespace UnityBox.Sensa
         public static void Validate(GameObject avatar, string id, Component target, string channel)
         {
             RequireSupport(typeof(VRCContactReceiver));
-            SensaSensorUtility.Name(id); SensaSensorUtility.Name(channel);
+            var resolvedChannel = SensaSensorUtility.ResolveRootChannel(id, channel);
             if (target == null || target.transform != avatar.transform && !target.transform.IsChildOf(avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Select a supported root on this avatar."));
             SensaSensorUtility.Uniform(avatar.transform);
@@ -58,7 +58,7 @@ namespace UnityBox.Sensa
             var placement = SensaSpsAdapter.ReadRoot(target);
             if (placement.root != avatar.transform && !placement.root.IsChildOf(avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
-            string tag = TagPrefix + channel;
+            string tag = TagPrefix + resolvedChannel;
             if (avatar.GetComponentsInChildren<VRCContactSender>(true).Any(sender => sender.collisionTags != null && sender.collisionTags.Contains(tag)))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Contact root collision channel already has a sender."));
             if (avatar.transform.Find("SensaContactRoot_" + id) != null)
@@ -81,7 +81,7 @@ namespace UnityBox.Sensa
             follow.AddSource(new ConstraintSource { sourceTransform = source, weight = 1 });
             follow.SetTranslationOffset(0, Vector3.zero); follow.SetRotationOffset(0, Vector3.zero);
             follow.locked = true; follow.constraintActive = true;
-            string tag = TagPrefix + channel;
+            string tag = TagPrefix + SensaSensorUtility.ResolveRootChannel(id, channel);
             var sender = marker.gameObject.AddComponent<VRCContactSender>();
             sender.shapeType = ContactBase.ShapeType.Sphere; sender.radius = SensaContactProtocol.MarkerRadius;
             sender.localOnly = true; sender.collisionTags = new List<string> { tag };
@@ -183,7 +183,7 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta)"), EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track one explicit root using a dedicated Sender and SDK Proximity Receiver. Position uses avatar-root origin and axes in metres; velocity is relative SDK collision-point velocity in m/s. Sample reports producer activity, not a simultaneous SDK frame. Existing SPS Contacts stay unchanged."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Choose a bone, marker, SPS component, Sensa component or native Contact as the root. A dedicated Sender and Receiver report position in avatar-root axes (m) and relative contact-point velocity (m/s). Sample indicates publishing activity. Verify parameter delivery and motion in the client."), MessageType.Info);
             if (!SensaContactRootBuilder.IsSupported)
                 EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced proximity parameters, or choose Four-anchor tracking."), MessageType.Warning);
             SensaInspectorLabels.Draw(serializedObject);

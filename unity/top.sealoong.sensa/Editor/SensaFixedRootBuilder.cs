@@ -21,7 +21,7 @@ namespace UnityBox.Sensa
             var all = avatar.GetComponentsInChildren<SensaFixedRootProbe>(true);
             var probes = all.Where(p => p.enabled).ToArray();
             if (probes.GroupBy(p => p.instanceName).Any(g => g.Count() > 1)
-                || probes.GroupBy(p => p.collisionChannel).Any(g => g.Count() > 1))
+                || probes.GroupBy(p => SensaSensorUtility.ResolveRootChannel(p.instanceName, p.collisionChannel)).Any(g => g.Count() > 1))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("SPS names and collision channels must be unique."));
             foreach (var probe in probes) Validate(avatar, probe.instanceName, probe.target, probe.collisionChannel);
             SensaSensorUtility.Budget(avatar, probes.Length * 5);
@@ -31,7 +31,7 @@ namespace UnityBox.Sensa
 
         public static void Validate(GameObject avatar, string id, Component target, string channel)
         {
-            SensaSensorUtility.Name(id); SensaSensorUtility.Name(channel);
+            var resolvedChannel = SensaSensorUtility.ResolveRootChannel(id, channel);
             if (target == null || !target.transform.IsChildOf(avatar.transform) && target.transform != avatar.transform)
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Select a supported root on this avatar."));
             SensaSensorUtility.Uniform(avatar.transform);
@@ -41,7 +41,7 @@ namespace UnityBox.Sensa
             var placement = SensaSpsAdapter.ReadRoot(target);
             if (placement.root != avatar.transform && !placement.root.IsChildOf(avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
-            string tag = TagPrefix + channel;
+            string tag = TagPrefix + resolvedChannel;
             if (avatar.GetComponentsInChildren<VRCContactSender>(true).Any(s => s.collisionTags != null && s.collisionTags.Contains(tag)))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed-root collision channel already has a sender."));
             if (avatar.transform.Find("SensaFixedRoot_" + id) != null)
@@ -85,7 +85,7 @@ namespace UnityBox.Sensa
             follow.AddSource(new ConstraintSource { sourceTransform = source, weight = 1 });
             follow.SetTranslationOffset(0, Vector3.zero); follow.SetRotationOffset(0, Vector3.zero);
             follow.locked = true; follow.constraintActive = true;
-            string tag = TagPrefix + channel;
+            string tag = TagPrefix + SensaSensorUtility.ResolveRootChannel(id, channel);
             var sender = marker.gameObject.AddComponent<VRCContactSender>();
             sender.shapeType = ContactBase.ShapeType.Sphere; sender.radius = SensaFixedAnchorProtocol.MarkerRadius;
             sender.localOnly = true; sender.collisionTags = new List<string> { tag };
@@ -178,7 +178,7 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Four-anchor tracking"), EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track the selected root point with four 2 m receivers. The green scene-view slices show their common measurable volume; the whole coordinate box is not covered. Keep the target away from the tiny orange saturation zones at the anchor centers."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track the chosen bone, marker, SPS component, Sensa component or Contact root with four fixed receivers. Radius is 2 Avatar-root authored units; at root scale 1 this is 2 m. Green scene slices show common coverage. Keep the target outside the tiny orange saturation zones."), MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
         }
         private void OnSceneGUI()

@@ -57,6 +57,14 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 专用根标记与唯一通道将每个根点测量对应到期望的自身目标。四点距离按制作尺度的 AvatarRootLocal 解算单点位置；Contact 使用物理米制 AvatarRootMeters，报告中点位置与接触点相对速度。Contact 位置和速度指标共用 SensaPoint 校准、启用与失效停止。原生报告未提供时钟、序号或稳定 Sender ID，Sensa Sample 检查生产端活动。[SDK 契约与依据](contact-sdk.md)。公开协议、公式和停止条件集中于[定位说明](positioning.md)与[参数字典](osc-parameters.md)。
 
+## Unity 作者与定位生成
+
+九类 Unity 作者组件保存配置并实现 SDK `IEditorOnly`。`SensaPlugin` 在 NDMF Generating 中、MA 同阶段处理之前统一读取配置，生成 Contact、约束及临时 Animator／参数／菜单，再由 MA 合并。每次构建的完成状态保存在 `BuildContext.GetState`；源场景与作者预制件保持可编辑。
+
+四点定位、Contact 直接定位与 Shader 捕获共用该入口，分别输出既有协议。三个根点预制件都可明确选择 Avatar 内的 Transform、SPS、Sensa Component 或原生 Contact。根点参照先读取，再移除可能被其引用的 Sensa 作者组件；上传结果保留原生测量组件与参照 Transform。
+
+只读 SDK 检查点在已核验的 Fury 加工之后、SDK 默认作者清理之前诊断残留设置；NDMF Optimizing 中另检查作者清理和此时 Contact 数量。具体阶段、组件与 GameObject 的 EditorOnly 区别，以及官方版本依据见[Unity 构建指南](unity-build.md)。
+
 ## 浏览器模块
 
 React 保留原生控件、对话框与语义标签，TDesign 风格不依赖 MUI 或 TDesign React 运行时。顶栏承载实际状态／许可，正文独立滚动；UI 草稿与已保存配置分开。

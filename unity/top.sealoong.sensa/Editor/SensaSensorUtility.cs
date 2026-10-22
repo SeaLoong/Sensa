@@ -2,6 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Security.Cryptography;
+using System.Text;
 using nadena.dev.modular_avatar.core;
 using UnityEngine;
 using UnityEditor.Animations;
@@ -17,6 +19,16 @@ namespace UnityBox.Sensa
         { var node = new GameObject(name).transform; node.SetParent(parent, false); return node; }
         public static void Name(string value)
         { if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value,"^[A-Za-z0-9_-]{1,48}$")) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa names require 1–48 ASCII letters, digits, '_' or '-'.")); }
+        // Keep authored prefab data unchanged. A renamed copy gets a distinct deterministic channel.
+        public static string ResolveRootChannel(string instanceName, string channel)
+        {
+            Name(instanceName);
+            if (!string.IsNullOrEmpty(channel)) { Name(channel); return channel; }
+            using (var hash = SHA256.Create())
+                return BitConverter.ToString(hash.ComputeHash(Encoding.UTF8.GetBytes(instanceName)), 0, 16)
+                    .Replace("-", "").ToLowerInvariant();
+        }
+
         public static void Uniform(Transform transform)
         {
             for(var t=transform;t!=null;t=t.parent) {

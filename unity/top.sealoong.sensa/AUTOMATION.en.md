@@ -2,11 +2,11 @@
 
 [简体中文](AUTOMATION.md) | **English**
 
-[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to Four-anchor tracking; Contact direct tracking (SDK Beta) is an explicit alternative.
+[Install and choose language](README.md). Automatic SPS Setup reads supported Socket/Plug authoring geometry without changing SPS. Root tracking defaults to Four-anchor tracking; Contact direct tracking (SDK Beta) is an explicit alternative. These routes and separate Shader capture share one NDMF generation entry point; see the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for timing.
 
 ## Targets and scope
 
-Discover All finds supported VRCFury authors; Selected Targets narrows the set and Excluded Targets takes priority. Give every automatic group a unique name and assign a target to one group only. Inspect targets and Contact cost before building.
+Discover All finds supported VRCFury authors; Selected Targets narrows the set and Excluded Targets takes priority. Give every automatic group a unique name and assign a target to one group only. Inspect targets and Contact cost before building. Root-only measurement validates root geometry; tip, paired Plug-marker and grab-handle features additionally validate Plug length.
 
 | Capability | Generated scope |
 | --- | --- |
@@ -19,7 +19,9 @@ Discover All finds supported VRCFury authors; Selected Targets narrows the set a
 
 Exclusive enables one measured target per group, initially Off; Dedicated enables simultaneous measurement. Selection reduces active objects, not the registered Contact budget. Optional capabilities and other plugins count too. Unknown policies fail the build.
 
-For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking (SDK Beta)**. Target deliberately starts empty. Select the actual SPS/Sensa/native Contact root; duplicated instances need unique names and collision channels. Explicit Sensa/native Contact targets work without VRCFury. The adapter reads the CPU root frame, not its GPU surface.
+For one target use `SensaSpsRootProbe.prefab` or **GameObject → Sensa → Four-anchor tracking**. For the SDK route, use `SensaContactRootProbe.prefab` or **GameObject → Sensa → Contact direct tracking (SDK Beta)**. Both accept an Avatar bone/empty-object Transform, SPS, Sensa Component or native Contact as Target. The adapter reads the selected root frame. Instances default to `Root`; give duplicates unique instance names. An empty Collision Channel derives a stable channel from that name, or you can enter a manual override.
+
+Separate Shader capture uses `SensaShaderCapture.prefab` or **GameObject → Sensa → Shader Root Capture (Experimental)**. It accepts the same Target types and has its own Producer ID and desktop rectangle. [Shader setup](GPU-TRACKING.en.md)
 
 ## Contact direct tracking (SDK Beta)
 
@@ -29,7 +31,7 @@ Choose the root tracking method in Automatic SPS Setup. Four-anchor tracking rem
 
 XYZ uses `AvatarRootMeters`: Avatar-root origin and rotation axes, in metres without dividing by authored root scale. Velocity is SDK relative collision-point velocity in m/s; ProximitySpeed is change of normalized proximity per second. A single point has no orientation. `Radius` reports the actual world receiver radius, including authored scale and ScaleFactor. `Sample` cycles n/32 every approximately 50 ms; both controls reset to zero when inactive. The clock proves producer activity, not an atomic SDK frame or Sender authentication. Desktop activity expires after at most 1000 ms; unchanged coordinates may be cached while Sample advances. Presence and SenderType are checked separately, so zero position/velocity can be valid stationary data.
 
-The same IsLocal, scale and selection guards apply. Contact direct tracking counts two Contacts per target; Four-anchor tracking counts five. All native report parameters and both controls are local, unsynced and unsaved. Both methods use the desktop spatial permission, calibration and input activation controls. [SDK semantics and limits](../../docs/contact-sdk.en.md).
+The same IsLocal, scale and selection guards apply. Contact direct tracking counts two Contacts per target; Four-anchor tracking counts five. All native report parameters and both controls are local, unsynced and unsaved. Both methods use the desktop spatial permission, calibration and input activation controls. [SDK semantics and limits](https://github.com/SeaLoong/Sensa/blob/main/docs/contact-sdk.en.md).
 
 The package includes EditMode contracts for feature detection, generated parameters, placement, scale guards and selection resets. Positive SDK build contracts require the beta API and skip when it is absent. These contracts have not been executed in a stable or beta Unity Editor for this change; package metadata checks and SDK assembly inspection do not establish Unity-client or hardware acceptance.
 
@@ -58,6 +60,16 @@ About every 50 ms, FX copies four internal RawP values then publishes Sample. Th
 Exclusive separately registers local, unsynced, unsaved Int `Sensa/Select/<group>`: default 0 is Off, 1…N selects ordered targets, out-of-range returns Off. It may appear in OSC but is a **menu control**, not a measurement. Dedicated has no automatic selector. No selector enables desktop input or connects devices.
 
 Sensa's language preference changes Inspector/help/error text and generated menu captions. User names, parameter names, enum values and menu slots remain unchanged. Generated Avatar menu text is fixed at authoring/build time; it does not follow each client's language.
+
+## Basic component and supplementary signals
+
+`SensaComponent` generates basic OGB Contacts on the build copy. Receiver shapes bind to Depth Axis, while Plug markers bind to Root Bone/Tip Bone, so the shapes follow bone movement. Socket range and Contact sizes use the selected axis's local units, equal to metres at axis scale one.
+
+Supplementary Contact signals accept 1–16 collision tags matching their Sender; the default is `TPS_Pen_Penetrating`. Existing-parameter signals reference the original parameter and retain its type. Generated Contact/PhysBone parameters receive both expression declarations and writable FX declarations.
+
+Supplementary Raycast measures along the origin's local +Z axis with a range configured in metres. It exposes three native fields: `_Distance` (metres), `_Hit` (Bool) and `_Ratio` (0–1). Map `_Hit` as the hit condition, then use normalized or physical distance. [Paths, units and miss behavior](https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters.en.md#supplementary-raycast-signals-hit-and-distance)
+
+The build first checks that bones, PhysBones, Raycast references and other targets belong to the Avatar. Unchecked authors have their scripts removed without generation. Enabled settings on inactive objects are processed; runtime activation follows each generated rig and its menu rules. Hosts, native components and reference Transforms remain after generation.
 
 ## Validation and stops
 

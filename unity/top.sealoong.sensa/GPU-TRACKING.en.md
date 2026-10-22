@@ -14,19 +14,19 @@ Inspector, help and error text follow Sensa's Editor language preference. Menu r
 
 ## Native root path
 
-Selected Socket/Plug root → black-and-white coordinate code → selected desktop capture region → Python bridge → Sensa OSC.
+Selected bone/marker/SPS root → black-and-white coordinate code → selected desktop capture region → Python bridge → Sensa OSC.
 
 The generated camera requests no stereo-eye output (`None`); whether the code is visible on the desktop and absent from the headset still needs checking in the actual client.
 
-The authoring component `SensaShaderCapture` implements IEditorOnly. NDMF resolves the installed VRCFury root position/rotation, generates one native camera, a single-point skinned renderer and an encoder material and removes the author. Uploaded avatars do not run the editor reader, arbitrary MonoBehaviour readback or Udon. VRCFury shader source is not copied into this package.
+The authoring component `SensaShaderCapture` implements `IEditorOnly`. The shared NDMF generator resolves Target position/rotation before MA merging, creates one native camera, a single-point skinned renderer and an encoder material, then removes the author script while retaining native render components. Target accepts this Avatar’s Transform, SPS, Sensa Component or native Contact. [Build phases and official evidence](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
 
 ### Setup
 
-1. Install the [package dependencies](COMPATIBILITY.en.md) and official VRCFury SPS. Use PC Built-in rendering and a geometry-shader-capable graphics backend. Android and Metal are excluded. Begin without hardware outputs.
-2. Add **Sensa → Shader Root Capture (Experimental)** inside the avatar. Set `Sps Target` to an object containing one VRCFury SPS Socket or Plug. The adapter resolves its actual root frame; it does not estimate a root from Contact proximity/radius.
+1. Install the [package dependencies](COMPATIBILITY.en.md). Install official VRCFury for SPS author targets; bones/Transforms, Sensa and native Contacts work directly. Use PC Built-in rendering and a geometry-shader-capable graphics backend. Android and Metal are excluded. Inspect capture results first.
+2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to the desired bone/empty-object Transform, SPS, Sensa Component or native Contact. Position comes from that explicit root frame.
 3. Assign a unique `Producer Id` from 1–65535, such as 42, and pin the same ID in the bridge. This is a local protocol identifier, not a VRChat account identity.
 4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.15). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
-5. Build the avatar normally. Generated shaders live in `Assets/SensaShaderCapture`. When updating an older encoder, `NativeRootTelemetry.shader` may still contain the previous format, and the build will stop on that difference. Check ownership, back up and move the old generated file, then rebuild so the current encoder is generated. Preserve any custom edits separately; the builder will not overwrite them. Update the desktop app and bridge together and recreate the capture registration.
+5. Build normally or use NDMF’s processed preview. The build references the packaged `Runtime/Shaders/SensaRootTelemetry.shader`; build serialization handles temporary meshes and materials. After updating the package, desktop app and bridge, rebuild and check capture registration. Existing `Sps Target` object references remain readable; confirm the explicit component in `Target` when updating the settings.
 6. Explicitly select the generated **Sensa ShaderCapture_42** root-code item. Its caption follows the author's chosen language. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
 7. Check desktop code visibility and unwanted pixels in both VR eyes separately. None-eye cameras express Unity eye targeting; actual VRChat composition still needs validation. An arbitrary hidden render layer is not a guaranteed desktop capture channel.
 

@@ -10,9 +10,11 @@ Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点�
 
 1. 通过 VRChat 项目工具安装配套的 Base 和 Avatars Beta 包，再安装 Sensa Unity 组件包。
 2. 在 **Automatic SPS Setup** 的根点定位方式中明确选择 **Contact 直接定位（SDK Beta）**，或直接添加 **Contact direct tracking (SDK Beta)**（`SensaContactRootProbe`）。
-3. 选择自己 Avatar 上实际的 SPS Socket／Plug 根点、Sensa 组件或原生 Contact 根点。每个作者组件使用唯一的实例名和碰撞通道；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。
-4. 构建 Avatar。Sensa 生成跟随所选根点的微小球形 Sender，并在 Avatar 原点生成 Proximity Receiver；接收形状偏移为零，各轴与 Avatar 对齐，只接受专用通道上的 Self。
+3. 在 Target 选择自己 Avatar 内的骨骼／空物体 Transform、SPS Socket／Plug、Sensa Component 或原生 Contact。实例默认 `Root`，多个点使用不同实例名；碰撞通道留空时按实例名稳定分配。Transform、Sensa 和原生 Contact 目标可直接使用。
+4. 构建 Avatar。统一 NDMF 插件先于 MA 读取作者配置，生成跟随所选根点的微小球形 Sender，并在 Avatar 原点生成 Proximity Receiver；接收形状偏移为零，各轴与 Avatar 对齐，只接受专用通道上的 Self。
 5. 在实际客户端中按需通过生成菜单选择目标。在单一 OSC 来源下检查 `Sensa/Contact/<id>/…`，先在根点面板校准，再启用空间输入。
+
+作者脚本实现 `IEditorOnly`，生成后移除，宿主与原生测量组件保留。构建时机、预制件选择和官方流程依据见[Unity 构建指南](unity-build.md)。
 
 Receiver 的制作半径为 2 个 Avatar 根局部单位，标记半径为 0.001。公开的 `Radius` 是当前**世界米制半径**，随 `ScaleFactor` 更新。缩放门控会在 Receiver 超过 SDK 的 3 m 半径上限前停用测量并清零 `Sample`。支持的 Avatar 根缩放为正数且均匀。
 

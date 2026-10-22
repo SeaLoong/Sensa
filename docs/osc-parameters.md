@@ -22,6 +22,7 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 | --- | --- | --- |
 | `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | Socket／Plug 的进入深浅趋势、触碰强度和接近状态 | 深度或振动联动 |
 | `VFH/Zone/Touch/<id>/Others`／`Self` | 选定触摸区域的接近强度 | 区域触碰联动 |
+| `Sensa/<id>/Aux<index>/<role>_…` | Raycast 是否命中、归一化距离与米制距离 | 命中条件、表面距离联动 |
 | `Sensa/Contact/<id>/Proximity…`、`Radius`、`Sample` | 所选根点的米制位置与 m/s 相对速度 | 校准后的局部动作或运动强弱 |
 | `Sensa/SPS/<id>/P0…P3`、`Sample` | 选定根点相对 Avatar 的三维位置 | 按左右、上下、前后移动控制动作 |
 | `Sensa/Shader/<id>/Frame`、`Valid`、`X`、`Y`、`Z` | 从屏幕图块解码的根点相对位置 | 用画面编码获得三维位置 |
@@ -50,6 +51,22 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。SPS2 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
 
 实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
+
+## Raycast 补充信号：命中与距离
+
+在 `SensaComponent` 的补充信号中选择 Raycast，可从指定原点沿其本地 **+Z** 方向测量表面距离。原点留空时使用组件所在对象；最大量程按米配置，支持正数至 1000。此功能需要 **VRChat SDK 3.10.3+**，Sensa 显式关闭 `ApplyTransformScale`，因此量程保持米制。
+
+参数前缀为 `Sensa/<id>/Aux<index>/<role>`：`<index>` 是从 0 开始的补充信号序号，`<role>` 为 Inspector 中选择的角色标识，例如 `Vibrate` 或 `GateEnable`。角色用于区分参数名，桌面映射中再选择需要的控制用途。以实例 `Body` 的第一个 `Vibrate` 信号为例：
+
+| 路径 | 类型与含义 | 怎样使用 |
+| --- | --- | --- |
+| `Sensa/Body/Aux0/Vibrate_Distance` | Float；原点至命中点的世界距离，米 | 按所需实际距离校准动作范围 |
+| `Sensa/Body/Aux0/Vibrate_Hit` | Bool；true 表示当前射线命中 | 作为 `GateEnable` 条件，只在命中时采用距离 |
+| `Sensa/Body/Aux0/Vibrate_Ratio` | Float；命中距离在 0 到最大量程内的归一化值，0–1 | 0 对应原点，1 对应量程末端；可按需要反向映射接近强度 |
+
+量程为 0.3 m、命中距离为 0.1 m 时，`_Distance` 约为 0.1，`_Ratio` 约为 1/3。先用 `_Hit` 确认命中，再读取距离：当前生成组件采用 SDK 默认的 `DoNothing` 未命中行为，未命中时 `_Hit=false`，两路距离保留最近的命中值，首次命中前为 0。
+
+三字段对应官方 SDK 的原生 `VRCRaycast` 报告，均声明为本地、不同步的表达参数，并在 FX 中声明匹配类型。[Unity 配置](../unity/top.sealoong.sensa/AUTOMATION.md) · [官方 SDK 安装包](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.avatars-3.10.6-beta.2.zip)
 
 ## Contact 直接定位（SDK Beta）：十二个公开字段
 

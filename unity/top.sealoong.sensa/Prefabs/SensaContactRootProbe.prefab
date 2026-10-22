@@ -44,4 +44,4 @@ MonoBehaviour:
   m_EditorClassIdentifier:
   instanceName: Root
   target: {fileID: 0}
-  collisionChannel: ContactRootProbe
+  collisionChannel:

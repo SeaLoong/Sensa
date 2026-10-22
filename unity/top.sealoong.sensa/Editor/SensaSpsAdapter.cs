@@ -13,10 +13,14 @@ namespace UnityBox.Sensa
         private static Type Type(string name) => AppDomain.CurrentDomain.GetAssemblies().Select(a=>a.GetType(name)).FirstOrDefault(t=>t!=null)
             ?? throw new InvalidOperationException(SensaEditorLocalization.Text("Install supported VRCFury SPS: missing ")+name);
         public static bool IsTarget(Component c) => c!=null && (c.GetType().FullName==SocketType || c.GetType().FullName==PlugType);
+        public static bool IsRootTarget(Component component) => component is Transform || component is SensaComponent
+            || component is VRC.Dynamics.ContactBase || IsTarget(component);
         public sealed class RootPlacement { public Transform root; public Vector3 position; public Quaternion rotation; }
         public static RootPlacement ReadRoot(Component component)
         {
-            if (component == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Choose an explicit SPS root."));
+            if (component == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a root target: a bone, marker, SPS component or Contact."));
+            if (component is Transform transform)
+                return new RootPlacement { root = transform, rotation = Quaternion.identity };
             if (IsTarget(component))
             {
                 var placement = ReadGeometry(component, false);
@@ -31,7 +35,7 @@ namespace UnityBox.Sensa
             if (component is VRC.Dynamics.ContactBase contact)
                 return new RootPlacement { root = contact.rootTransform != null ? contact.rootTransform : contact.transform,
                     position = contact.position, rotation = contact.rotation };
-            throw new InvalidOperationException(SensaEditorLocalization.Text("Unsupported explicit SPS root component."));
+            throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a Transform, Sensa component, SPS component or native Contact as the root target."));
         }
         public static Placement Read(Component component) => ReadGeometry(component, true);
         private static Placement ReadGeometry(Component component, bool requireLength)

@@ -10,9 +10,11 @@ The official [3.10.6-beta.2 release](https://github.com/vrchat/packages/releases
 
 1. Install the matching Base and Avatars beta packages through your VRChat project tools, then install Sensa's Unity package.
 2. In **Automatic SPS Setup**, explicitly select **Contact direct tracking (SDK Beta)** as the root tracking method, or add **Contact direct tracking (SDK Beta)** (`SensaContactRootProbe`) directly.
-3. Select the actual SPS Socket/Plug root, Sensa component or native Contact root on your own Avatar. Give each authoring component a unique instance name and collision channel. Explicit Sensa/native Contact roots can be used independently of VRCFury.
-4. Build the Avatar. Sensa creates a tiny spherical Sender following the selected root and a Proximity Receiver at the Avatar origin, with zero shape offsets and Avatar-aligned axes. The Receiver accepts only Self on that dedicated channel.
+3. Set Target to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact within your Avatar. Instances default to `Root`; give multiple points distinct names. An empty collision channel is derived from the instance name. Transform, Sensa and native Contact targets work directly.
+4. Build the Avatar. The shared NDMF plugin reads author settings before MA, creates a tiny spherical Sender following the selected root and a Proximity Receiver at the Avatar origin, with zero shape offsets and Avatar-aligned axes. The Receiver accepts only Self on that dedicated channel.
 5. In the actual client, select the target in its generated menu when applicable. Inspect `Sensa/Contact/<id>/…` from one OSC source, then calibrate in the root panel before enabling spatial input.
+
+Author scripts implement `IEditorOnly` and are removed after generation; hosts and native measurement components remain. See the [Unity build guide](unity-build.en.md) for timing, prefab selection and official pipeline sources.
 
 The authored Receiver radius is 2 Avatar-root local units and the marker radius is 0.001. The published `Radius` is the current **world radius in metres**, updated with `ScaleFactor`. The scale guard disables measurement and clears `Sample` before the Receiver exceeds the 3 m SDK radius limit. Supported Avatar root scaling is positive and uniform.
 

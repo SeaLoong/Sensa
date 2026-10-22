@@ -101,6 +101,22 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.goto(base + 'en/docs/contact-sdk.html');
   await expect(page.locator('article h1')).toHaveText('Contact direct tracking (SDK Beta)');
   await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first()).toBeVisible();
+  const buildGuide = page.locator('article a[href$="/en/docs/unity-build.html"]').first();
+  await expect(buildGuide).toBeVisible(); await buildGuide.click();
+  await expect(page.locator('article h1')).toHaveText('Unity tracking components and build pipeline');
+  await expect(page.locator('article')).toContainText('IEditorOnly');
+  await expect(page.locator('article')).toContainText('BeforePlugin("nadena.dev.modular-avatar")');
+  await expect(page.locator('article')).toContainText('-1026');
+  await expect(page.locator('article a[href^="https://github.com/bdunderscore/modular-avatar/blob/"]').first()).toBeVisible();
+  await expect(page.locator('article a[href^="https://github.com/VRCFury/vrcfury.com/blob/"]').first()).toBeVisible();
+  expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('pages-unity-build-en.png'), fullPage: true });
+  await page.locator('header [data-locale="zh-CN"]').click();
+  await expect(page).toHaveURL(/zh-CN\/docs\/unity-build.html$/);
+  await expect(page.locator('article')).toContainText('构建顺序');
+  await expect(page.locator('article')).toContainText('IEditorOnly');
+  expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await page.screenshot({ path: testInfo.outputPath('pages-unity-build-zh.png'), fullPage: true });
   expect(errors).toEqual([]);
 });
 test('@site language priority, unsupported preferences and Chinese variants', async ({ browser }, testInfo) => {

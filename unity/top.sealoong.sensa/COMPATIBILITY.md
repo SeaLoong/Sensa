@@ -2,7 +2,9 @@
 
 **简体中文** | [English](COMPATIBILITY.en.md)
 
-采用 `package.json` 的依赖。VRCFury SPS 是可选的目标作者集成；明确选择 Sensa 或原生 Contact 根点时，可独立于 VRCFury 使用。适配器检查所选根点支持的几何，外部 OGB 路径保留其上游含义。
+采用 `package.json` 的依赖，包括 NDMF 1.5.0+ 与 Modular Avatar 1.10.0+。VRCFury SPS 是可选的目标作者集成；明确选择骨骼／空物体 Transform、Sensa 或原生 Contact 根点时，可独立于 VRCFury 使用。适配器检查所选根点支持的几何，外部 OGB 路径保留其上游含义。
+
+作者设置由统一 NDMF 插件生成，再交给 MA 合并。全部作者脚本实现 `IEditorOnly`，在构建副本中完成处理后移除；宿主与生成组件保留。SDK 检查会报告尚未处理的作者配置，便于恢复 NDMF 构建处理或调整后插入工具。具体顺序与官方依据见[构建指南](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)。
 
 ## 各路线能观测什么
 
@@ -23,7 +25,7 @@
 
 两种根点方案都遵循 VRChat 的 3 m 世界半径上限。构建要求正数均匀根缩放，并检查已知根缩放动画／约束。IsLocal、ScaleFactor 与选择门控在停用时关闭 Contact 并清零该方案的公开值，使 Receiver 保持在约 2.999 m 内。Contact 的 `Radius` 报告包含制作缩放与 ScaleFactor 的实际世界半径；标记跟随所选根点，不继承目标骨骼缩放。
 
-四点距离解算中，接收半径减小可降低同等近接误差引起的坐标误差，但会失去覆盖；扩大锚距改善部分条件数，同时缩小共同覆盖。不把未经测量的滤波／半径修改称为精度改进。低残差只说明一致性；滤波不得延迟失效或停止门禁。[官方 Contact](https://creators.vrchat.com/common-components/contacts/)
+四点距离解算中，接收半径减小可降低同等近接误差引起的坐标误差，但会失去覆盖；扩大锚距改善部分条件数，同时缩小共同覆盖。评估精度时同时记录半径、几何条件和实测误差。低残差用于检查测量一致性；滤波保留即时失效和停止行为。[官方 Contact](https://creators.vrchat.com/common-components/contacts/)
 
 ## 参数与生命周期
 
@@ -37,6 +39,6 @@ Point／Handle／Pose 仍用独立协议和最旧参与通道时效。旧 Sensa 
 
 编辑器语言仅改变呈现，偏好保存在用户设置而非 Avatar 数据。菜单注册路径、序列化字段、枚举值和 OSC 标识保留英文 ID。Avatar 菜单标题使用作者构建时语言，不是按客户端运行时翻译。
 
-EditMode 契约覆盖生成几何、可写 FX、参数、菜单、缩放门控和预算。此次 Contact 契约尚未在稳定版或 Beta Unity Editor 中执行；SDK 安装包／程序集核验与隔离测试按各自记录的范围提供依据，实际 Unity／VRChat 客户端 OSC、渲染和硬件验收另行安排。
+EditMode 契约覆盖生成几何、可写 FX、参数、菜单、缩放门控和预算。本次新增的作者生命周期和定位契约尚未在 Unity Editor 中执行；SDK 安装包／程序集核验与隔离测试按各自记录的范围提供依据，实际 Unity／VRChat 客户端 OSC、渲染和硬件验收另行安排。
 
 [安装](README.zh-CN.md) · [自动配置](AUTOMATION.md) · [Shader 验收](GPU-TRACKING.md) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)

@@ -1,61 +1,95 @@
 using System;
-using System.Globalization;
-using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
-#if NDMF_AVAILABLE
-using nadena.dev.ndmf;
-[assembly: ExportsPlugin(typeof(UnityBox.Sensa.SensaShaderCapturePlugin))]
-#endif
 
 namespace UnityBox.Sensa
 {
-#if NDMF_AVAILABLE
-    public sealed class SensaShaderCapturePlugin : Plugin<SensaShaderCapturePlugin>
-    {
-        public override string QualifiedName => "top.sealoong.sensa.shader-capture";
-        public override string DisplayName => SensaEditorLocalization.Text("Sensa native root capture");
-        protected override void Configure() => InPhase(BuildPhase.Generating)
-            .Run("Sensa/GenerateNativeRootCapture", context => SensaShaderCaptureBuilder.ProcessAvatar(context.AvatarRootObject));
-    }
-#endif
-
     public static class SensaShaderCaptureBuilder
     {
+        public const string ShaderAssetPath = "Packages/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader";
+
+        private sealed class CapturePlan
+        {
+            public SensaShaderCapture author;
+            public SensaSpsAdapter.RootPlacement placement;
+        }
+
         public static void ProcessAvatar(GameObject avatar)
         {
             var authors = avatar.GetComponentsInChildren<SensaShaderCapture>(true);
             var active = authors.Where(author => author.enabled).ToArray();
             if (active.GroupBy(author => author.producerId).Any(group => group.Count() > 1))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Shader producer IDs must be unique."));
-            foreach (var author in active)
+            // Resolve every target and validate the whole group before creating a native object.
+            var plans = active.Select(author => new CapturePlan {
+                author = author, placement = Validate(avatar, author)
+            }).ToArray();
+            if (plans.Length > 0)
             {
-                if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android || GraphicsSettings.currentRenderPipeline != null)
-                    throw new InvalidOperationException(SensaEditorLocalization.Text("Native root capture requires PC Built-in rendering."));
-                if (author.producerId < 1 || author.producerId > 65535 || author.spsTarget == null || !author.spsTarget.transform.IsChildOf(avatar.transform))
-                    throw new InvalidOperationException(SensaEditorLocalization.Text("Choose one SPS target inside this avatar and a producer ID from 1–65535."));
-                var targets = author.spsTarget.GetComponents<Component>().Where(SensaSpsAdapter.IsTarget).ToArray();
-                if (targets.Length != 1) throw new InvalidOperationException(SensaEditorLocalization.Text("The selected object must contain exactly one SPS Socket or Plug."));
-                var rect = author.desktopViewport;
-                if (!Finite(rect.x) || !Finite(rect.y) || !Finite(rect.width) || !Finite(rect.height) || rect.x < 0 || rect.y < 0 || rect.width < .05f || rect.height < .05f || rect.xMax > 1 || rect.yMax > 1)
-                    throw new InvalidOperationException(SensaEditorLocalization.Text("The desktop rectangle must fit within normalized 0–1 bounds."));
-                SensaSensorUtility.Uniform(avatar.transform);
-                var placement = SensaSpsAdapter.ReadRoot(targets[0]);
-                var marker = Child(placement.root, "SensaShaderRoot_" + author.producerId);
-                marker.localPosition = placement.position;
-                marker.localRotation = placement.rotation;
-                BuildNativeRig(avatar, marker, author.producerId, rect);
+                var shader = EnsureShader();
+                foreach (var plan in plans)
+                {
+                    var marker = Child(plan.placement.root, "SensaShaderRoot_" + plan.author.producerId);
+                    marker.localPosition = plan.placement.position;
+                    marker.localRotation = plan.placement.rotation;
+                    BuildNativeRig(avatar, marker, plan.author.producerId, plan.author.desktopViewport, shader);
+                }
             }
             foreach (var author in authors) UnityEngine.Object.DestroyImmediate(author);
         }
 
+        internal static Component ResolveTarget(SensaShaderCapture author)
+        {
+            if (author.target != null) return author.target;
+            if (author.spsTarget != null)
+            {
+                var targets = author.spsTarget.GetComponents<Component>().Where(SensaSpsAdapter.IsTarget).ToArray();
+                if (targets.Length == 1) return targets[0];
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Choose an explicit root target; the saved SPS object must contain exactly one Socket or Plug."));
+            }
+            throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a root target inside this avatar."));
+        }
+
+        internal static SensaSpsAdapter.RootPlacement Validate(GameObject avatar, SensaShaderCapture author)
+        {
+            var target = ResolveTarget(author);
+            if (!BelongsTo(target.transform, avatar.transform))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a root target inside this avatar."));
+            ValidateRig(avatar, author.producerId, author.desktopViewport);
+            var placement = SensaSpsAdapter.ReadRoot(target);
+            if (placement.root == null || !BelongsTo(placement.root, avatar.transform))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
+            return placement;
+        }
+
         public static GameObject BuildNativeRig(GameObject avatar, Transform marker, int producerId, Rect viewport)
+        {
+            if (marker == null || !BelongsTo(marker, avatar.transform))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
+            ValidateRig(avatar, producerId, viewport);
+            return BuildNativeRig(avatar, marker, producerId, viewport, EnsureShader());
+        }
+
+        private static void ValidateRig(GameObject avatar, int producerId, Rect viewport)
+        {
+            if (EditorUserBuildSettings.activeBuildTarget == BuildTarget.Android || GraphicsSettings.currentRenderPipeline != null)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Native root capture requires PC Built-in rendering."));
+            if (producerId < 1 || producerId > 65535)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a producer ID from 1–65535."));
+            if (!Finite(viewport.x) || !Finite(viewport.y) || !Finite(viewport.width) || !Finite(viewport.height)
+                || viewport.x < 0 || viewport.y < 0 || viewport.width < .05f || viewport.height < .05f || viewport.xMax > 1 || viewport.yMax > 1)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("The desktop rectangle must fit within normalized 0–1 bounds."));
+            SensaSensorUtility.Uniform(avatar.transform);
+            if (avatar.transform.Find("SensaShaderCapture_" + producerId) != null)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("A Shader root capture with this producer ID already exists."));
+        }
+
+        private static GameObject BuildNativeRig(GameObject avatar, Transform marker, int producerId, Rect viewport, Shader shader)
         {
             var host = Child(avatar.transform, "SensaShaderCapture_" + producerId).gameObject;
             var rig = Child(host.transform, "Native camera output - verify desktop and HMD").gameObject;
-            var shader = EnsureShader();
             var material = new Material(shader) { name = "Sensa root encoder " + producerId };
             material.SetFloat("_SensaProducerId", producerId);
             var cameraFar = 1f + producerId / 65536f;
@@ -95,30 +129,23 @@ namespace UnityBox.Sensa
             // 几何阶段直接向该视口输出编码，无中间 RT 或第二呈现相机。
             camera.depth = 100; camera.clearFlags = CameraClearFlags.Depth; camera.rect = viewport;
             rig.SetActive(false);
-            SensaSelectionAnimator.Build(avatar, host, "ShaderCapture_" + producerId, new[] { rig }, new[] { SensaEditorLocalization.Text("SPS root code") });
+            SensaSelectionAnimator.Build(avatar, host, "ShaderCapture_" + producerId, new[] { rig }, new[] { SensaEditorLocalization.Text("Root position code") });
             return rig;
         }
 
         private static Shader EnsureShader()
         {
-            var script = AssetDatabase.FindAssets("SensaShaderCaptureBuilder t:MonoScript").Select(AssetDatabase.GUIDToAssetPath)
-                .Single(path => Path.GetFileName(path) == "SensaShaderCaptureBuilder.cs");
-            var template = File.ReadAllText(Path.Combine(Path.GetDirectoryName(script), "SensaRootTelemetry.shader.txt"));
-            string Number(float value) => value.ToString("R", CultureInfo.InvariantCulture);
-            template = template.Replace("__CENTER_X__", Number(SensaFixedAnchorProtocol.CenterX))
-                .Replace("__CENTER_Y__", Number(SensaFixedAnchorProtocol.CenterY)).Replace("__CENTER_Z__", Number(SensaFixedAnchorProtocol.CenterZ))
-                .Replace("__HALF_RANGE__", Number(SensaFixedAnchorProtocol.PositionHalfRange));
-            const string folder = "Assets/SensaShaderCapture";
-            Directory.CreateDirectory(folder);
-            var path = folder + "/NativeRootTelemetry.shader";
-            if (File.Exists(path) && File.ReadAllText(path) != template)
-                throw new InvalidOperationException(SensaEditorLocalization.Text("Generated shader differs; preserve and move it before regenerating:") + path);
-            if (!File.Exists(path)) File.WriteAllText(path, template);
-            AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceSynchronousImport);
-            var shader = AssetDatabase.LoadAssetAtPath<Shader>(path);
-            if (shader == null || ShaderUtil.ShaderHasError(shader)) throw new InvalidOperationException(SensaEditorLocalization.Text("Native root shader did not compile."));
+            // The package generator resolves protocol constants before publishing the asset.
+            // Avatar builds only reference this asset and never write to the project's Assets folder.
+            var shader = AssetDatabase.LoadAssetAtPath<Shader>(ShaderAssetPath);
+            if (shader == null)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Install the complete Sensa package: the native root shader asset is missing.") + " " + ShaderAssetPath);
+            if (ShaderUtil.ShaderHasError(shader))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Native root shader did not compile."));
             return shader;
         }
+
+        private static bool BelongsTo(Transform target, Transform avatar) => target == avatar || target.IsChildOf(avatar);
 
         private static Transform Child(Transform parent, string name)
         {

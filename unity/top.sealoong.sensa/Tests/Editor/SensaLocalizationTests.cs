@@ -118,11 +118,17 @@ namespace UnityBox.Sensa.Tests
                 var path = source.propertyPath;
                 var tokens = source.enumNames.ToArray();
                 Assert.AreEqual("Signal source", SensaInspectorLabels.Label(source).text);
+                Assert.AreEqual("Raycast maximum range (m)", SensaInspectorLabels.Label(aux.FindPropertyRelative("raycastMaxRange")).text);
                 Assert.AreEqual("Enable gate", SensaInspectorLabels.EnumLabel(role.enumNames[role.enumValueIndex]).text);
                 locale.Preference = "zh-CN";
                 Assert.AreEqual("信号来源", SensaInspectorLabels.Label(source).text);
                 Assert.AreEqual("启用门控", SensaInspectorLabels.EnumLabel(role.enumNames[role.enumValueIndex]).text);
                 Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("depthAxis")).tooltip, Does.Contain("朝内"));
+                Assert.AreEqual("Socket 量程（轴局部单位）", SensaInspectorLabels.Label(serialized.FindProperty("socketLength")).text);
+                Assert.AreEqual("接触标签", SensaInspectorLabels.Label(aux.FindPropertyRelative("contactTags")).text);
+                Assert.AreEqual("射线最大距离（米）", SensaInspectorLabels.Label(aux.FindPropertyRelative("raycastMaxRange")).text);
+                Assert.That(SensaInspectorLabels.Label(aux.FindPropertyRelative("raycastMaxRange")).tooltip, Does.Contain("世界空间距离"));
+                Assert.That(SensaInspectorLabels.Label(aux.FindPropertyRelative("raycastOrigin")).tooltip, Does.Contain("+Z"));
                 Assert.AreEqual(path, source.propertyPath);
                 CollectionAssert.AreEqual(tokens, source.enumNames);
                 Assert.AreEqual(before, JsonUtility.ToJson(component));
@@ -138,12 +144,16 @@ namespace UnityBox.Sensa.Tests
             {
                 var capture = host.AddComponent<SensaShaderCapture>();
                 capture.producerId = 42;
+                capture.target = host.transform;
                 var before = JsonUtility.ToJson(capture);
                 var serialized = new SerializedObject(capture);
+                Assert.AreEqual("Target", SensaInspectorLabels.Label(serialized.FindProperty("target")).text);
+                Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("target")).tooltip, Does.Contain("Transform"));
                 Assert.AreEqual("SPS target", SensaInspectorLabels.Label(serialized.FindProperty("spsTarget")).text);
                 Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("spsTarget")).tooltip, Does.Contain("Object containing"));
                 locale.Preference = "zh-CN";
                 Assert.AreEqual("生产端 ID", SensaInspectorLabels.Label(serialized.FindProperty("producerId")).text);
+                Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("target")).tooltip, Does.Contain("骨骼"));
                 Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("desktopViewport")).tooltip, Does.Contain("不保证"));
                 Assert.AreEqual(before, JsonUtility.ToJson(capture));
             }
@@ -155,7 +165,7 @@ namespace UnityBox.Sensa.Tests
             var english = Assert.Throws<InvalidOperationException>(() => SensaSpsAdapter.ReadRoot(null)).Message;
             locale.Preference = "zh-CN";
             var chinese = Assert.Throws<InvalidOperationException>(() => SensaSpsAdapter.ReadRoot(null)).Message;
-            Assert.AreEqual("Choose an explicit SPS root.", english);
+            Assert.AreEqual("Choose a root target: a bone, marker, SPS component or Contact.", english);
             Assert.That(chinese, Does.Contain("请选择"));
             Assert.That(chinese, Does.Not.Contain("Choose"));
             Assert.AreEqual("Sensa/SPS", SensaFixedAnchorProtocol.Prefix);

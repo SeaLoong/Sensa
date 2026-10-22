@@ -140,10 +140,10 @@ namespace UnityBox.Sensa
 
             // ── Validation warnings ───────────────────────────────────
             if (role == BridgeRole.Socket && comp.depthAxis == null)
-                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("depthAxis is not assigned. Contacts will not be generated."), MessageType.Error);
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Assign a depth axis on this avatar before building."), MessageType.Error);
 
             if (role == BridgeRole.Plug && (comp.tipBone == null || comp.rootBone == null))
-                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("tipBone or rootBone is not assigned. Senders will not be generated."), MessageType.Error);
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Assign tip and root bones on this avatar before building."), MessageType.Error);
 
             serializedObject.ApplyModifiedProperties();
         }
@@ -161,7 +161,7 @@ namespace UnityBox.Sensa
             EditorGUILayout.PropertyField(_depthAxis,
                 new GUIContent(SensaEditorLocalization.Text("Depth Axis"), SensaEditorLocalization.Text("Bone defining the insertion axis (+Z = inward).")));
             EditorGUILayout.PropertyField(_socketLength,
-                new GUIContent(SensaEditorLocalization.Text("Socket Length (m)"), SensaEditorLocalization.Text("Max insertion depth in metres.")));
+                new GUIContent(SensaEditorLocalization.Text("Socket range (axis units)"), SensaEditorLocalization.Text("Maximum range along +Z in the selected axis local units. At scale 1, one unit is one metre.")));
             EditorGUILayout.PropertyField(_depthRingCount,
                 new GUIContent(SensaEditorLocalization.Text("Depth Ring Count"), SensaEditorLocalization.Text("Number of proximity rings (1–10).")));
 
@@ -194,53 +194,39 @@ namespace UnityBox.Sensa
 
             if (comp.role == BridgeRole.Socket && comp.depthAxis != null)
             {
-                Handles.color = new Color(0.2f, 1f, 0.4f, 0.7f);
-
-                int   N        = Mathf.Clamp(comp.depthRingCount, 1, 10);
-                float stepSize = comp.socketLength / Mathf.Max(N - 1, 1);
-
-                for (int i = 0; i < N; i++)
+                using (new Handles.DrawingScope(new Color(.2f, 1f, .4f, .7f), comp.depthAxis.localToWorldMatrix))
                 {
-                    float depth  = i * stepSize;
-                    float radius = Mathf.Lerp(0.10f, 0.03f, (float)i / Mathf.Max(N - 1, 1));
-
-                    Vector3 worldPos = comp.depthAxis.TransformPoint(Vector3.forward * depth);
-                    Vector3 worldNormal = comp.depthAxis.forward;
-
-                    Handles.DrawWireDisc(worldPos, worldNormal, radius);
-
-                    // Label entry and deepest
-                    if (i == 0)
-                        Handles.Label(worldPos + Vector3.up * (radius + 0.01f), SensaEditorLocalization.Text("Tip"));
-                    else if (i == N - 1)
-                        Handles.Label(worldPos + Vector3.up * (radius + 0.01f), SensaEditorLocalization.Text("Root"));
+                    int count = Mathf.Clamp(comp.depthRingCount, 1, 10);
+                    float step = comp.socketLength / Mathf.Max(count - 1, 1);
+                    for (int i = 0; i < count; i++)
+                    {
+                        var position = Vector3.forward * (i * step);
+                        var radius = Mathf.Lerp(.10f, .03f, (float)i / Mathf.Max(count - 1, 1));
+                        Handles.DrawWireDisc(position, Vector3.forward, radius);
+                        if (i == 0 || i == count - 1)
+                            Handles.Label(position + Vector3.up * (radius + .01f), SensaEditorLocalization.Text(i == 0 ? "Tip" : "Root"));
+                    }
+                    Handles.DrawLine(Vector3.zero, Vector3.forward * comp.socketLength);
                 }
-
-                // Draw insertion axis line
-                Handles.color = new Color(0.2f, 1f, 0.4f, 0.4f);
-                Vector3 start = comp.depthAxis.position;
-                Vector3 end   = comp.depthAxis.TransformPoint(Vector3.forward * comp.socketLength);
-                Handles.DrawLine(start, end);
             }
-
             if (comp.role == BridgeRole.Plug)
             {
-                Handles.color = new Color(1f, 0.5f, 0.2f, 0.7f);
-                if (comp.tipBone != null)
-                {
-                    Handles.DrawWireDisc(comp.tipBone.position, comp.tipBone.forward, 0.02f);
-                    Handles.Label(comp.tipBone.position + Vector3.up * 0.03f, SensaEditorLocalization.Text("Tip"));
-                }
-                if (comp.rootBone != null)
-                {
-                    Handles.DrawWireDisc(comp.rootBone.position, comp.rootBone.forward, 0.02f);
-                    Handles.Label(comp.rootBone.position + Vector3.up * 0.03f, SensaEditorLocalization.Text("Root"));
-                }
+                DrawPlugMarker(comp.tipBone, "Tip"); DrawPlugMarker(comp.rootBone, "Root");
                 if (comp.tipBone != null && comp.rootBone != null)
                 {
-                    Handles.color = new Color(1f, 0.5f, 0.2f, 0.4f);
+                    Handles.color = new Color(1f, .5f, .2f, .4f);
                     Handles.DrawLine(comp.tipBone.position, comp.rootBone.position);
                 }
+            }
+        }
+
+        private static void DrawPlugMarker(Transform bone, string label)
+        {
+            if (bone == null) return;
+            using (new Handles.DrawingScope(new Color(1f, .5f, .2f, .7f), bone.localToWorldMatrix))
+            {
+                Handles.DrawWireDisc(Vector3.zero, Vector3.forward, .02f);
+                Handles.Label(Vector3.up * .03f, SensaEditorLocalization.Text(label));
             }
         }
 

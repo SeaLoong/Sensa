@@ -1,0 +1,73 @@
+// Generated only for native root capture. Native skinning supplies AvatarRootLocal.
+// 原生蒙皮提供 AvatarRootLocal；每个点只构建一次编码，片元阶段只读取位。
+Shader "Hidden/Sensa/NativeRootTelemetry"
+{
+    Properties { _SensaProducerId("Explicit producer ID", Float)=0 _SensaCameraFar("Capture camera signature",Float)=0 }
+    SubShader { Tags { "Queue"="Overlay+100" "VRCFallback"="Hidden" } Pass {
+        Cull Off ZWrite Off ZTest Always Blend Off
+        CGPROGRAM
+        #pragma target 4.0
+        #pragma vertex vert
+        #pragma geometry geom
+        #pragma fragment frag
+        #pragma exclude_renderers metal
+        #include "UnityCG.cginc"
+        float _SensaProducerId, _SensaCameraFar, _VRChatMirrorMode, _VRChatCameraMode;
+        struct app { float4 vertex:POSITION; };
+        struct v2g { float4 vertex:SV_POSITION; float3 root:TEXCOORD0; };
+        struct g2f { float4 vertex:SV_POSITION; float2 uv:TEXCOORD0; nointerpolation uint4 packet:TEXCOORD1; };
+        v2g vert(app input) { v2g output; output.vertex=float4(0,0,0,1); output.root=input.vertex.xyz; return output; }
+        [maxvertexcount(4)]
+        void geom(point v2g input[1], inout TriangleStream<g2f> stream) {
+            // This is a routing guard, not an authenticated VRChat camera identity.
+            // 仅为渲染路由条件，不是经过认证的 VRChat 相机身份。
+            if(unity_OrthoParams.w<.5 || abs(_ProjectionParams.z-_SensaCameraFar)>.000001 || _VRChatMirrorMode!=0 || _VRChatCameraMode!=0) return;
+            #if defined(USING_STEREO_MATRICES)
+                return;
+            #endif
+            float3 center=float3(0,1,0);
+            float3 normalized=(input[0].root-center)/2;
+            uint producer=(uint)round(_SensaProducerId);
+            bool valid=producer>0u && producer<65536u && all(isfinite(normalized)) && all(abs(normalized)<=1);
+            uint3 p=(uint3)round(saturate(normalized*.5+.5)*65535);
+            uint bytes[16];
+            uint sequence=(uint)floor(_Time.y*60)&65535u;
+            bytes[0]=83;bytes[1]=78;bytes[2]=1;bytes[3]=valid?3u:2u;
+            bytes[4]=sequence&255u;bytes[5]=sequence>>8;
+            bytes[6]=p.x&255u;bytes[7]=p.x>>8;bytes[8]=p.y&255u;bytes[9]=p.y>>8;
+            bytes[10]=p.z&255u;bytes[11]=p.z>>8;bytes[12]=producer&255u;bytes[13]=producer>>8;
+            uint crc=65535u;
+            for(uint i=0;i<14;i++){crc^=bytes[i]<<8;for(uint bit=0;bit<8;bit++)crc=((crc<<1)^((crc&32768u)!=0?4129u:0u))&65535u;}
+            bytes[14]=crc&255u;bytes[15]=crc>>8;
+            uint4 packet;
+            for(uint word=0;word<4;word++) {
+                uint offset=word*4;
+                packet[word]=bytes[offset]|(bytes[offset+1]<<8)|(bytes[offset+2]<<16)|(bytes[offset+3]<<24);
+            }
+            float2 corners[4]={float2(0,0),float2(0,1),float2(1,0),float2(1,1)};
+            for(uint corner=0;corner<4;corner++) {
+                g2f output;output.vertex=float4(corners[corner]*2-1,0,1);
+                output.uv=corners[corner];output.packet=packet;stream.Append(output);
+            }
+            stream.RestartStrip();
+        }
+        float4 frag(g2f input):SV_Target {
+            // Two-module, asymmetric edge bands locate the payload without
+            // spending coordinate bits on alignment. CRC still protects data.
+            uint column=min((uint)(input.uv.x*20),19u),row=min((uint)(input.uv.y*12),11u);
+            uint value;
+            if(row<2u) value=((0xD3A6Bu>>column)&1u)^row;
+            else if(row>=10u) value=((0x69C57u>>column)&1u)^(row-10u);
+            else if(column<2u) value=((0xA5u>>(row-2u))&1u)^column;
+            else if(column>=18u) value=((0x6Eu>>(row-2u))&1u)^(column-18u);
+            else {
+                column-=2u;row-=2u;
+                uint bit=((column&3u)*8u)+row;
+                value=(input.packet[column>>2]>>bit)&1u;
+            }
+            return float4(value.xxx,1);
+        }
+        ENDCG
+    }}
+    Fallback Off
+}

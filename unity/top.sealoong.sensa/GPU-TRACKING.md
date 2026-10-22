@@ -1,4 +1,4 @@
-# SPS Shader 根点捕获与模型诊断
+# Shader 根点捕获与 SPS 模型诊断
 
 **简体中文** | [English](GPU-TRACKING.en.md)
 
@@ -14,19 +14,19 @@ Inspector、帮助和错误文字跟随 Sensa 编辑器语言偏好；菜单注�
 
 ## 原生根点路径
 
-流程：所选 Socket／Plug 根点 → 黑白坐标图块 → 指定桌面捕获区域 → Python 桥 → Sensa OSC。
+流程：所选骨骼／标记／SPS 根点 → 黑白坐标图块 → 指定桌面捕获区域 → Python 桥 → Sensa OSC。
 
 生成的相机请求不向双眼输出（`None`）；桌面上是否能看到图块、头显中是否不显示图块，仍需在实际客户端分别检查。
 
-作者端 `SensaShaderCapture` 是 IEditorOnly。NDMF 构建时读取安装版本 VRCFury 的根部位置/旋转，生成一个 Camera、单点 SkinnedMeshRenderer 和编码材质，并移除作者组件。上传后不运行普通 MonoBehaviour 回读器、EditorWindow 或 Udon。不需要把 VRCFury Shader 源码复制到包中。
+作者端 `SensaShaderCapture` 实现 `IEditorOnly`。统一的 NDMF 生成入口在 MA 合并前读取 Target 的根点位置／旋转，生成一个 Camera、单点 SkinnedMeshRenderer 和编码材质，再移除作者脚本，保留原生渲染组件。Target 可选当前 Avatar 的 Transform、SPS、Sensa Component 或原生 Contact。[构建阶段与官方依据](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)
 
 ### 设置
 
-1. 安装[包依赖](COMPATIBILITY.md)及官方 VRCFury SPS。使用 PC、Built-in Render Pipeline 和支持 geometry shader 的图形后端；Android、Metal 不支持此路径。先不要配置硬件输出。
-2. 在 Avatar 内添加 **Sensa → Shader Root Capture (Experimental)**。将 `Sps Target` 指向包含一个 VRCFury SPS Socket 或 Plug 的对象。位置来自适配器的实际根部 API，不使用近接 Contact 半径估计。
+1. 安装[包依赖](COMPATIBILITY.md)。选择 SPS 作者目标时另装官方 VRCFury；骨骼／Transform、Sensa 或原生 Contact 可直接使用。使用 PC、Built-in Render Pipeline 和支持 geometry shader 的图形后端；Android、Metal 不支持此路径。先观察捕获结果。
+2. 从 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`。将 `Target` 指向所需骨骼／空物体 Transform、SPS、Sensa Component 或原生 Contact。位置读取其明确的根点参照。
 3. 设置唯一的 `Producer Id`（1–65535），例如 42；此值必须与桌面桥固定值相同。它只是本地协议标识，不是 VRC 用户身份。
 4. `Desktop Viewport` 是归一化屏幕区域，默认 (0,0,0.25,0.15)。需要先在实际客户端找到完整黑白图块，再确定桌面像素 ROI；不要直接把这四个归一化值传给 Python。
-5. 正常构建 Avatar。生成 Shader 位于 `Assets/SensaShaderCapture`。升级时，`NativeRootTelemetry.shader` 可能仍为旧格式，构建会因内容不同而停止。先确认文件所有权，备份并移走旧生成文件，再重新构建以生成当前编码器；如有自定义编辑，另外保留，不要直接删除。生成器不会覆盖这些编辑。桌面程序和桥应一起更新，并重建捕获注册。
+5. 正常构建 Avatar 或使用 NDMF 处理后预览。构建引用包内 `Runtime/Shaders/SensaRootTelemetry.shader`，临时网格与材质交由构建流程保存。更新组件包、桌面程序和桥后重新构建，并检查捕获注册。旧设置中的 `Sps Target` 对象引用仍可读取；更新设置时在 `Target` 确认具体组件。
 6. 在表达菜单 **Sensa ShaderCapture_42** 显式选择根点编码项，标题跟随作者所选语言。默认关闭，只有本地穿戴者允许开启；关闭菜单会停止 rig。
 7. 分别确认 PC 桌面窗口是否出现图块、VR 双眼是否出现不希望的画面。None-eye Camera 表达 Unity 眼目标设置，不能代替 VRChat 的实际合成验收。不存在“任意隐藏层都能被桌面抓到”的保证。
 

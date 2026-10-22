@@ -16,7 +16,7 @@ namespace UnityBox.Sensa
         public static void ProcessAvatar(GameObject avatar)
         {
             var all = avatar.GetComponentsInChildren<SensaQuickStart>(true);
-            var enabled = all.Where(c => c.enabled && c.gameObject.activeInHierarchy).ToArray();
+            var enabled = all.Where(c => c.enabled).ToArray();
             if (enabled.Length > 1) throw new InvalidOperationException(SensaEditorLocalization.Text("Only one Sensa Quick Start World Receiver is allowed per avatar."));
             if (enabled.Length == 1) Build(avatar);
             foreach (var component in all) UnityEngine.Object.DestroyImmediate(component);

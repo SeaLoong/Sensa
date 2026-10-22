@@ -1,4 +1,3 @@
-using System;
 using UnityEngine;
 using VRC.SDKBase;
 
@@ -9,9 +8,9 @@ namespace UnityBox.Sensa
     public sealed class SensaContactRootProbe : MonoBehaviour, IEditorOnly
     {
         public string instanceName = "Root";
-        [Tooltip("Explicit SPS Socket, Plug, Sensa Component or native Contact root center.")]
+        [Tooltip("Root target: Avatar bone/marker Transform, SPS Socket/Plug, Sensa component or native Contact.")]
         public Component target;
-        [Tooltip("Unique per target; regenerate after duplicating an author.")]
-        public string collisionChannel = Guid.NewGuid().ToString("N");
+        [Tooltip("Leave empty to derive a dedicated channel from the unique instance name. Set an explicit unique channel when needed.")]
+        public string collisionChannel = "";
     }
 }
