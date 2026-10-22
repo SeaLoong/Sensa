@@ -1,38 +1,50 @@
 # Screenshot baseline review / 截图基线评审
 
-The set contains **122 PNGs**: 61 desktop and 61 narrow-layout images. The current update accepts **44 intentional changes** for “SPS 四点定位 / SPS four-anchor tracking”. The remaining **78 PNGs** retain their existing bytes and [previous review history](https://github.com/SeaLoong/Sensa/blob/dcdb7faa8a8a381cf248368cd9d4a07a1ffdedb9/tests/e2e/__screenshots__/README.md).
+The set contains **134 PNGs**: 67 desktop and 67 narrow-layout images. The current computed-signal update selects **14 new/changed images**, seven per viewport. The remaining **120 PNGs** retain their existing bytes. Earlier SPS naming, Contact and parameter-diagram reviews remain in the [previous record at `bf22484`](https://github.com/SeaLoong/Sensa/blob/bf224841e904abe3af51044b117b75f19a8e76ff/tests/e2e/__screenshots__/README.md).
 
-当前共 **122 张 PNG**，桌面与窄屏各 61 张。本轮选择 **44 张有意的文案变化**；另外 **78 张**保留原字节及上述历史评审。
+当前共 **134 张 PNG**，桌面与窄屏各 67 张。本轮计算信号改进选择 **14 张新增／变化图片**，各视口 7 张；另外 **120 张**保留原字节。此前 SPS 命名、Contact 与参数图解的审阅见上述固定历史。
 
 ## Capture and individual inspection / 采集与逐张审阅
 
-[Candidate run 39821880631, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39821880631/attempts/2) generated images from source `dcdb7faa8a8a381cf248368cd9d4a07a1ffdedb9`, passing **80/80 cases** in candidate mode. Image commit `a5e3173ec7a49dfe4eac6a0c44db28f818914638` proposed 47 changed PNGs in [PR #17](https://github.com/SeaLoong/Sensa/pull/17).
+[Candidate run 39838949791, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39838949791/attempts/1) generated images from source `9dc7de27645fb484fa52711656bf31b05ff3f84a`, passing **88/88 cases**, every other outcome zero. It used complete selection, `selectionComplete=true` and candidate mode with `snapshotsCompared=false`. Original image head `ea15168fd5c238e9fc894d09cac4454ef5d37f66` proposed 19 new/changed PNGs in [PR #18](https://github.com/SeaLoong/Sensa/pull/18).
 
-Coding assistants individually opened **all 47 new candidate PNGs** on **2026-10-23 (Beijing time)**, checking [V1–V6](../../../docs/ui-quality.en.md). Three Contact images contained only live-speed or edge-antialias variation; `6787b0f20cdc44e5bbc08b7054cccb7c810ca563` restores their original baselines. The 44 selected images keep the candidate bytes:
+Coding assistants individually opened **all 19 new/changed candidate PNGs** on **2026-10-23 (Beijing time)**, checking [V1–V6](../../../docs/ui-quality.en.md). Comparisons with previous images also covered the five unrelated changes restored below. The selected 14 images retain their candidate bytes:
 
-- **40 parameter diagrams**: Plug Touch, SPS four-anchor tracking, Shader, SPS1 and SPS2 × Chinese/English × XZ/orbit × desktop/narrow layout. New names, Socket/Plug root explanations, parameter ordering, units, controls and footer wrapping remain readable.
-- **4 help dialogs**: Chinese and English in both viewports. Root tracking now names SPS four-anchor tracking and describes the Socket/Plug root measurement; the main actions and emergency stop remain clear.
+- **12 new computation images**: editor, input choices and settings × Chinese/English × desktop/narrow layout. Names, operations, inputs, weights, validity settings, saved-result state and map/save actions remain readable.
+- **2 updated mappings pages**: desktop and narrow layout. The computation area and explicit input-type controls preserve the mapping workflow and responsive field layout.
 
-上述第 2 次候选采集 **80/80 通过**，原图片提交向 PR #17 提议 47 张变化图片。代码助手于 **2026-10-23（北京时间）**逐张打开全部 **47 张新候选图**。其中 3 张 Contact 图仅有实时速度读数或坐标轴边缘抗锯齿波动，筛选提交恢复其原基线；实际选择 **40 张参数图与 4 张帮助图**，桌面与窄屏各 22 张。新名称、Socket／Plug 根点说明、参数排序、单位、控件与页尾换行均可读，未发现新增阻断或主要视觉问题。
+上述候选采集固定同一源码，**88/88 通过**，其余结果均为 0；完整选择，`selectionComplete=true`、`snapshotsCompared=false`。原图片提交向 PR #18 提议 19 张新增／变化图。代码助手于 **2026-10-23（北京时间）**逐张打开全部 **19 张候选**并按 V1–V6 审阅，同时对照了下述五张无关变化的旧图。实际选择 **12 张新增计算编辑器／输入／设置图与 2 张映射页图**，各视口 7 张，保留候选字节。
+
+## Unrelated variations retained from the previous set / 恢复原图的无关变化
+
+| Image | Observed difference | Selection |
+| --- | --- | --- |
+| `desktop/english-help.png` | 36 edge pixels; text, layout and controls unchanged | Restore previous bytes |
+| `mobile/contact-root-position.png` | Live relative Z velocity and speed changed from 0.250 to 0.200 m/s, 198 pixels; position and layout unchanged | Restore previous bytes |
+| `mobile/parameter-geometry-contact-sdk-zh-CN.png` | Four edge/text pixels; content unchanged | Restore previous bytes |
+| `mobile/parameter-geometry-socket-modern-en-US.png` | Two edge/text pixels; content unchanged | Restore previous bytes |
+| `mobile/parameter-geometry-socket-modern-orbit-zh-CN.png` | One edge/text pixel; content unchanged | Restore previous bytes |
+
+以上五张已恢复原基线：桌面英文帮助仅 36 个边缘像素变化；窄屏 Contact 图仅实时速度 0.25→0.20 m/s，共 198 像素；其余三张参数图分别只有 4、2、1 个像素变化，文字、图形与布局保持一致。筛选提交为 `7644507`，同时包含已通过单元检查的语言标签刷新 `5c32f38` 与通配符零段兼容 `b176897`。
+
+## Visual observations / 视觉观察
+
+V1–V6 review found no new blocking or major issue. Main tasks, draft/saved-result status and actions have a clear order; input/weight groups and settings remain distinct; numeric units, field alignment and focusable controls stay readable in both languages and viewports. Long content scrolls within the normal page flow. English counts currently show `1 mappings` (existing) and `1 calculations` (new), a wording detail retained for follow-up.
+
+V1–V6 检查未发现新增阻断或主要问题。主任务、草稿／已保存结果与操作的层级清楚；输入、权重与设置分组明确；数值单位、字段对齐和控件在中英及两种视口均可读。长页面正文正常滚动。英文计数仍为 `1 mappings`（既有）与 `1 calculations`（新增），记录为后续文案细节。
 
 ## Full normal comparison / 完整普通比较
 
-[Run 39825612644, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39825612644/attempts/2) passed **80/80 cases** on the filtered PR tree, with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`; every other outcome is zero. Its pinned source is `12dab3f00fbb05f6e97b34b3f3d1a5864ab48d55`, whose Git tree matches filtered image head `6787b0f20cdc44e5bbc08b7054cccb7c810ca563` exactly. The baselines are accepted after individual inspection and this full normal comparison.
+Full normal comparison of filtered head `7644507` remains pending. The selected images have completed individual inspection; **final baseline acceptance is pending** until the filtered application passes complete normal comparison with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`.
 
-上述第 2 次运行针对筛选后的 PR，关闭图片更新，完整普通比较 **80/80 通过**，其余结果均为 0。固定提交的 Git 树与筛选后的图片提交完全一致，`selectionComplete=true`、`snapshotsCompared=true`。本轮基线经逐张审阅及此次完整比较后接受。
+筛选提交 `7644507` 的完整普通比较尚待完成。已选择的图片均经过逐张审阅；待筛选后应用关闭图片更新、完成 `selectionComplete=true`、`snapshotsCompared=true` 的完整普通比较后，再最终接受本轮基线。
 
-Candidate attempt 2 has `selectionComplete=true`, `snapshotsCompared=false`; every outcome other than passed is zero. Attempt 1 and the initial main comparison reached the five-minute dependency-install limit before browser cases ran. The retry preserves the same source and browser/font environment.
+The earlier [normal run 39838933199](https://github.com/SeaLoong/Sensa/actions/runs/39838933199) on `9dc7de2` reported **8 passed, 3 failed and 77 unrun** out of 88, every other outcome zero, with `snapshotsCompared=true`. Failures were two new baseline files missing and the existing mappings-page image changing; it did not complete the suite. The initial [candidate run 39837678118](https://github.com/SeaLoong/Sensa/actions/runs/39837678118/attempts/1) on `9e700cf` reported **2 passed, 3 failed and 83 unrun**, every other outcome zero; field locators were corrected from textbox-role lookup to labels while preserving behavior assertions.
 
-第 2 次候选采集为完整选择，候选模式不作普通图片比较，其余结果均为 0。第 1 次候选与最初的 main 比较在依赖安装阶段达到 5 分钟上限，浏览器未执行；重试使用相同源码与浏览器／字体环境。
-
-## Existing layout details / 既有排版细节
-
-Old-image comparisons confirm these details predate this naming change: SPS XZ P1/P3 labels sit close together; compact anchor coordinates use one decimal; Shader `ID 42` can wrap on narrow layouts. The parameter tables and three-dimensional views retain the full values and labels; exact anchor geometry remains in the protocol and positioning guide.
-
-旧图对照确认以下细节为此前已有：SPS 平面图 P1／P3 标签较近、紧凑锚点坐标仅显示一位小数、窄屏 Shader 的 `ID 42` 可能分行。参数表与三维视图保留完整读数和标记，精确锚点几何见协议与定位指南。
+此前 `9dc7de2` 的普通运行总计 88 项，**8 通过、3 失败、77 未执行**，其余结果均为 0，`snapshotsCompared=true`；失败为两张新增基线缺失与原映射页变化，套件未完整执行。首轮 `9e700cf` 候选为 **2 通过、3 失败、83 未执行**，其余结果均为 0；已将字段定位从 textbox 角色改为标签，保留原有行为断言。
 
 - Environment / 环境: `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844, with additional automated 320 CSS px reflow checks.
 - Execution / 执行: browser tests and image generation run in GitHub Actions; image inspection reads those actual PNGs. / 浏览器与截图生成在 Actions 执行，审阅读取上述实际 PNG。
-- Scope / 范围: isolated browser behavior and static visual review. Unity Editor, VRChat, real GPU capture and hardware interactions receive separate acceptance; Unity EditMode contracts are written and remain unexecuted. / 本次覆盖隔离浏览器与静态图，Unity Editor、VRChat、真实 GPU 捕获与设备联动分别验收；Unity EditMode 契约已编写，尚未执行。
+- Scope / 范围: isolated browser behavior and static visual review. Unity Editor, VRChat, real GPU capture and hardware interactions receive separate acceptance. / 本次覆盖隔离浏览器与静态图，Unity Editor、VRChat、真实 GPU 捕获与设备联动分别验收。
 
 [Current verification / 当前验证](../../../docs/e2e-status.en.md) · [中文记录](../../../docs/e2e-status.md) · [E2E maintenance / E2E 维护](../../../docs/e2e.en.md)
