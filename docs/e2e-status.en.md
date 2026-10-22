@@ -6,7 +6,19 @@ This page retains inspected runs; read each commit's [Actions](https://github.co
 
 ## SPS four-anchor tracking naming
 
-On 2026-10-23 (Beijing time), public names are standardized as “SPS 四点定位” and “SPS four-anchor tracking” across application help, root types, the parameter explorer, Unity menus and bilingual documentation. Actual candidate capture, individual image inspection and full normal comparison results will be recorded here after completion.
+On 2026-10-23 (Beijing time), public names are standardized as “SPS 四点定位” and “SPS four-anchor tracking” across application help, root types, the parameter explorer, Unity menus and bilingual documentation.
+
+Isolated local checks passed: **126 Web** and **237 Python** tests, Unity package metadata and an **80-page documentation build**. New installer tests use fake APT to check source selection, retries and failure exits.
+
+| Commit | Scope | Run | Inspected outcome |
+| --- | --- | --- | --- |
+| `dcdb7fa` | Full candidate capture | [39821880631, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39821880631/attempts/2) | **80/80 passed**, every other outcome zero; complete selection, candidate mode, images exported to PR #17 |
+| `12dab3f` | Filtered full normal comparison | [39825612644, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39825612644/attempts/2) | **80/80 passed**, every other outcome zero; complete selection, normal screenshot comparison, `snapshotsCompared=true` |
+| `dcdb7fa` | Documentation site checks and deployment | [39821827672](https://github.com/SeaLoong/Sensa/actions/runs/39821827672) | **8/8 passed**, every other outcome zero; new names and bilingual build guide checked, automatic deployment succeeded |
+
+PR #17's original image commit `a5e3173` proposed 47 changed candidates; coding assistants individually opened all 47. The selected set contains **44 intentional text changes**: 40 parameter diagrams and four help dialogs, 22 desktop and 22 narrow-layout images. Three Contact images with only live-speed or edge-antialias variation retain their original baselines; **78 PNGs** keep their existing bytes. New names, Socket/Plug root explanations, units, long parameter names and controls remain readable, with no new blocking or major visual issue. [Inspection scope and existing details](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
+
+Filtered image commit `6787b0f20cdc44e5bbc08b7054cccb7c810ca563` has the same Git tree as comparison source `12dab3f00fbb05f6e97b34b3f3d1a5864ab48d55`. Baselines are accepted after individual inspection and full normal comparison, with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`. The first candidate, initial main comparison and first PR comparison reached the five-minute dependency-install limit before browser cases ran; each retry pins its own unchanged commit. The shared installer now refreshes only the required Ubuntu indexes with two bounded attempts; see [development and releases](development.en.md) for the budgets.
 
 ## Unity authoring components and build pipeline
 
@@ -33,11 +45,11 @@ On 2026-10-22, isolated local checks passed: **126 Web**, **434 backend** and **
 
 Full application cases cover Contact metre-position calibration, stationary zero velocity, speed calibration, actual mock Depth/V0 transport output, and stops after contact loss or a frozen activity counter. Explorer cases check all twelve fields, ordering, independent position/velocity controls, boundaries and Sample invalidity, alongside SPS four-anchor/Shader regressions. The separate site-only selection contains 8 cases.
 
-## Image inspection
+## Contact SDK image inspection
 
 Image commit `9166f82` contains **122 PNGs**. Coding assistants individually opened and reviewed **56 new/changed images**: 28 desktop and 28 narrow-layout images, covering 48 bilingual parameter diagrams and 8 application images. The remaining 66 PNGs retain their bytes. No blocking or major visual issue was found; desktop velocity-unit wrapping is recorded as a layout detail. [Image provenance and review](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
-Normal comparison uses PR merge commit `1d46aa95e8512912fd97333b368bcf717aaf675e`, whose Git tree matches image commit `9166f82e4142bc38748bb9bb7dd70bd2383e7f5e` exactly. Image updates were disabled, `selectionComplete=true` and `snapshotsCompared=true`; baselines passed individual inspection and full comparison. Attempt 1 reached its 25-minute limit during dependency installation before browser cases ran; attempt 2 passed on the same commit. Subsequent browser/candidate workflows give installation a five-minute budget, 30-second network timeout and two retries.
+Normal comparison uses PR merge commit `1d46aa95e8512912fd97333b368bcf717aaf675e`, whose Git tree matches image commit `9166f82e4142bc38748bb9bb7dd70bd2383e7f5e` exactly. Image updates were disabled, `selectionComplete=true` and `snapshotsCompared=true`; baselines passed individual inspection and full comparison. Attempt 1 reached its 25-minute limit during dependency installation before browser cases ran; attempt 2 passed on the same commit. See [development and releases](development.en.md) for the current installation policy.
 
 ## Acceptance scope
 
