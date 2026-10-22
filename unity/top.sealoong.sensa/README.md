@@ -27,7 +27,7 @@ The historical VPM index may offer an older package. Development previews do not
 
 New automatic setups use Exclusive, initially Off. Dedicated permits simultaneous measurements. Target selection, native SPS activation, desktop input activation and device connection are separate controls.
 
-## What does fixed SPS generate?
+## What does four-anchor tracking generate?
 
 `Sensa/SPS/<id>/P0` through `P3` are four Proximity values; `Sample` is 0 when invalid and advances through n/32 (n=1…32) while active. Four known noncoplanar anchors reconstruct a local point. They share center (0,1,0), half-span 0.35, receiver radius 2 and dedicated marker radius 0.001. Only Self is generated, at five Contacts per target.
 

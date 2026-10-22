@@ -2,7 +2,7 @@
 
 **简体中文** | [English](lab-workflow.en.md)
 
-Avatar／World Lab 用于开发场景和核对测量行为。日常接入可先选[OGB、固定 SPS 根点或 Shader](usage-scenarios.md)。使用自己的 Unity 工程和授权资源，通过 SDK 构建与私有上传。初始保持输入关闭、输出为空。
+Avatar／World Lab 用于开发场景和核对测量行为。日常接入可先选[OGB、四点定位、Contact 直接定位或 Shader](usage-scenarios.md)。使用自己的 Unity 工程和授权资源，通过 SDK 构建与私有上传。初始保持输入关闭、输出为空。
 
 ## 准备和入口
 
@@ -22,12 +22,13 @@ FullFlow 已包含内部 QuickStart 与实验组件，不重复添加。道具�
 | 合成标量 | START HERE 五档／STOP、手腕 QuickStart 的参数和控制条件 | 比较各档数值，确认 STOP 与条件关闭后的停止 |
 | 原生 PB | Stretch 拉伸值与 IsGrabbed 抓取状态 | 抓取后拉伸，松手确认动作停止 |
 | OGB / SPS | SPS2 · PenOthersNewRoot / PenOthersNewTip，或 SPS1 · PenOthers / PenOthersClose | 固定对象与来源，先分开再靠近，检查深浅趋势和 Close 接近状态 |
-| 固定根点 | 专用根、P0–P3、变化 Sample 和两端校准 | 沿单轴移动，检查局部坐标方向及样本失效后的停止 |
+| 四点定位 | 专用根、P0–P3、变化 Sample 和两端校准 | 沿单轴移动，检查局部坐标方向及样本失效后的停止 |
+| Contact 直接定位（SDK Beta） | 另行添加 `SensaContactRootProbe` 并按 [Contact 设置](contact-sdk.md)配置专用自身根点；观察米制 XYZ、m/s 相对速度、`Radius`、`Sample` 与 `Proximity_SenderType=1`（Self） | 校准位置或速度，检查离开接收区及 Sample 停更后的停止 |
 | Shader | 原生图块、捕获区域、对象 ID、CRC 与推进 Frame | 移动所选根，检查解码位置；遮住或冻结图块，检查失效 |
 
 合成阶梯按实际参数**手动配置** Depth／GateEnable。完成实验后，将这些路径和条件替换为实际联动参数。PB 模板中的 MyPB 使用 Avatar 上的 PhysBone 前缀。
 
-OGB 使用深度或振动模板；根据 Avatar 设置开启发往 VRChat 接收端的 OGB 心跳。固定根通过 Dedicated／Exclusive 生成，使用 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 五字段。
+OGB 使用深度或振动模板；根据 Avatar 设置开启发往 VRChat 接收端的 OGB 心跳。四点定位通过 Dedicated／Exclusive 生成，使用 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 五字段。
 
 原生 Shader 是单 Camera、真实 CPU 根与非零 ID，经明确 ROI 发 `Sensa/Shader/<id>`。FullFlow 合成码和 Editor Model Probe PNG 使用 `Sensa/Diagnostics/Shader/0` 检查编码、捕获和传输。[Shader 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)
 
@@ -36,7 +37,8 @@ OGB 使用深度或振动模板；根据 Avatar 设置开启发往 VRChat 接收
 关闭输入，清理上一组映射／门控，保存，核对实际模式、来源、有效性，再明确启用。分别核对以下采样时间规则：
 
 - 旧 Point／Handle／Pose 检查最旧参与通道，Handle 包括抓取。
-- 固定 SPS 检查变化 Sample，默认 1000 ms、上限 1250 ms；静止 P 可缓存。
+- 四点定位检查变化 Sample，默认 1000 ms、上限 1250 ms；静止 P 可缓存。
+- Contact 直接定位检查变化 Sample，寿命最多 1000 ms，较短的正数输入超时优先；其余有效条件满足时，零坐标和零速度保持有效。
 - Shader 桥默认 350 ms 冻结，桌面 Frame 变化上限 500 ms。
 
 `tools/unity-world-lab/sensa-preview.json` 为内部预览配置了 500 ms。检查时同时记录样本变化时间、几何残差和实际设备行程。[定位条件](positioning.md)

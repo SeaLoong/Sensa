@@ -2,29 +2,31 @@
 
 **简体中文** | [English](e2e-status.en.md)
 
-此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。检查顺序、发布和维护方式见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
+此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
 ## Contact SDK 适配
 
-2026-10-22，本地隔离检查已通过：Web **126 项**、后端 **434 项**、Python **228 项**，另有 Unity 包元数据检查和 **76 个文档页面**构建。新增浏览器用例覆盖 Contact 米制位置／速度校准、Depth／V0 映射、接触离开与活动冻结停止，以及双语参数图解。[功能与 SDK 依据](contact-sdk.md)
+2026-10-22，本地隔离检查通过：Web **126 项**、后端 **434 项**、Python **228 项**，另有 Unity 包元数据检查和 **76 个文档页面**构建。[功能与官方 SDK 依据](contact-sdk.md)
 
 | 提交 | 范围 | 运行 | 核对结果 |
 | --- | --- | --- | --- |
-| `23a638a` | 文档站 E2E 与部署 | [39789193609](https://github.com/SeaLoong/Sensa/actions/runs/39789193609) | 8 项全部通过，其余结果均为 0；Contact 新图解与指南入口已检查，自动部署成功 |
-| `23a638a` | 完整普通 E2E 比较 | [39789193521](https://github.com/SeaLoong/Sensa/actions/runs/39789193521) | 共 80 项：6 通过、3 失败、71 未执行，其余结果均为 0；单元通过，截图基线差异阻止后续构建／发布 |
-| `23a638a` | 手动候选采集 | [39789208758](https://github.com/SeaLoong/Sensa/actions/runs/39789208758) | 共 80 项：40 通过、3 失败、37 未执行，其余结果均为 0；单元通过，失败阻止导出候选和创建 PR |
+| `8e77ba4` | 完整候选采集 | [39792231646](https://github.com/SeaLoong/Sensa/actions/runs/39792231646) | **80/80 通过**，其余结果均为 0；完整选择，候选模式，图片导出及 PR #16 创建成功 |
+| `1d46aa9` | 完整普通比较与六平台构建 | [39794320594](https://github.com/SeaLoong/Sensa/actions/runs/39794320594/attempts/2) | **80/80 通过**，其余结果均为 0；第 2 次尝试完成完整普通比较，六平台构建／隔离冒烟、Windows Shader 桥回放与 Unity 打包均通过 |
+| `8e77ba4` | 文档站检查与自动部署 | [39792230278](https://github.com/SeaLoong/Sensa/actions/runs/39792230278) | **8/8 通过**，其余结果均为 0；Contact 图解／指南入口已检查，自动部署成功 |
 
-普通比较最先报告三处基线变化：帮助图从 560×582 变为 560×642（13,255 像素不同），以及新增的 `contact-root-position.png`、`contact-root-speed.png` 尚无基线。后续 71 个未执行项保留待检查状态。
+完整应用用例覆盖 Contact 米制位置、静止零速与速度量程校准，Depth／V0 的实际模拟传输输出，接触离开及活动计数冻结后的停止。参数图解检查完整十二字段、排序、独立位置／速度控件、边界与 Sample 失效，并保留四点定位及 Shader 回归。站点专用选择独立记为 8 项。
 
-候选采集发现两类测试配置需要同步：桌面／移动端速度用例使用了只启用 L0 的 UDP 配置，现改用现有纯振动 Intiface 模拟端检查 V0；英文预设数量从 3 更新为 5，并检查两项新增预设名称。完整候选和普通比较将在修正提交上重跑。
+## 图片审阅
 
-## 图片审阅与验收范围
+候选提交 `9166f82` 共 **122 张 PNG**。代码助手已逐张打开并审阅 **56 张新增／变化图片**：桌面与窄屏各 28 张，包含 48 张双语参数图及 8 张应用图；其余 66 张字节未变。未发现阻断或主要视觉问题。桌面速度单位单独换行的排版细节已记录。[图片来源与评审](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
-当前已接受的截图来源仍见[截图评审记录](https://github.com/SeaLoong/Sensa/blob/c9662166cf115d5e123ef3b47dcd8bb317be1cc5/tests/e2e/__screenshots__/README.md)。本轮增加 Contact 场景和位置／速度诊断图，候选完成后逐张检查变化图片，再运行完整普通比较并更新记录。
+普通比较使用的 PR 合并提交 `1d46aa95e8512912fd97333b368bcf717aaf675e`，其 Git 树与图片提交 `9166f82e4142bc38748bb9bb7dd70bd2383e7f5e` 完全一致。此次普通比较关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true`，基线已通过逐张审阅与完整比较。第 1 次尝试在依赖安装阶段达到 25 分钟上限，浏览器用例未执行；第 2 次尝试使用相同提交并通过。后续浏览器／候选工作流已为安装步骤设置 5 分钟预算、30 秒网络等待和 2 次重试。
 
-浏览器用例使用隔离配置与模拟传输。实际 Beta SDK 的 Unity／VRChat、OSC 链路、真实 GPU 捕获、实体触屏和设备联动另行验收；Unity EditMode 契约已编写，尚未执行 Unity Editor。可访问性明细保留在各次运行报告中。
+## 验收范围
 
-此前四点定位与 Shader 的 74 项比较、六平台构建／冒烟和自动预发布结果见[固定历史记录](https://github.com/SeaLoong/Sensa/blob/3821bc876b0e5d9bbc16c515e83754a18c555841/docs/e2e-status.md)，历史视觉评审见[存档](ui-visual-review.md)。
+浏览器用例使用隔离配置与模拟传输。实际 Beta SDK 的 Unity／VRChat、OSC 发布、真实 GPU 捕获、实体触屏和设备联动另行验收；Unity EditMode 契约已编写，尚未执行 Unity Editor。可访问性明细保留在各次运行报告中。
+
+本轮首轮失败及修正依据见[固定记录](https://github.com/SeaLoong/Sensa/blob/3eb67db15cbf36c31e69ada8bafa3a46d9d6f02c/docs/e2e-status.md)：速度用例改用纯振动模拟端，英文预设检查同步为五项，新增图片经过本轮采集与审阅。此前 74 项套件及发布见[历史验证](https://github.com/SeaLoong/Sensa/blob/3821bc876b0e5d9bbc16c515e83754a18c555841/docs/e2e-status.md)，更早视觉评审见[存档](ui-visual-review.md)。
 
 ## 后续记录
 

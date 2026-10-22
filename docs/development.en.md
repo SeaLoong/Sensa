@@ -59,7 +59,7 @@ Use change titles that describe an observable user benefit. Generated notes use 
 
 ## Where should I look after a failure?
 
-Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. See the [verification record](e2e-status.en.md) for recorded outcomes. Cases suppressed by the failure limit are recorded as unrun. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
+Open the Actions run, then inspect failing steps and the Job summary. Font/mock-runtime installation in browser and candidate workflows has a five-minute step budget, a 30-second APT network timeout and two retries. Installation failures stop downstream tests; retry that run when needed. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. See the [verification record](e2e-status.en.md) for recorded outcomes. Cases suppressed by the failure limit are recorded as unrun. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
 
 Native builds run the generated program with isolated smoke configuration; Windows also runs shader-bridge mock replay. The publisher creates a draft, uploads files and verifies names, sizes and SHA-256 hashes. Failed uploads retain a draft for investigation. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
 

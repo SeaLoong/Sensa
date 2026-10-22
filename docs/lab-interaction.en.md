@@ -42,7 +42,7 @@ Paired Pose/PB experiments retain these sample labels, not device axes or travel
 
 Tetrahedra use P1–P4; eight-point arrays use C1–C8. C1–C4 reuse red/blue/green/yellow but differ spatially: P2 is not C2. Measure plug shows Palm/Plug-handle P frames; Socket uses C arrays, with Root/Tip/Side sharing locations but separate paths. Independent PB frames also use P.
 
-New Sensa SPS uses **P0–P3 fixed under the Avatar root** and a dedicated moving marker, colored blue/teal/purple/rose. Neither old C arrays nor their A0–A3 subset are those anchors. Lists retain real paths; L/R/V/A remain device-command axes.
+Four-anchor tracking uses **P0–P3 fixed under the Avatar root** and a dedicated moving marker, colored blue/teal/purple/rose. Neither old C arrays nor their A0–A3 subset are those anchors. Lists retain real paths; L/R/V/A remain device-command axes.
 
 ![Legacy probe centers/colors](images/probe-colors.png)
 
@@ -50,4 +50,4 @@ New Sensa SPS uses **P0–P3 fixed under the Avatar root** and a dedicated movin
 
 Build/ClientSim checks can establish menus, placement, reset and generated controllers, not uploaded Avatar OSC, HMD grabbing or hardware. Legacy spatial motion defaults blocked; channel count/low residual proves neither common Sender nor atomic frames.
 
-New fixed roots have their own geometry/Sample and still require opt-in, calibration and stop checks. Lab Shader props are synthetic transport fixtures. Native root encoding has a separate producer and still does not sample the deformed mesh. [Positioning](positioning.en.md) · [Workflow](lab-workflow.en.md) · [Shader](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+Four-anchor tracking has its own geometry/Sample and still requires opt-in, calibration and stop checks. Lab Shader props are synthetic transport fixtures. Native root encoding has a separate producer and still does not sample the deformed mesh. [Positioning](positioning.en.md) · [Workflow](lab-workflow.en.md) · [Shader](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)

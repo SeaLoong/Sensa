@@ -48,7 +48,12 @@ jobs:
         with:
           global-json-file: global.json
       - name: Install language support and PTY mock runtime / 安装语言支持与伪终端模拟环境
-        run: apt-get update && apt-get install -y --no-install-recommends fonts-noto-cjk python3
+        timeout-minutes: 5
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update
+          apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y --no-install-recommends fonts-noto-cjk python3
       - run: npm ci
       - name: Build real Sensa application / 构建真实 Sensa 程序
         run: dotnet publish src/Sensa.csproj -c Release --no-self-contained -p:RestoreLockedMode=true -o artifacts/e2e/app
