@@ -111,3 +111,9 @@ When checked, the explorer displays readings for a valid sample. Clearing it sho
 Calibrated axes suit subtle local depth trends; a separate touch/Close condition can confirm contact when needed. Speed metrics suit movement strength. Invalid coordinates or activity stop the corresponding motion. Independent Point/Handle/Pose interpret coordinates relative to their own reference objects and check the oldest participating sample; Handle also checks grab conditions. Three markers with a defined layout can provide local orientation.
 
 After configuration, check coordinate direction, response time and invalidity stops in the client, then verify device motion with a small travel range. See the [browser verification record](e2e-status.en.md) for automated-check scope and outcomes. [Parameter dictionary](osc-parameters.en.md) · [Workbench guide](guide.en.md)
+
+## Use tracking results in computations
+
+Add a computed signal in OSC mappings, choose Tracked position and velocity as an input, enter the target instance path and select a metric. The solved result can participate in a weighted average, difference or magnitude calculation. SPS four-anchor tracking reconstructs coordinates first; the computation receives those valid coordinates. Give each target its own complete instance path.
+
+For example, when roots A and B share an Avatar-root frame, calculate their X, Y and Z differences, then take the magnitude of those differences to obtain the gap. SPS four-anchor tracking and Shader distances use authored AvatarRootLocal units; Contact distances use AvatarRootMeters in metres. Use the same reference object, axis directions and units, then calibrate the final result to the motion range. Tracking validity and Sample/Frame age carry through to the computed result; invalid active computations stop motion. [Computed-signal examples](computed-signals.en.md)

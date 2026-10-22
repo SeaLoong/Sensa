@@ -1,4 +1,4 @@
-import { t } from './i18n.js';
+import { diagnostic, t } from './i18n.js';
 export function oscWorkflowHints({ mappings = [], dirty = false, runtime = {}, mode = '', listening = false }) {
   const hints = [];
   const add = (key, text, severity = 'info') => hints.push({ key, text, severity });
@@ -13,5 +13,7 @@ export function oscWorkflowHints({ mappings = [], dirty = false, runtime = {}, m
     add('gate', t("动作正在等待启用条件{0}。检查相应接触或抓取状态；切换方案时用“替换草稿”更新整组条件。", [gates.length ? `：${gates.join('；')}` : '']));
   }
   if (runtime.inputActive && runtime.poseBlocked) add('geometry', t("定位当前无效。PB 须保持抓取；检查选中的测量目标、采样完整性和 OSC 来源。"));
+  if (mode.toLowerCase() === 'osc' && runtime.computedInputBlocked)
+    add('computed', diagnostic(runtime.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。'), 'warning');
   return hints;
 }

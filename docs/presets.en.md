@@ -47,3 +47,5 @@ Use `contact-position` or `contact-speed` after building the dedicated own-root 
 Replace removes the current mappings; append retains them. Both edit a draft first. Verify real paths/roles and save; saving disarms input, so activate it explicitly afterward. To detect your own targets, choose Self while keeping paired parameters on the same object.
 
 Custom presets can be saved or removed. Generate experimental root mappings through endpoint calibration. Configure QuickStart steps and Shader diagnostics manually using the paths exposed by the experiment. [Mapping guide](guide.en.md) · [Dictionary](osc-parameters.en.md)
+
+Configure input blending and intermediate calculations through [computed signals](computed-signals.en.md). Custom presets store OSC parameter and tracking mappings. Save computation definitions and their referring axis mappings together on the mappings page as part of the full Sensa configuration. For proportional blending, create a weighted average first, then map its one result to an axis.

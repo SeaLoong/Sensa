@@ -106,6 +106,8 @@ import HelpDialog from './HelpDialog.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
+import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
+import { buildComputedDrafts, computeComputedHash, computedDraftIncomplete, computedMappingPreviews, expandMappingSources } from './computed-signals.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
 
@@ -155,6 +157,7 @@ function App() {
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
+  const [computedDrafts, setComputedDrafts] = useState([]);
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
   const [showFaceTracking, setShowFaceTracking] = useState(false);
   const [previewCategory, setPreviewCategory] = useState('all');
@@ -211,6 +214,7 @@ function App() {
     : actualInputMode;
   const hasPendingInputMode = selectedInputTab !== actualInputMode;
   const savedSignalsHash = useMemo(() => computeSignalHash(buildSignalDrafts(config?.signals)), [config?.signals]);
+  const savedComputedHash = useMemo(() => computeComputedHash(config?.computedSignals), [config?.computedSignals]);
 
   const scriptState = overview?.input?.script || null;
   const scriptLoaded = Boolean(scriptState?.loaded);
@@ -250,6 +254,7 @@ function App() {
         setSerialPorts(normalizeSerialPorts(serialPortResponse));
         setOscDraft(buildOscDraftFromConfig(configResponse));
         setSignalDrafts(buildSignalDrafts(configResponse?.signals));
+        setComputedDrafts(buildComputedDrafts(configResponse?.computedSignals));
         setStudio(persistedStudio);
         const initialManualDraft = normalizeManualCommand(overviewResponse?.runtime?.manualCommand);
         setManualDraft(initialManualDraft);
@@ -820,6 +825,7 @@ function App() {
   function restoreSignalDrafts() {
     if (!config) return;
     setSignalDrafts(buildSignalDrafts(config?.signals));
+    setComputedDrafts(buildComputedDrafts(config?.computedSignals));
     setConfirmClearMappings(false);
     notify(t('已恢复到已保存映射'), 'info');
   }
@@ -827,16 +833,18 @@ function App() {
   async function saveOscMappings() {
     if (!config) return;
     if (hasIncompleteMappings) {
-      notify(t('填写映射路径或移除空白行后再保存。'), 'warning');
+      notify(t('填写映射与计算输入，完成后再保存。'), 'warning');
       return;
     }
 
     await withBusy('osc-mappings-save', async () => {
       const submittedDrafts = signalDrafts;
-      const nextConfig = editConfiguration(config, { kind: 'mappings', drafts: submittedDrafts });
+      const submittedComputed = computedDrafts;
+      const nextConfig = editConfiguration(config, { kind: 'mappings', drafts: submittedDrafts, computedDrafts: submittedComputed });
 
       const savedConfig = await persistConfig(nextConfig);
       setSignalDrafts((current) => current === submittedDrafts ? buildSignalDrafts(savedConfig.signals) : current);
+      setComputedDrafts(current => current === submittedComputed ? buildComputedDrafts(savedConfig.computedSignals) : current);
       await refreshOverview();
       notify(t('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。'), 'success');
     }).catch((error) => notify(error.message || t('保存 OSC 映射失败'), 'error'));
@@ -1459,16 +1467,23 @@ function App() {
     ? visibleCatalog : visibleCatalog.filter(entry => entry.sourceKey === previewSourceTab),
   [parameterBrowserVisible, visibleCatalog, previewSourceTab]);
   const rankOscPreview = useMemo(() => createOscPreviewRanker(), []);
-  const rankedOscPreview = useMemo(() => parameterBrowserVisible ? rankOscPreview(sourceCatalog, signalDrafts, {
+  const mappedParameterSources = useMemo(() => expandMappingSources(signalDrafts, computedDrafts), [signalDrafts, computedDrafts]);
+  const rankedOscPreview = useMemo(() => parameterBrowserVisible ? rankOscPreview(sourceCatalog, mappedParameterSources, {
     showFaceTracking, search: oscPreviewSearch, pinned: pinnedPaths, category: previewCategory,
   }) : EMPTY_OSC_CATALOG,
-  [parameterBrowserVisible, sourceCatalog, signalDrafts, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory, rankOscPreview]);
+  [parameterBrowserVisible, sourceCatalog, mappedParameterSources, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory, rankOscPreview]);
   const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config, locale]);
   const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset, locale]);
-  const hasIncompleteMappings = useMemo(() => signalDrafts.some((draft) => !String(draft.oscPath || '').trim()), [signalDrafts]);
+  const hasIncompleteMappings = useMemo(() => signalDrafts.some((draft) => !String(draft.oscPath || '').trim())
+    || computedDrafts.some(computedDraftIncomplete), [signalDrafts, computedDrafts]);
   const signalDraftsHash = useMemo(() => computeSignalHash(signalDrafts), [signalDrafts]);
+  const computedDraftsHash = useMemo(() => computeComputedHash(computedDrafts), [computedDrafts]);
+  const computedGraphDirty = computedDraftsHash !== savedComputedHash;
+  const computedPreviewById = useMemo(() => computedMappingPreviews(computedDrafts, config?.computedSignals,
+    overview?.computedSignals || EMPTY_OSC_CATALOG, computedGraphDirty),
+  [computedDrafts, config?.computedSignals, overview?.computedSignals, computedGraphDirty, locale]);
   const hasUnsavedMappings = Boolean(
-    config && signalDraftsHash !== savedSignalsHash,
+    config && (signalDraftsHash !== savedSignalsHash || computedGraphDirty),
   );
   const signalOverlapWarnings = useMemo(() => buildSignalOverlapWarnings(signalDrafts), [signalDrafts, locale]);
   const outputDialogConflicts = useMemo(() => dialog && config ? getOutputTargetConflicts(config, dialog.outputId, dialog.draft) : [], [dialog, config, locale]);
@@ -1524,7 +1539,9 @@ function App() {
   const updateOsc = (patch) => setOscDraft((previous) => ({ ...previous, ...patch }));
   const updateOutput = (patch) => setDialog((previous) => ({ ...previous, draft: { ...previous.draft, ...patch } }));
   const latestForDraft = (draft) =>
-    draft.sourceMode === 'SensaPoint'
+    draft.sourceMode === 'Computed'
+      ? computedPreviewById.get(draft.oscPath)
+      : draft.sourceMode === 'SensaPoint'
       ? pointPreviewEntry(overview?.poseTracking?.spsRoots || [], draft, selectedOscSourceKey)
       : draft.sourceMode === 'SensaPose'
         ? posePreviewEntry(
@@ -1950,7 +1967,11 @@ function App() {
           </div>
           <Button tone="primary" disabled={!online || Boolean(busyKey) || hasIncompleteMappings} onClick={saveOscMappings}>{t('保存映射')}</Button>
         </div>
-        {hasIncompleteMappings && <p className="caption muted">{t('填写映射路径或移除空白行后再保存。')}</p>}
+        {hasIncompleteMappings && <p className="caption muted">{t('填写映射与计算输入，完成后再保存。')}</p>}
+        <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
+          observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
+          graphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onChange={setComputedDrafts}
+          onMap={signal => { setSignalDrafts(previous => [...previous, makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id })]); notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info'); }} />
         <details className="inline-details">
           <summary>{t('管理预设')}</summary>
           <div className="actions">
@@ -1976,7 +1997,7 @@ function App() {
           <OscFlowStatus mappings={config?.signals || []} drafts={signalDrafts} dirty={hasUnsavedMappings}
             runtime={runtimeOverview || {}} mode={actualInputMode} listening={Boolean(overview?.osc?.listening)} />
         </details>
-        {signalOverlapWarnings.length > 0 && <Notice>{t('同轴映射取校准后较高值，不相加。')}</Notice>}
+        {signalOverlapWarnings.length > 0 && <Notice>{t('同一目标轴按归一化优先级选择输入；需要混合时可先建立计算信号。')}</Notice>}
         {signalDrafts.length === 0 ? (
           <p className="empty-state">{t('还没有轴映射')}</p>
         ) : (
@@ -1987,6 +2008,7 @@ function App() {
                 draft={draft}
                 latestEntry={latestForDraft(draft)}
                 pathOptions={oscPathSuggestions}
+                computedSignals={computedDrafts}
                 onChange={(patch) => updateSignalDraft(draft._draftId, patch)}
                 onRemove={() => removeSignalDraft(draft._draftId)}
               />
@@ -2788,6 +2810,7 @@ function App() {
                 draft={draft}
                 latestEntry={latestForDraft(draft)}
                 pathOptions={oscPathSuggestions}
+                allowComputed={false}
                 onChange={(patch) => updatePresetDialogSignal(draft._draftId, patch)}
                 onRemove={() => removePresetDialogSignal(draft._draftId)}
               />

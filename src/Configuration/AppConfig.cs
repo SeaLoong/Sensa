@@ -308,6 +308,7 @@ public sealed class AppConfig
     public UdpTCodeConfig         UdpTCode     { get; set; } = new();
     public TcpTCodeConfig         TcpTCode     { get; set; } = new();
     public List<SignalMapping>     Signals      { get; set; } = new();
+    public List<ComputedSignalConfig> ComputedSignals { get; set; } = new();
     public List<OscMappingPresetConfig> OscMappingPresets { get; set; } = new();
     public List<DeviceRouteEntry> DeviceRoutes { get; set; } = new();
 
@@ -419,6 +420,7 @@ public sealed class AppConfig
         Signals = (other.Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
             .ToList();
+        ComputedSignals = ComputedSignalEvaluator.CloneAndValidate(other.ComputedSignals);
 
         OscMappingPresets = CloneOscMappingPresets(other.OscMappingPresets);
 
@@ -473,6 +475,9 @@ public sealed class AppConfig
         Signals = (Signals ?? new List<SignalMapping>())
             .Select(CloneSignal)
             .ToList();
+        ComputedSignals = ComputedSignalEvaluator.CloneAndValidate(ComputedSignals);
+        ComputedSignalEvaluator.ValidateMappingReferences(Signals, ComputedSignals);
+        ComputedSignalEvaluator.ValidateMappingReferences(OscMappingPresets.SelectMany(preset => preset.Mappings), ComputedSignals);
         if (Signals.Any(s=>s.SourceMode=="SensaPose") && Signals.Any(s=>s.SourceMode=="SensaPoint"))
             throw new InvalidOperationException("Use one spatial input mode per configuration; do not mix point and pose coordinates.");
         if (Signals.Where(s => s.SourceMode == "SensaPoint").Select(s => s.OscPath).Distinct(StringComparer.Ordinal).Count() > 1
@@ -1285,7 +1290,7 @@ public sealed class AppConfig
         return new SignalMapping
         {
             OscPath         = (signal.OscPath ?? "").Trim(),
-            SourceMode      = signal.SourceMode is "OgbDepth" or "OgbTouch" or "SpsSocketDepth" or "SensaPose" or "SensaPoint" ? signal.SourceMode : "Direct",
+            SourceMode      = signal.SourceMode is "OgbDepth" or "OgbTouch" or "SpsSocketDepth" or "SensaPose" or "SensaPoint" or "Computed" ? signal.SourceMode : "Direct",
             PoseMetric      = Enum.IsDefined(signal.PoseMetric) ? signal.PoseMetric : PoseMetric.Depth,
             PointMetric     = Enum.IsDefined(signal.PointMetric) ? signal.PointMetric : PointMetric.Z,
             InvertDirection = signal.InvertDirection,

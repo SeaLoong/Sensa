@@ -56,13 +56,21 @@ Disable input first, then narrow the problem using what the UI shows. Change one
 
 When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. Read automated outcomes from that commit's Actions run and the [browser verification record](e2e-status.en.md). Describe the device's own response separately for a hardware problem.
 
-### Turn a parameter into motion (mapping)
+### Turn an input into motion (mapping)
 
 The top toolbar groups presets, replace/append, save and restore. There are [five built-ins](presets.en.md): OGB depth/vibration, Contact position/speed and native PB. Custom presets remain available.
 
-Each row selects path, role and inversion; advanced fields set input range, curve and output interval. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Single-row simulation previews the input range, curve and output-interval conversion. A successful save clears the draft's unsaved indicator and disarms input.
+Each row selects its input source, then a path or computed signal, role and inversion. Advanced fields set input range, curve and output interval. Tracking sources can select solved coordinate or velocity metrics. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Single-row simulation previews the input range, curve and output-interval conversion. A successful save clears the draft's unsaved indicator and disarms input.
 
 A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Keep conditions that match the chosen signal, such as Close for a touch region.
+
+### Combine inputs first (computed signals)
+
+In the Computed signals area, choose Add computed signal, enter a name and choose an operation. Add OSC parameters, tracking metrics, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then use Save mappings to save computations and mappings together. Live calculation status uses the saved configuration; drafts keep their unsaved state.
+
+For example, touch intensities 0.2 and 0.8 with weights 1 and 3 produce a weighted average of 0.65. To link motion to the gap between two roots, calculate X/Y/Z differences and combine them with Magnitude. Several axes can reuse one result, which retains contributing source, validity and sample age. [Operations, coordinate conditions and examples](computed-signals.en.md)
+
+An active computation with missing or invalid inputs stops output. While input remains enabled, new valid samples can resume linkage. Disable input or use emergency stop to keep motion stopped.
 
 ### Reception, discovery and forwarding
 

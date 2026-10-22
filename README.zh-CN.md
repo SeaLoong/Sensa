@@ -30,6 +30,12 @@
 
 [方案选择](docs/usage-scenarios.md) · [OSC 字典](docs/osc-parameters.md) · [定位与限制](docs/positioning.md) · [OGB 兼容](docs/ogb-compatibility.md)
 
+## 组合多个输入，再映射到动作
+
+在 OSC 映射中建立**计算信号**，可对多个参数做加权平均、差值、比例或向量长度计算，再将结果校准到目标轴。输入也可以选用 SPS 四点定位、Contact 或 Shader 已解算的坐标，以及 Contact 的速度指标；同一中间结果可供多个映射使用。
+
+例如，两个触碰强度按 1∶3 混合，或用两个根点的 XYZ 差计算间距。工作台提供名称、输入列表、权重和已保存配置的实时结果，计算与轴映射一起保存。[配置与示例](docs/computed-signals.md)
+
 ## 不接设备也能理解参数
 
 直接在浏览器打开[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)。十一个模拟场景展示接收器、发送器、Socket／Plug 参考外形、固定锚点、Contact 直接报告和 Shader 编码；可旋转 3D、在指定平面拖点，也可使用精确滑条和 SVG 投影。

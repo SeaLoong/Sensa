@@ -70,9 +70,19 @@ public sealed class MotionRuntime : IDisposable
     private int _poseRefreshPending;
     private volatile bool _usesPose;
     private volatile bool _usesSpsDepth;
+    private ComputedSignalEvaluator _computedEvaluator = new([]);
+    private ComputedSignalInputConfig[] _computedInputs = [];
+    private HashSet<string> _computedExactPaths = new(StringComparer.Ordinal);
+    private string[] _computedPatterns = [];
+    private bool _usesComputedSpatial;
+    private volatile bool _usesComputed;
+    private volatile bool _computedInputBlocked;
+    private string _computedInputBlockedReason = "";
     private string? _rollPoseKey;
     private ContinuousAngle _continuousRoll = new();
     public bool PoseBlocked => _poseBlocked;
+    public bool ComputedInputBlocked => _inputMode == RuntimeInputMode.Osc && _computedInputBlocked;
+    public string ComputedInputBlockedReason => ComputedInputBlocked ? _computedInputBlockedReason : "";
     public int SpatialSampleMaxAgeMs => _config.Osc.InputTimeoutMs > 0 ? _config.Osc.InputTimeoutMs : UnityBox.Sensa.SensaPoseProtocol.MaximumSampleAgeMs;
     public string SpatialInputBlockedReason => _inputMode != RuntimeInputMode.Osc || !_usesPose ? ""
         : !_config.Osc.AllowExperimentalSpatialInput ? "实验 Contact 定位尚未启用 / Experimental Contact positioning is disabled"
@@ -82,7 +92,7 @@ public sealed class MotionRuntime : IDisposable
         : "实验局部估计；非世界或网格位置 / Experimental local estimate; not world or mesh position";
     public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
-    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked
+    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked && !ComputedInputBlocked
         && (_inputMode != RuntimeInputMode.Script || !_scriptOutputStopped);
 
     public PoseObservation[] GetPoseObservations()
@@ -99,6 +109,22 @@ public sealed class MotionRuntime : IDisposable
             return _poseObservations.Select(p=>IsSpatialGeometryFresh(p.TimestampMs)
                 ? p : p with {Valid=false,Engaged=false,Reason="部分坐标已超时 / A contributing coordinate has expired"}).ToArray();
         }
+    }
+
+    /// <summary>Evaluate saved definitions once against one source-filtered snapshot.
+    /// 预览与动作使用同一求值器；每次读取只使用一份采样快照。</summary>
+    public IReadOnlyDictionary<string, ComputedSignalSample> GetComputedSignalResults(
+        OscParameterStore.SnapshotEntry[]? snapshot = null, string? sourceKey = null)
+    {
+        if (_config.ComputedSignals.Count == 0)
+            return new Dictionary<string, ComputedSignalSample>(StringComparer.Ordinal);
+        ComputedSignalEvaluator evaluator;
+        lock (_sync) evaluator = _computedEvaluator;
+        var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+        var resolver = new ComputedSignalResolver(snapshot ?? _store.SnapshotEntries(),
+            sourceKey ?? _preferredOscSourceKeyProvider?.Invoke(), now, SpatialSampleMaxAgeMs,
+            _config.Osc.AllowExperimentalSpatialInput, _config.Osc.InputTimeoutMs);
+        return evaluator.Evaluate(now, resolver.Resolve);
     }
     private long _lastEventTimestamp;
 
@@ -158,21 +184,37 @@ public sealed class MotionRuntime : IDisposable
 
     public void RebuildProcessors()
     {
+        var spatialRoles = _config.Signals.Where(signal => signal.SourceMode is "SensaPoint" or "SensaPose")
+            .Select(signal => signal.Role).ToHashSet();
+        var computedMappings = _config.Signals.Where(signal => signal.SourceMode == "Computed"
+            && !SpatialRoleTakesPriority(spatialRoles, signal)).ToArray();
         lock (_sync)
         {
             _spsDepth.Clear();
             _processors.Clear();
+            _computedEvaluator = new(_config.ComputedSignals);
             foreach (var mapping in _config.Signals)
             {
                 if (string.IsNullOrWhiteSpace(mapping.OscPath))
                     continue;
                 _processors.Add((mapping.OscPath, new SignalChannelProcessor(mapping)));
             }
+            _computedInputs = _computedEvaluator.GetRequiredInputs(computedMappings.Select(s => s.OscPath)).ToArray();
+            var scalarPaths = _computedInputs.Where(input => input.SourceMode == "Direct")
+                .Select(input => input.OscPath).Distinct(StringComparer.Ordinal).ToArray();
+            _computedExactPaths = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) < 0)
+                .ToHashSet(StringComparer.Ordinal);
+            _computedPatterns = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) >= 0).ToArray();
+            _usesComputedSpatial = _computedInputs.Any(input => input.SourceMode is "SensaPoint" or "SensaPose");
         }
         ActivePoseKey = null;
         _rollPoseKey = null;
         _continuousRoll = new();
-        _usesPose = _config.Signals.Any(s => s.SourceMode is "SensaPose" or "SensaPoint");
+        _usesPose = _config.Signals.Any(s => s.SourceMode is "SensaPose" or "SensaPoint")
+            || _usesComputedSpatial;
+        _usesComputed = computedMappings.Length > 0;
+        _computedInputBlocked = _inputMode == RuntimeInputMode.Osc && _usesComputed;
+        _computedInputBlockedReason = "等待计算输入 / Waiting for calculation inputs";
         _usesSpsDepth = _config.Signals.Any(s => s.SourceMode is "OgbDepth" or "OgbTouch" or "SpsSocketDepth");
         _poseBlocked = _inputMode == RuntimeInputMode.Osc && _usesPose;
 
@@ -236,6 +278,7 @@ public sealed class MotionRuntime : IDisposable
         Interlocked.Increment(ref _generation);
         _gateClosed = false;
         _poseBlocked = mode == RuntimeInputMode.Osc && _usesPose;
+        _computedInputBlocked = mode == RuntimeInputMode.Osc && _usesComputed;
         _inputMode = mode;
         _forceNextFrame = true;
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
@@ -258,6 +301,7 @@ public sealed class MotionRuntime : IDisposable
         // occupy the same instance. / 未启用期间可能换了 Plug，重新估长。
         if (active && _inputMode == RuntimeInputMode.Osc) { lock (_sync) _spsDepth.Clear(); }
         if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
+        if (active && _inputMode == RuntimeInputMode.Osc && _usesComputed) _computedInputBlocked = true;
         _inputActive = active;
         if (active && _inputMode == RuntimeInputMode.Script) _scriptOutputStopped = false;
         _forceNextFrame = true;
@@ -294,7 +338,7 @@ public sealed class MotionRuntime : IDisposable
         if (!HasMatchingOscProcessor(path))
             return;
 
-        if (_usesPose || _usesSpsDepth)
+        if (_usesPose || _usesSpsDepth || _usesComputed)
         {
             // Receivers arrive as independent OSC messages. Coalesce a short burst before fitting.
             if (Interlocked.Exchange(ref _poseRefreshPending, 1) != 0) return;
@@ -321,6 +365,11 @@ public sealed class MotionRuntime : IDisposable
 
         lock (_sync)
         {
+            if (_computedExactPaths.Contains(oscPath)
+                || _computedPatterns.Any(pattern => OscParameterStore.MatchesPathPattern(pattern, oscPath))) return true;
+            if (_usesComputedSpatial
+                && (oscPath.StartsWith("Sensa/", StringComparison.Ordinal)
+                    || oscPath.StartsWith(ShaderRootTracking.Prefix + "/", StringComparison.Ordinal))) return true;
             if (_processors.Any(p=>p.Processor.Mapping.SourceMode=="SensaPoint")
                 && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
                     || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal)
@@ -411,11 +460,12 @@ public sealed class MotionRuntime : IDisposable
                 return;
 
             var patch = BuildOscPatch();
-            if (_gateClosed || _poseBlocked)
+            if (_gateClosed || _poseBlocked || ComputedInputBlocked)
             {
                 _forceNextFrame = true;
                 if (!_gateStopSent) await StopOutputsAsync();
                 _gateStopSent = true;
+                NotifyStateChanged();
                 return;
             }
             _gateStopSent = false;
@@ -446,6 +496,16 @@ public sealed class MotionRuntime : IDisposable
         float? depthOverride = null;
         var poseMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPose").ToArray();
         var pointMappings = processors.Where(p=>p.Processor.Mapping.SourceMode=="SensaPoint").ToArray();
+        var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
+        var computedMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "Computed"
+            && !SpatialRoleTakesPriority(poseRoles, p.Processor.Mapping)).ToArray();
+        var computed = computedMappings.Length > 0 ? GetComputedSignalResults() : null;
+        var invalidComputed = computedMappings.Select(mapping =>
+            computed!.TryGetValue(mapping.Path, out var result) ? result
+                : ComputedSignalSample.Invalid("请选择已保存的计算信号 / Select a saved computed signal"))
+            .FirstOrDefault(result => !result.Valid);
+        _computedInputBlocked = invalidComputed is not null;
+        _computedInputBlockedReason = invalidComputed?.Reason ?? "";
         if ((poseMappings.Length > 0 || pointMappings.Length > 0) && !_config.Osc.AllowExperimentalSpatialInput)
         {
             _poseBlocked = true; ActivePoseKey = null;
@@ -456,7 +516,6 @@ public sealed class MotionRuntime : IDisposable
             .Where(p=>p.IsMappablePoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
             if(points.Length==1 && points[0].Valid && IsSpatialGeometryFresh(points[0].TimestampMs)
                 && pointMappings.All(mapping => points[0].SupportsMetric(mapping.Processor.Mapping.PointMetric)))chosenPoint=points[0];}
-        var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
         if (poseMappings.Length > 0)
         {
@@ -475,6 +534,19 @@ public sealed class MotionRuntime : IDisposable
         var roll = chosenPose is null ? 0 : _continuousRoll.Update(chosenPose.Roll);
         foreach (var (path, processor) in processors)
         {
+            if (processor.Mapping.SourceMode == "Computed")
+            {
+                if (SpatialRoleTakesPriority(poseRoles, processor.Mapping)) continue;
+                if (computed!.TryGetValue(path, out var result) && result.Valid && result.Value.HasValue)
+                {
+                    var sample = processor.ProcessSample(result.Value.Value);
+                    if (processor.Mapping.Role == SignalRole.GateEnable) gateOpen &= sample.Output > .5f;
+                    else if (processor.Mapping.Role == SignalRole.DepthOverride)
+                        depthOverride = Math.Max(depthOverride ?? 0, sample.Output);
+                    else _signals.Add(new SignalMixInput(processor.Mapping.Role, sample.Output, sample.Normalized));
+                }
+                continue;
+            }
             if(processor.Mapping.SourceMode=="SensaPoint") {
                 if(chosenPoint!=null && chosenPoint.Matches(path)){var pointSample=processor.ProcessSample(chosenPoint.Metric(processor.Mapping.PointMetric));_signals.Add(new SignalMixInput(processor.Mapping.Role,pointSample.Output,pointSample.Normalized));}
                 continue;
@@ -488,8 +560,7 @@ public sealed class MotionRuntime : IDisposable
                 }
                 continue;
             }
-            if (poseRoles.Contains(processor.Mapping.Role)
-                || processor.Mapping.Role == SignalRole.DepthOverride && poseRoles.Contains(SignalRole.Depth)) continue;
+            if (SpatialRoleTakesPriority(poseRoles, processor.Mapping)) continue;
             var thisGateOpen = false;
             foreach (var rawValue in ReadScalarValues(path, processor.Mapping.SourceMode, preferredSourceKey))
             {
@@ -512,6 +583,10 @@ public sealed class MotionRuntime : IDisposable
             OnDebugLog?.Invoke($"[Signal/Fuse] {(patch.IsEmpty ? "<empty>" : FormatPatch(patch))}");
         return patch;
     }
+
+    private static bool SpatialRoleTakesPriority(HashSet<SignalRole> spatialRoles, SignalMapping mapping) =>
+        spatialRoles.Contains(mapping.Role)
+        || mapping.Role == SignalRole.DepthOverride && spatialRoles.Contains(SignalRole.Depth);
 
     private Task ApplyScriptPatchAsync(float l0, string source)
     {
@@ -741,16 +816,20 @@ public sealed class MotionRuntime : IDisposable
     private void CheckInputTimeout()
     {
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency) return;
+        // Calculations use the oldest contributing input, even when other OSC
+        // parameters keep arriving. / 其他参数持续更新也不能延长旧计算输入的有效期。
+        if (_usesComputed) QueueOscRefresh();
         var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         (string Path,string Mode,SignalRole Role)[] mappings;
         PointMetric[] pointMetrics;
         lock (_sync)
         {
-            mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
+            mappings = _processors.Where(p => p.Processor.Mapping.SourceMode != "Computed")
+                .Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
             pointMetrics = _processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPoint")
                 .Select(p => p.Processor.Mapping.PointMetric).ToArray();
         }
-        if (mappings.Length == 0) return;
+        if (mappings.Length == 0 || _usesComputed && mappings.All(mapping => mapping.Role == SignalRole.GateEnable)) return;
         var source = _preferredOscSourceKeyProvider?.Invoke();
         var pointPaths=mappings.Where(m=>m.Mode=="SensaPoint").Select(m=>m.Path).ToArray();
         var posePaths=mappings.Where(m=>m.Mode=="SensaPose").Select(m=>m.Path).ToArray();

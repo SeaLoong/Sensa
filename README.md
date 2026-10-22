@@ -30,6 +30,12 @@ A “root” is the starting point you select in Unity, such as an SPS Socket/Pl
 
 [Route selection](docs/usage-scenarios.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Positioning and limits](docs/positioning.en.md) · [OGB compatibility](docs/ogb-compatibility.en.md)
 
+## Combine inputs before mapping motion
+
+Create a **computed signal** in OSC mappings to combine parameters with a weighted average, difference, ratio or magnitude, then calibrate the result to an axis. Inputs can also use solved positions from SPS four-anchor tracking, Contact or Shader, and Contact velocity metrics. Several mappings can reuse one intermediate result.
+
+For example, blend two touch intensities at a 1:3 ratio or calculate the gap between roots from their XYZ differences. The workbench provides names, input lists, weights and live results from the saved configuration. Save computations and axis mappings together. [Setup and examples](docs/computed-signals.en.md)
+
 ## Explore before connecting
 
 Open the [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly in your browser. Eleven simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors, Contact direct reports and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.

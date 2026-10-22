@@ -30,6 +30,8 @@ Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship
 
 SPS four-anchor tracking Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
 
+To combine parameters, create a [computed signal](computed-signals.en.md) for a weighted average, difference, ratio or magnitude, then map its result to an axis. Tracking computations select solved coordinate or velocity metrics directly, retaining each input's source and validity conditions.
+
 ## OGB and VRCFury parameters
 
 `Orf` means Socket and `Pen` means Plug. `Self` filters matching targets on your own Avatar; `Others` filters matching targets on other Avatars. Sensa pairs by OSC source, complete instance path and category. **SPS2 · PenOthersNewRoot / PenOthersNewTip** and **SPS1 · PenOthers / PenOthersClose** identify the explorer's two parameter geometries.

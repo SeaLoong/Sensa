@@ -16,6 +16,8 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
   if (runtime.isEmergency) return make('emergency', t('急停已锁定'), t('解除后仍需重新启用输入。'), 'error');
   if (mode === 'osc' && runtime.poseBlocked)
     return make('geometry', t('空间输入被阻断'), diagnostic(runtime.spatialInputBlockedReason) || t('检查实验许可和完整、新鲜的采样。'), 'warning', 'osc-diagnostics');
+  if (mode === 'osc' && runtime.computedInputBlocked)
+    return make('computed', t('计算正在等待输入'), diagnostic(runtime.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。'), 'warning', 'osc-mappings');
   if (mode === 'osc' && runtime.gateClosed)
     return make('gate', t('门控关闭'), t('所有已保存门控均需开放。'), 'warning', 'osc-mappings');
   if (selectedMode !== mode) return make('browsing',

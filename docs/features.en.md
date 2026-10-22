@@ -10,7 +10,7 @@ This page summarizes implemented features and their operating conditions. Use th
 | --- | --- |
 | Persistent header | Realtime session, actual mode, input permission, emergency stop/clear, language/help |
 | Control | Browse/apply input, twelve-axis manual, scripts, outputs, readiness and L0 recording |
-| OSC mappings | Five built-ins/custom presets, replace/append, draft save/restore, paths/roles/curves/ranges/simulation |
+| OSC mappings | Five built-ins/custom presets, reusable computed signals, replace/append, draft save/restore, sources/roles/curves/ranges/simulation |
 | OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
@@ -35,6 +35,8 @@ Gate/spatial invalidity stops without stale same-axis fallback. Ordinary OSC tim
 Paths support exact matches, full-segment `*`, cross-segment `**` and semicolon/newline aliases. Sources remain isolated; Avatar changes clear values/learning and stop OSC. FT hiding only recognizes `FT/` or `v2/` after stripping the standard prefix; mapped/pinned values remain, without blendshape-name guesses.
 
 Calibration, inversion, Linear/EaseIn/EaseOut/SCurve and output intervals precede role fusion. Same-role inputs prefer higher normalized values, breaking ties by intensity or distance from midpoint; modify only present axes. Every GateEnable must be open. DepthOverride may replace depth.
+
+**Computed signals** combine inputs before calibration, using weighted average, average, sum, difference, product, ratio, minimum, maximum or magnitude. Inputs may be OSC parameters, solved position/velocity metrics, constants or other computed signals; several mappings can reuse one result. The backend checks unique source, validity and oldest sample age, and supplies live results for the saved configuration. Save computations and mappings together; an invalid active computation stops motion. [Setup and examples](computed-signals.en.md)
 
 | Role | Target |
 | --- | --- |

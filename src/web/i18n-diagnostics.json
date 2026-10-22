@@ -62,5 +62,177 @@
   [
     "DEVINFO skipped: 串口未连接",
     "DEVINFO skipped: serial port disconnected"
+  ],
+  [
+    "请选择已有的计算信号：{0} / Choose an existing computed signal: {1}",
+    "Choose an existing computed signal: {1}"
+  ],
+  [
+    "最多可配置 {0} 个计算信号 / Use at most {1} computed signals.",
+    "Use at most {1} computed signals."
+  ],
+  [
+    "请提供完整的计算信号配置 / A computed signal definition is required.",
+    "A computed signal definition is required."
+  ],
+  [
+    "计算信号 ID 使用 1～48 个英文字母、数字、下划线或短横线，并以字母开头 / Computed signal IDs use 1–48 ASCII letters, digits, underscores or hyphens and start with a letter.",
+    "Computed signal IDs use 1–48 ASCII letters, digits, underscores or hyphens and start with a letter."
+  ],
+  [
+    "请为每个计算信号设置唯一的 ID：{0} / Choose a unique computed signal ID: {1}",
+    "Choose a unique computed signal ID: {1}"
+  ],
+  [
+    "计算信号 {0} 的名称最多 80 个字符 / Computed signal {1}: use a name of at most 80 characters.",
+    "Computed signal {1}: use a name of at most 80 characters."
+  ],
+  [
+    "请为计算信号 {0} 选择一种计算方式 / Computed signal {1}: choose a supported calculation.",
+    "Computed signal {1}: choose a supported calculation."
+  ],
+  [
+    "计算信号 {0} 的输入有效期可设为 0（沿用来源规则）或 100～60000 毫秒 / Computed signal {1}: use zero to follow source freshness rules or an input age between 100 and 60000 ms.",
+    "Computed signal {1}: use zero to follow source freshness rules or an input age between 100 and 60000 ms."
+  ],
+  [
+    "计算信号 {0} 可使用 1～{1} 个输入，差值和比值各需两个输入 / Computed signal {2}: use 1–{3} inputs; difference and ratio require two.",
+    "Computed signal {2}: use 1–{3} inputs; difference and ratio require two."
+  ],
+  [
+    "请补全计算信号 {0} 的输入配置 / Computed signal {1}: an input definition is required.",
+    "Computed signal {1}: an input definition is required."
+  ],
+  [
+    "请为计算信号 {0} 选择一种输入类型 / Computed signal {1}: choose a supported input type.",
+    "Computed signal {1}: choose a supported input type."
+  ],
+  [
+    "请为计算信号 {0} 填写输入路径或计算信号 ID，最长 512 个字符 / Computed signal {1}: each input requires a path or calculation ID of at most 512 characters.",
+    "Computed signal {1}: each input requires a path or calculation ID of at most 512 characters."
+  ],
+  [
+    "请为计算信号 {0} 选择有效的空间指标 / Computed signal {1}: choose a supported spatial metric.",
+    "Computed signal {1}: choose a supported spatial metric."
+  ],
+  [
+    "计算信号 {0} 的权重需为有限的非负数，常量需为有限数值 / Computed signal {1}: weights must be finite and non-negative, and constants must be finite.",
+    "Computed signal {1}: weights must be finite and non-negative, and constants must be finite."
+  ],
+  [
+    "请为计算信号 {0} 至少设置一个大于零的权重 / Computed signal {1}: at least one weight must be greater than zero.",
+    "Computed signal {1}: at least one weight must be greater than zero."
+  ],
+  [
+    "请按输入到结果的方向连接计算信号 {0}，并移除循环引用 / Computed signal {1}: calculations must form a chain without cycles.",
+    "Computed signal {1}: calculations must form a chain without cycles."
+  ],
+  [
+    "计算信号 {0} 引用的 {1} 尚未定义，请先创建该计算信号 / Computed signal {2}: unknown calculation {3}.",
+    "Computed signal {2}: unknown calculation {3}."
+  ],
+  [
+    "计算信号 {0} 的计算链最多为 {1} 层 / Computed signal {2}: use a chain of at most {3} calculations.",
+    "Computed signal {2}: use a chain of at most {3} calculations."
+  ],
+  [
+    "映射引用的计算信号 {0} 尚未定义，请先创建或重新选择计算信号 / Mapping references an unknown computed signal: {1}",
+    "Mapping references an unknown computed signal: {1}"
+  ],
+  [
+    "等待有效的计算输入 / Waiting for valid calculation inputs",
+    "Waiting for valid calculation inputs"
+  ],
+  [
+    "部分计算输入已超时 / A calculation input has expired",
+    "A calculation input has expired"
+  ],
+  [
+    "请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source",
+    "Choose inputs from the same OSC source"
+  ],
+  [
+    "请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame",
+    "Choose spatial inputs in the same coordinate frame"
+  ],
+  [
+    "请为比值选择非零分母 / Choose a non-zero denominator for the ratio",
+    "Choose a non-zero denominator for the ratio"
+  ],
+  [
+    "计算结果超出有限数值范围 / The calculation exceeds the finite numeric range",
+    "The calculation exceeds the finite numeric range"
+  ],
+  [
+    "请先启用空间输入 / Enable spatial input to use tracking measurements",
+    "Enable spatial input to use tracking measurements"
+  ],
+  [
+    "请选择参数或定位指标 / Choose a parameter or tracking metric",
+    "Choose a parameter or tracking metric"
+  ],
+  [
+    "请选择唯一参数和 OSC 来源 / Select one parameter and OSC source",
+    "Select one parameter and OSC source"
+  ],
+  [
+    "等待有效参数值 / Waiting for a valid parameter value",
+    "Waiting for a valid parameter value"
+  ],
+  [
+    "等待完整定位采样 / Waiting for complete tracking samples",
+    "Waiting for complete tracking samples"
+  ],
+  [
+    "请选择唯一定位点和 OSC 来源 / Select one tracking point and OSC source",
+    "Select one tracking point and OSC source"
+  ],
+  [
+    "定位采样已超时 / Tracking samples have expired",
+    "Tracking samples have expired"
+  ],
+  [
+    "请选择该定位方式提供的指标 / Choose a metric supplied by this tracking method",
+    "Choose a metric supplied by this tracking method"
+  ],
+  [
+    "等待有效定位值 / Waiting for a valid tracking value",
+    "Waiting for a valid tracking value"
+  ],
+  [
+    "等待完整姿态采样 / Waiting for complete pose samples",
+    "Waiting for complete pose samples"
+  ],
+  [
+    "请选择唯一姿态测量组和 OSC 来源 / Select one pose rig and OSC source",
+    "Select one pose rig and OSC source"
+  ],
+  [
+    "姿态采样已超时 / Pose samples have expired",
+    "Pose samples have expired"
+  ],
+  [
+    "请选择有效的姿态指标 / Choose a supported pose metric",
+    "Choose a supported pose metric"
+  ],
+  [
+    "等待有效姿态值 / Waiting for a valid pose value",
+    "Waiting for a valid pose value"
+  ],
+  [
+    "等待已保存的计算定义 / Waiting for saved calculation definitions",
+    "Waiting for saved calculation definitions"
+  ],
+  [
+    "等待计算输入 / Waiting for calculation inputs",
+    "Waiting for calculation inputs"
+  ],
+  [
+    "请选择已保存的计算信号 / Select a saved computed signal",
+    "Select a saved computed signal"
+  ],
+  [
+    "等待参数：{0} / Waiting for parameter: {1}",
+    "Waiting for parameter: {1}"
   ]
 ]

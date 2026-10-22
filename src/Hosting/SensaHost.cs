@@ -830,11 +830,14 @@ public static class SensaHost
                 vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
             }).ToArray();
             var outputs = outputCoordinator.BuildOverview();
+            var computedSignalResults = motionRuntime.GetComputedSignalResults(oscEntries, effectiveSelectedSourceKey);
             var runtimeState = new
             {
                 isEmergency = motionRuntime.IsEmergency,
                 gateClosed = motionRuntime.IsGateClosed,
                 poseBlocked = motionRuntime.PoseBlocked,
+                computedInputBlocked = motionRuntime.ComputedInputBlocked,
+                computedInputBlockedReason = motionRuntime.ComputedInputBlockedReason,
                 spatialInputBlockedReason = motionRuntime.SpatialInputBlockedReason,
                 spatialInputStatus = motionRuntime.SpatialInputStatus,
                 spatialSampleMaxAgeMs = motionRuntime.SpatialSampleMaxAgeMs,
@@ -1006,6 +1009,13 @@ public static class SensaHost
                     recorder.IsActive,
                     recorder.FrameCount,
                 },
+                computedSignals = config.ComputedSignals.Select(signal =>
+                {
+                    var result = computedSignalResults.TryGetValue(signal.Id, out var sample) ? sample
+                        : ComputedSignalSample.Invalid("等待已保存的计算定义 / Waiting for saved calculation definitions");
+                    return new { signal.Id, signal.Name, signal.Operation, result.Value, result.Valid,
+                        result.Reason, result.SourceKey, result.TimestampMs, result.CoordinateFrame };
+                }).ToArray(),
                 signals = config.Signals.Select((signal, index) =>
                 {
                     var hasLatest = parameterStore.TryGetLatest(signal.OscPath, effectiveSelectedSourceKey, out var matchedPath, out var entry);

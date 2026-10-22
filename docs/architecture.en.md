@@ -2,7 +2,7 @@
 
 [简体中文](architecture.md) | **English**
 
-The backend turns one actual input into twelve-axis targets and distributes them through output configurations. The browser owns intentions and drafts; the backend owns permission, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
+The backend generates twelve-axis targets from the applied Manual, OSC or Script mode and distributes them through output configurations. OSC can map a parameter directly or combine several parameters and tracking metrics before mapping. The browser owns intentions and drafts; the backend owns permission, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
 
 ## One command boundary
 
@@ -25,6 +25,7 @@ flowchart LR
 | [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | Shared command dispatch, mode/script/recording/connection operations |
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarm, stop, reconnect and persistence; configuration/connection rollback |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, gates, fusion, freshness, request generations and stop |
+| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | Bounded dependency graph, computation reuse, shared-source/frame checks, oldest sample time and numeric validity |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Send/stop seam replaceable by isolated tests |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Output types, profiles and transport lifecycle without exposing protocols to runtime |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Sources, values, receive/change timestamps, sequences and Avatar lifecycle |
@@ -46,7 +47,9 @@ Connection grants no permission, but an already active input may send its valid 
 
 ## Signal and spatial validity
 
-Ordinary scalar processing matches paths/source/role, then calibrates, inverts, curves, fuses and gates. OgbDepth/OgbTouch interpret external parameters without renaming their protocol. Spatial input has a separate default-off experimental permission.
+Ordinary scalar processing matches paths and source, then calibrates, inverts, curves, fuses roles and applies gates. OgbDepth/OgbTouch interpret external parameters without renaming their protocol. Spatial input has a separate default-off experimental permission.
+
+Computed signals produce reusable raw values before calibration, using OSC parameters, validated tracking metrics, constants or other computations. Configuration validation bounds graph size and reference depth and rejects missing references and cycles. Runtime reuses results in dependency order and shares leaf inputs within each evaluation. Results retain contributing source, coordinate frame and oldest sample time. Required-input invalidity propagates through references and stops active outputs. The browser presents saved state using the same backend evaluator. [Operations and configuration](computed-signals.en.md)
 
 | Family | Coordinate/freshness rules |
 | --- | --- |

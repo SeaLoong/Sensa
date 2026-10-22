@@ -2,6 +2,7 @@ import { roundToStep } from './numeric.js';
 import { localized, t } from './i18n.js';
 import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
+import { stripComputedDraft } from './computed-signals.js';
 
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
 
@@ -1192,6 +1193,7 @@ export function editConfiguration(config, change) {
     }
     case 'mappings':
       next.signals = change.drafts.map(stripSignalDraft).filter(signal => Boolean(signal.oscPath));
+      if (change.computedDrafts) next.computedSignals = change.computedDrafts.map(stripComputedDraft);
       break;
     case 'profile-save': {
       const draft = change.draft;
@@ -1214,6 +1216,8 @@ export function editConfiguration(config, change) {
       break;
     }
     case 'preset-save': {
+      if (change.preset.mappings.some(signal => signal.sourceMode === 'Computed'))
+        throw new Error(t('预设保存 OSC 参数与定位映射。计算信号及其轴映射请在映射页面一起保存。'));
       if (BUILT_IN_OSC_PRESET_IDS.has(change.preset.id)) throw new Error(t("内置预设不能删除；如需修改，请复制为自定义预设。"));
       const preset = { ...change.preset, mappings: change.preset.mappings.map(stripSignalDraft).filter(s => s.oscPath) };
       const presets = getCustomOscMappingPresets(config);

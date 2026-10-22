@@ -39,6 +39,30 @@ test('browser detection handles language fallback and denied storage without cha
   browser.location.search = '?lang=en_US'; assert.equal(detectLocale(browser), 'en-US');
 });
 
+test('computed diagnostics translate owned phrases while preserving captured identifiers and paths / 计算诊断翻译固定说明并保留标识符和路径原文', () => {
+  const previous = getLocale();
+  setLocale('en-US');
+  try {
+    for (const reason of [
+      '请先启用空间输入 / Enable spatial input to use tracking measurements',
+      '部分计算输入已超时 / A calculation input has expired',
+      '请为比值选择非零分母 / Choose a non-zero denominator for the ratio',
+      '请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source',
+      '请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame',
+      '等待计算输入 / Waiting for calculation inputs',
+      '等待已保存的计算定义 / Waiting for saved calculation definitions',
+    ]) assert.doesNotMatch(diagnostic(reason), /[\u3400-\u9fff]/u, reason);
+    const target = 'Sensa/SPS/Root / segment/**';
+    assert.equal(diagnostic(`等待参数：${target} / Waiting for parameter: ${target}`), `Waiting for parameter: ${target}`);
+    assert.equal(diagnostic('计算信号 Blend 引用的 Missing 尚未定义，请先创建该计算信号 / Computed signal Blend: unknown calculation Missing.'), 'Computed signal Blend: unknown calculation Missing.');
+    assert.equal(diagnostic('请按输入到结果的方向连接计算信号 Blend，并移除循环引用 / Computed signal Blend: calculations must form a chain without cycles.'), 'Computed signal Blend: calculations must form a chain without cycles.');
+    assert.equal(diagnostic('计算信号 Blend 可使用 1～16 个输入，差值和比值各需两个输入 / Computed signal Blend: use 1–16 inputs; difference and ratio require two.'), 'Computed signal Blend: use 1–16 inputs; difference and ratio require two.');
+    const custom = 'OGB/Orf/左侧 / 私有/PenOthers';
+    assert.equal(diagnostic(`等待参数：${custom} / Waiting for parameter: ${custom}`), `Waiting for parameter: ${custom}`);
+    assert.equal(diagnostic('User / arbitrary message'), 'User / arbitrary message');
+  } finally { setLocale(previous); }
+});
+
 test('every source module and built-in preset has matching nonempty translations and placeholders / 每个源码 module 和内置预设均有非空翻译与匹配占位符', () => {
   const files = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const file = path.join(directory, entry.name);

@@ -2,7 +2,7 @@
 
 **简体中文** | [English](architecture.en.md)
 
-后端将一种实际输入转换为十二轴动作目标，并按每个输出的配置分发。浏览器表达意图与草稿；许可、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
+后端使用当前应用的手动、OSC 或脚本模式生成十二轴动作目标，再按每个输出的配置分发。OSC 模式可直接映射参数，也可组合多个参数与定位指标后映射。浏览器表达意图与草稿；许可、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
 
 ## 单一命令入口与数据流
 
@@ -25,6 +25,7 @@ flowchart LR
 | [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | 共用命令分派；模式、脚本、录制与连接操作 |
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | 串行校验、关闭输入、停止、重连、持久化；失败恢复配置与连接 |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | 实际模式、许可、门控、信号融合、时效、请求代次与停止 |
+| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | 有界依赖图、计算复用、同来源／坐标框检查、最旧样本时间与数值有效性 |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | 发送／停止边界；隔离测试可替换输出 |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | 输出类型、轴配置、传输生命周期；不向运行时暴露协议细节 |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | 来源、值、更新时间／内容变化时间、序列与 Avatar 生命周期 |
@@ -46,7 +47,9 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 ## 信号与空间有效性
 
-普通标量先匹配路径、选择来源与角色，再做校准、反向、曲线、融合和门控。OgbDepth／OgbTouch 在这一边界解释外部参数，不修改外部协议。空间输入另有默认关闭的实验许可。
+普通标量先匹配路径与来源，再做校准、反向、曲线、角色融合和门控。OgbDepth／OgbTouch 在这一边界解释外部参数，不修改外部协议。空间输入另有默认关闭的实验许可。
+
+计算信号在校准前生成可复用的原始数值，输入可以是 OSC 参数、已通过模型检查的定位指标、常量或另一计算。配置校验限制图规模与引用深度，并拒绝缺失引用和循环；运行时按依赖顺序复用结果，同次求值共用叶子输入。每个结果保留参与输入的来源、坐标框和最旧样本时间，必需输入失效会沿引用链传播并停止活动输出。浏览器使用同一后端求值结果展示已保存状态。[运算与配置](computed-signals.md)
 
 | 输入族 | 坐标／新鲜度规则 |
 | --- | --- |

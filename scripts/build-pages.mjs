@@ -56,7 +56,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const outline = outlines.get(route) || [], buddyOutline = outlines.get(buddy) || [];
     const headingMap = routes.has(other + ':' + document.slug) ? mapDocumentHeadings(outline, buddyOutline) : {};
     const href = target => escape(relative(route, target));
-    const nav = ['README', 'docs/quick-start', 'docs/guide', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
+    const nav = ['README', 'docs/quick-start', 'docs/guide', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/computed-signals', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
     const navigation = nav.map(key => {
       const target = routes.get(locale + ':' + key), item = [...documents.values()].find(x => x.route === target);
       return item ? '<a' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(titleOf(item)) + '</a>' : '';

@@ -390,7 +390,7 @@ export async function inspectOutputAlignment(page, layout) {
 
 export async function inspectMappingAlignment(page) {
   const groups = await geometryGroups(page.locator('.mapping-row__main'), {
-    path: ':scope > .field:first-child input', target: ':scope > .field select',
+    path: '.mapping-row__path input, .mapping-row__path select', target: '.mapping-row__target select',
     reverse: ':scope > .toggle', remove: ':scope > button',
   });
   return geometricEvidence({ groups }, () => {

@@ -30,6 +30,8 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 
 SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
 
+需要组合多个参数时，可在工作台建立[计算信号](computed-signals.md)，进行加权平均、差值、比例或向量长度计算，再映射到目标轴。定位计算直接选择已经解算的坐标或速度指标；每个输入保留来源和有效性条件。
+
 ## OGB 与 VRCFury 参数
 
 `Orf` 表示 Socket，`Pen` 表示 Plug。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。

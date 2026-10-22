@@ -140,7 +140,7 @@ export function OscHubTargetRow({ target, runtimeTarget, conflictMessages = [], 
   );
 }
 
-export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, onRemove }) {
+export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSignals = [], allowComputed = true, onChange, onRemove }) {
   const pathListId = useId();
   const [pathFocused, setPathFocused] = useState(false);
   const pathSuggestions = useMemo(() => mappingPathSuggestions(pathOptions, draft.oscPath, { focused: pathFocused }),
@@ -161,8 +161,33 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
       : computeSignalPreviewOutput(draft, latestEntry?.numericValue);
   return (
     <article className="mapping-row">
+      <div className="form-grid mapping-row__source">
+        <SelectField
+          label={t('输入类型')}
+          value={draft.sourceMode || 'Direct'}
+          options={[
+            { value: 'Direct', label: t('OSC 参数') },
+            { value: 'OgbDepth', label: t('SPS1 / SPS2 自动识别') },
+            { value: 'OgbTouch', label: t('OGB 触碰与门控') },
+            { value: 'SpsSocketDepth', label: t('SPS2 · PenOthersNewRoot / PenOthersNewTip') },
+            { value: 'SensaPose', label: t('三点姿态指标') },
+            { value: 'SensaPoint', label: t('定位坐标与速度') },
+            ...(allowComputed ? [{ value: 'Computed', label: t('计算信号') }] : []),
+          ]}
+          onChange={sourceMode => onChange({ sourceMode, ...(sourceMode === 'Computed' ? { oscPath: computedSignals[0]?.id || '' } : draft.sourceMode === 'Computed' ? { oscPath: '' } : {}) })}
+        />
+        {draft.sourceMode === 'SensaPoint' && <SelectField label={t('测量指标')} value={draft.pointMetric || 'Z'} options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)} onChange={pointMetric => onChange({ pointMetric })} />}
+        {draft.sourceMode === 'SensaPose' && <SelectField label={t('定位指标')} value={draft.poseMetric || 'Depth'} options={[
+          { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（m）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（m）') },
+          { value: 'Yaw', label: t('偏航（度）') }, { value: 'Pitch', label: t('俯仰（度）') }, { value: 'Roll', label: t('扭转（度）') },
+        ]} onChange={poseMetric => onChange({ poseMetric })} />}
+      </div>
       <div className="mapping-row__main">
-        <Field
+        {draft.sourceMode === 'Computed' ? <SelectField className="mapping-row__path" label={t('计算信号')} value={draft.oscPath} options={[
+          { value: '', label: t('选择计算信号') },
+          ...computedSignals.map(signal => ({ value: signal.id, label: `${signal.name || signal.id} · ${signal.id}` })),
+        ]} onChange={oscPath => onChange({ oscPath })} /> : <Field
+          className="mapping-row__path"
           label={t('参数路径')}
           hint={t('输入路径片段查找建议；支持 *、**，多个路径用分号分隔。')}
           value={draft.oscPath}
@@ -170,13 +195,14 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
           onFocus={() => setPathFocused(true)}
           onBlur={() => setPathFocused(false)}
           onChange={(event) => onChange({ oscPath: event.target.value })}
-        />
+        />}
         <datalist id={pathListId}>
           {pathSuggestions.map((path) => (
             <option key={path} value={path} />
           ))}
         </datalist>
         <SelectField
+          className="mapping-row__target"
           label={t('目标轴')}
           value={draft.role}
           options={SIGNAL_ROLE_OPTIONS()}
@@ -224,48 +250,12 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
           </div>
           <div className="form-grid">
             <SelectField
-              label={t('输入解释')}
-              value={draft.sourceMode || 'Direct'}
-              options={[
-                { value: 'Direct', label: t('直接映射') },
-                { value: 'OgbDepth', label: t('SPS1 / SPS2 自动识别') },
-                { value: 'OgbTouch', label: t('OGB 触碰与门控') },
-                { value: 'SpsSocketDepth', label: t('SPS2 · PenOthersNewRoot / PenOthersNewTip') },
-                { value: 'SensaPose', label: t('三点姿态（实验）') },
-                { value: 'SensaPoint', label: t('本地点位移（实验）') },
-              ]}
-              onChange={(sourceMode) => onChange({ sourceMode })}
-            />
-            <SelectField
               label={t('映射曲线')}
               value={draft.curve || 'Linear'}
               options={SIGNAL_CURVE_OPTIONS()}
               onChange={(curve) => onChange({ curve })}
             />
           </div>
-          {draft.sourceMode === 'SensaPoint' && (
-            <SelectField
-              label={/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? t('测量指标') : t('测量轴')}
-              value={draft.pointMetric || 'Z'}
-              options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)}
-              onChange={(pointMetric) => onChange({ pointMetric })}
-            />
-          )}
-          {draft.sourceMode === 'SensaPose' && (
-            <SelectField
-              label={t('定位指标')}
-              value={draft.poseMetric || 'Depth'}
-              options={[
-                { value: 'Depth', label: t('插入比例') },
-                { value: 'OffsetX', label: t('孔口 X 偏移（m）') },
-                { value: 'OffsetY', label: t('孔口 Y 偏移（m）') },
-                { value: 'Yaw', label: t('偏航（度）') },
-                { value: 'Pitch', label: t('俯仰（度）') },
-                { value: 'Roll', label: t('扭转（度）') },
-              ]}
-              onChange={(poseMetric) => onChange({ poseMetric })}
-            />
-          )}
           <Toggle
             label={t('本地模拟')}
             checked={draft.simulateEnabled}
