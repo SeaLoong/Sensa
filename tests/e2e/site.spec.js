@@ -101,8 +101,9 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.goto(base + 'en/docs/contact-sdk.html');
   await expect(page.locator('article h1')).toHaveText('Contact direct tracking (SDK Beta)');
   await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first()).toBeVisible();
-  const buildGuide = page.locator('article a[href$="/en/docs/unity-build.html"]').first();
+  const buildGuide = page.getByRole('link', { name: 'Unity build guide', exact: true });
   await expect(buildGuide).toBeVisible(); await buildGuide.click();
+  await expect(page).toHaveURL(/\/en\/docs\/unity-build.html$/);
   await expect(page.locator('article h1')).toHaveText('Unity tracking components and build pipeline');
   await expect(page.locator('article')).toContainText('IEditorOnly');
   await expect(page.locator('article')).toContainText('BeforePlugin("nadena.dev.modular-avatar")');

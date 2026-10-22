@@ -8,7 +8,7 @@ This page retains inspected runs; read each commit's [Actions](https://github.co
 
 On 2026-10-23 (Beijing time), isolated local checks passed: **126 Web** and **230 Python** tests, Unity package metadata and an **80-page documentation build**; **46 C# files** passed C# 9 syntax parsing. Parsing checks syntax only; Unity Editor compilation, EditMode execution and client acceptance remain pending. [Implementation, setup and official evidence](unity-build.en.md)
 
-Site E2E now checks both build-guide entries, language switching, build timing and official reference links, with guide screenshots for both languages attached to the run report. This change retains the 122 reviewed comparison baselines. Full application E2E, six native builds/isolated smoke and Pages verification will run in Actions for this commit; inspected results will be added after completion.
+Site E2E now checks both build-guide entries, language switching, build timing and official reference links, with guide screenshots for both languages attached to the run report. This change retains the 122 reviewed comparison baselines. The first [Pages run 39817289697](https://github.com/SeaLoong/Sensa/actions/runs/39817289697) on `46db6f8` had **6/8 passed and 2 failed**, every other outcome zero: the new assertion searched for a full path while the correct generated link was relative. The assertion now locates its visible name and verifies the destination after clicking. Inspected full application E2E, six native builds/isolated smoke and Pages results will be added after the corrected run completes.
 
 ## Contact SDK adaptation
 
