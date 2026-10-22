@@ -119,7 +119,10 @@ test('English presets, script and compact help use localized documentation', {ta
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');
-  await expect(page.getByLabel(await text(page,'预设方案'),{exact:true}).locator('option')).toHaveCount(3);
+  const presets = page.getByLabel(await text(page,'预设方案'),{exact:true});
+  await expect(presets.locator('option')).toHaveCount(5);
+  await expect(presets.locator('option[value=contact-position]')).toHaveText('Contact · Position (SDK Beta)');
+  await expect(presets.locator('option[value=contact-speed]')).toHaveText('Contact · Speed intensity (SDK Beta)');
   await page.getByLabel(await text(page,'预设方案'),{exact:true}).selectOption('ogb-depth');
   await expect(page.getByRole('button',{name:await text(page,'替换草稿'),exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'Help',exact:true}).click();

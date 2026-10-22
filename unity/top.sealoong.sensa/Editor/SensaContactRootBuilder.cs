@@ -98,18 +98,24 @@ namespace UnityBox.Sensa
             foreach (var leaf in SensaContactProtocol.PublicLeaves)
                 SensaSensorUtility.Parameter(host, prefix + "/" + leaf,
                     leaf == SensaContactProtocol.SenderTypeLeaf ? ParameterSyncType.Int : ParameterSyncType.Float);
-            BuildAnimator(avatar, host, contacts, prefix, selector, selectedSlot);
+            BuildAnimator(avatar, host, contacts, prefix, receiver, selector, selectedSlot);
             contacts.SetActive(false);
             return host;
         }
 
         private static void BuildAnimator(GameObject avatar, GameObject host, GameObject contacts, string prefix,
-            string selector, int slot)
+            VRCContactReceiver receiver, string selector, int slot)
         {
             var controller = new AnimatorController { name = "Sensa Contact " + host.name };
             foreach (var parameter in host.GetComponent<ModularAvatarParameters>().parameters)
                 controller.AddParameter(parameter.nameOrPrefix, parameter.syncType == ParameterSyncType.Int
                     ? AnimatorControllerParameterType.Int : AnimatorControllerParameterType.Float);
+            // The SDK binds one Bool for each collision tag when advanced reporting is enabled.
+            // These writable parameters belong to FX only, outside the twelve public declarations.
+            var collisionTagParameters = receiver.collisionTags.Where(tag => !string.IsNullOrWhiteSpace(tag)).Distinct()
+                .Select(tag => receiver.parameter + "_CollisionTag_" + tag).ToArray();
+            foreach (var parameter in collisionTagParameters)
+                controller.AddParameter(parameter, AnimatorControllerParameterType.Bool);
             controller.AddParameter(new AnimatorControllerParameter { name = "ScaleFactor", type = AnimatorControllerParameterType.Float, defaultFloat = 1 });
             controller.AddParameter("IsLocal", AnimatorControllerParameterType.Bool);
             if (selector != null) controller.AddParameter(selector, AnimatorControllerParameterType.Int);
@@ -127,6 +133,8 @@ namespace UnityBox.Sensa
                 // SDK writes all ten native report parameters directly. Reset them only while inactive.
                 if (!active) foreach (var leaf in SensaContactProtocol.ReportLeaves)
                     driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = prefix + "/" + leaf, value = 0 });
+                if (!active) foreach (var parameter in collisionTagParameters)
+                    driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter { name = parameter, value = 0 });
                 // These controls prove producer activity and receiver scale, not atomic SDK sampling.
                 driver.parameters.Add(new VRC_AvatarParameterDriver.Parameter {
                     name = prefix + "/" + SensaContactProtocol.RadiusLeaf,

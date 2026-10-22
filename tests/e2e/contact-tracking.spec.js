@@ -71,32 +71,39 @@ test('SDK Contact metre coordinates calibrate, contact loss and frozen activity 
     }), contentType: 'application/json' });
   });
 
-test('SDK Contact speed calibrates V0 with stationary positions and zero velocity / Contact 静止位置下速度量程与 V0 联动',
-  { tag: ['@osc', '@input', '@config', '@transport', '@visual'] }, async ({ page, rig }, info) => {
-    await enable(page, ['Mock UDP']); await mode(page, 'OSC');
-    let speed = 0, sequence = 0;
-    const samples = () => contactRootSamples(.1, (sequence++ % 32 + 1) / 32, true, { velocityZ: speed });
-    const feed = await rig.startFeed(samples, 80);
-    await expect.poll(async () => (await contactObservation(rig))?.valid).toBe(true);
-    const panel = await contactPanel(page, rig);
-    await panel.getByLabel('测量指标', { exact: true }).selectOption('Speed');
-    await expect(panel.getByTestId('point-speed')).toContainText('0.000');
-    await panel.getByRole('button', { name: '采集 0%', exact: true }).click();
-    await expect(panel.locator('.calibration-grid output').nth(0)).toHaveText('0.000 m/s');
-    speed = .4; await feed.set(samples);
-    await expect(panel.getByTestId('point-speed')).toContainText('0.400');
-    await panel.getByRole('button', { name: '采集 100%', exact: true }).click();
-    await expect(panel.locator('.calibration-grid output').nth(1)).toHaveText('0.400 m/s');
-    await checkpoint(page, panel.locator('.point-diagnostic-grid'), 'contact-root-speed');
-    await savePointDraft(page, rig, panel, 'Speed', 'V0');
-    await allowSpatial(page);
-    speed = .2; await feed.set(samples); await active(page);
-    await expect.poll(() => {
-      const line = rig.wire.udp.filter(value => /V0\d/.test(value)).at(-1) || '';
-      return Math.abs(Number(line.match(/V0(\d+)/)?.[1] ?? -1000) - 500);
-    }).toBeLessThanOrEqual(1);
-    expect((await contactObservation(rig)).position.z).toBeCloseTo(.1, 5);
-    await info.attach('contact-speed-simulation.json', { body: JSON.stringify({
-      fixtureOnly: true, sdkClientExecution: false, constantZ: .1, speedEndpoints: [0, .4], role: 'V0',
-    }), contentType: 'application/json' });
-  });
+test.describe('SDK Contact vibration-only peer / Contact 纯振动模拟端', () => {
+  test.use({ scenario: 'vibration-only' });
+
+  test('SDK Contact speed calibrates V0 with stationary positions and zero velocity / Contact 静止位置下速度量程与 V0 联动',
+    { tag: ['@osc', '@input', '@config', '@transport', '@visual'] }, async ({ page, rig }, info) => {
+      expect(rig.intifaceState.profile).toBe('vibration-only');
+      await enable(page, ['Mock Intiface']); await mode(page, 'OSC');
+      const vibrationValues = () => rig.wire.intiface
+        .filter(message => message.OutputCmd?.Command?.Vibrate)
+        .map(message => message.OutputCmd.Command.Vibrate.Value);
+      let speed = 0, sequence = 0;
+      const samples = () => contactRootSamples(.1, (sequence++ % 32 + 1) / 32, true, { velocityZ: speed });
+      const feed = await rig.startFeed(samples, 80);
+      await expect.poll(async () => (await contactObservation(rig))?.valid).toBe(true);
+      const panel = await contactPanel(page, rig);
+      await panel.getByLabel('测量指标', { exact: true }).selectOption('Speed');
+      await expect(panel.getByTestId('point-speed')).toContainText('0.000');
+      await panel.getByRole('button', { name: '采集 0%', exact: true }).click();
+      await expect(panel.locator('.calibration-grid output').nth(0)).toHaveText('0.000 m/s');
+      speed = .4; await feed.set(samples);
+      await expect(panel.getByTestId('point-speed')).toContainText('0.400');
+      await panel.getByRole('button', { name: '采集 100%', exact: true }).click();
+      await expect(panel.locator('.calibration-grid output').nth(1)).toHaveText('0.400 m/s');
+      await checkpoint(page, panel.locator('.point-diagnostic-grid'), 'contact-root-speed');
+      await savePointDraft(page, rig, panel, 'Speed', 'V0');
+      await allowSpatial(page);
+      speed = .2; await feed.set(samples); await active(page);
+      await expect.poll(() => Math.abs((vibrationValues().at(-1) ?? -1000) - 500)).toBeLessThanOrEqual(1);
+      expect(rig.wire.intiface.filter(message =>
+        message.OutputCmd?.Command?.HwPositionWithDuration || message.OutputCmd?.Command?.Position)).toHaveLength(0);
+      expect((await contactObservation(rig)).position.z).toBeCloseTo(.1, 5);
+      await info.attach('contact-speed-simulation.json', { body: JSON.stringify({
+        fixtureOnly: true, sdkClientExecution: false, constantZ: .1, speedEndpoints: [0, .4], role: 'V0',
+      }), contentType: 'application/json' });
+    });
+});

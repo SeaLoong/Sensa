@@ -20,6 +20,8 @@ Receiver 的制作半径为 2 个 Avatar 根局部单位，标记半径为 0.001
 
 SDK 的公开开关是 **`advancedProximityParameters`**，类型为 Bool，适用于 Proximity Receiver。基参数名为 `Proximity` 时，SDK 写入 `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`。
 
+SDK 还会按碰撞标签写入 `_CollisionTag_<tag>` Bool。组件为自己的专用标签在 FX 中声明这个状态，并在停用时清零；公开 OSC 字段为下文列出的十二项。
+
 位置描述**发送形状中点相对接收形状中点的位移**，再旋转到接收形状的坐标轴。运行时使用接收形状旋转的逆变换，保留物理米单位，未除以 Transform 缩放或 Receiver 半径。球形的中点就是球心，胶囊使用其形状中点。因此，Sensa 的专用零偏移 Receiver 建立 **AvatarRootMeters**：原点在 Avatar 根，各轴跟随根旋转，单位为物理米。四点定位和 Shader 捕获继续使用 **AvatarRootLocal**，其单位按制作时的 Avatar 根尺度解释。
 
 ```text

@@ -20,6 +20,8 @@ The authored Receiver radius is 2 Avatar-root local units and the marker radius 
 
 The SDK public switch is **`advancedProximityParameters`**, a Bool used by Proximity Receivers. If the base parameter is `Proximity`, the SDK writes `Proximity_SenderType`, `Proximity_SenderLocalPositionX/Y/Z`, `Proximity_SenderVelocityX/Y/Z`, `Proximity_SenderVelocityMagnitude` and `Proximity_ProximitySpeed`.
 
+The SDK also writes a `_CollisionTag_<tag>` Bool for each collision tag. The component declares this state in FX for its dedicated tag and clears it while inactive. The public OSC contract contains the twelve fields listed below.
+
 Position describes the **Sender shape midpoint relative to the Receiver shape midpoint**, rotated into Receiver shape axes. The runtime applies inverse shape rotation without dividing by transform scale or Receiver radius. A sphere's midpoint is its center; a capsule uses its shape midpoint. Sensa's dedicated zero-offset Receiver therefore establishes **AvatarRootMeters**: origin at the Avatar root, axes following its rotation, and physical metre units. Four-anchor tracking and Shader capture continue to use **AvatarRootLocal**, whose units follow the authored Avatar scale.
 
 ```text

@@ -152,7 +152,7 @@ namespace UnityBox.Sensa.Tests
             Assert.Greater(SensaContactProtocol.SampleSteps * SensaContactProtocol.SamplePeriodSeconds * 1000,
                 SensaContactProtocol.MaximumSampleAgeMs);
             var reset = machine.defaultState.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
-            CollectionAssert.AreEquivalent(SensaContactProtocol.PublicLeaves.Select(leaf => "Sensa/Contact/Root/" + leaf), reset.Select(write => write.name));
+            CollectionAssert.IsSubsetOf(SensaContactProtocol.PublicLeaves.Select(leaf => "Sensa/Contact/Root/" + leaf), reset.Select(write => write.name));
             Assert.IsTrue(reset.All(write => write.value == 0 && write.type == VRC_AvatarParameterDriver.ChangeType.Set));
             Assert.AreEqual("Sensa/Contact/Root/Sample", reset.Last().name);
             var entryConditions = machine.defaultState.transitions.Single().conditions;
@@ -161,6 +161,32 @@ namespace UnityBox.Sensa.Tests
                 && condition.threshold == SensaContactProtocol.MaximumScaleFactor(1.2f)));
             ((AnimationClip)samples[0].motion).SampleAnimation(avatar, 0); Assert.IsTrue(host.transform.Find("Contacts").gameObject.activeSelf);
             ((AnimationClip)machine.defaultState.motion).SampleAnimation(avatar, 0); Assert.IsFalse(host.transform.Find("Contacts").gameObject.activeSelf);
+        }
+
+        [Test] public void SdkCollisionTagBoolIsWritableInFxOnlyAndResetWhenInactive()
+        {
+            RequireBeta(); var host = Build(Target()); var controller = Controller(host);
+            var receiver = host.GetComponentInChildren<VRCContactReceiver>(true);
+            var sdkSuffix = typeof(ContactReceiver).GetField("PARAM_COLLISION_TAG_PREFIX", BindingFlags.Public | BindingFlags.Static)
+                ?.GetRawConstantValue() as string;
+            Assert.AreEqual("_CollisionTag_", sdkSuffix, "Match the SDK's actual advanced collision-tag binding.");
+            var tag = receiver.collisionTags.Single();
+            Assert.AreEqual(SensaContactRootBuilder.TagPrefix + "ContactBuildContract", tag);
+            string parameter = receiver.parameter + sdkSuffix + tag;
+            var declared = controller.parameters.Single(value => value.name == parameter);
+            Assert.AreEqual(AnimatorControllerParameterType.Bool, declared.type); Assert.IsFalse(declared.defaultBool);
+            var publicParameters = host.GetComponent<ModularAvatarParameters>().parameters;
+            Assert.AreEqual(12, publicParameters.Count);
+            Assert.IsFalse(publicParameters.Any(value => value.nameOrPrefix == parameter));
+            var machine = controller.layers[0].stateMachine;
+            var reset = machine.defaultState.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters;
+            Assert.AreEqual(13, reset.Count);
+            var tagReset = reset.Single(value => value.name == parameter);
+            Assert.AreEqual(VRC_AvatarParameterDriver.ChangeType.Set, tagReset.type); Assert.AreEqual(0, tagReset.value);
+            Assert.IsTrue(machine.states.Where(value => value.state != machine.defaultState).All(value =>
+                value.state.behaviours.OfType<VRCAvatarParameterDriver>().Single().parameters.All(write => write.name != parameter)));
+            var animator = avatar.GetComponent<Animator>(); animator.runtimeAnimatorController = controller; animator.Rebind();
+            animator.SetBool(parameter, true); Assert.IsTrue(animator.GetBool(parameter));
         }
 
         [Test] public void PublicPrefabRequiresExplicitTargetAndNdmfRemovesAuthor()
