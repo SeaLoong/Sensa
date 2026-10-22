@@ -33,6 +33,9 @@ test('every illustrated parameter has complete bilingual explanations with attri
 test('lookup recognizes full OSC addresses while custom names and unverified fields stay publisher-defined', () => {
   const path = native('Proximity_SenderLocalPositionZ');
   assert.deepEqual(lookup('/avatar/parameters/' + path, 'en'), lookup(path, 'en-US'));
+  const handle = lookup('Sensa/Handle/v1/LabHandle/Self/Handle_Stretch', 'en');
+  assert.equal(handle.sources.find(source => source.kind === 'official-doc').url,
+    'https://creators.vrchat.com/common-components/physbones/#options');
   for (const unknown of [null, 1, {}, '', 'X', 'Custom/X', 'Custom/VelocityX', 'Custom/Proximity_SenderType',
     'Sensa/Contact/Root/Unknown', 'Sensa/Contact/Root/Proximity_CollisionTag_Custom',
     'Sensa/Shader/42/CRC', 'Sensa/SPS/Root/P4', 'Sensa/SPS/*/P0',

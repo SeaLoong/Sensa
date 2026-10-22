@@ -26,7 +26,7 @@
     raycast: { label: ['VRChat 官方：Raycast 参数', 'VRChat: Raycast parameters'], url: 'https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters', kind: 'official-doc' },
     builtins: { label: ['VRChat 官方：内建 Animator 参数', 'VRChat: built-in Animator parameters'], url: 'https://creators.vrchat.com/avatars/animator-parameters/#built-in-parameters', kind: 'official-doc' },
     scaling: { label: ['VRChat 官方：Avatar 缩放参数', 'VRChat: Avatar scaling parameters'], url: 'https://creators.vrchat.com/avatars/animator-parameters/#avatar-scaling-parameters', kind: 'official-doc' },
-    physbones: { label: ['VRChat 官方：PhysBone 参数', 'VRChat: PhysBone parameters'], url: 'https://creators.vrchat.com/avatars/avatar-dynamics/physbones/#parameters', kind: 'official-doc' },
+    physbones: { label: ['VRChat 官方：PhysBone 参数', 'VRChat: PhysBone parameters'], url: 'https://creators.vrchat.com/common-components/physbones/#options', kind: 'official-doc' },
   };
   const definitionLabels = {
     sdk: ['VRChat SDK 说明', 'VRChat SDK definition'],
