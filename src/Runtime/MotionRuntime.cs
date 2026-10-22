@@ -205,7 +205,7 @@ public sealed class MotionRuntime : IDisposable
             _computedExactPaths = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) < 0)
                 .ToHashSet(StringComparer.Ordinal);
             _computedPatterns = scalarPaths.Where(path => path.IndexOfAny(['*', ';', '\n']) >= 0)
-                .Select(path => (path, path.IndexOfAny([';', '\n']) >= 0 ? "" : path[..path.IndexOf('*')]))
+                .Select(path => (path, path.IndexOfAny([';', '\n']) >= 0 ? "" : path[..path.IndexOf('*')].TrimEnd('/')))
                 .ToArray();
             _usesComputedSpatial = _computedInputs.Any(input => input.SourceMode is "SensaPoint" or "SensaPose");
         }
