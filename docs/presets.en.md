@@ -1,4 +1,4 @@
-# Three built-in mapping templates
+# Five built-in mapping templates
 
 [简体中文](presets.md) | **English**
 
@@ -8,6 +8,8 @@ Templates provide common paths and roles to help create a mapping. Confirm the p
 | --- | --- | --- |
 | `ogb-depth` | SPS2 paired estimate, SPS1 or Plug depth trend | Depth → L0 |
 | `ogb-touch` | Touch/Frot or standalone VFH Touch Zone | V0 |
+| `contact-position` | Contact direct position; calibrate the selected axis in metres | SensaPoint Z → Depth / L0 |
+| `contact-speed` | Contact relative speed; calibrate strength in m/s | SensaPoint Speed → V0 |
 | `native-pb-stretch` | Native PB Stretch/IsGrabbed | Depth + GateEnable |
 
 ## OGB / SPS · Depth
@@ -35,6 +37,10 @@ OgbTouch pairs `TouchOthers` with the same instance’s `TouchOthersClose`, usin
 ## Native PB · Stretch
 
 The template uses `MyPB_Stretch` and `MyPB_IsGrabbed`. Replace MyPB with the actual PhysBone prefix. Grabbing opens GateEnable, releasing closes it, and stretch amount becomes a motion target.
+
+## Contact direct tracking: calibrated root mappings
+
+Use `contact-position` or `contact-speed` after building the dedicated own-root Sender/Receiver with the supported beta SDK. Both use `Sensa/Contact/Root/*`; replace `Root` with the actual instance. Position starts with Z mapped from 0–0.2 m to Depth, and speed starts with 0–1 m/s mapped to V0. Calibrate these example ranges for the actual movement. You can also generate a mapping from the root panel. Select **X/Y/Z/Distance** for position, or **VelocityX/Y/Z/Speed/ProximitySpeed** for movement strength, capture 0%/100% endpoints, inspect the preview and save. The generated SensaPoint mapping uses `Sensa/Contact/<id>/**` with the selected source and metric; position defaults to Depth, velocity metrics to V0. Choose a calibrated axis for subtle depth trends and a separate touch/Close gate when contact confirmation is needed. [Contact setup](contact-sdk.en.md)
 
 ## Apply and customize
 

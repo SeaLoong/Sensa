@@ -325,6 +325,7 @@ public sealed class MotionRuntime : IDisposable
                 && (oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.PointPrefix+"/",StringComparison.Ordinal)
                     || oscPath.StartsWith(UnityBox.Sensa.SensaPoseProtocol.HandlePrefix+"/",StringComparison.Ordinal)
                     || oscPath.StartsWith(UnityBox.Sensa.SensaFixedAnchorProtocol.Prefix+"/",StringComparison.Ordinal)
+                    || oscPath.StartsWith(UnityBox.Sensa.SensaContactProtocol.Prefix+"/",StringComparison.Ordinal)
                     || oscPath.StartsWith(ShaderRootTracking.Prefix+"/",StringComparison.Ordinal))) return true;
             foreach (var (pattern, processor) in _processors)
             {
@@ -453,7 +454,8 @@ public sealed class MotionRuntime : IDisposable
         SpsPositionTracking.Observation? chosenPoint=null;
         if(pointMappings.Length>0){var points=SpsPositionTracking.Observe(_store.SnapshotEntries(), preferredSourceKey, SpatialSampleMaxAgeMs, _timeProvider)
             .Where(p=>p.IsMappablePoint && pointMappings.Any(m=>p.Matches(m.Path))).ToArray();
-            if(points.Length==1 && points[0].Valid && IsSpatialGeometryFresh(points[0].TimestampMs))chosenPoint=points[0];}
+            if(points.Length==1 && points[0].Valid && IsSpatialGeometryFresh(points[0].TimestampMs)
+                && pointMappings.All(mapping => points[0].SupportsMetric(mapping.Processor.Mapping.PointMetric)))chosenPoint=points[0];}
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         PoseObservation? chosenPose = null;
         if (poseMappings.Length > 0)
@@ -741,7 +743,13 @@ public sealed class MotionRuntime : IDisposable
         if (_disposed || _inputMode != RuntimeInputMode.Osc || !_inputActive || _emergency) return;
         var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         (string Path,string Mode,SignalRole Role)[] mappings;
-        lock (_sync) mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
+        PointMetric[] pointMetrics;
+        lock (_sync)
+        {
+            mappings = _processors.Select(p => (p.Path,p.Processor.Mapping.SourceMode,p.Processor.Mapping.Role)).ToArray();
+            pointMetrics = _processors.Where(p => p.Processor.Mapping.SourceMode == "SensaPoint")
+                .Select(p => p.Processor.Mapping.PointMetric).ToArray();
+        }
         if (mappings.Length == 0) return;
         var source = _preferredOscSourceKeyProvider?.Invoke();
         var pointPaths=mappings.Where(m=>m.Mode=="SensaPoint").Select(m=>m.Path).ToArray();
@@ -755,7 +763,9 @@ public sealed class MotionRuntime : IDisposable
             var points = SpsPositionTracking.Observe(_store.SnapshotEntries(), source, SpatialSampleMaxAgeMs, _timeProvider)
                 .Where(p => p.IsMappablePoint && pointPaths.Any(p.Matches)).ToArray();
             // Match BuildOscPatch: several points are ambiguous even if one is fresh.
-            inputs.Add(points.Length == 1 && points[0].Valid ? [points[0].TimestampMs] : []);
+            inputs.Add(points.Length == 1 && points[0].Valid
+                && pointMetrics.All(points[0].SupportsMetric)
+                ? [points[0].TimestampMs] : []);
         }
         if (posePaths.Length > 0)
         {

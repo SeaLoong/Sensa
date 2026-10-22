@@ -22,16 +22,17 @@
 | 路线 | 提供什么 | 主要限制 |
 | --- | --- | --- |
 | **已有 OGB / SPS** | 读取 Avatar 已有的接近、触摸和深度相关参数 | 使用 Avatar 现有参数，先确认实际发送的是 SPS1 还是 SPS2 信号 |
-| **Sensa SPS** | 在自己的 Avatar 上添加测量组件，计算所选根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
+| **四点定位** | 在自己的 Avatar 上添加测量组件，计算所选根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
+| **[Contact 直接定位（SDK Beta）](docs/contact-sdk.md)** | 用一个专用 Receiver 读取所选根点的位置和相对速度 | 需要 Beta SDK 并重新构建自己的 Avatar；目标位于接收覆盖内 |
 | **Shader 捕获** | 将根点位置画成黑白编码图块，由桌面程序读取 | PC 实验方案；需要图块完整可见，真实 VRChat／头显效果尚待验证 |
 
-这里的“根点”是你在 Unity 中选定的 Socket／Plug 起点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。Sensa SPS 和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。
+这里的“根点”是你在 Unity 中选定的起点，例如 SPS Socket／Plug、Sensa 或原生 Contact 根点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。四点定位、Contact 直接定位和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。Contact 直接定位使用 SDK 3.10.6-beta.2 和物理米单位，速度值可校准为动作强度；真实客户端／OSC Beta 链路尚待验收。
 
 [方案选择](docs/usage-scenarios.md) · [OSC 字典](docs/osc-parameters.md) · [定位与限制](docs/positioning.md) · [OGB 兼容](docs/ogb-compatibility.md)
 
 ## 不接设备也能理解参数
 
-直接在浏览器打开[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)。十个模拟场景展示接收器、发送器、Socket／Plug 参考外形、固定锚点和 Shader 编码；可旋转 3D、在指定平面拖点，也可使用精确滑条和 SVG 投影。
+直接在浏览器打开[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)。十一个模拟场景展示接收器、发送器、Socket／Plug 参考外形、固定锚点、Contact 直接报告和 Shader 编码；可旋转 3D、在指定平面拖点，也可使用精确滑条和 SVG 投影。
 
 发行包包含 `docs/parameter-geometry.html` 及本地资源，可离线打开。页面自动识别浏览器语言并保存明确选择，也支持 [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) 和 [?lang=en-US](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。
 

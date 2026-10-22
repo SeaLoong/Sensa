@@ -8,13 +8,13 @@ const threeTest = test.extend({
 });
 
 const guideFile = new URL('../../docs/parameter-geometry.html', import.meta.url);
-const goldenScenes = ['socket-modern', 'socket-legacy', 'plug-touch', 'sensa-sps', 'shader'];
+const goldenScenes = ['socket-modern', 'socket-legacy', 'plug-touch', 'contact-sdk', 'sensa-sps', 'shader'];
 const scenarioIds = ['socket-modern', 'socket-legacy', 'plug-depth', 'socket-touch', 'plug-touch',
-  'socket-frot', 'plug-frot', 'zone', 'sensa-sps', 'shader'];
+  'socket-frot', 'plug-frot', 'zone', 'contact-sdk', 'sensa-sps', 'shader'];
 
 const anchorColors = ['#0052d9', '#07806a', '#8b46c6', '#c63e58'];
 async function addressPattern(page, scenario) {
-  const prefix = scenario === 'sensa-sps' ? 'Sensa/SPS' : scenario === 'shader' ? 'Sensa/Shader'
+  const prefix = scenario === 'contact-sdk' ? 'Sensa/Contact' : scenario === 'sensa-sps' ? 'Sensa/SPS' : scenario === 'shader' ? 'Sensa/Shader'
     : scenario === 'zone' ? 'VFH/Zone/Touch' : scenario.startsWith('plug-') ? 'OGB/Pen' : 'OGB/Orf';
   await expect(page.locator('#path-prefix')).toHaveText(prefix + '/*');
   await expect(page.locator('#path-assembly')).toContainText('*');
@@ -232,7 +232,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     fileUrl.searchParams.set('lang', 'zh-CN');
     await page.goto(fileUrl.href);
     await expect(page.locator('#scene')).toBeVisible();
-    await expect(page.locator('#scene option')).toHaveCount(10);
+    await expect(page.locator('#scene option')).toHaveCount(11);
     expect(await page.locator('#scene option').evaluateAll(options => options.map(option => option.value))).toEqual(scenarioIds);
     await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
 
@@ -730,6 +730,12 @@ function expectSceneGeometry(snapshot, scenario) {
   } else if (scenario === 'zone') {
     expectSphere(snapshot, 'receiver-zone', .1, zero);
     expectSphere(snapshot, 'sender-body', .025, { x: .08, y: 0, z: 0 });
+  } else if (scenario === 'contact-sdk') {
+    expectSphere(snapshot, 'receiver-contact', 2, zero);
+    expectSphere(snapshot, 'sender-contact', .001, { x: .02, y: 1, z: .15 });
+    expect(snapshot.objects.filter(object => object.role === 'receiver')).toHaveLength(1);
+    expect(snapshot.coverage.visible).toBe(true);
+    expect(snapshot.coverage.material.color).toBe('#07806a');
   } else if (scenario === 'sensa-sps') expectSpsObjects(snapshot);
   else {
     expect(snapshot.objects.filter(object => object.role === 'receiver' || object.role === 'sender')).toHaveLength(0);
@@ -746,7 +752,7 @@ function expectSceneGeometry(snapshot, scenario) {
     'socket-touch': [socket], 'socket-frot': [socket,
       ['socket-other', 'socket', { x: 0, y: 0, z: .08 }, { x: 0, y: 0, z: -1 }, .15, .054]],
     'plug-depth': [socket, plug('plug', .15)], 'plug-touch': [plug('plug', 0)],
-    'plug-frot': [plug('plug', 0), plug('sender', 0, .04)], zone: [], 'sensa-sps': [], shader: [],
+    'plug-frot': [plug('plug', 0), plug('sender', 0, .04)], zone: [], 'contact-sdk': [], 'sensa-sps': [], shader: [],
   }[scenario];
   expect(snapshot.illustrations).toHaveLength(references.length);
   for (const reference of references) expectReferenceMesh(snapshot, ...reference);
@@ -1364,4 +1370,48 @@ hostedTest('parameter details open the localized interactive guide without devic
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     expect(rig.wire.udp).toEqual([]);
     expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(before);
+  });
+
+threeTest('SDK Contact diagrams expose native metre vectors, independent velocity and contact loss / SDK Contact 图解展示原生米制向量、独立速度及接触离开',
+  { tag: ['@osc', '@config', '@i18n'] }, async ({ page }, info) => {
+    const url = new URL(guideFile); url.searchParams.set('lang', 'zh-CN');
+    await page.goto(url.href); await chooseScene(page, 'contact-sdk');
+    await expect(page.locator('#scene-title')).toHaveText('Contact 直接定位（SDK Beta）');
+    await addressPattern(page, 'contact-sdk');
+    const names = ['Proximity', 'Proximity_ProximitySpeed', 'Proximity_SenderLocalPositionX',
+      'Proximity_SenderLocalPositionY', 'Proximity_SenderLocalPositionZ', 'Proximity_SenderType',
+      'Proximity_SenderVelocityMagnitude', 'Proximity_SenderVelocityX', 'Proximity_SenderVelocityY',
+      'Proximity_SenderVelocityZ', 'Radius', 'Sample'];
+    expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name))).toEqual(names);
+    await setRange(page, 'x', -.25); await setRange(page, 'y', 1); await setRange(page, 'z', .15);
+    await setRange(page, 'vx', .3); await setRange(page, 'vy', .4); await setRange(page, 'vz', 0);
+    await nearCell(page, 'Proximity_SenderLocalPositionX', -.25);
+    await nearCell(page, 'Proximity_SenderVelocityMagnitude', .5);
+    await nearCell(page, 'Proximity_SenderType', 1);
+    await parameter(page, 'Proximity_SenderLocalPositionX').getByRole('button').click();
+    await expect(page.locator('#parameter-meaning')).toContainText('米');
+    await parameter(page, 'Proximity_SenderVelocityMagnitude').getByRole('button').click();
+    await expect(page.locator('#parameter-meaning')).toContainText('m/s');
+    await page.locator('#locale').selectOption('en-US');
+    await expect(page.locator('#scene-title')).toHaveText('Contact direct tracking (SDK Beta)');
+    await expect(page.locator('#parameter-meaning')).toContainText('m/s');
+    await setRange(page, 'x', 0); await setRange(page, 'y', 0); await setRange(page, 'z', 0);
+    await setRange(page, 'vx', 0); await setRange(page, 'vy', 0);
+    await nearCell(page, 'Proximity_SenderType', 1);
+    await nearCell(page, 'Proximity_SenderVelocityMagnitude', 0);
+    await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
+    await setRange(page, 'x', 2); await setRange(page, 'y', 1);
+    await nearCell(page, 'Proximity', 0); await nearCell(page, 'Proximity_SenderType', 0);
+    await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'false');
+    await nearCell(page, 'Proximity_SenderLocalPositionX', 0);
+    await setRange(page, 'x', 0); await setRange(page, 'y', 1);
+    await setRange(page, 'ageMs', 1100);
+    await nearCell(page, 'Proximity_SenderType', 1);
+    await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'false');
+    await finiteDrawing(page); await documentFits(page);
+    await info.attach('contact-guide-simulation.json', { body: JSON.stringify({
+      fixtureOnly: true, sdkClientExecution: false, fields: names, zeroOriginValid: true,
+      zeroVelocityValid: true, lossType: 0, positionUnits: 'm', velocityUnits: 'm/s',
+      frozenActivityMs: 1100, independentPositionVelocity: true,
+    }), contentType: 'application/json' });
   });

@@ -65,7 +65,8 @@ class LocalPlanTests(unittest.TestCase):
 
     def test_shared_protocol_and_presets_include_backend_checks(self):
         for path in ('src/web/data/osc-presets.json', 'unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs',
-                     'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs'):
+                     'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs',
+                     'unity/top.sealoong.sensa/Runtime/SensaContactProtocol.cs'):
             with self.subTest(path=path):
                 self.assertTrue(plan.plan_changes([path])['backend'])
 

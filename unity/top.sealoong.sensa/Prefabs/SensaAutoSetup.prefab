@@ -47,6 +47,7 @@ MonoBehaviour:
   selectedTargets: []
   excludedTargets: []
   socketRootTracking: 1
+  rootTrackingMethod: 0
   pairedSocketTracking: 0
   pairedPlugMarkers: 0
   localPlugTipTracking: 0

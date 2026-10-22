@@ -58,7 +58,7 @@ When reporting a problem, include the steps, actual mode, selected source and co
 
 ### Turn a parameter into motion (mapping)
 
-The top toolbar groups presets, replace/append, save and restore. There are only [three built-ins](presets.en.md): depth, vibration and native PB. Custom presets remain available.
+The top toolbar groups presets, replace/append, save and restore. There are [five built-ins](presets.en.md): OGB depth/vibration, Contact position/speed and native PB. Custom presets remain available.
 
 Each row selects path, role and inversion; advanced fields set input range, curve and output interval. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Single-row simulation previews the input range, curve and output-interval conversion. A successful save clears the draft's unsaved indicator and disarms input.
 
@@ -75,9 +75,11 @@ Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and 
 
 ### Control from root position: inspect, then calibrate
 
-SPS/Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
+Four-anchor, Contact and Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Contact direct tracking uses physical metres (AvatarRootMeters); four-anchor and Shader use authored Avatar-root units (AvatarRootLocal). Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
 
-Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
+Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Contact direct tracking also offers VelocityX/Y/Z and Speed in m/s, plus ProximitySpeed in proximity units/s; use these to calibrate movement strength. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
+
+For **Contact direct tracking (SDK Beta)**, first install the supported beta SDK and build its dedicated own-root Sender/Receiver. A calibrated position axis can follow subtle local depth movement, a touch/Close gate can confirm contact, and a velocity metric can control vibration strength. Keep the same object, source and metric for both captured endpoints. [Beta setup and field meanings](contact-sdk.en.md)
 
 ## Settings and help
 
@@ -89,7 +91,7 @@ When a document heading has a counterpart, switching language keeps that section
 
 ## Explore approach, contact and position
 
-The [online version](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) is standalone; releases also include `docs/parameter-geometry.html`. All ten scenes have 3D, XZ and isometric SVG. Dragging the 3D target changes only the selected plane's axes; background drag rotates. Camera reset preserves parameters. Sliders remain available and WebGL failure falls back to SVG.
+The [online version](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) is standalone; releases also include `docs/parameter-geometry.html`. All eleven scenes have 3D, XZ and isometric SVG. Dragging the 3D target changes only the selected plane's axes; background drag rotates. Camera reset preserves parameters. Sliders remain available and WebGL failure falls back to SVG.
 
 Choose **SPS2 · PenOthersNewRoot / PenOthersNewTip** or **SPS1 · PenOthers / PenOthersClose** to see how approach toward a Socket changes depth-related readings. Touch, Frot and zone scenes show their corresponding touch intensities. Dictionary ordering places a shorter shared prefix first, helping you compare readings with actual OSC paths.
 

@@ -23,7 +23,7 @@ Paths omit `/avatar/parameters/`. Orf means Socket; Pen means Plug. Their root c
 | R, r | Actual Receiver and spherical Sender radii |
 | H | Complete capsule height, including both hemispheres |
 
-Proximity is a continuous 0–1 value, usually increasing as a target approaches the detection center. Constant reports presence in the effective nearby region: one inside, zero after leaving. Each VRChat Receiver independently chooses the nearest matching Sender. A spherical receiver measures the nearest Sender surface to its centre. For two spheres:
+Proximity is a continuous 0–1 value, usually increasing as a target approaches the detection center. Constant reports presence in the effective nearby region: one inside, zero after leaving. Each Proximity Receiver independently selects the matching Sender with the greatest strictly positive Proximity. A spherical receiver measures the nearest Sender surface to its centre. For two spheres:
 
 ```text
 p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
@@ -117,6 +117,12 @@ Radial fraction q = clamp(1 - d / L, 0, 1)
 Sensa uses the generator model R=1 and r=0.01, giving the +0.01 correction. Runtime scaling or custom dimensions make this conversion approximate, with actual R/r determined from authored geometry. Root saturation at one means d≤r, so readings stay constant within that small region. Calibrate your desired start and end positions using the actual object. [Estimator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
 
 Only complete finite 0–1 pairs with a usable unsaturated length observation support the subsequent radial fraction. Starting inside with unknown length returns zero: leave and re-enter first. Lateral offset, multiple Plugs, saturation and asynchronous per-parameter updates affect results. Keeping the same object and source throughout calibration helps produce stable, interpretable changes.
+
+## Dedicated Contact direct tracking (SDK Beta)
+
+SDK 3.10.6-beta.2 also exposes native Sender midpoint position and relative contact-point velocity through advanced Proximity parameters. Sensa uses a separate `Sensa/Contact/<id>/…` instance with one unique-channel own-root Sender and one Avatar-root Receiver. Position is in physical metres (AvatarRootMeters), velocity in m/s; movement strength can be calibrated with VelocityX/Y/Z, Speed or ProximitySpeed. Four-anchor tracking keeps `Sensa/SPS/<id>/P0…P3+Sample`, and existing OGB paths and the depth/touch models above keep their published meanings.
+
+Choose this route when authoring your own root measurement. Explicit Sensa/native Contact roots work independently of VRCFury. For body linkage, a calibrated position axis can follow subtle depth trends and a Touch/Close condition can confirm contact. [Beta setup, source evidence and field semantics](contact-sdk.en.md) · [Dictionary](osc-parameters.en.md)
 
 ## Sensa's compact entry points and prerequisites
 

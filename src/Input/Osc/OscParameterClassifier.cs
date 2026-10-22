@@ -24,6 +24,14 @@ public static class OscParameterClassifier
             || normalized.StartsWith("v2/", StringComparison.OrdinalIgnoreCase))
             return new(true, 0, "面部追踪参数");
         var segments = normalized.Split('/');
+        if (normalized.StartsWith("Sensa/Contact/", StringComparison.Ordinal))
+            return new(false, 100, "SDK Contact 根点与相对速度；需完整采样与 Self 目标 / SDK Contact root and relative velocity require complete samples and a Self target");
+        if (leaf.Contains("_SenderLocalPosition", StringComparison.Ordinal)
+            || leaf.Contains("_SenderVelocity", StringComparison.Ordinal)
+            || leaf.EndsWith("_SenderType", StringComparison.Ordinal)
+            || leaf.EndsWith("_ProximitySpeed", StringComparison.Ordinal)
+            || leaf.Contains("_CollisionTag_", StringComparison.Ordinal))
+            return new(false, 60, "SDK Contact 高级报告；不是插入深度 / SDK Contact advanced report; not insertion depth");
         if (normalized.StartsWith("VFH/Zone/Touch/", StringComparison.Ordinal)
             || segments.Any(s => s.Equals("OGB", StringComparison.OrdinalIgnoreCase) || s.Equals("Sensa", StringComparison.OrdinalIgnoreCase)))
             return new(false, 100, "已知触觉参数路径");

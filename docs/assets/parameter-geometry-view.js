@@ -23,6 +23,8 @@
     grid: ['20 × 12 编码图块（边缘用于定位）', '20 × 12 encoded grid with edge markers'], controls: ['调整几何', 'Adjust geometry'],
     dragHint: ['拖动橙色操作点仅改变 X/Z，Y 由滑条控制。方向键：左右 Z、上下 X；Shift 加速。', 'Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.'],
     x: ['移动对象 · X', 'Moving object · X'], y: ['移动对象 · Y', 'Moving object · Y'], z: ['移动对象 · Z', 'Moving object · Z'],
+    vx: ['SDK 相对速度 · X', 'SDK relative velocity · X'], vy: ['SDK 相对速度 · Y', 'SDK relative velocity · Y'], vz: ['SDK 相对速度 · Z', 'SDK relative velocity · Z'],
+    proximitySpeed: ['接近值变化率', 'Proximity change rate'],
     length: ['Plug 长度 L', 'Plug length L'], width: ['Plug 半径 W', 'Plug radius W'], depth: ['Socket 区域 D', 'Socket region D'],
     yaw: ['Plug 绕根旋转', 'Plug root rotation'], senderRadius: ["触碰对象半径", "Touching object radius"],
     zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['活动计数 Sample（0 表示停止）', 'Activity counter Sample (0 means stopped)'],
@@ -34,7 +36,8 @@
     meaning: ["0–1 的接近值描述匹配对象由远到近的变化，Close=1 表示进入对应接触范围。X/Y/Z 给出目标相对参考点的位置。彩色球或胶囊画出检测范围，灰色轮廓帮助辨认 Socket、Plug 与朝向。", "A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction."],
     sourceNote: ["尺寸与计算依据来自引用的上游实现及 Sensa 定义，详细参数地址和来源见下方链接。", "Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources."],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
-    positioning: ['SPS 定位原理', 'SPS positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
+    positioning: ['定位原理', 'Positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
+    exploreTopics: ['按用途阅读：', 'Read by use: '], positionTopic: ['位置', 'position'], depthTopic: ['进入程度', 'depth'], touchTopic: ['触碰', 'touch'],
     'socket-modern': ["SPS2 · PenOthersNewRoot / PenOthersNewTip", "SPS2 · PenOthersNewRoot / PenOthersNewTip"],
     'socket-legacy': ["SPS1 · PenOthers / PenOthersClose", "SPS1 · PenOthers / PenOthersClose"],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
@@ -43,7 +46,8 @@
     'socket-frot': ['Socket · FrotOthers', 'Socket · FrotOthers'],
     'plug-frot': ["Plug · FrotOthers / FrotOthersClose", "Plug · FrotOthers / FrotOthersClose"],
     zone: ["Touch Zone · Others", "Touch Zone · Others"],
-    'sensa-sps': ["Sensa SPS · P0 / P1 / P2 / P3 / Sample", "Sensa SPS · P0 / P1 / P2 / P3 / Sample"],
+    'contact-sdk': ['Contact 直接定位（SDK Beta）', 'Contact direct tracking (SDK Beta)'],
+    'sensa-sps': ['四点定位', 'Four-anchor tracking'],
     shader: ["Shader · X / Y / Z", "Shader · X / Y / Z"],
   };
   const scenes = {
@@ -86,6 +90,11 @@
       summary: ["Others 显示他人触碰指定 Touch Zone 时的接近程度。", "Others reports proximity when another avatar touches the selected Touch Zone."],
       explanation: ["Touch Zone 可放在希望响应触碰的位置，例如身体表面的一小块区域。调整半径，可观察触碰开始生效的范围；数值可直接作为触碰强度参考。", "Place a Touch Zone wherever contact should create a response, such as a small area on the body surface. Adjust its radius to explore the reach, then use the value directly as a touch-intensity reference."],
       formula: ["接收区域为半径 R 的球；触碰对象半径 r 可独立调整。p=clamp(1−max(0,d−r)/R)，距离由完整 XYZ 计算。", "The receiver is a sphere of radius R; the touching object’s radius r varies independently. p=clamp(1−max(0,d−r)/R), using full XYZ distance."],
+    },
+    'contact-sdk': {
+      summary: ['一个 2 米接收球位于 Avatar 根原点，直接读取跟随目标的 1 毫米 Sender 形状中点。绿色区域表示单球检测覆盖。', 'One 2 m receiver sphere at the Avatar root directly reports the shape midpoint of a 1 mm Sender following the target. Green shows single-sphere coverage.'],
+      explanation: ['XYZ 以米描述身体部位或目标相对 Avatar 根的位置，可用于位置、进入程度与接触联动。SDK 选择接近值最大的自身标记；SenderType=1 且 Sample 持续更新时位置可用，原点与零速度均有效。速度与接近值变化率可单独调整，帮助观察不同动作信号。', 'XYZ in metres locates a body part or target relative to the Avatar root, for position, depth and contact interaction. The SDK selects the self marker with the highest positive proximity. Position is usable with SenderType=1 and updating Sample; the origin and zero velocity are valid. Adjust velocity and proximity change rate independently to explore different motion signals.'],
+      formula: ['d 为双方形状中点距离，p=clamp(1−max(0,d−0.001)/2)。p>0 时选择 Sender，实际覆盖延伸到距原点小于 2.001 m。XYZ 为双方形状中点之差乘 Receiver 逆旋转，以米保留世界尺度；SDK 速度包含近似接触点的旋转影响，速度大小=√(Vx²+Vy²+Vz²)，ProximitySpeed 单位为 1/s。', 'With d the distance between shape midpoints, p=clamp(1−max(0,d−0.001)/2). A Sender is selected at p>0, extending coverage to a distance strictly below 2.001 m. XYZ is the difference between shape midpoints with inverse Receiver rotation, in metres retaining world scale. SDK velocity includes angular effects at an approximate contact point; its magnitude is √(Vx²+Vy²+Vz²), while ProximitySpeed uses 1/s.'],
     },
     'sensa-sps': {
       summary: ["P0–P3 四个固定测量点各有 2 米接收半径，感知跟随目标的 1 毫米标记；绿色区域表示四路共同可测的位置。", "Four fixed points, P0–P3, each have a 2 m receiver radius and sense a 1 mm marker following the target. Green shows positions all four can measure."],
@@ -130,8 +139,8 @@
   let threeView = null, threeUnavailable = false;
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
-  const spatial = () => ['sensa-sps', 'shader'].includes(state.scenario);
-  const units = () => spatial() ? text(['本地单位', 'local units']) : 'm';
+  const spatial = () => ['contact-sdk', 'sensa-sps', 'shader'].includes(state.scenario);
+  const units = () => state.scenario === 'contact-sdk' ? 'm' : spatial() ? text(['本地单位', 'local units']) : 'm';
   const anchorIndex = id => { const match = /^receiver-P([0-3])$/.exec(id); return match ? Number(match[1]) : null; };
   function tintAnchor(node, index) {
     if (index === null) return node;
@@ -164,7 +173,7 @@
     const add = (p, radius = 0) => { const q = raw(p); left = Math.min(left, q.x - radius); right = Math.max(right, q.x + radius); top = Math.min(top, q.y - radius); bottom = Math.max(bottom, q.y + radius); };
     for (const shape of result.shapes) {
       if (shape.type === 'box') corners(shape).forEach(p => add(p));
-      else if (!spatial()) { add(shape.a, shape.radius); add(shape.b, shape.radius); }
+      else if (!spatial() || state.scenario === 'contact-sdk') { add(shape.a, shape.radius); add(shape.b, shape.radius); }
     }
     for (const body of result.illustrations) for (const point of body.profile) {
       add({ x: body.root.x + body.axis.x * point.t * body.length,
@@ -384,6 +393,12 @@
       add(['活动 / 几何拟合', 'Activity / geometry fit'], String(m.active) + ' / ' + String(m.fitValid));
       for (const shape of result.shapes.filter(s => s.id.startsWith('receiver-P'))) add(shape.id.slice(-2), ['x', 'y', 'z'].map(k => fmt(shape.center[k], 1)).join(' / '));
     }
+    if (state.scenario === 'contact-sdk') {
+      add(['选中自身 Sender', 'Selected self Sender'], text(m.selected ? ['是', 'Yes'] : ['否', 'No']));
+      add(['可用 XYZ（米）', 'Usable XYZ (metres)'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
+      add(['Sample 变化年龄 / 上限', 'Sample change age / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
+      add(['Receiver 世界半径', 'Receiver world radius'], fmt(m.worldRadius) + ' m');
+    }
     if (state.scenario === 'shader') {
       add(['输入 XYZ', 'Input XYZ'], ['x', 'y', 'z'].map(k => fmt(state[k])).join(' / '));
       add(['16 位量化 X / Y / Z', '16-bit quantized X / Y / Z'], ['x', 'y', 'z'].map(k => m.encoded[k]).join(' / '));
@@ -436,13 +451,14 @@
     if (spatial()) ['ageMs', 'valid'].forEach(k => allowed.add(k));
     $('signal-simulation').hidden = !spatial();
     $('coverage-legend').hidden = !spatial();
-    if (state.scenario === 'sensa-sps') allowed.add('sample');
+    if (['contact-sdk', 'sensa-sps'].includes(state.scenario)) allowed.add('sample');
+    if (state.scenario === 'contact-sdk') ['vx', 'vy', 'vz', 'proximitySpeed'].forEach(k => allowed.add(k));
     if (state.scenario === 'shader') allowed.add('frame');
     for (const holder of document.querySelectorAll('[data-control]')) {
       const key = holder.dataset.control, input = $('control-' + key); holder.hidden = !allowed.has(key);
       if (['x', 'y', 'z'].includes(key)) {
-        input.min = spatial() ? key === 'y' ? '-1.3' : '-2.3' : key === 'z' ? '-0.4' : '-0.6';
-        input.max = spatial() ? key === 'y' ? '3.3' : '2.3' : key === 'z' ? '1.2' : '0.6';
+        input.min = state.scenario === 'contact-sdk' ? '-2.3' : spatial() ? key === 'y' ? '-1.3' : '-2.3' : key === 'z' ? '-0.4' : '-0.6';
+        input.max = state.scenario === 'contact-sdk' ? '2.3' : spatial() ? key === 'y' ? '3.3' : '2.3' : key === 'z' ? '1.2' : '0.6';
       }
       if (key === 'valid') input.checked = state.valid;
       else {
@@ -450,7 +466,7 @@
         const output = holder.querySelector('output');
         output.textContent = key === 'sample' ? Math.round(state.sample * 32) + '/32'
           : key === 'ageMs' ? state[key] + ' ms' : key === 'frame' ? String(state[key])
-          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (spatial() ? '' : ' ' + units());
+          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (['vx', 'vy', 'vz'].includes(key) ? ' m/s' : key === 'proximitySpeed' ? ' 1/s' : state.scenario === 'contact-sdk' ? ' m' : spatial() ? '' : ' ' + units());
       }
     }
     const receiverKey = $('receiver-key'); receiverKey.replaceChildren();
@@ -459,7 +475,10 @@
       const swatch = document.createElement('span'); swatch.className = 'anchor-key-color';
       receiverKey.append(tintAnchor(swatch, index));
     });
-    $('unit-note').textContent = spatial()
+    $('control-ageMs').closest('label').querySelector('span').textContent = state.scenario === 'contact-sdk' ? text(['距 Sample 上次变化', 'Age since Sample changed']) : text('ageMs');
+    $('control-valid').closest('label').querySelector('span').textContent = state.scenario === 'contact-sdk' ? text(['Sensa 生产端启用', 'Sensa producer enabled']) : text('valid');
+    $('unit-note').textContent = state.scenario === 'contact-sdk'
+      ? text(['位置以米表示，原点在 Avatar 根，轴随 Avatar 根旋转。绿色为单球可检测区域；Sample 检查生产端活动，速度变化保持独立。', 'Position uses metres, centered on the Avatar root with axes following its rotation. Green is single-sphere detection coverage. Sample checks producer activity; velocity changes remain independent.']) : spatial()
       ? text(['坐标相对 Avatar 根：X 左右、Y 高度、Z 前后；在作者缩放为 1 时单位对应米。绿色是检测范围，灰色框是允许的坐标边界。', 'Coordinates relative to the avatar root: X side-to-side, Y height, Z front-to-back. Units correspond to metres at authored scale 1. Green is detection coverage; the gray box is the coordinate limit.'])
       : text(['米制示意，作者缩放假定为 1；胶囊 H 含端帽，尺寸以模型读数为准。', 'Metre illustration with authored scale assumed one. Capsule H includes caps; use model dimensions.']);
   }
@@ -469,7 +488,7 @@
     $('scene-title').textContent = text(state.scenario); $('scene-summary').textContent = text(scenes[state.scenario].summary);
     const suffix = locale === 'en-US' ? '.en.md' : '.md', hosted = /^https?:$/.test(location.protocol);
     const siteRoot = document.querySelector('meta[name="sensa-site-root"]')?.content;
-    for (const [selector, path] of [['.brand', 'osc-parameters'], ['#reference-link', 'osc-parameters'], ['#ogb-link', 'ogb-compatibility'], ['#position-link', 'positioning']]) {
+    for (const [selector, path] of [['.brand', 'osc-parameters'], ['#reference-link', 'osc-parameters'], ['#ogb-link', 'ogb-compatibility'], ['#position-link', 'positioning'], ['#position-topic', 'positioning'], ['#depth-topic', 'ogb-compatibility'], ['#touch-topic', 'ogb-compatibility']]) {
       document.querySelector(selector).href = siteRoot
         ? new URL((locale === 'zh-CN' ? 'zh-CN' : 'en') + '/docs/' + path + '.html', new URL(siteRoot, location.href)).href
         : (hosted ? 'https://github.com/SeaLoong/Sensa/blob/main/docs/' : '') + path + suffix;
@@ -500,6 +519,7 @@
         projection = null;
         $('projection-note').textContent = text(['拖动空白处旋转视角；橙色操作点放大显示，方便选取。单位：', 'Drag empty space to orbit; the orange handle is enlarged for easy selection. Units: ']) + units() + '. '
           + (state.scenario === 'sensa-sps' ? text(['绿色外形是四球共同可测区域；检测点附近的微小饱和区除外。', 'The green envelope is the shared measurable region, excluding tiny saturation regions near the anchors.'])
+            : state.scenario === 'contact-sdk' ? text(['绿色球为单球覆盖；仅正接近值会选中目标。橙色点显示目标形状中点。', 'The green sphere shows single-sphere coverage; positive proximity selects a target. Orange marks its shape midpoint.'])
             : state.scenario === 'shader' ? text(['绿色方框表示坐标编码范围；桌面工具框选画面中的图块。位置一致时，输入点与解码点会重合。', 'The green box shows coordinate encoding bounds; select the image grid in the desktop tool. Input and decoded points overlap when their positions match.'])
               : text(['图中作者缩放为 1，灰色轮廓用于观察 Socket、Plug 与朝向。', 'Authored scale is one; gray outlines show Socket, Plug and direction.']));
       } catch { fallbackThree(); return; }

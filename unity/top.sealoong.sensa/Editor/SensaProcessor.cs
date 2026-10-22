@@ -32,6 +32,7 @@ namespace UnityBox.Sensa
                 {
                     SensaQuickStartBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaFixedRootBuilder.ProcessAvatar(ctx.AvatarRootObject);
+                    SensaContactRootBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaAutoBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaPointBuilder.ProcessAvatar(ctx.AvatarRootObject);
                     SensaPoseBuilder.ProcessAvatar(ctx.AvatarRootObject);
@@ -62,6 +63,7 @@ namespace UnityBox.Sensa
 #else
             SensaQuickStartBuilder.ProcessAvatar(avatarGameObject);
             SensaFixedRootBuilder.ProcessAvatar(avatarGameObject);
+            SensaContactRootBuilder.ProcessAvatar(avatarGameObject);
             SensaAutoBuilder.ProcessAvatar(avatarGameObject);
             SensaPointBuilder.ProcessAvatar(avatarGameObject);
             SensaPoseBuilder.ProcessAvatar(avatarGameObject);

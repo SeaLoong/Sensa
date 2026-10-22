@@ -8,7 +8,7 @@
 
   const scenarios = Object.freeze([
     'socket-modern', 'socket-legacy', 'socket-touch', 'socket-frot',
-    'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'sensa-sps', 'shader',
+    'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'contact-sdk', 'sensa-sps', 'shader',
   ]);
   const spsGeometry = Object.freeze({ receiverRadius: 2, markerRadius: .001, anchorHalfSpan: .35, positionHalfRange: 2, minProximity: .001, maxProximity: .999 });
   const anchors = Object.freeze([
@@ -31,6 +31,7 @@
     plugs: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256',
     senders: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108',
     contacts: 'https://creators.vrchat.com/common-components/contacts/',
+    contactSdk: 'https://creators.vrchat.com/common-components/contacts/#advanced-proximity-parameters',
     sps: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs',
     shader: 'https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt',
   });
@@ -39,12 +40,13 @@
     const positions = {
       'socket-modern': [0, 0, .35], 'socket-legacy': [0, 0, .1], 'socket-touch': [0, 0, -.1],
       'socket-frot': [0, 0, .08], 'plug-depth': [0, 0, .15], 'plug-touch': [0, 0, -.1],
-      'plug-frot': [.04, 0, 0], zone: [.08, 0, 0], 'sensa-sps': [.02, 1, .15], shader: [.02, 1, .15],
+      'plug-frot': [.04, 0, 0], zone: [.08, 0, 0], 'contact-sdk': [.02, 1, .15], 'sensa-sps': [.02, 1, .15], shader: [.02, 1, .15],
     };
     const [x, y, z] = positions[scenario];
     return { scenario, x, y, z, L: .2, W: .03, D: .15, senderRadius: .025,
       senderHeight: .12, zoneRadius: .1, yaw: 0, party: 'Others', senderKind: 'body',
-      senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true };
+      senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true,
+      vx: 0, vy: 0, vz: 0, proximitySpeed: 0 };
   }
   const origin = () => ({ x: 0, y: 0, z: 0 });
   const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
@@ -141,6 +143,7 @@
   }
   function coverageContains(point, scenario = 'sensa-sps') {
     if (!['x', 'y', 'z'].every(key => Number.isFinite(point[key]))) return false;
+    if (scenario === 'contact-sdk') return length(point) < spsGeometry.receiverRadius + spsGeometry.markerRadius;
     const half = spsGeometry.positionHalfRange;
     if (Math.abs(point.x) > half || Math.abs(point.y - 1) > half || Math.abs(point.z) > half) return false;
     if (scenario === 'shader') return true;
@@ -167,6 +170,16 @@
     return radius > 0 ? radius : null;
   }
   function coverageFor(point, scenario) {
+    if (scenario === 'contact-sdk') {
+      const radius = spsGeometry.receiverRadius + spsGeometry.markerRadius;
+      const squared = radius * radius - point.y * point.y;
+      const slice = squared > 0 ? Array.from({ length: 128 }, (_, index) => ({
+        x: Math.sqrt(squared) * Math.cos(index * Math.PI / 64), y: point.y,
+        z: Math.sqrt(squared) * Math.sin(index * Math.PI / 64),
+      })) : [];
+      return { kind: 'contact-sphere', center: origin(), radius, receiverRadius: spsGeometry.receiverRadius,
+        containsTarget: coverageContains(point, scenario), sliceY: point.y, slice, holes: [], exclusions: [] };
+    }
     const isSps = scenario === 'sensa-sps', center = { x: 0, y: 1, z: 0 }, half = spsGeometry.positionHalfRange;
     const near = spsGeometry.receiverRadius * (1 - spsGeometry.maxProximity) + spsGeometry.markerRadius;
     const far = spsGeometry.receiverRadius * (1 - spsGeometry.minProximity) + spsGeometry.markerRadius;
@@ -188,6 +201,34 @@
       exclusions: isSps ? anchors.map(anchor => ({ center: { ...anchor }, radius: near })) : [] };
   }
   function meaningFor(scenario, name) {
+    if (scenario === 'contact-sdk') {
+      if (name === 'Proximity') return [
+        '选中匹配 Sender 的接近值，范围 0–1；按接收器形状中心到 Sender 最近表面的距离计算。数值越大表示越靠近；0 表示没有选中的 Sender。',
+        'The selected matching Sender’s proximity, from 0 to 1, using receiver shape center to nearest Sender surface distance. Higher means closer; 0 means no selected Sender.'];
+      if (name === 'Proximity_SenderType') return [
+        'SDK 选中的 Sender 类别（Int）：0 无、1 自身、2 他人、3 世界。本 Sensa 预设仅匹配自身标记；1 与活动 Sample 一起确认可用位置，原点坐标也有效。离开后类别、XYZ 与速度归零。',
+        'SDK selected Sender category (Int): 0 none, 1 self, 2 another avatar, 3 world. This Sensa preset matches self markers; 1 plus active Sample confirms a usable position, including the origin. Type, XYZ and velocity return to zero on exit.'];
+      if (name.startsWith('Proximity_SenderLocalPosition')) {
+        const axis = name.at(-1), directions = { X: ['左右', 'left/right'], Y: ['上下', 'up/down'], Z: ['前后', 'forward/back'] };
+        return [`Sender 形状中点相对 Receiver 形状中点的 ${axis} 位置分量，单位米；轴向随 Receiver 旋转。此预设 Receiver 位于 Avatar 根原点，${directions[axis][0]}可取正值或负值，可用于位置与进入程度联动。`,
+          `The ${axis} component from Receiver shape midpoint to Sender shape midpoint, in metres, on axes rotated with the Receiver. This preset centers the Receiver on the Avatar root; signed ${directions[axis][1]} position can guide position and depth interaction.`];
+      }
+      if (name === 'Proximity_SenderVelocityMagnitude') return [
+        '选中双方在近似接触点处的相对速度大小，单位 m/s，始终 ≥0；包含双方旋转的角速度影响。静止时为 0，可与位置共同描述动作。',
+        'Relative speed of the selected pair at an approximate contact point, in m/s, always ≥0, including angular motion from both shapes. Zero describes rest; use it alongside position.'];
+      if (name.startsWith('Proximity_SenderVelocity')) return [
+        `选中双方在近似接触点处的相对速度 ${name.at(-1)} 分量，单位 m/s，沿 Receiver 旋转后的轴；负值表示沿该轴负向运动。包含角速度影响，SDK 独立报告此值，位置滑条与速度滑条分别调整。`,
+        `The selected pair’s relative velocity ${name.at(-1)} component at an approximate contact point, in m/s on Receiver-rotated axes; negative values move along the negative axis. It includes angular motion and is reported independently by the SDK; position and velocity sliders are separate.`];
+      if (name === 'Proximity_ProximitySpeed') return [
+        '基础 Proximity 每秒的变化率，单位 1/s；靠近时通常为正，远离时通常为负，进入或离开检测时可能短暂跳变。它描述接近值变化，可辅助接触联动。',
+        'Change in base Proximity per second, in 1/s: usually positive on approach and negative on retreat, with possible entry or exit transients. It describes changing proximity for contact interaction.'];
+      if (name === 'Radius') return [
+        'Receiver 实际世界半径，单位米，允许范围 (0,3]；此预设为 2 m。用于检查检测覆盖与缩放是否受支持。',
+        'The Receiver’s actual world radius in metres, allowed range (0,3]; this preset uses 2 m. Use it to check coverage and supported scaling.'];
+      return [
+        'Sensa 生产端活动计数：约每 50 ms 在 1/32 到 1 之间循环，停用为 0；停更超过 1000 ms 时暂停可用位置。它表示生产端持续发布，各 SDK 字段分别更新。',
+        'Sensa producer activity counter: cycles from 1/32 to 1 roughly every 50 ms, and is 0 when disabled. Usable position pauses after more than 1000 ms without a change. It indicates continued publishing; SDK fields update individually.'];
+    }
     if (scenario === 'socket-modern') return name.endsWith('NewRoot')
       ? ['Plug 根点越靠近 Socket 入口，数值越大。它与 NewTip 配合，用于估算根点距离、Plug 长度和进入程度。',
         'Increases as the Plug root approaches the Socket opening. Paired with NewTip, it helps estimate root distance, Plug length and depth.']
@@ -252,7 +293,7 @@
     const requestedParty = input.party ?? 'Others';
     if (!['Self', 'Others'].includes(requestedParty)) throw new RangeError('Invalid party / 无效类别');
     const party = ['socket-legacy', 'socket-frot', 'plug-frot'].includes(scenario) ? 'Others'
-      : scenario === 'sensa-sps' ? 'Self' : requestedParty;
+      : ['contact-sdk', 'sensa-sps'].includes(scenario) ? 'Self' : requestedParty;
     const senderKind = input.senderKind ?? 'body', senderShape = input.senderShape ?? 'sphere';
     if (!['body', 'plug'].includes(senderKind) || !['sphere', 'capsule'].includes(senderShape)) {
       throw new RangeError('Invalid sender shape / 无效发送器形状');
@@ -264,8 +305,8 @@
     });
     const assumptions = [
       { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
-      { id: 'scale', zh: 'OGB 图形按作者缩放为 1、以米展示；Sensa 空间量使用 Avatar 根局部单位。', en: 'OGB shapes are shown in metres at authored scale 1; Sensa spatial values use Avatar-root local units.' },
-      { id: 'projection', zh: ['sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: ['sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
+      { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2 reports position and velocity on Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; four-anchor tracking and Shader use Avatar-root local units.' },
+      { id: 'projection', zh: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
       { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];
     const put = shape => { shapes.push(shape); return shape; };
@@ -346,6 +387,44 @@
       const sender = put(senderKind === 'plug' ? envelope() : body());
       if (senderKind === 'plug') plug(point, axis, senderLength, 'sender');
       field(party, receiver, sender, 'proximity', null, 'VFH/Zone/Touch/Example');
+    } else if (scenario === 'contact-sdk') {
+      points.root = { ...point }; points.frameCenter = origin();
+      const receiver = put(sphere('receiver-contact', 'receiver', origin(), 2, 'SensaSelf'));
+      const candidates = input.senders ?? [{ ...point, vx: input.vx, vy: input.vy, vz: input.vz,
+        proximitySpeed: input.proximitySpeed, senderType: 1 }];
+      let chosen = null, measured = { raw: 0 };
+      for (const candidate of candidates) {
+        const candidatePoint = { x: number(candidate, 'x', 0), y: number(candidate, 'y', 0), z: number(candidate, 'z', 0) };
+        const candidateShape = sphere('sender-contact', 'sender', candidatePoint, .001, 'SensaSelf');
+        const proximity = measure(receiver, candidateShape, 'proximity');
+        if ((candidate.senderType ?? 1) === 1 && proximity.raw > measured.raw) {
+          chosen = { ...candidate, point: candidatePoint, shape: candidateShape }; measured = proximity;
+        }
+      }
+      // Keep the moving marker at its actual position even after selection is lost.
+      // 失去选中目标时，仍显示可拖动标记的真实位置。
+      put(chosen?.shape ?? sphere('sender-contact', 'sender', point, .001, 'SensaSelf'));
+      const sample = input.valid === false ? 0 : number(input, 'sample', 1 / 32);
+      const ageMs = number(input, 'ageMs', 0, 0), timeout = number(input, 'timeoutMs', 1000);
+      const ageLimit = Math.min(timeout > 0 ? timeout : 1000, 1000);
+      const velocity = chosen ? { x: number(chosen, 'vx', 0), y: number(chosen, 'vy', 0), z: number(chosen, 'vz', 0) } : origin();
+      const position = chosen?.point ?? origin();
+      const active = sample > 0 && sample <= 1 && Number.isInteger(sample * 32) && ageMs <= ageLimit;
+      Object.assign(metrics, { selected: !!chosen, senderType: chosen ? 1 : 0, active,
+        valid: !!chosen && active, sampleAgeLimitMs: ageLimit, worldRadius: 2,
+        coordinateFrame: 'AvatarRootMeters', velocity: chosen && active ? velocity : null,
+        position: chosen && active ? { ...position } : null,
+        reason: !chosen ? 'no-selected-sender' : !active ? 'sample-inactive-or-stale' : 'ok' });
+      const entries = [['Proximity', measured.raw, 'proximity'], ['Proximity_SenderType', chosen ? 1 : 0, 'constant'],
+        ...['X', 'Y', 'Z'].map(axis => ['Proximity_SenderLocalPosition' + axis, position[axis.toLowerCase()], 'coordinate']),
+        ...['X', 'Y', 'Z'].map(axis => ['Proximity_SenderVelocity' + axis, velocity[axis.toLowerCase()], 'velocity']),
+        ['Proximity_SenderVelocityMagnitude', length(velocity), 'speed'],
+        ['Proximity_ProximitySpeed', number(chosen ?? input, 'proximitySpeed', 0), 'rate'],
+        ['Radius', 2, 'radius'], ['Sample', sample, 'counter']];
+      for (const [name, raw, type] of entries) values.push({ name, path: 'Sensa/Contact/Example/' + name,
+        type, raw, value: raw, effective: metrics.valid || ['Radius', 'Sample'].includes(name) ? raw : null,
+        receiverId: receiver.id, senderId: 'sender-contact', closeName: null, emitted: true });
+      assumptions.push({ id: 'clock', zh: 'Sample 表示生产端活动；SDK 字段各自更新，位置与速度变化不刷新 Sample 的停更时间。', en: 'Sample indicates producer activity; SDK fields update individually, and position or velocity changes do not refresh Sample age.' });
     } else if (scenario === 'sensa-sps') {
       points.root = { ...point }; points.frameCenter = { x: 0, y: 1, z: 0 };
       const sender = put(sphere('sender-marker', 'sender', point, .001, 'DedicatedSelf'));
@@ -428,7 +507,7 @@
     values.sort((left, right) => left.name < right.name ? -1 : left.name > right.name ? 1 : 0);
     values.forEach(value => { value.meaning = meaningFor(scenario, value.name); });
     return { scenario, party, shapes, illustrations, values, points, metrics, bounds, assumptions,
-      coverage: ['sensa-sps', 'shader'].includes(scenario) ? coverageFor(point, scenario) : null,
+      coverage: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? coverageFor(point, scenario) : null,
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 

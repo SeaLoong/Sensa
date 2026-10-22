@@ -2,18 +2,29 @@
 
 [简体中文](positioning.md) | **English**
 
-Sensa can calculate the three-dimensional position of the Socket/Plug **root** you select in Unity, relative to the Avatar. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
+Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to the Avatar. Select a supported SPS Socket/Plug, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
 
 Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) first.
 
 | Route | What you obtain | What invalidates it |
 | --- | --- | --- |
-| Sensa SPS | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
+| Contact direct tracking (SDK Beta) | Selected root in AvatarRootMeters, with relative contact-point velocity | Leaving the dedicated Receiver, invalid complete fields or stopped activity |
+| Four-anchor tracking | Your selected root in AvatarRootLocal coordinates | Leaving the common receiver coverage, saturated proximity, stopped sampling or inconsistent geometry |
 | Shader capture | Root coordinates read from a screen code, also AvatarRootLocal | Out-of-range coordinates, failed code alignment/checks or frozen images |
 | Independent Point/Handle/Pose | Experimental position/orientation in its own reference frame | Expired participating parameters or unmet pairing/grab/geometry conditions |
 | SPS2 · PenOthersNewRoot / PenOthersNewTip; SPS1 · PenOthers / PenOthersClose | Depth trends and presence, useful for depth-linked motion | Missing pairs, unmet length-learning conditions or a closed Close gate |
 
-## Sensa SPS: all four receivers must measure the target
+## Contact direct tracking: position and velocity from one Receiver
+
+SDK 3.10.6-beta.2 exposes advanced Proximity reports. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Beta setup and package evidence](contact-sdk.en.md)
+
+The SDK reports the Sender shape midpoint relative to the Receiver shape midpoint, rotated into Receiver axes, in physical metres. With this setup the frame is **AvatarRootMeters**. Its radius-based coverage is centered at the Avatar origin; the authored Receiver radius is 2 local units and `Radius` publishes the current world radius. Avatar scaling changes the physical displacement and Radius together, and a guard stops measurement before the 3 m Contact radius limit.
+
+`Proximity_SenderVelocityX/Y/Z` and `Proximity_SenderVelocityMagnitude` report relative velocity near the contact point in m/s, including angular terms. `Proximity_ProximitySpeed` measures Proximity change per second. Midpoint coordinates and contact-point velocity can behave differently during rotation. Negative coordinates and stationary zero velocity are valid. One point supplies position and velocity; multi-point orientation remains a later extension.
+
+Each instance publishes twelve fields under `Sensa/Contact/<id>/`. Native report fields are accompanied by Sensa's `Radius` and changing `Sample`. Sample cycles through n/32, n=1…32, nominally every 50 ms; its change age is at most 1000 ms, shortened by a smaller positive input timeout. The desktop requires the complete same-source instance, positive Proximity, type 1 (own Avatar), finite values and supported radius/position bounds. Contact loss, Sample=0, frozen activity or invalid values stop the related motion. [Field dictionary](osc-parameters.en.md)
+
+## Four-anchor tracking: all four receivers must measure the target
 
 Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a regular tetrahedron. A very small dedicated marker follows your selected root. Each receiver measures a distance to that marker; the desktop calculates its position from those four distances.
 
@@ -93,10 +104,10 @@ When checked, the explorer displays readings for a valid sample. Clearing it sho
 ## From coordinates to motion
 
 1. Fix the object and source in the root panel. Check valid coordinates and expected movement direction.
-2. Select X/Y/Z or distance from the Avatar origin. Capture the desired motion start and end as 0% and 100%.
+2. Select X/Y/Z or distance from the Avatar origin. For Contact direct tracking, also choose VelocityX/Y/Z, Speed or ProximitySpeed to control movement strength. Capture the desired motion start and end as 0% and 100%.
 3. Inspect the preview, replace the mapping draft and save. Saving disables input.
 4. Allow experimental spatial input, then enable actual OSC input.
 
-Invalid coordinates stop the corresponding motion. Independent Point/Handle/Pose interpret coordinates relative to their own reference objects and check the oldest participating sample; Handle also checks grab conditions. Three markers with a defined layout can provide local orientation.
+Calibrated axes suit subtle local depth trends; a separate touch/Close condition can confirm contact when needed. Speed metrics suit movement strength. Invalid coordinates or activity stop the corresponding motion. Independent Point/Handle/Pose interpret coordinates relative to their own reference objects and check the oldest participating sample; Handle also checks grab conditions. Three markers with a defined layout can provide local orientation.
 
 After configuration, check coordinate direction, response time and invalidity stops in the client, then verify device motion with a small travel range. See the [browser verification record](e2e-status.en.md) for automated-check scope and outcomes. [Parameter dictionary](osc-parameters.en.md) · [Workbench guide](guide.en.md)

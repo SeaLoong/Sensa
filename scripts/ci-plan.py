@@ -67,7 +67,7 @@ def plan_changes(paths, *, diff_available=True):
             enabled.add('backend')
         elif path.startswith('unity/'):
             enabled.update(('unity', 'scripts'))
-            if path.endswith(('/SensaPoseProtocol.cs', '/SensaFixedAnchorProtocol.cs')):
+            if path.endswith(('/SensaPoseProtocol.cs', '/SensaFixedAnchorProtocol.cs', '/SensaContactProtocol.cs')):
                 enabled.add('backend')
         elif path in ('package.json', 'package-lock.json', 'scripts/ci-plan.py'):
             enabled.update(FULL)

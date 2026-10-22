@@ -14,6 +14,8 @@ E2E participates in automatic CI and stable-release checks. After unit tests and
 
 Large-catalog cases continuously update 4,096 simulated parameters, checking the 100-row page limit, direct navigation, full-catalog filtering, freezing and source-specific details. Other cases check actual input permission, modes, mapping saves, disconnection and invalidity stops together with mock transports. Tests use separate device configuration.
 
+Contact direct-tracking cases simulate metre positions and relative velocity using the SDK's native field names. They check position/speed endpoint calibration, Depth/V0 mappings, stopping on sender type 0, and stopping when Sample freezes despite changing velocity. Explorer checks cover twelve alphabetically ordered parameters, bilingual meanings, single-sphere coverage, negative coordinates, valid zero position/velocity and SDK versus Sensa activity fields. Site cases open both the new explorer scene and the [Contact SDK guide](contact-sdk.en.md).
+
 Desktop 1280×900 and narrow 390×844 use a fixed browser environment; 320px is a separate reflow check. [Test source](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
 
 ## Where is the current result?

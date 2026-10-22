@@ -587,7 +587,7 @@ function App() {
   function mapPreviewParameter(entry) {
     if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
-    } else if (entry.path.startsWith('Sensa/SPS/') || entry.path.startsWith('Sensa/Shader/')) {
+    } else if (entry.path.startsWith('Sensa/SPS/') || entry.path.startsWith('Sensa/Shader/') || entry.path.startsWith('Sensa/Contact/')) {
       navigateWorkflow('sensa-sps');
       notify(t('请在根点面板选择目标并采集两个端点，再生成映射。'), 'info');
       return 'experimental';

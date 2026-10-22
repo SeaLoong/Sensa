@@ -10,7 +10,7 @@ This page summarizes implemented features and their operating conditions. Use th
 | --- | --- |
 | Persistent header | Realtime session, actual mode, input permission, emergency stop/clear, language/help |
 | Control | Browse/apply input, twelve-axis manual, scripts, outputs, readiness and L0 recording |
-| OSC mappings | Three built-ins/custom presets, replace/append, draft save/restore, paths/roles/curves/ranges/simulation |
+| OSC mappings | Five built-ins/custom presets, replace/append, draft save/restore, paths/roles/curves/ranges/simulation |
 | OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
@@ -18,7 +18,7 @@ This page summarizes implemented features and their operating conditions. Use th
 
 Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
 
-The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has ten scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Choose actual parameter names to observe readings as a target approaches, enters or meets a contact region, then use those readings to choose a mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
+The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has eleven scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Choose actual parameter names to observe readings as a target approaches, enters or meets a contact region, then use those readings to choose a mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
 
 ## Runtime and inputs
 
@@ -43,7 +43,7 @@ Calibration, inversion, Linear/EaseIn/EaseOut/SCurve and output intervals preced
 | V0/V1/V2 | Same-name vibration |
 | Auxiliary/Auxiliary1/Auxiliary2 | A0/A1/A2 |
 
-OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**, estimating length from a same-instance pair and unsaturated samples before converting to a depth trend; incomplete learning yields zero. Missing or both-zero channels permit **SPS1 · PenOthers / PenOthersClose**, using its depth signal and published proximity condition. OgbTouch combines Touch/Plug Frot with the corresponding Close. Socket Frot and independent Zones read intensity directly. The three built-ins cover depth, vibration and PB stretch. [OGB](ogb-compatibility.en.md) · [Presets](presets.en.md)
+OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**, estimating length from a same-instance pair and unsaturated samples before converting to a depth trend; incomplete learning yields zero. Missing or both-zero channels permit **SPS1 · PenOthers / PenOthersClose**, using its depth signal and published proximity condition. OgbTouch combines Touch/Plug Frot with the corresponding Close. Socket Frot and independent Zones read intensity directly. The five built-ins cover OGB depth/vibration, Contact position/speed and PB stretch. [OGB](ogb-compatibility.en.md) · [Presets](presets.en.md)
 
 OSCQuery supports HOST_INFO/trees/LISTEN, optional polling and local receiver advertisement. Hub offers multiple UDP targets, source filtering, event/fixed-rate merging and statistics, preserving unconsumed bundle structure. OGB_ENABLED defaults off. When enabled, it sends true to the configured target every five seconds during OSC reception and attempts false on stop, maintaining Avatar parameter publication.
 
@@ -57,9 +57,9 @@ Recording captures pre-distribution L0, preserves final holds, ends at 100000 fr
 
 ## Unity and spatial experiments
 
-Spatial motion defaults blocked. Fixed SPS `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
+Spatial motion defaults blocked. Four-anchor tracking `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Contact direct tracking (SDK Beta) uses one dedicated own-root Sender and one Receiver, publishes twelve `Sensa/Contact/<id>/…` fields, and provides AvatarRootMeters position plus contact-point velocity. Sample change age is at most 1000 ms; Radius follows ScaleFactor with a 3 m guard. SensaPoint supports X/Y/Z/Distance and VelocityX/Y/Z/Speed/ProximitySpeed with existing calibration and stop behavior. [Beta prerequisites and source evidence](contact-sdk.en.md). Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
 
-NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive; independent fixed-root authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe provides Editor model snapshots for checking author settings. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
+NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive and an explicit root tracking method: Four-anchor tracking by default or Contact direct tracking with the supported beta SDK. Independent Contact authoring also supports explicit Sensa/native roots without VRCFury; single-point position/velocity is available, with multi-point orientation left for later work. Independent fixed-root authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe provides Editor model snapshots for checking author settings. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
 
 ## Configuration, access and API
 

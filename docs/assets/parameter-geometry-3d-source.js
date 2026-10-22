@@ -21,6 +21,7 @@ const words = {
   canvas: ['拖动目标移动，拖动空白旋转；方向键旋转，加减键缩放，Home 复位，Escape 结束拖动。', 'Drag the target to move it; drag the background to orbit. Arrow keys rotate, plus/minus zoom, Home resets, Escape ends a target drag.'],
   hint: ['拖动橙色目标在所选平面移动；拖动空白旋转，滚轮／双指缩放。', 'Drag the orange target in the selected plane; drag the background to orbit, wheel/pinch to zoom.'],
   input: ['输入点 · 拖动', 'Input · drag'], decoded: ['解码预览', 'Decoded preview'], marker: ['目标 · 拖动', 'Target · drag'],
+  contactPoint: ['定位点 · 拖动', 'Tracked point · drag'],
   rootDrag: ['Root · 拖动', 'Root · drag'], socketDrag: ['Socket · 拖动', 'Socket · drag'],
   receiver: ['接收器', 'Receiver'], sender: ['Sender', 'Sender'],
 };
@@ -182,6 +183,10 @@ function create(host) {
       let geometry;
       if (coverage.kind === 'encoding-cube') {
         geometry = new THREE.BoxGeometry(coverage.halfRange * 2, coverage.halfRange * 2, coverage.halfRange * 2);
+      } else if (coverage.kind === 'contact-sphere') {
+        // A tiny sender overlaps the R2 receiver until their centers reach R2 + .001 m.
+        // 微小 Sender 与 R2 Receiver 的中心距离小于 R2 + .001 m 时产生正接近值。
+        geometry = new THREE.SphereGeometry(coverage.radius, 48, 24);
       } else {
         // Ray/sphere intersections locate each outer boundary sample; no bounding-sphere approximation.
         // 逐方向解四球交集的外边界，避免用保守内切球代替真实范围。
@@ -242,7 +247,7 @@ function create(host) {
   function syncMarkers(result) {
     const target = pointMarker('moving-root', result.points.movingRoot, orange, 9);
     const coincident = (result.illustrations || []).find(item => vector(item.root).distanceTo(vector(result.points.movingRoot)) < 1e-8);
-    label('moving-root', target, t(result.scenario === 'shader' ? 'input' : coincident ? coincident.kind === 'socket' ? 'socketDrag' : 'rootDrag' : 'marker'), 'three-label--moving', [14, -24]);
+    label('moving-root', target, t(result.scenario === 'shader' ? 'input' : result.scenario === 'contact-sdk' ? 'contactPoint' : coincident ? coincident.kind === 'socket' ? 'socketDrag' : 'rootDrag' : 'marker'), 'three-label--moving', [14, -24]);
     if (result.scenario === 'shader') {
       const decoded = pointMarker('decoded-root', result.metrics.decodedPosition, blue, 4);
       label('decoded-root', decoded, t('decoded'), 'three-label--decoded', [14, 9]);

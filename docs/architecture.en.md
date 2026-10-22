@@ -51,10 +51,11 @@ Ordinary scalar processing matches paths/source/role, then calibrates, inverts, 
 | Family | Coordinate/freshness rules |
 | --- | --- |
 | Legacy Point/Handle/Pose | ReferenceLocal; oldest participating channel, including Handle grab; default 1000 ms or positive timeout |
-| Fixed Sensa SPS | AvatarRootLocal; known P0–P3 geometry, unsaturated inputs and residual checks; stationary P may cache, changing Sample defaults to 1000 ms, capped at 1250 ms |
+| Contact direct tracking (SDK Beta) | AvatarRootMeters; one dedicated Self Sender/Receiver, complete twelve-field report, positive Proximity and supported Radius; Sample change age at most 1000 ms |
+| Four-anchor tracking | AvatarRootLocal; known P0–P3 geometry, unsaturated inputs and residual checks; stationary P may cache, changing Sample defaults to 1000 ms, capped at 1250 ms |
 | Native Shader | AvatarRootLocal; same-source contiguous Frame/X/Y/Z/Valid with Valid last; Frame change age at most 500 ms; bridge separately owns monotonicity/freeze/two-frame recovery |
 
-A dedicated marker narrows Sender ambiguity without proving atomic frames. Distances from four known non-coplanar anchors locate one local point, not world motion, orientation or a GPU surface. [Positioning](positioning.en.md) and the [dictionary](osc-parameters.en.md) define protocols, equations and stop conditions.
+A dedicated marker and unique channel keep each root measurement tied to its intended own target. Four-anchor distances locate one point in authored AvatarRootLocal units; Contact reports midpoint position and contact-point velocity in physical metre-based AvatarRootMeters. Contact position and velocity metrics share SensaPoint calibration, activation and invalidity stops. Its native report has no clock, sequence or stable Sender ID; Sensa Sample checks producer activity. [SDK contract and evidence](contact-sdk.en.md). [Positioning](positioning.en.md) and the [dictionary](osc-parameters.en.md) define protocols, equations and stop conditions.
 
 ## Browser modules
 

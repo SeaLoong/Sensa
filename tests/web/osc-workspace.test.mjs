@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, matchesOscPathPattern, getLatestOscPreviewEntry, createOscPreviewLookup, buildOscPathSuggestions, createOscPathSuggester, createOscPreviewRanker, compileOscPathPattern, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
+import { pointCalibrationProgress, capturePointEndpoint, calibratedPointDraft, pointPreviewEntry, pointMetricOptions, pointMetricValue, pointTrackingLabel, matchesOscPathPattern, getLatestOscPreviewEntry, createOscPreviewLookup, buildOscPathSuggestions, createOscPathSuggester, createOscPreviewRanker, compileOscPathPattern, rankPreview, parameterMeaning, readPinnedPaths, posePreviewEntry, probePresentation } from '../../src/web/osc-preview.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
 import { editConfiguration, buildSignalDrafts } from '../../src/web/configuration.js';
 import { computeSignalPreviewOutput, formatPreviewTimestamp, paginateOscPreview, oscCatalogVisibility } from '../../src/web/osc-workspace.js';
@@ -22,6 +22,78 @@ test('OSC times keep a complete fixed-width 24-hour shape across locales / OSC �
 
 const point = (z, options = {}) => ({ key: 'point', prefix: 'Sensa/Handle/v1/LabHandle/Self', sourceKey: 'local', kind: 'Handle', valid: true, position: { x: .02, y: 0, z }, sampleCount: 4, ...options });
 const quick = [{ oscPath: 'CI/Depth', role: 'Depth' }, { oscPath: 'CI/Active', role: 'GateEnable' }];
+const contactLeaves = ['Proximity', 'Proximity_SenderType', 'Proximity_SenderLocalPositionX', 'Proximity_SenderLocalPositionY',
+  'Proximity_SenderLocalPositionZ', 'Proximity_SenderVelocityX', 'Proximity_SenderVelocityY', 'Proximity_SenderVelocityZ',
+  'Proximity_SenderVelocityMagnitude', 'Proximity_ProximitySpeed', 'Sample', 'Radius'];
+const contact = (z, options = {}) => {
+  const prefix = 'Sensa/Contact/Root';
+  return point(z, { key: 'contact', prefix, kind: 'ContactRoot', party: 'Self', isMappablePoint: true,
+    coordinateFrame: 'AvatarRootMeters', coordinateUnit: 'm', displayHalfRange: 2, displayCenter: { x: 0, y: 0, z: 0 },
+    sampleCount: 3, expectedSampleCount: 3, measurementPaths: contactLeaves.filter(leaf => leaf.startsWith('Proximity_Sender')).map(leaf => prefix + '/' + leaf),
+    supportsVelocity: true, velocity: { x: -.1, y: .2, z: .3 }, speed: .4, proximitySpeed: -.2, ...options });
+};
+
+test('Contact direct position and reported velocity share gated spatial previews and calibration / Contact直接坐标与上报速度共用空间预览及校准', () => {
+  const current = contact(.1), signal = { oscPath: current.prefix + '/*', pointMetric: 'Z' };
+  assert.equal(pointPreviewEntry([current], signal).numericValue, .1);
+  assert.equal(pointPreviewEntry([current], { ...signal, pointMetric: 'Speed' }).numericValue, .4);
+  assert.equal(pointPreviewEntry([current], { ...signal, pointMetric: 'VelocityX' }).numericValue, -.1);
+  assert.equal(pointPreviewEntry([current], { ...signal, pointMetric: 'ProximitySpeed' }).numericValue, -.2);
+  assert.equal(pointPreviewEntry([current], { ...signal, oscPath: current.prefix + '/Proximity_SenderVelocityMagnitude', pointMetric: 'Speed' }).numericValue, .4);
+  assert.equal(pointPreviewEntry([current], { ...signal, oscPath: current.prefix + '/Root/A0' }).numericValue, undefined);
+  assert.equal(pointPreviewEntry([current, { ...current, sourceKey: 'remote' }], signal).numericValue, undefined);
+  assert.equal(pointPreviewEntry([current, { ...current, sourceKey: 'remote' }], signal, 'local').numericValue, .1);
+  for (const invalid of [{ valid: false }, { party: 'Others' }, { isMappablePoint: false }]) {
+    assert.equal(pointPreviewEntry([contact(.1, invalid)], signal).numericValue, undefined);
+    assert.equal(capturePointEndpoint(contact(.1, invalid), 'Speed'), null);
+  }
+  const zero = capturePointEndpoint(contact(.05), 'Z'), full = capturePointEndpoint(contact(.15), 'Z');
+  const positionDraft = calibratedPointDraft(current, 'Z', zero, full).draft;
+  assert.equal(positionDraft.role, 'Depth');
+  assert.ok(Math.abs(pointCalibrationProgress(current, 'Z', zero, full).percent - 50) < 1e-8);
+  const low = capturePointEndpoint(contact(.1, { speed: 0 }), 'Speed');
+  const high = capturePointEndpoint(current, 'Speed');
+  const draft = calibratedPointDraft(current, 'Speed', low, high).draft;
+  assert.deepEqual({ role: draft.role, mode: draft.sourceMode, metric: draft.pointMetric, min: draft.vrchatMin, max: draft.vrchatMax },
+    { role: 'V0', mode: 'SensaPoint', metric: 'Speed', min: 0, max: .4 });
+  assert.equal(pointCalibrationProgress(contact(.1, { speed: .2 }), 'Speed', low, high).percent, 50);
+  assert.equal(calibratedPointDraft(contact(.1, { sourceKey: 'other' }), 'Speed', low, high).draft, undefined);
+  assert.equal(calibratedPointDraft(current, 'VelocityX', low, high).draft, undefined);
+});
+
+test('only Contact capabilities expose velocity metrics and all values stay finite / 仅Contact能力提供速度指标且读数保持有限', () => {
+  const metrics = ['X', 'Y', 'Z', 'Distance', 'VelocityX', 'VelocityY', 'VelocityZ', 'Speed', 'ProximitySpeed'];
+  assert.deepEqual(pointMetricOptions(contact(.1)).map(option => option.value), metrics);
+  const incomplete = contact(.1, { valid: false, supportsVelocity: false, supportedMetrics: metrics, velocity: null, speed: null, proximitySpeed: null });
+  assert.deepEqual(pointMetricOptions(incomplete).map(option => option.value), metrics);
+  assert.equal(pointMetricValue(incomplete, 'Speed'), undefined);
+  assert.equal(pointMetricValue(contact(.1, { speed: Infinity }), 'Speed'), undefined);
+  for (const kind of ['Handle', 'Point', 'SpsRoot', 'ShaderRoot']) {
+    const legacy = contact(.1, { kind });
+    assert.deepEqual(pointMetricOptions(legacy).map(option => option.value), metrics.slice(0, 4));
+    for (const metric of metrics.slice(4)) {
+      assert.equal(pointMetricValue(legacy, metric), undefined);
+      assert.equal(capturePointEndpoint(legacy, metric), null);
+    }
+  }
+});
+
+test('Contact catalog retains native parameter names and ordinal prefix-first ordering / Contact目录保留原生参数全名及前缀优先顺序', t => {
+  const previous = getLocale(); t.after(() => setLocale(previous)); setLocale('zh-CN');
+  const entries = contactLeaves.map(leaf => ({ path: 'Sensa/Contact/Root/' + leaf }));
+  const ranked = rankPreview(entries, [], { category: 'pose' });
+  assert.deepEqual(ranked.map(entry => entry.path), entries.map(entry => entry.path).sort());
+  assert.equal(ranked[0].path, 'Sensa/Contact/Root/Proximity');
+  for (const [leaf, meaning] of [
+    ['Proximity', /SDK.*接近值最大/], ['Proximity_SenderType', /0 无目标.*1 自身 Avatar/],
+    ['Proximity_SenderLocalPositionX', /形状中心.*单位为米/], ['Proximity_SenderVelocityY', /m\/s.*旋转/],
+    ['Proximity_SenderVelocityMagnitude', /相对速率.*m\/s/], ['Proximity_ProximitySpeed', /每秒.*正值.*负值/],
+    ['Sample', /生产端仍在更新/], ['Radius', /世界覆盖半径.*米/],
+  ]) assert.match(parameterMeaning('Sensa/Contact/Root/' + leaf), meaning);
+  assert.equal(probePresentation('Sensa/Contact/Root/Proximity_SenderLocalPositionX'), null);
+  assert.equal(pointTrackingLabel(contact(.1)), 'Contact 直接定位（SDK Beta）');
+  assert.equal(pointTrackingLabel({ kind: 'SpsRoot' }), '四点定位');
+});
 
 test('PB calibration replaces the previous gate, persists a reverse range and previews motion / PB 校准替换旧门控、保存反向量程并预览运动', () => {
   const zero = capturePointEndpoint(point(.15), 'Z'), full = capturePointEndpoint(point(.05), 'Z');
@@ -261,7 +333,7 @@ test('path suggestion cache tracks catalog structure rather than live values / �
   const preview=[{path:'Custom/2',classification:{relevance:0},value:'old'},{path:'OGB/Orf/Main/PenOthers',classification:{relevance:80}}];
   const query=[{path:'Custom/10'}];
   const initial=suggest(preview,query);
-  assert.deepEqual(initial,['OGB/Orf/Main/PenOthers','Custom/2','Custom/10']);
+  assert.deepEqual(initial,['OGB/Orf/Main/PenOthers','Custom/10','Custom/2']);
   assert.equal(suggest(preview.map(entry=>({...entry,value:'new',timestampMs:25})),query),initial);
   preview[0].classification.relevance=100;
   assert.deepEqual(suggest(preview,query),['Custom/2','OGB/Orf/Main/PenOthers','Custom/10']);

@@ -17,7 +17,7 @@ const near = (actual, expected, tolerance = 1e-10) =>
   assert.ok(Math.abs(actual - expected) <= tolerance, actual + ' != ' + expected);
 
 test('offline classic model exposes fresh defaults for every scene / 离线经典模型为各场景提供独立默认值', () => {
-  assert.equal(model.scenarios.length, 10);
+  assert.equal(model.scenarios.length, 11);
   for (const scenario of model.scenarios) {
     const defaults = model.defaultsFor(scenario);
     assert.equal(defaults.scenario, scenario);
@@ -42,6 +42,10 @@ test('parameter names are alphabetical with each base before its Close partner /
     ['socket-touch', ['TouchOthers', 'TouchOthersClose']],
     ['plug-frot', ['FrotOthers', 'FrotOthersClose']],
     ['sensa-sps', ['P0', 'P1', 'P2', 'P3', 'Sample']],
+    ['contact-sdk', ['Proximity', 'Proximity_ProximitySpeed', 'Proximity_SenderLocalPositionX',
+      'Proximity_SenderLocalPositionY', 'Proximity_SenderLocalPositionZ', 'Proximity_SenderType',
+      'Proximity_SenderVelocityMagnitude', 'Proximity_SenderVelocityX', 'Proximity_SenderVelocityY',
+      'Proximity_SenderVelocityZ', 'Radius', 'Sample']],
     ['shader', ['Frame', 'Valid', 'X', 'Y', 'Z']],
   ]) assert.deepEqual(plain(evaluate({ scenario }).values.map(value => value.name)), names);
 });
@@ -222,6 +226,90 @@ test('SPS fits four known noncoplanar anchors in full local XYZ / SPS由四个�
   near(scene.metrics.position.x, .2); near(scene.metrics.position.y, .8); near(scene.metrics.position.z, -.1);
   near(scene.metrics.residual, 0);
   near(scene.metrics.conservativeCoverageRadius, 1.999 - Math.sqrt(3) * .35);
+});
+
+test('SDK Contact reports exact native leaves in metres and independent signed velocities / SDK Contact报告真实米制字段与独立有符号速度', () => {
+  const scene = evaluate({ scenario: 'contact-sdk', x: -.4, y: -.3, z: .2, vx: -1, vy: 2, vz: -2, proximitySpeed: -.75 });
+  assert.equal(scene.values.length, 12);
+  assert.equal(scene.party, 'Self');
+  assert.ok(scene.values.every(value => value.path === 'Sensa/Contact/Example/' + value.name));
+  near(field(scene, 'Proximity').raw, 1 - (Math.sqrt(.29) - .001) / 2);
+  assert.equal(field(scene, 'Proximity_SenderType').raw, 1);
+  for (const [axis, position, velocity] of [['X', -.4, -1], ['Y', -.3, 2], ['Z', .2, -2]]) {
+    near(field(scene, 'Proximity_SenderLocalPosition' + axis).raw, position);
+    near(field(scene, 'Proximity_SenderVelocity' + axis).raw, velocity);
+  }
+  near(field(scene, 'Proximity_SenderVelocityMagnitude').raw, 3);
+  near(field(scene, 'Proximity_ProximitySpeed').raw, -.75);
+  assert.equal(field(scene, 'Radius').raw, 2);
+  assert.equal(scene.metrics.coordinateFrame, 'AvatarRootMeters');
+  assert.equal(scene.metrics.valid, true);
+  assert.equal(scene.shapes.filter(shape => shape.role === 'receiver').length, 1);
+  assert.deepEqual(plain(shape(scene, 'receiver-contact').center), { x: 0, y: 0, z: 0 });
+  assert.equal(shape(scene, 'receiver-contact').radius, 2);
+  assert.equal(shape(scene, 'sender-contact').radius, .001);
+  const moved = evaluate({ scenario: 'contact-sdk', x: .5, y: .7, z: -.6, vx: -1, vy: 2, vz: -2, proximitySpeed: -.75 });
+  for (const name of ['Proximity_SenderVelocityX', 'Proximity_SenderVelocityY', 'Proximity_SenderVelocityZ',
+    'Proximity_SenderVelocityMagnitude', 'Proximity_ProximitySpeed']) near(field(moved, name).raw, field(scene, name).raw);
+});
+
+test('SDK Contact accepts origin and zero velocity while strictly positive proximity selects / SDK Contact原点及零速度有效且仅严格正接近值选中', () => {
+  const origin = evaluate({ scenario: 'contact-sdk', x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0 });
+  assert.equal(origin.metrics.valid, true);
+  assert.equal(field(origin, 'Proximity').raw, 1);
+  assert.deepEqual(plain(origin.metrics.position), { x: 0, y: 0, z: 0 });
+  assert.equal(field(origin, 'Proximity_SenderVelocityMagnitude').effective, 0);
+  const inside = evaluate({ scenario: 'contact-sdk', x: 2.0005, y: 0, z: 0 });
+  assert.equal(inside.metrics.selected, true);
+  near(field(inside, 'Proximity').raw, .00025);
+  assert.equal(inside.coverage.kind, 'contact-sphere');
+  near(inside.coverage.radius, 2.001);
+  assert.equal(inside.coverage.containsTarget, true);
+  for (const x of [2.001, 2.01]) {
+    const outside = evaluate({ scenario: 'contact-sdk', x, y: 0, z: 0, vx: 3, vy: -2, vz: 1, proximitySpeed: -.5 });
+    assert.equal(outside.metrics.valid, false);
+    assert.equal(outside.metrics.selected, false);
+    assert.equal(outside.metrics.active, true, 'producer activity continues outside coverage');
+    assert.equal(outside.coverage.containsTarget, false);
+    for (const value of outside.values.filter(value => value.name !== 'Proximity_ProximitySpeed' && !['Radius', 'Sample'].includes(value.name))) {
+      assert.equal(value.raw, 0, value.name);
+      assert.equal(value.effective, null, value.name);
+    }
+    assert.equal(field(outside, 'Sample').raw, 1 / 32);
+    assert.equal(field(outside, 'Proximity_ProximitySpeed').raw, -.5, 'exit rate can transiently remain signed');
+    assert.equal(outside.points.movingRoot.x, x);
+  }
+});
+
+test('SDK Contact selects the maximum strictly positive matching self Sender / SDK Contact选中严格正且最大的自身Sender', () => {
+  const scene = evaluate({ scenario: 'contact-sdk', senders: [
+    { x: .01, senderType: 2, vx: 99 },
+    { x: 2.001, senderType: 1, vx: 99 },
+    { x: -1, senderType: 1, vx: -3 },
+    { x: .5, senderType: 1, vx: 4 },
+  ] });
+  near(field(scene, 'Proximity').raw, .7505);
+  assert.equal(field(scene, 'Proximity_SenderLocalPositionX').raw, .5);
+  assert.equal(field(scene, 'Proximity_SenderVelocityX').raw, 4);
+  const none = evaluate({ scenario: 'contact-sdk', senders: [] });
+  assert.equal(none.metrics.selected, false);
+  assert.equal(field(none, 'Proximity_SenderType').raw, 0);
+});
+
+test('SDK Contact Sample clock gates stale and disabled reports independently of velocity / SDK Contact采样时钟独立门控停更与停用', () => {
+  assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1000 }).metrics.valid, true);
+  assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1001, vx: 3 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1001, vx: -3, sample: 1 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1001, timeoutMs: 5000 }).metrics.valid, false);
+  assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 201, timeoutMs: 200 }).metrics.valid, false);
+  for (const input of [{ sample: 0 }, { sample: .1 }, { valid: false }]) {
+    const scene = evaluate({ scenario: 'contact-sdk', ...input });
+    assert.equal(scene.metrics.selected, true);
+    assert.equal(scene.metrics.active, false);
+    assert.equal(scene.metrics.position, null);
+    assert.equal(field(scene, 'Proximity_SenderLocalPositionY').effective, null);
+  }
+  assert.equal(field(evaluate({ scenario: 'contact-sdk', valid: false }), 'Sample').raw, 0);
 });
 
 test('SPS rejects near-anchor saturation and uncovered cube corners / SPS拒绝近锚点饱和与未共同覆盖的立方体角', () => {

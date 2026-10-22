@@ -2,18 +2,29 @@
 
 **简体中文** | [English](positioning.en.md)
 
-Sensa 可以计算你在 Unity 中选定的 Socket／Plug **根点**相对 Avatar 的三维位置。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
+Sensa 可以读取你在 Unity 中选定的**根点**相对 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
 
 先按下面的条件选择方案，再观察坐标，最后校准为设备动作。需要逐步设置时看[接入方案](usage-scenarios.md)；想先尝试模型，可打开[交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)。
 
 | 方案 | 你能得到什么 | 什么时候会失效 |
 | --- | --- | --- |
-| Sensa SPS | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
+| Contact 直接定位（SDK Beta） | AvatarRootMeters 根点位置及相对接触点速度 | 离开专用接收区、完整字段非法或活动停止 |
+| 四点定位 | 自己选定根点的位置，坐标系为 AvatarRootLocal | 超出四个接收球的共同覆盖区、接近值饱和、采样停止或几何不一致 |
 | Shader 捕获 | 从屏幕编码图块读出的根点位置，同为 AvatarRootLocal | 坐标越界、图块无法定位或校验失败、画面冻结 |
 | 独立 Point／Handle／Pose | 各自参考对象下的位置或姿态实验 | 参与参数过期，或配对／抓取／几何条件不满足 |
 | SPS2 · PenOthersNewRoot / PenOthersNewTip；SPS1 · PenOthers / PenOthersClose | 进入深浅的变化趋势与接近状态，适合深度联动 | 参数配对缺失、估长条件不满足，或 Close 条件关闭 |
 
-## Sensa SPS：目标必须同时被四个接收球测到
+## Contact 直接定位：一个 Receiver 提供位置与速度
+
+SDK 3.10.6-beta.2 开放高级 Proximity 报告。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Beta 设置与安装包依据](contact-sdk.md)
+
+SDK 报告发送形状中点相对接收形状中点的位移，旋转到 Receiver 坐标轴并保留物理米单位；本布置的坐标框为 **AvatarRootMeters**。半径覆盖以 Avatar 原点为中心，Receiver 制作半径为 2 个局部单位，`Radius` 发布当前世界半径。Avatar 缩放同时改变物理位移和 Radius，门控会在达到 3 m Contact 半径上限前停止测量。
+
+`Proximity_SenderVelocityX/Y/Z` 和 `Proximity_SenderVelocityMagnitude` 报告近似接触点处的相对速度，单位 m/s，包含角运动项；`Proximity_ProximitySpeed` 表示每秒接近值变化。旋转时，中点坐标与接触点速度可能呈现不同变化。负坐标和静止时的零速度均有效。单点提供位置和速度，多点姿态留作后续扩展。
+
+每实例在 `Sensa/Contact/<id>/` 下发布十二字段，原生报告另配 Sensa 的 `Radius` 与变化的 `Sample`。Sample 目标每 50 ms 在 n/32（n=1…32）间循环，变化寿命最多 1000 ms，较短的正数输入超时优先。桌面要求同来源实例字段完整、Proximity 为正、类型为 1（自身 Avatar）、数值有限且半径／位置边界受支持。Contact 消失、Sample=0、活动冻结或数值非法时，相关动作停止。[字段字典](osc-parameters.md)
+
+## 四点定位：目标必须同时被四个接收球测到
 
 Sensa 在 Avatar 根下放置四个固定测量点（P0–P3），围成正四面体。一个很小的专用标记跟随你选择的根点。四个接收器分别测量到该标记的距离，桌面程序据此计算位置。
 
@@ -93,10 +104,10 @@ Shader 将同一个根点的位置画成黑白图块，再由 Python 桌面桥�
 ## 从观察坐标到控制动作
 
 1. 在根点面板固定对象和来源，先确认位置有效且变化方向符合预期。
-2. 选择 X、Y、Z 或距 Avatar 原点的距离，分别采集动作起点和终点，对应 0% 与 100%。
+2. 选择 X、Y、Z 或距 Avatar 原点的距离；Contact 直接定位还可选择 VelocityX／Y／Z、Speed 或 ProximitySpeed 控制运动强弱。分别采集动作起点和终点，对应 0% 与 100%。
 3. 检查预览后替换映射草稿并保存。保存会关闭输入。
 4. 允许实验空间输入，再启用实际 OSC 输入。
 
-坐标失效时，对应动作停止。独立 Point／Handle／Pose 按各自参考对象解释坐标，并检查参与通道中最旧样本的时效；Handle 还检查抓取条件。三个具有明确布局的标记可以进一步计算局部姿态。
+校准后的轴适合细微局部深浅变化；需要确认触碰时，可另用 Touch／Close 条件。速度指标适合运动强弱联动。坐标或活动失效时，对应动作停止。独立 Point／Handle／Pose 按各自参考对象解释坐标，并检查参与通道中最旧样本的时效；Handle 还检查抓取条件。三个具有明确布局的标记可以进一步计算局部姿态。
 
 完成配置后，在实际客户端检查坐标方向、响应延迟和失效停止，再以小行程确认设备动作。自动检查的范围与结果见[浏览器验证记录](e2e-status.md)。[参数字典](osc-parameters.md) · [操作指南](guide.md)

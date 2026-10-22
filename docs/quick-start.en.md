@@ -33,11 +33,12 @@ An already active input may send its current valid target immediately after conn
 
 ## 4. Attach one input
 
-- **OSC:** apply OSC, check the default `127.0.0.1:9001` listener and actual source, then inspect real parameter addresses. Choose one of the [three templates](presets.en.md), check the input range and conditions that permit motion (gates), then save and enable input. OGB may require the explicit enable heartbeat in receiver settings: heartbeats go to VRChat, normally on 9000; Sensa receives parameters on 9001.
+- **OSC:** apply OSC, check the default `127.0.0.1:9001` listener and actual source, then inspect real parameter addresses. Choose one of the [five templates](presets.en.md), check the input range and conditions that permit motion (gates), then save and enable input. OGB may require the explicit enable heartbeat in receiver settings: heartbeats go to VRChat, normally on 9000; Sensa receives parameters on 9001.
 - **Script:** load a valid funscript and inspect its L0 timeline, speed and loop. Apply Script, activate input and play. Pause stops automatic frames; explicit seek/step can still send a target while Script input is active. Stop resets the playback cursor to the beginning. Use emergency stop when you need to stop the device.
+- **Contact direct tracking (SDK Beta):** install the supported beta SDK and build a dedicated own-root Sender/Receiver using the [Contact setup](contact-sdk.en.md). Inspect `Sensa/Contact/<id>/…`; calibrate X/Y/Z/Distance for local movement, or velocity/Speed/ProximitySpeed for movement strength. Save, allow experimental spatial input and enable OSC input.
 - **Experimental root:** follow the [route guide](usage-scenarios.en.md) to configure Avatar measurement components or the desktop code reader. Confirm the correct object and valid coordinates in the panel. Record the motion start and end, map them to 0% and 100% output, and save. Then allow experimental spatial input and enable input.
 
-Parameters have different meanings: OGB usually reports proximity or estimated depth; Sensa SPS and Shader report a selected root in three dimensions relative to the Avatar. [Positioning](positioning.en.md)
+Parameters have different meanings: OGB usually reports proximity or estimated depth; four-anchor tracking and Shader report a selected root in three dimensions relative to the Avatar. Contact direct tracking reports metre-based position plus relative velocity. [Positioning](positioning.en.md)
 
 ## 5. Keep a reviewable result
 

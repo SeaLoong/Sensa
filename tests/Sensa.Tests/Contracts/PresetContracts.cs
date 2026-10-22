@@ -17,7 +17,7 @@ public sealed class PresetContracts
     public void ShippedPresetsDescribeRealProducersWithoutSyntheticWorldInputs()
     {
         var presets = Presets();
-        Assert.Equal(new[] { "ogb-depth", "ogb-touch", "native-pb-stretch" }, presets.Select(preset => preset.Id));
+        Assert.Equal(new[] { "ogb-depth", "ogb-touch", "contact-position", "contact-speed", "native-pb-stretch" }, presets.Select(preset => preset.Id));
         Assert.Equal(presets.Count, presets.Select(preset => preset.Id).Distinct(StringComparer.OrdinalIgnoreCase).Count());
         foreach (var preset in presets)
         {
@@ -31,11 +31,30 @@ public sealed class PresetContracts
             {
                 Assert.False(string.IsNullOrWhiteSpace(mapping.OscPath));
                 Assert.True(float.IsFinite(mapping.VrchatMin) && float.IsFinite(mapping.VrchatMax));
-                Assert.True(mapping.SourceMode is "Direct" or "OgbDepth" or "OgbTouch");
+                Assert.True(mapping.SourceMode is "Direct" or "OgbDepth" or "OgbTouch" or "SensaPoint");
                 Assert.DoesNotContain("Angle", mapping.OscPath);
                 Assert.False(mapping.InvertDirection);
             });
         }
+    }
+
+    [Theory]
+    [InlineData("contact-position", PointMetric.Z, SignalRole.Depth)]
+    [InlineData("contact-speed", PointMetric.Speed, SignalRole.V0)]
+    public void Contact_templates_keep_one_explicit_target_and_use_guarded_spatial_metrics(string id, PointMetric metric, SignalRole role)
+    {
+        var mapping = Assert.Single(Presets().Single(preset => preset.Id == id).Mappings);
+        Assert.Equal("SensaPoint", mapping.SourceMode);
+        Assert.Equal(metric, mapping.PointMetric);
+        Assert.Equal(role, mapping.Role);
+        Assert.True(OscParameterStore.MatchesPathPattern(mapping.OscPath, "Sensa/Contact/Root/Proximity_SenderLocalPositionZ"));
+        Assert.True(OscParameterStore.MatchesPathPattern(mapping.OscPath, "Sensa/Contact/Root/Proximity_SenderVelocityMagnitude"));
+        Assert.False(OscParameterStore.MatchesPathPattern(mapping.OscPath, "Sensa/Contact/Other/Proximity_SenderLocalPositionZ"));
+        Assert.False(OscParameterStore.MatchesPathPattern(mapping.OscPath, "OGB/Orf/Root/PenSelfNewRoot"));
+        var config = new AppConfig { Signals = [mapping] };
+        config.NormalizeForRuntime();
+        Assert.False(config.Osc.AllowExperimentalSpatialInput);
+        Assert.Equal(metric, Assert.Single(config.Signals).PointMetric);
     }
 
     // Both generations use OGB names; parent paths remain exact instance identities in the resolver.

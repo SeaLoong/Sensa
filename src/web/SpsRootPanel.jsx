@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { t, diagnostic, getLocale } from './i18n.js';
-import { capturePointEndpoint, calibratedPointDraft, pointCalibrationProgress } from './osc-preview.js';
+import { capturePointEndpoint, calibratedPointDraft, pointCalibrationProgress, pointMetricOptions, pointTrackingLabel } from './osc-preview.js';
 import { Badge, Button, Notice } from './ui.jsx';
 import { SelectField } from './controls.jsx';
 
@@ -8,6 +8,7 @@ function PointProjection({ point }) {
   const valid = point?.valid && [point.position?.x, point.position?.y, point.position?.z].every(Number.isFinite);
   const extent = Number(point?.displayHalfRange) || .25;
   const avatarRoot = point?.coordinateFrame === 'AvatarRootLocal';
+  const avatarMeters = point?.coordinateFrame === 'AvatarRootMeters';
   const center = point?.displayCenter || { x: 0, y: 0, z: 0 };
   const coord = (value, field) => Math.max(-extent, Math.min(extent, value - center[field])) * 80 / extent;
   return (
@@ -15,7 +16,7 @@ function PointProjection({ point }) {
       className="point-projection"
       viewBox="0 0 420 230"
       role="img"
-      aria-label={avatarRoot ? t('Avatar 局部坐标投影，参考范围正负 {0} 单位', [extent]) : t('测量点在 XZ 和 YZ 平面的投影，参考半径 {0} 厘米', [extent * 100])}
+      aria-label={avatarMeters ? t('Avatar 根坐标投影，参考范围正负 {0} 米', [extent]) : avatarRoot ? t('Avatar 局部坐标投影，参考范围正负 {0} 单位', [extent]) : t('测量点在 XZ 和 YZ 平面的投影，参考半径 {0} 厘米', [extent * 100])}
     >
       {[
         { axis: 'X', field: 'x', offset: 105 },
@@ -65,7 +66,7 @@ function PointProjection({ point }) {
         </g>
       ))}
       <text x="210" y="226" textAnchor="middle" fill="#526177" fontSize="11">
-        {avatarRoot ? t('中心 {0}/{1}/{2} · ±{3} 本地单位', [center.x, center.y, center.z, extent]) : t('绘图范围 ±{0} cm · 有效范围见覆盖区域图', [extent * 100])}
+        {avatarMeters ? t('中心 {0}/{1}/{2} · ±{3} m', [center.x, center.y, center.z, extent]) : avatarRoot ? t('中心 {0}/{1}/{2} · ±{3} 本地单位', [center.x, center.y, center.z, extent]) : t('绘图范围 ±{0} cm · 有效范围见覆盖区域图', [extent * 100])}
       </text>
     </svg>
   );
@@ -86,13 +87,17 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
     return Number(rounded) === 0 ? '0.0' : rounded;
   };
   const avatarRoot = root?.coordinateFrame === 'AvatarRootLocal';
+  const contact = root?.kind === 'ContactRoot';
+  const avatarMeters = root?.coordinateFrame === 'AvatarRootMeters';
+  const velocityMetric = ['VelocityX', 'VelocityY', 'VelocityZ', 'Speed', 'ProximitySpeed'].includes(metric);
   const reasonParts = root?.reason?.split(' / ');
   const reason = getLocale() === 'zh-CN' && reasonParts?.length === 2 ? reasonParts[0] : diagnostic(root?.reason);
-  const length = (value) => avatarRoot ? Number(value).toFixed(3) : cm(value);
-  const unit = avatarRoot ? t('本地单位') : 'cm';
+  const length = (value) => avatarRoot || avatarMeters ? Number(value).toFixed(3) : cm(value);
+  const unit = avatarMeters ? 'm' : avatarRoot ? t('本地单位') : 'cm';
+  const metricUnit = metric === 'ProximitySpeed' ? '/s' : velocityMetric ? 'm/s' : unit;
   const withUnit = (value, valueUnit = unit) => <>{value}{' '}<span className="measurement-unit">{valueUnit}</span></>;
   const sampleLabel = (sample) =>
-    sample && sample.key === root?.key && sample.metric === metric ? withUnit(length(sample.value)) : t('待采集');
+    sample && sample.key === root?.key && sample.metric === metric ? withUnit(velocityMetric ? sample.value.toFixed(3) : length(sample.value), metricUnit) : t('待采集');
   const reset = () => {
     setZero(null);
     setFull(null);
@@ -122,17 +127,18 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
             value={root.key}
             options={observations.map((item) => ({
               value: item.key,
-              label: `${item.instance} · ${item.kind} · ${item.party} · ${item.sourceLabel}`,
+              label: `${item.instance} · ${pointTrackingLabel(item)} · ${item.party} · ${item.sourceLabel}`,
             }))}
             onChange={(next) => {
               setSelected(next);
+              setMetric('Z');
               reset();
             }}
           />
           <div className="actions">
             <Badge tone={root.valid ? 'success' : 'warning'}>{root.valid ? t('坐标有效') : t('等待有效位置')}</Badge>
             <Badge>{t('{0}/{1} 采样', [root.sampleCount, root.expectedSampleCount || (local ? 4 : 8)])}</Badge>
-            <Badge>{root.coordinateFrame === 'AvatarRootLocal' ? t('Avatar 根局部坐标') : t('参考局部坐标')}</Badge>
+            <Badge>{avatarMeters ? t('Avatar 根坐标（米）') : avatarRoot ? t('Avatar 根局部坐标') : t('参考局部坐标')}</Badge>
           </div>
           {reason && <p className="caption muted wrap">{reason}</p>}
           <div className="point-diagnostic-grid">
@@ -142,29 +148,33 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
                 [
                   t('局部 X / Y / Z'),
                   root.valid ? withUnit(`${length(root.position.x)} / ${length(root.position.y)} / ${length(root.position.z)}`) : '—',
+                  'point-position',
                 ],
-                [t('距离拟合误差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—'],
+                ...(!contact ? [[t('距离拟合误差'), root.valid && root.kind !== 'ShaderRoot' ? withUnit(avatarRoot ? Number(root.residual).toFixed(5) : (root.residual * 1000).toFixed(2), avatarRoot ? unit : 'mm') : '—']] : [
+                  [t('接收覆盖半径'), withUnit(Number(root.displayHalfRange).toFixed(3), 'm'), 'point-coverage-radius'],
+                  [t('相对速度 X / Y / Z'), root.valid && root.velocity ? withUnit([root.velocity.x, root.velocity.y, root.velocity.z].map(value => Number(value).toFixed(3)).join(' / '), 'm/s') : '—', 'point-velocity'],
+                  [t('相对速率'), root.valid && Number.isFinite(root.speed) ? withUnit(root.speed.toFixed(3), 'm/s') : '—', 'point-speed'],
+                  [t('接近值变化率'), root.valid && Number.isFinite(root.proximitySpeed) ? withUnit(root.proximitySpeed.toFixed(3), '/s') : '—', 'point-proximity-speed'],
+                ]),
                 [t('朝向与插入比例'), t('需要三点测量')],
-              ].map(([label, value]) => (
+              ].map(([label, value, testId]) => (
                 <div key={label}>
                   <dt>{label}</dt>
-                  <dd>{value}</dd>
+                  <dd data-testid={testId}>{value}</dd>
                 </div>
               ))}
             </dl>
           </div>
+          {contact && <p className="caption muted">{t('Contact 直接提供形状中心坐标。坐标以 Avatar 根为原点、沿根的旋转轴表示，单位为米。相对速度包含接触点处的旋转运动；接近值变化率以每秒为单位。')}</p>}
           {local ? (
             <details>
               <summary>{t('两点量程校准')}</summary>
               <div className="stack">
-                <p className="muted">{t('先选移动方向，把测量点移到动作起点并采集 0%，再移到终点并采集 100%。PB 把手在采集时需保持抓取。')}</p>
+                <p className="muted">{velocityMetric ? t('保持目标有效，分别在期望的低强度和高强度运动下采集 0% 与 100%，再生成振动强度草稿。') : t('先选移动方向，把测量点移到动作起点并采集 0%，再移到终点并采集 100%。PB 把手在采集时需保持抓取。')}</p>
                 <SelectField
-                  label={t('测量轴')}
+                  label={contact ? t('测量指标') : t('测量轴')}
                   value={metric}
-                  options={['X', 'Y', 'Z', 'Distance'].map((value) => ({
-                    value,
-                    label: value === 'Distance' ? t('距参考原点') : value,
-                  }))}
+                  options={pointMetricOptions(root)}
                   onChange={(next) => {
                     setMetric(next);
                     reset();
@@ -210,7 +220,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint }) {
           )}
         </>
       )}
-      <p className="caption muted">{t('“坐标有效”表示当前数据通过计算检查。拟合误差用于查看各路距离的一致性；实际精度请用已知位置测量，朝向需使用三点定位。')}</p>
+      <p className="caption muted">{contact ? t('“坐标有效”表示完整参数、自身发送器、接近状态、覆盖半径与采样活动通过检查。请用已知位置和运动另行验证实际精度。') : t('“坐标有效”表示当前数据通过计算检查。拟合误差用于查看各路距离的一致性；实际精度请用已知位置测量，朝向需使用三点定位。')}</p>
     </div>
   );
 }

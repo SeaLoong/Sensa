@@ -81,6 +81,19 @@ namespace UnityBox.Sensa
 
         internal static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            { "Four-anchor tracking", "四点定位" },
+            { "Contact direct tracking (SDK Beta)", "Contact 直接定位（SDK Beta）" },
+            { "Root tracking", "根点定位" },
+            { "Root tracking method", "根点定位方式" },
+            { "Unknown Sensa root tracking method.", "未知 Sensa 根点定位方式。" },
+            { "Contact root names and collision channels must be unique.", "Contact 根点实例名称和碰撞通道须唯一。" },
+            { "Contact root receiver exceeds the 3 m world-radius limit.", "Contact 根点接收器超过 3 米世界半径限制。" },
+            { "Contact root collision channel already has a sender.", "Contact 根点碰撞通道已有发送器。" },
+            { "Contact root instance already exists.", "Contact 根点实例已生成。" },
+            { "Contact direct tracking (SDK Beta) requires advanced proximity parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose Four-anchor tracking.", "Contact 直接定位（SDK Beta）需要高级接近参数。请安装 VRChat Avatars SDK 3.10.6-beta.2 或包含此功能的更新 SDK，或选择四点定位。" },
+            { "Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced proximity parameters, or choose Four-anchor tracking.", "请安装 VRChat Avatars SDK 3.10.6-beta.2 或包含高级接近参数的更新 SDK，或选择四点定位。" },
+            { "Track one explicit root using a dedicated Sender and SDK Proximity Receiver. Position uses avatar-root origin and axes in metres; velocity is relative SDK collision-point velocity in m/s. Sample reports producer activity, not a simultaneous SDK frame. Existing SPS Contacts stay unchanged.", "使用独立 Sender 和 SDK Proximity Receiver 测量一个明确选择的根点。位置以 Avatar 根点为原点和坐标轴，单位米；速度为 SDK 碰撞点的相对速度，单位米/秒。Sample 表示生产端活动，不证明 SDK 同帧采样。原 SPS Contact 保持不变。" },
+            { "Contact direct tracking (SDK Beta) uses one dedicated Sender and Receiver per root. It reports avatar-root axes in metres and requires SDK advanced proximity parameters. For an explicit Sensa or native Contact target without VRCFury, use the Contact direct tracking (SDK Beta) prefab.", "Contact 直接定位（SDK Beta）为每个根点生成独立 Sender 和 Receiver，沿 Avatar 根坐标轴输出米制坐标，需要 SDK 高级接近参数。无需 VRCFury 的 Sensa 或原生 Contact 目标可使用 Contact 直接定位（SDK Beta）预制件明确指定。" },
             { "Unknown Sensa array policy.", "未知 Sensa 阵列策略。" },
             { "Generated during upload/NDMF without changing original SPS. New setups default to Exclusive: one Socket/Plug measurement per group, initially Off, including markers, points and PB handles. Dedicated permits simultaneous measurements. Selection is independent of SPS Auto/activation.", "上传/NDMF 预览时自动生成，不修改原 SPS。新组件默认 Exclusive：每组一次只启用一个 Socket 或 Plug 的 Sensa 辅助对象（含标记、局部点和 PB 手柄），初始 Off。Dedicated 可同时测量。选择菜单独立于 SPS 自带的 Auto/开关。" },
             { "Local Tip uses the chosen Socket frame, auto-selected only when exactly one Socket is selected. It measures your undeformed reference tip and changes only with relative movement, not GPU curve deformation.", "本地 Tip 使用指定 Socket 的坐标系；只有一个选中 Socket 时自动选取。它测量自己 Plug 的未形变参考尖端，只有两者相对移动时坐标才变化；不是 GPU 曲线尖端。" },

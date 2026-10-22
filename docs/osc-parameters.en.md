@@ -8,9 +8,9 @@ This is the field/validity reference. Choose a [route](usage-scenarios.en.md), t
 
 The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) selects language automatically and has direct [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) and [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) links. Application parameter details open the bundled page. Keep its adjacent assets to open extracted `docs/parameter-geometry.html` offline.
 
-Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All ten scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. Sensa SPS colors connect each measurement sphere to its label and parameter row.
+Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All eleven scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. Four-anchor tracking colors connect each measurement sphere to its label and parameter row.
 
-Distances use complete XYZ coordinates. XZ projects space onto a plane; the green Sensa SPS region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
+Distances use complete XYZ coordinates. XZ projects space onto a plane; the green Four-anchor tracking region additionally shows measurable positions at the selected Y height. “Usable value” applies Close or validity conditions, helping you choose values for a mapping. Configure actual linkage through the [workbench guide](guide.en.md).
 
 Parameters appear in dictionary order, with a shorter shared prefix first: `PenOthers` precedes `PenOthersClose`. A prefix's `*` represents an instance name: `Sensa/SPS/Example/P0` has full address `/avatar/parameters/Sensa/SPS/Example/P0`. Shader IDs use the decimal form below.
 
@@ -22,11 +22,12 @@ Three.js/[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html) ship
 | --- | --- | --- |
 | `OGB/Orf/<id>/…`, `OGB/Pen/<id>/…` | Socket/Plug depth trends, touch intensity and presence | Depth or vibration linkage |
 | `VFH/Zone/Touch/<id>/Others` / `Self` | Approach intensity inside a selected touch zone | Zone-based touch linkage |
+| `Sensa/Contact/<id>/Proximity…`, `Radius`, `Sample` | Selected root position in metres and relative velocity in m/s | Calibrated local movement or movement strength |
 | `Sensa/SPS/<id>/P0…P3`, `Sample` | Selected root's three-dimensional position relative to the Avatar | Mapping left/right, up/down or forward/back movement |
 | `Sensa/Shader/<id>/Frame`, `Valid`, `X`, `Y`, `Z` | Root-relative coordinates decoded from a screen block | Obtaining three-dimensional position through image encoding |
 | `Sensa/Diagnostics/Shader/0/…` | Pattern, capture and OSC transport diagnostics | Checking the capture chain |
 
-Sensa SPS Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
+Four-anchor tracking Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
 
 ## OGB and VRCFury parameters
 
@@ -50,7 +51,34 @@ Depth readings follow distances between detection shapes. Movement aligned with 
 
 Use the parameters actually exposed by your Avatar. The [OGB tables](ogb-compatibility.en.md) give complete generated paths, shapes and dimensions, based on the [pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs) and [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts).
 
-## Sensa SPS: four proximities and one activity sample
+## Contact direct tracking (SDK Beta): twelve public fields
+
+Use a dedicated spherical Sender on the selected own root and one Proximity Receiver at the Avatar root with zero offsets and aligned axes. The Receiver has `advancedProximityParameters=true`, a unique collision channel and Self enabled. This route requires SDK 3.10.6-beta.2 or a later SDK with the same feature. Its coordinate frame is **AvatarRootMeters**: Avatar-root origin and rotated axes, in physical metres. [Setup and verified SDK evidence](contact-sdk.en.md)
+
+All paths start with `Sensa/Contact/<id>/`; `<id>` occupies one path segment. The table follows dictionary order, with the shorter shared prefix first. `Proximity_SenderType` is Int; the other eleven fields are Floats.
+
+| Leaf | Meaning and units | Validity/use |
+| --- | --- | --- |
+| `Proximity` | Native proximity, 0–1 | Sensa requires `0 < p ≤ 1` |
+| `Proximity_ProximitySpeed` | Signed Proximity change rate, proximity units/s | Finite; leaving can create a transient |
+| `Proximity_SenderLocalPositionX` | Sender shape midpoint relative to Receiver shape midpoint, X in metres | Finite; negative coordinates are valid |
+| `Proximity_SenderLocalPositionY` | Same position, Y in metres | Same |
+| `Proximity_SenderLocalPositionZ` | Same position, Z in metres | Same |
+| `Proximity_SenderType` | 0 none, 1 own Avatar, 2 other Avatar, 3 world Sender | Dedicated Sensa root measurement requires 1 |
+| `Proximity_SenderVelocityMagnitude` | Magnitude of relative contact-point velocity, m/s | Finite and nonnegative; zero is valid |
+| `Proximity_SenderVelocityX` | Relative contact-point velocity in Receiver X axes, m/s | Finite; includes angular-motion effects |
+| `Proximity_SenderVelocityY` | Same velocity, Y in m/s | Same |
+| `Proximity_SenderVelocityZ` | Same velocity, Z in m/s | Same |
+| `Radius` | Actual Receiver world radius in metres | Finite, `0 < Radius ≤ 3`; updated with ScaleFactor |
+| `Sample` | Sensa producer-activity counter | 0 invalid; active values exactly n/32, n=1…32 |
+
+The SDK selects the matching Sender with greatest strictly positive Proximity. It rotates midpoint displacement by inverse Receiver shape rotation, retaining metres without scale/radius normalization. The reported velocity is relative velocity near the contact point, including angular terms. Rotating shapes can make it differ from the derivative of midpoint position. No selected Sender writes type 0 and zero XYZ/velocity. The SDK supplies no timestamp, sequence or stable Sender ID.
+
+The desktop requires all twelve fields from one source and complete instance, Self type, positive Proximity, finite values, position within the Radius bound plus a small numeric tolerance and supported Radius. Sample advances nominally every 50 ms. Its ChangedAt age is capped at **1000 ms**, shortened by a smaller positive InputTimeoutMs; unchanged repeats do not renew it. Loss of contact, incomplete values, invalid Radius/coordinates or frozen/disabled activity stops the related spatial motion.
+
+Contact direct tracking maps through SensaPoint using **X/Y/Z/Distance** or **VelocityX/VelocityY/VelocityZ/Speed/ProximitySpeed**. Endpoint calibration, curves, output limits, spatial activation and stopping use the existing flow. Four-anchor `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` and its authored-unit AvatarRootLocal frame retain their existing definition. [Positioning](positioning.en.md) · [Workbench](guide.en.md)
+
+## Four-anchor tracking: four proximities and one activity sample
 
 The producer places one dedicated spherical Sender at the explicitly selected Socket/Plug root center. Four spherical Receivers stay fixed in avatar-root coordinates and accept only their own dedicated collision channel. Each instance uses five Contacts to track the selected Transform root center. [Producer](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 

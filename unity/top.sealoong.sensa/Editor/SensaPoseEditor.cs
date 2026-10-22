@@ -145,8 +145,10 @@ namespace UnityBox.Sensa
         private const string Package = "Packages/top.sealoong.sensa/";
         [MenuItem("GameObject/Sensa/Spatial Pose Socket", false, 10)]
         public static void Socket() => Create("SensaPoseSocket");
-        [MenuItem("GameObject/Sensa/Fixed-anchor SPS Root Probe", false, 10)]
+        [MenuItem("GameObject/Sensa/Four-anchor tracking", false, 10)]
         public static void SpsRoot() => Create("SensaSpsRootProbe");
+        [MenuItem("GameObject/Sensa/Contact direct tracking (SDK Beta)", false, 10)]
+        public static void ContactRoot() => Create("SensaContactRootProbe");
         [MenuItem("GameObject/Sensa/Spatial Pose Plug", false, 10)]
         public static void Plug() => Create("SensaPosePlug");
         private static GameObject Create(string name)

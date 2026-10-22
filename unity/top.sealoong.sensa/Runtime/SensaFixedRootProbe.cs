@@ -4,7 +4,7 @@ using VRC.SDKBase;
 
 namespace UnityBox.Sensa
 {
-    [AddComponentMenu("Sensa/Fixed SPS Root Probe")]
+    [AddComponentMenu("Sensa/Four-anchor tracking")]
     [DisallowMultipleComponent]
     public sealed class SensaFixedRootProbe : MonoBehaviour, IEditorOnly
     {

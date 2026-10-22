@@ -11,22 +11,42 @@ public static class SpsPositionTracking
         int SampleCount, bool Valid, PosePoint Position, double Radius, double Residual, string Reason,
         string Prefix, string SourceKey, string Kind, long TimestampMs)
     {
-        public string CoordinateFrame => Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.CoordinateFrame : "ReferenceLocal";
-        public double DisplayHalfRange => Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.PositionHalfRange : SensaPoseProtocol.PositionRadius;
+        public PosePoint? Velocity { get; init; }
+        public double? Speed { get; init; }
+        public double? ProximitySpeed { get; init; }
+        public string CoordinateFrame => Kind == "ContactRoot" ? SensaContactProtocol.CoordinateFrame
+            : Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.CoordinateFrame : "ReferenceLocal";
+        public string CoordinateUnit => Kind == "ContactRoot" ? "m" : "local";
+        public double DisplayHalfRange => Kind == "ContactRoot" ? Radius
+            : Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.PositionHalfRange : SensaPoseProtocol.PositionRadius;
         public PosePoint DisplayCenter => Kind is "SpsRoot" or "ShaderRoot" ? new(SensaFixedAnchorProtocol.CenterX,
             SensaFixedAnchorProtocol.CenterY, SensaFixedAnchorProtocol.CenterZ) : default;
         public bool Experimental => true;
         public bool IsLocalPoint => Kind is "Point" or "Handle";
-        public bool IsMappablePoint => Party == "Self" && Kind is "Point" or "Handle" or "SpsRoot" or "ShaderRoot";
-        public int ExpectedSampleCount => Kind == "ShaderRoot" ? 3 : 4;
-        public bool Matches(string pattern) => Kind == "ShaderRoot"
-            ? new[] { "X", "Y", "Z" }.Any(axis => OscParameterStore.MatchesPathPattern(pattern, Prefix + "/" + axis))
-            : Enumerable.Range(0, 4).Any(index => OscParameterStore.MatchesPathPattern(pattern,
-                Kind == "SpsRoot" ? $"{Prefix}/P{index}" : $"{Prefix}/Root/A{index}"));
-        public float Metric(PointMetric metric) => (float)(metric switch
+        public bool IsMappablePoint => Party == "Self" && Kind is "Point" or "Handle" or "SpsRoot" or "ShaderRoot" or "ContactRoot";
+        public int ExpectedSampleCount => Kind is "ShaderRoot" or "ContactRoot" ? 3 : 4;
+        public bool SupportsVelocity => Kind == "ContactRoot" && Velocity.HasValue && Speed.HasValue && ProximitySpeed.HasValue;
+        public PointMetric[] SupportedMetrics => Kind == "ContactRoot" ? Enum.GetValues<PointMetric>()
+            : [PointMetric.X, PointMetric.Y, PointMetric.Z, PointMetric.Distance];
+        public string[] MeasurementPaths => Kind == "ContactRoot"
+            ? SensaContactProtocol.PositionLeaves.Concat(SensaContactProtocol.VelocityLeaves)
+                .Concat([SensaContactProtocol.SpeedLeaf, SensaContactProtocol.ProximitySpeedLeaf])
+                .Select(leaf => Prefix + "/" + leaf).ToArray()
+            : Kind == "ShaderRoot" ? new[] { "X", "Y", "Z" }.Select(axis => Prefix + "/" + axis).ToArray()
+            : Enumerable.Range(0, 4).Select(index => Kind == "SpsRoot" ? $"{Prefix}/P{index}" : $"{Prefix}/Root/A{index}").ToArray();
+        public bool Matches(string pattern) => MeasurementPaths.Any(path => OscParameterStore.MatchesPathPattern(pattern, path));
+        public bool SupportsMetric(PointMetric metric) => metric is PointMetric.X or PointMetric.Y or PointMetric.Z or PointMetric.Distance
+            || SupportsVelocity && Enum.IsDefined(metric);
+        public float Metric(PointMetric metric) => !SupportsMetric(metric)
+            ? throw new ArgumentOutOfRangeException(nameof(metric), "This producer does not supply the selected metric.")
+            : (float)(metric switch
         {
             PointMetric.X => Position.X, PointMetric.Y => Position.Y,
-            PointMetric.Distance => Position.Length, _ => Position.Z
+            PointMetric.Z => Position.Z, PointMetric.Distance => Position.Length,
+            PointMetric.VelocityX => Velocity!.Value.X, PointMetric.VelocityY => Velocity!.Value.Y,
+            PointMetric.VelocityZ => Velocity!.Value.Z, PointMetric.Speed => Speed!.Value,
+            PointMetric.ProximitySpeed => ProximitySpeed!.Value,
+            _ => throw new ArgumentOutOfRangeException(nameof(metric))
         });
     }
 
@@ -75,8 +95,9 @@ public static class SpsPositionTracking
                     fit.Radius, fit.Residual, reason, group.Key.Prefix, group.Key.Source, kind, timestamp);
             });
         return localPoints.Concat(FixedRootTracking.Observe(snapshot, sourceKey, maxAgeMs, timeProvider))
-            .Concat(ShaderRootTracking.Observe(snapshot, sourceKey, maxAgeMs, timeProvider)).ToArray();
+            .Concat(ShaderRootTracking.Observe(snapshot, sourceKey, maxAgeMs, timeProvider))
+            .Concat(ContactRootTracking.Observe(snapshot, sourceKey, maxAgeMs, timeProvider)).ToArray();
     }
 }
 
-public enum PointMetric { X, Y, Z, Distance }
+public enum PointMetric { X, Y, Z, Distance, VelocityX, VelocityY, VelocityZ, Speed, ProximitySpeed }

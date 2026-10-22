@@ -9,3 +9,4 @@
 @media(pointer:coarse){button,select{min-height:44px}.three-controls button{min-width:44px}.legend label{min-height:28px}.control input[type=range]{height:28px}}
 
 .coverage-key{border-color:#07806a;background:#bde8d6}#diagram .coverage-region{fill:#07806a;fill-opacity:.2;stroke:#08765f;stroke-width:2;vector-effect:non-scaling-stroke}#diagram .coverage-exclusion{fill:#fcfdff;stroke:#a23d67;stroke-width:1;vector-effect:non-scaling-stroke}.signal-simulation{margin-top:22px;border-top:1px solid var(--border);padding-top:12px}.signal-simulation summary{cursor:pointer;color:#43546d;font-size:14px}.signal-simulation>p{margin:10px 0 16px}.signal-simulation .control-grid{margin-bottom:14px}
+.intro p.topic-links{font-size:12px;margin-top:10px;color:var(--muted)}.topic-links a{color:#52647e;text-decoration-color:#b8c0cd}.topic-links a:hover{color:var(--blue)}

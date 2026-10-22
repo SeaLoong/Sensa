@@ -39,6 +39,20 @@ export function shaderRootSamples(z, frame, valid = true) {
   return (valid ? [['Frame', frame], ['X', .02], ['Y', 1], ['Z', z], ['Valid', 1]] : [['Valid', 0]])
     .map(([name, value]) => [prefix + '/' + name, value]);
 }
+// Mirrors the SDK's native names; the synthetic activity counter belongs to Sensa.
+export function contactRootSamples(z, sample, valid = true, { velocityZ = .2, x = .02, y = 1, radius = 2 } = {}) {
+  const prefix = 'Sensa/Contact/CIContactRoot';
+  const proximity = valid ? Math.max(0, Math.min(1, 1 - Math.max(0, Math.hypot(x, y, z) - .001) / radius)) : 0;
+  const selected = proximity > 0;
+  return [
+    ['Proximity', proximity], ['Proximity_SenderType', selected ? 1 : 0],
+    ['Proximity_SenderLocalPositionX', selected ? x : 0], ['Proximity_SenderLocalPositionY', selected ? y : 0],
+    ['Proximity_SenderLocalPositionZ', selected ? z : 0], ['Proximity_SenderVelocityX', 0],
+    ['Proximity_SenderVelocityY', 0], ['Proximity_SenderVelocityZ', selected ? velocityZ : 0],
+    ['Proximity_SenderVelocityMagnitude', selected ? Math.abs(velocityZ) : 0], ['Proximity_ProximitySpeed', 0],
+    ['Radius', radius], ['Sample', sample],
+  ].map(([name, value]) => [prefix + '/' + name, value]);
+}
 export function poseSamples() {
   return [['Root', [.02, 0, -.1]], ['Tip', [.02, 0, .1]], ['Side', [.05, 0, -.1]]].flatMap(([marker, position]) =>
     Array.from({ length: 8 }, (_, a) => [`Sensa/Pose/v1/Demo/Others/${marker}/A${a}`,

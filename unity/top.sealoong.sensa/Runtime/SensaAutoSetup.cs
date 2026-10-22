@@ -5,6 +5,7 @@ using VRC.SDKBase;
 namespace UnityBox.Sensa
 {
     public enum SensaArrayPolicy { Dedicated, Exclusive }
+    public enum SensaRootTrackingMethod { FourAnchor, ContactDirect }
     [AddComponentMenu("Sensa/Automatic SPS Setup")]
     [DisallowMultipleComponent]
     public sealed class SensaAutoSetup : MonoBehaviour, IEditorOnly
@@ -14,6 +15,7 @@ namespace UnityBox.Sensa
         public List<GameObject> selectedTargets = new List<GameObject>();
         public List<GameObject> excludedTargets = new List<GameObject>();
         public bool socketRootTracking = true;
+        public SensaRootTrackingMethod rootTrackingMethod;
         public bool pairedSocketTracking;
         public bool pairedPlugMarkers;
         public bool localPlugTipTracking;

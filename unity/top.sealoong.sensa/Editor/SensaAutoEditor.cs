@@ -14,6 +14,8 @@ namespace UnityBox.Sensa
             SensaInspectorLabels.Draw(serializedObject);
             var setup = (SensaAutoSetup)target;
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Generated during upload/NDMF without changing original SPS. New setups default to Exclusive: one Socket/Plug measurement per group, initially Off, including markers, points and PB handles. Dedicated permits simultaneous measurements. Selection is independent of SPS Auto/activation."), MessageType.Info);
+            if (setup.socketRootTracking && setup.rootTrackingMethod == SensaRootTrackingMethod.ContactDirect)
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta) uses one dedicated Sender and Receiver per root. It reports avatar-root axes in metres and requires SDK advanced proximity parameters. For an explicit Sensa or native Contact target without VRCFury, use the Contact direct tracking (SDK Beta) prefab."), SensaContactRootBuilder.IsSupported ? MessageType.Info : MessageType.Warning);
             if (setup.localPlugTipTracking) EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Local Tip uses the chosen Socket frame, auto-selected only when exactly one Socket is selected. It measures your undeformed reference tip and changes only with relative movement, not GPU curve deformation."), MessageType.Info);
             if (GUILayout.Button(SensaEditorLocalization.Text("Configure only this object's SPS")))
             {

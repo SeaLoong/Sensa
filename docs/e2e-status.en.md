@@ -4,7 +4,11 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
-## Current review
+## Contact SDK adaptation checks
+
+On 2026-10-22, local isolated checks passed: 126 Web, 434 backend and 228 Python tests, plus Unity package metadata checks and a 76-page documentation build. New browser cases cover Contact metre-coordinate/speed calibration, contact-loss/activity-freeze stops and the bilingual explorer. Browser execution and new images await Actions verification and review; Beta SDK Unity/VRChat and OSC behavior receive separate acceptance checks. [Feature and SDK evidence](contact-sdk.en.md)
+
+## Previously inspected CI
 
 Last checked: 2026-10-22 at 08:24 China Standard Time (UTC+8).
 

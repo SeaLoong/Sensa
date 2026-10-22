@@ -24,6 +24,36 @@
     ]
   },
   {
+    "id": "contact-position",
+    "name": "Contact · 位置（SDK Beta）",
+    "description": "专用 Contact 直接定位：将 Root 换成实际对象，选择位置轴并校准两个端点，单位为米。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Z",
+        "role": "Depth",
+        "vrchatMin": 0,
+        "vrchatMax": 0.2
+      }
+    ]
+  },
+  {
+    "id": "contact-speed",
+    "name": "Contact · 速度强度（SDK Beta）",
+    "description": "专用 Contact 相对速率 → V0；将 Root 换成实际对象，再按 m/s 校准强度范围。",
+    "mappings": [
+      {
+        "oscPath": "Sensa/Contact/Root/*",
+        "sourceMode": "SensaPoint",
+        "pointMetric": "Speed",
+        "role": "V0",
+        "vrchatMin": 0,
+        "vrchatMax": 1
+      }
+    ]
+  },
+  {
     "id": "native-pb-stretch",
     "name": "PhysBone · 拉伸",
     "description": "将 MyPB 换成实际参数前缀，再校准 Stretch；松手关闭门控。",

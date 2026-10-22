@@ -24,9 +24,9 @@ test('profile lifecycle keeps one default and repairs output references without 
   assert.throws(() => editConfiguration(config, { kind: 'profile-default', id: 'missing' }));
 });
 
-test('all three built-ins round-trip as independent drafts; custom presets preserve built-ins / 三套内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
+test('all built-ins round-trip as independent drafts; custom presets preserve built-ins / 内置预设可独立转为草稿，自定义预设不修改内置内容', () => {
   const source = initial(), builtIns = getOscMappingPresets(source);
-  assert.equal(builtIns.length, 3);
+  assert.equal(builtIns.length, 5);
   for (const preset of builtIns) {
     const dialog = buildPresetDialogDraft(source, preset.id);
     assert.equal(dialog.isNew, true); assert.notEqual(dialog.presetId, preset.id);
@@ -34,11 +34,27 @@ test('all three built-ins round-trip as independent drafts; custom presets prese
     const config = editConfiguration(source, { kind: 'preset-save', preset: { id: dialog.presetId, name: 'Custom', mappings: dialog.mappings } });
     const custom = getOscMappingPresets(config).find(p => p.id === dialog.presetId);
     assert.equal(computeSignalHash(buildSignalDrafts(custom.mappings)), draftSnapshot);
-    assert.equal(getOscMappingPresets(config).length, 4);
+    assert.equal(getOscMappingPresets(config).length, 6);
     const removed = editConfiguration(config, { kind: 'preset-remove', id: dialog.presetId });
-    assert.equal(getOscMappingPresets(removed).length, 3);
+    assert.equal(getOscMappingPresets(removed).length, 5);
     assert.throws(() => editConfiguration(source, { kind: 'preset-remove', id: preset.id }));
   }
+});
+
+test('Contact position and speed presets prepare one explicit target while leaving activation to saving / Contact位置与速度预设准备明确目标草稿', () => {
+  const source = initial(), snapshot = JSON.stringify(source), presets = getOscMappingPresets(source);
+  for (const [id, metric, role, max] of [['contact-position', 'Z', 'Depth', .2], ['contact-speed', 'Speed', 'V0', 1]]) {
+    const preset = presets.find(value => value.id === id);
+    assert.equal(preset.mappings.length, 1);
+    const [mapping] = preset.mappings;
+    assert.deepEqual({ path: mapping.oscPath, mode: mapping.sourceMode, metric: mapping.pointMetric, role: mapping.role, min: mapping.vrchatMin, max: mapping.vrchatMax },
+      { path: 'Sensa/Contact/Root/*', mode: 'SensaPoint', metric, role, min: 0, max });
+    const dialog = buildPresetDialogDraft(source, id);
+    dialog.mappings[0].oscPath = 'Sensa/Contact/ActualTarget/*';
+    assert.equal(preset.mappings[0].oscPath, 'Sensa/Contact/Root/*');
+  }
+  assert.equal(JSON.stringify(source), snapshot);
+  assert.equal(buildOscDraftFromConfig(source).allowExperimentalSpatialInput, false);
 });
 
 test('mapping drafts discard simulation metadata and preview the same saved travel / 映射保存删除模拟元数据，预览与保存行程一致', () => {

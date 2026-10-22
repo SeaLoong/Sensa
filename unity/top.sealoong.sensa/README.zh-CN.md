@@ -20,7 +20,8 @@
 | 路线 | 配置 | 含义 |
 | --- | --- | --- |
 | 已有 OGB | 配置原 SPS/OGB 与桌面映射 | Touch 标量或径向深度估计；[外部兼容](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.md) |
-| 固定 SPS 根点 | 添加 **Sensa → Automatic SPS Setup**，或 **Fixed SPS Root Probe** 并明确指定 Target | 所选根点的 AvatarRootLocal 坐标，不是尖端、姿态或世界位置 |
+| 四点定位 | 添加 **Sensa → Automatic SPS Setup**，或 **Four-anchor tracking** 并明确指定 Target | 所选根点的 AvatarRootLocal 坐标，不是尖端、姿态或世界位置 |
+| Contact 直接定位（SDK Beta） | 在自动配置中选择 **Contact 直接定位（SDK Beta）**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级接近参数 |
 | 原生根点编码 | 添加 **Shader Root Capture (Experimental)** | 独立[相机／桌面桥](GPU-TRACKING.md)，不靠 Contact 三角解算 |
 | 独立 Point／Handle／Pose | 选择本地标记或相同通道的配对标记 | 各自拥有协议与时效规则的实验 |
 

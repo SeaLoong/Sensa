@@ -2,7 +2,7 @@
 
 **简体中文** | [English](AUTOMATION.en.md)
 
-[安装与语言选择](README.zh-CN.md)。Automatic SPS Setup 读取受支持 Socket／Plug 的作者几何，不修改原 SPS；只支持当前 `Sensa/SPS/<id>` 契约。
+[安装与语言选择](README.zh-CN.md)。Automatic SPS Setup 读取受支持 Socket／Plug 的作者几何，不修改原 SPS。根点定位默认使用四点定位，也可明确选择 Contact 直接定位（SDK Beta）。
 
 ## 目标与范围
 
@@ -10,7 +10,8 @@ Discover All 发现受支持的 VRCFury 作者组件；Selected Targets 缩小�
 
 | 能力 | 生成范围 |
 | --- | --- |
-| 固定 SPS 根部定位 | 每个目标四个固定 Receiver 和一个专用 Sender |
+| 四点定位 | 每个目标四个固定 Receiver 和一个专用 Sender |
+| Contact 直接定位（SDK Beta） | 每个根点一组专用 Sender／Receiver，输出原生 XYZ 与速度 |
 | 配对 Socket 定位 | 独立 Root／Tip／Side Pose 接收阵列 |
 | 配对 Plug 标记 | 三个参考标记，不追踪 GPU 形变 |
 | 本地 Plug 尖端定位 | 相对明确参考 Socket 的本地点 |
@@ -18,7 +19,19 @@ Discover All 发现受支持的 VRCFury 作者组件；Selected Targets 缩小�
 
 Exclusive 每组一次启用一个测量目标，初始关闭；Dedicated 允许同时测量。互斥减少活动对象，不减少注册 Contact 预算；可选能力和其他插件也计入。未知策略会令构建失败。
 
-单目标可用 `SensaSpsRootProbe.prefab` 或 **GameObject → Sensa → Fixed-anchor SPS Root Probe**。Target 刻意留空，应明确选择实际 SPS／Sensa／原生 Contact 根中心；复制后更换实例名和碰撞通道。适配器读取 CPU 根参考框，不是 GPU 表面。
+单目标可用 `SensaSpsRootProbe.prefab` 或 **GameObject → Sensa → Four-anchor tracking**。SDK 路线使用 `SensaContactRootProbe.prefab` 或 **GameObject → Sensa → Contact direct tracking (SDK Beta)**。Target 刻意留空，应明确选择实际 SPS／Sensa／原生 Contact 根中心；复制后更换实例名和碰撞通道。明确指定 Sensa／原生 Contact 目标时不需要 VRCFury。适配器读取 CPU 根参考框，不是 GPU 表面。
+
+## Contact 直接定位（SDK Beta）
+
+在 Automatic SPS Setup 中选择根点定位方式；稳定版 SDK 安装默认仍用四点定位。Contact 直接定位需要包含 `advancedProximityParameters` 的 SDK（已核对 3.10.6-beta.2）；旧 SDK 选择此方式时会构建失败，并给出安装要求或替代方式。
+
+`Runtime/SensaContactProtocol.cs` 定义 `Sensa/Contact/<id>`。一个半径 2 制作单位的 Proximity Receiver 位于 Avatar 根点，形状偏移为零，坐标轴与根旋转对齐；另一个半径 0.001 制作单位的 Sender 跟随所选根点。原 SPS Contact 不变。SDK 直接写入十个原生报告：`Proximity`、Int `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`；其余字段为 Float。不导出碰撞标签参数。
+
+XYZ 使用 `AvatarRootMeters`：以 Avatar 根点为原点、以其旋转为坐标轴，单位米，不除以制作时根缩放。速度是 SDK 碰撞点的相对速度，单位米/秒；ProximitySpeed 是归一化接近值每秒变化量。单点不提供朝向。`Radius` 报告包含制作缩放与 ScaleFactor 的实际世界接收半径。`Sample` 约每 50 ms 按 n/32 循环；停用时两个控制字段均清零。时钟表示生产端活动，不证明 SDK 同帧或 Sender 身份。桌面活动时效上限 1000 ms；Sample 推进时允许缓存静止坐标。接触存在性与 SenderType 单独校验，零位置／速度可以是合法静止值。
+
+两种方式采用相同 IsLocal、缩放和选择门禁。Contact 直接定位每个目标计入 2 个 Contact，四点定位计入 5 个。原生报告及两个控制字段均为本地、不同步、不保存参数；桌面共用空间许可、校准和输入启用控制。[SDK 语义与限制](../../docs/contact-sdk.md)。
+
+包内包含功能检测、生成参数、位置、缩放门禁和选择清零的 EditMode 契约；正向 SDK 构建契约需要 Beta API，缺少时跳过。此次变更尚未在稳定版或 Beta Unity Editor 中执行这些契约；包元数据检查与 SDK 程序集检查不等于 Unity 客户端或真实硬件验收。
 
 ## 几何与五个测量字段
 

@@ -22,16 +22,17 @@ Keep emergency stop within reach. After clearing it, saving configuration, chang
 | Route | What it provides | Main limitation |
 | --- | --- | --- |
 | **Existing OGB / SPS** | Read the proximity, touch and depth-related parameters your Avatar already provides | Use the Avatar's existing parameters; check which SPS1 or SPS2 signals it sends |
-| **Sensa SPS** | Add measurement components to your Avatar and calculate the selected root relative to it | Requires rebuilding your own Avatar; the target must stay inside the detectable region |
+| **Four-anchor tracking** | Add measurement components to your Avatar and calculate the selected root relative to it | Requires rebuilding your own Avatar; the target must stay inside the detectable region |
+| **[Contact direct tracking (SDK Beta)](docs/contact-sdk.en.md)** | Read the selected root’s position and relative velocity through one dedicated Receiver | Requires the beta SDK and rebuilding your own Avatar; target stays inside Receiver coverage |
 | **Shader capture** | Draw root coordinates as a black-and-white code block and read them from the desktop | PC experiment; the full block must be visible, and real VRChat/headset behavior remains unverified |
 
-A “root” is the Socket/Plug starting point you select in Unity. Its position relative to the Avatar changes when that point moves within the Avatar; walking or turning the entire Avatar leaves it unchanged. With Sensa SPS or Shader capture, inspect coordinates and calibrate their range before enabling experimental spatial input. The [positioning guide](docs/positioning.en.md) explains the measurements and limits.
+A “root” is the starting point you select in Unity, such as an SPS Socket/Plug, Sensa or native Contact root. Its position relative to the Avatar changes when that point moves within the Avatar; walking or turning the entire Avatar leaves it unchanged. With four-anchor tracking, Contact direct tracking or Shader capture, inspect coordinates and calibrate their range before enabling experimental spatial input. The [positioning guide](docs/positioning.en.md) explains the measurements and limits. Contact direct tracking uses SDK 3.10.6-beta.2 and physical metre units; its velocity values can control movement strength after calibration. Real-client/OSC beta acceptance awaits validation.
 
 [Route selection](docs/usage-scenarios.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Positioning and limits](docs/positioning.en.md) · [OGB compatibility](docs/ogb-compatibility.en.md)
 
 ## Explore before connecting
 
-Open the [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly in your browser. Ten simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.
+Open the [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly in your browser. Eleven simulated scenes show receivers, senders, Socket/Plug reference surfaces, fixed anchors, Contact direct reports and Shader encoding. Rotate the 3D view, drag a target on a chosen plane, or use precise sliders and SVG projections.
 
 The release also includes `docs/parameter-geometry.html` and its local assets for offline use. Browser language is detected automatically; an explicit choice is saved. Use [?lang=en-US](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [?lang=zh-CN](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) to choose a language directly.
 

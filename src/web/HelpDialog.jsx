@@ -12,8 +12,11 @@ export default function HelpDialog({ open, onClose, onNavigate, emergencyAction,
           {onNavigate && <Button onClick={() => onNavigate('osc')}>{t('配置 OGB')}</Button>}
         </div>
         <div>
-          <div><strong>Sensa SPS</strong><p className="caption muted">{t('在 Unity 中安装四个固定接收器和根部标记，测量根部相对 Avatar 的位置。')}</p></div>
-          {onNavigate && <Button onClick={() => onNavigate('sensa-sps')}>{t('查看根点')}</Button>}
+          <div><strong>{t('根点定位')}</strong><p className="caption muted">{t('Unity 可选择四点定位或 Contact 直接定位（SDK Beta）。四点定位计算根点位置，Contact 直接定位还提供相对速度；在根点面板选择目标后，校准位置行程或速度强度。')}</p></div>
+          <div className="actions">
+            {onNavigate && <Button onClick={() => onNavigate('sensa-sps')}>{t('查看根点')}</Button>}
+            <a href={docUrl('docs/contact-sdk.md')} target="_blank" rel="noreferrer">{t('Contact SDK 设置')}</a>
+          </div>
         </div>
         <div>
           <div><strong>{t('Shader 捕获')}</strong><p className="caption muted">{t('在 Unity 中生成根部位置编码画面，再按指南选择屏幕捕获区域，由桥接程序读取坐标。')}</p></div>

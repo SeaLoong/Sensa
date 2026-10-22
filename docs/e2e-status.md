@@ -4,7 +4,11 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。检查顺序、发布和维护方式见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
-## 本轮结果
+## Contact SDK 适配验证
+
+2026-10-22 本轮本地隔离检查已通过：Web 126 项、后端 434 项、Python 228 项，另有 Unity 包元数据检查和 76 个文档页面构建。新增的浏览器用例覆盖 Contact 米制坐标／速度校准、接触离开与活动冻结停止，以及双语参数图解。浏览器运行与新截图尚待 Actions 验证、审阅；实际 Beta SDK 的 Unity／VRChat 与 OSC 链路另行验收。[功能与 SDK 依据](contact-sdk.md)
+
+## 此前已核对的 CI
 
 最近核对：2026-10-22 08:24（北京时间）。
 

@@ -8,9 +8,9 @@
 
 [公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)支持自动识别语言，也可直接打开[简体中文](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)或[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用参数详情会打开随包附带的页面；解压后保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
 
-先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。Sensa SPS 的四个颜色关联测量球、标签和参数行。
+先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十一个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。四点定位的四个颜色关联测量球、标签和参数行。
 
-图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，Sensa SPS 的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
+图解按完整 XYZ 计算距离。XZ 视图将空间投到一个平面，四点定位的绿色部分另标出当前 Y 高度的可测切片。“可用值”体现 Close 或有效性条件，通过这些条件的数值可作为建立映射时的参考。实际联动按[工作台指南](guide.md)配置。
 
 参数按名称字典序显示，同一前缀的短名称在前，例如 `PenOthers` 在 `PenOthersClose` 之前。前缀中的 `*` 代表实例名：`Sensa/SPS/Example/P0` 的完整地址为 `/avatar/parameters/Sensa/SPS/Example/P0`。Shader ID 使用下文规定的十进制数。
 
@@ -22,11 +22,12 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 | --- | --- | --- |
 | `OGB/Orf/<id>/…`、`OGB/Pen/<id>/…` | Socket／Plug 的进入深浅趋势、触碰强度和接近状态 | 深度或振动联动 |
 | `VFH/Zone/Touch/<id>/Others`／`Self` | 选定触摸区域的接近强度 | 区域触碰联动 |
+| `Sensa/Contact/<id>/Proximity…`、`Radius`、`Sample` | 所选根点的米制位置与 m/s 相对速度 | 校准后的局部动作或运动强弱 |
 | `Sensa/SPS/<id>/P0…P3`、`Sample` | 选定根点相对 Avatar 的三维位置 | 按左右、上下、前后移动控制动作 |
 | `Sensa/Shader/<id>/Frame`、`Valid`、`X`、`Y`、`Z` | 从屏幕图块解码的根点相对位置 | 用画面编码获得三维位置 |
 | `Sensa/Diagnostics/Shader/0/…` | 图案、捕获与 OSC 传输诊断 | 检查捕获链路 |
 
-Sensa SPS 的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
+四点定位的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
 
 ## OGB 与 VRCFury 参数
 
@@ -50,7 +51,34 @@ Sensa SPS 的 Unity 测量组件与桌面共享下文的五字段和固定几何
 
 实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
 
-## Sensa SPS：四路近接与一个活动样本
+## Contact 直接定位（SDK Beta）：十二个公开字段
+
+为所选自身根点使用专用球形 Sender，在 Avatar 根设置零偏移、各轴对齐的 Proximity Receiver。Receiver 开启 `advancedProximityParameters=true`，使用独立碰撞通道且只接收 Self。此方案需要 SDK 3.10.6-beta.2 或提供同一能力的后续 SDK。坐标框为 **AvatarRootMeters**：以 Avatar 根为原点，坐标轴随根旋转，保留物理米单位。[设置与 SDK 核验依据](contact-sdk.md)
+
+全部路径以 `Sensa/Contact/<id>/` 开头，`<id>` 只占一层路径。下表按字典序排列，共享前缀的短名称在前。`Proximity_SenderType` 为 Int，其余十一个字段为 Float。
+
+| 叶子 | 含义与单位 | 有效条件／用途 |
+| --- | --- | --- |
+| `Proximity` | 原生接近值，0–1 | Sensa 要求 `0 < p ≤ 1` |
+| `Proximity_ProximitySpeed` | Proximity 的带符号变化率，接近值／秒 | 有限；退出可产生短暂读数 |
+| `Proximity_SenderLocalPositionX` | 发送形状中点相对接收形状中点的位置，X，米 | 有限；负坐标有效 |
+| `Proximity_SenderLocalPositionY` | 同一位置的 Y，米 | 同上 |
+| `Proximity_SenderLocalPositionZ` | 同一位置的 Z，米 | 同上 |
+| `Proximity_SenderType` | 0 无，1 自身 Avatar，2 其他 Avatar，3 世界 Sender | Sensa 专用根点测量要求 1 |
+| `Proximity_SenderVelocityMagnitude` | 相对接触点速度的模长，m/s | 有限且非负；零有效 |
+| `Proximity_SenderVelocityX` | Receiver X 轴下的相对接触点速度，m/s | 有限，包含角运动影响 |
+| `Proximity_SenderVelocityY` | 同一速度的 Y，m/s | 同上 |
+| `Proximity_SenderVelocityZ` | 同一速度的 Z，m/s | 同上 |
+| `Radius` | Receiver 实际世界半径，米 | 有限，`0 < Radius ≤ 3`；随 ScaleFactor 更新 |
+| `Sample` | Sensa 生产端活动计数 | 0 失效；有效值为 n/32，n=1…32 |
+
+SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象。中点位移通过接收形状旋转的逆变换转换，保留米单位，未按缩放或半径归一化。报告速度取近似接触点处的相对速度，包含角运动项；形状旋转时，可能与中点位置的导数不同。没有选中 Sender 时，SDK 写入类型 0 和零 XYZ／速度。原生报告未提供时间戳、序号或稳定 Sender ID。
+
+桌面要求同一来源与完整实例的十二字段齐全、类型为 Self、Proximity 为正、数值有限、位置在 Radius 边界及小量数值容差内，且 Radius 受支持。Sample 目标每 50 ms 推进，按 ChangedAt 检查的年龄上限为 **1000 ms**；较短的正数 InputTimeoutMs 优先，重复相同计数不续期。Contact 消失、字段缺失、Radius／坐标非法或活动停用／冻结时，相关空间动作停止。
+
+Contact 直接定位通过 SensaPoint 映射 **X／Y／Z／Distance** 或 **VelocityX／VelocityY／VelocityZ／Speed／ProximitySpeed**。端点校准、曲线、输出限位、空间启用与停止沿用现有流程。四点定位的 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 和按制作尺度解释的 AvatarRootLocal 保留既有定义。[定位说明](positioning.md) · [工作台](guide.md)
+
+## 四点定位：四路近接与一个活动样本
 
 生产端为明确选择的 Socket／Plug 根中心建立一个专用球形 Sender，四个球形 Receiver 固定在 Avatar 根坐标中，只接受自己的专用碰撞通道。每实例共五个 Contact，跟踪所选 Transform 根中心。[生产端](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaFixedRootBuilder.cs)
 

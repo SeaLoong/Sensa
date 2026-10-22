@@ -20,7 +20,8 @@ The historical VPM index may offer an older package. Development previews do not
 | Route | Setup | Meaning |
 | --- | --- | --- |
 | Existing OGB | Configure existing SPS/OGB and desktop mappings | Scalar Touch or radial depth estimate; [external interoperability](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.en.md) |
-| Fixed SPS root | Add **Sensa → Automatic SPS Setup**, or **Fixed SPS Root Probe** and explicitly assign Target | Your selected root in AvatarRootLocal; not a tip, orientation or world position |
+| Four-anchor tracking | Add **Sensa → Automatic SPS Setup**, or **Four-anchor tracking** and explicitly assign Target | Your selected root in AvatarRootLocal; not a tip, orientation or world position |
+| Contact direct tracking (SDK Beta) | Choose **Contact direct tracking (SDK Beta)** in automatic setup, or add its prefab and explicitly assign Target | Dedicated Sender/Receiver; root coordinates in metres and relative SDK velocity; requires advanced proximity parameters |
 | Native root code | Add **Shader Root Capture (Experimental)** | Separate [camera/desktop bridge](GPU-TRACKING.en.md), without Contact triangulation |
 | Independent Point/Handle/Pose | Select local landmarks or matching paired markers | Separate experiments with their own protocols and freshness rules |
 

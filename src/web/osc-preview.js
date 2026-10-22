@@ -1,7 +1,7 @@
 import { t } from './i18n.js';
-// Reuse the ICU collator and compiled patterns across live snapshots. Neither
+// Reuse compiled patterns across live snapshots. Neither
 // cache stores incoming values, so data freshness always comes from the caller.
-const pathCollator = new Intl.Collator('en', { numeric: true, sensitivity: 'base' });
+const comparePaths = (left, right) => left < right ? -1 : left > right ? 1 : 0;
 const sourceCollator = new Intl.Collator();
 const compiledPatterns = new Map();
 const MAX_COMPILED_PATTERNS = 256;
@@ -81,7 +81,7 @@ function selectPreview(entries, signals, { showFaceTracking = false, search = ''
   entries.forEach((entry, index) => {
     const path = entry.path;
     if (term && !path.toLowerCase().includes(term)) return;
-    if (category === 'pose' && !/^Sensa\/(?:(?:SPS|Shader)\/|(?:Pose|Point|Handle)\/v1\/)/.test(path)) return;
+    if (category === 'pose' && !/^Sensa\/(?:(?:SPS|Shader|Contact)\/|(?:Pose|Point|Handle)\/v1\/)/.test(path)) return;
     if (!pathMatches.has(path)) pathMatches.set(path, matchPath(path));
     const matches = pathMatches.get(path), mapped = matches.length > 0, isPinned = pinnedSet.has(path);
     if (!showFaceTracking && isFaceTrackingPath(path) && !mapped && !isPinned) return;
@@ -92,7 +92,7 @@ function selectPreview(entries, signals, { showFaceTracking = false, search = ''
       relevance: entry.classification?.relevance || 0 });
   });
   return selected.sort((a, b) => Number(b.pinned) - Number(a.pinned) || Number(b.mapped) - Number(a.mapped)
-    || b.relevance - a.relevance || pathCollator.compare(a.path, b.path) || sourceCollator.compare(a.sourceKey, b.sourceKey));
+    || b.relevance - a.relevance || comparePaths(a.path, b.path) || sourceCollator.compare(a.sourceKey, b.sourceKey));
 }
 
 function previewRows(entries, signals, selected) {
@@ -154,6 +154,16 @@ export function parameterMeaning(path) {
 
 function baseParameterMeaning(path) {
   const leaf = path.split('/').at(-1);
+  if (/^Sensa\/Contact\/[^/]+\//.test(path)) {
+    if (leaf === 'Sample') return t('Sample=0 表示 Contact 测量已停止或失效；1/32…1 循环变化表示生产端仍在更新。Sensa 同时检查自身发送器、接近值和完整参数。');
+    if (leaf === 'Radius') return t('Radius 是接收器当前的世界覆盖半径，单位为米。它随 Avatar 缩放更新，用于检查接收范围。');
+    if (leaf === 'Proximity') return t('Contact 接近值在 0–1 之间。大于 0 表示选中了匹配的发送器；多个发送器同时进入时，SDK 选择接近值最大的一个。');
+    if (leaf === 'Proximity_SenderType') return t('发送器类型：0 无目标，1 自身 Avatar，2 其他 Avatar，3 世界。Sensa 专用根点使用自身发送器，并用独立碰撞通道配对。');
+    if (/^Proximity_SenderLocalPosition[XYZ]$/.test(leaf)) return t('SDK 直接报告发送器形状中心相对接收器中心的坐标，单位为米。Sensa 接收器采用 Avatar 根的原点和旋转轴；坐标保留实际米制距离。');
+    if (/^Proximity_SenderVelocity[XYZ]$/.test(leaf)) return t('SDK 报告接触点处发送器相对接收器的速度分量，单位为 m/s，方向采用接收器坐标轴。速度包含旋转产生的运动。');
+    if (leaf === 'Proximity_SenderVelocityMagnitude') return t('SDK 报告接触点处的相对速率，单位为 m/s。可校准为振动强度，并通过空间输入检查控制有效性。');
+    if (leaf === 'Proximity_ProximitySpeed') return t('接近值每秒的变化率，单位为 /s。正值表示接近值增加，负值表示接近值减少；可单独校准为动作强度。');
+  }
   if (path.startsWith('Sensa/Pose/v1/')) return t('这是一个接收器的距离读数。Sensa 使用同一对象的完整测量组计算位置与朝向，再通过空间映射转换为设备动作。');
   if (/^Sensa\/SPS\/[^/]+\//.test(path)) {
     if (leaf === 'Sample') return t('Sample=0 表示测量已停用或失效；1/32…1 循环变化表示 Avatar 正在发送更新。超时后 Sensa 会停用这组位置。四路距离分别接收，Sample 用于检查更新是否持续。');
@@ -259,34 +269,62 @@ export function posePreviewEntry(observations, signal, preferredSourceKey = '', 
 }
 
 function canMapPoint(point) {
-  return ['Point', 'Handle'].includes(point?.kind) || ['SpsRoot', 'ShaderRoot'].includes(point?.kind) && point.party === 'Self' && point.isMappablePoint === true;
+  return ['Point', 'Handle'].includes(point?.kind) || ['SpsRoot', 'ShaderRoot', 'ContactRoot'].includes(point?.kind) && point.party === 'Self' && point.isMappablePoint === true;
+}
+
+const positionMetrics = ['X', 'Y', 'Z', 'Distance'];
+const velocityMetrics = ['VelocityX', 'VelocityY', 'VelocityZ', 'Speed', 'ProximitySpeed'];
+
+export function pointMetricOptions(point) {
+  const metrics = point?.kind === 'ContactRoot'
+    ? [...positionMetrics, ...velocityMetrics.filter(metric => point.supportedMetrics?.includes(metric) || point.supportsVelocity)]
+    : positionMetrics;
+  const labels = { X: 'X', Y: 'Y', Z: 'Z', Distance: t('距参考原点'),
+    VelocityX: t('X 相对速度（m/s）'), VelocityY: t('Y 相对速度（m/s）'), VelocityZ: t('Z 相对速度（m/s）'),
+    Speed: t('相对速率（m/s）'), ProximitySpeed: t('接近值变化率（/s）') };
+  return metrics.map(value => ({ value, label: labels[value] }));
+}
+
+export function pointMetricValue(point, metric) {
+  if (!pointMetricOptions(point).some(option => option.value === metric)) return undefined;
+  const { x, y, z } = point?.position || {};
+  const value = { X: x, Y: y, Z: z, Distance: Math.hypot(x, y, z),
+    VelocityX: point?.velocity?.x, VelocityY: point?.velocity?.y, VelocityZ: point?.velocity?.z,
+    Speed: point?.speed, ProximitySpeed: point?.proximitySpeed }[metric];
+  return Number.isFinite(value) ? value : undefined;
+}
+
+export function pointTrackingLabel(point) {
+  if (point?.kind === 'ContactRoot') return t('Contact 直接定位（SDK Beta）');
+  if (point?.kind === 'SpsRoot') return t('四点定位');
+  return point?.kind || '';
 }
 
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
   const points = observations.filter(p => canMapPoint(p) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
-    && (p.kind === 'ShaderRoot' ? ['X', 'Y', 'Z'].map(axis => `${p.prefix}/${axis}`)
+    && (p.measurementPaths?.length ? p.measurementPaths : p.kind === 'ShaderRoot' ? ['X', 'Y', 'Z'].map(axis => `${p.prefix}/${axis}`)
       : Array.from({length:p.expectedSampleCount || 4}, (_,i) => p.kind === 'SpsRoot' ? `${p.prefix}/P${i}` : `${p.prefix}/Root/A${i}`)).some(path => matchesOscPathPattern(signal.oscPath,path)));
   if (points.length !== 1) return {path:signal.oscPath,value:points.length ? t("请限定唯一测量点与来源") : t("等待本地点采样")};
   const p = points[0];
-  const value = p.valid ? ({X:p.position.x,Y:p.position.y,Z:p.position.z,Distance:Math.hypot(p.position.x,p.position.y,p.position.z)}[signal.pointMetric || 'Z']) : undefined;
+  const value = p.valid ? pointMetricValue(p, signal.pointMetric || 'Z') : undefined;
   return {path:p.prefix,value:value === undefined ? p.reason : Number(value.toFixed(4)).toString(),numericValue:value,sourceKey:p.sourceKey,matchCount:p.sampleCount};
 }
 
 export function capturePointEndpoint(point, metric) {
   if (!point?.valid || !canMapPoint(point) || !point.key || !point.position) return null;
   const {x,y,z} = point.position;
-  const value = {X:x,Y:y,Z:z,Distance:Math.hypot(x,y,z)}[metric];
+  const value = pointMetricValue(point, metric);
   if (![x,y,z,value].every(Number.isFinite)) return null;
   return {key:point.key,prefix:point.prefix,sourceKey:point.sourceKey,metric,value};
 }
 
 export function calibratedPointDraft(point, metric, zero, full) {
-  if (!point || !canMapPoint(point) || !['X','Y','Z','Distance'].includes(metric)) return {error:t("请选择可映射的测量点与轴")};
+  if (!point || !canMapPoint(point) || !pointMetricOptions(point).some(option => option.value === metric)) return {error:t("请选择可映射的测量点与轴")};
   if (!zero || !full) return {error:t("请分别采集 0% 和 100% 位置")};
   if ([zero,full].some(sample=>sample.key!==point.key || sample.prefix!==point.prefix || sample.sourceKey!==point.sourceKey || sample.metric!==metric || !Number.isFinite(sample.value)))
     return {error:t("测量对象、来源或轴已改变，请重新采集")};
-  if (Math.abs(full.value-zero.value)<.001) return {error:t("两个位置相距不足 1 mm，请扩大校准范围")};
-  return {draft:{oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:metric,role:'Depth',
+  if (Math.abs(full.value-zero.value)<.001) return {error:velocityMetrics.includes(metric) ? t('两个采样值过于接近，请扩大变化范围') : t("两个位置相距不足 1 mm，请扩大校准范围")};
+  return {draft:{oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:metric,role:velocityMetrics.includes(metric) ? 'V0' : 'Depth',
     vrchatMin:Math.min(zero.value,full.value),vrchatMax:Math.max(zero.value,full.value),invertDirection:full.value<zero.value}};
 }
 
@@ -308,7 +346,7 @@ export function compareOscPathSuggestions(left, right) {
   const rightPriority = isOgbOscPath(rightPath) ? 0 : 1;
 
   if (leftPriority !== rightPriority) return leftPriority - rightPriority;
-  return pathCollator.compare(leftPath, rightPath);
+  return comparePaths(leftPath, rightPath);
 }
 
 export function buildOscPathSuggestions(previewEntries, queryNodes = []) {

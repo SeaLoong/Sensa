@@ -17,6 +17,7 @@ import { RangeField, SelectField, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
 import { t, diagnostic } from './i18n.js';
 import { mappingPathSuggestions } from './mapping-path-suggestions.js';
+import { pointMetricOptions } from './osc-preview.js';
 
 export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
   const mode = value.mode || 'Normal';
@@ -244,12 +245,9 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, onChange, on
           </div>
           {draft.sourceMode === 'SensaPoint' && (
             <SelectField
-              label={t('测量轴')}
+              label={/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? t('测量指标') : t('测量轴')}
               value={draft.pointMetric || 'Z'}
-              options={['X', 'Y', 'Z', 'Distance'].map((value) => ({
-                value,
-                label: value === 'Distance' ? t('距参考原点') : value,
-              }))}
+              options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(draft.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)}
               onChange={(pointMetric) => onChange({ pointMetric })}
             />
           )}

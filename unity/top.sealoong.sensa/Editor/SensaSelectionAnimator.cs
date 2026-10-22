@@ -30,6 +30,11 @@ namespace UnityBox.Sensa
             foreach (var rig in rigs)
             {
                 foreach (var receiver in rig.GetComponentsInChildren<VRCContactReceiver>(true)) resetParameters[receiver.parameter] = AnimatorControllerParameterType.Float;
+                foreach (var declaration in rig.GetComponentsInChildren<ModularAvatarParameters>(true))
+                foreach (var parameter in declaration.parameters ?? new List<ParameterConfig>())
+                    if (parameter.nameOrPrefix.StartsWith(SensaContactProtocol.Prefix + "/", StringComparison.Ordinal))
+                        resetParameters[parameter.nameOrPrefix] = parameter.syncType == ParameterSyncType.Int
+                            ? AnimatorControllerParameterType.Int : AnimatorControllerParameterType.Float;
                 foreach (var bone in rig.GetComponentsInChildren<VRCPhysBone>(true)) if (!string.IsNullOrEmpty(bone.parameter))
                 {
                     resetParameters[bone.parameter + "_IsGrabbed"] = AnimatorControllerParameterType.Bool;

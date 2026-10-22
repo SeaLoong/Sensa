@@ -6,7 +6,7 @@ OGB 用参数描述 Avatar 的靠近、进入和触碰交互，Sensa 可将这�
 
 先在参数列表找到实际来源和完整路径，再选[深度或振动模板](presets.md)。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 用两路数值估算进入深浅；**SPS1 · PenOthers / PenOthersClose** 用深浅信号配合有效接近区域。配对时保持同来源、同实例和同 Self／Others 类别，需要时开启 Avatar 的 OGB_ENABLED 心跳。
 
-**外部 OGB 路径沿用上游名称**。Sensa 自有固定根点和 Shader 参数见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可交互查看检测球与胶囊，灰色轮廓帮助辨认 Socket／Plug 的相对位置。
+**外部 OGB 路径沿用上游名称**。Sensa 自有四点定位、Contact 直接定位和 Shader 参数见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可交互查看检测球与胶囊，灰色轮廓帮助辨认 Socket／Plug 的相对位置。
 
 研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。OGB v1.0.0 已同时读取 `PenOthersNewRoot`／`PenOthersNewTip` 和 `PenOthers`；图解的 SPS1／SPS2 标签按参数几何区分，具体以 Avatar 发布的路径为准。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
@@ -23,7 +23,7 @@ OGB 用参数描述 Avatar 的靠近、进入和触碰交互，Sensa 可将这�
 | R、r | 实际 Receiver、球形 Sender 的半径 |
 | H | 胶囊的完整高度，包含两端半球 |
 
-Proximity 是连续 0–1 浮点值，通常随目标靠近检测中心增大；Constant 表示是否进入有效接近区域，进入时为 1，离开时为 0。VRChat 每个 Receiver 独立选择最近的匹配 Sender；球形接收器按 Sender 最近表面到自身中心计算接近程度。球对球模型为：
+Proximity 是连续 0–1 浮点值，通常随目标靠近检测中心增大；Constant 表示是否进入有效接近区域，进入时为 1，离开时为 0。每个 Proximity Receiver 独立选择 Proximity 严格大于零且最大的匹配 Sender；球形接收器按 Sender 最近表面到自身中心计算接近程度。球对球模型为：
 
 ```text
 p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
@@ -116,6 +116,12 @@ d ≈ R × (1 - pRoot) + r
 Sensa 采用生成器的 R=1、r=0.01 模型，得到 +0.01 修正。运行时缩放或自定义尺寸会使换算带有误差，因为实际 R／r 需要从作者几何确认。Root 饱和为 1 时表示 d≤r，该小范围内保持同一读数；映射时用实际对象的期望起点和终点校准。[估算器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
 
 只有完整、有限的 0–1 配对且存在未饱和估长采样时才产生后续径向比例；从内部启动、长度未知时给零，需要先退出再进入。横向偏移、不同 Plug 混入、截断和逐参数异步都会影响结果。固定同一对象与来源进行校准，有助于得到稳定、容易解释的变化。
+
+## 专用 Contact 直接定位（SDK Beta）
+
+SDK 3.10.6-beta.2 还通过高级 Proximity 参数提供原生 Sender 中点位置和接触点相对速度。Sensa 使用独立的 `Sensa/Contact/<id>/…` 实例，由唯一通道上的自身根点 Sender 和 Avatar 根 Receiver 组成。位置是物理米制 AvatarRootMeters，速度为 m/s；运动强弱可通过 VelocityX／Y／Z、Speed 或 ProximitySpeed 校准。四点定位保留 `Sensa/SPS/<id>/P0…P3+Sample`，已有 OGB 路径以及上文深度／触摸模型保留其发布语义。
+
+构建自己的根点测量时可选择此方案，明确的 Sensa／原生 Contact 根点可独立于 VRCFury 使用。身体联动可用校准位置轴跟随细微深浅趋势，并以 Touch／Close 条件确认触碰。[Beta 设置、源码依据与字段语义](contact-sdk.md) · [字典](osc-parameters.md)
 
 ## Sensa 的精简入口与使用条件
 

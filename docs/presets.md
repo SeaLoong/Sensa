@@ -1,4 +1,4 @@
-# 三个内置映射模板
+# 五个内置映射模板
 
 **简体中文** | [English](presets.en.md)
 
@@ -8,6 +8,8 @@
 | --- | --- | --- |
 | `ogb-depth` | SPS2 配对估算、SPS1 或 Plug 深浅趋势 | Depth → L0 |
 | `ogb-touch` | Touch／Frot 或独立 VFH Touch Zone | V0 |
+| `contact-position` | Contact 直接位置；按米校准所选轴 | SensaPoint Z → Depth／L0 |
+| `contact-speed` | Contact 相对速率；按 m/s 校准强度 | SensaPoint Speed → V0 |
 | `native-pb-stretch` | 原生 PB Stretch＋IsGrabbed | Depth＋GateEnable |
 
 ## OGB / SPS · 深度
@@ -35,6 +37,10 @@ OgbTouch 将 `TouchOthers` 与同实例的 `TouchOthersClose` 配对，目标进
 ## 原生 PB · 拉伸
 
 模板使用 `MyPB_Stretch` 和 `MyPB_IsGrabbed`。把 MyPB 换成实际 PhysBone 参数前缀；抓取时 GateEnable 开放，松手时关闭，拉伸程度转换为动作目标。
+
+## Contact 直接定位：校准根点映射
+
+先使用受支持的 Beta SDK 构建专用自身根点 Sender／Receiver，再选择 `contact-position` 或 `contact-speed`。两者使用 `Sensa/Contact/Root/*`，将 `Root` 替换为实际实例。位置初始按 Z 的 0–0.2 m 映射 Depth，速率初始按 0–1 m/s 映射 V0；请按实际动作校准示例量程。也可从根点面板生成映射。位置选择 **X／Y／Z／Distance**，运动强弱选择 **VelocityX／Y／Z／Speed／ProximitySpeed**，采集 0%／100% 端点、检查预览并保存。生成的 SensaPoint 映射使用 `Sensa/Contact/<id>/**`、选定来源和指标；位置默认对应 Depth，速度指标默认对应 V0。细微深浅趋势可选校准轴，需要确认触碰时可另配 Touch／Close 门控。[Contact 设置](contact-sdk.md)
 
 ## 应用与自定义
 

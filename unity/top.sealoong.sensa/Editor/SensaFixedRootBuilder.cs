@@ -48,7 +48,7 @@ namespace UnityBox.Sensa
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed-root instance already exists."));
         }
 
-        private static void ValidateRootScaleAnimation(GameObject avatar)
+        internal static void ValidateRootScaleAnimation(GameObject avatar)
         {
             // ScaleFactor observes VRChat avatar scaling, not arbitrary root scale animation. / ScaleFactor 不观测任意根缩放动画。
             if (avatar.GetComponent<ScaleConstraint>() != null)
@@ -177,6 +177,7 @@ namespace UnityBox.Sensa
     {
         public override void OnInspectorGUI()
         {
+            EditorGUILayout.LabelField(SensaEditorLocalization.Text("Four-anchor tracking"), EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Track the selected root point with four 2 m receivers. The green scene-view slices show their common measurable volume; the whole coordinate box is not covered. Keep the target away from the tiny orange saturation zones at the anchor centers."), MessageType.Info);
             SensaInspectorLabels.Draw(serializedObject);
         }
