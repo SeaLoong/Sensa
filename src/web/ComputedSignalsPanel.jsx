@@ -1,7 +1,7 @@
 import React, { useId, useMemo, useState } from 'react';
 import { Badge, Button, Field } from './ui.jsx';
 import { SelectField } from './controls.jsx';
-import { t, diagnostic } from './i18n.js';
+import { t, diagnostic, getLocale } from './i18n.js';
 import { mappingPathSuggestions } from './mapping-path-suggestions.js';
 import { pointMetricOptions, pointTrackingLabel } from './osc-preview.js';
 import { COMPUTED_INPUT_LIMIT, COMPUTED_SIGNAL_LIMIT, computedInputOptions, computedOperationOptions, makeComputedInput, newComputedDraft } from './computed-signals.js';
@@ -70,11 +70,12 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pat
 }
 
 export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [], observations = [], selectedSourceKey = '', graphDirty = false, pathOptions = [], onChange, onMap }) {
+  const locale = getLocale();
   const [selected, setSelected] = useState('');
   const runtimeById = useMemo(() => new Map(runtimeSignals.map(signal => [signal.id, signal])), [runtimeSignals]);
   const pointOptions = useMemo(() => [...new Map(observations.filter(point => (!selectedSourceKey || point.sourceKey === selectedSourceKey)
     && (['Point', 'Handle'].includes(point.kind) || point.party === 'Self' && point.isMappablePoint === true))
-    .map(point => [`${point.prefix}/**`, { value: `${point.prefix}/**`, label: `${point.instance} · ${pointTrackingLabel(point) || point.kind}` }])).values()], [observations, selectedSourceKey]);
+    .map(point => [`${point.prefix}/**`, { value: `${point.prefix}/**`, label: `${point.instance} · ${pointTrackingLabel(point) || point.kind}` }])).values()], [observations, selectedSourceKey, locale]);
   return (
     <section className="computed-signals stack" aria-label={t('计算信号')} data-testid="computed-signals-editor">
       <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge></div>
