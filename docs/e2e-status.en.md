@@ -4,9 +4,9 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
-## Computed signals (verification in progress)
+## Computed signals
 
-On 2026-10-23 (Beijing time), this change adds multi-input calculations, reusable intermediate results and mapping controls. Current isolated local checks passed: **133 Web**, **237 Python**, **497 .NET** tests and a build of **84 documentation routes**. Regression checks cover path-prefix caching, wildcard refresh and zero-segment matching; tracked-input labels also update when switching language. [Feature and operation](computed-signals.en.md)
+On 2026-10-23 (Beijing time), this change adds multi-input calculations, reusable intermediate results and mapping controls. Current isolated local checks passed: **133 Web**, **237 Python**, **497 .NET** tests and a build of **84 documentation routes**. Regression checks cover path-prefix caching, wildcard refresh and zero-segment matching; tracked-input labels also update when switching language. Three-point opening offsets in calculations and mappings are labeled in reference-local units. [Feature and operation](computed-signals.en.md)
 
 | Commit | Scope | Run | Inspected outcome |
 | --- | --- | --- | --- |
@@ -15,12 +15,13 @@ On 2026-10-23 (Beijing time), this change adds multi-input calculations, reusabl
 | `9dc7de2` | Full candidate capture | [39838949791, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39838949791/attempts/1) | **88/88 passed**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=false`, images exported to PR #18 |
 | `9dc7de2` | Normal comparison, incomplete | [39838933199](https://github.com/SeaLoong/Sensa/actions/runs/39838933199) | **88 total: 8 passed, 3 failed, 77 unrun**; every other outcome zero; complete selection, `snapshotsCompared=true`; two new baselines missing and the existing mappings-page image changed |
 | `9dc7de2` | Documentation site checks and deployment | [39838933002, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39838933002/attempts/2) | **8/8 passed**, every other outcome zero; site-only selection, `selectionComplete=false`, `snapshotsCompared=true`, automatic deployment succeeded |
+| `36c09a1` | Complete normal comparison | [39841973847](https://github.com/SeaLoong/Sensa/actions/runs/39841973847) | **88/88 passed**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=true`, image updates disabled |
 
 The initial candidate and site runs pin source `9e700cfebb9436a2cd99fbd25d0c50d9c06150a1`. Candidate failures came from new E2E locators searching `input[list]` by the textbox role, leaving Chinese/English weighted-average and SPS path assertions unable to find their fields. Locators now use field labels while preserving the behavior assertions. Later candidate, normal-comparison and site runs pin `9dc7de27645fb484fa52711656bf31b05ff3f84a`. Pages attempt 1 reached its ten-minute dependency-install limit before browser cases ran; attempt 2 deployed successfully using the same commit.
 
 PR #18's original image commit `ea15168fd5c238e9fc894d09cac4454ef5d37f66` proposed **19 new/changed candidates**, all individually opened by coding assistants. The selected set contains **14 images**: 12 computation editor, input and settings images across Chinese/English and desktop/narrow layouts, plus two mappings-page images. Five unrelated changes retain their original bytes: 36 edge pixels in desktop English help, live speed changing from 0.25 to 0.20 m/s in narrow Contact position (198 pixels), and 4/2/1-pixel variation in three parameter diagrams. The set now contains **134 PNGs**, 67 in each viewport; the 14 selected images split seven per viewport, while **120 PNGs** retain their existing bytes.
 
-V1–V6 inspection found the new controls readable, with no new blocking or major visual issue. English counts still display `1 mappings` (existing) and `1 calculations` (new); long content scrolls normally. Filtered head `7644507` also includes locale-label refresh `5c32f38` and zero-segment glob compatibility `b176897`. Full normal comparison of the filtered version remains pending; baselines have not received final acceptance. [Individual inspection record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
+V1–V6 inspection found the new controls readable, with no new blocking or major visual issue. English counts still display `1 mappings` (existing) and `1 calculations` (new); long content scrolls normally. Filtered head `7644507` also includes locale-label refresh `5c32f38` and zero-segment glob compatibility `b176897`. Complete normal comparison pinned `36c09a18f649bd0dc61cf1222160254e3ef2d0a2`, whose Git tree exactly matches PR head `d2044c669eab1506dc92aaaf157dece3734c2327`. Baselines are accepted after individual inspection and this complete normal comparison. [Individual inspection record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
 ## SPS four-anchor tracking naming
 

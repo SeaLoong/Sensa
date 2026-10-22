@@ -35,9 +35,9 @@ V1–V6 检查未发现新增阻断或主要问题。主任务、草稿／已保
 
 ## Full normal comparison / 完整普通比较
 
-Full normal comparison of filtered head `7644507` remains pending. The selected images have completed individual inspection; **final baseline acceptance is pending** until the filtered application passes complete normal comparison with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`.
+[Normal run 39841973847](https://github.com/SeaLoong/Sensa/actions/runs/39841973847) passed **88/88 cases**, every other outcome zero, with image updates disabled, `selectionComplete=true` and `snapshotsCompared=true`. Pinned source `36c09a18f649bd0dc61cf1222160254e3ef2d0a2` has exactly the same Git tree as reviewed PR head `d2044c669eab1506dc92aaaf157dece3734c2327`. **The baselines are accepted after individual inspection and this full normal comparison.**
 
-筛选提交 `7644507` 的完整普通比较尚待完成。已选择的图片均经过逐张审阅；待筛选后应用关闭图片更新、完成 `selectionComplete=true`、`snapshotsCompared=true` 的完整普通比较后，再最终接受本轮基线。
+上述普通比较 **88/88 通过**，其余结果均为 0；关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true`。固定源码 `36c09a18f649bd0dc61cf1222160254e3ef2d0a2` 的 Git 树与已审阅 PR 提交 `d2044c669eab1506dc92aaaf157dece3734c2327` 完全一致。本轮基线经逐张审阅及此次完整普通比较后接受。
 
 The earlier [normal run 39838933199](https://github.com/SeaLoong/Sensa/actions/runs/39838933199) on `9dc7de2` reported **8 passed, 3 failed and 77 unrun** out of 88, every other outcome zero, with `snapshotsCompared=true`. Failures were two new baseline files missing and the existing mappings-page image changing; it did not complete the suite. The initial [candidate run 39837678118](https://github.com/SeaLoong/Sensa/actions/runs/39837678118/attempts/1) on `9e700cf` reported **2 passed, 3 failed and 83 unrun**, every other outcome zero; field locators were corrected from textbox-role lookup to labels while preserving behavior assertions.
 
