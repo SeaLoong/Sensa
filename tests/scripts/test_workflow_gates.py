@@ -149,6 +149,22 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('artifacts/e2e/summary.json', artifact)
         self.assertIn('artifacts/e2e/summary.md', artifact)
 
+    def test_container_browser_jobs_share_bounded_dependency_setup_before_tests(self):
+        for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates')):
+            with self.subTest(workflow=filename):
+                body = jobs(workflow(filename))[job_name]
+                self.assertIn('container: mcr.microsoft.com/playwright:v1.64.1-noble', body)
+                steps = re.split(r'(?m)^      - ', body)
+                installers = [step for step in steps if 'run: bash scripts/install-e2e-dependencies.sh' in step]
+                self.assertEqual(len(installers), 1)
+                installer = installers[0]
+                self.assertIn('timeout-minutes: 5', installer)
+                self.assertNotIn('continue-on-error', installer)
+                self.assertNotIn('if:', installer)
+                self.assertNotIn('apt-get', body)
+                self.assertLess(body.index('run: bash scripts/install-e2e-dependencies.sh'),
+                                body.index('run: npm run e2e:ci'))
+
     def test_pages_publish_automatically_only_after_built_site_browser_checks(self):
         source = workflow('pages.yml')
         header = source.split('\njobs:\n', 1)[0]
