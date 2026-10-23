@@ -908,12 +908,12 @@ function expectSceneGeometry(snapshot, scenario) {
     for (const axis of ['x', 'y', 'z']) expect(box.geometry.bounds.max[axis] - box.geometry.bounds.min[axis]).toBeCloseTo(4, 8);
     expectWorldPosition(box, { x: 0, y: 1, z: 0 });
   }
-  const socket = ['socket', 'socket', zero, { x: 0, y: 0, z: 1 }, .15, .054];
+  const socket = ['socket', 'socket', zero, { x: 0, y: 0, z: 1 }, .08, .054];
   const plug = (id, z, x = 0) => [id, 'plug', { x, y: 0, z }, { x: 0, y: 0, z: -1 }, .2, .03];
   const references = {
     'socket-modern': [socket, plug('plug', .35)], 'socket-legacy': [socket, plug('plug', .1)],
     'socket-touch': [socket], 'socket-frot': [socket,
-      ['socket-other', 'socket', { x: 0, y: 0, z: .08 }, { x: 0, y: 0, z: -1 }, .15, .054]],
+      ['socket-other', 'socket', { x: 0, y: 0, z: .08 }, { x: 0, y: 0, z: -1 }, .08, .054]],
     'plug-depth': [socket, plug('plug', .15)], 'plug-touch': [plug('plug', 0)],
     'plug-frot': [plug('plug', 0), plug('sender', 0, .04)], zone: [], 'contact-sdk': [], 'sensa-sps': [], shader: [],
   }[scenario];
