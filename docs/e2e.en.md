@@ -16,6 +16,10 @@ Large-catalog cases continuously update 4,096 simulated parameters, checking the
 
 Contact direct-tracking cases simulate metre positions and relative velocity using the SDK's native field names. They check position/speed endpoint calibration, Depth/V0 mappings, stopping on sender type 0, and stopping when Sample freezes despite changing velocity. Explorer checks cover twelve alphabetically ordered parameters, bilingual meanings, single-sphere coverage, negative coordinates, valid zero position/velocity and SDK versus Sensa activity fields. Site cases open both the new explorer scene and the [Contact SDK guide](contact-sdk.en.md).
 
+Signal-pipeline cases use Chinese and English controls to create manual/OSC weighted calculations, hysteresis and temporal smoothing, then inspect Float/Int/Bool types, ranges and stop values in actual UDP messages. Session cases check raw and converted values and invalid intervals in JSON Lines/CSV, verify downloaded file contents, then replay raw values to OSC with pause and seeking. Complete-plan cases cover export, import preview, preserved axis profiles and disabled inputs/outputs after application. [Signal pipeline](signal-pipeline.en.md)
+
+Shared-session cases use SharedWorker and BroadcastChannel/Web Locks separately, opening twenty same-origin pages and inspecting backend connection counts, request correlation and state across pages. They close some pages, including the connection owner, and check the remaining pages stay usable. They also check connection release after all pages close, preserved current values on reopening and at-most-once control delivery. Isolated lifecycle unit tests check page-cache suspension and restoration.
+
 Desktop 1280×900 and narrow 390×844 use a fixed browser environment; 320px is a separate reflow check. [Test source](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)
 
 ## Where is the current result?

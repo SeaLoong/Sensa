@@ -83,7 +83,7 @@ public sealed class SensaApplication(
                 {
                     var request = Read<SignalReplayRequest>(body);
                     var action = path.Split('/')[^1];
-                    if (action == "load") runtime.SetInputActive(false);
+                    if (action == "load") { runtime.SetInputActive(false); await outputs.SignalOutputs.StopAsync(); }
                     runtime.ResetSignalProcessing();
                     result = outputs.SignalOutputs.ReplayAction(request.OutputId, action, request.FileName, request.TimeMs);
                     break;

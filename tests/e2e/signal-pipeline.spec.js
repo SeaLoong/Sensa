@@ -77,7 +77,12 @@ async function binding(page, dialog, index, options) {
   await row.getByRole('textbox', { name: await text(page, options.recording ? '记录字段' : '目标参数'), exact: true }).fill(options.address);
   await row.getByRole('combobox', { name: await text(page, '数值类型'), exact: true }).selectOption(options.type || 'Float');
   await numeric(page, row, '输出终点', options.max ?? 1);
-  await numeric(page, row, '停止时发送值', options.stop ?? 0);
+  const stopValue = row.getByRole('spinbutton', { name: await text(page, '停止时发送值'), exact: true });
+  if (options.recording) await expect(stopValue).toHaveCount(0);
+  else {
+    await stopValue.fill(String(options.stop ?? 0));
+    await expect(stopValue).toHaveValue(String(options.stop ?? 0));
+  }
   if (options.fixedRate) {
     await row.locator('summary').filter({ hasText: await text(page, '发送频率与变化阈值') }).click();
     await row.getByRole('combobox', { name: await text(page, '发送方式'), exact: true }).selectOption('FixedRate');

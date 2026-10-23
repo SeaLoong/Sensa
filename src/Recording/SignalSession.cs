@@ -100,7 +100,7 @@ public sealed class SignalSessionPlayback(TimeProvider? timeProvider = null)
         if (!file.Exists || file.Length > SignalSessionRecorder.MaximumBytes)
             throw new ArgumentException("录制文件不存在或超过 64 MiB / The recording is missing or exceeds 64 MiB.");
         var rows = new List<SignalSessionRow>();
-        using var reader = new StreamReader(file.OpenRead());
+        using var reader = new StreamReader(new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite));
         var header = reader.ReadLine() ?? "";
         var csv = file.Extension == ".csv";
         var validHeader = csv ? header == "timeMs,signalId,rawValue,value,valid,reason,sourceKey,coordinateFrame" : ValidHeader(header);

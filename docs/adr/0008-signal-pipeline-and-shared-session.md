@@ -32,6 +32,6 @@ Page-cache lifecycle releases/restores subscriptions. When one page closes, the 
 
 ## Verification / 验证
 
-适配器使用隔离传输与时钟检查编码、超时、清理、停止和恢复；计算检查依赖、时序重置、单位与有效性传播。跨标签页请求隔离、页面缓存和连接数量在 Actions 浏览器用例中验证。实际运行结果在[验证记录](../e2e-status.md)中按提交记录；DG-LAB APP、VRChat 和硬件按所选版本另行检查。
+适配器使用隔离传输与时钟检查编码、超时、清理、停止和恢复；计算检查依赖、时序重置、单位与有效性传播。Actions 浏览器用例检查跨标签页请求隔离、连接数量、持有页接续和全部页面关闭后的重新连接。页面缓存挂起与恢复由隔离的生命周期单元测试检查。实际运行结果在[验证记录](../e2e-status.md)中按提交记录；DG-LAB APP、VRChat 和硬件按所选版本另行检查。
 
-Adapters use isolated transports and clocks to verify encoding, timeouts, cleanup, stopping and recovery. Computation checks dependencies, temporal reset, units and validity propagation. Actions browser cases verify cross-tab request isolation, page caching and connection counts. [Verification records](../e2e-status.en.md) identify actual results by commit; DG-LAB APP, VRChat and hardware receive checks for the selected versions.
+Adapters use isolated transports and clocks to verify encoding, timeouts, cleanup, stopping and recovery. Computation checks dependencies, temporal reset, units and validity propagation. Actions browser cases check cross-tab request isolation, connection counts, ownership handoff and reconnection after all pages close. Isolated lifecycle unit tests check page-cache suspension and restoration. [Verification records](../e2e-status.en.md) identify actual results by commit; DG-LAB APP, VRChat and hardware receive checks for the selected versions.

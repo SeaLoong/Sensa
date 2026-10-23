@@ -1116,7 +1116,7 @@ public static class SensaHost
             try
             {
                 var file = SignalSessionRecorder.ResolveFile(fileName);
-                return File.Exists(file) ? Results.File(file, "application/octet-stream", fileName, enableRangeProcessing: true)
+                return File.Exists(file) ? Results.File(new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite), "application/octet-stream", fileName, enableRangeProcessing: true)
                     : Results.NotFound();
             }
             catch (ArgumentException) { return Results.BadRequest(); }
