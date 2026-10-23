@@ -23,7 +23,7 @@ Both release channels include Windows installers, Windows standalone executables
 
 All desktop formats are self-contained and require no separately installed .NET runtime. For standalone Windows EXEs, .NET extracts native libraries to its cache while the application reads Web content from its assembly. Configuration `config.json` and recording-output `recordings` default to the executable directory, with environment-variable overrides available. Workbench funscript exports use `Sensa/recordings` under your Documents folder. Installer updates and uninstall retain user-created data. Keep standalone EXEs in a writable folder. The installer and application are not code-signed; Windows may show a publisher or reputation prompt.
 
-Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first eight commit characters>` after the version; stable filenames do not. Preview bodies still contain exactly one **Source** line linking to the build commit. Download pages prioritize Windows installers.
+Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first eight commit characters>` after the version; stable filenames do not. Release notes and download pages lead with Windows x64/ARM64 installer links. Preview notes follow with a **Source** link to the full build commit and omit the changelog.
 
 ## How do I publish a stable release?
 
@@ -58,9 +58,9 @@ Default `screenshots` mode runs the full E2E suite and generates application bas
 
 ## How are release notes generated?
 
-Each automatic pre-release shows one **Source** line linking to the exact commit used for that build.
+Automatic pre-releases start with Windows x64/ARM64 installer download links for that build, followed by a **Source** link to the full commit. They do not generate a changelog.
 
-Stable release notes combine GitHub changes, direct commit history and bilingual download guidance:
+Stable release notes also lead with installer download links, then combine GitHub changes, direct commit history and bilingual download guidance:
 
 - Changes, Pull Requests and contributors between the previous stable release and the selected commit.
 - Version, full commit, check/build run links and download guidance for operating system/processor choices.

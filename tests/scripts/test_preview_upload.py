@@ -254,7 +254,7 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertIn('vpm-package.json', checksums)
         self.assertEqual(len(checksums.splitlines()), 12)
 
-    def test_preview_publishes_source_only_without_generating_a_changelog(self):
+    def test_preview_publishes_installer_links_and_source_without_generating_a_changelog(self):
         write_archives(self.inputs, 'preview')
         releases = FakeReleases([published(1) | {'tag_name': 'v0.3.0', 'prerelease': False}])
         process = self.main('preview', releases, previous='v0.3.0')
@@ -262,7 +262,15 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertEqual([call.args[0] for call in process.call_args_list], [['git', 'rev-parse', 'HEAD']])
         self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 12)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
-        self.assertEqual(notes, f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n')
+        self.assertEqual(notes,
+            'Windows installers (recommended) / Windows 安装器（推荐）: '
+            f'[x64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-x64-Setup.exe) · '
+            f'[ARM64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-arm64-Setup.exe)\n\n'
+            f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n')
+        for _, _, name in (event for event in releases.events if event[0] == 'upload' and event[2].endswith('-Setup.exe')):
+            self.assertIn(f'https://github.com/Owner/Repo/releases/download/{TAG}/{name}', notes)
+        self.assertNotIn('Changes', notes)
+        self.assertNotIn('Direct fix', notes)
         self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
 
     def test_windows_installers_and_single_files_are_required_verified_and_prioritized(self):

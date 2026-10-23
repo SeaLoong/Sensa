@@ -280,16 +280,32 @@ class DesktopArchiveContracts(ArchiveWorkspace):
 
 
 class EnglishReleaseNotesContracts(unittest.TestCase):
-    def test_preview_notes_contain_only_the_exact_source_link(self):
+    def test_preview_notes_lead_with_exact_installer_links_then_source_without_changes(self):
         module = load('release_notes')
-        notes = module.compose_release_notes('preview', '0.4.0', 'preview-42-1-aaaaaaaa', 'a' * 40,
-                                             'Owner/Repo', '## Changes\n\n* Fix a published issue')
-        self.assertEqual(notes, f'Source: [`{"a" * 40}`](https://github.com/Owner/Repo/commit/{"a" * 40})\n')
+        for version, run, attempt, sha in (('0.4.0', '42', '1', 'a' * 40),
+                                           ('12.0.3', '123456', '7', '1234567890abcdef' * 2 + '12345678')):
+            with self.subTest(version=version, run=run, attempt=attempt):
+                tag = f'preview-{run}-{attempt}-{sha[:8]}'
+                notes = module.compose_release_notes('preview', version, tag, sha,
+                                                     'Owner/Repo', '## Changes\n\n* Fix a published issue')
+                base = f'https://github.com/Owner/Repo/releases/download/{tag}/Sensa-{version}-preview.{run}.{attempt}.{sha[:8]}'
+                self.assertEqual(notes,
+                    'Windows installers (recommended) / Windows 安装器（推荐）: '
+                    f'[x64]({base}-win-x64-Setup.exe) · [ARM64]({base}-win-arm64-Setup.exe)\n\n'
+                    f'Source: [`{sha}`](https://github.com/Owner/Repo/commit/{sha})\n')
+                self.assertNotIn('Changes', notes)
+                self.assertNotIn('Fix a published issue', notes)
 
     def test_stable_notes_include_both_languages_and_the_automatic_changelog(self):
         module = load('release_notes')
         notes = module.compose_release_notes('stable', '0.4.0', 'v0.4.0', 'b' * 40,
                                              'Owner/Repo', '* Improve publishing (#42)')
+        self.assertTrue(notes.startswith(
+            'Windows installers (recommended) / Windows 安装器（推荐）: '
+            '[x64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-x64-Setup.exe) · '
+            '[ARM64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-arm64-Setup.exe)\n\n'))
+        self.assertNotIn('preview.', notes)
+        self.assertIn(f'Source commit: [`{"b" * 40}`](https://github.com/Owner/Repo/commit/{"b" * 40})', notes)
         self.assertIn('## 简体中文', notes)
         self.assertIn('127.0.0.1:5086', notes)
         self.assertIn('Improve publishing (#42)', notes)

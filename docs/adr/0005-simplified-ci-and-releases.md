@@ -8,7 +8,7 @@ The user requested a single manually started stable-release workflow based on la
 
 Stable releases use one `vX.Y.Z` tag for the complete artifact set. Automatic selection uses the repository version if above existing stable versions; otherwise it increments the highest stable patch. Explicit versions must exceed existing stable versions. Versions apply inside build workspaces. Legacy stable Unity packages remain readable in VPM.
 
-Pre-release notes contain only a `Source` line linking to the build commit. Stable release notes combine changes/contributors since the previous stable release with bilingual installation/download guidance, commit/run links, checksums and actual verification scope. Drafts become public after complete remote asset verification. Retain ten published pre-releases, preserving stable releases, drafts and tags. Pages builds and checks its static artifact with site E2E before automatic deployment; stable publication refreshes VPM automatically.
+Release notes lead with Windows x64/ARM64 installer download links for that build. Pre-release notes then link to the full build commit through `Source`, without a changelog. Stable release notes add changes/contributors since the previous stable release, bilingual installation guidance, commit/run links, checksums and actual verification scope. Drafts become public after complete remote asset verification. Retain ten published pre-releases, preserving stable releases, drafts and tags. Pages builds and checks its static artifact with site E2E before automatic deployment; stable publication refreshes VPM automatically.
 
 Manual `update-e2e.yml` maintenance generates candidate images and a review PR, then runs ordinary branch CI for review and merging. Default screenshot mode directly captures candidates; optional agent mode uses a repository `OPENAI_API_KEY` secret to maintain E2E tests. Candidate generation and ordinary comparison are recorded separately.
 
@@ -20,7 +20,7 @@ Release publication and E2E branch/PR steps use the repository `SENSA_PAT` secre
 
 正式版使用统一 `vX.Y.Z` 标签。仓库版本高于全部正式版时使用该版本，否则增加最高正式版的补丁号；指定版本须高于已有正式版。版本在构建目录内应用。VPM 继续读取历史 Unity 正式包。
 
-预发布说明仅保留链接到构建提交的 `Source` 一行。正式版说明组合上一正式版以来的改动与贡献者、双语安装下载信息、提交／运行链接、校验值与实际验证范围。远端完整资产核对成功后公开草稿；清理超出最近十个的已公开预发布，保留正式版、草稿和标签。Pages 构建静态产物并通过站点 E2E 后自动部署，正式发布后自动刷新 VPM。
+发布说明首先提供本次构建的 Windows x64／ARM64 安装器下载链接。预发布随后通过 `Source` 链接到完整构建提交，不列变更清单。正式版再组合上一正式版以来的改动与贡献者、双语安装指南、提交／运行链接、校验值与实际验证范围。远端完整资产核对成功后公开草稿；清理超出最近十个的已公开预发布，保留正式版、草稿和标签。Pages 构建静态产物并通过站点 E2E 后自动部署，正式发布后自动刷新 VPM。
 
 手动 `update-e2e.yml` 生成候选图片与待审 PR，再运行维护分支的普通 CI，交由审阅者检查与合并。默认截图模式直接采集候选；可选代理模式使用仓库 `OPENAI_API_KEY` secret 维护 E2E 测试。候选生成与普通比较分别记录。
 

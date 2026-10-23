@@ -12,7 +12,7 @@ On 2026-10-24 (Beijing time), this update adds moving reference planes within on
 
 | Scope | Observed result |
 | --- | --- |
-| .NET units | **758 passed**, including geometry, sources/age, routing and launch behavior |
+| .NET units | **770 passed**, including geometry/quantities, sources/age, routing and launch behavior |
 | Web units | **220 passed**, including spatial presets, installer selection and offline language recovery |
 | Python/scripts | **306 passed**, including QR recovery, publication and dependency installation |
 | Documentation | **92 routes** built; the build checks links and screenshot provenance |
@@ -25,6 +25,8 @@ API type checks use some generator-boundary substitutes. Tracking Frame adds 17 
 
 | Pinned source | Run | Observed result |
 | --- | --- | --- |
+| `5d60f782` | [Pages 40035211768](https://github.com/SeaLoong/Sensa/actions/runs/40035211768/attempts/1) | **14/14 passed and deployed**; site images and public documentation resources verified |
+| `15adf70d` | [Full candidate 40033013628](https://github.com/SeaLoong/Sensa/actions/runs/40033013628/attempts/1) | **114 passed, two failed**, all other outcomes zero; desktop and mobile encountered the offline-language issue below. Candidate not accepted |
 | `15adf70d` | [Pages 40032994999](https://github.com/SeaLoong/Sensa/actions/runs/40032994999/attempts/1) | **14/14 passed and deployed**; eight site images reuse reviewed originals with identical digests, and all 38 public documentation images match the catalog |
 | `e62d8f23` (PR #25 merge snapshot) | [Full normal comparison 40031563312](https://github.com/SeaLoong/Sensa/actions/runs/40031563312/attempts/1) | **115 passed, one failed**, all other outcomes zero; the mobile offline guide lost its language after reload. Native builds/publication skipped |
 | `71f63460` | [Pages 40032441894](https://github.com/SeaLoong/Sensa/actions/runs/40032441894/attempts/1) | **14/14 passed and deployed**; all 38 public documentation originals match their catalog digests |
@@ -43,6 +45,8 @@ The candidate pins `b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640`, with raw image co
 ## Issues found and resolved
 
 PR #25's normal comparison recorded `zh-CN` in session storage after switching the offline guide to Chinese, then `null` after reload, returning the page to English. File pages now also keep manual language choices in the current history entry. Reload uses session storage first, then restores and refills a missing choice from history; HTTP pages continue to use session storage. Three new unit tests passed. E2E retains its assertions and adds deliberate file-session removal, reload recovery and denied-storage checks, awaiting the next full run.
+
+Spatial input checks now admit the physical quantities supported by position and direction slots, fixing acceleration and angular velocity being mistaken for positions. Twelve new regressions cover actual derivative chains, unknown quantities, valid instance names and velocity directions; the full backend passed **770/770**. Release notes now link directly to that build's installers while previews continue to omit the changelog; the full Python suite passed **306/306**.
 
 [Candidate 40032454295](https://github.com/SeaLoong/Sensa/actions/runs/40032454295), on `71f6346`, recorded **757 passed and one failed** in backend units; browsers were skipped. A test started two concurrent receives on one `UdpClient`, racing its shared buffer. It now receives sequentially while retaining the one-second deadline, address-independent assertions and virtual-clock cleanup. The corrected full backend suite passed **758/758**, and the case passed **10/10** repeated runs of the same build.
 

@@ -1,4 +1,4 @@
-"""Keep previews source-only and compose full bilingual stable release notes.
+"""Lead with installer downloads and compose concise preview or full stable notes.
 
 The changelog remains exactly the text returned by GitHub; this module does not
 guess changes or translate pull-request titles.
@@ -7,7 +7,7 @@ import re
 
 
 def compose_release_notes(channel, version, tag, sha, repository, generated_body, run_url=''):
-    """Identify preview source, or describe stable downloads and generated changes."""
+    """Link checked installers first, then identify the source and stable changes."""
     if channel not in ('preview', 'stable'):
         raise ValueError('Invalid release channel / 发布渠道无效')
     if not isinstance(version, str) or not re.fullmatch(r'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)', version):
@@ -28,8 +28,12 @@ def compose_release_notes(channel, version, tag, sha, repository, generated_body
         raise ValueError('Invalid build workflow URL / 构建工作流地址无效')
     if not isinstance(generated_body, str):
         raise ValueError('Generated change notes must be text / 自动变更说明必须是文本')
+    asset_version = version if channel == 'stable' else f'{version}-preview.{match[1]}.{match[2]}.{match[3]}'
+    download_base = f'https://github.com/{repository}/releases/download/{tag}/Sensa-{asset_version}-win-'
+    installers = ('Windows installers (recommended) / Windows 安装器（推荐）: '
+                  f'[x64]({download_base}x64-Setup.exe) · [ARM64]({download_base}arm64-Setup.exe)')
     if channel == 'preview':
-        return f'Source: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
+        return f'{installers}\n\nSource: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
 
     title = 'Stable release'
     chinese_title = '正式发布'
@@ -38,7 +42,9 @@ def compose_release_notes(channel, version, tag, sha, repository, generated_body
     workflow_en = f' [Build workflow]({run_url}).' if run_url else ''
     workflow_zh = f' [构建工作流]({run_url})。' if run_url else ''
     changes = generated_body if generated_body.strip() else 'GitHub did not provide change notes for this range. / GitHub 未返回此范围的变更条目。'
-    return f'''Sensa {version} · {title}
+    return f'''{installers}
+
+Sensa {version} · {title}
 
 Source commit: [`{sha}`](https://github.com/{repository}/commit/{sha}).{workflow_en}
 
