@@ -365,7 +365,7 @@ def main():
         raise ValueError('Checkout differs from pinned release source / 检出内容与固定发布源码不符')
     releases = GitHubReleases(os.environ['GITHUB_REPOSITORY'])
     listing = releases.list()
-    previous_tag = published_stable_base(listing, args.version)
+    previous_tag = published_stable_base(listing, args.version) if args.channel == 'stable' else ''
     if args.channel == 'preview':
         existing = superseding_preview(listing, args.commit, number, attempt)
         if existing is not None:
@@ -391,9 +391,11 @@ def main():
     checksums = output / 'SHA256SUMS.txt'
     checksums.write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in assets), encoding='utf-8')
     assets.append(checksums)
-    generated = releases.generated_notes(args.tag, args.commit, previous_tag) if previous_tag else ''
-    history = commit_notes(releases.repository, args.commit, previous_tag)
-    changes = generated + ('\n\n' if generated else '') + history
+    changes = ''
+    if args.channel == 'stable':
+        generated = releases.generated_notes(args.tag, args.commit, previous_tag) if previous_tag else ''
+        history = commit_notes(releases.repository, args.commit, previous_tag)
+        changes = generated + ('\n\n' if generated else '') + history
     run_id = os.environ.get('GITHUB_RUN_ID', '')
     if not re.fullmatch('[1-9][0-9]*', run_id):
         raise ValueError('Invalid Actions run ID / Actions 运行 ID 无效')

@@ -10,7 +10,7 @@ Sensa 的 Unity 脚本保存制作设置。构建 Avatar 时，NDMF 在构建副
 | --- | --- | --- |
 | SPS 四点定位：`SensaSpsRootProbe.prefab` | SPS Socket／Plug 根点的位置，也可明确选择骨骼或标记 | `AvatarRootLocal` 制作单位；四个 Receiver 和一个 Sender |
 | Contact 直接定位（SDK Beta）：`SensaContactRootProbe.prefab` | 根点位置、相对速度及接近值变化率 | `AvatarRootMeters` 米制坐标；一个 Receiver 和一个 Sender；需要高级 Proximity 参数 |
-| Shader 根点捕获：`SensaShaderCapture.prefab` | 将根点坐标编码为桌面图块后读取 | `AvatarRootLocal` 制作单位；PC Built-in、支持 geometry shader 的图形后端与桌面桥 |
+| Shader 根点捕获：`SensaShaderCapture.prefab` | 将位置、X/Z 轴向和世界缩放编码为桌面图块后读取 | `AvatarRootLocal` 制作单位；PC Built-in、支持 geometry shader 的图形后端与桌面桥 |
 | Point／Handle／Pose | 自定义参照下的点、可抓把手或配对姿态 | 使用各自的参照、协议及采样时效 |
 
 三个根点预制件的 `Target` 都可明确指定自己 Avatar 内的骨骼／空物体 `Transform`、SPS Socket／Plug、Sensa Component 或原生 Contact。骨骼与普通标记可以直接作为目标；选择原生 Contact 时读取其形状中心，选择 SPS 时读取其作者根点几何。[定位和单位](positioning.md) · [Contact SDK 报告](contact-sdk.md)
@@ -64,6 +64,8 @@ Sensa 使用一个 NDMF 生成入口。包依赖中已包含 NDMF 与 Modular Av
 生成器在构建副本上工作。目标、骨骼、PhysBone 和 Raycast 参照须属于当前 Avatar；基础组件先检查引用，再创建原生组件，便于在配置错误时定位问题。
 
 Sensa 创建供 MA 合并的临时 Animator／菜单／参数，交给 NDMF 保存构建资产。原生根点 Shader 随包提供，位于 `Runtime/Shaders/SensaRootTelemetry.shader`；构建直接引用该资产。更新组件包后重新构建即可采用当前编码器。
+
+SPS 四点定位和 Contact 的根缩放检查按约束的实际目标与 MA Merge Animator 的 `relativePathRoot` 判断。Avatar 根保持固定尺度，子对象可按自身需要缩放。Shader 采样另外校验原始轴向、量化后的轴向和世界均匀缩放，帮助在构建时发现会产生无效编码的设置。
 
 基础 `SensaComponent` 的原生 Contact 持续跟随配置的轴／骨骼，相关参数在 FX 中保持可写。Socket 量程与 Contact 尺寸使用所选轴的局部单位，轴缩放为 1 时数值等于米；SPS 四点定位和 Contact 直接定位仍分别采用上表的坐标契约。补充 Contact 信号配置与 Sender 相同的碰撞标签；已有参数信号只引用原参数，保留它原来的类型。
 

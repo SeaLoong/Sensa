@@ -1,77 +1,69 @@
-# SPS shader root capture and model diagnostics
+# Shader root capture and SPS model diagnostics
 
 [简体中文](GPU-TRACKING.md) | **English**
 
-To read the root you select in Unity, **native root capture** draws its position as a black-and-white code on your desktop. A Python bridge reads that code and sends coordinates to Sensa. This is an experimental PC route; follow the steps below before enabling device input.
+**Shader root capture** draws the selected Unity root's position, two axes and Avatar scale as a black-and-white block. A desktop bridge reads the block into OSC parameters. Use position for spatial mappings, axes for orientation-related calculations and scale to convert root-local displacement to metres. This is a PC experiment; verify capture and calibration before enabling input.
 
-**SPS GPU Model Probe** is a separate Unity Editor research tool for examining deformation models. Its screenshots and synthetic PNG replays do not establish real in-client tracking.
+[Package installation and language](README.md) · [Interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) · [Encoding and primary sources](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md)
 
-See the [research record](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md) for primary sources and protocol decisions. Neither path provides final visible mesh geometry, authenticated player identity or a direct device stroke.
+## Configure the Avatar
 
-[Package installation and language](README.md) · [Interactive geometry](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+**Selected root → three-point skinning → monochrome block → desktop-region capture → OSC → Sensa calculations and outputs**.
 
-Inspector, help and error text follow Sensa's Editor language preference. Menu registration paths stay stable English IDs. Avatar menu captions use the author's build-time language, without a runtime client-language script.
+`SensaShaderCapture` stores author settings and implements `IEditorOnly`. Before MA merging, NDMF resolves Target position/rotation, generates one Camera, a three-vertex SkinnedMeshRenderer and an encoder material, then removes the author script. The generated native render components sample after upload. [Build lifecycle](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
 
-## Native root path
+1. Install the [package dependencies](COMPATIBILITY.en.md), plus official VRCFury for SPS author targets. Use PC Built-in rendering with a geometry-shader-capable backend. Use another input route on Android or Metal.
+2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact inside this Avatar.
+3. Assign a unique `Producer Id` from 1–65535, such as 42. The desktop bridge pairs the block using the same ID.
+4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.2). Find the complete block in the actual client, then determine its physical-pixel desktop bounds.
+5. Build normally or use NDMF's processed preview. The build references the packaged `Runtime/Shaders/SensaRootTelemetry.shader` and serializes temporary meshes/materials. Rebuild and register capture after updating the package and bridge.
+6. Select the root-code item under **Sensa ShaderCapture_42**. It starts Off, is activated by the local wearer and uses the author's build-time language.
+7. Check the desktop block and both VR eyes. The generated camera requests `None` eye targeting; verify actual desktop composition and headset visibility in VRChat.
 
-Selected bone/marker/SPS root → black-and-white coordinate code → selected desktop capture region → Python bridge → Sensa OSC.
+Each block has its own ID, camera and material signature. Give each one a separate capture region and bridge process.
 
-The generated camera requests no stereo-eye output (`None`); whether the code is visible on the desktop and absent from the headset still needs checking in the actual client.
+## What can you read?
 
-The authoring component `SensaShaderCapture` implements `IEditorOnly`. The shared NDMF generator resolves Target position/rotation before MA merging, creates one native camera, a single-point skinned renderer and an encoder material, then removes the author script while retaining native render components. Target accepts this Avatar’s Transform, SPS, Sensa Component or native Contact. [Build phases and official evidence](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
+| Parameter | Meaning and use |
+| --- | --- |
+| `X / Y / Z` | Root-center position in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
+| `RightX / RightY / RightZ` | The root's local +X axis expressed in Avatar-root coordinates; vector length retains that axis's scale |
+| `ForwardX / ForwardY / ForwardZ` | Its local +Z axis in the same frame; crossing Right and Forward gives the measurement-plane normal |
+| `AvatarScale` | World metres per Avatar-root local unit, in (0,8] |
+| `Frame` | An approximately 60 Hz encoder clock used to detect duplicates and freezing |
+| `Valid` | 1 commits a complete valid packet; 0 invalidates the measurement |
 
-### Setup
+Right/Forward components range from −8 to 8. One triangle supplies the skinned origin, +X and +Z points. These retain two axis directions and lengths; independent Y-axis scale needs another measurement. Moving or turning the whole Avatar preserves the root-local meaning. Multiply relative displacement by `AvatarScale` for metres. Out-of-range values, degenerate axes and unsupported world scaling invalidate the packet.
 
-1. Install the [package dependencies](COMPATIBILITY.en.md). Install official VRCFury for SPS author targets; bones/Transforms, Sensa and native Contacts work directly. Use PC Built-in rendering and a geometry-shader-capable graphics backend. Android and Metal are excluded. Inspect capture results first.
-2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to the desired bone/empty-object Transform, SPS, Sensa Component or native Contact. Position comes from that explicit root frame.
-3. Assign a unique `Producer Id` from 1–65535, such as 42, and pin the same ID in the bridge. This is a local protocol identifier, not a VRChat account identity.
-4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.15). Find the complete code block in the actual client, then determine its desktop pixel ROI. Do not pass these normalized values to Python.
-5. Build normally or use NDMF’s processed preview. The build references the packaged `Runtime/Shaders/SensaRootTelemetry.shader`; build serialization handles temporary meshes and materials. After updating the package, desktop app and bridge, rebuild and check capture registration. Existing `Sps Target` object references remain readable; confirm the explicit component in `Target` when updating the settings.
-6. Explicitly select the generated **Sensa ShaderCapture_42** root-code item. Its caption follows the author's chosen language. It starts **Off**, and only the local wearer can activate the rig. Off stops the rig.
-7. Check desktop code visibility and unwanted pixels in both VR eyes separately. None-eye cameras express Unity eye targeting; actual VRChat composition still needs validation. An arbitrary hidden render layer is not a guaranteed desktop capture channel.
+Select position, axis components or AvatarScale in the root panel for calibrated mappings. For combined calculations, choose a tracking measurement (SensaPoint) in **Flow**, use a root pattern such as `Sensa/Shader/42/**` and select its metric before binding outputs. This source retains complete-packet validation, frame freshness and input activation checks. [Parameter reference](https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters.en.md) · [Signal pipeline](https://github.com/SeaLoong/Sensa/blob/main/docs/signal-pipeline.en.md)
 
-Multiple producers use distinct camera/material signatures. The bridge must still pin a producer. A visually similar mirror, photo or third-party-camera image is insufficient.
+## Capture and register
 
-### Coordinates
-
-Native capture uses `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z range [−2,2], Y [−1,3]. Values are avatar-root local units, directly equal to meters only when both authored and runtime root scales are one. World translation/turning is not local root movement; global world position is not supplied. Nonfinite/out-of-range samples clear validity.
-
-### Capture registration
-
-Run from the main Sensa repository using Python with Pillow installed. Replace `LEFT TOP WIDTH HEIGHT` below with the complete code block's **physical-pixel** bounds. The native 20×12-module block needs at least 80×48 physical pixels. Select its nominal full size, including all border modules. Negative origins support additional monitors. Small translation is tolerated within this region; do not enlarge it arbitrarily or expect automatic scale detection.
+Use Python with Pillow installed, from the main repository. Replace `LEFT TOP WIDTH HEIGHT` with the complete block's **physical-pixel** bounds, including its white margin. Native capture uses **40×32 modules, at least 160×128 pixels**. Region dimensions determine module size, so select the nominal full block. Negative origins support additional monitors.
 
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --region LEFT TOP WIDTH HEIGHT --producer-id 42 --save-registration capture.json
 ```
 
-This decodes and saves an explicit ROI/ID/profile without sending OSC. On failure, correct the ROI, window size/scaling or presentation and retry. A saved registration establishes one valid decode, not position accuracy or PCVR acceptance. The registration fixes the coordinate profile; do not edit it to reuse another frame definition.
-
-Then explicitly forward to the actual Sensa OSC receiver port:
+This checks decoding and saves the region, ID and coordinate profile. Then use the actual Sensa OSC receiver port to forward samples:
 
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch --port 9001 --duration 300
 ```
 
-Alternatively specify `--region ... --producer-id 42 --watch --port ...`. Omitting the port decodes only. The bridge does not choose a screen, inject into the game, read process memory, connect devices or activate Sensa input. Recheck/register the ROI after window movement, resolution or display-scaling changes.
+Omit the port to inspect decoding only. Re-register after changing window size, resolution or display scaling. The bridge reads the selected region; the Sensa workbench controls input activation.
 
-Inspect `Sensa/Shader/42/{Frame,X,Y,Z,Valid}`. ID is in the path and AvatarRootLocal is fixed: no redundant Producer/Profile, path version segment or old alias. Synthetic/editor model PNGs use only `Sensa/Diagnostics/Shader/0`, without mappable root observations. Configure the experimental spatial-input permission and two-point calibration through Sensa; explicitly allow input only after checking coordinates, direction and stopping. There is no automatic OGB fallback.
+Inspect all twelve fields under `Sensa/Shader/42/`. Valid bundles send **Frame → X/Y/Z → RightX/Y/Z → ForwardX/Y/Z → AvatarScale → Valid=1**. Valid commits last; invalidation and shutdown send Valid=0. Check measurements and stopping, calibrate mappings, then enable input.
 
-### Why do some modules stay unchanged?
+## How do margins and redundancy help?
 
-The outer two-module band is a fixed alignment pattern, similar in purpose to a QR code's positioning marks. The central 16×8 modules hold changing payload bits. A valid edge can use either of its two complementary pattern lines, and at least three of the four edges must match. This tolerates one damaged edge while keeping the data area strictly checked.
+From outside inward, the block has a **two-module white margin, two-module black-and-white locators and three shifted payload copies**. The margin reserves room for small image movements; fixed locators support realignment. The central 32×24 modules contain three copies of one 32-byte packet.
 
-The bridge searches at most one module left/right and up/down within the selected region. It does not correct scale, rotation or perspective. Every payload module must pass the monochrome test and the whole payload must pass CRC; damaged data bits are rejected rather than guessed. Registration must match the current AvatarRootLocal center (0,1,0) and half-range 2 on each axis. Re-register after changing window size, display scale or encoder configuration.
+Within the registered region, the bridge searches up to two modules per axis. Uncertain modules become erasures. Agreeing bits from other copies in the same capture can fill them. Every bit must have support and CRC32 must pass. Any known-bit conflict, or a bit missing from every copy, invalidates the frame. This recovers some occlusion and uncertain pixels while checking mixed-frame conflicts.
 
-These marks help alignment, not time synchronization. They cannot remove rendering/capture delay. A delayed but changing image can still decode; measure end-to-end latency separately. `Frame` detects duplicates and freezing as described below. Internal diagnostic PNG/lab codes remain a separate 16×8 format with a 64×32 minimum; they do not produce a motion root.
+The margin buffers spatial movement, while `Frame` checks image progression. The default bridge invalidates after **350 ms** without progress. Startup and recovery need **two new advancing frames**. Payload changes under the same frame, reorder and identity changes also invalidate. The desktop additionally checks twelve consecutive fields and Frame change age up to 500 ms. Re-register after scaling, rotation or perspective changes; measure end-to-end time latency separately.
 
-### Freshness and recovery
-
-- Validate grid layout, RGB monochrome thresholds, CRC, producer and coordinate profile. A diagnostic packet reusing the pinned ID is rejected.
-- Initially require two progressing sequences. Duplicate images do not refresh freshness; changed coordinates on one sequence, reorder, invalid source or identity changes close Valid.
-- Default freeze timeout is 0.35 seconds; `--timeout` accepts explicit 0.05–5-second values. Recovery needs two new progressing frames. The old good frame cannot reopen the gate; a producer reset may require a deliberate bridge restart.
-- One valid bundle sends Frame, X, Y, Z, Valid in order; final Valid=1 commits it. Invalid/shutdown bundles contain only Valid=0 on the same prefix, without stale XYZ or invented frames.
-- The desktop also requires consecutive same-source receipt sequences for the five fields, and checks Frame content-change age up to 500 ms (or a stricter positive input timeout). Forwarding an identical Frame does not refresh it. Modulo-16-bit progression/recovery is enforced by the bridge; the desktop's static snapshot is not an independent historical anti-replay mechanism.
-- Sequence is a render encoder clock, not a final-mesh/animation solve timestamp. CRC neither authenticates a player nor proves source model textures are current.
+Internal diagnostic PNGs retain a separate 16×8 layout and `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` for codec and transport checks.
 
 ## Editor SPS model probe
 
@@ -95,6 +87,9 @@ Outputs include sampled arc length, material/arc fraction after entry, plane off
 
 ## Verification scope
 
-Codec/registration/freshness contracts cover five-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Use the receipt for the actual checked revision rather than a historical test count. Nographics shader import is not proof of real GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients or hardware.
+In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual monochrome pixels, three copies, CRC32, axes and scale. The class is `Explicit`; ordinary headless runs do not count it as GPU verification. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
+
+
+Codec/registration/freshness contracts cover twelve-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Use the receipt for the actual checked revision rather than a historical test count. Nographics shader import is not proof of real GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients or hardware.
 
 Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Internal diagnostic PNG CI replay establishes separate-namespace transport/freeze recovery while input stays disarmed. Simulated native OSC is not actual GPU capture.

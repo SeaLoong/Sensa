@@ -18,9 +18,9 @@ Each computed signal has a stable identifier and a readable name. Other computat
 
 ## Create a computation in the workbench
 
-1. Open **Pipeline** and choose Add computed signal in the Computed signals area. **OSC → Mappings** also provides an editor for the same calculations.
+1. Open **Flow** and choose Add computed signal in the Computed signals area. **OSC → Mappings** also provides an editor for the same calculations.
 2. Enter a readable name of up to 80 characters, choose an operation, then configure its inputs. The workbench assigns a stable identifier such as `Signal1`, which other computations use to refer to this result.
-3. Choose OSC parameter, tracked position/velocity, pose metric, manual, script, device feedback, recording replay, computed signal or constant as the input type. A tracking input selects both the actual instance path and a metric. Prefer a path that uniquely identifies its target.
+3. Choose OSC parameter, tracking measurement, pose metric, manual, script, device feedback, recording replay, computed signal or constant as the input type. A tracking input selects both the actual instance path and a metric. Prefer a path that uniquely identifies its target.
 4. Select Computed signal as an axis mapping or output binding source, choose the new computation, then configure its destination and input/output ranges.
 5. Save computations and mappings together. Live results come from the backend's saved configuration; drafts keep their unsaved state. Check the result, source and axis preview before enabling the current input.
 
@@ -76,6 +76,12 @@ Numeric combinations accept 1–16 inputs; Difference and Ratio require exactly 
 For example, set hysteresis to turn on at 0.7 and off at 0.5 to stabilize a touch switch. Use Duration to require 500 ms of continuous contact. Use Pulse when an event should remain high for a defined time. Edge and cooldown results are single-evaluation events that can feed a positive-trigger output; the backend delivers events in order while observing that binding's send rate.
 
 Temporal state belongs to the saved evaluator instance. Invalid input, changed provenance, backward time, reconfiguration or disarming resets relevant state. Edge operations first establish a baseline, then react to subsequent crossings. Delay retains the historical sample time, so additional age limits should accommodate its intended delay. The delay buffer is bounded to 4096 samples.
+
+## Use Shader axes and scale
+
+Choose **Tracking measurement (SensaPoint)**, use a root pattern such as `Sensa/Shader/42/**` and select `RightX/Y/Z`, `ForwardX/Y/Z` or `AvatarScale`. The two axes retain direction and length; scale expresses world metres per root-local unit. This source checks all twelve fields, spatial-input activation, validity and frame freshness. Freezing also invalidates dependent calculations.
+
+To convert local X displacement to metres, use **Product** with X and AvatarScale from the same source. The result uses `AvatarRootMeters`. For the reverse conversion, use **Ratio** with metre displacement divided by AvatarScale, yielding `AvatarRootLocal`. Axis components of the same kind can also form magnitudes or dot products. Position, axes and scale retain separate quantities.
 
 ## Combine root coordinates
 
@@ -141,4 +147,4 @@ These are the relevant configuration fields. Replace `TouchA` and `TouchB` with 
 }
 ```
 
-Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings. Pipeline exports axis mappings, axis profiles, computations and outputs as a complete plan, with review before importing. [Presets](presets.en.md) · [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan)
+Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings. Flow exports axis mappings, axis profiles, computations and outputs as a complete plan, with review before importing. [Presets](presets.en.md) · [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan)

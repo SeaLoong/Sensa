@@ -601,6 +601,11 @@ function App() {
   function mapPreviewParameter(entry) {
     if (/^Sensa\/(Point|Handle)\/v1\//.test(entry.path)) {
       usePointRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
+    } else if (/^Sensa\/Shader\/[^/]+\/(?:(?:Right|Forward)[XYZ]|AvatarScale)$/.test(entry.path)) {
+      const pointMetric = entry.path.split('/').at(-1);
+      setSignalDrafts(previous => [...previous, makeSignalDraft({ oscPath: entry.path.replace(/[^/]+$/, '**'),
+        sourceMode: 'SensaPoint', pointMetric, role: 'Depth', vrchatMin: pointMetric === 'AvatarScale' ? 0 : -1, vrchatMax: 1 })]);
+      notify(t('已添加映射草稿，请确认参数含义、目标轴和范围后保存。'), 'info');
     } else if (entry.path.startsWith('Sensa/SPS/') || entry.path.startsWith('Sensa/Shader/') || entry.path.startsWith('Sensa/Contact/')) {
       navigateWorkflow('sensa-sps');
       notify(t('请在根点面板选择目标并采集两个端点，再生成映射。'), 'info');
@@ -2544,7 +2549,8 @@ function App() {
                       </div>
                       <details>
                         <summary>{t('本地点与根部')}</summary>
-                        <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig} />
+                        <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig}
+                          onInspectShaderParameters={root => { setOscPreviewSearch(`${root.prefix}/`); setPreviewSourceTab(root.sourceKey || 'all'); setPreviewCategory('all'); setOscWorkspaceTab('parameters'); }} />
                       </details>
                       <details>
                         <summary>{t('配对三点姿态')}</summary>

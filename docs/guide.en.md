@@ -2,7 +2,16 @@
 
 [简体中文](guide.md) | **English**
 
-The workbench has four areas: Control for input modes, scripts and outputs; OSC for reception, parameters and axis mappings; Pipeline for computed signals, output bindings and complete plans; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
+The workbench has four areas: Control for input modes, scripts and outputs; OSC for reception, parameters and axis mappings; Flow for computed signals, output bindings and complete plans; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
+
+| Task | Open |
+| --- | --- |
+| Add calculations or connect several outputs | **Flow** → Add computed signal / Add output |
+| Set the receiver and inspect actual OSC values | **OSC** → Parameters / receiver settings |
+| Adjust manual values or play a script | **Control** → Manual / Script / Combined |
+| Record, download and replay funscript | **Flow** or **Control** → Recording output → files / Recording replay |
+| Import or export an interaction | **Flow** → Save and load a complete plan |
+| Adjust axis travel and motion behavior | **Settings** → Axis profiles |
 
 ## Prepare, apply the input mode, then enable input
 
@@ -76,7 +85,7 @@ A gate is an additional condition that must allow motion, such as a target being
 
 ### Combine inputs first (computed signals)
 
-Open Pipeline and choose Add computed signal in the Computed signals area. Enter a name and choose an operation. Add OSC parameters, tracking metrics, manual/script readings, feedback, recording replay, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then save computations and mappings together. Output bindings can also select the computation directly. OSC → Mappings provides an editor for the same calculations. Live calculation status uses the saved configuration; drafts keep their unsaved state.
+Open Flow and choose Add computed signal in the Computed signals area. Enter a name and choose an operation. Add OSC parameters, tracking metrics, manual/script readings, feedback, recording replay, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then save computations and mappings together. Output bindings can also select the computation directly. OSC → Mappings provides an editor for the same calculations. Live calculation status uses the saved configuration; drafts keep their unsaved state.
 
 For example, touch intensities 0.2 and 0.8 with weights 1 and 3 produce a weighted average of 0.65. To link motion to the gap between two roots, calculate X/Y/Z differences and combine them with Magnitude. Several axes can reuse one result, which retains contributing source, validity and sample age. [Operations, coordinate conditions and examples](computed-signals.en.md)
 
@@ -98,6 +107,18 @@ SPS four-anchor tracking, Contact and Shader root panels show object, source, Av
 Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Contact direct tracking also offers VelocityX/Y/Z and Speed in m/s, plus ProximitySpeed in proximity units/s; use these to calibrate movement strength. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
 
 For **Contact direct tracking (SDK Beta)**, first install the supported beta SDK and build its dedicated own-root Sender/Receiver. A calibrated position axis can follow subtle local depth movement, a touch/Close gate can confirm contact, and a velocity metric can control vibration strength. Keep the same object, source and metric for both captured endpoints. [Beta setup and field meanings](contact-sdk.en.md)
+
+## Flow
+
+Flow brings sources, calculations and outputs onto one page. Several output bindings can reference a computed signal, and direct sources can also feed destinations. For example, multiply manual overall intensity by an OSC touch value, then send the result to an Avatar parameter, a DG-LAB channel and a funscript track. [Full setup and examples](signal-pipeline.en.md)
+
+1. When processing is useful, choose Add computed signal, configure its operation and inputs, then Save calculations and mappings.
+2. Add a destination in the output area. Under Input-to-output bindings, select a source or saved calculation, enter its target and range, then Save output.
+3. Prepare inputs in Control. Choose Combined for several source kinds, apply the input mode, enable the required outputs and confirm their connections, then enable input.
+
+Control and Flow manage the same outputs. Save and load a complete plan exports saved calculations, mappings, axis profiles and outputs. Import preview lists counts and destinations; enable the intended outputs after applying it. Save pending calculations and outputs before exporting.
+
+Recording outputs default to funscript. Completed segments can be downloaded or loaded into the script player; Recording replay makes a file available as a calculation source. See [recording and replay](signal-pipeline.en.md#record-and-inspect) for the steps.
 
 ## Settings and help
 

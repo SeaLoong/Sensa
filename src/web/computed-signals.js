@@ -30,7 +30,7 @@ export const computedOperationOptions = localized(() => [
 
 export const computedInputOptions = localized(() => [
   { value: 'Direct', label: t('OSC 参数') },
-  { value: 'SensaPoint', label: t('定位坐标与速度') },
+  { value: 'SensaPoint', label: t('定位测量') },
   { value: 'SensaPose', label: t('三点姿态指标') },
   { value: 'Computed', label: t('计算信号') },
   { value: 'Manual', label: t('手动信号') },

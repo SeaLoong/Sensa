@@ -14,7 +14,7 @@
   const apply = next => {
     locale = next;
     document.documentElement.lang = next === 'en' ? 'en-US' : next;
-    document.title = next === 'en' ? 'Sensa — Contact, coordinates, control' : 'Sensa — 触点、坐标与控制';
+    document.title = next === 'en' ? 'Sensa — Inputs, computation and outputs' : 'Sensa — 输入、计算与输出';
     document.querySelectorAll('[data-en]').forEach(x => { x.hidden = next !== 'en'; });
     document.querySelectorAll('[data-zh]').forEach(x => { x.hidden = next !== 'zh-CN'; });
     document.querySelectorAll('[data-doc]').forEach(x => { x.href = next + '/' + x.dataset.doc + '.html'; });

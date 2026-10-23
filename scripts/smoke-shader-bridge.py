@@ -1,14 +1,128 @@
-"""仅在 GitHub Actions 重放 Unity PNG 到隔离 Sensa 进程。 / CI-only Unity PNG replay into an isolated Sensa process."""
+"""CI-only diagnostic GPU PNG and synthetic native-codec replay; no capture or device output."""
 import argparse
+import binascii
 import json
 import os
 from pathlib import Path
 import shutil
 import subprocess
+import struct
 import sys
+import threading
 import time
 
 from process_smoke import SmokeSession, require_ci, wait_for_state
+
+NATIVE_WIDTH, NATIVE_HEIGHT = 160, 128
+NATIVE_FIELDS = ('Frame', 'X', 'Y', 'Z', 'RightX', 'RightY', 'RightZ',
+                 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale', 'Valid')
+
+
+def native_fixture():
+    return json.loads((Path(__file__).resolve().parents[1] / 'tests/fixtures/shader-native-format1.json').read_text(encoding='utf-8'))
+
+
+def native_pixels(frame, erased_copy=None):
+    """Render numeric synthetic fixtures, independently of the bridge's decoder."""
+    packet = bytearray.fromhex(native_fixture()['packetHex'])
+    struct.pack_into('<H', packet, 4, frame)
+    struct.pack_into('<I', packet, 28, binascii.crc32(packet[:28]))
+    modules = []
+    for screen_y in range(32):
+        row = 31 - screen_y
+        for column in range(40):
+            if column < 2 or column >= 38 or row < 2 or row >= 30:
+                bit = 1
+            elif row < 4:
+                bit = ((0xD3A69C57 >> ((column + 28) & 31)) & 1) ^ (row - 2)
+            elif row >= 28:
+                bit = ((0x69C57D3A >> ((column + 28) & 31)) & 1) ^ (row - 28)
+            elif column < 4:
+                bit = ((0xA5D36B >> (row - 4)) & 1) ^ (column - 2)
+            elif column >= 36:
+                bit = ((0x6E29C7 >> (row - 4)) & 1) ^ (column - 36)
+            else:
+                copy, offset = divmod(row - 4, 8)
+                if copy == erased_copy:
+                    modules.append((128, 128, 128)); continue
+                bit = (packet[(column - 4 + copy * 11) % 32] >> offset) & 1
+            modules.append((255, 255, 255) if bit else (0, 0, 0))
+    return [modules[(y // 4) * 40 + x // 4] for y in range(NATIVE_HEIGHT) for x in range(NATIVE_WIDTH)]
+
+
+class NativeFrameFeed:
+    """One bounded fixture writer atomically replaces frames while the CI bridge reads."""
+    def __init__(self, current):
+        self.current, self.frame = Path(current), 256
+        self._stop, self._error, self._thread = threading.Event(), None, None
+
+    def write(self):
+        from PIL import Image
+        image = Image.new('RGB', (NATIVE_WIDTH, NATIVE_HEIGHT))
+        image.putdata(native_pixels(self.frame, erased_copy=1))
+        pending = self.current.with_name('native-pending.png')
+        image.save(pending)
+        if self.current.exists(): replace_frame(pending, self.current)
+        else: pending.replace(self.current)
+
+    def start(self):
+        require_ci()
+        self.write()
+        def advance():
+            try:
+                while not self._stop.wait(.08):
+                    self.frame = (self.frame + 1) & 65535
+                    self.write()
+            except BaseException as error:
+                self._error = error; self._stop.set()
+        self._thread = threading.Thread(target=advance, name='synthetic-native-frames', daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=3)
+            if self._thread.is_alive(): raise RuntimeError('Synthetic native fixture writer did not stop')
+        if self._error is not None: raise RuntimeError('Synthetic native fixture writer failed') from self._error
+
+
+def native_smoke(session):
+    require_ci()
+    prefix = 'Sensa/Shader/42/'
+    feed = NativeFrameFeed(session.root / 'native-frame.png')
+    try:
+        feed.start()
+        session.start_child([sys.executable, str(Path(__file__).with_name('shader-osc-bridge.py')),
+                             '--image', str(feed.current), '--producer-id', '42', '--port', str(session.osc_port),
+                             '--watch', '--duration', '12', '--timeout', '.35'], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        def inspect():
+            state = session.api('/api/state/overview')
+            assert not state['runtime']['inputActive'], 'Native fixture replay must keep input disabled'
+            values = {item['path']: item['numericValue'] for item in state['osc']['preview']}
+            root = next((item for item in state['poseTracking']['spsRoots'] if item['prefix'] == 'Sensa/Shader/42'), None)
+            return {'values': values, 'root': root, 'inputActive': False}
+        fresh = wait_for_state(inspect, lambda state: state['values'].get(prefix + 'Valid') == 1
+                               and state['root'] is not None and state['root']['valid'],
+                               'Synthetic native PNG did not produce a valid twelve-field root', timeout=5)
+        expected = native_fixture()['expected']
+        assert all(prefix + field in fresh['values'] for field in NATIVE_FIELDS)
+        for key, stem in (('xyz', ''), ('right', 'Right'), ('forward', 'Forward')):
+            for axis, value in zip('XYZ', expected[key]):
+                assert abs(fresh['values'][prefix + stem + axis] - value) < .000001
+        assert abs(fresh['values'][prefix + 'AvatarScale'] - expected['avatarScale']) < .000001
+        for key in ('right', 'forward'):
+            for axis, value in zip('xyz', expected[key]): assert abs(fresh['root'][key][axis] - value) < .000001
+        assert abs(fresh['root']['avatarScale'] - expected['avatarScale']) < .000001
+        assert fresh['root']['kind'] == 'ShaderRoot'
+    finally:
+        feed.stop()
+    stale = wait_for_state(inspect, lambda state: state['values'].get(prefix + 'Valid') == 0
+                           and state['root'] is not None and not state['root']['valid'],
+                           'Frozen synthetic native PNG did not invalidate transport and root', timeout=3)
+    assert not session.api('/api/config')['outputs']
+    return {'passed': True, 'synthetic': True, 'source': 'Synthetic native format-1 PNG; not a GPU/client capture',
+            'erasedPayloadBand': 1, 'packetBytes': 32, 'oscFields': list(NATIVE_FIELDS), 'fresh': fresh,
+            'afterFreeze': stale, 'inputActive': False, 'outputs': []}
 
 def replace_frame(source, target):
     """Use the same replacement primitive as the Unity File.Replace exporter."""
@@ -83,8 +197,13 @@ def main():
         assert not any(path.startswith('Sensa/Shader/') for path in stale)
         assert not api('/api/state/overview')['runtime']['inputActive']
         assert not api('/api/config')['outputs']
-        report={'passed':True,'source':'Unity diagnostic PNG replay; separate diagnostic namespace, not native root capture or motion evidence','timeoutSeconds':.8,'fresh':fresh,'diagnosticOnly':True,'inputActive':False,'crcClosesTransportGate':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'transportGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[]}
-        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('诊断 PNG → bridge → OSC 通过；输入保持关闭。 / Diagnostic PNG -> bridge -> OSC passed; input stayed disarmed.')
+        # Finish the diagnostic producer before the separate pinned native case.
+        bridge.terminate()
+        try: bridge.wait(timeout=3)
+        except subprocess.TimeoutExpired: bridge.kill(); bridge.wait(timeout=3)
+        native = native_smoke(session)
+        report={'passed':True,'source':'Unity diagnostic PNG and synthetic native-codec PNG replay; no native GPU/client capture or motion evidence','timeoutSeconds':.8,'fresh':fresh,'diagnosticOnly':False,'inputActive':False,'crcClosesTransportGate':bool(args.corrupt),'oldFrameRejected':bool(args.corrupt),'twoFrameRecoveryVerified':bool(args.corrupt),'transportGateClosedAfterFreeze':True,'afterFreeze':stale,'outputs':[], 'nativeSynthetic': native}
+        args.report.parent.mkdir(parents=True,exist_ok=True);args.report.write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8');print('诊断与合成原生 PNG → bridge → OSC 通过；输入保持关闭。 / Diagnostic and synthetic native PNG -> bridge -> OSC passed; input stayed disarmed.')
         session.complete()
 
 

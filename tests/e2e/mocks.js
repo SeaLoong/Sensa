@@ -36,7 +36,9 @@ export function fixedRootSamples(z, sample, valid = true) {
 export function shaderRootSamples(z, frame, valid = true) {
   const prefix = 'Sensa/Shader/42';
   // Valid commits the native packet last. Invalid capture sends no stale coordinates. / Valid 最后提交；失效不补发旧坐标。
-  return (valid ? [['Frame', frame], ['X', .02], ['Y', 1], ['Z', z], ['Valid', 1]] : [['Valid', 0]])
+  return (valid ? [['Frame', frame], ['X', .02], ['Y', 1], ['Z', z],
+    ['RightX', 1], ['RightY', 0], ['RightZ', 0], ['ForwardX', 0], ['ForwardY', 0], ['ForwardZ', 1],
+    ['AvatarScale', 1], ['Valid', 1]] : [['Valid', 0]])
     .map(([name, value]) => [prefix + '/' + name, value]);
 }
 // Mirrors the SDK's native names; the synthetic activity counter belongs to Sensa.

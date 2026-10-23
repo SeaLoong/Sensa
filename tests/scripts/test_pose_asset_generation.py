@@ -12,7 +12,7 @@ class PoseAssetGenerationContracts(LabFixture):
         script = self.write(self.repository / 'scripts/generate-pose-assets.py',
                             (ROOT / 'scripts/generate-pose-assets.py').read_text(encoding='utf-8'))
         package = self.repository / 'unity/top.sealoong.sensa'
-        for relative in ('Runtime/SensaFixedAnchorProtocol.cs', 'Editor/SensaRootTelemetry.shader.txt'):
+        for relative in ('Runtime/SensaFixedAnchorProtocol.cs', 'Runtime/SensaShaderCapture.cs', 'Editor/SensaRootTelemetry.shader.txt'):
             self.write(package / relative, (ROOT / 'unity/top.sealoong.sensa' / relative).read_text(encoding='utf-8'))
         return script, package
 
@@ -55,18 +55,38 @@ class PoseAssetGenerationContracts(LabFixture):
         prefab = (package / 'Prefabs/SensaShaderCapture.prefab').read_text(encoding='utf-8')
         self.assertIn('target: {fileID: 0}', prefab)
         self.assertIn('producerId: 1', prefab)
+        self.assertIn('width: 0.25, height: 0.2', prefab)
         shader = package / 'Runtime/Shaders/SensaRootTelemetry.shader'
         content = shader.read_text(encoding='utf-8')
         self.assertIn('float3 center=float3(0,1.25,0);', content)
         self.assertIn('(input[0].root-center)/3.5;', content)
         self.assertNotIn('__CENTER_', content)
         self.assertNotIn('__HALF_RANGE__', content)
+        self.assertIn('geom(triangle v2g input[3]', content)
+        self.assertIn('uint bytes[32];', content)
+        self.assertIn('/.1;', content)
+        self.assertIn('0xEDB88320u', content)
+        self.assertIn('input.uv.x*40', content)
+        self.assertIn('input.uv.y*32', content)
+        self.assertNotIn('__PROBE_ARM__', content)
         self.assertIn('ShaderImporter:', shader.with_suffix('.shader.meta').read_text(encoding='utf-8'))
         self.assertFalse((self.repository / 'Assets').exists())
         original_shader, original_metadata = shader.read_bytes(), shader.with_suffix('.shader.meta').read_bytes()
         runpy.run_path(str(script))
         self.assertEqual(original_shader, shader.read_bytes())
         self.assertEqual(original_metadata, shader.with_suffix('.shader.meta').read_bytes())
+
+    def test_capture_quantization_constants_are_resolved_from_the_author_component(self):
+        script, package = self.prepare_generator()
+        capture = package / 'Runtime/SensaShaderCapture.cs'
+        capture.write_text(capture.read_text(encoding='utf-8').replace('ProbeArmLength = .1f;', 'ProbeArmLength = .125f;')
+                           .replace('MaximumBasisComponent = 8f;', 'MaximumBasisComponent = 6f;')
+                           .replace('MaximumAvatarScale = 8f;', 'MaximumAvatarScale = 4f;'), encoding='utf-8')
+        runpy.run_path(str(script))
+        content = (package / 'Runtime/Shaders/SensaRootTelemetry.shader').read_text(encoding='utf-8')
+        self.assertIn('(input[1].root-input[0].root)/.125;', content)
+        self.assertIn('all(abs(right)<=6)', content)
+        self.assertIn('avatarScale<=4', content)
 
     def test_shipped_native_shader_matches_its_template_and_current_shared_geometry(self):
         script, package = self.prepare_generator()

@@ -124,13 +124,24 @@ for (const producer of [
       const panel = page.locator('#sensa-spatial-root');
       await panel.getByLabel('测量对象', { exact: true }).selectOption((await observation()).key);
       await expand(page, '两点量程校准');
-      await expect(panel.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText('0.020 / 1.000 / 0.050 本地单位');
-      await expect(panel.locator('.point-diagnostic-grid .metrics dd').nth(1))
-        .toHaveText(producer.kind === 'ShaderRoot' ? '—' : '0.00000 本地单位');
+      await expect(panel.getByTestId('point-position')).toHaveText('0.020 / 1.000 / 0.050 本地单位');
+      if (producer.kind === 'ShaderRoot') {
+        await expect(panel.getByTestId('point-right')).toHaveText('1.000 / 0.000 / 0.000');
+        await expect(panel.getByTestId('point-forward')).toHaveText('0.000 / 0.000 / 1.000');
+        await expect(panel.getByTestId('point-avatar-scale')).toHaveText('1.000 米 / 本地单位');
+        const metric = panel.getByRole('combobox', { name: '测量指标', exact: true });
+        for (const [name, value] of [['RightX', 1], ['RightY', 0], ['RightZ', 0], ['ForwardX', 0], ['ForwardY', 0], ['ForwardZ', 1], ['AvatarScale', 1]]) {
+          await metric.selectOption(name);
+          await panel.getByRole('button', { name: '采集 0%', exact: true }).click();
+          await expect(panel.locator('.calibration-grid output').nth(0))
+            .toHaveText(value.toFixed(3) + (name === 'AvatarScale' ? ' 米 / 本地单位' : ' 根单位 / 目标单位'));
+        }
+        await metric.selectOption('Z');
+      } else await expect(panel.locator('.point-diagnostic-grid .metrics dd').nth(1)).toHaveText('0.00000 本地单位');
       await panel.getByRole('button', { name: '采集 0%', exact: true }).click();
       await expect(panel.locator('.calibration-grid output').nth(0)).toHaveText('0.050 本地单位');
       z = .15; await feed.set(samples);
-      await expect(panel.locator('.point-diagnostic-grid .metrics dd').first()).toHaveText('0.020 / 1.000 / 0.150 本地单位');
+      await expect(panel.getByTestId('point-position')).toHaveText('0.020 / 1.000 / 0.150 本地单位');
       await panel.getByRole('button', { name: '采集 100%', exact: true }).click();
       await expect(panel.locator('.calibration-grid output').nth(1)).toHaveText('0.150 本地单位');
       await assertCalibrationAlignment(page, info);
@@ -163,6 +174,12 @@ for (const producer of [
       valid = false; await feed.set(samples);
       await expect.poll(async () => (await observation())?.valid).toBe(false);
       await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
+      if (producer.kind === 'ShaderRoot') {
+        await expect.poll(async () => {
+          const root = await observation(); return [root.right, root.forward, root.avatarScale];
+        }).toEqual([null, null, null]);
+        for (const id of ['point-right', 'point-forward', 'point-avatar-scale']) await expect(panel.getByTestId(id)).toHaveText('—');
+      }
       await info.attach('protocol-simulation.json', { body: JSON.stringify({
         producer: producer.kind, prefix: producer.prefix, fixtureOnly: true,
         realUnityOrGpuCapture: false, calibration: [.05, .15], midpoint: .1,

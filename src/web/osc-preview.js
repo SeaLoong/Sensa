@@ -170,9 +170,11 @@ function baseParameterMeaning(path) {
     return t('P0–P3 的值在 0–1 之间，越大表示根部标记越靠近接收器。Sensa 用四路读数计算根部相对 Avatar 的位置；朝向需使用三点定位。距离换算：d=R×(1−p)+r。');
   }
   if (path.startsWith('Sensa/Shader/')) {
-    if (leaf === 'Frame') return t('Frame 是编码画面的 16 位循环序号。Sensa 用它检测画面是否持续更新；序号冻结后会超时停用位置。画面延迟和模型更新情况需另外检查。');
-    if (leaf === 'Valid') return t('Valid=1 标记一组完整坐标已发送，Sensa 随后使用这次更新；Valid=0 立即停用位置。恢复时需重新发送完整坐标和更新后的 Frame。');
-    return t('X/Y/Z 是 Avatar 根局部坐标，分别表示相对 Avatar 的左右、上下和前后位置。桥接程序按 Frame、X、Y、Z、Valid 的顺序发送一组完整更新。');
+    if (leaf === 'Frame') return t('Frame 是由 _Time×60 生成的 16 位循环编码时钟。Sensa 用它检查编码活动；时钟冻结后会超时停用位置。');
+    if (leaf === 'Valid') return t('Valid=1 提交包含位置、RightXYZ、ForwardXYZ 和 AvatarScale 的完整 12 字段更新；Valid=0 立即停用位置。恢复时需重新发送完整参数和更新后的 Frame。');
+    if (/^(Right|Forward)[XYZ]$/.test(leaf)) return t('RightXYZ 与 ForwardXYZ 表示目标 X、Z 轴在 Avatar 根局部坐标中的方向和单位轴长，可描述目标平面与斜切。各分量范围为 −8–8；在定位测量中选择对应指标，可让联动与计算遵循完整包有效状态。');
+    if (leaf === 'AvatarScale') return t('AvatarScale 表示每个 Avatar 根局部单位对应的世界米数，范围为大于 0、至多 8。通过定位测量读取，再将同包中的局部位移乘以它，可换算为沿根坐标轴的米制位移。');
+    return t('X/Y/Z 是 Avatar 根局部坐标，分别表示相对 Avatar 的左右、上下和前后位置。桥接程序按 Frame、X、Y、Z、RightX、RightY、RightZ、ForwardX、ForwardY、ForwardZ、AvatarScale、Valid 的顺序发送完整更新。');
   }
   if (path.startsWith('Sensa/Diagnostics/Shader/')) return t('此测试画面用于检查捕获与传输。完成后，请在真实客户端捕获原生编码画面，验证坐标变化后再创建映射。');
   if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t('使用四路距离，测量本地骨骼或 PhysBone（PB）把手相对参考对象的位置。PB 把手在抓取时提供有效位置。');
@@ -276,14 +278,17 @@ function canMapPoint(point) {
 
 const positionMetrics = ['X', 'Y', 'Z', 'Distance'];
 const velocityMetrics = ['VelocityX', 'VelocityY', 'VelocityZ', 'Speed', 'ProximitySpeed'];
+const shaderMetrics = ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale'];
 
 export function pointMetricOptions(point) {
   const metrics = point?.kind === 'ContactRoot'
     ? [...positionMetrics, ...velocityMetrics.filter(metric => point.supportedMetrics?.includes(metric) || point.supportsVelocity)]
-    : positionMetrics;
+    : point?.kind === 'ShaderRoot' ? [...positionMetrics, ...shaderMetrics] : positionMetrics;
   const labels = { X: 'X', Y: 'Y', Z: 'Z', Distance: t('距参考原点'),
     VelocityX: t('X 相对速度（m/s）'), VelocityY: t('Y 相对速度（m/s）'), VelocityZ: t('Z 相对速度（m/s）'),
-    Speed: t('相对速率（m/s）'), ProximitySpeed: t('接近值变化率（/s）') };
+    Speed: t('相对速率（m/s）'), ProximitySpeed: t('接近值变化率（/s）'),
+    RightX: 'RightX', RightY: 'RightY', RightZ: 'RightZ', ForwardX: 'ForwardX', ForwardY: 'ForwardY', ForwardZ: 'ForwardZ',
+    AvatarScale: t('AvatarScale（米 / 本地单位）') };
   return metrics.map(value => ({ value, label: labels[value] }));
 }
 
@@ -292,7 +297,9 @@ export function pointMetricValue(point, metric) {
   const { x, y, z } = point?.position || {};
   const value = { X: x, Y: y, Z: z, Distance: Math.hypot(x, y, z),
     VelocityX: point?.velocity?.x, VelocityY: point?.velocity?.y, VelocityZ: point?.velocity?.z,
-    Speed: point?.speed, ProximitySpeed: point?.proximitySpeed }[metric];
+    Speed: point?.speed, ProximitySpeed: point?.proximitySpeed,
+    RightX: point?.right?.x, RightY: point?.right?.y, RightZ: point?.right?.z,
+    ForwardX: point?.forward?.x, ForwardY: point?.forward?.y, ForwardZ: point?.forward?.z, AvatarScale: point?.avatarScale }[metric];
   return Number.isFinite(value) ? value : undefined;
 }
 
@@ -304,7 +311,7 @@ export function pointTrackingLabel(point) {
 
 export function pointPreviewEntry(observations, signal, preferredSourceKey = '') {
   const points = observations.filter(p => canMapPoint(p) && (!preferredSourceKey || p.sourceKey === preferredSourceKey)
-    && (p.measurementPaths?.length ? p.measurementPaths : p.kind === 'ShaderRoot' ? ['X', 'Y', 'Z'].map(axis => `${p.prefix}/${axis}`)
+    && (p.measurementPaths?.length ? p.measurementPaths : p.kind === 'ShaderRoot' ? [...positionMetrics.slice(0, 3), ...shaderMetrics].map(axis => `${p.prefix}/${axis}`)
       : Array.from({length:p.expectedSampleCount || 4}, (_,i) => p.kind === 'SpsRoot' ? `${p.prefix}/P${i}` : `${p.prefix}/Root/A${i}`)).some(path => matchesOscPathPattern(signal.oscPath,path)));
   if (points.length !== 1) return {path:signal.oscPath,value:points.length ? t("请限定唯一测量点与来源") : t("等待本地点采样")};
   const p = points[0];
@@ -325,7 +332,7 @@ export function calibratedPointDraft(point, metric, zero, full) {
   if (!zero || !full) return {error:t("请分别采集 0% 和 100% 位置")};
   if ([zero,full].some(sample=>sample.key!==point.key || sample.prefix!==point.prefix || sample.sourceKey!==point.sourceKey || sample.metric!==metric || !Number.isFinite(sample.value)))
     return {error:t("测量对象、来源或轴已改变，请重新采集")};
-  if (Math.abs(full.value-zero.value)<.001) return {error:velocityMetrics.includes(metric) ? t('两个采样值过于接近，请扩大变化范围') : t("两个位置相距不足 1 mm，请扩大校准范围")};
+  if (Math.abs(full.value-zero.value)<.001) return {error:velocityMetrics.includes(metric) || shaderMetrics.includes(metric) ? t('两个采样值过于接近，请扩大变化范围') : t("两个位置相距不足 1 mm，请扩大校准范围")};
   return {draft:{oscPath:`${point.prefix}/**`,sourceMode:'SensaPoint',pointMetric:metric,role:velocityMetrics.includes(metric) ? 'V0' : 'Depth',
     vrchatMin:Math.min(zero.value,full.value),vrchatMax:Math.max(zero.value,full.value),invertDirection:full.value<zero.value}};
 }

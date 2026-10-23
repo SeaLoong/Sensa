@@ -224,10 +224,19 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
         if (sources.Length > 1)
             return Invalidate(signal.Id, "请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source");
         var frames = samples.Select(sample => sample.CoordinateFrame).Where(frame => !string.IsNullOrEmpty(frame)).Distinct(StringComparer.Ordinal).ToArray();
-        if (frames.Length > 1)
+        string? convertedFrame = null;
+        if (frames.Length == 2 && signal.Operation == ComputedSignalOperation.Product
+            && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal") == 1
+            && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal:Scale") == 1
+            && samples.Select((sample, index) => !string.IsNullOrEmpty(sample.CoordinateFrame) || inputs[index].SourceMode == "Constant").All(value => value))
+            convertedFrame = "AvatarRootMeters";
+        else if (signal.Operation == ComputedSignalOperation.Ratio && samples.Length == 2
+            && samples[0].CoordinateFrame == "AvatarRootMeters" && samples[1].CoordinateFrame == "AvatarRootLocal:Scale")
+            convertedFrame = "AvatarRootLocal";
+        if (frames.Length > 1 && convertedFrame is null)
             return Invalidate(signal.Id, "请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame");
         var source = sources.SingleOrDefault();
-        var frame = frames.SingleOrDefault();
+        var frame = convertedFrame ?? frames.SingleOrDefault();
         var origin = CombineOrigins(samples);
         var timestamp = samples.Length == 0 ? nowMs : samples.Min(sample => sample.TimestampMs);
         if (IsTemporal(signal.Operation))

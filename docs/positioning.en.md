@@ -85,17 +85,17 @@ Shared translation and rotation preserve relative distances; shared uniform scal
 
 The SDK world Contact radius cap is 3 m. Internal FX disables measurement and clears values before `2×authorScale×ScaleFactor` exceeds approximately 2.999 m. This keeps receivers within their supported scaling range. [Official Contacts](https://creators.vrchat.com/common-components/contacts/)
 
-## Shader: coordinate coverage and image recognition are separate
+## Shader: coordinates, axes and screen capture
 
-Shader capture draws the same root position as a black-and-white block, read by the Python desktop bridge. Its full allowed coordinate box is **X/Z=[−2,2], Y=[−1,3]**. Separately, the code must appear inside the selected screen region.
+Shader capture draws the root position, local +X/+Z axes and Avatar world scale as a monochrome block for the desktop bridge. Position ranges are **X/Z=[−2,2], Y=[−1,3]**, in Avatar-root local units. `AvatarScale` expresses world metres per local unit. The root panel displays position, both axes and scale from each valid packet.
 
-The native code uses 20×12 modules. Its central 16×8 modules contain data; a fixed two-module border helps identify orientation and alignment. Fixed modules intentionally remain unchanged as coordinates move. The bridge tolerates damage to one of the four edges and tries small translation corrections within the selected region; payload data must still pass CRC. Keep the capture region aligned with the block’s orientation and size. Damaged data is reported as invalid.
+The **40×32-module** block needs at least **160×128 physical pixels**. A two-module white margin buffers small image movements, followed by two-module locators and three shifted copies of the 32-byte packet. The bridge searches up to two modules per axis inside the selected full block. Agreeing bits from other copies can recover erasures; conflicts, unresolved erasures or CRC32 failure invalidate the frame. Re-register after window-size or display-scaling changes.
 
-Edge markers realign the block after small image offsets. `Frame` detects duplicates/freezing: the default bridge invalidates after 350 ms without progress, and startup/recovery requires two new advancing frames. Response time also depends on client rendering, desktop composition and capture frequency. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Encoding design](shader-capture-research.en.md)
+`Frame` checks image progression, with default freezing at 350 ms. Startup and recovery need two new advancing frames. Valid OSC sends **Frame → X/Y/Z → RightX/Y/Z → ForwardX/Y/Z → AvatarScale → Valid=1** consecutively; invalidation sends only Valid=0. Desktop allows Frame change age up to 500 ms, shortened by a stricter positive input timeout.
 
-A valid OSC bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 committing last. Invalidity sends only Valid=0. The desktop additionally checks one source, contiguous fields, finite coordinates and Frame change age, rejecting beyond 500 ms or a stricter positive input timeout. The normal bridge already expires at 350 ms; 500 ms is an additional desktop rejection limit.
+Right/Forward retain X/Z-axis directions and lengths. Use a tracking measurement (SensaPoint) in **Flow** for angles, magnitudes and orientation relationships. Independent Y-axis scale needs another measurement. Measure actual end-to-end latency and position error in the client. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Encoding](shader-capture-research.en.md) · [Parameters](osc-parameters.en.md)
 
-The path identifies the object and the namespace fixes AvatarRootLocal. Internal `Sensa/Diagnostics/Shader/0` checks patterns and transport.
+Object ID is in `Sensa/Shader/<id>/`. Internal `Sensa/Diagnostics/Shader/0` keeps a separate five-field diagnostic format for pattern and transport checks.
 
 ## What does “Simulate a valid sample” mean on the web page?
 

@@ -39,7 +39,7 @@ export default function SignalSourceFields({ source, signals = [], pathOptions =
               {direct && <datalist id={listId}>{suggestions.map(path => <option key={path} value={path} />)}</datalist>}
             </>}
     {source.sourceMode === 'SensaPoint' && <SelectField label={t('测量指标')} value={source.pointMetric}
-      options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(source.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : null)}
+      options={pointMetricOptions(/^Sensa\/Contact\/[^/]+\//.test(source.oscPath || '') ? { kind: 'ContactRoot', supportsVelocity: true } : /^Sensa\/Shader\/[^/]+\//.test(source.oscPath || '') ? { kind: 'ShaderRoot' } : null)}
       onChange={pointMetric => onChange({ pointMetric })} />}
     {source.sourceMode === 'SensaPose' && <SelectField label={t('定位指标')} value={source.poseMetric} options={[
       { value: 'Depth', label: t('插入比例') }, { value: 'OffsetX', label: t('孔口 X 偏移（局部单位）') }, { value: 'OffsetY', label: t('孔口 Y 偏移（局部单位）') },

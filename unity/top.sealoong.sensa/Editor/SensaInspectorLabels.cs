@@ -163,7 +163,7 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             SensaInspectorLabels.Draw(serializedObject);
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("The scene-view box shows the coordinate range that the image can encode. The target must remain inside it, and the desktop capture must still contain the complete data area. A visible box does not confirm that VRChat or your headset displays the image."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Samples the selected root and its local X/Z axes in one native render primitive. Green scene bounds show the position range. The black-and-white tile has a white capture margin and three copies of the measurements. Choose a desktop region of at least 160 by 128 physical pixels, then verify the image in your VRChat desktop window."), MessageType.Info);
         }
         private void OnSceneGUI()
         {

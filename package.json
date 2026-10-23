@@ -1,7 +1,7 @@
 {
   "name": "sensa",
   "version": "0.4.0",
-  "description": "Local VRChat contact and tracking bridge with a browser UI and Unity authoring tools.",
+  "description": "Local input, signal processing and output workbench for OSC, devices and funscript.",
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
     "build:pages": "node scripts/build-pages.mjs",

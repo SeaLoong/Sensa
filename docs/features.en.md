@@ -4,6 +4,16 @@
 
 This page summarizes implemented features and their operating conditions. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa processes input signals and routes results to devices, applications and recording files. [Inputs, computation and outputs](signal-pipeline.en.md)
 
+## Flows you can build
+
+| Goal | Available capability | Setup |
+| --- | --- | --- |
+| Combine and process inputs | OSC, manual, scripts, feedback and replay; weighting, spatial operations, smoothing, thresholds and events | [Sources and computation](signal-pipeline.en.md#choose-sources-and-computation) |
+| Send one result to several targets | TCode, Intiface, OSC parameters, DG-LAB, MIDI CC, HTTP/WebSocket JSON and MQTT | [Output bindings](signal-pipeline.en.md#one-result-several-outputs) |
+| Save a playable trajectory | Per-binding funscript tracks, segment downloads, script-player loading and signal replay | [Recording and replay](signal-pipeline.en.md#record-and-inspect) |
+| Reuse a complete interaction | Import/export calculations, axis mappings, axis profiles and outputs, with review before application | [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) |
+| Open several workbench pages | Same-page singleton and same-origin connection sharing, with independent drafts | [Page connections](signal-pipeline.en.md#pages-and-shared-connections) |
+
 ## Browser workbench
 
 | Area | Capabilities |
@@ -14,7 +24,7 @@ This page summarizes implemented features and their operating conditions. Use th
 | OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
-| Pipeline | Multi-source computation, temporal/event processing, output bindings, script recording/replay and complete-plan import/export |
+| Flow | Multi-source computation, temporal/event processing, output bindings, script recording/replay and complete-plan import/export |
 | Settings | Twelve-axis profiles, defaults/references and structured logs |
 
 Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
@@ -66,7 +76,7 @@ The L0 recorder captures pre-distribution motion targets, preserves final holds,
 
 ## Unity and spatial experiments
 
-Spatial motion defaults blocked. SPS four-anchor tracking `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Contact direct tracking (SDK Beta) uses one dedicated own-root Sender and one Receiver, publishes twelve `Sensa/Contact/<id>/…` fields, and provides AvatarRootMeters position plus contact-point velocity. Sample change age is at most 1000 ms; Radius follows ScaleFactor with a 3 m guard. SensaPoint supports X/Y/Z/Distance and VelocityX/Y/Z/Speed/ProximitySpeed with existing calibration and stop behavior. [Beta prerequisites and source evidence](contact-sdk.en.md). Native Shader `Frame+XYZ+Valid` uses one Camera/skinned point, an explicit ROI bridge and at most 500 ms of change age; diagnostics create no point. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
+Spatial motion defaults blocked. SPS four-anchor tracking `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Contact direct tracking (SDK Beta) uses one dedicated own-root Sender and one Receiver, publishes twelve `Sensa/Contact/<id>/…` fields, and provides AvatarRootMeters position plus contact-point velocity. Sample change age is at most 1000 ms; Radius follows ScaleFactor with a 3 m guard. SensaPoint supports X/Y/Z/Distance and VelocityX/Y/Z/Speed/ProximitySpeed with existing calibration and stop behavior. [Beta prerequisites and source evidence](contact-sdk.en.md). Shader capture provides root position, Right/Forward directions and `AvatarScale`. Three data copies recover missing regions from complete, matching copies; conflicting copies invalidate the measurement. In a Flow calculation or output binding, choose SensaPoint and select RightX/Y/Z, ForwardX/Y/Z or AvatarScale to use these metrics with tracking validity checks. See the [positioning protocol](positioning.en.md) for fields and capture requirements. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
 
 NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive and an explicit root tracking method: SPS four-anchor tracking by default or Contact direct tracking with the supported beta SDK. Independent Contact authoring also supports explicit Sensa/native roots without VRCFury; single-point position/velocity is available, with multi-point orientation left for later work. Independent SPS four-anchor tracking authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe provides Editor model snapshots for checking author settings. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
 

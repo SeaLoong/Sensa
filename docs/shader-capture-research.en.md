@@ -2,9 +2,9 @@
 
 [简体中文](shader-capture-research.md) | **English**
 
-This page records native root capture design and client acceptance scope. The current chain is **selected root frame → native skinned point → one-Camera block → explicit ROI decode → OSC**, reporting the selected root's position. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
+This page records native root capture design and client acceptance scope. The current chain is **selected root frame → native skinned triangle → one-Camera block → explicit ROI decode → OSC**, reporting its position, X/Z-axis vectors and Avatar world scale. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
 
-Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-23. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
+Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-24. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
 
 ## Primary-source findings and decisions
 
@@ -25,7 +25,7 @@ The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb1
 
 [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs) generates and animates player material IDs at runtime; [SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs) binds materials/Resolvers. Copying baked shared-material IDs is insufficient.
 
-The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native single-bone sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
+The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native three-point skinned sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
 
 A future model producer must solve runtime identity binding, source freshness/render ordering, XR arrays and the distinction between model and final mesh. Rewrapping stale geometry with an advancing transport sequence is insufficient.
 
@@ -34,57 +34,68 @@ A future model producer must solve runtime identity binding, source freshness/re
 Create **GameObject → Sensa → Shader Root Capture (Experimental)** or add `SensaShaderCapture.prefab`, then set `Target`, a nonzero `producerId` and normalized desktop viewport on `SensaShaderCapture`. The shared `SensaPlugin` reads these settings at NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** and calls the Shader generator to create:
 
 1. A root marker under the resolved source, applying `ReadRoot` local position/rotation.
-2. An identity-transform SkinnedMeshRenderer under the avatar root, with one vertex fully bound to the marker. Native skinning yields AvatarRootLocal values without mixing world meters and root scale.
+2. An identity-transform SkinnedMeshRenderer under the avatar root, with three vertices fully bound to the marker. Native skinning yields AvatarRootLocal values without mixing world meters and root scale.
 3. One None-eye orthographic camera emitting the NDC code directly into its configured viewport, without a RenderTexture, Quad, second camera or display shader.
-4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code／根点位置编码** activates the rig, with the caption chosen in the build-time Editor language.
+4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code** activates the rig, with the caption chosen in the build-time Editor language.
 
 Bounds use serialized `m_AABB` / `m_DirtyAABB`, rather than relying only on a transient Renderer.localBounds override; skin matrices recalculate per render. See the [Unity inspector source](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs).
 
 Generated native components perform measurement and image output after upload. The `IEditorOnly` author script is removed after generation on the build copy. The encoder directly references the packaged `Runtime/Shaders/SensaRootTelemetry.shader`; NDMF saves referenced temporary meshes and materials, while MA merges animation, parameters and menus. See the [Unity build guide](unity-build.en.md) for phases and official evidence.
 
-## Coordinate and packet contract
+## Coordinates, axes and packet contract
 
-Shared `SensaFixedAnchorProtocol`: `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z range [−2,2], Y [−1,3]. Units are avatar-root local units; they equal meters directly only when authored and runtime root scales are one. Nonfinite/out-of-range samples clear validity rather than pretending a clamped position is real.
+The generated mesh has three vertices bound to the same root: the origin, local +X at 0.1 units and local +Z at 0.1 units. One triangle supplies all three skinned positions to the geometry stage. Subtracting the origin and dividing by 0.1 produces `Right` and `Forward`. These vectors retain the root's X/Z-axis directions and lengths; their cross product gives the measurement-plane normal. Independent Y-axis scale requires another measurement. `AvatarScale` reads the encoder's uniform positive object-to-world scale, expressing world metres per Avatar-root local unit.
 
-The native monochrome code uses 20 columns × 12 rows. A two-module border surrounds the 16-column × 8-row payload, which represents 16 bytes:
+Position shares `SensaFixedAnchorProtocol`: `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z=[−2,2], Y=[−1,3]. Moving or turning the entire Avatar preserves the local interpretation. Multiply relative displacements by `AvatarScale` to obtain metres. Nonfinite or out-of-range samples, degenerate axes and unsupported world scaling clear validity.
+
+The native packet contains **32 bytes**, with little-endian multibyte values and internal format identifier 1:
 
 | Bytes | Meaning |
 | --- | --- |
-| 0–2 | SN magic and internal format 1 |
-| 3 | bit0 valid; bit1 AvatarRootLocal; native valid flags=3 |
-| 4–5 | Little-endian 16-bit render encoder sequence, approximately 60 Hz |
-| 6–11 | 16-bit X/Y/Z, decoded as center + normalized × 2 |
-| 12–13 | Nonzero 16-bit producer ID, not account identity |
-| 14–15 | CRC-CCITT of the first 14 bytes, initial value 0xffff |
+| 0–2 | `SN` magic and internal format 1 |
+| 3 | bit0 valid, bit1 AvatarRootLocal; valid native flags=3 |
+| 4–5 | 16-bit encoder clock, `floor(_Time.y × 60)`, wrapping at 65536 |
+| 6–11 | Unsigned 16-bit X/Y/Z; decode as `center + (value/65535×2−1)×2` |
+| 12–13 | Nonzero 16-bit Producer ID pairing the selected block |
+| 14–19 | Signed 16-bit `RightX/Y/Z`, decoded as `value×8/32767` |
+| 20–25 | Signed 16-bit `ForwardX/Y/Z`, same encoding; −32768 is invalid and zero is exact |
+| 26–27 | Unsigned 16-bit `AvatarScale`, decoded as `value×8/65535`, in (0,8] |
+| 28–31 | CRC32 IEEE of the first 28 bytes |
 
-Geometry builds the 16-byte payload and CRC once per skinned point, passing a nointerpolation uint4 to the fragment stage, which only reads the appropriate bit. This removes repeated per-pixel CRC work without claiming a measured client performance gain.
+Geometry constructs the packet and CRC once per triangle; fragments read packed bits. Quantization steps are `4/65535` for position, `8/32767` for axis components and `8/65535` for world scale. These describe digital precision; measure actual error against known positions and directions.
 
-The quantization step is 4/65535≈0.00006104 local units, with at most half-step rounding error per axis; this is not total position error. Half-range 2 is a fixed coordinate boundary, not a Contact receiver radius or another configurable radius. SN internal format 1 identifies binary layout, rather than an OSC path version or development compatibility branch.
+## Monochrome layout, movement margin and missing-data recovery
 
-Fixed border cells intentionally do not change with position. The four edges carry asymmetric, complementary line patterns. An edge may match either of its two lines, with a bounded one-module error; at least three edges must match. Edge-cell sampling allows a 6-of-9 monochrome majority, while payload cells require all nine samples to agree. The explicit ROI must be at least 80×48 physical pixels. Translation search is bounded to one module per axis within that region. No scale/rotation/perspective recovery is claimed.
+The code uses **40 columns × 32 rows**, at least **160×128 physical pixels** for native capture: four pixels per module on each axis. From outside inward:
 
-This adds redundancy to the alignment marks rather than error correction to position data. A damaged payload or mixed-frame payload must pass the unchanged CRC-CCITT or be rejected; like all finite CRCs, it has a nonzero collision probability. One damaged edge is tolerated; two missing edges or any missing payload are rejected. Fixed locators cannot remove render/capture latency. A changing but delayed frame can decode, so actual end-to-end delay still requires measurement. The separate diagnostic 16×8 format remains unchanged and cannot masquerade as native capture.
+1. A **two-module white margin** reserves room for small image movements while keeping locators and data inside the registered capture region.
+2. **Two-module locator bands** carry asymmetric complementary patterns. Either line can identify an edge; at least three edges must match.
+3. The **32×24 payload** stores three 32×8 copies of the packet. Each copy shifts columns by 11 bytes, distributing vertical damage across different bytes.
 
-The sequence demonstrates advancing encoded rendering, not final mesh or animation/global-texture synchronization. Chroma/CRC checks detect corruption, not authenticated ownership.
+The entire block outputs pure black or white. The white margin and fixed locator bands provide stable spatial references. Payload modules require nine consistent pixels in their 3×3 sample; uncertain modules become erasures. The bridge combines known, agreeing bits from the three copies in the current capture. It accepts only a fully supported packet with a valid CRC32. Any known-bit conflict invalidates the frame, keeping mixed frames from being assembled by majority vote. Losing the same bit in every copy also invalidates it.
+
+Alignment search stays inside the explicitly selected ROI, using quarter-module steps up to two modules per axis. The margin buffers **spatial movement**. Rendering, desktop composition and capture latency require measurement. Re-register after scaling, rotation or perspective changes. Diagnostic images retain their separate 16×8/CRC-CCITT layout for isolated testing.
+
+Locator and payload redundancy can recover partial occlusion or uncertain pixels. CRC32 checks integrity, Producer ID pairs the target, and sequence progression detects duplicates and freezing. Each field has its own purpose.
 
 ## Explicit desktop registration and OSC
 
 See the [package guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Capture never selects a screen automatically. Screen-to-OSC requires a pinned producer ID. Registration also fixes the coordinate profile/center/range. A diagnostic packet reusing the same ID is rejected.
 
-One valid OSC bundle sends `Sensa/Shader/<nonzero-ID>/{Frame,X,Y,Z,Valid}` strictly in that order, with Valid=1 as the final commit field. Invalidation sends only Valid=0 on the same prefix, without stale XYZ or an invented Frame. ID is already in the path and AvatarRootLocal is fixed, so redundant Producer/Profile parameters and the path version segment are removed without old aliases.
+One valid OSC bundle sends `Sensa/Shader/<nonzero-ID>/{Frame,X,Y,Z,RightX,RightY,RightZ,ForwardX,ForwardY,ForwardZ,AvatarScale,Valid}` strictly in that order, with Valid=1 as the final commit field. Invalidation sends only Valid=0 on the same prefix, without stale XYZ or an invented Frame. ID is already in the path and AvatarRootLocal is fixed, so redundant Producer/Profile parameters and the path version segment are removed without old aliases.
 
 Frame detects freezes/duplicate images, XYZ carries the measurement and Valid immediately reports invalidity. Binary producer ID remains necessary to verify the ROI source. Native ID0 is invalid. Synthetic/editor model diagnostics use only `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` and do not produce root observations.
 
-The desktop requires five consecutive same-source fields and a maximum 500 ms Frame content-change age. Repeated identical frames do not refresh that age. Modulo-16-bit progression, changed payload under one frame and two-frame recovery belong to the bridge; static Observe does not claim an additional historical anti-replay state.
+The desktop requires twelve consecutive same-source fields and a maximum 500 ms Frame content-change age. Repeated identical frames do not refresh that age. Modulo-16-bit progression, changed payload under one frame and two-frame recovery belong to the bridge; static Observe does not claim an additional historical anti-replay state.
 
-Saving registration establishes only that a valid native packet was decoded in the chosen ROI. It does not establish accuracy or VR visibility. The bridge requires two progressing frames. CRC/source/profile failure, changed coordinates on a duplicate sequence, reorder, freeze, timeout or shutdown closes Valid. Replaying the old good frame does not restore it; two new progressing frames are required. Producer reset may require a deliberate bridge restart rather than automatic retargeting.
+Saving registration establishes only that a valid native packet was decoded in the chosen ROI. It does not establish accuracy or VR visibility. The bridge requires two progressing frames. CRC/source/profile failure, changed payload on a duplicate sequence, reorder, freeze, timeout or shutdown closes Valid. Replaying the old good frame does not restore it; two new progressing frames are required. Producer reset may require a deliberate bridge restart rather than automatic retargeting.
 
 ## Evidence and remaining acceptance
 
-Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame locking, ordered five fields, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
+Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame locking, ordered twelve fields, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
 
-Unity EditMode checks default Off, one-camera direct output, shader import, persistent bounds, skinned coordinates and multiple-producer binding. The ignored report is `artifacts/verification/sps-five-fields-editmode.xml`; nographics import/generation is not actual GPU rendering. Exact counts belong to the original report.
+Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning and multiple producers. A separate explicit graphics test checks rendered pixels. Unity Editor is unavailable in this environment, so the new contracts await execution. Record actual revisions and results in the [verification record](e2e-status.en.md).
 
 Separate acceptance remains for SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. Default bridge freeze is 350 ms, earlier than the desktop's 500 ms rejection limit; the latter is not actual bridge validity.
 
-Keep experimental opt-in until measured. Do not promise reliable world localization, final-mesh tracking or measured client performance gains. [Positioning](positioning.en.md) · [Verification](development.en.md)
+Keep this PC experiment explicitly enabled and record measured client acceptance against the checklist above. [Positioning](positioning.en.md) · [Verification](development.en.md)

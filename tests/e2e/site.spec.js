@@ -46,12 +46,37 @@ async function auditHome(page, info, language) {
   expect(result.violations, language + ' homepage detected violations').toEqual([]);
 }
 
+async function inspectWorkflowBadges(scope) {
+  for (const [label, workflow] of [['CI', 'ci.yml'], ['E2E', 'e2e.yml'], ['Pages', 'pages.yml'], ['Release', 'release.yml']]) {
+    const badge = scope.getByRole('link', { name: label, exact: true });
+    await expect(badge).toHaveAttribute('href', 'https://github.com/SeaLoong/Sensa/actions/workflows/' + workflow);
+    await expect(badge.getByRole('img', { name: label, exact: true })).toHaveAttribute('src',
+      'https://github.com/SeaLoong/Sensa/actions/workflows/' + workflow + '/badge.svg');
+  }
+}
+
+async function inspectOverview(page, info, locale) {
+  await page.goto(new URL(locale + '/README.html', base).href);
+  const article = page.locator('article');
+  await inspectWorkflowBadges(article);
+  await expect(article.getByRole('link', { name: locale === 'en' ? 'Set up a flow' : '建立信号流程', exact: true }))
+    .toHaveAttribute('href', 'docs/signal-pipeline.html');
+  await expect(article).toContainText('DG-LAB');
+  await expect(article).toContainText('MQTT');
+  expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await page.screenshot({ path: info.outputPath('pages-overview-' + locale + '.png'), fullPage: true });
+}
+
 test('@site standalone Pages language, document navigation and independent geometry', async ({ page }, testInfo) => {
   const errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '?lang=en-US');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
-  await expect(page.getByRole('heading', { name: 'From contact to control.' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Input\. Compute\.\s*Output\./ })).toBeVisible();
+  await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html$/);
+  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('Connect and record');
+  await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /en\/docs\/features.html$/);
+  await inspectWorkflowBadges(page.locator('.project-status'));
   if (await page.locator('body').getAttribute('data-vpm') === 'false') {
     await expect(page.locator('#vcc')).toBeHidden();
     await expect(page.locator('#vpm-status')).toContainText('No stable VPM');
@@ -63,9 +88,17 @@ test('@site standalone Pages language, document navigation and independent geome
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await auditHome(page, testInfo, 'en-US');
   await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
+  await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
+  await expect(page.locator('.navigation a[href="features.html"]')).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Record a manual track first', exact: true })).toBeVisible();
+  await page.goto(base + '?lang=en-US');
   await page.getByRole('button', { name: '简体中文', exact: true }).click();
   await expect(page.getByRole('button', { name: 'English', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /zh-CN\/docs\/signal-pipeline.html$/);
+  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('连接输出与录制');
+  await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /zh-CN\/docs\/features.html$/);
   await expect(page.locator('a[data-doc="docs/quick-start"]')).toHaveAttribute('href', /zh-CN\/docs\/quick-start.html$/);
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
@@ -76,11 +109,15 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('article h1')).toBeVisible();
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('pages-guide-zh.png'), fullPage: true });
+  await inspectOverview(page, testInfo, 'zh-CN');
+  await page.goto(new URL('zh-CN/docs/quick-start.html', base).href);
   await page.locator('header [data-locale="en"]').click();
   await expect(page).toHaveURL(/en\/docs\/quick-start.html$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('pages-guide-en.png'), fullPage: true });
+  await inspectOverview(page, testInfo, 'en');
+  await page.goto(new URL('en/docs/quick-start.html', base).href);
   await page.locator('header a[href*="parameter-geometry.html"]').click();
   await expect(page.locator('#scene')).toBeVisible();
   await page.locator('#scene').selectOption('sensa-sps');
@@ -143,16 +180,16 @@ test('@site language priority, unsupported preferences and Chinese variants', as
 });
 
 test('@site document language changes preserve the current section and discard unknown fragments', async ({ page }, info) => {
-  const zhId = '3-检查手动方向和停止', enId = '3-check-manual-direction-and-stop';
+  const zhId = '3-启用输入并检查结果', enId = '3-enable-input-and-inspect-results';
   await page.goto(new URL('zh-CN/docs/quick-start.html#' + encodeURIComponent(zhId), base).href);
-  const chinese = page.getByRole('heading', { name: '3. 检查手动方向和停止', exact: true });
+  const chinese = page.getByRole('heading', { name: '3. 启用输入并检查结果', exact: true });
   await expect(chinese).toHaveAttribute('id', zhId);
   await expect(chinese).toBeInViewport();
   const englishLink = page.locator('header [data-locale="en"]');
   await expect(englishLink).toHaveAttribute('href', new URL('en/docs/quick-start.html#' + enId, base).href);
   await englishLink.click();
   await expect(page).toHaveURL(new URL('en/docs/quick-start.html#' + enId, base).href);
-  const english = page.getByRole('heading', { name: '3. Check manual direction and stop', exact: true });
+  const english = page.getByRole('heading', { name: '3. Enable input and inspect results', exact: true });
   await expect(english).toHaveAttribute('tabindex', '-1');
   await expect(english).toBeInViewport();
   await page.locator('header [data-locale="zh-CN"]').click();

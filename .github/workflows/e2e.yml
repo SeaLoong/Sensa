@@ -1,9 +1,9 @@
-name: WebUI E2E and screenshots / WebUI 端到端与截图
+name: E2E
 on:
   workflow_call:
     outputs:
       comparison_sha:
-        description: Commit verified by full comparison / 全量比较验证的提交
+        description: Commit verified by full comparison
         value: ${{ jobs.browser.outputs.comparison_sha }}
     inputs:
       source_commit:
@@ -15,13 +15,14 @@ on:
   workflow_dispatch:
     inputs:
       update_snapshots:
-        description: Generate review-only baselines / 生成仅供审阅的截图基线
+        description: Generate review-only baselines
         type: boolean
         default: false
 permissions:
   contents: read
 jobs:
   browser:
+    name: Browser
     outputs:
       comparison_sha: ${{ steps.comparison.outputs.sha }}
     runs-on: ubuntu-24.04
@@ -34,41 +35,45 @@ jobs:
       E2E_UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
       SENSA_SOURCE_COMMIT: ${{ inputs.source_commit || github.sha }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ inputs.source_commit || github.sha }}
-      - name: Reject baseline updates from ordinary CI / 拒绝普通 CI 更新基线
+      - name: Check baseline mode
         if: inputs.update_snapshots && github.event_name != 'workflow_dispatch'
         run: exit 1
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
           cache: npm
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
-      - name: Install language support and PTY mock runtime / 安装语言支持与伪终端模拟环境
+      - name: Install test dependencies
         timeout-minutes: 5
         run: bash scripts/install-e2e-dependencies.sh
-      - run: npm ci
-      - name: Build real Sensa application / 构建真实 Sensa 程序
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
         run: dotnet publish src/Sensa.csproj -c Release --no-self-contained -p:RestoreLockedMode=true -o artifacts/e2e/app
-      - name: Exercise UI, transports and screenshot comparisons / 验证界面、传输与截图比较
+      - name: Run E2E
         id: browser_tests
         run: npm run e2e:ci
-      - name: Record successful full comparison / 记录全量比较成功
+      - name: Verify comparison
         id: comparison
         if: ${{ !inputs.update_snapshots }}
         run: |
           test "$E2E_SUITE" = all
           node scripts/e2e-summary-reporter.mjs --verify-comparison artifacts/e2e/summary.json
           echo "sha=$SENSA_SOURCE_COMMIT" >> "$GITHUB_OUTPUT"
-      - name: Publish current browser result summary / 发布本次浏览器结果摘要
+      - name: Summarize E2E
         if: always()
         env:
           E2E_COMMAND_OUTCOME: ${{ steps.browser_tests.outcome }}
         run: node scripts/e2e-summary-reporter.mjs --finalize-report artifacts/e2e/summary.json
-      - name: Retain reports and image diffs / 保留报告与图片差异
+      - name: Upload E2E report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -83,7 +88,7 @@ jobs:
             artifacts/e2e/ui-quality/
           if-no-files-found: warn
           retention-days: 14
-      - name: Export proposed baselines for review / 导出待人工审阅基线
+      - name: Upload candidate images
         if: always() && inputs.update_snapshots
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:

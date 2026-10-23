@@ -85,17 +85,17 @@ Avatar 菜单还可能出现 `Sensa/Select/<group>`：0 为关闭，1…N 选择
 
 SDK 的世界 Contact 半径上限为 3 m。内部 FX 会在 `2×authorScale×ScaleFactor` 超过约 2.999 m 前停用测量并清零。这使接收器在支持的缩放范围内工作。[官方 Contacts 说明](https://creators.vrchat.com/common-components/contacts/)
 
-## Shader：可编码区域与屏幕识别是两个条件
+## Shader：坐标、轴向与屏幕捕获
 
-Shader 将同一个根点的位置画成黑白图块，再由 Python 桌面桥读取。坐标允许的范围是 **X/Z=[−2,2]、Y=[−1,3] 的完整方框**；图块本身则必须出现在所选屏幕区域中。
+Shader 把根点位置、局部 +X／+Z 两条轴向和 Avatar 世界缩放画成黑白图块，由桌面桥读取。位置范围是 **X/Z=[−2,2]、Y=[−1,3]**，采用 Avatar 根局部单位；`AvatarScale` 表示每局部单位对应的世界米数。根点面板显示有效包中的位置、两条轴向与单位换算。
 
-原生图块为 20×12 格，中间 16×8 格存数据，外侧两格宽的固定图案帮助定位方向和对齐。固定格不随坐标变化是有意设计。桌面桥允许四边中的一边损坏，并在所选区域内尝试小幅平移校正；数据仍必须通过 CRC 校验。捕获区域需要与图块保持相同方向和尺寸，数据损坏时会报告失效。
+图块为 **40×32 格**，至少 **160×128 物理像素**。外侧两格白色留白缓冲小幅画面位移，内侧两格定位带支持重新对齐，中间存三份错列的 32 字节数据。桥在所选完整区域内最多搜索各方向两格平移，可用其他副本的一致位恢复缺失；已知位冲突、仍有缺失或 CRC32 错误时失效。窗口尺寸或显示缩放变化后重新注册。
 
-边缘标记用于在小幅画面偏移后重新对齐图块。帧号 `Frame` 用于发现重复和冻结：默认超过 350 ms 不推进即失效，启动和恢复均需两个新的推进帧。定位响应时间还受客户端渲染、桌面合成和捕获频率影响。[捕获设置](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [编码设计](shader-capture-research.md)
+`Frame` 检查画面推进，默认 350 ms 未变化时失效，启动和恢复需要两个新的推进帧。有效 OSC 按 **Frame → X/Y/Z → RightX/Y/Z → ForwardX/Y/Z → AvatarScale → Valid=1** 连续发送；失效只发 Valid=0。桌面最多接受 500 ms 的 Frame 变化年龄，更短的正数输入超时优先。
 
-有效 OSC 按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 顺序在一个 bundle 中发送，Valid=1 最后提交；失效只发送 Valid=0。桌面还检查同一来源、字段连续性、有限坐标和 Frame 变化时间，最多接受 500 ms 的变化年龄，较短的正数输入超时优先。正常桥在 350 ms 已冻结失效，500 ms 是桌面的额外拒绝上限。
+Right／Forward 保留根点 X/Z 轴的方向和长度，适合在“流程”中通过定位测量（SensaPoint）输入计算夹角、向量长度或朝向关系；独立 Y 轴缩放需要另行测量。端到端时间延迟和实际位置误差通过客户端测量确认。[捕获设置](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [编码设计](shader-capture-research.md) · [参数解释](osc-parameters.md)
 
-对象 ID 写在路径中，坐标系固定为 AvatarRootLocal。内部 `Sensa/Diagnostics/Shader/0` 专供检查图案和传输链路。
+对象 ID 位于 `Sensa/Shader/<id>/` 路径中。内部 `Sensa/Diagnostics/Shader/0` 采用独立的五字段诊断格式，方便检查图案和传输。
 
 ## 网页中“模拟收到有效样本”是什么？
 

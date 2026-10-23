@@ -1,21 +1,53 @@
 # Sensa
 
-**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html) · [下载](https://github.com/SeaLoong/Sensa/releases)
+**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [信号流程](docs/signal-pipeline.md) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html) · [下载](https://github.com/SeaLoong/Sensa/releases)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
+[![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
+[![Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml)
+[![Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)
 
 **连接输入、计算可复用信号，再把结果送到设备或应用。** Sensa 在你的电脑上运行，通过浏览器工作台配置。输出包括 TCode 串口／UDP／TCP、Intiface／Buttplug、OSC 参数、DG-LAB、MIDI CC、网络服务和录制文件；VRChat 交互与 funscript 继续提供便捷的输入流程。
 
-## 第一次使用：先检查方向和行程
+## 输入 → 计算转换 → 输出
+
+| 步骤 | 可以使用什么 | 从哪里开始 |
+| --- | --- | --- |
+| **输入** | OSC 参数与定位、手动数值、funscript、设备反馈或录制回放 | 在“流程”选择来源；多种来源一起使用时，在“控制 → 组合”准备输入 |
+| **计算转换** | 加权平均、差值、平滑、阈值、延迟、事件与生成节奏 | 新增计算信号，再保存计算与映射 |
+| **输出** | 设备、应用参数、网络服务或 funscript 轨道 | 添加输出，通过“新增连接”选择来源、目标与量程 |
+
+同一个结果可以送到多个输出，各自设置量程与发送节奏。例如，将两项触碰读数合成为强度，再分别驱动振动、Avatar 发光和轨道录制。输出绑定也可直接选择原始来源。[建立信号流程](docs/signal-pipeline.md) · [计算示例](docs/computed-signals.md)
+
+工作台支持[保存整套方案](docs/signal-pipeline.md#保存与复用整套方案)，一起保留计算、轴配置和输出。浏览器支持时，同源标签页会自动[共用实时连接](docs/signal-pipeline.md#页面与连接共用)，各页保留自己的草稿。
+
+## 选择结果送往哪里
+
+| 输出 | 在该输出内部配置 |
+| --- | --- |
+| TCode／Intiface | 串口或网络连接、目标轴或设备功能，以及行程设置 |
+| OSC 参数 | IP、端口、参数地址与 Float／Int／Bool；快捷选项可选择 VRChat OSC 接收端 |
+| DG-LAB | DG-LAB 4 APP 配对、设备、通道、强度上限和波形播放方式 |
+| MIDI CC | 系统 MIDI 端口、通道／控制器与 0～127 量程 |
+| HTTP JSON／WebSocket JSON／MQTT | 服务或 Broker 地址，以及接收路径／主题 |
+| 录制 | funscript 轨道名称和量程，或 JSON Lines／CSV 诊断数据 |
+
+[输出设置与示例](docs/signal-pipeline.md#添加输出与绑定)
+
+## 启动 Sensa，试一条流程
 
 1. 下载 Windows、Linux 或 macOS 的 x64／ARM64 压缩包并解压。
 2. 运行 Sensa，打开 **http://127.0.0.1:5086**。新会话的输入和输出默认关闭。
-3. 添加输出，核对目标，**启用该输出**后连接。Intiface 默认连接已有服务，需要先独立启动 Central。
-4. 应用**手动**、启用输入，发送小目标检查方向／量程。关闭输入后准备 OSC 或 funscript；应用新方式，准备好再重新启用。
+3. 打开“流程”，添加输出并选择来源和目标。可以先使用“录制”，把手动数值保存为可播放的 funscript 轨道。
+4. 保存设置，**启用该输出**并连接。在“控制”应用手动、OSC、脚本或组合方式，准备好后启用输入。
 
-保留急停入口。解除急停、保存配置、更换实际模式或替换脚本后，准备好再启用输入。界面位置是**命令目标**，实际移动情况通过观察设备确认。
+使用动作设备时，先以小幅手动目标检查方向、行程和停止。Intiface 连接单独运行的 Central。保留急停入口；解除急停或保存新配置后，准备好再启用输入。
 
 [首次使用](docs/quick-start.md) · [工作台指南](docs/guide.md) · [功能参考](docs/features.md)
+
+## 录制与回放 funscript
+
+在“流程”添加“录制”，保留默认 Funscript 格式，将来源连接到 `L0`、`R0` 等轨道。每个有效片段会生成可下载的文件。完成的轨道可载入 Sensa 脚本播放器，也可通过“录制回放”重新参与计算。JSON Lines／CSV 另外保留原始读数和有效状态，便于分析。[录制与播放步骤](docs/signal-pipeline.md#录制与观察)
 
 ## 我应该选择哪种接入方式？
 
@@ -24,17 +56,11 @@
 | **已有 OGB / SPS** | 读取 Avatar 已有的接近、触摸和深度相关参数 | 使用 Avatar 现有参数，先确认实际发送的是 SPS1 还是 SPS2 信号 |
 | **SPS 四点定位** | 在自己的 Avatar 上添加测量组件，计算 SPS Socket／Plug 根点相对 Avatar 的三维位置 | 需要重新构建 Avatar；目标必须处于有效检测区域 |
 | **[Contact 直接定位（SDK Beta）](docs/contact-sdk.md)** | 用一个专用 Receiver 读取所选根点的位置和相对速度 | 需要 Beta SDK 并重新构建自己的 Avatar；目标位于接收覆盖内 |
-| **Shader 捕获** | 将根点位置画成黑白编码图块，由桌面程序读取 | PC 实验方案；需要图块完整可见，真实 VRChat／头显效果尚待验证 |
+| **Shader 捕获** | 通过黑白图块读取根点位置、X/Z 轴向与 Avatar 缩放 | PC 实验方案；留白和三副本帮助处理小幅位移与部分缺失，客户端效果待验收 |
 
 这里的“根点”是你在 Unity 中选定的起点，例如 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。“相对 Avatar 的位置”会随该点在 Avatar 内移动而变化，整个 Avatar 一起走动或转身时则保持不变。明确选择 Transform、Sensa 或原生 Contact 时，SPS 四点定位沿用同一根点协议。SPS 四点定位、Contact 直接定位和 Shader 都需要先观察坐标、校准范围，再启用实验空间输入；详细参数放在[定位说明](docs/positioning.md)中。Contact 直接定位使用 SDK 3.10.6-beta.2 和物理米单位，速度值可校准为动作强度；真实客户端／OSC Beta 链路尚待验收。
 
 [方案选择](docs/usage-scenarios.md) · [OSC 字典](docs/osc-parameters.md) · [定位与限制](docs/positioning.md) · [OGB 兼容](docs/ogb-compatibility.md)
-
-## 组合多个输入，再映射到动作
-
-在“流程”中建立**计算信号**，可对多个参数做加权平均、差值、比例或向量长度计算，再将结果用于轴映射或输出绑定。输入也可以选用 SPS 四点定位、Contact 或 Shader 已解算的坐标，以及 Contact 的速度指标；同一中间结果可供多个目标使用。
-
-例如，两个触碰强度按 1∶3 混合，或用两个根点的 XYZ 差计算间距。输出绑定复用计算结果，分别设置目标、类型、量程和更新频率。选择 OSC 参数输出可写入 Avatar 反馈参数，DG-LAB 输出可控制通道任务，录制输出可保存 funscript 轨道；组合输入允许手动、OSC、脚本与反馈来源共同参与。[输入、计算与输出](docs/signal-pipeline.md) · [计算与示例](docs/computed-signals.md)
 
 ## 不接设备也能理解参数
 

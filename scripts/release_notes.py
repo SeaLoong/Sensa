@@ -1,4 +1,4 @@
-"""Compose bilingual download guidance around GitHub-generated change notes.
+"""Keep previews source-only and compose full bilingual stable release notes.
 
 The changelog remains exactly the text returned by GitHub; this module does not
 guess changes or translate pull-request titles.
@@ -7,7 +7,7 @@ import re
 
 
 def compose_release_notes(channel, version, tag, sha, repository, generated_body, run_url=''):
-    """Describe the downloads and build scope, then include the generated notes once."""
+    """Identify preview source, or describe stable downloads and generated changes."""
     if channel not in ('preview', 'stable'):
         raise ValueError('Invalid release channel / 发布渠道无效')
     if not isinstance(version, str) or not re.fullmatch(r'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)', version):
@@ -28,15 +28,13 @@ def compose_release_notes(channel, version, tag, sha, repository, generated_body
         raise ValueError('Invalid build workflow URL / 构建工作流地址无效')
     if not isinstance(generated_body, str):
         raise ValueError('Generated change notes must be text / 自动变更说明必须是文本')
+    if channel == 'preview':
+        return f'Source: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
 
-    title = 'Stable release' if channel == 'stable' else 'Development preview'
-    chinese_title = '正式发布' if channel == 'stable' else '开发预览'
-    stable_en = ('Stable Unity metadata (`vpm-package.json`) is included for the VPM feed.'
-                 if channel == 'stable' else
-                 'This preview does not update the stable VPM feed. The latest ten published previews are retained.')
-    stable_zh = ('附带供 VPM 正式索引使用的 Unity 元数据 `vpm-package.json`。'
-                 if channel == 'stable' else
-                 '此预览不更新 VPM 正式索引，仅保留最近十个已发布预览。')
+    title = 'Stable release'
+    chinese_title = '正式发布'
+    stable_en = 'Stable Unity metadata (`vpm-package.json`) is included for the VPM feed.'
+    stable_zh = '附带供 VPM 正式索引使用的 Unity 元数据 `vpm-package.json`。'
     workflow_en = f' [Build workflow]({run_url}).' if run_url else ''
     workflow_zh = f' [构建工作流]({run_url})。' if run_url else ''
     changes = generated_body if generated_body.strip() else 'GitHub did not provide change notes for this range. / GitHub 未返回此范围的变更条目。'

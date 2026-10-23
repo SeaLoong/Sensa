@@ -70,7 +70,7 @@ test('only Contact capabilities expose velocity metrics and all values stay fini
   assert.equal(pointMetricValue(contact(.1, { speed: Infinity }), 'Speed'), undefined);
   for (const kind of ['Handle', 'Point', 'SpsRoot', 'ShaderRoot']) {
     const legacy = contact(.1, { kind });
-    assert.deepEqual(pointMetricOptions(legacy).map(option => option.value), metrics.slice(0, 4));
+    assert.deepEqual(pointMetricOptions(legacy).map(option => option.value), [...metrics.slice(0, 4), ...(kind === 'ShaderRoot' ? ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale'] : [])]);
     for (const metric of metrics.slice(4)) {
       assert.equal(pointMetricValue(legacy, metric), undefined);
       assert.equal(capturePointEndpoint(legacy, metric), null);
@@ -234,8 +234,11 @@ test('parameter dictionary separates proximity, liveness, native coordinates and
   for (const [path, expected] of [
     ['Sensa/SPS/Main/Sample', /Sample=0.*1\/32/],
     ['Sensa/SPS/Main/P1', /d=R×\(1−p\)\+r/],
-    ['Sensa/Shader/42/Frame', /16 位循环序号/],
-    ['Sensa/Shader/42/Valid', /恢复时需重新发送完整坐标/],
+    ['Sensa/Shader/42/Frame', /_Time×60.*16 位循环编码时钟/],
+    ['Sensa/Shader/42/Valid', /完整 12 字段.*恢复时需重新发送完整参数/],
+    ['Sensa/Shader/42/RightX', /方向和单位轴长/],
+    ['Sensa/Shader/42/ForwardZ', /目标 X、Z 轴/],
+    ['Sensa/Shader/42/AvatarScale', /根局部单位对应的世界米数/],
     ['Sensa/Shader/42/X', /Avatar 根局部坐标/],
     ['Sensa/Diagnostics/Shader/0/X', /检查捕获与传输/],
     ['VFH/Zone/Touch/Body/Chest/Others', /按自身半径检测/],
@@ -389,4 +392,24 @@ test('exact mapping lookups do not rescan a large catalog for each mapping / 精
     assert.equal(row.numericValue,undefined); assert.equal(row.value,String(index)); assert.equal(row.matchCount,1);
   }
   assert.ok(pathReads<=120,`${pathReads} path reads after indexing`);
+});
+
+test('Shader direction and scale calibrate validated measurements while invalid packets clear previews', () => {
+  const shader = value => point(.1, { kind: 'ShaderRoot', prefix: 'Sensa/Shader/42', party: 'Self', isMappablePoint: true,
+    coordinateFrame: 'AvatarRootLocal', right: { x: value, y: .5, z: 0 }, forward: { x: .25, y: 0, z: 1.5 }, avatarScale: value });
+  const metrics = ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale'];
+  assert.deepEqual(pointMetricOptions(shader(1)).map(option => option.value), ['X', 'Y', 'Z', 'Distance', ...metrics]);
+  for (const metric of ['RightX', 'AvatarScale']) {
+    const low = capturePointEndpoint(shader(.5), metric), high = capturePointEndpoint(shader(1.5), metric);
+    const draft = calibratedPointDraft(shader(1), metric, low, high).draft;
+    assert.equal(draft.sourceMode, 'SensaPoint'); assert.equal(draft.pointMetric, metric);
+    assert.equal(draft.vrchatMin, .5); assert.equal(draft.vrchatMax, 1.5);
+    assert.equal(pointCalibrationProgress(shader(1), metric, low, high).percent, 50);
+    const preview = pointPreviewEntry([shader(1)], { oscPath: 'Sensa/Shader/42/' + metric, pointMetric: metric });
+    assert.equal(preview.numericValue, 1);
+    assert.equal(pointPreviewEntry([{ ...shader(1), valid: false }], draft).numericValue, undefined);
+    assert.equal(capturePointEndpoint({ ...shader(1), valid: false }, metric), null);
+    assert.equal(pointMetricValue(contact(.1), metric), undefined);
+    assert.equal(pointMetricValue({ ...shader(1), right: null, avatarScale: null }, metric), undefined);
+  }
 });

@@ -215,8 +215,9 @@ class ReleaseCommandTests(unittest.TestCase):
                 patch.object(sys, 'argv', ['publish-release.py', '--channel', channel, '--version', VERSION,
                     '--tag', tag, '--commit', SHA, '--previous-tag', previous, '--assets', str(self.inputs)]), \
                 patch.object(preview, 'GitHubReleases', return_value=releases), \
-                patch.object(preview.subprocess, 'check_output', side_effect=[SHA, SHA + '\0Direct fix <code> #1\n']):
+                patch.object(preview.subprocess, 'check_output', side_effect=[SHA, SHA + '\0Direct fix <code> #1\n']) as process:
             preview.main()
+        return process
 
     def test_first_stable_release_uploads_all_downloads_without_preview_base(self):
         write_archives(self.inputs, 'stable')
@@ -236,16 +237,25 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertIn('vpm-package.json', checksums)
         self.assertEqual(len(checksums.splitlines()), 8)
 
-    def test_preview_uses_explicit_stable_base_and_keeps_direct_commits(self):
+    def test_preview_publishes_source_only_without_generating_a_changelog(self):
         write_archives(self.inputs, 'preview')
         releases = FakeReleases([published(1) | {'tag_name': 'v0.3.0', 'prerelease': False}])
-        self.main('preview', releases, previous='v0.3.0')
-        self.assertIn(('notes', 'v0.3.0'), releases.events)
+        process = self.main('preview', releases, previous='v0.3.0')
+        self.assertFalse(any(event[0] == 'notes' for event in releases.events))
+        self.assertEqual([call.args[0] for call in process.call_args_list], [['git', 'rev-parse', 'HEAD']])
         self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 8)
+        notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
+        self.assertEqual(notes, f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n')
+        self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
+
+    def test_stable_notes_keep_the_published_base_github_changes_and_direct_commits(self):
+        write_archives(self.inputs, 'stable')
+        releases = FakeReleases([published(1) | {'tag_name': 'v0.3.0', 'prerelease': False}])
+        self.main('stable', releases)
+        self.assertIn(('notes', 'v0.3.0'), releases.events)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
         self.assertIn('Added a feature', notes)
         self.assertIn('Direct fix', notes)
-        self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
 
     def test_notes_base_ignores_unpublished_tag_hints_and_drafts(self):
         write_archives(self.inputs, 'stable')

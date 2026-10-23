@@ -15,6 +15,7 @@ const shape = (scene, id) => scene.shapes.find(value => value.id === id);
 const plain = value => JSON.parse(JSON.stringify(value));
 const near = (actual, expected, tolerance = 1e-10) =>
   assert.ok(Math.abs(actual - expected) <= tolerance, actual + ' != ' + expected);
+const nativeShader = JSON.parse(readFileSync(new URL('../fixtures/shader-native-format1.json', import.meta.url), 'utf8'));
 
 test('offline classic model exposes fresh defaults for every scene / 离线经典模型为各场景提供独立默认值', () => {
   assert.equal(model.scenarios.length, 11);
@@ -46,7 +47,7 @@ test('parameter names are alphabetical with each base before its Close partner /
       'Proximity_SenderLocalPositionY', 'Proximity_SenderLocalPositionZ', 'Proximity_SenderType',
       'Proximity_SenderVelocityMagnitude', 'Proximity_SenderVelocityX', 'Proximity_SenderVelocityY',
       'Proximity_SenderVelocityZ', 'Radius', 'Sample']],
-    ['shader', ['Frame', 'Valid', 'X', 'Y', 'Z']],
+    ['shader', ['AvatarScale', 'ForwardX', 'ForwardY', 'ForwardZ', 'Frame', 'RightX', 'RightY', 'RightZ', 'Valid', 'X', 'Y', 'Z']],
   ]) assert.deepEqual(plain(evaluate({ scenario }).values.map(value => value.name)), names);
 });
 
@@ -349,15 +350,16 @@ test('Shader has no Contact spheres and preserves range endpoints exactly / Shad
   assert.equal(scene.metrics.valid, true);
 });
 
-test('Shader quantization bounds, CRC bytes and modulo Frame are illustrative and deterministic / Shader量化界CRC字节和模Frame示意可重复', () => {
+test('Shader coordinates, axes, scale and CRC32 match the independent native format-1 vector', () => {
   const scene = evaluate({ scenario: 'shader', frame: 65536 });
   assert.equal(field(scene, 'Frame').raw, 0);
   near(scene.metrics.quantizationStep, 4 / 65535);
   assert.ok(scene.metrics.quantError.length <= scene.metrics.spatialQuantizationBound);
-  const zero = evaluate({ scenario: 'shader', x: -2, y: -1, z: -2, frame: 0 });
-  // CRC-16/CCITT-FALSE reference from Python binascii.crc_hqx(payload, 0xffff).
-  // 独立参考值来自 Python 标准库，不复用被测 JS CRC。
-  assert.deepEqual(plain(zero.metrics.bytes), [83, 78, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 194, 133]);
+  const reference = evaluate({ scenario: 'shader', x: 0, y: 1, z: 0, frame: 256 });
+  assert.equal(reference.metrics.bytes.map(byte => byte.toString(16).padStart(2, '0')).join('').toUpperCase(), nativeShader.packetHex);
+  for (const [name, expected] of [['Right', nativeShader.expected.right], ['Forward', nativeShader.expected.forward]])
+    for (const [index, axis] of ['X', 'Y', 'Z'].entries()) near(field(reference, name + axis).raw, expected[index]);
+  near(field(reference, 'AvatarScale').raw, nativeShader.expected.avatarScale);
   assert.equal(evaluate({ scenario: 'shader', frame: 65535 }).metrics.bytes[5], 255);
 });
 
@@ -438,20 +440,36 @@ test('drawn detection boundary is computed from all receiver spheres / 可测外
 });
 
 
-test('native encoding keeps asymmetric markers at the edge and changing payload in the center / 原生编码边缘定位而中央携带变化数据', () => {
+test('native encoding retains white shift buffers and three offset copies behind asymmetric markers', () => {
   const first = evaluate({ scenario: 'shader', x: -.4, frame: 1 }).metrics.bytes;
   const next = evaluate({ scenario: 'shader', x: .6, frame: 2 }).metrics.bytes;
-  let edgeCount = 0, changedPayload = 0;
-  const bitsAsWord = (row, start, length) => Array.from({ length }, (_, i) => model.encodedBit(first, start + i, row) << i).reduce((a, b) => a | b);
-  assert.equal(bitsAsWord(0, 0, 20), 0xD3A6B);
-  assert.equal(bitsAsWord(1, 0, 20), 0x2C594);
-  assert.equal(bitsAsWord(10, 0, 20), 0x69C57);
-  assert.equal(bitsAsWord(11, 0, 20), 0x963A8);
-  for (let column = 0; column < 20; column++) for (let row = 0; row < 12; row++) {
+  let quiet = 0, markers = 0, changedPayload = 0;
+  const copies = [new Set(), new Set(), new Set()];
+  assert.deepEqual(plain(model.shaderEncoding), { width: 40, height: 32, quiet: 2, marker: 2, bytes: 32, copies: 3, copyOffset: 11 });
+  const reference = evaluate({ scenario: 'shader', x: 0, y: 1, z: 0, frame: 256 }).metrics.bytes;
+  assert.deepEqual(Array.from({ length: 32 }, (_, screenRow) => Array.from({ length: 40 }, (_, column) => model.encodedBit(reference, column, 31 - screenRow)).join('')), nativeShader.screenRows);
+  for (let column = 0; column < 40; column++) for (let row = 0; row < 32; row++) {
     const a = model.encodedBit(first, column, row), b = model.encodedBit(next, column, row);
-    if (column < 2 || column >= 18 || row < 2 || row >= 10) { edgeCount++; assert.equal(a, b); }
-    else { assert.equal(a, first[column - 2] >> (row - 2) & 1); changedPayload += Number(a !== b); }
+    const cell = model.encodedCell(column, row);
+    if (cell.region === 'quiet') { quiet++; assert.equal(a, 1); assert.equal(b, 1); }
+    else if (cell.region === 'marker') { markers++; assert.equal(a, b); }
+    else { assert.equal(a, first[cell.byte] >> cell.bit & 1); copies[cell.copy].add(`${cell.byte}/${cell.bit}`); changedPayload += Number(a !== b); }
   }
-  assert.equal(edgeCount, 112);
+  assert.equal(quiet, 272); assert.equal(markers, 240);
+  for (const copy of copies) assert.equal(copy.size, 256);
   assert.ok(changedPayload > 0);
+  assert.throws(() => model.encodedCell(40, 0));
+});
+
+test('Shader axis samples preserve shear and reject degenerate directions or unusable unit scale', () => {
+  const valid = evaluate({ scenario: 'shader', rightX: 2, rightY: .5, forwardX: .5, forwardZ: 1.5, avatarScale: 2 });
+  assert.equal(valid.metrics.valid, true);
+  near(field(valid, 'RightX').raw, 2, 8 / 32767);
+  near(field(valid, 'AvatarScale').raw, 2, 8 / 65535);
+  for (const input of [{ rightX: 0 }, { forwardX: 1, forwardZ: 0 }, { rightX: 8.1 }, { avatarScale: 0 }, { avatarScale: 8.1 }]) {
+    const invalid = evaluate({ scenario: 'shader', ...input });
+    assert.equal(invalid.metrics.valid, false, JSON.stringify(input));
+    assert.deepEqual(plain(invalid.values.filter(value => value.emitted).map(value => value.name)), ['Valid']);
+    assert.equal(invalid.metrics.position, null);
+  }
 });

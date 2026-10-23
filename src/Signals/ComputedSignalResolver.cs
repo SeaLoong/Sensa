@@ -99,6 +99,9 @@ public sealed class ComputedSignalResolver
         {
             PointMetric.VelocityX or PointMetric.VelocityY or PointMetric.VelocityZ or PointMetric.Speed => ":Velocity",
             PointMetric.ProximitySpeed => ":ProximityRate",
+            PointMetric.RightX or PointMetric.RightY or PointMetric.RightZ
+                or PointMetric.ForwardX or PointMetric.ForwardY or PointMetric.ForwardZ => ":Basis",
+            PointMetric.AvatarScale => ":Scale",
             _ => "",
         };
         return float.IsFinite(value)

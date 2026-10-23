@@ -16,6 +16,15 @@ OSC parameters/tracking, manual, script, device feedback
 
 For example, combine two touch regions into “contact intensity,” then use it for vibration, a DG-LAB channel and Avatar glow. Each output interprets the result in its own range. [Computed signals](computed-signals.en.md) · [Workbench guide](guide.en.md)
 
+## Record a manual track first
+
+1. Open Flow, add a Recording output and keep its default Funscript format.
+2. Choose Manual → L0 for the binding, set track name `L0` and both input/output ranges to 0–1, then Save output.
+3. Enable the output and confirm its connection. In Control, apply Manual, enable input, adjust L0 and send once. Repeated adjustments create a changing trajectory.
+4. Disable input to complete the segment, then download it or load it into the script player. Loading leaves playback paused; apply Script and enable input before playing.
+
+This flow demonstrates source, conversion, output and replay. Next, choose an OSC value or calculation as its source, or add other outputs for the same result.
+
 ## Choose sources and computation
 
 Manual, OSC and Script retain their quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
@@ -27,8 +36,10 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 | Manual | Current manual-axis setting | An adjustable overall intensity |
 | Script | Current script trajectory and playback metrics | Base rhythm or movement trajectory |
 | Device feedback | State and readings provided by connected outputs | DG-LAB APP action, device intensity or pressure |
-| Recording replay | A selected signal from a loaded session | Reproduce an interaction while adjusting calculations |
+| Recording replay | A loaded funscript track or diagnostic signal | Reproduce an interaction and refine its processing |
 | Constant/computed signal | A fixed value or saved named result | Scale factor or an intermediate result shared by outputs |
+
+Shader direction and scale can participate as tracking metrics: choose SensaPoint in a calculation or output binding, then select RightX/Y/Z, ForwardX/Y/Z or AvatarScale. These metrics update with complete measurement packets and retain spatial-input permission and validity checks. Use the OSC parameter page to inspect raw reports.
 
 Computation preserves raw units and validity. Position, velocity and proximity rate use their own ranges; output bindings then convert the result into the target's required range. See [positioning](positioning.en.md) for units and coordinate frames.
 
@@ -52,6 +63,18 @@ TCode bindings target one of twelve axes using values from 0 to 1; the output's 
 A binding's input range describes the raw reading's endpoints; its output range describes the values expected by the receiver. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. Disabling input, disabling an output and emergency stopping use the motion device's stop command.
 
 OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes. Send-on-change suits state or slowly changing readings and supports a minimum change. Fixed-rate sending suits destinations needing periodic updates. Positive-trigger sending delivers a single action when the mapped signal becomes positive. These bindings accept a send rate of 1–100 Hz, allowing outputs sharing a source to use different schedules. Events are delivered in order; state delivery retains the latest value. Use a state-sending mode for a switch that must receive both on and off values. DG-LAB automatically schedules delivery and renewal from task duration, as described below.
+
+## One result, several outputs
+
+For example, create a Product calculation with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Save it, then select that calculation as the source in each output:
+
+| Output | Target and range | Result use |
+| --- | --- | --- |
+| OSC parameter | `/avatar/parameters/SensaFeedbackIntensity`, Float, 0–1 | Drive glow or another effect configured on the Avatar |
+| DG-LAB | `Intensity`, 0–1, with a channel limit | Follow the current interaction intensity |
+| Recording | Track `L0`, 0–1 | Save the same effect as a funscript trajectory |
+
+After saving the outputs, apply Control → Combined, enable the outputs you intend to use and confirm their connections, then enable input. Each binding shows its raw reading, converted result and validity, with its own destination range and sending behavior.
 
 ## Write back to VRChat OSC
 

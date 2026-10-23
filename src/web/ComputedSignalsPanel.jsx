@@ -13,7 +13,7 @@ function ComputedInputRow({ input, index, operation, signals, pathOptions, point
       <SignalSourceFields source={input} signals={signals} pathOptions={pathOptions} pointOptions={pointOptions} onChange={onChange} />
       {operation === 'WeightedAverage' && <Field label={t('权重')} type="number" min="0" step="any" value={input.weight} onChange={event => onChange({ weight: event.target.value === '' ? '' : Number(event.target.value) })} />}
     </div>
-    {input.sourceMode === 'SensaPoint' && <p className="caption muted">{t('填写测量对象的整组路径，例如 Sensa/SPS/Root/**；计算使用解算后的坐标或速度。')}</p>}
+    {input.sourceMode === 'SensaPoint' && <p className="caption muted">{t('填写测量对象的整组路径，例如 Sensa/SPS/Root/**。可读取位置、Contact 速度，以及 Shader 方向与缩放；计算遵循对应定位方式的有效状态。')}</p>}
     {input.sourceMode === 'DeviceFeedback' && <p className="caption muted">{t('路径由输出标识和反馈指标组成，例如 output-id/connected 或 output-id/props.battery。')}</p>}
     {input.sourceMode === 'RecordingReplay' && <p className="caption muted">{t('先载入录制，再使用录制输出标识／信号标识读取对应回放值。')}</p>}
   </div>;

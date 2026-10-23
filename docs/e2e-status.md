@@ -4,6 +4,14 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
+## Shader 输入、文档入口与预览说明
+
+2026-10-24（北京时间），本轮更新 Shader 三点采样、32 字节／CRC32 黑白图块、白色位移留白、三副本缺失恢复、轴向与 AvatarScale 定位测量，并修复 Unity 根缩放检查。首页和指南补齐输入、计算、多输出、funscript 录制与回放入口；CI 名称与徽章采用短英文，预发布说明仅显示 Source。
+
+本地隔离检查 **694 项 .NET、177 项 Web、246 项 Python、3 项站点单元**全部通过；Web 构建、Unity 包元数据及 **88 条文档路由**构建通过。Unity Editor 在当前环境不可用，新增 EditMode 和显式 GPU 像素契约尚待执行；实际 VRChat、HMD 与硬件也未在本次环境验收。
+
+完整 Actions 浏览器比较、候选图片采集与逐张审阅正在安排，当前没有本轮已观测浏览器结果。现有 150 张基线保留上一轮接受记录；本轮预计更新 Shader 相关图片，经审阅并通过关闭图片更新的完整普通比较后再接受。Windows 的合成原生 PNG smoke 也等待 Actions 实际执行。
+
 ## 信号流程、多输出与共享会话
 
 本轮将输入、计算与输出整理为可复用的信号流程，增加组合输入、时间处理、输出绑定、会话录制／回放及整套方案。浏览器用例新增手动与 OSC 计算、实际 UDP 的 Float／Int／Bool、JSON Lines／CSV 原始值回放、轴配置随方案保存，以及 SharedWorker、BroadcastChannel／Web Locks 的跨页连接检查。[操作说明](signal-pipeline.md) · [实际覆盖范围](e2e.md)

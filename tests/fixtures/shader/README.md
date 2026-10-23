@@ -18,3 +18,12 @@ rejection of old frames, two-frame recovery, and freeze shutdown.
 
 Regenerate with `SensaLab.FunctionalValidation.Run` in the standalone World
 project, then copy these five files from `Validation/functional/`.
+
+`../shader-native-format1.json` is a separate, synthetic native codec vector.
+It fixes the 32-byte packet, CRC32, three dispersed payload copies and the
+40×32 black/white screen rows, including the white guard band. Python, WebUI
+and desktop contracts share its decoded expectation. It is not a GPU render
+or a replacement for the diagnostic PNGs above. The same Windows CI smoke
+step builds advancing synthetic native PNGs from it, erases one payload band,
+and verifies twelve OSC fields, the root's measured axes/scale, and freeze
+invalidation in an isolated Sensa process with input disabled and no outputs.

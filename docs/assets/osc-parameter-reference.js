@@ -154,23 +154,39 @@
 
   function shader(name) {
     const common = { sources: [sources.shader, sources.dictionary] };
+    if (/^(Right|Forward)[XYZ]$/.test(name)) {
+      const localAxis = name.startsWith('Right') ? 'X' : 'Z', component = name.at(-1);
+      return entry(name, 'sensa', { ...common, valueType: 'Float', range: '−8–8',
+        unit: ['根局部单位／目标局部单位', 'Root-local units per target-local unit'],
+        title: [`目标 ${localAxis} 轴 · ${component} 分量`, `Target ${localAxis} axis · ${component} component`],
+        summary: [`目标局部 ${localAxis} 轴在 Avatar 根坐标系中的 ${component} 分量。`, `The ${component} component of the target-local ${localAxis} axis in the Avatar-root frame.`],
+        definition: ['Sensa 用目标原点及局部 X、Z 方向各 0.1 单位的三个渲染采样点形成三角形。两条边除以 0.1，得到 RightXYZ 与 ForwardXYZ；它们保留方向、轴长和斜切，使用有符号 16 位量化。', 'Sensa forms a triangle from three render samples: the target origin and points 0.1 local units along X and Z. Dividing the two edges by 0.1 gives RightXYZ and ForwardXYZ, preserving axis direction, length and shear with signed 16-bit quantization.'],
+        usage: ['在“定位测量”中选择分量用于映射，或用计算信号组合三项向量；完整包有效性检查持续适用。两条向量共同描述目标 X／Z 平面。', 'Select a Tracking measurement component for mappings, or combine its three components in a computed signal, retaining complete-packet validity checks. The two vectors describe the target X/Z plane.'],
+      });
+    }
+    if (name === 'AvatarScale') return entry(name, 'sensa', { ...common, valueType: 'Float', range: '(0, 8]',
+      unit: ['米／根局部单位', 'Metres per root-local unit'], title: ['Avatar 根单位缩放', 'Avatar-root unit scale'],
+      summary: ['每个 Avatar 根局部单位对应的世界米数。', 'World metres per Avatar-root local unit.'],
+      definition: ['Sensa 将 Avatar 根的单位缩放量化为 16 位无符号数，桥接后通过 AvatarScale 发布。XYZ 保持根局部坐标，AvatarScale 提供它们与世界米数之间的比例。', 'Sensa quantizes the Avatar-root unit scale as an unsigned 16-bit value and the bridge publishes it as AvatarScale. XYZ retain root-local coordinates; AvatarScale provides their conversion to world metres.'],
+      usage: ['通过定位测量读取 AvatarScale，用计算信号将局部位移乘以它，可得到沿 Avatar 根坐标轴的米制位移；单位换算使用同一有效包中的缩放。', 'Read AvatarScale through Tracking measurement, then multiply local displacement by it in a computed signal for metre-based displacement along the Avatar-root axes, using scale from the same valid packet.'],
+    });
     if (/^[XYZ]$/.test(name)) return entry(name, 'sensa', { ...common, valueType: 'Float', unit: ['Avatar 根局部单位', 'Avatar-root local units'],
       range: name === 'Y' ? '−1–3' : '−2–2', title: [`根点 ${name} 坐标`, `Root ${name} coordinate`],
       summary: [`表示根点相对 Avatar 根的${axes[name][0]}位置。`, `The root’s ${axes[name][1]} position relative to the Avatar root.`],
       definition: ['Avatar 渲染组件将根点局部坐标量化到编码画面，桥接程序校验并解码后通过 OSC 发布。当前坐标框为 AvatarRootLocal，中心 (0,1,0)，各轴半范围为 2。', 'Avatar render components quantize root-local coordinates into an encoded image. The bridge validates and decodes that image for OSC. The current AvatarRootLocal frame is centered at (0,1,0), with half-range 2 on each axis.'],
       usage: ['可把两个期望位置校准为目标行程端点，也可在同坐标框中组合计算；有效性同时使用 Frame 与 Valid 检查。', 'Calibrate two intended positions as target-travel endpoints or combine values in the same coordinate frame, with Frame and Valid establishing validity.'],
     });
-    if (name === 'Frame') return entry(name, 'sensa', { ...common, valueType: ['Float（整数序号）', 'Float (integer sequence)'], unit: ['帧序号', 'Frame sequence'], range: '0–65535',
+    if (name === 'Frame') return entry(name, 'sensa', { ...common, valueType: ['Float（整数序号）', 'Float (integer sequence)'], unit: ['编码计数', 'Encoder count'], range: '0–65535',
       title: ['编码画面序号', 'Encoded-frame sequence'],
       summary: ['序号持续前进，表示桥接程序正在接收更新的编码画面。', 'An advancing sequence indicates that the bridge is receiving updated encoded images.'],
-      definition: ['Sensa 编码画面携带 16 位循环序号。桥接与桌面使用序号变化检查画面更新，达到上限后回到 0。', 'The Sensa image carries a cyclic 16-bit sequence. The bridge and desktop check sequence changes for image updates; the counter wraps to 0.'],
-      usage: ['用于检查采样活动，与同一批 X／Y／Z、Valid 一起读取。', 'Use it to check sampling activity alongside X/Y/Z and Valid from the same update.'],
+      definition: ['Sensa 通过 _Time×60 的编码时钟生成 16 位循环计数。桥接与桌面使用其变化检查编码画面更新，达到上限后回到 0；计数节奏由编码时钟决定。', 'Sensa derives a cyclic 16-bit count from the _Time×60 encoder clock. The bridge and desktop use changes to check for updated encoded images; the count wraps to 0 and follows the encoder clock.'],
+      usage: ['用于检查编码活动，与同一批坐标、Right／Forward 向量、AvatarScale 和 Valid 一起读取。', 'Check encoder activity alongside the coordinates, Right/Forward vectors, AvatarScale and Valid from the same update.'],
     });
     if (name === 'Valid') return entry(name, 'sensa', gate({ ...common, valueType: ['Float（0／1 标记）', 'Float (0/1 flag)'], range: '0 / 1',
       title: ['坐标更新可用标记', 'Coordinate-update validity'],
       summary: ['1 提交一组完整可用坐标，0 表示当前坐标失效并停止相关联动。', '1 commits a complete usable coordinate update; 0 invalidates it and stops the associated interaction.'],
-      definition: ['桥接程序按 Frame、X、Y、Z、Valid 顺序发布有效更新，以 Valid=1 完成提交。失效时发布 Valid=0；恢复需要完整坐标和更新的 Frame。', 'The bridge publishes a valid update in Frame, X, Y, Z, Valid order, committing with Valid=1. It publishes Valid=0 on invalidation; recovery requires complete coordinates and a fresh Frame.'],
-      usage: ['结合帧活动与坐标范围判断位置何时可以驱动动作。', 'Combine it with frame activity and coordinate bounds to determine when position can drive interaction.'],
+      definition: ['桥接程序按 Frame、X、Y、Z、RightX、RightY、RightZ、ForwardX、ForwardY、ForwardZ、AvatarScale、Valid 顺序发布有效更新，以 Valid=1 完成提交。失效时发布 Valid=0；恢复需要完整的 12 字段包和更新的 Frame。', 'The bridge publishes a valid update in Frame, X, Y, Z, RightX, RightY, RightZ, ForwardX, ForwardY, ForwardZ, AvatarScale, Valid order, committing with Valid=1. It publishes Valid=0 on invalidation; recovery requires the complete 12-field packet and a fresh Frame.'],
+      usage: ['结合编码活动、坐标范围、有效的两条轴向量和单位缩放，判断整组数据何时可以驱动动作。', 'Use encoder activity, coordinate bounds, two usable axis vectors and unit scale to determine when the packet can drive interaction.'],
     }));
     return null;
   }

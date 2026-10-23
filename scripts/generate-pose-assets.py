@@ -23,12 +23,19 @@ def native_root_shader():
     在包导入前生成原生 Shader，Avatar 构建只引用包资产，不写入用户 Assets。
     """
     protocol = (PACKAGE / 'Runtime/SensaFixedAnchorProtocol.cs').read_text(encoding='utf-8')
+    capture = (PACKAGE / 'Runtime/SensaShaderCapture.cs').read_text(encoding='utf-8')
     shader = (PACKAGE / 'Editor/SensaRootTelemetry.shader.txt').read_text(encoding='utf-8')
     for marker, name in (('CENTER_X', 'CenterX'), ('CENTER_Y', 'CenterY'),
                          ('CENTER_Z', 'CenterZ'), ('HALF_RANGE', 'PositionHalfRange')):
         match = re.search(r'public\s+const\s+float\s+' + name + r'\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)f\s*;', protocol)
         if not match:
             raise ValueError('Missing shared shader constant: ' + name)
+        shader = shader.replace('__' + marker + '__', match.group(1))
+    for marker, name in (('PROBE_ARM', 'ProbeArmLength'), ('BASIS_RANGE', 'MaximumBasisComponent'),
+                         ('AVATAR_SCALE_RANGE', 'MaximumAvatarScale')):
+        match = re.search(r'public\s+const\s+float\s+' + name + r'\s*=\s*([+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)f\s*;', capture)
+        if not match:
+            raise ValueError('Missing shared capture constant: ' + name)
         shader = shader.replace('__' + marker + '__', match.group(1))
     if re.search(r'__[A-Z_]+__', shader):
         raise ValueError('Unresolved native root shader constant')
@@ -104,7 +111,7 @@ profile = f'  profile: {{fileID: 11400000, guid: {guid(PACKAGE / "Profiles/Defau
 write(PACKAGE / 'Prefabs/SensaPoseSocket.prefab', header + obj(0, 'SensaPoseSocket', script='SensaPoseSocket', fields=profile + '  instanceName: Main\n'))
 write(PACKAGE / 'Prefabs/SensaSpsRootProbe.prefab', header + obj(0, 'SensaSpsRootProbe', script='SensaFixedRootProbe', fields='  instanceName: Root\n  target: {fileID: 0}\n  collisionChannel:\n'))
 write(PACKAGE / 'Prefabs/SensaContactRootProbe.prefab', header + obj(0, 'SensaContactRootProbe', script='SensaContactRootProbe', fields='  instanceName: Root\n  target: {fileID: 0}\n  collisionChannel:\n'))
-write(PACKAGE / 'Prefabs/SensaShaderCapture.prefab', header + obj(0, 'SensaShaderCapture', script='SensaShaderCapture', fields='  target: {fileID: 0}\n  spsTarget: {fileID: 0}\n  producerId: 1\n  desktopViewport: {x: 0, y: 0, width: 0.25, height: 0.15}\n'))
+write(PACKAGE / 'Prefabs/SensaShaderCapture.prefab', header + obj(0, 'SensaShaderCapture', script='SensaShaderCapture', fields='  target: {fileID: 0}\n  spsTarget: {fileID: 0}\n  producerId: 1\n  desktopViewport: {x: 0, y: 0, width: 0.25, height: 0.2}\n'))
 write(PACKAGE / 'Prefabs/SensaLocalPoint.prefab', header + obj(0, 'SensaLocalPoint', children=(1,), script='SensaPointProbe', fields='  instanceName: Point\n  reference: {fileID: 4000}\n  target: {fileID: 4001}\n  createGrabHandle: 0\n  handleLength: 0.1\n') + obj(1, 'Target', parent=4000, position=(0,0,.1)))
 write(PACKAGE / 'Prefabs/SensaGrabHandle.prefab', header + obj(0, 'SensaGrabHandle', script='SensaPointProbe', fields='  instanceName: Handle\n  reference: {fileID: 4000}\n  target: {fileID: 0}\n  createGrabHandle: 1\n  handleLength: 0.1\n'))
 write(PACKAGE / 'Prefabs/SensaAutoSetup.prefab', header + obj(0, 'SensaAutoSetup', script='SensaAutoSetup', fields='  groupName: Auto\n  discoverAll: 1\n  selectedTargets: []\n  excludedTargets: []\n  socketRootTracking: 1\n  rootTrackingMethod: 0\n  pairedSocketTracking: 0\n  pairedPlugMarkers: 0\n  localPlugTipTracking: 0\n  localReferenceSocket: {fileID: 0}\n  createPlugGrabHandles: 0\n  pairChannel: Pair01\n  arrayPolicy: 1\n'))

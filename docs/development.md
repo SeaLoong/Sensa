@@ -17,7 +17,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 ## 怎样发布正式版？
 
-1. 打开 GitHub 的 [Actions → 正式发布工作流](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)。
+1. 打开 GitHub 的 [Actions → Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)。
 2. 点击 **Run workflow**，使用 `main`。
 3. `version` 留空即可自动选择版本；需要指定版本时填写 `0.5.0` 这样的版本号。
 4. 执行工作流，等待检查、构建和发布完成，再从 [Releases](https://github.com/SeaLoong/Sensa/releases) 下载。
@@ -28,15 +28,15 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 ## 工作流各负责什么？
 
-| 文件 | 责任 |
-| --- | --- |
-| `ci.yml` | PR／main 的自动检查与构建；main 自动预发布 |
-| `checks.yml` | 共用的 Web／.NET／Python 单元、Unity 元数据与 E2E 检查 |
-| `e2e.yml` | 浏览器行为、普通截图比较；手动生成待审基线 |
-| `update-e2e.yml` | 手动更新测试／候选图片并创建待审 PR，默认无需 AI 密钥 |
-| `build.yml` | 共用的六平台桌面构建、隔离原生冒烟与 Unity 打包 |
-| `release.yml` | 从最新 `main` 手动发布正式版 |
-| `pages.yml` | 自动构建文档、执行站点 E2E、部署页面与 VPM |
+| 文件 | Actions 名称 | 责任 |
+| --- | --- | --- |
+| `ci.yml` | CI | PR／main 的自动检查与构建；main 自动预发布 |
+| `checks.yml` | Checks | 共用的 Web／.NET／Python 单元、Unity 元数据与 E2E 检查 |
+| `e2e.yml` | E2E | 浏览器行为、普通截图比较；手动生成待审基线 |
+| `update-e2e.yml` | Update E2E | 手动更新测试／候选图片并创建待审 PR，默认无需 AI 密钥 |
+| `build.yml` | Build | 共用的六平台桌面构建、隔离原生冒烟与 Unity 打包 |
+| `release.yml` | Release | 从最新 `main` 手动发布正式版 |
+| `pages.yml` | Pages | 自动构建文档、执行站点 E2E、部署页面与 VPM |
 
 每次运行都检查本次提交，发布使用同一次运行产生的检查结果和构建产物。
 
@@ -48,7 +48,9 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 ## 发布说明怎样生成？
 
-发布说明自动组合 GitHub 的变更记录与固定的双语使用信息：
+每次提交产生的自动预发布只显示一行 **Source**，链接到本次构建使用的完整源码提交。
+
+正式版的发布说明自动组合 GitHub 变更记录、直接提交记录与双语下载说明：
 
 - 从上一个正式版本到本次提交的改动、Pull Request 和贡献者信息。
 - 本次版本、完整提交号、检查／构建运行链接，以及适用系统和处理器的下载说明。

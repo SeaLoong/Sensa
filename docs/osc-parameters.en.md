@@ -39,7 +39,7 @@ The general Contacts guide explains detection behavior. The official beta packag
 | `Sensa/<id>/Aux<index>/<role>_…` | Raycast hit state, normalized distance and distance in metres | Hit conditions and surface-distance linkage |
 | `Sensa/Contact/<id>/Proximity…`, `Radius`, `Sample` | Selected root position in metres and relative velocity in m/s | Calibrated local movement or movement strength |
 | `Sensa/SPS/<id>/P0…P3`, `Sample` | Selected root's three-dimensional position relative to the Avatar | Mapping left/right, up/down or forward/back movement |
-| `Sensa/Shader/<id>/Frame`, `Valid`, `X`, `Y`, `Z` | Root-relative coordinates decoded from a screen block | Obtaining three-dimensional position through image encoding |
+| `Sensa/Shader/<id>/…` | Position, X/Z axes and Avatar world scale decoded from a screen block | Spatial mappings, orientation calculations and metre conversion |
 | `Sensa/Diagnostics/Shader/0/…` | Pattern, capture and OSC transport diagnostics | Checking the capture chain |
 
 SPS four-anchor tracking Unity components and desktop share the five fields and fixed geometry below. External OGB parameters come from the Avatar's generator; inspect complete paths in the parameter list.
@@ -173,33 +173,36 @@ RawP0–RawP3 serve internal FX sampling. ScaleFactor and IsLocal support scalin
 
 Dedicated channels and AllowSelf select this Avatar’s root marker. Readings retain their Avatar-relative meaning as the whole Avatar walks or turns. See [positioning](positioning.en.md) for timing and error checks.
 
-## Shader: direct root coordinates and transport activity
+## Shader: root position, axes and world scale
 
-Native avatar components encode the selected CPU root center into a pattern. The desktop bridge decodes only the explicitly selected region and Producer ID before sending OSC. Its coordinate cube is X/Z=[-2,2], Y=[-1,3], again in avatar-root local coordinates. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader), [bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+Native avatar render components sample the selected root's origin, local +X and local +Z points through skinning, then encode a monochrome block. The desktop bridge decodes the selected region and Producer ID and delivers the same sample to Sensa. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [Bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
-### Five public measurement parameters
+### Twelve public measurement parameters
 
-`<id>` is the explicitly selected Producer ID, decimal 1…65535 without leading zeros; for example, `Sensa/Shader/7/X`. These five measurement fields are sent as OSC Floats by the desktop bridge.
-
-A separate Shader menu control is `Sensa/Select/ShaderCapture_<ID>`: an Int defaulting to 0=Off, with 1 enabling the native capture rig; for example, `Sensa/Select/ShaderCapture_42`. This is also an MA-registered Expression parameter with `localOnly=true` and `saved=false`, potentially visible according to OSC configuration. Internal `Sensa/Internal/ShaderCapture_<ID>/Selected` is FX Int state memory, default 0, written locally as 0/1 by a Driver and not registered as an Expression parameter. [Build entry point](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs), [selection state machine](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
+`<id>` is a decimal Producer ID from 1…65535 without leading zeros, such as `Sensa/Shader/7/X`. All fields below use the Sensa protocol and are sent as **OSC Floats** by the desktop bridge.
 
 | Leaf | Meaning and validity |
 | --- | --- |
-| `Frame` | Integer 0…65535, generated nominally in 60 Hz time steps with 16-bit wraparound, approximately every 18.2 minutes |
-| `Valid` | 1 commits this valid packet; 0 invalidates the root coordinates immediately |
-| `X` | Finite local root-center X in [-2,2] |
-| `Y` | Finite local root-center Y in [-1,3] |
-| `Z` | Finite local root-center Z in [-2,2] |
+| `Frame` | Integer encoder clock 0…65535; `floor(_Time.y×60)` wraps every approximately 18.2 minutes |
+| `X / Y / Z` | Root-center position in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
+| `RightX / RightY / RightZ` | The root's local +X axis expressed in Avatar-root coordinates; components in [−8,8], vector length retaining that axis's scale |
+| `ForwardX / ForwardY / ForwardZ` | The root's local +Z axis, retaining direction and length; components in [−8,8] |
+| `AvatarScale` | World metres per root-local unit, in (0,8]; multiply relative displacement by it for metres |
+| `Valid` | 1 commits a complete valid packet last; 0 immediately invalidates the measurement |
 
-Valid packets send **Frame → X → Y → Z → Valid=1**, committing Valid last. Invalidation sends only Valid=0, without republishing old XYZ. Desktop requires five consecutive fields under the same complete Producer path from the same OSC source. Each source is assembled independently; another message from the same source restarts the wait for all five fields. Frame's ChangedAt lifetime is capped at 500 ms, shortened by a smaller positive configured timeout. Continuously resending an unchanged Frame still expires. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
+One triangle supplies all three sampling points. Each axis length must exceed `10⁻⁶` and their angle's sine must exceed `10⁻⁴` to exclude degenerate measurements. Use the vectors for orientation-related calculations, plane normals, angles and X/Z-axis scale. Independent Y-axis scale needs another measurement. For computed signals and output bindings, choose a tracking measurement (SensaPoint) in **Flow**, select `Sensa/Shader/<id>/**` and its metric, retaining complete-packet and freshness checks.
 
-The bridge checks the pattern, binary ID/flags, CRC and forward modulo-65536 frame progression. Reversed/large jumps, changed XYZ under the same Frame, identity changes and freezing invalidate it. Startup or recovery must establish two forward samples; the bridge's default freeze threshold is 350 ms. Normal wraparound progresses forward; a producer reset to an old sequence may require explicitly restarting the bridge. Consecutive fields and CRC check packet structure and data integrity.
+One valid bundle sends **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**. Invalidation sends only Valid=0. Desktop requires twelve consecutive fields from one source and Producer path, checking completeness, finite values and ranges. Frame content-change age is capped at 500 ms, shortened by a stricter positive input timeout. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-### Quantization, reduced fields and necessary binary metadata
+The bridge checks locators, three shifted payload copies, CRC32 and forward sequence progression. Any measurement changing under one Frame, reorder, identity changes or freezing invalidates the sample. Startup and recovery need two new advancing frames; default freezing is 350 ms. A two-module white margin buffers small spatial movements, with alignment search up to two modules per axis. Re-register after scaling, rotation or perspective changes.
 
-Each axis spans 4 local units and uses unsigned 16-bit quantization. Its step is `4/65535 ≈ 6.10×10⁻⁵` local units. Ideal rounding gives a per-axis half-step bound of approximately `3.05×10⁻⁵`, or `5.29×10⁻⁵` for the three-axis quantization norm. These values describe digital quantization error. Actual error also depends on frame calculations, rendering/compositing, capture and latency, and can be measured against known positions. Shader [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) rounds halfway cases to the nearest even integer. The diagram follows the same rounding rule.
+The separate menu control `Sensa/Select/ShaderCapture_<ID>` is an Int, default 0=Off; 1 enables capture. MA registers it as an Expression parameter with `localOnly=true`, `saved=false`. Internal `Sensa/Internal/ShaderCapture_<ID>/Selected` is FX Int state memory, default 0, written locally as 0/1. [Generator](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs) · [Selection state machine](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
-The OSC path carries the object ID, while `Sensa/Shader` fixes the coordinate frame and range. The binary pattern retains object ID, valid/native-frame flags, CRC and Frame for pairing, identifying coordinate type, checking data and detecting image progression.
+### Digital precision and integrity
+
+Quantization steps are `4/65535≈6.10×10⁻⁵` root-local units for position, `8/32767≈2.44×10⁻⁴` for axis components with exact zero, and `8/65535≈1.22×10⁻⁴` metres per local unit for world scale. Ideal per-component rounding error is at most half a step; measure actual error against known positions and directions. The diagram follows [HLSL round](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round), rounding halfway cases to the nearest even integer.
+
+The 32-byte packet retains Producer ID, coordinate flags, encoder clock, all measurements and CRC32. Missing data is recovered using known, agreeing bits from the current capture. Any known-bit conflict or a bit missing from every copy invalidates the frame. [Full layout and recovery rules](shader-capture-research.en.md)
 
 ## Diagnostics and position-related information
 

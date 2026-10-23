@@ -144,6 +144,50 @@ namespace UnityBox.Sensa.Tests
             avatar.AddComponent<ScaleConstraint>();
             Assert.Throws<InvalidOperationException>(() => Build(target));
         }
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NativeScaleConstraintTargetingAvatarRootFailsBeforeGeneratingContacts(bool redirected)
+        {
+            var type = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(
+                "VRC.SDK3.Dynamics.Constraint.Components.VRCScaleConstraint")).FirstOrDefault(candidate => candidate != null);
+            Assert.NotNull(type, "Supported SDKs expose their native Scale Constraint.");
+            var owner = redirected ? Child("Scale driver", Vector3.zero) : avatar;
+            var constraint = (VRCConstraintBase)owner.AddComponent(type);
+            if (redirected) constraint.TargetTransform = avatar.transform;
+            Assert.Throws<InvalidOperationException>(() => Build(Target()));
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+            Assert.IsNull(avatar.transform.Find("SensaFixedRoot_Root"));
+        }
+        [Test] public void NativeScaleConstraintForAChildDoesNotRejectRootTracking()
+        {
+            var type = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(
+                "VRC.SDK3.Dynamics.Constraint.Components.VRCScaleConstraint")).FirstOrDefault(candidate => candidate != null);
+            Assert.NotNull(type);
+            Child("Scaled child", Vector3.zero).AddComponent(type);
+            Assert.DoesNotThrow(() => Build(Target()));
+        }
+        private AnimatorController RootScaleController()
+        {
+            var clip = new AnimationClip(); clip.SetCurve("", typeof(Transform), "m_LocalScale.x", AnimationCurve.Linear(0, 1, 1, 2));
+            var controller = new AnimatorController(); var machine = new AnimatorStateMachine();
+            controller.AddLayer(new AnimatorControllerLayer { name = "Relative root scale", stateMachine = machine, defaultWeight = 1 });
+            machine.AddState("Scaled").motion = clip; return controller;
+        }
+        [Test] public void RelativeMergeAnimatorExplicitlyTargetingAvatarRootRejectsRootScaleAnimation()
+        {
+            var merge = Child("Nested merge", Vector3.zero).AddComponent<ModularAvatarMergeAnimator>();
+            merge.animator = RootScaleController(); merge.pathMode = MergeAnimatorPathMode.Relative;
+            merge.relativePathRoot.Set(avatar);
+            Assert.Throws<InvalidOperationException>(() => Build(Target()));
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+        }
+        [Test] public void RelativeMergeAnimatorOnAvatarRootCanAnimateAChildScale()
+        {
+            var merge = avatar.AddComponent<ModularAvatarMergeAnimator>();
+            merge.animator = RootScaleController(); merge.pathMode = MergeAnimatorPathMode.Relative;
+            merge.relativePathRoot.Set(Child("Animation root", Vector3.zero));
+            Assert.DoesNotThrow(() => Build(Target()));
+        }
         [Test] public void DuplicateSenderIdentityAndForeignTargetFailClosed()
         {
             var target = Target(); Build(target);

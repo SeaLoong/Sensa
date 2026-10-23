@@ -17,7 +17,7 @@ Both release channels include Windows/Linux/macOS for x64 and ARM64 plus a Unity
 
 ## How do I publish a stable release?
 
-1. Open [Actions → the stable release workflow](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml).
+1. Open [Actions → Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml).
 2. Click **Run workflow** and use `main`.
 3. Leave `version` empty for automatic selection, or enter a version such as `0.5.0`.
 4. Run the workflow, wait for checks/build/publication to finish, and download from [Releases](https://github.com/SeaLoong/Sensa/releases).
@@ -28,15 +28,15 @@ Automatic selection considers the repository version and existing stable tags. A
 
 ## What does each workflow do?
 
-| File | Responsibility |
-| --- | --- |
-| `ci.yml` | Automatic PR/main checks and builds; automatic main pre-releases |
-| `checks.yml` | Shared Web/.NET/Python units, Unity metadata and E2E checks |
-| `e2e.yml` | Browser behavior and normal screenshot comparison; manual baseline candidates |
-| `update-e2e.yml` | Manual test/candidate maintenance through a review PR; no AI key in default mode |
-| `build.yml` | Shared six-platform desktop builds, isolated native smoke and Unity packaging |
-| `release.yml` | Manually started stable publication from latest `main` |
-| `pages.yml` | Automatic site build, site E2E, page deployment and VPM |
+| File | Actions name | Responsibility |
+| --- | --- | --- |
+| `ci.yml` | CI | Automatic PR/main checks and builds; automatic main pre-releases |
+| `checks.yml` | Checks | Shared Web/.NET/Python units, Unity metadata and E2E checks |
+| `e2e.yml` | E2E | Browser behavior and normal screenshot comparison; manual baseline candidates |
+| `update-e2e.yml` | Update E2E | Manual test/candidate maintenance through a review PR; no AI key in default mode |
+| `build.yml` | Build | Shared six-platform desktop builds, isolated native smoke and Unity packaging |
+| `release.yml` | Release | Manually started stable publication from latest `main` |
+| `pages.yml` | Pages | Automatic site build, site E2E, page deployment and VPM |
 
 Each run checks its selected commit. Publication uses the check results and artifacts produced by that run.
 
@@ -48,7 +48,9 @@ Default `screenshots` mode runs E2E and generates candidate images directly. Opt
 
 ## How are release notes generated?
 
-The notes combine GitHub change information with fixed bilingual usage details:
+Each automatic pre-release shows one **Source** line linking to the exact commit used for that build.
+
+Stable release notes combine GitHub changes, direct commit history and bilingual download guidance:
 
 - Changes, Pull Requests and contributors between the previous stable release and the selected commit.
 - Version, full commit, check/build run links and download guidance for operating system/processor choices.

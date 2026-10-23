@@ -78,7 +78,7 @@
         <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Raw</th><th data-i18n="effective">Usable value</th></tr></thead><tbody id="values"></tbody></table></div>
         <p id="parameter-meaning" class="caption" aria-live="polite"></p>
         <div class="metric-list" id="metrics"></div>
-        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">20 × 12 encoded grid with edge markers</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 320 192" role="img" aria-label="编码位 / Encoded bits"></svg></div>
+        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">40 × 32 black-and-white encoded grid</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 640 512" role="img" aria-label="编码位 / Encoded bits" aria-describedby="encoding-hint"></svg><p class="caption" id="encoding-hint" data-i18n="encodingHint">Outside to inside: a 2-cell white buffer, 2-cell positioning markers, and three offset copies of the data.</p></div>
         <p class="explanation" id="explanation"></p>
       </aside>
     </section>
@@ -99,6 +99,15 @@
         <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Touching object radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
         <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone radius</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
       </div>
+      <details id="shader-components" class="signal-simulation" hidden><summary data-i18n="shaderComponents">Target axes and root-unit scale</summary><p class="caption" data-i18n="shaderComponentsHint">RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame.</p><div class="control-grid">
+        <label class="control" data-control="rightX"><span data-i18n="rightX">Target X axis · root X</span><output for="control-rightX"></output><input id="control-rightX" type="range" min="-8" max="8" step="0.05" value="1"></label>
+        <label class="control" data-control="rightY"><span data-i18n="rightY">Target X axis · root Y</span><output for="control-rightY"></output><input id="control-rightY" type="range" min="-8" max="8" step="0.05" value="0"></label>
+        <label class="control" data-control="rightZ"><span data-i18n="rightZ">Target X axis · root Z</span><output for="control-rightZ"></output><input id="control-rightZ" type="range" min="-8" max="8" step="0.05" value="0"></label>
+        <label class="control" data-control="forwardX"><span data-i18n="forwardX">Target Z axis · root X</span><output for="control-forwardX"></output><input id="control-forwardX" type="range" min="-8" max="8" step="0.05" value="0"></label>
+        <label class="control" data-control="forwardY"><span data-i18n="forwardY">Target Z axis · root Y</span><output for="control-forwardY"></output><input id="control-forwardY" type="range" min="-8" max="8" step="0.05" value="0"></label>
+        <label class="control" data-control="forwardZ"><span data-i18n="forwardZ">Target Z axis · root Z</span><output for="control-forwardZ"></output><input id="control-forwardZ" type="range" min="-8" max="8" step="0.05" value="1"></label>
+        <label class="control" data-control="avatarScale"><span data-i18n="avatarScale">World metres per root unit</span><output for="control-avatarScale"></output><input id="control-avatarScale" type="range" min="0.05" max="8" step="0.05" value="1"></label>
+      </div></details>
       <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">Simulate signal loss or a stalled source</summary><p class="caption" data-i18n="validHint">Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals.</p><div class="control-grid">
         <label class="control" data-control="sample"><span data-i18n="sample">Sample counter step</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
         <label class="control" data-control="ageMs"><span data-i18n="ageMs">Age since last change</span><output for="control-ageMs"></output><input id="control-ageMs" type="range" min="0" max="1600" step="50" value="0"></label>

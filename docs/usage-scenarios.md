@@ -1,8 +1,21 @@
-# 选择接入方案
+# 按使用目标选择方案
 
 **简体中文** | [English](usage-scenarios.en.md)
 
-使用 Avatar 已有的 OGB 参数，是开始深度或触碰联动最直接的方式。能构建自己的 Avatar 时，还可添加 SPS 四点定位或 Contact 直接定位组件，或使用实验性 Shader 捕获，读取选定根点的三维位置。
+从想得到的结果出发，选择输入、计算和输出。下面列出可以直接搭建的常见流程；VRChat 参数和定位方案继续放在后面的专节。
+
+| 想做什么 | 建议的流程 | 配置说明 |
+| --- | --- | --- |
+| 先试一个数值或一段脚本 | 手动／脚本 → 设备、应用或录制 | [首次使用](quick-start.md) |
+| 融合多个读数或加入平滑、阈值 | 多来源 → 计算信号 → 一个或多个输出 | [计算与多输出](signal-pipeline.md#同一个结果连接多个输出) |
+| 回写 Avatar 效果参数 | 信号 → OSC 参数输出 → VRChat 接收端 | [OSC 回写](signal-pipeline.md#回写-vrchat-osc) |
+| 联动 DG-LAB 或其他应用 | 信号 → DG-LAB、MIDI、HTTP／WebSocket JSON 或 MQTT | [输出选择](signal-pipeline.md#添加输出与绑定) |
+| 留下可编辑、可播放的轨迹 | 选定绑定 → funscript 轨道 → 下载／回放 | [录制与观察](signal-pipeline.md#录制与观察) |
+| 读取 Avatar 的触碰或空间运动 | OGB／SPS、Contact 或 Shader → 校准／计算 → 输出 | 本页下方的 VRChat 接入方案 |
+
+## VRChat 参数与定位
+
+Avatar 已有的 OGB／SPS 参数提供接近、触碰和深度相关读数；制作自己的 Avatar 时，还可选择 SPS 四点定位、Contact 直接定位或 Shader 捕获。
 
 | 路线 | 适合的条件 | 结果 |
 | --- | --- | --- |
@@ -51,19 +64,11 @@ Unity 测量组件与桌面程序使用同一套共享几何。
 
 ## Shader 根编码与区域捕获
 
-在 Unity 添加 **Shader Root Capture (Experimental)**，选择要测量的根点，并设置一个 1–65535 的对象编号（Producer ID）；桌面桥需要选择同一编号。构建会生成将根点位置画成图块的组件。上传后的 Avatar 菜单默认关闭编码，需要你手动开启。
+在 Unity 添加 **Shader Root Capture (Experimental)**，选择根点并设置 Producer ID。构建后，在实际客户端开启编码，检查桌面画面中的图块。
 
-1. 在实际客户端开启编码，确认桌面上确实可见图块。
-2. 选择紧贴完整图块外边缘的物理像素捕获区域（ROI），至少 80×48 像素，并固定相同对象 ID。桥按区域宽高推算每格大小，因此边界需要与完整图块贴合。先仅解码观察，再保存捕获设置并明确选择 OSC 目标。
-3. 原生图块为 20×12 格：固定边缘标记包围 16×8 数据区。可容忍一条边损坏和小幅平移，但仍需通过数据 CRC、对象 ID、坐标标志与推进帧校验；默认 350 ms 冻结失效，启动／恢复需两个推进帧。
-4. 有效单 bundle 按 `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` 顺序发送，Valid 最后为 1；失效仅发 Valid=0。
-5. 在根点面板校准、保存，再分别授予实验许可与输入许可。
+按[捕获操作指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)配置完整图块区域与同一对象编号，先观察解码结果和有效状态，再保存捕获设置与 OSC 目标。桌面收到根点测量后，按需要校准并启用实验空间输入。
 
-桌面还检查同来源连续字段、坐标范围与最多 500 ms 的 Frame 变化寿命。对象 ID 写在路径中；二进制图块保存 ID、坐标类型、CRC 与帧号。诊断 ID0 使用独立 `Sensa/Diagnostics/Shader/0` 检查捕获链路。
-
-Avatar 编码器和桌面桥按相同编码配置工作，边缘标记帮助纠正小幅捕获偏移。
-
-编码范围为 X/Z=[−2,2]、Y=[−1,3]，读数表示所选 Transform 根中心相对 Avatar 的位置。16-bit 编码提供细分数值，实际响应还受渲染、桌面合成和捕获影响；按选用的桌面或头显画面检查方向、延迟与有效状态。[操作命令](../unity/top.sealoong.sensa/GPU-TRACKING.md) · [实现与来源](shader-capture-research.md)
+图块结构、容错方式、位置／方向／缩放字段及有效性规则集中于[定位说明](positioning.md)与[Shader 实现依据](shader-capture-research.md)，按当前版本配置捕获和解码。
 
 ## 其他输入与工具
 

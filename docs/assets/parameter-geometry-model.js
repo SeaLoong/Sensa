@@ -11,6 +11,7 @@
     'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'contact-sdk', 'sensa-sps', 'shader',
   ]);
   const spsGeometry = Object.freeze({ receiverRadius: 2, markerRadius: .001, anchorHalfSpan: .35, positionHalfRange: 2, minProximity: .001, maxProximity: .999 });
+  const shaderEncoding = Object.freeze({ width: 40, height: 32, quiet: 2, marker: 2, bytes: 32, copies: 3, copyOffset: 11 });
   const anchors = Object.freeze([
     Object.freeze({ x: -.35, y: .65, z: -.35 }),
     Object.freeze({ x: .35, y: .65, z: .35 }),
@@ -46,7 +47,8 @@
     return { scenario, x, y, z, L: .2, W: .03, D: .15, senderRadius: .025,
       senderHeight: .12, zoneRadius: .1, yaw: 0, party: 'Others', senderKind: 'body',
       senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true,
-      vx: 0, vy: 0, vz: 0, proximitySpeed: 0 };
+      vx: 0, vy: 0, vz: 0, proximitySpeed: 0,
+      rightX: 1, rightY: 0, rightZ: 0, forwardX: 0, forwardY: 0, forwardZ: 1, avatarScale: 1 };
   }
   const origin = () => ({ x: 0, y: 0, z: 0 });
   const add = (a, b) => ({ x: a.x + b.x, y: a.y + b.y, z: a.z + b.z });
@@ -62,14 +64,32 @@
     if (fraction === .5) return lower % 2 === 0 ? lower : lower + 1;
     return Math.round(value);
   }
+  function encodedCell(column, row) {
+    if (!Number.isInteger(column) || !Number.isInteger(row) || column < 0 || column >= 40 || row < 0 || row >= 32)
+      throw new RangeError('Encoding cell is outside the grid / 编码格超出图块');
+    if (column < 2 || column >= 38 || row < 2 || row >= 30) return { region: 'quiet' };
+    if (column < 4 || column >= 36 || row < 4 || row >= 28) return { region: 'marker' };
+    const copy = Math.floor((row - 4) / 8);
+    return { region: 'payload', copy, byte: (column - 4 + copy * 11) % 32, bit: (row - 4) % 8 };
+  }
   function encodedBit(bytes, column, row) {
-    // Native grid origin is bottom-left; two edge modules locate the central 16×8 payload.
-    // 原生图块以左下为原点；两格边缘定位中央 16×8 数据区。
-    if (row < 2) return (0xD3A6B >> column & 1) ^ row;
-    if (row >= 10) return (0x69C57 >> column & 1) ^ (row - 10);
-    if (column < 2) return (0xA5 >> (row - 2) & 1) ^ column;
-    if (column >= 18) return (0x6E >> (row - 2) & 1) ^ (column - 18);
-    return bytes[column - 2] >> (row - 2) & 1;
+    // Native format 1 uses a bottom-left origin, white quiet cells, asymmetric
+    // markers, and three offset copies of the same CRC32-protected payload.
+    const cell = encodedCell(column, row);
+    if (cell.region === 'quiet') return 1;
+    if (row < 4) return (0xD3A69C57 >>> ((column + 28) & 31) & 1) ^ (row - 2);
+    if (row >= 28) return (0x69C57D3A >>> ((column + 28) & 31) & 1) ^ (row - 28);
+    if (column < 4) return (0xA5D36B >>> (row - 4) & 1) ^ (column - 2);
+    if (column >= 36) return (0x6E29C7 >>> (row - 4) & 1) ^ (column - 36);
+    return bytes[cell.byte] >>> cell.bit & 1;
+  }
+  function crc32(bytes) {
+    let crc = 0xffffffff;
+    for (const byte of bytes) {
+      crc ^= byte;
+      for (let bit = 0; bit < 8; bit++) crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+    return (crc ^ 0xffffffff) >>> 0;
   }
   function number(input, name, fallback, minimum = -Infinity, exclusive = false) {
     const value = input[name] ?? fallback;
@@ -269,10 +289,14 @@
         'The measurement activity counter. It advances roughly every 50 ms, cycling from 1/32 to 1; 0 means measurement is disabled.']
       : [`根点标记到测量点 ${name} 的接近值，越近数值越大。P0–P3 一起用于还原根点的 X、Y、Z 位置。`,
         `Proximity of the root marker to anchor ${name}; closer gives a higher value. P0–P3 together reconstruct the root's X, Y and Z position.`];
-    if (name === 'Frame') return ['编码画面的序号，帮助桌面程序确认新画面正在持续到达。',
-      'The encoded image sequence number, used to check that new images keep arriving.'];
+    if (name === 'Frame') return ['编码时钟按 _Time×60 生成的 16 位循环计数，用于检查编码画面是否持续更新。',
+      'A 16-bit cyclic encoder-clock count derived from _Time×60, used to check for updated encoded images.'];
     if (name === 'Valid') return ['解码结果的可用标志：有效数据随 Valid=1 提交；失效时发送 Valid=0，使联动停止并等待新样本。',
       'The decoded-data availability flag. Valid data is committed with Valid=1; Valid=0 stops the interaction until fresh data is available.'];
+    if (/^(Right|Forward)[XYZ]$/.test(name)) return [`目标局部 ${name.startsWith('Right') ? 'X' : 'Z'} 轴在 Avatar 根坐标系中的 ${name.at(-1)} 分量；三项共同表示该轴的方向和单位长度。`,
+      `The ${name.at(-1)} component of the target-local ${name.startsWith('Right') ? 'X' : 'Z'} axis in the Avatar-root frame. Its three components describe the axis direction and length per target-local unit.`];
+    if (name === 'AvatarScale') return ['每个 Avatar 根局部单位对应的世界米数；可与局部位移相乘，得到沿根坐标轴的米制位移。',
+      'World metres per Avatar-root local unit. Multiply a local displacement by this value for metre-based displacement along the root axes.'];
     const axes = { X: ['左右', 'left/right'], Y: ['上下', 'up/down'], Z: ['前后', 'forward/back'] };
     return [`根点相对 Avatar 根的${axes[name][0]}坐标。可将选定的两个位置校准为设备行程的起点与终点。`,
       `The root's ${axes[name][1]} coordinate relative to the Avatar root. Calibrate two chosen positions as the start and end of the device travel.`];
@@ -470,18 +494,40 @@
       metrics.sourceValid = input.valid !== false && inBounds;
       metrics.bridgeFreezeThresholdMs = 350;
       assumptions.push({ id: 'shader-round', zh: '量化采用与 HLSL round 相同的半整数取偶规则；本页显示编码前后的坐标差。', en: 'Quantization uses the same ties-to-even rule as HLSL round; this guide shows the coordinate difference before and after encoding.' });
-      // Independent illustrative binary encoding, not captured pixels or CRC authentication.
-      // 独立的示意二进制编码，不是实际捕获像素，CRC 也不认证身份。
+      const right = {}, forward = {}, encodedBasis = {};
+      let basisInBounds = true;
+      for (const [prefix, vector] of [['right', right], ['forward', forward]]) for (const axis of ['x', 'y', 'z']) {
+        const key = prefix + axis.toUpperCase(), fallback = prefix === 'right' && axis === 'x' || prefix === 'forward' && axis === 'z' ? 1 : 0;
+        const raw = number(input, key, fallback);
+        basisInBounds &&= Math.abs(raw) <= 8;
+        encodedBasis[key] = roundEven(Math.max(-1, Math.min(1, raw / 8)) * 32767);
+        vector[axis] = encodedBasis[key] / 32767 * 8;
+      }
+      const scale = number(input, 'avatarScale', 1), scaleWord = roundEven(clamp(scale / 8) * 65535);
+      const rightLength = length(right), forwardLength = length(forward);
+      const crossLength = Math.hypot(right.y * forward.z - right.z * forward.y,
+        right.z * forward.x - right.x * forward.z, right.x * forward.y - right.y * forward.x);
+      const basisValid = basisInBounds && rightLength > 1e-6 && forwardLength > 1e-6 && crossLength > rightLength * forwardLength * 1e-4;
+      metrics.sourceValid &&= basisValid && scale > 0 && scale <= 8 && scaleWord > 0;
+      metrics.valid &&= metrics.sourceValid;
+      metrics.position = metrics.valid ? decoded : null;
+      if (!metrics.sourceValid && inBounds) metrics.reason = 'invalid-source-or-basis';
+      Object.assign(metrics, { right, forward, rightLength, forwardLength, avatarScale: scaleWord / 65535 * 8,
+        basisValid, encodedBasis, scaleWord });
+      // Independent encoding preview; captured-pixel recovery remains the bridge's job.
       const bytes = [83, 78, 1, metrics.sourceValid ? 3 : 2, frame & 255, frame >>> 8];
       for (const key of ['x', 'y', 'z']) bytes.push(encoded[key] & 255, encoded[key] >>> 8);
       bytes.push(42, 0);
-      let crc = 65535;
-      for (const byte of bytes) {
-        crc ^= byte << 8;
-        for (let bit = 0; bit < 8; bit++) crc = ((crc << 1) ^ (crc & 32768 ? 0x1021 : 0)) & 65535;
+      for (const key of ['rightX', 'rightY', 'rightZ', 'forwardX', 'forwardY', 'forwardZ']) {
+        const word = encodedBasis[key] & 65535; bytes.push(word & 255, word >>> 8);
       }
-      bytes.push(crc & 255, crc >>> 8); metrics.bytes = bytes;
+      bytes.push(scaleWord & 255, scaleWord >>> 8);
+      const checksum = crc32(bytes);
+      bytes.push(checksum & 255, checksum >>> 8 & 255, checksum >>> 16 & 255, checksum >>> 24);
+      metrics.bytes = bytes; metrics.crc32 = checksum;
       for (const [name, value] of [['Frame', frame], ['X', decoded.x], ['Y', decoded.y], ['Z', decoded.z],
+        ...['X', 'Y', 'Z'].map(axis => ['Right' + axis, right[axis.toLowerCase()]]),
+        ...['X', 'Y', 'Z'].map(axis => ['Forward' + axis, forward[axis.toLowerCase()]]), ['AvatarScale', metrics.avatarScale],
         ['Valid', Number(metrics.valid)]]) {
         values.push({ name, path: 'Sensa/Shader/42/' + name, type: name === 'Valid' ? 'constant' : name === 'Frame' ? 'counter' : 'coordinate',
           raw: value, value, effective: metrics.valid || name === 'Valid' ? value : null,
@@ -511,5 +557,5 @@
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
-  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, coverageContains, coverageRadius, encodedBit });
+  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell });
 })(globalThis);

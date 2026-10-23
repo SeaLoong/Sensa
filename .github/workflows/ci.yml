@@ -1,4 +1,4 @@
-name: Build and preview / 构建与自动预发布
+name: CI
 on:
   push:
     branches: [main]
@@ -11,11 +11,13 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 jobs:
   checks:
+    name: Checks
     uses: ./.github/workflows/checks.yml
     with:
       source_ref: ${{ github.sha }}
 
   build:
+    name: Build
     needs: checks
     uses: ./.github/workflows/build.yml
     with:
@@ -23,7 +25,7 @@ jobs:
       channel: preview
 
   preview:
-    name: Publish development preview / 发布开发预览
+    name: Publish preview
     needs: [checks, build]
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
@@ -35,23 +37,26 @@ jobs:
       queue: max
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.build.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - name: Download builds
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: distribution-*
           path: artifacts/downloaded
-      - name: Check publication credential / 检查发布凭据
+      - name: Check release token
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
         run: test -n "$GH_TOKEN" || { echo '::error::Configure the SENSA_PAT repository Actions secret / 请配置仓库 Actions 密钥 SENSA_PAT'; exit 1; }
-      - name: Publish archives and generated notes / 发布压缩包与自动说明
+      - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
           SENSA_E2E_COMPARISON_SHA: ${{ needs.checks.outputs.comparison_sha }}

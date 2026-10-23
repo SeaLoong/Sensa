@@ -66,7 +66,14 @@ public sealed class ContactRootContracts
         Assert.Equal(0, point.Metric(PointMetric.VelocityZ));
         Assert.Equal(.5f, point.Metric(PointMetric.Speed));
         Assert.Equal(-2, point.Metric(PointMetric.ProximitySpeed));
-        Assert.Equal(Enum.GetValues<PointMetric>(), point.SupportedMetrics);
+        Assert.Equal(new[] { PointMetric.X, PointMetric.Y, PointMetric.Z, PointMetric.Distance,
+            PointMetric.VelocityX, PointMetric.VelocityY, PointMetric.VelocityZ, PointMetric.Speed, PointMetric.ProximitySpeed }, point.SupportedMetrics);
+        foreach (var metric in new[] { PointMetric.RightX, PointMetric.RightY, PointMetric.RightZ,
+            PointMetric.ForwardX, PointMetric.ForwardY, PointMetric.ForwardZ, PointMetric.AvatarScale })
+        {
+            Assert.False(point.SupportsMetric(metric));
+            Assert.Throws<ArgumentOutOfRangeException>(() => point.Metric(metric));
+        }
         Assert.All(point.SupportedMetrics, metric => Assert.True(point.SupportsMetric(metric)));
         Assert.False(point.SupportsMetric((PointMetric)999));
         Assert.Throws<ArgumentOutOfRangeException>(() => point.Metric((PointMetric)999));

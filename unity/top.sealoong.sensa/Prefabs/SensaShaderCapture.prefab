@@ -45,4 +45,4 @@ MonoBehaviour:
   target: {fileID: 0}
   spsTarget: {fileID: 0}
   producerId: 1
-  desktopViewport: {x: 0, y: 0, width: 0.25, height: 0.15}
+  desktopViewport: {x: 0, y: 0, width: 0.25, height: 0.2}

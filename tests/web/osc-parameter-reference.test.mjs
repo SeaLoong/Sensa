@@ -135,9 +135,29 @@ test('Shader coordinates retain local units while its integer counter and validi
   assert.equal(y.range, '−1–3');
   assert.match(lookup('Sensa/Shader/42/Frame', 'en').valueType, /^Float/);
   assert.match(lookup('Sensa/Shader/42/Valid', 'en').valueType, /^Float/);
-  assert.match(lookup('Sensa/Shader/42/Valid', 'en').definition, /Frame, X, Y, Z, Valid order/);
+  assert.match(lookup('Sensa/Shader/42/Valid', 'en').definition, /Frame, X, Y, Z, RightX, RightY, RightZ, ForwardX, ForwardY, ForwardZ, AvatarScale, Valid order/);
   assert.equal(lookup('VFH/Version/10', 'en').valueType, 'Bool');
   assert.match(lookup('OGB/Orf/Body/Version/9', 'en').valueType, /type follows the publisher/);
+});
+
+test('Shader basis and unit scale keep Sensa provenance and retain target-axis lengths', () => {
+  for (const name of ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale']) {
+    const reference = lookup('Sensa/Shader/42/' + name, 'en');
+    assert.equal(reference.definitionLabel, 'Sensa protocol definition');
+    assert.ok(reference.sources.some(source => source.kind === 'sensa-protocol'));
+    assert.ok(!reference.sources.some(source => source.kind === 'official-sdk'));
+    assert.equal(reference.valueType, 'Float');
+    if (name !== 'AvatarScale') {
+      assert.match(reference.definition, /0\.1 local units/);
+      assert.match(reference.definition, /length and shear/);
+      assert.match(reference.range, /−8–8/);
+    } else {
+      assert.equal(reference.range, '(0, 8]');
+      assert.match(reference.unit, /Metres per root-local unit/);
+      assert.match(reference.usage, /multiply local displacement/);
+    }
+  }
+  assert.match(lookup('Sensa/Shader/42/Frame', 'en').definition, /_Time/);
 });
 
 test('Sensa document source links resolve to real bilingual repository files and references remain independent', () => {

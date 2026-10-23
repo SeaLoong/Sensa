@@ -3,8 +3,8 @@ using UnityBox.Sensa;
 
 namespace Sensa.Signals;
 
-/// <summary>Coordinates retain their producer's reference frame; one point supplies no orientation.
-/// 坐标保留生产端参考系；单点不提供朝向。</summary>
+/// <summary>Coordinates and optional axes retain their producer's reference frame.
+/// 坐标与可选轴向保留生产端参考系。</summary>
 public static class SpsPositionTracking
 {
     public sealed record Observation(string Key, string Instance, string Party, string SourceLabel,
@@ -14,6 +14,9 @@ public static class SpsPositionTracking
         public PosePoint? Velocity { get; init; }
         public double? Speed { get; init; }
         public double? ProximitySpeed { get; init; }
+        public PosePoint? Right { get; init; }
+        public PosePoint? Forward { get; init; }
+        public double? AvatarScale { get; init; }
         public string CoordinateFrame => Kind == "ContactRoot" ? SensaContactProtocol.CoordinateFrame
             : Kind is "SpsRoot" or "ShaderRoot" ? SensaFixedAnchorProtocol.CoordinateFrame : "ReferenceLocal";
         public string CoordinateUnit => Kind == "ContactRoot" ? "m" : "local";
@@ -26,17 +29,30 @@ public static class SpsPositionTracking
         public bool IsMappablePoint => Party == "Self" && Kind is "Point" or "Handle" or "SpsRoot" or "ShaderRoot" or "ContactRoot";
         public int ExpectedSampleCount => Kind is "ShaderRoot" or "ContactRoot" ? 3 : 4;
         public bool SupportsVelocity => Kind == "ContactRoot" && Velocity.HasValue && Speed.HasValue && ProximitySpeed.HasValue;
-        public PointMetric[] SupportedMetrics => Kind == "ContactRoot" ? Enum.GetValues<PointMetric>()
+        public PointMetric[] SupportedMetrics => Kind == "ContactRoot"
+            ? [PointMetric.X, PointMetric.Y, PointMetric.Z, PointMetric.Distance, PointMetric.VelocityX,
+                PointMetric.VelocityY, PointMetric.VelocityZ, PointMetric.Speed, PointMetric.ProximitySpeed]
+            : Kind == "ShaderRoot" ? [PointMetric.X, PointMetric.Y, PointMetric.Z, PointMetric.Distance,
+                PointMetric.RightX, PointMetric.RightY, PointMetric.RightZ, PointMetric.ForwardX,
+                PointMetric.ForwardY, PointMetric.ForwardZ, PointMetric.AvatarScale]
             : [PointMetric.X, PointMetric.Y, PointMetric.Z, PointMetric.Distance];
         public string[] MeasurementPaths => Kind == "ContactRoot"
             ? SensaContactProtocol.PositionLeaves.Concat(SensaContactProtocol.VelocityLeaves)
                 .Concat([SensaContactProtocol.SpeedLeaf, SensaContactProtocol.ProximitySpeedLeaf])
                 .Select(leaf => Prefix + "/" + leaf).ToArray()
-            : Kind == "ShaderRoot" ? new[] { "X", "Y", "Z" }.Select(axis => Prefix + "/" + axis).ToArray()
+            : Kind == "ShaderRoot" ? new[] { "X", "Y", "Z", "RightX", "RightY", "RightZ", "ForwardX", "ForwardY", "ForwardZ", "AvatarScale" }
+                .Select(axis => Prefix + "/" + axis).ToArray()
             : Enumerable.Range(0, 4).Select(index => Kind == "SpsRoot" ? $"{Prefix}/P{index}" : $"{Prefix}/Root/A{index}").ToArray();
         public bool Matches(string pattern) => MeasurementPaths.Any(path => OscParameterStore.MatchesPathPattern(pattern, path));
-        public bool SupportsMetric(PointMetric metric) => metric is PointMetric.X or PointMetric.Y or PointMetric.Z or PointMetric.Distance
-            || SupportsVelocity && Enum.IsDefined(metric);
+        public bool SupportsMetric(PointMetric metric) => metric switch
+        {
+            PointMetric.X or PointMetric.Y or PointMetric.Z or PointMetric.Distance => true,
+            PointMetric.VelocityX or PointMetric.VelocityY or PointMetric.VelocityZ or PointMetric.Speed or PointMetric.ProximitySpeed => SupportsVelocity,
+            PointMetric.RightX or PointMetric.RightY or PointMetric.RightZ => Kind == "ShaderRoot" && Right.HasValue,
+            PointMetric.ForwardX or PointMetric.ForwardY or PointMetric.ForwardZ => Kind == "ShaderRoot" && Forward.HasValue,
+            PointMetric.AvatarScale => Kind == "ShaderRoot" && AvatarScale.HasValue,
+            _ => false,
+        };
         public float Metric(PointMetric metric) => !SupportsMetric(metric)
             ? throw new ArgumentOutOfRangeException(nameof(metric), "This producer does not supply the selected metric.")
             : (float)(metric switch
@@ -46,6 +62,9 @@ public static class SpsPositionTracking
             PointMetric.VelocityX => Velocity!.Value.X, PointMetric.VelocityY => Velocity!.Value.Y,
             PointMetric.VelocityZ => Velocity!.Value.Z, PointMetric.Speed => Speed!.Value,
             PointMetric.ProximitySpeed => ProximitySpeed!.Value,
+            PointMetric.RightX => Right!.Value.X, PointMetric.RightY => Right!.Value.Y, PointMetric.RightZ => Right!.Value.Z,
+            PointMetric.ForwardX => Forward!.Value.X, PointMetric.ForwardY => Forward!.Value.Y, PointMetric.ForwardZ => Forward!.Value.Z,
+            PointMetric.AvatarScale => AvatarScale!.Value,
             _ => throw new ArgumentOutOfRangeException(nameof(metric))
         });
     }
@@ -100,4 +119,5 @@ public static class SpsPositionTracking
     }
 }
 
-public enum PointMetric { X, Y, Z, Distance, VelocityX, VelocityY, VelocityZ, Speed, ProximitySpeed }
+public enum PointMetric { X, Y, Z, Distance, VelocityX, VelocityY, VelocityZ, Speed, ProximitySpeed,
+    RightX, RightY, RightZ, ForwardX, ForwardY, ForwardZ, AvatarScale }

@@ -68,7 +68,7 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 | 旧 Point／Handle／Pose | ReferenceLocal；最旧参与通道，Handle 包括抓取状态；默认 1000 ms 或正值超时 |
 | Contact 直接定位（SDK Beta） | AvatarRootMeters；一个专用 Self Sender／Receiver，十二字段完整、Proximity 为正且 Radius 受支持；Sample 变化寿命最多 1000 ms |
 | SPS 四点定位 | AvatarRootLocal；P0–P3 已知几何、非饱和与残差检查；静止 P 可缓存，Sample 内容变化默认 1000 ms、上限 1250 ms |
-| 原生 Shader | AvatarRootLocal；同来源 Frame/X/Y/Z/Valid 连续序列、Valid 最后；Frame 内容变化上限 500 ms，桥另管单调／冻结／两帧恢复 |
+| 原生 Shader | AvatarRootLocal；检查完整测量包、来源、帧推进与有效状态；字段、编码与恢复规则见[定位协议](positioning.md) |
 
 专用根标记与唯一通道将每个根点测量对应到期望的自身目标。四点距离按制作尺度的 AvatarRootLocal 解算单点位置；Contact 使用物理米制 AvatarRootMeters，报告中点位置与接触点相对速度。Contact 位置和速度指标共用 SensaPoint 校准、启用与失效停止。原生报告未提供时钟、序号或稳定 Sender ID，Sensa Sample 检查生产端活动。[SDK 契约与依据](contact-sdk.md)。公开协议、公式和停止条件集中于[定位说明](positioning.md)与[参数字典](osc-parameters.md)。
 

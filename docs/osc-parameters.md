@@ -39,7 +39,7 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 | `Sensa/<id>/Aux<index>/<role>_…` | Raycast 是否命中、归一化距离与米制距离 | 命中条件、表面距离联动 |
 | `Sensa/Contact/<id>/Proximity…`、`Radius`、`Sample` | 所选根点的米制位置与 m/s 相对速度 | 校准后的局部动作或运动强弱 |
 | `Sensa/SPS/<id>/P0…P3`、`Sample` | 选定根点相对 Avatar 的三维位置 | 按左右、上下、前后移动控制动作 |
-| `Sensa/Shader/<id>/Frame`、`Valid`、`X`、`Y`、`Z` | 从屏幕图块解码的根点相对位置 | 用画面编码获得三维位置 |
+| `Sensa/Shader/<id>/…` | 从屏幕图块解码的位置、X/Z 轴向与 Avatar 世界缩放 | 空间映射、方向计算与米制换算 |
 | `Sensa/Diagnostics/Shader/0/…` | 图案、捕获与 OSC 传输诊断 | 检查捕获链路 |
 
 SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定几何。外部 OGB 参数由 Avatar 使用的生成器提供，可在参数列表中核对完整路径。
@@ -173,33 +173,36 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 
 专用通道与 AllowSelf 将测量限定到本 Avatar 的根标记。整体走动或转身时，读数保持相对 Avatar 的局部意义；测量时序和误差的检查方法见[定位说明](positioning.md)。
 
-## Shader：直接根坐标与传输活性
+## Shader：根点位置、轴向与世界缩放
 
-原生 Avatar 组件把所选 CPU 根中心编码成图案，桌面桥只解码用户明确选择的区域及 Producer ID，再发 OSC。其坐标范围是编码立方体 X/Z=[-2,2]、Y=[-1,3]，同样采用 Avatar 根局部坐标。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader)、[桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+原生 Avatar 渲染组件采样选定根点的原点、局部 +X 和 +Z 三个蒙皮点，编码为黑白图块。桌面桥解码明确选择的区域和 Producer ID，再把同一次采样送入 Sensa。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
-### 五个公开测量参数
+### 十二个公开测量参数
 
-`<id>` 为明确选定的 Producer ID，十进制 1…65535，无前导零，例如 `Sensa/Shader/7/X`。这五个测量字段由桌面桥以 OSC Float 发送。
-
-Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=开启原生捕获 rig。例如 `Sensa/Select/ShaderCapture_42`。它同样是 MA 注册的表达参数，`localOnly=true`、`saved=false`，可能按 OSC 配置可见。内部 `Sensa/Internal/ShaderCapture_<ID>/Selected` 是 FX 的 Int 状态记忆，默认 0、由本地 Driver 写入 0／1，不注册为表达参数。[生成入口](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs)、[选择状态机](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
+`<id>` 为 Producer ID，十进制 1…65535，无前导零，例如 `Sensa/Shader/7/X`。以下参数均由 Sensa 桌面桥以 **OSC Float** 发送，采用 Sensa 协议。
 
 | 叶子 | 含义与有效条件 |
 | --- | --- |
-| `Frame` | 0…65535 的整数，名义按 60 Hz 时间步生成并按 16 位回绕；约 18.2 分钟绕回一次 |
-| `Valid` | 1 提交本次有效包；0 使根坐标立即失效 |
-| `X` | 根中心局部 X，有限且位于 [-2,2] |
-| `Y` | 根中心局部 Y，有限且位于 [-1,3] |
-| `Z` | 根中心局部 Z，有限且位于 [-2,2] |
+| `Frame` | 0…65535 的整数编码时钟；`floor(_Time.y×60)` 按 16 位回绕，约 18.2 分钟一轮 |
+| `X / Y / Z` | 根中心在 Avatar 根局部坐标中的位置；X/Z=[−2,2]，Y=[−1,3] |
+| `RightX / RightY / RightZ` | 选定根点的局部 +X 轴，按 Avatar 根坐标表达；分量范围 [−8,8]，向量长度保留该轴缩放 |
+| `ForwardX / ForwardY / ForwardZ` | 同一根点的局部 +Z 轴，同样保留方向和长度；分量范围 [−8,8] |
+| `AvatarScale` | 每根局部单位对应的世界米数，范围 (0,8]；相对位移乘此值可换算成米 |
+| `Valid` | 1 最后提交完整有效包；0 立即使测量失效 |
 
-有效包按 **Frame → X → Y → Z → Valid=1** 的顺序发送，Valid 最后提交。失效只发 Valid=0，不重发旧 XYZ。桌面要求同一 OSC 来源、同一完整 Producer 路径下五字段连续接收；各来源独立组包，同来源中插入其他消息时重新等待完整五字段。Frame 的 ChangedAt 寿命最多 500 ms，并与更短的正数配置超时取较小值；相同 Frame 持续重发也会过期。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
+两条轴由同一三角形内的三个采样点计算。向量长度须大于 `10⁻⁶`，两轴夹角的正弦须大于 `10⁻⁴`，以排除退化测量。它们可用于计算朝向、平面法线、夹角与 X/Z 轴缩放；独立 Y 轴缩放需要另外测量。在“流程”中选择定位测量（SensaPoint），使用 `Sensa/Shader/<id>/**` 和对应指标，即可供计算信号或输出绑定使用，并保留完整包与时效检查。
 
-桥先检查图案、二进制 ID／标志、CRC 和模 65536 的向前帧序；反向／大幅跳序、同 Frame 不同 XYZ、身份变化或冻结会失效。启动或失效后需要重新建立两帧向前采样才恢复；默认桥冻结门限 350 ms。回绕可以正常向前推进，生产端重置为旧序列可能需要显式重启桥。连续字段和 CRC 共同检查包结构与数据完整性。
+有效单 bundle 的固定顺序是 **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**。失效只发 Valid=0。桌面要求同一来源、同一 Producer 路径的十二字段连续到达，并检查完整性、有限值和量程。Frame 内容变化年龄最多 500 ms，更短的正数输入超时优先。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-### 量化、精简字段与必要的二进制元数据
+桥通过黑白定位、三份错列数据副本、CRC32 和向前序号检查接收数据。同一 Frame 的任意测量改变、倒序、来源变化或冻结都会使测量失效；启动和恢复需要两个新的推进帧，默认冻结门限 350 ms。外围两格白色留白用于小幅空间位移缓冲，配合各方向最多两格的重新对齐搜索；缩放、旋转和透视变化后重新注册。
 
-每轴长度 4 的区间使用 16 位无符号量化，步长 `4/65535 ≈ 6.10×10⁻⁵` 局部单位；理想舍入的单轴半步约 `3.05×10⁻⁵`，三轴合成量化误差上限约 `5.29×10⁻⁵`。这些数值描述数字编码的量化误差。实际定位误差还取决于坐标框计算、渲染合成、捕获与帧延迟，可通过已知位置测量。Shader 的 [HLSL `round`](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 在恰好半整数时取最近偶数；图解沿用这一舍入规则。
+Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=开启捕获。MA 将其注册为 `localOnly=true`、`saved=false` 的表达参数。内部 `Sensa/Internal/ShaderCapture_<ID>/Selected` 为 FX Int 状态记忆，默认 0，由本地 Driver 写入 0／1。[生成入口](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs) · [选择状态机](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
-对象 ID 位于 OSC 路径中，`Sensa/Shader` 固定坐标框与范围。二进制图案保留对象 ID、有效／原生坐标标志、CRC 与 Frame，分别用于配对、识别坐标类型、检查数据和判断画面是否推进。
+### 数字精度与完整性
+
+位置量化步长为 `4/65535≈6.10×10⁻⁵` 根局部单位；轴向分量为 `8/32767≈2.44×10⁻⁴`，零可精确表示；世界缩放为 `8/65535≈1.22×10⁻⁴` 米／局部单位。理想舍入的单分量误差最多半步，实际误差另以已知位置和方向测量。图解采用与 [HLSL round](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 一致的最近偶数舍入。
+
+32 字节包保留 Producer ID、坐标标志、时钟序号、完整测量值与 CRC32。桥只用本次捕获里已知且一致的位恢复缺失；已知位冲突或所有副本都缺少某一位时报告失效。[完整布局与恢复规则](shader-capture-research.md)
 
 ## 诊断与位置相关信息
 

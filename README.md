@@ -1,21 +1,53 @@
 # Sensa
 
-[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) · [Downloads](https://github.com/SeaLoong/Sensa/releases)
+[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Signal flow](docs/signal-pipeline.en.md) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) · [Downloads](https://github.com/SeaLoong/Sensa/releases)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
+[![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
+[![Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml)
+[![Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)
 
 **Connect inputs, compute reusable signals and send results to devices or applications.** Sensa runs on your computer with a browser workbench. Outputs include TCode serial/UDP/TCP, Intiface/Buttplug, OSC parameters, DG-LAB, MIDI CC, network services and recording files. VRChat interactions and funscript remain ready-to-use input workflows.
 
-## First use: check direction and travel
+## Inputs → computation → outputs
+
+| Step | What you can use | Where to start |
+| --- | --- | --- |
+| **Input** | OSC parameters and tracking, manual values, funscript, device feedback or recording replay | Choose sources in **Flow**; use **Control → Combined** to work with several source kinds |
+| **Computation** | Weighted averages, differences, smoothing, thresholds, delays, events and generated rhythms | Add a computed signal and save calculations and mappings |
+| **Output** | Devices, application parameters, network services or funscript tracks | Add an output, then **Add binding** to choose its source, target and range |
+
+One result can drive several outputs, each with its own range and sending schedule. For example, combine two touch readings into an intensity, then use it for vibration, Avatar glow and a recorded track. A direct source can also feed an output binding. [Set up a flow](docs/signal-pipeline.en.md) · [Calculation examples](docs/computed-signals.en.md)
+
+The workbench can [save the complete plan](docs/signal-pipeline.en.md#save-and-reuse-a-complete-plan), including calculations, axis profiles and outputs. Same-origin tabs automatically [share their realtime connection](docs/signal-pipeline.en.md#pages-and-shared-connections) when the browser supports it; each tab keeps its own drafts.
+
+## Choose where the result goes
+
+| Output | Configure inside that output |
+| --- | --- |
+| TCode / Intiface | Serial/network connection, axis or device feature and travel settings |
+| OSC parameter | IP, port, parameter address and Float/Int/Bool; a shortcut selects VRChat's OSC receiver |
+| DG-LAB | DG-LAB 4 APP pairing, device, channel, intensity limit and waveform behavior |
+| MIDI CC | System MIDI port, channel/controller and 0–127 range |
+| HTTP JSON / WebSocket JSON / MQTT | Service or broker address and the receiving path/topic |
+| Recording | Funscript track names and ranges, or JSON Lines/CSV diagnostics |
+
+[Output setup and examples](docs/signal-pipeline.en.md#add-outputs-and-bindings)
+
+## Start Sensa and try a flow
 
 1. Download the archive for Windows, Linux or macOS, x64 or ARM64, and extract it.
 2. Run Sensa and open **http://127.0.0.1:5086**. New sessions start with input and outputs disabled.
-3. Add an output, check its destination, **enable that output** and connect. For Intiface, start Central separately.
-4. Apply **Manual**, enable input and send a small target to check direction/range. Disable input before preparing OSC or a funscript; apply that mode and enable input again when ready.
+3. Open **Flow**, add an output and choose its source and target. Recording is a useful first destination: it saves manual values as a playable funscript track.
+4. Save the setup, **enable the output** and connect it. In **Control**, apply Manual, OSC, Script or Combined, then enable input when ready.
 
-Keep emergency stop within reach. After clearing it, saving configuration, changing modes or replacing a script, enable input again when ready. Displayed positions are **command targets**; check the device itself to confirm its movement.
+For a motion device, first use small manual targets to check direction, travel and stopping. Intiface connects to a separately running Central. Keep emergency stop within reach; after clearing it or saving a new configuration, enable input again when ready.
 
 [First run](docs/quick-start.en.md) · [Workbench guide](docs/guide.en.md) · [All features](docs/features.en.md)
+
+## Record and replay funscript
+
+Add **Recording** in Flow, keep the default Funscript format and bind a source to a track such as `L0` or `R0`. Each valid segment becomes a downloadable file. A completed track can load into Sensa's script player, or return to a calculation through Recording replay. JSON Lines/CSV preserve raw readings and validity for analysis. [Recording and playback steps](docs/signal-pipeline.en.md#record-and-inspect)
 
 ## Which integration should I use?
 
@@ -24,17 +56,11 @@ Keep emergency stop within reach. After clearing it, saving configuration, chang
 | **Existing OGB / SPS** | Read the proximity, touch and depth-related parameters your Avatar already provides | Use the Avatar's existing parameters; check which SPS1 or SPS2 signals it sends |
 | **SPS four-anchor tracking** | Add measurement components to your Avatar and locate an SPS Socket/Plug root relative to it | Requires rebuilding your own Avatar; the target must stay inside the detectable region |
 | **[Contact direct tracking (SDK Beta)](docs/contact-sdk.en.md)** | Read the selected root’s position and relative velocity through one dedicated Receiver | Requires the beta SDK and rebuilding your own Avatar; target stays inside Receiver coverage |
-| **Shader capture** | Draw root coordinates as a black-and-white code block and read them from the desktop | PC experiment; the full block must be visible, and real VRChat/headset behavior remains unverified |
+| **Shader capture** | Read root position, X/Z axes and Avatar scale through a monochrome screen code | PC experiment; white margins and three payload copies help recover small shifts and missing data; client validation remains pending |
 
 A “root” is the starting point you select in Unity, such as an SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. Its position relative to the Avatar changes when that point moves within the Avatar; walking or turning the entire Avatar leaves it unchanged. Explicit Transform, Sensa and native Contact targets use the same SPS root protocol. With SPS four-anchor tracking, Contact direct tracking or Shader capture, inspect coordinates and calibrate their range before enabling experimental spatial input. The [positioning guide](docs/positioning.en.md) explains the measurements and limits. Contact direct tracking uses SDK 3.10.6-beta.2 and physical metre units; its velocity values can control movement strength after calibration. Real-client/OSC beta acceptance awaits validation.
 
 [Route selection](docs/usage-scenarios.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Positioning and limits](docs/positioning.en.md) · [OGB compatibility](docs/ogb-compatibility.en.md)
-
-## Combine inputs before mapping motion
-
-Create a **computed signal** in Pipeline to combine parameters with a weighted average, difference, ratio or magnitude, then use the result in axis mappings or output bindings. Inputs can also use solved positions from SPS four-anchor tracking, Contact or Shader, and Contact velocity metrics. Several destinations can reuse one intermediate result.
-
-For example, blend two touch intensities at a 1:3 ratio or calculate root separation from XYZ differences. Output bindings reuse the result with their own destination, type, range and update rate. Choose an OSC parameter output to write an Avatar feedback parameter, a DG-LAB output for a channel task, or Recording for funscript tracks. Combined input lets manual, OSC, script and feedback sources participate together. [Inputs, computation and outputs](docs/signal-pipeline.en.md) · [Calculations and examples](docs/computed-signals.en.md)
 
 ## Explore before connecting
 

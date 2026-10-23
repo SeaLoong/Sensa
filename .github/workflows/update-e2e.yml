@@ -1,14 +1,14 @@
-name: Update E2E candidates / 更新 E2E 候选
+name: Update E2E
 on:
   workflow_dispatch:
     inputs:
       mode:
-        description: Screenshots needs no AI key; agent also proposes test changes / 截图模式无需 AI 密钥
+        description: Update screenshots or propose test changes with an agent
         type: choice
         options: [screenshots, agent]
         default: screenshots
       task:
-        description: Optional instructions for the agent / 可选代理任务说明
+        description: Optional instructions for the agent
         type: string
         default: Update E2E cases for the current application without weakening behavior assertions.
 permissions:
@@ -21,25 +21,27 @@ env:
   PYTHONUTF8: '1'
 jobs:
   source:
-    name: Pin latest main / 固定最新 main
+    name: Select source
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       commit: ${{ steps.source.outputs.commit }}
     steps:
-      - name: Require the main workflow / 须选择 main 工作流
+      - name: Require main
         env:
           WORKFLOW_REF: ${{ github.ref }}
         run: test "$WORKFLOW_REF" = refs/heads/main
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: main
           persist-credentials: false
-      - name: Pin source / 固定源码
+      - name: Pin source
         id: source
         run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
   units:
+    name: Checks
     needs: source
     uses: ./.github/workflows/checks.yml
     with:
@@ -47,7 +49,7 @@ jobs:
       run_e2e: false
 
   agent:
-    name: Propose test changes with Codex / Codex 提议测试改动
+    name: Update tests
     needs: [source, units]
     if: ${{ !cancelled() && inputs.mode == 'agent' && needs.source.result == 'success' && needs.units.result == 'success' }}
     runs-on: ubuntu-24.04
@@ -55,16 +57,19 @@ jobs:
     outputs:
       proposal: ${{ steps.codex.outputs.final-message }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.source.outputs.commit }}
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
           cache: npm
-      - run: npm ci
-      - name: Prepare agent requirements and scoped task / 准备代理依赖和任务范围
+      - name: Install dependencies
+        run: npm ci
+      - name: Prepare agent
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           USER_TASK: ${{ inputs.task }}
@@ -89,7 +94,7 @@ jobs:
           PY
       # The agent is the last step on this disposable host. Only its JSON patch
       # crosses to the fresh candidate job; it never receives a write token.
-      - name: Propose constrained edits / 提议受限改动
+      - name: Propose test changes
         id: codex
         uses: openai/codex-action@c05cfd74ad95c626cdf05c6685e62becc3bf7813
         with:
@@ -102,7 +107,7 @@ jobs:
           output-schema: '{"type":"object","properties":{"patch":{"type":"string"},"summary":{"type":"string"}},"required":["patch","summary"],"additionalProperties":false}'
 
   candidates:
-    name: Generate and check candidates / 生成并检查候选
+    name: Check candidates
     needs: [source, units, agent]
     if: ${{ !cancelled() && needs.source.result == 'success' && needs.units.result == 'success' && ((inputs.mode == 'agent' && needs.agent.result == 'success') || (inputs.mode == 'screenshots' && needs.agent.result == 'skipped')) }}
     runs-on: ubuntu-24.04
@@ -116,44 +121,48 @@ jobs:
       E2E_UPDATE_SNAPSHOTS: 'true'
       SENSA_SOURCE_COMMIT: ${{ needs.source.outputs.commit }}
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.source.outputs.commit }}
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
           node-version: '24'
           cache: npm
-      - uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+      - name: Set up .NET
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           global-json-file: global.json
-      - name: Install Chinese fonts and PTY runtime / 安装中文字体与伪终端依赖
+      - name: Install test dependencies
         timeout-minutes: 5
         run: bash scripts/install-e2e-dependencies.sh
-      - name: Apply only the agent test patch / 只应用代理的测试补丁
+      - name: Apply test patch
         if: inputs.mode == 'agent'
         env:
           AGENT_PROPOSAL: ${{ needs.agent.outputs.proposal }}
         run: python3 scripts/update-e2e-pr.py apply-agent --source-commit "$SENSA_SOURCE_COMMIT"
-      - run: npm ci
-      - name: Build real application / 构建真实应用
+      - name: Install dependencies
+        run: npm ci
+      - name: Build app
         run: dotnet publish src/Sensa.csproj -c Release --no-self-contained -p:RestoreLockedMode=true -o artifacts/e2e/app
-      - name: Run every behavior case and generate images / 执行全部行为用例并生成图片
+      - name: Generate screenshots
         id: browser_tests
         run: npm run e2e:ci
-      - name: Publish current candidate summary / 发布本次候选摘要
+      - name: Summarize candidates
         if: always()
         env:
           E2E_COMMAND_OUTCOME: ${{ steps.browser_tests.outcome }}
         run: node scripts/e2e-summary-reporter.mjs --finalize-report artifacts/e2e/summary.json
-      - name: Export successful unreviewed proposal / 导出成功但未审阅的候选
+      - name: Export candidates
         id: proposal
         env:
           PROPOSAL_MODE: ${{ inputs.mode }}
         run: >-
           python3 scripts/update-e2e-pr.py export --source-commit "$SENSA_SOURCE_COMMIT"
           --mode "$PROPOSAL_MODE" --summary artifacts/e2e/summary.json --output artifacts/e2e-update
-      - name: Retain report and every candidate image / 保留报告与全部候选图片
+      - name: Upload candidate report
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
@@ -169,7 +178,8 @@ jobs:
             tests/e2e/__screenshots__/
           retention-days: 14
           if-no-files-found: warn
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+      - name: Upload proposal
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: e2e-update-proposal
           overwrite: true
@@ -178,7 +188,7 @@ jobs:
           retention-days: 14
 
   proposal:
-    name: Open a draft PR and run normal comparison / 创建草稿 PR 并运行普通比较
+    name: Open review PR
     needs: [source, candidates]
     if: ${{ !cancelled() && needs.source.result == 'success' && needs.candidates.result == 'success' && needs.candidates.outputs.changed == 'true' }}
     runs-on: ubuntu-24.04
@@ -186,22 +196,25 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Check repository write credential / 检查仓库写入凭据
+      - name: Check update token
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
         run: test -n "$GH_TOKEN" || { echo '::error::Configure the SENSA_PAT repository Actions secret / 请配置仓库 Actions 密钥 SENSA_PAT'; exit 1; }
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.source.outputs.commit }}
           token: ${{ secrets.SENSA_PAT }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - name: Download candidates
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           name: e2e-update-proposal
           path: artifacts/e2e-update
-      - name: Push candidate branch and open draft PR / 推送候选分支并创建草稿 PR
+      - name: Create draft PR
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
           SOURCE_COMMIT: ${{ needs.source.outputs.commit }}

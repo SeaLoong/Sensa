@@ -4,6 +4,16 @@
 
 本页汇总已实现的功能及使用条件。操作顺序见[指南](guide.md)，方案选择见[使用方案](usage-scenarios.md)，协议数值见[参数字典](osc-parameters.md)。Sensa 处理输入信号，并将结果送到设备、应用与录制文件。[输入、计算与输出](signal-pipeline.md)
 
+## 可直接搭建的流程
+
+| 目标 | 已有能力 | 操作入口 |
+| --- | --- | --- |
+| 组合输入并计算 | OSC、手动、脚本、反馈和回放；加权、空间运算、平滑、阈值与事件 | [流程与计算](signal-pipeline.md#选择来源与计算) |
+| 将一个结果送到多个目标 | TCode、Intiface、OSC 参数、DG-LAB、MIDI CC、HTTP／WebSocket JSON 和 MQTT | [输出绑定](signal-pipeline.md#同一个结果连接多个输出) |
+| 保存可播放的轨迹 | 按绑定录制 funscript 轨道，分段下载、载入播放器或信号回放 | [录制与回放](signal-pipeline.md#录制与观察) |
+| 复用完整交互 | 导入／导出计算、轴映射、轴配置与输出，先预览再应用 | [整套方案](signal-pipeline.md#保存与复用整套方案) |
+| 打开多个工作台页面 | 同页单例及同源跨页连接共享，各页保留草稿 | [页面连接](signal-pipeline.md#页面与连接共用) |
+
 ## 浏览器工作台
 
 | 区域 | 能力 |
@@ -66,7 +76,7 @@ L0 录制保存分发前的动作目标，停止补末值保持段，最多 1000
 
 ## Unity 与空间实验
 
-默认禁止空间驱动。SPS 四点定位的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。Contact 直接定位（SDK Beta）用一个专用自身根点 Sender 和一个 Receiver，发布十二个 `Sensa/Contact/<id>/…` 字段，提供 AvatarRootMeters 位置与接触点相对速度；Sample 变化寿命最多 1000 ms，Radius 随 ScaleFactor 更新并受 3 m 门控保护。SensaPoint 支持 X／Y／Z／Distance 与 VelocityX／Y／Z／Speed／ProximitySpeed，沿用现有校准与停止行为。[Beta 前提与源码依据](contact-sdk.md)。原生 Shader 的 `Frame+XYZ+Valid` 使用一个 Camera／蒙皮点、显式 ROI 桥和最多 500 ms 变化窗；诊断独立不生成点。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们的坐标分别相对 Avatar 或指定参考对象，适合校准为局部移动动作。[定位](positioning.md)
+默认禁止空间驱动。SPS 四点定位的 `P0..P3+Sample` 使用专用根标记、AvatarRootLocal 四锚点和缩放守卫；Sample 默认 1000 ms、上限 1250 ms。Contact 直接定位（SDK Beta）用一个专用自身根点 Sender 和一个 Receiver，发布十二个 `Sensa/Contact/<id>/…` 字段，提供 AvatarRootMeters 位置与接触点相对速度；Sample 变化寿命最多 1000 ms，Radius 随 ScaleFactor 更新并受 3 m 门控保护。SensaPoint 支持 X／Y／Z／Distance 与 VelocityX／Y／Z／Speed／ProximitySpeed，沿用现有校准与停止行为。[Beta 前提与源码依据](contact-sdk.md)。Shader 捕获提供根点位置、Right／Forward 方向与 `AvatarScale`，三份数据副本可从完整且一致的副本恢复缺失区域，冲突副本会使测量无效。在流程的计算或输出绑定中选择 SensaPoint，再选择 RightX／Y／Z、ForwardX／Y／Z 或 AvatarScale，即可让这些指标参与计算并沿用定位的有效性检查。图块字段与捕获要求见[定位协议](positioning.md)。独立 Point／Handle／Pose 使用相对参考对象的坐标，并检查所有参与通道的最旧数据时间。它们的坐标分别相对 Avatar 或指定参考对象，适合校准为局部移动动作。[定位](positioning.md)
 
 NDMF 构建生成允许的原生组件再移除作者脚本。Automatic SPS Setup 支持 Dedicated／Exclusive，并明确选择根点定位方式：默认 SPS 四点定位，安装受支持的 Beta SDK 后可选 Contact 直接定位。独立 Contact 作者也支持明确的 Sensa／原生根点，无需 VRCFury；单点提供位置与速度，多点姿态留待后续。独立 SPS 四点定位作者可选实际根；传统 SensaComponent、PB、Point／Handle／Pose 仍各有自己的生成模型。GPU Model Probe 提供 Editor 中的模型快照，便于检查作者设置。Avatar／World Lab 提供能力场景、菜单与放置、SDK／ClientSim／PlayMode 入口，使用自己的授权资源。QuickStart 仅内部合成夹具。[Unity](../unity/top.sealoong.sensa/README.zh-CN.md) · [实验室](lab-workflow.md)
 

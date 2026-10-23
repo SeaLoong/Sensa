@@ -254,6 +254,18 @@ namespace UnityBox.Sensa.Tests
             Assert.Throws<InvalidOperationException>(() => Build(target));
             Assert.IsNull(avatar.transform.Find("SensaContactRoot_Root"));
         }
+        [Test] public void NativeScaleConstraintRedirectedToAvatarRootIsRejectedForSdkMeterTracking()
+        {
+            RequireBeta();
+            var type = AppDomain.CurrentDomain.GetAssemblies().Select(assembly => assembly.GetType(
+                "VRC.SDK3.Dynamics.Constraint.Components.VRCScaleConstraint")).FirstOrDefault(candidate => candidate != null);
+            Assert.NotNull(type);
+            var constraint = (VRCConstraintBase)Child("Root scale driver", Vector3.zero).AddComponent(type);
+            constraint.TargetTransform = avatar.transform;
+            Assert.Throws<InvalidOperationException>(() => Build(Target()));
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+            Assert.IsNull(avatar.transform.Find("SensaContactRoot_Root"));
+        }
 
         [TestCase(-1)]
         [TestCase(2)]

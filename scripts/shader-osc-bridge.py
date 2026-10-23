@@ -49,18 +49,22 @@ def open_frame(path):
         raise
 
 
-NATIVE_COLUMNS, NATIVE_ROWS = 20, 12
+NATIVE_COLUMNS, NATIVE_ROWS = 40, 32
+NATIVE_MIN_WIDTH, NATIVE_MIN_HEIGHT = 160, 128
+NATIVE_BASIS_RANGE = 8.0
 
 
 def edge_bit(column, row):
-    """Asymmetric, complementary edge bands; logical origin is bottom left."""
-    if row < 2:
-        return ((0xD3A6B >> column) & 1) ^ row
-    if row >= 10:
-        return ((0x69C57 >> column) & 1) ^ (row - 10)
-    if column < 2:
-        return ((0xA5 >> (row - 2)) & 1) ^ column
-    return ((0x6E >> (row - 2)) & 1) ^ (column - 18)
+    """Two white guard modules surround asymmetric complementary edge bands."""
+    if column < 2 or column >= 38 or row < 2 or row >= 30:
+        return 1
+    if row < 4:
+        return ((0xD3A69C57 >> ((column + 28) & 31)) & 1) ^ (row - 2)
+    if row >= 28:
+        return ((0x69C57D3A >> ((column + 28) & 31)) & 1) ^ (row - 28)
+    if column < 4:
+        return ((0xA5D36B >> (row - 4)) & 1) ^ (column - 2)
+    return ((0x6E29C7 >> (row - 4)) & 1) ^ (column - 36)
 
 
 def _cell(pixels, width, height, x, y, redundant=False):
@@ -70,21 +74,23 @@ def _cell(pixels, width, height, x, y, redundant=False):
     votes = [0, 0]
     for dy in (-1, 0, 1):
         for dx in (-1, 0, 1):
-            pixel = pixels[(y + dy) * width + x + dx][:3]
-            if len(pixel) != 3 or max(pixel) - min(pixel) > 20:
+            pixel = pixels[(y + dy) * width + x + dx]
+            if len(pixel) < 3:
                 continue
-            if min(pixel) > 215:
+            red, green, blue = pixel[:3]
+            if red > 215 and green > 215 and blue > 215 and max(red, green, blue) - min(red, green, blue) <= 20:
                 votes[1] += 1
-            elif max(pixel) < 40:
+            elif red < 40 and green < 40 and blue < 40 and max(red, green, blue) - min(red, green, blue) <= 20:
                 votes[0] += 1
     required = 6 if redundant else 9
     return 0 if votes[0] >= required else 1 if votes[1] >= required else None
 
 
 def _packet(values, native):
-    if values[:3] != b'SN\x01' or values[3] != (3 if native else 1):
+    if len(values) != (32 if native else 16) or values[:3] != b'SN\x01' or values[3] != (3 if native else 1):
         return None
-    if binascii.crc_hqx(values[:14], 0xffff) != int.from_bytes(values[14:], 'little'):
+    checksum = binascii.crc32(values[:28]) if native else binascii.crc_hqx(values[:14], 0xffff)
+    if checksum != int.from_bytes(values[28:] if native else values[14:], 'little'):
         return None
     xyz = [int.from_bytes(values[i:i+2], 'little') / 65535 * 2 - 1 for i in (6, 8, 10)]
     sample = {'frame': int.from_bytes(values[4:6], 'little'), 'xyz': xyz}
@@ -95,33 +101,50 @@ def _packet(values, native):
         sample.update(producerId=producer, coordinateFrame='AvatarRootLocal',
                       xyz=[center + value * AVATAR_ROOT_HALF_RANGE
                            for center, value in zip(AVATAR_ROOT_CENTER, xyz)])
+        basis = struct.unpack_from('<6h', values, 14)
+        if -32768 in basis:
+            return None
+        right, forward = ([value * NATIVE_BASIS_RANGE / 32767 for value in basis[:3]],
+                          [value * NATIVE_BASIS_RANGE / 32767 for value in basis[3:]])
+        right_size, forward_size = math.sqrt(sum(value * value for value in right)), math.sqrt(sum(value * value for value in forward))
+        cross = [right[1] * forward[2] - right[2] * forward[1], right[2] * forward[0] - right[0] * forward[2],
+                 right[0] * forward[1] - right[1] * forward[0]]
+        scale = int.from_bytes(values[26:28], 'little') * NATIVE_BASIS_RANGE / 65535
+        if (right_size <= 1e-6 or forward_size <= 1e-6 or scale <= 0
+                or math.sqrt(sum(value * value for value in cross)) <= right_size * forward_size * 1e-4):
+            return None
+        sample.update(right=right, forward=forward, avatarScale=scale)
     elif producer:
         raise ValueError('Diagnostic telemetry requires producer ID zero')
     return sample
 
 
 def _native_pixels(pixels, width, height):
-    if width < 80 or height < 48:
+    if width < NATIVE_MIN_WIDTH or height < NATIVE_MIN_HEIGHT:
         return None
     pitch_x, pitch_y = width / NATIVE_COLUMNS, height / NATIVE_ROWS
     # Give each side independent evidence: damaged corners must not
     # invalidate an otherwise intact neighboring edge.
-    sides = [[[(column, row) for column in range(2, 18)] for row in rows]
-             for rows in ((0, 1), (10, 11))]
-    sides += [[[(column, row) for row in range(2, 10)] for column in columns]
-              for columns in ((0, 1), (18, 19))]
-    # Search only one module around the explicitly selected rectangle. The
-    # border absorbs this translation; never scan the desktop or repair data.
-    offsets = sorted(((x / 4, y / 4) for y in range(-4, 5) for x in range(-4, 5)),
+    sides = [[[(column, row) for column in range(4, 36)] for row in rows]
+             for rows in ((2, 3), (28, 29))]
+    sides += [[[(column, row) for row in range(4, 28)] for column in columns]
+              for columns in ((2, 3), (36, 37))]
+    # Search within the guard band's two-module displacement budget. Never
+    # scan another desktop region or use pixels from a previous capture.
+    offsets = sorted(((x / 4, y / 4) for y in range(-8, 9) for x in range(-8, 9)),
                      key=lambda pair: abs(pair[0]) + abs(pair[1]))
+    sampled = {}
     for flip in (True, False):
         for offset_x, offset_y in offsets:
             def read(column, row, redundant=False):
-                screen_row = 11 - row if flip else row
-                return _cell(pixels, width, height,
-                             (column + .5 + offset_x) * pitch_x,
-                             (screen_row + .5 + offset_y) * pitch_y, redundant)
-            intact = 0
+                screen_row = 31 - row if flip else row
+                x = int((column + .5 + offset_x) * pitch_x)
+                y = int((screen_row + .5 + offset_y) * pitch_y)
+                key = (x, y, redundant)
+                if key not in sampled:
+                    sampled[key] = _cell(pixels, width, height, x, y, redundant)
+                return sampled[key]
+            intact, exact = 0, 0
             for side in sides:
                 # Either complementary line can identify an edge; losing its
                 # outer line to a small crop does not consume payload bits.
@@ -134,16 +157,25 @@ def _native_pixels(pixels, width, height):
                                 break
                     if errors <= 1:
                         intact += 1
+                        exact += errors == 0
                         break
             if intact < 3:
                 continue
-            values = bytearray(16)
-            for column in range(16):
+            values = bytearray(32)
+            for column in range(32):
                 for row in range(8):
-                    bit = read(column + 2, row + 2)
-                    if bit is None:
+                    # Each byte is distributed between three separate bands.
+                    # Only erasures are repaired. Any observed binary conflict
+                    # rejects this capture, including a splice of valid frames.
+                    copies = [read((column - copy * 11) % 32 + 4, row + copy * 8 + 4) for copy in range(3)]
+                    known = {bit for bit in copies if bit is not None}
+                    if len(known) != 1:
+                        if len(known) > 1 and exact >= 3:
+                            # An unambiguous marker alignment with contradictory
+                            # replicas is damaged data, not another ROI to hunt.
+                            return None
                         break
-                    values[column] |= bit << row
+                    values[column] |= known.pop() << row
                 else:
                     continue
                 break
@@ -151,12 +183,14 @@ def _native_pixels(pixels, width, height):
                 sample = _packet(values, native=True)
                 if sample is not None:
                     return sample
+                if exact >= 3:
+                    return None
     return None
 
 
 def decode_pixels(pixels, width, height):
     if width < 64 or height < 32 or len(pixels) != width * height:
-        raise ValueError('Expected a complete grid: native 20 x 12 (80 x 48 px), diagnostic 16 x 8 (64 x 32 px)')
+        raise ValueError('Expected a complete grid: native 40 x 32 (160 x 128 px), diagnostic 16 x 8 (64 x 32 px)')
     native = _native_pixels(pixels, width, height)
     if native is not None:
         return native
@@ -184,8 +218,8 @@ def decode_pixels(pixels, width, height):
 def capture_registration(region, producer_id):
     if not isinstance(region, (list, tuple)) or len(region) != 4 or any(type(value) is not int for value in region):
         raise ValueError('Registration requires four integer physical-pixel bounds')
-    if region[2] < 80 or region[3] < 48 or region[2] > 8192 or region[3] > 8192:
-        raise ValueError('Native capture rectangle must be 80..8192 by 48..8192 physical pixels')
+    if region[2] < NATIVE_MIN_WIDTH or region[3] < NATIVE_MIN_HEIGHT or region[2] > 8192 or region[3] > 8192:
+        raise ValueError('Native capture rectangle must be 160..8192 by 128..8192 physical pixels')
     if type(producer_id) is not int or not 1 <= producer_id <= 65535:
         raise ValueError('Registration requires an explicit producer ID from 1..65535')
     return {'schema': REGISTRATION_SCHEMA, 'region': list(region), 'producerId': producer_id,
@@ -243,7 +277,8 @@ class Freshness:
             self.invalidate('producer identity or coordinate frame changed; select the source explicitly')
             return False
         frame = sample['frame']
-        payload = tuple(sample['xyz']) if 'xyz' in sample else None
+        payload = ((tuple(sample['xyz']), tuple(sample.get('right', [])), tuple(sample.get('forward', [])), sample.get('avatarScale'))
+                   if 'xyz' in sample else None)
         if self.phase and now - self.changed_at > self.timeout:
             self.invalidate('frozen frame')
         if self.last is None:
@@ -256,7 +291,7 @@ class Freshness:
             return False
         if not advance:
             if payload != self.payload:
-                self.invalidate('frame ID reused with different coordinates')
+                self.invalidate('frame ID reused with different payload')
             return self.phase == 2
         self.last, self.changed_at, self.payload = frame, now, payload
         self.phase = min(2, self.phase + 1)
@@ -283,6 +318,10 @@ def osc_bundle(sample, valid, producer_id=None, native=None):
     values = []
     if valid:
         values = [('Frame', sample['frame'])] + list(zip('XYZ', sample['xyz']))
+        if native:
+            values += list(zip(('RightX', 'RightY', 'RightZ'), sample['right']))
+            values += list(zip(('ForwardX', 'ForwardY', 'ForwardZ'), sample['forward']))
+            values.append(('AvatarScale', sample['avatarScale']))
     # Valid is the commit marker; invalidation never republishes old coordinates.
     values.append(('Valid', float(valid)))
     result = osc_string('#bundle') + struct.pack('!Q', 1)
@@ -317,7 +356,7 @@ def main():
     if not .05 <= args.timeout <= 5 or not 0 < args.duration <= 3600: parser.error('Invalid time limit')
     if args.producer_id is not None and not 1 <= args.producer_id <= 65535: parser.error('Invalid producer ID')
     if args.region:
-        if args.region[2] < 80 or args.region[3] < 48 or args.region[2] > 8192 or args.region[3] > 8192:
+        if args.region[2] < NATIVE_MIN_WIDTH or args.region[3] < NATIVE_MIN_HEIGHT or args.region[2] > 8192 or args.region[3] > 8192:
             parser.error('Invalid capture rectangle size')
         if args.port and args.producer_id is None:
             parser.error('Screen-to-OSC requires --producer-id or --registration')

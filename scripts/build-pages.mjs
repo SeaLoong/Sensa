@@ -9,8 +9,8 @@ const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
 const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
-  en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Download preview', navigation: 'Navigation', top: 'On this page', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
-  'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载预览版', navigation: '导航', top: '本页目录', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
+  en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Downloads', navigation: 'Navigation', top: 'On this page', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
+  'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '导航', top: '本页目录', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
 };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to) || path.posix.basename(to);
@@ -56,7 +56,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const outline = outlines.get(route) || [], buddyOutline = outlines.get(buddy) || [];
     const headingMap = routes.has(other + ':' + document.slug) ? mapDocumentHeadings(outline, buddyOutline) : {};
     const href = target => escape(relative(route, target));
-    const nav = ['README', 'docs/quick-start', 'docs/guide', 'docs/signal-pipeline', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/computed-signals', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
+    const nav = ['README', 'docs/quick-start', 'docs/signal-pipeline', 'docs/guide', 'docs/features', 'docs/computed-signals', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
     const navigation = nav.map(key => {
       const target = routes.get(locale + ':' + key), item = [...documents.values()].find(x => x.route === target);
       return item ? '<a' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(titleOf(item)) + '</a>' : '';

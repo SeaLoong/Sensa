@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import nativeShader from '../fixtures/shader-native-format1.json' with { type: 'json' };
 import { test as hostedTest, mode, oscWorkspace, text } from './fixtures.js';
 
 // Only offline guide cases share software WebGL; app fixtures keep their own browser pool.
@@ -70,7 +71,7 @@ async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);
   await expect(page.locator('#scene')).toHaveValue(scenario);
   await page.locator('#reset').click();
-  await page.locator('#signal-simulation').evaluate(node => { node.open = false; });
+  await page.locator('#signal-simulation, #shader-components').evaluateAll(nodes => nodes.forEach(node => { node.open = false; }));
   // Existing 2D contracts stay explicit when spatial scenes default to 3D.
   // 空间场景默认三维后，既有二维契约仍明确选择自身投影。
   await page.locator('#projection').selectOption(projection);
@@ -78,6 +79,7 @@ async function chooseScene(page, scenario, projection = 'xz') {
 async function setRange(page, name, value) {
   const control = page.locator('#control-' + name);
   if (['sample', 'ageMs', 'frame', 'valid'].includes(name)) await page.locator('#signal-simulation').evaluate(node => { node.open = true; });
+  if (/^(?:right|forward)[XYZ]$/.test(name) || name === 'avatarScale') await page.locator('#shader-components').evaluate(node => { node.open = true; });
   await expect(control).toBeVisible();
   // Set a precise geometry fixture through the native input event.
   // 通过原生输入事件设置精确几何；真实键盘交互另有独立断言。
@@ -528,31 +530,51 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await noCoordinate(page, 'P0');
 
     await chooseScene(page, 'shader');
-    await expect(page.locator('#values tr')).toHaveCount(5);
+    await expect(page.locator('#values tr')).toHaveCount(12);
     expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
-      .toEqual(['Frame', 'Valid', 'X', 'Y', 'Z']);
+      .toEqual(['AvatarScale', 'ForwardX', 'ForwardY', 'ForwardZ', 'Frame', 'RightX', 'RightY', 'RightZ', 'Valid', 'X', 'Y', 'Z']);
     await expect(page.locator('#diagram [data-shape-id^="receiver-"]')).toHaveCount(0);
     await expect(page.locator('#diagram [data-shape-id^="sender-"]')).toHaveCount(0);
     await nearCell(page, 'Valid', 1);
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
-    await expect(page.locator('#bit-grid rect')).toHaveCount(240);
-    await expect(page.locator('#bit-grid rect[data-edge="true"]')).toHaveCount(112);
-    await setRange(page, 'x', -2); await setRange(page, 'y', -1); await setRange(page, 'z', -2);
-    await setRange(page, 'frame', 0);
-    const bitCells = await page.locator('#bit-grid rect[data-edge="false"]').evaluateAll(cells => cells.map(cell => ({
+    await expect(page.locator('#bit-grid rect')).toHaveCount(1280);
+    await expect(page.locator('#bit-grid rect[data-region="quiet"]')).toHaveCount(272);
+    await expect(page.locator('#bit-grid rect[data-region="marker"]')).toHaveCount(240);
+    await setRange(page, 'x', 0); await setRange(page, 'y', 1); await setRange(page, 'z', 0);
+    await setRange(page, 'frame', 256);
+    const bitCells = await page.locator('#bit-grid rect').evaluateAll(cells => cells.map(cell => ({
       byte: Number(cell.dataset.byte), bit: Number(cell.dataset.bit), value: Number(cell.dataset.value),
+      copy: Number(cell.dataset.copy), region: cell.dataset.region,
       x: Number(cell.getAttribute('x')), y: Number(cell.getAttribute('y')), fill: cell.getAttribute('fill'),
     })));
-    // Independent CRC-16 reference packet for the minimum XYZ corner, frame 0, ID 42.
-    // 独立 CRC-16 参考包：XYZ 最小角、Frame0、ID42，不调用页面模型自证。
-    const bytes = [83, 78, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 42, 0, 194, 133];
+    // Independent native format-1 vector covers every marker, quiet cell and all three copies.
+    // 独立原生格式1向量覆盖全部定位格、白色缓冲格与三份错位数据副本。
+    const bytes = Buffer.from(nativeShader.packetHex, 'hex');
     for (const cell of bitCells) {
-      const bit = bytes[cell.byte] >> cell.bit & 1;
+      const bit = Number(nativeShader.screenRows[cell.y / 16][cell.x / 16]);
       expect(cell.value).toBe(bit);
-      expect(cell.fill).toBe(bit ? '#fff' : '#182131');
-      expect(cell.x).toBe((cell.byte + 2) * 16);
-      expect(cell.y).toBe((9 - cell.bit) * 16);
+      expect(cell.fill).toBe(bit ? '#fff' : '#000');
+      if (cell.region === 'payload') {
+        expect(cell.value).toBe(bytes[cell.byte] >> cell.bit & 1);
+        expect(cell.x).toBe((((cell.byte - cell.copy * 11 + 64) % 32) + 4) * 16);
+        expect(cell.y).toBe((31 - (4 + cell.copy * 8 + cell.bit)) * 16);
+      }
     }
+    for (let copy = 0; copy < 3; copy++) expect(bitCells.filter(cell => cell.region === 'payload' && cell.copy === copy)).toHaveLength(256);
+    await nearCell(page, 'RightX', nativeShader.expected.right[0]);
+    await nearCell(page, 'ForwardZ', nativeShader.expected.forward[2]);
+    await nearCell(page, 'AvatarScale', nativeShader.expected.avatarScale);
+    const shaderCards = await referenceCards(page);
+    for (const name of ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale']) {
+      expect(shaderCards.find(card => card.name === name).sources.some(source => source.href.includes('shader-capture-research'))).toBe(true);
+    }
+    await setRange(page, 'avatarScale', 2);
+    expect(await cellNumber(page, 'AvatarScale')).toBeGreaterThan(1.99);
+    await setRange(page, 'forwardX', 1); await setRange(page, 'forwardZ', 0);
+    await nearCell(page, 'Valid', 0);
+    await noCoordinate(page, 'RightX'); await noCoordinate(page, 'AvatarScale');
+    await setRange(page, 'forwardZ', 1);
+    await nearCell(page, 'Valid', 1);
     await setRange(page, 'frame', 65535);
     await nearCell(page, 'Frame', 65535);
     await page.locator('#control-valid').uncheck();

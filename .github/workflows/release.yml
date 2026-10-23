@@ -1,9 +1,9 @@
-name: Publish Release / 发布正式版
+name: Release
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: Optional X.Y.Z; blank selects the next version / 可选版本号，留空自动递增
+        description: Optional X.Y.Z; blank selects the next version
         type: string
         required: false
         default: ''
@@ -15,12 +15,14 @@ concurrency:
   cancel-in-progress: false
 jobs:
   checks:
+    name: Checks
     uses: ./.github/workflows/checks.yml
     with:
       source_ref: main
       require_main: true
 
   build:
+    name: Build
     needs: checks
     uses: ./.github/workflows/build.yml
     with:
@@ -29,7 +31,7 @@ jobs:
       version: ${{ inputs.version }}
 
   publish:
-    name: Publish stable downloads / 发布正式下载
+    name: Publish stable
     needs: [checks, build]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
@@ -40,23 +42,26 @@ jobs:
       queue: max
       cancel-in-progress: false
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: ${{ needs.build.outputs.commit }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.14'
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+      - name: Download builds
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
         with:
           pattern: distribution-*
           path: artifacts/downloaded
-      - name: Check publication credential / 检查发布凭据
+      - name: Check release token
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
         run: test -n "$GH_TOKEN" || { echo '::error::Configure the SENSA_PAT repository Actions secret / 请配置仓库 Actions 密钥 SENSA_PAT'; exit 1; }
-      - name: Publish archives and generated notes / 发布压缩包与自动说明
+      - name: Publish release
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}
           SENSA_E2E_COMPARISON_SHA: ${{ needs.checks.outputs.comparison_sha }}
@@ -70,7 +75,7 @@ jobs:
           --previous-tag "$PREVIOUS_TAG" --assets artifacts/downloaded
 
   pages:
-    name: Refresh documentation and VPM / 刷新文档与 VPM
+    name: Refresh Pages
     needs: publish
     permissions:
       contents: read

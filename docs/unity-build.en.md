@@ -10,7 +10,7 @@ Sensa's Unity scripts store authoring settings. During an Avatar build, NDMF rea
 | --- | --- | --- |
 | SPS four-anchor tracking: `SensaSpsRootProbe.prefab` | SPS Socket/Plug root position, with explicit bone or marker targets also supported | `AvatarRootLocal` authored units; four Receivers and one Sender |
 | Contact direct tracking (SDK Beta): `SensaContactRootProbe.prefab` | Root position, relative velocity and proximity change rate | `AvatarRootMeters` in metres; one Receiver and one Sender; advanced Proximity parameters required |
-| Shader root capture: `SensaShaderCapture.prefab` | Root coordinates encoded into a desktop image | `AvatarRootLocal` authored units; PC Built-in, a geometry-shader-capable backend and desktop bridge |
+| Shader root capture: `SensaShaderCapture.prefab` | Position, X/Z axes and world scale encoded into a desktop image | `AvatarRootLocal` authored units; PC Built-in, a geometry-shader-capable backend and desktop bridge |
 | Point/Handle/Pose | Points, grabbable handles or paired orientation in a chosen frame | Each uses its own reference, protocol and freshness rules |
 
 All three root prefabs accept an explicit `Target` within your Avatar: a bone/empty-object `Transform`, SPS Socket/Plug, Sensa Component or native Contact. Bones and ordinary markers can be selected directly. Native Contacts use their shape center; SPS targets use their authoring root geometry. [Coordinates and units](positioning.en.md) · [Contact SDK reports](contact-sdk.en.md)
@@ -66,6 +66,8 @@ Generators operate on the build copy. Targets, bones, PhysBones and Raycast refe
 Sensa creates temporary animator/menu/parameter inputs for MA and leaves build-asset serialization to NDMF. The native root Shader ships in the package at `Runtime/Shaders/SensaRootTelemetry.shader`; building references that asset directly. Rebuilding after a package update adopts the current encoder.
 
 The basic `SensaComponent` binds native Contacts to their selected axis/bone so they continue following it. Related FX parameters are writable. Socket range and Contact sizes use the selected axis's local units, equal to metres at axis scale one; SPS four-anchor tracking and direct Contact tracking retain their separate coordinate contracts above. Supplementary Contact signals use tags matching their Senders. Existing-parameter signals reference the original parameter and retain its type.
+
+SPS four-anchor and Contact root-scale checks follow a constraint's actual target and MA Merge Animator's `relativePathRoot`. Keep Avatar-root scale fixed while scaling child objects as needed. Shader sampling additionally validates original and quantized axes and uniform world scale, catching settings that would produce invalid packets during the build.
 
 ## Official sources and verification scope
 

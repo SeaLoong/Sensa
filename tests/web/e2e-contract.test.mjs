@@ -76,7 +76,7 @@ test('fixed SPS fixture exposes only P0–P3 and Sample / 固定SPS夹具仅公�
   assert.equal(fixedRootSamples(.05, 8 / 32, false)[4][1], 0);
 });
 
-test('native-root fixture commits five ordered fields in one immediate OSC bundle / 原生根夹具以单个bundle按序提交五字段', () => {
+test('native-root fixture commits twelve ordered fields in one immediate OSC bundle / 原生根夹具以单个bundle按序提交十二字段', () => {
   const bytes = oscBundle(shaderRootSamples(.15, 27));
   assert.equal(bytes.subarray(0, 8).toString('ascii'), '#bundle\0');
   assert.equal(bytes.readBigUInt64BE(8), 1n);
@@ -94,9 +94,10 @@ test('native-root fixture commits five ordered fields in one immediate OSC bundl
   }
   assert.equal(offset, bytes.length);
   const prefix = '/avatar/parameters/Sensa/Shader/42/';
-  assert.deepEqual(fields.map(([path]) => path), ['Frame', 'X', 'Y', 'Z', 'Valid'].map(name => prefix + name));
+  assert.deepEqual(fields.map(([path]) => path), ['Frame', 'X', 'Y', 'Z', 'RightX', 'RightY', 'RightZ',
+    'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale', 'Valid'].map(name => prefix + name));
   assert.equal(fields[0][1], 27);
   assert.ok(Math.abs(fields[3][1] - .15) < .000001);
-  assert.equal(fields[4][1], 1);
+  assert.deepEqual(fields.slice(4).map(([, value]) => value), [1, 0, 0, 0, 0, 1, 1, 1]);
   assert.deepEqual(shaderRootSamples(.15, 28, false), [['Sensa/Shader/42/Valid', 0]]);
 });

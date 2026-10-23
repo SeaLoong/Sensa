@@ -268,6 +268,45 @@ class ShaderDiagnosticSetupContracts(LabFixture):
         self.assertGreaterEqual(state['polls'], 2)
 
 
+class NativeShaderSmokeContracts(LabFixture):
+    def test_synthetic_native_phase_observes_all_fields_root_basis_scale_and_freeze_with_input_disabled(self):
+        expected = shader_smoke.native_fixture()['expected']
+        state = {'running': False}
+        feed = Mock(current=self.root / 'native-frame.png')
+        feed.start.side_effect = lambda: state.update(running=True)
+        feed.stop.side_effect = lambda: state.update(running=False)
+        session = Mock(root=self.root, osc_port=19093)
+
+        def api(path):
+            if path == '/api/config': return {'outputs': []}
+            self.assertEqual(path, '/api/state/overview')
+            fields = {'Frame': 257, 'Valid': int(state['running']), 'AvatarScale': expected['avatarScale']}
+            for key, stem in (('xyz', ''), ('right', 'Right'), ('forward', 'Forward')):
+                fields.update({stem + axis: value for axis, value in zip('XYZ', expected[key])})
+            root = {'prefix': 'Sensa/Shader/42', 'kind': 'ShaderRoot', 'valid': state['running'],
+                    'right': dict(zip('xyz', expected['right'])), 'forward': dict(zip('xyz', expected['forward'])),
+                    'avatarScale': expected['avatarScale']}
+            return {'runtime': {'inputActive': False}, 'poseTracking': {'spsRoots': [root]},
+                    'osc': {'preview': [{'path': 'Sensa/Shader/42/' + key, 'numericValue': value} for key, value in fields.items()]}}
+        session.api.side_effect = api
+        with patch.object(shader_smoke, 'require_ci'), patch.object(shader_smoke, 'NativeFrameFeed', return_value=feed):
+            report = shader_smoke.native_smoke(session)
+        self.assertTrue(report['passed']); self.assertTrue(report['synthetic']); self.assertEqual(report['erasedPayloadBand'], 1)
+        self.assertFalse(report['inputActive']); self.assertEqual(report['outputs'], [])
+        self.assertTrue(report['fresh']['root']['valid']); self.assertFalse(report['afterFreeze']['root']['valid'])
+        feed.start.assert_called_once(); feed.stop.assert_called_once(); session.start_child.assert_called_once()
+        command = session.start_child.call_args.args[0]
+        self.assertIn('--watch', command); self.assertEqual(command[command.index('--producer-id') + 1], '42')
+        self.assertEqual(command[command.index('--port') + 1], '19093')
+
+    def test_native_phase_rejects_local_execution_before_starting_its_fixture_or_child(self):
+        session = Mock(root=self.root, osc_port=19093)
+        with patch.dict(os.environ, {'GITHUB_ACTIONS': 'false'}), patch.object(shader_smoke, 'NativeFrameFeed') as feed, \
+                self.assertRaisesRegex(RuntimeError, 'GitHub Actions'):
+            shader_smoke.native_smoke(session)
+        feed.assert_not_called(); session.start_child.assert_not_called()
+
+
 class SmokeCiPolicyContracts(unittest.TestCase):
     def test_session_and_both_cli_adapters_reject_local_execution_before_launch(self):
         environment = Environment()

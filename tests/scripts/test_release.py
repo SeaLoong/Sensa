@@ -269,18 +269,11 @@ class DesktopArchiveContracts(ArchiveWorkspace):
 
 
 class EnglishReleaseNotesContracts(unittest.TestCase):
-    def test_preview_notes_lead_with_english_and_keep_complete_chinese_and_exact_commit(self):
+    def test_preview_notes_contain_only_the_exact_source_link(self):
         module = load('release_notes')
         notes = module.compose_release_notes('preview', '0.4.0', 'preview-42-1-aaaaaaaa', 'a' * 40,
                                              'Owner/Repo', '## Changes\n\n* Fix a published issue')
-        english, chinese = notes.split('## 简体中文', 1)
-        self.assertIn('a' * 40, english)
-        self.assertIn('a' * 40, chinese)
-        self.assertIn('SHA256SUMS.txt', english)
-        self.assertIn('SHA256SUMS.txt', chinese)
-        self.assertIn('parameter-geometry.html?lang=en-US', english)
-        self.assertIn('parameter-geometry.html?lang=zh-CN', chinese)
-        self.assertIn('Fix a published issue', notes)
+        self.assertEqual(notes, f'Source: [`{"a" * 40}`](https://github.com/Owner/Repo/commit/{"a" * 40})\n')
 
     def test_stable_notes_include_both_languages_and_the_automatic_changelog(self):
         module = load('release_notes')

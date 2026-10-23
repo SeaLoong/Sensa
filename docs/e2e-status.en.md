@@ -4,6 +4,14 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## Shader inputs, documentation entry points and preview notes
+
+On 2026-10-24 (Beijing time), this change adds three-point Shader sampling, 32-byte/CRC32 monochrome blocks, white movement margins, three-copy erasure recovery and tracking metrics for axes and AvatarScale, alongside Unity root-scale checks. The homepage and guides expose input, computation, outputs and funscript recording/replay. Workflow names and badges use short English labels; preview notes show only Source.
+
+Isolated checks passed **694 .NET, 177 Web, 246 Python and 3 site-unit tests**, plus Web build, Unity package metadata and **88 documentation routes**. Unity Editor is unavailable here, so new EditMode and explicit GPU-pixel contracts await execution. Actual VRChat, HMD and hardware acceptance also remains unperformed in this environment.
+
+Complete Actions browser comparison, candidate images and individual review are being arranged; no browser outcomes have yet been observed for this change. The existing 150 PNGs retain the previous accepted provenance. Shader image updates will be accepted after individual review and a complete normal comparison with updates disabled. Synthetic native-PNG Windows smoke also awaits actual Actions execution.
+
 ## Signal pipeline, outputs and shared sessions
 
 This change organizes inputs, computation and outputs into a reusable signal pipeline, adding Combined input, temporal processing, output bindings, session recording/replay and complete plans. New browser cases cover manual/OSC calculations, Float/Int/Bool in actual UDP messages, raw-reading replay from JSON Lines/CSV, axis profiles retained in plans, and cross-tab connections through SharedWorker and BroadcastChannel/Web Locks. [Operation](signal-pipeline.en.md) · [Actual coverage](e2e.en.md)

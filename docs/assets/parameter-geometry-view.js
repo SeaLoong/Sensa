@@ -20,7 +20,13 @@
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
     rowHint: ["点击参数名，查看含义并突出对应范围。原始值来自几何计算，可用值结合了 Close 或信号状态。", "Select a parameter to read its meaning and highlight its range. Raw values come from geometry; usable values also apply Close or signal state."],
     parameter: ['参数', 'Parameter'], raw: ['原始值', 'Raw'], effective: ['可用值', 'Usable value'],
-    grid: ['20 × 12 编码图块（边缘用于定位）', '20 × 12 encoded grid with edge markers'], controls: ['调整几何', 'Adjust geometry'],
+    grid: ['40 × 32 黑白编码图块', '40 × 32 black-and-white encoded grid'], controls: ['调整几何', 'Adjust geometry'],
+    encodingHint: ['从外向内：2 格白色缓冲边、2 格定位标记、3 份交错排列的数据副本。副本补全未知位，CRC32 校验整包；已知位冲突时等待下一幅有效画面。', 'Outside to inside: a 2-cell white buffer, 2-cell positioning markers, and three offset copies of the data. Copies fill unknown bits and CRC32 checks the packet; conflicting known bits wait for a fresh valid image.'],
+    shaderComponents: ['目标轴方向与根单位缩放', 'Target axes and root-unit scale'],
+    shaderComponentsHint: ['RightXYZ 与 ForwardXYZ 分别表示目标 X、Z 轴在根坐标系中的方向和单位轴长。AvatarScale 表示每个根局部单位对应的世界米数。', 'RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame. AvatarScale gives world metres per root-local unit.'],
+    rightX: ['目标 X 轴 · 根 X 分量', 'Target X axis · root X'], rightY: ['目标 X 轴 · 根 Y 分量', 'Target X axis · root Y'], rightZ: ['目标 X 轴 · 根 Z 分量', 'Target X axis · root Z'],
+    forwardX: ['目标 Z 轴 · 根 X 分量', 'Target Z axis · root X'], forwardY: ['目标 Z 轴 · 根 Y 分量', 'Target Z axis · root Y'], forwardZ: ['目标 Z 轴 · 根 Z 分量', 'Target Z axis · root Z'],
+    avatarScale: ['根单位对应的世界米数', 'World metres per root unit'],
     dragHint: ['拖动橙色操作点仅改变 X/Z，Y 由滑条控制。方向键：左右 Z、上下 X；Shift 加速。', 'Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.'],
     x: ['移动对象 · X', 'Moving object · X'], y: ['移动对象 · Y', 'Moving object · Y'], z: ['移动对象 · Z', 'Moving object · Z'],
     vx: ['SDK 相对速度 · X', 'SDK relative velocity · X'], vy: ['SDK 相对速度 · Y', 'SDK relative velocity · Y'], vz: ['SDK 相对速度 · Z', 'SDK relative velocity · Z'],
@@ -107,9 +113,9 @@
       formula: ["每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球交集与坐标边界共同决定，并避开测量点旁 3 毫米的饱和区。边缘采用采样绘制，有效性由数值检查判定。", "Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope combines the four-sphere intersection with coordinate bounds and excludes 3 mm saturation regions near the anchors. Its edge is sampled; numeric checks determine validity."],
     },
     'shader': {
-      summary: ["X/Y/Z 表示目标相对 Avatar 根的位置。Shader 将坐标写入画面中的图块，桌面工具读取后即可用于位置联动。", "X/Y/Z locate the target relative to the avatar root. The Shader writes them into an image grid for the desktop tool to read and use for position-based interaction."],
-      explanation: ["绿色方框覆盖中心各方向 2 米。边缘固定图案用于定位，中间 16×8 位记录坐标等数据；Frame 随画面推进，Valid 标记坐标是否可用。", "The green box extends 2 m from its center along each axis. Fixed edge patterns locate the grid; the middle 16×8 bits carry coordinates and other data. Frame advances with the image, and Valid marks usable coordinates."],
-      formula: ["q=round(clamp((p−center+2)/4)×65535)，每级坐标间隔约 0.061 毫米，描述编码的细分程度。图块需通过校验并保持更新；桥默认在停更 350 ms 后报告 Valid=0。", "q=round(clamp((p−center+2)/4)×65535). Each coordinate level is about 0.061 mm apart, describing the encoding subdivisions. The grid must pass checks and keep updating; the bridge reports Valid=0 after a default 350 ms stall."],
+      summary: ["X/Y/Z 表示目标相对 Avatar 根的位置；Right/Forward 向量记录目标 X/Z 轴的方向和长度。Shader 把这些数据及根单位缩放写入黑白图块，由桌面桥接程序解码为 OSC。", "X/Y/Z locate the target relative to the avatar root; Right/Forward vectors describe its X/Z axis directions and lengths. The Shader writes these values and root-unit scale into a black-and-white grid for the desktop bridge to decode as OSC."],
+      explanation: ["绿色方框在每轴覆盖中心前后各 2 个根局部单位。黑白图块外围白边为小幅画面平移留出空间，定位标记确定数据位置，三份副本帮助补全未知位。Frame 按编码时钟变化，Valid 提交完整有效的数据包。", "The green box covers 2 root-local units on either side of its center along each axis. The white border leaves room for small image shifts, markers locate the data, and three copies help fill unknown bits. Frame follows the encoder clock and Valid commits a complete usable packet."],
+      formula: ["位置 q=round(clamp((p−center+2)/4)×65535)，每级约 0.000061 个根局部单位。轴向量按 ±8 有符号 16 位量化；AvatarScale 将根局部单位换算为世界米。桥在原图大小下搜索 ±2 格平移并校验 CRC32，默认停更 350 ms 后报告 Valid=0。", "Position q=round(clamp((p−center+2)/4)×65535), about 0.000061 root-local units per level. Axis vectors use signed 16-bit quantization over ±8; AvatarScale converts root-local units to world metres. At the original image size, the bridge searches shifts of ±2 cells and checks CRC32, reporting Valid=0 after a default 350 ms stall."],
     },
   };
   // Keep this small classic-script resolver aligned with src/web/i18n.js; the guide also works from file://.
@@ -413,6 +419,9 @@
       add(['编码前后位置差', 'Position difference after encoding'], fmt(m.quantError.length, 7) + ' ' + units());
       add(['桌面接收年龄上限', 'Desktop intake age ceiling'], m.frameAgeLimitMs + ' ms');
       add(['实际桥默认冻结门限', 'Actual bridge default freeze threshold'], m.bridgeFreezeThresholdMs + ' ms');
+      add(['目标 X 轴向量 Right', 'Target X-axis vector Right'], ['x', 'y', 'z'].map(k => fmt(m.right[k])).join(' / '));
+      add(['目标 Z 轴向量 Forward', 'Target Z-axis vector Forward'], ['x', 'y', 'z'].map(k => fmt(m.forward[k])).join(' / '));
+      add(['根单位缩放 AvatarScale', 'Root-unit scale AvatarScale'], fmt(m.avatarScale) + ' m/unit');
       if (state.ageMs > m.bridgeFreezeThresholdMs) add(['实际桥会先行停用', 'Actual bridge would already stop'], 'Valid=0');
     }
     $('metrics').replaceChildren();
@@ -436,15 +445,17 @@
     $('encoding').hidden = state.scenario !== 'shader';
     if (state.scenario === 'shader') {
       $('bit-grid').replaceChildren();
-      for (let column = 0; column < 20; column++) for (let screenRow = 0; screenRow < 12; screenRow++) {
-        const row = 11 - screenRow;
+      const encoding = Model.shaderEncoding;
+      $('bit-grid').setAttribute('viewBox', `0 0 ${encoding.width * 16} ${encoding.height * 16}`);
+      for (let column = 0; column < encoding.width; column++) for (let screenRow = 0; screenRow < encoding.height; screenRow++) {
+        const row = encoding.height - 1 - screenRow;
         const bit = Model.encodedBit(result.metrics.bytes, column, row);
-        const edge = column < 2 || column >= 18 || row < 2 || row >= 10;
+        const cell = Model.encodedCell(column, row), edge = cell.region !== 'payload';
         $('bit-grid').append(svg('rect', { x: column * 16, y: screenRow * 16, width: 16, height: 16,
-          fill: bit ? '#fff' : edge ? '#075c50' : '#182131', 'data-byte': edge ? undefined : column - 2,
-          'data-bit': edge ? undefined : row - 2, 'data-edge': String(edge), 'data-value': bit }));
+          fill: bit ? '#fff' : '#000', 'data-byte': cell.byte, 'data-bit': cell.bit, 'data-copy': cell.copy,
+          'data-region': cell.region, 'data-edge': String(edge), 'data-value': bit }));
       }
-      const bytes = result.metrics.bytes; $('crc').textContent = 'CRC ' + (bytes[14] | bytes[15] << 8).toString(16).toUpperCase().padStart(4, '0') + ' · ID 42';
+      $('crc').textContent = 'CRC32 ' + result.metrics.crc32.toString(16).toUpperCase().padStart(8, '0') + ' · ID 42';
     }
   }
   function parameterReferences() {
@@ -534,7 +545,8 @@
     $('coverage-legend').hidden = !spatial();
     if (['contact-sdk', 'sensa-sps'].includes(state.scenario)) allowed.add('sample');
     if (state.scenario === 'contact-sdk') ['vx', 'vy', 'vz', 'proximitySpeed'].forEach(k => allowed.add(k));
-    if (state.scenario === 'shader') allowed.add('frame');
+    $('shader-components').hidden = state.scenario !== 'shader';
+    if (state.scenario === 'shader') ['frame', 'rightX', 'rightY', 'rightZ', 'forwardX', 'forwardY', 'forwardZ', 'avatarScale'].forEach(key => allowed.add(key));
     for (const holder of document.querySelectorAll('[data-control]')) {
       const key = holder.dataset.control, input = $('control-' + key); holder.hidden = !allowed.has(key);
       if (['x', 'y', 'z'].includes(key)) {
@@ -547,7 +559,7 @@
         const output = holder.querySelector('output');
         output.textContent = key === 'sample' ? Math.round(state.sample * 32) + '/32'
           : key === 'ageMs' ? state[key] + ' ms' : key === 'frame' ? String(state[key])
-          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (['vx', 'vy', 'vz'].includes(key) ? ' m/s' : key === 'proximitySpeed' ? ' 1/s' : state.scenario === 'contact-sdk' ? ' m' : spatial() ? '' : ' ' + units());
+          : key === 'yaw' ? state[key] + '°' : fmt(state[key]) + (key === 'avatarScale' ? ' m/unit' : ['vx', 'vy', 'vz'].includes(key) ? ' m/s' : key === 'proximitySpeed' ? ' 1/s' : state.scenario === 'contact-sdk' ? ' m' : spatial() ? '' : ' ' + units());
       }
     }
     const receiverKey = $('receiver-key'); receiverKey.replaceChildren();
@@ -559,7 +571,8 @@
     $('control-ageMs').closest('label').querySelector('span').textContent = state.scenario === 'contact-sdk' ? text(['距 Sample 上次变化', 'Age since Sample changed']) : text('ageMs');
     $('control-valid').closest('label').querySelector('span').textContent = state.scenario === 'contact-sdk' ? text(['Sensa 生产端启用', 'Sensa producer enabled']) : text('valid');
     $('unit-note').textContent = state.scenario === 'contact-sdk'
-      ? text(['位置以米表示，原点在 Avatar 根，轴随 Avatar 根旋转。绿色为单球可检测区域；Sample 检查生产端活动，速度变化保持独立。', 'Position uses metres, centered on the Avatar root with axes following its rotation. Green is single-sphere detection coverage. Sample checks producer activity; velocity changes remain independent.']) : spatial()
+      ? text(['位置以米表示，原点在 Avatar 根，轴随 Avatar 根旋转。绿色为单球可检测区域；Sample 检查生产端活动，速度变化保持独立。', 'Position uses metres, centered on the Avatar root with axes following its rotation. Green is single-sphere detection coverage. Sample checks producer activity; velocity changes remain independent.']) : state.scenario === 'shader'
+      ? text(['坐标以 Avatar 根局部单位表示：X 左右、Y 高度、Z 前后。AvatarScale 提供每单位的世界米数；灰色框表示编码坐标范围。', 'Coordinates use Avatar-root local units: X side-to-side, Y height and Z front-to-back. AvatarScale gives world metres per unit; the gray box shows the encoded coordinate range.']) : spatial()
       ? text(['坐标相对 Avatar 根：X 左右、Y 高度、Z 前后；在作者缩放为 1 时单位对应米。绿色是检测范围，灰色框是允许的坐标边界。', 'Coordinates relative to the avatar root: X side-to-side, Y height, Z front-to-back. Units correspond to metres at authored scale 1. Green is detection coverage; the gray box is the coordinate limit.'])
       : text(['米制示意，作者缩放假定为 1；胶囊 H 含端帽，尺寸以模型读数为准。', 'Metre illustration with authored scale assumed one. Capsule H includes caps; use model dimensions.']);
   }

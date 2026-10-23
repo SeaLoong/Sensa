@@ -1,8 +1,21 @@
-# Choose an integration route
+# Choose a setup for your task
 
 [简体中文](usage-scenarios.md) | **English**
 
-Existing OGB parameters offer a direct starting point for depth or touch linkage. If you can build your own Avatar, add SPS four-anchor tracking or Contact direct tracking components, or use experimental Shader capture to obtain the selected root’s three-dimensional position.
+Start with the result you want, then choose inputs, computation and outputs. These common flows provide direct starting points; VRChat parameters and tracking have dedicated sections below.
+
+| Goal | Suggested flow | Setup |
+| --- | --- | --- |
+| Try a value or a script | Manual/script → device, application or Recording | [First run](quick-start.en.md) |
+| Blend readings or add smoothing/thresholds | Several sources → computed signal → one or several outputs | [Computation and outputs](signal-pipeline.en.md#one-result-several-outputs) |
+| Write an Avatar effect parameter | Signal → OSC parameter output → VRChat receiver | [OSC write-back](signal-pipeline.en.md#write-back-to-vrchat-osc) |
+| Connect DG-LAB or another application | Signal → DG-LAB, MIDI, HTTP/WebSocket JSON or MQTT | [Output selection](signal-pipeline.en.md#add-outputs-and-bindings) |
+| Save an editable, playable trajectory | Selected bindings → funscript tracks → download/replay | [Recording](signal-pipeline.en.md#record-and-inspect) |
+| Read Avatar contact or spatial motion | OGB/SPS, Contact or Shader → calibration/computation → output | VRChat setup below |
+
+## VRChat parameters and tracking
+
+Existing OGB/SPS parameters provide proximity, touch and depth-related readings. When authoring your own Avatar, you can also choose SPS four-anchor tracking, Contact direct tracking or Shader capture.
 
 | Route | Prerequisite | Result |
 | --- | --- | --- |
@@ -51,19 +64,11 @@ Units belong to the Avatar root and equal world meters only at unit scale. The g
 
 ## Shader root encoding and region capture
 
-Add **Shader Root Capture (Experimental)** in Unity, choose the root to measure and assign an object number from 1–65535 (Producer ID). Select the same number in the desktop bridge. The build creates the components that draw the root position as a block. Encoding starts Off in the uploaded Avatar’s menu and must be enabled explicitly.
+Add **Shader Root Capture (Experimental)** in Unity, choose a root and set its Producer ID. After building, enable encoding in the actual client and inspect the block in the desktop view.
 
-1. Enable encoding in the actual client and confirm that a desktop surface visibly contains it.
-2. Select a physical-pixel capture region (ROI) tightly fitted to the complete block’s outer edges, at least 80×48, and the same object ID. The bridge uses the region width and height to calculate module size, so fit its boundaries to the complete block. Check decode-only first, then save the capture settings and explicitly choose the OSC destination.
-3. The native block uses 20×12 modules: fixed edge locators surround the 16×8 data area. One damaged edge and small translation can be tolerated; payload CRC, object ID, coordinate flags and forward-frame checks still apply. Default freezing is 350 ms; startup/recovery requires two advancing frames.
-4. A valid bundle sends `Sensa/Shader/<id>/{Frame,X,Y,Z,Valid}` in order, with Valid=1 last. Invalidity sends only Valid=0.
-5. Calibrate/save in the root panel, then grant experimental and input permissions separately.
+Follow the [capture guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) to configure the complete block region and matching object ID. Inspect decoded results and validity before saving capture settings and the OSC destination. Calibrate the received root measurements as needed, then enable experimental spatial input.
 
-The desktop also checks same-source contiguous fields, coordinate bounds and at most 500 ms of Frame change age. The path carries the object ID; the binary block contains ID, coordinate flags, CRC and Frame. Diagnostic ID0 uses `Sensa/Diagnostics/Shader/0` to check the capture chain.
-
-Use the same encoding configuration for Avatar and bridge. Edge markers help correct small capture offsets.
-
-The coordinate bounds are X/Z=[−2,2], Y=[−1,3]. Readings describe the selected Transform root center relative to the Avatar. The 16-bit encoding provides fine numeric steps; actual response also depends on rendering, desktop composition and capture. Check direction, latency and validity using your chosen desktop or headset surface. [Commands](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Implementation/sources](shader-capture-research.en.md)
+The [positioning guide](positioning.en.md) and [Shader implementation reference](shader-capture-research.en.md) define the block layout, recovery, position/orientation/scale fields and validity rules. Configure capture and decoding for the current version.
 
 ## Other inputs and tools
 

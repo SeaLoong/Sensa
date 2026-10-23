@@ -51,8 +51,10 @@ namespace UnityBox.Sensa
         internal static void ValidateRootScaleAnimation(GameObject avatar)
         {
             // ScaleFactor observes VRChat avatar scaling, not arbitrary root scale animation. / ScaleFactor 不观测任意根缩放动画。
-            if (avatar.GetComponent<ScaleConstraint>() != null)
-                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed anchors do not support an avatar-root ScaleConstraint."));
+            if (avatar.GetComponent<ScaleConstraint>() != null
+                || avatar.GetComponentsInChildren<VRCConstraintBase>(true).Any(constraint => IsNativeScaleConstraint(constraint)
+                    && (constraint.TargetTransform != null ? constraint.TargetTransform : constraint.transform) == avatar.transform))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Keep the Avatar root scale fixed for tracking. Apply scale constraints to child objects."));
             var controllers = new List<RuntimeAnimatorController>();
             var animator = avatar.GetComponent<Animator>();
             if (animator != null && animator.runtimeAnimatorController != null) controllers.Add(animator.runtimeAnimatorController);
@@ -63,10 +65,20 @@ namespace UnityBox.Sensa
                 controllers.AddRange((descriptor.specialAnimationLayers ?? Array.Empty<VRCAvatarDescriptor.CustomAnimLayer>()).Where(l => l.animatorController != null).Select(l => l.animatorController));
             }
             controllers.AddRange(avatar.GetComponentsInChildren<ModularAvatarMergeAnimator>(true)
-                .Where(m => m.animator != null && (m.pathMode == MergeAnimatorPathMode.Absolute || m.transform == avatar.transform)).Select(m => m.animator));
+                .Where(m => m.animator != null && (m.pathMode == MergeAnimatorPathMode.Absolute
+                    || (m.relativePathRoot?.Get(avatar.transform) ?? m.gameObject) == avatar)).Select(m => m.animator));
             if (controllers.Distinct().SelectMany(c => c.animationClips).Distinct().Any(c => AnimationUtility.GetCurveBindings(c)
                 .Any(b => b.path == "" && b.type == typeof(Transform) && b.propertyName.StartsWith("m_LocalScale", StringComparison.Ordinal))))
-                throw new InvalidOperationException(SensaEditorLocalization.Text("Fixed anchors do not support animated avatar-root scale."));
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Keep the Avatar root scale fixed for tracking. Animate child objects to change their size."));
+        }
+
+        private static bool IsNativeScaleConstraint(VRCConstraintBase constraint)
+        {
+            // The public base moved from VRC.Dynamics.ManagedTypes to VRC.Dynamics after SDK 3.7.
+            // Identify the SDK-owned inheritance member without binding to either namespace.
+            for (var type = constraint.GetType(); type != null; type = type.BaseType)
+                if (type.Assembly == typeof(VRCConstraintBase).Assembly && type.Name == "VRCScaleConstraintBase") return true;
+            return false;
         }
 
         public static GameObject Build(GameObject avatar, string id, Component target, string channel,

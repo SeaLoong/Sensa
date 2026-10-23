@@ -7,6 +7,9 @@ namespace UnityBox.Sensa
     [DisallowMultipleComponent]
     public sealed class SensaShaderCapture : MonoBehaviour, IEditorOnly
     {
+        public const float ProbeArmLength = .1f;
+        public const float MaximumBasisComponent = 8f;
+        public const float MaximumAvatarScale = 8f;
         [Tooltip("Avatar bone/Transform, SPS Socket/Plug, Sensa Component or native Contact root.")]
         public Component target;
         // Keep the original GameObject reference readable while authors move to an explicit component.
@@ -18,6 +21,6 @@ namespace UnityBox.Sensa
         [Tooltip("Explicitly pin this ID in the desktop bridge; it is not player identity.")]
         public int producerId = 1;
         [Tooltip("Normalized desktop presentation rectangle; VRChat/HMD composition is not guaranteed.")]
-        public Rect desktopViewport = new Rect(0, 0, .25f, .15f);
+        public Rect desktopViewport = new Rect(0, 0, .25f, .2f);
     }
 }
