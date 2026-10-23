@@ -63,6 +63,61 @@ async function inspectFirstRunLinks(page, locale) {
   }
 }
 
+async function inspectHomeLayout(page, info, language) {
+  await page.evaluate(() => document.fonts.ready);
+  const layout = await page.locator('main.home').evaluate(home => {
+    const rect = node => {
+      const { left, right, top, bottom, width, height } = node.getBoundingClientRect();
+      return { left, right, top, bottom, width, height };
+    };
+    const hero = home.querySelector('.hero');
+    return {
+      viewport: window.innerWidth, pageWidth: document.documentElement.clientWidth, home: rect(home),
+      copy: rect(hero.querySelector('.hero-copy')), visual: rect(hero.querySelector('.hero-visual')),
+      display: Object.fromEntries(['.hero', '.actions', '.package-section', '.package-actions'].map(selector =>
+        [selector, getComputedStyle(home.querySelector(selector)).display])),
+    };
+  });
+  expect(layout.display).toEqual({ '.hero': 'grid', '.actions': 'flex', '.package-section': 'grid', '.package-actions': 'flex' });
+  expect(Math.abs(layout.home.left - (layout.pageWidth - layout.home.right)), 'centered homepage').toBeLessThan(1);
+  if (layout.viewport > 760) {
+    expect(layout.visual.left - layout.copy.right, 'desktop hero columns have space between them').toBeGreaterThanOrEqual(29);
+    expect(Math.min(layout.copy.bottom, layout.visual.bottom) - Math.max(layout.copy.top, layout.visual.top),
+      'desktop hero columns share the same row').toBeGreaterThan(0);
+  } else {
+    expect(layout.visual.top - layout.copy.bottom, 'narrow hero stacks the illustration below its copy').toBeGreaterThanOrEqual(27);
+    expect(Math.abs(layout.copy.left - layout.visual.left), 'stacked hero left edges align').toBeLessThan(1);
+    expect(Math.abs(layout.copy.width - layout.visual.width), 'stacked hero columns fill the same width').toBeLessThan(1);
+  }
+  const buttons = [];
+  for (const button of await page.locator('.home .button:visible').all()) {
+    await button.scrollIntoViewIfNeeded();
+    const geometry = await button.evaluate(node => {
+      const box = node.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      const overlaps = [...document.querySelectorAll('.home .button')].some(other => {
+        if (other === node || !other.getClientRects().length) return false;
+        const otherBox = other.getBoundingClientRect();
+        return Math.min(box.right, otherBox.right) > Math.max(box.left, otherBox.left)
+          && Math.min(box.bottom, otherBox.bottom) > Math.max(box.top, otherBox.top);
+      });
+      return { label: node.innerText.trim(), display: getComputedStyle(node).display,
+        width: box.width, height: box.height, centerHit: node === hit || node.contains(hit), overlaps };
+    });
+    expect(['flex', 'inline-flex'], geometry.label + ' flex action layout').toContain(geometry.display);
+    expect(geometry.width, geometry.label + ' target width').toBeGreaterThanOrEqual(44);
+    expect(geometry.height, geometry.label + ' target height').toBeGreaterThanOrEqual(44);
+    expect(geometry.centerHit, geometry.label + ' center receives pointer events').toBe(true);
+    expect(geometry.overlaps, geometry.label + ' target does not overlap another action').toBe(false);
+    buttons.push(geometry);
+  }
+  expect(buttons.length, 'download, first-run and Unity setup actions are measured').toBeGreaterThanOrEqual(3);
+  await info.attach('homepage-layout-' + language + '.json', {
+    body: JSON.stringify({ ...layout, buttons }, null, 2), contentType: 'application/json',
+  });
+  await page.evaluate(() => window.scrollTo(0, 0));
+}
+
 async function inspectOverview(page, info, locale) {
   await page.goto(new URL(locale + '/README.html', base).href);
   const article = page.locator('article');
@@ -105,6 +160,7 @@ test('@site standalone Pages language, document navigation and independent geome
     await expect(page.locator('#vpm-status')).toContainText('Stable packages are available');
   }
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await inspectHomeLayout(page, testInfo, 'en-US');
   await auditHome(page, testInfo, 'en-US');
   const homeEn = await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
   await testInfo.attach('homepage-en-US', { body: homeEn, contentType: 'image/png' });
@@ -139,6 +195,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await inspectFirstRunLinks(page, 'zh-CN');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await inspectHomeLayout(page, testInfo, 'zh-CN');
   await auditHome(page, testInfo, 'zh-CN');
   const homeZh = await page.screenshot({ path: testInfo.outputPath('pages-home-zh.png'), fullPage: true });
   await testInfo.attach('homepage-zh-CN', { body: homeZh, contentType: 'image/png' });

@@ -12,6 +12,8 @@
 
 本轮隔离检查通过 **721 项 .NET、181 项 Web、263 项 Python**，文档站 **88 条路由**及 **4 项站点单元**通过；npm 与 NuGet（含传递依赖）扫描未报告已知漏洞。Node 隔离参数目录基准在 10000 条参数、120 条映射下，7 次数值更新处理中位约 **2.7 ms**；该测量覆盖目录排序与缓存，浏览器渲染另由 Actions 检查。本轮最新源码的浏览器、原生包和部署结果随对应 Actions 运行更新。Unity Editor、GPU、VRChat／HMD 与实际硬件验证仍需各自环境。
 
+`999bac3fa56f51208cbb9f83fd227ec7c1e1886d` 的 [Pages 40001556686](https://github.com/SeaLoong/Sensa/actions/runs/40001556686) 完成 **8 项：6 通过、2 失败**，其余计数均为 0；`suite=site`、`mode=comparison`、`runner=failed`、命令失败，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。两项均为英文首页的点击目标尺寸检查：按钮的基础 display 声明缺失，导致其仍为 16 px 高的行内链接。后续修复补齐首页 Grid／Flex、按钮布局与实际尺寸／命中断言，继续保留原可访问性检查。
+
 ## Shader 输入、文档入口与预览说明
 
 2026-10-24（北京时间），本轮增加 Shader 三点采样、32 字节／CRC32 黑白编码、白色位移留白、三副本缺失恢复，以及轴向和 AvatarScale 定位测量，并修复 Unity 根缩放检查。首页与指南补齐信号流程、多输出、funscript 录制回放入口；工作流与徽章使用短英文名称，预发布说明仅保留 Source。
@@ -38,7 +40,7 @@
 
 首次尝试的汇总现已核对：`suite=all`、`mode=comparison`、`runner=not-run`、命令跳过，`selectionComplete=false`、`snapshotsCompared=false`，总计及各结果计数均为 0。CI 固定合并源码 `3e49ec9a8c039cfa026c6b733b041fc2a770cf79`，与已审 PR 头 `4de1614fd66eacb69606cbaa667b56c1e3e552f0` 使用相同 Git 树 `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`。GitHub 恢复后，同一源码的第 2 次尝试在首次依赖安装内完成，并取得完整普通比较 **104/104 通过**，`runner=passed`、命令成功。逐张审阅与关闭更新的比较均完成，**本轮 10 张新基线已接受**。
 
-原生冒烟存活回归在隔离检查中通过，Windows 实际执行等待 Actions；原生阶段覆盖推进与冻结失效，恢复由诊断阶段及隔离协议测试检查。
+同一普通 CI 的六个平台构建、Unity 打包与隔离冒烟均成功，Windows Shader 桥模拟检查已实际执行；PR 运行按设计跳过预发布。原生阶段覆盖推进与冻结失效，恢复由诊断阶段及隔离协议测试检查。
 
 ## 信号流程、多输出与共享会话
 

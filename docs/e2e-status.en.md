@@ -12,6 +12,8 @@ The bilingual README and main guides now follow user tasks. The Pages homepage p
 
 Isolated checks passed **721 .NET, 181 Web and 263 Python** tests, plus **88 documentation routes** and **4 site units**. npm and NuGet scans, including transitive dependencies, reported no known vulnerabilities. An isolated Node catalog benchmark with 10000 parameters and 120 mappings measured a **2.7 ms** median across seven value-update samples; this covers catalog ranking and caching, with browser rendering checked in Actions. Browser, native-package and deployment results for this round's latest source follow its Actions run. Unity Editor, GPU, VRChat/HMD and physical hardware require their respective validation environments.
 
+[Pages 40001556686](https://github.com/SeaLoong/Sensa/actions/runs/40001556686), pinned to `999bac3fa56f51208cbb9f83fd227ec7c1e1886d`, completed **8 cases: 6 passed and 2 failed**, all other outcomes zero; `suite=site`, `mode=comparison`, `runner=failed`, command failed, `selectionComplete=false`, `snapshotsCompared=true`. Deployment was skipped. Both failures concerned English homepage target sizes: missing base display declarations left buttons as 16-pixel-high inline links. The follow-up restores homepage Grid/Flex and button layout, adds actual size/hit-area assertions and retains accessibility checks.
+
 ## Shader inputs, documentation entry points and preview notes
 
 On **2026-10-24 (Beijing time)**, this change adds three-point Shader sampling, 32-byte/CRC32 monochrome encoding, white movement margins, three-copy erasure recovery, and axis/AvatarScale tracking metrics, alongside Unity root-scale checks. The homepage and guides expose signal flows, multiple outputs and funscript recording/replay. Workflows and badges use short English names; preview notes retain only Source.
@@ -38,7 +40,7 @@ The latest normal comparison failed on the desktop root panel (4718 pixels), Chi
 
 The first attempt's receipt is now verified: `suite=all`, `mode=comparison`, `runner=not-run`, command skipped, `selectionComplete=false`, `snapshotsCompared=false`, with total and all outcome counters zero. CI pinned merge source `3e49ec9a8c039cfa026c6b733b041fc2a770cf79`, sharing tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0` with reviewed PR head `4de1614fd66eacb69606cbaa667b56c1e3e552f0`. After GitHub recovered, attempt 2 installed dependencies on its first attempt and passed the full normal comparison **104/104**, `runner=passed`, command successful. Individual review and comparison with updates disabled are complete: **the ten new baselines are accepted**.
 
-Native smoke liveness regressions pass in isolation; Windows execution awaits Actions. The native phase covers advancing packets and freeze invalidation, while recovery is checked by the diagnostic phase and isolated protocol tests.
+The same normal CI passed all six native platform builds, Unity packaging and isolated smoke, including actual Windows Shader-bridge simulation. PR runs skip preview publication by design. The native phase covers advancing packets and freeze invalidation, while recovery is checked by the diagnostic phase and isolated protocol tests.
 
 ## Signal pipeline, outputs and shared sessions
 
