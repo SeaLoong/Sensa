@@ -494,20 +494,24 @@
       metrics.sourceValid = input.valid !== false && inBounds;
       metrics.bridgeFreezeThresholdMs = 350;
       assumptions.push({ id: 'shader-round', zh: '量化采用与 HLSL round 相同的半整数取偶规则；本页显示编码前后的坐标差。', en: 'Quantization uses the same ties-to-even rule as HLSL round; this guide shows the coordinate difference before and after encoding.' });
-      const right = {}, forward = {}, encodedBasis = {};
+      const right = {}, forward = {}, rawRight = {}, rawForward = {}, encodedBasis = {};
       let basisInBounds = true;
-      for (const [prefix, vector] of [['right', right], ['forward', forward]]) for (const axis of ['x', 'y', 'z']) {
+      for (const [prefix, vector, rawVector] of [['right', right, rawRight], ['forward', forward, rawForward]]) for (const axis of ['x', 'y', 'z']) {
         const key = prefix + axis.toUpperCase(), fallback = prefix === 'right' && axis === 'x' || prefix === 'forward' && axis === 'z' ? 1 : 0;
         const raw = number(input, key, fallback);
+        rawVector[axis] = raw;
         basisInBounds &&= Math.abs(raw) <= 8;
         encodedBasis[key] = roundEven(Math.max(-1, Math.min(1, raw / 8)) * 32767);
         vector[axis] = encodedBasis[key] / 32767 * 8;
       }
       const scale = number(input, 'avatarScale', 1), scaleWord = roundEven(clamp(scale / 8) * 65535);
       const rightLength = length(right), forwardLength = length(forward);
-      const crossLength = Math.hypot(right.y * forward.z - right.z * forward.y,
-        right.z * forward.x - right.x * forward.z, right.x * forward.y - right.y * forward.x);
-      const basisValid = basisInBounds && rightLength > 1e-6 && forwardLength > 1e-6 && crossLength > rightLength * forwardLength * 1e-4;
+      const usableBasis = (a, b) => {
+        const aLength = length(a), bLength = length(b);
+        const crossLength = Math.hypot(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
+        return aLength > 1e-6 && bLength > 1e-6 && crossLength > aLength * bLength * 1e-4;
+      };
+      const basisValid = basisInBounds && usableBasis(rawRight, rawForward) && usableBasis(right, forward);
       metrics.sourceValid &&= basisValid && scale > 0 && scale <= 8 && scaleWord > 0;
       metrics.valid &&= metrics.sourceValid;
       metrics.position = metrics.valid ? decoded : null;

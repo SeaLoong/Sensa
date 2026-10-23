@@ -8,9 +8,15 @@
 
 2026-10-24（北京时间），本轮更新 Shader 三点采样、32 字节／CRC32 黑白图块、白色位移留白、三副本缺失恢复、轴向与 AvatarScale 定位测量，并修复 Unity 根缩放检查。首页和指南补齐输入、计算、多输出、funscript 录制与回放入口；CI 名称与徽章采用短英文，预发布说明仅显示 Source。
 
-本地隔离检查 **694 项 .NET、177 项 Web、246 项 Python、3 项站点单元**全部通过；Web 构建、Unity 包元数据及 **88 条文档路由**构建通过。Unity Editor 在当前环境不可用，新增 EditMode 和显式 GPU 像素契约尚待执行；实际 VRChat、HMD 与硬件也未在本次环境验收。
+本地隔离检查 **694 项 .NET、178 项 Web、246 项 Python、3 项站点单元**全部通过；Web 构建、Unity 包元数据及 **88 条文档路由**构建通过。Unity Editor 在当前环境不可用，新增 EditMode 和显式 GPU 像素契约尚待执行；实际 VRChat、HMD 与硬件也未在本次环境验收。
 
-[文档站 39988646831](https://github.com/SeaLoong/Sensa/actions/runs/39988646831) 固定源码 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`，首轮 **8 项中 7 通过、1 失败**，其余结果均为 0；站点专用普通比较，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。失败来自新增用例在窄屏导航折叠时直接检查链接可见；现已改为展开、验证链接、关闭的完整用户流程。完整应用比较与候选采集继续按各自实际运行记录。现有 150 张基线保留上一轮接受记录；本轮预计更新 Shader 相关图片，经审阅并通过关闭图片更新的完整普通比较后再接受。Windows 的合成原生 PNG smoke 也等待 Actions 实际执行。
+[文档站 39988646831](https://github.com/SeaLoong/Sensa/actions/runs/39988646831) 固定源码 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`，首轮 **8 项中 7 通过、1 失败**，其余结果均为 0；站点专用普通比较，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。失败来自新增用例在窄屏导航折叠时直接检查链接可见；现已改为展开、验证链接、关闭的完整用户流程。完整应用比较与候选采集继续按各自实际运行记录。后续[站点运行 39989290902](https://github.com/SeaLoong/Sensa/actions/runs/39989290902) 固定 `2f89d83d1023e897f7240bb45c4075cc012ecb1e`，**8/8 通过并部署成功**，其余结果均为 0；`selectionComplete=false`、`snapshotsCompared=true`。
+
+[普通应用比较 39989291079](https://github.com/SeaLoong/Sensa/actions/runs/39989291079) 固定同一 `2f89d83` 源码，完整选择的 **104 项中 43 通过、3 失败、58 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true`。失败均为桌面旧基线与本轮 Shader 展示差异：根点面板 4718 像素、中文图解 200260 像素、中文环绕图解 199899 像素。图解高度从 2772 增至 4164；图片变化待审阅，构建与预发布均跳过。
+
+[候选采集 39989321998](https://github.com/SeaLoong/Sensa/actions/runs/39989321998) 固定同一完整源码，**104/104 通过**，其余结果均为 0；`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=false`。原始图片 `08a176db1fdd9788b85ad77ba93daa5d62f0a173` 导出至 [PR #22](https://github.com/SeaLoong/Sensa/pull/22)，共 16 张变化，均已逐张以原图审阅。桌面图解右列新增信息造成左列大块空白，控件距离图示过远，因此此批图解不接受，PR 已关闭。Shader 专属布局已整理为图示与读数、调节控件、编码细节三个连续分区，并补齐位置／切换恢复／焦点断言；下一次候选将重新采集。根点面板两张图已审阅，后续按字节一致性决定复用；六张无关动态或边缘变化保留旧图。
+
+现有 150 张基线保留上一轮接受记录；本轮预计更新 Shader 相关图片，经审阅并通过关闭图片更新的完整普通比较后再接受。Windows 的合成原生 PNG smoke 也等待 Actions 实际执行。
 
 ## 信号流程、多输出与共享会话
 

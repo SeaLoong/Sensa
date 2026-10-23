@@ -23,6 +23,9 @@
     grid: ['40 × 32 黑白编码图块', '40 × 32 black-and-white encoded grid'], controls: ['调整几何', 'Adjust geometry'],
     encodingHint: ['从外向内：2 格白色缓冲边、2 格定位标记、3 份交错排列的数据副本。副本补全未知位，CRC32 校验整包；已知位冲突时等待下一幅有效画面。', 'Outside to inside: a 2-cell white buffer, 2-cell positioning markers, and three offset copies of the data. Copies fill unknown bits and CRC32 checks the packet; conflicting known bits wait for a fresh valid image.'],
     shaderComponents: ['目标轴方向与根单位缩放', 'Target axes and root-unit scale'],
+    shaderStatistics: ['量化与更新检查', 'Quantization and update checks'],
+    shaderRowHint: ['点击参数名查看含义。原始值展示编码结果；可用值由整包有效状态控制。', 'Select a parameter for its meaning. Raw values show the encoded result; usable values follow complete-packet validity.'],
+    shaderMeaning: ['XYZ 表示目标在 Avatar 根局部坐标中的位置。RightXYZ 与 ForwardXYZ 给出目标 X、Z 轴的方向和单位轴长，两者共同描述目标平面。AvatarScale 将根局部位移换算为世界米数；Frame 是编码时钟，Valid=1 提交完整的 12 字段更新。联动与计算通过定位测量读取这些指标。', 'XYZ locate the target in Avatar-root local coordinates. RightXYZ and ForwardXYZ give the directions and lengths per unit of the target X/Z axes, together describing its plane. AvatarScale converts root-local displacement to world metres. Frame is the encoder clock; Valid=1 commits a complete 12-field update. Read these metrics through Tracking measurement for outputs and calculations.'],
     shaderComponentsHint: ['RightXYZ 与 ForwardXYZ 分别表示目标 X、Z 轴在根坐标系中的方向和单位轴长。AvatarScale 表示每个根局部单位对应的世界米数。', 'RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame. AvatarScale gives world metres per root-local unit.'],
     rightX: ['目标 X 轴 · 根 X 分量', 'Target X axis · root X'], rightY: ['目标 X 轴 · 根 Y 分量', 'Target X axis · root Y'], rightZ: ['目标 X 轴 · 根 Z 分量', 'Target X axis · root Z'],
     forwardX: ['目标 Z 轴 · 根 X 分量', 'Target Z axis · root X'], forwardY: ['目标 Z 轴 · 根 Y 分量', 'Target Z axis · root Y'], forwardZ: ['目标 Z 轴 · 根 Z 分量', 'Target Z axis · root Z'],
@@ -153,6 +156,16 @@
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['contact-sdk', 'sensa-sps', 'shader'].includes(state.scenario);
+  function placeShaderDetails() {
+    const shader = state.scenario === 'shader';
+    $('workbench').classList.toggle('is-shader', shader);
+    $('shader-technical').hidden = !shader;
+    const destinations = shader ? [[$('metrics'), $('shader-statistics')], [$('explanation'), $('shader-statistics')], [$('encoding'), $('shader-encoded-preview')]]
+      : [[$('metrics'), document.querySelector('.readout-panel')], [$('encoding'), document.querySelector('.readout-panel')], [$('explanation'), document.querySelector('.readout-panel')]];
+    for (const [node, destination] of destinations) if (node.parentElement !== destination) destination.append(node);
+    $('row-hint').textContent = text(shader ? 'shaderRowHint' : 'rowHint');
+    $('values-meaning').textContent = text(shader ? 'shaderMeaning' : 'meaning');
+  }
   const units = () => state.scenario === 'contact-sdk' ? 'm' : spatial() ? text(['本地单位', 'local units']) : 'm';
   const anchorIndex = id => { const match = /^receiver-P([0-3])$/.exec(id); return match ? Number(match[1]) : null; };
   function tintAnchor(node, index) {
@@ -623,7 +636,7 @@
   function render() {
     result = Model.evaluate(state);
     if (!result.values.some(v => v.name === selected)) selected = result.values[0]?.name || '';
-    localize(); controls(); readouts(); parameterReferences(); drawView();
+    localize(); placeShaderDetails(); controls(); readouts(); parameterReferences(); drawView();
   }
   $('three-scene').addEventListener('sensa-3d-unavailable', fallbackThree);
   $('scene').addEventListener('change', () => {

@@ -22,7 +22,7 @@ Sensa 的 Unity 组件保存定位与参数设置，在 Avatar 构建时生成�
 | 已有 OGB | 配置原 SPS/OGB 与桌面映射 | Touch 标量或径向深度估计；[外部兼容](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.md) |
 | SPS 四点定位 | 添加 **Sensa → Automatic SPS Setup**，或 **SPS four-anchor tracking** 并明确指定 Target | 以 Avatar 根为参照的根点位置，使用 AvatarRootLocal 制作单位 |
 | Contact 直接定位（SDK Beta） | 在自动配置中选择 **Contact 直接定位（SDK Beta）**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级接近参数 |
-| Shader 根点捕获 | 添加 **Shader Root Capture (Experimental)** 或 `SensaShaderCapture.prefab`，明确指定 Target | 把 AvatarRootLocal 根点位置编码为图块，经[桌面桥](GPU-TRACKING.md)读取 |
+| Shader 根点捕获 | 添加 **Shader Root Capture (Experimental)** 或 `SensaShaderCapture.prefab`，明确指定 Target | 把 AvatarRootLocal 位置、X/Z 轴向与 Avatar 世界缩放编码为黑白图块，经[桌面桥](GPU-TRACKING.md)读取 |
 | 独立 Point／Handle／Pose | 选择本地标记或相同通道的配对标记 | 各自拥有协议与时效规则的实验 |
 
 三个根点预制件都接受 Avatar 内的骨骼／空物体 Transform、SPS、Sensa Component 或原生 Contact。SPS 四点定位与 Contact 实例默认为 `Root`；复制后改为唯一实例名，空碰撞通道会按实例名稳定分配。菜单创建时会填写能明确识别的选中目标，请复核 Target。

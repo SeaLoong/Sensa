@@ -76,6 +76,28 @@ async function chooseScene(page, scenario, projection = 'xz') {
   // 空间场景默认三维后，既有二维契约仍明确选择自身投影。
   await page.locator('#projection').selectOption(projection);
 }
+async function shaderLayout(page) {
+  await expect(page.locator('#shader-technical')).toBeVisible();
+  await expect(page.locator('#bit-grid')).toHaveCSS('shape-rendering', /^crispEdges$/i);
+  await expect(page.locator('#shader-statistics > #metrics')).toHaveCount(1);
+  await expect(page.locator('#shader-statistics > #explanation')).toHaveCount(1);
+  await expect(page.locator('#shader-encoded-preview > #encoding')).toHaveCount(1);
+  const bounds = await page.evaluate(() => {
+    const rect = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; };
+    return { workbench: rect('#workbench'), controls: rect('.controls-panel'), technical: rect('#shader-technical'),
+      legend: rect('#legend'), wide: innerWidth > 760 };
+  });
+  expect(bounds.controls.top - bounds.workbench.bottom).toBeGreaterThanOrEqual(0);
+  expect(bounds.controls.top - bounds.workbench.bottom).toBeLessThanOrEqual(24);
+  expect(bounds.technical.top - bounds.controls.bottom).toBeGreaterThanOrEqual(0);
+  expect(bounds.technical.top - bounds.controls.bottom).toBeLessThanOrEqual(24);
+  if (bounds.wide) expect(bounds.workbench.bottom - bounds.legend.bottom,
+    'Shader diagram keeps interaction close, without a tall empty column / Shader 图示下方保持紧凑').toBeLessThanOrEqual(140);
+  await expect(page.locator('#values-meaning')).toContainText('AvatarScale');
+  await expect(page.locator('#values-meaning')).not.toContainText('Close');
+  await expect(page.locator('#row-hint')).not.toContainText('Close');
+}
+
 async function setRange(page, name, value) {
   const control = page.locator('#control-' + name);
   if (['sample', 'ageMs', 'frame', 'valid'].includes(name)) await page.locator('#signal-simulation').evaluate(node => { node.open = true; });
@@ -586,6 +608,17 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await nearCell(page, 'Valid', 0);
     await noCoordinate(page, 'X');
 
+    await shaderLayout(page);
+    await page.locator('#control-avatarScale').focus();
+    await page.locator('#control-avatarScale').press('ArrowRight');
+    await expect(page.locator('#control-avatarScale')).toBeFocused();
+    await expect(page.locator('#shader-statistics > #metrics')).toHaveCount(1);
+    await chooseScene(page, 'contact-sdk');
+    await expect(page.locator('#shader-technical')).toBeHidden();
+    expect(await page.locator('.readout-panel').evaluate(node => [...node.children].slice(-3).map(child => child.id)))
+      .toEqual(['metrics', 'encoding', 'explanation']);
+    await expect(page.locator('#values-meaning')).toContainText('Close');
+
     // Representative views are CI-only goldens; ordinary CI may only compare them.
     // 代表画面仅在 CI 生成；普通 CI 只能比较已审阅基线。
     for (const locale of ['zh-CN', 'en-US']) {
@@ -596,6 +629,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
         if (scenario === 'sensa-sps') await expect(page.locator('#scene-title')).toHaveText(
           locale === 'zh-CN' ? 'SPS 四点定位' : 'SPS four-anchor tracking');
         await page.locator('#projection').selectOption('xz');
+        if (scenario === 'shader') await shaderLayout(page);
         await finiteDrawing(page); await documentFits(page);
         await page.evaluate(() => document.fonts.ready);
         await page.mouse.move(0, 0);

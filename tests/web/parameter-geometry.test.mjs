@@ -282,6 +282,23 @@ test('SDK Contact accepts origin and zero velocity while strictly positive proxi
   }
 });
 
+test('Shader requires usable raw and quantized axes so rounding cannot create a valid plane', () => {
+  const roundedOnly = evaluate({ scenario: 'shader', rightX: .12, rightY: .57, rightZ: 0, forwardX: .24, forwardY: 1.14, forwardZ: 0 });
+  const { right, forward } = roundedOnly.metrics;
+  const roundedCross = Math.abs(right.x * forward.y - right.y * forward.x);
+  assert.ok(roundedCross > Math.hypot(right.x, right.y) * Math.hypot(forward.x, forward.y) * 1e-4,
+    'the quantized axes alone would incorrectly accept the proportional raw vectors');
+  assert.equal(roundedOnly.metrics.basisValid, false);
+  assert.equal(roundedOnly.metrics.valid, false);
+  assert.equal(roundedOnly.metrics.bytes[3], 2);
+  assert.deepEqual(plain(roundedOnly.values.filter(value => value.emitted).map(value => value.name)), ['Valid']);
+  for (const rightX of [1e-7, 1e-6, 1e-5]) {
+    const tiny = evaluate({ scenario: 'shader', rightX });
+    assert.equal(tiny.metrics.valid, false, 'tiny raw axes or a collapsed quantized axis remain invalid: ' + rightX);
+    assert.equal(tiny.metrics.position, null);
+  }
+});
+
 test('SDK Contact selects the maximum strictly positive matching self Sender / SDK Contact选中严格正且最大的自身Sender', () => {
   const scene = evaluate({ scenario: 'contact-sdk', senders: [
     { x: .01, senderType: 2, vx: 99 },

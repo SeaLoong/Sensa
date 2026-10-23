@@ -22,7 +22,7 @@ Avatar 已有的 OGB／SPS 参数提供接近、触碰和深度相关读数；�
 | 已有 OGB / SPS | 只能使用 Avatar 已发布的 haptics 参数 | 深度径向估算或触摸强度 |
 | SPS 四点定位 | 能构建自己的 Avatar，能明确选择 SPS Socket／Plug 根点 | 根点相对 Avatar 的左右、上下、前后位置 |
 | Contact 直接定位（SDK Beta） | 使用受支持的 Beta SDK 构建自己的 Avatar，并配置专用自身根点通道 | 米制根点位置和 m/s 相对速度 |
-| Shader 捕获 | 能构建 PC 原生编码器，桌面画面实际可见图块 | 读取你框选的桌面图块，获得根点三维坐标 |
+| Shader 捕获 | 能构建 PC 原生编码器，桌面画面实际可见图块 | 读取所选图块，获得根点位置、X/Z 轴向与 Avatar 世界缩放 |
 
 四条路线都提供可用于设备动作或其他输出绑定的信号。可先用手动／脚本确认设备方向与行程，再接入参数；[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可在无设备条件下比较模型。
 

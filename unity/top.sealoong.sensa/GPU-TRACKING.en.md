@@ -87,7 +87,7 @@ Outputs include sampled arc length, material/arc fraction after entry, plane off
 
 ## Verification scope
 
-In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual monochrome pixels, three copies, CRC32, axes and scale. The class is `Explicit`; ordinary headless runs do not count it as GPU verification. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
+In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual monochrome pixels, three copies, CRC32, axes and scale. These tests are marked `Explicit`; ordinary headless runs do not count it as GPU verification. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
 
 
 Codec/registration/freshness contracts cover twelve-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Use the receipt for the actual checked revision rather than a historical test count. Nographics shader import is not proof of real GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients or hardware.

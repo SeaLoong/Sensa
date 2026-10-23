@@ -22,7 +22,7 @@ Existing OGB/SPS parameters provide proximity, touch and depth-related readings.
 | Existing OGB / SPS | Use haptics parameters already exposed by an Avatar | Radial depth estimate or touch intensity |
 | SPS four-anchor tracking | Build your own Avatar and select its SPS Socket/Plug root | Your root's left/right, up/down and forward/back position relative to the Avatar |
 | Contact direct tracking (SDK Beta) | Build your own Avatar with the supported beta SDK and a dedicated own-root channel | Root position in metres and relative velocity in m/s |
-| Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root coordinates read from the desktop block you select |
+| Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root position, X/Z axes and Avatar world scale read from the selected block |
 
 All four routes provide signals for device motion or other output bindings. Start with manual/script input to confirm device direction and travel, then connect the parameters. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
 
