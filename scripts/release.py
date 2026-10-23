@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import zipfile
 import gzip
 import tarfile
@@ -12,6 +13,7 @@ import io
 
 ROOT = Path(__file__).resolve().parents[1]
 RUNTIMES = ('win-x64','win-arm64','linux-x64','linux-arm64','osx-x64','osx-arm64')
+WINDOWS_RUNTIMES = tuple(rid for rid in RUNTIMES if rid.startswith('win-'))
 PARAMETER_GEOMETRY_ASSETS = (
     'docs/parameter-geometry.html',
     'docs/assets/osc-parameter-reference.js',
@@ -102,9 +104,30 @@ def tar_directory(root, output):
                 item.mode=0o755 if path.name=='Sensa' or path.stat().st_mode & 0o111 else 0o644
                 archive.addfile(item,io.BytesIO(data))
 
+
+def write_checksums(output):
+    """Keep all formats from one platform in the same verified checksum list."""
+    assets = sorted(path for path in output.iterdir() if path.name.endswith(('.zip', '.tar.gz', '.exe')))
+    if any(path.is_symlink() or not path.is_file() for path in assets):
+        raise ValueError('Checksums require regular release files / 校验值只接受普通发布文件')
+    (output / 'SHA256SUMS.txt').write_text(''.join(
+        f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in assets), encoding='utf-8')
+
+
+def single_file(source, output, version, runtime):
+    if runtime not in WINDOWS_RUNTIMES:
+        raise ValueError('Single-file downloads currently target Windows / 单文件下载目前面向 Windows')
+    files = archive_files(source)
+    if [name for _, name in files] != ['Sensa.exe'] or len(list(source.iterdir())) != 1:
+        raise ValueError('Single-file output must contain only Sensa.exe / 单文件发布目录只能包含 Sensa.exe')
+    destination = output / f'Sensa-{version}-{runtime}-SingleFile.exe'
+    shutil.copyfile(files[0][0], destination)
+    write_checksums(output)
+    return destination
+
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('kind', choices=['app', 'unity', 'check-unity'])
+    parser.add_argument('kind', choices=['app', 'single-file', 'unity', 'check-unity'])
     parser.add_argument('--tag', default=os.environ.get('GITHUB_REF_NAME', ''))
     parser.add_argument('--source', type=Path)
     parser.add_argument('--output', type=Path, default=ROOT / 'artifacts/release')
@@ -124,6 +147,11 @@ def main():
         with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
             stream.write(f'stable={str("-" not in archive_version).lower()}\n')
     output = args.output; output.mkdir(parents=True, exist_ok=True)
+    if args.kind == 'single-file':
+        if args.source is None:
+            raise ValueError('Single-file packaging requires a publish directory / 单文件打包需要发布目录')
+        print(single_file(args.source, output, archive_version, args.runtime).name)
+        return
     source = args.source or ROOT / 'unity/top.sealoong.sensa'
     # Validate existing entries before copying guides/build metadata into the
     # source tree, so a destination symlink cannot redirect those writes either.
@@ -173,7 +201,7 @@ def main():
     name = f'top.sealoong.sensa-{archive_version}.zip' if args.kind == 'unity' else f'Sensa-{archive_version}-{args.runtime}.{suffix}'
     (zip_directory if suffix=='zip' else tar_directory)(source, output / name)
     digest = hashlib.sha256((output / name).read_bytes()).hexdigest()
-    (output / 'SHA256SUMS.txt').write_text(f'{digest}  {name}\n', encoding='utf-8')
+    write_checksums(output)
     if args.kind == 'unity' and not args.label:
         info['url'] = f'https://github.com/{os.environ["GITHUB_REPOSITORY"]}/releases/download/{args.tag}/{name}'
         info['sha256'] = digest

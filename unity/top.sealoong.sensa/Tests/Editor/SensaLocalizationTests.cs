@@ -156,7 +156,9 @@ namespace UnityBox.Sensa.Tests
                 locale.Preference = "zh-CN";
                 Assert.AreEqual("生产端 ID", SensaInspectorLabels.Label(serialized.FindProperty("producerId")).text);
                 Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("target")).tooltip, Does.Contain("骨骼"));
-                Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("desktopViewport")).tooltip, Does.Contain("不保证"));
+                Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("desktopViewport")).tooltip, Does.Contain("196").And.Contain("物理像素"));
+                Assert.AreEqual("原点偏移", SensaInspectorLabels.Label(serialized.FindProperty("positionOffset")).text);
+                Assert.That(SensaInspectorLabels.Label(serialized.FindProperty("rotationOffset")).tooltip, Does.Contain("+Z"));
                 Assert.AreEqual(before, JsonUtility.ToJson(capture));
             }
             finally { UnityEngine.Object.DestroyImmediate(host); }

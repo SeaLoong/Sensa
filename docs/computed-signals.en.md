@@ -9,7 +9,7 @@ Add a computed signal when you need to combine inputs or process a reading with 
 | Set each reading's influence | [Weighted average](#weighted-average-choose-each-inputs-influence) |
 | Scale, subtract or choose the strongest reading | [Numeric operations](#supported-operations) |
 | Reduce jitter, require sustained contact or trigger an effect | [Time and condition processing](#process-time-thresholds-and-events) |
-| Calculate the gap between roots | [Coordinate combinations](#combine-root-coordinates) |
+| Measure distance, plane depth, lateral offset or angles | [Spatial calculations](#combine-root-coordinates) |
 | Use Shader direction or convert displacement to metres | [Axes and scale](#use-shader-axes-and-scale) |
 
 [Workbench operation](guide.en.md) · [Sources and outputs](signal-pipeline.en.md)
@@ -101,18 +101,49 @@ To convert local X displacement to metres, use **Product** with X and AvatarScal
 
 ## Combine root coordinates
 
-The existing single-point `Distance` metric measures distance from that point's coordinate origin. To calculate the distance between points A and B, create:
+In **Flow → Computed signals**, expand **Spatial calculation presets**, choose an operation and select **Add spatial calculation**. XYZ components are grouped together: enter fixed values, choose a tracked position, or select a Shader Forward/Right direction. Expand individual components to use OSC parameters or other computed signals.
 
-| Example identifier | Operation | Inputs |
+| Operation | Configuration value | Inputs and result |
 | --- | --- | --- |
-| `delta_x` | Difference | A's X, B's X |
-| `delta_y` | Difference | A's Y, B's Y |
-| `delta_z` | Difference | A's Z, B's Z |
-| `point_gap` | Magnitude | `delta_x`, `delta_y`, `delta_z` |
+| Distance between points | `PointDistance` | Positions P and Q, 6 components; the straight-line distance between them |
+| Depth along plane normal | `PlaneDepth` | Measured position P, plane origin O and normal N, 9 components; positive along the normal and negative in the opposite direction |
+| Offset within plane | `PlaneOffset` | The same P, O and N; distance from O to P projected onto the plane, always zero or positive |
+| Plane depth (two axes) | `PlaneDepthFromAxes` | P, O, first plane axis U and second axis V, 12 components; use U×V as the normal to measure signed depth |
+| Plane offset (two axes) | `PlaneOffsetFromAxes` | The same P, O, U and V; lateral distance within the plane defined by the axes |
+| Angle between directions | `VectorAngle` | Two direction vectors, 6 components; an angle from 0° to 180° |
+| Angle to plane | `PlaneAngle` | One direction and the plane normal, 6 components; 0° parallel to the plane, +90° along its positive normal and −90° in the opposite direction |
 
-Both points need the same OSC source, reference object, axis directions and units. SPS four-anchor tracking and Shader use **AvatarRootLocal**, expressed in authored Avatar-root local units. Contact direct tracking uses **AvatarRootMeters**, retaining physical metres. Select a shared coordinate frame before calculating a gap; see [positioning](positioning.en.md) for scaling. Independent Point/Handle/Pose keep their ReferenceLocal frame separate by instance, and computations retain that reference restriction.
+A **normal** points perpendicular to a plane. The default `(0,0,1)` describes the XY plane with +Z as positive depth. The normal is normalized, so `(0,0,1)` and `(0,0,2)` produce the same result. Two axes establish the plane's orientation: default U=`(1,0,0)` and V=`(0,1,0)` produce a +Z normal. Swapping U and V reverses signed depth while preserving lateral distance.
 
-Numeric operations need meaningful units. Combining three velocity components from one coordinate frame into a speed is useful. The system distinguishes position, velocity and proximity rate; keep position and velocity in their own computations and calibration ranges. After a product or ratio, choose the result's range and unit according to the actual calculation.
+For example, choose origin O=`(0,0,0)`, measured position P=`(0.03,0.04,0.12)` and a +Z normal:
+
+| Result | Value | Example meaning |
+| --- | --- | --- |
+| Distance from P to O | 0.13 | Overall proximity |
+| Plane depth | +0.12 | Movement into or away from a chosen direction |
+| Offset within plane | 0.05 | Deviation from the centre |
+
+If positions use metres, these results also use metres. The existing single-point `Distance` metric measures from the point's coordinate origin. Distance between points lets you choose another measured position as the reference.
+
+### Follow an Avatar's movement with a plane
+
+Tracking Frame and Shader templates measure **relative movement between a target and reference on your own Avatar**. For interaction between Avatars, use [paired three-marker pose](positioning.en.md#interaction-between-avatars-paired-three-marker-pose) in the receiving Socket’s local frame, selecting its SensaPose depth fraction, opening offsets and angles directly.
+
+Add a Unity [Tracking Frame](unity-build.en.md), choose the bone, SPS root or marker it follows, then adjust its centre and orientation. It publishes positions for `<name>_Origin`, `<name>_Forward` and `<name>_Right`. Forward−Origin gives the current depth direction, which changes with measured bone rotation.
+
+In the workbench, expand **Spatial calculation presets → Follow a moving plane** and select **Tracking Frame · Origin / Forward**. Enter the Tracking object path and Plane reference object path, such as `Sensa/Contact/Target/**` and `Sensa/Contact/Frame_Origin/**`, then choose **Add following-plane drafts**. The template reads the matching `_Forward` and creates three direction differences, depth and offset: 5 calculations in total. Select Also create point distance to add one more. Review the instances, save calculations and mappings, then connect the results to outputs. One target can then control both depth and off-centre feedback. [Unity setup and coordinates](positioning.en.md)
+
+Alternatively, choose **Shader · Position and Forward**. The selected Shader position supplies the plane origin and Forward supplies its normal, creating depth and offset directly as two drafts.
+
+Shader already provides Forward/Right directions for a normal or a plane defined by two axes. Using Forward as the normal makes the depth direction follow measured Forward: +Z in the default orientation, changing as it rotates. With Right as U and Forward as V, the default orientation produces a −Y normal; reverse their order for +Y.
+
+### Coordinates, units and valid inputs
+
+Positions in a calculation share one OSC source, reference, axis directions and units. SPS four-anchor tracking and Shader use **AvatarRootLocal**, expressed in authored Avatar-root units; Contact direct tracking uses **AvatarRootMeters**. The system checks coordinate metadata carried by tracking sources. Independent Point/Handle/Pose have a separate ReferenceLocal frame for each instance. Select matching frames before combining positions, using AvatarScale from the same source for unit conversion when needed.
+
+Shader axes describe direction without position units. Known AvatarRootLocal axes can provide directions for AvatarRootMeters positions because both use the Avatar root's axes. You assign meaning to raw OSC parameters and constants; configure them with consistent references and units. Length results retain position units, while angles use degrees.
+
+A zero coordinate is a valid position. Normals and direction vectors need nonzero length, and two plane axes need a clear angle between them: their normalized cross-product length must exceed `0.0001`. Invalid inputs, an undefined direction or a nonfinite result invalidate the calculation, retaining the source's sample-age checks.
 
 Three-point pose angles participate as their reported numeric values; Roll, for example, uses the raw −180° to 180° angle. Crossing the ±180° boundary causes a numeric jump, so choose a mapping range within a continuous interval. Average uses the ordinary arithmetic mean.
 

@@ -52,6 +52,8 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 
 Shader direction and scale can participate as tracking metrics: choose Tracking measurement (SensaPoint) in a calculation or output binding, then select RightX/Y/Z, ForwardX/Y/Z or AvatarScale. These metrics update with complete measurement packets and retain spatial-input permission and validity checks. Use the OSC parameter page to inspect raw reports.
 
+Spatial calculations turn positions and directions into meaningful readings: point distance, signed plane depth, off-centre distance and direction angles. Define a plane with an origin and normal, or an origin and two axes. The Follow a moving plane template reads Unity-generated markers so its orientation follows bone movement. Select XYZ as groups, save, then connect the results to outputs.
+
 Give a calculation a recognizable name, such as Contact intensity, then select it in any output binding. Position, velocity and intensity use ranges matching their meaning; each binding converts the result into the destination's required range. [Calculation examples](computed-signals.en.md) · [Tracking units](positioning.en.md)
 
 ## Add outputs and bindings

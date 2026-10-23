@@ -74,9 +74,17 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 输出绑定选择来源、换算、数值类型、量程、停止值与发送方式。协议适配器编码 OSC 数值、JSON 消息、DG-LAB 任务或记录；传输负责连接生命周期、有界交付、取消与关闭。状态发送保留最新目标，事件通过有界队列按序交付；设备反馈通过来源解析重新进入计算。[输入、计算与输出决策](adr/0008-signal-pipeline-and-shared-session.md) · [用户配置](signal-pipeline.md)
 
+## 跟随平面与空间计算
+
+空间计算以测量点 `P`、参考原点 `O` 和平面朝向为输入。沿法线的有符号深度与平面内偏移分别描述前后和横向运动；两点距离与方向夹角可单独用于输出绑定。参考原点和朝向也来自实时定位，因此双方移动或旋转时仍使用同一套相对计算。结果保留输入的位置单位，角度使用度，最后由输出绑定设置需要的范围和方向。
+
+`SensaTrackingFrame` 将目标的平移和旋转变成三个同坐标系测量点：原点、前向和右向。前向点减原点得到虚拟平面的正法线。Shader 直接测得根点和 X/Z 两条轴向；单轴可以定义与其垂直的工作平面，两条独立切向轴可以定义实际采样平面。后者使用叉积，适合需要保留非均匀缩放影响的场景。两种方式的几何含义见[参考平面决策](adr/0009-following-reference-planes.md)。
+
+空间运算核对各组三分量的坐标框、位置单位与方向用途，保留同一 OSC 来源和最旧样本时间。零法线、共线平面轴或无效输入会使依赖该结果的绑定停止。Unity 作者坐标、Contact 米制坐标与不同局部参照各有明确身份；转换后再参与共同计算。[配置例子](computed-signals.md)
+
 ## Unity 作者与定位生成
 
-九类 Unity 作者组件保存配置并实现 SDK `IEditorOnly`。`SensaPlugin` 在 NDMF Generating 中、MA 同阶段处理之前统一读取配置，生成 Contact、约束及临时 Animator／参数／菜单，再由 MA 合并。每次构建的完成状态保存在 `BuildContext.GetState`；源场景与作者预制件保持可编辑。
+Unity 作者组件保存配置并实现 SDK `IEditorOnly`。`SensaPlugin` 在 NDMF Generating 中、MA 同阶段处理之前统一读取配置，生成 Contact、约束及临时 Animator／参数／菜单，再由 MA 合并。每次构建的完成状态保存在 `BuildContext.GetState`；源场景与作者预制件保持可编辑。
 
 SPS 四点定位、Contact 直接定位与 Shader 捕获共用该入口，分别输出既有协议。三个根点预制件都可明确选择 Avatar 内的 Transform、SPS、Sensa Component 或原生 Contact。根点参照先读取，再移除可能被其引用的 Sensa 作者组件；上传结果保留原生测量组件与参照 Transform。
 

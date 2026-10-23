@@ -42,7 +42,7 @@
 
 ## Contact 直接定位（SDK Beta）
 
-适合想同时使用根点位置和运动强弱的 Avatar 作者。安装 **SDK 3.10.6-beta.2** 或提供相同高级 Proximity 功能的版本，在 Automatic SPS Setup 中选择此方案，或添加 `SensaContactRootProbe`。
+适合想同时使用根点位置和运动强弱的 Avatar 作者。安装 **SDK 3.10.6-beta.3**（同时兼容 Beta.2），在 Automatic SPS Setup 中选择此方案，或添加 `SensaContactRootProbe`。
 
 1. 选择要跟随的 SPS、Sensa 或原生 Contact 根点，构建 Avatar。
 2. 在根点面板固定对象与来源，观察有效位置和速度。

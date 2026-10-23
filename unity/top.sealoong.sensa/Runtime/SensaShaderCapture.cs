@@ -12,6 +12,10 @@ namespace UnityBox.Sensa
         public const float MaximumAvatarScale = 8f;
         [Tooltip("Avatar bone/Transform, SPS Socket/Plug, Sensa Component or native Contact root.")]
         public Component target;
+        [Tooltip("Measurement origin offset in the selected root's local axes and units.")]
+        public Vector3 positionOffset;
+        [Tooltip("Measurement axis rotation in local Euler degrees. +Z is forward; +X is right. The origin offset keeps the selected root's axes.")]
+        public Vector3 rotationOffset;
         // Keep the original GameObject reference readable while authors move to an explicit component.
         // GameObject and Component serialized references cannot be migrated with FormerlySerializedAs.
         [HideInInspector]

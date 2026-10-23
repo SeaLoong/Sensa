@@ -74,9 +74,17 @@ A dedicated marker and unique channel keep each root measurement tied to its int
 
 Output bindings select source, conversion, value type, range, stop value and sending policy. Protocol adapters encode OSC values, JSON messages, DG-LAB tasks or records; transports own connection lifetime, bounded delivery, cancellation and closure. State delivery retains the latest target, while a bounded queue delivers events in order. Feedback enters through source resolution. [Input/computation/output decision](adr/0008-signal-pipeline-and-shared-session.md) · [User configuration](signal-pipeline.en.md)
 
+## Following planes and spatial calculations
+
+Spatial calculations take a measured point `P`, a reference origin `O` and a plane orientation. Signed depth along its normal and in-plane offset describe axial and lateral movement; point distance and direction angles can feed output bindings independently. Live tracking can supply both the origin and orientation, so the same relative calculation follows either participant's movement and rotation. Distance results retain the position unit, angles use degrees, and output bindings set the final range and direction.
+
+`SensaTrackingFrame` represents a target's translation and rotation with three points in one coordinate frame: Origin, Forward and Right. Forward minus Origin gives the virtual plane's positive normal. Shader capture directly measures a root position and two X/Z axes. One axis defines a working plane perpendicular to it; two independent tangent axes define the actual sampled plane through their cross product, including non-uniform-scale effects. The [reference-plane decision](adr/0009-following-reference-planes.md) describes these geometric meanings.
+
+Spatial operations check the coordinate frame, position unit and directional role of each three-component group, retaining one OSC source and the oldest sample time. A zero normal, collinear plane axes or invalid inputs stop dependent bindings. Authoring coordinates, Contact metre coordinates and distinct local references keep explicit identities; convert them before a shared calculation. [Configuration examples](computed-signals.en.md)
+
 ## Unity authoring and tracking generation
 
-Nine Unity authoring components store settings and implement SDK `IEditorOnly`. In NDMF Generating before MA's work in the same phase, `SensaPlugin` reads settings and creates Contacts, constraints and temporary animator/parameter/menu inputs for MA merging. `BuildContext.GetState` records completion per build; source scenes and authoring prefabs remain editable.
+Unity authoring components store settings and implement SDK `IEditorOnly`. In NDMF Generating before MA's work in the same phase, `SensaPlugin` reads settings and creates Contacts, constraints and temporary animator/parameter/menu inputs for MA merging. `BuildContext.GetState` records completion per build; source scenes and authoring prefabs remain editable.
 
 SPS four-anchor tracking, Contact direct tracking and Shader capture share this entry point while retaining their protocols. All three root prefabs accept an explicit Avatar Transform, SPS, Sensa Component or native Contact target. Root frames are read before removing any Sensa author component they reference. Native measurement components and reference Transforms remain in the uploaded result.
 

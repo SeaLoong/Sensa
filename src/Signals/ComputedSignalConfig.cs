@@ -55,4 +55,11 @@ public enum ComputedSignalOperation
     Duration,
     Sine,
     Envelope,
+    PointDistance,
+    PlaneDepth,
+    PlaneOffset,
+    VectorAngle,
+    PlaneAngle,
+    PlaneDepthFromAxes,
+    PlaneOffsetFromAxes,
 }

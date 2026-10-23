@@ -21,7 +21,7 @@ Sensa 的 Unity 组件保存定位与参数设置，在 Avatar 构建时生成�
 | --- | --- | --- |
 | 已有 OGB | 配置原 SPS/OGB 与桌面映射 | Touch 标量或径向深度估计；[外部兼容](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.md) |
 | SPS 四点定位 | 添加 **Sensa → Automatic SPS Setup**，或 **SPS four-anchor tracking** 并明确指定 Target | 以 Avatar 根为参照的根点位置，使用 AvatarRootLocal 制作单位 |
-| Contact 直接定位（SDK Beta） | 在自动配置中选择 **Contact 直接定位（SDK Beta）**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级接近参数 |
+| Contact 直接定位（SDK Beta） | 在自动配置中选择 **Contact 直接定位（SDK Beta）**，或添加对应预制件并明确指定 Target | 专用 Sender／Receiver，输出根点米制坐标与 SDK 相对速度；需要高级 Contact 参数 |
 | Shader 根点捕获 | 添加 **Shader Root Capture (Experimental)** 或 `SensaShaderCapture.prefab`，明确指定 Target | 把 AvatarRootLocal 位置、X/Z 轴向与 Avatar 世界缩放编码为黑白图块，经[桌面桥](GPU-TRACKING.md)读取 |
 | 独立 Point／Handle／Pose | 选择本地标记或相同通道的配对标记 | 各自拥有协议与时效规则的实验 |
 
@@ -29,9 +29,17 @@ Sensa 的 Unity 组件保存定位与参数设置，在 Avatar 构建时生成�
 
 新自动组件默认“一次选择一个目标”（Exclusive），初始关闭；“分别启用目标”（Dedicated）允许同时测量。Avatar 菜单选择目标后，桌面输入仍需单独启用，设备也需单独连接。
 
+## 让参考平面跟随骨骼
+
+Tracking Frame 与 Shader 用于自己 Avatar 内测量点与参考对象的相对运动。双方 Avatar 的互动可配置 [SensaPoseSocket／SensaPosePlug 配对三点姿态](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.md#跨-avatar-互动配对三点姿态)，以接收方 Socket 为共同参照。
+
+通过 **GameObject → Sensa → Tracking Frame** 或 `SensaTrackingFrame.prefab` 创建。**参考坐标系**选择骨骼、SPS 根点、Sensa 组件或原生 Contact，再调整位置与旋转偏移。Scene 显示平面和深度方向：+Z 向前、+X 向右、+Y 向上，可用六个轴向按钮与移动／旋转手柄定位。
+
+选择 SPS 四点定位或 Contact 直接定位。名为 `Frame` 的组件发布 `Frame_Origin`、`Frame_Forward`、`Frame_Right` 三点，默认轴标记间距为 0.2 个 Avatar 根制作单位。测量框架跟随参照的平移与旋转，尺寸沿用 Avatar 根缩放。在桌面工作台使用“跟随移动平面”模板，把这些读数与目标位置组合，即可得到带方向的深度和侧向偏移。[字段、生成数量与操作](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)
+
 ## 构建时怎样生效
 
-九类作者脚本均实现 `IEditorOnly`。统一的 NDMF 插件在 Generating 阶段先于 Modular Avatar 生成 Contact 与临时动画／参数／菜单，再由 MA 合并。生成后移除作者脚本，宿主对象、参照 Transform 与原生测量组件保留。宿主使用普通 GameObject；`EditorOnly` 对象标签用于会整组删除的纯编辑辅助内容。
+作者脚本均实现 `IEditorOnly`。统一的 NDMF 插件在 Generating 阶段先于 Modular Avatar 生成 Contact 与临时动画／参数／菜单，再由 MA 合并。生成后移除作者脚本，宿主对象、参照 Transform 与原生测量组件保留。宿主使用普通 GameObject；`EditorOnly` 对象标签用于会整组删除的纯编辑辅助内容。
 
 SDK 检查点会核对作者已被处理。若关闭了 NDMF 构建处理，或其他工具较晚插入 Sensa 作者组件，构建会列出剩余类型，便于调整设置与顺序。完整阶段、官方资料和基础组件行为见[Unity 构建指南](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)。
 

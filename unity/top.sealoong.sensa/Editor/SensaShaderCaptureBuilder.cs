@@ -59,11 +59,24 @@ namespace UnityBox.Sensa
             if (!BelongsTo(target.transform, avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a root target inside this avatar."));
             ValidateRig(avatar, author.producerId, author.desktopViewport);
-            var placement = SensaSpsAdapter.ReadRoot(target);
+            var placement = ResolvePlacement(author);
             if (placement.root == null || !BelongsTo(placement.root, avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
             ValidateMeasuredFrame(avatar, placement.root,
                 placement.root.localToWorldMatrix * Matrix4x4.TRS(placement.position, placement.rotation, Vector3.one));
+            return placement;
+        }
+
+        internal static SensaSpsAdapter.RootPlacement ResolvePlacement(SensaShaderCapture author)
+        {
+            if (!Finite(author.positionOffset.x) || !Finite(author.positionOffset.y) || !Finite(author.positionOffset.z)
+                || !Finite(author.rotationOffset.x) || !Finite(author.rotationOffset.y) || !Finite(author.rotationOffset.z))
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Choose finite measurement position and rotation offsets."));
+            var placement = SensaSpsAdapter.ReadRoot(ResolveTarget(author));
+            // Translation uses the selected root's axes; changing the measurement
+            // orientation rotates only the measured X/Z arms, not its origin.
+            placement.position += placement.rotation * author.positionOffset;
+            placement.rotation *= Quaternion.Euler(author.rotationOffset);
             return placement;
         }
 

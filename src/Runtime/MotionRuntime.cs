@@ -201,7 +201,7 @@ public sealed class MotionRuntime : IDisposable
         try
         {
             var routed = (_output as OutputCoordinator)?.SignalOutputs;
-            var usesTime = _config.ComputedSignals.Any(signal => signal.Operation >= ComputedSignalOperation.Smooth);
+            var usesTime = _config.ComputedSignals.Any(signal => ComputedSignalEvaluator.IsTemporal(signal.Operation));
             if (routed?.HasBindings != true && !usesTime) return;
             var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
             var resolver = CreateSignalResolver(now);

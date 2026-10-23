@@ -2,7 +2,9 @@
 遥测帧、新鲜度和文件所有权契约；不进行采集或网络连接。
 """
 import binascii
+import contextlib
 import hashlib
+import io
 import math
 import random
 import json
@@ -10,7 +12,9 @@ from pathlib import Path
 import subprocess
 import sys
 import struct
+import types
 import unittest
+from unittest import mock
 
 from lab_contract_fixtures import LabFixture, load_script
 
@@ -152,6 +156,123 @@ class FrameFileOwnershipContracts(LabFixture):
         with self.assertRaises(OSError):
             bridge.open_frame(missing)
         self.assertFalse(missing.exists())
+
+
+class MultipleCaptureContracts(LabFixture):
+    def registration(self, name, producer, region):
+        return self.write(self.root / name, json.dumps(bridge.capture_registration(region, producer)))
+
+    def test_repeated_registrations_share_one_capture_bounds_with_negative_monitor_coordinates(self):
+        first = self.registration('surface.json', 42, [-400, 100, 196, 196])
+        second = self.registration('target.json', 43, [0, -200, 294, 294])
+        args = bridge.parse_args(['--registration', str(first), '--registration', str(second), '--port', '19001'])
+        self.assertEqual([source.producer_id for source in args.sources], [42, 43])
+        self.assertEqual(bridge.capture_bounds([source.region for source in args.sources]), (-400, -200, 294, 296))
+        self.assertIsNot(args.sources[0].freshness, args.sources[1].freshness)
+        single = bridge.parse_args(['--registration', str(first), '--producer-id', '42'])
+        self.assertEqual(single.region, [-400, 100, 196, 196])
+
+    def test_ambiguous_duplicate_and_oversized_registrations_fail_before_capture(self):
+        first = self.registration('first.json', 42, [0, 0, 196, 196])
+        duplicate_id = self.registration('id.json', 42, [196, 0, 196, 196])
+        duplicate_roi = self.registration('roi.json', 43, [0, 0, 196, 196])
+        remote_roi = self.registration('far.json', 43, [8192, 0, 196, 196])
+        for other in (duplicate_id, duplicate_roi, remote_roi):
+            with self.subTest(other=other.name), self.assertRaises(ValueError):
+                bridge.load_registrations([first, other])
+        with self.assertRaises(ValueError): bridge.load_registrations([first] * 17)
+        for region in ([2 ** 31 - 100, 0, 196, 196], [0, -(2 ** 31) - 1, 196, 196]):
+            with self.subTest(region=region), self.assertRaises(ValueError): bridge.capture_registration(region, 42)
+        with self.assertRaisesRegex(ValueError, '4 million'): bridge.capture_registration([0, 0, 2001, 2000], 42)
+        with self.assertRaisesRegex(ValueError, '4 million'): bridge.capture_bounds([[0, 0, 1500, 1500], [1, 1, 1500, 1500]])
+        with self.assertRaisesRegex(ValueError, '16 million'): bridge.capture_bounds([[0, 0, 196, 196], [5000, 5000, 196, 196]])
+        second = self.registration('second.json', 43, [196, 0, 196, 196])
+        base = ['--registration', str(first), '--registration', str(second)]
+        for extra in (['--producer-id', '42'], ['--save-registration', str(self.root / 'combined.json')]):
+            with self.subTest(extra=extra), contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                bridge.parse_args(base + extra)
+
+    def test_one_bundle_preserves_independent_freshness_identity_and_failure(self):
+        sources = [bridge.CaptureSource(producer, [index * 196, 0, 196, 196]) for index, producer in enumerate((42, 43))]
+        def decode(frame, now):
+            return [source.decode(pixels(flags=3, producer_id=source.producer_id, frame=frame,
+                                          width=196, height=196), 196, 196, now) for source in sources]
+        self.assertTrue(all(not item['valid'] for item in decode(10, 0)))
+        statuses = decode(11, .01)
+        self.assertTrue(all(item['valid'] for item in statuses))
+        values = osc_values(bridge.capture_bundle(sources, statuses))
+        self.assertEqual(len(values), 24)
+        for producer in (42, 43):
+            prefix = '/avatar/parameters/Sensa/Shader/' + str(producer)
+            self.assertEqual(values[prefix + '/Frame'], 11)
+            self.assertEqual(values[prefix + '/Valid'], 1)
+        # The second crop fails while the first producer continues in the same source.
+        statuses[0] = sources[0].decode(pixels(flags=3, producer_id=42, frame=12, width=196, height=196), 196, 196, .02)
+        statuses[1] = sources[1].decode([(255, 255, 255)] * (196 * 196), 196, 196, .02)
+        values = osc_values(bridge.capture_bundle(sources, statuses))
+        self.assertEqual(values['/avatar/parameters/Sensa/Shader/42/Valid'], 1)
+        self.assertEqual(values['/avatar/parameters/Sensa/Shader/43/Valid'], 0)
+        self.assertNotIn('/avatar/parameters/Sensa/Shader/43/X', values)
+        self.assertFalse(sources[1].decode(pixels(flags=3, producer_id=42, frame=13, width=196, height=196), 196, 196, .03)['valid'])
+        self.assertFalse(decode(13, .04)[1]['valid'])
+        self.assertTrue(decode(14, .05)[1]['valid'])
+        # Freeze and slow decode retain the last advancing frame's age.
+        repeated = decode(14, .06)
+        self.assertFalse(sources[0].expire(repeated[0], .5)['valid'])
+        self.assertFalse(sources[1].decode([], 195, 196, .5)['valid'])
+        stopped = [source.reject('capture stopped') for source in sources]
+        self.assertEqual(osc_values(bridge.capture_bundle(sources, stopped)), {
+            '/avatar/parameters/Sensa/Shader/42/Valid': 0, '/avatar/parameters/Sensa/Shader/43/Valid': 0})
+
+    def test_main_crops_one_in_memory_capture_and_sends_both_producers_from_one_mock_socket(self):
+        first = self.registration('surface.json', 42, [-196, 0, 196, 196])
+        second = self.registration('target.json', 43, [0, 0, 196, 196])
+        crops, order = [], []
+        class Image:
+            def __init__(self, frame, producer=None):
+                self.frame, self.producer = frame, producer
+                self.size = (392, 196) if producer is None else (196, 196)
+            def convert(self, mode):
+                self.assert_mode = mode
+                return self
+            def close(self): pass
+            def __enter__(self): return self
+            def __exit__(self, *_): self.close()
+            def crop(self, bounds):
+                crops.append(bounds)
+                return Image(self.frame, 42 if bounds[0] == 0 else 43)
+            def get_flattened_data(self):
+                return pixels(frame=self.frame, producer_id=self.producer, flags=3, width=196, height=196)
+        frames, times = iter((Image(10), Image(11))), iter((0, 0, 0, 0, .01, .01, .02))
+        def grab_image(**kwargs):
+            order.append('capture')
+            return next(frames)
+        def time_now():
+            order.append('clock')
+            return next(times)
+        grab = mock.Mock(side_effect=grab_image)
+        udp = mock.MagicMock(); udp.__enter__.return_value = udp
+        with mock.patch.dict(sys.modules, {'PIL': types.SimpleNamespace(Image=Image, ImageGrab=types.SimpleNamespace(grab=grab))}), \
+                mock.patch.object(sys, 'argv', ['bridge', '--registration', str(first), '--registration', str(second),
+                                               '--watch', '--port', '19001', '--duration', '.015']), \
+                mock.patch.object(bridge.socket, 'socket', return_value=udp) as create_socket, \
+                mock.patch.object(bridge.time, 'monotonic', side_effect=time_now), \
+                mock.patch.object(bridge.time, 'sleep'), contextlib.redirect_stdout(io.StringIO()):
+            bridge.main()
+        create_socket.assert_called_once()
+        self.assertEqual(order[:3], ['clock', 'clock', 'capture'])
+        self.assertEqual(grab.call_args_list, [mock.call(bbox=(-196, 0, 196, 196), all_screens=True)] * 2)
+        self.assertEqual(crops, [(0, 0, 196, 196), (196, 0, 392, 196)] * 2)
+        sent = udp.sendto.call_args_list
+        self.assertEqual(len(sent), 3)
+        self.assertTrue(all(call.args[1] == ('127.0.0.1', 19001) for call in sent))
+        valid = osc_values(sent[1].args[0]); stopped = osc_values(sent[2].args[0])
+        self.assertEqual(len(valid), 24)
+        for producer in (42, 43):
+            prefix = '/avatar/parameters/Sensa/Shader/' + str(producer)
+            self.assertEqual(valid[prefix + '/Frame'], 11)
+            self.assertEqual(valid[prefix + '/Valid'], 1)
+            self.assertEqual(stopped[prefix + '/Valid'], 0)
 
 
 class NativeRootCaptureContracts(LabFixture):
@@ -341,6 +462,31 @@ class NativeRootCaptureContracts(LabFixture):
                 for key, values in (('right', (.5, .25, 0)), ('forward', (-.25, 0, 1.5))):
                     for actual, expected in zip(sample[key], values): self.assertAlmostEqual(actual, expected, delta=4 / 32767)
                 self.assertAlmostEqual(sample['avatarScale'], 1.25, delta=4 / 65535)
+
+    def test_arbitrary_pose_and_sheared_tangent_plane_survive_qr_loss_without_axis_normalization(self):
+        def cross(a, b):
+            return (a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0])
+        def unit(vector):
+            length = math.sqrt(sum(value * value for value in vector))
+            return tuple(value / length for value in vector)
+        axis = unit((.3, .7, .2)); angle = 1.93
+        def rotate(vector):
+            dot = sum(a * b for a, b in zip(axis, vector))
+            return tuple(v * math.cos(angle) + c * math.sin(angle) + a * dot * (1 - math.cos(angle))
+                         for v, c, a in zip(vector, cross(axis, vector), axis))
+        right, forward = rotate((2, .4, 0)), rotate((.3, -.2, 1.4))
+        target = (.3, 1.7, -.2)
+        image = self.image(xyz=target, right=right, forward=forward, avatar_scale=1.3)
+        damaged = self.obscure(image, [bridge.telemetry_qr.data_positions()[byte * 8] for byte in range(48)])
+        sample = bridge.decode_pixels(damaged, 196, 196)
+        for actual, expected in zip(sample['xyz'], target): self.assertAlmostEqual(actual, expected, delta=2 / 65535)
+        for key, expected in (('right', right), ('forward', forward)):
+            for actual, component in zip(sample[key], expected): self.assertAlmostEqual(actual, component, delta=4 / 32767)
+        restored_normal = unit(cross(sample['forward'], sample['right']))
+        expected_normal = unit(cross(forward, right))
+        for actual, expected in zip(restored_normal, expected_normal): self.assertAlmostEqual(actual, expected, delta=.0003)
+        self.assertGreater(math.sqrt(sum(value * value for value in sample['right'])), 2)
+        self.assertGreater(abs(sum(a * b for a, b in zip(sample['right'], sample['forward']))), .4)
 
     def test_native_validity_basis_and_quantization_limits_are_checked(self):
         for flags, producer in ((0, 0), (2, 42), (3, 0), (5, 42), (7, 42)):

@@ -54,6 +54,70 @@ namespace UnityBox.Sensa.Tests
         }
 
         [Test]
+        public void AuthoredOriginAndAxesFollowTheSelectedRootAfterArbitraryBodyMotion()
+        {
+            var frame = Child("Moving surface", new Vector3(.2f, 1, -.1f)).transform;
+            frame.localRotation = Quaternion.Euler(20, 35, -15);
+            var receiver = Child("Contact frame", Vector3.zero).AddComponent<VRCContactReceiver>();
+            receiver.rootTransform = frame;
+            receiver.position = new Vector3(.04f, -.02f, .03f);
+            receiver.rotation = Quaternion.Euler(10, -25, 5);
+            var author = Author(receiver);
+            var offset = author.positionOffset = new Vector3(.03f, .02f, -.04f);
+            var rotation = author.rotationOffset = new Vector3(65, 20, -30);
+            var sourcePosition = receiver.position; var sourceRotation = receiver.rotation;
+            SensaShaderCaptureBuilder.ProcessAvatar(avatar);
+            var encoder = Encoder(); var marker = encoder.bones.Single();
+            Assert.That(Vector3.Distance(marker.localPosition, sourcePosition + sourceRotation * offset), Is.LessThan(.00001f));
+            Assert.That(Quaternion.Angle(marker.localRotation, sourceRotation * Quaternion.Euler(rotation)), Is.LessThan(.001f));
+            avatar.transform.SetPositionAndRotation(new Vector3(3, -2, 5), Quaternion.Euler(17, -60, 43));
+            avatar.transform.localScale = Vector3.one * 1.7f;
+            frame.localPosition = new Vector3(-.3f, 1.2f, .2f);
+            frame.localRotation = Quaternion.Euler(-75, 113, 21);
+            var skin = encoder.transform.worldToLocalMatrix * marker.localToWorldMatrix * encoder.sharedMesh.bindposes.Single();
+            var measured = encoder.sharedMesh.vertices.Select(skin.MultiplyPoint3x4).ToArray();
+            var expected = avatar.transform.worldToLocalMatrix * frame.localToWorldMatrix
+                * Matrix4x4.TRS(sourcePosition, sourceRotation, Vector3.one)
+                * Matrix4x4.TRS(offset, Quaternion.Euler(rotation), Vector3.one);
+            Assert.That(Vector3.Distance(measured[0], expected.MultiplyPoint3x4(Vector3.zero)), Is.LessThan(.00001f));
+            Assert.That(Vector3.Distance((measured[1] - measured[0]) / SensaShaderCapture.ProbeArmLength,
+                expected.MultiplyVector(Vector3.right)), Is.LessThan(.00001f));
+            Assert.That(Vector3.Distance((measured[2] - measured[0]) / SensaShaderCapture.ProbeArmLength,
+                expected.MultiplyVector(Vector3.forward)), Is.LessThan(.00001f));
+            Assert.That(encoder.transform.localToWorldMatrix, Is.EqualTo(avatar.transform.localToWorldMatrix));
+        }
+
+        [Test]
+        public void AxisRotationLeavesTheOriginOffsetInTheSelectedRootsAxes()
+        {
+            var bone = Child("Root", Vector3.up).transform;
+            var author = Author(bone);
+            author.positionOffset = new Vector3(.1f, .2f, .3f);
+            var before = SensaShaderCaptureBuilder.ResolvePlacement(author);
+            author.rotationOffset = new Vector3(90, 0, 0);
+            var after = SensaShaderCaptureBuilder.ResolvePlacement(author);
+            Assert.That(after.position, Is.EqualTo(before.position));
+            Assert.That(Vector3.Distance(after.rotation * Vector3.forward, Vector3.down), Is.LessThan(.00001f));
+        }
+
+        [Test]
+        public void NonfiniteOffsetsAreRejectedBeforeAnyNativeObjectsAreCreated()
+        {
+            var author = Author(Child("Root", Vector3.up).transform);
+            foreach (var invalid in new[] { float.NaN, float.PositiveInfinity, float.NegativeInfinity })
+            {
+                author.positionOffset = new Vector3(0, invalid, 0);
+                author.rotationOffset = Vector3.zero;
+                Assert.Throws<InvalidOperationException>(() => SensaShaderCaptureBuilder.ProcessAvatar(avatar));
+                author.positionOffset = Vector3.zero;
+                author.rotationOffset = new Vector3(0, 0, invalid);
+                Assert.Throws<InvalidOperationException>(() => SensaShaderCaptureBuilder.ProcessAvatar(avatar));
+                Assert.That(avatar.GetComponentsInChildren<Camera>(true), Is.Empty);
+                Assert.That(avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true), Is.Empty);
+            }
+        }
+
+        [Test]
         public void OwnedSensaRootAndExplicitTargetPrecedenceWorkWithoutVrcfury()
         {
             var component = Child("Owned Socket", Vector3.zero).AddComponent<SensaComponent>();

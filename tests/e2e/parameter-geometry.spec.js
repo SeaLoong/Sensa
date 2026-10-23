@@ -1546,7 +1546,7 @@ hostedTest('parameter details open the localized interactive guide without devic
         await expect(dialog.getByTestId('parameter-reference-unit')).toHaveText(unit);
         await expect(dialog.getByTestId('parameter-reference-definition')).toContainText(definition);
         await expect(dialog.getByTestId('parameter-reference-usage')).toBeVisible();
-        const source = dialog.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first();
+        const source = dialog.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first();
         await expect(source).toBeVisible();
         if (parameterPath === contactSpeedPath)
           await parameterDetailCheckpoint(page, dialog, 'osc-parameter-reference-contact-speed-' + locale);
@@ -1595,7 +1595,7 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
     await expect(speedReference).toHaveAttribute('data-selected', 'true');
     await expect(speedReference.getByTestId('parameter-reference-unit')).toHaveText('m/s');
     await expect(speedReference.getByTestId('parameter-reference-definition')).toContainText('接触点');
-    await expect(speedReference.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first()).toBeVisible();
+    await expect(speedReference.getByTestId('parameter-reference-sources').locator('a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first()).toBeVisible();
     await parameter(page, 'Proximity_ProximitySpeed').getByRole('button').click();
     await expect(referenceCard(page, 'Proximity_ProximitySpeed').getByTestId('parameter-reference-unit')).toHaveText('1/s');
     await parameter(page, 'Sample').getByRole('button').click();

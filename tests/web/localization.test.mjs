@@ -93,12 +93,18 @@ test('computed diagnostics translate owned phrases while preserving captured ide
       '请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame',
       '等待计算输入 / Waiting for calculation inputs',
       '等待已保存的计算定义 / Waiting for saved calculation definitions',
+      '夹角需要两个非零向量 / Angle calculations require two non-zero vectors',
+      '平面需要两条非零且不近似共线的轴 / A plane requires two non-zero axes that are not nearly collinear',
+      '两条平面轴接近共线，无法确定可靠法向 / The plane axes are nearly collinear and cannot determine a reliable normal',
+      '请为平面选择非零法向 / Choose a non-zero plane normal',
+      '空间计算需要同一坐标系、同量纲的 XYZ 分组；位置与方向请分别选择 / Spatial calculations require compatible coordinate frames and consistent XYZ groups; choose positions and directions separately',
     ]) assert.doesNotMatch(diagnostic(reason), /[\u3400-\u9fff]/u, reason);
     const target = 'Sensa/SPS/Root / segment/**';
     assert.equal(diagnostic(`等待参数：${target} / Waiting for parameter: ${target}`), `Waiting for parameter: ${target}`);
     assert.equal(diagnostic('计算信号 Blend 引用的 Missing 尚未定义，请先创建该计算信号 / Computed signal Blend: unknown calculation Missing.'), 'Computed signal Blend: unknown calculation Missing.');
     assert.equal(diagnostic('请按输入到结果的方向连接计算信号 Blend，并移除循环引用 / Computed signal Blend: calculations must form a chain without cycles.'), 'Computed signal Blend: calculations must form a chain without cycles.');
     assert.equal(diagnostic('计算信号 Blend 可使用 1～16 个输入，差值和比值各需两个输入 / Computed signal Blend: use 1–16 inputs; difference and ratio require two.'), 'Computed signal Blend: use 1–16 inputs; difference and ratio require two.');
+    assert.equal(diagnostic('计算信号 Plane 的空间计算输入不完整：点距离与夹角使用两组三维量（6 个输入），平面计算使用位置、原点、法向（9 个输入），双轴平面使用位置、原点和两条轴（12 个输入） / Computed signal Plane: distance and angle calculations require 6 inputs, normal-defined planes require 9, and axis-defined planes require 12.'), 'Computed signal Plane: distance and angle calculations require 6 inputs, normal-defined planes require 9, and axis-defined planes require 12.');
     const custom = 'OGB/Orf/左侧 / 私有/PenOthers';
     assert.equal(diagnostic(`等待参数：${custom} / Waiting for parameter: ${custom}`), `Waiting for parameter: ${custom}`);
     assert.equal(diagnostic('User / arbitrary message'), 'User / arbitrary message');

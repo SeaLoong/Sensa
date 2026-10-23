@@ -56,6 +56,10 @@ test('SDK advanced reports cite the verified Beta and separate position, relativ
     assert.match(position.definition, /Receiver axes/);
     assert.ok(position.sources.some(source => source.kind === 'official-sdk'
       && source.url === 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2'));
+    assert.ok(position.sources.some(source => source.kind === 'official-sdk'
+      && source.url === 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3'));
+    assert.ok(position.sources.some(source => source.kind === 'official-doc'
+      && source.url === 'https://vrc-beta-docs.netlify.app/releases/release-3-10-6'));
     const velocity = lookup(native('Proximity_SenderVelocity' + axis), 'en');
     assert.equal(velocity.unit, 'm/s');
     assert.match(velocity.definition, /contact point/);
@@ -82,6 +86,7 @@ test('Sensa-added Radius and Sample retain their own provenance instead of claim
   assert.match(lookup(native('Sample'), 'en').definition, /last changed/);
   assert.match(lookup(native('Proximity_SenderType'), 'en').range, /0 none; 1 self; 2 another avatar; 3 world/);
   assert.match(lookup(native('Proximity'), 'en').definition, /greatest strictly positive proximity/);
+  assert.match(lookup(native('Proximity'), 'en').definition, /ties at 1.*nearest inner points/);
 });
 
 test('SPS NewTip explains the root-centered length sphere and Close explains the generated Float region gate', () => {

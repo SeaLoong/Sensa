@@ -469,7 +469,7 @@
     });
     const assumptions = [
       { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
-      { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2 reports position and velocity on Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
+      { id: 'scale', zh: scenario === 'contact-sdk' ? '已核对 SDK 3.10.6-beta.2／beta.3：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'Verified SDK 3.10.6-beta.2 / beta.3: position and velocity use Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
       { id: 'projection', zh: scenario === 'shader' ? '绿色方框显示编码坐标范围的 XZ 截面；位置编码保留完整 XYZ，Y 由高度滑条调整。' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: scenario === 'shader' ? 'The green box shows the XZ section of the coordinate encoding range. Encoding retains full XYZ; the height slider adjusts Y.' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
       { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];
@@ -566,7 +566,9 @@
         const candidatePoint = { x: number(candidate, 'x', 0), y: number(candidate, 'y', 0), z: number(candidate, 'z', 0) };
         const candidateShape = sphere('sender-contact', 'sender', candidatePoint, .001, 'SensaSelf');
         const proximity = measure(receiver, candidateShape, 'proximity');
-        if ((candidate.senderType ?? 1) === 1 && proximity.raw > measured.raw) {
+        const closerSaturatedTarget = proximity.raw === 1 && measured.raw === 1
+          && proximity.axisDistance < measured.axisDistance;
+        if ((candidate.senderType ?? 1) === 1 && (proximity.raw > measured.raw || closerSaturatedTarget)) {
           chosen = { ...candidate, point: candidatePoint, shape: candidateShape }; measured = proximity;
         }
       }

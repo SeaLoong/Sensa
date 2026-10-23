@@ -14,13 +14,14 @@
 
 1. 安装[包依赖](COMPATIBILITY.md)。选择 SPS 作者目标时安装官方 VRCFury。使用 PC、Built-in Render Pipeline 和支持 geometry shader 的图形后端；Android 与 Metal 采用其他输入方式。
 2. 从 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`。将 `Target` 指向当前 Avatar 内的骨骼／空物体 Transform、SPS Socket／Plug、Sensa Component 或原生 Contact。
+   使用 **原点偏移**沿目标根点的局部 XYZ 轴调整测量位置；使用 **坐标轴旋转**调整测量方向，单位为度。两项默认为零。Scene 视图显示 Right（+X）、Forward（+Z）及其张成的测量面，原点和轴会随目标运动。
 3. 设置唯一的 `Producer Id`（1–65535），例如 42。桌面桥使用相同 ID 配对该图块。
 4. `Desktop Viewport` 是归一化屏幕区域，默认 (0,0,0.25,0.2)。QR 图块在区域内保持正方形并居中。先在实际客户端找到完整图块，再确定对应的桌面物理像素区域。
 5. 正常构建 Avatar 或使用 NDMF 处理后预览。构建引用包内 `Runtime/Shaders/SensaRootTelemetry.shader`，临时网格与材质随构建保存。更新包和桌面桥后重新构建并注册捕获区域。
 6. 在表达菜单 **Sensa ShaderCapture_42** 选择根点编码项。菜单默认关闭，由本地穿戴者开启；标题跟随作者构建时选择的语言。
 7. 检查 PC 桌面图块及 VR 双眼画面。生成相机使用 `None` 眼目标，实际桌面合成和头显可见性在 VRChat 中分别确认。
 
-多图块各用独立 ID、相机和材质签名。为每个图块分别配置捕获区域和桥进程。
+多图块各用独立 ID、相机和材质签名。分别注册捕获区域后，在同一个桥进程中重复使用 `--registration`，使这些测量共享一个 OSC 来源，便于组合计算。
 
 ## 读取哪些数据？
 
@@ -28,7 +29,7 @@
 | --- | --- |
 | `X / Y / Z` | 所选根中心在 Avatar 根局部坐标中的位置；X/Z=[−2,2]，Y=[−1,3] |
 | `RightX / RightY / RightZ` | 根点局部 +X 轴在 Avatar 根坐标中的向量；向量长度反映该轴缩放 |
-| `ForwardX / ForwardY / ForwardZ` | 根点局部 +Z 轴在同一坐标中的向量；与 Right 的叉积可求测量平面法线 |
+| `ForwardX / ForwardY / ForwardZ` | 根点局部 +Z 轴在同一坐标中的向量；Forward×Right 给出实测 XZ 面的正法线 |
 | `AvatarScale` | 每个 Avatar 根局部单位对应的世界米数，范围 (0,8] |
 | `Frame` | 约 60 Hz 的编码时钟序号，用于发现重复与冻结 |
 | `Valid` | 1 提交完整有效包；0 使当前测量失效 |
@@ -36,6 +37,8 @@
 Right／Forward 各分量范围为 [−8,8]，使用同一个三角形的原点、+X 和 +Z 三个蒙皮点计算。它们保留两条轴的方向与长度；独立 Y 轴缩放需要另行测量。整个 Avatar 共同走动或转身时，根局部坐标保持相对含义。相对位移乘 `AvatarScale` 可换算为米。超范围、退化轴向或不支持的世界缩放会使包失效。
 
 在 Sensa 中，根点面板可选择位置、轴向分量或 AvatarScale 做校准映射。需要组合计算时，在“流程”中选择定位测量（SensaPoint），填写根点路径如 `Sensa/Shader/42/**` 并选择指标，再绑定输出。该来源沿用完整包、帧时效和输入启用检查。[参数解释](https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters.md) · [信号流程](https://github.com/SeaLoong/Sensa/blob/main/docs/signal-pipeline.md)
+
+把 Forward 用作法线，可以定义垂直于目标前向的工作平面，并计算深度、平面内偏移或角度。测量有非均匀缩放或剪切的实际 XZ 面时，选择“平面深度（两条轴）”或“平面内偏移（两条轴）”，依次使用 Forward、Right；计算会用这两条切向轴的叉积确定法线。[跟随平面的完整配置示例](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.md#跟随姿态变化的平面与角度计算)
 
 ## 捕获与注册
 
@@ -50,6 +53,14 @@ python -X utf8 scripts/shader-osc-bridge.py --region LEFT TOP WIDTH HEIGHT --pro
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch --port 9001 --duration 300
 ```
+
+同时测量参考面与目标时，可分别注册为 `surface.json`（例如 ID 42）和 `target.json`（例如 ID 43），然后运行：
+
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --registration surface.json --registration target.json --watch --port 9001 --duration 300
+```
+
+每轮从同一张截图依次裁出和解码两个区域，再通过同一个 OSC bundle 发送，各图块独立检查时效与恢复。最多支持 16 个不同 ID 和区域，ROI 像素数合计不超过 400 万，外接截图不超过 1600 万像素、每边不超过 8192。截图与解码耗时计入有效期。某个图块读不出时，它的 Valid 变为 0，依赖该测量的计算也会失效。
 
 省略端口可只观察解码。窗口尺寸、分辨率或显示缩放变化后重新注册。桥读取明确选定的区域，由 Sensa 工作台控制实际输入启用。
 

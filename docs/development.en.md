@@ -13,7 +13,17 @@ CI runs unit tests and a full browser E2E comparison before building, packaging 
 | Change documents or site files on `main` | Build the site, run site-specific E2E and deploy automatically without a manual Pages run |
 | Run `release.yml` manually | Resolve latest `main`, check/build/publish a stable Release, then refresh the site and VPM automatically |
 
-Both release channels include Windows/Linux/macOS for x64 and ARM64 plus a Unity ZIP. Cleanup retains the newest **10 published pre-releases**, preserving stable releases, unpublished drafts and Git tags. VPM contains Unity packages from stable releases only.
+Both release channels include Windows installers, Windows standalone executables, six portable desktop archives and a Unity ZIP. Cleanup retains the newest **10 published pre-releases**, preserving stable releases, unpublished drafts and Git tags. VPM contains Unity packages from stable releases only.
+
+| Download format | Platforms | Use |
+| --- | --- | --- |
+| `Sensa-<version>-win-<architecture>-Setup.exe` | Windows x64/ARM64 | Recommended. Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides and Shader bridge tools; no administrator access needed |
+| `Sensa-<version>-win-<architecture>-SingleFile.exe` | Windows x64/ARM64 | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get the Python Shader bridge and full Markdown guides from the installer or portable archive |
+| `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | Windows/Linux/macOS, each for x64/ARM64 | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
+
+All desktop formats are self-contained and require no separately installed .NET runtime. For standalone Windows EXEs, .NET extracts native libraries to its cache while the application reads Web content from its assembly. Configuration `config.json` and recording-output `recordings` default to the executable directory, with environment-variable overrides available. Workbench funscript exports use `Sensa/recordings` under your Documents folder. Installer updates and uninstall retain user-created data. Keep standalone EXEs in a writable folder. The installer and application are not code-signed; Windows may show a publisher or reputation prompt.
+
+Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first eight commit characters>` after the version; stable filenames do not. Preview bodies still contain exactly one **Source** line linking to the build commit. Download pages prioritize Windows installers.
 
 ## How do I publish a stable release?
 
@@ -34,7 +44,7 @@ Automatic selection considers the repository version and existing stable tags. A
 | `checks.yml` | Checks | Shared Web/.NET/Python units, Unity metadata and E2E checks |
 | `e2e.yml` | E2E | Browser behavior and normal screenshot comparison; manual baseline candidates |
 | `update-e2e.yml` | Update E2E | Manual test/candidate maintenance through a review PR; no AI key in default mode |
-| `build.yml` | Build | Shared six-platform desktop builds, isolated native smoke and Unity packaging |
+| `build.yml` | Build | Shared six-platform portable archives, Windows installers/standalone EXEs, isolated native smoke and Unity packaging |
 | `release.yml` | Release | Manually started stable publication from latest `main` |
 | `pages.yml` | Pages | Automatic site build, site E2E, page deployment and VPM |
 
@@ -67,7 +77,11 @@ Application E2E, candidate capture and Pages site checks use the same Playwright
 
 Dependency installation reads fixed Ubuntu package sources and makes up to two attempts, each limited to 130 seconds with five more seconds to terminate processes. APT uses a 15-second network timeout and one retry per download; the step budget is five minutes. The second attempt first completes pending package configuration with `dpkg --configure --pending`, within the same budget. Verification continues after installation succeeds; investigate network or installation failures and retry the run when needed.
 
-Native builds run the generated program with isolated smoke configuration; Windows also runs shader-bridge mock replay. Packaging and publication accept ordinary files with portable archive paths. The publisher creates a draft, uploads files, verifies names, sizes and SHA-256 hashes, then rechecks the actual Git tag target immediately before publication. Failed uploads retain a draft for investigation. Rerunning a published preview verifies its existing assets and completes any remaining cleanup. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
+Native builds run all six portable programs with isolated smoke configuration; Windows also runs Shader bridge mock replay. Standalone Windows programs repeat smoke from a publish directory containing only one EXE, checking APIs, the Web UI and the local explorer. Installer checks silently install into a temporary directory, verify the installed binary and offline tools, run isolated application smoke, then uninstall and check that user configuration and recordings survive. Installation, startup and uninstall run only on native Windows Actions runners without real hardware.
+
+Installers use pinned Inno Setup 6.7.3. The bootstrap downloads its compiler installer from the official GitHub Release, checks the repository-pinned SHA-256 and a valid Authenticode signature from official publisher `Pyrsys B.V.`, then executes it. This verifies the build tool's source; it does not imply that Sensa downloads are code-signed.
+
+Packaging and publication accept ordinary files with portable archive paths. Publication requires all six portable archives, four additional Windows downloads and the Unity package, and verifies their platform checksums before creating a draft. After upload, it verifies names, sizes and SHA-256 hashes, then rechecks the actual Git tag target immediately before publication. Failed uploads retain a draft for investigation. Rerunning a published preview verifies its existing assets and completes any remaining cleanup. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
 
 If **Update E2E** pushes its candidate branch but PR creation fails, use **Re-run failed jobs** after resolving the reported error. The publisher reuses the successful candidate attempt's branch after checking its parent commit and full file tree, and returns an existing draft PR when its repository, source SHA and review state match. A changed branch or closed review requires inspection. A full candidate rerun creates a new attempt for separate review. Test patches execute in a separate job; the publishing job reapplies checked files without running candidate code. Candidate images and assertion changes still receive review and a full normal comparison.
 

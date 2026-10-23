@@ -16,6 +16,9 @@ import telemetry_qr
 AVATAR_ROOT_CENTER = (0.0, 1.0, 0.0)
 AVATAR_ROOT_HALF_RANGE = 2.0
 REGISTRATION_SCHEMA = 'sensa.shader-capture.v1'
+MAX_REGISTRATIONS = 16
+MAX_DECODE_PIXELS = 4_000_000
+MAX_SCREENSHOT_PIXELS = 16_000_000
 
 
 def open_frame(path):
@@ -145,6 +148,10 @@ def capture_registration(region, producer_id):
         raise ValueError('Registration requires four integer physical-pixel bounds')
     if region[2] < NATIVE_MIN_WIDTH or region[3] < NATIVE_MIN_HEIGHT or region[2] > 8192 or region[3] > 8192:
         raise ValueError('Native capture rectangle must be 196..8192 by 196..8192 physical pixels')
+    if region[2] * region[3] > MAX_DECODE_PIXELS:
+        raise ValueError('Capture regions may contain at most 4 million pixels in total')
+    if min(region[:2]) < -(2 ** 31) or max(region[0] + region[2], region[1] + region[3]) > 2 ** 31 - 1:
+        raise ValueError('Capture rectangle coordinates must fit within signed 32-bit screen bounds')
     if type(producer_id) is not int or not 1 <= producer_id <= 65535:
         raise ValueError('Registration requires an explicit producer ID from 1..65535')
     return {'schema': REGISTRATION_SCHEMA, 'region': list(region), 'producerId': producer_id,
@@ -160,6 +167,33 @@ def load_registration(path):
     if any(data.get(key) != expected[key] for key in ('coordinateFrame', 'center', 'halfRange')):
         raise ValueError('Capture registration does not match the avatar-root coordinate profile')
     return expected
+
+
+def capture_bounds(regions):
+    """One physical-pixel screenshot supplies every registered crop in a cycle."""
+    if not regions or sum(region[2] * region[3] for region in regions) > MAX_DECODE_PIXELS:
+        raise ValueError('Capture regions may contain at most 4 million pixels in total')
+    left = min(region[0] for region in regions)
+    top = min(region[1] for region in regions)
+    right = max(region[0] + region[2] for region in regions)
+    bottom = max(region[1] + region[3] for region in regions)
+    if right - left > 8192 or bottom - top > 8192:
+        raise ValueError('Combined capture rectangle must fit within 8192 by 8192 physical pixels')
+    if (right - left) * (bottom - top) > MAX_SCREENSHOT_PIXELS:
+        raise ValueError('Combined screenshot may contain at most 16 million pixels')
+    return left, top, right, bottom
+
+
+def load_registrations(paths):
+    if not 1 <= len(paths) <= MAX_REGISTRATIONS:
+        raise ValueError('Choose between 1 and 16 capture registrations')
+    registrations = [load_registration(path) for path in paths]
+    if len({entry['producerId'] for entry in registrations}) != len(registrations):
+        raise ValueError('Capture registrations must have distinct producer IDs')
+    if len({tuple(entry['region']) for entry in registrations}) != len(registrations):
+        raise ValueError('Capture registrations must have distinct screen rectangles')
+    capture_bounds([entry['region'] for entry in registrations])
+    return registrations
 
 
 def validate_source(sample, producer_id):
@@ -256,25 +290,71 @@ def osc_bundle(sample, valid, producer_id=None, native=None):
     return result
 
 
-def main():
+class CaptureSource:
+    """One registered producer keeps its own identity, timeout and recovery state."""
+    def __init__(self, producer_id=None, region=None, timeout=.35):
+        self.producer_id, self.region = producer_id, region
+        self.freshness = Freshness(timeout, producer_id)
+
+    def reject(self, error):
+        self.freshness.invalidate(str(error))
+        return {'producerId': self.producer_id, 'valid': False, 'sample': None, 'error': str(error)}
+
+    def decode(self, pixels, width, height, now, require_freshness=True):
+        try:
+            if self.region and (width, height) != tuple(self.region[2:]):
+                raise ValueError('Captured size differs from the registered physical-pixel rectangle')
+            sample = decode_pixels(pixels, width, height)
+            validate_source(sample, self.producer_id)
+            valid = self.freshness.accept(sample, now) if require_freshness else True
+            return {'producerId': self.producer_id, 'valid': valid, 'sample': sample,
+                    'error': None if valid else self.freshness.reason}
+        except (OSError, ValueError) as error:
+            return self.reject(error)
+
+    def bundle(self, status):
+        producer, coordinate_frame = self.freshness.identity or (self.producer_id or 0,
+            'AvatarRootLocal' if self.producer_id is not None else 'DiagnosticUnit')
+        return osc_bundle(status.get('sample'), status['valid'], producer, coordinate_frame == 'AvatarRootLocal')
+
+    def expire(self, status, now):
+        if status['valid'] and now - self.freshness.changed_at > self.freshness.timeout:
+            return self.reject('captured frame expired before delivery')
+        return status
+
+
+def capture_bundle(sources, statuses):
+    if not sources or len(sources) != len(statuses) or len(sources) > MAX_REGISTRATIONS:
+        raise ValueError('Each capture source requires one status')
+    # A single datagram/socket preserves the OSC transport source for calculations
+    # combining producers. Each twelve-field packet retains its own Valid commit.
+    return osc_string('#bundle') + struct.pack('!Q', 1) + b''.join(
+        source.bundle(status)[16:] for source, status in zip(sources, statuses))
+
+
+def parse_args(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     source = parser.add_mutually_exclusive_group(required=True)
     source.add_argument('--image', type=Path, help='PNG exported by the Unity lab; can be updated while watching')
     source.add_argument('--region', nargs=4, type=int, metavar=('LEFT', 'TOP', 'WIDTH', 'HEIGHT'), help='Explicit physical-pixel desktop rectangle; requires Pillow ImageGrab')
-    source.add_argument('--registration', type=Path, help='Load an explicitly selected ROI and producer registration')
+    source.add_argument('--registration', type=Path, action='append', help='Load a registered ROI and producer; repeat for up to 16 tiles sharing one OSC source')
     parser.add_argument('--producer-id', type=int, help='Pin the producer ID; required for screen capture sent to OSC')
     parser.add_argument('--save-registration', type=Path, help='Save the explicit region and producer after a valid native-root decode')
     parser.add_argument('--port', type=int, help='Explicit localhost OSC port; omit to decode only')
     parser.add_argument('--watch', action='store_true')
     parser.add_argument('--timeout', type=float, default=.35)
     parser.add_argument('--duration', type=float, default=30)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
+    registrations = []
     if args.registration:
         try:
-            registration = load_registration(args.registration)
-            if args.producer_id is not None and args.producer_id != registration['producerId']:
+            registrations = load_registrations(args.registration)
+            if len(registrations) > 1 and args.producer_id is not None:
+                parser.error('Each registration supplies its own producer ID; omit --producer-id for multiple tiles')
+            if args.producer_id is not None and args.producer_id != registrations[0]['producerId']:
                 parser.error('Producer ID differs from the explicit registration')
-            args.region, args.producer_id = registration['region'], registration['producerId']
+            if len(registrations) == 1:
+                args.region, args.producer_id = registrations[0]['region'], registrations[0]['producerId']
         except (OSError, ValueError) as error:
             parser.error(str(error))
     if args.port is not None and not 1 <= args.port <= 65535: parser.error('Invalid port')
@@ -283,52 +363,78 @@ def main():
     if args.region:
         if args.region[2] < NATIVE_MIN_WIDTH or args.region[3] < NATIVE_MIN_HEIGHT or args.region[2] > 8192 or args.region[3] > 8192:
             parser.error('Invalid capture rectangle size')
+        try:
+            capture_registration(args.region, args.producer_id or 1)
+        except ValueError as error:
+            parser.error(str(error))
         if args.port and args.producer_id is None:
             parser.error('Screen-to-OSC requires --producer-id or --registration')
     if args.save_registration and (not args.region or args.producer_id is None):
-        parser.error('Saving registration requires an explicit region and producer ID')
+        parser.error('Saving registration requires one explicit region and producer ID')
+    args.sources = ([CaptureSource(entry['producerId'], entry['region'], args.timeout) for entry in registrations]
+                    if registrations else [CaptureSource(args.producer_id, args.region, args.timeout)])
+    return args
+
+
+def main():
+    args = parse_args()
     from PIL import Image, ImageGrab
-    freshness = Freshness(args.timeout, args.producer_id)
     registration_saved = False
     started = time.monotonic()
     last_status = None
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as udp:
-        def emit(sample, valid):
-            producer, coordinate_frame = freshness.identity or (args.producer_id or 0,
-                'AvatarRootLocal' if args.producer_id is not None else 'DiagnosticUnit')
-            udp.sendto(osc_bundle(sample, valid, producer, coordinate_frame == 'AvatarRootLocal'), ('127.0.0.1', args.port))
+        def emit(statuses):
+            udp.sendto(capture_bundle(args.sources, statuses), ('127.0.0.1', args.port))
         try:
             while True:
-                sample, valid, error = None, False, None
+                statuses = []
+                captured_at = time.monotonic()
                 try:
                     if args.image:
                         with open_frame(args.image) as frame_file, Image.open(frame_file) as source_image:
+                            if source_image.size[0] * source_image.size[1] > MAX_DECODE_PIXELS:
+                                raise ValueError('Capture image may contain at most 4 million pixels')
                             image = source_image.convert('RGB')
+                        try:
+                            statuses.append(args.sources[0].decode(list(image.get_flattened_data()), *image.size, captured_at,
+                                                                  require_freshness=args.watch or args.port is not None))
+                        finally:
+                            image.close()
                     else:
-                        x, y, w, h = args.region
-                        image = ImageGrab.grab(bbox=(x, y, x+w, y+h), all_screens=True).convert('RGB')
-                        if image.size != (w, h):
-                            raise ValueError('Captured size differs from the registered physical-pixel rectangle')
-                    sample = decode_pixels(list(image.get_flattened_data()), *image.size)
-                    validate_source(sample, args.producer_id)
-                    if args.save_registration and not registration_saved:
-                        if sample.get('coordinateFrame') != 'AvatarRootLocal':
+                        bounds = capture_bounds([source.region for source in args.sources])
+                        image = ImageGrab.grab(bbox=bounds, all_screens=True).convert('RGB')
+                        try:
+                            if image.size != (bounds[2] - bounds[0], bounds[3] - bounds[1]):
+                                raise ValueError('Captured size differs from the registered physical-pixel rectangle')
+                            for source in args.sources:
+                                x, y, w, h = source.region
+                                try:
+                                    with image.crop((x - bounds[0], y - bounds[1], x + w - bounds[0], y + h - bounds[1])) as crop:
+                                        statuses.append(source.decode(list(crop.get_flattened_data()), *crop.size, captured_at,
+                                                                      require_freshness=args.watch or args.port is not None))
+                                except (OSError, ValueError) as error:
+                                    statuses.append(source.reject(error))
+                        finally:
+                            image.close()
+                    if args.watch or args.port is not None:
+                        delivery_time = time.monotonic()
+                        statuses = [source.expire(status, delivery_time) for source, status in zip(args.sources, statuses)]
+                    if args.save_registration and not registration_saved and statuses[0]['sample'] is not None:
+                        if statuses[0]['sample'].get('coordinateFrame') != 'AvatarRootLocal':
                             raise ValueError('Registration requires a native avatar-root producer')
                         args.save_registration.write_text(json.dumps(capture_registration(args.region, args.producer_id), indent=2) + '\n', encoding='utf-8')
                         registration_saved = True
-                    valid = freshness.accept(sample, time.monotonic()) if args.watch or args.port else True
-                    if not valid: error = freshness.reason
                 except (OSError, ValueError) as ex:
-                    freshness.invalidate()
-                    error = str(ex)
-                if args.port: emit(sample, valid)
-                status = (valid, error)
-                if not args.watch or status != last_status: print(json.dumps({'valid': valid, 'sample': sample, 'error': error}), flush=True)
+                    statuses = [source.reject(ex) for source in args.sources]
+                if args.port: emit(statuses)
+                status = tuple((entry['valid'], entry['error']) for entry in statuses)
+                if not args.watch or status != last_status:
+                    print(json.dumps(statuses[0] if len(statuses) == 1 else {'sources': statuses}), flush=True)
                 last_status = status
                 if not args.watch or time.monotonic() - started >= args.duration: break
                 time.sleep(1/30)
         finally:
-            if args.port: emit(None, False)
+            if args.port: emit([source.reject('capture stopped') for source in args.sources])
 
 
 if __name__ == '__main__': main()

@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { buildComputedDrafts, newComputedDraft, computeComputedHash, computedDraftIncomplete, computedMappingPreview, computedMappingPreviews, stripComputedDraft, expandMappingSources } from '../../src/web/computed-signals.js';
+import { buildComputedDrafts, newComputedDraft, computeComputedHash, computedDraftIncomplete, computedMappingPreview, computedMappingPreviews, stripComputedDraft, expandMappingSources,
+  SPATIAL_COMPUTED_OPERATIONS, computedInputLimit, computedVectorGroups, computedVectorBinding, makeComputedVector, changeComputedOperation, newSpatialComputedDraft, followingPlaneDrafts, computedResultUnit } from '../../src/web/computed-signals.js';
+import { getLocale, setLocale } from '../../src/web/i18n.js';
 import { buildSignalDrafts, editConfiguration } from '../../src/web/configuration.js';
 import { controlReadiness } from '../../src/web/control-workflow.js';
 import { oscWorkflowHints } from '../../src/web/osc-workflow.js';
@@ -100,4 +102,84 @@ test('temporary cyclic or missing draft references remain bounded and preserve v
   const sources = expandMappingSources([{ sourceMode: 'Computed', oscPath: 'Root' }, { sourceMode: 'Computed', oscPath: 'N63' }], oversized);
   assert.equal(sources.length, 16);
   assert.ok(!sources.some(source => source.oscPath === 'Leaf16' || source.oscPath === 'Node63'));
+});
+
+test('spatial editors preserve semantic XYZ groups across related operations and serialize fixed slots', () => {
+  const pointPath = 'Sensa/Contact/Target/**';
+  for (const operation of SPATIAL_COMPUTED_OPERATIONS) {
+    const draft = newSpatialComputedDraft([], operation, pointPath);
+    const expected = operation.endsWith('FromAxes') ? 12 : ['PlaneDepth', 'PlaneOffset'].includes(operation) ? 9 : 6;
+    assert.equal(computedInputLimit(operation), expected);
+    assert.equal(draft.inputs.length, expected);
+    assert.equal(computedDraftIncomplete(draft), false);
+    assert.equal(stripComputedDraft(draft).inputs.length, expected);
+    draft.inputs.pop(); assert.equal(computedDraftIncomplete(draft), true);
+  }
+  const original = newSpatialComputedDraft([], 'PlaneDepth', pointPath);
+  original.inputs[3].value = .25; original.inputs[7].value = 3; original.inputs[8].value = 4;
+  const changed = { ...original, ...changeComputedOperation(original, 'PlaneOffset') };
+  assert.deepEqual(changed.inputs, original.inputs); assert.notEqual(changed.inputs[0], original.inputs[0]);
+  const distance = { ...changed, ...changeComputedOperation(changed, 'PointDistance') };
+  assert.deepEqual(distance.inputs, original.inputs.slice(0, 6));
+  const axes = { ...distance, ...changeComputedOperation(distance, 'PlaneDepthFromAxes') };
+  assert.deepEqual(axes.inputs.slice(0, 6), distance.inputs);
+  assert.deepEqual(axes.inputs.slice(6).map(input => input.value), [1, 0, 0, 0, 1, 0]);
+  assert.deepEqual(computedVectorGroups('PlaneDepthFromAxes').map(group => group.start), [0, 3, 6, 9]);
+  assert.equal(newSpatialComputedDraft([], 'PointDistance').inputs[0].oscPath, '');
+  assert.equal(computedDraftIncomplete(newSpatialComputedDraft([], 'PointDistance')), true);
+});
+
+test('vector shortcuts retain XYZ order while mixed sources remain explicitly configurable', () => {
+  for (const [mode, path, metrics] of [
+    ['Position', 'Sensa/SPS/Target/**', ['X', 'Y', 'Z']],
+    ['Forward', 'Sensa/Shader/42/**', ['ForwardX', 'ForwardY', 'ForwardZ']],
+    ['Right', 'Sensa/Shader/42/**', ['RightX', 'RightY', 'RightZ']],
+    ['Velocity', 'Sensa/Contact/Target/**', ['VelocityX', 'VelocityY', 'VelocityZ']],
+  ]) {
+    const inputs = makeComputedVector(mode, path);
+    assert.deepEqual(inputs.map(input => input.pointMetric), metrics);
+    assert.deepEqual(computedVectorBinding(inputs), { mode, path });
+    inputs[1].oscPath = 'Sensa/Shader/Other/**';
+    assert.equal(computedVectorBinding(inputs).mode, 'Components');
+  }
+  assert.deepEqual(makeComputedVector('Constant', '', [0, -2, 4]).map(input => input.value), [0, -2, 4]);
+  assert.equal(computedVectorBinding([constant(0), constant(0), constant(1)]).mode, 'Constant');
+  assert.equal(computedVectorBinding([{ sourceMode: 'Computed', oscPath: 'X' }]).mode, 'Components');
+});
+
+test('following-plane templates create bounded references without changing saved definitions', () => {
+  const saved = [{ id: 'Signal1', operation: 'Sum', inputs: [constant(1)] }], before = JSON.stringify(saved);
+  const options = { pointPath: 'Sensa/Contact/Target/**', originPath: 'Sensa/Contact/Guide_Origin/**', includeDistance: true };
+  const drafts = followingPlaneDrafts(saved, options);
+  assert.equal(JSON.stringify(saved), before);
+  assert.deepEqual(drafts.map(draft => draft.id), ['Signal2', 'Signal3', 'Signal4', 'Signal5', 'Signal6', 'Signal7']);
+  assert.deepEqual(drafts.map(draft => draft.operation), ['Difference', 'Difference', 'Difference', 'PlaneDepth', 'PlaneOffset', 'PointDistance']);
+  for (let index = 0; index < 3; index++) {
+    assert.deepEqual(drafts[index].inputs.map(input => input.oscPath), ['Sensa/Contact/Guide_Forward/**', options.originPath]);
+    assert.ok(drafts[index].inputs.every(input => input.pointMetric === ['X', 'Y', 'Z'][index]));
+  }
+  assert.deepEqual(drafts[3].inputs.slice(6).map(input => [input.sourceMode, input.oscPath]), [['Computed', 'Signal2'], ['Computed', 'Signal3'], ['Computed', 'Signal4']]);
+  assert.deepEqual(drafts[4].inputs, drafts[3].inputs);
+  drafts[4].inputs[0].oscPath = 'Changed'; assert.equal(drafts[3].inputs[0].oscPath, options.pointPath);
+  assert.ok(drafts.every(draft => !computedDraftIncomplete(draft)));
+  const shader = followingPlaneDrafts([], { ...options, mode: 'Shader', originPath: 'Sensa/Shader/7/**', includeDistance: false });
+  assert.deepEqual(shader.map(draft => draft.operation), ['PlaneDepth', 'PlaneOffset']);
+  assert.deepEqual(computedVectorBinding(shader[0].inputs.slice(6)), { mode: 'Forward', path: 'Sensa/Shader/7/**' });
+  for (const originPath of ['', 'Sensa/Contact/Guide/**', 'Sensa/Shader/7/**']) {
+    assert.deepEqual(followingPlaneDrafts([], { ...options, originPath }), []);
+  }
+  assert.deepEqual(followingPlaneDrafts(Array.from({ length: 60 }, (_, index) => ({ id: 'Signal' + index })), options), []);
+});
+
+test('spatial result labels keep degrees distinct and only show known position units', () => {
+  const previous = getLocale(); setLocale('en-US');
+  try {
+    assert.equal(computedResultUnit('VectorAngle', { coordinateFrame: 'AvatarRootLocal:Angle' }), '°');
+    assert.equal(computedResultUnit('PlaneAngle', null), '°');
+    assert.equal(computedResultUnit('PlaneDepth', { coordinateFrame: 'AvatarRootMeters' }), 'm');
+    assert.equal(computedResultUnit('PlaneDepthFromAxes', { coordinateFrame: 'AvatarRootLocal' }), 'local units');
+    assert.equal(computedResultUnit('PlaneOffset', { coordinateFrame: 'ReferenceLocal:Guide' }), 'local units');
+    assert.equal(computedResultUnit('PointDistance', {}), '');
+    assert.equal(computedResultUnit('Product', { coordinateFrame: 'AvatarRootMeters' }), '');
+  } finally { setLocale(previous); }
 });

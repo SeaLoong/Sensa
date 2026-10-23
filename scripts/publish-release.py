@@ -41,6 +41,12 @@ def collect(root):
         if len(matches) != 1:
             raise ValueError('Expected one archive per runtime / 每个平台必须有一个压缩包: ' + rid)
         files.extend(matches)
+        if rid.startswith('win-'):
+            for kind in ('Setup', 'SingleFile'):
+                matches = list(root.rglob(f'Sensa-*-{rid}-{kind}.exe'))
+                if len(matches) != 1:
+                    raise ValueError('Expected one Windows download per format / Windows 每种格式必须有一个文件: ' + rid + ' ' + kind)
+                files.extend(matches)
     unity = list(root.rglob('top.sealoong.sensa-*.zip'))
     if len(unity) != 1:
         raise ValueError('Expected one Unity archive / 必须有一个 Unity 压缩包')
@@ -51,7 +57,8 @@ def collect(root):
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if f'{digest}  {path.name}' not in expected:
             raise ValueError('Checksum mismatch / 校验值不一致: ' + path.name)
-    return files
+    return sorted(files, key=lambda path: (0 if path.name.endswith('-Setup.exe') else
+                                          1 if path.name.endswith('-SingleFile.exe') else 2, path.name))
 
 
 def verify_identity(release, tag, sha, channel):
@@ -308,6 +315,8 @@ def release_assets(root, channel, version, tag, sha, repository):
             raise ValueError('Invalid preview identity / 预览身份无效')
         label = f'-preview.{match[1]}.{match[2]}.{match[3]}'
     expected = {f'Sensa-{version}{label}-{rid}' + ('.zip' if rid.startswith('win-') else '.tar.gz') for rid in RUNTIMES}
+    expected.update(f'Sensa-{version}{label}-{rid}-{kind}.exe'
+                    for rid in RUNTIMES if rid.startswith('win-') for kind in ('Setup', 'SingleFile'))
     unity_name = f'top.sealoong.sensa-{version}{label}.zip'
     expected.add(unity_name)
     if {path.name for path in archives} != expected:

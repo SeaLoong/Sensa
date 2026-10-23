@@ -64,8 +64,8 @@ namespace SensaAvatarLab
 
         [Serializable] public class BuildReport
         {
-            public string avatar, utc, unity, error;
-            public bool passed, humanoid, localSelector, spsResolver, handlesGrabWithoutCollision;
+            public string avatar, utc, unity, error, contactAdvancedParametersField;
+            public bool passed, humanoid, localSelector, spsResolver, handlesGrabWithoutCollision, contactDirectSupported;
             public int missingScripts, contacts, sensaReceivers, physBones, parameterCost;
             public string[] sensaParameters, shaders;
         }
@@ -230,6 +230,8 @@ namespace SensaAvatarLab
             var report = new BuildReport
             {
                 avatar = avatar.name, utc = DateTime.UtcNow.ToString("O"), unity = Application.unityVersion,
+                contactDirectSupported = SensaContactRootBuilder.IsSupported,
+                contactAdvancedParametersField = SensaContactRootBuilder.AdvancedParametersFieldName,
                 humanoid = avatar.GetComponent<Animator>().isHuman,
                 missingScripts = avatar.GetComponentsInChildren<Transform>(true).Sum(t => GameObjectUtility.GetMonoBehavioursWithMissingScriptCount(t.gameObject)),
                 contacts = receivers.Length + avatar.GetComponentsInChildren<VRCContactSender>(true).Length,

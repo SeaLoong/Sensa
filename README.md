@@ -1,6 +1,6 @@
 # Sensa
 
-[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://github.com/SeaLoong/Sensa/releases) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://sealoong.github.io/Sensa/#downloads) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -20,7 +20,7 @@ Sensa runs on your computer and uses a browser for configuration. Read OSC param
 | Step | Your choice | Examples |
 | --- | --- | --- |
 | **Input** | Where values come from | OSC parameters, tracking measurements, manual sliders, scripts, device feedback and recording replay |
-| **Computation** | How values are processed | Weighted averages, differences, smoothing, thresholds, delays and generated rhythms |
+| **Computation** | How values are processed | Weighted averages, distances, plane depth, direction angles, smoothing and triggers |
 | **Output** | Where results go | Motion devices, OSC parameters, DG-LAB, other applications or recording files |
 
 A simple flow connects an input directly to an output. Add a calculation when you need to combine or process values. One result can feed several outputs, each with its own range and sending mode. [Set up a flow](docs/signal-pipeline.en.md)
@@ -37,8 +37,8 @@ A simple flow connects an input directly to an output. Add a calculation when yo
 
 ## Download and start
 
-1. Download your system/CPU archive from [Releases](https://github.com/SeaLoong/Sensa/releases). Builds support Windows, Linux and macOS on x64 and ARM64.
-2. Extract it, run Sensa and open **http://127.0.0.1:5086** in your browser.
+1. Choose your installer on the [download page](https://sealoong.github.io/Sensa/#downloads); [Releases](https://github.com/SeaLoong/Sensa/releases) lists every format. On **Windows**, choose `Sensa-…-win-x64-Setup.exe` or `win-arm64-Setup.exe`, install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
+2. Open **http://127.0.0.1:5086** in your browser. All builds include the required .NET runtime. Windows also offers a directly runnable `SingleFile.exe` and a portable `.zip`; see [download formats](docs/quick-start.en.md#1-start).
 3. Follow [First run](docs/quick-start.en.md) to add an output, save the setup and enable input. Recording a manual slider as funscript is a useful first flow.
 
 For a motion device, start with small manual targets to check direction, travel and stopping. The header provides input activation and emergency stop. After saving configuration or changing input, enable input again when ready.
@@ -64,11 +64,11 @@ Once your interaction is ready, [save a complete plan](docs/signal-pipeline.en.m
 
 ## VRChat and Unity
 
-Existing OGB/SPS parameters connect directly through OSC. When building your own Avatar, install the [Sensa Unity package](unity/top.sealoong.sensa/README.md) and choose **SPS four-anchor tracking**, **Contact direct tracking (SDK Beta)** or **Shader capture**. See the [setup guide](docs/usage-scenarios.en.md) for prerequisites, measurements and calibration.
+Existing OGB/SPS parameters connect directly through OSC. When building your own Avatar, install the [Sensa Unity package](unity/top.sealoong.sensa/README.md) and choose **SPS four-anchor tracking**, **Contact direct tracking (SDK Beta)** or **Shader capture**. Add a **Tracking Frame** when a reference plane should follow a bone’s movement and rotation. See the [setup guide](docs/usage-scenarios.en.md) for prerequisites, measurements and calibration.
 
-The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) explains parameters and detection regions through adjustable scenes. Open `docs/parameter-geometry.html` from a release for offline use. Tracking is experimental; check client, graphics and device behavior with the versions you use.
+The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) explains parameters and detection regions through adjustable scenes. The app also serves the offline explorer at **http://127.0.0.1:5086/docs/parameter-geometry.html**. Installer and portable packages include a copy at `docs/parameter-geometry.html`. Tracking is experimental; check client, graphics and device behavior with the versions you use.
 
-Stable releases and development previews include desktop archives and a Unity ZIP. **The VPM repository for VCC/ALCOM offers published stable Unity packages**; download previews separately from Releases.
+Stable releases and development previews include desktop downloads and a Unity ZIP. **The VPM repository for VCC/ALCOM offers published stable Unity packages**; download previews separately from Releases.
 
 ## Full documentation
 

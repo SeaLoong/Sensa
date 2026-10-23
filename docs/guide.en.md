@@ -94,6 +94,8 @@ A gate is an additional condition for motion, such as sufficient proximity. Clos
 
 Choose Add computed signal in Flow, enter a name/operation and add inputs. After saving, output bindings can select the calculation directly. Map to an axis creates an axis reference. OSC → Mappings edits the same calculations.
 
+Expand Spatial calculation presets to configure XYZ as groups and measure point distance, plane depth/offset or direction angles. After setting up Unity Tracking Frame, the Follow a moving plane template creates calculation drafts from your target and reference plane; review and save them before connecting outputs.
+
 For example, readings 0.2 and 0.8 with weights 1 and 3 produce 0.65. Smooth the result and send it to both vibration and an Avatar effect. Live results use saved configuration; the unsaved indicator clears after a successful save. [Operations and examples](computed-signals.en.md)
 
 An invalid required input stops dependent bindings while other valid bindings continue. New valid samples may resume that binding while input remains enabled. Disable input or use emergency stop to retain a stopped state. Axis mappings apply their motion-gating rules.

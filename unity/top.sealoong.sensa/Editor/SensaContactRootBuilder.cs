@@ -17,18 +17,24 @@ namespace UnityBox.Sensa
     public static class SensaContactRootBuilder
     {
         public const string TagPrefix = "SensaContact_";
-        private const string RequiredSdk = "Contact direct tracking (SDK Beta) requires advanced proximity parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose SPS four-anchor tracking.";
+        private const string RequiredSdk = "Contact direct tracking (SDK Beta) requires advanced Contact parameters. Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with this feature, or choose SPS four-anchor tracking.";
 
-        // Reflection keeps the package loadable on stable SDKs without the beta field.
-        internal static FieldInfo AdvancedProximityField(Type receiverType)
+        // Beta.3 renamed the public switch; Beta.2 uses the earlier Proximity name.
+        // Reflection keeps both SDK versions supported without a compile-time Beta dependency.
+        internal static FieldInfo AdvancedParametersField(Type receiverType)
         {
-            var field = receiverType?.GetField("advancedProximityParameters", BindingFlags.Instance | BindingFlags.Public);
-            return field != null && field.FieldType == typeof(bool) ? field : null;
+            foreach (var name in new[] { "advancedParameters", "advancedProximityParameters" })
+            {
+                var field = receiverType?.GetField(name, BindingFlags.Instance | BindingFlags.Public);
+                if (field != null && field.FieldType == typeof(bool) && !field.IsInitOnly) return field;
+            }
+            return null;
         }
-        public static bool IsSupported => AdvancedProximityField(typeof(VRCContactReceiver)) != null;
+        public static string AdvancedParametersFieldName => AdvancedParametersField(typeof(VRCContactReceiver))?.Name;
+        public static bool IsSupported => AdvancedParametersFieldName != null;
         internal static void RequireSupport(Type receiverType)
         {
-            if (AdvancedProximityField(receiverType) == null)
+            if (AdvancedParametersField(receiverType) == null)
                 throw new InvalidOperationException(SensaEditorLocalization.Text(RequiredSdk));
         }
 
@@ -94,7 +100,7 @@ namespace UnityBox.Sensa
             receiver.allowSelf = true; receiver.allowOthers = false; receiver.collisionTags = new List<string> { tag };
             string prefix = SensaContactProtocol.Prefix + "/" + id;
             receiver.parameter = prefix + "/" + SensaContactProtocol.ProximityLeaf;
-            AdvancedProximityField(typeof(VRCContactReceiver)).SetValue(receiver, true);
+            AdvancedParametersField(typeof(VRCContactReceiver)).SetValue(receiver, true);
             foreach (var leaf in SensaContactProtocol.PublicLeaves)
                 SensaSensorUtility.Parameter(host, prefix + "/" + leaf,
                     leaf == SensaContactProtocol.SenderTypeLeaf ? ParameterSyncType.Int : ParameterSyncType.Float);
@@ -185,7 +191,7 @@ namespace UnityBox.Sensa
             EditorGUILayout.LabelField(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta)"), EditorStyles.boldLabel);
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Choose a bone, marker, SPS component, Sensa component or native Contact as the root. A dedicated Sender and Receiver report position in avatar-root axes (m) and relative contact-point velocity (m/s). Sample indicates publishing activity. Verify parameter delivery and motion in the client."), MessageType.Info);
             if (!SensaContactRootBuilder.IsSupported)
-                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced proximity parameters, or choose SPS four-anchor tracking."), MessageType.Warning);
+                EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Install VRChat Avatars SDK 3.10.6-beta.2 or a newer SDK with advanced Contact parameters, or choose SPS four-anchor tracking."), MessageType.Warning);
             SensaInspectorLabels.Draw(serializedObject);
         }
         private void OnSceneGUI()

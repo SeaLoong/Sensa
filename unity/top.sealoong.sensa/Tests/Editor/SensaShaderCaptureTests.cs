@@ -118,6 +118,29 @@ namespace UnityBox.Sensa.Tests
         }
 
         [Test]
+        public void ShearedMeasurementsDescribeTheXZPlaneAndKeepTheUnmeasuredYAxisDistinct()
+        {
+            var parent = Child("Scaled surface", Vector3.up).transform;
+            parent.localScale = new Vector3(2, .7f, 1.4f);
+            var marker = new GameObject("Oblique surface axes").transform;
+            marker.SetParent(parent, false);
+            marker.localRotation = Quaternion.Euler(30, 25, 15);
+            var rig = SensaShaderCaptureBuilder.BuildNativeRig(avatar, marker, 14, new Rect(0, 0, .25f, .2f));
+            var encoder = rig.GetComponentInChildren<SkinnedMeshRenderer>(true);
+            var skin = encoder.transform.worldToLocalMatrix * marker.localToWorldMatrix * encoder.sharedMesh.bindposes[0];
+            var points = encoder.sharedMesh.vertices.Select(skin.MultiplyPoint3x4).ToArray();
+            var right = (points[1] - points[0]) / SensaShaderCapture.ProbeArmLength;
+            var forward = (points[2] - points[0]) / SensaShaderCapture.ProbeArmLength;
+            var normal = Vector3.Cross(forward, right).normalized;
+            Assert.That(Mathf.Abs(Vector3.Dot(normal, right)), Is.LessThan(.00001f));
+            Assert.That(Mathf.Abs(Vector3.Dot(normal, forward)), Is.LessThan(.00001f));
+            var transformedY = avatar.transform.InverseTransformVector(marker.TransformVector(Vector3.up));
+            // Under shear, Forward is not the normal of the transformed XY plane.
+            Assert.That(Mathf.Abs(Vector3.Dot(forward.normalized, transformedY.normalized)), Is.GreaterThan(.01f));
+            Assert.That(Mathf.Abs(Vector3.Dot(right.normalized, forward.normalized)), Is.GreaterThan(.01f));
+        }
+
+        [Test]
         public void AuthoredMirroredCollapsedOrOversizedTargetIsRejectedBeforeNativeObjectsExist()
         {
             foreach (var scale in new[] { new Vector3(-1, 1, 1), new Vector3(1, -1, 1), new Vector3(1, 1, 0), new Vector3(9, 1, 1), new Vector3(.0001f, 1, .0001f) })

@@ -22,7 +22,7 @@ public sealed partial class ComputedSignalEvaluator
         public ComputedSignalSample? Delayed { get; set; }
     }
 
-    private static bool IsTemporal(ComputedSignalOperation operation) => operation is
+    internal static bool IsTemporal(ComputedSignalOperation operation) => operation is
         ComputedSignalOperation.Smooth or ComputedSignalOperation.Hysteresis or ComputedSignalOperation.Delay
         or ComputedSignalOperation.Derivative or ComputedSignalOperation.PeakHold
         or ComputedSignalOperation.RisingEdge or ComputedSignalOperation.FallingEdge

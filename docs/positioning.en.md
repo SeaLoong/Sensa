@@ -2,7 +2,7 @@
 
 [简体中文](positioning.md) | **English**
 
-Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to the Avatar. Select a supported SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
+Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to your own Avatar. Select a supported SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
 
 Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) first.
 
@@ -18,11 +18,11 @@ Choose a route below, inspect coordinates, then calibrate them into device motio
 
 ## Contact direct tracking: position and velocity from one Receiver
 
-SDK 3.10.6-beta.2 exposes advanced Proximity reports. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Beta setup and package evidence](contact-sdk.en.md)
+Sensa supports SDK **3.10.6-beta.3** advanced Contact reports and the Proximity interface from Beta.2. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Beta setup and package evidence](contact-sdk.en.md)
 
 The SDK reports the Sender shape midpoint relative to the Receiver shape midpoint, rotated into Receiver axes, in physical metres. With this setup the frame is **AvatarRootMeters**. Its radius-based coverage is centered at the Avatar origin; the authored Receiver radius is 2 local units and `Radius` publishes the current world radius. Avatar scaling changes the physical displacement and Radius together, and a guard stops measurement before the 3 m Contact radius limit.
 
-`Proximity_SenderVelocityX/Y/Z` and `Proximity_SenderVelocityMagnitude` report relative velocity near the contact point in m/s, including angular terms. `Proximity_ProximitySpeed` measures Proximity change per second. Midpoint coordinates and contact-point velocity can behave differently during rotation. Negative coordinates and stationary zero velocity are valid. One point supplies position and velocity; multi-point orientation remains a later extension.
+`Proximity_SenderVelocityX/Y/Z` and `Proximity_SenderVelocityMagnitude` report relative velocity near the contact point in m/s, including angular terms. `Proximity_ProximitySpeed` measures Proximity change per second. Midpoint coordinates and contact-point velocity can behave differently during rotation. Negative coordinates and stationary zero velocity are valid. One point supplies position and velocity; Tracking Frame adds three markers for a reference direction that follows bone movement.
 
 Each instance publishes twelve fields under `Sensa/Contact/<id>/`. Native report fields are accompanied by Sensa's `Radius` and changing `Sample`. Sample cycles through n/32, n=1…32, nominally every 50 ms; its change age is at most 1000 ms, shortened by a smaller positive input timeout. The desktop requires the complete same-source instance, positive Proximity, type 1 (own Avatar), finite values and supported radius/position bounds. Contact loss, Sample=0, frozen activity or invalid values stop the related motion. [Field dictionary](osc-parameters.en.md)
 
@@ -99,6 +99,45 @@ Right/Forward retain X/Z-axis directions and lengths. Use a tracking measurement
 
 Object ID is in `Sensa/Shader/<id>/`. Internal `Sensa/Diagnostics/Shader/0` keeps a separate five-field diagnostic format for pattern and transport checks.
 
+## Measure depth and offset from a following plane
+
+Tracking Frame and Shader following planes measure **relative movement between a target and reference on your own Avatar**. Add a Unity **Tracking Frame** when movement should be relative to the current orientation of a chest bone, hand or SPS root. It places Forward and Right markers along +Z and +X from a central Origin; all three follow the chosen reference's movement and rotation. Adjust the centre and orientation through local position/rotation offsets. The Scene XY plane and +Z arrow show the measurement direction. [Setup steps](unity-build.en.md#create-a-plane-that-follows-a-bone)
+
+The desktop obtains direction from measured positions: Forward−Origin is positive depth, and Right−Origin is right. Select another measured target P to obtain:
+
+| Reading | Meaning |
+| --- | --- |
+| Plane depth | Distance from the plane along positive depth is positive, and the opposite direction is negative |
+| Offset within plane | Distance from the centre to the target projected onto the plane, always zero or positive |
+| Distance between points | Straight-line distance from the target to the plane origin |
+| Direction angle | Angle between the target's measured direction and a plane direction |
+
+A centred sphere keeps its outline as a bone rotates; an offset sphere's centre moves with that rotation. Tracking Frame uses separated markers to observe orientation, while Shader measures two axes directly. A single sphere's proximity-derived distance remains useful for approach feedback.
+
+Tracking Frame uses either SPS four-anchor or Contact direct tracking. Origin publishes under `Sensa/SPS/<name>_Origin/…` or `Sensa/Contact/<name>_Origin/…`; the other points use `_Forward` and `_Right`. SPS uses 15 Contacts and 15 public fields in AvatarRootLocal. Contact uses 6 Contacts and 36 public fields in AvatarRootMeters. Default marker spacing is 0.2 authored Avatar-root units and follows Avatar scale. A constraint makes the measured frame follow the reference's position and rotation.
+
+In Flow, expand Spatial calculation presets → Follow a moving plane, select target P and the matching Origin, then review the generated differences, depth and offset before saving and connecting outputs. Target and plane markers share one coordinate frame, and the points used by the current calculation need valid coverage. Each point retains its own Sample validity. Calculations use the oldest contributing sample time; assess direction error from multi-point updates during fast movement in the client. Independent Point/Pose use a separate ReferenceLocal frame for direct measurement within the chosen local reference. [Spatial calculations and units](computed-signals.en.md#combine-root-coordinates)
+
+## Interaction between Avatars: paired three-marker pose
+
+Use **SensaPoseSocket + SensaPosePlug** for interaction between two Avatars, with the receiving Socket's local frame as their shared reference. As the Socket moves or rotates with the body, depth, offset and angles remain relative to that reference. The other Avatar's Root/Tip/Side markers provide the measured geometry; existing OGB/SPS proximity parameters remain useful for depth trends and touch feedback.
+
+1. In each Unity project, create a profile through **Assets → Create → Sensa → Pose Pair Profile**. Set the same `channel`, such as `Pair01`, on both sides. Enable `receiveOthers` on the receiving side. Each channel corresponds to one Plug entering the measurement area at a time.
+2. On the receiving Avatar, choose **GameObject → Sensa → Spatial Pose Socket** under the bone it should follow. Assign the Profile and a unique instance name. Place its origin at the opening, with **+Z pointing inward** and XY defining the opening plane. Keep the object and its parents within the supported uniform-scale setup.
+3. On the sending Avatar, choose **GameObject → Sensa → Spatial Pose Plug** and assign a Profile with the same channel. Assign Root, Tip and Side markers from that Avatar to `rootMarker`, `tipMarker` and `sideMarker`. Root and Tip define the main axis; place Side away from the axis to establish twist.
+4. After building and using both Avatars in VRChat, enable VRChat OSC on the receiving side, fix its source in Sensa and inspect **Three-point pose (experimental)**. A complete instance path is `Sensa/Pose/v1/Main/Others/**`. Root, Tip and Side each supply A0–A7, totaling 24 readings. Check inward motion, lateral offset and twist against the actual movement.
+5. Choose Generate depth draft or Generate six-axis draft, review the replacement mapping drafts and save. Alternatively, select **Three-point pose metric (SensaPose)** in a calculation or output and enter the same instance path. Calibrate, allow experimental spatial input, then enable the current input.
+
+| Available metric | Meaning |
+| --- | --- |
+| `Depth` | Insertion fraction from 0 to 1, for normalized depth linkage |
+| `OffsetX`/`OffsetY` | Lateral offset where the main axis intersects the opening plane, in Socket-local units |
+| `Yaw`/`Pitch`/`Roll` | Yaw, pitch and twist relative to the Socket, in degrees |
+
+All six metrics can drive motion when the 24 readings are complete and fresh, marker geometry is valid and engagement conditions hold. Engagement requires a unique axis intersection with the opening plane, tilt of at most 65° from +Z, an intersection within 0.04 Socket-local units of the centre, and Tip on the +Z side. Root–Tip spacing supports 0.02–0.5 local units, with Side at least 0.005 local units off the axis. These values equal metres when cumulative reference scale is one.
+
+Pose checks freshness using the oldest of all 24 readings. `Depth` retains its normalized fraction, while the earlier `PlaneDepth` retains position-length units; choose calculation and output ranges accordingly. [Paired generation options](../unity/top.sealoong.sensa/AUTOMATION.en.md#targets-and-scope) · [Marker layout](lab-interaction.en.md#pointpose-layouts-and-sps-four-anchor-tracking)
+
 ## What does “Simulate a valid sample” mean on the web page?
 
 When checked, the explorer displays readings for a valid sample. Clearing it shows the source reporting invalid data, so you can see how a measurement changes when samples stop. Configure actual device linkage by selecting an input, saving mappings and enabling input in the workbench.
@@ -118,4 +157,4 @@ After configuration, check coordinate direction, response time and invalidity st
 
 Add a computed signal in Flow, choose Tracking measurement (SensaPoint) as an input, enter the target instance path and select a metric. The solved result can participate in a weighted average, difference or magnitude calculation. SPS four-anchor tracking reconstructs coordinates first; the computation receives those valid coordinates. Give each target its own complete instance path.
 
-For example, when roots A and B share an Avatar-root frame, calculate their X, Y and Z differences, then take the magnitude of those differences to obtain the gap. SPS four-anchor tracking and Shader distances use authored AvatarRootLocal units; Contact distances use AvatarRootMeters in metres. Use the same reference object, axis directions and units, then calibrate the final result to the motion range. Tracking validity and Sample/Frame age carry through to the computed result; invalid active computations stop motion. [Computed-signal examples](computed-signals.en.md)
+For example, when roots A and B share an Avatar-root frame, choose Distance between points and select each point’s XYZ to obtain their gap directly. For depth or offset within a plane, also choose an origin and normal, or two axes that define the plane. SPS four-anchor tracking and Shader distances use authored AvatarRootLocal units; Contact distances use AvatarRootMeters in metres. Use the same reference object, axis directions and units, then calibrate the final result to the motion range. Tracking validity and Sample/Frame age carry through to the computed result; invalid active computations stop motion. [Computed-signal examples](computed-signals.en.md)

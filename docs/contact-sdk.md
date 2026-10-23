@@ -2,9 +2,9 @@
 
 **简体中文** | [English](contact-sdk.en.md)
 
-Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点的位置和相对速度，使用一个专用球形 Sender 和一个球形 Receiver。构建自己的 Avatar 时，可安装 **VRChat Avatars SDK 3.10.6-beta.2** 或提供同一能力的后续 SDK，再明确选择此方案。Automatic SPS Setup 默认仍使用 SPS 四点定位。
+Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点的位置和相对速度，使用一个专用球形 Sender 和一个球形 Receiver。构建自己的 Avatar 时，可安装 **VRChat Avatars SDK 3.10.6-beta.3**，再明确选择此方案；Sensa 同时兼容 Beta.2 的高级 Proximity 接口。Automatic SPS Setup 默认仍使用 SPS 四点定位。
 
-官方 [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) 发布于 **2026 年 10 月 20 日北京时间 05:50（10 月 19 日 21:50 UTC）**。本说明依据该安装包的 Editor 源码和运行时程序集。此 Beta 在真实 Unity／VRChat 客户端中的参数发布与 OSC 链路尚待验收；隔离测试和 CI 按各自记录的范围验证实现。
+已核对官方 [3.10.6-beta.3](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3) 的 Editor 源码和运行时程序集，并保留 [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) 的协议依据。以下说明区分 SDK 接口、Sensa 发布字段与客户端接入；各项实际运行结果见[验证记录](e2e-status.md)。
 
 ## 构建专用根点测量
 
@@ -20,15 +20,17 @@ Receiver 的制作半径为 2 个 Avatar 根局部单位，标记半径为 0.001
 
 ## 按正确坐标框读取位置与速度
 
-SDK 的公开开关是 **`advancedProximityParameters`**，类型为 Bool，适用于 Proximity Receiver。基参数名为 `Proximity` 时，SDK 写入 `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`。
+Sensa 根据已安装的 SDK 启用对应的 Bool 开关：**Beta.3 使用 `advancedParameters`，Beta.2 使用 `advancedProximityParameters`**。Beta.3 的开关默认关闭，标记为 `NotKeyable`；Sensa 在构建时将其开启。Beta.3 的高级报告可用于任意 Receiver 类型；Sensa 的测量组件采用 Proximity Receiver，其中 `_ProximitySpeed` 描述接近值变化率。基参数名为 `Proximity` 时，两版都提供 `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`。
 
-[VRChat 官方 Contacts 说明](https://creators.vrchat.com/common-components/contacts/)介绍了 Receiver 的检测模式：Constant 报告匹配目标是否进入检测区，Proximity 则报告 0–1 的连续接近值。本页高级位置／速度字段按[官方 Beta 安装包](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2)中的测量实现解释；Sensa 另外提供 `Radius` 与 `Sample`，用于覆盖范围和活动检查。图解的[“OSC 参数含义与来源”](parameter-geometry.html#parameter-reference)和工作台参数详情均可逐项阅读测量定义、联动用法与来源。
+[VRChat 官方 Contacts 说明](https://creators.vrchat.com/common-components/contacts/)介绍了 Receiver 的检测模式：Constant 报告匹配目标是否进入检测区，Proximity 则报告 0–1 的连续接近值。本页高级位置／速度字段按下文列出的官方安装包测量实现解释；Sensa 另外提供 `Radius` 与 `Sample`，用于覆盖范围和活动检查。图解的[“OSC 参数含义与来源”](parameter-geometry.html#parameter-reference)和工作台参数详情均可逐项阅读测量定义、联动用法与来源。
 
 | 要了解什么 | 对应参数 | 读数怎样理解 |
 | --- | --- | --- |
 | 目标在哪里 | `Proximity_SenderLocalPositionX/Y/Z` | 相对接收器原点的左右、上下、前后位移，单位米；可沿选定轴校准动作范围 |
 | 动作有多快、往哪边动 | `Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` | 近似接触点处的相对速度，单位 m/s；分量保留方向，模长便于控制运动强弱 |
 | 接近程度怎样变化 | `Proximity`、`Proximity_ProximitySpeed` | 接近值为 0–1，变化率为接近值／秒；便于观察进入接收范围后的靠近与退出 |
+
+Sensa Contact 定位协议使用十二个公开字段，现有坐标、速度和预设可以直接沿用。[OSC 参数字典](osc-parameters.md)列出了接入范围；Beta.3 的额外原生报告见下文。
 
 SDK 还会按碰撞标签写入 `_CollisionTag_<tag>` Bool。组件为自己的专用标签在 FX 中声明这个状态，并在停用时清零；十二项公开 OSC 字段见[参数字典](osc-parameters.md)。
 
@@ -41,11 +43,30 @@ position = inverse(receiverShapeRotation)
 
 速度是 Sender 相对 Receiver 在近似接触点处的速度，包含角运动项，再旋转到 Receiver 坐标轴，单位为 **m/s**。形状旋转时，这个量可能与所报告中点坐标的时间导数不同。`Proximity_SenderVelocityMagnitude` 为其非负模长。`Proximity_ProximitySpeed` 是 Proximity 的带符号变化率，单位为**接近值／秒**；退出时，Proximity 归零可能带来短暂读数。
 
-负的位置分量是正常坐标。Sender 静止时，速度为零仍可保持有效位置。单个专用点提供位置和速度；计算方向还需额外的方向信息，多点姿态可作为后续扩展。
+负的位置分量是正常坐标。Sender 静止时，速度为零仍可保持有效位置。单个专用点提供位置和速度；需要跟随骨骼的参考方向时，使用 Tracking Frame 同时测量 Origin、Forward、Right 三个标记。
+
+### SDK Beta.3 的额外报告
+
+[官方 3.10.6 发布说明](https://vrc-beta-docs.netlify.app/releases/release-3-10-6)解释了高级报告的扩展。启用 Advanced Parameters 后，SDK 可按 Receiver 的基参数名追加以下后缀：
+
+| 后缀 | 含义与单位 | 怎样理解 |
+| --- | --- | --- |
+| `_PointSeparation` | Sender 与 Receiver **最近内部点**之间的世界空间距离，单位米 | 衡量两个 Contact 形状的最近靠近程度；Sensa 根点 `Distance` 则根据 XYZ 计算距 Avatar 原点的距离，两者各有参照 |
+| `_SenderLossyScaleX/Y/Z` | Sender 所关联 Transform 的 `lossyScale` 三分量，无单位 | 读取该 Transform 包含父级影响的世界缩放，可用于观察信号形状随缩放的变化 |
+
+“最近内部点”沿用 SDK 的形状定义，由 Sender 和 Receiver 的几何决定。选择位置联动时用 XYZ 或 Sensa `Distance`；使用原生 `_PointSeparation` 时，按实际 Contact 形状校准距离。
+
+Beta.3 运行时程序集还显示：没有选中 Sender 时，缩放报告为 `(1,1,1)`、PointSeparation 为 `-1`；存在 Sender 时，≤0.001 m 的 PointSeparation 写为 0。读取额外报告时可先检查 `_SenderType`，再按这些状态解释数值。如需自行使用这些可选报告，请在 Animator 中声明对应的 Float 参数，并配置其 OSC 可见性。Sensa 生成既有的十二个公开字段，定位预设使用前述位置和速度信息。
+
+## 让接收形状与参考平面跟随骨骼
+
+原生 Contact 使用 `rootTransform` 作为参照；未指定时，采用组件所在 Transform。本地 `position` 与 `rotation` 共同确定形状。球心偏离骨骼原点时，骨骼转动会带动球心绕行；球心居中时，球形轮廓在转动前后保持相同。单个球的接近值适合测距离，方向可由多个已知布局的点测得。[官方 Contacts](https://creators.vrchat.com/common-components/contacts/) · [字段定义原文](https://github.com/vrchat-community/creator-docs/blob/f437f5081c4476aaf443b507a7ec4a9d21e0e63b/Docs/docs/common-components/contacts/index.md)
+
+Sensa 的 **Tracking Frame** 为跟随平面生成 Origin、Forward、Right 三个独立 Contact 定位实例。选择 Contact 直接定位后，总共生成 6 个 Contact、36 个公开字段，位置统一采用 AvatarRootMeters。桌面以 Forward−Origin 确定当前深度方向，再计算目标的深度和侧向偏移。骨骼的旋转由标记位置变化体现；参照偏移与朝向在 Unity 中设置。[创建跟随平面](unity-build.md#创建随骨骼移动的参考平面) · [计算示例](computed-signals.md#组合根点坐标)
 
 ## 保持单一目标并检查活动
 
-已核验运行时为 Proximity Receiver 选择匹配 Sender 中 **Proximity 严格大于零且最大**的对象。Sender 类型为：0 无选中 Sender，1 自己的 Avatar，2 其他 Avatar，3 世界 Sender。Sensa 根点方案接受类型 1；每个作者组件使用独立通道和唯一 Sender，将测量对应到所选自身根点。
+已核验运行时为 Proximity Receiver 选择匹配 Sender 中 **Proximity 严格大于零且最大**的对象。Beta.3 在两个 Sender 的 Proximity 都为 1 时，选择 PointSeparation 更小的对象，依据见上述官方发布说明。Sender 类型为：0 无选中 Sender，1 自己的 Avatar，2 其他 Avatar，3 世界 Sender。Sensa 根点方案接受类型 1；每个作者组件使用独立通道和唯一 Sender，将测量对应到所选自身根点。
 
 原生报告未提供时间戳、序号或稳定 Sender 标识。Sensa 添加 `Sample` 和 `Radius`；`Sample` 目标每 50 ms 在 n/32（n=1…32）间循环，0 表示停用或失效。桌面要求同一来源与实例的十二字段齐全、数值有限、Proximity 为正、类型为 Self，且 Radius 在支持的正数范围内；位置边界随 Radius 变化并留有小量数值容差。变化后的 Sample 最多保留 **1000 ms**，较短的正数输入超时优先；重复相同 Sample 不延长活动有效期。
 
@@ -61,15 +82,17 @@ position = inverse(receiverShapeRotation)
 
 ## 安装包依据与相关 SDK 能力
 
-以下官方发布资产及 SHA-256 用于复核来源：
+以下官方发布资产及 SHA-256 用于复核来源。Beta.3 为本次接口兼容核验版本，Beta.2 保留为原协议依据：
 
 | 安装包 | SHA-256 |
 | --- | --- |
+| [com.vrchat.base-3.10.6-beta.3.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.3/com.vrchat.base-3.10.6-beta.3.zip) | `5c2e392d0cb56545731a1990952f237421a2ef56d2bc3b0929bd14f28fa31d14` |
+| [com.vrchat.avatars-3.10.6-beta.3.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.3/com.vrchat.avatars-3.10.6-beta.3.zip) | `e5e901e7953cbd8b1e1c998b7a6c83fe419012736135d4bf4a53b7e1eb8cebb9` |
 | [com.vrchat.base-3.10.6-beta.2.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.base-3.10.6-beta.2.zip) | `7c6d17be89b1ffad2da8dc52eb3cdd477533f4f7957359d24351807b6aa64ff2` |
 | [com.vrchat.avatars-3.10.6-beta.2.zip](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.avatars-3.10.6-beta.2.zip) | `22d5fbe409de4e9640a6772c5156bce1a64d1eb59a392a29d7094a786379b332` |
 
-Avatars 包的 `Editor/VRCSDK/SDK3A/AvatarDynamicsSetup.cs:88–113` 绑定生成后缀；Base 包运行时程序集 `Runtime/VRCSDK/Plugins/VRC.Dynamics.dll` 的 `ContactReceiver.SetAdvancedProximityParameters`、`ShapeData.GetPointInLocalSpace`、`ContactManager.CalcRelativeVelocity` 与 Proximity 选择任务支持上述选择规则、坐标框、单位和速度语义。安装包核验用于建立协议参考，Sensa 实际执行的检查另见[验证记录](e2e-status.md)。
+Beta.3 Avatars 包的 `Editor/VRCSDK/SDK3A/AvatarDynamicsSetup.cs:88–104` 通过 `advancedParameters` 绑定报告，包括新增的缩放与 PointSeparation 后缀。Beta.3 Base 运行时程序集中的 `ContactReceiver.SetAdvancedParameters` 确认了这些报告的默认值及 0.001 m 归零阈值。Beta.2 的同文件 `88–113` 及 Base 包运行时程序集 `Runtime/VRCSDK/Plugins/VRC.Dynamics.dll` 的 `ContactReceiver.SetAdvancedProximityParameters`、`ShapeData.GetPointInLocalSpace`、`ContactManager.CalcRelativeVelocity` 与 Proximity 选择任务支持上述选择规则、坐标框、单位和速度语义。安装包核验用于建立协议参考，Sensa 实际执行的检查另见[验证记录](e2e-status.md)。
 
-该 Beta 还提供材质／Shader 报告，可包含最多八个 Sender 项与四个 Renderer，属于独立 SDK 输出路径。Sensa 的 Contact 方案使用 Animator／OSC 参数，材质报告可留待后续接入。现有 Sensa Shader 捕获继续使用屏幕编码传输。
+Beta.3 的高级参数与材质报告均支持任意 Receiver 类型，`_ProximitySpeed` 专用于 Proximity。SDK 还提供材质／Shader 报告，可包含最多八个 Sender 项与四个 Renderer，属于独立 SDK 输出路径。Sensa 的 Contact 方案使用 Animator／OSC 参数，材质报告可留待后续接入。现有 Sensa Shader 捕获继续使用屏幕编码传输。
 
 [接入方案](usage-scenarios.md) · [OSC 字典](osc-parameters.md) · [Unity 组件包](../unity/top.sealoong.sensa/README.zh-CN.md)

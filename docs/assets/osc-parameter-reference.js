@@ -9,6 +9,8 @@
   const sources = {
     contacts: { label: ['VRChat 官方：Contacts', 'VRChat: Contacts'], url: 'https://creators.vrchat.com/common-components/contacts/', kind: 'official-doc' },
     beta: { label: ['VRChat SDK 3.10.6-beta.2', 'VRChat SDK 3.10.6-beta.2'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2', kind: 'official-sdk' },
+    beta3: { label: ['VRChat SDK 3.10.6-beta.3', 'VRChat SDK 3.10.6-beta.3'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3', kind: 'official-sdk' },
+    contactChanges: { label: ['VRChat 官方：高级 Contact 参数', 'VRChat: advanced Contact parameters'], url: 'https://vrc-beta-docs.netlify.app/releases/release-3-10-6', kind: 'official-doc' },
     sockets: { label: ['VRCFury：Socket 参数生成', 'VRCFury: Socket parameter generation'], url: fury + 'Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273', kind: 'generator-source' },
     plugs: { label: ['VRCFury：Plug 参数生成', 'VRCFury: Plug parameter generation'], url: fury + 'Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256', kind: 'generator-source' },
     senders: { label: ['VRCFury：Plug 检测形状', 'VRCFury: Plug detection shapes'], url: fury + 'Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108', kind: 'generator-source' },
@@ -43,11 +45,11 @@
   const constant = data => ({ valueType: 'Float', range: '0 / 1', unit: unitless, ...data });
 
   function contact(name) {
-    const common = { sources: [sources.beta, sources.contacts, sources.contactProtocol] };
+    const common = { sources: [sources.beta3, sources.contactChanges, sources.beta, sources.contacts, sources.contactProtocol] };
     if (name === 'Proximity') return entry(name, 'sdk', proximity({ ...common,
       title: ['接近程度', 'Proximity'],
       summary: ['表示专用根点标记离接收区域中心有多近，数值越大表示越靠近。', 'Shows how close the dedicated root marker is to the receiver region’s center; higher means closer.'],
-      definition: ['Proximity Receiver 按 Sender 最近表面到接收形状中心的距离输出 0–1。多个匹配目标同时出现时，选择接近值严格大于零且最大的 Sender。', 'A Proximity Receiver reports 0–1 from the nearest Sender surface to the receiver shape center. Among matching targets, it selects the Sender with the greatest strictly positive proximity.'],
+      definition: ['Proximity Receiver 按 Sender 最近表面到接收形状中心的距离输出 0–1。多个匹配目标同时出现时，选择接近值严格大于零且最大的 Sender。SDK Beta.3 在多个目标接近值均为 1 时，优先选择内部最近点距离更小的目标。', 'A Proximity Receiver reports 0–1 from the nearest Sender surface to the receiver shape center. Among matching targets, it selects the Sender with the greatest strictly positive proximity. In SDK Beta.3, ties at 1 select the target with the smaller distance between nearest inner points.'],
       usage: ['可表示接近强度；读取具体位置或速度时，同时使用 SenderType、Radius 与活动 Sample 确认这组测量可用。', 'Use it for approach intensity. Combine SenderType, Radius and active Sample when reading the associated position or velocity.'],
     }));
     if (name === 'Proximity_SenderType') return entry(name, 'sdk', { ...common,

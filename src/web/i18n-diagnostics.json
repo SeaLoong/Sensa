@@ -234,5 +234,29 @@
   [
     "等待参数：{0} / Waiting for parameter: {1}",
     "Waiting for parameter: {1}"
+  ],
+  [
+    "夹角需要两个非零向量 / Angle calculations require two non-zero vectors",
+    "Angle calculations require two non-zero vectors"
+  ],
+  [
+    "平面需要两条非零且不近似共线的轴 / A plane requires two non-zero axes that are not nearly collinear",
+    "A plane requires two non-zero axes that are not nearly collinear"
+  ],
+  [
+    "两条平面轴接近共线，无法确定可靠法向 / The plane axes are nearly collinear and cannot determine a reliable normal",
+    "The plane axes are nearly collinear and cannot determine a reliable normal"
+  ],
+  [
+    "请为平面选择非零法向 / Choose a non-zero plane normal",
+    "Choose a non-zero plane normal"
+  ],
+  [
+    "空间计算需要同一坐标系、同量纲的 XYZ 分组；位置与方向请分别选择 / Spatial calculations require compatible coordinate frames and consistent XYZ groups; choose positions and directions separately",
+    "Spatial calculations require compatible coordinate frames and consistent XYZ groups; choose positions and directions separately"
+  ],
+  [
+    "计算信号 {0} 的空间计算输入不完整：点距离与夹角使用两组三维量（6 个输入），平面计算使用位置、原点、法向（9 个输入），双轴平面使用位置、原点和两条轴（12 个输入） / Computed signal {1}: distance and angle calculations require 6 inputs, normal-defined planes require 9, and axis-defined planes require 12.",
+    "Computed signal {1}: distance and angle calculations require 6 inputs, normal-defined planes require 9, and axis-defined planes require 12."
   ]
 ]

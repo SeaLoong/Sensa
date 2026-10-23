@@ -33,6 +33,8 @@ table{display:block;width:100%;overflow:auto;border-collapse:collapse;margin:24p
 th,td{border:1px solid var(--line);text-align:left;padding:11px 14px;vertical-align:top}
 th{background:var(--surface);font-weight:600}
 article img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:4px}
+article .doc-screenshot{display:block;max-width:100%}
+article .doc-screenshot img{display:block;max-width:100%;height:auto}
 hr{border:0;border-top:1px solid var(--line);margin:32px 0}
 footer{border-top:1px solid var(--line);margin-top:48px;padding:22px 0;color:var(--muted);font-size:12px;display:flex;justify-content:space-between;gap:20px}
 footer a{display:inline-flex;align-items:center;min-height:28px}
@@ -82,6 +84,8 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 .home .button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .home .button.primary:hover{background:#0045b8;border-color:#0045b8}
 .home .caption{font-size:12px;color:var(--muted)}
+.home .download-more{margin:0 0 8px;font-size:13px}
+#downloads{scroll-margin-top:96px}
 .home .hero-visual{display:flex;flex-direction:column;min-width:0;margin:0;padding:24px;background:var(--surface);border:1px solid #dce4ef;border-radius:8px}
 .hero-visual figcaption{display:flex;flex-direction:column;gap:8px;padding:0 0 20px}
 .example-label{font-size:10px;letter-spacing:.11em;color:#566882;font-weight:650}

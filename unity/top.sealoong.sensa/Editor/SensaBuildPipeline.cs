@@ -53,6 +53,7 @@ namespace UnityBox.Sensa
             // Read every root target before removing any SensaComponent used as its source.
             SensaFixedRootBuilder.ProcessAvatar(buildAvatar);
             SensaContactRootBuilder.ProcessAvatar(buildAvatar);
+            SensaTrackingFrameBuilder.ProcessAvatar(buildAvatar);
             SensaAutoBuilder.ProcessAvatar(buildAvatar);
             SensaPointBuilder.ProcessAvatar(buildAvatar);
             SensaPoseBuilder.ProcessAvatar(buildAvatar);

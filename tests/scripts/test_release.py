@@ -404,8 +404,14 @@ class ReproducibleArchiveContracts(unittest.TestCase):
                         'Sensa-0.4.0-preview-' + runtime + ('.zip' if runtime.startswith('win-') else '.tar.gz'))
                 (directory / name).write_bytes(runtime.encode())
                 digest = hashlib.sha256(runtime.encode()).hexdigest()
-                (directory / 'SHA256SUMS.txt').write_text(f'{digest}  {name}\n', encoding='utf-8')
-            self.assertEqual(len(preview.collect(root)), 7)
+                checksums = f'{digest}  {name}\n'
+                if runtime.startswith('win-'):
+                    for kind in ('Setup', 'SingleFile'):
+                        extra_name = f'Sensa-0.4.0-preview-{runtime}-{kind}.exe'
+                        (directory / extra_name).write_bytes(kind.encode())
+                        checksums += f'{hashlib.sha256(kind.encode()).hexdigest()}  {extra_name}\n'
+                (directory / 'SHA256SUMS.txt').write_text(checksums, encoding='utf-8')
+            self.assertEqual(len(preview.collect(root)), 11)
             duplicate = root / 'extra'
             duplicate.mkdir()
             (duplicate / 'Sensa-0.4.0-preview-win-x64.zip').write_bytes(b'duplicate')

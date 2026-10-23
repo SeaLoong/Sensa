@@ -12,6 +12,11 @@ const test = baseTest.extend({
   launchOptions: [{ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] }, { scope: 'worker', option: true }],
 });
 let server, base, directory;
+const releasesApi = 'https://api.github.com/repos/SeaLoong/Sensa/releases?per_page=100';
+test.beforeEach(async ({ page }) => {
+  await page.route(releasesApi, route => route.fulfill({ contentType: 'application/json',
+    headers: { 'access-control-allow-origin': '*' }, body: '[]' }));
+});
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json',
   '.png': 'image/png', '.jpg': 'image/jpeg', '.svg': 'image/svg+xml', '.txt': 'text/plain' };
 test.beforeAll(async () => {
@@ -86,6 +91,20 @@ async function inspectRunningScreenshots(page, info) {
 
 async function inspectDocumentStyle(page) {
   await page.evaluate(() => document.fonts.ready);
+  const scroll = await page.evaluate(() => ({ x: scrollX, y: scrollY }));
+  const responsiveImages = [];
+  for (const picture of await page.locator('article picture.doc-screenshot').all()) {
+    const image = picture.locator('img');
+    await image.scrollIntoViewIfNeeded();
+    const expected = await picture.evaluate(element => {
+      const source = [...element.querySelectorAll('source')].find(candidate => matchMedia(candidate.media).matches);
+      return source ? new URL(source.getAttribute('srcset'), location.href).href : element.querySelector('img').src;
+    });
+    await expect.poll(() => image.evaluate(element => element.currentSrc)).toBe(expected);
+    await image.evaluate(element => element.decode());
+    responsiveImages.push({ expected, currentSrc: await image.evaluate(element => element.currentSrc) });
+  }
+  await page.evaluate(({ x, y }) => scrollTo(x, y), scroll);
   const evidence = await page.evaluate(() => {
     const layout = document.querySelector('.layout'), article = document.querySelector('article');
     const computed = getComputedStyle(layout);
@@ -117,7 +136,7 @@ async function inspectDocumentStyle(page) {
     expect(image.loaded).toBe(true);
     expect(image.width).toBeLessThanOrEqual(image.articleWidth + 1);
   }
-  return evidence;
+  return { ...evidence, responsiveImages };
 }
 
 async function attachSiteReviewSource(info, images) {
@@ -236,6 +255,10 @@ test('@site standalone Pages language, document navigation and independent geome
     await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   await expect(page.getByRole('heading', { name: /Make your signals\s*work together\./ })).toBeVisible();
+  await expect(page.locator('[data-installer="x64"]')).toHaveAccessibleName('Windows x64 installer');
+  await expect(page.locator('[data-installer="arm64"]')).toHaveAccessibleName('Windows ARM64 installer');
+  for (const link of await page.locator('[data-installer]').all())
+    await expect(link).toHaveAttribute('href', 'https://github.com/SeaLoong/Sensa/releases');
   const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
   await expect(heroFirstRunGuide).toHaveCount(1);
   await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide');
@@ -361,7 +384,9 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.screenshot({ path: testInfo.outputPath('pages-explorer-contact.png'), fullPage: true });
   await page.goto(base + 'en/docs/contact-sdk.html');
   await expect(page.locator('article h1')).toHaveText('Contact direct tracking (SDK Beta)');
-  await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2"]').first()).toBeVisible();
+  await expect(page.locator('article a[href="https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3"]').first()).toBeVisible();
+  await expect(page.locator('article')).toContainText('advancedParameters');
+  await expect(page.locator('article')).toContainText('_PointSeparation');
   const buildGuide = page.getByRole('link', { name: 'Unity build guide', exact: true });
   await expect(buildGuide).toBeVisible(); await buildGuide.click();
   await expect(page).toHaveURL(/\/en\/docs\/unity-build.html$/);
@@ -487,4 +512,82 @@ test('@site cached help pages recover when fingerprinted assets have expired', a
   expect(blocked).toHaveLength(4);
   expect(errors).toEqual([]);
   await info.attach('help-assets-fallback.json', { body: JSON.stringify({ blocked, errors, recovered: true }), contentType: 'application/json' });
+});
+
+test('@site help screenshots switch between reviewed desktop and narrow captures', async ({ page }, info) => {
+  const originalViewport = page.viewportSize(), evidence = [];
+  for (const locale of ['en', 'zh-CN']) {
+    await page.goto(new URL(locale + '/docs/screenshots.html', base).href);
+    const suffix = locale === 'en' ? 'en-US' : 'zh-CN';
+    const manual = page.locator('article picture img[src$="/desktop/control-page.png"]');
+    const calculation = page.locator(`article picture img[src$="/desktop/computed-signal-editor-${suffix}.png"]`);
+    for (const width of [1280, 390, 1280]) {
+      await page.setViewportSize({ width, height: originalViewport.height });
+      const state = await inspectDocumentStyle(page), viewport = width <= 760 ? 'mobile' : 'desktop';
+      expect(await manual.evaluate(image => image.currentSrc)).toBe(new URL('media/docs/screenshots/' + viewport + '/control-page.png', base).href);
+      expect(await calculation.evaluate(image => image.currentSrc)).toBe(new URL('media/docs/screenshots/' + viewport + '/computed-signal-'
+        + (viewport === 'mobile' ? 'settings-' : 'editor-') + suffix + '.png', base).href);
+      expect(state.responsiveImages.length).toBeGreaterThanOrEqual(8);
+      evidence.push({ locale, width, images: state.responsiveImages });
+    }
+  }
+  await page.setViewportSize(originalViewport);
+  await info.attach('document-responsive-images.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+});
+
+test('@site installer downloads prefer stable assets and keep Releases when discovery fails', async ({ page }, info) => {
+  const fallback = 'https://github.com/SeaLoong/Sensa/releases';
+  const entry = (version, { preview = '', published = '2026-10-23T12:00:00Z' } = {}) => {
+    const tag = preview ? 'preview-' + preview.replaceAll('.', '-') : 'v' + version;
+    return { tag_name: tag, draft: false, prerelease: Boolean(preview), published_at: published,
+      assets: ['x64', 'arm64'].map(architecture => {
+        const name = `Sensa-${version}${preview ? '-preview.' + preview : ''}-win-${architecture}-Setup.exe`;
+        return { name, state: 'uploaded', size: 123456,
+          browser_download_url: `${fallback}/download/${tag}/${name}` };
+      }) };
+  };
+  const stable = entry('0.4.0', { published: '2026-10-21T12:00:00Z' });
+  const preview = entry('0.5.0', { preview: '321.2.1234abcd' });
+  const malicious = entry('0.6.0');
+  malicious.assets[0].browser_download_url = 'https://evil.test/Sensa-0.6.0-win-x64-Setup.exe';
+  malicious.assets[1].browser_download_url = malicious.assets[1].browser_download_url.replace('SeaLoong/Sensa', 'Elsewhere/Sensa');
+  let payload = [preview, malicious, stable], failed = false;
+  const requests = [], errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.addInitScript(() => sessionStorage.setItem('sensa.locale', 'en-US'));
+  await page.route(releasesApi, async route => {
+    const headers = route.request().headers();
+    expect(headers.authorization).toBeUndefined();
+    expect(headers.cookie).toBeUndefined();
+    expect(headers.referer).toBeUndefined();
+    requests.push({ method: route.request().method(), failed });
+    if (failed) await route.abort('failed');
+    else await route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(payload) });
+  });
+  const verify = async expected => {
+    const completed = failed
+      ? page.waitForEvent('requestfailed', request => request.url() === releasesApi)
+      : page.waitForResponse(response => response.url() === releasesApi);
+    await page.goto(base + '#downloads');
+    const response = await completed;
+    if (!failed) await response.finished();
+    await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', expected[0]);
+    await expect(page.locator('[data-installer="arm64"]')).toHaveAttribute('href', expected[1]);
+    await expect(page.locator('[data-installer="x64"]')).toHaveAccessibleName('Windows x64 installer');
+    await expect(page.locator('[data-installer="arm64"]')).toHaveAccessibleName('Windows ARM64 installer');
+    await expect(page.locator('.download-more a')).toHaveAttribute('href', fallback);
+    expect(await page.locator('body').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  };
+  await verify(stable.assets.map(asset => asset.browser_download_url));
+  payload = [malicious, preview];
+  await verify(preview.assets.map(asset => asset.browser_download_url));
+  payload = [malicious];
+  await verify([fallback, fallback]);
+  failed = true;
+  await verify([fallback, fallback]);
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests.every(request => request.method === 'GET')).toBe(true);
+  expect(errors).toEqual([]);
+  await info.attach('installer-download-discovery.json', { body: JSON.stringify({ requests, errors, stable: stable.tag_name,
+    preview: preview.tag_name, fallback }), contentType: 'application/json' });
 });

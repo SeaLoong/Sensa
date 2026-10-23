@@ -6,7 +6,21 @@ Start with a manual slider recorded as funscript to learn saving, activation and
 
 ## 1. Start
 
-Download your system/CPU archive from [Releases](https://github.com/SeaLoong/Sensa/releases), extract it, run Sensa and open **http://127.0.0.1:5086** in your browser. Input and outputs start disabled on the first run.
+Choose a format from [Releases](https://github.com/SeaLoong/Sensa/releases). The installer is recommended on Windows. Every build includes the required .NET runtime.
+
+| System and format | Example filename | Start |
+| --- | --- | --- |
+| Windows installer (recommended) | `Sensa-version-win-x64-Setup.exe` | Launch after installation or from the Start menu to open the workbench automatically; uninstall through system settings |
+| Windows single file | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable directory and run it; configuration stays beside it |
+| Windows portable | `Sensa-version-win-x64.zip` | Fully extract to a writable directory, then run `Sensa.exe` |
+| Linux portable | `Sensa-version-linux-x64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
+| macOS portable | `Sensa-version-osx-arm64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
+
+Every system offers **x64/ARM64**. Intel/AMD computers generally use x64; Apple Silicon and Windows ARM devices use ARM64. Preview filenames also contain a build number and commit identifier, with the same startup steps.
+
+Open **http://127.0.0.1:5086** in your browser after starting Sensa. Input and outputs start disabled on the first run.
+
+The installer defaults to `%LOCALAPPDATA%\Programs\Sensa`; upgrades and uninstall preserve user data in `config.json` and `recordings`. Installer and portable packages include offline documentation and the Shader capture bridge. The single-file build embeds the workbench and [offline parameter explorer](http://127.0.0.1:5086/docs/parameter-geometry.html); obtain the separate Python capture bridge from the portable archive or repository.
 
 The interface chooses a language automatically, with a manual switch available. [Language preferences](languages.en.md)
 
@@ -57,7 +71,7 @@ An active input sends its current valid target to newly connected outputs, so ch
 
 VRChat commonly sends parameters to Sensa on **9001**. Sensa's write-back or OGB heartbeat commonly targets VRChat on **9000**. Inspect actual parameters and their [meanings](osc-parameters.en.md) in OSC before choosing a [preset](presets.en.md) or calculation.
 
-For weighting, smoothing or triggers, choose Add computed signal in Flow. After saving, several output bindings can use the result with separate ranges. [Calculation examples](computed-signals.en.md) · [Multiple outputs](signal-pipeline.en.md#one-result-several-outputs)
+For weighting, smoothing or triggers, choose Add computed signal in Flow. Spatial calculation presets provide point distance, plane depth, offset within a plane and direction angles. If you have set up a following plane in Unity, its template creates the calculation drafts. After saving, several output bindings can use the results with separate ranges. [Calculation examples](computed-signals.en.md) · [Multiple outputs](signal-pipeline.en.md#one-result-several-outputs)
 
 ## 5. Save recordings and complete plans
 

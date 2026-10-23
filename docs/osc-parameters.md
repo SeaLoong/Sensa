@@ -24,7 +24,7 @@ Three.js／[OrbitControls](https://threejs.org/docs/pages/OrbitControls.html)随
 
 | 来源 | 负责说明什么 | 参考资料 |
 | --- | --- | --- |
-| VRChat 官方 | Contact 的检测方式、SDK 原生坐标／速度报告和 Raycast 命中／距离 | [Contacts 官方说明](https://creators.vrchat.com/common-components/contacts/)、[高级 Proximity 所用官方 Beta 安装包](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2)、[Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
+| VRChat 官方 | Contact 的检测方式、SDK 原生坐标／速度报告和 Raycast 命中／距离 | [Contacts 官方说明](https://creators.vrchat.com/common-components/contacts/)、[官方 SDK Beta.3](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3)、[Raycast 参数说明](https://creators.vrchat.com/avatars/avatar-components/raycast/#raycast-parameters) |
 | VRCFury／OGB 实现 | `PenOthers`、`NewRoot`、`NewTip`、`Touch`、`Frot` 和 `Close` 的生成名称、检测形状与配对方式 | [固定 Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[固定 Plug 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256)、[OGB 互通详解](ogb-compatibility.md) |
 | Sensa 协议与应用解释 | 四点解算、`Sample`／`Radius`、Shader 的 `Frame`／`Valid`，以及如何把读数变成动作目标 | [定位与单位](positioning.md)、[Contact 方案](contact-sdk.md)、[计算信号](computed-signals.md) |
 
@@ -86,7 +86,9 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 ## Contact 直接定位（SDK Beta）：十二个公开字段
 
-为所选自身根点使用专用球形 Sender，在 Avatar 根设置零偏移、各轴对齐的 Proximity Receiver。Receiver 开启 `advancedProximityParameters=true`，使用独立碰撞通道且只接收 Self。此方案需要 SDK 3.10.6-beta.2 或提供同一能力的后续 SDK。坐标框为 **AvatarRootMeters**：以 Avatar 根为原点，坐标轴随根旋转，保留物理米单位。[设置与 SDK 核验依据](contact-sdk.md)
+为所选自身根点使用专用球形 Sender，在 Avatar 根设置零偏移、各轴对齐的 Proximity Receiver。Receiver 使用独立碰撞通道且只接收 Self。Sensa 在 SDK **3.10.6-beta.3** 开启 `advancedParameters=true`，在 Beta.2 开启 `advancedProximityParameters=true`。坐标框为 **AvatarRootMeters**：以 Avatar 根为原点，坐标轴随根旋转，保留物理米单位。[设置与 SDK 核验依据](contact-sdk.md)
+
+SDK Beta.3 的高级报告可用于任意 Receiver 类型，并新增 `_SenderLossyScaleX/Y/Z`（Sender 关联 Transform 的世界缩放）与 `_PointSeparation`（Sender 和 Receiver 最近内部点之间的世界距离，米）。它们描述原生 Contact 形状；Sensa 的 `Distance` 根据根点 XYZ 计算距 Avatar 原点的距离。Sensa 当前生成以下十二个公开字段，位置／速度解算和预设使用这套协议。使用额外原生报告时，由作者在 Animator 中声明对应 Float 并配置 OSC 可见性。[官方发布说明](https://vrc-beta-docs.netlify.app/releases/release-3-10-6) · [额外报告的读法与默认值](contact-sdk.md#sdk-beta3-的额外报告)
 
 全部路径以 `Sensa/Contact/<id>/` 开头，`<id>` 只占一层路径。下表按字典序排列，共享前缀的短名称在前。`Proximity_SenderType` 为 Int，其余十一个字段为 Float。
 
@@ -107,7 +109,7 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 例如，Z 从 0.05 m 变到 0.15 m 表示沿接收器 Z 轴移动了 0.10 m，可将这两个端点校准为希望的动作范围。相对速率 0.4 m/s 描述该时刻的运动快慢；Proximity 变化率 0.4/s 则描述接近值每秒增加 0.4。按这三种含义分别选择位置、速度或接近变化的映射。
 
-SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象。中点位移通过接收形状旋转的逆变换转换，保留米单位，未按缩放或半径归一化。报告速度取近似接触点处的相对速度，包含角运动项；形状旋转时，可能与中点位置的导数不同。没有选中 Sender 时，SDK 写入类型 0 和零 XYZ／速度。原生报告未提供时间戳、序号或稳定 Sender ID。
+SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象；Beta.3 在两个 Proximity 都为 1 时，以较小的 PointSeparation 决定目标。中点位移通过接收形状旋转的逆变换转换，保留米单位，未按缩放或半径归一化。报告速度取近似接触点处的相对速度，包含角运动项；形状旋转时，可能与中点位置的导数不同。没有选中 Sender 时，SDK 写入类型 0 和零 XYZ／速度。原生报告未提供时间戳、序号或稳定 Sender ID。
 
 桌面要求同一来源与完整实例的十二字段齐全、类型为 Self、Proximity 为正、数值有限、位置在 Radius 边界及小量数值容差内，且 Radius 受支持。Sample 目标每 50 ms 推进，按 ChangedAt 检查的年龄上限为 **1000 ms**；较短的正数 InputTimeoutMs 优先，重复相同计数不续期。Contact 消失、字段缺失、Radius／坐标非法或活动停用／冻结时，相关空间动作停止。
 

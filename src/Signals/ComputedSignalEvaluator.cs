@@ -139,7 +139,9 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
                 throw new ArgumentException($"计算信号 {id} 的死区需为非负数，迟滞关闭阈值不高于开启阈值 / Computed signal {id}: dead-zone size must be non-negative and the release threshold must not exceed the active threshold.");
             var inputs = definition.Inputs?.ToArray() ?? [];
             if (!ValidInputCount(definition.Operation, inputs.Length))
-                throw new ArgumentException($"计算信号 {id} 的输入数量与运算方式不符：时间与门限处理使用一个输入，正弦波可使用零或一个输入，差值和比值使用两个输入 / Computed signal {id}: temporal and threshold operations require one input, sine accepts zero or one, and difference and ratio require two.");
+                throw new ArgumentException(IsGeometry(definition.Operation)
+                    ? $"计算信号 {id} 的空间计算输入不完整：点距离与夹角使用两组三维量（6 个输入），平面计算使用位置、原点、法向（9 个输入），双轴平面使用位置、原点和两条轴（12 个输入） / Computed signal {id}: distance and angle calculations require 6 inputs, normal-defined planes require 9, and axis-defined planes require 12."
+                    : $"计算信号 {id} 的输入数量与运算方式不符：时间与门限处理使用一个输入，正弦波可使用零或一个输入，差值和比值使用两个输入 / Computed signal {id}: temporal and threshold operations require one input, sine accepts zero or one, and difference and ratio require two.");
             var copies = new List<ComputedSignalInputConfig>(inputs.Length);
             foreach (var input in inputs)
             {
@@ -223,20 +225,29 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
         var sources = samples.Select(sample => sample.SourceKey).Where(source => !string.IsNullOrEmpty(source)).Distinct(StringComparer.Ordinal).ToArray();
         if (sources.Length > 1)
             return Invalidate(signal.Id, "请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source");
-        var frames = samples.Select(sample => sample.CoordinateFrame).Where(frame => !string.IsNullOrEmpty(frame)).Distinct(StringComparer.Ordinal).ToArray();
-        string? convertedFrame = null;
-        if (frames.Length == 2 && signal.Operation == ComputedSignalOperation.Product
-            && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal") == 1
-            && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal:Scale") == 1
-            && samples.Select((sample, index) => !string.IsNullOrEmpty(sample.CoordinateFrame) || inputs[index].SourceMode == "Constant").All(value => value))
-            convertedFrame = "AvatarRootMeters";
-        else if (signal.Operation == ComputedSignalOperation.Ratio && samples.Length == 2
-            && samples[0].CoordinateFrame == "AvatarRootMeters" && samples[1].CoordinateFrame == "AvatarRootLocal:Scale")
-            convertedFrame = "AvatarRootLocal";
-        if (frames.Length > 1 && convertedFrame is null)
-            return Invalidate(signal.Id, "请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame");
+        string? frame;
+        if (IsGeometry(signal.Operation))
+        {
+            if (!TryGeometryFrame(signal.Operation, samples, out frame))
+                return Invalidate(signal.Id, "空间计算需要同一坐标系、同量纲的 XYZ 分组；位置与方向请分别选择 / Spatial calculations require compatible coordinate frames and consistent XYZ groups; choose positions and directions separately");
+        }
+        else
+        {
+            var frames = samples.Select(sample => sample.CoordinateFrame).Where(frame => !string.IsNullOrEmpty(frame)).Distinct(StringComparer.Ordinal).ToArray();
+            string? convertedFrame = null;
+            if (frames.Length == 2 && signal.Operation == ComputedSignalOperation.Product
+                && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal") == 1
+                && samples.Count(sample => sample.CoordinateFrame == "AvatarRootLocal:Scale") == 1
+                && samples.Select((sample, index) => !string.IsNullOrEmpty(sample.CoordinateFrame) || inputs[index].SourceMode == "Constant").All(value => value))
+                convertedFrame = "AvatarRootMeters";
+            else if (signal.Operation == ComputedSignalOperation.Ratio && samples.Length == 2
+                && samples[0].CoordinateFrame == "AvatarRootMeters" && samples[1].CoordinateFrame == "AvatarRootLocal:Scale")
+                convertedFrame = "AvatarRootLocal";
+            if (frames.Length > 1 && convertedFrame is null)
+                return Invalidate(signal.Id, "请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame");
+            frame = convertedFrame ?? frames.SingleOrDefault();
+        }
         var source = sources.SingleOrDefault();
-        var frame = convertedFrame ?? frames.SingleOrDefault();
         var origin = CombineOrigins(samples);
         var timestamp = samples.Length == 0 ? nowMs : samples.Min(sample => sample.TimestampMs);
         if (IsTemporal(signal.Operation))
@@ -244,6 +255,14 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
         var values = samples.Select(sample => (double)sample.Value!.Value).ToArray();
         if (signal.Operation == ComputedSignalOperation.Ratio && values[1] == 0)
             return Invalidate(signal.Id, "请为比值选择非零分母 / Choose a non-zero denominator for the ratio");
+        if (IsGeometry(signal.Operation))
+        {
+            if (!TryGeometryValue(signal.Operation, values, out var geometricValue, out var reason))
+                return Invalidate(signal.Id, reason);
+            if (signal.Operation is ComputedSignalOperation.VectorAngle or ComputedSignalOperation.PlaneAngle)
+                frame = string.IsNullOrEmpty(frame) ? "Angle" : frame + ":Angle";
+            return FiniteResult(signal.Id, geometricValue, source, timestamp, frame, origin);
+        }
         double value = signal.Operation switch
         {
             ComputedSignalOperation.WeightedAverage => values.Select((item, index) => item * inputs[index].Weight).Sum()
@@ -259,8 +278,14 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
             ComputedSignalOperation.DeadZone => Math.Abs(values[0]) <= signal.Threshold ? 0 : values[0],
             _ => double.NaN,
         };
+        return FiniteResult(signal.Id, value, source, timestamp, frame, origin);
+    }
+
+    private ComputedSignalSample FiniteResult(string id, double value, string? source,
+        long timestamp, string? frame, string? origin)
+    {
         if (!double.IsFinite(value) || value > float.MaxValue || value < -float.MaxValue)
-            return Invalidate(signal.Id, "计算结果超出有限数值范围 / The calculation exceeds the finite numeric range");
+            return Invalidate(id, "计算结果超出有限数值范围 / The calculation exceeds the finite numeric range");
         return ComputedSignalSample.Success((float)value, source, timestamp, frame, origin);
     }
 
@@ -272,6 +297,9 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
 
     private static bool ValidInputCount(ComputedSignalOperation operation, int count) => operation switch
     {
+        ComputedSignalOperation.PointDistance or ComputedSignalOperation.VectorAngle or ComputedSignalOperation.PlaneAngle => count == 6,
+        ComputedSignalOperation.PlaneDepth or ComputedSignalOperation.PlaneOffset => count == 9,
+        ComputedSignalOperation.PlaneDepthFromAxes or ComputedSignalOperation.PlaneOffsetFromAxes => count == 12,
         ComputedSignalOperation.Sine => count is 0 or 1,
         ComputedSignalOperation.Difference or ComputedSignalOperation.Ratio => count == 2,
         _ when IsTemporal(operation) || operation == ComputedSignalOperation.DeadZone => count == 1,

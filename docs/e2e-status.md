@@ -4,13 +4,29 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
+## 跟随参考平面、空间计算与 Windows 安装格式
+
+2026-10-24（北京时间），新增 Unity Tracking Frame，使用 SPS 四点或 Contact 生成 Origin／Forward／Right 三个跟随测量点；Shader 增加作者偏移与同一来源的多编码块读取。WebUI 提供七种空间运算、XYZ 分组和跟随平面草稿。文档区分自身 Avatar 根点计算与双方配对的三点姿态，并同步安装器优先的下载说明。
+
+统一隔离检查通过 **758 项 .NET、217 项 Web、298 项 Python**，以及 Unity 包元数据、**92 条文档路由**。Windows x64 自包含单文件静态发布成功，输出目录只有 `Sensa.exe`；已检查文件与内嵌资源，尚未执行该 EXE。新工作流会在 Windows x64／ARM64 分别检查单文件启动、安装后的程序、重装与卸载。浏览器新增空间计算、跟随模板和响应式文档图片用例，候选图片与普通比较结果待 Actions 运行后补充。
+
+57 个 Unity C# 文件的语法检查，以及引用实际 Unity／SDK 程序集的隔离 API 类型检查通过；新 Tracking Frame 的 17 项参数化 EditMode 契约已编写。API 检查使用部分生成器边界替身，实际 Unity Editor 编译、NDMF 构建、EditMode 和 GPU 行为继续等待有效许可证与对应运行环境。
+
+## 帮助页样式与 SDK Beta.3 适配
+
+源码 `3c607935d4f24e17554bcdc6536c381b61037276` 的 [Pages 40019120886](https://github.com/SeaLoong/Sensa/actions/runs/40019120886) **10/10 通过并自动部署**；其他结果计数为 0，`suite=site`、`mode=comparison`、`selectionComplete=false`、`snapshotsCompared=true`。已核对产物摘要与公开站点清单，并逐张查看八张首页／帮助页原图。桌面与窄屏的文档布局、样式加载及过期资源恢复均通过对应检查；本轮未复现用户反馈的样式缺失。后续补充窄屏文档自动选择对应截图及宽窄切换断言。
+
+修正两个默认 Socket 长度断言后，源码 `bf98805544a0f5136846a0dbd989cdc698f6f56d` 的 [CI 40019356983](https://github.com/SeaLoong/Sensa/actions/runs/40019356983) 单元通过，普通浏览器比较得到 **3 通过、3 失败、100 未执行**，失败为旧布局图片差异，构建与发布跳过。同源码的 [Pages 40019356676](https://github.com/SeaLoong/Sensa/actions/runs/40019356676) 在两次 130 秒依赖安装后结束，浏览器 **0 项**，部署跳过。候选 `40019168941` 与 `40019553005` 随后主动取消，分别改用修正后的断言与 SDK Beta.3 适配源码继续验证。
+
+SDK Beta.3 已将高级报告开关改为 `advancedParameters`，Unity 生成器现检查该字段，同时识别 Beta.2 的 `advancedProximityParameters`。已核对安装包元数据和隔离反射逻辑；Unity 工程编译仍受下述 Editor 许可状态限制。跟随平面、空间计算及 Windows 安装格式的验证随各自固定提交继续记录。
+
 ## 实际运行图片、语言与 Unity 环境
 
 2026-10-24（北京时间），源码 `013c5d8c922c9fc6d0ba6f07117babafb043ac41` 通过[候选 40015184919，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40015184919/attempts/1)：**104/104**，其他结果计数均为0；`suite=all`、`mode=candidate`、`runner=passed`、`selectionComplete=true`、`snapshotsCompared=false`。156张应用图片和8张站点审阅原图已导出至 [PR #24](https://github.com/SeaLoong/Sensa/pull/24)，原始提交 `53726f4b3dbc9b8eda3a200b6ce7f3bc137f99a7`。全部原图已审阅；只有SHA-256相同的图片复用此前逐张观察。该候选早于下述语言和图解改动，更新后仍需完整普通比较。
 
 同一源码的 [Pages 40014294225](https://github.com/SeaLoong/Sensa/actions/runs/40014294225) **8/8通过并部署**，其余结果均为0；`suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`。普通 [CI 40014294417](https://github.com/SeaLoong/Sensa/actions/runs/40014294417) 因旧布局图片差异停在 **3通过、3失败、98未执行**，构建与发布跳过。
 
-当前更新发布28张已审阅原图及来源／摘要清单，首页可切换场景和视口；语言按浏览器与 `sessionStorage` 选择，链接移除语言查询；SPS1默认触碰区按VRCFury视点高度规则计算。帮助页采用带内容指纹的CSS／JS，并在资源过期时单次回退。此前8张站点原图布局正常，尚未复现样式缺失；新增Actions断言检查实际文档样式、深层路径、图片加载及过期资源恢复。更新后的浏览器套件共 **106项**，其中站点 **10项**，运行后继续补充结果。
+该次更新发布28张已审阅原图及来源／摘要清单，首页可切换场景和视口；语言按浏览器与 `sessionStorage` 选择，链接移除语言查询；SPS1默认触碰区按VRCFury视点高度规则计算。帮助页采用带内容指纹的CSS／JS，并在资源过期时单次回退。对应浏览器套件为 **106项**，其中站点 **10项**；随后运行结果见上节。
 
 Unity Editor **2022.3.22f1** 的版本命令已实际成功；Windows Mono模块与独立Avatar／World工程已安装。Avatar使用SDK **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World使用SDK **3.10.5**。已核对包摘要、175个Avatar／51个World Sensa文件，以及重复离线安装。实际Avatar批处理导入已连接许可服务，随后以“No valid Unity Editor license found”退出。因此工程编译、Shader导入、EditMode与GPU／客户端效果仍待执行。
 

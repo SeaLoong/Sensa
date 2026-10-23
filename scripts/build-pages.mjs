@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import MarkdownIt from 'markdown-it';
 import { screenshotGallery } from './site-screenshots.mjs';
+import { siteDownloadSource } from './site-downloads.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
@@ -31,7 +32,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   const documents = new Map(), routes = new Map(), emitted = new Set(), links = [], headings = new Map(), outlines = new Map(), rendered = [];
   const siteAssets = {};
   for (const extension of ['css', 'js']) {
-    const content = await fs.readFile(path.join(source, '.github/pages', 'site.' + extension));
+    const file = await fs.readFile(path.join(source, '.github/pages', 'site.' + extension));
+    const content = extension === 'js' ? Buffer.concat([Buffer.from(siteDownloadSource()), file]) : file;
     const digest = createHash('sha256').update(content).digest('hex').slice(0, 16);
     siteAssets[extension] = { name: 'site.' + digest + '.' + extension, content };
   }
@@ -59,6 +61,31 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     await fs.writeFile(path.join(output, name), data);
     emitted.add(name);
   };
+  let screenshotCatalog;
+  const gallery = await screenshotGallery(source, async (name, data) => {
+    if (name === 'screenshots-manifest.json') screenshotCatalog = JSON.parse(data);
+    await write(name, data);
+  });
+  // Pair only captures already validated and published by the screenshot catalog.
+  // 仅为清单中已核验并导出的原图建立桌面／窄屏对应关系。
+  const screenshotFiles = new Set((screenshotCatalog.additionalImages || []).map(record => record.file));
+  const screenshotPairs = new Map();
+  for (const scene of screenshotCatalog.scenes) {
+    for (const locale of locales) {
+      const desktop = scene.images.desktop[locale].file, mobile = scene.images.mobile[locale].file;
+      screenshotFiles.add(desktop); screenshotFiles.add(mobile);
+      if (screenshotPairs.has(desktop) && screenshotPairs.get(desktop) !== mobile)
+        throw new Error('Ambiguous narrow screenshot for: ' + desktop);
+      screenshotPairs.set(desktop, mobile);
+    }
+  }
+  for (const desktop of screenshotFiles) {
+    const mobile = desktop.replace(/^desktop\//, 'mobile/');
+    if (desktop.startsWith('desktop/') && screenshotFiles.has(mobile) && !screenshotPairs.has(desktop))
+      screenshotPairs.set(desktop, mobile);
+  }
+  const responsiveScreenshots = new Map([...screenshotPairs].map(([desktop, mobile]) =>
+    ['media/docs/screenshots/' + desktop, 'media/docs/screenshots/' + mobile]));
   const titleOf = document => document.text.match(/^#\s+(.+)$/m)?.[1].replace(/[*_\x60]/g, '') || document.slug;
   const shell = (document, body, toc) => {
     const { locale, route } = document, t = words[locale], other = locale === 'en' ? 'zh-CN' : 'en';
@@ -98,6 +125,15 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   for (const document of documents.values()) {
     const toc = [], seen = new Map(), ids = new Set(), outline = [];
     const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
+    const renderImage = md.renderer.rules.image;
+    md.renderer.rules.image = (tokens, index, options, env, render) => {
+      const image = tokens[index], src = image.attrGet('src');
+      const target = path.posix.normalize(path.posix.join(path.posix.dirname(document.route), src));
+      const mobile = responsiveScreenshots.get(target);
+      const html = renderImage(tokens, index, options, env, render);
+      return mobile ? '<picture class="doc-screenshot"><source media="(max-width:760px)" srcset="'
+        + escape(relative(document.route, mobile)) + '">' + html + '</picture>' : html;
+    };
     const scrollRegion = label => '<div class="doc-scroll" role="region" tabindex="0" aria-label="' + escape(label) + '">';
     md.renderer.rules.table_open = (tokens, index, options, env, render) => scrollRegion(words[document.locale].table) + render.renderToken(tokens, index, options);
     md.renderer.rules.table_close = (tokens, index, options, env, render) => render.renderToken(tokens, index, options) + '</div>\n';
@@ -135,7 +171,10 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       if (/\.md$/.test(file)) target = documentRoute(file, document.locale);
       else if (file === 'docs/parameter-geometry.html') target = 'parameter-geometry.html';
       else if (image && /\.(?:png|jpe?g|webp|gif|svg)$/i.test(file)) {
-        target = 'media/' + file; await write(target, await fs.readFile(path.join(source, file)));
+        target = 'media/' + file;
+        const reviewed = file.startsWith('docs/screenshots/') && screenshotFiles.has(file.slice('docs/screenshots/'.length));
+        if (!reviewed)
+          await write(target, await fs.readFile(path.join(source, file)));
       }
       if (!target) return 'https://github.com/SeaLoong/Sensa/blob/main/' + file + (match[3] || '');
       if (target !== 'parameter-geometry.html') links.push({ from: document.route, to: target, fragment: (match[3] || '').slice(1) });
@@ -168,7 +207,6 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     }
   } catch (error) { if (error.code !== 'ENOENT') throw error; }
   const available = versions.length > 0;
-  const gallery = await screenshotGallery(source, write);
   const homepage = (await fs.readFile(path.join(source, '.github/pages/index.html'), 'utf8'))
     .replaceAll('__SITE_STYLESHEET__', siteAssets.css.name)
     .replaceAll('__SITE_SCRIPT__', siteAssets.js.name)

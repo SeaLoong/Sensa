@@ -202,7 +202,14 @@ def write_archives(root, channel):
         path = directory / name
         path.write_bytes(runtime.encode())
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
-        (directory / 'SHA256SUMS.txt').write_text(f'{digest}  {name}\n')
+        checksums = f'{digest}  {name}\n'
+        if runtime.startswith('win-'):
+            for kind in ('Setup', 'SingleFile'):
+                extra_name = f'Sensa-{VERSION}{label}-{runtime}-{kind}.exe'
+                extra = directory / extra_name
+                extra.write_bytes((runtime + kind).encode())
+                checksums += f'{hashlib.sha256(extra.read_bytes()).hexdigest()}  {extra_name}\n'
+        (directory / 'SHA256SUMS.txt').write_text(checksums)
         if runtime == 'unity' and channel == 'stable':
             manifest = {'name': 'top.sealoong.sensa', 'version': VERSION, 'sha256': digest,
                         'url': f'https://github.com/Owner/Repo/releases/download/v{VERSION}/{name}'}
@@ -236,7 +243,7 @@ class ReleaseCommandTests(unittest.TestCase):
             self.main('stable', releases)
         prune.assert_not_called()
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
-        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 9)
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 13)
         self.assertIn(('publish', 'v0.4.0', 'stable'), releases.events)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
         self.assertIn('Direct fix', notes)
@@ -245,7 +252,7 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertIn('通过单元检查和完整浏览器截图比较', notes)
         checksums = (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text()
         self.assertIn('vpm-package.json', checksums)
-        self.assertEqual(len(checksums.splitlines()), 8)
+        self.assertEqual(len(checksums.splitlines()), 12)
 
     def test_preview_publishes_source_only_without_generating_a_changelog(self):
         write_archives(self.inputs, 'preview')
@@ -253,10 +260,25 @@ class ReleaseCommandTests(unittest.TestCase):
         process = self.main('preview', releases, previous='v0.3.0')
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
         self.assertEqual([call.args[0] for call in process.call_args_list], [['git', 'rev-parse', 'HEAD']])
-        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 8)
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 12)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
         self.assertEqual(notes, f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n')
         self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
+
+    def test_windows_installers_and_single_files_are_required_verified_and_prioritized(self):
+        write_archives(self.inputs, 'preview')
+        files = preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
+        self.assertTrue(all(path.name.endswith('-Setup.exe') for path in files[:2]))
+        self.assertTrue(all(path.name.endswith('-SingleFile.exe') for path in files[2:4]))
+        for path in files[:4]:
+            original = path.read_bytes()
+            path.unlink()
+            with self.subTest(name=path.name, case='missing'), self.assertRaisesRegex(ValueError, 'Windows download'):
+                preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
+            path.write_bytes(b'changed executable')
+            with self.subTest(name=path.name, case='corrupt'), self.assertRaisesRegex(ValueError, 'Checksum mismatch'):
+                preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
+            path.write_bytes(original)
 
     def test_stable_notes_keep_the_published_base_github_changes_and_direct_commits(self):
         write_archives(self.inputs, 'stable')
@@ -291,7 +313,7 @@ class ReleaseCommandTests(unittest.TestCase):
         current = self.published_current()
         releases = FakeReleases([*[published(number) for number in range(1, 11)], current])
         self.main('preview', releases)
-        self.assertEqual(len(current['assets']), 8)
+        self.assertEqual(len(current['assets']), 12)
         self.assertIn(('delete', 1), releases.events)
         self.assertNotIn(1, releases.releases)
         self.assertFalse(any(event[0] in ('create', 'upload', 'publish') for event in releases.events))
@@ -332,8 +354,8 @@ class ReleaseCommandTests(unittest.TestCase):
         for path in self.inputs.rglob('*preview.42.1.aaaaaaaa*'):
             path.rename(path.with_name(path.name.replace('-preview.42.1.aaaaaaaa', '')))
         for directory in self.inputs.iterdir():
-            path = next(item for item in directory.iterdir() if item.name != 'SHA256SUMS.txt')
-            (directory / 'SHA256SUMS.txt').write_text(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n')
+            paths = sorted(item for item in directory.iterdir() if item.name != 'SHA256SUMS.txt')
+            (directory / 'SHA256SUMS.txt').write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in paths))
         with self.assertRaisesRegex(ValueError, 'VPM manifest'):
             preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
         manifest.write_text('{}')
@@ -343,7 +365,8 @@ class ReleaseCommandTests(unittest.TestCase):
     @unittest.skipIf(os.name == 'nt', 'Creating test symlinks requires a Unix host')
     def test_publisher_rejects_archive_checksum_and_manifest_symlinks_even_with_matching_bytes(self):
         write_archives(self.inputs, 'stable')
-        for name in (f'win-x64/Sensa-{VERSION}-win-x64.zip', 'win-x64/SHA256SUMS.txt', 'unity/vpm-package.json'):
+        for name in (f'win-x64/Sensa-{VERSION}-win-x64.zip', f'win-x64/Sensa-{VERSION}-win-x64-Setup.exe',
+                     f'win-arm64/Sensa-{VERSION}-win-arm64-SingleFile.exe', 'win-x64/SHA256SUMS.txt', 'unity/vpm-package.json'):
             path = self.inputs / name
             original = path.read_bytes()
             outside = self.root / 'outside-artifact'

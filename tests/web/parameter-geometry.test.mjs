@@ -345,6 +345,19 @@ test('SDK Contact selects the maximum strictly positive matching self Sender / S
   assert.equal(field(none, 'Proximity_SenderType').raw, 0);
 });
 
+test('SDK Beta.3 resolves saturated proximity by nearest inner-point distance', () => {
+  for (const senders of [
+    [{ x: .0008, vx: 8 }, { x: .0002, vx: 2 }],
+    [{ x: .0002, vx: 2 }, { x: .0008, vx: 8 }],
+  ]) {
+    const scene = evaluate({ scenario: 'contact-sdk', senders });
+    assert.equal(field(scene, 'Proximity').raw, 1);
+    assert.equal(field(scene, 'Proximity_SenderLocalPositionX').raw, .0002);
+    assert.equal(field(scene, 'Proximity_SenderVelocityX').raw, 2);
+    assert.equal(scene.values.length, 12);
+  }
+});
+
 test('SDK Contact Sample clock gates stale and disabled reports independently of velocity / SDK Contact采样时钟独立门控停更与停用', () => {
   assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1000 }).metrics.valid, true);
   assert.equal(evaluate({ scenario: 'contact-sdk', ageMs: 1001, vx: 3 }).metrics.valid, false);

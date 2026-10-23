@@ -6,6 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
+import { siteDownloadSource } from '../../scripts/site-downloads.mjs';
 
 const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
@@ -18,7 +19,8 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.equal(Object.hasOwn(manifest.assets, '.nojekyll'), false);
     const assetNames = {};
     for (const extension of ['css', 'js']) {
-      const bytes = await fs.readFile(new URL('../../.github/pages/site.' + extension, import.meta.url));
+      const file = await fs.readFile(new URL('../../.github/pages/site.' + extension, import.meta.url));
+      const bytes = extension === 'js' ? Buffer.concat([Buffer.from(siteDownloadSource()), file]) : file;
       const digest = createHash('sha256').update(bytes).digest('hex');
       const name = 'site.' + digest.slice(0, 16) + '.' + extension;
       assetNames[extension] = name;
@@ -61,7 +63,7 @@ test('public guides build into bilingual routes with resolvable local links and 
           assert.equal(loaded[0].onerror, undefined, 'The fallback has no retry loop');
         }
       }
-      for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
+      for (const match of html.matchAll(/(?:href|src|srcset)="([^"]+)"/g)) {
         const url = new URL(match[1].replaceAll('&amp;', '&'), 'https://example.test/Sensa/' + route);
         if (url.origin === 'https://example.test' || url.origin === 'https://sealoong.github.io')
           assert.equal(url.searchParams.has('lang'), false, 'Language-free navigation: ' + route);
@@ -71,9 +73,48 @@ test('public guides build into bilingual routes with resolvable local links and 
         assert.ok(info.isFile() || info.isDirectory(), route + ' -> ' + target);
       }
     }
+    const screenshotCatalog = JSON.parse(await fs.readFile(path.join(output, 'screenshots-manifest.json'), 'utf8'));
+    const reviewedImages = new Map((screenshotCatalog.additionalImages || []).map(record => [record.file, record]));
+    for (const scene of screenshotCatalog.scenes)
+      for (const viewport of ['desktop', 'mobile'])
+        for (const locale of ['en', 'zh-CN']) {
+          const record = scene.images[viewport][locale]; reviewedImages.set(record.file, record);
+        }
+    for (const [route, desktop, mobile, alt] of [
+      ['en/docs/quick-start.html', 'control-page.png', 'control-page.png', 'Sensa running in a browser'],
+      ['zh-CN/docs/quick-start.html', 'control-page.png', 'control-page.png', 'Sensa 实际运行界面'],
+      ['en/docs/screenshots.html', 'computed-signal-editor-en-US.png', 'computed-signal-settings-en-US.png', 'Weighted calculation · desktop'],
+      ['zh-CN/docs/screenshots.html', 'computed-signal-editor-zh-CN.png', 'computed-signal-settings-zh-CN.png', '加权计算 · 桌面'],
+      ['en/docs/computed-signals.html', 'computed-signal-input-en-US.png', 'computed-signal-input-en-US.png', 'A calculation input with OSC path and weight'],
+      ['zh-CN/docs/signal-pipeline.html', 'recording-controls.png', 'recording-controls.png', 'L0 录制面板'],
+    ]) {
+      const html = await fs.readFile(path.join(output, route), 'utf8');
+      assert.ok(html.includes('<picture class="doc-screenshot"><source media="(max-width:760px)" srcset="../../media/docs/screenshots/mobile/'
+        + mobile + '"><img src="../../media/docs/screenshots/desktop/' + desktop + '" alt="' + alt + '"></picture>'), route);
+      assert.ok(html.includes('href="https://github.com/SeaLoong/Sensa/blob/main/docs/screenshots/mobile/' + mobile + '"'), 'Keep existing original-image links: ' + route);
+      for (const file of ['desktop/' + desktop, 'mobile/' + mobile])
+        assert.equal(manifest.assets['media/docs/screenshots/' + file], reviewedImages.get(file).sha256);
+    }
+    const overview = await fs.readFile(path.join(output, 'en/README.html'), 'utf8');
+    for (const picture of overview.matchAll(/<picture\b[\s\S]*?<\/picture>/g))
+      assert.equal(picture[0].includes('badge.svg'), false, 'Workflow badges retain their original markup');
+    for (const workflow of ['ci', 'e2e', 'pages', 'release'])
+      assert.ok(overview.includes('<img src="https://github.com/SeaLoong/Sensa/actions/workflows/' + workflow + '.yml/badge.svg"'));
     const packageGuide = await fs.readFile(path.join(output, 'en/unity/top.sealoong.sensa/README.html'), 'utf8');
     assert.match(packageGuide, /href="\.\.\/\.\.\/docs\/ogb-compatibility\.html"/);
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);
+    for (const locale of ['en', 'zh-CN']) {
+      const downloadGuide = await fs.readFile(path.join(output, locale + '/docs/quick-start.html'), 'utf8');
+      for (const format of ['win-x64-Setup.exe', 'win-x64-SingleFile.exe', 'win-x64.zip', 'linux-x64.tar.gz', 'osx-arm64.tar.gz'])
+        assert.ok(downloadGuide.includes(format), 'Download format: ' + locale + ' ' + format);
+      assert.ok(downloadGuide.indexOf('win-x64-Setup.exe') < downloadGuide.indexOf('win-x64-SingleFile.exe'), 'Installer is the first Windows choice');
+      const calculations = await fs.readFile(path.join(output, locale + '/docs/computed-signals.html'), 'utf8');
+      for (const operation of ['PointDistance', 'PlaneDepth', 'PlaneOffset', 'PlaneDepthFromAxes', 'PlaneOffsetFromAxes', 'VectorAngle', 'PlaneAngle'])
+        assert.ok(calculations.includes('<code>' + operation + '</code>'), 'Spatial operation: ' + locale + ' ' + operation);
+      const unity = await fs.readFile(path.join(output, locale + '/docs/unity-build.html'), 'utf8');
+      assert.ok(unity.includes('<code>SensaTrackingFrame.prefab</code>'));
+      assert.ok(unity.includes('<code>SensaTrackingFrame</code>'));
+    }
     const guide = await fs.readFile(path.join(output, 'en/docs/guide.html'), 'utf8');
     const translatedGuide = await fs.readFile(path.join(output, 'zh-CN/docs/guide.html'), 'utf8');
     assert.equal((guide.match(/class="nav-group"/g) || []).length, 3);

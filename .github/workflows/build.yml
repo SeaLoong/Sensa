@@ -73,7 +73,7 @@ jobs:
           - {runner: macos-15-intel, rid: osx-x64}
           - {runner: macos-15, rid: osx-arm64}
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     env:
       SENSA_SOURCE_COMMIT: ${{ needs.plan.outputs.commit }}
       BUILD_VERSION: ${{ needs.plan.outputs.version }}
@@ -109,9 +109,13 @@ jobs:
         shell: bash
       - name: Install dependencies
         run: npm ci
+      - name: Install verified Inno Setup compiler
+        if: startsWith(matrix.rid, 'win-')
+        shell: pwsh
+        run: ./scripts/install-inno-setup.ps1
       - name: Package desktop
         shell: bash
-        run: python scripts/build-platform.py --runtime "$TARGET_RID" --version "$BUILD_VERSION" --label "$BUILD_LABEL" --smoke
+        run: python scripts/build-platform.py --runtime "$TARGET_RID" --version "$BUILD_VERSION" --label "$BUILD_LABEL" --smoke ${{ startsWith(matrix.rid, 'win-') && '--windows-extras' || '' }}
       - name: Check Shader bridge
         if: matrix.rid == 'win-x64'
         shell: bash

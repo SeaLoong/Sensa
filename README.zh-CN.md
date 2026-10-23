@@ -1,6 +1,6 @@
 # Sensa
 
-**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [下载](https://github.com/SeaLoong/Sensa/releases) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
+**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [下载](https://sealoong.github.io/Sensa/#downloads) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -20,7 +20,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 | 步骤 | 你来选择 | 例子 |
 | --- | --- | --- |
 | **输入** | 从哪里取得数值 | OSC 参数、定位测量、手动滑条、脚本、设备反馈、录制回放 |
-| **计算转换** | 怎样处理数值 | 加权平均、差值、平滑、阈值、延迟、节奏生成 |
+| **计算转换** | 怎样处理数值 | 加权平均、两点距离、平面深度、方向夹角、平滑与触发 |
 | **输出** | 把结果送到哪里 | 动作设备、OSC 参数、DG-LAB、其他应用或录制文件 |
 
 简单流程可以直接把输入连到输出；需要融合或处理时，再添加计算。同一个结果可以连接多个输出，每个输出分别设置范围和发送方式。[建立信号流程](docs/signal-pipeline.md)
@@ -37,8 +37,8 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 ## 下载并启动
 
-1. 从 [Releases](https://github.com/SeaLoong/Sensa/releases) 下载适合系统和 CPU 的压缩包。支持 Windows、Linux、macOS，提供 x64 和 ARM64 构建。
-2. 解压后运行 Sensa，在浏览器打开 **http://127.0.0.1:5086**。
+1. 在[下载页](https://sealoong.github.io/Sensa/#downloads)选择安装器；[Releases](https://github.com/SeaLoong/Sensa/releases) 列出全部格式。**Windows** 推荐 `Sensa-…-win-x64-Setup.exe` 或 `win-arm64-Setup.exe`，安装后从开始菜单打开；**Linux／macOS** 选择对应 `.tar.gz`，完整解压后运行 `./Sensa`。
+2. 在浏览器打开 **http://127.0.0.1:5086**。各版本均自带所需 .NET 运行时；Windows 还提供直接运行的 `SingleFile.exe` 和便携 `.zip`。[选择下载格式](docs/quick-start.md#1-启动)
 3. 按[首次使用](docs/quick-start.md)添加一个输出、保存设置，再启用输入。可以先把手动滑条录成 funscript，熟悉整个流程。
 
 连接动作设备时，先用小幅手动目标检查方向、行程和停止。顶栏提供输入开关与急停；保存配置或切换输入后，准备好再启用输入。
@@ -64,9 +64,9 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 ## VRChat 与 Unity
 
-已有 OGB／SPS 参数时，直接通过 OSC 接入。制作自己的 Avatar 时，可安装 [Sensa Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，选择 **SPS 四点定位**、**Contact 直接定位（SDK Beta）**或 **Shader 捕获**。各方案的安装条件、测量内容和校准步骤见[方案指南](docs/usage-scenarios.md)。
+已有 OGB／SPS 参数时，直接通过 OSC 接入。制作自己的 Avatar 时，可安装 [Sensa Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，选择 **SPS 四点定位**、**Contact 直接定位（SDK Beta）**或 **Shader 捕获**。需要参考平面跟随骨骼移动和转动时，可添加 **Tracking Frame**。各方案的安装条件、测量内容和校准步骤见[方案指南](docs/usage-scenarios.md)。
 
-[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)用可操作的场景解释参数和检测区域；发行包中的 `docs/parameter-geometry.html` 也可离线打开。定位功能属于实验能力，实际客户端、图形环境和设备效果按所用版本检查。
+[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)用可操作的场景解释参数和检测区域；启动应用后，可通过 **http://127.0.0.1:5086/docs/parameter-geometry.html** 使用离线图解；安装版和便携包也附带 `docs/parameter-geometry.html` 文件。定位功能属于实验能力，实际客户端、图形环境和设备效果按所用版本检查。
 
 正式版与开发预览均在 Releases 提供桌面包和 Unity ZIP。**VCC／ALCOM 的 VPM 源提供已发布的 Unity 正式版**，预览版从 Releases 单独下载。
 

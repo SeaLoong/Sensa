@@ -18,14 +18,20 @@ namespace UnityBox.Sensa.Tests
     public class ContactRootBuildContracts : AvatarBuildFixture
     {
         private class OldReceiver { }
-        private class WrongReceiver { public int advancedProximityParameters; }
-        private class AdvancedReceiver { public bool advancedProximityParameters; }
+        private class WrongReceiver { public int advancedParameters; public int advancedProximityParameters; }
+        private class LegacyReceiver { public bool advancedProximityParameters; }
+        private class AdvancedReceiver { public bool advancedParameters; }
         private class InheritedReceiver : AdvancedReceiver { }
+        private class InheritedLegacyReceiver : LegacyReceiver { }
+        private class BothNamesReceiver : LegacyReceiver { public bool advancedParameters; }
+        private class WrongCurrentReceiver : LegacyReceiver { public int advancedParameters; }
+        private class StaticReceiver { public static bool advancedParameters; }
+        private class ReadOnlyReceiver { public readonly bool advancedParameters; }
 
         private void RequireBeta()
         {
             if (!SensaContactRootBuilder.IsSupported)
-                Assert.Ignore("Positive native Contact build contracts require an SDK with advanced proximity parameters.");
+                Assert.Ignore("Positive native Contact build contracts require an SDK with advanced Contact parameters.");
         }
         private VRCContactSender Target()
         {
@@ -39,17 +45,31 @@ namespace UnityBox.Sensa.Tests
 
         [Test] public void BetaFeatureDetectionAcceptsOnlyBooleanFieldAndFindsInheritedSdkFeature()
         {
-            Assert.IsNull(SensaContactRootBuilder.AdvancedProximityField(typeof(OldReceiver)));
-            Assert.IsNull(SensaContactRootBuilder.AdvancedProximityField(typeof(WrongReceiver)));
-            Assert.NotNull(SensaContactRootBuilder.AdvancedProximityField(typeof(InheritedReceiver)));
+            Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(null));
+            foreach (var type in new[] { typeof(OldReceiver), typeof(WrongReceiver), typeof(StaticReceiver), typeof(ReadOnlyReceiver) })
+                Assert.IsNull(SensaContactRootBuilder.AdvancedParametersField(type), type.Name);
+            Assert.AreEqual("advancedParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(InheritedReceiver)).Name);
+            Assert.AreEqual("advancedProximityParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(InheritedLegacyReceiver)).Name);
+            Assert.AreEqual("advancedParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(BothNamesReceiver)).Name);
+            Assert.AreEqual("advancedProximityParameters", SensaContactRootBuilder.AdvancedParametersField(typeof(WrongCurrentReceiver)).Name);
+            var current = new InheritedReceiver();
+            SensaContactRootBuilder.AdvancedParametersField(current.GetType()).SetValue(current, true);
+            Assert.IsTrue(current.advancedParameters);
+            var legacy = new InheritedLegacyReceiver();
+            SensaContactRootBuilder.AdvancedParametersField(legacy.GetType()).SetValue(legacy, true);
+            Assert.IsTrue(legacy.advancedProximityParameters);
             using (new MemoryEditorLocale())
             {
                 var error = Assert.Throws<InvalidOperationException>(() => SensaContactRootBuilder.RequireSupport(typeof(OldReceiver)));
                 StringAssert.Contains("3.10.6-beta.2", error.Message);
+                StringAssert.Contains("advanced Contact parameters", error.Message);
                 StringAssert.Contains("SPS four-anchor tracking", error.Message);
             }
-            Assert.AreEqual(typeof(VRCContactReceiver).GetField("advancedProximityParameters")?.FieldType == typeof(bool),
-                SensaContactRootBuilder.IsSupported);
+            var expected = new[] { "advancedParameters", "advancedProximityParameters" }
+                .Select(name => typeof(VRCContactReceiver).GetField(name, BindingFlags.Instance | BindingFlags.Public))
+                .FirstOrDefault(field => field?.FieldType == typeof(bool) && !field.IsInitOnly);
+            Assert.AreEqual(expected != null, SensaContactRootBuilder.IsSupported);
+            Assert.AreEqual(expected?.Name, SensaContactRootBuilder.AdvancedParametersFieldName);
         }
 
         [Test] public void StableSdkRejectsSelectedContactMethodBeforeGeneratingAnything()
@@ -75,6 +95,23 @@ namespace UnityBox.Sensa.Tests
             Assert.AreEqual(12, SensaContactProtocol.PublicLeaves.Distinct().Count());
         }
 
+        [Test] public void CurrentSdkExposesAdditionalReportsAlongsideTheTwelveFieldSensaContract()
+        {
+            RequireBeta();
+            if (SensaContactRootBuilder.AdvancedParametersFieldName != "advancedParameters")
+                Assert.Ignore("These additional native reports were introduced in SDK Beta.3.");
+            foreach (var suffix in new[] { "SENDER_LOSSY_SCALE_X", "SENDER_LOSSY_SCALE_Y", "SENDER_LOSSY_SCALE_Z", "POINT_SEPARATION" })
+            {
+                var field = typeof(ContactReceiver).GetField("PARAM_" + suffix, BindingFlags.Public | BindingFlags.Static);
+                Assert.NotNull(field, suffix);
+                Assert.AreEqual(typeof(string), field.FieldType);
+                var expected = suffix == "POINT_SEPARATION" ? "_PointSeparation" : "_SenderLossyScale" + suffix.Last();
+                Assert.AreEqual(expected, field.GetRawConstantValue());
+                CollectionAssert.DoesNotContain(SensaContactProtocol.PublicLeaves, "Proximity" + expected);
+            }
+            Assert.AreEqual(12, SensaContactProtocol.PublicLeaves.Length);
+        }
+
         [Test] public void DedicatedPairUsesAvatarRootAxesAndOriginalNativeRootOffsetWithoutChangingSps()
         {
             RequireBeta();
@@ -92,7 +129,7 @@ namespace UnityBox.Sensa.Tests
             Assert.Less(Quaternion.Angle(avatar.transform.rotation, receiver.transform.rotation), .0001f);
             Assert.AreEqual(2f, receiver.radius); Assert.AreEqual(ContactBase.ShapeType.Sphere, receiver.shapeType);
             Assert.IsTrue(receiver.allowSelf && !receiver.allowOthers && receiver.localOnly);
-            Assert.IsTrue((bool)SensaContactRootBuilder.AdvancedProximityField(receiver.GetType()).GetValue(receiver));
+            Assert.IsTrue((bool)SensaContactRootBuilder.AdvancedParametersField(receiver.GetType()).GetValue(receiver));
             var sender = host.GetComponentInChildren<VRCContactSender>(true);
             Assert.AreEqual(.001f, sender.radius); Assert.IsTrue(sender.localOnly);
             CollectionAssert.AreEqual(sender.collisionTags, receiver.collisionTags);

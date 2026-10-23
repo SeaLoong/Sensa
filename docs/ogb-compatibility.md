@@ -39,7 +39,7 @@ Sensa 的 **SPS 四点定位**和 **Contact 直接定位**各自创建专用 Con
 | R、r | 实际 Receiver、球形 Sender 的半径 |
 | H | 胶囊的完整高度，包含两端半球 |
 
-Proximity 是连续 0–1 浮点值，通常随目标靠近检测中心增大；Constant 表示是否进入有效接近区域，进入时为 1，离开时为 0。每个 Proximity Receiver 独立选择 Proximity 严格大于零且最大的匹配 Sender；球形接收器按 Sender 最近表面到自身中心计算接近程度。球对球模型为：
+Proximity 是连续 0–1 浮点值，通常随目标靠近检测中心增大；Constant 表示是否进入有效接近区域，进入时为 1，离开时为 0。每个 Proximity Receiver 独立选择 Proximity 严格大于零且最大的匹配 Sender；[SDK Beta.3](https://vrc-beta-docs.netlify.app/releases/release-3-10-6) 在两个读数都为 1 时选取最近内部点间距更小的目标。球形接收器按 Sender 最近表面到自身中心计算接近程度。球对球模型为：
 
 ```text
 p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
@@ -135,7 +135,7 @@ Sensa 采用生成器的 R=1、r=0.01 模型，得到 +0.01 修正。运行时�
 
 ## 专用 Contact 直接定位（SDK Beta）
 
-SDK 3.10.6-beta.2 还通过高级 Proximity 参数提供原生 Sender 中点位置和接触点相对速度。Sensa 使用独立的 `Sensa/Contact/<id>/…` 实例，由唯一通道上的自身根点 Sender 和 Avatar 根 Receiver 组成。位置是物理米制 AvatarRootMeters，速度为 m/s；运动强弱可通过 VelocityX／Y／Z、Speed 或 ProximitySpeed 校准。SPS 四点定位保留 `Sensa/SPS/<id>/P0…P3+Sample`，已有 OGB 路径以及上文深度／触摸模型保留其发布语义。
+Sensa 也支持 SDK 3.10.6-beta.3 与 Beta.2 的高级 Proximity 报告，读取原生 Sender 中点位置和接触点相对速度。Sensa 使用独立的 `Sensa/Contact/<id>/…` 实例，由唯一通道上的自身根点 Sender 和 Avatar 根 Receiver 组成。位置是物理米制 AvatarRootMeters，速度为 m/s；运动强弱可通过 VelocityX／Y／Z、Speed 或 ProximitySpeed 校准。SPS 四点定位保留 `Sensa/SPS/<id>/P0…P3+Sample`，已有 OGB 路径以及上文深度／触摸模型保留其发布语义。
 
 构建自己的根点测量时可选择此方案，明确的 Sensa／原生 Contact 根点可独立于 VRCFury 使用。身体联动可用校准位置轴跟随细微深浅趋势，并以 Touch／Close 条件确认触碰。[Beta 设置、源码依据与字段语义](contact-sdk.md) · [字典](osc-parameters.md)
 

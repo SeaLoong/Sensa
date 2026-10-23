@@ -150,6 +150,8 @@ namespace UnityBox.Sensa
         public static void SpsRoot() => Create("SensaSpsRootProbe");
         [MenuItem("GameObject/Sensa/Contact direct tracking (SDK Beta)", false, 10)]
         public static void ContactRoot() => Create("SensaContactRootProbe");
+        [MenuItem("GameObject/Sensa/Tracking Frame", false, 10)]
+        public static void TrackingFrame() => Create("SensaTrackingFrame");
         [MenuItem("GameObject/Sensa/Shader Root Capture (Experimental)", false, 10)]
         public static void ShaderCapture() => Create("SensaShaderCapture");
         [MenuItem("GameObject/Sensa/Automatic SPS Setup", false, 10)]
@@ -187,6 +189,18 @@ namespace UnityBox.Sensa
             if (fixedRoot != null) { fixedRoot.instanceName = rootName; fixedRoot.target = target; PrefabUtility.RecordPrefabInstancePropertyModifications(fixedRoot); }
             var contactRoot = instance.GetComponent<SensaContactRootProbe>();
             if (contactRoot != null) { contactRoot.instanceName = rootName; contactRoot.target = target; PrefabUtility.RecordPrefabInstancePropertyModifications(contactRoot); }
+            var frame = instance.GetComponent<SensaTrackingFrame>();
+            if (frame != null)
+            {
+                var frames = new HashSet<string>(scope.GetComponentsInChildren<SensaTrackingFrame>(true)
+                    .Where(author => author != frame).Select(author => author.instanceName), System.StringComparer.Ordinal);
+                string frameName = "Frame";
+                for (int suffix = 2; frames.Contains(frameName)
+                    || SensaTrackingFrameBuilder.MarkerNames.Any(marker => usedNames.Contains(frameName + "_" + marker)); suffix++)
+                    frameName = "Frame_" + suffix;
+                frame.instanceName = frameName; frame.reference = target;
+                PrefabUtility.RecordPrefabInstancePropertyModifications(frame);
+            }
             var shader = instance.GetComponent<SensaShaderCapture>();
             if (shader != null)
             {

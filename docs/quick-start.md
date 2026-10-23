@@ -6,7 +6,21 @@
 
 ## 1. 启动
 
-从 [Releases](https://github.com/SeaLoong/Sensa/releases)下载适合系统和 CPU 的压缩包，解压运行 Sensa，然后在浏览器打开 **http://127.0.0.1:5086**。首次启动时，输入和输出默认关闭。
+从 [Releases](https://github.com/SeaLoong/Sensa/releases)选择下载格式。Windows 推荐安装版；所有版本均自带所需 .NET 运行时。
+
+| 系统与方式 | 文件名示例 | 怎样启动 |
+| --- | --- | --- |
+| Windows 安装版（推荐） | `Sensa-版本-win-x64-Setup.exe` | 安装完成或从开始菜单启动时自动打开工作台；可在系统设置中卸载 |
+| Windows 单文件 | `Sensa-版本-win-x64-SingleFile.exe` | 将 EXE 放在可写目录后直接运行，配置保存在旁边 |
+| Windows 便携版 | `Sensa-版本-win-x64.zip` | 完整解压到可写目录，再运行 `Sensa.exe` |
+| Linux 便携版 | `Sensa-版本-linux-x64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
+| macOS 便携版 | `Sensa-版本-osx-arm64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
+
+各系统均提供 **x64／ARM64**。Intel／AMD 电脑通常选择 x64；Apple Silicon 和 Windows ARM 设备选择 ARM64。预览版文件名还包含构建编号与提交摘要，启动方式相同。
+
+启动后，在浏览器打开 **http://127.0.0.1:5086**。首次启动时，输入和输出默认关闭。
+
+安装版默认放在 `%LOCALAPPDATA%\Programs\Sensa`，升级和卸载会保留 `config.json` 与 `recordings` 中的用户数据。安装版与便携包都包含离线文档及 Shader 捕获桥；单文件版内置工作台和[离线参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)，独立 Python 捕获桥可从便携包或仓库取得。
 
 界面会自动选择语言，也可手动切换。[语言设置](languages.md)
 
@@ -57,7 +71,7 @@
 
 VRChat 通常向 Sensa 的 **9001** 端口发参数；Sensa 回写或发送 OGB 心跳时，目标通常为 VRChat 的 **9000** 端口。在“OSC”先观察实际参数和[参数含义](osc-parameters.md)，再选择[预设](presets.md)或建立计算。
 
-需要加权平均、平滑或触发时，在“流程”点击“新增计算信号”。保存后，各输出连接可以共同选择该结果，并分别设置量程。[计算示例](computed-signals.md) · [多输出示例](signal-pipeline.md#同一个结果连接多个输出)
+需要加权平均、平滑或触发时，在“流程”点击“新增计算信号”。展开“空间计算预设”可直接计算两点距离、平面深度、平面内偏移或方向夹角；已在 Unity 配好跟随平面时，可用对应模板生成计算草稿。保存后，各输出连接可以共同选择结果，并分别设置量程。[计算示例](computed-signals.md) · [多输出示例](signal-pipeline.md#同一个结果连接多个输出)
 
 ## 5. 保存录制与整套方案
 

@@ -33,7 +33,7 @@ A future model producer needs runtime ID tracking, render-stage coordination, ge
 
 Create **GameObject → Sensa → Shader Root Capture (Experimental)** or add `SensaShaderCapture.prefab`, then set `Target`, a nonzero `producerId` and normalized desktop viewport on `SensaShaderCapture`. The shared `SensaPlugin` reads these settings at NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** and calls the Shader generator to create:
 
-1. A root marker under the resolved source, applying `ReadRoot` local position/rotation.
+1. A root marker under the resolved source, applying `ReadRoot` local position/rotation followed by the author's `positionOffset`/`rotationOffset`.
 2. An identity-transform SkinnedMeshRenderer under the avatar root, with three vertices fully bound to the marker. Native skinning yields AvatarRootLocal values; AvatarScale supplies the conversion to world metres.
 3. One None-eye orthographic camera emitting the QR tile directly into its configured viewport, keeping the tile square and centered.
 4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code** activates the rig, with the caption chosen in the build-time Editor language.
@@ -45,6 +45,10 @@ Generated native components perform measurement and image output after upload. T
 ## Coordinates, axes and packet contract
 
 The generated mesh has three vertices bound to the same root: the origin, local +X at 0.1 units and local +Z at 0.1 units. One triangle supplies all three skinned positions to the geometry stage. Subtracting the origin and dividing by 0.1 produces `Right` and `Forward`. These vectors retain the root's X/Z-axis directions and lengths; their cross product gives the measurement-plane normal. Independent Y-axis scale requires another measurement. `AvatarScale` reads the encoder's uniform positive object-to-world scale, expressing world metres per Avatar-root local unit.
+
+**Origin offset** (`positionOffset`) translates along the selected root's local XYZ axes, in that root's units. **Axis rotation** (`rotationOffset`) uses Unity local Euler angles in degrees and changes only the measurement axes. Composition is `position = rootPosition + rootRotation × positionOffset`, `rotation = rootRotation × Euler(rotationOffset)`. The generated marker follows the target bone/root. Scene view shows Right/Forward arrows and their XZ plane at the measurement origin.
+
+`Forward` is the measured forward axis. Using it as a normal defines a **working plane perpendicular to that axis**. With nonuniform target scale or shear, the actual measured XZ plane has positive normal `normalize(Forward × Right)`, perpendicular to both measured tangents. Independent Y-axis length and the complete deformed surface frame require additional measurements. For a rigid reference, choose an independent marker following the bone's position and rotation with explicit axes and scale.
 
 Position shares `SensaFixedAnchorProtocol`: `AvatarRootLocal`, center (0,1,0), half-range 2 per axis. X/Z=[−2,2], Y=[−1,3]. Moving or turning the entire Avatar preserves the local interpretation. Multiply relative displacements by `AvatarScale` to obtain metres. Nonfinite or out-of-range samples, degenerate axes and unsupported world scaling clear validity.
 
@@ -92,11 +96,38 @@ The desktop requires twelve consecutive same-source fields and a maximum 500 ms 
 
 Registration saves the ROI, Producer ID and coordinate configuration of a successfully decoded packet. Starting or recovering requires two progressing frames. CRC/source/profile failure, changed payload on a duplicate sequence, reorder, freeze, timeout or shutdown sets Valid to 0. Recovery needs two new progressing frames; a producer reset may require restarting the bridge. Accuracy and VR visibility follow the client checks below.
 
+## Planes and angles that follow the reference pose
+
+For example, use Producer **42** for the reference surface and **43** for the target. Both belong to the same Avatar and use separate desktop viewports. The origin of 42 follows the reference bone or Socket; 43 follows the target bone or Plug. Save `surface.json` and `target.json` separately, then read both through one bridge:
+
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --registration surface.json --registration target.json --watch --port 9001 --duration 300
+```
+
+Each cycle takes one screenshot, then crops and decodes one region at a time. All measurements use one UDP socket, giving Sensa one OSC source for combined calculations. Each producer retains independent identity, frame progression and recovery; an unreadable tile invalidates that producer. Capture and decoding time count toward sample age.
+
+Up to 16 registrations are supported, with unique IDs and rectangles and at most 4 million ROI pixels in total. The enclosing screenshot is limited to 16 million pixels and 8192 pixels per side. Calculations retain the oldest participating sample time. Unity geometry-update timing across tiles still requires client measurement.
+
+Add calculations in **Flow**, choosing **Tracking measurement (SensaPoint)** for every input. Position P uses X/Y/Z from `Sensa/Shader/43/**`; reference origin O uses X/Y/Z from `Sensa/Shader/42/**`. Select the operation you need:
+
+| Operation | Remaining inputs | Result |
+| --- | --- | --- |
+| `PlaneDepth` | N: ForwardX/Y/Z from 42 | Signed P−O distance along the forward axis; positive on its forward side |
+| `PlaneOffset` | N: ForwardX/Y/Z from 42 | Distance from O within the plane perpendicular to the forward axis |
+| `PlaneDepthFromAxes` | U: ForwardX/Y/Z from 42; V: RightX/Y/Z from 42 | Signed distance to the actual measured XZ plane, with positive normal U×V |
+| `PlaneOffsetFromAxes` | Same U/V | Distance from O within the actual measured XZ plane |
+| `VectorAngle` | Only two directions: ForwardX/Y/Z from 43, then from 42 | Angle between the forward axes: same direction 0°, perpendicular 90°, opposite 180° |
+| `PlaneAngle` | Only two directions: ForwardX/Y/Z from 43, then from 42 as the normal | Signed target-axis angle to the working plane: parallel 0°, along its normal 90° |
+
+Swapping U/V reverses the signed depth. To measure the target's original XY plane with the two-tangent operations, set producer 42's `rotationOffset` to `(90,0,0)`: Right follows original +X, Forward follows original −Y, and Forward×Right points toward original +Z. This tangent construction also describes the actual plane after nonuniform scaling.
+
+Distances use Avatar-root local units. Multiply a result by `AvatarScale` from the same Avatar in a subsequent **Product** calculation to obtain metres, then calibrate and bind the output. Directional angles use measured axes; their orientation comes from the three skinned points measured together. [Operations and input order](signal-pipeline.en.md)
+
 ## Evidence and remaining acceptance
 
-Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame locking, ordered twelve fields, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
+Isolated Python contracts cover codec/CRC/RGB, damaged-image recovery of arbitrary and sheared axes, shared coordinates, ID/frame locking, ordered twelve fields, multiple regions sharing one source with independent failure, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
 
-Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning and multiple producers. A separate explicit graphics test checks rendered pixels. Pixel-render contracts require a working Unity graphics environment. Record actual revisions and results in the [verification record](e2e-status.en.md).
+Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning, origin/axis offsets, arbitrary bone rotation, sheared planes and multiple producers. A separate explicit graphics test checks rendered pixels. Pixel-render contracts require a working Unity graphics environment. Record actual revisions and results in the [verification record](e2e-status.en.md).
 
 Client acceptance covers SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. The bridge clears validity after 350 ms of frozen imagery by default; the desktop receiver separately imposes a 500 ms sample-age limit.
 

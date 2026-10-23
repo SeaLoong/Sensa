@@ -25,9 +25,9 @@ Exclusive 每组一次启用一个测量目标，初始关闭；Dedicated 允许
 
 ## Contact 直接定位（SDK Beta）
 
-在 Automatic SPS Setup 中选择根点定位方式；稳定版 SDK 安装默认仍用 SPS 四点定位。Contact 直接定位需要包含 `advancedProximityParameters` 的 SDK（已核对 3.10.6-beta.2）；旧 SDK 选择此方式时会构建失败，并给出安装要求或替代方式。
+在 Automatic SPS Setup 中选择根点定位方式；稳定版 SDK 安装默认仍用 SPS 四点定位。Contact 直接定位已适配 **3.10.6-beta.3** 的 `advancedParameters` 和 Beta.2 的 `advancedProximityParameters`。构建时自动选择已安装 SDK 提供的开关；缺少高级报告能力时，会给出安装要求及可用方案。
 
-`Runtime/SensaContactProtocol.cs` 定义 `Sensa/Contact/<id>`。一个半径 2 制作单位的 Proximity Receiver 位于 Avatar 根点，形状偏移为零，坐标轴与根旋转对齐；另一个半径 0.001 制作单位的 Sender 跟随所选根点。原 SPS Contact 不变。SDK 直接写入十个原生报告：`Proximity`、Int `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`；其余公开字段为 Float。SDK 另为专用碰撞标签写入 `Proximity_CollisionTag_<tag>`；Sensa 在 FX 中声明该 Bool，停用时清零，位于十二个公开表达参数声明之外。客户端 OSC 可见性另行检查。
+`Runtime/SensaContactProtocol.cs` 定义 `Sensa/Contact/<id>`。一个半径 2 制作单位的 Proximity Receiver 位于 Avatar 根点，形状偏移为零，坐标轴与根旋转对齐；另一个半径 0.001 制作单位的 Sender 跟随所选根点。原 SPS Contact 不变。Sensa 使用 SDK 的十个原生报告：`Proximity`、Int `Proximity_SenderType`、`Proximity_SenderLocalPositionX/Y/Z`、`Proximity_SenderVelocityX/Y/Z`、`Proximity_SenderVelocityMagnitude` 和 `Proximity_ProximitySpeed`；其余公开字段为 Float。SDK 另为专用碰撞标签写入 `Proximity_CollisionTag_<tag>`；Sensa 在 FX 中声明该 Bool，停用时清零，位于十二个公开表达参数声明之外。Beta.3 另外提供 `_SenderLossyScaleX/Y/Z` 和 `_PointSeparation`；Sensa 的公开 Contact 协议继续使用上述十项，加上以下 `Radius` 和 `Sample`。客户端 OSC 可见性另行检查。
 
 XYZ 使用 `AvatarRootMeters`：以 Avatar 根点为原点、以其旋转为坐标轴，单位米，不除以制作时根缩放。速度是 SDK 碰撞点的相对速度，单位米/秒；ProximitySpeed 是归一化接近值每秒变化量。单点不提供朝向。`Radius` 报告包含制作缩放与 ScaleFactor 的实际世界接收半径。`Sample` 约每 50 ms 按 n/32 循环；停用时两个控制字段均清零。时钟表示生产端活动，不证明 SDK 同帧或 Sender 身份。桌面活动时效上限 1000 ms；Sample 推进时允许缓存静止坐标。接触存在性与 SenderType 单独校验，零位置／速度可以是合法静止值。
 

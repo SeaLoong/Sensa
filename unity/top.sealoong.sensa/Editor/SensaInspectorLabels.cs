@@ -24,6 +24,10 @@ namespace UnityBox.Sensa
             { "arrayPolicy", "Array policy" },
             { "instanceName", "Instance name" },
             { "reference", "Reference frame" },
+            { "trackingMethod", "Tracking method" },
+            { "positionOffset", "Origin offset" },
+            { "rotationOffset", "Axis rotation (degrees)" },
+            { "axisLength", "Axis marker distance" },
             { "target", "Target" },
             { "collisionChannel", "Collision channel (optional)" },
             { "createGrabHandle", "Create grab handle" },
@@ -176,6 +180,34 @@ namespace UnityBox.Sensa
                 Handles.DrawWireCube(center, Vector3.one * (2 * SensaFixedAnchorProtocol.PositionHalfRange));
                 Handles.Label(center, SensaEditorLocalization.Text("Shader coordinate range; image capture must be verified separately"));
             }
+            try
+            {
+                var placement = SensaShaderCaptureBuilder.ResolvePlacement(author);
+                var frame = placement.root.localToWorldMatrix * Matrix4x4.TRS(placement.position, placement.rotation, Vector3.one);
+                var origin = frame.MultiplyPoint3x4(Vector3.zero);
+                var right = frame.MultiplyVector(Vector3.right);
+                var forward = frame.MultiplyVector(Vector3.forward);
+                if (!SensaShaderCaptureBuilder.SupportedBasis(avatar.transform.InverseTransformVector(right),
+                    avatar.transform.InverseTransformVector(forward))) return;
+                var length = HandleUtility.GetHandleSize(origin) * .18f;
+                using (new Handles.DrawingScope(new Color(.3f, .75f, .95f)))
+                {
+                    // This is the measured X/Z tangent plane, including target shear.
+                    var a = right.normalized * length; var b = forward.normalized * length;
+                    Handles.DrawAAPolyLine(origin - a - b, origin + a - b, origin + a + b, origin - a + b, origin - a - b);
+                }
+                using (new Handles.DrawingScope(Color.red))
+                {
+                    Handles.ArrowHandleCap(0, origin, Quaternion.LookRotation(right), length, EventType.Repaint);
+                    Handles.Label(origin + right.normalized * length, "Right (+X)");
+                }
+                using (new Handles.DrawingScope(Color.blue))
+                {
+                    Handles.ArrowHandleCap(0, origin, Quaternion.LookRotation(forward), length, EventType.Repaint);
+                    Handles.Label(origin + forward.normalized * length, "Forward (+Z)");
+                }
+            }
+            catch (System.InvalidOperationException) { /* The Inspector keeps an unassigned target editable. */ }
         }
     }
 }

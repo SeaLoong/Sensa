@@ -376,6 +376,15 @@ progress::-moz-progress-bar { background: var(--accent); }
 .computed-inputs { display: grid; gap: 16px; }
 .computed-input { min-width: 0; padding-block: 12px; border-top: 1px solid var(--border); }
 .computed-input > .actions { justify-content: space-between; }
+.computed-vectors { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; align-items: start; }
+.computed-vector { margin: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); }
+.computed-vector > legend { padding-inline: 4px; font-weight: 600; }
+.computed-vector__values { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.computed-vector .computed-input { padding-top: 8px; }
+.computed-vector .computed-input summary { overflow-wrap: anywhere; }
+.computed-vector .computed-input[open] > .form-grid { padding-top: 12px; }
+.computed-spatial-presets > summary { font-weight: 600; }
+.computed-spatial-presets[open] > .stack { padding-top: 16px; }
 .mapping-row__main > .field:first-child input { font-family: "Cascadia Code", ui-monospace, Consolas, monospace; font-size: 12px; }
 .mapping-row__status { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 24px; margin-top: 12px; color: var(--muted); font-size: 12px; line-height: 20px; }
 .mapping-row__status strong { margin-left: 8px; color: var(--text); font-variant-numeric: tabular-nums; }

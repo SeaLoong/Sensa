@@ -14,13 +14,14 @@
 
 1. Install the [package dependencies](COMPATIBILITY.en.md), plus official VRCFury for SPS author targets. Use PC Built-in rendering with a geometry-shader-capable backend. Use another input route on Android or Metal.
 2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact inside this Avatar.
+   Use **Origin offset** to move the measurement along the selected root's local XYZ axes and **Axis rotation** to turn its axes in degrees. Both start at zero. Scene view shows Right (+X), Forward (+Z) and their measurement plane; the origin and axes follow the target.
 3. Assign a unique `Producer Id` from 1–65535, such as 42. The desktop bridge pairs the block using the same ID.
 4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.2). The QR tile stays square and centered inside it. Find the complete tile in the client, then determine its physical-pixel desktop bounds.
 5. Build normally or use NDMF's processed preview. The build references the packaged `Runtime/Shaders/SensaRootTelemetry.shader` and serializes temporary meshes/materials. Rebuild and register capture after updating the package and bridge.
 6. Select the root-code item under **Sensa ShaderCapture_42**. It starts Off, is activated by the local wearer and uses the author's build-time language.
 7. Check the desktop block and both VR eyes. The generated camera requests `None` eye targeting; verify actual desktop composition and headset visibility in VRChat.
 
-Each block has its own ID, camera and material signature. Give each one a separate capture region and bridge process.
+Each block has its own ID, camera and material signature. Register each region separately, then repeat `--registration` in one bridge process so the measurements share one OSC source for combined calculations.
 
 ## What can you read?
 
@@ -28,7 +29,7 @@ Each block has its own ID, camera and material signature. Give each one a separa
 | --- | --- |
 | `X / Y / Z` | Root-center position in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
 | `RightX / RightY / RightZ` | The root's local +X axis expressed in Avatar-root coordinates; vector length retains that axis's scale |
-| `ForwardX / ForwardY / ForwardZ` | Its local +Z axis in the same frame; crossing Right and Forward gives the measurement-plane normal |
+| `ForwardX / ForwardY / ForwardZ` | Its local +Z axis in the same frame; Forward×Right gives the measured XZ plane's positive normal |
 | `AvatarScale` | World metres per Avatar-root local unit, in (0,8] |
 | `Frame` | An approximately 60 Hz encoder clock used to detect duplicates and freezing |
 | `Valid` | 1 commits a complete valid packet; 0 invalidates the measurement |
@@ -36,6 +37,8 @@ Each block has its own ID, camera and material signature. Give each one a separa
 Right/Forward components range from −8 to 8. One triangle supplies the skinned origin, +X and +Z points. These retain two axis directions and lengths; independent Y-axis scale needs another measurement. Moving or turning the whole Avatar preserves the root-local meaning. Multiply relative displacement by `AvatarScale` for metres. Out-of-range values, degenerate axes and unsupported world scaling invalidate the packet.
 
 Select position, axis components or AvatarScale in the root panel for calibrated mappings. For combined calculations, choose a tracking measurement (SensaPoint) in **Flow**, use a root pattern such as `Sensa/Shader/42/**` and select its metric before binding outputs. This source retains complete-packet validation, frame freshness and input activation checks. [Parameter reference](https://github.com/SeaLoong/Sensa/blob/main/docs/osc-parameters.en.md) · [Signal pipeline](https://github.com/SeaLoong/Sensa/blob/main/docs/signal-pipeline.en.md)
+
+Forward can define the normal of a working plane perpendicular to the target's forward axis, for depth, in-plane offset and angle calculations. For the actual measured XZ plane under nonuniform scale or shear, choose **Plane depth (two axes)** or **In-plane offset (two axes)** with Forward followed by Right. Their cross product determines the normal. [Complete moving-plane example](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md#planes-and-angles-that-follow-the-reference-pose)
 
 ## Capture and register
 
@@ -50,6 +53,14 @@ This checks decoding and saves the region, ID and coordinate profile. Then use t
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --registration capture.json --watch --port 9001 --duration 300
 ```
+
+To measure a reference surface and target together, register `surface.json` (for example ID 42) and `target.json` (ID 43), then run:
+
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --registration surface.json --registration target.json --watch --port 9001 --duration 300
+```
+
+Each cycle crops and decodes the regions one at a time from one screenshot, then sends one OSC bundle. Every tile keeps independent freshness and recovery. Up to 16 distinct IDs and regions are supported, with at most 4 million ROI pixels in total. The enclosing screenshot is limited to 16 million pixels and 8192 pixels per side. Capture and decoding time count toward expiry. An unreadable tile sets its Valid to 0, which invalidates calculations depending on that measurement.
 
 Omit the port to inspect decoding only. Re-register after changing window size, resolution or display scaling. The bridge reads the selected region; the Sensa workbench controls input activation.
 

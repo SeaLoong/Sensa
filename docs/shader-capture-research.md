@@ -32,7 +32,7 @@ Shader 捕获把 Avatar 上一个选定位置的测量结果画成 QR 图块。�
 
 通过 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`，在 `SensaShaderCapture` 中指定 `Target`、非零 `producerId` 和归一化桌面 viewport。统一的 `SensaPlugin` 在 NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** 读取配置，调用 Shader 生成器创建：
 
-1. 所选根点参照下的 marker，使用 `ReadRoot` 解析出的 local position／rotation。
+1. 所选根点参照下的 marker，使用 `ReadRoot` 解析出的 local position／rotation，再应用作者设置的 `positionOffset`／`rotationOffset`。
 2. Avatar 根下单位变换的 SkinnedMeshRenderer，三个顶点完全绑定 marker。原生蒙皮结果按 AvatarRootLocal 解释，AvatarScale 提供到世界米的换算。
 3. 单个 None-eye 正交 Camera，按配置 viewport 直接输出 NDC 黑白格；直接使用一套相机与编码材质。
 4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 **Root position code／根点位置编码** 后开启 rig。菜单项文字采用构建时的编辑器语言。
@@ -44,6 +44,10 @@ Shader 捕获把 Avatar 上一个选定位置的测量结果画成 QR 图块。�
 ## 坐标、方向与二进制包
 
 生成的网格包含三个绑定到同一根点的顶点：原点、局部 +X 方向 0.1 和局部 +Z 方向 0.1。几何阶段在同一个三角形内读取蒙皮后的三点，得到原点以及两条差向量，除以 0.1 后输出 `Right` 与 `Forward`。两向量保留选定根点 X/Z 轴的方向和长度，也可以用叉积求测量平面的法线；独立 Y 轴缩放需另行测量。`AvatarScale` 从编码器的对象到世界矩阵读取均匀正缩放，表示一个 Avatar 根局部单位对应多少世界米。
+
+作者组件中的 **原点偏移**（`positionOffset`）沿所选根点的局部 XYZ 轴平移，单位沿用该根点；**坐标轴旋转**（`rotationOffset`）使用 Unity 局部欧拉角，单位为度，只改变测量轴朝向。组合顺序为 `position = rootPosition + rootRotation × positionOffset`、`rotation = rootRotation × Euler(rotationOffset)`。生成的 marker 随目标骨骼／根点一起运动。Scene 视图显示原点处的 Right／Forward 箭头和它们张成的 XZ 面，方便确认轴向。
+
+`Forward` 表示测得的前向轴。用它作为法线时，定义的是**垂直于该轴的工作平面**。目标有非均匀缩放或剪切时，实际 XZ 面的正法线应由 `normalize(Forward × Right)` 得到；它对两条测得切向轴都保持垂直。独立的 Y 轴长度和形变表面的完整姿态需要额外测量。制作刚性参考框时，可选择随骨骼位置与旋转移动的独立标记，明确其轴向与尺度。
 
 位置共享 `SensaFixedAnchorProtocol`：`AvatarRootLocal`，中心 (0,1,0)，每轴半范围 2。X/Z=[−2,2]，Y=[−1,3]。整个 Avatar 一起平移或转身时，局部坐标保持原含义；乘 `AvatarScale` 可换算相对位移的米数。非有限值、越界、退化轴向或不支持的世界缩放会清除有效位。
 
@@ -91,11 +95,38 @@ Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以�
 
 注册文件保存成功解码时的 ROI、Producer ID 和坐标配置。启动或恢复读取需要两个连续推进帧；CRC、来源或坐标系错误，以及同帧不同值、倒序、冻结、超时或退出，都会将 Valid 置为 0。冻结后收到两个新的推进帧才恢复；生产端重置后可按提示重新启动桥。位置精度与 VR 可见性按下方客户端项目验证。
 
+## 跟随姿态变化的平面与角度计算
+
+例如，使用 **42** 测量参考面，使用 **43** 测量目标。两者都位于同一 Avatar，使用不同的桌面 viewport。42 的原点跟随参考骨骼或 Socket，43 跟随目标骨骼或 Plug。分别保存 `surface.json` 与 `target.json` 后，用一个桥读取两者：
+
+```shell
+python -X utf8 scripts/shader-osc-bridge.py --registration surface.json --registration target.json --watch --port 9001 --duration 300
+```
+
+每轮读取同一张屏幕截图，再逐个裁出和解码 ROI；所有测量通过同一个 UDP socket 发送，因此在 Sensa 中属于同一 OSC 来源。每个 Producer 保留自己的配对、帧推进和恢复状态，某一图块读不出时只把该项置为无效。捕获与解码耗时计入样本年龄。
+
+最多可登记 16 个图块，ID 与区域分别唯一，ROI 总像素数不超过 400 万；外接截图不超过 1600 万像素，宽高各不超过 8192。组合计算沿用最旧参与样本的时间；多个图块的 Unity 几何更新时间仍需通过客户端测量确认。
+
+在工作台“流程”中添加计算，所有输入选择 **定位测量（SensaPoint）**。位置 P 使用 `Sensa/Shader/43/**` 的 X/Y/Z，参考原点 O 使用 `Sensa/Shader/42/**` 的 X/Y/Z。随后按需要选择：
+
+| 计算 | 其余输入 | 结果 |
+| --- | --- | --- |
+| `PlaneDepth`／平面深度 | N：42 的 ForwardX/Y/Z | P 相对 O 沿前向轴的有符号距离；朝向一侧为正 |
+| `PlaneOffset`／平面内偏移 | N：42 的 ForwardX/Y/Z | P 在垂直于前向轴的平面内偏离 O 的距离 |
+| `PlaneDepthFromAxes`／平面深度（两条轴） | U：42 的 ForwardX/Y/Z；V：42 的 RightX/Y/Z | P 到实测 XZ 面的有符号距离，正方向为 U×V |
+| `PlaneOffsetFromAxes`／平面内偏移（两条轴） | 同上 | P 在实测 XZ 面内偏离 O 的距离 |
+| `VectorAngle`／向量夹角 | 仅两组方向：43 的 ForwardX/Y/Z、42 的 ForwardX/Y/Z | 两个前向轴的夹角，同向 0°、垂直 90°、反向 180° |
+| `PlaneAngle`／与平面夹角 | 仅两组方向：43 的 ForwardX/Y/Z、42 的 ForwardX/Y/Z 作为法线 | 目标轴相对工作平面的有符号角度，平行 0°、沿法线 90° |
+
+两条轴的顺序决定深度正负，交换 U/V 会翻转符号。若要让真实测量面对应目标原本的 XY 面，可将 42 的 `rotationOffset` 设为 `(90,0,0)`：此时 Right 沿原 +X、Forward 沿原 −Y，Forward×Right 指向原 +Z 一侧。这样的切向量组合也能描述非均匀缩放后的实际平面。
+
+以上距离的单位是 Avatar 根局部单位。在后续 **Product／乘积** 中乘同一 Avatar 的 `AvatarScale`，即可转换为米；再通过校准范围和输出绑定使用结果。不同方向的夹角由实测轴计算，朝向信息来自三个蒙皮点的联合测量。[计算操作与输入顺序](signal-pipeline.md)
+
 ## 验证证据与缺口
 
-隔离 Python 契约检查编码／CRC／RGB、共享坐标、ID／坐标系锁定、有序十二字段、原生／诊断隔离、冻结／恢复、注册、Windows 原子替换及捕获前 CLI 拒绝；不读取桌面或操作用户设备。
+隔离 Python 契约检查编码／CRC／RGB、任意方向与剪切轴的受损恢复、共享坐标、ID／坐标系锁定、有序十二字段、多区域同来源与独立失效、原生／诊断隔离、冻结／恢复、注册、Windows 原子替换及捕获前 CLI 拒绝；不读取桌面或操作用户设备。
 
-Unity EditMode 契约覆盖默认关闭、单相机输出、Shader 导入、持久边界、三点蒙皮与多 Producer 绑定。图形模式另有显式像素渲染契约；具体执行状态见验证记录，像素渲染契约需要可用的 Unity 图形环境。实际运行修订与结果统一记录在[验证记录](e2e-status.md)。
+Unity EditMode 契约覆盖默认关闭、单相机输出、Shader 导入、持久边界、三点蒙皮、原点／轴向偏移、任意骨骼旋转与剪切平面、多 Producer 绑定。图形模式另有显式像素渲染契约；具体执行状态见验证记录，像素渲染契约需要可用的 Unity 图形环境。实际运行修订与结果统一记录在[验证记录](e2e-status.md)。
 
 客户端验收包括 SDK 上传保留、NDMF／VRCFury 优化交互、原生编码像素、PC／PCVR 合成、HMD 可见性、窗口缩放／遮挡／最小化、HDR／后处理／低帧率、延迟及参考位置误差。桥在画面冻结 350 ms 后默认关闭有效性；Sensa 桌面端另以 500 ms 为接收数据的存活上限。
 

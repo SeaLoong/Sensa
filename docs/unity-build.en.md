@@ -11,6 +11,7 @@ Sensa's Unity scripts store authoring settings. During an Avatar build, NDMF rea
 | SPS four-anchor tracking: `SensaSpsRootProbe.prefab` | SPS Socket/Plug root position, with explicit bone or marker targets also supported | `AvatarRootLocal` authored units; four Receivers and one Sender |
 | Contact direct tracking (SDK Beta): `SensaContactRootProbe.prefab` | Root position, relative velocity and proximity change rate | `AvatarRootMeters` in metres; one Receiver and one Sender; advanced Proximity parameters required |
 | Shader root capture: `SensaShaderCapture.prefab` | Position, X/Z axes and world scale encoded into a desktop image | `AvatarRootLocal` authored units; PC Built-in, a geometry-shader-capable backend and desktop bridge |
+| Following plane: `SensaTrackingFrame.prefab` | A plane that moves and rotates with a bone or root, for depth and lateral offset | Choose SPS four-anchor or Contact direct tracking; generates Origin/Forward/Right points |
 | Point/Handle/Pose | Points, grabbable handles or paired orientation in a chosen frame | Each uses its own reference, protocol and freshness rules |
 
 All three root prefabs accept an explicit `Target` within your Avatar: a bone/empty-object `Transform`, SPS Socket/Plug, Sensa Component or native Contact. Bones and ordinary markers can be selected directly. Native Contacts use their shape center; SPS targets use their authoring root geometry. [Coordinates and units](positioning.en.md) · [Contact SDK reports](contact-sdk.en.md)
@@ -19,7 +20,7 @@ Use **Automatic SPS Setup** for several existing SPS targets, choosing SPS four-
 
 ## Place and configure a prefab
 
-1. Install the Unity package's VPM dependencies: NDMF **1.5.0+**, Modular Avatar **1.10.0+** and matching VRChat Avatars SDK. Install official VRCFury when selecting SPS author targets. Contact direct tracking needs an SDK exposing `advancedProximityParameters`, verified against **3.10.6-beta.2**.
+1. Install the Unity package's VPM dependencies: NDMF **1.5.0+**, Modular Avatar **1.10.0+** and matching VRChat Avatars SDK. Install official VRCFury when selecting SPS author targets. Contact direct tracking supports **3.10.6-beta.3** through `advancedParameters`, with compatibility for Beta.2's `advancedProximityParameters`.
 2. Create your chosen route from **GameObject → Sensa**, or place its prefab inside the Avatar hierarchy. Check that `Target` selects the root you intend to measure.
 3. SPS four-anchor tracking and Contact prefabs default to instance `Root`. Use distinct names such as `Root`, `Chest` and `Hand` for multiple points. An empty `Collision Channel` derives a stable channel from the instance name; enter an override when managing channels explicitly. Rename a duplicate to give it an independent automatic channel.
 4. Give Shader capture a unique `Producer Id` from 1–65535 and pin the same ID in the desktop bridge. Follow [Shader setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for presentation and capture registration.
@@ -27,9 +28,27 @@ Use **Automatic SPS Setup** for several existing SPS targets, choosing SPS four-
 
 Keep the authoring host as an ordinary GameObject. Its Transform may be a measurement reference, and its generated Contacts, constraints and animation remain part of the build result.
 
+## Create a plane that follows a bone
+
+1. Select a bone or SPS object inside the Avatar and choose **GameObject → Sensa → Tracking Frame**, or add `SensaTrackingFrame.prefab`.
+2. Check **Reference frame** (`reference`). This single field accepts a Transform, SPS Socket/Plug, Sensa Component or native Contact. The menu fills a recognized selected target; when creating at the Avatar root, choose the reference yourself.
+3. Set a unique **Instance name** (`instanceName`), default `Frame`, using at most 40 ASCII letters, digits, underscores or hyphens. Choose SPS four-anchor or Contact direct tracking as **Tracking method** (`trackingMethod`).
+4. Place the centre with **Origin offset** (`positionOffset`) and adjust its orientation with **Axis rotation (degrees)** (`rotationOffset`). Both use the resolved root's local axes; the position offset applies before the added rotation. Six axis buttons choose a depth direction quickly, and Scene move/rotate handles allow finer adjustment.
+5. Inspect the XY plane and +Z arrow in Scene: **+Z is positive depth, +X is right and +Y is up**. **Axis marker distance** (`axisLength`) is the Origin-to-Forward/Right distance in authored Avatar-root units, default 0.2 and configurable from 0.05 to 0.5.
+6. After building, confirm all three instances provide valid desktop coordinates. In Flow, expand Spatial calculation presets → Follow a moving plane, select measured target P and the plane Origin, review the drafts, then save and connect outputs.
+
+Generated points are named `<name>_Origin`, `<name>_Forward` and `<name>_Right`. A source reference follows bone movement and rotation. The measured frame lives under the Avatar root, following position and rotation through a ParentConstraint. Marker spacing follows uniform Avatar scale. Bone scale can move an offset origin; axis lengths retain the authored Avatar-root size. SPS authoring geometry retains its uniform-scale requirement.
+
+| Tracking method | Generated components and fields | Desktop coordinates |
+| --- | --- | --- |
+| SPS four-anchor tracking | 15 Contacts; 3 groups of 5 fields | `Sensa/SPS/<name>_<marker>/…`, AvatarRootLocal |
+| Contact direct tracking | 6 Contacts; 3 groups of 12 fields | `Sensa/Contact/<name>_<marker>/…`, AvatarRootMeters |
+
+Scene also shows coverage for the selected tracking method. Origin, Forward, Right and measured target P all need valid coverage. Each marker retains its own Sample check. Shorter axis spacing amplifies direction noise; compare known poses in the client to assess the default 0.2 spacing and behavior during fast movement. Choose one coordinate frame for the measured target and plane markers. Independent Point/Pose use their own ReferenceLocal frame for measurements directly within that reference. [Depth, offset and angle calculations](computed-signals.en.md#combine-root-coordinates)
+
 ## How author scripts enter the build
 
-All nine Sensa authoring components implement `VRC.SDKBase.IEditorOnly`: `SensaComponent`, `SensaAutoSetup`, `SensaFixedRootProbe`, `SensaContactRootProbe`, `SensaShaderCapture`, `SensaPointProbe`, `SensaPoseSocket`, `SensaPosePlug` and the internal lab fixture `SensaQuickStart`.
+Sensa authoring components implement `VRC.SDKBase.IEditorOnly`: `SensaComponent`, `SensaAutoSetup`, `SensaFixedRootProbe`, `SensaContactRootProbe`, `SensaShaderCapture`, `SensaTrackingFrame`, `SensaPointProbe`, `SensaPoseSocket`, `SensaPosePlug` and the internal lab fixture `SensaQuickStart`.
 
 | Setting | Build behavior |
 | --- | --- |
@@ -38,7 +57,7 @@ All nine Sensa authoring components implement `VRC.SDKBase.IEditorOnly`: `SensaC
 | Author component has `Enabled` unchecked | Removes the author script and skips its generation |
 | Author is on an inactive object | Reads enabled settings; runtime activation follows each generated rig and its menu rules |
 
-QuickStart remains an internal synthetic lab fixture. Use the three root prefabs above or Point/Pose for everyday tracking.
+QuickStart remains an internal synthetic lab fixture. Use a root or tracking-frame prefab, or Point/Pose, for everyday tracking.
 
 `IEditorOnly` identifies an author script; the NDMF plugin schedules generation. Retaining the host while removing only the author component lets bones, reference points and generated native components keep working.
 
@@ -55,9 +74,11 @@ Sensa has one NDMF generation entry point. NDMF and Modular Avatar are package d
 | NDMF Optimizing SDK hook, order `-1025` | Sensa checks author cleanup and Contact count after MA's work in this same phase |
 | Default SDK cleanup, order `-1024` | Removes EditorOnly objects and IEditorOnly scripts; standard generated components continue into the SDK build |
 
+Tracking frames use the same Generating entry: after standalone root authors and before automatic SPS setup, create the three points and remove the Tracking Frame author before base SensaComponent cleanup. Generated measurements retain the existing SPS/Contact protocols.
+
 `BuildContext.GetState` records generation for each build. SPS four-anchor tracking, Contact, Shader and the other authors share this scheduler while keeping their own runtime protocols. The SDK `-1026` check diagnoses remaining settings; actual generation always belongs to the early NDMF pass.
 
-These numbers follow the audited versions below. Current VRCFury also postpones SDK component cleanup. Sensa completes its own author cleanup and therefore also works with the SDK's default order. Other tools can register later SDK callbacks; Contact counting describes Sensa's NDMF checkpoint.
+This ordering has also been checked in SDK **3.10.6-beta.3**, NDMF **1.14.8**, Modular Avatar **1.18.7** and VRCFury **1.1434.0** packages. Current VRCFury postpones SDK component cleanup to `int.MaxValue`. Sensa completes its own author cleanup and therefore also works with the SDK's default order. Other tools can register later SDK callbacks; Contact counting describes Sensa's NDMF checkpoint.
 
 ## Assets and references
 
@@ -78,6 +99,7 @@ The following official documentation and source were inspected on **2026-10-23 (
 | Source | Rule checked |
 | --- | --- |
 | [VRChat SDK interface documentation](https://github.com/vrchat-community/creator-docs/blob/f437f5081c4476aaf443b507a7ec4a9d21e0e63b/Docs/docs/sdk/build-pipeline-callbacks-and-interfaces.md#ieditoronly) | Meaning of `IEditorOnly` and SDK validation |
+| [Official Base 3.10.6-beta.3 package](https://github.com/vrchat/packages/releases/download/3.10.6-beta.3/com.vrchat.base-3.10.6-beta.3.zip) | Rechecked `RemoveAvatarEditorOnly` at default order `-1024`; see [Contact tracking](contact-sdk.en.md) for the Contact interface and package digests |
 | [Official Base 3.10.6-beta.2 package](https://github.com/vrchat/packages/releases/download/3.10.6-beta.2/com.vrchat.base-3.10.6-beta.2.zip) | `RemoveAvatarEditorOnly` ordering and component/object cleanup in `VRCSDKBase-Editor.dll`, inspected as managed assembly |
 | [NDMF 1.5.0 SDK hooks](https://github.com/bdunderscore/ndmf/blob/eb332294b65fe06dfdd38fbe33d5d8bda68eb267/Editor/VRChat/BuildFrameworkPreprocessHook.cs#L24) | Minimum-supported early `-11000` and late `-1025` hooks |
 | [MA 1.10.0 extension guide](https://github.com/bdunderscore/modular-avatar/blob/a71af7ae0a7caa904cf67f04a70754ae2939a8bb/docs~/docs/extending.md#L5) · [plugin definition](https://github.com/bdunderscore/modular-avatar/blob/a71af7ae0a7caa904cf67f04a70754ae2939a8bb/Editor/PluginDefinition/PluginDefinition.cs#L23) | Generate before MA in Generating, merge during Transforming |

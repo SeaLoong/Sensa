@@ -21,7 +21,7 @@ The historical VPM index may offer an older package. Development previews do not
 | --- | --- | --- |
 | Existing OGB | Configure existing SPS/OGB and desktop mappings | Scalar Touch or radial depth estimate; [external interoperability](https://github.com/SeaLoong/Sensa/blob/main/docs/ogb-compatibility.en.md) |
 | SPS four-anchor tracking | Add **Sensa → Automatic SPS Setup**, or **SPS four-anchor tracking** and explicitly assign Target | Root position relative to the Avatar root, in AvatarRootLocal authored units |
-| Contact direct tracking (SDK Beta) | Choose **Contact direct tracking (SDK Beta)** in automatic setup, or add its prefab and explicitly assign Target | Dedicated Sender/Receiver; root coordinates in metres and relative SDK velocity; requires advanced proximity parameters |
+| Contact direct tracking (SDK Beta) | Choose **Contact direct tracking (SDK Beta)** in automatic setup, or add its prefab and explicitly assign Target | Dedicated Sender/Receiver; root coordinates in metres and relative SDK velocity; requires advanced Contact parameters |
 | Shader root capture | Add **Shader Root Capture (Experimental)** or `SensaShaderCapture.prefab`, and assign Target | AvatarRootLocal position, X/Z-axis vectors and Avatar world scale encoded into a monochrome image and read by the [desktop bridge](GPU-TRACKING.en.md) |
 | Independent Point/Handle/Pose | Select local landmarks or matching paired markers | Separate experiments with their own protocols and freshness rules |
 
@@ -29,9 +29,17 @@ All three root prefabs accept an Avatar bone/empty-object Transform, SPS, Sensa 
 
 New automatic setups use Exclusive, initially Off. Dedicated permits simultaneous measurements. Target selection, native SPS activation, desktop input activation and device connection are separate controls.
 
+## Follow a bone with a reference plane
+
+Tracking Frame and Shader measure relative movement between a target and reference on your own Avatar. For interaction between Avatars, configure [paired SensaPoseSocket/SensaPosePlug tracking](https://github.com/SeaLoong/Sensa/blob/main/docs/positioning.en.md#interaction-between-avatars-paired-three-marker-pose), using the receiving Socket as the shared reference.
+
+Use **GameObject → Sensa → Tracking Frame** or `SensaTrackingFrame.prefab`. Choose a bone, SPS root, Sensa component or native Contact in **Reference frame**, then adjust position and rotation offsets. The Scene shows the plane and its depth direction: +Z is forward, +X right and +Y up. Six axis buttons and move/rotate handles help place it.
+
+Choose SPS four-anchor or Contact direct tracking. A frame named `Frame` publishes `Frame_Origin`, `Frame_Forward` and `Frame_Right`; its default axis-marker spacing is 0.2 authored Avatar-root units. The measured frame follows the reference's position and rotation while retaining Avatar-root scale. In the desktop workbench, the Follow a moving plane template combines these readings with a target position to obtain signed depth and lateral offset. [Fields, generated components and setup](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
+
 ## How settings become a built Avatar
 
-All nine author scripts implement `IEditorOnly`. One NDMF plugin generates Contacts and temporary animation/parameter/menu inputs in Generating before Modular Avatar, which then merges them. Generation removes the author scripts while retaining their hosts, reference Transforms and native measurement components. Keep hosts as ordinary GameObjects; reserve the `EditorOnly` object tag for purely editorial helpers removed as an entire hierarchy.
+All author scripts implement `IEditorOnly`. One NDMF plugin generates Contacts and temporary animation/parameter/menu inputs in Generating before Modular Avatar, which then merges them. Generation removes the author scripts while retaining their hosts, reference Transforms and native measurement components. Keep hosts as ordinary GameObjects; reserve the `EditorOnly` object tag for purely editorial helpers removed as an entire hierarchy.
 
 An SDK checkpoint verifies that authors were processed. If NDMF build processing is disabled or another tool inserts Sensa authors later, the build lists remaining types so you can adjust setup and ordering. See the [Unity build guide](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md) for phases, official sources and basic-component behavior.
 

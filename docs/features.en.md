@@ -42,7 +42,7 @@ Ordinary OSC receive timeout defaults off for change-only parameters. A positive
 
 ## Signal interpretation and network tools
 
-**Computed signals** offer weighted averages, sums, differences, ratios, min/max and magnitude, plus smoothing, dead zones, hysteresis, delays, rates, peak hold, edges, pulses, cooldown, duration and sine/envelope generation. Several mappings and outputs can reference one saved result. [Examples and conditions](computed-signals.en.md)
+**Computed signals** offer weighted averages, sums, differences, ratios, min/max and magnitude. Spatial operations measure point distance, plane depth, offset within a plane, direction angles and angles to a plane. Define a plane using its normal or two axes; the following-plane template connects Unity markers that follow a bone. Add smoothing, dead zones, hysteresis, delays, rates, peak hold, edges, pulses, cooldown, duration and sine/envelope generation. Several mappings and outputs can reference one saved result. [Examples and conditions](computed-signals.en.md)
 
 **Axis mappings** provide calibration, inversion, curves, output ranges and motion roles. Five built-in templates cover OGB depth/vibration, Contact position/speed and PhysBone. Paths support exact matches, whole-segment `*`, cross-segment `**` and aliases. [Presets](presets.en.md)
 
@@ -73,6 +73,7 @@ Recording outputs save each binding's valid segments as separate funscripts for 
 | **SPS four-anchor tracking** | Three-dimensional root position relative to the Avatar; add components to your Avatar and check common coverage |
 | **Contact direct tracking (SDK Beta)** | Metre-based position and relative velocity; requires supported advanced SDK Proximity features |
 | **Shader capture** | Root position, Right/Forward axes and AvatarScale; requires a rendered PC block and desktop decoder |
+| **Following plane** | Tracking Frame Origin/Forward/Right follow a bone’s movement and rotation, for target depth and off-centre distance |
 | **Independent Point/Handle/Pose** | Reference-relative position or pose for measurement-model experiments |
 
 Shader capture uses QR tiles with Reed–Solomon correction to recover some wrong or missing data, followed by complete-packet and advancing-frame checks. Choose Tracking measurement (SensaPoint) in calculations, axis mappings or outputs to use coordinates, supported velocity or Shader axis/scale metrics. [Choose a route](usage-scenarios.en.md) · [Fields, units and calibration](positioning.en.md)

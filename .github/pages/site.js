@@ -36,6 +36,24 @@
     updateScreenshots();
   };
   if (home) {
+    const installerLinks = [...document.querySelectorAll('[data-installer]')];
+    if (installerLinks.length && typeof fetch === 'function' && typeof AbortController === 'function') {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 3000);
+      fetch('https://api.github.com/repos/SeaLoong/Sensa/releases?per_page=100', {
+        method: 'GET', credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer',
+        headers: { Accept: 'application/vnd.github+json' }, signal: controller.signal,
+      }).then(response => response.ok ? response.json() : [])
+        .then(releases => {
+          if (controller.signal.aborted) return;
+          const selected = SensaDownloads.selectInstallers(releases);
+          installerLinks.forEach(link => {
+            const installer = selected[link.dataset.installer];
+            if (installer) link.href = installer.url;
+          });
+        }).catch(() => { /* Releases remains usable when the public API is unavailable. */ })
+        .finally(() => clearTimeout(timeout));
+    }
     const galleryData = document.getElementById('screenshot-data');
     if (galleryData) {
       const scenes = JSON.parse(galleryData.textContent);

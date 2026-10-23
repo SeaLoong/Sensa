@@ -42,7 +42,7 @@ Alignment, sideways movement, tilt and authored dimensions affect proximity, so 
 
 ## Contact direct tracking (SDK Beta)
 
-Choose this when authoring an Avatar that needs root position and movement strength. Install **SDK 3.10.6-beta.2** or a version with the same advanced Proximity feature. Select this route in Automatic SPS Setup or add `SensaContactRootProbe`.
+Choose this when authoring an Avatar that needs root position and movement strength. Install **SDK 3.10.6-beta.3**; Beta.2 is also supported. Select this route in Automatic SPS Setup or add `SensaContactRootProbe`.
 
 1. Select an own SPS, Sensa or native Contact root and build the Avatar.
 2. Fix the object/source in the root panel and inspect valid position and velocity.

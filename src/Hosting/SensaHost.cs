@@ -8,6 +8,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Buttplug.Core.Messages;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Win32;
 using Sensa.Application;
 using Sensa.Configuration;
@@ -23,6 +24,20 @@ namespace Sensa.Hosting;
 
 public static class SensaHost
 {
+    internal static bool ShouldOpenBrowser(IConfiguration options, bool configuredDefault) =>
+        bool.TryParse(options["open-browser"], out var enabled) ? enabled : configuredDefault;
+
+    internal static void RegisterBrowserLaunch(IHostApplicationLifetime lifetime, bool enabled, string url,
+        Action<string> launch, Action<Exception> reportError)
+    {
+        if (!enabled) return;
+        lifetime.ApplicationStarted.Register(() =>
+        {
+            try { launch(url); }
+            catch (Exception error) { reportError(error); }
+        });
+    }
+
     // A selected source is part of the motion configuration. Reusing an existing
     // activation for another source would let its next sample move the device.
     // The caller holds this scope through source assignment and persistence.
@@ -50,6 +65,8 @@ public static class SensaHost
             ContentRootPath = AppContext.BaseDirectory,
             WebRootPath = "web",
         });
+        if (typeof(SensaHost).Assembly.GetManifestResourceInfo("Sensa.Web.index.html") is not null)
+            builder.Environment.WebRootFileProvider = new EmbeddedFileProvider(typeof(SensaHost).Assembly, "Sensa.Web");
         builder.WebHost.UseUrls(uiUrl);
         builder.Services.Configure<JsonOptions>(options =>
         {
@@ -1241,17 +1258,9 @@ public static class SensaHost
 
         Log($"[WebUI] Available at {uiUrl}");
 
-        if (config.WebUi.AutoOpenBrowser)
-        {
-            try
-            {
-                Process.Start(new ProcessStartInfo { FileName = uiUrl, UseShellExecute = true });
-            }
-            catch (Exception ex)
-            {
-                LogError($"[WebUI] Failed to open browser: {ex.Message}");
-            }
-        }
+        RegisterBrowserLaunch(app.Lifetime, ShouldOpenBrowser(builder.Configuration, config.WebUi.AutoOpenBrowser), uiUrl,
+            url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }),
+            error => LogError($"[WebUI] Failed to open browser: {error.Message}"));
 
         await app.RunAsync();
 

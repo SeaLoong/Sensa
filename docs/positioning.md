@@ -2,7 +2,7 @@
 
 **简体中文** | [English](positioning.en.md)
 
-Sensa 可以读取你在 Unity 中选定的**根点**相对 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
+Sensa 可以读取你在 Unity 中选定的**根点**相对自己 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
 
 先按下面的条件选择方案，再观察坐标，最后校准为设备动作。需要逐步设置时看[接入方案](usage-scenarios.md)；想先尝试模型，可打开[交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html)。
 
@@ -18,11 +18,11 @@ Sensa 可以读取你在 Unity 中选定的**根点**相对 Avatar 的三维位�
 
 ## Contact 直接定位：一个 Receiver 提供位置与速度
 
-SDK 3.10.6-beta.2 开放高级 Proximity 报告。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Beta 设置与安装包依据](contact-sdk.md)
+Sensa 已适配 SDK **3.10.6-beta.3** 的高级 Contact 报告，并兼容 Beta.2 的 Proximity 接口。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Beta 设置与安装包依据](contact-sdk.md)
 
 SDK 报告发送形状中点相对接收形状中点的位移，旋转到 Receiver 坐标轴并保留物理米单位；本布置的坐标框为 **AvatarRootMeters**。半径覆盖以 Avatar 原点为中心，Receiver 制作半径为 2 个局部单位，`Radius` 发布当前世界半径。Avatar 缩放同时改变物理位移和 Radius，门控会在达到 3 m Contact 半径上限前停止测量。
 
-`Proximity_SenderVelocityX/Y/Z` 和 `Proximity_SenderVelocityMagnitude` 报告近似接触点处的相对速度，单位 m/s，包含角运动项；`Proximity_ProximitySpeed` 表示每秒接近值变化。旋转时，中点坐标与接触点速度可能呈现不同变化。负坐标和静止时的零速度均有效。单点提供位置和速度，多点姿态留作后续扩展。
+`Proximity_SenderVelocityX/Y/Z` 和 `Proximity_SenderVelocityMagnitude` 报告近似接触点处的相对速度，单位 m/s，包含角运动项；`Proximity_ProximitySpeed` 表示每秒接近值变化。旋转时，中点坐标与接触点速度可能呈现不同变化。负坐标和静止时的零速度均有效。单点提供位置和速度；Tracking Frame 的三个标记进一步提供随骨骼运动的参考方向。
 
 每实例在 `Sensa/Contact/<id>/` 下发布十二字段，原生报告另配 Sensa 的 `Radius` 与变化的 `Sample`。Sample 目标每 50 ms 在 n/32（n=1…32）间循环，变化寿命最多 1000 ms，较短的正数输入超时优先。桌面要求同来源实例字段完整、Proximity 为正、类型为 1（自身 Avatar）、数值有限且半径／位置边界受支持。Contact 消失、Sample=0、活动冻结或数值非法时，相关动作停止。[字段字典](osc-parameters.md)
 
@@ -99,6 +99,45 @@ Right／Forward 保留根点 X/Z 轴的方向和长度，适合在“流程”�
 
 对象 ID 位于 `Sensa/Shader/<id>/` 路径中。内部 `Sensa/Diagnostics/Shader/0` 采用独立的五字段诊断格式，方便检查图案和传输。
 
+## 测量相对跟随平面的深度和偏移
+
+Tracking Frame 与 Shader 的跟随平面用于**自己 Avatar 内测量点与参考对象的相对运动**。当你希望动作以胸部、手部或某个 SPS 根点的当前朝向为参照时，在 Unity 添加 **Tracking Frame**。它有一个中心 Origin，并在 +Z 与 +X 方向放置 Forward、Right 标记；三点随所选参照移动和转动。中心与朝向可通过局部位置／旋转偏移调整，Scene 中的 XY 平面和 +Z 箭头显示测量方向。[创建步骤](unity-build.md#创建随骨骼移动的参考平面)
+
+桌面从三点的实际位置取得方向：Forward−Origin 是正深度方向，Right−Origin 是向右方向。选择另一个测量目标 P 后，可以分别获得：
+
+| 读数 | 含义 |
+| --- | --- |
+| 平面深度 | 目标沿正深度方向离开平面的距离为正，反方向为负 |
+| 平面内偏移 | 目标投影到平面后，离中心的距离，始终大于或等于零 |
+| 两点距离 | 目标到平面中心的直线距离 |
+| 方向夹角 | 目标的已测方向与平面方向之间的角度 |
+
+单个居中球的轮廓在骨骼旋转前后保持相同；偏心球的中心则会随旋转移动。Tracking Frame 通过分开的标记观察方向，Shader 则直接测量两条轴向。由球形接近值获得的单一距离，可继续用于接近程度联动。
+
+Tracking Frame 可选 SPS 四点定位或 Contact 直接定位，分别发布 `Sensa/SPS/<名称>_Origin/…` 或 `Sensa/Contact/<名称>_Origin/…`，另两点使用 `_Forward`、`_Right` 后缀。SPS 方案生成 15 个 Contact、15 个公开字段，采用 AvatarRootLocal；Contact 方案生成 6 个 Contact、36 个公开字段，采用 AvatarRootMeters。三点间距默认 0.2 个 Avatar 根制作单位，跟随 Avatar 缩放；测量框架通过约束跟随参照的平移和旋转。
+
+在“流程”使用“跟随移动平面”模板，选择目标 P 和对应 Origin，检查模板生成的差值、深度与偏移，再保存和连接输出。目标位置与平面标记使用同一种坐标框，参与当前计算的测量点需在可测范围内，每个点保留自己的 Sample 有效期。计算采用参与输入中最旧的时间；快速运动时可通过客户端实测确认多点更新带来的方向误差。独立 Point／Pose 采用各自的 ReferenceLocal，适合直接在所选局部参照下测量。[空间计算与单位](computed-signals.md#组合根点坐标)
+
+## 跨 Avatar 互动：配对三点姿态
+
+测量双方 Avatar 的互动时，使用 **SensaPoseSocket + SensaPosePlug**，让接收方的 Socket 局部坐标系成为共同参照。Socket 随身体移动或转动时，所测的深度、偏移和角度也随这个参照解释。对方的 Root／Tip／Side 三个标记提供实际几何；已有 OGB／SPS 接近参数可继续用于深浅和触碰联动。
+
+1. 双方在各自 Unity 工程通过 **Assets → Create → Sensa → Pose Pair Profile** 创建配对设置，填写相同 `channel`，例如 `Pair01`。接收方启用 `receiveOthers`；一个通道每次对应一个进入测量区域的 Plug。
+2. 接收方在要跟随的骨骼下通过 **GameObject → Sensa → Spatial Pose Socket** 创建对象，指定 Profile 和唯一实例名。把对象原点放在入口，**+Z 指向进入方向**，XY 为入口平面；对象与父级保持受支持的均匀缩放。
+3. 发送方通过 **GameObject → Sensa → Spatial Pose Plug** 创建组件，指定同通道 Profile。把自己 Avatar 内的 Root、Tip、Side 标记分别拖入 `rootMarker`、`tipMarker`、`sideMarker`：Root 与 Tip 确定主轴，Side 放在轴线侧面以确定扭转。
+4. 双方构建并在 VRChat 使用各自 Avatar 后，接收方开启 VRChat OSC，在 Sensa 固定来源，查看 **三点姿态（实验）**。完整实例路径例如 `Sensa/Pose/v1/Main/Others/**`；Root、Tip、Side 各有 A0～A7，共 24 路。观察进入方向、横向偏移和扭转是否符合动作。
+5. 选择“生成深度草稿”或“生成六轴草稿”，检查将替换的映射草稿并保存；也可在计算或输出中选择 **三点姿态指标（SensaPose）**，填写同一实例路径。校准后允许实验空间输入，再启用当前输入。
+
+| 可用指标 | 数值含义 |
+| --- | --- |
+| `Depth` | 0～1 的进入比例，适合归一化深度联动 |
+| `OffsetX`／`OffsetY` | 主轴与入口平面交点的横向偏移，使用 Socket 局部单位 |
+| `Yaw`／`Pitch`／`Roll` | 相对 Socket 的偏航、俯仰和扭转，单位度 |
+
+当 24 路测量完整且保持时效、三个标记能还原有效几何，并满足进入条件时，这六个指标可用于动作。进入条件包括：主轴与入口平面有唯一交点、相对 +Z 倾角不超过 65°、交点距中心不超过 0.04 个 Socket 局部单位，并且 Tip 位于平面的 +Z 一侧。Root–Tip 间距支持 0.02～0.5 个局部单位，Side 离轴至少 0.005 个局部单位；局部累计缩放为 1 时，这些长度数值等于米。
+
+Pose 使用全部 24 路中最旧的采样时间检查时效。`Depth` 保留进入比例的含义；前文 `PlaneDepth` 保留位置长度单位，可按各自量程选择计算和输出。[配对生成能力](../unity/top.sealoong.sensa/AUTOMATION.md#目标与范围) · [标记布局](lab-interaction.md#pointpose-布局与-sps-四点定位)
+
 ## 网页中“模拟收到有效样本”是什么？
 
 勾选时，图解按有效样本显示读数；取消时，显示发送端报告样本失效后的状态。可以用它观察数据中断对测量结果的影响。实际联动在工作台中通过选择输入、保存映射和启用输入完成。
@@ -118,4 +157,4 @@ Right／Forward 保留根点 X/Z 轴的方向和长度，适合在“流程”�
 
 在“流程”中添加计算信号，输入类型选择“定位测量”（SensaPoint），填写目标实例的路径并选择指标，即可把解算结果用于加权平均、差值或向量长度等计算。SPS 四点定位先将四路距离解算为坐标，计算输入使用这个有效坐标；多个目标分别选择各自的完整实例路径。
 
-例如，A、B 两个根点共用 Avatar 根坐标框时，分别计算 X、Y、Z 差，再取三个差值的向量长度，即可得到两点间距。SPS 四点定位与 Shader 的 AvatarRootLocal 距离按制作尺度解释，Contact 的 AvatarRootMeters 距离按米解释。使用相同参考对象、坐标轴方向和单位，再将最终结果校准到动作范围。定位有效性与 Sample／Frame 时效会传到计算结果；活动计算失效时停止动作。[计算信号示例](computed-signals.md)
+例如，A、B 两个根点共用 Avatar 根坐标框时，选择“两点距离”，分别指定 A 和 B 的 XYZ，就能直接得到间距。使用平面深度或平面内偏移时，再选择参考点与法线，或定义平面的两条轴。SPS 四点定位与 Shader 的 AvatarRootLocal 距离按制作尺度解释，Contact 的 AvatarRootMeters 距离按米解释。使用相同参考对象、坐标轴方向和单位，再将最终结果校准到动作范围。定位有效性与 Sample／Frame 时效会传到计算结果；活动计算失效时停止动作。[计算信号示例](computed-signals.md)
