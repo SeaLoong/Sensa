@@ -251,7 +251,10 @@ public sealed class SignalOutputRoutingContracts
         eventValue = 1; Publish(); Assert.Equal("/event", (await Receive(listener)).Address);
         clock.Advance(TimeSpan.FromMilliseconds(100)); eventValue = 0; Publish(); eventValue = .8f; Publish();
         clock.Advance(TimeSpan.FromMilliseconds(100)); valid = false; siblingValue = .7f; Publish();
-        var delivery = Task.WhenAll(Receive(listener), Receive(listener));
+        // UdpClient reuses its receive buffer; decode each packet before receiving the next.
+        async Task<(string Address, double Value, IPEndPoint Sender)[]> ReceiveBoth() =>
+            [await Receive(listener), await Receive(listener)];
+        var delivery = ReceiveBoth();
         try
         {
             var rows = (await delivery.WaitAsync(TimeSpan.FromSeconds(1))).ToDictionary(row => row.Address, row => row.Value);

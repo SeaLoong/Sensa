@@ -25,6 +25,7 @@ API 类型检查包含部分生成器边界替身。Tracking Frame 新增 17 项
 
 | 固定源码 | 运行 | 实际结果 |
 | --- | --- | --- |
+| `71f63460` | [Pages 40032441894](https://github.com/SeaLoong/Sensa/actions/runs/40032441894/attempts/1) | **14/14 通过并部署**；38 张文档原图的公开内容与清单摘要一致 |
 | `b23451a7` | [Pages 40028882502](https://github.com/SeaLoong/Sensa/actions/runs/40028882502/attempts/1) | **14/14 通过并部署**，其余结果为 0 |
 | `b23451a7` | [更新基线前的 CI 40028882526](https://github.com/SeaLoong/Sensa/actions/runs/40028882526/attempts/1) | **1 通过、3 失败、112 未执行**；两项旧计算编辑器布局差异，一项新增空间计算图片缺少基线；构建与发布跳过 |
 | `b23451a7` | [完整候选 40028896056](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1) | **116/116 通过**，其余结果为 0；164 张应用图片与 8 张站点原图已导出到 [PR #25](https://github.com/SeaLoong/Sensa/pull/25) |
@@ -38,6 +39,8 @@ Pages 为 `suite=site`、`mode=comparison`、`runner=passed`、`selectionComplet
 [图片审阅与来源](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [运行界面](screenshots.md)
 
 ## 本轮遇到的问题与修复
+
+源码 `71f6346` 的[候选 40032454295](https://github.com/SeaLoong/Sensa/actions/runs/40032454295) 在后端单元阶段为 **757 通过、1 失败**，浏览器阶段跳过。测试在同一 `UdpClient` 上并发接收两个包，导致共享缓冲区竞争；已改为顺序接收并保留一秒时限、地址无序断言和虚拟时钟清理。修正后完整后端 **758/758 通过**，该用例同一构建重复 **10/10 通过**。
 
 - 源码 `0c1ad2c` 的 [CI 40025345270](https://github.com/SeaLoong/Sensa/actions/runs/40025345270) 与[候选 40025349090](https://github.com/SeaLoong/Sensa/actions/runs/40025349090) 通过 Web 检查，随后因 SDK 自动选择 10.0.402 而在锁定还原报 `NU1004`；后端测试和浏览器未执行。SDK 已固定为 10.0.401，后续单元检查成功。
 - 同源码的 [Pages 40025344984](https://github.com/SeaLoong/Sensa/actions/runs/40025344984) 为 **12 通过、2 失败**。安装器测试再次导航到同一页面时未重载，改为显式重载后，[Pages 40026115999](https://github.com/SeaLoong/Sensa/actions/runs/40026115999) **14/14 通过并部署**；八张原图已逐张审阅。该源码的 [CI 40026116151](https://github.com/SeaLoong/Sensa/actions/runs/40026116151) 仍遇旧基线差异：**1 通过、3 失败、112 未执行**。

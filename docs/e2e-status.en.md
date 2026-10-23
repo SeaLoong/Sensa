@@ -25,6 +25,7 @@ API type checks use some generator-boundary substitutes. Tracking Frame adds 17 
 
 | Pinned source | Run | Observed result |
 | --- | --- | --- |
+| `71f63460` | [Pages 40032441894](https://github.com/SeaLoong/Sensa/actions/runs/40032441894/attempts/1) | **14/14 passed and deployed**; all 38 public documentation originals match their catalog digests |
 | `b23451a7` | [Pages 40028882502](https://github.com/SeaLoong/Sensa/actions/runs/40028882502/attempts/1) | **14/14 passed and deployed**, all other outcomes zero |
 | `b23451a7` | [CI before baseline update 40028882526](https://github.com/SeaLoong/Sensa/actions/runs/40028882526/attempts/1) | **1 passed, 3 failed, 112 not run**; two previous editor images differ and a new spatial image has no baseline. Build/publication skipped |
 | `b23451a7` | [Full candidate 40028896056](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1) | **116/116 passed**, all other outcomes zero; 164 application images and eight site originals exported to [PR #25](https://github.com/SeaLoong/Sensa/pull/25) |
@@ -38,6 +39,8 @@ The candidate pins `b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640`, with raw image co
 [Image review and provenance](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [Application screenshots](screenshots.en.md)
 
 ## Issues found and resolved
+
+[Candidate 40032454295](https://github.com/SeaLoong/Sensa/actions/runs/40032454295), on `71f6346`, recorded **757 passed and one failed** in backend units; browsers were skipped. A test started two concurrent receives on one `UdpClient`, racing its shared buffer. It now receives sequentially while retaining the one-second deadline, address-independent assertions and virtual-clock cleanup. The corrected full backend suite passed **758/758**, and the case passed **10/10** repeated runs of the same build.
 
 - Source `0c1ad2c` passed Web checks in [CI 40025345270](https://github.com/SeaLoong/Sensa/actions/runs/40025345270) and [candidate 40025349090](https://github.com/SeaLoong/Sensa/actions/runs/40025349090), then locked restore failed with `NU1004` after automatically choosing SDK 10.0.402. Backend tests and browsers did not run. SDK 10.0.401 is now pinned, and subsequent unit checks passed.
 - [Pages 40025344984](https://github.com/SeaLoong/Sensa/actions/runs/40025344984), on that source, recorded **12 passed and 2 failed**: repeat navigation to the same installer page did not reload. Explicit reload fixed it; [Pages 40026115999](https://github.com/SeaLoong/Sensa/actions/runs/40026115999) passed **14/14 and deployed**, with eight originals individually reviewed. Its [CI 40026116151](https://github.com/SeaLoong/Sensa/actions/runs/40026116151) still encountered previous baseline differences: **1 passed, 3 failed, 112 not run**.
