@@ -58,9 +58,13 @@ No new blocking or major [V1–V6](../../../docs/ui-quality.en.md) issue was fou
 
 ## Full normal comparison / 完整普通比较
 
-Individual image review and filtering are complete. A complete **104-case normal comparison with image updates disabled** is still required on the reviewed source/tree. Candidate success is recorded separately. **These baselines remain pending acceptance.**
+[Normal run 39974409441, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39974409441/attempts/2) passed **104/104 cases**, every other outcome zero, with image updates disabled, `runner=passed`, command succeeded, `selectionComplete=true` and `snapshotsCompared=true`. Pinned source `767344ec3cb29914c85b79b9351aeab8665838ec` has exactly the same Git tree (`b1bbe40e37ad11aab35bb48ae18f838401ae9fd0`) as reviewed PR head `2432709a2d5b95789ed0bc2417e4eee75a26911e`. **The baselines are accepted after individual image inspection and this full normal comparison.**
 
-图片逐张审阅与筛选已完成；接下来须对已审源码／Git 树执行关闭图片更新的完整 **104 项普通比较**。候选成功单独记录，**本轮基线仍待接受**。
+上述第 2 次尝试 **104/104 通过**，其余结果均为 0；关闭图片更新，浏览器及命令均成功，`selectionComplete=true`、`snapshotsCompared=true`。固定源码的 Git 树与已审 PR 提交完全一致，**本轮基线经逐张审阅及完整普通比较后接受**。
+
+Attempt 1 pinned the same source but dependency installation exited 100 on both bounded attempts. Browsers did not run: total/executed and all outcome counters were zero, `runner=not-run`, command skipped, `selectionComplete=false`, `snapshotsCompared=false`. Attempt 2 reran failed jobs on that unchanged source and completed the comparison above.
+
+第 1 次尝试固定同一源码，两次有界依赖安装均以 100 退出；浏览器未执行，总计／执行数及全部结果计数均为 0，`runner=not-run`、命令跳过，两个比较标记均为 false。第 2 次尝试仅重跑失败任务，在相同源码上完成上述比较。
 
 - Environment / 环境: `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844, plus automated 320 CSS px reflow checks.
 - Execution / 执行: browser cases and image generation run in Actions; review reads actual exported PNGs. / 浏览器和图片生成在 Actions 执行，审阅读取实际导出的 PNG。
