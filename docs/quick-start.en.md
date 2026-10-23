@@ -6,7 +6,7 @@ Start with a manual slider recorded as funscript to learn saving, activation and
 
 ## 1. Start
 
-Choose a format from [Releases](https://github.com/SeaLoong/Sensa/releases). The installer is recommended on Windows. Every build includes the required .NET runtime.
+Choose a Windows installer on the [download page](https://sealoong.github.io/Sensa/#downloads). [Releases](https://github.com/SeaLoong/Sensa/releases) also offers portable archives, single-file builds and other platforms. Every build includes the required .NET runtime.
 
 | System and format | Example filename | Start |
 | --- | --- | --- |
@@ -24,9 +24,9 @@ The installer defaults to `%LOCALAPPDATA%\Programs\Sensa`; upgrades and uninstal
 
 The interface chooses a language automatically, with a manual switch available. [Language preferences](languages.en.md)
 
-![Sensa running in a browser](screenshots/desktop/control-page.png)
+![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
-[Narrow layout](screenshots/mobile/control-page.png) · [More running examples](screenshots.en.md)
+English interface · [Narrow layout](screenshots/mobile/english-manual.png) · [More running examples](screenshots.en.md)
 
 ## 2. Add an output
 

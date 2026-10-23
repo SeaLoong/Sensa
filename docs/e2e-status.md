@@ -1,243 +1,51 @@
-# 浏览器验证记录
+# 验证记录
 
 **简体中文** | [English](e2e-status.en.md)
 
-此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
+本页记录当前改动的实际检查结果。完整历史保存在[固定版本记录](https://github.com/SeaLoong/Sensa/blob/b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640/docs/e2e-status.md)；工作流操作见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
-## 跟随参考平面、空间计算与 Windows 安装格式
+## 本轮范围
 
-2026-10-24（北京时间），新增 Unity Tracking Frame，使用 SPS 四点或 Contact 生成 Origin／Forward／Right 三个跟随测量点；Shader 增加作者偏移与同一来源的多编码块读取。WebUI 提供七种空间运算、XYZ 分组和跟随平面草稿。文档区分自身 Avatar 根点计算与双方配对的三点姿态，并同步安装器优先的下载说明。
+2026-10-24（北京时间），本轮完善了自身 Avatar 的跟随参考平面、七种空间计算、Unity Tracking Frame、Shader 偏移与多编码块读取，以及 Windows 安装器和单文件发布。文档与参数图解同步说明 SPS 默认尺寸、坐标单位、当前 SDK Beta 和双方 Avatar 的配对姿态。WebUI、文档站与实际运行图片一并更新。
 
-统一隔离检查通过 **758 项 .NET、217 项 Web、299 项 Python**，以及 Unity 包元数据、**92 条文档路由**。Windows x64 自包含单文件静态发布成功，输出目录只有 `Sensa.exe`；已检查文件与内嵌资源，尚未执行该 EXE。新工作流会在 Windows x64／ARM64 分别检查单文件启动、安装后的程序、重装与卸载。浏览器新增空间计算、跟随模板和响应式文档图片用例，候选图片与普通比较结果待 Actions 运行后补充。
+## 隔离检查
 
-57 个 Unity C# 文件的语法检查，以及引用实际 Unity／SDK 程序集的隔离 API 类型检查通过；新 Tracking Frame 的 17 项参数化 EditMode 契约已编写。API 检查使用部分生成器边界替身，实际 Unity Editor 编译、NDMF 构建、EditMode 和 GPU 行为继续等待有效许可证与对应运行环境。
+| 范围 | 实际结果 |
+| --- | --- |
+| .NET 单元 | **758 项通过**，涵盖空间计算、来源与时效、路由、启动行为 |
+| Web 单元 | **217 项通过**，包含空间预设与安装器下载选择 |
+| Python／脚本 | **306 项通过**，包含 QR 恢复、发布与依赖安装 |
+| 文档站 | **92 条路由**构建通过；逐页链接和截图来源由构建检查 |
+| Unity 静态检查 | 包元数据、57 份 C# 语法，以及引用实际 Unity／SDK 程序集的隔离 API 类型检查通过 |
+| Windows 单文件静态发布 | x64 发布目录仅有 `Sensa.exe`，已核对内嵌资源；运行与安装结果见后续原生 CI |
 
-源码 `0c1ad2c2378a8868df749cb9ddb889563e61d29c` 的 [CI 40025345270](https://github.com/SeaLoong/Sensa/actions/runs/40025345270) 与 [候选 40025349090](https://github.com/SeaLoong/Sensa/actions/runs/40025349090) 均通过 217 项 Web 检查，后端锁定还原因自动选择 SDK 10.0.402 而报 `NU1004`，后端测试与浏览器均未执行，构建和发布跳过。随后固定 SDK 10.0.401，并保留依赖锁定检查。
+API 类型检查包含部分生成器边界替身。Tracking Frame 新增 17 项参数化 EditMode 契约，等待 Editor 内执行。
 
-## 帮助页样式与 SDK Beta.3 适配
+## 浏览器与站点
 
-源码 `3c607935d4f24e17554bcdc6536c381b61037276` 的 [Pages 40019120886](https://github.com/SeaLoong/Sensa/actions/runs/40019120886) **10/10 通过并自动部署**；其他结果计数为 0，`suite=site`、`mode=comparison`、`selectionComplete=false`、`snapshotsCompared=true`。已核对产物摘要与公开站点清单，并逐张查看八张首页／帮助页原图。桌面与窄屏的文档布局、样式加载及过期资源恢复均通过对应检查；本轮未复现用户反馈的样式缺失。后续补充窄屏文档自动选择对应截图及宽窄切换断言。
-
-修正两个默认 Socket 长度断言后，源码 `bf98805544a0f5136846a0dbd989cdc698f6f56d` 的 [CI 40019356983](https://github.com/SeaLoong/Sensa/actions/runs/40019356983) 单元通过，普通浏览器比较得到 **3 通过、3 失败、100 未执行**，失败为旧布局图片差异，构建与发布跳过。同源码的 [Pages 40019356676](https://github.com/SeaLoong/Sensa/actions/runs/40019356676) 在两次 130 秒依赖安装后结束，浏览器 **0 项**，部署跳过。候选 `40019168941` 与 `40019553005` 随后主动取消，分别改用修正后的断言与 SDK Beta.3 适配源码继续验证。
-
-SDK Beta.3 已将高级报告开关改为 `advancedParameters`，Unity 生成器现检查该字段，同时识别 Beta.2 的 `advancedProximityParameters`。已核对安装包元数据和隔离反射逻辑；Unity 工程编译仍受下述 Editor 许可状态限制。跟随平面、空间计算及 Windows 安装格式的验证随各自固定提交继续记录。
-
-## 实际运行图片、语言与 Unity 环境
-
-2026-10-24（北京时间），源码 `013c5d8c922c9fc6d0ba6f07117babafb043ac41` 通过[候选 40015184919，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40015184919/attempts/1)：**104/104**，其他结果计数均为0；`suite=all`、`mode=candidate`、`runner=passed`、`selectionComplete=true`、`snapshotsCompared=false`。156张应用图片和8张站点审阅原图已导出至 [PR #24](https://github.com/SeaLoong/Sensa/pull/24)，原始提交 `53726f4b3dbc9b8eda3a200b6ce7f3bc137f99a7`。全部原图已审阅；只有SHA-256相同的图片复用此前逐张观察。该候选早于下述语言和图解改动，更新后仍需完整普通比较。
-
-同一源码的 [Pages 40014294225](https://github.com/SeaLoong/Sensa/actions/runs/40014294225) **8/8通过并部署**，其余结果均为0；`suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`。普通 [CI 40014294417](https://github.com/SeaLoong/Sensa/actions/runs/40014294417) 因旧布局图片差异停在 **3通过、3失败、98未执行**，构建与发布跳过。
-
-该次更新发布28张已审阅原图及来源／摘要清单，首页可切换场景和视口；语言按浏览器与 `sessionStorage` 选择，链接移除语言查询；SPS1默认触碰区按VRCFury视点高度规则计算。帮助页采用带内容指纹的CSS／JS，并在资源过期时单次回退。对应浏览器套件为 **106项**，其中站点 **10项**；随后运行结果见上节。
-
-Unity Editor **2022.3.22f1** 的版本命令已实际成功；Windows Mono模块与独立Avatar／World工程已安装。Avatar使用SDK **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World使用SDK **3.10.5**。已核对包摘要、175个Avatar／51个World Sensa文件，以及重复离线安装。实际Avatar批处理导入已连接许可服务，随后以“No valid Unity Editor license found”退出。因此工程编译、Shader导入、EditMode与GPU／客户端效果仍待执行。
-
-## 标准 QR 编码与页面重构
-
-2026-10-24（北京时间），原生 Shader 图块改用 QR Code Model 2 Version 4/H：三个角标、定位线、校准图案和八种掩码择优，四组 RS(25,9) 纠错替换测量副本。保留原 32 字节测量与 CRC32；33×33 主体外每侧有 4 格标准静区和 4 格位移缓冲，总计 49×49。读屏在选定区域寻找角标、采样并纠错，再核对测量与帧时效。每组满足 `2e+s≤16` 时可恢复错误／擦除字节，定位图案仍需可辨认；重复帧保持原时效截止点。
-
-WebUI 改为工作区侧栏与分组设置；参数图解改为参数导航、观察工作区和可展开的计算依据；文档站重写首页，提供按任务分组与可筛选的帮助目录。三处保留 TDesign 配色，并同步双语操作文案。浏览器用例补充布局、键盘、目录筛选、QR 黄金矩阵、码字分组和图块 DOM 复用检查。
-
-隔离检查通过 **721 项 .NET、183 项 Web、265 项 Python**，以及 Unity 包元数据、**88 条站点路由、4 项站点单元**。固定 QR 向量使用 qrcode 8.2 和 zxing-cpp 2.3.0 核对八种掩码；独立复核覆盖 160 组标准矩阵、972 组错误／擦除组合、200 组 Shader 算法和 72 个旋转角度。官方 DXC 的三个 SM6 入口静态编译及 47 份 C# 语法检查通过。Unity Editor、实际 GPU、VRChat/HMD 与硬件验收仍待对应环境。
-
-本轮完整浏览器、站点检查与候选图片由 Actions 执行。新的截图基线在逐张审阅和关闭图片更新的完整比较完成后接受。
-
-首次源码 `57a82174c66f79e613589c0f30c2989758ddf3b5` 的 [CI 40010541628](https://github.com/SeaLoong/Sensa/actions/runs/40010541628) 单元检查通过，普通浏览器比较得到 **3 通过、3 失败、98 未执行**，其余结果计数为 0。失败均为新版布局与原有图片不同；`suite=all`、`mode=comparison`、`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true`，构建与发布跳过。相同源码的 [Pages 40010541597](https://github.com/SeaLoong/Sensa/actions/runs/40010541597) 两次运行均在 Chromium 系统依赖安装阶段超时，每轮两次 130 秒尝试均以 124 退出；浏览器总计与全部结果为 **0**，`suite=site`、`mode=comparison`、`runner=not-run`、命令跳过，完整选择与图片比较标记为 false，部署跳过。站点流程随后调整为原生构建、固定浏览器容器检查、部署同一产物。
-
-同一源码的 [候选 40010549501](https://github.com/SeaLoong/Sensa/actions/runs/40010549501) 完整执行 **104 项：103 通过、1 失败**，其余结果计数为 0；`suite=all`、`mode=candidate`、`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=false`。失败为窄屏 OSCQuery／转发用例的截图区域高于可见滚动区，后续将截图按设置组拆分，保留原业务断言和可见区域检查。候选导出与 PR 创建跳过，图片尚未接受。
-
-下方保留上一轮已核对的历史运行。
-
-## 仓库审查与软件首页
-
-2026-10-24（北京时间），修复了输入设置更新与并发启用之间的竞态，覆盖配置、脚本、回放、模式和来源切换；同时修复 TCode 重复定频命令被丢弃、串口异常回复无总读取界限、OSCQuery 超大数字及来源信息放大、异常方案预览导致页面崩溃等问题。Unity 补充参数冲突、名称边界、根点姿态和最终世界缩放校验。发布脚本加强归档路径检查、公开前 tag 核对和失败重试恢复。
-
-双语 README 和主要指南按使用任务重写，Pages 首页提供下载、三步上手、输入—计算—输出说明和完整帮助入口。浏览器用例补充异常方案导入后的恢复，以及首页链接、语言、导航与四张原图附件。
-
-本轮隔离检查通过 **721 项 .NET、181 项 Web、263 项 Python**，文档站 **88 条路由**及 **4 项站点单元**通过；npm 与 NuGet（含传递依赖）扫描未报告已知漏洞。Node 隔离参数目录基准在 10000 条参数、120 条映射下，7 次数值更新处理中位约 **2.7 ms**；该测量覆盖目录排序与缓存，浏览器渲染另由 Actions 检查。下方按固定源码记录浏览器、原生包和部署结果。Unity Editor、GPU、VRChat／HMD 与实际硬件验证仍需各自环境。
-
-`999bac3fa56f51208cbb9f83fd227ec7c1e1886d` 的 [Pages 40001556686](https://github.com/SeaLoong/Sensa/actions/runs/40001556686) 完成 **8 项：6 通过、2 失败**，其余计数均为 0；`suite=site`、`mode=comparison`、`runner=failed`、命令失败，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。两项均为英文首页的点击目标尺寸检查：按钮的基础 display 声明缺失，导致其仍为 16 px 高的行内链接。后续修复补齐首页 Grid／Flex、按钮布局与实际尺寸／命中断言，继续保留原可访问性检查。
-
-`6a42ffb63ddf131f62b0bdedac6f1eb5c0008535` 的 [Pages 40002557127](https://github.com/SeaLoong/Sensa/actions/runs/40002557127) 通过新增布局与点击检查，随后因录制区编号文字对比度 **4.38:1** 低于 4.5:1，再次得到 **6 通过、2 失败**；模式、比较标记及其他零计数同上，部署跳过。后续将编号文字加深，在该背景上的计算对比度提高至 **5.84:1**。
-
-修正后的源码 `f51e249cff57173bb2ae1bab2de7402f02d78794` 通过 [Pages 40002923454](https://github.com/SeaLoong/Sensa/actions/runs/40002923454)：**8/8 通过并部署成功**，其余结果计数均为 0；`suite=site`、`mode=comparison`、`runner=passed`、命令成功，`selectionComplete=false`、`snapshotsCompared=true`。检查覆盖中英文、桌面与窄屏的布局、44 px 点击区域、链接命中和可访问性。四张首页原图作为附件生成；本轮未逐张打开这些附件，站点通过记录依据浏览器断言与运行汇总。
-
-同一源码的 [CI 40002923445](https://github.com/SeaLoong/Sensa/actions/runs/40002923445) 完整普通比较 **104/104 通过**，其余结果计数均为 0；`suite=all`、`mode=comparison`、`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=true`，图片更新关闭。修复首页期间的 CI `40001556635` 与 `40002557054` 已主动取消，最终验收采用上述修正源码的完整运行。
-
-该 CI 的六平台构建、隔离冒烟、Windows Shader 桥模拟检查与 Unity 打包均成功，并发布 [preview-159-1-f51e249c](https://github.com/SeaLoong/Sensa/releases/tag/preview-159-1-f51e249c)。已核对公开 Release 的八个附件、tag 指向和仅含 Source 的说明；下载的 `SHA256SUMS.txt` 与七个归档的 GitHub SHA-256 摘要一致，校验文件自身摘要也一致。发布后保留十个已公开预发布。Unity 打包检查覆盖产物结构；本轮新增的 19 项 EditMode 用例仍待 Unity Editor 执行。
-
-## Shader 输入、文档入口与预览说明
-
-2026-10-24（北京时间），本轮增加 Shader 三点采样、32 字节／CRC32 黑白编码、白色位移留白、三副本缺失恢复，以及轴向和 AvatarScale 定位测量，并修复 Unity 根缩放检查。首页与指南补齐信号流程、多输出、funscript 录制回放入口；工作流与徽章使用短英文名称，预发布说明仅保留 Source。
-
-隔离检查 **694 项 .NET、178 项 Web、247 项 Python、3 项站点单元**通过；Web 构建、Unity 包元数据及 **88 条文档路由**构建通过。Unity Editor 在当前环境不可用，新增 EditMode 和显式 GPU 像素契约尚待执行；实际 VRChat、HMD 与硬件也待对应环境验收。
-
-| 源码 | 范围与运行 | 实际结果 |
+| 固定源码 | 运行 | 实际结果 |
 | --- | --- | --- |
-| `be2a8d2` | [Pages 39988646831](https://github.com/SeaLoong/Sensa/actions/runs/39988646831) | **7 通过、1 失败**；新增断言未展开窄屏导航，部署跳过 |
-| `2f89d83` | [Pages 39989290902](https://github.com/SeaLoong/Sensa/actions/runs/39989290902) | 修正为展开、验证、关闭后，**8/8 通过并部署成功** |
-| `2f89d83` | [普通比较 39989291079](https://github.com/SeaLoong/Sensa/actions/runs/39989291079) | **43 通过、3 失败、58 未执行**；Shader 展示与旧图片不同，构建和预发布跳过 |
-| `2f89d83` | [候选 39989321998](https://github.com/SeaLoong/Sensa/actions/runs/39989321998) | **104/104 通过**；导出至 PR #22，审阅后因图解布局问题关闭 |
-| `d1c9d93` | [Pages 39993018592](https://github.com/SeaLoong/Sensa/actions/runs/39993018592) | **8/8 通过并部署成功** |
-| `d1c9d93` | [普通比较 39993018660](https://github.com/SeaLoong/Sensa/actions/runs/39993018660) | **43 通过、3 失败、58 未执行**；仍为旧 Shader 图片差异，构建和预发布跳过 |
-| `d1c9d93` | [候选 39993059099](https://github.com/SeaLoong/Sensa/actions/runs/39993059099) | **104/104 通过**；布局返工后导出至 PR #23 |
-| PR 头 `4de1614` | [普通 CI 39996054415，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) | 单元成功；依赖安装两次 130 秒尝试均以 **124** 退出；浏览器未执行，全部结果计数为 **0**；构建与发布跳过 |
-| PR 头 `4de1614` | [普通 CI 39996054415，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/2) | **104/104 通过**，其他结果计数均为 0；关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true` |
+| `b23451a7` | [Pages 40028882502](https://github.com/SeaLoong/Sensa/actions/runs/40028882502/attempts/1) | **14/14 通过并部署**，其余结果为 0 |
+| `b23451a7` | [更新基线前的 CI 40028882526](https://github.com/SeaLoong/Sensa/actions/runs/40028882526/attempts/1) | **1 通过、3 失败、112 未执行**；两项旧计算编辑器布局差异，一项新增空间计算图片缺少基线；构建与发布跳过 |
+| `b23451a7` | [完整候选 40028896056](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1) | **116/116 通过**，其余结果为 0；164 张应用图片与 8 张站点原图已导出到 [PR #25](https://github.com/SeaLoong/Sensa/pull/25) |
 
-已取得浏览器汇总的站点运行均为普通比较，`selectionComplete=false`、`snapshotsCompared=true`；已取得汇总的应用运行均为完整选择，`selectionComplete=true`，普通比较的 `snapshotsCompared=true`，候选为 `false`。这些汇总中除表内列出的结果外，其余计数均为 0。源码分别固定 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`、`2f89d83d1023e897f7240bb45c4075cc012ecb1e`、`d1c9d9354be330c7aed0a860d84d973d444e57fb`。
+Pages 为 `suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`，命令成功。八张站点原图均已审阅；仅 SHA-256 相同的图片复用此前逐张观察。公开首页、中英文首次使用、深层 Unity 文档及 CSS／JS 已与该构建清单核对，六项资源均返回 200 且摘要一致。测试覆盖实际样式、响应式图片、语言切换、失效资源回退与安装器链接发现。
 
-[PR #22](https://github.com/SeaLoong/Sensa/pull/22) 原始图片提交 `08a176db1fdd9788b85ad77ba93daa5d62f0a173` 的 16 张变化图片均已逐张原图审阅。桌面图解右列造成大块空白，控件距离图示过远，因此该批图解未接受。布局已调整为图示与读数、控件、编码细节三个连续分区，并增加间距、切换恢复与焦点断言。根点面板两张图仅在字节一致时复用审阅；六张无关动态或边缘变化保留旧图。
+更新基线前的应用比较为 `suite=all`、`mode=comparison`、`runner=failed`、`selectionComplete=true`、`snapshotsCompared=true`；除表中结果外其余计数为 0。完整套件现为 **116 项**，包含双语桌面／窄屏、空间计算、跟随平面、共享会话与站点用例。候选图片在逐张审阅后导入，并以关闭图片更新的完整普通比较确认。
 
-本轮更新基线前的普通比较中，三项失败为桌面根点面板 4718 像素、中文图解 214202 像素、中文环绕图解 210669 像素，图解高度分别为 3660 与 3731。新候选的原始图片提交 `53612964de4d0a86e7b1404205ad07bddc3917d8` 已导出至 [PR #23](https://github.com/SeaLoong/Sensa/pull/23)。全部 17 张变化图片均已完成审阅：11 张新字节图片逐张以原图打开，6 张与此前已审图片字节相同。选择 10 张有意的 Shader 变化，7 张无关动态或边缘变化保留旧图；最终仍为 **150 张 PNG**，其中 **140 张保留原字节**。[逐张视觉记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
+候选固定源码 `b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640`，原始图片提交 `d59f94453d38e93a113ef10fcedecd30d51492ac`；`runner=passed`、命令成功、完整选择为 true、图片比较为 false。172 张图片均已审阅：109 张复用相同 SHA-256 的既有观察，63 张新字节原图逐张打开。SPS 四点与 Contact 的 12 张图解需补清首句半径单位／图示缩放条件，正在修正后重采；布局与 QR 图样未发现阻断。文档已发布其中 **38 张审阅通过的原图**，包含中英文手动与空间输入组；应用新基线仍待修正后的候选与完整比较。
 
-首次尝试的汇总现已核对：`suite=all`、`mode=comparison`、`runner=not-run`、命令跳过，`selectionComplete=false`、`snapshotsCompared=false`，总计及各结果计数均为 0。CI 固定合并源码 `3e49ec9a8c039cfa026c6b733b041fc2a770cf79`，与已审 PR 头 `4de1614fd66eacb69606cbaa667b56c1e3e552f0` 使用相同 Git 树 `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`。GitHub 恢复后，同一源码的第 2 次尝试在首次依赖安装内完成，并取得完整普通比较 **104/104 通过**，`runner=passed`、命令成功。逐张审阅与关闭更新的比较均完成，**本轮 10 张新基线已接受**。
+[图片审阅与来源](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [运行界面](screenshots.md)
 
-同一普通 CI 的六个平台构建、Unity 打包与隔离冒烟均成功，Windows Shader 桥模拟检查已实际执行；PR 运行按设计跳过预发布。原生阶段覆盖推进与冻结失效，恢复由诊断阶段及隔离协议测试检查。
+## 本轮遇到的问题与修复
 
-## 信号流程、多输出与共享会话
+- 源码 `0c1ad2c` 的 [CI 40025345270](https://github.com/SeaLoong/Sensa/actions/runs/40025345270) 与[候选 40025349090](https://github.com/SeaLoong/Sensa/actions/runs/40025349090) 通过 Web 检查，随后因 SDK 自动选择 10.0.402 而在锁定还原报 `NU1004`；后端测试和浏览器未执行。SDK 已固定为 10.0.401，后续单元检查成功。
+- 同源码的 [Pages 40025344984](https://github.com/SeaLoong/Sensa/actions/runs/40025344984) 为 **12 通过、2 失败**。安装器测试再次导航到同一页面时未重载，改为显式重载后，[Pages 40026115999](https://github.com/SeaLoong/Sensa/actions/runs/40026115999) **14/14 通过并部署**；八张原图已逐张审阅。该源码的 [CI 40026116151](https://github.com/SeaLoong/Sensa/actions/runs/40026116151) 仍遇旧基线差异：**1 通过、3 失败、112 未执行**。
+- [候选 40026140751](https://github.com/SeaLoong/Sensa/actions/runs/40026140751) 的 attempt 1、2 均在 Azure Ubuntu 镜像下载字体时超时；浏览器未启动，各结果计数均为 0，`runner=not-run`、命令跳过、完整选择与图片比较均为 false。现有安装流程在第二次尝试使用官方 HTTPS 镜像，并核对相同字体版本与 SHA-256；[CI 40028882526](https://github.com/SeaLoong/Sensa/actions/runs/40028882526) 已实际从首次超时恢复，61.2 MB 字体下载用时 4 秒，继续执行浏览器。
+- 源码 `8d92eff` 的 CI 单元检查成功；其 CI、Pages 与候选随后主动取消，统一转到安装器测试修复后的源码。
 
-本轮将输入、计算与输出整理为可复用的信号流程，增加组合输入、时间处理、输出绑定、会话录制／回放及整套方案。浏览器用例新增手动与 OSC 计算、实际 UDP 的 Float／Int／Bool、JSON Lines／CSV 原始值回放、轴配置随方案保存，以及 SharedWorker、BroadcastChannel／Web Locks 的跨页连接检查。[操作说明](signal-pipeline.md) · [实际覆盖范围](e2e.md)
+## Unity 与实机范围
 
-funscript 改造的本地隔离检查已通过：.NET **665 项**、Web **171 项**；文档站构建 **88 条路由**成功。新增 4 项 funscript 浏览器场景，完整候选与关闭图片更新的完整普通比较均 **104/104 通过**，图片审阅与基线接受已完成。
+Unity Editor **2022.3.22f1** 的版本命令已运行成功，Windows Mono 支持及独立 Avatar／World 工程已安装。Avatar 使用 SDK **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World 使用 SDK **3.10.5**。已同步本轮 185 个 Avatar／51 个 World 管理文件；各工程两次离线 VPM 安装的包内容一致，工具、锁定版本、源文件摘要与本地工程远端配置已检查。
 
-最新候选的 **38 张新增／变化图片**已完成逐张原图审阅：26 张与上一轮已审图片字节相同，另外 12 张重新打开。选择 **32 张有意变化**（桌面／窄屏各 16 张），6 张动态速度或边缘微差恢复旧图。最终共 **150 张 PNG**，其中 **118 张保留原字节**；本轮基线经逐张审阅及完整普通比较后接受。下面记录安装失败、界面调整、候选采集与最终比较的实际结果。
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `f2b4d3d` | CI 普通比较，依赖安装未完成 | [39958639912，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/1) | 字体依赖安装达到两次 130 秒预算，以 **124** 退出；浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false` |
-| `f2b4d3d` | 完整选择的普通比较（未完成） | [39958639912，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/2) | 总计 **100 项：5 通过、3 失败、92 未执行**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=true`，达到 3 项失败上限后停止 |
-| `f2b4d3d` | 候选采集，依赖安装未完成 | [39958663771，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/1) | 浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false` |
-| `f2b4d3d` | 完整选择的候选采集（未完成） | [39958663771，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/2) | 总计 **100 项：27 通过、3 失败、70 未执行**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，达到 3 项失败上限后停止 |
-| `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/1) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
-| `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/2) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
-| `11a3071` | 修正后文档站检查与自动部署 | [39962300270，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962300270/attempts/1) | 总计 **8 项，8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
-| `11a3071` | 完整选择的候选采集（未完成） | [39962313700，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962313700/attempts/2) | 总计 **100 项：78 通过、3 失败、19 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=false` |
-| `1b77bec` | 文档站检查与自动部署 | [39966284936，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966284936/attempts/1) | 总计 **8 项，8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
-| `1b77bec` | 完整选择的普通比较（未完成） | [39966285080，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966285080/attempts/1) | 总计 **100 项：5 通过、3 失败、92 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true`，原生构建跳过，未发布 |
-| `1b77bec` | 完整候选采集 | [39966319271，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966319271/attempts/1) | **100/100 通过**，其余结果均为 0；`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=false`，导出至 PR #20 |
-| `99c50b9` | 完整选择的普通比较（未完成） | [39970397624，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39970397624/attempts/1) | 总计 **104 项：5 通过、3 失败、96 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true` |
-| `99c50b9` | 文档站依赖安装未完成 | [39970397436，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39970397436/attempts/1) | Chromium 系统依赖安装达到两次 130 秒预算，以 **124** 退出；浏览器总计／执行数及全部结果计数均为 **0**，`runner=not-run`、命令跳过，`selectionComplete=false`、`snapshotsCompared=false`，部署跳过 |
-| `99c50b9` | 文档站失败任务重跑与部署 | [39970397436，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39970397436/attempts/2) | **8/8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
-| `99c50b9` | 完整 funscript 候选采集 | [39970420334，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39970420334/attempts/1) | **104/104 通过**，其余结果均为 0；`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=false`，导出至 PR #21 |
-| `767344e` | 筛选后普通比较，依赖安装未完成 | [39974409441，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39974409441/attempts/1) | 依赖安装的两次尝试均以 **100** 退出；浏览器总计／执行数及全部结果计数均为 **0**，`runner=not-run`、命令跳过，`selectionComplete=false`、`snapshotsCompared=false` |
-| `767344e` | 筛选后普通比较，失败任务重跑 | [39974409441，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39974409441/attempts/2) | **104/104 通过**，其余结果均为 0；`runner=passed`、命令成功，关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true` |
-
-上述早期 CI、候选及两次站点安装失败固定源码 `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`。普通比较的 3 项失败均为界面更新后的截图差异：`control-page`，以及中文和英文的 `computed-signal-editor`。这些变化随候选图片审阅；本次未完成比较保持原始记录，后续关闭图片更新的完整普通比较用于确认基线。
-
-候选采集的 3 项失败来自既有用例对界面结构的假设：输入安全用例仍按三个主标签检查键盘导航，中英文质量用例仍寻找直接输出面板，而新结构使用 `output-telemetry` 容器。修正将覆盖四个标签的完整键盘操作，并按实际容器检查几何边界，保留原有断言强度。
-
-`11a3071` 的站点与候选运行固定源码 `11a30712db7efd38408798c53c50ace9911d75c8`。安装流程固定使用 Ubuntu 软件源，并将系统依赖安装与 Chromium headless shell 下载拆为独立步骤；新安装器在第一次 130 秒预算内完成，随后站点比较与部署成功，验证了此前两次 10 分钟安装超时问题的修正。同一源码的 [CI 39962300289](https://github.com/SeaLoong/Sensa/actions/runs/39962300289) 已通过单元检查，首次尝试的应用浏览器未执行。
-
-`11a3071` 候选的 3 项失败均发生在 `shared-session.spec.js:52`：输入启用复选框调用 `check()` 后报告状态未改变，涉及窄屏 SharedWorker，以及桌面 SharedWorker 和 Web Locks。后续普通比较与候选采集均采用 **35 分钟**浏览器任务预算，用于完整 100 项套件。本次部分执行结果和候选模式保持记录，基线仍待审阅与完整普通比较。
-
-后续站点运行 `39966284936`、普通比较 `39966285080` 与完整候选 `39966319271` 固定源码 `1b77bec474a6af1215e1409db82d86f1513b2916`。站点专用普通比较通过并成功部署。应用比较的依赖安装首次尝试成功；3 项失败均为桌面图片的界面变化：`control-page` 为 2847 个差异像素，`computed-signal-editor-zh-CN` 为 2830 个，`computed-signal-editor-en-US` 为 2616 个。达到失败上限后其余用例未执行，原生构建跳过，未发布。
-
-完整候选通过后导出至 [PR #20](https://github.com/SeaLoong/Sensa/pull/20)，原始图片提交为 `85171eb4df14ab7ba286d6837eda98afff08949c`。此运行验证的是 funscript 录制改造前的 100 项套件。原始 36 张新增／变化图片已逐张打开，28 张为有意变化，8 张仅动态读数或边缘微差，拟保留旧图。方案预览文案随后修正；最新图片审阅与普通比较见本节最终记录。
-
-funscript 扩展后的普通比较固定源码 `99c50b970e5a9b93595b134ebf4bd07d614c3276`，依赖安装首次尝试完成。3 项失败仍为桌面旧基线与界面更新的差异：`control-page` 2847 个像素、`computed-signal-editor-zh-CN` 2830 个、`computed-signal-editor-en-US` 2616 个；达到失败上限后，其余 96 项未执行。旧 PR #20 的[普通比较 39968828694](https://github.com/SeaLoong/Sensa/actions/runs/39968828694)因验证范围转向 funscript 改造而主动取消，保留为历史运行；新源码的候选与普通比较分别记录。
-
-站点运行 `39970397436` 固定同一源码，首次尝试在系统依赖安装阶段结束，浏览器与部署均未执行。22:37（北京时间）发起第二次尝试，仅重跑失败任务；该次站点专用比较 **8/8 通过**并部署成功，首次安装失败的历史记录保持不变。
-
-最新候选 `39970420334` 固定同一源码，完整 **104 项**通过，包含 funscript 默认格式、独立轨道与有效片段、下载、归一化回放及载入脚本播放器的新增检查。图片导出至 [PR #21](https://github.com/SeaLoong/Sensa/pull/21)，原始提交为 `93591a267cecd4220c98085fccb866697403c309`。此运行使用候选模式；最新图片已按本节数量完成审阅与筛选，完整普通比较结果见下文。
-
-筛选后 PR #21 提交为 `2432709a2d5b95789ed0bc2417e4eee75a26911e`。普通比较 `39974409441` 固定合并提交 `767344ec3cb29914c85b79b9351aeab8665838ec`，两者 Git 树完全相同，均为 `b1bbe40e37ad11aab35bb48ae18f838401ae9fd0`。首次尝试在 APT 依赖安装阶段以 100 退出，具体原因尚未核验，浏览器未执行。23:04（北京时间）发起第二次尝试，仅重跑失败任务并保留同一固定源码；第 2 次尝试完整 **104/104 通过**，其余结果均为 0；`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=true`，关闭图片更新。**本轮基线经逐张审阅及完整普通比较后接受**。同一运行的六平台构建、隔离冒烟及 Unity 打包均成功，Windows Shader 桥模拟检查已执行；PR 运行按设计跳过预发布。
-
-## OSC 参数释义与官方来源
-
-2026-10-23（北京时间），图解新增逐项参数说明，工作台详情使用同一套双语定义，提供数值范围、实际参数类型、单位、联动用法和来源。定义区分 VRChat 官方 SDK、VRCFury／OGB 与 Sensa 协议；核对并修正了 Close／Shader 的 Float 传输类型、SPS2 长度球、历史 PenSelf、速度量纲和 Raycast 未命中行为。[参数说明与来源](osc-parameters.md)
-
-本地隔离检查已通过：Web **143 项**、.NET **497 项**、Python **237 项**、Unity 包元数据，以及 **84 个文档页面**构建。完整浏览器套件仍为 88 项，扩展断言覆盖全部图解字段、双语来源、工作台详情、折叠／焦点保持及窄屏滚动。已逐张打开全部 55 张新增／变化候选，选择 52 张：48 张图解全页与 4 张详情窗口；3 张无关实时读数／边缘变化恢复旧基线。当前共 138 张 PNG，另外 86 张既有图片保留原字节。未发现新增阻断或主要视觉问题；逐张审阅和关闭图片更新的完整普通比较均已通过，本轮基线已接受。[逐张审阅记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `280c838` | 完整候选采集 | [39853817326，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39853817326/attempts/1) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，导出至 PR #19 |
-| `280c838` | 首轮普通比较（未完成） | [39853785392](https://github.com/SeaLoong/Sensa/actions/runs/39853785392) | **35 通过、3 失败、50 未执行**，其余结果均为 0；完整选择、普通截图比较；失败为新增详情基线缺失与两张图解全页有意变化 |
-| `280c838` | 文档站检查与自动部署 | [39853785382](https://github.com/SeaLoong/Sensa/actions/runs/39853785382) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
-| `b141d8e` | 筛选后完整普通比较 | [39856717268，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/2) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=true`，关闭图片更新 |
-| `b141d8e` | 六平台构建与隔离冒烟完成 | [39856717268，第 3 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39856717268/attempts/3) | 全部六平台构建／隔离冒烟、Windows Shader 桥回放与 Unity 打包通过；复用已通过的完整浏览器比较，PR 不发布预览 |
-
-候选、首轮 main 普通比较与站点运行固定源码 `280c8387762e60b4ae12c97faee6de41c3e2eaf0`，原候选图片提交 `71e1de8eeb88f1c7c4f4132e5be63495c270a2a0`。来源复核同时将 PhysBone 参考链接更新为官方当前页面。
-
-普通比较固定源码 `b141d8e25a75f0d7c60ccf46c301d80c8ca874e4`，Git 树与已审阅 PR #19 提交 `7aca23ab071c4b4bb330437c2ede19b3f9ab5bed` 完全一致。第 1 次尝试在依赖安装的两次 130 秒预算后以 124 退出，浏览器未执行，报告总计／执行数为 0，`selectionComplete=false`、`snapshotsCompared=false`。第 2 次尝试在同一提交上重跑失败任务，安装成功后完整通过。 第 2 次尝试的六平台构建／打包均成功，Windows x64 后续 Shader 桥回放步骤以 1 退出，API 注释没有提供具体原因；第 3 次尝试仅重跑失败任务，在相同源码上通过，其他成功结果保持不变。
-
-## 计算信号
-
-2026-10-23（北京时间），本轮新增多输入计算、可复用中间结果与映射界面。当前本地隔离检查通过：Web **134 项**、Python **237 项**、.NET **497 项**，以及 **84 个文档页面**构建。路径前缀缓存、通配符刷新与零段匹配兼容均有回归检查，切换语言时的定位输入标签同步更新。计算与映射中的三点姿态孔口偏移现按参考对象的局部单位标注。[功能与操作](computed-signals.md)
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `9e700cf` | 完整候选采集 | [39837678118，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39837678118/attempts/1) | 总计 **88 项：2 通过、3 失败、83 未执行**；预期失败、不稳定、跳过、中断均为 0；完整选择、候选模式，`snapshotsCompared=false` |
-| `9e700cf` | 文档站检查与自动部署 | [39837667830](https://github.com/SeaLoong/Sensa/actions/runs/39837667830) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
-| `9dc7de2` | 完整候选采集 | [39838949791，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39838949791/attempts/1) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，图片导出至 PR #18 |
-| `9dc7de2` | 普通比较（未完成） | [39838933199](https://github.com/SeaLoong/Sensa/actions/runs/39838933199) | 总计 **88 项：8 通过、3 失败、77 未执行**；其余结果均为 0；完整选择，`snapshotsCompared=true`；失败为两张新增基线缺失与原映射页图片变化 |
-| `9dc7de2` | 文档站检查与自动部署 | [39838933002，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39838933002/attempts/2) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
-| `36c09a1` | 完整普通比较 | [39841973847](https://github.com/SeaLoong/Sensa/actions/runs/39841973847) | **88/88 通过**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=true`，关闭图片更新 |
-| `e4ab679` | main 完整普通比较 | [39844928808](https://github.com/SeaLoong/Sensa/actions/runs/39844928808) | 总计 **88 项：87 通过、1 失败**，其余结果均为 0；完整选择、普通截图比较；Contact 速度用例等待布尔状态超时，发布停止 |
-| `e4ab679` | 文档站检查与自动部署 | [39844928814](https://github.com/SeaLoong/Sensa/actions/runs/39844928814) | **8/8 通过**，其余结果均为 0；站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，自动部署成功 |
-| `a322cfa` | 修正后 main 完整比较与六平台构建 | [39847830729](https://github.com/SeaLoong/Sensa/actions/runs/39847830729) | **88/88 通过**，其余结果均为 0；完整普通比较、六平台构建／隔离冒烟和 Unity 打包通过，自动预发布成功 |
-| `a322cfa` | 修正后文档站检查与部署 | [39847830590](https://github.com/SeaLoong/Sensa/actions/runs/39847830590) | **8/8 通过**，其余结果均为 0，自动部署成功 |
-
-初次候选与站点运行固定源码 `9e700cfebb9436a2cd99fbd25d0c50d9c06150a1`。候选失败来自新增 E2E 对 `input[list]` 使用 textbox 角色定位，导致中英文加权平均与 SPS 路径断言找不到字段；现已改为按字段标签定位，保留原有行为断言。第二轮候选、旧版普通比较和该站点运行固定源码 `9dc7de27645fb484fa52711656bf31b05ff3f84a`；Pages 第 1 次尝试在依赖安装阶段达到 10 分钟上限，浏览器未执行，第 2 次尝试使用同一提交并完成部署。
-
-main 运行 `39844928808` 固定源码 `e4ab6795c07bcc47b26facd27b5410e0733d5ff5`，完整执行了 88 项。唯一失败是既有 Contact 速度用例的布尔状态等待，原注释没有断言位置。后续审查发现一条可成立的保存竞态：GET 已能读取新映射时，浏览器保存仍可能未结束，实验设置按钮却允许再次保存。现统一配置按钮的忙状态，Contact 用例同时等待浏览器完成保存；初始化检查显示完整观察结果，失败摘要保留实际断言位置和堆栈。原失败保留记录；修正提交 `a322cfac23bf10a8c946e5e719ef37691a5c6a60` 已通过完整比较并发布 [preview-137-1-a322cfac](https://github.com/SeaLoong/Sensa/releases/tag/preview-137-1-a322cfac)。
-
-PR #18 原图片提交 `ea15168fd5c238e9fc894d09cac4454ef5d37f66` 产生 **19 张新增／变化候选**，代码助手已逐张打开全部 19 张。实际选择 **14 张**：12 张计算编辑器、输入与设置图，覆盖中英和桌面／窄屏；另有 2 张映射页图。5 张无关变化恢复原字节：桌面英文帮助 36 个边缘像素，窄屏 Contact 位置图的实时速度 0.25→0.20 m/s（198 像素），以及三张参数图的 4／2／1 个像素波动。当前共 **134 张 PNG**，桌面／窄屏各 67 张；14 张选择图各占 7 张，另外 **120 张**保留原字节。
-
-新界面按 V1–V6 检查可读，未发现新增阻断或主要视觉问题；英文计数仍显示 `1 mappings`（既有）和 `1 calculations`（新增），长页面正文正常滚动。筛选提交 `7644507` 同时包含语言标签刷新 `5c32f38` 与通配符零段兼容 `b176897`。完整普通比较固定源码 `36c09a18f649bd0dc61cf1222160254e3ef2d0a2`，Git 树与 PR 提交 `d2044c669eab1506dc92aaaf157dece3734c2327` 完全一致。本轮基线经逐张审阅及完整普通比较后接受。[逐张审阅记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
-
-## SPS 四点定位命名
-
-2026-10-23（北京时间），公开名称统一为“SPS 四点定位”与“SPS four-anchor tracking”，覆盖应用帮助、根点类型、参数图解、Unity 菜单和双语文档。
-
-本地隔离检查通过：Web **126 项**、Python **237 项**、Unity 包元数据及 **80 个文档页面**构建。新增安装脚本测试使用模拟 APT，核对软件源选择、重试和失败退出。
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `dcdb7fa` | 完整候选采集 | [39821880631，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39821880631/attempts/2) | **80/80 通过**，其余结果均为 0；完整选择，候选模式，图片已导出至 PR #17 |
-| `12dab3f` | 筛选后完整普通比较 | [39825612644，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39825612644/attempts/2) | **80/80 通过**，其余结果均为 0；完整选择、普通截图比较，`snapshotsCompared=true` |
-| `dcdb7fa` | 文档站检查与自动部署 | [39821827672](https://github.com/SeaLoong/Sensa/actions/runs/39821827672) | **8/8 通过**，其余结果均为 0；新名称和双语构建指南检查通过，自动部署成功 |
-
-PR #17 的原图片提交 `a5e3173` 产生 47 张变化候选，代码助手已逐张打开全部 47 张。实际选择 **44 张有意文案变化**：40 张参数图与 4 张帮助图，桌面／窄屏各 22 张。3 张仅有实时速度读数或边缘抗锯齿波动的 Contact 图片恢复原基线，另外 **78 张**保留原字节。新名称、Socket／Plug 根点说明、单位、长参数与控件均可读，未发现新增阻断或主要视觉问题。[逐张审阅范围与既有细节](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
-
-筛选后图片提交为 `6787b0f20cdc44e5bbc08b7054cccb7c810ca563`，Git 树与普通比较使用的 `12dab3f00fbb05f6e97b34b3f3d1a5864ab48d55` 一致。本轮基线经逐张审阅与完整普通比较后接受，图片更新关闭，`selectionComplete=true`、`snapshotsCompared=true`。候选首轮、最初的 main 比较与 PR 普通比较首轮均在依赖安装阶段达到 5 分钟上限，浏览器未执行；重试分别固定各自的同一提交。共用安装脚本现在只刷新所需 Ubuntu 索引，并以两次有界尝试控制等待；具体预算见[开发与发布](development.md)。
-
-## Unity 作者组件与构建流程
-
-2026-10-23（北京时间），本地隔离检查通过：Web **126 项**、Python **230 项**、Unity 包元数据和 **80 个文档页面**构建；**46 个 C# 文件**通过 C# 9 语法解析。此项解析只检查语法，Unity Editor 编译、EditMode 执行与客户端验收仍待完成。[实现、配置与官方依据](unity-build.md)
-
-站点 E2E 已加入双语构建指南入口、语言切换、构建时机与官方资料链接检查，并在运行报告附上两种语言的指南截图。本轮沿用已审阅的 122 张比较基线。
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `d7246c1` | 完整普通比较与六平台构建 | [39817899186](https://github.com/SeaLoong/Sensa/actions/runs/39817899186) | **80/80 通过**，其余结果均为 0；完整选择、普通截图比较；六平台构建／隔离冒烟、Windows Shader 桥回放及 Unity 打包均通过 |
-| `d7246c1` | 文档站检查与自动部署 | [39817899027](https://github.com/SeaLoong/Sensa/actions/runs/39817899027) | **8/8 通过**，其余结果均为 0；双语构建指南、官方资料入口与窄屏布局检查通过，自动部署成功 |
-
-完整比较关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true`。站点专用选择独立记为 8 项。首轮 [Pages 39817289697](https://github.com/SeaLoong/Sensa/actions/runs/39817289697) 在 `46db6f8` 上为 **6/8 通过、2 项失败**，其余结果均为 0：新增断言把正确的相对链接按完整路径查找。修正后按可见名称找到链接，再验证点击后地址。旧版完整运行 [39817289668](https://github.com/SeaLoong/Sensa/actions/runs/39817289668) 已在修正提交推送后主动取消，其浏览器结果不计作完整验收。
-
-## Contact SDK 适配
-
-2026-10-22，本地隔离检查通过：Web **126 项**、后端 **434 项**、Python **228 项**，另有 Unity 包元数据检查和 **76 个文档页面**构建。[功能与官方 SDK 依据](contact-sdk.md)
-
-| 提交 | 范围 | 运行 | 核对结果 |
-| --- | --- | --- | --- |
-| `8e77ba4` | 完整候选采集 | [39792231646](https://github.com/SeaLoong/Sensa/actions/runs/39792231646) | **80/80 通过**，其余结果均为 0；完整选择，候选模式，图片导出及 PR #16 创建成功 |
-| `1d46aa9` | 完整普通比较与六平台构建 | [39794320594](https://github.com/SeaLoong/Sensa/actions/runs/39794320594/attempts/2) | **80/80 通过**，其余结果均为 0；第 2 次尝试完成完整普通比较，六平台构建／隔离冒烟、Windows Shader 桥回放与 Unity 打包均通过 |
-| `8e77ba4` | 文档站检查与自动部署 | [39792230278](https://github.com/SeaLoong/Sensa/actions/runs/39792230278) | **8/8 通过**，其余结果均为 0；Contact 图解／指南入口已检查，自动部署成功 |
-
-完整应用用例覆盖 Contact 米制位置、静止零速与速度量程校准，Depth／V0 的实际模拟传输输出，接触离开及活动计数冻结后的停止。参数图解检查完整十二字段、排序、独立位置／速度控件、边界与 Sample 失效，并保留 SPS 四点定位及 Shader 回归。站点专用选择独立记为 8 项。
-
-## Contact SDK 图片审阅
-
-候选提交 `9166f82` 共 **122 张 PNG**。代码助手已逐张打开并审阅 **56 张新增／变化图片**：桌面与窄屏各 28 张，包含 48 张双语参数图及 8 张应用图；其余 66 张字节未变。未发现阻断或主要视觉问题。桌面速度单位单独换行的排版细节已记录。[图片来源与评审](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
-
-普通比较使用的 PR 合并提交 `1d46aa95e8512912fd97333b368bcf717aaf675e`，其 Git 树与图片提交 `9166f82e4142bc38748bb9bb7dd70bd2383e7f5e` 完全一致。此次普通比较关闭图片更新，`selectionComplete=true`、`snapshotsCompared=true`，基线已通过逐张审阅与完整比较。第 1 次尝试在依赖安装阶段达到 25 分钟上限，浏览器用例未执行；第 2 次尝试使用相同提交并通过。当前安装策略见[开发与发布](development.md)。
-
-## 验收范围
-
-浏览器用例使用隔离配置与模拟传输。实际 Beta SDK 的 Unity／VRChat、OSC 发布、真实 GPU 捕获、实体触屏和设备联动另行验收；Unity EditMode 契约已编写，尚未执行 Unity Editor。可访问性明细保留在各次运行报告中。
-
-本轮首轮失败及修正依据见[固定记录](https://github.com/SeaLoong/Sensa/blob/3eb67db15cbf36c31e69ada8bafa3a46d9d6f02c/docs/e2e-status.md)：速度用例改用纯振动模拟端，英文预设检查同步为五项，新增图片经过本轮采集与审阅。此前 74 项套件及发布见[历史验证](https://github.com/SeaLoong/Sensa/blob/3821bc876b0e5d9bbc16c515e83754a18c555841/docs/e2e-status.md)，更早视觉评审见[存档](ui-visual-review.md)。
-
-## 后续记录
-
-运行完成后核对提交、链接、套件和截图模式，再从 `summary.json`／`summary.md` 或 `Browser result` 注释记录通过、失败、跳过、未执行、不稳定与中断数量。接受图片时同时记录实际审阅范围和普通比较结果。
+实际批处理导入连接许可服务后，以 **“No valid Unity Editor license found”** 退出。Editor 编译、NDMF 构建、EditMode、Shader GPU 捕获、VRChat／HMD 和实际硬件仍待对应环境验证。浏览器图片展示实际运行的 WebUI，设备连接和测量数据使用隔离模拟；Unity 包检查验证分发结构。

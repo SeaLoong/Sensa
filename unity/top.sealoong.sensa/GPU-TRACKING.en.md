@@ -10,7 +10,7 @@
 
 **Selected root → three-point skinning → monochrome block → desktop-region capture → OSC → Sensa calculations and outputs**.
 
-`SensaShaderCapture` stores author settings and implements `IEditorOnly`. Before MA merging, NDMF resolves Target position/rotation, generates one Camera, a three-vertex SkinnedMeshRenderer and an encoder material, then removes the author script. The generated native render components sample after upload. [Build lifecycle](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
+`SensaShaderCapture` stores author settings and implements `IEditorOnly`. Before MA merging, NDMF resolves Target position/rotation, applies the origin and axis offsets, generates one Camera, a three-vertex SkinnedMeshRenderer and an encoder material, then removes the author script. The generated native render components sample after upload. [Build lifecycle](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.en.md)
 
 1. Install the [package dependencies](COMPATIBILITY.en.md), plus official VRCFury for SPS author targets. Use PC Built-in rendering with a geometry-shader-capable backend. Use another input route on Android or Metal.
 2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact inside this Avatar.
@@ -27,9 +27,9 @@ Each block has its own ID, camera and material signature. Register each region s
 
 | Parameter | Meaning and use |
 | --- | --- |
-| `X / Y / Z` | Root-center position in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
-| `RightX / RightY / RightZ` | The root's local +X axis expressed in Avatar-root coordinates; vector length retains that axis's scale |
-| `ForwardX / ForwardY / ForwardZ` | Its local +Z axis in the same frame; Forward×Right gives the measured XZ plane's positive normal |
+| `X / Y / Z` | Measurement position after the origin offset, in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
+| `RightX / RightY / RightZ` | The configured measurement frame's +X axis expressed in Avatar-root coordinates; vector length retains that axis's scale |
+| `ForwardX / ForwardY / ForwardZ` | Its configured +Z measurement axis in the same coordinate frame; Forward×Right gives the measured XZ plane's positive normal |
 | `AvatarScale` | World metres per Avatar-root local unit, in (0,8] |
 | `Frame` | An approximately 60 Hz encoder clock used to detect duplicates and freezing |
 | `Valid` | 1 commits a complete valid packet; 0 invalidates the measurement |

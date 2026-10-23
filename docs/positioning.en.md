@@ -54,9 +54,9 @@ A position can be reconstructed when the target enters the common region of all 
 | P2 | (0.35, 1.35, −0.35) |
 | P3 | (−0.35, 1.35, 0.35) |
 
-**Coverage is the intersection of all four spheres**, excluding receiver boundaries and small saturated regions near the anchors. A centered region of approximately 1.393 m radius lies within the outer detection bounds around (0,1,0), but still excludes the small saturation holes near anchors. Unity and web coverage displays explain this spatial limit; sampling, scale and consistency checks must also pass.
+**Coverage is the intersection of all four spheres**, excluding receiver boundaries and small saturated regions near the anchors. A centered region with a radius of approximately 1.393 Avatar-root local units lies within the outer detection bounds around (0,1,0), but still excludes the small saturation holes near anchors. Unity and web coverage displays explain this spatial limit; sampling, scale and consistency checks must also pass.
 
-Using 2 m with closer anchors balances coverage, numeric noise amplification and Avatar-scaling headroom. A 1-m radius substantially shrinks common coverage; making anchor spacing arbitrarily small weakens reconstruction away from the center. These defaults follow the geometry model; known positions in the client can be used to measure actual accuracy. [Derivation and tradeoffs](fixed-anchor-research.en.md)
+Using a radius of 2 local units with closer anchors balances coverage, numeric noise amplification and Avatar-scaling headroom. A radius of 1 local unit substantially shrinks common coverage; making anchor spacing arbitrarily small weakens reconstruction away from the center. These defaults follow the geometry model; known positions in the client can be used to measure actual accuracy. [Derivation and tradeoffs](fixed-anchor-research.en.md)
 
 ### How distances become a position
 
@@ -89,13 +89,13 @@ The SDK world Contact radius cap is 3 m. Internal FX disables measurement and cl
 
 ## Shader: coordinates, axes and screen capture
 
-Shader capture draws the root position, local +X/+Z axes and Avatar world scale as a monochrome block for the desktop bridge. Position ranges are **X/Z=[−2,2], Y=[−1,3]**, in Avatar-root local units. `AvatarScale` expresses world metres per local unit. The root panel displays position, both axes and scale from each valid packet.
+Shader capture draws the configured measurement origin, its +X/+Z axes and Avatar world scale as a monochrome block for the desktop bridge. Position and rotation offsets adjust this origin and orientation. Position ranges are **X/Z=[−2,2], Y=[−1,3]**, in Avatar-root local units. `AvatarScale` expresses world metres per local unit. The root panel displays position, both axes and scale from each valid packet.
 
 The tile uses **QR Code v4-H**: a 33×33-module symbol plus 8 white modules per side, making **49×49 modules** and requiring at least **196×196 physical pixels**. The reader first finds three corner markers, then restores some obscured or misread data. A complete checked packet and an advancing image are required before values reach tracking calculations. Masking keeps the pattern readable; Reed–Solomon correction restores data within the bounds described in the [encoding design](shader-capture-research.en.md). The border includes the standard four-module quiet zone and four extra modules for movement. Re-select the full tile after resizing.
 
 `Frame` checks image progression, with default freezing at 350 ms. Startup and recovery need two new advancing frames. Valid OSC sends **Frame → X/Y/Z → RightX/Y/Z → ForwardX/Y/Z → AvatarScale → Valid=1** consecutively; invalidation sends only Valid=0. Desktop allows Frame change age up to 500 ms, shortened by a stricter positive input timeout.
 
-Right/Forward retain X/Z-axis directions and lengths. Use a tracking measurement (SensaPoint) in **Flow** for angles, magnitudes and orientation relationships. Independent Y-axis scale needs another measurement. Measure actual end-to-end latency and position error in the client. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Encoding](shader-capture-research.en.md) · [Parameters](osc-parameters.en.md)
+Right/Forward retain the configured measurement frame’s X/Z-axis directions and lengths. Use a tracking measurement (SensaPoint) in **Flow** for angles, magnitudes and orientation relationships. Independent Y-axis scale needs another measurement. Measure actual end-to-end latency and position error in the client. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Encoding](shader-capture-research.en.md) · [Parameters](osc-parameters.en.md)
 
 Object ID is in `Sensa/Shader/<id>/`. Internal `Sensa/Diagnostics/Shader/0` keeps a separate five-field diagnostic format for pattern and transport checks.
 

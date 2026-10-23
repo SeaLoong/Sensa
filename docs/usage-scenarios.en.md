@@ -25,6 +25,8 @@ Start with what the Avatar already provides. Existing OGB/SPS parameters connect
 | You want SPS Socket/Plug root position | SPS four-anchor tracking | Three-dimensional position relative to the Avatar |
 | Supported advanced Proximity SDK, with position and velocity needed | Contact direct tracking (SDK Beta) | Metre-based position and relative velocity |
 | A PC view can show a code block, with axes and scale needed | Shader capture | Root position, X/Z axes and AvatarScale |
+| You want measurements relative to a bone’s current direction on your Avatar | [Following plane](#follow-body-movement-with-a-reference-plane) | Depth, offset and distance from a reference plane |
+| You want depth and angles during paired interaction between Avatars | [Three-marker pose](positioning.en.md#interaction-between-avatars-paired-three-marker-pose) | Entry proportion, opening offset and pose angles in the receiving Socket’s local frame |
 
 Use the [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) to understand parameters and valid regions first. For spatial input, inspect and calibrate before allowing experimental spatial input and activating input. Check actual client/graphics behavior with the versions used.
 
@@ -52,7 +54,7 @@ Position uses metres and velocity uses m/s. ProximitySpeed is proximity change p
 
 ## SPS four-anchor tracking
 
-Choose this to measure an SPS Socket/Plug root moving within the Avatar. Unity components reconstruct one root's three-dimensional position from four known anchors.
+Choose this to measure an SPS Socket/Plug root moving within the Avatar. Unity components create four receivers at known positions and report proximity values; desktop Sensa reconstructs the root's three-dimensional position.
 
 1. Add **SPS four-anchor tracking** (`SensaFixedRootProbe`) or Automatic SPS Setup and select your target root.
 2. Inspect the green common detection region in Unity or the explorer and keep the intended motion within it.
@@ -69,6 +71,16 @@ Choose this experimental setup when a PC desktop view can retain the encoded blo
 3. Inspect decoding, choose the required Tracking measurement metric in the workbench, then calibrate, save and enable input.
 
 QR finder patterns locate the tile, white margins buffer small shifts, and Reed–Solomon correction restores some damaged data. The rendered image, capture region and advancing frames determine availability. [Current protocol and validity](positioning.en.md) · [Implementation reference](shader-capture-research.en.md)
+
+## Follow body movement with a reference plane
+
+Use this for relative movement between a target and reference on your own Avatar, such as approach measured along the palm’s or chest’s current direction.
+
+1. Add a root tracking component for the measured target in Unity, then create **GameObject → Sensa → Tracking Frame** and select the bone or root to follow. Use the same tracking method for target and plane, with unique instance names.
+2. Set the plane’s centre and orientation; the Scene +Z arrow marks positive depth. After building, confirm valid readings for the target, `<name>_Origin` and `<name>_Forward` in the workbench.
+3. In **Flow → Spatial calculation presets → Follow a moving plane**, select the target and Origin, add and review the drafts, save, then connect depth, offset or distance to outputs.
+
+Shader can also define a following plane from its own position and Forward direction. [Unity setup steps](unity-build.en.md#create-a-plane-that-follows-a-bone) · [Calculation template and units](computed-signals.en.md#follow-an-avatars-movement-with-a-plane)
 
 ## Other inputs and tools
 

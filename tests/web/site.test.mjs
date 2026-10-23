@@ -81,7 +81,7 @@ test('public guides build into bilingual routes with resolvable local links and 
           const record = scene.images[viewport][locale]; reviewedImages.set(record.file, record);
         }
     for (const [route, desktop, mobile, alt] of [
-      ['en/docs/quick-start.html', 'control-page.png', 'control-page.png', 'Sensa running in a browser'],
+      ['en/docs/quick-start.html', 'english-manual.png', 'english-manual.png', 'Manual controls in Sensa'],
       ['zh-CN/docs/quick-start.html', 'control-page.png', 'control-page.png', 'Sensa 实际运行界面'],
       ['en/docs/screenshots.html', 'computed-signal-editor-en-US.png', 'computed-signal-settings-en-US.png', 'Weighted calculation · desktop'],
       ['zh-CN/docs/screenshots.html', 'computed-signal-editor-zh-CN.png', 'computed-signal-settings-zh-CN.png', '加权计算 · 桌面'],

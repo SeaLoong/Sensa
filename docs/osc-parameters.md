@@ -177,7 +177,7 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 
 ## Shader：根点位置、轴向与世界缩放
 
-原生 Avatar 渲染组件采样选定根点的原点、局部 +X 和 +Z 三个蒙皮点，编码为黑白图块。桌面桥解码明确选择的区域和 Producer ID，再把同一次采样送入 Sensa。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+原生 Avatar 渲染组件按作者配置的原点偏移与坐标轴旋转，采样测量原点、局部 +X 和 +Z 三个蒙皮点，编码为黑白图块。两项偏移为零时，测量框架与所选根点重合。桌面桥解码明确选择的区域和 Producer ID，再把同一次采样送入 Sensa。[编码器](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [桥实现](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### 十二个公开测量参数
 
@@ -186,9 +186,9 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 | 叶子 | 含义与有效条件 |
 | --- | --- |
 | `Frame` | 0…65535 的整数编码时钟；`floor(_Time.y×60)` 按 16 位回绕，约 18.2 分钟一轮 |
-| `X / Y / Z` | 根中心在 Avatar 根局部坐标中的位置；X/Z=[−2,2]，Y=[−1,3] |
-| `RightX / RightY / RightZ` | 选定根点的局部 +X 轴，按 Avatar 根坐标表达；分量范围 [−8,8]，向量长度保留该轴缩放 |
-| `ForwardX / ForwardY / ForwardZ` | 同一根点的局部 +Z 轴，同样保留方向和长度；分量范围 [−8,8] |
+| `X / Y / Z` | 应用原点偏移后的测量位置，采用 Avatar 根局部坐标；X/Z=[−2,2]，Y=[−1,3] |
+| `RightX / RightY / RightZ` | 配置后测量框架的 +X 轴，按 Avatar 根坐标表达；分量范围 [−8,8]，向量长度保留该轴缩放 |
+| `ForwardX / ForwardY / ForwardZ` | 同一测量框架的 +Z 轴，同样保留方向和长度；分量范围 [−8,8] |
 | `AvatarScale` | 每根局部单位对应的世界米数，范围 (0,8]；相对位移乘此值可换算成米 |
 | `Valid` | 1 最后提交完整有效包；0 立即使测量失效 |
 
@@ -212,7 +212,7 @@ Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=�
 
 | 概念 | 提供的信息与使用方式 |
 | --- | --- |
-| 根点位置 | 三个坐标，表示所选根中心相对 Avatar 的左右、上下、前后位置 |
+| 根点位置 | 三个坐标，表示测量原点相对 Avatar 的左右、上下、前后位置 |
 | 姿态／方向 | 通过独立方向信息或具有已知布局的多个点计算旋转 |
 | 世界位置 | 结合世界参考对象与坐标变换，描述场景中的位置 |
 | 最终形变表面 | 根据具体形变算法采样所需的表面点 |

@@ -35,7 +35,8 @@ Keep the authoring host as an ordinary GameObject. Its Transform may be a measur
 3. Set a unique **Instance name** (`instanceName`), default `Frame`, using at most 40 ASCII letters, digits, underscores or hyphens. Choose SPS four-anchor or Contact direct tracking as **Tracking method** (`trackingMethod`).
 4. Place the centre with **Origin offset** (`positionOffset`) and adjust its orientation with **Axis rotation (degrees)** (`rotationOffset`). Both use the resolved root's local axes; the position offset applies before the added rotation. Six axis buttons choose a depth direction quickly, and Scene move/rotate handles allow finer adjustment.
 5. Inspect the XY plane and +Z arrow in Scene: **+Z is positive depth, +X is right and +Y is up**. **Axis marker distance** (`axisLength`) is the Origin-to-Forward/Right distance in authored Avatar-root units, default 0.2 and configurable from 0.05 to 0.5.
-6. After building, confirm all three instances provide valid desktop coordinates. In Flow, expand Spatial calculation presets → Follow a moving plane, select measured target P and the plane Origin, review the drafts, then save and connect outputs.
+6. Add a matching root prefab for measured target P on the same Avatar: `SensaSpsRootProbe.prefab` or `SensaContactRootProbe.prefab`. Assign its target and a separate instance name, such as `Target`; an existing measurement in the same coordinate frame can be reused.
+7. After building, confirm valid desktop coordinates for the target, Origin and Forward. In Flow, expand Spatial calculation presets → Follow a moving plane, select the target and plane Origin, review the drafts, then save and connect outputs.
 
 Generated points are named `<name>_Origin`, `<name>_Forward` and `<name>_Right`. A source reference follows bone movement and rotation. The measured frame lives under the Avatar root, following position and rotation through a ParentConstraint. Marker spacing follows uniform Avatar scale. Bone scale can move an offset origin; axis lengths retain the authored Avatar-root size. SPS authoring geometry retains its uniform-scale requirement.
 
@@ -44,7 +45,7 @@ Generated points are named `<name>_Origin`, `<name>_Forward` and `<name>_Right`.
 | SPS four-anchor tracking | 15 Contacts; 3 groups of 5 fields | `Sensa/SPS/<name>_<marker>/…`, AvatarRootLocal |
 | Contact direct tracking | 6 Contacts; 3 groups of 12 fields | `Sensa/Contact/<name>_<marker>/…`, AvatarRootMeters |
 
-Scene also shows coverage for the selected tracking method. Origin, Forward, Right and measured target P all need valid coverage. Each marker retains its own Sample check. Shorter axis spacing amplifies direction noise; compare known poses in the client to assess the default 0.2 spacing and behavior during fast movement. Choose one coordinate frame for the measured target and plane markers. Independent Point/Pose use their own ReferenceLocal frame for measurements directly within that reference. [Depth, offset and angle calculations](computed-signals.en.md#combine-root-coordinates)
+Scene also shows coverage for the selected tracking method. Points used by the current calculation need valid coverage: the default template uses target P, Origin and Forward; Right provides the additional direction when needed. Each marker retains its own Sample check. Shorter axis spacing amplifies direction noise; compare known poses in the client to assess the default 0.2 spacing and behavior during fast movement. Choose one coordinate frame for the measured target and plane markers. Independent Point/Pose use their own ReferenceLocal frame for measurements directly within that reference. [Depth, offset and angle calculations](computed-signals.en.md#combine-root-coordinates)
 
 ## How author scripts enter the build
 

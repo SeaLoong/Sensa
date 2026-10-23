@@ -6,7 +6,7 @@
 
 ## 1. 启动
 
-从 [Releases](https://github.com/SeaLoong/Sensa/releases)选择下载格式。Windows 推荐安装版；所有版本均自带所需 .NET 运行时。
+在[下载页](https://sealoong.github.io/Sensa/#downloads)选择 Windows 安装器；便携版、单文件及其他系统的下载可在 [Releases](https://github.com/SeaLoong/Sensa/releases) 中选择。所有版本均自带所需 .NET 运行时。
 
 | 系统与方式 | 文件名示例 | 怎样启动 |
 | --- | --- | --- |

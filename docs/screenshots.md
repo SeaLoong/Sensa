@@ -2,7 +2,7 @@
 
 **简体中文** | [English](screenshots.en.md)
 
-这些图片来自 [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40015184919/attempts/1) 中实际运行的 Sensa 与 Chromium。桌面视口为1280 × 900，窄屏为390 × 844；设备连接使用隔离的模拟传输。图片保留采集时的原始内容，部分展示单个功能面板。
+这些图片来自 [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1) 中实际运行的 Sensa 与 Chromium。桌面视口为1280 × 900，窄屏为390 × 844；设备连接使用隔离的模拟传输。图片保留采集时的原始内容，部分展示单个功能面板。
 
 [首页图库](https://sealoong.github.io/Sensa/#screenshots)可切换场景和屏幕宽度。[采集清单](screenshots/catalog.json)记录源码提交、运行编号、attempt与每张图片的SHA-256。
 
@@ -37,6 +37,18 @@
 ![加权计算 · 桌面](screenshots/desktop/computed-signal-editor-zh-CN.png)
 
 [查看窄屏界面](screenshots/mobile/computed-signal-settings-zh-CN.png)
+
+## 空间计算
+
+把 XYZ 作为一组设置，选择测量位置、平面参考点与朝向，计算深度、偏离中心的距离或角度。下面是位置与平面朝向两个输入组的实际画面。[配置示例](computed-signals.md#组合根点坐标)
+
+![空间计算 · 测量位置](screenshots/desktop/computed-plane-point-zh-CN.png)
+
+[查看窄屏位置设置](screenshots/mobile/computed-plane-point-zh-CN.png)
+
+![空间计算 · 平面朝向](screenshots/desktop/computed-plane-direction-zh-CN.png)
+
+[查看窄屏朝向设置](screenshots/mobile/computed-plane-direction-zh-CN.png)
 
 ## 组合输入
 

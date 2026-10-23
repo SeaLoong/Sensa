@@ -519,12 +519,13 @@ test('@site help screenshots switch between reviewed desktop and narrow captures
   for (const locale of ['en', 'zh-CN']) {
     await page.goto(new URL(locale + '/docs/screenshots.html', base).href);
     const suffix = locale === 'en' ? 'en-US' : 'zh-CN';
-    const manual = page.locator('article picture img[src$="/desktop/control-page.png"]');
+    const manualFile = locale === 'en' ? 'english-manual.png' : 'control-page.png';
+    const manual = page.locator(`article picture img[src$="/desktop/${manualFile}"]`);
     const calculation = page.locator(`article picture img[src$="/desktop/computed-signal-editor-${suffix}.png"]`);
     for (const width of [1280, 390, 1280]) {
       await page.setViewportSize({ width, height: originalViewport.height });
       const state = await inspectDocumentStyle(page), viewport = width <= 760 ? 'mobile' : 'desktop';
-      expect(await manual.evaluate(image => image.currentSrc)).toBe(new URL('media/docs/screenshots/' + viewport + '/control-page.png', base).href);
+      expect(await manual.evaluate(image => image.currentSrc)).toBe(new URL('media/docs/screenshots/' + viewport + '/' + manualFile, base).href);
       expect(await calculation.evaluate(image => image.currentSrc)).toBe(new URL('media/docs/screenshots/' + viewport + '/computed-signal-'
         + (viewport === 'mobile' ? 'settings-' : 'editor-') + suffix + '.png', base).href);
       expect(state.responsiveImages.length).toBeGreaterThanOrEqual(8);

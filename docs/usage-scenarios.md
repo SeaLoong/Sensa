@@ -25,6 +25,8 @@
 | 想读取 SPS Socket／Plug 根点位置 | SPS 四点定位 | 相对 Avatar 的三维位置 |
 | 使用支持高级 Proximity 的 SDK，想读取位置与速度 | Contact 直接定位（SDK Beta） | 米制位置与相对速度 |
 | PC 画面能显示编码图块，想读取位置、轴向和缩放 | Shader 捕获 | 根点位置、X/Z 轴向和 AvatarScale |
+| 想按自己 Avatar 上某个骨骼的当前朝向测量 | [跟随平面](#让参考平面跟随身体动作) | 测量点相对平面的深度、偏移与距离 |
+| 想测量双方 Avatar 配对互动的深度和角度 | [配对三点姿态](positioning.md#跨-avatar-互动配对三点姿态) | 接收方 Socket 局部系下的进入比例、入口偏移和姿态角 |
 
 [交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可先帮你理解参数和有效区域。空间测量配置完成后，先观察、校准，再允许实验空间输入并启用输入；实际客户端与图形效果按所用版本检查。
 
@@ -52,7 +54,7 @@
 
 ## SPS 四点定位
 
-适合测量 SPS Socket／Plug 根点在 Avatar 内的移动。Unity 组件用四个已知测量点计算一个根点的三维位置。
+适合测量 SPS Socket／Plug 根点在 Avatar 内的移动。Unity 组件生成四个已知位置的接收器并报告接近值，桌面 Sensa 据此计算根点的三维位置。
 
 1. 添加 **SPS 四点定位**（`SensaFixedRootProbe`）或 Automatic SPS Setup，选择自己的目标根点。
 2. 查看 Unity 或参数图解中的绿色共同检测区，让预期动作范围落在其中。
@@ -69,6 +71,16 @@
 3. 观察解码状态，在工作台通过“定位测量”选择所需指标，再校准、保存和启用。
 
 QR 定位方框帮助找到图块，白色留白缓冲小幅位移，Reed–Solomon 纠错帮助恢复部分受损数据。有效画面、捕获区域和帧更新共同决定测量是否可用。[当前协议与有效条件](positioning.md) · [实现依据](shader-capture-research.md)
+
+## 让参考平面跟随身体动作
+
+用于自己 Avatar 内目标与参照的相对运动，例如以手掌或胸部的当前朝向测量靠近程度。
+
+1. 在 Unity 为测量目标添加根点定位组件，再创建 **GameObject → Sensa → Tracking Frame**，选择要跟随的骨骼或根点。目标和平面采用同一种定位方式，分别使用唯一实例名。
+2. 调整平面中心和朝向；Scene 中 +Z 箭头表示深度正方向。构建后，在桌面确认目标、`<名称>_Origin` 和 `<名称>_Forward` 的读数有效。
+3. 在“流程 → 空间计算预设 → 跟随移动平面”选择目标和 Origin，添加并检查计算草稿，保存后将深度、偏移或距离连接到输出。
+
+Shader 也可使用自身位置和 Forward 方向定义跟随平面。[Unity 设置步骤](unity-build.md#创建随骨骼移动的参考平面) · [计算模板与单位](computed-signals.md#让平面跟随-avatar-动作)
 
 ## 其他输入与工具
 

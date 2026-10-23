@@ -43,7 +43,7 @@ Shader 捕获把 Avatar 上一个选定位置的测量结果画成 QR 图块。�
 
 ## 坐标、方向与二进制包
 
-生成的网格包含三个绑定到同一根点的顶点：原点、局部 +X 方向 0.1 和局部 +Z 方向 0.1。几何阶段在同一个三角形内读取蒙皮后的三点，得到原点以及两条差向量，除以 0.1 后输出 `Right` 与 `Forward`。两向量保留选定根点 X/Z 轴的方向和长度，也可以用叉积求测量平面的法线；独立 Y 轴缩放需另行测量。`AvatarScale` 从编码器的对象到世界矩阵读取均匀正缩放，表示一个 Avatar 根局部单位对应多少世界米。
+生成的网格包含三个绑定到同一测量标记的顶点：原点、局部 +X 方向 0.1 和局部 +Z 方向 0.1。几何阶段在同一个三角形内读取蒙皮后的三点，得到原点以及两条差向量，除以 0.1 后输出 `Right` 与 `Forward`。两向量保留配置后测量框架的 X/Z 轴方向和长度，也可以用叉积求测量平面的法线；独立 Y 轴缩放需另行测量。`AvatarScale` 从编码器的对象到世界矩阵读取均匀正缩放，表示一个 Avatar 根局部单位对应多少世界米。
 
 作者组件中的 **原点偏移**（`positionOffset`）沿所选根点的局部 XYZ 轴平移，单位沿用该根点；**坐标轴旋转**（`rotationOffset`）使用 Unity 局部欧拉角，单位为度，只改变测量轴朝向。组合顺序为 `position = rootPosition + rootRotation × positionOffset`、`rotation = rootRotation × Euler(rotationOffset)`。生成的 marker 随目标骨骼／根点一起运动。Scene 视图显示原点处的 Right／Forward 箭头和它们张成的 XZ 面，方便确认轴向。
 

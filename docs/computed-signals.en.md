@@ -76,7 +76,7 @@ Numeric combinations accept 1–16 inputs; Difference and Ratio require exactly 
 | --- | --- | --- |
 | Smooth | `Smooth` | Exponential smoothing; `timeMs` is the time constant, and zero follows the input directly |
 | Dead zone | `DeadZone` | Output zero while the absolute input is at or below `threshold`; otherwise retain the reading |
-| Hysteresis | `Hysteresis` | Switch to 1 at `threshold`, switch to 0 at `releaseThreshold`, and retain state between them |
+| Two-threshold switch (hysteresis) | `Hysteresis` | Switch to 1 at `threshold`, switch to 0 at `releaseThreshold`, and retain state between them |
 | Delay | `Delay` | Output a sample after `timeMs`; wait until the first delayed sample is available |
 | Rate of change | `Derivative` | Numeric change divided by elapsed seconds; the first reading establishes the baseline |
 | Peak hold | `PeakHold` | Retain the current peak for `timeMs`; a higher reading replaces it immediately |
@@ -125,6 +125,16 @@ For example, choose origin O=`(0,0,0)`, measured position P=`(0.03,0.04,0.12)` a
 
 If positions use metres, these results also use metres. The existing single-point `Distance` metric measures from the point's coordinate origin. Distance between points lets you choose another measured position as the reference.
 
+These captures show the running Measured position and Plane normal input groups: P=`(0.3,0.4,0.2)` and N=`(0,3,4)`. Fixed coordinates let you try a calculation; select a tracking object under XYZ source to use live measurements.
+
+![XYZ measured position in a spatial calculation](screenshots/desktop/computed-plane-point-en-US.png)
+
+[Narrow position controls](screenshots/mobile/computed-plane-point-en-US.png)
+
+![Plane normal in a spatial calculation](screenshots/desktop/computed-plane-direction-en-US.png)
+
+[Narrow direction controls](screenshots/mobile/computed-plane-direction-en-US.png)
+
 ### Follow an Avatar's movement with a plane
 
 Tracking Frame and Shader templates measure **relative movement between a target and reference on your own Avatar**. For interaction between Avatars, use [paired three-marker pose](positioning.en.md#interaction-between-avatars-paired-three-marker-pose) in the receiving Socket’s local frame, selecting its SensaPose depth fraction, opening offsets and angles directly.
@@ -136,6 +146,21 @@ In the workbench, expand **Spatial calculation presets → Follow a moving plane
 Alternatively, choose **Shader · Position and Forward**. The selected Shader position supplies the plane origin and Forward supplies its normal, creating depth and offset directly as two drafts.
 
 Shader already provides Forward/Right directions for a normal or a plane defined by two axes. Using Forward as the normal makes the depth direction follow measured Forward: +Z in the default orientation, changing as it rotates. With Right as U and Forward as V, the default orientation produces a −Y normal; reverse their order for +Y.
+
+### Keep motion within the entrance area
+
+For Contact positions in metres, first compute plane depth D and lateral offset R. To drive a traditional axis only after the target enters the plane near its centre, combine these calculations:
+
+| Calculation | Settings | Meaning |
+| --- | --- | --- |
+| Entered plane | Two-threshold switch on D: on `0.005`, off `0` | Opens at 5 mm depth and closes on leaving the plane |
+| Centring margin | Difference: constant `0.04` − R | Uses a 4 cm radius around the centre |
+| Centred | Two-threshold switch on that margin: on `0.005`, off `0` | Opens within 3.5 cm and closes at 4 cm offset |
+| Allow motion | Product: Entered plane × Centred | Equals 1 when both conditions hold, otherwise 0 |
+
+Map Allow motion to **Gate (closed stops output)** (`GateEnable`) with **Input range** set to 0–1 and the full **Remap range** of 0–999, keeping the direction forward. Map D separately to **Stroke (L0)** (`Depth`), choosing a range for the intended movement. Optionally add **Sustained condition** (`Duration`) after Allow motion, with threshold `0.5` and time `100 ms`, then map that result to the gate to require a stable entry before opening. These distances are examples; adjust them to your measurement units and entrance size.
+
+`GateEnable` stops and resumes traditional axis mappings. Independent output bindings follow their own sources and validity conditions. Multiplying depth by zero produces a valid zero target; use the gate when the axis should stop. For interaction between Avatars, paired three-point pose tracking directly evaluates `Valid` and `Engaged` against the receiving Socket's entrance and orientation.
 
 ### Coordinates, units and valid inputs
 

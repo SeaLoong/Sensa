@@ -10,7 +10,7 @@
 
 流程：**选定根点 → 三点蒙皮采样 → 黑白图块 → 桌面区域捕获 → OSC → Sensa 计算与输出**。
 
-`SensaShaderCapture` 保存作者设置并实现 `IEditorOnly`。NDMF 在 MA 合并前读取 Target 的根点位置和旋转，生成一个 Camera、三顶点 SkinnedMeshRenderer 和编码材质，再移除作者脚本。上传后的采样由这些标准渲染组件完成。[构建流程](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)
+`SensaShaderCapture` 保存作者设置并实现 `IEditorOnly`。NDMF 在 MA 合并前读取 Target 的根点位置和旋转，应用原点与坐标轴偏移，再生成一个 Camera、三顶点 SkinnedMeshRenderer 和编码材质，再移除作者脚本。上传后的采样由这些标准渲染组件完成。[构建流程](https://github.com/SeaLoong/Sensa/blob/main/docs/unity-build.md)
 
 1. 安装[包依赖](COMPATIBILITY.md)。选择 SPS 作者目标时安装官方 VRCFury。使用 PC、Built-in Render Pipeline 和支持 geometry shader 的图形后端；Android 与 Metal 采用其他输入方式。
 2. 从 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`。将 `Target` 指向当前 Avatar 内的骨骼／空物体 Transform、SPS Socket／Plug、Sensa Component 或原生 Contact。
@@ -27,9 +27,9 @@
 
 | 参数 | 含义与用法 |
 | --- | --- |
-| `X / Y / Z` | 所选根中心在 Avatar 根局部坐标中的位置；X/Z=[−2,2]，Y=[−1,3] |
-| `RightX / RightY / RightZ` | 根点局部 +X 轴在 Avatar 根坐标中的向量；向量长度反映该轴缩放 |
-| `ForwardX / ForwardY / ForwardZ` | 根点局部 +Z 轴在同一坐标中的向量；Forward×Right 给出实测 XZ 面的正法线 |
+| `X / Y / Z` | 应用原点偏移后的测量位置，采用 Avatar 根局部坐标；X/Z=[−2,2]，Y=[−1,3] |
+| `RightX / RightY / RightZ` | 配置后测量框架的 +X 轴在 Avatar 根坐标中的向量；向量长度反映该轴缩放 |
+| `ForwardX / ForwardY / ForwardZ` | 配置后测量框架的 +Z 轴在同一坐标中的向量；Forward×Right 给出实测 XZ 面的正法线 |
 | `AvatarScale` | 每个 Avatar 根局部单位对应的世界米数，范围 (0,8] |
 | `Frame` | 约 60 Hz 的编码时钟序号，用于发现重复与冻结 |
 | `Valid` | 1 提交完整有效包；0 使当前测量失效 |

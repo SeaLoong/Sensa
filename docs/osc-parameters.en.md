@@ -177,7 +177,7 @@ Dedicated channels and AllowSelf select this Avatar’s root marker. Readings re
 
 ## Shader: root position, axes and world scale
 
-Native avatar render components sample the selected root's origin, local +X and local +Z points through skinning, then encode a monochrome block. The desktop bridge decodes the selected region and Producer ID and delivers the same sample to Sensa. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [Bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
+Native avatar render components apply the authored origin offset and axis rotation, sample the measurement origin and its local +X and +Z points through skinning, then encode a monochrome block. With both offsets at zero, the measurement frame matches the selected root. The desktop bridge decodes the selected region and Producer ID and delivers the same sample to Sensa. [Encoder](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/Shaders/SensaRootTelemetry.shader) · [Bridge](https://github.com/SeaLoong/Sensa/blob/main/scripts/shader-osc-bridge.py)
 
 ### Twelve public measurement parameters
 
@@ -186,9 +186,9 @@ Native avatar render components sample the selected root's origin, local +X and 
 | Leaf | Meaning and validity |
 | --- | --- |
 | `Frame` | Integer encoder clock 0…65535; `floor(_Time.y×60)` wraps every approximately 18.2 minutes |
-| `X / Y / Z` | Root-center position in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
-| `RightX / RightY / RightZ` | The root's local +X axis expressed in Avatar-root coordinates; components in [−8,8], vector length retaining that axis's scale |
-| `ForwardX / ForwardY / ForwardZ` | The root's local +Z axis, retaining direction and length; components in [−8,8] |
+| `X / Y / Z` | Measurement position after the origin offset, in Avatar-root local coordinates; X/Z=[−2,2], Y=[−1,3] |
+| `RightX / RightY / RightZ` | The configured measurement frame's +X axis expressed in Avatar-root coordinates; components in [−8,8], vector length retaining that axis's scale |
+| `ForwardX / ForwardY / ForwardZ` | The same measurement frame's +Z axis, retaining direction and length; components in [−8,8] |
 | `AvatarScale` | World metres per root-local unit, in (0,8]; multiply relative displacement by it for metres |
 | `Valid` | 1 commits a complete valid packet last; 0 immediately invalidates the measurement |
 
@@ -212,7 +212,7 @@ The 32-byte packet retains Producer ID, coordinate flags, encoder clock, all mea
 
 | Concept | Information and use |
 | --- | --- |
-| Root position | Three coordinates describing the selected root center relative to the Avatar |
+| Root position | Three coordinates describing the measurement origin relative to the Avatar |
 | Pose/orientation | Rotation calculated from independent direction information or multiple points with a known layout |
 | World position | Scene position obtained with a world reference and coordinate transform |
 | Final deformed surface | Surface points sampled according to the specific deformation algorithm |

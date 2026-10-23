@@ -383,8 +383,8 @@
         '基础 Proximity 每秒的变化率，单位 1/s；靠近时通常为正，远离时通常为负，进入或离开检测时可能短暂跳变。它描述接近值变化，可辅助接触联动。',
         'Change in base Proximity per second, in 1/s: usually positive on approach and negative on retreat, with possible entry or exit transients. It describes changing proximity for contact interaction.'];
       if (name === 'Radius') return [
-        'Receiver 实际世界半径，单位米，允许范围 (0,3]；此预设为 2 m。用于检查检测覆盖与缩放是否受支持。',
-        'The Receiver’s actual world radius in metres, allowed range (0,3]; this preset uses 2 m. Use it to check coverage and supported scaling.'];
+        'Receiver 实际世界半径，单位米，允许范围 (0,3]；此图示为 2 m。用于检查检测覆盖与缩放是否受支持。',
+        'The Receiver’s actual world radius in metres, allowed range (0,3]; this illustration uses 2 m. Use it to check coverage and supported scaling.'];
       return [
         'Sensa 生产端活动计数：约每 50 ms 在 1/32 到 1 之间循环，停用为 0；停更超过 1000 ms 时暂停可用位置。它表示生产端持续发布，各 SDK 字段分别更新。',
         'Sensa producer activity counter: cycles from 1/32 to 1 roughly every 50 ms, and is 0 when disabled. Usable position pauses after more than 1000 ms without a change. It indicates continued publishing; SDK fields update individually.'];
