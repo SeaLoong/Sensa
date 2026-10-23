@@ -244,6 +244,8 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         url: location.href, locale: document.documentElement.lang, selected: document.getElementById('locale')?.value,
         languages: [...navigator.languages], language: navigator.language,
         saved: (() => { try { return sessionStorage.getItem('sensa.locale'); } catch { return 'storage-denied'; } })(),
+        historyLocale: history.state?.['sensa.locale'] ?? null,
+        historyState: history.state, fixture: window.name,
       })) });
       child.on('pageerror', error => errors.push(error.message));
       child.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
@@ -278,13 +280,25 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
           expect(new URL(child.url()).searchParams.has('lang')).toBe(false);
           expect(await child.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('zh-CN');
           await capture('switched');
+          expect(await child.evaluate(() => history.state?.['sensa.locale'])).toBe('zh-CN');
+          // File storage may change after removing a legacy query. Exercise the
+          // actual empty-storage reload as well as the successful initial write.
+          await child.evaluate(() => sessionStorage.removeItem('sensa.locale'));
+          expect(await child.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBeNull();
+          await capture('storage-cleared-before-reload');
           await child.reload(); await capture('reloaded');
           await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
+          expect(await child.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('zh-CN');
           await child.goto(guideFile.href); await capture('without-url-override');
           await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
         }
         if (scenario.denied) {
           await child.locator('#locale').selectOption('en-US');
+          await expect(child.locator('h1')).toHaveText('See what each parameter responds to');
+          expect(await child.evaluate(() => history.state?.['sensa.locale'])).toBe('en-US');
+          await capture('denied-storage-switched');
+          await child.reload(); await capture('denied-storage-reloaded');
+          await expect(child.locator('html')).toHaveAttribute('lang', 'en-US');
           await expect(child.locator('h1')).toHaveText('See what each parameter responds to');
         }
         expect(errors).toEqual([]); expect(network).toEqual([]);

@@ -147,10 +147,19 @@
     if (/^en(?:-[a-z0-9]{1,8})*$/.test(language)) return 'en-US';
     return null;
   }
+  function isFilePage() {
+    try { return new URL(location.href).protocol === 'file:'; } catch { return false; }
+  }
   function initialLocale() {
     let saved;
     const languages = [];
-    try { saved = window.sessionStorage.getItem(LOCALE_STORAGE_KEY); } catch { /* Restricted file/private storage. */ }
+    try { saved = normalizeLocale(window.sessionStorage.getItem(LOCALE_STORAGE_KEY)); } catch { /* Restricted file/private storage. */ }
+    // A file URL can lose its storage namespace when a legacy query is removed.
+    // The current history entry keeps a manual choice across that entry's reload.
+    if (!saved && isFilePage()) {
+      try { saved = normalizeLocale(window.history.state?.[LOCALE_STORAGE_KEY]); } catch { /* Restricted history. */ }
+      if (saved) try { window.sessionStorage.setItem(LOCALE_STORAGE_KEY, saved); } catch { /* History remains the file-page fallback. */ }
+    }
     try { if (Array.isArray(navigator.languages)) languages.push(...navigator.languages); } catch { /* Unavailable preferences. */ }
     try { languages.push(navigator.language); } catch { /* Unavailable fallback preference. */ }
     return [saved, ...languages].map(normalizeLocale).find(Boolean) || 'en-US';
@@ -162,7 +171,16 @@
     } catch { /* A restricted file URL/history does not prevent switching. */ }
   }
   function rememberLocale(next) {
+    next = normalizeLocale(next);
+    if (!next) return;
     try { window.sessionStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory choice still works. */ }
+    if (isFilePage()) {
+      try {
+        const previous = window.history.state;
+        const state = previous && typeof previous === 'object' ? previous : {};
+        window.history.replaceState({ ...state, [LOCALE_STORAGE_KEY]: next }, '');
+      } catch { /* In-memory and available session storage still work. */ }
+    }
     clearLocaleQuery();
   }
   clearLocaleQuery();

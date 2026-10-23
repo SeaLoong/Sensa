@@ -8,6 +8,8 @@ Sensa provides Simplified Chinese and English for interface text. OSC paths, par
 
 On first visit, the page chooses English or Simplified Chinese from the browser’s language preferences. A manual choice is saved in the current tab’s `sessionStorage["sensa.locale"]`, so reloads and same-origin navigation keep it.
 
+Offline file pages also keep a manual choice in the current browser history entry. If cleaning up a file URL changes its session storage, reloading restores the language from that entry and refills session storage when available.
+
 The selection order is:
 
 1. The language saved in this tab.

@@ -81,6 +81,77 @@ test('offline guide shares session choices with the app and clears old language 
   assert.doesNotThrow(() => denied.rememberLocale('en-US'));
 });
 
+function fileLocaleBrowser() {
+  const values = new Map(), replacements = [];
+  const browser = {
+    location: { href: 'file:///guide.html?lang=en&scene=shader&tag=one&tag=two#encoding' },
+    navigator: { languages: ['en-US'], language: 'en-US' },
+    sessionStorage: { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) },
+    localStorage: { getItem() { throw new Error('Persistent storage must not be used'); } },
+    history: { state: { anchor: 'keep', nested: { offset: 12 } }, replaceState(state, title, url) {
+      this.state = state; replacements.push({ state, title, url });
+      if (url !== undefined) browser.location.href = String(url);
+    } },
+  };
+  return { browser, values, replacements };
+}
+
+test('file language choices survive an empty-storage reload and refill the clean URL session / 文件页语言经空存储刷新恢复并回填会话', () => {
+  const { browser, values } = fileLocaleBrowser();
+  const guide = guideLocale(browser);
+  assert.equal(guide.initialLocale(), 'en-US');
+  assert.equal(browser.history.state['sensa.locale'], undefined, 'Browser detection alone does not create a manual choice.');
+  guide.rememberLocale('zh_HK');
+  assert.equal(values.get('sensa.locale'), 'zh-CN');
+  assert.equal(browser.history.state['sensa.locale'], 'zh-CN');
+  assert.equal(browser.history.state.anchor, 'keep'); assert.equal(browser.history.state.nested.offset, 12);
+  const clean = new URL(browser.location.href);
+  assert.equal(clean.searchParams.has('lang'), false); assert.equal(clean.searchParams.get('scene'), 'shader');
+  assert.deepEqual(clean.searchParams.getAll('tag'), ['one', 'two']); assert.equal(clean.hash, '#encoding');
+  values.clear();
+  assert.equal(guideLocale(browser).initialLocale(), 'zh-CN');
+  assert.equal(values.get('sensa.locale'), 'zh-CN', 'Reload restores the file-page session for the next navigation.');
+  browser.history.state = null;
+  assert.equal(guideLocale(browser).initialLocale(), 'zh-CN', 'The next clean-URL navigation uses the restored session.');
+});
+
+test('file language history handles denied storage and restricted history without persistent storage / 文件页历史语言支持存储拒绝及受限历史', () => {
+  const { browser } = fileLocaleBrowser();
+  Object.defineProperty(browser, 'sessionStorage', { configurable: true, get() { throw new Error('Storage denied'); } });
+  const guide = guideLocale(browser);
+  guide.rememberLocale('zh-CN');
+  assert.equal(browser.history.state['sensa.locale'], 'zh-CN');
+  assert.equal(guideLocale(browser).initialLocale(), 'zh-CN');
+  guide.rememberLocale('en-US');
+  assert.equal(guideLocale(browser).initialLocale(), 'en-US');
+  const state = browser.history.state;
+  guide.rememberLocale('unsupported'); assert.equal(browser.history.state, state);
+  browser.history.state = { 'sensa.locale': 'unsupported' };
+  assert.equal(guideLocale(browser).initialLocale(), 'en-US');
+  Object.defineProperty(browser, 'history', { get() { throw new Error('History denied'); } });
+  const restricted = guideLocale(browser);
+  assert.equal(restricted.initialLocale(), 'en-US');
+  assert.doesNotThrow(() => restricted.rememberLocale('zh-CN'));
+});
+
+test('session choices take priority and HTTP language selection ignores file-history fallback / 会话优先且HTTP语言选择忽略文件历史兜底', () => {
+  const { browser, values } = fileLocaleBrowser();
+  browser.history.state['sensa.locale'] = 'zh-CN'; values.set('sensa.locale', 'en-US');
+  assert.equal(guideLocale(browser).initialLocale(), 'en-US');
+  for (const protocol of ['http:', 'https:']) {
+    browser.location.href = protocol + '//sensa.invalid/guide.html?lang=zh#encoding';
+    values.clear();
+    const before = browser.history.state;
+    const guide = guideLocale(browser);
+    assert.equal(guide.initialLocale(), 'en-US');
+    guide.rememberLocale('en-US');
+    assert.equal(values.get('sensa.locale'), 'en-US'); assert.equal(browser.history.state, before);
+    assert.equal(browser.history.state['sensa.locale'], 'zh-CN');
+    assert.equal(new URL(browser.location.href).searchParams.has('lang'), false);
+    values.clear(); assert.equal(guideLocale(browser).initialLocale(), 'en-US');
+  }
+});
+
 test('computed diagnostics translate owned phrases while preserving captured identifiers and paths / 计算诊断翻译固定说明并保留标识符和路径原文', () => {
   const previous = getLocale();
   setLocale('en-US');
