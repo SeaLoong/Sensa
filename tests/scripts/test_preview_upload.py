@@ -102,7 +102,7 @@ class PublicationTests(unittest.TestCase):
         self.releases.upload_errors = [subprocess.CalledProcessError(1, 'gh')]
         self.publish()
         self.assertEqual(sum(event[0] == 'upload' for event in self.releases.events), 2)
-        self.assertEqual(self.releases.events[-2:], [('draft', TAG), ('publish', TAG, 'preview')])
+        self.assertEqual(self.releases.events[-3:], [('draft', TAG), ('tag', TAG, SHA), ('publish', TAG, 'preview')])
         preview.verify_draft(self.releases.remote, TAG, SHA, [self.path])
 
     def test_exhausted_upload_remains_private(self):
@@ -146,6 +146,16 @@ class PublicationTests(unittest.TestCase):
         self.releases.remote['prerelease'] = False
         self.publish('stable')
         self.assertEqual(self.releases.events[-1], ('publish', TAG, 'stable'))
+
+    def test_tag_moved_during_upload_prevents_publication_despite_unchanged_draft_metadata(self):
+        def changed_target(tag, sha):
+            self.assertEqual(self.releases.remote['target_commitish'], SHA)
+            self.assertEqual(self.releases.remote['assets'], [asset(self.path)])
+            raise ValueError('Tag points to a different commit')
+        with patch.object(self.releases, 'verify_tag_target', side_effect=changed_target), \
+                self.assertRaisesRegex(ValueError, 'different commit'):
+            self.publish()
+        self.assertFalse(any(event[0] == 'publish' for event in self.releases.events))
 
     def test_run_gate_uses_trigger_pinned_source_and_same_commit_comparison(self):
         self.assertEqual(preview.validate_run(ENV, 'preview', VERSION, TAG, SHA), ('42', '1'))
@@ -269,7 +279,40 @@ class ReleaseCommandTests(unittest.TestCase):
         for tag, target in [('preview-43-1-bbbbbbbb', 'b' * 40), ('preview-41-1-aaaaaaaa', SHA)]:
             releases = FakeReleases([published(50) | {'tag_name': tag, 'target_commitish': target}])
             self.main('preview', releases)
-            self.assertEqual(releases.events, [('list',)])
+            self.assertEqual(releases.events, [('list',), ('get', 50), ('tag', tag, target), ('list',)])
+
+    def published_current(self):
+        write_archives(self.inputs, 'preview')
+        files = preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
+        staged = preview.stage_assets(files, self.root / 'expected')
+        return published(50) | {'tag_name': TAG, 'assets': [asset(path) for path in staged]}
+
+    def test_retry_after_publication_verifies_all_assets_and_completes_failed_retention(self):
+        current = self.published_current()
+        releases = FakeReleases([*[published(number) for number in range(1, 11)], current])
+        self.main('preview', releases)
+        self.assertEqual(len(current['assets']), 8)
+        self.assertIn(('delete', 1), releases.events)
+        self.assertNotIn(1, releases.releases)
+        self.assertFalse(any(event[0] in ('create', 'upload', 'publish') for event in releases.events))
+
+    def test_published_retry_rejects_deleted_changed_or_unexpected_assets_before_cleanup(self):
+        current = self.published_current()
+        for assets in (current['assets'][:-1],
+                       [dict(current['assets'][0], digest='sha256:changed'), *current['assets'][1:]],
+                       [*current['assets'], dict(current['assets'][0], name='unexpected.zip')]):
+            with self.subTest(assets=assets):
+                releases = FakeReleases([current | {'assets': assets}])
+                with self.assertRaises(ValueError):
+                    self.main('preview', releases)
+                self.assertFalse(any(event[0] in ('create', 'upload', 'publish', 'delete') for event in releases.events))
+
+    def test_skip_rechecks_fresh_published_identity_before_cleanup(self):
+        releases = FakeReleases([published(50) | {'tag_name': TAG}])
+        releases.releases[50]['draft'] = True
+        with self.assertRaisesRegex(ValueError, 'preview changed'):
+            self.main('preview', releases)
+        self.assertEqual(releases.events, [('list',), ('get', 50)])
 
     def test_published_stable_tag_is_immutable(self):
         releases = FakeReleases([published(50) | {'tag_name': 'v0.4.0', 'prerelease': False}])
@@ -296,6 +339,21 @@ class ReleaseCommandTests(unittest.TestCase):
         manifest.write_text('{}')
         with self.assertRaisesRegex(ValueError, 'VPM metadata'):
             preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
+
+    @unittest.skipIf(os.name == 'nt', 'Creating test symlinks requires a Unix host')
+    def test_publisher_rejects_archive_checksum_and_manifest_symlinks_even_with_matching_bytes(self):
+        write_archives(self.inputs, 'stable')
+        for name in (f'win-x64/Sensa-{VERSION}-win-x64.zip', 'win-x64/SHA256SUMS.txt', 'unity/vpm-package.json'):
+            path = self.inputs / name
+            original = path.read_bytes()
+            outside = self.root / 'outside-artifact'
+            outside.write_bytes(original)
+            path.unlink()
+            path.symlink_to(outside)
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, 'symlinks'):
+                preview.release_assets(self.inputs, 'stable', VERSION, 'v0.4.0', SHA, 'Owner/Repo')
+            path.unlink()
+            path.write_bytes(original)
 
     def test_direct_commit_history_is_bounded_with_full_compare_link(self):
         history = ''.join(f'{i:040x}\0Fix {i} [link](bad)\n' for i in range(101))

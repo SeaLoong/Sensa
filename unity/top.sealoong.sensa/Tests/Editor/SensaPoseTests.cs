@@ -1,5 +1,6 @@
 #if UNITY_INCLUDE_TESTS
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
@@ -96,6 +97,52 @@ namespace UnityBox.Sensa.Tests
             Prefab("SensaPoseSocket").transform.SetParent(avatar.transform, false);
             Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(avatar));
             Assert.That(avatar.GetComponentsInChildren<VRCContactReceiver>(), Is.Empty);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void ExistingParameterConflictIsReportedBeforeAnySocketIsGenerated(bool declarationOnInactiveObject)
+        {
+            var first = Prefab("SensaPoseSocket"); first.transform.SetParent(avatar.transform, false);
+            var second = Prefab("SensaPoseSocket"); second.transform.SetParent(avatar.transform, false);
+            second.GetComponent<SensaPoseSocket>().instanceName = "Second";
+            var declaration = Child("Authored parameter", Vector3.zero);
+            var name = SensaPoseProtocol.Prefix + "/Second/Others/" + SensaPoseProtocol.Markers[0] + "/A0";
+            var config = declaration.AddComponent<ModularAvatarParameters>();
+            config.parameters = new List<ParameterConfig> {
+                new ParameterConfig { nameOrPrefix = name, syncType = ParameterSyncType.Bool, remapTo = "Existing" }
+            };
+            declaration.SetActive(!declarationOnInactiveObject);
+
+            Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(avatar));
+
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+            Assert.IsNull(first.transform.Find("SensaPose_Contacts"));
+            Assert.IsNotNull(first.GetComponent<SensaPoseSocket>());
+            Assert.IsNotNull(second.GetComponent<SensaPoseSocket>());
+            Assert.AreEqual(1, config.parameters.Count);
+            Assert.AreEqual(ParameterSyncType.Bool, config.parameters[0].syncType);
+            Assert.AreEqual("Existing", config.parameters[0].remapTo);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void NamesAndPairChannelsRejectTrailingNewlineBeforeGeneratingContacts(bool invalidChannel)
+        {
+            var instance = Prefab("SensaPoseSocket");
+            var socket = instance.GetComponent<SensaPoseSocket>();
+            // Use a disposable profile; packaged assets remain unchanged.
+            var profile = ScriptableObject.CreateInstance<SensaPoseProfile>();
+            socket.profile = profile;
+            try
+            {
+                if (invalidChannel) profile.channel = "Pair\n";
+                else socket.instanceName = "Socket\n";
+                Assert.Throws<InvalidOperationException>(() => SensaPoseBuilder.ProcessAvatar(instance));
+                Assert.IsEmpty(instance.GetComponentsInChildren<VRCContactReceiver>(true));
+                Assert.IsNotNull(instance.GetComponent<SensaPoseSocket>());
+            }
+            finally { UnityEngine.Object.DestroyImmediate(profile); }
         }
 
         [Test]

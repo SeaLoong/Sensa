@@ -86,8 +86,24 @@ namespace UnityBox.Sensa
                 || viewport.x < 0 || viewport.y < 0 || viewport.width < .05f || viewport.height < .05f || viewport.xMax > 1 || viewport.yMax > 1)
                 throw new InvalidOperationException(SensaEditorLocalization.Text("The desktop rectangle must fit within normalized 0–1 bounds."));
             SensaSensorUtility.Uniform(avatar.transform);
-            if (avatar.transform.lossyScale.x > SensaShaderCapture.MaximumAvatarScale
-                || Mathf.RoundToInt(avatar.transform.lossyScale.x / SensaShaderCapture.MaximumAvatarScale * 65535) == 0)
+            // Match the encoder's final world-matrix test. Per-ancestor uniformity
+            // tolerances can accumulate or form shear after intervening rotations.
+            var world = avatar.transform.localToWorldMatrix;
+            var worldX = world.MultiplyVector(Vector3.right);
+            var worldY = world.MultiplyVector(Vector3.up);
+            var worldZ = world.MultiplyVector(Vector3.forward);
+            var scale = worldX.magnitude;
+            var tolerance = scale * .0001f;
+            var dotTolerance = scale * scale * .0001f;
+            if (!Finite(scale) || !Finite(worldY.magnitude) || !Finite(worldZ.magnitude) || scale <= 0
+                || Mathf.Abs(worldY.magnitude - scale) > tolerance || Mathf.Abs(worldZ.magnitude - scale) > tolerance
+                || Mathf.Abs(Vector3.Dot(worldX, worldY)) > dotTolerance
+                || Mathf.Abs(Vector3.Dot(worldX, worldZ)) > dotTolerance
+                || Mathf.Abs(Vector3.Dot(worldY, worldZ)) > dotTolerance
+                || Vector3.Dot(Vector3.Cross(worldX, worldY), worldZ) <= 0)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Shader capture needs finite positive uniform Avatar world scale."));
+            if (scale > SensaShaderCapture.MaximumAvatarScale
+                || Mathf.RoundToInt(scale / SensaShaderCapture.MaximumAvatarScale * 65535) == 0)
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Choose an Avatar world scale that encodes to a positive value, up to 8."));
             if (avatar.transform.Find("SensaShaderCapture_" + producerId) != null)
                 throw new InvalidOperationException(SensaEditorLocalization.Text("A Shader root capture with this producer ID already exists."));

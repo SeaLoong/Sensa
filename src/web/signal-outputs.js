@@ -112,11 +112,19 @@ export function exportSignalPlan(config) {
 }
 
 export function parseSignalPlan(text) {
-  if (typeof text !== 'string' || text.length > 2 * 1024 * 1024) throw new Error(t('请选择不超过 2 MiB 的 Sensa 交互方案。'));
+  const maxBytes = 2 * 1024 * 1024;
+  if (typeof text !== 'string' || text.length > maxBytes || new globalThis.TextEncoder().encode(text).length > maxBytes)
+    throw new Error(t('请选择不超过 2 MiB 的 Sensa 交互方案。'));
   const plan = JSON.parse(text);
-  if (plan?.kind !== 'SensaSignalPlan' || !Array.isArray(plan.computedSignals) || !Array.isArray(plan.signals) || !Array.isArray(plan.outputs)
-    || plan.computedSignals.length > 64 || plan.signals.length > 512 || plan.outputs.length > 64
-    || plan.axisProfiles !== undefined && (!Array.isArray(plan.axisProfiles) || plan.axisProfiles.length > 64))
+  const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
+  const optionalText = value => value == null || typeof value === 'string';
+  // Preview metadata is rendered before the server validates the full graph.
+  // Reject malformed rows here so a file can always fail inside the import panel.
+  const rows = (value, limit) => Array.isArray(value) && value.length <= limit
+    && value.every(row => record(row) && ['id', 'name', 'type'].every(key => optionalText(row[key])));
+  if (plan?.kind !== 'SensaSignalPlan' || !optionalText(plan.name)
+    || !rows(plan.computedSignals, 64) || !rows(plan.signals, 512) || !rows(plan.outputs, 64)
+    || plan.axisProfiles !== undefined && !rows(plan.axisProfiles, 64))
     throw new Error(t('方案应包含完整的输入映射、计算信号和输出配置。'));
   const copy = globalThis.structuredClone(plan);
   copy.outputs = copy.outputs.map(output => ({ ...output, enabled: false }));

@@ -25,11 +25,13 @@ public static class SensaHost
 {
     // A selected source is part of the motion configuration. Reusing an existing
     // activation for another source would let its next sample move the device.
-    internal static void PrepareOscSourceSelection(MotionRuntime runtime, string? currentSourceKey, string? nextSourceKey)
+    // The caller holds this scope through source assignment and persistence.
+    internal static IDisposable? PrepareOscSourceSelection(MotionRuntime runtime, string? currentSourceKey, string? nextSourceKey)
     {
-        if (string.Equals(currentSourceKey, nextSourceKey, StringComparison.Ordinal)) return;
-        runtime.SetInputActive(false);
-        runtime.RebuildProcessors();
+        if (string.Equals(currentSourceKey, nextSourceKey, StringComparison.Ordinal)) return null;
+        var inputChange = runtime.BlockInputActivation();
+        try { runtime.RebuildProcessors(); return inputChange; }
+        catch { inputChange.Dispose(); throw; }
     }
 
     public static async Task RunAsync(string[] args)
@@ -460,7 +462,7 @@ public static class SensaHost
         object SetOscSourceSelectionLocked(string? sourceKey)
         {
             var normalizedSourceKey = string.IsNullOrWhiteSpace(sourceKey) ? null : sourceKey.Trim();
-            PrepareOscSourceSelection(motionRuntime, ResolvePreferredOscSourceKeyForRuntime(), normalizedSourceKey);
+            using var inputChange = PrepareOscSourceSelection(motionRuntime, ResolvePreferredOscSourceKeyForRuntime(), normalizedSourceKey);
             selectedOscSourceKey = normalizedSourceKey;
 
             var snapshotSources = parameterStore.SnapshotSources();

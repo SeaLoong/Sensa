@@ -83,7 +83,8 @@ public sealed class SensaApplication(
                 {
                     var request = Read<SignalReplayRequest>(body);
                     var action = path.Split('/')[^1];
-                    if (action == "load") { runtime.SetInputActive(false); await outputs.SignalOutputs.StopAsync(); }
+                    using var inputChange = action == "load" ? runtime.BlockInputActivation() : null;
+                    if (action == "load") await outputs.SignalOutputs.StopAsync();
                     runtime.ResetSignalProcessing();
                     result = outputs.SignalOutputs.ReplayAction(request.OutputId, action, request.FileName, request.TimeMs);
                     break;
@@ -386,7 +387,7 @@ public sealed class SensaApplication(
 
     async Task<object> LoadScriptFromStreamCoreAsync(string fileName, Stream content, bool loop, double speed)
     {
-        runtime.SetInputActive(false);
+        using var inputChange = runtime.BlockInputActivation();
         scriptPlayer.Load(fileName, content);
         scriptPlayer.Configure(loop: loop, speed: speed);
         if (runtime.CurrentInputMode != RuntimeInputMode.Combined) runtime.SetInputMode(RuntimeInputMode.Script);

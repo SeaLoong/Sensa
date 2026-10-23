@@ -72,7 +72,39 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.ok(installLink);
     assert.doesNotMatch(installLink, /\bhidden\b/);
     assert.ok(installLink.includes('href="vcc://vpm/addRepo?url=' + encodeURIComponent(historical.url) + '"'));
+    for (const section of ['start', 'possibilities-heading', 'outputs-heading', 'recording-heading', 'unity-heading', 'documentation'])
+      assert.ok(homepage.includes('id="' + section + '"'), 'Homepage task section: ' + section);
+    assert.match(homepage, /data-fragment-en="record-and-inspect" data-fragment-zh="录制与观察"/);
+    assert.match(homepage, /<noscript>[\s\S]*href="en\/README.html"[\s\S]*href="zh-CN\/README.html"[\s\S]*<\/noscript>/);
+    for (const label of ['CI', 'E2E', 'Pages', 'Release']) assert.ok(homepage.includes('alt="' + label + '"'));
   } finally { await fs.rm(output, { recursive: true, force: true }); }
+});
+
+test('homepage switches task anchors and accessible labels with unavailable preference storage', async () => {
+  const source = await fs.readFile(new URL('../../.github/pages/site.js', import.meta.url), 'utf8');
+  const callbacks = new Map(), english = { hidden: false }, chinese = { hidden: true };
+  const recording = { href: '', dataset: { doc: 'docs/signal-pipeline', fragmentEn: 'record-and-inspect', fragmentZh: '录制与观察' } };
+  const label = { dataset: { labelEn: 'Main navigation', labelZh: '主导航' }, setAttribute(name, value) { this[name] = value; } };
+  const elements = { language: { addEventListener: (name, action) => callbacks.set(name, action) },
+    vcc: {}, 'copy-vpm': { addEventListener() {} }, 'vpm-status': {} };
+  const document = { documentElement: {}, body: { hasAttribute: () => true, dataset: { vpm: 'false' } },
+    getElementById: name => elements[name],
+    querySelectorAll: selector => ({ '[data-en]': [english], '[data-zh]': [chinese], '[data-doc]': [recording],
+      '[data-label-en]': [label], '[data-diagram]': [] })[selector] || [] };
+  vm.runInNewContext(source, { document, URL, location: new URL('https://example.test/Sensa/'),
+    navigator: { languages: ['fr-FR'], language: 'fr-FR' },
+    localStorage: { getItem() { throw new Error('Unavailable'); }, setItem() { throw new Error('Unavailable'); } },
+  });
+  assert.equal(document.documentElement.lang, 'en-US');
+  assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
+  assert.equal(label['aria-label'], 'Main navigation');
+  callbacks.get('click')();
+  assert.equal(document.documentElement.lang, 'zh-CN');
+  assert.equal(english.hidden, true); assert.equal(chinese.hidden, false);
+  assert.equal(recording.href, 'zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察'));
+  assert.equal(label['aria-label'], '主导航'); assert.equal(elements.language.textContent, 'English');
+  assert.equal(elements.vcc.hidden, true); assert.equal(elements['copy-vpm'].hidden, true);
+  callbacks.get('click')(); assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
 });
 
 test('language section maps require a matching outline instead of guessing from mismatched headings', () => {

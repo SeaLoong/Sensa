@@ -213,7 +213,7 @@ public sealed class ConfigurationUpdate(
         candidate.ValidateOscHubTargets();
         candidate.ValidateOgbControlTarget();
 
-        runtime.SetInputActive(false);
+        using var inputActivationBlock = runtime.BlockInputActivation();
         await outputs.EmergencyStopAsync();
         try
         {

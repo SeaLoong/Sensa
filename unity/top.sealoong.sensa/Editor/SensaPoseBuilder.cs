@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using nadena.dev.modular_avatar.core;
 using UnityEngine;
 using VRC.SDK3.Dynamics.Contact.Components;
 using VRC.Dynamics;
@@ -42,6 +41,7 @@ namespace UnityBox.Sensa
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Pose receiver radius exceeds VRChat's 3 metre limit at this scale."));
             if (!socket.profile.receiveSelf && !socket.profile.receiveOthers)
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Pose profile must enable Self or Others."));
+            SensaSensorUtility.ValidateParameters(socket.gameObject, SocketParameters(socket));
         }
 
         public static void Validate(SensaPosePlug plug)
@@ -63,7 +63,7 @@ namespace UnityBox.Sensa
         }
         private static void CheckName(string value, string label)
         {
-            if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value, "^[A-Za-z0-9_-]{1,48}$"))
+            if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value, @"\A[A-Za-z0-9_-]{1,48}\z"))
                 throw new InvalidOperationException(label + SensaEditorLocalization.Text(" must contain 1–48 ASCII letters, digits, '_' or '-'."));
         }
         private static void CheckScale(Transform target)
@@ -83,8 +83,6 @@ namespace UnityBox.Sensa
             Validate(socket);
             if (socket.transform.Find("SensaPose_Contacts") != null) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa Pose Socket is already baked."));
             var container = Child(socket.transform, "SensaPose_Contacts");
-            var parameters = socket.GetComponent<ModularAvatarParameters>() ?? socket.gameObject.AddComponent<ModularAvatarParameters>();
-            if (parameters.parameters == null) parameters.parameters = new List<ParameterConfig>();
             foreach (var self in new[] { false, true })
             {
                 if (self ? !socket.profile.receiveSelf : !socket.profile.receiveOthers) continue;
@@ -102,15 +100,21 @@ namespace UnityBox.Sensa
                     receiver.allowSelf = self; receiver.allowOthers = !self; receiver.localOnly = true;
                     receiver.collisionTags = new List<string> { SensaPoseProtocol.Tag(socket.profile.channel, marker) };
                     receiver.parameter = SensaPoseProtocol.Prefix + "/" + socket.instanceName + "/" + party + "/" + marker + "/A" + i;
-                    parameters.parameters.Add(new ParameterConfig
-                    {
-                        nameOrPrefix = receiver.parameter, remapTo = "", internalParameter = false, isPrefix = false,
-                        syncType = ParameterSyncType.Float, localOnly = true, saved = false, defaultValue = 0,
-                        hasExplicitDefaultValue = true,
-                    });
+                    SensaSensorUtility.Parameter(socket.gameObject, receiver.parameter);
                 }
             }
             SensaSensorUtility.WritableParameters(socket.gameObject, "Sensa pose " + socket.instanceName);
+        }
+
+        private static IEnumerable<string> SocketParameters(SensaPoseSocket socket)
+        {
+            foreach (var self in new[] { false, true })
+            {
+                if (self ? !socket.profile.receiveSelf : !socket.profile.receiveOthers) continue;
+                foreach (var marker in SensaPoseProtocol.Markers)
+                    for (var i = 0; i < SensaPoseProtocol.AnchorsPerMarker; i++)
+                        yield return SensaPoseProtocol.Prefix + "/" + socket.instanceName + "/" + (self ? "Self" : "Others") + "/" + marker + "/A" + i;
+            }
         }
 
         public static void BuildPlug(SensaPosePlug plug)

@@ -20,23 +20,37 @@ namespace UnityBox.Sensa
         {
             if (component == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a root target: a bone, marker, SPS component or Contact."));
             if (component is Transform transform)
-                return new RootPlacement { root = transform, rotation = Quaternion.identity };
+                return CheckedRoot(new RootPlacement { root = transform, rotation = Quaternion.identity });
             if (IsTarget(component))
             {
                 var placement = ReadGeometry(component, false);
-                return new RootPlacement { root = component.transform, position = placement.position, rotation = placement.rotation };
+                return CheckedRoot(new RootPlacement { root = component.transform, position = placement.position, rotation = placement.rotation });
             }
             if (component is SensaComponent owned)
             {
                 var root = owned.role == BridgeRole.Socket ? owned.depthAxis : owned.rootBone;
                 if (root == null) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa root is not configured."));
-                return new RootPlacement { root = root, rotation = Quaternion.identity };
+                return CheckedRoot(new RootPlacement { root = root, rotation = Quaternion.identity });
             }
             if (component is VRC.Dynamics.ContactBase contact)
-                return new RootPlacement { root = contact.rootTransform != null ? contact.rootTransform : contact.transform,
-                    position = contact.position, rotation = contact.rotation };
+                return CheckedRoot(new RootPlacement { root = contact.rootTransform != null ? contact.rootTransform : contact.transform,
+                    position = contact.position, rotation = contact.rotation });
             throw new InvalidOperationException(SensaEditorLocalization.Text("Choose a Transform, Sensa component, SPS component or native Contact as the root target."));
         }
+        private static RootPlacement CheckedRoot(RootPlacement placement)
+        {
+            var p = placement.position;
+            var q = placement.rotation;
+            var squaredLength = (double)q.x * q.x + (double)q.y * q.y + (double)q.z * q.z + (double)q.w * q.w;
+            if (!Finite(p.x) || !Finite(p.y) || !Finite(p.z)
+                || !Finite(q.x) || !Finite(q.y) || !Finite(q.z) || !Finite(q.w) || squaredLength <= 0)
+                throw new InvalidOperationException(SensaEditorLocalization.Text("Configure a finite root offset and a valid root rotation."));
+            // Resolve serialized Contact offsets consistently before any Transform is created.
+            var length = Math.Sqrt(squaredLength);
+            placement.rotation = new Quaternion((float)(q.x / length), (float)(q.y / length), (float)(q.z / length), (float)(q.w / length));
+            return placement;
+        }
+        private static bool Finite(float value) => !float.IsNaN(value) && !float.IsInfinity(value);
         public static Placement Read(Component component) => ReadGeometry(component, true);
         private static Placement ReadGeometry(Component component, bool requireLength)
         {

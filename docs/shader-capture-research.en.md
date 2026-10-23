@@ -15,19 +15,19 @@ Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned
 | Android support? | [Android limitations](https://creators.vrchat.com/platforms/android/quest-content-limitations/) disable avatar cameras and restrict avatar shaders. | Reject Android author builds. This is a PC Built-in geometry-shader path; Metal is excluded. |
 | Does a hidden layer provide capture? | [VRChat layers](https://creators.vrchat.com/worlds/layers/) make MirrorReflection mirror-only. World layer definitions do not establish uploaded-avatar layer retention. | Require an actual desktop code block. Occlusion, minimization and layer changes need client checks. |
 | Does None-eye output guarantee desktop visibility? | Unity documents [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html), [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html) and [targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html). | Request None-eye cameras, but verify VRChat desktop composition and HMD visibility separately. |
-| How are mirrors/photos excluded? | [Shader globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/) expose modes, not unique identities for arbitrary avatar cameras. | Reject mirror/photo modes and use distinct orthographic far-plane signatures. These are routing guards, not authenticated identities. |
+| How are mirrors/photos excluded? | [Shader globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/) expose CameraMode and MirrorMode. | Exclude mirror/photo modes and select the encoding camera by its producer's orthographic far-plane signature. These conditions route the image; the selected target and registration configuration identify the intended source. |
 
-## Why native roots precede automatic model capture
+## Root measurements and deformation models
 
 Inspected VRCFury commit: `d048773de971881fb14c5f3b468e59ba2406a2dd`.
 
 The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc) contains target/player shader IDs, position, orientation and scale, without a source-geometry frame sequence. A new encoder clock cannot prove that an old global texture was refreshed.
 
-[SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs) generates and animates player material IDs at runtime; [SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs) binds materials/Resolvers. Copying baked shared-material IDs is insufficient.
+[SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs) generates and animates player material IDs at runtime; [SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs) binds materials/Resolvers. Reading that model requires tracking its runtime-generated ID.
 
 The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native three-point skinned sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
 
-A future model producer must solve runtime identity binding, source freshness/render ordering, XR arrays and the distinction between model and final mesh. Rewrapping stale geometry with an advancing transport sequence is insufficient.
+A future model producer needs runtime ID tracking, render-stage coordination, geometry timestamps and XR texture-array handling, followed by comparison with the final mesh. Separate geometry and encoding timestamps identify which model update a packet contains.
 
 ## Native structure
 
@@ -38,7 +38,7 @@ Create **GameObject → Sensa → Shader Root Capture (Experimental)** or add `S
 3. One None-eye orthographic camera emitting the NDC code directly into its configured viewport, without a RenderTexture, Quad, second camera or display shader.
 4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code** activates the rig, with the caption chosen in the build-time Editor language.
 
-Bounds use serialized `m_AABB` / `m_DirtyAABB`, rather than relying only on a transient Renderer.localBounds override; skin matrices recalculate per render. See the [Unity inspector source](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs).
+Bounds persist through native serialized `m_AABB` / `m_DirtyAABB` fields; skin matrices recalculate per render. See the [Unity inspector source](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs).
 
 Generated native components perform measurement and image output after upload. The `IEditorOnly` author script is removed after generation on the build copy. The encoder directly references the packaged `Runtime/Shaders/SensaRootTelemetry.shader`; NDMF saves referenced temporary meshes and materials, while MA merges animation, parameters and menus. See the [Unity build guide](unity-build.en.md) for phases and official evidence.
 
@@ -88,7 +88,7 @@ Frame detects freezes/duplicate images, XYZ carries the measurement and Valid im
 
 The desktop requires twelve consecutive same-source fields and a maximum 500 ms Frame content-change age. Repeated identical frames do not refresh that age. Modulo-16-bit progression, changed payload under one frame and two-frame recovery belong to the bridge; static Observe does not claim an additional historical anti-replay state.
 
-Saving registration establishes only that a valid native packet was decoded in the chosen ROI. It does not establish accuracy or VR visibility. The bridge requires two progressing frames. CRC/source/profile failure, changed payload on a duplicate sequence, reorder, freeze, timeout or shutdown closes Valid. Replaying the old good frame does not restore it; two new progressing frames are required. Producer reset may require a deliberate bridge restart rather than automatic retargeting.
+Registration saves the ROI, Producer ID and coordinate configuration of a successfully decoded packet. Starting or recovering requires two progressing frames. CRC/source/profile failure, changed payload on a duplicate sequence, reorder, freeze, timeout or shutdown sets Valid to 0. Recovery needs two new progressing frames; a producer reset may require restarting the bridge. Accuracy and VR visibility follow the client checks below.
 
 ## Evidence and remaining acceptance
 
@@ -96,6 +96,6 @@ Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame lock
 
 Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning and multiple producers. A separate explicit graphics test checks rendered pixels. Unity Editor is unavailable in this environment, so the new contracts await execution. Record actual revisions and results in the [verification record](e2e-status.en.md).
 
-Separate acceptance remains for SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. Default bridge freeze is 350 ms, earlier than the desktop's 500 ms rejection limit; the latter is not actual bridge validity.
+Client acceptance covers SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. The bridge clears validity after 350 ms of frozen imagery by default; the desktop receiver separately imposes a 500 ms sample-age limit.
 
 Keep this PC experiment explicitly enabled and record measured client acceptance against the checklist above. [Positioning](positioning.en.md) · [Verification](development.en.md)

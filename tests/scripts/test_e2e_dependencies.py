@@ -38,6 +38,12 @@ path = Path(os.environ['SENSA_TEST_APT_CALLS'])
 previous = path.read_text(encoding='utf-8').splitlines() if path.exists() else []
 statuses = json.loads(os.environ['SENSA_TEST_APT_STATUSES'])
 status = statuses[len(previous)] if len(previous) < len(statuses) else 0
+pending = Path(os.environ['SENSA_TEST_DPKG_PENDING'])
+if os.environ.get('SENSA_TEST_INTERRUPT_DPKG') == '1' and 'install' in sys.argv:
+    if pending.exists():
+        status = 100
+    elif status:
+        pending.touch()
 with path.open('a', encoding='utf-8') as stream:
     stream.write(json.dumps({'arguments': sys.argv[1:],
                              'frontend': os.environ.get('DEBIAN_FRONTEND'),
@@ -45,14 +51,31 @@ with path.open('a', encoding='utf-8') as stream:
 raise SystemExit(status)
 ''', encoding='utf-8')
         fake.chmod(0o755)
+        dpkg = self.bin / 'dpkg'
+        dpkg.write_text('#!' + sys.executable + '\n' + '''import os
+from pathlib import Path
+import sys
 
-    def run_installer(self, statuses=()):
+assert sys.argv[1:] == ['--configure', '--pending']
+Path(os.environ['SENSA_TEST_DPKG_CALLS']).write_text('configure pending', encoding='utf-8')
+status = int(os.environ['SENSA_TEST_DPKG_STATUS'])
+if status == 0:
+    Path(os.environ['SENSA_TEST_DPKG_PENDING']).unlink(missing_ok=True)
+raise SystemExit(status)
+''', encoding='utf-8')
+        dpkg.chmod(0o755)
+
+    def run_installer(self, statuses=(), *, interrupted=False, recovery_status=0):
         environment = dict(os.environ)
         environment.update({
             'PATH': str(self.bin) + os.pathsep + environment.get('PATH', ''),
             'SENSA_E2E_UBUNTU_SOURCE_FILE': str(self.source),
             'SENSA_TEST_APT_CALLS': str(self.calls_path),
             'SENSA_TEST_APT_STATUSES': json.dumps(statuses),
+            'SENSA_TEST_INTERRUPT_DPKG': str(int(interrupted)),
+            'SENSA_TEST_DPKG_PENDING': str(self.directory / 'dpkg-pending'),
+            'SENSA_TEST_DPKG_CALLS': str(self.directory / 'dpkg-calls'),
+            'SENSA_TEST_DPKG_STATUS': str(recovery_status),
             'DEBIAN_FRONTEND': 'dialog',
         })
         result = subprocess.run(['bash', str(HELPER)], cwd=self.directory,
@@ -106,6 +129,20 @@ raise SystemExit(status)
         self.assertEqual(self.commands(calls), ['update', 'install', 'update', 'install'])
         self.assert_ubuntu_only(calls)
 
+    def test_retry_completes_interrupted_dpkg_configuration_before_install(self):
+        result, calls = self.run_installer([0, 100, 0, 0], interrupted=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.commands(calls), ['update', 'install', 'update', 'install'])
+        self.assertTrue((self.directory / 'dpkg-calls').exists())
+        self.assertFalse((self.directory / 'dpkg-pending').exists())
+        self.assert_ubuntu_only(calls)
+
+    def test_failed_dpkg_recovery_does_not_continue_or_report_success(self):
+        result, calls = self.run_installer([0, 100], interrupted=True, recovery_status=2)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(self.commands(calls), ['update', 'install'])
+        self.assertTrue((self.directory / 'dpkg-pending').exists())
+
     def test_persistent_update_failure_stops_after_two_attempts(self):
         result, calls = self.run_installer([100, 100])
         self.assertNotEqual(result.returncode, 0)
@@ -120,6 +157,13 @@ raise SystemExit(status)
 
     def test_missing_ubuntu_source_fails_before_invoking_apt(self):
         self.source.unlink()
+        result, calls = self.run_installer()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertEqual(calls, [])
+
+    def test_control_characters_in_source_path_are_rejected_before_apt(self):
+        self.source = self.directory / 'Ubuntu\nsources.sources'
+        self.source.write_text('Types: deb\n', encoding='utf-8')
         result, calls = self.run_installer()
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(calls, [])

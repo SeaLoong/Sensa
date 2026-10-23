@@ -15,18 +15,18 @@
 | Android 是否支持？ | [Android 限制](https://creators.vrchat.com/platforms/android/quest-content-limitations/)禁止 Avatar Camera，且只允许列出的 Mobile Shader。 | 作者构建拒绝 Android；本轮是 PC Built-in / geometry-shader 路径，Metal 也不在支持范围。 |
 | 隐藏层是否能被桌面捕获？ | [图层说明](https://creators.vrchat.com/worlds/layers/)中的 MirrorReflection 仅用于镜面；世界图层表不能证明 Avatar 上传后的图层保留。 | 不把“隐藏层”当作外部捕获接口。需要实际桌面编码块；遮挡、最小化、图层变更等必须实测。 |
 | 不进双眼是否等于桌面可见？ | Unity [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html)和 [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html)说明引擎的眼目标；[targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html)说明 RT 与屏幕输出。 | 相机选择 None，但 VRChat 的桌面合成、头显不显示仍是独立客户端验收项，不能承诺。 |
-| 如何区分镜面/拍照？ | [VRChat Shader Globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/)公布 CameraMode、MirrorMode，但没有任意 Avatar 相机唯一身份 API。 | 用已公布的全局值拒绝镜面/拍照，再用每 producer 的正交远平面签名限制编码相机。这只是路由条件，不是安全身份。 |
+| 如何区分镜面/拍照？ | [VRChat Shader Globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/)公布 CameraMode、MirrorMode。 | 根据模式排除镜面/拍照，再按每个 producer 的正交远平面签名选择编码相机。这些条件用于画面路由；来源身份由选定目标与注册配置共同管理。 |
 
-## 为什么先实现原生根点，而不是自动读取形变模型
+## 根点测量与形变模型
 
 核对的 VRCFury 源提交为 `d048773de971881fb14c5f3b468e59ba2406a2dd`。
 
 - [SPS 单元布局](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc)有目标 ID、玩家 Shader ID、根部位置/方向/缩放等，没有源几何帧序号。当前编码器时钟不能证明旧全局纹理已经刷新。
-- [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs)在运行时通过 Animator 随机生成并驱动材质玩家 ID。[SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs)负责材质/Resolver 绑定。只复制构建时共享材质中的 ID 不是可靠绑定。
+- [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs)在运行时通过 Animator 随机生成并驱动材质玩家 ID。[SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs)负责材质/Resolver 绑定。读取该模型需要跟踪运行时生成的 ID。
 - 适配器 `ReadRoot` 统一解析明确选择的根点参照：SPS Socket／Plug 使用其作者根点几何，骨骼／空物体 Transform、Sensa Component 与原生 Contact 使用各自的根点定义。生成的三点蒙皮采样跟随该参照；SPS 目标的形变仍由安装的 VRCFury 处理。
 - 旧 `SensaGpuProbe` 仍是 EditorWindow：调用所安装 SPS 的曲线函数采样未混合中心线。它与本轮根点生产端、旧合成 PNG fixture 是三种不同证据。
 
-未来若实现模型生产端，仍需解决运行时 ID 绑定、同一渲染阶段/源几何新鲜度、XR texture array、模型与最终网格之间的差异，不能给旧纹理套一个新编码时钟后称为新鲜模型。
+未来的模型采集需要同时处理运行时 ID、渲染阶段、几何更新时间和 XR texture array，并对照最终网格验证。几何更新时间与编码时钟分别记录，才能判断收到的是哪一次模型更新。
 
 ## 原生生产端的具体结构
 
@@ -37,7 +37,7 @@
 3. 单个 None-eye 正交 Camera，按配置 viewport 直接输出 NDC 黑白格；直接使用一套相机与编码材质。
 4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 **Root position code／根点位置编码** 后开启 rig。菜单项文字采用构建时的编辑器语言。
 
-边界使用原生序列化 `m_AABB` / `m_DirtyAABB`，而非仅依赖不持久化的 Renderer.localBounds override；保持每次渲染的骨骼矩阵更新。[Unity Inspector 源码](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs)
+边界通过原生序列化字段 `m_AABB` / `m_DirtyAABB` 持久保存，骨骼矩阵在每次渲染时更新。[Unity Inspector 源码](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs)
 
 上传后的测量与图块输出由生成的原生组件完成；`IEditorOnly` 作者脚本在构建副本生成完成后移除。编码器直接引用包内 `Runtime/Shaders/SensaRootTelemetry.shader`，临时网格和材质随构建引用交给 NDMF 保存，动画、参数与菜单交给 MA 合并。构建阶段与上游依据见[Unity 构建指南](unity-build.md)。
 
@@ -87,7 +87,7 @@ Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以�
 
 桌面要求同来源连续十二字段，并按 Frame 内容变化时间执行最多 500 ms 存活窗；反复重发同一 Frame 不续期。模 16 位的单调前进、同帧异值和两帧恢复由桥负责；静态 Observe 不额外宣称具有历史防重放状态。
 
-注册文件只证明曾在显式 ROI 解码到该 native 包，不代表完成位置精度或 VR 可见性验收。桥接器仍需两个推进帧；CRC/来源/坐标系错误、同帧不同值、倒序、冻结、超时或退出均关 Valid。冻结后的原帧不会恢复，两张新的推进帧才恢复；source reset 可要求手动重启桥，不能自动换源。
+注册文件保存成功解码时的 ROI、Producer ID 和坐标配置。启动或恢复读取需要两个连续推进帧；CRC、来源或坐标系错误，以及同帧不同值、倒序、冻结、超时或退出，都会将 Valid 置为 0。冻结后收到两个新的推进帧才恢复；生产端重置后可按提示重新启动桥。位置精度与 VR 可见性按下方客户端项目验证。
 
 ## 验证证据与缺口
 
@@ -95,6 +95,6 @@ Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以�
 
 Unity EditMode 契约覆盖默认关闭、单相机输出、Shader 导入、持久边界、三点蒙皮与多 Producer 绑定。图形模式另有显式像素渲染契约；当前环境没有 Unity Editor，新增契约尚待执行。实际运行修订与结果统一记录在[验证记录](e2e-status.md)。
 
-仍须分别验收 SDK 上传保留、NDMF／VRCFury 优化交互、native 编码像素、PC／PCVR 合成、HMD 可见性、窗口缩放／遮挡／最小化、HDR／后处理／低帧率、延迟及参考位置误差。桥的默认冻结 350 ms 早于桌面 500 ms 拒绝上限，不能将后者描述为实际桥的有效期。
+客户端验收包括 SDK 上传保留、NDMF／VRCFury 优化交互、原生编码像素、PC／PCVR 合成、HMD 可见性、窗口缩放／遮挡／最小化、HDR／后处理／低帧率、延迟及参考位置误差。桥在画面冻结 350 ms 后默认关闭有效性；Sensa 桌面端另以 500 ms 为接收数据的存活上限。
 
 当前作为需显式启用的 PC 实验输入，客户端验收按上述项目记录实测结果。[定位边界](positioning.md) · [构建与发布](development.md)

@@ -3,7 +3,7 @@
 set -euo pipefail
 
 source_file=${SENSA_E2E_UBUNTU_SOURCE_FILE:-/etc/apt/sources.list.d/ubuntu.sources}
-if [[ $source_file != /* || ! -f $source_file || ! -r $source_file ]]; then
+if [[ $source_file != /* || ! -f $source_file || ! -r $source_file || $source_file == *$'\n'* || $source_file == *$'\r'* ]]; then
     printf '%s\n' '::error::The Ubuntu APT source file must be readable and use an absolute path.' >&2
     exit 1
 fi
@@ -27,6 +27,10 @@ export DEBIAN_FRONTEND=noninteractive
 
 # A fresh Bash process lets timeout bound update and install as one attempt.
 if [[ ${1:-} == --attempt ]]; then
+    if [[ ${SENSA_APT_RECOVERY:-0} == 1 ]]; then
+        printf '%s\n' '::notice::E2E dependencies: completing interrupted package configuration.'
+        dpkg --configure --pending
+    fi
     printf '%s\n' '::notice::E2E dependencies: refreshing Ubuntu package indexes.'
     apt-get "${apt_options[@]}" update
     printf '%s\n' '::notice::E2E dependencies: installing Chinese fonts and the PTY runtime.'
@@ -38,7 +42,7 @@ script_path=${BASH_SOURCE[0]}
 status=1
 for attempt in 1 2; do
     printf '::notice::E2E dependencies: attempt %s of 2 (130-second budget).\n' "$attempt"
-    if timeout --kill-after=5s 130s bash "$script_path" --attempt; then
+    if SENSA_APT_RECOVERY=$((attempt - 1)) timeout --kill-after=5s 130s bash "$script_path" --attempt; then
         printf '%s\n' '::notice::E2E dependencies: installation complete.'
         exit 0
     else

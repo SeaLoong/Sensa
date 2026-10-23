@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import tempfile
+from urllib.parse import urlencode
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTCOMES = ('passed', 'expectedFailure', 'failed', 'flaky', 'skipped', 'notRun', 'interrupted')
@@ -20,7 +21,7 @@ def git(root, *arguments, input=None):
     try:
         return subprocess.check_output(['git', '-c', 'safe.directory=' + str(root.resolve()),
                                         '-c', 'core.hooksPath=/dev/null', *arguments],
-                                       cwd=root, input=input, stderr=subprocess.PIPE)
+                                       cwd=root, input=input, stderr=subprocess.PIPE, timeout=120)
     except subprocess.CalledProcessError as error:
         detail = error.stderr.decode('utf-8', errors='replace').strip()[-1500:]
         raise ValueError(f'Git {arguments[0]} failed / Git 操作失败: {detail}') from error
@@ -198,6 +199,52 @@ def export_proposal(root, source_commit, mode, summary_path, output, environment
     return manifest
 
 
+def remote_branch(root, branch):
+    """Resolve exactly one branch; never replace an existing proposal branch."""
+    reference = 'refs/heads/' + branch
+    output = git(root, 'ls-remote', '--heads', 'origin', reference).decode().splitlines()
+    if not output:
+        return None
+    if len(output) != 1:
+        raise ValueError('Duplicate proposal branch / 候选分支重复')
+    commit, separator, name = output[0].partition('\t')
+    if separator != '\t' or name != reference:
+        raise ValueError('Invalid proposal branch identity / 候选分支身份无效')
+    return sha(commit)
+
+
+def verify_remote_proposal(root, branch, commit, source_commit, tree):
+    git(root, 'fetch', '--no-tags', '--no-recurse-submodules', 'origin', 'refs/heads/' + branch)
+    if git(root, 'rev-parse', 'FETCH_HEAD').decode().strip() != commit:
+        raise ValueError('Proposal branch changed during recovery / 恢复时候选分支已变更')
+    ancestry = git(root, 'rev-list', '--parents', '-n', '1', commit).decode().strip().split()
+    if ancestry != [commit, source_commit] or git(root, 'rev-parse', commit + '^{tree}').decode().strip() != tree:
+        raise ValueError('Existing proposal branch differs from checked candidate / 已有分支与已检查候选不同')
+
+
+def existing_pr(root, repository, branch, commit):
+    query = urlencode({'state': 'all', 'head': repository.split('/')[0] + ':' + branch,
+                       'base': 'main', 'per_page': '100'})
+    response = subprocess.check_output(['gh', 'api', f'repos/{repository}/pulls?{query}'],
+                                       cwd=root, text=True, timeout=60)
+    pulls = json.loads(response)
+    if not isinstance(pulls, list) or len(pulls) > 1:
+        raise ValueError('Ambiguous proposal PR identity / 候选 PR 身份不明确')
+    if not pulls:
+        return None
+    pull = pulls[0]
+    head, base = pull.get('head', {}), pull.get('base', {})
+    number = pull.get('number')
+    expected_url = f'https://github.com/{repository}/pull/{number}'
+    if (type(number) is not int or number <= 0 or pull.get('html_url', '').lower() != expected_url.lower()
+            or head.get('ref') != branch or head.get('sha') != commit or base.get('ref') != 'main'
+            or any(part.get('repo', {}).get('full_name', '').lower() != repository.lower() for part in (head, base))):
+        raise ValueError('Existing PR differs from checked proposal / 已有 PR 与已检查候选不同')
+    if pull.get('state') == 'open' and pull.get('draft') is True:
+        return pull['html_url']
+    raise ValueError('Existing proposal review state changed; inspect it before retrying / 已有候选评审状态已变更，请先检查')
+
+
 def publish_proposal(root, source_commit, directory, environment):
     assert_source(root, source_commit)
     run, attempt, repository = run_identity(environment)
@@ -222,12 +269,25 @@ def publish_proposal(root, source_commit, directory, environment):
     actual = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in paths}
     if len(files) != len(actual) or actual != {item.get('path'): item.get('sha256') for item in files}:
         raise ValueError('Applied files differ from validated candidates / 应用内容与已检查候选不一致')
-    branch = f'codex/e2e-update-{run}-{attempt}'
-    git(root, 'switch', '-c', branch)
-    git(root, 'config', 'user.name', 'github-actions[bot]')
-    git(root, 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
-    git(root, 'commit', '-m', 'Update E2E candidates for ' + source_commit[:8])
-    git(root, 'push', 'origin', 'HEAD:refs/heads/' + branch)
+    # Re-running only the publisher retains the successful candidate artifact's
+    # identity. A full candidate rerun gets its own attempt and review branch.
+    branch = f'codex/e2e-update-{run}-{candidate_attempt}'
+    tree = git(root, 'write-tree').decode().strip()
+    commit = remote_branch(root, branch)
+    if commit:
+        verify_remote_proposal(root, branch, commit, source_commit, tree)
+    else:
+        git(root, 'switch', '-c', branch)
+        git(root, 'config', 'user.name', 'github-actions[bot]')
+        git(root, 'config', 'user.email', '41898282+github-actions[bot]@users.noreply.github.com')
+        git(root, 'commit', '-m', 'Update E2E candidates for ' + source_commit[:8])
+        commit = sha(git(root, 'rev-parse', 'HEAD').decode().strip())
+        git(root, 'push', 'origin', 'HEAD:refs/heads/' + branch)
+    recovered = existing_pr(root, repository, branch, commit)
+    if recovered:
+        append_summary(environment, f'### Existing E2E proposal / 已有 E2E 候选\n\n{recovered}\n\n'
+                       'The checked candidate is already on this review branch. / 已检查候选已在该评审分支中。')
+        return recovered
     url = f'https://github.com/{repository}/actions/runs/{run}'
     body = (f'Candidate updates for `{source_commit}` from [Actions run]({url}), candidate attempt {candidate_attempt}.\n\n'
             f'Candidate cases: {manifest["counts"]["passed"]}/{manifest["counts"]["total"]} passed; '
@@ -242,7 +302,7 @@ def publish_proposal(root, source_commit, directory, environment):
         try:
             pr_url = subprocess.check_output(['gh', 'pr', 'create', '--repo', repository, '--base', 'main',
                 '--head', branch, '--draft', '--title', 'Update E2E candidates for ' + source_commit[:8],
-                '--body-file', str(body_file)], cwd=root, text=True).strip()
+                '--body-file', str(body_file)], cwd=root, text=True, timeout=60).strip()
         except subprocess.CalledProcessError:
             append_summary(environment, f'### Draft PR was not created / 草稿 PR 创建失败\n\n'
                 f'The candidate branch `{branch}` was pushed and is retained. / 候选分支已推送并保留。\n\n'

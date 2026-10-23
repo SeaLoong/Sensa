@@ -69,6 +69,8 @@ The basic `SensaComponent` binds native Contacts to their selected axis/bone so 
 
 SPS four-anchor and Contact root-scale checks follow a constraint's actual target and MA Merge Animator's `relativePathRoot`. Keep Avatar-root scale fixed while scaling child objects as needed. Shader sampling additionally validates original and quantized axes and uniform world scale, catching settings that would produce invalid packets during the build.
 
+All three root routes validate native Contact offsets and rotations before generation. Offsets must be finite; rotation quaternions must be finite and nonzero and are normalized when read, preserving the authored Contact configuration. Shader capture also checks the final world basis inherited from the Avatar and its parents, catching accumulated nonuniform scaling that would keep encoded packets invalid. Sensa Pose Socket checks existing parameter declarations before generating any Receivers and reports duplicate names during the build. Instance names and pair channels use the specified ASCII characters.
+
 ## Official sources and verification scope
 
 The following official documentation and source were inspected on **2026-10-23 (China Standard Time)**:

@@ -4,6 +4,14 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## Repository review and software homepage
+
+On 2026-10-24 (Beijing time), fixes close concurrent input-activation windows during configuration, script, replay, mode and source changes. They also address dropped repeated fixed-rate TCode commands, unbounded serial reply reading, oversized OSCQuery numbers and source metadata, and malformed plan previews crashing the UI. Unity adds parameter-conflict, name-boundary, root-pose and composed world-scale checks. Publication scripts strengthen archive paths, final tag verification and failed-run recovery.
+
+The bilingual README and main guides now follow user tasks. The Pages homepage provides downloads, a three-step introduction, input–computation–output explanations and complete help links. Browser assertions add malformed-plan recovery and homepage links, language, navigation and four original image attachments.
+
+Isolated checks passed **721 .NET, 181 Web and 263 Python** tests, plus **88 documentation routes** and **4 site units**. npm and NuGet scans, including transitive dependencies, reported no known vulnerabilities. An isolated Node catalog benchmark with 10000 parameters and 120 mappings measured a **2.7 ms** median across seven value-update samples; this covers catalog ranking and caching, with browser rendering checked in Actions. Browser, native-package and deployment results for this round's latest source follow its Actions run. Unity Editor, GPU, VRChat/HMD and physical hardware require their respective validation environments.
+
 ## Shader inputs, documentation entry points and preview notes
 
 On **2026-10-24 (Beijing time)**, this change adds three-point Shader sampling, 32-byte/CRC32 monochrome encoding, white movement margins, three-copy erasure recovery, and axis/AvatarScale tracking metrics, alongside Unity root-scale checks. The homepage and guides expose signal flows, multiple outputs and funscript recording/replay. Workflows and badges use short English names; preview notes retain only Source.
@@ -19,7 +27,8 @@ Isolated checks passed **694 .NET, 178 Web, 247 Python and 3 site-unit tests**, 
 | `d1c9d93` | [Pages 39993018592](https://github.com/SeaLoong/Sensa/actions/runs/39993018592) | **8/8 passed and deployment succeeded** |
 | `d1c9d93` | [Normal comparison 39993018660](https://github.com/SeaLoong/Sensa/actions/runs/39993018660) | **43 passed, 3 failed, 58 not run**; previous Shader images still differed; builds and preview skipped |
 | `d1c9d93` | [Candidate 39993059099](https://github.com/SeaLoong/Sensa/actions/runs/39993059099) | **104/104 passed**; exported to PR #23 after the layout revision |
-| PR head `4de1614` | [Normal CI 39996054415, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) | Unit checks succeeded; browser dependency installation failed; builds and publication skipped; browser receipt awaits inspection |
+| PR head `4de1614` | [Normal CI 39996054415, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) | Units passed; both 130-second dependency-install attempts exited **124**; browser not run, all outcome counters **0**; builds and publication skipped |
+| PR head `4de1614` | [Normal CI 39996054415, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/2) | **104/104 passed**, all other outcomes zero; image updates disabled, `selectionComplete=true`, `snapshotsCompared=true` |
 
 For runs with retrieved browser receipts, site runs use normal comparison with `selectionComplete=false` and `snapshotsCompared=true`. App runs with retrieved receipts use full selection with `selectionComplete=true`; `snapshotsCompared=true` for normal comparison and `false` for candidates. For those receipts, every outcome not listed in the table is zero. Pinned sources are respectively `be2a8d2ef4d688b0699ae0afd0f07288c83df134`, `2f89d83d1023e897f7240bb45c4075cc012ecb1e` and `d1c9d9354be330c7aed0a860d84d973d444e57fb`.
 
@@ -27,7 +36,7 @@ All 16 changed images from [PR #22](https://github.com/SeaLoong/Sensa/pull/22), 
 
 The latest normal comparison failed on the desktop root panel (4718 pixels), Chinese explorer (214202 pixels) and Chinese orbit explorer (210669 pixels), with explorer heights 3660 and 3731. The fresh candidate exported raw head `53612964de4d0a86e7b1404205ad07bddc3917d8` to [PR #23](https://github.com/SeaLoong/Sensa/pull/23). All 17 changed images are reviewed: 11 fresh images were individually opened at original detail, and six match previously reviewed bytes. Ten intended Shader images are selected; seven unrelated dynamic/edge changes retain previous bytes. There are still **150 PNGs**, with **140 previous PNGs unchanged**. [Detailed visual review](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md).
 
-A successful full normal comparison with image updates disabled is pending before accepting these baselines. The first ordinary CI attempt after filtering failed during browser dependency installation. Its retrieved job state confirms unit success and skipped builds/publication, but the browser receipt was not obtained; outcome counters, comparison flags and the actual pinned CI source remain unverified. The reviewed PR head is `4de1614fd66eacb69606cbaa667b56c1e3e552f0`, tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`. The same run should retry failed jobs without changing that source.
+The first attempt's receipt is now verified: `suite=all`, `mode=comparison`, `runner=not-run`, command skipped, `selectionComplete=false`, `snapshotsCompared=false`, with total and all outcome counters zero. CI pinned merge source `3e49ec9a8c039cfa026c6b733b041fc2a770cf79`, sharing tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0` with reviewed PR head `4de1614fd66eacb69606cbaa667b56c1e3e552f0`. After GitHub recovered, attempt 2 installed dependencies on its first attempt and passed the full normal comparison **104/104**, `runner=passed`, command successful. Individual review and comparison with updates disabled are complete: **the ten new baselines are accepted**.
 
 Native smoke liveness regressions pass in isolation; Windows execution awaits Actions. The native phase covers advancing packets and freeze invalidation, while recovery is checked by the diagnostic phase and isolated protocol tests.
 

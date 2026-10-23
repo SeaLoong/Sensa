@@ -18,8 +18,8 @@ public sealed class OscSourceSelectionContracts
         rig.Activate();
         await rig.Output.NextFrame(frame => Math.Abs(frame.L0 - .2f) < .001f);
 
-        SensaHost.PrepareOscSourceSelection(rig.Runtime, rig.SelectedSource, nextSource);
-        rig.SelectedSource = nextSource;
+        using (SensaHost.PrepareOscSourceSelection(rig.Runtime, rig.SelectedSource, nextSource))
+            rig.SelectedSource = nextSource;
         await rig.Output.NextStop();
         Assert.False(rig.Runtime.InputActive);
         Assert.False(rig.Runtime.CanSend);
@@ -43,7 +43,7 @@ public sealed class OscSourceSelectionContracts
         rig.Activate();
         await rig.Output.NextFrame();
 
-        SensaHost.PrepareOscSourceSelection(rig.Runtime, rig.SelectedSource, "source-a");
+        using var sourceChange = SensaHost.PrepareOscSourceSelection(rig.Runtime, rig.SelectedSource, "source-a");
         Assert.True(rig.Runtime.InputActive);
         Assert.Equal(0, rig.Output.StopCount);
         rig.Put("Depth", .7f, "source-a");

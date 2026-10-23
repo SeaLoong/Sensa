@@ -81,6 +81,8 @@ namespace UnityBox.Sensa
 
         internal static readonly Dictionary<string, string> Chinese = new Dictionary<string, string>(StringComparer.Ordinal)
         {
+            { "Configure a finite root offset and a valid root rotation.", "请将根点偏移设为有限数值，并配置有效的根点旋转。" },
+            { "Shader capture needs finite positive uniform Avatar world scale.", "Shader 捕获需要有限、正值且各轴一致的 Avatar 世界缩放。" },
             { "Contact direct tracking (SDK Beta) uses one dedicated Sender and Receiver per root. It reports avatar-root axes in metres and requires SDK advanced proximity parameters. To track a bone/Transform, Sensa component or native Contact directly, use the Contact direct tracking (SDK Beta) prefab.", "Contact 直接定位（SDK Beta）为每个根点生成专用 Sender 和 Receiver，按 Avatar 根坐标轴报告米制坐标，需要 SDK 高级接近参数。直接测量骨骼／Transform、Sensa 组件或原生 Contact 时，请使用 Contact 直接定位（SDK Beta）预制件。" },
             { "Sensa authoring components still need processing. Enable NDMF processing and place Sensa authoring prefabs on the avatar before building: ", "Sensa 配置组件尚待构建处理。请启用 NDMF 处理，并将 Sensa 配置预制件放在当前头像下： " },
             { "Contact collision tags", "接触标签" },

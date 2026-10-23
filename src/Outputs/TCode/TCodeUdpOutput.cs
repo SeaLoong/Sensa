@@ -86,7 +86,7 @@ public sealed class TCodeUdpOutput : IDisposable
         var (line, effectiveFrame) = BuildLine(frame, forceAll: refresh || _lastEffectiveFrame is null);
         if (string.IsNullOrWhiteSpace(line))
             return;
-        if (!refresh && line == _lastLine)
+        if (frame.ActiveAxes is null && !refresh && line == _lastLine)
             return;
 
         if (!SendRaw(line + "\n")) return;

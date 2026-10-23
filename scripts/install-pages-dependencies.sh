@@ -3,6 +3,10 @@
 set -euo pipefail
 
 if [[ ${1:-} == --attempt && $# -eq 3 ]]; then
+    if [[ ${SENSA_APT_RECOVERY:-0} == 1 ]]; then
+        printf '%s\n' '::notice::Pages dependencies: completing interrupted package configuration.'
+        dpkg --configure --pending
+    fi
     printf '%s\n' '::notice::Pages dependencies: installing Chromium system libraries.'
     "$2" "$3" install-deps chromium
     printf '%s\n' '::notice::Pages dependencies: installing Chinese fonts.'
@@ -46,7 +50,7 @@ for attempt in 1 2; do
     printf '::notice::Pages dependencies: attempt %s of 2 (130-second budget).\n' "$attempt"
     # Playwright runs apt-get internally. Set APT_CONFIG after sudo so it survives
     # privilege elevation, and keep the original runner Node executable explicit.
-    if sudo env APT_CONFIG="$apt_config" DEBIAN_FRONTEND=noninteractive \
+    if sudo env APT_CONFIG="$apt_config" DEBIAN_FRONTEND=noninteractive SENSA_APT_RECOVERY=$((attempt - 1)) \
         timeout --kill-after=5s 130s bash "$script_directory/install-pages-dependencies.sh" \
         --attempt "$node_path" "$cli_path"; then
         printf '%s\n' '::notice::Pages dependencies: installation complete.'

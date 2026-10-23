@@ -67,6 +67,8 @@ Sensa 创建供 MA 合并的临时 Animator／菜单／参数，交给 NDMF 保�
 
 SPS 四点定位和 Contact 的根缩放检查按约束的实际目标与 MA Merge Animator 的 `relativePathRoot` 判断。Avatar 根保持固定尺度，子对象可按自身需要缩放。Shader 采样另外校验原始轴向、量化后的轴向和世界均匀缩放，帮助在构建时发现会产生无效编码的设置。
 
+三种根点方案都会先检查原生 Contact 的根点偏移和旋转：偏移须为有限数值，旋转须为有限且非零的四元数，并在读取时归一化，原始 Contact 配置保持可编辑。Shader 同时检查父级与 Avatar 共同形成的最终世界基，避免层层累积的小幅非均匀缩放生成持续无效的编码。Sensa Pose Socket 会在生成任何接收器前检查已有参数声明，重复的参数名会给出构建提示；实例名与配对通道仅使用规定的 ASCII 字符。
+
 基础 `SensaComponent` 的原生 Contact 持续跟随配置的轴／骨骼，相关参数在 FX 中保持可写。Socket 量程与 Contact 尺寸使用所选轴的局部单位，轴缩放为 1 时数值等于米；SPS 四点定位和 Contact 直接定位仍分别采用上表的坐标契约。补充 Contact 信号配置与 Sender 相同的碰撞标签；已有参数信号只引用原参数，保留它原来的类型。
 
 ## 官方资料与核验范围

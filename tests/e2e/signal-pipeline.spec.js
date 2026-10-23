@@ -341,8 +341,15 @@ for (const locale of ['zh-CN', 'en-US']) {
           expect(plan.outputs.find(output => output.id === osc.id).signal.bindings[0].source).toMatchObject({ sourceMode: 'RecordingReplay', oscPath: recording.id + '/manual' });
           const beforeImport = await config(page, rig);
           await active(page);
-          await planPanel.getByTestId('signal-plan-import').setInputFiles({ name: 'pipeline-plan.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(plan)) });
           const preview = page.getByRole('dialog', { name: await text(page, '检查交互方案'), exact: true });
+          for (const malformed of [{ ...plan, name: {} }, { ...plan, outputs: [{ id: 'bad', name: {} }] }]) {
+            await planPanel.getByTestId('signal-plan-import').setInputFiles({ name: 'malformed-plan.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(malformed)) });
+            await expect(planPanel.getByText(await text(page, '方案应包含完整的输入映射、计算信号和输出配置。'), { exact: true })).toBeVisible();
+            await expect(preview).not.toBeVisible();
+            expect(await config(page, rig)).toEqual(beforeImport);
+            expect((await rig.overview()).runtime.inputActive).toBe(true);
+          }
+          await planPanel.getByTestId('signal-plan-import').setInputFiles({ name: 'pipeline-plan.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(plan)) });
           await expect(preview).toBeVisible();
           expect((await rig.overview()).runtime.inputActive).toBe(true);
           await checkpoint(page, preview, 'pipeline-plan-preview-' + locale);

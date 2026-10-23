@@ -103,7 +103,7 @@ public sealed class TCodeSerialOutput : IDisposable
             var (line, effectiveFrame) = BuildLine(frame, forceAll: _lastEffectiveFrame is null);
             if (string.IsNullOrWhiteSpace(line))
                 return;
-            if (line == _lastSentLine)
+            if (frame.ActiveAxes is null && line == _lastSentLine)
                 return;
 
             try
@@ -259,6 +259,7 @@ public sealed class TCodeSerialOutput : IDisposable
             return Array.Empty<string>();
 
         var lines = new List<string>();
+        var startedAt = TimeProvider.System.GetTimestamp();
         var oldTimeout = _port.ReadTimeout;
         try
         {
@@ -269,7 +270,7 @@ public sealed class TCodeSerialOutput : IDisposable
 
             for (var i = 0; i < maxLines; i++)
             {
-                var rawLine = ReadRawDeviceInfoLine(_port);
+                var rawLine = ReadRawDeviceInfoLine(_port.ReadByte, TimeProvider.System, startedAt);
                 if (rawLine is null)
                     break;
 
@@ -306,21 +307,32 @@ public sealed class TCodeSerialOutput : IDisposable
         return lines;
     }
 
-    private static byte[]? ReadRawDeviceInfoLine(SerialPort port)
+    internal const int MaximumDeviceInfoLineBytes = 4096;
+    internal static readonly TimeSpan MaximumDeviceInfoQueryDuration = TimeSpan.FromMilliseconds(500);
+
+    // SerialPort.ReadTimeout covers a single read. Continuous or carriage-return-only
+    // replies need a shared query deadline as well, so they cannot hold the output lock.
+    internal static byte[]? ReadRawDeviceInfoLine(Func<int> readByte, TimeProvider clock, long startedAt)
     {
         using var buffer = new MemoryStream();
+        var receivedBytes = 0;
 
         while (true)
         {
+            if (clock.GetElapsedTime(startedAt) >= MaximumDeviceInfoQueryDuration)
+                throw new TimeoutException("The device information query exceeded 500 ms.");
             try
             {
-                var nextByte = port.ReadByte();
+                var nextByte = readByte();
                 if (nextByte < 0)
                     return buffer.Length > 0 ? buffer.ToArray() : null;
 
                 var value = (byte)nextByte;
                 if (value == (byte)'\n')
                     return buffer.ToArray();
+
+                if (++receivedBytes > MaximumDeviceInfoLineBytes)
+                    throw new InvalidDataException("The device information line exceeds 4 KiB.");
 
                 if (value == (byte)'\r')
                     continue;

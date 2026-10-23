@@ -55,6 +55,14 @@ async function inspectWorkflowBadges(scope) {
   }
 }
 
+async function inspectFirstRunLinks(page, locale) {
+  const links = page.locator('a[data-doc="docs/quick-start"]');
+  await expect(links).toHaveCount(3);
+  for (const link of await links.all()) {
+    await expect(link).toHaveAttribute('href', locale + '/docs/quick-start.html');
+  }
+}
+
 async function inspectOverview(page, info, locale) {
   await page.goto(new URL(locale + '/README.html', base).href);
   const article = page.locator('article');
@@ -73,9 +81,20 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.goto(base + '?lang=en-US');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   await expect(page.getByRole('heading', { name: /Input\. Compute\.\s*Output\./ })).toBeVisible();
+  const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
+  await expect(heroFirstRunGuide).toHaveCount(1);
+  await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide');
+  await inspectFirstRunLinks(page, 'en');
   await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html$/);
   await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('Connect and record');
   await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /en\/docs\/features.html$/);
+  await expect(page.locator('.flow-preview > li')).toHaveCount(3);
+  await expect(page.locator('.start-steps > li')).toHaveCount(3);
+  await expect(page.locator('#start')).toContainText('http://127.0.0.1:5086');
+  await expect(page.locator('.outputs-section')).toContainText('DG-LAB');
+  await expect(page.locator('.outputs-section')).toContainText('MQTT');
+  await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html#record-and-inspect$/);
+  await expect(page.locator('.documentation-links [data-doc="docs/computed-signals"]')).toHaveAttribute('href', /en\/docs\/computed-signals.html$/);
   await inspectWorkflowBadges(page.locator('.project-status'));
   if (await page.locator('body').getAttribute('data-vpm') === 'false') {
     await expect(page.locator('#vcc')).toBeHidden();
@@ -87,7 +106,8 @@ test('@site standalone Pages language, document navigation and independent geome
   }
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await auditHome(page, testInfo, 'en-US');
-  await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
+  const homeEn = await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
+  await testInfo.attach('homepage-en-US', { body: homeEn, contentType: 'image/png' });
   await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
   const navigation = page.locator('.navigation');
@@ -113,12 +133,17 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /zh-CN\/docs\/signal-pipeline.html$/);
   await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('连接输出与录制');
   await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /zh-CN\/docs\/features.html$/);
-  await expect(page.locator('a[data-doc="docs/quick-start"]')).toHaveAttribute('href', /zh-CN\/docs\/quick-start.html$/);
+  await expect(page.locator('#start')).toContainText('录下第一条轨道');
+  await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href',
+    new RegExp('zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察') + '$'));
+  await inspectFirstRunLinks(page, 'zh-CN');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await auditHome(page, testInfo, 'zh-CN');
-  await page.screenshot({ path: testInfo.outputPath('pages-home-zh.png'), fullPage: true });
-  await page.locator('a[data-doc="docs/quick-start"]').click();
+  const homeZh = await page.screenshot({ path: testInfo.outputPath('pages-home-zh.png'), fullPage: true });
+  await testInfo.attach('homepage-zh-CN', { body: homeZh, contentType: 'image/png' });
+  await expect(heroFirstRunGuide).toHaveAccessibleName('首次使用指南');
+  await heroFirstRunGuide.click();
   await expect(page).toHaveURL(/zh-CN\/docs\/quick-start.html$/);
   await expect(page.locator('article h1')).toBeVisible();
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);

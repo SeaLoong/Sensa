@@ -167,6 +167,8 @@ class ProposalContracts(unittest.TestCase):
         def query(command, **kwargs):
             if command[0] == 'gh':
                 commands.append(command)
+                if command[1] == 'api':
+                    return '[]'
                 self.assertIn('--draft', command)
                 self.assertIn('--body-file', command)
                 return 'https://github.com/Owner/Repo/pull/9\n'
@@ -181,13 +183,14 @@ class ProposalContracts(unittest.TestCase):
             url = proposal.publish_proposal(self.root, self.commit, self.output,
                                             self.environment | {'GITHUB_RUN_ATTEMPT': '3'})
         self.assertEqual(url, 'https://github.com/Owner/Repo/pull/9')
-        self.assertEqual(commands[0][1:3], ['pr', 'create'])
-        self.assertEqual(len(commands), 1, 'PAT-created PR already starts normal CI')
+        self.assertEqual(commands[0][1], 'api')
+        self.assertEqual(commands[1][1:3], ['pr', 'create'])
+        self.assertEqual(len(commands), 2, 'PR lookup and creation must not dispatch duplicate CI')
         refs = subprocess.check_output(['git', '--git-dir', str(origin), 'for-each-ref', '--format=%(refname)'], text=True)
-        self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-3')
+        self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-2')
         self.assertEqual(proposal.git(self.root, 'diff', '--name-only', self.commit, 'HEAD').decode().strip(), IMAGE)
 
-    def test_blocked_pr_creation_preserves_the_pushed_branch_and_reports_token_permissions(self):
+    def test_blocked_pr_creation_preserves_the_pushed_branch_and_reports_configuration(self):
         (self.root / IMAGE).write_bytes(PNG + b'changed')
         self.export()
         proposal.git(self.root, 'reset', '--hard', 'HEAD')
@@ -197,6 +200,8 @@ class ProposalContracts(unittest.TestCase):
         real_query = subprocess.check_output
         def query(command, **kwargs):
             if command[0] == 'gh':
+                if command[1] == 'api':
+                    return '[]'
                 raise subprocess.CalledProcessError(1, command)
             return real_query(command, **kwargs)
         with patch.object(proposal.subprocess, 'check_output', side_effect=query), self.assertRaises(subprocess.CalledProcessError):
@@ -205,6 +210,72 @@ class ProposalContracts(unittest.TestCase):
         self.assertEqual(refs.strip(), 'refs/heads/codex/e2e-update-1234-2')
         self.assertIn('branch', (self.area / 'job.md').read_text())
         self.assertIn('SENSA_PAT', (self.area / 'job.md').read_text())
+
+    def test_retried_publisher_reuses_verified_remote_branch_and_existing_draft_pr(self):
+        (self.root / IMAGE).write_bytes(PNG + b'changed')
+        self.export()
+        proposal.git(self.root, 'reset', '--hard', 'HEAD')
+        origin = self.area / 'origin.git'
+        subprocess.run(['git', 'init', '--bare', '-q', str(origin)], check=True)
+        proposal.git(self.root, 'remote', 'add', 'origin', str(origin))
+        real_query = subprocess.check_output
+        def failed_create(command, **kwargs):
+            if command[:2] == ['gh', 'api']:
+                return '[]'
+            if command[:3] == ['gh', 'pr', 'create']:
+                raise subprocess.CalledProcessError(1, command)  # response lost after branch push
+            return real_query(command, **kwargs)
+        with patch.object(proposal.subprocess, 'check_output', side_effect=failed_create), self.assertRaises(subprocess.CalledProcessError):
+            proposal.publish_proposal(self.root, self.commit, self.output, self.environment)
+        remote_commit = proposal.git(self.root, 'rev-parse', 'HEAD').decode().strip()
+        proposal.git(self.root, 'checkout', '--detach', self.commit)
+        commands = []
+        pull = self.pull(remote_commit)
+        def recovered_query(command, **kwargs):
+            if command[0] == 'gh':
+                commands.append(command)
+                self.assertEqual(command[1], 'api', 'Recovery must not create another PR')
+                return json.dumps([pull])
+            return real_query(command, **kwargs)
+        with patch.object(proposal.subprocess, 'check_output', side_effect=recovered_query):
+            url = proposal.publish_proposal(self.root, self.commit, self.output,
+                                            self.environment | {'GITHUB_RUN_ATTEMPT': '3'})
+        self.assertEqual(url, pull['html_url'])
+        self.assertEqual(len(commands), 1)
+        self.assertIn('Existing E2E proposal', (self.area / 'job.md').read_text())
+        self.assertEqual(proposal.remote_branch(self.root, 'codex/e2e-update-1234-2'), remote_commit)
+        self.assertIsNone(proposal.remote_branch(self.root, 'codex/e2e-update-1234-3'))
+
+    def pull(self, commit):
+        return {'number': 9, 'html_url': 'https://github.com/Owner/Repo/pull/9', 'state': 'open', 'draft': True,
+                'head': {'ref': 'codex/e2e-update-1234-2', 'sha': commit, 'repo': {'full_name': 'Owner/Repo'}},
+                'base': {'ref': 'main', 'repo': {'full_name': 'Owner/Repo'}}}
+
+    def test_pr_recovery_rejects_foreign_head_changed_sha_and_closed_review(self):
+        pull = self.pull(self.commit)
+        for change in ({'head': dict(pull['head'], sha='b' * 40)},
+                       {'head': dict(pull['head'], repo={'full_name': 'Other/Repo'})},
+                       {'base': dict(pull['base'], ref='other')},
+                       {'draft': False}, {'state': 'closed', 'merged_at': None}):
+            with self.subTest(change=change), \
+                    patch.object(proposal.subprocess, 'check_output', return_value=json.dumps([pull | change])), \
+                    self.assertRaises(ValueError):
+                proposal.existing_pr(self.root, 'Owner/Repo', pull['head']['ref'], self.commit)
+
+    def test_remote_branch_with_different_tree_cannot_be_reused_or_overwritten(self):
+        origin = self.area / 'origin.git'
+        subprocess.run(['git', 'init', '--bare', '-q', str(origin)], check=True)
+        proposal.git(self.root, 'remote', 'add', 'origin', str(origin))
+        branch = 'codex/e2e-update-1234-2'
+        tree = proposal.git(self.root, 'rev-parse', 'HEAD^{tree}').decode().strip()
+        (self.root / IMAGE).write_bytes(PNG + b'other candidate')
+        proposal.git(self.root, 'add', IMAGE)
+        proposal.git(self.root, 'commit', '-qm', 'other candidate')
+        other = proposal.git(self.root, 'rev-parse', 'HEAD').decode().strip()
+        proposal.git(self.root, 'push', 'origin', 'HEAD:refs/heads/' + branch)
+        with self.assertRaisesRegex(ValueError, 'differs from checked candidate'):
+            proposal.verify_remote_proposal(self.root, branch, other, self.commit, tree)
+        self.assertEqual(proposal.remote_branch(self.root, branch), other)
 
     def test_tampered_proposal_is_rejected_before_creating_a_branch(self):
         (self.root / IMAGE).write_bytes(PNG + b'changed')

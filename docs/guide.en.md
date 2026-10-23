@@ -2,138 +2,143 @@
 
 [简体中文](guide.md) | **English**
 
-The workbench has four areas: Control for input modes, scripts and outputs; OSC for reception, parameters and axis mappings; Flow for computed signals, output bindings and complete plans; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
+Complete a simple flow with [First run](quick-start.en.md), then use the task list below. The header always shows the active input mode, input activation and emergency stop.
 
 | Task | Open |
 | --- | --- |
-| Add calculations or connect several outputs | **Flow** → Add computed signal / Add output |
-| Set the receiver and inspect actual OSC values | **OSC** → Parameters / receiver settings |
 | Adjust manual values or play a script | **Control** → Manual / Script / Combined |
-| Record, download and replay funscript | **Flow** or **Control** → Recording output → files / Recording replay |
-| Import or export an interaction | **Flow** → Save and load a complete plan |
-| Adjust axis travel and motion behavior | **Settings** → Axis profiles |
+| Inspect OSC parameters, meanings and sources | **OSC** → Parameters |
+| Configure reception, discovery or forwarding | **OSC** → Receiver/forwarding settings |
+| Add calculations and connect several outputs | **Flow** → Computed signals / Outputs |
+| Record, download and replay funscript | **Flow** or **Control** → Recording output |
+| Save or load an interaction | **Flow** → Save and load a complete plan |
+| Set device direction, travel and motion behavior | **Settings** → Axis profiles |
 
 ## Prepare, apply the input mode, then enable input
 
-Prepare values and outputs in Manual/OSC/Script or Combined, select “Apply input mode”, then “Enable input” to start linkage. The header always shows the current mode, and readiness lists the steps still required. Use Add output to connect a device, or choose an integration route from Help.
+Prepare sources, calculations and outputs, then save. In Control choose Manual, OSC, Script or Combined, select Apply input mode and enable input. Readiness lists any remaining steps.
 
-Saving configuration, changing the active mode or importing/replacing a script disables input and stops first. Enable input again after clearing emergency stop. Outputs manage connection and enablement separately; a newly connected, enabled output receives the current valid target while input is running.
+Saving configuration, changing mode or replacing a script disables input and stops current output. Enable input when ready. Emergency stop stays active until cleared, followed by separate input activation.
+
+Outputs have independent activation and connection states. While input is running, a newly connected, enabled output receives the current valid target. Check the header before connecting.
 
 ## Control
 
 ### Manual and script
 
-Manual initially shows L0/L1/L2. Rotation, vibration and auxiliary axes are expandable, giving twelve axes in total. Edit a number/slider and send once, or allow continuous following of edits. “Send settings” selects the axis configuration, explicit duration I (ms), or speed S. The default value is a speed limit. Clear overrides restores the sending settings from the axis profile.
+Manual initially shows L0/L1/L2, with rotation, vibration and auxiliary axes available on expansion: twelve axes in total. Adjust a slider/value and send once, or follow edits continuously. Send settings can use the axis profile or an explicit movement duration/speed; Clear overrides restores the profile.
 
-Loading a funscript reveals its clock, density and transport. It supports 0.1–4× speed, looping, A–B, timecodes and keyframe navigation. Pause preserves the cursor; Stop resets it; unload clears the file. With Script input enabled, explicit seek/step can send the selected target while paused.
+After loading a funscript, the timeline shows playback position and trajectory. It supports 0.1–4× speed, loops, A–B, timecodes and keyframe navigation. Pause preserves the cursor, Stop returns to the beginning and unload removes the script. With Script input enabled, explicit seek/step can send a selected position while paused.
 
 ### Combined input
 
-Combined lets output bindings reference several source kinds at once. For example, multiply an OSC touch value by a manual overall intensity, or use a script trajectory with a tracked offset. Prepare the sources and calculations, save the setup, apply Combined, then enable input. The selected calculation retains validity and origin information. [Inputs, computation and outputs](signal-pipeline.en.md)
+Combined lets several source kinds participate in calculations and output bindings. For example, an OSC touch reading sets interaction strength, a manual slider sets overall intensity and a script provides rhythm. Save sources/calculations, apply Combined and enable input. [Example](signal-pipeline.en.md#one-result-several-outputs)
 
 ### Outputs
 
-Each row presents identity, target and actions. Add an output, select its type, then configure its address or device inside that output. Edit, enable, connect or disconnect; expand diagnostics when needed. A binding selects a signal and applies that target’s type, input/output range, stop value and update rate.
+Choose Add output, select its type and configure the address/device inside it. Open Input-to-output bindings to choose a source, target and range. Save, enable the output and confirm its connection. Diagnostics show recent targets, raw/converted values and validity.
 
-- TCode serial uses 115200/8N1, port discovery and device information requests. UDP/TCP require an explicit address and port.
-- Intiface defaults to a separately running Central, with device scanning and feature details. Set the engine port in managed mode when using your own managed engine.
-- Vibration defaults to V0, with V1/V2 or L0 available. Intensity follows the selected axis; devices with position features use their corresponding position commands.
-- Axis profiles set TCode travel range, direction, limits and motion. Positions and timestamps in output details record the latest motion targets sent.
+| Output | Common settings |
+| --- | --- |
+| TCode | Serial port or UDP/TCP destination, axis profile |
+| Intiface | Central address, actual device and position/vibration features |
+| OSC parameter | IP, port, address and Float/Int/Bool type |
+| DG-LAB | Relay, APP pairing, device, channel and intensity limit |
+| MIDI/network application | System MIDI port, or service and field/topic |
+| Recording | Funscript track or diagnostic format, source and range |
 
-Select **OSC parameter** for an IP/port, parameter address and Float/Int/Bool destination. “Write back to VRChat OSC” prepares the common VRChat endpoint; choose a parameter configured as writable on the current Avatar. **DG-LAB** groups relay, APP pairing, device/channel and bounded tasks. **HTTP JSON**, **WebSocket JSON** and **MQTT** connect other applications. See the [output setup guide](signal-pipeline.en.md) for their fields and examples.
+Set TCode direction, travel and speed in its axis profile. Intiface connects to a separately running Central; vibration defaults to V0, with V1/V2 or L0 available. The OSC write-back shortcut prepares VRChat's common receiver; configure the parameter as writable on the current Avatar. [Full output operation](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ### L0 recording
 
-Record pre-distribution L0 motion targets. Stop preserves the final hold duration; recording ends automatically at 100000 frames. Exporting while active stops recording, but stopping recording does not disable input. Restart confirms clearing the old buffer; cancel preserves it.
-
-Export produces single-axis funscript actions, with optional curve simplification for later playback or editing.
+Quick L0 recording captures current main-axis targets. Stopping preserves the final hold; export can simplify the curve into a single-axis funscript. Recording ends at 100000 frames. Exporting an active recording completes it while retaining the current input state. Restart asks before clearing the old buffer.
 
 ### Recording outputs
 
-Choose **Recording** when adding an output. By default, each binding becomes a separate funscript track for a script player or editor. Choose a source, set its output range to 0–1, then configure the track name and recording schedule. Each continuous valid segment produces one file. Advanced JSON Lines/CSV diagnostics retain raw readings, converted values and invalid intervals together. L0 recording remains a quick export for the current main-axis trajectory. [Recording and inspection](signal-pipeline.en.md#record-and-inspect)
+Add Recording to choose a source, record several tracks or capture an interaction alongside other outputs. Funscript is the default; use an output range of 0–1. Each binding's continuous valid segment becomes a separate file. Completed files can be downloaded, loaded into the script player or replayed as signals.
+
+JSON Lines/CSV support analysis by retaining raw values, converted values and invalid intervals. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 ## OSC
 
 ### Parameters and sources
 
-Apply OSC and check reception before inspecting parameters. Browsing a source differs from “Use source”; only the latter changes the actual signal source. Changing the actual source disables input and clears the previous source's mapping-processing state; inspect the new source before enabling input again. Use search and categories to narrow the list, then pin parameters you inspect often. “Freeze preview” pauses only the parameter list’s display updates; reception, mappings and device control continue. Disable input or use emergency stop to stop motion. “Show FT parameters” controls visibility of FT/v2-prefixed values; mapped and pinned parameters remain visible.
+Apply OSC or Combined and confirm reception before inspecting parameters. Browse source selects what the list shows; Use source selects what the runtime reads. Changing the active source disables input. Check new readings before enabling it again.
 
-The parameter table shows at most 100 rows per page; use Previous/Next to continue or Page to jump directly. Search, source and category filters apply to the complete current catalog before paging. Changing a filter returns to the first page, while value updates preserve the selected page. You can find parameters beyond the current page without expanding thousands of rows at once.
+Use search, categories and pins to narrow the list. Each page shows up to 100 parameters, with paging and direct page selection. Filters search the complete catalog; value updates retain the current page. Show FT parameters controls FT/v2-prefixed values, with mapped/pinned parameters remaining visible.
 
-Details follow updates for the same path and source and show the sample's receive time; freezing the preview also freezes the detail sample. If the parameter leaves the catalog, details retain the sample from when they opened. If the connection is not ready, they show the most recently received sample, with the corresponding status. The explorer link opens the local offline page. Create and save a mapping for the parameter, then enable input to start linkage. Avatar/source lifecycle changes clear old values and learned lengths and stop OSC input.
+Open details for meanings, types, units, sources and sample time. Freeze preview retains list/detail samples while reception and outputs continue; disable input or use emergency stop when you need output to stop. Details identify retained samples when the catalog or connection changes.
 
 ### Where should I look when something does not work?
 
-Disable input first, then narrow the problem using what the UI shows. Change one of the source, path or range at a time so you can tell which change helped.
+Disable input, then check one part at a time using the visible state:
 
 | What you see | Check first | Next step |
 | --- | --- | --- |
-| A parameter is missing | Clear Search parameters, select all categories/sources, and enable Show FT parameters if needed | If the list stays empty, check the actual OSC mode, running listener and the sender's destination port |
-| Parameters change, but a mapping row has no matching reading | Compare Use source and the row's complete path; check whether it is still marked unsaved | Correct one setting, save the mappings and inspect the reading again; saving disarms input |
-| The list keeps old values while other status changes | Look for the Continue preview button | Resume the list with that button; disable input or use emergency stop to stop device motion |
-| An output is connected but does not move | Check the header's actual input mode and activation, then read Mapping checks | Confirm the source, mapped range and conditions, then enable input to start linkage |
+| A parameter is missing | Clear search, inspect all categories/sources, show FT parameters if needed | Check OSC/Combined mode, running listener and sender destination port |
+| Parameters change but a mapping has no reading | Compare Use source, complete path and unsaved state | Correct and save, then inspect live readings |
+| The list retains old values | Look for Continue preview | Resume preview; disable input or stop when motion must stop |
+| Connected with no output | Read active mode, activation and mapping/binding status | Check the reported source/range/condition, then enable input |
 
-When reporting a problem, include the steps, actual mode, selected source and complete parameter path, and preserve the original error text. Read automated outcomes from that commit's Actions run and the [browser verification record](e2e-status.en.md). Describe the device's own response separately for a hardware problem.
+For an issue report, include steps, input mode, source, complete path and original error text. Describe the device's actual response for a hardware issue. Read automated results from that commit's Actions run and [verification record](e2e-status.en.md).
 
 ### Turn an input into motion (mapping)
 
-The top toolbar groups presets, replace/append, save and restore. There are [five built-ins](presets.en.md): OGB depth/vibration, Contact position/speed and native PB. Custom presets remain available.
+Start from a [preset](presets.en.md), choose replace/append and save. Each row selects a source, parameter/calculation and target role. Input range sets reading endpoints, the curve shapes the response and output interval sets the destination range.
 
-Each row selects its input source, then a path or computed signal, role and inversion. Advanced fields set input range, curve and output interval. Tracking sources can select solved coordinate or velocity metrics. While editing a parameter path, type part of it to filter up to 50 suggestions. You can also type a complete path or wildcard pattern manually. Suggestions open only for the field being edited. Full-segment `*`, cross-segment `**` and semicolon/newline aliases are supported. Single-row simulation previews the input range, curve and output-interval conversion. A successful save clears the draft's unsaved indicator and disarms input.
+Type part of a path to filter suggestions, or enter the complete path. See the [calculation guide](computed-signals.en.md) for whole-segment `*`, cross-segment `**` and semicolon/newline aliases. Simulate a row to inspect conversion, then save and check live results.
 
-A gate is an additional condition that must allow motion, such as a target being close enough. `GateEnable` adds such a condition; `DepthOverride` can replace ordinary depth. See [Features](features.en.md) for the rules when several inputs participate. Keep conditions that match the chosen signal, such as Close for a touch region.
+A gate is an additional condition for motion, such as sufficient proximity. Close can define a touch region; `GateEnable` adds an allowing condition and `DepthOverride` provides a depth override. See [calculation and axis mapping](computed-signals.en.md#validity-and-sample-age) for roles and axis priority.
 
 ### Combine inputs first (computed signals)
 
-Open Flow and choose Add computed signal in the Computed signals area. Enter a name and choose an operation. Add OSC parameters, tracking metrics, manual/script readings, feedback, recording replay, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then save computations and mappings together. Output bindings can also select the computation directly. OSC → Mappings provides an editor for the same calculations. Live calculation status uses the saved configuration; drafts keep their unsaved state.
+Choose Add computed signal in Flow, enter a name/operation and add inputs. After saving, output bindings can select the calculation directly. Map to an axis creates an axis reference. OSC → Mappings edits the same calculations.
 
-For example, touch intensities 0.2 and 0.8 with weights 1 and 3 produce a weighted average of 0.65. To link motion to the gap between two roots, calculate X/Y/Z differences and combine them with Magnitude. Several axes can reuse one result, which retains contributing source, validity and sample age. [Operations, coordinate conditions and examples](computed-signals.en.md)
+For example, readings 0.2 and 0.8 with weights 1 and 3 produce 0.65. Smooth the result and send it to both vibration and an Avatar effect. Live results use saved configuration; the unsaved indicator clears after a successful save. [Operations and examples](computed-signals.en.md)
 
-An active computation with missing or invalid inputs stops its dependent output bindings; other valid bindings continue. Existing axis mappings retain their motion gates. While input remains enabled, new valid samples can resume the affected linkage. Disable input or use emergency stop to keep motion stopped.
+An invalid required input stops dependent bindings while other valid bindings continue. New valid samples may resume that binding while input remains enabled. Disable input or use emergency stop to retain a stopped state. Axis mappings apply their motion-gating rules.
 
 ### Reception, discovery and forwarding
 
-Expand receiver/forwarding settings for listener, source, timeout, OSCQuery and Hub.
-
-- Ordinary OSC timeout defaults to 0/off for change-only senders; a positive timeout latches emergency stop when relevant data expires.
-- OSCQuery supports parameter trees/HOST_INFO, LISTEN subscriptions, optional polling and advertising the local receiver.
-- Hub forwards to multiple UDP targets on events or at a fixed rate, preserving unconsumed raw bundle structure. Counts show forwarding activity.
-- OGB enable heartbeat defaults off and requires an explicit VRChat destination, commonly port 9000. It sends true every five seconds while OSC reception runs and attempts false on stopping.
+- **Reception:** configure listener/source. Ordinary timeout defaults to 0 for change-only senders; positive relevant-data timeout triggers emergency stop.
+- **OSCQuery:** discover parameters, subscribe/poll and advertise the local receiver.
+- **Hub:** forward received OSC to several UDP destinations on events or at a fixed rate.
+- **OGB heartbeat:** enable explicitly when needed, targeting VRChat's receiver, commonly 9000. It sends true every five seconds during OSC reception and attempts false on stopping.
 
 ### Control from root position: inspect, then calibrate
 
-SPS four-anchor tracking, Contact and Shader root panels show object, source, Avatar-relative coordinates and current measurement status. Contact direct tracking uses physical metres (AvatarRootMeters); SPS four-anchor tracking and Shader use authored Avatar-root units (AvatarRootLocal). Point/Handle/Pose experiments show measurements relative to their own reference objects. Spatial input starts off; enable it after inspection and calibration.
+Prepare SPS four-anchor, Contact or Shader tracking using the [setup guide](usage-scenarios.en.md). The root panel shows object, source, validity and readings. Fix the object, then choose the metric to use.
 
-Fix the object you want to observe. Select left/right X, up/down Y, forward/back Z, or distance from the Avatar origin. Contact direct tracking also offers VelocityX/Y/Z and Speed in m/s, plus ProximitySpeed in proximity units/s; use these to calibrate movement strength. Move the target to the desired start and capture 0%; move it to the end and capture 100%. Inspect the preview direction and range, then replace the mapping draft and save. Then separately allow experimental spatial input and activate the current input. Invalid coordinates stop the corresponding motion. Start with a small travel range to check that local movement matches the intended device direction. [Positioning conditions](positioning.en.md)
+Position offers X/Y/Z or Distance. Contact adds velocity/Speed in m/s and ProximitySpeed in proximity units/s. Shader adds Right/Forward axes and AvatarScale. Choose Tracking measurement (SensaPoint) to use these readings in calculations or outputs with validity checks.
 
-For **Contact direct tracking (SDK Beta)**, first install the supported beta SDK and build its dedicated own-root Sender/Receiver. A calibrated position axis can follow subtle local depth movement, a touch/Close gate can confirm contact, and a velocity metric can control vibration strength. Keep the same object, source and metric for both captured endpoints. [Beta setup and field meanings](contact-sdk.en.md)
+Move the target to the intended start and capture 0%, then move to the end and capture 100%. Keep the same object, source and metric for both captures. Check preview direction/range, replace the mapping draft and save. Then allow experimental spatial input and enable current input.
+
+Contact position uses metres; SPS four-anchor and Shader position use Avatar-root local units. Calibrate each metric in its own range and check device direction/stopping with small movements. [Fields, units and conditions](positioning.en.md) · [Contact setup](contact-sdk.en.md)
 
 ## Flow
 
-Flow brings sources, calculations and outputs onto one page. Several output bindings can reference a computed signal, and direct sources can also feed destinations. For example, multiply manual overall intensity by an OSC touch value, then send the result to an Avatar parameter, a DG-LAB channel and a funscript track. [Full setup and examples](signal-pipeline.en.md)
+Flow groups calculations, outputs and complete plans. Connect a source directly or create a calculation for several outputs to reuse. [Full guide and examples](signal-pipeline.en.md)
 
-1. When processing is useful, choose Add computed signal, configure its operation and inputs, then Save calculations and mappings.
-2. Add a destination in the output area. Under Input-to-output bindings, select a source or saved calculation, enter its target and range, then Save output.
-3. Prepare inputs in Control. Choose Combined for several source kinds, apply the input mode, enable the required outputs and confirm their connections, then enable input.
+1. Add required calculations, configure operations/inputs and Save calculations and mappings.
+2. Add outputs, choose sources, targets and ranges in their bindings, then Save output.
+3. Apply the input mode in Control, enable outputs and confirm connections, then enable input.
 
-Control and Flow manage the same outputs. Save and load a complete plan exports saved calculations, mappings, axis profiles and outputs. Import preview lists counts and destinations; enable the intended outputs after applying it. Save pending calculations and outputs before exporting.
+Control and Flow manage the same outputs. Expand Save and load a complete plan to export saved calculations, mappings, axis profiles and outputs. Review import targets/counts, apply it and choose the outputs to enable. Save drafts before exporting.
 
-Recording outputs default to funscript. Completed segments can be downloaded or loaded into the script player; Recording replay makes a file available as a calculation source. See [recording and replay](signal-pipeline.en.md#record-and-inspect) for the steps.
+Recording files can be downloaded or loaded into the script player. Recording replay makes them calculation sources again. [Recording operation](signal-pipeline.en.md#record-and-inspect)
 
 ## Settings and help
 
-Axis profiles support adding, choosing a default, copying/editing and removing. The sole default cannot be deleted directly; references are repaired by policy. Each axis has range, remapping, maximum speed, inversion, locked/ignored modes and None/Interval/Speed/Ramp settings. Logs can be filtered by severity; keep raw diagnostics for investigation.
+Axis profiles configure range, inversion, speed, locking and motion settings. Copy profiles for different devices, then select the matching profile for each TCode output. Filter logs by level and retain original diagnostics when investigating.
 
-Help links to [routes](usage-scenarios.en.md), the [parameter dictionary](osc-parameters.en.md) and installation. UI and explorer language follow [automatic detection and explicit choice](languages.en.md); switching preserves drafts.
+Help links to [setup choices](usage-scenarios.en.md), [parameter meanings](osc-parameters.en.md) and installation. UI/explorer language supports automatic and manual selection, retaining drafts when switched. Documents preserve matching sections where possible; wide tables/code scroll separately.
 
-When a document heading has a counterpart, switching language keeps that section; otherwise the new document opens at the top. Tables and code examples wider than the screen scroll horizontally. With a keyboard, Tab into the overflowing region, then use the left/right arrow keys to scroll.
-
-The realtime session shares state and requests within one page. Same-origin tabs first share a connection through SharedWorker, or through a tab using BroadcastChannel and Web Locks. When neither method is available, each page keeps one connection. Page-cache restoration attaches the page again. [Session sharing](signal-pipeline.en.md#pages-and-shared-connections)
+Same-origin tabs share their realtime connection when supported, with independent drafts. Other pages can continue when one closes; restored pages reattach to current state. [Sharing behavior and browser conditions](signal-pipeline.en.md#pages-and-shared-connections)
 
 ## Explore approach, contact and position
 
-The [online version](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) is standalone; releases also include `docs/parameter-geometry.html`. All eleven scenes have 3D, XZ and isometric SVG. Dragging the 3D target changes only the selected plane's axes; background drag rotates. Camera reset preserves parameters. Sliders remain available and WebGL failure falls back to SVG.
+Open the [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or `docs/parameter-geometry.html` in a release. Eleven scenes offer 3D, XZ and isometric SVG. Drag the target on the selected plane, drag the background to rotate, or use sliders for precise changes.
 
-Choose **SPS2 · PenOthersNewRoot / PenOthersNewTip** or **SPS1 · PenOthers / PenOthersClose** to see how approach toward a Socket changes depth-related readings. Touch, Frot and zone scenes show their corresponding touch intensities. Dictionary ordering places a shorter shared prefix first, helping you compare readings with actual OSC paths.
+Choose **SPS2 · PenOthersNewRoot / PenOthersNewTip** or **SPS1 · PenOthers / PenOthersClose** for depth-related readings; Touch, Frot and zone scenes show touch intensity. Parameters use dictionary ordering, with shorter shared prefixes first.
 
-Gray profiles show relative placement; blue and orange shapes show detection regions, with an enlarged orange drag handle. Green marks measurable positions. Check “Simulate a valid sample” for normal readings and clear it to see invalid samples. Explore the values before configuring, then establish a mapping and check actual linkage in the workbench. [Evidence](ui-visual-review.en.md) · [Home](../README.md)
+Gray outlines explain placement, blue/orange shapes show detection and green marks measurable regions. Simulate a valid sample switches between valid/invalid states. Explore readings first, then inspect actual input/output in the workbench. [Home](../README.md)

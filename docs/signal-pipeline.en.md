@@ -2,16 +2,23 @@
 
 [简体中文](signal-pipeline.md) | **English**
 
-Sensa turns source data into signals, computes the results you need, then sends them to devices, applications or recording files. One computed result can feed several output bindings; each binding has its own target, range and sending schedule.
+In Flow, choose sources, add calculations when needed and connect outputs. A simple flow uses a source directly; a complex flow saves named results for reuse. An output binding connects a source to a destination, with its own range and sending mode.
+
+| Task | Start here |
+| --- | --- |
+| Try a complete flow | [Record a manual track](#record-a-manual-track-first) |
+| Choose sources or calculations | [Sources and computation](#choose-sources-and-computation) |
+| Connect a device or application | [Output setup](#add-outputs-and-bindings) |
+| Drive several destinations | [Multiple-output example](#one-result-several-outputs) |
+| Download and reuse a trajectory | [Recording and replay](#record-and-inspect) |
+| Save the setup | [Complete plans](#save-and-reuse-a-complete-plan) |
 
 ```text
-OSC parameters/tracking, manual, script, device feedback
+Input: OSC/tracking, manual, script, feedback or replay
                          ↓
-            Raw signals and reusable computation
+Computation: blend, smooth, trigger or convert as needed
                          ↓
-          Each binding's range, type and update rate
-                         ↓
-             Device, OSC, service or recording
+Output: device, OSC parameter, application or recording
 ```
 
 For example, combine two touch regions into “contact intensity,” then use it for vibration, a DG-LAB channel and Avatar glow. Each output interprets the result in its own range. [Computed signals](computed-signals.en.md) · [Workbench guide](guide.en.md)
@@ -32,7 +39,7 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 | Source | Available reading | Example use |
 | --- | --- | --- |
 | OSC parameter | A value with an explicit path and source | Touch intensity, switch or mode |
-| Tracking metric | Validated position, distance, pose or velocity | Root separation or local movement speed |
+| Tracking measurement | Valid position, distance, pose, velocity or Shader axes/scale | Root separation or local movement speed |
 | Manual | Current manual-axis setting | An adjustable overall intensity |
 | Script | Current script trajectory and playback metrics | Base rhythm or movement trajectory |
 | Device feedback | State and readings provided by connected outputs | DG-LAB APP action, device intensity or pressure |
@@ -41,11 +48,14 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 
 Shader direction and scale can participate as tracking metrics: choose Tracking measurement (SensaPoint) in a calculation or output binding, then select RightX/Y/Z, ForwardX/Y/Z or AvatarScale. These metrics update with complete measurement packets and retain spatial-input permission and validity checks. Use the OSC parameter page to inspect raw reports.
 
-Computation preserves raw units and validity. Position, velocity and proximity rate use their own ranges; output bindings then convert the result into the target's required range. See [positioning](positioning.en.md) for units and coordinate frames.
+Give a calculation a recognizable name, such as Contact intensity, then select it in any output binding. Position, velocity and intensity use ranges matching their meaning; each binding converts the result into the destination's required range. [Calculation examples](computed-signals.en.md) · [Tracking units](positioning.en.md)
 
 ## Add outputs and bindings
 
-Add a destination under Outputs, select its output type and complete its connection settings. Add a binding, choosing its source, input range, output range and target parameter. Save, inspect the live result and connection state, then enable input.
+1. Choose Add output, select its type and configure the address/device.
+2. Open Input-to-output bindings and select a direct source or saved calculation.
+3. Enter the target parameter and input/output ranges, then Save output.
+4. Enable the output and confirm its connection. Apply the input mode in Control, then enable input.
 
 | Output type | Connection and destination | Suitable content |
 | --- | --- | --- |
@@ -60,7 +70,7 @@ Add a destination under Outputs, select its output type and complete its connect
 
 TCode bindings target one of twelve axes using values from 0 to 1; the output's axis profile sets actual travel and motion behavior. Intiface bindings can target L0 and the vibration axis configured for that output, translating values into position or vibration commands supported by the device.
 
-A binding's input range describes the raw reading's endpoints; its output range describes the values expected by the receiver. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. Disabling input, disabling an output and emergency stopping use the motion device's stop command.
+The input range explains the source reading; the output range sets the destination's response. For example, converting input 0–1 to MIDI 0–127 makes an input of 0.5 roughly half the controller range. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. Disabling input, disabling an output and emergency stopping use the motion device's stop command.
 
 OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes. Send-on-change suits state or slowly changing readings and supports a minimum change. Fixed-rate sending suits destinations needing periodic updates. Positive-trigger sending delivers a single action when the mapped signal becomes positive. These bindings accept a send rate of 1–100 Hz, allowing outputs sharing a source to use different schedules. Events are delivered in order; state delivery retains the latest value. Use a state-sending mode for a switch that must receive both on and off values. DG-LAB automatically schedules delivery and renewal from task duration, as described below.
 
@@ -109,6 +119,20 @@ HTTP JSON and WebSocket JSON send messages with `address`, `value`, `type`, `sig
 MIDI uses the operating system's available output ports. Refresh the port list and choose a destination. Set the address as `CC/channel/controller`: channels are 1–16, controllers are 0–127, and sent values are 0–127. For example, `CC/1/1` sends controller 1 on channel 1. Windows and macOS use their system MIDI services; Linux requires ALSA with an available sequencer, including `/dev/snd/seq`.
 
 ## Record and inspect
+
+Choose the source to keep, then add a Recording output. Start with Funscript for a trajectory you can play and edit.
+
+1. Add a binding, select the source and track name, use an output range of 0–1, then save and enable the recording output.
+2. Apply the input mode, enable input and perform the interaction.
+3. Disable input or the recording output to complete the segment, then download it from the file list.
+
+| What to do next | Operation |
+| --- | --- |
+| Play the trajectory as a script | Load into the script player; when ready, apply Script, enable input and play |
+| Use the trajectory in calculations | Load it in Recording replay and select it as a source |
+| Analyse raw signals and invalid intervals | Choose JSON Lines/CSV as the recording format |
+
+### Funscript format and compatibility
 
 A Recording output defaults to funscript for use in script players and editors. Each binding selects its source, track name and conversion range. Converted values are clamped to 0–1, then rounded to integer `pos` values from 0 to 100. `at` uses milliseconds, with each continuous valid segment starting at zero. For example:
 

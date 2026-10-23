@@ -19,6 +19,19 @@ RUNTIMES = ('win-x64', 'win-arm64', 'linux-x64', 'linux-arm64', 'osx-x64', 'osx-
 RETAIN_PRERELEASES = 10
 
 
+def regular_artifact(root, path):
+    """Read only ordinary files inside the downloaded distribution tree."""
+    relative = path.relative_to(root)
+    current = root
+    for part in ('', *relative.parts):
+        current = current / part
+        if current.is_symlink():
+            raise ValueError('Artifact symlinks are forbidden / 发布产物不接受符号链接')
+    if not path.is_file() or not path.resolve().is_relative_to(root.resolve()):
+        raise ValueError('Artifact must be a regular file inside its source / 发布产物须为来源目录内的普通文件')
+    return path
+
+
 def collect(root):
     """Require every archive and checksum. / 要求所有压缩包和校验值完整."""
     files = []
@@ -33,7 +46,8 @@ def collect(root):
         raise ValueError('Expected one Unity archive / 必须有一个 Unity 压缩包')
     files.extend(unity)
     for path in files:
-        expected = (path.parent / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines()
+        regular_artifact(root, path)
+        expected = regular_artifact(root, path.parent / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines()
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if f'{digest}  {path.name}' not in expected:
             raise ValueError('Checksum mismatch / 校验值不一致: ' + path.name)
@@ -46,11 +60,8 @@ def verify_identity(release, tag, sha, channel):
         raise ValueError('Draft identity/state changed / 草稿身份或状态已变更')
 
 
-def verify_draft(release, tag, sha, assets, channel='preview'):
-    """Verify the remote identity and every asset before publication.
-    发布前核对远端身份及全部资产。
-    """
-    verify_identity(release, tag, sha, channel)
+def verify_assets(release, assets):
+    """Match every remote asset to the checked local bytes, including checksums."""
     uploaded = release.get('assets', [])
     by_name = {asset['name']: asset for asset in uploaded}
     if len(by_name) != len(uploaded) or set(by_name) != {path.name for path in assets}:
@@ -60,6 +71,14 @@ def verify_draft(release, tag, sha, assets, channel='preview'):
         digest = 'sha256:' + hashlib.sha256(path.read_bytes()).hexdigest()
         if remote.get('state') != 'uploaded' or remote.get('size') != path.stat().st_size or remote.get('digest') != digest:
             raise ValueError('Remote upload verification failed / 远端上传校验失败: ' + path.name)
+
+
+def verify_draft(release, tag, sha, assets, channel='preview'):
+    """Verify the remote identity and every asset before publication.
+    发布前核对远端身份及全部资产。
+    """
+    verify_identity(release, tag, sha, channel)
+    verify_assets(release, assets)
 
 
 class GitHubReleases:
@@ -177,6 +196,9 @@ def upload_and_publish(tag, sha, assets, releases, *, channel='preview', pause=t
                 print(f'Retrying upload / 重试上传 {path.name} ({attempt + 2}/3)', flush=True)
                 pause(3 * (attempt + 1))
     verify_draft(releases.draft(tag), tag, sha, assets, channel)
+    # target_commitish is draft metadata, not proof of an existing Git tag's
+    # current target. Recheck after uploads, immediately before publication.
+    releases.verify_tag_target(tag, sha)
     releases.publish(tag, channel)
 
 
@@ -297,7 +319,7 @@ def release_assets(root, channel, version, tag, sha, repository):
         return archives
     if len(manifests) != 1:
         raise ValueError('One stable VPM manifest is required / 正式版需要一份 VPM 元数据')
-    manifest = json.loads(manifests[0].read_text(encoding='utf-8'))
+    manifest = json.loads(regular_artifact(root, manifests[0]).read_text(encoding='utf-8'))
     unity = next(path for path in archives if path.name == unity_name)
     if (manifest.get('name') != 'top.sealoong.sensa' or manifest.get('version') != version
             or manifest.get('url') != f'https://github.com/{repository}/releases/download/{tag}/{unity_name}'
@@ -350,6 +372,21 @@ def record(message):
     print(message)
 
 
+def stage_assets(files, output):
+    """Stage checked bytes and the exact checksum asset used by the publisher."""
+    if output.exists():
+        shutil.rmtree(output)
+    output.mkdir(parents=True)
+    assets = []
+    for path in files:
+        destination = output / path.name
+        shutil.copyfile(path, destination)
+        assets.append(destination)
+    checksums = output / 'SHA256SUMS.txt'
+    checksums.write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in assets), encoding='utf-8')
+    return [*assets, checksums]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--channel', choices=('preview', 'stable'), required=True)
@@ -369,8 +406,21 @@ def main():
     if args.channel == 'preview':
         existing = superseding_preview(listing, args.commit, number, attempt)
         if existing is not None:
+            fresh = releases.get(existing['id'])
+            if _published_identity(fresh) != _published_identity(existing):
+                raise ValueError('Published preview changed / 已发布预览已变更')
+            releases.verify_tag_target(existing['tag_name'], existing['target_commitish'])
+            if existing['tag_name'] == args.tag:
+                # A retry after successful publication must not silently accept
+                # deleted or replaced assets on its already published release.
+                files = release_assets(args.assets, args.channel, args.version, args.tag, args.commit, releases.repository)
+                verify_assets(fresh, stage_assets(files, ROOT / 'artifacts' / 'publication'))
+            # Publication may have succeeded before retention failed. A rerun
+            # still completes cleanup without republishing or overwriting assets.
+            removed = prune_prereleases(releases)
             record('Identical or newer preview already published / 相同或更新预览已发布: '
-                   f'https://github.com/{releases.repository}/releases/tag/{existing["tag_name"]}')
+                   f'https://github.com/{releases.repository}/releases/tag/{existing["tag_name"]}'
+                   f'\n\nRemoved old prereleases / 已清理旧预发布: {len(removed)}')
             return
     matching = [item for item in listing if item.get('tag_name') == args.tag]
     if len(matching) > 1:
@@ -380,17 +430,7 @@ def main():
     releases.verify_tag_target(args.tag, args.commit)
     files = release_assets(args.assets, args.channel, args.version, args.tag, args.commit, releases.repository)
     output = ROOT / 'artifacts' / 'publication'
-    if output.exists():
-        shutil.rmtree(output)
-    output.mkdir(parents=True)
-    assets = []
-    for path in files:
-        destination = output / path.name
-        shutil.copyfile(path, destination)
-        assets.append(destination)
-    checksums = output / 'SHA256SUMS.txt'
-    checksums.write_text(''.join(f'{hashlib.sha256(path.read_bytes()).hexdigest()}  {path.name}\n' for path in assets), encoding='utf-8')
-    assets.append(checksums)
+    assets = stage_assets(files, output)
     changes = ''
     if args.channel == 'stable':
         generated = releases.generated_notes(args.tag, args.commit, previous_tag) if previous_tag else ''

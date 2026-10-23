@@ -38,6 +38,9 @@ public sealed class MotionRuntime : IDisposable
     private readonly FunscriptPlayer _scriptPlayer;
     private readonly Func<string?>? _preferredOscSourceKeyProvider;
     private readonly object _sync = new();
+    private readonly object _inputActivationSync = new();
+    private int _inputActivationBlocks;
+    private long _inputActivationEpoch;
     private readonly SemaphoreSlim _sendGate = new(1, 1);
 
     private readonly List<(string Path, SignalChannelProcessor Processor)> _processors = new();
@@ -98,8 +101,8 @@ public sealed class MotionRuntime : IDisposable
         : "实验局部估计；非世界或网格位置 / Experimental local estimate; not world or mesh position";
     public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
-    public bool CanRouteSignals => !_disposed && !_emergency && _inputActive;
-    public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked && !ComputedInputBlocked
+    public bool CanRouteSignals => !_disposed && !_emergency && _inputActive && Volatile.Read(ref _inputActivationBlocks) == 0;
+    public bool CanSend => CanRouteSignals && !_gateClosed && !_poseBlocked && !ComputedInputBlocked
         && (_inputMode != RuntimeInputMode.Script || !_scriptOutputStopped);
 
     public PoseObservation[] GetPoseObservations()
@@ -317,14 +320,17 @@ public sealed class MotionRuntime : IDisposable
 
     public void EmergencyStop()
     {
-        if (_emergency)
-            return;
+        lock (_inputActivationSync)
+        {
+            if (_emergency) return;
+            _emergency = true;
+            _inputActive = false;
+            _inputActivationEpoch++;
+        }
 
         ResetSignalProcessing();
         (_output as OutputCoordinator)?.SignalOutputs.PauseReplays();
-        _emergency = true;
         _forceNextFrame = true;
-        _inputActive = false;
         Interlocked.Increment(ref _generation);
         lock (_sync) _pendingPatch = null;
         _scriptPlayer.Pause();
@@ -334,10 +340,11 @@ public sealed class MotionRuntime : IDisposable
 
     public void ClearEmergency()
     {
-        if (!_emergency)
-            return;
-
-        _emergency = false;
+        lock (_inputActivationSync)
+        {
+            if (!_emergency) return;
+            _emergency = false;
+        }
         NotifyStateChanged();
         // Clearing emergency never resumes motion; input must be explicitly activated.
     }
@@ -367,7 +374,7 @@ public sealed class MotionRuntime : IDisposable
         if (_inputMode == mode)
             return;
 
-        SetInputActive(false);
+        using var inputChange = BlockInputActivation();
         Interlocked.Increment(ref _generation);
         _gateClosed = false;
         _poseBlocked = mode == RuntimeInputMode.Osc && _usesPose;
@@ -382,11 +389,37 @@ public sealed class MotionRuntime : IDisposable
 
     }
 
+    internal IDisposable BlockInputActivation()
+    {
+        lock (_inputActivationSync) { _inputActivationBlocks++; _inputActivationEpoch++; }
+        var block = new InputActivationBlock(this);
+        try { SetInputActive(false); return block; }
+        catch { block.Dispose(); throw; }
+    }
+
+    private sealed class InputActivationBlock(MotionRuntime runtime) : IDisposable
+    {
+        private MotionRuntime? _runtime = runtime;
+        public void Dispose()
+        {
+            var owner = Interlocked.Exchange(ref _runtime, null);
+            if (owner is null) return;
+            lock (owner._inputActivationSync) owner._inputActivationBlocks--;
+        }
+    }
+
     public void SetInputActive(bool active)
     {
-        if (active && _emergency) return;
-        if (_inputActive == active)
-            return;
+        long activationEpoch;
+        lock (_inputActivationSync)
+        {
+            if (!active) _inputActivationEpoch++;
+            if (active && _emergency) return;
+            if (active && _inputActivationBlocks != 0)
+                throw new InvalidOperationException("正在更新输入设置，完成后可启用输入 / Updating input setup; enable input after it completes.");
+            if (_inputActive == active) return;
+            activationEpoch = _inputActivationEpoch;
+        }
 
         Interlocked.Increment(ref _generation);
         _activationTimestamp = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
@@ -397,7 +430,17 @@ public sealed class MotionRuntime : IDisposable
         if (active && _inputMode == RuntimeInputMode.Osc && _usesComputed) _computedInputBlocked = true;
         ResetSignalProcessing();
         if (!active) (_output as OutputCoordinator)?.SignalOutputs.PauseReplays();
-        _inputActive = active;
+        lock (_inputActivationSync)
+        {
+            // A completed configuration change or a cleared emergency still revokes
+            // an activation request that began before that change.
+            if (active && _emergency) return;
+            if (active && _inputActivationBlocks != 0)
+                throw new InvalidOperationException("正在更新输入设置，完成后可启用输入 / Updating input setup; enable input after it completes.");
+            if (active && activationEpoch != _inputActivationEpoch)
+                throw new InvalidOperationException("输入状态已变化，请重新启用输入 / Input state changed; enable input again.");
+            _inputActive = active;
+        }
         if (active && _inputMode == RuntimeInputMode.Script) _scriptOutputStopped = false;
         _forceNextFrame = true;
         if (!active) { lock (_sync) _pendingPatch = null; _scriptPlayer.Pause(); _ = SendEmergencyAsync(); }

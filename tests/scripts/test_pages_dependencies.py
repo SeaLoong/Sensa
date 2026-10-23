@@ -72,15 +72,28 @@ if tool == 'node':
 if tool == 'apt-get':
     statuses = json.loads(os.environ['SENSA_TEST_APT_STATUSES'])
     index = sum(item['tool'] == 'apt-get' for item in previous)
-    raise SystemExit(statuses[index] if index < len(statuses) else 0)
+    status = statuses[index] if index < len(statuses) else 0
+    pending = Path(os.environ['SENSA_TEST_DPKG_PENDING'])
+    if os.environ.get('SENSA_TEST_INTERRUPT_DPKG') == '1' and 'install' in sys.argv:
+        if pending.exists():
+            status = 100
+        elif status:
+            pending.touch()
+    raise SystemExit(status)
+if tool == 'dpkg':
+    assert sys.argv[1:] == ['--configure', '--pending']
+    status = int(os.environ['SENSA_TEST_DPKG_STATUS'])
+    if status == 0:
+        Path(os.environ['SENSA_TEST_DPKG_PENDING']).unlink(missing_ok=True)
+    raise SystemExit(status)
 raise SystemExit('Unexpected fake tool')
 '''
-        for name in ('sudo', 'timeout', 'node', 'apt-get'):
+        for name in ('sudo', 'timeout', 'node', 'apt-get', 'dpkg'):
             executable = self.bin / name
             executable.write_text('#!' + sys.executable + '\n' + fake, encoding='utf-8')
             executable.chmod(0o755)
 
-    def run_installer(self, apt_statuses=(), timeout_statuses=()):
+    def run_installer(self, apt_statuses=(), timeout_statuses=(), *, interrupted=False, recovery_status=0):
         environment = dict(os.environ)
         environment.update({
             'PATH': str(self.bin) + os.pathsep + environment.get('PATH', ''),
@@ -88,6 +101,9 @@ raise SystemExit('Unexpected fake tool')
             'SENSA_TEST_CALLS': str(self.calls_path),
             'SENSA_TEST_APT_STATUSES': json.dumps(apt_statuses),
             'SENSA_TEST_TIMEOUT_STATUSES': json.dumps(timeout_statuses),
+            'SENSA_TEST_INTERRUPT_DPKG': str(int(interrupted)),
+            'SENSA_TEST_DPKG_PENDING': str(self.directory / 'dpkg-pending'),
+            'SENSA_TEST_DPKG_STATUS': str(recovery_status),
             'APT_CONFIG': '/ignored-caller-config',
             'DEBIAN_FRONTEND': 'dialog',
         })
@@ -135,6 +151,23 @@ raise SystemExit('Unexpected fake tool')
         result, calls = self.run_installer(apt_statuses=[0, 0, 100, 0, 0, 100])
         self.assertEqual(result.returncode, 100)
         self.assertEqual(self.apt_commands(calls), ['update', 'install', 'install'] * 2)
+        self.assert_root_configuration(calls)
+
+    def test_retry_repairs_interrupted_dpkg_before_playwright_installs_libraries(self):
+        result, calls = self.run_installer(apt_statuses=[0, 100, 0, 0, 0], interrupted=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.apt_commands(calls), ['update', 'install', 'update', 'install', 'install'])
+        tools = [call['tool'] for call in calls]
+        self.assertEqual(tools.count('dpkg'), 1)
+        self.assertLess(tools.index('dpkg'), tools.index('node', tools.index('dpkg')))
+        self.assertFalse((self.directory / 'dpkg-pending').exists())
+        self.assert_root_configuration(calls)
+
+    def test_failed_package_recovery_remains_a_failure_before_second_install(self):
+        result, calls = self.run_installer(apt_statuses=[0, 100], interrupted=True, recovery_status=2)
+        self.assertEqual(result.returncode, 2, result.stderr)
+        self.assertEqual(self.apt_commands(calls), ['update', 'install'])
+        self.assertTrue((self.directory / 'dpkg-pending').exists())
         self.assert_root_configuration(calls)
 
     def test_timeout_retries_once_without_hiding_persistent_failure(self):

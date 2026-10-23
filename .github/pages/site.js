@@ -17,13 +17,17 @@
     document.title = next === 'en' ? 'Sensa — Inputs, computation and outputs' : 'Sensa — 输入、计算与输出';
     document.querySelectorAll('[data-en]').forEach(x => { x.hidden = next !== 'en'; });
     document.querySelectorAll('[data-zh]').forEach(x => { x.hidden = next !== 'zh-CN'; });
-    document.querySelectorAll('[data-doc]').forEach(x => { x.href = next + '/' + x.dataset.doc + '.html'; });
+    document.querySelectorAll('[data-doc]').forEach(x => {
+      const fragment = next === 'en' ? x.dataset.fragmentEn : x.dataset.fragmentZh;
+      x.href = next + '/' + x.dataset.doc + '.html' + (fragment ? '#' + encodeURIComponent(fragment) : '');
+    });
+    document.querySelectorAll('[data-label-en]').forEach(x => { x.setAttribute('aria-label', next === 'en' ? x.dataset.labelEn : x.dataset.labelZh); });
     document.querySelectorAll('[data-diagram]').forEach(x => { x.href = 'parameter-geometry.html?lang=' + (next === 'en' ? 'en-US' : next); });
     document.getElementById('language').textContent = next === 'en' ? '简体中文' : 'English';
     const available = document.body.dataset.vpm === 'true';
     document.getElementById('vcc').hidden = !available;
     document.getElementById('copy-vpm').hidden = !available;
-    if (available) document.getElementById('vpm-status').textContent = next === 'en' ? 'Stable packages are available through VCC; versions may lag development previews.' : '可通过 VCC 安装正式版组件包，版本可能落后开发预览。';
+    if (available) document.getElementById('vpm-status').textContent = next === 'en' ? 'Stable packages are available through VCC.' : '可通过 VCC 安装正式版 Unity 组件包。';
   };
   if (home) {
     apply(locale);

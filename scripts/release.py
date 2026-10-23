@@ -63,23 +63,44 @@ def validate_tag(kind, tag):
         raise ValueError(f'Tag/manifest versions differ / 标签与清单版本不一致: {version} / {info["version"]}')
     return version, info
 
+def archive_files(root):
+    """Keep distribution entries portable and confined to ordinary source files."""
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError('Archive source must be a regular directory / 归档来源须为普通目录')
+    files = []
+    for path in sorted(root.rglob('*')):
+        relative = path.relative_to(root)
+        if any(part.startswith('.') for part in relative.parts):
+            continue
+        name = relative.as_posix()
+        if any(character in name for character in ('\\', ':')) or any(ord(character) < 32 or ord(character) == 127 for character in name):
+            raise ValueError('Unsafe archive path / 不安全的归档路径: ' + repr(name))
+        if path.is_symlink():
+            raise ValueError('Archive symlinks are forbidden / 归档不接受符号链接: ' + name)
+        if path.is_file():
+            files.append((path, name))
+        elif not path.is_dir():
+            raise ValueError('Archive contains a special file / 归档包含特殊文件: ' + name)
+    return files
+
+
 def zip_directory(root, output):
+    files = archive_files(root)
     with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(root.rglob('*')):
-            if path.is_file() and not any(part.startswith('.') for part in path.relative_to(root).parts):
-                # Fixed timestamps make archives reproducible for identical input bytes.
-                item = zipfile.ZipInfo(path.relative_to(root).as_posix(), (2020, 1, 1, 0, 0, 0))
-                item.compress_type = zipfile.ZIP_DEFLATED
-                archive.writestr(item, path.read_bytes())
+        for path, name in files:
+            # Fixed timestamps make archives reproducible for identical input bytes.
+            item = zipfile.ZipInfo(name, (2020, 1, 1, 0, 0, 0))
+            item.compress_type = zipfile.ZIP_DEFLATED
+            archive.writestr(item, path.read_bytes())
 
 def tar_directory(root, output):
+    files = archive_files(root)
     with output.open('wb') as raw, gzip.GzipFile(filename='',mode='wb',fileobj=raw,mtime=0) as compressed:
         with tarfile.open(fileobj=compressed,mode='w',format=tarfile.PAX_FORMAT) as archive:
-            for path in sorted(root.rglob('*')):
-                if path.is_file() and not any(part.startswith('.') for part in path.relative_to(root).parts):
-                    data=path.read_bytes();item=tarfile.TarInfo(path.relative_to(root).as_posix());item.size=len(data)
-                    item.mode=0o755 if path.name=='Sensa' or path.stat().st_mode & 0o111 else 0o644
-                    archive.addfile(item,io.BytesIO(data))
+            for path, name in files:
+                data=path.read_bytes();item=tarfile.TarInfo(name);item.size=len(data)
+                item.mode=0o755 if path.name=='Sensa' or path.stat().st_mode & 0o111 else 0o644
+                archive.addfile(item,io.BytesIO(data))
 
 def main():
     parser = argparse.ArgumentParser()
@@ -104,6 +125,9 @@ def main():
             stream.write(f'stable={str("-" not in archive_version).lower()}\n')
     output = args.output; output.mkdir(parents=True, exist_ok=True)
     source = args.source or ROOT / 'unity/top.sealoong.sensa'
+    # Validate existing entries before copying guides/build metadata into the
+    # source tree, so a destination symlink cannot redirect those writes either.
+    archive_files(source)
     if args.kind == 'app':
         executable='Sensa.exe' if args.runtime.startswith('win-') else 'Sensa'
         if not (source / executable).is_file() or not (source / 'web/app.bundle.js').is_file():

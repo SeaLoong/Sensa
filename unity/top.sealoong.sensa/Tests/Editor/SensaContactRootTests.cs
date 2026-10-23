@@ -98,7 +98,7 @@ namespace UnityBox.Sensa.Tests
             CollectionAssert.AreEqual(sender.collisionTags, receiver.collisionTags);
             var source = sender.GetComponent<ParentConstraint>().GetSource(0).sourceTransform;
             Assert.AreEqual(target.transform, source.parent); Assert.AreEqual(target.position, source.localPosition);
-            Assert.AreEqual(target.rotation, source.localRotation);
+            Assert.That(Quaternion.Angle(target.rotation, source.localRotation), Is.LessThan(.001f));
             Assert.AreEqual(Vector3.one, sender.transform.localScale);
             Assert.IsFalse(receiver.gameObject.activeSelf);
         }

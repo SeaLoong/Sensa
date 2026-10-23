@@ -18,7 +18,7 @@ namespace UnityBox.Sensa
         public static Transform Child(Transform parent, string name)
         { var node = new GameObject(name).transform; node.SetParent(parent, false); return node; }
         public static void Name(string value)
-        { if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value,"^[A-Za-z0-9_-]{1,48}$")) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa names require 1–48 ASCII letters, digits, '_' or '-'.")); }
+        { if (string.IsNullOrEmpty(value) || !Regex.IsMatch(value,@"\A[A-Za-z0-9_-]{1,48}\z")) throw new InvalidOperationException(SensaEditorLocalization.Text("Sensa names require 1–48 ASCII letters, digits, '_' or '-'.")); }
         // Keep authored prefab data unchanged. A renamed copy gets a distinct deterministic channel.
         public static string ResolveRootChannel(string instanceName, string channel)
         {
@@ -45,6 +45,17 @@ namespace UnityBox.Sensa
             if(config.parameters==null) config.parameters=new List<ParameterConfig>();
             if(config.parameters.Any(p=>p.nameOrPrefix==name)) throw new InvalidOperationException(SensaEditorLocalization.Text("Duplicate generated parameter: ")+name);
             config.parameters.Add(new ParameterConfig {nameOrPrefix=name, remapTo="",syncType=type,localOnly=true,saved=false,hasExplicitDefaultValue=true,defaultValue=0});
+        }
+        internal static void ValidateParameters(GameObject host, IEnumerable<string> names)
+        {
+            var requested = new HashSet<string>(names, StringComparer.Ordinal);
+            var avatar = host.GetComponentInParent<VRCAvatarDescriptor>(true);
+            var root = avatar != null ? avatar.gameObject : host.transform.root.gameObject;
+            foreach (var config in root.GetComponentsInChildren<ModularAvatarParameters>(true))
+                if (config.parameters != null)
+                    foreach (var parameter in config.parameters)
+                        if (requested.Contains(parameter.nameOrPrefix))
+                            throw new InvalidOperationException(SensaEditorLocalization.Text("Generated Sensa parameter conflicts with an existing declaration: ") + parameter.nameOrPrefix);
         }
         public static VRCContactReceiver[] Array(Transform parent,string prefix,string tag,bool self)
         {

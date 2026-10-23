@@ -3,6 +3,7 @@ using Buttplug.Core.Messages;
 using Sensa.Configuration;
 using Sensa.Motion;
 using Sensa.Outputs.Intiface;
+using Sensa.Outputs.Adapters;
 using Sensa.Outputs.TCode;
 
 namespace Sensa.Outputs;
@@ -23,13 +24,15 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     public SignalOutputCoordinator SignalOutputs { get; }
     public event Action? StateChanged;
 
-    public OutputCoordinator(AppConfig config, Action<string> log, Action<string> logDebug, Action<string> logError)
+    public OutputCoordinator(AppConfig config, Action<string> log, Action<string> logDebug, Action<string> logError,
+        Func<OutputDeviceConfig, ISignalOutputAdapter>? signalAdapterFactory = null)
     {
         _config = config;
         _log = log;
         _logDebug = logDebug;
         _logError = logError;
-        SignalOutputs = new(config, id => TryGetConnection(id)?.IsConnected == true, SendRoutedMotionAsync, StopRoutedMotionAsync, logError);
+        SignalOutputs = new(config, id => TryGetConnection(id)?.IsConnected == true, SendRoutedMotionAsync, StopRoutedMotionAsync,
+            logError, adapterFactory: signalAdapterFactory);
         SignalOutputs.CanSend = () => CanRouteSignals();
         SignalOutputs.StateChanged += NotifyStateChanged;
         RebuildConnections();

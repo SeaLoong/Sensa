@@ -2,99 +2,87 @@
 
 [简体中文](features.md) | **English**
 
-This page summarizes implemented features and their operating conditions. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa processes input signals and routes results to devices, applications and recording files. [Inputs, computation and outputs](signal-pipeline.en.md)
+Sensa brings input, computation and output into one workbench for realtime device interaction, application control and trajectory recording. This overview describes what you can build. Follow [First run](quick-start.en.md) or the [workbench guide](guide.en.md) for operation.
 
 ## Flows you can build
 
-| Goal | Available capability | Setup |
-| --- | --- | --- |
-| Combine and process inputs | OSC, manual, scripts, feedback and replay; weighting, spatial operations, smoothing, thresholds and events | [Sources and computation](signal-pipeline.en.md#choose-sources-and-computation) |
-| Send one result to several targets | TCode, Intiface, OSC parameters, DG-LAB, MIDI CC, HTTP/WebSocket JSON and MQTT | [Output bindings](signal-pipeline.en.md#one-result-several-outputs) |
-| Save a playable trajectory | Per-binding funscript tracks, segment downloads, script-player loading and signal replay | [Recording and replay](signal-pipeline.en.md#record-and-inspect) |
-| Reuse a complete interaction | Import/export calculations, axis mappings, axis profiles and outputs, with review before application | [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) |
-| Open several workbench pages | Same-page singleton and same-origin connection sharing, with independent drafts | [Page connections](signal-pipeline.en.md#pages-and-shared-connections) |
+| Goal | Setup |
+| --- | --- |
+| Combine readings, smoothing and conditions | OSC, tracking, manual, scripts or feedback → [computed signal](computed-signals.en.md) |
+| Send one result to several destinations | A result → [multiple output bindings](signal-pipeline.en.md#one-result-several-outputs), with separate ranges |
+| Save a playable, editable trajectory | Source → [Funscript recording](signal-pipeline.en.md#record-and-inspect) → download or replay |
+| Reuse an interaction | [Export a plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) with calculations, mappings, profiles and outputs |
+| Open several workbench pages | Same-origin pages automatically [share a realtime connection](signal-pipeline.en.md#pages-and-shared-connections), with independent drafts |
 
 ## Browser workbench
 
-| Area | Capabilities |
+| Page | What you can do |
 | --- | --- |
-| Persistent header | Realtime session, actual mode, input permission, emergency stop/clear, language/help |
-| Control | Browse/apply input, twelve-axis manual, scripts, outputs, readiness and L0 recording |
-| OSC mappings | Five built-ins/custom presets, reusable computed signals, replace/append, draft save/restore, sources/roles/curves/ranges/simulation |
-| OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
-| OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
-| Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
-| Flow | Multi-source computation, temporal/event processing, output bindings, script recording/replay and complete-plan import/export |
-| Settings | Twelve-axis profiles, defaults/references and structured logs |
+| **Control** | Apply an input mode, adjust manual axes, play scripts, manage outputs and record L0 |
+| **OSC** | Receive/browse parameters, read explanations, choose sources, map axes, discover and forward |
+| **Flow** | Create calculations, connect outputs, replay recordings and save/load complete plans |
+| **Settings** | Manage axis ranges, direction, speed, motion settings and logs |
 
-Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
+The header keeps input mode, activation and emergency stop visible. English and Chinese can be switched while retaining drafts. OSC parameters support search, categories, pins, frozen previews and pagination at up to 100 items per page; details explain values and official sources. [Workbench guide](guide.en.md)
 
-The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has eleven scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Choose actual parameter names to observe readings as a target approaches, enters or meets a contact region, then use those readings to choose a mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
-
-Same-origin tabs first share a realtime connection through SharedWorker, or through a tab holding Web Locks and exchanging messages over BroadcastChannel. When neither method is available, each page keeps one connection. Requests and drafts remain independent, and each page uses a reference-counted singleton. Page-cache restoration reattaches subscriptions. [Connection behavior](signal-pipeline.en.md#pages-and-shared-connections)
+The [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) provides eleven adjustable scenes for parameters, detection regions and tracking. It ships for offline use, with 3D and SVG views.
 
 ## Runtime and inputs
 
-Actual mode is Manual/Osc/Script/Combined. Combined lets configured source kinds contribute together. Browsing preserves the applied mode. Mode changes, script replacement and configuration saves disarm/stop first. Emergency stop latches; clearing does not resume. Connecting grants no permission, although an already active input can send. Startup restores no motion, enabled outputs or scripts.
+| Input mode | Capabilities |
+| --- | --- |
+| **Manual** | Twelve axes, send once or follow edits, profile-based or explicit duration/speed |
+| **Script** | Interpolated funscript, 0.1–4× speed, loops, A–B, time and keyframe navigation |
+| **OSC** | Float/Int/Bool parameters, presets/custom mappings and source selection |
+| **Combined** | Manual, scripts, OSC, tracking, feedback, replay and calculations together in output bindings |
 
-- **Manual:** twelve axes, once/follow edits, clear overrides, profile-based or explicit Interval(ms)/Speed. Following edits is not automatic oscillation.
-- **Script:** skip invalid actions, retain the last duplicate timestamp, then sort; reject empty valid content. L0 interpolation, 0.1–4×, loops/A–B/timecodes/keyframes/density. Pause/stop/unload stops automatic frames; explicit permitted seeks may send. An injected clock retains fractional milliseconds. No media synchronization.
-- **OSC:** UDP Float/Int/Bool, nested bundles, Avatar lifecycle and standard-prefix stripping. Reject non-finite values, bound catalogs and expire sources. Forwarded timetags do not imply full scheduling.
-- **Combined:** bindings can use manual/script readings, OSC/tracking, device feedback, constants and reusable calculations together.
+Input activation controls delivery. Enable input when ready after saving configuration, changing modes/scripts or clearing emergency stop. Pausing a script stops automatic sending; explicit seek/step can still send a selected target while Script input is enabled.
 
-Gate/spatial invalidity stops without stale same-axis fallback. Ordinary OSC timeout defaults off; positive relevant-data expiry latches emergency stop. Spatial models have separate ages. [Runtime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) · [Script](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
+Ordinary OSC receive timeout defaults off for change-only parameters. A positive timeout triggers emergency stop when relevant data expires. Tracking applies its own sampling and validity checks. [Activation and stopping](guide.en.md#prepare-apply-the-input-mode-then-enable-input)
 
 ## Signal interpretation and network tools
 
-Paths support exact matches, full-segment `*`, cross-segment `**` and semicolon/newline aliases. Sources remain isolated; Avatar changes clear values/learning and stop OSC. FT hiding only recognizes `FT/` or `v2/` after stripping the standard prefix; mapped/pinned values remain, without blendshape-name guesses.
+**Computed signals** offer weighted averages, sums, differences, ratios, min/max and magnitude, plus smoothing, dead zones, hysteresis, delays, rates, peak hold, edges, pulses, cooldown, duration and sine/envelope generation. Several mappings and outputs can reference one saved result. [Examples and conditions](computed-signals.en.md)
 
-Calibration, inversion, Linear/EaseIn/EaseOut/SCurve and output intervals precede role fusion. Same-role inputs prefer higher normalized values, breaking ties by intensity or distance from midpoint; modify only present axes. Every GateEnable must be open. DepthOverride may replace depth.
+**Axis mappings** provide calibration, inversion, curves, output ranges and motion roles. Five built-in templates cover OGB depth/vibration, Contact position/speed and PhysBone. Paths support exact matches, whole-segment `*`, cross-segment `**` and aliases. [Presets](presets.en.md)
 
-**Computed signals** combine inputs before calibration, using weighted average, average, sum, difference, product, ratio, minimum, maximum or magnitude. Inputs may be OSC parameters, solved position/velocity metrics, manual/script readings, device feedback, constants or other computed signals; several mappings and output bindings can reuse one result. Temporal operations add smoothing, thresholds, delays, rate/peak readings, events, durations and generated waveforms. The backend checks unique source, validity and oldest sample age, and supplies live results for the saved configuration. Save computations and mappings together; validity propagates to dependent bindings, with existing axis mappings retaining their motion gates. [Setup and examples](computed-signals.en.md)
+**OGB/SPS** reads existing depth and touch parameters. SPS2 pairs an object's Root/Tip readings to estimate depth; SPS1 uses PenOthers with its Close condition. Calibrate ranges for the actual object. [Parameter meanings](osc-parameters.en.md) · [OGB compatibility](ogb-compatibility.en.md)
 
-| Role | Target |
-| --- | --- |
-| Depth/Surge/Sway | L0/L1/L2 |
-| Twist/AngleX/AngleY | R0/R1/R2 |
-| V0/V1/V2 | Same-name vibration |
-| Auxiliary/Auxiliary1/Auxiliary2 | A0/A1/A2 |
-
-OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**, estimating length from a same-instance pair and unsaturated samples before converting to a depth trend; incomplete learning yields zero. Missing or both-zero channels permit **SPS1 · PenOthers / PenOthersClose**, using its depth signal and published proximity condition. OgbTouch combines Touch/Plug Frot with the corresponding Close. Socket Frot and independent Zones read intensity directly. The five built-ins cover OGB depth/vibration, Contact position/speed and PB stretch. [OGB](ogb-compatibility.en.md) · [Presets](presets.en.md)
-
-OSCQuery supports HOST_INFO/trees/LISTEN, optional polling and local receiver advertisement. Hub offers multiple UDP targets, source filtering, event/fixed-rate merging and statistics, preserving unconsumed bundle structure. OGB_ENABLED defaults off. When enabled, it sends true to the configured target every five seconds during OSC reception and attempts false on stop, maintaining Avatar parameter publication.
+**Network tools** include OSCQuery discovery, subscriptions/polling, local receiver advertisement and multi-destination UDP Hub forwarding. Enable OGB heartbeat with an explicit VRChat destination when the Avatar needs it to publish parameters.
 
 ## Outputs, profiles and recording
 
-TCode provides 115200/8N1 serial, friendly port names, D0/D1/D2 queries, UDP/TCP incremental encoding, required refresh and stop. Each output owns enablement, destination and a profile. Twelve axes support Min/Max, RemapMin/Max, MaxSpeed, Invert, Normal/Locked/Ignored, LockValue, None/Interval/Speed and RampType. Ignored does not mean centered.
+| Output | Configuration focus |
+| --- | --- |
+| **TCode serial/UDP/TCP** | Connection and axis profile: twelve axes, direction, range, speed, locking and motion settings |
+| **Intiface/Buttplug** | Connect Central, scan devices and use supported position/vibration features |
+| **OSC parameter** | Address, type and range, with a VRChat write-back shortcut |
+| **DG-LAB** | DG-LAB 4 APP pairing, device/channel, user limits and intensity/waveform tasks |
+| **MIDI CC** | System output port, channel/controller and values from 0 to 127 |
+| **HTTP JSON/WebSocket JSON/MQTT** | Receiving service, field/topic and value type |
+| **Recording** | Funscript by default, plus JSON Lines/CSV signal diagnostics |
 
-Intiface uses Buttplug WebSocket, scanning and feature discovery. Position selects timed/raw commands by capability and transforms L0 as 1−L0. Vibration independently selects V0/V1/V2/explicit L0, defaulting to V0; tiny-to-zero changes send zero, and vibration-only devices work. New outputs use external Central; explicit managed configurations remain, but no engine is bundled. Changing a connected vibration axis rebuilds the client through the save transaction. [Outputs](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs)
+Outputs have independent activation and connections. Each binding selects its own source, range and sending mode. An invalid source stops dependent bindings while other valid bindings can continue; emergency stop covers every output. [Full output setup](signal-pipeline.en.md#add-outputs-and-bindings)
 
-Output bindings add **OSC parameter**, **DG-LAB**, **HTTP JSON**, **WebSocket JSON**, **MQTT**, **MIDI CC** and **Recording** destinations. Each selects source, value conversion, target range, stop value and sending rate. OSC has a VRChat write-back preset; DG-LAB uses the 4 APP's V4 pairing/device/task protocol. Protocol adapters encode destination operations while transports own delivery and cancellation. [Output configuration](signal-pipeline.en.md)
-
-The L0 recorder captures pre-distribution motion targets, preserves final holds, ends at 100000 frames and exports simplified funscript. Active export stops that recording; restart confirms clearing. Recording outputs default to one funscript track per binding's valid segment, replaying positions from 0 to 1. Advanced JSON Lines/CSV diagnostics retain raw readings, converted values and invalid intervals; their replay reads the raw values. Complete-plan import/export groups mappings, axis profiles, computations and output settings; imported outputs start disabled. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
-
+Recording outputs save each binding's valid segments as separate funscripts for download, player loading or signal replay. JSON Lines/CSV retain raw values, converted values and invalid intervals. Quick L0 recording saves current main-axis targets, up to 100000 frames, with optional export simplification. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 ## Unity and spatial experiments
 
-Spatial motion defaults blocked. SPS four-anchor tracking `P0..P3+Sample` uses dedicated root markers, AvatarRootLocal anchors and scale guards; Sample defaults to 1000 ms, capped at 1250 ms. Contact direct tracking (SDK Beta) uses one dedicated own-root Sender and one Receiver, publishes twelve `Sensa/Contact/<id>/…` fields, and provides AvatarRootMeters position plus contact-point velocity. Sample change age is at most 1000 ms; Radius follows ScaleFactor with a 3 m guard. SensaPoint supports X/Y/Z/Distance and VelocityX/Y/Z/Speed/ProximitySpeed with existing calibration and stop behavior. [Beta prerequisites and source evidence](contact-sdk.en.md). Shader capture provides root position, Right/Forward directions and `AvatarScale`. Three data copies recover missing regions from complete, matching copies; conflicting copies invalidate the measurement. In a Flow calculation or output binding, choose Tracking measurement (SensaPoint) and select RightX/Y/Z, ForwardX/Y/Z or AvatarScale to use these metrics with tracking validity checks. See the [positioning protocol](positioning.en.md) for fields and capture requirements. Independent Point/Handle/Pose use positions relative to a reference object and check the oldest participating channel. Their coordinates are relative to the Avatar or selected reference objects, ready for calibration into local movement. [Positioning](positioning.en.md)
+| Route | Measurement and preparation |
+| --- | --- |
+| **SPS four-anchor tracking** | Three-dimensional root position relative to the Avatar; add components to your Avatar and check common coverage |
+| **Contact direct tracking (SDK Beta)** | Metre-based position and relative velocity; requires supported advanced SDK Proximity features |
+| **Shader capture** | Root position, Right/Forward axes and AvatarScale; requires a rendered PC block and desktop decoder |
+| **Independent Point/Handle/Pose** | Reference-relative position or pose for measurement-model experiments |
 
-NDMF generates permitted native components and removes authoring scripts. Automatic SPS supports Dedicated/Exclusive and an explicit root tracking method: SPS four-anchor tracking by default or Contact direct tracking with the supported beta SDK. Independent Contact authoring also supports explicit Sensa/native roots without VRCFury; single-point position/velocity is available, with multi-point orientation left for later work. Independent SPS four-anchor tracking authoring selects actual roots. SensaComponent, PB and independent Point/Handle/Pose retain their own models. GPU Model Probe provides Editor model snapshots for checking author settings. Avatar/World Labs provide capability scenes, menus/placement and SDK/ClientSim/PlayMode entry points using licensed resources. QuickStart is internal only. [Unity](../unity/top.sealoong.sensa/README.md) · [Labs](lab-workflow.en.md)
+Three Shader payload copies support missing-data recovery, with complete-packet validity checks. Choose Tracking measurement (SensaPoint) in calculations, axis mappings or outputs to use coordinates, supported velocity or Shader axis/scale metrics. [Choose a route](usage-scenarios.en.md) · [Fields, units and calibration](positioning.en.md)
+
+Unity authoring components generate native Contacts, animation and parameters during builds. Automatic SPS Setup selects targets and a root route; explicit Transform, Sensa/native Contact targets have dedicated authoring options. Check actual client/graphics behavior with the versions used. [Unity installation](../unity/top.sealoong.sensa/README.md) · [Build process](unity-build.en.md)
 
 ## Configuration, access and API
 
-Configuration defaults to `config.json` beside the program, overridden by `SENSA_CONFIG_PATH`. Defaults, destination conflicts, reference repair and persistence are centralized. Saves serialize disarm/stop/reconnect and restore configuration/connections on failure.
+Settings live in `config.json` beside the program; `SENSA_CONFIG_PATH` selects another path. Complete-plan imports show a review before application, after which you enable the required outputs.
 
-HTTP defaults to loopback. `GET /api/session` issues an HttpOnly/SameSite=Strict cookie. LAN requires explicit `SENSA_ACCESS_TOKEN`, using Bearer or the Basic password; Origin/Host/cross-site checks apply. HTTP is unencrypted and unsuitable for direct internet exposure. Message size, concurrency and send time are bounded. [Access policy](https://github.com/SeaLoong/Sensa/blob/main/src/Hosting/LocalAccessPolicy.cs)
+The workbench defaults to local access. LAN use requires `SENSA_ACCESS_TOKEN` and a trusted network; see [architecture](architecture.en.md) for connection/access conditions. HTTP and WebSocket expose configuration, input, script, recording and output controls for custom tools.
 
-| API | Operations |
-| --- | --- |
-| Configuration/state | GET/PUT `/api/config`; GET `/api/state/overview`, `/api/state/logs`, `/api/meta/serial-ports` |
-| Input | PUT `/api/input/mode`, `active`, `manual`, `osc/source`; DELETE manual; POST oscquery/refresh |
-| Script | POST load/play/pause/stop/action-prev/action-next; PUT configure/seek; DELETE `/api/input/script` |
-| Recording/runtime | POST `/api/recording/start\|stop\|export`, `/api/control/runtime/emergency-stop\|clear-emergency` |
-| Output | POST `/api/control/output/{outputId}/connect\|disconnect\|scan-start\|scan-stop\|device-info-refresh` |
-| Realtime | `/api/ws`: {id,method,path,body} requests, {id,ok,data} responses and state pushes |
-
-Script HTTP uses multipart; WS uses fileName/content through the same command. Legacy loop/type-output aliases remain, but multi-output clients use outputId. Retained fields for dynamic WebUi.Title, Intiface DeviceRoutes, special IsOgbSocket/Plug behavior, PreferSpeedMode encoding and ObservedMin/Max suggestions **do not establish wired capabilities**. [Routes](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs)
-
-[Architecture](architecture.en.md) explains source boundaries; [development/release](development.en.md) covers checks, builds, previews, stable releases and documentation deployment. Unit checks and browser E2E run before publication. Check direction, response and stopping with the client and device used for actual linkage.
+[Development and releases](development.en.md) explains checks and builds; the [verification record](e2e-status.en.md) distinguishes automated checks, image inspection and actual results by commit.

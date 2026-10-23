@@ -2,27 +2,39 @@
 
 [简体中文](computed-signals.md) | **English**
 
-A computed signal processes source readings into a reusable number. Sources include parameters, tracking, manual/script readings, device feedback, recording replay and other calculations. You can blend two touch intensities at a 1:3 ratio, calculate the gap between two roots, or multiply a reading by a constant. Use the result in an axis mapping or output binding, then choose the target’s range and conversion. [Workbench guide](guide.en.md) · [Positioning and coordinate units](positioning.en.md)
+Add a computed signal when you need to combine inputs or process a reading with smoothing, thresholds or delays. Give the result a name, then reuse it in several outputs. For example, blend two touch regions into Contact intensity and use it for both a device and an Avatar effect.
+
+| Desired effect | Choose |
+| --- | --- |
+| Set each reading's influence | [Weighted average](#weighted-average-choose-each-inputs-influence) |
+| Scale, subtract or choose the strongest reading | [Numeric operations](#supported-operations) |
+| Reduce jitter, require sustained contact or trigger an effect | [Time and condition processing](#process-time-thresholds-and-events) |
+| Calculate the gap between roots | [Coordinate combinations](#combine-root-coordinates) |
+| Use Shader direction or convert displacement to metres | [Axes and scale](#use-shader-axes-and-scale) |
+
+[Workbench operation](guide.en.md) · [Sources and outputs](signal-pipeline.en.md)
 
 ## From inputs to motion
 
 ```text
-OSC parameters ─────────────┐
-Solved position / velocity ─┼→ Computed signal → Input range, inversion, curve → Axis → Output
-Constant / computed signal ─┘
+OSC/tracking, manual, script, feedback, replay or constants
+                         ↓
+                  Named calculation
+                         ↓
+    Each output's range, curve and target → one or more outputs
 ```
 
-SPS four-anchor tracking first reconstructs a root position from P0–P3 and Sample. A tracking input reads the validated X, Y, Z or distance result. Contact direct tracking also provides velocity metrics. Each P0–P3 reading describes proximity; the dedicated geometry solver derives coordinates. Select the solved metrics when combining positions.
+Choose Tracking measurement (SensaPoint), then the object and metric. SPS four-anchor tracking provides solved positions, Contact provides position/velocity and Shader adds axes/scale. Calculations retain the measurements' validity checks. [Metric meanings](positioning.en.md)
 
 Each computed signal has a stable identifier and a readable name. Other computations, axis mappings and output bindings refer to its identifier, allowing several destinations to reuse the result. Computation retains the raw numeric result; each mapping then converts it to its own motion range.
 
 ## Create a computation in the workbench
 
 1. Open **Flow** and choose Add computed signal in the Computed signals area. **OSC → Mappings** also provides an editor for the same calculations.
-2. Enter a readable name of up to 80 characters, choose an operation, then configure its inputs. The workbench assigns a stable identifier such as `Signal1`, which other computations use to refer to this result.
-3. Choose OSC parameter, tracking measurement, pose metric, manual, script, device feedback, recording replay, computed signal or constant as the input type. A tracking input selects both the actual instance path and a metric. Prefer a path that uniquely identifies its target.
+2. Enter a recognizable name, choose an operation and add the inputs.
+3. Choose an OSC parameter, tracking measurement, pose metric, manual, script, device feedback, recording replay, another calculation or a constant. Parameters need their actual path; tracking selects both object path and metric.
 4. Select Computed signal as an axis mapping or output binding source, choose the new computation, then configure its destination and input/output ranges.
-5. Save computations and mappings together. Live results come from the backend's saved configuration; drafts keep their unsaved state. Check the result, source and axis preview before enabling the current input.
+5. Save calculations and mappings. Live previews use the saved setup. Check readings and ranges before enabling current input.
 
 Saving configuration disables input. Computations containing tracking metrics retain experimental spatial-input permission and the selected route's validity conditions. A constant-only computation needs a consuming mapping or binding and enabled input before it can drive an output.
 
@@ -75,7 +87,7 @@ Numeric combinations accept 1–16 inputs; Difference and Ratio require exactly 
 
 For example, set hysteresis to turn on at 0.7 and off at 0.5 to stabilize a touch switch. Use Duration to require 500 ms of continuous contact. Use Pulse when an event should remain high for a defined time. Edge and cooldown results are single-evaluation events that can feed a positive-trigger output; the backend delivers events in order while observing that binding's send rate.
 
-Temporal state belongs to the saved evaluator instance. Invalid input, changed provenance, backward time, reconfiguration or disarming resets relevant state. Edge operations first establish a baseline, then react to subsequent crossings. Delay retains the historical sample time, so additional age limits should accommodate its intended delay. The delay buffer is bounded to 4096 samples.
+Invalid input, source changes, backward time, reconfiguration or input stopping clears the relevant temporal history. Edge operations first establish a baseline, then react to subsequent crossings. Delay retains the historical sample time, so additional age limits should accommodate its intended delay. The delay buffer is bounded to 4096 samples.
 
 ## Use Shader axes and scale
 
@@ -118,7 +130,7 @@ Manual inputs use an axis such as `L0`; script inputs select `L0`, `Progress` (0
 
 ## Configuration example
 
-These are the relevant configuration fields. Replace `TouchA` and `TouchB` with actual parameter names and retain the configuration's other settings. In a hand-written configuration, identifiers start with an English letter and may contain letters, digits, underscores and hyphens, up to 48 characters.
+The workbench handles ordinary setup. For manual editing, replace `TouchA` and `TouchB` with actual parameter names and retain other settings. Names allow up to 80 characters. Identifiers start with an English letter and may contain letters, digits, underscores and hyphens, up to 48 characters; the workbench generates these automatically.
 
 ```json
 {

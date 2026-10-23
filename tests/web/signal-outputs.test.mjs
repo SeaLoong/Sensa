@@ -113,6 +113,24 @@ test('portable plans preserve the graph while importing targets disabled and nev
   assert.equal(parseSignalPlan(JSON.stringify({ ...exported, axisProfiles: undefined })).axisProfiles, undefined);
 });
 
+test('plan imports reject malformed preview metadata and rows before rendering', () => {
+  const plan = { kind: 'SensaSignalPlan', computedSignals: [], signals: [], outputs: [], axisProfiles: [] };
+  for (const name of [{ text: 'Unexpected object' }, ['Unexpected array'], 42, true])
+    assert.throws(() => parseSignalPlan(JSON.stringify({ ...plan, name })));
+  for (const key of ['computedSignals', 'signals', 'outputs', 'axisProfiles']) {
+    for (const row of [null, [], 'Unexpected row', { name: {} }, { id: [] }, { type: {} }])
+      assert.throws(() => parseSignalPlan(JSON.stringify({ ...plan, [key]: [row] })), `${key}: ${JSON.stringify(row)}`);
+  }
+  assert.equal(parseSignalPlan(JSON.stringify({ ...plan, name: null, outputs: [{ id: 'osc', name: 'OSC', type: 'OscParameter' }] })).outputs[0].enabled, false);
+});
+
+test('plan imports enforce the same UTF-8 byte limit as uploaded files', () => {
+  const plan = { kind: 'SensaSignalPlan', name: '中'.repeat(700000), computedSignals: [], signals: [], outputs: [] };
+  const text = JSON.stringify(plan);
+  assert.ok(text.length < 2 * 1024 * 1024);
+  assert.throws(() => parseSignalPlan(text));
+});
+
 test('time-operation changes prepare valid input counts and preserve source and timing fields through serialization', () => {
   const draft = buildComputedDrafts([{ id: 'Mix', operation: 'Sum', inputs: [{ sourceMode: 'Script', oscPath: 'L0' }, { sourceMode: 'Manual', oscPath: 'V0' }] }])[0];
   const unary = { ...draft, ...changeComputedOperation(draft, 'Smooth'), timeMs: 600 };

@@ -143,6 +143,38 @@ namespace UnityBox.Sensa.Tests
         }
 
         [Test]
+        public void AccumulatedAncestorScaleErrorIsRejectedBeforeNativeObjectsExist()
+        {
+            var parent = Own(new GameObject("Avatar parent"));
+            avatar.transform.SetParent(parent.transform, false);
+            // Each local scale is within Uniform's tolerance, but their combined
+            // Y-axis scale exceeds the encoder's final-world-matrix tolerance.
+            parent.transform.localScale = new Vector3(1, 1.00009f, 1);
+            avatar.transform.localScale = new Vector3(1, 1.00009f, 1);
+            var marker = Child("Root", Vector3.up).transform;
+            Assert.DoesNotThrow(() => SensaSensorUtility.Uniform(avatar.transform));
+            Assert.Throws<System.InvalidOperationException>(() => SensaShaderCaptureBuilder.BuildNativeRig(avatar, marker, 12, new Rect(0, 0, .25f, .2f)));
+            Assert.That(avatar.GetComponentsInChildren<Camera>(true), Is.Empty);
+            Assert.That(avatar.GetComponentsInChildren<SkinnedMeshRenderer>(true), Is.Empty);
+        }
+
+        [Test]
+        public void RotatedUniformAncestorScalesKeepTheSupportedWorldFrame()
+        {
+            var parent = Own(new GameObject("Rotated avatar parent"));
+            avatar.transform.SetParent(parent.transform, false);
+            parent.transform.localScale = Vector3.one * 2;
+            parent.transform.localRotation = Quaternion.Euler(12, 25, 8);
+            avatar.transform.localScale = Vector3.one * 3;
+            avatar.transform.localRotation = Quaternion.Euler(-14, 30, 11);
+            var marker = Child("Root", Vector3.up).transform;
+            var rig = SensaShaderCaptureBuilder.BuildNativeRig(avatar, marker, 13, new Rect(0, 0, .25f, .2f));
+            Assert.That(rig, Is.Not.Null);
+            Assert.That(avatar.transform.localToWorldMatrix.MultiplyVector(Vector3.right).magnitude, Is.EqualTo(6).Within(.00001f));
+            Assert.That(rig.GetComponentsInChildren<Camera>(true), Has.Length.EqualTo(1));
+        }
+
+        [Test]
         public void AuthoredShearThatQuantizesToParallelAxesIsRejected()
         {
             var parent = Child("Thin frame", Vector3.up).transform;

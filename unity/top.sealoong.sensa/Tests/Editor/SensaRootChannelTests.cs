@@ -57,6 +57,64 @@ namespace UnityBox.Sensa.Tests
             Assert.Throws<InvalidOperationException>(() => SensaSensorUtility.ResolveRootChannel("", "Manual"));
             Assert.Throws<InvalidOperationException>(() => SensaSensorUtility.ResolveRootChannel("Root", " "));
             Assert.Throws<InvalidOperationException>(() => SensaSensorUtility.ResolveRootChannel("Root", "Bad/Channel"));
+            Assert.Throws<InvalidOperationException>(() => SensaSensorUtility.ResolveRootChannel("Root\n", "Manual"));
+            Assert.Throws<InvalidOperationException>(() => SensaSensorUtility.ResolveRootChannel("Root", "Manual\n"));
+        }
+
+        [TestCase("Sps", "NaN offset")]
+        [TestCase("Sps", "Infinite offset")]
+        [TestCase("Sps", "Zero rotation")]
+        [TestCase("Sps", "NaN rotation")]
+        [TestCase("Contact", "NaN offset")]
+        [TestCase("Contact", "Infinite offset")]
+        [TestCase("Contact", "Zero rotation")]
+        [TestCase("Contact", "NaN rotation")]
+        [TestCase("Shader", "NaN offset")]
+        [TestCase("Shader", "Infinite offset")]
+        [TestCase("Shader", "Zero rotation")]
+        [TestCase("Shader", "NaN rotation")]
+        public void MalformedNativeRootFrameFailsBeforeAnyGeneratedObject(string method, string malformed)
+        {
+            RequireMethod(method == "Contact");
+            var target = Child("Native root", Vector3.up).AddComponent<VRCContactSender>();
+            target.position = Vector3.zero; target.rotation = Quaternion.identity;
+            switch (malformed)
+            {
+                case "NaN offset": target.position = new Vector3(float.NaN, 0, 0); break;
+                case "Infinite offset": target.position = new Vector3(0, float.PositiveInfinity, 0); break;
+                case "Zero rotation": target.rotation = new Quaternion(0, 0, 0, 0); break;
+                case "NaN rotation": target.rotation = new Quaternion(0, 0, float.NaN, 1); break;
+            }
+            Assert.Throws<InvalidOperationException>(() => SensaSpsAdapter.ReadRoot(target));
+            if (method == "Shader")
+            {
+                var author = avatar.AddComponent<SensaShaderCapture>(); author.target = target;
+                Assert.Throws<InvalidOperationException>(() => SensaShaderCaptureBuilder.ProcessAvatar(avatar));
+                Assert.IsNotNull(author);
+            }
+            else
+            {
+                Assert.Throws<InvalidOperationException>(() => {
+                    if (method == "Contact") SensaContactRootBuilder.Build(avatar, "Root", target, "");
+                    else SensaFixedRootBuilder.Build(avatar, "Root", target, "");
+                });
+            }
+            Assert.AreEqual(2, avatar.GetComponentsInChildren<Transform>(true).Length);
+            Assert.AreEqual(1, avatar.GetComponentsInChildren<VRCContactSender>(true).Length);
+            Assert.IsEmpty(avatar.GetComponentsInChildren<VRCContactReceiver>(true));
+            Assert.IsEmpty(avatar.GetComponentsInChildren<Camera>(true));
+        }
+
+        [Test]
+        public void FiniteSerializedQuaternionIsNormalizedWithoutChangingTheNativeSource()
+        {
+            var target = Child("Native root", Vector3.up).AddComponent<VRCContactSender>();
+            target.position = new Vector3(.1f, .2f, .3f); target.rotation = new Quaternion(0, 0, 0, 2);
+            var original = JsonUtility.ToJson(target);
+            var placement = SensaSpsAdapter.ReadRoot(target);
+            Assert.AreEqual(target.position, placement.position);
+            Assert.AreEqual(Quaternion.identity, placement.rotation);
+            Assert.AreEqual(original, JsonUtility.ToJson(target));
         }
 
         [TestCase(false)]

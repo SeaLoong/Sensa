@@ -52,11 +52,11 @@ No new blocking or major [V1–V6](../../../docs/ui-quality.en.md) issue was fou
 
 ## Full normal comparison / 完整普通比较
 
-Image review and filtering are complete. [Ordinary CI 39996054415, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) passed unit checks, then failed at browser dependency installation; builds and publication were skipped. Its browser receipt was not retrieved, so outcome counters, comparison flags and the actual pinned CI source await inspection. Reviewed PR head `4de1614fd66eacb69606cbaa667b56c1e3e552f0` has tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`.
+Image review and filtering are complete. [Ordinary CI 39996054415, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) passed unit checks; both 130-second dependency-install attempts exited 124, and builds/publication were skipped. Its verified receipt reports `suite=all`, `mode=comparison`, `runner=not-run`, command skipped, `selectionComplete=false`, `snapshotsCompared=false`, with total and all outcome counters zero. Pinned merge source `3e49ec9a8c039cfa026c6b733b041fc2a770cf79` shares tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0` with reviewed PR head `4de1614fd66eacb69606cbaa667b56c1e3e552f0`.
 
-A successful full normal comparison with image updates disabled remains pending; **these new baselines are not accepted yet**. The reviewed PR includes documentation-label corrections and native-bridge liveness assertions, to be checked by that ordinary CI run.
+[Attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/2) used that same pinned source and passed **104/104**, all other outcome counters zero: `suite=all`, `mode=comparison`, `runner=passed`, command successful, `selectionComplete=true`, `snapshotsCompared=true`. Dependencies installed on the first attempt. Individual image review and the full comparison with updates disabled are complete; **the ten new baselines are accepted**. The reviewed source also includes documentation-label corrections and native-bridge liveness assertions; platform smoke results are recorded separately.
 
-图片审阅与筛选已完成。首次普通 CI 单元通过，浏览器依赖安装失败，构建与发布跳过；结果汇总未取得，计数、比较标记及实际固定源码待核对。关闭图片更新的完整普通比较仍需成功，**本轮新基线尚未接受**。已审 PR 同时包含文档选项名称修正及原生桥存活断言，由普通 CI 一并验证。
+图片审阅与筛选已完成。首次普通 CI 单元通过，依赖安装两次均超时退出 124；浏览器未执行，全部计数为 0，比较与完整选择标记均为 false。固定合并源码与已审 PR 的 Git 树一致。GitHub 恢复后，同一源码的第 2 次尝试完整普通比较 **104/104 通过**，其他计数为 0，完整选择与图片比较均为 true，图片更新关闭。**本轮 10 张新基线已接受**；原生桥存活断言的平台冒烟结果另行记录。
 
 - Environment / 环境: `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844, plus automated 320 CSS px reflow checks.
 - Execution / 执行: browser cases and capture run in Actions; review reads raw exported PNGs. / 浏览器与图片采集在 Actions 执行，审阅读取实际导出的 PNG。

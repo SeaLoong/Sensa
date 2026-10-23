@@ -140,10 +140,19 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   const available = versions.length > 0;
   const homepage = (await fs.readFile(path.join(source, '.github/pages/index.html'), 'utf8'))
     .replaceAll('__VPM_AVAILABLE__', String(available))
-    .replaceAll('__VPM_STATUS_EN__', available ? 'Stable packages are available through VCC; versions may lag development previews.' : 'No stable VPM package is currently available.')
-    .replaceAll('__VPM_STATUS_ZH__', available ? '可通过 VCC 安装正式版组件包，版本可能落后开发预览。' : '当前没有可用的 VPM 正式版组件包。')
+    .replaceAll('__VPM_STATUS_EN__', available ? 'Stable packages are available through VCC.' : 'No stable VPM package is currently available. Download the Unity ZIP from Releases.')
+    .replaceAll('__VPM_STATUS_ZH__', available ? '可通过 VCC 安装正式版 Unity 组件包。' : '当前可从 Releases 下载 Unity ZIP；VPM 正式版尚待发布。')
     .replaceAll('__VPM_INSTALL_HIDDEN__', available ? '' : 'hidden')
     .replaceAll('__VPM_INSTALL_URL__', available ? escape('vcc://vpm/addRepo?url=' + encodeURIComponent(vpmUrl)) : '#');
+  for (const link of homepage.matchAll(/<a\b([^>]*\bdata-doc="[^"]+"[^>]*)>/g)) {
+    const attributes = Object.fromEntries([...link[1].matchAll(/([\w-]+)="([^"]*)"/g)].map(match => [match[1], match[2]]));
+    for (const locale of locales) {
+      const route = routes.get(locale + ':' + attributes['data-doc']);
+      const fragment = attributes[locale === 'en' ? 'data-fragment-en' : 'data-fragment-zh'];
+      if (!route || (fragment && !headings.get(route)?.has(fragment)))
+        throw new Error('Broken homepage guide link: ' + locale + '/' + attributes['data-doc'] + (fragment ? '#' + fragment : ''));
+    }
+  }
   await write('index.html', homepage);
   for (const name of ['site.css', 'site.js']) await write(name, await fs.readFile(path.join(source, '.github/pages', name)));
   await write('parameter-geometry.html', (await fs.readFile(path.join(source, 'docs/parameter-geometry.html'), 'utf8')).replace('<head>', '<head>\n<meta name="sensa-site-root" content="./">'));

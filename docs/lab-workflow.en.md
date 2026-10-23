@@ -13,7 +13,7 @@ Avatar/World Labs provide development scenes for checking measurement behavior. 
 | VRChat | Wear the corresponding Avatar; check OSC/Contacts and needed self-interaction permissions |
 | Sensa | Verify actual listener/source; default port 9001 |
 
-FullFlow already contains internal QuickStart/experiments; do not add duplicates. Prop placement, SPS activation, measurement selection and device permission are separate. [Prop menus](lab-interaction.en.md)
+Use the internal QuickStart and experiment components already included in FullFlow. Prop placement, SPS activation, measurement selection and device permission are managed separately. [Prop menus](lab-interaction.en.md)
 
 ## Verify one question at a time
 
@@ -24,13 +24,13 @@ FullFlow already contains internal QuickStart/experiments; do not add duplicates
 | OGB / SPS | SPS2 · PenOthersNewRoot / PenOthersNewTip, or SPS1 · PenOthers / PenOthersClose | Fix object/source, separate then approach, and check depth trend and Close presence |
 | SPS four-anchor tracking | Dedicated root, P0–P3, changing Sample and endpoint calibration | Move along one axis; check local direction and stopping after sample invalidity |
 | Contact direct tracking (SDK Beta) | Add `SensaContactRootProbe` separately and follow [Contact setup](contact-sdk.en.md) for a dedicated own root; inspect metre-based XYZ, relative velocity in m/s, `Radius`, `Sample` and `Proximity_SenderType=1` (Self) | Calibrate position or speed; check stopping after leaving Receiver coverage or Sample activity freezing |
-| Shader | Native block, capture region, object ID, CRC and advancing Frame | Move the selected root and check decoded position; obscure/freeze the block and check invalidity |
+| Shader | Native block, capture region, producer ID, CRC and advancing Frame | Move the selected root and check decoded position, X/Z axes and Avatar world scale; obscure/freeze the block and check invalidity |
 
 Configure synthetic Depth/GateEnable **manually** from actual paths. After the experiment, replace those paths and conditions with actual linkage parameters. Use the Avatar’s PhysBone prefix in place of MyPB in the PB template.
 
 Use the OGB depth or vibration template and enable the heartbeat to VRChat as required by the Avatar. SPS four-anchor tracking uses Dedicated/Exclusive authoring and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`.
 
-Native Shader uses one Camera, an actual CPU root and nonzero ID, sending `Sensa/Shader/<id>` after explicit ROI selection. FullFlow synthetic code and Editor Model Probe PNG use `Sensa/Diagnostics/Shader/0` to check encoding, capture and transport. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
+Native Shader uses one Camera and three natively skinned points to encode the selected root's position, X/Z axes and Avatar world scale. It uses a nonzero producer ID and sends `Sensa/Shader/<id>` after explicit ROI selection. FullFlow synthetic code and Editor Model Probe PNG use `Sensa/Diagnostics/Shader/0` to check encoding, capture and transport. [Shader guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md)
 
 ## Switch scenes and check time
 
@@ -47,7 +47,7 @@ The internal preview configures 500 ms in `tools/unity-world-lab/sensa-preview.j
 
 The amber WORLD PLUG in 08 MY AVATAR SPS approaches your Socket; the blue WORLD SOCKET receives your Plug. World Contacts may trigger Self/Others. Expected labels/bars show geometric references; compare them with the actual values received by Sensa.
 
-World text follows VRChat's current language and language-change event. The local panel offers Auto / English / 简体中文; an explicit choice applies only to that player's current session. Existing scenes need their display-language bindings refreshed, and uploaded-client fonts/layout still need manual inspection. Avatar menu text is generated at build time, not translated per player. [Language boundaries](languages.en.md)
+World text follows VRChat's current language and language-change event. The local panel offers Auto / English / 简体中文; an explicit choice applies only to that player's current session. Existing scenes need their display-language bindings refreshed, and uploaded-client fonts/layout still need manual inspection. Avatar menu text uses the language selected at build time and retains that text after upload. [Language boundaries](languages.en.md)
 
 ## Record evidence
 

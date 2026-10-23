@@ -282,11 +282,11 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
     {
         var info = new OscQueryHostInfo
         {
-            Name = ReadString(element, "NAME") ?? string.Empty,
-            OscIp = ReadString(element, "OSC_IP") ?? string.Empty,
+            Name = ReadHostInfoString(element, "NAME", 512) ?? string.Empty,
+            OscIp = ReadHostInfoString(element, "OSC_IP", 253) ?? string.Empty,
             OscPort = ReadNullableInt(element, "OSC_PORT"),
-            OscTransport = ReadString(element, "OSC_TRANSPORT") ?? "UDP",
-            WsIp = ReadString(element, "WS_IP") ?? string.Empty,
+            OscTransport = ReadHostInfoString(element, "OSC_TRANSPORT", 16) ?? "UDP",
+            WsIp = ReadHostInfoString(element, "WS_IP", 253) ?? string.Empty,
             WsPort = ReadNullableInt(element, "WS_PORT"),
         };
 
@@ -297,6 +297,16 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         }
 
         return info;
+    }
+
+    private static string? ReadHostInfoString(JsonElement element, string name, int maximumLength)
+    {
+        var value = ReadString(element, name);
+        // Host metadata is repeated with every parameter in the shared state snapshot.
+        // Reject oversized identities rather than truncating distinct sources together.
+        if (value?.Length > maximumLength)
+            throw new InvalidDataException($"OSCQuery HOST_INFO {name} exceeds {maximumLength} characters.");
+        return value;
     }
 
     private async Task ListenLoopAsync(CancellationToken cancellationToken)
@@ -805,13 +815,15 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         {
             case 'f':
             case 'd':
-                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetSingle(out var floatValue))
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetSingle(out var floatValue)
+                    && float.IsFinite(floatValue))
                 {
                     value = OscValue.FromFloat(floatValue);
                     return true;
                 }
 
-                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetDouble(out var doubleValue))
+                if (valueElement.ValueKind == JsonValueKind.Number && valueElement.TryGetDouble(out var doubleValue)
+                    && float.IsFinite((float)doubleValue))
                 {
                     value = OscValue.FromFloat((float)doubleValue);
                     return true;
@@ -918,6 +930,7 @@ public sealed class OscQueryClient : IAsyncDisposable, IDisposable
         return element.TryGetProperty(propertyName, out var property)
             && property.ValueKind == JsonValueKind.Number
             && property.TryGetDouble(out var value)
+            && double.IsFinite(value)
                 ? value
                 : null;
     }

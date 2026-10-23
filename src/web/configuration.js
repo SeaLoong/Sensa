@@ -267,7 +267,7 @@ const AXIS_PROFILE_PRESETS = localized(() => ([
   {
     id: 'osr-first-run',
     name: t("OSR 首次测试 · L0 小行程"),
-    description: t("只输出 L0，逻辑 0–100% 映射为 TCode 400–600，速度上限 100；其他轴忽略。先确认设备中位与允许范围。该模板不是硬件校准，保存不会自动启用运动。"),
+    description: t("用 L0 做小行程测试：0–100% 映射为 TCode 400–600，速度上限 100，其余轴忽略。先按设备实际中位和行程校准，保存后准备好再启用输入。"),
   },
   {
     id: 'sr6-full',

@@ -77,7 +77,7 @@ public sealed class TCodeTcpOutput : IDisposable
         var (line, effectiveFrame) = BuildLine(frame, forceAll: _lastEffectiveFrame is null);
         if (string.IsNullOrWhiteSpace(line))
             return;
-        if (line == _lastLine)
+        if (frame.ActiveAxes is null && line == _lastLine)
             return;
 
         if (!SendRaw(line + "\n")) return;

@@ -107,6 +107,17 @@ class AuthoringGeneratorContracts(ArchiveWorkspace):
 
 
 class DesktopArchiveContracts(ArchiveWorkspace):
+    @unittest.skipIf(os.name == 'nt', 'Creating test symlinks requires a Unix host')
+    def test_guide_destination_symlink_is_rejected_before_copying_outside_source(self):
+        self.prepare_app()
+        outside = self.root / 'outside-guide.md'
+        outside.write_bytes(b'leave this external file intact')
+        (self.source / 'README.md').symlink_to(outside)
+        with self.assertRaisesRegex(ValueError, 'symlinks'):
+            self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+        self.assertEqual(outside.read_bytes(), b'leave this external file intact')
+        self.assertFalse(any(self.output.glob('*.zip')))
+
     def test_every_runtime_has_a_complete_self_contained_archive_and_verified_build_identity(self):
         for runtime in release.RUNTIMES:
             with self.subTest(runtime=runtime):
@@ -320,6 +331,41 @@ class UnityPublicationMetadataContracts(ArchiveWorkspace):
 
 
 class ReproducibleArchiveContracts(unittest.TestCase):
+    @unittest.skipIf(os.name == 'nt', 'Creating test symlinks requires a Unix host')
+    def test_zip_and_tar_reject_external_file_and_directory_symlinks_before_writing(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / 'source'
+            source.mkdir()
+            outside = root / 'outside'
+            outside.mkdir()
+            (outside / 'secret.txt').write_bytes(b'outside bytes must not be packaged')
+            for target in (outside / 'secret.txt', outside):
+                link = source / 'public'
+                link.symlink_to(target, target_is_directory=target.is_dir())
+                for extension, package in (('zip', release.zip_directory), ('tar.gz', release.tar_directory)):
+                    output = root / ('archive.' + extension)
+                    with self.subTest(target=target, extension=extension), self.assertRaisesRegex(ValueError, 'symlinks'):
+                        package(source, output)
+                    self.assertFalse(output.exists())
+                link.unlink()
+
+    @unittest.skipIf(os.name == 'nt', 'Unsafe portable names are Unix-only filesystem fixtures')
+    def test_zip_and_tar_reject_windows_traversal_stream_and_control_character_paths(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            source = root / 'source'
+            source.mkdir()
+            for name in ('nested\\..\\..\\outside.txt', 'C:payload.txt', 'line\nbreak.txt'):
+                path = source / name
+                path.write_bytes(b'payload')
+                for extension, package in (('zip', release.zip_directory), ('tar.gz', release.tar_directory)):
+                    output = root / ('archive.' + extension)
+                    with self.subTest(name=name, extension=extension), self.assertRaisesRegex(ValueError, 'Unsafe archive path'):
+                        package(source, output)
+                    self.assertFalse(output.exists())
+                path.unlink()
+
     def test_zip_and_unix_archives_are_reproducible_filter_hidden_files_and_preserve_launcher_mode(self):
         with tempfile.TemporaryDirectory() as folder:
             root = Path(folder)
