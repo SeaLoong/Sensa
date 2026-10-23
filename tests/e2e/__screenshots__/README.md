@@ -52,9 +52,11 @@ No new blocking or major [V1–V6](../../../docs/ui-quality.en.md) issue was fou
 
 ## Full normal comparison / 完整普通比较
 
-Image review and filtering are complete. A full normal comparison with image updates disabled is pending; these new baselines are not accepted yet. The final review commit also includes documentation-label corrections and native-bridge liveness assertions, to be checked by that ordinary CI run.
+Image review and filtering are complete. [Ordinary CI 39996054415, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) passed unit checks, then failed at browser dependency installation; builds and publication were skipped. Its browser receipt was not retrieved, so outcome counters, comparison flags and the actual pinned CI source await inspection. Reviewed PR head `4de1614fd66eacb69606cbaa667b56c1e3e552f0` has tree `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`.
 
-图片审阅与筛选已完成，关闭图片更新的完整普通比较尚待执行，本轮新基线尚未接受。最终审核提交同时包含文档选项名称修正及原生桥存活断言，将由该次普通 CI 一并验证。
+A successful full normal comparison with image updates disabled remains pending; **these new baselines are not accepted yet**. The reviewed PR includes documentation-label corrections and native-bridge liveness assertions, to be checked by that ordinary CI run.
+
+图片审阅与筛选已完成。首次普通 CI 单元通过，浏览器依赖安装失败，构建与发布跳过；结果汇总未取得，计数、比较标记及实际固定源码待核对。关闭图片更新的完整普通比较仍需成功，**本轮新基线尚未接受**。已审 PR 同时包含文档选项名称修正及原生桥存活断言，由普通 CI 一并验证。
 
 - Environment / 环境: `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844, plus automated 320 CSS px reflow checks.
 - Execution / 执行: browser cases and capture run in Actions; review reads raw exported PNGs. / 浏览器与图片采集在 Actions 执行，审阅读取实际导出的 PNG。

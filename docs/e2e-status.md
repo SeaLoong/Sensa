@@ -19,14 +19,17 @@
 | `d1c9d93` | [Pages 39993018592](https://github.com/SeaLoong/Sensa/actions/runs/39993018592) | **8/8 通过并部署成功** |
 | `d1c9d93` | [普通比较 39993018660](https://github.com/SeaLoong/Sensa/actions/runs/39993018660) | **43 通过、3 失败、58 未执行**；仍为旧 Shader 图片差异，构建和预发布跳过 |
 | `d1c9d93` | [候选 39993059099](https://github.com/SeaLoong/Sensa/actions/runs/39993059099) | **104/104 通过**；布局返工后导出至 PR #23 |
+| PR 头 `4de1614` | [普通 CI 39996054415，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39996054415/attempts/1) | 单元检查成功；浏览器依赖安装阶段失败；构建与发布跳过，浏览器汇总待核对 |
 
-表中站点运行均为普通比较，`selectionComplete=false`、`snapshotsCompared=true`；应用运行均为完整选择，`selectionComplete=true`，普通比较的 `snapshotsCompared=true`，候选为 `false`。除表中列出的结果外，其余计数均为 0。源码分别固定 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`、`2f89d83d1023e897f7240bb45c4075cc012ecb1e`、`d1c9d9354be330c7aed0a860d84d973d444e57fb`。
+已取得浏览器汇总的站点运行均为普通比较，`selectionComplete=false`、`snapshotsCompared=true`；已取得汇总的应用运行均为完整选择，`selectionComplete=true`，普通比较的 `snapshotsCompared=true`，候选为 `false`。这些汇总中除表内列出的结果外，其余计数均为 0。源码分别固定 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`、`2f89d83d1023e897f7240bb45c4075cc012ecb1e`、`d1c9d9354be330c7aed0a860d84d973d444e57fb`。
 
 [PR #22](https://github.com/SeaLoong/Sensa/pull/22) 原始图片提交 `08a176db1fdd9788b85ad77ba93daa5d62f0a173` 的 16 张变化图片均已逐张原图审阅。桌面图解右列造成大块空白，控件距离图示过远，因此该批图解未接受。布局已调整为图示与读数、控件、编码细节三个连续分区，并增加间距、切换恢复与焦点断言。根点面板两张图仅在字节一致时复用审阅；六张无关动态或边缘变化保留旧图。
 
 最新普通比较的三项失败为桌面根点面板 4718 像素、中文图解 214202 像素、中文环绕图解 210669 像素，图解高度分别为 3660 与 3731。新候选的原始图片提交 `53612964de4d0a86e7b1404205ad07bddc3917d8` 已导出至 [PR #23](https://github.com/SeaLoong/Sensa/pull/23)。全部 17 张变化图片均已完成审阅：11 张新字节图片逐张以原图打开，6 张与此前已审图片字节相同。选择 10 张有意的 Shader 变化，7 张无关动态或边缘变化保留旧图；最终仍为 **150 张 PNG**，其中 **140 张保留原字节**。[逐张视觉记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md)
 
-本轮基线等待关闭图片更新的完整普通比较后接受。原生冒烟存活回归在隔离检查中通过，Windows 实际执行等待 Actions；原生阶段覆盖推进与冻结失效，恢复由诊断阶段及隔离协议测试检查。
+本轮基线仍等待关闭图片更新的完整普通比较成功后接受。筛选后的首次普通 CI 在浏览器依赖安装阶段失败；已取得的任务状态确认单元成功、构建与发布跳过，但浏览器结果汇总尚未取得，实际计数、比较标记与 CI 固定源码待核对。已审 PR 头为 `4de1614fd66eacb69606cbaa667b56c1e3e552f0`，Git 树为 `0ca99771c3bb56d9e5d9e6f575735e9dfd0758b0`；后续保持同一源码重跑失败任务。
+
+原生冒烟存活回归在隔离检查中通过，Windows 实际执行等待 Actions；原生阶段覆盖推进与冻结失效，恢复由诊断阶段及隔离协议测试检查。
 
 ## 信号流程、多输出与共享会话
 

@@ -129,7 +129,7 @@ SDK 3.10.6-beta.2 还通过高级 Proximity 参数提供原生 Sender 中点位�
 
 现代 VRCFury 把生成实例名中的斜杠替换为下划线；Sensa 也支持保留自定义嵌套父路径。所有辅助值严格留在同一来源／实例／Self 或 Others 内。输入重新启用、更换 Avatar 或重建映射时重新估长；超时按当前选用的信号计算。
 
-Orf/Pen Haptics 需作者启用构建选项，客户端开启 OSC，并收到 OGB_ENABLED。Sensa 的 `osc.ogbControl` 默认关闭；启用后只向明确配置的单播 IP／localhost 和 UDP 端口发送，不猜来包端口。在 OSC 模式且监听运行时每 5 秒发 true，离开／停用／正常退出向旧目标尝试发 false。在参数列表中观察 Avatar 是否开始发布读数，随后保存映射并启用设备输入。[上游启用条件](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs#L16-L41)、[官方心跳](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/OscConnection.ts#L21-L68)
+Orf/Pen Haptics 需作者启用构建选项，客户端开启 OSC，并收到 OGB_ENABLED。Sensa 的 `osc.ogbControl` 默认关闭；启用后只向明确配置的单播 IP／localhost 和 UDP 端口发送，不猜来包端口。在 OSC 或组合方式且监听运行时每 5 秒发 true，离开／停用／正常退出向旧目标尝试发 false。在参数列表中观察 Avatar 是否开始发布读数，随后保存映射并启用设备输入。[上游启用条件](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/OgbEnabledService.cs#L16-L41)、[官方心跳](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/OscConnection.ts#L21-L68)
 
 推荐先看原始参数，再选深度或振动，并用实际对象校准。独立 Zone 通过同一个振动模板读取 `VFH/Zone/Touch/<完整id>/Self` 或 `.../Others`。完成后在实际客户端检查方向、响应与 Close 条件，再以小行程验证设备动作。
 
