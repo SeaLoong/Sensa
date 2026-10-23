@@ -177,6 +177,7 @@ for (const locale of ['zh-CN', 'en-US']) {
 
         await report.check('tabs-keyboard-and-control-boundary / 页签键盘与控制边界', async () => {
           const before = await rig.overview();
+          const mutations = rig.commands.filter(command => command.method !== 'GET').length;
           const main = page.locator('main.workspace-scroll');
           await main.focus();
           await page.keyboard.press('End');
@@ -191,14 +192,36 @@ for (const locale of ['zh-CN', 'en-US']) {
           const focus = await inspectFocusIndicator(osc);
           const panel = page.locator('#' + await osc.getAttribute('aria-controls'));
           await expect(panel).toHaveAttribute('aria-labelledby', await osc.getAttribute('id'));
-          await osc.press('End');
+          await osc.press('ArrowRight');
+          const flow = navigation.getByRole('tab', { name: await label(page, '流程'), exact: true });
+          await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
+          const flowFocus = await inspectFocusIndicator(flow);
+          const flowPanel = page.locator('#' + await flow.getAttribute('aria-controls'));
+          await expect(flowPanel).toHaveAttribute('aria-labelledby', await flow.getAttribute('id'));
+          await expect(flowPanel.getByTestId('computed-signals-editor')).toBeVisible();
+          await flow.press('ArrowRight');
           const settings = navigation.getByRole('tab', { name: await label(page, '设置'), exact: true });
-          await expect(settings).toBeFocused();
-          await settings.press('Home'); await expect(control).toBeFocused();
+          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
+          await settings.press('ArrowRight');
+          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+          await control.press('ArrowLeft');
+          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
+          await settings.press('ArrowLeft');
+          await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
+          await flow.press('ArrowLeft');
+          await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
+          await osc.press('ArrowLeft');
+          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+          await control.press('End');
+          await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
+          await settings.press('Home');
+          await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
           const after = await rig.overview();
           expect(after.input.mode).toBe(before.input.mode);
           expect(after.runtime.inputActive).toBe(false);
-          return { beforeMode: before.input.mode, afterMode: after.input.mode, focus, previousScrollTop,
+          expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
+          return { beforeMode: before.input.mode, afterMode: after.input.mode, focus, flowFocus, previousScrollTop,
+            tabOrder: ['control', 'osc', 'pipeline', 'settings'], forwardAndBackwardWrap: true, mutations,
             afterNavigationScrollTop: await main.evaluate(element => element.scrollTop) };
         });
 

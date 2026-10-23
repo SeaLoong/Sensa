@@ -20,16 +20,19 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
     private readonly Func<string, MotionFrame, Task> _motionSend;
     private readonly Func<string, Task> _motionStop;
     private readonly Func<DglabV4Client> _dglabFactory;
+    private readonly Func<OutputDeviceConfig, ISignalOutputAdapter>? _adapterFactory;
     public Func<bool> CanSend { get; set; } = () => false;
     public event Action? StateChanged;
 
     public SignalOutputCoordinator(AppConfig config, Func<string, bool> motionConnected,
         Func<string, MotionFrame, Task> motionSend, Func<string, Task> motionStop,
-        Action<string>? error = null, TimeProvider? clock = null, Func<DglabV4Client>? dglabFactory = null)
+        Action<string>? error = null, TimeProvider? clock = null, Func<DglabV4Client>? dglabFactory = null,
+        Func<OutputDeviceConfig, ISignalOutputAdapter>? adapterFactory = null)
     {
         _config = config; _motionConnected = motionConnected; _motionSend = motionSend; _motionStop = motionStop;
         _error = error ?? (_ => { }); _clock = clock ?? TimeProvider.System;
         _dglabFactory = dglabFactory ?? (() => new(clock: _clock));
+        _adapterFactory = adapterFactory;
         Build();
     }
     public bool HasBindings { get { lock (_sync) return _destinations.Count > 0; } }
@@ -37,7 +40,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
     {
         foreach (var output in _config.Outputs.Where(SignalOutputConfiguration.UsesBindings))
             _destinations.Add(output.Id, new(output, _clock, _motionConnected, _motionSend, _motionStop, () => CanSend(),
-                () => StateChanged?.Invoke(), _error, _dglabFactory));
+                () => StateChanged?.Invoke(), _error, _dglabFactory, _adapterFactory));
     }
     public async Task ReloadAsync()
     {
@@ -54,7 +57,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
             {
                 if (existing is not null) await existing.DisposeAsync();
                 var destination = new SignalDestination(output, _clock, _motionConnected, _motionSend, _motionStop,
-                    () => CanSend(), () => StateChanged?.Invoke(), _error, _dglabFactory);
+                    () => CanSend(), () => StateChanged?.Invoke(), _error, _dglabFactory, _adapterFactory);
                 lock (_sync) _destinations.Add(output.Id, destination);
             }
         }
@@ -132,6 +135,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
         private readonly Action<string> _error;
         private readonly TimeProvider _clock;
         private readonly Func<DglabV4Client> _dglabFactory;
+        private readonly Func<OutputDeviceConfig, ISignalOutputAdapter>? _adapterFactory;
         private readonly Dictionary<string, RouteState> _routes;
         private readonly Dictionary<string, Delivery> _pending = new(StringComparer.Ordinal);
         private readonly Queue<Delivery> _events = new();
@@ -157,7 +161,8 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                 lock (_sync)
                 {
                     var dg = _dglab?.Snapshot;
-                    return new { connected = IsConnected, status = _status is "error" or "stop-unconfirmed" ? _status : _recorder?.Full == true ? "recording-limit" : dg?.State ?? _status,
+                    return new { connected = IsConnected, status = _status is "error" or "stop-unconfirmed" ? _status : _recorder?.Full == true ? "recording-limit"
+                        : dg?.State ?? (_status == "connected" && !IsConnected ? "disconnected" : _status),
                         error = dg?.LastError, targetId = dg?.TargetId, pairingUrl = dg?.AppPairingUrl ?? dg?.PairingUrl,
                         devices = dg?.Devices ?? [], routes = _routes.Values.Select(route => new { route.Id, route.Name,
                             route.Valid, route.Reason, route.RawValue, route.Value, route.LastSentMs }).ToArray(),
@@ -167,12 +172,13 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
         }
         public SignalDestination(OutputDeviceConfig output, TimeProvider clock, Func<string, bool> motionConnected,
             Func<string, MotionFrame, Task> motionSend, Func<string, Task> motionStop, Func<bool> canSend,
-            Action changed, Action<string> error, Func<DglabV4Client> dglabFactory)
+            Action changed, Action<string> error, Func<DglabV4Client> dglabFactory, Func<OutputDeviceConfig, ISignalOutputAdapter>? adapterFactory)
         {
             _output = output; _identity = Identity(output); _options = SignalOutputConfiguration.Clone(output.Signal); _clock = clock;
             _motionConnected = motionConnected; _motionSend = motionSend; _motionStop = motionStop; _canSend = canSend;
             _changed = changed; _error = error; Playback = new(clock);
             _dglabFactory = dglabFactory;
+            _adapterFactory = adapterFactory;
             _routes = _options.Bindings.ToDictionary(binding => binding.Id, binding => new RouteState(binding.Id, binding.Name));
         }
         private static string Identity(OutputDeviceConfig output) => JsonSerializer.Serialize(new
@@ -199,7 +205,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
             {
                 Interlocked.Increment(ref _generation); old = _generationCancellation; _generationCancellation = new();
                 _pending.Clear(); _events.Clear(); _sent.Clear();
-                foreach (var route in _routes.Values) { route.QueuedAtMs = 0; route.EventHigh = false; route.WaveStartedMs = 0; }
+                foreach (var route in _routes.Values) { route.QueuedAtMs = 0; route.EventHigh = false; route.WaveStartedMs = 0; route.Observed = false; route.Valid = false; }
             }
             old.Cancel(); old.Dispose();
         }
@@ -210,6 +216,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
             {
                 if (IsConnected) return true;
                 if (IsMotion) return _motionConnected(_output.Id);
+                Invalidate();
                 await CloseTransportAsync();
                 _faulted = false;
                 _status = "connecting";
@@ -224,7 +231,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                     _recorder = new(_options.RecordingName, _options.RecordingFormat);
                 else
                 {
-                    _adapter = _output.Type switch
+                    _adapter = _adapterFactory?.Invoke(_output) ?? (_output.Type switch
                     {
                         OutputDeviceType.OscParameter => SignalOutputAdapters.OscUdp(_options.VrChat ? "127.0.0.1" : _output.Host,
                             _options.VrChat ? 9000 : _output.Port),
@@ -235,7 +242,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                             ClientId = string.IsNullOrWhiteSpace(_options.MqttClientId) ? "sensa-" + _output.Id : _options.MqttClientId,
                             UseTls = _options.MqttUseTls }),
                         _ => throw new ArgumentException("请选择输出方式 / Choose an output type"),
-                    };
+                    });
                     await _adapter.ConnectAsync(timeout.Token);
                 }
                 _status = "connected"; _changed(); return IsConnected;

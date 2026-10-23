@@ -1,6 +1,15 @@
 import { diagnostic, t } from './i18n.js';
 import { formatMode } from './input-workflows.js';
 
+export function outputRoutingScope(outputs = []) {
+  const enabled = outputs.filter(output => output.enabled === true);
+  const independentBindings = enabled.some(output => output.signal?.bindings?.length > 0);
+  const legacyMotion = enabled.some(output => (output.type?.startsWith('TCode') || output.type === 'Intiface')
+    && !output.signal?.bindings?.length);
+  return { independentBindings, legacyMotion, mixed: independentBindings && legacyMotion,
+    onlyIndependentBindings: independentBindings && !legacyMotion };
+}
+
 // This describes application state; it never grants permission or claims hardware feedback.
 // 只解释应用状态，不授予输入许可，也不把命令当作硬件回读。
 export function controlReadiness({ online = false, runtime = {}, mode = 'manual', selectedMode = mode,
@@ -10,17 +19,20 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return output.enabled === true && state?.enabled === true && state.connected === true
       && (output.type !== 'Intiface' || state.devices?.some(device => device.positionFeatures > 0 || device.vibrateFeatures > 0));
   }).length;
-  const routedBindings = outputs.reduce((count, output) => count + (output.signal?.bindings?.length || 0), 0);
+  const scope = outputRoutingScope(outputs);
+  const routedBindings = outputs.reduce((count, output) => count + (output.enabled ? output.signal?.bindings?.length || 0 : 0), 0);
+  const scopedDetail = reason => scope.mixed
+    ? `${reason} ${t('此状态影响动作轴映射；独立输出连接按各自来源和有效状态更新。')}` : reason;
   const make = (key, title, detail, tone = 'info', action = null) =>
     ({ key, title, detail, tone, action, availableOutputs: available, totalOutputs: outputs.length });
   if (!online) return make('offline', t('连接已断开'), t('命令不会自动重发。'), 'warning');
   if (runtime.isEmergency) return make('emergency', t('急停已锁定'), t('解除后仍需重新启用输入。'), 'error');
-  if (mode === 'osc' && runtime.poseBlocked)
-    return make('geometry', t('空间输入被阻断'), diagnostic(runtime.spatialInputBlockedReason) || t('检查实验许可和完整、新鲜的采样。'), 'warning', 'osc-diagnostics');
-  if (mode === 'osc' && runtime.computedInputBlocked)
-    return make('computed', t('计算正在等待输入'), diagnostic(runtime.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。'), 'warning', 'osc-mappings');
-  if (mode === 'osc' && runtime.gateClosed)
-    return make('gate', t('门控关闭'), t('所有已保存门控均需开放。'), 'warning', 'osc-mappings');
+  if (mode === 'osc' && !scope.onlyIndependentBindings && runtime.poseBlocked)
+    return make('geometry', scope.mixed ? t('动作轴映射等待定位') : t('空间输入被阻断'), scopedDetail(diagnostic(runtime.spatialInputBlockedReason) || t('检查实验许可和完整、新鲜的采样。')), 'warning', 'osc-diagnostics');
+  if (mode === 'osc' && !scope.onlyIndependentBindings && runtime.computedInputBlocked)
+    return make('computed', scope.mixed ? t('动作轴映射等待计算输入') : t('计算正在等待输入'), scopedDetail(diagnostic(runtime.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。')), 'warning', 'osc-mappings');
+  if (mode === 'osc' && !scope.onlyIndependentBindings && runtime.gateClosed)
+    return make('gate', scope.mixed ? t('动作轴映射门控关闭') : t('门控关闭'), scopedDetail(t('所有已保存门控均需开放。')), 'warning', 'osc-mappings');
   if (selectedMode !== mode) return make('browsing',
     t('正在浏览 {0}，实际输入为 {1}', [formatMode(selectedMode), formatMode(mode)]),
     t('应用输入方式后会关闭输入。'));
@@ -43,5 +55,5 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return make('manual-waiting', t('等待手动目标'), t('发送一次，或开启连续发送后调整滑条。'));
   return make('enabled', t('{0} 输入已启用', [formatMode(mode)]),
     mode === 'manual' ? t('连续发送跟随调整，不自动往返。') : mode === 'script'
-      ? t('按脚本时间线生成 L0 目标。') : mode === 'combined' ? t('按每条输出连接选择的来源与计算生成目标。') : t('按已保存映射生成目标。'), 'success');
+      ? t('按脚本时间线生成 L0 目标。') : mode === 'combined' || scope.onlyIndependentBindings ? t('按每条输出连接选择的来源与计算生成目标。') : t('按已保存映射生成目标。'), 'success');
 }

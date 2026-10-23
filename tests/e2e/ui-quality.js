@@ -362,13 +362,16 @@ export async function inspectManualAlignment(page, layout) {
 
 export async function inspectOutputAlignment(page, layout) {
   const groups = await geometryGroups(page.locator('.output-card'), {
-    identity: ':scope > .output-identity', target: ':scope > .output-position-panel', actions: ':scope > .output-actions',
+    identity: ':scope > .output-identity', target: ':scope > .output-telemetry',
+    positions: ':scope > .output-telemetry > .output-position-panel', actions: ':scope > .output-actions',
   });
   return geometricEvidence({ layout, groups }, () => {
     expect(groups, 'Four isolated mock outputs / 四个隔离模拟输出').toHaveLength(4);
     const slack = tolerance(groups.map(group => group.box));
     for (const group of groups) {
       const identity = only(group, 'identity'), target = only(group, 'target'), actions = only(group, 'actions');
+      const positions = only(group, 'positions');
+      contained(positions, target, slack, 'Output positions stay inside their target column / 轴目标完整容纳于输出目标列');
       for (const box of [identity, target, actions]) contained(box, group.box, slack, 'Output row containment / 输出行完整容纳');
       separate(identity, target, slack, 'Identity and target do not overlap / 名称与目标不重叠');
       separate(target, actions, slack, 'Target and actions do not overlap / 目标与操作不重叠');

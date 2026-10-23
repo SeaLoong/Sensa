@@ -1230,5 +1230,11 @@
   "下载录制": "Download recording",
   "已录制文件": "Recorded files",
   "选择录制文件": "Choose a recording",
-  "刷新录制列表": "Refresh recordings"
+  "刷新录制列表": "Refresh recordings",
+  "此状态影响动作轴映射；独立输出连接按各自来源和有效状态更新。": "This state affects motion axis mappings. Independent output bindings update according to their own sources and validity.",
+  "动作轴映射等待定位": "Motion axis mappings await tracking",
+  "动作轴映射等待计算输入": "Motion axis mappings await calculation inputs",
+  "动作轴映射门控关闭": "Motion axis mapping gates are closed",
+  "动作轴映射门控关闭；独立输出连接按各自来源和有效状态更新。": "Motion axis mapping gates are closed. Independent output bindings update according to their own sources and validity.",
+  "独立输出连接按各自来源和有效状态更新。": "Independent output bindings update according to their own sources and validity."
 }

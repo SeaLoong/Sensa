@@ -39,7 +39,7 @@ def plan_changes(paths, *, diff_available=True):
             if path.endswith('.md'):
                 enabled.add('docs')
         elif path.startswith('.github/pages/') or path in (
-                '.github/workflows/pages.yml', 'scripts/build-pages.mjs', 'scripts/vpm-index.py',
+                '.github/workflows/pages.yml', 'scripts/build-pages.mjs', 'scripts/vpm-index.py', 'scripts/install-pages-dependencies.sh',
                 'tests/web/site.test.mjs', 'tests/e2e/site.spec.js'):
             enabled.update(('web', 'scripts', 'docs'))
         elif path.startswith('.github/'):

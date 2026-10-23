@@ -4,6 +4,25 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
+## 信号流程、多输出与共享会话
+
+本轮将输入、计算与输出整理为可复用的信号流程，增加组合输入、时间处理、输出绑定、会话录制／回放及整套方案。浏览器用例新增手动与 OSC 计算、实际 UDP 的 Float／Int／Bool、JSON Lines／CSV 原始值回放、轴配置随方案保存，以及 SharedWorker、BroadcastChannel／Web Locks 的跨页连接检查。[操作说明](signal-pipeline.md) · [实际覆盖范围](e2e.md)
+
+本轮基线仍待候选图片逐张审阅与完整普通比较。下面分别记录安装失败、未完成的普通比较和候选采集；修正用例后的采集与比较将在取得最终报告后补充。
+
+| 提交 | 范围 | 运行 | 核对结果 |
+| --- | --- | --- | --- |
+| `f2b4d3d` | CI 普通比较，依赖安装未完成 | [39958639912，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/1) | 字体依赖安装达到两次 130 秒预算，以 **124** 退出；浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false` |
+| `f2b4d3d` | 完整选择的普通比较（未完成） | [39958639912，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/2) | 总计 **100 项：5 通过、3 失败、92 未执行**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=true`，达到 3 项失败上限后停止 |
+| `f2b4d3d` | 候选采集，依赖安装未完成 | [39958663771，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/1) | 浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false` |
+| `f2b4d3d` | 完整选择的候选采集（未完成） | [39958663771，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/2) | 总计 **100 项：27 通过、3 失败、70 未执行**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，达到 3 项失败上限后停止 |
+| `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/1) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
+| `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/2) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
+
+上述运行固定源码 `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`。普通比较的 3 项失败均为界面更新后的截图差异：`control-page`，以及中文和英文的 `computed-signal-editor`。这些变化随候选图片审阅；本次未完成比较保持原始记录，后续关闭图片更新的完整普通比较用于确认基线。
+
+候选采集的 3 项失败来自既有用例对界面结构的假设：输入安全用例仍按三个主标签检查键盘导航，中英文质量用例仍寻找直接输出面板，而新结构使用 `output-telemetry` 容器。修正将覆盖四个标签的完整键盘操作，并按实际容器检查几何边界，保留原有断言强度。
+
 ## OSC 参数释义与官方来源
 
 2026-10-23（北京时间），图解新增逐项参数说明，工作台详情使用同一套双语定义，提供数值范围、实际参数类型、单位、联动用法和来源。定义区分 VRChat 官方 SDK、VRCFury／OGB 与 Sensa 协议；核对并修正了 Close／Shader 的 Float 传输类型、SPS2 长度球、历史 PenSelf、速度量纲和 Raycast 未命中行为。[参数说明与来源](osc-parameters.md)

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { controlReadiness } from '../../src/web/control-workflow.js';
+import { controlReadiness, outputRoutingScope } from '../../src/web/control-workflow.js';
 
 const output = { id: 'udp', type: 'TCodeUdp', enabled: true };
 const base = { online: true, runtime: { inputActive: true, manualOverrideEnabled: true },
@@ -38,4 +38,46 @@ test('OSC setup, geometry and all-gates state remain separate and never grant pe
   assert.equal(controlReadiness({ ...osc, runtime: { inputActive: true, poseBlocked: true } }).key, 'geometry');
   assert.equal(controlReadiness({ ...osc, runtime: { inputActive: true, gateClosed: true } }).key, 'gate');
   assert.equal(controlReadiness(osc).key, 'enabled');
+});
+
+test('independent output bindings keep their readiness when legacy motion gates or inputs wait', () => {
+  const routed = { id: 'osc-feedback', type: 'OscParameter', enabled: true, signal: { bindings: [{ id: 'Manual', source: { sourceMode: 'Manual', oscPath: 'L0' } }] } };
+  const state = { ...base, mode: 'osc', listening: true, mappings: [{ role: 'Depth' }], outputs: [routed],
+    outputStates: [{ ...routed, connected: true }] };
+  const before = JSON.stringify(state);
+  for (const flag of ['gateClosed', 'poseBlocked', 'computedInputBlocked']) {
+    const ready = controlReadiness({ ...state, runtime: { ...state.runtime, [flag]: true } });
+    assert.equal(ready.key, 'enabled', flag);
+    assert.equal(ready.availableOutputs, 1);
+  }
+  assert.equal(JSON.stringify(state), before);
+  assert.equal(outputRoutingScope([routed]).onlyIndependentBindings, true);
+});
+
+test('mixed legacy motion and binding outputs scope each waiting state to motion mappings', () => {
+  const routed = { id: 'recording', type: 'Recording', enabled: true, signal: { bindings: [{ id: 'Position' }] } };
+  const state = { ...base, mode: 'osc', listening: true, mappings: [{ role: 'Depth' }], outputs: [output, routed],
+    outputStates: [{ ...output, connected: true }, { ...routed, connected: true }] };
+  for (const [flag, key] of [['gateClosed', 'gate'], ['poseBlocked', 'geometry'], ['computedInputBlocked', 'computed']]) {
+    const ready = controlReadiness({ ...state, runtime: { ...state.runtime, [flag]: true } });
+    assert.equal(ready.key, key);
+    assert.match(ready.title, /动作轴映射|Motion axis mapping/);
+    assert.match(ready.detail, /独立输出连接|Independent output bindings/);
+    assert.equal(ready.availableOutputs, 2);
+    assert.equal(ready.tone, 'warning');
+  }
+  assert.equal(outputRoutingScope(state.outputs).mixed, true);
+});
+
+test('disabled binding drafts preserve legacy readiness wording and never supply missing mappings', () => {
+  const disabled = { id: 'draft', type: 'OscParameter', enabled: false, signal: { bindings: [{ id: 'Manual' }] } };
+  const state = { ...base, mode: 'osc', listening: true, mappings: [{ role: 'Depth' }] };
+  for (const flag of ['gateClosed', 'poseBlocked', 'computedInputBlocked']) {
+    const runtime = { ...state.runtime, [flag]: true };
+    const legacy = controlReadiness({ ...state, runtime });
+    const withDraft = controlReadiness({ ...state, runtime, outputs: [output, disabled] });
+    for (const key of ['key', 'title', 'detail', 'tone', 'action']) assert.equal(withDraft[key], legacy[key]);
+  }
+  assert.equal(controlReadiness({ ...state, mappings: [], outputs: [output, disabled] }).key, 'osc-mappings');
+  assert.equal(outputRoutingScope([output, disabled]).independentBindings, false);
 });

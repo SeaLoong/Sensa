@@ -15,6 +15,8 @@ public static class TCodeEncoder
         int? durationMsOverride = null,
         bool padMagnitude = false)
     {
+        // Routed bindings own change/rate filtering and explicitly select each axis to send.
+        forceAll |= frame.ActiveAxes is not null;
         var previousEffectiveFrame = lastEffectiveFrame ?? MotionAxisHelper.CreateNeutralFrame();
         var previousSourceFrame = lastSourceFrame ?? previousEffectiveFrame;
         var effectiveFrame = previousEffectiveFrame;

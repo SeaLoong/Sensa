@@ -15,7 +15,7 @@ jobs:
   build:
     name: Build documentation and VPM / 构建文档与 VPM
     runs-on: ubuntu-24.04
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -35,11 +35,14 @@ jobs:
         run: python3 scripts/vpm-index.py --allow-empty
       - name: Build bilingual documentation / 构建双语文档
         run: GITHUB_SHA="$(git rev-parse HEAD)" npm run build:pages
-      - name: Install browser and Chinese fonts / 安装浏览器与中文字体
-        run: |
-          npx playwright install --with-deps chromium
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+      - name: Install browser libraries and Chinese fonts / 安装浏览器依赖与中文字体
+        timeout-minutes: 5
+        run: bash scripts/install-pages-dependencies.sh
+      - name: Download the headless browser / 下载无界面浏览器
+        timeout-minutes: 3
+        env:
+          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '30000'
+        run: npx playwright install --only-shell chromium
       - name: Check navigation, language and layout / 检查导航、语言与布局
         id: site_tests
         env:

@@ -4,6 +4,25 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## Signal pipeline, outputs and shared sessions
+
+This change organizes inputs, computation and outputs into a reusable signal pipeline, adding Combined input, temporal processing, output bindings, session recording/replay and complete plans. New browser cases cover manual/OSC calculations, Float/Int/Bool in actual UDP messages, raw-reading replay from JSON Lines/CSV, axis profiles retained in plans, and cross-tab connections through SharedWorker and BroadcastChannel/Web Locks. [Operation](signal-pipeline.en.md) · [Actual coverage](e2e.en.md)
+
+The new baselines await individual candidate-image inspection and a complete normal comparison. The table records installation failures, an incomplete normal comparison and candidate capture separately. Capture and comparison after the test corrections will be added when their final reports are available.
+
+| Commit | Scope | Run | Inspected outcome |
+| --- | --- | --- | --- |
+| `f2b4d3d` | CI normal comparison, dependency installation incomplete | [39958639912, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/1) | Font dependency installation reached both 130-second budgets and exited **124**; browsers did not run, total/executed cases both **0**, `selectionComplete=false`, `snapshotsCompared=false` |
+| `f2b4d3d` | Full-selection normal comparison, incomplete | [39958639912, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39958639912/attempts/2) | **100 total: 5 passed, 3 failed, 92 unrun**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=true`, stopped at the three-failure limit |
+| `f2b4d3d` | Candidate capture, dependency installation incomplete | [39958663771, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/1) | Browsers did not run, total/executed cases both **0**, `selectionComplete=false`, `snapshotsCompared=false` |
+| `f2b4d3d` | Full-selection candidate capture, incomplete | [39958663771, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/2) | **100 total: 27 passed, 3 failed, 70 unrun**, every other outcome zero; `selectionComplete=true`, `snapshotsCompared=false`, stopped at the three-failure limit |
+| `f2b4d3d` | Site dependency installation incomplete | [39958639821, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/1) | Browser/font installation exceeded the original **10-minute** job limit; site browsers did not run, total/executed cases both **0**, `selectionComplete=false`, `snapshotsCompared=false`; deployment did not run |
+| `f2b4d3d` | Site dependency installation incomplete | [39958639821, attempt 2](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/2) | Browser/font installation exceeded the original **10-minute** job limit; site browsers did not run, total/executed cases both **0**, `selectionComplete=false`, `snapshotsCompared=false`; deployment did not run |
+
+These runs pin source `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`. All three normal-comparison failures are screenshot differences from the interface update: `control-page` and the Chinese/English `computed-signal-editor` images. These changes will receive candidate-image inspection. This incomplete comparison remains recorded; a subsequent complete normal comparison with image updates disabled will validate the baselines.
+
+The three candidate failures came from existing cases' assumptions about the interface structure: the input-safety case still checked keyboard navigation across three main tabs, and Chinese/English quality cases still located a direct output panel, now wrapped in `output-telemetry`. Corrections will cover full keyboard operation across all four tabs and check geometry against the actual container, preserving assertion strength.
+
 ## OSC parameter explanations and official sources
 
 On 2026-10-23 (Beijing time), the explorer adds per-parameter explanations, and workbench details use the same bilingual definitions, with ranges, actual parameter types, units, interaction uses and sources. Definitions distinguish the official VRChat SDK, VRCFury/OGB and Sensa protocols. Review corrected Close/Shader Float transport types, the SPS2 length sphere, historical PenSelf, velocity units and Raycast miss behavior. [Parameter explanations and sources](osc-parameters.en.md)

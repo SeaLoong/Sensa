@@ -34,7 +34,7 @@ public sealed class SignalSessionRecorder : IDisposable
         FileName = safe + "-" + DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss-fff", CultureInfo.InvariantCulture)
             + "-" + Guid.NewGuid().ToString("N")[..6] + (format == "Csv" ? ".csv" : ".jsonl");
         var file = new FileStream(ResolveFile(FileName), FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-        _writer = new StreamWriter(file, new UTF8Encoding(false));
+        _writer = new StreamWriter(file, new UTF8Encoding(false)) { NewLine = "\n" };
         Write(format == "Csv" ? "timeMs,signalId,rawValue,value,valid,reason,sourceKey,coordinateFrame"
             : "{\"type\":\"sensa-session\",\"format\":1}");
         _writer.Flush();

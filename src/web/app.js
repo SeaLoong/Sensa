@@ -105,6 +105,7 @@ import HelpDialog from './HelpDialog.jsx';
 import OscFlowStatus from './OscFlowStatus.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
+import { outputRoutingScope } from './control-workflow.js';
 import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
 import OscParameterReference from './OscParameterReference.jsx';
 import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './OutputBindings.jsx';
@@ -212,6 +213,7 @@ function App() {
 
   const studioState = studio || DEFAULT_STUDIO_STATE;
   const outputs = useMemo(() => getOutputs(config), [config]);
+  const routingScope = useMemo(() => outputRoutingScope(outputs), [outputs]);
   const axisProfiles = useMemo(() => getAxisProfiles(config), [config, locale]);
   const actualInputMode = overview?.input?.mode || studioState.preferredInputTab || 'manual';
   const runtimeOverview = overview?.runtime || overview?.loop || null;
@@ -2371,10 +2373,15 @@ function App() {
               </Notice>
             )}
             {workspace !== 'control' && runtimeOverview?.isEmergency && <Notice tone="error">{t('急停已锁定；解除后仍需重新启用输入。')}</Notice>}
-            {workspace !== 'control' && inputActive && runtimeOverview?.gateClosed && <Notice>{t('门控关闭，输出已停止。')}</Notice>}
-            {workspace !== 'control' && runtimeOverview?.poseBlocked && runtimeOverview?.spatialInputBlockedReason && (
-              <Notice>{diagnostic(runtimeOverview.spatialInputBlockedReason)}</Notice>
+            {workspace !== 'control' && !routingScope.onlyIndependentBindings && inputActive && runtimeOverview?.gateClosed && <Notice>{routingScope.mixed
+              ? t('动作轴映射门控关闭；独立输出连接按各自来源和有效状态更新。') : t('门控关闭，输出已停止。')}</Notice>}
+            {workspace !== 'control' && !routingScope.onlyIndependentBindings && runtimeOverview?.poseBlocked && runtimeOverview?.spatialInputBlockedReason && (
+              <Notice>{routingScope.mixed && <>{t('动作轴映射等待定位')}： </>}{diagnostic(runtimeOverview.spatialInputBlockedReason)}
+                {routingScope.mixed && <> {t('独立输出连接按各自来源和有效状态更新。')}</>}</Notice>
             )}
+            {workspace !== 'control' && routingScope.mixed && runtimeOverview?.computedInputBlocked && <Notice>
+              {t('动作轴映射等待计算输入')}：{diagnostic(runtimeOverview.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。')}{' '}
+              {t('独立输出连接按各自来源和有效状态更新。')}</Notice>}
             {workspace === 'control' && (
               <>
                 <Section
