@@ -564,11 +564,14 @@ test('@site installer downloads prefer stable assets and keep Releases when disc
     if (failed) await route.abort('failed');
     else await route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(payload) });
   });
+  let loaded = false;
   const verify = async expected => {
     const completed = failed
       ? page.waitForEvent('requestfailed', request => request.url() === releasesApi)
       : page.waitForResponse(response => response.url() === releasesApi);
-    await page.goto(base + '#downloads');
+    if (loaded) await page.reload({ waitUntil: 'domcontentloaded' });
+    else await page.goto(base + '#downloads');
+    loaded = true;
     const response = await completed;
     if (!failed) await response.finished();
     await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', expected[0]);
