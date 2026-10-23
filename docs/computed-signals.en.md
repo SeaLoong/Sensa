@@ -2,7 +2,7 @@
 
 [简体中文](computed-signals.md) | **English**
 
-A computed signal combines several parameters or tracking metrics into a reusable number. You can blend two touch intensities at a 1:3 ratio, calculate the gap between two roots, or multiply a reading by a constant. Map the result to an axis, then calibrate its range and curve. [Workbench guide](guide.en.md) · [Positioning and coordinate units](positioning.en.md)
+A computed signal processes source readings into a reusable number. Sources include parameters, tracking, manual/script readings, device feedback, recording replay and other calculations. You can blend two touch intensities at a 1:3 ratio, calculate the gap between two roots, or multiply a reading by a constant. Use the result in an axis mapping or output binding, then choose the target’s range and conversion. [Workbench guide](guide.en.md) · [Positioning and coordinate units](positioning.en.md)
 
 ## From inputs to motion
 
@@ -14,17 +14,17 @@ Constant / computed signal ─┘
 
 SPS four-anchor tracking first reconstructs a root position from P0–P3 and Sample. A tracking input reads the validated X, Y, Z or distance result. Contact direct tracking also provides velocity metrics. Each P0–P3 reading describes proximity; the dedicated geometry solver derives coordinates. Select the solved metrics when combining positions.
 
-Each computed signal has a stable identifier and a readable name. Other computations and axis mappings refer to its identifier, allowing several axes to reuse the result. Computation retains the raw numeric result; each mapping then converts it to its own motion range.
+Each computed signal has a stable identifier and a readable name. Other computations, axis mappings and output bindings refer to its identifier, allowing several destinations to reuse the result. Computation retains the raw numeric result; each mapping then converts it to its own motion range.
 
 ## Create a computation in the workbench
 
-1. Open **OSC → Mappings** and choose Add computed signal in the Computed signals area.
+1. Open **Pipeline** and choose Add computed signal in the Computed signals area. **OSC → Mappings** also provides an editor for the same calculations.
 2. Enter a readable name of up to 80 characters, choose an operation, then configure its inputs. The workbench assigns a stable identifier such as `Signal1`, which other computations use to refer to this result.
-3. Choose OSC parameter, Tracked position and velocity, Three-point pose metric, Computed signal or Constant value as the input type. A tracking input selects both the actual instance path and a metric. Prefer a path that uniquely identifies its target.
-4. Select Computed signal as an axis mapping's source, choose the new computation, then set its destination, input range, curve and output interval.
+3. Choose OSC parameter, tracked position/velocity, pose metric, manual, script, device feedback, recording replay, computed signal or constant as the input type. A tracking input selects both the actual instance path and a metric. Prefer a path that uniquely identifies its target.
+4. Select Computed signal as an axis mapping or output binding source, choose the new computation, then configure its destination and input/output ranges.
 5. Save computations and mappings together. Live results come from the backend's saved configuration; drafts keep their unsaved state. Check the result, source and axis preview before enabling the current input.
 
-Saving configuration disables input. Computations containing tracking metrics retain experimental spatial-input permission and the selected route's validity conditions. A constant-only computation also needs an axis mapping and enabled input to participate in motion.
+Saving configuration disables input. Computations containing tracking metrics retain experimental spatial-input permission and the selected route's validity conditions. A constant-only computation needs a consuming mapping or binding and enabled input before it can drive an output.
 
 ## Weighted average: choose each input's influence
 
@@ -52,7 +52,30 @@ When both inputs express the same kind of intensity from 0 to 1, the result can 
 | Maximum | `Maximum` | Largest input; use the strongest current reading |
 | Magnitude | `Magnitude` | `√Σ(value²)`; combine coordinate components or velocity components with matching units |
 
-Each computation accepts 1–16 inputs; Difference and Ratio require exactly two. Only Weighted average uses weights. Computations run in dependency order and each result is evaluated once per evaluation. A configuration holds at most 64 computations with at most 16 reference levels. Saving checks duplicate identifiers, missing references and cycles. Update dependent computations and mappings before deleting a referenced definition.
+Numeric combinations accept 1–16 inputs; Difference and Ratio require exactly two. Temporal and threshold operations use one input, while Sine accepts zero or one. Only Weighted average uses weights. Computations run in dependency order and each result is evaluated once per evaluation. A configuration holds at most 64 computations with at most 16 reference levels. Saving checks duplicate identifiers, missing references and cycles. Update dependent computations and mappings before deleting a referenced definition.
+
+## Process time, thresholds and events
+
+| Operation | Configuration value | Meaning |
+| --- | --- | --- |
+| Smooth | `Smooth` | Exponential smoothing; `timeMs` is the time constant, and zero follows the input directly |
+| Dead zone | `DeadZone` | Output zero while the absolute input is at or below `threshold`; otherwise retain the reading |
+| Hysteresis | `Hysteresis` | Switch to 1 at `threshold`, switch to 0 at `releaseThreshold`, and retain state between them |
+| Delay | `Delay` | Output a sample after `timeMs`; wait until the first delayed sample is available |
+| Rate of change | `Derivative` | Numeric change divided by elapsed seconds; the first reading establishes the baseline |
+| Peak hold | `PeakHold` | Retain the current peak for `timeMs`; a higher reading replaces it immediately |
+| Rising/falling edge | `RisingEdge` / `FallingEdge` | Output 1 for the evaluation that crosses the threshold in the selected direction |
+| Pulse | `Pulse` | A rising edge starts or renews a pulse lasting `timeMs` |
+| Cooldown | `Cooldown` | Accept a rising edge only after the cooldown has elapsed; output 1 for that evaluation |
+| Sustained threshold | `Duration` | Output 1 after input has continuously met the threshold for `timeMs` |
+| Sine wave | `Sine` | `offset + amplitude × sin(2π × frequencyHz × elapsedSeconds)`; an optional input multiplies the amplitude |
+| Envelope | `Envelope` | Ramp toward 1 while the threshold is met and toward 0 otherwise; `timeMs` is the full-scale ramp time |
+
+`timeMs` accepts 0–60000 ms. Hysteresis release must be at or below its active threshold. Sine frequency accepts 0–100 Hz; amplitude, offset and thresholds must be finite. A device or binding’s sending rate separately determines how frequently the result is delivered.
+
+For example, set hysteresis to turn on at 0.7 and off at 0.5 to stabilize a touch switch. Use Duration to require 500 ms of continuous contact. Use Pulse when an event should remain high for a defined time. Edge and cooldown results are single-evaluation events that can feed a positive-trigger output; the backend delivers events in order while observing that binding's send rate.
+
+Temporal state belongs to the saved evaluator instance. Invalid input, changed provenance, backward time, reconfiguration or disarming resets relevant state. Edge operations first establish a baseline, then react to subsequent crossings. Delay retains the historical sample time, so additional age limits should accommodate its intended delay. The delay buffer is bounded to 4096 samples.
 
 ## Combine root coordinates
 
@@ -79,11 +102,13 @@ A computation retains the oldest contributing sample time, including through ref
 
 To require periodic updates from every input, set computation validity to **100–60000 ms**. At 1000, any contributing sample older than one second invalidates the result; another input's updates do not renew it. Constant-only results remain valid at the current evaluation. Tracking inputs always retain their own Sample/Frame, geometry and age checks.
 
-Missing or expired inputs, invalid tracking, division by zero and nonfinite results invalidate the computation and its dependents. Motion outputs stop when an active computation becomes invalid, while input remains enabled. New valid samples can automatically resume linkage. Disable input or use emergency stop to keep motion stopped; explicitly enable input again after saving configuration or clearing emergency stop.
+Missing or expired inputs, invalid tracking, division by zero and nonfinite results invalidate the computation and its dependents. Invalidity propagates to dependent output bindings; existing axis mappings retain their motion-runtime stop rules. Input remains enabled. New valid samples can automatically resume linkage. Disable input or use emergency stop to keep motion stopped; explicitly enable input again after saving configuration or clearing emergency stop.
 
 When several mappings target the same role, existing fusion selects by normalized priority. For a proportional blend, first create a weighted average and map its result to that role. [Features](features.en.md) · [Parameter dictionary](osc-parameters.en.md)
 
 Ordinary SensaPoint/SensaPose mappings have priority on their destination axes; other direct mappings, computed mappings and DepthOverride retain that priority relationship. To combine or weight tracking results first, map the computed signal to the axis and replace its original single-point/pose mapping.
+
+Manual inputs use an axis such as `L0`; script inputs select `L0`, `Progress` (0–1) or `Time` (seconds). Device-feedback and recording-replay inputs use the identifiers shown in their output or recording setup. Combined mode lets these sources participate together. OSC inputs still share one selected OSC source, and spatial inputs retain compatible coordinate-frame checks. [Source and destination setup](signal-pipeline.en.md)
 
 ## Configuration example
 
@@ -116,4 +141,4 @@ These are the relevant configuration fields. Replace `TouchA` and `TouchB` with 
 }
 ```
 
-Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings; save computations and their axis mappings together on the mappings page, retaining them in the full configuration. [Presets](presets.en.md)
+Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings. Pipeline exports axis mappings, axis profiles, computations and outputs as a complete plan, with review before importing. [Presets](presets.en.md) · [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan)

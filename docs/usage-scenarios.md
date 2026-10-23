@@ -11,7 +11,7 @@
 | Contact 直接定位（SDK Beta） | 使用受支持的 Beta SDK 构建自己的 Avatar，并配置专用自身根点通道 | 米制根点位置和 m/s 相对速度 |
 | Shader 捕获 | 能构建 PC 原生编码器，桌面画面实际可见图块 | 读取你框选的桌面图块，获得根点三维坐标 |
 
-四条路线都将虚拟交互转换为设备动作目标。可先用手动／脚本确认设备方向与行程，再接入参数；[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可在无设备条件下比较模型。
+四条路线都提供可用于设备动作或其他输出绑定的信号。可先用手动／脚本确认设备方向与行程，再接入参数；[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可在无设备条件下比较模型。
 
 ## 已有 OGB / SPS
 
@@ -72,3 +72,5 @@ Avatar 编码器和桌面桥按相同编码配置工作，边缘标记帮助纠�
 独立 Point／Handle／Pose、实验室 QuickStart 和合成 Shader 图案用于探索测量模型、检查采样和传输。[实验室](lab-workflow.md)
 
 完成配置后，在实际客户端确认参数随动作变化，再用较小行程检查设备方向、响应与停止。自动检查结果见[浏览器验证记录](e2e-status.md)。[完整功能](features.md)
+
+具名计算结果也可绑定到 OSC 参数、DG-LAB、网络服务或会话录制；目标分别设置量程与发送节奏。[输入、计算与输出](signal-pipeline.md)

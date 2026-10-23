@@ -1,4 +1,4 @@
-import { test, expect, card, text, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
+import { test, expect, card, text, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, outputValue, observePageCommands } from './fixtures.js';
 import { pointSamples } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 
@@ -40,10 +40,7 @@ test('URL, explicit preference and ordered environment languages choose the UI w
     for (const scenario of cases) await test.step(scenario.name, async () => {
       const child = await page.context().newPage(), errors = [], commands = [];
       child.on('pageerror', error => errors.push(error.message));
-      child.on('websocket', socket => socket.on('framesent', ({ payload }) => {
-        try { const command = JSON.parse(payload.toString()); if (command.method && command.path) commands.push(command); }
-        catch { /* Ignore non-command frames / 忽略非命令帧。 */ }
-      }));
+      await observePageCommands(child, command => commands.push(command));
       await child.addInitScript(({ languages, language, saved, denied }) => {
         Object.defineProperty(navigator, 'languages', { configurable: true, value: languages });
         Object.defineProperty(navigator, 'language', { configurable: true, value: language || 'en-US' });

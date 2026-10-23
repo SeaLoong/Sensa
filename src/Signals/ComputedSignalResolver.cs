@@ -74,7 +74,7 @@ public sealed class ComputedSignalResolver
         if (_scalarMaxAgeMs > 0 && _nowMs - entry.TimestampMs > _scalarMaxAgeMs)
             return ComputedSignalSample.Invalid("部分计算输入已超时 / A calculation input has expired");
         return float.IsFinite(value) && entry.TimestampMs <= _nowMs
-            ? ComputedSignalSample.Success(value, entry.Source.Key, entry.TimestampMs)
+            ? ComputedSignalSample.Success(value, entry.Source.Key, entry.TimestampMs, originKey: "osc:" + entry.Source.Key + ":" + matches[0].Path)
             : ComputedSignalSample.Invalid("等待有效参数值 / Waiting for a valid parameter value");
     }
 
@@ -102,7 +102,7 @@ public sealed class ComputedSignalResolver
             _ => "",
         };
         return float.IsFinite(value)
-            ? ComputedSignalSample.Success(value, point.SourceKey, point.TimestampMs, frame)
+            ? ComputedSignalSample.Success(value, point.SourceKey, point.TimestampMs, frame, "point:" + point.SourceKey + ":" + point.Prefix + ":" + input.PointMetric)
             : ComputedSignalSample.Invalid("等待有效定位值 / Waiting for a valid tracking value");
     }
 
@@ -129,7 +129,7 @@ public sealed class ComputedSignalResolver
         };
         return float.IsFinite(value)
             ? ComputedSignalSample.Success(value, pose.SourceKey, pose.TimestampMs,
-                pose.CoordinateFrame + ":" + pose.Prefix + quantity)
+                pose.CoordinateFrame + ":" + pose.Prefix + quantity, "pose:" + pose.SourceKey + ":" + pose.Prefix + ":" + input.PoseMetric)
             : ComputedSignalSample.Invalid("等待有效姿态值 / Waiting for a valid pose value");
     }
 

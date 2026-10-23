@@ -79,7 +79,7 @@ import {
   parseScriptTimecodeInput,
   shouldIgnoreScriptShortcutTarget,
 } from './input-workflows.js';
-import { attachPageLifecycle, createInitialSnapshotLoader, createRealtimeSession } from './realtime-session.js';
+import { attachPageLifecycle, createInitialSnapshotLoader, createBrowserRealtimeSession } from './realtime-session.js';
 import { loadStudio, saveStudio, sanitizeStudio } from './preferences.js';
 import { LOG_LEVEL_ORDER, createLogNormalizer, formatAxisTraceAction, formatRealtimeStatus } from './diagnostics.js';
 import { buildOscSourceSelectionOptions, formatOscParameterDetailStatus, formatPreviewTimestamp, oscCatalogVisibility, resolveOscParameterDetail } from './osc-workspace.js';
@@ -107,6 +107,9 @@ import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
 import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
 import OscParameterReference from './OscParameterReference.jsx';
+import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './OutputBindings.jsx';
+import SignalPlanPanel from './SignalPlanPanel.jsx';
+import { isSignalOutputType } from './signal-outputs.js';
 import { buildComputedDrafts, computeComputedHash, computedDraftIncomplete, computedMappingPreviews, expandMappingSources } from './computed-signals.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
@@ -144,7 +147,7 @@ function buildInitialAppState() {
 }
 
 function App() {
-  const [realtime] = useState(() => createRealtimeSession({ url: WS_URL }));
+  const [realtime] = useState(() => createBrowserRealtimeSession({ url: WS_URL }));
   const apiRequest = (path, options) => realtime.request(path, options);
   const locale = React.useSyncExternalStore(subscribeLocale, getLocale);
   const initialState = useMemo(() => buildInitialAppState(), []);
@@ -155,6 +158,8 @@ function App() {
   const [logDetailsOpen, setLogDetailsOpen] = useState(false);
   const [studio, setStudio] = useState(initialState.studio);
   const [serialPorts, setSerialPorts] = useState(initialState.serialPorts);
+  const [midiPorts, setMidiPorts] = useState([]);
+  const [recordingFiles, setRecordingFiles] = useState([]);
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [computedDrafts, setComputedDrafts] = useState([]);
@@ -177,6 +182,7 @@ function App() {
   const [manualMotionMode, setManualMotionMode] = useState(initialState.manualMotionMode);
   const [manualMotionValue, setManualMotionValue] = useState(initialState.manualMotionValue);
   const [manualContinuous, setManualContinuous] = useState(false);
+  const [combinedScriptOpen, setCombinedScriptOpen] = useState(false);
   const [scriptSettings, setScriptSettings] = useState(initialState.scriptSettings);
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
   const [scriptSeekDragging, setScriptSeekDragging] = useState(false);
@@ -352,7 +358,7 @@ function App() {
   }, [overview?.input?.script?.positionMs, scriptSeekDragging]);
 
   useEffect(() => {
-    if (workspace !== 'control' || selectedInputTab !== 'script') return undefined;
+    if (workspace !== 'control' || selectedInputTab !== 'script' && !(selectedInputTab === 'combined' && combinedScriptOpen)) return undefined;
 
     function handleScriptHotkeys(event) {
       if (busyKey.startsWith('script-')) return;
@@ -475,6 +481,7 @@ function App() {
   }, [
     workspace,
     selectedInputTab,
+    combinedScriptOpen,
     scriptLoaded,
     scriptState?.playing,
     scriptDurationMs,
@@ -500,7 +507,7 @@ function App() {
 
         setSelectedScriptFile(null);
         setScriptFileInputKey((previous) => previous + 1);
-        setStudio((previous) => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
+        setStudio((previous) => (previous ? { ...previous, preferredInputTab: previous.preferredInputTab === 'combined' ? 'combined' : 'script' } : previous));
         if (result?.script) {
           setScriptSettings((previous) => normalizeScriptSettingsState(result.script, previous));
         }
@@ -698,6 +705,39 @@ function App() {
     const normalizedPorts = normalizeSerialPorts(nextPorts);
     setSerialPorts(normalizedPorts);
     return normalizedPorts;
+  }
+
+  async function refreshMidiPorts() {
+    const response = await apiRequest('/api/meta/midi-ports');
+    const ports = Array.isArray(response) ? response : response?.ports || [];
+    setMidiPorts(ports);
+    return ports;
+  }
+
+  async function refreshRecordingFiles() {
+    return withBusy('recordings-refresh', async () => {
+      const response = await apiRequest('/api/output/recordings');
+      setRecordingFiles(Array.isArray(response) ? response.slice(0, 200) : []);
+    }).catch(error => notify(error.message, 'error'));
+  }
+
+  async function replayOutput(action, payload) {
+    return withBusy(`replay-${payload.outputId}`, async () => {
+      await apiRequest(`/api/output/replay/${action}`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      await refreshOverview();
+    }).catch(error => notify(error.message || t('回放操作失败'), 'error'));
+  }
+
+  async function applySignalPlan(plan) {
+    return withBusy('signal-plan-import', async () => {
+      const saved = await persistConfig({ ...config, computedSignals: plan.computedSignals, signals: plan.signals, outputs: plan.outputs,
+        ...(plan.axisProfiles ? { axisProfiles: plan.axisProfiles } : {}),
+      });
+      setComputedDrafts(buildComputedDrafts(saved.computedSignals));
+      setSignalDrafts(buildSignalDrafts(saved.signals));
+      await refreshOverview();
+      notify(t('交互方案已应用，请检查目标并启用输出。'), 'success');
+    });
   }
 
   async function uploadScriptFile(file) {
@@ -1059,7 +1099,7 @@ function App() {
   const manualRafRef = useRef(null);
 
   function scheduleManualContinuousUpdate() {
-    if (!manualContinuous || actualInputMode !== 'manual' || wsState !== 'connected' || workspace !== 'control') return;
+    if (!manualContinuous || !['manual', 'combined'].includes(actualInputMode) || wsState !== 'connected' || workspace !== 'control') return;
     if (manualRafRef.current) return;
 
     manualRafRef.current = requestAnimationFrame(() => {
@@ -1142,7 +1182,7 @@ function App() {
       });
 
       applyScriptSnapshot(result?.script, scriptSettings);
-      setStudio((previous) => (previous ? { ...previous, preferredInputTab: 'script' } : previous));
+      setStudio((previous) => (previous ? { ...previous, preferredInputTab: previous.preferredInputTab === 'combined' ? 'combined' : 'script' } : previous));
       await refreshOverview();
       notify(restart ? t('脚本已重新开始') : t('脚本播放中'), 'success');
     }).catch((error) => notify(error.message || t('脚本播放失败'), 'error'));
@@ -1388,6 +1428,7 @@ function App() {
     if (output.type === 'TCodeSerial') {
       availableSerialPorts = (await refreshSerialPorts().catch(() => serialPorts)) || serialPorts;
     }
+    if (output.type === 'Midi') await refreshMidiPorts().catch(error => notify(error.message, 'error'));
     setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config, availableSerialPorts) });
   }
 
@@ -1447,7 +1488,9 @@ function App() {
   const oscSources = Array.isArray(overview?.osc?.sources) ? overview.osc.sources : EMPTY_OSC_CATALOG;
   const selectedOscSourceKey = overview?.osc?.selectedSourceKey || '';
   const hasMultipleOscSources = oscSources.length > 1;
-  const { mappingEditorVisible, parameterBrowserVisible } = oscCatalogVisibility(workspace, oscWorkspaceTab, Boolean(presetDialog));
+  const catalogVisibility = oscCatalogVisibility(workspace, oscWorkspaceTab, Boolean(presetDialog));
+  const parameterBrowserVisible = catalogVisibility.parameterBrowserVisible;
+  const mappingEditorVisible = catalogVisibility.mappingEditorVisible || workspace === 'pipeline' || Boolean(dialog);
   const mappingPreviewEntries = useMemo(() => mappingEditorVisible
     ? filterOscPreviewEntriesBySource(oscPreview, hasMultipleOscSources ? selectedOscSourceKey : '') : EMPTY_OSC_CATALOG,
   [mappingEditorVisible, oscPreview, hasMultipleOscSources, selectedOscSourceKey]);
@@ -1564,7 +1607,7 @@ function App() {
   }
 
   useEffect(() => {
-    if (manualContinuous && online && actualInputMode === 'manual' && workspace === 'control') return undefined;
+    if (manualContinuous && online && ['manual', 'combined'].includes(actualInputMode) && workspace === 'control') return undefined;
     if (manualRafRef.current) {
       cancelAnimationFrame(manualRafRef.current);
       manualRafRef.current = null;
@@ -1843,17 +1886,18 @@ function App() {
     return (
       <Section
         title={t('输出')}
-        description={t('命令值，非设备回读。')}
+        description={t('配置设备、应用和录制目标，把信号送到所需位置。')}
         className="outputs-section"
         actions={
           <>
             <SelectField
+              data-testid="output-type"
               label={t('输出类型')}
               value={newOutputType}
               options={OUTPUT_TYPES()}
               onChange={setNewOutputType}
             />
-            <Button onClick={() => addOutputCard(newOutputType)} disabled={!online || Boolean(busyKey)}>
+            <Button data-testid="add-output" onClick={() => addOutputCard(newOutputType)} disabled={!online || Boolean(busyKey)}>
               {t('添加输出')}
             </Button>
           </>
@@ -1862,7 +1906,7 @@ function App() {
         {outputs.length === 0 ? (
           <div className="empty-state">
             <strong>{t('暂无输出')}</strong>
-            <p>{t('添加设备后设置连接与轴范围。')}</p>
+            <p>{t('选择输出方式，再配置目标与信号来源。')}</p>
           </div>
         ) : (
           <div className="output-list">
@@ -1873,7 +1917,7 @@ function App() {
                 ? getAxisProfile(config, output.motionProfileId) || getDefaultAxisProfile(config)
                 : null;
               return (
-                <article key={output.id} className="output-card">
+                <article key={output.id} className="output-card" data-output-id={output.id} data-output-type={output.type}>
                   <div className="output-identity">
                     <header className="section__header">
                       <h3>{output.name}</h3>
@@ -1887,7 +1931,10 @@ function App() {
                       {profile ? ` · ${profile.name}` : ''}
                     </p>
                   </div>
-                  <OutputPositionPanel state={state} />
+                  <div className="output-telemetry stack">
+                    {isSignalOutputType(output.type) ? <OutputSignalStatus status={state.signalStatus} /> : <OutputPositionPanel state={state} />}
+                    {!isSignalOutputType(output.type) && state.signalStatus && <OutputSignalStatus status={state.signalStatus} />}
+                  </div>
                   <footer className="actions output-actions">
                     <Button
                       disabled={!online || Boolean(busyKey)}
@@ -1906,6 +1953,8 @@ function App() {
                       {t('移除')}
                     </Button>
                   </footer>
+                  {output.type === 'Recording' && <RecordingReplayControls outputId={output.id} status={state.signalStatus} onAction={replayOutput}
+                    files={recordingFiles} onRefreshFiles={refreshRecordingFiles} busy={!online || Boolean(busyKey)} />}
                   {state.lastError && <div className="output-detail"><Notice tone="error">{diagnostic(state.lastError)}</Notice></div>}
                   {output.type === 'TCodeSerial' && (
                     <div className="output-detail">
@@ -2273,6 +2322,7 @@ function App() {
               options={[
                 { value: 'control', label: t('控制') },
                 { value: 'osc', label: 'OSC' },
+                { value: 'pipeline', label: t('流程') },
                 { value: 'settings', label: t('设置') },
               ]}
             />
@@ -2396,6 +2446,19 @@ function App() {
                       </div>
                     )}
                     {selectedInputTab === 'script' && renderScriptPlayer()}
+                    {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
+                      <p>{t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
+                      <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
+                        <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
+                      <details><summary>{t('手动来源')}</summary><div className="stack">
+                        <div className="manual-grid">{MANUAL_AXES().map(axis => <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={next => handleManualSliderChange({ [axis.key]: next })} />)}</div>
+                        <div className="actions"><Button onClick={applyManualOnce} disabled={!online || actualInputMode !== 'combined' || Boolean(busyKey)}>{t('更新手动来源')}</Button>
+                          <Toggle label={t('连续更新')} checked={manualContinuous} onChange={setManualContinuous} disabled={!online || actualInputMode !== 'combined'} /></div>
+                        <p className="caption muted">{t('滑条的 0–999 在信号流程中转换为 0–1。')}</p>
+                      </div></details>
+                      <details open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}><summary>{t('脚本来源')}</summary>{renderScriptPlayer()}</details>
+                    </div>}
+
                   </div>
                   {renderRecording()}
                 </Section>
@@ -2473,6 +2536,24 @@ function App() {
                 </div>
               </Section>
             )}
+            {workspace === 'pipeline' && <>
+              <Section title={t('信号流程')} description={t('选择来源、处理数值，再连接到设备、应用或录制。')} actions={<Button onClick={() => { setWorkspace('control'); selectInputTab('combined'); }}>{t('设置组合输入')}</Button>}>
+                <div className="signal-pipeline-steps" aria-label={t('输入、计算与输出')}>
+                  <div><strong>{t('输入')}</strong><span>{t('OSC · 手动 · 脚本 · 设备反馈 · 回放')}</span></div>
+                  <div><strong>{t('计算转换')}</strong><span>{t('{0} 个计算信号', [computedDrafts.length])}</span></div>
+                  <div><strong>{t('输出')}</strong><span>{t('{0} 个目标', [outputs.length])}</span></div>
+                </div>
+                <div className="mapping-toolbar"><Badge tone={hasUnsavedMappings ? 'warning' : 'default'}>{hasUnsavedMappings ? t('未保存') : t('已保存')}</Badge>
+                  <div className="actions"><Button disabled={!hasUnsavedMappings || Boolean(busyKey)} onClick={restoreSignalDrafts}>{t('恢复计算与映射')}</Button>
+                    <Button tone="primary" disabled={!online || Boolean(busyKey) || hasIncompleteMappings} onClick={saveOscMappings}>{t('保存计算与映射')}</Button></div></div>
+                <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
+                  observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
+                  graphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onChange={setComputedDrafts}
+                  onMap={signal => { setSignalDrafts(previous => [...previous, makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id })]); notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info'); setWorkspace('osc'); setOscWorkspaceTab('setup'); }} />
+                <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
+              </Section>
+              {renderOutputs()}
+            </>}
             {workspace === 'settings' && (
               <>
                 <Section
@@ -2713,6 +2794,11 @@ function App() {
                 />
               </>
             )}
+            {isSignalOutputType(dialog.draft.type) ? <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
+              status={outputDialogOverview?.signalStatus} onChange={updateOutput} midiPorts={midiPorts} onRefreshMidi={() => refreshMidiPorts().catch(error => notify(error.message, 'error'))} busy={!online || Boolean(busyKey)} />
+              : <details><summary>{t('独立信号连接')}</summary><OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
+                status={outputDialogOverview?.signalStatus} onChange={updateOutput} /></details>}
+
           </div>
         )}
       </Modal>

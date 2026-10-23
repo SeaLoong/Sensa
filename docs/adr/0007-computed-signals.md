@@ -8,6 +8,16 @@ Computed signals combine OSC values, validated tracking metrics, constants or ot
 
 Live mappings and saved-configuration previews share the backend evaluator. Results retain one contributing OSC source, compatible spatial references and the oldest sample time. Missing, ambiguous, expired or model-invalid inputs and invalid arithmetic propagate through dependencies. Computation validity defaults to zero, following source rules for ordinary change-only OSC; positive values add a contributing-sample age limit. Spatial input always retains its model's Sample/Frame and experimental-permission checks. Coordinate-frame and quantity tags reject known incompatible spatial metrics; interpret units after multiplication or division according to the actual formula.
 
-活动计算失效时停止输出并保留输入启用状态；有效新样本可恢复联动。关闭输入、配置保存、来源切换与急停继续使用原有控制规则，计算恢复不解除急停，也不重新启用已关闭输入。[操作与例子](../computed-signals.md) · [控制入口](0001-control-and-input-activation.md)
+活动计算失效时停止依赖它的绑定并保留输入启用状态；现有轴映射保留动作运行时的门控，有效新样本可恢复相关联动。关闭输入、配置保存、来源切换与急停继续使用原有控制规则，计算恢复不解除急停，也不重新启用已关闭输入。[操作与例子](../computed-signals.md) · [控制入口](0001-control-and-input-activation.md)
 
-An invalid active computation stops outputs while retaining input activation; new valid samples can resume linkage. Disabling input, saving configuration, switching sources and emergency stop keep their existing control rules. Computation recovery does not clear emergency stop or reactivate disabled input. [Operation and examples](../computed-signals.en.md) · [Control boundary](0001-control-and-input-activation.md)
+An invalid active computation stops its dependent bindings while retaining input activation. Existing axis mappings retain motion-runtime gating, and new valid samples can resume the affected linkage. Disabling input, saving configuration, switching sources and emergency stop keep their existing control rules. Computation recovery does not clear emergency stop or reactivate disabled input. [Operation and examples](../computed-signals.en.md) · [Control boundary](0001-control-and-input-activation.md)
+
+## Signal processing and destination scope / 信号处理与目标范围
+
+[ADR 0008](0008-signal-pipeline-and-shared-session.md) 增加手动、脚本与设备反馈叶子，以及使用注入时钟的时间处理。时序状态属于当前计算图实例；无效、换源、时间倒退或输入停止会复位相应状态。OSC 来源相容性与空间坐标框检查继续保留，其他来源保留独立的来源标识。
+
+输出绑定消费具名计算或叶子样本，并在目标自己的量程与发送节奏上交付。必需输入失效沿依赖链传播到相应绑定；现有轴映射继续使用动作运行时的门控，统一急停覆盖全部目标。
+
+[ADR 0008](0008-signal-pipeline-and-shared-session.md) adds manual, script and feedback leaves plus temporal processing with an injected clock. Temporal state belongs to the current graph instance; invalidity, changed provenance, backward time or input stopping resets relevant state. OSC-source and spatial-frame compatibility checks remain, while other source kinds retain their origin identity.
+
+Output bindings consume named computations or leaf samples, then deliver in each destination's range and schedule. Required-input invalidity propagates through dependencies to affected bindings. Existing axis mappings retain motion-runtime gating; unified emergency stop covers every destination.

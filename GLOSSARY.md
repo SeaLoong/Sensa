@@ -1,18 +1,23 @@
 # Sensa terminology / Sensa 术语
 
-Sensa translates virtual interactions or motion trajectories into device targets. These definitions explain the terms used in its interface, documentation and code. / Sensa 将虚拟交互或动作轨迹转换为设备目标。以下定义说明界面、文档与代码中的常用词，方便对应配置和运行结果。
+Sensa processes input signals and routes results to devices, applications and recording files. These definitions explain terms used in its interface, documentation and code. / Sensa 处理输入信号，并将结果送到设备、应用与录制文件。以下定义说明界面、文档与代码中的常用词，方便对应配置和运行结果。
 
 | Term / 术语 | Definition / 定义 |
 | --- | --- |
 | **Motion target / 动作目标** | The normalized position or intensity Sensa intends to send to an output. Check physical movement on the device itself. / Sensa 准备发给输出的位置或强度，通常用 0～1 表示；实际移动情况通过观察设备确认。 |
-| **Input mode / 输入模式** | The Manual, OSC or Script mode currently applied. Use “Apply input mode” to select the one that drives outputs; tabs let you inspect and prepare settings. / 当前已应用的手动、OSC 或脚本方式。同一时刻使用一种，通过“应用输入方式”切换；页签用于查看和准备设置。 |
+| **Input mode / 输入模式** | The applied Manual, OSC, Script or Combined mode. Quick modes use a single input workflow; Combined lets configured sources contribute together. Tabs inspect and prepare settings. / 当前已应用的手动、OSC、脚本或组合方式。快捷模式使用对应输入流程，组合方式允许已配置来源共同参与；页签用于查看和准备设置。 |
 | **Input activation / 输入启用** | The switch that lets the applied input drive outputs. Configuration, mode or script changes turn it off; enable it again when ready. / 允许当前输入驱动输出的开关。配置、模式或脚本变更后会关闭，准备好再启用。 |
 | **Emergency stop / 紧急停止** | A stop state that closes input and stays active until cleared. After clearing it, enable input separately when ready. / 立即关闭输入并保持的停止状态。先解除急停，准备好后再单独启用输入。 |
-| **Output / 输出** | A named device or service destination. Each output has its own connection and enabled state; input activation controls whether it receives motion targets. / 接收命令的设备或服务目标，带名称、连接状态和独立启用开关；输入启用状态决定它能否接收动作目标。 |
+| **Output / 输出** | A named device, application or recording destination with its own settings and enabled state. Input activation controls delivery. / 具有名称、配置和独立启用状态的设备、应用或录制目标；输入启用状态决定是否向它交付结果。 |
 | **Axis profile / 轴配置** | A reusable set of axis ranges, limits, directions and motion settings, selected when configuring a TCode output. / 可重复使用的轴范围、限位、方向和运动设置，配置 TCode 输出时选择使用。 |
 | **Draft / 草稿** | Configuration edits in the browser waiting to be saved. Save successfully to apply the configuration to the running service. / 浏览器中等待保存的配置改动，保存成功后应用到运行服务。 |
 | **OSC source / OSC 来源** | The transport/source identity used to keep incoming values and their arrival/disconnection state separate. Contact Sender identity requires its own verification. / 用于分别记录参数值及到达、断线状态的传输来源；Contact Sender 的身份另行核对。 |
-| **Computed signal / 计算信号** | A named numeric result combining OSC values, validated tracking metrics, constants or other computed signals before axis calibration and mapping. It retains contributing source, sample age and validity. / 在轴校准与映射前，将 OSC 数值、有效定位指标、常量或其他计算结果组合为一个具名数值，并保留参与输入的来源、样本时效和有效性。 |
+| **Computed signal / 计算信号** | A named result processing OSC, tracking, manual, script, feedback, constant or computed inputs. It retains provenance, sample age and validity and can feed several bindings. / 处理 OSC、定位、手动、脚本、反馈、常量或其他计算输入的具名结果，保留来源、样本时效和有效性，可供多条绑定复用。 |
+| **Output binding / 输出绑定** | A source-to-destination connection with its own conversion, type, range and sending schedule. / 从来源到目标的连接，分别设置换算、类型、量程和发送节奏。 |
+| **Protocol / 协议** | The meaning and encoding of messages, such as OSC or DG-LAB V4. / 消息的含义和编码规则，例如 OSC 或 DG-LAB V4。 |
+| **Transport / 传输** | The connection and delivery mechanism used by a protocol, such as UDP, HTTP or WebSocket. / 协议使用的连接与交付方式，例如 UDP、HTTP 或 WebSocket。 |
+| **Session recording / 会话录制** | Selected signals and output results recorded as JSON Lines or CSV, with timestamps for inspection and replay material. / 将选定信号和输出结果按时间写入 JSON Lines 或 CSV，供检查与重放素材使用。 |
+| **Shared browser session / 浏览器共享会话** | A realtime backend session shared by same-origin tabs through SharedWorker, or a Web Locks owner using BroadcastChannel, with per-tab request correlation and drafts. / 同源标签页通过 SharedWorker，或由 Web Locks 确定连接归属并用 BroadcastChannel 传递消息，共用实时后端会话；各页保留独立请求关联和草稿。 |
 | **Spatial rig / 空间测量组** | Markers interpreted in the same local coordinate frame. Check their target identity and sampling synchronization separately. / 使用同一局部坐标系解释的一组标记，目标身份和采样同步情况分别检查。 |
 | **Avatar-root coordinates / Avatar 根局部坐标** | A position measured relative to the selected Avatar root, using its authored local scale. Moving or rotating the whole Avatar preserves this relative position. / 以选定的 Avatar 根为参照、按制作时的局部尺度表示的位置。整个 Avatar 一起移动或转身时，该相对位置保持不变。 |
 | **Avatar-root metre coordinates / Avatar 根米制坐标** | AvatarRootMeters places the origin at the Avatar root and follows its rotated axes while retaining physical metre units. Contact direct tracking uses this frame; scale changes physical displacement. / AvatarRootMeters 以 Avatar 根为原点、各轴随根旋转，保留物理米单位。Contact 直接定位使用此坐标框，缩放会改变物理位移。 |

@@ -553,3 +553,31 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
+
+/* Reusable signal routes, with controls mounted only while their card is open. */
+.signal-pipeline-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
+.signal-pipeline-steps > div { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted-surface); }
+.signal-pipeline-steps span { color: var(--muted); overflow-wrap: anywhere; }
+.signal-output-settings, .signal-binding, .signal-binding__body, .signal-plan-panel, .recording-replay, .output-telemetry { min-width: 0; }
+.signal-output-settings > h3, .signal-bindings-heading h3 { margin: 0; }
+.signal-bindings-heading { display: flex; align-items: center; gap: 12px; }
+.signal-binding { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.signal-binding > summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 12px; cursor: pointer; }
+.signal-binding > summary::before { content: '▸'; flex-shrink: 0; }
+.signal-binding[open] > summary::before { content: '▾'; }
+.signal-binding > summary code { min-width: 0; overflow-wrap: anywhere; color: var(--muted); }
+.signal-binding__body { padding: 4px 16px 16px; }
+.signal-output-readings { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); gap: 8px 16px; margin: 0; }
+.signal-output-readings > div { min-width: 0; }
+.signal-output-readings dt { color: var(--muted); overflow-wrap: anywhere; }
+.signal-output-readings dd { margin: 0; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.signal-output-status code, .signal-pairing-url { display: inline-block; max-width: 100%; white-space: normal; overflow-wrap: anywhere; }
+.signal-pairing-code { display: block; width: 240px; max-width: 100%; height: auto; margin-block: 12px; }
+.recording-replay { grid-column: 1 / -1; }
+.recording-replay > .stack, .signal-plan-panel > .stack { padding-top: 16px; }
+@media (max-width: 640px) {
+  .workspace-nav .tabs--line { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .signal-pipeline-steps { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 16px; }
+  .signal-pipeline-steps > div { padding: 12px; gap: 4px; }
+  .signal-binding__body { padding: 4px 12px 12px; }
+}

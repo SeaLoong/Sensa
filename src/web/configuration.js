@@ -3,6 +3,7 @@ import { localized, t } from './i18n.js';
 import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
 import { stripComputedDraft } from './computed-signals.js';
+import { buildSignalOutputDraft, isSignalOutputType, makeOutputBinding, stripSignalOutputDraft } from './signal-outputs.js';
 
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
 
@@ -31,6 +32,13 @@ const OUTPUT_TYPES = localized(() => ([
   { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
   { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
   { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
+  { value: 'OscParameter', label: t('OSC 参数'), shortLabel: 'OSC', scanSupported: false },
+  { value: 'Dglab', label: 'DG-LAB', shortLabel: 'DG-LAB', scanSupported: false },
+  { value: 'Recording', label: t('信号录制'), shortLabel: t('录制'), scanSupported: false },
+  { value: 'HttpJson', label: 'HTTP JSON', shortLabel: 'HTTP', scanSupported: false },
+  { value: 'WebSocketJson', label: 'WebSocket JSON', shortLabel: 'WebSocket', scanSupported: false },
+  { value: 'Mqtt', label: 'MQTT', shortLabel: 'MQTT', scanSupported: false },
+  { value: 'Midi', label: 'MIDI CC', shortLabel: 'MIDI', scanSupported: false },
 ]));
 
 const OUTPUT_TYPE_BY_VALUE = localized(() => (Object.fromEntries(OUTPUT_TYPES().map(item => [item.value, item]))));
@@ -857,6 +865,8 @@ function formatSpeedUnitBaseLabel(base) {
 function getDefaultOutputPort(type) {
   if (type === 'TCodeUdp') return 9999;
   if (type === 'TCodeTcp') return 9998;
+  if (type === 'OscParameter') return 9000;
+  if (type === 'Mqtt') return 1883;
   return 12345;
 }
 
@@ -1031,6 +1041,11 @@ function buildDefaultOutputName(type, config) {
 
 function createOutputConfig(type, config, options = {}) {
   const suggestedTarget = buildSuggestedOutputTarget(type, config, options.serialPorts || [], options.currentOutputId || null);
+  const firstBinding = makeOutputBinding([], type);
+  const outputCount = getOutputs(config).filter(output => output.type === type).length;
+  if (outputCount && type === 'OscParameter') firstBinding.address += String(outputCount + 1);
+  const bindings = type === 'Dglab' ? [firstBinding, makeOutputBinding([firstBinding], type, { address: 'Pulse', sendMode: 'FixedRate',
+    source: { sourceMode: 'Constant', value: 1 }, name: t('基础波形播放') })] : [firstBinding];
   return {
     id: createDraftId('output'),
     name: buildDefaultOutputName(type, config),
@@ -1042,9 +1057,10 @@ function createOutputConfig(type, config, options = {}) {
     port: getDefaultOutputPort(type),
     manageEngineProcess: false,
     vibrationAxis: 'V0',
-    websocketAddress: 'ws://localhost:12345',
+    websocketAddress: type === 'HttpJson' ? 'http://127.0.0.1:8080/sensa' : type === 'WebSocketJson' ? 'ws://127.0.0.1:8080/sensa' : 'ws://localhost:12345',
     slopeMode: 'None',
     speedUnitBase: 'Per100ms',
+    ...(isSignalOutputType(type) ? { signal: buildSignalOutputDraft(type, { bindings }) } : {}),
     ...suggestedTarget,
   };
 }
@@ -1064,9 +1080,12 @@ function normalizeOutputConfig(output, config, options = {}) {
     port: normalizeOutputPort(output?.port, fallback.port),
     manageEngineProcess: output?.manageEngineProcess === true,
     vibrationAxis: normalizeIntifaceVibrationAxis(output?.vibrationAxis),
-    websocketAddress: normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
+    websocketAddress: ['HttpJson', 'WebSocketJson'].includes(output?.type || fallback.type)
+      ? typeof output?.websocketAddress === 'string' ? output.websocketAddress.trim() : fallback.websocketAddress
+      : normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
     slopeMode: isTCodeOutputType(output?.type || fallback.type) ? normalizeOutputSlopeMode(output?.slopeMode ?? fallback.slopeMode) : 'None',
     speedUnitBase: isTCodeOutputType(output?.type || fallback.type) ? normalizeSpeedUnitBase(output?.speedUnitBase ?? fallback.speedUnitBase) : 'Per100ms',
+    ...(isSignalOutputType(output?.type || fallback.type) || output?.signal ? { signal: buildSignalOutputDraft(output?.type || fallback.type, output?.signal || fallback.signal) } : {}),
   };
 }
 
@@ -1087,6 +1106,10 @@ function buildOutputSummary(output) {
   if (output.type === 'TCodeUdp' || output.type === 'TCodeTcp') {
     return `${output.host || '127.0.0.1'}:${output.port || (output.type === 'TCodeUdp' ? 9999 : 9998)}`;
   }
+  if (output.type === 'OscParameter' || output.type === 'Mqtt') return `${output.host || '127.0.0.1'}:${output.port || getDefaultOutputPort(output.type)}`;
+  if (output.type === 'Dglab') return output.signal?.serverUrl || 'wss://trex.dungeon-lab.cn/v4';
+  if (output.type === 'Recording') return `${output.signal?.recordingFormat || 'JSON Lines'} · ${output.signal?.recordingName || t('自动命名')}`;
+  if (output.type === 'Midi') return output.signal?.midiPortName || t('选择 MIDI 输出端口');
   return output.websocketAddress || 'ws://localhost:12345';
 }
 
@@ -1136,6 +1159,7 @@ function mergeOutputDraft(outputId, config, draft) {
       manageEngineProcess: (draft.manageEngineProcess ?? output.manageEngineProcess) === true,
       vibrationAxis: normalizeIntifaceVibrationAxis(draft.vibrationAxis ?? output.vibrationAxis),
       motionProfileId: isTCodeOutputType(output.type) ? draft.motionProfileId || getDefaultAxisProfileId(config) : output.motionProfileId,
+      ...(draft.signal || output.signal ? { signal: stripSignalOutputDraft(output.type, draft.signal || output.signal) } : {}),
     };
   });
 

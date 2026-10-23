@@ -82,7 +82,15 @@ public sealed class ConfigurationUpdate(
                     IntifaceConfig.NormalizeVibrationAxis(currentOutput.VibrationAxis),
                     StringComparison.Ordinal),
 
-            _ => false,
+            _ => previousOutput.Host != currentOutput.Host || previousOutput.Port != currentOutput.Port
+                || previousOutput.WebsocketAddress != currentOutput.WebsocketAddress
+                || previousOutput.Signal.ServerUrl != currentOutput.Signal.ServerUrl
+                || previousOutput.Signal.VrChat != currentOutput.Signal.VrChat
+                || previousOutput.Signal.MqttUseTls != currentOutput.Signal.MqttUseTls
+                || previousOutput.Signal.MqttClientId != currentOutput.Signal.MqttClientId
+                || previousOutput.Signal.MidiPortName != currentOutput.Signal.MidiPortName
+                || previousOutput.Signal.RecordingName != currentOutput.Signal.RecordingName
+                || previousOutput.Signal.RecordingFormat != currentOutput.Signal.RecordingFormat,
         };
     }
 
@@ -211,6 +219,7 @@ public sealed class ConfigurationUpdate(
         {
             config.CopyFrom(candidate);
             runtime.RebuildProcessors();
+            await outputs.SignalOutputs.ReloadAsync();
 
             var receiverChanged = previousOscEnabled != config.Osc.Enabled
                 || !string.Equals(previousOscHost, config.Osc.ReceiverHost, StringComparison.OrdinalIgnoreCase)
@@ -245,6 +254,7 @@ public sealed class ConfigurationUpdate(
                 config.Osc.OscQueryUrl = previousOscQueryUrl;
                 configureHub();
                 syncOsc(true, true);
+                await outputs.SignalOutputs.ReloadAsync();
                 outputs.RebuildConnections();
                 await outputs.RunStateChangeBatchAsync(async () =>
                 {

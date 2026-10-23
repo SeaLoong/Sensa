@@ -5,4 +5,5 @@ public interface IMotionOutput
 {
     Task SendAsync(MotionFrame frame);
     Task EmergencyStopAsync();
+    Task StopUnboundAsync() => EmergencyStopAsync();
 }

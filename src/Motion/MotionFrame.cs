@@ -20,5 +20,8 @@ public record MotionFrame
     public TCodeCommandMode? RequestedCommandMode { get; init; }
     public int? RequestedMotionValue { get; init; }
 
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IReadOnlySet<MotionAxis>? ActiveAxes { get; init; }
+
     public static readonly MotionFrame Zero = new();
 }

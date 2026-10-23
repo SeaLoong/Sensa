@@ -176,6 +176,8 @@ test('readiness and command timeouts, send failures and malformed bodies release
   await r.tick(100); await timedOut;
   r.peers[0].open();
   await assert.rejects(r.session.request('/invalid', { body: '{' }), SyntaxError);
+  await assert.rejects(r.session.request('/oversized', { method: 'PUT', body: { text: 'x'.repeat(4 * 1024 * 1024) } }), /4 MiB/);
+  assert.deepEqual(r.peers[0].sent, [], 'Oversized messages never reach the socket');
   const slow = r.session.request('/slow'); const expired = assert.rejects(slow, /超时|timeout|timed out/i);
   await flush(); await r.tick(100); await expired;
   r.peers[0].sendError = new Error('wire failed');

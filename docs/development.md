@@ -91,4 +91,10 @@ node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-rankin
 
 该脚本测量纯排序耗时；浏览器中的持续更新、翻页、冻结与路径建议由 E2E 检查。
 
+## 检查输出与共享会话
+
+协议与传输改动使用隔离编解码、模拟传输和时钟，核对数值类型、量程、取消、停止和重连。DG-LAB 检查配对、设备上报与 RPC／任务寿命；时间计算检查初始样本、换源、失效和时间倒退；录制检查有界存储、转义和样本时间戳。
+
+共享会话测试分别检查同页引用计数、SharedWorker 共享、Web Locks 持有页接续、BroadcastChannel 请求关联和每标签页回退。Actions 浏览器用例打开多个页面，关闭或恢复其中一页，确认其他页面仍可使用；HTTP 连接池与服务器 WebSocket 预算分别观察。新增输出表单按普通截图比较与逐张审阅维护基线。[架构决策](adr/0008-signal-pipeline-and-shared-session.md) · [使用指南](signal-pipeline.md)
+
 [架构](architecture.md) · [当前 CI 决策](adr/0005-simplified-ci-and-releases.md) · [浏览器验证](e2e.md)

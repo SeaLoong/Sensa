@@ -3,6 +3,7 @@ using Sensa.Input.Osc;
 using Sensa.Input.Script;
 using Sensa.Motion;
 using Sensa.Recording;
+using Sensa.Outputs;
 using Sensa.Signals;
 using System.Text;
 
@@ -54,6 +55,11 @@ public sealed class MotionRuntime : IDisposable
     private int _oscRefreshQueued;
     private readonly Dictionary<(string Source, string Root), SpsDepthEstimator> _spsDepth = new();
     private readonly ITimer _watchdog;
+    private readonly ITimer _signalTimer;
+    private int _signalTickPending;
+    private ComputedSignalEvaluator _previewEvaluator = new([]);
+    private IReadOnlyDictionary<string, ComputedSignalSample> _latestComputed = new Dictionary<string, ComputedSignalSample>();
+    private long _lastComputedAt = -1;
     private long _activationTimestamp;
     private long _generation;
     private long _appliedGeneration = -1;
@@ -92,6 +98,7 @@ public sealed class MotionRuntime : IDisposable
         : "实验局部估计；非世界或网格位置 / Experimental local estimate; not world or mesh position";
     public string? ActivePoseKey { get; private set; }
     public bool IsGateClosed => _gateClosed;
+    public bool CanRouteSignals => !_disposed && !_emergency && _inputActive;
     public bool CanSend => !_disposed && !_emergency && _inputActive && !_gateClosed && !_poseBlocked && !ComputedInputBlocked
         && (_inputMode != RuntimeInputMode.Script || !_scriptOutputStopped);
 
@@ -118,14 +125,93 @@ public sealed class MotionRuntime : IDisposable
     {
         if (_config.ComputedSignals.Count == 0)
             return new Dictionary<string, ComputedSignalSample>(StringComparer.Ordinal);
-        ComputedSignalEvaluator evaluator;
-        lock (_sync) evaluator = _computedEvaluator;
-        var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
-        var resolver = new ComputedSignalResolver(snapshot ?? _store.SnapshotEntries(),
+        lock (_sync)
+        {
+            if (_inputActive && _latestComputed.Count > 0) return _latestComputed;
+            var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+            var resolver = CreateSignalResolver(now, snapshot, sourceKey);
+            return _previewEvaluator.Evaluate(now, resolver);
+        }
+    }
+
+    private Func<ComputedSignalInputConfig, ComputedSignalSample> CreateSignalResolver(long now,
+        OscParameterStore.SnapshotEntry[]? snapshot = null, string? sourceKey = null)
+    {
+        var osc = new ComputedSignalResolver(snapshot ?? SnapshotSignalInputs(),
             sourceKey ?? _preferredOscSourceKeyProvider?.Invoke(), now, SpatialSampleMaxAgeMs,
             _config.Osc.AllowExperimentalSpatialInput, _config.Osc.InputTimeoutMs);
-        return evaluator.Evaluate(now, resolver.Resolve);
+        var script = _scriptPlayer.GetSnapshot();
+        var manual = _manualFrame;
+        var coordinator = (_output as OutputCoordinator)?.SignalOutputs;
+        return input => input.SourceMode switch
+        {
+            "Manual" => Enum.TryParse<MotionAxis>(input.OscPath, out var axis)
+                ? ComputedSignalSample.Success(MotionAxisHelper.Get(manual, axis), null, now, originKey: "manual:" + input.OscPath)
+                : ComputedSignalSample.Invalid("请选择手动轴 / Choose a manual axis"),
+            "Script" => script.Loaded && (script.Playing || _inputMode == RuntimeInputMode.Script && !_scriptOutputStopped)
+                ? ComputedSignalSample.Success(input.OscPath switch { "Progress" => script.DurationMs > 0 ? (float)script.PositionMs / script.DurationMs : 0,
+                    "Time" => script.PositionMs / 1000f, "L0" => script.CurrentL0, _ => float.NaN },
+                    null, now, originKey: "script:" + script.FileName + ":" + input.OscPath)
+                : ComputedSignalSample.Invalid("等待脚本播放 / Waiting for script playback"),
+            "DeviceFeedback" => coordinator?.ReadFeedback(input.OscPath, now) ?? ComputedSignalSample.Invalid("等待设备反馈 / Waiting for device feedback"),
+            "RecordingReplay" => coordinator?.ReadReplay(input.OscPath, now) ?? ComputedSignalSample.Invalid("等待录制回放 / Waiting for session replay"),
+            "Constant" => ComputedSignalSample.Success(input.Value, null, now),
+            _ => osc.Resolve(input),
+        };
     }
+
+    private OscParameterStore.SnapshotEntry[] SnapshotSignalInputs()
+    {
+        var leaves = _config.ComputedSignals.SelectMany(signal => signal.Inputs)
+            .Concat(_config.Outputs.SelectMany(output => output.Signal.Bindings).Select(binding => binding.Source)).ToArray();
+        var source = _preferredOscSourceKeyProvider?.Invoke();
+        var entries = new Dictionary<(string Path, string Source), OscParameterStore.SnapshotEntry>();
+        foreach (var path in leaves.Where(input => input.SourceMode == "Direct").Select(input => input.OscPath).Distinct(StringComparer.Ordinal))
+            foreach (var entry in _store.MatchingEntries(path, source)) entries.TryAdd((entry.Path, entry.Entry.Source.Key), entry);
+        if (leaves.Any(input => input.SourceMode is "SensaPoint" or "SensaPose"))
+            foreach (var entry in _store.SnapshotEntries("Sensa/", source)) entries.TryAdd((entry.Path, entry.Entry.Source.Key), entry);
+        return entries.Values.ToArray();
+    }
+
+    private IReadOnlyDictionary<string, ComputedSignalSample> EvaluateComputed(long now,
+        Func<ComputedSignalInputConfig, ComputedSignalSample> resolve)
+    {
+        lock (_sync)
+        {
+            if (now == _lastComputedAt) return _latestComputed;
+            _latestComputed = _computedEvaluator.Evaluate(now, resolve); _lastComputedAt = now;
+            return _latestComputed;
+        }
+    }
+    public void ResetSignalProcessing()
+    {
+        lock (_sync)
+        {
+            _computedEvaluator.Reset(); _previewEvaluator.Reset(); _lastComputedAt = -1;
+            _latestComputed = new Dictionary<string, ComputedSignalSample>();
+        }
+        (_output as OutputCoordinator)?.SignalOutputs.Invalidate();
+    }
+    private void TickSignals()
+    {
+        if (!CanRouteSignals || Interlocked.Exchange(ref _signalTickPending, 1) != 0) return;
+        try
+        {
+            var routed = (_output as OutputCoordinator)?.SignalOutputs;
+            var usesTime = _config.ComputedSignals.Any(signal => signal.Operation >= ComputedSignalOperation.Smooth);
+            if (routed?.HasBindings != true && !usesTime) return;
+            var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+            var resolver = CreateSignalResolver(now);
+            var values = EvaluateComputed(now, resolver);
+            routed?.Publish(input => input.SourceMode == "Computed"
+                ? values.GetValueOrDefault(input.OscPath) ?? ComputedSignalSample.Invalid("等待计算信号 / Waiting for a computed signal")
+                : resolver(input), now);
+            if (_inputMode is RuntimeInputMode.Osc or RuntimeInputMode.Combined && usesTime) QueueOscRefresh();
+        }
+        catch (Exception ex) { OnDebugLog?.Invoke("[Signals] " + ex.GetType().Name); }
+        finally { Interlocked.Exchange(ref _signalTickPending, 0); }
+    }
+
     private long _lastEventTimestamp;
 
     public MotionFrame LastCommand => _currentFrame;
@@ -173,6 +259,7 @@ public sealed class MotionRuntime : IDisposable
 
         _watchdog = _timeProvider.CreateTimer(_ => CheckInputTimeout(), null,
             TimeSpan.FromMilliseconds(500), TimeSpan.FromMilliseconds(500));
+        _signalTimer = _timeProvider.CreateTimer(_ => TickSignals(), null, TimeSpan.FromMilliseconds(20), TimeSpan.FromMilliseconds(20));
         RebuildProcessors();
 
         _store.OnSetWithSource += HandleOscValueChanged;
@@ -193,6 +280,8 @@ public sealed class MotionRuntime : IDisposable
             _spsDepth.Clear();
             _processors.Clear();
             _computedEvaluator = new(_config.ComputedSignals);
+            _previewEvaluator = new(_config.ComputedSignals);
+            _latestComputed = new Dictionary<string, ComputedSignalSample>(); _lastComputedAt = -1;
             foreach (var mapping in _config.Signals)
             {
                 if (string.IsNullOrWhiteSpace(mapping.OscPath))
@@ -231,6 +320,8 @@ public sealed class MotionRuntime : IDisposable
         if (_emergency)
             return;
 
+        ResetSignalProcessing();
+        (_output as OutputCoordinator)?.SignalOutputs.PauseReplays();
         _emergency = true;
         _forceNextFrame = true;
         _inputActive = false;
@@ -286,7 +377,7 @@ public sealed class MotionRuntime : IDisposable
         OnLog?.Invoke($"[Input] Mode switched to {mode}.");
         NotifyStateChanged();
 
-        if (mode != RuntimeInputMode.Script)
+        if (mode is not (RuntimeInputMode.Script or RuntimeInputMode.Combined))
             _scriptPlayer.Pause();
 
     }
@@ -304,6 +395,8 @@ public sealed class MotionRuntime : IDisposable
         if (active && _inputMode == RuntimeInputMode.Osc) { lock (_sync) _spsDepth.Clear(); }
         if (active && _inputMode == RuntimeInputMode.Osc && _usesPose) _poseBlocked = true;
         if (active && _inputMode == RuntimeInputMode.Osc && _usesComputed) _computedInputBlocked = true;
+        ResetSignalProcessing();
+        if (!active) (_output as OutputCoordinator)?.SignalOutputs.PauseReplays();
         _inputActive = active;
         if (active && _inputMode == RuntimeInputMode.Script) _scriptOutputStopped = false;
         _forceNextFrame = true;
@@ -406,10 +499,11 @@ public sealed class MotionRuntime : IDisposable
                 processor.Reset();
         }
 
+        ResetSignalProcessing();
         lock (_sync) _spsDepth.Clear();
         _rollPoseKey = null;
         _continuousRoll = new();
-        if (_inputMode == RuntimeInputMode.Osc && _inputActive) EmergencyStop();
+        if (_inputMode is RuntimeInputMode.Osc or RuntimeInputMode.Combined && _inputActive) EmergencyStop();
         OnLog?.Invoke("[MotionRuntime] Avatar changed; processors reset, reactivate when ready. / Avatar 已更换；处理器已复位，就绪后重新启用输入。");
         NotifyStateChanged();
     }
@@ -466,7 +560,7 @@ public sealed class MotionRuntime : IDisposable
             if (_gateClosed || _poseBlocked || ComputedInputBlocked)
             {
                 _forceNextFrame = true;
-                if (!_gateStopSent) await StopOutputsAsync();
+                if (!_gateStopSent) await _output.StopUnboundAsync();
                 _gateStopSent = true;
                 NotifyStateChanged();
                 return;
@@ -502,7 +596,8 @@ public sealed class MotionRuntime : IDisposable
         var poseRoles = poseMappings.Concat(pointMappings).Select(p => p.Processor.Mapping.Role).ToHashSet();
         var computedMappings = processors.Where(p => p.Processor.Mapping.SourceMode == "Computed"
             && !SpatialRoleTakesPriority(poseRoles, p.Processor.Mapping)).ToArray();
-        var computed = computedMappings.Length > 0 ? GetComputedSignalResults() : null;
+        var computed = computedMappings.Length > 0 ? EvaluateComputed(_timeProvider.GetUtcNow().ToUnixTimeMilliseconds(),
+            CreateSignalResolver(_timeProvider.GetUtcNow().ToUnixTimeMilliseconds())) : null;
         var invalidComputed = computedMappings.Select(mapping =>
             computed!.TryGetValue(mapping.Path, out var result) ? result
                 : ComputedSignalSample.Invalid("请选择已保存的计算信号 / Select a saved computed signal"))
@@ -1000,6 +1095,8 @@ public sealed class MotionRuntime : IDisposable
         _disposed = true;
         _lifetime.Cancel();
         _watchdog.Dispose();
+        _signalTimer.Dispose();
+        ResetSignalProcessing();
         lock (_sync) _pendingPatch = null;
         _store.OnSetWithSource -= HandleOscValueChanged;
         _store.AvatarChanged -= HandleAvatarChanged;

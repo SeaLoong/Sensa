@@ -2,10 +2,10 @@ namespace Sensa.Signals;
 
 /// <summary>Validity and provenance travel with the value through every calculation.</summary>
 public sealed record ComputedSignalSample(float? Value, bool Valid, string Reason,
-    string? SourceKey, long TimestampMs, string? CoordinateFrame = null)
+    string? SourceKey, long TimestampMs, string? CoordinateFrame = null, string? OriginKey = null)
 {
     public static ComputedSignalSample Success(float value, string? sourceKey, long timestampMs,
-        string? coordinateFrame = null) => new(value, true, "", sourceKey, timestampMs, coordinateFrame);
+        string? coordinateFrame = null, string? originKey = null) => new(value, true, "", sourceKey, timestampMs, coordinateFrame, originKey);
     public static ComputedSignalSample Invalid(string reason) => new(null, false, reason, null, 0);
 }
 
@@ -13,7 +13,7 @@ public sealed record ComputedSignalSample(float? Value, bool Valid, string Reaso
 /// Compiles a bounded acyclic calculation graph. A single evaluation reuses leaf reads and
 /// intermediate values; it never publishes synthetic OSC parameters or retains stale results.
 /// </summary>
-public sealed class ComputedSignalEvaluator
+public sealed partial class ComputedSignalEvaluator : ISignalProcessor
 {
     public const int MaximumSignals = 64;
     public const int MaximumInputs = 16;
@@ -21,6 +21,7 @@ public sealed class ComputedSignalEvaluator
 
     private readonly Dictionary<string, ComputedSignalConfig> _signals;
     private readonly ComputedSignalConfig[] _ordered;
+    private readonly object _sync = new();
 
     public ComputedSignalEvaluator(IEnumerable<ComputedSignalConfig>? signals)
     {
@@ -44,6 +45,18 @@ public sealed class ComputedSignalEvaluator
         Func<ComputedSignalInputConfig, ComputedSignalSample> resolver)
     {
         ArgumentNullException.ThrowIfNull(resolver);
+        lock (_sync) return EvaluateCore(nowMs, resolver);
+    }
+
+    /// <summary>Discard time-dependent state after deactivation, source changes or emergency stop.</summary>
+    public void Reset()
+    {
+        lock (_sync) _temporal.Clear();
+    }
+
+    private IReadOnlyDictionary<string, ComputedSignalSample> EvaluateCore(long nowMs,
+        Func<ComputedSignalInputConfig, ComputedSignalSample> resolver)
+    {
         var results = new Dictionary<string, ComputedSignalSample>(StringComparer.Ordinal);
         var leaves = new Dictionary<(string Mode, string Path, PointMetric Point, PoseMetric Pose), ComputedSignalSample>();
         foreach (var signal in _ordered)
@@ -115,16 +128,25 @@ public sealed class ComputedSignalEvaluator
             if (!Enum.IsDefined(definition.Operation)) throw new ArgumentException($"请为计算信号 {id} 选择一种计算方式 / Computed signal {id}: choose a supported calculation.");
             if (definition.MaxAgeMs != 0 && definition.MaxAgeMs is < 100 or > 60000)
                 throw new ArgumentException($"计算信号 {id} 的输入有效期可设为 0（沿用来源规则）或 100～60000 毫秒 / Computed signal {id}: use zero to follow source freshness rules or an input age between 100 and 60000 ms.");
+            if (definition.TimeMs is < 0 or > 60000)
+                throw new ArgumentException($"计算信号 {id} 的处理时间可设为 0～60000 毫秒 / Computed signal {id}: use a processing time from zero to 60000 ms.");
+            if (!float.IsFinite(definition.Threshold) || !float.IsFinite(definition.ReleaseThreshold)
+                || !float.IsFinite(definition.FrequencyHz) || definition.FrequencyHz is < 0 or > 100
+                || !float.IsFinite(definition.Amplitude) || !float.IsFinite(definition.Offset))
+                throw new ArgumentException($"请为计算信号 {id} 设置有限的阈值、幅度和偏移，频率范围为 0～100 Hz / Computed signal {id}: thresholds, amplitude and offset must be finite; frequency ranges from zero to 100 Hz.");
+            if (definition.Operation == ComputedSignalOperation.DeadZone && definition.Threshold < 0
+                || definition.Operation == ComputedSignalOperation.Hysteresis && definition.ReleaseThreshold > definition.Threshold)
+                throw new ArgumentException($"计算信号 {id} 的死区需为非负数，迟滞关闭阈值不高于开启阈值 / Computed signal {id}: dead-zone size must be non-negative and the release threshold must not exceed the active threshold.");
             var inputs = definition.Inputs?.ToArray() ?? [];
-            if (inputs.Length is < 1 or > MaximumInputs
-                || definition.Operation is ComputedSignalOperation.Difference or ComputedSignalOperation.Ratio && inputs.Length != 2)
-                throw new ArgumentException($"计算信号 {id} 可使用 1～{MaximumInputs} 个输入，差值和比值各需两个输入 / Computed signal {id}: use 1–{MaximumInputs} inputs; difference and ratio require two.");
+            if (!ValidInputCount(definition.Operation, inputs.Length))
+                throw new ArgumentException($"计算信号 {id} 的输入数量与运算方式不符：时间与门限处理使用一个输入，正弦波可使用零或一个输入，差值和比值使用两个输入 / Computed signal {id}: temporal and threshold operations require one input, sine accepts zero or one, and difference and ratio require two.");
             var copies = new List<ComputedSignalInputConfig>(inputs.Length);
             foreach (var input in inputs)
             {
                 if (input is null) throw new ArgumentException($"请补全计算信号 {id} 的输入配置 / Computed signal {id}: an input definition is required.");
                 var copy = CloneInput(input);
-                if (copy.SourceMode is not ("Direct" or "SensaPoint" or "SensaPose" or "Computed" or "Constant"))
+                if (copy.SourceMode is not ("Direct" or "SensaPoint" or "SensaPose" or "Computed" or "Constant"
+                    or "Manual" or "Script" or "DeviceFeedback" or "RecordingReplay"))
                     throw new ArgumentException($"请为计算信号 {id} 选择一种输入类型 / Computed signal {id}: choose a supported input type.");
                 if (copy.SourceMode != "Constant" && (copy.OscPath.Length is < 1 or > 512))
                     throw new ArgumentException($"请为计算信号 {id} 填写输入路径或计算信号 ID，最长 512 个字符 / Computed signal {id}: each input requires a path or calculation ID of at most 512 characters.");
@@ -139,6 +161,8 @@ public sealed class ComputedSignalEvaluator
             result.Add(new ComputedSignalConfig
             {
                 Id = id, Name = name, Operation = definition.Operation, Inputs = copies, MaxAgeMs = definition.MaxAgeMs,
+                TimeMs = definition.TimeMs, Threshold = definition.Threshold, ReleaseThreshold = definition.ReleaseThreshold,
+                FrequencyHz = definition.FrequencyHz, Amplitude = definition.Amplitude, Offset = definition.Offset,
             });
         }
         var lookup = result.ToDictionary(signal => signal.Id, StringComparer.Ordinal);
@@ -186,25 +210,31 @@ public sealed class ComputedSignalEvaluator
         PointMetric = input.PointMetric, PoseMetric = input.PoseMetric, Weight = input.Weight, Value = input.Value,
     };
 
-    private static ComputedSignalSample Calculate(ComputedSignalConfig signal,
+    private ComputedSignalSample Calculate(ComputedSignalConfig signal,
         ComputedSignalInputConfig[] inputs, ComputedSignalSample[] samples, long nowMs)
     {
         var invalid = samples.FirstOrDefault(sample => !sample.Valid || !sample.Value.HasValue || !float.IsFinite(sample.Value.Value));
         if (invalid is not null)
-            return ComputedSignalSample.Invalid(string.IsNullOrWhiteSpace(invalid.Reason)
+            return Invalidate(signal.Id, string.IsNullOrWhiteSpace(invalid.Reason)
                 ? "等待有效的计算输入 / Waiting for valid calculation inputs" : invalid.Reason);
         if (samples.Any(sample => sample.TimestampMs > nowMs
             || signal.MaxAgeMs > 0 && (double)nowMs - sample.TimestampMs > signal.MaxAgeMs))
-            return ComputedSignalSample.Invalid("部分计算输入已超时 / A calculation input has expired");
+            return Invalidate(signal.Id, "部分计算输入已超时 / A calculation input has expired");
         var sources = samples.Select(sample => sample.SourceKey).Where(source => !string.IsNullOrEmpty(source)).Distinct(StringComparer.Ordinal).ToArray();
         if (sources.Length > 1)
-            return ComputedSignalSample.Invalid("请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source");
+            return Invalidate(signal.Id, "请选择同一 OSC 来源的输入 / Choose inputs from the same OSC source");
         var frames = samples.Select(sample => sample.CoordinateFrame).Where(frame => !string.IsNullOrEmpty(frame)).Distinct(StringComparer.Ordinal).ToArray();
         if (frames.Length > 1)
-            return ComputedSignalSample.Invalid("请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame");
+            return Invalidate(signal.Id, "请选择同一坐标系的空间输入 / Choose spatial inputs in the same coordinate frame");
+        var source = sources.SingleOrDefault();
+        var frame = frames.SingleOrDefault();
+        var origin = CombineOrigins(samples);
+        var timestamp = samples.Length == 0 ? nowMs : samples.Min(sample => sample.TimestampMs);
+        if (IsTemporal(signal.Operation))
+            return CalculateTemporal(signal, samples, nowMs, source, frame, origin, timestamp);
         var values = samples.Select(sample => (double)sample.Value!.Value).ToArray();
         if (signal.Operation == ComputedSignalOperation.Ratio && values[1] == 0)
-            return ComputedSignalSample.Invalid("请为比值选择非零分母 / Choose a non-zero denominator for the ratio");
+            return Invalidate(signal.Id, "请为比值选择非零分母 / Choose a non-zero denominator for the ratio");
         double value = signal.Operation switch
         {
             ComputedSignalOperation.WeightedAverage => values.Select((item, index) => item * inputs[index].Weight).Sum()
@@ -217,11 +247,36 @@ public sealed class ComputedSignalEvaluator
             ComputedSignalOperation.Minimum => values.Min(),
             ComputedSignalOperation.Maximum => values.Max(),
             ComputedSignalOperation.Magnitude => Math.Sqrt(values.Sum(item => item * item)),
+            ComputedSignalOperation.DeadZone => Math.Abs(values[0]) <= signal.Threshold ? 0 : values[0],
             _ => double.NaN,
         };
         if (!double.IsFinite(value) || value > float.MaxValue || value < -float.MaxValue)
-            return ComputedSignalSample.Invalid("计算结果超出有限数值范围 / The calculation exceeds the finite numeric range");
-        return ComputedSignalSample.Success((float)value, sources.SingleOrDefault(),
-            samples.Min(sample => sample.TimestampMs), frames.SingleOrDefault());
+            return Invalidate(signal.Id, "计算结果超出有限数值范围 / The calculation exceeds the finite numeric range");
+        return ComputedSignalSample.Success((float)value, source, timestamp, frame, origin);
+    }
+
+    private ComputedSignalSample Invalidate(string id, string reason)
+    {
+        _temporal.Remove(id);
+        return ComputedSignalSample.Invalid(reason);
+    }
+
+    private static bool ValidInputCount(ComputedSignalOperation operation, int count) => operation switch
+    {
+        ComputedSignalOperation.Sine => count is 0 or 1,
+        ComputedSignalOperation.Difference or ComputedSignalOperation.Ratio => count == 2,
+        _ when IsTemporal(operation) || operation == ComputedSignalOperation.DeadZone => count == 1,
+        _ => count is >= 1 and <= MaximumInputs,
+    };
+
+    private static string? CombineOrigins(ComputedSignalSample[] samples)
+    {
+        var origins = samples.Select(sample => sample.OriginKey).Where(origin => !string.IsNullOrEmpty(origin))
+            .Distinct(StringComparer.Ordinal).OrderBy(origin => origin, StringComparer.Ordinal).ToArray();
+        if (origins.Length == 0) return null;
+        if (origins.Length == 1) return origins[0];
+        // A digest bounds lineage size even when a calculation is referenced repeatedly in a deep DAG.
+        var bytes = System.Text.Encoding.UTF8.GetBytes(string.Join('\0', origins));
+        return "combined:" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes));
     }
 }

@@ -19,6 +19,8 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     private bool _stateChangePending;
 
     public Func<bool> CanSend { get; set; } = () => false;
+    public Func<bool> CanRouteSignals { get; set; } = () => false;
+    public SignalOutputCoordinator SignalOutputs { get; }
     public event Action? StateChanged;
 
     public OutputCoordinator(AppConfig config, Action<string> log, Action<string> logDebug, Action<string> logError)
@@ -27,6 +29,9 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         _log = log;
         _logDebug = logDebug;
         _logError = logError;
+        SignalOutputs = new(config, id => TryGetConnection(id)?.IsConnected == true, SendRoutedMotionAsync, StopRoutedMotionAsync, logError);
+        SignalOutputs.CanSend = () => CanRouteSignals();
+        SignalOutputs.StateChanged += NotifyStateChanged;
         RebuildConnections();
     }
 
@@ -37,7 +42,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         {
             oldConnections = _connections.Values.ToList();
             _connections.Clear();
-            foreach (var output in _config.Outputs)
+            foreach (var output in _config.Outputs.Where(output => !SignalOutputConfiguration.IsProtocolOutput(output.Type)))
             {
                 _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
             }
@@ -51,12 +56,13 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 
     public async Task ReloadAsync()
     {
+        await SignalOutputs.ReloadAsync();
         List<OutputConnection> staleConnections;
         var nextConnections = new Dictionary<string, OutputConnection>(StringComparer.OrdinalIgnoreCase);
         lock (_sync)
         {
             var remaining = new Dictionary<string, OutputConnection>(_connections, StringComparer.OrdinalIgnoreCase);
-            foreach (var output in _config.Outputs)
+            foreach (var output in _config.Outputs.Where(output => !SignalOutputConfiguration.IsProtocolOutput(output.Type)))
             {
                 if (remaining.TryGetValue(output.Id, out var existing) && existing.CanReuse(output))
                 {
@@ -93,6 +99,8 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 
     public async Task<bool> ConnectAsync(string outputId)
     {
+        if (_config.Outputs.FirstOrDefault(output => output.Id == outputId) is { } target && SignalOutputConfiguration.IsProtocolOutput(target.Type))
+            return await SignalOutputs.ConnectAsync(outputId);
         OutputConnection? connection;
         lock (_sync)
             _connections.TryGetValue(outputId, out connection);
@@ -108,6 +116,8 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 
     public async Task DisconnectAsync(string outputId)
     {
+        if (_config.Outputs.FirstOrDefault(output => output.Id == outputId) is { } target && SignalOutputConfiguration.IsProtocolOutput(target.Type))
+        { await SignalOutputs.DisconnectAsync(outputId); return; }
         OutputConnection? connection;
         lock (_sync)
             _connections.TryGetValue(outputId, out connection);
@@ -134,7 +144,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         lock (_sync)
         {
             activeConnections = _config.Outputs
-                .Where(output => output.Enabled)
+                .Where(output => output.Enabled && !SignalOutputConfiguration.UsesBindings(output))
                 .Select(output => (_connections.TryGetValue(output.Id, out var connection) ? (Output: output, Connection: connection) : default))
                 .Where(tuple => tuple.Connection is not null)
                 .Select(tuple => (tuple.Output, tuple.Connection!))
@@ -152,7 +162,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     public async Task RefreshUdpAsync(MotionFrame frame)
     {
         OutputConnection[] connections;
-        lock (_sync) connections = _config.Outputs.Where(o => o.Enabled && o.Type == OutputDeviceType.TCodeUdp)
+        lock (_sync) connections = _config.Outputs.Where(o => o.Enabled && o.Type == OutputDeviceType.TCodeUdp && !SignalOutputConfiguration.UsesBindings(o))
             .Select(o => _connections.GetValueOrDefault(o.Id)).OfType<OutputConnection>().ToArray();
         foreach (var connection in connections)
             if (CanSend()) await connection.SendAsync(frame, CanSend);
@@ -163,6 +173,8 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         if (string.IsNullOrWhiteSpace(outputId))
             return false;
 
+        if (_config.Outputs.FirstOrDefault(output => output.Id == outputId) is { } target && SignalOutputConfiguration.IsProtocolOutput(target.Type))
+            return SignalOutputs.IsConnected(outputId);
         lock (_sync)
             return _connections.TryGetValue(outputId, out var connection) && connection.IsConnected;
     }
@@ -180,6 +192,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 
     public async Task EmergencyStopAsync()
     {
+        await SignalOutputs.StopAsync();
         List<OutputConnection> connections;
         lock (_sync)
             connections = _connections.Values.ToList();
@@ -190,6 +203,19 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
             catch (Exception ex) { _logError($"[Emergency] {ex.Message}"); }
         })));
 
+        NotifyStateChanged();
+    }
+
+    public async Task StopUnboundAsync()
+    {
+        OutputConnection[] connections;
+        lock (_sync) connections = _config.Outputs.Where(output => !SignalOutputConfiguration.UsesBindings(output))
+            .Select(output => _connections.GetValueOrDefault(output.Id)).OfType<OutputConnection>().ToArray();
+        await Task.WhenAll(connections.Select(async connection =>
+        {
+            try { await connection.EmergencyStopAsync(); }
+            catch (Exception ex) { _logError($"[Output] {ex.Message}"); }
+        }));
         NotifyStateChanged();
     }
 
@@ -258,7 +284,8 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
                 name = output.Name,
                 type = output.Type,
                 enabled = output.Enabled,
-                connected = connection?.IsConnected ?? false,
+                connected = SignalOutputConfiguration.IsProtocolOutput(output.Type) ? SignalOutputs.IsConnected(output.Id) : connection?.IsConnected ?? false,
+                signalStatus = SignalOutputs.Snapshot(output.Id),
                 profileId = OutputConfigHelpers.IsTCodeOutput(output.Type) ? output.MotionProfileId : null,
                 profileName = OutputConfigHelpers.IsTCodeOutput(output.Type) ? _config.ResolveAxisProfileName(output.MotionProfileId) : null,
                 tcodeSettings = OutputConfigHelpers.IsTCodeOutput(output.Type)
@@ -280,6 +307,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        await SignalOutputs.DisposeAsync();
         List<OutputConnection> connections;
         lock (_sync)
         {
@@ -291,6 +319,16 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         {
             await connection.DisposeAsync();
         }
+    }
+
+    private async Task SendRoutedMotionAsync(string outputId, MotionFrame frame)
+    {
+        var connection = TryGetConnection(outputId);
+        if (connection?.IsConnected == true && CanRouteSignals()) await connection.SendAsync(frame, CanRouteSignals);
+    }
+    private async Task StopRoutedMotionAsync(string outputId)
+    {
+        if (TryGetConnection(outputId) is { } connection) await connection.EmergencyStopAsync();
     }
 
     private static string BuildSummary(OutputDeviceConfig output)

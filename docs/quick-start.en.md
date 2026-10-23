@@ -12,7 +12,7 @@ The UI detects language from URL, saved choice and system preferences, with a ma
 
 ## 2. Add an output
 
-Use “Control” to add an output: the device or service that will receive Sensa commands.
+Use “Control” to add an output: the device, application or recording file that receives Sensa results. Choose the output type first, then configure its connection and bindings inside it.
 
 | Type | Check |
 | --- | --- |
@@ -20,6 +20,10 @@ Use “Control” to add an output: the device or service that will receive Sens
 | TCode UDP/TCP | Actual host, port and transport; UDP has no execution acknowledgement |
 | Intiface | Start an existing Central, then enter its service address; new outputs do not manage an engine |
 | Intiface vibration | V0 by default; choose V1/V2, or explicitly L0 to convert depth into intensity |
+| OSC parameter | Target IP/port, writable parameter address and Float/Int/Bool type; use the VRChat write-back option for its common endpoint |
+| DG-LAB | Relay connection, DG-LAB 4 APP pairing, reported device/channel and user limit |
+| MIDI CC | Available system output port, `CC/channel/controller` address and 0–127 range |
+| Recording/network service | Recording name/format or the receiving service endpoint, plus selected signal bindings |
 
 For a TCode output, first edit its axis profile in Settings: reduce travel and speed, and reverse direction if needed. Select that profile when saving the output. Intiface range/speed limits and stop controls come from your device or Central; check those settings, then test with small manual targets.
 
@@ -38,10 +42,12 @@ An already active input may send its current valid target immediately after conn
 - **Contact direct tracking (SDK Beta):** install the supported beta SDK and build a dedicated own-root Sender/Receiver using the [Contact setup](contact-sdk.en.md). Inspect `Sensa/Contact/<id>/…`; calibrate X/Y/Z/Distance for local movement, or velocity/Speed/ProximitySpeed for movement strength. Save, allow experimental spatial input and enable OSC input.
 - **Experimental root:** follow the [route guide](usage-scenarios.en.md) to configure Avatar measurement components or the desktop code reader. Confirm the correct object and valid coordinates in the panel. Record the motion start and end, map them to 0% and 100% output, and save. Then allow experimental spatial input and enable input.
 
+- **Combined:** choose sources in calculations and output bindings, such as an OSC touch value multiplied by a manual intensity. Save the setup, apply Combined, then enable input. [Setup](signal-pipeline.en.md)
+
 Parameters have different meanings: OGB usually reports proximity or estimated depth; SPS four-anchor tracking and Shader report a selected root in three dimensions relative to the Avatar. Contact direct tracking reports metre-based position plus relative velocity. [Positioning](positioning.en.md)
 
 ## 5. Keep a reviewable result
 
-Use L0 recording to capture depth targets. Read other axes and device state in their panels and logs. Stopping recording preserves the last-value duration. Exporting an active recording stops recording and leaves input in its current state. Restart requires confirmation, and cancel preserves the old buffer.
+Use L0 recording to capture a funscript depth trajectory, or add a Recording output for selected signals in JSON Lines/CSV. Read per-output status and device feedback in their panels and logs. Stopping recording preserves the last-value duration. Exporting an active recording stops recording and leaves input in its current state. Restart requires confirmation, and cancel preserves the old buffer.
 
 On failure, disable input and inspect actual mode, source, mapping, gates and logs in order. Resolve the cause before resuming. [Full guide](guide.en.md) · [Features](features.en.md) · [Home](../README.md)

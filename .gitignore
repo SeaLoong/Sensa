@@ -29,3 +29,8 @@ test-results/
 # Local Codex search service and machine-specific MCP configuration
 .xerj/
 /.codex/
+
+# Reproducible shared browser session worker
+src/web/realtime-worker.bundle.js
+src/web/realtime-worker.bundle.js.LEGAL.txt
+recordings/

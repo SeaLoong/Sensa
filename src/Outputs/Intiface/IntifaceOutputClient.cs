@@ -144,7 +144,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
                 bool shouldSendLinear;
                 lock (_devLock) shouldSendLinear = !_lastLinearSent.TryGetValue(device.Index, out var lastLinear) || Math.Abs(lastLinear - position01) >= 0.001;
                 var emitted = new List<string>();
-                if (posFeatures.Count > 0 && shouldSendLinear)
+                if (posFeatures.Count > 0 && shouldSendLinear && (frame.ActiveAxes is null || frame.ActiveAxes.Contains(MotionAxis.L0)))
                 {
                     foreach (var f in posFeatures)
                     {
@@ -161,7 +161,7 @@ public sealed class IntifaceOutputClient : IAsyncDisposable
 
                 // Vibrate features: always update (including sending 0) so motors can stop cleanly.
                 var vibFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).ToList();
-                if (vibFeatures.Count > 0)
+                if (vibFeatures.Count > 0 && (frame.ActiveAxes is null || frame.ActiveAxes.Contains(Enum.Parse<MotionAxis>(IntifaceConfig.NormalizeVibrationAxis(_config.VibrationAxis)))))
                 {
                     var selectedValue = IntifaceConfig.NormalizeVibrationAxis(_config.VibrationAxis) switch
                     {

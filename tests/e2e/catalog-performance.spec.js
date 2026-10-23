@@ -4,6 +4,9 @@ import { test, expect, text, oscWorkspace } from './fixtures.js';
 // 客户端大目录检查，不把模拟状态当作 OSC 吞吐量或真实设备延迟证据。
 test('large parameter catalogs keep browsing and path editing bounded without activating input',
   { tag: ['@osc', '@config', '@quality'] }, async ({ page, rig }, info) => {
+    // This case intercepts the page leader's socket to supply a synthetic catalog.
+    // Cross-tab worker behavior is exercised with the real host in shared-session.spec.js.
+    await page.addInitScript(() => Object.defineProperty(globalThis, 'SharedWorker', { configurable: true, value: undefined }));
     let generation = 0, timer, fixedValue = null, sourceKey = 'catalog-fixture';
     const paths = Array.from({ length: 4096 }, (_, index) => `Load/Parameter${String(index).padStart(5, '0')}`);
     await page.routeWebSocket('**/api/ws', route => {

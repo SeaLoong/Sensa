@@ -2,7 +2,7 @@
 
 **简体中文** | [English](architecture.en.md)
 
-后端使用当前应用的手动、OSC 或脚本模式生成十二轴动作目标，再按每个输出的配置分发。OSC 模式可直接映射参数，也可组合多个参数与定位指标后映射。浏览器表达意图与草稿；许可、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
+后端读取输入样本、计算可复用结果，再通过输出绑定交付。手动、OSC 和脚本保留快捷流程，组合方式允许不同来源共同参与。现有动作输出使用十二轴目标，OSC、DG-LAB、网络服务和录制分别呈现自己的目标。浏览器表达意图与草稿；启用、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
 
 ## 单一命令入口与数据流
 
@@ -15,7 +15,14 @@ flowchart LR
   OSC[OSC / OSCQuery] --> Store[OscParameterStore]
   Store --> Runtime
   Script[FunscriptPlayer] --> Runtime
-  Runtime --> Record[MotionRecorder]
+  Manual[手动数值] --> Runtime
+  Feedback[设备反馈] --> Runtime
+  Runtime --> Compute[计算信号]
+  Compute --> Bindings[输出绑定]
+  Bindings --> Protocol[协议适配器]
+  Protocol --> Transport[UDP / TCP / HTTP / WebSocket / MIDI / File]
+  Transport --> Destinations[应用 / DG-LAB / 服务 / MIDI / 录制]
+  Runtime --> Record[L0 MotionRecorder]
   Runtime --> Output[IMotionOutput / OutputCoordinator]
   Output --> Devices[TCode / Intiface]
 ```
@@ -26,6 +33,9 @@ flowchart LR
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | 串行校验、关闭输入、停止、重连、持久化；失败恢复配置与连接 |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | 实际模式、许可、门控、信号融合、时效、请求代次与停止 |
 | [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | 有界依赖图、计算复用、同来源／坐标框检查、最旧样本时间与数值有效性 |
+| [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | 将配置来源解析为带时间的有效或无效样本 |
+| [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | 共用计算帧求值与时序复位边界 |
+| [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | 每绑定有效性、当前值交付、事件队列、停止与协议适配器 |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | 发送／停止边界；隔离测试可替换输出 |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | 输出类型、轴配置、传输生命周期；不向运行时暴露协议细节 |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | 来源、值、更新时间／内容变化时间、序列与 Avatar 生命周期 |
@@ -40,16 +50,16 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 | 模式改变、脚本替换、配置保存 | 先关闭输入并停止，旧待发请求失效 |
 | 急停／解除 | 锁存停止；解除不自动启用 |
 | 暂停、停止、卸载脚本 | 停止自动帧／UDP 刷新；已许可的显式 seek／step 仍可发送 |
-| 门控／空间失效 | 停止，不回退同轴旧值伪装有效 |
+| 门控／空间失效 | 停止相应动作或绑定，并使旧目标失效 |
 | 启动 | 不恢复输入、输出启用、脚本和运动状态 |
 
-连接不会自动打开许可，但已启用输入可向新连接发送当前有效目标。录制发生在分发前；命令遥测、录制和 UDP 发送都不证明机械执行。
+连接与输入启用分别管理；已启用输入可向新连接发送当前有效目标。L0 录制位于动作分发前，会话录制按绑定记录选定信号；命令遥测、录制与设备回报分别呈现各自含义。
 
 ## 信号与空间有效性
 
 普通标量先匹配路径与来源，再做校准、反向、曲线、角色融合和门控。OgbDepth／OgbTouch 在这一边界解释外部参数，不修改外部协议。空间输入另有默认关闭的实验许可。
 
-计算信号在校准前生成可复用的原始数值，输入可以是 OSC 参数、已通过模型检查的定位指标、常量或另一计算。配置校验限制图规模与引用深度，并拒绝缺失引用和循环；运行时按依赖顺序复用结果，同次求值共用叶子输入。每个结果保留参与输入的来源、坐标框和最旧样本时间，必需输入失效会沿引用链传播并停止活动输出。浏览器使用同一后端求值结果展示已保存状态。[运算与配置](computed-signals.md)
+计算信号在校准前生成可复用的原始数值，输入可以是 OSC 参数、已通过模型检查的定位指标、手动／脚本读数、设备反馈、常量或另一计算。时间处理属于当前求值器实例，使用注入时钟。配置校验限制图规模与引用深度，并拒绝缺失引用和循环；运行时按依赖顺序复用结果，同次求值共用叶子输入。每个结果保留参与输入的来源、坐标框和最旧样本时间，必需输入失效会沿引用链传播到依赖它的绑定，现有轴映射保留动作运行时的门控。关闭输入、重新配置和来源变化会复位相应时序状态。浏览器使用同一后端求值结果展示已保存状态。[运算与配置](computed-signals.md)
 
 | 输入族 | 坐标／新鲜度规则 |
 | --- | --- |
@@ -59,6 +69,8 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 | 原生 Shader | AvatarRootLocal；同来源 Frame/X/Y/Z/Valid 连续序列、Valid 最后；Frame 内容变化上限 500 ms，桥另管单调／冻结／两帧恢复 |
 
 专用根标记与唯一通道将每个根点测量对应到期望的自身目标。四点距离按制作尺度的 AvatarRootLocal 解算单点位置；Contact 使用物理米制 AvatarRootMeters，报告中点位置与接触点相对速度。Contact 位置和速度指标共用 SensaPoint 校准、启用与失效停止。原生报告未提供时钟、序号或稳定 Sender ID，Sensa Sample 检查生产端活动。[SDK 契约与依据](contact-sdk.md)。公开协议、公式和停止条件集中于[定位说明](positioning.md)与[参数字典](osc-parameters.md)。
+
+输出绑定选择来源、换算、数值类型、量程、停止值与发送方式。协议适配器编码 OSC 数值、JSON 消息、DG-LAB 任务或记录；传输负责连接生命周期、有界交付、取消与关闭。状态发送保留最新目标，事件通过有界队列按序交付；设备反馈通过来源解析重新进入计算。[输入、计算与输出决策](adr/0008-signal-pipeline-and-shared-session.md) · [用户配置](signal-pipeline.md)
 
 ## Unity 作者与定位生成
 
@@ -77,9 +89,13 @@ React 保留原生控件、对话框与语义标签，TDesign 风格不依赖 MU
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | 草稿归一化、输出引用、冲突与保存 |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | 手动／脚本意图与时码 |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | 同源会话、关联、超时、断线拒绝与重连；不重放控制 |
+| [shared-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/shared-realtime.js) | 页面引用计数客户端、共享会话消息代理与标签页请求隔离 |
+| [elected-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/elected-realtime.js) | Web Locks 独占连接归属，BroadcastChannel 传递跨标签页消息 |
 | [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js)／[osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | 预设草稿、匹配、过滤、预览与校准 |
 | [i18n.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/i18n.js) | URL／偏好／环境语言，文档路由与呈现文本 |
 | [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | 日志与状态筛选 |
+
+每页通过一个会话复用状态与命令。同源标签页优先通过 SharedWorker 共用一条后端 WebSocket；其不可用时，通过 Web Locks 确保一个标签页拥有连接，再用 BroadcastChannel 传递消息；两种共享方式均不可用时采用每标签页单例。请求分别关联，各页保留本地草稿。页面进入缓存时分离当前客户端，恢复时重新附着。HTTP 连接池与服务器 WebSocket 会话预算分别限制，共用连接减少了受支持标签页占用的后端会话数。
 
 独立参数图解使用经典本地脚本、纯模型与打包 Three.js；没有应用会话或设备依赖。Pages 将 Markdown 和同六个图解资产静态发布，不参与运动运行时。
 

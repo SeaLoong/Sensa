@@ -2,7 +2,7 @@
 
 [简体中文](architecture.md) | **English**
 
-The backend generates twelve-axis targets from the applied Manual, OSC or Script mode and distributes them through output configurations. OSC can map a parameter directly or combine several parameters and tracking metrics before mapping. The browser owns intentions and drafts; the backend owns permission, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
+The backend reads input samples, computes reusable results and delivers them through output bindings. Manual, OSC and Script retain their quick workflows; Combined lets sources contribute together. Existing motion outputs use twelve-axis targets, while OSC, DG-LAB, network services and recording expose their own destinations. The browser owns intentions and drafts; the backend owns activation, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
 
 ## One command boundary
 
@@ -15,7 +15,14 @@ flowchart LR
   OSC[OSC / OSCQuery] --> Store[OscParameterStore]
   Store --> Runtime
   Script[FunscriptPlayer] --> Runtime
-  Runtime --> Record[MotionRecorder]
+  Manual[Manual values] --> Runtime
+  Feedback[Device feedback] --> Runtime
+  Runtime --> Compute[Computed signals]
+  Compute --> Bindings[Output bindings]
+  Bindings --> Protocol[Protocol adapters]
+  Protocol --> Transport[UDP / TCP / HTTP / WebSocket / MIDI / File]
+  Transport --> Destinations[Application / DG-LAB / Service / MIDI / Recording]
+  Runtime --> Record[L0 MotionRecorder]
   Runtime --> Output[IMotionOutput / OutputCoordinator]
   Output --> Devices[TCode / Intiface]
 ```
@@ -26,6 +33,9 @@ flowchart LR
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarm, stop, reconnect and persistence; configuration/connection rollback |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, gates, fusion, freshness, request generations and stop |
 | [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | Bounded dependency graph, computation reuse, shared-source/frame checks, oldest sample time and numeric validity |
+| [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | Resolve a configured source into a timestamped, valid or invalid sample |
+| [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | Shared computation-frame evaluation and temporal reset boundary |
+| [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | Per-binding validity, current-value delivery, event queue, stopping and protocol adapters |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Send/stop seam replaceable by isolated tests |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Output types, profiles and transport lifecycle without exposing protocols to runtime |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Sources, values, receive/change timestamps, sequences and Avatar lifecycle |
@@ -40,16 +50,16 @@ UDP and OSCQuery share Avatar-change cleanup, resetting caches/learning and stop
 | Change mode, replace script, save configuration | Disarm/stop first; invalidate old pending requests |
 | Emergency stop/clear | Latch stop; clearing does not reactivate |
 | Pause/stop/unload script | Stop automatic frames/UDP refresh; explicitly permitted seek/step may still send |
-| Gate/spatial invalidity | Stop without falling back to stale same-axis values |
+| Gate/spatial invalidity | Stop the affected motion or binding and invalidate its old target |
 | Startup | Do not restore input, enabled outputs, scripts or motion |
 
-Connection grants no permission, but an already active input may send its valid current target to a new connection. Recording precedes distribution. Command telemetry, recordings and UDP sends do not establish mechanical execution.
+Connection and input activation are managed separately; an already active input may send its valid current target to a new connection. L0 recording precedes motion distribution; recording outputs capture selected bindings. Command telemetry, recordings and device-reported feedback have separate meanings.
 
 ## Signal and spatial validity
 
 Ordinary scalar processing matches paths and source, then calibrates, inverts, curves, fuses roles and applies gates. OgbDepth/OgbTouch interpret external parameters without renaming their protocol. Spatial input has a separate default-off experimental permission.
 
-Computed signals produce reusable raw values before calibration, using OSC parameters, validated tracking metrics, constants or other computations. Configuration validation bounds graph size and reference depth and rejects missing references and cycles. Runtime reuses results in dependency order and shares leaf inputs within each evaluation. Results retain contributing source, coordinate frame and oldest sample time. Required-input invalidity propagates through references and stops active outputs. The browser presents saved state using the same backend evaluator. [Operations and configuration](computed-signals.en.md)
+Computed signals produce reusable raw values before calibration, using OSC parameters, validated tracking metrics, manual/script readings, device feedback, constants or other computations. Temporal processing belongs to the current evaluator instance and uses injected time. Configuration validation bounds graph size and reference depth and rejects missing references and cycles. Runtime reuses results in dependency order and shares leaf inputs within each evaluation. Results retain contributing source, coordinate frame and oldest sample time. Required-input invalidity propagates through references to dependent bindings; existing axis mappings retain motion-runtime gates. Disarming, reconfiguration and changed provenance reset relevant temporal state. The browser presents saved state using the same backend evaluator. [Operations and configuration](computed-signals.en.md)
 
 | Family | Coordinate/freshness rules |
 | --- | --- |
@@ -59,6 +69,8 @@ Computed signals produce reusable raw values before calibration, using OSC param
 | Native Shader | AvatarRootLocal; same-source contiguous Frame/X/Y/Z/Valid with Valid last; Frame change age at most 500 ms; bridge separately owns monotonicity/freeze/two-frame recovery |
 
 A dedicated marker and unique channel keep each root measurement tied to its intended own target. SPS four-anchor tracking reconstructs one point from distances in authored AvatarRootLocal units; Contact reports midpoint position and contact-point velocity in physical metre-based AvatarRootMeters. Contact position and velocity metrics share SensaPoint calibration, activation and invalidity stops. Its native report has no clock, sequence or stable Sender ID; Sensa Sample checks producer activity. [SDK contract and evidence](contact-sdk.en.md). [Positioning](positioning.en.md) and the [dictionary](osc-parameters.en.md) define protocols, equations and stop conditions.
+
+Output bindings select source, conversion, value type, range, stop value and sending policy. Protocol adapters encode OSC values, JSON messages, DG-LAB tasks or records; transports own connection lifetime, bounded delivery, cancellation and closure. State delivery retains the latest target, while a bounded queue delivers events in order. Feedback enters through source resolution. [Input/computation/output decision](adr/0008-signal-pipeline-and-shared-session.md) · [User configuration](signal-pipeline.en.md)
 
 ## Unity authoring and tracking generation
 
@@ -77,9 +89,13 @@ React retains native controls, dialogs and semantic labels. TDesign styling requ
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | Normalize drafts, output references, conflicts and saves |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | Manual/script intentions and timecodes |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | Same-origin session, correlation, timeout, disconnect rejection/reconnect without replay |
+| [shared-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/shared-realtime.js) | Reference-counted page clients, shared-session message broker and per-tab request isolation |
+| [elected-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/elected-realtime.js) | Web Locks grants exclusive connection ownership; BroadcastChannel carries cross-tab messages |
 | [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js) / [osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | Preset drafts, matching, filters, preview and calibration |
 | [i18n.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/i18n.js) | URL/preference/environment locale, document routing and text |
 | [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | Log/state filtering |
+
+One browser page multiplexes state and commands through one session. Same-origin tabs first share one backend WebSocket through SharedWorker. If that is unavailable, Web Locks grants one tab exclusive connection ownership and BroadcastChannel carries messages. When neither sharing method is available, each tab uses a singleton. Requests are correlated separately and drafts stay local. Page-cache suspension detaches a client and restoration attaches it again. HTTP connection pools and the server's WebSocket session budget are separate limits; sharing reduces the number of backend sessions used by compatible tabs.
 
 The standalone explorer uses local classic scripts, a pure model and bundled Three.js, with no application session/device dependency. Pages statically publishes Markdown and the same six explorer assets, outside the motion runtime.
 

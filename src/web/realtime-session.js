@@ -1,4 +1,32 @@
 import { t } from './i18n.js';
+import { createPortRealtimeSession, createRealtimeSessionPool, REALTIME_LIMITS } from './shared-realtime.js';
+import { createElectedRealtimeWorker } from './elected-realtime.js';
+
+const browserSessions = createRealtimeSessionPool({
+  createDirectSession: options => createRealtimeSession(options),
+  createSharedSession: typeof globalThis.SharedWorker === 'function' ? options => createPortRealtimeSession({
+    onUnavailable: options.onUnavailable,
+    createWorker: () => new globalThis.SharedWorker(
+      new URL(options.workerUrl || 'realtime-worker.bundle.js', globalThis.document.baseURI),
+      { name: 'sensa-realtime:' + options.url },
+    ),
+  }) : null,
+  createElectedSession: typeof globalThis.BroadcastChannel === 'function' && globalThis.navigator?.locks
+    ? options => createPortRealtimeSession({
+      onUnavailable: options.onUnavailable,
+      createWorker: () => createElectedRealtimeWorker({ url: options.url,
+        createSession: direct => createRealtimeSession(direct) }),
+    }) : null,
+});
+
+/** Same-origin page singleton with cross-tab sharing where the browser supports it. */
+export function createBrowserRealtimeSession(options = {}) {
+  const url = new URL(options.url, globalThis.location.href);
+  const expected = new URL('/api/ws', globalThis.location.href);
+  expected.protocol = expected.protocol === 'https:' ? 'wss:' : 'ws:';
+  if (url.href !== expected.href) throw new Error('Choose this Sensa instance / 请选择当前 Sensa 实例');
+  return browserSessions.create({ ...options, url: url.href });
+}
 
 // Initial reads are one attempt per connection until a complete snapshot applies.
 // 初始读取按连接代次执行，完整应用一次后不再覆盖用户草稿。
@@ -115,6 +143,7 @@ export function createRealtimeSession({
   function ready() {
     if (socket?.readyState === 1) return Promise.resolve(socket);
     if (!running) return Promise.reject(new Error(t("实时连接已关闭")));
+    if (waiting.size >= REALTIME_LIMITS.wire) return Promise.reject(new Error(t("等待处理的命令过多")));
     return new Promise((resolve, reject) => {
       const item = { resolve, reject };
       item.timer = timers.setTimeout(() => {
@@ -144,15 +173,19 @@ export function createRealtimeSession({
       const body = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
       const peer = await ready();
       if (!running || socket !== peer || peer.readyState !== 1) throw new Error(t("实时连接已断开"));
+      if (pending.size >= REALTIME_LIMITS.wire) throw new Error(t("等待处理的命令过多"));
       const id = String(++sequence);
       const message = { id, method: options.method || 'GET', path, ...(body === undefined ? {} : { body }) };
+      const encoded = JSON.stringify(message);
+      if (new globalThis.TextEncoder().encode(encoded).byteLength > REALTIME_LIMITS.bytes)
+        throw new Error('Request exceeds 4 MiB / 请求超过 4 MiB');
       return new Promise((resolve, reject) => {
         const command = { resolve, reject };
         command.timer = timers.setTimeout(() => {
           pending.delete(id); reject(new Error(t("请求超时：{0}", [path])));
         }, timeoutMs);
         pending.set(id, command);
-        try { peer.send(JSON.stringify(message)); }
+        try { peer.send(encoded); }
         catch (error) { pending.delete(id); timers.clearTimeout(command.timer); reject(error instanceof Error ? error : new Error(t("发送请求失败。"))); }
       });
     },

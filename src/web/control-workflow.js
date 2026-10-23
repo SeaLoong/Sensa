@@ -10,6 +10,7 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return output.enabled === true && state?.enabled === true && state.connected === true
       && (output.type !== 'Intiface' || state.devices?.some(device => device.positionFeatures > 0 || device.vibrateFeatures > 0));
   }).length;
+  const routedBindings = outputs.reduce((count, output) => count + (output.signal?.bindings?.length || 0), 0);
   const make = (key, title, detail, tone = 'info', action = null) =>
     ({ key, title, detail, tone, action, availableOutputs: available, totalOutputs: outputs.length });
   if (!online) return make('offline', t('连接已断开'), t('命令不会自动重发。'), 'warning');
@@ -28,7 +29,7 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return make('script-empty', t('先选择脚本'), t('funscript 生成 L0 目标，不会自动启用输入。'));
   if (mode === 'osc' && !listening)
     return make('osc-receiver', t('OSC 尚未监听'), t('检查接收设置和实际输入方式。'), 'warning', 'osc-settings');
-  if (mode === 'osc' && !mappings.length)
+  if (mode === 'osc' && !mappings.length && !routedBindings)
     return make('osc-mappings', t('尚无已保存映射'), t('选择实际参数、设置量程并保存映射。'), 'info', 'osc-mappings');
   if (mode === 'osc' && mappingDirty)
     return make('draft', t('使用已保存映射'), t('修改尚未保存，当前输出不使用草稿。'), 'info', 'osc-mappings');
@@ -42,5 +43,5 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return make('manual-waiting', t('等待手动目标'), t('发送一次，或开启连续发送后调整滑条。'));
   return make('enabled', t('{0} 输入已启用', [formatMode(mode)]),
     mode === 'manual' ? t('连续发送跟随调整，不自动往返。') : mode === 'script'
-      ? t('按脚本时间线生成 L0 目标。') : t('按已保存映射生成目标。'), 'success');
+      ? t('按脚本时间线生成 L0 目标。') : mode === 'combined' ? t('按每条输出连接选择的来源与计算生成目标。') : t('按已保存映射生成目标。'), 'success');
 }

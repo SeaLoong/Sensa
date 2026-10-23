@@ -4,7 +4,7 @@
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 
-**让设备跟随 VRChat 交互或 funscript 动作脚本。** Sensa 在你的电脑上运行，通过浏览器配置输入和设备。它支持 TCode 串口／UDP／TCP，以及 Intiface／Buttplug。界面显示准备发送给设备的位置或强度。
+**连接输入、计算可复用信号，再把结果送到设备或应用。** Sensa 在你的电脑上运行，通过浏览器工作台配置。输出包括 TCode 串口／UDP／TCP、Intiface／Buttplug、OSC 参数、DG-LAB、MIDI CC、网络服务和录制文件；VRChat 交互与 funscript 继续提供便捷的输入流程。
 
 ## 第一次使用：先检查方向和行程
 
@@ -32,9 +32,9 @@
 
 ## 组合多个输入，再映射到动作
 
-在 OSC 映射中建立**计算信号**，可对多个参数做加权平均、差值、比例或向量长度计算，再将结果校准到目标轴。输入也可以选用 SPS 四点定位、Contact 或 Shader 已解算的坐标，以及 Contact 的速度指标；同一中间结果可供多个映射使用。
+在“流程”中建立**计算信号**，可对多个参数做加权平均、差值、比例或向量长度计算，再将结果用于轴映射或输出绑定。输入也可以选用 SPS 四点定位、Contact 或 Shader 已解算的坐标，以及 Contact 的速度指标；同一中间结果可供多个目标使用。
 
-例如，两个触碰强度按 1∶3 混合，或用两个根点的 XYZ 差计算间距。工作台提供名称、输入列表、权重和已保存配置的实时结果，计算与轴映射一起保存。[配置与示例](docs/computed-signals.md)
+例如，两个触碰强度按 1∶3 混合，或用两个根点的 XYZ 差计算间距。输出绑定复用计算结果，分别设置目标、类型、量程和更新频率。选择 OSC 参数输出可写入 Avatar 反馈参数，DG-LAB 输出可控制通道任务，录制输出可保存信号会话；组合输入允许手动、OSC、脚本与反馈来源共同参与。[输入、计算与输出](docs/signal-pipeline.md) · [计算与示例](docs/computed-signals.md)
 
 ## 不接设备也能理解参数
 

@@ -5,4 +5,5 @@ public enum RuntimeInputMode
     Osc,
     Manual,
     Script,
+    Combined,
 }

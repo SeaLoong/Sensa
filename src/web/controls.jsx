@@ -2,7 +2,7 @@ import React, { useId, useRef } from 'react';
 import { formatCompactNumber, normalizeRangePair, precisionFromStep } from './numeric.js';
 import { t } from './i18n.js';
 
-export function SelectField({ label, title, value, onChange, options, disabled = false, className = '' }) {
+export function SelectField({ label, title, value, onChange, options, disabled = false, className = '', ...props }) {
   const id = useId();
   return (
     <div className={`field ${className}`}>
@@ -10,6 +10,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
         {label}
       </label>
       <select
+        {...props}
         id={id}
         aria-labelledby={`${id}-label`}
         aria-describedby={title ? `${id}-hint` : undefined}

@@ -4,6 +4,74 @@ import { startMocks } from './mocks.js';
 import { startTestRig } from './rig.js';
 
 export { expect };
+const observedPages = new WeakMap();
+
+// Observe accepted transport sends, including requests multiplexed through a worker.
+// 记录传输层成功发送的请求，并关联响应；覆盖页面连接与 SharedWorker 端口。
+export async function observePageCommands(page, observe) {
+  const existing = observedPages.get(page);
+  if (existing) { existing.add(observe); return; }
+  const observers = new Set([observe]), pending = new Map();
+  observedPages.set(page, observers);
+  await page.exposeFunction('__sensaObserveTransport', event => {
+    const frame = event.frame;
+    if (!frame || typeof frame !== 'object') return;
+    const key = event.channel + ':' + frame.id;
+    if (event.type === 'request' && frame.id && frame.method && frame.path) {
+      const command = { ...frame, transport: event.transport, channel: event.channel };
+      pending.set(key, command);
+      if (pending.size > 2048) pending.delete(pending.keys().next().value);
+      for (const callback of observers) callback(command);
+    } else if (event.type === 'response') {
+      const command = pending.get(key);
+      if (command) { command.response = { ok: frame.ok !== false }; pending.delete(key); }
+    }
+  });
+  await page.addInitScript(() => {
+    const scope = crypto.randomUUID(); let sequence = 0;
+    const report = (type, transport, channel, frame) => {
+      void globalThis.__sensaObserveTransport({ type, transport, channel: scope + ':' + channel, frame }).catch(() => {});
+    };
+    const NativeSocket = globalThis.WebSocket;
+    globalThis.WebSocket = class extends NativeSocket {
+      constructor(...args) {
+        super(...args);
+        this.observationChannel = 'socket-' + ++sequence;
+        this.observationEnabled = new URL(this.url).host === location.host && new URL(this.url).pathname === '/api/ws';
+        this.addEventListener('message', event => {
+          if (!this.observationEnabled || typeof event.data !== 'string') return;
+          try { const frame = JSON.parse(event.data); if (frame.id) report('response', 'websocket', this.observationChannel, frame); }
+          catch { /* Only JSON command responses are relevant. */ }
+        });
+      }
+      send(value) {
+        super.send(value);
+        if (!this.observationEnabled || typeof value !== 'string') return;
+        try { const frame = JSON.parse(value); if (frame.id && frame.method && frame.path) report('request', 'websocket', this.observationChannel, frame); }
+        catch { /* Ignore transport frames that are not Sensa commands. */ }
+      }
+    };
+    if (typeof globalThis.SharedWorker !== 'function') return;
+    const NativeWorker = globalThis.SharedWorker;
+    globalThis.SharedWorker = class extends NativeWorker {
+      constructor(...args) {
+        super(...args);
+        const address = new URL(String(args[0]), document.baseURI);
+        if (address.origin !== location.origin || !address.pathname.endsWith('/realtime-worker.bundle.js')) return;
+        const channel = 'worker-' + ++sequence, post = this.port.postMessage.bind(this.port);
+        this.port.postMessage = (...values) => {
+          post(...values);
+          const frame = values[0];
+          if (frame?.type === 'request' && frame.id && frame.method && frame.path) report('request', 'shared-worker', channel, frame);
+        };
+        this.port.addEventListener('message', event => {
+          if (event.data?.type === 'response') report('response', 'shared-worker', channel, event.data);
+        });
+      }
+    };
+  });
+}
+
 export const test = base.extend({
   scenario: ['basic', { option: true }],
   // Peers are reusable; every scenario owns its process, config and feeds.
@@ -20,10 +88,7 @@ export const test = base.extend({
     const errors = [];
     rig.commands = [];
     page.on('pageerror', error => errors.push(error.message));
-    page.on('websocket', socket => socket.on('framesent', ({ payload }) => {
-      try { const command = JSON.parse(payload.toString()); if (command.method && command.path) rig.commands.push(command); }
-      catch { /* Non-command frame / 非命令帧。 */ }
-    }));
+    await observePageCommands(page, command => rig.commands.push(command));
     await page.goto(rig.baseUrl);
     await expect(page.getByRole('button', { name: locale?.startsWith('en') ? 'Help' : '帮助', exact: true })).toBeVisible();
     await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);

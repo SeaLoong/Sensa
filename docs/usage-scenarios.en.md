@@ -11,7 +11,7 @@ Existing OGB parameters offer a direct starting point for depth or touch linkage
 | Contact direct tracking (SDK Beta) | Build your own Avatar with the supported beta SDK and a dedicated own-root channel | Root position in metres and relative velocity in m/s |
 | Shader capture | Build a PC native encoder and actually see its block in a desktop surface | Root coordinates read from the desktop block you select |
 
-All four routes turn virtual interaction into device motion targets. Start with manual/script input to confirm device direction and travel, then connect the parameters. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
+All four routes provide signals for device motion or other output bindings. Start with manual/script input to confirm device direction and travel, then connect the parameters. The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) compares models without devices.
 
 ## Existing OGB / SPS
 
@@ -67,7 +67,7 @@ The coordinate bounds are X/Z=[−2,2], Y=[−1,3]. Readings describe the select
 
 ## Other inputs and tools
 
-Twelve-axis manual input and single-L0 funscripts help establish device travel. Native PB uses Stretch/IsGrabbed parameters for scalar control; L0 recording saves pre-distribution motion targets. OSCQuery/Hub discover parameters and forward messages.
+Twelve-axis manual input and single-L0 funscripts help establish device travel. Native PB uses Stretch/IsGrabbed parameters for scalar control; L0 recording saves pre-distribution motion targets. OSC parameters, DG-LAB, network services and session recording can consume signal results through [output bindings](signal-pipeline.en.md). OSCQuery/Hub discover parameters and forward messages.
 
 Independent Point/Handle/Pose, lab QuickStart and synthetic Shader patterns help explore measurement models and check sampling and transport. [Lab workflow](lab-workflow.en.md)
 

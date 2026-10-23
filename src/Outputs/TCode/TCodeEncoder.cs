@@ -23,6 +23,7 @@ public static class TCodeEncoder
 
         foreach (var axis in MotionAxisHelper.All)
         {
+            if (frame.ActiveAxes is not null && !frame.ActiveAxes.Contains(axis)) continue;
             var config = GetAxisConfig(profile, axis);
             var source = MotionAxisHelper.Get(frame, axis);
             var previousSource = MotionAxisHelper.Get(previousSourceFrame, axis);

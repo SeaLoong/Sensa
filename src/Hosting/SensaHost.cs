@@ -115,6 +115,7 @@ public static class SensaHost
             scriptPlayer: scriptPlayer,
             preferredOscSourceKeyProvider: ResolvePreferredOscSourceKeyForRuntime);
         outputCoordinator.CanSend = () => motionRuntime.CanSend;
+        outputCoordinator.CanRouteSignals = () => motionRuntime.CanRouteSignals;
         oscReceiver.IsSourceAllowed = source => config.Osc.AllowedSourceAddresses.Count == 0 || config.Osc.AllowedSourceAddresses.Contains(source.Address);
         motionRuntime.OnLog += Log;
         motionRuntime.OnDebugLog += message => LogEntry(message, RuntimeLogLevel.Debug);
@@ -367,7 +368,7 @@ public static class SensaHost
             return applied;
         }
 
-        bool ShouldRunOscListener() => config.Osc.Enabled && motionRuntime.CurrentInputMode == RuntimeInputMode.Osc;
+        bool ShouldRunOscListener() => config.Osc.Enabled && motionRuntime.CurrentInputMode is RuntimeInputMode.Osc or RuntimeInputMode.Combined;
 
         string? ResolveSelectedOscSourceKey(OscParameterStore.SourceSnapshot[] sources)
         {
@@ -651,7 +652,7 @@ public static class SensaHost
 
             config.ValidateOgbControlTarget();
             ogbControl.Configure(config.Osc.OgbControl,
-                shouldListen && oscReceiver.IsRunning && motionRuntime.CurrentInputMode == RuntimeInputMode.Osc);
+                shouldListen && oscReceiver.IsRunning && motionRuntime.CurrentInputMode is RuntimeInputMode.Osc or RuntimeInputMode.Combined);
 
             try
             {
@@ -850,6 +851,7 @@ public static class SensaHost
 
             return new
             {
+                webUiConnections = wsClients.Count,
                 runtime = runtimeState,
                 loop = runtimeState,
                 input = new
@@ -1071,6 +1073,7 @@ public static class SensaHost
                 var path = context.Context.Request.Path.Value ?? string.Empty;
                 if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
                     || path.EndsWith("/app.bundle.js", StringComparison.OrdinalIgnoreCase)
+                    || path.EndsWith("/realtime-worker.bundle.js", StringComparison.OrdinalIgnoreCase)
                     || path.EndsWith("/styles.css", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
@@ -1108,6 +1111,16 @@ public static class SensaHost
                 LogError));
         var httpCommands = new HttpCommandAdapter(application);
         var webSocketCommands = new WebSocketCommandAdapter(application);
+        app.MapGet("/api/output/recordings/{fileName}/download", (string fileName) =>
+        {
+            try
+            {
+                var file = SignalSessionRecorder.ResolveFile(fileName);
+                return File.Exists(file) ? Results.File(file, "application/octet-stream", fileName, enableRangeProcessing: true)
+                    : Results.NotFound();
+            }
+            catch (ArgumentException) { return Results.BadRequest(); }
+        });
         app.MapMethods("/api/{**path}", ["GET", "POST", "PUT", "DELETE"],
             (HttpRequest request) => httpCommands.HandleAsync(request));
 

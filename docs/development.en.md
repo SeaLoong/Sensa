@@ -91,4 +91,10 @@ node scripts/benchmark-osc-preview.mjs --output artifacts/performance/osc-rankin
 
 This measures pure ranking time. E2E checks browser live updates, paging, frozen samples and path suggestions.
 
+## Verify outputs and shared sessions
+
+Protocol and transport changes use isolated codecs, mock transports and clocks to check value types, ranges, cancellation, stopping and reconnection. DG-LAB tests inspect pairing, device reports and RPC/task lifetime. Temporal computations check initial samples, changed provenance, invalidity and backward time. Recording checks bounded storage, escaping and sample timestamps.
+
+Shared-session tests distinguish same-page reference counting, SharedWorker sharing, Web Locks ownership handoff, BroadcastChannel request correlation and the per-tab fallback. Actions browser checks open several pages, close or restore one page and confirm the remaining pages stay usable. HTTP connection pools and server WebSocket budgets are observed separately. New output forms receive normal screenshot comparison and individual baseline inspection. [Architecture decision](adr/0008-signal-pipeline-and-shared-session.md) · [User guide](signal-pipeline.en.md)
+
 [Architecture](architecture.en.md) · [Current CI decision](adr/0005-simplified-ci-and-releases.md) · [Browser verification](e2e.en.md)

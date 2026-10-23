@@ -2,7 +2,7 @@
 
 [简体中文](features.md) | **English**
 
-This page summarizes implemented features and their operating conditions. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa converts input into device motion targets.
+This page summarizes implemented features and their operating conditions. Use the [guide](guide.en.md) for operation, [routes](usage-scenarios.en.md) for selection and [dictionary](osc-parameters.en.md) for protocol values. Sensa processes input signals and routes results to devices, applications and recording files. [Inputs, computation and outputs](signal-pipeline.en.md)
 
 ## Browser workbench
 
@@ -14,19 +14,23 @@ This page summarizes implemented features and their operating conditions. Use th
 | OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
+| Pipeline | Multi-source computation, temporal/event processing, output bindings, session recording/replay and complete-plan import/export |
 | Settings | Twelve-axis profiles, defaults/references and structured logs |
 
 Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
 
 The [standalone explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) has eleven scenes with true 3D, XZ/isometric SVG, precise sliders, plane-constrained target dragging, live values and Shader bits. Choose actual parameter names to observe readings as a target approaches, enters or meets a contact region, then use those readings to choose a mapping. Bundled Three.js works offline and falls back to SVG without WebGL.
 
+Same-origin tabs first share a realtime connection through SharedWorker, or through a tab holding Web Locks and exchanging messages over BroadcastChannel. When neither method is available, each page keeps one connection. Requests and drafts remain independent, and each page uses a reference-counted singleton. Page-cache restoration reattaches subscriptions. [Connection behavior](signal-pipeline.en.md#pages-and-shared-connections)
+
 ## Runtime and inputs
 
-Actual mode is Manual/Osc/Script. Browsing does not change it. Mode changes, script replacement and configuration saves disarm/stop first. Emergency stop latches; clearing does not resume. Connecting grants no permission, although an already active input can send. Startup restores no motion, enabled outputs or scripts.
+Actual mode is Manual/Osc/Script/Combined. Combined lets configured source kinds contribute together. Browsing preserves the applied mode. Mode changes, script replacement and configuration saves disarm/stop first. Emergency stop latches; clearing does not resume. Connecting grants no permission, although an already active input can send. Startup restores no motion, enabled outputs or scripts.
 
 - **Manual:** twelve axes, once/follow edits, clear overrides, profile-based or explicit Interval(ms)/Speed. Following edits is not automatic oscillation.
 - **Script:** skip invalid actions, retain the last duplicate timestamp, then sort; reject empty valid content. L0 interpolation, 0.1–4×, loops/A–B/timecodes/keyframes/density. Pause/stop/unload stops automatic frames; explicit permitted seeks may send. An injected clock retains fractional milliseconds. No media synchronization.
 - **OSC:** UDP Float/Int/Bool, nested bundles, Avatar lifecycle and standard-prefix stripping. Reject non-finite values, bound catalogs and expire sources. Forwarded timetags do not imply full scheduling.
+- **Combined:** bindings can use manual/script readings, OSC/tracking, device feedback, constants and reusable calculations together.
 
 Gate/spatial invalidity stops without stale same-axis fallback. Ordinary OSC timeout defaults off; positive relevant-data expiry latches emergency stop. Spatial models have separate ages. [Runtime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) · [Script](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Script/FunscriptPlayer.cs)
 
@@ -36,7 +40,7 @@ Paths support exact matches, full-segment `*`, cross-segment `**` and semicolon/
 
 Calibration, inversion, Linear/EaseIn/EaseOut/SCurve and output intervals precede role fusion. Same-role inputs prefer higher normalized values, breaking ties by intensity or distance from midpoint; modify only present axes. Every GateEnable must be open. DepthOverride may replace depth.
 
-**Computed signals** combine inputs before calibration, using weighted average, average, sum, difference, product, ratio, minimum, maximum or magnitude. Inputs may be OSC parameters, solved position/velocity metrics, constants or other computed signals; several mappings can reuse one result. The backend checks unique source, validity and oldest sample age, and supplies live results for the saved configuration. Save computations and mappings together; an invalid active computation stops motion. [Setup and examples](computed-signals.en.md)
+**Computed signals** combine inputs before calibration, using weighted average, average, sum, difference, product, ratio, minimum, maximum or magnitude. Inputs may be OSC parameters, solved position/velocity metrics, manual/script readings, device feedback, constants or other computed signals; several mappings and output bindings can reuse one result. Temporal operations add smoothing, thresholds, delays, rate/peak readings, events, durations and generated waveforms. The backend checks unique source, validity and oldest sample age, and supplies live results for the saved configuration. Save computations and mappings together; validity propagates to dependent bindings, with existing axis mappings retaining their motion gates. [Setup and examples](computed-signals.en.md)
 
 | Role | Target |
 | --- | --- |
@@ -55,7 +59,10 @@ TCode provides 115200/8N1 serial, friendly port names, D0/D1/D2 queries, UDP/TCP
 
 Intiface uses Buttplug WebSocket, scanning and feature discovery. Position selects timed/raw commands by capability and transforms L0 as 1−L0. Vibration independently selects V0/V1/V2/explicit L0, defaulting to V0; tiny-to-zero changes send zero, and vibration-only devices work. New outputs use external Central; explicit managed configurations remain, but no engine is bundled. Changing a connected vibration axis rebuilds the client through the save transaction. [Outputs](https://github.com/SeaLoong/Sensa/tree/main/src/Outputs)
 
-Recording captures pre-distribution L0, preserves final holds, ends at 100000 frames and exports simplified funscript. Active export stops recording; restart confirms clearing. Stopping recording does not disable input. It excludes other axes, permission/gate/stop events and feedback. [Recorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+Output bindings add **OSC parameter**, **DG-LAB**, **HTTP JSON**, **WebSocket JSON**, **MQTT**, **MIDI CC** and **Recording** destinations. Each selects source, value conversion, target range, stop value and sending rate. OSC has a VRChat write-back preset; DG-LAB uses the 4 APP's V4 pairing/device/task protocol. Protocol adapters encode destination operations while transports own delivery and cancellation. [Output configuration](signal-pipeline.en.md)
+
+The L0 recorder captures pre-distribution motion targets, preserves final holds, ends at 100000 frames and exports simplified funscript. Active export stops that recording; restart confirms clearing. Recording outputs separately save selected signals and results in JSON Lines or CSV, with loaded-session replay providing raw readings as signal inputs. Complete-plan import/export groups mappings, axis profiles, computations and output settings; imported outputs start disabled. [Recorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+
 
 ## Unity and spatial experiments
 

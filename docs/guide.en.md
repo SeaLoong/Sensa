@@ -2,11 +2,11 @@
 
 [简体中文](guide.md) | **English**
 
-The workbench has three areas: Control for manual input, scripts and devices; OSC for receiving parameters and turning them into motion; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
+The workbench has four areas: Control for input modes, scripts and outputs; OSC for reception, parameters and axis mappings; Pipeline for computed signals, output bindings and complete plans; and Settings for axis ranges, speed and logs. The header shows the connection, active input mode, whether input is enabled, and emergency stop. Stop remains available inside dialogs. Start with [First run](quick-start.en.md).
 
 ## Prepare, apply the input mode, then enable input
 
-Prepare values and outputs in Manual/OSC/Script, select “Apply input mode”, then “Enable input” to start linkage. The header always shows the current mode, and readiness lists the steps still required. Use Add output to connect a device, or choose an integration route from Help.
+Prepare values and outputs in Manual/OSC/Script or Combined, select “Apply input mode”, then “Enable input” to start linkage. The header always shows the current mode, and readiness lists the steps still required. Use Add output to connect a device, or choose an integration route from Help.
 
 Saving configuration, changing the active mode or importing/replacing a script disables input and stops first. Enable input again after clearing emergency stop. Outputs manage connection and enablement separately; a newly connected, enabled output receives the current valid target while input is running.
 
@@ -18,20 +18,30 @@ Manual initially shows L0/L1/L2. Rotation, vibration and auxiliary axes are expa
 
 Loading a funscript reveals its clock, density and transport. It supports 0.1–4× speed, looping, A–B, timecodes and keyframe navigation. Pause preserves the cursor; Stop resets it; unload clears the file. With Script input enabled, explicit seek/step can send the selected target while paused.
 
+### Combined input
+
+Combined lets output bindings reference several source kinds at once. For example, multiply an OSC touch value by a manual overall intensity, or use a script trajectory with a tracked offset. Prepare the sources and calculations, save the setup, apply Combined, then enable input. The selected calculation retains validity and origin information. [Inputs, computation and outputs](signal-pipeline.en.md)
+
 ### Outputs
 
-Each row presents identity, target and actions. Edit, enable, connect or disconnect; expand diagnostics when needed.
+Each row presents identity, target and actions. Add an output, select its type, then configure its address or device inside that output. Edit, enable, connect or disconnect; expand diagnostics when needed. A binding selects a signal and applies that target’s type, input/output range, stop value and update rate.
 
 - TCode serial uses 115200/8N1, port discovery and device information requests. UDP/TCP require an explicit address and port.
 - Intiface defaults to a separately running Central, with device scanning and feature details. Set the engine port in managed mode when using your own managed engine.
 - Vibration defaults to V0, with V1/V2 or L0 available. Intensity follows the selected axis; devices with position features use their corresponding position commands.
 - Axis profiles set TCode travel range, direction, limits and motion. Positions and timestamps in output details record the latest motion targets sent.
 
+Select **OSC parameter** for an IP/port, parameter address and Float/Int/Bool destination. “Write back to VRChat OSC” prepares the common VRChat endpoint; choose a parameter configured as writable on the current Avatar. **DG-LAB** groups relay, APP pairing, device/channel and bounded tasks. **HTTP JSON**, **WebSocket JSON** and **MQTT** connect other applications. See the [output setup guide](signal-pipeline.en.md) for their fields and examples.
+
 ### L0 recording
 
 Record pre-distribution L0 motion targets. Stop preserves the final hold duration; recording ends automatically at 100000 frames. Exporting while active stops recording, but stopping recording does not disable input. Restart confirms clearing the old buffer; cancel preserves it.
 
 Export produces single-axis funscript actions, with optional curve simplification for later playback or editing.
+
+### Recording outputs
+
+Choose **Recording** when adding an output to save selected signals as JSON Lines or CSV. Give columns readable names and choose their sources and update rate. This records several signals along the same timeline; the L0 recorder remains available for exporting a single funscript trajectory. [Recording and inspection](signal-pipeline.en.md#record-and-inspect)
 
 ## OSC
 
@@ -66,11 +76,11 @@ A gate is an additional condition that must allow motion, such as a target being
 
 ### Combine inputs first (computed signals)
 
-In the Computed signals area, choose Add computed signal, enter a name and choose an operation. Add OSC parameters, tracking metrics, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then use Save mappings to save computations and mappings together. Live calculation status uses the saved configuration; drafts keep their unsaved state.
+Open Pipeline and choose Add computed signal in the Computed signals area. Enter a name and choose an operation. Add OSC parameters, tracking metrics, manual/script readings, feedback, recording replay, constant values or another computation as inputs. The workbench assigns a stable identifier. Map to an axis adds a mapping referencing the result; calibrate its range and curve, then save computations and mappings together. Output bindings can also select the computation directly. OSC → Mappings provides an editor for the same calculations. Live calculation status uses the saved configuration; drafts keep their unsaved state.
 
 For example, touch intensities 0.2 and 0.8 with weights 1 and 3 produce a weighted average of 0.65. To link motion to the gap between two roots, calculate X/Y/Z differences and combine them with Magnitude. Several axes can reuse one result, which retains contributing source, validity and sample age. [Operations, coordinate conditions and examples](computed-signals.en.md)
 
-An active computation with missing or invalid inputs stops output. While input remains enabled, new valid samples can resume linkage. Disable input or use emergency stop to keep motion stopped.
+An active computation with missing or invalid inputs stops its dependent output bindings; other valid bindings continue. Existing axis mappings retain their motion gates. While input remains enabled, new valid samples can resume the affected linkage. Disable input or use emergency stop to keep motion stopped.
 
 ### Reception, discovery and forwarding
 
@@ -96,6 +106,8 @@ Axis profiles support adding, choosing a default, copying/editing and removing. 
 Help links to [routes](usage-scenarios.en.md), the [parameter dictionary](osc-parameters.en.md) and installation. UI and explorer language follow [automatic detection and explicit choice](languages.en.md); switching preserves drafts.
 
 When a document heading has a counterpart, switching language keeps that section; otherwise the new document opens at the top. Tables and code examples wider than the screen scroll horizontally. With a keyboard, Tab into the overflowing region, then use the left/right arrow keys to scroll.
+
+The realtime session shares state and requests within one page. Same-origin tabs first share a connection through SharedWorker, or through a tab using BroadcastChannel and Web Locks. When neither method is available, each page keeps one connection. Page-cache restoration attaches the page again. [Session sharing](signal-pipeline.en.md#pages-and-shared-connections)
 
 ## Explore approach, contact and position
 

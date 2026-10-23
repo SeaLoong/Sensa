@@ -8,6 +8,7 @@ using Sensa.Motion;
 using Sensa.Outputs;
 using Sensa.Recording;
 using Sensa.Runtime;
+using Sensa.Outputs.Adapters;
 
 namespace Sensa.Application;
 
@@ -69,6 +70,24 @@ public sealed class SensaApplication(
                 case ("GET", "/api/state/logs"):
                     result = host.Logs();
                     break;
+                case ("GET", "/api/meta/midi-ports"):
+                    result = MidiOutputTransport.ListPorts();
+                    break;
+                case ("GET", "/api/output/recordings"):
+                    result = SignalSessionRecorder.ListFiles();
+                    break;
+                case ("POST", "/api/output/replay/load"):
+                case ("POST", "/api/output/replay/play"):
+                case ("POST", "/api/output/replay/pause"):
+                case ("POST", "/api/output/replay/seek"):
+                {
+                    var request = Read<SignalReplayRequest>(body);
+                    var action = path.Split('/')[^1];
+                    if (action == "load") runtime.SetInputActive(false);
+                    runtime.ResetSignalProcessing();
+                    result = outputs.SignalOutputs.ReplayAction(request.OutputId, action, request.FileName, request.TimeMs);
+                    break;
+                }
                 case ("GET", "/api/meta/serial-ports"):
                     result = host.SerialPorts();
                     break;
@@ -336,7 +355,7 @@ public sealed class SensaApplication(
         if (request.Enabled)
         {
             runtime.SetManualOverride(frame);
-            runtime.SetInputMode(RuntimeInputMode.Manual);
+            if (runtime.CurrentInputMode != RuntimeInputMode.Combined) runtime.SetInputMode(RuntimeInputMode.Manual);
             host.LogDebug($"[Input/Manual] 手动原值 / raw L0={request.L0} R0={request.R0} R1={request.R1} R2={request.R2} L1={request.L1} L2={request.L2} V0={request.V0} V1={request.V1} V2={request.V2} A0={request.A0} A1={request.A1} A2={request.A2} motionMode={(requestedCommandMode?.ToString() ?? "profile")} motionValue={(requestedMotionValue?.ToString() ?? "profile")}");
         }
         else
@@ -367,7 +386,7 @@ public sealed class SensaApplication(
         runtime.SetInputActive(false);
         scriptPlayer.Load(fileName, content);
         scriptPlayer.Configure(loop: loop, speed: speed);
-        runtime.SetInputMode(RuntimeInputMode.Script);
+        if (runtime.CurrentInputMode != RuntimeInputMode.Combined) runtime.SetInputMode(RuntimeInputMode.Script);
         host.Log($"[Input/Script] 已加载 / Loaded: {fileName}");
 
         return await Task.FromResult(new
@@ -392,7 +411,8 @@ public sealed class SensaApplication(
 
     object PlayScriptCore(ScriptPlaybackRequest request)
     {
-        runtime.SetInputMode(RuntimeInputMode.Script);
+        if (runtime.CurrentInputMode != RuntimeInputMode.Combined) runtime.SetInputMode(RuntimeInputMode.Script);
+        runtime.ResetSignalProcessing();
         var snapshot = scriptPlayer.Play(request.Restart, request.Loop, request.Speed);
         host.Log($"[Input/Script] 已开始播放 / Playback started: {snapshot.FileName}");
         return new
@@ -405,6 +425,7 @@ public sealed class SensaApplication(
 
     object PauseScriptCore()
     {
+        runtime.ResetSignalProcessing();
         var snapshot = scriptPlayer.Pause();
         host.Log("[Input/Script] 已暂停。 / Playback paused.");
         return new { ok = true, script = snapshot };
@@ -412,6 +433,7 @@ public sealed class SensaApplication(
 
     object StopScriptCore()
     {
+        runtime.ResetSignalProcessing();
         var snapshot = scriptPlayer.Stop();
         host.Log("[Input/Script] 已停止。 / Playback stopped.");
         return new { ok = true, script = snapshot };
@@ -429,6 +451,7 @@ public sealed class SensaApplication(
 
     object SeekScriptCore(ScriptSeekRequest request)
     {
+        runtime.ResetSignalProcessing();
         var snapshot = scriptPlayer.Seek(request.PositionMs);
         host.LogDebug($"[Input/Script] 跳转 / Seek: {snapshot.PositionMs}ms");
         return new { ok = true, script = snapshot };
@@ -477,3 +500,5 @@ public sealed class SensaApplication(
 
 
 }
+
+public sealed record SignalReplayRequest(string OutputId, string? FileName = null, long TimeMs = 0);

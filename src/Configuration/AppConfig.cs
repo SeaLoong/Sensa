@@ -1,4 +1,5 @@
 using Sensa.Signals;
+using Sensa.Outputs;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -33,6 +34,13 @@ public enum OutputDeviceType
     TCodeUdp,
     TCodeTcp,
     Intiface,
+    OscParameter,
+    Dglab,
+    Recording,
+    HttpJson,
+    WebSocketJson,
+    Mqtt,
+    Midi,
 }
 
 public enum TCodeAxisMode
@@ -129,6 +137,7 @@ public sealed class OscMappingPresetConfig
 
 public sealed class OutputDeviceConfig
 {
+    public SignalOutputOptions Signal { get; set; } = new();
     public string           Id                  { get; set; } = "";
     public string           Name                { get; set; } = "";
     public OutputDeviceType Type                { get; set; } = OutputDeviceType.TCodeSerial;
@@ -476,6 +485,7 @@ public sealed class AppConfig
             .Select(CloneSignal)
             .ToList();
         ComputedSignals = ComputedSignalEvaluator.CloneAndValidate(ComputedSignals);
+        SignalOutputConfiguration.Validate(this);
         ComputedSignalEvaluator.ValidateMappingReferences(Signals, ComputedSignals);
         ComputedSignalEvaluator.ValidateMappingReferences(OscMappingPresets.SelectMany(preset => preset.Mappings), ComputedSignals);
         if (Signals.Any(s=>s.SourceMode=="SensaPose") && Signals.Any(s=>s.SourceMode=="SensaPoint"))
@@ -1044,6 +1054,7 @@ public sealed class AppConfig
                 Id = id,
                 Name = name,
                 Type = type,
+                Signal = SignalOutputConfiguration.Clone(item?.Signal),
                 Enabled = item?.Enabled ?? false,
                 MotionProfileId = IsTCodeOutput(type)
                     ? NormalizeMotionProfileId(item?.MotionProfileId, axisProfiles, defaultProfileId)
@@ -1060,7 +1071,9 @@ public sealed class AppConfig
                     : TCodeSlopeMode.None,
                 ManageEngineProcess = item?.ManageEngineProcess ?? false,
                 VibrationAxis = IntifaceConfig.NormalizeVibrationAxis(item?.VibrationAxis),
-                WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress) ? "ws://localhost:12345" : item!.WebsocketAddress,
+                WebsocketAddress = string.IsNullOrWhiteSpace(item?.WebsocketAddress)
+                    ? type is OutputDeviceType.HttpJson or OutputDeviceType.WebSocketJson ? "" : "ws://localhost:12345"
+                    : item!.WebsocketAddress,
             });
         }
 
@@ -1107,6 +1120,7 @@ public sealed class AppConfig
         target.ManageEngineProcess = source.ManageEngineProcess;
         target.VibrationAxis = source.VibrationAxis;
         target.WebsocketAddress = source.WebsocketAddress;
+        target.Signal = SignalOutputConfiguration.Clone(source.Signal);
     }
 
     private TCodeMotionProfile BuildMirroredTargetProfile(string? motionProfileId)
@@ -1138,6 +1152,8 @@ public sealed class AppConfig
             OutputDeviceType.TCodeUdp => port is > 0 and <= 65535 ? port : 9999,
             OutputDeviceType.TCodeTcp => port is > 0 and <= 65535 ? port : 9998,
             OutputDeviceType.Intiface => port is > 0 and <= 65535 ? port : 12345,
+            OutputDeviceType.OscParameter => port is > 0 and <= 65535 ? port : 9000,
+            OutputDeviceType.Mqtt => port is > 0 and <= 65535 ? port : 1883,
             _ => port,
         };
     }

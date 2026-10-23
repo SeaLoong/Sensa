@@ -13,6 +13,19 @@ export const computedOperationOptions = localized(() => [
   { value: 'Minimum', label: t('最小值') },
   { value: 'Maximum', label: t('最大值') },
   { value: 'Magnitude', label: t('向量长度（平方和开方）') },
+  { value: 'Smooth', label: t('平滑变化') },
+  { value: 'DeadZone', label: t('死区') },
+  { value: 'Hysteresis', label: t('双阈值开关') },
+  { value: 'Delay', label: t('延迟') },
+  { value: 'Derivative', label: t('每秒变化率') },
+  { value: 'PeakHold', label: t('峰值保持') },
+  { value: 'RisingEdge', label: t('上升沿事件') },
+  { value: 'FallingEdge', label: t('下降沿事件') },
+  { value: 'Pulse', label: t('定时脉冲') },
+  { value: 'Cooldown', label: t('带冷却的触发') },
+  { value: 'Duration', label: t('持续条件') },
+  { value: 'Sine', label: t('正弦节奏') },
+  { value: 'Envelope', label: t('渐入渐出') },
 ]);
 
 export const computedInputOptions = localized(() => [
@@ -20,6 +33,10 @@ export const computedInputOptions = localized(() => [
   { value: 'SensaPoint', label: t('定位坐标与速度') },
   { value: 'SensaPose', label: t('三点姿态指标') },
   { value: 'Computed', label: t('计算信号') },
+  { value: 'Manual', label: t('手动信号') },
+  { value: 'Script', label: t('脚本信号') },
+  { value: 'DeviceFeedback', label: t('设备反馈') },
+  { value: 'RecordingReplay', label: t('录制回放') },
   { value: 'Constant', label: t('固定数值') },
 ]);
 
@@ -28,7 +45,7 @@ export function makeComputedInput(input = {}) {
 }
 
 export function buildComputedDrafts(signals = []) {
-  return (Array.isArray(signals) ? signals : []).map(signal => ({ ...signal,
+  return (Array.isArray(signals) ? signals : []).map(signal => ({ ...COMPUTED_TIME_DEFAULTS, ...signal,
     inputs: (signal.inputs || []).map(makeComputedInput) }));
 }
 
@@ -37,12 +54,13 @@ export function newComputedDraft(signals = []) {
   let index = 1;
   while (ids.has(`Signal${index}`)) index++;
   return { id: `Signal${index}`, name: t('计算 {0}', [index]), operation: 'WeightedAverage',
-    inputs: [makeComputedInput(), makeComputedInput()], maxAgeMs: 0 };
+    inputs: [makeComputedInput(), makeComputedInput()], maxAgeMs: 0, ...COMPUTED_TIME_DEFAULTS };
 }
 
 export function stripComputedDraft(signal) {
   return { id: String(signal.id || '').trim(), name: String(signal.name || '').trim(),
     operation: signal.operation || 'WeightedAverage', maxAgeMs: Number(signal.maxAgeMs ?? 0),
+    ...Object.fromEntries(Object.entries(COMPUTED_TIME_DEFAULTS).map(([key, fallback]) => [key, Number(signal[key] ?? fallback)])),
     inputs: (signal.inputs || []).map(input => ({ sourceMode: input.sourceMode || 'Direct',
       oscPath: String(input.oscPath || '').trim(), pointMetric: input.pointMetric || 'Z', poseMetric: input.poseMetric || 'Depth',
       weight: Number(input.weight ?? 1), value: Number(input.value ?? 0) })) };
@@ -53,10 +71,49 @@ export function computeComputedHash(signals) {
 }
 
 export function computedDraftIncomplete(signal) {
-  return signal.maxAgeMs === '' || !signal.inputs?.length || signal.inputs.some(input =>
+  return signal.maxAgeMs === '' || (signal.operation !== 'Sine' && !signal.inputs?.length) || (signal.inputs || []).some(input =>
     input.sourceMode === 'Constant' ? input.value === ''
       : !String(input.oscPath || '').trim())
-    || signal.operation === 'WeightedAverage' && signal.inputs.some(input => input.weight === '');
+    || signal.operation === 'WeightedAverage' && signal.inputs.some(input => input.weight === '')
+    || computedOperationFields(signal.operation).some(field => signal[field.key] === '');
+}
+
+export const COMPUTED_TIME_DEFAULTS = Object.freeze({ timeMs: 250, threshold: .5, releaseThreshold: .4, frequencyHz: 1, amplitude: 1, offset: 0 });
+export const UNARY_COMPUTED_OPERATIONS = Object.freeze(['Smooth', 'DeadZone', 'Hysteresis', 'Delay', 'Derivative', 'PeakHold', 'RisingEdge', 'FallingEdge', 'Pulse', 'Cooldown', 'Duration', 'Envelope']);
+
+export function changeComputedOperation(draft, operation) {
+  let inputs = [...(draft.inputs || [])];
+  if (operation === 'Sine') inputs = [];
+  else if (UNARY_COMPUTED_OPERATIONS.includes(operation)) inputs = inputs.length ? inputs.slice(0, 1) : [makeComputedInput()];
+  else if (['Difference', 'Ratio'].includes(operation)) inputs = [...inputs, makeComputedInput(), makeComputedInput()].slice(0, 2);
+  else if (!inputs.length) inputs = [makeComputedInput()];
+  return { operation, inputs };
+}
+
+export function computedOperationFields(operation) {
+  const fields = [];
+  const timeLabels = { Smooth: t('平滑时间（ms）'), Delay: t('延迟时间（ms）'), PeakHold: t('峰值保持时间（ms）'), Pulse: t('脉冲宽度（ms）'),
+    Cooldown: t('冷却时间（ms）'), Duration: t('条件持续时间（ms）'), Envelope: t('渐入渐出时间（ms）') };
+  if (timeLabels[operation]) fields.push({ key: 'timeMs', label: timeLabels[operation], min: 0, max: 60000, step: 10 });
+  if (['DeadZone', 'Hysteresis', 'RisingEdge', 'FallingEdge', 'Pulse', 'Cooldown', 'Duration', 'Envelope'].includes(operation))
+    fields.push({ key: 'threshold', label: operation === 'DeadZone' ? t('死区半径') : operation === 'Hysteresis' ? t('开启阈值') : t('触发阈值'), step: 'any', ...(operation === 'DeadZone' ? { min: 0 } : {}) });
+  if (operation === 'Hysteresis') fields.push({ key: 'releaseThreshold', label: t('关闭阈值'), step: 'any' });
+  if (operation === 'Sine') fields.push({ key: 'frequencyHz', label: t('节奏频率（Hz）'), min: 0, max: 100, step: .1 },
+    { key: 'amplitude', label: t('振幅'), step: 'any' }, { key: 'offset', label: t('数值偏移'), step: 'any' });
+  return fields;
+}
+
+export function computedOperationHelp(operation) {
+  const help = {
+    Smooth: t('按时间逐渐跟随输入，减少读数快速跳动。'), DeadZone: t('绝对值处于死区内时输出 0，超出后保留输入值。'),
+    Hysteresis: t('达到开启阈值时输出 1，降到关闭阈值时输出 0。'), Delay: t('按设定时间延后输出，等待期间会显示输入尚未就绪。'),
+    Derivative: t('计算输入每秒增加或减少的数值，输入的单位也随之变为每秒。'), PeakHold: t('将峰值保持指定时间，更高值更新峰值并重新计时；期满后跟随当前值。'),
+    RisingEdge: t('输入向上越过阈值时输出一次 1，其余时间为 0。'), FallingEdge: t('输入向下越过阈值时输出一次 1，其余时间为 0。'),
+    Pulse: t('向上越过阈值后，输出 1 并保持指定脉冲时长。'), Cooldown: t('向上越过阈值时触发一次，冷却期间等待下一次有效触发。'),
+    Duration: t('输入连续达到阈值并保持指定时长后输出 1，条件结束时复位。'),
+    Sine: t('按频率生成节奏：偏移＋振幅×正弦。可添加一个输入调节振幅。'), Envelope: t('输入越过阈值后渐入到 1，回落后按相同时长渐出到 0。'),
+  };
+  return help[operation] || '';
 }
 
 function mappingPreview(id, runtime) {
