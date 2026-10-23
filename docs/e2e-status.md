@@ -14,6 +14,8 @@
 
 `999bac3fa56f51208cbb9f83fd227ec7c1e1886d` 的 [Pages 40001556686](https://github.com/SeaLoong/Sensa/actions/runs/40001556686) 完成 **8 项：6 通过、2 失败**，其余计数均为 0；`suite=site`、`mode=comparison`、`runner=failed`、命令失败，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。两项均为英文首页的点击目标尺寸检查：按钮的基础 display 声明缺失，导致其仍为 16 px 高的行内链接。后续修复补齐首页 Grid／Flex、按钮布局与实际尺寸／命中断言，继续保留原可访问性检查。
 
+`6a42ffb63ddf131f62b0bdedac6f1eb5c0008535` 的 [Pages 40002557127](https://github.com/SeaLoong/Sensa/actions/runs/40002557127) 通过新增布局与点击检查，随后因录制区编号文字对比度 **4.38:1** 低于 4.5:1，再次得到 **6 通过、2 失败**；模式、比较标记及其他零计数同上，部署跳过。编号文字已加深，等待新提交的普通站点检查。
+
 ## Shader 输入、文档入口与预览说明
 
 2026-10-24（北京时间），本轮增加 Shader 三点采样、32 字节／CRC32 黑白编码、白色位移留白、三副本缺失恢复，以及轴向和 AvatarScale 定位测量，并修复 Unity 根缩放检查。首页与指南补齐信号流程、多输出、funscript 录制回放入口；工作流与徽章使用短英文名称，预发布说明仅保留 Source。

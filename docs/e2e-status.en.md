@@ -14,6 +14,8 @@ Isolated checks passed **721 .NET, 181 Web and 263 Python** tests, plus **88 doc
 
 [Pages 40001556686](https://github.com/SeaLoong/Sensa/actions/runs/40001556686), pinned to `999bac3fa56f51208cbb9f83fd227ec7c1e1886d`, completed **8 cases: 6 passed and 2 failed**, all other outcomes zero; `suite=site`, `mode=comparison`, `runner=failed`, command failed, `selectionComplete=false`, `snapshotsCompared=true`. Deployment was skipped. Both failures concerned English homepage target sizes: missing base display declarations left buttons as 16-pixel-high inline links. The follow-up restores homepage Grid/Flex and button layout, adds actual size/hit-area assertions and retains accessibility checks.
 
+[Pages 40002557127](https://github.com/SeaLoong/Sensa/actions/runs/40002557127), pinned to `6a42ffb63ddf131f62b0bdedac6f1eb5c0008535`, passed the new layout and hit-area checks, then reported recording-section step numbers at **4.38:1** contrast against a 4.5:1 requirement. It again completed **6 passed and 2 failed**, with the same mode/comparison flags and other counters zero; deployment was skipped. The step-number text is now darker, awaiting the new source's normal site checks.
+
 ## Shader inputs, documentation entry points and preview notes
 
 On **2026-10-24 (Beijing time)**, this change adds three-point Shader sampling, 32-byte/CRC32 monochrome encoding, white movement margins, three-copy erasure recovery, and axis/AvatarScale tracking metrics, alongside Unity root-scale checks. The homepage and guides expose signal flows, multiple outputs and funscript recording/replay. Workflows and badges use short English names; preview notes retain only Source.
