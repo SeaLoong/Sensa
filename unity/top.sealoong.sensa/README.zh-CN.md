@@ -4,7 +4,7 @@
 
 Sensa 的 Unity 组件保存定位与参数设置，在 Avatar 构建时生成原生 Contact、约束、FX 动画、参数和菜单。已有 OGB/SPS 的 Avatar 也可直接在桌面应用配置映射。
 
-[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)解释几何和参数前缀；可独立浏览几何与读数，并离线打开。仓库和桌面发行包的 `docs/parameter-geometry.html` 保留离线页面。
+[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)解释几何和参数前缀；可独立浏览几何与读数，并离线打开。仓库和桌面发行包的 `docs/parameter-geometry.html` 保留离线页面。
 
 ## 安装与语言
 

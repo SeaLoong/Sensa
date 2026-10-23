@@ -26,7 +26,7 @@
 | 使用支持高级 Proximity 的 SDK，想读取位置与速度 | Contact 直接定位（SDK Beta） | 米制位置与相对速度 |
 | PC 画面能显示编码图块，想读取位置、轴向和缩放 | Shader 捕获 | 根点位置、X/Z 轴向和 AvatarScale |
 
-[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可先帮你理解参数和有效区域。空间测量配置完成后，先观察、校准，再允许实验空间输入并启用输入；实际客户端与图形效果按所用版本检查。
+[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可先帮你理解参数和有效区域。空间测量配置完成后，先观察、校准，再允许实验空间输入并启用输入；实际客户端与图形效果按所用版本检查。
 
 ## 已有 OGB / SPS
 

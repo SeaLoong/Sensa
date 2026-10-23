@@ -4,7 +4,7 @@
 
 **Shader root capture** draws the selected Unity root's position, two axes and Avatar scale as a black-and-white block. A desktop bridge reads the block into OSC parameters. Use position for spatial mappings, axes for orientation-related calculations and scale to convert root-local displacement to metres. This is a PC experiment; verify capture and calibration before enabling input.
 
-[Package installation and language](README.md) · [Interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) · [Encoding and primary sources](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md)
+[Package installation and language](README.md) · [Interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) · [Encoding and primary sources](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md)
 
 ## Configure the Avatar
 
@@ -63,7 +63,7 @@ The white border separates the tile from its surroundings and leaves room for sm
 
 Reed–Solomon correction interleaves measurement data and parity across the symbol. When some modules are obscured, gray or misread, the bridge attempts to reconstruct the original bytes, then checks CRC32. Recovery depends on the distribution of damaged bytes and readable finder patterns. [Data layout and recovery bounds](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md)
 
-`Frame` checks image progression. The default bridge invalidates after **350 ms** without progress. Startup and recovery need **two new advancing frames**. Payload changes under the same frame, reorder and identity changes also invalidate. The desktop additionally checks twelve consecutive fields and Frame change age up to 500 ms. Finder patterns support right-angle rotation and vertical flipping. Re-select the complete tile after resizing; measure end-to-end response time in the capture setup.
+`Frame` checks image progression. The default bridge invalidates after **350 ms** without progress. Startup and recovery need **two new advancing frames**. Payload changes under the same frame, reorder and identity changes also invalidate. The desktop additionally checks twelve consecutive fields and Frame change age up to 500 ms. Finder patterns support in-plane rotation, mirroring and scaling. Re-select the complete tile after resizing; measure end-to-end response time in the capture setup.
 
 Internal diagnostic PNGs retain a separate 16×8 layout and `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` for codec and transport checks.
 
@@ -89,7 +89,7 @@ Outputs include sampled arc length, material/arc fraction after entry, plane off
 
 ## Verification scope
 
-In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual QR modules, masking, error-correction codewords, CRC32, axes and scale. These tests are marked `Explicit` and require an explicit selection with a graphics environment. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
+In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual QR modules, masking, error-correction codewords, CRC32, axes and scale. These tests are marked `Explicit` and require an explicit selection with a graphics environment. See the [verification record](../../docs/e2e-status.en.md) for actual EditMode and graphics-test results.
 
 
 Codec/registration/freshness contracts cover twelve-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Record each result against its checked revision. GPU pixels, local desktop capture, PlayMode, Avatar upload, VR clients and hardware are validated in their corresponding runtime environments.

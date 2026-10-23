@@ -4,6 +4,16 @@
 
 此页保留实际核对过的运行；最新进度见对应提交的 [Actions](https://github.com/SeaLoong/Sensa/actions)。流程见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
+## 实际运行图片、语言与 Unity 环境
+
+2026-10-24（北京时间），源码 `013c5d8c922c9fc6d0ba6f07117babafb043ac41` 通过[候选 40015184919，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40015184919/attempts/1)：**104/104**，其他结果计数均为0；`suite=all`、`mode=candidate`、`runner=passed`、`selectionComplete=true`、`snapshotsCompared=false`。156张应用图片和8张站点审阅原图已导出至 [PR #24](https://github.com/SeaLoong/Sensa/pull/24)，原始提交 `53726f4b3dbc9b8eda3a200b6ce7f3bc137f99a7`。全部原图已审阅；只有SHA-256相同的图片复用此前逐张观察。该候选早于下述语言和图解改动，更新后仍需完整普通比较。
+
+同一源码的 [Pages 40014294225](https://github.com/SeaLoong/Sensa/actions/runs/40014294225) **8/8通过并部署**，其余结果均为0；`suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`。普通 [CI 40014294417](https://github.com/SeaLoong/Sensa/actions/runs/40014294417) 因旧布局图片差异停在 **3通过、3失败、98未执行**，构建与发布跳过。
+
+当前更新发布28张已审阅原图及来源／摘要清单，首页可切换场景和视口；语言按浏览器与 `sessionStorage` 选择，链接移除语言查询；SPS1默认触碰区按VRCFury视点高度规则计算。帮助页采用带内容指纹的CSS／JS，并在资源过期时单次回退。此前8张站点原图布局正常，尚未复现样式缺失；新增Actions断言检查实际文档样式、深层路径、图片加载及过期资源恢复。更新后的浏览器套件共 **106项**，其中站点 **10项**，运行后继续补充结果。
+
+Unity Editor **2022.3.22f1** 的版本命令已实际成功；Windows Mono模块与独立Avatar／World工程已安装。Avatar使用SDK **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World使用SDK **3.10.5**。已核对包摘要、175个Avatar／51个World Sensa文件，以及重复离线安装。实际Avatar批处理导入已连接许可服务，随后以“No valid Unity Editor license found”退出。因此工程编译、Shader导入、EditMode与GPU／客户端效果仍待执行。
+
 ## 标准 QR 编码与页面重构
 
 2026-10-24（北京时间），原生 Shader 图块改用 QR Code Model 2 Version 4/H：三个角标、定位线、校准图案和八种掩码择优，四组 RS(25,9) 纠错替换测量副本。保留原 32 字节测量与 CRC32；33×33 主体外每侧有 4 格标准静区和 4 格位移缓冲，总计 49×49。读屏在选定区域寻找角标、采样并纠错，再核对测量与帧时效。每组满足 `2e+s≤16` 时可恢复错误／擦除字节，定位图案仍需可辨认；重复帧保持原时效截止点。

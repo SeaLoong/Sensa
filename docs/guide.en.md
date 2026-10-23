@@ -137,7 +137,7 @@ Same-origin tabs share their realtime connection when supported, with independen
 
 ## Explore approach, contact and position
 
-Open the [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or `docs/parameter-geometry.html` in a release. Eleven scenes offer 3D, XZ and isometric SVG. Drag the target on the selected plane, drag the background to rotate, or use sliders for precise changes.
+Open the [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) or `docs/parameter-geometry.html` in a release. Eleven scenes offer 3D, XZ and isometric SVG. Drag the target on the selected plane, drag the background to rotate, or use sliders for precise changes.
 
 Choose **SPS2 · PenOthersNewRoot / PenOthersNewTip** or **SPS1 · PenOthers / PenOthersClose** for depth-related readings; Touch, Frot and zone scenes show touch intensity. Parameters use dictionary ordering, with shorter shared prefixes first.
 

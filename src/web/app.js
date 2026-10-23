@@ -3017,7 +3017,8 @@ function App() {
       >
         <p className="mono wrap">{parameterDetail?.path}</p>
         {parameterDetail && <OscParameterReference path={parameterDetail.path} />}
-        <p><a href={docUrl('docs/parameter-geometry.html')} target="_blank" rel="noreferrer">{t('交互参数图解')}</a></p>
+        {/* The same-origin guide inherits this tab's session language when opened. */}
+        <p><a href={docUrl('docs/parameter-geometry.html')} target="_blank" rel="opener">{t('交互参数图解')}</a></p>
         <p className="muted">
           {visibleParameterDetail?.entry.sourceLabel || t('未知来源')} · <span data-testid="parameter-detail-value">{visibleParameterDetail?.entry.value ?? '—'}</span>
         </p>

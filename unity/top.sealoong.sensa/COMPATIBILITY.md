@@ -41,4 +41,4 @@ Point／Handle／Pose 仍用独立协议和最旧参与通道时效。旧 Sensa 
 
 EditMode 契约覆盖生成几何、可写 FX、参数、菜单、缩放门控和预算。本次新增的作者生命周期和定位契约尚未在 Unity Editor 中执行；SDK 安装包／程序集核验与隔离测试按各自记录的范围提供依据，实际 Unity／VRChat 客户端 OSC、渲染和硬件验收另行安排。
 
-[安装](README.zh-CN.md) · [自动配置](AUTOMATION.md) · [Shader 验收](GPU-TRACKING.md) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+[安装](README.zh-CN.md) · [自动配置](AUTOMATION.md) · [Shader 验收](GPU-TRACKING.md) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)

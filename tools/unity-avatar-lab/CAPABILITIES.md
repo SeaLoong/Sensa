@@ -32,4 +32,4 @@ PB 把手允许抓取，禁止碰撞和摆姿；可见球体不等于碰撞或�
 
 检查实验头像时，应核对生成组件、可写参数、预算、Shader 和默认关闭状态。发布 CI 运行单元检查和浏览器 E2E；头像的 Unity 构建、EditMode 和客户端行为仍须另外检查。SDK 打包完成也不表示上传、VR 抓取、真实图像捕获或硬件行为已经验收。
 
-[世界能力](../unity-world-lab/CAPABILITIES.md) · [几何图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+[世界能力](../unity-world-lab/CAPABILITIES.md) · [几何图解](https://sealoong.github.io/Sensa/parameter-geometry.html)

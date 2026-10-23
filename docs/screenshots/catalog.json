@@ -1,0 +1,225 @@
+{
+  "schema": 1,
+  "sourceCommit": "013c5d8c922c9fc6d0ba6f07117babafb043ac41",
+  "runId": "40015184919",
+  "attempt": "1",
+  "scenes": [
+    {
+      "id": "manual",
+      "en": "Manual control",
+      "zh": "手动控制",
+      "images": {
+        "desktop": {
+          "en": {
+            "file": "desktop/control-page.png",
+            "sha256": "5b3b8e5dfe362e80618bcf9d5fa97c572912a48a1a565e01ed1a88539d9c83ed",
+            "language": "zh-CN"
+          },
+          "zh-CN": {
+            "file": "desktop/control-page.png",
+            "sha256": "5b3b8e5dfe362e80618bcf9d5fa97c572912a48a1a565e01ed1a88539d9c83ed",
+            "language": "zh-CN"
+          }
+        },
+        "mobile": {
+          "en": {
+            "file": "mobile/control-page.png",
+            "sha256": "ff5462c545c224db55299514212fdae22aa738aa6d83189d4d03336721f4bbcd",
+            "language": "zh-CN"
+          },
+          "zh-CN": {
+            "file": "mobile/control-page.png",
+            "sha256": "ff5462c545c224db55299514212fdae22aa738aa6d83189d4d03336721f4bbcd",
+            "language": "zh-CN"
+          }
+        }
+      }
+    },
+    {
+      "id": "osc",
+      "en": "OSC parameters",
+      "zh": "OSC 参数",
+      "images": {
+        "desktop": {
+          "en": {
+            "file": "desktop/osc-parameters.png",
+            "sha256": "0cba3b23b237a2be34789502ea17d732fa1a0309cacb9537c07d397dccd392f6",
+            "language": "zh-CN"
+          },
+          "zh-CN": {
+            "file": "desktop/osc-parameters.png",
+            "sha256": "0cba3b23b237a2be34789502ea17d732fa1a0309cacb9537c07d397dccd392f6",
+            "language": "zh-CN"
+          }
+        },
+        "mobile": {
+          "en": {
+            "file": "mobile/osc-parameters.png",
+            "sha256": "19d9150b030d2b35ce499fb94d2dd8275c202457482661683b06ae221f251d04",
+            "language": "zh-CN"
+          },
+          "zh-CN": {
+            "file": "mobile/osc-parameters.png",
+            "sha256": "19d9150b030d2b35ce499fb94d2dd8275c202457482661683b06ae221f251d04",
+            "language": "zh-CN"
+          }
+        }
+      }
+    },
+    {
+      "id": "script",
+      "en": "Funscript playback",
+      "zh": "脚本播放",
+      "images": {
+        "desktop": {
+          "en": {
+            "file": "desktop/english-script-loaded.png",
+            "sha256": "46963c92e646e1f03920fbf89bc6114b4f99a934e920dd9c5c830bf19b46a296",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "desktop/script-paused-keyframe.png",
+            "sha256": "be4bcf4f0fecc4e8f1b9354aad8687b3f18eccc94389b3dc03b78f926ae19c91",
+            "language": "zh-CN"
+          }
+        },
+        "mobile": {
+          "en": {
+            "file": "mobile/english-script-loaded.png",
+            "sha256": "86622111d9d653c2b02710227caca48212df28e23099bd75686fbd5d19168b30",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "mobile/script-paused-keyframe.png",
+            "sha256": "c72327e59741131b517871733ecb30595faf9e8ffba0492690e96f8266a4854c",
+            "language": "zh-CN"
+          }
+        }
+      }
+    },
+    {
+      "id": "computed",
+      "en": "Weighted calculation",
+      "zh": "加权计算",
+      "images": {
+        "desktop": {
+          "en": {
+            "file": "desktop/computed-signal-editor-en-US.png",
+            "sha256": "9cc2df0e9f26e00ba424685cfc4402cf5db8dc76d70e1acbc25b7ae705ae25ac",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "desktop/computed-signal-editor-zh-CN.png",
+            "sha256": "66833c787b274b296c78cdee7faf55fe6c9e897fda8ba60f7af973598b635624",
+            "language": "zh-CN"
+          }
+        },
+        "mobile": {
+          "en": {
+            "file": "mobile/computed-signal-settings-en-US.png",
+            "sha256": "5909151ae4d738cec384c1f6cf98efc84e37750c7fe6c13b891a438506534d21",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "mobile/computed-signal-settings-zh-CN.png",
+            "sha256": "d24fa58748d7f8c87899fb901490aa8261d6b2cb207af70b3813c8ebd2c52dd9",
+            "language": "zh-CN"
+          }
+        }
+      }
+    },
+    {
+      "id": "combined",
+      "en": "Combined inputs",
+      "zh": "组合输入",
+      "images": {
+        "desktop": {
+          "en": {
+            "file": "desktop/combined-input-en-US.png",
+            "sha256": "5eb744de82e7e0a06f5c5a1b2d95e930a08b5bea44594c39bf0439df4a9a3547",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "desktop/combined-input-zh-CN.png",
+            "sha256": "9472ca144560289d7d535cd155d1e5a5e2081a9bacbc123497c552c515cc1db3",
+            "language": "zh-CN"
+          }
+        },
+        "mobile": {
+          "en": {
+            "file": "mobile/combined-input-en-US.png",
+            "sha256": "e577754ff8b171ef995dd321e61a89f2d2e1612a7d4f6339db3e68a8c01a62d5",
+            "language": "en-US"
+          },
+          "zh-CN": {
+            "file": "mobile/combined-input-zh-CN.png",
+            "sha256": "e57d7888184d7d1cb412151bff5b570b65c1fdf51ed80003cacc120821dd7029",
+            "language": "zh-CN"
+          }
+        }
+      }
+    }
+  ],
+  "additionalImages": [
+    {
+      "file": "desktop/recording-controls.png",
+      "sha256": "c355d6e5d420b18fab2fb81937fb981454eb87fa15622d9dbd9de5c2b60ddd71",
+      "language": "zh-CN"
+    },
+    {
+      "file": "desktop/fixed-root-position.png",
+      "sha256": "796cfa88e1abf33793876f337735e9108f7d610e554722713695bcbf87bab073",
+      "language": "zh-CN"
+    },
+    {
+      "file": "desktop/contact-root-position.png",
+      "sha256": "f6650215412cb89596cd82a458d7cabed18365bbda81deb304ee2dd738c7a52e",
+      "language": "zh-CN"
+    },
+    {
+      "file": "desktop/shader-root-position.png",
+      "sha256": "e31ec2efb22bf9610f76932ce453f8ff2649d2c1188032fd9d0d38f21fb8c9b3",
+      "language": "zh-CN"
+    },
+    {
+      "file": "desktop/computed-signal-input-en-US.png",
+      "sha256": "98640022041a53c7169bd51a9b1251275c9c6bd2ea272c287400fa2e3c4d074b",
+      "language": "en-US"
+    },
+    {
+      "file": "desktop/computed-signal-input-zh-CN.png",
+      "sha256": "1c0ed078bb3bd4e648004c7a6f8147c91f3a85ac90ef5e9791a4277e4bf202db",
+      "language": "zh-CN"
+    },
+    {
+      "file": "mobile/recording-controls.png",
+      "sha256": "24a6f7f08caa63439dec47e8975df4b3d63022f9d1f10a0728e09ade1b737af6",
+      "language": "zh-CN"
+    },
+    {
+      "file": "mobile/fixed-root-position.png",
+      "sha256": "8bac7ef5ebff018a084f23018e0de0eef7f9295e46999a06a4d738b675e4609d",
+      "language": "zh-CN"
+    },
+    {
+      "file": "mobile/contact-root-position.png",
+      "sha256": "90ddca543b277ac892b17c342a4b77ccf9797f86bcbc7f5b188507c826c4cf53",
+      "language": "zh-CN"
+    },
+    {
+      "file": "mobile/shader-root-position.png",
+      "sha256": "cfe4ad92b0c266c99d718919969a87ac14f8a16b3c295c2d68975efe15b69081",
+      "language": "zh-CN"
+    },
+    {
+      "file": "mobile/computed-signal-input-en-US.png",
+      "sha256": "51979e6710f28a9a310e4c240e552d384ed55f50eec66462d5c6a6924335de61",
+      "language": "en-US"
+    },
+    {
+      "file": "mobile/computed-signal-input-zh-CN.png",
+      "sha256": "b3bbed6307b0b7daf750b3c8333ac4e4c7fbe4b42512f8fe72c3e7e77b20c46b",
+      "language": "zh-CN"
+    }
+  ]
+}

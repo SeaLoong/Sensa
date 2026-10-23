@@ -10,6 +10,10 @@
 
 界面会自动选择语言，也可手动切换。[语言设置](languages.md)
 
+![Sensa 实际运行界面](screenshots/desktop/control-page.png)
+
+[窄屏界面](screenshots/mobile/control-page.png) · [更多运行画面](screenshots.md)
+
 ## 2. 配置输出
 
 打开“流程”，点击“添加输出”，选择“录制”并保留默认 **Funscript** 格式。

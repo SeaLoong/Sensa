@@ -4,7 +4,7 @@
 
 Sensa Unity components store tracking and parameter settings. Avatar builds generate native Contacts, constraints, FX animation, parameters and menus from those settings. Avatars with existing OGB/SPS parameters can also configure mappings directly in the desktop app.
 
-[Interactive parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) show the geometry and parameter prefixes. Browse geometry and values independently, including offline. An offline copy is available at `docs/parameter-geometry.html` in the repository and desktop distribution.
+[Interactive parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html) show the geometry and parameter prefixes. Browse geometry and values independently, including offline. An offline copy is available at `docs/parameter-geometry.html` in the repository and desktop distribution.
 
 ## Install and choose a language
 

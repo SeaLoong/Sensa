@@ -23,6 +23,10 @@ Output: device, OSC parameter, application or recording
 
 For example, combine two touch regions into “contact intensity,” then use it for vibration, a DG-LAB channel and Avatar glow. Each output interprets the result in its own range. [Computed signals](computed-signals.en.md) · [Workbench guide](guide.en.md)
 
+![Sensa running in a browser](screenshots/desktop/combined-input-en-US.png)
+
+[Narrow layout](screenshots/mobile/combined-input-en-US.png) · [More running examples](screenshots.en.md)
+
 ## Record a manual track first
 
 1. Open Flow, add a Recording output and keep its default Funscript format.
@@ -119,6 +123,12 @@ HTTP JSON and WebSocket JSON send messages with `address`, `value`, `type`, `sig
 MIDI uses the operating system's available output ports. Refresh the port list and choose a destination. Set the address as `CC/channel/controller`: channels are 1–16, controllers are 0–127, and sent values are 0–127. For example, `CC/1/1` sends controller 1 on channel 1. Windows and macOS use their system MIDI services; Linux requires ALSA with an available sequencer, including `/dev/snd/seq`.
 
 ## Record and inspect
+
+The Control page also provides a quick L0 recording panel (Chinese interface shown).
+
+![L0 recording controls](screenshots/desktop/recording-controls.png)
+
+[Narrow layout](screenshots/mobile/recording-controls.png)
 
 Choose the source to keep, then add a Recording output. Start with Funscript for a trajectory you can play and edit.
 

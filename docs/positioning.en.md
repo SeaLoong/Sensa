@@ -4,7 +4,7 @@
 
 Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to the Avatar. Select a supported SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
 
-Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) first.
+Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) first.
 
 | Route | What you obtain | What invalidates it |
 | --- | --- | --- |
@@ -13,6 +13,8 @@ Choose a route below, inspect coordinates, then calibrate them into device motio
 | Shader capture | Root coordinates read from a screen code, also AvatarRootLocal | Out-of-range coordinates, failed code alignment/checks or frozen images |
 | Independent Point/Handle/Pose | Experimental position/orientation in its own reference frame | Expired participating parameters or unmet pairing/grab/geometry conditions |
 | SPS2 · PenOthersNewRoot / PenOthersNewTip; SPS1 · PenOthers / PenOthersClose | Depth trends and presence, useful for depth-linked motion | Missing pairs, unmet length-learning conditions or a closed Close gate |
+
+[View the three tracking panels in use](screenshots.en.md#position-measurements).
 
 ## Contact direct tracking: position and velocity from one Receiver
 
@@ -28,7 +30,7 @@ Each instance publishes twelve fields under `Sensa/Contact/<id>/`. Native report
 
 Sensa places four fixed measurement anchors, P0–P3, under the Avatar root in a regular tetrahedron. A very small dedicated marker follows your selected SPS Socket/Plug root. Each receiver measures a distance to that marker; the desktop calculates its position from those four distances. Explicit bone/marker Transforms, Sensa and native Contact targets use the same SPS root protocol.
 
-The default receiver radius is **2 m**, with approximately **0.99 m** between anchors. These are Avatar-root local units, directly equal to world meters only when authored and runtime root scales are one. Unity and desktop share fixed geometry so every range is reconstructed using the same dimensions.
+The default receiver radius is **2 Avatar-root local units**, with approximately **0.99 local units** between anchors. With root world scale 1, one local unit equals one metre. Unity and desktop share fixed geometry so every range is reconstructed using the same dimensions.
 
 ### Receiver radius, anchor spacing and usable coverage
 
@@ -36,10 +38,10 @@ The **receiver radius** describes how far each sphere extends from its center. *
 
 | Current dimension | Value | Meaning |
 | --- | --- | --- |
-| Receiver radius R | 2 m | Distance from one anchor to its receiver boundary |
-| Anchor axis offset h | ±0.35 m | X/Y/Z offsets from the layout center |
-| Anchor-to-center distance √3h | About 0.606 m | How far one anchor is from the center |
-| Distance between any two anchors, 2√2h | About 0.990 m | Spacing between two receiver centers |
+| Receiver radius R | 2 local units | Distance from one anchor to its receiver boundary |
+| Anchor axis offset h | ±0.35 local units | X/Y/Z offsets from the layout center |
+| Anchor-to-center distance √3h | About 0.606 local units | How far one anchor is from the center |
+| Distance between any two anchors, 2√2h | About 0.990 local units | Spacing between two receiver centers |
 
 A position can be reconstructed when the target enters the common region of all four receivers. The box shows accepted coordinate bounds, while green shows measurable positions within them. Independent Point/Handle/Pose use the same radius of 2 and offsets of ±0.35 in the selected reference object’s local units, with that object defining the origin. These lengths equal world metres directly when its cumulative world scale is one. Opening offsets in calculations and mappings retain local units.
 

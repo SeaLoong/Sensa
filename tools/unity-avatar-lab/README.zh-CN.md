@@ -4,7 +4,7 @@
 
 本地、无设备的作者测试工具，用于独立检查 SPS、PB、Contact 和渲染链路。综合 fixture 使用 `Assets/SensaAvatarLab/Generated/FullFlow.unity`；隔离问题使用[能力场景](CAPABILITIES.md)。它不是最低开销的日常 Avatar，也不证明上传客户端已验证。
 
-[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可在不加载 Avatar 或设备的情况下解释几何；仓库和桌面 ZIP 保留离线 HTML。
+[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可在不加载 Avatar 或设备的情况下解释几何；仓库和桌面 ZIP 保留离线 HTML。
 
 ## 安装到自己的工程
 

@@ -6,7 +6,7 @@
 
 ## 用图解理解数值
 
-[公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)支持自动识别语言，也可直接打开[简体中文](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)或[English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)。应用参数详情会打开随包附带的页面；解压后保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
+[公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)按浏览器语言打开，手动切换后在当前标签页记住选择。分享时直接复制页面地址即可。应用参数详情可打开随包页面；保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
 
 先选择参数，再拖动橙色目标，观察靠近、进入、接触区域时读数怎样变化。十一个场景都有 3D、平面投影和精确滑条。蓝色表示接收范围，橙色表示目标信号的形状，灰色外形帮助理解 Socket／Plug 的相对位置；橙色操作柄放大显示，方便拖动。SPS 四点定位的四个颜色关联测量球、标签和参数行。
 

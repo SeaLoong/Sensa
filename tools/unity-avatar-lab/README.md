@@ -4,7 +4,7 @@
 
 A local, device-free authoring harness for independent SPS, PB, Contact and rendering checks. Use `Assets/SensaAvatarLab/Generated/FullFlow.unity` for the integrated fixture, or the [capability scenes](CAPABILITIES.en.md) to isolate a subsystem. These are test assets, not a minimal daily Avatar or proof of uploaded-client behavior.
 
-[Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) explain the geometry without an Avatar or device. The repository and desktop ZIP retain the offline HTML page.
+[Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html) explain the geometry without an Avatar or device. The repository and desktop ZIP retain the offline HTML page.
 
 ## Install into your own project
 

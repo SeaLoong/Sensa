@@ -6,25 +6,26 @@ Sensa 提供简体中文和 English。语言切换用于界面说明；OSC 路�
 
 ## 浏览器应用与参数图解
 
-按以下顺序使用第一个受支持的语言：
+首次打开时，页面按浏览器的语言顺序选择简体中文或 English。手动切换后，当前标签页通过 `sessionStorage["sensa.locale"]` 记住选择，刷新和同源页面导航继续沿用。
 
-1. URL 的明确 `?lang=`。
-2. 当前来源的 `localStorage["sensa.locale"]` 明确选择。
-3. 按顺序检查完整 `navigator.languages`，再检查 `navigator.language`。
-4. 没有匹配项时使用 English。
+语言选择顺序：
 
-大小写和下划线会规范化；`en_GB` 等英语地区值归为 `en-US`，`zh-TW`／`zh-Hant`／`zh-HK` 等中文归为 `zh-CN`，显示简体译文。遇到其他语言时继续尝试下一优先级。存储不可读／不可写时，明确选择仍在当前页面有效。
+1. 当前标签页已保存的语言。
+2. 浏览器的 `navigator.languages`，再检查 `navigator.language`。
+3. 都没有匹配项时使用 English。
 
-手动切换会保存规范语言；若 URL 已有 lang，同时更新该值，让刷新后的页面沿用新选择。切换时保留映射草稿、脚本、参数场景、坐标、选中项和设备状态。浏览器存储按来源隔离，应用、Pages 与 file 页面分别保存自己的偏好。
+`en_GB` 等英语地区值使用英语；`zh-TW`、`zh-Hant`、`zh-HK` 等中文地区值显示简体中文。浏览器限制存储时，手动切换仍在当前页面生效。
 
-[在线参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)独立于 Sensa，自动识别并支持 [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)／[中文](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)。发行包内的同一 HTML 可离线使用，浏览器可能限制 file 页的持久存储。
+页面链接保持简洁。已有链接中的 `lang` 查询项会在打开后移除，其他查询项和章节位置保留。语言切换保留映射草稿、脚本、图解场景、坐标和设备状态。独立打开的新标签页会按浏览器语言开始；应用、Pages 和本地文件按各自来源保存会话选择。
+
+[在线参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可直接分享；接收者会看到适合自己浏览器的语言。发行包中的 `docs/parameter-geometry.html` 也可离线打开，并在页面上切换语言。
 
 ## 文档入口
 
 - 根及工具的 `README.md` 是英文正文，`README.zh-CN.md` 是完整中文，`README.en.md` 仅作英文入口别名。
 - 普通指南继续使用 `*.md` 中文、`*.en.md` 英文；源码路径不因默认入口变化而批量改名。
 - [文档站](https://sealoong.github.io/Sensa/)将这些文件渲染为 `/en/` 与 `/zh-CN/` 路由。明确语言路径优先于自动识别，语言切换跳转对应文档。
-- 应用内图解链接仍指向本地随包 HTML 并携带当前语言。在线图解的文档链接进入本站；本机 file 页面保留相邻 Markdown 链接。
+- 应用内图解链接指向本地随包 HTML。在线图解的文档链接进入本站；本机 file 页面保留相邻 Markdown 链接。
 
 ## Unity 编辑器与 Avatar 菜单
 

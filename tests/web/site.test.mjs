@@ -4,7 +4,10 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import vm from 'node:vm';
+import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
+
+const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
 test('public guides build into bilingual routes with resolvable local links and offline diagram assets', async () => {
   const output = await fs.mkdtemp(path.join(os.tmpdir(), 'sensa-site-'));
@@ -13,14 +16,55 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.equal(manifest.commit, 'site-unit-fixture');
     assert.ok((await fs.stat(path.join(output, '.nojekyll'))).isFile());
     assert.equal(Object.hasOwn(manifest.assets, '.nojekyll'), false);
+    const assetNames = {};
+    for (const extension of ['css', 'js']) {
+      const bytes = await fs.readFile(new URL('../../.github/pages/site.' + extension, import.meta.url));
+      const digest = createHash('sha256').update(bytes).digest('hex');
+      const name = 'site.' + digest.slice(0, 16) + '.' + extension;
+      assetNames[extension] = name;
+      assert.equal(manifest.assets[name], digest);
+      assert.deepEqual(await fs.readFile(path.join(output, name)), bytes);
+      assert.deepEqual(await fs.readFile(path.join(output, 'site.' + extension)), bytes, 'Cached legacy HTML keeps a compatible asset');
+    }
     for (const route of ['en/README.html', 'zh-CN/README.html', 'en/docs/osc-parameters.html', 'zh-CN/docs/osc-parameters.html',
       'en/unity/top.sealoong.sensa/README.html', 'zh-CN/unity/top.sealoong.sensa/README.html']) assert.ok(manifest.routes.includes(route), route);
     for (const route of ['index.html', ...manifest.routes]) {
       const html = await fs.readFile(path.join(output, route), 'utf8');
       assert.match(html, /<main/);
-      assert.doesNotMatch(html, /(?:file:\/\/|[A-Z]:[\\/](?:Users|Code)|__VPM_[A-Z_]+__)/);
+      assert.doesNotMatch(html, /(?:file:\/\/|[A-Z]:[\\/](?:Users|Code)|__(?:VPM|SITE)_[A-Z_]+__)/);
+      const stylesheet = html.match(/<link rel="stylesheet" href="([^"]+)" onerror="([^"]+)">/);
+      const script = html.match(/<script defer src="([^"]+)" onerror="([^"]+)">/);
+      assert.ok(stylesheet, 'Versioned stylesheet: ' + route);
+      assert.ok(script, 'Versioned script: ' + route);
+      for (const [extension, tag] of [['css', stylesheet], ['js', script]]) {
+        const asset = new URL(tag[1], 'https://example.test/Sensa/' + route);
+        assert.equal(asset.pathname, '/Sensa/' + assetNames[extension]);
+        assert.equal(asset.search, '');
+        const fallback = path.posix.relative(path.posix.dirname(route), 'site.' + extension);
+        assert.ok(decodeAttribute(tag[2]).includes(JSON.stringify(fallback)), 'Fallback preserves document depth: ' + route);
+      }
+      if (route === 'index.html' || route === 'en/unity/top.sealoong.sensa/README.html') {
+        const cssElement = { onerror: () => {}, href: stylesheet[1] };
+        vm.runInNewContext('(function(){' + decodeAttribute(stylesheet[2]) + '}).call(element)', { element: cssElement });
+        assert.equal(cssElement.onerror, null);
+        assert.equal(new URL(cssElement.href, 'https://example.test/Sensa/' + route).pathname, '/Sensa/site.css');
+        for (const readyState of ['loading', 'complete']) {
+          const element = { onerror: () => {} }, loaded = [], events = new Map();
+          const document = { readyState, createElement: name => { assert.equal(name, 'script'); return {}; },
+            head: { append: item => loaded.push(item) },
+            addEventListener: (name, handler, options) => { assert.equal(options.once, true); events.set(name, handler); } };
+          vm.runInNewContext('(function(){' + decodeAttribute(script[2]) + '}).call(element)', { element, document });
+          assert.equal(element.onerror, null);
+          if (readyState === 'loading') { assert.equal(loaded.length, 0); events.get('DOMContentLoaded')(); }
+          assert.equal(loaded.length, 1);
+          assert.equal(new URL(loaded[0].src, 'https://example.test/Sensa/' + route).pathname, '/Sensa/site.js');
+          assert.equal(loaded[0].onerror, undefined, 'The fallback has no retry loop');
+        }
+      }
       for (const match of html.matchAll(/(?:href|src)="([^"]+)"/g)) {
         const url = new URL(match[1].replaceAll('&amp;', '&'), 'https://example.test/Sensa/' + route);
+        if (url.origin === 'https://example.test' || url.origin === 'https://sealoong.github.io')
+          assert.equal(url.searchParams.has('lang'), false, 'Language-free navigation: ' + route);
         if (url.origin !== 'https://example.test') continue;
         const target = decodeURIComponent(url.pathname.replace(/^\/Sensa\//, ''));
         const info = await fs.stat(path.join(output, target));
@@ -81,6 +125,7 @@ test('public guides build into bilingual routes with resolvable local links and 
     for (const section of ['start', 'possibilities-heading', 'outputs-heading', 'recording-heading', 'unity-heading', 'documentation'])
       assert.ok(homepage.includes('id="' + section + '"'), 'Homepage task section: ' + section);
     assert.match(homepage, /data-fragment-en="record-and-inspect" data-fragment-zh="录制与观察"/);
+    assert.match(homepage, /Keep the movement\.\s+<br>Use it again\./, 'Narrow screens retain the space when the line break is hidden');
     assert.match(homepage, /<noscript>[\s\S]*href="en\/README.html"[\s\S]*href="zh-CN\/README.html"[\s\S]*<\/noscript>/);
     for (const label of ['CI', 'E2E', 'Pages', 'Release']) assert.ok(homepage.includes('alt="' + label + '"'));
   } finally { await fs.rm(output, { recursive: true, force: true }); }
@@ -99,7 +144,7 @@ test('homepage switches task anchors and accessible labels with unavailable pref
       '[data-label-en]': [label], '[data-diagram]': [] })[selector] || [] };
   vm.runInNewContext(source, { document, URL, location: new URL('https://example.test/Sensa/'),
     navigator: { languages: ['fr-FR'], language: 'fr-FR' },
-    localStorage: { getItem() { throw new Error('Unavailable'); }, setItem() { throw new Error('Unavailable'); } },
+    sessionStorage: { getItem() { throw new Error('Unavailable'); }, setItem() { throw new Error('Unavailable'); } },
   });
   assert.equal(document.documentElement.lang, 'en-US');
   assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
@@ -113,6 +158,36 @@ test('homepage switches task anchors and accessible labels with unavailable pref
   callbacks.get('click')(); assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
 });
 
+test('homepage uses the tab or browser language and removes legacy language query parameters', async () => {
+  const source = await fs.readFile(new URL('../../.github/pages/site.js', import.meta.url), 'utf8');
+  for (const sample of [
+    { saved: 'zh-CN', browser: ['en-US'], expected: 'zh-CN' },
+    { saved: 'en-US', browser: ['zh-CN'], expected: 'en-US' },
+    { saved: 'de-DE', browser: ['fr-FR', 'zh-TW'], expected: 'zh-CN' },
+    { browser: ['fr-FR', 'en-GB'], expected: 'en-US' },
+    { browser: ['fr-FR'], expected: 'en-US' },
+  ]) {
+    const values = new Map(sample.saved ? [['sensa.locale', sample.saved]] : []), events = new Map(), diagram = {};
+    const location = new URL('https://example.test/Sensa/?lang=zh-CN&keep=1#start');
+    const elements = { language: { addEventListener: (name, action) => events.set(name, action) },
+      vcc: {}, 'copy-vpm': { addEventListener() {} }, 'vpm-status': {} };
+    const document = { documentElement: {}, body: { hasAttribute: () => true, dataset: {} },
+      getElementById: name => elements[name], querySelectorAll: selector => selector === '[data-diagram]' ? [diagram] : [] };
+    let persistentReads = 0;
+    vm.runInNewContext(source, { URL, document, location, navigator: { languages: sample.browser, language: sample.browser[0] },
+      sessionStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
+      localStorage: { getItem: () => { persistentReads++; return 'zh-CN'; } },
+      history: { replaceState: (_, __, target) => { location.href = target.href; } } });
+    assert.equal(document.documentElement.lang, sample.expected);
+    assert.equal(persistentReads, 0);
+    assert.equal(location.search, '?keep=1'); assert.equal(location.hash, '#start');
+    assert.equal(diagram.href, 'parameter-geometry.html');
+    events.get('click')();
+    assert.equal(values.get('sensa.locale'), sample.expected === 'en-US' ? 'zh-CN' : 'en-US');
+    assert.equal(location.search, '?keep=1'); assert.equal(location.hash, '#start');
+  }
+});
+
 test('language section maps require a matching outline instead of guessing from mismatched headings', () => {
   const original = [{ tag: 'h1', id: 'guide' }, { tag: 'h2', id: 'first' }, { tag: 'h3', id: 'detail' }];
   const translated = [{ tag: 'h1', id: '使用指南' }, { tag: 'h2', id: '开始' }, { tag: 'h3', id: '细节' }];
@@ -124,7 +199,7 @@ test('language section maps require a matching outline instead of guessing from 
 test('document enhancement preserves heading links and makes only overflowing examples keyboard stops', async () => {
   const source = await fs.readFile(new URL('../../.github/pages/site.js', import.meta.url), 'utf8');
   const location = new URL('https://example.test/Sensa/en/docs/guide.html#first');
-  const events = new Map(), clicks = new Map(), storage = new Map();
+  const events = new Map(), clicks = new Map(), storage = new Map([['sensa.locale', 'zh-CN']]);
   const link = { href: 'https://example.test/Sensa/zh-CN/docs/guide.html',
     dataset: { locale: 'zh-CN', headingMap: JSON.stringify({ first: '开始' }) },
     addEventListener: (name, action) => clicks.set(name, action) };
@@ -132,8 +207,8 @@ test('document enhancement preserves heading links and makes only overflowing ex
   const narrow = { scrollWidth: 299, clientWidth: 300, tabIndex: 0, firstElementChild: {} };
   const observed = [];
   vm.runInNewContext(source, { URL, location, navigator: { languages: ['en-US'], language: 'en-US' },
-    localStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
-    document: { body: { hasAttribute: () => false },
+    sessionStorage: { getItem: key => storage.get(key), setItem: (key, value) => storage.set(key, value) },
+    document: { documentElement: { lang: 'en-US' }, body: { hasAttribute: () => false },
       querySelectorAll: selector => selector === '[data-locale]' ? [link] : selector === '.doc-scroll' ? [wide, narrow] : [],
       fonts: { ready: Promise.resolve() } },
     window: { addEventListener: (name, action) => events.set(name, action) },
@@ -141,6 +216,7 @@ test('document enhancement preserves heading links and makes only overflowing ex
     ResizeObserver: class { observe(node) { observed.push(node); } },
   });
   await Promise.resolve();
+  assert.equal(storage.get('sensa.locale'), 'en-US', 'The explicit guide language carries into homepage and explorer navigation');
   assert.equal(new URL(link.href).hash, '#' + encodeURIComponent('开始'));
   assert.equal(wide.tabIndex, 0);
   assert.equal(narrow.tabIndex, -1);

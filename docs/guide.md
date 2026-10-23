@@ -137,7 +137,7 @@ Contact 位置使用米；SPS 四点定位和 Shader 位置使用 Avatar 根局�
 
 ## 用参数图解理解接近、接触与位置
 
-打开[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)，或发行包里的 `docs/parameter-geometry.html`。十一个场景提供 3D、XZ 和立体 SVG；拖目标改变选定平面的坐标，拖背景旋转视角，也可用滑条精确调节。
+打开[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html)，或发行包里的 `docs/parameter-geometry.html`。十一个场景提供 3D、XZ 和立体 SVG；拖目标改变选定平面的坐标，拖背景旋转视角，也可用滑条精确调节。
 
 选择 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 或 **SPS1 · PenOthers / PenOthersClose** 观察深浅相关读数；Touch、Frot 和区域场景展示触碰强度。参数按字典序排列，共同前缀的短名称在前。
 

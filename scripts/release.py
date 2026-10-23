@@ -146,7 +146,8 @@ def main():
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
         for relative in ('tools/unity-world-lab/CAPABILITIES.md', 'tools/unity-avatar-lab/README.md', 'tools/unity-avatar-lab/CAPABILITIES.md', 'tools/unity-avatar-lab/FULL-FLOW.md',
-                         'scripts/shader-osc-bridge.py', 'scripts/telemetry_qr.py', 'scripts/requirements-capture.txt', 'tools/unity-world-lab/sensa-preview.json'):
+                         'scripts/shader-osc-bridge.py', 'scripts/telemetry_qr.py', 'scripts/requirements-capture.txt', 'tools/unity-world-lab/sensa-preview.json',
+                         'docs/screenshots/catalog.json'):
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
@@ -181,7 +182,7 @@ def main():
     chinese = 'Unity VPM 资产包' if args.kind == 'unity' else args.runtime + ' 自包含程序'
     notes = f'''{label} {archive_version}
 
-See the [installation and usage guides](https://sealoong.github.io/Sensa/). The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) works without installing Sensa.
+See the [installation and usage guides](https://sealoong.github.io/Sensa/). The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) works without installing Sensa.
 
 SHA256: `{digest}`
 
@@ -189,7 +190,7 @@ SHA256: `{digest}`
 
 {chinese} {archive_version}
 
-请阅读[安装与使用文档](https://sealoong.github.io/Sensa/?lang=zh-CN)。[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)无需安装 Sensa。
+请阅读[安装与使用文档](https://sealoong.github.io/Sensa/)。[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)无需安装 Sensa。
 
 SHA256 校验值：`{digest}`
 '''

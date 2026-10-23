@@ -6,9 +6,25 @@ OGB parameters describe Avatar approach, entry and touch interactions, which Sen
 
 Find the actual source and complete path in the parameter list, then choose the [depth or vibration template](presets.en.md). **SPS2 · PenOthersNewRoot / PenOthersNewTip** pairs two readings to estimate a depth trend; **SPS1 · PenOthers / PenOthersClose** combines its depth signal with an effective nearby region. Keep pairs within one source, instance and Self/Others category, and enable the Avatar’s OGB_ENABLED heartbeat when needed.
 
-**External OGB paths retain upstream names.** Sensa SPS four-anchor tracking and Shader parameters have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) shows the detection spheres and capsules, with gray profiles to explain relative Socket/Plug placement.
+**External OGB paths retain upstream names.** Sensa SPS four-anchor tracking and Shader parameters have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) shows the detection spheres and capsules, with gray profiles to explain relative Socket/Plug placement.
 
 Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads `PenOthersNewRoot`/`PenOthersNewTip` and `PenOthers`. The explorer’s SPS1/SPS2 labels identify parameter geometry; use the paths actually published by the Avatar. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
+
+The explorer was checked against **VRCFury 1.1434.0**. Its `BakeHapticSocketsService.cs`, `VRCFuryHapticSocketBaker.cs` and `VRCFuryHapticPlugBaker.cs` match the pinned commit above.
+
+## Starting dimensions in the explorer
+
+Each parameter uses its upstream generation rule. Plug length, width and the automatic Socket touch region come from Avatar dimensions. The explorer provides an explicit example of those dimensions; adjust the sliders to match your Avatar.
+
+| Scene | VRCFury generation rule | Explorer starting value |
+| --- | --- | --- |
+| SPS2 · NewRoot / NewTip | Both receiver radii are 1 m; the Plug-root marker radius is 0.01 m | 1 m / 0.01 m |
+| SPS1 · PenOthers and Socket Touch | Receiver radius D follows region length; automatic length is 5% of Avatar view height, with Close radius D/2.5 | Example view height 1.60 m → D=0.08 m, Close=0.032 m |
+| Plug-side depth, touch and rubbing | Generated from actual Plug length L and radius W | Example L=0.20 m, W=0.03 m |
+| Socket-root marker | Radius 0.001 m | 0.001 m |
+| Independent Touch Zone | Default radius 0.10 local units, following object scale | 0.10 m at scale 1 |
+
+Sensa **SPS four-anchor tracking** and **Contact direct tracking** create their own Contacts: receiver radius 2 in authored local units and target marker radius 0.001, corresponding to 2 m and 1 mm at authored scale 1. They use `Sensa/SPS/…` and `Sensa/Contact/…`; see [position tracking](positioning.en.md) for their geometry. Native `OGB/…` parameters retain the VRCFury dimensions above.
 
 ## Radius and values first
 
@@ -51,7 +67,7 @@ VRCFury generates this set through OGB Haptics; SpsForAll automatic supplementat
 | TouchSelf | Proximity; own Hand/Finger/Foot | Center -D·Z, sphere R=D; needs touch zone | Touch intensity with TouchSelfClose |
 | TouchSelfClose | Constant; corresponding body tags | Center -D/2·Z, capsule R=D/2.5, H=D; needs touch zone | 1 when an own target enters the corresponding touch region |
 
-D uses authored length in metres, or length multiplied by object world Z scale in local units. Nonpositive length falls back to 5% of Avatar view height; no usable zone means no zone parameters. These are generation request values; scale conversion is described below. [Socket generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273), [D calculation](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318)
+D follows authored `length`. The component defaults to zero; an enabled touch zone then uses 5% of Avatar view height. A positive length is used directly in metre mode, or multiplied by object world Z scale in local-unit mode. A valid touch zone generates the corresponding parameters above; scale conversion is described below. [Component default](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticSocket.cs#L31-L34), [Socket generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273), [D calculation](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318)
 
 Official OGB still consumes legacy Orf/PenSelf, but this modern generator does not create it. Calibrate historical sources using their actual paths and authored geometry. The table lists the current generator’s supported Socket leaves.
 

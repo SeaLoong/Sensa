@@ -41,4 +41,4 @@ Editor locale selection is presentation-only and persists in user preferences, n
 
 EditMode contracts cover generated geometry, writable FX, parameters, menus, scale guards and budgets. The new authoring-lifecycle and tracking contracts have not been executed in Unity Editor for this change. SDK package/assembly inspection and isolated tests have their own recorded scope; actual Unity/VRChat-client OSC, rendering and hardware acceptance remain separate work.
 
-[Install](README.md) · [Automation](AUTOMATION.en.md) · [Shader acceptance](GPU-TRACKING.en.md) · [Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+[Install](README.md) · [Automation](AUTOMATION.en.md) · [Shader acceptance](GPU-TRACKING.en.md) · [Parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html)

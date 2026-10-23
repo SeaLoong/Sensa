@@ -6,7 +6,7 @@ First identify whether a parameter describes position, proximity or movement str
 
 ## Explore the values
 
-The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) selects language automatically and has direct [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) and [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) links. Application parameter details open the bundled page. Keep its adjacent assets to open extracted `docs/parameter-geometry.html` offline.
+The [public explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) follows the browser’s language and remembers a manual choice in the current tab. Share its address directly. Application parameter details open the bundled page; keep its adjacent assets to open `docs/parameter-geometry.html` offline.
 
 Choose parameters, then drag the orange target to see how approach, entry and contact regions change their readings. All eleven scenes have 3D, planar views and precise sliders. Blue shows receiver coverage, orange the target's signal shape, and gray profiles show the relative Socket/Plug arrangement. The orange handle is enlarged for dragging. SPS four-anchor tracking colors connect each measurement sphere to its label and parameter row.
 

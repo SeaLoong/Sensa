@@ -46,4 +46,4 @@ python -X utf8 scripts/install-world-lab.py "<World project>"
 
 发布 CI 包含单元、浏览器 E2E 与隔离原生冒烟；Unity／World PlayMode 和真实客户端需另外检查。静态、隔离单元和 EditMode 不证明 VR 抓取、上传 OSC、HMD 可见性、桌面捕获或硬件。fixture 是本地、无 Object Sync 对象，不会自动发送设备动作。输出实验保持关闭，测试时明确逐个启用。
 
-[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可独立在线使用，仓库和桌面 ZIP 保留离线页面。
+[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可独立在线使用，仓库和桌面 ZIP 保留离线页面。

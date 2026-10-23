@@ -2,41 +2,83 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
+import vm from 'node:vm';
 import { Linter } from 'eslint';
-import { localized, t, getLocale, setLocale, resolveLocale, normalizeLocale, detectLocale, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
+import { localized, t, getLocale, setLocale, resolveLocale, normalizeLocale, detectLocale, clearLocaleQuery, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
 import en from '../../src/web/i18n.en.json' with { type: 'json' };
 import presets from '../../src/web/data/osc-presets.json' with { type: 'json' };
 import { calibratedPointDraft } from '../../src/web/osc-preview.js';
 
-test('locale negotiation normalizes preferences and orders URL, choice, system and English fallback / 语言协商规范化并遵循URL、选择、系统及英语回退', () => {
+test('locale negotiation uses session choice, browser languages and English fallback / 语言协商使用会话选择、浏览器语言及英语回退', () => {
   for (const value of ['zh', 'ZH_cn', 'zh-TW', 'zh_Hant_HK', 'zh-Hans-CN']) assert.equal(normalizeLocale(value), 'zh-CN');
   for (const value of ['en', 'EN_us', 'en-GB', ' en_US_POSIX ']) assert.equal(normalizeLocale(value), 'en-US');
   for (const value of [null, undefined, '', 'fr-FR', 'zh!!!', 3, ['zh-CN']]) assert.equal(normalizeLocale(value), null);
-  for (const [saved, languages, requested, expected] of [
-    ['zh-CN', ['zh-TW'], 'EN_gb', 'en-US'],
-    ['en-US', ['en-US'], 'zh_Hant_TW', 'zh-CN'],
-    ['ZH_hk', ['en-US'], null, 'zh-CN'],
-    ['en_us', ['zh-TW'], '', 'en-US'],
-    ['zh-CN', ['en-US'], 'unsupported', 'zh-CN'],
-    ['bad', ['fr-FR', 'zh-HK', 'en-US'], null, 'zh-CN'],
-    [null, ['de-DE', 'en-GB', 'zh-CN'], null, 'en-US'],
-    [null, ['fr-FR', 'de-DE'], null, 'en-US'],
-    [null, [], null, 'en-US'],
-  ]) assert.equal(resolveLocale(saved, languages, requested), expected);
+  for (const [saved, languages, expected] of [
+    ['ZH_hk', ['en-US'], 'zh-CN'],
+    ['en_us', ['zh-TW'], 'en-US'],
+    ['bad', ['fr-FR', 'zh-HK', 'en-US'], 'zh-CN'],
+    [null, ['de-DE', 'en-GB', 'zh-CN'], 'en-US'],
+    [null, ['fr-FR', 'de-DE'], 'en-US'],
+    [null, [], 'en-US'],
+  ]) assert.equal(resolveLocale(saved, languages), expected);
 });
 
-test('browser detection handles language fallback and denied storage without changing preferences / 浏览器检测支持language回退及存储拒绝且不改偏好', () => {
+test('browser detection ignores URL and persistent choices while handling denied session storage / 浏览器检测忽略URL及持久化偏好并支持会话存储拒绝', () => {
   assert.equal(detectLocale(), 'en-US');
-  const browser = { location: { search: '?lang=ZH_hant_tw' }, localStorage: { getItem: () => 'en-US' }, navigator: { languages: ['en-US'], language: 'en-US' } };
-  assert.equal(detectLocale(browser), 'zh-CN');
-  browser.location.search = ''; browser.navigator = { languages: [], language: 'zh_TW' }; browser.localStorage.getItem = () => null;
+  const browser = { location: { search: '?lang=ZH_hant_tw' }, localStorage: { getItem: () => 'zh-CN' },
+    sessionStorage: { getItem: () => 'en-US' }, navigator: { languages: ['zh-CN'], language: 'zh-CN' } };
+  assert.equal(detectLocale(browser), 'en-US');
+  browser.navigator = { languages: [], language: 'zh_TW' }; browser.sessionStorage.getItem = () => null;
   assert.equal(detectLocale(browser), 'zh-CN');
   browser.navigator = { languages: ['fr-FR', 'EN_gb', 'zh-CN'], language: 'zh-CN' };
   assert.equal(detectLocale(browser), 'en-US');
-  Object.defineProperty(browser, 'localStorage', { get() { throw new Error('denied'); } });
+  Object.defineProperty(browser, 'sessionStorage', { get() { throw new Error('denied'); } });
   browser.navigator = { languages: ['fr-FR', 'zh-HK'], language: 'en-US' };
-  assert.equal(detectLocale(browser), 'zh-CN');
-  browser.location.search = '?lang=en_US'; assert.equal(detectLocale(browser), 'en-US');
+  browser.location.search = '?lang=en_US'; assert.equal(detectLocale(browser), 'zh-CN');
+  browser.navigator = { languages: [], language: 'fr-FR' }; assert.equal(detectLocale(browser), 'en-US');
+});
+
+test('removing language queries retains other entries, fragment and navigation state / 清理语言查询保留其他参数、片段及导航状态', () => {
+  const replacements = [], state = { position: 12 };
+  const browser = { location: { href: 'https://sensa.invalid/docs/parameter-geometry.html?lang=zh&scene=shader&tag=one&lang=en&tag=two#encoding' },
+    history: { state, replaceState: (...args) => replacements.push(args) } };
+  clearLocaleQuery(browser);
+  assert.equal(replacements.length, 1); assert.equal(replacements[0][0], state);
+  const url = new URL(replacements[0][2]);
+  assert.equal(url.searchParams.has('lang'), false); assert.equal(url.searchParams.get('scene'), 'shader');
+  assert.deepEqual(url.searchParams.getAll('tag'), ['one', 'two']); assert.equal(url.hash, '#encoding');
+  assert.equal(url.pathname, '/docs/parameter-geometry.html');
+  browser.location.href = 'https://sensa.invalid/?scene=shader#encoding'; clearLocaleQuery(browser);
+  assert.equal(replacements.length, 1);
+  browser.location.href = 'file:///guide.html?lang=zh'; browser.history.replaceState = () => { throw new Error('denied'); };
+  assert.doesNotThrow(() => clearLocaleQuery(browser)); assert.doesNotThrow(() => clearLocaleQuery());
+});
+
+// Execute only the offline guide's locale boundary; its geometry renderer needs a browser.
+const guideSource = readFileSync('docs/assets/parameter-geometry-view.js', 'utf8');
+const guideLocaleSource = guideSource.slice(guideSource.indexOf("  const LOCALE_STORAGE_KEY ="), guideSource.indexOf('  let locale = initialLocale();'));
+function guideLocale(browser) {
+  const context = vm.createContext({ window: browser, navigator: browser.navigator, location: browser.location, URL });
+  vm.runInContext(guideLocaleSource + '\nglobalThis.localeBoundary = { initialLocale, rememberLocale };', context, { timeout: 1000 });
+  return context.localeBoundary;
+}
+test('offline guide shares session choices with the app and clears old language links / 离线图解与应用共享会话选择并清理旧语言链接', () => {
+  const values = new Map([['sensa.locale', 'zh-CN']]), replacements = [];
+  const browser = { location: { href: 'https://sensa.invalid/docs/parameter-geometry.html?lang=en&scene=shader#encoding' },
+    navigator: { languages: ['en-US'], language: 'en-US' },
+    localStorage: { getItem: () => { throw new Error('persistent storage must not be read'); } },
+    sessionStorage: { getItem: key => values.get(key), setItem: (key, value) => values.set(key, value) },
+    history: { state: { preserved: true }, replaceState: (state, title, url) => { replacements.push([state, title, String(url)]); browser.location.href = String(url); } } };
+  const guide = guideLocale(browser);
+  assert.equal(guide.initialLocale(), 'zh-CN'); assert.equal(guide.initialLocale(), detectLocale(browser));
+  assert.equal(replacements.length, 1); assert.equal(new URL(browser.location.href).searchParams.has('lang'), false);
+  assert.equal(new URL(browser.location.href).searchParams.get('scene'), 'shader'); assert.equal(new URL(browser.location.href).hash, '#encoding');
+  guide.rememberLocale('en-US'); assert.equal(values.get('sensa.locale'), 'en-US'); assert.equal(detectLocale(browser), 'en-US');
+  browser.navigator = { languages: ['fr-FR', 'zh-HK'], language: 'en-US' }; values.clear();
+  assert.equal(guideLocale(browser).initialLocale(), 'zh-CN');
+  Object.defineProperty(browser, 'sessionStorage', { get() { throw new Error('denied'); } });
+  const denied = guideLocale(browser); assert.equal(denied.initialLocale(), 'zh-CN');
+  assert.doesNotThrow(() => denied.rememberLocale('en-US'));
 });
 
 test('computed diagnostics translate owned phrases while preserving captured identifiers and paths / 计算诊断翻译固定说明并保留标识符和路径原文', () => {
@@ -111,7 +153,7 @@ test('switching updates module catalogs and subscribers while user data and diag
     assert.match(docUrl('docs/guide.md'), /guide\.en\.md$/);
     assert.match(docUrl('unity/top.sealoong.sensa/README.md'), /\/README\.md$/);
     assert.match(docUrl('README.md'), /\/README\.md$/);
-    assert.equal(docUrl('docs/parameter-geometry.html'), '/docs/parameter-geometry.html?lang=en-US');
+    assert.equal(docUrl('docs/parameter-geometry.html'), '/docs/parameter-geometry.html');
     assert.equal(calibratedPointDraft(null, 'Z', null, null).error, 'Select a mappable point and axis');
     assert.equal(setLocale('invalid'), false); assert.equal(getLocale(), 'en-US');
     setLocale('en-US'); setLocale('zh-CN');
@@ -119,14 +161,14 @@ test('switching updates module catalogs and subscribers while user data and diag
     assert.match(docUrl('docs/guide.md'), /guide\.md$/);
     assert.match(docUrl('unity/top.sealoong.sensa/README.md'), /\/README\.zh-CN\.md$/);
     assert.match(docUrl('docs/README.md'), /\/README\.zh-CN\.md$/);
-    assert.equal(docUrl('docs/parameter-geometry.html'), '/docs/parameter-geometry.html?lang=zh-CN');
+    assert.equal(docUrl('docs/parameter-geometry.html'), '/docs/parameter-geometry.html');
   } finally { stop(); setLocale(original); }
 });
 
-test('an explicit switch persists its canonical value and updates an existing URL override / 显式切换保存规范值并更新已有URL覆盖', () => {
-  const original = getLocale(), descriptors = Object.fromEntries(['window', 'localStorage'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
+test('an explicit switch saves the session choice and removes an existing language query / 显式切换保存会话选择并移除已有语言查询', () => {
+  const original = getLocale(), descriptors = Object.fromEntries(['window', 'sessionStorage'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]));
   const writes = [], replacements = [], historyState = { existing: true };
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { setItem: (key, value) => writes.push([key, value]) } });
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: { setItem: (key, value) => writes.push([key, value]) } });
   Object.defineProperty(globalThis, 'window', { configurable: true, value: {
     location: { href: 'https://sensa.invalid/?lang=zh_TW&keep=1#section' },
     history: { state: historyState, replaceState: (state, title, url) => replacements.push([state, title, String(url)]) },
@@ -134,7 +176,7 @@ test('an explicit switch persists its canonical value and updates an existing UR
   try {
     assert.equal(setLocale('EN_gb'), true); assert.equal(getLocale(), 'en-US');
     assert.deepEqual(writes, [['sensa.locale', 'en-US']]); assert.equal(replacements.length, 1);
-    const url = new URL(replacements[0][2]); assert.equal(url.searchParams.get('lang'), 'en-US');
+    const url = new URL(replacements[0][2]); assert.equal(url.searchParams.has('lang'), false);
     assert.equal(url.searchParams.get('keep'), '1'); assert.equal(url.hash, '#section'); assert.equal(replacements[0][0], historyState);
     assert.equal(setLocale('unsupported'), false); assert.equal(writes.length, 1);
   } finally {
@@ -143,8 +185,8 @@ test('an explicit switch persists its canonical value and updates an existing UR
   }
 });
 test('denied browser storage does not break in-memory language switching / 浏览器存储拒绝不影响内存语言切换', () => {
-  const original = getLocale(), descriptor = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
-  Object.defineProperty(globalThis, 'localStorage', { configurable: true, get() { throw new Error('denied'); } });
+  const original = getLocale(), descriptor = Object.getOwnPropertyDescriptor(globalThis, 'sessionStorage');
+  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, get() { throw new Error('denied'); } });
   try { assert.equal(setLocale('en-US'), true); assert.equal(getLocale(), 'en-US'); }
-  finally { if (descriptor) Object.defineProperty(globalThis, 'localStorage', descriptor); else delete globalThis.localStorage; setLocale(original); }
+  finally { if (descriptor) Object.defineProperty(globalThis, 'sessionStorage', descriptor); else delete globalThis.sessionStorage; setLocale(original); }
 });

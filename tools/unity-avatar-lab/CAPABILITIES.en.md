@@ -32,4 +32,4 @@ Independent Point/Handle/Pose do not inherit the SPS four-anchor tracking cache 
 
 When checking an experimental avatar, inspect generated components, writable parameters, budgets, shaders and default-off state. Release CI runs unit checks and browser E2E; the avatar's Unity build, EditMode and client behavior need separate checks. A completed SDK package does not validate uploading, VR grabbing, real image capture or hardware behavior.
 
-[World capabilities](../unity-world-lab/CAPABILITIES.en.md) · [Geometry diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+[World capabilities](../unity-world-lab/CAPABILITIES.en.md) · [Geometry diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html)

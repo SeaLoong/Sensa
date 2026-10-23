@@ -76,7 +76,7 @@ Correction handles both wrong bytes and missing bytes whose locations are known.
 
 Inside the selected ROI, the desktop bridge finds the corner patterns and resamples the grid. Gray or uncertain modules mark their codewords as missing. It then performs block correction, QR format checks and whole-packet CRC32 verification. Only the current capture supplies data. Producer ID and advancing Frame checks continue to enforce pairing and freshness. If a partially mixed image corrects to the same complete packet, its duplicate Frame does not extend validity; expiry still uses the last progression time.
 
-The margin buffers **spatial movement**: translation up to four modules inside the nominal region still preserves the standard four-module quiet zone. Decoding supports right-angle rotation and vertical flipping. Re-select the full tile after resizing to preserve sufficient pixels per module. Larger perspective distortion, arbitrary rotation and end-to-end latency require measurement in the actual capture setup. Separate lab diagnostic images retain their 16×8/CRC-CCITT format.
+The margin buffers **spatial movement**: translation up to four modules inside the nominal region still preserves the standard four-module quiet zone. Decoding supports in-plane rotation, mirroring and scaling. Re-select the full tile after resizing to preserve sufficient pixels per module. Perspective distortion and end-to-end latency require measurement in the actual capture setup. Separate lab diagnostic images retain their 16×8/CRC-CCITT format.
 
 Geometry generates the QR modules once per measurement triangle; fragments read the final black/white values. Standard QR libraries cross-check the protocol. Automated checks and actual GPU/client acceptance are recorded separately in the [verification record](e2e-status.en.md).
 
@@ -96,7 +96,7 @@ Registration saves the ROI, Producer ID and coordinate configuration of a succes
 
 Isolated Python contracts cover codec/CRC/RGB, shared coordinates, ID/frame locking, ordered twelve fields, native/diagnostic isolation, freeze/recovery, registration, Windows atomic replacement and pre-capture CLI rejection. They read no desktop and operate no user devices.
 
-Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning and multiple producers. A separate explicit graphics test checks rendered pixels. Unity Editor is unavailable in this environment, so the new contracts await execution. Record actual revisions and results in the [verification record](e2e-status.en.md).
+Unity EditMode contracts cover default Off, one-camera output, shader import, persistent bounds, three-point skinning and multiple producers. A separate explicit graphics test checks rendered pixels. Pixel-render contracts require a working Unity graphics environment. Record actual revisions and results in the [verification record](e2e-status.en.md).
 
 Client acceptance covers SDK upload retention, NDMF/VRCFury optimization, native pixels, PC/PCVR composition, HMD visibility, resize/occlusion/minimization, HDR/postprocessing/low frame rates, latency and reference-position error. The bridge clears validity after 350 ms of frozen imagery by default; the desktop receiver separately imposes a 500 ms sample-age limit.
 

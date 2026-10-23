@@ -4,7 +4,7 @@
 
 **Shader 根点捕获**把 Unity 中所选根点的位置、两条轴向和 Avatar 缩放画成黑白图块，再由桌面桥读取为 OSC 参数。位置可用于空间映射，轴向可用于计算朝向和运动关系，缩放可用于将根局部位移换算为米。此方案面向 PC，按下面步骤确认捕获和校准结果后启用输入。
 
-[包安装与语言](README.zh-CN.md) · [交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN) · [编码与官方依据](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.md)
+[包安装与语言](README.zh-CN.md) · [交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html) · [编码与官方依据](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.md)
 
 ## 配置 Avatar
 
@@ -89,7 +89,7 @@ python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.0
 
 ## 验证范围
 
-在支持 geometry shader 的 PC Built-in Unity Editor 中，打开 Test Runner → EditMode，明确选择 `UnityBox.Sensa.Tests.ShaderCapturePixelContracts` 运行图形测试。该类使用独立 RenderTexture 检查实际 QR 模块、掩码、纠错码字、CRC32、方向和缩放；测试标记为 `Explicit`，需要主动选择并使用图形环境执行。当前云环境没有 Unity Editor，新增 EditMode 和图形契约尚待执行。
+在支持 geometry shader 的 PC Built-in Unity Editor 中，打开 Test Runner → EditMode，明确选择 `UnityBox.Sensa.Tests.ShaderCapturePixelContracts` 运行图形测试。该类使用独立 RenderTexture 检查实际 QR 模块、掩码、纠错码字、CRC32、方向和缩放；测试标记为 `Explicit`，需要主动选择并使用图形环境执行。EditMode 与图形契约的实际执行状态见[验证记录](../../docs/e2e-status.md)。
 
 
 编码／注册／新鲜度契约覆盖十二字段顺序和诊断隔离；Unity EditMode 契约覆盖单相机配置、Shader 导入／编译、持久边界、局部蒙皮数学和多 producer 绑定。每项结果记录对应的源码修订。GPU 像素、本机桌面捕获、PlayMode、Avatar 上传、VR 客户端和硬件分别在对应运行环境中验收。

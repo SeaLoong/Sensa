@@ -148,21 +148,24 @@
     return null;
   }
   function initialLocale() {
-    let requested, saved;
+    let saved;
     const languages = [];
-    try { requested = new URLSearchParams(location.search).get('lang'); } catch { /* Unavailable location. */ }
-    try { saved = window.localStorage.getItem(LOCALE_STORAGE_KEY); } catch { /* Restricted file/private storage. */ }
+    try { saved = window.sessionStorage.getItem(LOCALE_STORAGE_KEY); } catch { /* Restricted file/private storage. */ }
     try { if (Array.isArray(navigator.languages)) languages.push(...navigator.languages); } catch { /* Unavailable preferences. */ }
     try { languages.push(navigator.language); } catch { /* Unavailable fallback preference. */ }
-    return [requested, saved, ...languages].map(normalizeLocale).find(Boolean) || 'en-US';
+    return [saved, ...languages].map(normalizeLocale).find(Boolean) || 'en-US';
   }
-  function rememberLocale(next) {
-    try { window.localStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory choice still works. */ }
+  function clearLocaleQuery() {
     try {
       const url = new URL(location.href);
-      if (url.searchParams.has('lang')) { url.searchParams.set('lang', next); window.history.replaceState(window.history.state, '', url); }
+      if (url.searchParams.has('lang')) { url.searchParams.delete('lang'); window.history.replaceState(window.history.state, '', url); }
     } catch { /* A restricted file URL/history does not prevent switching. */ }
   }
+  function rememberLocale(next) {
+    try { window.sessionStorage.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory choice still works. */ }
+    clearLocaleQuery();
+  }
+  clearLocaleQuery();
   let locale = initialLocale();
   let state = Model.defaultsFor($('scene').value);
   let result, projection, selected = '', dragging = null, annotationRatio = 1;
@@ -353,7 +356,9 @@
       if (shape.id.startsWith('receiver-P')) {
         const p = projection.p(shape.center), i = Number(shape.id.slice(-1));
         layer.append(tintAnchor(svg('circle', { class: 'center', cx: p.x, cy: p.y, r: 4 }), i));
-        const dx = Math.max(14, 11 * annotationRatio), dy = i < 2 ? Math.max(24, 20 * annotationRatio) : -Math.max(15, 12 * annotationRatio);
+        const dx = Math.max(14, 11 * annotationRatio);
+        const below = projection.iso ? i < 2 : i === 0 || i === 3;
+        const dy = below ? Math.max(24, 20 * annotationRatio) : -Math.max(15, 12 * annotationRatio);
         annotations.append(tintAnchor(label(p.x + (i === 0 || i === 2 ? -dx : dx), p.y + dy, 'P' + i,
           { class: 'anchor-label', 'text-anchor': i === 0 || i === 2 ? 'end' : 'start' }), i));
       }
@@ -381,7 +386,11 @@
     moving.append(svg('circle', { class: 'moving-hit', cx: p.x, cy: p.y, r: 14 * ratio }),
       svg('circle', { class: 'moving', cx: p.x, cy: p.y, r: 5 * ratio }));
     handles.append(moving);
-    $('projection-note').textContent = text(projection.iso
+    $('projection-note').textContent = text(state.scenario === 'shader'
+      ? projection.iso
+        ? ['立体方框显示可编码的坐标范围；橙色点表示目标位置，编码保留完整 XYZ。', 'The 3D box shows the coordinate encoding range. The orange point locates the target, retaining full XYZ in the encoded measurement.']
+        : ['绿色方框显示编码范围的 XZ 截面；橙色点表示目标位置，高度 Y 由滑条调整。', 'The green box shows the XZ section of the encoding range. The orange point locates the target; adjust height Y with its slider.']
+      : projection.iso
       ? ['正交立体投影；球的投影半径保持同一比例。', 'Orthographic 3D projection; spheres retain the same radius scale.']
       : spatial() ? ['接收球轮廓是 XZ 投影；绿色区域为所选 Y 高度的切片，Y 仍参与全部距离计算。', 'Receiver outlines are XZ projections; green is a slice at the selected Y. Values use all XYZ components.'] : ['完整 XYZ 关系投影到 XZ 平面；Y 仍参与距离计算。', 'Full XYZ geometry projected onto the XZ plane; Y still contributes to distance.'])
       + ' ' + text(['橙色操作点为便于拖动而放大；灰色轮廓帮助辨认外形。单位：', 'The orange handle is enlarged for dragging; gray outlines identify the shapes. Units: ']) + units()
@@ -624,7 +633,13 @@
       ? text(['位置以米表示，原点在 Avatar 根，轴随 Avatar 根旋转。绿色为单球可检测区域；Sample 检查生产端活动，速度变化保持独立。', 'Position uses metres, centered on the Avatar root with axes following its rotation. Green is single-sphere detection coverage. Sample checks producer activity; velocity changes remain independent.']) : state.scenario === 'shader'
       ? text(['坐标以 Avatar 根局部单位表示：X 左右、Y 高度、Z 前后。AvatarScale 提供每单位的世界米数；灰色框表示编码坐标范围。', 'Coordinates use Avatar-root local units: X side-to-side, Y height and Z front-to-back. AvatarScale gives world metres per unit; the gray box shows the encoded coordinate range.']) : spatial()
       ? text(['坐标相对 Avatar 根：X 左右、Y 高度、Z 前后；在作者缩放为 1 时单位对应米。绿色是检测范围，灰色框是允许的坐标边界。', 'Coordinates relative to the avatar root: X side-to-side, Y height, Z front-to-back. Units correspond to metres at authored scale 1. Green is detection coverage; the gray box is the coordinate limit.'])
-      : text(['米制示意，作者缩放假定为 1；胶囊 H 含端帽，尺寸以模型读数为准。', 'Metre illustration with authored scale assumed one. Capsule H includes caps; use model dimensions.']);
+      : ['socket-legacy', 'socket-touch'].includes(state.scenario)
+      ? text(['VRCFury 自动区域按视点高度的 5% 生成。默认示例视点高 1.60 m，得到 D=0.08 m、Close 半径 0.032 m；调整 D 可模拟 Avatar 已填写的区域长度。', 'VRCFury generates the automatic region from 5% of view height. The example 1.60 m view height gives D=0.08 m and a 0.032 m Close radius. Adjust D to match an authored region length.'])
+      : state.scenario === 'socket-modern'
+      ? text(['SPS2 接收球半径为 VRCFury 的 1 m，Plug 根标记半径为 0.01 m。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。', 'SPS2 uses VRCFury’s 1 m receiver radius and a 0.01 m Plug-root marker. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model.'])
+      : state.scenario === 'zone'
+      ? text(['Touch Zone 默认半径为 VRCFury 的 0.10 局部单位；此图以缩放 1 展示，调整半径可模拟实际触碰区。', 'Touch Zone starts with VRCFury’s radius of 0.10 local units, shown here at scale 1. Adjust the radius to match your touch region.'])
+      : text(['尺寸按 VRCFury 生成规则计算。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。胶囊高度包含两端半球。', 'Dimensions follow VRCFury generation rules. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model. Capsule height includes both rounded caps.']);
   }
   function localize() {
     document.documentElement.lang = locale; document.title = 'Sensa · ' + text('brand'); $('locale').value = locale;

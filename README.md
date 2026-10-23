@@ -11,6 +11,10 @@
 
 Sensa runs on your computer and uses a browser for configuration. Read OSC parameters from VRChat or other applications, blend signals, add smoothing or triggers, then control devices, write application parameters or record a reusable funscript.
 
+![Combined input in Sensa](docs/screenshots/desktop/combined-input-en-US.png)
+
+[Narrow layout](docs/screenshots/mobile/combined-input-en-US.png) · [More running examples](docs/screenshots.en.md)
+
 ## Inputs → computation → outputs
 
 | Step | Your choice | Examples |
@@ -62,7 +66,7 @@ Once your interaction is ready, [save a complete plan](docs/signal-pipeline.en.m
 
 Existing OGB/SPS parameters connect directly through OSC. When building your own Avatar, install the [Sensa Unity package](unity/top.sealoong.sensa/README.md) and choose **SPS four-anchor tracking**, **Contact direct tracking (SDK Beta)** or **Shader capture**. See the [setup guide](docs/usage-scenarios.en.md) for prerequisites, measurements and calibration.
 
-The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) explains parameters and detection regions through adjustable scenes. Open `docs/parameter-geometry.html` from a release for offline use. Tracking is experimental; check client, graphics and device behavior with the versions you use.
+The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) explains parameters and detection regions through adjustable scenes. Open `docs/parameter-geometry.html` from a release for offline use. Tracking is experimental; check client, graphics and device behavior with the versions you use.
 
 Stable releases and development previews include desktop archives and a Unity ZIP. **The VPM repository for VCC/ALCOM offers published stable Unity packages**; download previews separately from Releases.
 

@@ -1,16 +1,21 @@
-/* Shared language preference; the site never opens Sensa or activates outputs.
-   共用语言偏好；文档站不启动 Sensa 或启用输出。 */
+/* Language choices follow the current browser tab. / 语言选择保存在当前浏览器标签页。 */
 (() => {
   const normalize = value => {
     if (typeof value !== 'string') return null;
     const tag = value.trim().replaceAll('_', '-').toLowerCase();
     return /^en(?:-[a-z0-9]{1,8})*$/.test(tag) ? 'en' : /^zh(?:-[a-z0-9]{1,8})*$/.test(tag) ? 'zh-CN' : null;
   };
-  const read = () => { try { return localStorage.getItem('sensa.locale'); } catch { return null; } };
-  const save = locale => { try { localStorage.setItem('sensa.locale', locale === 'en' ? 'en-US' : locale); } catch { /* Private storage may be unavailable. / 隐私模式可能禁用存储。 */ } };
+  const read = () => { try { return sessionStorage.getItem('sensa.locale'); } catch { return null; } };
+  const save = locale => { try { sessionStorage.setItem('sensa.locale', locale === 'en' ? 'en-US' : locale); } catch { /* Private storage may be unavailable. / 隐私模式可能禁用存储。 */ } };
+  const url = new URL(location.href);
+  if (url.searchParams.has('lang')) {
+    url.searchParams.delete('lang');
+    history.replaceState(null, '', url);
+  }
   const home = document.body.hasAttribute('data-home');
-  let locale = normalize(new URL(location.href).searchParams.get('lang')) || normalize(read())
+  let locale = normalize(read())
     || [...(navigator.languages || []), navigator.language].map(normalize).find(Boolean) || 'en';
+  let updateScreenshots = () => {};
   const apply = next => {
     locale = next;
     document.documentElement.lang = next === 'en' ? 'en-US' : next;
@@ -22,19 +27,44 @@
       x.href = next + '/' + x.dataset.doc + '.html' + (fragment ? '#' + encodeURIComponent(fragment) : '');
     });
     document.querySelectorAll('[data-label-en]').forEach(x => { x.setAttribute('aria-label', next === 'en' ? x.dataset.labelEn : x.dataset.labelZh); });
-    document.querySelectorAll('[data-diagram]').forEach(x => { x.href = 'parameter-geometry.html?lang=' + (next === 'en' ? 'en-US' : next); });
+    document.querySelectorAll('[data-diagram]').forEach(x => { x.href = 'parameter-geometry.html'; });
     document.getElementById('language').textContent = next === 'en' ? '简体中文' : 'English';
     const available = document.body.dataset.vpm === 'true';
     document.getElementById('vcc').hidden = !available;
     document.getElementById('copy-vpm').hidden = !available;
     if (available) document.getElementById('vpm-status').textContent = next === 'en' ? 'Stable packages are available through VCC.' : '可通过 VCC 安装正式版 Unity 组件包。';
+    updateScreenshots();
   };
   if (home) {
+    const galleryData = document.getElementById('screenshot-data');
+    if (galleryData) {
+      const scenes = JSON.parse(galleryData.textContent);
+      let scene = scenes[0], viewport = matchMedia('(max-width: 760px)').matches ? 'mobile' : 'desktop';
+      const image = document.getElementById('screenshot-image');
+      const sceneButtons = [...document.querySelectorAll('[data-screenshot-scene]')];
+      const viewButtons = [...document.querySelectorAll('[data-screenshot-view]')];
+      updateScreenshots = () => {
+        const picture = scene.images[viewport][locale];
+        const title = locale === 'en' ? scene.en : scene.zh;
+        const screen = locale === 'en' ? (viewport === 'desktop' ? 'Desktop' : 'Narrow') : (viewport === 'desktop' ? '桌面' : '窄屏');
+        const language = picture.language === 'en-US' ? 'English' : '简体中文';
+        image.src = picture.url; image.width = picture.width; image.height = picture.height;
+        image.alt = `${title} · ${screen} · ${language}`;
+        document.getElementById('screenshot-caption').textContent = image.alt;
+        document.getElementById('screenshot-original').href = picture.url;
+        sceneButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.screenshotScene === scene.id)));
+        viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.screenshotView === viewport)));
+      };
+      sceneButtons.forEach(button => button.addEventListener('click', () => {
+        scene = scenes.find(item => item.id === button.dataset.screenshotScene); updateScreenshots();
+      }));
+      viewButtons.forEach(button => button.addEventListener('click', () => {
+        viewport = button.dataset.screenshotView; updateScreenshots();
+      }));
+    }
     apply(locale);
     document.getElementById('language').addEventListener('click', () => {
       apply(locale === 'en' ? 'zh-CN' : 'en'); save(locale);
-      const url = new URL(location.href);
-      if (url.searchParams.has('lang')) { url.searchParams.set('lang', locale === 'en' ? 'en-US' : locale); history.replaceState(null, '', url); }
     });
     const vpm = new URL('vpm.json', location.href).href;
     document.getElementById('vcc').href = 'vcc://vpm/addRepo?url=' + encodeURIComponent(vpm);
@@ -43,6 +73,10 @@
       catch { document.getElementById('vpm-status').textContent = vpm; }
     });
   } else {
+    // The language of this guide becomes the tab's language for the next page.
+    // 当前文档的语言沿用于本标签页接下来打开的页面。
+    locale = normalize(document.documentElement.lang) || locale;
+    save(locale);
     document.querySelectorAll('[data-guide-filter]').forEach(input => {
       const navigation = input.closest('.navigation');
       const links = [...navigation.querySelectorAll('[data-guide-link]')];
@@ -55,8 +89,6 @@
         navigation.querySelector('.guide-empty').hidden = links.some(link => !link.hidden);
       });
     });
-    // Explicit documentation routes keep their language, irrespective of stored preferences.
-    // 明确文档语言路由不被已有偏好覆盖。
     document.querySelectorAll('[data-locale]').forEach(link => {
       const target = new URL(link.href, location.href);
       let headings = {};

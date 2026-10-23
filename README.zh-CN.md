@@ -11,6 +11,10 @@
 
 Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRChat 等应用的 OSC 参数，混合多个信号、加入平滑或触发条件，再控制设备、回写应用参数，或录成可重复播放的 funscript。
 
+![Sensa 组合输入运行界面](docs/screenshots/desktop/combined-input-zh-CN.png)
+
+[窄屏界面](docs/screenshots/mobile/combined-input-zh-CN.png) · [更多运行画面](docs/screenshots.md)
+
 ## 输入 → 计算转换 → 输出
 
 | 步骤 | 你来选择 | 例子 |
@@ -62,7 +66,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 已有 OGB／SPS 参数时，直接通过 OSC 接入。制作自己的 Avatar 时，可安装 [Sensa Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，选择 **SPS 四点定位**、**Contact 直接定位（SDK Beta）**或 **Shader 捕获**。各方案的安装条件、测量内容和校准步骤见[方案指南](docs/usage-scenarios.md)。
 
-[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)用可操作的场景解释参数和检测区域；发行包中的 `docs/parameter-geometry.html` 也可离线打开。定位功能属于实验能力，实际客户端、图形环境和设备效果按所用版本检查。
+[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)用可操作的场景解释参数和检测区域；发行包中的 `docs/parameter-geometry.html` 也可离线打开。定位功能属于实验能力，实际客户端、图形环境和设备效果按所用版本检查。
 
 正式版与开发预览均在 Releases 提供桌面包和 Unity ZIP。**VCC／ALCOM 的 VPM 源提供已发布的 Unity 正式版**，预览版从 Releases 单独下载。
 

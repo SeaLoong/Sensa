@@ -48,4 +48,4 @@ When checking an experimental scene, use its revision-specific `Validation/` rep
 
 PB grabbing permissions, multilingual fonts/HMD readability, actual uploaded OSC, camera retention, mirrors, HDR/AA, capture latency and multi-player behavior still need real-client acceptance.
 
-[Development](DEVELOPMENT.en.md) · [Camera experiment](CAMERA-PROTOTYPE.en.md) · [Diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+[Development](DEVELOPMENT.en.md) · [Camera experiment](CAMERA-PROTOTYPE.en.md) · [Diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html)

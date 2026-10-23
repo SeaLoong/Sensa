@@ -11,20 +11,29 @@ export function normalizeLocale(value) {
   if (/^en(?:-[a-z0-9]{1,8})*$/.test(language)) return 'en-US';
   return null;
 }
-export function resolveLocale(saved, languages = [], requested = null) {
+export function resolveLocale(saved, languages = []) {
   const preferences = Array.isArray(languages) ? languages : [];
-  return [requested, saved, ...preferences].map(normalizeLocale).find(Boolean) || 'en-US';
+  return [saved, ...preferences].map(normalizeLocale).find(Boolean) || 'en-US';
 }
 export function detectLocale(browser = {}) {
-  let requested, saved;
+  let saved;
   const languages = [];
-  try { requested = new URLSearchParams(browser.location?.search || '').get('lang'); } catch { /* Unavailable location. */ }
-  try { saved = browser.localStorage?.getItem(LOCALE_STORAGE_KEY); } catch { /* Private/restricted storage. */ }
+  try { saved = browser.sessionStorage?.getItem(LOCALE_STORAGE_KEY); } catch { /* Private/restricted storage. */ }
   try { if (Array.isArray(browser.navigator?.languages)) languages.push(...browser.navigator.languages); } catch { /* Unavailable preferences. */ }
   try { languages.push(browser.navigator?.language); } catch { /* Unavailable fallback preference. */ }
-  return resolveLocale(saved, languages, requested);
+  return resolveLocale(saved, languages);
+}
+export function clearLocaleQuery(browser = {}) {
+  try {
+    const url = new URL(browser.location?.href);
+    if (url.searchParams.has('lang')) {
+      url.searchParams.delete('lang');
+      browser.history?.replaceState(browser.history.state, '', url);
+    }
+  } catch { /* Restricted history does not prevent choosing a language. */ }
 }
 let locale = detectLocale(typeof window === 'undefined' ? {} : window);
+clearLocaleQuery(typeof window === 'undefined' ? {} : window);
 const listeners = new Set();
 export const getLocale = () => locale;
 export function subscribeLocale(listener) {
@@ -37,13 +46,8 @@ function applyDocumentLocale() {
 export function setLocale(value) {
   const next = normalizeLocale(value);
   if (!next) return false;
-  try { globalThis.localStorage?.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory switch still works. */ }
-  try {
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (url.searchParams.has('lang')) { url.searchParams.set('lang', next); window.history.replaceState(window.history.state, '', url); }
-    }
-  } catch { /* Restricted history does not prevent switching. */ }
+  try { globalThis.sessionStorage?.setItem(LOCALE_STORAGE_KEY, next); } catch { /* In-memory switch still works. */ }
+  clearLocaleQuery(typeof window === 'undefined' ? {} : window);
   if (locale === next) return true;
   locale = next;
   applyDocumentLocale();
@@ -86,7 +90,7 @@ export function localized(factory) {
   };
 }
 export function docUrl(path) {
-  if (path === 'docs/parameter-geometry.html') return '/docs/parameter-geometry.html?lang=' + locale;
+  if (path === 'docs/parameter-geometry.html') return '/docs/parameter-geometry.html';
   const localizedPath = /(?:^|\/)README\.md$/.test(path)
     ? path.replace(/README\.md$/, locale === 'zh-CN' ? 'README.zh-CN.md' : 'README.md')
     : path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');

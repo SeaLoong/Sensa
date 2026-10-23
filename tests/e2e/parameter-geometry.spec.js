@@ -64,7 +64,7 @@ async function parameterDetailCheckpoint(page, dialog, name) {
   await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10000 });
   await dialog.evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   await expect(dialog).toHaveScreenshot(name + '.png', {
-    stylePath: 'tests/e2e/screenshot.css', mask: [dialog.getByTestId('parameter-detail-time')],
+    stylePath: 'tests/e2e/screenshot.css', style: '[data-testid=parameter-detail-time] { visibility: hidden !important; }',
   });
 }
 async function chooseScene(page, scenario, projection = 'xz') {
@@ -224,8 +224,8 @@ async function documentFits(page) {
 threeTest('the offline guide negotiates language and persists a manual choice without resetting the diagram / 离线图解协商语言并保存选择且不重置几何',
   { tag: ['@i18n', '@config'] }, async ({ page, browser }, info) => {
     const cases = [
-      { name: 'URL Chinese variant', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'zh-CN' },
-      { name: 'URL English variant', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'en-US', switchAndReload: true },
+      { name: 'shared URL uses saved English', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'en-US', switchAndReload: true },
+      { name: 'shared URL uses saved Chinese', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'zh-CN' },
       { name: 'saved Chinese variant', saved: 'zh_HK', languages: ['en-US'], expected: 'zh-CN' },
       { name: 'unsupported URL preserves choice', requested: 'fr-FR', saved: 'zh-CN', languages: ['en-US'], expected: 'zh-CN' },
       { name: 'ordered later Chinese', languages: ['fr-FR', 'zh_Hant_TW', 'en-US'], expected: 'zh-CN' },
@@ -243,16 +243,16 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
       const capture = async phase => snapshots.push({ phase, ...await child.evaluate(() => ({
         url: location.href, locale: document.documentElement.lang, selected: document.getElementById('locale')?.value,
         languages: [...navigator.languages], language: navigator.language,
-        saved: (() => { try { return localStorage.getItem('sensa.locale'); } catch { return 'storage-denied'; } })(),
+        saved: (() => { try { return sessionStorage.getItem('sensa.locale'); } catch { return 'storage-denied'; } })(),
       })) });
       child.on('pageerror', error => errors.push(error.message));
       child.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
       await child.addInitScript(({ languages, language, saved, denied }) => {
         Object.defineProperty(navigator, 'languages', { configurable: true, value: languages });
         Object.defineProperty(navigator, 'language', { configurable: true, value: language || 'en-US' });
-        if (denied) Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
+        if (denied) Object.defineProperty(window, 'sessionStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
         else if (window.name !== 'locale-fixture-ready') {
-          if (saved === undefined) localStorage.removeItem('sensa.locale'); else localStorage.setItem('sensa.locale', saved);
+          if (saved === undefined) sessionStorage.removeItem('sensa.locale'); else sessionStorage.setItem('sensa.locale', saved);
           window.name = 'locale-fixture-ready';
         }
       }, scenario);
@@ -260,6 +260,7 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         const url = new URL(guideFile); if (scenario.requested) url.searchParams.set('lang', scenario.requested);
         await child.goto(url.href);
         await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
+        expect(new URL(child.url()).searchParams.has('lang')).toBe(false);
         await expect(child.locator('#locale')).toHaveValue(scenario.expected);
         await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US'
           ? 'See what each parameter responds to' : '看懂参数怎样随动作变化');
@@ -274,8 +275,8 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
           await expect(child.locator('#control-z')).toHaveValue('0.41'); await expect(child.locator('#show-dimensions')).not.toBeChecked();
           await expect(parameter(child, 'PenOthersNewTip').getByRole('button', { name: 'PenOthersNewTip', exact: true })).toHaveAttribute('aria-pressed', 'true');
           await nearCell(child, 'PenOthersNewRoot', .6);
-          expect(new URL(child.url()).searchParams.get('lang')).toBe('zh-CN');
-          expect(await child.evaluate(() => localStorage.getItem('sensa.locale'))).toBe('zh-CN');
+          expect(new URL(child.url()).searchParams.has('lang')).toBe(false);
+          expect(await child.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('zh-CN');
           await capture('switched');
           await child.reload(); await capture('reloaded');
           await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
@@ -304,9 +305,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     page.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) remoteRequests.push(request.url()); });
     page.on('websocket', socket => sockets.push(socket.url()));
     page.on('pageerror', error => errors.push(error.message));
-    const fileUrl = new URL(guideFile);
-    fileUrl.searchParams.set('lang', 'zh-CN');
-    await page.goto(fileUrl.href);
+    await page.goto(guideFile.href);
     await expect(page.locator('#scene')).toBeVisible();
     await expect(page.locator('#scene option')).toHaveCount(11);
     expect(await page.locator('#scene option').evaluateAll(options => options.map(option => option.value))).toEqual(scenarioIds);
@@ -503,6 +502,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     });
 
     await chooseScene(page, 'socket-legacy');
+    await setRange(page, 'D', .15); // Explicit geometry for this independent Close-gating example.
     await expect(page.locator('#scene-title')).toHaveText('SPS1 · PenOthers / PenOthersClose');
     expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
       .toEqual(['PenOthers', 'PenOthersClose']);
@@ -874,8 +874,8 @@ function expectSceneGeometry(snapshot, scenario) {
     expectSphere(snapshot, 'sender-root', .01, { x: 0, y: 0, z: .35 });
     expectSphere(snapshot, 'sender-length', .2, { x: 0, y: 0, z: .35 });
   } else if (scenario === 'socket-legacy' || scenario === 'socket-touch') {
-    expectSphere(snapshot, 'receiver-proximity', .15, { x: 0, y: 0, z: -.15 });
-    expectCapsule(snapshot, 'receiver-close', .06, .15, { x: 0, y: 0, z: -.075 }, { x: 0, y: 0, z: 1 });
+    expectSphere(snapshot, 'receiver-proximity', .08, { x: 0, y: 0, z: -.08 });
+    expectCapsule(snapshot, 'receiver-close', .032, .08, { x: 0, y: 0, z: -.04 }, { x: 0, y: 0, z: 1 });
     expectSphere(snapshot, scenario === 'socket-legacy' ? 'sender-length' : 'sender-body',
       scenario === 'socket-legacy' ? .2 : .025, { x: 0, y: 0, z: scenario === 'socket-legacy' ? .1 : -.1 });
   } else if (scenario === 'plug-depth') {
@@ -1193,7 +1193,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       page.on('request', request => { if (/^(?:https?|wss?):/.test(request.url())) network.push(request.url()); });
       page.on('websocket', socket => sockets.push(socket.url()));
       page.on('pageerror', error => errors.push(error.message));
-      const url = new URL(guideFile); url.searchParams.set('lang', 'zh-CN');
+      const url = new URL(guideFile);
       await page.goto(url.href);
       await readyOrbit(page, 'sensa-sps');
       const anchorContrast = [];
@@ -1440,7 +1440,8 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
     { tag: ['@config', '@i18n'] }, async ({ page }, info) => {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
-      const url = new URL(guideFile); url.searchParams.set('lang', 'en-US');
+      const url = new URL(guideFile);
+      await page.addInitScript(() => sessionStorage.setItem('sensa.locale', 'en-US'));
       await page.goto(url.href); await readyOrbit(page, 'sensa-sps');
       await page.locator('#three-scene canvas').evaluate(canvas => {
         const extension = canvas.getContext('webgl2').getExtension('WEBGL_lose_context');
@@ -1463,6 +1464,7 @@ threeTest.describe('offline Three.js rendering / 离线Three.js渲染', () => {
       unavailable.on('pageerror', error => errors.push(error.message));
       try {
         await unavailable.addInitScript(() => {
+          sessionStorage.setItem('sensa.locale', 'en-US');
           const original = HTMLCanvasElement.prototype.getContext;
           HTMLCanvasElement.prototype.getContext = function (type, ...args) {
             return type === 'webgl2' ? null : original.call(this, type, ...args);
@@ -1521,14 +1523,14 @@ hostedTest('parameter details open the localized interactive guide without devic
       await expect(dialog.getByTestId('parameter-reference-usage')).toBeVisible();
       await expect(dialog.getByTestId('parameter-reference-sources').locator('a[href^="https://github.com/VRCFury/VRCFury/"]').first()).toBeVisible();
       const link = dialog.getByRole('link', { name: await text(page, '交互参数图解'), exact: true });
-      await expect(link).toHaveAttribute('href', '/docs/parameter-geometry.html?lang=' + locale);
+      await expect(link).toHaveAttribute('href', '/docs/parameter-geometry.html');
       await expect(link).toHaveAttribute('target', '_blank');
       const popupPromise = page.context().waitForEvent('page');
       await link.click();
       const popup = await popupPromise;
       try {
         await popup.waitForLoadState('domcontentloaded');
-        await expect(popup).toHaveURL(new URL('/docs/parameter-geometry.html?lang=' + locale, rig.baseUrl).href);
+        await expect(popup).toHaveURL(new URL('/docs/parameter-geometry.html', rig.baseUrl).href);
         await expect(popup.locator('html')).toHaveAttribute('lang', locale);
         await nearCell(popup, 'PenOthersNewRoot', .66);
         await nearCell(popup, 'PenOthersNewTip', .85);
@@ -1570,7 +1572,7 @@ hostedTest('parameter details open the localized interactive guide without devic
 
 threeTest('SDK Contact diagrams expose native metre vectors, independent velocity and contact loss / SDK Contact 图解展示原生米制向量、独立速度及接触离开',
   { tag: ['@osc', '@config', '@i18n'] }, async ({ page }, info) => {
-    const url = new URL(guideFile); url.searchParams.set('lang', 'zh-CN');
+    const url = new URL(guideFile);
     await page.goto(url.href); await chooseScene(page, 'contact-sdk');
     await expect(page.locator('#scene-title')).toHaveText('Contact 直接定位（SDK Beta）');
     await addressPattern(page, 'contact-sdk');

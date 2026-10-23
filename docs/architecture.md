@@ -94,7 +94,7 @@ React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign
 | [shared-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/shared-realtime.js) | 页面引用计数客户端、共享会话消息代理与标签页请求隔离 |
 | [elected-realtime.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/elected-realtime.js) | Web Locks 独占连接归属，BroadcastChannel 传递跨标签页消息 |
 | [osc-workspace.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-workspace.js)／[osc-preview.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/osc-preview.js) | 预设草稿、匹配、过滤、预览与校准 |
-| [i18n.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/i18n.js) | URL／偏好／环境语言，文档路由与呈现文本 |
+| [i18n.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/i18n.js) | 会话偏好／浏览器语言，文档路由与呈现文本 |
 | [diagnostics.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/diagnostics.js) | 日志与状态筛选 |
 
 每页通过一个会话复用状态与命令。同源标签页优先通过 SharedWorker 共用一条后端 WebSocket；其不可用时，通过 Web Locks 确保一个标签页拥有连接，再用 BroadcastChannel 传递消息；两种共享方式均不可用时采用每标签页单例。请求分别关联，各页保留本地草稿。页面进入缓存时分离当前客户端，恢复时重新附着。HTTP 连接池与服务器 WebSocket 会话预算分别限制，共用连接减少了受支持标签页占用的后端会话数。

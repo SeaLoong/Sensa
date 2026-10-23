@@ -48,7 +48,7 @@ Unity projects need the matching VRChat SDK and Modular Avatar/NDMF; SPS automat
 
 Verify downloads against `SHA256SUMS.txt`. This source commit passed unit checks and the full browser screenshot comparison before publication. These checks do not validate real hardware or PCVR behavior.
 
-[Installation and usage](https://sealoong.github.io/Sensa/) · [Standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US)
+[Installation and usage](https://sealoong.github.io/Sensa/) · [Standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 ## 简体中文
 
@@ -62,7 +62,7 @@ Unity 工程需要对应 VRChat SDK 与 Modular Avatar/NDMF；SPS 自动配置�
 
 通过 `SHA256SUMS.txt` 核对下载文件。此源码提交已在发布前通过单元检查和完整浏览器截图比较。这些检查不代表真实硬件或 PCVR 行为已验收。
 
-[安装与使用文档](https://sealoong.github.io/Sensa/?lang=zh-CN) · [独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+[安装与使用文档](https://sealoong.github.io/Sensa/) · [独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 ## Changes / 变更记录
 

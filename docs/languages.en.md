@@ -6,25 +6,26 @@ Sensa provides Simplified Chinese and English for interface text. OSC paths, par
 
 ## Browser application and parameter explorer
 
-Use the first supported locale in this order:
+On first visit, the page chooses English or Simplified Chinese from the browser’s language preferences. A manual choice is saved in the current tab’s `sessionStorage["sensa.locale"]`, so reloads and same-origin navigation keep it.
 
-1. An explicit URL `?lang=`.
-2. The explicit choice in this origin's `localStorage["sensa.locale"]`.
-3. Every entry in `navigator.languages`, in order, then `navigator.language`.
-4. English when nothing matches.
+The selection order is:
 
-Case and underscores are normalized. English regional values such as `en_GB` resolve to `en-US`; Chinese values including `zh-TW`, `zh-Hant` and `zh-HK` resolve to `zh-CN` and use the Simplified translation. Other languages fall through to the next preference. A manual choice still works for the current page when storage access fails.
+1. The language saved in this tab.
+2. The browser’s `navigator.languages`, followed by `navigator.language`.
+3. English when no supported language matches.
 
-A manual switch saves the canonical locale and updates lang if the current URL already has it, so reloading keeps the new choice. Switching preserves mapping drafts, scripts, explorer scenes, coordinates, selection and device state. Storage is origin-specific: the application, Pages and file documents each keep their own preferences.
+English regional values such as `en_GB` use English. Chinese values including `zh-TW`, `zh-Hant` and `zh-HK` use Simplified Chinese. A manual switch still works on the current page when browser storage is restricted.
 
-The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) runs independently from Sensa and accepts explicit [English](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) or [Chinese](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN). The release's identical HTML works offline; browsers may restrict persistent storage for file pages.
+Links stay concise. Existing `lang` query entries are removed on opening; other queries and section fragments are preserved. Switching language keeps mapping drafts, scripts, explorer scenes, coordinates and device state. An independently opened tab starts from the browser’s language; the application, Pages and local files keep choices within their own origins.
+
+Share the [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly: each visitor sees a language chosen for their browser. The release’s `docs/parameter-geometry.html` also opens offline and offers a language switch.
 
 ## Documentation entry points
 
 - Root and tool `README.md` files contain canonical English; `README.zh-CN.md` contains complete Chinese; `README.en.md` is only an English alias.
 - Other guides retain `*.md` for Chinese and `*.en.md` for English. Changing the default entry does not rename their source paths.
 - The [documentation site](https://sealoong.github.io/Sensa/) renders these files under `/en/` and `/zh-CN/`. An explicit language route takes precedence over automatic detection; switching opens the corresponding document.
-- Application explorer links use the local bundled HTML with the current locale. Online explorer document links stay on the site; file pages retain neighboring Markdown links.
+- Application explorer links use the local bundled HTML. Online explorer document links stay on the site; file pages retain neighboring Markdown links.
 
 ## Unity Editor and Avatar menus
 

@@ -47,6 +47,79 @@ async function captureSiteReview(page, info, name, images) {
   images.push({ attachment: name, sha256: createHash('sha256').update(bytes).digest('hex') });
 }
 
+async function inspectRunningScreenshots(page, info) {
+  const image = page.locator('#screenshot-image');
+  const scenes = page.locator('[data-screenshot-scene]');
+  const catalog = JSON.parse(await fs.readFile(new URL('../../docs/screenshots/catalog.json', import.meta.url), 'utf8'));
+  const locale = await page.locator('html').getAttribute('lang') === 'en-US' ? 'en' : 'zh-CN';
+  const published = await (await page.request.get(base + 'screenshots-manifest.json')).json();
+  expect(published).toEqual(catalog);
+  await expect(scenes).toHaveCount(5);
+  for (let index = 0; index < await scenes.count(); index++) {
+    await scenes.nth(index).click();
+    await expect(scenes.nth(index)).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-screenshot-scene][aria-pressed=true]')).toHaveCount(1);
+    expect(await scenes.nth(index).getAttribute('data-screenshot-scene')).toBe(catalog.scenes[index].id);
+    for (const view of ['desktop', 'mobile']) {
+      const button = page.locator(`[data-screenshot-view="${view}"]`);
+      await button.click();
+      await expect(button).toHaveAttribute('aria-pressed', 'true');
+      await expect(page.locator('[data-screenshot-view][aria-pressed=true]')).toHaveCount(1);
+      const record = catalog.scenes[index].images[view][locale];
+      await expect(image).toHaveAttribute('src', 'media/docs/screenshots/' + record.file);
+      await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+      const title = locale === 'en' ? catalog.scenes[index].en : catalog.scenes[index].zh;
+      const screen = locale === 'en' ? (view === 'desktop' ? 'Desktop' : 'Narrow') : (view === 'desktop' ? '桌面' : '窄屏');
+      const language = record.language === 'en-US' ? 'English' : '简体中文';
+      await expect(image).toHaveAttribute('alt', `${title} · ${screen} · ${language}`);
+      await expect(page.locator('#screenshot-caption')).toHaveText(`${title} · ${screen} · ${language}`);
+      const original = await page.locator('#screenshot-original').getAttribute('href');
+      expect(original).toBe(await image.getAttribute('src'));
+      expect(await page.locator('body').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+    }
+  }
+  await scenes.first().click();
+  await page.locator(`[data-screenshot-view="${info.project.name}"]`).click();
+  await expect.poll(() => image.evaluate(element => element.complete && element.naturalWidth > 0)).toBe(true);
+  await page.evaluate(() => scrollTo(0, 0));
+}
+
+async function inspectDocumentStyle(page) {
+  await page.evaluate(() => document.fonts.ready);
+  const evidence = await page.evaluate(() => {
+    const layout = document.querySelector('.layout'), article = document.querySelector('article');
+    const computed = getComputedStyle(layout);
+    return { width: innerWidth, layout: computed.display, columns: computed.gridTemplateColumns,
+      aside: getComputedStyle(layout.querySelector('aside')).display,
+      font: getComputedStyle(article).fontFamily, header: getComputedStyle(document.querySelector('header')).display,
+      pageFits: document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1,
+      css: [...document.querySelectorAll('link[rel=stylesheet]')].map(link => ({ href: link.href, loaded: Boolean(link.sheet) })),
+      js: [...document.querySelectorAll('script[src]')].map(script => script.src),
+      tables: [...document.querySelectorAll('.doc-scroll table')].map(table => ({
+        display: getComputedStyle(table).display, overflow: getComputedStyle(table.parentElement).overflowX })),
+      images: [...article.querySelectorAll('img')].filter(image => new URL(image.src).origin === location.origin)
+        .map(image => ({ loaded: image.complete && image.naturalWidth > 0, width: image.getBoundingClientRect().width,
+          articleWidth: article.getBoundingClientRect().width })),
+    };
+  });
+  expect(evidence.header).toBe('flex');
+  expect(evidence.font).toContain('sans-serif');
+  expect(evidence.pageFits).toBe(true);
+  expect(evidence.layout).toBe(evidence.width > 760 ? 'grid' : 'block');
+  if (evidence.width > 1150) expect(evidence.columns.split(' ')).toHaveLength(3);
+  if (evidence.width <= 1150) expect(evidence.aside).toBe('none');
+  expect(evidence.css).toHaveLength(1);
+  expect(evidence.css[0].loaded).toBe(true);
+  expect(evidence.css[0].href).toMatch(/\/Sensa\/site\.[a-f0-9]{16}\.css$/);
+  expect(evidence.js[0]).toMatch(/\/Sensa\/site\.[a-f0-9]{16}\.js$/);
+  for (const table of evidence.tables) expect(table).toEqual({ display: 'table', overflow: 'auto' });
+  for (const image of evidence.images) {
+    expect(image.loaded).toBe(true);
+    expect(image.width).toBeLessThanOrEqual(image.articleWidth + 1);
+  }
+  return evidence;
+}
+
 async function attachSiteReviewSource(info, images) {
   const file = path.join(directory, 'site-manifest.json');
   const bytes = await fs.readFile(file);
@@ -158,7 +231,9 @@ test('@site standalone Pages language, document navigation and independent geome
   const errors = [];
   const reviewImages = [];
   page.on('pageerror', error => errors.push(error.message));
-  await page.goto(base + '?lang=en-US');
+  await page.goto(base);
+  if (await page.locator('html').getAttribute('lang') !== 'en-US')
+    await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   await expect(page.getByRole('heading', { name: /Make your signals\s*work together\./ })).toBeVisible();
   const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
@@ -186,6 +261,7 @@ test('@site standalone Pages language, document navigation and independent geome
   }
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await inspectHomeLayout(page, testInfo, 'en-US');
+  await inspectRunningScreenshots(page, testInfo);
   await auditHome(page, testInfo, 'en-US');
   await captureSiteReview(page, testInfo, 'site-review-home-en-US', reviewImages);
   await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
@@ -227,7 +303,9 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(navigationToggle).toBeHidden();
   await page.setViewportSize(originalViewport);
   await expect(page.getByRole('heading', { name: 'Record a manual track first', exact: true })).toBeVisible();
-  await page.goto(base + '?lang=en-US');
+  await page.goto(base);
+  if (await page.locator('html').getAttribute('lang') !== 'en-US')
+    await page.getByRole('button', { name: 'English', exact: true }).click();
   await page.getByRole('button', { name: '简体中文', exact: true }).click();
   await expect(page.getByRole('button', { name: 'English', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
@@ -241,6 +319,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await inspectHomeLayout(page, testInfo, 'zh-CN');
+  await inspectRunningScreenshots(page, testInfo);
   await auditHome(page, testInfo, 'zh-CN');
   await captureSiteReview(page, testInfo, 'site-review-home-zh-CN', reviewImages);
   await expect(heroFirstRunGuide).toHaveAccessibleName('首次使用指南');
@@ -248,6 +327,7 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page).toHaveURL(/zh-CN\/docs\/quick-start.html$/);
   await expect(page.locator('article h1')).toBeVisible();
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await inspectDocumentStyle(page);
   await captureSiteReview(page, testInfo, 'site-review-guide-zh-CN', reviewImages);
   await inspectOverview(page, testInfo, 'zh-CN');
   await page.goto(new URL('zh-CN/docs/quick-start.html', base).href);
@@ -255,8 +335,11 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page).toHaveURL(/en\/docs\/quick-start.html$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
+  await inspectDocumentStyle(page);
   await captureSiteReview(page, testInfo, 'site-review-guide-en-US', reviewImages);
   await inspectOverview(page, testInfo, 'en');
+  await page.goto(new URL('en/unity/top.sealoong.sensa/README.html', base).href);
+  await inspectDocumentStyle(page);
   await page.goto(new URL('en/docs/quick-start.html', base).href);
   await page.locator('header a[href*="parameter-geometry.html"]').click();
   await expect(page.locator('#scene')).toBeVisible();
@@ -304,18 +387,20 @@ test('@site language priority, unsupported preferences and Chinese variants', as
     { browser: 'fr-FR', expected: 'en-US' },
     { browser: 'zh-TW', expected: 'zh-CN' },
     { browser: 'fr-FR', saved: 'zh-CN', expected: 'zh-CN' },
-    { browser: 'zh-TW', saved: 'zh-CN', requested: 'en-US', expected: 'en-US' },
+    { browser: 'zh-TW', saved: 'zh-CN', requested: 'en-US', expected: 'zh-CN' },
     { browser: 'fr-FR', saved: 'zh-CN', requested: 'en-!!!', expected: 'zh-CN' },
     { browser: 'zh-TW', saved: 'en-!!!', expected: 'zh-CN' },
-    { browser: 'en-US', saved: 'en-US', requested: ' ZH_tw ', expected: 'zh-CN' },
+    { browser: 'en-US', saved: 'en-US', requested: ' ZH_tw ', expected: 'en-US' },
   ];
   for (const sample of cases) {
     const context = await browser.newContext({ locale: sample.browser, viewport: testInfo.project.use.viewport });
     try {
-      if (sample.saved) await context.addInitScript(value => localStorage.setItem('sensa.locale', value), sample.saved);
+      if (sample.saved) await context.addInitScript(value => sessionStorage.setItem('sensa.locale', value), sample.saved);
       const page = await context.newPage();
       await page.goto(base + (sample.requested ? '?lang=' + encodeURIComponent(sample.requested) : ''));
       await expect(page.locator('html'), JSON.stringify(sample)).toHaveAttribute('lang', sample.expected);
+      expect(new URL(page.url()).searchParams.has('lang')).toBe(false);
+      expect(await page.locator('a[href*="lang="]').count()).toBe(0);
     } finally { await context.close(); }
   }
 });
@@ -362,6 +447,7 @@ test('@site wide document tables and code remain keyboard scrollable at 320 pixe
       await page.goto(new URL(locale + '/docs/' + documentName + '.html', base).href);
       await page.evaluate(() => document.fonts.ready);
       await area.scrollIntoViewIfNeeded();
+      await inspectDocumentStyle(page);
       await expect(area).toHaveAttribute('role', 'region');
       await expect(area).toHaveAttribute('aria-label', label);
       await expect(area).toHaveAttribute('tabindex', '0');
@@ -378,4 +464,27 @@ test('@site wide document tables and code remain keyboard scrollable at 320 pixe
     }
   }
   await info.attach('document-keyboard-scroll.json', { body: JSON.stringify(evidence), contentType: 'application/json' });
+});
+
+
+test('@site cached help pages recover when fingerprinted assets have expired', async ({ page }, info) => {
+  const blocked = [], errors = [];
+  page.on('pageerror', error => errors.push(error.message));
+  await page.route(/\/site\.[a-f0-9]{16}\.(css|js)$/, async route => {
+    blocked.push(route.request().url());
+    await route.fulfill({ status: 404, body: 'Expired asset' });
+  });
+  await page.goto(new URL('en/unity/top.sealoong.sensa/README.html', base).href);
+  await expect(page.locator('.layout')).toHaveCSS('display', info.project.name === 'mobile' ? 'block' : 'grid');
+  await expect(page.locator('header')).toHaveCSS('display', 'flex');
+  await expect(page.locator('link[rel=stylesheet]')).toHaveAttribute('href', '../../../site.css');
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('en-US');
+  await expect(page.locator('script[src$="/site.js"]')).toHaveCount(1);
+  await page.locator('header [data-locale="zh-CN"]').click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.locator('.layout')).toHaveCSS('display', info.project.name === 'mobile' ? 'block' : 'grid');
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('zh-CN');
+  expect(blocked).toHaveLength(4);
+  expect(errors).toEqual([]);
+  await info.attach('help-assets-fallback.json', { body: JSON.stringify({ blocked, errors, recovered: true }), contentType: 'application/json' });
 });

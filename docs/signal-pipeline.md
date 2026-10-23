@@ -23,6 +23,10 @@
 
 例如，先将两个触碰区域合成为“接触强度”，再分别用于设备振动、DG-LAB 通道和 Avatar 发光。每条输出按自己的范围解释这一结果。[计算信号](computed-signals.md) · [工作台指南](guide.md)
 
+![Sensa 实际运行界面](screenshots/desktop/combined-input-zh-CN.png)
+
+[窄屏界面](screenshots/mobile/combined-input-zh-CN.png) · [更多运行画面](screenshots.md)
+
 ## 先录一条手动轨道
 
 1. 打开“流程”，添加“录制”输出，保留默认 Funscript 格式。
@@ -119,6 +123,12 @@ HTTP JSON 与 WebSocket JSON 的消息包含 `address`、`value`、`type`、`sig
 MIDI 使用操作系统可用的输出端口。在端口列表中刷新并选择目标，将地址填写为 `CC/通道/控制器`：通道为 1～16，控制器为 0～127，发送值也为 0～127。例如，`CC/1/1` 发送第 1 通道的第 1 控制器。Windows、macOS 使用系统 MIDI 服务；Linux 需要 ALSA 及可用的音序器，包括 `/dev/snd/seq`。
 
 ## 录制与观察
+
+控制页也提供快捷的 L0 录制面板。
+
+![L0 录制面板](screenshots/desktop/recording-controls.png)
+
+[窄屏录制面板](screenshots/mobile/recording-controls.png)
 
 先选择想保留的来源，再添加“录制”输出。推荐先使用 Funscript，得到可以播放和编辑的轨迹。
 

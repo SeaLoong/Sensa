@@ -48,4 +48,4 @@ python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/
 
 PB 抓取权限、多语字体／HMD 可读性、上传 OSC、相机保留、镜面、HDR／AA、捕获延迟及多人行为仍须真实客户端验收。
 
-[开发说明](DEVELOPMENT.md) · [相机实验](CAMERA-PROTOTYPE.md) · [图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)
+[开发说明](DEVELOPMENT.md) · [相机实验](CAMERA-PROTOTYPE.md) · [图解](https://sealoong.github.io/Sensa/parameter-geometry.html)

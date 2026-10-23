@@ -1,6 +1,7 @@
 /* Offline geometry for exploring Contact shapes and parameter meanings.
  * 离线几何模型：了解 Contact 形状与参数含义。
- * Generator evidence / 生成器证据: VRCFury 6bd33f4cb453df816c943a335e47f64e6a37e188;
+ * Generator evidence / 生成器证据: VRCFury 1.1434.0, matching geometry source at
+ * 6bd33f4cb453df816c943a335e47f64e6a37e188;
  * see docs/ogb-compatibility.md for source links and runtime-scale limits.
  */
 (function (root) {
@@ -10,6 +11,12 @@
     'socket-modern', 'socket-legacy', 'socket-touch', 'socket-frot',
     'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'contact-sdk', 'sensa-sps', 'shader',
   ]);
+  const nativeSpsGeometry = Object.freeze({ socketReceiverRadius: 1, plugRootRadius: .01, socketRootRadius: .001,
+    touchZoneRadius: .1, socketDepthViewHeightRatio: .05, socketCloseRadiusDivisor: 2.5,
+    maxTouchExtension: .08, rubExtension: .08, socketFrotRadius: .1, socketFrotOffset: .05 });
+  // Example Avatar dimensions feed the upstream generation rules; fixed Contact sizes stay above.
+  // 示例 Avatar 尺寸代入上游生成规则；固定的 Contact 尺寸单独列在上方。
+  const illustrationDefaults = Object.freeze({ viewHeight: 1.6, plugLength: .2, plugRadius: .03, bodyRadius: .025 });
   const spsGeometry = Object.freeze({ receiverRadius: 2, markerRadius: .001, anchorHalfSpan: .35, positionHalfRange: 2, minProximity: .001, maxProximity: .999 });
   const shaderEncoding = Object.freeze({ width: 49, height: 49, quiet: 8, standardQuiet: 4, buffer: 4, version: 4, level: 'H', bytes: 32, blocks: 4, dataPerBlock: 9, eccPerBlock: 16 });
   const anchors = Object.freeze([
@@ -28,7 +35,8 @@
     [0, .99], [.035, .95], [.045, .85], [.02, .75], [-.04, .67], [-.16, .6], [-.45, .48],
     [-.72, .38], [-.88, .34], [-.9, .44]];
   const sources = Object.freeze({
-    sockets: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L255',
+    sockets: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273',
+    socketDepth: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318',
     plugs: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256',
     senders: 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108',
     contacts: 'https://creators.vrchat.com/common-components/contacts/',
@@ -44,8 +52,9 @@
       'plug-frot': [.04, 0, 0], zone: [.08, 0, 0], 'contact-sdk': [.02, 1, .15], 'sensa-sps': [.02, 1, .15], shader: [.02, 1, .15],
     };
     const [x, y, z] = positions[scenario];
-    return { scenario, x, y, z, L: .2, W: .03, D: .15, senderRadius: .025,
-      senderHeight: .12, zoneRadius: .1, yaw: 0, party: 'Others', senderKind: 'body',
+    return { scenario, x, y, z, L: illustrationDefaults.plugLength, W: illustrationDefaults.plugRadius,
+      D: illustrationDefaults.viewHeight * nativeSpsGeometry.socketDepthViewHeightRatio, senderRadius: illustrationDefaults.bodyRadius,
+      senderHeight: .12, zoneRadius: nativeSpsGeometry.touchZoneRadius, yaw: 0, party: 'Others', senderKind: 'body',
       senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true,
       vx: 0, vy: 0, vz: 0, proximitySpeed: 0,
       rightX: 1, rightY: 0, rightZ: 0, forwardX: 0, forwardY: 0, forwardZ: 1, avatarScale: 1 };
@@ -438,9 +447,9 @@
     const defaults = defaultsFor(scenario);
     const point = { x: number(input, 'x', defaults.x),
       y: number(input, 'y', defaults.y), z: number(input, 'z', defaults.z) };
-    const L = number(input, 'L', .2, 0, true), W = number(input, 'W', .03, 0, true);
-    const D = number(input, 'D', .15, 0, true), zoneRadius = number(input, 'zoneRadius', .1, 0, true);
-    const senderRadius = number(input, 'senderRadius', .025, 0);
+    const L = number(input, 'L', defaults.L, 0, true), W = number(input, 'W', defaults.W, 0, true);
+    const D = number(input, 'D', defaults.D, 0, true), zoneRadius = number(input, 'zoneRadius', defaults.zoneRadius, 0, true);
+    const senderRadius = number(input, 'senderRadius', defaults.senderRadius, 0);
     const senderHeight = number(input, 'senderHeight', .12, 0);
     const senderLength = number(input, 'senderLength', L, 0, true);
     const senderWidth = number(input, 'senderWidth', W, 0, true);
@@ -461,9 +470,14 @@
     const assumptions = [
       { id: 'illustration', zh: '图中用一组匹配目标演示检测形状和参数变化。', en: 'The diagram uses one matching target to explore detection shapes and changing values.' },
       { id: 'scale', zh: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2：位置与速度按 Receiver 旋转后的轴以米、米每秒报告，保持世界尺度。' : 'OGB 图形按作者缩放为 1、以米展示；SPS 四点定位和 Shader 使用 Avatar 根局部单位。', en: scenario === 'contact-sdk' ? 'SDK Beta 3.10.6-beta.2 reports position and velocity on Receiver-rotated axes in metres and metres per second, retaining world scale.' : 'OGB shapes are shown in metres at authored scale 1; SPS four-anchor tracking and Shader use Avatar-root local units.' },
-      { id: 'projection', zh: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
+      { id: 'projection', zh: scenario === 'shader' ? '绿色方框显示编码坐标范围的 XZ 截面；位置编码保留完整 XYZ，Y 由高度滑条调整。' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? '数值按完整 XYZ 计算；二维接收轮廓是投影，绿色区域表示所选 Y 高度的切片。' : 'XZ 图把三维形状投影到平面，数值始终按完整 XYZ 距离计算。', en: scenario === 'shader' ? 'The green box shows the XZ section of the coordinate encoding range. Encoding retains full XYZ; the height slider adjusts Y.' : ['contact-sdk', 'sensa-sps'].includes(scenario) ? 'Values use full XYZ. Receiver outlines are projected into 2D; green shows a slice at the selected Y.' : 'The XZ view projects 3D shapes onto a plane; values always use full XYZ distances.' },
       { id: 'caps', zh: '胶囊总高度包含两端半球；本页在形状相交时将接触开关设为 1。', en: 'Capsule height includes both hemispherical caps; this guide sets the contact switch to 1 when the shapes overlap.' },
     ];
+    if (!['contact-sdk', 'sensa-sps', 'shader'].includes(scenario)) assumptions.push({
+      id: 'upstream-defaults',
+      zh: '固定半径与生成规则核对 VRCFury 1.1434.0。示例 Plug 长 0.20 m、半径 0.03 m；Socket 自动区域按示例视点高 1.60 m 的 5% 得到 D=0.08 m。可用滑条填写实际模型尺寸或自定义区域。',
+      en: 'Fixed radii and generation rules match VRCFury 1.1434.0. The example Plug is 0.20 m long with a 0.03 m radius. Automatic Socket depth uses 5% of the example 1.60 m view height, giving D=0.08 m. Set the sliders to your actual model dimensions or authored region.',
+    });
     const put = shape => { shapes.push(shape); return shape; };
     const opening = position => {
       points.socketRoot = { ...position }; points.socketOpening = { ...position };
@@ -492,15 +506,15 @@
     };
     if (scenario === 'socket-modern') {
       opening(origin()); plug(point, axis);
-      const receiver = put(sphere('receiver-root', 'receiver', origin(), 1, 'TPS_Pen_Root'));
-      const tipReceiver = put(sphere('receiver-length', 'receiver', origin(), 1, 'TPS_Pen_Penetrating'));
-      const sender = put(sphere('sender-root', 'sender', point, .01, 'TPS_Pen_Root'));
+      const receiver = put(sphere('receiver-root', 'receiver', origin(), nativeSpsGeometry.socketReceiverRadius, 'TPS_Pen_Root'));
+      const tipReceiver = put(sphere('receiver-length', 'receiver', origin(), nativeSpsGeometry.socketReceiverRadius, 'TPS_Pen_Penetrating'));
+      const sender = put(sphere('sender-root', 'sender', point, nativeSpsGeometry.plugRootRadius, 'TPS_Pen_Root'));
       const lengthSender = put(sphere('sender-length', 'sender', point, L, 'TPS_Pen_Penetrating'));
       const r = field('Pen' + party + 'NewRoot', receiver, sender);
       const t = field('Pen' + party + 'NewTip', tipReceiver, lengthSender);
       metrics.centerDistance = length(point);
       metrics.unsaturatedLengthEstimate = r.raw > 0 && r.raw < 1 && t.raw > 0 && t.raw < 1
-        ? t.raw - r.raw + .01 : null;
+        ? nativeSpsGeometry.socketReceiverRadius * (t.raw - r.raw) + nativeSpsGeometry.plugRootRadius : null;
       metrics.idealKnownLengthRadialRatio = clamp(1 - metrics.centerDistance / L);
       metrics.estimatorRequiresPriorLengthLearning = true;
       assumptions.push({ id: 'root-centred-tip', zh: 'NewTip 使用以 Plug 根点为中心的长度球。图中已知 L，用于演示距离与进入程度的关系；桌面程序先根据变化样本估算长度。', en: 'NewTip uses a length sphere centered on the Plug root. The guide uses a known L to illustrate distance and depth; the desktop first learns length from changing samples.' });
@@ -508,7 +522,7 @@
       opening(origin());
       const receiver = put(sphere('receiver-proximity', 'receiver', { x: 0, y: 0, z: -D }, D,
         scenario === 'socket-legacy' ? 'TPS_Pen_Penetrating' : 'BodyContact'));
-      const close = put(capsule('receiver-close', 'receiver', { x: 0, y: 0, z: -D / 2 }, D / 2.5, D,
+      const close = put(capsule('receiver-close', 'receiver', { x: 0, y: 0, z: -D / 2 }, D / nativeSpsGeometry.socketCloseRadiusDivisor, D,
         { x: 0, y: 0, z: 1 }, receiver.tag));
       const sender = put(scenario === 'socket-legacy'
         ? sphere('sender-length', 'sender', point, L, 'TPS_Pen_Penetrating') : body());
@@ -518,17 +532,17 @@
     } else if (scenario === 'socket-frot') {
       opening(origin()); points.senderRoot = { ...point };
       illustrate('socket-other', 'socket', point, { x: 0, y: 0, z: -1 }, Math.min(D, .22), Math.max(.045, W * 1.8));
-      const receiver = put(sphere('receiver-frot', 'receiver', { x: 0, y: 0, z: .05 }, .1, 'TPS_Orf_Root'));
-      field('FrotOthers', receiver, put(sphere('sender-socket-root', 'sender', point, .001, 'TPS_Orf_Root')));
+      const receiver = put(sphere('receiver-frot', 'receiver', { x: 0, y: 0, z: nativeSpsGeometry.socketFrotOffset }, nativeSpsGeometry.socketFrotRadius, 'TPS_Orf_Root'));
+      field('FrotOthers', receiver, put(sphere('sender-socket-root', 'sender', point, nativeSpsGeometry.socketRootRadius, 'TPS_Orf_Root')));
     } else if (scenario === 'plug-depth') {
       opening(origin()); plug(point, axis); points.senderRoot = origin();
       const receiver = put(sphere('receiver-depth', 'receiver', point, L, 'TPS_Orf_Root'));
-      field('Pen' + party, receiver, put(sphere('sender-socket-root', 'sender', origin(), .001, 'TPS_Orf_Root')),
+      field('Pen' + party, receiver, put(sphere('sender-socket-root', 'sender', origin(), nativeSpsGeometry.socketRootRadius, 'TPS_Orf_Root')),
         'proximity', null, 'OGB/Pen/Example');
     } else if (scenario === 'plug-touch' || scenario === 'plug-frot') {
       plug(origin(), ownAxis); points.senderRoot = { ...point };
-      const e = Math.min(W, .08), touch = scenario === 'plug-touch';
-      metrics.extraRadius = touch ? e : .08;
+      const e = Math.min(W, nativeSpsGeometry.maxTouchExtension), touch = scenario === 'plug-touch';
+      metrics.extraRadius = touch ? e : nativeSpsGeometry.rubExtension;
       const receiver = put(sphere('receiver-proximity', 'receiver', origin(), touch ? L + e : L,
         touch ? 'BodyContact' : 'TPS_Pen_Close'));
       const close = put(capsule('receiver-close', 'receiver', mul(ownAxis, L / 2), W + metrics.extraRadius,
@@ -693,5 +707,5 @@
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
-  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell, encodeQr });
+  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, nativeSpsGeometry, illustrationDefaults, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell, encodeQr });
 })(globalThis);

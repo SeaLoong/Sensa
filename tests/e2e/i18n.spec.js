@@ -24,11 +24,11 @@ test('browser language persists and preserves drafts without control requests', 
 });
 
 
-test('URL, explicit preference and ordered environment languages choose the UI without activating input / URL、显式偏好与有序环境语言选择界面但不启用输入',
+test('Session preference and browser language choose the UI while shared URLs stay clean / 会话偏好与浏览器语言选择界面，分享链接保持简洁',
   { tag: ['@i18n', '@config'] }, async ({ page, rig }) => {
     const cases = [
-      { name: 'URL Chinese variant', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'zh-CN' },
-      { name: 'URL English variant', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'en-US', switchAndReload: true },
+      { name: 'shared URL uses saved English', requested: 'ZH_hant_tw', saved: 'en-US', languages: ['en-US'], expected: 'en-US', switchAndReload: true },
+      { name: 'shared URL uses saved Chinese', requested: 'EN_gb', saved: 'zh-CN', languages: ['zh-CN'], expected: 'zh-CN' },
       { name: 'canonical saved choice', saved: 'zh_HK', languages: ['en-US'], expected: 'zh-CN' },
       { name: 'invalid URL preserves supported choice', requested: 'de-DE', saved: 'zh-CN', languages: ['en-US'], expected: 'zh-CN' },
       { name: 'ordered later Chinese', saved: 'bad', languages: ['fr-FR', 'zh_Hant_TW', 'en-US'], expected: 'zh-CN' },
@@ -44,9 +44,9 @@ test('URL, explicit preference and ordered environment languages choose the UI w
       await child.addInitScript(({ languages, language, saved, denied }) => {
         Object.defineProperty(navigator, 'languages', { configurable: true, value: languages });
         Object.defineProperty(navigator, 'language', { configurable: true, value: language || 'en-US' });
-        if (denied) Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
+        if (denied) Object.defineProperty(window, 'sessionStorage', { configurable: true, get() { throw new DOMException('Storage blocked', 'SecurityError'); } });
         else if (window.name !== 'locale-fixture-ready') {
-          if (saved === undefined) localStorage.removeItem('sensa.locale'); else localStorage.setItem('sensa.locale', saved);
+          if (saved === undefined) sessionStorage.removeItem('sensa.locale'); else sessionStorage.setItem('sensa.locale', saved);
           window.name = 'locale-fixture-ready';
         }
       }, scenario);
@@ -54,6 +54,7 @@ test('URL, explicit preference and ordered environment languages choose the UI w
         const url = new URL(rig.baseUrl); if (scenario.requested) url.searchParams.set('lang', scenario.requested);
         await child.goto(url.href);
         await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
+        expect(new URL(child.url()).searchParams.has('lang')).toBe(false);
         await expect(child.getByRole('button', { name: scenario.expected === 'en-US' ? 'Help' : '帮助', exact: true })).toBeVisible();
         await expect(child.getByLabel('Language / 语言', { exact: true })).toHaveValue(scenario.expected);
         if (scenario.switchAndReload) {
@@ -61,8 +62,8 @@ test('URL, explicit preference and ordered environment languages choose the UI w
           await slider.press('End'); const draft = await slider.inputValue();
           await child.getByLabel('Language / 语言', { exact: true }).selectOption('zh-CN');
           await expect(child.getByRole('slider', { name: 'L0 主轴', exact: true })).toHaveValue(draft);
-          expect(new URL(child.url()).searchParams.get('lang')).toBe('zh-CN');
-          expect(await child.evaluate(() => localStorage.getItem('sensa.locale'))).toBe('zh-CN');
+          expect(new URL(child.url()).searchParams.has('lang')).toBe(false);
+          expect(await child.evaluate(() => sessionStorage.getItem('sensa.locale'))).toBe('zh-CN');
           await child.reload(); await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');
           const withoutOverride = new URL(rig.baseUrl); await child.goto(withoutOverride.href);
           await expect(child.locator('html')).toHaveAttribute('lang', 'zh-CN');

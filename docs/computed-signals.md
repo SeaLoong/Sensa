@@ -50,6 +50,10 @@ B 的影响占 75%，A 占 25%。权重可以使用任意非负有限数，只�
 
 两个输入都按 0～1 表示同类强度时，结果可继续使用 0～1 输入量程。组合不同量程的数据前，先用常量和运算把它们调整到有可比含义的范围。映射中的量程设置作用于最终计算结果。
 
+![计算输入中的 OSC 路径与权重](screenshots/desktop/computed-signal-input-zh-CN.png)
+
+[窄屏输入设置](screenshots/mobile/computed-signal-input-zh-CN.png)
+
 ## 支持的运算
 
 | 运算 | 配置值 | 计算方式与用途 |

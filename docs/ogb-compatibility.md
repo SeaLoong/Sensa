@@ -6,9 +6,25 @@ OGB 用参数描述 Avatar 的靠近、进入和触碰交互，Sensa 可将这�
 
 先在参数列表找到实际来源和完整路径，再选[深度或振动模板](presets.md)。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 用两路数值估算进入深浅；**SPS1 · PenOthers / PenOthersClose** 用深浅信号配合有效接近区域。配对时保持同来源、同实例和同 Self／Others 类别，需要时开启 Avatar 的 OGB_ENABLED 心跳。
 
-**外部 OGB 路径沿用上游名称**。Sensa 自有 SPS 四点定位、Contact 直接定位和 Shader 参数见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=zh-CN)可交互查看检测球与胶囊，灰色轮廓帮助辨认 Socket／Plug 的相对位置。
+**外部 OGB 路径沿用上游名称**。Sensa 自有 SPS 四点定位、Contact 直接定位和 Shader 参数见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可交互查看检测球与胶囊，灰色轮廓帮助辨认 Socket／Plug 的相对位置。
 
 研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。OGB v1.0.0 已同时读取 `PenOthersNewRoot`／`PenOthersNewTip` 和 `PenOthers`；图解的 SPS1／SPS2 标签按参数几何区分，具体以 Avatar 发布的路径为准。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
+
+图解已核对 **VRCFury 1.1434.0** 的 `BakeHapticSocketsService.cs`、`VRCFuryHapticSocketBaker.cs` 与 `VRCFuryHapticPlugBaker.cs`；这三个文件与上述固定提交一致。
+
+## 图解采用哪些默认尺寸
+
+每种参数使用对应的上游生成规则。Plug 长度、粗细和 Socket 自动触碰区来自 Avatar 尺寸，图解用一组明确的示例尺寸展示这些规则；滑条可改成你的实际尺寸。
+
+| 场景 | VRCFury 生成规则 | 图解初始值 |
+| --- | --- | --- |
+| SPS2 · NewRoot / NewTip | 两只接收球半径均为 1 m；Plug 根标记半径 0.01 m | 1 m / 0.01 m |
+| SPS1 · PenOthers，以及 Socket Touch | 接收半径 D 来自区域长度；自动长度为 Avatar 视点高度的 5%，Close 半径为 D/2.5 | 示例视点高 1.60 m → D=0.08 m，Close=0.032 m |
+| Plug 侧深度、触碰与摩擦 | 按 Plug 的实际长度 L、半径 W 生成 | 示例 L=0.20 m、W=0.03 m |
+| Socket 根标记 | 半径 0.001 m | 0.001 m |
+| 独立 Touch Zone | 默认半径 0.10 局部单位，随对象缩放 | 缩放 1 时为 0.10 m |
+
+Sensa 的 **SPS 四点定位**和 **Contact 直接定位**各自创建专用 Contact：接收半径为 2 个制作局部单位，目标标记半径为 0.001；制作缩放为 1 时分别对应 2 m 和 1 mm。它们使用 `Sensa/SPS/…` 与 `Sensa/Contact/…` 路径，几何配置见[定位说明](positioning.md)。上表的原生 `OGB/…` 参数继续使用 VRCFury 的生成尺寸。
 
 ## 先理解半径与数值
 
@@ -50,7 +66,7 @@ p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
 | TouchSelf | 近接；自身 Hand/Finger/Foot | 中心 -D·Z，球 R=D；需要触摸区 | 触碰强度，与 TouchSelfClose 配合 |
 | TouchSelfClose | Constant；对应身体标签 | 中心 -D/2·Z，胶囊 R=D/2.5、H=D；需要触摸区 | 自身目标进入对应触碰区时为 1 |
 
-D 来自作者 `length`：勾选米制时直接使用，否则乘对象世界 Z 缩放；未给正值时尝试使用 Avatar 视点高度的 5%。不能取得有效触摸区时不生成该区。上表是生成请求值，尺度转换见后文。[Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[D 的来源](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318)
+D 来自作者 `length`：组件默认值为 0，启用触碰区后按 Avatar 视点高度的 5% 自动生成。填写正值时，勾选米制直接使用，否则乘对象世界 Z 缩放。有效触碰区会生成上表对应参数；尺度转换见后文。[组件默认值](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Runtime/Component/VRCFuryHapticSocket.cs#L31-L34)、[Socket 生成器](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273)、[D 的来源](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L303-L318)
 
 `PenSelf` 是官方 OGB 消费端仍会读取的旧值，但上述现代生成器并未生成 Orf/PenSelf。使用这类历史来源时，按它实际发布的路径和作者几何校准。当前生成器支持的 Socket 叶子以表中清单为准。
 

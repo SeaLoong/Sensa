@@ -36,6 +36,37 @@ test('offline classic model exposes fresh defaults for every scene / 离线经�
   assert.equal(model.defaultsFor('shader').z, .15);
 });
 
+test('native SPS defaults follow VRCFury generation dimensions while Sensa tracking keeps its own geometry / 原生 SPS 默认尺寸遵循 VRCFury 且 Sensa 定位使用独立几何', () => {
+  // VRCFury 1.1434.0 / 6bd33f4: BakeHapticSocketsService 192–273,
+  // SocketBaker 303–318, PlugBaker 72–108, BakeHapticPlugsService 180–256.
+  for (const [scenario, id, radius] of [
+    ['socket-modern', 'receiver-root', 1], ['socket-modern', 'receiver-length', 1],
+    ['socket-modern', 'sender-root', .01], ['socket-modern', 'sender-length', .2],
+    ['socket-legacy', 'receiver-proximity', .08], ['socket-legacy', 'receiver-close', .032],
+    ['socket-touch', 'receiver-proximity', .08], ['socket-touch', 'receiver-close', .032],
+    ['socket-frot', 'receiver-frot', .1], ['socket-frot', 'sender-socket-root', .001],
+    ['plug-depth', 'receiver-depth', .2], ['plug-depth', 'sender-socket-root', .001],
+    ['plug-touch', 'receiver-proximity', .23], ['plug-touch', 'receiver-close', .06],
+    ['plug-frot', 'receiver-proximity', .2], ['plug-frot', 'receiver-close', .11],
+    ['zone', 'receiver-zone', .1], ['contact-sdk', 'receiver-contact', 2],
+    ['contact-sdk', 'sender-contact', .001], ['sensa-sps', 'receiver-P0', 2],
+  ]) near(shape(evaluate({ scenario }), id).radius, radius);
+  near(model.illustrationDefaults.viewHeight, 1.6);
+  for (const scenario of ['socket-legacy', 'socket-touch']) {
+    const scene = evaluate({ scenario });
+    near(shape(scene, 'receiver-proximity').center.z, -.08);
+    near(shape(scene, 'receiver-close').center.z, -.04);
+    near(shape(scene, 'receiver-close').height, .08);
+    near(model.defaultsFor(scenario).D, 1.6 * .05);
+    // An authored positive length overrides the automatic example, as it does in VRCFury.
+    near(shape(evaluate({ scenario, D: .12 }), 'receiver-proximity').radius, .12);
+    near(shape(evaluate({ scenario, D: .12 }), 'receiver-close').radius, .048);
+  }
+  near(shape(evaluate({ scenario: 'socket-frot' }), 'receiver-frot').center.z, .05);
+  near(shape(evaluate({ scenario: 'plug-touch' }), 'receiver-close').height, .26);
+  near(shape(evaluate({ scenario: 'plug-frot' }), 'receiver-close').height, .2);
+});
+
 test('parameter names are alphabetical with each base before its Close partner / 参数按字典序排列且基本名在 Close 前', () => {
   for (const [scenario, names] of [
     ['socket-modern', ['PenOthersNewRoot', 'PenOthersNewTip']],
@@ -143,11 +174,11 @@ test('legacy socket detects the length sphere and a real Close gate / 旧Socket�
 });
 
 test('socket touch separates raw proximity from the close capsule / Socket触摸区分原始近接与接近胶囊', () => {
-  const scene = evaluate({ scenario: 'socket-touch', x: .1, z: -.15, senderRadius: .025 });
+  const scene = evaluate({ scenario: 'socket-touch', D: .15, x: .1, z: -.15, senderRadius: .025 });
   near(field(scene, 'TouchOthers').raw, .5);
   assert.equal(field(scene, 'TouchOthersClose').raw, 0);
   assert.equal(field(scene, 'TouchOthers').effective, 0);
-  const largeBody = evaluate({ scenario: 'socket-touch', x: .1, z: -.15, senderRadius: .06 });
+  const largeBody = evaluate({ scenario: 'socket-touch', D: .15, x: .1, z: -.15, senderRadius: .06 });
   assert.equal(field(largeBody, 'TouchOthersClose').raw, 1);
   assert.ok(field(largeBody, 'TouchOthers').effective > 0);
 });

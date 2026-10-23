@@ -26,7 +26,7 @@ Start with what the Avatar already provides. Existing OGB/SPS parameters connect
 | Supported advanced Proximity SDK, with position and velocity needed | Contact direct tracking (SDK Beta) | Metre-based position and relative velocity |
 | A PC view can show a code block, with axes and scale needed | Shader capture | Root position, X/Z axes and AvatarScale |
 
-Use the [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html?lang=en-US) to understand parameters and valid regions first. For spatial input, inspect and calibrate before allowing experimental spatial input and activating input. Check actual client/graphics behavior with the versions used.
+Use the [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) to understand parameters and valid regions first. For spatial input, inspect and calibrate before allowing experimental spatial input and activating input. Check actual client/graphics behavior with the versions used.
 
 ## Existing OGB / SPS
 

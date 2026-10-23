@@ -10,6 +10,10 @@ Download your system/CPU archive from [Releases](https://github.com/SeaLoong/Sen
 
 The interface chooses a language automatically, with a manual switch available. [Language preferences](languages.en.md)
 
+![Sensa running in a browser](screenshots/desktop/control-page.png)
+
+[Narrow layout](screenshots/mobile/control-page.png) · [More running examples](screenshots.en.md)
+
 ## 2. Add an output
 
 Open Flow, choose Add output, select Recording and keep its default **Funscript** format.

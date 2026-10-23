@@ -50,6 +50,10 @@ B has 75% of the influence and A has 25%. Weights may be any finite nonnegative 
 
 When both inputs express the same kind of intensity from 0 to 1, the result can keep a 0–1 input range. Use constants and operations to bring different ranges into a comparable meaning before combining them. A mapping's range applies to the final computed result.
 
+![A calculation input with OSC path and weight](screenshots/desktop/computed-signal-input-en-US.png)
+
+[Narrow layout](screenshots/mobile/computed-signal-input-en-US.png)
+
 ## Supported operations
 
 | Operation | Configuration value | Calculation and use |
