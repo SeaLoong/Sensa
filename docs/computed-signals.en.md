@@ -168,6 +168,8 @@ Positions in a calculation share one OSC source, reference, axis directions and 
 
 Shader axes describe direction without position units. Known AvatarRootLocal axes can provide directions for AvatarRootMeters positions because both use the Avatar root's axes. You assign meaning to raw OSC parameters and constants; configure them with consistent references and units. Length results retain position units, while angles use degrees.
 
+The system also checks the physical meaning of known inputs: position groups use position coordinates, while direction groups can use axes or velocity vectors. Derived acceleration, angular velocity and other rates retain their quantity identifiers for subsequent calculations with those physical quantities.
+
 A zero coordinate is a valid position. Normals and direction vectors need nonzero length, and two plane axes need a clear angle between them: their normalized cross-product length must exceed `0.0001`. Invalid inputs, an undefined direction or a nonfinite result invalidate the calculation, retaining the source's sample-age checks.
 
 Three-point pose angles participate as their reported numeric values; Roll, for example, uses the raw −180° to 180° angle. Crossing the ±180° boundary causes a numeric jump, so choose a mapping range within a continuous interval. Average uses the ordinary arithmetic mean.

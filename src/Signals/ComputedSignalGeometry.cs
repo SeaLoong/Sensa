@@ -3,11 +3,6 @@ namespace Sensa.Signals;
 public sealed partial class ComputedSignalEvaluator
 {
     public const double MinimumPlaneAxisCrossRatio = 1e-4;
-    private static readonly (string Name, string Suffix)[] GeometryQuantities =
-    [
-        ("Basis", ":Basis"), ("Velocity", ":Velocity"), ("Scale", ":Scale"),
-        ("Angle", ":Angle"), ("ProximityRate", ":ProximityRate"), ("NormalizedDepth", ":NormalizedDepth"),
-    ];
     private static bool IsGeometry(ComputedSignalOperation operation) => operation is
         ComputedSignalOperation.PointDistance or ComputedSignalOperation.PlaneDepth
         or ComputedSignalOperation.PlaneOffset or ComputedSignalOperation.VectorAngle
@@ -127,13 +122,24 @@ public sealed partial class ComputedSignalEvaluator
             tagged = current;
         }
         if (tagged is null) { result = new(null, ""); return true; }
-        foreach (var (quantity, suffix) in GeometryQuantities)
+        if (tagged is "Basis" or "Velocity")
         {
-            if (tagged != quantity && !tagged.EndsWith(suffix, StringComparison.Ordinal)) continue;
-            result = new(tagged == quantity ? null : tagged[..^suffix.Length], quantity);
-            return direction && quantity is ("Basis" or "Velocity");
+            result = new(null, tagged);
+            return direction;
         }
-        result = new(tagged, "");
-        return true;
+        // ReferenceLocal:<instance prefix> includes one structural colon. Authored
+        // instance names allow only ASCII letters, digits, '_' and '-', so later
+        // colons delimit quantities, including composite derivative quantities.
+        const string localPrefix = "ReferenceLocal:";
+        var quantityAt = tagged.IndexOf(':', tagged.StartsWith(localPrefix, StringComparison.Ordinal) ? localPrefix.Length : 0);
+        var coordinate = quantityAt < 0 ? tagged : tagged[..quantityAt];
+        var quantity = quantityAt < 0 ? "" : tagged[(quantityAt + 1)..];
+        result = new(coordinate, quantity);
+        if (!IsAvatarRootFrame(coordinate)
+            && !(coordinate.StartsWith(localPrefix, StringComparison.Ordinal) && coordinate.Length > localPrefix.Length))
+            return false;
+        // Explicitly allow supported uses, rather than treating an unrecognized
+        // quantity (such as acceleration or a future report) as position data.
+        return quantityAt < 0 || direction && quantity is ("Basis" or "Velocity");
     }
 }

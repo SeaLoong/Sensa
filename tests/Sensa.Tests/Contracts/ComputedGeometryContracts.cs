@@ -169,6 +169,111 @@ public sealed class ComputedGeometryContracts
         Assert.Equal("AvatarRootMeters:Angle", angle.CoordinateFrame);
     }
 
+    [Theory]
+    [InlineData("AvatarRootMeters:Velocity", "AvatarRootMeters:Acceleration")]
+    [InlineData("ReferenceLocal:Sensa/Pose/v1/Rig_01/Others:Angle", "ReferenceLocal:Sensa/Pose/v1/Rig_01/Others:AngularVelocity")]
+    [InlineData("AvatarRootMeters:ProximityRate", "AvatarRootMeters:ProximityAcceleration")]
+    public void DerivativeQuantitiesCannotMasqueradeAsPositionsOrDirections(string inputFrame, string rateFrame)
+    {
+        static ComputedSignalInputConfig Rate() => new() { SourceMode = "Computed", OscPath = "rate" };
+        var rate = new ComputedSignalConfig { Id = "rate", Operation = ComputedSignalOperation.Derivative, Inputs = [Direct(0)] };
+        var distance = Definition(ComputedSignalOperation.PointDistance,
+            new[] { Rate() }.Concat(new float[] { 0, 0, 0, 0, 0 }.Select(Constant)));
+        distance.Id = "distance";
+        var depth = Definition(ComputedSignalOperation.PlaneDepth,
+            new float[] { .03f, .04f, .12f, 0, 0, 0, 0, 0 }.Select(Constant).Append(Rate()));
+        depth.Id = "depth";
+        var angle = Definition(ComputedSignalOperation.VectorAngle,
+            new[] { Rate() }.Concat(new float[] { 0, 0, 0, 0, 1 }.Select(Constant)));
+        angle.Id = "angle";
+        var axes = Definition(ComputedSignalOperation.PlaneDepthFromAxes,
+            new float[] { 0, 0, .12f, 0, 0, 0 }.Select(Constant).Append(Rate())
+                .Concat(new float[] { 0, 0, 0, 1, 0 }.Select(Constant)));
+        axes.Id = "axes";
+        var evaluator = new ComputedSignalEvaluator([rate, distance, depth, angle, axes]);
+        evaluator.Evaluate(1000, _ => ComputedSignalSample.Success(1, "avatar", 1000, inputFrame));
+        var results = evaluator.Evaluate(2000, _ => ComputedSignalSample.Success(3, "avatar", 2000, inputFrame));
+        Near(results["rate"], 2);
+        Assert.Equal(rateFrame, results["rate"].CoordinateFrame);
+        foreach (var id in new[] { "distance", "depth", "angle", "axes" })
+        {
+            Assert.False(results[id].Valid, id);
+            Assert.Null(results[id].Value);
+        }
+    }
+
+    [Theory]
+    [InlineData("AvatarRootMeters:FutureQuantity")]
+    [InlineData("ReferenceLocal:Sensa/Point/v1/Rig_01/Self:FutureQuantity")]
+    [InlineData("AvatarRootMeters:Acceleration:Velocity")]
+    [InlineData("Angle:Velocity")]
+    [InlineData("AvatarRootMeters:")]
+    public void UnknownOrCompositeQuantitiesAreNotReinterpretedAsCoordinateFrames(string frame)
+    {
+        Assert.False(EvaluateSamples(ComputedSignalOperation.PointDistance, [1, 0, 0, 0, 0, 0],
+            index => index < 3 ? frame : null).Valid);
+        Assert.False(EvaluateSamples(ComputedSignalOperation.PlaneDepth, [0, 0, .12f, 0, 0, 0, 0, 0, 1],
+            index => index >= 6 ? frame : null).Valid);
+        Assert.False(EvaluateSamples(ComputedSignalOperation.VectorAngle, [1, 0, 0, 0, 0, 1],
+            index => index < 3 ? frame : null).Valid);
+    }
+
+    [Theory]
+    [InlineData("Basis")]
+    [InlineData("Velocity")]
+    public void ExplicitUnframedDirectionQuantitiesStayValidOnlyInDirectionSlots(string quantity)
+    {
+        var angle = EvaluateSamples(ComputedSignalOperation.VectorAngle, [1, 0, 0, 0, 0, 1],
+            index => index < 3 ? quantity : "AvatarRootMeters:Basis");
+        Near(angle, 90);
+        Assert.Equal("AvatarRootMeters:Angle", angle.CoordinateFrame);
+        Near(EvaluateSamples(ComputedSignalOperation.PlaneDepth, [0, 0, .12f, 0, 0, 0, 0, 0, 1],
+            index => index < 6 ? "AvatarRootMeters" : quantity), .12);
+        Assert.False(EvaluateSamples(ComputedSignalOperation.PointDistance, [1, 0, 0, 0, 0, 0],
+            index => index < 3 ? quantity : null).Valid);
+    }
+
+    [Fact]
+    public void ReferenceInstanceNamesRemainPartOfTheCoordinateFrameRatherThanItsQuantity()
+    {
+        // Point/Pose authoring permits 1–48 ASCII letters, digits, '_' and '-', with no colon.
+        foreach (var instance in new[] { "Angle", "Velocity", "Basis", "Rig_01-left", new string('A', 48) })
+        {
+            var frame = "ReferenceLocal:Sensa/Point/v1/" + instance + "/Self";
+            var distance = EvaluateSamples(ComputedSignalOperation.PointDistance, [1, 0, 0, 0, 0, 0], _ => frame);
+            Near(distance, 1);
+            Assert.Equal(frame, distance.CoordinateFrame);
+            var depth = EvaluateSamples(ComputedSignalOperation.PlaneDepth, [0, 0, .12f, 0, 0, 0, 0, 0, 1],
+                index => index < 6 ? frame : frame + ":Basis");
+            Near(depth, .12);
+            Assert.Equal(frame, depth.CoordinateFrame);
+        }
+    }
+
+    [Fact]
+    public void APositionDerivativeCanStillSupplyACompatibleVelocityDirection()
+    {
+        var rates = Enumerable.Range(0, 3).Select(index => new ComputedSignalConfig
+        {
+            Id = "rate" + index, Operation = ComputedSignalOperation.Derivative, Inputs = [Direct(index)],
+        }).ToArray();
+        var vector = rates.Select(rate => new ComputedSignalInputConfig { SourceMode = "Computed", OscPath = rate.Id }).ToArray();
+        var depth = Definition(ComputedSignalOperation.PlaneDepth,
+            new float[] { .03f, .04f, .12f, 0, 0, 0 }.Select(Constant).Concat(vector));
+        depth.Id = "depth";
+        var angle = Definition(ComputedSignalOperation.VectorAngle, vector.Concat(new float[] { 0, 0, 1 }.Select(Constant)));
+        angle.Id = "angle";
+        var evaluator = new ComputedSignalEvaluator(rates.Concat([depth, angle]));
+        evaluator.Evaluate(1000, _ => ComputedSignalSample.Success(0, "avatar", 1000, "AvatarRootMeters"));
+        var velocity = new float[] { 3, 0, 4 };
+        var results = evaluator.Evaluate(2000, input => ComputedSignalSample.Success(
+            velocity[int.Parse(input.OscPath[1..])], "avatar", 2000, "AvatarRootMeters"));
+        Near(results["depth"], .114);
+        Assert.Equal("AvatarRootMeters", results["depth"].CoordinateFrame);
+        Near(results["angle"], Math.Atan2(3, 4) * 180 / Math.PI, 1e-5);
+        Assert.Equal("AvatarRootMeters:Angle", results["angle"].CoordinateFrame);
+    }
+
     [Fact]
     public void GeometryRetainsOldestAgeAndNeverReusesAResultAfterInvalidity()
     {
