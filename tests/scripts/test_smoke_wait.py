@@ -269,7 +269,7 @@ class ShaderDiagnosticSetupContracts(LabFixture):
 
 
 class NativeShaderSmokeContracts(LabFixture):
-    def test_synthetic_native_phase_observes_all_fields_root_basis_scale_and_freeze_with_input_disabled(self):
+    def native_phase(self):
         expected = shader_smoke.native_fixture()['expected']
         state = {'running': False}
         feed = Mock(current=self.root / 'native-frame.png')
@@ -289,6 +289,11 @@ class NativeShaderSmokeContracts(LabFixture):
             return {'runtime': {'inputActive': False}, 'poseTracking': {'spsRoots': [root]},
                     'osc': {'preview': [{'path': 'Sensa/Shader/42/' + key, 'numericValue': value} for key, value in fields.items()]}}
         session.api.side_effect = api
+        session.start_child.return_value.poll.return_value = None
+        return session, feed
+
+    def test_synthetic_native_phase_observes_all_fields_root_basis_scale_and_freeze_with_input_disabled(self):
+        session, feed = self.native_phase()
         with patch.object(shader_smoke, 'require_ci'), patch.object(shader_smoke, 'NativeFrameFeed', return_value=feed):
             report = shader_smoke.native_smoke(session)
         self.assertTrue(report['passed']); self.assertTrue(report['synthetic']); self.assertEqual(report['erasedPayloadBand'], 1)
@@ -298,6 +303,17 @@ class NativeShaderSmokeContracts(LabFixture):
         command = session.start_child.call_args.args[0]
         self.assertIn('--watch', command); self.assertEqual(command[command.index('--producer-id') + 1], '42')
         self.assertEqual(command[command.index('--port') + 1], '19093')
+        self.assertEqual(session.start_child.return_value.poll.call_count, 2)
+
+    def test_a_bridge_exit_cannot_pass_as_a_live_frame_or_watchdog_invalidation(self):
+        for polls, message in (([0], 'live-frame'), ([None, 1], 'freeze watchdog')):
+            with self.subTest(polls=polls):
+                session, feed = self.native_phase()
+                session.start_child.return_value.poll.side_effect = polls
+                with patch.object(shader_smoke, 'require_ci'), patch.object(shader_smoke, 'NativeFrameFeed', return_value=feed), \
+                        self.assertRaisesRegex(AssertionError, message):
+                    shader_smoke.native_smoke(session)
+                feed.start.assert_called_once(); feed.stop.assert_called_once()
 
     def test_native_phase_rejects_local_execution_before_starting_its_fixture_or_child(self):
         session = Mock(root=self.root, osc_port=19093)

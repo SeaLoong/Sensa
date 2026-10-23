@@ -39,7 +39,7 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 | Recording replay | A loaded funscript track or diagnostic signal | Reproduce an interaction and refine its processing |
 | Constant/computed signal | A fixed value or saved named result | Scale factor or an intermediate result shared by outputs |
 
-Shader direction and scale can participate as tracking metrics: choose SensaPoint in a calculation or output binding, then select RightX/Y/Z, ForwardX/Y/Z or AvatarScale. These metrics update with complete measurement packets and retain spatial-input permission and validity checks. Use the OSC parameter page to inspect raw reports.
+Shader direction and scale can participate as tracking metrics: choose Tracking measurement (SensaPoint) in a calculation or output binding, then select RightX/Y/Z, ForwardX/Y/Z or AvatarScale. These metrics update with complete measurement packets and retain spatial-input permission and validity checks. Use the OSC parameter page to inspect raw reports.
 
 Computation preserves raw units and validity. Position, velocity and proximity rate use their own ranges; output bindings then convert the result into the target's required range. See [positioning](positioning.en.md) for units and coordinate frames.
 

@@ -92,9 +92,9 @@ def native_smoke(session):
     feed = NativeFrameFeed(session.root / 'native-frame.png')
     try:
         feed.start()
-        session.start_child([sys.executable, str(Path(__file__).with_name('shader-osc-bridge.py')),
-                             '--image', str(feed.current), '--producer-id', '42', '--port', str(session.osc_port),
-                             '--watch', '--duration', '12', '--timeout', '.35'], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
+        native_bridge = session.start_child([sys.executable, str(Path(__file__).with_name('shader-osc-bridge.py')),
+                                            '--image', str(feed.current), '--producer-id', '42', '--port', str(session.osc_port),
+                                            '--watch', '--duration', '12', '--timeout', '.35'], stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
         def inspect():
             state = session.api('/api/state/overview')
             assert not state['runtime']['inputActive'], 'Native fixture replay must keep input disabled'
@@ -104,6 +104,7 @@ def native_smoke(session):
         fresh = wait_for_state(inspect, lambda state: state['values'].get(prefix + 'Valid') == 1
                                and state['root'] is not None and state['root']['valid'],
                                'Synthetic native PNG did not produce a valid twelve-field root', timeout=5)
+        assert native_bridge.poll() is None, 'Native bridge exited before the live-frame assertion'
         expected = native_fixture()['expected']
         assert all(prefix + field in fresh['values'] for field in NATIVE_FIELDS)
         for key, stem in (('xyz', ''), ('right', 'Right'), ('forward', 'Forward')):
@@ -119,6 +120,7 @@ def native_smoke(session):
     stale = wait_for_state(inspect, lambda state: state['values'].get(prefix + 'Valid') == 0
                            and state['root'] is not None and not state['root']['valid'],
                            'Frozen synthetic native PNG did not invalidate transport and root', timeout=3)
+    assert native_bridge.poll() is None, 'Native bridge exit cannot establish freeze watchdog invalidation'
     assert not session.api('/api/config')['outputs']
     return {'passed': True, 'synthetic': True, 'source': 'Synthetic native format-1 PNG; not a GPU/client capture',
             'erasedPayloadBand': 1, 'packetBytes': 32, 'oscFields': list(NATIVE_FIELDS), 'fresh': fresh,
