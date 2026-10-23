@@ -452,7 +452,7 @@ public sealed class SignalOutputRoutingContracts
     {
         using var directory = new RecordingDirectory(); var clock = new ManualTimeProvider(); var active = true;
         var output = new OutputDeviceConfig { Id = "record", Type = OutputDeviceType.Recording, Enabled = true,
-            Signal = new() { RecordingName = "routing", Bindings = [Binding("amount", "L0", "amount")] } };
+            Signal = new() { RecordingFormat = "JsonLines", RecordingName = "routing", Bindings = [Binding("amount", "L0", "amount")] } };
         var config = new AppConfig { Outputs = [output] };
         await using var coordinator = Coordinator(config, clock); coordinator.CanSend = () => active;
         Assert.True(await coordinator.ConnectAsync("record"));

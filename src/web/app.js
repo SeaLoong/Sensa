@@ -730,6 +730,23 @@ function App() {
     }).catch(error => notify(error.message || t('回放操作失败'), 'error'));
   }
 
+  async function loadRecordedScript(fileName) {
+    return withBusy('recording-script-load', async () => {
+      const result = await apiRequest('/api/input/script/load-recording', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fileName }),
+      });
+      setSelectedScriptFile(null);
+      setScriptFileInputKey(previous => previous + 1);
+      setStudio(previous => previous ? { ...previous, preferredInputTab: previous.preferredInputTab === 'combined' ? 'combined' : 'script' } : previous);
+      applyScriptSnapshot(result?.script, scriptSettings);
+      setScriptJumpInput('');
+      setWorkspace('control');
+      if (actualInputMode === 'combined') setCombinedScriptOpen(true);
+      await refreshOverview();
+      notify(t('脚本已加载，输入已关闭；检查时间轴后再打开输入。'), 'success');
+    }).catch(error => notify(error.message || t('脚本加载失败'), 'error'));
+  }
+
   async function applySignalPlan(plan) {
     return withBusy('signal-plan-import', async () => {
       const saved = await persistConfig({ ...config, computedSignals: plan.computedSignals, signals: plan.signals, outputs: plan.outputs,
@@ -1934,7 +1951,7 @@ function App() {
                     </p>
                   </div>
                   <div className="output-telemetry stack">
-                    {isSignalOutputType(output.type) ? <OutputSignalStatus status={state.signalStatus} /> : <OutputPositionPanel state={state} />}
+                    {isSignalOutputType(output.type) ? <OutputSignalStatus status={state.signalStatus} onLoadScript={loadRecordedScript} busy={!online || Boolean(busyKey)} /> : <OutputPositionPanel state={state} />}
                     {!isSignalOutputType(output.type) && state.signalStatus && <OutputSignalStatus status={state.signalStatus} />}
                   </div>
                   <footer className="actions output-actions">

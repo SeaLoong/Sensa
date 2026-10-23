@@ -28,15 +28,26 @@ public sealed class ScriptContracts
     }
 
     [Fact]
-    public void Valid_actions_are_sorted_clipped_and_invalid_entries_do_not_break_import()
+    public void Valid_actions_are_sorted_clipped_and_inverted_without_applying_hardware_range()
     {
         using var player = new FunscriptPlayer(new ManualTimeProvider());
         var state = Load(player, """{"inverted":true,"range":20,"actions":[null,{"at":1000,"pos":150},{"at":-2,"pos":-10},{"at":500,"pos":50},{"at":0.5,"pos":50}]}""");
         Assert.Equal(3, state.ActionCount);
         Assert.Equal(1000, state.DurationMs);
-        Assert.Equal(0, state.CurrentL0);
+        Assert.Equal(1, state.CurrentL0);
         Assert.Equal(.5f, player.Seek(500).CurrentL0);
-        Assert.Equal(1, player.Seek(1000).CurrentL0);
+        Assert.Equal(0, player.Seek(1000).CurrentL0);
+    }
+
+    [Theory]
+    [InlineData("", .35f)]
+    [InlineData("\"inverted\":false,", .35f)]
+    [InlineData("\"inverted\":true,", .65f)]
+    public void Optional_inversion_preserves_linear_interpolation(string header, float expected)
+    {
+        using var player = new FunscriptPlayer(new ManualTimeProvider());
+        Load(player, "{" + header + "\"actions\":[{\"at\":0,\"pos\":20},{\"at\":1000,\"pos\":80}]}");
+        Assert.Equal(expected, player.Seek(250).CurrentL0, 5);
     }
 
     [Fact]

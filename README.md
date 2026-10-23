@@ -34,7 +34,7 @@ A “root” is the starting point you select in Unity, such as an SPS Socket/Pl
 
 Create a **computed signal** in Pipeline to combine parameters with a weighted average, difference, ratio or magnitude, then use the result in axis mappings or output bindings. Inputs can also use solved positions from SPS four-anchor tracking, Contact or Shader, and Contact velocity metrics. Several destinations can reuse one intermediate result.
 
-For example, blend two touch intensities at a 1:3 ratio or calculate root separation from XYZ differences. Output bindings reuse the result with their own destination, type, range and update rate. Choose an OSC parameter output to write an Avatar feedback parameter, a DG-LAB output for a channel task, or Recording for a signal session. Combined input lets manual, OSC, script and feedback sources participate together. [Inputs, computation and outputs](docs/signal-pipeline.en.md) · [Calculations and examples](docs/computed-signals.en.md)
+For example, blend two touch intensities at a 1:3 ratio or calculate root separation from XYZ differences. Output bindings reuse the result with their own destination, type, range and update rate. Choose an OSC parameter output to write an Avatar feedback parameter, a DG-LAB output for a channel task, or Recording for funscript tracks. Combined input lets manual, OSC, script and feedback sources participate together. [Inputs, computation and outputs](docs/signal-pipeline.en.md) · [Calculations and examples](docs/computed-signals.en.md)
 
 ## Explore before connecting
 

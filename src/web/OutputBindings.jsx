@@ -4,15 +4,15 @@ import { SelectField } from './controls.jsx';
 import { t, diagnostic } from './i18n.js';
 import SignalSourceFields from './SignalSourceFields.jsx';
 import PairingQRCode from './PairingQRCode.jsx';
-import { SIGNAL_BINDING_LIMIT, applyVrChatOutput, buildSignalOutputDraft, dglabBasicFrames, isSignalOutputType, makeOutputBinding } from './signal-outputs.js';
+import { SIGNAL_BINDING_LIMIT, applyVrChatOutput, buildSignalOutputDraft, dglabBasicFrames, isSignalOutputType, makeOutputBinding, recordingDownloadUrl, recordingFiles, recordingFormatOptions } from './signal-outputs.js';
 
 const numeric = (event, onChange, key) => onChange({ [key]: event.target.value === '' ? '' : Number(event.target.value) });
 const curveOptions = () => [{ value: 'Linear', label: t('线性') }, { value: 'EaseIn', label: t('缓入') },
   { value: 'EaseOut', label: t('缓出') }, { value: 'SCurve', label: t('缓入缓出') }];
 
-function BindingCard({ binding, outputType, targetAxes, signals, pathOptions, status, onChange, onRemove, defaultOpen }) {
+function BindingCard({ binding, outputType, recordingFormat, targetAxes, signals, pathOptions, status, onChange, onRemove, defaultOpen }) {
   const [open, setOpen] = useState(defaultOpen);
-  const targetLabel = outputType === 'Dglab' ? t('控制内容') : outputType === 'Mqtt' ? t('发布主题') : outputType === 'Recording' ? t('记录字段') : t('目标参数');
+  const targetLabel = outputType === 'Dglab' ? t('控制内容') : outputType === 'Mqtt' ? t('发布主题') : outputType === 'Recording' ? recordingFormat === 'Funscript' ? t('轨道名称') : t('记录字段') : t('目标参数');
   const field = (key, label, extra = {}) => <Field key={key} label={t(label)} type="number" step="any" value={binding[key]}
     onChange={event => numeric(event, onChange, key)} {...extra} />;
   return <details className="signal-binding stack" open={open} onToggle={event => setOpen(event.currentTarget.open)} data-testid="output-binding" data-binding-id={binding.id}>
@@ -32,7 +32,8 @@ function BindingCard({ binding, outputType, targetAxes, signals, pathOptions, st
           : outputType.startsWith('TCode') || outputType === 'Intiface' ? <SelectField label={t('目标轴')} value={binding.address}
             options={targetAxes.map(value => ({ value, label: value }))} onChange={address => onChange({ address })} />
             : <Field label={targetLabel} value={binding.address} onChange={event => onChange({ address: event.target.value })}
-              placeholder={outputType === 'OscParameter' ? '/avatar/parameters/SensaFeedback' : outputType === 'Midi' ? 'CC/1/1' : 'value'} />}
+              placeholder={outputType === 'OscParameter' ? '/avatar/parameters/SensaFeedback' : outputType === 'Midi' ? 'CC/1/1'
+                : outputType === 'Recording' && recordingFormat === 'Funscript' ? 'L0 / R0 / Track1' : 'value'} />}
         <SelectField label={t('数值类型')} value={binding.valueType} options={[
           { value: 'Float', label: t('Float · 连续数值') }, { value: 'Int', label: t('Int · 整数') }, ...(outputType === 'Midi' ? [] : [{ value: 'Bool', label: t('Bool · 开关') }]),
         ]} onChange={valueType => onChange({ valueType })} />
@@ -58,6 +59,7 @@ function BindingCard({ binding, outputType, targetAxes, signals, pathOptions, st
         : t('映射结果作为 0–1 强度系数，再乘以通道上限得到临时强度。')}</p>}
       {outputType === 'Dglab' && <p className="caption muted">{t('强度跟随输入时自动续接短任务；持续播放的波形按 100 ms 整帧续接。')}</p>}
       {outputType === 'Midi' && <p className="caption muted">{t('MIDI CC 地址格式为 CC／通道／控制器，例如 CC/1/1；输出值范围为 0–127。')}</p>}
+      {outputType === 'Recording' && recordingFormat === 'Funscript' && <p className="caption muted">{t('使用 L0、R0 等轴名可生成对应的多轴文件名，也可填写自定义轨道名称。')}</p>}
       {status && <p className="caption muted" data-testid="output-binding-status">
         {t('原始值 {0} → 发送值 {1}', [status.rawValue ?? '—', status.value ?? '—'])}
         {status.reason ? ` · ${diagnostic(status.reason)}` : ''}
@@ -67,7 +69,31 @@ function BindingCard({ binding, outputType, targetAxes, signals, pathOptions, st
   </details>;
 }
 
-export function OutputSignalStatus({ status }) {
+function RecordingFiles({ status, onLoadScript, busy }) {
+  const [page, setPage] = useState(0);
+  const files = recordingFiles(status), pageCount = Math.ceil(files.length / 20);
+  const current = Math.min(page, Math.max(0, pageCount - 1));
+  if (!files.length) return null;
+  return <div className="stack" data-testid="recording-files">
+    {files.slice(current * 20, (current + 1) * 20).map(file => <div className="stack" key={file.fileName} data-testid="recording-file"
+      data-recording-file={file.fileName} data-recording-signal={file.signalId} data-recording-segment={file.segment}
+      data-recording-completed={file.completed !== false}>
+      <p className="caption muted">{file.signalId ? <strong>{file.signalId}{file.axis && file.axis !== file.signalId ? ` · ${file.axis}` : ''}</strong> : t('录制文件')}
+        {file.segment != null && <> · {t('片段 {0} · 起点 {1} ms', [file.segment, file.timeOffsetMs ?? 0])}</>}
+        {' '}<code>{file.fileName}</code></p>
+      <div className="actions">{file.completed === false ? <span className="caption muted">{t('录制中')}</span>
+        : <a data-testid="recording-download" href={recordingDownloadUrl(file.fileName)} download>{t('下载录制')}</a>}
+        {file.fileName.toLowerCase().endsWith('.funscript') && onLoadScript && <Button data-testid="recording-load-script"
+          disabled={busy || file.completed === false} onClick={() => onLoadScript(file.fileName)}>{t('载入脚本播放器')}</Button>}
+      </div>
+    </div>)}
+    {pageCount > 1 && <div className="actions"><Button disabled={current === 0} onClick={() => setPage(current - 1)}>{t('上一页')}</Button>
+      <span>{t('第 {0} / {1} 页', [current + 1, pageCount])}</span><Button disabled={current >= pageCount - 1} onClick={() => setPage(current + 1)}>{t('下一页')}</Button></div>}
+    {onLoadScript && files.some(file => file.fileName.toLowerCase().endsWith('.funscript')) && <p className="caption muted">{t('载入脚本播放器后，此轨道的位置通过脚本 L0 信号提供；在输出连接中选择目标轴。')}</p>}
+  </div>;
+}
+
+export function OutputSignalStatus({ status, onLoadScript, busy = false }) {
   if (!status) return null;
   const states = { disconnected: t('未连接'), connected: t('已连接'), connecting: t('连接中'), error: t('输出发生错误'),
     Disconnected: t('未连接'), Connecting: t('连接中'), WaitingForServer: t('等待中继响应'),
@@ -80,9 +106,7 @@ export function OutputSignalStatus({ status }) {
     {status.routes?.length > 0 && <dl className="signal-output-readings">{status.routes.slice(0, 8).map(route => <div key={route.id}>
       <dt>{route.name || route.id}</dt><dd>{route.valid ? String(route.value ?? '—') : diagnostic(route.reason) || t('等待输入')}</dd>
     </div>)}</dl>}
-    {status.recordingFile && <p className="caption muted">{t('录制文件')}：<code>{status.recordingFile}</code>{' '}
-      <a data-testid="recording-download" href={`/api/output/recordings/${encodeURIComponent(status.recordingFile)}/download`} download>{t('下载录制')}</a>
-    </p>}
+    <RecordingFiles status={status} onLoadScript={onLoadScript} busy={busy} />
   </div>;
 }
 
@@ -100,7 +124,7 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
   const networkEndpoint = ['OscParameter', 'Mqtt'].includes(output.type);
   const descriptions = {
     Dglab: t('通过 DG-LAB 4 APP 控制已配对的设备，强度和波形可以分别选择信号来源。'),
-    Recording: t('记录所选信号的时间与数值，供分析或在信号流程中回放。'),
+    Recording: t('把信号录制为可播放的 Funscript 轨道，或保存为 JSON Lines、CSV 信号数据。'),
     HttpJson: t('每条连接将参数名、转换后数值和时间组成 JSON，通过 HTTP POST 发送到服务地址。'),
     WebSocketJson: t('每条连接将参数名、转换后数值和时间组成 JSON，通过 WebSocket 长连接发送。'),
     Mqtt: t('主题前缀和每条连接的发布主题组成目标主题，数值以 JSON 发送给 MQTT 服务。'),
@@ -161,13 +185,18 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
       </div></details>
     </>}
     {output.type === 'Recording' && <><div className="form-grid">
-      <SelectField label={t('录制格式')} value={signal.recordingFormat} options={[{ value: 'JsonLines', label: 'JSON Lines' }, { value: 'Csv', label: 'CSV' }]}
+      <SelectField label={t('录制格式')} value={signal.recordingFormat} options={recordingFormatOptions()}
         onChange={recordingFormat => setSignal({ recordingFormat })} />
       <Field label={t('录制名称')} value={signal.recordingName} placeholder={t('自动命名')} onChange={event => setSignal({ recordingName: event.target.value })} />
-    </div>{signal.bindings.some(binding => binding.address) && <p className="caption muted">{t('回放来源路径')}：{signal.bindings.filter(binding => binding.address).slice(0, 4).map((binding, index) => <React.Fragment key={binding.id}>{index > 0 ? ' · ' : ''}<code>{output.id}/{binding.address}</code></React.Fragment>)}</p>}</>}
+    </div>{signal.recordingFormat === 'Funscript' ? <><p className="caption muted">{t('每条连接录制为独立轨道。将映射结果限制在 0–1，再转换为 Funscript 的 pos 0–100；动作时间以毫秒记录。')}</p>
+      <p className="caption muted">{t('输入失效时结束当前片段，恢复后录制下一片段；每个文件从 0 ms 开始，并显示其在原录制中的起点。')}</p>
+      <p className="caption muted">{t('完成的片段可下载或载入脚本播放器。载入信号回放后使用路径 {0}。', [`${output.id}/value`])}</p></>
+      : <><p className="caption muted">{t('信号数据保留原始值、转换值、有效状态和时间，供分析与信号流程回放。')}</p>
+        {signal.bindings.some(binding => binding.address) && <p className="caption muted">{t('回放来源路径')}：{signal.bindings.filter(binding => binding.address).slice(0, 4).map((binding, index) => <React.Fragment key={binding.id}>{index > 0 ? ' · ' : ''}<code>{output.id}/{binding.address}</code></React.Fragment>)}</p>}</>}
+    </>}
     <div className="signal-bindings-heading"><h3>{t('输入到输出的连接')}</h3><Badge>{signal.bindings.length}/{SIGNAL_BINDING_LIMIT}</Badge></div>
     <p className="caption muted">{t('选择来源，把输入范围转换为目标范围。手动轴和脚本位置使用 0–1，时间信号使用秒。')}</p>
-    {signal.bindings.map((binding, index) => <BindingCard key={binding.id} binding={binding} outputType={output.type} targetAxes={targetAxes}
+    {signal.bindings.map((binding, index) => <BindingCard key={binding.id} binding={binding} outputType={output.type} recordingFormat={signal.recordingFormat} targetAxes={targetAxes}
       signals={signals} pathOptions={pathOptions} status={status?.routes?.find(route => route.id === binding.id)} defaultOpen={index === 0}
       onChange={patch => setSignal({ bindings: signal.bindings.map(item => item.id === binding.id ? { ...item, ...patch } : item) })}
       onRemove={() => setSignal({ bindings: signal.bindings.filter(item => item.id !== binding.id) })} />)}
@@ -179,6 +208,7 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
 
 export function RecordingReplayControls({ outputId, status, onAction, files = [], onRefreshFiles, busy = false }) {
   const [fileName, setFileName] = useState(''), [timeMs, setTimeMs] = useState(0);
+  const funscript = (status?.replay?.fileName || fileName || status?.recordingFile || '').toLowerCase().endsWith('.funscript');
   return <details className="recording-replay" data-testid="recording-replay"><summary>{t('录制回放')}</summary><div className="stack">
     <div className="actions"><SelectField data-testid="replay-file-list" label={t('已录制文件')}
       value={files.some(file => file.fileName === fileName) ? fileName : ''} disabled={busy}
@@ -187,7 +217,7 @@ export function RecordingReplayControls({ outputId, status, onAction, files = []
       <Button data-testid="replay-refresh-files" disabled={busy} onClick={onRefreshFiles}>{t('刷新录制列表')}</Button></div>
     <Field label={t('回放文件名')} value={fileName} placeholder={status?.recordingFile || ''} onChange={event => setFileName(event.target.value)} />
     <div className="actions">
-      <Button data-testid="replay-load" disabled={busy || !(fileName || status?.recordingFile)} onClick={() => onAction('load', { outputId, fileName: fileName || status.recordingFile })}>{t('载入录制')}</Button>
+      <Button data-testid="replay-load" disabled={busy || !(fileName || status?.recordingFile) || !fileName && recordingFiles(status).some(file => file.fileName === status?.recordingFile && file.completed === false)} onClick={() => onAction('load', { outputId, fileName: fileName || status.recordingFile })}>{t('载入录制')}</Button>
       <Button data-testid="replay-play" disabled={busy || !status?.replay?.loaded} onClick={() => onAction('play', { outputId })}>{t('播放回放')}</Button>
       <Button data-testid="replay-pause" disabled={busy || !status?.replay?.playing} onClick={() => onAction('pause', { outputId })}>{t('暂停回放')}</Button>
     </div>
@@ -195,6 +225,7 @@ export function RecordingReplayControls({ outputId, status, onAction, files = []
       onChange={event => setTimeMs(event.target.value === '' ? '' : Number(event.target.value))} />
       <Button data-testid="replay-seek" disabled={busy || !status?.replay?.loaded || timeMs === ''} onClick={() => onAction('seek', { outputId, timeMs: Number(timeMs) })}>{t('跳转回放')}</Button></div>
     {status?.replay?.loaded && <p className="caption muted">{t('回放位置 {0} / {1} ms', [Math.round(status.replay.timeMs || 0), Math.round(status.replay.durationMs || 0)])}</p>}
-    <Notice>{t('把录制信号作为计算输入时，使用“录制回放”，路径填写录制输出标识／信号标识。')}</Notice>
+    <Notice>{funscript ? t('Funscript 回放以 0–1 提供位置，使用“录制回放”，路径填写 {0}。', [`${outputId}/value`])
+      : t('把录制信号作为计算输入时，使用“录制回放”，路径填写录制输出标识／信号标识。')}</Notice>
   </div></details>;
 }

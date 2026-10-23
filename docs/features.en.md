@@ -14,7 +14,7 @@ This page summarizes implemented features and their operating conditions. Use th
 | OSC parameters | Separate browse/use source, full-catalog search, at most 100 rows per page, freeze/categories/pins, FT-prefix display, meaning and add mapping |
 | OSC settings | UDP receiver, source, timeout, OGB heartbeat, OSCQuery, service advertisement and Hub |
 | Experimental diagnostics | Root/Point/Handle/Pose, reasons/local values, endpoint calibration and explicit permission |
-| Pipeline | Multi-source computation, temporal/event processing, output bindings, session recording/replay and complete-plan import/export |
+| Pipeline | Multi-source computation, temporal/event processing, output bindings, script recording/replay and complete-plan import/export |
 | Settings | Twelve-axis profiles, defaults/references and structured logs |
 
 Common actions stay visible; less frequent options can be expanded. The header keeps emergency stop available while content scrolls independently, and each output row groups its name, target and actions. Advanced settings expand; unloaded scripts show only import. Drafts differ from saved configuration and survive language changes. [Languages](languages.en.md) · [Visual rules](ui-quality.en.md)
@@ -61,7 +61,7 @@ Intiface uses Buttplug WebSocket, scanning and feature discovery. Position selec
 
 Output bindings add **OSC parameter**, **DG-LAB**, **HTTP JSON**, **WebSocket JSON**, **MQTT**, **MIDI CC** and **Recording** destinations. Each selects source, value conversion, target range, stop value and sending rate. OSC has a VRChat write-back preset; DG-LAB uses the 4 APP's V4 pairing/device/task protocol. Protocol adapters encode destination operations while transports own delivery and cancellation. [Output configuration](signal-pipeline.en.md)
 
-The L0 recorder captures pre-distribution motion targets, preserves final holds, ends at 100000 frames and exports simplified funscript. Active export stops that recording; restart confirms clearing. Recording outputs separately save selected signals and results in JSON Lines or CSV, with loaded-session replay providing raw readings as signal inputs. Complete-plan import/export groups mappings, axis profiles, computations and output settings; imported outputs start disabled. [Recorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/MotionRecorder.cs)
+The L0 recorder captures pre-distribution motion targets, preserves final holds, ends at 100000 frames and exports simplified funscript. Active export stops that recording; restart confirms clearing. Recording outputs default to one funscript track per binding's valid segment, replaying positions from 0 to 1. Advanced JSON Lines/CSV diagnostics retain raw readings, converted values and invalid intervals; their replay reads the raw values. Complete-plan import/export groups mappings, axis profiles, computations and output settings; imported outputs start disabled. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 
 ## Unity and spatial experiments

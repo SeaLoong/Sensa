@@ -36,6 +36,8 @@ flowchart LR
 | [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | 将配置来源解析为带时间的有效或无效样本 |
 | [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | 共用计算帧求值与时序复位边界 |
 | [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | 每绑定有效性、当前值交付、事件队列、停止与协议适配器 |
+| [FunscriptTrackRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/FunscriptTrackRecorder.cs) | 每绑定有效片段、轴文件命名、有界动作与完成文件发布 |
+| [SignalSession](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/SignalSession.cs) | 录制格式、文件列表与 funscript／诊断信号回放 |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | 发送／停止边界；隔离测试可替换输出 |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | 输出类型、轴配置、传输生命周期；不向运行时暴露协议细节 |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | 来源、值、更新时间／内容变化时间、序列与 Avatar 生命周期 |
@@ -53,7 +55,7 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 | 门控／空间失效 | 停止相应动作或绑定，并使旧目标失效 |
 | 启动 | 不恢复输入、输出启用、脚本和运动状态 |
 
-连接与输入启用分别管理；已启用输入可向新连接发送当前有效目标。L0 录制位于动作分发前，会话录制按绑定记录选定信号；命令遥测、录制与设备回报分别呈现各自含义。
+连接与输入启用分别管理；已启用输入可向新连接发送当前有效目标。L0 录制位于动作分发前；录制输出默认将绑定换算后的 0～1 数值保存为 funscript 轨道，每个有效片段独立计时和存档。高级 JSON Lines／CSV 保留同一时间线上的原始值、换算值和有效性。命令遥测、录制与设备回报分别呈现各自含义。
 
 ## 信号与空间有效性
 

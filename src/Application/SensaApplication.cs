@@ -124,6 +124,9 @@ public sealed class SensaApplication(
                 case ("POST", "/api/input/script/load"):
                     result = await LoadScriptFromTextCoreAsync(Read<ScriptUploadRequest>(body)).ConfigureAwait(false);
                     break;
+                case ("POST", "/api/input/script/load-recording"):
+                    result = await LoadScriptFromRecordingCoreAsync(Read<LoadRecordingScriptRequest>(body)).ConfigureAwait(false);
+                    break;
                 case ("POST", "/api/input/script/play"):
                     result = PlayScriptCore(Read<ScriptPlaybackRequest>(body));
                     break;
@@ -409,6 +412,21 @@ public sealed class SensaApplication(
         return await LoadScriptFromStreamCoreAsync(request.FileName, stream, request.Loop ?? false, request.Speed ?? 1.0).ConfigureAwait(false);
     }
 
+    async Task<object> LoadScriptFromRecordingCoreAsync(LoadRecordingScriptRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(request.FileName) || request.FileName.Length > 255
+            || Path.GetExtension(request.FileName) != ".funscript")
+            throw new ArgumentException("请选择已完成的 Funscript 录制 / Choose a completed Funscript recording.");
+        var file = SignalSessionRecorder.ResolveFile(request.FileName);
+        if (!File.Exists(file))
+            throw new ArgumentException("录制文件尚未完成或已不存在 / The recording is unfinished or no longer exists.");
+        await using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.Read);
+        if (stream.Length > SignalSessionRecorder.MaximumBytes)
+            throw new ArgumentException("录制文件超过 64 MiB / The recording exceeds 64 MiB.");
+        var settings = scriptPlayer.GetSnapshot();
+        return await LoadScriptFromStreamCoreAsync(request.FileName, stream, settings.Loop, settings.Speed).ConfigureAwait(false);
+    }
+
     object PlayScriptCore(ScriptPlaybackRequest request)
     {
         if (runtime.CurrentInputMode != RuntimeInputMode.Combined) runtime.SetInputMode(RuntimeInputMode.Script);
@@ -502,3 +520,4 @@ public sealed class SensaApplication(
 }
 
 public sealed record SignalReplayRequest(string OutputId, string? FileName = null, long TimeMs = 0);
+public sealed record LoadRecordingScriptRequest(string FileName);

@@ -36,6 +36,8 @@ flowchart LR
 | [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | Resolve a configured source into a timestamped, valid or invalid sample |
 | [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | Shared computation-frame evaluation and temporal reset boundary |
 | [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | Per-binding validity, current-value delivery, event queue, stopping and protocol adapters |
+| [FunscriptTrackRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/FunscriptTrackRecorder.cs) | Per-binding valid segments, axis filenames, bounded actions and completed-file publication |
+| [SignalSession](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/SignalSession.cs) | Recording formats, file lists and funscript/diagnostic-signal replay |
 | [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Send/stop seam replaceable by isolated tests |
 | [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Output types, profiles and transport lifecycle without exposing protocols to runtime |
 | [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Sources, values, receive/change timestamps, sequences and Avatar lifecycle |
@@ -53,7 +55,7 @@ UDP and OSCQuery share Avatar-change cleanup, resetting caches/learning and stop
 | Gate/spatial invalidity | Stop the affected motion or binding and invalidate its old target |
 | Startup | Do not restore input, enabled outputs, scripts or motion |
 
-Connection and input activation are managed separately; an already active input may send its valid current target to a new connection. L0 recording precedes motion distribution; recording outputs capture selected bindings. Command telemetry, recordings and device-reported feedback have separate meanings.
+Connection and input activation are managed separately; an already active input may send its valid current target to a new connection. L0 recording precedes motion distribution. Recording outputs default to funscript tracks from each binding's converted 0–1 values, with independent timing and files per valid segment. Advanced JSON Lines/CSV retain raw readings, converted values and validity on a shared timeline. Command telemetry, recordings and device-reported feedback have separate meanings.
 
 ## Signal and spatial validity
 

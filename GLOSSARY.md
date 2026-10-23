@@ -16,7 +16,8 @@ Sensa processes input signals and routes results to devices, applications and re
 | **Output binding / 输出绑定** | A source-to-destination connection with its own conversion, type, range and sending schedule. / 从来源到目标的连接，分别设置换算、类型、量程和发送节奏。 |
 | **Protocol / 协议** | The meaning and encoding of messages, such as OSC or DG-LAB V4. / 消息的含义和编码规则，例如 OSC 或 DG-LAB V4。 |
 | **Transport / 传输** | The connection and delivery mechanism used by a protocol, such as UDP, HTTP or WebSocket. / 协议使用的连接与交付方式，例如 UDP、HTTP 或 WebSocket。 |
-| **Session recording / 会话录制** | Selected signals and output results recorded as JSON Lines or CSV, with timestamps for inspection and replay material. / 将选定信号和输出结果按时间写入 JSON Lines 或 CSV，供检查与重放素材使用。 |
+| **Recording output / 录制输出** | An output that saves each binding's valid segments as funscript tracks by default, with JSON Lines/CSV for advanced signal diagnostics. / 默认将每条绑定的有效片段保存为 funscript 轨道的输出，另可用 JSON Lines／CSV 记录高级信号诊断。 |
+| **Funscript track / funscript 轨道** | A widely supported JSON time-position trajectory: integer milliseconds in `at` and positions from 0 to 100 in `pos`. / 广泛支持的 JSON 时间—位置轨迹约定：`at` 为整数毫秒，`pos` 为 0～100 的位置。 |
 | **Shared browser session / 浏览器共享会话** | A realtime backend session shared by same-origin tabs through SharedWorker, or a Web Locks owner using BroadcastChannel, with per-tab request correlation and drafts. / 同源标签页通过 SharedWorker，或由 Web Locks 确定连接归属并用 BroadcastChannel 传递消息，共用实时后端会话；各页保留独立请求关联和草稿。 |
 | **Spatial rig / 空间测量组** | Markers interpreted in the same local coordinate frame. Check their target identity and sampling synchronization separately. / 使用同一局部坐标系解释的一组标记，目标身份和采样同步情况分别检查。 |
 | **Avatar-root coordinates / Avatar 根局部坐标** | A position measured relative to the selected Avatar root, using its authored local scale. Moving or rotating the whole Avatar preserves this relative position. / 以选定的 Avatar 根为参照、按制作时的局部尺度表示的位置。整个 Avatar 一起移动或转身时，该相对位置保持不变。 |

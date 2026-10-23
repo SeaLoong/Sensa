@@ -3,7 +3,7 @@ import { localized, t } from './i18n.js';
 import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
 import { stripComputedDraft } from './computed-signals.js';
-import { buildSignalOutputDraft, isSignalOutputType, makeOutputBinding, stripSignalOutputDraft } from './signal-outputs.js';
+import { buildSignalOutputDraft, isSignalOutputType, makeOutputBinding, recordingFormatOptions, stripSignalOutputDraft } from './signal-outputs.js';
 
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
 
@@ -1108,7 +1108,7 @@ function buildOutputSummary(output) {
   }
   if (output.type === 'OscParameter' || output.type === 'Mqtt') return `${output.host || '127.0.0.1'}:${output.port || getDefaultOutputPort(output.type)}`;
   if (output.type === 'Dglab') return output.signal?.serverUrl || 'wss://trex.dungeon-lab.cn/v4';
-  if (output.type === 'Recording') return `${output.signal?.recordingFormat || 'JSON Lines'} · ${output.signal?.recordingName || t('自动命名')}`;
+  if (output.type === 'Recording') return `${recordingFormatOptions().find(option => option.value === (output.signal?.recordingFormat || 'Funscript'))?.label || output.signal.recordingFormat} · ${output.signal?.recordingName || t('自动命名')}`;
   if (output.type === 'Midi') return output.signal?.midiPortName || t('选择 MIDI 输出端口');
   return output.websocketAddress || 'ws://localhost:12345';
 }

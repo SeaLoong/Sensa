@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Button, Field, Modal, Notice } from './ui.jsx';
 import { t } from './i18n.js';
 import { exportSignalPlan, parseSignalPlan } from './signal-outputs.js';
+import { getOutputTypeLabel } from './configuration.js';
 
 export default function SignalPlanPanel({ config, onApply, disabled = false, emergencyAction }) {
   const [draft, setDraft] = useState(null), [error, setError] = useState(''), [saving, setSaving] = useState(false);
@@ -45,7 +46,7 @@ export default function SignalPlanPanel({ config, onApply, disabled = false, eme
         <p>{t('{0} 个计算，{1} 条轴映射，{2} 个输出。', [draft.computedSignals.length, draft.signals.length, draft.outputs.length])}</p>
         {draft.axisProfiles && <p>{t('{0} 套轴配置', [draft.axisProfiles.length])}</p>}
         <Notice>{t('应用后替换当前计算、映射、轴配置和输出，输入及输出启用状态关闭。设备地址保留在草稿中供检查。')}</Notice>
-        <ul>{draft.outputs.map((output, index) => <li key={`${output.id}-${index}`}>{output.name || output.id} · {output.type}</li>)}</ul>
+        <ul>{draft.outputs.map((output, index) => <li key={`${output.id}-${index}`}>{output.name || output.id} · {getOutputTypeLabel(output.type)}</li>)}</ul>
       </div>}
     </Modal>
   </div></details>;

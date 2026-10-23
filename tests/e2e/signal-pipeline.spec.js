@@ -2,7 +2,7 @@ import dgram from 'node:dgram';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { test, expect, text, active, workspace, checkpoint } from './fixtures.js';
+import { test, expect, text, active, mode, workspace, checkpoint } from './fixtures.js';
 
 const config = async (page, rig) => page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
 const outputState = async (rig, id) => (await rig.overview()).outputs.find(output => output.id === id)?.signalStatus;
@@ -42,6 +42,7 @@ async function oscReceiver() {
 async function source(page, scope, mode, oscPath) {
   await scope.getByTestId('signal-source-mode').selectOption(mode);
   if (mode === 'Manual') await scope.getByRole('combobox', { name: await text(page, '手动信号'), exact: true }).selectOption(oscPath);
+  else if (mode === 'Script') await scope.getByRole('combobox', { name: await text(page, '脚本信号'), exact: true }).selectOption(oscPath);
   else if (mode === 'Computed') await scope.getByRole('combobox', { name: await text(page, '计算信号'), exact: true }).selectOption(oscPath);
   else await scope.getByLabel(await text(page, mode === 'RecordingReplay' ? '录制信号路径' : '参数路径'), { exact: true }).fill(oscPath);
 }
@@ -80,7 +81,7 @@ async function binding(page, dialog, index, options) {
   if (!(await row.evaluate(element => element.open))) await row.locator('summary').click();
   await row.getByRole('textbox', { name: await text(page, '连接名称'), exact: true }).fill(options.name);
   await source(page, row, options.sourceMode, options.path);
-  await row.getByRole('textbox', { name: await text(page, options.recording ? '记录字段' : '目标参数'), exact: true }).fill(options.address);
+  await row.getByRole('textbox', { name: await text(page, options.funscript ? '轨道名称' : options.recording ? '记录字段' : '目标参数'), exact: true }).fill(options.address);
   await row.getByRole('combobox', { name: await text(page, '数值类型'), exact: true }).selectOption(options.type || 'Float');
   await numeric(page, row, '输出终点', options.max ?? 1);
   const stopValue = row.getByRole('spinbutton', { name: await text(page, '停止时发送值'), exact: true });
@@ -111,7 +112,7 @@ async function enableOutput(page, rig, id) {
   await expect.poll(async () => (await outputState(rig, id))?.connected).toBe(true);
 }
 
-async function combinedManual(page, rig, raw = 400) {
+async function combinedManual(page, rig, raw = 400, r0) {
   await workspace(page, '控制');
   await page.getByRole('tablist', { name: await text(page, '输入方式'), exact: true })
     .getByRole('tab', { name: await text(page, '组合'), exact: true }).click();
@@ -122,8 +123,13 @@ async function combinedManual(page, rig, raw = 400) {
   if (!(await manual.evaluate(element => element.open))) await manual.locator('summary').click();
   const axis = manual.locator('.value-field').filter({ has: page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true }) });
   await axis.getByRole('spinbutton').fill(String(raw));
+  if (r0 !== undefined) {
+    const twist = manual.locator('.value-field').filter({ has: page.getByRole('slider', { name: await text(page, 'R0 扭转'), exact: true }) });
+    await twist.getByRole('spinbutton').fill(String(r0));
+  }
   await (await button(page, manual, '更新手动来源')).click();
   await expect.poll(async () => (await rig.overview()).runtime.manualCommand.l0).toBeCloseTo(raw / 1000, 5);
+  if (r0 !== undefined) await expect.poll(async () => (await rig.overview()).runtime.manualCommand.r0).toBeCloseTo(r0 / 1000, 5);
 }
 
 function csvFields(line) {
@@ -150,6 +156,20 @@ function recordingRows(contents, format) {
     return { timeMs: Number(timeMs), signalId, rawValue: rawValue === '' ? null : Number(rawValue),
       value: value === '' ? null : Number(value), valid: valid === 'true', reason, sourceKey, coordinateFrame };
   });
+}
+
+function assertFunscript(script) {
+  expect(script).toMatchObject({ version: '1.0', inverted: false, range: 100 });
+  expect(script.actions.length).toBeGreaterThan(1);
+  expect(script.actions[0].at).toBe(0);
+  for (const [index, action] of script.actions.entries()) {
+    expect(Number.isInteger(action.at)).toBe(true);
+    expect(Number.isInteger(action.pos)).toBe(true);
+    expect(action.at).toBeGreaterThanOrEqual(0);
+    expect(action.pos).toBeGreaterThanOrEqual(0);
+    expect(action.pos).toBeLessThanOrEqual(100);
+    if (index > 0) expect(action.at).toBeGreaterThan(script.actions[index - 1].at);
+  }
 }
 
 for (const locale of ['zh-CN', 'en-US']) {
@@ -340,6 +360,130 @@ for (const locale of ['zh-CN', 'en-US']) {
             rows: rows.length, validSignals: [...new Set(rows.filter(row => row.valid).map(row => row.signalId))],
             invalidReasons: [...new Set(rows.filter(row => !row.valid).map(row => row.reason))], osc: receiver.messages,
             planImportedDisabled: true }, null, 2), contentType: 'application/json' });
+        } finally { await receiver.close(); }
+      });
+
+    test('default funscript recording keeps separate tracks and reopens valid clips for playback / 默认 funscript 分轨录制并回放有效片段',
+      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
+        const receiver = await oscReceiver();
+        try {
+          let feed = await rig.startFeed([['CI/Funscript', .2]]);
+          await workspace(page, '流程');
+          const blend = await addCalculation(page, 'Recorded twist', 'WeightedAverage');
+          await source(page, blend.getByTestId('computed-input-row').nth(0), 'Manual', 'R0');
+          await source(page, blend.getByTestId('computed-input-row').nth(1), 'Direct', 'CI/Funscript');
+          await numeric(page, blend, '输入有效期（ms）', 300);
+          await (await button(page, page, '保存计算与映射')).click();
+
+          const recording = await addOutput(page, rig, 'Recording', 'Funscript tracks');
+          const format = recording.dialog.getByRole('combobox', { name: await text(page, '录制格式'), exact: true });
+          await expect(format).toHaveValue('Funscript');
+          await recording.dialog.getByRole('textbox', { name: await text(page, '录制名称'), exact: true }).fill('pipeline-tracks');
+          await checkpoint(page, format.locator('..'), 'pipeline-funscript-default-' + locale);
+          await binding(page, recording.dialog, 0, { name: 'L0 track', sourceMode: 'Manual', path: 'L0', address: 'L0', recording: true, funscript: true, fixedRate: true });
+          const twist = await binding(page, recording.dialog, 1, { name: 'R0 track', sourceMode: 'Computed', path: 'Signal1', address: 'R0', recording: true, funscript: true, max: .8, fixedRate: true });
+          await numeric(page, twist, '输出起点', .2);
+          await saveOutput(page, rig, recording.id);
+          expect((await config(page, rig)).outputs.find(output => output.id === recording.id).signal.recordingFormat).toBe('Funscript');
+
+          const osc = await addOutput(page, rig, 'OscParameter', 'Funscript playback OSC');
+          await numeric(page, osc.dialog, '目标端口', receiver.port);
+          await binding(page, osc.dialog, 0, { name: 'Clip playback', sourceMode: 'RecordingReplay', path: recording.id + '/value', address: '/ci/funscript-replay', stop: .125 });
+          await binding(page, osc.dialog, 1, { name: 'Script playback', sourceMode: 'Script', path: 'L0', address: '/ci/funscript-player', stop: .125 });
+          await saveOutput(page, rig, osc.id);
+          await enableOutput(page, rig, recording.id);
+          await enableOutput(page, rig, osc.id);
+          await combinedManual(page, rig, 250, 600);
+          await active(page);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.value).toBeCloseTo(.25, 5);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.value).toBeCloseTo(.44, 5);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.lastSentMs).toBeGreaterThan(0);
+          const firstSent = (await outputState(rig, recording.id)).routes.find(route => route.id === 'Binding1').lastSentMs;
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.lastSentMs - firstSent).toBeGreaterThanOrEqual(2500);
+
+          await combinedManual(page, rig, 750, 200);
+          await feed.set([['CI/Funscript', .8]]);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.value).toBeCloseTo(.75, 5);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.value).toBeCloseTo(.5, 5);
+          await feed.stop();
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.valid).toBe(false);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.recordingFiles.filter(file => file.signalId === 'R0')).toHaveLength(1);
+          await combinedManual(page, rig, 100, 200);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.value).toBeCloseTo(.1, 5);
+          const gapAt = (await outputState(rig, recording.id)).routes.find(route => route.id === 'Binding1').lastSentMs;
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding1')?.lastSentMs - gapAt).toBeGreaterThanOrEqual(500);
+          expect((await outputState(rig, recording.id)).routes.find(route => route.id === 'Binding2').valid).toBe(false);
+          const beforeResumeSent = (await outputState(rig, recording.id)).routes.find(route => route.id === 'Binding2').lastSentMs;
+          feed = await rig.startFeed([['CI/Funscript', .8]]);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.value).toBeCloseTo(.5, 5);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.recordingFiles.filter(file => file.signalId === 'R0')).toHaveLength(2);
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.lastSentMs).toBeGreaterThan(beforeResumeSent);
+          const resumedAt = (await outputState(rig, recording.id)).routes.find(route => route.id === 'Binding2').lastSentMs;
+          await expect.poll(async () => (await outputState(rig, recording.id))?.routes.find(route => route.id === 'Binding2')?.lastSentMs - resumedAt).toBeGreaterThanOrEqual(2000);
+          await active(page, false);
+
+          await expect.poll(async () => (await outputState(rig, recording.id))?.recordingFiles.every(file => file.completed)).toBe(true);
+          const files = (await outputState(rig, recording.id)).recordingFiles;
+          expect(files.filter(file => file.signalId === 'L0')).toHaveLength(1);
+          expect(files.filter(file => file.signalId === 'R0').map(file => file.segment)).toEqual([1, 2]);
+          expect(files.every(file => file.fileName.endsWith('.funscript'))).toBe(true);
+          const scripts = new Map();
+          for (const file of files) {
+            // Select the file row by its own attribute; each clip has its own download.
+            const fileRow = outputCard(page, recording.id).locator(`[data-testid="recording-file"][data-recording-file="${file.fileName}"]`);
+            await expect(fileRow).toBeVisible();
+            const downloaded = page.waitForEvent('download');
+            await fileRow.getByTestId('recording-download').click();
+            const download = await downloaded;
+            expect(download.suggestedFilename()).toBe(file.fileName);
+            const script = JSON.parse(await readFile(await download.path(), 'utf8'));
+            assertFunscript(script);
+            scripts.set(file.fileName, script);
+            expect(script).toEqual(JSON.parse(await readFile(path.join(path.dirname(rig.configPath), 'recordings', file.fileName), 'utf8')));
+          }
+          const l0 = files.find(file => file.signalId === 'L0');
+          const r0 = files.find(file => file.signalId === 'R0' && file.segment === 1);
+          const resumed = files.find(file => file.signalId === 'R0' && file.segment === 2);
+          expect(l0.axis).toBe('L0'); expect(r0.axis).toBe('R0');
+          expect(l0.fileName).not.toBe(r0.fileName);
+          expect(scripts.get(l0.fileName).actions.map(action => action.pos)).toEqual(expect.arrayContaining([25, 75, 10]));
+          expect(scripts.get(r0.fileName).actions.map(action => action.pos)).toEqual(expect.arrayContaining([44, 50]));
+          for (const clip of [r0, resumed]) expect(scripts.get(clip.fileName).actions.every(action => action.pos >= 20 && action.pos <= 80)).toBe(true);
+          expect(scripts.get(resumed.fileName).actions.every(action => action.pos === 50)).toBe(true);
+          expect(resumed.timeOffsetMs).toBeGreaterThan(r0.timeOffsetMs + scripts.get(r0.fileName).actions.at(-1).at);
+
+          const replay = outputCard(page, recording.id).getByTestId('recording-replay');
+          await replay.locator('summary').click();
+          await replay.getByRole('textbox', { name: await text(page, '回放文件名'), exact: true }).fill(l0.fileName);
+          await replay.getByTestId('replay-load').click();
+          await expect.poll(async () => (await outputState(rig, recording.id))?.replay).toMatchObject({ loaded: true, playing: false, signals: ['value'] });
+          await numeric(page, replay, '回放位置（ms）', 100);
+          await replay.getByTestId('replay-seek').click();
+          await expect.poll(async () => (await outputState(rig, recording.id))?.replay.timeMs).toBe(100);
+          await active(page);
+          await replay.getByTestId('replay-play').click();
+          await expect.poll(() => receiver.last('/ci/funscript-replay')?.value).toBeCloseTo(.25, 5);
+          await replay.getByTestId('replay-pause').click();
+          await expect.poll(() => receiver.last('/ci/funscript-replay')?.value).toBeCloseTo(.125, 5);
+          await active(page, false);
+
+          // Reuse the captured industry-format file in the ordinary script player.
+          const l0Row = outputCard(page, recording.id).locator(`[data-testid="recording-file"][data-recording-file="${l0.fileName}"]`);
+          await l0Row.getByTestId('recording-load-script').click();
+          await expect.poll(async () => (await rig.overview()).input.script).toMatchObject({ loaded: true, playing: false, fileName: l0.fileName });
+          expect((await rig.overview()).runtime.inputActive).toBe(false);
+          await mode(page, '脚本');
+          await active(page);
+          await (await button(page, page.locator('.script-player'), '播放')).click();
+          await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(true);
+          await expect.poll(() => receiver.last('/ci/funscript-player')?.value).toBeCloseTo(.25, 5);
+          await (await button(page, page.locator('.script-player'), '暂停')).click();
+          await expect.poll(async () => (await rig.overview()).input.script.playing).toBe(false);
+          await active(page, false);
+          expect(receiver.errors).toEqual([]);
+          await info.attach('funscript-track-evidence.json', { body: JSON.stringify({ files,
+            scripts: Object.fromEntries(scripts), osc: receiver.messages, invalidGapCreatesSeparateClip: true,
+            replayAndScriptPlayerLoadedCapturedFile: true }, null, 2), contentType: 'application/json' });
         } finally { await receiver.close(); }
       });
   });

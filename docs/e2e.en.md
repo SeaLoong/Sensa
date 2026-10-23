@@ -18,6 +18,8 @@ Contact direct-tracking cases simulate metre positions and relative velocity usi
 
 Signal-pipeline cases use Chinese and English controls to create manual/OSC weighted calculations, hysteresis and temporal smoothing, then inspect Float/Int/Bool types, ranges and stop values in actual UDP messages. Session cases check raw and converted values and invalid intervals in JSON Lines/CSV, verify downloaded file contents, then replay raw values to OSC with pause and seeking. Complete-plan cases cover export, import preview, preserved axis profiles and disabled inputs/outputs after application. [Signal pipeline](signal-pipeline.en.md)
 
+Funscript recording cases check the default format, separate L0/R0 tracks, converted 0–100 positions and integer milliseconds, segmentation after invalidity and offsets on the original timeline. They download and inspect each completed file, load it into signal replay and the script player, then check actual OSC output, pause stop values and disabled input after loading.
+
 Shared-session cases use SharedWorker and BroadcastChannel/Web Locks separately, opening twenty same-origin pages and inspecting backend connection counts, request correlation and state across pages. They close some pages, including the connection owner, and check the remaining pages stay usable. They also check connection release after all pages close, preserved current values on reopening and at-most-once control delivery. Isolated lifecycle unit tests check page-cache suspension and restoration.
 
 Desktop 1280×900 and narrow 390×844 use a fixed browser environment; 320px is a separate reflow check. [Test source](https://github.com/SeaLoong/Sensa/tree/main/tests/e2e)

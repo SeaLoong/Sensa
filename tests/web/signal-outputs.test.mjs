@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createOutputConfig, buildOutputDialogDraft, editConfiguration, buildOutputSummary } from '../../src/web/configuration.js';
-import { buildSignalOutputDraft, makeOutputBinding, stripSignalOutputDraft, applyVrChatOutput, exportSignalPlan, parseSignalPlan, dglabBasicFrames } from '../../src/web/signal-outputs.js';
+import { buildSignalOutputDraft, makeOutputBinding, stripSignalOutputDraft, applyVrChatOutput, exportSignalPlan, parseSignalPlan, dglabBasicFrames, recordingDownloadUrl, recordingFiles } from '../../src/web/signal-outputs.js';
 import { buildComputedDrafts, changeComputedOperation, computedDraftIncomplete, stripComputedDraft, computeComputedHash } from '../../src/web/computed-signals.js';
 import { sanitizeStudio } from '../../src/web/preferences.js';
 import { controlReadiness } from '../../src/web/control-workflow.js';
@@ -46,6 +46,34 @@ test('VRChat selection sets the explicit receiving endpoint without altering sou
   assert.equal(applyVrChatOutput(changed, false).signal.vrChat, false);
   const second = createOutputConfig('OscParameter', { outputs: [output] });
   assert.notEqual(second.signal.bindings[0].address, output.signal.bindings[0].address);
+});
+
+test('recording starts with a playable Funscript track while preserving saved signal-data formats', () => {
+  const output = createOutputConfig('Recording', { outputs: [] });
+  assert.equal(output.signal.recordingFormat, 'Funscript');
+  assert.equal(output.signal.bindings[0].address, 'L0');
+  assert.equal(output.signal.bindings[0].outputMax, 1);
+  const next = makeOutputBinding(output.signal.bindings, 'Recording');
+  assert.equal(next.address, 'Track1');
+  assert.equal(makeOutputBinding([...output.signal.bindings, next], 'Recording').address, 'Track2');
+  for (const format of ['Funscript', 'JsonLines', 'Csv']) {
+    output.signal.recordingFormat = format;
+    const config = { outputs: [output] }, draft = buildOutputDialogDraft(output.id, config, []);
+    const saved = editConfiguration(config, { kind: 'output-save', id: output.id, draft });
+    assert.equal(saved.outputs[0].signal.recordingFormat, format);
+    assert.equal(saved.outputs[0].signal.bindings[0].address, 'L0');
+  }
+});
+
+test('recording file metadata retains track, clip state and offsets without inventing completed files', () => {
+  const files = [{ fileName: 'take.twist.funscript', signalId: 'R0', segment: 2, timeOffsetMs: 1200, completed: false, axis: 'R0' },
+    { fileName: 'take.funscript', signalId: 'L0', segment: 1, timeOffsetMs: 0, completed: true, axis: 'L0' }];
+  assert.deepEqual(recordingFiles({ recordingFiles: files }), files);
+  assert.deepEqual(recordingFiles({ recordingFile: 'pending.funscript', recordingFiles: [] }), []);
+  assert.deepEqual(recordingFiles({ recordingFile: 'data.jsonl' }), [{ fileName: 'data.jsonl' }]);
+  assert.deepEqual(recordingFiles({ recordingFiles: [null, {}, { fileName: '' }] }), []);
+  assert.equal(recordingFiles({ recordingFiles: files })[0].completed, false);
+  assert.equal(recordingDownloadUrl('clip #1.funscript'), '/api/output/recordings/clip%20%231.funscript/download');
 });
 
 test('binding drafts retain zero values, independent waveform arrays and event modes, rejecting blank numeric settings', () => {

@@ -163,10 +163,11 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                     var dg = _dglab?.Snapshot;
                     return new { connected = IsConnected, status = _status is "error" or "stop-unconfirmed" ? _status : _recorder?.Full == true ? "recording-limit"
                         : dg?.State ?? (_status == "connected" && !IsConnected ? "disconnected" : _status),
-                        error = dg?.LastError, targetId = dg?.TargetId, pairingUrl = dg?.AppPairingUrl ?? dg?.PairingUrl,
+                        error = _recorder?.Error ?? dg?.LastError, targetId = dg?.TargetId, pairingUrl = dg?.AppPairingUrl ?? dg?.PairingUrl,
                         devices = dg?.Devices ?? [], routes = _routes.Values.Select(route => new { route.Id, route.Name,
                             route.Valid, route.Reason, route.RawValue, route.Value, route.LastSentMs }).ToArray(),
-                        recordingFile = _recorder?.FileName, replay = Playback.Snapshot, droppedEvents = _droppedEvents };
+                        recordingFile = _recorder?.FileName, recordingFiles = _recorder?.Files ?? [],
+                        replay = Playback.Snapshot, droppedEvents = _droppedEvents };
                 }
             }
         }
@@ -228,7 +229,8 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                         ? "wss://trex.dungeon-lab.cn/v4" : _options.ServerUrl }, timeout.Token);
                 }
                 else if (_output.Type == OutputDeviceType.Recording)
-                    _recorder = new(_options.RecordingName, _options.RecordingFormat);
+                    _recorder = new(_options.RecordingName, _options.RecordingFormat,
+                        _options.Bindings.Select(binding => new SignalRecordingTrack(RecordingId(binding), binding.Name, RecordingAxis(binding))).ToArray());
                 else
                 {
                     _adapter = _adapterFactory?.Invoke(_output) ?? (_output.Type switch
@@ -365,6 +367,12 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
             }
         }
         private static string RecordingId(SignalOutputBinding binding) => string.IsNullOrWhiteSpace(binding.Address) ? binding.Id : binding.Address;
+        private static string? RecordingAxis(SignalOutputBinding binding)
+        {
+            foreach (var candidate in new[] { binding.Address, binding.Name })
+                if (Enum.TryParse<MotionAxis>(candidate, out var axis) && Enum.IsDefined(axis) && axis.ToString() == candidate) return candidate;
+            return null;
+        }
         private DglabTarget Target(SignalOutputBinding? binding = null) => new(_options.ClientId, _options.SlotId,
             (DglabChannel)(binding?.Channel ?? _options.Channel));
         private async Task DeliverAsync(Delivery delivery, CancellationToken cancellation, CancellationToken generation)
@@ -471,7 +479,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
                     var now = _clock.GetUtcNow().ToUnixTimeMilliseconds();
                     foreach (var binding in _options.Bindings)
                         _recorder.Append(RecordingId(binding), ComputedSignalSample.Invalid("输入已停止 / Input stopped"), null, now);
-                    _recorder.Flush();
+                    _recorder.Complete(now);
                 }
             }
             catch (Exception ex) { _status = "stop-unconfirmed"; _error("[Output] Stop could not complete: " + ex.GetType().Name); }

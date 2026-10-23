@@ -45,7 +45,7 @@ Add a destination under Outputs, select its output type and complete its connect
 | HTTP JSON/WebSocket JSON | Service URL accepting JSON | External panels, plugins or custom services |
 | MQTT | Broker, port and topic | Automation service or subscribing application |
 | MIDI CC | A system MIDI output port, channel and controller | Application volume, panning or another MIDI control |
-| Recording | Name, format and selected signals | Debug sessions, offline analysis and replay material |
+| Recording | Name, format and selected signals | Script playback, trajectory editing and signal diagnostics |
 
 TCode bindings target one of twelve axes using values from 0 to 1; the output's axis profile sets actual travel and motion behavior. Intiface bindings can target L0 and the vibration axis configured for that output, translating values into position or vibration commands supported by the device.
 
@@ -87,13 +87,33 @@ MIDI uses the operating system's available output ports. Refresh the port list a
 
 ## Record and inspect
 
-A Recording output writes selected signals and output results to a session file. JSON Lines supports sequential reading and structured information; CSV suits spreadsheets and analysis tools. Choose a source for each binding and fill in its recording field. That field becomes the file's `signalId`; an empty field uses the binding ID. Each field follows its binding's sending schedule.
+A Recording output defaults to funscript for use in script players and editors. Each binding selects its source, track name and conversion range. Converted values are clamped to 0–1, then rounded to integer `pos` values from 0 to 100. `at` uses milliseconds, with each continuous valid segment starting at zero. For example:
 
-The existing L0 recorder continues to export funscript for a single-axis motion trajectory. Session recording supports inspecting the relationship between several signals, computations and outputs. Choose the recorder suited to the task. [L0 recording](guide.en.md#l0-recording)
+```json
+{"version":"1.0","inverted":false,"range":100,"actions":[{"at":0,"pos":20},{"at":1000,"pos":80}]}
+```
 
-Session files are written under `recordings/` beside the program; `SENSA_RECORDINGS_PATH` selects another directory. Files contain relative time, signal identifier, raw value, converted value, validity, reason, source and coordinate frame. Each file holds up to 64 MiB and 250000 samples; replay accepts up to 64 signals. Note the displayed filename, then disconnect the Recording output to finish writing the file.
+This trajectory moves from 20% to 80% over one second. Funscript is a widely supported time-position script convention. Sensa exports `version: "1.0"`, `inverted: false` and `range: 100`. Loading applies position inversion when `inverted` is true; output axis profiles continue to set physical device travel. [Original format description](https://github.com/funjack/launchcontrol/blob/master/protocol/funscript/doc.go) · [JSON Schema](https://github.com/funjack/launchcontrol/blob/master/schemas/funscript.schema.json)
 
-Expand “Recording replay,” refresh the recording list, choose a session from the recorded files and load it. You can also enter the replay filename directly. Loading leaves playback paused. Use the signal identifiers from the session in a Recording replay source, with the path `recording-output-id/signal-id`. Save the destination binding, apply Combined and enable input before starting replay. Playback supports pause and millisecond seeking; paused, finished or invalid intervals appear as invalid inputs. Replay uses the recorded raw reading, allowing the new binding to apply its own range and curve.
+An explicit axis name in “Track name” uses MultiFunPlayer's recommended filename suffix. Tracks in one recording share a filename prefix: for example, L0 becomes `session.funscript` and R0 becomes `session.twist.funscript`. A custom name produces a separate named-track file that can be assigned to an axis in the player.
+
+| Track axis | Filename suffix |
+| --- | --- |
+| L0 | `.funscript` |
+| L1/L2 | `.surge.funscript`/`.sway.funscript` |
+| R0/R1/R2 | `.twist.funscript`/`.roll.funscript`/`.pitch.funscript` |
+| V0 | `.vib.funscript` |
+| A0/A1/A2 | `.valve.funscript`/`.suck.funscript`/`.lube.funscript` |
+
+These suffixes follow MultiFunPlayer's common-axis and TCode v0.3 recommended names. The player also supports loading a file manually for each axis. [MultiFunPlayer primary reference](https://github.com/Yoooi0/MultiFunPlayer#how-to)
+
+Invalid input ends the current segment; recovery creates the next one, such as `session-part02.twist.funscript`. The file list shows track, segment number and start offset in the original recording. Each file starts at 0 ms for independent playback; its offset can align it with the original timeline. Active segments show “Recording”; completed segments can be downloaded or loaded into the script player. The loaded single track is available through Script → L0; an output binding selects its destination axis. Enable input and play when ready. Quick L0 recording also continues to export funscript. [L0 recording](guide.en.md#l0-recording)
+
+A funscript recording supports up to 64 tracks and 1024 segments, with a combined limit of 64 MiB and 250000 actions across all tracks and segments. Reaching a limit ends recording and saves the complete segments already captured; status reports the reason.
+
+Advanced JSON Lines/CSV diagnostics record several signals in one file, retaining relative time, raw and converted values, validity, reason, source and coordinate frame. The recording field becomes `signalId`; an empty field uses the binding ID. These files hold up to 64 MiB and 250000 samples; replay accepts up to 64 signals. Recording files are written under `recordings/` beside the program; `SENSA_RECORDINGS_PATH` selects another directory.
+
+Expand “Recording replay,” refresh the list, choose a completed file and load it, or enter the filename directly. Loading leaves playback paused. A funscript source uses `recording-output-id/value`, providing 0–1 positions with linear interpolation. JSON Lines/CSV sources use `recording-output-id/signal-id`, reading recorded raw values and retaining invalid intervals. Save the destination binding, apply Combined and enable input before starting replay. Playback supports pause and millisecond seeking; paused or finished playback appears as invalid input. The new binding can apply its own range and curve.
 
 Inspect the source, raw value, computed result and destination along the same binding. Device-reported state is shown separately so commands and feedback can be compared. For complex setups, check conversion through recording or observable application parameters, then connect the physical device.
 

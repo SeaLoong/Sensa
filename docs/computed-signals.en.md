@@ -108,7 +108,7 @@ When several mappings target the same role, existing fusion selects by normalize
 
 Ordinary SensaPoint/SensaPose mappings have priority on their destination axes; other direct mappings, computed mappings and DepthOverride retain that priority relationship. To combine or weight tracking results first, map the computed signal to the axis and replace its original single-point/pose mapping.
 
-Manual inputs use an axis such as `L0`; script inputs select `L0`, `Progress` (0–1) or `Time` (seconds). Device-feedback and recording-replay inputs use the identifiers shown in their output or recording setup. Combined mode lets these sources participate together. OSC inputs still share one selected OSC source, and spatial inputs retain compatible coordinate-frame checks. [Source and destination setup](signal-pipeline.en.md)
+Manual inputs use an axis such as `L0`; script inputs select `L0`, `Progress` (0–1) or `Time` (seconds). Device feedback uses identifiers provided by its output. For recording replay, funscript uses `recording-output-id/value` for 0–1 positions, while JSON Lines/CSV use `recording-output-id/signal-id` for raw readings. Combined mode lets these sources participate together. OSC inputs still share one selected OSC source, and spatial inputs retain compatible coordinate-frame checks. [Source and destination setup](signal-pipeline.en.md)
 
 ## Configuration example
 

@@ -41,7 +41,7 @@ Export produces single-axis funscript actions, with optional curve simplificatio
 
 ### Recording outputs
 
-Choose **Recording** when adding an output to save selected signals as JSON Lines or CSV. Give columns readable names and choose their sources and update rate. This records several signals along the same timeline; the L0 recorder remains available for exporting a single funscript trajectory. [Recording and inspection](signal-pipeline.en.md#record-and-inspect)
+Choose **Recording** when adding an output. By default, each binding becomes a separate funscript track for a script player or editor. Choose a source, set its output range to 0–1, then configure the track name and recording schedule. Each continuous valid segment produces one file. Advanced JSON Lines/CSV diagnostics retain raw readings, converted values and invalid intervals together. L0 recording remains a quick export for the current main-axis trajectory. [Recording and inspection](signal-pipeline.en.md#record-and-inspect)
 
 ## OSC
 

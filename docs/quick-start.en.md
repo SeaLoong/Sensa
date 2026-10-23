@@ -48,6 +48,6 @@ Parameters have different meanings: OGB usually reports proximity or estimated d
 
 ## 5. Keep a reviewable result
 
-Use L0 recording to capture a funscript depth trajectory, or add a Recording output for selected signals in JSON Lines/CSV. Read per-output status and device feedback in their panels and logs. Stopping recording preserves the last-value duration. Exporting an active recording stops recording and leaves input in its current state. Restart requires confirmation, and cancel preserves the old buffer.
+L0 recording quickly captures the main-axis funscript trajectory. Add a Recording output to produce separate funscript tracks from selected bindings; advanced diagnostics also offer JSON Lines/CSV. Read per-output status and device feedback in their panels and logs. Stopping L0 recording preserves the last-value duration. Exporting an active L0 recording stops that recording and leaves input in its current state. Restarting L0 recording requires confirmation, and cancel preserves its old buffer. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 On failure, disable input and inspect actual mode, source, mapping, gates and logs in order. Resolve the cause before resuming. [Full guide](guide.en.md) · [Features](features.en.md) · [Home](../README.md)

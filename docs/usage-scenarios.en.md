@@ -67,7 +67,7 @@ The coordinate bounds are X/Z=[−2,2], Y=[−1,3]. Readings describe the select
 
 ## Other inputs and tools
 
-Twelve-axis manual input and single-L0 funscripts help establish device travel. Native PB uses Stretch/IsGrabbed parameters for scalar control; L0 recording saves pre-distribution motion targets. OSC parameters, DG-LAB, network services and session recording can consume signal results through [output bindings](signal-pipeline.en.md). OSCQuery/Hub discover parameters and forward messages.
+Twelve-axis manual input and single-L0 funscripts help establish device travel. Native PB uses Stretch/IsGrabbed parameters for scalar control; L0 recording saves pre-distribution motion targets. OSC parameters, DG-LAB, network services and funscript-track recording can consume signal results through [output bindings](signal-pipeline.en.md). OSCQuery/Hub discover parameters and forward messages.
 
 Independent Point/Handle/Pose, lab QuickStart and synthetic Shader patterns help explore measurement models and check sampling and transport. [Lab workflow](lab-workflow.en.md)
 

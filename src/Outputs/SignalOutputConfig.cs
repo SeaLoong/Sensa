@@ -15,7 +15,7 @@ public sealed class SignalOutputOptions
     public double MaxIntensity { get; set; }
     public int TaskDurationMs { get; set; } = 250;
     public List<string> WaveformFrames { get; set; } = [];
-    public string RecordingFormat { get; set; } = "JsonLines";
+    public string RecordingFormat { get; set; } = "Funscript";
     public string RecordingName { get; set; } = "";
     public string MidiPortName { get; set; } = "";
     public string MqttTopicPrefix { get; set; } = "";
@@ -71,13 +71,13 @@ public static class SignalOutputConfiguration
             VrChat = source.VrChat, ServerUrl = source.ServerUrl?.Trim() ?? "", ClientId = source.ClientId?.Trim() ?? "",
             SlotId = source.SlotId?.Trim() ?? "", Channel = source.Channel, MaxIntensity = source.MaxIntensity,
             TaskDurationMs = source.TaskDurationMs, WaveformFrames = (source.WaveformFrames ?? []).ToList(),
-            RecordingFormat = source.RecordingFormat ?? "JsonLines", RecordingName = source.RecordingName?.Trim() ?? "",
+            RecordingFormat = source.RecordingFormat ?? "Funscript", RecordingName = source.RecordingName?.Trim() ?? "",
             MqttTopicPrefix = source.MqttTopicPrefix?.Trim() ?? "", MqttClientId = source.MqttClientId?.Trim() ?? "",
             MqttUseTls = source.MqttUseTls, MidiPortName = source.MidiPortName?.Trim() ?? "",
         };
         if (copy.Channel is < 0 or > 1 || !double.IsFinite(copy.MaxIntensity) || copy.MaxIntensity is < 0 or > 1000
             || copy.TaskDurationMs is < 100 or > 1000 || copy.WaveformFrames.Count > 100
-            || copy.RecordingFormat is not ("JsonLines" or "Csv") || copy.RecordingName.Length > 80)
+            || copy.RecordingFormat is not ("Funscript" or "JsonLines" or "Csv") || copy.RecordingName.Length > 80)
             throw new ArgumentException("请检查通道、用户强度上限、100～1000 ms 任务时长和录制格式 / Check the channel, intensity limit, 100–1000 ms task duration and recording format.");
         foreach (var binding in bindings)
         {

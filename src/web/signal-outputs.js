@@ -17,8 +17,14 @@ function nextId(bindings) {
 }
 
 export function makeOutputBinding(bindings = [], type = 'OscParameter', patch = {}) {
+  let track = 'L0';
+  if (type === 'Recording' && bindings.some(binding => binding.address === track)) {
+    let index = 1;
+    while (bindings.some(binding => binding.address === `Track${index}`)) index++;
+    track = `Track${index}`;
+  }
   const address = type === 'OscParameter' ? '/avatar/parameters/SensaFeedback'
-    : type === 'Dglab' ? 'Intensity' : type === 'Mqtt' ? 'sensa/value' : type === 'Midi' ? 'CC/1/1' : type.startsWith('TCode') ? 'L0' : type === 'Intiface' ? 'V0' : 'value';
+    : type === 'Dglab' ? 'Intensity' : type === 'Mqtt' ? 'sensa/value' : type === 'Midi' ? 'CC/1/1' : type === 'Recording' ? track : type.startsWith('TCode') ? 'L0' : type === 'Intiface' ? 'V0' : 'value';
   return { id: nextId(bindings), name: '',
     address, valueType: type === 'Midi' ? 'Int' : 'Float', inputMin: 0, inputMax: 1, outputMin: 0, outputMax: type === 'Midi' ? 127 : 1,
     curve: 'Linear', stopValue: 0, rateHz: 20, epsilon: .001, sendMode: 'OnChange', ...patch,
@@ -28,11 +34,26 @@ export function makeOutputBinding(bindings = [], type = 'OscParameter', patch = 
 export function buildSignalOutputDraft(type, source = {}) {
   return {
     vrChat: false, serverUrl: 'wss://trex.dungeon-lab.cn/v4', clientId: '', slotId: '', channel: 0,
-    maxIntensity: 0, taskDurationMs: 250, recordingFormat: 'JsonLines', recordingName: '',
+    maxIntensity: 0, taskDurationMs: 250, recordingFormat: 'Funscript', recordingName: '',
     mqttTopicPrefix: '', mqttClientId: '', mqttUseTls: false, midiPortName: '', ...source,
     waveformFrames: [...(source.waveformFrames || [])],
     bindings: (source.bindings || []).map(binding => makeOutputBinding([], type, binding)),
   };
+}
+
+export function recordingFormatOptions() {
+  return [{ value: 'Funscript', label: t('Funscript（设备播放）') },
+    { value: 'JsonLines', label: t('JSON Lines（信号数据）') }, { value: 'Csv', label: t('CSV（信号数据）') }];
+}
+
+export function recordingDownloadUrl(fileName) {
+  return `/api/output/recordings/${encodeURIComponent(fileName)}/download`;
+}
+
+export function recordingFiles(status) {
+  if (Array.isArray(status?.recordingFiles))
+    return status.recordingFiles.filter(file => file && typeof file.fileName === 'string' && file.fileName);
+  return status?.recordingFile ? [{ fileName: status.recordingFile }] : [];
 }
 
 function finite(value, label) {

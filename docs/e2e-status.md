@@ -8,7 +8,9 @@
 
 本轮将输入、计算与输出整理为可复用的信号流程，增加组合输入、时间处理、输出绑定、会话录制／回放及整套方案。浏览器用例新增手动与 OSC 计算、实际 UDP 的 Float／Int／Bool、JSON Lines／CSV 原始值回放、轴配置随方案保存，以及 SharedWorker、BroadcastChannel／Web Locks 的跨页连接检查。[操作说明](signal-pipeline.md) · [实际覆盖范围](e2e.md)
 
-本轮基线仍待候选图片逐张审阅与完整普通比较。下面分别记录安装失败、未完成的普通比较和候选采集；修正用例后的采集与比较将在取得最终报告后补充。
+funscript 改造的本地隔离检查已通过：.NET **665 项**、Web **171 项**；文档站构建 **88 条路由**成功。新增 4 项 funscript 浏览器场景，完整套件增至 **104 项**，等待对应源码的 Actions 结果。
+
+本轮基线仍待最新候选图片审阅与完整普通比较。下面分别记录安装失败、未完成的普通比较和候选采集；修正用例后的采集与比较将在取得最终报告后补充。
 
 | 提交 | 范围 | 运行 | 核对结果 |
 | --- | --- | --- | --- |
@@ -20,14 +22,21 @@
 | `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/2) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
 | `11a3071` | 修正后文档站检查与自动部署 | [39962300270，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962300270/attempts/1) | 总计 **8 项，8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
 | `11a3071` | 完整选择的候选采集（未完成） | [39962313700，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962313700/attempts/2) | 总计 **100 项：78 通过、3 失败、19 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=false` |
+| `1b77bec` | 文档站检查与自动部署 | [39966284936，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966284936/attempts/1) | 总计 **8 项，8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
+| `1b77bec` | 完整选择的普通比较（未完成） | [39966285080，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966285080/attempts/1) | 总计 **100 项：5 通过、3 失败、92 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true`，原生构建跳过，未发布 |
+| `1b77bec` | 完整候选采集 | [39966319271，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39966319271/attempts/1) | **100/100 通过**，其余结果均为 0；`runner=passed`、命令成功，`selectionComplete=true`、`snapshotsCompared=false`，导出至 PR #20 |
 
 上述早期 CI、候选及两次站点安装失败固定源码 `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`。普通比较的 3 项失败均为界面更新后的截图差异：`control-page`，以及中文和英文的 `computed-signal-editor`。这些变化随候选图片审阅；本次未完成比较保持原始记录，后续关闭图片更新的完整普通比较用于确认基线。
 
 候选采集的 3 项失败来自既有用例对界面结构的假设：输入安全用例仍按三个主标签检查键盘导航，中英文质量用例仍寻找直接输出面板，而新结构使用 `output-telemetry` 容器。修正将覆盖四个标签的完整键盘操作，并按实际容器检查几何边界，保留原有断言强度。
 
-修正后的站点与最新候选运行固定源码 `11a30712db7efd38408798c53c50ace9911d75c8`。安装流程固定使用 Ubuntu 软件源，并将系统依赖安装与 Chromium headless shell 下载拆为独立步骤；新安装器在第一次 130 秒预算内完成，随后站点比较与部署成功，验证了此前两次 10 分钟安装超时问题的修正。同一源码的 [CI 39962300289](https://github.com/SeaLoong/Sensa/actions/runs/39962300289) 已通过单元检查，首次尝试的应用浏览器未执行。
+`11a3071` 的站点与候选运行固定源码 `11a30712db7efd38408798c53c50ace9911d75c8`。安装流程固定使用 Ubuntu 软件源，并将系统依赖安装与 Chromium headless shell 下载拆为独立步骤；新安装器在第一次 130 秒预算内完成，随后站点比较与部署成功，验证了此前两次 10 分钟安装超时问题的修正。同一源码的 [CI 39962300289](https://github.com/SeaLoong/Sensa/actions/runs/39962300289) 已通过单元检查，首次尝试的应用浏览器未执行。
 
-最新候选的 3 项失败均发生在 `shared-session.spec.js:52`：输入启用复选框调用 `check()` 后报告状态未改变，涉及窄屏 SharedWorker，以及桌面 SharedWorker 和 Web Locks。该失败正在修正；下一轮普通比较与候选采集均采用 **35 分钟**浏览器任务预算，用于完整 100 项套件。本次部分执行结果和候选模式保持记录，基线仍待审阅与完整普通比较。
+`11a3071` 候选的 3 项失败均发生在 `shared-session.spec.js:52`：输入启用复选框调用 `check()` 后报告状态未改变，涉及窄屏 SharedWorker，以及桌面 SharedWorker 和 Web Locks。后续普通比较与候选采集均采用 **35 分钟**浏览器任务预算，用于完整 100 项套件。本次部分执行结果和候选模式保持记录，基线仍待审阅与完整普通比较。
+
+后续站点运行 `39966284936`、普通比较 `39966285080` 与完整候选 `39966319271` 固定源码 `1b77bec474a6af1215e1409db82d86f1513b2916`。站点专用普通比较通过并成功部署。应用比较的依赖安装首次尝试成功；3 项失败均为桌面图片的界面变化：`control-page` 为 2847 个差异像素，`computed-signal-editor-zh-CN` 为 2830 个，`computed-signal-editor-en-US` 为 2616 个。达到失败上限后其余用例未执行，原生构建跳过，未发布。
+
+完整候选通过后导出至 [PR #20](https://github.com/SeaLoong/Sensa/pull/20)，原始图片提交为 `85171eb4df14ab7ba286d6837eda98afff08949c`。此运行验证的是 funscript 录制改造前的 100 项套件；新格式的录制与回放用例将随对应源码另行记录。原始 36 张新增／变化图片已逐张打开，28 张为有意变化，8 张仅动态读数或边缘微差，拟保留旧图。方案预览文案已进一步修正；最新 funscript 候选与关闭图片更新的完整普通比较仍待完成，本轮基线尚未接受。
 
 ## OSC 参数释义与官方来源
 

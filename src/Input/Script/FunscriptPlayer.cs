@@ -613,6 +613,8 @@ public sealed class FunscriptPlayer : IDisposable
             || !document.RootElement.TryGetProperty("actions", out var actionsElement) || actionsElement.ValueKind != JsonValueKind.Array)
             throw new InvalidDataException("脚本文件缺少 actions 数组。");
 
+        var inverted = document.RootElement.TryGetProperty("inverted", out var invertedElement)
+            && invertedElement.ValueKind == JsonValueKind.True;
         var actions = new List<FunscriptAction>();
 
         foreach (var actionElement in actionsElement.EnumerateArray())
@@ -630,6 +632,7 @@ public sealed class FunscriptPlayer : IDisposable
                 continue;
             var atMs = Math.Max(rawTime, 0L);
             var pos01 = (float)Math.Clamp(rawPosition / 100.0, 0.0, 1.0);
+            if (inverted) pos01 = 1f - pos01;
             if (atMs > 7L * 24 * 60 * 60 * 1000 || actions.Count >= 500000) throw new InvalidDataException("Script exceeds the duration or action limit.");
             actions.Add(new FunscriptAction(atMs, pos01));
         }
