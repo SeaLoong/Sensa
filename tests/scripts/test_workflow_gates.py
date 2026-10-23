@@ -2,6 +2,7 @@
 当前源码的工作流门槛；不读取远端历史证据或运行产品进程。
 """
 from pathlib import Path
+import json
 import re
 import unittest
 
@@ -28,6 +29,23 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_every_sdk_install_uses_the_same_exact_non_rolling_repository_version(self):
+        sdk = json.loads((ROOT / 'global.json').read_text(encoding='utf-8'))['sdk']
+        self.assertRegex(sdk['version'], r'^\d+\.\d+\.[1-9]\d{2,}$')
+        # A patch roll-forward also changes the SDK's implicit ILLink dependency,
+        # so setup-dotnet's installation channel must match locked restore.
+        self.assertEqual(sdk.get('rollForward'), 'disable')
+        configured = set()
+        for path in WORKFLOWS.glob('*.yml'):
+            for step in re.split(r'(?m)^      - ', path.read_text(encoding='utf-8'))[1:]:
+                if not re.search(r'(?m)^        uses: actions/setup-dotnet@', step):
+                    continue
+                with self.subTest(workflow=path.name, step=step.splitlines()[0]):
+                    self.assertIn('          global-json-file: global.json', step)
+                    self.assertNotRegex(step, r'(?m)^          dotnet-(?:version|channel):')
+                    configured.add(path.name)
+        self.assertEqual(configured, {'checks.yml', 'build.yml', 'e2e.yml', 'update-e2e.yml'})
+
     def test_repository_write_secret_is_confined_to_trusted_publication_jobs(self):
         allowed = {'ci.yml': 'preview', 'release.yml': 'publish', 'update-e2e.yml': 'proposal'}
         for path in WORKFLOWS.glob('*.yml'):

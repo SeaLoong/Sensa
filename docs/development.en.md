@@ -105,6 +105,8 @@ VPM preserves verified stable packages and historical downloads. Network or hash
 
 Use Node.js 24, Python 3.12+ and the .NET SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). Plan affected checks before running them; unchanged source/toolchains can reuse successful local records.
 
+The .NET SDK is pinned to `10.0.401` with `rollForward: disable`. Actions and local commands run from the repository directory use this exact version. Update package lockfiles together with SDK upgrades, and check portable and single-file builds. Dependency restore stays in locked mode.
+
 ```shell
 npm ci
 python -X utf8 scripts/verify.py --plan

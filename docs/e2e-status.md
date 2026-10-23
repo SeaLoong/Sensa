@@ -8,9 +8,11 @@
 
 2026-10-24（北京时间），新增 Unity Tracking Frame，使用 SPS 四点或 Contact 生成 Origin／Forward／Right 三个跟随测量点；Shader 增加作者偏移与同一来源的多编码块读取。WebUI 提供七种空间运算、XYZ 分组和跟随平面草稿。文档区分自身 Avatar 根点计算与双方配对的三点姿态，并同步安装器优先的下载说明。
 
-统一隔离检查通过 **758 项 .NET、217 项 Web、298 项 Python**，以及 Unity 包元数据、**92 条文档路由**。Windows x64 自包含单文件静态发布成功，输出目录只有 `Sensa.exe`；已检查文件与内嵌资源，尚未执行该 EXE。新工作流会在 Windows x64／ARM64 分别检查单文件启动、安装后的程序、重装与卸载。浏览器新增空间计算、跟随模板和响应式文档图片用例，候选图片与普通比较结果待 Actions 运行后补充。
+统一隔离检查通过 **758 项 .NET、217 项 Web、299 项 Python**，以及 Unity 包元数据、**92 条文档路由**。Windows x64 自包含单文件静态发布成功，输出目录只有 `Sensa.exe`；已检查文件与内嵌资源，尚未执行该 EXE。新工作流会在 Windows x64／ARM64 分别检查单文件启动、安装后的程序、重装与卸载。浏览器新增空间计算、跟随模板和响应式文档图片用例，候选图片与普通比较结果待 Actions 运行后补充。
 
 57 个 Unity C# 文件的语法检查，以及引用实际 Unity／SDK 程序集的隔离 API 类型检查通过；新 Tracking Frame 的 17 项参数化 EditMode 契约已编写。API 检查使用部分生成器边界替身，实际 Unity Editor 编译、NDMF 构建、EditMode 和 GPU 行为继续等待有效许可证与对应运行环境。
+
+源码 `0c1ad2c2378a8868df749cb9ddb889563e61d29c` 的 [CI 40025345270](https://github.com/SeaLoong/Sensa/actions/runs/40025345270) 与 [候选 40025349090](https://github.com/SeaLoong/Sensa/actions/runs/40025349090) 均通过 217 项 Web 检查，后端锁定还原因自动选择 SDK 10.0.402 而报 `NU1004`，后端测试与浏览器均未执行，构建和发布跳过。随后固定 SDK 10.0.401，并保留依赖锁定检查。
 
 ## 帮助页样式与 SDK Beta.3 适配
 

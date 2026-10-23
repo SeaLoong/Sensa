@@ -105,6 +105,8 @@ VPM 构建保留已校验的正式包与历史下载。网络错误或摘要不�
 
 需要 Node.js 24、Python 3.12+ 和 [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json) 指定的 .NET SDK。先规划受影响检查，再执行；相同源码与工具链可复用本地成功记录。
 
+.NET SDK 固定为 `10.0.401`，并设置 `rollForward: disable`。Actions 和本地从仓库目录运行时都使用这一精确版本。升级 SDK 时同步更新包锁文件，并检查便携和单文件构建。依赖恢复保持锁定模式。
+
 ```shell
 npm ci
 python -X utf8 scripts/verify.py --plan
