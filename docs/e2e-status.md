@@ -10,7 +10,7 @@
 
 本地隔离检查 **694 项 .NET、177 项 Web、246 项 Python、3 项站点单元**全部通过；Web 构建、Unity 包元数据及 **88 条文档路由**构建通过。Unity Editor 在当前环境不可用，新增 EditMode 和显式 GPU 像素契约尚待执行；实际 VRChat、HMD 与硬件也未在本次环境验收。
 
-完整 Actions 浏览器比较、候选图片采集与逐张审阅正在安排，当前没有本轮已观测浏览器结果。现有 150 张基线保留上一轮接受记录；本轮预计更新 Shader 相关图片，经审阅并通过关闭图片更新的完整普通比较后再接受。Windows 的合成原生 PNG smoke 也等待 Actions 实际执行。
+[文档站 39988646831](https://github.com/SeaLoong/Sensa/actions/runs/39988646831) 固定源码 `be2a8d2ef4d688b0699ae0afd0f07288c83df134`，首轮 **8 项中 7 通过、1 失败**，其余结果均为 0；站点专用普通比较，`selectionComplete=false`、`snapshotsCompared=true`，部署跳过。失败来自新增用例在窄屏导航折叠时直接检查链接可见；现已改为展开、验证链接、关闭的完整用户流程。完整应用比较与候选采集继续按各自实际运行记录。现有 150 张基线保留上一轮接受记录；本轮预计更新 Shader 相关图片，经审阅并通过关闭图片更新的完整普通比较后再接受。Windows 的合成原生 PNG smoke 也等待 Actions 实际执行。
 
 ## 信号流程、多输出与共享会话
 

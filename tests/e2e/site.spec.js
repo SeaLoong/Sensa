@@ -90,7 +90,21 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
   await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
-  await expect(page.locator('.navigation a[href="features.html"]')).toBeVisible();
+  const navigation = page.locator('.navigation');
+  const navigationToggle = navigation.locator('summary');
+  const collapsibleNavigation = await navigationToggle.isVisible();
+  if (collapsibleNavigation) {
+    await expect(navigation).not.toHaveAttribute('open');
+    await navigationToggle.click();
+    await expect(navigation).toHaveAttribute('open', '');
+  }
+  const featuresLink = navigation.locator('a[href="features.html"]');
+  await expect(featuresLink).toBeVisible();
+  if (collapsibleNavigation) {
+    await navigationToggle.click();
+    await expect(navigation).not.toHaveAttribute('open');
+    await expect(featuresLink).toBeHidden();
+  }
   await expect(page.getByRole('heading', { name: 'Record a manual track first', exact: true })).toBeVisible();
   await page.goto(base + '?lang=en-US');
   await page.getByRole('button', { name: '简体中文', exact: true }).click();

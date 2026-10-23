@@ -10,7 +10,7 @@ On 2026-10-24 (Beijing time), this change adds three-point Shader sampling, 32-b
 
 Isolated checks passed **694 .NET, 177 Web, 246 Python and 3 site-unit tests**, plus Web build, Unity package metadata and **88 documentation routes**. Unity Editor is unavailable here, so new EditMode and explicit GPU-pixel contracts await execution. Actual VRChat, HMD and hardware acceptance also remains unperformed in this environment.
 
-Complete Actions browser comparison, candidate images and individual review are being arranged; no browser outcomes have yet been observed for this change. The existing 150 PNGs retain the previous accepted provenance. Shader image updates will be accepted after individual review and a complete normal comparison with updates disabled. Synthetic native-PNG Windows smoke also awaits actual Actions execution.
+[Pages run 39988646831](https://github.com/SeaLoong/Sensa/actions/runs/39988646831) pinned `be2a8d2ef4d688b0699ae0afd0f07288c83df134`: **7 of 8 passed, 1 failed**, every other outcome zero; site-only normal comparison, `selectionComplete=false`, `snapshotsCompared=true`, deployment skipped. The added narrow-screen assertion checked a link before opening collapsed navigation. It now opens the navigation, verifies the link and closes it through the actual user flow. Complete app comparison and candidate collection retain their own run evidence. The existing 150 PNGs retain the previous accepted provenance. Shader image updates will be accepted after individual review and a complete normal comparison with updates disabled. Synthetic native-PNG Windows smoke also awaits actual Actions execution.
 
 ## Signal pipeline, outputs and shared sessions
 
