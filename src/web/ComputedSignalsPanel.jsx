@@ -40,10 +40,10 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pat
         {draft.operation === 'WeightedAverage' && <p className="caption muted">{t('权重表示各输入所占的比例。例如 0.2 的权重为 1、0.8 的权重为 3，结果为 0.65。')}</p>}
         {['Difference', 'Ratio'].includes(draft.operation) && <p className="caption muted">{t('按输入顺序计算，使用两项输入。')}</p>}
         {draft.operation === 'Magnitude' && <p className="caption muted">{t('把各项作为向量分量，例如用 X、Y、Z 计算到原点的距离。')}</p>}
-        <p className="caption muted">{t('0 使用 OSC 接收设置；填写毫秒数可限制每项输入的有效期。定位采样继续检查对应定位方式的有效状态。')}</p>
-        <div className="computed-inputs">{draft.inputs.map((input, index) => <ComputedInputRow key={index} input={input} index={index} operation={draft.operation} signals={others} pathOptions={pathOptions} pointOptions={pointOptions}
+        <p className="caption muted">{t('输入有效期填 0 时沿用 OSC 接收设置；也可填写毫秒数，让长时间未更新的输入暂停参与计算。定位输入同时遵循该定位方式的有效条件。')}</p>
+        <div className="editor-group"><h4>{t('参与计算的输入')}</h4><div className="computed-inputs">{draft.inputs.map((input, index) => <ComputedInputRow key={index} input={input} index={index} operation={draft.operation} signals={others} pathOptions={pathOptions} pointOptions={pointOptions}
           onChange={patch => onChange({ inputs: draft.inputs.map((existing, inputIndex) => inputIndex === index ? { ...existing, ...patch } : existing) })}
-          onRemove={() => onChange({ inputs: draft.inputs.filter((_, inputIndex) => inputIndex !== index) })} />)}</div>
+          onRemove={() => onChange({ inputs: draft.inputs.filter((_, inputIndex) => inputIndex !== index) })} />)}</div></div>
         <div className="actions">
           <Button disabled={draft.inputs.length >= (UNARY_COMPUTED_OPERATIONS.includes(draft.operation) || draft.operation === 'Sine' ? 1 : ['Difference', 'Ratio'].includes(draft.operation) ? 2 : COMPUTED_INPUT_LIMIT)} onClick={() => onChange({ inputs: [...draft.inputs, makeComputedInput()] })}>{t('新增输入')}</Button>
           <Button onClick={onMap}>{t('用于轴映射')}</Button>
@@ -65,7 +65,7 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
   return (
     <section className="computed-signals stack" aria-label={t('计算信号')} data-testid="computed-signals-editor">
       <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge></div>
-      <p className="caption muted">{t('组合 OSC、手动、脚本、设备反馈与定位结果；保存后可在输出连接、轴映射或其他计算中选择此信号。')}</p>
+      <p className="caption muted">{t('为计算取一个名称，再选择运算和输入。保存后，这个结果就能用于输出连接、轴映射或下一步计算。')}</p>
       {drafts.map(draft => <ComputedSignalCard key={draft.id} draft={draft} signals={drafts} runtime={runtimeById.get(draft.id)} graphDirty={graphDirty} selected={selected === draft.id} onSelect={setSelected} pathOptions={pathOptions} pointOptions={pointOptions}
         onChange={patch => onChange(drafts.map(existing => existing.id === draft.id ? { ...existing, ...patch } : existing))}
         onRemove={() => onChange(drafts.filter(existing => existing.id !== draft.id))} onMap={() => onMap(draft)} />)}

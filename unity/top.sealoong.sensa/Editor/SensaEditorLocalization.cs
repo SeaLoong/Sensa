@@ -254,7 +254,7 @@ namespace UnityBox.Sensa
             { "This Unity camera must preserve the 0.000001 near plane for Shader capture.", "Shader 捕获需要 Unity 相机保留 0.000001 的近裁剪面设置。" },
             { "Shader capture needs finite positive target scales.", "请将 Shader 测量对象及其父对象的缩放设为有限正数。" },
             { "Shader capture needs independent X/Z axes with components within -8 to 8.", "请保持 Shader 测量对象的 X／Z 轴独立，各分量位于 −8 到 8 之间。" },
-            { "Samples the selected root and its local X/Z axes in one native render primitive. Green scene bounds show the position range. The black-and-white tile has a white capture margin and three copies of the measurements. Choose a desktop region of at least 160 by 128 physical pixels, then verify the image in your VRChat desktop window.", "在同一个原生渲染图元中测量所选根点及其局部 X／Z 轴。场景中的绿色方框表示位置范围。黑白图块包含白色捕获余量与三份测量副本。请选取至少 160×128 物理像素的桌面区域，并在 VRChat 桌面窗口中核对图块。" },
+            { "Measures the selected root, its X/Z axes and Avatar scale together. The QR tile uses three corner markers, balanced black-and-white data and Reed-Solomon correction. White margins leave room for capture shifts. Keep the complete square tile visible and choose a desktop region of at least 196 by 196 physical pixels.", "同时测量所选根点、X／Z 轴向和 Avatar 缩放。二维码使用三个角定位标记、均衡的黑白数据和 Reed–Solomon 纠错；周围的白边为画面偏移留出余量。请让完整正方图块保持可见，并选择至少 196×196 物理像素的桌面区域。" },
             { "Choose one SPS target inside this avatar and a producer ID from 1–65535.", "选择头像内的 SPS 目标和 1–65535 producer ID。" },
             { "The selected object must contain exactly one SPS Socket or Plug.", "选中对象必须包含一个 SPS Socket 或 Plug。" },
             { "The desktop rectangle must fit within normalized 0–1 bounds.", "桌面区域必须位于归一化 0–1 边界内。" },

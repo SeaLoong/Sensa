@@ -12,21 +12,19 @@
   <script defer src="assets/parameter-geometry-view.js"></script>
 </head>
 <body>
+  <a class="skip-link" href="#explorer-content" data-i18n="skipToExplorer">Skip to the interactive guide</a>
   <header class="page-header">
-    <a class="brand" href="osc-parameters.en.md">Sensa<span data-i18n="brand">Parameter geometry</span></a>
+    <a class="brand" href="osc-parameters.en.md"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-section" data-i18n="brand">Parameter geometry</span></a>
     <div class="header-tools">
       <span class="model-tag" data-i18n="modelTag">Interactive guide</span>
       <label class="language"><span class="sr-only" data-i18n="language">Language</span><select id="locale" aria-label="语言 / Language"><option value="zh-CN">简体中文</option><option value="en-US">English</option></select></label>
     </div>
   </header>
-  <main>
-    <section class="intro">
-      <p class="eyebrow">OGB · CONTACT · SPS · SHADER</p>
-      <h1 data-i18n="title">Move the target to see where detection works</h1>
-      <p data-i18n="intro">Choose a parameter group and drag the orange target to explore approach, contact and entry. Socket is the receiving area; Plug is the part that approaches it.</p>
-      <p class="topic-links"><span data-i18n="exploreTopics">Read by use: </span><a id="position-topic" href="positioning.en.md" data-i18n="positionTopic">position</a><span aria-hidden="true"> · </span><a id="depth-topic" href="ogb-compatibility.en.md" data-i18n="depthTopic">depth</a><span aria-hidden="true"> · </span><a id="touch-topic" href="ogb-compatibility.en.md" data-i18n="touchTopic">touch</a></p>
-    </section>
-    <section class="scene-toolbar" aria-label="场景 / Scenario">
+  <main class="guide-shell">
+    <aside class="guide-sidebar" aria-labelledby="guide-sidebar-title">
+      <p class="eyebrow">SENSA / LEARN</p>
+      <p class="sidebar-title" id="guide-sidebar-title" data-i18n="chooseParameters">Choose your parameters</p>
+      <p class="sidebar-intro" data-i18n="chooseHint">Start with the names you see in VRChat or Sensa.</p>
       <label class="scene-picker"><span data-i18n="scenario">Parameter group</span>
         <select id="scene">
           <optgroup label="OGB / SPS">
@@ -46,10 +44,31 @@
           </optgroup>
         </select>
       </label>
-      <label class="projection-picker"><span data-i18n="projection">Projection</span><select id="projection"><option value="xz" data-i18n="xz">XZ projection</option><option value="iso" data-i18n="iso">Orthographic 3D</option><option value="orbit" data-i18n="orbit" selected>Orbit 3D</option></select></label>
+      <nav class="guide-nav" aria-label="阅读顺序 / Guide sections">
+        <a href="#explorer-content"><span aria-hidden="true">01</span><span data-i18n="navExplore">Explore movement</span></a>
+        <a href="#controls-panel"><span aria-hidden="true">02</span><span data-i18n="navAdjust">Adjust position</span></a>
+        <a href="#parameter-reference"><span aria-hidden="true">03</span><span data-i18n="navRead">Read parameters</span></a>
+      </nav>
+      <div class="guide-key">
+        <p class="guide-key-title" data-i18n="quickTerms">Two useful terms</p>
+        <p><strong>Socket</strong><span data-i18n="socketMeaning">The receiving area, with its entrance as the reference point.</span></p>
+        <p><strong>Plug</strong><span data-i18n="plugMeaning">The approaching part, measured from its root.</span></p>
+      </div>
+      <div class="topic-links"><span data-i18n="exploreTopics">More help</span><a id="position-topic" href="positioning.en.md" data-i18n="positionTopic">Position tracking</a><a id="depth-topic" href="ogb-compatibility.en.md" data-i18n="depthTopic">Depth and approach</a><a id="touch-topic" href="ogb-compatibility.en.md" data-i18n="touchTopic">Touch response</a></div>
+    </aside>
+    <div class="guide-content" id="explorer-content" tabindex="-1">
+      <section class="intro">
+        <p class="eyebrow" data-i18n="interactiveLabel">MOVE · OBSERVE · UNDERSTAND</p>
+        <h1 data-i18n="title">See what each parameter responds to</h1>
+        <p data-i18n="intro">Move the orange target and watch the values change. Select a parameter to see its detection area, then read how to use the value below.</p>
+      </section>
+      <section class="scene-toolbar" aria-label="视图 / View">
+        <div class="view-heading"><span class="section-number" aria-hidden="true">01</span><span data-i18n="viewHeading">Explore the movement</span></div>
+      <label class="projection-picker"><span data-i18n="projection">View</span><select id="projection"><option value="xz" data-i18n="xz">XZ projection</option><option value="iso" data-i18n="iso">Orthographic 3D</option><option value="orbit" data-i18n="orbit" selected>Orbit 3D</option></select></label>
       <label id="drag-plane-control" class="drag-plane-picker"><span data-i18n="dragPlane">Drag plane</span><select id="drag-plane"><option value="xz">XZ</option><option value="xy">XY</option><option value="yz">YZ</option></select></label>
       <button id="reset" type="button" data-i18n="reset">Reset</button>
-    </section>
+
+      </section>
     <section class="workbench" id="workbench">
       <div class="drawing-panel">
         <div class="figure-heading"><div><h2 id="scene-title">SPS2 · PenOthersNewRoot / PenOthersNewTip</h2><p id="scene-summary"></p></div><span id="validity" class="status"></span></div>
@@ -74,20 +93,20 @@
         <div class="readout-heading"><h2 id="readout-title" data-i18n="readout">Parameter values</h2><span class="caption" data-i18n="simulated">Simulated geometry</span></div>
         <div class="path-heading"><span class="caption" data-i18n="pathPrefix">Parameter prefix</span><code id="path-prefix" class="code path"></code></div>
         <p id="path-assembly" class="caption path-assembly"></p>
-        <p class="caption" id="row-hint" data-i18n="rowHint">Select a parameter to read its meaning and highlight its range. Raw values come from geometry; usable values also apply Close or signal state.</p>
-        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Raw</th><th data-i18n="effective">Usable value</th></tr></thead><tbody id="values"></tbody></table></div>
+        <p class="caption" id="row-hint" data-i18n="rowHint">Select a parameter to highlight its detection area. Usable values also account for contact and signal updates.</p>
+        <div class="table-scroll"><table id="parameter-table"><thead><tr><th data-i18n="parameter">Parameter</th><th data-i18n="raw">Reading</th><th data-i18n="effective">Usable value</th></tr></thead><tbody id="values"></tbody></table></div>
         <p id="parameter-meaning" class="caption" aria-live="polite"></p>
         <div class="metric-list" id="metrics"></div>
-        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">40 × 32 black-and-white encoded grid</strong><span class="caption" id="crc"></span></div><svg id="bit-grid" viewBox="0 0 640 512" role="img" aria-label="编码位 / Encoded bits" aria-describedby="encoding-hint"></svg><p class="caption" id="encoding-hint" data-i18n="encodingHint">Outside to inside: a 2-cell white buffer, 2-cell positioning markers, and three offset copies of the data.</p></div>
+        <div id="encoding" hidden><div class="encoding-heading"><strong data-i18n="grid">QR Code · live measurement</strong></div><svg id="bit-grid" viewBox="0 0 784 784" role="img" aria-label="编码位 / Encoded bits" aria-describedby="encoding-hint"></svg><div class="encoding-facts" id="encoding-facts"></div><p class="caption" id="encoding-hint" data-i18n="encodingHint">Three corner markers identify the code. The white border leaves room for small image shifts; error correction helps restore damaged content.</p></div>
         <p class="explanation" id="explanation"></p>
       </aside>
     </section>
-    <section class="controls-panel" aria-labelledby="controls-title">
-      <div class="controls-heading"><h2 id="controls-title" data-i18n="controls">Adjust geometry</h2><p class="caption" data-i18n="dragHint">Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.</p></div>
+    <section id="controls-panel" class="controls-panel" aria-labelledby="controls-title">
+      <div class="controls-heading"><h2 id="controls-title" data-i18n="controls">Adjust position and size</h2><p class="caption" data-i18n="dragHint">Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.</p></div>
       <div class="control-grid">
-        <label class="control" data-control="x"><span data-i18n="x">Moving object · X</span><output for="control-x"></output><input id="control-x" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
-        <label class="control" data-control="y"><span data-i18n="y">Moving object · Y</span><output for="control-y"></output><input id="control-y" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
-        <label class="control" data-control="z"><span data-i18n="z">Moving object · Z</span><output for="control-z"></output><input id="control-z" type="range" min="-0.4" max="1.2" step="0.01" value="0.2"></label>
+        <label class="control" data-control="x"><span data-i18n="x">Side-to-side · X</span><output for="control-x"></output><input id="control-x" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
+        <label class="control" data-control="y"><span data-i18n="y">Height · Y</span><output for="control-y"></output><input id="control-y" type="range" min="-0.6" max="0.6" step="0.01" value="0"></label>
+        <label class="control" data-control="z"><span data-i18n="z">Front-to-back · Z</span><output for="control-z"></output><input id="control-z" type="range" min="-0.4" max="1.2" step="0.01" value="0.2"></label>
         <label class="control" data-control="vx" hidden><span data-i18n="vx">SDK relative velocity · X</span><output for="control-vx"></output><input id="control-vx" type="range" min="-3" max="3" step="0.01" value="0"></label>
         <label class="control" data-control="vy" hidden><span data-i18n="vy">SDK relative velocity · Y</span><output for="control-vy"></output><input id="control-vy" type="range" min="-3" max="3" step="0.01" value="0"></label>
         <label class="control" data-control="vz" hidden><span data-i18n="vz">SDK relative velocity · Z</span><output for="control-vz"></output><input id="control-vz" type="range" min="-3" max="3" step="0.01" value="0"></label>
@@ -99,7 +118,7 @@
         <label class="control" data-control="senderRadius"><span data-i18n="senderRadius">Touching object radius</span><output for="control-senderRadius"></output><input id="control-senderRadius" type="range" min="0.005" max="0.15" step="0.005" value="0.03"></label>
         <label class="control" data-control="zoneRadius"><span data-i18n="zoneRadius">Touch Zone radius</span><output for="control-zoneRadius"></output><input id="control-zoneRadius" type="range" min="0.02" max="0.5" step="0.01" value="0.12"></label>
       </div>
-      <details id="shader-components" class="signal-simulation" hidden><summary data-i18n="shaderComponents">Target axes and root-unit scale</summary><p class="caption" data-i18n="shaderComponentsHint">RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame.</p><div class="control-grid">
+      <details id="shader-components" class="signal-simulation" hidden><summary data-i18n="shaderComponents">Target direction and Avatar scale</summary><p class="caption" data-i18n="shaderComponentsHint">RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame. AvatarScale gives world metres per root-local unit.</p><div class="control-grid">
         <label class="control" data-control="rightX"><span data-i18n="rightX">Target X axis · root X</span><output for="control-rightX"></output><input id="control-rightX" type="range" min="-8" max="8" step="0.05" value="1"></label>
         <label class="control" data-control="rightY"><span data-i18n="rightY">Target X axis · root Y</span><output for="control-rightY"></output><input id="control-rightY" type="range" min="-8" max="8" step="0.05" value="0"></label>
         <label class="control" data-control="rightZ"><span data-i18n="rightZ">Target X axis · root Z</span><output for="control-rightZ"></output><input id="control-rightZ" type="range" min="-8" max="8" step="0.05" value="0"></label>
@@ -108,8 +127,8 @@
         <label class="control" data-control="forwardZ"><span data-i18n="forwardZ">Target Z axis · root Z</span><output for="control-forwardZ"></output><input id="control-forwardZ" type="range" min="-8" max="8" step="0.05" value="1"></label>
         <label class="control" data-control="avatarScale"><span data-i18n="avatarScale">World metres per root unit</span><output for="control-avatarScale"></output><input id="control-avatarScale" type="range" min="0.05" max="8" step="0.05" value="1"></label>
       </div></details>
-      <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">Simulate signal loss or a stalled source</summary><p class="caption" data-i18n="validHint">Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals.</p><div class="control-grid">
-        <label class="control" data-control="sample"><span data-i18n="sample">Sample counter step</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
+      <details id="signal-simulation" class="signal-simulation" hidden><summary data-i18n="simulation">When the signal pauses</summary><p class="caption" data-i18n="validHint">Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals.</p><div class="control-grid">
+        <label class="control" data-control="sample"><span data-i18n="sample">Activity counter Sample (0 means stopped)</span><output for="control-sample"></output><input id="control-sample" type="range" min="0" max="32" step="1" value="1"></label>
         <label class="control" data-control="ageMs"><span data-i18n="ageMs">Age since last change</span><output for="control-ageMs"></output><input id="control-ageMs" type="range" min="0" max="1600" step="50" value="0"></label>
         <label class="control" data-control="frame"><span data-i18n="frame">Encoded Frame</span><output for="control-frame"></output><input id="control-frame" type="range" min="0" max="65535" step="1" value="123"></label>
         <label class="control toggle-control" data-control="valid"><span data-i18n="valid">Simulate a valid sample</span><input id="control-valid" type="checkbox" checked></label>
@@ -117,21 +136,31 @@
       <p class="caption" id="unit-note"></p>
     </section>
     <section id="shader-technical" class="shader-technical" aria-label="Shader 编码详情 / Shader encoding details" hidden>
-      <div id="shader-statistics"><h2 data-i18n="shaderStatistics">Quantization and update checks</h2></div>
+      <div class="shader-story"><h2 data-i18n="shaderStatistics">From image to measurement</h2>
+        <ol class="encoding-steps">
+          <li><strong data-i18n="qrLocate">Find the corner markers</strong><span data-i18n="qrLocateHint">They identify the code’s position and orientation.</span></li>
+          <li><strong data-i18n="qrRestore">Restore the data</strong><span data-i18n="qrRestoreHint">Error correction reconstructs damaged data within its capacity.</span></li>
+          <li><strong data-i18n="qrVerify">Check the complete measurement</strong><span data-i18n="qrVerifyHint">A checksum, target ID and sequence keep the reading together.</span></li>
+          <li><strong data-i18n="qrRead">Read position and direction</strong><span data-i18n="qrReadHint">Sensa receives restored position, direction and scale through OSC.</span></li>
+        </ol>
+        <details id="shader-statistics"><summary data-i18n="measurementDetails">Measurement values and precision</summary><p class="caption" id="crc"></p></details>
+      </div>
       <div id="shader-encoded-preview"></div>
     </section>
-    <section class="reading-notes">
-      <div><h2 data-i18n="formulaTitle">How values are calculated</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
-      <div><h2 data-i18n="meaningTitle">Understanding the values</h2><p id="values-meaning" data-i18n="meaning">A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction.</p><p class="caption" data-i18n="sourceNote">Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources.</p></div>
-    </section>
     <section id="parameter-reference" class="parameter-reference" data-testid="parameter-reference" aria-labelledby="parameter-reference-title">
-      <h2 id="parameter-reference-title" data-i18n="parameterReferenceTitle">OSC parameter meanings and sources</h2>
-      <p class="caption" data-i18n="parameterReferenceIntro">Read each parameter's meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa's own protocol fields.</p>
+      <h2 id="parameter-reference-title" data-i18n="parameterReferenceTitle">What each parameter means</h2>
+      <p class="caption" data-i18n="parameterReferenceIntro">Read each parameter’s meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa’s own protocol fields.</p>
       <p id="parameter-reference-selection" class="caption" aria-live="polite"></p>
       <div id="parameter-reference-cards" class="parameter-reference-cards"></div>
     </section>
+    <details id="calculation-notes" class="calculation-notes"><summary data-i18n="calculationSummary">Calculation details</summary><div class="reading-notes">
+      <div><h2 data-i18n="formulaTitle">How values are calculated</h2><p id="formula"></p><p id="assumptions" class="caption"></p></div>
+      <div><h2 data-i18n="meaningTitle">Understanding the values</h2><p id="values-meaning" data-i18n="meaning">A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction.</p><p class="caption" data-i18n="sourceNote">Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources.</p></div>
+    </div></details>
     <footer><a id="reference-link" href="osc-parameters.en.md" data-i18n="dictionary">Parameter dictionary</a><a id="ogb-link" href="ogb-compatibility.en.md" data-i18n="ogbSources">OGB geometry and sources</a><a id="position-link" href="positioning.en.md" data-i18n="positioning">Positioning</a><a href="assets/parameter-geometry-3d.LICENSE.txt" data-i18n="license">Three.js MIT license</a><span data-i18n="offline">Local Three.js · Works offline</span></footer>
     <noscript><p>需要启用 JavaScript 才能操作图示。静态说明见 <a href="osc-parameters.md">参数字典</a>。 / Enable JavaScript for the interactive diagrams, or read the <a href="osc-parameters.en.md">parameter reference</a>.</p></noscript>
+
+    </div>
   </main>
 </body>
 </html>

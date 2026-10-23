@@ -49,7 +49,7 @@ export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) 
             onChange={(lockValue) => onChange({ lockValue })}
           />
         ) : (
-          <div className="form-grid">
+          <div className="editor-group"><h4>{t('行程与限位')}</h4><p className="caption muted">{t('映射范围决定输入两端对应的设备位置；边界范围限制最终允许到达的位置。')}</p><div className="form-grid">
             <RangeField
               label={t('映射范围')}
               value={[value.remapMin, value.remapMax]}
@@ -64,10 +64,10 @@ export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) 
               sliderMax={999}
               onChange={([min, max]) => onChange({ min, max })}
             />
-          </div>
+          </div></div>
         )}
         {mode !== 'Ignored' && (
-          <>
+          <div className="editor-group"><h4>{t('动作怎样过渡')}</h4><p className="caption muted">{t('选择按速度或时间移动，再设置过渡曲线和上限。')}</p>
             <div className="form-grid">
               <SelectField
                 label={t('斜率方式')}
@@ -94,7 +94,7 @@ export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) 
               valueFormatter={limit.valueFormatter}
               onChange={(next) => onChange({ maxSpeed: limit.toProfileValue(next) })}
             />
-          </>
+          </div>
         )}
       </div>
     </details>

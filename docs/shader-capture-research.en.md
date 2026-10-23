@@ -2,30 +2,30 @@
 
 [简体中文](shader-capture-research.md) | **English**
 
-This page records native root capture design and client acceptance scope. The current chain is **selected root frame → native skinned triangle → one-Camera block → explicit ROI decode → OSC**, reporting its position, X/Z-axis vectors and Avatar world scale. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
+Shader capture draws measurements from a selected point on the Avatar into a QR tile. A desktop reader decodes the screen region you select (ROI), recovers position, X/Z-axis vectors and Avatar world scale, then sends them to Sensa over OSC. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
 
-Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-24. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page preserves design reasoning and acceptance gaps.
+Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-24. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page explains the implementation choices, data format and client validation method.
 
 ## Primary-source findings and decisions
 
 | Question | Evidence | Sensa decision |
 | --- | --- | --- |
-| Can avatar readback C# run after upload? | The [component allowlist](https://creators.vrchat.com/avatars/whitelisted-avatar-components/whitelisted-avatar-components/) includes cameras/skinned renderers, but excludes arbitrary custom scripts. | An IEditorOnly author generates native components through NDMF, then is removed. |
-| Can an avatar retain cameras? | The same source allows the wearer's own cameras; remote cameras depend on friendship/Show Avatar conditions. | Local-only selection, initially Off; no dependency on the other avatar retaining a camera. |
+| Which components run after upload? | The [component allowlist](https://creators.vrchat.com/avatars/whitelisted-avatar-components/whitelisted-avatar-components/) includes cameras and skinned renderers. Custom author scripts belong to the build stage. | NDMF reads the IEditorOnly author and removes it after generating native components; those components perform measurement and encoding after upload. |
+| Can an avatar retain cameras? | The same source allows the wearer's own cameras; remote cameras depend on friendship/Show Avatar conditions. | Use the local wearer’s camera, enabled through a local-only menu and initially Off. |
 | Android support? | [Android limitations](https://creators.vrchat.com/platforms/android/quest-content-limitations/) disable avatar cameras and restrict avatar shaders. | Reject Android author builds. This is a PC Built-in geometry-shader path; Metal is excluded. |
-| Does a hidden layer provide capture? | [VRChat layers](https://creators.vrchat.com/worlds/layers/) make MirrorReflection mirror-only. World layer definitions do not establish uploaded-avatar layer retention. | Require an actual desktop code block. Occlusion, minimization and layer changes need client checks. |
-| Does None-eye output guarantee desktop visibility? | Unity documents [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html), [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html) and [targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html). | Request None-eye cameras, but verify VRChat desktop composition and HMD visibility separately. |
+| How do layers affect capture? | [VRChat layers](https://creators.vrchat.com/worlds/layers/) assign MirrorReflection to mirrors; uploaded-avatar layer retention requires client confirmation. | Read the actual desktop code block and check the effects of occlusion, minimization and layer changes. |
+| How are desktop and headset output checked? | Unity documents [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html), [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html) and [targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html). | Request None-eye cameras, then inspect VRChat desktop composition and both headset views to record actual visibility. |
 | How are mirrors/photos excluded? | [Shader globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/) expose CameraMode and MirrorMode. | Exclude mirror/photo modes and select the encoding camera by its producer's orthographic far-plane signature. These conditions route the image; the selected target and registration configuration identify the intended source. |
 
 ## Root measurements and deformation models
 
 Inspected VRCFury commit: `d048773de971881fb14c5f3b468e59ba2406a2dd`.
 
-The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc) contains target/player shader IDs, position, orientation and scale, without a source-geometry frame sequence. A new encoder clock cannot prove that an old global texture was refreshed.
+The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc) contains target/player shader IDs, position, orientation and scale, without a source-geometry frame sequence. Model freshness needs a separate geometry timestamp or capture evidence; the encoder clock checks that tile output continues.
 
 [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs) generates and animates player material IDs at runtime; [SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs) binds materials/Resolvers. Reading that model requires tracking its runtime-generated ID.
 
-The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native three-point skinned sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, editor model capture and synthetic PNG fixtures establish different things.
+The adapter's `ReadRoot` resolves the explicitly selected root frame. SPS Sockets/Plugs use their authored root geometry; bone/empty-object Transforms, Sensa Components and native Contacts use their own root definitions. A native three-point skinned sample follows that frame, while installed VRCFury handles SPS deformation. The existing EditorWindow probe samples the installed SPS unblended centerline. Native root capture, the editor probe and synthetic PNG fixtures check root sampling, model calculations and the codec chain respectively.
 
 A future model producer needs runtime ID tracking, render-stage coordination, geometry timestamps and XR texture-array handling, followed by comparison with the final mesh. Separate geometry and encoding timestamps identify which model update a packet contains.
 
@@ -34,8 +34,8 @@ A future model producer needs runtime ID tracking, render-stage coordination, ge
 Create **GameObject → Sensa → Shader Root Capture (Experimental)** or add `SensaShaderCapture.prefab`, then set `Target`, a nonzero `producerId` and normalized desktop viewport on `SensaShaderCapture`. The shared `SensaPlugin` reads these settings at NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** and calls the Shader generator to create:
 
 1. A root marker under the resolved source, applying `ReadRoot` local position/rotation.
-2. An identity-transform SkinnedMeshRenderer under the avatar root, with three vertices fully bound to the marker. Native skinning yields AvatarRootLocal values without mixing world meters and root scale.
-3. One None-eye orthographic camera emitting the NDC code directly into its configured viewport, without a RenderTexture, Quad, second camera or display shader.
+2. An identity-transform SkinnedMeshRenderer under the avatar root, with three vertices fully bound to the marker. Native skinning yields AvatarRootLocal values; AvatarScale supplies the conversion to world metres.
+3. One None-eye orthographic camera emitting the QR tile directly into its configured viewport, keeping the tile square and centered.
 4. A local-only `Sensa ShaderCapture_<ID>` expression menu, initially Off. **Root position code** activates the rig, with the caption chosen in the build-time Editor language.
 
 Bounds persist through native serialized `m_AABB` / `m_DirtyAABB` fields; skin matrices recalculate per render. See the [Unity inspector source](https://github.com/Unity-Technologies/UnityCsReference/blob/2022.3/Editor/Mono/Inspector/SkinnedMeshRendererEditor.cs).
@@ -66,27 +66,29 @@ Geometry constructs the packet and CRC once per triangle; fragments read packed 
 
 ## Monochrome layout, movement margin and missing-data recovery
 
-The code uses **40 columns × 32 rows**, at least **160×128 physical pixels** for native capture: four pixels per module on each axis. From outside inward:
+The tile uses standard **QR Code Model 2, Version 4, error correction level H**. Its 33×33-module symbol carries one 32-byte measurement packet. Each side has 8 white modules: a 4-module QR quiet zone and 4 additional modules for movement. The complete tile is **49×49 modules**, with a minimum capture region of **196×196 physical pixels**.
 
-1. A **two-module white margin** reserves room for small image movements while keeping locators and data inside the registered capture region.
-2. **Two-module locator bands** carry asymmetric complementary patterns. Either line can identify an edge; at least three edges must match.
-3. The **32×24 payload** stores three 32×8 copies of the packet. Each copy shifts columns by 11 bytes, distributing vertical damage across different bytes.
+Three corner finder patterns, alternating timing lines and a smaller alignment pattern near the lower-right corner establish position, orientation and module spacing. Two copies of BCH-protected format information identify the correction level and mask.
 
-The entire block outputs pure black or white. The white margin and fixed locator bands provide stable spatial references. Payload modules require nine consistent pixels in their 3×3 sample; uncertain modules become erasures. The bridge combines known, agreeing bits from the three copies in the current capture. It accepts only a fully supported packet with a valid CRC32. Any known-bit conflict invalidates the frame, keeping mixed frames from being assembled by majority vote. Losing the same bit in every copy also invalidates it.
+Byte-mode framing, length, terminator and padding turn the 32-byte packet into 36 data codewords. The encoder uses **four blocks, each with 9 data codewords and 16 Reed–Solomon parity codewords**, then interleaves all 100 codewords using QR placement rules. A codeword is one byte. It evaluates all eight data masks for long runs, same-color 2×2 areas, finder-like patterns and black/white balance. This produces a readable texture even when measurements are stationary or near zero.
 
-Alignment search stays inside the explicitly selected ROI, using quarter-module steps up to two modules per axis. The margin buffers **spatial movement**. Rendering, desktop composition and capture latency require measurement. Re-register after scaling, rotation or perspective changes. Diagnostic images retain their separate 16×8/CRC-CCITT layout for isolated testing.
+Correction handles both wrong bytes and missing bytes whose locations are known. **Each block can recover when `2e+s≤16`**, where e counts wrong bytes and s counts missing bytes. One block can therefore repair eight wrong bytes, sixteen missing bytes, or four wrong plus eight missing bytes. The location of an occlusion determines the affected blocks and codewords; enough of the locator patterns must also remain readable.
 
-Locator and payload redundancy can recover partial occlusion or uncertain pixels. CRC32 checks integrity, Producer ID pairs the target, and sequence progression detects duplicates and freezing. Each field has its own purpose.
+Inside the selected ROI, the desktop bridge finds the corner patterns and resamples the grid. Gray or uncertain modules mark their codewords as missing. It then performs block correction, QR format checks and whole-packet CRC32 verification. Only the current capture supplies data. Producer ID and advancing Frame checks continue to enforce pairing and freshness. If a partially mixed image corrects to the same complete packet, its duplicate Frame does not extend validity; expiry still uses the last progression time.
+
+The margin buffers **spatial movement**: translation up to four modules inside the nominal region still preserves the standard four-module quiet zone. Decoding supports right-angle rotation and vertical flipping. Re-select the full tile after resizing to preserve sufficient pixels per module. Larger perspective distortion, arbitrary rotation and end-to-end latency require measurement in the actual capture setup. Separate lab diagnostic images retain their 16×8/CRC-CCITT format.
+
+Geometry generates the QR modules once per measurement triangle; fragments read the final black/white values. Standard QR libraries cross-check the protocol. Automated checks and actual GPU/client acceptance are recorded separately in the [verification record](e2e-status.en.md).
 
 ## Explicit desktop registration and OSC
 
-See the [package guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Capture never selects a screen automatically. Screen-to-OSC requires a pinned producer ID. Registration also fixes the coordinate profile/center/range. A diagnostic packet reusing the same ID is rejected.
+See the [package guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Select the screen region to read and pair the tile using its Producer ID. Registration stores the region, ID, coordinate frame, center and range. Native measurements and lab diagnostics are validated using their respective formats.
 
-One valid OSC bundle sends `Sensa/Shader/<nonzero-ID>/{Frame,X,Y,Z,RightX,RightY,RightZ,ForwardX,ForwardY,ForwardZ,AvatarScale,Valid}` strictly in that order, with Valid=1 as the final commit field. Invalidation sends only Valid=0 on the same prefix, without stale XYZ or an invented Frame. ID is already in the path and AvatarRootLocal is fixed, so redundant Producer/Profile parameters and the path version segment are removed without old aliases.
+One valid OSC bundle sends `Sensa/Shader/<nonzero-ID>/{Frame,X,Y,Z,RightX,RightY,RightZ,ForwardX,ForwardY,ForwardZ,AvatarScale,Valid}` strictly in that order, with Valid=1 as the final commit field. Invalidation sends only Valid=0 on the same prefix, without stale XYZ or an invented Frame. The path identifies the object, and its coordinate frame is fixed as AvatarRootLocal.
 
 Frame detects freezes/duplicate images, XYZ carries the measurement and Valid immediately reports invalidity. Binary producer ID remains necessary to verify the ROI source. Native ID0 is invalid. Synthetic/editor model diagnostics use only `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` and do not produce root observations.
 
-The desktop requires twelve consecutive same-source fields and a maximum 500 ms Frame content-change age. Repeated identical frames do not refresh that age. Modulo-16-bit progression, changed payload under one frame and two-frame recovery belong to the bridge; static Observe does not claim an additional historical anti-replay state.
+The desktop requires twelve consecutive same-source fields and a maximum 500 ms Frame content-change age. Repeated identical frames do not refresh that age. Modulo-16-bit progression, changed payload under one frame and two-frame recovery belong to the bridge; desktop Observe checks the current complete packet and its change age.
 
 Registration saves the ROI, Producer ID and coordinate configuration of a successfully decoded packet. Starting or recovering requires two progressing frames. CRC/source/profile failure, changed payload on a duplicate sequence, reorder, freeze, timeout or shutdown sets Valid to 0. Recovery needs two new progressing frames; a producer reset may require restarting the bridge. Accuracy and VR visibility follow the client checks below.
 

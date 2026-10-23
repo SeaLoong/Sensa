@@ -163,7 +163,7 @@ namespace UnityBox.Sensa
         public override void OnInspectorGUI()
         {
             SensaInspectorLabels.Draw(serializedObject);
-            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Samples the selected root and its local X/Z axes in one native render primitive. Green scene bounds show the position range. The black-and-white tile has a white capture margin and three copies of the measurements. Choose a desktop region of at least 160 by 128 physical pixels, then verify the image in your VRChat desktop window."), MessageType.Info);
+            EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Measures the selected root, its X/Z axes and Avatar scale together. The QR tile uses three corner markers, balanced black-and-white data and Reed-Solomon correction. White margins leave room for capture shifts. Keep the complete square tile visible and choose a desktop region of at least 196 by 196 physical pixels."), MessageType.Info);
         }
         private void OnSceneGUI()
         {

@@ -2,29 +2,29 @@
 
 **简体中文** | [English](shader-capture-research.en.md)
 
-本页记录原生根点捕获的设计与客户端验收范围。当前链路为 **所选根点参照 → 三点蒙皮采样 → 单 Camera 图块 → 明确 ROI 解码 → OSC**，提供所选根点的位置、X/Z 两条轴向和 Avatar 世界缩放。目标可为 Avatar 内明确选择的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa Component 或原生 Contact；桌面图块可见性、头显画面与端到端延迟通过实际客户端检查。
+Shader 捕获把 Avatar 上一个选定位置的测量结果画成 QR 图块。桌面程序读取你选定的屏幕区域（ROI），还原位置、X/Z 两条轴向与 Avatar 世界缩放，再通过 OSC 交给 Sensa。目标可为 Avatar 内明确选择的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa Component 或原生 Contact；桌面图块可见性、头显画面与端到端延迟通过实际客户端检查。
 
-以下 Shader 上游资料核验于 2026-10-19，源码固定到所列提交；Sensa 当前结构于 2026-10-24 更新。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页保留设计理由与未完成验收。
+以下 Shader 上游资料核验于 2026-10-19，源码固定到所列提交；Sensa 当前结构于 2026-10-24 更新。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页说明实现选择、数据格式与客户端验收方法。
 
 ## 官方能力与本轮决策
 
 | 问题 | 一手证据与结论 | Sensa 决策 |
 | --- | --- | --- |
-| Avatar 能否运行回读 C#？ | [允许组件](https://creators.vrchat.com/avatars/whitelisted-avatar-components/whitelisted-avatar-components/)包含 Camera、SkinnedMeshRenderer 等，但不允许任意自定义脚本。 | 作者组件实现 IEditorOnly；NDMF 生成原生组件并移除作者组件。上传后不运行编辑器回读器。 |
-| Camera 可否留在 Avatar？ | 同一官方页面说明本地穿戴者的 Camera 允许；远端受好友、Show Avatar 等条件限制。 | 仅本地菜单启用，默认 Off；不依赖对方 Avatar 保留相机。 |
+| 上传后由什么组件工作？ | [允许组件](https://creators.vrchat.com/avatars/whitelisted-avatar-components/whitelisted-avatar-components/)列出可保留的 Camera、SkinnedMeshRenderer 等组件。自定义作者脚本用于构建阶段。 | 作者组件实现 IEditorOnly；NDMF 生成标准组件并移除作者组件，上传后由标准组件完成采样与编码。 |
+| Camera 可否留在 Avatar？ | 同一官方页面说明本地穿戴者的 Camera 允许；远端受好友、Show Avatar 等条件限制。 | 使用本地穿戴者的相机，由本地菜单启用，默认 Off。 |
 | Android 是否支持？ | [Android 限制](https://creators.vrchat.com/platforms/android/quest-content-limitations/)禁止 Avatar Camera，且只允许列出的 Mobile Shader。 | 作者构建拒绝 Android；本轮是 PC Built-in / geometry-shader 路径，Metal 也不在支持范围。 |
-| 隐藏层是否能被桌面捕获？ | [图层说明](https://creators.vrchat.com/worlds/layers/)中的 MirrorReflection 仅用于镜面；世界图层表不能证明 Avatar 上传后的图层保留。 | 不把“隐藏层”当作外部捕获接口。需要实际桌面编码块；遮挡、最小化、图层变更等必须实测。 |
-| 不进双眼是否等于桌面可见？ | Unity [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html)和 [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html)说明引擎的眼目标；[targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html)说明 RT 与屏幕输出。 | 相机选择 None，但 VRChat 的桌面合成、头显不显示仍是独立客户端验收项，不能承诺。 |
+| 图层如何影响捕获？ | [图层说明](https://creators.vrchat.com/worlds/layers/)将 MirrorReflection 用于镜面；Avatar 上传后的图层保留情况需要客户端确认。 | 读取实际桌面中的编码块，测试遮挡、最小化与图层变化时的结果。 |
+| 怎样检查桌面与头显输出？ | Unity [stereoTargetEye](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-stereoTargetEye.html)和 [None](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/StereoTargetEyeMask.None.html)说明引擎的眼目标；[targetTexture](https://docs.unity3d.com/2022.3/Documentation/ScriptReference/Camera-targetTexture.html)说明 RT 与屏幕输出。 | 相机选择 None；分别在 VRChat 中检查桌面合成结果和双眼画面，记录实际可见性。 |
 | 如何区分镜面/拍照？ | [VRChat Shader Globals](https://creators.vrchat.com/worlds/udon/vrc-graphics/vrchat-shader-globals/)公布 CameraMode、MirrorMode。 | 根据模式排除镜面/拍照，再按每个 producer 的正交远平面签名选择编码相机。这些条件用于画面路由；来源身份由选定目标与注册配置共同管理。 |
 
 ## 根点测量与形变模型
 
 核对的 VRCFury 源提交为 `d048773de971881fb14c5f3b468e59ba2406a2dd`。
 
-- [SPS 单元布局](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc)有目标 ID、玩家 Shader ID、根部位置/方向/缩放等，没有源几何帧序号。当前编码器时钟不能证明旧全局纹理已经刷新。
+- [SPS 单元布局](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc)有目标 ID、玩家 Shader ID、根部位置/方向/缩放等，未提供源几何帧序号。模型新鲜度需要单独的几何更新时间或采集证据，编码器时钟用于检查图块输出是否推进。
 - [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs)在运行时通过 Animator 随机生成并驱动材质玩家 ID。[SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs)负责材质/Resolver 绑定。读取该模型需要跟踪运行时生成的 ID。
 - 适配器 `ReadRoot` 统一解析明确选择的根点参照：SPS Socket／Plug 使用其作者根点几何，骨骼／空物体 Transform、Sensa Component 与原生 Contact 使用各自的根点定义。生成的三点蒙皮采样跟随该参照；SPS 目标的形变仍由安装的 VRCFury 处理。
-- 旧 `SensaGpuProbe` 仍是 EditorWindow：调用所安装 SPS 的曲线函数采样未混合中心线。它与本轮根点生产端、旧合成 PNG fixture 是三种不同证据。
+- 旧 `SensaGpuProbe` 仍是 EditorWindow：调用所安装 SPS 的曲线函数采样未混合中心线。根点捕获、编辑器模型探针与合成 PNG fixture 分别检查根点采样、模型计算和编解码链路。
 
 未来的模型采集需要同时处理运行时 ID、渲染阶段、几何更新时间和 XR texture array，并对照最终网格验证。几何更新时间与编码时钟分别记录，才能判断收到的是哪一次模型更新。
 
@@ -33,7 +33,7 @@
 通过 **GameObject → Sensa → Shader Root Capture (Experimental)** 创建，或添加 `SensaShaderCapture.prefab`，在 `SensaShaderCapture` 中指定 `Target`、非零 `producerId` 和归一化桌面 viewport。统一的 `SensaPlugin` 在 NDMF **Generating → BeforePlugin("nadena.dev.modular-avatar")** 读取配置，调用 Shader 生成器创建：
 
 1. 所选根点参照下的 marker，使用 `ReadRoot` 解析出的 local position／rotation。
-2. Avatar 根下单位变换的 SkinnedMeshRenderer，三个顶点完全绑定 marker。原生蒙皮结果在 AvatarRootLocal 中，避免把世界米和 Avatar 缩放混算。
+2. Avatar 根下单位变换的 SkinnedMeshRenderer，三个顶点完全绑定 marker。原生蒙皮结果按 AvatarRootLocal 解释，AvatarScale 提供到世界米的换算。
 3. 单个 None-eye 正交 Camera，按配置 viewport 直接输出 NDC 黑白格；直接使用一套相机与编码材质。
 4. 默认关闭、仅本地允许的 `Sensa ShaderCapture_<ID>` 表达菜单；选择 **Root position code／根点位置编码** 后开启 rig。菜单项文字采用构建时的编辑器语言。
 
@@ -65,27 +65,29 @@
 
 ## 黑白图块、位移留白与缺失恢复
 
-图块为 **40 列 × 32 行**，原生捕获至少 **160×128 物理像素**，即每格至少 4×4 像素。由外向内包含：
+图块使用标准 **QR Code Model 2，Version 4、H 纠错等级**。33×33 格主体承载一个 32 字节测量包，外围每边保留 8 格白色：其中 4 格为 QR 静区，另外 4 格给画面位移预留空间。完整图块为 **49×49 格**，捕获区域至少 **196×196 物理像素**。
 
-1. **两格白色留白**：给小幅画面移动预留空间，使定位标记和数据保持在原捕获区域内。
-2. **两格定位带**：四边的非对称互补黑白图案帮助确定对齐；每边两条线可互相补充，至少三条边匹配。
-3. **32×24 数据区**：同一包保存为三份 32×8 格副本。各份按 11 字节错列，令同一纵向遮挡落到不同字节。
+从画面中可以辨认出三个角上的定位方框、交替黑白的时序线和右下角较小的校正标记。它们帮助读取程序确定图块的位置、方向和格子间距。两处格式信息保存纠错等级与掩码编号，采用 BCH 校验保护。
 
-图块全程输出纯黑或纯白。白色是布局空白，黑白定位带是稳定参照；它们保持固定是为了提高识别率。数据格的 3×3 像素必须一致，无法可靠读取的格子记为缺失。桥把本次捕获中三份副本已知且一致的位合并，只有每一位都有依据且 CRC32 通过时才接受。副本中出现已知位冲突时整帧失效，防止把跨帧数据按多数票拼接。缺失覆盖所有副本的同一位时也会失效。
+32 字节包以 Byte mode 写入 QR 数据区，加上模式、长度、结束与填充后得到 36 个数据码字。编码器将其分成 **4 组，每组 9 个数据码字和 16 个 Reed–Solomon 校验码字**，共 100 个码字，再按 QR 规则交织放入图中。一个码字就是一个字节。数据位经过掩码处理，编码器比较全部 8 种掩码，选择长连续色块、2×2 同色区域、类似定位标记的图案和黑白比例得分更好的一个，因此静止或接近零的数值也能形成清楚的黑白纹理。
 
-桥在明确选定的 ROI 内按四分之一格步进搜索，最多向各方向移动两格。留白缓冲的是**空间位移**；渲染、桌面合成和捕获的时间延迟通过实际测量评估。缩放、旋转或透视变化后重新注册 ROI。诊断图像继续使用独立的 16×8 格／CRC-CCITT 格式，便于隔离测试。
+纠错可以同时处理读错的字节与位置已知的缺失字节。**每组满足 `2e+s≤16` 时可以恢复**，其中 e 是错误字节数，s 是缺失字节数。例如，一组可以修复 8 个错误字节，或 16 个缺失字节，或 4 个错误与 8 个缺失字节。连续遮挡影响哪些组、覆盖多少码字，要由具体位置决定；定位标记也需要有足够可读内容。
 
-边缘与数据冗余帮助恢复部分遮挡、灰色或混合像素造成的缺失。CRC32 检查数据完整性，Producer ID 配对目标，推进序号发现重复和冻结；这些字段各自承担明确职责。
+桌面桥在所选 ROI 中扫描定位方框，重新确定采样位置。灰色或不能可靠判断的格子会让相应码字成为缺失，随后执行分组纠错、QR 格式检查和完整包 CRC32 校验。读取始终使用本次捕获；生产者 ID 与 Frame 推进检查继续负责目标配对和时效。局部混帧若被纠回同一个完整包，重复的 Frame 也不会延长有效期，仍按最近一次推进时间判断是否超时。
+
+外围留白缓冲**空间位移**：在名义注册区域中平移最多 4 格，仍能保留标准 4 格静区。解码支持直角旋转和上下翻转；窗口尺寸变化后重新框选完整图块，可以保持足够的每格像素数。较大的透视变形、任意角度和端到端延迟需在实际捕获条件下测量。独立实验诊断图像沿用 16×8 格／CRC-CCITT 格式。
+
+几何阶段每个测量三角形只生成一次 QR 模块，片元阶段读取最终黑白值。协议与标准 QR 库交叉核对；自动检查和实际 GPU／客户端验收分别记录在[验证记录](e2e-status.md)。
 
 ## 桌面注册与 OSC
 
-完整操作见[包内指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)。桥不会自动选屏幕；必须显式选择 ROI。发送屏幕 OSC 必须固定 producer ID；注册还固定坐标 profile/center/range。同 ID 的旧诊断坐标格式也会被拒绝。
+完整操作见[包内指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)。先选择要读取的屏幕区域，并用 Producer ID 配对该图块。注册文件保存区域、目标 ID、坐标系、中心和范围；原生测量与实验诊断分别按各自的数据格式检查。
 
-有效 OSC 单 bundle 严格按 `Sensa/Shader/<非零ID>/{Frame,X,Y,Z,RightX,RightY,RightZ,ForwardX,ForwardY,ForwardZ,AvatarScale,Valid}` 顺序发送，Valid=1 是最后的提交字段。失效只向同一前缀发送 Valid=0，不重发旧 XYZ 或伪增 Frame。ID 已在路径中，坐标系固定为 AvatarRootLocal，因此删除重复 Producer／Profile 参数与路径版本段，不提供旧别名。
+有效 OSC 单 bundle 严格按 `Sensa/Shader/<非零ID>/{Frame,X,Y,Z,RightX,RightY,RightZ,ForwardX,ForwardY,ForwardZ,AvatarScale,Valid}` 顺序发送，Valid=1 是最后的提交字段。失效只向同一前缀发送 Valid=0，不重发旧 XYZ 或伪增 Frame。对象 ID 由路径表达，坐标系固定为 AvatarRootLocal。
 
 Frame 保留以识别冻结／重复画面，XYZ 是测量值，Valid 保留以立即宣告无效；方向向量与缩放可供计算绑定使用。ID 仍保留在二进制包里用于校验实际 ROI 中的来源。原生 ID0 无效；合成／Editor 模型诊断只能进入 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`，不生成根点观察。
 
-桌面要求同来源连续十二字段，并按 Frame 内容变化时间执行最多 500 ms 存活窗；反复重发同一 Frame 不续期。模 16 位的单调前进、同帧异值和两帧恢复由桥负责；静态 Observe 不额外宣称具有历史防重放状态。
+桌面要求同来源连续十二字段，并按 Frame 内容变化时间执行最多 500 ms 存活窗；反复重发同一 Frame 不续期。模 16 位的单调前进、同帧异值和两帧恢复由桥负责；桌面 Observe 负责当前完整包及变化时间检查。
 
 注册文件保存成功解码时的 ROI、Producer ID 和坐标配置。启动或恢复读取需要两个连续推进帧；CRC、来源或坐标系错误，以及同帧不同值、倒序、冻结、超时或退出，都会将 Valid 置为 0。冻结后收到两个新的推进帧才恢复；生产端重置后可按提示重新启动桥。位置精度与 VR 可见性按下方客户端项目验证。
 

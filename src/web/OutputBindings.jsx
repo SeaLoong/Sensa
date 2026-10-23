@@ -19,10 +19,14 @@ function BindingCard({ binding, outputType, recordingFormat, targetAxes, signals
     <summary><strong>{binding.name || binding.id}</strong><code>{binding.address}</code>
       {status && <Badge tone={status.valid ? 'success' : 'default'}>{status.valid ? t('有效') : t('等待输入')}</Badge>}</summary>
     {open && <div className="stack signal-binding__body">
+      <div className="editor-group"><h4>{t('信号从哪里来')}</h4>
       <div className="form-grid">
         <Field label={t('连接名称')} value={binding.name} onChange={event => onChange({ name: event.target.value })} />
         <SignalSourceFields source={binding.source} signals={signals} pathOptions={pathOptions}
           onChange={patch => onChange({ source: { ...binding.source, ...patch } })} />
+      </div></div>
+      <div className="editor-group"><h4>{t('发送到哪里')}</h4>
+      <div className="form-grid">
         {outputType === 'Dglab' ? <><SelectField label={targetLabel} value={binding.address} options={[
           { value: 'Intensity', label: t('临时强度') }, { value: 'Pulse', label: t('波形任务') },
         ]} onChange={address => onChange({ address, sendMode: address === 'Pulse' ? 'OnEvent' : 'OnChange' })} />
@@ -37,11 +41,14 @@ function BindingCard({ binding, outputType, recordingFormat, targetAxes, signals
         <SelectField label={t('数值类型')} value={binding.valueType} options={[
           { value: 'Float', label: t('Float · 连续数值') }, { value: 'Int', label: t('Int · 整数') }, ...(outputType === 'Midi' ? [] : [{ value: 'Bool', label: t('Bool · 开关') }]),
         ]} onChange={valueType => onChange({ valueType })} />
+      </div></div>
+      <div className="editor-group"><h4>{t('怎样换算数值')}</h4><p className="caption muted">{t('输入起点对应输出起点，输入终点对应输出终点。中间的数值按所选曲线转换。')}</p>
+      <div className="form-grid">
         {field('inputMin', '输入起点')}{field('inputMax', '输入终点')}
         {field('outputMin', '输出起点')}{field('outputMax', '输出终点')}
         <SelectField label={t('转换曲线')} value={binding.curve} options={curveOptions()} onChange={curve => onChange({ curve })} />
         {!['Dglab', 'Recording'].includes(outputType) && field('stopValue', '停止时发送值')}
-      </div>
+      </div></div>
       {outputType === 'Dglab' ? <SelectField label={t('发送方式')}
         value={binding.address === 'Pulse' ? binding.sendMode === 'FixedRate' ? 'FixedRate' : 'OnEvent' : binding.sendMode === 'OnEvent' ? 'OnEvent' : 'OnChange'}
         options={binding.address === 'Pulse' ? [{ value: 'FixedRate', label: t('持续播放') }, { value: 'OnEvent', label: t('触发一次') }]

@@ -2,7 +2,7 @@
 
 [简体中文](guide.md) | **English**
 
-Complete a simple flow with [First run](quick-start.en.md), then use the task list below. The header always shows the active input mode, input activation and emergency stop.
+Complete a simple flow with [First run](quick-start.en.md), then switch between Control, OSC, Flow and Settings. Navigation sits on the left on desktop and below the header in narrower windows. Each page title and introduction explain what you can do there. The header always shows the active input mode, input activation and emergency stop.
 
 | Task | Open |
 | --- | --- |
@@ -26,7 +26,7 @@ Outputs have independent activation and connection states. While input is runnin
 
 ### Manual and script
 
-Manual initially shows L0/L1/L2, with rotation, vibration and auxiliary axes available on expansion: twelve axes in total. Adjust a slider/value and send once, or follow edits continuously. Send settings can use the axis profile or an explicit movement duration/speed; Clear overrides restores the profile.
+Manual initially shows L0/L1/L2, with rotation, vibration and auxiliary axes available on expansion: twelve axes in total. Adjust a slider/value and choose Send once. Enable Live updates to have output follow further adjustments. Send settings can use the axis profile or an explicit movement duration/speed; Clear overrides restores the profile.
 
 After loading a funscript, the timeline shows playback position and trajectory. It supports 0.1–4× speed, loops, A–B, timecodes and keyframe navigation. Pause preserves the cursor, Stop returns to the beginning and unload removes the script. With Script input enabled, explicit seek/step can send a selected position while paused.
 

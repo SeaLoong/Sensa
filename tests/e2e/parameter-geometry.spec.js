@@ -166,6 +166,9 @@ async function finiteDrawing(page) {
   return screenFonts();
 }
 async function documentFits(page) {
+  await expect(page.locator('.guide-nav a')).toHaveCount(3);
+  await expect(page.locator('.guide-sidebar #scene')).toHaveCount(1);
+  await expect(page.locator('.guide-content #workbench')).toHaveCount(1);
   const evidence = await page.evaluate(() => {
     const controls = [...document.querySelectorAll('[data-control]')].flatMap(holder => {
       const input = holder.querySelector('input[type="range"]');
@@ -187,13 +190,27 @@ async function documentFits(page) {
       row.bottomSpread = Math.max(...bottoms) - Math.min(...bottoms);
     }
     const svg = document.querySelector('#diagram').getBoundingClientRect();
-    return { viewport: document.documentElement.clientWidth,
+    const sidebar = document.querySelector('.guide-sidebar').getBoundingClientRect();
+    const content = document.querySelector('.guide-content').getBoundingClientRect();
+    const selectors = ['#scene', '#projection', '#reset'].map(selector => {
+      const node = document.querySelector(selector), box = node.getBoundingClientRect();
+      return { selector, width: box.width, height: box.height };
+    });
+    return { sidebar: { left: sidebar.left, right: sidebar.right, top: sidebar.top, bottom: sidebar.bottom },
+      content: { left: content.left, top: content.top }, selectors, viewport: document.documentElement.clientWidth,
       document: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
       svg: { left: svg.left, right: svg.right }, rows };
   });
   expect(evidence.document, 'No document horizontal overflow / 文档无横向溢出').toBeLessThanOrEqual(evidence.viewport + 1);
   expect(evidence.svg.left).toBeGreaterThanOrEqual(-1);
   expect(evidence.svg.right).toBeLessThanOrEqual(evidence.viewport + 1);
+  for (const target of evidence.selectors) {
+    expect(target.width, target.selector + ' usable width').toBeGreaterThanOrEqual(44);
+    expect(target.height, target.selector + ' usable height').toBeGreaterThanOrEqual(44);
+  }
+  if (evidence.viewport > 1000) expect(evidence.sidebar.right).toBeLessThanOrEqual(evidence.content.left);
+  else expect(evidence.sidebar.bottom).toBeLessThanOrEqual(evidence.content.top);
+
   // Group by actual row tops, independent of the chosen column count or CSS declarations.
   // 按实际顶沿识别同排，不读取 CSS 声明，也不固定列数或列宽。
   for (const row of evidence.rows.filter(row => row.controls.length >= 2)) {
@@ -245,7 +262,7 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         await expect(child.locator('html')).toHaveAttribute('lang', scenario.expected);
         await expect(child.locator('#locale')).toHaveValue(scenario.expected);
         await expect(child.locator('h1')).toHaveText(scenario.expected === 'en-US'
-          ? 'Move the target to see where detection works' : '移动目标，了解何时能够检测');
+          ? 'See what each parameter responds to' : '看懂参数怎样随动作变化');
         await capture('initial');
         if (scenario.switchAndReload) {
           await chooseScene(child, 'socket-modern', 'iso'); await setRange(child, 'z', .41);
@@ -267,7 +284,7 @@ threeTest('the offline guide negotiates language and persists a manual choice wi
         }
         if (scenario.denied) {
           await child.locator('#locale').selectOption('en-US');
-          await expect(child.locator('h1')).toHaveText('Move the target to see where detection works');
+          await expect(child.locator('h1')).toHaveText('See what each parameter responds to');
         }
         expect(errors).toEqual([]); expect(network).toEqual([]);
       } finally {
@@ -559,33 +576,56 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await expect(page.locator('#diagram [data-shape-id^="sender-"]')).toHaveCount(0);
     await nearCell(page, 'Valid', 1);
     await expect(page.locator('#validity')).toHaveAttribute('data-valid', 'true');
-    await expect(page.locator('#bit-grid rect')).toHaveCount(1280);
-    await expect(page.locator('#bit-grid rect[data-region="quiet"]')).toHaveCount(272);
-    await expect(page.locator('#bit-grid rect[data-region="marker"]')).toHaveCount(240);
+    await expect(page.locator('#bit-grid rect')).toHaveCount(49 * 49);
+    await expect(page.locator('#bit-grid rect[data-region="quiet"]')).toHaveCount(49 * 49 - 33 * 33);
+    await expect(page.locator('#bit-grid rect[data-region="finder"]')).toHaveCount(3 * 7 * 7);
+    await expect(page.locator('#bit-grid rect[data-region="data"]')).toHaveCount(36 * 8);
+    await expect(page.locator('#bit-grid rect[data-region="ecc"]')).toHaveCount(64 * 8);
     await setRange(page, 'x', 0); await setRange(page, 'y', 1); await setRange(page, 'z', 0);
     await setRange(page, 'frame', 256);
     const bitCells = await page.locator('#bit-grid rect').evaluateAll(cells => cells.map(cell => ({
-      byte: Number(cell.dataset.byte), bit: Number(cell.dataset.bit), value: Number(cell.dataset.value),
-      copy: Number(cell.dataset.copy), region: cell.dataset.region,
+      value: Number(cell.dataset.value), region: cell.dataset.region,
+      codeword: cell.hasAttribute('data-codeword') ? Number(cell.dataset.codeword) : null,
+      block: cell.hasAttribute('data-block') ? Number(cell.dataset.block) : null,
+      bit: cell.hasAttribute('data-bit') ? Number(cell.dataset.bit) : null,
       x: Number(cell.getAttribute('x')), y: Number(cell.getAttribute('y')), fill: cell.getAttribute('fill'),
     })));
-    // Independent native format-1 vector covers every marker, quiet cell and all three copies.
-    // 独立原生格式1向量覆盖全部定位格、白色缓冲格与三份错位数据副本。
-    const bytes = Buffer.from(nativeShader.packetHex, 'hex');
+    // Independently generated standard QR vector covers the full matrix and selected mask.
+    // 独立标准 QR 向量覆盖完整图块与所选掩码，包含格式信息、交织数据与纠错码字。
+    await expect(page.locator('#bit-grid')).toHaveAttribute('data-mask', String(nativeShader.mask));
     for (const cell of bitCells) {
       const bit = Number(nativeShader.screenRows[cell.y / 16][cell.x / 16]);
       expect(cell.value).toBe(bit);
       expect(cell.fill).toBe(bit ? '#fff' : '#000');
-      if (cell.region === 'payload') {
-        expect(cell.value).toBe(bytes[cell.byte] >> cell.bit & 1);
-        expect(cell.x).toBe((((cell.byte - cell.copy * 11 + 64) % 32) + 4) * 16);
-        expect(cell.y).toBe((31 - (4 + cell.copy * 8 + cell.bit)) * 16);
+      if (cell.region === 'data' || cell.region === 'ecc') {
+        expect(cell.codeword).toBeGreaterThanOrEqual(0);
+        expect(cell.codeword).toBeLessThan(100);
+        expect(cell.block).toBeGreaterThanOrEqual(0);
+        expect(cell.block).toBeLessThan(4);
+        expect(cell.bit).toBeGreaterThanOrEqual(0);
+        expect(cell.bit).toBeLessThan(8);
       }
     }
-    for (let copy = 0; copy < 3; copy++) expect(bitCells.filter(cell => cell.region === 'payload' && cell.copy === copy)).toHaveLength(256);
+    for (let block = 0; block < 4; block++) {
+      expect(bitCells.filter(cell => cell.region === 'data' && cell.block === block)).toHaveLength(9 * 8);
+      expect(bitCells.filter(cell => cell.region === 'ecc' && cell.block === block)).toHaveLength(16 * 8);
+    }
+    await page.locator('#bit-grid rect').first().evaluate(node => { window.__sensaFirstQrCell = node; });
+    await setRange(page, 'frame', 257);
+    expect(await page.locator('#bit-grid rect').first().evaluate(node => node === window.__sensaFirstQrCell),
+      'Dragging updates QR pixels without rebuilding the SVG / 调整数值复用编码格').toBe(true);
+    await setRange(page, 'frame', 256);
     await nearCell(page, 'RightX', nativeShader.expected.right[0]);
     await nearCell(page, 'ForwardZ', nativeShader.expected.forward[2]);
     await nearCell(page, 'AvatarScale', nativeShader.expected.avatarScale);
+    await expect(page.locator('.encoding-steps li')).toHaveCount(4);
+    await expect(page.locator('#shader-statistics')).not.toHaveAttribute('open', '');
+    await page.locator('#shader-statistics > summary').click();
+    await expect(page.locator('#shader-statistics #metrics')).toBeVisible();
+    await expect(page.locator('#shader-statistics #crc')).toContainText('CRC32');
+    await page.locator('#shader-statistics > summary').press('Enter');
+    await expect(page.locator('#shader-statistics')).not.toHaveAttribute('open', '');
+
     const shaderCards = await referenceCards(page);
     for (const name of ['RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale']) {
       expect(shaderCards.find(card => card.name === name).sources.some(source => source.href.includes('shader-capture-research'))).toBe(true);

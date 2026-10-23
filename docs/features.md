@@ -75,7 +75,7 @@ Sensa 把输入、计算和输出组织在同一工作台，适合实时设备�
 | **Shader 捕获** | 根点位置、Right／Forward 轴向与 AvatarScale；需要 PC 渲染图块和桌面解码 |
 | **独立 Point／Handle／Pose** | 相对参考对象的位置或姿态，供测量模型实验使用 |
 
-Shader 的三份数据副本支持缺失恢复，完整包检查管理数据有效性。在计算、轴映射或输出中选择“定位测量”（SensaPoint），可使用坐标、相应速度或 Shader 轴向／缩放指标。[方案选择](usage-scenarios.md) · [字段、单位与校准](positioning.md)
+Shader 使用带 Reed–Solomon 纠错的 QR 图块，帮助恢复部分读错或缺失的数据，再检查完整包与帧更新。在计算、轴映射或输出中选择“定位测量”（SensaPoint），可使用坐标、相应速度或 Shader 轴向／缩放指标。[方案选择](usage-scenarios.md) · [字段、单位与校准](positioning.md)
 
 Unity 组件在构建时生成原生 Contact、动画和参数。Automatic SPS Setup 提供目标选择与根点方案；显式 Transform、Sensa／原生 Contact 目标也有对应配置入口。实际客户端与图形环境效果按所用版本验收。[Unity 安装](../unity/top.sealoong.sensa/README.zh-CN.md) · [构建过程](unity-build.md)
 

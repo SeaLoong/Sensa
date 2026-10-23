@@ -12,11 +12,16 @@ Shader "Hidden/Sensa/NativeRootTelemetry"
         #pragma fragment frag
         #pragma exclude_renderers metal
         #include "UnityCG.cginc"
+        #include "SensaTelemetryQr.cginc"
         float _SensaProducerId, _SensaCameraFar, _VRChatMirrorMode, _VRChatCameraMode;
         struct app { float4 vertex:POSITION; };
         struct v2g { float4 vertex:SV_POSITION; float3 root:TEXCOORD0; };
         struct g2f { float4 vertex:SV_POSITION; float2 uv:TEXCOORD0;
-            nointerpolation uint4 packet0:TEXCOORD1; nointerpolation uint4 packet1:TEXCOORD2; };
+            nointerpolation uint4 qr0:TEXCOORD1; nointerpolation uint4 qr1:TEXCOORD2;
+            nointerpolation uint4 qr2:TEXCOORD3; nointerpolation uint4 qr3:TEXCOORD4;
+            nointerpolation uint4 qr4:TEXCOORD5; nointerpolation uint4 qr5:TEXCOORD6;
+            nointerpolation uint4 qr6:TEXCOORD7; nointerpolation uint4 qr7:TEXCOORD8;
+            nointerpolation uint4 qr8:TEXCOORD9; };
         v2g vert(app input) { v2g output; output.vertex=float4(0,0,0,1); output.root=input.vertex.xyz; return output; }
         bool basisValid(float3 right, float3 forward) {
             float rightLength=length(right), forwardLength=length(forward);
@@ -27,8 +32,8 @@ Shader "Hidden/Sensa/NativeRootTelemetry"
         }
         [maxvertexcount(4)]
         void geom(triangle v2g input[3], inout TriangleStream<g2f> stream) {
-            // This is a routing guard, not an authenticated VRChat camera identity.
-            // 仅为渲染路由条件，不是经过认证的 VRChat 相机身份。
+            // Route the native code to its dedicated orthographic capture camera.
+            // 将原生编码送到该测量组专用的正交捕获相机。
             if(unity_OrthoParams.w<.5 || abs(_ProjectionParams.z-_SensaCameraFar)>.000001 || _VRChatMirrorMode!=0 || _VRChatCameraMode!=0) return;
             #if defined(USING_STEREO_MATRICES)
                 return;
@@ -75,37 +80,42 @@ Shader "Hidden/Sensa/NativeRootTelemetry"
             }
             crc^=0xFFFFFFFFu;
             bytes[28]=crc&255u;bytes[29]=(crc>>8)&255u;bytes[30]=(crc>>16)&255u;bytes[31]=crc>>24;
-            uint4 packet0=uint4(0,0,0,0),packet1=uint4(0,0,0,0);
-            for(uint word=0;word<8;word++) {
-                uint offset=word*4;
-                uint value=bytes[offset]|(bytes[offset+1]<<8)|(bytes[offset+2]<<16)|(bytes[offset+3]<<24);
-                if(word<4) packet0[word]=value; else packet1[word-4]=value;
-            }
+            uint qrWords[36];
+            SensaQrEncode(bytes, qrWords);
             float2 corners[4]={float2(0,0),float2(0,1),float2(1,0),float2(1,1)};
             for(uint corner=0;corner<4;corner++) {
                 g2f output;output.vertex=float4(corners[corner]*2-1,0,1);
-                output.uv=corners[corner];output.packet0=packet0;output.packet1=packet1;stream.Append(output);
+                output.uv=corners[corner];
+                output.qr0=uint4(qrWords[0],qrWords[1],qrWords[2],qrWords[3]);
+                output.qr1=uint4(qrWords[4],qrWords[5],qrWords[6],qrWords[7]);
+                output.qr2=uint4(qrWords[8],qrWords[9],qrWords[10],qrWords[11]);
+                output.qr3=uint4(qrWords[12],qrWords[13],qrWords[14],qrWords[15]);
+                output.qr4=uint4(qrWords[16],qrWords[17],qrWords[18],qrWords[19]);
+                output.qr5=uint4(qrWords[20],qrWords[21],qrWords[22],qrWords[23]);
+                output.qr6=uint4(qrWords[24],qrWords[25],qrWords[26],qrWords[27]);
+                output.qr7=uint4(qrWords[28],qrWords[29],qrWords[30],qrWords[31]);
+                output.qr8=uint4(qrWords[32],qrWords[33],qrWords[34],qrWords[35]);
+                stream.Append(output);
             }
             stream.RestartStrip();
         }
         float4 frag(g2f input):SV_Target {
-            // White quiet modules leave capture-shift room. Inner edge bands align
-            // three spatially dispersed copies; CRC32 rejects inconsistent packets.
-            uint column=min((uint)(input.uv.x*40),39u),row=min((uint)(input.uv.y*32),31u);
-            uint value;
-            if(column<2u || column>=38u || row<2u || row>=30u) value=1u;
-            else if(row<4u) value=((0xD3A69C57u>>((column+28u)&31u))&1u)^(row-2u);
-            else if(row>=28u) value=((0x69C57D3Au>>((column+28u)&31u))&1u)^(row-28u);
-            else if(column<4u) value=((0xA5D36Bu>>(row-4u))&1u)^(column-2u);
-            else if(column>=36u) value=((0x6E29C7u>>(row-4u))&1u)^(column-36u);
-            else {
-                uint bank=(row-4u)/8u,bit=(row-4u)%8u;
-                uint byteIndex=((column-4u)+bank*11u)%32u;
-                uint wordIndex=(byteIndex&15u)>>2;
-                uint word=byteIndex<16u?input.packet0[wordIndex]:input.packet1[wordIndex];
-                value=(word>>((byteIndex&3u)*8u+bit))&1u;
-            }
-            return float4(value.xxx,1);
+            // Preserve square physical modules in any desktop viewport. The eight
+            // white modules on each edge include a four-module standard quiet zone
+            // and four extra modules for a shifting capture rectangle.
+            float aspect=abs(UNITY_MATRIX_P._m11/UNITY_MATRIX_P._m00);
+            float2 uv=(input.uv-.5)*float2(max(aspect,1),max(1/aspect,1))+.5;
+            if(any(uv<0) || any(uv>=1)) return float4(1,1,1,1);
+            uint column=min((uint)(uv.x*49),48u),row=min((uint)((1-uv.y)*49),48u);
+            if(column<8u || column>=41u || row<8u || row>=41u) return float4(1,1,1,1);
+            uint bit=(row-8u)*33u+column-8u,wordIndex=bit/32u;
+            uint group=wordIndex/4u;
+            uint4 words=group==0u?input.qr0:group==1u?input.qr1:group==2u?input.qr2:
+                group==3u?input.qr3:group==4u?input.qr4:group==5u?input.qr5:
+                group==6u?input.qr6:group==7u?input.qr7:input.qr8;
+            uint dark=(words[wordIndex%4u]>>(bit%32u))&1u;
+            float light=1u-dark;
+            return float4(light,light,light,1);
         }
         ENDCG
     }}

@@ -457,25 +457,61 @@ test('drawn detection boundary is computed from all receiver spheres / 可测外
 });
 
 
-test('native encoding retains white shift buffers and three offset copies behind asymmetric markers', () => {
-  const first = evaluate({ scenario: 'shader', x: -.4, frame: 1 }).metrics.bytes;
-  const next = evaluate({ scenario: 'shader', x: .6, frame: 2 }).metrics.bytes;
-  let quiet = 0, markers = 0, changedPayload = 0;
-  const copies = [new Set(), new Set(), new Set()];
-  assert.deepEqual(plain(model.shaderEncoding), { width: 40, height: 32, quiet: 2, marker: 2, bytes: 32, copies: 3, copyOffset: 11 });
-  const reference = evaluate({ scenario: 'shader', x: 0, y: 1, z: 0, frame: 256 }).metrics.bytes;
-  assert.deepEqual(Array.from({ length: 32 }, (_, screenRow) => Array.from({ length: 40 }, (_, column) => model.encodedBit(reference, column, 31 - screenRow)).join('')), nativeShader.screenRows);
-  for (let column = 0; column < 40; column++) for (let row = 0; row < 32; row++) {
-    const a = model.encodedBit(first, column, row), b = model.encodedBit(next, column, row);
+test('native QR matches the independently decoded standard vector and keeps its white movement margin', () => {
+  assert.deepEqual(plain(model.shaderEncoding), { width: 49, height: 49, quiet: 8, standardQuiet: 4, buffer: 4, version: 4, level: 'H', bytes: 32, blocks: 4, dataPerBlock: 9, eccPerBlock: 16 });
+  const reference = evaluate({ scenario: 'shader', x: 0, y: 1, z: 0, frame: 256 });
+  const qr = model.encodeQr(reference.metrics.bytes);
+  assert.equal(qr.mask, 1);
+  assert.deepEqual(plain(qr.scores), [767, 705, 982, 791, 874, 898, 980, 772]);
+  assert.equal(reference.metrics.qrMask, qr.mask);
+  assert.deepEqual(Array.from({ length: 49 }, (_, screenRow) => Array.from({ length: 49 }, (_, column) => model.encodedBit(reference.metrics.bytes, column, 48 - screenRow)).join('')), nativeShader.screenRows);
+  const counts = {}, blockBits = Array.from({ length: 4 }, () => new Set());
+  let buffer = 0;
+  for (let column = 0; column < 49; column++) for (let row = 0; row < 49; row++) {
     const cell = model.encodedCell(column, row);
-    if (cell.region === 'quiet') { quiet++; assert.equal(a, 1); assert.equal(b, 1); }
-    else if (cell.region === 'marker') { markers++; assert.equal(a, b); }
-    else { assert.equal(a, first[cell.byte] >> cell.bit & 1); copies[cell.copy].add(`${cell.byte}/${cell.bit}`); changedPayload += Number(a !== b); }
+    counts[cell.region] = (counts[cell.region] || 0) + 1;
+    if (cell.region === 'quiet') {
+      assert.equal(model.encodedBit(reference.metrics.bytes, column, row), 1);
+      buffer += Number(cell.buffer);
+    } else assert.equal(model.encodedBit(reference.metrics.bytes, column, row), 1 - qr.matrix[40 - row][column - 8]);
+    if (cell.region === 'data' || cell.region === 'ecc') blockBits[cell.block].add(`${cell.blockByte}/${cell.bit}`);
   }
-  assert.equal(quiet, 272); assert.equal(markers, 240);
-  for (const copy of copies) assert.equal(copy.size, 256);
-  assert.ok(changedPayload > 0);
-  assert.throws(() => model.encodedCell(40, 0));
+  assert.deepEqual(counts, { quiet: 1312, finder: 147, separator: 45, format: 30, timing: 34, data: 288, ecc: 512, dark: 1, remainder: 7, alignment: 25 });
+  assert.equal(buffer, 720);
+  for (const block of blockBits) assert.equal(block.size, 25 * 8);
+  assert.throws(() => model.encodedCell(49, 0));
+  assert.throws(() => model.encodedCell(0, -1));
+});
+
+test('QR masks spread constant payloads and choose the lowest visual penalty', () => {
+  for (const bytes of [Array(32).fill(0), Array(32).fill(255), Array(32).fill(128),
+    Array.from({ length: 32 }, (_, i) => i), ...[0, 1, 255, 256, 65535].map(frame => evaluate({ scenario: 'shader', frame }).metrics.bytes)]) {
+    const qr = model.encodeQr(bytes);
+    assert.equal(qr.mask, qr.scores.indexOf(Math.min(...qr.scores)));
+    const black = qr.matrix.flat().reduce((a, b) => a + b, 0) / (33 * 33);
+    assert.ok(black >= .4 && black <= .6, `black coverage: ${black}`);
+    assert.equal(qr.codewords.length, 100);
+    // Function patterns are fixed while both the data and correction symbols carry changes.
+    assert.deepEqual(plain(qr.matrix.slice(0, 7).map(row => row.slice(0, 7))), [
+      [1, 1, 1, 1, 1, 1, 1], [1, 0, 0, 0, 0, 0, 1], [1, 0, 1, 1, 1, 0, 1],
+      [1, 0, 1, 1, 1, 0, 1], [1, 0, 1, 1, 1, 0, 1], [1, 0, 0, 0, 0, 0, 1], [1, 1, 1, 1, 1, 1, 1],
+    ]);
+  }
+});
+
+test('QR caching follows byte contents and callers cannot mutate a cached matrix', () => {
+  const bytes = evaluate({ scenario: 'shader', frame: 1 }).metrics.bytes;
+  const before = model.encodeQr(bytes), again = model.encodeQr([...bytes]);
+  assert.equal(again, before);
+  assert.throws(() => { before.matrix[0][0] = 0; }, /read only/);
+  bytes[4] ^= 1;
+  const after = model.encodeQr(bytes);
+  assert.notEqual(after, before);
+  assert.notDeepEqual(plain(after.codewords), plain(before.codewords));
+  const changedEcc = after.codewords.slice(36).filter((value, i) => value !== before.codewords[36 + i]);
+  assert.ok(changedEcc.length >= 12, 'changing a data byte affects the RS correction symbols');
+  for (const invalid of [[], Array(32).fill(256), Array(32).fill(-1), Array(32).fill(.5), Array(32).fill(NaN)])
+    assert.throws(() => model.encodeQr(invalid), /32 bytes/);
 });
 
 test('Shader axis samples preserve shear and reject degenerate directions or unusable unit scale', () => {

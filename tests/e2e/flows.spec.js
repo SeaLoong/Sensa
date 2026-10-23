@@ -214,11 +214,24 @@ test('funscript import, playback, pause, stepping and unload', { tag: ['@input',
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual'] }, async ({ page }) => {
+test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual'] }, async ({ page, rig }) => {
   await page.getByRole('button', { name:'帮助', exact:true }).click();
-  await checkpoint(page, page.getByRole('dialog', { name:'使用帮助', exact:true }), 'help-workflow');
+  const help = page.getByRole('dialog', { name:'使用帮助', exact:true });
+  await expect(help.locator('.usage-choices h3')).toHaveCount(6);
+  await checkpoint(page, help, 'help-workflow');
   await expect(page.getByRole('link', { name:'使用指南', exact:true })).toHaveAttribute('href', /guide\.md$/);
-  await page.getByRole('button', { name:'关闭帮助', exact:true }).click();
+  const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
+  await help.getByRole('button', { name: '编辑信号流程', exact: true }).click();
+  await expect(help).toBeHidden();
+  await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('computed-signals-editor')).toBeVisible();
+  await page.getByRole('button', { name: '帮助', exact: true }).click();
+  await help.getByRole('button', { name: '录制动作', exact: true }).click();
+  await expect(help).toBeHidden();
+  await expect(page.locator('.recording-panel')).toHaveJSProperty('open', true);
+  await expect(page.locator('.recording-panel > summary')).toBeFocused();
+  expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(beforeBrowse);
+  expect((await rig.overview()).runtime.inputActive).toBe(false);
   await card(page, 'Mock UDP').getByRole('button', { name:'配置', exact:true }).click();
   await checkpoint(page, page.getByRole('dialog'), 'udp-settings');
   await page.getByRole('textbox', { name:'名称', exact:true }).fill('Mock UDP edited');

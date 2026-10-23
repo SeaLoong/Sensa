@@ -18,9 +18,9 @@ namespace UnityBox.Sensa
         [Tooltip("Object containing one VRCFury SPS Socket or Plug.")]
         public GameObject spsTarget;
         [Range(1, 65535)]
-        [Tooltip("Explicitly pin this ID in the desktop bridge; it is not player identity.")]
+        [Tooltip("Match this measurement ID with the desktop bridge registration.")]
         public int producerId = 1;
-        [Tooltip("Normalized desktop presentation rectangle; VRChat/HMD composition is not guaranteed.")]
+        [Tooltip("Desktop viewport (0 to 1). The square QR tile is centered in this rectangle; keep at least 196 pixels on its shorter side.")]
         public Rect desktopViewport = new Rect(0, 0, .25f, .2f);
     }
 }

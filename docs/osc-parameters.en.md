@@ -194,7 +194,7 @@ One triangle supplies all three sampling points. Each axis length must exceed `1
 
 One valid bundle sends **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**. Invalidation sends only Valid=0. Desktop requires twelve consecutive fields from one source and Producer path, checking completeness, finite values and ranges. Frame content-change age is capped at 500 ms, shortened by a stricter positive input timeout. [Desktop receiver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-The bridge checks locators, three shifted payload copies, CRC32 and forward sequence progression. Any measurement changing under one Frame, reorder, identity changes or freezing invalidates the sample. Startup and recovery need two new advancing frames; default freezing is 350 ms. A two-module white margin buffers small spatial movements, with alignment search up to two modules per axis. Re-register after scaling, rotation or perspective changes.
+The bridge locates QR finder patterns, then applies Reed–Solomon correction, CRC32 and forward sequence checks. Any measurement changing under one Frame, reorder, identity changes or freezing invalidates the sample. Startup and recovery need two new advancing frames; default freezing is 350 ms. The 49×49-module tile contains a 33×33 QR symbol and eight white modules per side, requiring at least 196×196 physical pixels. The border combines a standard quiet zone with extra movement margin. Re-select the complete tile after resizing.
 
 The separate menu control `Sensa/Select/ShaderCapture_<ID>` is an Int, default 0=Off; 1 enables capture. MA registers it as an Expression parameter with `localOnly=true`, `saved=false`. Internal `Sensa/Internal/ShaderCapture_<ID>/Selected` is FX Int state memory, default 0, written locally as 0/1. [Generator](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs) · [Selection state machine](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
@@ -202,7 +202,7 @@ The separate menu control `Sensa/Select/ShaderCapture_<ID>` is an Int, default 0
 
 Quantization steps are `4/65535≈6.10×10⁻⁵` root-local units for position, `8/32767≈2.44×10⁻⁴` for axis components with exact zero, and `8/65535≈1.22×10⁻⁴` metres per local unit for world scale. Ideal per-component rounding error is at most half a step; measure actual error against known positions and directions. The diagram follows [HLSL round](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round), rounding halfway cases to the nearest even integer.
 
-The 32-byte packet retains Producer ID, coordinate flags, encoder clock, all measurements and CRC32. Missing data is recovered using known, agreeing bits from the current capture. Any known-bit conflict or a bit missing from every copy invalidates the frame. [Full layout and recovery rules](shader-capture-research.en.md)
+The 32-byte packet retains Producer ID, coordinate flags, encoder clock, all measurements and CRC32. QR v4-H divides it into four blocks, each with 9 data and 16 parity bytes, supporting recovery within `2×wrong bytes + missing bytes≤16`. Data comes from the same capture; integrity and freshness checks together determine availability. [Full layout and recovery rules](shader-capture-research.en.md)
 
 ## Diagnostics and position-related information
 

@@ -135,7 +135,7 @@ test('@site standalone Pages language, document navigation and independent geome
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '?lang=en-US');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
-  await expect(page.getByRole('heading', { name: /Input\. Compute\.\s*Output\./ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: /Make your signals\s*work together\./ })).toBeVisible();
   const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
   await expect(heroFirstRunGuide).toHaveCount(1);
   await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide');
@@ -176,11 +176,32 @@ test('@site standalone Pages language, document navigation and independent geome
   }
   const featuresLink = navigation.locator('a[href="features.html"]');
   await expect(featuresLink).toBeVisible();
+  await expect(navigation.locator('.nav-group')).toHaveCount(3);
+  const guideFilter = navigation.getByRole('searchbox', { name: 'Find a guide', exact: true });
+  await guideFilter.fill('  CALCULATIONS  ');
+  await expect(navigation.locator('[data-guide-link]:visible')).toHaveCount(1);
+  await expect(navigation.getByRole('link', { name: 'Calculations', exact: true })).toBeVisible();
+  await expect(guideFilter).toBeFocused();
+  await guideFilter.fill('unmatched-guide-name');
+  await expect(navigation.locator('[data-guide-link]:visible')).toHaveCount(0);
+  await expect(navigation.getByRole('status')).toHaveText('No matching guide. Try a shorter name.');
+  await guideFilter.clear();
+  await expect(featuresLink).toBeVisible();
+  await expect(navigation.getByRole('status')).toBeHidden();
   if (collapsibleNavigation) {
     await navigationToggle.click();
     await expect(navigation).not.toHaveAttribute('open');
     await expect(featuresLink).toBeHidden();
   }
+  const originalViewport = page.viewportSize();
+  await page.setViewportSize({ width: 600, height: originalViewport.height });
+  await expect(navigationToggle).toBeVisible();
+  await expect(navigation).not.toHaveAttribute('open');
+  await page.setViewportSize({ width: 1200, height: originalViewport.height });
+  await expect(navigation).toHaveAttribute('open', '');
+  await expect(featuresLink).toBeVisible();
+  await expect(navigationToggle).toBeHidden();
+  await page.setViewportSize(originalViewport);
   await expect(page.getByRole('heading', { name: 'Record a manual track first', exact: true })).toBeVisible();
   await page.goto(base + '?lang=en-US');
   await page.getByRole('button', { name: '简体中文', exact: true }).click();

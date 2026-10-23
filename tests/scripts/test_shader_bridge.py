@@ -2,6 +2,9 @@
 遥测帧、新鲜度和文件所有权契约；不进行采集或网络连接。
 """
 import binascii
+import hashlib
+import math
+import random
 import json
 from pathlib import Path
 import subprocess
@@ -27,12 +30,7 @@ def pixels(frame=256, xyz=(.25, -.5, .75), width=320, height=256, flags=1, produ
         packet.extend(struct.pack('<6h', *(round(value / 8 * 32767) for value in (*right, *forward))))
         packet.extend(round(avatar_scale / 8 * 65535).to_bytes(2, 'little'))
         packet.extend(binascii.crc32(packet).to_bytes(4, 'little'))
-        def value(x, y):
-            column, row = x * 40 // width, 31 - y * 32 // height
-            if column < 4 or column >= 36 or row < 4 or row >= 28:
-                return bridge.edge_bit(column, row)
-            copy, bit = divmod(row - 4, 8)
-            return packet[(column - 4 + copy * 11) % 32] & (1 << bit)
+        return bridge.telemetry_qr.render(packet, width, height)
     else:
         packet.extend(binascii.crc_hqx(packet, 0xffff).to_bytes(2, 'little'))
         def value(x, y):
@@ -157,200 +155,225 @@ class FrameFileOwnershipContracts(LabFixture):
 
 
 class NativeRootCaptureContracts(LabFixture):
-    WIDTH, HEIGHT = 320, 256
+    WIDTH = HEIGHT = 196
 
     @staticmethod
     def image(**kwargs):
-        return pixels(flags=3, producer_id=42, **kwargs)
+        return pixels(flags=3, producer_id=42, **{'width': 196, 'height': 196, **kwargs})
 
     @staticmethod
-    def obscure(image, cells, width=320, height=256, color=(128, 128, 128)):
+    def fixture():
+        return json.loads((Path(bridge.__file__).parents[1] / 'tests/fixtures/shader-native-format1.json').read_text())
+
+    @staticmethod
+    def obscure(image, cells, width=196, height=196, color=(128, 128, 128)):
         result = image.copy()
+        assert width == height and width % 49 == 0
+        pitch = width // 49
         for column, row in cells:
-            for y in range((31 - row) * height // 32, (32 - row) * height // 32):
-                for x in range(column * width // 40, (column + 1) * width // 40):
-                    result[y * width + x] = color
+            for y in range((row + 8) * pitch, (row + 9) * pitch):
+                for x in range((column + 8) * pitch, (column + 9) * pitch):
+                    original = result[y * width + x]
+                    result[y * width + x] = color if color is not None else tuple(255 - value for value in original)
         return result
 
-    def test_native_fixed_golden_packet_and_bitmap_are_independent_of_the_test_encoder(self):
-        path = Path(bridge.__file__).parents[1] / 'tests/fixtures/shader-native-format1.json'
-        golden = json.loads(path.read_text(encoding='utf-8'))
-        self.assertEqual(golden['packetHex'], '534E010300010080008000802A0000100000000000000000001000203E569803')
+    def test_independent_standard_vectors_match_all_masks_and_interleaved_codewords(self):
+        qr, golden = bridge.telemetry_qr, self.fixture()
         packet = bytes.fromhex(golden['packetHex'])
+        self.assertEqual(golden['mask'], 1)
         self.assertEqual(binascii.crc32(packet[:28]), int.from_bytes(packet[28:], 'little'))
+        for mask in range(8):
+            encoded = qr.encode(packet, mask)
+            flattened = ''.join(str(int(bit)) for row in encoded['matrix'] for bit in row)
+            with self.subTest(mask=mask):
+                self.assertEqual(hashlib.sha256(flattened.encode('ascii')).hexdigest(), golden['maskMatrixSha256'][mask])
+                self.assertEqual(encoded['codewords'].hex().upper(), golden['codewordsHex'])
+                self.assertEqual(encoded['scores'], golden['maskPenalties'])
+                self.assertEqual(qr.decode_matrix(encoded['matrix']), packet)
+        self.assertEqual(qr.encode(packet)['mask'], golden['mask'])
         image = [(255, 255, 255) if golden['screenRows'][y // 4][x // 4] == '1' else (0, 0, 0)
-                 for y in range(128) for x in range(160)]
-        sample = bridge.decode_pixels(image, 160, 128)
+                 for y in range(196) for x in range(196)]
+        sample = bridge.decode_pixels(image, 196, 196)
         for key in ('frame', 'producerId', 'coordinateFrame'): self.assertEqual(sample[key], golden['expected'][key])
         for key in ('xyz', 'right', 'forward'):
             for actual, expected in zip(sample[key], golden['expected'][key]): self.assertAlmostEqual(actual, expected, delta=1e-12)
         self.assertAlmostEqual(sample['avatarScale'], golden['expected']['avatarScale'], delta=1e-12)
 
-    def test_ci_native_png_fixtures_advance_and_recover_the_erased_band_without_capture(self):
-        fixture = smoke.native_fixture()
+    def test_synthetic_native_png_source_advances_and_recovers_erased_codewords(self):
+        fixture = self.fixture()
         image = smoke.native_pixels(256)
-        for y in range(128):
-            for x in range(160):
-                expected = 255 if fixture['screenRows'][y // 4][x // 4] == '1' else 0
-                self.assertEqual(image[y * 160 + x], (expected,) * 3)
-        first = bridge.decode_pixels(image, 160, 128)
+        self.assertEqual(image, [(255, 255, 255) if fixture['screenRows'][y // 4][x // 4] == '1' else (0, 0, 0)
+                                 for y in range(196) for x in range(196)])
+        first = bridge.decode_pixels(image, 196, 196)
         freshness = bridge.Freshness(.35, producer_id=42)
         self.assertFalse(freshness.accept(first, 0))
-        next_frame = bridge.decode_pixels(smoke.native_pixels(257, erased_copy=1), 160, 128)
+        next_frame = bridge.decode_pixels(smoke.native_pixels(257, damaged=True), 196, 196)
         self.assertTrue(freshness.accept(next_frame, .08))
         self.assertEqual(next_frame, {**first, 'frame': 257})
         self.assertEqual(smoke.NATIVE_FIELDS, ('Frame', 'X', 'Y', 'Z', 'RightX', 'RightY', 'RightZ',
                                              'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale', 'Valid'))
 
-    def test_native_shader_template_matches_the_frozen_grid_bit_mapping_and_crc(self):
-        template = (Path(bridge.__file__).parents[1] / 'unity/top.sealoong.sensa/Editor/SensaRootTelemetry.shader.txt').read_text(encoding='utf-8')
-        compact = ''.join(template.split())
-        for expression in (
-                'uintcolumn=min((uint)(input.uv.x*40),39u),row=min((uint)(input.uv.y*32),31u);',
-                'if(column<2u||column>=38u||row<2u||row>=30u)value=1u;',
-                'value=((0xD3A69C57u>>((column+28u)&31u))&1u)^(row-2u);',
-                'value=((0x69C57D3Au>>((column+28u)&31u))&1u)^(row-28u);',
-                'value=((0xA5D36Bu>>(row-4u))&1u)^(column-2u);',
-                'value=((0x6E29C7u>>(row-4u))&1u)^(column-36u);',
-                'uintbank=(row-4u)/8u,bit=(row-4u)%8u;',
-                'uintbyteIndex=((column-4u)+bank*11u)%32u;',
-                'value=(word>>((byteIndex&3u)*8u+bit))&1u;',
-                'for(uinti=0;i<28;i++)', '0xEDB88320u', 'crc^=0xFFFFFFFFu;',
-                'bytes[26]=qScale&255u;bytes[27]=qScale>>8;'):
-            with self.subTest(expression=expression): self.assertIn(expression, compact)
+    def test_reed_solomon_recovers_error_erasure_combinations_at_the_bound(self):
+        qr = bridge.telemetry_qr
+        randomizer = random.Random(401)
+        for erasures in range(17):
+            errors = (16 - erasures) // 2
+            for trial in range(8):
+                data = bytes(randomizer.randrange(256) for _ in range(9))
+                damaged = list(qr.rs_encode(data))
+                positions = randomizer.sample(range(25), errors + erasures)
+                for index in positions[:erasures]: damaged[index] = None
+                for index in positions[erasures:]: damaged[index] ^= randomizer.randrange(1, 256)
+                with self.subTest(erasures=erasures, errors=errors, trial=trial):
+                    self.assertEqual(qr.rs_decode(damaged), data)
+        with self.assertRaises(ValueError): qr.rs_decode([None] * 17 + [0] * 8)
 
-    def test_position_basis_scale_quantization_identity_and_vertical_orientation(self):
+    def test_opaque_damage_and_gray_erasures_recover_within_each_block_budget(self):
+        qr = bridge.telemetry_qr
+        image = self.image(); expected = bridge.decode_pixels(image, 196, 196)
+        # Thirty-two interleaved byte errors are eight errors in each block.
+        flipped = self.obscure(image, [qr.data_positions()[byte * 8] for byte in range(32)], color=None)
+        self.assertEqual(bridge.decode_pixels(flipped, 196, 196), expected)
+        # Sixty-four interleaved erasures are sixteen erasures in each block.
+        erased = self.obscure(image, [qr.data_positions()[byte * 8] for byte in range(64)])
+        self.assertEqual(bridge.decode_pixels(erased, 196, 196), expected)
+        excess = self.obscure(image, [qr.data_positions()[byte * 8] for byte in range(68)])
+        with self.assertRaises(ValueError): bridge.decode_pixels(excess, 196, 196)
+        # A contiguous patch affects data/ECC modules instead of a repeated copy.
+        patch = [(x, y) for y in range(11, 17) for x in range(11, 17)]
+        for color in ((0, 0, 0), (255, 255, 255), (128, 128, 128)):
+            with self.subTest(patch=color):
+                self.assertEqual(bridge.decode_pixels(self.obscure(image, patch, color=color), 196, 196), expected)
+
+    def test_wrong_crc_and_large_cross_frame_splice_do_not_produce_new_measurements(self):
+        qr = bridge.telemetry_qr
+        packet = bytearray.fromhex(self.fixture()['packetHex']); packet[6] ^= 1
+        # A perfectly readable QR with an invalid application CRC still fails.
+        with self.assertRaises(ValueError): bridge.decode_pixels(qr.render(packet), 196, 196)
+        image = self.image(frame=256, xyz=(0, 1, 0))
+        other = self.image(frame=55000, xyz=(1.3, 2.5, -.8), right=(0, 2, 0), forward=(1, 0, 0), avatar_scale=2)
+        splice = image[:98 * 196] + other[98 * 196:]
+        with self.assertRaises(ValueError): bridge.decode_pixels(splice, 196, 196)
+        # A tiny splice can correct to the whole earlier packet. Frame freshness
+        # keeps its original age; correction never creates a fresh clock.
+        expected = bridge.decode_pixels(image, 196, 196)
+        small = image.copy()
+        for y in range(80, 84): small[y * 196 + 80:y * 196 + 84] = other[y * 196 + 80:y * 196 + 84]
+        restored = bridge.decode_pixels(small, 196, 196)
+        self.assertEqual(restored, expected)
+        freshness = bridge.Freshness(.35, producer_id=42)
+        self.assertFalse(freshness.accept({**expected, 'frame': 255}, 0))
+        self.assertTrue(freshness.accept(expected, .01))
+        self.assertTrue(freshness.accept(restored, .02))
+        self.assertEqual(freshness.changed_at, .01)
+        self.assertFalse(freshness.accept(restored, .37))
+
+    def test_finder_patterns_align_rotations_reflections_padding_and_four_module_motion(self):
+        for width in (196, 294):
+            image = self.image(width=width, height=width)
+            expected = bridge.decode_pixels(image, width, width)
+            for turn in range(4):
+                for mirror in (False, True):
+                    oriented = image.copy()
+                    for _ in range(turn): oriented = [oriented[(width - 1 - x) * width + y] for y in range(width) for x in range(width)]
+                    if mirror: oriented = [oriented[y * width + width - 1 - x] for y in range(width) for x in range(width)]
+                    with self.subTest(width=width, turn=turn, mirror=mirror):
+                        self.assertEqual(bridge.decode_pixels(oriented, width, width), expected)
+            pitch = width // 49
+            for dx, dy in ((4 * pitch, 4 * pitch), (-4 * pitch, -4 * pitch), (4 * pitch, -4 * pitch)):
+                shifted = [(255, 255, 255)] * (width * width)
+                for y in range(width):
+                    for x in range(width):
+                        if 0 <= x + dx < width and 0 <= y + dy < width:
+                            shifted[(y + dy) * width + x + dx] = image[y * width + x]
+                self.assertEqual(bridge.decode_pixels(shifted, width, width), expected)
+            for y in range(width):
+                for x in range(width):
+                    if min(x, y, width - 1 - x, width - 1 - y) < 8 * pitch:
+                        self.assertEqual(image[y * width + x], (255, 255, 255))
+        for width, height in ((320, 256), (400, 196), (196, 400)):
+            image = self.image(width=width, height=height)
+            self.assertEqual(bridge.decode_pixels(image, width, height), expected)
+
+    def test_qr_format_information_corrects_three_bit_errors_and_rejects_ambiguity(self):
+        qr = bridge.telemetry_qr
+        packet = bytes.fromhex(self.fixture()['packetHex']); matrix = qr.encode(packet)['matrix']
+        first, second = qr.format_positions()
+        for positions in (first, second):
+            for x, y in positions[:3]: matrix[y][x] ^= 1
+        self.assertEqual(qr.decode_matrix(matrix), packet)
+        # Two intact copies naming different masks are ambiguous, even with a CRC.
+        matrix = qr.encode(packet)['matrix']
+        for bit, (x, y) in enumerate(second): matrix[y][x] = qr.format_bits(2) >> bit & 1
+        with self.assertRaises(ValueError): qr.decode_matrix(matrix)
+
+    def test_finder_cross_sections_align_oblique_rotations(self):
+        image = self.image(); expected = bridge.decode_pixels(image, 196, 196)
+        canvas = 294
+        for degrees in (15, 30, 45):
+            angle = math.radians(degrees); cosine, sine = math.cos(angle), math.sin(angle)
+            rotated = []
+            for y in range(canvas):
+                for x in range(canvas):
+                    dx, dy = x - (canvas - 1) / 2, y - (canvas - 1) / 2
+                    source_x = round(cosine * dx + sine * dy + 97.5)
+                    source_y = round(-sine * dx + cosine * dy + 97.5)
+                    rotated.append(image[source_y * 196 + source_x] if 0 <= source_x < 196 and 0 <= source_y < 196 else (255, 255, 255))
+            with self.subTest(degrees=degrees):
+                self.assertEqual(bridge.decode_pixels(rotated, canvas, canvas), expected)
+
+    def test_black_white_balance_is_improved_by_the_best_standard_mask(self):
+        qr = bridge.telemetry_qr
+        for packet in (bytes(32), bytes([255]) * 32, bytes(range(32)), bytes.fromhex(self.fixture()['packetHex'])):
+            encoded = qr.encode(packet)
+            self.assertEqual(encoded['scores'][encoded['mask']], min(encoded['scores']))
+            fraction = sum(sum(row) for row in encoded['matrix']) / (33 * 33)
+            self.assertGreater(fraction, .4); self.assertLess(fraction, .6)
+
+    def test_position_basis_scale_quantization_and_identity_are_preserved(self):
         for producer in (1, 42, 65535):
             for target in ((0, 1, 0), (.2, 1.8, .1), (-2, -1, -2), (2, 3, 2)):
-                with self.subTest(producer=producer, xyz=target):
-                    image = pixels(xyz=target, flags=3, producer_id=producer,
-                                   right=(.5, .25, 0), forward=(-.25, 0, 1.5), avatar_scale=1.25)
-                    sample = bridge.decode_pixels(image, 320, 256)
-                    self.assertEqual(sample['producerId'], producer)
-                    self.assertEqual(sample['coordinateFrame'], 'AvatarRootLocal')
-                    for actual, expected in zip(sample['xyz'], target):
-                        self.assertAlmostEqual(actual, expected, delta=2 / 65535 + 1e-12)
-                    for key, values in (('right', (.5, .25, 0)), ('forward', (-.25, 0, 1.5))):
-                        for actual, expected in zip(sample[key], values):
-                            self.assertAlmostEqual(actual, expected, delta=4 / 32767)
-                    self.assertAlmostEqual(sample['avatarScale'], 1.25, delta=4 / 65535)
-                    flipped = [pixel for y in reversed(range(256)) for pixel in image[y * 320:(y + 1) * 320]]
-                    self.assertEqual(bridge.decode_pixels(flipped, 320, 256), sample)
+                sample = bridge.decode_pixels(pixels(xyz=target, flags=3, producer_id=producer, width=196, height=196,
+                                                      right=(.5, .25, 0), forward=(-.25, 0, 1.5), avatar_scale=1.25), 196, 196)
+                self.assertEqual(sample['producerId'], producer)
+                self.assertEqual(sample['coordinateFrame'], 'AvatarRootLocal')
+                for actual, expected in zip(sample['xyz'], target): self.assertAlmostEqual(actual, expected, delta=2 / 65535 + 1e-12)
+                for key, values in (('right', (.5, .25, 0)), ('forward', (-.25, 0, 1.5))):
+                    for actual, expected in zip(sample[key], values): self.assertAlmostEqual(actual, expected, delta=4 / 32767)
+                self.assertAlmostEqual(sample['avatarScale'], 1.25, delta=4 / 65535)
 
-    def test_two_white_guard_modules_buffer_two_module_diagonal_displacement(self):
-        for width, height in ((160, 128), (240, 192), (320, 256)):
-            image = self.image(width=width, height=height)
-            expected = bridge.decode_pixels(image, width, height)
-            for dx, dy in ((0, 0), (width // 20, height // 16), (-width // 20, -height // 16),
-                           (width // 20, -height // 16)):
-                shifted = [(80, 80, 80)] * (width * height)
-                for y in range(height):
-                    for x in range(width):
-                        if 0 <= x + dx < width and 0 <= y + dy < height:
-                            shifted[(y + dy) * width + x + dx] = image[y * width + x]
-                with self.subTest(size=(width, height), shift=(dx, dy)):
-                    self.assertEqual(bridge.decode_pixels(shifted, width, height), expected)
-            # Quiet modules are real white pixels, even where the packet is all zero.
-            for y in range(height):
-                for x in range(width):
-                    if x * 40 < width * 2 or x * 40 >= width * 38 or y * 32 < height * 2 or y * 32 >= height * 30:
-                        self.assertEqual(image[y * width + x], (255, 255, 255))
-
-    def test_erased_cells_are_reconstructed_only_from_consistent_same_capture_replicas(self):
-        image = self.image()
-        expected = bridge.decode_pixels(image, 320, 256)
-        for copy in range(3):
-            # A whole payload band can disappear; the other two still contain the packet.
-            erased = self.obscure(image, [(x, y) for x in range(4, 36) for y in range(4 + copy * 8, 12 + copy * 8)])
-            with self.subTest(erased_copy=copy):
-                self.assertEqual(bridge.decode_pixels(erased, 320, 256), expected)
-        # Each data byte can lose two replicas at different screen locations.
-        cells = []
-        for byte in range(32):
-            for copy in (byte % 3, (byte + 1) % 3):
-                cells += [((byte - copy * 11) % 32 + 4, bit + copy * 8 + 4) for bit in range(8)]
-        self.assertEqual(bridge.decode_pixels(self.obscure(image, cells), 320, 256), expected)
-        missing_all = [((7 - copy * 11) % 32 + 4, 5 + copy * 8) for copy in range(3)]
-        with self.assertRaises(ValueError):
-            bridge.decode_pixels(self.obscure(image, missing_all), 320, 256)
-
-    def test_binary_conflicts_mixed_frames_and_crc_damage_are_rejected_without_majority_guessing(self):
-        image = self.image()
-        for byte in (4, 6, 14, 26, 28):
-            # Flipping even one observed replica is a conflict, not an erasure.
-            x, row = byte + 4, 4
-            screen_y = (31 - row) * 8
-            pixel = image[screen_y * 320 + x * 8]
-            damage = self.obscure(image, [(x, row)], color=tuple(255 - value for value in pixel))
-            with self.subTest(byte=byte), self.assertRaises(ValueError):
-                bridge.decode_pixels(damage, 320, 256)
-        next_frame = self.image(frame=257, xyz=(1, 0, 1))
-        for copy in range(3):
-            splice = image.copy()
-            for row in range(4 + copy * 8, 12 + copy * 8):
-                y = (31 - row) * 8
-                for line in range(y, y + 8):
-                    splice[line * 320 + 32:line * 320 + 288] = next_frame[line * 320 + 32:line * 320 + 288]
-            with self.subTest(mixed_copy=copy), self.assertRaises(ValueError):
-                bridge.decode_pixels(splice, 320, 256)
-        # Identically flipping all three copies bypasses the agreement test but fails CRC32.
-        byte, bit = 6, 0
-        damaged = image.copy()
-        for copy in range(3):
-            x, y = (byte - copy * 11) % 32 + 4, bit + copy * 8 + 4
-            original = image[(31 - y) * 8 * 320 + x * 8]
-            damaged = self.obscure(damaged, [(x, y)], color=tuple(255 - value for value in original))
-        with self.assertRaises(ValueError):
-            bridge.decode_pixels(damaged, 320, 256)
-
-    def test_markers_allow_one_lost_side_but_not_two_lost_sides(self):
-        image = self.image(); expected = bridge.decode_pixels(image, 320, 256)
-        sides = {'bottom': [(x, y) for x in range(2, 38) for y in (2, 3)],
-                 'top': [(x, y) for x in range(2, 38) for y in (28, 29)],
-                 'left': [(x, y) for x in (2, 3) for y in range(4, 28)],
-                 'right': [(x, y) for x in (36, 37) for y in range(4, 28)]}
-        for side, cells in sides.items():
-            with self.subTest(side=side):
-                self.assertEqual(bridge.decode_pixels(self.obscure(image, cells), 320, 256), expected)
-        names = list(sides)
-        for index, first in enumerate(names):
-            for second in names[index + 1:]:
-                with self.subTest(sides=(first, second)), self.assertRaises(ValueError):
-                    bridge.decode_pixels(self.obscure(image, sides[first] + sides[second]), 320, 256)
-
-    def test_native_source_validity_basis_degeneracy_and_quantization_limits_are_checked(self):
+    def test_native_validity_basis_and_quantization_limits_are_checked(self):
         for flags, producer in ((0, 0), (2, 42), (3, 0), (5, 42), (7, 42)):
             with self.subTest(flags=flags, producer=producer), self.assertRaises(ValueError):
-                bridge.decode_pixels(pixels(xyz=(0, 1, 0), flags=flags, producer_id=producer), 320, 256)
+                bridge.decode_pixels(pixels(flags=flags, producer_id=producer, width=196, height=196), 196, 196)
         for patch in ({'right': (0, 0, 0)}, {'forward': (0, 0, 0)}, {'forward': (2, 0, 0)}, {'avatar_scale': 0}):
-            with self.subTest(patch=patch), self.assertRaises(ValueError):
-                bridge.decode_pixels(self.image(**patch), 320, 256)
-        # Reserved signed -32768 is not an alias for the physical -8 boundary.
-        golden = json.loads((Path(bridge.__file__).parents[1] / 'tests/fixtures/shader-native-format1.json').read_text())
-        packet = bytearray.fromhex(golden['packetHex']); struct.pack_into('<h', packet, 14, -32768)
+            with self.subTest(patch=patch), self.assertRaises(ValueError): bridge.decode_pixels(self.image(**patch), 196, 196)
+        packet = bytearray.fromhex(self.fixture()['packetHex']); struct.pack_into('<h', packet, 14, -32768)
         struct.pack_into('<I', packet, 28, binascii.crc32(packet[:28]))
         self.assertIsNone(bridge._packet(packet, native=True))
 
-    def test_capture_minimum_size_and_no_unframed_native_fallback(self):
-        for width, height in ((80, 48), (159, 128), (160, 127)):
+    def test_capture_minimum_and_unrecognizable_or_multiple_symbols_are_rejected(self):
+        for width, height in ((80, 48), (195, 196), (196, 195)):
             with self.subTest(size=(width, height)), self.assertRaises(ValueError):
                 bridge.decode_pixels(self.image(width=width, height=height), width, height)
-        with self.assertRaises(ValueError): bridge.capture_registration([0, 0, 80, 48], 42)
         image = self.image()
-        unframed = [image[y * 320 + x] for y in range(32, 224) for x in range(32, 288)]
-        with self.assertRaises(ValueError): bridge.decode_pixels(unframed, 256, 192)
-        with self.assertRaises(ValueError): bridge.decode_pixels(image[:-1], 320, 256)
-        noise = [(255, 255, 255) if (x * 13 + y * 7) % 5 < 2 else (0, 0, 0)
-                 for y in range(256) for x in range(320)]
-        with self.assertRaises(ValueError): bridge.decode_pixels(noise, 320, 256)
-        tinted = [(255, 0, 0) if red else (0, 0, 0) for red, _, _ in image]
-        with self.assertRaises(ValueError): bridge.decode_pixels(tinted, 320, 256)
-        shifted = [(80, 80, 80)] * (320 * 256)
-        for y in range(256): shifted[y * 320 + 24:(y + 1) * 320] = image[y * 320:y * 320 + 296]
-        with self.assertRaises(ValueError): bridge.decode_pixels(shifted, 320, 256)
+        with self.assertRaises(ValueError): bridge.decode_pixels(image[:-1], 196, 196)
+        for invalid in ([(0, 0, 0)] * len(image), [(255, 255, 255)] * len(image),
+                        [(255, 0, 0) if red else (0, 0, 0) for red, _, _ in image],
+                        [(255, 255, 255) if (x * 13 + y * 7) % 5 < 2 else (0, 0, 0) for y in range(196) for x in range(196)]):
+            with self.assertRaises(ValueError): bridge.decode_pixels(invalid, 196, 196)
+        other = self.image(frame=257)
+        multiple = [pixel for y in range(196) for pixel in image[y * 196:(y + 1) * 196] + other[y * 196:(y + 1) * 196]]
+        with self.assertRaises(ValueError): bridge.decode_pixels(multiple, 392, 196)
+        # Six symbols have at least eighteen finders: exceeding the candidate
+        # budget rejects the ROI rather than silently dropping another symbol.
+        crowded = [pixel for y in range(392) for pixel in image[(y % 196) * 196:(y % 196 + 1) * 196] * 3]
+        self.assertIsNone(bridge.telemetry_qr.decode_pixels(crowded, 588, 392))
+        missing_finder = self.obscure(image, [(x, y) for x in range(7) for y in range(7)])
+        with self.assertRaises(ValueError): bridge.decode_pixels(missing_finder, 196, 196)
 
-    def test_same_clock_with_changed_basis_or_scale_closes_freshness_and_requires_two_new_ticks(self):
-        initial = bridge.decode_pixels(self.image(frame=1), 320, 256)
+    def test_same_clock_with_changed_basis_or_scale_requires_two_new_ticks(self):
+        initial = bridge.decode_pixels(self.image(frame=1), 196, 196)
         freshness = bridge.Freshness(.35, producer_id=42)
         self.assertFalse(freshness.accept(initial, 0))
         self.assertTrue(freshness.accept({**initial, 'frame': 2}, .01))
@@ -359,21 +382,20 @@ class NativeRootCaptureContracts(LabFixture):
         self.assertTrue(freshness.accept({**initial, 'frame': 4}, .04))
         self.assertFalse(freshness.accept({**initial, 'frame': 4, 'avatarScale': 2}, .05))
 
-    def test_native_osc_fields_form_one_ordered_complete_commit_and_invalid_republishes_no_measurement(self):
-        sample = bridge.decode_pixels(self.image(), 320, 256)
+    def test_native_osc_fields_form_one_ordered_commit_and_invalid_has_only_valid_zero(self):
+        sample = bridge.decode_pixels(self.image(), 196, 196)
         values = osc_values(bridge.osc_bundle(sample, True)); prefix = '/avatar/parameters/Sensa/Shader/42/'
         fields = ('Frame', 'X', 'Y', 'Z', 'RightX', 'RightY', 'RightZ', 'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale', 'Valid')
         self.assertEqual(list(values), [prefix + field for field in fields])
         for axis in 'YZ': self.assertEqual(values[prefix + 'Right' + axis], 0)
         self.assertAlmostEqual(values[prefix + 'AvatarScale'], sample['avatarScale'], places=6)
-        for old in (None, sample):
-            self.assertEqual(osc_values(bridge.osc_bundle(old, False, producer_id=42, native=True)), {prefix + 'Valid': 0})
+        for old in (None, sample): self.assertEqual(bridge.osc_bundle(old, False, producer_id=42, native=True), bridge.osc_bundle(None, False, producer_id=42, native=True))
         for producer in (0, -1, 65536):
             with self.subTest(producer=producer), self.assertRaisesRegex(ValueError, 'nonzero producer ID'):
                 bridge.osc_bundle(None, False, producer_id=producer, native=True)
 
-    def test_registered_identity_and_coordinate_profile_never_silently_retarget(self):
-        initial = bridge.decode_pixels(self.image(frame=10), 320, 256)
+    def test_registered_identity_and_coordinate_profile_do_not_silently_retarget(self):
+        initial = bridge.decode_pixels(self.image(frame=10), 196, 196)
         freshness = bridge.Freshness(.35, producer_id=42)
         self.assertFalse(freshness.accept(initial, 0)); self.assertTrue(freshness.accept({**initial, 'frame': 11}, .01))
         self.assertFalse(freshness.accept({**initial, 'frame': 12, 'producerId': 43}, .02))
@@ -381,19 +403,18 @@ class NativeRootCaptureContracts(LabFixture):
         self.assertTrue(freshness.accept({**initial, 'frame': 13}, .04))
         with self.assertRaisesRegex(ValueError, 'Diagnostic telemetry requires producer ID zero'):
             bridge.decode_pixels(pixels(flags=1, producer_id=42), 320, 256)
-        with self.assertRaisesRegex(ValueError, 'native avatar-root coordinate profile'):
-            bridge.validate_source({'producerId': 42}, 42)
+        with self.assertRaisesRegex(ValueError, 'native avatar-root coordinate profile'): bridge.validate_source({'producerId': 42}, 42)
         registration = bridge.capture_registration((-1440, 200, 320, 256), 42)
         path = self.write(self.root / 'capture.json', json.dumps(registration))
         self.assertEqual(bridge.load_registration(path), registration)
         for patch in ({'producerId': 0}, {'center': [0, 0, 0]}, {'halfRange': 1}, {'coordinateFrame': 'World'},
-                      {'region': None}, {'region': [0, 0, 80, 48]}):
+                      {'region': None}, {'region': [0, 0, 195, 196]}):
             path.write_text(json.dumps({**registration, **patch}), encoding='utf-8')
             with self.subTest(patch=patch), self.assertRaises(ValueError): bridge.load_registration(path)
 
-    def test_screen_output_requires_identity_before_capture_or_socket_and_rejects_undersized_roi(self):
-        for size in ((160, 128), (80, 48)):
+    def test_screen_output_requires_identity_before_capture_or_socket(self):
+        for size in ((196, 196), (80, 48)):
             result = subprocess.run([sys.executable, str(Path(bridge.__file__)), '--region', '0', '0', *map(str, size),
                                      '--port', '19001'], capture_output=True, text=True)
             self.assertNotEqual(result.returncode, 0)
-            self.assertIn('Screen-to-OSC requires --producer-id' if size == (160, 128) else 'Invalid capture rectangle size', result.stderr)
+            self.assertIn('Screen-to-OSC requires --producer-id' if size == (196, 196) else 'Invalid capture rectangle size', result.stderr)

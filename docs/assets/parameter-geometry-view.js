@@ -6,32 +6,47 @@
   const NS = 'http://www.w3.org/2000/svg';
   const $ = id => document.getElementById(id);
   const dictionary = {
-    brand: ['参数图解', 'Parameter geometry'], modelTag: ['交互原理演示', 'Interactive guide'],
-    language: ['语言', 'Language'], title: ['移动目标，了解何时能够检测', 'Move the target to see where detection works'],
-    intro: ["选择参数组，拖动橙色目标，观察靠近、接触与进入区域时的读数变化。Socket 表示接收部位，Plug 表示与它配合的一端。", "Choose a parameter group and drag the orange target to explore approach, contact and entry. Socket is the receiving area; Plug is the part that approaches it."],
-    scenario: ["参数组", "Parameter group"], projection: ['投影', 'Projection'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
+    brand: ['参数图解', 'Parameter geometry'], modelTag: ['交互指南', 'Interactive guide'],
+    skipToExplorer: ['跳到交互图示', 'Skip to the interactive guide'],
+    chooseParameters: ['选择要了解的参数', 'Choose your parameters'],
+    chooseHint: ['按 VRChat 或 Sensa 中显示的参数名查找。', 'Start with the names you see in VRChat or Sensa.'],
+    navExplore: ['观察动作', 'Explore movement'], navAdjust: ['调整位置', 'Adjust position'], navRead: ['理解参数', 'Read parameters'],
+    quickTerms: ['先认识这两个名称', 'Two useful terms'],
+    socketMeaning: ['接收一侧，以入口位置作为参照。', 'The receiving area, with its entrance as the reference point.'],
+    plugMeaning: ['靠近接收区域的一侧，以根部作为参照。', 'The approaching part, measured from its root.'],
+    interactiveLabel: ['移动目标 · 观察读数 · 理解用途', 'MOVE · OBSERVE · UNDERSTAND'],
+    viewHeading: ['观察动作与检测范围', 'Explore the movement'],
+    calculationSummary: ['展开计算方法与测量细节', 'Calculation details'],
+    language: ['语言', 'Language'], title: ['看懂参数怎样随动作变化', 'See what each parameter responds to'],
+    intro: ['拖动橙色目标，比较位置与读数。点选参数名，可以看到它对应的检测范围；下方说明介绍这些数值怎样用于联动。', 'Move the orange target and watch the values change. Select a parameter to see its detection area, then read how to use the value below.'],
+    scenario: ["参数组", "Parameter group"], projection: ['观察视角', 'View'], xz: ['XZ 平面投影', 'XZ projection'], iso: ['立体投影', 'Orthographic 3D'],
     orbit: ['可旋转 3D', 'Orbit 3D'], license: ['Three.js MIT 许可', 'Three.js MIT license'],
     fallback: ['本机 3D 不可用，已切换立体 SVG；读数与 XYZ 滑条仍可使用。', '3D is unavailable here. Using orthographic SVG; values and XYZ sliders still work.'],
     orbitControls: ['拖动橙色目标移动；拖动空白处旋转，滚轮／双指缩放。', 'Drag the orange target to move it; drag empty space to orbit, wheel/pinch to zoom.'],
     dragPlane: ['拖动平面', 'Drag plane'], pathPrefix: ['参数前缀', 'Parameter prefix'],
     pathAssembly: ['将 * 替换为实例名；完整地址 = /avatar/parameters/ + 前缀 + /行名。', 'Replace * with the instance name. Full address = /avatar/parameters/ + prefix + /row name.'],
-    reset: ['复位', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ["目标检测形状", "Target detection shapes"],
+    reset: ['重置位置', 'Reset'], receivers: ['接收范围', 'Receivers'], senders: ["目标检测形状", "Target detection shapes"],
     reference: ['实体外形示意', 'Illustrative outlines'], dimensions: ['半径与尺寸', 'Radii and dimensions'], zoom: ['缩放', 'Zoom'],
     readout: ['参数读数', 'Parameter values'], simulated: ['几何模拟值', 'Simulated geometry'],
-    rowHint: ["点击参数名，查看含义并突出对应范围。原始值来自几何计算，可用值结合了 Close 或信号状态。", "Select a parameter to read its meaning and highlight its range. Raw values come from geometry; usable values also apply Close or signal state."],
-    parameter: ['参数', 'Parameter'], raw: ['原始值', 'Raw'], effective: ['可用值', 'Usable value'],
-    grid: ['40 × 32 黑白编码图块', '40 × 32 black-and-white encoded grid'], controls: ['调整几何', 'Adjust geometry'],
-    encodingHint: ['从外向内：2 格白色缓冲边、2 格定位标记、3 份交错排列的数据副本。副本补全未知位，CRC32 校验整包；已知位冲突时等待下一幅有效画面。', 'Outside to inside: a 2-cell white buffer, 2-cell positioning markers, and three offset copies of the data. Copies fill unknown bits and CRC32 checks the packet; conflicting known bits wait for a fresh valid image.'],
-    shaderComponents: ['目标轴方向与根单位缩放', 'Target axes and root-unit scale'],
-    shaderStatistics: ['量化与更新检查', 'Quantization and update checks'],
-    shaderRowHint: ['点击参数名查看含义。原始值展示编码结果；可用值由整包有效状态控制。', 'Select a parameter for its meaning. Raw values show the encoded result; usable values follow complete-packet validity.'],
+    rowHint: ['点选参数，图中会突出对应的检测范围。可用读数结合了接触状态和信号更新情况。', 'Select a parameter to highlight its detection area. Usable values also account for contact and signal updates.'],
+    parameter: ['参数', 'Parameter'], raw: ['模拟读数', 'Reading'], effective: ['可用读数', 'Usable value'],
+    grid: ['QR Code · 当前测量', 'QR Code · live measurement'], controls: ['调整位置与尺寸', 'Adjust position and size'],
+    encodingHint: ['三个角标帮助识别图块。外围白色区域容纳小幅画面位移，内部纠错数据帮助还原受损内容。', 'Three corner markers identify the code. The white border leaves room for small image shifts; error correction helps restore damaged content.'],
+    shaderComponents: ['调整目标方向与 Avatar 缩放', 'Target direction and Avatar scale'],
+    shaderStatistics: ['画面怎样成为测量值', 'From image to measurement'],
+    measurementDetails: ['展开测量数字与精度', 'Measurement values and precision'],
+    qrLocate: ['找到角标', 'Find the corner markers'], qrLocateHint: ['三个角标帮助确定图块的位置和朝向。', 'They identify the code’s position and orientation.'],
+    qrRestore: ['恢复数据', 'Restore the data'], qrRestoreHint: ['纠错信息帮助补回缺失或读错的内容。', 'Error correction reconstructs damaged data within its capacity.'],
+    qrVerify: ['核对完整性', 'Check the complete measurement'], qrVerifyHint: ['校验码、目标编号和更新序号共同确认本次测量。', 'A checksum, target ID and sequence keep the reading together.'],
+    qrRead: ['读取位置', 'Read position and direction'], qrReadHint: ['还原的位置、方向与缩放通过 OSC 送到 Sensa。', 'Sensa receives restored position, direction and scale through OSC.'],
+    shaderRowHint: ['点选参数了解用途。左列显示编码后的测量值，右列显示当前可供计算使用的值。', 'Select a parameter to read its use. Readings show encoded measurements; usable values show what calculations can currently use.'],
     shaderMeaning: ['XYZ 表示目标在 Avatar 根局部坐标中的位置。RightXYZ 与 ForwardXYZ 给出目标 X、Z 轴的方向和单位轴长，两者共同描述目标平面。AvatarScale 将根局部位移换算为世界米数；Frame 是编码时钟，Valid=1 提交完整的 12 字段更新。联动与计算通过定位测量读取这些指标。', 'XYZ locate the target in Avatar-root local coordinates. RightXYZ and ForwardXYZ give the directions and lengths per unit of the target X/Z axes, together describing its plane. AvatarScale converts root-local displacement to world metres. Frame is the encoder clock; Valid=1 commits a complete 12-field update. Read these metrics through Tracking measurement for outputs and calculations.'],
     shaderComponentsHint: ['RightXYZ 与 ForwardXYZ 分别表示目标 X、Z 轴在根坐标系中的方向和单位轴长。AvatarScale 表示每个根局部单位对应的世界米数。', 'RightXYZ and ForwardXYZ describe target X/Z directions and lengths per local unit in the root frame. AvatarScale gives world metres per root-local unit.'],
     rightX: ['目标 X 轴 · 根 X 分量', 'Target X axis · root X'], rightY: ['目标 X 轴 · 根 Y 分量', 'Target X axis · root Y'], rightZ: ['目标 X 轴 · 根 Z 分量', 'Target X axis · root Z'],
     forwardX: ['目标 Z 轴 · 根 X 分量', 'Target Z axis · root X'], forwardY: ['目标 Z 轴 · 根 Y 分量', 'Target Z axis · root Y'], forwardZ: ['目标 Z 轴 · 根 Z 分量', 'Target Z axis · root Z'],
     avatarScale: ['根单位对应的世界米数', 'World metres per root unit'],
     dragHint: ['拖动橙色操作点仅改变 X/Z，Y 由滑条控制。方向键：左右 Z、上下 X；Shift 加速。', 'Drag the orange handle in X/Z; use the Y slider for height. Arrow keys: left/right Z, up/down X; Shift moves faster.'],
-    x: ['移动对象 · X', 'Moving object · X'], y: ['移动对象 · Y', 'Moving object · Y'], z: ['移动对象 · Z', 'Moving object · Z'],
+    x: ['左右位置 · X', 'Side-to-side · X'], y: ['高度 · Y', 'Height · Y'], z: ['前后位置 · Z', 'Front-to-back · Z'],
     vx: ['SDK 相对速度 · X', 'SDK relative velocity · X'], vy: ['SDK 相对速度 · Y', 'SDK relative velocity · Y'], vz: ['SDK 相对速度 · Z', 'SDK relative velocity · Z'],
     proximitySpeed: ['接近值变化率', 'Proximity change rate'],
     length: ['Plug 长度 L', 'Plug length L'], width: ['Plug 半径 W', 'Plug radius W'], depth: ['Socket 区域 D', 'Socket region D'],
@@ -39,19 +54,19 @@
     zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['活动计数 Sample（0 表示停止）', 'Activity counter Sample (0 means stopped)'],
     ageMs: ['距上次变化时间', 'Age since last change'], frame: ['编码序号 Frame', 'Encoded Frame'],
     valid: ['模拟收到有效样本', 'Simulate a valid sample'],
-    coverage: ['可检测区域', 'Detection region'], simulation: ['模拟信号中断与停更', 'Simulate signal loss or a stalled source'],
+    coverage: ['可检测区域', 'Detection region'], simulation: ['观察信号暂停时的读数', 'When the signal pauses'],
     validHint: ["勾选表示收到有效样本；取消可观察信号失效后的读数。调整停更时间，可比较正常更新与信号停更的效果。", "Select this to receive a valid sample; clear it to explore signal loss. Adjust the age to compare fresh and stalled signals."],
     formulaTitle: ["数值怎样算出", "How values are calculated"], meaningTitle: ["怎样理解这些数值", "Understanding the values"],
     meaning: ["0–1 的接近值描述匹配对象由远到近的变化，Close=1 表示进入对应接触范围。X/Y/Z 给出目标相对参考点的位置。彩色球或胶囊画出检测范围，灰色轮廓帮助辨认 Socket、Plug 与朝向。", "A 0–1 proximity value follows a matching object as it moves closer. Close=1 marks entry into its contact region. X/Y/Z locate a target relative to its reference. Colored spheres or capsules show detection shapes; gray outlines identify the Socket, Plug and direction."],
     sourceNote: ["尺寸与计算依据来自引用的上游实现及 Sensa 定义，详细参数地址和来源见下方链接。", "Dimensions and calculations follow the cited upstream implementations and Sensa definitions. Follow the links below for full addresses and sources."],
     dictionary: ['参数字典', 'Parameter dictionary'], ogbSources: ['OGB 几何与来源', 'OGB geometry and sources'],
-    parameterReferenceTitle: ['OSC 参数含义与来源', 'OSC parameter meanings and sources'],
+    parameterReferenceTitle: ['每个参数代表什么', 'What each parameter means'],
     parameterReferenceIntro: ['逐项查看参数含义、测量规则与联动用法。来源分别注明 VRChat SDK 报告、VRCFury 生成参数与 Sensa 自有协议字段。', 'Read each parameter’s meaning, measurement definition and interaction use. Sources identify VRChat SDK reports, VRCFury-generated parameters and Sensa’s own protocol fields.'],
     parameterReferenceRange: ['数值范围', 'Range'], parameterReferenceUnit: ['单位', 'Unit'], parameterReferenceType: ['参数类型', 'Parameter type'],
     parameterReferenceUsage: ['联动用法', 'Interaction use'], parameterReferenceSources: ['说明来源', 'Sources'],
     parameterReferenceSelected: ['当前选中：', 'Selected: '],
     positioning: ['定位原理', 'Positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
-    exploreTopics: ['按用途阅读：', 'Read by use: '], positionTopic: ['位置', 'position'], depthTopic: ['进入程度', 'depth'], touchTopic: ['触碰', 'touch'],
+    exploreTopics: ['继续了解', 'More help'], positionTopic: ['位置追踪', 'Position tracking'], depthTopic: ['进入与靠近', 'Depth and approach'], touchTopic: ['触碰响应', 'Touch response'],
     'socket-modern': ["SPS2 · PenOthersNewRoot / PenOthersNewTip", "SPS2 · PenOthersNewRoot / PenOthersNewTip"],
     'socket-legacy': ["SPS1 · PenOthers / PenOthersClose", "SPS1 · PenOthers / PenOthersClose"],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
@@ -116,9 +131,10 @@
       formula: ["每路距离 dᵢ=2(1−Pᵢ)+0.001。绿色外形由四球交集与坐标边界共同决定，并避开测量点旁 3 毫米的饱和区。边缘采用采样绘制，有效性由数值检查判定。", "Each distance is dᵢ=2(1−Pᵢ)+0.001. The green envelope combines the four-sphere intersection with coordinate bounds and excludes 3 mm saturation regions near the anchors. Its edge is sampled; numeric checks determine validity."],
     },
     'shader': {
-      summary: ["X/Y/Z 表示目标相对 Avatar 根的位置；Right/Forward 向量记录目标 X/Z 轴的方向和长度。Shader 把这些数据及根单位缩放写入黑白图块，由桌面桥接程序解码为 OSC。", "X/Y/Z locate the target relative to the avatar root; Right/Forward vectors describe its X/Z axis directions and lengths. The Shader writes these values and root-unit scale into a black-and-white grid for the desktop bridge to decode as OSC."],
-      explanation: ["绿色方框在每轴覆盖中心前后各 2 个根局部单位。黑白图块外围白边为小幅画面平移留出空间，定位标记确定数据位置，三份副本帮助补全未知位。Frame 按编码时钟变化，Valid 提交完整有效的数据包。", "The green box covers 2 root-local units on either side of its center along each axis. The white border leaves room for small image shifts, markers locate the data, and three copies help fill unknown bits. Frame follows the encoder clock and Valid commits a complete usable packet."],
-      formula: ["位置 q=round(clamp((p−center+2)/4)×65535)，每级约 0.000061 个根局部单位。轴向量按 ±8 有符号 16 位量化；AvatarScale 将根局部单位换算为世界米。桥在原图大小下搜索 ±2 格平移并校验 CRC32，默认停更 350 ms 后报告 Valid=0。", "Position q=round(clamp((p−center+2)/4)×65535), about 0.000061 root-local units per level. Axis vectors use signed 16-bit quantization over ±8; AvatarScale converts root-local units to world metres. At the original image size, the bridge searches shifts of ±2 cells and checks CRC32, reporting Valid=0 after a default 350 ms stall."],
+      summary: ['把目标的位置、方向和缩放写入 QR Code。桌面程序读取这个图块，再把测量值送到 Sensa。', 'The Shader writes position, direction and scale into a QR Code. A desktop reader turns the image into measurements for Sensa.'],
+      explanation: ['绿色方框表示每轴前后各 2 个根局部单位的编码范围。二维码使用标准定位图案、自动选择的黑白掩码和分块纠错；桌面程序还原数据后，再检查 CRC32、目标编号与更新序号。', 'The green box spans two root-local units on either side of the center along each axis. Standard markers, a selected black-and-white mask and block error correction carry the measurements. The desktop reader then verifies CRC32, target ID and update sequence.'],
+      formula: ['位置按 16 位整数保存，每级约 0.000061 个根局部单位。QR Version 4 / H 将 32 字节测量放入 4 个纠错块，每块含 9 个数据字节和 16 个校验字节；每块可纠正最多 8 个错误字节，已知缺失位置可占用更少的纠错容量。AvatarScale 把根局部位移换算为世界米数。', 'Position uses 16-bit integers, about 0.000061 root-local units per step. QR Version 4 / H carries the 32-byte measurement in four blocks, each with nine data bytes and sixteen parity bytes. Each block corrects up to eight wrong bytes; known missing locations consume less correction capacity. AvatarScale converts root-local displacement to world metres.'],
+
     },
   };
   // Keep this small classic-script resolver aligned with src/web/i18n.js; the guide also works from file://.
@@ -404,38 +420,42 @@
     const m = result.metrics, field = result.values.find(v => v.name === selected);
     const meaning = field?.meaning ? field.name + ' · ' + text(field.meaning) : text('rowHint');
     if ($('parameter-meaning').textContent !== meaning) $('parameter-meaning').textContent = meaning;
-    if (field?.axisDistance !== undefined) add(['最近轴距（完整 XYZ）', 'Nearest axis distance (full XYZ)'], fmt(field.axisDistance) + ' ' + units());
+    if (field?.axisDistance !== undefined) add(['检测轴之间的最近距离', 'Nearest distance between detection axes'], fmt(field.axisDistance) + ' ' + units());
     if (m.centerDistance !== undefined) {
-      add(['根中心距离', 'Root-center distance'], fmt(m.centerDistance) + ' m');
-      add(['未饱和估长', 'Unsaturated length estimate'], m.unsaturatedLengthEstimate === null ? '—' : fmt(m.unsaturatedLengthEstimate) + ' m');
-      add(['已知 L 的理想径向参考', 'Ideal radial reference with known L'], fmt(m.idealKnownLengthRadialRatio * 100, 1) + '%');
+      add(['根部到入口的距离', 'Root-to-entrance distance'], fmt(m.centerDistance) + ' m');
+      add(['两路读数估算的长度', 'Length estimated from both readings'], m.unsaturatedLengthEstimate === null ? '—' : fmt(m.unsaturatedLengthEstimate) + ' m');
+      add(['按当前长度计算的进入参考', 'Entry reference using the selected length'], fmt(m.idealKnownLengthRadialRatio * 100, 1) + '%');
     }
     if (state.scenario === 'sensa-sps') {
       add(['当前位置在检测范围内', 'Target inside detection region'], text(result.coverage.containsTarget ? ['是', 'Yes'] : ['否', 'No']));
       add(['中心周围保守覆盖半径', 'Conservative coverage around center'], fmt(m.conservativeCoverageRadius) + ' ' + units());
-      add(['拟合 XYZ', 'Fitted XYZ'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
-      add(['四路距离拟合残差', 'Four-distance fit residual'], fmt(m.residual, 6));
-      add(['Sample 内容年龄 / 上限', 'Sample content age / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
-      add(['活动 / 几何拟合', 'Activity / geometry fit'], String(m.active) + ' / ' + String(m.fitValid));
+      add(['算出的位置 X / Y / Z', 'Calculated X / Y / Z'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
+      add(['四路测量的吻合误差', 'Error between the four measurements'], fmt(m.residual, 6));
+      add(['距上次更新 / 等待上限', 'Time since update / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
+      add(['持续更新 / 距离吻合', 'Updating / distances agree'], text(m.active ? ['是', 'Yes'] : ['否', 'No']) + ' / ' + text(m.fitValid ? ['是', 'Yes'] : ['否', 'No']));
       for (const shape of result.shapes.filter(s => s.id.startsWith('receiver-P'))) add(shape.id.slice(-2), ['x', 'y', 'z'].map(k => fmt(shape.center[k], 1)).join(' / '));
     }
     if (state.scenario === 'contact-sdk') {
       add(['选中自身 Sender', 'Selected self Sender'], text(m.selected ? ['是', 'Yes'] : ['否', 'No']));
       add(['可用 XYZ（米）', 'Usable XYZ (metres)'], m.position ? ['x', 'y', 'z'].map(k => fmt(m.position[k])).join(' / ') : '—');
-      add(['Sample 变化年龄 / 上限', 'Sample change age / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
-      add(['Receiver 世界半径', 'Receiver world radius'], fmt(m.worldRadius) + ' m');
+      add(['距上次更新 / 等待上限', 'Time since update / limit'], state.ageMs + ' / ' + m.sampleAgeLimitMs + ' ms');
+      add(['当前检测半径', 'Current detection radius'], fmt(m.worldRadius) + ' m');
     }
     if (state.scenario === 'shader') {
-      add(['输入 XYZ', 'Input XYZ'], ['x', 'y', 'z'].map(k => fmt(state[k])).join(' / '));
-      add(['16 位量化 X / Y / Z', '16-bit quantized X / Y / Z'], ['x', 'y', 'z'].map(k => m.encoded[k]).join(' / '));
-      add(['解码 XYZ', 'Decoded XYZ'], ['x', 'y', 'z'].map(k => fmt(m.decodedPosition[k], 5)).join(' / '));
+      add(['二维码格式', 'QR format'], 'Version 4 · H · 49 × 49');
+      add(['本帧使用的黑白掩码', 'Selected mask'], String(m.qrMask));
+      add(['每块纠错容量', 'Correction capacity per block'], text(['最多 8 个错误字节，或 16 个已知缺失字节', 'Up to 8 wrong bytes, or 16 known missing bytes']));
+      add(['外围白边', 'White border'], text(['4 格静区 + 4 格位移余量', '4-cell quiet zone + 4-cell movement margin']));
+      add(['编码前的位置 X / Y / Z', 'Position before encoding X / Y / Z'], ['x', 'y', 'z'].map(k => fmt(state[k])).join(' / '));
+      add(['保存到图块的位置整数', 'Position integers stored in the code'], ['x', 'y', 'z'].map(k => m.encoded[k]).join(' / '));
+      add(['还原的位置 X / Y / Z', 'Restored X / Y / Z'], ['x', 'y', 'z'].map(k => fmt(m.decodedPosition[k], 5)).join(' / '));
       add(['编码前后位置差', 'Position difference after encoding'], fmt(m.quantError.length, 7) + ' ' + units());
-      add(['桌面接收年龄上限', 'Desktop intake age ceiling'], m.frameAgeLimitMs + ' ms');
-      add(['实际桥默认冻结门限', 'Actual bridge default freeze threshold'], m.bridgeFreezeThresholdMs + ' ms');
+      add(['Sensa 接收等待上限', 'Sensa input timeout'], m.frameAgeLimitMs + ' ms');
+      add(['图像停止更新后的等待时间', 'Time allowed without a new image'], m.bridgeFreezeThresholdMs + ' ms');
       add(['目标 X 轴向量 Right', 'Target X-axis vector Right'], ['x', 'y', 'z'].map(k => fmt(m.right[k])).join(' / '));
       add(['目标 Z 轴向量 Forward', 'Target Z-axis vector Forward'], ['x', 'y', 'z'].map(k => fmt(m.forward[k])).join(' / '));
       add(['根单位缩放 AvatarScale', 'Root-unit scale AvatarScale'], fmt(m.avatarScale) + ' m/unit');
-      if (state.ageMs > m.bridgeFreezeThresholdMs) add(['实际桥会先行停用', 'Actual bridge would already stop'], 'Valid=0');
+      if (state.ageMs > m.bridgeFreezeThresholdMs) add(['桥接程序暂停位置更新', 'Bridge pauses position updates'], 'Valid=0');
     }
     $('metrics').replaceChildren();
     for (const [name, value] of list) {
@@ -446,28 +466,45 @@
     }
     const ownValidity = spatial();
     $('validity').textContent = ownValidity ? state.scenario === 'shader' && state.ageMs > m.bridgeFreezeThresholdMs
-      ? text(['桥默认已冻结', 'Bridge default is frozen'])
-      : text(m.valid ? ['桌面模型有效', 'Desktop model valid'] : ['模型无效', 'Model invalid'])
-      : text(['单 Sender 几何', 'One-Sender geometry']);
+      ? text(['信号已停更', 'Signal paused'])
+      : text(m.valid ? ['位置可用', 'Position available'] : ['等待有效位置', 'Awaiting position'])
+      : text(['模拟中', 'Simulation']);
     $('validity').dataset.tone = ownValidity && (!m.valid || state.scenario === 'shader' && state.ageMs > m.bridgeFreezeThresholdMs) ? 'bad' : 'good';
     if (ownValidity) $('validity').dataset.valid = String(m.valid); else delete $('validity').dataset.valid;
     $('explanation').textContent = text(scenes[state.scenario].explanation)
-      + (state.scenario === 'shader' && !m.valid ? ' ' + text(['失效只发送 Valid=0，表中其余原始值仅为计算预览。', 'Invalidation sends only Valid=0; other raw values here are calculation previews.']) : '');
+      + (state.scenario === 'shader' && !m.valid ? ' ' + text(['当前图像会报告 Valid=0；恢复有效更新后，位置继续参与计算。', 'This image reports Valid=0. Position participates again after valid updates resume.']) : '');
     $('formula').textContent = text(scenes[state.scenario].formula);
     $('assumptions').textContent = result.assumptions.map(a => locale === 'en-US' ? a.en : a.zh).join(' ');
     $('encoding').hidden = state.scenario !== 'shader';
     if (state.scenario === 'shader') {
-      $('bit-grid').replaceChildren();
-      const encoding = Model.shaderEncoding;
-      $('bit-grid').setAttribute('viewBox', `0 0 ${encoding.width * 16} ${encoding.height * 16}`);
-      for (let column = 0; column < encoding.width; column++) for (let screenRow = 0; screenRow < encoding.height; screenRow++) {
-        const row = encoding.height - 1 - screenRow;
-        const bit = Model.encodedBit(result.metrics.bytes, column, row);
-        const cell = Model.encodedCell(column, row), edge = cell.region !== 'payload';
-        $('bit-grid').append(svg('rect', { x: column * 16, y: screenRow * 16, width: 16, height: 16,
-          fill: bit ? '#fff' : '#000', 'data-byte': cell.byte, 'data-bit': cell.bit, 'data-copy': cell.copy,
-          'data-region': cell.region, 'data-edge': String(edge), 'data-value': bit }));
+      const encoding = Model.shaderEncoding, encoded = Model.encodeQr(result.metrics.bytes);
+      const grid = $('bit-grid'), cellCount = encoding.width * encoding.height;
+      grid.setAttribute('viewBox', `0 0 ${encoding.width * 16} ${encoding.height * 16}`);
+      grid.dataset.mask = String(encoded.mask);
+      if (grid.children.length !== cellCount) {
+        const cells = document.createDocumentFragment();
+        for (let screenRow = 0; screenRow < encoding.height; screenRow++) for (let column = 0; column < encoding.width; column++) {
+          const cell = Model.encodedCell(column, encoding.height - 1 - screenRow);
+          cells.append(svg('rect', { x: column * 16, y: screenRow * 16, width: 16, height: 16,
+            'data-codeword': cell.codeword, 'data-block': cell.block, 'data-block-byte': cell.blockByte,
+            'data-bit': cell.bit, 'data-region': cell.region, 'data-buffer': cell.buffer,
+            'data-edge': String(!['data', 'ecc'].includes(cell.region)) }));
+        }
+        grid.replaceChildren(cells);
       }
+      for (let screenRow = 0; screenRow < encoding.height; screenRow++) for (let column = 0; column < encoding.width; column++) {
+        const qrX = column - encoding.quiet, qrY = screenRow - encoding.quiet;
+        const white = qrX < 0 || qrY < 0 || qrX >= encoded.matrix.length || qrY >= encoded.matrix.length
+          ? 1 : 1 - encoded.matrix[qrY][qrX];
+        const cell = grid.children[screenRow * encoding.width + column];
+        if (cell.dataset.value !== String(white)) {
+          cell.dataset.value = String(white); cell.setAttribute('fill', white ? '#fff' : '#000');
+        }
+      }
+      const facts = $('encoding-facts');
+      facts.replaceChildren(...[['定位角标', 'Corner markers'], ['数据与纠错', 'Data and correction'], ['位移留白', 'Movement margin']].map(pair => {
+        const chip = document.createElement('span'); chip.textContent = text(pair); return chip;
+      }));
       $('crc').textContent = 'CRC32 ' + result.metrics.crc32.toString(16).toUpperCase().padStart(8, '0') + ' · ID 42';
     }
   }

@@ -15,7 +15,7 @@
 1. Install the [package dependencies](COMPATIBILITY.en.md), plus official VRCFury for SPS author targets. Use PC Built-in rendering with a geometry-shader-capable backend. Use another input route on Android or Metal.
 2. Create **GameObject → Sensa → Shader Root Capture (Experimental)**, or add `SensaShaderCapture.prefab`. Set `Target` to a bone/empty-object Transform, SPS Socket/Plug, Sensa Component or native Contact inside this Avatar.
 3. Assign a unique `Producer Id` from 1–65535, such as 42. The desktop bridge pairs the block using the same ID.
-4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.2). Find the complete block in the actual client, then determine its physical-pixel desktop bounds.
+4. `Desktop Viewport` is a normalized screen rectangle, initially (0,0,0.25,0.2). The QR tile stays square and centered inside it. Find the complete tile in the client, then determine its physical-pixel desktop bounds.
 5. Build normally or use NDMF's processed preview. The build references the packaged `Runtime/Shaders/SensaRootTelemetry.shader` and serializes temporary meshes/materials. Rebuild and register capture after updating the package and bridge.
 6. Select the root-code item under **Sensa ShaderCapture_42**. It starts Off, is activated by the local wearer and uses the author's build-time language.
 7. Check the desktop block and both VR eyes. The generated camera requests `None` eye targeting; verify actual desktop composition and headset visibility in VRChat.
@@ -39,7 +39,7 @@ Select position, axis components or AvatarScale in the root panel for calibrated
 
 ## Capture and register
 
-Use Python with Pillow installed, from the main repository. Replace `LEFT TOP WIDTH HEIGHT` with the complete block's **physical-pixel** bounds, including its white margin. Native capture uses **40×32 modules, at least 160×128 pixels**. Region dimensions determine module size, so select the nominal full block. Negative origins support additional monitors.
+Use Python with Pillow installed, from the main repository. Replace `LEFT TOP WIDTH HEIGHT` with the complete tile's **physical-pixel** bounds, including its white border. The tile has **49×49 modules**, so allow at least **196×196 pixels** and four pixels per module. The reader finds its corner markers inside the selected region; a rectangular region can include surrounding blank space. Negative origins support additional monitors.
 
 ```shell
 python -X utf8 scripts/shader-osc-bridge.py --region LEFT TOP WIDTH HEIGHT --producer-id 42 --save-registration capture.json
@@ -57,24 +57,26 @@ Inspect all twelve fields under `Sensa/Shader/42/`. Valid bundles send **Frame �
 
 ## How do margins and redundancy help?
 
-From outside inward, the block has a **two-module white margin, two-module black-and-white locators and three shifted payload copies**. The margin reserves room for small image movements; fixed locators support realignment. The central 32×24 modules contain three copies of one 32-byte packet.
+The tile uses **QR Code v4-H**. The reader first finds three corner markers, then restores some obscured or misread data. A complete checked packet and an advancing image are required before measurements reach tracking calculations.
 
-Within the registered region, the bridge searches up to two modules per axis. Uncertain modules become erasures. Agreeing bits from other copies in the same capture can fill them. Every bit must have support and CRC32 must pass. Any known-bit conflict, or a bit missing from every copy, invalidates the frame. This recovers some occlusion and uncertain pixels while checking mixed-frame conflicts.
+The white border separates the tile from its surroundings and leaves room for small movements. Of the eight white modules per side, four form the standard QR quiet zone and four provide extra movement margin. The encoder compares eight masks to reduce long runs and improve black/white balance, keeping the pattern readable when position is unchanged or some measurements are zero.
 
-The margin buffers spatial movement, while `Frame` checks image progression. The default bridge invalidates after **350 ms** without progress. Startup and recovery need **two new advancing frames**. Payload changes under the same frame, reorder and identity changes also invalidate. The desktop additionally checks twelve consecutive fields and Frame change age up to 500 ms. Re-register after scaling, rotation or perspective changes; measure end-to-end time latency separately.
+Reed–Solomon correction interleaves measurement data and parity across the symbol. When some modules are obscured, gray or misread, the bridge attempts to reconstruct the original bytes, then checks CRC32. Recovery depends on the distribution of damaged bytes and readable finder patterns. [Data layout and recovery bounds](https://github.com/SeaLoong/Sensa/blob/main/docs/shader-capture-research.en.md)
+
+`Frame` checks image progression. The default bridge invalidates after **350 ms** without progress. Startup and recovery need **two new advancing frames**. Payload changes under the same frame, reorder and identity changes also invalidate. The desktop additionally checks twelve consecutive fields and Frame change age up to 500 ms. Finder patterns support right-angle rotation and vertical flipping. Re-select the complete tile after resizing; measure end-to-end response time in the capture setup.
 
 Internal diagnostic PNGs retain a separate 16×8 layout and `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}` for codec and transport checks.
 
 ## Editor SPS model probe
 
-This research path is not an uploaded model producer. It reads SPS2 `_VFGridFinal`, calls the installed `sps_deform_walk_chain` and reports an **unblended centerline**, length, entry and `firstSegmentStrength`, rather than the final mesh surface.
+The editor probe helps inspect how the SPS2 model changes. It reads `_VFGridFinal`, calls the installed `sps_deform_walk_chain` and reports an **unblended centerline**, length, entry and `firstSegmentStrength`. These measurements describe the sampled centerline; final mesh-surface inspection and use after Avatar upload need their own implementation and validation.
 
 1. Install official VRCFury SPS2. Dependency hashes target source commit `d048773de971881fb14c5f3b468e59ba2406a2dd`. Use PC Built-in rendering, a non-XR/non-stereo camera, ARGBFloat and AsyncGPUReadback.
 2. Render the baked Resolver and surface through normal SPS build preview/Play Mode. Open **Tools → Sensa → SPS GPU Model Probe (Experimental)** and select its Camera, BakedSpsPlug Resolver Renderer and matching Surface Renderer.
-3. **Check dependencies and capture next frame** validates normalized include SHA256 and reads material/MaterialPropertyBlock identities. Unknown dependencies, mismatched identity, shader errors or ten seconds without camera rendering stop capture. No VRCFury implementation is downloaded/bundled.
-4. Generated files under `Assets/SensaGpuDiagnostics` are editor diagnostics. Inspect 33 points and export `sensa.sps-gpu-model.v1` JSON. Continuous PNG export belongs to this editor reader, not the native avatar producer.
+3. **Check dependencies and capture next frame** validates normalized include SHA256 and reads material/MaterialPropertyBlock identities. Unknown dependencies, mismatched identity, shader errors or ten seconds without camera rendering stop capture. Dependencies come from VRCFury already installed in the project.
+4. Generated files under `Assets/SensaGpuDiagnostics` are editor diagnostics. Inspect 33 points and export `sensa.sps-gpu-model.v1` JSON. Continuous PNG export records this editor reader’s measurements.
 
-SPS player shader IDs are animated at runtime; baked material values may be zero. Global textures can retain old frames. Magic/identity checks or a new encoder clock do not establish model freshness. Knowing a Socket root does not identify its active Plug; old TPS/DPS does not automatically supply an SPS2 Resolver.
+SPS player shader IDs are animated at runtime, so capture needs their current values. Global textures may retain old frames; model freshness requires additional capture evidence. Associating a Socket with its active Plug requires target identity information. This probe uses the SPS2 Resolver; older TPS/DPS setups use their corresponding input routes.
 
 Offline analysis uses the standard library without desktop capture or OSC:
 
@@ -83,13 +85,13 @@ python -X utf8 scripts/analyze-gpu-capture.py capture.json
 python -X utf8 scripts/analyze-gpu-capture.py capture.json --aperture-radius 0.04 --min-incidence-degrees 10
 ```
 
-Outputs include sampled arc length, material/arc fraction after entry, plane offset, sampled chord direction and incidence. It rejects partial blend, collapsed segments, reversed/multiple/tangent crossings and explicit aperture violations. `usable` describes diagnostic analysis conditions, not device readiness. The 16/32-segment arc difference is not an error bound; a circular opening/centerline model omits thickness and final vertex effects.
+Outputs include sampled arc length, material/arc fraction after entry, plane offset, sampled chord direction and incidence. It rejects partial blend, collapsed segments, reversed/multiple/tangent crossings and explicit aperture violations. `usable` reports whether the diagnostic analysis conditions passed. Compare 16- and 32-segment results to inspect sampling sensitivity. Actual error, thickness and final vertex effects need reference measurements beyond this circular-opening/centerline model.
 
 ## Verification scope
 
-In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual monochrome pixels, three copies, CRC32, axes and scale. These tests are marked `Explicit`; ordinary headless runs do not count it as GPU verification. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
+In a PC Built-in Unity Editor with geometry-shader support, open Test Runner → EditMode and explicitly select `UnityBox.Sensa.Tests.ShaderCapturePixelContracts`. It renders into an isolated RenderTexture and checks actual QR modules, masking, error-correction codewords, CRC32, axes and scale. These tests are marked `Explicit` and require an explicit selection with a graphics environment. Unity Editor is unavailable in this cloud environment, so the new EditMode and graphics contracts await execution.
 
 
-Codec/registration/freshness contracts cover twelve-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Use the receipt for the actual checked revision rather than a historical test count. Nographics shader import is not proof of real GPU pixel output, local desktop capture, PlayMode, avatar upload, VR clients or hardware.
+Codec/registration/freshness contracts cover twelve-field order and diagnostic isolation. Unity EditMode contracts cover one-camera configuration, shader import/compilation, persistent bounds, local skinning geometry and multiple-producer bindings. Record each result against its checked revision. GPU pixels, local desktop capture, PlayMode, Avatar upload, VR clients and hardware are validated in their corresponding runtime environments.
 
-Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. Internal diagnostic PNG CI replay establishes separate-namespace transport/freeze recovery while input stays disarmed. Simulated native OSC is not actual GPU capture.
+Client acceptance must record actual code output, known-motion error, resize/occlusion/minimization, HDR/postprocessing/antialiasing, low frame rate, desktop latency, HMD visibility and SDK/optimizer retention. CI exercises synthetic native PNGs through the bridge and service, plus separate diagnostic transport and freeze recovery. Actual GPU capture is checked in the Unity and client stages.

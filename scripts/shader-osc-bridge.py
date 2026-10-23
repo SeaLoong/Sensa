@@ -11,6 +11,8 @@ import socket
 import struct
 import time
 
+import telemetry_qr
+
 AVATAR_ROOT_CENTER = (0.0, 1.0, 0.0)
 AVATAR_ROOT_HALF_RANGE = 2.0
 REGISTRATION_SCHEMA = 'sensa.shader-capture.v1'
@@ -49,22 +51,9 @@ def open_frame(path):
         raise
 
 
-NATIVE_COLUMNS, NATIVE_ROWS = 40, 32
-NATIVE_MIN_WIDTH, NATIVE_MIN_HEIGHT = 160, 128
+NATIVE_COLUMNS = NATIVE_ROWS = telemetry_qr.TOTAL_SIZE
+NATIVE_MIN_WIDTH = NATIVE_MIN_HEIGHT = telemetry_qr.TOTAL_SIZE * 4
 NATIVE_BASIS_RANGE = 8.0
-
-
-def edge_bit(column, row):
-    """Two white guard modules surround asymmetric complementary edge bands."""
-    if column < 2 or column >= 38 or row < 2 or row >= 30:
-        return 1
-    if row < 4:
-        return ((0xD3A69C57 >> ((column + 28) & 31)) & 1) ^ (row - 2)
-    if row >= 28:
-        return ((0x69C57D3A >> ((column + 28) & 31)) & 1) ^ (row - 28)
-    if column < 4:
-        return ((0xA5D36B >> (row - 4)) & 1) ^ (column - 2)
-    return ((0x6E29C7 >> (row - 4)) & 1) ^ (column - 36)
 
 
 def _cell(pixels, width, height, x, y, redundant=False):
@@ -120,77 +109,13 @@ def _packet(values, native):
 
 
 def _native_pixels(pixels, width, height):
-    if width < NATIVE_MIN_WIDTH or height < NATIVE_MIN_HEIGHT:
-        return None
-    pitch_x, pitch_y = width / NATIVE_COLUMNS, height / NATIVE_ROWS
-    # Give each side independent evidence: damaged corners must not
-    # invalidate an otherwise intact neighboring edge.
-    sides = [[[(column, row) for column in range(4, 36)] for row in rows]
-             for rows in ((2, 3), (28, 29))]
-    sides += [[[(column, row) for row in range(4, 28)] for column in columns]
-              for columns in ((2, 3), (36, 37))]
-    # Search within the guard band's two-module displacement budget. Never
-    # scan another desktop region or use pixels from a previous capture.
-    offsets = sorted(((x / 4, y / 4) for y in range(-8, 9) for x in range(-8, 9)),
-                     key=lambda pair: abs(pair[0]) + abs(pair[1]))
-    sampled = {}
-    for flip in (True, False):
-        for offset_x, offset_y in offsets:
-            def read(column, row, redundant=False):
-                screen_row = 31 - row if flip else row
-                x = int((column + .5 + offset_x) * pitch_x)
-                y = int((screen_row + .5 + offset_y) * pitch_y)
-                key = (x, y, redundant)
-                if key not in sampled:
-                    sampled[key] = _cell(pixels, width, height, x, y, redundant)
-                return sampled[key]
-            intact, exact = 0, 0
-            for side in sides:
-                # Either complementary line can identify an edge; losing its
-                # outer line to a small crop does not consume payload bits.
-                for line in side:
-                    errors = 0
-                    for column, row in line:
-                        if read(column, row, True) != edge_bit(column, row):
-                            errors += 1
-                            if errors > 1:
-                                break
-                    if errors <= 1:
-                        intact += 1
-                        exact += errors == 0
-                        break
-            if intact < 3:
-                continue
-            values = bytearray(32)
-            for column in range(32):
-                for row in range(8):
-                    # Each byte is distributed between three separate bands.
-                    # Only erasures are repaired. Any observed binary conflict
-                    # rejects this capture, including a splice of valid frames.
-                    copies = [read((column - copy * 11) % 32 + 4, row + copy * 8 + 4) for copy in range(3)]
-                    known = {bit for bit in copies if bit is not None}
-                    if len(known) != 1:
-                        if len(known) > 1 and exact >= 3:
-                            # An unambiguous marker alignment with contradictory
-                            # replicas is damaged data, not another ROI to hunt.
-                            return None
-                        break
-                    values[column] |= known.pop() << row
-                else:
-                    continue
-                break
-            else:
-                sample = _packet(values, native=True)
-                if sample is not None:
-                    return sample
-                if exact >= 3:
-                    return None
-    return None
+    packet = telemetry_qr.decode_pixels(pixels, width, height)
+    return _packet(packet, native=True) if packet is not None else None
 
 
 def decode_pixels(pixels, width, height):
     if width < 64 or height < 32 or len(pixels) != width * height:
-        raise ValueError('Expected a complete grid: native 40 x 32 (160 x 128 px), diagnostic 16 x 8 (64 x 32 px)')
+        raise ValueError('Expected a complete grid: native QR 49 x 49 (196 x 196 px), diagnostic 16 x 8 (64 x 32 px)')
     native = _native_pixels(pixels, width, height)
     if native is not None:
         return native
@@ -212,14 +137,14 @@ def decode_pixels(pixels, width, height):
             sample = _packet(values, native=False)
             if sample is not None:
                 return sample
-    raise ValueError('Invalid telemetry edge markers, header, source validity, cell alignment or CRC')
+    raise ValueError('Invalid telemetry QR, correction budget, header, source validity or CRC')
 
 
 def capture_registration(region, producer_id):
     if not isinstance(region, (list, tuple)) or len(region) != 4 or any(type(value) is not int for value in region):
         raise ValueError('Registration requires four integer physical-pixel bounds')
     if region[2] < NATIVE_MIN_WIDTH or region[3] < NATIVE_MIN_HEIGHT or region[2] > 8192 or region[3] > 8192:
-        raise ValueError('Native capture rectangle must be 160..8192 by 128..8192 physical pixels')
+        raise ValueError('Native capture rectangle must be 196..8192 by 196..8192 physical pixels')
     if type(producer_id) is not int or not 1 <= producer_id <= 65535:
         raise ValueError('Registration requires an explicit producer ID from 1..65535')
     return {'schema': REGISTRATION_SCHEMA, 'region': list(region), 'producerId': producer_id,

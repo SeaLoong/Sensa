@@ -117,6 +117,16 @@ const EMPTY_OSC_CATALOG = Object.freeze([]);
 
 const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 
+function WorkspaceIcon({ kind }) {
+  const paths = {
+    control: 'M4 7h16M4 17h16M9 4v6M15 14v6',
+    osc: 'M3 12h4l3-7 4 14 3-7h4',
+    pipeline: 'M4 5h6v6H4zM14 13h6v6h-6zM7 11v5h7M10 8h7v5',
+    settings: 'M4 5h16M4 12h16M4 19h16M9 2v6M15 9v6M9 16v6',
+  };
+  return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" focusable="false"><path d={paths[kind]} /></svg>;
+}
+
 function buildInitialAppState() {
   const studio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE);
   const config = null;
@@ -151,6 +161,14 @@ function App() {
   const [realtime] = useState(() => createBrowserRealtimeSession({ url: WS_URL }));
   const apiRequest = (path, options) => realtime.request(path, options);
   const locale = React.useSyncExternalStore(subscribeLocale, getLocale);
+  const [wideNavigation, setWideNavigation] = useState(() => window.matchMedia('(min-width: 1101px)').matches);
+  useEffect(() => {
+    const query = window.matchMedia('(min-width: 1101px)');
+    const update = () => setWideNavigation(query.matches);
+    update();
+    query.addEventListener('change', update);
+    return () => query.removeEventListener('change', update);
+  }, []);
   const initialState = useMemo(() => buildInitialAppState(), []);
   const [config, setConfig] = useState(initialState.config);
   const [overview, setOverview] = useState(initialState.overview);
@@ -612,7 +630,7 @@ function App() {
       return 'experimental';
 
     } else if (entry.path.startsWith('Sensa/Diagnostics/Shader/')) {
-      notify(t('诊断参数仅用于传输检查，不生成坐标映射。'), 'info');
+      notify(t('这组参数用于检查数据传输。位置映射请在根点面板选择测量对象。'), 'info');
       return oscWorkspaceTab;
     } else if (entry.path.startsWith('Sensa/Pose/v1/')) {
       usePoseRig({ prefix: entry.path.split('/').slice(0, 5).join('/') });
@@ -1662,9 +1680,12 @@ function App() {
       setWorkspace('control');
       selectInputTab(destination);
       setNavigationTarget(`#input-tabs-${destination}`);
-    } else if (destination === 'outputs') {
+    } else if (destination === 'pipeline') {
+      setWorkspace('pipeline');
+      setNavigationTarget('.computed-signals');
+    } else if (destination === 'outputs' || destination === 'recording') {
       setWorkspace('control');
-      setNavigationTarget('.outputs-section');
+      setNavigationTarget(destination === 'recording' ? '.recording-panel' : '.outputs-section');
     } else {
       setWorkspace('osc');
       setOscWorkspaceTab(['osc-diagnostics', 'sensa-sps'].includes(destination) ? 'experimental' : 'setup');
@@ -1684,7 +1705,7 @@ function App() {
     const target = region.matches('button, input, select, summary, [tabindex]') ? region
       : region.querySelector('button:not(:disabled), input:not(:disabled), select:not(:disabled), summary');
     target?.focus({ preventScroll: true });
-    (region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
+    (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
   }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen]);
 
@@ -1868,7 +1889,7 @@ function App() {
                     </div>
                   ))}
               </div>
-              <p className="caption muted">{t('仅在脚本页空白处生效；输入框、按钮与滑条保留自己的键盘操作。')}</p>
+              <p className="caption muted">{t('点击播放器空白处后可使用快捷键；编辑输入框或滑块时，键盘用于当前控件。')}</p>
             </details>
           </div>
         )}
@@ -1887,7 +1908,7 @@ function App() {
           </Badge>
         </summary>
         <div className="stack">
-          <p className="caption muted">{t('记录输出分发前的 L0 动作目标，可导出为 funscript。')}</p>
+          <p className="caption muted">{t('把 Sensa 计算出的 L0 主轴位置保存为 funscript，之后可在脚本播放器中重放。')}</p>
           <div className="actions recording-toolbar">
             <span className="caption muted">{t('已录制 {0} 帧', [recording.frameCount || 0])}</span>
             <Button disabled={!online || recording.isActive || recordingBusy}
@@ -2136,7 +2157,7 @@ function App() {
           </Button>
           <span className="muted">{t('{0} 项', [rankedOscPreview.length])}</span>
         </div>
-        {frozenPreview && <Notice>{t('预览已冻结；这不会停止 OSC 接收或正在进行的设备动作。')}</Notice>}
+        {frozenPreview && <Notice>{t('当前列表显示冻结时的数据，便于逐项查看；OSC 接收和设备运行继续进行。')}</Notice>}
         <OscParameterTable entries={rankedOscPreview} pinnedPaths={pinnedPaths}
           filterKey={JSON.stringify([oscPreviewSearch, previewSourceTab, previewCategory, showFaceTracking])}
           onTogglePinned={togglePinned}
@@ -2152,6 +2173,7 @@ function App() {
         <summary>{t('接收与转发设置')}</summary>
         <div className="stack">
           <div className="stack osc-receiver-settings">
+            <div className="settings-heading"><h3>{t('接收 OSC 数据')}</h3><p className="caption muted">{t('填写 Sensa 用来接收数据的地址和端口。发送端需要将 OSC 消息发到这里。')}</p></div>
             <div className="actions">
               <Toggle
                 label={t('启用 OSC')}
@@ -2183,7 +2205,7 @@ function App() {
               />
               <Field
                 label={t('断流停止（毫秒；0 关闭）')}
-                hint={t('仅值变化时发送的 OSC 来源不适合设置超时。')}
+                hint={t('来源持续发送时，可设置多久未收到数据就暂停；来源只在数值变化时发送时，使用 0。')}
                 type="number"
                 min={0}
                 value={oscDraft.inputTimeoutMs}
@@ -2197,7 +2219,7 @@ function App() {
             <div className="stack">
               <Toggle label={t('向 VRChat 启用 OGB 参数')} checked={oscDraft.ogbControlEnabled}
                 onChange={(ogbControlEnabled) => updateOsc({ ogbControlEnabled })} />
-              <p className="caption muted">{t('每 5 秒发送 OGB_ENABLED；停止 OSC 时撤销。与设备输入许可独立，UDP 没有接收确认。')}</p>
+              <p className="caption muted">{t('请求 Avatar 持续报告 OGB / SPS 参数：每 5 秒发送 OGB_ENABLED，停止 OSC 时撤销。设备动作由顶栏的“输入启用”控制。')}</p>
               <div className="form-grid">
                 <Field label={t('VRChat 控制 IP')} value={oscDraft.ogbControlHost} disabled={!oscDraft.ogbControlEnabled}
                   onChange={(event) => updateOsc({ ogbControlHost: event.target.value })} />
@@ -2213,6 +2235,7 @@ function App() {
           <details>
             <summary>OSCQuery</summary>
             <div className="stack">
+              <div className="editor-group"><h4>{t('读取参数目录')}</h4><p className="caption muted">{t('通过 OSCQuery 获取参数名、类型和当前值。轮询可按设定频率刷新数据。')}</p>
               <Toggle
                 label={t('启用 OSCQuery')}
                 checked={oscDraft.oscQueryEnabled}
@@ -2241,6 +2264,8 @@ function App() {
                   onChange={(event) => updateOsc({ oscQueryPollingRateHz: Number(event.target.value) })}
                 />
               </div>
+              </div>
+              <div className="editor-group"><h4>{t('让发送端发现 Sensa')}</h4><p className="caption muted">{t('公布 Sensa 的接收服务，支持自动发现的发送端可以找到它。')}</p>
               <Toggle
                 label={t('自动发现')}
                 checked={oscDraft.oscQueryReceiverEnabled}
@@ -2261,6 +2286,7 @@ function App() {
                   onChange={(event) => updateOsc({ oscQueryReceiverHttpPort: Number(event.target.value) })}
                 />
               </div>
+              </div>
               {[oscQuery?.error, oscQuery?.polling?.error, overview?.osc?.queryReceiver?.error]
                 .filter(Boolean)
                 .map((error, index) => (
@@ -2274,6 +2300,7 @@ function App() {
             <details>
               <summary>OSC Hub</summary>
               <div className="stack">
+                <p className="caption muted">{t('将收到的 OSC 参数继续发送到其他应用。为每个接收应用添加一个目标地址。')}</p>
                 <Toggle
                   label={t('启用 OSC Hub')}
                   checked={oscDraft.hubEnabled}
@@ -2331,26 +2358,19 @@ function App() {
       </main>
     );
 
+  const workspaceIntroduction = {
+    control: { title: t('让信号开始工作'), description: t('选择输入方式，连接输出，再启用输入。运行中的数值和连接状态会持续显示。'), number: '01' },
+    osc: { title: t('读懂收到的每个参数'), description: t('查看 OSC 实时数据，为需要的参数设置映射，或把定位结果转换为动作。'), number: '02' },
+    pipeline: { title: t('把输入变成需要的结果'), description: t('组合多个来源，设置计算，再将结果发送到设备、应用或录制文件。'), number: '03' },
+    settings: { title: t('调好设备，查看运行情况'), description: t('保存常用的轴范围与运动设置，通过日志了解连接、输入和输出的运行状态。'), number: '04' },
+  }[workspace];
+
   return (
     <div className="app-shell">
       <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
       <header className="app-header">
         <div className="app-header__inner">
-          <h1 className="brand"><a href="#main">Sensa</a></h1>
-          <nav className="workspace-nav">
-            <Tabs
-              id="workspace-tabs"
-              label={t('主导航')}
-              value={workspace}
-              onChange={setWorkspace}
-              options={[
-                { value: 'control', label: t('控制') },
-                { value: 'osc', label: 'OSC' },
-                { value: 'pipeline', label: t('流程') },
-                { value: 'settings', label: t('设置') },
-              ]}
-            />
-          </nav>
+          <div className="brand-group"><h1 className="brand"><a href="#main"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>Sensa</a></h1><span className="brand-caption">{t('信号工作台')}</span></div>
           <div className="header-status">
             <Badge tone={online ? 'success' : 'warning'}>
               <span title={formatRealtimeStatus(wsState)}>
@@ -2381,6 +2401,20 @@ function App() {
           </div>
         </div>
       </header>
+      <aside className="workspace-sidebar">
+        <div className="workspace-sidebar__label">{t('工作区')}</div>
+        <nav className="workspace-nav">
+          <Tabs id="workspace-tabs" label={t('主导航')} value={workspace} onChange={setWorkspace}
+            orientation={wideNavigation ? 'vertical' : 'horizontal'} variant="workspace"
+            options={[
+              { value: 'control', label: t('控制'), description: t('输入与运行'), icon: <WorkspaceIcon kind="control" /> },
+              { value: 'osc', label: 'OSC', description: t('参数与映射'), icon: <WorkspaceIcon kind="osc" /> },
+              { value: 'pipeline', label: t('流程'), description: t('计算与连接'), icon: <WorkspaceIcon kind="pipeline" /> },
+              { value: 'settings', label: t('设置'), description: t('轴配置与日志'), icon: <WorkspaceIcon kind="settings" /> },
+            ]} />
+        </nav>
+        <div className="workspace-sidebar__help"><span>{t('从想做的事情开始')}</span><a href={docUrl('docs/quick-start.md')} target="_blank" rel="noreferrer">{t('快速上手')} <span aria-hidden="true">↗</span></a><a href={docUrl('docs/guide.md')} target="_blank" rel="noreferrer">{t('完整使用指南')} <span aria-hidden="true">↗</span></a></div>
+      </aside>
       <main key={workspace} id="main" className="workspace-scroll" tabIndex={-1}>
         <div className="workspace-shell workspace">
           <div
@@ -2389,25 +2423,27 @@ function App() {
             aria-labelledby={`workspace-tabs-${workspace}`}
             className={`workspace-panel workspace-panel--${workspace}`}
           >
+            <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2><p>{workspaceIntroduction.description}</p></div></header>
             {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
-                {t('连接已断开，命令不会自动重发。')}
+                {t('连接已断开。恢复连接后，请重新执行需要的操作。')}
               </Notice>
             )}
-            {workspace !== 'control' && runtimeOverview?.isEmergency && <Notice tone="error">{t('急停已锁定；解除后仍需重新启用输入。')}</Notice>}
+            {workspace !== 'control' && runtimeOverview?.isEmergency && <Notice tone="error">{t('急停保持中。解除急停后，准备好即可重新启用输入。')}</Notice>}
             {workspace !== 'control' && !routingScope.onlyIndependentBindings && inputActive && runtimeOverview?.gateClosed && <Notice>{routingScope.mixed
-              ? t('动作轴映射门控关闭；独立输出连接按各自来源和有效状态更新。') : t('门控关闭，输出已停止。')}</Notice>}
+              ? t('动作轴正在等待触发条件；其他输出连接继续使用各自的有效输入。') : t('触发条件尚未满足，动作已暂停。')}</Notice>}
             {workspace !== 'control' && !routingScope.onlyIndependentBindings && runtimeOverview?.poseBlocked && runtimeOverview?.spatialInputBlockedReason && (
               <Notice>{routingScope.mixed && <>{t('动作轴映射等待定位')}： </>}{diagnostic(runtimeOverview.spatialInputBlockedReason)}
-                {routingScope.mixed && <> {t('独立输出连接按各自来源和有效状态更新。')}</>}</Notice>
+                {routingScope.mixed && <> {t('其他输出连接继续使用各自的有效输入。')}</>}</Notice>
             )}
             {workspace !== 'control' && routingScope.mixed && runtimeOverview?.computedInputBlocked && <Notice>
               {t('动作轴映射等待计算输入')}：{diagnostic(runtimeOverview.computedInputBlockedReason) || t('计算正在等待完整、有效的输入。')}{' '}
-              {t('独立输出连接按各自来源和有效状态更新。')}</Notice>}
+              {t('其他输出连接继续使用各自的有效输入。')}</Notice>}
             {workspace === 'control' && (
               <>
                 <Section
                   title={t('输入')}
+                  description={t('手动调节、接收 OSC，或播放脚本。组合方式可以同时使用多个来源。')}
                   className="input-section"
                   actions={<Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>}
                 >
@@ -2430,7 +2466,7 @@ function App() {
                       {t('应用输入方式')}
                     </Button>}
                   </div>
-                  {hasPendingInputMode && <p className="caption muted">{t('选择仅用于浏览，应用后才切换输入。')}</p>}
+                  {hasPendingInputMode && <p className="caption muted">{t('先调整当前页的设置，点击“应用输入方式”后开始使用这类输入。')}</p>}
                   <div id="input-tabs-panel" className="input-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
                     {selectedInputTab === 'manual' && (
                       <div className="stack manual-workspace">
@@ -2529,13 +2565,12 @@ function App() {
                   {oscWorkspaceTab === 'parameters' && renderParameters()}
                   {oscWorkspaceTab === 'experimental' && (
                     <>
-                      <Notice>{t('局部估计 · 实验')}</Notice>
+                      <div className="spatial-settings stack"><div className="settings-heading"><h3>{t('定位与测量')}</h3><p className="caption muted">{t('在 Unity 中安装定位组件后，这里会显示测量对象。启用实验空间输入并保存，即可将有效测量用于动作。')}</p></div>
                       <Toggle
                         label={t('允许实验空间输入')}
                         checked={oscDraft.allowExperimentalSpatialInput}
                         onChange={(allowExperimentalSpatialInput) => updateOsc({ allowExperimentalSpatialInput })}
                       />
-                      <p className="caption muted">{t('实验局部估计；全部通道需持续刷新。')}</p>
                       <p className="caption muted">{diagnostic(runtimeOverview?.spatialInputStatus || '')}</p>
                       <div className="actions">
                         <Badge>
@@ -2547,12 +2582,13 @@ function App() {
                           {t('保存实验设置')}
                         </Button>
                       </div>
-                      <details>
+                      </div>
+                      <details className="measurement-section">
                         <summary>{t('本地点与根部')}</summary>
                         <SpsRootPanel observations={overview?.poseTracking?.spsRoots || []} onUsePoint={usePointRig}
                           onInspectShaderParameters={root => { setOscPreviewSearch(`${root.prefix}/`); setPreviewSourceTab(root.sourceKey || 'all'); setPreviewCategory('all'); setOscWorkspaceTab('parameters'); }} />
                       </details>
-                      <details>
+                      <details className="measurement-section">
                         <summary>{t('配对三点姿态')}</summary>
                         <PosePanel
                           observations={overview?.poseTracking?.observations || []}
@@ -2588,6 +2624,7 @@ function App() {
               <>
                 <Section
                   title={t('轴配置')}
+                  description={t('为设备保存行程、方向和速度设置，同一套配置可供多个 TCode 输出使用。')}
                   actions={
                     <Button onClick={openNewProfileDialog} disabled={!online}>
                       {t('新增轴配置')}
@@ -2622,7 +2659,7 @@ function App() {
                     ))}
                   </div>
                 </Section>
-                <Section title={t('日志')}>
+                <Section title={t('日志')} description={t('按级别、分类或轴筛选消息，快速找到连接和数值变化的原因。')}>
                   <details open={logDetailsOpen} onToggle={(event) => setLogDetailsOpen(event.currentTarget.open)}>
                     <summary>{t('查看日志')}</summary>
                     {logDetailsOpen && <div className="stack">
@@ -2723,30 +2760,7 @@ function App() {
               value={dialog.draft.name || ''}
               onChange={(event) => updateOutput({ name: event.target.value })}
             />
-            {isTCodeOutputType(dialog.draft.type) && (
-              <>
-                <SelectField
-                  label={t('轴配置')}
-                  value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
-                  options={axisProfiles.map((profile) => ({ value: profile.id, label: profile.name }))}
-                  onChange={(motionProfileId) => updateOutput({ motionProfileId })}
-                />
-                <div className="form-grid">
-                  <SelectField
-                    label={t('输出斜率方式')}
-                    value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
-                    options={OUTPUT_SLOPE_MODE_OPTIONS()}
-                    onChange={(slopeMode) => updateOutput({ slopeMode })}
-                  />
-                  <SelectField
-                    label={t('速度单位基准')}
-                    value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
-                    options={SPEED_UNIT_BASE_OPTIONS()}
-                    onChange={(speedUnitBase) => updateOutput({ speedUnitBase })}
-                  />
-                </div>
-              </>
-            )}
+
             {dialog.draft.type === 'TCodeSerial' && (
               <>
                 <div className="actions">
@@ -2815,7 +2829,7 @@ function App() {
                   value={dialog.draft.port ?? 12345} onChange={(event) => updateOutput({ port: Number(event.target.value) })}
                 />}
                 <p className="caption muted">{dialog.draft.manageEngineProcess
-                  ? t('Sensa 不附带引擎；自管需另行安装。')
+                  ? t('先安装 Intiface Engine，再由 Sensa 管理它的启动与停止。')
                   : t('先在 Intiface Central 启动服务并扫描设备。')}</p>
                 <SelectField label={t('振动来源')} value={dialog.draft.vibrationAxis || 'V0'}
                   options={[{ value: 'V0', label: t('V0 · 主振动') }, { value: 'V1', label: t('V1 · 振动 2') },
@@ -2823,6 +2837,30 @@ function App() {
                   onChange={(vibrationAxis) => updateOutput({ vibrationAxis })}
                 />
               </>
+            )}
+            {isTCodeOutputType(dialog.draft.type) && (
+              <div className="editor-group"><h3>{t('运动设置')}</h3><p className="caption muted">{t('选择轴配置确定行程，再选择设备采用的速度或时长指令。')}</p>
+                <SelectField
+                  label={t('轴配置')}
+                  value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
+                  options={axisProfiles.map((profile) => ({ value: profile.id, label: profile.name }))}
+                  onChange={(motionProfileId) => updateOutput({ motionProfileId })}
+                />
+                <div className="form-grid">
+                  <SelectField
+                    label={t('输出斜率方式')}
+                    value={normalizeOutputSlopeMode(dialog.draft.slopeMode)}
+                    options={OUTPUT_SLOPE_MODE_OPTIONS()}
+                    onChange={(slopeMode) => updateOutput({ slopeMode })}
+                  />
+                  <SelectField
+                    label={t('速度单位基准')}
+                    value={normalizeSpeedUnitBase(dialog.draft.speedUnitBase)}
+                    options={SPEED_UNIT_BASE_OPTIONS()}
+                    onChange={(speedUnitBase) => updateOutput({ speedUnitBase })}
+                  />
+                </div>
+              </div>
             )}
             {isSignalOutputType(dialog.draft.type) ? <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
               status={outputDialogOverview?.signalStatus} onChange={updateOutput} midiPorts={midiPorts} onRefreshMidi={() => refreshMidiPorts().catch(error => notify(error.message, 'error'))} busy={!online || Boolean(busyKey)} />

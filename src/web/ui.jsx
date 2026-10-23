@@ -138,9 +138,9 @@ export function Section({ title, description, actions, children, className = '' 
   );
 }
 
-export function Tabs({ id, label, value, onChange, options, variant = 'line', className = '' }) {
+export function Tabs({ id, label, value, onChange, options, variant = 'line', className = '', orientation = 'horizontal' }) {
   return (
-    <div role="tablist" aria-label={label} className={`tabs tabs--${variant} ${className}`}>
+    <div role="tablist" aria-label={label} aria-orientation={orientation} className={`tabs tabs--${variant} ${className}`}>
       {options.map((option, index) => (
         <button
           key={option.value}
@@ -152,9 +152,11 @@ export function Tabs({ id, label, value, onChange, options, variant = 'line', cl
           tabIndex={value === option.value ? 0 : -1}
           onClick={() => onChange(option.value)}
           onKeyDown={(event) => {
-            if (!['ArrowRight', 'ArrowLeft', 'Home', 'End'].includes(event.key)) return;
+            const forward = orientation === 'vertical' ? ['ArrowDown', 'ArrowRight'] : ['ArrowRight'];
+            const backward = orientation === 'vertical' ? ['ArrowUp', 'ArrowLeft'] : ['ArrowLeft'];
+            if (![...forward, ...backward, 'Home', 'End'].includes(event.key)) return;
             event.preventDefault();
-            const offset = event.key === 'ArrowRight' ? 1 : -1;
+            const offset = forward.includes(event.key) ? 1 : -1;
             const nextIndex =
               event.key === 'Home'
                 ? 0
@@ -165,7 +167,8 @@ export function Tabs({ id, label, value, onChange, options, variant = 'line', cl
             event.currentTarget.parentElement.children[nextIndex]?.focus();
           }}
         >
-          {option.label}
+          {option.icon && <span className="workspace-nav__icon" aria-hidden="true">{option.icon}</span>}
+          <span className="tab-label">{option.label}{option.description && <small aria-hidden="true">{option.description}</small>}</span>
         </button>
       ))}
     </div>

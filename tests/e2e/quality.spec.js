@@ -14,13 +14,31 @@ const auditStates = [
   'axis-profile-dialog',
 ];
 const behaviorChecks = [
-  'manual-alignment', 'output-row-alignment', 'mapping-alignment',
+  'workspace-navigation-layout', 'manual-alignment', 'output-row-alignment', 'mapping-alignment',
   'skip-link-focus-and-target', 'tabs-keyboard-and-control-boundary', 'native-dialog-focus-trap-escape-return',
   'reflow-320-control', 'target-samples-buttons', 'target-samples-toggle-label', 'target-samples-select-and-slider',
   'reflow-320-mapping-expanded', 'target-samples-fields-and-disclosures', 'reflow-320-parameter-scroll-region',
   'reflow-320-settings', 'reflow-320-profile-dialog', 'checks-never-enable-input',
 ];
 const label = (page, zh) => text(page, zh);
+async function inspectWorkspaceShell(page) {
+  const wide = page.viewportSize().width > 1100;
+  const navigation = page.getByRole('tablist', { name: await label(page, '主导航'), exact: true });
+  await expect(navigation).toHaveAttribute('aria-orientation', wide ? 'vertical' : 'horizontal');
+  const evidence = await page.evaluate(() => {
+    const box = selector => { const r = document.querySelector(selector).getBoundingClientRect(); return { left: r.left, right: r.right, top: r.top, bottom: r.bottom }; };
+    return { header: box('.app-header'), navigation: box('.workspace-sidebar'), main: box('.workspace-scroll'),
+      title: document.querySelector('.workspace-intro h2')?.textContent,
+      targets: [...document.querySelectorAll('.workspace-nav [role=tab]')].map(element => { const r = element.getBoundingClientRect(); return { width: r.width, height: r.height }; }) };
+  });
+  expect(evidence.title).toBeTruthy();
+  expect(evidence.navigation.top).toBeGreaterThanOrEqual(evidence.header.bottom - 1);
+  if (wide) expect(evidence.navigation.right).toBeLessThanOrEqual(evidence.main.left + 1);
+  else expect(evidence.navigation.bottom).toBeLessThanOrEqual(evidence.main.top + 1);
+  expect(evidence.targets).toHaveLength(4);
+  for (const target of evidence.targets) { expect(target.width).toBeGreaterThanOrEqual(44); expect(target.height).toBeGreaterThanOrEqual(44); }
+  return evidence;
+}
 async function attachModalFocus(dialog, info, direction) {
   const evidence = await dialog.evaluate(element => {
     const describe = node => node ? {
@@ -136,6 +154,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       const report = createUiQualityReport(page, info, { kind: 'behavior', plannedChecks: behaviorChecks });
       try {
         const layout = info.project.name === 'desktop' ? 'columns' : 'stacked';
+        await report.check('workspace-navigation-layout / 工作区导航与正文布局', () => inspectWorkspaceShell(page));
         await report.check('manual-alignment / 主轴对齐', () => inspectManualAlignment(page, layout));
         await report.check('output-row-alignment / 输出对应列', () => inspectOutputAlignment(page, layout));
         await report.check('skip-link-focus-and-target / 跳过导航的焦点与目标', async () => {
@@ -216,6 +235,10 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
           await settings.press('Home');
           await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+          if (await navigation.getAttribute('aria-orientation') === 'vertical') {
+            await control.press('ArrowDown'); await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
+            await osc.press('ArrowUp'); await expect(control).toBeFocused(); await expect(control).toHaveAttribute('aria-selected', 'true');
+          }
           const after = await rig.overview();
           expect(after.input.mode).toBe(before.input.mode);
           expect(after.runtime.inputActive).toBe(false);
@@ -271,7 +294,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await workspace(page, '控制');
         await page.setViewportSize({ width: 320, height: 800 });
         await workspace(page, '控制');
-        await report.check('reflow-320-control / 控制页 320 CSS px 重排', () => inspectReflow(page));
+        await report.check('reflow-320-control / 控制页 320 CSS px 重排', async () => ({ reflow: await inspectReflow(page), shell: await inspectWorkspaceShell(page) }));
         await expand(page, await label(page, '发送设置'));
         await report.check('target-samples-buttons / 按钮命中区域抽检', () => inspectBasicTargets(page, page.locator('.app-header button, .manual-workspace button'), 'Button'));
         await report.check('target-samples-toggle-label / 开关标签命中区域抽检', async () => {

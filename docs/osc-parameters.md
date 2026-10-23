@@ -194,7 +194,7 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 
 有效单 bundle 的固定顺序是 **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**。失效只发 Valid=0。桌面要求同一来源、同一 Producer 路径的十二字段连续到达，并检查完整性、有限值和量程。Frame 内容变化年龄最多 500 ms，更短的正数输入超时优先。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
 
-桥通过黑白定位、三份错列数据副本、CRC32 和向前序号检查接收数据。同一 Frame 的任意测量改变、倒序、来源变化或冻结都会使测量失效；启动和恢复需要两个新的推进帧，默认冻结门限 350 ms。外围两格白色留白用于小幅空间位移缓冲，配合各方向最多两格的重新对齐搜索；缩放、旋转和透视变化后重新注册。
+桥先找到 QR 定位方框，再进行 Reed–Solomon 纠错、CRC32 和向前序号检查。同一 Frame 的任意测量改变、倒序、来源变化或冻结都会使测量失效；启动和恢复需要两个新的推进帧，默认冻结门限 350 ms。49×49 格图块包含 33×33 格 QR 主体和每边 8 格白色留白，捕获至少需要 196×196 物理像素。留白包含标准静区与额外位移余量；窗口尺寸改变后重新框选完整图块。
 
 Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=开启捕获。MA 将其注册为 `localOnly=true`、`saved=false` 的表达参数。内部 `Sensa/Internal/ShaderCapture_<ID>/Selected` 为 FX Int 状态记忆，默认 0，由本地 Driver 写入 0／1。[生成入口](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaShaderCaptureBuilder.cs) · [选择状态机](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Editor/SensaSelectionAnimator.cs)
 
@@ -202,7 +202,7 @@ Shader 菜单另有 `Sensa/Select/ShaderCapture_<ID>`：Int，默认 0=Off，1=�
 
 位置量化步长为 `4/65535≈6.10×10⁻⁵` 根局部单位；轴向分量为 `8/32767≈2.44×10⁻⁴`，零可精确表示；世界缩放为 `8/65535≈1.22×10⁻⁴` 米／局部单位。理想舍入的单分量误差最多半步，实际误差另以已知位置和方向测量。图解采用与 [HLSL round](https://learn.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-round) 一致的最近偶数舍入。
 
-32 字节包保留 Producer ID、坐标标志、时钟序号、完整测量值与 CRC32。桥只用本次捕获里已知且一致的位恢复缺失；已知位冲突或所有副本都缺少某一位时报告失效。[完整布局与恢复规则](shader-capture-research.md)
+32 字节包保留 Producer ID、坐标标志、时钟序号、完整测量值与 CRC32。QR v4-H 将数据分成四组，每组 9 个数据字节和 16 个纠错字节，按 `2×错误字节数＋缺失字节数≤16` 的范围恢复。数据来自同一次捕获；完整性与时效检查共同决定结果是否可用。[完整布局与恢复规则](shader-capture-research.md)
 
 ## 诊断与位置相关信息
 

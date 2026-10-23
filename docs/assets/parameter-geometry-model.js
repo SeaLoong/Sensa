@@ -11,7 +11,7 @@
     'plug-depth', 'plug-touch', 'plug-frot', 'zone', 'contact-sdk', 'sensa-sps', 'shader',
   ]);
   const spsGeometry = Object.freeze({ receiverRadius: 2, markerRadius: .001, anchorHalfSpan: .35, positionHalfRange: 2, minProximity: .001, maxProximity: .999 });
-  const shaderEncoding = Object.freeze({ width: 40, height: 32, quiet: 2, marker: 2, bytes: 32, copies: 3, copyOffset: 11 });
+  const shaderEncoding = Object.freeze({ width: 49, height: 49, quiet: 8, standardQuiet: 4, buffer: 4, version: 4, level: 'H', bytes: 32, blocks: 4, dataPerBlock: 9, eccPerBlock: 16 });
   const anchors = Object.freeze([
     Object.freeze({ x: -.35, y: .65, z: -.35 }),
     Object.freeze({ x: .35, y: .65, z: .35 }),
@@ -64,24 +64,155 @@
     if (fraction === .5) return lower % 2 === 0 ? lower : lower + 1;
     return Math.round(value);
   }
+  // QR Code Model 2, version 4/H. Internally rows start at the top and 1 is black.
+  // The explorer's encodedBit API keeps its bottom-left origin and 1 means white.
+  const qrSize = 33;
+  const qrFunctions = Array(qrSize * qrSize).fill(null);
+  const qrCells = Array(qrSize * qrSize).fill(null);
+  function qrPut(x, y, value, region) {
+    if (x >= 0 && x < qrSize && y >= 0 && y < qrSize) {
+      qrFunctions[y * qrSize + x] = value;
+      qrCells[y * qrSize + x] = Object.freeze({ region });
+    }
+  }
+  for (const [x0, y0] of [[0, 0], [26, 0], [0, 26]]) {
+    for (let dy = -1; dy < 8; dy++) for (let dx = -1; dx < 8; dx++) {
+      const inside = dx >= 0 && dx <= 6 && dy >= 0 && dy <= 6;
+      const black = inside && (dx === 0 || dx === 6 || dy === 0 || dy === 6 || (dx >= 2 && dx <= 4 && dy >= 2 && dy <= 4));
+      qrPut(x0 + dx, y0 + dy, Number(black), inside ? 'finder' : 'separator');
+    }
+  }
+  for (let coordinate = 8; coordinate < 25; coordinate++) {
+    qrPut(coordinate, 6, 1 - coordinate % 2, 'timing');
+    qrPut(6, coordinate, 1 - coordinate % 2, 'timing');
+  }
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++)
+    qrPut(26 + dx, 26 + dy, Number(Math.max(Math.abs(dx), Math.abs(dy)) !== 1), 'alignment');
+  const qrFormats = [
+    [...Array.from({ length: 6 }, (_, y) => [8, y]), [8, 7], [8, 8], [7, 8], ...Array.from({ length: 6 }, (_, i) => [5 - i, 8])],
+    [...Array.from({ length: 8 }, (_, i) => [32 - i, 8]), ...Array.from({ length: 7 }, (_, i) => [8, 26 + i])],
+  ];
+  for (const positions of qrFormats) for (const [x, y] of positions) qrPut(x, y, 0, 'format');
+  qrPut(8, 25, 1, 'dark');
+  const qrPositions = [];
+  for (let right = 32, upward = true; right >= 1; right -= 2, upward = !upward) {
+    if (right === 6) right--;
+    for (let row = 0; row < qrSize; row++) {
+      const y = upward ? qrSize - 1 - row : row;
+      for (const x of [right, right - 1]) {
+        if (qrFunctions[y * qrSize + x] !== null) continue;
+        const index = qrPositions.length, codeword = Math.floor(index / 8);
+        qrPositions.push([x, y]);
+        qrCells[y * qrSize + x] = Object.freeze(index < 800
+          ? { region: codeword < 36 ? 'data' : 'ecc', codeword, block: codeword % 4, blockByte: Math.floor(codeword / 4), bit: 7 - index % 8 }
+          : { region: 'remainder' });
+      }
+    }
+  }
+  const qrExp = Array(512).fill(0), qrLog = Array(256).fill(0);
+  for (let i = 0, value = 1; i < 255; i++) {
+    qrExp[i] = value; qrLog[value] = i; value <<= 1;
+    if (value & 256) value ^= 0x11d;
+  }
+  for (let i = 255; i < 512; i++) qrExp[i] = qrExp[i - 255];
+  const qrMultiply = (a, b) => a && b ? qrExp[qrLog[a] + qrLog[b]] : 0;
+  let qrGenerator = [1];
+  for (let power = 0; power < 16; power++) {
+    const next = Array(qrGenerator.length + 1).fill(0);
+    qrGenerator.forEach((coefficient, i) => { next[i] ^= coefficient; next[i + 1] ^= qrMultiply(coefficient, qrExp[power]); });
+    qrGenerator = next;
+  }
+  function qrMaskBit(mask, x, y) {
+    switch (mask) {
+      case 0: return (x + y) % 2 === 0;
+      case 1: return y % 2 === 0;
+      case 2: return x % 3 === 0;
+      case 3: return (x + y) % 3 === 0;
+      case 4: return (Math.floor(y / 2) + Math.floor(x / 3)) % 2 === 0;
+      case 5: return x * y % 2 + x * y % 3 === 0;
+      case 6: return (x * y % 2 + x * y % 3) % 2 === 0;
+      case 7: return ((x + y) % 2 + x * y % 3) % 2 === 0;
+      default: throw new RangeError('QR mask must be 0..7');
+    }
+  }
+  function qrPenalty(matrix) {
+    let score = 0;
+    for (const vertical of [false, true]) for (let line = 0; line < qrSize; line++) {
+      const values = Array.from({ length: qrSize }, (_, i) => matrix[vertical ? i : line][vertical ? line : i]);
+      let streak = 1;
+      for (let i = 1; i < qrSize; i++) {
+        streak = values[i] === values[i - 1] ? streak + 1 : 1;
+        if (streak === 5) score += 3;
+        else if (streak > 5) score++;
+      }
+      for (let i = 0; i < qrSize - 10; i++) {
+        let pattern = 0;
+        for (let j = 0; j < 11; j++) pattern = (pattern << 1) | values[i + j];
+        if (pattern === 0b10111010000 || pattern === 0b00001011101) score += 40;
+      }
+    }
+    for (let y = 0; y < qrSize - 1; y++) for (let x = 0; x < qrSize - 1; x++)
+      if (matrix[y][x] === matrix[y][x + 1] && matrix[y][x] === matrix[y + 1][x] && matrix[y][x] === matrix[y + 1][x + 1]) score += 3;
+    const black = matrix.reduce((sum, row) => sum + row.reduce((a, b) => a + b, 0), 0);
+    return score + Math.floor(Math.abs(black * 20 - qrSize * qrSize * 10) / (qrSize * qrSize)) * 10;
+  }
+  let qrCachedKey = null, qrCachedValue = null;
+  function encodeQr(bytes) {
+    if (!bytes || bytes.length !== 32 || Array.from(bytes).some(value => !Number.isInteger(value) || value < 0 || value > 255))
+      throw new RangeError('Telemetry QR requires 32 bytes / 定位二维码需要32字节');
+    const key = Array.from(bytes).join(',');
+    if (key === qrCachedKey) return qrCachedValue;
+    // Byte mode (0100), 8-bit count, 32 bytes, terminator and two pad bytes.
+    const bits = [0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0];
+    for (const value of bytes) for (let bit = 7; bit >= 0; bit--) bits.push(value >>> bit & 1);
+    bits.push(0, 0, 0, 0);
+    const data = [];
+    for (let offset = 0; offset < bits.length; offset += 8)
+      data.push(bits.slice(offset, offset + 8).reduce((value, bit) => (value << 1) | bit, 0));
+    data.push(0xec, 0x11);
+    const blocks = [];
+    for (let block = 0; block < 4; block++) {
+      const original = data.slice(block * 9, block * 9 + 9), remainder = [...original, ...Array(16).fill(0)];
+      for (let i = 0; i < 9; i++) {
+        const factor = remainder[i];
+        qrGenerator.forEach((coefficient, j) => { remainder[i + j] ^= qrMultiply(factor, coefficient); });
+      }
+      blocks.push([...original, ...remainder.slice(-16)]);
+    }
+    const codewords = [];
+    for (let offset = 0; offset < 25; offset++) for (let block = 0; block < 4; block++) codewords.push(blocks[block][offset]);
+    const candidates = [], scores = [];
+    for (let mask = 0; mask < 8; mask++) {
+      const flat = qrFunctions.slice();
+      qrPositions.forEach(([x, y], index) => {
+        const bit = index < 800 ? codewords[Math.floor(index / 8)] >>> (7 - index % 8) & 1 : 0;
+        flat[y * qrSize + x] = bit ^ Number(qrMaskBit(mask, x, y));
+      });
+      const value = 0b10000 | mask;
+      let remainder = value << 10;
+      for (let bit = 14; bit >= 10; bit--) if (remainder >>> bit & 1) remainder ^= 0x537 << (bit - 10);
+      const format = ((value << 10) | remainder) ^ 0x5412;
+      for (const positions of qrFormats) positions.forEach(([x, y], bit) => { flat[y * qrSize + x] = format >>> bit & 1; });
+      const matrix = Array.from({ length: qrSize }, (_, row) => flat.slice(row * qrSize, (row + 1) * qrSize));
+      candidates.push(matrix); scores.push(qrPenalty(matrix));
+    }
+    const mask = scores.indexOf(Math.min(...scores));
+    qrCachedKey = key;
+    qrCachedValue = Object.freeze({ mask, matrix: Object.freeze(candidates[mask].map(Object.freeze)), scores: Object.freeze(scores), codewords: Object.freeze(codewords) });
+    return qrCachedValue;
+  }
   function encodedCell(column, row) {
-    if (!Number.isInteger(column) || !Number.isInteger(row) || column < 0 || column >= 40 || row < 0 || row >= 32)
+    if (!Number.isInteger(column) || !Number.isInteger(row) || column < 0 || column >= 49 || row < 0 || row >= 49)
       throw new RangeError('Encoding cell is outside the grid / 编码格超出图块');
-    if (column < 2 || column >= 38 || row < 2 || row >= 30) return { region: 'quiet' };
-    if (column < 4 || column >= 36 || row < 4 || row >= 28) return { region: 'marker' };
-    const copy = Math.floor((row - 4) / 8);
-    return { region: 'payload', copy, byte: (column - 4 + copy * 11) % 32, bit: (row - 4) % 8 };
+    const x = column - 8, y = 40 - row;
+    if (x < 0 || x >= qrSize || y < 0 || y >= qrSize)
+      return { region: 'quiet', buffer: column < 4 || column >= 45 || row < 4 || row >= 45 };
+    return qrCells[y * qrSize + x];
   }
   function encodedBit(bytes, column, row) {
-    // Native format 1 uses a bottom-left origin, white quiet cells, asymmetric
-    // markers, and three offset copies of the same CRC32-protected payload.
     const cell = encodedCell(column, row);
     if (cell.region === 'quiet') return 1;
-    if (row < 4) return (0xD3A69C57 >>> ((column + 28) & 31) & 1) ^ (row - 2);
-    if (row >= 28) return (0x69C57D3A >>> ((column + 28) & 31) & 1) ^ (row - 28);
-    if (column < 4) return (0xA5D36B >>> (row - 4) & 1) ^ (column - 2);
-    if (column >= 36) return (0x6E29C7 >>> (row - 4) & 1) ^ (column - 36);
-    return bytes[cell.byte] >>> cell.bit & 1;
+    return 1 - encodeQr(bytes).matrix[40 - row][column - 8];
   }
   function crc32(bytes) {
     let crc = 0xffffffff;
@@ -529,6 +660,7 @@
       const checksum = crc32(bytes);
       bytes.push(checksum & 255, checksum >>> 8 & 255, checksum >>> 16 & 255, checksum >>> 24);
       metrics.bytes = bytes; metrics.crc32 = checksum;
+      const qr = encodeQr(bytes); metrics.qrMask = qr.mask; metrics.qrScores = qr.scores;
       for (const [name, value] of [['Frame', frame], ['X', decoded.x], ['Y', decoded.y], ['Z', decoded.z],
         ...['X', 'Y', 'Z'].map(axis => ['Right' + axis, right[axis.toLowerCase()]]),
         ...['X', 'Y', 'Z'].map(axis => ['Forward' + axis, forward[axis.toLowerCase()]]), ['AvatarScale', metrics.avatarScale],
@@ -561,5 +693,5 @@
       parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
-  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell });
+  root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell, encodeQr });
 })(globalThis);

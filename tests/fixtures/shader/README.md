@@ -19,11 +19,20 @@ rejection of old frames, two-frame recovery, and freeze shutdown.
 Regenerate with `SensaLab.FunctionalValidation.Run` in the standalone World
 project, then copy these five files from `Validation/functional/`.
 
-`../shader-native-format1.json` is a separate, synthetic native codec vector.
-It fixes the 32-byte packet, CRC32, three dispersed payload copies and the
-40×32 black/white screen rows, including the white guard band. Python, WebUI
-and desktop contracts share its decoded expectation. It is not a GPU render
-or a replacement for the diagnostic PNGs above. The same Windows CI smoke
-step builds advancing synthetic native PNGs from it, erases one payload band,
-and verifies twelve OSC fields, the root's measured axes/scale, and freeze
-invalidation in an isolated Sensa process with input disabled and no outputs.
+`../shader-native-format1.json` is the synthetic native QR reference vector.
+It contains the 32-byte measurement packet and CRC32, a standard QR Code
+Model 2 Version 4/H symbol, and the 49×49 screen including eight white modules
+per side. Its matrices, interleaved codewords and eight mask scores were
+generated with **qrcode 8.2**; **zxing-cpp 2.3.0** independently decoded every
+mask back to the exact packet. `screenRows` uses 1 for white, while `qrRows`
+uses 1 for black; both have a top-left origin. The fixture stores SHA-256
+matrix fingerprints for all eight masks, allowing offline cross-language checks.
+
+Python, WebUI and Unity contracts share this standard reference. GPU rendering
+has its own Unity validation. Windows CI builds advancing synthetic QR PNGs,
+erases eight codewords in each Reed–Solomon block, then checks twelve OSC
+fields, measured axes/scale and freeze invalidation in an isolated Sensa
+process with input disabled and no outputs. The QR contains four RS(25,9)
+blocks; each restores errors and erasures within `2e + s ≤ 16`, provided
+the finder patterns remain recognizable. CRC32 and frame progression then
+check the restored measurement and its age.

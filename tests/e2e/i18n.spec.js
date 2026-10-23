@@ -125,10 +125,10 @@ test('English presets, script and compact help use localized documentation', {ta
   await page.getByRole('button',{name:'Help',exact:true}).click();
   await expect(page.getByRole('link',{name:await text(page,'使用指南'),exact:true})).toHaveAttribute('href',/guide\.en\.md$/);
   await expect(page.getByRole('link',{name:await text(page,'Unity 指南'),exact:true})).toHaveAttribute('href',/\/README\.md$/);
-  await expect(page.getByRole('link',{name:await text(page,'使用方案与限制'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
+  await expect(page.getByRole('link',{name:await text(page,'使用方案'),exact:true})).toHaveAttribute('href',/usage-scenarios\.en\.md$/);
   await checkpoint(page,page.getByRole('dialog'),'english-help');
   const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
-  await expand(page, await text(page, '手动与脚本'));
+  await expect(page.getByRole('heading', { name: await text(page, '先试一次手动控制'), exact: true })).toBeVisible();
   await page.getByRole('button',{name:await text(page,'打开手动'),exact:true}).click();
   await expect(page.getByRole('dialog')).toBeHidden();
   await expect(page.locator('#input-tabs-manual')).toBeFocused();

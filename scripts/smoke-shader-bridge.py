@@ -11,9 +11,11 @@ import sys
 import threading
 import time
 
+import telemetry_qr
+
 from process_smoke import SmokeSession, require_ci, wait_for_state
 
-NATIVE_WIDTH, NATIVE_HEIGHT = 160, 128
+NATIVE_WIDTH = NATIVE_HEIGHT = 196
 NATIVE_FIELDS = ('Frame', 'X', 'Y', 'Z', 'RightX', 'RightY', 'RightZ',
                  'ForwardX', 'ForwardY', 'ForwardZ', 'AvatarScale', 'Valid')
 
@@ -22,32 +24,21 @@ def native_fixture():
     return json.loads((Path(__file__).resolve().parents[1] / 'tests/fixtures/shader-native-format1.json').read_text(encoding='utf-8'))
 
 
-def native_pixels(frame, erased_copy=None):
-    """Render numeric synthetic fixtures, independently of the bridge's decoder."""
+def native_pixels(frame, damaged=False):
+    """Render a synthetic QR and optionally erase eight symbols per RS block."""
     packet = bytearray.fromhex(native_fixture()['packetHex'])
     struct.pack_into('<H', packet, 4, frame)
     struct.pack_into('<I', packet, 28, binascii.crc32(packet[:28]))
-    modules = []
-    for screen_y in range(32):
-        row = 31 - screen_y
-        for column in range(40):
-            if column < 2 or column >= 38 or row < 2 or row >= 30:
-                bit = 1
-            elif row < 4:
-                bit = ((0xD3A69C57 >> ((column + 28) & 31)) & 1) ^ (row - 2)
-            elif row >= 28:
-                bit = ((0x69C57D3A >> ((column + 28) & 31)) & 1) ^ (row - 28)
-            elif column < 4:
-                bit = ((0xA5D36B >> (row - 4)) & 1) ^ (column - 2)
-            elif column >= 36:
-                bit = ((0x6E29C7 >> (row - 4)) & 1) ^ (column - 36)
-            else:
-                copy, offset = divmod(row - 4, 8)
-                if copy == erased_copy:
-                    modules.append((128, 128, 128)); continue
-                bit = (packet[(column - 4 + copy * 11) % 32] >> offset) & 1
-            modules.append((255, 255, 255) if bit else (0, 0, 0))
-    return [modules[(y // 4) * 40 + x // 4] for y in range(NATIVE_HEIGHT) for x in range(NATIVE_WIDTH)]
+    image = telemetry_qr.render(packet, NATIVE_WIDTH, NATIVE_HEIGHT)
+    if damaged:
+        # Interleaving spreads this bounded damage across all four RS blocks.
+        # Erasing any module marks its complete codeword as an erasure.
+        for byte in range(32):
+            x, y = telemetry_qr.data_positions()[byte * 8]
+            for py in range((y + 8) * 4, (y + 9) * 4):
+                for px in range((x + 8) * 4, (x + 9) * 4):
+                    image[py * NATIVE_WIDTH + px] = (128, 128, 128)
+    return image
 
 
 class NativeFrameFeed:
@@ -59,7 +50,7 @@ class NativeFrameFeed:
     def write(self):
         from PIL import Image
         image = Image.new('RGB', (NATIVE_WIDTH, NATIVE_HEIGHT))
-        image.putdata(native_pixels(self.frame, erased_copy=1))
+        image.putdata(native_pixels(self.frame, damaged=True))
         pending = self.current.with_name('native-pending.png')
         image.save(pending)
         if self.current.exists(): replace_frame(pending, self.current)
@@ -123,7 +114,7 @@ def native_smoke(session):
     assert native_bridge.poll() is None, 'Native bridge exit cannot establish freeze watchdog invalidation'
     assert not session.api('/api/config')['outputs']
     return {'passed': True, 'synthetic': True, 'source': 'Synthetic native format-1 PNG; not a GPU/client capture',
-            'erasedPayloadBand': 1, 'packetBytes': 32, 'oscFields': list(NATIVE_FIELDS), 'fresh': fresh,
+            'erasedSymbolsPerBlock': 8, 'qrVersion': 4, 'errorCorrection': 'H', 'packetBytes': 32, 'oscFields': list(NATIVE_FIELDS), 'fresh': fresh,
             'afterFreeze': stale, 'inputActive': False, 'outputs': []}
 
 def replace_frame(source, target):

@@ -217,11 +217,35 @@ namespace UnityBox.Sensa.Tests
     {
         private const string GraphicsRun = "Select explicitly in a graphics-enabled PC Built-in Unity Editor; nographics is not GPU evidence.";
 
+        [Test]
+        public void QrReferenceMatchesTheIndependentVersion4HGoldenVector()
+        {
+            const string hex = "534E010300010080008000802A0000100000000000000000001000203E569803";
+            var packet = Enumerable.Range(0, hex.Length / 2).Select(index => System.Convert.ToByte(hex.Substring(index * 2, 2), 16)).ToArray();
+            var modules = SensaQrReference.Encode(packet, out var mask, out var scores);
+            Assert.That(mask, Is.EqualTo(1));
+            CollectionAssert.AreEqual(new[] { 767, 705, 982, 791, 874, 898, 980, 772 }, scores);
+            using (var hash = System.Security.Cryptography.SHA256.Create())
+                Assert.That(System.BitConverter.ToString(hash.ComputeHash(modules.Select(value => (byte)value).ToArray())).Replace("-", "").ToLowerInvariant(),
+                    Is.EqualTo("b2000d2f4b8c8d7505729635c26da6be790c8872c152d2457fd1ea5c87085cfd"));
+            CollectionAssert.AreEqual(packet, SensaQrReference.ReadPacket(modules));
+        }
+
+        [TestCase(392, 196)]
+        [TestCase(196, 392)]
+        [Explicit(GraphicsRun)]
+        public void NativeQrModulesKeepTheirSquareShapeInRectangularViewports(int width, int height)
+        {
+            var marker = Child("Measured root", Vector3.up).transform;
+            var packet = RenderPacket(marker, () => { }, width, height);
+            Assert.That(packet[3], Is.EqualTo(3));
+        }
+
         [TestCase(1f)]
         [TestCase(8f)]
         [TestCase(.001f)]
         [Explicit(GraphicsRun)]
-        public void NativeRootFramePixelsMatchProtocolAndRedundantCopies(float worldScale)
+        public void NativeRootFramePixelsMatchQrCodewordsAndTelemetry(float worldScale)
         {
             var marker = Child("Measured root", Vector3.up).transform;
             var packet = RenderPacket(marker, () => avatar.transform.localScale = Vector3.one * worldScale);
@@ -273,7 +297,7 @@ namespace UnityBox.Sensa.Tests
             Assert.That(packet[3], Is.EqualTo(2), "Unsupported runtime measurements must encode an invalid native frame.");
         }
 
-        private byte[] RenderPacket(Transform marker, System.Action animate)
+        private byte[] RenderPacket(Transform marker, System.Action animate, int width = 196, int height = 196)
         {
             Assert.That(SystemInfo.graphicsDeviceType, Is.Not.EqualTo(UnityEngine.Rendering.GraphicsDeviceType.Null), GraphicsRun);
             Assert.That(SystemInfo.supportsGeometryShaders, Is.True, GraphicsRun);
@@ -294,7 +318,7 @@ namespace UnityBox.Sensa.Tests
                 material = skin.sharedMaterial; mesh = skin.sharedMesh;
                 camera = rig.GetComponentInChildren<Camera>(true);
                 camera.enabled = false;
-                target = new RenderTexture(160, 128, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear) { antiAliasing = 1 };
+                target = new RenderTexture(width, height, 24, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear) { antiAliasing = 1 };
                 target.Create(); camera.targetTexture = target;
                 RenderTexture.active = target;
                 GL.Clear(true, true, Color.magenta);
@@ -302,43 +326,35 @@ namespace UnityBox.Sensa.Tests
                 animate(); rig.SetActive(true);
                 camera.Render();
                 RenderTexture.active = target;
-                pixels = new Texture2D(160, 128, TextureFormat.RGBA32, false, true);
-                pixels.ReadPixels(new Rect(0, 0, 160, 128), 0, 0, false); pixels.Apply(false, false);
+                pixels = new Texture2D(width, height, TextureFormat.RGBA32, false, true);
+                pixels.ReadPixels(new Rect(0, 0, width, height), 0, 0, false); pixels.Apply(false, false);
                 var samples = pixels.GetPixels32();
-                var modules = new int[40, 32];
-                for (var row = 0; row < 32; row++) for (var column = 0; column < 40; column++)
+                var modules = new int[SensaQrReference.Size * SensaQrReference.Size];
+                var square = Mathf.Min(width, height);
+                var offsetX = (width - square) / 2; var offsetY = (height - square) / 2;
+                for (var row = 0; row < SensaQrReference.TileSize; row++) for (var column = 0; column < SensaQrReference.TileSize; column++)
                 {
-                    var color = samples[(row * 4 + 2) * 160 + column * 4 + 2];
+                    // Texture pixels start at the bottom; QR rows start at the top.
+                    var x = offsetX + (column * 2 + 1) * square / (SensaQrReference.TileSize * 2);
+                    var y = offsetY + ((SensaQrReference.TileSize - 1 - row) * 2 + 1) * square / (SensaQrReference.TileSize * 2);
+                    var color = samples[y * width + x];
                     Assert.That(color.r == color.g && color.g == color.b && (color.r == 0 || color.r == 255), Is.True,
-                        "A module must be pure black/white; magenta means the primitive was not rendered.");
-                    modules[column, row] = color.r == 255 ? 1 : 0;
-                    if (column < 2 || column >= 38 || row < 2 || row >= 30)
-                        Assert.That(modules[column, row], Is.EqualTo(1), "Two outer modules must remain white.");
+                        "Each QR module must be pure black/white; magenta identifies an uncovered target pixel.");
+                    if (column < 8 || column >= 41 || row < 8 || row >= 41)
+                        Assert.That(color.r, Is.EqualTo(255), "The four-module quiet zone and four-module capture buffer stay white.");
+                    else modules[(row - 8) * SensaQrReference.Size + column - 8] = color.r == 0 ? 1 : 0;
                 }
-                var copies = new byte[3][];
-                for (var bank = 0; bank < 3; bank++)
-                {
-                    copies[bank] = new byte[32];
-                    for (var column = 0; column < 32; column++) for (var bit = 0; bit < 8; bit++)
-                        copies[bank][(column + bank * 11) % 32] |= (byte)(modules[column + 4, bank * 8 + bit + 4] << bit);
-                }
-                CollectionAssert.AreEqual(copies[0], copies[1]); CollectionAssert.AreEqual(copies[0], copies[2]);
-                var packet = copies[0];
+                if (width > square) Assert.That(samples[height / 2 * width], Is.EqualTo(new Color32(255, 255, 255, 255)), "Wide viewport padding stays white.");
+                if (height > square) Assert.That(samples[width / 2], Is.EqualTo(new Color32(255, 255, 255, 255)), "Tall viewport padding stays white.");
+                var packet = SensaQrReference.ReadPacket(modules);
+                var expectedModules = SensaQrReference.Encode(packet, out _, out _);
+                CollectionAssert.AreEqual(expectedModules, modules,
+                    "Every rendered finder, timing, alignment, format, masked data and Reed-Solomon module must match the independent CPU encoder.");
                 CollectionAssert.AreEqual(new byte[] { 83, 78, 1 }, packet.Take(3).ToArray());
                 Assert.That(Read16(packet, 12), Is.EqualTo(42));
                 Assert.That(Read32(packet, 28), Is.EqualTo(Crc32(packet, 28)), "Rendered measurements need a complete IEEE CRC32.");
                 var golden = new byte[] { 83, 78, 1, 3, 0, 1, 0, 128, 0, 128, 0, 128, 42, 0, 0, 16, 0, 0, 0, 0, 0, 0, 0, 0, 0, 16, 0, 32 };
                 Assert.That(Crc32(golden, golden.Length), Is.EqualTo(0x0398563Eu), "Independent C# CRC agrees with the shared fixed vector.");
-                for (var row = 2; row < 30; row++) for (var column = 2; column < 38; column++)
-                {
-                    int expected;
-                    if (row < 4) expected = (int)((0xD3A69C57u >> ((column + 28) & 31)) & 1) ^ (row - 2);
-                    else if (row >= 28) expected = (int)((0x69C57D3Au >> ((column + 28) & 31)) & 1) ^ (row - 28);
-                    else if (column < 4) expected = (int)((0xA5D36Bu >> (row - 4)) & 1) ^ (column - 2);
-                    else if (column >= 36) expected = (int)((0x6E29C7u >> (row - 4)) & 1) ^ (column - 36);
-                    else continue;
-                    Assert.That(modules[column, row], Is.EqualTo(expected), "Rendered edge markers must match the capture protocol.");
-                }
                 return packet;
             }
             finally

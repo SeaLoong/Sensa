@@ -296,7 +296,9 @@ class NativeShaderSmokeContracts(LabFixture):
         session, feed = self.native_phase()
         with patch.object(shader_smoke, 'require_ci'), patch.object(shader_smoke, 'NativeFrameFeed', return_value=feed):
             report = shader_smoke.native_smoke(session)
-        self.assertTrue(report['passed']); self.assertTrue(report['synthetic']); self.assertEqual(report['erasedPayloadBand'], 1)
+        self.assertTrue(report['passed']); self.assertTrue(report['synthetic'])
+        self.assertEqual(report['erasedSymbolsPerBlock'], 8)
+        self.assertEqual(report['qrVersion'], 4); self.assertEqual(report['errorCorrection'], 'H')
         self.assertFalse(report['inputActive']); self.assertEqual(report['outputs'], [])
         self.assertTrue(report['fresh']['root']['valid']); self.assertFalse(report['afterFreeze']['root']['valid'])
         feed.start.assert_called_once(); feed.stop.assert_called_once(); session.start_child.assert_called_once()

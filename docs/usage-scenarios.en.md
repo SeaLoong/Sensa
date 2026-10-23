@@ -68,7 +68,7 @@ Choose this experimental setup when a PC desktop view can retain the encoded blo
 2. Enable encoding after building. Follow the [capture guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) to select the complete block and configure the matching ID.
 3. Inspect decoding, choose the required Tracking measurement metric in the workbench, then calibrate, save and enable input.
 
-White margins and three payload copies support small shifts and partial-data recovery. The rendered image, capture region and advancing frames determine availability. [Current protocol and validity](positioning.en.md) · [Implementation reference](shader-capture-research.en.md)
+QR finder patterns locate the tile, white margins buffer small shifts, and Reed–Solomon correction restores some damaged data. The rendered image, capture region and advancing frames determine availability. [Current protocol and validity](positioning.en.md) · [Implementation reference](shader-capture-research.en.md)
 
 ## Other inputs and tools
 

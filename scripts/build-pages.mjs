@@ -9,8 +9,8 @@ const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
 const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
-  en: { docs: 'Documentation', diagram: 'Parameter explorer', source: 'View source', download: 'Downloads', navigation: 'Navigation', top: 'On this page', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
-  'zh-CN': { docs: '文档', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '导航', top: '本页目录', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
+  en: { docs: 'Help', diagram: 'Parameter explorer', source: 'View source', download: 'Downloads', navigation: 'Browse guides', top: 'On this page', skip: 'Skip to content', home: 'Home', filter: 'Find a guide', empty: 'No matching guide. Try a shorter name.', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
+  'zh-CN': { docs: '使用帮助', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '浏览帮助目录', top: '本页目录', skip: '跳到正文', home: '首页', filter: '查找文档', empty: '没有找到匹配的文档，可以缩短关键词再试。', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
 };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const relative = (from, to) => path.posix.relative(path.posix.dirname(from), to) || path.posix.basename(to);
@@ -56,14 +56,34 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const outline = outlines.get(route) || [], buddyOutline = outlines.get(buddy) || [];
     const headingMap = routes.has(other + ':' + document.slug) ? mapDocumentHeadings(outline, buddyOutline) : {};
     const href = target => escape(relative(route, target));
-    const nav = ['README', 'docs/quick-start', 'docs/signal-pipeline', 'docs/guide', 'docs/features', 'docs/computed-signals', 'docs/usage-scenarios', 'docs/osc-parameters', 'docs/positioning', 'docs/languages', 'unity/top.sealoong.sensa/README', 'tools/unity-world-lab/README', 'tools/unity-avatar-lab/README', 'docs/development'];
-    const navigation = nav.map(key => {
-      const target = routes.get(locale + ':' + key), item = [...documents.values()].find(x => x.route === target);
-      return item ? '<a' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(titleOf(item)) + '</a>' : '';
-    }).join('');
-    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa documentation') + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href('site.css') + '"><script defer src="' + href('site.js') + '"></script></head><body><a class="skip" href="#content">Skip to content / 跳到正文</a>'
-      + '<header><a class="brand" href="' + href('index.html') + '">Sensa<span>' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '?lang=' + (locale === 'en' ? 'en-US' : locale) + '">' + t.diagram + '</a><a href="https://github.com/SeaLoong/Sensa/releases">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
-      + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><nav>' + navigation + '</nav></details><main id="content" tabindex="-1"><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
+    const groups = [
+      { en: 'Start here', zh: '开始使用', links: [
+        ['README', 'About Sensa', '认识 Sensa'], ['docs/quick-start', 'First run', '首次使用'],
+        ['docs/guide', 'Workbench guide', '工作台指南'], ['docs/usage-scenarios', 'Examples', '使用场景'],
+        ['docs/features', 'All features', '完整功能'],
+      ] },
+      { en: 'Inputs and outputs', zh: '输入与联动', links: [
+        ['docs/signal-pipeline', 'Build a flow', '建立信号流程'], ['docs/computed-signals', 'Calculations', '计算与映射'],
+        ['docs/osc-parameters', 'OSC parameters', 'OSC 参数字典'], ['docs/positioning', 'Position and tracking', '位置与定位'],
+        ['docs/languages', 'Language settings', '语言设置'],
+      ] },
+      { en: 'Unity and development', zh: 'Unity 与开发', links: [
+        ['unity/top.sealoong.sensa/README', 'Unity setup', 'Unity 配置指南'],
+        ['docs/unity-build', 'Avatar build process', 'Avatar 构建流程'],
+        ['docs/shader-capture-research', 'Shader capture design', 'Shader 编码与捕获'],
+        ['tools/unity-world-lab/README', 'World lab', 'World 实验场景'],
+        ['tools/unity-avatar-lab/README', 'Avatar lab', 'Avatar 实验场景'],
+        ['docs/development', 'Development and releases', '开发与发布'],
+      ] },
+    ];
+    const navigation = groups.map(group => '<div class="nav-group"><p class="nav-group-title">'
+      + escape(locale === 'en' ? group.en : group.zh) + '</p>' + group.links.map(([key, en, zh]) => {
+        const target = routes.get(locale + ':' + key);
+        return target ? '<a data-guide-link' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(locale === 'en' ? en : zh) + '</a>' : '';
+      }).join('') + '</div>').join('');
+    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href('site.css') + '"><script defer src="' + href('site.js') + '"></script></head><body><a class="skip" href="#content">' + t.skip + '</a>'
+      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '?lang=' + (locale === 'en' ? 'en-US' : locale) + '">' + t.diagram + '</a><a href="https://github.com/SeaLoong/Sensa/releases">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
+      + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details><main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href('index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><span>' + t.docs + '</span></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
   };
   for (const document of documents.values()) {
     const toc = [], seen = new Map(), ids = new Set(), outline = [];

@@ -175,8 +175,8 @@ export default function SpsRootPanel({ observations = [], onUsePoint, onInspectS
           </div>
           {contact && <p className="caption muted">{t('Contact 直接提供形状中心坐标。坐标以 Avatar 根为原点、沿根的旋转轴表示，单位为米。相对速度包含接触点处的旋转运动；接近值变化率以每秒为单位。')}</p>}
           {shader && <div className="stack">
-            <p className="caption muted">{t('RightXYZ 与 ForwardXYZ 表示目标 X、Z 轴在 Avatar 根局部坐标中的方向和单位轴长，可描述目标平面与斜切。AvatarScale 表示每个根局部单位对应的世界米数。')}</p>
-            <p className="caption muted">{t('选择定位测量的方向或缩放指标，可用于轴映射、输出绑定与计算信号，并遵循完整包有效状态。原始 OSC 参数可用于查看各项读数与定义。')}</p>
+            <p className="caption muted">{t('RightXYZ 描述目标的 X 轴，ForwardXYZ 描述目标的 Z 轴；两组向量一起确定目标所在平面，并保留轴长与斜切信息。AvatarScale 用于将 Avatar 根局部长度换算成米。')}</p>
+            <p className="caption muted">{t('选择方向或缩放指标，可将它转换为动作或用于计算。下方参数入口显示每项读数、含义和单位。')}</p>
             <div className="actions"><Button onClick={() => onInspectShaderParameters?.(root)} data-testid="shader-parameters">{t('查看方向与缩放参数')}</Button></div>
           </div>}
           {local ? (
@@ -233,7 +233,7 @@ export default function SpsRootPanel({ observations = [], onUsePoint, onInspectS
           )}
         </>
       )}
-      <p className="caption muted">{shader ? t('“坐标有效”表示同一来源的完整 12 字段通过范围、轴向量与更新检查。三点渲染采样提供位置和目标 X/Z 平面，实际精度可用已知位置与方向验证。') : contact ? t('“坐标有效”表示完整参数、自身发送器、接近状态、覆盖半径与采样活动通过检查。请用已知位置和运动另行验证实际精度。') : t('“坐标有效”表示当前数据通过计算检查。拟合误差用于查看各路距离的一致性；实际精度请用已知位置测量，朝向需使用三点定位。')}</p>
+      <details className="measurement-notes"><summary>{t('有效位置如何判断')}</summary><p className="caption muted">{shader ? t('“坐标有效”表示同一来源的完整 12 字段通过范围、轴向量与更新检查。三点渲染采样提供位置和目标 X/Z 平面，实际精度可用已知位置与方向验证。') : contact ? t('“坐标有效”表示完整参数、自身发送器、接近状态、覆盖半径与采样活动通过检查。请用已知位置和运动另行验证实际精度。') : t('“坐标有效”表示当前数据通过计算检查。拟合误差用于查看各路距离的一致性；实际精度请用已知位置测量，朝向需使用三点定位。')}</p></details>
     </div>
   );
 }

@@ -59,7 +59,7 @@ class ArchiveWorkspace(unittest.TestCase):
         for directory in ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
             shutil.copytree(ROOT / directory, self.repository / directory)
         (self.repository / 'scripts').mkdir()
-        for name in ('shader-osc-bridge.py', 'requirements-capture.txt'):
+        for name in ('shader-osc-bridge.py', 'telemetry_qr.py', 'requirements-capture.txt'):
             shutil.copyfile(ROOT / 'scripts' / name, self.repository / 'scripts' / name)
         self.source = self.root / 'app'
         (self.source / 'web').mkdir(parents=True)
@@ -155,7 +155,7 @@ class DesktopArchiveContracts(ArchiveWorkspace):
                     'unity/top.sealoong.sensa/COMPATIBILITY.md', 'unity/top.sealoong.sensa/GPU-TRACKING.en.md',
                     'tools/unity-world-lab/README.md', 'tools/unity-world-lab/CAPABILITIES.en.md',
                     'tools/unity-avatar-lab/FULL-FLOW.en.md', 'tools/unity-world-lab/sensa-preview.json',
-                    'scripts/shader-osc-bridge.py', 'scripts/requirements-capture.txt')
+                    'scripts/shader-osc-bridge.py', 'scripts/telemetry_qr.py', 'scripts/requirements-capture.txt')
         for name in required:
             with self.subTest(asset=name):
                 self.assertEqual(files[name], (self.repository / name).read_bytes())

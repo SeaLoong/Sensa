@@ -68,7 +68,7 @@
 2. 构建后开启编码，按[捕获指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)框选完整图块，并配置相同 ID。
 3. 观察解码状态，在工作台通过“定位测量”选择所需指标，再校准、保存和启用。
 
-白色留白与三份数据副本支持小幅位移和部分缺失恢复。有效画面、捕获区域和帧更新共同决定测量是否可用。[当前协议与有效条件](positioning.md) · [实现依据](shader-capture-research.md)
+QR 定位方框帮助找到图块，白色留白缓冲小幅位移，Reed–Solomon 纠错帮助恢复部分受损数据。有效画面、捕获区域和帧更新共同决定测量是否可用。[当前协议与有效条件](positioning.md) · [实现依据](shader-capture-research.md)
 
 ## 其他输入与工具
 

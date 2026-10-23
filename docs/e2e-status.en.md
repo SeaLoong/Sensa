@@ -4,6 +4,16 @@
 
 This page retains inspected runs; read each commit's [Actions](https://github.com/SeaLoong/Sensa/actions) for current progress. See [development and releases](development.en.md) and [E2E maintenance](e2e.en.md) for the workflow.
 
+## Standard QR encoding and page redesign
+
+On 2026-10-24 (Beijing time), native Shader tiles switch to QR Code Model 2 Version 4/H: three finders, timing and alignment patterns, and selection across eight masks. Four RS(25,9) correction blocks replace repeated measurements. The existing 32-byte packet and CRC32 remain; the 33×33 symbol has four standard quiet modules and four extra movement-buffer modules on each side, making a 49×49 tile. The reader locates, samples and corrects a symbol inside the selected region, then checks the measurement and frame age. Each block restores errors/erasures within `2e+s≤16` when the finders remain recognizable; repeated frames retain their original expiry.
+
+WebUI now uses workspace navigation and grouped settings; the parameter explorer pairs parameter navigation with a viewing workspace and expandable calculation details. The documentation site has a rewritten homepage and searchable task-based help navigation. All three retain TDesign colors and update both languages. Browser assertions cover layout, keyboard controls, help filtering, the QR golden matrix, codeword groups and tile DOM reuse.
+
+Isolated checks passed **721 .NET, 183 Web and 265 Python** tests, Unity package metadata, **88 site routes and four site units**. The fixed QR vector was checked across all eight masks with qrcode 8.2 and zxing-cpp 2.3.0; independent review covered 160 standard matrices, 972 error/erasure combinations, 200 Shader-algorithm packets and 72 rotation angles. Official DXC static compilation of three SM6 entries and syntax checks of 47 C# files passed. Unity Editor, actual GPU, VRChat/HMD and hardware validation await their respective environments.
+
+Full browser checks, site checks and candidate images run in Actions. New screenshot baselines require individual review followed by a complete comparison with image updates disabled. The previous inspected runs remain below as history.
+
 ## Repository review and software homepage
 
 On 2026-10-24 (Beijing time), fixes close concurrent input-activation windows during configuration, script, replay, mode and source changes. They also address dropped repeated fixed-rate TCode commands, unbounded serial reply reading, oversized OSCQuery numbers and source metadata, and malformed plan previews crashing the UI. Unity adds parameter-conflict, name-boundary, root-pose and composed world-scale checks. Publication scripts strengthen archive paths, final tag verification and failed-run recovery.

@@ -32,6 +32,12 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);
     const guide = await fs.readFile(path.join(output, 'en/docs/guide.html'), 'utf8');
     const translatedGuide = await fs.readFile(path.join(output, 'zh-CN/docs/guide.html'), 'utf8');
+    assert.equal((guide.match(/class="nav-group"/g) || []).length, 3);
+    assert.match(guide, /<input type="search" data-guide-filter autocomplete="off">/);
+    assert.match(guide, /<span>Find a guide<\/span>/);
+    assert.match(translatedGuide, /<span>查找文档<\/span>/);
+    assert.match(guide, /class="doc-breadcrumb"/);
+    assert.doesNotMatch(guide, /Skip to content \/ 跳到正文/);
     const headingMap = JSON.parse(guide.match(/data-heading-map="([^"]+)"/)[1].replaceAll('&quot;', '"').replaceAll('&amp;', '&'));
     assert.ok(Object.keys(headingMap).length > 3, 'Language links map corresponding sections');
     for (const [original, translated] of Object.entries(headingMap)) {

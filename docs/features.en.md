@@ -75,7 +75,7 @@ Recording outputs save each binding's valid segments as separate funscripts for 
 | **Shader capture** | Root position, Right/Forward axes and AvatarScale; requires a rendered PC block and desktop decoder |
 | **Independent Point/Handle/Pose** | Reference-relative position or pose for measurement-model experiments |
 
-Three Shader payload copies support missing-data recovery, with complete-packet validity checks. Choose Tracking measurement (SensaPoint) in calculations, axis mappings or outputs to use coordinates, supported velocity or Shader axis/scale metrics. [Choose a route](usage-scenarios.en.md) · [Fields, units and calibration](positioning.en.md)
+Shader capture uses QR tiles with Reed–Solomon correction to recover some wrong or missing data, followed by complete-packet and advancing-frame checks. Choose Tracking measurement (SensaPoint) in calculations, axis mappings or outputs to use coordinates, supported velocity or Shader axis/scale metrics. [Choose a route](usage-scenarios.en.md) · [Fields, units and calibration](positioning.en.md)
 
 Unity authoring components generate native Contacts, animation and parameters during builds. Automatic SPS Setup selects targets and a root route; explicit Transform, Sensa/native Contact targets have dedicated authoring options. Check actual client/graphics behavior with the versions used. [Unity installation](../unity/top.sealoong.sensa/README.md) · [Build process](unity-build.en.md)
 

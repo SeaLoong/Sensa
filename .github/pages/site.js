@@ -14,7 +14,7 @@
   const apply = next => {
     locale = next;
     document.documentElement.lang = next === 'en' ? 'en-US' : next;
-    document.title = next === 'en' ? 'Sensa — Inputs, computation and outputs' : 'Sensa — 输入、计算与输出';
+    document.title = next === 'en' ? 'Sensa — Make your signals work together' : 'Sensa — 把数值变成联动';
     document.querySelectorAll('[data-en]').forEach(x => { x.hidden = next !== 'en'; });
     document.querySelectorAll('[data-zh]').forEach(x => { x.hidden = next !== 'zh-CN'; });
     document.querySelectorAll('[data-doc]').forEach(x => {
@@ -43,6 +43,18 @@
       catch { document.getElementById('vpm-status').textContent = vpm; }
     });
   } else {
+    document.querySelectorAll('[data-guide-filter]').forEach(input => {
+      const navigation = input.closest('.navigation');
+      const links = [...navigation.querySelectorAll('[data-guide-link]')];
+      input.addEventListener('input', () => {
+        const query = input.value.trim().toLocaleLowerCase();
+        links.forEach(link => { link.hidden = !link.textContent.toLocaleLowerCase().includes(query); });
+        navigation.querySelectorAll('.nav-group').forEach(group => {
+          group.hidden = ![...group.querySelectorAll('[data-guide-link]')].some(link => !link.hidden);
+        });
+        navigation.querySelector('.guide-empty').hidden = links.some(link => !link.hidden);
+      });
+    });
     // Explicit documentation routes keep their language, irrespective of stored preferences.
     // 明确文档语言路由不被已有偏好覆盖。
     document.querySelectorAll('[data-locale]').forEach(link => {
@@ -68,6 +80,12 @@
     }
     window.addEventListener('resize', updateScrollAreas);
     document.fonts?.ready?.then(updateScrollAreas);
-    if (matchMedia('(max-width: 760px)').matches) document.querySelector('.navigation')?.removeAttribute('open');
+    const narrowNavigation = matchMedia('(max-width: 760px)');
+    const updateNavigation = () => document.querySelectorAll('.navigation').forEach(navigation => {
+      if (narrowNavigation.matches) navigation.removeAttribute('open');
+      else navigation.setAttribute('open', '');
+    });
+    updateNavigation();
+    narrowNavigation.addEventListener?.('change', updateNavigation);
   }
 })();
