@@ -26,7 +26,7 @@ jobs:
       comparison_sha: ${{ steps.comparison.outputs.sha }}
     runs-on: ubuntu-24.04
     container: mcr.microsoft.com/playwright:v1.64.1-noble
-    timeout-minutes: 25
+    timeout-minutes: 35
     env:
       CI: 'true'
       E2E_SUITE: all

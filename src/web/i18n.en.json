@@ -1236,5 +1236,9 @@
   "动作轴映射等待计算输入": "Motion axis mappings await calculation inputs",
   "动作轴映射门控关闭": "Motion axis mapping gates are closed",
   "动作轴映射门控关闭；独立输出连接按各自来源和有效状态更新。": "Motion axis mapping gates are closed. Independent output bindings update according to their own sources and validity.",
-  "独立输出连接按各自来源和有效状态更新。": "Independent output bindings update according to their own sources and validity."
+  "独立输出连接按各自来源和有效状态更新。": "Independent output bindings update according to their own sources and validity.",
+  "持续播放": "Play continuously",
+  "触发一次": "Trigger once",
+  "跟随输入": "Follow input",
+  "强度跟随输入时自动续接短任务；持续播放的波形按 100 ms 整帧续接。": "Intensity follows the input through automatically renewed short tasks. Continuous waveforms renew in complete 100 ms frames."
 }

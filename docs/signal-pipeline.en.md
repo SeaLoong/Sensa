@@ -51,7 +51,7 @@ TCode bindings target one of twelve axes using values from 0 to 1; the output's 
 
 A binding's input range describes the raw reading's endpoints; its output range describes the values expected by the receiver. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. Disabling input, disabling an output and emergency stopping use the motion device's stop command.
 
-Send-on-change suits state or slowly changing readings and supports a minimum change. Fixed-rate sending suits destinations needing periodic updates. Positive-trigger sending delivers a single action when the mapped signal becomes positive. Each binding accepts a send rate of 1–100 Hz, allowing outputs sharing a source to use different schedules. Events are delivered in order; state delivery retains the latest value. Use a state-sending mode for a switch that must receive both on and off values.
+OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes. Send-on-change suits state or slowly changing readings and supports a minimum change. Fixed-rate sending suits destinations needing periodic updates. Positive-trigger sending delivers a single action when the mapped signal becomes positive. These bindings accept a send rate of 1–100 Hz, allowing outputs sharing a source to use different schedules. Events are delivered in order; state delivery retains the latest value. Use a state-sending mode for a switch that must receive both on and off values. DG-LAB automatically schedules delivery and renewal from task duration, as described below.
 
 ## Write back to VRChat OSC
 
@@ -73,7 +73,7 @@ DG-LAB outputs use the DG-LAB 4 APP's WebSocket V4 interface. Choose the officia
 
 Keep the channel intensity limit at 0 while pairing and selecting a device, then set the limit you need. `Intensity` clamps the binding result to 0–1 and multiplies it by the channel's user limit; `Pulse` sends configured waveform frames. Temporary intensity and waveforms are configured separately. Tasks last 100–1000 ms, with short tasks renewed for continuous effects.
 
-`Pulse` activates at 0.5. “Send when value changes” and “Send on a positive event” trigger once each time that threshold is crossed. “Send at a fixed rate” continues from the current position in the sequence of 100 ms waveform frames. COYOTE_030 offers Sensa-generated steady, fade and alternating basic effects; advanced settings accept custom frames, one per line.
+`Intensity` offers “Follow input,” with the backend renewing short tasks at the current intensity, or “Trigger once,” sending one temporary-intensity task when the mapped result becomes positive. `Pulse` offers “Play continuously,” continuing from the current position in the sequence of 100 ms waveform frames while the mapped value is 0.5 or higher, or “Trigger once,” sending one waveform task at 0.5 and allowing another trigger after the result falls below it. COYOTE_030 offers Sensa-generated steady, fade and alternating basic effects; advanced settings accept custom frames, one per line.
 
 Pairing, device selection and output activation are separate steps. The relay and APP remain paired while waiting for device selection. Saving bindings or channel settings for the same relay preserves the connection. After a disconnection, use the connection button to reconnect; inspect the device, channel and task state before enabling input. Coyote 3.0 temporary-intensity and waveform bindings stop independently; custom frames follow their device protocol. Global stopping clears pending tasks and sends the stop operation to connected targets. Device-reported feedback can become new input according to the available capabilities.
 
@@ -81,7 +81,7 @@ DG-LAB 4 APP, the V4 network protocol and Coyote hardware models identify the ap
 
 ## Other applications and MIDI
 
-HTTP JSON and WebSocket JSON send messages with `address`, `value`, `type`, `signalId`, `unit` and `timestampMs`. MQTT publishes this JSON to its selected topic. The receiving application interprets the configured address and value.
+HTTP JSON and WebSocket JSON send messages with `address`, `value`, `type`, `signalId`, `unit`, `coordinateFrame` and `timestampMs`. MQTT publishes this JSON to its selected topic. The receiving application interprets the configured address and value.
 
 MIDI uses the operating system's available output ports. Refresh the port list and choose a destination. Set the address as `CC/channel/controller`: channels are 1–16, controllers are 0–127, and sent values are 0–127. For example, `CC/1/1` sends controller 1 on channel 1. Windows and macOS use their system MIDI services; Linux requires ALSA with an available sequencer, including `/dev/snd/seq`.
 

@@ -18,10 +18,16 @@
 | `f2b4d3d` | 完整选择的候选采集（未完成） | [39958663771，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958663771/attempts/2) | 总计 **100 项：27 通过、3 失败、70 未执行**，其余结果均为 0；`selectionComplete=true`、`snapshotsCompared=false`，达到 3 项失败上限后停止 |
 | `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/1) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
 | `f2b4d3d` | 文档站依赖安装未完成 | [39958639821，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39958639821/attempts/2) | 浏览器与字体安装阶段超过原 **10 分钟**任务上限；站点浏览器未执行，总计／执行数均为 **0**，`selectionComplete=false`、`snapshotsCompared=false`，未部署 |
+| `11a3071` | 修正后文档站检查与自动部署 | [39962300270，第 1 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962300270/attempts/1) | 总计 **8 项，8 通过**，其余结果均为 0；`runner=passed`、命令成功，站点专用选择，`selectionComplete=false`、`snapshotsCompared=true`，部署成功 |
+| `11a3071` | 完整选择的候选采集（未完成） | [39962313700，第 2 次尝试](https://github.com/SeaLoong/Sensa/actions/runs/39962313700/attempts/2) | 总计 **100 项：78 通过、3 失败、19 未执行**，其余结果均为 0；`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=false` |
 
-上述运行固定源码 `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`。普通比较的 3 项失败均为界面更新后的截图差异：`control-page`，以及中文和英文的 `computed-signal-editor`。这些变化随候选图片审阅；本次未完成比较保持原始记录，后续关闭图片更新的完整普通比较用于确认基线。
+上述早期 CI、候选及两次站点安装失败固定源码 `f2b4d3dd2137df3d2079a1c1e604fb44d5c78f9d`。普通比较的 3 项失败均为界面更新后的截图差异：`control-page`，以及中文和英文的 `computed-signal-editor`。这些变化随候选图片审阅；本次未完成比较保持原始记录，后续关闭图片更新的完整普通比较用于确认基线。
 
 候选采集的 3 项失败来自既有用例对界面结构的假设：输入安全用例仍按三个主标签检查键盘导航，中英文质量用例仍寻找直接输出面板，而新结构使用 `output-telemetry` 容器。修正将覆盖四个标签的完整键盘操作，并按实际容器检查几何边界，保留原有断言强度。
+
+修正后的站点与最新候选运行固定源码 `11a30712db7efd38408798c53c50ace9911d75c8`。安装流程固定使用 Ubuntu 软件源，并将系统依赖安装与 Chromium headless shell 下载拆为独立步骤；新安装器在第一次 130 秒预算内完成，随后站点比较与部署成功，验证了此前两次 10 分钟安装超时问题的修正。同一源码的 [CI 39962300289](https://github.com/SeaLoong/Sensa/actions/runs/39962300289) 已通过单元检查，首次尝试的应用浏览器未执行。
+
+最新候选的 3 项失败均发生在 `shared-session.spec.js:52`：输入启用复选框调用 `check()` 后报告状态未改变，涉及窄屏 SharedWorker，以及桌面 SharedWorker 和 Web Locks。该失败正在修正；下一轮普通比较与候选采集均采用 **35 分钟**浏览器任务预算，用于完整 100 项套件。本次部分执行结果和候选模式保持记录，基线仍待审阅与完整普通比较。
 
 ## OSC 参数释义与官方来源
 

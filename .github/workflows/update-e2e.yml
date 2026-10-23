@@ -107,7 +107,7 @@ jobs:
     if: ${{ !cancelled() && needs.source.result == 'success' && needs.units.result == 'success' && ((inputs.mode == 'agent' && needs.agent.result == 'success') || (inputs.mode == 'screenshots' && needs.agent.result == 'skipped')) }}
     runs-on: ubuntu-24.04
     container: mcr.microsoft.com/playwright:v1.64.1-noble
-    timeout-minutes: 30
+    timeout-minutes: 35
     outputs:
       changed: ${{ steps.proposal.outputs.changed }}
     env:

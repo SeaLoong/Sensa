@@ -41,17 +41,22 @@ function BindingCard({ binding, outputType, targetAxes, signals, pathOptions, st
         <SelectField label={t('转换曲线')} value={binding.curve} options={curveOptions()} onChange={curve => onChange({ curve })} />
         {!['Dglab', 'Recording'].includes(outputType) && field('stopValue', '停止时发送值')}
       </div>
-      <details><summary>{t('发送频率与变化阈值')}</summary><div className="form-grid">
+      {outputType === 'Dglab' ? <SelectField label={t('发送方式')}
+        value={binding.address === 'Pulse' ? binding.sendMode === 'FixedRate' ? 'FixedRate' : 'OnEvent' : binding.sendMode === 'OnEvent' ? 'OnEvent' : 'OnChange'}
+        options={binding.address === 'Pulse' ? [{ value: 'FixedRate', label: t('持续播放') }, { value: 'OnEvent', label: t('触发一次') }]
+          : [{ value: 'OnChange', label: t('跟随输入') }, { value: 'OnEvent', label: t('触发一次') }]}
+        onChange={sendMode => onChange({ sendMode })} /> : <details><summary>{t('发送频率与变化阈值')}</summary><div className="form-grid">
         <SelectField label={t('发送方式')} value={binding.sendMode} options={[
           { value: 'OnChange', label: t('数值变化时发送') }, { value: 'FixedRate', label: t('按固定频率发送') },
           { value: 'OnEvent', label: t('正向触发时发送') },
         ]} onChange={sendMode => onChange({ sendMode })} />
         {field('rateHz', '最大发送频率（Hz）', { min: 1, max: 100 })}
         {field('epsilon', '最小变化量', { min: 0 })}
-      </div></details>
+      </div></details>}
       {outputType === 'Dglab' && <p className="caption muted">{binding.address === 'Pulse'
         ? binding.sendMode === 'FixedRate' ? t('映射结果达到 0.5 时按当前相位持续播放，停止或失效时清理任务。') : t('映射结果达到 0.5 时触发一次波形任务，任务按持续时间结束。')
         : t('映射结果作为 0–1 强度系数，再乘以通道上限得到临时强度。')}</p>}
+      {outputType === 'Dglab' && <p className="caption muted">{t('强度跟随输入时自动续接短任务；持续播放的波形按 100 ms 整帧续接。')}</p>}
       {outputType === 'Midi' && <p className="caption muted">{t('MIDI CC 地址格式为 CC／通道／控制器，例如 CC/1/1；输出值范围为 0–127。')}</p>}
       {status && <p className="caption muted" data-testid="output-binding-status">
         {t('原始值 {0} → 发送值 {1}', [status.rawValue ?? '—', status.value ?? '—'])}

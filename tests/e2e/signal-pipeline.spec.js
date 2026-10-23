@@ -47,7 +47,9 @@ async function source(page, scope, mode, oscPath) {
 }
 
 async function addCalculation(page, name, operation) {
+  const count = await page.getByTestId('computed-signal-card').count();
   await (await button(page, page, '新增计算信号')).click();
+  await expect(page.getByTestId('computed-signal-card')).toHaveCount(count + 1);
   const card = page.getByTestId('computed-signal-card').last();
   await card.getByRole('textbox', { name: await text(page, '信号名称'), exact: true }).fill(name);
   await card.getByTestId('computed-operation').selectOption(operation);
@@ -69,7 +71,11 @@ async function addOutput(page, rig, type, name) {
 
 async function binding(page, dialog, index, options) {
   const bindings = dialog.getByTestId('output-binding');
-  while (await bindings.count() <= index) await (await button(page, dialog, '新增连接')).click();
+  while (await bindings.count() <= index) {
+    const count = await bindings.count();
+    await (await button(page, dialog, '新增连接')).click();
+    await expect(bindings).toHaveCount(count + 1);
+  }
   const row = bindings.nth(index);
   if (!(await row.evaluate(element => element.open))) await row.locator('summary').click();
   await row.getByRole('textbox', { name: await text(page, '连接名称'), exact: true }).fill(options.name);
@@ -177,10 +183,15 @@ for (const locale of ['zh-CN', 'en-US']) {
 
           const osc = await addOutput(page, rig, 'OscParameter', 'Typed OSC');
           const vrchat = osc.dialog.getByRole('checkbox', { name: await text(page, '回写到 VRChat OSC'), exact: true });
-          await vrchat.check();
+          await expect(vrchat).not.toBeChecked();
+          await vrchat.click();
+          await expect(vrchat).toBeChecked();
           await expect(osc.dialog.getByRole('textbox', { name: await text(page, '目标地址'), exact: true })).toHaveValue('127.0.0.1');
           await expect(osc.dialog.getByRole('spinbutton', { name: await text(page, '目标端口'), exact: true })).toHaveValue('9000');
-          await vrchat.uncheck();
+          await expect(osc.dialog.getByRole('spinbutton', { name: await text(page, '目标端口'), exact: true })).toBeDisabled();
+          await vrchat.click();
+          await expect(vrchat).not.toBeChecked();
+          await expect(osc.dialog.getByRole('spinbutton', { name: await text(page, '目标端口'), exact: true })).toBeEnabled();
           await numeric(page, osc.dialog, '目标端口', receiver.port);
           await binding(page, osc.dialog, 0, { name: 'Manual float', sourceMode: 'Manual', path: 'L0', address: '/ci/manual', stop: .125 });
           await binding(page, osc.dialog, 1, { name: 'Blended integer', sourceMode: 'Computed', path: 'Signal1', address: '/ci/blend', type: 'Int', max: 100, stop: 7 });

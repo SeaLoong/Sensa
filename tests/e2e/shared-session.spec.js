@@ -1,4 +1,4 @@
-import { test, expect, observePageCommands } from './fixtures.js';
+import { test, expect, active, observePageCommands } from './fixtures.js';
 
 async function instrumentSharing(context, kind) {
   await context.addInitScript(mode => {
@@ -49,14 +49,18 @@ for (const kind of ['shared-worker', 'web-locks']) {
         expect(pages).toHaveLength(20);
         expect(commands.filter(command => command.method !== 'GET')).toEqual([]);
 
-        await pages[1].getByRole('switch', { name: '输入启用', exact: true }).check();
+        // The controlled switch reflects server acknowledgement. Click once, then await
+        // the confirmed state through the same helper used by the other input cases.
+        // 受控开关在服务端确认后更新；单次点击后等待确认状态。
+        await active(pages[1], true);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(true);
         for (const page of pages) await expect(page.getByRole('switch', { name: '输入启用', exact: true })).toBeChecked();
         await pages[0].getByRole('spinbutton', { name: 'L0 主轴数值', exact: true }).fill('314');
         await pages[0].getByRole('button', { name: '发送一次', exact: true }).click();
         await expect.poll(async () => (await rig.overview()).runtime.manualCommand.l0).toBeCloseTo(.314, 5);
-        await pages[2].getByRole('switch', { name: '输入启用', exact: true }).uncheck();
+        await active(pages[2], false);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
+        for (const page of pages) await expect(page.getByRole('switch', { name: '输入启用', exact: true })).not.toBeChecked();
 
         const leaders = kind === 'web-locks' ? await Promise.all(pages.map(page => page.evaluate(() => globalThis.__sharedSessionFixture.leader))) : [];
         if (kind === 'web-locks') expect(leaders.filter(Boolean)).toHaveLength(1);
@@ -66,9 +70,9 @@ for (const kind of ['shared-worker', 'web-locks']) {
         const remaining = pages.filter(page => !page.isClosed());
         expect(remaining).toHaveLength(17);
         await expect.poll(async () => (await rig.overview()).webUiConnections).toBe(1);
-        await remaining[0].getByRole('switch', { name: '输入启用', exact: true }).check();
+        await active(remaining[0], true);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(true);
-        await remaining[0].getByRole('switch', { name: '输入启用', exact: true }).uncheck();
+        await active(remaining[0], false);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
 
         await Promise.all(remaining.map(page => page.close()));
@@ -85,11 +89,12 @@ for (const kind of ['shared-worker', 'web-locks']) {
         const restored = (await rig.overview()).runtime;
         expect(restored.inputActive).toBe(false); expect(restored.manualCommand.l0).toBeCloseTo(.777, 5);
         expect(commands.filter(command => command.method !== 'GET')).toHaveLength(beforeReconnect);
-        await fresh.getByRole('switch', { name: '输入启用', exact: true }).check();
+        await expect(fresh.getByRole('switch', { name: '输入启用', exact: true })).not.toBeChecked();
+        await active(fresh, true);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(true);
         expect((await rig.overview()).runtime.manualCommand.l0).toBeCloseTo(.777, 5);
         expect(rig.wire.udp).toEqual([]);
-        await fresh.getByRole('switch', { name: '输入启用', exact: true }).uncheck();
+        await active(fresh, false);
         await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
         await info.attach('shared-session.json', { body: JSON.stringify({ kind, simultaneousPages: 20,
           serverConnections: 1, remainingAfterClose: 17, allClientsReleased: true,

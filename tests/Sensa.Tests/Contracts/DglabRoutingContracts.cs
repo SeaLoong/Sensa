@@ -149,6 +149,42 @@ public sealed class DglabRoutingContracts
     }
 
     [Fact]
+    public async Task Full_pending_queue_reserves_both_channels_stop_without_exceeding_36_requests()
+    {
+        await using var rig = new Rig(Binding("a", "Intensity", 0), Binding("b", "Intensity", 1));
+        Assert.True(await rig.Coordinator.ConnectAsync(OutputId)); await rig.Attach();
+        rig.Socket.Drop = _ => true;
+        var client = rig.Clients[^1];
+        // Keep every ordinary request outstanding, modelling the interval before cancellation
+        // continuations retire an old generation. Stop must not depend on their scheduling.
+        for (var index = 0; index < DglabV4Client.MaximumPendingRequests; index++)
+            await client.DispatchTemporaryIntensityAsync(new(AppId, SlotId, (DglabChannel)(index % 2)), 1, 250);
+        var stopping = rig.Coordinator.StopAsync();
+        try
+        {
+            var stops = rig.Socket.Requests.Skip(DglabV4Client.MaximumPendingRequests).ToArray();
+            Assert.Equal(4, stops.Length);
+            foreach (var channel in new[] { 0, 1 })
+            {
+                Assert.Contains(stops, request => request["data"]!["m"]!.GetValue<string>() == "device.op.clear"
+                    && Operation(request)["c"]!.GetValue<int>() == channel);
+                Assert.Contains(stops, request => Operation(request)["t"]?.GetValue<int>() == 7
+                    && Operation(request)["c"]!.GetValue<int>() == channel);
+            }
+            await Assert.ThrowsAsync<InvalidOperationException>(() => client.ResetIntensityAsync(new(AppId, SlotId)));
+            Assert.Equal(DglabV4Client.MaximumPendingRequests + 4, rig.Socket.Requests.Count);
+        }
+        finally
+        {
+            rig.Socket.Drop = null;
+            foreach (var request in rig.Socket.Requests.ToArray())
+                await rig.Receive(new { type = "message", clientId = AppId, data = new
+                { t = "resp", reqId = request["data"]!["reqId"]!.GetValue<string>(), result = new { } } });
+            await stopping;
+        }
+    }
+
+    [Fact]
     public async Task Stop_cancels_old_dispatched_replies_without_turning_the_next_generation_into_CommandError()
     {
         await using var rig = new Rig(Binding("strength", "Intensity"));

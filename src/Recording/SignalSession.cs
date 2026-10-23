@@ -82,6 +82,7 @@ public sealed class SignalSessionRecorder : IDisposable
 /// <summary>Replay keeps validity intervals and source metadata; loading never starts playback.</summary>
 public sealed class SignalSessionPlayback(TimeProvider? timeProvider = null)
 {
+    private static readonly JsonSerializerOptions ReplayJsonOptions = new(JsonSerializerDefaults.Web);
     private readonly TimeProvider _clock = timeProvider ?? TimeProvider.System;
     private readonly object _sync = new();
     private Dictionary<string, SignalSessionRow[]> _signals = new(StringComparer.Ordinal);
@@ -109,7 +110,7 @@ public sealed class SignalSessionPlayback(TimeProvider? timeProvider = null)
         while ((line = reader.ReadLine()) is not null)
         {
             if (line.Length > 32768 || rows.Count >= 250000) throw new ArgumentException("录制数据超过回放限制 / The recording exceeds replay limits.");
-            var row = csv ? ReadCsv(line) : JsonSerializer.Deserialize<SignalSessionRow>(line, new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            var row = csv ? ReadCsv(line) : JsonSerializer.Deserialize<SignalSessionRow>(line, ReplayJsonOptions);
             if (row is null || row.TimeMs < 0 || row.TimeMs > 7L * 24 * 3600 * 1000 || string.IsNullOrEmpty(row.SignalId) || row.SignalId.Length > 80
                 || row.RawValue is { } raw && !float.IsFinite(raw) || row.Value is { } value && !double.IsFinite(value)
                 || row.Valid && row.RawValue is null) throw new ArgumentException("录制包含无效采样 / The recording contains invalid samples.");

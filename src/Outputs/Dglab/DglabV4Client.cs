@@ -11,6 +11,7 @@ namespace Sensa.Outputs.Dglab;
 public sealed class DglabV4Client : IAsyncDisposable
 {
     public const int MaximumPendingRequests = 32;
+    private const int StoppingRequestReserve = 4;
     private readonly object _sync = new();
     private readonly SemaphoreSlim _lifecycle = new(1, 1), _sendGate = new(1, 1);
     private readonly Func<IDglabSocket> _socketFactory;
@@ -223,10 +224,11 @@ public sealed class DglabV4Client : IAsyncDisposable
             ObjectDisposedException.ThrowIf(_disposed, this);
             if (_socket?.IsOpen != true || _targetId is null || !_devices.ContainsClient(clientId))
                 throw new InvalidOperationException("DG-LAB APP connection is not ready.");
-            // Reserve a bounded pair of requests for clear/zero even when ordinary requests fill the queue.
+            // Each channel needs clear and zero. Reserve both A/B pairs even while cancelled
+            // ordinary requests are still waiting for their asynchronous cleanup to run.
             var stopping = method == "device.op.clear" || method == "device.op" && data is JsonObject operation
                 && operation["t"] is JsonValue action && action.TryGetValue<int>(out var type) && type == 7;
-            if (_pending.Count >= MaximumPendingRequests + (stopping ? 2 : 0))
+            if (_pending.Count >= MaximumPendingRequests + (stopping ? StoppingRequestReserve : 0))
                 throw new InvalidOperationException("DG-LAB request queue is full.");
             socket = _socket; generation = _generation; lifetime = _lifetime!.Token;
             id = generation + "-" + Interlocked.Increment(ref _sequence);
