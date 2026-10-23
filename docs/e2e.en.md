@@ -20,7 +20,7 @@ Shader cases use twelve-field simulated packets to check position, Right/Forward
 
 Signal-pipeline cases use Chinese and English controls to create manual/OSC weighted calculations, hysteresis and temporal smoothing, then inspect Float/Int/Bool types, ranges and stop values in actual UDP messages. Session cases check raw and converted values and invalid intervals in JSON Lines/CSV, verify downloaded file contents, then replay raw values to OSC with pause and seeking. Complete-plan cases cover export, import preview, preserved axis profiles and disabled inputs/outputs after application. Malformed names or output rows must show an import-panel error, preserve configuration and activation, and allow a subsequent valid import. [Signal pipeline](signal-pipeline.en.md)
 
-Pages cases check the homepage's three-step introduction, input–computation–output flow, downloads and help links, including the locale path of every first-run link. Original homepage images are attached for both languages and viewports for visible-layout review. Successful site behavior and accessibility checks gate deployment of the same built artifact.
+Pages cases check the homepage's three-step introduction, input–computation–output flow, downloads and help links, including the locale path of every first-run link. Full-page captures of the homepage and first-run guide cover both languages and viewports, producing eight images for individual review. Successful site behavior and accessibility checks gate deployment of the same built artifact.
 
 Funscript recording cases check the default format, separate L0/R0 tracks, converted 0–100 positions and integer milliseconds, segmentation after invalidity and offsets on the original timeline. They download and inspect each completed file, load it into signal replay and the script player, then check actual OSC output, pause stop values and disabled input after loading.
 
@@ -50,11 +50,15 @@ Inspect expected/actual/diff, trace, service logs and last observations first. F
 
 Run [`update-e2e.yml`](https://github.com/SeaLoong/Sensa/actions/workflows/update-e2e.yml) in Actions. Default `screenshots` mode runs the browser against current code and produces candidate images, reports and a review PR for a reviewer to merge.
 
+The workflow pins latest `main` at its start and runs the full application and site suite against that source. After every case passes, the review PR includes application baseline candidates and eight site captures. Its image links point to the exact candidate commit and open directly on GitHub. Each capture records the source, Actions run and attempt, with the site build manifest and image hashes checked during export.
+
+Site captures live under `tests/e2e/__review__/site/{desktop,mobile}/`: `home-en-US.png`, `home-zh-CN.png`, `guide-en-US.png` and `guide-zh-CN.png`. Review them for layout, wording and readability. Application baselines live under `tests/e2e/__screenshots__/` and receive normal screenshot comparison in CI. Ordinary CI and Pages retain site captures as report attachments; only the manual Update E2E candidate export updates the eight repository images.
+
 The repository Actions secret `SENSA_PAT` pushes the candidate branch and creates its review PR. The PR event automatically starts normal CI. [Workflow secrets](development.en.md#which-secrets-do-workflows-use)
 
 Optional `agent` mode additionally uses the `OPENAI_API_KEY` repository Actions secret. The agent maintains tests under `tests/e2e/`, then candidates are captured.
 
-Inspect actual/expected/diff, test edits and run results in the PR by language and viewport. Accept intentional visual changes while retaining necessary behavior assertions. Candidate capture and normal comparison are recorded separately. Merge the PR after normal comparison and review succeed.
+Inspect application actual/expected/diff, the eight site captures, test edits and run results in the PR by language and viewport. Accept intentional visual changes while retaining necessary behavior assertions. Candidate capture and normal comparison are recorded separately. Merge the PR after normal comparison and review succeed.
 
 For report artifacts alone, run `e2e.yml` manually with `update_snapshots=true` and download `e2e-baselines` and `e2e-report`. Partial screenshots from failed tasks help diagnose the failure.
 

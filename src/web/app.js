@@ -2300,6 +2300,7 @@ function App() {
             <details>
               <summary>OSC Hub</summary>
               <div className="stack">
+                <div className="stack osc-hub-controls">
                 <p className="caption muted">{t('将收到的 OSC 参数继续发送到其他应用。为每个接收应用添加一个目标地址。')}</p>
                 <Toggle
                   label={t('启用 OSC Hub')}
@@ -2324,6 +2325,8 @@ function App() {
                   />
                 </div>
                 {oscHub?.blockedBySourceSelection && <Notice tone="warning">{t('多个来源时需固定使用来源。')}</Notice>}
+                </div>
+                <div className="stack osc-hub-targets">
                 {oscHubTargetsDraft.map((target) => (
                   <OscHubTargetRow
                     key={target._draftId}
@@ -2336,9 +2339,10 @@ function App() {
                 ))}
                 <Button onClick={addOscHubTargetDraft}>{t('新增目标')}</Button>
                 {oscHub?.lastDropReason && <Notice tone="warning">{diagnostic(oscHub.lastDropReason)}</Notice>}
+                </div>
               </div>
             </details>
-            <div className="actions">
+            <div className="actions osc-settings-save">
               <Button tone="primary" disabled={!online || Boolean(busyKey)} onClick={saveOscConfig}>
                 {t('保存 OSC 设置')}
               </Button>

@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 OUTCOMES = ('passed', 'expectedFailure', 'failed', 'flaky', 'skipped', 'notRun', 'interrupted')
 FORBIDDEN = re.compile(r'\b(?:test|[A-Za-z_$][\w$]*Test)(?:\s*\.\s*describe)?\s*\.\s*(?:skip|fixme|only|fail)\s*\(')
 ASSERTIONS = re.compile(r'\bexpect(?:\s*\.\s*[A-Za-z_$][\w$]*)?\s*\(')
+SITE_REVIEW_IMAGES = {f'site-review-{page}-{locale}': f'{page}-{locale}.png'
+                     for page in ('home', 'guide') for locale in ('en-US', 'zh-CN')}
+SITE_REVIEW_ATTACHMENTS = {*SITE_REVIEW_IMAGES, 'site-review-source', 'site-review-manifest'}
+SITE_REVIEW_PATHS = {f'tests/e2e/__review__/site/{project}/{name}'
+                     for project in ('desktop', 'mobile') for name in SITE_REVIEW_IMAGES.values()}
 
 
 def git(root, *arguments, input=None):
@@ -49,9 +54,12 @@ def check_path(name, mode):
             or len(parts) < 3 or parts[:2] != ('tests', 'e2e')
             or any(part in ('.', '..') or part.startswith('.') for part in parts)):
         raise ValueError('Proposal may change tests/e2e only / 只能修改 tests/e2e: ' + name)
-    if mode == 'screenshots' and (len(parts) < 5 or parts[2] != '__screenshots__'
-                                  or parts[3] not in ('desktop', 'mobile') or not name.endswith('.png')):
-        raise ValueError('Screenshot mode may update baseline PNGs only / 截图模式只修改基线 PNG: ' + name)
+    if parts[2] == '__review__' and name not in SITE_REVIEW_PATHS:
+        raise ValueError('Unknown site review image / 未知的站点审阅图片: ' + name)
+    if mode == 'screenshots' and name not in SITE_REVIEW_PATHS and (
+            len(parts) < 5 or parts[2] != '__screenshots__'
+            or parts[3] not in ('desktop', 'mobile') or not name.endswith('.png')):
+        raise ValueError('Screenshot mode accepts baselines and eight site review PNGs / 截图模式只修改基线与八张站点审阅 PNG: ' + name)
     return name
 
 
@@ -172,9 +180,142 @@ def append_summary(environment, text):
             stream.write(text + '\n')
 
 
+def attachment_path(name):
+    if not isinstance(name, str):
+        raise ValueError('Missing site attachment path / 缺少站点附件路径')
+    parts = PurePosixPath(name).parts
+    if ('\\' in name or '\x00' in name or PurePosixPath(name).as_posix() != name
+            or len(parts) < 4 or parts[:3] != ('artifacts', 'e2e', 'results')
+            or any(part in ('.', '..') or part.startswith('.') for part in parts)):
+        raise ValueError('Site attachments must belong to this browser output / 站点附件必须位于本次浏览器输出目录')
+    return name
+
+
+def read_attachment(root, attachment, content_type):
+    name = attachment_path(attachment.get('path'))
+    file = root / name
+    limit = 32 * 1024 * 1024 if content_type == 'image/png' else 1024 * 1024
+    if (attachment.get('contentType') != content_type or not file.is_file()
+            or any(parent.is_symlink() for parent in (file, *file.parents))
+            or file.stat().st_size > limit):
+        raise ValueError('Invalid site attachment / 站点附件无效: ' + name)
+    data = file.read_bytes()
+    if content_type == 'image/png' and not data.startswith(b'\x89PNG\r\n\x1a\n'):
+        raise ValueError('Invalid site review PNG / 站点审阅 PNG 无效: ' + name)
+    return data
+
+
+def collect_site_review(root, summary, source_commit, environment):
+    """Collect fixed browser attachments; ordinary CI never writes review files."""
+    run, attempt, repository = run_identity(environment)
+    review = {'schema': 1, 'commit': source_commit, 'repository': repository,
+              'runId': run, 'attempt': attempt, 'projects': []}
+    cases, used_paths, images = {}, set(), {}
+    for case in summary['tests']:
+        attachments = [item for item in case['attempts'][-1].get('attachments', [])
+                       if item.get('name') in SITE_REVIEW_ATTACHMENTS]
+        if not attachments:
+            continue
+        project = case.get('project')
+        if (case.get('file') != 'tests/e2e/site.spec.js' or project not in ('desktop', 'mobile')
+                or project in cases or not isinstance(case.get('id'), str) or not case['id']
+                or len(attachments) != len(SITE_REVIEW_ATTACHMENTS)
+                or {item['name'] for item in attachments} != SITE_REVIEW_ATTACHMENTS):
+            raise ValueError('Incomplete or duplicate site review case / 站点审阅用例缺失或重复')
+        cases[project] = case
+        attached = {item['name']: item for item in attachments}
+        for item in attachments:
+            name = attachment_path(item.get('path'))
+            if name in used_paths:
+                raise ValueError('Site attachment reused across captures / 站点附件被重复使用')
+            used_paths.add(name)
+        proof_bytes = read_attachment(root, attached['site-review-source'], 'application/json')
+        proof = json.loads(proof_bytes)
+        manifest_bytes = read_attachment(root, attached['site-review-manifest'], 'application/json')
+        manifest_digest = hashlib.sha256(manifest_bytes).hexdigest()
+        site_manifest = json.loads(manifest_bytes)
+        if (not isinstance(proof, dict) or proof.get('schema') != 1
+                or proof.get('commit') != source_commit or proof.get('repository') != repository
+                or proof.get('runId') != run or proof.get('attempt') != attempt
+                or proof.get('project') != project or proof.get('testId') != case['id']
+                or proof.get('siteManifestSha256') != manifest_digest
+                or not isinstance(site_manifest, dict) or site_manifest.get('commit') != source_commit):
+            raise ValueError('Site capture source or run identity differs / 站点截图的源码或运行身份不符')
+        proof_images = proof.get('images')
+        if (not isinstance(proof_images, list) or len(proof_images) != len(SITE_REVIEW_IMAGES)
+                or any(not isinstance(item, dict) for item in proof_images)
+                or {item.get('attachment') for item in proof_images} != set(SITE_REVIEW_IMAGES)):
+            raise ValueError('Incomplete site capture image digests / 站点截图摘要不完整')
+        digests = {item['attachment']: item.get('sha256') for item in proof_images}
+        record = {'project': project, 'testId': case['id'],
+                  'sourcePath': attached['site-review-source']['path'],
+                  'sourceSha256': hashlib.sha256(proof_bytes).hexdigest(),
+                  'siteManifestPath': attached['site-review-manifest']['path'],
+                  'siteManifestSha256': manifest_digest, 'images': []}
+        for attachment, filename in SITE_REVIEW_IMAGES.items():
+            data = read_attachment(root, attached[attachment], 'image/png')
+            digest = hashlib.sha256(data).hexdigest()
+            if digests[attachment] != digest:
+                raise ValueError('Site capture image digest changed / 站点截图摘要已变化')
+            target = f'tests/e2e/__review__/site/{project}/{filename}'
+            images[target] = data
+            record['images'].append({'path': target, 'attachment': attachment,
+                                     'sourcePath': attached[attachment]['path'], 'sha256': digest})
+        review['projects'].append(record)
+    if set(cases) != {'desktop', 'mobile'} or set(images) != SITE_REVIEW_PATHS:
+        raise ValueError('All eight current-run site images are required / 需要本次运行的完整八张站点图片')
+    review['projects'].sort(key=lambda item: item['project'])
+    return review, images
+
+
+def validate_site_review(review, manifest, root=None):
+    if (not isinstance(review, dict) or review.get('schema') != 1
+            or any(review.get(key) != manifest.get(key) for key in ('commit', 'repository', 'runId', 'attempt'))
+            or not isinstance(review.get('projects'), list) or len(review['projects']) != 2):
+        raise ValueError('Site review provenance differs from proposal / 站点审阅来源与候选不符')
+    projects, paths, attachments = set(), set(), set()
+    for record in review['projects']:
+        if (not isinstance(record, dict) or record.get('project') not in ('desktop', 'mobile')
+                or record['project'] in projects or not isinstance(record.get('testId'), str) or not record['testId']
+                or not isinstance(record.get('images'), list) or len(record['images']) != 4):
+            raise ValueError('Invalid site review project / 站点审阅项目无效')
+        project = record['project']
+        projects.add(project)
+        entries = [(record.get('sourcePath'), record.get('sourceSha256')),
+                   (record.get('siteManifestPath'), record.get('siteManifestSha256'))]
+        for item in record['images']:
+            if not isinstance(item, dict) or item.get('attachment') not in SITE_REVIEW_IMAGES:
+                raise ValueError('Invalid site review image / 站点审阅图片无效')
+            expected = f'tests/e2e/__review__/site/{project}/{SITE_REVIEW_IMAGES[item["attachment"]]}'
+            if item.get('path') != expected or expected in paths:
+                raise ValueError('Site review paths differ from fixed images / 站点审阅图片路径不符')
+            paths.add(expected)
+            entries.append((item.get('sourcePath'), item.get('sha256')))
+            if root is not None:
+                validate_files(root, [expected], 'screenshots')
+                if hashlib.sha256((root / expected).read_bytes()).hexdigest() != item.get('sha256'):
+                    raise ValueError('Published site image differs from capture / 待发布站点图片与采集内容不同')
+        for source, digest in entries:
+            attachment_path(source)
+            if source in attachments or not isinstance(digest, str) or not re.fullmatch(r'[a-f0-9]{64}', digest):
+                raise ValueError('Invalid site review attachment digest / 站点审阅附件摘要无效')
+            attachments.add(source)
+    if paths != SITE_REVIEW_PATHS:
+        raise ValueError('Incomplete site review manifest / 站点审阅清单不完整')
+
+
 def export_proposal(root, source_commit, mode, summary_path, output, environment):
     assert_source(root, source_commit)
-    counts = validate_candidate(json.loads(summary_path.read_text(encoding='utf-8')), source_commit, environment)
+    summary = json.loads(summary_path.read_text(encoding='utf-8'))
+    counts = validate_candidate(summary, source_commit, environment)
+    review, images = collect_site_review(root, summary, source_commit, environment)
+    validate_files(root, changed_paths(root), mode)
+    for name, data in images.items():
+        target = root / name
+        if any(parent.is_symlink() for parent in (target, *target.parents)):
+            raise ValueError('Site review destination cannot be a symlink / 站点审阅目标不能是符号链接')
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_bytes(data)
     paths = changed_paths(root)
     validate_files(root, paths, mode)
     if paths:
@@ -188,7 +329,9 @@ def export_proposal(root, source_commit, mode, summary_path, output, environment
     (output / 'proposal.patch').write_bytes(patch)
     manifest = {'schema': 1, 'commit': source_commit, 'mode': mode, 'runId': run, 'attempt': attempt,
                 'repository': repository, 'counts': counts, 'patchSha256': hashlib.sha256(patch).hexdigest(),
-                'files': [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()} for name in paths]}
+                'files': [{'path': name, 'sha256': hashlib.sha256((root / name).read_bytes()).hexdigest()} for name in paths],
+                'siteReview': review}
+    validate_site_review(review, manifest, root)
     (output / 'proposal.json').write_text(json.dumps(manifest, indent=2) + '\n', encoding='utf-8')
     if environment.get('GITHUB_OUTPUT'):
         with open(environment['GITHUB_OUTPUT'], 'a', encoding='utf-8') as stream:
@@ -265,10 +408,12 @@ def publish_proposal(root, source_commit, directory, environment):
     files = manifest.get('files')
     if not isinstance(files, list) or not files or any(not isinstance(item, dict) for item in files):
         raise ValueError('Proposal has no changed files / 候选没有变化文件')
+    validate_site_review(manifest.get('siteReview'), manifest)
     paths = apply_patch(root, patch, manifest['mode'])
     actual = {name: hashlib.sha256((root / name).read_bytes()).hexdigest() for name in paths}
     if len(files) != len(actual) or actual != {item.get('path'): item.get('sha256') for item in files}:
         raise ValueError('Applied files differ from validated candidates / 应用内容与已检查候选不一致')
+    validate_site_review(manifest['siteReview'], manifest, root)
     # Re-running only the publisher retains the successful candidate artifact's
     # identity. A full candidate rerun gets its own attempt and review branch.
     branch = f'codex/e2e-update-{run}-{candidate_attempt}'
@@ -296,6 +441,15 @@ def publish_proposal(root, source_commit, directory, environment):
             '**Draft: images and assertion changes require human review. This workflow does not approve baselines or merge.**\n\n'
             'Review expected/actual/diff, behavior assertions and both viewports. The PAT-created pull request starts normal comparison CI automatically.\n\n'
             '**草稿：图片及断言变化须人工审阅；此任务不会批准基线或合并。** 请检查差异图、行为断言与两个视口。\n')
+    body += ('\n### Site images for review / 站点审阅原图\n\n'
+             'Open each homepage and first-run guide image in both languages and viewports. '
+             'These are browser captures for visual review; application baselines retain their normal comparison checks.\n\n'
+             '逐张查看两种语言、两个视口的首页和首次使用指南。以下原图用于人工审图；应用基线继续进行普通截图比较。\n\n'
+             f'Source / 源码: `{source_commit}` · Run / 运行: [{run}]({url}/attempts/{candidate_attempt}) · Attempt: {candidate_attempt}\n\n')
+    for project in manifest['siteReview']['projects']:
+        for item in project['images']:
+            label = project['project'] + ' · ' + PurePosixPath(item['path']).name
+            body += f'- [{label}](https://github.com/{repository}/blob/{commit}/{item["path"]})\n'
     with tempfile.TemporaryDirectory(prefix='sensa-e2e-pr-') as temporary:
         body_file = Path(temporary) / 'body.md'
         body_file.write_text(body, encoding='utf-8')

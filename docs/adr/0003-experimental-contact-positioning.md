@@ -1,8 +1,12 @@
-# Root measurement contracts and explicit spatial permission / 根点测量契约与明确空间许可
+# Root tracking and sample validity / 根点定位与样本有效性
 
-SPS 四点定位使用无版本路径中的 P0–P3 与合并有效性／采样活动的 Sample；Unity／桌面共享唯一几何，删除旧八路、移动参考、Others 和协议别名，减少错误组合与重复常量字段。静止距离允许缓存，并以内容变化的 Sample 判断生产端活动；这是对 delta-only 实用性的取舍，不证明 Contact 同帧或无丢包，内部缩放门禁仍必须保留。Shader 用独立原生命名空间、同来源完整十二字段与变化 Frame，诊断另行隔离；独立 Point／Handle／Pose 保留各自时效，所有空间映射仍需实验许可与输入启用，失效即停止，任何 CRC、ID 或残差都不是所有者认证或世界真值。[参数与限制](../osc-parameters.md)
+SPS 四点定位通过 P0–P3 四个距离值计算根点位置，Sample 同时表示当前测量有效且生产端持续运行。Unity 生成器与桌面解算器使用相同的测量点布局。距离保持不变时可复用已有值；持续变化的 Sample 用于判断数据是否仍在更新，因此能配合仅在数值变化时发送的 OSC 参数。各字段分别到达，样本时效与 Avatar 缩放检查共同决定这一组数据能否用于定位。[参数说明](../osc-parameters.md)
 
-SPS four-anchor tracking uses unversioned P0–P3 and Sample combining validity with sampling activity. Unity/desktop share one geometry; old eight-range, moving-reference, Others and alias branches are removed to avoid mixed models and repeated constants. Stationary ranges may be cached while changing Sample proves producer activity, trading atomicity claims for usable delta-only input; internal scale guards remain essential. Shader uses a separate native namespace, twelve complete same-source fields and a changing Frame, with diagnostics isolated; independent Point/Handle/Pose retain their own age rules, and every spatial mapping still requires explicit experimental/input permission and stops on invalidity—CRC, identity and residual are neither owner authentication nor world truth. [Parameters and limits](../osc-parameters.en.md)
+SPS four-anchor tracking calculates a root position from four distance values, P0–P3. Sample indicates valid measurements and ongoing producer activity. The Unity generator and desktop solver share one anchor layout. Unchanged distances can reuse their previous values while a changing Sample confirms continued updates, supporting OSC parameters sent only when their values change. Fields arrive separately; sample age and Avatar-scale checks determine whether the set can be used for tracking. [Parameter reference](../osc-parameters.en.md)
+
+Shader 根点捕获使用专用 OSC 路径，接收同一来源的完整十二字段，并通过变化的 Frame 检查画面更新。Point、Handle 与 Pose 分别保留各自的有效期。使用空间映射时，先在设置中启用实验定位，再启用输入；测量失效会停止相应输出。CRC 检查传输内容，Producer ID 区分测量通道，解算残差衡量距离值与模型的吻合程度。实际位置精度通过客户端和设备环境验证。
+
+Shader root capture uses dedicated OSC paths, twelve complete fields from one source, and a changing Frame to check image updates. Point, Handle and Pose keep their own validity windows. To use spatial mappings, enable experimental tracking in settings, then enable input; invalid measurements stop the affected output. CRC checks packet contents, Producer ID distinguishes measurement channels, and solver residuals describe how closely the distances fit the model. Position accuracy is verified in the target client and device environment.
 
 ## Coverage and image alignment / 覆盖范围与画面对齐
 

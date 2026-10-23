@@ -15,14 +15,24 @@ jobs:
   build:
     name: Build site
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 10
+    outputs:
+      commit: ${{ steps.source.outputs.commit }}
+      artifact_name: ${{ steps.source.outputs.artifact_name }}
+      artifact_id: ${{ steps.upload.outputs.artifact_id }}
+      archive_sha256: ${{ steps.archive.outputs.sha256 }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           ref: main
       - name: Pin source
-        run: echo "SENSA_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+        id: source
+        run: |
+          sensa_commit=$(git rev-parse HEAD)
+          echo "commit=$sensa_commit" >> "$GITHUB_OUTPUT"
+          echo "artifact_name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_OUTPUT"
+          echo "SENSA_SOURCE_COMMIT=$sensa_commit" >> "$GITHUB_ENV"
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
@@ -37,27 +47,71 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 scripts/vpm-index.py --allow-empty
       - name: Build docs
-        run: GITHUB_SHA="$(git rev-parse HEAD)" npm run build:pages
-      - name: Install browser dependencies
+        run: GITHUB_SHA="$SENSA_SOURCE_COMMIT" npm run build:pages
+      - name: Upload site
+        id: upload
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
+        with:
+          name: ${{ steps.source.outputs.artifact_name }}
+          path: artifacts/pages
+          retention-days: 14
+      - name: Fingerprint archive
+        id: archive
+        run: |
+          sensa_digest=$(python3 scripts/verify-pages-artifact.py fingerprint --archive "$RUNNER_TEMP/artifact.tar")
+          echo "sha256=$sensa_digest" >> "$GITHUB_OUTPUT"
+
+  verify:
+    name: Verify site
+    needs: build
+    runs-on: ubuntu-24.04
+    container: mcr.microsoft.com/playwright:v1.64.1-noble
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      E2E_SUITE: site
+      E2E_UPDATE_SNAPSHOTS: 'false'
+      SENSA_SOURCE_COMMIT: ${{ needs.build.outputs.commit }}
+      SENSA_SITE_DIRECTORY: artifacts/pages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ needs.build.outputs.commit }}
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install test dependencies
         timeout-minutes: 5
-        run: bash scripts/install-pages-dependencies.sh
-      - name: Install browser
-        timeout-minutes: 3
+        run: bash scripts/install-e2e-dependencies.sh
+      - name: Install dependencies
+        run: npm ci
+      - name: Download site
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333
+        with:
+          artifact-ids: ${{ needs.build.outputs.artifact_id }}
+          path: artifacts/site-archive
+          merge-multiple: true
+          digest-mismatch: error
+      - name: Verify and extract archive
         env:
-          PLAYWRIGHT_DOWNLOAD_CONNECTION_TIMEOUT: '30000'
-        run: npx playwright install --only-shell chromium
+          SENSA_PAGES_ARTIFACT_ID: ${{ needs.build.outputs.artifact_id }}
+          SENSA_PAGES_ARTIFACT_NAME: ${{ needs.build.outputs.artifact_name }}
+          SENSA_PAGES_ARCHIVE_SHA256: ${{ needs.build.outputs.archive_sha256 }}
+        run: |
+          python3 scripts/verify-pages-artifact.py extract \
+            --archive artifacts/site-archive/artifact.tar --output "$SENSA_SITE_DIRECTORY" \
+            --commit "$SENSA_SOURCE_COMMIT" --sha256 "$SENSA_PAGES_ARCHIVE_SHA256" \
+            --artifact-id "$SENSA_PAGES_ARTIFACT_ID" --artifact-name "$SENSA_PAGES_ARTIFACT_NAME" \
+            --receipt artifacts/e2e/pages-artifact.json
       - name: Check site
         id: site_tests
-        env:
-          E2E_SUITE: site
-          E2E_UPDATE_SNAPSHOTS: 'false'
-          SENSA_SITE_DIRECTORY: artifacts/pages
         run: npm run e2e:ci
       - name: Summarize site checks
         if: always()
         env:
-          E2E_SUITE: site
-          E2E_UPDATE_SNAPSHOTS: 'false'
           E2E_COMMAND_OUTCOME: ${{ steps.site_tests.outcome }}
         run: node scripts/e2e-summary-reporter.mjs --finalize-report artifacts/e2e/summary.json
       - name: Upload site report
@@ -72,16 +126,13 @@ jobs:
             artifacts/e2e/results.json
             artifacts/e2e/summary.json
             artifacts/e2e/summary.md
+            artifacts/e2e/pages-artifact.json
             artifacts/pages/site-manifest.json
           retention-days: 14
-      - name: Upload site
-        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9
-        with:
-          path: artifacts/pages
 
   deploy:
     name: Deploy site
-    needs: build
+    needs: [build, verify]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -99,3 +150,5 @@ jobs:
       - name: Deploy Pages
         id: deployment
         uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346
+        with:
+          artifact_name: ${{ needs.build.outputs.artifact_name }}

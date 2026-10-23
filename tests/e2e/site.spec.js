@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright';
 import http from 'node:http';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { buildPages } from '../../scripts/build-pages.mjs';
 
 // Standalone 3D gets the same software backend as offline guide tests.
@@ -19,7 +20,7 @@ test.beforeAll(async () => {
     const parent = path.resolve('artifacts/e2e');
     await fs.mkdir(parent, { recursive: true });
     directory = await fs.mkdtemp(path.join(parent, 'site-'));
-    await buildPages({ output: directory });
+    await buildPages({ output: directory, commit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA });
   }
   server = http.createServer(async (request, response) => {
     try {
@@ -37,6 +38,29 @@ test.beforeAll(async () => {
   base = 'http://127.0.0.1:' + server.address().port + '/Sensa/';
 });
 test.afterAll(async () => { if (server) await new Promise(resolve => server.close(resolve)); });
+
+async function captureSiteReview(page, info, name, images) {
+  await page.evaluate(() => document.fonts.ready);
+  const file = info.outputPath(name + '.png');
+  const bytes = await page.screenshot({ path: file, fullPage: true });
+  await info.attach(name, { path: file, contentType: 'image/png' });
+  images.push({ attachment: name, sha256: createHash('sha256').update(bytes).digest('hex') });
+}
+
+async function attachSiteReviewSource(info, images) {
+  const file = path.join(directory, 'site-manifest.json');
+  const bytes = await fs.readFile(file);
+  const commit = process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA;
+  expect(JSON.parse(bytes).commit, 'site build uses the pinned E2E source').toBe(commit);
+  await info.attach('site-review-manifest', { path: file, contentType: 'application/json' });
+  const sourceFile = info.outputPath('site-review-source.json');
+  await fs.writeFile(sourceFile, JSON.stringify({ schema: 1, commit,
+    repository: process.env.GITHUB_REPOSITORY, runId: process.env.GITHUB_RUN_ID,
+    attempt: process.env.GITHUB_RUN_ATTEMPT, project: info.project.name, testId: info.testId,
+    siteManifestSha256: createHash('sha256').update(bytes).digest('hex'), images,
+  }));
+  await info.attach('site-review-source', { path: sourceFile, contentType: 'application/json' });
+}
 
 async function auditHome(page, info, language) {
   const result = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa']).analyze();
@@ -132,6 +156,7 @@ async function inspectOverview(page, info, locale) {
 
 test('@site standalone Pages language, document navigation and independent geometry', async ({ page }, testInfo) => {
   const errors = [];
+  const reviewImages = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.goto(base + '?lang=en-US');
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
@@ -162,8 +187,7 @@ test('@site standalone Pages language, document navigation and independent geome
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await inspectHomeLayout(page, testInfo, 'en-US');
   await auditHome(page, testInfo, 'en-US');
-  const homeEn = await page.screenshot({ path: testInfo.outputPath('pages-home-en.png'), fullPage: true });
-  await testInfo.attach('homepage-en-US', { body: homeEn, contentType: 'image/png' });
+  await captureSiteReview(page, testInfo, 'site-review-home-en-US', reviewImages);
   await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
   const navigation = page.locator('.navigation');
@@ -218,21 +242,20 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await inspectHomeLayout(page, testInfo, 'zh-CN');
   await auditHome(page, testInfo, 'zh-CN');
-  const homeZh = await page.screenshot({ path: testInfo.outputPath('pages-home-zh.png'), fullPage: true });
-  await testInfo.attach('homepage-zh-CN', { body: homeZh, contentType: 'image/png' });
+  await captureSiteReview(page, testInfo, 'site-review-home-zh-CN', reviewImages);
   await expect(heroFirstRunGuide).toHaveAccessibleName('首次使用指南');
   await heroFirstRunGuide.click();
   await expect(page).toHaveURL(/zh-CN\/docs\/quick-start.html$/);
   await expect(page.locator('article h1')).toBeVisible();
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('pages-guide-zh.png'), fullPage: true });
+  await captureSiteReview(page, testInfo, 'site-review-guide-zh-CN', reviewImages);
   await inspectOverview(page, testInfo, 'zh-CN');
   await page.goto(new URL('zh-CN/docs/quick-start.html', base).href);
   await page.locator('header [data-locale="en"]').click();
   await expect(page).toHaveURL(/en\/docs\/quick-start.html$/);
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
-  await page.screenshot({ path: testInfo.outputPath('pages-guide-en.png'), fullPage: true });
+  await captureSiteReview(page, testInfo, 'site-review-guide-en-US', reviewImages);
   await inspectOverview(page, testInfo, 'en');
   await page.goto(new URL('en/docs/quick-start.html', base).href);
   await page.locator('header a[href*="parameter-geometry.html"]').click();
@@ -274,6 +297,7 @@ test('@site standalone Pages language, document navigation and independent geome
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await page.screenshot({ path: testInfo.outputPath('pages-unity-build-zh.png'), fullPage: true });
   expect(errors).toEqual([]);
+  await attachSiteReviewSource(testInfo, reviewImages);
 });
 test('@site language priority, unsupported preferences and Chinese variants', async ({ browser }, testInfo) => {
   const cases = [

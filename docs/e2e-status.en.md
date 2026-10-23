@@ -12,7 +12,13 @@ WebUI now uses workspace navigation and grouped settings; the parameter explorer
 
 Isolated checks passed **721 .NET, 183 Web and 265 Python** tests, Unity package metadata, **88 site routes and four site units**. The fixed QR vector was checked across all eight masks with qrcode 8.2 and zxing-cpp 2.3.0; independent review covered 160 standard matrices, 972 error/erasure combinations, 200 Shader-algorithm packets and 72 rotation angles. Official DXC static compilation of three SM6 entries and syntax checks of 47 C# files passed. Unity Editor, actual GPU, VRChat/HMD and hardware validation await their respective environments.
 
-Full browser checks, site checks and candidate images run in Actions. New screenshot baselines require individual review followed by a complete comparison with image updates disabled. The previous inspected runs remain below as history.
+Full browser checks, site checks and candidate images run in Actions. New screenshot baselines require individual review followed by a complete comparison with image updates disabled.
+
+The initial source `57a82174c66f79e613589c0f30c2989758ddf3b5` passed unit checks in [CI 40010541628](https://github.com/SeaLoong/Sensa/actions/runs/40010541628). Its ordinary browser comparison recorded **3 passed, 3 failed and 98 not run**, all other outcomes zero. All three failures compare the new layout with previous images; `suite=all`, `mode=comparison`, `runner=failed`, command failed, `selectionComplete=true`, `snapshotsCompared=true`. Builds and publication were skipped. Both attempts of [Pages 40010541597](https://github.com/SeaLoong/Sensa/actions/runs/40010541597), using the same source, timed out installing Chromium system dependencies: both 130-second installation attempts in each run exited 124. Browser total and all outcomes were **zero**; `suite=site`, `mode=comparison`, `runner=not-run`, command skipped, with selection and snapshot flags false. Deployment was skipped. The follow-up splits native site building, checks in a pinned browser container, and deployment of that same artifact.
+
+[Candidate run 40010549501](https://github.com/SeaLoong/Sensa/actions/runs/40010549501) executed all **104 cases: 103 passed and one failed**, all other outcomes zero, on the same source; `suite=all`, `mode=candidate`, `runner=failed`, command failed, `selectionComplete=true`, `snapshotsCompared=false`. The mobile OSCQuery/forwarding screenshot region exceeded its visible scrollport. The follow-up splits captures by setting group while retaining behavior assertions and visible-region checks. Candidate export and PR creation were skipped; images remain unaccepted.
+
+The previous inspected runs remain below as history.
 
 ## Repository review and software homepage
 

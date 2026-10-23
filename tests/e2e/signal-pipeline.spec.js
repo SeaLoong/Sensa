@@ -2,7 +2,7 @@ import dgram from 'node:dgram';
 import { once } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { test, expect, text, active, mode, workspace, checkpoint } from './fixtures.js';
+import { test, expect, text, active, mode, workspace, checkpoint, checkpointViewport } from './fixtures.js';
 
 const config = async (page, rig) => page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
 const outputState = async (rig, id) => (await rig.overview()).outputs.find(output => output.id === id)?.signalStatus;
@@ -28,10 +28,10 @@ function decodeOsc(bytes) {
   throw new Error('Unexpected OSC type: ' + tag);
 }
 
-async function oscReceiver() {
+async function oscReceiver(port = 0) {
   const socket = dgram.createSocket('udp4'), messages = [], errors = [];
   socket.on('message', bytes => { try { messages.push(decodeOsc(bytes)); } catch (error) { errors.push(error.message); } });
-  socket.bind(0, '127.0.0.1');
+  socket.bind(port, '127.0.0.1');
   await once(socket, 'listening');
   socket.on('error', error => errors.push(error.message));
   return { port: socket.address().port, messages, errors,
@@ -178,7 +178,9 @@ for (const locale of ['zh-CN', 'en-US']) {
 
     test('combined calculations drive typed OSC and configured stop values / 组合计算驱动 OSC 并发送停止值',
       { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
-        const receiver = await oscReceiver();
+        // Keep the real loopback endpoint stable in documentation screenshots, with a port for each locale and viewport.
+        const previewPort = 31540 + (info.project.name === 'mobile' ? 2 : 0) + (locale === 'en-US' ? 1 : 0);
+        const receiver = await oscReceiver(previewPort);
         try {
           const feed = await rig.startFeed([['CI/Source', 1]]);
           await workspace(page, '流程');
@@ -229,6 +231,8 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect.poll(() => receiver.last('/ci/blend')).toEqual({ address: '/ci/blend', type: 'Int', value: 85 });
           await expect.poll(() => receiver.last('/ci/contact')).toEqual({ address: '/ci/contact', type: 'Bool', value: true });
           await expect.poll(async () => (await calculated(rig, 'Signal1'))?.value).toBeCloseTo(.85, 5);
+          await expect(outputCard(page, osc.id).getByTestId('signal-output-status')).toContainText('85');
+          await checkpointViewport(page, 'combined-input-' + locale);
 
           await feed.set([['CI/Source', .7]]);
           await expect.poll(async () => (await calculated(rig, 'Signal1'))?.value).toBeCloseTo(.625, 5);

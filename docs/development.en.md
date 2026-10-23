@@ -44,7 +44,7 @@ Each run checks its selected commit. Publication uses the check results and arti
 
 The repository Actions secret `SENSA_PAT` publishes Releases, pushes E2E candidate branches and creates review PRs. Creating the PR automatically triggers normal CI.
 
-Default `screenshots` mode runs E2E and generates candidate images directly. Optional `agent` mode additionally uses `OPENAI_API_KEY` to maintain test cases.
+Default `screenshots` mode runs the full E2E suite and generates application baseline candidates plus eight site review captures. Optional `agent` mode additionally uses `OPENAI_API_KEY` to maintain test cases. [Image review workflow](e2e.en.md#how-do-i-update-e2e-manually)
 
 ## How are release notes generated?
 
@@ -61,7 +61,11 @@ Use change titles that describe an observable user benefit. Generated notes use 
 
 ## Where should I look after a failure?
 
-Open the Actions run, then inspect failing steps and the Job summary. Browser and candidate workflows share a font/mock-runtime installer that reads only Ubuntu package sources and retains the existing font package and fontconfig rules. It makes up to two attempts, each limited to 130 seconds with five more seconds to terminate processes. APT uses a 15-second network timeout and one retry per download; the step budget remains five minutes. The second attempt first completes pending package configuration with `dpkg --configure --pending`, within that same budget. A recovery or installation failure stops downstream tests; retry that run when needed. Pages retains the GitHub CLI on a native runner and installs browser system libraries and Chinese fonts with the same fixed Ubuntu-source configuration, package recovery, two 130-second attempts and a five-minute step budget. The current runner user downloads the headless browser separately, with a three-minute step budget and a 30-second connection timeout. The Pages build job has a 15-minute budget. The full browser job has a 35-minute budget for both viewports, both languages and multi-tab connection cases. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. See the [verification record](e2e-status.en.md) for recorded outcomes. Cases suppressed by the failure limit are recorded as unrun. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
+Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. Cases suppressed by the failure limit are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
+
+Application E2E, candidate capture and Pages site checks use the same Playwright container version, which provides the browser and its system dependencies. A shared installer adds Chinese fonts and the mock runtime while preserving fontconfig rules. The full application browser job has a 35-minute budget for both viewports, both languages and multi-tab connection cases.
+
+Dependency installation reads fixed Ubuntu package sources and makes up to two attempts, each limited to 130 seconds with five more seconds to terminate processes. APT uses a 15-second network timeout and one retry per download; the step budget is five minutes. The second attempt first completes pending package configuration with `dpkg --configure --pending`, within the same budget. Verification continues after installation succeeds; investigate network or installation failures and retry the run when needed.
 
 Native builds run the generated program with isolated smoke configuration; Windows also runs shader-bridge mock replay. Packaging and publication accept ordinary files with portable archive paths. The publisher creates a draft, uploads files, verifies names, sizes and SHA-256 hashes, then rechecks the actual Git tag target immediately before publication. Failed uploads retain a draft for investigation. Rerunning a published preview verifies its existing assets and completes any remaining cleanup. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
 
@@ -70,6 +74,16 @@ If **Update E2E** pushes its candidate branch but PR creation fails, use **Re-ru
 ## Documentation site and VPM
 
 The [documentation site](https://sealoong.github.io/Sensa/) builds automatically after document/site changes on `main`, then deploys after site E2E succeeds. A successful stable release refreshes VPM automatically. Deployment uses the same checked static artifact; stable-package refreshes use current `main` documentation.
+
+Pages has three jobs:
+
+1. **Build** pins latest `main` on a native runner, collects stable VPM packages with the GitHub CLI, builds the documentation and uploads that build's Pages archive.
+2. **Verify** checks out the same commit in the fixed Playwright container, downloads the archive by artifact ID, validates its integrity, extraction paths and site-manifest commit, then runs site E2E against those files.
+3. **Deploy** waits for build and verification to pass, then deploys the same checked archive.
+
+The three job budgets are 10, 15 and 10 minutes respectively. Archive names include the run ID and build attempt so reruns can identify the same artifact. Pages archives and verification reports are retained for 14 days.
+
+The full candidate run's `site.spec.js` produces the site review captures. The exporter collects fixed attachment names for the homepage and first-run guide in both languages and viewports, verifies their provenance, build manifest and SHA-256 hashes, then writes the eight fixed `__review__/site` paths. The PR provides commit-specific image links for individual inspection on GitHub. These captures support manual review; normal baseline comparison and site behavior checks continue to run.
 
 VPM preserves verified stable packages and historical downloads. Network or hash failures stop deployment; an unavailable state is shown when no stable package exists.
 

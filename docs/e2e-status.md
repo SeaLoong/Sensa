@@ -12,7 +12,13 @@ WebUI 改为工作区侧栏与分组设置；参数图解改为参数导航、�
 
 隔离检查通过 **721 项 .NET、183 项 Web、265 项 Python**，以及 Unity 包元数据、**88 条站点路由、4 项站点单元**。固定 QR 向量使用 qrcode 8.2 和 zxing-cpp 2.3.0 核对八种掩码；独立复核覆盖 160 组标准矩阵、972 组错误／擦除组合、200 组 Shader 算法和 72 个旋转角度。官方 DXC 的三个 SM6 入口静态编译及 47 份 C# 语法检查通过。Unity Editor、实际 GPU、VRChat/HMD 与硬件验收仍待对应环境。
 
-本轮完整浏览器、站点检查与候选图片由 Actions 执行。新的截图基线在逐张审阅和关闭图片更新的完整比较完成后接受；下方保留上一轮已核对的历史运行。
+本轮完整浏览器、站点检查与候选图片由 Actions 执行。新的截图基线在逐张审阅和关闭图片更新的完整比较完成后接受。
+
+首次源码 `57a82174c66f79e613589c0f30c2989758ddf3b5` 的 [CI 40010541628](https://github.com/SeaLoong/Sensa/actions/runs/40010541628) 单元检查通过，普通浏览器比较得到 **3 通过、3 失败、98 未执行**，其余结果计数为 0。失败均为新版布局与原有图片不同；`suite=all`、`mode=comparison`、`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=true`，构建与发布跳过。相同源码的 [Pages 40010541597](https://github.com/SeaLoong/Sensa/actions/runs/40010541597) 两次运行均在 Chromium 系统依赖安装阶段超时，每轮两次 130 秒尝试均以 124 退出；浏览器总计与全部结果为 **0**，`suite=site`、`mode=comparison`、`runner=not-run`、命令跳过，完整选择与图片比较标记为 false，部署跳过。站点流程随后调整为原生构建、固定浏览器容器检查、部署同一产物。
+
+同一源码的 [候选 40010549501](https://github.com/SeaLoong/Sensa/actions/runs/40010549501) 完整执行 **104 项：103 通过、1 失败**，其余结果计数为 0；`suite=all`、`mode=candidate`、`runner=failed`、命令失败，`selectionComplete=true`、`snapshotsCompared=false`。失败为窄屏 OSCQuery／转发用例的截图区域高于可见滚动区，后续将截图按设置组拆分，保留原业务断言和可见区域检查。候选导出与 PR 创建跳过，图片尚未接受。
+
+下方保留上一轮已核对的历史运行。
 
 ## 仓库审查与软件首页
 

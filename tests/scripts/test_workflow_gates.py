@@ -150,7 +150,7 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('artifacts/e2e/summary.md', artifact)
 
     def test_container_browser_jobs_share_bounded_dependency_setup_before_tests(self):
-        for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates')):
+        for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
             with self.subTest(workflow=filename):
                 body = jobs(workflow(filename))[job_name]
                 self.assertIn('container: mcr.microsoft.com/playwright:v1.64.1-noble', body)
@@ -174,18 +174,66 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertNotIn('workflow_dispatch:', header)
         scopes = jobs(source)
         build = scopes['build']
+        verify = scopes['verify']
+        deploy = scopes['deploy']
         self.assertIn('ref: main', build)
         self.assertIn('node --test tests/web/site.test.mjs', build)
-        self.assertIn('E2E_SUITE: site', build)
-        self.assertRegex(build, r"E2E_UPDATE_SNAPSHOTS: ['\"]?false['\"]?(?:\n|$)")
-        self.assertIn('SENSA_SOURCE_COMMIT=$(git rev-parse HEAD)', build)
+        self.assertIn('sensa_commit=$(git rev-parse HEAD)', build)
         self.assertIn('>> "$GITHUB_ENV"', build)
-        self.assertIn('run: npm run e2e:ci', build)
-        self.assertNotIn('continue-on-error', build)
-        self.assertLess(build.index('npm run build:pages'), build.index('run: npm run e2e:ci'))
-        self.assertLess(build.index('run: npm run e2e:ci'), build.index('uses: actions/upload-pages-artifact@'))
-        self.assertEqual(needs(scopes['deploy']), {'build'})
-        self.assertNotIn('always()', scopes['deploy'])
+        self.assertIn('run: GITHUB_SHA="$SENSA_SOURCE_COMMIT" npm run build:pages', build)
+        self.assertIn('run: python3 scripts/vpm-index.py --allow-empty', build)
+        self.assertNotIn('container:', build)
+        self.assertNotIn('npm run e2e:ci', build)
+        self.assertEqual(needs(verify), {'build'})
+        self.assertIn('ref: ${{ needs.build.outputs.commit }}', verify)
+        self.assertIn('SENSA_SOURCE_COMMIT: ${{ needs.build.outputs.commit }}', verify)
+        self.assertIn('SENSA_SITE_DIRECTORY: artifacts/pages', verify)
+        self.assertIn('E2E_SUITE: site', verify)
+        self.assertRegex(verify, r"E2E_UPDATE_SNAPSHOTS: ['\"]?false['\"]?(?:\n|$)")
+        self.assertIn('run: npm run e2e:ci', verify)
+        self.assertNotIn('npm run build:pages', verify)
+        self.assertNotIn('playwright install', source)
+        self.assertNotIn('install-pages-dependencies', source)
+        self.assertEqual(needs(deploy), {'build', 'verify'})
+        for body in (build, verify, deploy):
+            self.assertNotIn('continue-on-error', body)
+            self.assertNotIn('always()', body.split('    steps:\n', 1)[0])
+        self.assertNotIn('always()', deploy)
+
+    def test_pages_verifies_and_deploys_one_immutable_archive_across_partial_reruns(self):
+        scopes = jobs(workflow('pages.yml'))
+        build, verify, deploy = (scopes[name] for name in ('build', 'verify', 'deploy'))
+        for key, value in (('commit', 'source.outputs.commit'), ('artifact_name', 'source.outputs.artifact_name'),
+                           ('artifact_id', 'upload.outputs.artifact_id'), ('archive_sha256', 'archive.outputs.sha256')):
+            self.assertIn(f'{key}: ${{{{ steps.{value} }}}}', build)
+        self.assertIn('artifact_name=github-pages-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}', build)
+        self.assertIn('name: ${{ steps.source.outputs.artifact_name }}', build)
+        self.assertIn('retention-days: 14', build)
+        self.assertIn('fingerprint --archive "$RUNNER_TEMP/artifact.tar"', build)
+        self.assertLess(build.index('npm run build:pages'), build.index('uses: actions/upload-pages-artifact@'))
+        self.assertLess(build.index('uses: actions/upload-pages-artifact@'), build.index('fingerprint --archive'))
+        self.assertIn('artifact-ids: ${{ needs.build.outputs.artifact_id }}', verify)
+        self.assertIn('digest-mismatch: error', verify)
+        self.assertIn('merge-multiple: true', verify)
+        self.assertIn('SENSA_PAGES_ARCHIVE_SHA256: ${{ needs.build.outputs.archive_sha256 }}', verify)
+        self.assertIn('--commit "$SENSA_SOURCE_COMMIT" --sha256 "$SENSA_PAGES_ARCHIVE_SHA256"', verify)
+        self.assertIn('--archive artifacts/site-archive/artifact.tar --output "$SENSA_SITE_DIRECTORY"', verify)
+        self.assertIn('--artifact-id "$SENSA_PAGES_ARTIFACT_ID" --artifact-name "$SENSA_PAGES_ARTIFACT_NAME"', verify)
+        self.assertLess(verify.index('uses: actions/download-artifact@'), verify.index('scripts/verify-pages-artifact.py extract'))
+        self.assertLess(verify.index('scripts/verify-pages-artifact.py extract'), verify.index('run: npm run e2e:ci'))
+        self.assertNotIn('uses: actions/upload-pages-artifact@', verify + deploy)
+        self.assertIn('artifact_name: ${{ needs.build.outputs.artifact_name }}', deploy)
+        self.assertNotIn('GITHUB_RUN_ATTEMPT', verify + deploy)
+        steps = re.split(r'(?m)^      - ', verify)
+        finalizer = next(step for step in steps if '--finalize-report artifacts/e2e/summary.json' in step)
+        report = next(step for step in steps if 'name: pages-verification\n' in step)
+        self.assertIn('if: always()', finalizer)
+        self.assertIn('E2E_COMMAND_OUTCOME: ${{ steps.site_tests.outcome }}', finalizer)
+        self.assertIn('if: always()', report)
+        for artifact in ('summary.json', 'summary.md', 'pages-artifact.json', 'results.json', 'report/', 'results/'):
+            self.assertIn('artifacts/e2e/' + artifact, report)
+        self.assertIn('artifacts/pages/site-manifest.json', report)
+        self.assertIn('retention-days: 14', report)
 
 
 if __name__ == '__main__':

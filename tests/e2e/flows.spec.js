@@ -275,7 +275,7 @@ test('paired pose is diagnostic by default, explicit opt-in drives, missing land
 
 test.describe('OSCQuery and Hub', () => {
   test.use({ scenario:'query' });
-  test('discovery and forwarding use real loopback peers', { tag:['@osc','@visual'] }, async ({ page, rig }) => {
+  test('discovery and forwarding use real loopback peers', { tag:['@osc','@visual'] }, async ({ page, rig }, info) => {
     await mode(page, 'OSC'); await oscWorkspace(page, '参数');
     await expand(page, '接收与转发设置'); await expand(page, 'OSCQuery');
     const polling = page.getByRole('checkbox', { name:'轮询回退', exact:true }); await polling.check();
@@ -288,7 +288,25 @@ test.describe('OSCQuery and Hub', () => {
     await page.locator('summary').filter({ hasText: /^OSCQuery$/ }).click();
     await checkpoint(page, page.locator('.osc-receiver-settings'), 'osc-receiver-settings');
     await expand(page, 'OSC Hub');
-    await checkpoint(page, page.locator('.osc-forwarding-settings'), 'osc-hub');
+    const hub = page.locator('.osc-forwarding-settings');
+    await expect(hub.locator('.hub-target')).toHaveCount(1);
+    if (info.project.name === 'mobile') {
+      // Capture every control group through the real scrollport; retain the height guard.
+      // 每组都在实际正文滚动区内完整截图，保留高度保护。
+      const groups = ['.osc-hub-controls', '.osc-hub-targets', '.osc-settings-save'];
+      const bounds = await hub.evaluate((element, selectors) => selectors.map(selector => {
+        const box = element.querySelector(selector).getBoundingClientRect();
+        return { top: box.top, bottom: box.bottom };
+      }), groups);
+      for (let index = 1; index < bounds.length; index++) {
+        expect(bounds[index].top - bounds[index - 1].bottom, 'OSC groups retain their reading space / OSC 分组保留阅读间距').toBeGreaterThanOrEqual(16);
+      }
+      await checkpoint(page, hub.locator(groups[0]), 'osc-hub-controls');
+      await checkpoint(page, hub.locator(groups[1]), 'osc-hub-targets');
+      await checkpoint(page, hub.locator(groups[2]), 'osc-settings-save');
+    } else {
+      await checkpoint(page, hub, 'osc-hub');
+    }
   });
 });
 
