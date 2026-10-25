@@ -56,14 +56,17 @@
           // Keep a visible recovery route where this page cannot explain a stale result.
           link.href = downloadRoutes.get(link);
           link.removeAttribute('aria-disabled');
+          link.removeAttribute('role');
           link.removeAttribute('title');
         } else if (target.url) {
           link.href = target.url;
           link.removeAttribute('aria-disabled');
+          link.removeAttribute('role');
           link.removeAttribute('title');
         } else if (state !== 'loading') {
           link.removeAttribute('href');
           link.setAttribute('aria-disabled', 'true');
+          link.setAttribute('role', 'link');
           link.title = locale === 'en' ? 'This download is currently unavailable.' : '这个下载暂不可用。';
         }
       }

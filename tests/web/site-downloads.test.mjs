@@ -148,10 +148,18 @@ test('router opens latest release or exact requested asset without a chooser, wi
 test('missing assets never fall back to another release or a misleading general-page link', async () => {
   const older = release('0.3.0', { published: '2026-10-20T12:00:00Z' });
   const item = release('0.4.0', { omit: ['win-arm64-setup'] });
-  const state = await runPage(async () => ({ ok: true, json: async () => [older, item] }), { router: true, asset: 'win-arm64-setup' });
+  let payload = [older, item];
+  const state = await runPage(async () => ({ ok: true, json: async () => payload }), { router: true, asset: 'win-arm64-setup' });
   assert.deepEqual(state.redirects, []); assert.match(state.elements['download-status'].textContent, /not available in the latest release/);
   assert.equal(state.links[2].href, undefined); assert.equal(state.links[2]['aria-disabled'], 'true');
+  assert.equal(state.links[2].role, 'link', 'A disabled download retains link semantics and its text name');
   assert.equal(state.elements['download-release'].href, item.html_url);
+  payload = [release('0.4.0')];
+  await state.elements['download-retry'].click();
+  assert.equal(state.links[2].href, downloadTarget(selectRelease(payload), 'win-arm64-setup').url);
+  assert.equal(state.links[2]['aria-disabled'], undefined);
+  assert.equal(state.links[2].role, undefined, 'Restored href supplies native link semantics');
+  assert.equal(state.links[2].title, undefined);
 });
 
 test('network failures show retry or reuse a validated cached release; empty API results clear cache', async () => {
