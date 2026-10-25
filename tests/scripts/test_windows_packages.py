@@ -132,6 +132,32 @@ class WindowsPackageContracts(unittest.TestCase):
             installer_smoke.verify_installer(self.source / 'Sensa.exe', self.source / 'Sensa.exe', self.root / 'report')
         run.assert_not_called()
 
+    def test_uninstaller_cleanup_waits_for_delayed_self_removal(self):
+        uninstaller = self.root / 'unins000.exe'
+        uninstaller.write_bytes(b'helper still running')
+        elapsed = [0.0]
+        def sleep(interval):
+            elapsed[0] += interval
+            if elapsed[0] >= .15:
+                uninstaller.unlink()
+        installer_smoke.wait_for_uninstaller(uninstaller, timeout=1,
+                                            clock=lambda: elapsed[0], sleep=sleep)
+        self.assertGreaterEqual(elapsed[0], .15)
+        self.assertFalse(uninstaller.exists())
+
+    def test_uninstaller_cleanup_fails_if_helper_never_finishes(self):
+        uninstaller = self.root / 'unins000.exe'
+        uninstaller.write_bytes(b'helper still running')
+        elapsed = [0.0]
+        def sleep(interval):
+            elapsed[0] += interval
+        with self.assertRaisesRegex(AssertionError, 'Uninstaller self-removal did not finish'):
+            installer_smoke.wait_for_uninstaller(uninstaller, timeout=.1,
+                                                clock=lambda: elapsed[0], sleep=sleep)
+        self.assertGreaterEqual(elapsed[0], .1)
+        self.assertLess(elapsed[0], .2)
+        self.assertEqual(uninstaller.read_bytes(), b'helper still running')
+
     def test_installer_smoke_checks_the_installed_binary_reinstall_and_data_preserving_uninstall(self):
         setup = self.root / 'Setup.exe'
         setup.write_bytes(b'fixture setup')
@@ -149,16 +175,22 @@ class WindowsPackageContracts(unittest.TestCase):
             elif Path(command[0]).name == 'unins000.exe':
                 directory = Path(command[0]).parent
                 for path in tuple(directory.iterdir()):
-                    if path.name in ('config.json', 'recordings'): continue
+                    if path.name in ('config.json', 'recordings', 'unins000.exe'): continue
                     if path.is_dir(): shutil.rmtree(path)
                     else: path.unlink()
             else:
                 self.assertEqual(Path(command[1]).name, 'smoke.py')
                 self.assertNotIn('--open-browser=true', command)
+        wait_for_uninstaller = installer_smoke.wait_for_uninstaller
+        def finish_self_removal(uninstaller):
+            self.assertTrue(uninstaller.is_file())
+            wait_for_uninstaller(uninstaller, sleep=lambda _: uninstaller.unlink())
         with patch.dict(os.environ, GITHUB_ACTIONS='true'), \
                 patch.object(installer_smoke, 'os', SimpleNamespace(name='nt')), \
-                patch.object(installer_smoke.subprocess, 'run', side_effect=fake_run):
+                patch.object(installer_smoke.subprocess, 'run', side_effect=fake_run), \
+                patch.object(installer_smoke, 'wait_for_uninstaller', side_effect=finish_self_removal) as wait:
             installer_smoke.verify_installer(setup, self.source / 'Sensa.exe', self.root / 'report')
+        wait.assert_called_once()
         self.assertEqual(len(calls), 4)
         self.assertEqual([Path(command[0]).name for command in calls], ['Setup.exe', Path(sys.executable).name, 'Setup.exe', 'unins000.exe'])
         self.assertTrue((self.root / 'report/result.txt').is_file())

@@ -2,7 +2,7 @@
 
 [简体中文](screenshots.md) | **English**
 
-These images were captured from Sensa running in Chromium in [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1). Desktop uses a 1280 × 900 viewport; narrow uses 390 × 844. Device connections use isolated simulated transports. Each image retains its original capture bytes. Some captures show a single panel.
+These images were captured from Sensa running in Chromium in [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40035585736/attempts/1). Desktop uses a 1280 × 900 viewport; narrow uses 390 × 844. Device connections use isolated simulated transports. Each image retains its original capture bytes. Some captures show a single panel.
 
 [The homepage gallery](https://sealoong.github.io/Sensa/#screenshots) switches between scenarios and screen widths. [Capture manifest](screenshots/catalog.json) records source commit, run, attempt and image SHA-256.
 
