@@ -105,7 +105,14 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
         }
         StateChanged?.Invoke(); return destination.Playback.Snapshot;
     }
-    public void Invalidate() { lock (_sync) foreach (var destination in _destinations.Values) destination.Invalidate(); }
+    public void Invalidate()
+    {
+        SignalDestination[] destinations;
+        lock (_sync) destinations = _destinations.Values.ToArray();
+        // Resolving a binding can read another destination through this coordinator.
+        // Release its lock before waiting for any destination's routing lock.
+        foreach (var destination in destinations) destination.Invalidate();
+    }
     public async Task StopAsync()
     {
         SignalDestination[] destinations;
@@ -204,6 +211,7 @@ public sealed class SignalOutputCoordinator : IAsyncDisposable
             CancellationTokenSource old;
             lock (_sync)
             {
+                if (_disposed) return;
                 Interlocked.Increment(ref _generation); old = _generationCancellation; _generationCancellation = new();
                 _pending.Clear(); _events.Clear(); _sent.Clear();
                 foreach (var route in _routes.Values) { route.QueuedAtMs = 0; route.EventHigh = false; route.WaveStartedMs = 0; route.Observed = false; route.Valid = false; }

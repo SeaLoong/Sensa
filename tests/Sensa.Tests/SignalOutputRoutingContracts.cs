@@ -150,6 +150,56 @@ public sealed class SignalOutputRoutingContracts
     }
 
     [Fact]
+    public async Task Invalidation_allows_replay_lookup_while_a_binding_is_being_resolved()
+    {
+        var clock = new ManualTimeProvider();
+        var binding = Binding("replay", "motion/L0", "L0"); binding.Source.SourceMode = "RecordingReplay";
+        var output = new OutputDeviceConfig { Id = "motion", Type = OutputDeviceType.TCodeUdp, Enabled = true,
+            Signal = new() { Bindings = [binding] } };
+        await using var coordinator = new SignalOutputCoordinator(new() { Outputs = [output] }, _ => true,
+            (_, _) => Task.CompletedTask, _ => Task.CompletedTask, clock: clock) { CanSend = () => true };
+        using var releaseResolver = new ManualResetEventSlim();
+        var resolving = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var invalidated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var invalidating = new Thread(() =>
+        {
+            try { coordinator.Invalidate(); invalidated.SetResult(); }
+            catch (Exception ex) { invalidated.SetException(ex); }
+        }) { IsBackground = true };
+        var publishing = Task.Factory.StartNew(() => coordinator.Publish(_ =>
+        {
+            resolving.SetResult();
+            Assert.True(releaseResolver.Wait(TimeSpan.FromSeconds(10)), "The test must release the binding resolver.");
+            return ComputedSignalSample.Invalid("No replay loaded");
+        }, Now(clock)), CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+        Task<ComputedSignalSample>? lookup = null;
+        var invalidationStarted = false;
+        try
+        {
+            await resolving.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            invalidating.Start(); invalidationStarted = true;
+            // The resolver holds the destination lock. Wait until Invalidate actually waits for it,
+            // so a fast lookup cannot accidentally run before the conflicting lock acquisition.
+            Assert.True(SpinWait.SpinUntil(() => (invalidating.ThreadState & ThreadState.WaitSleepJoin) != 0,
+                TimeSpan.FromSeconds(5)), "Invalidation must reach the held destination lock.");
+            // Probe the same coordinator lookup a RecordingReplay resolver needs. Keep it separate
+            // so a regression can release the resolver in finally instead of deadlocking the runner.
+            lookup = Task.Factory.StartNew(() => coordinator.ReadReplay(binding.Source.OscPath, Now(clock)),
+                CancellationToken.None, TaskCreationOptions.LongRunning, TaskScheduler.Default);
+            var completed = await Task.WhenAny(lookup, Task.Delay(TimeSpan.FromSeconds(2)));
+            Assert.Same(lookup, completed);
+            Assert.False((await lookup).Valid);
+        }
+        finally
+        {
+            releaseResolver.Set();
+            await publishing.WaitAsync(TimeSpan.FromSeconds(5));
+            if (invalidationStarted) await invalidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+            if (lookup is not null) await lookup.WaitAsync(TimeSpan.FromSeconds(5));
+        }
+    }
+
+    [Fact]
     public async Task Reloading_bindings_at_the_same_osc_endpoint_preserves_the_connection()
     {
         using var listener = Listener(); var clock = new ManualTimeProvider(); var active = true;

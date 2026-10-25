@@ -12,7 +12,7 @@ As of 2026-10-25 (Beijing time), this update adds moving reference planes within
 
 | Scope | Observed result |
 | --- | --- |
-| .NET units | **770 passed**, including geometry/quantities, sources/age, routing and launch behavior |
+| .NET units | **771 passed**, including geometry/quantities, sources/age, routing, launch behavior and concurrent invalidation/replay lookup |
 | Web units | **225 passed**, including spatial presets, stable-first downloads, cached results and language recovery |
 | Python/scripts | **309 passed**, including QR recovery, exact links for every release file, dependency installation and installer cleanup regressions |
 | Documentation | **92 routes** built; the build checks links and screenshot provenance |
@@ -25,6 +25,8 @@ API type checks use some generator-boundary substitutes. Tracking Frame adds 17 
 
 | Pinned source | Run | Observed result |
 | --- | --- | --- |
+| `cfff63be` | [Full ordinary comparison 40198534823](https://github.com/SeaLoong/Sensa/actions/runs/40198534823/attempts/1) | **115 passed, one failed**, all other outcomes zero; a state request timed out in mobile Chinese recording playback. Native builds/publication did not run |
+| `cfff63be` | [Pages 40198534814](https://github.com/SeaLoong/Sensa/actions/runs/40198534814/attempts/1) | **14/14 passed and deployed**; all 147 public-resource digests match, and eight site originals passed individual visual review |
 | `91ff9596` (PR #27 merge snapshot) | [Full ordinary comparison 40196463228](https://github.com/SeaLoong/Sensa/actions/runs/40196463228/attempts/1) | **116/116 passed**, all other outcomes zero; complete selection and snapshot comparison with updates disabled, followed by all six native builds |
 | `50bcf723` | [Pages 40198080506](https://github.com/SeaLoong/Sensa/actions/runs/40198080506/attempts/1) | **12 passed, two failed**; disabled installer anchors lost link semantics and exposed the tooltip as their accessible name. Deployment skipped; review images not captured |
 | `ba0a9cc8` | [Full ordinary comparison 40193128489](https://github.com/SeaLoong/Sensa/actions/runs/40193128489/attempts/1) | **116/116 passed**, all other outcomes zero; exact main commit, complete selection and snapshot comparison with updates disabled |
@@ -50,6 +52,8 @@ Verified Pages run `40193128498`, pinned to main `ba0a9cc8`, verified the same m
 [Image review and provenance](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [Application screenshots](screenshots.en.md)
 
 ## Issues found and resolved
+
+In the full `cfff63be` comparison, the mobile Chinese recording-playback case's first state request never returned; it did not repeatedly observe `playing=false`. Source review found a lock inversion: invalidation held the coordinator lock while waiting for a destination, while replay resolution held the destination lock and needed the coordinator. This can also block state queries and matches the failure symptoms. A controlled isolated regression reproduced the old implementation blocking replay lookup and released every thread after failure. Invalidation now snapshots destinations, releases the coordinator lock before visiting them, and skips disposed targets. Related routing checks passed **36/36** and the full backend passed **771/771**. The original E2E assertion and timeout remain; a new ordinary comparison must validate the corrected commit.
 
 The website, documentation and release notes now distinguish general downloads from file links: general entries open the newest stable release, or the newest preview when no stable exists. Format links download actual assets from that same release without substituting older files. Failed queries retain a recovery route and clearly identify cached versions. Site E2E assertions cover this behavior. The first site run found that removing `href` from disabled anchors also removed link semantics. They now explicitly retain `role=link`, and restored links clear the disabled state. The original accessible-name assertions remain. Subsequent browser/deployment results must be checked against the corresponding commit's Actions run.
 
