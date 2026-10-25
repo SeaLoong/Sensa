@@ -1,6 +1,6 @@
 # Sensa
 
-**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [下载](https://sealoong.github.io/Sensa/download.html) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
+**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [下载](https://github.com/SeaLoong/Sensa/releases/latest) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -37,7 +37,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 ## 下载并启动
 
-1. 打开[下载](https://sealoong.github.io/Sensa/download.html)查看最新正式版，暂无正式版时使用最新开发预览；旧版本见[发布历史](https://github.com/SeaLoong/Sensa/releases)。**Windows** 推荐[x64 安装器](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup)或[ARM64 安装器](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup)，安装后从开始菜单打开；**Linux／macOS** 选择对应 `.tar.gz`，完整解压后运行 `./Sensa`。
+1. 打开[下载](https://github.com/SeaLoong/Sensa/releases/latest)查看最新正式版；开发预览与旧版本单独列在[发布历史](https://github.com/SeaLoong/Sensa/releases)。**Windows** 推荐在发布附件中选择 x64 或 ARM64 安装器，安装后从开始菜单打开；**Linux／macOS** 选择对应 `.tar.gz`，完整解压后运行 `./Sensa`。
 2. 在浏览器打开 **http://127.0.0.1:5086**。各版本均自带所需 .NET 运行时；Windows 还提供直接运行的 `SingleFile.exe` 和便携 `.zip`。[选择下载格式](docs/quick-start.md#1-启动)
 3. 按[首次使用](docs/quick-start.md)添加一个输出、保存设置，再启用输入。可以先把手动滑条录成 funscript，熟悉整个流程。
 

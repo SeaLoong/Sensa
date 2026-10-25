@@ -6,15 +6,15 @@
 
 ## 1. 启动
 
-打开[下载](https://sealoong.github.io/Sensa/download.html)查看最新正式版，暂无正式版时使用最新开发预览；下表链接直接下载对应格式，旧版本见[发布历史](https://github.com/SeaLoong/Sensa/releases)。所有版本均自带所需 .NET 运行时。
+打开[下载](https://github.com/SeaLoong/Sensa/releases/latest)查看最新正式版，在发布附件中选择下表对应格式。开发预览与旧版本单独列在[发布历史](https://github.com/SeaLoong/Sensa/releases)。所有版本均自带所需 .NET 运行时。
 
-| 系统与方式 | 下载 | 文件名示例 | 怎样启动 |
+| 系统与方式 | 架构 | 文件名示例 | 怎样启动 |
 | --- | --- | --- | --- |
-| Windows 安装版（推荐） | [x64 Setup](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) · [ARM64 Setup](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup) | `Sensa-版本-win-x64-Setup.exe` | 安装完成或从开始菜单启动时自动打开工作台；可在系统设置中卸载 |
-| Windows 单文件 | [x64 EXE](https://sealoong.github.io/Sensa/download.html?asset=win-x64-single-file) · [ARM64 EXE](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-single-file) | `Sensa-版本-win-x64-SingleFile.exe` | 将 EXE 放在可写目录后直接运行，配置保存在旁边 |
-| Windows 便携版 | [x64 ZIP](https://sealoong.github.io/Sensa/download.html?asset=win-x64) · [ARM64 ZIP](https://sealoong.github.io/Sensa/download.html?asset=win-arm64) | `Sensa-版本-win-x64.zip` | 完整解压到可写目录，再运行 `Sensa.exe` |
-| Linux 便携版 | [x64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=linux-x64) · [ARM64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=linux-arm64) | `Sensa-版本-linux-x64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
-| macOS 便携版 | [x64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=osx-x64) · [ARM64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=osx-arm64) | `Sensa-版本-osx-arm64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
+| Windows 安装版（推荐） | x64／ARM64 | `Sensa-版本-win-x64-Setup.exe` | 安装完成或从开始菜单启动时自动打开工作台；可在系统设置中卸载 |
+| Windows 单文件 | x64／ARM64 | `Sensa-版本-win-x64-SingleFile.exe` | 将 EXE 放在可写目录后直接运行，配置保存在旁边 |
+| Windows 便携版 | x64／ARM64 | `Sensa-版本-win-x64.zip` | 完整解压到可写目录，再运行 `Sensa.exe` |
+| Linux 便携版 | x64／ARM64 | `Sensa-版本-linux-x64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
+| macOS 便携版 | x64／ARM64 | `Sensa-版本-osx-arm64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
 
 各系统均提供 **x64／ARM64**。Intel／AMD 电脑通常选择 x64；Apple Silicon 和 Windows ARM 设备选择 ARM64。预览版文件名还包含构建编号与提交摘要，启动方式相同。
 

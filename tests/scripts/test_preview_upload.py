@@ -257,7 +257,7 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assert_note_downloads_match_uploads(notes, releases, 'v' + VERSION)
         self.assertEqual(record.call_args.args[0],
             '[Release v0.4.0](https://github.com/Owner/Repo/releases/tag/v0.4.0) · '
-            '[Download / 下载](https://sealoong.github.io/Sensa/download.html)')
+            '[Download / 下载](https://github.com/SeaLoong/Sensa/releases/latest)')
 
     def assert_note_downloads_match_uploads(self, notes, releases, tag):
         uploaded = {event[2] for event in releases.events if event[0] == 'upload'}
@@ -280,7 +280,7 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertTrue(notes.endswith(f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n'))
         self.assert_note_downloads_match_uploads(notes, releases, TAG)
         self.assertIn(f'[Release {TAG}](https://github.com/Owner/Repo/releases/tag/{TAG})', record.call_args.args[0])
-        self.assertIn('[Download / 下载](https://sealoong.github.io/Sensa/download.html)', record.call_args.args[0])
+        self.assertIn('[Download / 下载](https://github.com/SeaLoong/Sensa/releases/latest)', record.call_args.args[0])
         self.assertNotIn('Changes', notes)
         self.assertNotIn('Direct fix', notes)
         self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())

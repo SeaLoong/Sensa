@@ -459,7 +459,7 @@ def main():
     removed = prune_prereleases(releases) if args.channel == 'preview' else None
     url = f'https://github.com/{releases.repository}/releases/tag/{args.tag}'
     cleanup = f'\n\nRemoved old prereleases / 已清理旧预发布: {len(removed)}' if removed is not None else ''
-    record(f'[Release {args.tag}]({url}) · [Download / 下载](https://sealoong.github.io/Sensa/download.html){cleanup}')
+    record(f'[Release {args.tag}]({url}) · [Download / 下载](https://github.com/SeaLoong/Sensa/releases/latest){cleanup}')
 
 
 if __name__ == '__main__':

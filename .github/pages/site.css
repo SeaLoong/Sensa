@@ -83,9 +83,7 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 .home .button:hover{background:#f1f6ff;border-color:#a2bde7;text-decoration:none}
 .home .button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
 .home .button.primary:hover{background:#0045b8;border-color:#0045b8}
-.home .button[data-download][aria-disabled="true"],.home .button[data-download][aria-disabled="true"]:hover{background:#f1f3f6;border-color:#d4dae3;color:#737e90;cursor:not-allowed;text-decoration:none}
 .home .caption{font-size:12px;color:var(--muted)}
-.home .download-more{margin:0 0 8px;font-size:13px}
 #downloads{scroll-margin-top:96px}
 .home .hero-visual{display:flex;flex-direction:column;min-width:0;margin:0;padding:24px;background:var(--surface);border:1px solid #dce4ef;border-radius:8px}
 .hero-visual figcaption{display:flex;flex-direction:column;gap:8px;padding:0 0 20px}

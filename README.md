@@ -1,6 +1,6 @@
 # Sensa
 
-[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://sealoong.github.io/Sensa/download.html) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -37,7 +37,7 @@ A simple flow connects an input directly to an output. Add a calculation when yo
 
 ## Download and start
 
-1. Open [Downloads](https://sealoong.github.io/Sensa/download.html) for the latest stable release, or the latest development preview when no stable release exists; older builds are in [release history](https://github.com/SeaLoong/Sensa/releases). On **Windows**, download the [x64 installer](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) or [ARM64 installer](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup), install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
+1. Open [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) for the latest stable release. Development previews and older builds are listed separately in [release history](https://github.com/SeaLoong/Sensa/releases). On **Windows**, choose the x64 or ARM64 installer from the release assets, install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
 2. Open **http://127.0.0.1:5086** in your browser. All builds include the required .NET runtime. Windows also offers a directly runnable `SingleFile.exe` and a portable `.zip`; see [download formats](docs/quick-start.en.md#1-start).
 3. Follow [First run](docs/quick-start.en.md) to add an output, save the setup and enable input. Recording a manual slider as funscript is a useful first flow.
 

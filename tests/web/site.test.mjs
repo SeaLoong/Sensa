@@ -6,7 +6,6 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
-import { siteDownloadSource } from '../../scripts/site-downloads.mjs';
 
 const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
@@ -15,20 +14,23 @@ test('public guides build into bilingual routes with resolvable local links and 
   try {
     const manifest = await buildPages({ output, commit: 'site-unit-fixture' });
     assert.equal(manifest.commit, 'site-unit-fixture');
-    assert.ok(manifest.assets['download.html'], 'Canonical download router is included in the verified site artifact');
-    const downloadRouter = await fs.readFile(path.join(output, 'download.html'), 'utf8');
-    assert.match(downloadRouter, /data-download-page/);
-    assert.match(downloadRouter, /id="download-status" role="status"/);
-    assert.match(downloadRouter, /Release history/);
-    const downloadGuide = await fs.readFile(path.join(output, 'en/docs/quick-start.html'), 'utf8');
-    assert.match(downloadGuide, /data-download="release" href="\.\.\/\.\.\/download\.html"/);
-    assert.match(downloadGuide, /href="\.\.\/\.\.\/download\.html\?asset=win-x64-setup" data-download="win-x64-setup"/);
+    assert.equal(Object.hasOwn(manifest.assets, 'download.html'), false, 'Downloads link directly to GitHub');
+    assert.equal(manifest.routes.includes('download.html'), false);
+    await assert.rejects(fs.stat(path.join(output, 'download.html')), { code: 'ENOENT' });
+    for (const file of ['.github/pages/download.html', 'scripts/site-downloads.mjs'])
+      await assert.rejects(fs.stat(new URL('../../' + file, import.meta.url)), { code: 'ENOENT' });
+    for (const file of ['.github/pages/index.html', '.github/pages/site.js', 'scripts/build-pages.mjs',
+      'README.md', 'README.zh-CN.md', 'README.en.md', 'docs/quick-start.md', 'docs/quick-start.en.md',
+      'docs/development.md', 'docs/development.en.md']) {
+      const source = await fs.readFile(new URL('../../' + file, import.meta.url), 'utf8');
+      assert.doesNotMatch(source, /download\.html|[?&]asset=|SensaDownloads|sensa\.download\.|api\.github\.com\/repos\/SeaLoong\/Sensa\/releases/, file);
+    }
     assert.ok((await fs.stat(path.join(output, '.nojekyll'))).isFile());
     assert.equal(Object.hasOwn(manifest.assets, '.nojekyll'), false);
     const assetNames = {};
     for (const extension of ['css', 'js']) {
       const file = await fs.readFile(new URL('../../.github/pages/site.' + extension, import.meta.url));
-      const bytes = extension === 'js' ? Buffer.concat([Buffer.from(siteDownloadSource()), file]) : file;
+      const bytes = file;
       const digest = createHash('sha256').update(bytes).digest('hex');
       const name = 'site.' + digest.slice(0, 16) + '.' + extension;
       assetNames[extension] = name;
@@ -38,9 +40,12 @@ test('public guides build into bilingual routes with resolvable local links and 
     }
     for (const route of ['en/README.html', 'zh-CN/README.html', 'en/docs/osc-parameters.html', 'zh-CN/docs/osc-parameters.html',
       'en/unity/top.sealoong.sensa/README.html', 'zh-CN/unity/top.sealoong.sensa/README.html']) assert.ok(manifest.routes.includes(route), route);
-    for (const route of ['index.html', 'download.html', ...manifest.routes]) {
+    for (const route of ['index.html', ...manifest.routes]) {
       const html = await fs.readFile(path.join(output, route), 'utf8');
       assert.match(html, /<main/);
+      assert.doesNotMatch(html, /download\.html|[?&]asset=|data-installer|download-status|download-more/);
+      if (route !== 'index.html')
+        assert.match(html, /<header>[\s\S]*?<a data-download="release" href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/);
       assert.doesNotMatch(html, /(?:file:\/\/|[A-Z]:[\\/](?:Users|Code)|__(?:VPM|SITE)_[A-Z_]+__)/);
       const stylesheet = html.match(/<link rel="stylesheet" href="([^"]+)" onerror="([^"]+)">/);
       const script = html.match(/<script defer src="([^"]+)" onerror="([^"]+)">/);
@@ -113,6 +118,9 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);
     for (const locale of ['en', 'zh-CN']) {
       const downloadGuide = await fs.readFile(path.join(output, locale + '/docs/quick-start.html'), 'utf8');
+      const article = downloadGuide.match(/<article>([\s\S]*?)<\/article>/)[1];
+      assert.match(article, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest"/);
+      assert.doesNotMatch(article, /data-download=/, 'The guide contains ordinary release links');
       for (const format of ['win-x64-Setup.exe', 'win-x64-SingleFile.exe', 'win-x64.zip', 'linux-x64.tar.gz', 'osx-arm64.tar.gz'])
         assert.ok(downloadGuide.includes(format), 'Download format: ' + locale + ' ' + format);
       assert.ok(downloadGuide.indexOf('win-x64-Setup.exe') < downloadGuide.indexOf('win-x64-SingleFile.exe'), 'Installer is the first Windows choice');
