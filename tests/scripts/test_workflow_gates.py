@@ -29,6 +29,59 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_checkout_credentials_are_retained_only_for_authenticated_proposal_git_operations(self):
+        checked = set()
+        for path in WORKFLOWS.glob('*.yml'):
+            for name, body in jobs(path.read_text(encoding='utf-8')).items():
+                for step in re.split(r'(?m)^      - ', body)[1:]:
+                    if not re.search(r'(?m)^        uses: actions/checkout@', step):
+                        continue
+                    checked.add((path.name, name))
+                    with self.subTest(workflow=path.name, job=name):
+                        if (path.name, name) == ('update-e2e.yml', 'proposal'):
+                            self.assertIn('token: ${{ secrets.SENSA_PAT }}', step)
+                            self.assertNotIn('persist-credentials: false', step)
+                        else:
+                            self.assertRegex(step, r'(?m)^          persist-credentials: false$')
+        self.assertIn(('checks.yml', 'units'), checked)
+        self.assertIn(('update-e2e.yml', 'proposal'), checked)
+        self.assertGreater(len(checked), 2)
+
+    def test_every_artifact_download_explicitly_fails_on_digest_mismatch(self):
+        checked = set()
+        for path in WORKFLOWS.glob('*.yml'):
+            for step in re.split(r'(?m)^      - ', path.read_text(encoding='utf-8'))[1:]:
+                if not re.search(r'(?m)^        uses: actions/download-artifact@', step):
+                    continue
+                checked.add(path.name)
+                with self.subTest(workflow=path.name):
+                    self.assertRegex(step, r'(?m)^          digest-mismatch: error$')
+                    self.assertNotIn('continue-on-error:', step)
+        self.assertEqual(checked, {'ci.yml', 'release.yml', 'pages.yml', 'update-e2e.yml'})
+
+    def test_dependabot_updates_cover_application_test_and_capture_dependencies(self):
+        source = (ROOT / '.github/dependabot.yml').read_text(encoding='utf-8')
+        entries = {}
+        for ecosystem, body in re.findall(r'(?ms)^  - package-ecosystem: (\S+)\n(.*?)(?=^  - |\Z)', source):
+            directory = re.search(r'(?m)^    directory: (\S+)$', body).group(1)
+            self.assertNotIn((ecosystem, directory), entries)
+            entries[ecosystem, directory] = body
+        required = {('npm', '/'), ('github-actions', '/')}
+        for project in (*ROOT.glob('src/*.csproj'), *ROOT.glob('tests/*/*.csproj')):
+            if '<PackageReference ' in project.read_text(encoding='utf-8'):
+                required.add(('nuget', '/' + project.parent.relative_to(ROOT).as_posix()))
+        for requirements in ROOT.glob('scripts/requirements*.txt'):
+            required.add(('pip', '/' + requirements.parent.relative_to(ROOT).as_posix()))
+        self.assertTrue(required <= entries.keys(), f'Missing dependency update directories: {required - entries.keys()}')
+        for key in required:
+            with self.subTest(ecosystem=key[0], directory=key[1]):
+                self.assertIn('      interval: weekly', entries[key])
+                self.assertNotRegex(entries[key], r'(?m)^    ignore:')
+        npm = entries['npm', '/']
+        self.assertIn('      react-runtime:', npm)
+        self.assertIn('      react-security:', npm)
+        self.assertIn('        applies-to: security-updates', npm)
+
     def test_every_sdk_install_uses_the_same_exact_non_rolling_repository_version(self):
         sdk = json.loads((ROOT / 'global.json').read_text(encoding='utf-8'))['sdk']
         self.assertRegex(sdk['version'], r'^\d+\.\d+\.[1-9]\d{2,}$')
@@ -168,10 +221,15 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('artifacts/e2e/summary.md', artifact)
 
     def test_container_browser_jobs_share_bounded_dependency_setup_before_tests(self):
+        playwright_version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['devDependencies']['@playwright/test']
+        images = set()
         for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
             with self.subTest(workflow=filename):
                 body = jobs(workflow(filename))[job_name]
-                self.assertIn('container: mcr.microsoft.com/playwright:v1.64.1-noble', body)
+                image = re.search(r'(?m)^    container: (\S+)$', body).group(1)
+                self.assertRegex(image, r'^mcr\.microsoft\.com/playwright:v' + re.escape(playwright_version)
+                                 + r'-noble@sha256:[a-f0-9]{64}$')
+                images.add(image)
                 steps = re.split(r'(?m)^      - ', body)
                 installers = [step for step in steps if 'run: bash scripts/install-e2e-dependencies.sh' in step]
                 self.assertEqual(len(installers), 1)
@@ -182,6 +240,7 @@ class WorkflowGateContracts(unittest.TestCase):
                 self.assertNotIn('apt-get', body)
                 self.assertLess(body.index('run: bash scripts/install-e2e-dependencies.sh'),
                                 body.index('run: npm run e2e:ci'))
+        self.assertEqual(len(images), 1, 'Browser jobs must use the same reviewed Playwright image digest')
 
     def test_pages_publish_automatically_only_after_built_site_browser_checks(self):
         source = workflow('pages.yml')

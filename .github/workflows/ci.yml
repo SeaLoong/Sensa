@@ -52,6 +52,7 @@ jobs:
         with:
           pattern: distribution-*
           path: artifacts/downloaded
+          digest-mismatch: error
       - name: Check release token
         env:
           GH_TOKEN: ${{ secrets.SENSA_PAT }}

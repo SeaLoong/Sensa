@@ -71,6 +71,14 @@ Stable release notes also lead with installer download links, then combine GitHu
 
 Use change titles that describe an observable user benefit. Generated notes use recorded commit or PR information.
 
+## Maintaining scanners and workflow dependencies
+
+Dependabot checks application and test NuGet projects, root npm dependencies, pip manifests under `scripts`, and GitHub Actions weekly. Existing React security-update groups remain enabled. Version-update configuration and security-alert settings are separate; updating a manifest does not establish that alerts are closed.
+
+Browser jobs pin both the Playwright image version tag and the official registry OCI digest. When upgrading, update npm Playwright and all three browser jobs, checking the official manifest SHA-256 against `Docker-Content-Digest`; format tests do not authenticate the digest. All artifact downloads explicitly fail on digest mismatch, preserving the pinned Action's existing default protection.
+
+Read-only checks and builds do not retain checkout Git credentials. Only E2E proposal publication retains its dedicated PAT for authenticated Git operations. Keep candidate test execution outside that publication job. Do not reduce noise by disabling scanners, adding global directory exclusions or weakening audit gates.
+
 ## Where should I look after a failure?
 
 Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. Cases suppressed by the failure limit are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.

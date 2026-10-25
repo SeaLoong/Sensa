@@ -71,6 +71,14 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 改动标题应直接说明用户能感受到的变化。自动记录依据仓库中的提交或 PR 信息生成。
 
+## 扫描与工作流依赖维护
+
+Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts` 下的 pip 清单以及 GitHub Actions；现有 React 安全更新分组继续保留。版本更新配置与安全告警开关分别管理，更新清单不代替告警状态复查。
+
+浏览器任务的 Playwright 镜像同时固定版本 tag 与官方 registry 的 OCI digest。升级时同步 npm Playwright 版本与三个浏览器任务，核对官方 manifest 内容的 SHA-256 和 `Docker-Content-Digest`；格式测试不能证明摘要来源。所有产物下载显式设置摘要不匹配即失败，维持固定 Action 的现有默认保护。
+
+只读检查和构建不保留 checkout 的 Git 凭据；仅需认证 Git 读写的 E2E proposal 发布任务保留其专用 PAT。不得将候选测试执行移入该发布任务，也不得为减少提示关闭扫描器、增加全局目录排除或降低审计门槛。
+
 ## 失败时从哪里看？
 
 打开对应 Actions 运行，先看失败步骤与 Job summary。E2E 的 `summary.json`／`summary.md` 分别记录通过、失败、跳过、未执行、中断和不稳定用例；达到失败上限后停止执行的用例记为未执行。具体状态见[验证记录](e2e-status.md)。截图失败时查看 expected／actual／diff，审阅有意的变化后更新基线，再运行完整普通比较。
