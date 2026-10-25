@@ -2,7 +2,7 @@
 
 **简体中文** | [English](screenshots.en.md)
 
-这些图片来自 [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40028896056/attempts/1) 中实际运行的 Sensa 与 Chromium。桌面视口为1280 × 900，窄屏为390 × 844；设备连接使用隔离的模拟传输。图片保留采集时的原始内容，部分展示单个功能面板。
+这些图片来自 [GitHub Actions](https://github.com/SeaLoong/Sensa/actions/runs/40035585736/attempts/1) 中实际运行的 Sensa 与 Chromium。桌面视口为1280 × 900，窄屏为390 × 844；设备连接使用隔离的模拟传输。图片保留采集时的原始内容，部分展示单个功能面板。
 
 [首页图库](https://sealoong.github.io/Sensa/#screenshots)可切换场景和屏幕宽度。[采集清单](screenshots/catalog.json)记录源码提交、运行编号、attempt与每张图片的SHA-256。
 

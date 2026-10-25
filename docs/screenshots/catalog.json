@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640",
-  "runId": "40028896056",
+  "sourceCommit": "5d60f782313c9d6291bf9a32fa68394b63a1136e",
+  "runId": "40035585736",
   "attempt": "1",
   "scenes": [
     {
@@ -173,7 +173,7 @@
     },
     {
       "file": "desktop/contact-root-position.png",
-      "sha256": "bae2246d4fdeb594fbefb6d9d71dd2d22365ab9cbaf9ca81dfea6fe80039188f",
+      "sha256": "2c02d1187ce5948a64c1a06564678576dc7815b6c238b6199135959afc7ab63a",
       "language": "zh-CN"
     },
     {
@@ -223,7 +223,7 @@
     },
     {
       "file": "mobile/contact-root-position.png",
-      "sha256": "461d4beb2dedd5075a0abb7149462bb40f2a6df192ea4acba6cc2f47c3f27bb5",
+      "sha256": "6c8e6cbc8eacd66f63914b32d89e189aa8109e872f1f27efb71458c9a521f7c8",
       "language": "zh-CN"
     },
     {
