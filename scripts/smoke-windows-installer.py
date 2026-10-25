@@ -8,9 +8,18 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
-from process_smoke import require_ci
+from process_smoke import require_ci, wait_for_state
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def wait_for_uninstaller(uninstaller, timeout=10, *, clock=None, sleep=None):
+    # Inno's launcher can exit while its helper still holds the original EXE.
+    # Inno 启动进程退出后，自删除辅助进程可能仍占用原始 EXE。
+    wait_for_state(lambda: {'uninstallerExists': uninstaller.exists()},
+                   lambda state: not state['uninstallerExists'],
+                   'Uninstaller self-removal did not finish / 卸载程序未完成自删除',
+                   timeout=timeout, clock=clock, sleep=sleep)
 
 
 def verify_installer(installer, single, report):
@@ -47,6 +56,7 @@ def verify_installer(installer, single, report):
             if uninstaller.is_file():
                 subprocess.run([str(uninstaller), '/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART',
                                 '/LOG=' + str((report / 'uninstall.log').resolve())], check=True, timeout=180)
+                wait_for_uninstaller(uninstaller)
         if (directory / 'Sensa.exe').exists() or (directory / 'docs/parameter-geometry.html').exists():
             raise AssertionError('Uninstaller left installed program files / 卸载后残留安装的程序文件')
         if not (directory / 'config.json').is_file() or not (directory / 'recordings/user.txt').is_file():
