@@ -73,7 +73,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 ## 扫描与工作流依赖维护
 
-Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts` 下的 pip 清单以及 GitHub Actions；现有 React 安全更新分组继续保留。版本更新配置与安全告警开关分别管理，更新清单不代替告警状态复查。
+Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts` 下的 pip 清单以及 GitHub Actions；现有 React 安全更新分组继续保留。版本更新配置与安全告警开关分别管理，更新清单不代替告警状态复查。 NuGet 的设计时元数据分析不执行前端构建；普通 Build／Publish 仍要求执行 `npm run build:web`，不能因为更新器没有 npm 就全局跳过 Web 资源。
 
 浏览器任务的 Playwright 镜像同时固定版本 tag 与官方 registry 的 OCI digest。升级时同步 npm Playwright 版本与三个浏览器任务，核对官方 manifest 内容的 SHA-256 和 `Docker-Content-Digest`；格式测试不能证明摘要来源。所有产物下载显式设置摘要不匹配即失败，维持固定 Action 的现有默认保护。
 

@@ -73,7 +73,7 @@ Use change titles that describe an observable user benefit. Generated notes use 
 
 ## Maintaining scanners and workflow dependencies
 
-Dependabot checks application and test NuGet projects, root npm dependencies, pip manifests under `scripts`, and GitHub Actions weekly. Existing React security-update groups remain enabled. Version-update configuration and security-alert settings are separate; updating a manifest does not establish that alerts are closed.
+Dependabot checks application and test NuGet projects, root npm dependencies, pip manifests under `scripts`, and GitHub Actions weekly. Existing React security-update groups remain enabled. Version-update configuration and security-alert settings are separate; updating a manifest does not establish that alerts are closed. NuGet design-time metadata discovery does not build frontend assets. Ordinary Build/Publish still runs `npm run build:web`; an updater without npm must not cause Web assets to be silently skipped in normal builds.
 
 Browser jobs pin both the Playwright image version tag and the official registry OCI digest. When upgrading, update npm Playwright and all three browser jobs, checking the official manifest SHA-256 against `Docker-Content-Digest`; format tests do not authenticate the digest. All artifact downloads explicitly fail on digest mismatch, preserving the pinned Action's existing default protection.
 

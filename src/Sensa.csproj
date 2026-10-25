@@ -57,7 +57,7 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);$(MSBuildProjectDirectory)\..\artifacts\**</DefaultItemExcludes>
   </PropertyGroup>
 
-  <Target Name="BuildWeb" BeforeTargets="PrepareForBuild" Condition="'$(SkipWebBuild)' != 'true'">
+  <Target Name="BuildWeb" BeforeTargets="PrepareForBuild" Condition="'$(SkipWebBuild)' != 'true' and '$(DesignTimeBuild)' != 'true'">
     <Exec Command="npm run build:web" WorkingDirectory="$(MSBuildProjectDirectory)/.." />
   </Target>
 
