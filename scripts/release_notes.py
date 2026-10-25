@@ -7,7 +7,7 @@ import re
 
 
 def compose_release_notes(channel, version, tag, sha, repository, generated_body, run_url=''):
-    """Link checked installers first, then identify the source and stable changes."""
+    """Link the checked release's formats, then its source and stable changes."""
     if channel not in ('preview', 'stable'):
         raise ValueError('Invalid release channel / 发布渠道无效')
     if not isinstance(version, str) or not re.fullmatch(r'(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)', version):
@@ -29,20 +29,37 @@ def compose_release_notes(channel, version, tag, sha, repository, generated_body
     if not isinstance(generated_body, str):
         raise ValueError('Generated change notes must be text / 自动变更说明必须是文本')
     asset_version = version if channel == 'stable' else f'{version}-preview.{match[1]}.{match[2]}.{match[3]}'
-    download_base = f'https://github.com/{repository}/releases/download/{tag}/Sensa-{asset_version}-win-'
+    download_base = f'https://github.com/{repository}/releases/download/{tag}/'
+
+    def desktop_links(runtime, suffix):
+        return ' · '.join(f'[{"ARM64" if arch == "arm64" else "x64"}]({download_base}Sensa-{asset_version}-{runtime}-{arch}{suffix})'
+                          for arch in ('x64', 'arm64'))
+
     installers = ('Windows installers (recommended) / Windows 安装器（推荐）: '
-                  f'[x64]({download_base}x64-Setup.exe) · [ARM64]({download_base}arm64-Setup.exe)')
+                  f'[x64]({download_base}Sensa-{asset_version}-win-x64-Setup.exe) · '
+                  f'[ARM64]({download_base}Sensa-{asset_version}-win-arm64-Setup.exe)')
+    downloads = f'''| Format / 格式 | {asset_version} |
+| --- | --- |
+| Windows single file / 单文件 EXE | {desktop_links('win', '-SingleFile.exe')} |
+| Windows portable / 便携 ZIP | {desktop_links('win', '.zip')} |
+| Linux portable / 便携 tar.gz | {desktop_links('linux', '.tar.gz')} |
+| macOS portable / 便携 tar.gz | {desktop_links('osx', '.tar.gz')} |
+| Unity package / 组件 ZIP | [top.sealoong.sensa-{asset_version}.zip]({download_base}top.sealoong.sensa-{asset_version}.zip) |
+| SHA-256 checksums / 校验值 | [SHA256SUMS.txt]({download_base}SHA256SUMS.txt) |'''
     if channel == 'preview':
-        return f'{installers}\n\nSource: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
+        return f'{installers}\n\n{downloads}\n\nSource: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
 
     title = 'Stable release'
     chinese_title = '正式发布'
-    stable_en = 'Stable Unity metadata (`vpm-package.json`) is included for the VPM feed.'
-    stable_zh = '附带供 VPM 正式索引使用的 Unity 元数据 `vpm-package.json`。'
+    metadata = f'[vpm-package.json]({download_base}vpm-package.json)'
+    stable_en = f'Stable Unity metadata ({metadata}) is included for the VPM feed.'
+    stable_zh = f'附带供 VPM 正式索引使用的 Unity 元数据 {metadata}。'
     workflow_en = f' [Build workflow]({run_url}).' if run_url else ''
     workflow_zh = f' [构建工作流]({run_url})。' if run_url else ''
     changes = generated_body if generated_body.strip() else 'GitHub did not provide change notes for this range. / GitHub 未返回此范围的变更条目。'
     return f'''{installers}
+
+{downloads}
 
 Sensa {version} · {title}
 

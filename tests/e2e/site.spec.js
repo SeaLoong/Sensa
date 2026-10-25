@@ -257,8 +257,11 @@ test('@site standalone Pages language, document navigation and independent geome
   await expect(page.getByRole('heading', { name: /Make your signals\s*work together\./ })).toBeVisible();
   await expect(page.locator('[data-installer="x64"]')).toHaveAccessibleName('Windows x64 installer');
   await expect(page.locator('[data-installer="arm64"]')).toHaveAccessibleName('Windows ARM64 installer');
-  for (const link of await page.locator('[data-installer]').all())
-    await expect(link).toHaveAttribute('href', 'https://github.com/SeaLoong/Sensa/releases');
+  for (const link of await page.locator('[data-installer]').all()) {
+    await expect(link).toHaveAttribute('aria-disabled', 'true');
+    await expect(link).not.toHaveAttribute('href');
+  }
+  await expect(page.locator('#download-status')).toContainText('No published download');
   const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
   await expect(heroFirstRunGuide).toHaveCount(1);
   await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide');
@@ -536,23 +539,22 @@ test('@site help screenshots switch between reviewed desktop and narrow captures
   await info.attach('document-responsive-images.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
 });
 
-test('@site installer downloads prefer stable assets and keep Releases when discovery fails', async ({ page }, info) => {
-  const fallback = 'https://github.com/SeaLoong/Sensa/releases';
+test('@site downloads prefer one stable release, fall back to previews and report unavailable assets', async ({ page }, info) => {
+  const releases = 'https://github.com/SeaLoong/Sensa/releases';
   const entry = (version, { preview = '', published = '2026-10-23T12:00:00Z' } = {}) => {
     const tag = preview ? 'preview-' + preview.replaceAll('.', '-') : 'v' + version;
-    return { tag_name: tag, draft: false, prerelease: Boolean(preview), published_at: published,
-      assets: ['x64', 'arm64'].map(architecture => {
-        const name = `Sensa-${version}${preview ? '-preview.' + preview : ''}-win-${architecture}-Setup.exe`;
-        return { name, state: 'uploaded', size: 123456,
-          browser_download_url: `${fallback}/download/${tag}/${name}` };
-      }) };
+    const stem = version + (preview ? '-preview.' + preview : '');
+    const names = [`Sensa-${stem}-win-x64-Setup.exe`, `Sensa-${stem}-win-arm64-Setup.exe`,
+      `Sensa-${stem}-win-x64-SingleFile.exe`, `Sensa-${stem}-linux-arm64.tar.gz`,
+      `top.sealoong.sensa-${stem}.zip`, 'SHA256SUMS.txt'];
+    return { tag_name: tag, html_url: releases + '/tag/' + tag, draft: false,
+      prerelease: Boolean(preview), published_at: published, assets: names.map(name => ({
+        name, state: 'uploaded', size: 123456, browser_download_url: `${releases}/download/${tag}/${name}`,
+      })) };
   };
   const stable = entry('0.4.0', { published: '2026-10-21T12:00:00Z' });
   const preview = entry('0.5.0', { preview: '321.2.1234abcd' });
-  const malicious = entry('0.6.0');
-  malicious.assets[0].browser_download_url = 'https://evil.test/Sensa-0.6.0-win-x64-Setup.exe';
-  malicious.assets[1].browser_download_url = malicious.assets[1].browser_download_url.replace('SeaLoong/Sensa', 'Elsewhere/Sensa');
-  let payload = [preview, malicious, stable], failed = false;
+  let payload = [stable, preview], failed = false;
   const requests = [], errors = [];
   page.on('pageerror', error => errors.push(error.message));
   await page.addInitScript(() => sessionStorage.setItem('sensa.locale', 'en-US'));
@@ -565,33 +567,93 @@ test('@site installer downloads prefer stable assets and keep Releases when disc
     if (failed) await route.abort('failed');
     else await route.fulfill({ contentType: 'application/json', headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify(payload) });
   });
-  let loaded = false;
-  const verify = async expected => {
-    const completed = failed
-      ? page.waitForEvent('requestfailed', request => request.url() === releasesApi)
-      : page.waitForResponse(response => response.url() === releasesApi);
-    if (loaded) await page.reload({ waitUntil: 'domcontentloaded' });
-    else await page.goto(base + '#downloads');
-    loaded = true;
-    const response = await completed;
-    if (!failed) await response.finished();
-    await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', expected[0]);
-    await expect(page.locator('[data-installer="arm64"]')).toHaveAttribute('href', expected[1]);
-    await expect(page.locator('[data-installer="x64"]')).toHaveAccessibleName('Windows x64 installer');
-    await expect(page.locator('[data-installer="arm64"]')).toHaveAccessibleName('Windows ARM64 installer');
-    await expect(page.locator('.download-more a')).toHaveAttribute('href', fallback);
-    expect(await page.locator('body').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
-  };
-  await verify(stable.assets.map(asset => asset.browser_download_url));
-  payload = [malicious, preview];
-  await verify(preview.assets.map(asset => asset.browser_download_url));
+  // Observe navigation to the selected release/file without downloading remote binaries.
+  await page.route('https://github.com/SeaLoong/Sensa/releases/**', route => route.fulfill({
+    contentType: 'text/html', body: '<title>Selected download</title><p>Selected download</p>',
+  }));
+  await page.goto(base);
+  await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', stable.assets[0].browser_download_url);
+  await expect(page.locator('[data-installer="arm64"]')).toHaveAttribute('href', stable.assets[1].browser_download_url);
+  await expect(page.locator('#downloads [data-download="release"]')).toHaveAttribute('href', stable.html_url);
+  await expect(page.locator('#download-status')).toContainText(stable.tag_name);
+  payload = [preview];
+  await page.reload();
+  await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', preview.assets[0].browser_download_url);
+  await expect(page.locator('[data-installer="arm64"]')).toHaveAttribute('href', preview.assets[1].browser_download_url);
+  await expect(page.locator('#downloads [data-download="release"]')).toHaveAttribute('href', preview.html_url);
+  await expect(page.locator('#download-status')).toContainText(preview.tag_name);
+  await page.goto(base + 'en/docs/quick-start.html');
+  await expect(page.locator('header [data-download="release"]')).toHaveAttribute('href', preview.html_url);
+  for (const [query, destination] of [
+    ['', preview.html_url], ['win-x64-setup', preview.assets[0].browser_download_url],
+    ['win-x64-single-file', preview.assets[2].browser_download_url],
+    ['linux-arm64', preview.assets[3].browser_download_url], ['unity', preview.assets[4].browser_download_url],
+    ['checksums', preview.assets[5].browser_download_url],
+  ]) {
+    await page.goto(base + 'download.html' + (query ? '?asset=' + query : ''));
+    await expect(page).toHaveURL(destination);
+  }
+  const incomplete = structuredClone(preview);
+  incomplete.assets = incomplete.assets.filter(asset => !asset.name.endsWith('-Setup.exe'));
+  payload = [entry('0.4.0', { preview: '320.1.abcdef12', published: '2026-10-21T12:00:00Z' }), incomplete];
+  await page.goto(base);
+  await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('[data-installer="x64"]')).not.toHaveAttribute('href');
+  await expect(page.locator('#downloads [data-download="release"]')).toHaveAttribute('href', preview.html_url);
+  await page.goto(base + 'download.html?asset=win-x64-setup');
+  await expect(page.locator('#download-status')).toContainText('not available in the latest release');
+  await expect(page).toHaveURL(base + 'download.html?asset=win-x64-setup');
+  await expect(page.locator('#download-release')).toHaveAttribute('href', preview.html_url);
+  const malicious = structuredClone(preview);
+  malicious.assets[0].browser_download_url = 'https://evil.test/download.exe';
   payload = [malicious];
-  await verify([fallback, fallback]);
+  await page.reload();
+  await expect(page.locator('#download-status')).toContainText('not available in the latest release');
+  await page.goto(base + 'download.html?asset=https%3A%2F%2Fevil.test');
+  await expect(page.locator('#download-status')).toHaveText('This download address is not valid.');
+  payload = [];
+  await page.goto(base + 'download.html');
+  await expect(page.locator('#download-status')).toContainText('No published download');
   failed = true;
-  await verify([fallback, fallback]);
-  await expect.poll(() => requests.length).toBe(4);
+  await page.reload();
+  await expect(page.locator('#download-status')).toContainText('could not be checked');
+  await expect(page.getByRole('button', { name: 'Try again', exact: true })).toBeVisible();
+  failed = false; payload = [preview];
+  await page.goto(base);
+  await expect(page.locator('[data-installer="x64"]')).toHaveAttribute('href', preview.assets[0].browser_download_url);
+  failed = true;
+  await page.goto(base + 'download.html?asset=win-x64-setup');
+  await expect(page.locator('#download-status')).toContainText('last available version is ' + preview.tag_name);
+  await expect(page.locator('#download-cached')).toHaveAttribute('href', preview.assets[0].browser_download_url);
+  await expect(page).toHaveURL(base + 'download.html?asset=win-x64-setup');
+  expect(await page.locator('body').evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
+  await page.goto(base + 'en/docs/quick-start.html');
+  await expect(page.locator('header [data-download="release"]')).toHaveAttribute('href', base + 'download.html');
+  await expect(page.locator('article [data-download="win-x64-setup"]').first()).toHaveAttribute('href', base + 'download.html?asset=win-x64-setup');
+  await page.evaluate(() => sessionStorage.removeItem('sensa.download.release.v1'));
+  await page.reload();
+  await expect(page.locator('header [data-download="release"]')).toHaveAttribute('href', base + 'download.html');
+  await expect(page.locator('article [data-download="win-x64-setup"]').first()).toHaveAttribute('href', base + 'download.html?asset=win-x64-setup');
+  await page.goto(base);
+  await expect(page.locator('#downloads [data-download="release"]')).toHaveAttribute('href', base + 'download.html');
+  await expect(page.locator('#download-status')).toContainText('could not be checked');
+  await page.locator('#downloads [data-download="release"]').click();
+  await expect(page.locator('#download-status')).toContainText('could not be checked');
+  await page.evaluate(() => {
+    for (const name of ['getItem', 'setItem']) Object.defineProperty(Storage.prototype, name, {
+      configurable: true, value() { throw new DOMException('Storage is unavailable', 'SecurityError'); },
+    });
+  });
+  const requestCountBeforeLanguage = requests.length;
+  await page.getByRole('button', { name: '简体中文', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
+  await expect(page.locator('#download-status')).toContainText('暂时无法查询下载');
+  await page.getByRole('button', { name: 'English', exact: true }).click();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
+  await expect(page.locator('#download-status')).toContainText('could not be checked');
+  expect(requests.length, 'Switching language stays on the current page without another download request').toBe(requestCountBeforeLanguage);
   expect(requests.every(request => request.method === 'GET')).toBe(true);
   expect(errors).toEqual([]);
-  await info.attach('installer-download-discovery.json', { body: JSON.stringify({ requests, errors, stable: stable.tag_name,
-    preview: preview.tag_name, fallback }), contentType: 'application/json' });
+  await info.attach('download-resolution.json', { body: JSON.stringify({ requests, errors, stable: stable.tag_name,
+    preview: preview.tag_name }), contentType: 'application/json' });
 });

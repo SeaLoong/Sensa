@@ -119,12 +119,19 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
         return target ? '<a data-guide-link' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(locale === 'en' ? en : zh) + '</a>' : '';
       }).join('') + '</div>').join('');
     return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script></head><body><a class="skip" href="#content">' + t.skip + '</a>'
-      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a href="https://github.com/SeaLoong/Sensa/releases">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
+      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a data-download="release" href="' + href('download.html') + '">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
       + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details><main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href('index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><span>' + t.docs + '</span></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
   };
   for (const document of documents.values()) {
     const toc = [], seen = new Map(), ids = new Set(), outline = [];
     const md = new MarkdownIt({ html: false, linkify: false, typographer: false });
+    const renderLink = md.renderer.rules.link_open || ((tokens, index, options, env, render) => render.renderToken(tokens, index, options));
+    md.renderer.rules.link_open = (tokens, index, options, env, render) => {
+      const href = tokens[index].attrGet('href') || '', local = relative(document.route, 'download.html');
+      const key = href === local ? 'release' : href.startsWith(local + '?asset=') ? href.slice(local.length + 7) : null;
+      if (key && /^[a-z0-9-]+$/.test(key)) tokens[index].attrSet('data-download', key);
+      return renderLink(tokens, index, options, env, render);
+    };
     const renderImage = md.renderer.rules.image;
     md.renderer.rules.image = (tokens, index, options, env, render) => {
       const image = tokens[index], src = image.attrGet('src');
@@ -153,6 +160,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const rewrite = async (url, image = false) => {
       // Only current, public Markdown is local. Pinned research/source references stay external.
       // 仅当前公开Markdown转站内；固定修订的研究与源码链接保留外链。
+      const download = /^https:\/\/sealoong\.github\.io\/Sensa\/download\.html(\?asset=[a-z0-9-]+)?$/.exec(url);
+      if (download) return relative(document.route, 'download.html') + (download[1] || '');
       const github = /^https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/([^?#]+\.md)(\?[^#]*)?(#.*)?$/.exec(url);
       if (github) {
         const target = documentRoute(decodeURIComponent(github[1]), document.locale);
@@ -228,6 +237,11 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     }
   }
   await write('index.html', homepage);
+  await write('download.html', (await fs.readFile(path.join(source, '.github/pages/download.html'), 'utf8'))
+    .replaceAll('__SITE_STYLESHEET__', siteAssets.css.name)
+    .replaceAll('__SITE_SCRIPT__', siteAssets.js.name)
+    .replaceAll('__SITE_STYLESHEET_FALLBACK__', escape(stylesheetFallback('site.css')))
+    .replaceAll('__SITE_SCRIPT_FALLBACK__', escape(scriptFallback('site.js'))));
   for (const [extension, asset] of Object.entries(siteAssets)) {
     await write(asset.name, asset.content);
     // Previously cached pages still reference these names. New pages use the content hash.

@@ -6,15 +6,15 @@ Start with a manual slider recorded as funscript to learn saving, activation and
 
 ## 1. Start
 
-Choose a Windows installer on the [download page](https://sealoong.github.io/Sensa/#downloads). [Releases](https://github.com/SeaLoong/Sensa/releases) also offers portable archives, single-file builds and other platforms. Every build includes the required .NET runtime.
+Open [Downloads](https://sealoong.github.io/Sensa/download.html) for the latest stable release, or the latest development preview when no stable release exists. The links below download the selected format; [release history](https://github.com/SeaLoong/Sensa/releases) contains older builds. Every build includes the required .NET runtime.
 
-| System and format | Example filename | Start |
-| --- | --- | --- |
-| Windows installer (recommended) | `Sensa-version-win-x64-Setup.exe` | Launch after installation or from the Start menu to open the workbench automatically; uninstall through system settings |
-| Windows single file | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable directory and run it; configuration stays beside it |
-| Windows portable | `Sensa-version-win-x64.zip` | Fully extract to a writable directory, then run `Sensa.exe` |
-| Linux portable | `Sensa-version-linux-x64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
-| macOS portable | `Sensa-version-osx-arm64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
+| System and format | Downloads | Example filename | Start |
+| --- | --- | --- | --- |
+| Windows installer (recommended) | [x64 Setup](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) · [ARM64 Setup](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup) | `Sensa-version-win-x64-Setup.exe` | Launch after installation or from the Start menu to open the workbench automatically; uninstall through system settings |
+| Windows single file | [x64 EXE](https://sealoong.github.io/Sensa/download.html?asset=win-x64-single-file) · [ARM64 EXE](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-single-file) | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable directory and run it; configuration stays beside it |
+| Windows portable | [x64 ZIP](https://sealoong.github.io/Sensa/download.html?asset=win-x64) · [ARM64 ZIP](https://sealoong.github.io/Sensa/download.html?asset=win-arm64) | `Sensa-version-win-x64.zip` | Fully extract to a writable directory, then run `Sensa.exe` |
+| Linux portable | [x64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=linux-x64) · [ARM64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=linux-arm64) | `Sensa-version-linux-x64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
+| macOS portable | [x64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=osx-x64) · [ARM64 tar.gz](https://sealoong.github.io/Sensa/download.html?asset=osx-arm64) | `Sensa-version-osx-arm64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
 
 Every system offers **x64/ARM64**. Intel/AMD computers generally use x64; Apple Silicon and Windows ARM devices use ARM64. Preview filenames also contain a build number and commit identifier, with the same startup steps.
 

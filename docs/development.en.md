@@ -15,11 +15,13 @@ CI runs unit tests and a full browser E2E comparison before building, packaging 
 
 Both release channels include Windows installers, Windows standalone executables, six portable desktop archives and a Unity ZIP. Cleanup retains the newest **10 published pre-releases**, preserving stable releases, unpublished drafts and Git tags. VPM contains Unity packages from stable releases only.
 
-| Download format | Platforms | Use |
+| Example download format | Platforms and downloads | Use |
 | --- | --- | --- |
-| `Sensa-<version>-win-<architecture>-Setup.exe` | Windows x64/ARM64 | Recommended. Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides and Shader bridge tools; no administrator access needed |
-| `Sensa-<version>-win-<architecture>-SingleFile.exe` | Windows x64/ARM64 | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get the Python Shader bridge and full Markdown guides from the installer or portable archive |
-| `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | Windows/Linux/macOS, each for x64/ARM64 | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
+| `Sensa-<version>-win-<architecture>-Setup.exe` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup) | Recommended. Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides and Shader bridge tools; no administrator access needed |
+| `Sensa-<version>-win-<architecture>-SingleFile.exe` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64-single-file) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-single-file) | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get the Python Shader bridge and full Markdown guides from the installer or portable archive |
+| `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64) · [Linux x64](https://sealoong.github.io/Sensa/download.html?asset=linux-x64) · [Linux ARM64](https://sealoong.github.io/Sensa/download.html?asset=linux-arm64) · [macOS x64](https://sealoong.github.io/Sensa/download.html?asset=osx-x64) · [macOS ARM64](https://sealoong.github.io/Sensa/download.html?asset=osx-arm64) | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
+
+[Downloads](https://sealoong.github.io/Sensa/download.html) opens the latest stable release, or the latest development preview when no stable release exists. Download the [Unity ZIP](https://sealoong.github.io/Sensa/download.html?asset=unity) or [SHA256SUMS.txt checksums](https://sealoong.github.io/Sensa/download.html?asset=checksums) directly.
 
 All desktop formats are self-contained and require no separately installed .NET runtime. For standalone Windows EXEs, .NET extracts native libraries to its cache while the application reads Web content from its assembly. Configuration `config.json` and recording-output `recordings` default to the executable directory, with environment-variable overrides available. Workbench funscript exports use `Sensa/recordings` under your Documents folder. Installer updates and uninstall retain user-created data. Keep standalone EXEs in a writable folder. The installer and application are not code-signed; Windows may show a publisher or reputation prompt.
 
@@ -30,7 +32,7 @@ Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first e
 1. Open [Actions → Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml).
 2. Click **Run workflow** and use `main`.
 3. Leave `version` empty for automatic selection, or enter a version such as `0.5.0`.
-4. Run the workflow, wait for checks/build/publication to finish, and download from [Releases](https://github.com/SeaLoong/Sensa/releases).
+4. Run the workflow, wait for checks/build/publication to finish, then use its release link for that version; [Downloads](https://sealoong.github.io/Sensa/download.html) prefers the latest stable release and uses the latest preview only when no stable release exists.
 
 The workflow creates the tag and builds every platform automatically. It resolves latest `main` to one full commit at its start. All checks, platform artifacts, the Unity package and Release use that commit. Changes arriving during execution belong to the next release.
 
@@ -58,7 +60,7 @@ Default `screenshots` mode runs the full E2E suite and generates application bas
 
 ## How are release notes generated?
 
-Automatic pre-releases start with Windows x64/ARM64 installer download links for that build, followed by a **Source** link to the full commit. They do not generate a changelog.
+Automatic pre-releases start with Windows x64/ARM64 installer download links for that build, followed by exact links for the other formats and checksums, then a **Source** link to the full commit. They do not generate a changelog.
 
 Stable release notes also lead with installer download links, then combine GitHub changes, direct commit history and bilingual download guidance:
 

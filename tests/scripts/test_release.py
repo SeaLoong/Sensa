@@ -9,6 +9,7 @@ import io
 import json
 import os
 from pathlib import Path, PurePosixPath
+import re
 import runpy
 import shutil
 import sys
@@ -280,6 +281,19 @@ class DesktopArchiveContracts(ArchiveWorkspace):
 
 
 class EnglishReleaseNotesContracts(unittest.TestCase):
+    def assert_exact_downloads(self, notes, version, tag, stable=False):
+        names = {f'Sensa-{version}-{runtime}{suffix}' for runtime, suffix in (
+            ('win-x64', '.zip'), ('win-arm64', '.zip'),
+            ('linux-x64', '.tar.gz'), ('linux-arm64', '.tar.gz'),
+            ('osx-x64', '.tar.gz'), ('osx-arm64', '.tar.gz'),
+            ('win-x64', '-Setup.exe'), ('win-arm64', '-Setup.exe'),
+            ('win-x64', '-SingleFile.exe'), ('win-arm64', '-SingleFile.exe'))}
+        names.update((f'top.sealoong.sensa-{version}.zip', 'SHA256SUMS.txt'))
+        if stable:
+            names.add('vpm-package.json')
+        actual = set(re.findall(r'https://github.com/Owner/Repo/releases/download/[^)\s]+', notes))
+        self.assertEqual(actual, {f'https://github.com/Owner/Repo/releases/download/{tag}/{name}' for name in names})
+
     def test_preview_notes_lead_with_exact_installer_links_then_source_without_changes(self):
         module = load('release_notes')
         for version, run, attempt, sha in (('0.4.0', '42', '1', 'a' * 40),
@@ -289,10 +303,11 @@ class EnglishReleaseNotesContracts(unittest.TestCase):
                 notes = module.compose_release_notes('preview', version, tag, sha,
                                                      'Owner/Repo', '## Changes\n\n* Fix a published issue')
                 base = f'https://github.com/Owner/Repo/releases/download/{tag}/Sensa-{version}-preview.{run}.{attempt}.{sha[:8]}'
-                self.assertEqual(notes,
+                self.assertTrue(notes.startswith(
                     'Windows installers (recommended) / Windows 安装器（推荐）: '
-                    f'[x64]({base}-win-x64-Setup.exe) · [ARM64]({base}-win-arm64-Setup.exe)\n\n'
-                    f'Source: [`{sha}`](https://github.com/Owner/Repo/commit/{sha})\n')
+                    f'[x64]({base}-win-x64-Setup.exe) · [ARM64]({base}-win-arm64-Setup.exe)\n\n'))
+                self.assertTrue(notes.endswith(f'Source: [`{sha}`](https://github.com/Owner/Repo/commit/{sha})\n'))
+                self.assert_exact_downloads(notes, f'{version}-preview.{run}.{attempt}.{sha[:8]}', tag)
                 self.assertNotIn('Changes', notes)
                 self.assertNotIn('Fix a published issue', notes)
 
@@ -305,10 +320,24 @@ class EnglishReleaseNotesContracts(unittest.TestCase):
             '[x64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-x64-Setup.exe) · '
             '[ARM64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-arm64-Setup.exe)\n\n'))
         self.assertNotIn('preview.', notes)
+        self.assert_exact_downloads(notes, '0.4.0', 'v0.4.0', stable=True)
         self.assertIn(f'Source commit: [`{"b" * 40}`](https://github.com/Owner/Repo/commit/{"b" * 40})', notes)
         self.assertIn('## 简体中文', notes)
         self.assertIn('127.0.0.1:5086', notes)
         self.assertIn('Improve publishing (#42)', notes)
+
+    def test_download_identity_rejects_mismatched_versions_sources_and_markdown_injection(self):
+        compose = load('release_notes').compose_release_notes
+        cases = [
+            ('stable', '0.4.0', 'v0.4.1', 'a' * 40, 'Owner/Repo'),
+            ('preview', '0.4.0', 'preview-42-1-bbbbbbbb', 'a' * 40, 'Owner/Repo'),
+            ('stable', '0.4.0](https://example.com)', 'v0.4.0', 'a' * 40, 'Owner/Repo'),
+            ('stable', '0.4.0', 'v0.4.0\nInjected', 'a' * 40, 'Owner/Repo'),
+            ('stable', '0.4.0', 'v0.4.0', 'a' * 40, 'Owner/Repo?redirect=other'),
+        ]
+        for identity in cases:
+            with self.subTest(identity=identity), self.assertRaises(ValueError):
+                compose(*identity, '')
 
 
 class UnityPublicationMetadataContracts(ArchiveWorkspace):

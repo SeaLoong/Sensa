@@ -1,6 +1,6 @@
 # Sensa
 
-[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://sealoong.github.io/Sensa/#downloads) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://sealoong.github.io/Sensa/download.html) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
@@ -37,7 +37,7 @@ A simple flow connects an input directly to an output. Add a calculation when yo
 
 ## Download and start
 
-1. Choose your installer on the [download page](https://sealoong.github.io/Sensa/#downloads); [Releases](https://github.com/SeaLoong/Sensa/releases) lists every format. On **Windows**, choose `Sensa-…-win-x64-Setup.exe` or `win-arm64-Setup.exe`, install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
+1. Open [Downloads](https://sealoong.github.io/Sensa/download.html) for the latest stable release, or the latest development preview when no stable release exists; older builds are in [release history](https://github.com/SeaLoong/Sensa/releases). On **Windows**, download the [x64 installer](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) or [ARM64 installer](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup), install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
 2. Open **http://127.0.0.1:5086** in your browser. All builds include the required .NET runtime. Windows also offers a directly runnable `SingleFile.exe` and a portable `.zip`; see [download formats](docs/quick-start.en.md#1-start).
 3. Follow [First run](docs/quick-start.en.md) to add an output, save the setup and enable input. Recording a manual slider as funscript is a useful first flow.
 
@@ -74,6 +74,6 @@ Stable releases and development previews include desktop downloads and a Unity Z
 
 [Workbench guide](docs/guide.en.md) · [Feature overview](docs/features.en.md) · [Signal flows](docs/signal-pipeline.en.md) · [OSC parameter reference](docs/osc-parameters.en.md) · [Tracking and calibration](docs/positioning.en.md) · [Language preferences](docs/languages.en.md)
 
-See the [development guide](docs/development.en.md) for builds and publication, and the [browser verification record](docs/e2e-status.en.md) for checks tied to commits. Successful main checks automatically publish a development preview and the documentation site. Start stable releases with the **Release** workflow in Actions.
+See the [development guide](docs/development.en.md) for builds and publication, and the [verification record](docs/e2e-status.en.md) for browser, native-package and installer checks tied to commits. Successful main checks automatically publish a development preview and the documentation site. Start stable releases with the **Release** workflow in Actions.
 
 [MIT license](LICENSE) · [Terminology](GLOSSARY.md)

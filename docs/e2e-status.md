@@ -13,8 +13,8 @@
 | 范围 | 实际结果 |
 | --- | --- |
 | .NET 单元 | **770 项通过**，涵盖空间计算与量纲、来源与时效、路由、启动行为 |
-| Web 单元 | **220 项通过**，包含空间预设、安装器下载选择与离线语言恢复 |
-| Python／脚本 | **308 项通过**，包含 QR 恢复、发布、依赖安装与安装器清理回归 |
+| Web 单元 | **225 项通过**，包含空间预设、正式版优先的下载解析、缓存与语言恢复 |
+| Python／脚本 | **309 项通过**，包含 QR 恢复、全部发布文件直链、依赖安装与安装器清理回归 |
 | 文档站 | **92 条路由**构建通过；逐页链接和截图来源由构建检查 |
 | Unity 静态检查（旧环境） | 包元数据、57 份 C# 语法，以及引用实际 Unity／SDK 程序集的隔离 API 类型检查通过 |
 | Windows 单文件静态发布（旧环境） | x64 发布目录仅有 `Sensa.exe`，已核对内嵌资源；运行与安装结果见后续原生 CI |
@@ -25,6 +25,8 @@ API 类型检查包含部分生成器边界替身。Tracking Frame 新增 17 项
 
 | 固定源码 | 运行 | 实际结果 |
 | --- | --- | --- |
+| `ba0a9cc8` | [完整普通比较 40193128489](https://github.com/SeaLoong/Sensa/actions/runs/40193128489/attempts/1) | **116/116 通过**，其余结果为 0；固定 main 提交，完整选择，关闭更新后比较截图 |
+| `ba0a9cc8` | [Pages 40193128498](https://github.com/SeaLoong/Sensa/actions/runs/40193128498/attempts/1) | **14/14 通过并部署**，其余结果为 0；146 项公开资源匹配构建，包含刷新后的 38 张文档图片 |
 | `d3bcf170` | [Pages 40035927862](https://github.com/SeaLoong/Sensa/actions/runs/40035927862/attempts/1) | **14/14 通过并部署**，其余结果为 0；构建与验证清单一致，146 项公开资源的内容与摘要匹配 |
 | `b0c08cb0`（main `d3bcf17` 与 PR #26 合并快照） | [完整普通比较 40037674549](https://github.com/SeaLoong/Sensa/actions/runs/40037674549/attempts/1) | **116/116 通过**，其余结果为 0；截图更新关闭 |
 | `5d60f782` | [完整候选 40035585736](https://github.com/SeaLoong/Sensa/actions/runs/40035585736/attempts/1) | **116/116 通过**，其余结果为 0；164 张应用 PNG 与 8 张站点原图导出到 [PR #26](https://github.com/SeaLoong/Sensa/pull/26) |
@@ -39,13 +41,15 @@ API 类型检查包含部分生成器边界替身。Tracking Frame 新增 17 项
 
 本次接受的候选固定源码 `5d60f782313c9d6291bf9a32fa68394b63a1136e`，图片提交为 `a53b8e18cf1a3da710f368b3ae5a32c6cd71204d`。导出补丁、清单与全部 172 张 PNG 的 SHA-256 已核对一致。新环境中重新逐张打开了全部原图，未复用缺失的历史审阅凭据；修正后的图解明确区分 SPS 根局部单位、Contact 米制与图示缩放条件。[逐图审阅凭据](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保留观察和摘要。
 
-完整普通比较测试了 `b0c08cb02e1352b9ad0cfcc7e279e71cad6f7fdc`，即 main `d3bcf1701ee114271cafa285cb382532e851ccaf` 与该候选的合并快照。报告为 `suite=all`、`mode=comparison`、`runner=passed`、`selectionComplete=true`、`snapshotsCompared=true`，命令成功，完整 **116 项通过**。候选同样完整选择，模式为 `candidate`、图片比较为 false。接受的 164 张应用基线与 8 张站点原图已完成逐图审阅及当前应用代码的完整比较；后续源码改动仍需对应提交的检查。
+完整普通比较测试了 `b0c08cb02e1352b9ad0cfcc7e279e71cad6f7fdc`，即 main `d3bcf1701ee114271cafa285cb382532e851ccaf` 与该候选的合并快照。报告为 `suite=all`、`mode=comparison`、`runner=passed`、`selectionComplete=true`、`snapshotsCompared=true`，命令成功，完整 **116 项通过**。候选同样完整选择，模式为 `candidate`、图片比较为 false。接受的 164 张应用基线与 8 张站点原图已完成逐图审阅及当前应用代码的完整比较；后续 main 运行 `40193128489` 在 `ba0a9cc8b543db003372509457f399e50169ae83` 同样完成 **116/116** 普通比较，命令成功，完整选择与截图比较标志均为 true，随后启动六个平台原生任务。之后的源码改动仍需对应提交的检查。
 
-当前 Pages `40035927862` 使用与构建一致的清单，包含 **92 条路由与 145 项资产**。含清单在内的 **146 项公开资源**均返回 HTTP 200，内容与 SHA-256 全部匹配。Pages 结果为 `suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`，命令成功。38 张文档图片已依据本次候选刷新来源清单并逐张核对摘要：2 张图片字节变化，36 张与此前相同；来源统一记录为 `5d60f782`／`40035585736` attempt 1。上述 146 项公开资源核对属于刷新前的 `d3bcf17` 部署，新提交部署结果仍待检查。
+当前 Pages `40193128498` 固定 main `ba0a9cc8`，使用与构建一致的清单，包含 **92 条路由与 145 项资产**。含清单在内的 **146 项公开资源**均返回 HTTP 200，内容与 SHA-256 全部匹配。Pages 结果为 `suite=site`、`mode=comparison`、`runner=passed`、`selectionComplete=false`、`snapshotsCompared=true`，命令成功。38 张文档图片已依据本次候选刷新来源清单并逐张核对摘要：2 张图片字节变化，36 张与此前相同；来源统一记录为 `5d60f782`／`40035585736` attempt 1。上述 146 项公开资源核对属于已部署的 `ba0a9cc8` 构建，刷新后的 38 张文档图片全部核对通过；此前 `d3bcf17` 部署保留为独立历史结果。
 
 [图片审阅与来源](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [运行界面](screenshots.md)
 
 ## 本轮遇到的问题与修复
+
+网站、文档和发布说明现统一区分通用入口与文件下载：通用入口优先打开最新正式版，无正式版时使用最新预览；指定格式直达同一版本的实际附件，缺失文件不会混用旧版本。下载查询失败时保留重试入口，并明确区分缓存版本。站点 E2E 已增加对应断言；本节记录的浏览器运行早于此下载改动，新的浏览器与部署结果以对应提交的 Actions 为准。
 
 PR #25 的普通比较实际记录：离线图解切换中文后会话值为 `zh-CN`，刷新后变为 `null`，页面恢复英语。文件页现将手动语言同时保存在当前浏览历史项，刷新时优先读取会话值，缺失时从历史项恢复并回填；HTTP 页面继续使用会话存储。三个新增单元测试通过，E2E 保留原断言并增加主动清空文件会话、刷新恢复和存储受限检查；上述完整候选与普通比较现已通过这些检查。
 
@@ -60,10 +64,14 @@ PR #25 的普通比较实际记录：离线图解切换中文后会话值为 `zh
 
 ## 原生构建与发布
 
+main `ba0a9cc8` 的 [CI 40193128489](https://github.com/SeaLoong/Sensa/actions/runs/40193128489/attempts/1) 完成上述 **116/116** 浏览器比较后，五个平台任务与 Unity 打包通过。Windows x64 的便携、单文件、安装后程序以及安装／重装／卸载和数据保留检查均通过。ARM64 在打包步骤持续约 15 分钟后主动中断；运行最终为 **cancelled**，未上传 ARM64 报告，终止后日志接口返回 `BlobNotFound`，因此无法确定停滞的具体子步骤，也不能将该运行记为原生验证或发布成功。后续检查继续使用新的 runner，未基于缺失日志推测并修改程序。
+
 [CI 40037674549](https://github.com/SeaLoong/Sensa/actions/runs/40037674549/attempts/1) 在完整普通比较通过后继续执行原生构建，**六个平台任务中五项通过**。**Windows x64 与 ARM64** 的便携版、单文件和安装后程序冒烟报告均通过；x64 安装器还完整通过首次安装、重装、卸载及配置／录制保留检查。ARM64 已执行这些操作，但临时目录清理删除 `unins000.exe` 时出现 `PermissionError`；日志虽显示最终卸载成功，最终安装器证明仍缺失。清理现最多等待 10 秒，让卸载程序删除自身可执行文件，原有文件删除与用户数据保留断言继续执行。新增两项回归及原有集成覆盖通过：打包测试 **13/13**，完整 Python **308/308**。修正仍待新的原生 CI 结果，预览任务已跳过，因此该运行不能证明完整分发已发布。Linux／macOS 冒烟与 Windows 合成 Shader 回放通过；回放不代表 GPU 捕获或真实设备验收。
 
 ## Unity 与实机范围
 
-以下安装证据来自旧环境：Unity Editor **2022.3.22f1** 的版本命令成功，Windows Mono 支持与独立 Avatar／World 工程已安装；Avatar 使用 SDK **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**，World 使用 SDK **3.10.5**。包内容、语法与隔离 API 检查，以及上表中的 x64 单文件静态发布，均为历史观察。
+新环境已从官方模板恢复独立 Avatar／World 工程。Avatar 锁定 SDK／Base **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World 锁定 SDK／Base **3.10.5** 与 VRCFury **1.1434.0**，不含 Avatar SDK。World 保持本地仓库，无远端或推送。vrc-get **1.9.3** 已与上游摘要核对；重复离线解析后，Avatar 的 **4654** 个包文件和 World 的 **5250** 个包文件逐项 SHA-256 一致，并同步 **185／51** 个受管理实验文件。
 
-旧环境的实际批处理导入以 **“No valid Unity Editor license found”** 退出。恢复后的机器未找到这些 Editor 安装或工程，目前恢复工作仅核验了官方 SDK ZIP。Editor 编译、NDMF 构建、17 项 Tracking Frame EditMode、Shader GPU 捕获、VRChat／HMD 和实际硬件仍未验证。浏览器图片展示实际运行的 WebUI，连接与测量采用隔离模拟；Unity 包元数据检查验证分发结构。
+Unity Editor **2022.3.22f1** 与 Windows Mono 支持已按官方文件大小和 MD5 校验后安装。`-version` 成功返回版本，动态库检查未发现缺失项。这台 Debian 13 主机不在该 Editor 文档列出的 Ubuntu 桌面支持范围内。上表的旧环境语法／API 检查仍是历史证据，不能视为新工程导入通过。
+
+新环境已实际尝试隔离运行 Avatar 的 `TrackingFrameContracts` EditMode 检查。许可客户端连接成功，但 Editor 在 **0.52 秒后以退出码 1** 报告 **“No valid Unity Editor license found”** 和 `License is not active (com.unity.editor.headless)`。**执行 0 项，17 项源码用例未运行**，未生成 NUnit XML；这确认了当前许可阻断，与旧环境的同类失败分开记录。Editor 导入与编译、NDMF 构建、Tracking Frame EditMode、Shader GPU 捕获、VRChat／HMD 和实际硬件均未验收。浏览器图片展示实际运行的 WebUI，连接与测量采用隔离模拟；Unity 包元数据检查验证分发结构。

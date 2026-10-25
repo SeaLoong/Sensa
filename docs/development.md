@@ -15,11 +15,13 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 预发布与正式版都包含 Windows 安装器、Windows 单文件程序、六个平台的便携压缩包，以及 Unity ZIP。自动清理保留最近 **10 个已公开 pre-release**，同时保留正式版、未公开草稿和 Git 标签。VPM 收录正式版中的 Unity 包。
 
-| 下载格式 | 平台 | 用途 |
+| 下载格式示例 | 平台与下载 | 用途 |
 | --- | --- | --- |
-| `Sensa-<版本>-win-<架构>-Setup.exe` | Windows x64／ARM64 | 推荐。为当前用户安装到 `%LOCALAPPDATA%\Programs\Sensa`，从开始菜单启动并打开浏览器，附带离线指南和 Shader 桥工具，无需管理员权限 |
-| `Sensa-<版本>-win-<架构>-SingleFile.exe` | Windows x64／ARM64 | 直接运行一个 EXE，内置 Web 界面与交互图解，无需旁边另放程序文件；Python Shader 桥和完整 Markdown 指南另取安装器或便携包 |
-| `Sensa-<版本>-<平台>-<架构>.zip`／`.tar.gz` | Windows／Linux／macOS，各 x64／ARM64 | 便携目录，完整解压后运行，附带离线指南与工具；Windows 使用 ZIP，其余系统使用 tar.gz |
+| `Sensa-<版本>-win-<架构>-Setup.exe` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64-setup) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-setup) | 推荐。为当前用户安装到 `%LOCALAPPDATA%\Programs\Sensa`，从开始菜单启动并打开浏览器，附带离线指南和 Shader 桥工具，无需管理员权限 |
+| `Sensa-<版本>-win-<架构>-SingleFile.exe` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64-single-file) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64-single-file) | 直接运行一个 EXE，内置 Web 界面与交互图解，无需旁边另放程序文件；Python Shader 桥和完整 Markdown 指南另取安装器或便携包 |
+| `Sensa-<版本>-<平台>-<架构>.zip`／`.tar.gz` | [Windows x64](https://sealoong.github.io/Sensa/download.html?asset=win-x64) · [Windows ARM64](https://sealoong.github.io/Sensa/download.html?asset=win-arm64) · [Linux x64](https://sealoong.github.io/Sensa/download.html?asset=linux-x64) · [Linux ARM64](https://sealoong.github.io/Sensa/download.html?asset=linux-arm64) · [macOS x64](https://sealoong.github.io/Sensa/download.html?asset=osx-x64) · [macOS ARM64](https://sealoong.github.io/Sensa/download.html?asset=osx-arm64) | 便携目录，完整解压后运行，附带离线指南与工具；Windows 使用 ZIP，其余系统使用 tar.gz |
+
+[下载](https://sealoong.github.io/Sensa/download.html)指向最新正式版，暂无正式版时使用最新开发预览；可直接下载[Unity ZIP](https://sealoong.github.io/Sensa/download.html?asset=unity)与[SHA256SUMS.txt 校验文件](https://sealoong.github.io/Sensa/download.html?asset=checksums)。
 
 所有桌面格式均为自包含程序，无需另装 .NET。Windows 单文件的原生库由 .NET 提取到缓存，Web 内容直接从程序集读取；配置 `config.json` 与“录制输出”的 `recordings` 默认保存在程序旁，环境变量可覆盖。工作台导出的 funscript 使用系统文档目录的 `Sensa/recordings`。升级安装与卸载保留用户生成的数据。单文件请放在可写文件夹。安装器和程序尚未作代码签名，Windows 可能显示发布者或信誉提示。
 
@@ -30,7 +32,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 1. 打开 GitHub 的 [Actions → Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)。
 2. 点击 **Run workflow**，使用 `main`。
 3. `version` 留空即可自动选择版本；需要指定版本时填写 `0.5.0` 这样的版本号。
-4. 执行工作流，等待检查、构建和发布完成，再从 [Releases](https://github.com/SeaLoong/Sensa/releases) 下载。
+4. 执行工作流，等待检查、构建和发布完成，从工作流结果中的发布链接下载本次版本；[下载](https://sealoong.github.io/Sensa/download.html)优先打开最新正式版，暂无正式版时打开最新预览版。
 
 工作流自动创建标签并构建全部平台。开始时确定最新 `main` 的完整提交号，此后所有检查、平台产物、Unity 包和 Release 都使用该提交；执行期间的新提交留给下一次发布。
 
@@ -58,7 +60,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 ## 发布说明怎样生成？
 
-自动预发布首先提供本次构建的 Windows x64／ARM64 安装器下载链接，随后通过 **Source** 链接到完整源码提交，不生成变更清单。
+自动预发布首先提供本次构建的 Windows x64／ARM64 安装器下载链接，再列出其余格式与校验文件的准确下载链接，随后通过 **Source** 链接到完整源码提交，不生成变更清单。
 
 正式版说明同样先提供安装器下载链接，再组合 GitHub 变更记录、直接提交记录与双语下载说明：
 

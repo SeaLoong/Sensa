@@ -15,6 +15,14 @@ test('public guides build into bilingual routes with resolvable local links and 
   try {
     const manifest = await buildPages({ output, commit: 'site-unit-fixture' });
     assert.equal(manifest.commit, 'site-unit-fixture');
+    assert.ok(manifest.assets['download.html'], 'Canonical download router is included in the verified site artifact');
+    const downloadRouter = await fs.readFile(path.join(output, 'download.html'), 'utf8');
+    assert.match(downloadRouter, /data-download-page/);
+    assert.match(downloadRouter, /id="download-status" role="status"/);
+    assert.match(downloadRouter, /Release history/);
+    const downloadGuide = await fs.readFile(path.join(output, 'en/docs/quick-start.html'), 'utf8');
+    assert.match(downloadGuide, /data-download="release" href="\.\.\/\.\.\/download\.html"/);
+    assert.match(downloadGuide, /href="\.\.\/\.\.\/download\.html\?asset=win-x64-setup" data-download="win-x64-setup"/);
     assert.ok((await fs.stat(path.join(output, '.nojekyll'))).isFile());
     assert.equal(Object.hasOwn(manifest.assets, '.nojekyll'), false);
     const assetNames = {};
@@ -30,7 +38,7 @@ test('public guides build into bilingual routes with resolvable local links and 
     }
     for (const route of ['en/README.html', 'zh-CN/README.html', 'en/docs/osc-parameters.html', 'zh-CN/docs/osc-parameters.html',
       'en/unity/top.sealoong.sensa/README.html', 'zh-CN/unity/top.sealoong.sensa/README.html']) assert.ok(manifest.routes.includes(route), route);
-    for (const route of ['index.html', ...manifest.routes]) {
+    for (const route of ['index.html', 'download.html', ...manifest.routes]) {
       const html = await fs.readFile(path.join(output, route), 'utf8');
       assert.match(html, /<main/);
       assert.doesNotMatch(html, /(?:file:\/\/|[A-Z]:[\\/](?:Users|Code)|__(?:VPM|SITE)_[A-Z_]+__)/);
@@ -179,7 +187,7 @@ test('homepage switches task anchors and accessible labels with unavailable pref
   const label = { dataset: { labelEn: 'Main navigation', labelZh: '主导航' }, setAttribute(name, value) { this[name] = value; } };
   const elements = { language: { addEventListener: (name, action) => callbacks.set(name, action) },
     vcc: {}, 'copy-vpm': { addEventListener() {} }, 'vpm-status': {} };
-  const document = { documentElement: {}, body: { hasAttribute: () => true, dataset: { vpm: 'false' } },
+  const document = { documentElement: {}, body: { hasAttribute: name => name === 'data-home', dataset: { vpm: 'false' } },
     getElementById: name => elements[name],
     querySelectorAll: selector => ({ '[data-en]': [english], '[data-zh]': [chinese], '[data-doc]': [recording],
       '[data-label-en]': [label], '[data-diagram]': [] })[selector] || [] };
@@ -212,7 +220,7 @@ test('homepage uses the tab or browser language and removes legacy language quer
     const location = new URL('https://example.test/Sensa/?lang=zh-CN&keep=1#start');
     const elements = { language: { addEventListener: (name, action) => events.set(name, action) },
       vcc: {}, 'copy-vpm': { addEventListener() {} }, 'vpm-status': {} };
-    const document = { documentElement: {}, body: { hasAttribute: () => true, dataset: {} },
+    const document = { documentElement: {}, body: { hasAttribute: name => name === 'data-home', dataset: {} },
       getElementById: name => elements[name], querySelectorAll: selector => selector === '[data-diagram]' ? [diagram] : [] };
     let persistentReads = 0;
     vm.runInNewContext(source, { URL, document, location, navigator: { languages: sample.browser, language: sample.browser[0] },

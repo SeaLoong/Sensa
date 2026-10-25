@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import random
+import re
 import subprocess
 import sys
 import tempfile
@@ -239,7 +240,7 @@ class ReleaseCommandTests(unittest.TestCase):
     def test_first_stable_release_uploads_all_downloads_without_preview_base(self):
         write_archives(self.inputs, 'stable')
         releases = FakeReleases()
-        with patch.object(preview, 'prune_prereleases') as prune:
+        with patch.object(preview, 'prune_prereleases') as prune, patch.object(preview, 'record') as record:
             self.main('stable', releases)
         prune.assert_not_called()
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
@@ -253,22 +254,33 @@ class ReleaseCommandTests(unittest.TestCase):
         checksums = (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text()
         self.assertIn('vpm-package.json', checksums)
         self.assertEqual(len(checksums.splitlines()), 12)
+        self.assert_note_downloads_match_uploads(notes, releases, 'v' + VERSION)
+        self.assertEqual(record.call_args.args[0],
+            '[Release v0.4.0](https://github.com/Owner/Repo/releases/tag/v0.4.0) · '
+            '[Download / 下载](https://sealoong.github.io/Sensa/download.html)')
+
+    def assert_note_downloads_match_uploads(self, notes, releases, tag):
+        uploaded = {event[2] for event in releases.events if event[0] == 'upload'}
+        links = set(re.findall(r'https://github.com/Owner/Repo/releases/download/[^)\s]+', notes))
+        self.assertEqual(links, {f'https://github.com/Owner/Repo/releases/download/{tag}/{name}' for name in uploaded})
 
     def test_preview_publishes_installer_links_and_source_without_generating_a_changelog(self):
         write_archives(self.inputs, 'preview')
         releases = FakeReleases([published(1) | {'tag_name': 'v0.3.0', 'prerelease': False}])
-        process = self.main('preview', releases, previous='v0.3.0')
+        with patch.object(preview, 'record') as record:
+            process = self.main('preview', releases, previous='v0.3.0')
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
         self.assertEqual([call.args[0] for call in process.call_args_list], [['git', 'rev-parse', 'HEAD']])
         self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 12)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
-        self.assertEqual(notes,
+        self.assertTrue(notes.startswith(
             'Windows installers (recommended) / Windows 安装器（推荐）: '
             f'[x64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-x64-Setup.exe) · '
-            f'[ARM64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-arm64-Setup.exe)\n\n'
-            f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n')
-        for _, _, name in (event for event in releases.events if event[0] == 'upload' and event[2].endswith('-Setup.exe')):
-            self.assertIn(f'https://github.com/Owner/Repo/releases/download/{TAG}/{name}', notes)
+            f'[ARM64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-arm64-Setup.exe)\n\n'))
+        self.assertTrue(notes.endswith(f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n'))
+        self.assert_note_downloads_match_uploads(notes, releases, TAG)
+        self.assertIn(f'[Release {TAG}](https://github.com/Owner/Repo/releases/tag/{TAG})', record.call_args.args[0])
+        self.assertIn('[Download / 下载](https://sealoong.github.io/Sensa/download.html)', record.call_args.args[0])
         self.assertNotIn('Changes', notes)
         self.assertNotIn('Direct fix', notes)
         self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
