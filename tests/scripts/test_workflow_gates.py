@@ -29,6 +29,26 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_generated_code_jobs_have_no_server_granted_cache_access(self):
+        source = workflow('update-e2e.yml')
+        scopes = jobs(source)
+        for name in ('agent', 'candidates'):
+            with self.subTest(job=name):
+                header = scopes[name].split('    steps:\n', 1)[0]
+                self.assertRegex(header, r'(?m)^    cache-mode: none$')
+                self.assertEqual(len(re.findall(r'(?m)^    cache-mode:', header)), 1)
+                self.assertNotRegex(scopes[name], r'(?m)^\s+ACTIONS_CACHE_MODE:')
+                # The pinned setup-node toolkit skips restore/save under the
+                # server-provided mode and exposes that decision in Actions logs.
+                self.assertIn('          cache: npm', scopes[name])
+                self.assertNotIn('secrets.SENSA_PAT', scopes[name])
+        configured = set()
+        for path in WORKFLOWS.glob('*.yml'):
+            for name, body in jobs(path.read_text(encoding='utf-8')).items():
+                if re.search(r'(?m)^    cache-mode:', body):
+                    configured.add((path.name, name))
+        self.assertEqual(configured, {('update-e2e.yml', 'agent'), ('update-e2e.yml', 'candidates')})
+
     def test_checkout_credentials_are_retained_only_for_authenticated_proposal_git_operations(self):
         checked = set()
         for path in WORKFLOWS.glob('*.yml'):

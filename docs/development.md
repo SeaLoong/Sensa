@@ -79,6 +79,10 @@ Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts
 
 只读检查和构建不保留 checkout 的 Git 凭据；仅需认证 Git 读写的 E2E proposal 发布任务保留其专用 PAT。不得将候选测试执行移入该发布任务，也不得为减少提示关闭扫描器、增加全局目录排除或降低审计门槛。
 
+Update E2E 的 agent 与 candidates 任务执行尚未审阅的生成代码，因此设置 GitHub 服务端强制执行的 `cache-mode: none`。即使取得任务的运行时令牌，也不能读写 Actions 缓存；这与清理环境变量或只关闭某个缓存步骤不同。保留的 `setup-node` 缓存声明会由固定版本工具包按服务端有效模式跳过，运行日志须确认 `effective cache-mode 'none'`，不能把配置文本当作已运行的证明。其他可信检查的缓存、候选产物上传和独立 PAT 发布继续工作。
+
+CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判为不可信 checkout，或尚未识别服务端缓存限权。必须核对实际调用链、引用来源和有效缓存权限；仅对已确认的具体告警记录误报或已缓解理由，不增加查询／目录排除。
+
 ## 失败时从哪里看？
 
 打开对应 Actions 运行，先看失败步骤与 Job summary。E2E 的 `summary.json`／`summary.md` 分别记录通过、失败、跳过、未执行、中断和不稳定用例；达到失败上限后停止执行的用例记为未执行。具体状态见[验证记录](e2e-status.md)。截图失败时查看 expected／actual／diff，审阅有意的变化后更新基线，再运行完整普通比较。

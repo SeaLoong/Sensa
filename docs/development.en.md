@@ -79,6 +79,10 @@ Browser jobs pin both the Playwright image version tag and the official registry
 
 Read-only checks and builds do not retain checkout Git credentials. Only E2E proposal publication retains its dedicated PAT for authenticated Git operations. Keep candidate test execution outside that publication job. Do not reduce noise by disabling scanners, adding global directory exclusions or weakening audit gates.
 
+The Update E2E agent and candidates jobs execute generated code before review, so both use GitHub's server-enforced `cache-mode: none`. Even possession of the job runtime token cannot grant Actions cache access; clearing environment variables or disabling a cache step does not provide that boundary. The retained `setup-node` cache configuration is skipped by the pinned toolkit according to the server's effective mode. Verify `effective cache-mode 'none'` in the execution logs rather than treating configuration text as runtime evidence. Other trusted checks retain caching, candidate artifact upload, and the separate PAT publication path.
+
+CodeQL's cache-poisoning model may classify expressions named `ref` or `commit` as untrusted checkouts or may not yet recognize server-enforced cache restrictions. Check the actual call chain, reference provenance, and effective cache access, then record false-positive or mitigated reasons only for the confirmed individual alerts. Do not add query or directory exclusions.
+
 ## Where should I look after a failure?
 
 Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. Cases suppressed by the failure limit are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
