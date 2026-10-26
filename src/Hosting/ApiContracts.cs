@@ -51,7 +51,9 @@ public sealed record ScriptSeekRequest(long PositionMs);
 internal sealed class WebSocketClientSession
 {
     private readonly CancellationTokenSource _connectionCts;
-    private int _pending;
+    private readonly object _stateSync = new();
+    private bool _pending;
+    private bool _flushingState;
     private int _stopRequested;
 
     public WebSocketClientSession(WebSocket socket, CancellationToken requestAborted, CancellationToken shutdownToken)
@@ -85,9 +87,43 @@ internal sealed class WebSocketClientSession
         finally { Gate.Release(); }
     }
 
-    public void MarkPending() => Interlocked.Exchange(ref _pending, 1);
+    public void MarkPending()
+    {
+        lock (_stateSync) { if (!IsStopRequested) _pending = true; }
+    }
 
-    public bool ConsumePending() => Interlocked.Exchange(ref _pending, 0) == 1;
+    public async Task FlushStateAsync(Func<byte[]> payload)
+    {
+        lock (_stateSync)
+        {
+            if (_flushingState || IsStopRequested) return;
+            _flushingState = true;
+        }
+        try
+        {
+            while (true)
+            {
+                lock (_stateSync)
+                {
+                    // Finish under the same lock as MarkPending: a final update
+                    // either belongs to this worker or can start the next one.
+                    if (!_pending || IsStopRequested) { _flushingState = false; return; }
+                    _pending = false;
+                }
+                if (Socket.State != WebSocketState.Open)
+                    throw new WebSocketException(WebSocketError.InvalidState);
+                // Release the shared send gate after every state frame, so
+                // queued command replies precede another pending state.
+                await SendAsync(payload()).ConfigureAwait(false);
+            }
+        }
+        catch
+        {
+            RequestStop();
+            lock (_stateSync) { _flushingState = false; _pending = false; }
+            throw;
+        }
+    }
 
     public void RequestStop()
     {

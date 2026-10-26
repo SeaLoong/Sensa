@@ -255,32 +255,14 @@ public static class SensaHost
 
         async Task FlushClientStateAsync(string clientId, WebSocketClientSession client)
         {
-            if (!await client.Gate.WaitAsync(0))
-                return;
-
             try
             {
-                while (client.ConsumePending())
-                {
-                    if (client.IsStopRequested || client.Socket.State != WebSocketState.Open)
-                    {
-                        RemoveWsClient(clientId);
-                        return;
-                    }
-
-                    var payloadBytes = StatePayload();
-                    using var timeout = CancellationTokenSource.CreateLinkedTokenSource(client.ConnectionToken);
-                    timeout.CancelAfter(TimeSpan.FromSeconds(3));
-                    await client.Socket.SendAsync(payloadBytes, WebSocketMessageType.Text, true, timeout.Token).ConfigureAwait(false);
-                }
+                await client.FlushStateAsync(StatePayload).ConfigureAwait(false);
+                if (client.IsStopRequested) RemoveWsClient(clientId);
             }
             catch
             {
                 RemoveWsClient(clientId);
-            }
-            finally
-            {
-                client.Gate.Release();
             }
         }
 
