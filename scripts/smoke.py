@@ -34,6 +34,22 @@ def read_frame(sock):
     data = read_exact(sock, size)
     return json.loads(data) if head[0] & 15 == 1 else None
 
+def collect_responses(receive, expected_ids, timeout=30, *, clock=None):
+    """Require every requested ID within one deadline despite unsolicited states."""
+    clock = clock or time.monotonic
+    expected = set(expected_ids)
+    received = set()
+    deadline = clock() + timeout
+    while received != expected:
+        if clock() >= deadline:
+            missing = ', '.join(sorted(expected - received))
+            raise TimeoutError('Missing WebSocket response IDs: ' + missing)
+        message = receive()
+        if message and message.get('id') in expected:
+            assert message['ok'], message
+            received.add(message['id'])
+    return received
+
 def fixed_root_samples(point, instance='Smoke'):
     """Independent fixed-four-anchor fixture / 独立的固定四锚点夹具。"""
     prefix = f'Sensa/SPS/{instance}'
@@ -86,11 +102,7 @@ def main():
             while not headers.endswith(b'\r\n\r\n'): headers.extend(read_exact(ws, 1))
             assert b'101' in headers
             for i in range(30): ws.sendall(frame({'id':str(i), 'method':'GET', 'path':'/api/state/overview'}))
-            received = set()
-            while len(received) < 30:
-                message = read_frame(ws)
-                if message and message.get('id') is not None:
-                    assert message['ok']; received.add(message['id'])
+            collect_responses(lambda: read_frame(ws), (str(i) for i in range(30)))
             def command(path, method='POST', body=None):
                 marker = 'cmd-' + path
                 ws.sendall(frame({'id':marker,'method':method,'path':path,'body':body}))
