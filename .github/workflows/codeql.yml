@@ -63,8 +63,8 @@ jobs:
         with:
           languages: ${{ matrix.language }}
           build-mode: ${{ matrix.build-mode }}
-          queries: security-extended
-          config: ${{ matrix.language == 'csharp' && '{"threat-models":["remote","local"]}' || '{}' }}
+          # Preserve default setup's query suite and remote threat model.
+          config: '{"threat-models":["remote"]}'
           db-location: ${{ runner.temp }}/sensa-codeql-databases
       - name: Compile application and tests
         if: matrix.language == 'csharp'
@@ -129,8 +129,7 @@ jobs:
                    'runAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
                    'language': os.environ['CODEQL_LANGUAGE'],
                    'category': '/language:' + os.environ['CODEQL_LANGUAGE'], 'sarifFiles': rows,
-                   'querySuite': 'security-extended',
-                   'threatModels': ['remote', 'local'] if os.environ['CODEQL_LANGUAGE'] == 'csharp' else ['remote']}
+                   'querySuite': 'default', 'threatModels': ['remote']}
           (root / 'source-proof.json').write_text(json.dumps(proof, indent=2) + '\n', encoding='utf-8')
           PY
       - name: Upload verified CodeQL results

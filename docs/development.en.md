@@ -86,7 +86,7 @@ CodeQL's cache-poisoning model may classify expressions named `ref` or `commit` 
 
 ### C# analysis quality and advanced setup
 
-The advanced workflow preserves Actions, C#, JavaScript/TypeScript and Python and their existing `/language:<language>` categories. It runs `security-extended` and retains both remote and local threat models for C#. Manual C# extraction uses the pinned SDK, locked restore and fresh application/test compilation, including generated sources. Real Unity/VRChat references also compile the Unity package and both lab tools. External references are built before CodeQL initialization; repository sources are rebuilt afterward.
+The advanced workflow preserves Actions, C#, JavaScript/TypeScript and Python and their existing `/language:<language>` categories. It uses the same default query suite and remote threat model as the original default setup, without additional query filters. Manual C# extraction uses the pinned SDK, locked restore and fresh application/test compilation, including generated sources. Real Unity/VRChat references also compile the Unity package and both lab tools. External references are built before CodeQL initialization; repository sources are rebuilt afterward.
 
 `scripts/codeql-unity.py` prepares real compiler references using the official sources, versions, archive hashes and individual file hashes in `.github/codeql/unity-sources.json`. It extracts only locked SDK references, never launches the Unity Editor and uses no stub types. Static compilation does not establish Unity test, PlayMode, client or hardware acceptance. New source files or assembly definitions must enter the real compilation plan; directory exclusions must not reduce coverage.
 

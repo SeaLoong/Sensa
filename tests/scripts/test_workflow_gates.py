@@ -36,8 +36,10 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertEqual(set(re.findall(r'language: ([a-z-]+), build-mode:', analyze)),
                          {'actions', 'csharp', 'javascript-typescript', 'python'})
         self.assertIn('{language: csharp, build-mode: manual}', analyze)
-        self.assertIn('queries: security-extended', analyze)
-        self.assertIn('"threat-models":["remote","local"]', analyze)
+        self.assertNotRegex(analyze, r'(?m)^\s+queries:')
+        self.assertIn('"threat-models":["remote"]', analyze)
+        self.assertNotIn('disable-default-queries', source)
+        self.assertNotIn('query-filters', source)
         self.assertNotIn('paths-ignore:', source)
         self.assertLess(analyze.index('codeql-unity.py prepare'), analyze.index('id: init'))
         self.assertLess(analyze.index('id: init'), analyze.index('dotnet build src/Sensa.sln'))

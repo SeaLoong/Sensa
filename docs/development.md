@@ -86,7 +86,7 @@ CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判�
 
 ### C# 分析质量与高级配置
 
-高级工作流保留 Actions、C#、JavaScript／TypeScript、Python 四种语言及原有 `/language:<语言>` 分类，使用 `security-extended`；C# 同时保留 remote 与 local 威胁模型。C# 使用 manual 构建：固定 SDK 锁定恢复并重新编译应用和测试，包含源生成代码；另用真实 Unity／VRChat 引用编译 Unity 包及两个实验工具的源码。外部引用先在 CodeQL 初始化前编译，仓库自身代码在初始化后重新编译。
+高级工作流保留 Actions、C#、JavaScript／TypeScript、Python 四种语言及原有 `/language:<语言>` 分类，使用与原默认扫描一致的默认查询集和 remote 威胁模型，不增加查询过滤。C# 使用 manual 构建：固定 SDK 锁定恢复并重新编译应用和测试，包含源生成代码；另用真实 Unity／VRChat 引用编译 Unity 包及两个实验工具的源码。外部引用先在 CodeQL 初始化前编译，仓库自身代码在初始化后重新编译。
 
 `scripts/codeql-unity.py` 按 `.github/codeql/unity-sources.json` 中的官方来源、版本、归档摘要和引用文件摘要准备编译依赖。它只提取已锁定的 SDK 引用，不启动 Unity Editor，不使用模拟类型；静态编译不代表 Unity 测试、PlayMode、客户端或硬件验收。新增源码或程序集定义必须进入实际编译计划，不能通过目录排除降低覆盖范围。
 
