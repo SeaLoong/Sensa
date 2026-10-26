@@ -12,8 +12,9 @@ const compiled = await build({
   absWorkingDir: root,
   stdin: { contents: "export { default as VectorGroup } from './src/web/ComputedVectorGroup.jsx'; export { default as Panel } from './src/web/ComputedSignalsPanel.jsx'; export { setLocale } from './src/web/i18n.js'; export * from './src/web/computed-signals.js';", resolveDir: root },
   bundle: true, write: false, platform: 'node', format: 'esm',
+  jsx: 'automatic',
   plugins: [{ name: 'shared-test-react', setup(builder) {
-    builder.onResolve({ filter: /^react$/ }, () => ({ path: pathToFileURL(require.resolve('react')).href, external: true }));
+    builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
   } }],
 });
 const { VectorGroup, Panel, setLocale, computedVectorGroups, makeComputedVector, newSpatialComputedDraft } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));

@@ -44,6 +44,7 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 | --- | --- | --- |
 | `ci.yml` | CI | PR／main 的自动检查与构建；main 自动预发布 |
 | `checks.yml` | Checks | 共用的 Web／.NET／Python 单元、Unity 元数据与 E2E 检查 |
+| `codeql.yml` | CodeQL Advanced | 四语言扫描；C# 真实构建、分析质量与完整源码覆盖检查 |
 | `e2e.yml` | E2E | 浏览器行为、普通截图比较；手动生成待审基线 |
 | `update-e2e.yml` | Update E2E | 手动更新测试／候选图片并创建待审 PR，默认无需 AI 密钥 |
 | `build.yml` | Build | 共用的六平台便携包、Windows 安装器／单文件、隔离原生冒烟与 Unity 打包 |
@@ -83,6 +84,25 @@ Update E2E 的 agent 与 candidates 任务执行尚未审阅的生成代码，�
 
 CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判为不可信 checkout，或尚未识别服务端缓存限权。必须核对实际调用链、引用来源和有效缓存权限；仅对已确认的具体告警记录误报或已缓解理由，不增加查询／目录排除。
 
+### C# 分析质量与高级配置
+
+高级工作流保留 Actions、C#、JavaScript／TypeScript、Python 四种语言及原有 `/language:<语言>` 分类，使用 `security-extended`；C# 同时保留 remote 与 local 威胁模型。C# 使用 manual 构建：固定 SDK 锁定恢复并重新编译应用和测试，包含源生成代码；另用真实 Unity／VRChat 引用编译 Unity 包及两个实验工具的源码。外部引用先在 CodeQL 初始化前编译，仓库自身代码在初始化后重新编译。
+
+`scripts/codeql-unity.py` 按 `.github/codeql/unity-sources.json` 中的官方来源、版本、归档摘要和引用文件摘要准备编译依赖。它只提取已锁定的 SDK 引用，不启动 Unity Editor，不使用模拟类型；静态编译不代表 Unity 测试、PlayMode、客户端或硬件验收。新增源码或程序集定义必须进入实际编译计划，不能通过目录排除降低覆盖范围。
+
+`scripts/verify-codeql-csharp.py` 从已执行的 `Telemetry/ExtractorInformation.bqrs` 读取真实指标，要求“有调用目标的调用”和“类型已知的表达式”均不低于原有 **85%** 门槛，且 none 模式指标为零；再逐一核对 CodeQL 源码归档与当前提交的全部 Git 跟踪 C# 文件内容。构建成功、文件清单或扫描绿灯都不能替代这些验证。结果保存在 Actions 附件中的 `csharp-quality.json`。
+
+初次部署先保留默认扫描，独立分析始终设置 `upload: never`。只有所有前置步骤成功，且非秘密仓库变量 `SENSA_CODEQL_ADVANCED` 为 `true` 时，后续官方上传步骤才发布验证过的结果。这样可在切换前检查新配置，避免默认设置启用时被 GitHub 拒绝重复上传。
+
+管理员切换步骤：
+
+1. 确认同一 `main` 提交的 **CodeQL Advanced** 四语言任务成功，C# 质量与完整源码覆盖检查通过。
+2. 在 **Settings → Secrets and variables → Actions → Variables** 将仓库变量 `SENSA_CODEQL_ADVANCED` 设置为 `true`。它不是密钥；更改变量不会主动启动工作流。
+3. 在 **Security and quality → Code scanning → CodeQL 工具设置** 选择 **Switch to advanced**。保留仓库已有的 `codeql.yml`，不要用生成的 none 模式模板覆盖它。
+4. 从 Actions 手动运行 **CodeQL Advanced** 的 `main`，确认四语言结果上传并完成处理，再核对新的配置状态与告警记录。切换前的默认扫描仍在工作；配置接口无管理权限时，此步骤需由管理员在网页完成。
+
+React 19 的生产构建和组件 SSR 单元测试统一使用自动 JSX 转换；测试加载器同时共享 `react` 与 `react/*` 运行时，避免混入第二份 JSX／Hooks 实例。
+
 ## 失败时从哪里看？
 
 打开对应 Actions 运行，先看失败步骤与 Job summary。E2E 的 `summary.json`／`summary.md` 分别记录通过、失败、跳过、未执行、中断和不稳定用例；达到失败上限后停止执行的用例记为未执行。具体状态见[验证记录](e2e-status.md)。截图失败时查看 expected／actual／diff，审阅有意的变化后更新基线，再运行完整普通比较。
@@ -119,7 +139,7 @@ VPM 构建保留已校验的正式包与历史下载。网络错误或摘要不�
 
 需要 Node.js 24、Python 3.12+ 和 [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json) 指定的 .NET SDK。先规划受影响检查，再执行；相同源码与工具链可复用本地成功记录。
 
-.NET SDK 固定为 `10.0.401`，并设置 `rollForward: disable`。Actions 和本地从仓库目录运行时都使用这一精确版本。升级 SDK 时同步更新包锁文件，并检查便携和单文件构建。依赖恢复保持锁定模式。
+.NET SDK 固定为 `10.0.403`，并设置 `rollForward: disable`。Actions 和本地从仓库目录运行时都使用这一精确版本。升级 SDK 时同步更新包锁文件，并检查便携和单文件构建。依赖恢复保持锁定模式。
 
 ```shell
 npm ci

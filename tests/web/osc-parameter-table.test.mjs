@@ -9,7 +9,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 // Exercise the real JSX without a browser, device, or running application.
 // Reuse React's instance so its server renderer owns the component's hooks.
 const require = createRequire(import.meta.url);
-const reactUrl = pathToFileURL(require.resolve('react')).href;
 const compiled = await build({
   absWorkingDir: fileURLToPath(new URL('../../', import.meta.url)),
   entryPoints: ['src/web/OscParameterTable.jsx'],
@@ -17,10 +16,11 @@ const compiled = await build({
   write: false,
   platform: 'node',
   format: 'esm',
+  jsx: 'automatic',
   plugins: [{
     name: 'shared-test-react',
     setup(builder) {
-      builder.onResolve({ filter: /^react$/ }, () => ({ path: reactUrl, external: true }));
+      builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
     },
   }],
 });

@@ -29,6 +29,27 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_codeql_requires_measured_build_quality_before_publication(self):
+        source = workflow('codeql.yml')
+        scopes = jobs(source)
+        analyze = scopes['analyze']
+        self.assertEqual(set(re.findall(r'language: ([a-z-]+), build-mode:', analyze)),
+                         {'actions', 'csharp', 'javascript-typescript', 'python'})
+        self.assertIn('{language: csharp, build-mode: manual}', analyze)
+        self.assertIn('queries: security-extended', analyze)
+        self.assertIn('"threat-models":["remote","local"]', analyze)
+        self.assertNotIn('paths-ignore:', source)
+        self.assertLess(analyze.index('codeql-unity.py prepare'), analyze.index('id: init'))
+        self.assertLess(analyze.index('id: init'), analyze.index('dotnet build src/Sensa.sln'))
+        self.assertIn('--no-incremental', analyze)
+        self.assertIn('-p:UseSharedCompilation=false', analyze)
+        self.assertIn('codeql-unity.py build', analyze)
+        self.assertIn('          upload: never', analyze)
+        self.assertLess(analyze.index('verify-codeql-csharp.py'), analyze.index('Upload verified CodeQL results'))
+        self.assertIn("success() && vars.SENSA_CODEQL_ADVANCED == 'true'", analyze)
+        self.assertIn('wait-for-processing: true', analyze)
+        self.assertIn('category: /language:${{ matrix.language }}', analyze)
+
     def test_generated_code_jobs_have_no_server_granted_cache_access(self):
         source = workflow('update-e2e.yml')
         scopes = jobs(source)
@@ -117,7 +138,7 @@ class WorkflowGateContracts(unittest.TestCase):
                     self.assertIn('          global-json-file: global.json', step)
                     self.assertNotRegex(step, r'(?m)^          dotnet-(?:version|channel):')
                     configured.add(path.name)
-        self.assertEqual(configured, {'checks.yml', 'build.yml', 'e2e.yml', 'update-e2e.yml'})
+        self.assertEqual(configured, {'checks.yml', 'build.yml', 'e2e.yml', 'update-e2e.yml', 'codeql.yml'})
 
     def test_repository_write_secret_is_confined_to_trusted_publication_jobs(self):
         allowed = {'ci.yml': 'preview', 'release.yml': 'publish', 'update-e2e.yml': 'proposal'}

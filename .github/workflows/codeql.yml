@@ -1,0 +1,161 @@
+name: CodeQL Advanced
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: '31 2 * * 1'
+permissions:
+  contents: read
+concurrency:
+  group: sensa-codeql-${{ github.ref }}
+  queue: max
+  cancel-in-progress: false
+jobs:
+  analyze:
+    name: Analyze (${{ matrix.language }})
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      security-events: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {language: actions, build-mode: none}
+          - {language: csharp, build-mode: manual}
+          - {language: javascript-typescript, build-mode: none}
+          - {language: python, build-mode: none}
+    env:
+      PYTHONUTF8: '1'
+      SOURCE_COMMIT: ${{ github.sha }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
+        with:
+          python-version: '3.14'
+      - name: Set up .NET
+        if: matrix.language == 'csharp'
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
+        with:
+          global-json-file: global.json
+      - name: Cache verified Unity reference files
+        if: matrix.language == 'csharp'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
+        with:
+          path: |
+            artifacts/codeql-unity/sdk
+            artifacts/codeql-unity/.sensa-codeql-unity
+          key: ${{ runner.os }}-sensa-unity-codeql-${{ hashFiles('.github/codeql/unity-sources.json') }}
+      - name: Prepare real Unity references
+        if: matrix.language == 'csharp'
+        run: python scripts/codeql-unity.py prepare --output artifacts/codeql-unity
+      - name: Initialize CodeQL
+        id: init
+        uses: github/codeql-action/init@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+          config: ${{ matrix.language == 'csharp' && '{"threat-models":["remote","local"]}' || '{}' }}
+          db-location: ${{ runner.temp }}/sensa-codeql-databases
+      - name: Compile application and tests
+        if: matrix.language == 'csharp'
+        run: |
+          dotnet restore src/Sensa.sln --locked-mode -p:SkipWebBuild=true
+          dotnet build src/Sensa.sln -c Release --no-restore --no-incremental -p:SkipWebBuild=true -p:UseSharedCompilation=false -p:EmitCompilerGeneratedFiles=true
+      - name: Compile all Unity sources
+        if: matrix.language == 'csharp'
+        run: python scripts/codeql-unity.py build --prepared artifacts/codeql-unity
+      - name: Analyze
+        id: analyze
+        if: ${{ !cancelled() && steps.init.outcome == 'success' }}
+        uses: github/codeql-action/analyze@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
+        with:
+          category: /language:${{ matrix.language }}
+          output: artifacts/codeql/results
+          # Upload only in the separate step after all validation succeeds.
+          upload: never
+          upload-database: false
+      - name: Verify C# quality and complete source coverage
+        if: ${{ !cancelled() && matrix.language == 'csharp' && steps.init.outcome == 'success' }}
+        env:
+          CODEQL_BINARY: ${{ steps.init.outputs.codeql-path }}
+          CODEQL_DATABASES: ${{ steps.analyze.outputs.db-locations }}
+        run: >-
+          python scripts/verify-codeql-csharp.py --databases-json "$CODEQL_DATABASES"
+          --codeql "$CODEQL_BINARY" --expected-commit "$SOURCE_COMMIT"
+          --output artifacts/codeql/csharp-quality.json
+      - name: Preserve C# database
+        if: ${{ !cancelled() && matrix.language == 'csharp' && steps.analyze.outcome == 'success' }}
+        env:
+          CODEQL_BINARY: ${{ steps.init.outputs.codeql-path }}
+          CODEQL_DATABASES: ${{ steps.analyze.outputs.db-locations }}
+        run: |
+          python - <<'PY'
+          import json, os, subprocess
+          database = json.loads(os.environ['CODEQL_DATABASES'])['csharp']
+          subprocess.run([os.environ['CODEQL_BINARY'], 'database', 'bundle', database,
+                          '--output=artifacts/codeql/csharp-database.zip'], check=True)
+          PY
+      - name: Record verified source and SARIF identity
+        env:
+          CODEQL_LANGUAGE: ${{ matrix.language }}
+        run: |
+          python - <<'PY'
+          import hashlib, json, os, subprocess
+          from pathlib import Path
+          commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+          if commit != os.environ['SOURCE_COMMIT']:
+              raise SystemExit('Checked-out source differs from the requested commit')
+          root = Path('artifacts/codeql')
+          files = sorted((root / 'results').rglob('*.sarif'))
+          if not files:
+              raise SystemExit('CodeQL did not produce any SARIF evidence')
+          rows = []
+          for path in files:
+              if path.is_symlink() or not path.resolve().is_relative_to(root.resolve()):
+                  raise SystemExit('SARIF evidence must be a regular file within the output directory')
+              rows.append({'relativePath': path.relative_to(root).as_posix(),
+                           'sha256': hashlib.sha256(path.read_bytes()).hexdigest()})
+          proof = {'schema': 1, 'commit': commit, 'runId': os.environ['GITHUB_RUN_ID'],
+                   'runAttempt': os.environ['GITHUB_RUN_ATTEMPT'],
+                   'language': os.environ['CODEQL_LANGUAGE'],
+                   'category': '/language:' + os.environ['CODEQL_LANGUAGE'], 'sarifFiles': rows,
+                   'querySuite': 'security-extended',
+                   'threatModels': ['remote', 'local'] if os.environ['CODEQL_LANGUAGE'] == 'csharp' else ['remote']}
+          (root / 'source-proof.json').write_text(json.dumps(proof, indent=2) + '\n', encoding='utf-8')
+          PY
+      - name: Upload verified CodeQL results
+        if: ${{ success() && vars.SENSA_CODEQL_ADVANCED == 'true' }}
+        uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370
+        with:
+          sarif_file: artifacts/codeql/results
+          category: /language:${{ matrix.language }}
+          wait-for-processing: true
+      - name: Collect Unity compilation evidence
+        if: ${{ always() && matrix.language == 'csharp' }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import shutil
+          output = Path('artifacts/codeql/unity')
+          output.mkdir(parents=True, exist_ok=True)
+          for path in Path('artifacts/codeql-unity').glob('*.json'):
+              shutil.copy2(path, output / path.name)
+          PY
+      - name: Upload analysis evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: codeql-evidence-${{ matrix.language }}-${{ github.run_attempt }}
+          path: artifacts/codeql/
+          retention-days: 14
+          if-no-files-found: warn

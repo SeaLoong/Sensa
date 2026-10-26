@@ -12,8 +12,9 @@ const compiled = await build({
   absWorkingDir: fileURLToPath(new URL('../../', import.meta.url)),
   stdin: { contents: "export { default } from './src/web/SpsRootPanel.jsx'; export { setLocale } from './src/web/i18n.js'; export { default as SignalSourceFields } from './src/web/SignalSourceFields.jsx'; export { SignalMappingRow } from './src/web/configuration-views.jsx';", resolveDir: fileURLToPath(new URL('../../', import.meta.url)) },
   bundle: true, write: false, platform: 'node', format: 'esm',
+  jsx: 'automatic',
   plugins: [{ name: 'shared-test-react', setup(builder) {
-    builder.onResolve({ filter: /^react$/ }, () => ({ path: pathToFileURL(require.resolve('react')).href, external: true }));
+    builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
   } }],
 });
 const { default: SpsRootPanel, setLocale, SignalSourceFields, SignalMappingRow } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));

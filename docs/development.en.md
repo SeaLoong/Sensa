@@ -44,6 +44,7 @@ Automatic selection considers the repository version and existing stable tags. A
 | --- | --- | --- |
 | `ci.yml` | CI | Automatic PR/main checks and builds; automatic main pre-releases |
 | `checks.yml` | Checks | Shared Web/.NET/Python units, Unity metadata and E2E checks |
+| `codeql.yml` | CodeQL Advanced | Four-language analysis, traced C# builds, measured quality and complete source coverage |
 | `e2e.yml` | E2E | Browser behavior and normal screenshot comparison; manual baseline candidates |
 | `update-e2e.yml` | Update E2E | Manual test/candidate maintenance through a review PR; no AI key in default mode |
 | `build.yml` | Build | Shared six-platform portable archives, Windows installers/standalone EXEs, isolated native smoke and Unity packaging |
@@ -83,6 +84,25 @@ The Update E2E agent and candidates jobs execute generated code before review, s
 
 CodeQL's cache-poisoning model may classify expressions named `ref` or `commit` as untrusted checkouts or may not yet recognize server-enforced cache restrictions. Check the actual call chain, reference provenance, and effective cache access, then record false-positive or mitigated reasons only for the confirmed individual alerts. Do not add query or directory exclusions.
 
+### C# analysis quality and advanced setup
+
+The advanced workflow preserves Actions, C#, JavaScript/TypeScript and Python and their existing `/language:<language>` categories. It runs `security-extended` and retains both remote and local threat models for C#. Manual C# extraction uses the pinned SDK, locked restore and fresh application/test compilation, including generated sources. Real Unity/VRChat references also compile the Unity package and both lab tools. External references are built before CodeQL initialization; repository sources are rebuilt afterward.
+
+`scripts/codeql-unity.py` prepares real compiler references using the official sources, versions, archive hashes and individual file hashes in `.github/codeql/unity-sources.json`. It extracts only locked SDK references, never launches the Unity Editor and uses no stub types. Static compilation does not establish Unity test, PlayMode, client or hardware acceptance. New source files or assembly definitions must enter the real compilation plan; directory exclusions must not reduce coverage.
+
+`scripts/verify-codeql-csharp.py` reads measured values from the already executed `Telemetry/ExtractorInformation.bqrs`. Calls with call targets and expressions with known types must each meet the original **85%** threshold, and the none-mode metric must be zero. It also checks every Git-tracked C# file against the current commit's contents in the CodeQL source archive. Build success, a file list or a green analysis cannot replace these checks. Actions artifacts retain `csharp-quality.json`.
+
+Initial deployment retains default setup. Analysis itself always uses `upload: never`; the separate official upload step publishes verified results only after all preceding steps succeed and the non-secret repository variable `SENSA_CODEQL_ADVANCED` is `true`. This allows validation before switching and avoids rejected duplicate uploads while default setup is enabled.
+
+Administrator activation:
+
+1. Confirm the same `main` commit's four **CodeQL Advanced** jobs succeed, including measured C# quality and complete source coverage.
+2. Under **Settings → Secrets and variables → Actions → Variables**, set repository variable `SENSA_CODEQL_ADVANCED` to `true`. It is not a secret; changing the variable does not trigger a workflow.
+3. Under **Security and quality → Code scanning → CodeQL tool settings**, choose **Switch to advanced**. Keep the repository's existing `codeql.yml`; do not overwrite it with a generated none-mode template.
+4. Manually run **CodeQL Advanced** on `main`, confirm all four uploads finish processing, and review the new configuration and individual alerts. Default setup continues working before the switch. Without configuration-administration access, an administrator must perform this step in the website.
+
+React 19 production builds and component SSR tests use the automatic JSX transform. Test loaders share both `react` and `react/*` runtimes to avoid bundling a second JSX/Hooks instance.
+
 ## Where should I look after a failure?
 
 Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. Cases suppressed by the failure limit are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
@@ -119,7 +139,7 @@ VPM preserves verified stable packages and historical downloads. Network or hash
 
 Use Node.js 24, Python 3.12+ and the .NET SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). Plan affected checks before running them; unchanged source/toolchains can reuse successful local records.
 
-The .NET SDK is pinned to `10.0.401` with `rollForward: disable`. Actions and local commands run from the repository directory use this exact version. Update package lockfiles together with SDK upgrades, and check portable and single-file builds. Dependency restore stays in locked mode.
+The .NET SDK is pinned to `10.0.403` with `rollForward: disable`. Actions and local commands run from the repository directory use this exact version. Update package lockfiles together with SDK upgrades, and check portable and single-file builds. Dependency restore stays in locked mode.
 
 ```shell
 npm ci
