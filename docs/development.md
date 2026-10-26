@@ -96,10 +96,14 @@ CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判�
 
 管理员切换步骤：
 
+仓库已经有验证过的 `codeql.yml`，无需使用新建工作流向导。GitHub 的 **Switch to advanced** 会先停用默认设置，再进入新建文件页面；到达该页面时可以直接退出。不要再次提交同名文件，也不要删除、改名或用生成模板覆盖现有工作流。
+
 1. 确认同一 `main` 提交的 **CodeQL Advanced** 四语言任务成功，C# 质量与完整源码覆盖检查通过。
 2. 在 **Settings → Secrets and variables → Actions → Variables** 将仓库变量 `SENSA_CODEQL_ADVANCED` 设置为 `true`。它不是密钥；更改变量不会主动启动工作流。
-3. 在 **Security and quality → Code scanning → CodeQL 工具设置** 选择 **Switch to advanced**。保留仓库已有的 `codeql.yml`，不要用生成的 none 模式模板覆盖它。
-4. 从 Actions 手动运行 **CodeQL Advanced** 的 `main`，确认四语言结果上传并完成处理，再核对新的配置状态与告警记录。切换前的默认扫描仍在工作；配置接口无管理权限时，此步骤需由管理员在网页完成。
+3. 在仓库 **Settings → Code security → CodeQL analysis → …** 检查默认设置。如果菜单仍有 **Switch to advanced**，使用该菜单的 **Disable CodeQL** 停用默认设置以允许已有工作流上传；这是 GitHub 官方的迁移步骤。若向导已完成停用，直接使用已有工作流，无需再停用一次。现有 Actions 工作流保持启用。
+4. 从 Actions 手动运行 **CodeQL Advanced** 的 `main`，确认四语言的 **Upload verified CodeQL results** 均成功并完成处理，再核对新的配置状态与告警记录。任务成功但上传步骤为 skipped 仍未发布；先检查变量是否为 `true`。上传报 default setup enabled 时，默认设置尚未停用。配置接口无管理权限时，设置操作需由管理员在网页完成。
+
+官方说明：[停用默认设置以允许 SARIF 上传](https://docs.github.com/en/code-security/reference/code-scanning/sarif-files/troubleshoot-sarif-uploads/default-setup-enabled#disabling-default-setup-to-unblock-sarif-upload)。
 
 React 19 的生产构建和组件 SSR 单元测试统一使用自动 JSX 转换；测试加载器同时共享 `react` 与 `react/*` 运行时，避免混入第二份 JSX／Hooks 实例。
 

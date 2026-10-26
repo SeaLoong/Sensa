@@ -96,10 +96,14 @@ Initial deployment retains default setup. Analysis itself always uses `upload: n
 
 Administrator activation:
 
+The repository already contains a validated `codeql.yml`; no new workflow file is needed. GitHub's **Switch to advanced** first disables default setup, then opens the new-file editor. Exit that editor without committing another file. Keep the existing workflow; do not delete, rename or replace it with the generated template.
+
 1. Confirm the same `main` commit's four **CodeQL Advanced** jobs succeed, including measured C# quality and complete source coverage.
 2. Under **Settings → Secrets and variables → Actions → Variables**, set repository variable `SENSA_CODEQL_ADVANCED` to `true`. It is not a secret; changing the variable does not trigger a workflow.
-3. Under **Security and quality → Code scanning → CodeQL tool settings**, choose **Switch to advanced**. Keep the repository's existing `codeql.yml`; do not overwrite it with a generated none-mode template.
-4. Manually run **CodeQL Advanced** on `main`, confirm all four uploads finish processing, and review the new configuration and individual alerts. Default setup continues working before the switch. Without configuration-administration access, an administrator must perform this step in the website.
+3. Under repository **Settings → Code security → CodeQL analysis → …**, check default setup. If **Switch to advanced** is still offered, use **Disable CodeQL** in that menu to disable default setup and allow uploads from the existing workflow, as documented by GitHub. If the wizard already disabled it, proceed without disabling it again. Keep the existing Actions workflow enabled.
+4. Manually run **CodeQL Advanced** on `main`. Confirm all four **Upload verified CodeQL results** steps succeed and finish processing, then review the new configuration and individual alerts. A successful job with a skipped upload has not published results; check that the variable is `true`. A default-setup-enabled upload error means default setup is still enabled. Without configuration-administration access, an administrator must perform the settings operations in the website.
+
+Official guidance: [Disable default setup to unblock SARIF upload](https://docs.github.com/en/code-security/reference/code-scanning/sarif-files/troubleshoot-sarif-uploads/default-setup-enabled#disabling-default-setup-to-unblock-sarif-upload).
 
 React 19 production builds and component SSR tests use the automatic JSX transform. Test loaders share both `react` and `react/*` runtimes to avoid bundling a second JSX/Hooks instance.
 
