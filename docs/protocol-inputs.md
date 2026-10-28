@@ -120,6 +120,8 @@ DSTOP
 
 行以 LF、CR 或 CRLF 完成。TCP／串口／WSDM 支持拆分接收；UDP 每个数据报必须完整且以换行结束，避免丢包后拼错命令。每行最多 4096 ASCII 字节；TCode 的 I 或 S 换算时长上限 60000 ms。未知通道、非法字节、过大行或不支持修饰符会拒绝并停止，不会跳过错误继续执行该行。
 
+TCP／串口在非法行后回复 `ERR`，随后关闭并释放本次会话；不能继续向原连接发送动作。TCP 客户端需重新建立连接，串口来源需重新启用／保存监听以重新打开端口，再发送新的合法命令。UDP 的非法数据报释放当前远端会话；后续完整合法数据报可建立新会话。整行中合法的前半段不会先运动。
+
 `S1000` 表示每秒一个归一化轴长，从已知的上一个命令位置／插值位置计算到达时长。首次 S、首次定时命令尚未到达且起点未知时的 S，以及清理／停止后的首个 S 均拒绝；先发送一个明确位置。该位置仍是命令值，不是编码器反馈。v0.4 的 `<`、`>`、`<>`、`G` 曲线及 EEPROM 保存命令尚未实现，明确拒绝；`D1` 如实返回 **TCode v0.3**。[TCode 官方规范](https://github.com/multiaxis/TCode-Spec)
 
 使用 Central 的另一条路径是 `客户端 → Central → WSDM → Sensa → OSR`。在 Central 的 Manage WebSocket Devices 配置 **TCode v0.3** 设备，将其 identifier 与 Sensa `Identifier` 对应；Sensa 类型选 `IntifaceDevice`，`Address` 填实际设备管理端口，默认 `ws://127.0.0.1:54817`，通道使用 `L0` 等 TCode 轴名。Sensa 发送文本 `{identifier,address,version:0}` 注册，随后按**二进制 WebSocket 帧**收发 TCode；即使内容是 ASCII，也不能发送为文本硬件帧。`Identifier` 为空时使用来源名称，注册 address 使用稳定的来源 ID。无需把网站地址改成设备管理端口。[WSDM 官方说明](https://buttplug.io/docs/dev-guide/inflating-buttplug/devices/websocket-device-manager/)
