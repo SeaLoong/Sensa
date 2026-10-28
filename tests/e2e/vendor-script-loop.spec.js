@@ -53,8 +53,11 @@ for (const [kind, apiVersion] of [['Handy', 2], ['Handy', 3], ['Autoblow', 2], [
         await expect(loop).toBeDisabled();
         await controls.getByRole('button', { name: await text(page, '准备同步脚本'), exact: true }).click();
         await expect.poll(state).toMatchObject({ scriptPrepared: true, scriptPlaying: false, supportsScriptLoop: true, scriptLoop: false });
-        await expect(loop).toBeEnabled(); await loop.check();
+        // This checkbox displays confirmed device state, updated after the RPC.
+        // Click once and verify both endpoints instead of requiring a local optimistic toggle.
+        await expect(loop).toBeEnabled(); await loop.click();
         await expect.poll(state).toMatchObject({ scriptLoop: true, scriptPlaying: false });
+        await expect(loop).toBeChecked();
         expect((await rig.overview()).runtime.inputActive).toBe(false);
         expect(playing()).toHaveLength(0);
         await active(page);
@@ -72,8 +75,9 @@ for (const [kind, apiVersion] of [['Handy', 2], ['Handy', 3], ['Autoblow', 2], [
         }
         await controls.getByRole('button', { name: await text(page, '停止同步脚本'), exact: true }).click();
         await expect.poll(state).toMatchObject({ scriptPlaying: false });
-        await expect(loop).toBeEnabled(); await loop.uncheck();
+        await expect(loop).toBeEnabled(); await loop.click();
         await expect.poll(state).toMatchObject({ scriptLoop: false, scriptPlaying: false });
+        await expect(loop).not.toBeChecked();
         expect(playing()).toHaveLength(1);
         await controls.getByRole('button', { name: await text(page, '播放同步脚本'), exact: true }).click();
         await expect.poll(state).toMatchObject({ scriptLoop: false, scriptPlaying: true });
