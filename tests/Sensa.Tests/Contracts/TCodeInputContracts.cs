@@ -222,6 +222,28 @@ public sealed class TCodeInputContracts
     }
 
     [Fact]
+    public async Task Tcp_invalid_line_returns_error_closes_and_releases_before_a_fresh_session_can_send()
+    {
+        var sink = new TCodeTestSink();
+        await using var service = new TCodeInputService(Config("TCodeTcp"), sink);
+        await service.StartAsync();
+        using var first = new TcpClient(); await first.ConnectAsync(IPAddress.Loopback, service.BoundPort);
+        await first.GetStream().WriteAsync("L0650I300\n"u8.ToArray());
+        Assert.Equal(.65, Assert.Single(await sink.NextAsync()).Value, 10);
+        using var reader = new StreamReader(first.GetStream(), Encoding.ASCII);
+        await first.GetStream().WriteAsync("L0900I400 INVALID\n"u8.ToArray());
+        Assert.StartsWith("ERR ", await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(3)));
+        Assert.Null(await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(3)));
+        await sink.Released.Task.WaitAsync(TimeSpan.FromSeconds(3));
+        Assert.Equal(1, sink.BatchCount); Assert.True(sink.StopCount > 0);
+        using var fresh = new TcpClient(); await fresh.ConnectAsync(IPAddress.Loopback, service.BoundPort);
+        await fresh.GetStream().WriteAsync("L0250I150\n"u8.ToArray());
+        var accepted = Assert.Single(await sink.NextAsync());
+        Assert.Equal(.25, accepted.Value, 10); Assert.Equal(150, accepted.DurationMs);
+        Assert.Equal(2, sink.BatchCount);
+    }
+
+    [Fact]
     public async Task Tcp_idle_partial_input_expires_and_dispose_interrupts_an_outstanding_read()
     {
         var sink = new TCodeTestSink(); var config = Config("TCodeTcp"); config.TimeoutMs = 100;

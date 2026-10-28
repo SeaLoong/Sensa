@@ -201,7 +201,11 @@ test('TCode TCP input forwards timed axes and stops on an invalid batch and disc
     await addSource(page, rig, { type: 'TCodeTcp', port: 19401 });
     await mode(page, '协议'); await active(page);
     const socket = net.createConnection({ host: '127.0.0.1', port: 19401 });
+    const replies = [];
+    const closed = new Promise(resolve => socket.once('close', resolve));
+    socket.on('data', bytes => replies.push(bytes.toString()));
     socket.on('error', () => {});
+    let fresh;
     try {
       await once(socket, 'connect');
       socket.write('L0650I300\n');
@@ -210,12 +214,22 @@ test('TCode TCP input forwards timed axes and stops on an invalid batch and disc
       socket.write('L0900I400 INVALID\n');
       await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
       expect(motionLines(rig)).toHaveLength(previous);
-      socket.write('L0250I150\n');
+      await expect.poll(() => replies.join('')).toMatch(/^ERR /);
+      await expect.poll(() => socket.destroyed).toBe(true);
+      await closed;
+      await expect.poll(async () => (await rig.overview()).protocolInputs.find(input => input.type === 'TCodeTcp')?.connected).toBe(false);
+      fresh = net.createConnection({ host: '127.0.0.1', port: 19401 });
+      const freshClosed = new Promise(resolve => fresh.once('close', resolve));
+      fresh.on('data', () => {}); fresh.on('error', () => {});
+      await once(fresh, 'connect');
+      expect(motionLines(rig)).toHaveLength(previous);
+      fresh.write('L0250I150\n');
       await expect.poll(() => rig.wire.udp.some(line => /L0450I150(?:\s|$)/.test(line))).toBe(true);
-      socket.end(); await once(socket, 'close');
+      fresh.end(); await freshClosed;
       await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
-      await info.attach('tcode-input-wire.json', { body: JSON.stringify({ fixtureOnly: true, hardwareExecution: false, wire: rig.wire.udp }), contentType: 'application/json' });
-    } finally { socket.destroy(); }
+      await info.attach('tcode-input-wire.json', { body: JSON.stringify({ fixtureOnly: true, hardwareExecution: false,
+        invalidSessionClosed: true, replies, newSessionConnectedWithoutReplay: true, wire: rig.wire.udp }), contentType: 'application/json' });
+    } finally { socket.destroy(); fresh?.destroy(); }
   });
 
 test('browser HTTP JSON input passes CORS and preserves timed output / 浏览器HTTP JSON输入通过来源校验并保留时长',
@@ -249,7 +263,7 @@ test('independent protocol sources combine through computed bindings and stop wh
         inputs: ['source-a/L0', 'source-b/L0'].map(oscPath => ({ sourceMode: 'Protocol', oscPath })) }],
       outputs: config.outputs.map(output => output.id !== 'udp' ? output : { ...output,
         signal: { bindings: [{ id: 'BlendBinding', address: 'L0', source: { sourceMode: 'Computed', oscPath: 'ProtocolBlend' },
-          inputMin: 0, inputMax: 1, outputMin: 0, outputMax: 1, stopValue: 0, valueType: 'Float', rateHz: 20, sendMode: 'OnChange' }] } }),
+          inputMin: 0, inputMax: 1, outputMin: 0, outputMax: 1, stopValue: .25, valueType: 'Float', rateHz: 20, sendMode: 'OnChange' }] } }),
     } });
     expect(response.ok()).toBe(true);
     await page.reload(); await enable(page, ['Mock UDP']); await mode(page, '组合'); await active(page);
@@ -260,11 +274,18 @@ test('independent protocol sources combine through computed bindings and stop wh
       await send(a, .2); await send(b, .8);
       await expect.poll(async () => (await rig.overview()).computedSignals.find(signal => signal.id === 'ProtocolBlend')?.value).toBeCloseTo(.5, 5);
       await expect.poll(() => rig.wire.udp.some(line => /L0500(?:I|S|\s|$)/.test(line))).toBe(true);
+      const validTargets = rig.wire.udp.length;
       await b.close();
       await expect.poll(async () => (await rig.overview()).computedSignals.find(signal => signal.id === 'ProtocolBlend')?.valid).toBe(false);
+      await expect.poll(async () => (await rig.overview()).outputs.find(output => output.id === 'udp')?.signalStatus?.routes
+        .find(route => route.id === 'BlendBinding')?.valid).toBe(false);
+      await expect.poll(() => rig.wire.udp.at(-1)).toBe('L0450I50');
+      expect(rig.wire.udp.slice(validTargets).some(line => /L0500(?:I|S|\s|$)/.test(line))).toBe(false);
+      await active(page, false);
       await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
       await info.attach('independent-protocol-sources.json', { body: JSON.stringify({ fixtureOnly: true, hardwareExecution: false,
-        explicitCombination: true, sources: ['source-a', 'source-b'], wire: rig.wire.udp }), contentType: 'application/json' });
+        explicitCombination: true, stopValue: .25, sourceInvalidationUsesStopValue: true, inputDisableSendsDeviceStop: true,
+        sources: ['source-a', 'source-b'], wire: rig.wire.udp }), contentType: 'application/json' });
     } finally { await Promise.all([a.close(), b.close()]); }
   });
 
@@ -277,7 +298,7 @@ test('Intiface advanced actuator mappings persist without arming the output / In
     await mappings.locator('summary').click();
     await mappings.getByRole('button', { name: await text(page, '添加执行器映射'), exact: true }).click();
     const route = mappings.getByTestId('intiface-feature-route');
-    await route.getByRole('textbox', { name: await text(page, '匹配设备名称'), exact: true }).fill('Simulated rotation device');
+    await route.getByLabel(await text(page, '匹配设备名称'), { exact: true }).fill('Simulated rotation device');
     await route.getByRole('spinbutton', { name: await text(page, '特征索引'), exact: true }).fill('2');
     await route.getByRole('combobox', { name: await text(page, '执行器类型'), exact: true }).selectOption('Rotate');
     await route.getByRole('combobox', { name: await text(page, '来源轴'), exact: true }).selectOption('V1');

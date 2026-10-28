@@ -8,7 +8,7 @@
 
 新增 Buttplug v3/v4、TCode TCP／UDP／串口、Intiface WSDM、JSON HTTP／WebSocket 与厂商兼容输入；输出补齐厂商实时／同步脚本及 Intiface 显式执行器映射。虚拟串口与 BLE 桥使用独立可选工具，随便携包和 Windows 安装器提供。[配置、协议范围与限制](protocol-inputs.md)
 
-本地完整检查实际通过 **238 项 Web、1075 项 .NET、389 项 Python**，无失败或跳过；另复用内容一致的 Unity 元数据成功记录。检查包含真实回环 HTTP／WebSocket、模拟串口／BLE、注入时钟、来源租约、每轴时长、停止屏障、事务回滚、长脚本和关机取消。模拟与元数据检查不代表真实设备、厂商云或 Unity 客户端验收。
+本地完整检查实际通过 **238 项 Web、1081 项 .NET、389 项 Python**，无失败或跳过；另复用内容一致的 Unity 元数据成功记录。检查包含真实回环 HTTP／WebSocket、模拟串口／BLE、注入时钟、来源租约、每轴时长、停止屏障、事务回滚、长脚本和关机取消。补充回归明确区分绑定失效时的配置停止值与整机停止，并检查非法 TCode 行关闭后仅新会话可恢复。模拟与元数据检查不代表真实设备、厂商云或 Unity 客户端验收。
 
 新增浏览器检查覆盖双语配置、Buttplug v3/v4 到模拟 TCode、来源权限、组合计算、长时间准备任务的停止／急停及旋转设备映射；两个视口共增加 28 次执行。浏览器完整普通比较和六平台原生冒烟在 Actions 运行，原生冒烟增加无设备 TCode 输入时长检查。对应下载包的结果以其 Source 提交的 [CI 运行](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)及附件为准，不能使用下方旧提交的 116 项结果证明这些新增功能。
 
