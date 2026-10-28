@@ -82,6 +82,8 @@ Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts
 
 Update E2E 的 agent 与 candidates 任务执行尚未审阅的生成代码，因此设置 GitHub 服务端强制执行的 `cache-mode: none`。即使取得任务的运行时令牌，也不能读写 Actions 缓存；这与清理环境变量或只关闭某个缓存步骤不同。保留的 `setup-node` 缓存声明会由固定版本工具包按服务端有效模式跳过，运行日志须确认 `effective cache-mode 'none'`，不能把配置文本当作已运行的证明。其他可信检查的缓存、候选产物上传和独立 PAT 发布继续工作。
 
+原生 Desktop 矩阵的六个平台任务同样设置 `cache-mode: none`，使依赖安装与源码构建无法读写 Actions 缓存；须逐个核对运行日志的有效模式。单元检查、CodeQL、Pages 和其余任务维持各自的缓存策略，产物上传继续工作。当前 CI 从事件提交固定构建源码，正式发布只从 main 选取源码；不向手动调用暴露任意 `source_ref` 输入。
+
 CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判为不可信 checkout，或尚未识别服务端缓存限权。必须核对实际调用链、引用来源和有效缓存权限；仅对已确认的具体告警记录误报或已缓解理由，不增加查询／目录排除。
 
 ### C# 分析质量与高级配置

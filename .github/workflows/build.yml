@@ -63,6 +63,8 @@ jobs:
   desktop:
     name: Desktop (${{ matrix.rid }})
     needs: plan
+    # Native dependency/build code must not read or write shared Actions caches.
+    cache-mode: none
     strategy:
       fail-fast: false
       matrix:

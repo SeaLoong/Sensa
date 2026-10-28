@@ -82,6 +82,8 @@ Read-only checks and builds do not retain checkout Git credentials. Only E2E pro
 
 The Update E2E agent and candidates jobs execute generated code before review, so both use GitHub's server-enforced `cache-mode: none`. Even possession of the job runtime token cannot grant Actions cache access; clearing environment variables or disabling a cache step does not provide that boundary. The retained `setup-node` cache configuration is skipped by the pinned toolkit according to the server's effective mode. Verify `effective cache-mode 'none'` in the execution logs rather than treating configuration text as runtime evidence. Other trusted checks retain caching, candidate artifact upload, and the separate PAT publication path.
 
+All six native Desktop matrix jobs also use `cache-mode: none`, preventing dependency installation and source builds from reading or writing Actions caches. Verify each job's effective mode in its logs. Unit checks, CodeQL, Pages and other jobs retain their respective cache policies, and artifact uploads remain available. CI pins its event commit, while stable releases select source only from main; manual callers cannot supply an arbitrary `source_ref`.
+
 CodeQL's cache-poisoning model may classify expressions named `ref` or `commit` as untrusted checkouts or may not yet recognize server-enforced cache restrictions. Check the actual call chain, reference provenance, and effective cache access, then record false-positive or mitigated reasons only for the confirmed individual alerts. Do not add query or directory exclusions.
 
 ### C# analysis quality and advanced setup
