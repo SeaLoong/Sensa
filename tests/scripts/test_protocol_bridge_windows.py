@@ -43,7 +43,7 @@ class WinRTDoubles:
             return_value=types.SimpleNamespace(error=0, characteristic=self.characteristic)))
         self.provider = types.SimpleNamespace(
             service=self.service,
-            start_advertising_with_parameters=Mock(), stop_advertising=Mock(),
+            start_advertising=Mock(), stop_advertising=Mock(),
             advertisement_status=2,
             add_advertisement_status_changed=Mock(return_value='advertising-token'),
             remove_advertisement_status_changed=Mock())
@@ -131,8 +131,8 @@ class WindowsPeripheralContracts(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.winrt.parameters[0].characteristic_properties, 12)
         self.assertEqual(self.winrt.parameters[0].write_protection_level, 0)
         self.winrt.characteristic.add_write_requested.assert_called_once()
-        self.winrt.provider.start_advertising_with_parameters.assert_called_once()
-        advertising = self.winrt.provider.start_advertising_with_parameters.call_args.args[0]
+        self.winrt.provider.start_advertising.assert_called_once()
+        advertising = self.winrt.provider.start_advertising.call_args.args[0]
         self.assertTrue(advertising.is_connectable)
         self.assertTrue(advertising.is_discoverable)
         self.assertFalse(hasattr(advertising, 'local_name'))
@@ -148,7 +148,7 @@ class WindowsPeripheralContracts(unittest.IsolatedAsyncioTestCase):
             error=5, service_provider=None)
         with self.assertRaisesRegex(RuntimeError, 'service creation failed'):
             await self.server.start()
-        self.winrt.provider.start_advertising_with_parameters.assert_not_called()
+        self.winrt.provider.start_advertising.assert_not_called()
 
     async def test_received_write_is_read_acked_and_deferral_completed(self):
         await self.server.start()

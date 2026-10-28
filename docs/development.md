@@ -82,6 +82,8 @@ Dependabot 每周检查应用与测试项目的 NuGet、根目录 npm、`scripts
 
 Update E2E 的 agent 与 candidates 任务执行尚未审阅的生成代码，因此设置 GitHub 服务端强制执行的 `cache-mode: none`。即使取得任务的运行时令牌，也不能读写 Actions 缓存；这与清理环境变量或只关闭某个缓存步骤不同。保留的 `setup-node` 缓存声明会由固定版本工具包按服务端有效模式跳过，运行日志须确认 `effective cache-mode 'none'`，不能把配置文本当作已运行的证明。其他可信检查的缓存、候选产物上传和独立 PAT 发布继续工作。
 
+原生 Desktop 矩阵的六个平台任务同样设置 `cache-mode: none`，使依赖安装与源码构建无法读写 Actions 缓存；须逐个核对运行日志的有效模式。单元检查、CodeQL、Pages 和其余任务维持各自的缓存策略，产物上传继续工作。当前 CI 从事件提交固定构建源码，正式发布只从 main 选取源码；不向手动调用暴露任意 `source_ref` 输入。
+
 CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判为不可信 checkout，或尚未识别服务端缓存限权。必须核对实际调用链、引用来源和有效缓存权限；仅对已确认的具体告警记录误报或已缓解理由，不增加查询／目录排除。
 
 ### C# 分析质量与高级配置
@@ -116,6 +118,8 @@ React 19 的生产构建和组件 SSR 单元测试统一使用自动 JSX 转换�
 依赖安装使用 Ubuntu 官方软件源，最多尝试两次，每次限时 130 秒，结束进程另留 5 秒；APT 网络等待为 15 秒，同一下载允许重试一次，步骤总预算为 5 分钟。第二次尝试会先执行 `dpkg --configure --pending` 完成中断的包配置，并通过临时软件源将 Azure Ubuntu 镜像切换到官方 `https://archive.ubuntu.com/ubuntu`。原软件源文件、发行版、组件和签名配置保持原值；字体使用首次成功读取索引时确定的版本和 SHA-256。恢复、索引验证及安装均计入同一预算，完成后继续验证。
 
 原生构建使用隔离配置启动六个平台的便携程序做冒烟，Windows 另有 Shader 桥模拟回放。Windows 单文件在仅含一个 EXE 的发布目录中再次冒烟，检查 API、Web 界面与本地图解。安装器在临时目录静默安装，核对安装后的二进制与离线工具，运行隔离程序冒烟，再卸载并确认保留用户配置和录制。安装、启动和卸载仅在 Actions 的原生 Windows runner 执行，不使用真实硬件。
+
+Windows x64／ARM64 构建另安装已固定的 BLE 输入／输出依赖，检查真实 WinRT／Bleak API 与原生缓冲区字节往返；不枚举适配器、不创建 GATT 服务或启动广播。每个平台的 `protocol-bridge-dependencies.json` 随原生测试附件上传。这项依赖检查不能代替蓝牙实机验收。
 
 安装器由固定版本的 Inno Setup 6.7.3 构建。引导脚本从官方 GitHub Release 下载编译器安装包，先核对仓库固定的 SHA-256 与官方发布者 `Pyrsys B.V.` 的有效 Authenticode 签名，再执行。该校验确认编译工具来源，不表示 Sensa 下载文件已有代码签名。
 

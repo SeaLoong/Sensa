@@ -6,7 +6,7 @@
 
 ## 检查与依赖
 
-从仓库根目录运行，或在发布包中使用对应的 `tools/protocol-bridge` 路径。Python 3.10+；原生 Windows BLE 输入使用单独的 PyWinRT 依赖。
+从仓库根目录运行，或在发布包中使用对应的 `tools/protocol-bridge` 路径。Python 3.10+；原生 Windows BLE 输入要求 Python 3.11+，使用单独的 PyWinRT 4 依赖。
 
 ```sh
 python tools/protocol-bridge/bridge.py --help

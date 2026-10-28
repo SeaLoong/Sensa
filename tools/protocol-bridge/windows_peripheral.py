@@ -1,4 +1,4 @@
-"""Native Windows GATT peripheral with PyWinRT 3.2.1; no global adapter changes."""
+"""Native Windows GATT peripheral with PyWinRT 4.x; no global adapter changes."""
 import asyncio
 from contextlib import suppress
 from uuid import UUID
@@ -43,7 +43,7 @@ class WindowsPeripheral:
         advertising = GattServiceProviderAdvertisingParameters()
         advertising.is_connectable = True
         advertising.is_discoverable = True
-        self.provider.start_advertising_with_parameters(advertising)
+        self.provider.start_advertising(advertising)
         deadline = self.loop.time() + 5
         while self.provider.advertisement_status != GattServiceProviderAdvertisementStatus.STARTED:
             if self.provider.advertisement_status == GattServiceProviderAdvertisementStatus.ABORTED:

@@ -6,7 +6,7 @@ These optional tools connect Sensa's network TCode input or output to a Unix pse
 
 ## Check and install
 
-Run from the repository root, or use the corresponding `tools/protocol-bridge` location in a release package. Python 3.10+; native Windows BLE input has its own PyWinRT dependencies.
+Run from the repository root, or use the corresponding `tools/protocol-bridge` location in a release package. Python 3.10+; native Windows BLE input requires Python 3.11+ and its own PyWinRT 4 dependencies.
 
 ```sh
 python tools/protocol-bridge/bridge.py --help
