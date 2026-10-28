@@ -55,17 +55,19 @@ export default function VendorDeviceFields({ type, value, onChange }) {
 
 export function VendorScriptControls({ output, disabled, stopDisabled = disabled, inputActive = false, status = {}, onAction }) {
   const [position, setPosition] = useState(0);
+  // Disabled/newly added outputs have an explicit null deviceApi snapshot until connected.
+  const scriptPrepared = status?.scriptPrepared === true;
   return <details className="output-detail" data-testid="vendor-script-controls"><summary>{t('同步脚本播放')}</summary><div className="stack">
     <p className="caption muted wrap">{output.device?.scriptUrl || t('请先在输出设置中填写同步脚本地址。')}</p>
     <p className="caption muted">{t('准备脚本会关闭输入；准备完成后，重新启用输入再播放或定位。')}</p>
-    <div className="actions"><Badge tone={status.scriptPrepared ? 'success' : 'default'}>{status.scriptPrepared ? t('脚本已准备') : t('脚本尚未准备')}</Badge>
-      {status.scriptPlaying && <Badge tone="success">{t('播放中')}</Badge>}</div>
+    <div className="actions"><Badge tone={scriptPrepared ? 'success' : 'default'}>{scriptPrepared ? t('脚本已准备') : t('脚本尚未准备')}</Badge>
+      {status?.scriptPlaying && <Badge tone="success">{t('播放中')}</Badge>}</div>
     <Field label={t('脚本位置（ms）')} type="number" min={0} max={86400000} step={100} value={position}
       onChange={event => setPosition(Number(event.target.value))} />
     <div className="actions">
       <Button disabled={disabled || !output.device?.scriptUrl} onClick={() => onAction('prepare', { url: output.device.scriptUrl })}>{t('准备同步脚本')}</Button>
-      <Button disabled={disabled || !inputActive || !status.scriptPrepared || !output.device?.scriptUrl || !Number.isFinite(position) || position < 0 || position > 86400000} onClick={() => onAction('play', { positionMs: position })}>{t('播放同步脚本')}</Button>
-      <Button disabled={disabled || !inputActive || !status.scriptPrepared || !Number.isFinite(position) || position < 0 || position > 86400000} onClick={() => onAction('seek', { positionMs: position })}>{t('定位同步脚本')}</Button>
+      <Button disabled={disabled || !inputActive || !scriptPrepared || !output.device?.scriptUrl || !Number.isFinite(position) || position < 0 || position > 86400000} onClick={() => onAction('play', { positionMs: position })}>{t('播放同步脚本')}</Button>
+      <Button disabled={disabled || !inputActive || !scriptPrepared || !Number.isFinite(position) || position < 0 || position > 86400000} onClick={() => onAction('seek', { positionMs: position })}>{t('定位同步脚本')}</Button>
       <Button disabled={stopDisabled} onClick={() => onAction('stop', {})}>{t('停止同步脚本')}</Button>
     </div>
   </div></details>;
