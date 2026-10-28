@@ -2,9 +2,17 @@
 
 [简体中文](e2e-status.md) | **English**
 
-This page records observed checks for the current changes. The full history remains in a [pinned record](https://github.com/SeaLoong/Sensa/blob/b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640/docs/e2e-status.en.md). See [development and publication](development.en.md) and [E2E maintenance](e2e.en.md) for workflow instructions.
+This page records observed checks by stage; historical runs do not verify new source changes. The full history remains in a [pinned record](https://github.com/SeaLoong/Sensa/blob/b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640/docs/e2e-status.en.md). See [development and publication](development.en.md) and [E2E maintenance](e2e.en.md) for workflow instructions.
 
-## Current scope
+## External protocol inputs and device bridging (2026-10-29)
+
+Added Buttplug v3/v4, TCode TCP/UDP/serial, Intiface WSDM, JSON HTTP/WebSocket and vendor-compatible inputs. Outputs now include vendor realtime/synchronized scripts and explicit Intiface actuator mappings. Optional virtual-serial/BLE bridge tools ship with portable packages and the Windows installer. [Configuration, protocol coverage and limits](protocol-inputs.en.md)
+
+The complete local checks passed **238 Web, 1075 .NET and 389 Python tests**, with no failures or skips, and reused an identical successful Unity metadata receipt. Coverage includes real loopback HTTP/WebSocket, simulated serial/BLE, injected clocks, source leases, per-axis durations, stop barriers, configuration rollback, long scripts and shutdown cancellation. Mocks and metadata checks do not establish real-device, vendor-cloud or Unity-client acceptance.
+
+New browser checks cover bilingual configuration, Buttplug v3/v4 to simulated TCode, origin permissions, combined calculations, stop/emergency cancellation of long preparation, and rotation-device mappings, adding 28 executions across two viewports. Full browser comparison and six-platform native smoke run in Actions; native smoke now checks device-free TCode input timing. Use the [CI run](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) and artifacts for the downloaded package's Source commit. The older 116-case results below do not verify these new features.
+
+## Previous scope
 
 As of 2026-10-25 (Beijing time), this update adds moving reference planes within one Avatar, seven spatial calculations, Unity Tracking Frame, Shader offsets and multiple-tile capture, plus Windows installers and single-file releases. Documentation and diagrams clarify SPS defaults, coordinate units, the current SDK beta and paired poses between Avatars. WebUI, the documentation site and actual application screenshots are updated together.
 

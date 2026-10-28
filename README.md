@@ -19,7 +19,7 @@ Sensa runs on your computer and uses a browser for configuration. Read OSC param
 
 | Step | Your choice | Examples |
 | --- | --- | --- |
-| **Input** | Where values come from | OSC parameters, tracking measurements, manual sliders, scripts, device feedback and recording replay |
+| **Input** | Where values come from | OSC, tracking, manual sliders, scripts, external protocol controls, device feedback and recording replay |
 | **Computation** | How values are processed | Weighted averages, distances, plane depth, direction angles, smoothing and triggers |
 | **Output** | Where results go | Motion devices, OSC parameters, DG-LAB, other applications or recording files |
 
@@ -30,6 +30,7 @@ A simple flow connects an input directly to an output. Add a calculation when yo
 | Goal | Start here |
 | --- | --- |
 | Adjust a value and check a device or application's response | [First run](docs/quick-start.en.md) |
+| Route a website/player's device controls to OSR or another output | [Protocol inputs, virtual devices and Bluetooth/serial bridges](docs/protocol-inputs.en.md) |
 | Combine touch readings, smooth a signal or add a trigger | [Computed signals and examples](docs/computed-signals.en.md) |
 | Control a device while writing an Avatar effect parameter | [One result, several outputs](docs/signal-pipeline.en.md#one-result-several-outputs) |
 | Record an interaction for playback or editing | [Recording and replay](docs/signal-pipeline.en.md#record-and-inspect) |
@@ -48,6 +49,7 @@ For a motion device, start with small manual targets to check direction, travel 
 | Output | Use |
 | --- | --- |
 | **TCode / Intiface** | Supported position, rotation, vibration and auxiliary features; TCode uses serial, UDP or TCP, while Intiface connects to Central |
+| **Handy / Lovense / Autoblow / VacuGlide** | Explicit device API integrations for supported position, intensity/speed or synchronized script capabilities; [setup and limits](docs/protocol-inputs.en.md#vendor-compatible-input-and-physical-device-output) |
 | **OSC parameter** | Send to an OSC application or a configured writable VRChat Avatar parameter |
 | **DG-LAB** | Pair through the DG-LAB 4 APP and control intensity/waveforms within channel limits |
 | **MIDI CC** | Send controller values to a system MIDI output port |
@@ -55,6 +57,8 @@ For a motion device, start with small manual targets to check direction, travel 
 | **Recording** | Save funscript tracks or JSON Lines/CSV signal data for analysis |
 
 Add an output in Flow and configure its connection inside that output. [Output setup and examples](docs/signal-pipeline.en.md#add-outputs-and-bindings)
+
+Sensa can also act as a device-facing input for another application: Buttplug v3/v4, TCode TCP/UDP/serial, Central's virtual device manager, HTTP/WebSocket JSON and documented vendor API subsets. Optional tools bridge virtual serial ports and LOOB/Thrust Sync BLE. [Build an application → Sensa → device flow](docs/protocol-inputs.en.md); browser/OS and physical-device acceptance are separate from simulated tests.
 
 ## Record, play and reuse
 

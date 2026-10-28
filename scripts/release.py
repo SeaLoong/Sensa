@@ -23,6 +23,12 @@ PARAMETER_GEOMETRY_ASSETS = (
     'docs/assets/parameter-geometry-3d.js',
     'docs/assets/parameter-geometry-3d.LICENSE.txt',
 )
+PROTOCOL_BRIDGE_ASSETS = tuple('tools/protocol-bridge/' + name for name in (
+    'bridge.py', 'windows_peripheral.py',
+    'README.md', 'README.zh-CN.md', 'README.en.md',
+    'requirements-serial.txt', 'requirements-ble-output.txt',
+    'requirements-ble-input.txt', 'requirements-ble-input-windows.txt',
+))
 
 def validate_unity():
     root = ROOT / 'unity/top.sealoong.sensa'
@@ -179,6 +185,15 @@ def main():
             destination = source / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
             destination.write_bytes((ROOT / relative).read_bytes())
+        # Ship optional bridge source and dependency pins, never an interpreter,
+        # local virtual environment, bytecode cache or installed system driver.
+        for relative in PROTOCOL_BRIDGE_ASSETS:
+            original = ROOT / relative
+            if original.is_symlink() or not original.is_file():
+                raise ValueError('Protocol bridge asset is missing or unsafe / 协议桥文件缺失或不安全: ' + relative)
+            destination = source / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(original.read_bytes())
         # Include canonical READMEs and every paired guide. / 包含正式 README 与全部双语指南。
         for folder in ('unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
             for path in (ROOT / folder).glob('*.md'):

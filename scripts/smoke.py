@@ -204,7 +204,38 @@ def main():
                 udp.sendto(fixture.bundle([(handle_prefix+'/Handle_IsGrabbed',0)]), ('127.0.0.1',osc_port))
                 wait_overview(lambda s: s['runtime']['poseBlocked'], 'PB release did not stop point input')
             command('/api/input/active','PUT',{'active':False})
-        print('HTTP/WS 冒烟通过：身份验证、FT、OSC scalar 五档/STOP、保存后关闭输入、Pose/Root 隔离及 PB 释放。 / HTTP/WS smoke passed: authentication, FT flood, OSC scalar five steps/STOP, mapping-save disarm, pose/root isolation and PB release; no devices configured.')
+            # Native protocol intake uses loopback only; no output transport or hardware is opened.
+            # 原生协议入口只使用回环，不配置输出或连接硬件。
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as reservation:
+                reservation.bind(('127.0.0.1', 0)); protocol_port = reservation.getsockname()[1]
+            configuration = command('/api/config', 'GET')
+            configuration['protocolInputs'] = [{
+                'id': 'native-protocol', 'name': 'Native protocol smoke', 'type': 'TCodeTcp',
+                'enabled': True, 'host': '127.0.0.1', 'port': protocol_port,
+                'features': [{'channel': 'L0', 'name': 'Stroke', 'actuator': 'Position', 'targetAxis': 'L0'}],
+            }]
+            command('/api/config', 'PUT', configuration)
+            command('/api/input/mode', 'PUT', {'mode': 'protocol'})
+            with socket.create_connection(('127.0.0.1', protocol_port), timeout=5) as intake:
+                intake.sendall(b'L075I450\n')
+                wait_overview(lambda state: any(item['id'] == 'native-protocol' and item['receivedCommands'] >= 1
+                                               for item in state['protocolInputs']), 'Protocol input was not received')
+                assert not command('/api/state/overview', 'GET')['runtime']['inputActive'], 'Protocol connection must not arm input'
+                command('/api/input/active', 'PUT', {'active': True})
+                intake.sendall(b'L025I275\n')
+                wait_overview(lambda state: abs(state['runtime']['command']['l0'] - .25) < .001
+                              and state['runtime']['command']['requestedMotionValue'] == 275,
+                              'Native TCode intake lost target or travel duration')
+                intake.sendall(b'L075I450\n')
+                wait_overview(lambda state: abs(state['runtime']['command']['l0'] - .75) < .001
+                              and state['runtime']['command']['requestedMotionValue'] == 450,
+                              'Native protocol replacement lost its independent duration')
+            wait_overview(lambda state: any(item['id'] == 'native-protocol' and not item['connected']
+                                           for item in state['protocolInputs']), 'Disconnected protocol owner was retained')
+            command('/api/input/active', 'PUT', {'active': False})
+            configuration['protocolInputs'] = []
+            command('/api/config', 'PUT', configuration)
+        print('HTTP/WS 冒烟通过：身份验证、FT、OSC scalar 五档/STOP、保存后关闭输入、Pose/Root 隔离、PB 释放和原生 TCode 输入时长。 / HTTP/WS smoke passed: authentication, FT flood, OSC scalar five steps/STOP, mapping-save disarm, pose/root isolation PB release and native TCode input timing; no devices configured.')
         session.complete()
 
 

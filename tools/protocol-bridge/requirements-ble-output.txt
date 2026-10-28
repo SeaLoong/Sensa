@@ -1,0 +1,2 @@
+# MIT. https://github.com/hbldh/bleak
+bleak==3.0.2

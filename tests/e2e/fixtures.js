@@ -128,7 +128,7 @@ export async function waitForInputMode(page, expectedMode) {
 export async function mode(page, name) {
   await workspace(page, '控制');
   await page.getByRole('tablist', { name: await text(page, '输入方式'), exact: true }).getByRole('tab', { name: await text(page, name), exact: true }).click();
-  const expectedMode = ({ '手动': 'manual', '脚本': 'script', Manual: 'manual', Script: 'script', OSC: 'osc' })[name] || name.toLowerCase();
+  const expectedMode = ({ '手动': 'manual', '脚本': 'script', '协议': 'protocol', '组合': 'combined', Manual: 'manual', Script: 'script', Protocol: 'protocol', Combined: 'combined', OSC: 'osc' })[name] || name.toLowerCase();
   const current = await page.request.get(new URL('/api/state/overview', page.url()).href).then(response => response.json());
   if (current?.input?.mode !== expectedMode) await page.getByRole('button', { name: await text(page, '应用输入方式'), exact: true }).click();
   await waitForInputMode(page, expectedMode);

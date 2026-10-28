@@ -102,7 +102,7 @@ class WorkflowGateContracts(unittest.TestCase):
                     self.assertNotIn('continue-on-error:', step)
         self.assertEqual(checked, {'ci.yml', 'release.yml', 'pages.yml', 'update-e2e.yml'})
 
-    def test_dependabot_updates_cover_application_test_and_capture_dependencies(self):
+    def test_dependabot_updates_cover_application_test_capture_and_protocol_bridge_dependencies(self):
         source = (ROOT / '.github/dependabot.yml').read_text(encoding='utf-8')
         entries = {}
         for ecosystem, body in re.findall(r'(?ms)^  - package-ecosystem: (\S+)\n(.*?)(?=^  - |\Z)', source):
@@ -113,7 +113,8 @@ class WorkflowGateContracts(unittest.TestCase):
         for project in (*ROOT.glob('src/*.csproj'), *ROOT.glob('tests/*/*.csproj')):
             if '<PackageReference ' in project.read_text(encoding='utf-8'):
                 required.add(('nuget', '/' + project.parent.relative_to(ROOT).as_posix()))
-        for requirements in ROOT.glob('scripts/requirements*.txt'):
+        for requirements in (*ROOT.glob('scripts/requirements*.txt'),
+                             *ROOT.glob('tools/protocol-bridge/requirements*.txt')):
             required.add(('pip', '/' + requirements.parent.relative_to(ROOT).as_posix()))
         self.assertTrue(required <= entries.keys(), f'Missing dependency update directories: {required - entries.keys()}')
         for key in required:
@@ -124,6 +125,32 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('      react-runtime:', npm)
         self.assertIn('      react-security:', npm)
         self.assertIn('        applies-to: security-updates', npm)
+
+    def test_optional_bluetooth_dependency_pins_keep_windows_and_bless_backends_separate(self):
+        directory = ROOT / 'tools/protocol-bridge'
+        requirements = {}
+        for path in directory.glob('requirements-*.txt'):
+            entries = [line.strip() for line in path.read_text(encoding='utf-8').splitlines()
+                       if line.strip() and not line.lstrip().startswith('#')]
+            self.assertTrue(entries, path.name)
+            for entry in entries:
+                self.assertRegex(entry, r'^[A-Za-z0-9_.-]+==[0-9][A-Za-z0-9_.!+-]*(?:; .+)?$')
+            requirements[path.name] = entries
+        bless = [entry for entry in requirements['requirements-ble-input.txt'] if entry.startswith('bless==')]
+        self.assertEqual(len(bless), 1)
+        self.assertIn('; sys_platform != "win32"', bless[0])
+        windows = requirements['requirements-ble-input-windows.txt']
+        self.assertTrue(all(entry.startswith('winrt-') and '; sys_platform == "win32"' in entry
+                            for entry in windows))
+        versions = {entry.split('==', 1)[1].split(';', 1)[0] for entry in windows}
+        for version in versions:
+            epoch, _, release = version.rpartition('!')
+            numeric = re.match(r'([0-9]+)\.([0-9]+)', release or version)
+            self.assertIsNotNone(numeric)
+            # Epoch-versioned projections and the independently versioned runtime
+            # need not share a literal release string. Preserve Bleak's >=3.1 floor.
+            self.assertTrue((epoch and int(epoch) > 0) or tuple(map(int, numeric.groups())) >= (3, 1))
+        self.assertFalse(any(entry.startswith('bless==') for entry in windows))
 
     def test_every_sdk_install_uses_the_same_exact_non_rolling_repository_version(self):
         sdk = json.loads((ROOT / 'global.json').read_text(encoding='utf-8'))['sdk']

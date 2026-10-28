@@ -2,7 +2,7 @@
 
 **简体中文** | [English](architecture.en.md)
 
-后端读取输入样本、计算可复用结果，再通过输出绑定交付。手动、OSC 和脚本保留快捷流程，组合方式允许不同来源共同参与。现有动作输出使用十二轴目标，OSC、DG-LAB、网络服务和录制分别呈现自己的目标。浏览器表达意图与草稿；启用、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
+后端读取输入样本与外部协议命令、计算可复用结果，再通过输出绑定或保留时长的动作路径交付。手动、OSC、脚本和协议保留快捷流程，组合方式允许不同来源共同参与。现有动作输出使用十二轴目标，OSC、DG-LAB、网络服务和录制分别呈现自己的目标。浏览器表达意图与草稿；启用、停止、信号有效性和保存事务由后端决定。本文解释职责边界，使用步骤见[工作台指南](guide.md)，术语见[术语表](../GLOSSARY.md)。
 
 ## 单一命令入口与数据流
 
@@ -16,6 +16,8 @@ flowchart LR
   Store --> Runtime
   Script[FunscriptPlayer] --> Runtime
   Manual[手动数值] --> Runtime
+  External[外部协议适配器] --> Commands[ExternalControlStore]
+  Commands --> Runtime
   Feedback[设备反馈] --> Runtime
   Runtime --> Compute[计算信号]
   Compute --> Bindings[输出绑定]
@@ -24,7 +26,7 @@ flowchart LR
   Transport --> Destinations[应用 / DG-LAB / 服务 / MIDI / 录制]
   Runtime --> Record[L0 MotionRecorder]
   Runtime --> Output[IMotionOutput / OutputCoordinator]
-  Output --> Devices[TCode / Intiface]
+  Output --> Devices[TCode / Intiface / 厂商设备 API]
 ```
 
 | 模块 | 拥有的规则 |
@@ -32,6 +34,7 @@ flowchart LR
 | [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | 共用命令分派；模式、脚本、录制与连接操作 |
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | 串行校验、关闭输入、停止、重连、持久化；失败恢复配置与连接 |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | 实际模式、许可、门控、信号融合、时效、请求代次与停止 |
+| [ProtocolInputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ProtocolInputCoordinator.cs)／[ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ExternalControl.cs) | 独立协议监听、单来源会话、原子多通道命令、类型与时长、租约和当前命令身份 |
 | [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | 有界依赖图、计算复用、同来源／坐标框检查、最旧样本时间与数值有效性 |
 | [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | 将配置来源解析为带时间的有效或无效样本 |
 | [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | 共用计算帧求值与时序复位边界 |
@@ -73,6 +76,12 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 专用根标记与唯一通道将每个根点测量对应到期望的自身目标。四点距离按制作尺度的 AvatarRootLocal 解算单点位置；Contact 使用物理米制 AvatarRootMeters，报告中点位置与接触点相对速度。Contact 位置和速度指标共用 SensaPoint 校准、启用与失效停止。原生报告提供 Contact 属性值，Sensa Sample 补充生产端活动检查；时钟、序号与稳定 Sender ID 超出该原生报告的字段范围。[SDK 契约与依据](contact-sdk.md)。公开协议、公式和停止条件集中于[定位说明](positioning.md)与[参数字典](osc-parameters.md)。
 
 输出绑定选择来源、换算、数值类型、量程、停止值与发送方式。协议适配器编码 OSC 数值、JSON 消息、DG-LAB 任务或记录；传输负责连接生命周期、有界交付、取消与关闭。状态发送保留最新目标，事件通过有界队列按序交付；设备反馈通过来源解析重新进入计算。[输入、计算与输出决策](adr/0008-signal-pipeline-and-shared-session.md) · [用户配置](signal-pipeline.md)
+
+## 外部协议输入与设备 API
+
+Buttplug v3/v4、TCode、JSON 与厂商兼容入口将控制解释为带通道、目标、时长和方向的外部命令。直接动作路径按通道保留独立时长，停止是有序屏障；协议样本也可作为计算／绑定来源。首次位置轨迹起点未知时，当前值保持无效而目标可读；位置插值表示命令状态，不代表设备回读。原有设备反馈仍是独立来源，协议输入不伪装成 OSC 或硬件反馈。
+
+协议监听与工作台管理 API 分开，默认回环并明确允许网站 Origin。Handy、Lovense、Autoblow、VacuGlide 输出连接实际设备 API；同名本地兼容输入只对可配置 endpoint 的上游有效，不能接管固定厂商云。BLE peripheral／central 与虚拟串口接线由可选桥工具负责。操作、类型与停止范围见[协议输入指南](protocol-inputs.md)和[ADR 0010](adr/0010-external-protocol-inputs.md)。
 
 ## 跟随平面与空间计算
 

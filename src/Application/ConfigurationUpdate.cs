@@ -2,6 +2,7 @@ using Sensa.Configuration;
 using Sensa.Input.Osc;
 using Sensa.Outputs;
 using Sensa.Runtime;
+using Sensa.Outputs.Devices;
 
 namespace Sensa.Application;
 
@@ -17,7 +18,8 @@ public sealed class ConfigurationUpdate(
     Action configureHub,
     Action<AppConfig> save,
     Action<string> log,
-    SemaphoreSlim? mutationGate = null)
+    SemaphoreSlim? mutationGate = null,
+    Func<Task>? reloadProtocolInputs = null)
 {
     private readonly SemaphoreSlim updateGate = mutationGate ?? new(1, 1);
 
@@ -77,10 +79,14 @@ public sealed class ConfigurationUpdate(
                     StringComparison.Ordinal)
                 || NormalizeOutputPort(previousOutput.Port, 12345) != NormalizeOutputPort(currentOutput.Port, 12345)
                 || previousOutput.ManageEngineProcess != currentOutput.ManageEngineProcess
+                || System.Text.Json.JsonSerializer.Serialize(previousOutput.IntifaceFeatures) != System.Text.Json.JsonSerializer.Serialize(currentOutput.IntifaceFeatures)
                 || !string.Equals(
                     IntifaceConfig.NormalizeVibrationAxis(previousOutput.VibrationAxis),
                     IntifaceConfig.NormalizeVibrationAxis(currentOutput.VibrationAxis),
                     StringComparison.Ordinal),
+
+            OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense =>
+                !DeviceProtocolOptions.Equivalent(previousOutput.Device, currentOutput.Device),
 
             _ => previousOutput.Host != currentOutput.Host || previousOutput.Port != currentOutput.Port
                 || previousOutput.WebsocketAddress != currentOutput.WebsocketAddress
@@ -219,6 +225,7 @@ public sealed class ConfigurationUpdate(
         {
             config.CopyFrom(candidate);
             runtime.RebuildProcessors();
+            if (reloadProtocolInputs is not null) await reloadProtocolInputs().ConfigureAwait(false);
             await outputs.SignalOutputs.ReloadAsync();
 
             var receiverChanged = previousOscEnabled != config.Osc.Enabled
@@ -254,6 +261,7 @@ public sealed class ConfigurationUpdate(
                 config.Osc.OscQueryUrl = previousOscQueryUrl;
                 configureHub();
                 syncOsc(true, true);
+                if (reloadProtocolInputs is not null) await reloadProtocolInputs().ConfigureAwait(false);
                 await outputs.SignalOutputs.ReloadAsync();
                 outputs.RebuildConnections();
                 await outputs.RunStateChangeBatchAsync(async () =>

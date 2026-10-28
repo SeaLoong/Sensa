@@ -22,6 +22,44 @@ test('a connected Intiface service without a capable device is not a usable outp
   assert.equal(controlReadiness({ ...base, outputs: [{ ...output, enabled: false }] }).availableOutputs, 0);
 });
 
+test('advanced Intiface readiness requires an exact advertised device, feature and capability match / 高级Intiface可用性精确匹配设备、特征和声明能力', () => {
+  const device = { name: 'Rotation device', positionFeatures: 0, vibrateFeatures: 0,
+    features: [{ index: 2, outputTypes: ['Rotate'] }] };
+  const route = { deviceName: 'Rotation device', featureIndex: 2, outputType: 'Rotate', sourceAxis: 'V0' };
+  const config = { ...output, type: 'Intiface', intifaceFeatures: [route] };
+  const state = { ...base, outputs: [config], outputStates: [{ ...config, connected: true, devices: [device] }] };
+  assert.equal(controlReadiness(state).availableOutputs, 1);
+  assert.equal(controlReadiness(state).key, 'enabled');
+  for (const patch of [{ deviceName: 'Different device' }, { deviceName: 'rotation device' }, { featureIndex: 1 },
+    { outputType: 'Oscillate' }, { outputType: 'Inflate' }]) {
+    const result = controlReadiness({ ...state, outputs: [{ ...config, intifaceFeatures: [{ ...route, ...patch }] }] });
+    assert.equal(result.key, 'outputs-unavailable', JSON.stringify(patch));
+    assert.equal(result.availableOutputs, 0);
+  }
+  assert.equal(controlReadiness({ ...state, outputs: [{ ...config, intifaceFeatures: [] }] }).key, 'outputs-unavailable');
+  assert.equal(controlReadiness({ ...state, outputs: [{ ...config, intifaceFeatures: [{ ...route, deviceName: '', featureIndex: null }] }] }).availableOutputs, 1);
+});
+
+test('unmapped position and vibration features retain default routing beside advanced mappings / 未覆盖的位置与振动特征继续使用默认路由', () => {
+  const config = { ...output, type: 'Intiface', intifaceFeatures: [{ deviceName: 'Other device', featureIndex: 9, outputType: 'Rotate', sourceAxis: 'V0' }] };
+  for (const outputTypes of [['HwPositionWithDuration'], ['Position'], ['Vibrate']]) {
+    const state = { ...base, outputs: [config], outputStates: [{ ...config, connected: true,
+      devices: [{ name: 'Default device', features: [{ index: 0, outputTypes }] }] }] };
+    assert.equal(controlReadiness(state).availableOutputs, 1, outputTypes.join());
+  }
+  const legacy = { ...base, outputs: [config], outputStates: [{ ...config, connected: true, devices: [{ name: 'Summary', vibrateFeatures: 1 }] }] };
+  assert.equal(controlReadiness(legacy).availableOutputs, 1);
+});
+
+test('an explicit position mapping overrides its matched position fallback without inventing a capability / 显式位置映射覆盖匹配默认能力但不虚构设备支持', () => {
+  const config = { ...output, type: 'Intiface', intifaceFeatures: [{ deviceName: '', featureIndex: 0, outputType: 'HwPositionWithDuration', sourceAxis: 'L0' }] };
+  const state = { ...base, outputs: [config], outputStates: [{ ...config, connected: true,
+    devices: [{ name: 'Position-only device', positionFeatures: 1, features: [{ index: 0, outputTypes: ['Position'] }] }] }] };
+  assert.equal(controlReadiness(state).key, 'outputs-unavailable');
+  state.outputStates[0].devices[0].features.push({ index: 1, outputTypes: ['Vibrate'] });
+  assert.equal(controlReadiness(state).availableOutputs, 1, 'A separate unconfigured vibration feature remains available.');
+});
+
 test('preview, paused script and waiting manual target are distinct from active output / 预览、脚本暂停、等待手动目标与输入启用分别解释', () => {
   assert.equal(controlReadiness({ ...base, outputs: [] }).key, 'no-outputs');
   assert.equal(controlReadiness({ ...base, runtime: { inputActive: false } }).key, 'inactive');

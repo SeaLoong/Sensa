@@ -47,7 +47,7 @@ test('E2E spatial fixtures reconstruct known positions with the shared Unity geo
 });
 
 test('all E2E configurations isolate devices and initialize outputs disabled / 所有 E2E 配置隔离设备且默认关闭输出', () => {
-  for (const scenario of ['basic', 'sps', 'query', 'vibration-only']) {
+  for (const scenario of ['basic', 'sps', 'query', 'vibration-only', 'rotation-only']) {
     const config = createRigConfiguration(scenario, '/dev/pts/42');
     assert.equal(config.webUi.autoOpenBrowser, false); assert.equal(config.webUi.host, '127.0.0.1');
     for (const output of config.outputs) {

@@ -1,5 +1,6 @@
 import { t } from './i18n.js';
 import { makeComputedInput, stripComputedDraft } from './computed-signals.js';
+import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
 
 export const SIGNAL_OUTPUT_TYPES = Object.freeze(['OscParameter', 'Dglab', 'Recording', 'HttpJson', 'WebSocketJson', 'Mqtt', 'Midi']);
 export const SIGNAL_BINDING_LIMIT = 64;
@@ -24,7 +25,8 @@ export function makeOutputBinding(bindings = [], type = 'OscParameter', patch = 
     track = `Track${index}`;
   }
   const address = type === 'OscParameter' ? '/avatar/parameters/SensaFeedback'
-    : type === 'Dglab' ? 'Intensity' : type === 'Mqtt' ? 'sensa/value' : type === 'Midi' ? 'CC/1/1' : type === 'Recording' ? track : type.startsWith('TCode') ? 'L0' : type === 'Intiface' ? 'V0' : 'value';
+    : type === 'Dglab' ? 'Intensity' : type === 'Mqtt' ? 'sensa/value' : type === 'Midi' ? 'CC/1/1' : type === 'Recording' ? track
+      : ['VacuGlide', 'Lovense'].includes(type) ? 'V0' : type.startsWith('TCode') || VENDOR_OUTPUT_TYPES.includes(type) ? 'L0' : type === 'Intiface' ? 'V0' : 'value';
   return { id: nextId(bindings), name: '',
     address, valueType: type === 'Midi' ? 'Int' : 'Float', inputMin: 0, inputMax: 1, outputMin: 0, outputMax: type === 'Midi' ? 127 : 1,
     curve: 'Linear', stopValue: 0, rateHz: 20, epsilon: .001, sendMode: 'OnChange', ...patch,
@@ -105,6 +107,7 @@ export function exportSignalPlan(config) {
     computedSignals: (config?.computedSignals || []).map(stripComputedDraft),
     signals: globalThis.structuredClone(config?.signals || []),
     axisProfiles: globalThis.structuredClone(config?.axisProfiles || []),
+    protocolInputs: globalThis.structuredClone(config?.protocolInputs || []).map(input => ({ ...input, enabled: false })),
     outputs: globalThis.structuredClone(config?.outputs || []).map(output => ({ ...output, enabled: false,
       ...(output.signal ? { signal: stripSignalOutputDraft(output.type, output.signal) } : {}),
     })),
@@ -124,9 +127,11 @@ export function parseSignalPlan(text) {
     && value.every(row => record(row) && ['id', 'name', 'type'].every(key => optionalText(row[key])));
   if (plan?.kind !== 'SensaSignalPlan' || !optionalText(plan.name)
     || !rows(plan.computedSignals, 64) || !rows(plan.signals, 512) || !rows(plan.outputs, 64)
-    || plan.axisProfiles !== undefined && !rows(plan.axisProfiles, 64))
+    || plan.axisProfiles !== undefined && !rows(plan.axisProfiles, 64)
+    || plan.protocolInputs !== undefined && !rows(plan.protocolInputs, 16))
     throw new Error(t('方案应包含完整的输入映射、计算信号和输出配置。'));
   const copy = globalThis.structuredClone(plan);
   copy.outputs = copy.outputs.map(output => ({ ...output, enabled: false }));
+  copy.protocolInputs = (copy.protocolInputs || []).map(input => ({ ...input, enabled: false }));
   return copy;
 }

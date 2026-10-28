@@ -86,7 +86,7 @@ public static class SignalOutputConfiguration
             if (id.Length > 80 || !ids.Add(id)) throw new ArgumentException("请使用唯一的输出连接标识 / Use unique output binding IDs.");
             var input = binding.Source ?? new();
             var path = input.OscPath?.Trim() ?? "";
-            if (input.SourceMode is not ("Direct" or "Computed" or "Constant" or "Manual" or "Script" or "DeviceFeedback" or "RecordingReplay" or "SensaPoint" or "SensaPose")
+            if (input.SourceMode is not ("Direct" or "Computed" or "Constant" or "Manual" or "Script" or "DeviceFeedback" or "RecordingReplay" or "Protocol" or "SensaPoint" or "SensaPose")
                 || path.Length > 512 || input.SourceMode != "Constant" && path.Length == 0 || !float.IsFinite(input.Value)
                 || !Enum.IsDefined(input.PointMetric) || !Enum.IsDefined(input.PoseMetric))
                 throw new ArgumentException("请选择完整的信号来源 / Choose a complete signal source.");
@@ -156,6 +156,9 @@ public static class SignalOutputConfiguration
                 }
                 if (!IsProtocolOutput(output.Type) && !Enum.TryParse<Sensa.Motion.MotionAxis>(binding.Address, out _))
                     throw new ArgumentException("请选择有效的目标轴 / Choose a supported target axis.");
+                if (output.Type is OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense
+                    && binding.Address != output.Device.Axis)
+                    throw new ArgumentException("Vendor output bindings must target the configured device source axis.");
                 if (output.Type == OutputDeviceType.Intiface && binding.Address != "L0" && binding.Address != IntifaceConfig.NormalizeVibrationAxis(output.VibrationAxis))
                     throw new ArgumentException("请选择 L0 或此输出的振动轴 / Choose L0 or this output's vibration axis.");
                 if (!IsProtocolOutput(output.Type) && new[] { binding.OutputMin, binding.OutputMax, binding.StopValue }.Any(value => value is < 0 or > 1))

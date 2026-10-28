@@ -42,6 +42,7 @@ export const computedInputOptions = localized(() => [
   { value: 'Computed', label: t('计算信号') },
   { value: 'Manual', label: t('手动信号') },
   { value: 'Script', label: t('脚本信号') },
+  { value: 'Protocol', label: t('协议输入') },
   { value: 'DeviceFeedback', label: t('设备反馈') },
   { value: 'RecordingReplay', label: t('录制回放') },
   { value: 'Constant', label: t('固定数值') },

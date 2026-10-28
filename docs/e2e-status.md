@@ -2,9 +2,17 @@
 
 **简体中文** | [English](e2e-status.en.md)
 
-本页记录当前改动的实际检查结果。完整历史保存在[固定版本记录](https://github.com/SeaLoong/Sensa/blob/b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640/docs/e2e-status.md)；工作流操作见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
+本页按阶段记录实际检查结果；历史运行不能代替新源码的验证。完整历史保存在[固定版本记录](https://github.com/SeaLoong/Sensa/blob/b23451a7e67627c2ea4ac4c8fdb5cc436e8ab640/docs/e2e-status.md)；工作流操作见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
 
-## 本轮范围
+## 外部协议输入与设备桥接（2026-10-29）
+
+新增 Buttplug v3/v4、TCode TCP／UDP／串口、Intiface WSDM、JSON HTTP／WebSocket 与厂商兼容输入；输出补齐厂商实时／同步脚本及 Intiface 显式执行器映射。虚拟串口与 BLE 桥使用独立可选工具，随便携包和 Windows 安装器提供。[配置、协议范围与限制](protocol-inputs.md)
+
+本地完整检查实际通过 **238 项 Web、1075 项 .NET、389 项 Python**，无失败或跳过；另复用内容一致的 Unity 元数据成功记录。检查包含真实回环 HTTP／WebSocket、模拟串口／BLE、注入时钟、来源租约、每轴时长、停止屏障、事务回滚、长脚本和关机取消。模拟与元数据检查不代表真实设备、厂商云或 Unity 客户端验收。
+
+新增浏览器检查覆盖双语配置、Buttplug v3/v4 到模拟 TCode、来源权限、组合计算、长时间准备任务的停止／急停及旋转设备映射；两个视口共增加 28 次执行。浏览器完整普通比较和六平台原生冒烟在 Actions 运行，原生冒烟增加无设备 TCode 输入时长检查。对应下载包的结果以其 Source 提交的 [CI 运行](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)及附件为准，不能使用下方旧提交的 116 项结果证明这些新增功能。
+
+## 历史范围
 
 截至 2026-10-25（北京时间），本轮完善了自身 Avatar 的跟随参考平面、七种空间计算、Unity Tracking Frame、Shader 偏移与多编码块读取，以及 Windows 安装器和单文件发布。文档与参数图解同步说明 SPS 默认尺寸、坐标单位、当前 SDK Beta 和双方 Avatar 的配对姿态。WebUI、文档站与实际运行图片一并更新。
 

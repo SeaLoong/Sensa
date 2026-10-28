@@ -160,7 +160,7 @@ public sealed class SensaApplication(
                 default:
                     if (method != "POST")
                         return UnknownCommand(method, path);
-                    var outputResult = await OutputActionAsync(path).ConfigureAwait(false);
+                    var outputResult = await OutputActionAsync(path, body).ConfigureAwait(false);
                     if (outputResult is null)
                         return UnknownCommand(method, path);
                     if (outputResult.Success)
@@ -227,14 +227,15 @@ public sealed class SensaApplication(
             : (object)new { recorder.IsActive, recorder.FrameCount };
     }
 
-    private async Task<CommandResult?> OutputActionAsync(string path)
+    private async Task<CommandResult?> OutputActionAsync(string path, JsonElement? body)
     {
         var segments = path.Split('/');
         if (segments.Length == 6 && segments[1] == "api" && segments[2] == "control" && segments[3] == "output")
         {
             var outputId = segments[4];
             var action = segments[5];
-            if (action is not ("connect" or "disconnect" or "scan-start" or "scan-stop" or "device-info-refresh"))
+            if (action is not ("connect" or "disconnect" or "scan-start" or "scan-stop" or "device-info-refresh"
+                or "script-prepare" or "script-play" or "script-seek" or "script-stop"))
                 return null;
             var output = config.FindOutput(outputId);
             if (output is null)
@@ -276,6 +277,23 @@ public sealed class SensaApplication(
                         return CommandResult.Error(400, "只有 TCode 输出支持设备信息。 / Only TCode outputs support device information.");
                     await outputs.RefreshTCodeDeviceInfoAsync(outputId).ConfigureAwait(false);
                     break;
+                case "script-prepare":
+                {
+                    var request = Read<DeviceScriptRequest>(body);
+                    using var inputChange = runtime.BlockInputActivation();
+                    await outputs.EmergencyStopAsync();
+                    runtime.ResetSignalProcessing();
+                    return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, "prepare", request.Url));
+                }
+                case "script-play":
+                case "script-seek":
+                {
+                    var request = Read<DeviceScriptRequest>(body);
+                    if (action == "script-seek") RequireProperty(body, "positionMs");
+                    return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, action[7..], positionMs: request.PositionMs));
+                }
+                case "script-stop":
+                    return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, "stop"));
             }
             return CommandResult.Ok(new { ok = true, outputId });
         }
@@ -316,6 +334,8 @@ public sealed class SensaApplication(
                 return null;
         }
     }
+
+    private sealed record DeviceScriptRequest(string? Url = null, int PositionMs = 0);
 
     object SetInputActiveCore(bool active)
     {

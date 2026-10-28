@@ -17,8 +17,8 @@ Both release channels include Windows installers, Windows standalone executables
 
 | System and format | Architecture | Example filename | Start |
 | --- | --- | --- | --- |
-| Windows installer (recommended) | x64/ARM64 | `Sensa-<version>-win-<architecture>-Setup.exe` | Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides and Shader bridge tools; no administrator access needed |
-| Windows single file | x64/ARM64 | `Sensa-<version>-win-<architecture>-SingleFile.exe` | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get the Python Shader bridge and full Markdown guides from the installer or portable archive |
+| Windows installer (recommended) | x64/ARM64 | `Sensa-<version>-win-<architecture>-Setup.exe` | Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides, Shader and serial/BLE bridge tools; no administrator access needed |
+| Windows single file | x64/ARM64 | `Sensa-<version>-win-<architecture>-SingleFile.exe` | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get Python bridge tools and full Markdown guides from the installer or portable archive |
 | Windows/Linux/macOS portable | x64/ARM64 | `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
 
 [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) links directly to GitHub's latest stable release entry. When no stable release exists, GitHub redirects this address to release history. Development previews and older builds are listed separately in [release history](https://github.com/SeaLoong/Sensa/releases). Download desktop packages, the Unity ZIP and `SHA256SUMS.txt` checksums from the chosen release's assets.
@@ -152,6 +152,19 @@ python -X utf8 scripts/verify.py
 ```
 
 Browser E2E, screenshots and full-process smoke run in Actions. Isolated units and static checks may run locally. Device-related checks use temporary configuration and mock transports. Real hardware, Unity/VRChat and actual World interactions receive separate acceptance checks.
+
+### Optional serial and BLE bridges
+
+Portable archives and Windows installers include Python sources, bilingual instructions and dependency pins from `tools/protocol-bridge` through an explicit `scripts/release.py` allowlist. The installer reuses those files, with Actions checking their installed contents. Dependabot also maintains this directory's optional dependencies weekly, grouping BLE backends and native WinRT projections separately while preserving platform markers and security update checks. It does not install Python, virtual serial drivers or Python dependencies. The standalone EXE does not embed an interpreter. Obtain the tools from the portable archive or installer and install the requirements you need in your own Python virtual environment.
+
+```shell
+python tools/protocol-bridge/bridge.py --check
+python -m pip install -r tools/protocol-bridge/requirements-serial.txt
+python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
+python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
+```
+
+BLE input uses Bless from `requirements-ble-input.txt` on Linux/macOS and a compatible native PyWinRT set from `requirements-ble-input-windows.txt` on Windows, avoiding Bless's Windows dependency conflict. Peripheral/advertising support, OS permissions and same-adapter concurrent roles need hardware checks; Windows LOOB also requires a matching system advertisement name. Browsers may not enumerate PTYs. Windows uses an existing COM pair with a trusted signed driver. `--check` opens no hardware; isolated local PTY and mock serial/BLE/WinRT tests do not establish website or device acceptance. Neither BLE protocol has a verified hardware emergency-stop opcode: stopping clears the session and disconnects, rather than moving to zero. [Installation and complete operation](../tools/protocol-bridge/README.md)
 
 After changing Three.js source or dependencies, run `npm run build:web` and commit reproducible `docs/assets/parameter-geometry-3d.js` plus its complete `3d.LICENSE.txt`. After ordinary Markdown edits, build the site directly with `npm run build:pages`; artifacts are written to `artifacts/pages/`.
 

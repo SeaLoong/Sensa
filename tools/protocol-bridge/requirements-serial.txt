@@ -1,0 +1,2 @@
+# BSD-3-Clause. https://github.com/pyserial/pyserial
+pyserial==3.5

@@ -16,6 +16,7 @@ const INPUT_MODES = localized(() => ([
   { value: 'manual', label: t("手动") },
   { value: 'osc', label: 'OSC' },
   { value: 'script', label: t("脚本") },
+  { value: 'protocol', label: t('协议') },
   { value: 'combined', label: t('组合') },
 ]));
 

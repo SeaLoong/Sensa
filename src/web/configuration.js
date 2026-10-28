@@ -4,6 +4,8 @@ import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
 import { stripComputedDraft } from './computed-signals.js';
 import { buildSignalOutputDraft, isSignalOutputType, makeOutputBinding, recordingFormatOptions, stripSignalOutputDraft } from './signal-outputs.js';
+import { VENDOR_OUTPUT_TYPES, normalizeDeviceOutput } from './protocol-inputs.js';
+import { intifaceFeatureErrors, makeIntifaceFeatureRoute, stripIntifaceFeatureRoutes } from './intiface-feature-routing.js';
 
 const DEFAULT_OSCQUERY_URL = 'http://127.0.0.1:9001/';
 
@@ -32,6 +34,10 @@ const OUTPUT_TYPES = localized(() => ([
   { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
   { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
   { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
+  { value: 'Handy', label: 'The Handy', shortLabel: 'Handy', scanSupported: false },
+  { value: 'Autoblow', label: 'Autoblow', shortLabel: 'Autoblow', scanSupported: false },
+  { value: 'VacuGlide', label: 'VacuGlide 2', shortLabel: 'VacuGlide', scanSupported: false },
+  { value: 'Lovense', label: 'Lovense HTTP', shortLabel: 'Lovense', scanSupported: false },
   { value: 'OscParameter', label: t('OSC 参数'), shortLabel: 'OSC', scanSupported: false },
   { value: 'Dglab', label: 'DG-LAB', shortLabel: 'DG-LAB', scanSupported: false },
   { value: 'Recording', label: t('信号录制'), shortLabel: t('录制'), scanSupported: false },
@@ -1057,9 +1063,11 @@ function createOutputConfig(type, config, options = {}) {
     port: getDefaultOutputPort(type),
     manageEngineProcess: false,
     vibrationAxis: 'V0',
+    ...(type === 'Intiface' ? { intifaceFeatures: [] } : {}),
     websocketAddress: type === 'HttpJson' ? 'http://127.0.0.1:8080/sensa' : type === 'WebSocketJson' ? 'ws://127.0.0.1:8080/sensa' : 'ws://localhost:12345',
     slopeMode: 'None',
     speedUnitBase: 'Per100ms',
+    ...(VENDOR_OUTPUT_TYPES.includes(type) ? { device: normalizeDeviceOutput({ axis: ['VacuGlide', 'Lovense'].includes(type) ? 'V0' : 'L0' }) } : {}),
     ...(isSignalOutputType(type) ? { signal: buildSignalOutputDraft(type, { bindings }) } : {}),
     ...suggestedTarget,
   };
@@ -1080,11 +1088,13 @@ function normalizeOutputConfig(output, config, options = {}) {
     port: normalizeOutputPort(output?.port, fallback.port),
     manageEngineProcess: output?.manageEngineProcess === true,
     vibrationAxis: normalizeIntifaceVibrationAxis(output?.vibrationAxis),
+    ...((output?.type || fallback.type) === 'Intiface' ? { intifaceFeatures: (output?.intifaceFeatures || []).map(makeIntifaceFeatureRoute) } : {}),
     websocketAddress: ['HttpJson', 'WebSocketJson'].includes(output?.type || fallback.type)
       ? typeof output?.websocketAddress === 'string' ? output.websocketAddress.trim() : fallback.websocketAddress
       : normalizeOutputWebsocketAddress(output?.websocketAddress, fallback.websocketAddress),
     slopeMode: isTCodeOutputType(output?.type || fallback.type) ? normalizeOutputSlopeMode(output?.slopeMode ?? fallback.slopeMode) : 'None',
     speedUnitBase: isTCodeOutputType(output?.type || fallback.type) ? normalizeSpeedUnitBase(output?.speedUnitBase ?? fallback.speedUnitBase) : 'Per100ms',
+    ...(VENDOR_OUTPUT_TYPES.includes(output?.type || fallback.type) ? { device: normalizeDeviceOutput(output?.device) } : {}),
     ...(isSignalOutputType(output?.type || fallback.type) || output?.signal ? { signal: buildSignalOutputDraft(output?.type || fallback.type, output?.signal || fallback.signal) } : {}),
   };
 }
@@ -1099,6 +1109,7 @@ function getOutputOverview(overview, outputId) {
 
 function buildOutputSummary(output) {
   if (!output) return t("未配置");
+  if (VENDOR_OUTPUT_TYPES.includes(output.type)) return output.device?.endpoint || getOutputTypeLabel(output.type);
   if (output.type === 'TCodeSerial') {
     const portLabel = output.comPort || t("未设置串口");
     return t("{0} · 事件驱动", [portLabel]);
@@ -1147,6 +1158,10 @@ function buildOutputDialogDraft(outputId, config, serialPorts) {
 }
 
 function mergeOutputDraft(outputId, config, draft) {
+  if (getOutputConfig(config, outputId)?.type === 'Intiface') {
+    const errors = intifaceFeatureErrors(draft.intifaceFeatures || []);
+    if (errors.length) throw new Error(errors.join('\n'));
+  }
   const next = cloneConfig(config);
   next.schemaVersion = 5;
   next.outputs = getOutputs(config).map(output => {
@@ -1158,6 +1173,8 @@ function mergeOutputDraft(outputId, config, draft) {
       id: output.id,
       manageEngineProcess: (draft.manageEngineProcess ?? output.manageEngineProcess) === true,
       vibrationAxis: normalizeIntifaceVibrationAxis(draft.vibrationAxis ?? output.vibrationAxis),
+      ...(output.type === 'Intiface' ? { intifaceFeatures: stripIntifaceFeatureRoutes(draft.intifaceFeatures || output.intifaceFeatures || []) } : {}),
+      ...(VENDOR_OUTPUT_TYPES.includes(output.type) ? { device: normalizeDeviceOutput(draft.device || output.device) } : {}),
       motionProfileId: isTCodeOutputType(output.type) ? draft.motionProfileId || getDefaultAxisProfileId(config) : output.motionProfileId,
       ...(draft.signal || output.signal ? { signal: stripSignalOutputDraft(output.type, draft.signal || output.signal) } : {}),
     };

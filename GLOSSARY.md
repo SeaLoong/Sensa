@@ -5,14 +5,18 @@ Sensa processes input signals and routes results to devices, applications and re
 | Term / 术语 | Definition / 定义 |
 | --- | --- |
 | **Motion target / 动作目标** | The normalized position or intensity Sensa intends to send to an output. Check physical movement on the device itself. / Sensa 准备发给输出的位置或强度，通常用 0～1 表示；实际移动情况通过观察设备确认。 |
-| **Input mode / 输入模式** | The applied Manual, OSC, Script or Combined mode. Quick modes use a single input workflow; Combined lets configured sources contribute together. Tabs inspect and prepare settings. / 当前已应用的手动、OSC、脚本或组合方式。快捷模式使用对应输入流程，组合方式允许已配置来源共同参与；页签用于查看和准备设置。 |
+| **Input mode / 输入模式** | The applied Manual, OSC, Script, Protocol or Combined mode. Quick modes use a single input workflow; Combined lets configured sources contribute together. Tabs inspect and prepare settings. / 当前已应用的手动、OSC、脚本、协议或组合方式。快捷模式使用对应输入流程，组合方式允许已配置来源共同参与；页签用于查看和准备设置。 |
 | **Input activation / 输入启用** | The switch that lets the applied input drive outputs. Configuration, mode or script changes turn it off; enable it again when ready. / 允许当前输入驱动输出的开关。配置、模式或脚本变更后会关闭，准备好再启用。 |
 | **Emergency stop / 紧急停止** | A stop state that closes input and stays active until cleared. After clearing it, enable input separately when ready. / 立即关闭输入并保持的停止状态。先解除急停，准备好后再单独启用输入。 |
 | **Output / 输出** | A named device, application or recording destination with its own settings and enabled state. Input activation controls delivery. / 具有名称、配置和独立启用状态的设备、应用或录制目标；输入启用状态决定是否向它交付结果。 |
 | **Axis profile / 轴配置** | A reusable set of axis ranges, limits, directions and motion settings, selected when configuring a TCode output. / 可重复使用的轴范围、限位、方向和运动设置，配置 TCode 输出时选择使用。 |
 | **Draft / 草稿** | Configuration edits in the browser waiting to be saved. Save successfully to apply the configuration to the running service. / 浏览器中等待保存的配置改动，保存成功后应用到运行服务。 |
 | **OSC source / OSC 来源** | The transport/source identity used to keep incoming values and their arrival/disconnection state separate. Contact Sender identity requires its own verification. / 用于分别记录参数值及到达、断线状态的传输来源；Contact Sender 的身份另行核对。 |
-| **Computed signal / 计算信号** | A named result processing OSC, tracking, manual, script, feedback, constant or computed inputs. It retains provenance, sample age and validity and can feed several bindings. / 处理 OSC、定位、手动、脚本、反馈、常量或其他计算输入的具名结果，保留来源、样本时效和有效性，可供多条绑定复用。 |
+| **Computed signal / 计算信号** | A named result processing OSC, tracking, manual, script, protocol, feedback, constant or computed inputs. It retains provenance, sample age and validity and can feed several bindings. / 处理 OSC、定位、手动、脚本、协议、反馈、常量或其他计算输入的具名结果，保留来源、样本时效和有效性，可供多条绑定复用。 |
+| **Protocol input / 协议输入** | An explicitly configured source that receives another application's device controls through a supported protocol. Listening and connection do not enable motion. / 明确配置的来源，通过受支持协议接收其他应用发给设备的控制；监听和连接不启用运动。 |
+| **External control command / 外部控制命令** | A typed channel target with source/session identity, arrival duration and optional rotation direction. Position, intensity and rotation speed retain distinct meanings. / 带来源／会话身份、通道目标、到达时长及可选旋转方向的有类型控制；位置、强度与旋转速度保留不同含义。 |
+| **Virtual device / 虚拟设备** | A software endpoint advertising implemented device capabilities to an upstream client; it is not evidence of physical feedback or vendor-cloud identity. / 向上游声明已实现设备能力的软件入口，不代表物理回读或厂商云身份。 |
+| **Control lease / 控制租约** | One source session's temporary right to publish commands; disconnect/expiry releases it and clears old work. / 一个来源会话临时持有的命令发布权；断线／过期释放并清理旧工作。 |
 | **Output binding / 输出绑定** | A source-to-destination connection with its own conversion, type, range and sending schedule. / 从来源到目标的连接，分别设置换算、类型、量程和发送节奏。 |
 | **Protocol / 协议** | The meaning and encoding of messages, such as OSC or DG-LAB V4. / 消息的含义和编码规则，例如 OSC 或 DG-LAB V4。 |
 | **Transport / 传输** | The connection and delivery mechanism used by a protocol, such as UDP, HTTP or WebSocket. / 协议使用的连接与交付方式，例如 UDP、HTTP 或 WebSocket。 |

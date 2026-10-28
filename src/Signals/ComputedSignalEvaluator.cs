@@ -148,7 +148,7 @@ public sealed partial class ComputedSignalEvaluator : ISignalProcessor
                 if (input is null) throw new ArgumentException($"请补全计算信号 {id} 的输入配置 / Computed signal {id}: an input definition is required.");
                 var copy = CloneInput(input);
                 if (copy.SourceMode is not ("Direct" or "SensaPoint" or "SensaPose" or "Computed" or "Constant"
-                    or "Manual" or "Script" or "DeviceFeedback" or "RecordingReplay"))
+                    or "Manual" or "Script" or "DeviceFeedback" or "RecordingReplay" or "Protocol"))
                     throw new ArgumentException($"请为计算信号 {id} 选择一种输入类型 / Computed signal {id}: choose a supported input type.");
                 if (copy.SourceMode != "Constant" && (copy.OscPath.Length is < 1 or > 512))
                     throw new ArgumentException($"请为计算信号 {id} 填写输入路径或计算信号 ID，最长 512 个字符 / Computed signal {id}: each input requires a path or calculation ID of at most 512 characters.");

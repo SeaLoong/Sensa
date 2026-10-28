@@ -19,7 +19,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 | 步骤 | 你来选择 | 例子 |
 | --- | --- | --- |
-| **输入** | 从哪里取得数值 | OSC 参数、定位测量、手动滑条、脚本、设备反馈、录制回放 |
+| **输入** | 从哪里取得数值 | OSC 参数、定位测量、手动滑条、脚本、外部协议控制、设备反馈、录制回放 |
 | **计算转换** | 怎样处理数值 | 加权平均、两点距离、平面深度、方向夹角、平滑与触发 |
 | **输出** | 把结果送到哪里 | 动作设备、OSC 参数、DG-LAB、其他应用或录制文件 |
 
@@ -30,6 +30,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 | 目标 | 从这里开始 |
 | --- | --- |
 | 调节一个数值，检查设备或应用的反应 | [首次使用](docs/quick-start.md) |
+| 将网站／播放器的设备控制转到 OSR 或其他输出 | [协议输入、虚拟设备与蓝牙／串口桥](docs/protocol-inputs.md) |
 | 融合触碰读数、加入平滑或触发条件 | [计算信号与示例](docs/computed-signals.md) |
 | 一边控制设备，一边回写 Avatar 效果参数 | [一个结果连接多个输出](docs/signal-pipeline.md#同一个结果连接多个输出) |
 | 录下交互轨迹，之后播放或继续编辑 | [录制与回放](docs/signal-pipeline.md#录制与观察) |
@@ -48,6 +49,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 | 输出 | 用途 |
 | --- | --- |
 | **TCode／Intiface** | 控制支持的位置、旋转、振动和辅助功能；TCode 支持串口、UDP、TCP，Intiface 连接 Central |
+| **Handy／Lovense／Autoblow／VacuGlide** | 明确配置的设备 API，分别使用支持的位置、强度／速度或同步脚本能力；[设置与限制](docs/protocol-inputs.md#厂商兼容输入与真实设备输出) |
 | **OSC 参数** | 将结果发送给 OSC 应用，或回写 VRChat 中已配置的可写 Avatar 参数 |
 | **DG-LAB** | 通过 DG-LAB 4 APP 配对，按通道上限控制强度和波形 |
 | **MIDI CC** | 向系统 MIDI 输出端口发送控制值 |
@@ -55,6 +57,8 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 | **录制** | 保存 funscript 轨道，或记录用于分析的 JSON Lines／CSV 信号数据 |
 
 在“流程”添加输出，连接设置就在该输出内部。[输出配置与示例](docs/signal-pipeline.md#添加输出与绑定)
+
+Sensa 也能作为其他应用的设备输入端：Buttplug v3/v4、TCode TCP／UDP／串口、Central 虚拟设备管理、HTTP／WebSocket JSON 与文档列明的厂商 API 子集。可选工具接入虚拟串口、LOOB／Thrust Sync BLE。[建立“应用 → Sensa → 设备”流程](docs/protocol-inputs.md)；浏览器／操作系统与实体设备效果需独立验收。
 
 ## 录制、播放与复用
 

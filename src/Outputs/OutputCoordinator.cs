@@ -5,6 +5,7 @@ using Sensa.Motion;
 using Sensa.Outputs.Intiface;
 using Sensa.Outputs.Adapters;
 using Sensa.Outputs.TCode;
+using Sensa.Outputs.Devices;
 
 namespace Sensa.Outputs;
 
@@ -16,6 +17,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     private readonly Action<string> _logError;
     private readonly object _sync = new();
     private readonly Dictionary<string, OutputConnection> _connections = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Func<OutputDeviceConfig, VendorDeviceOutput>? _vendorFactory;
     private int _stateChangeBatchDepth;
     private bool _stateChangePending;
 
@@ -25,12 +27,14 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     public event Action? StateChanged;
 
     public OutputCoordinator(AppConfig config, Action<string> log, Action<string> logDebug, Action<string> logError,
-        Func<OutputDeviceConfig, ISignalOutputAdapter>? signalAdapterFactory = null)
+        Func<OutputDeviceConfig, ISignalOutputAdapter>? signalAdapterFactory = null,
+        Func<OutputDeviceConfig, VendorDeviceOutput>? vendorFactory = null)
     {
         _config = config;
         _log = log;
         _logDebug = logDebug;
         _logError = logError;
+        _vendorFactory = vendorFactory;
         SignalOutputs = new(config, id => TryGetConnection(id)?.IsConnected == true, SendRoutedMotionAsync, StopRoutedMotionAsync,
             logError, adapterFactory: signalAdapterFactory);
         SignalOutputs.CanSend = () => CanRouteSignals();
@@ -47,7 +51,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
             _connections.Clear();
             foreach (var output in _config.Outputs.Where(output => !SignalOutputConfiguration.IsProtocolOutput(output.Type)))
             {
-                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
+                _connections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged, _vendorFactory);
             }
         }
 
@@ -75,7 +79,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
                 }
 
 
-                nextConnections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged);
+                nextConnections[output.Id] = new OutputConnection(_config, output, _log, _logDebug, _logError, NotifyStateChanged, _vendorFactory);
             }
 
             staleConnections = remaining.Values.ToList();
@@ -256,6 +260,26 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
     public Task RefreshTCodeDeviceInfoAsync(string outputId) =>
         TryGetConnection(outputId)?.RefreshTCodeDeviceInfoAsync() ?? Task.CompletedTask;
 
+    public void CancelPendingVendorCommands()
+    {
+        OutputConnection[] connections;
+        lock (_sync) connections = _connections.Values.ToArray();
+        foreach (var connection in connections) connection.CancelPendingVendorCommands();
+    }
+
+    public async Task<object> VendorScriptAsync(string outputId, string action, string? url = null, int positionMs = 0)
+    {
+        var output = _config.FindOutput(outputId) ?? throw new InvalidOperationException("Output does not exist.");
+        if (!OutputConfigHelpers.IsVendorOutput(output.Type)) throw new InvalidOperationException("This output does not support vendor scripts.");
+        if (action is "play" or "seek" && (!output.Enabled || !CanRouteSignals()))
+            throw new InvalidOperationException("Enable this output and activate input before playing or seeking a device script.");
+        var connection = TryGetConnection(outputId) ?? throw new InvalidOperationException("Output connection is unavailable.");
+        var result = await connection.VendorScriptAsync(action, url ?? output.Device.ScriptUrl, positionMs,
+            () => output.Enabled && CanRouteSignals());
+        NotifyStateChanged();
+        return result;
+    }
+
     public Task StartPrimaryScanAsync(OutputDeviceType type)
     {
         var output = _config.GetPrimaryOutput(type);
@@ -277,6 +301,11 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
             {
                 name = device.Name,
                 index = device.Index,
+                features = device.Features.Select(pair => new
+                {
+                    index = pair.Key, description = pair.Value.FeatureDefinition.FeatureDescription,
+                    outputTypes = pair.Value.FeatureDefinition.Output?.Keys.ToArray() ?? [],
+                }).ToArray(),
                 positionFeatures = IntifacePositionFeatures.For(device).Count,
                 vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
             }).ToArray() ?? Array.Empty<object>();
@@ -303,6 +332,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
                     : null,
                 summary = BuildSummary(output),
                 telemetry = connection?.Telemetry,
+                deviceApi = connection?.VendorSnapshot,
                 devices,
             };
         }).ToArray();
@@ -382,8 +412,12 @@ internal sealed class OutputConnection : IAsyncDisposable
     private IntifaceOutputClient? _intiface;
     private string _intifaceConfigKey = string.Empty;
     private EmbeddedIntifaceEngine? _intifaceHost;
+    private VendorDeviceOutput? _vendor;
+    private DeviceProtocolOptions? _vendorConfiguration;
+    private readonly Func<OutputDeviceConfig, VendorDeviceOutput>? _vendorFactory;
 
-    public OutputConnection(AppConfig config, OutputDeviceConfig output, Action<string> log, Action<string> logDebug, Action<string> logError, Action? notifyChanged)
+    public OutputConnection(AppConfig config, OutputDeviceConfig output, Action<string> log, Action<string> logDebug, Action<string> logError, Action? notifyChanged,
+        Func<OutputDeviceConfig, VendorDeviceOutput>? vendorFactory = null)
     {
         _config = config;
         _output = output;
@@ -391,6 +425,7 @@ internal sealed class OutputConnection : IAsyncDisposable
         _logDebug = logDebug;
         _logError = logError;
         _notifyChanged = notifyChanged;
+        _vendorFactory = vendorFactory;
 
         switch (_output.Type)
         {
@@ -409,12 +444,19 @@ internal sealed class OutputConnection : IAsyncDisposable
             case OutputDeviceType.Intiface:
                 ConfigureIntifaceClient();
                 break;
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+                ConfigureVendorClient();
+                break;
         }
     }
 
     public bool CanReuse(OutputDeviceConfig output) =>
         string.Equals(_output.Id, output.Id, StringComparison.OrdinalIgnoreCase)
-        && _output.Type == output.Type;
+        && _output.Type == output.Type
+        && (!OutputConfigHelpers.IsVendorOutput(output.Type) || DeviceProtocolOptions.Equivalent(_vendorConfiguration, output.Device));
 
     public bool IsConnected => _output.Type switch
     {
@@ -422,11 +464,24 @@ internal sealed class OutputConnection : IAsyncDisposable
         OutputDeviceType.TCodeUdp => _udp?.IsConnected == true,
         OutputDeviceType.TCodeTcp => _tcp?.IsConnected == true,
         OutputDeviceType.Intiface => _intiface?.IsConnected == true,
+        OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense => _vendor?.IsConnected == true,
         _ => false,
     };
 
     public IReadOnlyList<ButtplugClientDevice> Devices => _intiface?.Devices ?? Array.Empty<ButtplugClientDevice>();
     public OutputTelemetrySnapshot? Telemetry => (_serial?.Telemetry ?? _udp?.Telemetry ?? _tcp?.Telemetry ?? _intiface?.Telemetry)?.Snapshot;
+    public object? VendorSnapshot => _vendor is null ? null : new
+    {
+        supportsStreaming = _vendor.SupportsStreaming,
+        commandKind = _vendor.CommandKind,
+        supportsScripts = _vendor.SupportsScripts,
+        scriptPrepared = _vendor.ScriptPrepared,
+        scriptPlaying = _vendor.ScriptPlaying,
+        scriptPositionMs = _vendor.ScriptPositionMs,
+        lastError = _vendor.LastError,
+    };
+
+    public void CancelPendingVendorCommands() => _vendor?.CancelPendingCommands();
 
     public TCodeDeviceInfo GetTCodeDeviceInfo()
     {
@@ -500,6 +555,15 @@ internal sealed class OutputConnection : IAsyncDisposable
                         _log($"[Output] 已连接 {Label}: {_output.WebsocketAddress}");
                     _notifyChanged?.Invoke();
                     return _intiface?.IsConnected == true;
+                case OutputDeviceType.Handy:
+                case OutputDeviceType.Autoblow:
+                case OutputDeviceType.VacuGlide:
+                case OutputDeviceType.Lovense:
+                    await EnsureVendorClientConfiguredAsync();
+                    await _vendor!.ConnectAsync();
+                    _log($"[Output] 已连接 {Label}");
+                    _notifyChanged?.Invoke();
+                    return _vendor.IsConnected;
                 default:
                     return false;
             }
@@ -513,6 +577,7 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async Task DisconnectAsync()
     {
+        _vendor?.CancelPendingCommands();
         await _operationGate.WaitAsync();
         try { await DisconnectCoreAsync(); }
         finally { _operationGate.Release(); }
@@ -536,6 +601,12 @@ internal sealed class OutputConnection : IAsyncDisposable
                     await _intiface.DisconnectAsync();
                 _intifaceHost?.Dispose();
                 _intifaceHost = null;
+                break;
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+                if (_vendor is not null) await _vendor.DisconnectAsync();
                 break;
         }
 
@@ -565,6 +636,14 @@ internal sealed class OutputConnection : IAsyncDisposable
                 break;
             case OutputDeviceType.Intiface:
                 return _intiface?.SendAsync(frame) ?? Task.CompletedTask;
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+                // An active script owns its API mode until explicitly stopped;
+                // live frames cannot take it over.
+                return _vendor?.SupportsStreaming == true && !_vendor.ScriptPlaying
+                    ? _vendor.SendAsync(frame) : Task.CompletedTask;
         }
 
         return Task.CompletedTask;
@@ -572,6 +651,13 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async Task EmergencyStopAsync()
     {
+        if (_vendor is { } vendor)
+        {
+            // Cancel the REST client's active/queued motion before waiting on an outer
+            // connection operation; the in-flight HTTP request must not delay stop.
+            await vendor.StopAsync();
+            return;
+        }
         await _operationGate.WaitAsync();
         try { await EmergencyStopCoreAsync(); }
         finally { _operationGate.Release(); }
@@ -593,6 +679,12 @@ internal sealed class OutputConnection : IAsyncDisposable
             case OutputDeviceType.Intiface:
                 if (_intiface is not null && _intiface.IsConnected)
                     await _intiface.StopAllAsync();
+                break;
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+                if (_vendor is not null) await _vendor.StopAsync();
                 break;
         }
     }
@@ -617,6 +709,7 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        _vendor?.CancelPendingCommands();
         await _operationGate.WaitAsync();
         try { await DisposeCoreAsync(); }
         finally { _operationGate.Release(); }
@@ -643,12 +736,62 @@ internal sealed class OutputConnection : IAsyncDisposable
                 _intifaceHost?.Dispose();
                 _intifaceHost = null;
                 break;
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+                if (_vendor is not null) await _vendor.DisposeAsync();
+                _vendor = null;
+                _vendorConfiguration = null;
+                break;
         }
 
         _notifyChanged?.Invoke();
     }
 
     private string Label => $"{_output.Name} ({_output.Id})";
+
+    public async Task<object> VendorScriptAsync(string action, string url, int positionMs, Func<bool> canMove)
+    {
+        // The vendor client cancels queued work on Stop; do not hold _operationGate
+        // across script network requests or an emergency stop could be blocked by preparation.
+        var client = _vendor ?? throw new InvalidOperationException("This output does not support device scripts.");
+        if (!client.SupportsScripts) throw new InvalidOperationException("This device API does not support synchronized scripts.");
+        switch (action)
+        {
+            case "prepare":
+                if (!Uri.TryCreate(url, UriKind.Absolute, out var scriptUrl)) throw new ArgumentException("Enter a valid reachable script URL.");
+                await client.PrepareScriptAsync(scriptUrl);
+                break;
+            case "play":
+                if (!canMove()) throw new InvalidOperationException("Input is no longer active.");
+                await client.PlayScriptAsync(positionMs, canMove);
+                if (!canMove()) await client.StopAsync();
+                break;
+            case "seek":
+                if (!canMove()) throw new InvalidOperationException("Input is no longer active.");
+                await client.SeekScriptAsync(positionMs, canMove);
+                if (!canMove()) await client.StopAsync();
+                break;
+            case "stop": await client.StopScriptAsync(); break;
+            default: throw new ArgumentException("Unknown device script action.");
+        }
+        _notifyChanged?.Invoke();
+        return new { ok = true, scriptPrepared = client.ScriptPrepared, scriptPlaying = client.ScriptPlaying, scriptPositionMs = client.ScriptPositionMs };
+    }
+
+    private void ConfigureVendorClient()
+    {
+        _vendor = _vendorFactory?.Invoke(_output) ?? new VendorDeviceOutput(_output.Type.ToString(), _output.Device);
+        _vendorConfiguration = DeviceProtocolOptions.Clone(_output.Device);
+    }
+
+    private async Task EnsureVendorClientConfiguredAsync()
+    {
+        if (_vendor is not null && DeviceProtocolOptions.Equivalent(_vendorConfiguration, _output.Device)) return;
+        if (_vendor is not null) await _vendor.DisposeAsync();
+        ConfigureVendorClient();
+    }
 
     private void ConfigureIntifaceClient()
     {
@@ -659,6 +802,7 @@ internal sealed class OutputConnection : IAsyncDisposable
             WebsocketAddress = _output.WebsocketAddress,
             Port = _output.Port,
             VibrationAxis = _output.VibrationAxis,
+            FeatureRoutes = Sensa.Outputs.Intiface.IntifaceFeatureRoute.CloneAndValidate(_output.IntifaceFeatures),
         });
         _intiface.OnLog += message => _log($"[Intiface/{_output.Name}] {message}");
         _intiface.OnDebugLog += message => _logDebug($"[Output/Intiface/{_output.Name}] {message}");
@@ -683,13 +827,15 @@ internal sealed class OutputConnection : IAsyncDisposable
         ConfigureIntifaceClient();
     }
 
-    private string BuildIntifaceConfigKey() => $"{_output.WebsocketAddress}|{_output.Port}|{_output.ManageEngineProcess}|{_output.VibrationAxis}";
+    private string BuildIntifaceConfigKey() => $"{_output.WebsocketAddress}|{_output.Port}|{_output.ManageEngineProcess}|{_output.VibrationAxis}|{System.Text.Json.JsonSerializer.Serialize(_output.IntifaceFeatures)}";
 
     private void HandleIntifaceDevicesChanged() => _notifyChanged?.Invoke();
 }
 
 internal static class OutputConfigHelpers
 {
+    public static bool IsVendorOutput(OutputDeviceType type) =>
+        type is OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense;
     public static bool IsTCodeOutput(OutputDeviceType type) =>
         type == OutputDeviceType.TCodeSerial || type == OutputDeviceType.TCodeUdp || type == OutputDeviceType.TCodeTcp;
 }

@@ -10,14 +10,16 @@ import motion from '../../src/web/data/first-run-motion.json' with { type: 'json
 // 纯配置构建可在不启动 Sensa 或设备的情况下检查。
 export function createRigConfiguration(scenario, serialPort) {
   if (!serialPort?.startsWith('/dev/pts/')) throw new Error('CI pseudo terminal required / 必须使用 CI 伪终端');
-  if (!['basic', 'sps', 'query', 'vibration-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
+  if (!['basic', 'sps', 'query', 'vibration-only', 'rotation-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
   return {
     webUi: { host: '127.0.0.1', port: ports.web, autoOpenBrowser: false },
     outputs: [
       { id: 'udp', name: 'Mock UDP', type: 'TCodeUdp', host: '127.0.0.1', port: ports.udp },
       { id: 'tcp', name: 'Mock TCP', type: 'TCodeTcp', host: '127.0.0.1', port: ports.tcp },
       { id: 'serial', name: 'Mock Serial', type: 'TCodeSerial', comPort: serialPort },
-      { id: 'intiface', name: 'Mock Intiface', type: 'Intiface', manageEngineProcess: false, websocketAddress: `ws://127.0.0.1:${ports.intiface}` },
+      { id: 'intiface', name: 'Mock Intiface', type: 'Intiface', manageEngineProcess: false, websocketAddress: `ws://127.0.0.1:${ports.intiface}`,
+        ...(scenario === 'rotation-only' ? { intifaceFeatures: [{ deviceName: 'CI rotation only', featureIndex: 2, outputType: 'Rotate', sourceAxis: 'V0', clockwise: false }] } : {}),
+      },
     ].map(output => ({ ...output, enabled: false, motionProfileId: 'test-profile' })),
     axisProfiles: [{ id: 'test-profile', name: 'CI L0 400-600', isDefault: true, motion: structuredClone(motion) }],
     osc: {
@@ -51,7 +53,7 @@ export async function startTestRig(peers, scenario, expect) {
     if (failed) throw failed.reason;
   };
   try {
-    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : 'combined' });
+    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : scenario === 'rotation-only' ? 'rotation-only' : 'combined' });
     await writeFile(configPath, JSON.stringify(createRigConfiguration(scenario, peers.serialPort)));
     app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll')], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') }, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawnError;
@@ -70,7 +72,7 @@ export async function startTestRig(peers, scenario, expect) {
       } catch { return 0; }
     }, { timeout: 30000 }).toBe(204);
     expect(cookie, 'Session cookie / 会话认证 Cookie').toBeTruthy();
-    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : 'combined' });
+    peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : scenario === 'rotation-only' ? 'rotation-only' : 'combined' });
     const overview = async () => {
       const response = await fetch(baseUrl + '/api/state/overview', { headers: { Cookie: cookie } });
       if (!response.ok) throw new Error(`Overview rejected / 状态读取失败: ${response.status}`);

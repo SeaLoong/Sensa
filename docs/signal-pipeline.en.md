@@ -9,12 +9,13 @@ In Flow, choose sources, add calculations when needed and connect outputs. A sim
 | Try a complete flow | [Record a manual track](#record-a-manual-track-first) |
 | Choose sources or calculations | [Sources and computation](#choose-sources-and-computation) |
 | Connect a device or application | [Output setup](#add-outputs-and-bindings) |
+| Receive a website/player's device controls | [Protocol inputs, virtual devices and bridges](protocol-inputs.en.md) |
 | Drive several destinations | [Multiple-output example](#one-result-several-outputs) |
 | Download and reuse a trajectory | [Recording and replay](#record-and-inspect) |
 | Save the setup | [Complete plans](#save-and-reuse-a-complete-plan) |
 
 ```text
-Input: OSC/tracking, manual, script, feedback or replay
+Input: OSC/tracking, manual, script, external protocol, feedback or replay
                          ↓
 Computation: blend, smooth, trigger or convert as needed
                          ↓
@@ -38,7 +39,7 @@ This flow demonstrates source, conversion, output and replay. Next, choose an OS
 
 ## Choose sources and computation
 
-Manual, OSC and Script retain their quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
+Manual, OSC, Script and Protocol retain quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
 
 | Source | Available reading | Example use |
 | --- | --- | --- |
@@ -46,6 +47,7 @@ Manual, OSC and Script retain their quick input modes; Combined lets several kin
 | Tracking measurement | Valid position, distance, pose, velocity or Shader axes/scale | Root separation or local movement speed |
 | Manual | Current manual-axis setting | An adjustable overall intensity |
 | Script | Current script trajectory and playback metrics | Base rhythm or movement trajectory |
+| Protocol input | Connected source's trajectory, target, intensity or rotation speed/direction | Website/player → Sensa → OSR, or explicit computation |
 | Device feedback | State and readings provided by connected outputs | DG-LAB APP action, device intensity or pressure |
 | Recording replay | A loaded funscript track or diagnostic signal | Reproduce an interaction and refine its processing |
 | Constant/computed signal | A fixed value or saved named result | Scale factor or an intermediate result shared by outputs |
@@ -66,7 +68,8 @@ Give a calculation a recognizable name, such as Contact intensity, then select i
 | Output type | Connection and destination | Suitable content |
 | --- | --- | --- |
 | TCode serial/UDP/TCP | Port or network endpoint and axis profile | Position, rotation, vibration and auxiliary axes |
-| Intiface | Central address and device features | Supported position or vibration features |
+| Intiface | Central address/device features, or explicit IntifaceFeatures mapping | Advertised position, vibration, rotation and other capabilities; [ranges/direction](protocol-inputs.en.md#intiface-output-feature-mappings) |
+| Handy/Lovense/Autoblow/VacuGlide | API endpoint, connection key/device ID, source axis and capabilities | Position/duration, intensity/speed or synchronized scripts; [meaning and limits](protocol-inputs.en.md#vendor-compatible-input-and-physical-device-output) |
 | OSC parameter | IP, port, address and Float/Int/Bool type | Avatar parameters or other OSC applications |
 | DG-LAB | WebSocket relay, paired APP, device and channel | Temporary intensity, waveform tasks and feedback |
 | HTTP JSON/WebSocket JSON | Service URL accepting JSON | External panels, plugins or custom services |
@@ -75,6 +78,8 @@ Give a calculation a recognizable name, such as Contact intensity, then select i
 | Recording | Name, format and selected signals | Script playback, trajectory editing and signal diagnostics |
 
 TCode bindings target one of twelve axes using values from 0 to 1; the output's axis profile sets actual travel and motion behavior. Intiface bindings can target L0 and the vibration axis configured for that output, translating values into position or vibration commands supported by the device.
+
+Direct external motion routing preserves each channel's arrival duration. For computation/multiple outputs, select Protocol input and a path such as `website/L0`, or read `/target`, rotation `/speed` or `/clockwise`. Scalar bindings use their own sending rates and do not provide lossless forwarding of timed commands. Disable the source's direct routing before establishing bindings for those motion destinations, avoiding two paths driving the same motion. [Runnable configuration/client examples](protocol-inputs.en.md)
 
 The input range explains the source reading; the output range sets the destination's response. For example, converting input 0–1 to MIDI 0–127 makes an input of 0.5 roughly half the controller range. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. Disabling input, disabling an output and emergency stopping use the motion device's stop command.
 

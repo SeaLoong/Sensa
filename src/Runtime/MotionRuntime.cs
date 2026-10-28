@@ -22,7 +22,7 @@ namespace Sensa.Runtime;
 /// and each event applies an axis patch onto that pose. Output adapters then emit
 /// only the axes that actually changed.
 /// </summary>
-public sealed class MotionRuntime : IDisposable
+public sealed partial class MotionRuntime : IDisposable
 {
     private const int ManualDefaultSpeed = 999;
     private const int ManualDefaultIntervalMs = 100;
@@ -156,6 +156,9 @@ public sealed class MotionRuntime : IDisposable
                     "Time" => script.PositionMs / 1000f, "L0" => script.CurrentL0, _ => float.NaN },
                     null, now, originKey: "script:" + script.FileName + ":" + input.OscPath)
                 : ComputedSignalSample.Invalid("等待脚本播放 / Waiting for script playback"),
+            "Protocol" => _inputMode is RuntimeInputMode.Protocol or RuntimeInputMode.Combined
+                ? ExternalControls?.Read(input.OscPath, now) ?? ComputedSignalSample.Invalid("Waiting for protocol input.")
+                : ComputedSignalSample.Invalid("Select Protocol or Combined input mode."),
             "DeviceFeedback" => coordinator?.ReadFeedback(input.OscPath, now) ?? ComputedSignalSample.Invalid("等待设备反馈 / Waiting for device feedback"),
             "RecordingReplay" => coordinator?.ReadReplay(input.OscPath, now) ?? ComputedSignalSample.Invalid("等待录制回放 / Waiting for session replay"),
             "Constant" => ComputedSignalSample.Success(input.Value, null, now),
@@ -328,6 +331,7 @@ public sealed class MotionRuntime : IDisposable
             _inputActivationEpoch++;
         }
 
+        ResetProtocolCommands();
         ResetSignalProcessing();
         (_output as OutputCoordinator)?.SignalOutputs.PauseReplays();
         _forceNextFrame = true;
@@ -418,11 +422,13 @@ public sealed class MotionRuntime : IDisposable
             if (active && _inputActivationBlocks != 0)
                 throw new InvalidOperationException("正在更新输入设置，完成后可启用输入 / Updating input setup; enable input after it completes.");
             if (_inputActive == active) return;
+            if (!active) _inputActive = false;
             activationEpoch = _inputActivationEpoch;
         }
 
         Interlocked.Increment(ref _generation);
         _activationTimestamp = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+        ResetProtocolCommands();
         // No geometry was observed while disarmed: a different plug may now
         // occupy the same instance. / 未启用期间可能换了 Plug，重新估长。
         if (active && _inputMode == RuntimeInputMode.Osc) { lock (_sync) _spsDepth.Clear(); }
@@ -1001,7 +1007,7 @@ public sealed class MotionRuntime : IDisposable
         EmergencyStop();
     }
 
-    private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null)
+    private async Task ApplyPatchCoreAsync(MotionPatch patch, string source, TCodeCommandMode? requestedCommandMode = null, int? requestedMotionValue = null, IReadOnlySet<MotionAxis>? activeAxes = null)
     {
         var generation = Interlocked.Read(ref _generation);
         if (!CanSend) return;
@@ -1019,6 +1025,7 @@ public sealed class MotionRuntime : IDisposable
         {
             RequestedCommandMode = requestedCommandMode,
             RequestedMotionValue = requestedMotionValue,
+            ActiveAxes = activeAxes,
         };
 
         var motionLabel = requestedCommandMode.HasValue
@@ -1063,6 +1070,7 @@ public sealed class MotionRuntime : IDisposable
 
     private async Task SendEmergencyAsync()
     {
+        (_output as OutputCoordinator)?.CancelPendingVendorCommands();
         await _sendGate.WaitAsync().ConfigureAwait(false);
         try { await StopOutputsAsync().ConfigureAwait(false); }
         finally { _sendGate.Release(); NotifyStateChanged(); }
@@ -1136,6 +1144,7 @@ public sealed class MotionRuntime : IDisposable
             return;
 
         _disposed = true;
+        DetachExternalControls();
         _lifetime.Cancel();
         _watchdog.Dispose();
         _signalTimer.Dispose();

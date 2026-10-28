@@ -1,10 +1,12 @@
 import { diagnostic, t } from './i18n.js';
 import { formatMode } from './input-workflows.js';
+import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
+import { intifaceDeviceRoutable } from './intiface-feature-routing.js';
 
 export function outputRoutingScope(outputs = []) {
   const enabled = outputs.filter(output => output.enabled === true);
   const independentBindings = enabled.some(output => output.signal?.bindings?.length > 0);
-  const legacyMotion = enabled.some(output => (output.type?.startsWith('TCode') || output.type === 'Intiface')
+  const legacyMotion = enabled.some(output => (output.type?.startsWith('TCode') || output.type === 'Intiface' || VENDOR_OUTPUT_TYPES.includes(output.type))
     && !output.signal?.bindings?.length);
   return { independentBindings, legacyMotion, mixed: independentBindings && legacyMotion,
     onlyIndependentBindings: independentBindings && !legacyMotion };
@@ -13,11 +15,11 @@ export function outputRoutingScope(outputs = []) {
 // This describes application state; it never grants permission or claims hardware feedback.
 // 只解释应用状态，不授予输入许可，也不把命令当作硬件回读。
 export function controlReadiness({ online = false, runtime = {}, mode = 'manual', selectedMode = mode,
-  script = {}, outputs = [], outputStates = [], mappings = [], listening = false, mappingDirty = false } = {}) {
+  script = {}, outputs = [], outputStates = [], mappings = [], listening = false, mappingDirty = false, protocolInputs = [] } = {}) {
   const available = outputs.filter(output => {
     const state = outputStates.find(candidate => candidate.id === output.id);
     return output.enabled === true && state?.enabled === true && state.connected === true
-      && (output.type !== 'Intiface' || state.devices?.some(device => device.positionFeatures > 0 || device.vibrateFeatures > 0));
+      && (output.type !== 'Intiface' || state.devices?.some(device => intifaceDeviceRoutable(device, output.intifaceFeatures)));
   }).length;
   const scope = outputRoutingScope(outputs);
   const routedBindings = outputs.reduce((count, output) => count + (output.enabled ? output.signal?.bindings?.length || 0 : 0), 0);
@@ -45,6 +47,10 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return make('osc-mappings', t('尚无已保存映射'), t('选择实际参数、设置量程并保存映射。'), 'info', 'osc-mappings');
   if (mode === 'osc' && mappingDirty)
     return make('draft', t('使用已保存映射'), t('修改尚未保存，当前输出不使用草稿。'), 'info', 'osc-mappings');
+  if (mode === 'protocol' && !protocolInputs.some(input => input.enabled && input.listening))
+    return make('protocol-listener', t('协议输入尚未监听'), t('在设置中添加并启用协议来源，再由客户端连接。'), 'info', 'protocol-settings');
+  if (mode === 'protocol' && !protocolInputs.some(input => input.connected))
+    return make('protocol-client', t('等待协议客户端'), t('将客户端连接到已保存地址，连接后仍需单独启用输入。'), 'info', 'protocol-settings');
   if (!available) return make('outputs-unavailable', t('尚无可用输出'),
     t('检查输出启用、连接及 Intiface 设备扫描。'), 'info', 'outputs');
   if (!runtime.inputActive) return make('inactive', t('输入已关闭'),
@@ -55,5 +61,6 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     return make('manual-waiting', t('等待手动目标'), t('发送一次，或开启连续发送后调整滑条。'));
   return make('enabled', t('{0} 输入已启用', [formatMode(mode)]),
     mode === 'manual' ? t('连续发送跟随调整，不自动往返。') : mode === 'script'
-      ? t('按脚本时间线生成 L0 目标。') : mode === 'combined' || scope.onlyIndependentBindings ? t('按每条输出连接选择的来源与计算生成目标。') : t('按已保存映射生成目标。'), 'success');
+      ? t('按脚本时间线生成 L0 目标。') : mode === 'protocol' ? t('按已保存协议通道生成目标，保留位置与到达时长。')
+        : mode === 'combined' || scope.onlyIndependentBindings ? t('按每条输出连接选择的来源与计算生成目标。') : t('按已保存映射生成目标。'), 'success');
 }

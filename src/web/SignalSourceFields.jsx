@@ -31,9 +31,9 @@ export default function SignalSourceFields({ source, signals = [], pathOptions =
                 value={pointOptions.some(point => point.value === source.oscPath) ? source.oscPath : ''}
                 options={[{ value: '', label: t('填写路径或选择测量对象') }, ...pointOptions]}
                 onChange={oscPath => { if (oscPath) onChange({ oscPath }); }} />}
-              <Field label={t(source.sourceMode === 'DeviceFeedback' ? '设备反馈路径' : source.sourceMode === 'RecordingReplay' ? '录制信号路径' : '参数路径')}
+              <Field label={t(source.sourceMode === 'Protocol' ? '协议信号路径' : source.sourceMode === 'DeviceFeedback' ? '设备反馈路径' : source.sourceMode === 'RecordingReplay' ? '录制信号路径' : '参数路径')}
                 value={source.oscPath} list={direct ? listId : undefined}
-                placeholder={source.sourceMode === 'DeviceFeedback' ? 'output-id/connected' : source.sourceMode === 'RecordingReplay' ? 'recording-id/Signal1'
+                placeholder={source.sourceMode === 'Protocol' ? 'protocol-1/L0' : source.sourceMode === 'DeviceFeedback' ? 'output-id/connected' : source.sourceMode === 'RecordingReplay' ? 'recording-id/Signal1'
                   : source.sourceMode === 'SensaPoint' ? 'Sensa/SPS/Root/**' : 'OSC/Parameter'}
                 onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} onChange={event => onChange({ oscPath: event.target.value })} />
               {direct && <datalist id={listId}>{suggestions.map(path => <option key={path} value={path} />)}</datalist>}

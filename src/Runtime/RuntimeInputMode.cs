@@ -6,4 +6,5 @@ public enum RuntimeInputMode
     Manual,
     Script,
     Combined,
+    Protocol,
 }

@@ -91,6 +91,8 @@ export async function startMocks() {
     } };
   const vibrationDevice = { DeviceName: 'CI vibration only', DeviceIndex: 0, DeviceMessageTimingGap: 0,
     DeviceFeatures: { '0': { FeatureIndex: 0, FeatureDescription: 'Vibration', Output: { Vibrate: { Value: [0, 1000] } } } } };
+  const rotationDevice = { DeviceName: 'CI rotation only', DeviceIndex: 0, DeviceMessageTimingGap: 0,
+    DeviceFeatures: { '2': { FeatureIndex: 2, FeatureDescription: 'Rotation', Output: { Rotate: { Value: [-500, 1000] } } } } };
   let advertisedDevice = device;
   const bp = new WebSocketServer({ host: '127.0.0.1', port: ports.intiface }); await once(bp, 'listening');
   bp.on('connection', ws => ws.on('message', data => {
@@ -119,8 +121,8 @@ export async function startMocks() {
   }); query.listen(ports.query, '127.0.0.1'); await once(query, 'listening');
   return { wire, serialPort, intifaceState,
     reset: ({ intifaceProfile = 'combined' } = {}) => {
-      if (!['combined', 'vibration-only'].includes(intifaceProfile)) throw new Error('Unknown mock device profile / 未知模拟设备类型');
-      advertisedDevice = intifaceProfile === 'vibration-only' ? vibrationDevice : device;
+      if (!['combined', 'vibration-only', 'rotation-only'].includes(intifaceProfile)) throw new Error('Unknown mock device profile / 未知模拟设备类型');
+      advertisedDevice = intifaceProfile === 'vibration-only' ? vibrationDevice : intifaceProfile === 'rotation-only' ? rotationDevice : device;
       intifaceState.profile = intifaceProfile;
       for (const client of clients) client.destroy();
       for (const client of bp.clients) client.terminate();

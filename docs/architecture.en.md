@@ -2,7 +2,7 @@
 
 [简体中文](architecture.md) | **English**
 
-The backend reads input samples, computes reusable results and delivers them through output bindings. Manual, OSC and Script retain their quick workflows; Combined lets sources contribute together. Existing motion outputs use twelve-axis targets, while OSC, DG-LAB, network services and recording expose their own destinations. The browser owns intentions and drafts; the backend owns activation, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
+The backend reads input samples and external protocol commands, computes reusable results, and delivers through bindings or a motion path preserving arrival durations. Manual, OSC, Script and Protocol retain quick workflows; Combined lets sources contribute together. Existing motion outputs use twelve-axis targets, while OSC, DG-LAB, network services and recording expose their own destinations. The browser owns intentions and drafts; the backend owns activation, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
 
 ## One command boundary
 
@@ -16,6 +16,8 @@ flowchart LR
   Store --> Runtime
   Script[FunscriptPlayer] --> Runtime
   Manual[Manual values] --> Runtime
+  External[External protocol adapters] --> Commands[ExternalControlStore]
+  Commands --> Runtime
   Feedback[Device feedback] --> Runtime
   Runtime --> Compute[Computed signals]
   Compute --> Bindings[Output bindings]
@@ -24,7 +26,7 @@ flowchart LR
   Transport --> Destinations[Application / DG-LAB / Service / MIDI / Recording]
   Runtime --> Record[L0 MotionRecorder]
   Runtime --> Output[IMotionOutput / OutputCoordinator]
-  Output --> Devices[TCode / Intiface]
+  Output --> Devices[TCode / Intiface / vendor device API]
 ```
 
 | Module | Rules it owns |
@@ -32,6 +34,7 @@ flowchart LR
 | [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | Shared command dispatch, mode/script/recording/connection operations |
 | [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarm, stop, reconnect and persistence; configuration/connection rollback |
 | [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, gates, fusion, freshness, request generations and stop |
+| [ProtocolInputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ProtocolInputCoordinator.cs) / [ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ExternalControl.cs) | Separate listeners, source sessions, atomic multichannel commands, types/durations, leases and current command identity |
 | [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | Bounded dependency graph, computation reuse, shared-source/frame checks, oldest sample time and numeric validity |
 | [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | Resolve a configured source into a timestamped, valid or invalid sample |
 | [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | Shared computation-frame evaluation and temporal reset boundary |
@@ -73,6 +76,12 @@ Computed signals produce reusable raw values before calibration, using OSC param
 A dedicated marker and unique channel keep each root measurement tied to its intended own target. SPS four-anchor tracking reconstructs one point from distances in authored AvatarRootLocal units; Contact reports midpoint position and contact-point velocity in physical metre-based AvatarRootMeters. Contact position and velocity metrics share SensaPoint calibration, activation and invalidity stops. The native report provides Contact properties, and Sensa Sample adds a producer-activity check; a clock, sequence and stable Sender ID are outside that report's field set. [SDK contract and evidence](contact-sdk.en.md). [Positioning](positioning.en.md) and the [dictionary](osc-parameters.en.md) define protocols, equations and stop conditions.
 
 Output bindings select source, conversion, value type, range, stop value and sending policy. Protocol adapters encode OSC values, JSON messages, DG-LAB tasks or records; transports own connection lifetime, bounded delivery, cancellation and closure. State delivery retains the latest target, while a bounded queue delivers events in order. Feedback enters through source resolution. [Input/computation/output decision](adr/0008-signal-pipeline-and-shared-session.md) · [User configuration](signal-pipeline.en.md)
+
+## External protocol inputs and device APIs
+
+Buttplug v3/v4, TCode, JSON and vendor-compatible adapters interpret controls as external commands with channels, targets, durations and direction. Direct motion routing retains independent timing per channel, with Stop as an ordered barrier; protocol samples also feed computation/bindings. An initial trajectory with an unknown start keeps its current value invalid while exposing the target. Interpolation represents command state, not hardware feedback. Existing device feedback remains a separate source.
+
+Protocol listeners are separate from management APIs, default to loopback and explicitly allow website Origins. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
 
 ## Following planes and spatial calculations
 

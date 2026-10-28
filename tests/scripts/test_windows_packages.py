@@ -66,6 +66,10 @@ class WindowsPackageContracts(unittest.TestCase):
         for name in installer.GUIDE_DIRECTORIES:
             (portable / name).mkdir()
             (portable / name / 'guide.txt').write_text(name, encoding='utf-8')
+        for name in release.PROTOCOL_BRIDGE_ASSETS:
+            path = portable / name
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes((ROOT / name).read_bytes())
         for name in ('config.json', 'Sensa.dll'):
             (portable / name).write_text('do not include', encoding='utf-8')
         (portable / 'docs/.hidden').write_text('do not include hidden data', encoding='utf-8')
@@ -76,6 +80,8 @@ class WindowsPackageContracts(unittest.TestCase):
         self.assertEqual({item.name for item in payload.iterdir()}, {'Sensa.exe', *installer.GUIDE_FILES, *installer.GUIDE_DIRECTORIES})
         self.assertEqual((payload / 'docs/guide.txt').read_text(), 'docs')
         self.assertFalse((payload / 'docs/.hidden').exists())
+        for name in release.PROTOCOL_BRIDGE_ASSETS:
+            self.assertEqual((payload / name).read_bytes(), (ROOT / name).read_bytes())
 
     def test_windows_ci_builds_smokes_and_packages_both_standalone_and_installed_binaries(self):
         for runtime in ('win-x64', 'win-arm64'):
@@ -172,6 +178,10 @@ class WindowsPackageContracts(unittest.TestCase):
                     path = directory / name
                     path.parent.mkdir(parents=True, exist_ok=True)
                     path.write_bytes(b'fixture offline file')
+                for name in release.PROTOCOL_BRIDGE_ASSETS:
+                    path = directory / name
+                    path.parent.mkdir(parents=True, exist_ok=True)
+                    path.write_bytes((ROOT / name).read_bytes())
             elif Path(command[0]).name == 'unins000.exe':
                 directory = Path(command[0]).parent
                 for path in tuple(directory.iterdir()):

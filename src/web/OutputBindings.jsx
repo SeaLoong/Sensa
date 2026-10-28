@@ -5,6 +5,7 @@ import { t, diagnostic } from './i18n.js';
 import SignalSourceFields from './SignalSourceFields.jsx';
 import PairingQRCode from './PairingQRCode.jsx';
 import { SIGNAL_BINDING_LIMIT, applyVrChatOutput, buildSignalOutputDraft, dglabBasicFrames, isSignalOutputType, makeOutputBinding, recordingDownloadUrl, recordingFiles, recordingFormatOptions } from './signal-outputs.js';
+import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
 
 const numeric = (event, onChange, key) => onChange({ [key]: event.target.value === '' ? '' : Number(event.target.value) });
 const curveOptions = () => [{ value: 'Linear', label: t('线性') }, { value: 'EaseIn', label: t('缓入') },
@@ -33,7 +34,7 @@ function BindingCard({ binding, outputType, recordingFormat, targetAxes, signals
           <SelectField label={t('任务通道')} value={binding.channel ?? ''} options={[
             { value: '', label: t('使用输出通道') }, { value: '0', label: 'A' }, { value: '1', label: 'B' },
           ]} onChange={channel => onChange({ channel: channel === '' ? null : Number(channel) })} /></>
-          : outputType.startsWith('TCode') || outputType === 'Intiface' ? <SelectField label={t('目标轴')} value={binding.address}
+          : outputType.startsWith('TCode') || outputType === 'Intiface' || VENDOR_OUTPUT_TYPES.includes(outputType) ? <SelectField label={t('目标轴')} value={binding.address}
             options={targetAxes.map(value => ({ value, label: value }))} onChange={address => onChange({ address })} />
             : <Field label={targetLabel} value={binding.address} onChange={event => onChange({ address: event.target.value })}
               placeholder={outputType === 'OscParameter' ? '/avatar/parameters/SensaFeedback' : outputType === 'Midi' ? 'CC/1/1'
@@ -125,6 +126,7 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
   const waveformPreset = useMemo(() => ['steady', 'fade', 'alternating'].find(preset => JSON.stringify(dglabBasicFrames(preset)) === JSON.stringify(signal.waveformFrames)) || '', [signal.waveformFrames]);
   const setSignal = patch => onChange({ signal: { ...signal, ...patch } });
   const targetAxes = output.type === 'Intiface' ? [...new Set(['L0', output.vibrationAxis || 'V0'])]
+    : VENDOR_OUTPUT_TYPES.includes(output.type) ? [output.device?.axis || (['VacuGlide', 'Lovense'].includes(output.type) ? 'V0' : 'L0')]
     : ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2'];
   const numberField = (key, label, extra = {}) => <Field key={key} label={t(label)} type="number" step="any" value={signal[key]}
     onChange={event => numeric(event, setSignal, key)} {...extra} />;
@@ -208,7 +210,7 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
       onChange={patch => setSignal({ bindings: signal.bindings.map(item => item.id === binding.id ? { ...item, ...patch } : item) })}
       onRemove={() => setSignal({ bindings: signal.bindings.filter(item => item.id !== binding.id) })} />)}
     <div className="actions"><Button disabled={signal.bindings.length >= SIGNAL_BINDING_LIMIT} onClick={() => setSignal({ bindings: [...signal.bindings, makeOutputBinding(signal.bindings, output.type,
-      output.type === 'Intiface' ? { address: output.vibrationAxis || 'V0' } : {})] })}>{t('新增连接')}</Button></div>
+      output.type === 'Intiface' ? { address: output.vibrationAxis || 'V0' } : VENDOR_OUTPUT_TYPES.includes(output.type) ? { address: targetAxes[0] } : {})] })}>{t('新增连接')}</Button></div>
     {!isSignalOutputType(output.type) && !signal.bindings.length && <p className="caption muted">{t('沿用现有轴映射。添加独立连接后，此输出使用自己的信号来源。')}</p>}
   </section>;
 }

@@ -57,7 +57,7 @@ class ArchiveWorkspace(unittest.TestCase):
         self.repository.mkdir()
         for name in ('README.md', 'README.zh-CN.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE', 'package.json'):
             shutil.copyfile(ROOT / name, self.repository / name)
-        for directory in ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab'):
+        for directory in ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab', 'tools/protocol-bridge'):
             shutil.copytree(ROOT / directory, self.repository / directory)
         (self.repository / 'scripts').mkdir()
         for name in ('shader-osc-bridge.py', 'telemetry_qr.py', 'requirements-capture.txt'):
@@ -138,6 +138,20 @@ class DesktopArchiveContracts(ArchiveWorkspace):
         with patch.dict(os.environ, SENSA_SOURCE_COMMIT='b' * 40):
             _, files = self.app()
         self.assertEqual(json.loads(files['BUILD-INFO.json'])['commit'], 'b' * 40)
+
+    def test_protocol_bridge_assets_are_complete_and_exclude_runtime_state(self):
+        folder = self.repository / 'tools/protocol-bridge'
+        for name in ('local-config.json', '__pycache__/bridge.pyc', '.venv/pyvenv.cfg', 'unrelated.py'):
+            item = folder / name
+            item.parent.mkdir(parents=True, exist_ok=True)
+            item.write_text('must never ship', encoding='utf-8')
+        _, files = self.app()
+        actual = {name for name in files if name.startswith('tools/protocol-bridge/')}
+        self.assertEqual(actual, set(release.PROTOCOL_BRIDGE_ASSETS))
+        for name in actual:
+            self.assertEqual(files[name], (self.repository / name).read_bytes())
+        self.assertIn('tools/protocol-bridge/windows_peripheral.py', actual)
+        self.assertNotIn('Python.exe', files)
 
     def test_invalid_resolved_source_cannot_be_written_to_a_release_archive(self):
         self.prepare_app()

@@ -9,7 +9,7 @@ import unittest
 from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[2]
-GUIDE_FOLDERS = ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab')
+GUIDE_FOLDERS = ('docs', 'unity/top.sealoong.sensa', 'tools/unity-world-lab', 'tools/unity-avatar-lab', 'tools/protocol-bridge')
 
 
 def guide_pairs(root=ROOT):

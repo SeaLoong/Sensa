@@ -112,6 +112,12 @@ import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './O
 import SignalPlanPanel from './SignalPlanPanel.jsx';
 import { isSignalOutputType } from './signal-outputs.js';
 import { buildComputedDrafts, computeComputedHash, computedDraftIncomplete, computedMappingPreviews, expandMappingSources } from './computed-signals.js';
+import ProtocolInputsPanel from './ProtocolInputsPanel.jsx';
+import VendorDeviceFields, { VendorScriptControls } from './VendorDeviceFields.jsx';
+import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
+import { prepareDeviceScript } from './device-script-requests.js';
+import IntifaceFeatureFields from './IntifaceFeatureFields.jsx';
+import { intifaceFeatureErrors } from './intiface-feature-routing.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
 
@@ -773,6 +779,7 @@ function App() {
   async function applySignalPlan(plan) {
     return withBusy('signal-plan-import', async () => {
       const saved = await persistConfig({ ...config, computedSignals: plan.computedSignals, signals: plan.signals, outputs: plan.outputs,
+        protocolInputs: plan.protocolInputs,
         ...(plan.axisProfiles ? { axisProfiles: plan.axisProfiles } : {}),
       });
       setComputedDrafts(buildComputedDrafts(saved.computedSignals));
@@ -813,6 +820,27 @@ function App() {
     } finally {
       configSaveRef.current = false;
     }
+  }
+
+  async function saveProtocolInputs(nextConfig) {
+    let saved;
+    await withBusy('protocol-save', async () => {
+      saved = await persistConfig(nextConfig);
+      await refreshOverview();
+      notify(t('协议输入已保存，请检查后单独启用输入。'), 'success');
+    });
+    return saved;
+  }
+
+  async function vendorScriptAction(outputId, action, body) {
+    await withBusy(`vendor-script-${outputId}-${action}`, async () => {
+      if (action === 'prepare') await prepareDeviceScript(outputId, body.url, getOutputConfig(config, outputId)?.device);
+      else await apiRequest(`/api/control/output/${encodeURIComponent(outputId)}/script-${action}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+      });
+      await refreshOverview();
+      notify(t('同步脚本操作已完成'), 'success');
+    }).catch(error => notify(error.message || t('同步脚本操作失败'), 'error'));
   }
 
   async function saveOscConfig() {
@@ -1574,6 +1602,7 @@ function App() {
   const outputDialogConflicts = useMemo(() => dialog && config ? getOutputTargetConflicts(config, dialog.outputId, dialog.draft) : [], [dialog, config, locale]);
   const outputDialogOverview = dialog ? getOutputOverview(overview, dialog.outputId) : null;
   const outputDialogConflictMessage = formatOutputTargetConflictMessage(outputDialogConflicts);
+  const outputFeatureErrors = dialog?.draft.type === 'Intiface' ? intifaceFeatureErrors(dialog.draft.intifaceFeatures || []) : [];
   const showLogs = workspace === 'settings' && logDetailsOpen;
   const logCategories = useMemo(() => showLogs ? [...new Set(logs.map((entry) => entry.category).filter(Boolean))].sort() : [], [logs, showLogs]);
   const logAxes = useMemo(() => showLogs ? [...new Set(logs.map((entry) => entry.axisTrace?.axis).filter(Boolean))].sort() : [], [logs, showLogs]);
@@ -1680,6 +1709,9 @@ function App() {
       setWorkspace('control');
       selectInputTab(destination);
       setNavigationTarget(`#input-tabs-${destination}`);
+    } else if (destination === 'protocol-settings') {
+      setWorkspace('settings');
+      setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'pipeline') {
       setWorkspace('pipeline');
       setNavigationTarget('.computed-signals');
@@ -2000,6 +2032,10 @@ function App() {
                   </footer>
                   {output.type === 'Recording' && <RecordingReplayControls outputId={output.id} status={state.signalStatus} onAction={replayOutput}
                     files={recordingFiles} onRefreshFiles={refreshRecordingFiles} busy={!online || Boolean(busyKey)} />}
+                  {['Handy', 'Autoblow', 'VacuGlide'].includes(output.type) && <VendorScriptControls output={output}
+                    status={state.deviceApi} inputActive={inputActive} disabled={!online || !state.connected || Boolean(busyKey)}
+                    stopDisabled={!online || !state.connected || busyKey === `vendor-script-${output.id}-stop`}
+                    onAction={(action, body) => vendorScriptAction(output.id, action, body)} />}
                   {state.lastError && <div className="output-detail"><Notice tone="error">{diagnostic(state.lastError)}</Notice></div>}
                   {output.type === 'TCodeSerial' && (
                     <div className="output-detail">
@@ -2447,14 +2483,14 @@ function App() {
               <>
                 <Section
                   title={t('输入')}
-                  description={t('手动调节、接收 OSC，或播放脚本。组合方式可以同时使用多个来源。')}
+                  description={config?.protocolInputs?.length ? t('手动调节、接收 OSC 或设备协议，或播放脚本。组合方式可以同时使用多个来源。') : t('手动调节、接收 OSC，或播放脚本。组合方式可以同时使用多个来源。')}
                   className="input-section"
                   actions={<Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>}
                 >
                   <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
                     selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
                     outputStates={overview?.outputs || []} mappings={config?.signals || []}
-                    mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} onNavigate={navigateWorkflow} />
+                    mappingDirty={hasUnsavedMappings} listening={Boolean(overview?.osc?.listening)} protocolInputs={overview?.protocolInputs || []} onNavigate={navigateWorkflow} />
                   <div className="input-toolbar">
                     <Tabs
                       id="input-tabs"
@@ -2462,7 +2498,7 @@ function App() {
                       variant="segmented"
                       value={selectedInputTab}
                       onChange={selectInputTab}
-                      options={INPUT_MODES()}
+                      options={INPUT_MODES().filter(item => item.value !== 'protocol' || config?.protocolInputs?.length || selectedInputTab === 'protocol')}
                     />
                     {hasPendingInputMode && <Button
                       tone="primary" disabled={modeBusy || !online}
@@ -2515,8 +2551,10 @@ function App() {
                       </div>
                     )}
                     {selectedInputTab === 'script' && renderScriptPlayer()}
+                    {selectedInputTab === 'protocol' && <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []}
+                      online={online} saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />}
                     {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
-                      <p>{t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
+                      <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
                       <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
                         <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
                       <details><summary>{t('手动来源')}</summary><div className="stack">
@@ -2526,6 +2564,9 @@ function App() {
                         <p className="caption muted">{t('滑条的 0–999 在信号流程中转换为 0–1。')}</p>
                       </div></details>
                       <details open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}><summary>{t('脚本来源')}</summary>{renderScriptPlayer()}</details>
+                      {config?.protocolInputs?.length > 0 && <details><summary>{t('协议来源')}</summary>
+                        <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
+                          saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} /></details>}
                     </div>}
 
                   </div>
@@ -2609,7 +2650,7 @@ function App() {
             {workspace === 'pipeline' && <>
               <Section title={t('信号流程')} description={t('选择来源、处理数值，再连接到设备、应用或录制。')} actions={<Button onClick={() => { setWorkspace('control'); selectInputTab('combined'); }}>{t('设置组合输入')}</Button>}>
                 <div className="signal-pipeline-steps" aria-label={t('输入、计算与输出')}>
-                  <div><strong>{t('输入')}</strong><span>{t('OSC · 手动 · 脚本 · 设备反馈 · 回放')}</span></div>
+                  <div><strong>{t('输入')}</strong><span>{config?.protocolInputs?.length ? t('OSC · 协议 · 手动 · 脚本 · 设备反馈 · 回放') : t('OSC · 手动 · 脚本 · 设备反馈 · 回放')}</span></div>
                   <div><strong>{t('计算转换')}</strong><span>{t('{0} 个计算信号', [computedDrafts.length])}</span></div>
                   <div><strong>{t('输出')}</strong><span>{t('{0} 个目标', [outputs.length])}</span></div>
                 </div>
@@ -2732,6 +2773,10 @@ function App() {
                     </div>}
                   </details>
                 </Section>
+                <Section title={t('协议输入')} description={t('接收网站、应用、虚拟串口或蓝牙协议桥的控制。')}>
+                  <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
+                    saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />
+                </Section>
               </>
             )}
           </div>
@@ -2748,7 +2793,7 @@ function App() {
             <Button onClick={() => setDialog(null)}>{t('取消')}</Button>
             <Button
               tone="primary"
-              disabled={!online || Boolean(busyKey) || outputDialogConflicts.length > 0}
+              disabled={!online || Boolean(busyKey) || outputDialogConflicts.length > 0 || outputFeatureErrors.length > 0}
               onClick={saveOutputDialog}
             >
               {t('保存输出')}
@@ -2759,11 +2804,19 @@ function App() {
         {dialog && (
           <div className="stack">
             {outputDialogConflictMessage && <Notice tone="warning">{outputDialogConflictMessage}</Notice>}
+            {outputFeatureErrors.length > 0 && <Notice tone="error">{outputFeatureErrors.join('\n')}</Notice>}
             <Field
               label={t('名称')}
               value={dialog.draft.name || ''}
               onChange={(event) => updateOutput({ name: event.target.value })}
             />
+
+            {VENDOR_OUTPUT_TYPES.includes(dialog.draft.type) && <VendorDeviceFields type={dialog.draft.type}
+              value={dialog.draft.device} onChange={device => updateOutput({ device,
+                ...(device.axis !== dialog.draft.device?.axis && dialog.draft.signal?.bindings?.length ? {
+                  signal: { ...dialog.draft.signal, bindings: dialog.draft.signal.bindings.map(binding => ({ ...binding, address: device.axis })) },
+                } : {}),
+              })} />}
 
             {dialog.draft.type === 'TCodeSerial' && (
               <>
@@ -2840,6 +2893,8 @@ function App() {
                     { value: 'V2', label: t('V2 · 振动 3') }, { value: 'L0', label: t('L0 · 深度转振动') }]}
                   onChange={(vibrationAxis) => updateOutput({ vibrationAxis })}
                 />
+                <IntifaceFeatureFields routes={dialog.draft.intifaceFeatures || []} devices={outputDialogOverview?.devices || []}
+                  onChange={intifaceFeatures => updateOutput({ intifaceFeatures })} />
               </>
             )}
             {isTCodeOutputType(dialog.draft.type) && (

@@ -13,6 +13,7 @@ using Microsoft.Win32;
 using Sensa.Application;
 using Sensa.Configuration;
 using Sensa.Input.Osc;
+using Sensa.Input.Protocols;
 using Sensa.Input.Script;
 using Sensa.Motion;
 using Sensa.Outputs;
@@ -133,6 +134,9 @@ public static class SensaHost
             recorder: recorder,
             scriptPlayer: scriptPlayer,
             preferredOscSourceKeyProvider: ResolvePreferredOscSourceKeyForRuntime);
+        using var externalControls = new ExternalControlStore();
+        motionRuntime.AttachExternalControls(externalControls);
+        await using var protocolInputs = new ProtocolInputCoordinator(externalControls, LogError);
         outputCoordinator.CanSend = () => motionRuntime.CanSend;
         outputCoordinator.CanRouteSignals = () => motionRuntime.CanRouteSignals;
         oscReceiver.IsSourceAllowed = source => config.Osc.AllowedSourceAddresses.Count == 0 || config.Osc.AllowedSourceAddresses.Contains(source.Address);
@@ -746,6 +750,8 @@ public static class SensaHost
         oscQueryReceiverService.StateChanged += NotifyStateChanged;
 
         motionRuntime.StateChanged += HandleRuntimeStateChanged;
+        protocolInputs.Changed += NotifyStateChanged;
+        externalControls.Changed += NotifyStateChanged;
         outputCoordinator.StateChanged += NotifyStateChanged;
         logBuffer.EntryAdded += _ => NotifyStateChanged();
 
@@ -828,6 +834,11 @@ public static class SensaHost
             {
                 name = device.Name,
                 index = device.Index,
+                features = device.Features.Select(pair => new
+                {
+                    index = pair.Key, description = pair.Value.FeatureDefinition.FeatureDescription,
+                    outputTypes = pair.Value.FeatureDefinition.Output?.Keys.ToArray() ?? [],
+                }).ToArray(),
                 positionFeatures = Sensa.Outputs.Intiface.IntifacePositionFeatures.For(device).Count,
                 vibrateFeatures = device.GetFeaturesWithOutput(OutputType.Vibrate).Count(),
             }).ToArray();
@@ -853,6 +864,7 @@ public static class SensaHost
             return new
             {
                 webUiConnections = wsClients.Count,
+                protocolInputs = protocolInputs.Snapshot(),
                 runtime = runtimeState,
                 loop = runtimeState,
                 input = new
@@ -1094,7 +1106,8 @@ public static class SensaHost
             () => ConfigureOscHub(replaySnapshot: true),
             updated => updated.Save(),
             Log,
-            configUpdateGate);
+            configUpdateGate,
+            () => protocolInputs.ReloadAsync(config.ProtocolInputs));
         var application = new SensaApplication(
             config, motionRuntime, scriptPlayer, recorder, outputCoordinator,
             new ApplicationHost(
@@ -1112,6 +1125,7 @@ public static class SensaHost
                 LogError));
         var httpCommands = new HttpCommandAdapter(application);
         var webSocketCommands = new WebSocketCommandAdapter(application);
+        app.MapPost("/api/control/output/{outputId}/script-{action}", async (HttpRequest request) => await httpCommands.HandleAsync(request));
         app.MapGet("/api/output/recordings/{fileName}/download", (string fileName) =>
         {
             try
@@ -1215,10 +1229,14 @@ public static class SensaHost
 
         app.Lifetime.ApplicationStopping.Register(() =>
         {
+            using var shutdownInputBlock = motionRuntime.BlockInputActivation();
+            motionRuntime.EmergencyStop();
+            outputCoordinator.EmergencyStopAsync().GetAwaiter().GetResult();
             Log("[Sensa] Shutting down…");
             CloseAllWsClientsAsync(WebSocketCloseStatus.EndpointUnavailable, "Service shutting down", abortAfterClose: true).GetAwaiter().GetResult();
             ogbControl.Dispose();
             recorder.Stop();
+            protocolInputs.DisposeAsync().AsTask().GetAwaiter().GetResult();
             outputCoordinator.DisposeAsync().AsTask().GetAwaiter().GetResult();
             oscReceiver.Stop();
             oscReceiver.Dispose();
@@ -1235,6 +1253,8 @@ public static class SensaHost
         ConfigureOscHub(replaySnapshot: true);
         SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
 
+        try { await protocolInputs.ReloadAsync(config.ProtocolInputs); }
+        catch (Exception error) { LogError("[Protocol input] Startup failed: " + error.GetType().Name); }
         await outputCoordinator.ConnectEnabledAsync();
         NotifyStateChanged();
 
@@ -1246,6 +1266,10 @@ public static class SensaHost
 
         await app.RunAsync();
 
+        using var finalInputBlock = motionRuntime.BlockInputActivation();
+        motionRuntime.EmergencyStop();
+        await outputCoordinator.EmergencyStopAsync();
+        await protocolInputs.DisposeAsync();
         ogbControl.Dispose();
         motionRuntime.Dispose();
         scriptPlayer.Dispose();

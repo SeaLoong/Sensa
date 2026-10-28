@@ -10,6 +10,7 @@ Sensa brings input, computation and output into one workbench for realtime devic
 | --- | --- |
 | Combine readings, smoothing and conditions | OSC, tracking, manual, scripts or feedback → [computed signal](computed-signals.en.md) |
 | Send one result to several destinations | A result → [multiple output bindings](signal-pipeline.en.md#one-result-several-outputs), with separate ranges |
+| Route a website/player's commands to your device | [Protocol input and virtual device](protocol-inputs.en.md) → TCode/Intiface/device API output |
 | Save a playable, editable trajectory | Source → [Funscript recording](signal-pipeline.en.md#record-and-inspect) → download or replay |
 | Reuse an interaction | [Export a plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) with calculations, mappings, profiles and outputs |
 | Open several workbench pages | Same-origin pages automatically [share a realtime connection](signal-pipeline.en.md#pages-and-shared-connections), with independent drafts |
@@ -34,7 +35,8 @@ The [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-g
 | **Manual** | Twelve axes, send once or follow edits, profile-based or explicit duration/speed |
 | **Script** | Interpolated funscript, 0.1–4× speed, loops, A–B, time and keyframe navigation |
 | **OSC** | Float/Int/Bool parameters, presets/custom mappings and source selection |
-| **Combined** | Manual, scripts, OSC, tracking, feedback, replay and calculations together in output bindings |
+| **Protocol** | Buttplug v3/v4, TCode TCP/UDP/serial, WSDM, JSON and vendor compatibility subsets; position/duration, intensity and rotation speed remain distinct |
+| **Combined** | Manual, scripts, OSC, protocol, tracking, feedback, replay and calculations together in output bindings |
 
 Input activation controls delivery. Enable input when ready after saving configuration, changing modes/scripts or clearing emergency stop. Pausing a script stops automatic sending; explicit seek/step can still send a selected target while Script input is enabled.
 
@@ -55,7 +57,8 @@ Ordinary OSC receive timeout defaults off for change-only parameters. A positive
 | Output | Configuration focus |
 | --- | --- |
 | **TCode serial/UDP/TCP** | Connection and axis profile: twelve axes, direction, range, speed, locking and motion settings |
-| **Intiface/Buttplug** | Connect Central, scan devices and use supported position/vibration features |
+| **Intiface/Buttplug** | Connect Central and scan; default position/vibration plus explicit mappings to advertised rotation and other capabilities |
+| **Handy/Lovense/Autoblow/VacuGlide** | Explicit API endpoint/device identity, using supported position, intensity/speed or synchronized scripts; [subsets and limits](protocol-inputs.en.md#vendor-compatible-input-and-physical-device-output) |
 | **OSC parameter** | Address, type and range, with a VRChat write-back shortcut |
 | **DG-LAB** | DG-LAB 4 APP pairing, device/channel, user limits and intensity/waveform tasks |
 | **MIDI CC** | System output port, channel/controller and values from 0 to 127 |

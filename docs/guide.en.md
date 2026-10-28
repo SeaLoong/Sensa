@@ -49,6 +49,12 @@ Choose Add output, select its type and configure the address/device inside it. O
 
 Set TCode direction, travel and speed in its axis profile. Intiface connects to a separately running Central; vibration defaults to V0, with V1/V2 or L0 available. The OSC write-back shortcut prepares VRChat's common receiver; configure the parameter as writable on the current Avatar. [Full output operation](signal-pipeline.en.md#add-outputs-and-bindings)
 
+### Receive a website's serial or Bluetooth commands
+
+When a website lets you enter an Intiface address, start with Sensa's Buttplug virtual-device input. If the source requires serial or a dedicated Bluetooth connector, use the bundled [serial and BLE bridge tools](../tools/protocol-bridge/README.md). Configure Sensa's local network TCode TCP input on `12401`; `pty-input`, `serial-input` or `ble-input` then feeds received commands into the same input pipeline for output to OSR. Save configuration and check destination limits before enabling input.
+
+The source must actually enumerate the virtual serial endpoint; Windows needs an existing COM pair. BLE input supports LOOB and Thrust Sync position/duration frames, subject to peripheral-role and advertising permissions; Windows LOOB also has a name restriction. To send Sensa output to an actual device using either protocol, run `ble-output` and configure a TCode TCP output on `12411`, L0 only, Interval slope. The tool does not automatically install Python or drivers. [Installation, commands and platform limits](../tools/protocol-bridge/README.md)
+
 ### L0 recording
 
 Quick L0 recording captures current main-axis targets. Stopping preserves the final hold; export can simplify the curve into a single-axis funscript. Recording ends at 100000 frames. Exporting an active recording completes it while retaining the current input state. Restart asks before clearing the old buffer.

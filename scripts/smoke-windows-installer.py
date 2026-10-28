@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 from process_smoke import require_ci, wait_for_state
+from release import PROTOCOL_BRIDGE_ASSETS
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -39,9 +40,12 @@ def verify_installer(installer, single, report):
             executable = directory / 'Sensa.exe'
             if hashlib.sha256(executable.read_bytes()).digest() != hashlib.sha256(single.read_bytes()).digest():
                 raise AssertionError('Installed application differs from the checked single EXE / 安装后程序与已检查单文件不同')
-            for name in ('docs/parameter-geometry.html', 'scripts/shader-osc-bridge.py', 'scripts/telemetry_qr.py', 'LICENSE'):
+            for name in ('docs/parameter-geometry.html', 'scripts/shader-osc-bridge.py', 'scripts/telemetry_qr.py', 'LICENSE', *PROTOCOL_BRIDGE_ASSETS):
                 if not (directory / name).is_file():
                     raise AssertionError('Missing installed offline asset / 安装后缺少离线内容: ' + name)
+            for name in PROTOCOL_BRIDGE_ASSETS:
+                if (directory / name).read_bytes() != (ROOT / name).read_bytes():
+                    raise AssertionError('Installed protocol bridge differs from source / 安装后的协议桥与源码不同: ' + name)
             subprocess.run([sys.executable, str(ROOT / 'scripts/smoke.py'), '--exe', str(executable),
                             '--report-dir', str((report / 'application').resolve())], check=True, timeout=300)
             (directory / 'config.json').write_text('user configuration must survive uninstall', encoding='utf-8')

@@ -49,6 +49,12 @@
 
 TCode 的方向、行程和速度在轴配置中设置。Intiface 连接单独运行的 Central；振动默认使用 V0，也可选择 V1／V2 或 L0。OSC 输出的“回写到 VRChat OSC”会准备常用接收目标，参数须在当前 Avatar 中配置为可写。[各输出的完整操作](signal-pipeline.md#添加输出与绑定)
 
+### 从网站接入串口或蓝牙命令
+
+网站能填写 Intiface 地址时，先使用 Sensa 的 Buttplug 虚拟设备输入。只有来源要求串口或专用蓝牙连接时，再运行发布包附带的[串口与 BLE 桥工具](../tools/protocol-bridge/README.zh-CN.md)。先在 Sensa 配置本机网络 TCode TCP 输入 `12401`，工具的 `pty-input`／`serial-input`／`ble-input` 将收到的命令送入同一输入管线，再由 Sensa 输出到 OSR。保存配置、确认目标限位后再启用输入。
+
+虚拟串口需要被来源软件实际枚举；Windows 需要已有 COM 对。BLE 输入支持 LOOB 与 Thrust Sync 的原始位置／时长协议，依赖系统外围设备角色和广播权限；Windows LOOB 另有名称限制。若要从 Sensa 输出到这两类真实 BLE 设备，使用工具的 `ble-output`，将 TCode TCP 输出设为 `12411`、仅 L0、Interval。工具不会自动安装 Python 或驱动。[完整安装、命令与平台限制](../tools/protocol-bridge/README.zh-CN.md)
+
 ### L0 录制
 
 L0 快捷录制保存当前主轴的动作目标。停止会保留末值的保持时间，导出时可简化轨迹，得到单轴 funscript。录制最多 100000 帧；活动导出会先完成录制，输入状态保持当前设置。重新录制前会确认是否清空旧缓冲。

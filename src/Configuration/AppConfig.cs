@@ -1,4 +1,7 @@
 using Sensa.Signals;
+using Sensa.Input.Protocols;
+using Sensa.Outputs.Devices;
+using Sensa.Outputs.Intiface;
 using Sensa.Outputs;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -41,6 +44,10 @@ public enum OutputDeviceType
     WebSocketJson,
     Mqtt,
     Midi,
+    Handy,
+    Autoblow,
+    VacuGlide,
+    Lovense,
 }
 
 public enum TCodeAxisMode
@@ -137,6 +144,8 @@ public sealed class OscMappingPresetConfig
 
 public sealed class OutputDeviceConfig
 {
+    public DeviceProtocolOptions Device { get; set; } = new();
+    public List<IntifaceFeatureRoute> IntifaceFeatures { get; set; } = new();
     public SignalOutputOptions Signal { get; set; } = new();
     public string           Id                  { get; set; } = "";
     public string           Name                { get; set; } = "";
@@ -174,6 +183,7 @@ public sealed class TcpTCodeConfig
 
 public sealed class IntifaceConfig
 {
+    public List<IntifaceFeatureRoute> FeatureRoutes { get; set; } = new();
     public bool   Enabled              { get; set; } = true;
     public bool   ManageEngineProcess  { get; set; } = false;
     public string WebsocketAddress     { get; set; } = "ws://localhost:12345";
@@ -299,7 +309,7 @@ public sealed class DeviceRouteEntry
 //  Root save file
 // ═══════════════════════════════════════════════════════════════════════
 
-public sealed class AppConfig
+public sealed partial class AppConfig
 {
     private static readonly HashSet<string> BuiltInOscMappingPresetIds = BuildDefaultOscMappingPresets()
         .Select(preset => preset.Id)
@@ -318,6 +328,7 @@ public sealed class AppConfig
     public TcpTCodeConfig         TcpTCode     { get; set; } = new();
     public List<SignalMapping>     Signals      { get; set; } = new();
     public List<ComputedSignalConfig> ComputedSignals { get; set; } = new();
+    public List<ProtocolInputConfig> ProtocolInputs { get; set; } = new();
     public List<OscMappingPresetConfig> OscMappingPresets { get; set; } = new();
     public List<DeviceRouteEntry> DeviceRoutes { get; set; } = new();
 
@@ -430,6 +441,7 @@ public sealed class AppConfig
             .Select(CloneSignal)
             .ToList();
         ComputedSignals = ComputedSignalEvaluator.CloneAndValidate(other.ComputedSignals);
+        ProtocolInputs = ProtocolInputConfiguration.CloneAndValidate(other.ProtocolInputs);
 
         OscMappingPresets = CloneOscMappingPresets(other.OscMappingPresets);
 
@@ -485,6 +497,10 @@ public sealed class AppConfig
             .Select(CloneSignal)
             .ToList();
         ComputedSignals = ComputedSignalEvaluator.CloneAndValidate(ComputedSignals);
+        ProtocolInputs = ProtocolInputConfiguration.CloneAndValidate(ProtocolInputs);
+        ValidateProtocolInputTargets();
+        foreach (var output in Outputs.Where(output => output.Type is OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense))
+            DeviceProtocolOptions.Validate(output.Device);
         SignalOutputConfiguration.Validate(this);
         ComputedSignalEvaluator.ValidateMappingReferences(Signals, ComputedSignals);
         ComputedSignalEvaluator.ValidateMappingReferences(OscMappingPresets.SelectMany(preset => preset.Mappings), ComputedSignals);
@@ -797,6 +813,26 @@ public sealed class AppConfig
                 yield break;
             }
 
+            case OutputDeviceType.Handy:
+            case OutputDeviceType.Autoblow:
+            case OutputDeviceType.VacuGlide:
+            case OutputDeviceType.Lovense:
+            {
+                var identity = output.Type == OutputDeviceType.Lovense ? output.Device.DeviceId : output.Device.ConnectionKey;
+                if (string.IsNullOrWhiteSpace(identity)) yield break;
+                var endpoint = output.Device.Endpoint.Length > 0 ? output.Device.Endpoint : output.Type switch
+                {
+                    OutputDeviceType.Handy => "https://www.handyfeeling.com/",
+                    OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide => "https://latency.autoblowapi.com/",
+                    _ => "https://127-0-0-1.lovense.club:30010/",
+                };
+                if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var api)) yield break;
+                var host = api.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ? "127.0.0.1" : api.Host.ToLowerInvariant();
+                var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(identity)));
+                yield return ($"vendor:{output.Type}:{api.Scheme}:{host}:{api.Port}:{digest}", $"{output.Type} API device");
+                yield break;
+            }
+
             case OutputDeviceType.Intiface:
             {
                 var websocketAddress = NormalizeWebsocketAddress(output.WebsocketAddress, "ws://localhost:12345");
@@ -1055,6 +1091,8 @@ public sealed class AppConfig
                 Name = name,
                 Type = type,
                 Signal = SignalOutputConfiguration.Clone(item?.Signal),
+                Device = DeviceProtocolOptions.Clone(item?.Device),
+                IntifaceFeatures = IntifaceFeatureRoute.CloneAndValidate(item?.IntifaceFeatures),
                 Enabled = item?.Enabled ?? false,
                 MotionProfileId = IsTCodeOutput(type)
                     ? NormalizeMotionProfileId(item?.MotionProfileId, axisProfiles, defaultProfileId)
@@ -1121,6 +1159,8 @@ public sealed class AppConfig
         target.VibrationAxis = source.VibrationAxis;
         target.WebsocketAddress = source.WebsocketAddress;
         target.Signal = SignalOutputConfiguration.Clone(source.Signal);
+        target.Device = DeviceProtocolOptions.Clone(source.Device);
+        target.IntifaceFeatures = IntifaceFeatureRoute.CloneAndValidate(source.IntifaceFeatures);
     }
 
     private TCodeMotionProfile BuildMirroredTargetProfile(string? motionProfileId)

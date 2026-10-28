@@ -17,8 +17,8 @@ CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包
 
 | 系统与方式 | 架构 | 文件名示例 | 怎样启动 |
 | --- | --- | --- | --- |
-| Windows 安装版（推荐） | x64／ARM64 | `Sensa-<版本>-win-<架构>-Setup.exe` | 为当前用户安装到 `%LOCALAPPDATA%\Programs\Sensa`，从开始菜单启动并打开浏览器，附带离线指南和 Shader 桥工具，无需管理员权限 |
-| Windows 单文件 | x64／ARM64 | `Sensa-<版本>-win-<架构>-SingleFile.exe` | 直接运行一个 EXE，内置 Web 界面与交互图解，无需旁边另放程序文件；Python Shader 桥和完整 Markdown 指南另取安装器或便携包 |
+| Windows 安装版（推荐） | x64／ARM64 | `Sensa-<版本>-win-<架构>-Setup.exe` | 为当前用户安装到 `%LOCALAPPDATA%\Programs\Sensa`，从开始菜单启动并打开浏览器，附带离线指南、Shader 与串口／BLE 桥工具，无需管理员权限 |
+| Windows 单文件 | x64／ARM64 | `Sensa-<版本>-win-<架构>-SingleFile.exe` | 直接运行一个 EXE，内置 Web 界面与交互图解，无需旁边另放程序文件；Python 桥工具和完整 Markdown 指南另取安装器或便携包 |
 | Windows／Linux／macOS 便携版 | x64／ARM64 | `Sensa-<版本>-<平台>-<架构>.zip`／`.tar.gz` | 便携目录，完整解压后运行，附带离线指南与工具；Windows 使用 ZIP，其余系统使用 tar.gz |
 
 [下载](https://github.com/SeaLoong/Sensa/releases/latest)直接链接到 GitHub 最新正式版入口；尚无正式版时，GitHub 会将该地址重定向到发布历史。开发预览与旧版本单独列在[发布历史](https://github.com/SeaLoong/Sensa/releases)。从所选版本的发布附件下载桌面包、Unity ZIP 与 `SHA256SUMS.txt` 校验文件。
@@ -152,6 +152,19 @@ python -X utf8 scripts/verify.py
 ```
 
 浏览器 E2E、截图和完整进程冒烟在 Actions 执行，隔离单元和静态检查可本地运行。设备相关检查使用临时配置与模拟传输。真实硬件、Unity／VRChat 和 World 实际交互另行验收。
+
+### 可选串口与 BLE 桥工具
+
+便携包和 Windows 安装器通过 `scripts/release.py` 的明确白名单附带 `tools/protocol-bridge` 中的 Python 源码、双语用法及依赖版本文件；安装器复用同一工具文件，Actions 逐个核对安装后的内容。该目录的可选依赖也由 Dependabot 每周维护，BLE 后端与原生 WinRT 投影分别分组更新，保留各平台标记和安全更新检查。程序不会安装 Python、虚拟串口驱动或 Python 依赖，独立单 EXE 也不嵌入解释器。需要这些工具时，从便携包或安装器取得文件，在自己选择的 Python 虚拟环境安装所需依赖。
+
+```shell
+python tools/protocol-bridge/bridge.py --check
+python -m pip install -r tools/protocol-bridge/requirements-serial.txt
+python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
+python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
+```
+
+BLE 输入在 Linux／macOS 使用 `requirements-ble-input.txt` 中的 Bless，在 Windows 使用 `requirements-ble-input-windows.txt` 中兼容的原生 PyWinRT 版本，避免 Bless 的 Windows 依赖冲突。BLE 外围角色／广播、系统权限和同适配器双角色需实机检查；Windows LOOB 另受系统广播名前缀限制。PTY 不保证被浏览器 Web Serial 枚举；Windows 使用用户已建立的受信任签名驱动 COM 对。`--check` 不打开硬件，隔离测试使用本地 PTY、假串口／BLE／WinRT，并不代表网站与设备验收。两个 BLE 协议没有已验证的硬件急停指令，停止只清理会话并断开，不能把归零当作停止。[安装与完整操作](../tools/protocol-bridge/README.zh-CN.md)
 
 修改 Three.js 源码或依赖后运行 `npm run build:web`，提交可再现的 `docs/assets/parameter-geometry-3d.js` 与完整 `3d.LICENSE.txt`。修改普通 Markdown 后可直接构建站点：`npm run build:pages`，产物位于 `artifacts/pages/`。
 

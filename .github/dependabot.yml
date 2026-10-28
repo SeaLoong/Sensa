@@ -12,6 +12,15 @@ updates:
     directory: /scripts
     schedule:
       interval: weekly
+  - package-ecosystem: pip
+    directory: /tools/protocol-bridge
+    schedule:
+      interval: weekly
+    groups:
+      bluetooth-backends:
+        patterns: [bleak, bless]
+      native-winrt:
+        patterns: [winrt-*]
   - package-ecosystem: npm
     directory: /
     schedule:
