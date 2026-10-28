@@ -1,13 +1,13 @@
 {
   "schema": 1,
   "candidate": {
-    "commit": "5d60f782313c9d6291bf9a32fa68394b63a1136e",
-    "imageCommit": "a53b8e18cf1a3da710f368b3ae5a32c6cd71204d",
-    "runId": "40035585736",
+    "commit": "aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f",
+    "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d",
+    "runId": "40756483229",
     "attempt": "1",
     "counts": {
-      "total": 116,
-      "passed": 116,
+      "total": 144,
+      "passed": 144,
       "expectedFailure": 0,
       "failed": 0,
       "flaky": 0,
@@ -15,1062 +15,1813 @@
       "notRun": 0,
       "interrupted": 0
     },
-    "patchSha256": "5845980e8a534f2f61b2b4b3ddf0bbf2f4fca55f145afef993f61d4ca57633a3"
+    "patchSha256": "49e69e04d1327b0f57785618c6355d1be15b6104142661c40a5940b04284cc10"
   },
-  "comparison": {
-    "commit": "b0c08cb02e1352b9ad0cfcc7e279e71cad6f7fdc",
-    "parents": [
-      "d3bcf1701ee114271cafa285cb382532e851ccaf",
-      "a53b8e18cf1a3da710f368b3ae5a32c6cd71204d"
-    ],
-    "runId": "40037674549",
-    "attempt": "1",
-    "passed": 116,
-    "total": 116,
-    "selectionComplete": true,
-    "snapshotsCompared": true
+  "comparisonPolicy": {
+    "requiredSuite": "all",
+    "requiredMode": "comparison",
+    "requiredPassed": 144,
+    "zeroOtherOutcomesRequired": true,
+    "selectionCompleteRequired": true,
+    "snapshotsComparedRequired": true,
+    "successfulCommandRequired": true,
+    "evidence": "Use the CI summary for its exact pinned source; the candidate run is not ordinary comparison evidence."
   },
   "review": {
-    "method": "Each of 172 original PNGs individually opened; file hashes matched candidate report and export manifest. No prior environment visual receipts reused.",
-    "scope": "Visual review and isolated browser simulations; not Unity or real hardware acceptance.",
+    "method": "Root individually opened all13 changed originals in original detail. Two settings images and all8 site originals matched the10 images individually opened earlier in this task;149 remaining PNGs exactly matched the prior per-file review receipt. All172 current artifact/Git blobs and the export patch were verified.",
+    "openedOriginals": 13,
+    "reusedRecentExactHashes": 10,
+    "reusedPriorExactHashes": 149,
+    "scope": "Visual review of isolated browser simulations; not physical hardware, vendor cloud or Unity-client acceptance. Full ordinary comparison remains the merge gate.",
     "nonBlockingObservations": [
       "English singular-count labels retain plural nouns in a few panels.",
       "Long native select labels truncate; full content headings remain visible.",
       "Wide tables use explicit horizontal scroll containers."
     ]
   },
+  "history": {
+    "previousReceipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json",
+    "previousCandidate": {
+      "commit": "5d60f782313c9d6291bf9a32fa68394b63a1136e",
+      "imageCommit": "a53b8e18cf1a3da710f368b3ae5a32c6cd71204d",
+      "runId": "40035585736",
+      "attempt": "1",
+      "counts": {
+        "total": 116,
+        "passed": 116,
+        "expectedFailure": 0,
+        "failed": 0,
+        "flaky": 0,
+        "skipped": 0,
+        "notRun": 0,
+        "interrupted": 0
+      },
+      "patchSha256": "5845980e8a534f2f61b2b4b3ddf0bbf2f4fca55f145afef993f61d4ca57633a3"
+    },
+    "previousComparison": {
+      "commit": "b0c08cb02e1352b9ad0cfcc7e279e71cad6f7fdc",
+      "parents": [
+        "d3bcf1701ee114271cafa285cb382532e851ccaf",
+        "a53b8e18cf1a3da710f368b3ae5a32c6cd71204d"
+      ],
+      "runId": "40037674549",
+      "attempt": "1",
+      "passed": 116,
+      "total": 116,
+      "selectionComplete": true,
+      "snapshotsCompared": true
+    }
+  },
   "files": [
-    {
-      "path": "tests/e2e/__review__/site/desktop/guide-en-US.png",
-      "sha256": "2e0e39ba52a958d6b95d791a1bb3e9716863d26ce088070d7384c57cb762b1a8",
-      "outcome": "visually_ok",
-      "notes": "Five sections, navigation/sidebar/TOC and tables readable without overlapping; installer filenames wrap within cells. Embedded English manual-control crop is intentional, not a full-window capture."
-    },
-    {
-      "path": "tests/e2e/__review__/site/desktop/guide-zh-CN.png",
-      "sha256": "98e7045912f3d18bf4ba1a98cffe79d53628926ecbbef78f6d870f4db67ad11d",
-      "outcome": "visually_ok",
-      "notes": "Chinese first-run five-section guide, installer table, screenshot and sidebar are legible; code/path wrapping stays within cells."
-    },
-    {
-      "path": "tests/e2e/__review__/site/desktop/home-en-US.png",
-      "sha256": "96ce0e49056debb494cf75b9982e452c5e968eee5d5f44f2e440bd6da25c46cf",
-      "outcome": "visually_ok",
-      "notes": "Hero installer buttons, flow example, gallery controls, three-step guide and help grid remain separated and readable. Badges are historical capture content, not current status evidence."
-    },
-    {
-      "path": "tests/e2e/__review__/site/desktop/home-zh-CN.png",
-      "sha256": "f5eae0c8c9aede34ac2f1452dff9deb8c1b87f07b6323f71232c1b90eb47bc56",
-      "outcome": "visually_ok",
-      "notes": "Chinese homepage full hierarchy, gallery, connection examples, recording and Unity guidance readable with consistent spacing. CI badge is historical, not new validation."
-    },
-    {
-      "path": "tests/e2e/__review__/site/mobile/guide-en-US.png",
-      "sha256": "ebe6f4bb8dfce90781eaebc74cf7c0cb0b1898d484b3a12a2dfe35b9d488674c",
-      "outcome": "visually_ok",
-      "notes": "Header wraps; guide sections and manual panel fit narrow page. Startup table extends within horizontal scroll container; screenshot captures its initial left position, not all columns. Source .doc-scroll overflow:auto and keyboard-scroll E2E assertions reviewed; runtime scroll behavior remains pending Actions evidence."
-    },
-    {
-      "path": "tests/e2e/__review__/site/mobile/guide-zh-CN.png",
-      "sha256": "6e3fcb147164a39b4737edb6e321392afb45fca221a4bfb089816baa83c556d7",
-      "outcome": "visually_ok",
-      "notes": "Chinese guide reflows; screenshot fits content column; first startup table right column continues outside horizontal scroll viewport. Source explicitly provides accessible scrolling; other text and tables remain readable. No local browser test performed."
-    },
-    {
-      "path": "tests/e2e/__review__/site/mobile/home-en-US.png",
-      "sha256": "220884d35493f1e06ec82160e593282a585f15c3335d7f9fc926eea33242aa4d",
-      "outcome": "visually_ok",
-      "notes": "Narrow layout stacks hero, flow rows, gallery, first-run steps, outputs and recording card. Buttons and help cards wrap cleanly; no page-wide clipping observed. Tool resized 390x6205 to 377x6000, content still legible."
-    },
-    {
-      "path": "tests/e2e/__review__/site/mobile/home-zh-CN.png",
-      "sha256": "a8763ae3cca8c9c524430a8f5a74a083239995893fea81fb7b1093cceb22a89b",
-      "outcome": "visually_ok",
-      "notes": "Narrow Chinese page stacks sections; installer links and gallery controls wrap without overlap. Recording heading wraps naturally; screenshots are within panel; footer and help links visible."
-    },
     {
       "path": "tests/e2e/__screenshots__/desktop/combined-input-en-US.png",
       "sha256": "5eb744de82e7e0a06f5c5a1b2d95e930a08b5bea44594c39bf0439df4a9a3547",
       "outcome": "visually_ok",
-      "notes": "English combined-input view: navigation, input-status banner and 3-column manual controls are legible; lower controls continue beyond the viewport normally."
+      "notes": "English combined-input view: navigation, input-status banner and 3-column manual controls are legible; lower controls continue beyond the viewport normally.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/combined-input-zh-CN.png",
       "sha256": "9472ca144560289d7d535cd155d1e5a5e2081a9bacbc123497c552c515cc1db3",
       "outcome": "visually_ok",
-      "notes": "Chinese combined-input viewport: navigation, enabled-input banner and aligned three-column manual sliders are legible; bottom continuation is normal viewport cropping."
-    },
-    {
-      "path": "tests/e2e/__screenshots__/desktop/computed-plane-direction-en-US.png",
-      "sha256": "987541c6ca2f751f9a3863b51c7b28bab79c483ea38a9e55166a014252136773",
-      "outcome": "visually_ok",
-      "notes": "Plane-normal group: fixed direction XYZ 0/3/4 and normalization explanation fit without overlapping."
+      "notes": "Chinese combined-input viewport: navigation, enabled-input banner and aligned three-column manual sliders are legible; bottom continuation is normal viewport cropping.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-plane-direction-zh-CN.png",
       "sha256": "92fcd32c8e875feeb30304d19e8e3c84f36cba4599a74eea646fa216ac940c4a",
       "outcome": "visually_ok",
-      "notes": "Plane normal XYZ group: fixed direction 0/3/4, normalization explanation and fields fit without overlap."
+      "notes": "Plane normal XYZ group: fixed direction 0/3/4, normalization explanation and fields fit without overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
+    },
+    {
+      "path": "tests/e2e/__screenshots__/desktop/computed-plane-direction-en-US.png",
+      "sha256": "987541c6ca2f751f9a3863b51c7b28bab79c483ea38a9e55166a014252136773",
+      "outcome": "visually_ok",
+      "notes": "Plane-normal group: fixed direction XYZ 0/3/4 and normalization explanation fit without overlapping.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-plane-point-en-US.png",
       "sha256": "08cdf84888e60544f8efcbf11255687b3f8ce6e06086dfcd38f82879a7b1d8f2",
       "outcome": "visually_ok",
-      "notes": "Measured-position group: fixed coordinates 0.3/0.4/0.2 and same-frame/same-unit instruction are legible."
+      "notes": "Measured-position group: fixed coordinates 0.3/0.4/0.2 and same-frame/same-unit instruction are legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-plane-point-zh-CN.png",
       "sha256": "87e098a5c55472c2c76f9bff764cefdd32457351eaa7ebeda3f22e562218f503",
       "outcome": "visually_ok",
-      "notes": "Point XYZ group: 0.3/0.4/0.2 and same-coordinate-system/unit guidance are fully visible."
+      "notes": "Point XYZ group: 0.3/0.4/0.2 and same-coordinate-system/unit guidance are fully visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-editor-en-US.png",
       "sha256": "9cc2df0e9f26e00ba424685cfc4402cf5db8dc76d70e1acbc25b7ae705ae25ac",
       "outcome": "visually_ok",
-      "notes": "English computed-signal editor: hierarchy, operation, input lifetime and 0.65 result are visible; minor existing plural wording '1 calculations'/'1 mappings', no layout blocker."
+      "notes": "English computed-signal editor: hierarchy, operation, input lifetime and 0.65 result are visible; minor existing plural wording '1 calculations'/'1 mappings', no layout blocker.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-editor-zh-CN.png",
       "sha256": "66833c787b274b296c78cdee7faf55fe6c9e897fda8ba60f7af973598b635624",
       "outcome": "visually_ok",
-      "notes": "Chinese computed editor: OSC navigation, saved mapping, expanded Blend card and 0.65 result are coherent; below-fold continuation is expected."
+      "notes": "Chinese computed editor: OSC navigation, saved mapping, expanded Blend card and 0.65 result are coherent; below-fold continuation is expected.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-input-en-US.png",
       "sha256": "98640022041a53c7169bd51a9b1251275c9c6bd2ea272c287400fa2e3c4d074b",
       "outcome": "visually_ok",
-      "notes": "OSC input row: input type, CI/A parameter and weight 1 align correctly."
+      "notes": "OSC input row: input type, CI/A parameter and weight 1 align correctly.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-input-zh-CN.png",
       "sha256": "1c0ed078bb3bd4e648004c7a6f8147c91f3a85ac90ef5e9791a4277e4bf202db",
       "outcome": "visually_ok",
-      "notes": "Chinese OSC input row: path CI/A, weight 1 and removal control are aligned and readable."
+      "notes": "Chinese OSC input row: path CI/A, weight 1 and removal control are aligned and readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-settings-en-US.png",
       "sha256": "f227b8472a29ced02e92bf6f1ad437f5c1911fdb155ecc9479c628d32ddbabaf",
       "outcome": "visually_ok",
-      "notes": "Calculation settings: Blend, Weighted average and input validity 0 ms are readable."
+      "notes": "Calculation settings: Blend, Weighted average and input validity 0 ms are readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/computed-signal-settings-zh-CN.png",
       "sha256": "9ff099fa8871f7cc959ad79efba1140968f58e164cae4396e2370f45c1241bc3",
       "outcome": "visually_ok",
-      "notes": "Chinese computation settings: Blend, weighted average and 0 ms validity fields are clearly labeled."
+      "notes": "Chinese computation settings: Blend, weighted average and 0 ms validity fields are clearly labeled.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/contact-root-position.png",
-      "sha256": "2c02d1187ce5948a64c1a06564678576dc7815b6c238b6199135959afc7ab63a",
+      "sha256": "1a1a23b3e54aef028cca807a29e6234ff171698367039a2c0729ad96822187b5",
       "outcome": "visually_ok",
-      "notes": "Contact root plot: X/Z and Y/Z diagrams, receiver radius 2.000 m, XYZ metres and velocity m/s remain distinct; orientation correctly requires three-point measurement."
+      "notes": "Original opened: XZ/YZ plots, metre XYZ, independent relative velocity/speed and radius remain readable; zero approach derivative and unknown orientation are clearly distinct.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/contact-root-speed.png",
       "sha256": "66409ddc6d3f004554d43d0293b8e07f5c80b8e6d631c625749c8151123c23d0",
       "outcome": "visually_ok",
-      "notes": "Contact velocity panel: position in m, relative velocity and speed in m/s, change rate /s and three-point orientation limitation are visible."
-    },
-    {
-      "path": "tests/e2e/__screenshots__/desktop/control-page.png",
-      "sha256": "5b3b8e5dfe362e80618bcf9d5fa97c572912a48a1a565e01ed1a88539d9c83ed",
-      "outcome": "visually_ok",
-      "notes": "Chinese control page: disabled input banner, manual axes and output section are readable with normal viewport continuation."
+      "notes": "Contact velocity panel: position in m, relative velocity and speed in m/s, change rate /s and three-point orientation limitation are visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/disabled-input.png",
       "sha256": "a21716e14acfbac1f350ffa15b2c2a63d9ac5983ccc52e99378e72223ec1d1f6",
       "outcome": "visually_ok",
-      "notes": "Disabled-input panel clearly shows pending send and no target sent."
+      "notes": "Disabled-input panel clearly shows pending send and no target sent.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
+    },
+    {
+      "path": "tests/e2e/__screenshots__/desktop/control-page.png",
+      "sha256": "5b3b8e5dfe362e80618bcf9d5fa97c572912a48a1a565e01ed1a88539d9c83ed",
+      "outcome": "visually_ok",
+      "notes": "Chinese control page: disabled input banner, manual axes and output section are readable with normal viewport continuation.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/emergency-output.png",
       "sha256": "856e606842ff1e168c59ea33ac7a0bfc4a3efc6e0aada0d4c7d2c46f27ef333a",
       "outcome": "visually_ok",
-      "notes": "Emergency output snippet clearly reports stop requested and no target sent."
+      "notes": "Emergency output snippet clearly reports stop requested and no target sent.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-calibration.png",
       "sha256": "d1d410189a408aff959e5c274ff57961f66d8c416a3ea8fb14efaff01a9a4e1c",
       "outcome": "visually_ok",
-      "notes": "English calibration: start 5.0 cm, end 15.0 cm and 100% preview align with Capture/Replace controls."
+      "notes": "English calibration: start 5.0 cm, end 15.0 cm and 100% preview align with Capture/Replace controls.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-help.png",
       "sha256": "c47f59a22c8e258166934b450dcaa2c90de62d5866dcc8b174c0c01625fe07a7",
       "outcome": "visually_ok",
-      "notes": "English help modal: six task cards, emergency stop and close controls fit; text wraps cleanly."
+      "notes": "English help modal: six task cards, emergency stop and close controls fit; text wraps cleanly.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-manual.png",
       "sha256": "f37adc6d1627d76e42996ace1a47835d21e16eaa93d1f42f2ace76a6be5dbdd9",
       "outcome": "visually_ok",
-      "notes": "English manual panel: L0 999, L1/L2 500 and continuous-send/stop controls readable; focus ring intact."
+      "notes": "English manual panel: L0 999, L1/L2 500 and continuous-send/stop controls readable; focus ring intact.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-output.png",
       "sha256": "563b6c3ecb831bfa78248802fe569d219668476fb390daaed3d00f5ba818f35e",
       "outcome": "visually_ok",
-      "notes": "English last-sent-target snippet shows L0=500 and intact progress bar."
+      "notes": "English last-sent-target snippet shows L0=500 and intact progress bar.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-script-loaded.png",
       "sha256": "46963c92e646e1f03920fbf89bc6114b4f99a934e920dd9c5c830bf19b46a296",
       "outcome": "visually_ok",
-      "notes": "English loaded script: file name, 3 actions, 10-second timeline and playback controls readable."
+      "notes": "English loaded script: file name, 3 actions, 10-second timeline and playback controls readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-script-options.png",
       "sha256": "339b13d49b3104124c22c6d1240fa0fc8d989fd7daf8b292b24801c5b58d2285",
       "outcome": "visually_ok",
-      "notes": "English script options: playback/custom speed, loop and collapsed sections align."
+      "notes": "English script options: playback/custom speed, loop and collapsed sections align.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-script.png",
       "sha256": "49a629261dbaf099034e43868872707c5fc0f143dc567e2c075597242ee4d908",
       "outcome": "visually_ok",
-      "notes": "English empty script state and Choose script action clearly displayed."
+      "notes": "English empty script state and Choose script action clearly displayed.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/english-toolbar.png",
       "sha256": "6bf046e35b4764d87f72f15a16ef32ecb6891f7a70d9d3b8498a0502a56a9fe1",
       "outcome": "visually_ok",
-      "notes": "English toolbar: connection/mode, enable toggle, emergency stop, language and help are legible."
+      "notes": "English toolbar: connection/mode, enable toggle, emergency stop, language and help are legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/fixed-root-position.png",
       "sha256": "796cfa88e1abf33793876f337735e9108f7d610e554722713695bcbf87bab073",
       "outcome": "visually_ok",
-      "notes": "SPS fixed-root panel distinguishes local units for position and fitting error; three-point orientation requirement visible."
+      "notes": "SPS fixed-root panel distinguishes local units for position and fitting error; three-point orientation requirement visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/help-workflow.png",
       "sha256": "774f51669460d165a046a1b34a46c7a96d8752d6ae21fd495456d195d8551f7d",
       "outcome": "visually_ok",
-      "notes": "Chinese help modal: six task cards and footer actions fit; SPS 四点定位 wording is visible."
+      "notes": "Chinese help modal: six task cards and footer actions fit; SPS 四点定位 wording is visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/manual-output.png",
       "sha256": "9a713d017e170ff84a7751be598ed5cd0f61f92d7dfe05401bffb381233692ce",
       "outcome": "visually_ok",
-      "notes": "Chinese output readout clearly shows latest L0 target 600 and proportional bar."
+      "notes": "Chinese output readout clearly shows latest L0 target 600 and proportional bar.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/manual-ready.png",
       "sha256": "41d0427b5dd5f5be1e3569696270da4aea8893f929b3ef544537c4d56fe716bb",
       "outcome": "visually_ok",
-      "notes": "Chinese manual controls: three axes and send/continuous/disable controls align, with collapsed settings intact."
+      "notes": "Chinese manual controls: three axes and send/continuous/disable controls align, with collapsed settings intact.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/ogb-control-settings.png",
       "sha256": "105b7e422e79dea7ac590498080afa279e654d1776a5def6f8d30490c196e571",
       "outcome": "visually_ok",
-      "notes": "OGB configuration: enabled checkbox, heartbeat explanation and loopback IP/port fields readable without overlap."
+      "notes": "OGB configuration: enabled checkbox, heartbeat explanation and loopback IP/port fields readable without overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-gate-stopped.png",
       "sha256": "5666578e907595a59cc432b714c6ea84576e7bc0eee81c8dc5a1d675f41d7bef",
       "outcome": "visually_ok",
-      "notes": "OSC gate-stopped view: orange status panel, mapping action and listening state are readable."
-    },
-    {
-      "path": "tests/e2e/__screenshots__/desktop/osc-hub.png",
-      "sha256": "e5389cffb901d234bb88232de4b1bd79801a67ca56b5b012754ddadf17a47005",
-      "outcome": "visually_ok",
-      "notes": "OSC Hub: event-driven selection, disabled frequency, Mock Hub endpoint and save/add controls legible."
+      "notes": "OSC gate-stopped view: orange status panel, mapping action and listening state are readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-mappings-page.png",
       "sha256": "e6aa1b24616b5b45e8a246bf0e7cc47b85cdfef9ca1ca7b0fb31a6d742d1d3d8",
       "outcome": "visually_ok",
-      "notes": "Chinese mapping page: preset selector, save controls and calculation/space-preset sections have no overlap."
+      "notes": "Chinese mapping page: preset selector, save controls and calculation/space-preset sections have no overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
+    },
+    {
+      "path": "tests/e2e/__screenshots__/desktop/osc-hub.png",
+      "sha256": "e5389cffb901d234bb88232de4b1bd79801a67ca56b5b012754ddadf17a47005",
+      "outcome": "visually_ok",
+      "notes": "OSC Hub: event-driven selection, disabled frequency, Mock Hub endpoint and save/add controls legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-parameter-reference-contact-speed-en-US.png",
-      "sha256": "ffeb3c397f3bd1859af2cd7390d880c102996d32a004841993e002854bbcdac1",
+      "sha256": "0190127d320e9d441661e0b08bf2be9908f77f9eaa707dc5e89fe948424afadd",
       "outcome": "visually_ok",
-      "notes": "English Contact speed reference modal: m/s, nonnegative range, SDK definition, sources and action footer fully visible."
+      "notes": "Original opened: English parameter modal keeps units, SDK definition, source links, live timestamp and complete footer readable without overlap.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-parameter-reference-contact-speed-zh-CN.png",
-      "sha256": "f73e11f85a69a626b940d163368fa4e902ec3e36d0736dfc0f6ea89ebd39306d",
+      "sha256": "f12cf276c0b309c73213aea1743b46990c55bf314cc0dc884245146bef041882",
       "outcome": "visually_ok",
-      "notes": "Contact speed reference modal: m/s, nonnegative range, zero-at-rest explanation and SDK references are legible."
+      "notes": "Original opened: Chinese parameter modal keeps metres-per-second, SDK explanation, sources, live timestamp and close/map actions legible.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-parameters.png",
       "sha256": "0cba3b23b237a2be34789502ea17d732fa1a0309cacb9537c07d397dccd392f6",
       "outcome": "visually_ok",
-      "notes": "OSC table: pins, parameter paths, values, loopback sources and mapping buttons align; timestamp column intentionally empty in capture."
+      "notes": "OSC table: pins, parameter paths, values, loopback sources and mapping buttons align; timestamp column intentionally empty in capture.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/osc-receiver-settings.png",
       "sha256": "efaee9b2a933f100d63ca1f72f17483292f684acec3931b8919d414a80a58543",
       "outcome": "visually_ok",
-      "notes": "OSC receiver fields: loopback address, port and timeout labels fit."
+      "notes": "OSC receiver fields: loopback address, port and timeout labels fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/output-conflict.png",
       "sha256": "abf698fe89e84d260858e2580a05840226671dfd72588071e2817c7c00cbf201",
       "outcome": "visually_ok",
-      "notes": "Output conflict modal: address conflict error, matching UDP port 19999 and disabled Save action coherent; no clipping."
+      "notes": "Output conflict modal: address conflict error, matching UDP port 19999 and disabled Save action coherent; no clipping.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/paired-pose.png",
       "sha256": "ef86b32fc00376f778b9ef7dc13cb5e3f4fd30a5537d329b7efeac1b9a778930",
       "outcome": "visually_ok",
-      "notes": "Paired pose: diagram labels are separated; 50% ratio, cm offsets, degree angles and mm fit error are explicit."
+      "notes": "Paired pose: diagram labels are separated; 50% ratio, cm offsets, degree angles and mm fit error are explicit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-contact-sdk-en-US.png",
       "sha256": "40f5d27d0e782f356b3f4aba284b894c5f2eac42e0bdf57dbcbab65e1dee74a3",
       "outcome": "visually_ok",
-      "notes": "English Contact guide: original full-resolution image reviewed; intro specifies authored scale 1, 2 m receiver and 1 mm sender, m-based XYZ and independent velocity; long parameter names wrap within table."
+      "notes": "English Contact guide: original full-resolution image reviewed; intro specifies authored scale 1, 2 m receiver and 1 mm sender, m-based XYZ and independent velocity; long parameter names wrap within table.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-contact-sdk-orbit-en-US.png",
       "sha256": "6bdce1aac0cc2265045ee7921dcb5599a335231307f5825d4b9187061f335e58",
       "outcome": "visually_ok",
-      "notes": "English Contact orbit guide: receiver 2 m / sender 1 mm at authored scale 1 are explicit; full table and parameter dictionary are legible. Long native select label truncates, with full heading shown in content."
+      "notes": "English Contact orbit guide: receiver 2 m / sender 1 mm at authored scale 1 are explicit; full table and parameter dictionary are legible. Long native select label truncates, with full heading shown in content.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-contact-sdk-orbit-zh-CN.png",
-      "sha256": "3103165c3f8bb67f6e80fba9c1133f3f4d50042aa6f69b4a8f2e65b9e7946efd",
+      "sha256": "fa308a5155b685a6b62e85521be3f7eff5b9929d349d27c5e48978a47c056683",
       "outcome": "visually_ok",
-      "notes": "Chinese Contact orbit guide: 2 m/1 mm and authored-scale condition explicit; 3D labels, m-based readouts and parameter cards legible."
+      "notes": "Original opened: orbit receiver sphere, enlarged target handle and axes are distinguishable. All twelve native Contact fields, metre units, activity and explanatory sections fit their columns.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-contact-sdk-zh-CN.png",
       "sha256": "6ef49a8c459fa079ab3d79d35f30e1d6a2d95af4b4a0575f3e75eefd8d363192",
       "outcome": "visually_ok",
-      "notes": "Chinese Contact projection guide: receiver 2 m / sender 1 mm and metres are explicit; XYZ, velocity, freshness and dictionary fit. Long protocol identifiers wrap inside the table."
+      "notes": "Chinese Contact projection guide: receiver 2 m / sender 1 mm and metres are explicit; XYZ, velocity, freshness and dictionary fit. Long protocol identifiers wrap inside the table.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-en-US.png",
       "sha256": "3d0eb5c03530300ea8b560daf39a28930057bb970139ace61b5261a3d2177e56",
       "outcome": "visually_ok",
-      "notes": "English Plug touch guide: touch/close descriptions, geometry, metre sliders and sources fit; long native select caption shortened but full section title visible."
+      "notes": "English Plug touch guide: touch/close descriptions, geometry, metre sliders and sources fit; long native select caption shortened but full section title visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-en-US.png",
-      "sha256": "53bc1448b86e6c92a04edaee58de3638b0c0b3a44908e3ca4f40cd5ed626536f",
+      "sha256": "3a1c87202097d2060b621e76a66090435b873b4772999eacc7b1feedc17dd0d6",
       "outcome": "visually_ok",
-      "notes": "English Plug touch orbit guide: receiver/sender labels, geometry, m units, parameter table and source cards are readable; no label overlap prevents interpretation."
+      "notes": "Original opened: simulated capsule/receiver, target/root/tip labels, dimension sliders, touch gate and definition remain coherent. Long select label truncation is unchanged and the full section heading identifies it.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-orbit-zh-CN.png",
       "sha256": "452b9775841980ec99c7c998aa5cd3836731f80e113ad767fd8056581d3bfeb0",
       "outcome": "visually_ok",
-      "notes": "Chinese Plug touch orbit: labels and body text readable; capsule, radius and length units and Close condition explicit."
+      "notes": "Chinese Plug touch orbit: labels and body text readable; capsule, radius and length units and Close condition explicit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-plug-touch-zh-CN.png",
       "sha256": "8f42bcff9d1ce78595de32c406410d419f6b21b6fbec9e851daa1d63c7055091",
       "outcome": "visually_ok",
-      "notes": "Chinese Plug touch projection guide: TouchOthers/Close, detection geometry, dimensions and m units are coherent; explanatory text wraps."
+      "notes": "Chinese Plug touch projection guide: TouchOthers/Close, detection geometry, dimensions and m units are coherent; explanatory text wraps.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-en-US.png",
       "sha256": "906a3bd5ac6e87037edc25ff67cd99e9ac05fef021379a48dae35aa879283c26",
       "outcome": "visually_ok",
-      "notes": "English SPS guide: intro states root-local radius 2 and marker 0.001, metres only at scale 1; anchor colors, coverage and parameter table clear."
+      "notes": "English SPS guide: intro states root-local radius 2 and marker 0.001, metres only at scale 1; anchor colors, coverage and parameter table clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-en-US.png",
       "sha256": "1312268f1f39538ac7cde8f4f4d7a64b781d75896fee74a5b0157af2ecfc1b0f",
       "outcome": "visually_ok",
-      "notes": "English SPS four-anchor orbit guide: 2 root-local-unit receiver and 0.001 marker with scale-1 metre conversion are explicit; anchors and local-unit values are readable."
+      "notes": "English SPS four-anchor orbit guide: 2 root-local-unit receiver and 0.001 marker with scale-1 metre conversion are explicit; anchors and local-unit values are readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-orbit-zh-CN.png",
       "sha256": "f9d51501de16f136928abd73050e780ae80c0bb9b71f3c0c1d0caec0093b6cc7",
       "outcome": "visually_ok",
-      "notes": "Chinese SPS orbit: SPS 四点定位 naming preserved; local units and scale-1 metre equivalence explicit; anchor labels and coverage visible."
+      "notes": "Chinese SPS orbit: SPS 四点定位 naming preserved; local units and scale-1 metre equivalence explicit; anchor labels and coverage visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-sensa-sps-zh-CN.png",
       "sha256": "07d73fc9ff5ab39ef49cbd4bf2b5203f71da1915e433099534a60a28499ef679",
       "outcome": "visually_ok",
-      "notes": "Chinese SPS 四点定位 projection guide: local units and scale-1 2 m / 1 mm conversion are explicit; 4 anchors, table and metadata remain legible."
+      "notes": "Chinese SPS 四点定位 projection guide: local units and scale-1 2 m / 1 mm conversion are explicit; 4 anchors, table and metadata remain legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-shader-en-US.png",
       "sha256": "34244f6bc2d9c2c1826096d6340cf4786689f47fd6532b565ba300536acdced7",
       "outcome": "visually_ok",
-      "notes": "English Shader guide: root-local coordinates, AvatarScale metres per unit and readable black/white QR with corner markers and white margin; no overlap."
+      "notes": "English Shader guide: root-local coordinates, AvatarScale metres per unit and readable black/white QR with corner markers and white margin; no overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-shader-orbit-en-US.png",
-      "sha256": "68d630351bf8f94804714f6e8d7f9869d04f7e09e5c5a71487fed9c785270822",
+      "sha256": "d536d41b828796698ab877bcfc7d80ddbc3c783bc248e144c16dcad2474e98ac",
       "outcome": "visually_ok",
-      "notes": "English Shader orbit guide: local coordinates and AvatarScale metre conversion are distinct; QR has crisp black/white modules, three corner patterns and white margin; table and dictionary fit."
+      "notes": "Original opened: encoded local coordinates, basis/scale table, target and decoded points, QR three corners/white margin and definition cards remain readable and distinct.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-shader-orbit-zh-CN.png",
       "sha256": "19a14c6558380ab2bf5d02bcc95ec7ae05aa577e7d20bbf543591f70059c432c",
       "outcome": "visually_ok",
-      "notes": "Chinese Shader orbit guide: coordinate/scale distinction, QR steps, markers and white margin coherent; parameter cards readable."
+      "notes": "Chinese Shader orbit guide: coordinate/scale distinction, QR steps, markers and white margin coherent; parameter cards readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-shader-zh-CN.png",
       "sha256": "b1692a100e6cffd6c6b3cfc0ad2f2da38533f266446b2e0a47d630bdf365f79c",
       "outcome": "visually_ok",
-      "notes": "Chinese Shader projection guide: local units and 米/根局部单位 are clear; QR corners/quiet margin and instructions are visible without overlap."
+      "notes": "Chinese Shader projection guide: local units and 米/根局部单位 are clear; QR corners/quiet margin and instructions are visible without overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-legacy-en-US.png",
       "sha256": "78df17876f892571d208affb2773578c1899ce4d020e9efcd38c548bd2084e7e",
       "outcome": "visually_ok",
-      "notes": "English legacy Socket guide: PenOthers/Close values, radius labels, metre controls and 5%-view-height explanation visible; full heading supplies shortened select name."
+      "notes": "English legacy Socket guide: PenOthers/Close values, radius labels, metre controls and 5%-view-height explanation visible; full heading supplies shortened select name.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-legacy-orbit-en-US.png",
       "sha256": "00ff13674ffb89dea6db339f23aa0292dd2bba8d6a88d28f6fda4179f6ef789a",
       "outcome": "visually_ok",
-      "notes": "English SPS1 orbit guide: Plug/Socket labels, sender/receiver radii, metre dimensions and PenOthers/Close explanations fit."
+      "notes": "English SPS1 orbit guide: Plug/Socket labels, sender/receiver radii, metre dimensions and PenOthers/Close explanations fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-legacy-orbit-zh-CN.png",
       "sha256": "82aad64719c20dce240c7306078bc9c606e1e26af568f9be4c1b2b54dceda216",
       "outcome": "visually_ok",
-      "notes": "Chinese legacy Socket orbit: contact-region and length explanations, diagram labels and metre controls fit without text overlap."
+      "notes": "Chinese legacy Socket orbit: contact-region and length explanations, diagram labels and metre controls fit without text overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-legacy-zh-CN.png",
       "sha256": "ab2c2ae19baba0256395fcb65e2ed01df090f7253b0ae22dc971bb5d60d77a64",
       "outcome": "visually_ok",
-      "notes": "Chinese SPS1 projection guide: directions, radii, metre units and distinction between proximity and calibrated depth are legible."
+      "notes": "Chinese SPS1 projection guide: directions, radii, metre units and distinction between proximity and calibrated depth are legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-en-US.png",
       "sha256": "b6d38a0c68476247c5d5b9c4c5d80233d02c8b422c2daa4be64984bb63638a7a",
       "outcome": "visually_ok",
-      "notes": "English modern Socket guide: NewRoot/NewTip values, distance/length units, 1 m receiver and 0.01 m marker explained; full parameter title visible."
-    },
-    {
-      "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png",
-      "sha256": "8080b5922e5a6939e048fba5423f8e4ea74e15a9d1f7097cf7a6153392774194",
-      "outcome": "visually_ok",
-      "notes": "English SPS2 orbit guide: NewRoot/NewTip values, root distance and estimated length are clear; official 1 m receiver/0.01 m marker dimensions are separated from example Plug dimensions."
+      "notes": "English modern Socket guide: NewRoot/NewTip values, distance/length units, 1 m receiver and 0.01 m marker explained; full parameter title visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-zh-CN.png",
       "sha256": "2a2dbb89dc9a7051395b2306e179a574510a8af5f235b4bf95b07c8dbb24f64b",
       "outcome": "visually_ok",
-      "notes": "Chinese modern Socket orbit: SPS2 root/tip explanations, 1 m and 0.01 m defaults distinguished, labelled diagram and metres readable."
+      "notes": "Chinese modern Socket orbit: SPS2 root/tip explanations, 1 m and 0.01 m defaults distinguished, labelled diagram and metres readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
+    },
+    {
+      "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-orbit-en-US.png",
+      "sha256": "8080b5922e5a6939e048fba5423f8e4ea74e15a9d1f7097cf7a6153392774194",
+      "outcome": "visually_ok",
+      "notes": "English SPS2 orbit guide: NewRoot/NewTip values, root distance and estimated length are clear; official 1 m receiver/0.01 m marker dimensions are separated from example Plug dimensions.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/parameter-geometry-socket-modern-zh-CN.png",
       "sha256": "d7dcd70192c7156713f3557a218d1dc78363b5d41aef36bfb78eaa7e4afe88bc",
       "outcome": "visually_ok",
-      "notes": "Chinese SPS2 projection guide: NewRoot/NewTip, root distance 0.350 m and estimated length 0.200 m are legible; source/scale explanation fits."
+      "notes": "Chinese SPS2 projection guide: NewRoot/NewTip, root distance 0.350 m and estimated length 0.200 m are legible; source/scale explanation fits.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pb-calibration.png",
       "sha256": "cfc61bd09c5b650fadc986b73a3ca0fe9ce6141a8e56980c150a447c03d37798",
       "outcome": "visually_ok",
-      "notes": "Chinese calibration: start/end centimetres and 100% preview with capture actions aligned."
+      "notes": "Chinese calibration: start/end centimetres and 100% preview with capture actions aligned.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pb-midpoint.png",
       "sha256": "ec96d1f8ebd57912ccc96f1c857e40a6f14c06a95cad780da0aa0b4f45c13e28",
       "outcome": "visually_ok",
-      "notes": "Chinese midpoint output snippet shows L0=500 and intact progress bar."
+      "notes": "Chinese midpoint output snippet shows L0=500 and intact progress bar.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-en-US.png",
       "sha256": "ffc56a29a534391d618a85e89f404d476bd7e48c3744db4f78c71270049fc755",
       "outcome": "visually_ok",
-      "notes": "English recording format select visibly defaults to Funscript (device playback)."
+      "notes": "English recording format select visibly defaults to Funscript (device playback).",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-funscript-default-zh-CN.png",
       "sha256": "c59896555bedd5c224b8dd300da1cdf3950ff816db735f0d874a3965b6e6a52b",
       "outcome": "visually_ok",
-      "notes": "Funscript recording-format selector is fully legible."
+      "notes": "Funscript recording-format selector is fully legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-hysteresis-settings-en-US.png",
       "sha256": "1918079affcefdea888ffadc6e81cb45dd45bd6ebc7f238384817384e9268f12",
       "outcome": "visually_ok",
-      "notes": "English hysteresis settings: Contact latch, Two-threshold switch, on 0.8/off 0.5 and validity 0 fields fully visible."
+      "notes": "English hysteresis settings: Contact latch, Two-threshold switch, on 0.8/off 0.5 and validity 0 fields fully visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-hysteresis-settings-zh-CN.png",
       "sha256": "57bcb988e7c6ee340d2492410b906d73f891c76846209094f0fa200b5e5a2f83",
       "outcome": "visually_ok",
-      "notes": "Hysteresis settings show Contact latch, 0 ms validity and distinct 0.8 on / 0.5 off thresholds."
+      "notes": "Hysteresis settings show Contact latch, 0 ms validity and distinct 0.8 on / 0.5 off thresholds.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-plan-preview-en-US.png",
       "sha256": "f174a06878720312b09a86e16c91c95904f680c2b39e1fa6aaf919707255e00f",
       "outcome": "visually_ok",
-      "notes": "English plan preview modal: counts, replacement/deactivation notice, six mock outputs and Cancel/Apply actions legible."
+      "notes": "English plan preview modal: counts, replacement/deactivation notice, six mock outputs and Cancel/Apply actions legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pipeline-plan-preview-zh-CN.png",
       "sha256": "8f6b3292946e56c7743a62552b650b1a55c40f15c121efd609c8d98a3d850500",
       "outcome": "visually_ok",
-      "notes": "Chinese plan preview: counts, replacement/disabled-input warning, six mock output entries and actions are readable."
+      "notes": "Chinese plan preview: counts, replacement/disabled-input warning, six mock output entries and actions are readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/pose-landmark-lost.png",
       "sha256": "6e15db56a9912b88eb8ba7a4a549b3c36c824ac2d32d0e6733fe380b1ef6fbde",
       "outcome": "visually_ok",
-      "notes": "Chinese landmark-loss state shows emergency lock, OSC listening and pending recording; text and status badges fit."
+      "notes": "Chinese landmark-loss state shows emergency lock, OSC listening and pending recording; text and status badges fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/profile-settings.png",
-      "sha256": "98b6dde9a1e475d553213b7b5219880144e6b9838cf58da0c7ccb0547be9172d",
+      "sha256": "3f18533c9a6bb4a86479368934dd2e50c47f35b76b3d38c33d3cdee1c7a86c43",
       "outcome": "visually_ok",
-      "notes": "Axis profile modal: focus ring stays within field area; mapping/boundary ranges and motion transition controls fit."
+      "notes": "Original opened: focused profile name, independent 400-600 travel/limits, interval mode, speed100, emergency action and save/cancel footer fit the modal.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/recording-controls.png",
       "sha256": "c355d6e5d420b18fab2fb81937fb981454eb87fa15622d9dbd9de5c2b60ddd71",
       "outcome": "visually_ok",
-      "notes": "Chinese recording controls show stopped, 4 frames, rerecord/export actions and disabled Stop recording."
+      "notes": "Chinese recording controls show stopped, 4 frames, rerecord/export actions and disabled Stop recording.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/recording-restart.png",
       "sha256": "87d46e1ca7a5a27590d6a9ca49786b4590dcc680f62e6bce914f27a784b24c6a",
       "outcome": "visually_ok",
-      "notes": "Recording restart confirmation shows four frames and distinct cancel/restart actions."
+      "notes": "Recording restart confirmation shows four frames and distinct cancel/restart actions.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/script-options.png",
       "sha256": "72d170f51638c1566485dc5bbcda676d754d770f7ab66a8ea2da408bf9b83d44",
       "outcome": "visually_ok",
-      "notes": "Chinese script options show 1x rate, custom multiplier 1 and loop checkbox; folded sections legible."
+      "notes": "Chinese script options show 1x rate, custom multiplier 1 and loop checkbox; folded sections legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/script-paused-keyframe.png",
       "sha256": "be4bcf4f0fecc4e8f1b9354aad8687b3f18eccc94389b3dc03b78f926ae19c91",
       "outcome": "visually_ok",
-      "notes": "Paused funscript view: 5s/10s time, keyframe timeline, playback/stop and step actions are readable."
+      "notes": "Paused funscript view: 5s/10s time, keyframe timeline, playback/stop and step actions are readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/settings-page.png",
-      "sha256": "a6383272773adb2d00afb7d247634298effff7b9ed2b0d1076cbff822e2fb4a0",
+      "sha256": "84eced0e3b706e418474eceaf216ce0af4a6c2ff57e8abdf71b088727a19427b",
       "outcome": "visually_ok",
-      "notes": "Chinese settings page: axis profile, default badge, add/edit actions and collapsed logs fit within desktop viewport."
+      "notes": "Only the intentional protocol-input card adds content below the unchanged axis/log panels. Header, navigation, spacing and readable narrow wrapping remain coherent.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "desktop/settings-page-actual.png"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/shader-root-position.png",
       "sha256": "e31ec2efb22bf9610f76932ce453f8ff2649d2c1188032fd9d0d38f21fb8c9b3",
       "outcome": "visually_ok",
-      "notes": "Shader root panel: root-local XYZ, Right/Forward and AvatarScale metres per local unit are distinct and legible."
+      "notes": "Shader root panel: root-local XYZ, Right/Forward and AvatarScale metres per local unit are distinct and legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/sps-depth.png",
       "sha256": "132fa3f08823c9873fcb6237d785ac974c50b84bac5ea79d19823f12c861119f",
       "outcome": "visually_ok",
-      "notes": "Chinese SPS depth output readout clearly shows latest L0 target 480 and proportional bar."
+      "notes": "Chinese SPS depth output readout clearly shows latest L0 target 480 and proportional bar.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/desktop/udp-settings.png",
       "sha256": "714306f24e447d7d2d20d8e0fd3433ab0cf33628a66ea18acb7b1ab6c4e1579c",
       "outcome": "visually_ok",
-      "notes": "UDP settings modal: loopback destination and port, profile/slope/speed-unit selectors and footer actions fit."
+      "notes": "UDP settings modal: loopback destination and port, profile/slope/speed-unit selectors and footer actions fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/combined-input-en-US.png",
-      "sha256": "a32d41df3bc1c32dd61393175f4fe9e812acca7e0cd60b8f6759006a2a93d3a2",
+      "sha256": "e577754ff8b171ef995dd321e61a89f2d2e1612a7d4f6339db3e68a8c01a62d5",
       "outcome": "visually_ok",
-      "notes": "390px viewport: header, language control, navigation and enabled Combined card wrap cleanly; manual-source content continues below viewport."
+      "notes": "Original opened: enabled Combined banner, scoped1/5 readiness, wrapped input description, mode tabs and L0 manual400 are readable with no horizontal overlap.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/combined-input-zh-CN.png",
-      "sha256": "282673ee42923350ca216c0182ba0c7baf2b51aad80dc47bcdaf08d74ee2e1d5",
+      "sha256": "e57d7888184d7d1cb412151bff5b570b65c1fdf51ed80003cacc120821dd7029",
       "outcome": "visually_ok",
-      "notes": "390px viewport: header/status, emergency stop, tabs, combined-input banner and manual slider align without overlap. Bottom cuts continuing content at viewport edge, not a full-page capture."
+      "notes": "Original opened: Chinese Combined banner, scoped1/5 readiness, mode tabs and manual400 retain spacing and normal vertical scrolling.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-plane-direction-en-US.png",
       "sha256": "22cd1f50c7dc37c69ddc1c23d84ca6a05575c22de899d0bfaeae94f54463f119",
       "outcome": "visually_ok",
-      "notes": "Plane-normal XYZ controls fit three columns; normalization explanation and 0/3/4 values readable."
+      "notes": "Plane-normal XYZ controls fit three columns; normalization explanation and 0/3/4 values readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-plane-direction-zh-CN.png",
       "sha256": "8fb657f2a3727c9b1dec6a9d87da86ccd2d5a7faf7aa09fa3e7b26412294e3c5",
       "outcome": "visually_ok",
-      "notes": "Fixed direction selector and X/Y/Z inputs 0/3/4 fit; explanatory text says normalized plane normal and +Z example; no clipping."
+      "notes": "Fixed direction selector and X/Y/Z inputs 0/3/4 fit; explanatory text says normalized plane normal and +Z example; no clipping.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-plane-point-en-US.png",
       "sha256": "a03ebb0105bd2a94a98969ac1ae83b03fb1c30a5146b02a6589d7a261e5ffa28",
       "outcome": "visually_ok",
-      "notes": "Fixed measured-position XYZ values 0.3/0.4/0.2 and same-unit/frame guidance fit without overlap."
+      "notes": "Fixed measured-position XYZ values 0.3/0.4/0.2 and same-unit/frame guidance fit without overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-plane-point-zh-CN.png",
       "sha256": "1ff5e04742076eafe5cfd4b8f7df6a2a797b95c4975910839e1cb54d5c6db232",
       "outcome": "visually_ok",
-      "notes": "Fixed coordinate fields 0.3/0.4/0.2 and shared-coordinate-system/unit explanation wrap legibly."
+      "notes": "Fixed coordinate fields 0.3/0.4/0.2 and shared-coordinate-system/unit explanation wrap legibly.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-editor-en-US.png",
       "sha256": "507c2551b4a77ff0a19102c0359fa41563c02a33ebd9b8756dae357a48392c99",
       "outcome": "visually_ok",
-      "notes": "OSC map viewport reflows heading and diagnostic tab; computed-signal section begins below fold, consistent with viewport capture."
+      "notes": "OSC map viewport reflows heading and diagnostic tab; computed-signal section begins below fold, consistent with viewport capture.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-editor-zh-CN.png",
       "sha256": "c7ccec986e8d34b3106032a70540f5ca04ffd72ed4c7fc4b1d180e15d3bcc5fb",
       "outcome": "visually_ok",
-      "notes": "OSC navigation, mapping controls and computed-signal heading fit mobile width; lower calculation card continues below viewport."
+      "notes": "OSC navigation, mapping controls and computed-signal heading fit mobile width; lower calculation card continues below viewport.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-input-en-US.png",
       "sha256": "51979e6710f28a9a310e4c240e552d384ed55f50eec66462d5c6a6924335de61",
       "outcome": "visually_ok",
-      "notes": "OSC parameter type, CI/A path, weight=1 and Remove control legible within cropped editor."
+      "notes": "OSC parameter type, CI/A path, weight=1 and Remove control legible within cropped editor.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-input-zh-CN.png",
       "sha256": "b3bbed6307b0b7daf750b3c8333ac4e4c7fbe4b42512f8fe72c3e7e77b20c46b",
       "outcome": "visually_ok",
-      "notes": "OSC input type, CI/A parameter path, weight and remove action are readable, separated and fit cropped panel."
+      "notes": "OSC input type, CI/A parameter path, weight and remove action are readable, separated and fit cropped panel.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-settings-en-US.png",
       "sha256": "5909151ae4d738cec384c1f6cf98efc84e37750c7fe6c13b891a438506534d21",
       "outcome": "visually_ok",
-      "notes": "Blend, Weighted average and input validity=0 fields have full labels and no overlap."
+      "notes": "Blend, Weighted average and input validity=0 fields have full labels and no overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/computed-signal-settings-zh-CN.png",
       "sha256": "d24fa58748d7f8c87899fb901490aa8261d6b2cb207af70b3813c8ebd2c52dd9",
       "outcome": "visually_ok",
-      "notes": "Blend name, weighted average and input-validity milliseconds fit; labels and control values clear."
+      "notes": "Blend name, weighted average and input-validity milliseconds fit; labels and control values clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/contact-root-position.png",
-      "sha256": "6c8e6cbc8eacd66f63914b32d89e189aa8109e872f1f27efb71458c9a521f7c8",
+      "sha256": "90ddca543b277ac892b17c342a4b77ccf9797f86bcbc7f5b188507c826c4cf53",
       "outcome": "visually_ok",
-      "notes": "XZ/YZ charts and Chinese metrics readable; position in m, velocity m/s, radius 2.000m, orientation correctly states three-point measurement needed."
+      "notes": "Original opened: two coordinate plots and wrapped XYZ/velocity values retain metre units, independent speed/radius and explicit unknown orientation in the narrow panel.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/contact-root-speed.png",
       "sha256": "ff7eaa29a5ace690fb6a0115d4fe94eb6a9252542ef273116ef775e1eb99cf10",
       "outcome": "visually_ok",
-      "notes": "Two projections and wrapped XYZ readings fit. Position and detection radius use m, velocity uses m/s, proximity change uses /s; orientation explicitly requires three points."
+      "notes": "Two projections and wrapped XYZ readings fit. Position and detection radius use m, velocity uses m/s, proximity change uses /s; orientation explicitly requires three points.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/control-page.png",
       "sha256": "ff5462c545c224db55299514212fdae22aa738aa6d83189d4d03336721f4bbcd",
       "outcome": "visually_ok",
-      "notes": "Chinese mobile header/navigation and disabled manual input state clear; three axis controls fit viewport with continued content below fold."
+      "notes": "Chinese mobile header/navigation and disabled manual input state clear; three axis controls fit viewport with continued content below fold.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/disabled-input.png",
       "sha256": "ebc18d306ac70a51f638ea89ddf02230311bfa78e24f3e7e7504bd7d93d1d9a8",
       "outcome": "visually_ok",
-      "notes": "Waiting-to-send badge and no-target message are readable and correctly separated."
+      "notes": "Waiting-to-send badge and no-target message are readable and correctly separated.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/emergency-output.png",
       "sha256": "ff0afffc92b07e14f7cee1525c8e33d905f7133441f53b7586ffae11f563a709",
       "outcome": "visually_ok",
-      "notes": "Chinese requested-stop badge and no-sent-target text readable in compact status crop."
+      "notes": "Chinese requested-stop badge and no-sent-target text readable in compact status crop.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-calibration.png",
       "sha256": "7ca7ffc8fd1957e97040de4bb9a784e19f7e716bc2131e806bb21289e9a08a6b",
       "outcome": "visually_ok",
-      "notes": "Start/end 5.0/15.0 cm, capture buttons, 100% preview and replace draft button align and remain legible."
+      "notes": "Start/end 5.0/15.0 cm, capture buttons, 100% preview and replace draft button align and remain legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-help.png",
       "sha256": "eca4e7f1a4682d02ad76295df106edf26a0ff32d0ed9f8b08c4f7a27ac7d80e9",
       "outcome": "visually_ok",
-      "notes": "Help cards and buttons wrap; sticky close footer separated from scroll content; lower cards continue beyond visible modal viewport."
+      "notes": "Help cards and buttons wrap; sticky close footer separated from scroll content; lower cards continue beyond visible modal viewport.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-manual.png",
       "sha256": "dba7e80dafbaa4ab56c827e324b5a4c9d364d72e8002cf477c82580f33ba805f",
       "outcome": "visually_ok",
-      "notes": "Three labeled sliders, numeric fields and send/stop controls fit; focus outline visible; collapsed sections clear."
+      "notes": "Three labeled sliders, numeric fields and send/stop controls fit; focus outline visible; collapsed sections clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-output.png",
       "sha256": "9d82e31a0371dbe9bcf5463885ce119e69436e1e7ccd25d3717636b42f561bb1",
       "outcome": "visually_ok",
-      "notes": "Last sent target badge, L0=500 and blue progress indicator clear."
+      "notes": "Last sent target badge, L0=500 and blue progress indicator clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-script-loaded.png",
       "sha256": "86622111d9d653c2b02710227caca48212df28e23099bd75686fbd5d19168b30",
       "outcome": "visually_ok",
-      "notes": "Loaded filename, duration, timeline, seek instructions and playback buttons fit; instruction wraps instead of overflowing."
+      "notes": "Loaded filename, duration, timeline, seek instructions and playback buttons fit; instruction wraps instead of overflowing.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-script-options.png",
       "sha256": "b1d7b6aaf745328a99bb3799321123101172bf1e8f055aa6a408c4e7035cbb30",
       "outcome": "visually_ok",
-      "notes": "Playback speed/custom multiplier, slider, Loop and collapsed sections readable; multiplier marker sits at right boundary of element crop without label overlap."
+      "notes": "Playback speed/custom multiplier, slider, Loop and collapsed sections readable; multiplier marker sits at right boundary of element crop without label overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-script.png",
       "sha256": "3ed879646617f1f26976e0f3613f87ce137f072a4ab6b1595fabd19b7005df17",
       "outcome": "visually_ok",
-      "notes": "No-script status and Choose script button align without collision."
+      "notes": "No-script status and Choose script button align without collision.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/english-toolbar.png",
       "sha256": "2524be5ae7ac7bb10ea74dba5ab0ece6d26c74bf4ca1f801b5821578b0e59302",
       "outcome": "visually_ok",
-      "notes": "Online/Manual, disabled Input enabled toggle, emergency stop, English selector and Help fit 390px width."
+      "notes": "Online/Manual, disabled Input enabled toggle, emergency stop, English selector and Help fit 390px width.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/fixed-root-position.png",
       "sha256": "8bac7ef5ebff018a084f23018e0de0eef7f9295e46999a06a4d738b675e4609d",
       "outcome": "visually_ok",
-      "notes": "Two projections, XYZ values and distance-to-axis error show local units; orientation limitation clearly states three-point measurement required."
+      "notes": "Two projections, XYZ values and distance-to-axis error show local units; orientation limitation clearly states three-point measurement required.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/help-workflow.png",
       "sha256": "ef13d5f26446e040578907986242a3693fb54a51e1f4e379b14db389f572f8da",
       "outcome": "visually_ok",
-      "notes": "Chinese help paragraphs and task cards wrap cleanly; fixed footer separated from scrolling card area."
+      "notes": "Chinese help paragraphs and task cards wrap cleanly; fixed footer separated from scrolling card area.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/manual-output.png",
       "sha256": "e7705857eb97b24e48de5e8054d79ee53a15f4df4ef3752fc101b2c9dd12ed2e",
       "outcome": "visually_ok",
-      "notes": "Recent target badge, L0 label, 600 numeric value and bar readable."
+      "notes": "Recent target badge, L0 label, 600 numeric value and bar readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/manual-ready.png",
       "sha256": "e87b021fbf1b65f3bfd268c9f90657e02ef8f2b47fe115f96311243ac0ac9e00",
       "outcome": "visually_ok",
-      "notes": "Chinese manual L0/L1/L2 sliders and 500 inputs aligned; send-once/continuous/disable controls wrap without collision."
+      "notes": "Chinese manual L0/L1/L2 sliders and 500 inputs aligned; send-once/continuous/disable controls wrap without collision.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/ogb-control-settings.png",
       "sha256": "fd3cfa93822629449e480aa0226d0d62c2095d525d71331a60591d7187774677",
       "outcome": "visually_ok",
-      "notes": "Heartbeat explanation, enabled checkbox, loopback IP, port and sending-status banner fit; Chinese text wraps cleanly."
+      "notes": "Heartbeat explanation, enabled checkbox, loopback IP, port and sending-status banner fit; Chinese text wraps cleanly.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-gate-stopped.png",
       "sha256": "4fd7541e52d08eb3b6160f0243b78917690290eb594a613bd3dac9e2573f4af0",
       "outcome": "visually_ok",
-      "notes": "Chinese gate-closed alert, 2/4 outputs, OSC mode and listening badge distinct; collapsed recording row legible."
+      "notes": "Chinese gate-closed alert, 2/4 outputs, OSC mode and listening badge distinct; collapsed recording row legible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-hub-controls.png",
       "sha256": "7294ad9343f8ee07e8cc42c6b3af8b021c4a6f295aaa3a426a65bb79fcc56db1",
       "outcome": "visually_ok",
-      "notes": "Hub description, enable checkbox, event-driven selector and disabled frequency field fit."
+      "notes": "Hub description, enable checkbox, event-driven selector and disabled frequency field fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-hub-targets.png",
       "sha256": "41be40b9f386d998215693d73b052b386b86a241f7bf9e8bad2c55d96b442abc",
       "outcome": "visually_ok",
-      "notes": "Mock Hub loopback target 127.0.0.1:19092 readable; address/port columns fit, enabled/forwarding status clear."
+      "notes": "Mock Hub loopback target 127.0.0.1:19092 readable; address/port columns fit, enabled/forwarding status clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-mappings-page.png",
       "sha256": "541c32796248fd9d2bcb1d13c00bcaf5d8961c88bd5763da1df1907b6384f428",
       "outcome": "visually_ok",
-      "notes": "OSC mapping page shell and controls fit; saved-state and save button distinct; zero-computation count and add button visible."
+      "notes": "OSC mapping page shell and controls fit; saved-state and save button distinct; zero-computation count and add button visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-parameter-reference-contact-speed-en-US.png",
       "sha256": "1616d34b8267c7705f319ba9a347fac5858e72efd2d70a0103ea3af1c98529d3",
       "outcome": "visually_ok",
-      "notes": "Long velocity parameter wraps inside modal; relative speed unit m/s and SDK explanation readable; close/add footer clear."
+      "notes": "Long velocity parameter wraps inside modal; relative speed unit m/s and SDK explanation readable; close/add footer clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-parameter-reference-contact-speed-zh-CN.png",
       "sha256": "6c2c896a50521612d402367d7e01b18fbede036ceedc70492425c51dc5bd9a4c",
       "outcome": "visually_ok",
-      "notes": "Long parameter path wraps; m/s unit and relative-speed definition readable; fixed footer controls visible. Content reaches scroll-body lower edge, so further content requires scrolling."
+      "notes": "Long parameter path wraps; m/s unit and relative-speed definition readable; fixed footer controls visible. Content reaches scroll-body lower edge, so further content requires scrolling.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-parameters.png",
       "sha256": "19d9150b030d2b35ce499fb94d2dd8275c202457482661683b06ae221f251d04",
       "outcome": "visually_ok",
-      "notes": "Pinned/path/value columns readable; source column continues off right crop edge. Confirmed intentional horizontally scrollable .table-scroll (styles.css:401) captured by flows.spec.js; screenshot alone does not demonstrate scroll interaction."
+      "notes": "Pinned/path/value columns readable; source column continues off right crop edge. Confirmed intentional horizontally scrollable .table-scroll (styles.css:401) captured by flows.spec.js; screenshot alone does not demonstrate scroll interaction.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-receiver-settings.png",
       "sha256": "66d235c8fc8a24b9698686e3b1727f1a721d376ee7c6a8400a8b516df5e37517",
       "outcome": "visually_ok",
-      "notes": "Receiving explanation, listening status, IP/port/allowed-source/timeout fields align and fit."
+      "notes": "Receiving explanation, listening status, IP/port/allowed-source/timeout fields align and fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/osc-settings-save.png",
       "sha256": "f728438e97c18144fed127a72ad4c6c7a7b86ef50a85e548f820633a7a465163",
       "outcome": "visually_ok",
-      "notes": "Chinese Save OSC settings button fully visible."
+      "notes": "Chinese Save OSC settings button fully visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/output-conflict.png",
       "sha256": "e757bebd3477c58f1f97205885ee28cc647e170d7885a89e8656321a7696e532",
       "outcome": "visually_ok",
-      "notes": "Address-conflict alert wraps; highlighted port field and motion settings legible; disabled save action visually distinct."
+      "notes": "Address-conflict alert wraps; highlighted port field and motion settings legible; disabled save action visually distinct.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/paired-pose.png",
       "sha256": "387a76173134ec7786cc7b8c7dd2b66164aca78522e89221b1ff4682913ba656",
       "outcome": "visually_ok",
-      "notes": "Pose diagram and labels visible; insertion 50%, offset cm, angle degrees, error mm have distinct labels/units."
+      "notes": "Pose diagram and labels visible; insertion 50%, offset cm, angle degrees, error mm have distinct labels/units.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-en-US.png",
       "sha256": "cf690d2a7c099885b3769108aa1c5f2e0a763ca37977095e0cb2b28cd21423a3",
       "outcome": "visually_ok",
-      "notes": "Viewed at original resolution: full 390px page coherent, long parameter names wrap. Explicit authored-scale-1 example gives 2 m receiver and 1 mm Sender; positions/metres, velocities/m/s and active Sample explanation consistent; no horizontal clipping."
+      "notes": "Viewed at original resolution: full 390px page coherent, long parameter names wrap. Explicit authored-scale-1 example gives 2 m receiver and 1 mm Sender; positions/metres, velocities/m/s and active Sample explanation consistent; no horizontal clipping.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-orbit-en-US.png",
       "sha256": "fbf0a10a2070ceef0ab2ddd2aeb379fba46789c8f31e33285fe3ddaa0e72f4ac",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: 3D Contact coverage, 2m receiver/1mm sender authored-scale note, XYZ metres and velocity m/s clear; long native parameter names wrap within table; all sections/footer intact."
+      "notes": "Full original inspected: 3D Contact coverage, 2m receiver/1mm sender authored-scale note, XYZ metres and velocity m/s clear; long native parameter names wrap within table; all sections/footer intact.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-orbit-zh-CN.png",
-      "sha256": "ab22923b0d82bee47716abee9c0e937c01d7843ece42cd01047316a2216f392f",
+      "sha256": "ade86cc54e822c15e9f7fd19142d3f459a52c454755b6415ae28dc7ec87e80ed",
       "outcome": "visually_ok",
-      "notes": "Viewed original: 3D receiver and target labels readable, controls wrap; first paragraph states scale 1, 2 m receiver and 1 mm Sender. Metre XYZ and independent velocity/Sample semantics legible throughout."
+      "notes": "Original opened: stacked orbit plot, long native field names, twelve metric rows, activity, sliders and definition cards wrap within390px. No overlap or page-width overflow observed.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-contact-sdk-zh-CN.png",
       "sha256": "c9f2a8b27ed3ea95bda738dbc52ed1fdff3feb41ee81ee6d81153a579bdda69c",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: Chinese Contact uses explicit 2m/1mm scale-1 introduction and metre-based coordinates; 12 field rows, controls and source links remain within page."
+      "notes": "Full original inspected: Chinese Contact uses explicit 2m/1mm scale-1 introduction and metre-based coordinates; 12 field rows, controls and source links remain within page.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-en-US.png",
       "sha256": "dbf928efc267186b0ae5dfd538de41db3589b8c61c064e55e412a7da70f9a44f",
       "outcome": "visually_ok",
-      "notes": "Viewed original: XZ diagram, body-touch and Close readings, metre dimensions and source definitions readable. Controls and long explanatory paragraphs fit."
+      "notes": "Viewed original: XZ diagram, body-touch and Close readings, metre dimensions and source definitions readable. Controls and long explanatory paragraphs fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-en-US.png",
       "sha256": "4ec8de13396a63d9aee32aca8ebe0215bcb0391665a469297b039ed5e31b8844",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: orbit plug/touch geometry and sender/receiver labels readable, metres and example dimensions explicit; table, controls, meaning and sources fit mobile width."
+      "notes": "Full original inspected: orbit plug/touch geometry and sender/receiver labels readable, metres and example dimensions explicit; table, controls, meaning and sources fit mobile width.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-orbit-zh-CN.png",
       "sha256": "d15d1fa060b153199f9e6915f92e6b7f59c4eee420fab21a22101585c1381017",
       "outcome": "visually_ok",
-      "notes": "Viewed original: 3D Plug/body-contact diagram, Root/Tip/target markers and radius labels visible; Chinese descriptions and dimension controls wrap coherently."
+      "notes": "Viewed original: 3D Plug/body-contact diagram, Root/Tip/target markers and radius labels visible; Chinese descriptions and dimension controls wrap coherently.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-plug-touch-zh-CN.png",
       "sha256": "30b12698938218ad632319a5624b0468689280da0c3349243981e0a4344d7b6b",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: Chinese Plug touch projection, 0.20m length/0.03m radius and distinction between TouchOthers/Close legible; controls and footer wrap cleanly."
+      "notes": "Full original inspected: Chinese Plug touch projection, 0.20m length/0.03m radius and distinction between TouchOthers/Close legible; controls and footer wrap cleanly.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-en-US.png",
       "sha256": "6c0c278d9cc5b105bd77de554e17fa4476c5372e721c78975c5de4abdc15a1b0",
       "outcome": "visually_ok",
-      "notes": "Viewed original: four-anchor coverage illustration and P0-P3 values legible. First paragraph distinguishes root-local radius 2 / marker 0.001 and scale-1 equivalence to 2 m / 1 mm; reconstructed XYZ and local units explicit."
+      "notes": "Viewed original: four-anchor coverage illustration and P0-P3 values legible. First paragraph distinguishes root-local radius 2 / marker 0.001 and scale-1 equivalence to 2 m / 1 mm; reconstructed XYZ and local units explicit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-en-US.png",
       "sha256": "e515f94fb863fec8b20a149d82ab72a4fdddbe3c51f4c1cc71ada79887e64899",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: SPS four-anchor heading, root-local radius 2/0.001 with scale-1 metre equivalence explicit; orbit markers and P0-P3 readings fit; local-unit metrics distinguished from metres."
+      "notes": "Full original inspected: SPS four-anchor heading, root-local radius 2/0.001 with scale-1 metre equivalence explicit; orbit markers and P0-P3 readings fit; local-unit metrics distinguished from metres.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-orbit-zh-CN.png",
       "sha256": "b2211156b4885ae34f6b781cd90dd597bc6b3355c3bd4df17e57d07d879409fa",
       "outcome": "visually_ok",
-      "notes": "Viewed original: SPS 四点定位 wording retained, scale-1 and root-local units explicit. 3D markers/coverage, table and sliders fit; no visible collisions blocking labels."
+      "notes": "Viewed original: SPS 四点定位 wording retained, scale-1 and root-local units explicit. 3D markers/coverage, table and sliders fit; no visible collisions blocking labels.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-sensa-sps-zh-CN.png",
-      "sha256": "72ae8156e672047241ff96b8ae138f3521e18142db235cf66604382adac81e81",
+      "sha256": "b2637cf2cabe0e8a3d6c1fcbce928daf736cb8e3e7fabfcc29aff5e93c7a0fcd",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: SPS 四点定位 wording retained; root-local units and scale conditions explicit, P0-P3 positions and validity metrics clear; no overflow."
+      "notes": "Original opened: four colored anchors, projected receiver regions, root-local unit explanation, solvedXYZ, freshness and scalar definitions remain readable in the stacked narrow layout.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-shader-en-US.png",
       "sha256": "97aa5a020b75999f6ac4b2cadc227c66f8d9be12d46d6135ca3ab3b6d4ac3cad",
       "outcome": "visually_ok",
-      "notes": "Viewed original: Shader XYZ/axes/AvatarScale table and metre-per-root-local-unit explanation coherent. QR pattern has three corner markers and white margin; diagram and cards fit. Visual review does not verify QR decoding."
+      "notes": "Viewed original: Shader XYZ/axes/AvatarScale table and metre-per-root-local-unit explanation coherent. QR pattern has three corner markers and white margin; diagram and cards fit. Visual review does not verify QR decoding.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-shader-orbit-en-US.png",
       "sha256": "8584f2b2648a70ce4ce7346f3533ada1cb7f8863fed4e0363cc852d46f2e552a",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: orbit encoded volume, 12 Shader fields, AvatarScale metres per root-local unit, QR black/white modules/three markers/white margin, explanations and footer all readable."
+      "notes": "Full original inspected: orbit encoded volume, 12 Shader fields, AvatarScale metres per root-local unit, QR black/white modules/three markers/white margin, explanations and footer all readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-shader-orbit-zh-CN.png",
       "sha256": "860af653028ca8eb97b71dc28059162536c55ddbe983f238afb5cd64b718d582",
       "outcome": "visually_ok",
-      "notes": "Viewed original: 3D local-coordinate box, input/decode labels, AvatarScale explanation and QR margin readable; long page fits 390px with distinct sections."
+      "notes": "Viewed original: 3D local-coordinate box, input/decode labels, AvatarScale explanation and QR margin readable; long page fits 390px with distinct sections.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-shader-zh-CN.png",
       "sha256": "2f36f52fbcb426497ccf9459ea3743b18c66775428e50eeec515f4bf445d708e",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: Chinese Shader projection, local coordinates vs AvatarScale unit, QR grid with clear white margin, acquisition steps and parameter definitions fit without overlap."
+      "notes": "Full original inspected: Chinese Shader projection, local coordinates vs AvatarScale unit, QR grid with clear white margin, acquisition steps and parameter definitions fit without overlap.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-legacy-en-US.png",
       "sha256": "e70644f0549d5a648305aa7dd8ea3d3450f203687e33a2bfb725677ece0fb750",
       "outcome": "visually_ok",
-      "notes": "Viewed original: SPS1 source, PenOthers/Close values and metre dimensions readable. VRCFury region explanation gives 5% of 1.60 m = 0.08 m; no overflow."
+      "notes": "Viewed original: SPS1 source, PenOthers/Close values and metre dimensions readable. VRCFury region explanation gives 5% of 1.60 m = 0.08 m; no overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-legacy-orbit-en-US.png",
       "sha256": "caa52a42aa8355bd12c069c20314d130cc0606d63403081f46278b3352953c58",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: SPS1 orbit socket/plug geometry labels, 0.080m region and generated 5%-view-height explanation readable; meaning/units/source sections fit."
+      "notes": "Full original inspected: SPS1 orbit socket/plug geometry labels, 0.080m region and generated 5%-view-height explanation readable; meaning/units/source sections fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-legacy-orbit-zh-CN.png",
       "sha256": "22348007ec7f55f57094bcdd03d23d1ecca25efb2c552ebab10cad6bbe91b0e8",
       "outcome": "visually_ok",
-      "notes": "Viewed original: SPS1 3D receiver/Sender/Root/Tip labels present; depth-trend limitation and 0.08 m / 0.032 m dimensions legible. Controls fit."
+      "notes": "Viewed original: SPS1 3D receiver/Sender/Root/Tip labels present; depth-trend limitation and 0.08 m / 0.032 m dimensions legible. Controls fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-legacy-zh-CN.png",
       "sha256": "d6b3aeb5e78e184f23d3f12dbc68b59abe67685d3136a875859fbd12ac0003e0",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: Chinese SPS1 source definitions, example 1.60m view height / D0.08m / Close0.032m clear; projection and sliders contained."
+      "notes": "Full original inspected: Chinese SPS1 source definitions, example 1.60m view height / D0.08m / Close0.032m clear; projection and sliders contained.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-en-US.png",
       "sha256": "aceabb511df5e4ac50d3c7cd393d5be705788f54e714c9629e39669b9ea26c2b",
       "outcome": "visually_ok",
-      "notes": "Viewed original: SPS2 NewRoot/NewTip table, root distance 0.350 m and estimated length 0.200 m readable. VRCFury 1 m receiver and 0.01 m marker distinguished from Sensa tracking defaults."
+      "notes": "Viewed original: SPS2 NewRoot/NewTip table, root distance 0.350 m and estimated length 0.200 m readable. VRCFury 1 m receiver and 0.01 m marker distinguished from Sensa tracking defaults.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-en-US.png",
       "sha256": "29e3bba665026c34393b42900f55024ebef834430e165f044b0f2917d0444220",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: SPS2 orbit labels readable, NewRoot/NewTip values and 0.35m distance/0.20m estimate/0% entry visible; 1m receiver and 0.01m sender defaults explicit."
+      "notes": "Full original inspected: SPS2 orbit labels readable, NewRoot/NewTip values and 0.35m distance/0.20m estimate/0% entry visible; 1m receiver and 0.01m sender defaults explicit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-orbit-zh-CN.png",
       "sha256": "aa92b283495d7da2b588f73daecc97f06734fb1a1974fe0fd43390cf720d4195",
       "outcome": "visually_ok",
-      "notes": "Viewed original: SPS2 3D geometry labels and paired values legible. Chinese first-dimension explanation states VRCFury 1 m receiver / 0.01 m root marker; long parameter group text fits selector."
+      "notes": "Viewed original: SPS2 3D geometry labels and paired values legible. Chinese first-dimension explanation states VRCFury 1 m receiver / 0.01 m root marker; long parameter group text fits selector.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/parameter-geometry-socket-modern-zh-CN.png",
       "sha256": "84e05ff0f8873381f0f7964fc9d55495dd78e8692b7c836e55eaea7cfdfb9af6",
       "outcome": "visually_ok",
-      "notes": "Full original inspected: Chinese SPS2 Root/Tip diagram labels compact but discernible; explicit 1m/0.01m radii, dimension example and source-defined scaling note; no text clipped."
+      "notes": "Full original inspected: Chinese SPS2 Root/Tip diagram labels compact but discernible; explicit 1m/0.01m radii, dimension example and source-defined scaling note; no text clipped.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pb-calibration.png",
       "sha256": "0679e69762d860dddd525e203a2279d73b49dd433971552a53949df71f89f43e",
       "outcome": "visually_ok",
-      "notes": "Chinese start/end capture controls, centimetres and 100% preview align."
+      "notes": "Chinese start/end capture controls, centimetres and 100% preview align.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pb-midpoint.png",
       "sha256": "765bebfcb8e8048aba75ce4ed96b7f9790e2ac74a1894dbb6f903f669ab7f844",
       "outcome": "visually_ok",
-      "notes": "Chinese recent-target state, L0=500 and midpoint progress clear."
+      "notes": "Chinese recent-target state, L0=500 and midpoint progress clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-funscript-default-en-US.png",
       "sha256": "cbe133eaccdeb79eecf977ca8946ad70e6de9abcc7c743f50a3e4a354116b0b1",
       "outcome": "visually_ok",
-      "notes": "Recording-format selector displays Funscript (device playback) fully."
+      "notes": "Recording-format selector displays Funscript (device playback) fully.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-funscript-default-zh-CN.png",
       "sha256": "0612bd7f8250e833409d277f9de8cf24503f23ddb6cd524085a4cc6df6882d44",
       "outcome": "visually_ok",
-      "notes": "Recording format field shows complete Funscript（设备播放） selection."
+      "notes": "Recording format field shows complete Funscript（设备播放） selection.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-hysteresis-settings-en-US.png",
       "sha256": "7f294b3ca9bd24dfb3ded8046b640617f9faaabfd24309417bbaa107fd80fa3e",
       "outcome": "visually_ok",
-      "notes": "Contact latch, two-threshold switch, validity ms, on 0.8/off 0.5 inputs are fully readable."
+      "notes": "Contact latch, two-threshold switch, validity ms, on 0.8/off 0.5 inputs are fully readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-hysteresis-settings-zh-CN.png",
       "sha256": "dc73f6bf73f562e161144d9cb7e1e43d53eeda1ab5f53c3e9f245cfcc939f758",
       "outcome": "visually_ok",
-      "notes": "Chinese hysteresis settings labels readable; input validity 0, enable 0.8 and disable 0.5 fields fit."
+      "notes": "Chinese hysteresis settings labels readable; input validity 0, enable 0.8 and disable 0.5 fields fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-plan-preview-en-US.png",
       "sha256": "931f74365505fba8f69a8d7d5b4df4678b66c3088494cf791ef3708623458016",
       "outcome": "visually_ok",
-      "notes": "Review modal title wraps to two lines without emergency-button overlap. Replacement/disabled-input warning, six outputs list and cancel/apply footer fit."
+      "notes": "Review modal title wraps to two lines without emergency-button overlap. Replacement/disabled-input warning, six outputs list and cancel/apply footer fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pipeline-plan-preview-zh-CN.png",
       "sha256": "7f81909e276fff1c24fe13ed57d5980171fa6ede2c19c3251a057f8b6909b43c",
       "outcome": "visually_ok",
-      "notes": "Plan preview counts and safety/application consequences readable; six mock outputs listed, Cancel/Apply buttons clear."
+      "notes": "Plan preview counts and safety/application consequences readable; six mock outputs listed, Cancel/Apply buttons clear.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/pose-landmark-lost.png",
       "sha256": "6f5678a32b83d47879a6c9009394813145a37cdcacf799417d3a77e5c5413a81",
       "outcome": "visually_ok",
-      "notes": "Input card shows red emergency-lock state and OSC listening separately; controls and collapsed recording row fit."
+      "notes": "Input card shows red emergency-lock state and OSC listening separately; controls and collapsed recording row fit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/profile-settings.png",
-      "sha256": "8c5e64ddb0116cef71f5dd1cbafd365374ec0582bc40ce24d8372f9d7a34643a",
+      "sha256": "2afdf339f26413a06fbf6132089624ddfbd8a178ea1813c202d490b374019288",
       "outcome": "visually_ok",
-      "notes": "Profile modal shows name, L0, 400–600 mapping and boundary inputs; sticky action footer clear while lower transition controls continue in scroll area."
+      "notes": "Original opened: profile name, axis mode and paired range fields fit. Sticky save/cancel footer remains distinct while the longer modal content scrolls vertically.",
+      "reviewEvidence": {
+        "method": "original_individually_opened",
+        "imageCommit": "30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/recording-controls.png",
       "sha256": "24a6f7f08caa63439dec47e8975df4b3d63022f9d1f10a0728e09ade1b737af6",
       "outcome": "visually_ok",
-      "notes": "Stopped recording status, four recorded frames, restart/disabled-stop/export actions fit; explanatory text wraps."
+      "notes": "Stopped recording status, four recorded frames, restart/disabled-stop/export actions fit; explanatory text wraps.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/recording-restart.png",
       "sha256": "43913c10bae818cf3c51c0222b869196d837c887aea6dda9699b46fc513c8866",
       "outcome": "visually_ok",
-      "notes": "Four-frame clear warning and Cancel/Restart buttons fully visible."
+      "notes": "Four-frame clear warning and Cancel/Restart buttons fully visible.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/script-options.png",
       "sha256": "b20bb5a6e5a51852821bee8391efa856d7b635d69bc7e40dfe3080f889bfb02b",
       "outcome": "visually_ok",
-      "notes": "Playback-rate selector, custom numeric rate and multiplier, loop and collapsed sections fit cropped panel; multiplier sits close to right edge but remains identifiable."
+      "notes": "Playback-rate selector, custom numeric rate and multiplier, loop and collapsed sections fit cropped panel; multiplier sits close to right edge but remains identifiable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/script-paused-keyframe.png",
       "sha256": "c72327e59741131b517871733ecb30595faf9e8ffba0492690e96f8266a4854c",
       "outcome": "visually_ok",
-      "notes": "Paused script time 00:05/00:10, midpoint scrubber, keyframe plot and Chinese playback buttons readable; no crowding."
+      "notes": "Paused script time 00:05/00:10, midpoint scrubber, keyframe plot and Chinese playback buttons readable; no crowding.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/settings-page.png",
-      "sha256": "ccdc3d8dddffcd38d7ba6214d7854e4a511c80933b27f8339624dc683675aa67",
+      "sha256": "2a1a31be93a2cb6500826aba66d50eecbf84c0e33cd12d43d33b0a80145943e4",
       "outcome": "visually_ok",
-      "notes": "390px settings page: header, tabs, axis-profile card and collapsed logs card are legible with consistent spacing and no overlap."
+      "notes": "Only the intentional protocol-input card adds content below the unchanged axis/log panels. Header, navigation, spacing and readable narrow wrapping remain coherent.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "mobile/settings-page-actual.png"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/shader-root-position.png",
       "sha256": "cfe4ad92b0c266c99d718919969a87ac14f8a16b3c295c2d68975efe15b69081",
       "outcome": "visually_ok",
-      "notes": "XZ/YZ charts and local XYZ/Right/Forward/AvatarScale metrics readable; local-unit versus metre-per-local-unit labels explicit."
+      "notes": "XZ/YZ charts and local XYZ/Right/Forward/AvatarScale metrics readable; local-unit versus metre-per-local-unit labels explicit.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/sps-depth.png",
       "sha256": "cba4d4c368dbbd1960174b0421fcbc234490a902c3c3f4da6f1992efa3492692",
       "outcome": "visually_ok",
-      "notes": "Recent-target badge, L0 480 value and bar fit and remain readable."
+      "notes": "Recent-target badge, L0 480 value and bar fit and remain readable.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
     },
     {
       "path": "tests/e2e/__screenshots__/mobile/udp-settings.png",
       "sha256": "637bca9ea45ee3e5d17a35be34dbd6626a82ec7ca2ed5331056cb15de12a0356",
       "outcome": "visually_ok",
-      "notes": "Output modal Mock UDP 127.0.0.1:19999, axis profile and speed-unit controls fit; save/cancel footer distinct."
+      "notes": "Output modal Mock UDP 127.0.0.1:19999, axis profile and speed-unit controls fit; save/cancel footer distinct.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "receipt": "https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/desktop/guide-en-US.png",
+      "sha256": "29b3425f96606cc7b8745d3edcb902b027a8db34a925db24a5aa2b8aa927e677",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/desktop/guide-en-US.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/desktop/guide-zh-CN.png",
+      "sha256": "cc46e2533e9d8b037ba7cc153949fa68a6f4a0a1b168be0d9a7bf46e40937813",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/desktop/guide-zh-CN.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/desktop/home-en-US.png",
+      "sha256": "67abf89fabaf5af1e72b413d72429ceff5ae0f6f89ff1bf9feccaf0ed80677e1",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/desktop/home-en-US.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/desktop/home-zh-CN.png",
+      "sha256": "00d8d932f6aa2d719a033e3731c788fa09ef4886bd57656fe2175805b7f71005",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/desktop/home-zh-CN.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/mobile/guide-en-US.png",
+      "sha256": "e842987cc53f51bc8fcdc227d0c4df260c78174a47d46711bdab366a37a9e6f4",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/mobile/guide-en-US.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/mobile/guide-zh-CN.png",
+      "sha256": "91bd3b797599198ea58e8178716672df0dd55ada1d72280b219ea2d679a4d559",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/mobile/guide-zh-CN.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/mobile/home-en-US.png",
+      "sha256": "9cf8a0b1c03f939a651324179aba40e89f2c7022b207da6b2cededa8a04506b2",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/mobile/home-en-US.png"
+      }
+    },
+    {
+      "path": "tests/e2e/__review__/site/mobile/home-zh-CN.png",
+      "sha256": "32427536958071be7fcd5a698d1acb5e4f379394d99df8a0a64a330fe6747ecb",
+      "outcome": "visually_ok",
+      "notes": "Original opened individually. Bilingual headings, primary download, card hierarchy and footer are readable. Narrow guide tables intentionally scroll inside their bounded keyboard-scrollable containers; no page-width overflow.",
+      "reviewEvidence": {
+        "method": "exact_sha256_reuse",
+        "runId": "40750362859",
+        "attempt": "1",
+        "sourceCommit": "99fe994f18df75807521955cdea5367aef58bf91",
+        "observedPath": "site/mobile/home-zh-CN.png"
+      }
     }
   ]
 }

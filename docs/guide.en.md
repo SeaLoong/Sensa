@@ -7,6 +7,7 @@ Complete a simple flow with [First run](quick-start.en.md), then switch between 
 | Task | Open |
 | --- | --- |
 | Adjust manual values or play a script | **Control** → Manual / Script / Combined |
+| Receive a website/player's device controls | **Settings** → Protocol inputs |
 | Inspect OSC parameters, meanings and sources | **OSC** → Parameters |
 | Configure reception, discovery or forwarding | **OSC** → Receiver/forwarding settings |
 | Add calculations and connect several outputs | **Flow** → Computed signals / Outputs |
@@ -16,7 +17,7 @@ Complete a simple flow with [First run](quick-start.en.md), then switch between 
 
 ## Prepare, apply the input mode, then enable input
 
-Prepare sources, calculations and outputs, then save. In Control choose Manual, OSC, Script or Combined, select Apply input mode and enable input. Readiness lists any remaining steps.
+Prepare sources, calculations and outputs, then save. In Control choose Manual, OSC, Script, Protocol or Combined, select Apply input mode and enable input. Protocol appears after the first protocol source is saved; add that first source in Settings → Protocol inputs. Readiness lists any remaining steps.
 
 Saving configuration, changing mode or replacing a script disables input and stops current output. Enable input when ready. Emergency stop stays active until cleared, followed by separate input activation.
 
