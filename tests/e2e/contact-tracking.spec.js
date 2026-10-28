@@ -30,9 +30,14 @@ test('SDK Contact metre coordinates calibrate, contact loss and frozen activity 
   { tag: ['@osc', '@input', '@config', '@transport', '@visual'] }, async ({ page, rig }, info) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     let z = .05, valid = true, sequence = 0, sample = 0, frozen = false, velocitySequence = 0;
+    const frozenVelocities = new Set();
     const samples = () => {
       if (!frozen) sample = (sequence++ % 32 + 1) / 32;
-      return contactRootSamples(z, sample, valid, { velocityZ: .2 + (++velocitySequence % 10) * .01 });
+      // Keep live Sample updates during the visual phase, with deterministic diagnostic values.
+      // Vary velocity only for the later frozen-Sample safety regression.
+      const velocityZ = frozen ? .2 + (++velocitySequence % 10) * .01 : .21;
+      if (frozen) frozenVelocities.add(velocityZ);
+      return contactRootSamples(z, sample, valid, { velocityZ });
     };
     const feed = await rig.startFeed(samples, 80);
     await expect.poll(() => contactObservation(rig), {
@@ -49,6 +54,8 @@ test('SDK Contact metre coordinates calibrate, contact loss and frozen activity 
     await expect(panel.getByTestId('point-position')).toHaveText('0.020 / 1.000 / 0.150 m');
     await panel.getByRole('button', { name: '采集 100%', exact: true }).click();
     await expect(panel.locator('.calibration-grid output').nth(1)).toHaveText('0.150 m');
+    await expect(panel.getByTestId('point-velocity')).toHaveText('0.000 / 0.000 / 0.210 m/s');
+    await expect(panel.getByTestId('point-speed')).toHaveText('0.210 m/s');
     await checkpoint(page, panel.locator('.point-diagnostic-grid'), 'contact-root-position');
     await savePointDraft(page, rig, panel, 'Z', 'Depth');
     expect((await saved(page, rig)).osc.allowExperimentalSpatialInput).toBe(false);
@@ -69,9 +76,11 @@ test('SDK Contact metre coordinates calibrate, contact loss and frozen activity 
     frozen = true; await feed.set(samples);
     await expect.poll(async () => (await contactObservation(rig))?.valid, { timeout: 5000 }).toBe(false);
     await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
+    expect(frozenVelocities.size, 'Frozen Sample still receives distinct velocities / Sample冻结时仍发送不同速度').toBeGreaterThanOrEqual(2);
     await info.attach('contact-position-simulation.json', { body: JSON.stringify({
       fixtureOnly: true, sdkClientExecution: false, frame: 'AvatarRootMeters', calibratedZ: [.05, .15],
       lossField: 'Proximity_SenderType', changingVelocitiesRenewActivity: false,
+      screenshotVelocityZ: .21, frozenVelocityValues: [...frozenVelocities],
     }), contentType: 'application/json' });
   });
 

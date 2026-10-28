@@ -18,6 +18,10 @@ The intentional settings change adds the protocol-input card below the existing 
 
 ## Ordinary comparison remains required / 仍须普通比较
 
+Contact position captures use an explicitly asserted0.210m/s velocity with live Sample updates. The later frozen-Sample regression varies velocity and checks distinct values and device stop separately; capture timing cannot choose a random velocity digit.
+
+Contact位置截图明确断言0.210m/s，Sample保持更新；后续冻结Sample时再改变速度，分别检查不同速度与设备停止，避免截图随机落在不同读数。
+
 Before merging, CI must execute **all 144** cases for its exact pinned source with screenshot updates disabled, `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, successful command and zero other outcomes. Candidate success and this visual record do not replace that evidence. Read the corresponding CI job summary and [current verification record](../../../docs/e2e-status.en.md).
 
 合并前须对CI固定源码执行完整 **144项普通比较**：关闭截图更新，完整选择与实际图片比较均为true，命令成功，其余结果为0。候选通过和审图记录均不能替代此证据；实际结果见对应CI摘要及[验证记录](../../../docs/e2e-status.md)。
