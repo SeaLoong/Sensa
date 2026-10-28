@@ -125,8 +125,8 @@ for (const locale of ['zh-CN', 'en-US']) {
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
         const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'The Handy 1', exact: true }) });
-        await card.getByRole('button', { name: await text(page, '配置'), exact: true }).click();
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
+        await expect(dialog).toBeVisible();
         await dialog.getByLabel(await text(page, '设备连接密钥'), { exact: true }).fill('test-only-handshake-key');
         await dialog.getByLabel(await text(page, '设备 API 地址'), { exact: true }).fill('http://127.0.0.1:19419/');
         await dialog.getByLabel(await text(page, '同步脚本地址'), { exact: true }).fill('https://example.com/fixture.csv');
@@ -299,8 +299,8 @@ for (const action of ['emergency', 'stop']) {
         await page.getByRole('combobox', { name: await text(page, '输出类型'), exact: true }).selectOption('Handy');
         await page.getByRole('button', { name: await text(page, '添加输出'), exact: true }).click();
         const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'The Handy 1', exact: true }) });
-        await card.getByRole('button', { name: await text(page, '配置'), exact: true }).click();
         const dialog = page.getByRole('dialog', { name: await text(page, '输出设置'), exact: true });
+        await expect(dialog).toBeVisible();
         await dialog.getByLabel(await text(page, '设备连接密钥'), { exact: true }).fill('test-only-cancel-key');
         await dialog.getByLabel(await text(page, '设备 API 地址'), { exact: true }).fill(fixture.endpoint);
         await dialog.getByLabel(await text(page, '同步脚本地址'), { exact: true }).fill('https://example.com/test.csv');
