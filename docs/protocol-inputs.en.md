@@ -18,8 +18,8 @@ flowchart LR
 
 ## Establish a small complete flow
 
-1. In Control's Protocol input tab, or Flow → Protocol inputs, add a **Buttplug / Intiface** source. Keep `127.0.0.1`, port `12400`, channel `L0`, Position with duration, and direct target axis `L0`. Enable this source's listener.
-2. Enter the actual website's HTTP(S) origin, for example `https://faptap.net`. Use an origin without a path, query or wildcard. Native clients without Origin receive separate local-connection handling.
+1. In Settings → Protocol inputs, add a **Buttplug / Intiface** source. Keep `127.0.0.1`, port `12400`, channel `L0`, Position with duration, and direct target axis `L0`.
+2. Enter the actual website's HTTP(S) origin, for example `https://faptap.net`. Use an origin without a path, query or wildcard. Native clients without Origin receive separate local-connection handling. Enable this source's listener and save; Control shows the Protocol tab after the first source is saved.
 3. Add a **TCode serial output**, select the actual OSR port and axis profile, and initially disable unrelated axes. Check direction, travel and stopping, save, then connect the output.
 4. Set the website/player's Intiface address to `ws://127.0.0.1:12400`, connect, and select the Sensa device. This is Sensa's input endpoint. A real Central application endpoint usually uses `12345`; the two can coexist.
 5. Apply Protocol input mode in Sensa, then explicitly enable input when ready. Begin with small targets and inspect receive counts, outgoing targets and stopping before normal playback.
@@ -79,6 +79,8 @@ Each input has one controlling session at a time. A second client waits for disc
 With direct motion routing enabled, Protocol/Combined mode sends targets and per-channel arrival durations through the motion runtime and the actual output's axis profile. Different axes retain different durations. Stop, expiry and disconnection clear pending work. Existing motion transports provide a device-wide stop, so a source/feature stop conservatively stops motion outputs and can affect other active axes.
 
 Protocol sources route only in Protocol/Combined mode, including computation/bindings. For conversion, mixing, recording or another output protocol, disable direct routing and choose Protocol input in a calculation/output binding. Enter `inputId/channelId`, for example `website/L0`. `/value` is equivalent to omitting the suffix; `/target` reads the command target; rotation also exposes `/speed` and `/clockwise`. Interpolated position describes a commanded trajectory, not physical feedback. If the first timed command has an unknown start, its current value remains invalid until arrival while its target remains readable.
+
+With direct routing disabled, losing a required source sends the configured `StopValue` according to the [binding stop semantics](signal-pipeline.en.md). For a position axis this is a fallback target and may move it; disabling global input, disabling the output or emergency stop uses the whole-device stop path.
 
 Scalar computation/bindings use their own sending schedules and do not automatically carry the original hardware arrival duration. Use the direct motion path when timing must be preserved. Converting intensity to OSR displacement requires an explicit computation, range and destination; a brand name does not establish equivalent motion semantics.
 
@@ -152,13 +154,13 @@ Mappings override matching default capabilities, not a device allowlist: uncover
 
 ## HTTP/WebSocket JSON for applications
 
-With `JsonHttp`, send these requests to the input endpoint, not the workbench's `/api`. Keep a stable `X-Sensa-Session` for a client, and send `/heartbeat` within its timeout when holding targets. Expiry releases control and stops. HTTP identity combines Origin, remote IP and this session header.
+With `JsonHttp`, send these requests to the input endpoint, not the workbench's `/api`. This example uses the default `L0` channel; add channels such as `R0` to the source configuration before sending a multiaxis batch. Keep a stable `X-Sensa-Session` for a client, and send `/heartbeat` within its timeout when holding targets. Expiry releases control and stops. HTTP identity combines Origin, remote IP and this session header.
 
 ```sh
 curl --request POST http://127.0.0.1:12403/commands \
   --header 'Content-Type: application/json' \
   --header 'X-Sensa-Session: player-one' \
-  --data '{"commands":[{"channel":"L0","value":0.75,"durationMs":300},{"channel":"R0","value":0.25,"durationMs":900}]}'
+  --data '{"commands":[{"channel":"L0","value":0.75,"durationMs":300}]}'
 curl --request POST http://127.0.0.1:12403/heartbeat \
   --header 'Content-Type: application/json' --header 'X-Sensa-Session: player-one' --data '{}'
 curl --request POST http://127.0.0.1:12403/stop \
@@ -198,7 +200,7 @@ curl --request POST http://127.0.0.1:12405/command \
 
 The last example requires input ID `lovense-in` and a Scalar feature; it does not create that configuration. Autoblow/VacuGlide sync-script supports multipart upload-csv/upload-funscript, URL uploads, current-input local load-token, start (startTimeMs), stop, offset (offsetTimeMs) and loop. CSV is headerless integer-millisecond/0–100 position pairs ending with a newline; funscript uses actions. Scripts allow 1 MiB, 100000 points and 16777214 ms. Handy HSSP setup accepts a URL and plays the same trajectory model.
 
-Script downloads do not inherit inbound Cookie/authentication, follow redirects or accept unbounded data. URL/address limits also apply. Before connecting, the default downloader rechecks public addresses, connects to a vetted IP and verifies the remote endpoint. If an inherited system HTTP proxy prevents verification of the final destination, URL import is rejected; DNS preflight alone does not prove the connection target. Autoblow/VacuGlide can instead use bounded multipart uploads. Local Handy-compatible HSSP URL import has the same restriction. `MaxScriptDurationMs` defaults to 3600000 (one hour), limiting each autonomous playback task. HTTP clients need not renew every frame; Stop, emergency clearing and the task deadline still apply. Immediate controls retain the `TimeoutMs` lease; finite Handy HDSP xpt/xpvp targets also retain arrival-plus-grace, whereas HAMP alternating motion still requires source activity and cannot renew itself forever. If a cloud-compatible input's `Identifier` is nonempty, `x-device-token` must match. Identity also distinguishes Origin, remote IP and `X-Sensa-Session`. This token identifies a local input, not a registered vendor cloud device.
+Script downloads do not inherit inbound Cookie/authentication, follow redirects or accept unbounded data. URL/address limits also apply. Before connecting, the default downloader rechecks public addresses, connects to a vetted IP and verifies the remote endpoint. If an inherited system HTTP proxy prevents verification of the final destination, URL import is rejected; DNS preflight alone does not prove the connection target. Autoblow/VacuGlide can instead use bounded multipart uploads. Local Handy-compatible HSSP URL import has the same restriction. `MaxScriptDurationMs` defaults to 3600000 (one hour), limiting each autonomous playback task. HTTP clients need not renew every frame; Stop, emergency clearing and the task deadline still apply. Immediate controls retain the `TimeoutMs` lease; finite Handy HDSP xpt/xpvp targets also retain arrival-plus-grace, whereas HAMP alternating motion still requires source activity and cannot renew itself forever. If an `AutoblowHttp`/`VacuGlideHttp` source's `Identifier` is nonempty, `x-device-token` must match. Identity also distinguishes Origin, remote IP and `X-Sensa-Session`. This token identifies a local input, not a registered vendor cloud device.
 
 To control a physical device, add a **Handy, Lovense, Autoblow or VacuGlide output** and configure its actual API endpoint, connection key or device ID. These are separate directions from the similarly named compatibility inputs.
 
@@ -240,7 +242,7 @@ This output fragment uses placeholder credentials and starts disabled. Preserve 
 }
 ```
 
-Real Handy v2/v3 synchronized scripts use CSV URLs; explicit funscript selections are rejected rather than assuming an unverified cloud format. Autoblow and VacuGlide support CSV/funscript URLs in the selected format. CSV is headerless `milliseconds,position-percent` ending with a newline. Downloads require direct public HTTPS content without redirects; explicitly local input-script URLs and real cloud-output download restrictions are separate boundaries.
+Real Handy v2/v3 synchronized scripts use CSV URLs; explicit funscript selections are rejected rather than assuming an unverified cloud format. Autoblow and VacuGlide support CSV/funscript URLs in the selected format. CSV is headerless `milliseconds,position-percent` ending with a newline. Sensa submits the URL to the configured device/API, which downloads the script. Handy accepts HTTP(S), while Autoblow/VacuGlide require HTTPS; none permits credentials embedded in the URL. Supply content that the device/API can retrieve. Sensa's own device-API requests do not follow redirects, but the device/API determines the final script-download address and redirect policy; Sensa does not validate those on its behalf. The public-address checks, DNS pinning and redirect rejection described above belong to the local compatible-input script loader.
 
 Connection queries state without moving. Preparing a synchronized script closes input; enable input again before playback/seek. The device/API must be able to retrieve the script URL; preparation may take much longer than ordinary requests and can be canceled by Stop. Stop/failure clears pending work and playback state; reconnection does not resume old movement. Credentials are stored in the chosen configuration, so inspect connection keys, API keys and tokens before exporting/sharing it.
 
@@ -259,6 +261,8 @@ python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa 
 These are alternative connections; run the one you need. A Linux/macOS PTY is not guaranteed to appear in Web Serial's picker. Windows needs an already installed/configured enumerable COM pair: the browser opens one end and the bridge opens the other. Sensa's `TCodeSerial` can instead open the bridge-side port directly; two processes must not compete for the same end.
 
 BLE input needs the **peripheral/GATT server** role; BLE output needs the **central** role. The tool adapts LOOB's four-byte position/duration frames and Erojoy Thrust Sync's three-byte frames. Linux/macOS input uses Bless, Windows input uses independent native WinRT, and output uses Bleak. Check OS, adapter, advertising permission and browser filtering separately. Windows LOOB requires the actual system advertising name to meet its LOOB prefix before explicit confirmation; the tool does not rename the computer. An ordinary browser page cannot become a BLE peripheral. Self-connection/dual roles on one adapter may require another dongle.
+
+Each I duration is limited to 60000 ms when forwarding BLE input into Sensa. The raw BLE field's 60001–65535 ms values are rejected by Sensa's TCode input, which closes the TCP session; this path does not forward the full 16-bit range.
 
 For the output direction, configure a TCode TCP output in Sensa to `127.0.0.1:12411`, enable only L0 and select Interval, then run:
 

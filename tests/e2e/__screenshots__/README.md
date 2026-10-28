@@ -1,27 +1,31 @@
 # Screenshot review / 截图审阅
 
-The tracked baselines now contain **164 application PNGs**, with **eight site-review originals** under `tests/e2e/__review__/site/`. All 172 originals were individually reviewed after recovery into the new environment; no missing historical review receipts were reused. Per-image SHA-256 and observations are retained in [baseline-review.json](../baseline-review.json).
+The current set contains **164 application baselines and eight site-review originals**. [Candidate 40756483229, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40756483229/attempts/1) captured source `aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f`: **144/144 passed**, every other outcome zero, `suite=all`, `mode=candidate`, `selectionComplete=true`, `snapshotsCompared=false`.
 
-当前基线包含 **164 张应用 PNG**，另有 **8 张站点审阅原图**位于 `tests/e2e/__review__/site/`。恢复到新环境后重新逐张审阅了全部 172 张原图，未复用缺失的历史审阅凭据；逐图 SHA-256 与观察记录保存在 [baseline-review.json](../baseline-review.json)。
+当前包含 **164张应用基线和8张站点原图**。上述固定源码的候选完整 **144/144通过**，其余结果均为0；候选采集不等于普通截图比较。
 
-## Candidate and comparison / 候选与普通比较
+## Image and source checks / 图片与来源核对
 
-- [Candidate 40035585736, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40035585736/attempts/1) pins source `5d60f782313c9d6291bf9a32fa68394b63a1136e`: **116/116 passed**, all other outcomes zero; `suite=all`, `mode=candidate`, `runner=passed`, command successful, `selectionComplete=true`, `snapshotsCompared=false`.
-- [PR #26](https://github.com/SeaLoong/Sensa/pull/26) contains raw image commit `a53b8e18cf1a3da710f368b3ae5a32c6cd71204d`. The patch, export manifest and all **172 image SHA-256 values** were verified together.
-- [Full ordinary comparison 40037674549, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40037674549/attempts/1) tested merge snapshot `b0c08cb02e1352b9ad0cfcc7e279e71cad6f7fdc`, whose parents are main `d3bcf1701ee114271cafa285cb382532e851ccaf` and the candidate commit above: **116/116 passed**, all other outcomes zero; `suite=all`, `mode=comparison`, `runner=passed`, command successful, `selectionComplete=true`, `snapshotsCompared=true`.
+[PR#34](https://github.com/SeaLoong/Sensa/pull/34) contains raw capture commit `30a8dd6d2e7d756b97197bf13dc1f8f7d4e4838d`, whose sole parent is the source above. The export patch SHA-256 is `49e69e04d1327b0f57785618c6355d1be15b6104142661c40a5940b04284cc10`. Both official artifact digests, the proposal manifest, all 172 PNGs and the remote Git tree matched.
 
-候选完整通过，导出补丁、清单与全部图片摘要一致。普通比较使用 main `d3bcf17` 与候选的合并快照，关闭截图更新后完整 **116/116 通过**，验证了当前应用代码与这套基线的组合。图片审阅与普通比较均已完成；后续代码改动仍需对应提交的检查。
+Root individually opened **13 changed originals**. Another **10 images** (both settings views and all eight site originals) exactly matched images individually opened earlier in this task. The remaining **149** exactly matched the prior per-image review. [baseline-review.json](../baseline-review.json) records each current hash, observation and whether its visual evidence was opened or reused. No image was accepted merely because capture succeeded.
 
-## Findings / 审阅结果
+逐张打开了 **13张变更原图**；两视口设置页及8张站点原图，共 **10张**，与本轮刚审阅的原图摘要完全相同，复用对应观察。其余 **149张**与既有逐图审阅的摘要完全一致。逐图记录保留当前摘要、观察和复用依据。
 
-The corrected SPS four-anchor introductions explicitly use **root-local units** and explain the metre equivalence at authored scale 1. Contact introductions specify **metres** and the illustrated scale. The previous twelve wording concerns are resolved in these captures. Spatial crops show the XYZ position and plane-normal input groups in both languages/viewports. QR diagrams show three finders, monochrome data and white quiet/movement margins; text distinguishes recoverable data damage from finder visibility and frame expiry.
+The intentional settings change adds the protocol-input card below the existing axis/log panels. Both viewports retain readable spacing. Other recaptured values/timestamps, profile dialogs, Contact panels and geometry views were checked individually. The 38 selected documentation captures now use this candidate's source/run/attempt: four image bytes changed and 34 were identical.
 
-修正后的 SPS 四点定位首句明确使用**根局部单位**，并说明作者缩放为 1 时对应米；Contact 首句明确采用**米**与图示缩放条件。此前 12 张图片的措辞问题已在本次原图中修正。空间计算图片展示两语言、两视口的 XYZ 位置和平面朝向分组；QR 图解保留三个角标、黑白数据与白色留白，说明区分数据恢复、角标可辨性和帧时效。
+设置页有意在轴配置和日志下增加协议输入卡片；两个视口的排布可读。其余重新采集的数值／时间、轴配置窗口、Contact面板与图解逐张检查通过。文档选用的38张图片同步到本次来源：4张字节变化，34张相同。
+
+## Ordinary comparison remains required / 仍须普通比较
+
+Before merging, CI must execute **all 144** cases for its exact pinned source with screenshot updates disabled, `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, successful command and zero other outcomes. Candidate success and this visual record do not replace that evidence. Read the corresponding CI job summary and [current verification record](../../../docs/e2e-status.en.md).
+
+合并前须对CI固定源码执行完整 **144项普通比较**：关闭截图更新，完整选择与实际图片比较均为true，命令成功，其余结果为0。候选通过和审图记录均不能替代此证据；实际结果见对应CI摘要及[验证记录](../../../docs/e2e-status.md)。
 
 ## Scope and history / 范围与历史
 
-Captures use Chromium in `mcr.microsoft.com/playwright:v1.64.1-noble`, `zh-CN` / `en-US`, `Asia/Shanghai`, 1280×900 / 390×844, plus 320 CSS px reflow assertions. Tests use isolated simulated transports. Visual review and browser comparison do not establish Unity GPU, VRChat/HMD or physical-device acceptance.
+Captures use the pinned Playwright 1.64.1 image, `zh-CN`/`en-US`, `Asia/Shanghai`, desktop 1280×900 and narrow 390×844, plus 320 CSS px reflow checks. Transports are isolated simulations. Visual/browser checks do not establish Unity GPU, VRChat/HMD, vendor-cloud or physical-device acceptance.
 
-图片来自上述固定浏览器环境，页面行为使用隔离模拟传输。视觉审阅与浏览器比较不代表 Unity GPU、VRChat／HMD 或实际硬件验收。
+图片来自固定浏览器与隔离模拟传输；审图和浏览器比较不代表Unity GPU、VRChat/HMD、厂商云或实体设备验收。
 
-[Previous review / 上轮审阅记录](https://github.com/SeaLoong/Sensa/blob/d3bcf1701ee114271cafa285cb382532e851ccaf/tests/e2e/__screenshots__/README.md) · [Current results / 当前验证](../../../docs/e2e-status.en.md) · [中文记录](../../../docs/e2e-status.md)
+[Previous per-image review / 上轮逐图记录](https://github.com/SeaLoong/Sensa/blob/aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f/tests/e2e/baseline-review.json)

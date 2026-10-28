@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "5d60f782313c9d6291bf9a32fa68394b63a1136e",
-  "runId": "40035585736",
+  "sourceCommit": "aea5ef3f0b60a0b3cde957de4e1a3b45b80bdc4f",
+  "runId": "40756483229",
   "attempt": "1",
   "scenes": [
     {
@@ -148,12 +148,12 @@
         "mobile": {
           "en": {
             "file": "mobile/combined-input-en-US.png",
-            "sha256": "a32d41df3bc1c32dd61393175f4fe9e812acca7e0cd60b8f6759006a2a93d3a2",
+            "sha256": "e577754ff8b171ef995dd321e61a89f2d2e1612a7d4f6339db3e68a8c01a62d5",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/combined-input-zh-CN.png",
-            "sha256": "282673ee42923350ca216c0182ba0c7baf2b51aad80dc47bcdaf08d74ee2e1d5",
+            "sha256": "e57d7888184d7d1cb412151bff5b570b65c1fdf51ed80003cacc120821dd7029",
             "language": "zh-CN"
           }
         }
@@ -173,7 +173,7 @@
     },
     {
       "file": "desktop/contact-root-position.png",
-      "sha256": "2c02d1187ce5948a64c1a06564678576dc7815b6c238b6199135959afc7ab63a",
+      "sha256": "1a1a23b3e54aef028cca807a29e6234ff171698367039a2c0729ad96822187b5",
       "language": "zh-CN"
     },
     {
@@ -223,7 +223,7 @@
     },
     {
       "file": "mobile/contact-root-position.png",
-      "sha256": "6c8e6cbc8eacd66f63914b32d89e189aa8109e872f1f27efb71458c9a521f7c8",
+      "sha256": "90ddca543b277ac892b17c342a4b77ccf9797f86bcbc7f5b188507c826c4cf53",
       "language": "zh-CN"
     },
     {

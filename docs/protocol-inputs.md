@@ -18,8 +18,8 @@ flowchart LR
 
 ## 先建立一个可检查的闭环
 
-1. 在“控制”的协议输入页，或“流程 → 协议输入”，添加 **Buttplug / Intiface** 来源。保留本机地址 `127.0.0.1`、端口 `12400`，通道 `L0`、类型“位置与到达时长”、直接轴 `L0`。启用此来源的监听。
-2. 网站来源填实际网页的 HTTP(S) origin，例如 `https://faptap.net`。只填来源，不含路径、查询或通配符。本机原生客户端无 Origin 时按本机连接单独处理。
+1. 在“设置 → 协议输入”添加 **Buttplug / Intiface** 来源。保留本机地址 `127.0.0.1`、端口 `12400`，通道 `L0`、类型“位置与到达时长”、直接轴 `L0`。
+2. 网站来源填实际网页的 HTTP(S) origin，例如 `https://faptap.net`。只填来源，不含路径、查询或通配符。本机原生客户端无 Origin 时按本机连接单独处理。启用此来源的监听并保存；首个来源保存后，“控制”才会显示“协议”页签。
 3. 添加一个 **TCode 串口输出**，选实际 OSR 串口和轴配置；先关闭无关轴，核对方向、行程与停止。保存后，连接输出。
 4. 在网站或客户端的 Intiface 地址填 `ws://127.0.0.1:12400`，连接并选择 Sensa 设备。这是 Sensa 输入端；真正的 Central 应用端口通常是 `12345`，二者可以并存。
 5. 在 Sensa 应用“协议”输入方式，准备好后单独启用输入。先发送小范围目标并检查接收计数、输出目标与停止行为，再开始正常播放。
@@ -79,6 +79,8 @@ flowchart LR
 勾选“直接映射到动作输出”时，“协议”或“组合”方式把目标与每个通道的时长送入动作运行时，再使用实际输出的轴配置。多轴时长彼此独立。来源停止、失效或断线会清理待发命令；现有动作输出的强停是全设备停止，因此来源／特征停止会保守地停止动作输出，可能影响同时运行的其他轴。
 
 协议来源只有在“协议”／“组合”方式中才能路由，计算和绑定也遵守这一条件。需要换算、融合、记录或送往其他协议时，关闭该来源的直接映射，在计算或输出绑定中选“协议输入”，填 `来源ID/通道ID`，例如 `website/L0`。`/value` 与省略后缀等效；`/target` 读取目标；旋转通道还可读 `/speed`、`/clockwise`。位置插值仅代表命令轨迹，不能当作硬件回读。首次定时运动没有已知起点时，当前值在到达前无效，目标值仍可读取。
+
+关闭直接映射后，依赖来源失效会按[绑定停止语义](signal-pipeline.md)发送所配置的 `StopValue`。对于位置轴，它是备用目标，可能产生运动；关闭总输入、停用输出或急停使用整机停止路径。
 
 通过标量计算／绑定会采用绑定自身的发送节奏，不会自动保留原命令的硬件到达时长。需要原有定时轨迹时使用直接动作路径。强度转往 OSR 位移等跨含义操作，必须由使用者显式选择计算、量程与目标，不能靠品牌名称猜测。
 
@@ -152,13 +154,13 @@ TCode 没有应用层 Ping：TCP／串口／UDP 的合法有限动作保持到�
 
 ## 自制应用的 HTTP／WebSocket JSON
 
-使用 `JsonHttp` 时，以下请求发往输入地址而非工作台的 `/api`。同一客户端使用固定的 `X-Sensa-Session`，需要持续保持目标时在超时内发送 `/heartbeat`；超时会释放控制权并停止。HTTP 身份由 Origin、远端 IP 与此会话头共同区分。
+使用 `JsonHttp` 时，以下请求发往输入地址而非工作台的 `/api`。示例使用默认 `L0` 通道；发送多轴批次前，先在该来源配置中添加 `R0` 等额外通道。同一客户端使用固定的 `X-Sensa-Session`，需要持续保持目标时在超时内发送 `/heartbeat`；超时会释放控制权并停止。HTTP 身份由 Origin、远端 IP 与此会话头共同区分。
 
 ```sh
 curl --request POST http://127.0.0.1:12403/commands \
   --header 'Content-Type: application/json' \
   --header 'X-Sensa-Session: player-one' \
-  --data '{"commands":[{"channel":"L0","value":0.75,"durationMs":300},{"channel":"R0","value":0.25,"durationMs":900}]}'
+  --data '{"commands":[{"channel":"L0","value":0.75,"durationMs":300}]}'
 curl --request POST http://127.0.0.1:12403/heartbeat \
   --header 'Content-Type: application/json' --header 'X-Sensa-Session: player-one' --data '{}'
 curl --request POST http://127.0.0.1:12403/stop \
@@ -198,7 +200,7 @@ curl --request POST http://127.0.0.1:12405/command \
 
 最后一例需要来源 ID `lovense-in` 和 Scalar 特征；它不会自动创建该来源。Autoblow／VacuGlide 的 `sync-script` 支持 multipart `upload-csv`／`upload-funscript`，URL 上传、当前来源本地 `load-token`、`start`（startTimeMs）、`stop`、`offset`（offsetTimeMs）和 `loop`。CSV 是无表头、末尾有换行的整数毫秒／0～100 位置对；funscript 使用 actions。脚本上限 1 MiB、100000 点、16777214 ms。Handy 的 HSSP setup 接受 URL，按相同轨迹模型播放。
 
-脚本 URL 不继承入站 Cookie／认证，下载不跟随重定向，并限制 URL／地址和大小。默认下载器在连接前重新核验公网地址，直接连接已核验 IP 并核对实际远端；若继承的系统 HTTP 代理使最终目标无法核验，则拒绝 URL 导入，不能把 DNS 预检当作实际连接证明。Autoblow／VacuGlide 可改用有界 multipart 文件上传；Handy 本地兼容 HSSP 的 URL 导入同受这一限制。`MaxScriptDurationMs` 默认 3600000（1 小时），限制一个自主播放任务的最长运行时间；HTTP 客户端不必逐帧续约，任务仍受急停、停止和截止时间约束。普通即时控制继续使用 `TimeoutMs` 租约；Handy HDSP 的有限 xpt／xpvp 目标同样延续到到达后再加该宽限，HAMP 自动往复仍需来源活动，不能靠内部循环无限续租。兼容云输入的 `Identifier` 非空时，`x-device-token` 须匹配；实际来源身份还区分 Origin、远端 IP 与 `X-Sensa-Session`。token 表示本地输入身份，不是厂商云注册凭据。
+脚本 URL 不继承入站 Cookie／认证，下载不跟随重定向，并限制 URL／地址和大小。默认下载器在连接前重新核验公网地址，直接连接已核验 IP 并核对实际远端；若继承的系统 HTTP 代理使最终目标无法核验，则拒绝 URL 导入，不能把 DNS 预检当作实际连接证明。Autoblow／VacuGlide 可改用有界 multipart 文件上传；Handy 本地兼容 HSSP 的 URL 导入同受这一限制。`MaxScriptDurationMs` 默认 3600000（1 小时），限制一个自主播放任务的最长运行时间；HTTP 客户端不必逐帧续约，任务仍受急停、停止和截止时间约束。普通即时控制继续使用 `TimeoutMs` 租约；Handy HDSP 的有限 xpt／xpvp 目标同样延续到到达后再加该宽限，HAMP 自动往复仍需来源活动，不能靠内部循环无限续租。`AutoblowHttp`／`VacuGlideHttp` 来源的 `Identifier` 非空时，`x-device-token` 须匹配；实际来源身份还区分 Origin、远端 IP 与 `X-Sensa-Session`。token 表示本地输入身份，不是厂商云注册凭据。
 
 真实设备输出在“添加输出”中选择 **Handy、Lovense、Autoblow、VacuGlide**，填写实际 API 地址、连接密钥或设备 ID。它们与同名的兼容输入是两个方向。
 
@@ -240,7 +242,7 @@ curl --request POST http://127.0.0.1:12405/command \
 }
 ```
 
-真实 Handy 的 v2/v3 同步脚本使用 CSV URL；明确的 funscript 选择会拒绝，不假设云端支持未证实的格式。Autoblow 与 VacuGlide 可按所选格式使用 CSV／funscript URL 脚本。CSV 为无表头、末尾换行的 `时间毫秒,位置百分比`，URL 下载使用公网 HTTPS、直出内容并拒绝重定向；输入端明确的本机脚本 URL 与真实云输出的下载约束分别适用。
+真实 Handy 的 v2/v3 同步脚本使用 CSV URL；明确的 funscript 选择会拒绝，不假设云端支持未证实的格式。Autoblow 与 VacuGlide 可按所选格式使用 CSV／funscript URL 脚本。CSV 为无表头、末尾换行的 `时间毫秒,位置百分比`。Sensa 将 URL 提交给所配置的设备／API，由后者下载脚本；Handy 接受 HTTP(S)，Autoblow／VacuGlide 要求 HTTPS，URL 均不能内嵌凭据。请提供设备／API 可访问的脚本内容。Sensa 发往设备 API 的请求不跟随重定向，但厂商最终脚本下载的地址与重定向策略由设备／API 决定，Sensa 不替它验证；前述公网地址核验、DNS 固定和禁止重定向的下载保护属于本地兼容输入的脚本下载器。
 
 连接阶段只查询状态，不运动。准备同步脚本会关闭输入；准备后重新启用输入才能播放或定位。同步脚本 URL 必须能被设备／API 获取，上传准备可比普通请求耗时更长；停止可取消等待。停止或故障清理待发目标和脚本状态；重新连接不恢复旧运动。凭据保存在所选配置中，导出／共享前检查其中的连接 key、API key 和 token。
 
@@ -259,6 +261,8 @@ python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa 
 这些是备选接法，按需运行其中一条。Linux/macOS 的 PTY 不保证出现在 Web Serial 选择器；Windows 需要事先安装并配置可枚举的 COM 端口对，浏览器打开一端，桥工具打开另一端。Sensa 也可用 `TCodeSerial` 直接打开桥端，但不能让两个进程争用同一端口。
 
 BLE 输入需要 **peripheral/GATT server** 角色；BLE 输出需要 **central** 角色。工具提供 LOOB 的 4 字节位置＋时长和 Erojoy Thrust Sync 的 3 字节位置＋时长适配。Linux/macOS 输入使用 Bless，Windows 输入使用独立原生 WinRT；输出用 Bleak。操作系统、适配器、广播权限与浏览器筛选分别检查。Windows LOOB 需系统实际广播名满足 LOOB 前缀后显式确认；工具不修改系统名称。浏览器普通网页不能自行变成 BLE 外围设备，同一适配器自连接／双角色可能需要额外 dongle。
+
+BLE 输入转到 Sensa 时，单条 I 时长上限为 60000 ms。原始 BLE 字段的 60001～65535 ms 会被 Sensa 的 TCode 输入拒绝并关闭 TCP 会话，不能按完整 16 位范围透传。
 
 反向输出时，在 Sensa 配置仅 L0 的 TCode TCP 输出到 `127.0.0.1:12411`，Interval 方式，再启动：
 

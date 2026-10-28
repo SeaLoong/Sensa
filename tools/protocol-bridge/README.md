@@ -71,6 +71,8 @@ Select the corresponding website connector and grant Bluetooth access. LOOB adve
 
 Frames are checked for exact length and range before conversion to `L0xxxI<milliseconds>`. BLE position 1.0 becomes the three-digit TCode maximum 999. Invalid frames, queue overflow or downstream failure stop the session. Windows observes native GATT session closure. These write-only protocols do not provide reliable notification-subscription disconnect events in Bless, so Linux/macOS use the `--idle` watchdog to send `DSTOP` without new commands, by default two seconds after the latest command’s finite I interval. An ordinary webpage cannot serve as a BLE peripheral. Same-adapter browser self-connection, concurrent roles and platform-specific advertising require real hardware verification; another adapter or an external peripheral may be needed.
 
+BLE input forwarded into Sensa must keep each I duration at or below **60000 ms**, the TCode input limit. Although the raw BLE field can encode 60001–65535 ms, Sensa rejects those commands and closes the TCP session; that part of the raw field's range is not supported through this input path.
+
 ## BLE output: Sensa → actual BLE device
 
 Add a **TCode TCP output** in Sensa targeting local port `12411`. Enable L0 only and choose Interval slope. Obtain the actual device's OS identifier, then connect explicitly:

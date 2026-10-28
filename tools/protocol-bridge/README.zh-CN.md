@@ -71,6 +71,8 @@ python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa 
 
 原始帧严格核对长度和范围，再转换为 `L0xxxI毫秒`。BLE 收到的 1.0 会转换为 TCode 三位量程的上限 999。错误帧、队列溢出或下游失败停止本次会话。Windows 会监听原生 GATT Session 关闭；Bless 的这些仅写协议没有可靠的订阅断线事件，所以 Linux/macOS 由 `--idle` 看门狗在无新命令时发送 `DSTOP`，默认在最近命令的有限 I 时长结束后再宽限两秒。普通网页不能作为 BLE 外围设备；同一适配器的浏览器自连接、双角色并发及不同平台的广播行为都需实机确认，必要时使用第二个适配器或外部外围设备。
 
+BLE 输入转发到 Sensa 时，每条 I 时长须遵守 TCode 输入的 **60000 ms** 上限。原始 BLE 字段虽然能编码 60001～65535 ms，但 Sensa 会拒绝这些命令并关闭 TCP 会话；这部分原始字段范围不能通过该输入路径透传。
+
 ## BLE 输出：Sensa → 真实 BLE 设备
 
 在 Sensa 添加 **TCode TCP 输出**，目标为本机 `12411`；只启用 L0，斜率选择 Interval。先明确获取实际设备的系统标识，再显式连接：
