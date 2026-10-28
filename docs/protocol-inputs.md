@@ -246,7 +246,7 @@ curl --request POST http://127.0.0.1:12405/command \
 
 ## 蓝牙与虚拟串口的实际接线
 
-桥工具需要单独安装 Python 与所选依赖；便携包／安装器附带工具文件，单文件 EXE 不内嵌 Python、虚拟串口驱动或蓝牙栈。
+桥工具需要单独安装 Python 3.10+ 与所选依赖；原生 Windows BLE 输入要求 Python 3.11+ 和 PyWinRT 4。便携包／安装器附带工具文件，单文件 EXE 不内嵌 Python、虚拟串口驱动或蓝牙栈。
 
 ```sh
 python tools/protocol-bridge/bridge.py --check

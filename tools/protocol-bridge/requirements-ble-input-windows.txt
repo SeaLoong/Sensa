@@ -1,4 +1,5 @@
 # Native Windows GATT server. MIT. https://github.com/pywinrt/pywinrt
+# PyWinRT 4 requires Python 3.11+; the other bridge modes support Python 3.10+.
 # Compatible projection/runtime set; satisfies Bleak 3.0.2's >=3.1 requirement.
 winrt-runtime==4.0.3; sys_platform == "win32"
 winrt-Windows.Devices.Bluetooth==4!10.0.28000.2705; sys_platform == "win32"

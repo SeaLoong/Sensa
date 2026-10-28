@@ -246,7 +246,7 @@ Connection queries state without moving. Preparing a synchronized script closes 
 
 ## Bluetooth and virtual serial wiring
 
-The tools need a separate Python installation and selected dependencies. Portable/installer packages include tool files; the single EXE does not embed Python, serial drivers or a Bluetooth stack.
+The tools need a separate Python 3.10+ installation and selected dependencies; native Windows BLE input requires Python 3.11+ and PyWinRT 4. Portable/installer packages include tool files; the single EXE does not embed Python, serial drivers or a Bluetooth stack.
 
 ```sh
 python tools/protocol-bridge/bridge.py --check

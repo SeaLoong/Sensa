@@ -111,6 +111,12 @@ jobs:
         shell: bash
       - name: Install dependencies
         run: npm ci
+      - name: Check native Windows protocol bridge dependencies
+        if: startsWith(matrix.rid, 'win-')
+        shell: bash
+        run: |
+          python -m pip install -r tools/protocol-bridge/requirements-ble-input-windows.txt -r tools/protocol-bridge/requirements-ble-output.txt
+          python scripts/check-protocol-bridge-windows.py --report "artifacts/test-results/$TARGET_RID/protocol-bridge-dependencies.json"
       - name: Install verified Inno Setup compiler
         if: startsWith(matrix.rid, 'win-')
         shell: pwsh
