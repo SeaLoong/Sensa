@@ -307,6 +307,48 @@ test('vendor forms use password fields and synchronized playback waits for expli
   assert.doesNotMatch(preparing, /<button[^>]*disabled=""[^>]*>Stop synchronized script<\/button>/);
 });
 
+test('vendor script controls render absent snapshots as unprepared without disabling stop / 厂商脚本状态缺失时仍可渲染且不阻塞停止', () => {
+  for (const locale of ['zh-CN', 'en-US']) {
+    setLocale(locale);
+    const labels = locale === 'en-US'
+      ? { play: 'Play synchronized script', seek: 'Seek synchronized script', prepare: 'Prepare synchronized script', stop: 'Stop synchronized script', unprepared: 'Script not prepared', playing: 'Playing' }
+      : { play: '播放同步脚本', seek: '定位同步脚本', prepare: '准备同步脚本', stop: '停止同步脚本', unprepared: '脚本尚未准备', playing: '播放中' };
+    const disabledButton = label => new RegExp('<button[^>]*disabled=""[^>]*>' + label + '<\\/button>');
+    for (const type of ['Handy', 'Autoblow', 'VacuGlide']) {
+      const props = { output: { type, device: { scriptUrl: 'https://example.com/test.csv' } },
+        disabled: false, stopDisabled: false, inputActive: true, onAction() {} };
+      // A new disabled output has deviceApi:null; undefined also occurs before its first overview.
+      for (const snapshot of [{}, { status: undefined }, { status: null }, { status: {} }]) {
+        for (const disabled of [false, true]) {
+          const html = render(VendorScriptControls, { ...props, ...snapshot, disabled });
+          assert.match(html, /data-testid="vendor-script-controls"/);
+          assert.ok(html.includes(labels.unprepared));
+          assert.match(html, disabledButton(labels.play));
+          assert.match(html, disabledButton(labels.seek));
+          assert.equal(disabledButton(labels.prepare).test(html), disabled);
+          assert.doesNotMatch(html, disabledButton(labels.stop));
+          assert.ok(!html.includes('>' + labels.playing + '<'));
+        }
+      }
+    }
+  }
+});
+
+test('losing a prepared vendor snapshot clears playback readiness immediately / 厂商已准备状态丢失后立即清除播放就绪', () => {
+  setLocale('en-US');
+  const props = { output: { type: 'Handy', device: { scriptUrl: 'https://example.com/test.csv' } },
+    disabled: false, stopDisabled: false, inputActive: true, onAction() {} };
+  for (const status of [{ scriptPrepared: true, scriptPlaying: true }, null, { scriptPrepared: false, scriptPlaying: false }, { scriptPrepared: true, scriptPlaying: true }]) {
+    const html = render(VendorScriptControls, { ...props, status });
+    const prepared = status?.scriptPrepared === true;
+    assert.equal(html.includes('>Script prepared<'), prepared);
+    assert.equal(html.includes('>Playing<'), prepared);
+    for (const action of ['Play', 'Seek'])
+      assert.equal(new RegExp('<button[^>]*disabled=""[^>]*>' + action + ' synchronized script<\\/button>').test(html), !prepared);
+    assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>Stop synchronized script<\/button>/);
+  }
+});
+
 test('Intiface editor exposes genuine capabilities and documents direction separately from source inversion / Intiface编辑器展示真实能力并区分方向与数值反向', () => {
   for (const locale of ['zh-CN', 'en-US']) {
     setLocale(locale);
