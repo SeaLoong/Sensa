@@ -570,8 +570,10 @@ test('@site local flowcharts render real readable SVG in both guide languages', 
     expect(bounds.textBoxes.every(box => box.width > 0 && box.height > 0)).toBe(true);
     await canvas.scrollIntoViewIfNeeded();
     await expect(canvas).toHaveAttribute('tabindex', '0');
+    expect(await canvas.evaluate(element => element.scrollWidth > element.clientWidth + 1)).toBe(true);
     await canvas.focus();
-    await page.keyboard.press('End');
+    await expect(canvas).toBeFocused();
+    await canvas.press('ArrowRight');
     await expect.poll(() => canvas.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
     const scroll = await canvas.evaluate(element => ({ width: element.clientWidth, fullWidth: element.scrollWidth, left: element.scrollLeft }));
     expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);

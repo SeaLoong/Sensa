@@ -31,11 +31,14 @@
         if (/%%\{|^\s*---\s*$|@\{|\b(?:https?|data|javascript|vbscript):|\burl\s*\(|<\/?[a-z]|^\s*(?:click|style|classDef|linkStyle)\b/im.test(source))
           throw new Error('Unsupported active diagram content');
         const { svg } = await renderer.render(figure.dataset.diagramId, source);
-        const template = document.createElement('template');
-        template.innerHTML = svg;
-        const graphic = template.content.firstElementChild;
-        if (graphic?.localName !== 'svg' || graphic.namespaceURI !== 'http://www.w3.org/2000/svg'
-          || template.content.children.length !== 1
+        // Mermaid returns SVG, so require a well-formed SVG XML document rather
+        // than accepting HTML parser recovery. Do not process DTD/entity input.
+        if (typeof svg !== 'string' || /<!DOCTYPE|<!ENTITY/i.test(svg))
+          throw new Error('Unexpected SVG declaration');
+        const parsed = new DOMParser().parseFromString(svg, 'image/svg+xml');
+        const graphic = parsed.documentElement;
+        if (parsed.doctype || parsed.querySelector('parsererror') || parsed.children.length !== 1
+          || graphic?.localName !== 'svg' || graphic.namespaceURI !== 'http://www.w3.org/2000/svg'
           || graphic.querySelector('script, foreignObject, image, iframe, object, embed, a'))
           throw new Error('Unexpected active SVG content');
         for (const style of graphic.querySelectorAll('style')) {
@@ -54,7 +57,7 @@
         }
         graphic.setAttribute('role', 'img');
         graphic.setAttribute('aria-label', figure.dataset.diagramLabel);
-        canvas.replaceChildren(graphic);
+        canvas.replaceChildren(document.importNode(graphic, true));
         canvas.hidden = false;
         details.open = false;
         status.hidden = true;

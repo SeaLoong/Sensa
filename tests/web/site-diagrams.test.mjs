@@ -20,34 +20,47 @@ function graphic({ attributes = [{ name: 'xmlns', value: 'http://www.w3.org/2000
     querySelectorAll: selector => selector === 'style' && style ? [{ textContent: style }] : [],
     setAttribute(name, value) { this.assigned[name] = value; } };
 }
-async function execute(figures, { renderer, svg = graphic(), fonts = Promise.resolve() } = {}) {
+async function execute(figures, { renderer, svg = graphic(), xml = {}, fonts = Promise.resolve() } = {}) {
   let config, calls = 0;
+  const parseCalls = [], imports = [];
   const mermaid = renderer === null ? undefined : { initialize(value) { config = value; },
     async render(...args) { calls++; return renderer ? renderer(...args) : { svg: '<svg />', bindFunctions() { throw new Error('Must not bind callbacks'); } }; } };
   vm.runInNewContext(wrapper, { document: { fonts: { ready: fonts }, querySelectorAll: () => figures,
-    createElement(tag) {
-      assert.equal(tag, 'template');
-      return { content: { firstElementChild: svg, children: [svg] }, set innerHTML(value) { assert.equal(typeof value, 'string'); } };
-    } }, mermaid });
+    importNode(node, deep) { assert.equal(node, svg); assert.equal(deep, true); imports.push(node); return node; },
+  }, DOMParser: class {
+    parseFromString(value, type) {
+      parseCalls.push({ value, type });
+      assert.equal(type, 'image/svg+xml');
+      return { documentElement: svg, doctype: xml.doctype || null,
+        children: xml.multiple ? [svg, graphic()] : svg ? [svg] : [],
+        querySelector: selector => { assert.equal(selector, 'parsererror'); return xml.parserError ? {} : null; },
+      };
+    }
+  }, mermaid });
   // The wrapper deliberately runs without a public API or exposing Mermaid to documents.
   // Wait for its bounded per-figure promise work, without a browser or a DOM emulator.
   for (let index = 0; index < figures.length * 3 + 4; index++) await Promise.resolve();
-  return { config, calls };
+  return { config, calls, parseCalls, imports };
 }
 
 test('Mermaid fences retain exact escaped source and an accessible no-JavaScript fallback', () => {
-  const source = 'flowchart LR\n A[</code><script>alert("x")</script>] --> B[& source]\n';
-  for (const locale of ['en', 'zh-CN']) {
+  const examples = [
+    { source: 'flowchart LR\n A[</code><script>alert("x")</script>] --> B[& source]\n',
+      escaped: 'flowchart LR\n A[&lt;/code&gt;&lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt;] --&gt; B[&amp; source]\n' },
+    { source: 'flowchart LR\n A[<ScRiPt data-value="x">alert(1)</ScRiPt><IMG SRC=//example.test/a ONERROR=alert(1)>] --> B\n',
+      escaped: 'flowchart LR\n A[&lt;ScRiPt data-value=&quot;x&quot;&gt;alert(1)&lt;/ScRiPt&gt;&lt;IMG SRC=//example.test/a ONERROR=alert(1)&gt;] --&gt; B\n' },
+  ];
+  for (const locale of ['en', 'zh-CN']) for (const { source, escaped } of examples) {
     const html = documentDiagram(source, { locale, index: 1, title: 'Guide "<&>' });
     assert.match(html, /data-document-diagram/);
     assert.match(html, /class="doc-diagram-canvas doc-scroll" role="region" tabindex="0"[^>]+ hidden/);
     assert.match(html, /<details class="doc-diagram-source" open>/);
-    assert.match(html, /&lt;\/code&gt;&lt;script&gt;alert\(&quot;x&quot;\)&lt;\/script&gt;/);
-    assert.match(html, /&amp; source/);
-    assert.doesNotMatch(html, /<script>|title="Guide "/);
+    assert.ok(html.includes('<pre><code class="language-mermaid">' + escaped + '</code></pre>'));
+    assert.ok(html.includes('data-diagram-label="' + (locale === 'en' ? 'Flowchart' : '流程图') + ': Guide &quot;&lt;&amp;&gt;"'));
+    assert.equal(html.includes(source), false);
     assert.ok(html.includes(locale === 'en' ? 'requires JavaScript' : '需要 JavaScript'));
   }
-  assert.throws(() => documentDiagram(source, { locale: 'en', index: -1, title: 'Bad identity' }));
+  assert.throws(() => documentDiagram(examples[0].source, { locale: 'en', index: -1, title: 'Bad identity' }));
 });
 
 test('offline browser asset preserves the pinned distribution, MIT license and bundled notices', async () => {
@@ -66,7 +79,7 @@ test('a rendered diagram has an accessible SVG while its complete source remains
     { name: 'xmlns', value: 'http://www.w3.org/2000/svg' },
     { name: 'marker-end', value: 'url("#sensa-arrow")' },
   ] });
-  const { config, calls } = await execute([one], { svg });
+  const { config, calls, parseCalls, imports } = await execute([one], { svg });
   assert.equal(calls, 1);
   assert.equal(config.securityLevel, 'strict');
   assert.equal(config.htmlLabels, false);
@@ -79,6 +92,34 @@ test('a rendered diagram has an accessible SVG while its complete source remains
   assert.deepEqual(svg.assigned, { role: 'img', 'aria-label': 'Flowchart: guide' });
   assert.equal(one.details.open, false);
   assert.equal(one.status.hidden, true);
+  assert.deepEqual(parseCalls, [{ value: '<svg />', type: 'image/svg+xml' }]);
+  assert.deepEqual(imports, [svg]);
+});
+
+test('SVG XML declarations are rejected before parsing or importing any content', async () => {
+  for (const declaration of ['<!DOCTYPE svg>', '<!doctype svg SYSTEM "//example.test/external.dtd">', '<!ENTITY payload "value">']) {
+    const one = figure(validSource);
+    const result = await execute([one], { renderer: async () => ({ svg: declaration + '<svg />' }) });
+    assert.equal(result.parseCalls.length, 0);
+    assert.equal(result.imports.length, 0);
+    assert.equal(one.dataset.diagramState, 'error');
+    assert.equal(one.details.open, true);
+  }
+});
+
+test('malformed, multi-root, non-SVG or doctype XML is never imported into the visible document', async () => {
+  const wrongNamespace = graphic(); wrongNamespace.namespaceURI = 'http://www.w3.org/1999/xhtml';
+  const wrongRoot = graphic(); wrongRoot.localName = 'html';
+  for (const options of [{ xml: { parserError: true } }, { xml: { multiple: true } },
+    { xml: { doctype: {} } }, { svg: wrongNamespace }, { svg: wrongRoot }, { svg: null }]) {
+    const one = figure(validSource);
+    const result = await execute([one], options);
+    assert.equal(result.parseCalls.length, 1);
+    assert.equal(result.imports.length, 0);
+    assert.equal(one.dataset.diagramState, 'error');
+    assert.equal(one.details.open, true);
+    assert.equal(one.canvas.children.length, 0);
+  }
 });
 
 test('one invalid flowchart retains its readable source without stopping the next diagram', async () => {
@@ -121,10 +162,11 @@ test('unexpected executable SVG content is rejected rather than inserted into th
     { style: '@import "//example.test/style.css"' },
   ]) {
     const one = figure(validSource);
-    await execute([one], { svg: graphic(options) });
+    const result = await execute([one], { svg: graphic(options) });
     assert.equal(one.dataset.diagramState, 'error');
     assert.equal(one.canvas.children.length, 0);
     assert.equal(one.details.open, true);
+    assert.equal(result.imports.length, 0);
   }
 });
 
