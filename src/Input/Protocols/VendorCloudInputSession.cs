@@ -512,7 +512,7 @@ public sealed class VendorCloudInputSession : IDisposable
             throw new ApiError(401, "The local device token is invalid.");
         var session = context.Request.Headers["X-Sensa-Session"].ToString();
         if (session.Length > 128 || session.Any(char.IsControl) || key.Length > 512 || key.Any(char.IsControl)) throw new ApiError(400, "Invalid session identifier.");
-        return context.Request.Headers.Origin + "\n" + context.Connection.RemoteIpAddress + "\n" + session + "\n" + key;
+        return context.Connection.RemoteIpAddress + "\n" + session + "\n" + key;
     }
     private void StopMotion()
     {

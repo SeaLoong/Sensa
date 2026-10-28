@@ -496,11 +496,10 @@ public sealed class FunscriptPlayer : IDisposable
             return;
         }
 
-        if (!_playing)
-        {
-            _lastL0 = _state == "stopped" ? 0f : SampleAtLocked(_resumePositionMs);
-            return;
-        }
+        // A stationary cursor retains the last explicit load/seek/pause target.
+        // Stop already sets zero; reading state must not turn a seek to a nonzero
+        // first action into a different command. / 静止时保留明确选择的目标，读取不改写动作。
+        if (!_playing) return;
 
         var elapsedMs = Math.Max(0L, nowMs - _resumeStartedAtMs);
         var preciseDelta = elapsedMs * _speed + _positionFractionMs;

@@ -24,6 +24,26 @@ public sealed class IntifaceContracts
         Assert.Equal(timed ? (uint?)200 : null, command.Duration);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1001)]
+    public void DefaultTimedPositionRejectsDurationsOutsideAdvertisedBounds(int duration)
+    {
+        var feature = new DeviceFeature { Output = new() { ["HwPositionWithDuration"] = new() { Value = [100, 1100], Duration = [10, 1000] } } };
+        Assert.Throws<ArgumentException>(() => IntifacePositionFeatures.Command(feature, .5, (uint)duration));
+    }
+
+    [Theory]
+    [InlineData(double.NaN)]
+    [InlineData(double.PositiveInfinity)]
+    [InlineData(-.1)]
+    [InlineData(1.1)]
+    public void DefaultPositionRejectsInvalidNormalizedValues(double value)
+    {
+        var feature = new DeviceFeature { Output = new() { ["Position"] = new() { Value = [100, 1100] } } };
+        Assert.Throws<ArgumentException>(() => IntifacePositionFeatures.Command(feature, value, 0));
+    }
+
     [Fact]
     public void VibrationOnlyAndEmptyFeaturesRejectPositionCommands()
     {

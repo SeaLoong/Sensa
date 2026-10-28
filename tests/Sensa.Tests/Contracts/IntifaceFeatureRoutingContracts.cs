@@ -152,6 +152,72 @@ public sealed class IntifaceFeatureRoutingContracts
             .CreateCommand(feature, new() { V0 = .5f, DeltaMs = duration }));
     }
 
+    [Fact]
+    public async Task Default_position_scales_both_ends_of_a_nonzero_advertised_range()
+    {
+        await using var peer = await RoutingPeer.CreateAsync(new() { [0] = ("HwPositionWithDuration", 100, 1100) });
+        await using var client = await ConnectAsync(peer, []);
+        await client.SendAsync(new() { L0 = .75f, DeltaMs = 175, ActiveAxes = new HashSet<MotionAxis> { MotionAxis.L0 } });
+        var target = Assert.Single(peer.Commands).GetProperty("OutputCmd").GetProperty("Command").GetProperty("HwPositionWithDuration");
+        Assert.Equal(350, target.GetProperty("Value").GetInt32());
+        Assert.Equal(175, target.GetProperty("Duration").GetInt32());
+    }
+
+    [Fact]
+    public async Task Default_vibration_scales_both_ends_of_a_nonzero_advertised_range()
+    {
+        await using var peer = await RoutingPeer.CreateAsync(new() { [0] = ("Vibrate", 10, 210) });
+        await using var client = await ConnectAsync(peer, []);
+        await client.SendAsync(new() { V0 = .25f, ActiveAxes = new HashSet<MotionAxis> { MotionAxis.V0 } });
+        Assert.Equal(60, Assert.Single(peer.Commands).GetProperty("OutputCmd").GetProperty("Command").GetProperty("Vibrate").GetProperty("Value").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task An_explicit_instant_command_is_not_replaced_with_the_runtime_tick_duration(bool mapped)
+    {
+        await using var peer = await RoutingPeer.CreateAsync(new() { [0] = ("HwPositionWithDuration", 0, 1000) });
+        await using var client = await ConnectAsync(peer, mapped
+            ? [new() { OutputType = "HwPositionWithDuration", SourceAxis = "L0" }] : []);
+        await client.SendAsync(new() { L0 = .25f, DeltaMs = 37, RequestedCommandMode = TCodeCommandMode.None,
+            ActiveAxes = new HashSet<MotionAxis> { MotionAxis.L0 } });
+        Assert.Equal(0, Assert.Single(peer.Commands).GetProperty("OutputCmd").GetProperty("Command").GetProperty("HwPositionWithDuration").GetProperty("Duration").GetInt32());
+    }
+
+    [Fact]
+    public async Task Clockwise_rotation_is_rejected_if_the_feature_only_advertises_counterclockwise_steps()
+    {
+        await using var peer = await RoutingPeer.CreateAsync(new() { [0] = ("Rotate", -100, 0) });
+        await using var client = await ConnectAsync(peer,
+            [new() { OutputType = "Rotate", SourceAxis = "V0", Clockwise = true }]);
+        await client.SendAsync(new() { V0 = .5f });
+        Assert.Empty(peer.Commands);
+        Assert.Equal("error", client.Telemetry.Snapshot.State);
+        await client.SendAsync(new() { V0 = 0 });
+        Assert.Equal(0, Assert.Single(peer.Commands).GetProperty("OutputCmd").GetProperty("Command").GetProperty("Rotate").GetProperty("Value").GetInt32());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Large_or_fragmented_utf8_device_lists_are_reassembled_before_json_parsing(bool splitUtf8)
+    {
+        var name = splitUtf8 ? "测试设备 😀" : "Large feature list";
+        var count = splitUtf8 ? 1 : 40;
+        var definitions = Enumerable.Range(0, count).ToDictionary(index => (uint)index, _ => ("Rotate", -1000, 1000));
+        await using var peer = await RoutingPeer.CreateAsync(definitions, name, splitUtf8);
+        await using var client = await ConnectAsync(peer,
+            [new() { FeatureIndex = (uint)(count - 1), OutputType = "Rotate", SourceAxis = "V0" }]);
+        var device = Assert.Single(client.Devices);
+        Assert.Equal(name, device.Name);
+        Assert.Equal(count, device.Features.Count);
+        await client.SendAsync(new() { V0 = .5f, ActiveAxes = new HashSet<MotionAxis> { MotionAxis.V0 } });
+        var command = Assert.Single(peer.Commands).GetProperty("OutputCmd");
+        Assert.Equal((uint)(count - 1), command.GetProperty("FeatureIndex").GetUInt32());
+        Assert.Equal(500, command.GetProperty("Command").GetProperty("Rotate").GetProperty("Value").GetInt32());
+    }
+
     private static async Task<IntifaceOutputClient> ConnectAsync(RoutingPeer peer, List<IntifaceFeatureRoute> routes)
     {
         var client = new IntifaceOutputClient(new IntifaceConfig { WebsocketAddress = peer.Address, FeatureRoutes = routes });
@@ -168,7 +234,8 @@ public sealed class IntifaceFeatureRoutingContracts
         public IReadOnlyList<JsonElement> Commands => _commands.ToArray();
         private RoutingPeer(WebApplication app) => _app = app;
 
-        public static async Task<RoutingPeer> CreateAsync(Dictionary<uint, (string Type, int Minimum, int Maximum)> definitions)
+        public static async Task<RoutingPeer> CreateAsync(Dictionary<uint, (string Type, int Minimum, int Maximum)> definitions,
+            string deviceName = "Mapped mock device", bool splitUtf8 = false)
         {
             var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], ContentRootPath = AppContext.BaseDirectory });
             builder.Logging.ClearProviders();
@@ -207,12 +274,21 @@ public sealed class IntifaceFeatureRoutingContracts
                                         : new { Value = new[] { pair.Value.Minimum, pair.Value.Maximum } } },
                                 });
                                 response = new { DeviceList = new { Id = id, Devices = new Dictionary<string, object> { ["0"] = new
-                                    { DeviceName = "Mapped mock device", DeviceIndex = 0, DeviceMessageTimingGap = 0, DeviceFeatures = features } } } };
+                                    { DeviceName = deviceName, DeviceIndex = 0, DeviceMessageTimingGap = 0, DeviceFeatures = features } } } };
                             }
                             else if (entry.Name is "OutputCmd" or "StopCmd")
                             { peer._commands.Enqueue(command.Clone()); response = new { Ok = new { Id = id } }; }
                             else response = new { Ok = new { Id = id } };
-                            await socket.SendAsync(JsonSerializer.SerializeToUtf8Bytes(new[] { response }), WebSocketMessageType.Text, true, lifetime.Token);
+                            var payload = JsonSerializer.SerializeToUtf8Bytes(new[] { response }, new JsonSerializerOptions
+                                { Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping });
+                            if (splitUtf8 && entry.Name == "RequestDeviceList")
+                            {
+                                var boundary = Array.FindIndex(payload, value => value >= 0x80) + 1;
+                                Assert.True(boundary > 0, "Fixture must split a real non-escaped UTF-8 codepoint.");
+                                await socket.SendAsync(payload.AsMemory(0, boundary), WebSocketMessageType.Text, false, lifetime.Token);
+                                await socket.SendAsync(payload.AsMemory(boundary), WebSocketMessageType.Text, true, lifetime.Token);
+                            }
+                            else await socket.SendAsync(payload, WebSocketMessageType.Text, true, lifetime.Token);
                         }
                     }
                 }

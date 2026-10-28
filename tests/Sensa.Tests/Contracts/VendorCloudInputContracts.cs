@@ -45,6 +45,22 @@ public sealed class VendorCloudInputContracts
     [Theory]
     [InlineData("AutoblowHttp", "/autoblow")]
     [InlineData("VacuGlideHttp", "/vacuglide")]
+    public async Task Website_origin_is_not_a_vendor_http_controller_identity(string type, string prefix)
+    {
+        var sink = new Sink();
+        using var input = new VendorCloudInputSession(Config(type), sink);
+        Assert.Equal(200, (await Call(input, prefix + "/sync-script/offset", "{\"offsetTimeMs\":0}", origin: "https://first.example")).Status);
+        var owner = sink.Owner;
+        Assert.Equal(200, (await Call(input, prefix + "/sync-script/offset", "{\"offsetTimeMs\":50}", origin: "https://second.example")).Status);
+        Assert.Equal(owner, sink.Owner);
+        Assert.Equal(409, (await Call(input, prefix + "/sync-script/offset", "{\"offsetTimeMs\":0}", session: "different-client", origin: "https://second.example")).Status);
+        Assert.Equal(owner, sink.Owner);
+        Assert.Empty(sink.Batches);
+    }
+
+    [Theory]
+    [InlineData("AutoblowHttp", "/autoblow")]
+    [InlineData("VacuGlideHttp", "/vacuglide")]
     public async Task Discovery_and_status_do_not_acquire_or_extend_a_control_lease(string type, string prefix)
     {
         var clock = new ManualTimeProvider(); var sink = new Sink(); var config = Config(type);
@@ -375,11 +391,11 @@ public sealed class VendorCloudInputContracts
     { Id = "vendor", Enabled = true, Type = type, TimeoutMs = 1000, Features = [new() { Channel = actuator == "Position" ? "L0" : "V0", Actuator = actuator, TargetAxis = actuator == "Position" ? "L0" : "V0" }] };
     private sealed record Response(int Status, JsonElement Body);
     private static async Task<Response> Call(VendorCloudInputSession input, string path, string? json = null, string method = "PUT", string session = "test", string token = "",
-        byte[]? bytes = null, string contentType = "application/json")
+        byte[]? bytes = null, string contentType = "application/json", string origin = "https://source.example")
     {
         var context = new DefaultHttpContext(); context.Request.Method = method; context.Request.Path = path;
         context.Request.ContentType = contentType; context.Connection.RemoteIpAddress = IPAddress.Loopback;
-        context.Request.Headers.Origin = "https://source.example"; context.Request.Headers["X-Sensa-Session"] = session; context.Request.Headers["x-device-token"] = token;
+        context.Request.Headers.Origin = origin; context.Request.Headers["X-Sensa-Session"] = session; context.Request.Headers["x-device-token"] = token;
         var body = bytes ?? Encoding.UTF8.GetBytes(json ?? "{}"); context.Request.Body = new MemoryStream(body); context.Request.ContentLength = body.Length;
         context.Response.Body = new MemoryStream(); await input.HandleAsync(context); context.Response.Body.Position = 0;
         using var document = await JsonDocument.ParseAsync(context.Response.Body); return new(context.Response.StatusCode, document.RootElement.Clone());

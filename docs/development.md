@@ -107,6 +107,8 @@ CodeQL 的缓存投毒模型可能把名称含 `ref`／`commit` 的表达式判�
 
 官方说明：[停用默认设置以允许 SARIF 上传](https://docs.github.com/en/code-security/reference/code-scanning/sarif-files/troubleshoot-sarif-uploads/default-setup-enabled#disabling-default-setup-to-unblock-sarif-upload)。
 
+Intiface 输出仍使用 Buttplug 5.0.1 客户端和 wire v4，传输适配器按完整消息聚合 WebSocket 分片，限制每条消息为 1 MiB，并严格检查 UTF-8 与 JSON（最大深度 64）；二进制或非法数据会关闭本次连接。连接建立失败时释放 socket、结束接收并清理客户端，避免重试残留旧会话。相关隔离契约覆盖分片、多字节名称、大设备表和失败连接清理。
+
 React 19 的生产构建和组件 SSR 单元测试统一使用自动 JSX 转换；测试加载器同时共享 `react` 与 `react/*` 运行时，避免混入第二份 JSX／Hooks 实例。
 
 ## 失败时从哪里看？
@@ -143,6 +145,14 @@ Pages 分为三个任务：
 
 VPM 构建保留已校验的正式包与历史下载。网络错误或摘要不一致会使部署失败；确实没有正式包时显示暂无 VPM 包。
 
+### 文档图表
+
+使用 `mermaid` 代码围栏中的 `flowchart`／`graph` 描述流程图。文档站将含图页面连接到固定版本、随站点分发的本地 Mermaid 运行时，不依赖 CDN；普通代码块保持代码显示。图表采用 strict 模式和纯文本标签，不接受图内初始化配置、HTML 标签或可点击链接。
+
+图形渲染需要 JavaScript。每张图都保留可展开的完整源代码；禁用 JavaScript、本地脚本加载失败或单张图解析失败时仍可阅读源码，其他图分别处理。窄屏可以横向滚动，键盘可聚焦图表区域，不通过把文字缩到不可读大小来适配。修改渲染或图文后，在 Actions 验证实际可见 SVG、双语导航和窄屏访问，不能仅靠 HTML 中出现 `mermaid` 字样认定渲染成功。
+
+侧栏提供“协议输入”和“串口与蓝牙桥”入口，工具的三份 README 按中英文两条站内路由发布，英语别名不重复生成。协议指南与完整桥工具安装说明可在文档站内互相跳转。
+
 ## 本地开发与检查
 
 需要 Node.js 24、Python 3.12+ 和 [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json) 指定的 .NET SDK。先规划受影响检查，再执行；相同源码与工具链可复用本地成功记录。
@@ -168,7 +178,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE 输入在 Linux／macOS 使用 `requirements-ble-input.txt` 中的 Bless，在 Windows 使用 `requirements-ble-input-windows.txt` 中兼容的原生 PyWinRT 版本，避免 Bless 的 Windows 依赖冲突。BLE 外围角色／广播、系统权限和同适配器双角色需实机检查；Windows LOOB 另受系统广播名前缀限制。PTY 不保证被浏览器 Web Serial 枚举；Windows 使用用户已建立的受信任签名驱动 COM 对。`--check` 不打开硬件，隔离测试使用本地 PTY、假串口／BLE／WinRT，并不代表网站与设备验收。两个 BLE 协议没有已验证的硬件急停指令，停止只清理会话并断开，不能把归零当作停止。[安装与完整操作](../tools/protocol-bridge/README.zh-CN.md)
+BLE 输入在 Linux／macOS 使用 `requirements-ble-input.txt` 中的 Bless，在 Windows 使用 `requirements-ble-input-windows.txt` 中兼容的原生 PyWinRT 版本，避免 Bless 的 Windows 依赖冲突。BLE 外围角色／广播、系统权限和同适配器双角色需实机检查；Windows LOOB／Svakom V1 另受实际系统广播名限制。PTY 不保证被浏览器 Web Serial 枚举；Windows 使用用户已建立的受信任签名驱动 COM 对。`--check` 不打开硬件，隔离测试使用本地 PTY、假串口／BLE／WinRT，并不代表网站与设备验收。LOOB／Thrust Sync 没有已验证的硬件急停指令，停止只清理会话并断开，不能把位置归零当作停止。Svakom V1 单振动子集使用上游已核实的零振动命令后断开；命令写出不是设备已物理停止的证明，其他 Svakom 型号／协议不因此自动兼容。[安装与完整操作](../tools/protocol-bridge/README.zh-CN.md)
 
 修改 Three.js 源码或依赖后运行 `npm run build:web`，提交可再现的 `docs/assets/parameter-geometry-3d.js` 与完整 `3d.LICENSE.txt`。修改普通 Markdown 后可直接构建站点：`npm run build:pages`，产物位于 `artifacts/pages/`。
 

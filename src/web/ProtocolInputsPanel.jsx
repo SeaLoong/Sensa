@@ -3,7 +3,7 @@ import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
 import { SelectField } from './controls.jsx';
 import { diagnostic, docUrl, t } from './i18n.js';
 import { PROTOCOL_AXES, PROTOCOL_INPUT_TYPES, PROTOCOL_SCALAR_TYPES, makeProtocolDraft, makeProtocolFeature, newProtocolDraft,
-  protocolDraftErrors, protocolEndpoint, protocolUsesOrigins, saveProtocolDrafts } from './protocol-inputs.js';
+  protocolDraftErrors, protocolEndpoint, saveProtocolDrafts } from './protocol-inputs.js';
 
 export default function ProtocolInputsPanel({ config, runtime = [], online = true, saving = false, onSave }) {
   const serialized = JSON.stringify(config?.protocolInputs || []);
@@ -59,9 +59,7 @@ export default function ProtocolInputsPanel({ config, runtime = [], online = tru
             <Field label={t('监听端口')} type="number" min={1} max={65535} value={draft.port}
               onChange={event => update(index, { port: event.target.value === '' ? '' : Number(event.target.value) })} />
           </div>}
-          {protocolUsesOrigins(draft.type) && <Field multiline label={t('允许的网站来源')} value={draft.allowedOriginsText}
-            placeholder="https://example.com" rows={2} onChange={event => update(index, { allowedOriginsText: event.target.value })} />}
-          {protocolUsesOrigins(draft.type) && <p className="caption muted">{t('每行一个网站来源，例如 https://example.com。未列出的网站不能连接；本机原生客户端单独处理。')}</p>}
+
           {['AutoblowHttp', 'VacuGlideHttp'].includes(draft.type) && <>
             <Field label={t('本地设备令牌（可选）')} type="password" autoComplete="off" value={draft.identifier}
               onChange={event => update(index, { identifier: event.target.value })} />

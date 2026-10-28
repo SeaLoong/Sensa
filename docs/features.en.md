@@ -8,7 +8,7 @@ Sensa brings input, computation and output into one workbench for realtime devic
 
 | Goal | Setup |
 | --- | --- |
-| Combine readings, smoothing and conditions | OSC, tracking, manual, scripts or feedback → [computed signal](computed-signals.en.md) |
+| Combine readings, smoothing and conditions | OSC, tracking, manual, scripts, protocol or feedback → [computed signal](computed-signals.en.md) |
 | Send one result to several destinations | A result → [multiple output bindings](signal-pipeline.en.md#one-result-several-outputs), with separate ranges |
 | Route a website/player's commands to your device | [Protocol input and virtual device](protocol-inputs.en.md) → TCode/Intiface/device API output |
 | Save a playable, editable trajectory | Source → [Funscript recording](signal-pipeline.en.md#record-and-inspect) → download or replay |
@@ -22,7 +22,7 @@ Sensa brings input, computation and output into one workbench for realtime devic
 | **Control** | Apply an input mode, adjust manual axes, play scripts, manage outputs and record L0 |
 | **OSC** | Receive/browse parameters, read explanations, choose sources, map axes, discover and forward |
 | **Flow** | Create calculations, connect outputs, replay recordings and save/load complete plans |
-| **Settings** | Manage axis ranges, direction, speed, motion settings and logs |
+| **Settings** | Manage axis ranges, direction, speed, motion settings, protocol inputs and logs |
 
 The header keeps input mode, activation and emergency stop visible. English and Chinese can be switched while retaining drafts. OSC parameters support search, categories, pins, frozen previews and pagination at up to 100 items per page; details explain values and official sources. [Workbench guide](guide.en.md)
 
@@ -35,7 +35,7 @@ The [standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-g
 | **Manual** | Twelve axes, send once or follow edits, profile-based or explicit duration/speed |
 | **Script** | Interpolated funscript, 0.1–4× speed, loops, A–B, time and keyframe navigation |
 | **OSC** | Float/Int/Bool parameters, presets/custom mappings and source selection |
-| **Protocol** | Buttplug v3/v4, TCode TCP/UDP/serial, WSDM, JSON and vendor compatibility subsets; position/duration, intensity and rotation speed remain distinct |
+| **Protocol** | Buttplug v2/v3/v4, TCode TCP/UDP/serial, WSDM, JSON and vendor compatibility subsets; position/duration, intensity and rotation speed remain distinct |
 | **Combined** | Manual, scripts, OSC, protocol, tracking, feedback, replay and calculations together in output bindings |
 
 Input activation controls delivery. Enable input when ready after saving configuration, changing modes/scripts or clearing emergency stop. Pausing a script stops automatic sending; explicit seek/step can still send a selected target while Script input is enabled.
@@ -65,7 +65,7 @@ Ordinary OSC receive timeout defaults off for change-only parameters. A positive
 | **HTTP JSON/WebSocket JSON/MQTT** | Receiving service, field/topic and value type |
 | **Recording** | Funscript by default, plus JSON Lines/CSV signal diagnostics |
 
-Outputs have independent activation and connections. Each binding selects its own source, range and sending mode. An invalid source stops dependent bindings while other valid bindings can continue; emergency stop covers every output. [Full output setup](signal-pipeline.en.md#add-outputs-and-bindings)
+Outputs have independent activation and connections. Each binding selects its own source, range and sending mode. On source invalidity, a binding uses its configured stop value; for a position axis this is a fallback target and may cause movement. Stopping a directly routed protocol source conservatively stops motion outputs and may affect other axes; emergency stop covers every output. [Full output setup](signal-pipeline.en.md#add-outputs-and-bindings)
 
 Recording outputs save each binding's valid segments as separate funscripts for download, player loading or signal replay. JSON Lines/CSV retain raw values, converted values and invalid intervals. Quick L0 recording saves current main-axis targets, up to 100000 frames, with optional export simplification. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
@@ -87,6 +87,6 @@ Unity authoring components generate native Contacts, animation and parameters du
 
 Settings live in `config.json` beside the program; `SENSA_CONFIG_PATH` selects another path. Complete-plan imports show a review before application, after which you enable the required outputs.
 
-The workbench defaults to local access. LAN use requires `SENSA_ACCESS_TOKEN` and a trusted network; see [architecture](architecture.en.md) for connection/access conditions. HTTP and WebSocket expose configuration, input, script, recording and output controls for custom tools.
+The workbench defaults to local access. Wildcard listen addresses `0.0.0.0`/`::` are separate from browser destinations: automatic browser opening uses `127.0.0.1`/`[::1]`, explicit LAN IPs remain unchanged and IPv6 URLs use brackets. LAN use still requires `SENSA_ACCESS_TOKEN` and a trusted network; see [architecture](architecture.en.md) for connection/access conditions. HTTP and WebSocket expose configuration, input, script, recording and output controls for custom tools.
 
 [Development and releases](development.en.md) explains checks and builds; the [verification record](e2e-status.en.md) distinguishes automated checks, image inspection and actual results by commit.

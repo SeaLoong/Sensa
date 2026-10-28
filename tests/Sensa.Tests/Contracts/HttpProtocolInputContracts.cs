@@ -66,18 +66,31 @@ public sealed class HttpProtocolInputContracts
     }
 
     [Fact]
-    public async Task A_different_http_source_cannot_take_an_active_lease_and_expiration_allows_fresh_control()
+    public async Task Explicit_http_sessions_cannot_take_an_active_lease_and_expiration_allows_fresh_control()
     {
         var sink = new Sink();
         var clock = new ManualTimeProvider();
         using var input = new HttpProtocolInput(Config(), sink, clock);
-        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.1}""", "https://first.example")).Status);
-        Assert.Equal(409, (await Request(input, "POST", "/", """{"channel":"L0","value":0.8}""", "https://second.example")).Status);
+        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.1}""", "https://first.example", "first")).Status);
+        Assert.Equal(409, (await Request(input, "POST", "/", """{"channel":"L0","value":0.8}""", "https://first.example", "second")).Status);
         Assert.Single(sink.Commands);
         clock.Advance(TimeSpan.FromSeconds(10));
         Assert.Equal(1, sink.Releases);
-        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.8}""", "https://second.example")).Status);
+        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.8}""", "https://second.example", "second")).Status);
         Assert.Equal(2, sink.Commands.Count);
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("same-client")]
+    public async Task Changing_website_origin_does_not_create_a_new_http_controller(string session)
+    {
+        var sink = new Sink();
+        using var input = new HttpProtocolInput(Config(), sink);
+        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.1}""", "https://first.example", session)).Status);
+        Assert.Equal(200, (await Request(input, "POST", "/", """{"channel":"L0","value":0.8}""", "https://another.example", session)).Status);
+        Assert.Equal(new ExternalControlCommand("L0", .8), sink.Commands[^1]);
+        Assert.Equal(0, sink.Releases);
     }
 
     [Fact]
@@ -475,9 +488,10 @@ public sealed class HttpProtocolInputContracts
         context.Response.Body = new MemoryStream();
         return context;
     }
-    private static async Task<(int Status, JsonElement Body)> Request(HttpProtocolInput input, string method, string path, string body = "", string origin = "https://source.example")
+    private static async Task<(int Status, JsonElement Body)> Request(HttpProtocolInput input, string method, string path, string body = "", string origin = "https://source.example", string session = "")
     {
         var context = Context(method, path, body, origin);
+        context.Request.Headers["X-Sensa-Session"] = session;
         await input.HandleAsync(context);
         context.Response.Body.Position = 0;
         using var document = await JsonDocument.ParseAsync(context.Response.Body);

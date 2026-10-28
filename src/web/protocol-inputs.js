@@ -24,19 +24,19 @@ function bindAddressValid(host) {
   try { return new URL(`http://[${host}]/`).hostname.length > 0; } catch { return false; }
 }
 
-export function protocolUsesOrigins(type) {
-  return type === 'Buttplug' || type?.endsWith('Http') || type === 'JsonWebSocket';
-}
 export function makeProtocolFeature(feature = {}, index = 0) {
   return { channel: PROTOCOL_AXES[index] || `Channel${index + 1}`, name: '', actuator: 'Position', scalarType: 'Vibrate',
     targetAxis: PROTOCOL_AXES[index] || '', ...feature };
 }
 export function makeProtocolDraft(input = {}) {
   const type = input.type || 'Buttplug';
+  const options = { ...input };
+  delete options.allowedOrigins;
+  delete options.allowedOriginsText;
   return { id: '', name: '', type, enabled: false, host: '127.0.0.1',
     port: PROTOCOL_INPUT_TYPES().find(option => option.value === type)?.port ?? 12400,
     address: 'ws://127.0.0.1:54817', identifier: '', comPort: '', baudRate: 115200, timeoutMs: 10000, routeToMotion: true, maxSpeedPerSecond: 1, maxScriptDurationMs: 3600000,
-    ...input, allowedOriginsText: Array.isArray(input.allowedOrigins) ? input.allowedOrigins.join('\n') : input.allowedOriginsText || '',
+    ...options,
     features: (Array.isArray(input.features) ? input.features : [{}]).map(makeProtocolFeature) };
 }
 export function newProtocolDraft(inputs = [], type = 'Buttplug') {
@@ -49,16 +49,12 @@ export function newProtocolDraft(inputs = [], type = 'Buttplug') {
   return draft;
 }
 export function stripProtocolDraft(input) {
-  const text = input.allowedOriginsText ?? (input.allowedOrigins || []).join('\n');
   return { id: String(input.id || '').trim(), name: String(input.name || '').trim(), type: input.type || 'Buttplug',
     enabled: input.enabled === true, host: String(input.host || '').trim(), port: Number(input.port),
     address: String(input.address || '').trim(), identifier: String(input.identifier || '').trim(),
     comPort: String(input.comPort || '').trim(), baudRate: Number(input.baudRate), timeoutMs: Number(input.timeoutMs), routeToMotion: input.routeToMotion !== false,
     maxSpeedPerSecond: Number(input.maxSpeedPerSecond ?? 1),
     maxScriptDurationMs: Number(input.maxScriptDurationMs ?? 3600000),
-    allowedOrigins: [...new Set(text.split(/[\s,;]+/).filter(Boolean).map(value => {
-      try { return new URL(value).origin; } catch { return value; }
-    }))],
     features: (input.features || []).map(feature => ({ channel: String(feature.channel || '').trim(),
       name: String(feature.name || '').trim(), actuator: feature.actuator || 'Position', scalarType: feature.scalarType || 'Vibrate', targetAxis: feature.targetAxis || '' })) };
 }
@@ -89,11 +85,6 @@ export function protocolDraftErrors(drafts = []) {
       if (input.enabled && listeners.has(key)) fail(t('已有启用的输入占用此监听地址和端口。'));
       if (input.enabled) listeners.add(key);
     }
-    const rawOrigins = String(draft.allowedOriginsText ?? (draft.allowedOrigins || []).join('\n')).split(/[\s,;]+/).filter(Boolean);
-    if (rawOrigins.some(origin => {
-      try { const url = new URL(origin); return !['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.search || url.hash || !['', '/'].includes(url.pathname); }
-      catch { return true; }
-    })) fail(t('允许的网站须为完整 HTTP/HTTPS 来源，不含路径、查询或凭据。'));
     if (!input.features.length || input.features.length > 16) fail(t('每个来源须配置 1–16 个控制通道。'));
     const channels = new Set();
     for (const feature of input.features) {

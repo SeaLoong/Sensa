@@ -3,6 +3,7 @@ using System.Text.Json;
 using Sensa.Application;
 using Sensa.Configuration;
 using Sensa.Input.Osc;
+using Sensa.Hosting;
 using Sensa.Input.Script;
 using Sensa.Motion;
 using Sensa.Outputs;
@@ -239,6 +240,54 @@ public sealed class VendorOutputIntegrationContracts
         Assert.Contains("\"commandKind\":\"Scalar\"", overview);
         Assert.Contains("\"supportsScripts\":true", overview);
         Assert.DoesNotContain(fixture.Config.Outputs[0].Device.ConnectionKey, overview);
+    }
+
+    [Theory]
+    [InlineData(OutputDeviceType.Handy)]
+    [InlineData(OutputDeviceType.Autoblow)]
+    [InlineData(OutputDeviceType.VacuGlide)]
+    public async Task ScriptLoopCommandChangesOnlyPreparedPausedPolicyWithoutArmingOrPlaying(OutputDeviceType type)
+    {
+        await using var fixture = new Fixture(type);
+        Assert.True(await fixture.Outputs.ConnectAsync("device"));
+        Assert.True((await fixture.Command("prepare", new { url = "https://scripts.example/loop.csv" })).Success);
+        Assert.False(fixture.Runtime.InputActive);
+        var adapter = new WebSocketCommandAdapter(fixture.Application);
+        var response = await adapter.HandleAsync("""{"id":"loop-choice","method":"POST","path":"/api/control/output/device/script-loop","body":{"loop":true}}""");
+        Assert.True(response.Ok);
+        Assert.Equal("loop-choice", response.Id);
+        var state = JsonSerializer.SerializeToElement(response.Data);
+        Assert.True(state.GetProperty("supportsScriptLoop").GetBoolean());
+        Assert.True(state.GetProperty("scriptLoop").GetBoolean());
+        Assert.False(state.GetProperty("scriptPlaying").GetBoolean());
+        Assert.False(fixture.Runtime.InputActive);
+        Assert.DoesNotContain(fixture.Transport.Requests, request => request.Path.EndsWith("/hssp/play") || request.Path.EndsWith("/sync-script/start"));
+
+        fixture.Runtime.SetInputActive(true);
+        Assert.True((await fixture.Command("play", new { positionMs = 0 })).Success);
+        var previous = fixture.Transport.Requests.Count;
+        var rejected = await fixture.Command("loop", new { loop = false });
+        Assert.Equal(400, rejected.StatusCode);
+        Assert.True(fixture.Clients.Single().ScriptLoop);
+        Assert.True(fixture.Clients.Single().ScriptPlaying);
+        Assert.DoesNotContain(fixture.Transport.Requests.Skip(previous), request => request.Path.EndsWith("/loop"));
+        Assert.True((await fixture.Command("stop")).Success);
+        Assert.True((await fixture.Command("loop", new { loop = false })).Success);
+        Assert.False(fixture.Clients.Single().ScriptLoop);
+        Assert.False(fixture.Clients.Single().ScriptPlaying);
+    }
+
+    [Theory]
+    [InlineData("{}")]
+    [InlineData("{\"loop\":null}")]
+    [InlineData("{\"loop\":\"true\"}")]
+    public async Task ScriptLoopRequiresAnExplicitBooleanBeforeAnyDeviceRequest(string body)
+    {
+        await using var fixture = new Fixture(OutputDeviceType.VacuGlide);
+        var response = await fixture.Application.ExecuteAsync("POST", "/api/control/output/device/script-loop", JsonSerializer.Deserialize<JsonElement>(body));
+        Assert.Equal(400, response.StatusCode);
+        Assert.Empty(fixture.Transport.Requests);
+        Assert.False(fixture.Runtime.InputActive);
     }
 
     private static MotionFrame Frame => new() { L0 = .7f, DeltaMs = 200, RequestedCommandMode = TCodeCommandMode.Interval, RequestedMotionValue = 200 };

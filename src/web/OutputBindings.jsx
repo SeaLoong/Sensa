@@ -6,6 +6,7 @@ import SignalSourceFields from './SignalSourceFields.jsx';
 import PairingQRCode from './PairingQRCode.jsx';
 import { SIGNAL_BINDING_LIMIT, applyVrChatOutput, buildSignalOutputDraft, dglabBasicFrames, isSignalOutputType, makeOutputBinding, recordingDownloadUrl, recordingFiles, recordingFormatOptions } from './signal-outputs.js';
 import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
+import { intifaceBindingAxes } from './intiface-feature-routing.js';
 
 const numeric = (event, onChange, key) => onChange({ [key]: event.target.value === '' ? '' : Number(event.target.value) });
 const curveOptions = () => [{ value: 'Linear', label: t('线性') }, { value: 'EaseIn', label: t('缓入') },
@@ -125,7 +126,7 @@ export default function OutputBindings({ output, signals = [], pathOptions = [],
   const coyote3 = selectedDevice?.type === 'COYOTE_030';
   const waveformPreset = useMemo(() => ['steady', 'fade', 'alternating'].find(preset => JSON.stringify(dglabBasicFrames(preset)) === JSON.stringify(signal.waveformFrames)) || '', [signal.waveformFrames]);
   const setSignal = patch => onChange({ signal: { ...signal, ...patch } });
-  const targetAxes = output.type === 'Intiface' ? [...new Set(['L0', output.vibrationAxis || 'V0'])]
+  const targetAxes = output.type === 'Intiface' ? intifaceBindingAxes(output)
     : VENDOR_OUTPUT_TYPES.includes(output.type) ? [output.device?.axis || (['VacuGlide', 'Lovense'].includes(output.type) ? 'V0' : 'L0')]
     : ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2'];
   const numberField = (key, label, extra = {}) => <Field key={key} label={t(label)} type="number" step="any" value={signal[key]}

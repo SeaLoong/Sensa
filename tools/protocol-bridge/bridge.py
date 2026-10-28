@@ -31,10 +31,17 @@ class BleProtocol:
     advertised_name: str
     maximum: int
     packet_size: int
+    scalar: bool = False
+    stop_packet: bytes | None = None
 
     def decode(self, packet: bytes) -> tuple[float, int]:
         if len(packet) != self.packet_size:
             raise ValueError(f'{self.name}: expected {self.packet_size} bytes')
+        if self.scalar:
+            speed = packet[-1]
+            if packet[:4] != b'\x55\x04\x03\x00' or speed > self.maximum or packet[4] != (1 if speed else 0):
+                raise ValueError(f'{self.name}: invalid single-vibrator command')
+            return speed / self.maximum, 0
         position, duration = struct.unpack('>HH' if self.packet_size == 4 else '>BH', packet)
         if not (1 if self.name == 'loob' else 0) <= position <= self.maximum:
             raise ValueError(f'{self.name}: position outside protocol range')
@@ -43,10 +50,21 @@ class BleProtocol:
     def encode(self, position: float, duration: int) -> bytes:
         if not math.isfinite(position) or not 0 <= position <= 1:
             raise ValueError('Position must be finite and within 0..1')
-        if not isinstance(duration, int) or not 0 <= duration <= 65535:
+        if isinstance(duration, bool) or not isinstance(duration, int) or not 0 <= duration <= 65535:
             raise ValueError('BLE duration must be an integer within 0..65535 ms')
+        if self.scalar:
+            if duration:
+                raise ValueError('Scalar vibration has no hardware arrival duration')
+            speed = min(self.maximum, round(position * self.maximum))
+            return bytes((0x55, 0x04, 0x03, 0x00, 1 if speed else 0, speed))
         value = max(1 if self.name == 'loob' else 0, min(self.maximum, round(position * self.maximum)))
         return struct.pack('>HH' if self.packet_size == 4 else '>BH', value, duration)
+
+    def to_tcode(self, packet: bytes) -> bytes:
+        value, duration = self.decode(packet)
+        if self.scalar:
+            return f'V0{min(999, round(value * 1000)):03}\n'.encode('ascii')
+        return tcode_move(value, duration)
 
 
 PROTOCOLS = {
@@ -54,22 +72,34 @@ PROTOCOLS = {
                         'ba5c49d2-04a3-4071-a0b5-35853eb08307', 'LOOB Sensa', 1000, 4),
     'thrust-sync': BleProtocol('thrust-sync', '0000ffe0-0000-1000-8000-00805f9b34fb',
                                '0000ffe1-0000-1000-8000-00805f9b34fb', 'Erojoy Thrust Sync', 180, 3),
+    # Buttplug Svakom V1 (single vibration): pinned upstream format/model evidence
+    # is linked in the bridge README. Other Svakom families use different packets.
+    'svakom-v1': BleProtocol('svakom-v1', '0000ffe0-0000-1000-8000-00805f9b34fb',
+                             '0000ffe1-0000-1000-8000-00805f9b34fb', 'Emma NEO', 19, 6,
+                             scalar=True, stop_packet=b'\x55\x04\x03\x00\x00\x00'),
 }
 
 
 def tcode_move(position: float, duration: int) -> bytes:
     """TCode decimal magnitude: three digits represent thousandths, 999 is its limit."""
-    if not math.isfinite(position) or not 0 <= position <= 1 or not 0 <= duration <= 65535:
+    if (not math.isfinite(position) or not 0 <= position <= 1 or isinstance(duration, bool)
+            or not isinstance(duration, int) or not 0 <= duration <= 60000):
         raise ValueError('Invalid linear move')
     magnitude = min(999, round(position * 1000))
     return f'L0{magnitude:03}I{duration}\n'.encode('ascii')
 
 
-def parse_tcode_move(line: bytes, default_duration: int = 100) -> tuple[float, int] | None:
-    """The two BLE protocols represent L0 position + duration only; reject other semantics."""
+def parse_tcode_move(line: bytes, default_duration: int = 100, *, protocol=None) -> tuple[float, int] | None:
+    """Preserve the selected BLE profile's position or scalar meaning; reject other axes."""
     text = line.decode('ascii').strip()
     if text == 'DSTOP':
         return None
+    if protocol is not None and protocol.scalar:
+        match = re.fullmatch(r'V0([0-9]{1,5})', text)
+        if not match:
+            raise ValueError('Svakom V1 output accepts only one V0 intensity without I/S duration or other axes')
+        digits = match[1]
+        return int(digits) / 10 ** len(digits), 0
     match = re.fullmatch(r'L0([0-9]{1,5})(?:I([0-9]{1,5}))?', text)
     if not match:
         raise ValueError('BLE output accepts only one L0 position with optional I duration; use Interval slope and ignore other axes')
@@ -101,12 +131,12 @@ class LineFramer:
             raise ValueError('Serial/TCode input must contain printable ASCII')
         result = []
         for byte in data:
-            if byte == 10:
+            if byte in (10, 13):
                 line = bytes(self.buffer).strip()
                 self.clear()
                 if line:
                     result.append(line + b'\n')
-            elif byte != 13:
+            else:
                 self.buffer.append(byte)
                 if len(self.buffer) > MAX_LINE:
                     self.clear()
@@ -411,8 +441,7 @@ async def run_input(args, port=None, peripheral_factory=None):
         else:
             protocol = PROTOCOLS[args.protocol]
             def receive(data):
-                position, duration = protocol.decode(bytes(data))
-                mailbox.put(tcode_move(position, duration))
+                mailbox.put(protocol.to_tcode(bytes(data)))
             def disconnected():
                 mailbox.disable()
                 loop.call_soon_threadsafe(shutdown.set)  # explicit restart; no old-session replay
@@ -499,6 +528,8 @@ def make_peripheral(args, receive, disconnected):
     if sys.platform == 'win32':
         if args.protocol == 'loob' and not args.confirm_windows_loob_name:
             raise RuntimeError('Windows GATT uses the system Bluetooth name. LOOB requires a LOOB-prefixed advertisement; configure this explicitly in OS settings then pass --confirm-windows-loob-name, or use an external peripheral. No system name is changed by this tool.')
+        if args.protocol == 'svakom-v1' and not args.confirm_windows_svakom_name:
+            raise RuntimeError('Windows GATT uses the system Bluetooth name. Svakom V1 clients match names such as Emma NEO; configure the matching advertised name explicitly in OS settings then pass --confirm-windows-svakom-name, or use an external peripheral. No system name is changed by this tool.')
         from windows_peripheral import WindowsPeripheral
         return WindowsPeripheral(PROTOCOLS[args.protocol], receive, disconnected)
     return BlessPeripheral(args, receive, disconnected)
@@ -510,30 +541,52 @@ class BleOutput:
         self.last = None
         self.stopped = True
         self.failed = False
+        self.closed = False
+
+    async def _write(self, packet):
+        await asyncio.wait_for(self.client.write_gatt_char(
+            self.protocol.characteristic, packet, response=False), self.timeout)
 
     async def send(self, line):
         if self.failed or not self.client.is_connected:
             raise ConnectionError('BLE disconnected; restart explicitly, no buffered command replay')
-        move = parse_tcode_move(line)
+        move = parse_tcode_move(line, protocol=self.protocol)
         if move is None:
-            # Neither researched protocol has an emergency-stop opcode. Do not send position 0.
             self.last = None
-            self.stopped = True
+            try:
+                if self.protocol.stop_packet is not None and not self.stopped:
+                    await self._write(self.protocol.stop_packet)
+            except BaseException:
+                self.failed = True
+                raise
+            finally:
+                self.stopped = True
             return
         try:
-            await asyncio.wait_for(self.client.write_gatt_char(
-                self.protocol.characteristic, self.protocol.encode(*move), response=False), self.timeout)
-            self.last = move
+            packet = self.protocol.encode(*move)
+            # A failed/cancelled write may already have reached hardware. Cleanup
+            # still attempts a profile's verified zero command before disconnect.
             self.stopped = False
+            await self._write(packet)
+            self.last = move
         except BaseException:
             self.failed = True
             self.last = None
             raise
 
     async def stop(self):
+        if self.closed:
+            return
+        self.closed = True
         self.last = None
+        needs_zero = self.protocol.stop_packet is not None and not self.stopped and self.client.is_connected
         self.stopped = True
-        await asyncio.wait_for(self.client.disconnect(), self.timeout)
+        self.failed = True
+        try:
+            if needs_zero:
+                await self._write(self.protocol.stop_packet)
+        finally:
+            await asyncio.wait_for(self.client.disconnect(), self.timeout)
 
 
 async def pump_ble_output(reader, output, idle, disconnected, *, clock=None):
@@ -553,7 +606,7 @@ async def pump_ble_output(reader, output, idle, disconnected, *, clock=None):
                 if not data:
                     return
                 for line in framer.feed(data):
-                    if parse_tcode_move(line) is None:
+                    if parse_tcode_move(line, protocol=getattr(output, 'protocol', None)) is None:
                         return
                     if not mailbox.put(line):
                         raise RuntimeError(mailbox.error or 'BLE output ingress is disabled')
@@ -592,7 +645,6 @@ async def serve_ble_output(args, client_factory=None):
     loop = asyncio.get_running_loop()
     client = client_factory(args.device, disconnected_callback=lambda _: loop.call_soon_threadsafe(disconnected.set),
                             timeout=args.timeout * 5)
-    await asyncio.wait_for(client.connect(), args.timeout * 5)
     output = BleOutput(client, protocol, args.timeout)
     occupied = False
     finished = asyncio.Event()
@@ -620,9 +672,13 @@ async def serve_ble_output(args, client_factory=None):
                 await writer.wait_closed()
             clients.discard(asyncio.current_task())
     try:
+        # Include partial/timed-out connection establishment in cleanup. Some
+        # backends establish a link before connect() has finished discovery.
+        await asyncio.wait_for(client.connect(), args.timeout * 5)
         server = await asyncio.start_server(connection, host, port, limit=MAX_LINE + 1)
         async with server:
-            print(f'BLE output ready at {args.listen}; configure Sensa TCode TCP, L0 only, Interval slope', flush=True)
+            axes = 'V0 intensity only, without I/S modifiers' if protocol.scalar else 'L0 only, Interval slope'
+            print(f'BLE output ready at {args.listen}; configure Sensa TCode TCP, {axes}', flush=True)
             waits = [asyncio.create_task(finished.wait()), asyncio.create_task(disconnected.wait())]
             await asyncio.wait(waits, return_when=asyncio.FIRST_COMPLETED)
     finally:
@@ -645,7 +701,7 @@ def diagnostics():
     return {'platform': sys.platform, 'python': sys.version.split()[0], 'dependencies': dependencies,
             'hardwareProbed': False, 'supportedBleProtocols': list(PROTOCOLS),
             'pty': os.name != 'nt', 'windowsVirtualCom': 'Use an existing signed-driver COM pair; no driver installation is performed',
-            'stop': 'DSTOP clears pending work and closes BLE output. BLE protocol has no verified emergency-stop opcode.'}
+            'stop': 'DSTOP clears pending work and closes BLE output. Svakom V1 first sends its verified zero-vibration command; LOOB/Thrust Sync have no verified emergency-stop opcode.'}
 
 
 def parser():
@@ -671,6 +727,7 @@ def parser():
             if command == 'ble-input':
                 p.add_argument('--adapter', help='Optional Bless Linux adapter path, e.g. /org/bluez/hci1')
                 p.add_argument('--confirm-windows-loob-name', action='store_true')
+                p.add_argument('--confirm-windows-svakom-name', action='store_true')
             else:
                 p.add_argument('--listen', default='tcp://127.0.0.1:12411', help='Sensa TCode TCP OUTPUT connects here')
                 p.add_argument('--device', help='Actual BLE address/OS device identifier; explicit, no automatic selection')

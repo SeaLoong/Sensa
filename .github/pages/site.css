@@ -68,6 +68,13 @@ footer a{display:inline-flex;align-items:center;min-height:28px}
 .doc-scroll pre{margin:0;overflow:visible}
 .doc-scroll th,.doc-scroll td{min-width:8rem}
 .doc-scroll code{overflow-wrap:normal}
+.doc-diagram{max-width:100%;margin:24px 0}
+.doc-diagram-canvas{padding:16px;border:1px solid var(--line);background:#fff}
+.doc-diagram-canvas svg{display:block;max-width:none;height:auto}
+.doc-diagram-status{font-size:13px;color:var(--muted)}
+.doc-diagram-source{font-size:13px;margin-top:10px}
+.doc-diagram-source summary{cursor:pointer;color:var(--muted);min-height:32px}
+.doc-diagram-source .doc-scroll{max-height:28rem;margin:10px 0 0}
 /* Homepage: a concrete example, a short first run and task-based help. */
 .home{max-width:1200px;margin:auto;padding:0 28px}
 .home h2{font-size:29px;font-weight:650;line-height:1.35;margin:0 0 14px;letter-spacing:-.02em}

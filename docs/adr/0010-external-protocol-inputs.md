@@ -18,9 +18,9 @@ Source mutations/events are ordered and pending state is coalesced per channel. 
 
 ## Boundaries / 边界
 
-协议监听与管理 API 分离，默认回环，网站来源明确允许。虚拟 Buttplug 设备只声明实现能力并协商消息 v3/v4；输出客户端包版本与 wire 版本分别解释。WSDM 是连接 Central 设备管理端的另一路径；文本注册后二进制硬件帧与应用端 Buttplug JSON 不混用。TCode v0.4 尚未实现的曲线明确拒绝，D1 只宣告 v0.3。
+协议监听与管理 API 分离，默认回环；网站与原生客户端直接使用已配置地址，无需逐网站许可。虚拟 Buttplug 设备只声明实现能力并协商消息 v2/v3/v4；输出客户端包版本与 wire 版本分别解释。WSDM 是连接 Central 设备管理端的另一路径；文本注册后二进制硬件帧与应用端 Buttplug JSON 不混用。TCode v0.4 尚未实现的曲线明确拒绝，D1 只宣告 v0.3。
 
-Protocol listeners are separate from management APIs, default to loopback and explicitly allow website origins. Virtual Buttplug devices advertise implemented capabilities and negotiate message v3/v4; output-library version and wire version remain separate. WSDM connects to Central's device manager, using text registration followed by binary hardware frames; it is distinct from application-side Buttplug JSON. Unsupported TCode v0.4 curves are rejected and D1 advertises v0.3.
+Protocol listeners are separate from management APIs and default to loopback. Websites and native clients directly use the configured address without per-website approval. Virtual Buttplug devices advertise implemented capabilities and negotiate message v2/v3/v4; output-library version and wire version remain separate. WSDM connects to Central's device manager, using text registration followed by binary hardware frames; it is distinct from application-side Buttplug JSON. Unsupported TCode v0.4 curves are rejected and D1 advertises v0.3.
 
 厂商云输出使用明确的设备地址与凭据；厂商兼容输入仅适用于可配置 endpoint 的上游。BLE 外围设备模拟与 central 输出放在可选桥工具，显式选择设备与依赖。虚拟串口不等于浏览器一定能枚举，BLE 断开不等于设备急停。验证报告区分编解码／隔离传输、Actions 浏览器与进程、真实应用和实体硬件。
 

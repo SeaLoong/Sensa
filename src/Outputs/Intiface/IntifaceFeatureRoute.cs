@@ -72,16 +72,15 @@ public sealed class IntifaceFeatureRoute
                 if (!float.IsFinite(direction)) throw new ArgumentException("Rotation direction must be finite.");
                 clockwise = direction >= .5f;
             }
-            if (!clockwise && minimum == 0 && normalized > 0) throw new ArgumentException("This Intiface feature does not advertise reverse rotation.");
+            if (normalized > 0 && (clockwise ? maximum == 0 : minimum == 0))
+                throw new ArgumentException("This Intiface feature does not advertise the selected rotation direction.");
             value = (int)Math.Round(normalized * (clockwise ? maximum : minimum), MidpointRounding.AwayFromZero);
         }
         else value = checked((int)Math.Round(minimum + normalized * ((double)maximum - minimum), MidpointRounding.AwayFromZero));
         uint? duration = null;
         if (type == Buttplug.Core.Messages.OutputType.HwPositionWithDuration)
         {
-            if (!double.IsFinite(frame.DeltaMs) || frame.DeltaMs is < 0 or > uint.MaxValue)
-                throw new ArgumentException("Position duration must be a finite unsigned millisecond value.");
-            var requested = (uint)Math.Round(frame.DeltaMs, MidpointRounding.AwayFromZero);
+            var requested = IntifacePositionFeatures.DurationFor(frame);
             if (definition.Duration is not [var minimumDuration, var maximumDuration] || minimumDuration < 0 || maximumDuration < minimumDuration
                 || requested < minimumDuration || requested > maximumDuration)
                 throw new ArgumentException("Position duration is outside the Intiface feature's advertised range.");

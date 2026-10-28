@@ -79,9 +79,9 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 ## 外部协议输入与设备 API
 
-Buttplug v3/v4、TCode、JSON 与厂商兼容入口将控制解释为带通道、目标、时长和方向的外部命令。直接动作路径按通道保留独立时长，停止是有序屏障；协议样本也可作为计算／绑定来源。首次位置轨迹起点未知时，当前值保持无效而目标可读；位置插值表示命令状态，不代表设备回读。原有设备反馈仍是独立来源，协议输入不伪装成 OSC 或硬件反馈。
+Buttplug v2/v3/v4、TCode、JSON 与厂商兼容入口将控制解释为带通道、目标、时长和方向的外部命令。直接动作路径按通道保留独立时长，停止是有序屏障；协议样本也可作为计算／绑定来源。首次位置轨迹起点未知时，当前值保持无效而目标可读；位置插值表示命令状态，不代表设备回读。原有设备反馈仍是独立来源，协议输入不伪装成 OSC 或硬件反馈。
 
-协议监听与工作台管理 API 分开，默认回环并明确允许网站 Origin。Handy、Lovense、Autoblow、VacuGlide 输出连接实际设备 API；同名本地兼容输入只对可配置 endpoint 的上游有效，不能接管固定厂商云。BLE peripheral／central 与虚拟串口接线由可选桥工具负责。操作、类型与停止范围见[协议输入指南](protocol-inputs.md)和[ADR 0010](adr/0010-external-protocol-inputs.md)。
+协议监听与工作台管理 API 分开，默认回环；网站与原生客户端直接连接已配置地址，不需要逐网站许可。Handy、Lovense、Autoblow、VacuGlide 输出连接实际设备 API；同名本地兼容输入只对可配置 endpoint 的上游有效，不能接管固定厂商云。BLE peripheral／central 与虚拟串口接线由可选桥工具负责。操作、类型与停止范围见[协议输入指南](protocol-inputs.md)和[ADR 0010](adr/0010-external-protocol-inputs.md)。
 
 ## 跟随平面与空间计算
 

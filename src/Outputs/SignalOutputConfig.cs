@@ -154,13 +154,17 @@ public static class SignalOutputConfiguration
                             throw new ArgumentException("请为反馈使用独立参数，避免直接读写回路 / Choose a separate feedback parameter to avoid a direct loop.");
                     }
                 }
-                if (!IsProtocolOutput(output.Type) && !Enum.TryParse<Sensa.Motion.MotionAxis>(binding.Address, out _))
+                if (!IsProtocolOutput(output.Type) && (!Enum.TryParse<Sensa.Motion.MotionAxis>(binding.Address, out var targetAxis)
+                    || !Enum.IsDefined(targetAxis) || binding.Address != targetAxis.ToString()))
                     throw new ArgumentException("请选择有效的目标轴 / Choose a supported target axis.");
                 if (output.Type is OutputDeviceType.Handy or OutputDeviceType.Autoblow or OutputDeviceType.VacuGlide or OutputDeviceType.Lovense
                     && binding.Address != output.Device.Axis)
                     throw new ArgumentException("Vendor output bindings must target the configured device source axis.");
-                if (output.Type == OutputDeviceType.Intiface && binding.Address != "L0" && binding.Address != IntifaceConfig.NormalizeVibrationAxis(output.VibrationAxis))
-                    throw new ArgumentException("请选择 L0 或此输出的振动轴 / Choose L0 or this output's vibration axis.");
+                if (output.Type == OutputDeviceType.Intiface && binding.Address != "L0"
+                    && binding.Address != IntifaceConfig.NormalizeVibrationAxis(output.VibrationAxis)
+                    && !output.IntifaceFeatures.Any(route => route.SourceAxis == binding.Address
+                        || route.OutputType == "Rotate" && route.DirectionAxis == binding.Address))
+                    throw new ArgumentException("请选择默认轴或执行器映射使用的轴 / Choose a default axis or an axis used by an actuator mapping.");
                 if (!IsProtocolOutput(output.Type) && new[] { binding.OutputMin, binding.OutputMax, binding.StopValue }.Any(value => value is < 0 or > 1))
                     throw new ArgumentException("目标轴使用 0～1 的数值 / Target axes use values from 0 to 1.");
                 if (output.Type == OutputDeviceType.Recording && binding.Address.Length > 80)

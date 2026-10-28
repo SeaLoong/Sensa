@@ -20,8 +20,11 @@ namespace Sensa.Tests.Contracts;
 /// <summary>Isolated loopback listeners and fake motion outputs. Never starts the Sensa host or physical transports.</summary>
 public sealed class ProtocolListenerContracts
 {
-    [Fact]
-    public async Task Real_browser_preflight_checks_both_origin_and_host_and_allows_vendor_token_headers()
+    [Theory]
+    [InlineData("https://first-player.example")]
+    [InlineData("https://another-player.example")]
+    [InlineData("null")]
+    public async Task Browser_preflight_and_commands_need_no_website_registration_but_still_validate_the_listener_host(string origin)
     {
         var config = Input();
         using var store = new ExternalControlStore();
@@ -29,29 +32,31 @@ public sealed class ProtocolListenerContracts
         await listeners.ReloadAsync([config]);
         using var client = Client(config);
         using var preflight = new HttpRequestMessage(HttpMethod.Options, "/command");
-        preflight.Headers.Add("Origin", "https://allowed.example");
+        preflight.Headers.Add("Origin", origin);
         preflight.Headers.Add("Access-Control-Request-Method", "PUT");
         preflight.Headers.Add("Access-Control-Request-Headers", "content-type,x-device-token");
         using var reply = await client.SendAsync(preflight);
         Assert.Equal(HttpStatusCode.NoContent, reply.StatusCode);
-        Assert.Equal("https://allowed.example", Assert.Single(reply.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.Equal("*", Assert.Single(reply.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.False(reply.Headers.Contains("Access-Control-Allow-Credentials"));
         Assert.Contains("X-Device-Token", string.Join(',', reply.Headers.GetValues("Access-Control-Allow-Headers")), StringComparison.OrdinalIgnoreCase);
         Assert.Null(store.GetStatus(config.Id)?.Session);
-
-        using var hostileOrigin = new HttpRequestMessage(HttpMethod.Post, "/command")
-        { Content = JsonContent.Create(new { channel = "L0", value = .8 }) };
-        hostileOrigin.Headers.Add("Origin", "https://attacker.invalid");
-        using var deniedOrigin = await client.SendAsync(hostileOrigin);
-        Assert.Equal(HttpStatusCode.Forbidden, deniedOrigin.StatusCode);
-        Assert.False(deniedOrigin.Headers.Contains("Access-Control-Allow-Origin"));
 
         using var hostileHost = new HttpRequestMessage(HttpMethod.Post, "/command")
         { Content = JsonContent.Create(new { channel = "L0", value = .8 }) };
         hostileHost.Headers.Host = "rebinding.invalid:" + config.Port;
-        hostileHost.Headers.Add("Origin", "https://allowed.example");
+        hostileHost.Headers.Add("Origin", origin);
         using var deniedHost = await client.SendAsync(hostileHost);
         Assert.Equal(HttpStatusCode.Forbidden, deniedHost.StatusCode);
         Assert.Null(store.GetStatus(config.Id)?.Session);
+
+        using var command = new HttpRequestMessage(HttpMethod.Post, "/command")
+        { Content = JsonContent.Create(new { channel = "L0", value = .8 }) };
+        command.Headers.Add("Origin", origin);
+        using var accepted = await client.SendAsync(command);
+        Assert.Equal(HttpStatusCode.OK, accepted.StatusCode);
+        Assert.Equal("*", Assert.Single(accepted.Headers.GetValues("Access-Control-Allow-Origin")));
+        Assert.Equal(.8f, store.Read(config.Id + "/L0", Now).Value);
     }
 
     [Fact]
@@ -272,7 +277,7 @@ public sealed class ProtocolListenerContracts
     private static ProtocolInputConfig Input(string type = "JsonHttp") => new()
     {
         Id = "listener-input", Type = type, Enabled = true, Host = "127.0.0.1", Port = FreePort(), RouteToMotion = false,
-        AllowedOrigins = ["https://allowed.example"], Features = [new() { Channel = "L0", TargetAxis = "L0" }],
+        Features = [new() { Channel = "L0", TargetAxis = "L0" }],
     };
     private static int FreePort()
     {

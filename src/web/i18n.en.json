@@ -1399,8 +1399,6 @@
   "波特率": "Baud rate",
   "Intiface 设备端地址": "Intiface device socket address",
   "设备识别名称": "Device identifier",
-  "允许的网站来源": "Allowed website origins",
-  "每行一个网站来源，例如 https://example.com。未列出的网站不能连接；本机原生客户端单独处理。": "One website origin per line, for example https://example.com. Unlisted websites cannot connect; local native clients are handled separately.",
   "控制通道 {0}": "Control channel {0}",
   "通道标识": "Channel ID",
   "通道名称": "Channel name",
@@ -1466,7 +1464,6 @@
   "请填写监听地址。": "Enter a listening address.",
   "监听端口须为 1–65535。": "Listening port must be 1–65535.",
   "已有启用的输入占用此监听地址和端口。": "An enabled input already uses this listening address and port.",
-  "允许的网站须为完整 HTTP/HTTPS 来源，不含路径、查询或凭据。": "Allowed websites must be complete HTTP/HTTPS origins without paths, queries or credentials.",
   "每个来源须配置 1–16 个控制通道。": "Each source needs 1–16 control channels.",
   "控制通道须使用唯一有效标识。": "Control channels must use unique valid IDs.",
   "请选择支持的控制类型。": "Select a supported control type.",
@@ -1534,5 +1531,7 @@
   "配置协议输入": "Configure protocol inputs",
   "未配置映射时使用默认的位置与振动路由。映射覆盖匹配特征的同类能力；其他特征保留默认路由。": "Without mappings, position and vibration use default routing. A mapping overrides its matching feature capability; other features keep their default routes.",
   "本地设备令牌（可选）": "Local device token (optional)",
-  "这是本地兼容接口的令牌。设置后，客户端的 x-device-token 必须匹配；无需填写厂商云密钥。": "This token belongs to the local compatible endpoint. When set, the client x-device-token must match it; a vendor cloud key is not required."
+  "这是本地兼容接口的令牌。设置后，客户端的 x-device-token 必须匹配；无需填写厂商云密钥。": "This token belongs to the local compatible endpoint. When set, the client x-device-token must match it; a vendor cloud key is not required.",
+  "循环播放同步脚本": "Loop synchronized script",
+  "请先停止播放，再更改循环设置。": "Stop playback before changing the loop setting."
 }

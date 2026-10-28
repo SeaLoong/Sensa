@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import MarkdownIt from 'markdown-it';
 import { screenshotGallery } from './site-screenshots.mjs';
+import { documentDiagram, documentDiagramAssets } from './site-diagrams.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const locales = ['en', 'zh-CN'];
-const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab'];
+const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab', 'tools/protocol-bridge'];
 const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
   en: { docs: 'Help', diagram: 'Parameter explorer', source: 'View source', download: 'Download', navigation: 'Browse guides', top: 'On this page', skip: 'Skip to content', home: 'Home', filter: 'Find a guide', empty: 'No matching guide. Try a shorter name.', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
@@ -36,6 +37,9 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const digest = createHash('sha256').update(content).digest('hex').slice(0, 16);
     siteAssets[extension] = { name: 'site.' + digest + '.' + extension, content };
   }
+  const diagrams = await documentDiagramAssets(source);
+  siteAssets.diagrams = { name: 'document-diagrams.' + createHash('sha256').update(diagrams.content).digest('hex').slice(0, 16) + '.js',
+    content: diagrams.content };
   for (const folder of folders) {
     for (const name of await fs.readdir(path.join(source, folder))) {
       if (!name.endsWith('.md') || (folder === '' && !name.startsWith('README'))) continue;
@@ -100,6 +104,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       ] },
       { en: 'Inputs and outputs', zh: '输入与联动', links: [
         ['docs/signal-pipeline', 'Build a flow', '建立信号流程'], ['docs/computed-signals', 'Calculations', '计算与映射'],
+        ['docs/protocol-inputs', 'Protocol inputs', '协议输入'], ['tools/protocol-bridge/README', 'Serial and Bluetooth bridges', '串口与蓝牙桥'],
         ['docs/osc-parameters', 'OSC parameters', 'OSC 参数字典'], ['docs/positioning', 'Position and tracking', '位置与定位'],
         ['docs/languages', 'Language settings', '语言设置'],
       ] },
@@ -117,7 +122,9 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
         const target = routes.get(locale + ':' + key);
         return target ? '<a data-guide-link' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(locale === 'en' ? en : zh) + '</a>' : '';
       }).join('') + '</div>').join('');
-    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script></head><body><a class="skip" href="#content">' + t.skip + '</a>'
+    const diagramScript = document.diagrams ? '<script defer src="' + href(siteAssets.diagrams.name)
+      + '" onerror="' + escape(scriptFallback(relative(route, 'document-diagrams.js'))) + '"></script>' : '';
+    return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script>' + diagramScript + '</head><body><a class="skip" href="#content">' + t.skip + '</a>'
       + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
       + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details><main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href('index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><span>' + t.docs + '</span></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
   };
@@ -137,7 +144,14 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     md.renderer.rules.table_open = (tokens, index, options, env, render) => scrollRegion(words[document.locale].table) + render.renderToken(tokens, index, options);
     md.renderer.rules.table_close = (tokens, index, options, env, render) => render.renderToken(tokens, index, options) + '</div>\n';
     const fence = md.renderer.rules.fence, codeBlock = md.renderer.rules.code_block;
-    md.renderer.rules.fence = (...args) => scrollRegion(words[document.locale].code) + fence(...args) + '</div>\n';
+    md.renderer.rules.fence = (...args) => {
+      const [tokens, index] = args;
+      if (tokens[index].info.trim().split(/\s+/)[0].toLowerCase() === 'mermaid') {
+        document.diagrams = (document.diagrams || 0) + 1;
+        return documentDiagram(tokens[index].content, { locale: document.locale, index: document.diagrams, title: titleOf(document) });
+      }
+      return scrollRegion(words[document.locale].code) + fence(...args) + '</div>\n';
+    };
     md.renderer.rules.code_block = (...args) => scrollRegion(words[document.locale].code) + codeBlock(...args) + '</div>\n';
     md.renderer.rules.heading_open = (tokens, index, options, env, render) => {
       const title = tokens[index + 1].content;
@@ -227,12 +241,15 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     }
   }
   await write('index.html', homepage);
-  for (const [extension, asset] of Object.entries(siteAssets)) {
+  for (const [extension, asset] of Object.entries(siteAssets).filter(([extension]) => extension !== 'diagrams')) {
     await write(asset.name, asset.content);
     // Previously cached pages still reference these names. New pages use the content hash.
     // 已缓存的旧页面仍引用固定文件名，新页面均使用内容哈希。
     await write('site.' + extension, asset.content);
   }
+  await write(siteAssets.diagrams.name, siteAssets.diagrams.content);
+  await write('document-diagrams.js', siteAssets.diagrams.content);
+  await write('document-diagrams.LICENSE.txt', diagrams.license);
   await write('parameter-geometry.html', (await fs.readFile(path.join(source, 'docs/parameter-geometry.html'), 'utf8')).replace('<head>', '<head>\n<meta name="sensa-site-root" content="./">'));
   for (const name of diagramAssets) await write('assets/' + name, await fs.readFile(path.join(source, 'docs/assets', name)));
   await write('.nojekyll', '');

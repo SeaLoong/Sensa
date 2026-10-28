@@ -99,7 +99,7 @@ public sealed class ButtplugInputContracts
     }
 
     [Theory]
-    [InlineData("""[{"RequestServerInfo":{"Id":1,"ClientName":"test","MessageVersion":2}}]""")]
+    [InlineData("""[{"RequestServerInfo":{"Id":1,"ClientName":"test","MessageVersion":1}}]""")]
     [InlineData("""[{"RequestServerInfo":{"Id":1,"ClientName":"test","ProtocolVersionMajor":5,"ProtocolVersionMinor":0}}]""")]
     [InlineData("""[{"RequestServerInfo":{"Id":1,"ClientName":"test","MessageVersion":3,"ProtocolVersionMajor":4}}]""")]
     [InlineData("""[{"RequestServerInfo":{"Id":1,"ClientName":"","MessageVersion":3}}]""")]

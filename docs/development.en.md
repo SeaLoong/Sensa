@@ -107,6 +107,8 @@ The repository already contains a validated `codeql.yml`; no new workflow file i
 
 Official guidance: [Disable default setup to unblock SARIF upload](https://docs.github.com/en/code-security/reference/code-scanning/sarif-files/troubleshoot-sarif-uploads/default-setup-enabled#disabling-default-setup-to-unblock-sarif-upload).
 
+Intiface output retains the Buttplug 5.0.1 client and wire v4. Its transport adapter assembles complete fragmented WebSocket messages, limits each to 1 MiB and strictly validates UTF-8/JSON with maximum depth 64; binary or invalid data closes that connection. Failed connection setup releases the socket, ends reception and clears the client so retries do not retain an old session. Isolated contracts cover fragmentation, multibyte names, large device lists and failed-connection cleanup.
+
 React 19 production builds and component SSR tests use the automatic JSX transform. Test loaders share both `react` and `react/*` runtimes to avoid bundling a second JSX/Hooks instance.
 
 ## Where should I look after a failure?
@@ -143,6 +145,14 @@ The full candidate run's `site.spec.js` produces the site review captures. The e
 
 VPM preserves verified stable packages and historical downloads. Network or hash failures stop deployment; an unavailable state is shown when no stable package exists.
 
+### Documentation diagrams
+
+Describe flowcharts with `flowchart`/`graph` inside a `mermaid` fence. Pages containing diagrams load a pinned Mermaid runtime distributed locally with the site, without a CDN dependency; ordinary fenced examples remain code. Diagrams use strict mode and plain-text labels, without per-diagram initialization, HTML labels or clickable links.
+
+Graphical rendering needs JavaScript. Every diagram retains its complete source in an expandable fallback. Source remains readable when JavaScript is disabled, local scripts fail to load or an individual diagram fails to parse; other diagrams are handled independently. Narrow screens scroll horizontally and keyboard users can focus the diagram region, preserving readable text instead of shrinking it excessively. Rendering/content changes need Actions checks of actual visible SVG, bilingual navigation and narrow access; the presence of `mermaid` text in HTML alone does not prove rendering.
+
+The sidebar includes Protocol inputs and Serial and Bluetooth bridges. The tools' three README files publish as two localized routes without duplicating the English alias. Protocol and complete bridge-installation guides link to one another within the documentation site.
+
 ## Local development and checks
 
 Use Node.js 24, Python 3.12+ and the .NET SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). Plan affected checks before running them; unchanged source/toolchains can reuse successful local records.
@@ -168,7 +178,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE input uses Bless from `requirements-ble-input.txt` on Linux/macOS and a compatible native PyWinRT set from `requirements-ble-input-windows.txt` on Windows, avoiding Bless's Windows dependency conflict. Peripheral/advertising support, OS permissions and same-adapter concurrent roles need hardware checks; Windows LOOB also requires a matching system advertisement name. Browsers may not enumerate PTYs. Windows uses an existing COM pair with a trusted signed driver. `--check` opens no hardware; isolated local PTY and mock serial/BLE/WinRT tests do not establish website or device acceptance. Neither BLE protocol has a verified hardware emergency-stop opcode: stopping clears the session and disconnects, rather than moving to zero. [Installation and complete operation](../tools/protocol-bridge/README.md)
+BLE input uses Bless from `requirements-ble-input.txt` on Linux/macOS and a compatible native PyWinRT set from `requirements-ble-input-windows.txt` on Windows, avoiding Bless's Windows dependency conflict. Peripheral/advertising support, OS permissions and same-adapter concurrent roles need hardware checks; Windows LOOB/Svakom V1 also require a matching actual system advertising name. Browsers may not enumerate PTYs. Windows uses an existing COM pair with a trusted signed driver. `--check` opens no hardware; isolated local PTY and mock serial/BLE/WinRT tests do not establish website or device acceptance. LOOB/Thrust Sync have no verified hardware emergency-stop opcode: stopping clears the session and disconnects, rather than moving to position zero. The Svakom V1 single-vibration subset sends its upstream-verified zero-vibration command before disconnecting; a completed write does not establish physical stopping, and other Svakom models/protocols are not automatically compatible. [Installation and complete operation](../tools/protocol-bridge/README.md)
 
 After changing Three.js source or dependencies, run `npm run build:web` and commit reproducible `docs/assets/parameter-geometry-3d.js` plus its complete `3d.LICENSE.txt`. After ordinary Markdown edits, build the site directly with `npm run build:pages`; artifacts are written to `artifacts/pages/`.
 

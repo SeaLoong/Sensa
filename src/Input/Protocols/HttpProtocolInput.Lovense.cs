@@ -117,6 +117,10 @@ public sealed partial class HttpProtocolInput
             foreach (var command in effect.Commands) _sink.Stop(_config.Id, _session, command.Channel);
             return;
         }
+        // A positive timeSec is a bounded task accepted by this virtual device,
+        // not a stream requiring an external heartbeat. This also retains the
+        // lease during loop pauses. Indefinite effects never self-renew.
+        if (effect.Duration > 0) _sink.Heartbeat(_config.Id, _session);
         if (effect.Running == 0) return;
         var running = elapsed % (effect.Running + effect.Pause) < effect.Running;
         if (running == effect.IsRunning) return;
@@ -124,6 +128,8 @@ public sealed partial class HttpProtocolInput
         var commands = running ? effect.Commands : effect.Commands.Select(command => command with { Value = 0 }).ToArray();
         if (!_sink.Publish(_config.Id, _session, commands, out _)) Release();
     }
+    private bool FiniteLovenseEffectActive() => _effect is { Duration: > 0 } effect
+        && _clock.GetElapsedTime(effect.Started).TotalMilliseconds < effect.Duration;
     private static int Seconds(JsonElement body, string name, bool allowZero)
     {
         var seconds = Number(body, name, 0, 600);

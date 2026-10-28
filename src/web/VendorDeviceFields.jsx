@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Badge, Button, Field } from './ui.jsx';
+import { Badge, Button, Field, Toggle } from './ui.jsx';
 import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { PROTOCOL_AXES, normalizeDeviceOutput } from './protocol-inputs.js';
@@ -64,6 +64,12 @@ export function VendorScriptControls({ output, disabled, stopDisabled = disabled
       {status?.scriptPlaying && <Badge tone="success">{t('播放中')}</Badge>}</div>
     <Field label={t('脚本位置（ms）')} type="number" min={0} max={86400000} step={100} value={position}
       onChange={event => setPosition(Number(event.target.value))} />
+    {status?.supportsScriptLoop === true && <>
+      <Toggle label={t('循环播放同步脚本')} checked={status?.scriptLoop === true}
+        disabled={disabled || !scriptPrepared || status?.scriptPlaying === true}
+        onChange={loop => onAction('loop', { loop })} />
+      {status?.scriptPlaying === true && <p className="caption muted">{t('请先停止播放，再更改循环设置。')}</p>}
+    </>}
     <div className="actions">
       <Button disabled={disabled || !output.device?.scriptUrl} onClick={() => onAction('prepare', { url: output.device.scriptUrl })}>{t('准备同步脚本')}</Button>
       <Button disabled={disabled || !inputActive || !scriptPrepared || !output.device?.scriptUrl || !Number.isFinite(position) || position < 0 || position > 86400000} onClick={() => onAction('play', { positionMs: position })}>{t('播放同步脚本')}</Button>

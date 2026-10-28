@@ -162,6 +162,21 @@ class WindowsPeripheralContracts(unittest.IsolatedAsyncioTestCase):
         args.session.add_session_status_changed.assert_called_once()
         self.assertTrue(self.winrt.readers[0].closed)
 
+    async def test_svakom_six_byte_frame_uses_its_uuid_and_completes_native_read_lifecycle(self):
+        self.protocol.service = '0000ffe0-0000-1000-8000-00805f9b34fb'
+        self.protocol.characteristic = '0000ffe1-0000-1000-8000-00805f9b34fb'
+        self.protocol.packet_size = 6
+        await self.server.start()
+        args, request = self.winrt.args(payload=bytes.fromhex('550403000113'))
+        await self.deliver(args)
+        self.winrt.service.create_characteristic_async.assert_awaited_once_with(
+            UUID(self.protocol.characteristic), self.winrt.parameters[0])
+        self.receive.assert_called_once_with(bytes.fromhex('550403000113'))
+        request.respond.assert_called_once_with()
+        request.respond_with_protocol_error.assert_not_called()
+        self.disconnected.assert_not_called()
+        self.assertTrue(self.winrt.readers[0].closed)
+
     async def test_offset_fragment_is_rejected_without_motion_delivery(self):
         await self.server.start()
         args, request = self.winrt.args(offset=1)

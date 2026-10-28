@@ -109,21 +109,21 @@ public sealed class ButtplugInputSession : IDisposable
                 if (body.TryGetProperty("ProtocolVersionMajor", out _) || body.TryGetProperty("ProtocolVersionMinor", out _))
                     throw new ProtocolException("Ambiguous protocol version.", 1);
                 version = checked((int)Unsigned(body, "MessageVersion", 3));
-                if (version != 3) throw new ProtocolException("This endpoint supports protocol versions 3 and 4.", 1);
+                if (version is not (2 or 3)) throw new ProtocolException("This endpoint supports protocol versions 2, 3 and 4.", 1);
             }
             else
             {
                 version = checked((int)Unsigned(body, "ProtocolVersionMajor", 4));
                 _ = Unsigned(body, "ProtocolVersionMinor");
-                if (version != 4) throw new ProtocolException("This endpoint supports protocol versions 3 and 4.", 1);
+                if (version != 4) throw new ProtocolException("This endpoint supports protocol versions 2, 3 and 4.", 1);
             }
             if (!_sink.TryAcquire(_config.Id, _sessionId, out var error))
                 throw new ProtocolException(string.IsNullOrWhiteSpace(error) ? "This input is already controlled by another session." : error, 4);
             _acquired = true;
             _version = version;
             Touch(ping: true);
-            replies.Add(version == 3
-                ? Message("ServerInfo", new { Id = id, ServerName = "Sensa", MessageVersion = 3, MaxPingTime = _timeoutMs })
+            replies.Add(version < 4
+                ? Message("ServerInfo", new { Id = id, ServerName = "Sensa", MessageVersion = version, MaxPingTime = _timeoutMs })
                 : Message("ServerInfo", new { Id = id, ServerName = "Sensa", ProtocolVersionMajor = 4, ProtocolVersionMinor = 0, MaxPingTime = _timeoutMs }));
             return;
         }
@@ -144,7 +144,7 @@ public sealed class ButtplugInputSession : IDisposable
                 replies.Add(Ok(id));
                 if (!_announced)
                 {
-                    replies.Add(_version == 3 ? Message("DeviceAdded", V3Device(0)) : DeviceList(0));
+                    replies.Add(_version < 4 ? Message("DeviceAdded", LegacyDevice(0)) : DeviceList(0));
                     _announced = true;
                 }
                 replies.Add(Message("ScanningFinished", new { Id = 0 }));
@@ -153,7 +153,7 @@ public sealed class ButtplugInputSession : IDisposable
                 Touch();
                 replies.Add(Ok(id));
                 return;
-            case "LinearCmd" when _version == 3:
+            case "LinearCmd" when _version is 2 or 3:
                 Device(body);
                 Publish(id, ParseLinear(body), replies);
                 return;
@@ -161,7 +161,11 @@ public sealed class ButtplugInputSession : IDisposable
                 Device(body);
                 Publish(id, ParseScalar(body), replies);
                 return;
-            case "RotateCmd" when _version == 3:
+            case "VibrateCmd" when _version == 2:
+                Device(body);
+                Publish(id, ParseVibration(body), replies);
+                return;
+            case "RotateCmd" when _version is 2 or 3:
                 Device(body);
                 Publish(id, ParseRotation(body), replies);
                 return;
@@ -169,13 +173,13 @@ public sealed class ButtplugInputSession : IDisposable
                 Device(body);
                 Publish(id, [ParseV4Output(body)], replies);
                 return;
-            case "StopDeviceCmd" when _version == 3:
+            case "StopDeviceCmd" when _version is 2 or 3:
                 Device(body);
                 _sink.Stop(_config.Id, _sessionId);
                 Touch();
                 replies.Add(Ok(id));
                 return;
-            case "StopAllDevices" when _version == 3:
+            case "StopAllDevices" when _version is 2 or 3:
                 _sink.Stop(_config.Id, _sessionId);
                 Touch();
                 replies.Add(Ok(id));
@@ -233,6 +237,22 @@ public sealed class ButtplugInputSession : IDisposable
         return commands;
     }
 
+    private IReadOnlyList<ExternalControlCommand> ParseVibration(JsonElement body)
+    {
+        var speeds = Array(body, "Speeds");
+        var features = V2Features("Scalar").ToArray();
+        var commands = new List<ExternalControlCommand>();
+        var indices = new HashSet<uint>();
+        foreach (var speed in speeds.EnumerateArray())
+        {
+            var index = Unsigned(speed, "Index");
+            if (!indices.Add(index)) throw new ProtocolException("Repeated vibration index.");
+            if (index >= features.Length) throw new ProtocolException("Unknown vibration index.", 4);
+            commands.Add(new(features[index].Channel, Unit(speed, "Speed")));
+        }
+        return commands;
+    }
+
     private IReadOnlyList<ExternalControlCommand> ParseRotation(JsonElement body)
     {
         var rotations = Array(body, "Rotations");
@@ -278,9 +298,28 @@ public sealed class ButtplugInputSession : IDisposable
         if (outputs) _sink.Stop(_config.Id, _sessionId, channel);
     }
 
-    private object DeviceList(uint id) => _version == 3
-        ? Message("DeviceList", new { Id = id, Devices = new[] { V3Device(null) } })
+    private object DeviceList(uint id) => _version < 4
+        ? Message("DeviceList", new { Id = id, Devices = new[] { LegacyDevice(null) } })
         : Message("DeviceList", new { Id = id, Devices = new Dictionary<string, object> { ["0"] = V4Device() } });
+
+    private object LegacyDevice(uint? eventId) => _version == 2 ? V2Device(eventId) : V3Device(eventId);
+
+    private object V2Device(uint? eventId)
+    {
+        // v2 uses command-level FeatureCount/StepCount metadata, not v3's
+        // actuator arrays. VibrateCmd can represent only vibration features.
+        var messages = new Dictionary<string, object> { ["StopDeviceCmd"] = new { } };
+        Add("Position", "LinearCmd"); Add("Scalar", "VibrateCmd"); Add("Rotation", "RotateCmd");
+        var fields = new Dictionary<string, object>
+        { ["DeviceName"] = DeviceName, ["DeviceIndex"] = 0, ["DeviceMessages"] = messages };
+        if (eventId.HasValue) fields["Id"] = eventId.Value;
+        return fields;
+        void Add(string actuator, string command)
+        {
+            var count = V2Features(actuator).Count();
+            if (count != 0) messages[command] = new { FeatureCount = count, StepCount = Enumerable.Repeat(PositionSteps, count).ToArray() };
+        }
+    }
 
     private object V3Device(uint? eventId)
     {
@@ -338,6 +377,8 @@ public sealed class ButtplugInputSession : IDisposable
     // under a different name; scalar indices address this same filtered order in metadata and commands.
     private IEnumerable<Feature> V3Features(string actuator) => _features.Where(feature => feature.Actuator == actuator
         && (actuator != "Scalar" || feature.ScalarType is "Vibrate" or "Oscillate" or "Constrict"));
+    private IEnumerable<Feature> V2Features(string actuator) => _features.Where(feature => feature.Actuator == actuator
+        && (actuator != "Scalar" || feature.ScalarType == "Vibrate"));
 
     private static void Device(JsonElement body)
     {
@@ -432,7 +473,7 @@ public sealed class ButtplugInputSession : IDisposable
             foreach (var child in value.EnumerateArray()) RejectDuplicateProperties(child);
     }
 
-    /// <summary>Runs an isolated protocol transport. The host must validate Origin/Host before accepting it.</summary>
+    /// <summary>Runs an isolated protocol transport. The host validates its configured listener Host before accepting it.</summary>
     public async Task RunAsync(WebSocket socket, CancellationToken cancellationToken = default)
     {
         var buffer = new byte[4096];

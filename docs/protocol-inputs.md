@@ -19,7 +19,7 @@ flowchart LR
 ## 先建立一个可检查的闭环
 
 1. 在“设置 → 协议输入”添加 **Buttplug / Intiface** 来源。保留本机地址 `127.0.0.1`、端口 `12400`，通道 `L0`、类型“位置与到达时长”、直接轴 `L0`。
-2. 网站来源填实际网页的 HTTP(S) origin，例如 `https://faptap.net`。只填来源，不含路径、查询或通配符。本机原生客户端无 Origin 时按本机连接单独处理。启用此来源的监听并保存；首个来源保存后，“控制”才会显示“协议”页签。
+2. 启用此来源的监听并保存。网站与原生客户端直接连接这个地址，无需逐网站配置来源名单；首个来源保存后，“控制”才会显示“协议”页签。
 3. 添加一个 **TCode 串口输出**，选实际 OSR 串口和轴配置；先关闭无关轴，核对方向、行程与停止。保存后，连接输出。
 4. 在网站或客户端的 Intiface 地址填 `ws://127.0.0.1:12400`，连接并选择 Sensa 设备。这是 Sensa 输入端；真正的 Central 应用端口通常是 `12345`，二者可以并存。
 5. 在 Sensa 应用“协议”输入方式，准备好后单独启用输入。先发送小范围目标并检查接收计数、输出目标与停止行为，再开始正常播放。
@@ -40,7 +40,6 @@ flowchart LR
       "Port": 12400,
       "TimeoutMs": 10000,
       "RouteToMotion": true,
-      "AllowedOrigins": ["https://faptap.net"],
       "Features": [
         {"Channel": "L0", "Name": "Stroke", "Actuator": "Position", "TargetAxis": "L0"}
       ]
@@ -49,13 +48,13 @@ flowchart LR
 }
 ```
 
-浏览器对 HTTPS 页面连接本机 WebSocket、局域网访问、Web Serial 和 Web Bluetooth 有独立限制与权限。若浏览器阻止连接，先检查实际 Origin、监听地址、端口和本机网络权限；另一台手机里的 `127.0.0.1` 指向手机本身。这里没有要求关闭浏览器安全机制。
+浏览器对 HTTPS 页面连接本机 WebSocket、局域网访问、Web Serial 和 Web Bluetooth 有独立限制与权限。若浏览器阻止连接，先检查监听地址、端口和浏览器的本机网络权限；另一台手机里的 `127.0.0.1` 指向手机本身。这里没有要求关闭浏览器安全机制。
 
 ## 输入能力与地址
 
 | 输入类型 | 常用默认地址 | 提供的内容 |
 | --- | --- | --- |
-| `Buttplug` | `ws://127.0.0.1:12400` | 协商 v3/v4，声明一个具有已配置特征的虚拟设备 |
+| `Buttplug` | `ws://127.0.0.1:12400` | 协商 v2/v3/v4，声明一个具有已配置特征的虚拟设备 |
 | `TCodeTcp` | `tcp://127.0.0.1:12401` | 按行的 TCode 位置／强度／辅助轴命令及独立时长 |
 | `TCodeUdp` | `udp://127.0.0.1:12402` | 自包含、有换行结尾的 TCode 数据报 |
 | `TCodeSerial` | 显式串口及波特率 | 从已选择的串口读取 TCode；不创建虚拟串口 |
@@ -84,9 +83,21 @@ flowchart LR
 
 通过标量计算／绑定会采用绑定自身的发送节奏，不会自动保留原命令的硬件到达时长。需要原有定时轨迹时使用直接动作路径。强度转往 OSR 位移等跨含义操作，必须由使用者显式选择计算、量程与目标，不能靠品牌名称猜测。
 
-## Buttplug v3 与 v4
+## Buttplug v2、v3 与 v4
 
-Sensa 的 NuGet `Buttplug 5.0.1` 是现有输出客户端库版本，不是 wire protocol v5。输入服务自己协商 **消息规范 v3 或 v4**，只声明已配置能力；它不扫描真实硬件。
+Sensa 的 NuGet `Buttplug 5.0.1` 是现有输出客户端库版本，不是 wire protocol v5。输入服务自己协商 **消息规范 v2、v3 或 v4**，只声明已配置能力；它不扫描真实硬件。
+
+v2／v3／v4 客户端都需要在声明的 `MaxPingTime` 内持续发送协议 `Ping`。
+
+v2 握手使用 `MessageVersion:2`，回复同一版本。设备列表是 `Devices` 数组，每个命令的 `DeviceMessages` 属性使用 `FeatureCount` 与 `StepCount`，例如 `{"FeatureCount":2,"StepCount":[1000,1000]}`；`StepCount` 数组长度等于 `FeatureCount`，不是 v3 的执行器数组。位置与旋转分别使用 `LinearCmd`／`RotateCmd`；振动使用 `VibrateCmd.Speeds` 的 `Index` 与 0～1 `Speed`。各命令族索引独立，v2 振动只按已配置的 **ScalarType=Vibrate** 顺序编号，不把 Oscillate／Constrict 或其他类型冒充振动。以下每行是一条完整 WebSocket 消息，使用默认位置特征：
+
+```json
+[{"RequestServerInfo":{"Id":1,"ClientName":"Legacy player","MessageVersion":2}}]
+[{"RequestDeviceList":{"Id":2}}]
+[{"LinearCmd":{"Id":3,"DeviceIndex":0,"Vectors":[{"Index":0,"Position":0.75,"Duration":300}]}}]
+```
+
+v2／v3 的 LinearCmd 时长为 0～600000 ms，位置与旋转速度为 0～1。握手、Ping、扫描、设备通知、停止设备与全部停止沿用各自版本格式；不支持 v0／v1、原始硬件读写或未声明能力。
 
 v3 使用 JSON 数组，字段区分大小写。以下每行是一条完整 WebSocket 文本消息；实际客户端要在 `MaxPingTime` 内持续发送协议 `Ping`。
 
@@ -109,7 +120,7 @@ v4 使用 `ProtocolVersionMajor:4`、`ProtocolVersionMinor:0` 握手，设备及
 
 Scalar 特征可配置 `ScalarType`，默认 Vibrate；Led／Temperature／Spray 只向 v4 客户端声明，v3 的标量索引按其支持的三类过滤后排列，避免借其他类型冒名。功能值是归一化协议范围，不能直接解释为物理温度等单位。
 
-不提供 RawRead／RawWrite、传感器／电池虚构读数、其他未声明执行器或 v0～v2 兼容层。可使用官方 v3 JS 客户端和 v4 C# 客户端；具体应用还可能按品牌、设备名或特征筛选，须对所选版本验收。[官方规范](https://buttplug.io/docs/spec/) · [v3 规范](https://buttplug.io/docs/spec-v3/spec/)
+不提供 RawRead／RawWrite、传感器／电池／RSSI 虚构读数、其他未声明执行器或 v0／v1 兼容层。可使用官方 v3 JS 客户端和 v4 C# 客户端；具体应用还可能按品牌、设备名或特征筛选，须对所选版本验收。[官方规范](https://buttplug.io/docs/spec/) · [v3 规范](https://buttplug.io/docs/spec-v3/spec/)
 
 ## TCode、串口与 Central 虚拟设备
 
@@ -148,13 +159,17 @@ TCode 没有应用层 Ping：TCP／串口／UDP 的合法有限动作保持到�
 }
 ```
 
+连接 Central 时，设备名称含多字节字符、大型或分片的设备列表会按完整 WebSocket 文本消息接收，单条消息上限为 1 MiB。连接建立失败会清理本次传输，可以重新连接；连接后的交付仍遵守当前输入启用状态。
+
 这是单个输出的示例对象，设备名和索引需换成扫描结果。来源值按目标特征声明的整数范围缩放；温度等功能值不是默认摄氏度。旋转的 SourceAxis 表示速度，DirectionAxis 值至少 0.5 为顺时针，否则逆时针；留空则使用 Clockwise。位置方向用 Invert 明确选择，旧位置默认仍是 `1-L0`。定时位置检查目标声明的时长范围，未声明能力不会伪造发送成功。
+
+配置完成后，输出绑定也可选择这些映射的来源轴和旋转方向轴，例如分别绑定 V0 速度与 A0 方向。未被默认功能或显式映射引用的轴不会接受绑定。
 
 映射覆盖匹配功能的默认发送，不是设备白名单：其他未覆盖设备仍使用原有位置／振动路径。Sensa 会拒绝同时启用指向同主机 Central 的 WSDM 输入和 Intiface 输出，避免把自身虚拟设备再次作为输出形成回路；独立 Buttplug 输入也不能被本程序输出连回自身。
 
 ## 自制应用的 HTTP／WebSocket JSON
 
-使用 `JsonHttp` 时，以下请求发往输入地址而非工作台的 `/api`。示例使用默认 `L0` 通道；发送多轴批次前，先在该来源配置中添加 `R0` 等额外通道。同一客户端使用固定的 `X-Sensa-Session`，需要持续保持目标时在超时内发送 `/heartbeat`；超时会释放控制权并停止。HTTP 身份由 Origin、远端 IP 与此会话头共同区分。
+使用 `JsonHttp` 时，以下请求发往输入地址而非工作台的 `/api`。示例使用默认 `L0` 通道；发送多轴批次前，先在该来源配置中添加 `R0` 等额外通道。同一客户端使用固定的 `X-Sensa-Session`，需要持续保持目标时在超时内发送 `/heartbeat`；超时会释放控制权并停止。HTTP 控制会话由远端 IP 与此会话头共同区分，不绑定网站来源。
 
 ```sh
 curl --request POST http://127.0.0.1:12403/commands \
@@ -198,9 +213,11 @@ curl --request POST http://127.0.0.1:12405/command \
   --data '{"command":"Function","action":"Vibrate:5","timeSec":0,"toy":"lovense-in","apiVer":1}'
 ```
 
+Lovense 的 `timeSec` 为 **大于 1 且不超过 600 秒**时，是明确接受的有限服务任务：保持到总时长截止，循环暂停阶段也保留控制会话，即使 `TimeoutMs` 较短也不会提前截断。`timeSec:0` 继续使用外部活动／空闲租约，内部循环不能自行无限续约。停止、关闭输入、保存配置或急停会取消有限任务，重新启用不会重放。这里的 600 秒限制与后文脚本任务的 `MaxScriptDurationMs` 分别管理。
+
 最后一例需要来源 ID `lovense-in` 和 Scalar 特征；它不会自动创建该来源。Autoblow／VacuGlide 的 `sync-script` 支持 multipart `upload-csv`／`upload-funscript`，URL 上传、当前来源本地 `load-token`、`start`（startTimeMs）、`stop`、`offset`（offsetTimeMs）和 `loop`。CSV 是无表头、末尾有换行的整数毫秒／0～100 位置对；funscript 使用 actions。脚本上限 1 MiB、100000 点、16777214 ms。Handy 的 HSSP setup 接受 URL，按相同轨迹模型播放。
 
-脚本 URL 不继承入站 Cookie／认证，下载不跟随重定向，并限制 URL／地址和大小。默认下载器在连接前重新核验公网地址，直接连接已核验 IP 并核对实际远端；若继承的系统 HTTP 代理使最终目标无法核验，则拒绝 URL 导入，不能把 DNS 预检当作实际连接证明。Autoblow／VacuGlide 可改用有界 multipart 文件上传；Handy 本地兼容 HSSP 的 URL 导入同受这一限制。`MaxScriptDurationMs` 默认 3600000（1 小时），限制一个自主播放任务的最长运行时间；HTTP 客户端不必逐帧续约，任务仍受急停、停止和截止时间约束。普通即时控制继续使用 `TimeoutMs` 租约；Handy HDSP 的有限 xpt／xpvp 目标同样延续到到达后再加该宽限，HAMP 自动往复仍需来源活动，不能靠内部循环无限续租。`AutoblowHttp`／`VacuGlideHttp` 来源的 `Identifier` 非空时，`x-device-token` 须匹配；实际来源身份还区分 Origin、远端 IP 与 `X-Sensa-Session`。token 表示本地输入身份，不是厂商云注册凭据。
+脚本 URL 不继承入站 Cookie／认证，下载不跟随重定向，并限制 URL／地址和大小。默认下载器在连接前重新核验公网地址，直接连接已核验 IP 并核对实际远端；若继承的系统 HTTP 代理使最终目标无法核验，则拒绝 URL 导入，不能把 DNS 预检当作实际连接证明。Autoblow／VacuGlide 可改用有界 multipart 文件上传；Handy 本地兼容 HSSP 的 URL 导入同受这一限制。`MaxScriptDurationMs` 默认 3600000（1 小时），限制一个自主播放任务的最长运行时间；HTTP 客户端不必逐帧续约，任务仍受急停、停止和截止时间约束。普通即时控制继续使用 `TimeoutMs` 租约；Handy HDSP 的有限 xpt／xpvp 目标同样延续到到达后再加该宽限，HAMP 自动往复仍需来源活动，不能靠内部循环无限续租。`AutoblowHttp`／`VacuGlideHttp` 来源的 `Identifier` 非空时，`x-device-token` 须匹配；实际控制会话还区分远端 IP 与 `X-Sensa-Session`。token 表示本地输入身份，不是厂商云注册凭据。
 
 真实设备输出在“添加输出”中选择 **Handy、Lovense、Autoblow、VacuGlide**，填写实际 API 地址、连接密钥或设备 ID。它们与同名的兼容输入是两个方向。
 
@@ -244,7 +261,24 @@ curl --request POST http://127.0.0.1:12405/command \
 
 真实 Handy 的 v2/v3 同步脚本使用 CSV URL；明确的 funscript 选择会拒绝，不假设云端支持未证实的格式。Autoblow 与 VacuGlide 可按所选格式使用 CSV／funscript URL 脚本。CSV 为无表头、末尾换行的 `时间毫秒,位置百分比`。Sensa 将 URL 提交给所配置的设备／API，由后者下载脚本；Handy 接受 HTTP(S)，Autoblow／VacuGlide 要求 HTTPS，URL 均不能内嵌凭据。请提供设备／API 可访问的脚本内容。Sensa 发往设备 API 的请求不跟随重定向，但厂商最终脚本下载的地址与重定向策略由设备／API 决定，Sensa 不替它验证；前述公网地址核验、DNS 固定和禁止重定向的下载保护属于本地兼容输入的脚本下载器。
 
-连接阶段只查询状态，不运动。准备同步脚本会关闭输入；准备后重新启用输入才能播放或定位。同步脚本 URL 必须能被设备／API 获取，上传准备可比普通请求耗时更长；停止可取消等待。停止或故障清理待发目标和脚本状态；重新连接不恢复旧运动。凭据保存在所选配置中，导出／共享前检查其中的连接 key、API key 和 token。
+连接阶段只查询状态，不运动。准备同步脚本会关闭输入；准备后重新启用输入才能播放或定位。同步脚本 URL 必须能被设备／API 获取，上传准备可比普通请求耗时更长；停止可取消等待。停止会取消待发动作并停止播放，成功准备的脚本可保留，供后续显式播放；断线／重新连接清除准备状态，不恢复旧运动。凭据保存在所选配置中，导出／共享前检查其中的连接 key、API key 和 token。
+
+### 同步脚本循环
+
+已连接并成功准备脚本后，可以在“同步脚本播放”中选择“循环播放同步脚本”。只在未播放时修改；若正在播放，先停止同步脚本。设置循环不启动播放、不启用输入，之后仍需单独启用输入并显式播放。准备新脚本或重新连接会把所选循环恢复为关闭；每次开始播放前按当前选择更新设备 API 的循环状态，避免沿用设备之前残留的设置。
+
+- Handy API v2 只在连接信息确认 **fw3.2 或更高的 fw3** 时提供循环；未知／较旧固件不提供此项，普通同步脚本仍可用。
+- Handy API v3 在下一次 `/hssp/play` 请求中携带 `loop`，不调用不存在的 v3 `/hssp/loop`。
+- Autoblow／VacuGlide 使用其已支持的 `sync-script/loop`。它们与本地兼容输入的 loop 是两个方向的能力。
+
+自制工具可在已准备且暂停时调用工作台 API；下面的 `handy` 是上述示例输出 ID：
+
+```sh
+curl --request POST http://127.0.0.1:5086/api/control/output/handy/script-loop \
+  --header 'Content-Type: application/json' --data '{"loop":true}'
+```
+
+这是工作台管理 API，沿用工作台访问控制，与前文独立协议输入端口分别管理。
 
 ## 蓝牙与虚拟串口的实际接线
 
@@ -262,7 +296,7 @@ python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa 
 
 BLE 输入需要 **peripheral/GATT server** 角色；BLE 输出需要 **central** 角色。工具提供 LOOB 的 4 字节位置＋时长和 Erojoy Thrust Sync 的 3 字节位置＋时长适配。Linux/macOS 输入使用 Bless，Windows 输入使用独立原生 WinRT；输出用 Bleak。操作系统、适配器、广播权限与浏览器筛选分别检查。Windows LOOB 需系统实际广播名满足 LOOB 前缀后显式确认；工具不修改系统名称。浏览器普通网页不能自行变成 BLE 外围设备，同一适配器自连接／双角色可能需要额外 dongle。
 
-BLE 输入转到 Sensa 时，单条 I 时长上限为 60000 ms。原始 BLE 字段的 60001～65535 ms 会被 Sensa 的 TCode 输入拒绝并关闭 TCP 会话，不能按完整 16 位范围透传。
+LOOB／Thrust Sync BLE 输入转到 Sensa 时，单条 I 时长上限为 60000 ms。桥工具在排队前就拒绝原始 BLE 字段的 60001～65535 ms，不能按完整 16 位范围透传；原始 BLE 输出编解码仍可表示 65535 ms。
 
 反向输出时，在 Sensa 配置仅 L0 的 TCode TCP 输出到 `127.0.0.1:12411`，Interval 方式，再启动：
 
@@ -270,15 +304,37 @@ BLE 输入转到 Sensa 时，单条 I 时长上限为 60000 ms。原始 BLE 字�
 python tools/protocol-bridge/bridge.py ble-output --protocol loob --device DEVICE_ID --listen tcp://127.0.0.1:12411
 ```
 
-这两个 BLE 协议没有已核实的硬件急停 opcode。DSTOP、超时或断线会清空并断开 BLE，设备仍可能完成最后已接收的有限动作；位置 0 不作为停止指令。输入桥终端提供 `disable`／`enable`／`disconnect`／`unpair`／`quit`，不会自动重连后续动。完整依赖、适配器选择与 Windows 限制见[桥工具说明](../tools/protocol-bridge/README.zh-CN.md)。
+LOOB 与 Thrust Sync 没有已核实的硬件急停 opcode。DSTOP、超时或断线会清空并断开 BLE，设备仍可能完成最后已接收的有限动作；位置 0 不作为停止指令。输入桥终端提供 `disable`／`enable`／`disconnect`／`unpair`／`quit`，不会自动重连后续动。完整依赖、适配器选择与 Windows 限制见[桥工具说明](../tools/protocol-bridge/README.zh-CN.md)。
+
+### Svakom V1 振动桥
+
+`svakom-v1` 只适配上游已定义的 **Emma Neo／Phoenix Neo／Ella 单振动子集**，不是所有 Svakom 型号的通用协议。它使用服务 `FFE0`／特征 `FFE1`；本虚拟输入只提供可写 `FFE1`，不提供 `FFE2` 通知、传感或身份响应，依赖这些附加能力的客户端需使用其他连接方式。命令为 `55 04 03 00 开关 强度`，强度 0～19。它与 Thrust Sync 虽共用 UUID，但消息和含义不同，必须明确选择协议。
+
+输入仍连接本机 TCode TCP 来源 `12401`；将该来源的特征设为下面的 **Scalar／Vibrate V0**，不要使用位置 L0：
+
+```json
+{"Channel":"V0","Actuator":"Scalar","ScalarType":"Vibrate","TargetAxis":"V0"}
+```
+
+```sh
+python tools/protocol-bridge/bridge.py ble-input --protocol svakom-v1 --sensa tcp://127.0.0.1:12401
+python tools/protocol-bridge/bridge.py ble-output --protocol svakom-v1 --device DEVICE_ID --listen tcp://127.0.0.1:12411
+```
+
+两条命令是不同方向的备选接法。Linux／macOS 输入广播名为 `Emma NEO`；Windows 使用系统实际蓝牙名，先配置与所选设备匹配的名称，再显式传 `--confirm-windows-svakom-name`。工具不会改系统名或假称其他协议型号。
+
+输出在 Sensa 中只启用 V0，输出斜率选 `NoSlope`，轴配置的 `CommandMode` 与 `RampType` 均设 `None`。本桥只接受一条无 I／S 修饰的 V0 强度；手动定时、Center 或其他显式时长请求仍会被拒绝，不会悄悄丢失含义。要保持静态强度，使用固定频率绑定在工具 `--idle` 期限内发送新完整帧；默认两秒无新帧就停止并断开，`--idle` 可显式调整为 0.05～120 秒，不会自动重连续动。
+
+停止时先尝试写出已核实的零振动命令 `55 04 03 00 00 00`，再清理并断开。这与把位置 0 当作停止不同；写入成功仍不是物理急停或已停止回读。编解码、回环 TCP 与假 BLE 的停止测试不代替真实型号／固件／操作系统验收。
 
 ## 验证范围与外部资料
 
 隔离验证覆盖协议握手、真实客户端 schema、原子批次、独立时长、非法输入、租约、停止顺序、急停代次、回环 TCP／UDP、模拟串口和 BLE 编解码。浏览器 E2E、完整进程冒烟及截图仅在 Actions 执行。实际 FapTap／其他播放器连接、不同 OS 的 Web Bluetooth／Web Serial 权限、Central WSDM 配置、厂商云及真实 OSR／BLE 设备效果仍须在对应环境验收，不能把 mock 或编译成功当作硬件验收。[开发与检查](development.md) · [验证记录](e2e-status.md)
 
-- [Buttplug 消息规范](https://buttplug.io/docs/spec/)与[官方 C# 客户端](https://github.com/buttplugio/buttplug-csharp)。
+- [Buttplug 消息规范](https://buttplug.io/docs/spec/)与[官方 C# 客户端](https://github.com/buttplugio/buttplug-csharp)。 v2 的[命令元数据定义](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server/src/message/v2/client_device_message_attributes.rs)与[官方 JSON schema](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_core/schema/buttplug-schema.json)固定到已核验提交。
 - [Handy 开发文档](https://docs.handyfeeling.com/)、[Lovense Standard API](https://developer.lovense.com/docs/standard-solutions/standard-api)。
 - [Autoblow HTTP API](https://developers.autoblow.com/reference/http-api-v1-autoblow/)、[VacuGlide HTTP API](https://developers.autoblow.com/reference/http-api-v1-vacuglide/)。
 - [FapTap](https://faptap.net/)当前连接器的公开脚本是 LOOB／Thrust Sync 适配依据；它不是厂商对所有设备型号与固件的兼容承诺。
+- Svakom V1 的[官方上游编解码](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server/src/device/protocol_impl/svakom/svakom_v1.rs)与[型号／范围配置](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server_device_config/device-config/protocols/svakom-v1.yml)固定到已核验提交。
 
 [外部命令与输入边界决策](adr/0010-external-protocol-inputs.md) · [架构](architecture.md)

@@ -55,86 +55,6 @@ public sealed partial class IntifaceOutputClient : IAsyncDisposable
 
     // ────────────────────────────────────────────────────────────────
 
-    public async Task ConnectAsync(CancellationToken ct = default)
-    {
-        var client = new ButtplugClient("Sensa");
-        lock (_devLock)
-        {
-            _client = client; _connected = false;
-            _devices.Clear(); _lastLinearSent.Clear(); _lastVibrateSent.Clear(); ClearMappedOutputs();
-        }
-        client.DeviceAdded += (_, e) =>
-        {
-            lock (_devLock)
-            {
-                if (!ReferenceEquals(_client, client)) return;
-                ++_motionEpoch;
-                _devices.RemoveAll(device => device.Index == e.Device.Index);
-                _lastLinearSent.Remove(e.Device.Index); _lastVibrateSent.Remove(e.Device.Index); ClearMappedOutputs(e.Device.Index);
-                _devices.Add(e.Device);
-            }
-            OnLog?.Invoke($"Device added: {e.Device.Name}");
-            DevicesChanged?.Invoke();
-        };
-        client.DeviceRemoved += (_, e) =>
-        {
-            lock (_devLock)
-            {
-                if (!ReferenceEquals(_client, client)) return;
-                ++_motionEpoch;
-                _devices.Remove(e.Device);
-                _lastLinearSent.Remove(e.Device.Index);
-                _lastVibrateSent.Remove(e.Device.Index);
-                ClearMappedOutputs(e.Device.Index);
-                Telemetry.RemovePrefix($"#{e.Device.Index}/");
-            }
-            OnLog?.Invoke($"Device removed: {e.Device.Name}");
-            DevicesChanged?.Invoke();
-        };
-        client.ServerDisconnect += (_, _) =>
-        {
-            lock (_devLock)
-            {
-                if (!ReferenceEquals(_client, client)) return;
-                _connected = false;
-                Telemetry.SetState("idle",clear:true);
-                _lastLinearSent.Clear();
-                _lastVibrateSent.Clear();
-                _devices.Clear(); ClearMappedOutputs();
-            }
-            OnLog?.Invoke("Intiface disconnected.");
-            DevicesChanged?.Invoke();
-        };
-
-        // ButtplugClientExtensions.ConnectAsync(client, uri, token)
-        await client.ConnectAsync(new Uri(_config.WebsocketAddress), ct).WaitAsync(TimeSpan.FromSeconds(5), ct);
-        lock (_devLock)
-        {
-            if (!ReferenceEquals(_client, client)) throw new OperationCanceledException("The Intiface connection was replaced.");
-            _connected = true;
-        }
-        OnLog?.Invoke($"Intiface connected: {_config.WebsocketAddress}");
-        DevicesChanged?.Invoke();
-    }
-
-    public async Task DisconnectAsync()
-    {
-        if (_client is null) return;
-        // Ensure StopAll and Disconnect both run even if StopAll throws.
-        try { await StopAllAsync(); } catch { }
-        try { await _client.DisconnectAsync().WaitAsync(TimeSpan.FromSeconds(1)); } catch { }
-        _connected = false;
-        Telemetry.SetState("idle",clear:true);
-        lock (_devLock)
-        {
-            _devices.Clear();
-            _lastLinearSent.Clear();
-            _lastVibrateSent.Clear();
-            ClearMappedOutputs();
-        }
-        DevicesChanged?.Invoke();
-    }
-
     public async Task StartScanAsync() =>
         await (_client?.StartScanningAsync() ?? Task.CompletedTask);
 
@@ -157,7 +77,7 @@ public sealed partial class IntifaceOutputClient : IAsyncDisposable
 
         // L0=0 → top (position=1.0); L0=1 → bottom (position=0.0)
         double position01 = Math.Clamp(1.0 - frame.L0, 0.0, 1.0);
-        uint   durationMs = (uint)Math.Max(frame.DeltaMs, 1.0);
+        uint   durationMs = IntifacePositionFeatures.DurationFor(frame);
 
         List<ButtplugClientDevice> snapshot;
         lock (_devLock) snapshot = new List<ButtplugClientDevice>(_devices);
@@ -210,7 +130,7 @@ public sealed partial class IntifaceOutputClient : IAsyncDisposable
                         {
                             deadline.Token.ThrowIfCancellationRequested();
                             if (!IsMotionEpochCurrent(epoch)) return;
-                            await f.RunOutputAsync(DeviceOutput.Vibrate.Percent(vibrateVal), deadline.Token).WaitAsync(deadline.Token);
+                            await f.RunOutputAsync(IntifacePositionFeatures.ScaledCommand(f.FeatureDefinition, OutputType.Vibrate, vibrateVal), deadline.Token).WaitAsync(deadline.Token);
                         }
 
                         lock (_devLock)
@@ -242,21 +162,7 @@ public sealed partial class IntifaceOutputClient : IAsyncDisposable
         if(failed)Telemetry.SetState("error");
     }
 
-    public async Task StopAllAsync()
-    {
-        if (_client is null) return;
-        lock (_devLock) ClearMappedOutputs();
-        try { await _client.StopAllDevicesAsync().WaitAsync(TimeSpan.FromMilliseconds(500)); Telemetry.SetState("stopped",clear:true); } catch { Telemetry.SetState("error"); }
-        lock (_devLock)
-        {
-            _lastLinearSent.Clear();
-            _lastVibrateSent.Clear();
-            ClearMappedOutputs();
-        }
-        OnDebugLog?.Invoke("TX StopAll");
-    }
 
-    public async ValueTask DisposeAsync() => await DisconnectAsync();
 }
 
 // ═══════════════════════════════════════════════════════════════════════

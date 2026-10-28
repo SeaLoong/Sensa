@@ -16,13 +16,13 @@ Recording defaults to widely supported funscript time-position tracks. Converted
 
 ## Activation and validity / 启用与有效性
 
-Manual、Osc 与 Script 保留快捷输入方式，Combined 允许不同来源共同参与绑定。计算中 Manual／Script／DeviceFeedback 保留独立的来源标识，OSC 来源和空间坐标框继续接受既有兼容性检查。关闭输入、保存配置、换源与急停清理待发工作和时间计算状态；解除急停后需要单独启用。
+Manual、Osc、Script 与 [ADR 0010](0010-external-protocol-inputs.md) 增加的 Protocol 保留快捷输入方式，Combined 允许不同来源共同参与绑定。计算中 Manual／Script／DeviceFeedback／Protocol 保留独立的来源标识，OSC 来源和空间坐标框继续接受既有兼容性检查。关闭输入、保存配置、换源与急停清理待发工作和时间计算状态；解除急停后需要单独启用。
 
-Manual, Osc and Script remain quick input modes; Combined allows several source kinds to contribute to bindings. Manual/Script/DeviceFeedback retain their own origin identities, while OSC source and spatial-frame compatibility checks remain. Disabling input, saving, changing sources or emergency stopping clears pending work and temporal state; clearing emergency stop requires separate activation.
+Manual, Osc, Script and Protocol from [ADR 0010](0010-external-protocol-inputs.md) remain quick input modes; Combined allows several source kinds to contribute to bindings. Manual/Script/DeviceFeedback/Protocol retain their own origin identities, while OSC source and spatial-frame compatibility checks remain. Disabling input, saving, changing sources or emergency stopping clears pending work and temporal state; clearing emergency stop requires separate activation.
 
-有效性按绑定传播，某个必需输入失效时停止相应绑定，并清理其旧目标。全局急停继续覆盖全部输出。原有动作轴模式的门控和停止语义继续由动作运行时管理。此处细化 [ADR 0001](0001-control-and-input-activation.md) 的来源生命周期，以及 [ADR 0007](0007-computed-signals.md) 中计算结果影响的范围。
+有效性按绑定传播，某个必需输入失效时结束相应绑定的有效交付，清理旧目标并采用配置的 `StopValue`。位置轴的停止值是备用目标，可能运动；全局关闭输入与急停使用整机停止路径，急停继续覆盖全部输出。原有动作轴模式的门控和停止语义继续由动作运行时管理。此处细化 [ADR 0001](0001-control-and-input-activation.md) 的来源生命周期，以及 [ADR 0007](0007-computed-signals.md) 中计算结果影响的范围。
 
-Validity propagates per binding. An invalid required input stops its affected binding and clears its old target. Global emergency stop continues to cover every output. The motion runtime retains gating and stop semantics for existing axis modes. This refines source lifecycle in [ADR 0001](0001-control-and-input-activation.md) and the affected-result scope in [ADR 0007](0007-computed-signals.md).
+Validity propagates per binding. An invalid required input ends its affected binding's valid delivery, clears its old target and applies the configured `StopValue`. A position-axis stop value is a fallback target and may move; global input disable and emergency stop use the whole-device stop path, with emergency stop continuing to cover every output. The motion runtime retains gating and stop semantics for existing axis modes. This refines source lifecycle in [ADR 0001](0001-control-and-input-activation.md) and the affected-result scope in [ADR 0007](0007-computed-signals.md).
 
 ## Browser session ownership / 浏览器会话归属
 

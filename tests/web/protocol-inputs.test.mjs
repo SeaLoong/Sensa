@@ -11,7 +11,7 @@ import { buildOutputDialogDraft, buildOutputSummary, createOutputConfig, editCon
 import { controlReadiness, outputRoutingScope } from '../../src/web/control-workflow.js';
 import { sanitizeStudio } from '../../src/web/preferences.js';
 import { exportSignalPlan, parseSignalPlan } from '../../src/web/signal-outputs.js';
-import { INTIFACE_OUTPUT_TYPES, intifaceFeatureErrors, makeIntifaceFeatureRoute, stripIntifaceFeatureRoutes } from '../../src/web/intiface-feature-routing.js';
+import { INTIFACE_OUTPUT_TYPES, intifaceBindingAxes, intifaceFeatureErrors, makeIntifaceFeatureRoute, stripIntifaceFeatureRoutes } from '../../src/web/intiface-feature-routing.js';
 import { prepareDeviceScript } from '../../src/web/device-script-requests.js';
 import { createRealtimeSession } from '../../src/web/realtime-session.js';
 
@@ -25,19 +25,19 @@ test('new protocol drafts keep independent channel arrays and select unoccupied 
   assert.equal(JSON.stringify(source), snapshot);
   assert.equal(second.enabled, false);
   assert.equal(second.routeToMotion, true);
-  assert.equal(source[0].allowedOriginsText, '');
+  assert.equal('allowedOrigins' in source[0], false);
+  assert.equal('allowedOriginsText' in source[0], false);
 });
 
-test('protocol save trims identities and origins without changing the submitted draft / 协议保存整理标识和来源但不修改草稿', () => {
+test('protocol save trims identities without changing the submitted draft / 协议保存整理标识但不修改草稿', () => {
   const draft = newProtocolDraft();
   draft.id = ' source_1 '; draft.name = ' Website ';
-  draft.allowedOriginsText = 'https://SOURCE.example/\nhttps://source.example';
   draft.routeToMotion = false;
   draft.features[0].name = ' Position ';
   const before = JSON.stringify(draft), config = { protocolInputs: [], outputs: [], ignored: { keep: true } };
   const saved = saveProtocolDrafts(config, [draft]);
   assert.equal(JSON.stringify(draft), before);
-  assert.deepEqual(saved.protocolInputs[0].allowedOrigins, ['https://source.example']);
+  assert.equal('allowedOrigins' in saved.protocolInputs[0], false);
   assert.equal(saved.protocolInputs[0].id, 'source_1');
   assert.equal(saved.protocolInputs[0].name, 'Website');
   assert.equal(saved.protocolInputs[0].features[0].name, 'Position');
@@ -63,15 +63,15 @@ test('different protocol listeners cannot collide or implicitly claim one axis /
   assert.deepEqual(protocolDraftErrors([a, b]), []);
 });
 
-test('only exact HTTP origins can authorize a website / 网站授权只接受完整HTTP来源', () => {
-  for (const origin of ['*', 'null', 'https://site.example/path', 'https://site.example?token=one', 'https://site.example#fragment',
-    'https://user:pass@site.example', 'ws://site.example', 'site.example']) {
-    const draft = { ...newProtocolDraft(), allowedOriginsText: origin };
-    assert.ok(protocolDraftErrors([draft]).length, origin);
-    assert.throws(() => saveProtocolDrafts({}, [draft]), undefined, origin);
-  }
-  for (const origin of ['https://site.example', 'http://127.0.0.1:3000', 'https://[::1]:3000/'])
-    assert.deepEqual(protocolDraftErrors([{ ...newProtocolDraft(), allowedOriginsText: origin }]), [], origin);
+test('protocol inputs require no website allowlist and omit obsolete source fields / 协议输入无需网站白名单且不再保存旧字段', () => {
+  const input = { ...newProtocolDraft(), allowedOrigins: ['https://old.example'], allowedOriginsText: '*' };
+  const draft = makeProtocolDraft(input);
+  assert.equal('allowedOrigins' in draft, false);
+  assert.equal('allowedOriginsText' in draft, false);
+  assert.deepEqual(protocolDraftErrors([input]), []);
+  const saved = saveProtocolDrafts({}, [input]).protocolInputs[0];
+  assert.equal('allowedOrigins' in saved, false);
+  assert.equal('allowedOriginsText' in saved, false);
 });
 
 test('all configurable transport kinds survive a complete save and reopen / 所有传输类型均可完整保存和恢复', () => {
@@ -277,11 +277,11 @@ test('protocol source editor exposes identities, capabilities and independent ac
   for (const locale of ['zh-CN', 'en-US']) {
     setLocale(locale);
     const input = stripProtocolDraft(newProtocolDraft());
-    input.enabled = true; input.allowedOrigins = ['https://source.example'];
+    input.enabled = true;
     const html = render(ProtocolPanel, { config: { protocolInputs: [input] }, runtime: [{ id: input.id, listening: true, receivedCommands: 12 }], onSave() {} });
     assert.match(html, /data-testid="protocol-input-card"/);
     assert.match(html, /data-testid="protocol-feature"/);
-    assert.match(html, /https:\/\/source.example/);
+    assert.doesNotMatch(html, /allowedOrigins|允许的网站来源|Allowed website origins/);
     assert.match(html, /ws:\/\/127\.0\.0\.1:12400/);
     assert.match(html, /protocol-1\/L0/);
     assert.match(html, /<input[^>]*disabled=""[^>]*value="protocol-1"/);
@@ -384,4 +384,38 @@ test('protocol readiness links have an accessible action label / 协议就绪提
   const html = render(Readiness, { online: true, mode: 'protocol', outputs: [{ id: 'udp', type: 'TCodeUdp' }], onNavigate() {} });
   assert.match(html, /id="control-next-step"[^>]*>Configure protocol inputs<\/button>/);
   assert.doesNotMatch(html, /<button[^>]*><\/button>/);
+});
+
+
+test('Intiface binding targets include actual mapped speed and direction axes without broadening defaults / Intiface连接目标包含已映射速度和方向轴', () => {
+  assert.deepEqual(intifaceBindingAxes({ vibrationAxis: 'V1', intifaceFeatures: [
+    { outputType: 'Rotate', sourceAxis: 'R0', directionAxis: 'A0' },
+    { outputType: 'Temperature', sourceAxis: 'A2' },
+    { outputType: 'Rotate', sourceAxis: 'R0', directionAxis: 'A0' },
+  ] }), ['L0', 'V1', 'R0', 'A0', 'A2']);
+  assert.deepEqual(intifaceBindingAxes(), ['L0', 'V0']);
+  assert.deepEqual(intifaceBindingAxes({ vibrationAxis: 'L0' }), ['L0']);
+  assert.deepEqual(intifaceBindingAxes({ intifaceFeatures: [{ outputType: 'Vibrate', sourceAxis: 'V2', directionAxis: 'A1' }] }), ['L0', 'V0', 'V2']);
+});
+
+
+test('vendor loop setting is available while prepared and paused without activating input / 已准备且暂停时可设置循环且不启用输入', () => {
+  for (const locale of ['zh-CN', 'en-US']) {
+    setLocale(locale);
+    const output = { type: 'VacuGlide', device: { scriptUrl: 'https://example.com/script.csv' } };
+    for (const status of [null, { supportsScriptLoop: false },
+      { supportsScriptLoop: true, scriptPrepared: false },
+      { supportsScriptLoop: true, scriptPrepared: true, scriptLoop: true, scriptPlaying: false },
+      { supportsScriptLoop: true, scriptPrepared: true, scriptLoop: true, scriptPlaying: true }]) {
+      const html = render(VendorScriptControls, { output, disabled: false, inputActive: false, status, onAction() {} });
+      const toggle = html.match(/<input[^>]*type="checkbox"[^>]*>/)?.[0];
+      if (!status?.supportsScriptLoop) assert.equal(toggle, undefined);
+      else {
+        assert.ok(toggle);
+        assert.equal(toggle.includes('disabled=""'), !status.scriptPrepared || status.scriptPlaying === true);
+        assert.equal(toggle.includes('checked=""'), status.scriptLoop === true);
+      }
+    }
+  }
+  setLocale('zh-CN');
 });

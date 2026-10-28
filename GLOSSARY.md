@@ -18,6 +18,7 @@ Sensa processes input signals and routes results to devices, applications and re
 | **Virtual device / 虚拟设备** | A software endpoint advertising implemented device capabilities to an upstream client; it is not evidence of physical feedback or vendor-cloud identity. / 向上游声明已实现设备能力的软件入口，不代表物理回读或厂商云身份。 |
 | **Control lease / 控制租约** | One source session's temporary right to publish commands; disconnect/expiry releases it and clears old work. / 一个来源会话临时持有的命令发布权；断线／过期释放并清理旧工作。 |
 | **Output binding / 输出绑定** | A source-to-destination connection with its own conversion, type, range and sending schedule. / 从来源到目标的连接，分别设置换算、类型、量程和发送节奏。 |
+| **Binding stop value / 绑定停止值** | The fallback value sent when a binding loses its required input. A position target may move the device; input disable and emergency stop use a separate whole-device stopping path. / 绑定缺少必需输入时发送的备用数值；位置目标可能使设备运动，关闭总输入与急停使用独立的整机停止路径。 |
 | **Protocol / 协议** | The meaning and encoding of messages, such as OSC or DG-LAB V4. / 消息的含义和编码规则，例如 OSC 或 DG-LAB V4。 |
 | **Transport / 传输** | The connection and delivery mechanism used by a protocol, such as UDP, HTTP or WebSocket. / 协议使用的连接与交付方式，例如 UDP、HTTP 或 WebSocket。 |
 | **Recording output / 录制输出** | An output that saves each binding's valid segments as funscript tracks by default, with JSON Lines/CSV for advanced signal diagnostics. / 默认将每条绑定的有效片段保存为 funscript 轨道的输出，另可用 JSON Lines／CSV 记录高级信号诊断。 |

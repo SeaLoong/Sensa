@@ -79,9 +79,9 @@ Output bindings select source, conversion, value type, range, stop value and sen
 
 ## External protocol inputs and device APIs
 
-Buttplug v3/v4, TCode, JSON and vendor-compatible adapters interpret controls as external commands with channels, targets, durations and direction. Direct motion routing retains independent timing per channel, with Stop as an ordered barrier; protocol samples also feed computation/bindings. An initial trajectory with an unknown start keeps its current value invalid while exposing the target. Interpolation represents command state, not hardware feedback. Existing device feedback remains a separate source.
+Buttplug v2/v3/v4, TCode, JSON and vendor-compatible adapters interpret controls as external commands with channels, targets, durations and direction. Direct motion routing retains independent timing per channel, with Stop as an ordered barrier; protocol samples also feed computation/bindings. An initial trajectory with an unknown start keeps its current value invalid while exposing the target. Interpolation represents command state, not hardware feedback. Existing device feedback remains a separate source.
 
-Protocol listeners are separate from management APIs, default to loopback and explicitly allow website Origins. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
+Protocol listeners are separate from management APIs and default to loopback. Websites and native clients connect directly to the configured address without per-website approval. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
 
 ## Following planes and spatial calculations
 

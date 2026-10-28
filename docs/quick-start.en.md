@@ -66,6 +66,7 @@ An active input sends its current valid target to newly connected outputs, so ch
 | --- | --- |
 | OSC parameters | Apply OSC or Combined; check reception/source in OSC, find actual parameters, then choose or create a mapping |
 | Funscript | Load a script, apply Script, enable input and play; adjust speed, looping and playback position |
+| Website/player protocol | Add a source in Settings → Protocol inputs and save its listener; [connect the upstream client](protocol-inputs.en.md), then apply Protocol or Combined and separately enable input |
 | Several source kinds together | Configure calculations and output bindings, then apply Combined in Control |
 | Avatar root position or velocity | Install measurement components using the [setup guide](usage-scenarios.en.md), then inspect, calibrate and allow experimental spatial input |
 

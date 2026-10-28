@@ -29,7 +29,7 @@
 
 手动区先显示 L0／L1／L2，展开后还可调旋转、振动和辅助轴，共十二轴。调整滑条或数值，点击“发送一次”；需要让输出跟随调整时，开启“连续发送”。“发送设置”可沿用轴配置，或指定移动时长／速度；“清除覆盖”恢复轴配置。
 
-导入 funscript 后，时间线显示当前播放位置与轨迹。支持 0.1～4 倍速、循环、A–B 区间、时码与关键帧跳转。暂停保留游标，Stop 回到开头，卸载移除脚本。脚本输入已启用时，即使暂停，也可通过定位或步进发送选定位置。
+导入 funscript 后，时间线显示当前播放位置与轨迹。支持 0.1～4 倍速、循环、A–B 区间、时码与关键帧跳转。暂停保留游标和该时刻的脚本目标。载入、定位到 0 ms 或返回首帧时，按脚本保留其实际起始值，包括非零目标；这不自动启用输入或播放。Stop 将播放时间和播放器目标归零并停止自动发送，卸载移除脚本。脚本输入已启用时，即使暂停，也可通过定位或步进发送选定位置。
 
 ### 组合输入
 
@@ -42,19 +42,20 @@
 | 输出 | 常用设置 |
 | --- | --- |
 | TCode | 串口或 UDP／TCP 地址，使用的轴配置 |
-| Intiface | Central 地址、实际设备及位置／振动功能 |
+| Intiface | Central 地址、实际设备与显式功能映射 |
+| Handy／Lovense／Autoblow／VacuGlide | 实际 API 地址、设备身份，以及相应位置、强度／速度或脚本能力 |
 | OSC 参数 | IP、端口、参数地址、Float／Int／Bool 类型 |
 | DG-LAB | 中继、APP 配对、设备、通道与强度上限 |
 | MIDI／网络应用 | 系统 MIDI 端口，或接收服务与字段／主题 |
 | 录制 | Funscript 轨道或诊断格式、来源与范围 |
 
-TCode 的方向、行程和速度在轴配置中设置。Intiface 连接单独运行的 Central；振动默认使用 V0，也可选择 V1／V2 或 L0。OSC 输出的“回写到 VRChat OSC”会准备常用接收目标，参数须在当前 Avatar 中配置为可写。[各输出的完整操作](signal-pipeline.md#添加输出与绑定)
+TCode 的方向、行程和速度在轴配置中设置。Intiface 连接单独运行的 Central；默认位置／振动路径之外，可为真实声明的特征配置[显式功能映射](protocol-inputs.md#intiface-输出的特征映射)。振动默认使用 V0，也可选择 V1／V2 或 L0。厂商输出的[认证、脚本及兼容范围](protocol-inputs.md#厂商兼容输入与真实设备输出)按实际 API 分别配置。OSC 输出的“回写到 VRChat OSC”会准备常用接收目标，参数须在当前 Avatar 中配置为可写。[各输出的完整操作](signal-pipeline.md#添加输出与绑定)
 
 ### 从网站接入串口或蓝牙命令
 
 网站能填写 Intiface 地址时，先使用 Sensa 的 Buttplug 虚拟设备输入。只有来源要求串口或专用蓝牙连接时，再运行发布包附带的[串口与 BLE 桥工具](../tools/protocol-bridge/README.zh-CN.md)。先在 Sensa 配置本机网络 TCode TCP 输入 `12401`，工具的 `pty-input`／`serial-input`／`ble-input` 将收到的命令送入同一输入管线，再由 Sensa 输出到 OSR。保存配置、确认目标限位后再启用输入。
 
-虚拟串口需要被来源软件实际枚举；Windows 需要已有 COM 对。BLE 输入支持 LOOB 与 Thrust Sync 的原始位置／时长协议，依赖系统外围设备角色和广播权限；Windows LOOB 另有名称限制。若要从 Sensa 输出到这两类真实 BLE 设备，使用工具的 `ble-output`，将 TCode TCP 输出设为 `12411`、仅 L0、Interval。工具不会自动安装 Python 或驱动。[完整安装、命令与平台限制](../tools/protocol-bridge/README.zh-CN.md)
+虚拟串口需要被来源软件实际枚举；Windows 需要已有 COM 对。BLE 输入支持 LOOB／Thrust Sync 的位置与时长，以及 Svakom V1 的单振动强度子集，依赖系统外围设备角色和广播权限。Windows LOOB／Svakom 另有实际系统广播名限制。使用 `ble-output` 连接真实设备时，LOOB／Thrust Sync 配置 TCode TCP 输出到 `12411`、仅 L0、Interval；Svakom V1 配置仅 V0、NoSlope，轴命令模式与缓动均为 None。后者严格拒绝位置、I／S 时长和多轴命令；静态强度也要在工具空闲期限内发送新完整帧，使用固定频率绑定可保持刷新。[协议、型号与停止范围](protocol-inputs.md#svakom-v1-振动桥)。工具不会自动安装 Python 或驱动。[完整安装、命令与平台限制](../tools/protocol-bridge/README.zh-CN.md)
 
 ### L0 录制
 

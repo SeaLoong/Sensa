@@ -30,7 +30,6 @@ public sealed class ProtocolInputConfig
     public bool RouteToMotion { get; set; } = true;
     public double MaxSpeedPerSecond { get; set; } = 1;
     public int MaxScriptDurationMs { get; set; } = 3600000;
-    public List<string> AllowedOrigins { get; set; } = new();
     public List<ProtocolFeatureConfig> Features { get; set; } = [new()];
 }
 
@@ -74,14 +73,6 @@ public static partial class ProtocolInputConfiguration
                 throw new ArgumentException("Virtual device speed must be .01–20 full strokes per second.");
             if (source.MaxScriptDurationMs is < 1000 or > 3600000)
                 throw new ArgumentException("Script task duration must be 1 second to 1 hour.");
-            var origins = (source.AllowedOrigins ?? []).Select(origin =>
-            {
-                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri) || uri.Scheme is not ("http" or "https")
-                    || !string.IsNullOrEmpty(uri.UserInfo) || uri.AbsolutePath != "/" || uri.Query.Length != 0 || uri.Fragment.Length != 0)
-                    throw new ArgumentException("Allowed origins must be exact HTTP(S) origins, without paths or wildcards.");
-                return uri.GetLeftPart(UriPartial.Authority);
-            }).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-            if (origins.Count > 32) throw new ArgumentException("At most 32 allowed origins are supported.");
             var channels = new HashSet<string>(StringComparer.Ordinal);
             var features = new List<ProtocolFeatureConfig>();
             foreach (var feature in source.Features ?? [])
@@ -111,7 +102,7 @@ public static partial class ProtocolInputConfiguration
             {
                 Id = id, Name = (source.Name ?? id).Trim(), Type = source.Type, Enabled = source.Enabled, Host = bind.ToString(), Port = source.Port,
                 Address = source.Address?.Trim() ?? "", Identifier = source.Identifier?.Trim() ?? "", ComPort = source.ComPort?.Trim() ?? "",
-                BaudRate = source.BaudRate, TimeoutMs = source.TimeoutMs, RouteToMotion = source.RouteToMotion, MaxSpeedPerSecond = source.MaxSpeedPerSecond, MaxScriptDurationMs = source.MaxScriptDurationMs, AllowedOrigins = origins, Features = features,
+                BaudRate = source.BaudRate, TimeoutMs = source.TimeoutMs, RouteToMotion = source.RouteToMotion, MaxSpeedPerSecond = source.MaxSpeedPerSecond, MaxScriptDurationMs = source.MaxScriptDurationMs, Features = features,
             });
         }
         var listeners = new HashSet<string>(StringComparer.Ordinal);

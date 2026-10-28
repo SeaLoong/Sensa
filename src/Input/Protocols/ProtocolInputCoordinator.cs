@@ -88,16 +88,11 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
         var slots = new SemaphoreSlim(8, 8);
         app.Run(async context =>
         {
-            if (!IsRequestAllowed(input, context.Request.Host.Host, context.Request.Headers.Origin.ToString(), context.Connection.RemoteIpAddress))
+            if (!IsRequestAllowed(input, context.Request.Host.Host))
             { context.Response.StatusCode = 403; return; }
-            var origin = context.Request.Headers.Origin.ToString();
-            if (origin.Length > 0)
-            {
-                context.Response.Headers.AccessControlAllowOrigin = origin;
-                context.Response.Headers.Vary = "Origin";
-                context.Response.Headers.AccessControlAllowMethods = "GET, POST, PUT, DELETE, OPTIONS";
-                context.Response.Headers.AccessControlAllowHeaders = "Content-Type, X-Sensa-Session, X-Connection-Key, Authorization, X-Api-Key, X-Device-Token";
-            }
+            context.Response.Headers.AccessControlAllowOrigin = "*";
+            context.Response.Headers.AccessControlAllowMethods = "GET, POST, PUT, DELETE, OPTIONS";
+            context.Response.Headers.AccessControlAllowHeaders = "Content-Type, X-Sensa-Session, X-Connection-Key, Authorization, X-Api-Key, X-Device-Token";
             if (context.Request.Method == "OPTIONS") { context.Response.StatusCode = 204; return; }
             if (!await slots.WaitAsync(0, context.RequestAborted).ConfigureAwait(false)) { context.Response.StatusCode = 429; return; }
             using var requestLifetime = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, app.Lifetime.ApplicationStopping);
@@ -136,16 +131,11 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
         await app.StartAsync().ConfigureAwait(false);
     }
 
-    public static bool IsRequestAllowed(ProtocolInputConfig config, string host, string origin, IPAddress? remote)
-    {
-        var hostAllowed = host.Equals(config.Host, StringComparison.OrdinalIgnoreCase)
+    public static bool IsRequestAllowed(ProtocolInputConfig config, string host) =>
+        host.Equals(config.Host, StringComparison.OrdinalIgnoreCase)
             || (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) || IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address))
                 && IPAddress.TryParse(config.Host, out var bound) && IPAddress.IsLoopback(bound)
             || config.Host is "0.0.0.0" or "::" && IPAddress.TryParse(host, out _);
-        if (!hostAllowed) return false;
-        if (origin.Length == 0) return remote is not null && IPAddress.IsLoopback(remote);
-        return config.AllowedOrigins.Contains(origin, StringComparer.OrdinalIgnoreCase);
-    }
 
     private void ResetCommands()
     {

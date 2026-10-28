@@ -6,6 +6,7 @@ import path from 'node:path';
 import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
+import { documentDiagramAssets } from '../../scripts/site-diagrams.mjs';
 
 const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
@@ -133,6 +134,32 @@ test('public guides build into bilingual routes with resolvable local links and 
     }
     const guide = await fs.readFile(path.join(output, 'en/docs/guide.html'), 'utf8');
     const translatedGuide = await fs.readFile(path.join(output, 'zh-CN/docs/guide.html'), 'utf8');
+    for (const locale of ['en', 'zh-CN']) {
+      const localizedGuide = locale === 'en' ? guide : translatedGuide;
+      assert.ok(manifest.routes.includes(locale + '/tools/protocol-bridge/README.html'));
+      assert.ok(localizedGuide.includes('href="protocol-inputs.html"'));
+      assert.ok(localizedGuide.includes('href="../tools/protocol-bridge/README.html"'));
+      const protocolGuide = await fs.readFile(path.join(output, locale + '/docs/protocol-inputs.html'), 'utf8');
+      assert.match(protocolGuide, /href="\.\.\/tools\/protocol-bridge\/README\.html"/);
+      assert.doesNotMatch(protocolGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/tools\/protocol-bridge\/README/);
+    }
+    const diagrams = await documentDiagramAssets();
+    const diagramDigest = createHash('sha256').update(diagrams.content).digest('hex');
+    const diagramName = 'document-diagrams.' + diagramDigest.slice(0, 16) + '.js';
+    assert.equal(manifest.assets[diagramName], diagramDigest);
+    assert.deepEqual(await fs.readFile(path.join(output, diagramName)), diagrams.content);
+    assert.deepEqual(await fs.readFile(path.join(output, 'document-diagrams.js')), diagrams.content);
+    assert.deepEqual(await fs.readFile(path.join(output, 'document-diagrams.LICENSE.txt')), diagrams.license);
+    for (const locale of ['en', 'zh-CN']) for (const name of ['architecture', 'protocol-inputs']) {
+      const html = await fs.readFile(path.join(output, locale + '/docs/' + name + '.html'), 'utf8');
+      assert.match(html, /<figure class="doc-diagram" data-document-diagram/);
+      assert.match(html, /<details class="doc-diagram-source" open>/);
+      assert.ok(html.includes('src="../../' + diagramName + '"'));
+      assert.match(html, /document-diagrams\.js/);
+      assert.doesNotMatch(html, /<script[^>]+src="https?:/);
+    }
+    assert.doesNotMatch(guide, /<script[^>]+document-diagrams/);
+    assert.doesNotMatch(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /<script[^>]+document-diagrams/);
     assert.equal((guide.match(/class="nav-group"/g) || []).length, 3);
     assert.match(guide, /<input type="search" data-guide-filter autocomplete="off">/);
     assert.match(guide, /<span>Find a guide<\/span>/);

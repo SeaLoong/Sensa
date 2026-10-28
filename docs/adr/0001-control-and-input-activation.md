@@ -6,6 +6,6 @@ HTTP and WebSocket use the same control module interface; adapters handle transp
 
 ## Combined sources and output bindings / 组合来源与输出绑定
 
-[ADR 0008](0008-signal-pipeline-and-shared-session.md) 将输入方式扩展为 Manual、Osc、Script 与 Combined。Combined 中的来源共同参与具名计算和输出绑定，来源解析与输出交付仍由后端决定。配置或输入生命周期变化时清理旧代次工作，急停覆盖所有输出；新连接与恢复读取保留明确启用规则。
+[ADR 0008](0008-signal-pipeline-and-shared-session.md) 与 [ADR 0010](0010-external-protocol-inputs.md) 将输入方式扩展为 Manual、Osc、Script、Protocol 与 Combined。Combined 中的来源共同参与具名计算和输出绑定，来源解析与输出交付仍由后端决定。配置或输入生命周期变化时清理旧代次工作，急停覆盖所有输出；新连接与恢复读取保留明确启用规则。
 
-[ADR 0008](0008-signal-pipeline-and-shared-session.md) extends input modes to Manual, Osc, Script and Combined. Sources in Combined contribute to named computation and output bindings; the backend still owns resolution and delivery. Configuration or input lifecycle changes clear old-generation work, emergency stop covers all outputs, and new connections or restored readings retain explicit activation rules.
+[ADR 0008](0008-signal-pipeline-and-shared-session.md) and [ADR 0010](0010-external-protocol-inputs.md) extend input modes to Manual, Osc, Script, Protocol and Combined. Sources in Combined contribute to named computation and output bindings; the backend still owns resolution and delivery. Configuration or input lifecycle changes clear old-generation work, emergency stop covers all outputs, and new connections or restored readings retain explicit activation rules.

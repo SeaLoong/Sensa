@@ -37,6 +37,58 @@ class ProtocolCodecTests(unittest.TestCase):
         self.assertEqual(codec.encode(0, 0), bytes.fromhex('000000'))
         self.assertEqual(bridge.tcode_move(*codec.decode(bytes.fromhex('5a04d2'))), b'L0500I1234\n')
 
+    def test_pinned_svakom_v1_single_vibrator_format_and_scalar_tcode(self):
+        codec = bridge.PROTOCOLS['svakom-v1']
+        self.assertEqual(codec.service, '0000ffe0-0000-1000-8000-00805f9b34fb')
+        self.assertEqual(codec.characteristic, '0000ffe1-0000-1000-8000-00805f9b34fb')
+        self.assertEqual(codec.advertised_name, 'Emma NEO')
+        self.assertEqual(codec.encode(1, 0), bytes.fromhex('550403000113'))
+        self.assertEqual(codec.encode(0, 0), bytes.fromhex('550403000000'))
+        self.assertEqual(codec.encode(.5, 0), bytes.fromhex('55040300010a'))
+        self.assertEqual(codec.decode(bytes.fromhex('55040300010a')), (10 / 19, 0))
+        self.assertEqual(codec.to_tcode(bytes.fromhex('550403000113')), b'V0999\n')
+        self.assertEqual(codec.to_tcode(bytes.fromhex('550403000000')), b'V0000\n')
+        self.assertEqual(codec.stop_packet, bytes.fromhex('550403000000'))
+
+    def test_svakom_v1_rejects_other_families_ranges_and_position_semantics(self):
+        codec = bridge.PROTOCOLS['svakom-v1']
+        for packet in ('550403000114', '550403000013', '550403000100',
+                       '550403010113', '550403000213', '550503000113', '5504030001'):
+            with self.subTest(packet=packet), self.assertRaises(ValueError):
+                codec.decode(bytes.fromhex(packet))
+        self.assertEqual(bridge.parse_tcode_move(b'V05', protocol=codec), (.5, 0))
+        self.assertEqual(bridge.parse_tcode_move(b'V0999', protocol=codec), (.999, 0))
+        self.assertIsNone(bridge.parse_tcode_move(bridge.STOP, protocol=codec))
+        for token in (b'L0500', b'V0500I100', b'V0500S100', b'V1500', b'V0500 V1700'):
+            with self.subTest(token=token), self.assertRaises(ValueError):
+                bridge.parse_tcode_move(token, protocol=codec)
+        with self.assertRaises(ValueError):
+            codec.encode(.5, 100)
+
+    def test_ble_input_rejects_tcode_intervals_over_60000_before_forwarding(self):
+        for name in ('loob', 'thrust-sync'):
+            codec = bridge.PROTOCOLS[name]
+            self.assertEqual(codec.to_tcode(codec.encode(.5, 60000)), b'L0500I60000\n')
+            for duration in (60001, 65535):
+                packet = codec.encode(.5, duration)  # valid raw BLE output range
+                self.assertEqual(codec.decode(packet)[1], duration)
+                with self.subTest(protocol=name, duration=duration), self.assertRaises(ValueError):
+                    codec.to_tcode(packet)
+        for duration in (True, 1.5, -1, 60001):
+            with self.subTest(duration=duration), self.assertRaises(ValueError):
+                bridge.tcode_move(.5, duration)
+
+    def test_windows_svakom_emulation_requires_explicit_system_name_confirmation(self):
+        args = types.SimpleNamespace(protocol='svakom-v1', confirm_windows_svakom_name=False)
+        with mock.patch.object(bridge.sys, 'platform', 'win32'):
+            with self.assertRaisesRegex(RuntimeError, 'confirm-windows-svakom-name'):
+                bridge.make_peripheral(args, lambda _: None, lambda: None)
+            args.confirm_windows_svakom_name = True
+            fake = types.SimpleNamespace(WindowsPeripheral=mock.Mock(return_value='isolated-peripheral'))
+            with mock.patch.dict(sys.modules, {'windows_peripheral': fake}):
+                self.assertEqual(bridge.make_peripheral(args, lambda _: None, lambda: None), 'isolated-peripheral')
+            self.assertIs(fake.WindowsPeripheral.call_args.args[0], bridge.PROTOCOLS['svakom-v1'])
+
     def test_invalid_length_range_and_nonfinite_values_are_rejected(self):
         for name, codec in bridge.PROTOCOLS.items():
             for packet in (b'', b'\xff' * codec.packet_size, b'\0' * (codec.packet_size + 1)):
@@ -69,6 +121,13 @@ class ProtocolCodecTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 framer.feed(data)
             self.assertEqual(framer.buffer, b'')
+
+    def test_cr_only_serial_commands_are_complete_and_do_not_join_later_commands(self):
+        framer = bridge.LineFramer()
+        self.assertEqual(framer.feed(b'L0500I100\rL0900I200\r'),
+                         [b'L0500I100\n', b'L0900I200\n'])
+        self.assertEqual(framer.feed(b'L01\r'), [b'L01\n'])
+        self.assertEqual(framer.feed(b'\nL0200\r\n'), [b'L0200\n'])
 
     def test_endpoint_rejects_credentials_path_and_invalid_port(self):
         self.assertEqual(bridge.endpoint('tcp://127.0.0.1:12401'), ('127.0.0.1', 12401))
@@ -106,6 +165,178 @@ class FakeSink:
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_svakom_peripheral_callback_reaches_tcp_as_vibration_then_stops_on_disconnect(self):
+        received = []
+        moved = asyncio.Event()
+        disconnected = asyncio.Event()
+        async def connection(reader, writer):
+            try:
+                while line := await reader.readline():
+                    received.append(line)
+                    if line == b'V0999\n':
+                        moved.set()
+            finally:
+                disconnected.set()
+                writer.close()
+                await writer.wait_closed()
+        async with await asyncio.start_server(connection, '127.0.0.1', 0) as server:
+            address = server.sockets[0].getsockname()
+            args = types.SimpleNamespace(protocol='svakom-v1',
+                                         sensa=f'tcp://127.0.0.1:{address[1]}', timeout=.2, idle=1)
+            peripherals = []
+            class Peripheral:
+                failure = None
+                stopped = False
+                def __init__(self, _args, receive, on_disconnect):
+                    self.receive, self.on_disconnect = receive, on_disconnect
+                    peripherals.append(self)
+                async def start(self):
+                    self.receive(bytes.fromhex('550403000113'))
+                    await asyncio.wait_for(moved.wait(), .5)
+                    self.on_disconnect()
+                async def stop(self):
+                    self.stopped = True
+            with mock.patch('sys.stdout', new_callable=io.StringIO):
+                await asyncio.wait_for(bridge.run_input(args, peripheral_factory=Peripheral), 1)
+            await asyncio.wait_for(disconnected.wait(), .5)
+        self.assertEqual(received[0], b'V0999\n')
+        self.assertTrue(all(line == bridge.STOP for line in received[1:]))
+        self.assertGreater(len(received), 1)
+        self.assertTrue(peripherals[0].stopped)
+
+    async def test_svakom_tcp_output_sends_verified_zero_before_disconnect_for_all_stop_paths(self):
+        for ending in ('stop', 'eof', 'idle', 'invalid'):
+            with self.subTest(ending=ending):
+                events = []
+                wrote = asyncio.Event()
+                class Client:
+                    is_connected = False
+                    async def connect(self):
+                        self.is_connected = True
+                        events.append('connect')
+                    async def write_gatt_char(self, uuid, value, *, response):
+                        self.asserted = (uuid, response)
+                        events.append(value.hex())
+                        wrote.set()
+                    async def disconnect(self):
+                        self.is_connected = False
+                        events.append('disconnect')
+                client = Client()
+                original_server = asyncio.start_server
+                ready = asyncio.get_running_loop().create_future()
+                async def start_server(callback, host, _port, **kwargs):
+                    server = await original_server(callback, host, 0, **kwargs)
+                    ready.set_result(server.sockets[0].getsockname()[1])
+                    return server
+                args = types.SimpleNamespace(protocol='svakom-v1', listen='tcp://127.0.0.1:12411',
+                                             allow_lan=False, device='isolated-device', timeout=.2, idle=.05)
+                with (mock.patch.object(bridge.asyncio, 'start_server', side_effect=start_server),
+                      mock.patch('sys.stdout', new_callable=io.StringIO),
+                      mock.patch('sys.stderr', new_callable=io.StringIO)):
+                    service = asyncio.create_task(bridge.serve_ble_output(args, client_factory=lambda *_a, **_k: client))
+                    port = await asyncio.wait_for(ready, .5)
+                    _, writer = await asyncio.open_connection('127.0.0.1', port)
+                    writer.write(b'V0500\r')
+                    await writer.drain()
+                    await asyncio.wait_for(wrote.wait(), .5)
+                    if ending == 'stop':
+                        writer.write(bridge.STOP)
+                        await writer.drain()
+                    elif ending == 'invalid':
+                        writer.write(b'L0500I100\n')
+                        await writer.drain()
+                    elif ending == 'eof':
+                        writer.close()
+                    try:
+                        await asyncio.wait_for(service, 1)
+                    finally:
+                        writer.close()
+                        await writer.wait_closed()
+                self.assertEqual(events, ['connect', '55040300010a', '550403000000', 'disconnect'])
+                self.assertEqual(client.asserted, (bridge.PROTOCOLS['svakom-v1'].characteristic, False))
+
+    async def test_svakom_failed_move_still_attempts_zero_but_zero_failure_always_disconnects(self):
+        class Client:
+            is_connected = True
+            def __init__(self):
+                self.events = []
+            async def write_gatt_char(self, uuid, value, *, response):
+                self.events.append(value.hex())
+                raise ConnectionError('isolated native write failure')
+            async def disconnect(self):
+                self.events.append('disconnect')
+                self.is_connected = False
+        client = Client()
+        output = bridge.BleOutput(client, bridge.PROTOCOLS['svakom-v1'])
+        with self.assertRaises(ConnectionError):
+            await output.send(b'V0500\n')
+        with self.assertRaises(ConnectionError):
+            await output.stop()
+        await output.stop()  # cleanup is idempotent after the failed stop attempt
+        self.assertEqual(client.events, ['55040300010a', '550403000000', 'disconnect'])
+        with self.assertRaises(ConnectionError):
+            await output.send(b'V0999\n')
+
+    async def test_svakom_explicit_zero_is_not_replayed_by_cleanup(self):
+        class Client:
+            is_connected = True
+            def __init__(self):
+                self.writes = []
+            async def write_gatt_char(self, uuid, value, *, response):
+                self.writes.append(value)
+            async def disconnect(self):
+                self.is_connected = False
+        client = Client()
+        codec = bridge.PROTOCOLS['svakom-v1']
+        output = bridge.BleOutput(client, codec)
+        await output.send(b'V0500\n')
+        await output.send(bridge.STOP)
+        await output.stop()
+        self.assertEqual(client.writes, [bytes.fromhex('55040300010a'), codec.stop_packet])
+
+    async def test_timed_out_ble_connect_disconnects_a_partially_established_client(self):
+        class Client:
+            is_connected = False
+            disconnects = 0
+            async def connect(self):
+                self.is_connected = True
+                await asyncio.Event().wait()
+            async def disconnect(self):
+                self.disconnects += 1
+                self.is_connected = False
+        client = Client()
+        args = types.SimpleNamespace(protocol='loob', listen='tcp://127.0.0.1:12411',
+                                     allow_lan=False, device='isolated-device', timeout=.001, idle=2)
+        with self.assertRaises(asyncio.TimeoutError):
+            await bridge.serve_ble_output(args, client_factory=lambda *_args, **_kwargs: client)
+        self.assertEqual(client.disconnects, 1)
+        self.assertFalse(client.is_connected)
+
+    async def test_cancelling_ble_connect_cleans_up_without_starting_a_listener(self):
+        started = asyncio.Event()
+        class Client:
+            is_connected = False
+            disconnects = 0
+            async def connect(self):
+                self.is_connected = True
+                started.set()
+                await asyncio.Event().wait()
+            async def disconnect(self):
+                self.disconnects += 1
+                self.is_connected = False
+        client = Client()
+        args = types.SimpleNamespace(protocol='loob', listen='tcp://127.0.0.1:12411',
+                                     allow_lan=False, device='isolated-device', timeout=.1, idle=2)
+        with mock.patch.object(bridge.asyncio, 'start_server', new_callable=mock.AsyncMock) as server:
+            task = asyncio.create_task(bridge.serve_ble_output(args, client_factory=lambda *_a, **_k: client))
+            await asyncio.wait_for(started.wait(), .5)
+            task.cancel()
+            with self.assertRaises(asyncio.CancelledError):
+                await task
+            server.assert_not_awaited()
+        self.assertEqual(client.disconnects, 1)
+        self.assertFalse(client.is_connected)
+
     async def test_tcp_stop_preempts_queued_ble_moves_while_a_write_is_blocked(self):
         started = asyncio.Event()
         delivered = []

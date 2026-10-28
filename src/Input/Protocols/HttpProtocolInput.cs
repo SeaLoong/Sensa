@@ -185,7 +185,7 @@ public sealed partial class HttpProtocolInput : IDisposable
         // Its independent task deadline is checked by PublishScriptFrame, including while looping.
         var finiteMoveExpired = _handyFiniteMoveAt is not { } started
             || _clock.GetElapsedTime(started).TotalMilliseconds >= (long)_handyFiniteMoveDuration + _config.TimeoutMs;
-        if (!_scriptPlaying && finiteMoveExpired && _session is not null
+        if (!_scriptPlaying && !FiniteLovenseEffectActive() && finiteMoveExpired && _session is not null
             && _clock.GetElapsedTime(_lastActivity).TotalMilliseconds >= _config.TimeoutMs) Release();
     }
     private void Tick()
@@ -201,7 +201,7 @@ public sealed partial class HttpProtocolInput : IDisposable
     {
         var explicitSession = context.Request.Headers["X-Sensa-Session"].ToString();
         if (explicitSession.Length > 128 || explicitSession.Any(char.IsControl)) throw new InputException(400, "Invalid session identifier.");
-        return context.Request.Headers.Origin + "\n" + context.Connection.RemoteIpAddress + "\n" + explicitSession;
+        return context.Connection.RemoteIpAddress + "\n" + explicitSession;
     }
     private static async Task<byte[]> ReadBodyAsync(HttpRequest request, CancellationToken cancellationToken)
     {

@@ -29,7 +29,7 @@ Outputs have independent activation and connection states. While input is runnin
 
 Manual initially shows L0/L1/L2, with rotation, vibration and auxiliary axes available on expansion: twelve axes in total. Adjust a slider/value and choose Send once. Enable Live updates to have output follow further adjustments. Send settings can use the axis profile or an explicit movement duration/speed; Clear overrides restores the profile.
 
-After loading a funscript, the timeline shows playback position and trajectory. It supports 0.1–4× speed, loops, A–B, timecodes and keyframe navigation. Pause preserves the cursor, Stop returns to the beginning and unload removes the script. With Script input enabled, explicit seek/step can send a selected position while paused.
+After loading a funscript, the timeline shows playback position and trajectory. It supports 0.1–4× speed, loops, A–B, timecodes and keyframe navigation. Pause retains the cursor and that time's script target. Loading, seeking to 0 ms or returning to the first frame retains the script's actual initial value, including nonzero targets, without enabling input or playing automatically. Stop resets playback time and the player target to zero and ends automatic sending; unload removes the script. With Script input enabled, explicit seek/step can send a selected position while paused.
 
 ### Combined input
 
@@ -42,19 +42,20 @@ Choose Add output, select its type and configure the address/device inside it. O
 | Output | Common settings |
 | --- | --- |
 | TCode | Serial port or UDP/TCP destination, axis profile |
-| Intiface | Central address, actual device and position/vibration features |
+| Intiface | Central address, actual devices and explicit feature mappings |
+| Handy/Lovense/Autoblow/VacuGlide | Actual API endpoint, device identity and supported position, intensity/speed or script capabilities |
 | OSC parameter | IP, port, address and Float/Int/Bool type |
 | DG-LAB | Relay, APP pairing, device, channel and intensity limit |
 | MIDI/network application | System MIDI port, or service and field/topic |
 | Recording | Funscript track or diagnostic format, source and range |
 
-Set TCode direction, travel and speed in its axis profile. Intiface connects to a separately running Central; vibration defaults to V0, with V1/V2 or L0 available. The OSC write-back shortcut prepares VRChat's common receiver; configure the parameter as writable on the current Avatar. [Full output operation](signal-pipeline.en.md#add-outputs-and-bindings)
+Set TCode direction, travel and speed in its axis profile. Intiface connects to a separately running Central; beyond the default position/vibration paths, configure [explicit feature mappings](protocol-inputs.en.md#intiface-output-feature-mappings) for capabilities actually advertised by the device. Vibration defaults to V0, with V1/V2 or L0 available. Configure each vendor output according to its [authentication, script and compatibility limits](protocol-inputs.en.md#vendor-compatible-input-and-physical-device-output). The OSC write-back shortcut prepares VRChat's common receiver; configure the parameter as writable on the current Avatar. [Full output operation](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ### Receive a website's serial or Bluetooth commands
 
 When a website lets you enter an Intiface address, start with Sensa's Buttplug virtual-device input. If the source requires serial or a dedicated Bluetooth connector, use the bundled [serial and BLE bridge tools](../tools/protocol-bridge/README.md). Configure Sensa's local network TCode TCP input on `12401`; `pty-input`, `serial-input` or `ble-input` then feeds received commands into the same input pipeline for output to OSR. Save configuration and check destination limits before enabling input.
 
-The source must actually enumerate the virtual serial endpoint; Windows needs an existing COM pair. BLE input supports LOOB and Thrust Sync position/duration frames, subject to peripheral-role and advertising permissions; Windows LOOB also has a name restriction. To send Sensa output to an actual device using either protocol, run `ble-output` and configure a TCode TCP output on `12411`, L0 only, Interval slope. The tool does not automatically install Python or drivers. [Installation, commands and platform limits](../tools/protocol-bridge/README.md)
+The source must actually enumerate the virtual serial endpoint; Windows needs an existing COM pair. BLE input supports LOOB/Thrust Sync position/duration and the Svakom V1 single-vibration subset, subject to peripheral-role and advertising permissions. Windows LOOB/Svakom also require a matching actual system advertising name. For `ble-output`, configure TCode TCP on `12411`, L0 only and Interval for LOOB/Thrust Sync; Svakom V1 uses V0 only, NoSlope, with axis command/ramp modes both None. The latter rejects position, I/S duration and multiaxis commands. Even static intensity requires new complete frames within the tool's idle deadline; fixed-rate bindings can provide refresh. [Protocols, models and stopping scope](protocol-inputs.en.md#svakom-v1-vibration-bridge). The tool does not automatically install Python or drivers. [Installation, commands and platform limits](../tools/protocol-bridge/README.md)
 
 ### L0 recording
 

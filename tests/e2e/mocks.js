@@ -61,6 +61,13 @@ export function poseSamples() {
       1 - (Math.hypot(position[0] - (a & 1 ? .35 : -.35), position[1] - (a & 2 ? .35 : -.35), position[2] - (a & 4 ? .35 : -.35)) - .001) / 2]));
 }
 
+// Exercises a real multi-buffer DeviceList plus continuation within UTF-8. No hardware model.
+export function largeIntifaceDeviceFixture() {
+  return { DeviceName: 'CI 多特征设备 😀', DeviceIndex: 0, DeviceMessageTimingGap: 0,
+    DeviceFeatures: Object.fromEntries(Array.from({ length: 40 }, (_, index) => [String(index),
+      { FeatureIndex: index, FeatureDescription: `Rotation ${index}`, Output: { Rotate: { Value: [-1000, 1000] } } }])) };
+}
+
 export async function startMocks() {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Transport peers are CI-only / 模拟传输端仅允许在 CI 启动');
   const wire = { udp: [], tcp: [], serial: [], intiface: [], hub: [] };
@@ -93,6 +100,7 @@ export async function startMocks() {
     DeviceFeatures: { '0': { FeatureIndex: 0, FeatureDescription: 'Vibration', Output: { Vibrate: { Value: [0, 1000] } } } } };
   const rotationDevice = { DeviceName: 'CI rotation only', DeviceIndex: 0, DeviceMessageTimingGap: 0,
     DeviceFeatures: { '2': { FeatureIndex: 2, FeatureDescription: 'Rotation', Output: { Rotate: { Value: [-500, 1000] } } } } };
+  const largeDevice = largeIntifaceDeviceFixture();
   let advertisedDevice = device;
   const bp = new WebSocketServer({ host: '127.0.0.1', port: ports.intiface }); await once(bp, 'listening');
   bp.on('connection', ws => ws.on('message', data => {
@@ -110,7 +118,15 @@ export async function startMocks() {
       else if (name === 'OutputCmd') { intifaceState.stopped = false; response = { Ok: { Id: body.Id } }; }
       else if (['StartScanning', 'StopScanning', 'Ping'].includes(name)) response = { Ok: { Id: body.Id } };
       else response = { Error: { Id: body.Id, ErrorCode: 3, ErrorMessage: `Unsupported mock message: ${name}` } };
-      ws.send(JSON.stringify([response]));
+      if (name === 'RequestDeviceList' && intifaceState.profile === 'large-fragmented') {
+        const payload = Buffer.from(JSON.stringify([response]));
+        const boundary = payload.findIndex(value => value >= 0x80) + 1;
+        if (boundary <= 0 || payload.length <= 2048) throw new Error('Large UTF-8 fixture is not exercising its transport boundary');
+        intifaceState.deviceListBytes = payload.length; intifaceState.deviceListFrames = 2;
+        intifaceState.utf8Split = boundary;
+        ws.send(payload.subarray(0, boundary), { binary: false, fin: false });
+        ws.send(payload.subarray(boundary), { binary: false, fin: true });
+      } else ws.send(JSON.stringify([response]));
       if (name === 'StartScanning') ws.send(JSON.stringify([{ ScanningFinished: { Id: 0 } }]));
     }
   }));
@@ -121,9 +137,10 @@ export async function startMocks() {
   }); query.listen(ports.query, '127.0.0.1'); await once(query, 'listening');
   return { wire, serialPort, intifaceState,
     reset: ({ intifaceProfile = 'combined' } = {}) => {
-      if (!['combined', 'vibration-only', 'rotation-only'].includes(intifaceProfile)) throw new Error('Unknown mock device profile / 未知模拟设备类型');
-      advertisedDevice = intifaceProfile === 'vibration-only' ? vibrationDevice : intifaceProfile === 'rotation-only' ? rotationDevice : device;
+      if (!['combined', 'vibration-only', 'rotation-only', 'large-fragmented'].includes(intifaceProfile)) throw new Error('Unknown mock device profile / 未知模拟设备类型');
+      advertisedDevice = intifaceProfile === 'vibration-only' ? vibrationDevice : intifaceProfile === 'rotation-only' ? rotationDevice : intifaceProfile === 'large-fragmented' ? largeDevice : device;
       intifaceState.profile = intifaceProfile;
+      intifaceState.deviceListBytes = 0; intifaceState.deviceListFrames = 0; intifaceState.utf8Split = 0;
       for (const client of clients) client.destroy();
       for (const client of bp.clients) client.terminate();
       for (const messages of Object.values(wire)) messages.length = 0;

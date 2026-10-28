@@ -35,6 +35,8 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
     private double _lastPosition;
     private volatile bool _scriptPrepared;
     private volatile bool _scriptPlaying;
+    private volatile bool _scriptLoop;
+    private volatile bool _handyV2ScriptLoopSupported;
     private volatile int _scriptPositionMs;
     private long _serverTimeOffsetMs;
 
@@ -44,6 +46,9 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
     public bool SupportsScripts => _type is "Handy" or "Autoblow" or "VacuGlide";
     public bool ScriptPrepared => _scriptPrepared;
     public bool ScriptPlaying => _scriptPlaying;
+    public bool SupportsScriptLoop => SupportsScripts && (_type != "Handy" || _options.ApiVersion == 3 || _handyV2ScriptLoopSupported);
+    /// <summary>The selected policy for the next explicit play, not hardware state feedback.</summary>
+    public bool ScriptLoop => _scriptLoop;
     public int ScriptPositionMs => _scriptPositionMs;
     public string? LastError { get; private set; }
 
@@ -81,6 +86,7 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
         {
             if (IsConnected) return;
             LastError = null;
+            _handyV2ScriptLoopSupported = false;
             if (_type == "Lovense")
             {
                 if (_options.DeviceId.Length == 0) throw new InvalidOperationException("Select a specific Lovense toy ID before connecting.");
@@ -102,13 +108,15 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
                 if (_type == "Handy" && _options.ApiVersion == 2 && info.TryGetProperty("fwVersion", out var firmware)
                     && firmware.ValueKind == JsonValueKind.String && int.TryParse(firmware.GetString()!.Split('.')[0], out var major) && major != 3)
                     throw new InvalidOperationException("This Handy firmware requires a different API version; firmware v4+ uses API v3.");
+                if (_type == "Handy" && _options.ApiVersion == 2)
+                    _handyV2ScriptLoopSupported = HandyV2HasScriptLoop(info);
                 if (_type == "VacuGlide" && info.TryGetProperty("deviceType", out var deviceType) && deviceType.GetString() != "vacuglide")
                     throw new InvalidOperationException("The selected device is not a VacuGlide.");
                 if (_type != "Handy") await RequestAsync(HttpMethod.Get, prefix + "state", null, cancellation);
             }
             _mode = -1;
             _lastSentTimestamp = null;
-            _scriptPrepared = _scriptPlaying = false;
+            _scriptPrepared = _scriptPlaying = _scriptLoop = false;
             _scriptPositionMs = 0;
             _canStop = _connected = true;
         }
@@ -126,7 +134,12 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
         if (frame.ActiveAxes is not null && !frame.ActiveAxes.Contains(_axis)) return;
         var position = MotionAxisHelper.Get(frame, _axis);
         if (!float.IsFinite(position) || position is < 0 or > 1) throw new ArgumentException("Device command must be finite and within 0–1.", nameof(frame));
-        var requestedDuration = frame.RequestedCommandMode == TCodeCommandMode.Interval ? frame.RequestedMotionValue ?? frame.DeltaMs : frame.DeltaMs;
+        var requestedDuration = frame.RequestedCommandMode switch
+        {
+            TCodeCommandMode.None => 0,
+            TCodeCommandMode.Interval => frame.RequestedMotionValue ?? frame.DeltaMs,
+            _ => frame.DeltaMs,
+        };
         if (!double.IsFinite(requestedDuration) || requestedDuration is < 0 or > 600000)
             throw new ArgumentException("Device command duration must be 0–600000 ms.", nameof(frame));
         var duration = (int)Math.Round(requestedDuration);
@@ -211,6 +224,7 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
             EnsureConnected();
             if (_scriptPlaying) await StopScriptCoreAsync(operationCancellation);
             _scriptPrepared = false;
+            _scriptLoop = false;
             if (_type == "Handy")
             {
                 await SetHandyModeAsync(1, operationCancellation);
@@ -274,6 +288,23 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
         }, cancellation);
     }
 
+    /// <summary>Choose looping while prepared and paused; never starts or resumes playback.</summary>
+    public async Task SetScriptLoopAsync(bool loop, CancellationToken cancellation = default)
+    {
+        await RunScheduledAsync(async operationCancellation =>
+        {
+            EnsureConnected();
+            if (!SupportsScriptLoop) throw new InvalidOperationException("Script looping is not supported by this output or confirmed firmware.");
+            if (!_scriptPrepared) throw new InvalidOperationException("Prepare a script before choosing looping.");
+            if (_scriptPlaying) throw new InvalidOperationException("Stop script playback before changing looping.");
+            if (_type == "Handy" && _options.ApiVersion == 2)
+                await SetHandyModeAsync(1, operationCancellation);
+            await ApplyScriptLoopCoreAsync(loop, operationCancellation);
+            operationCancellation.ThrowIfCancellationRequested();
+            _scriptLoop = loop;
+        }, cancellation);
+    }
+
     public async Task StopScriptAsync(CancellationToken cancellation = default)
     {
         CancelMotion();
@@ -320,7 +351,7 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
         try { await StopAsync(cancellation); }
         finally
         {
-            _connected = _canStop = _scriptPrepared = _scriptPlaying = false;
+            _connected = _canStop = _scriptPrepared = _scriptPlaying = _scriptLoop = _handyV2ScriptLoopSupported = false;
             _mode = -1;
         }
     }
@@ -380,16 +411,41 @@ public sealed class VendorDeviceOutput : IAsyncDisposable
         if (_type == "Handy")
         {
             await SetHandyModeAsync(1, cancellation);
+            if (SupportsScriptLoop) await ApplyScriptLoopCoreAsync(_scriptLoop, cancellation);
             var estimatedTime = _clock.GetUtcNow().ToUnixTimeMilliseconds() + _serverTimeOffsetMs;
             object payload = _options.ApiVersion == 3
-                ? new { start_time = positionMs, server_time = estimatedTime }
+                ? new { start_time = positionMs, server_time = estimatedTime, loop = _scriptLoop }
                 : new { startTime = positionMs, estimatedServerTime = estimatedTime };
             await RequestAsync(HttpMethod.Put, "hssp/play", payload, cancellation);
         }
-        else await RequestAsync(HttpMethod.Put, CloudPrefix + "sync-script/start", new { startTimeMs = positionMs }, cancellation);
+        else
+        {
+            await ApplyScriptLoopCoreAsync(_scriptLoop, cancellation);
+            await RequestAsync(HttpMethod.Put, CloudPrefix + "sync-script/start", new { startTimeMs = positionMs }, cancellation);
+        }
         _scriptPositionMs = positionMs;
         _scriptPlaying = true;
         _mode = 1;
+    }
+
+    private async Task ApplyScriptLoopCoreAsync(bool loop, CancellationToken cancellation)
+    {
+        // Handy v3 has no HSSP loop endpoint: its next play request carries the
+        // explicit policy. Other APIs retain/reset native settings differently,
+        // so every explicit play reapplies the selected policy before starting.
+        if (_type == "Handy")
+        {
+            if (_options.ApiVersion == 2)
+                await RequestAsync(HttpMethod.Put, "hssp/loop", new { activated = loop }, cancellation);
+        }
+        else await RequestAsync(HttpMethod.Put, CloudPrefix + "sync-script/loop", new { loop }, cancellation);
+    }
+
+    private static bool HandyV2HasScriptLoop(JsonElement info)
+    {
+        if (!info.TryGetProperty("fwVersion", out var firmware) || firmware.ValueKind != JsonValueKind.String) return false;
+        var text = firmware.GetString()!.Split('-', '+')[0];
+        return Version.TryParse(text, out var version) && version.Major == 3 && version.Minor >= 2;
     }
 
     private async Task StopScriptCoreAsync(CancellationToken cancellation)

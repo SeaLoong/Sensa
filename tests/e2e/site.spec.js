@@ -535,6 +535,110 @@ test('@site help screenshots switch between reviewed desktop and narrow captures
   await info.attach('document-responsive-images.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
 });
 
+test('@site local flowcharts render real readable SVG in both guide languages', async ({ page }, info) => {
+  if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
+  const external = [], errors = [], evidence = [];
+  page.on('pageerror', error => errors.push(error.message));
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  await page.route('**/*', route => {
+    const url = new URL(route.request().url());
+    if (url.origin !== new URL(base).origin) { external.push(url.href); return route.abort(); }
+    return route.continue();
+  });
+  for (const locale of ['en', 'zh-CN']) for (const [name, nodes] of [['protocol-inputs', 8], ['architecture', 20]]) {
+    await page.goto(base + locale + '/docs/' + name + '.html');
+    const figure = page.locator('[data-document-diagram]');
+    await expect(figure).toHaveCount(1);
+    await expect(figure).toHaveAttribute('data-diagram-state', 'rendered');
+    const canvas = figure.locator('.doc-diagram-canvas'), graphic = canvas.locator('svg');
+    await expect(graphic).toBeVisible();
+    await expect(graphic).toHaveAttribute('role', 'img');
+    await expect(graphic).toHaveAttribute('aria-label', locale === 'en' ? /^Flowchart:/ : /^流程图:/);
+    await expect(graphic.locator('g.node')).toHaveCount(nodes);
+    expect(await graphic.locator('path').count()).toBeGreaterThan(0);
+    expect(await graphic.locator('text').count()).toBeGreaterThanOrEqual(nodes);
+    await expect(figure.locator('.doc-diagram-source')).not.toHaveAttribute('open');
+    await expect(figure.locator('.doc-diagram-status')).toBeHidden();
+    const bounds = await graphic.evaluate(svg => {
+      const view = svg.viewBox.baseVal;
+      return { width: view.width, height: view.height, textBoxes: [...svg.querySelectorAll('g.node text')].map(text => ({
+        width: text.getBBox().width, height: text.getBBox().height,
+      })) };
+    });
+    expect(bounds.width).toBeGreaterThan(0);
+    expect(bounds.height).toBeGreaterThan(0);
+    expect(bounds.textBoxes.every(box => box.width > 0 && box.height > 0)).toBe(true);
+    await canvas.scrollIntoViewIfNeeded();
+    await expect(canvas).toHaveAttribute('tabindex', '0');
+    await canvas.focus();
+    await page.keyboard.press('End');
+    await expect.poll(() => canvas.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
+    const scroll = await canvas.evaluate(element => ({ width: element.clientWidth, fullWidth: element.scrollWidth, left: element.scrollLeft }));
+    expect(await page.locator('html').evaluate(element => element.scrollWidth <= element.clientWidth + 1)).toBe(true);
+    const image = info.outputPath('flowchart-' + locale + '-' + name + '.png');
+    await figure.screenshot({ path: image });
+    await info.attach('flowchart-' + locale + '-' + name, { path: image, contentType: 'image/png' });
+    await figure.locator('summary').click();
+    await expect(figure.locator('.doc-diagram-source')).toHaveAttribute('open', '');
+    await expect(figure.locator('.language-mermaid')).toContainText('flowchart LR');
+    evidence.push({ locale, name, nodes, bounds, scroll });
+  }
+  expect(errors).toEqual([]);
+  expect(external).toEqual([]);
+  await info.attach('flowchart-rendering.json', { body: JSON.stringify({ evidence, external, errors }, null, 2), contentType: 'application/json' });
+});
+
+test('@site flowchart source remains readable without JavaScript or when its local runtime is unavailable', async ({ browser }, info) => {
+  const evidence = [];
+  for (const mode of ['no-javascript', 'blocked-runtime']) {
+    const context = await browser.newContext({ javaScriptEnabled: mode !== 'no-javascript', viewport: info.project.use.viewport });
+    try {
+      const page = await context.newPage();
+      if (mode === 'blocked-runtime') await page.route('**/*', route => {
+        const name = new URL(route.request().url()).pathname;
+        return /\/document-diagrams(?:\.[a-f0-9]{16})?\.js$/.test(name) ? route.abort() : route.continue();
+      });
+      for (const locale of ['en', 'zh-CN']) for (const name of ['architecture', 'protocol-inputs']) {
+        await page.goto(base + locale + '/docs/' + name + '.html');
+        const figure = page.locator('[data-document-diagram]');
+        await expect(figure.locator('.doc-diagram-source')).toHaveAttribute('open', '');
+        await expect(figure.locator('.language-mermaid')).toBeVisible();
+        await expect(figure.locator('.language-mermaid')).toContainText('flowchart LR');
+        await expect(figure.locator('.doc-diagram-status')).toBeVisible();
+        await expect(figure.locator('.doc-diagram-canvas')).toBeHidden();
+        evidence.push({ mode, locale, name, sourceAvailable: true });
+      }
+    } finally { await context.close(); }
+  }
+  await info.attach('flowchart-fallback.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
+});
+
+test('@site unsafe flowchart source is rejected before image requests or callbacks execute', async ({ page }, info) => {
+  const external = [];
+  await page.route('**/*', async route => {
+    const url = new URL(route.request().url());
+    if (url.origin !== new URL(base).origin) { external.push(url.href); return route.abort(); }
+    if (url.pathname.endsWith('/en/docs/protocol-inputs.html')) {
+      const response = await route.fetch();
+      const original = await response.text();
+      const payload = 'flowchart LR\n A[&lt;img src="https://diagram-payload.invalid/image" onerror="window.diagramPayload=true"&gt;] --> B\n';
+      const body = original.replace(/(<code class="language-mermaid">)[\s\S]*?(<\/code>)/, '$1' + payload + '$2');
+      expect(body).not.toBe(original);
+      return route.fulfill({ response, body });
+    }
+    return route.continue();
+  });
+  await page.goto(base + 'en/docs/protocol-inputs.html');
+  const figure = page.locator('[data-document-diagram]');
+  await expect(figure).toHaveAttribute('data-diagram-state', 'error');
+  await expect(figure.locator('.doc-diagram-canvas')).toBeHidden();
+  await expect(figure.locator('.doc-diagram-source')).toHaveAttribute('open', '');
+  await expect(figure.locator('.doc-diagram-status')).toContainText('could not be displayed');
+  expect(await page.evaluate(() => Boolean(window.diagramPayload))).toBe(false);
+  expect(external).toEqual([]);
+  await info.attach('flowchart-unsafe-content.json', { body: JSON.stringify({ external, payloadExecuted: false }), contentType: 'application/json' });
+});
+
 test('@site downloads stay direct in both languages without JavaScript or remote services', async ({ browser }, info) => {
   const evidence = [];
   for (const javaScriptEnabled of [true, false]) {

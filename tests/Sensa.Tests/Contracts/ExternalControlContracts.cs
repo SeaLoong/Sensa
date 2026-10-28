@@ -1,4 +1,4 @@
-using System.Net;
+using System.Text.Json;
 using Sensa.Configuration;
 using Sensa.Input.Protocols;
 using Sensa.Tests.Support;
@@ -107,27 +107,29 @@ public sealed class ExternalControlContracts
     }
 
     [Theory]
-    [InlineData("https://allowed.example", "127.0.0.1", "127.0.0.1", true)]
-    [InlineData("https://other.example", "127.0.0.1", "127.0.0.1", false)]
-    [InlineData("null", "localhost", "127.0.0.1", false)]
-    [InlineData("", "localhost", "127.0.0.1", true)]
-    [InlineData("", "localhost", "192.168.1.2", false)]
-    [InlineData("https://allowed.example", "rebinding.example", "127.0.0.1", false)]
-    public void Browser_origin_and_host_are_both_checked_and_bare_native_clients_are_local(string origin, string host, string peer, bool allowed)
+    [InlineData("127.0.0.1", "127.0.0.1", true)]
+    [InlineData("127.0.0.1", "localhost", true)]
+    [InlineData("127.0.0.1", "rebinding.example", false)]
+    [InlineData("192.168.1.2", "192.168.1.2", true)]
+    [InlineData("192.168.1.2", "127.0.0.1", false)]
+    [InlineData("0.0.0.0", "192.168.1.2", true)]
+    [InlineData("0.0.0.0", "rebinding.example", false)]
+    public void Listener_host_validation_retains_the_explicit_bind_boundary_without_site_configuration(string bind, string host, bool allowed)
     {
-        var input = Input(); input.AllowedOrigins = ["https://allowed.example"];
-        Assert.Equal(allowed, ProtocolInputCoordinator.IsRequestAllowed(input, host, origin, IPAddress.Parse(peer)));
+        var input = Input(); input.Host = bind;
+        Assert.Equal(allowed, ProtocolInputCoordinator.IsRequestAllowed(input, host));
     }
 
-    [Theory]
-    [InlineData("*")]
-    [InlineData("https://site.example/path")]
-    [InlineData("https://site.example/?token=secret")]
-    [InlineData("https://user:password@site.example")]
-    public void Origin_configuration_rejects_wildcards_paths_and_credentials(string origin)
+    [Fact]
+    public void Existing_configuration_can_drop_the_removed_website_setting_without_a_migration_branch()
     {
-        var input = Input(); input.AllowedOrigins = [origin];
-        Assert.Throws<ArgumentException>(() => ProtocolInputConfiguration.CloneAndValidate([input]));
+        var options = new JsonSerializerOptions(JsonSerializerDefaults.Web);
+        var input = JsonSerializer.Deserialize<ProtocolInputConfig>("""{"id":"bridge","enabled":true,"allowedOrigins":["https://previous.example"]}""", options)!;
+        var validated = Assert.Single(ProtocolInputConfiguration.CloneAndValidate([input]));
+        Assert.Equal("bridge", validated.Id);
+        Assert.True(validated.Enabled);
+        using var serialized = JsonDocument.Parse(JsonSerializer.Serialize(validated, options));
+        Assert.False(serialized.RootElement.TryGetProperty("allowedOrigins", out _));
     }
 
     [Fact]

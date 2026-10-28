@@ -35,7 +35,7 @@ async function handyApiFixture() {
   };
 }
 
-async function addSource(page, rig, { type = 'Buttplug', port = 19400, name = 'Browser bridge', origins = [origin] } = {}) {
+async function addSource(page, rig, { type = 'Buttplug', port = 19400, name = 'Browser bridge' } = {}) {
   await workspace(page, '设置');
   const panel = page.getByTestId('protocol-inputs-panel');
   await panel.getByRole('button', { name: await text(page, '添加协议来源'), exact: true }).click();
@@ -43,8 +43,6 @@ async function addSource(page, rig, { type = 'Buttplug', port = 19400, name = 'B
   await card.getByRole('textbox', { name: await text(page, '来源名称'), exact: true }).fill(name);
   await card.getByRole('combobox', { name: await text(page, '输入协议'), exact: true }).selectOption(type);
   await card.getByRole('spinbutton', { name: await text(page, '监听端口'), exact: true }).fill(String(port));
-  if (type === 'Buttplug' || type.endsWith('Http') || type === 'JsonWebSocket')
-    await card.getByRole('textbox', { name: await text(page, '允许的网站来源'), exact: true }).fill(origins.join('\n'));
   await card.getByRole('checkbox', { name: await text(page, '启用监听'), exact: true }).check();
   await panel.getByRole('button', { name: await text(page, '保存协议输入'), exact: true }).click();
   await expect.poll(async () => (await savedConfig(page, rig)).protocolInputs?.find(input => input.name === name)?.port).toBe(port);
@@ -93,7 +91,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     test('source configuration exposes its client address, preserves drafts and disarms saving / 来源配置显示地址并保留草稿，保存关闭输入',
       { tag: ['@input', '@config', '@i18n', '@quality'] }, async ({ page, rig }, info) => {
         const source = await addSource(page, rig);
-        expect(source.allowedOrigins).toEqual([origin]);
+        expect(source).not.toHaveProperty('allowedOrigins');
         expect(source.features).toMatchObject([{ channel: 'L0', actuator: 'Position', targetAxis: 'L0' }]);
         expect(source.routeToMotion).toBe(true);
         expect((await rig.overview()).runtime.inputActive).toBe(false);
@@ -101,10 +99,11 @@ for (const locale of ['zh-CN', 'en-US']) {
         const panel = page.getByTestId('protocol-inputs-panel');
         await expect(panel.getByTestId('protocol-endpoint')).toContainText(':19400');
         await expect(panel.getByRole('textbox', { name: await text(page, '来源标识'), exact: true })).toBeDisabled();
-        await panel.getByRole('textbox', { name: await text(page, '允许的网站来源'), exact: true }).fill('https://source.example/path');
+        await expect(panel.getByRole('textbox', { name: '允许的网站来源', exact: true })).toHaveCount(0);
+        await panel.getByRole('spinbutton', { name: await text(page, '监听端口'), exact: true }).fill('0');
         await expect(panel.getByRole('button', { name: await text(page, '保存协议输入'), exact: true })).toBeDisabled();
         await panel.getByRole('button', { name: await text(page, '恢复协议输入'), exact: true }).click();
-        await expect(panel.getByRole('textbox', { name: await text(page, '允许的网站来源'), exact: true })).toHaveValue(origin);
+        await expect(panel.getByRole('spinbutton', { name: await text(page, '监听端口'), exact: true })).toHaveValue('19400');
         await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
         const report = createUiQualityReport(page, info, { kind: 'protocol-input-editor',
           plannedStates: ['protocol-source-saved'], plannedChecks: ['protocol-input-reflow-320'] });
@@ -143,7 +142,7 @@ for (const locale of ['zh-CN', 'en-US']) {
   });
 }
 
-for (const version of [3, 4]) {
+for (const version of [2, 3, 4]) {
   test(`Buttplug v${version} sends position and travel time through Sensa to isolated TCode / 协议位置与时长转发到隔离TCode`,
     { tag: ['@input', '@transport', '@config'] }, async ({ page, rig }, info) => {
       await enable(page, ['Mock UDP']);
@@ -151,12 +150,12 @@ for (const version of [3, 4]) {
       await mode(page, '协议');
       const client = await peer(19400);
       try {
-        const hello = await client.request('RequestServerInfo', version === 3 ? { ClientName: 'CI website', MessageVersion: 3 }
+        const hello = await client.request('RequestServerInfo', version < 4 ? { ClientName: 'CI website', MessageVersion: version }
           : { ClientName: 'CI website', ProtocolVersionMajor: 4, ProtocolVersionMinor: 0 });
         expect(hello.ServerInfo).toBeTruthy();
         const list = await client.request('RequestDeviceList');
         expect(list.DeviceList).toBeTruthy();
-        const send = (position, duration) => version === 3
+        const send = (position, duration) => version < 4
           ? client.request('LinearCmd', { DeviceIndex: 0, Vectors: [{ Index: 0, Position: position, Duration: duration }] })
           : client.request('OutputCmd', { DeviceIndex: 0, FeatureIndex: 0,
             Command: { HwPositionWithDuration: { Value: Math.round(position * 1000), Duration: duration } } });
@@ -166,7 +165,7 @@ for (const version of [3, 4]) {
         await active(page);
         expect((await send(.65, 275)).Ok).toBeTruthy();
         await expect.poll(() => rig.wire.udp.some(line => /L0530I275(?:\s|$)/.test(line))).toBe(true);
-        const stop = await client.request(version === 3 ? 'StopAllDevices' : 'StopCmd');
+        const stop = await client.request(version < 4 ? 'StopAllDevices' : 'StopCmd');
         expect(stop.Ok).toBeTruthy();
         await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
         await page.getByRole('button', { name: await text(page, '紧急停止'), exact: true }).click();
@@ -182,11 +181,10 @@ for (const version of [3, 4]) {
     });
 }
 
-test('protocol origins and control ownership reject a second website without taking over / 协议来源与控制权拒绝另一网站抢占',
+test('websites connect without an allowlist while independent controllers cannot take over / 网站无需白名单即可连接，独立会话不能抢占控制',
   { tag: ['@input', '@transport'] }, async ({ page, rig }) => {
     await addSource(page, rig);
-    await expect(peer(19400, 'https://unlisted.example')).rejects.toThrow();
-    const first = await peer(19400), second = await peer(19400);
+    const first = await peer(19400, 'https://any-player.example'), second = await peer(19400, 'https://another-player.example');
     try {
       expect((await first.request('RequestServerInfo', { ClientName: 'First', MessageVersion: 3 })).ServerInfo).toBeTruthy();
       expect((await second.request('RequestServerInfo', { ClientName: 'Second', MessageVersion: 3 })).Error).toBeTruthy();
@@ -232,10 +230,10 @@ test('TCode TCP input forwards timed axes and stops on an invalid batch and disc
     } finally { socket.destroy(); fresh?.destroy(); }
   });
 
-test('browser HTTP JSON input passes CORS and preserves timed output / 浏览器HTTP JSON输入通过来源校验并保留时长',
+test('browser HTTP JSON input needs no website configuration and preserves timed output / 浏览器HTTP JSON输入无需网站配置且保留时长',
   { tag: ['@input', '@transport', '@config'] }, async ({ page, rig }) => {
     await enable(page, ['Mock UDP']);
-    await addSource(page, rig, { type: 'JsonHttp', port: 19403, origins: [rig.baseUrl] });
+    await addSource(page, rig, { type: 'JsonHttp', port: 19403 });
     await mode(page, '协议'); await active(page);
     const post = (path, body) => page.evaluate(async ({ path, body }) => {
       const response = await fetch(`http://127.0.0.1:19403${path}`, { method: 'POST',
@@ -255,7 +253,7 @@ test('independent protocol sources combine through computed bindings and stop wh
   { tag: ['@input', '@transport', '@config'] }, async ({ page, rig }, info) => {
     const config = await savedConfig(page, rig);
     const input = (id, port) => ({ id, name: id, type: 'Buttplug', enabled: true, host: '127.0.0.1', port,
-      timeoutMs: 10000, baudRate: 115200, allowedOrigins: [origin], routeToMotion: false,
+      timeoutMs: 10000, baudRate: 115200, routeToMotion: false,
       features: [{ channel: 'L0', name: 'Stroke', actuator: 'Position', targetAxis: '' }] });
     const response = await page.request.put(rig.baseUrl + '/api/config', { data: { ...config,
       protocolInputs: [input('source-a', 19400), input('source-b', 19402)],

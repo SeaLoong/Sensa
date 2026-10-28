@@ -45,6 +45,20 @@ public sealed class VendorDeviceOutputContracts
         Assert.Equal(0, transport.Requests.Last().Body!.Value.GetProperty("duration").GetInt32());
     }
 
+    [Theory]
+    [InlineData(2, "duration")]
+    [InlineData(3, "t")]
+    public async Task AnExplicitInstantModeDoesNotBorrowAnUnrelatedRuntimeTickDuration(int version, string field)
+    {
+        using var transport = new ApiTransport();
+        using var http = new HttpClient(transport);
+        var options = Options(); options.ApiVersion = version; options.ApiKey = "test-only-key";
+        await using var device = new VendorDeviceOutput("Handy", options, http);
+        await device.ConnectAsync();
+        await device.SendAsync(Frame(.5f, 37) with { RequestedCommandMode = TCodeCommandMode.None, RequestedMotionValue = null });
+        Assert.Equal(0, transport.Requests.Last().Body!.Value.GetProperty(field).GetInt32());
+    }
+
     [Fact]
     public async Task ALongButtplugCompatibleDurationIsNotTruncatedByTheHandyAdapter()
     {
@@ -570,6 +584,12 @@ public sealed class VendorDeviceOutputContracts
             if (snapshot.Path == "/command" && body!.Value.GetProperty("command").GetString() == "GetToys")
                 return Json(new { code = 200, data = new { toys = "{\"test-toy\":{\"status\":\"1\"}}" } });
             if (snapshot.Path == "/command") return Json(new { code = 200 });
+            if (snapshot.Path == "/servertime")
+            {
+                var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                return snapshot.Headers.ContainsKey("X-Api-Key") || snapshot.Headers.ContainsKey("Authorization")
+                    ? Json(new { server_time = now }) : Json(new { serverTime = now });
+            }
             return Json(new { result = 0 });
         }
     }

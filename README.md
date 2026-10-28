@@ -58,7 +58,7 @@ For a motion device, start with small manual targets to check direction, travel 
 
 Add an output in Flow and configure its connection inside that output. [Output setup and examples](docs/signal-pipeline.en.md#add-outputs-and-bindings)
 
-Sensa can also act as a device-facing input for another application: Buttplug v3/v4, TCode TCP/UDP/serial, Central's virtual device manager, HTTP/WebSocket JSON and documented vendor API subsets. Optional tools bridge virtual serial ports and LOOB/Thrust Sync BLE. [Build an application → Sensa → device flow](docs/protocol-inputs.en.md); browser/OS and physical-device acceptance are separate from simulated tests.
+Sensa can also act as a device-facing input for another application: Buttplug v2/v3/v4, TCode TCP/UDP/serial, Central's virtual device manager, HTTP/WebSocket JSON and documented vendor API subsets. Optional tools bridge virtual serial ports, LOOB/Thrust Sync position BLE and the documented Svakom V1 single-vibration subset. [Build an application → Sensa → device flow](docs/protocol-inputs.en.md); browser/OS and physical-device acceptance are separate from simulated tests.
 
 ## Record, play and reuse
 

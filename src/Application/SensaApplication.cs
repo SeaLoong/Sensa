@@ -235,7 +235,7 @@ public sealed class SensaApplication(
             var outputId = segments[4];
             var action = segments[5];
             if (action is not ("connect" or "disconnect" or "scan-start" or "scan-stop" or "device-info-refresh"
-                or "script-prepare" or "script-play" or "script-seek" or "script-stop"))
+                or "script-prepare" or "script-play" or "script-seek" or "script-stop" or "script-loop"))
                 return null;
             var output = config.FindOutput(outputId);
             if (output is null)
@@ -292,6 +292,13 @@ public sealed class SensaApplication(
                     if (action == "script-seek") RequireProperty(body, "positionMs");
                     return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, action[7..], positionMs: request.PositionMs));
                 }
+                case "script-loop":
+                {
+                    RequireProperty(body, "loop");
+                    var request = Read<DeviceScriptRequest>(body);
+                    if (!request.Loop.HasValue) throw new ArgumentException("Specify a boolean loop setting.");
+                    return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, "loop", loop: request.Loop.Value));
+                }
                 case "script-stop":
                     return CommandResult.Ok(await outputs.VendorScriptAsync(outputId, "stop"));
             }
@@ -335,7 +342,7 @@ public sealed class SensaApplication(
         }
     }
 
-    private sealed record DeviceScriptRequest(string? Url = null, int PositionMs = 0);
+    private sealed record DeviceScriptRequest(string? Url = null, int PositionMs = 0, bool? Loop = null);
 
     object SetInputActiveCore(bool active)
     {

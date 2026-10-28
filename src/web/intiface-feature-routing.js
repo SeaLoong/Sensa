@@ -2,6 +2,15 @@ import { t } from './i18n.js';
 import { PROTOCOL_AXES } from './protocol-inputs.js';
 
 export const INTIFACE_OUTPUT_TYPES = Object.freeze(['Vibrate', 'Oscillate', 'Rotate', 'Position', 'HwPositionWithDuration', 'Led', 'Temperature', 'Constrict', 'Spray']);
+export function intifaceBindingAxes(output = {}) {
+  const vibration = ['L0', 'V1', 'V2'].includes(output.vibrationAxis) ? output.vibrationAxis : 'V0';
+  const axes = ['L0', vibration];
+  for (const route of output.intifaceFeatures || []) {
+    if (PROTOCOL_AXES.includes(route.sourceAxis)) axes.push(route.sourceAxis);
+    if (route.outputType === 'Rotate' && PROTOCOL_AXES.includes(route.directionAxis)) axes.push(route.directionAxis);
+  }
+  return [...new Set(axes)];
+}
 export function makeIntifaceFeatureRoute(route = {}) {
   return { deviceName: '', featureIndex: null, outputType: 'Rotate', sourceAxis: 'V0', directionAxis: '', clockwise: true, invert: false, ...route };
 }

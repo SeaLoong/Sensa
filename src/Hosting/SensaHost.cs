@@ -2,6 +2,7 @@
 using System.Diagnostics;
 using System.IO.Ports;
 using System.Management;
+using System.Net;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
@@ -27,6 +28,27 @@ public static class SensaHost
 {
     internal static bool ShouldOpenBrowser(IConfiguration options, bool configuredDefault) =>
         bool.TryParse(options["open-browser"], out var enabled) ? enabled : configuredDefault;
+
+    internal static (string ListenUrl, string BrowserUrl) BuildWebUiUrls(string host, int port)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(host);
+        if (port is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+        host = host.Trim();
+        string Address(string value) => new UriBuilder(Uri.UriSchemeHttp, value, port).Uri.GetLeftPart(UriPartial.Authority);
+        // A wildcard is a listening instruction, not a browser destination.
+        // 通配监听地址与浏览器入口分开；本机访问仍接受原有 Host 检查。
+        if (host is "*" or "+") return ($"http://{host}:{port}", Address("127.0.0.1"));
+        if (IPAddress.TryParse(host, out var address))
+        {
+            var browser = address.Equals(IPAddress.Any) ? IPAddress.Loopback
+                : address.Equals(IPAddress.IPv6Any) ? IPAddress.IPv6Loopback : address;
+            return (Address(address.ToString()), Address(browser.ToString()));
+        }
+        if (Uri.CheckHostName(host) != UriHostNameType.Dns)
+            throw new ArgumentException("Choose a host name or IP address without a URL, port or path.", nameof(host));
+        var url = Address(host);
+        return (url, url);
+    }
 
     internal static void RegisterBrowserLaunch(IHostApplicationLifetime lifetime, bool enabled, string url,
         Action<string> launch, Action<Exception> reportError)
@@ -58,7 +80,7 @@ public static class SensaHost
         var configUpdateGate = new SemaphoreSlim(1, 1);
         var config = AppConfig.Load();
         config.NormalizeForRuntime();
-        var uiUrl = $"http://{config.WebUi.Host}:{config.WebUi.Port}";
+        var (listenUrl, uiUrl) = BuildWebUiUrls(config.WebUi.Host, config.WebUi.Port);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
@@ -68,7 +90,7 @@ public static class SensaHost
         });
         if (typeof(SensaHost).Assembly.GetManifestResourceInfo("Sensa.Web.index.html") is not null)
             builder.Environment.WebRootFileProvider = new EmbeddedFileProvider(typeof(SensaHost).Assembly, "Sensa.Web");
-        builder.WebHost.UseUrls(uiUrl);
+        builder.WebHost.UseUrls(listenUrl);
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());

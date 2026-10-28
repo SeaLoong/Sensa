@@ -267,7 +267,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
         foreach (var connection in connections) connection.CancelPendingVendorCommands();
     }
 
-    public async Task<object> VendorScriptAsync(string outputId, string action, string? url = null, int positionMs = 0)
+    public async Task<object> VendorScriptAsync(string outputId, string action, string? url = null, int positionMs = 0, bool? loop = null)
     {
         var output = _config.FindOutput(outputId) ?? throw new InvalidOperationException("Output does not exist.");
         if (!OutputConfigHelpers.IsVendorOutput(output.Type)) throw new InvalidOperationException("This output does not support vendor scripts.");
@@ -275,7 +275,7 @@ public sealed class OutputCoordinator : IMotionOutput, IAsyncDisposable
             throw new InvalidOperationException("Enable this output and activate input before playing or seeking a device script.");
         var connection = TryGetConnection(outputId) ?? throw new InvalidOperationException("Output connection is unavailable.");
         var result = await connection.VendorScriptAsync(action, url ?? output.Device.ScriptUrl, positionMs,
-            () => output.Enabled && CanRouteSignals());
+            () => output.Enabled && CanRouteSignals(), loop);
         NotifyStateChanged();
         return result;
     }
@@ -475,6 +475,8 @@ internal sealed class OutputConnection : IAsyncDisposable
         supportsStreaming = _vendor.SupportsStreaming,
         commandKind = _vendor.CommandKind,
         supportsScripts = _vendor.SupportsScripts,
+        supportsScriptLoop = _vendor.SupportsScriptLoop,
+        scriptLoop = _vendor.ScriptLoop,
         scriptPrepared = _vendor.ScriptPrepared,
         scriptPlaying = _vendor.ScriptPlaying,
         scriptPositionMs = _vendor.ScriptPositionMs,
@@ -751,7 +753,7 @@ internal sealed class OutputConnection : IAsyncDisposable
 
     private string Label => $"{_output.Name} ({_output.Id})";
 
-    public async Task<object> VendorScriptAsync(string action, string url, int positionMs, Func<bool> canMove)
+    public async Task<object> VendorScriptAsync(string action, string url, int positionMs, Func<bool> canMove, bool? loop = null)
     {
         // The vendor client cancels queued work on Stop; do not hold _operationGate
         // across script network requests or an emergency stop could be blocked by preparation.
@@ -773,11 +775,16 @@ internal sealed class OutputConnection : IAsyncDisposable
                 await client.SeekScriptAsync(positionMs, canMove);
                 if (!canMove()) await client.StopAsync();
                 break;
+            case "loop":
+                if (!loop.HasValue) throw new ArgumentException("Specify a boolean loop setting.");
+                await client.SetScriptLoopAsync(loop.Value);
+                break;
             case "stop": await client.StopScriptAsync(); break;
             default: throw new ArgumentException("Unknown device script action.");
         }
         _notifyChanged?.Invoke();
-        return new { ok = true, scriptPrepared = client.ScriptPrepared, scriptPlaying = client.ScriptPlaying, scriptPositionMs = client.ScriptPositionMs };
+        return new { ok = true, scriptPrepared = client.ScriptPrepared, scriptPlaying = client.ScriptPlaying, scriptPositionMs = client.ScriptPositionMs,
+            supportsScriptLoop = client.SupportsScriptLoop, scriptLoop = client.ScriptLoop };
     }
 
     private void ConfigureVendorClient()

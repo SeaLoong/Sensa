@@ -2,7 +2,7 @@
 
 [简体中文](README.zh-CN.md) | **English**
 
-These optional tools connect Sensa's network TCode input or output to a Unix pseudo-terminal, an existing Windows COM pair, or the LOOB and Erojoy Thrust Sync BLE protocols. Dependencies load only when needed. The tools do not start Sensa, install drivers, change the system Bluetooth name, or select a real device automatically. Save the Sensa configuration, connect the intended outputs and check their limits, then enable input separately.
+These optional tools connect Sensa's network TCode input or output to a Unix pseudo-terminal, an existing Windows COM pair, or the LOOB, Erojoy Thrust Sync and single-vibrator Svakom V1 BLE profiles. Dependencies load only when needed. The tools do not start Sensa, install drivers, change the system Bluetooth name, or select a real device automatically. Save the Sensa configuration, connect the intended outputs and check their limits, then enable input separately.
 
 ## Check and install
 
@@ -34,7 +34,7 @@ Create a raw PTY for local serial applications on Linux/macOS:
 python tools/protocol-bridge/bridge.py pty-input --sensa tcp://127.0.0.1:12401
 ```
 
-The tool prints this session's serial endpoint. Raw mode preserves bytes and line endings without local echo. Optionally use `--link ./sensa-serial` for a convenient symlink. Existing files and links are never replaced; cleanup removes only the link created by this instance. Some browsers' Web Serial pickers **do not enumerate PTYs**. If the port is absent, use Sensa's Buttplug/Intiface input or a previously installed virtual serial device that the browser can enumerate. Creating a PTY does not establish website compatibility.
+The tool prints this session's serial endpoint. The endpoint uses raw mode without local echo; the bridge accepts CR, LF and CRLF command endings and forwards complete lines with LF. Optionally use `--link ./sensa-serial` for a convenient symlink. Existing files and links are never replaced; cleanup removes only the link created by this instance. Some browsers' Web Serial pickers **do not enumerate PTYs**. If the port is absent, use Sensa's Buttplug/Intiface input or a previously installed virtual serial device that the browser can enumerate. Creating a PTY does not establish website compatibility.
 
 On Windows, create a virtual COM pair yourself: the browser opens one end, and this bridge opens the other.
 
@@ -60,22 +60,26 @@ Install Bless input dependencies on Linux/macOS, or native WinRT dependencies on
 ```sh
 python tools/protocol-bridge/bridge.py ble-input --protocol loob --sensa tcp://127.0.0.1:12401
 python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa tcp://127.0.0.1:12401
+python tools/protocol-bridge/bridge.py ble-input --protocol svakom-v1 --sensa tcp://127.0.0.1:12401
 ```
 
 Select the corresponding website connector and grant Bluetooth access. LOOB advertises as `LOOB Sensa`; Thrust Sync is discovered by service UUID. On Linux, `--adapter /org/bluez/hci1` explicitly chooses another adapter. Native Windows GATT uses the system Bluetooth friendly name and cannot assign a separate name to each service. The website's LOOB picker requires a `LOOB` prefix, so that mode refuses to start by default on Windows. Only use `--confirm-windows-loob-name` after configuring the actual advertised name yourself in OS settings; the tool does not change it. Thrust Sync filters by service UUID and has no such prefix requirement.
+
+Svakom V1 advertises as `Emma NEO` on Linux/macOS, matching the upstream single-vibrator profile. On Windows, configure the actual OS Bluetooth name to a supported model name first, then pass `--confirm-windows-svakom-name`. Confirmation does not verify that the OS changed its advertisement. The supported upstream model configuration covers Emma Neo, Phoenix Neo and Ella; this is a narrow single-vibrator command subset, not all Svakom devices or commands. Virtual input exposes writable FFE1 only, without FFE2 notifications or invented sensor/identity responses; clients requiring those additional capabilities need another supported route.
 
 | Protocol | Service / characteristic | Encoding |
 | --- | --- | --- |
 | LOOB | `b75c49d2-04a3-4071-a0b5-35853eb08307` / `ba5c49d2-04a3-4071-a0b5-35853eb08307` | Four bytes: big-endian uint16 position 1–1000 + uint16 milliseconds |
 | Thrust Sync | `0000ffe0-0000-1000-8000-00805f9b34fb` / `0000ffe1-0000-1000-8000-00805f9b34fb` | Three bytes: position 0–180 + big-endian uint16 milliseconds |
+| Svakom V1 | `0000ffe0-0000-1000-8000-00805f9b34fb` / `0000ffe1-0000-1000-8000-00805f9b34fb` | Six bytes: `55 04 03 00`, multiplier `00` for zero or `01` otherwise, vibration speed `00`–`13` (0–19) |
 
-Frames are checked for exact length and range before conversion to `L0xxxI<milliseconds>`. BLE position 1.0 becomes the three-digit TCode maximum 999. Invalid frames, queue overflow or downstream failure stop the session. Windows observes native GATT session closure. These write-only protocols do not provide reliable notification-subscription disconnect events in Bless, so Linux/macOS use the `--idle` watchdog to send `DSTOP` without new commands, by default two seconds after the latest command’s finite I interval. An ordinary webpage cannot serve as a BLE peripheral. Same-adapter browser self-connection, concurrent roles and platform-specific advertising require real hardware verification; another adapter or an external peripheral may be needed.
+Frames are checked for exact length, command prefix and range. LOOB/Thrust Sync become `L0xxxI<milliseconds>`; Svakom V1 becomes untimed **`V0xxx` vibration intensity**, without converting vibration into position. Configure the Sensa TCode input's `V0` feature as `Scalar` / `Vibrate`, directly mapped to `V0`; the default L0-only source does not accept it. BLE value 1.0 becomes the three-digit TCode maximum 999. Invalid frames, queue overflow or downstream failure stop the session. Windows observes native GATT session closure. These write-only protocols do not provide reliable notification-subscription disconnect events in Bless, so the input uses the `--idle` watchdog to send `DSTOP` without complete new commands, by default two seconds after the latest finite I interval. Svakom has no interval and needs fresh vibration writes before that deadline to retain a hold. An ordinary webpage cannot serve as a BLE peripheral. Same-adapter browser self-connection, concurrent roles and platform-specific advertising require real hardware verification; another adapter or an external peripheral may be needed.
 
-BLE input forwarded into Sensa must keep each I duration at or below **60000 ms**, the TCode input limit. Although the raw BLE field can encode 60001–65535 ms, Sensa rejects those commands and closes the TCP session; that part of the raw field's range is not supported through this input path.
+BLE input forwarded into Sensa must keep each I duration at or below **60000 ms**, the TCode input limit. Although the raw BLE field can encode 60001–65535 ms, the bridge rejects those frames before enqueueing them for TCP and stops the input session; that part of the raw field's range is not supported through this input path. Raw BLE output retains its 65535 ms limit.
 
 ## BLE output: Sensa → actual BLE device
 
-Add a **TCode TCP output** in Sensa targeting local port `12411`. Enable L0 only and choose Interval slope. Obtain the actual device's OS identifier, then connect explicitly:
+For LOOB/Thrust Sync, add a **TCode TCP output** in Sensa targeting local port `12411`. Enable L0 only and choose Interval slope. Obtain the actual device's OS identifier, then connect explicitly:
 
 ```sh
 python tools/protocol-bridge/bridge.py ble-output --protocol loob --device DEVICE_ID --listen tcp://127.0.0.1:12411
@@ -83,12 +87,22 @@ python tools/protocol-bridge/bridge.py ble-output --protocol loob --device DEVIC
 
 `thrust-sync` is also available. The tool acts as a Bleak central and writes the real GATT characteristic. It does not automatically scan or choose devices. It accepts one L0 position with an optional I duration. Speed S, ramp suffixes, multiple axes and unknown commands terminate the session rather than being silently discarded. Without I the duration is 100 ms; duration must not exceed 65535 ms. Listening is loopback-only by default. For deliberate LAN exposure, pass `--allow-lan` and restrict network access separately.
 
-Neither public protocol has a **verified emergency-stop opcode**. `DSTOP`, upstream disconnection, timeout or write failure clears pending commands and disconnects BLE. The tool never treats position zero as stop, and never reconnects to replay old commands. A device may still complete its last accepted finite-duration move; disconnecting is not a hardware emergency stop. Applications requiring immediate physical stop need a protocol with verified stop capability.
+For Svakom V1, enable **V0 only**, choose **No Slope** (`SlopeMode: NoSlope`), and leave the V0 command/ramp modes at None. Use an untimed Scalar/Vibrate source or an untimed regular output binding. The profile accepts a single `V0xxx` intensity, without I/S modifiers or any other axis:
+
+```sh
+python tools/protocol-bridge/bridge.py ble-output --protocol svakom-v1 --device DEVICE_ID --listen tcp://127.0.0.1:12411
+```
+
+An explicit command duration can override an output's slope setting in Sensa. Timed manual commands and Center therefore do not fit this profile and are rejected; no arrival time is invented for vibration. A hold requires complete fresh V0 commands before `--idle` (default two seconds). Use regular sending rather than a change-only binding when a steady hold is intended; the bridge does not replay a stale target as a fabricated keepalive.
+
+LOOB and Thrust Sync have **no verified emergency-stop opcode**. `DSTOP`, upstream disconnection, timeout or write failure clears pending commands and disconnects BLE. These profiles never treat position zero as stop. Svakom V1 instead attempts its verified zero-vibration packet `55 04 03 00 00 00` before disconnecting when a vibration write may have reached the device; disconnect still runs if the stop write fails. No profile reconnects to replay old commands. A LOOB/Thrust Sync device may still complete its last accepted finite move, and even a Svakom zero write can fail: this is not a physical emergency-stop guarantee.
 
 ## Lifecycle and verification limits
 
-Interactive input bridges accept `disable`, `enable`, `disconnect`, `unpair` and `quit`. Disable discards the pending generation before sending `DSTOP`; enable accepts new commands only. `unpair` ends this tool session and withdraws advertising; persistent OS pairing keys must be removed separately in system settings. Ctrl+C also cleans up connections. Transport/device failure never automatically reconnects or restores an old target. Transport operations have deadlines and the ingress queue is limited to 64 frames. Partial TCP bytes cannot renew validity without a complete new command.
+Interactive input bridges accept `disable`, `enable`, `disconnect`, `unpair` and `quit`. Disable discards the pending generation before sending `DSTOP`; enable accepts new commands only. `unpair` ends this tool session and withdraws advertising; persistent OS pairing keys must be removed separately in system settings. Ctrl+C also cleans up connections. Transport/device failure never automatically reconnects or restores an old target. TCP/BLE operations have deadlines; serial reads/writes have configured timeouts, and the ingress queue is limited to 64 frames. A failed, cancelled or timed-out BLE connect also disconnects a partially established link. Partial TCP bytes cannot renew validity without a complete new command.
 
-Repository tests use real local PTYs, mock serial/BLE/WinRT and bounded failure injection to cover encoding, ordering, disable, timeouts, cancellation and cleanup. Dependencies were installed and imported in a temporary Linux environment. No real device, complete Sensa process or browser/hardware acceptance was exercised.
+Repository tests use real local PTYs, loopback TCP and mock serial/BLE/WinRT with bounded failure injection. They cover packet encoding, scalar/position separation, CR/LF/CRLF framing, ordering, disable, connect cancellation, zero-before-disconnect and stop-write failure cleanup. Dependencies were installed and imported in a temporary Linux environment. No real device, complete Sensa process or browser/hardware acceptance was exercised.
 
 Dependency licenses: pyserial BSD-3-Clause; Bleak, Bless and PyWinRT MIT. Upstream API references: [Bless](https://github.com/kevincar/bless), [Bleak](https://github.com/hbldh/bleak), [Windows GATT](https://learn.microsoft.com/en-us/windows/apps/develop/devices-sensors/gatt-server), [PyWinRT](https://github.com/pywinrt/pywinrt). The codec evidence is the LOOB / Thrust Sync implementation in [FapTap's public connector bundle](https://faptap.net/assets/index.de793511.js), rather than a vendor guarantee for every device model or firmware.
+
+Svakom V1 evidence is pinned to Buttplug commit `179b0d9306f519912c10bdddd111686622b7f63a`: [canonical packet encoder](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server/src/device/protocol_impl/svakom/svakom_v1.rs) and [model/range/GATT configuration](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server_device_config/device-config/protocols/svakom-v1.yml). The upstream hardware-required repeat strategy is not a mandatory desktop-device timer; this bridge does not infer one from that name. Other Svakom protocol families, sensor reads and cloud identities are outside this profile.

@@ -58,7 +58,7 @@ Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRCh
 
 在“流程”添加输出，连接设置就在该输出内部。[输出配置与示例](docs/signal-pipeline.md#添加输出与绑定)
 
-Sensa 也能作为其他应用的设备输入端：Buttplug v3/v4、TCode TCP／UDP／串口、Central 虚拟设备管理、HTTP／WebSocket JSON 与文档列明的厂商 API 子集。可选工具接入虚拟串口、LOOB／Thrust Sync BLE。[建立“应用 → Sensa → 设备”流程](docs/protocol-inputs.md)；浏览器／操作系统与实体设备效果需独立验收。
+Sensa 也能作为其他应用的设备输入端：Buttplug v2/v3/v4、TCode TCP／UDP／串口、Central 虚拟设备管理、HTTP／WebSocket JSON 与文档列明的厂商 API 子集。可选工具接入虚拟串口、LOOB／Thrust Sync 位置 BLE，以及文档列明的 Svakom V1 单振动子集。[建立“应用 → Sensa → 设备”流程](docs/protocol-inputs.md)；浏览器／操作系统与实体设备效果需独立验收。
 
 ## 录制、播放与复用
 
