@@ -18,11 +18,13 @@ PARAMETER_GEOMETRY_ASSETS = (
     'docs/parameter-geometry.html',
     'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-signal.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
     'docs/assets/parameter-geometry-3d.js',
     'docs/assets/parameter-geometry-3d.LICENSE.txt',
 )
+WEBSENSA_ASSETS = ('index.html', 'app.bundle.js', 'app.bundle.css', 'app.bundle.js.LEGAL.txt')
 PROTOCOL_BRIDGE_ASSETS = tuple('tools/protocol-bridge/' + name for name in (
     'bridge.py', 'windows_peripheral.py',
     'README.md', 'README.zh-CN.md', 'README.en.md',
@@ -170,6 +172,11 @@ def main():
             published = source / 'web' / relative
             if not published.is_file() or published.read_bytes() != (ROOT / relative).read_bytes():
                 raise ValueError('Published interactive document is missing or stale / 发布目录的交互文档缺失或过期: ' + relative)
+        for name in WEBSENSA_ASSETS:
+            published = source / 'web/websensa' / name
+            expected = ROOT / 'src/websensa' / name
+            if not published.is_file() or not expected.is_file() or published.read_bytes() != expected.read_bytes():
+                raise ValueError('Published WebSensa asset is missing or stale / 发布目录的 WebSensa 文件缺失或过期: ' + name)
         for name in ('README.md', 'README.zh-CN.md', 'README.en.md', 'GLOSSARY.md', 'LICENSE'):
             (source / name).write_bytes((ROOT / name).read_bytes())
         # Keep the README's relative documentation links usable in the desktop archive.

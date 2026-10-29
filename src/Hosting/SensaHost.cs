@@ -9,6 +9,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using Buttplug.Core.Messages;
 using Microsoft.AspNetCore.Http.Json;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Win32;
 using Sensa.Application;
@@ -26,14 +27,35 @@ namespace Sensa.Hosting;
 
 public static class SensaHost
 {
-    internal static bool ShouldOpenBrowser(IConfiguration options, bool configuredDefault) =>
-        bool.TryParse(options["open-browser"], out var enabled) ? enabled : configuredDefault;
+    internal static void UseStandaloneDocuments(IApplicationBuilder app)
+    {
+        // EmbeddedFileProvider can resolve a file path but cannot enumerate
+        // nested directories for DefaultFilesMiddleware (single-file builds).
+        app.Use((HttpContext context, RequestDelegate next) =>
+        {
+            if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            {
+                if (context.Request.Path == "/websensa")
+                {
+                    return Results.LocalRedirect($"{context.Request.PathBase}/websensa/{context.Request.QueryString}", permanent: true).ExecuteAsync(context);
+                }
+                if (context.Request.Path == "/websensa/") context.Request.Path = "/websensa/index.html";
+            }
+            return next(context);
+        });
+    }
+
+    internal static bool ShouldOpenBrowser(IConfiguration options) =>
+        !bool.TryParse(options["open-browser"], out var enabled) || enabled;
 
     internal static (string ListenUrl, string BrowserUrl) BuildWebUiUrls(string host, int port)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(host);
         if (port is < 1 or > 65535) throw new ArgumentOutOfRangeException(nameof(port));
         host = host.Trim();
+        // Kestrel's localhost URL creates separate IPv4/IPv6 listeners. A single
+        // loopback binding keeps an automatically assigned port unambiguous.
+        if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase)) host = "127.0.0.1";
         string Address(string value) => new UriBuilder(Uri.UriSchemeHttp, value, port).Uri.GetLeftPart(UriPartial.Authority);
         // A wildcard is a listening instruction, not a browser destination.
         // 通配监听地址与浏览器入口分开；本机访问仍接受原有 Host 检查。
@@ -77,20 +99,34 @@ public static class SensaHost
         if (OperatingSystem.IsWindows()) Console.Title = "Sensa";
         Console.WriteLine("Sensa Web Service starting…");
 
+        var launch = DesktopLaunchOptions.Parse(args, AppConfig.ConfigPath());
+        await using var instance = DesktopInstanceCoordinator.TryAcquire(launch.ConfigPath);
+        if (instance is null)
+        {
+            var launchOptions = new ConfigurationBuilder().AddCommandLine(launch.HostArguments).Build();
+            var contacted = await DesktopInstanceCoordinator.NotifyOwnerAsync(launch.ConfigPath,
+                ShouldOpenBrowser(launchOptions));
+            Console.WriteLine(contacted ? "[Sensa] Using the running instance for this configuration."
+                : "[Sensa] This configuration is already in use; its instance is still starting or stopping.");
+            return;
+        }
+        Environment.SetEnvironmentVariable("SENSA_CONFIG_PATH", launch.ConfigPath);
         var configUpdateGate = new SemaphoreSlim(1, 1);
-        var config = AppConfig.Load();
+        var config = AppConfig.Load(launch.ConfigPath);
         config.NormalizeForRuntime();
         var (listenUrl, uiUrl) = BuildWebUiUrls(config.WebUi.Host, config.WebUi.Port);
 
         var builder = WebApplication.CreateBuilder(new WebApplicationOptions
         {
-            Args = args,
+            Args = launch.HostArguments,
             ContentRootPath = AppContext.BaseDirectory,
             WebRootPath = "web",
         });
         if (typeof(SensaHost).Assembly.GetManifestResourceInfo("Sensa.Web.index.html") is not null)
             builder.Environment.WebRootFileProvider = new EmbeddedFileProvider(typeof(SensaHost).Assembly, "Sensa.Web");
         builder.WebHost.UseUrls(listenUrl);
+        builder.Services.Configure<SocketTransportOptions>(options =>
+            options.CreateBoundListenSocket = endpoint => ListenerPortBinding.BindTcp(endpoint, port => config.WebUi.Port = port));
         builder.Services.Configure<JsonOptions>(options =>
         {
             options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
@@ -102,6 +138,7 @@ public static class SensaHost
 
         builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 4 * 1024 * 1024);
         var app = builder.Build();
+        var pagePresence = new BrowserPagePresence();
         var accessPolicy = new LocalAccessPolicy();
         app.Use((context, next) => accessPolicy.InvokeAsync(context, next));
 
@@ -120,11 +157,22 @@ public static class SensaHost
         }
 
         var parameterStore = new OscParameterStore();
-        var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort);
+        var oscReceiver = new OscInputReceiver(parameterStore, config.Osc.ReceiverHost, config.Osc.ReceiverPort,
+            resolvePortConflicts: true);
+        oscReceiver.PortChanged += port =>
+        {
+            config.Osc.ReceiverPort = port;
+            Log($"[OSC] Receiver port assigned: {port}");
+        };
         using var ogbControl = new OgbControlService(logError: LogError);
         var oscQueryClient = new OscQueryClient();
         var oscQueryPollingService = new OscQueryPollingService(LogDebug, LogError);
-        var oscQueryReceiverService = new OscQueryReceiverService(LogDebug, LogError);
+        var oscQueryReceiverService = new OscQueryReceiverService(LogDebug, LogError, resolvePortConflicts: true);
+        oscQueryReceiverService.HttpPortChanged += port =>
+        {
+            config.Osc.OscQueryReceiver.HttpPort = port;
+            Log($"[OSCQuery] Receiver HTTP port assigned: {port}");
+        };
         var oscPacketPreviewStore = new OscPacketPreviewStore();
         var oscHubForwarder = new OscHubForwarder(LogDebug, LogError);
         var recorder = new MotionRecorder();
@@ -1100,6 +1148,7 @@ public static class SensaHost
             }
         }
 
+        UseStandaloneDocuments(app);
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions
         {
@@ -1109,7 +1158,8 @@ public static class SensaHost
                 if (path.EndsWith(".html", StringComparison.OrdinalIgnoreCase)
                     || path.EndsWith("/app.bundle.js", StringComparison.OrdinalIgnoreCase)
                     || path.EndsWith("/realtime-worker.bundle.js", StringComparison.OrdinalIgnoreCase)
-                    || path.EndsWith("/styles.css", StringComparison.OrdinalIgnoreCase))
+                    || path.EndsWith("/styles.css", StringComparison.OrdinalIgnoreCase)
+                    || path.EndsWith("/app.bundle.css", StringComparison.OrdinalIgnoreCase))
                 {
                     context.Context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate";
                     context.Context.Response.Headers.Pragma = "no-cache";
@@ -1148,6 +1198,17 @@ public static class SensaHost
         var httpCommands = new HttpCommandAdapter(application);
         var webSocketCommands = new WebSocketCommandAdapter(application);
         app.MapPost("/api/control/output/{outputId}/script-{action}", async (HttpRequest request) => await httpCommands.HandleAsync(request));
+        app.MapGet("/api/instance", () => Results.Json(new
+        {
+            processId = Environment.ProcessId,
+            configPath = launch.ConfigPath,
+            webUiUrl = uiUrl,
+            webUiPort = config.WebUi.Port,
+            oscReceiverPort = config.Osc.ReceiverPort,
+            openPages = pagePresence.Count,
+        }));
+        app.MapPost("/api/ui/presence", (BrowserPresenceUpdate update) =>
+            pagePresence.Update(update.Id, update.Open, update.Revision) ? (IResult)Results.NoContent() : Results.BadRequest());
         app.MapGet("/api/output/recordings/{fileName}/download", (string fileName) =>
         {
             try
@@ -1272,21 +1333,35 @@ public static class SensaHost
             try { config.Save(); } catch (Exception ex) { LogError($"[Config] {ex.Message}"); }
         });
 
+        // Bind the actual management socket before device connections and protocol
+        // listeners. A second profile keeps its own allocated address and configuration.
+        await app.StartAsync();
+        (_, uiUrl) = BuildWebUiUrls(config.WebUi.Host, config.WebUi.Port);
+        var browserEnabled = ShouldOpenBrowser(builder.Configuration);
+        void OpenBrowserIfNeeded()
+        {
+            if (!pagePresence.TryBeginLaunch()) return;
+            try { Process.Start(new ProcessStartInfo { FileName = uiUrl, UseShellExecute = true }); }
+            catch (Exception error) { LogError($"[WebUI] Failed to open browser: {error.Message}"); }
+        }
+        instance.Start(requestOpen =>
+        {
+            if (requestOpen && ShouldOpenBrowser(builder.Configuration)) OpenBrowserIfNeeded();
+            return Task.CompletedTask;
+        });
         ConfigureOscHub(replaySnapshot: true);
         SyncOscServices(forceReceiverReconfigure: true, forceQueryRefresh: true);
 
-        try { await protocolInputs.ReloadAsync(config.ProtocolInputs); }
+        try { await protocolInputs.ReloadAsync(config.ProtocolInputs, resolvePortConflicts: true); }
         catch (Exception error) { LogError("[Protocol input] Startup failed: " + error.GetType().Name); }
         await outputCoordinator.ConnectEnabledAsync();
         NotifyStateChanged();
 
         Log($"[WebUI] Available at {uiUrl}");
 
-        RegisterBrowserLaunch(app.Lifetime, ShouldOpenBrowser(builder.Configuration, config.WebUi.AutoOpenBrowser), uiUrl,
-            url => Process.Start(new ProcessStartInfo { FileName = url, UseShellExecute = true }),
-            error => LogError($"[WebUI] Failed to open browser: {error.Message}"));
-
-        await app.RunAsync();
+        config.Save();
+        if (browserEnabled) OpenBrowserIfNeeded();
+        await app.WaitForShutdownAsync();
 
         using var finalInputBlock = motionRuntime.BlockInputActivation();
         motionRuntime.EmergencyStop();

@@ -5,6 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { buildPages } from '../../scripts/build-pages.mjs';
+import { overviewTaskLinks } from './site-overview-contracts.js';
 
 // Standalone 3D gets the same software backend as offline guide tests.
 // 独立站点三维复用离线图解的软件渲染配置，不改变应用fixture。
@@ -234,8 +235,8 @@ async function inspectOverview(page, info, locale) {
   await page.goto(new URL(locale + '/README.html', base).href);
   const article = page.locator('article');
   await inspectWorkflowBadges(article);
-  await expect(article.getByRole('link', { name: locale === 'en' ? 'Set up a flow' : '建立信号流程', exact: true }))
-    .toHaveAttribute('href', 'docs/signal-pipeline.html');
+  for (const { name, href } of overviewTaskLinks(locale))
+    await expect(article.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
   await expect(article).toContainText('DG-LAB');
   await expect(article).toContainText('MQTT');
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);

@@ -215,8 +215,9 @@ class WindowsPackageContracts(unittest.TestCase):
                 resources[source] = item.get('LogicalName').replace('%(Filename)%(Extension)', name)
         self.assertEqual(set(resources), {
             'web/index.html', 'web/styles.css', 'web/app.bundle.js', 'web/app.bundle.js.LEGAL.txt', 'web/realtime-worker.bundle.js',
+            'websensa/index.html', 'websensa/app.bundle.js', 'websensa/app.bundle.css', 'websensa/app.bundle.js.LEGAL.txt',
             '../docs/parameter-geometry.html', '../docs/assets/osc-parameter-reference.js', '../docs/assets/parameter-geometry-model.js',
-            '../docs/assets/parameter-geometry-view.js', '../docs/assets/parameter-geometry-style.css',
+            '../docs/assets/parameter-geometry-view.js', '../docs/assets/parameter-geometry-signal.js', '../docs/assets/parameter-geometry-style.css',
             '../docs/assets/parameter-geometry-3d.js', '../docs/assets/parameter-geometry-3d.LICENSE.txt'})
         self.assertEqual(resources['../docs/assets/parameter-geometry-model.js'], 'Sensa.Web.docs.assets.parameter-geometry-model.js')
         self.assertNotIn('IncludeAllContentForSelfExtract', (ROOT / 'src/Sensa.csproj').read_text(encoding='utf-8-sig'))

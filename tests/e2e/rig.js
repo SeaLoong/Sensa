@@ -12,7 +12,7 @@ export function createRigConfiguration(scenario, serialPort) {
   if (!serialPort?.startsWith('/dev/pts/')) throw new Error('CI pseudo terminal required / 必须使用 CI 伪终端');
   if (!['basic', 'sps', 'query', 'vibration-only', 'rotation-only'].includes(scenario)) throw new Error('Unknown CI scenario / 未知 CI 场景');
   return {
-    webUi: { host: '127.0.0.1', port: ports.web, autoOpenBrowser: false },
+    webUi: { host: '127.0.0.1', port: ports.web },
     outputs: [
       { id: 'udp', name: 'Mock UDP', type: 'TCodeUdp', host: '127.0.0.1', port: ports.udp },
       { id: 'tcp', name: 'Mock TCP', type: 'TCodeTcp', host: '127.0.0.1', port: ports.tcp },
@@ -55,7 +55,7 @@ export async function startTestRig(peers, scenario, expect) {
   try {
     peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : scenario === 'rotation-only' ? 'rotation-only' : 'combined' });
     await writeFile(configPath, JSON.stringify(createRigConfiguration(scenario, peers.serialPort)));
-    app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll')], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') }, stdio: ['ignore', 'pipe', 'pipe'] });
+    app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll'), '--open-browser', 'false'], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') }, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawnError;
     app.on('error', error => { spawnError = error; });
     app.stdout.on('data', bytes => logs.push(bytes.toString()));

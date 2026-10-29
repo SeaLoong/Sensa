@@ -1,0 +1,136 @@
+import { test, expect } from './fixtures.js';
+
+async function installMockBluetooth(page, { sameDevice = false } = {}) {
+  await page.addInitScript(({ sameDevice }) => {
+    const state = { events: [], devices: [], sameDevice, hardwareExecution: false };
+    globalThis.__websensaGatt = state;
+    const makeDevice = profile => {
+      const listeners = new Map();
+      const id = profile + '-' + (state.sameDevice ? 'shared' : state.devices.length);
+      const service = profile === 'lovense-single' ? '53300001-0023-4bd4-bbd5-a6920e4c5653' : '0000fff0-0000-1000-8000-00805f9b34fb';
+      const characteristic = profile === 'lovense-single' ? '53300002-0023-4bd4-bbd5-a6920e4c5653' : '0000fff6-0000-1000-8000-00805f9b34fb';
+      const device = {
+        id, name: profile === 'lovense-single' ? 'LVS-S CI' : 'VX001_CI',
+        addEventListener: (name, listener) => listeners.set(name, listener),
+        removeEventListener: name => listeners.delete(name),
+        gatt: {
+          connected: false,
+          async connect() {
+            this.connected = true; state.events.push({ type: 'connect', id, profile });
+            return { async getPrimaryServices() { return [{ uuid: service,
+              async getCharacteristic(requested) {
+                if (requested !== characteristic) throw new Error('Unexpected GATT characteristic');
+                return { properties: { writeWithoutResponse: true, write: false },
+                  async writeValueWithoutResponse(bytes) {
+                    if (!device.gatt.connected) throw new Error('Mock GATT disconnected');
+                    state.events.push({ type: 'write', id, profile, characteristic,
+                      bytes: [...new Uint8Array(bytes.buffer, bytes.byteOffset, bytes.byteLength)] });
+                  },
+                };
+              },
+            }]; } };
+          },
+          disconnect() {
+            this.connected = false; state.events.push({ type: 'disconnect', id, profile });
+            listeners.get('gattserverdisconnected')?.();
+          },
+        },
+      };
+      state.devices.push(device);
+      return device;
+    };
+    Object.defineProperty(navigator, 'bluetooth', { configurable: true, value: {
+      async requestDevice(options) {
+        const profile = options.filters.some(item => item.namePrefix === 'LVS-') ? 'lovense-single' : 'youou-vx001';
+        state.events.push({ type: 'choose', profile });
+        const prior = state.sameDevice && state.devices.find(item => item.id.startsWith(profile));
+        return prior || makeDevice(profile);
+      },
+    } });
+  }, { sameDevice });
+}
+async function addBluetoothOutput(page, profile, name) {
+  await page.locator('#tab-outputs').click();
+  await page.getByLabel('Output type', { exact: true }).selectOption('bluetooth');
+  await page.getByLabel('Device protocol', { exact: true }).selectOption(profile);
+  await page.getByLabel('Name (optional)', { exact: true }).fill(name);
+  await page.getByRole('button', { name: 'Connect output', exact: true }).click();
+}
+const packets = (page, profile) => page.evaluate(profile => globalThis.__websensaGatt.events
+  .filter(item => item.type === 'write' && item.profile === profile).map(item => item.bytes), profile);
+
+function checkYouou(packets) {
+  expect(packets.length).toBeGreaterThan(0);
+  for (let index = 0; index < packets.length; index++) {
+    const packet = packets[index];
+    expect(packet).toHaveLength(17);
+    expect(packet.slice(0, 6)).toEqual([0xaa, 0x55, index & 255, 2, 3, 1]);
+    expect(packet[8]).toBe(packet.slice(0, 8).reduce((a, b) => a ^ b, 0));
+    expect(packet.slice(9)).toEqual([0xff, 0, 0, 0, 0, 0, 0, 0]);
+    expect([0, 247]).toContain(packet[6]);
+    expect(packet[7]).toBe(packet[6] > 0 ? 1 : 0);
+  }
+}
+
+test('WebSensa drives two BLE device families with independent wire sequences and final zero / 网页工作台双蓝牙设备强度与独立停止',
+  { tag: ['@input', '@transport', '@config'] }, async ({ page, rig }, info) => {
+    await installMockBluetooth(page);
+    await page.goto(rig.baseUrl + '/websensa/?lang=en');
+    await addBluetoothOutput(page, 'lovense-single', 'Lovense CI');
+    await expect(page.getByText('Lovense CI', { exact: true })).toBeVisible();
+    await addBluetoothOutput(page, 'youou-vx001', 'Youou CI');
+    await expect(page.locator('.websensa-row')).toHaveCount(2);
+    expect(await packets(page, 'lovense-single')).toEqual([]);
+    expect(await packets(page, 'youou-vx001')).toEqual([]);
+    await page.locator('#tab-control').click();
+    const vibrationAxis = page.getByRole('checkbox', { name: 'V0', exact: true });
+    await vibrationAxis.click(); await expect(vibrationAxis).toBeChecked();
+    const strokeAxis = page.getByRole('checkbox', { name: 'L0', exact: true });
+    await strokeAxis.click(); await expect(strokeAxis).not.toBeChecked();
+    await page.locator('#axis-V0').press('End');
+    await expect(page.locator('#axis-V0')).toHaveValue('100');
+    const activation = page.getByRole('checkbox', { name: 'Input enabled', exact: true });
+    await activation.click();
+    await expect(activation).toBeChecked();
+    await expect.poll(async () => (await packets(page, 'lovense-single')).some(packet =>
+      new TextDecoder().decode(Uint8Array.from(packet)) === 'Vibrate:20;')).toBe(true);
+    await expect.poll(async () => (await packets(page, 'youou-vx001')).some(packet => packet[6] === 247)).toBe(true);
+    await activation.click();
+    await expect(activation).not.toBeChecked();
+    await expect.poll(async () => new TextDecoder().decode(Uint8Array.from((await packets(page, 'lovense-single')).at(-1) || []))).toBe('Vibrate:0;');
+    await expect.poll(async () => (await packets(page, 'youou-vx001')).at(-1)?.[6]).toBe(0);
+    const first = await packets(page, 'lovense-single');
+    const second = await packets(page, 'youou-vx001');
+    expect(first.every(packet => ['Vibrate:20;', 'Vibrate:0;'].includes(new TextDecoder().decode(Uint8Array.from(packet))))).toBe(true);
+    checkYouou(second);
+    await page.locator('#tab-outputs').click();
+    for (const name of ['Lovense CI', 'Youou CI']) {
+      await page.locator('.websensa-row').filter({ has: page.getByText(name, { exact: true }) })
+        .getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
+    }
+    await expect(page.locator('.websensa-row')).toHaveCount(0);
+    const events = await page.evaluate(() => globalThis.__websensaGatt.events);
+    expect(events.filter(event => event.type === 'connect')).toHaveLength(2);
+    expect(events.filter(event => event.type === 'disconnect')).toHaveLength(2);
+    await info.attach('websensa-bluetooth-two-devices.json', {
+      body: JSON.stringify({ hardwareExecution: false, mockGatt: true, events }), contentType: 'application/json',
+    });
+  });
+
+test('WebSensa prevents competing outputs for one selected Bluetooth device / 同一蓝牙设备不重复创建竞争输出',
+  { tag: ['@transport', '@config'] }, async ({ page, rig }) => {
+    await installMockBluetooth(page, { sameDevice: true });
+    await page.goto(rig.baseUrl + '/websensa/?lang=en');
+    await addBluetoothOutput(page, 'youou-vx001', 'First device');
+    await expect(page.locator('.websensa-row')).toHaveCount(1);
+    await addBluetoothOutput(page, 'youou-vx001', 'Duplicate device');
+    await expect(page.getByRole('alert')).toContainText('already connected');
+    await expect(page.locator('.websensa-row')).toHaveCount(1);
+    expect((await page.evaluate(() => globalThis.__websensaGatt.events)).filter(event => event.type === 'connect')).toHaveLength(1);
+    await page.getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
+    await expect(page.locator('.websensa-row')).toHaveCount(0);
+    await addBluetoothOutput(page, 'youou-vx001', 'Replacement device');
+    await expect(page.locator('.websensa-row')).toHaveCount(1);
+    expect((await page.evaluate(() => globalThis.__websensaGatt.events)).filter(event => event.type === 'connect')).toHaveLength(2);
+    await page.getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
+  });

@@ -2,7 +2,7 @@
 
 **简体中文** | [English](lab-interaction.en.md)
 
-本页介绍内部 Avatar／World Lab 的道具操作。日常接入看[使用方案](usage-scenarios.md)。生成场景分别为 `Assets/SensaAvatarLab/Generated/FullFlow.unity` 和 `Assets/SensaLab/Functional/FunctionalLab.unity`；改动后通过 SDK 重新构建并手动私有上传。
+操作内部 Avatar／World Lab 道具时，可按本页完成抓取、启用、测量选择和场景控制。生成场景为 `Assets/SensaAvatarLab/Generated/FullFlow.unity` 与 `Assets/SensaLab/Functional/FunctionalLab.unity`。普通 Avatar 接入从[方案选择](usage-scenarios.md)开始。
 
 ## Avatar 菜单
 

@@ -2,7 +2,7 @@
 
 [简体中文](shader-capture-research.md) | **English**
 
-Shader capture draws measurements from a selected point on the Avatar into a QR tile. A desktop reader decodes the screen region you select (ROI), recovers position, X/Z-axis vectors and Avatar world scale, then sends them to Sensa over OSC. Explicit targets within the Avatar include SPS Sockets/Plugs, bone/empty-object Transforms, Sensa Components and native Contacts. Desktop visibility, headset output and end-to-end latency are checked in the actual client.
+Shader capture draws a selected Avatar root measurement into a QR tile. The desktop bridge reads the chosen screen region and sends position, Right/Forward axes and AvatarScale to Sensa over OSC. This reference explains the target setup, tile format, decoding and following-plane use.
 
 Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-24. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page explains the implementation choices, data format and client validation method.
 

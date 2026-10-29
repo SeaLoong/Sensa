@@ -2,7 +2,7 @@
 
 [简体中文](development.md) | **English**
 
-CI runs unit tests and a full browser E2E comparison before building, packaging and publishing. Automatic pre-releases and manually started stable releases have the same check requirements. Any failed required step stops publication.
+Develop against one source commit, run the affected unit checks, then let CI verify the full browser workflows and native packages. Successful main builds publish a preview; the Release workflow applies the same gates to stable publication. Pages verifies its static artifact before deploying it.
 
 ## What happens when I commit code?
 
@@ -167,6 +167,37 @@ python -X utf8 scripts/verify.py
 
 Browser E2E, screenshots and full-process smoke run in Actions. Isolated units and static checks may run locally. Device-related checks use temporary configuration and mock transports. Real hardware, Unity/VRChat and actual World interactions receive separate acceptance checks.
 
+### TypeScript and runtime compatibility
+
+Use **Node 24.19.0 or later** for repository development and the pinned **TypeScript 7.0.2** compiler. The shared core and WebSensa use `.ts`/`.tsx`; `src/core/index.ts` is the public engine entry. The current desktop service remains .NET while local-service capabilities migrate behind the core interfaces.
+
+Typed sources use **Oxlint 1.90.0** and the TypeScript compiler; legacy JavaScript retains ESLint. The checked typescript-eslint 8.72.1 peer range excludes TypeScript 7, so this setup keeps the stable compiler instead of forcing incompatible peer dependencies. Only `jsx-a11y/prefer-tag-over-role` is disabled for `src/websensa/WebSensa.tsx`: its suggestions would replace legitimate inline SVG `role="img"`, status live regions and control groups with semantically different elements. Other configured lint checks remain active, and browser axe/interaction checks exercise the rendered pages.
+
+`npm run typecheck` checks browser sources and E2E type contracts separately, without emitting files. `tsconfig.json` retains browser globals; `tsconfig.e2e-types.json` uses the real Node and Playwright declarations to check test helper APIs such as screenshot options. Strict checking includes `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, unknown catch values, isolated modules and erasable-only syntax. Network payloads and native events enter typed boundaries through `unknown` and runtime validation. Existing desktop-UI JavaScript remains in the legacy lint lane; new shared-core/browser-adapter work belongs in the strict TypeScript lane.
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build:web
+```
+
+The core's erasable TypeScript can be imported by Node 24; esbuild bundles React TSX and browser adapters. Browser syntax targets remain **Chrome 110, Firefox 115 and Safari 16**; TypeScript uses an ES2023 standard-library baseline, with newer runtime APIs introduced through tested compatibility adapters. Device support uses callable API detection, not browser-version or user-agent guesses: Web Serial, Bluetooth and MIDI also require a secure context and the user's selected-device permission. Their absence keeps those choices unavailable; a usable WebSocket/HTTP endpoint or the desktop bridge provides another route.
+
+`src/websensa/capabilities.ts` reports actual available APIs and registered host factories. Detection does not open a connection or prompt for permission. A future Electron bridge registers a real adapter before advertising it. Node's real WebSocket/fetch can be used without pretending that browser device APIs exist. The explorer retains SVG when 3D rendering is unavailable; desktop tabs retain their SharedWorker → Web Locks/BroadcastChannel → per-tab connection fallback.
+
+CI exercises the same built WebSensa files in the ordinary Chromium suite and a separate Firefox/WebKit compatibility job, with desktop and narrow viewports. The compatibility job checks real mock-endpoint delivery, capability fallback, keyboard use, axe and reflow, and gates publication. Execution results are recorded with their source commit.
+
+Choose maintained stable dependencies, pin the selected versions and preserve the lockfile. Check the current upstream release and platform requirements when upgrading. Syntax targets, API availability and protocol behavior each have their own tests. [Adapter catalog and community package roadmap](adapter-catalog.en.md)
+
+### WebSensa and desktop instances
+
+`npm run build:web` builds the desktop UI, WebSensa and the bundled parameter-explorer resources. `scripts/build-websensa.mjs` builds the standalone React entry point and its CSS/license notices once for use by Pages and desktop publication. The static route is `websensa/`; desktop HTTP serves `/websensa/`, and portable files live under `web/websensa/`.
+
+WebSensa units inject clocks, WebSocket peers and browser device APIs. Actions opens the built page for complete control/script, shared-connection and mock-GATT flows. The explorer's handoff is an explicit browser connection and uses the same normalized axis values.
+
+Instance tests verify configuration ownership, stale-owner recovery, browser page presence and actual bind-based port fallback. Actions starts separate processes for repeated-launch and named-instance workflows. For manual development, `--config`, `--instance` and `--new-instance` select the desired setup; `--open-browser false` keeps the run headless. [User launch options](quick-start.en.md#run-several-instances)
+
 ### Optional serial and BLE bridges
 
 Portable archives and Windows installers include Python sources, bilingual instructions and dependency pins from `tools/protocol-bridge` through an explicit `scripts/release.py` allowlist. The installer reuses those files, with Actions checking their installed contents. Dependabot also maintains this directory's optional dependencies weekly, grouping BLE backends and native WinRT projections separately while preserving platform markers and security update checks. It does not install Python, virtual serial drivers or Python dependencies. The standalone EXE does not embed an interpreter. Obtain the tools from the portable archive or installer and install the requirements you need in your own Python virtual environment.
@@ -178,7 +209,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE input uses Bless from `requirements-ble-input.txt` on Linux/macOS and a compatible native PyWinRT set from `requirements-ble-input-windows.txt` on Windows, avoiding Bless's Windows dependency conflict. Peripheral/advertising support, OS permissions and same-adapter concurrent roles need hardware checks; Windows LOOB/Svakom V1 also require a matching actual system advertising name. Browsers may not enumerate PTYs. Windows uses an existing COM pair with a trusted signed driver. `--check` opens no hardware; isolated local PTY and mock serial/BLE/WinRT tests do not establish website or device acceptance. LOOB/Thrust Sync have no verified hardware emergency-stop opcode: stopping clears the session and disconnects, rather than moving to position zero. The Svakom V1 single-vibration subset sends its upstream-verified zero-vibration command before disconnecting; a completed write does not establish physical stopping, and other Svakom models/protocols are not automatically compatible. [Installation and complete operation](../tools/protocol-bridge/README.md)
+Linux/macOS BLE input uses Bless; Windows input uses native PyWinRT. Outputs use Bleak. The tool guide lists platform permissions, advertised-name setup and profiles for LOOB, Thrust Sync, Svakom V1, Lovense single-vibration and Youou VX001. Isolated PTY/mock-GATT/WinRT checks verify software behavior; hardware runs belong to the selected OS/adapter. [Installation and operation](../tools/protocol-bridge/README.md)
 
 After changing Three.js source or dependencies, run `npm run build:web` and commit reproducible `docs/assets/parameter-geometry-3d.js` plus its complete `3d.LICENSE.txt`. After ordinary Markdown edits, build the site directly with `npm run build:pages`; artifacts are written to `artifacts/pages/`.
 

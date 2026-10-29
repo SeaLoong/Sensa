@@ -2,7 +2,7 @@
 
 [简体中文](lab-interaction.md) | **English**
 
-This page explains prop interaction in internal Avatar/World Labs. See [routes](usage-scenarios.en.md) for everyday integration. Generated scenes are `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`. After changes, rebuild and manually upload privately through the SDK.
+Use this guide when operating the internal Avatar/World Lab props. It describes grabbing, activation, measurement selection and the generated scene controls. The scenes are `Assets/SensaAvatarLab/Generated/FullFlow.unity` and `Assets/SensaLab/Functional/FunctionalLab.unity`. For a regular Avatar setup, start with [setup choices](usage-scenarios.en.md).
 
 ## Avatar menus
 

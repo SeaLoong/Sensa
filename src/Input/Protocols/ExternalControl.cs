@@ -22,6 +22,7 @@ public sealed class ProtocolInputConfig
     public bool Enabled { get; set; }
     public string Host { get; set; } = "127.0.0.1";
     public int Port { get; set; } = 12400;
+    public string Path { get; set; } = "/";
     public string Address { get; set; } = "ws://127.0.0.1:54817";
     public string Identifier { get; set; } = "";
     public string ComPort { get; set; } = "";
@@ -50,10 +51,28 @@ public interface IExternalControlSink
 
 public static partial class ProtocolInputConfiguration
 {
-    public static readonly string[] Types = ["Buttplug", "TCodeTcp", "TCodeUdp", "TCodeSerial", "IntifaceDevice",
+    public static readonly string[] Types = ["Buttplug", "TCodeTcp", "TCodeUdp", "TCodeSerial", "TCodeWebSocket", "IntifaceDevice",
         "JsonHttp", "JsonWebSocket", "LovenseHttp", "HandyHttp", "AutoblowHttp", "VacuGlideHttp"];
     [GeneratedRegex("^[a-zA-Z0-9_-]{1,64}$", RegexOptions.CultureInvariant)]
     private static partial Regex IdentifierPattern();
+
+    public static bool IsWebType(string type) => Types.Contains(type) && type is not ("TCodeTcp" or "TCodeUdp" or "TCodeSerial" or "IntifaceDevice");
+
+    public static string NormalizePath(string? path)
+    {
+        path = string.IsNullOrWhiteSpace(path) ? "/" : path.Trim().TrimEnd('/');
+        if (path.Length == 0) path = "/";
+        if (path.Length > 256 || !Regex.IsMatch(path, @"^/(?:[A-Za-z0-9_-]+(?:/[A-Za-z0-9_-]+)*)?$", RegexOptions.CultureInvariant))
+            throw new ArgumentException("Protocol input path must use slash-separated letters, digits, dashes or underscores.");
+        return path;
+    }
+
+    private static bool BindingsOverlap(string first, string second)
+    {
+        var a = IPAddress.Parse(first); var b = IPAddress.Parse(second);
+        return a.Equals(b) || a.Equals(IPAddress.IPv6Any) || b.Equals(IPAddress.IPv6Any)
+            || a.AddressFamily == b.AddressFamily && (a.Equals(IPAddress.Any) || b.Equals(IPAddress.Any));
+    }
 
     public static List<ProtocolInputConfig> CloneAndValidate(IEnumerable<ProtocolInputConfig>? inputs)
     {
@@ -84,7 +103,7 @@ public static partial class ProtocolInputConfiguration
                 if (feature.ScalarType is not ("Vibrate" or "Oscillate" or "Constrict" or "Led" or "Temperature" or "Spray"))
                     throw new ArgumentException("Unsupported scalar actuator type.");
                 var target = feature.TargetAxis ?? "";
-                if (target.Length > 0 && (!Enum.TryParse<MotionAxis>(target, out var axis) || !Enum.IsDefined(axis)))
+                if (target.Length > 0 && (!Enum.TryParse<MotionAxis>(target, out var axis) || !Enum.IsDefined(axis) || Enum.GetName(axis) != target))
                     throw new ArgumentException("Invalid target axis.");
                 // Rotation is speed/direction, whereas R axes are absolute positions.
                 if (feature.Actuator == "Rotation" && target.Length > 0) throw new ArgumentException("Rotation speed needs a computed binding; leave its direct target axis empty.");
@@ -92,7 +111,7 @@ public static partial class ProtocolInputConfiguration
                     throw new ArgumentException("Scalar intensity maps directly only to vibration axes; use a computed binding for other conversions.");
                 if (source.Enabled && source.RouteToMotion && target.Length > 0 && !axes.Add(target))
                     throw new ArgumentException("Enabled protocol inputs cannot directly control the same axis. Use explicit computed bindings instead.");
-                if (source.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial" or "IntifaceDevice"
+                if (source.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial" or "TCodeWebSocket" or "IntifaceDevice"
                     && (channel.Length != 2 || !"LRVA".Contains(channel[0]) || channel[1] is < '0' or > '9' || feature.Actuator == "Rotation"))
                     throw new ArgumentException("TCode channels require LRVA axes and position/scalar capabilities.");
                 features.Add(new() { Channel = channel, Name = (feature.Name ?? channel).Trim(), Actuator = feature.Actuator, ScalarType = feature.ScalarType, TargetAxis = target });
@@ -100,16 +119,22 @@ public static partial class ProtocolInputConfiguration
             if (features.Count == 0) throw new ArgumentException("A protocol input needs at least one feature.");
             result.Add(new()
             {
-                Id = id, Name = (source.Name ?? id).Trim(), Type = source.Type, Enabled = source.Enabled, Host = bind.ToString(), Port = source.Port,
+                Id = id, Name = (source.Name ?? id).Trim(), Type = source.Type, Enabled = source.Enabled, Host = bind.ToString(), Port = source.Port, Path = NormalizePath(source.Path),
                 Address = source.Address?.Trim() ?? "", Identifier = source.Identifier?.Trim() ?? "", ComPort = source.ComPort?.Trim() ?? "",
                 BaudRate = source.BaudRate, TimeoutMs = source.TimeoutMs, RouteToMotion = source.RouteToMotion, MaxSpeedPerSecond = source.MaxSpeedPerSecond, MaxScriptDurationMs = source.MaxScriptDurationMs, Features = features,
             });
         }
-        var listeners = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var input in result.Where(input => input.Enabled && input.Type != "IntifaceDevice" && input.Type != "TCodeSerial"))
+        var listeners = result.Where(input => input.Enabled && input.Type is not ("IntifaceDevice" or "TCodeSerial")).ToArray();
+        for (var i = 0; i < listeners.Length; i++)
+        for (var j = i + 1; j < listeners.Length; j++)
         {
-            var key = (input.Type == "TCodeUdp" ? "udp:" : "tcp:") + input.Host + ":" + input.Port;
-            if (!listeners.Add(key)) throw new ArgumentException("Protocol inputs must use distinct listening endpoints.");
+            var first = listeners[i]; var second = listeners[j];
+            if (first.Port != second.Port || (first.Type == "TCodeUdp") != (second.Type == "TCodeUdp")
+                || !BindingsOverlap(first.Host, second.Host)) continue;
+            if (!IsWebType(first.Type) || !IsWebType(second.Type) || first.Host != second.Host)
+                throw new ArgumentException("Overlapping protocol listeners must use different ports, except web protocols sharing the same bind address.");
+            if (first.Path == second.Path)
+                throw new ArgumentException("Web protocol inputs sharing a port need distinct paths.");
         }
         return result;
     }
@@ -150,7 +175,7 @@ public sealed class ExternalControlStore : IExternalControlSink, IDisposable
         var activeUntil = source.LastSeen;
         // TCode has no negotiated Ping; Handy HDSP also accepts finite moves.
         // Retain the lease through arrival, then apply the normal idle grace.
-        if (source.Config.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial" or "HandyHttp")
+        if (source.Config.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial" or "TCodeWebSocket" or "HandyHttp")
             foreach (var trajectory in source.Channels.Values)
                 activeUntil = Math.Max(activeUntil, trajectory.At + trajectory.Command.DurationMs);
         return activeUntil + source.Config.TimeoutMs;

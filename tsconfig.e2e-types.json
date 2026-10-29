@@ -1,0 +1,8 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "lib": ["ES2023", "DOM", "DOM.Iterable", "ESNext.Disposable"],
+    "types": ["node"]
+  },
+  "include": ["tests/e2e/parameter-detail-screenshot.ts", "tests/e2e-types/**/*.ts"]
+}

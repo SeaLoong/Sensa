@@ -1,83 +1,79 @@
 # Sensa
 
-**简体中文** · [English](README.md) · [文档站](https://sealoong.github.io/Sensa/) · [下载](https://github.com/SeaLoong/Sensa/releases/latest) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
+**简体中文** · [English](README.md) · [打开 WebSensa](https://sealoong.github.io/Sensa/websensa/) · [下载](https://github.com/SeaLoong/Sensa/releases/latest) · [文档站](https://sealoong.github.io/Sensa/) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
 [![Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml)
 [![Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)
 
-**把实时数据、脚本和手动控制连接到设备与应用。**
+**把手动控制、脚本和实时信号放进同一个工作台。**
 
-Sensa 在你的电脑上运行，用浏览器完成配置。你可以读取 VRChat 等应用的 OSC 参数，混合多个信号、加入平滑或触发条件，再控制设备、回写应用参数，或录成可重复播放的 funscript。
+移动滑条、播放 funscript，或读取实时参数。按需要调整结果，再同时送给多个设备和应用。每个连接、量程和目标都能在工作台里查看与配置。
+
+## 选择运行方式
+
+| | WebSensa | Sensa 桌面版 |
+| --- | --- | --- |
+| 启动 | [在浏览器打开](https://sealoong.github.io/Sensa/websensa/) | [下载并运行](https://github.com/SeaLoong/Sensa/releases/latest) |
+| 数值来源 | 手动控制、funscript 与参数图解输入 | 手动、脚本、OSC、定位、设备协议、反馈与录制回放 |
+| 连接方式 | 浏览器可用的 WebSocket、HTTP、串口、蓝牙和 MIDI | 串口、UDP／TCP、Intiface、设备 API、OSC、DG-LAB、MIDI、HTTP／WebSocket 与 MQTT |
+| 适合用途 | 快速控制、播放脚本、随开随用 | 应用转发、多种输入融合、录制、VRChat 与 Unity |
+
+两个版本沿用相同的控制布局与来源到输出流程。[WebSensa 指南](docs/websensa.md) · [桌面版首次使用](docs/quick-start.md)
 
 ![Sensa 组合输入运行界面](docs/screenshots/desktop/combined-input-zh-CN.png)
 
 [窄屏界面](docs/screenshots/mobile/combined-input-zh-CN.png) · [更多运行画面](docs/screenshots.md)
 
-## 输入 → 计算转换 → 输出
-
-| 步骤 | 你来选择 | 例子 |
-| --- | --- | --- |
-| **输入** | 从哪里取得数值 | OSC 参数、定位测量、手动滑条、脚本、外部协议控制、设备反馈、录制回放 |
-| **计算转换** | 怎样处理数值 | 加权平均、两点距离、平面深度、方向夹角、平滑与触发 |
-| **输出** | 把结果送到哪里 | 动作设备、OSC 参数、DG-LAB、其他应用或录制文件 |
-
-简单流程可以直接把输入连到输出；需要融合或处理时，再添加计算。同一个结果可以连接多个输出，每个输出分别设置范围和发送方式。[建立信号流程](docs/signal-pipeline.md)
-
-## 你想做什么？
+## 建立你需要的流程
 
 | 目标 | 从这里开始 |
 | --- | --- |
-| 调节一个数值，检查设备或应用的反应 | [首次使用](docs/quick-start.md) |
-| 将网站／播放器的设备控制转到 OSR 或其他输出 | [协议输入、虚拟设备与蓝牙／串口桥](docs/protocol-inputs.md) |
-| 融合触碰读数、加入平滑或触发条件 | [计算信号与示例](docs/computed-signals.md) |
-| 一边控制设备，一边回写 Avatar 效果参数 | [一个结果连接多个输出](docs/signal-pipeline.md#同一个结果连接多个输出) |
-| 录下交互轨迹，之后播放或继续编辑 | [录制与回放](docs/signal-pipeline.md#录制与观察) |
-| 接入 VRChat 的 OGB／SPS 参数或根点定位 | [按目标选择方案](docs/usage-scenarios.md) |
+| 立即控制设备或播放脚本 | [WebSensa](docs/websensa.md) |
+| 将网站／播放器的控制转发到 OSR 等设备 | [协议输入与设备桥](docs/protocol-inputs.md) |
+| 混合数值、平滑响应或添加触发条件 | [计算信号](docs/computed-signals.md) |
+| 一个结果同时连接多个设备或应用 | [多条输出绑定](docs/signal-pipeline.md#同一个结果连接多个输出) |
+| 录下交互，之后再次播放 | [录制与回放](docs/signal-pipeline.md#录制与观察) |
+| 使用 VRChat 参数或 Avatar 位置 | [按目标选择方案](docs/usage-scenarios.md) |
 
-## 下载并启动
+流程可以直接把来源连到输出。需要融合、曲线、平滑、几何计算或定时效果时，再添加计算。同一结果可以连接多个输出，各自使用合适的量程与更新节奏。
 
-1. 打开[下载](https://github.com/SeaLoong/Sensa/releases/latest)查看最新正式版；开发预览与旧版本单独列在[发布历史](https://github.com/SeaLoong/Sensa/releases)。**Windows** 推荐在发布附件中选择 x64 或 ARM64 安装器，安装后从开始菜单打开；**Linux／macOS** 选择对应 `.tar.gz`，完整解压后运行 `./Sensa`。
-2. 在浏览器打开 **http://127.0.0.1:5086**。各版本均自带所需 .NET 运行时；Windows 还提供直接运行的 `SingleFile.exe` 和便携 `.zip`。[选择下载格式](docs/quick-start.md#1-启动)
-3. 按[首次使用](docs/quick-start.md)添加一个输出、保存设置，再启用输入。可以先把手动滑条录成 funscript，熟悉整个流程。
+## 启动桌面工作台
 
-连接动作设备时，先用小幅手动目标检查方向、行程和停止。顶栏提供输入开关与急停；保存配置或切换输入后，准备好再启用输入。
+1. [下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版。Windows 提供安装器、单文件 EXE 和便携 ZIP；Linux／macOS 提供便携压缩包。按电脑选择 x64 或 ARM64。[全部格式](docs/quick-start.md#1-启动)
+2. 运行 Sensa，工作台会在浏览器打开，控制台显示本次实际地址。
+3. 添加输出、选择来源、保存并连接。启用输入后，即可移动滑条或播放脚本。
 
-## 可以连接哪些输出？
+多个浏览器标签页共用桌面连接。再次打开同一配置会复用运行中的实例；独立命名实例分别保存配置并协调端口。[启动与多实例](docs/quick-start.md#运行多个实例)
 
-| 输出 | 用途 |
+## 连接设备与应用
+
+| 目标 | 连接方式 |
 | --- | --- |
-| **TCode／Intiface** | 控制支持的位置、旋转、振动和辅助功能；TCode 支持串口、UDP、TCP，Intiface 连接 Central |
-| **Handy／Lovense／Autoblow／VacuGlide** | 明确配置的设备 API，分别使用支持的位置、强度／速度或同步脚本能力；[设置与限制](docs/protocol-inputs.md#厂商兼容输入与真实设备输出) |
-| **OSC 参数** | 将结果发送给 OSC 应用，或回写 VRChat 中已配置的可写 Avatar 参数 |
-| **DG-LAB** | 通过 DG-LAB 4 APP 配对，按通道上限控制强度和波形 |
-| **MIDI CC** | 向系统 MIDI 输出端口发送控制值 |
-| **HTTP JSON／WebSocket JSON／MQTT** | 连接面板、自动化服务或自制应用 |
-| **录制** | 保存 funscript 轨道，或记录用于分析的 JSON Lines／CSV 信号数据 |
+| TCode／OSR／SR6 | 串口、UDP 或 TCP，配合各轴配置 |
+| Intiface／Buttplug 设备 | Central 设备发现与功能映射 |
+| Handy／Lovense／Autoblow／VacuGlide | 设备 API、实时控制或同步脚本 |
+| 蓝牙／虚拟串口设备 | [协议桥工具](tools/protocol-bridge/README.zh-CN.md) |
+| VRChat／OSC 应用 | OSC 参数、发现与转发 |
+| DG-LAB | DG-LAB 4 APP 配对、强度与波形任务 |
+| MIDI／自动化／自制服务 | MIDI CC、HTTP JSON、WebSocket JSON 与 MQTT |
+| 文件 | Funscript 轨道、JSON Lines 与 CSV |
 
-在“流程”添加输出，连接设置就在该输出内部。[输出配置与示例](docs/signal-pipeline.md#添加输出与绑定)
+Sensa 也能接收其他应用原本发给设备的控制。典型路径为 **网站 → Sensa 虚拟 Buttplug 设备 → TCode → OSR**。多个 HTTP 输入可以共用端口，用不同路径区分。[协议示例](docs/protocol-inputs.md)
 
-Sensa 也能作为其他应用的设备输入端：Buttplug v2/v3/v4、TCode TCP／UDP／串口、Central 虚拟设备管理、HTTP／WebSocket JSON 与文档列明的厂商 API 子集。可选工具接入虚拟串口、LOOB／Thrust Sync 位置 BLE，以及文档列明的 Svakom V1 单振动子集。[建立“应用 → Sensa → 设备”流程](docs/protocol-inputs.md)；浏览器／操作系统与实体设备效果需独立验收。
+## 图解、录制与复用
 
-## 录制、播放与复用
+[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)支持移动目标、比较读数与查看检测范围；同一图解也随桌面程序提供，可离线使用。
 
-录制输出默认使用 **Funscript**。选好来源和轨道名称后开始录制，完成的片段可以下载、载入脚本播放器，或作为“录制回放”输入继续参与计算。每条轨道分别保存连续有效的片段。[操作步骤](docs/signal-pipeline.md#录制与观察)
+录制输出将选定信号保存为可复用的 funscript。完成的轨道可以载入播放器、作为计算来源回放，整套交互也可以导出为方案。[信号流程指南](docs/signal-pipeline.md)
 
-配置好一套交互后，可以[保存整套方案](docs/signal-pipeline.md#保存与复用整套方案)，一起保留计算、轴映射、轴配置和输出。同源多个标签页会在浏览器支持时[共用实时连接](docs/signal-pipeline.md#页面与连接共用)，各页保留自己的草稿。
+制作自己的 Avatar 时，[Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)提供 SPS 四点定位、Contact 直接定位（SDK Beta）、Shader 捕获与跟随参考平面。[方案选择](docs/usage-scenarios.md) · [定位与校准](docs/positioning.md)
 
-## VRChat 与 Unity
+## 文档与开发
 
-已有 OGB／SPS 参数时，直接通过 OSC 接入。制作自己的 Avatar 时，可安装 [Sensa Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)，选择 **SPS 四点定位**、**Contact 直接定位（SDK Beta）**或 **Shader 捕获**。需要参考平面跟随骨骼移动和转动时，可添加 **Tracking Frame**。各方案的安装条件、测量内容和校准步骤见[方案指南](docs/usage-scenarios.md)。
+[工作台指南](docs/guide.md) · [功能参考](docs/features.md) · [OSC 参数字典](docs/osc-parameters.md) · [语言设置](docs/languages.md) · [开发与发布](docs/development.md) · [验证记录](docs/e2e-status.md)
 
-[交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)用可操作的场景解释参数和检测区域；启动应用后，可通过 **http://127.0.0.1:5086/docs/parameter-geometry.html** 使用离线图解；安装版和便携包也附带 `docs/parameter-geometry.html` 文件。定位功能属于实验能力，实际客户端、图形环境和设备效果按所用版本检查。
-
-正式版与开发预览均在 Releases 提供桌面包和 Unity ZIP。**VCC／ALCOM 的 VPM 源提供已发布的 Unity 正式版**，预览版从 Releases 单独下载。
-
-## 完整帮助
-
-[工作台指南](docs/guide.md) · [功能总览](docs/features.md) · [信号流程](docs/signal-pipeline.md) · [OSC 参数说明](docs/osc-parameters.md) · [定位与校准](docs/positioning.md) · [语言设置](docs/languages.md)
-
-开发、构建和发布方式见[开发指南](docs/development.md)；按提交记录的浏览器、原生包与安装器检查见[验证记录](docs/e2e-status.md)。推送 main 后通过检查会自动发布开发预览和文档站，正式版在 Actions 的 **Release** 工作流发起。
+[开发预览](https://github.com/SeaLoong/Sensa/releases)提供当前 main 构建；VCC／ALCOM 的 VPM 仓库提供 Unity 正式版。main 检查通过后自动发布预览并更新网站，Release 工作流用于正式发布。
 
 [MIT 许可](LICENSE) · [术语表](GLOSSARY.md)

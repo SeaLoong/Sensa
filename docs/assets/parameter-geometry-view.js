@@ -1,11 +1,32 @@
-/* Offline interactive SVG/Three.js views. No network, devices, animation loop or HTML injection.
- * 离线交互 SVG/Three.js：无网络、设备、自动动画或 HTML 注入。 */
+/* Interactive geometry, mapped signal history and movement recording. */
 (function () {
   'use strict';
   const Model = window.SensaParameterGeometry;
+  const Signals = window.SensaParameterSignals;
   const NS = 'http://www.w3.org/2000/svg';
   const $ = id => document.getElementById(id);
   const dictionary = {
+    movementExamples: ['移动示例', 'Movement examples'], presetCentered: ['正向靠近', 'Centered approach'], presetOffset: ['侧向靠近', 'Side approach'], presetFar: ['远离目标', 'Move away'],
+    searchParameters: ['查找参数', 'Find a parameter'], searchEmpty: ['没有匹配的参数', 'No matching parameters'],
+    signalWorkbench: ['把参数变成信号', 'Turn a parameter into a signal'],
+    signalWorkbenchIntro: ['选择参数、校准量程，记录移动过程或连接 WebSensa 实时使用。', 'Choose a parameter, map its range, then record your movements or send them to WebSensa.'],
+    signalParameter: ['参数', 'Parameter'], signalAxis: ['目标轴', 'Target axis'],
+    signalMin: ['对应 0% 的读数', 'Reading at 0%'], signalMax: ['对应 100% 的读数', 'Reading at 100%'],
+    signalInvert: ['反转', 'Invert'], captureMin: ['当前值作为 0%', 'Use current as 0%'], captureMax: ['当前值作为 100%', 'Use current as 100%'],
+    recordSignal: ['开始录制移动', 'Record movement'], stopRecording: ['完成录制', 'Finish recording'], exportSignal: ['下载 funscript', 'Download funscript'],
+    liveWebSensa: ['在 WebSensa 中实时使用', 'Use it live in WebSensa'],
+    liveWebSensaHint: ['打开 WebSensa 并确认连接，然后在其中选择“参数图解”输入。', 'Open WebSensa, accept the parameter connection, then choose the parameter input there.'],
+    openWebSensa: ['打开 WebSensa', 'Open WebSensa'], disconnectWebSensa: ['断开连接', 'Disconnect'],
+    signalReady: ['已连接 WebSensa', 'Connected to WebSensa'], signalWaiting: ['等待 WebSensa 确认', 'Waiting for WebSensa'],
+    signalIdle: ['尚未连接', 'Not connected'], signalPopupBlocked: ['浏览器阻止了新窗口，请允许后重试。', 'The new window was blocked. Allow it and try again.'],
+    signalFileHint: ['从网站打开图解可连接 WebSensa；当前可以录制并下载脚本。', 'Open the hosted guide to connect WebSensa. Recording and script downloads work here.'],
+    signalUnavailable: ['当前参数没有可用读数', 'This parameter has no usable reading'],
+    signalRangeError: ['100% 的读数应大于 0% 的读数', 'The 100% reading must be greater than the 0% reading'],
+    signalMapped: ['当前量程已映射为 0–100%', 'Current range maps to 0–100%'],
+    signalRecording: ['录制中', 'Recording'], signalRecorded: ['已录制', 'Recorded'],
+    signalSamples: ['个采样', 'samples'], signalInvalidRecording: ['信号暂停，录制已完成', 'Signal paused; recording finished'],
+    signalLimitRecording: ['录制已达到十分钟或采样上限', 'Recording reached its time or sample limit'],
+    traceTitle: ['映射信号随时间的变化', 'Mapped signal over time'], traceDescription: ['最近十秒映射读数，范围为零到一。', 'Ten seconds of mapped values, from zero to one.'],
     brand: ['参数图解', 'Parameter geometry'], modelTag: ['交互指南', 'Interactive guide'],
     skipToExplorer: ['跳到交互图示', 'Skip to the interactive guide'],
     chooseParameters: ['选择要了解的参数', 'Choose your parameters'],
@@ -190,6 +211,10 @@
   let threeView = null, threeUnavailable = false;
   let referenceKey = '', referenceSelection = '';
   const referenceCards = new Map();
+  const recording = Signals.createRecording();
+  let signalHistory = [], signalParameter = '', signalParameterKey = '', recordingStatus = '', connectionStatus = 'signalIdle', recordingSource = null;
+  let webSensaWindow = null, webSensaSession = '', webSensaReady = false, signalSequence = 0, signalStopped = false;
+  let searchIndex = null, searchLocale = '', lastTraceAt = 0;
   const text = pair => Array.isArray(pair) ? pair[locale === 'en-US' ? 1 : 0] : dictionary[pair]?.[locale === 'en-US' ? 1 : 0] ?? pair;
   const fmt = (value, digits = 3) => Number.isFinite(value) ? (Object.is(Number(value.toFixed(digits)), -0) ? 0 : value).toFixed(digits) : '—';
   const spatial = () => ['contact-sdk', 'sensa-sps', 'shader'].includes(state.scenario);
@@ -430,7 +455,7 @@
         tintAnchor(row, index); button.append(tintAnchor(swatch, index));
       }
       button.append(document.createTextNode(value.name));
-      button.addEventListener('click', () => { selected = value.name; render(); $('values').querySelectorAll('button').forEach(b => { if (b.textContent === value.name) b.focus({ preventScroll: true }); }); });
+      button.addEventListener('click', () => { selected = value.name; chooseSignalParameter(value.name); render(); $('values').querySelectorAll('button').forEach(b => { if (b.textContent === value.name) b.focus({ preventScroll: true }); }); });
       name.append(button); row.append(name);
       for (const column of ['raw', 'effective']) {
         const cell = document.createElement('td'); cell.dataset.column = column;
@@ -703,20 +728,178 @@
     } else { disposeThree(); draw(); }
     for (const hint of document.querySelectorAll('[data-i18n="dragHint"]')) hint.textContent = text(orbit ? 'orbitControls' : 'dragHint');
   }
+  function currentSignal() {
+    const field = result?.values.find(value => value.name === signalParameter);
+    const min = $('signal-min').valueAsNumber, max = $('signal-max').valueAsNumber;
+    return { field, value: Signals.mapValue(field?.effective, { min, max, invert: $('signal-invert').checked }), min, max };
+  }
+  function finishRecording() {
+    const current = currentSignal(); recording.stop(performance.now(), current.value);
+  }
+  function chooseSignalParameter(name) {
+    if (name === signalParameter) return;
+    finishRecording(); stopWebSensaSignal(); signalParameter = name; signalHistory = [];
+  }
+  function signalControls() {
+    const key = state.scenario + '|' + locale;
+    if (signalParameterKey !== key) {
+      if (!result.values.some(value => value.name === signalParameter)) {
+        finishRecording(); signalParameter = selected; signalHistory = [];
+      }
+      $('signal-parameter').replaceChildren(...result.values.map(value => {
+        const option = document.createElement('option'); option.value = value.name; option.textContent = value.name; return option;
+      }));
+      signalParameterKey = key;
+    }
+    $('signal-parameter').value = signalParameter;
+    $('signal-trace-title').textContent = text('traceTitle');
+    $('signal-trace-description').textContent = text('traceDescription');
+    const hosted = /^https?:$/.test(location.protocol);
+    $('signal-connect').disabled = !hosted;
+    $('signal-websensa-hint').textContent = text(hosted ? 'liveWebSensaHint' : 'signalFileHint');
+    $('signal-connection-status').textContent = text(connectionStatus);
+    searchResults();
+  }
+  function signalTick() {
+    if (!result) return;
+    const now = performance.now(), current = currentSignal(), snapshot = recording.snapshot();
+    $('signal-reading').textContent = current.value === null ? '—' : Math.round(current.value * 100) + '%';
+    $('signal-mapping-status').textContent = text(!Number.isFinite(current.min) || !Number.isFinite(current.max) || current.max <= current.min
+      ? 'signalRangeError' : current.value === null ? 'signalUnavailable' : 'signalMapped');
+    if (snapshot.active) {
+      if (current.value === null) { finishRecording(); recordingStatus = 'signalInvalidRecording'; }
+      else recording.sample(now, current.value);
+    }
+    const fresh = recording.snapshot();
+    if (fresh.reason === 'duration-limit' || fresh.reason === 'sample-limit') recordingStatus = 'signalLimitRecording';
+    $('signal-record').disabled = current.value === null || fresh.active;
+    $('signal-stop').disabled = !fresh.active;
+    $('signal-export').disabled = fresh.sampleCount < 2 || fresh.active;
+    $('signal-capture-min').disabled = !Number.isFinite(current.field?.effective);
+    $('signal-capture-max').disabled = !Number.isFinite(current.field?.effective);
+    $('signal-recording-status').textContent = fresh.sampleCount ? text(fresh.active ? 'signalRecording' : recordingStatus || 'signalRecorded')
+      + ' · ' + (fresh.durationMs / 1000).toFixed(1) + 's · ' + fresh.sampleCount + ' ' + text('signalSamples') : '';
+    if ($('signal-workbench').open && now - lastTraceAt >= 45) {
+      signalHistory = Signals.appendHistory(signalHistory, { at: now, value: current.value });
+      lastTraceAt = now;
+      let path = '', connected = false;
+      for (const point of signalHistory) {
+        if (point.value === null) { connected = false; continue; }
+        const x = 700 - (now - point.at) / 10000 * 664, y = 140 - point.value * 120;
+        path += (connected ? 'L' : 'M') + x.toFixed(2) + ' ' + y.toFixed(2); connected = true;
+      }
+      $('signal-trace-line').setAttribute('d', path);
+    }
+    if (webSensaWindow?.closed) disconnectWebSensa();
+    if (webSensaReady) {
+      if (current.value === null) stopWebSensaSignal();
+      else { signalStopped = false; webSensaWindow.postMessage(Signals.makeSignal(webSensaSession, ++signalSequence, $('signal-axis').value, current.value, Date.now()), location.origin); }
+    }
+  }
+  function stopWebSensaSignal() {
+    if (webSensaReady && webSensaWindow && !webSensaWindow.closed && !signalStopped) {
+      webSensaWindow.postMessage({ type: 'sensa.signal.stop.v1', session: webSensaSession, sequence: ++signalSequence, timestamp: Date.now() }, location.origin);
+      signalStopped = true;
+    }
+  }
+  function disconnectWebSensa() {
+    stopWebSensaSignal(); webSensaWindow = null; webSensaReady = false; webSensaSession = ''; signalSequence = 0; signalStopped = false;
+    connectionStatus = 'signalIdle'; $('signal-disconnect').disabled = true;
+    $('signal-connection-status').textContent = text(connectionStatus);
+  }
+  function searchResults() {
+    const query = $('parameter-search').value.trim(), holder = $('parameter-search-results');
+    holder.hidden = !query; holder.replaceChildren();
+    if (!query) return;
+    if (!searchIndex || searchLocale !== locale) {
+      searchIndex = Model.scenarios.flatMap(scenario => Model.evaluate(Model.defaultsFor(scenario)).values.map(field => ({
+        scenario, scenarioTitle: text(scenario), name: field.name, path: field.path,
+        title: window.SensaOscParameterReference?.lookup(field.path, locale)?.title || '',
+      })));
+      searchLocale = locale;
+    }
+    const matches = Signals.searchParameters(searchIndex, query);
+    for (const match of matches) {
+      const item = document.createElement('div'); item.setAttribute('role', 'listitem');
+      const button = document.createElement('button'); button.type = 'button';
+      const title = document.createElement('strong'), group = document.createElement('span');
+      title.textContent = match.name; group.textContent = match.scenarioTitle; button.append(title, group);
+      button.addEventListener('click', () => {
+        finishRecording(); stopWebSensaSignal(); state = Model.defaultsFor(match.scenario); $('scene').value = match.scenario;
+        selected = match.name; signalParameter = match.name; signalHistory = [];
+        $('parameter-search').value = ''; render();
+        const focus = $('signal-workbench').open ? $('signal-parameter') : [...$('values').querySelectorAll('button')].find(button => button.textContent === selected);
+        focus?.focus({ preventScroll: true });
+      });
+      item.append(button); holder.append(item);
+    }
+    if (!matches.length) holder.textContent = text('searchEmpty');
+  }
+  for (const button of document.querySelectorAll('[data-movement]')) button.addEventListener('click', () => {
+    finishRecording(); state = Signals.movementPreset(state, button.dataset.movement); signalHistory = []; render();
+  });
+  $('parameter-search').addEventListener('input', searchResults);
+  $('signal-parameter').addEventListener('change', () => { chooseSignalParameter($('signal-parameter').value); signalTick(); });
+  for (const name of ['signal-min', 'signal-max', 'signal-invert', 'signal-axis']) $(name).addEventListener('input', () => {
+    recording.stop(); if (name === 'signal-axis') stopWebSensaSignal(); signalHistory = []; signalTick();
+  });
+  for (const boundary of ['min', 'max']) $('signal-capture-' + boundary).addEventListener('click', () => {
+    const field = currentSignal().field;
+    if (Number.isFinite(field?.effective)) { finishRecording(); $('signal-' + boundary).value = String(field.effective); signalHistory = []; signalTick(); }
+  });
+  $('signal-record').addEventListener('click', () => {
+    recordingStatus = '';
+    const current = currentSignal();
+    if (recording.start(performance.now(), current.value)) recordingSource = { scenario: state.scenario, parameter: signalParameter, axis: $('signal-axis').value, min: current.min, max: current.max, invert: $('signal-invert').checked };
+    signalTick();
+  });
+  $('signal-stop').addEventListener('click', () => { finishRecording(); signalTick(); });
+  $('signal-export').addEventListener('click', () => {
+    if (recording.snapshot().active || recording.snapshot().sampleCount < 2) return;
+    const link = document.createElement('a');
+    const recorded = recordingSource || { scenario: state.scenario, parameter: signalParameter };
+    const script = { ...recording.export(), metadata: { title: recorded.parameter, source: 'Sensa parameter explorer', mapping: { ...recorded } } };
+    link.href = URL.createObjectURL(new Blob([JSON.stringify(script)], { type: 'application/json' }));
+    link.download = 'sensa-' + recorded.scenario + '-' + recorded.parameter.replace(/[^a-zA-Z0-9_-]/g, '-') + '.funscript';
+    link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+  });
+  $('signal-connect').addEventListener('click', () => {
+    disconnectWebSensa();
+    const siteRoot = document.querySelector('meta[name="sensa-site-root"]')?.content || '../';
+    const destination = new URL('websensa/', new URL(siteRoot, location.href));
+    const token = new Uint8Array(16); window.crypto.getRandomValues(token);
+    webSensaSession = Array.from(token, value => value.toString(16).padStart(2, '0')).join('');
+    destination.searchParams.set('input', 'explorer'); destination.searchParams.set('session', webSensaSession);
+    webSensaWindow = window.open(destination.href, 'sensa-explorer-' + webSensaSession);
+    connectionStatus = webSensaWindow ? 'signalWaiting' : 'signalPopupBlocked';
+    $('signal-disconnect').disabled = !webSensaWindow;
+    $('signal-connection-status').textContent = text(connectionStatus);
+  });
+  $('signal-disconnect').addEventListener('click', disconnectWebSensa);
+  window.addEventListener('message', event => {
+    if (!webSensaWindow || event.source !== webSensaWindow || event.origin !== location.origin
+      || event.data?.type !== 'sensa.signal.ready.v1' || event.data.session !== webSensaSession) return;
+    webSensaReady = true; connectionStatus = 'signalReady';
+    $('signal-connection-status').textContent = text(connectionStatus); signalTick();
+  });
+  let signalTimer = setInterval(signalTick, 50);
+  window.addEventListener('pagehide', () => { clearInterval(signalTimer); finishRecording(); disconnectWebSensa(); });
+  window.addEventListener('pageshow', event => { if (event.persisted) signalTimer = setInterval(signalTick, 50); });
   function render() {
     result = Model.evaluate(state);
     if (!result.values.some(v => v.name === selected)) selected = result.values[0]?.name || '';
-    localize(); placeShaderDetails(); controls(); readouts(); parameterReferences(); drawView();
+    localize(); placeShaderDetails(); controls(); readouts(); parameterReferences(); drawView(); signalControls(); signalTick();
   }
   $('three-scene').addEventListener('sensa-3d-unavailable', fallbackThree);
   $('scene').addEventListener('change', () => {
+    finishRecording(); stopWebSensaSignal();
     dragging = null; state = Model.defaultsFor($('scene').value); selected = '';
     $('projection').value = threeUnavailable ? 'iso' : 'orbit'; render();
   });
   $('locale').addEventListener('change', () => { locale = normalizeLocale($('locale').value) || 'en-US'; rememberLocale(locale); render(); });
   $('projection').addEventListener('change', () => { dragging = null; render(); });
   $('drag-plane').addEventListener('change', () => { dragging = null; render(); });
-  $('reset').addEventListener('click', () => { state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });
+  $('reset').addEventListener('click', () => { finishRecording(); state = Model.defaultsFor(state.scenario); selected = ''; $('zoom').value = '1'; render(); threeView?.resetView(); });
   for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-coverage', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
   for (const holder of document.querySelectorAll('[data-control]')) {
     const key = holder.dataset.control, input = $('control-' + key);
@@ -765,7 +948,7 @@
   });
   function freeze(value) { if (value && typeof value === 'object') { Object.values(value).forEach(freeze); Object.freeze(value); } return value; }
   Object.defineProperty(window, 'SensaGeometryView', { value: Object.freeze({ snapshot: () =>
-    freeze(JSON.parse(JSON.stringify({ locale, state, result, projection, projectionMode: $('projection').value, dragPlane: $('drag-plane').value, three: threeView?.snapshot() || null }))) }), writable: false });
+    freeze(JSON.parse(JSON.stringify({ locale, state, result, signal: { parameter: signalParameter, ...currentSignal(), recording: recording.snapshot(), connection: connectionStatus }, projection, projectionMode: $('projection').value, dragPlane: $('drag-plane').value, three: threeView?.snapshot() || null }))) }), writable: false });
   window.addEventListener('pagehide', disposeThree);
   window.addEventListener('pageshow', event => { if (event.persisted) render(); });
   render();

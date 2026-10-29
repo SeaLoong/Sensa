@@ -2,7 +2,7 @@
 
 [简体中文](architecture.md) | **English**
 
-The backend reads input samples and external protocol commands, computes reusable results, and delivers through bindings or a motion path preserving arrival durations. Manual, OSC, Script and Protocol retain quick workflows; Combined lets sources contribute together. Existing motion outputs use twelve-axis targets, while OSC, DG-LAB, network services and recording expose their own destinations. The browser owns intentions and drafts; the backend owns activation, stopping, validity and save transactions. This page describes boundaries; see the [guide](guide.en.md) for operation and [glossary](../GLOSSARY.md) for terms.
+Sensa Desktop connects input sources, computation and outputs through a shared application runtime. WebSensa runs the manual/script workbench in the browser and owns its browser device connections directly. Both present the same source-to-output flow; the edition determines which transports and inputs are available. This reference describes ownership, timing and lifecycle. [User guide](guide.en.md) · [Terminology](../GLOSSARY.md)
 
 ## One command boundary
 
@@ -81,7 +81,7 @@ Output bindings select source, conversion, value type, range, stop value and sen
 
 Buttplug v2/v3/v4, TCode, JSON and vendor-compatible adapters interpret controls as external commands with channels, targets, durations and direction. Direct motion routing retains independent timing per channel, with Stop as an ordered barrier; protocol samples also feed computation/bindings. An initial trajectory with an unknown start keeps its current value invalid while exposing the target. Interpolation represents command state, not hardware feedback. Existing device feedback remains a separate source.
 
-Protocol listeners are separate from management APIs and default to loopback. Websites and native clients connect directly to the configured address without per-website approval. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
+Protocol listeners are separate from management APIs. A shared HTTP listener serves Buttplug, JSON, vendor APIs and TCode WebSocket on distinct configured `Path` prefixes. Longest complete-path matching selects one source before dispatch; that source owns its session, channels and timing. Raw TCP and UDP keep their transport-specific listeners. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
 
 ## Following planes and spatial calculations
 
@@ -116,7 +116,23 @@ React uses native controls, dialogs and semantic labels, with local styles prese
 
 One browser page multiplexes state and commands through one session. Same-origin tabs first share one backend WebSocket through SharedWorker. If that is unavailable, Web Locks grants one tab exclusive connection ownership and BroadcastChannel carries messages. When neither sharing method is available, each tab uses a singleton. Requests are correlated separately and drafts stay local. Page-cache suspension detaches a client and restoration attaches it again. HTTP connection pools and the server's WebSocket session budget are separate limits; sharing reduces the number of backend sessions used by compatible tabs.
 
-The standalone explorer displays parameters in the browser through local classic scripts, a pure model and bundled Three.js. It can run independently of an application session or device connection. Pages statically publishes Markdown and the same six explorer assets; the Sensa service hosts the motion runtime.
+The standalone explorer displays parameters in the browser through local classic scripts, a pure model and bundled Three.js. It can run independently of an application session or device connection. Pages statically publishes Markdown and the same bundled explorer assets; the Sensa service hosts the motion runtime.
+
+## Browser-native WebSensa
+
+`src/core/index.ts` provides the signal engine, script clock and output queues for both browsers and Node.js; `src/websensa` supplies the React entry point and browser adapters. Static publication and desktop bundles expose the same `websensa/` page. Manual axes, funscript and an explicitly connected parameter explorer feed the shared engine; output adapters use WebSocket, fetch, Web Serial, Web Bluetooth or Web MIDI. The [shared-core and host decision](adr/0011-shared-core-and-capability-adapters.md) describes the Node.js/Electron target architecture.
+
+Each output serializes writes and retains its connection generation. Compatible WebSocket consumers share one endpoint connection; a consumer's lifecycle ends its queued work. Stop clears pending commands before the adapter's stop operation. Funscript clocks and transport seams accept injected dependencies for unit tests. Browser permission prompts stay attached to user connection actions.
+
+## Desktop startup and instance ownership
+
+One configuration has one process owner. Repeated launches contact that owner and reuse its workbench; page presence determines whether a new browser page is needed. Named instances store independent fresh configurations. Startup binds the configured listeners or an available port and reports the resulting addresses; protocol groups sharing one endpoint move together. Explicit configuration saves retain conflict validation.
+
+Configuration ownership and instance coordination are separate from cross-tab realtime sharing. Background services can disable automatic browser opening. [Launch options](quick-start.en.md#run-several-instances)
+
+## Compatible-input script downloads
+
+The compatible-input loader bounds URL, response size and task duration. It validates public addresses again at connection time, pins the checked IP and verifies the remote endpoint. Redirects and inherited inbound credentials are not forwarded. A system proxy that hides the final target prevents this URL path from being verified; multipart upload provides a direct file route. The physical-device output APIs instead receive a script URL for the device/vendor to download, using that API's own fetch policy.
 
 ## Verification seams
 

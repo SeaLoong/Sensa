@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { attachPagePresence } from './page-presence.js';
 import * as ReactDOM from 'react-dom/client';
 import {
   editConfiguration,
@@ -164,6 +165,7 @@ function buildInitialAppState() {
 }
 
 function App() {
+  useEffect(() => attachPagePresence(), []);
   const [realtime] = useState(() => createBrowserRealtimeSession({ url: WS_URL }));
   const apiRequest = (path, options) => realtime.request(path, options);
   const locale = React.useSyncExternalStore(subscribeLocale, getLocale);

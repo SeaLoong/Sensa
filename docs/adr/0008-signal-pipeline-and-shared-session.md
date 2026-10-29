@@ -6,9 +6,9 @@ Sensa 的通用数据流由输入、计算与输出三部分组成。输入提�
 
 Sensa's general data flow comprises input, computation and output. Inputs provide samples with validity, provenance and time; computation produces reusable named results; output bindings convert them into the type, range and schedule expected by a device, application parameter, script track or diagnostic record. TCode/Intiface motion targets retain axis processing; OSC, DG-LAB, JSON, MQTT, MIDI CC and recording expose their destination capabilities.
 
-协议说明消息的含义和格式，传输负责连接、发送、取消与关闭。例如 OSC 消息通过 UDP 发送，JSON 可以通过 HTTP 或 WebSocket 发送，DG-LAB V4 在 WebSocket 上管理配对与任务。连接归后端管理，浏览器保存配置并观察状态。
+协议说明消息的含义和格式，传输负责连接、发送、取消与关闭。例如 OSC 消息通过 UDP 发送，JSON 可以通过 HTTP 或 WebSocket 发送，DG-LAB V4 在 WebSocket 上管理配对与任务。桌面连接由后端管理；WebSensa 使用独立控制器与脚本时钟，直接管理浏览器传输。
 
-A protocol defines a message's meaning and encoding; transport owns connection, sending, cancellation and closure. OSC messages can travel over UDP, JSON over HTTP or WebSocket, and DG-LAB V4 manages pairing and tasks over WebSocket. The backend owns these connections; the browser edits configuration and observes state.
+A protocol defines a message's meaning and encoding; transport owns connection, sending, cancellation and closure. OSC messages can travel over UDP, JSON over HTTP or WebSocket, and DG-LAB V4 manages pairing and tasks over WebSocket. The desktop backend owns its connections; WebSensa owns browser-supported transports directly, using its own controller and script clock.
 
 录制默认导出广泛支持的 funscript 时间—位置轨道，绑定换算结果限制到 0～1，再写为整数毫秒与 0～100 位置。每条绑定的连续有效片段独立发布为完整文件，失效结束片段；后续片段从 0 ms 计时，列表保留原录制起点偏移。单文件回放提供线性插值的 `value` 信号。高级 JSON Lines／CSV 则保留原始值与无效区间，用于诊断和原始信号回放。[格式约定与文件命名](../signal-pipeline.md#录制与观察)
 

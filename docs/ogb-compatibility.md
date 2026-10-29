@@ -2,7 +2,7 @@
 
 **简体中文** | [English](ogb-compatibility.en.md)
 
-OGB 用参数描述 Avatar 的靠近、进入和触碰交互，Sensa 可将这些数值映射为设备动作。本页按 Socket、Plug 和目标信号形状解释参数名、检测区域及换算方式。
+OGB／SPS 参数描述接近、进入和触碰。根据几何含义与命名规则选择读数，校准深度或强度，再连接到 Sensa 输出。本页说明 Socket、Plug 和独立触碰区域信号，并提供上游定义。
 
 先在参数列表找到实际来源和完整路径，再选[深度或振动模板](presets.md)。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 用两路数值估算进入深浅；**SPS1 · PenOthers / PenOthersClose** 用深浅信号配合有效接近区域。配对时保持同来源、同实例和同 Self／Others 类别，需要时开启 Avatar 的 OGB_ENABLED 心跳。
 

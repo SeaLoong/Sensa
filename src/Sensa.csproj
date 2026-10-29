@@ -10,7 +10,11 @@
     <Content Include="web\index.html;web\styles.css" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="web\app.bundle.js;web\app.bundle.js.LEGAL.txt;web\realtime-worker.bundle.js" Condition="'$(SkipWebBuild)' != 'true'" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\docs\parameter-geometry.html" Link="web\docs\parameter-geometry.html" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
-    <Content Include="..\docs\assets\osc-parameter-reference.js;..\docs\assets\parameter-geometry-model.js;..\docs\assets\parameter-geometry-view.js;..\docs\assets\parameter-geometry-style.css;..\docs\assets\parameter-geometry-3d.js;..\docs\assets\parameter-geometry-3d.LICENSE.txt" Link="web\docs\assets\%(Filename)%(Extension)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="..\docs\assets\osc-parameter-reference.js;..\docs\assets\parameter-geometry-model.js;..\docs\assets\parameter-geometry-signal.js;..\docs\assets\parameter-geometry-view.js;..\docs\assets\parameter-geometry-style.css;..\docs\assets\parameter-geometry-3d.js;..\docs\assets\parameter-geometry-3d.LICENSE.txt" Link="web\docs\assets\%(Filename)%(Extension)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Remove="websensa\**" />
+    <None Remove="websensa\**" />
+    <Content Include="websensa\index.html" Link="web\websensa\index.html" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="websensa\app.bundle.js;websensa\app.bundle.css;websensa\app.bundle.js.LEGAL.txt" Condition="'$(SkipWebBuild)' != 'true'" Link="web\websensa\%(Filename)%(Extension)" ExcludeFromSingleFile="true" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <None Remove="web\**" />
     <Compile Remove="web\**" />
 
@@ -31,8 +35,10 @@
     <EmbeddedResource Include="web/index.html;web/styles.css" LogicalName="Sensa.Web.%(Filename)%(Extension)" />
     <EmbeddedResource Include="web/app.bundle.js;web/app.bundle.js.LEGAL.txt;web/realtime-worker.bundle.js" Condition="'$(SkipWebBuild)' != 'true'" LogicalName="Sensa.Web.%(Filename)%(Extension)" />
     <EmbeddedResource Include="../docs/parameter-geometry.html" LogicalName="Sensa.Web.docs.%(Filename)%(Extension)" />
-    <EmbeddedResource Include="../docs/assets/osc-parameter-reference.js;../docs/assets/parameter-geometry-model.js;../docs/assets/parameter-geometry-view.js;../docs/assets/parameter-geometry-style.css;../docs/assets/parameter-geometry-3d.js;../docs/assets/parameter-geometry-3d.LICENSE.txt" LogicalName="Sensa.Web.docs.assets.%(Filename)%(Extension)" />
-    <Content Update="web/**;../docs/parameter-geometry.html;../docs/assets/*" CopyToPublishDirectory="Never" />
+    <EmbeddedResource Include="../docs/assets/osc-parameter-reference.js;../docs/assets/parameter-geometry-model.js;../docs/assets/parameter-geometry-signal.js;../docs/assets/parameter-geometry-view.js;../docs/assets/parameter-geometry-style.css;../docs/assets/parameter-geometry-3d.js;../docs/assets/parameter-geometry-3d.LICENSE.txt" LogicalName="Sensa.Web.docs.assets.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="websensa/index.html" LogicalName="Sensa.Web.websensa.%(Filename)%(Extension)" />
+    <EmbeddedResource Include="websensa/app.bundle.js;websensa/app.bundle.css;websensa/app.bundle.js.LEGAL.txt" Condition="'$(SkipWebBuild)' != 'true'" LogicalName="Sensa.Web.websensa.%(Filename)%(Extension)" />
+    <Content Update="web/**;websensa/**;../docs/parameter-geometry.html;../docs/assets/*" CopyToPublishDirectory="Never" />
   </ItemGroup>
 
   <ItemGroup>

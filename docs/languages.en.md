@@ -2,7 +2,7 @@
 
 [简体中文](languages.md) | **English**
 
-Sensa provides Simplified Chinese and English for interface text. OSC paths, parameter names, numeric formats, device protocols and user-defined names retain their original values and formats. User data and diagnostics appear in their original text so they can be checked against their sources.
+Sensa, WebSensa and the parameter explorer offer English and Simplified Chinese. Choose a language in the page header or let the browser select it. Parameter paths, device identifiers, user names and numeric protocol formats keep their original values.
 
 ## Browser application and parameter explorer
 
@@ -21,6 +21,8 @@ English regional values such as `en_GB` use English. Chinese values including `z
 Links stay concise. Existing `lang` query entries are removed on opening; other queries and section fragments are preserved. Switching language keeps mapping drafts, scripts, explorer scenes, coordinates and device state. An independently opened tab starts from the browser’s language; the application, Pages and local files keep choices within their own origins.
 
 Share the [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) directly: each visitor sees a language chosen for their browser. The release’s `docs/parameter-geometry.html` also opens offline and offers a language switch.
+
+WebSensa first follows an explicit language or this tab's `sensa.locale`, then its saved `localStorage["websensa.locale"]` preference and browser language. Switching writes both the tab choice and its saved preference, keeping site navigation consistent. Device connections and script state belong to the current page.
 
 ## Documentation entry points
 

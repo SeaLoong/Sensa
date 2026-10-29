@@ -2,7 +2,7 @@
 
 **简体中文** | [English](contact-sdk.en.md)
 
-Contact 直接定位通过 VRChat 的高级 Proximity 参数读取所选根点的位置和相对速度，使用一个专用球形 Sender 和一个球形 Receiver。构建自己的 Avatar 时，可安装 **VRChat Avatars SDK 3.10.6-beta.3**，再明确选择此方案；Sensa 同时兼容 Beta.2 的高级 Proximity 接口。Automatic SPS Setup 默认仍使用 SPS 四点定位。
+Contact 直接定位测量所选 Avatar 根点的米制位置，以及接触点相对速度（m/s）。添加专用球形 Sender／Receiver，查看高级 Proximity 字段，再校准所选读数。以下设置使用 **VRChat Avatars SDK 3.10.6-beta.3**，也支持 Beta.2 的高级接口。
 
 已核对官方 [3.10.6-beta.3](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3) 的 Editor 源码和运行时程序集，并保留 [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) 的协议依据。以下说明区分 SDK 接口、Sensa 发布字段与客户端接入；各项实际运行结果见[验证记录](e2e-status.md)。
 

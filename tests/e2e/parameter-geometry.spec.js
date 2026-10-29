@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import nativeShader from '../fixtures/shader-native-format1.json' with { type: 'json' };
 import { test as hostedTest, mode, oscWorkspace, text } from './fixtures.js';
+import { parameterDetailScreenshotOptions } from './parameter-detail-screenshot.ts';
 
 // Only offline guide cases share software WebGL; app fixtures keep their own browser pool.
 // 仅离线图解用例共用软件WebGL，真实应用fixture仍保持独立浏览器配置。
@@ -57,15 +58,14 @@ async function referenceCards(page) {
   return cards;
 }
 async function parameterDetailCheckpoint(page, dialog, name) {
-  // Match the shared checkpoint's notice handling; only the received time is dynamic here.
-  // 沿用共用截图的通知规则，此夹具仅接收时间会变化。
+  // Match shared notice handling. Hide only the live time using the assertion's
+  // supported stylePath; the former inline style option was ignored.
+  // 沿用通知规则，通过断言支持的 stylePath 仅隐藏实时接收时间；原内联 style 不生效。
   await page.mouse.move(0, 0);
   await expect(page.locator('.toast[role=alert]'), 'Unexpected UI error / 非预期界面错误').toHaveCount(0);
   await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10000 });
   await dialog.evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
-  await expect(dialog).toHaveScreenshot(name + '.png', {
-    stylePath: 'tests/e2e/screenshot.css', style: '[data-testid=parameter-detail-time] { visibility: hidden !important; }',
-  });
+  await expect(dialog).toHaveScreenshot(name + '.png', parameterDetailScreenshotOptions);
 }
 async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);
@@ -1641,4 +1641,144 @@ threeTest('SDK Contact diagrams expose native metre vectors, independent velocit
       zeroVelocityValid: true, lossType: 0, positionUnits: 'm', velocityUnits: 'm/s',
       frozenActivityMs: 1100, independentPositionVelocity: true,
     }), contentType: 'application/json' });
+  });
+
+threeTest('parameter search and movement examples keep geometry and mapping in sync / 参数搜索及移动示例同步几何与映射',
+  { tag: ['@config', '@i18n'] }, async ({ page }, info) => {
+    await page.goto(guideFile.href);
+    await page.locator('#locale').selectOption('en-US');
+    await page.locator('#parameter-search').fill('SenderVelocityX');
+    const result = page.locator('#parameter-search-results button').first();
+    await expect(result).toContainText('Proximity_SenderVelocityX');
+    await result.click();
+    await expect(page.locator('#scene')).toHaveValue('contact-sdk');
+    await expect(page.locator('#signal-parameter')).toHaveValue('Proximity_SenderVelocityX');
+    await expect(page.locator('#values tr[data-name="Proximity_SenderVelocityX"] button')).toHaveAttribute('aria-pressed', 'true');
+    await page.locator('#projection').selectOption('xz');
+    await page.locator('[data-movement="offset"]').click();
+    await expect(page.locator('#control-x')).toHaveValue('0.3');
+    await expect(page.locator('#control-z')).toHaveValue('0.1');
+    const before = await page.evaluate(() => window.SensaGeometryView.snapshot());
+    await page.locator('[data-movement="far"]').click();
+    await expect(page.locator('#control-z')).toHaveValue('2.2');
+    const after = await page.evaluate(() => window.SensaGeometryView.snapshot());
+    expect(after.state.y).toBe(before.state.y);
+    expect(after.state.L).toBe(before.state.L);
+    expect(after.state.sample).toBe(before.state.sample);
+    await page.locator('#locale').selectOption('zh-CN');
+    await page.locator('#parameter-search').fill('相对速度');
+    await expect(page.locator('#parameter-search-results button').first()).toBeVisible();
+    await page.locator('#parameter-search').fill('not-a-real-parameter');
+    await expect(page.locator('#parameter-search-results')).toHaveText('没有匹配的参数');
+    await info.attach('parameter-search-and-presets', { body: JSON.stringify({ before, after }), contentType: 'application/json' });
+  });
+
+threeTest('mapped movement records a nonzero funscript and keeps invalid samples out / 映射移动录制非零首目标脚本并排除失效样本',
+  { tag: ['@config'] }, async ({ page }, info) => {
+    await page.goto(guideFile.href);
+    await page.locator('#locale').selectOption('en-US');
+    await chooseScene(page, 'shader', 'xz');
+    await page.locator('#signal-workbench > summary').click();
+    await page.locator('#signal-parameter').selectOption('X');
+    await page.locator('#signal-min').fill('-0.2');
+    await page.locator('#signal-max').fill('0.2');
+    await setRange(page, 'x', .1);
+    await expect(page.locator('#signal-reading')).toHaveText('75%');
+    await page.locator('#signal-invert').check();
+    await expect(page.locator('#signal-reading')).toHaveText('25%');
+    await page.locator('#signal-invert').uncheck();
+    await page.locator('#signal-record').click();
+    await expect(page.locator('#signal-stop')).toBeEnabled();
+    await expect.poll(() => page.evaluate(() => window.SensaGeometryView.snapshot().signal.recording.sampleCount)).toBeGreaterThanOrEqual(2);
+    await setRange(page, 'x', -.1);
+    await expect(page.locator('#signal-reading')).toHaveText('25%');
+    await expect.poll(() => page.evaluate(() => window.SensaGeometryView.snapshot().signal.recording.durationMs)).toBeGreaterThanOrEqual(150);
+    await page.locator('#signal-stop').click();
+    const pendingDownload = page.waitForEvent('download');
+    await page.locator('#signal-export').click();
+    const download = await pendingDownload;
+    expect(download.suggestedFilename()).toBe('sensa-shader-X.funscript');
+    const { readFile } = await import('node:fs/promises');
+    const script = JSON.parse(await readFile(await download.path(), 'utf8'));
+    expect(script.actions[0]).toEqual({ at: 0, pos: 75 });
+    expect(script.actions.at(-1).pos).toBe(25);
+    expect(script.actions.some(action => action.pos === 25)).toBe(true);
+    expect(script.actions.every((action, index) => Number.isInteger(action.at) && action.at >= 0
+      && Number.isInteger(action.pos) && action.pos >= 0 && action.pos <= 100
+      && (!index || action.at > script.actions[index - 1].at))).toBe(true);
+    await page.locator('#signal-min').fill('0.5');
+    await expect(page.locator('#signal-record')).toBeDisabled();
+    await expect(page.locator('#signal-mapping-status')).toHaveText('The 100% reading must be greater than the 0% reading');
+    await page.locator('#signal-min').fill('-0.2');
+    await page.locator('#signal-record').click();
+    await expect.poll(() => page.evaluate(() => window.SensaGeometryView.snapshot().signal.recording.sampleCount)).toBeGreaterThanOrEqual(2);
+    await page.locator('#signal-simulation').evaluate(node => { node.open = true; });
+    await page.locator('#control-valid').uncheck();
+    await expect(page.locator('#signal-reading')).toHaveText('—');
+    await expect(page.locator('#signal-record')).toBeDisabled();
+    await expect(page.locator('#signal-recording-status')).toContainText('Signal paused; recording finished');
+    await info.attach('parameter-recording-export', { body: JSON.stringify(script), contentType: 'application/json' });
+  });
+
+threeTest('parameter output waits for the matching WebSensa window and sends explicit stop / 参数输出等待匹配网页确认并明确停止',
+  { tag: ['@config', '@protocol'] }, async ({ page, context }, info) => {
+    const { readFile } = await import('node:fs/promises');
+    const fixtureOrigin = 'https://explorer.sensa.test';
+    await context.route(fixtureOrigin + '/**', async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname === '/websensa/') {
+        await route.fulfill({ contentType: 'text/html', body: `<!doctype html><button id="accept">Connect parameter input</button><script>
+          window.signals = []; const session = new URL(location.href).searchParams.get('session');
+          document.getElementById('accept').onclick = () => opener.postMessage({type:'sensa.signal.ready.v1',session},location.origin);
+          addEventListener('message', event => { if(event.source===opener && event.origin===location.origin) signals.push(event.data); });
+        </script>` });
+        return;
+      }
+      if (url.pathname === '/parameter-geometry.html') {
+        const html = (await readFile(guideFile, 'utf8')).replace('<head>', '<head><meta name="sensa-site-root" content="./">');
+        await route.fulfill({ contentType: 'text/html', body: html }); return;
+      }
+      if (/^\/assets\/(?:parameter-geometry-(?:model|view|signal|3d)\.js|parameter-geometry-style\.css|osc-parameter-reference\.js)$/.test(url.pathname)) {
+        const file = new URL('../../docs' + url.pathname, import.meta.url);
+        await route.fulfill({ contentType: url.pathname.endsWith('.css') ? 'text/css' : 'text/javascript', body: await readFile(file) }); return;
+      }
+      await route.fulfill({ status: 404, body: 'Not found' });
+    });
+    await page.goto(fixtureOrigin + '/parameter-geometry.html');
+    await page.locator('#locale').selectOption('en-US');
+    await chooseScene(page, 'shader', 'xz');
+    await page.locator('#signal-workbench > summary').click();
+    await page.locator('#signal-parameter').selectOption('X');
+    await page.locator('#signal-axis').selectOption('V0');
+    await setRange(page, 'x', .4);
+    const pendingWindow = page.waitForEvent('popup');
+    await page.locator('#signal-connect').click();
+    const popup = await pendingWindow; await popup.waitForLoadState();
+    await expect(page.locator('#signal-connection-status')).toHaveText('Waiting for WebSensa');
+    const session = new URL(popup.url()).searchParams.get('session');
+    await page.evaluate(token => new Promise(resolve => {
+      const processed = event => {
+        if (event.data?.probe !== 'wrong-window-ready') return;
+        window.removeEventListener('message', processed); resolve();
+      };
+      window.addEventListener('message', processed);
+      window.postMessage({ type: 'sensa.signal.ready.v1', session: token, probe: 'wrong-window-ready' }, location.origin);
+    }), session);
+    await expect(page.locator('#signal-connection-status')).toHaveText('Waiting for WebSensa');
+    expect(await popup.evaluate(() => signals.length)).toBe(0);
+    await popup.locator('#accept').click();
+    await expect(page.locator('#signal-connection-status')).toHaveText('Connected to WebSensa');
+    await expect.poll(() => popup.evaluate(() => signals.filter(message => message.type === 'sensa.signal.v1').length)).toBeGreaterThanOrEqual(2);
+    const messages = await popup.evaluate(() => signals.filter(message => message.type === 'sensa.signal.v1'));
+    for (const message of messages) expect(message.axes.V0).toBeCloseTo(.4, 6);
+    expect(messages.every((message, index) => message.session === session && Number.isFinite(message.axes.V0)
+      && Object.keys(message.axes).length === 1 && Number.isSafeInteger(message.sequence)
+      && (!index || message.sequence > messages[index - 1].sequence))).toBe(true);
+    await page.locator('#signal-disconnect').click();
+    await expect(page.locator('#signal-connection-status')).toHaveText('Not connected');
+    await expect.poll(() => popup.evaluate(() => signals.filter(message => message.type === 'sensa.signal.stop.v1').length)).toBe(1);
+    const all = await popup.evaluate(() => signals);
+    expect(all.at(-1).type).toBe('sensa.signal.stop.v1');
+    await info.attach('parameter-websensa-wire', { body: JSON.stringify(all), contentType: 'application/json' });
+    await popup.close();
   });

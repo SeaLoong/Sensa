@@ -288,7 +288,6 @@ public sealed class WebUiConfig
 {
     public string Host            { get; set; } = "127.0.0.1";
     public int    Port            { get; set; } = 5086;
-    public bool   AutoOpenBrowser { get; set; } = false;
     public string Title           { get; set; } = "Sensa WebUI";
 }
 
@@ -341,7 +340,7 @@ public sealed partial class AppConfig
         PropertyNameCaseInsensitive = true,
     };
 
-    private static string ConfigPath()
+    internal static string ConfigPath()
     {
         return Environment.GetEnvironmentVariable("SENSA_CONFIG_PATH") is { Length: > 0 } path
             ? Path.GetFullPath(path) : Path.Combine(AppContext.BaseDirectory, "config.json");
@@ -431,7 +430,6 @@ public sealed partial class AppConfig
         var webUi = other.WebUi ?? new WebUiConfig();
         WebUi.Host            = string.IsNullOrWhiteSpace(webUi.Host) ? "127.0.0.1" : webUi.Host;
         WebUi.Port            = webUi.Port;
-        WebUi.AutoOpenBrowser = webUi.AutoOpenBrowser;
         WebUi.Title           = string.IsNullOrWhiteSpace(webUi.Title) ? "Sensa WebUI" : webUi.Title;
         TCodeProfiles = CloneProfiles(other.TCodeProfiles);
         AxisProfiles = CloneAxisProfiles(other.AxisProfiles);

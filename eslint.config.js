@@ -1,11 +1,11 @@
 export default [{
-  files: ['src/web/**/*.{js,jsx}', 'docs/assets/parameter-geometry-model.js', 'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-3d-source.js'],
-  ignores: ['src/web/app.bundle.js'],
+  files: ['src/web/**/*.{js,jsx}', 'src/core/**/*.js', 'src/websensa/**/*.{js,jsx}', 'docs/assets/parameter-geometry-model.js', 'docs/assets/parameter-geometry-signal.js', 'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-3d-source.js'],
+  ignores: ['src/web/app.bundle.js', 'src/websensa/app.bundle.js'],
   languageOptions: {
     ecmaVersion: 'latest', sourceType: 'module', parserOptions: { ecmaFeatures: { jsx: true } },
     globals: Object.fromEntries([
       'window', 'document', 'navigator', 'location', 'localStorage', 'getComputedStyle', 'fetch', 'WebSocket',
-      'URL', 'URLSearchParams', 'Blob', 'FileReader', 'FormData', 'AbortController',
+      'URL', 'URLSearchParams', 'Blob', 'FileReader', 'FormData', 'AbortController', 'TextEncoder', 'TextDecoder',
       'setTimeout', 'clearTimeout', 'setInterval', 'clearInterval', 'requestAnimationFrame',
       'cancelAnimationFrame', 'performance', 'console', 'Event', 'CustomEvent', 'DOMPoint', 'HTMLElement', 'ResizeObserver',
     ].map(name => [name, 'readonly'])),

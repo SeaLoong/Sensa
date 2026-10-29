@@ -2,7 +2,7 @@
 
 [简体中文](positioning.md) | **English**
 
-Sensa can obtain the three-dimensional position of the **root** you select in Unity, relative to your own Avatar. Select a supported SPS Socket/Plug, bone/empty-object Transform, Sensa or native Contact root. X is left/right, Y up/down and Z forward/back. Moving or turning the whole Avatar leaves that relative position stable, making local approach, lift or forward/back movement useful for device mapping.
+Tracking turns a selected Avatar root into position, velocity or orientation readings. Choose the route matching your Avatar and environment, inspect its coordinate frame and unit, then calibrate the metric used by an output. The setup can follow SPS Socket/Plug roots, a bone or Transform, or a Sensa/native Contact root.
 
 Choose a route below, inspect coordinates, then calibrate them into device motion. See [integration routes](usage-scenarios.en.md) for setup or try the [interactive explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) first.
 

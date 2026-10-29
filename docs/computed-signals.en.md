@@ -2,7 +2,7 @@
 
 [简体中文](computed-signals.md) | **English**
 
-Add a computed signal when you need to combine inputs or process a reading with smoothing, thresholds or delays. Give the result a name, then reuse it in several outputs. For example, blend two touch regions into Contact intensity and use it for both a device and an Avatar effect.
+Use a computed signal to turn several readings into one reusable result. Select the inputs, choose an operation and tune its response; then give the result a name and select it in any output binding. This reference starts with everyday combinations and continues into spatial and temporal operations.
 
 | Desired effect | Choose |
 | --- | --- |

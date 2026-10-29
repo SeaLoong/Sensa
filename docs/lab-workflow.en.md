@@ -2,7 +2,7 @@
 
 [简体中文](lab-workflow.md) | **English**
 
-Avatar/World Labs provide development scenes for checking measurement behavior. For everyday integration, choose [OGB, SPS four-anchor tracking, Contact direct tracking or Shader](usage-scenarios.en.md). Use your own Unity projects and licensed resources, then build or upload privately through the SDK. Start with input off and no outputs.
+Avatar/World Labs organize measurement and interaction experiments into reproducible scenes. Choose a measurement route, set up the target and receiver, then compare the readings with the workbench. The same steps help diagnose an [OGB, SPS, Contact or Shader setup](usage-scenarios.en.md) in your Unity project.
 
 ## Preparation and entry points
 

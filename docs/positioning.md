@@ -2,7 +2,7 @@
 
 **简体中文** | [English](positioning.en.md)
 
-Sensa 可以读取你在 Unity 中选定的**根点**相对自己 Avatar 的三维位置，可选择受支持的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa 或原生 Contact 根点。X 表示左右，Y 表示上下，Z 表示前后；整个 Avatar 一起走动或转身时，这个相对位置保持稳定，适合把局部的靠近、抬起或前后移动映射为设备动作。
+定位把选定 Avatar 根点转换为位置、速度或朝向读数。按 Avatar 和运行环境选择方案，查看坐标框与单位，再校准输出需要的量。目标可选 SPS Socket／Plug 根、骨骼或 Transform，以及 Sensa／原生 Contact 根。
 
 先按下面的条件选择方案，再观察坐标，最后校准为设备动作。需要逐步设置时看[接入方案](usage-scenarios.md)；想先尝试模型，可打开[交互图解](https://sealoong.github.io/Sensa/parameter-geometry.html)。
 

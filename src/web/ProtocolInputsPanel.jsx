@@ -3,7 +3,7 @@ import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
 import { SelectField } from './controls.jsx';
 import { diagnostic, docUrl, t } from './i18n.js';
 import { PROTOCOL_AXES, PROTOCOL_INPUT_TYPES, PROTOCOL_SCALAR_TYPES, makeProtocolDraft, makeProtocolFeature, newProtocolDraft,
-  protocolDraftErrors, protocolEndpoint, saveProtocolDrafts } from './protocol-inputs.js';
+  isWebProtocolInput, protocolDraftErrors, protocolEndpoint, saveProtocolDrafts } from './protocol-inputs.js';
 
 export default function ProtocolInputsPanel({ config, runtime = [], online = true, saving = false, onSave }) {
   const serialized = JSON.stringify(config?.protocolInputs || []);
@@ -59,6 +59,8 @@ export default function ProtocolInputsPanel({ config, runtime = [], online = tru
             <Field label={t('监听端口')} type="number" min={1} max={65535} value={draft.port}
               onChange={event => update(index, { port: event.target.value === '' ? '' : Number(event.target.value) })} />
           </div>}
+          {isWebProtocolInput(draft.type) && <Field label={t('监听路径')} value={draft.path} placeholder="/"
+            onChange={event => update(index, { path: event.target.value })} hint={t('相同地址和端口可用不同路径连接多个来源。')} />}
 
           {['AutoblowHttp', 'VacuGlideHttp'].includes(draft.type) && <>
             <Field label={t('本地设备令牌（可选）')} type="password" autoComplete="off" value={draft.identifier}

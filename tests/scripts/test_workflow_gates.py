@@ -53,7 +53,7 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('category: /language:${{ matrix.language }}', analyze)
 
     def test_generated_and_native_build_jobs_have_no_server_granted_cache_access(self):
-        for filename, names in [('update-e2e.yml', ('agent', 'candidates')), ('build.yml', ('desktop',))]:
+        for filename, names in [('update-e2e.yml', ('agent', 'candidates')), ('build.yml', ('desktop',)), ('e2e.yml', ('compatibility',))]:
             scopes = jobs(workflow(filename))
             for name in names:
                 with self.subTest(workflow=filename, job=name):
@@ -71,7 +71,7 @@ class WorkflowGateContracts(unittest.TestCase):
                 if re.search(r'(?m)^    cache-mode:', body):
                     configured.add((path.name, name))
         self.assertEqual(configured, {('update-e2e.yml', 'agent'), ('update-e2e.yml', 'candidates'),
-                                      ('build.yml', 'desktop')})
+                                      ('build.yml', 'desktop'), ('e2e.yml', 'compatibility')})
 
     def test_checkout_credentials_are_retained_only_for_authenticated_proposal_git_operations(self):
         checked = set()
@@ -294,7 +294,7 @@ class WorkflowGateContracts(unittest.TestCase):
     def test_container_browser_jobs_share_bounded_dependency_setup_before_tests(self):
         playwright_version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['devDependencies']['@playwright/test']
         images = set()
-        for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
+        for filename, job_name in (('e2e.yml', 'browser'), ('e2e.yml', 'compatibility'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
             with self.subTest(workflow=filename):
                 body = jobs(workflow(filename))[job_name]
                 image = re.search(r'(?m)^    container: (\S+)$', body).group(1)
@@ -309,8 +309,16 @@ class WorkflowGateContracts(unittest.TestCase):
                 self.assertNotIn('continue-on-error', installer)
                 self.assertNotIn('if:', installer)
                 self.assertNotIn('apt-get', body)
-                self.assertLess(body.index('run: bash scripts/install-e2e-dependencies.sh'),
-                                body.index('run: npm run e2e:ci'))
+                runners = [step for step in steps if re.search(
+                    r'(?m)^(?:        run: |          )npm run e2e:ci(?:\s|$)', step)]
+                self.assertEqual(len(runners), 1)
+                self.assertLess(body.index(installer), body.index(runners[0]))
+                if job_name == 'compatibility':
+                    runner = runners[0]
+                    home_ownership = 'chown "$(id -u):$(id -g)" "$HOME"'
+                    self.assertLess(runner.index(home_ownership), runner.index('npm run e2e:ci'))
+                    self.assertNotIn('chown -R', runner)
+                    self.assertNotRegex(runner, r'(?m)^\s*(?:export )?HOME=')
         self.assertEqual(len(images), 1, 'Browser jobs must use the same reviewed Playwright image digest')
 
     def test_pages_publish_automatically_only_after_built_site_browser_checks(self):

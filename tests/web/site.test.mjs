@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
 import { documentDiagramAssets } from '../../scripts/site-diagrams.mjs';
+import { overviewTaskLinks } from '../e2e/site-overview-contracts.js';
 
 const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
@@ -114,6 +115,15 @@ test('public guides build into bilingual routes with resolvable local links and 
       assert.equal(picture[0].includes('badge.svg'), false, 'Workflow badges retain their original markup');
     for (const workflow of ['ci', 'e2e', 'pages', 'release'])
       assert.ok(overview.includes('<img src="https://github.com/SeaLoong/Sensa/actions/workflows/' + workflow + '.yml/badge.svg"'));
+    for (const locale of ['en', 'zh-CN']) {
+      const html = await fs.readFile(path.join(output, locale + '/README.html'), 'utf8');
+      const article = html.match(/<article>([\s\S]*?)<\/article>/)[1];
+      for (const { name, href } of overviewTaskLinks(locale)) {
+        const links = [...article.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].filter(link => link[2] === name);
+        assert.equal(links.length, 1, locale + ' overview has one task link: ' + name);
+        assert.equal(decodeAttribute(links[0][1]), href, locale + ' overview task destination: ' + name);
+      }
+    }
     const packageGuide = await fs.readFile(path.join(output, 'en/unity/top.sealoong.sensa/README.html'), 'utf8');
     assert.match(packageGuide, /href="\.\.\/\.\.\/docs\/ogb-compatibility\.html"/);
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);
@@ -183,8 +193,15 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.ok(review.includes('href="' + pinned + '"'), 'Pinned research references stay external');
     assert.match(await fs.readFile(path.join(output, 'parameter-geometry.html'), 'utf8'), /name="sensa-site-root" content="\.\/"/);
     const files = Object.keys(manifest.assets).filter(x => x.startsWith('assets/'));
-    assert.equal(files.length, 6);
-    assert.ok(files.includes('assets/osc-parameter-reference.js'));
+    assert.deepEqual(files.sort(), ['osc-parameter-reference.js', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt',
+      'parameter-geometry-model.js', 'parameter-geometry-signal.js', 'parameter-geometry-style.css', 'parameter-geometry-view.js']
+      .map(name => 'assets/' + name).sort());
+    const standalone = await fs.readFile(path.join(output, 'websensa/index.html'), 'utf8');
+    assert.match(standalone, /name="sensa-explorer-url" content="\.\.\/parameter-geometry.html"/);
+    for (const match of standalone.matchAll(/(?:src|href)="\.\/([^"?#]+)"/g)) {
+      assert.ok(Object.hasOwn(manifest.assets, 'websensa/' + match[1]), 'Standalone page dependency: ' + match[1]);
+      assert.match(match[1], /^app\.bundle\.[0-9a-f]{16}\.(?:css|js)$/);
+    }
     assert.deepEqual(manifest.vpmVersions, []);
     assert.match(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /data-vpm="false"/);
     for (const asset of files) assert.match(manifest.assets[asset], /^[a-f0-9]{64}$/);

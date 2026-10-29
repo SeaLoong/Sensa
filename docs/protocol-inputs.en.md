@@ -18,78 +18,78 @@ flowchart LR
 
 ## Establish a small complete flow
 
-1. In Settings → Protocol inputs, add a **Buttplug / Intiface** source. Keep `127.0.0.1`, port `12400`, channel `L0`, Position with duration, and direct target axis `L0`.
-2. Enable this source's listener and save. Websites and native clients connect directly to this address without a per-website origin list. Control shows the Protocol tab after the first source is saved.
-3. Add a **TCode serial output**, select the actual OSR port and axis profile, and initially disable unrelated axes. Check direction, travel and stopping, save, then connect the output.
-4. Set the website/player's Intiface address to `ws://127.0.0.1:12400`, connect, and select the Sensa device. This is Sensa's input endpoint. A real Central application endpoint usually uses `12345`; the two can coexist.
-5. Apply Protocol input mode in Sensa, then explicitly enable input when ready. Begin with small targets and inspect receive counts, outgoing targets and stopping before normal playback.
+1. In **Settings → Protocol inputs**, add **Buttplug / Intiface**. Use host `127.0.0.1`, port `12400`, path `/` and a Position feature on `L0`.
+2. Save and enable its listener.
+3. Add a TCode output for OSR, choose its serial port/axis profile, save and connect.
+4. In the website/player, enter `ws://127.0.0.1:12400` as the Intiface address and select the Sensa device.
+5. In Sensa, apply **Protocol** and enable input. The website's controls now reach the configured output.
 
-Source listening, client connection, output connection and input activation are separate states. Saving configuration, changing modes, disabling input or emergency stopping clears old targets. Clearing emergency stop does not resume movement. Connecting, scanning and preparing a script never enable motion automatically.
-
-The following is an **input configuration fragment** for `config.json`; merge it into an existing configuration, preserving outputs and axis profiles. The workbench is the easier way to review/save it. Restart after editing the file directly. Input still starts disabled.
+The existing Central application can keep using `12345`. Saving a source or changing input mode switches input off; the header controls when the prepared route starts sending.
 
 ```json
 {
   "ProtocolInputs": [
     {
-      "Id": "website",
-      "Name": "Sensa OSR bridge",
-      "Type": "Buttplug",
-      "Enabled": true,
-      "Host": "127.0.0.1",
-      "Port": 12400,
-      "TimeoutMs": 10000,
-      "RouteToMotion": true,
-      "Features": [
-        {"Channel": "L0", "Name": "Stroke", "Actuator": "Position", "TargetAxis": "L0"}
-      ]
+      "Id": "website", "Name": "Sensa OSR bridge", "Type": "Buttplug",
+      "Enabled": true, "Host": "127.0.0.1", "Port": 12400, "Path": "/",
+      "TimeoutMs": 10000, "RouteToMotion": true,
+      "Features": [{"Channel":"L0","Name":"Stroke","Actuator":"Position","TargetAxis":"L0"}]
     }
   ]
 }
 ```
 
-Browsers independently restrict HTTPS pages connecting to local WebSockets, local-network access, Web Serial and Web Bluetooth. If a connection is blocked, inspect the listener address/port and browser local-network permission. On another phone, `127.0.0.1` refers to the phone itself. These instructions do not require disabling browser security.
+This is a `config.json` input fragment; keep your existing outputs and profiles when merging it. You can also make the same changes in the workbench.
+
+## Share a port across input routes
+
+Web protocols use **Path** to share a listener. For example:
+
+| Source | Port | Path | Client address |
+| --- | --- | --- | --- |
+| Buttplug | 12400 | `/buttplug` | `ws://127.0.0.1:12400/buttplug` |
+| JSON HTTP | 12400 | `/json` | `http://127.0.0.1:12400/json/commands` |
+| Lovense HTTP | 12400 | `/lovense` | `http://127.0.0.1:12400/lovense/command` |
+| TCode WebSocket | 12400 | `/tcode` | `ws://127.0.0.1:12400/tcode` |
+
+The listener removes the route prefix before passing a request to its protocol. Nested routes use the longest matching complete path. A source at `/` keeps its original addresses. Distinct routes have independent channels and control sessions; use different axes or explicit computation/bindings to combine them.
+
+A TCP port can host either the shared HTTP/WebSocket listener or a raw TCode TCP listener. UDP has its own port space. Duplicate paths and incompatible listeners are shown when saving.
 
 ## Input capabilities and addresses
 
-| Input type | Usual default address | Content |
+| Input type | Connection | Content |
 | --- | --- | --- |
-| `Buttplug` | `ws://127.0.0.1:12400` | Negotiated v2/v3/v4; one virtual device with configured features |
-| `TCodeTcp` | `tcp://127.0.0.1:12401` | Line-based TCode position/intensity/auxiliary axes and independent durations |
-| `TCodeUdp` | `udp://127.0.0.1:12402` | Self-contained newline-terminated TCode datagrams |
-| `TCodeSerial` | Explicit serial port and baud rate | Read TCode from a selected port; does not create a virtual port |
-| `IntifaceDevice` | `ws://127.0.0.1:54817` | Connect outward to Central's WebSocket Device Manager as a TCode device |
-| `JsonHttp` | `http://127.0.0.1:12403` | Channel values, durations, stopping and heartbeat described below |
-| `JsonWebSocket` | `ws://127.0.0.1:12404` | The same JSON control model with a session per connection |
-| `LovenseHttp` | `http://127.0.0.1:12405` | Local API compatibility subset for clients with a configurable endpoint |
-| `HandyHttp` | `http://127.0.0.1:12406` | Local API compatibility subset preserving position/speed distinctions |
-| `AutoblowHttp` / `VacuGlideHttp` | Local `12407` / `12408` | Local API compatibility subsets; VacuGlide retains speed/intensity semantics |
+| `Buttplug` | WebSocket | v2/v3/v4 virtual device with configured features |
+| `TCodeTcp` / `TCodeUdp` | TCP / UDP | TCode position, intensity, axes and durations |
+| `TCodeWebSocket` | Shared WebSocket listener | Complete TCode text lines |
+| `TCodeSerial` | Selected serial port and baud rate | Incoming TCode stream |
+| `IntifaceDevice` | Central WSDM, commonly `ws://127.0.0.1:54817` | Sensa registers outward as a TCode device |
+| `JsonHttp` / `JsonWebSocket` | Shared HTTP/WebSocket listener | Typed channel commands, heartbeat and stop |
+| `LovenseHttp` / `HandyHttp` | Shared HTTP listener | Configurable-endpoint vendor API routes |
+| `AutoblowHttp` / `VacuGlideHttp` | Shared HTTP listener | Device controls and synchronized-script routes |
 
-Each input has one controlling session at a time. A second client waits for disconnection or expiry. A multichannel command validates every channel before admitting the batch; a malformed trailing channel cannot move a valid prefix. There are at most 16 inputs and 16 features per input. Saving validates listener conflicts and overlapping direct target axes. Protocol HTTP/WebSocket listeners are separate from Sensa's management API, exposing only the selected protocol capabilities to a website.
+One source has one controlling session at a time. Different sources can run concurrently. A multichannel batch is admitted together after validation. The workbench reports configured channels, listening addresses and receive counts.
 
 ### Types, timing and signal paths
 
-| Feature | Value meaning | Direct mapping |
+| Feature | Meaning | Direct mapping |
 | --- | --- | --- |
-| `Position` | Normalized 0–1 target position, optionally with arrival duration | An explicitly selected motion axis |
-| `Scalar` | Normalized capability value, such as vibration, constriction, light or motor speed ratio | Only `V0`, `V1` or `V2` |
-| `Rotation` | Normalized rotation speed plus `Clockwise` direction | A signal first; never automatically treated as an absolute R-axis angle |
+| `Position` | 0–1 target and optional arrival duration | Selected motion axis |
+| `Scalar` | 0–1 capability value, such as vibration | V0/V1/V2 |
+| `Rotation` | 0–1 speed plus `Clockwise` | Use a signal binding for speed/direction |
 
-With direct motion routing enabled, Protocol/Combined mode sends targets and per-channel arrival durations through the motion runtime and the actual output's axis profile. Different axes retain different durations. Stop, expiry and disconnection clear pending work. Existing motion transports provide a device-wide stop, so a source/feature stop conservatively stops motion outputs and can affect other active axes.
+Direct motion routing preserves each channel's arrival duration and uses the output's axis profile. For conversion, recording or several destinations, switch direct routing off and choose Protocol input in a calculation/binding. A source path is `inputId/channelId`, for example `website/L0`; `/value` reads the current command value, `/target` its target, and rotation adds `/speed` and `/clockwise`.
 
-Protocol sources route only in Protocol/Combined mode, including computation/bindings. For conversion, mixing, recording or another output protocol, disable direct routing and choose Protocol input in a calculation/output binding. Enter `inputId/channelId`, for example `website/L0`. `/value` is equivalent to omitting the suffix; `/target` reads the command target; rotation also exposes `/speed` and `/clockwise`. Interpolated position describes a commanded trajectory, not physical feedback. If the first timed command has an unknown start, its current value remains invalid until arrival while its target remains readable.
-
-With direct routing disabled, losing a required source sends the configured `StopValue` according to the [binding stop semantics](signal-pipeline.en.md). For a position axis this is a fallback target and may move it; disabling global input, disabling the output or emergency stop uses the whole-device stop path.
-
-Scalar computation/bindings use their own sending schedules and do not automatically carry the original hardware arrival duration. Use the direct motion path when timing must be preserved. Converting intensity to OSR displacement requires an explicit computation, range and destination; a brand name does not establish equivalent motion semantics.
+Position interpolation describes the commanded trajectory. A timed first command exposes its target immediately and its current value once an initial position is established or arrival completes. Bindings use their own update schedules. For source expiry, choose an appropriate binding fallback; input disable and emergency stop perform whole-device stopping. Direct-source stops use the motion output's device-wide stop.
 
 ## Buttplug v2, v3 and v4
 
-Sensa's NuGet `Buttplug 5.0.1` identifies its existing output client library, not wire protocol v5. The input server negotiates **message specification v2, v3 or v4**, advertises configured capabilities and does not scan physical hardware.
+The input negotiates **message specification v2, v3 or v4** and advertises your configured features as one virtual device. The desktop output client uses Buttplug 5.0.1.
 
-v2/v3/v4 clients must keep sending protocol `Ping` within the advertised `MaxPingTime`.
+Clients send `Ping` within the advertised `MaxPingTime` to maintain their session.
 
-v2 negotiates `MessageVersion:2` and replies with that version. Device lists use a `Devices` array; each command in `DeviceMessages` advertises `FeatureCount` and `StepCount`, for example `{"FeatureCount":2,"StepCount":[1000,1000]}`. The `StepCount` array has `FeatureCount` entries, rather than v3 actuator arrays. Position and rotation use `LinearCmd`/`RotateCmd`; vibration uses `VibrateCmd.Speeds` with `Index` and 0–1 `Speed`. Indices are independent per command family. Only configured **ScalarType=Vibrate** features receive v2 vibration indices, in configuration order; Oscillate/Constrict and other types are not relabeled as vibration. Each following line is one complete WebSocket message using the default position feature:
+v2 negotiates `MessageVersion:2` and replies with that version. Device lists use a `Devices` array; each command in `DeviceMessages` advertises `FeatureCount` and `StepCount`, for example `{"FeatureCount":2,"StepCount":[1000,1000]}`. The `StepCount` array has `FeatureCount` entries, matching that command metadata. Position and rotation use `LinearCmd`/`RotateCmd`; vibration uses `VibrateCmd.Speeds` with `Index` and 0–1 `Speed`. Indices are independent per command family. Configured **ScalarType=Vibrate** features receive v2 vibration indices in configuration order. Each following line is one complete WebSocket message using the default position feature:
 
 ```json
 [{"RequestServerInfo":{"Id":1,"ClientName":"Legacy player","MessageVersion":2}}]
@@ -97,9 +97,9 @@ v2 negotiates `MessageVersion:2` and replies with that version. Device lists use
 [{"LinearCmd":{"Id":3,"DeviceIndex":0,"Vectors":[{"Index":0,"Position":0.75,"Duration":300}]}}]
 ```
 
-v2/v3 LinearCmd duration is 0–600000 ms; position and rotation speed are 0–1. Handshake, Ping, scanning, device events, per-device/all-device stop retain their negotiated formats. v0/v1, raw hardware access and undeclared capabilities remain unsupported.
+v2/v3 LinearCmd duration is 0–600000 ms; position and rotation speed are 0–1. Handshake, Ping, scanning, device events, per-device/all-device stop retain their negotiated formats.
 
-v3 uses JSON arrays with case-sensitive fields. Each line below is one complete WebSocket text message. Real clients must keep sending protocol `Ping` within the advertised `MaxPingTime`.
+v3 uses JSON arrays with case-sensitive fields. Each line below is one complete WebSocket text message.
 
 ```json
 [{"RequestServerInfo":{"Id":1,"ClientName":"Example player","MessageVersion":3}}]
@@ -108,7 +108,7 @@ v3 uses JSON arrays with case-sensitive fields. Each line below is one complete 
 [{"StopDeviceCmd":{"Id":4,"DeviceIndex":0}}]
 ```
 
-Supported operations are handshake, device list, start/stop scanning, Ping, `LinearCmd`, advertised `ScalarCmd` (`Vibrate`/`Oscillate`/`Constrict`), `RotateCmd`, `StopDeviceCmd` and `StopAllDevices`. v3 actuator indices are ordered within the respective command family; linear and vibration indices are not interchangeable. Invalid indices/values/types and unsupported messages return Error with the matching request ID. Unsolicited events use ID 0.
+Supported operations are handshake, device list, start/stop scanning, Ping, `LinearCmd`, advertised `ScalarCmd` (`Vibrate`/`Oscillate`/`Constrict`), `RotateCmd`, `StopDeviceCmd` and `StopAllDevices`. v3 actuator indices are ordered within the respective command family. Invalid indices/values/types and unsupported messages return Error with the matching request ID. Unsolicited events use ID 0.
 
 v4 handshakes use `ProtocolVersionMajor:4` and `ProtocolVersionMinor:0`; devices/features are indexed objects. Position advertises `Position` and `HwPositionWithDuration`, scalar uses its configured `ScalarType` (Vibrate/Oscillate/Constrict/Led/Temperature/Spray), and rotation advertises signed `Rotate`. Current integer ranges are 0–1000 for position/scalar and -1000–1000 for rotation. Commands use `OutputCmd`/`StopCmd`:
 
@@ -118,32 +118,32 @@ v4 handshakes use `ProtocolVersionMajor:4` and `ProtocolVersionMinor:0`; devices
 [{"StopCmd":{"Id":3,"DeviceIndex":0,"Outputs":true}}]
 ```
 
-Scalar features configure `ScalarType`, defaulting to Vibrate. Led/Temperature/Spray are advertised only to v4 clients. v3 scalar indices use its filtered supported types, without renaming an unsupported capability. Values represent normalized protocol ranges, not physical units such as temperature.
+Scalar features configure `ScalarType`, defaulting to Vibrate. Led/Temperature/Spray are advertised only to v4 clients. v3 scalar indices use its filtered supported types, without renaming an unsupported capability. Values represent normalized protocol ranges, the declared capability range.
 
-There is no RawRead/RawWrite, invented sensor/battery/RSSI feedback, unadvertised actuator support or v0/v1 compatibility layer. Official v3 JS and v4 C# clients can use this endpoint; applications can also filter by brand, name or capabilities, requiring acceptance with the selected version. [Official specification](https://buttplug.io/docs/spec/) · [v3 specification](https://buttplug.io/docs/spec-v3/spec/)
+The endpoint supports the v3 JS and v4 C# client schemas. Its capability list describes command outputs; raw hardware and sensor/battery/RSSI APIs are outside this virtual-device profile. [Official specification](https://buttplug.io/docs/spec/) · [v3 specification](https://buttplug.io/docs/spec-v3/spec/)
 
 ## TCode, serial and Central virtual devices
 
-Implemented syntax covers the v0.3 core and the common v0.4 core: case-insensitive `L/R/V/A` axes, channels 0–9, variable-length fractional magnitude digits, `I` milliseconds, `S` speed, space-separated axes, last command per repeated channel within a line, `D0`/`D1`/`D2` and `DSTOP`. `L277` means L2 at **0.77**, and `R09` means R0 at **0.9**; magnitude is not divided by 99 or 999.
+Implemented syntax covers the v0.3 core and the common v0.4 core: case-insensitive `L/R/V/A` axes, channels 0–9, variable-length fractional magnitude digits, `I` milliseconds, `S` speed, space-separated axes, last command per repeated channel within a line, `D0`/`D1`/`D2` and `DSTOP`. `L277` means L2 at **0.77**, and `R09` means R0 at **0.9**.
 
 ```text
 L075I300 R025I900
 DSTOP
 ```
 
-LF, CR and CRLF complete a line. TCP/serial/WSDM accept split reads. UDP datagrams must be complete and newline-terminated so a lost packet cannot corrupt the next command. Each line allows 4096 ASCII bytes. TCode I durations and S-derived durations are limited to 60000 ms. Unknown channels, invalid bytes, oversized lines and unsupported modifiers reject and stop rather than skip errors and execute the remainder.
+LF, CR and CRLF complete a line. TCP, serial and WSDM accept split reads; `TCodeWebSocket` uses complete ASCII text lines at its configured path. UDP datagrams must be complete and newline-terminated so a lost packet cannot corrupt the next command. Each line allows 4096 ASCII bytes. TCode I durations and S-derived durations are limited to 60000 ms. Unknown channels, invalid bytes, oversized lines and unsupported modifiers reject and stop rather than skip errors and execute the remainder.
 
-After an invalid line, TCP/serial replies with `ERR`, then closes and releases that session. The old connection cannot accept further movement. TCP clients must reconnect; serial inputs must be re-enabled/saved to reopen their port before new valid commands. An invalid UDP datagram releases its remote session; a later complete valid datagram may establish a new one. A valid prefix of an invalid line never moves first.
+An invalid stream returns `ERR` and ends its session; reconnect or reopen the serial input to continue. UDP admits the next valid complete datagram as a new session.
 
-`S1000` traverses one normalized axis length per second. Duration is calculated from a known preceding commanded/interpolated position. An initial S command, an S command during an initial timed move with an unknown start, or the first S after clearing/stopping is rejected; establish an explicit position first. This remains command state, not encoder feedback. v0.4 `<`, `>`, `<>`, `G` curves and EEPROM writes are not implemented and are rejected. `D1` accurately returns **TCode v0.3**. [Official TCode specification](https://github.com/multiaxis/TCode-Spec)
+`S1000` traverses one normalized axis length per second, using the preceding commanded/interpolated position to calculate duration. Send an explicit initial position before using S. `D1` reports **TCode v0.3**; the implemented motion core uses L/R/V/A, I/S and the D queries above. [Official TCode specification](https://github.com/multiaxis/TCode-Spec)
 
 An alternative Central path is `client → Central → WSDM → Sensa → OSR`. Configure a **TCode v0.3** device under Central's Manage WebSocket Devices, matching its identifier to Sensa's `Identifier`. Select `IntifaceDevice` input, use the actual device-manager address (default `ws://127.0.0.1:54817`) and TCode feature channels such as `L0`. Sensa registers with text `{identifier,address,version:0}`, then exchanges **binary WebSocket frames** containing TCode. ASCII content still needs binary hardware framing. An empty `Identifier` uses the input's name; registration address uses its stable input ID. The website continues connecting to Central's application endpoint. [Official WSDM guide](https://buttplug.io/docs/dev-guide/inflating-buttplug/devices/websocket-device-manager/)
 
-TCode has no application Ping: a valid finite move over TCP/serial/UDP remains live until the latest arrival of its current channel targets, followed by `TimeoutMs` idle grace. For example, I60000 is not cut short by the default ten-second inactivity timeout. Complete valid commands or explicit D queries update activity; partial bytes and unfinished lines do not renew it. A new shorter move replaces that channel's old long deadline; Stop/global clearing revokes old trajectory deadlines. EOF still stops/releases immediately rather than waiting for a move to finish. UDP uses the same arrival-plus-grace policy and releases an expired remote owner. WSDM uses WebSocket Ping/Pong for liveness. A live WSDM connection can hold a static target without repeating identical TCode.
+Finite TCode moves keep their session through the latest current-channel arrival, plus `TimeoutMs` idle grace. Complete commands and D queries refresh activity; a new target replaces that channel's previous deadline. Stop clears current targets; EOF ends the session immediately. WSDM uses WebSocket Ping/Pong for liveness and can hold a static target while connected.
 
 ### Intiface output feature mappings
 
-Existing Intiface outputs default to linear position and the configured vibration axis. To use other capabilities, add explicit `IntifaceFeatures` mappings: DeviceName matches exactly, FeatureIndex selects a feature, and OutputType must be advertised by that device. Supported types are `Vibrate`, `Oscillate`, `Rotate`, `Position`, `HwPositionWithDuration`, `Led`, `Temperature`, `Constrict` and `Spray`. Protocol support does not imply that every model implements them.
+Existing Intiface outputs default to linear position and the configured vibration axis. To use other capabilities, add explicit `IntifaceFeatures` mappings: DeviceName matches exactly, FeatureIndex selects a feature, and OutputType must be advertised by that device. Supported types are `Vibrate`, `Oscillate`, `Rotate`, `Position`, `HwPositionWithDuration`, `Led`, `Temperature`, `Constrict` and `Spray`. Select from the device scan results.
 
 ```json
 {
@@ -161,15 +161,15 @@ Existing Intiface outputs default to linear position and the configured vibratio
 
 Central device names with multibyte characters and large or fragmented device lists are received as complete WebSocket text messages, with a 1 MiB limit per message. A failed connection attempt cleans up its transport so it can be retried; delivery after connecting still follows current input activation.
 
-This is one output object; replace its device name/indices with actual scan results. Values scale to each feature's advertised integer range; temperature-like values do not automatically mean degrees Celsius. Rotation SourceAxis provides speed. DirectionAxis at least 0.5 means clockwise, otherwise counterclockwise; an empty direction axis uses Clockwise. Position direction uses Invert explicitly; the original position default remains `1-L0`. Timed position validates the advertised duration range; an absent capability is not falsely reported as a successful command.
+Replace the example device name/indices with your scan results. Values scale to each feature's advertised integer range; scalar ranges use protocol units. Rotation SourceAxis provides speed. DirectionAxis at least 0.5 means clockwise, otherwise counterclockwise; an empty direction axis uses Clockwise. Position direction uses Invert explicitly; the original position default remains `1-L0`. Timed position validates the advertised duration range; the advertised capabilities determine the available command types.
 
 After configuration, output bindings can also target these mappings' source and rotation-direction axes, such as separate V0 speed and A0 direction bindings. Axes unused by default capabilities or explicit mappings are not accepted.
 
-Mappings override matching default capabilities, not a device allowlist: uncovered devices retain the original position/vibration path. Sensa rejects simultaneously enabled WSDM input and Intiface output addressing Central on the same host, preventing its virtual device from feeding its own input. Standalone Buttplug inputs also reject an output connecting back to themselves.
+Mappings replace matching defaults; other devices retain position/vibration routing. Configuration validation detects output-to-input loops, including Central/WSDM returning Sensa's own virtual device.
 
 ## HTTP/WebSocket JSON for applications
 
-With `JsonHttp`, send these requests to the input endpoint, not the workbench's `/api`. This example uses the default `L0` channel; add channels such as `R0` to the source configuration before sending a multiaxis batch. Keep a stable `X-Sensa-Session` for a client, and send `/heartbeat` within its timeout when holding targets. Expiry releases control and stops. HTTP control sessions combine remote IP and this session header, independently of the website origin.
+With `JsonHttp`, send these requests to the input endpoint, not the workbench's `/api`. This example uses the default `L0` channel; add channels such as `R0` to the source configuration before sending a multiaxis batch. Keep a stable `X-Sensa-Session` for a client, and send `/heartbeat` within its timeout when holding targets. Expiry releases control and stops.
 
 ```sh
 curl --request POST http://127.0.0.1:12403/commands \
@@ -188,18 +188,16 @@ WebSocket JSON uses the same objects, such as `{"commands":[{"channel":"L0","val
 
 ## Vendor-compatible input and physical device output
 
-Local compatibility inputs expose subsets for **applications that can configure their server endpoint**. They do not obtain a real vendor cloud's device identity, pairing secrets or certificates, and cannot redirect sites with fixed cloud addresses. FapTap's editable Intiface address makes that the preferred bridge; its hardcoded vendor connectors do not automatically target these local ports.
-
-The following local API subsets are implemented. Unlisted endpoints, firmware/Wi-Fi configuration, cloud registration and sensor operations return errors rather than pretending to complete.
+Use the local API inputs when an application lets you configure its endpoint. For a website with an Intiface address field, the Buttplug route is the simplest choice. Physical-device outputs connect the other direction to the device's API.
 
 | Input | Local API subset | Semantic boundary |
 | --- | --- | --- |
 | `LovenseHttp` | `POST /command`: GetToys, GetToyName, Function (Vibrate/Rotate/All, Stop); legacy GET Vibrate/Vibrate1/Vibrate2/RotateClockwise/RotateAntiClockwise/Stop | Toy ID is the input ID; Scalar vibration and Rotation speed remain distinct; timeSec/paired loop times supported; physical-output Pump support does not imply a matching input feature |
-| `HandyHttp` | REST v2 connected/info/mode/slide/settings/servertime, HSTP time/offset, HDSP xpt/xpvp, HAMP velocity/start/stop, HSSP setup/play/loop/state/stop | Accepts `/api/handy/v2` or `/api/handy-rest/v2` prefixes; not a v3 cloud proxy; identifies itself as a Sensa virtual device |
+| `HandyHttp` | REST v2 connected/info/mode/slide/settings/servertime, HSTP time/offset, HDSP xpt/xpvp, HAMP velocity/start/stop, HSSP setup/play/loop/state/stop | Accepts `/api/handy/v2` or `/api/handy-rest/v2` prefixes; v2 Sensa virtual-device identity |
 | `AutoblowHttp` | `/autoblow`: connected/info/state, goto, oscillate/start/stop and sync-script operations | Position plus percentage speed; unknown starting positions reject speed trajectories until an explicit script target establishes command state |
 | `VacuGlideHttp` | `/vacuglide`: connected/info/state, target-speed/stop and sync-script operations | targetSpeed is 0–100 intensity using Scalar; scripts explicitly configured as Position bridge trajectory, otherwise trajectory change rate maps to speed intensity |
 
-Handy xpvp/HAMP and Autoblow goto/oscillate convert percentage speed using `MaxSpeedPerSecond`, normalized full travel per second: default 1, configurable 0.01–20. **This calibrates Sensa's virtual device and is not a vendor's physical mechanical-speed model.** Establish a starting position with an explicit HDSP position or script target. Re-establish it after clearing/stopping. VacuGlide Scalar script conversion is `clamp(abs(position delta)/seconds, 0, 1)` and is likewise not the device's real motor algorithm.
+Handy xpvp/HAMP and Autoblow goto/oscillate convert percentage speed using `MaxSpeedPerSecond`, normalized full travel per second: default 1, configurable 0.01–20. This sets the virtual device's speed calibration. Establish a starting position with an explicit HDSP position or script target. Re-establish it after clearing/stopping. VacuGlide Scalar script conversion is `clamp(abs(position delta)/seconds, 0, 1)`.
 
 After configuring the corresponding inputs, a custom client can call these endpoints (the ports belong to local Handy/Lovense inputs, not their vendor clouds):
 
@@ -213,22 +211,22 @@ curl --request POST http://127.0.0.1:12405/command \
   --data '{"command":"Function","action":"Vibrate:5","timeSec":0,"toy":"lovense-in","apiVer":1}'
 ```
 
-A Lovense `timeSec` **greater than 1 and at most 600 seconds** is an explicitly accepted finite server task. It retains control through the total duration, including loop pauses, even when `TimeoutMs` is shorter. `timeSec:0` continues to use external activity/idle leases; its internal loop cannot renew itself forever. Stop, input disable, configuration save and emergency stop cancel finite tasks, and re-enabling does not replay them. This 600-second bound is separate from script tasks' `MaxScriptDurationMs` below.
+Lovense `timeSec` from **greater than 1 to 600 seconds** creates a finite task that retains its session through the total duration, including loop pauses. `timeSec:0` uses the ordinary `TimeoutMs` activity lease. Stop, input disable, configuration save and emergency stop cancel the task. Script playback separately uses `MaxScriptDurationMs`.
 
-The last example requires input ID `lovense-in` and a Scalar feature; it does not create that configuration. Autoblow/VacuGlide sync-script supports multipart upload-csv/upload-funscript, URL uploads, current-input local load-token, start (startTimeMs), stop, offset (offsetTimeMs) and loop. CSV is headerless integer-millisecond/0–100 position pairs ending with a newline; funscript uses actions. Scripts allow 1 MiB, 100000 points and 16777214 ms. Handy HSSP setup accepts a URL and plays the same trajectory model.
+The last example uses input ID `lovense-in` with a Scalar feature. Autoblow/VacuGlide sync-script supports multipart upload-csv/upload-funscript, URL uploads, current-input local load-token, start (startTimeMs), stop, offset (offsetTimeMs) and loop. CSV is headerless integer-millisecond/0–100 position pairs ending with a newline; funscript uses actions. Scripts allow 1 MiB, 100000 points and 16777214 ms. Handy HSSP setup accepts a URL and plays the same trajectory model.
 
-Script downloads do not inherit inbound Cookie/authentication, follow redirects or accept unbounded data. URL/address limits also apply. Before connecting, the default downloader rechecks public addresses, connects to a vetted IP and verifies the remote endpoint. If an inherited system HTTP proxy prevents verification of the final destination, URL import is rejected; DNS preflight alone does not prove the connection target. Autoblow/VacuGlide can instead use bounded multipart uploads. Local Handy-compatible HSSP URL import has the same restriction. `MaxScriptDurationMs` defaults to 3600000 (one hour), limiting each autonomous playback task. HTTP clients need not renew every frame; Stop, emergency clearing and the task deadline still apply. Immediate controls retain the `TimeoutMs` lease; finite Handy HDSP xpt/xpvp targets also retain arrival-plus-grace, whereas HAMP alternating motion still requires source activity and cannot renew itself forever. If an `AutoblowHttp`/`VacuGlideHttp` source's `Identifier` is nonempty, `x-device-token` must match. Control sessions also distinguish remote IP and `X-Sensa-Session`. This token identifies a local input, not a registered vendor cloud device.
+Compatible-input script tasks use bounded URL downloads or multipart uploads. `MaxScriptDurationMs` defaults to one hour; immediate controls use `TimeoutMs`, while finite moves retain their arrival deadline. `Identifier`, when configured for Autoblow/VacuGlide input, becomes the required `x-device-token`. [Download validation and API implementation](architecture.en.md)
 
 To control a physical device, add a **Handy, Lovense, Autoblow or VacuGlide output** and configure its actual API endpoint, connection key or device ID. These are separate directions from the similarly named compatibility inputs.
 
 | Output | Implemented semantics | Configuration and limits |
 | --- | --- | --- |
 | Handy | HDSP position/duration; HSSP URL script preparation/play/seek/stop and clock synchronization | API v2 for supported fw3; v3 for fw4+ with application API key or token; actual connection key required |
-| Lovense | LAN HTTPS `GetToys`, Function intensity for an explicit toy ID, and Stop | Vibrate/Rotate/Pump/Thrusting/Fingering/Suction; intensity is not absolute position; Pump has a separate range |
-| Autoblow | `goto` position with separate speed; CSV/funscript URL synchronized scripts | Configure speed percentage; input duration is not an arrival guarantee; cluster changes require a verified or explicitly trusted host |
-| VacuGlide | Motor speed intensity and synchronized scripts | Treat its source as speed/intensity, normally V0; synchronized trajectory is converted to speed by the device rather than positional following |
+| Lovense | LAN HTTPS `GetToys`, Function intensity for an explicit toy ID, and Stop | Vibrate/Rotate/Pump/Thrusting/Fingering/Suction intensity; Pump has a separate range |
+| Autoblow | `goto` position with separate speed; CSV/funscript URL synchronized scripts | Configure position and a separate speed percentage |
+| VacuGlide | Motor speed intensity and synchronized scripts | Use speed/intensity, normally V0; synchronized trajectories are converted to motor speed by the device |
 
-This output fragment uses placeholder credentials and starts disabled. Preserve existing outputs and finish reviewing each setup in the workbench before enabling it. Handy v2 selects ApiVersion 2 without v3 application credentials; VacuGlide should use the V0 intensity axis.
+Use these output objects as configuration examples. Handy v2 selects ApiVersion 2 without v3 application credentials; VacuGlide should use the V0 intensity axis.
 
 ```json
 {
@@ -259,16 +257,16 @@ This output fragment uses placeholder credentials and starts disabled. Preserve 
 }
 ```
 
-Real Handy v2/v3 synchronized scripts use CSV URLs; explicit funscript selections are rejected rather than assuming an unverified cloud format. Autoblow and VacuGlide support CSV/funscript URLs in the selected format. CSV is headerless `milliseconds,position-percent` ending with a newline. Sensa submits the URL to the configured device/API, which downloads the script. Handy accepts HTTP(S), while Autoblow/VacuGlide require HTTPS; none permits credentials embedded in the URL. Supply content that the device/API can retrieve. Sensa's own device-API requests do not follow redirects, but the device/API determines the final script-download address and redirect policy; Sensa does not validate those on its behalf. The public-address checks, DNS pinning and redirect rejection described above belong to the local compatible-input script loader.
+Handy v2/v3 synchronized scripts use CSV URLs. Autoblow/VacuGlide accept CSV or funscript URLs in the selected format. CSV contains headerless `milliseconds,position-percent` lines, ending in a newline. Make the URL reachable by the device/API; Handy accepts HTTP(S), while Autoblow/VacuGlide use HTTPS.
 
-Connection queries state without moving. Preparing a synchronized script closes input; enable input again before playback/seek. The device/API must be able to retrieve the script URL; preparation may take much longer than ordinary requests and can be canceled by Stop. Stopping cancels pending motion and playback while a successfully prepared script may remain available for later explicit play. Disconnect/reconnect clears preparation and never resumes old motion. Credentials are stored in the chosen configuration, so inspect connection keys, API keys and tokens before exporting/sharing it.
+Connect, prepare the script, then enable input and choose Play. Stop can cancel preparation and playback. A prepared script remains available for another explicit Play; reconnecting starts a fresh device session. Connection keys and API tokens are saved in the selected configuration.
 
 ### Synchronized script looping
 
-After connecting and successfully preparing a script, choose “Loop synchronized script” in its script controls. Change the selection only while not playing; stop playback first if needed. Selecting loop neither starts playback nor enables input. Input activation and explicit Play are still separate. Preparing a new script or reconnecting resets the selection to off. Each Play reapplies the current policy to the device API, avoiding a previously retained native loop setting.
+After preparing a script, choose “Loop synchronized script” while playback is stopped. Each Play applies that selection. Preparing another script or reconnecting resets looping to off.
 
-- Handy API v2 exposes looping only when connection information confirms **fw3.2 or later fw3**. Unknown/older firmware does not expose it; ordinary synchronized playback remains available.
-- Handy API v3 includes `loop` in the next `/hssp/play`; it does not call a nonexistent v3 `/hssp/loop` endpoint.
+- Handy API v2 exposes looping with **fw3.2 or later fw3** reported in connection information.
+- Handy API v3 includes `loop` in the next `/hssp/play`.
 - Autoblow/VacuGlide use their supported `sync-script/loop`. This output capability is separate from local compatible inputs' loop handling.
 
 Custom tools can call the workbench API while prepared and paused. Here `handy` is the example output ID above:
@@ -278,11 +276,11 @@ curl --request POST http://127.0.0.1:5086/api/control/output/handy/script-loop \
   --header 'Content-Type: application/json' --data '{"loop":true}'
 ```
 
-This is a workbench management API and retains its access controls, separately from the protocol-input ports above.
+This request goes to the workbench address.
 
 ## Bluetooth and virtual serial wiring
 
-The tools need a separate Python 3.10+ installation and selected dependencies; native Windows BLE input requires Python 3.11+ and PyWinRT 4. Portable/installer packages include tool files; the single EXE does not embed Python, serial drivers or a Bluetooth stack.
+Install Python and the selected transport dependencies, then choose the direction needed. Portable packages/installers include the tool files. [Installation and platform setup](../tools/protocol-bridge/README.md)
 
 ```sh
 python tools/protocol-bridge/bridge.py --check
@@ -292,11 +290,9 @@ python tools/protocol-bridge/bridge.py ble-input --protocol loob --sensa tcp://1
 python tools/protocol-bridge/bridge.py ble-input --protocol thrust-sync --sensa tcp://127.0.0.1:12401
 ```
 
-These are alternative connections; run the one you need. A Linux/macOS PTY is not guaranteed to appear in Web Serial's picker. Windows needs an already installed/configured enumerable COM pair: the browser opens one end and the bridge opens the other. Sensa's `TCodeSerial` can instead open the bridge-side port directly; two processes must not compete for the same end.
+Use `pty-input` on Linux/macOS or a configured COM pair on Windows. The client opens one end, and the bridge or Sensa's TCodeSerial input opens the other.
 
-BLE input needs the **peripheral/GATT server** role; BLE output needs the **central** role. The tool adapts LOOB's four-byte position/duration frames and Erojoy Thrust Sync's three-byte frames. Linux/macOS input uses Bless, Windows input uses independent native WinRT, and output uses Bleak. Check OS, adapter, advertising permission and browser filtering separately. Windows LOOB requires the actual system advertising name to meet its LOOB prefix before explicit confirmation; the tool does not rename the computer. An ordinary browser page cannot become a BLE peripheral. Self-connection/dual roles on one adapter may require another dongle.
-
-Each LOOB/Thrust Sync I duration is limited to 60000 ms when forwarding BLE input into Sensa. The bridge rejects raw 60001–65535 ms fields before enqueueing; this input path does not forward the full 16-bit range. Raw BLE output codecs still represent durations up to 65535 ms.
+BLE input advertises a peripheral for the client to connect; BLE output connects to the device as a central. Linux/macOS input uses Bless, Windows uses WinRT, and output uses Bleak. LOOB carries position/duration in four bytes; Thrust Sync uses three. Input durations are 0–60000 ms. Choose the OS adapter and advertising name using the tool guide.
 
 For the output direction, configure a TCode TCP output in Sensa to `127.0.0.1:12411`, enable only L0 and select Interval, then run:
 
@@ -304,11 +300,11 @@ For the output direction, configure a TCode TCP output in Sensa to `127.0.0.1:12
 python tools/protocol-bridge/bridge.py ble-output --protocol loob --device DEVICE_ID --listen tcp://127.0.0.1:12411
 ```
 
-LOOB and Thrust Sync have no verified emergency-stop opcode. DSTOP, timeout and disconnect clear pending work and disconnect BLE; the device may still finish its last finite accepted move. Position zero is not used as Stop. The input bridge terminal provides `disable`/`enable`/`disconnect`/`unpair`/`quit` and does not reconnect and replay old targets. See the [tool guide](../tools/protocol-bridge/README.md) for dependencies, adapter selection and Windows limits.
+LOOB/Thrust Sync stop clears the queue and disconnects BLE; the last accepted finite move can finish on the device. The input terminal provides `disable`, `enable`, `disconnect`, `unpair` and `quit`. See the [tool guide](../tools/protocol-bridge/README.md) for adapter/name setup and device-specific stopping.
 
 ### Svakom V1 vibration bridge
 
-`svakom-v1` adapts only the upstream-defined **Emma Neo/Phoenix Neo/Ella single-vibration subset**, not every Svakom model. It uses service `FFE0`/characteristic `FFE1`. The virtual input provides writable `FFE1` only, without `FFE2` notifications, sensing or identity responses; clients requiring those extras need another connection method. Its command is `55 04 03 00 enabled intensity`, intensity 0–19. Although it shares UUIDs with Thrust Sync, its packets and meaning differ: select the protocol explicitly.
+`svakom-v1` implements the **Emma Neo/Phoenix Neo/Ella single-vibration profile** using writable service `FFE0`/characteristic `FFE1`. Its command is `55 04 03 00 enabled intensity`, with intensity 0–19. Select this profile explicitly; its packet layout differs from Thrust Sync despite the shared UUIDs.
 
 Input still connects to a local TCode TCP source on `12401`. Configure that source with this **Scalar/Vibrate V0** feature instead of position L0:
 
@@ -321,20 +317,36 @@ python tools/protocol-bridge/bridge.py ble-input --protocol svakom-v1 --sensa tc
 python tools/protocol-bridge/bridge.py ble-output --protocol svakom-v1 --device DEVICE_ID --listen tcp://127.0.0.1:12411
 ```
 
-These are alternatives for different directions. Linux/macOS input advertises `Emma NEO`; Windows uses its actual system Bluetooth name. Configure a matching advertised name, then explicitly pass `--confirm-windows-svakom-name`. The tool does not rename the system or imply compatibility with other protocol families.
+Linux/macOS input advertises `Emma NEO`. On Windows, set a matching system Bluetooth name and pass `--confirm-windows-svakom-name`.
 
-For output, enable only V0 in Sensa, choose `NoSlope` and set the axis profile's `CommandMode` and `RampType` to `None`. The bridge accepts only one V0 intensity without I/S modifiers. Explicitly timed manual, Center or other duration requests still fail instead of losing their meaning. Hold a static intensity by using fixed-rate bindings to send new complete frames within the tool's `--idle` deadline. By default, two seconds without a new frame stops and disconnects; `--idle` can be explicitly set to 0.05–120 seconds, without automatic reconnection/resumption.
+For output, enable V0, choose `NoSlope` and set `CommandMode`/`RampType` to `None`. Send untimed V0 intensity frames at a fixed rate within the tool's idle deadline. The default is two seconds; `--idle` accepts 0.05–120 seconds. A new session starts from new commands.
 
-Stopping first attempts the verified zero-vibration command `55 04 03 00 00 00`, then clears and disconnects. This is distinct from treating position zero as Stop; a completed write is not physical emergency-stop or stopped-state feedback. Codec, loopback TCP and mock BLE stop tests do not replace acceptance of actual models, firmware and operating systems.
+Stopping sends the zero-vibration command `55 04 03 00 00 00`, then clears and disconnects. This profile exposes command writes; `FFE2` notifications and sensor/identity responses are outside its feature set.
+
+### More vibration devices
+
+| Profile | Device family | Direction | Intensity |
+| --- | --- | --- | --- |
+| `lovense-single` | Lovense single-vibration commands, including Lush, Hush, Ambi, Ferri and Diamo | BLE output | `Vibrate:0;` to `Vibrate:20;` |
+| `youou-vx001` | VX001_ Wand | BLE input/output | Sequence/checksum frames, range 0–247 |
+
+These scalar profiles use V0 with `NoSlope`, `CommandMode=None` and `RampType=None`. Use fixed-rate delivery for a held intensity. Each device connection keeps its own sequence and queue; stopping attempts zero intensity before disconnecting.
+
+```sh
+python tools/protocol-bridge/bridge.py ble-output --protocol lovense-single --device DEVICE_ID --listen tcp://127.0.0.1:12411
+python tools/protocol-bridge/bridge.py ble-output --protocol youou-vx001 --device DEVICE_ID --listen tcp://127.0.0.1:12411
+```
+
+[WebSensa](websensa.en.md) uses the same profile names for direct browser Bluetooth output. The tool guide lists UUIDs, platform setup and the supported command set.
 
 ## Verification scope and references
 
-Isolated verification covers handshake/client schemas, atomic multichannel commands, independent durations, invalid data, leases, stop ordering, emergency generations, local TCP/UDP, injected serial streams and BLE codecs. Browser E2E, full-process smoke and screenshots run only in Actions. Actual FapTap/other player connections, each OS's Web Bluetooth/Web Serial permissions, Central WSDM configuration, vendor cloud and real OSR/BLE behavior need acceptance in the relevant environment. Mocks and successful builds do not establish physical-device acceptance. [Development/checks](development.en.md) · [Verification record](e2e-status.en.md)
+[Verification records](e2e-status.en.md) identify the commit and environment for protocol, simulated transport and browser checks. The [development guide](development.en.md) describes the corresponding test suites.
 
 - [Buttplug specification](https://buttplug.io/docs/spec/) and [official C# client](https://github.com/buttplugio/buttplug-csharp). The v2 [command metadata](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server/src/message/v2/client_device_message_attributes.rs) and [official JSON schema](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_core/schema/buttplug-schema.json) are pinned to the inspected revision.
 - [Handy developer documentation](https://docs.handyfeeling.com/) and [Lovense Standard API](https://developer.lovense.com/docs/standard-solutions/standard-api).
 - [Autoblow HTTP API](https://developers.autoblow.com/reference/http-api-v1-autoblow/) and [VacuGlide HTTP API](https://developers.autoblow.com/reference/http-api-v1-vacuglide/).
-- [FapTap](https://faptap.net/)'s public connector code supplies the LOOB/Thrust Sync encoding reference; it does not establish vendor support for every model/firmware.
+- [FapTap](https://faptap.net/) supplies the public LOOB/Thrust Sync connector reference.
 - The Svakom V1 [upstream codec](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server/src/device/protocol_impl/svakom/svakom_v1.rs) and [model/range configuration](https://github.com/buttplugio/buttplug/blob/179b0d9306f519912c10bdddd111686622b7f63a/crates/buttplug_server_device_config/device-config/protocols/svakom-v1.yml) are pinned to the inspected revision.
 
 [External command/input decision](adr/0010-external-protocol-inputs.md) · [Architecture](architecture.en.md)

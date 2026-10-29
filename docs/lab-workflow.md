@@ -2,7 +2,7 @@
 
 **简体中文** | [English](lab-workflow.en.md)
 
-Avatar／World Lab 用于开发场景和核对测量行为。日常接入可先选[OGB、SPS 四点定位、Contact 直接定位或 Shader](usage-scenarios.md)。使用自己的 Unity 工程和授权资源，通过 SDK 构建与私有上传。初始保持输入关闭、输出为空。
+Avatar／World Lab 将测量和交互实验组织成可重复场景。选择测量方案、配置目标与接收器，再将读数与工作台对照。同样步骤也可用于排查自己 Unity 工程中的 [OGB、SPS、Contact 或 Shader 接入](usage-scenarios.md)。
 
 ## 准备和入口
 

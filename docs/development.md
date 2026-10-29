@@ -2,7 +2,7 @@
 
 **简体中文** | [English](development.en.md)
 
-CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包和发布。自动预发布与手动正式版使用相同的检查要求，任何必要步骤失败都会停止发布。
+围绕同一个源码提交开发，先运行相关单元检查，再由 CI 验证完整浏览器流程与原生包。main 成功构建发布预览，Release 工作流以相同检查要求发布正式版。Pages 验证静态产物后再部署。
 
 ## 平时提交代码会发生什么？
 
@@ -167,6 +167,37 @@ python -X utf8 scripts/verify.py
 
 浏览器 E2E、截图和完整进程冒烟在 Actions 执行，隔离单元和静态检查可本地运行。设备相关检查使用临时配置与模拟传输。真实硬件、Unity／VRChat 和 World 实际交互另行验收。
 
+### TypeScript 与运行时兼容
+
+仓库开发使用 **Node 24.19.0 或更高版本**与固定的 **TypeScript 7.0.2**。共享核心和 WebSensa 使用 `.ts`／`.tsx`，`src/core/index.ts` 为引擎公开入口。当前桌面服务仍为 .NET，本地能力逐项迁入核心接口。
+
+类型化源码使用 **Oxlint 1.90.0** 和 TypeScript 编译器，既有 JavaScript 保留 ESLint。已核对的 typescript-eslint 8.72.1 peer 范围不包含 TypeScript 7，因此保留稳定编译器，不强制安装不兼容依赖。仅在 `src/websensa/WebSensa.tsx` 关闭 `jsx-a11y/prefer-tag-over-role`：其建议会把合法内联 SVG 的 `role="img"`、状态播报与控件组替换为不同语义的元素；其他配置检查继续启用，浏览器 axe／交互检查验证实际页面。
+
+`npm run typecheck` 分别检查浏览器源码与 E2E 类型契约，均不输出文件。`tsconfig.json` 保持浏览器全局类型；`tsconfig.e2e-types.json` 使用真实的 Node 与 Playwright 声明，检查截图等测试辅助接口。严格检查包含 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`、unknown 异常、隔离模块和可擦除语法。网络数据与原生事件通过 `unknown` 和运行时校验进入类型边界。既有桌面界面 JavaScript 保留原 lint 检查，新共享核心／浏览器适配器进入严格 TypeScript 检查。
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build:web
+```
+
+核心的可擦除 TypeScript 可由 Node 24 导入，React TSX 与浏览器适配器通过 esbuild 打包。浏览器语法目标保持 **Chrome 110、Firefox 115、Safari 16**；TypeScript 使用 ES2023 标准库基线，更新的运行库 API 经兼容适配器和回退测试后再使用。设备支持检测实际可调用 API，不猜测浏览器版本或 UA；串口、蓝牙和 MIDI 还需要安全上下文与选定设备授权。缺少这些能力时，对应选项不可用，可以选择可访问的 WebSocket／HTTP 地址或桌面桥接路线。
+
+`src/websensa/capabilities.ts` 报告实际 API 与已注册宿主工厂；检测本身不连接或请求权限。未来 Electron 桥先注册真实适配器再公布能力。Node 已有的 WebSocket／fetch 可以直接复用，同时保持浏览器设备 API 的准确能力清单。图解在三维不可用时保留 SVG，桌面标签页保留 SharedWorker → Web Locks／BroadcastChannel → 各页连接的回退方式。
+
+CI 在普通 Chromium 套件和独立 Firefox／WebKit 兼容任务中检查同一份 WebSensa 构建，覆盖桌面与窄屏。兼容任务检查真实模拟服务交付、能力回退、键盘、axe 与重排，并作为发布条件。执行结果按源码提交记录。
+
+采用维护中的稳定依赖，固定所选版本并保留 lockfile；升级时核对当前上游版本与平台要求。语法目标、API 可用性与协议行为分别检查。[适配器目录与社区拆包路线](adapter-catalog.md)
+
+### WebSensa 与桌面实例
+
+`npm run build:web` 构建桌面界面、WebSensa 与参数图解资源。`scripts/build-websensa.mjs` 为静态站和桌面发布构建同一 React 入口、CSS 与许可证说明。静态路径为 `websensa/`，桌面 HTTP 提供 `/websensa/`，便携文件位于 `web/websensa/`。
+
+WebSensa 单元检查注入时钟、WebSocket 对端和浏览器设备 API。Actions 打开构建页面执行完整控制／脚本、共用连接与模拟 GATT 流程。图解通过明确的浏览器连接交付同一套归一化轴值。
+
+实例检查覆盖配置归属、陈旧持有者恢复、页面存活与实际绑定后的端口分配。Actions 启动独立进程检查重复启动与命名实例。日常开发通过 `--config`、`--instance` 和 `--new-instance` 选择设置，`--open-browser false` 用于无界面运行。[用户启动选项](quick-start.md#运行多个实例)
+
 ### 可选串口与 BLE 桥工具
 
 便携包和 Windows 安装器通过 `scripts/release.py` 的明确白名单附带 `tools/protocol-bridge` 中的 Python 源码、双语用法及依赖版本文件；安装器复用同一工具文件，Actions 逐个核对安装后的内容。该目录的可选依赖也由 Dependabot 每周维护，BLE 后端与原生 WinRT 投影分别分组更新，保留各平台标记和安全更新检查。程序不会安装 Python、虚拟串口驱动或 Python 依赖，独立单 EXE 也不嵌入解释器。需要这些工具时，从便携包或安装器取得文件，在自己选择的 Python 虚拟环境安装所需依赖。
@@ -178,7 +209,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE 输入在 Linux／macOS 使用 `requirements-ble-input.txt` 中的 Bless，在 Windows 使用 `requirements-ble-input-windows.txt` 中兼容的原生 PyWinRT 版本，避免 Bless 的 Windows 依赖冲突。BLE 外围角色／广播、系统权限和同适配器双角色需实机检查；Windows LOOB／Svakom V1 另受实际系统广播名限制。PTY 不保证被浏览器 Web Serial 枚举；Windows 使用用户已建立的受信任签名驱动 COM 对。`--check` 不打开硬件，隔离测试使用本地 PTY、假串口／BLE／WinRT，并不代表网站与设备验收。LOOB／Thrust Sync 没有已验证的硬件急停指令，停止只清理会话并断开，不能把位置归零当作停止。Svakom V1 单振动子集使用上游已核实的零振动命令后断开；命令写出不是设备已物理停止的证明，其他 Svakom 型号／协议不因此自动兼容。[安装与完整操作](../tools/protocol-bridge/README.zh-CN.md)
+Linux／macOS BLE 输入使用 Bless，Windows 输入使用原生 PyWinRT，输出使用 Bleak。工具指南列出平台权限、广播名称与 LOOB、Thrust Sync、Svakom V1、Lovense 单振动和 Youou VX001 配置。隔离 PTY／模拟 GATT／WinRT 检查验证软件行为，硬件检查使用对应 OS 与适配器。[安装与操作](../tools/protocol-bridge/README.zh-CN.md)
 
 修改 Three.js 源码或依赖后运行 `npm run build:web`，提交可再现的 `docs/assets/parameter-geometry-3d.js` 与完整 `3d.LICENSE.txt`。修改普通 Markdown 后可直接构建站点：`npm run build:pages`，产物位于 `artifacts/pages/`。
 

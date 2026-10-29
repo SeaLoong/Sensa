@@ -2,91 +2,96 @@
 
 **简体中文** | [English](features.en.md)
 
-Sensa 把输入、计算和输出组织在同一工作台，适合实时设备联动、应用参数控制和轨迹录制。下面按使用目标说明现有能力；操作步骤见[首次使用](quick-start.md)和[工作台指南](guide.md)。
+WebSensa 适合打开浏览器直接控制；Sensa 桌面版连接应用、定位和完整传输方式。两个版本都能将一个来源同时送给多个输出。
 
-## 可直接搭建的流程
+## 选择版本
 
-| 想做什么 | 可以怎样搭建 |
-| --- | --- |
-| 混合多个读数，加入平滑或条件 | OSC、定位、手动、脚本、协议或反馈 → [计算信号](computed-signals.md) |
-| 一个结果同时控制多个目标 | 计算结果 → [多条输出连接](signal-pipeline.md#同一个结果连接多个输出)，各自设置范围 |
-| 把网站／播放器的设备命令转到自己的设备 | [协议输入与虚拟设备](protocol-inputs.md) → 现有 TCode／Intiface／设备 API 输出 |
-| 保存可播放、可编辑的轨迹 | 来源 → [Funscript 录制](signal-pipeline.md#录制与观察) → 下载或回放 |
-| 复用整套交互设置 | [导出方案](signal-pipeline.md#保存与复用整套方案)，一起保存计算、映射、轴配置和输出 |
-| 同时打开多个工作台页面 | 同源页面自动[共享实时连接](signal-pipeline.md#页面与连接共用)，分别保留草稿 |
+| 能力 | WebSensa | Sensa 桌面版 |
+| --- | --- | --- |
+| 手动轴／funscript | 支持 | 支持 |
+| 一个来源连接多个输出 | 支持 | 支持计算与各绑定独立节奏 |
+| 浏览器串口／蓝牙／MIDI | 浏览器 API 与设备协议配置 | 系统端口与桥工具 |
+| WebSocket／HTTP | 浏览器直接连接 | 桌面客户端／服务端集成 |
+| OSC／UDP／TCP／MQTT | 使用对应桥接地址 | 原生桌面传输 |
+| 网站／播放器协议输入 | 参数图解连接 | Buttplug、TCode、JSON 与厂商 API 路由 |
+| 录制 | 手动 L0 导出 funscript | 多轨 funscript、JSON Lines／CSV 与录制回放 |
+| VRChat／Unity 定位 | 在参数页探索几何 | 实时测量、校准与空间计算 |
+
+[打开 WebSensa](https://sealoong.github.io/Sensa/websensa/) · [WebSensa 指南](websensa.md) · [下载桌面版](https://github.com/SeaLoong/Sensa/releases/latest)
 
 ## 浏览器工作台
 
-| 页面 | 可以做什么 |
+| 页面 | 操作 |
 | --- | --- |
-| **控制** | 选择和应用输入方式、调节手动轴、播放脚本、管理输出、L0 快捷录制 |
-| **OSC** | 接收与浏览参数、查看含义、选择来源、配置轴映射、发现和转发 |
-| **流程** | 建立计算、连接多个输出、录制回放、保存和载入整套方案 |
-| **设置** | 管理轴范围、方向、速度、运动方式、协议输入与日志 |
+| **控制** | 选择输入方式、调整轴、播放脚本、开始／停止发送 |
+| **OSC**（桌面版） | 接收与浏览参数、查看定义、映射轴并转发 |
+| **流程**（桌面版）／**输出**（WebSensa） | 管理目标；桌面版增加计算、录制和整套方案 |
+| **设置**（桌面版）／**帮助**（WebSensa） | 设备设置与连接说明；桌面版增加协议监听和日志 |
 
-顶栏持续显示当前输入方式、输入启用状态和急停。中英文可随时切换，草稿保留。OSC 参数支持搜索、分类、置顶、冻结预览及分页，每页最多 100 项；参数详情解释数值含义和官方来源。[使用指南](guide.md)
+导航适配窄屏，顶栏持续显示输入启用与急停。切换语言保留当前草稿。[工作台指南](guide.md)
 
-[独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)提供十一个可操作场景，展示参数、检测区域和定位结果。它随发行包离线分发，并提供 3D 和 SVG 视图。
-
-## 运行时与输入
+## 桌面输入
 
 | 输入方式 | 能力 |
 | --- | --- |
-| **手动** | 十二轴控制，发送一次或跟随编辑；使用轴配置或指定时长／速度 |
-| **脚本** | Funscript 插值播放、0.1～4 倍速、循环、A–B、时间与关键帧定位 |
-| **OSC** | Float／Int／Bool 参数、预设和自定义映射、参数来源选择 |
-| **协议** | Buttplug v2/v3/v4、TCode TCP／UDP／串口、WSDM、JSON 与厂商兼容子集；位置时长、强度和旋转速度分别解释 |
-| **组合** | 让手动、脚本、OSC、协议、定位、设备反馈、回放和计算共同参与输出连接 |
+| **手动** | 十二轴、单次／连续发送、轴配置或指定时长／速度 |
+| **脚本** | Funscript 插值、0.1–4×、循环、A–B、关键帧和时间跳转 |
+| **OSC** | Float／Int／Bool、来源选择、预设与自定义映射 |
+| **协议** | Buttplug v2/v3/v4、TCode TCP／UDP／串口／WebSocket、WSDM、JSON 与文档列出的厂商路由 |
+| **组合** | 多种来源、定位、反馈、录制和计算结果共同参与 |
 
-输入开关决定是否向输出交付结果。保存配置、切换输入或更换脚本后，准备好再启用；解除急停后也需重新启用。脚本暂停会停止自动发送，已启用脚本时仍可通过定位或步进发送所选目标。
+保存配置、应用其他输入方式或载入脚本会关闭输入，准备好下一条流程后重新启用。[操作说明](guide.md#准备应用输入方式再启用输入)
 
-常规 OSC 接收超时默认关闭，适合数值变化时才发送的参数。设置正数超时后，相关数据断流会触发急停。定位方案使用各自的采样时效和有效性检查。[运行与启停](guide.md#准备应用输入方式再启用输入)
+## 计算与映射
 
-## 信号解释与网络辅助
+计算信号提供加权平均、加减乘除、最小／最大值、模长、阈值与时间效果。可以加入平滑、死区、滞回、延迟、变化率、峰值保持、边沿、脉冲、冷却或正弦／包络生成。
 
-**计算信号**支持加权平均、求和、差值、比例、最小／最大值和向量长度。空间计算可直接求两点距离、平面深度、平面内偏移、向量夹角和相对平面夹角；平面可由法线或两条轴定义，跟随平面模板可连接 Unity 的骨骼标记。还可加入平滑、死区、迟滞、延迟、变化率、峰值保持、边沿、脉冲、冷却、持续条件和正弦／包络。保存一个结果后，多个映射和输出都能引用它。[计算示例与条件](computed-signals.md)
+空间运算包括 `PointDistance`、`PlaneDepth`、`PlaneOffset`、`PlaneDepthFromAxes`、`PlaneOffsetFromAxes`、`VectorAngle` 和 `PlaneAngle`。XYZ 组描述目标、参考原点与平面朝向，结果保存一次即可被多个绑定选用。[完整示例](computed-signals.md)
 
-**轴映射**提供校准、反向、曲线、输出区间和动作角色。内置五个模板覆盖 OGB 深度／振动、Contact 位置／速率和 PhysBone。路径可精确匹配，或使用完整段 `*`、跨段 `**` 及别名。[预设](presets.md)
+轴映射负责校准、反向、曲线和动作角色量程。内置预设覆盖 OGB 深度／振动、Contact 位置／速度和 PhysBone。路径支持完整名称、`*`、`**` 与别名。[预设指南](presets.md)
 
-**OGB／SPS**读取已有深度与触碰相关参数。SPS2 配对同一对象的 Root／Tip 读数估算深浅；SPS1 使用 PenOthers 及其 Close 条件。根据实际对象校准范围。[参数含义](osc-parameters.md) · [OGB 兼容说明](ogb-compatibility.md)
+## 设备与输出传输
 
-**网络辅助**包括 OSCQuery 参数发现、订阅与轮询、本机接收服务广播，以及多目标 UDP Hub 转发。OGB 心跳可维持需要它的 Avatar 参数发布，启用时填写明确的 VRChat 接收目标。
-
-## 输出、轴配置和录制
-
-| 输出 | 配置重点 |
+| 输出 | 能力 |
 | --- | --- |
-| **TCode 串口／UDP／TCP** | 连接地址与轴配置；支持十二轴、方向、范围、速度、锁定和运动方式 |
-| **Intiface／Buttplug** | 连接 Central、扫描设备；默认位置／振动，显式特征映射支持已声明的旋转与其他功能 |
-| **Handy／Lovense／Autoblow／VacuGlide** | 明确 API 地址与设备身份，按各设备的位置、强度／速度或同步脚本能力交付；[实际子集与限制](protocol-inputs.md#厂商兼容输入与真实设备输出) |
-| **OSC 参数** | 地址、类型、范围；提供回写 VRChat 的快捷设置 |
-| **DG-LAB** | DG-LAB 4 APP 配对、设备／通道、用户上限、强度与波形任务 |
-| **MIDI CC** | 系统输出端口、通道／控制器，数值 0～127 |
-| **HTTP JSON／WebSocket JSON／MQTT** | 接收服务、目标字段或主题、数值类型 |
-| **录制** | 默认 Funscript，另提供 JSON Lines／CSV 信号诊断 |
+| TCode 串口／UDP／TCP | 十二轴、方向、行程、速度与动作配置 |
+| Intiface／Buttplug | 发现设备并映射其位置、振动、旋转与标量功能 |
+| Handy／Lovense／Autoblow／VacuGlide | 设备 API 控制、同步脚本与可用循环设置 |
+| 蓝牙／串口桥 | 通过附带工具发送对应设备协议 |
+| OSC | 有类型参数与 VRChat 回写快捷项 |
+| DG-LAB | APP／设备配对、强度、波形和设备反馈 |
+| MIDI CC | 系统端口、通道／控制器和 0–127 数值 |
+| HTTP JSON／WebSocket JSON／MQTT | 服务地址或主题，传递有类型信号值 |
+| 录制 | Funscript 轨道与诊断 JSON Lines／CSV |
 
-每个输出可独立启用和连接；每条连接分别选择来源、量程与发送方式。来源失效时，绑定采用配置的停止值；位置轴的停止值是备用目标，可能产生运动。直接协议来源的停止会保守地停止动作输出，可能影响其他轴；急停覆盖所有输出。[完整输出配置](signal-pipeline.md#添加输出与绑定)
+每个输出单独管理连接、启用状态与量程。绑定可以按事件、数值变化或固定频率交付。来源失效时使用绑定的备用值；关闭输入、禁用输出或急停使用整机停止。[输出与绑定](signal-pipeline.md#添加输出与绑定)
 
-录制输出按绑定保存 funscript，有效片段各自形成文件，可下载、载入播放器或回放为信号。JSON Lines／CSV 保留原始值、换算值和无效区间。L0 快捷录制保存当前主轴目标，最多 100000 帧，并可简化导出。[录制与回放](signal-pipeline.md#录制与观察)
+## 共用连接与多实例
 
-## Unity 与空间实验
+桌面标签页共用实时连接，各自保留草稿。多个协议来源通过不同路径共享 HTTP 端口，各来源保留独立通道。命名桌面实例单独保存配置并选择可用监听端口。[协议路由](protocol-inputs.md) · [启动与多实例](quick-start.md#运行多个实例)
 
-| 方案 | 测量内容与准备 |
+## 录制与可复用方案
+
+录制输出将各绑定的连续有效轨迹保存为 funscript。可以下载、载入播放器，或通过录制回放作为信号来源。JSON Lines／CSV 保留原始值、转换值和有效性。整套方案导出后可复用计算、映射、轴配置和输出。[录制与方案](signal-pipeline.md#录制与观察)
+
+## 参数图解
+
+[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)提供十一种可调场景，以及 3D、XZ 和等轴视图。按路径／名称搜索参数，选定读数并映射到目标轴，观察近期曲线。可以把模拟轨迹录成 funscript，或将实时值送给 WebSensa。离线副本提供模型与文件导出。
+
+## Unity 与定位
+
+| 方案 | 测量内容 |
 | --- | --- |
-| **SPS 四点定位** | 根点相对 Avatar 的三维位置；在自己的 Avatar 上添加组件并检查共同检测区 |
-| **Contact 直接定位（SDK Beta）** | 米制位置与相对速度；需要受支持的 SDK 高级 Proximity 功能 |
-| **Shader 捕获** | 根点位置、Right／Forward 轴向与 AvatarScale；需要 PC 渲染图块和桌面解码 |
-| **跟随平面** | Tracking Frame 的 Origin／Forward／Right 随骨骼移动和旋转，计算目标的深度与偏离中心的距离 |
-| **独立 Point／Handle／Pose** | 相对参考对象的位置或姿态，供测量模型实验使用 |
+| SPS 四点定位 | 通过四个距离重建 Avatar 根局部位置 |
+| Contact 直接定位（SDK Beta） | Avatar 根米制位置与相对速度 |
+| Shader 捕获 | 根位置、Right／Forward 轴和 AvatarScale |
+| 跟随平面 | 参考 Origin／Forward／Right，用于深度、偏移和夹角 |
+| Point／Handle／Pose 实验 | 参考相对位置与姿态 |
 
-Shader 使用带 Reed–Solomon 纠错的 QR 图块，帮助恢复部分读错或缺失的数据，再检查完整包与帧更新。在计算、轴映射或输出中选择“定位测量”（SensaPoint），可使用坐标、相应速度或 Shader 轴向／缩放指标。[方案选择](usage-scenarios.md) · [字段、单位与校准](positioning.md)
+作者组件在 Avatar 构建时生成原生 Contact、约束、动画与参数。[方案选择](usage-scenarios.md) · [单位与校准](positioning.md) · [Unity 构建流程](unity-build.md)
 
-Unity 组件在构建时生成原生 Contact、动画和参数。Automatic SPS Setup 提供目标选择与根点方案；显式 Transform、Sensa／原生 Contact 目标也有对应配置入口。实际客户端与图形环境效果按所用版本验收。[Unity 安装](../unity/top.sealoong.sensa/README.zh-CN.md) · [构建过程](unity-build.md)
+## 配置与开发
 
-## 配置、访问与 API
+桌面程序旁保存 `config.json`，命名实例使用独立文件夹。HTTP 和 WebSocket API 为自制工具提供工作台操作。[架构](architecture.md)
 
-设置保存在程序旁的 `config.json`，可用 `SENSA_CONFIG_PATH` 指定路径。整套方案导入前会显示预览，应用后再选择需要启用的输出。
-
-工作台默认通过本机地址访问。监听通配地址 `0.0.0.0`／`::` 与浏览器访问地址分别处理：自动打开浏览器时使用 `127.0.0.1`／`[::1]`，显式局域网 IP 保持原值，IPv6 URL 使用方括号。局域网访问仍需配置 `SENSA_ACCESS_TOKEN`，并在可信网络中使用；连接与访问条件见[架构说明](architecture.md)。HTTP 和 WebSocket 提供配置、输入、脚本、录制与输出控制接口，供自制工具调用。
-
-[开发与发布](development.md)说明构建和检查流程；[验证记录](e2e-status.md)按提交区分自动检查、图片审阅与实际运行结果。
+[开发与发布](development.md)说明构建和扫描维护，[验证记录](e2e-status.md)列出实际执行的自动检查及环境验收结果。

@@ -9,8 +9,8 @@ public sealed class WebUiAddressContracts
 {
     [Theory]
     [InlineData("127.0.0.1", "http://127.0.0.1:5086", "http://127.0.0.1:5086")]
-    [InlineData("localhost", "http://localhost:5086", "http://localhost:5086")]
-    [InlineData(" localhost ", "http://localhost:5086", "http://localhost:5086")]
+    [InlineData("localhost", "http://127.0.0.1:5086", "http://127.0.0.1:5086")]
+    [InlineData(" localhost ", "http://127.0.0.1:5086", "http://127.0.0.1:5086")]
     [InlineData("0.0.0.0", "http://0.0.0.0:5086", "http://127.0.0.1:5086")]
     [InlineData("*", "http://*:5086", "http://127.0.0.1:5086")]
     [InlineData("+", "http://+:5086", "http://127.0.0.1:5086")]

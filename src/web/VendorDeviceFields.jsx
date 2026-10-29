@@ -17,7 +17,7 @@ export default function VendorDeviceFields({ type, value, onChange }) {
     {type === 'Lovense' && <>
       <Field label={t('设备标识')} value={options.deviceId} onChange={event => patch({ deviceId: event.target.value })} />
       <SelectField label={t('设备功能')} value={options.function} options={['Vibrate', 'Rotate', 'Pump', 'Thrusting', 'Fingering', 'Suction'].map(name => ({ value: name, label: name }))}
-        onChange={name => patch({ function: name })} />
+        onChange={name => patch({ 'function': name })} />
     </>}
     {type === 'VacuGlide' && <p className="caption muted">{t('来源值表示 0–1 的速度强度，也可在输出卡片中准备同步脚本。')}</p>}
     {['Handy', 'Autoblow', 'VacuGlide'].includes(type) && <Field label={t('同步脚本地址')} value={options.scriptUrl || ''} type="url"

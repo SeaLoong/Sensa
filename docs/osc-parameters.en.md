@@ -2,7 +2,7 @@
 
 [简体中文](osc-parameters.md) | **English**
 
-First identify whether a parameter describes position, proximity or movement strength, then calibrate the mapping with your intended start and end movements. This page explains each field's meaning, units, direction and common linkage uses. See [integration routes](usage-scenarios.en.md) and the [workbench guide](guide.en.md) for setup. Paths omit `/avatar/parameters/`, are case sensitive, and use a real instance name in place of `<id>`.
+Find a parameter, read its unit and direction, then choose a mapping or computation. The tables describe the paths used by OGB/SPS and Sensa tracking. Use the [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) to search readings, move a target, map the range and export or send a simulated trajectory to WebSensa.
 
 ## Explore the values
 

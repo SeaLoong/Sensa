@@ -9,7 +9,9 @@ E2E participates in automatic CI and stable-release checks. After unit tests and
 | Scope | Actual execution | Environment |
 | --- | --- | --- |
 | Sensa application | Real service, HTTP/WebSocket, browser and loopback mock transports | Independent application process and simulated inputs in Actions |
-| Standalone explorer | Six local assets, SVG, software WebGL2, dragging and fallback | Browser software rendering |
+| Standalone explorer | Bundled model/view assets, SVG, software WebGL2, dragging, recording and fallback | Browser software rendering |
+| WebSensa | Static browser controller, scripts, shared endpoints and mock device APIs | Browser with isolated WebSocket/GATT peers |
+| Desktop instances | Repeated launch, named profiles, actual assigned ports and page presence | Independent application processes in Actions |
 | Documentation site | Built artifact navigation, bilingual section links and narrow-screen scrolling | Built static site |
 
 Large-catalog cases continuously update 4,096 simulated parameters, checking the 100-row page limit, direct navigation, full-catalog filtering, freezing and source-specific details. Other cases check actual input permission, modes, mapping saves, disconnection and invalidity stops together with mock transports. Tests use separate device configuration.

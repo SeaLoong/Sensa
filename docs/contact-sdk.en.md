@@ -2,7 +2,7 @@
 
 [简体中文](contact-sdk.md) | **English**
 
-Contact direct tracking reads the selected root's position and relative velocity from VRChat's advanced Proximity parameters. It uses one dedicated spherical Sender and one spherical Receiver. Choose this route when building your own Avatar with **VRChat Avatars SDK 3.10.6-beta.3**. Sensa also supports the advanced Proximity interface from Beta.2. SPS four-anchor tracking remains the default in Automatic SPS Setup.
+Use Contact direct tracking to measure the selected Avatar root in metres and its relative contact-point velocity in m/s. Add a dedicated spherical Sender/Receiver pair, inspect the advanced Proximity fields, then calibrate the chosen metric. The setup below uses **VRChat Avatars SDK 3.10.6-beta.3**; the advanced interface from Beta.2 is also supported.
 
 The Editor source and runtime assembly from the official [3.10.6-beta.3 release](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3) have been inspected; [3.10.6-beta.2](https://github.com/vrchat/packages/releases/tag/3.10.6-beta.2) remains the original protocol reference. This guide explains the SDK interface, Sensa's published fields and client setup. See the [verification record](e2e-status.en.md) for executed checks.
 

@@ -63,6 +63,31 @@ test('different protocol listeners cannot collide or implicitly claim one axis /
   assert.deepEqual(protocolDraftErrors([a, b]), []);
 });
 
+test('web protocols multiplex one port by distinct normalized paths / 网页协议以不同规范路径复用端口', () => {
+  const first = { ...newProtocolDraft(), enabled: true, path: '/buttplug' };
+  const second = { ...newProtocolDraft([first], 'JsonHttp'), enabled: true, routeToMotion: false, port: first.port, path: ' /json/ ' };
+  const third = { ...newProtocolDraft([first, second], 'TCodeWebSocket'), enabled: true, routeToMotion: false, port: first.port, path: '/tcode' };
+  assert.deepEqual(protocolDraftErrors([first, second, third]), []);
+  const saved = saveProtocolDrafts({}, [first, second, third]).protocolInputs;
+  assert.deepEqual(saved.map(input => input.path), ['/buttplug', '/json', '/tcode']);
+  assert.equal(protocolEndpoint(saved[0]), 'ws://127.0.0.1:12400/buttplug');
+  assert.equal(protocolEndpoint(saved[1]), 'http://127.0.0.1:12400/json');
+  assert.equal(protocolEndpoint(saved[2]), 'ws://127.0.0.1:12400/tcode');
+  assert.deepEqual(stripProtocolDraft(makeProtocolDraft(saved[2])), saved[2]);
+  second.path = '/buttplug/';
+  assert.ok(protocolDraftErrors([first, second]).length);
+  second.path = '/json'; second.type = 'TCodeTcp';
+  assert.ok(protocolDraftErrors([first, second]).length);
+  second.type = 'JsonHttp'; second.host = '0.0.0.0';
+  assert.ok(protocolDraftErrors([first, second]).length);
+  first.host = '::1'; second.host = '0:0:0:0:0:0:0:1'; second.path = '/buttplug';
+  assert.ok(protocolDraftErrors([first, second]).length, 'Equivalent IPv6 spellings share the same listener identity.');
+  second.path = '/json';
+  assert.deepEqual(protocolDraftErrors([first, second]), []);
+  for (const path of ['/json?route=other', '/a/../b', '/%2f', '/double//slash', 'relative', '/x#fragment'])
+    assert.ok(protocolDraftErrors([{ ...first, path }]).length, path);
+});
+
 test('protocol inputs require no website allowlist and omit obsolete source fields / 协议输入无需网站白名单且不再保存旧字段', () => {
   const input = { ...newProtocolDraft(), allowedOrigins: ['https://old.example'], allowedOriginsText: '*' };
   const draft = makeProtocolDraft(input);

@@ -1,6 +1,8 @@
 import { build } from 'esbuild';
 import { buildParameterGeometry } from './build-parameter-geometry.mjs';
+import { buildWebSensa } from './build-websensa.mjs';
 await buildParameterGeometry();
+await buildWebSensa();
 await build({
   entryPoints: ['src/web/realtime-worker.js'], bundle: true, minify: true,
   outfile: 'src/web/realtime-worker.bundle.js', format: 'iife',

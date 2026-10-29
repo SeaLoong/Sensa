@@ -2,7 +2,7 @@
 
 [简体中文](ogb-compatibility.md) | **English**
 
-OGB parameters describe Avatar approach, entry and touch interactions, which Sensa can map into device motion. This page explains parameter names, detection regions and conversion rules for Socket, Plug and target signal shapes.
+OGB/SPS parameters describe approach, entry and touch. Use their geometry and naming rules to choose readings, calibrate a depth or intensity, and connect it to a Sensa output. This reference covers Socket, Plug and independent touch-zone signals with links to the upstream definitions.
 
 Find the actual source and complete path in the parameter list, then choose the [depth or vibration template](presets.en.md). **SPS2 · PenOthersNewRoot / PenOthersNewTip** pairs two readings to estimate a depth trend; **SPS1 · PenOthers / PenOthersClose** combines its depth signal with an effective nearby region. Keep pairs within one source, instance and Self/Others category, and enable the Avatar’s OGB_ENABLED heartbeat when needed.
 

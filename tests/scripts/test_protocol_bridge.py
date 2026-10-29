@@ -65,6 +65,72 @@ class ProtocolCodecTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             codec.encode(.5, 100)
 
+    def test_lovense_ascii_scalar_range_and_output_only_cli(self):
+        codec = bridge.PROTOCOLS['lovense-single']
+        self.assertEqual(codec.encode(.5, 0), b'Vibrate:10;')
+        self.assertEqual(codec.encode(1, 0), b'Vibrate:20;')
+        self.assertEqual(codec.encode(0, 0), b'Vibrate:0;')
+        self.assertEqual(codec.decode(b'Vibrate:20;'), (1, 0))
+        self.assertEqual(codec.to_tcode(b'Vibrate:10;'), b'V0500\n')
+        self.assertEqual(len(codec.alternatives), 11)
+        self.assertFalse(codec.input_supported)
+        self.assertIn(('53300001-0023-4bd4-bbd5-a6920e4c5653',
+                       '53300002-0023-4bd4-bbd5-a6920e4c5653'), codec.alternatives)
+        for packet in (b'Vibrate:21;', b'Vibrate:-1;', b'Vibrate:1', b'Vibrate:1;Battery;', b'Vibrate:100;', b'Vibrate:1.0;'):
+            with self.subTest(packet=packet), self.assertRaises(ValueError):
+                codec.decode(packet)
+        with self.assertRaises(ValueError):
+            codec.encode(.5, 100)
+        help_text = bridge.parser().format_help()
+        self.assertIn('ble-input', help_text)
+        with mock.patch('sys.stderr', new_callable=io.StringIO), self.assertRaises(SystemExit):
+            bridge.parser().parse_args(['ble-input', '--protocol', 'lovense-single'])
+
+    def test_youou_pinned_packet_prefix_xor_sequence_and_pattern_boundary(self):
+        codec = bridge.PROTOCOLS['youou-vx001']
+        self.assertEqual(codec.encode(1, 0).hex(), 'aa5500020301f70109ff00000000000000')
+        self.assertEqual(codec.encode(.5, 0).hex(), 'aa55000203017c0182ff00000000000000')
+        self.assertEqual(codec.encode(0, 0), codec.stop_packet)
+        self.assertEqual(codec.encode(1, 0, packet_id=255).hex(), 'aa55ff020301f701f6ff00000000000000')
+        self.assertEqual(codec.to_tcode(codec.encode(1, 0)), b'V0999\n')
+        for packet_id in (-1, 256, 1.5, True):
+            with self.subTest(packet_id=packet_id), self.assertRaises(ValueError):
+                codec.encode(1, 0, packet_id=packet_id)
+        original = codec.encode(.5, 0)
+        for index in (0, 1, 3, 4, 5, 6, 7, 8, 9, 16):
+            altered = bytearray(original)
+            altered[index] ^= 255
+            with self.subTest(index=index), self.assertRaises(ValueError):
+                codec.decode(bytes(altered))
+        # Preserve valid CRC while rejecting upstream's pattern range.
+        altered = bytearray(codec.encode(1, 0)); altered[6] = 248
+        altered[8] = 0
+        for value in altered[:8]:
+            altered[8] ^= value
+        with self.assertRaises(ValueError):
+            codec.decode(bytes(altered))
+
+    def test_all_scalar_profiles_share_strict_v0_and_numeric_types(self):
+        for name in ('svakom-v1', 'lovense-single', 'youou-vx001'):
+            codec = bridge.PROTOCOLS[name]
+            self.assertEqual(bridge.parse_tcode_move(b'V0500', protocol=codec), (.5, 0))
+            for invalid in (b'L0500', b'V0500I100', b'V0500 V1100', b'V0500S100'):
+                with self.subTest(name=name, invalid=invalid), self.assertRaises(ValueError):
+                    bridge.parse_tcode_move(invalid, protocol=codec)
+            for invalid in (True, False, '0.5', None):
+                with self.subTest(name=name, invalid=invalid), self.assertRaises(ValueError):
+                    codec.encode(invalid, 0)
+
+    def test_windows_youou_input_name_confirmation(self):
+        args = types.SimpleNamespace(protocol='youou-vx001', confirm_windows_youou_name=False)
+        with mock.patch.object(bridge.sys, 'platform', 'win32'):
+            with self.assertRaisesRegex(RuntimeError, 'confirm-windows-youou-name'):
+                bridge.make_peripheral(args, lambda _: None, lambda: None)
+            args.confirm_windows_youou_name = True
+            fake = types.SimpleNamespace(WindowsPeripheral=mock.Mock(return_value='isolated-peripheral'))
+            with mock.patch.dict(sys.modules, {'windows_peripheral': fake}):
+                self.assertEqual(bridge.make_peripheral(args, lambda _: None, lambda: None), 'isolated-peripheral')
+
     def test_ble_input_rejects_tcode_intervals_over_60000_before_forwarding(self):
         for name in ('loob', 'thrust-sync'):
             codec = bridge.PROTOCOLS[name]
@@ -165,6 +231,120 @@ class FakeSink:
 
 
 class AsyncLifecycleTests(unittest.IsolatedAsyncioTestCase):
+    async def test_lovense_output_discovers_actual_official_alternate_and_cleans_up(self):
+        codec = bridge.PROTOCOLS['lovense-single']
+        service_id, characteristic = codec.alternatives[5]
+        events = []
+        class Services:
+            def get_service(self, identifier):
+                return self if identifier == service_id else None
+            def get_characteristic(self, identifier):
+                return object() if identifier == characteristic else None
+        class Client:
+            is_connected = True
+            services = Services()
+            async def write_gatt_char(self, uuid, data, *, response):
+                events.append((uuid, bytes(data), response))
+            async def disconnect(self):
+                self.is_connected = False
+                events.append('disconnect')
+        client = Client()
+        output = bridge.BleOutput(client, codec)
+        await output.select_characteristic()
+        await output.send(b'V0500')
+        await output.stop()
+        self.assertEqual(events, [(characteristic, b'Vibrate:10;', False),
+                                  (characteristic, b'Vibrate:0;', False), 'disconnect'])
+
+    async def test_lovense_discovery_without_supported_service_fails_before_motor_write(self):
+        class Services:
+            def get_service(self, _identifier):
+                return None
+        client = types.SimpleNamespace(services=Services())
+        output = bridge.BleOutput(client, bridge.PROTOCOLS['lovense-single'])
+        with self.assertRaisesRegex(ValueError, 'no supported'):
+            await output.select_characteristic()
+
+    async def test_youou_concurrent_writes_are_serial_and_stop_invalidates_queued_moves(self):
+        started = asyncio.Event()
+        release = asyncio.Event()
+        events = []
+        class Client:
+            is_connected = True
+            async def write_gatt_char(self, _uuid, packet, *, response):
+                events.append(bytes(packet))
+                if len(events) == 1:
+                    started.set()
+                    await release.wait()
+            async def disconnect(self):
+                self.is_connected = False
+                events.append('disconnect')
+        output = bridge.BleOutput(Client(), bridge.PROTOCOLS['youou-vx001'])
+        first = asyncio.create_task(output.send(b'V0999'))
+        await started.wait()
+        stale = asyncio.create_task(output.send(b'V0200'))
+        await asyncio.sleep(0)
+        stop = asyncio.create_task(output.stop())
+        await asyncio.sleep(0)
+        release.set()
+        await asyncio.gather(first, stale, stop)
+        self.assertEqual(len(events), 3)
+        self.assertEqual([p[2] for p in events[:2]], [0, 1])
+        self.assertEqual([p[6] for p in events[:2]], [247, 0])
+        self.assertEqual(events[-1], 'disconnect')
+        with self.assertRaises(ConnectionError):
+            await output.send(b'V0500')
+
+    async def test_youou_each_device_has_independent_wrapping_sequence_and_zero_stop(self):
+        class Client:
+            is_connected = True
+            def __init__(self):
+                self.packets = []
+            async def write_gatt_char(self, _uuid, packet, *, response):
+                self.packets.append(bytes(packet))
+            async def disconnect(self):
+                self.is_connected = False
+        a, b = Client(), Client()
+        first = bridge.BleOutput(a, bridge.PROTOCOLS['youou-vx001'])
+        second = bridge.BleOutput(b, bridge.PROTOCOLS['youou-vx001'])
+        first.packet_id = 255
+        await asyncio.gather(first.send(b'V0500'), second.send(b'V0999'))
+        await asyncio.gather(first.stop(), second.stop())
+        self.assertEqual([p[2] for p in a.packets], [255, 0])
+        self.assertEqual([p[2] for p in b.packets], [0, 1])
+        self.assertEqual(a.packets[-1][6], 0)
+        self.assertEqual(b.packets[-1][6], 0)
+
+    async def test_youou_virtual_peripheral_decodes_crc_packet_to_tcode_and_stops(self):
+        received = []
+        moved = asyncio.Event()
+        async def connection(reader, writer):
+            try:
+                while line := await reader.readline():
+                    received.append(line)
+                    if line == b'V0999\n':
+                        moved.set()
+            finally:
+                writer.close()
+                await writer.wait_closed()
+        async with await asyncio.start_server(connection, '127.0.0.1', 0) as server:
+            args = types.SimpleNamespace(protocol='youou-vx001',
+                sensa=f'tcp://127.0.0.1:{server.sockets[0].getsockname()[1]}', timeout=.2, idle=1)
+            class Peripheral:
+                failure = None
+                def __init__(self, _args, receive, disconnected):
+                    self.receive, self.disconnected = receive, disconnected
+                async def start(self):
+                    self.receive(bridge.PROTOCOLS['youou-vx001'].encode(1, 0, packet_id=7))
+                    await asyncio.wait_for(moved.wait(), .5)
+                    self.disconnected()
+                async def stop(self):
+                    pass
+            with mock.patch('sys.stdout', new_callable=io.StringIO):
+                await asyncio.wait_for(bridge.run_input(args, peripheral_factory=Peripheral), 1)
+        self.assertEqual(received[0], b'V0999\n')
+        self.assertIn(bridge.STOP, received[1:])
+
     async def test_svakom_peripheral_callback_reaches_tcp_as_vibration_then_stops_on_disconnect(self):
         received = []
         moved = asyncio.Event()
