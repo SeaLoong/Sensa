@@ -86,4 +86,3 @@ export function createBleCodec(id: string): BleCodec {
   };
   return { profile, encode, stop: () => profile.axis === 'V0' ? encode(0, 0) : null };
 }
-
