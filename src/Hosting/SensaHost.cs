@@ -37,8 +37,7 @@ public static class SensaHost
             {
                 if (context.Request.Path == "/websensa")
                 {
-                    context.Response.Redirect($"{context.Request.PathBase}/websensa/{context.Request.QueryString}", permanent: true);
-                    return Task.CompletedTask;
+                    return Results.LocalRedirect($"{context.Request.PathBase}/websensa/{context.Request.QueryString}", permanent: true).ExecuteAsync(context);
                 }
                 if (context.Request.Path == "/websensa/") context.Request.Path = "/websensa/index.html";
             }
