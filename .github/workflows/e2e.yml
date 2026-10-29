@@ -119,7 +119,7 @@ jobs:
           ref: ${{ inputs.source_commit || github.sha }}
           persist-credentials: false
       - name: Pin compatibility source
-        run: test "$(git rev-parse HEAD)" = "$SENSA_SOURCE_COMMIT"
+        run: test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" = "$SENSA_SOURCE_COMMIT"
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
