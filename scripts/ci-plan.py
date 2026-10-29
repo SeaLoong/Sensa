@@ -51,7 +51,7 @@ def plan_changes(paths, *, diff_available=True):
             enabled.update(('web', 'docs'))
         elif path.endswith(('.md', '.md.meta')) or path.startswith('docs/') or path in ('LICENSE', '.gitignore'):
             enabled.add('docs')
-        elif path.startswith('tests/web/') or path.startswith('tests/e2e/') or path == 'playwright.config.js':
+        elif path.startswith(('tests/web/', 'tests/e2e/', 'tests/types/')) or path in ('playwright.config.js', 'playwright.compatibility.config.js'):
             # These optional checks never start the browser runner.
             # 本地类别仅包含静态／隔离单元检查，不启动浏览器测试。
             enabled.add('web')
@@ -59,6 +59,8 @@ def plan_changes(paths, *, diff_available=True):
             enabled.add('backend')
         elif path.startswith('tests/scripts/'):
             enabled.add('scripts')
+        elif path == 'tests/fixtures/funscript-interop.json':
+            enabled.update(('web', 'scripts', 'backend'))
         elif path.startswith('tests/fixtures/'):
             enabled.update(('scripts', 'backend'))
         elif path.startswith(('src/web/', 'src/websensa/', 'src/core/')) or path == 'scripts/build-web.mjs':

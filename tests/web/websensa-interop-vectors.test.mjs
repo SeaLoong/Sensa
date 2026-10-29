@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
-import { parseFunscript, scriptValue } from '../../src/core/index.js';
+import { parseFunscript, scriptValue } from '../../src/core/index.ts';
 
 const vectors = JSON.parse(await fs.readFile(new URL('../fixtures/funscript-interop.json', import.meta.url), 'utf8'));
 for (const vector of vectors.cases) {

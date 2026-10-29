@@ -9,7 +9,7 @@ const root = fileURLToPath(new URL('../', import.meta.url));
 export async function webSensaAssets({ source = root } = {}) {
   const result = await build({
     absWorkingDir: source,
-    entryPoints: ['src/websensa/app.jsx'],
+    entryPoints: ['src/websensa/app.tsx'],
     outfile: path.join(source, 'src/websensa/app.bundle.js'),
     bundle: true, minify: true, write: false, jsx: 'automatic',
     target: ['chrome110', 'firefox115', 'safari16'],

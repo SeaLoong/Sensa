@@ -120,7 +120,7 @@ React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign
 
 ## 浏览器原生 WebSensa
 
-`src/core/index.js` 提供浏览器与 Node.js 可直接使用的信号引擎、脚本时钟和输出队列；`src/websensa` 提供 React 入口与浏览器适配器。静态站与桌面包提供同一 `websensa/` 页面。手动轴、funscript 和明确连接的参数图解送入共用引擎，输出适配器使用 WebSocket、fetch、Web Serial、Web Bluetooth 或 Web MIDI。[共享核心与宿主迁移](adr/0011-shared-core-and-capability-adapters.md)说明 Node.js／Electron 的目标结构。
+`src/core/index.ts` 提供浏览器与 Node.js 可直接使用的信号引擎、脚本时钟和输出队列；`src/websensa` 提供 React 入口与浏览器适配器。静态站与桌面包提供同一 `websensa/` 页面。手动轴、funscript 和明确连接的参数图解送入共用引擎，输出适配器使用 WebSocket、fetch、Web Serial、Web Bluetooth 或 Web MIDI。[共享核心与宿主迁移](adr/0011-shared-core-and-capability-adapters.md)说明 Node.js／Electron 的目标结构。
 
 每个输出按序写入并保留连接代次；兼容 WebSocket 使用者共用目标连接，使用者结束时清理其排队工作。停止先清空待发指令，再调用适配器停止操作。脚本时钟与传输依赖可注入以便单元测试，浏览器权限请求由用户连接操作触发。
 

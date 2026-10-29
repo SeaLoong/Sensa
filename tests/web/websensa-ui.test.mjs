@@ -5,11 +5,12 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SensaEngine } from '../../src/core/index.js';
-import { resolveWebSensaLocale, saveWebSensaLocale } from '../../src/websensa/locale.js';
+import { SensaEngine } from '../../src/core/index.ts';
+import { resolveWebSensaLocale, saveWebSensaLocale } from '../../src/websensa/locale.ts';
+import { detectCapabilities } from '../../src/websensa/capabilities.ts';
 
 const require = createRequire(import.meta.url);
-const compiled = await build({ entryPoints: ['src/websensa/WebSensa.jsx'], bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', plugins: [{ name: 'shared-test-react', setup(builder) {
+const compiled = await build({ entryPoints: ['src/websensa/WebSensa.tsx'], bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', plugins: [{ name: 'shared-test-react', setup(builder) {
   builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
 } }] });
 const { default: WebSensa } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
@@ -64,4 +65,16 @@ test('WebSensa explorer source lets all motion axes be selected and keeps activa
   for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0']) assert.ok(html.includes(axis));
   assert.match(html, /Receiving/); assert.match(html, /R2 63%/); assert.equal(controller.snapshot().active, false);
   await controller.dispose();
+});
+
+
+test('WebSensa disables unavailable browser outputs and offers an actual available route', () => {
+  const capabilities = detectCapabilities({ fetch() {} });
+  const html = render({ initialLanguage: 'en', initialPage: 'outputs', capabilities });
+  assert.match(html, /<option value="intiface" disabled=""/);
+  assert.match(html, /<option value="serial" disabled=""/);
+  assert.match(html, /<option value="http">JSON · HTTP<\/option>/);
+  assert.match(html, /WebSocket is unavailable/);
+  assert.match(html, /Use JSON HTTP/);
+  assert.match(html, /<button[^>]*disabled=""[^>]*>Connect output<\/button>/);
 });

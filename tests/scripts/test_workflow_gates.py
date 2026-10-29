@@ -53,7 +53,7 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('category: /language:${{ matrix.language }}', analyze)
 
     def test_generated_and_native_build_jobs_have_no_server_granted_cache_access(self):
-        for filename, names in [('update-e2e.yml', ('agent', 'candidates')), ('build.yml', ('desktop',))]:
+        for filename, names in [('update-e2e.yml', ('agent', 'candidates')), ('build.yml', ('desktop',)), ('e2e.yml', ('compatibility',))]:
             scopes = jobs(workflow(filename))
             for name in names:
                 with self.subTest(workflow=filename, job=name):
@@ -71,7 +71,7 @@ class WorkflowGateContracts(unittest.TestCase):
                 if re.search(r'(?m)^    cache-mode:', body):
                     configured.add((path.name, name))
         self.assertEqual(configured, {('update-e2e.yml', 'agent'), ('update-e2e.yml', 'candidates'),
-                                      ('build.yml', 'desktop')})
+                                      ('build.yml', 'desktop'), ('e2e.yml', 'compatibility')})
 
     def test_checkout_credentials_are_retained_only_for_authenticated_proposal_git_operations(self):
         checked = set()
@@ -294,7 +294,7 @@ class WorkflowGateContracts(unittest.TestCase):
     def test_container_browser_jobs_share_bounded_dependency_setup_before_tests(self):
         playwright_version = json.loads((ROOT / 'package.json').read_text(encoding='utf-8'))['devDependencies']['@playwright/test']
         images = set()
-        for filename, job_name in (('e2e.yml', 'browser'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
+        for filename, job_name in (('e2e.yml', 'browser'), ('e2e.yml', 'compatibility'), ('update-e2e.yml', 'candidates'), ('pages.yml', 'verify')):
             with self.subTest(workflow=filename):
                 body = jobs(workflow(filename))[job_name]
                 image = re.search(r'(?m)^    container: (\S+)$', body).group(1)

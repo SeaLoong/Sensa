@@ -167,6 +167,29 @@ python -X utf8 scripts/verify.py
 
 浏览器 E2E、截图和完整进程冒烟在 Actions 执行，隔离单元和静态检查可本地运行。设备相关检查使用临时配置与模拟传输。真实硬件、Unity／VRChat 和 World 实际交互另行验收。
 
+### TypeScript 与运行时兼容
+
+仓库开发使用 **Node 24.19.0 或更高版本**与固定的 **TypeScript 7.0.2**。共享核心和 WebSensa 使用 `.ts`／`.tsx`，`src/core/index.ts` 为引擎公开入口。当前桌面服务仍为 .NET，本地能力逐项迁入核心接口。
+
+类型化源码使用 **Oxlint 1.90.0** 和 TypeScript 编译器，既有 JavaScript 保留 ESLint。已核对的 typescript-eslint 8.72.1 peer 范围不包含 TypeScript 7，因此保留稳定编译器，不强制安装不兼容依赖。仅在 `src/websensa/WebSensa.tsx` 关闭 `jsx-a11y/prefer-tag-over-role`：其建议会把合法内联 SVG 的 `role="img"`、状态播报与控件组替换为不同语义的元素；其他配置检查继续启用，浏览器 axe／交互检查验证实际页面。
+
+`npm run typecheck` 以不输出文件的方式执行 `tsc --project tsconfig.json`。严格检查包含 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`、unknown 异常、隔离模块和可擦除语法。网络数据与原生事件通过 `unknown` 和运行时校验进入类型边界。既有桌面界面 JavaScript 保留原 lint 检查，新共享核心／浏览器适配器进入严格 TypeScript 检查。
+
+```sh
+npm ci
+npm run typecheck
+npm test
+npm run build:web
+```
+
+核心的可擦除 TypeScript 可由 Node 24 导入，React TSX 与浏览器适配器通过 esbuild 打包。浏览器语法目标保持 **Chrome 110、Firefox 115、Safari 16**；TypeScript 使用 ES2023 标准库基线，更新的运行库 API 经兼容适配器和回退测试后再使用。设备支持检测实际可调用 API，不猜测浏览器版本或 UA；串口、蓝牙和 MIDI 还需要安全上下文与选定设备授权。缺少这些能力时，对应选项不可用，可以选择可访问的 WebSocket／HTTP 地址或桌面桥接路线。
+
+`src/websensa/capabilities.ts` 报告实际 API 与已注册宿主工厂；检测本身不连接或请求权限。未来 Electron 桥先注册真实适配器再公布能力。Node 已有的 WebSocket／fetch 可以直接复用，同时保持浏览器设备 API 的准确能力清单。图解在三维不可用时保留 SVG，桌面标签页保留 SharedWorker → Web Locks／BroadcastChannel → 各页连接的回退方式。
+
+CI 在普通 Chromium 套件和独立 Firefox／WebKit 兼容任务中检查同一份 WebSensa 构建，覆盖桌面与窄屏。兼容任务检查真实模拟服务交付、能力回退、键盘、axe 与重排，并作为发布条件。执行结果按源码提交记录。
+
+采用维护中的稳定依赖，固定所选版本并保留 lockfile；升级时核对当前上游版本与平台要求。语法目标、API 可用性与协议行为分别检查。[适配器目录与社区拆包路线](adapter-catalog.md)
+
 ### WebSensa 与桌面实例
 
 `npm run build:web` 构建桌面界面、WebSensa 与参数图解资源。`scripts/build-websensa.mjs` 为静态站和桌面发布构建同一 React 入口、CSS 与许可证说明。静态路径为 `websensa/`，桌面 HTTP 提供 `/websensa/`，便携文件位于 `web/websensa/`。

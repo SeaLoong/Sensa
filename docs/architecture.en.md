@@ -120,7 +120,7 @@ The standalone explorer displays parameters in the browser through local classic
 
 ## Browser-native WebSensa
 
-`src/core/index.js` provides the signal engine, script clock and output queues for both browsers and Node.js; `src/websensa` supplies the React entry point and browser adapters. Static publication and desktop bundles expose the same `websensa/` page. Manual axes, funscript and an explicitly connected parameter explorer feed the shared engine; output adapters use WebSocket, fetch, Web Serial, Web Bluetooth or Web MIDI. The [shared-core and host decision](adr/0011-shared-core-and-capability-adapters.md) describes the Node.js/Electron target architecture.
+`src/core/index.ts` provides the signal engine, script clock and output queues for both browsers and Node.js; `src/websensa` supplies the React entry point and browser adapters. Static publication and desktop bundles expose the same `websensa/` page. Manual axes, funscript and an explicitly connected parameter explorer feed the shared engine; output adapters use WebSocket, fetch, Web Serial, Web Bluetooth or Web MIDI. The [shared-core and host decision](adr/0011-shared-core-and-capability-adapters.md) describes the Node.js/Electron target architecture.
 
 Each output serializes writes and retains its connection generation. Compatible WebSocket consumers share one endpoint connection; a consumer's lifecycle ends its queued work. Stop clears pending commands before the adapter's stop operation. Funscript clocks and transport seams accept injected dependencies for unit tests. Browser permission prompts stay attached to user connection actions.
 

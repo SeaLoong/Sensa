@@ -98,3 +98,132 @@ jobs:
           path: tests/e2e/__screenshots__/
           if-no-files-found: warn
           retention-days: 14
+
+
+  compatibility:
+    name: WebSensa compatibility
+    runs-on: ubuntu-24.04
+    cache-mode: none
+    container: mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea
+    timeout-minutes: 15
+    env:
+      CI: 'true'
+      E2E_SUITE: webcompat
+      E2E_UPDATE_SNAPSHOTS: 'false'
+      SENSA_SOURCE_COMMIT: ${{ inputs.source_commit || github.sha }}
+      SENSA_SITE_DIRECTORY: artifacts/webcompat/site
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          ref: ${{ inputs.source_commit || github.sha }}
+          persist-credentials: false
+      - name: Pin compatibility source
+        run: test "$(git rev-parse HEAD)" = "$SENSA_SOURCE_COMMIT"
+      - name: Set up Node
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Install test dependencies
+        timeout-minutes: 5
+        run: bash scripts/install-e2e-dependencies.sh
+      - name: Install dependencies
+        run: npm ci
+      - name: Build standalone site
+        run: GITHUB_SHA="$SENSA_SOURCE_COMMIT" node scripts/build-pages.mjs --output "$SENSA_SITE_DIRECTORY"
+      - name: Run compatibility
+        id: compatibility_tests
+        run: npm run e2e:ci -- --config=playwright.compatibility.config.js
+      - name: Summarize compatibility
+        if: always()
+        env:
+          E2E_COMMAND_OUTCOME: ${{ steps.compatibility_tests.outcome }}
+        run: node scripts/e2e-summary-reporter.mjs --finalize-report artifacts/e2e/summary.json
+      - name: Verify compatibility evidence
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import path from 'node:path';
+          const summary = JSON.parse(fs.readFileSync('artifacts/e2e/summary.json', 'utf8'));
+          const raw = JSON.parse(fs.readFileSync('artifacts/e2e/results.json', 'utf8'));
+          const required = new Set(['firefox-desktop', 'firefox-mobile', 'webkit-desktop', 'webkit-mobile']);
+          const fail = message => { throw new Error(message); };
+          if (summary.commit !== process.env.SENSA_SOURCE_COMMIT || summary.runId !== process.env.GITHUB_RUN_ID
+              || summary.attempt !== process.env.GITHUB_RUN_ATTEMPT || summary.repository !== process.env.GITHUB_REPOSITORY
+              || summary.suite !== 'webcompat' || summary.baselineMode !== 'comparison'
+              || summary.status !== 'passed' || summary.commandOutcome !== 'success' || summary.globalErrors.length)
+            fail('Missing exact-source compatibility execution');
+          if (summary.counts.total !== 8 || summary.counts.passed !== 8
+              || Object.entries(summary.counts).some(([key, value]) => !['total', 'passed'].includes(key) && value !== 0)
+              || summary.tests.length !== 8 || new Set(summary.tests.map(test => test.id)).size !== 8
+              || summary.projects.length !== 4 || new Set(summary.projects).size !== 4 || summary.projects.some(name => !required.has(name)))
+            fail('Incomplete four-project compatibility coverage');
+          if (raw.config.metadata.ci.commitHash !== process.env.SENSA_SOURCE_COMMIT
+              || raw.config.updateSnapshots !== 'none' || raw.errors.length || raw.stats.expected !== 8
+              || raw.stats.unexpected || raw.stats.skipped || raw.stats.flaky)
+            fail('Unexpected compatibility raw status/source');
+          const projects = new Map(raw.config.filteredProjects.map(project => [project.name, project]));
+          if (raw.config.filteredProjects.length !== 4 || projects.size !== required.size || [...projects.keys()].some(name => !required.has(name)))
+            fail('Unexpected browser selection');
+          const rows = [];
+          function walk(suites) {
+            for (const suite of suites) {
+              for (const spec of suite.specs || []) for (const test of spec.tests || []) rows.push({ spec, test });
+              walk(suite.suites || []);
+            }
+          }
+          walk(raw.suites);
+          if (rows.length !== 8 || new Set(rows.map(row => row.spec.id)).size !== 8) fail('Missing actual raw cases');
+          for (const name of required) {
+            const project = projects.get(name), selected = rows.filter(row => row.test.projectName === name);
+            const browser = name.startsWith('firefox-') ? 'firefox' : 'webkit';
+            const viewport = name.endsWith('-desktop') ? { width: 1280, height: 900 } : { width: 390, height: 844 };
+            if (project.use.browserName !== browser || project.use.viewport.width !== viewport.width || project.use.viewport.height !== viewport.height
+                || project.retries !== 0 || project.repeatEach !== 1 || selected.length !== 2)
+              fail('Wrong compatibility browser, viewport or case count');
+          }
+          for (const { spec, test } of rows) {
+            const summarized = summary.tests.find(item => item.id === spec.id);
+            if (!spec.ok || !spec.file.endsWith('websensa-compatibility.spec.js') || test.expectedStatus !== 'passed'
+                || test.status !== 'expected' || test.results.length !== 1 || test.results[0].status !== 'passed'
+                || test.results[0].retry !== 0 || test.results[0].errors.length
+                || !summarized || summarized.outcome !== 'passed' || summarized.project !== test.projectName
+                || summarized.attempts.length !== 1 || summarized.attempts[0].retry !== 0)
+              fail('Compatibility case did not actually pass exactly once');
+            const proof = test.results[0].attachments.filter(item => item.name === 'webcompat-source.json');
+            if (proof.length !== 1) fail('Missing static-source proof attachment');
+            const item = proof[0];
+            let payload;
+            if (typeof item.body === 'string') payload = Buffer.from(item.body, 'base64').toString('utf8');
+            else {
+              const filename = path.resolve(item.path || '');
+              if (!filename.startsWith(path.resolve('artifacts/e2e/results') + path.sep)) fail('Invalid proof file path');
+              payload = fs.readFileSync(filename, 'utf8');
+            }
+            const captured = JSON.parse(payload), browser = test.projectName.split('-')[0];
+            if (captured.sourceCommit !== summary.commit || captured.runId !== summary.runId || captured.attempt !== summary.attempt
+                || captured.repository !== summary.repository || captured.project !== test.projectName || captured.testId !== spec.id
+                || captured.browser !== browser || typeof captured.browserVersion !== 'string' || !captured.browserVersion
+                || !/^[a-f0-9]{64}$/.test(captured.siteManifestSha256) || !/^[a-f0-9]{64}$/.test(captured.htmlSha256)
+                || captured.assets.length !== 2 || !captured.assets.every(asset => /^[a-f0-9]{64}$/.test(asset.sha256)
+                  && captured.browserAssets.some(actual => actual.path === asset.path && actual.sha256 === asset.sha256)))
+              fail('Static bytes or actual engine proof mismatch');
+          }
+          console.log('Verified 8 actual Firefox/WebKit compatibility executions for ' + summary.commit);
+          NODE
+      - name: Upload compatibility report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
+        with:
+          name: webcompat-report
+          overwrite: true
+          path: |
+            artifacts/e2e/report/
+            artifacts/e2e/results/
+            artifacts/e2e/results.json
+            artifacts/e2e/summary.json
+            artifacts/e2e/summary.md
+            artifacts/webcompat/site/site-manifest.json
+          if-no-files-found: warn
+          retention-days: 14

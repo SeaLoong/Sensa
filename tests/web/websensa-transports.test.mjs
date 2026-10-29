@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createOutputTransport, createIntifaceTransport, discoverIntiface, discoverMidi, endpointUrl, signalPacket } from '../../src/websensa/transports.js';
+import { createOutputTransport, createIntifaceTransport, discoverIntiface, discoverMidi, endpointUrl, signalPacket } from '../../src/websensa/transports.ts';
 
 const frame = { values: { L0: .75, L1: .2, R0: .4, V0: .6 }, durationMs: 40, timeMs: 123 };
 function socketRig({ devices, errorFor, noResponse, badResponse, maxPing = 0 } = {}) {
@@ -213,11 +213,30 @@ test('MIDI stop does not clear messages owned by another channel or controller',
 });
 
 test('HTTP stop waits for the acknowledged prior request rather than treating fetch abort as server cancellation', async () => {
-  const { OutputLane } = await import('../../src/core/index.js');
+  const { OutputLane } = await import('../../src/core/index.ts');
   let release; const events = [], gate = new Promise(resolve => { release = resolve; });
   const transport = await createOutputTransport({ type: 'http', url: 'https://ordered.test/control' }, { fetch: async (_, options) => {
     const body = JSON.parse(options.body); events.push(body.type); if (body.type === 'signal') await gate; return { ok: true };
   } });
   const lane = new OutputLane(transport), writing = lane.send(frame), stopped = lane.stop();
   assert.deepEqual(events, ['signal']); release(); await Promise.all([writing, stopped]); assert.deepEqual(events, ['signal', 'stop']); await lane.close();
+});
+
+test('unknown wire device metadata is narrowed before creating typed output routes', async () => {
+  for (const device of [
+    null,
+    { DeviceIndex: '0', DeviceName: 'Invalid index', DeviceMessages: {} },
+    { DeviceIndex: -1, DeviceName: 'Negative index', DeviceMessages: {} },
+    { DeviceIndex: 0, DeviceName: 5, DeviceMessages: {} },
+    { DeviceIndex: 0, DeviceName: 'Missing messages', DeviceMessages: null },
+    { DeviceIndex: 0, DeviceName: 'Invalid list', DeviceMessages: { LinearCmd: {} } },
+    { DeviceIndex: 0, DeviceName: 'Invalid actuator', DeviceMessages: { ScalarCmd: [{ ActuatorType: 4 }] } },
+    { DeviceIndex: 0, DeviceName: 'Missing actuator', DeviceMessages: { ScalarCmd: [{}] } },
+    { DeviceIndex: 0, DeviceName: 'Invalid feature name', DeviceMessages: { RotateCmd: [{ FeatureDescriptor: {} }] } },
+  ]) {
+    const rig = socketRig({ devices: [device] });
+    await assert.rejects(createIntifaceTransport({ url: 'ws://localhost' }, rig.dependencies));
+    assert.equal(rig.sockets[0].readyState, 3);
+    assert.equal(rig.dependencies.pool.size, 0);
+  }
 });

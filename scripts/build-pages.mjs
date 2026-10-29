@@ -116,6 +116,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
         ['tools/unity-world-lab/README', 'World lab', 'World 实验场景'],
         ['tools/unity-avatar-lab/README', 'Avatar lab', 'Avatar 实验场景'],
         ['docs/development', 'Development and releases', '开发与发布'],
+        ['docs/adapter-catalog', 'Adapter packages and contributions', '适配器与社区贡献'],
       ] },
     ];
     const navigation = groups.map(group => '<div class="nav-group"><p class="nav-group-title">'

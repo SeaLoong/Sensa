@@ -27,6 +27,25 @@ namespace Sensa.Hosting;
 
 public static class SensaHost
 {
+    internal static void UseStandaloneDocuments(IApplicationBuilder app)
+    {
+        // EmbeddedFileProvider can resolve a file path but cannot enumerate
+        // nested directories for DefaultFilesMiddleware (single-file builds).
+        app.Use((HttpContext context, RequestDelegate next) =>
+        {
+            if (HttpMethods.IsGet(context.Request.Method) || HttpMethods.IsHead(context.Request.Method))
+            {
+                if (context.Request.Path == "/websensa")
+                {
+                    context.Response.Redirect($"{context.Request.PathBase}/websensa/{context.Request.QueryString}", permanent: true);
+                    return Task.CompletedTask;
+                }
+                if (context.Request.Path == "/websensa/") context.Request.Path = "/websensa/index.html";
+            }
+            return next(context);
+        });
+    }
+
     internal static bool ShouldOpenBrowser(IConfiguration options) =>
         !bool.TryParse(options["open-browser"], out var enabled) || enabled;
 
@@ -1130,6 +1149,7 @@ public static class SensaHost
             }
         }
 
+        UseStandaloneDocuments(app);
         app.UseDefaultFiles();
         app.UseStaticFiles(new StaticFileOptions
         {

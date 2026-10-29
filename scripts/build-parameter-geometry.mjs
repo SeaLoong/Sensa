@@ -18,6 +18,9 @@ export async function buildParameterGeometry({ check = false } = {}) {
     absWorkingDir: root,
     entryPoints: ['docs/assets/parameter-geometry-3d-source.js'],
     bundle: true, minify: true, format: 'iife', write: false,
+    // The classic offline document has its own compiler contract. App-specific
+    // TypeScript settings must not change its pinned, reproducible output.
+    tsconfigRaw: {},
     outfile: bundlePath, target: ['chrome110', 'firefox115', 'safari16'],
     legalComments: 'none',
     banner: { js: '/*! Sensa offline 3D; includes Three.js ' + version + ' and OrbitControls (MIT). See parameter-geometry-3d.LICENSE.txt. */' },

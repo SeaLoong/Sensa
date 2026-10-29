@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { BLUETOOTH_PROFILES, createBleCodec, bluetoothRequestOptions, createBluetoothTransport } from '../../src/websensa/device-codecs.js';
+import { BLUETOOTH_PROFILES, createBleCodec, bluetoothRequestOptions, createBluetoothTransport } from '../../src/websensa/device-codecs.ts';
 
 const hex = data => Buffer.from(data).toString('hex');
 function mockDevice(profileId, options = {}) {

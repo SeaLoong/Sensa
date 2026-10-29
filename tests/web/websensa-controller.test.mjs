@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { OutputLane, SensaEngine, parseFunscript, scriptValue, tcodeFrame } from '../../src/core/index.js';
-import { createExplorerInput } from '../../src/websensa/explorer-input.js';
+import { OutputLane, SensaEngine, parseFunscript, scriptValue, tcodeFrame } from '../../src/core/index.ts';
+import { createExplorerInput } from '../../src/websensa/explorer-input.ts';
 
 const script = { actions: [{ at: 0, pos: 80 }, { at: 1000, pos: 20 }, { at: 2000, pos: 90 }] };
 const flush = async () => { for (let index = 0; index < 15; index++) await Promise.resolve(); };

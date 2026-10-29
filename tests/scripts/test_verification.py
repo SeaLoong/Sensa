@@ -70,6 +70,7 @@ class LocalVerificationTests(unittest.TestCase):
         inputs = (
             'docs/assets/osc-parameter-reference.js',
             'docs/assets/parameter-geometry-model.js',
+            'docs/assets/parameter-geometry-signal.js',
             'docs/assets/parameter-geometry-view.js',
             'docs/parameter-geometry.html',
             'docs/assets/parameter-geometry-style.css',
@@ -100,6 +101,20 @@ class LocalVerificationTests(unittest.TestCase):
                 self.commands.clear()
                 self.assertTrue(self.run_plan([name]))
                 self.assertEqual(self.commands, [])
+
+    def test_shared_typed_contracts_and_fixture_changes_invalidate_web_receipts(self):
+        for name in ('tests/types/core-contracts.ts', 'tests/fixtures/funscript-interop.json',
+                     'src/core/engine.ts', 'src/websensa/capabilities.ts'):
+            with self.subTest(path=name):
+                self.write(name, 'first contract content')
+                self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
+                self.commands.clear()
+                previous = json.loads(self.receipt('web').read_text(encoding='utf-8'))['key']
+                self.write(name, 'changed contract content')
+                self.assertTrue(self.run_plan([name]))
+                self.assertEqual(sum(command[1:] == ['test'] for command in self.commands), 1)
+                self.assertNotEqual(json.loads(self.receipt('web').read_text(encoding='utf-8'))['key'], previous)
+                self.commands.clear()
 
     def test_shared_fixed_geometry_changes_invalidate_backend_receipt(self):
         protocol = 'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs'
