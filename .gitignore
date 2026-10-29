@@ -19,6 +19,7 @@ Thumbs.db
 # Frontend
 node_modules/
 src/web/app.bundle.js*
+src/websensa/app.bundle.*
 config.json
 *.tmp
 

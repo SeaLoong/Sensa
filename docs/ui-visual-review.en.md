@@ -2,7 +2,7 @@
 
 [简体中文](ui-visual-review.md) | **English**
 
-This is a **2026-10-21 review tied to fixed source and images**, not a live main-branch dashboard. It records findings and acceptance for ten-scene 3D, actual target dragging, label clearance and leaders. Current CI runs units and E2E; later changes need their own reports and cannot inherit this page as an executed result.
+This archived **2026-10-21** review records the fixed source, images and findings for ten-scene 3D, target dragging, label clearance and leaders. Current execution is listed in [verification records](e2e-status.en.md); this page retains the original evidence and image counts.
 
 The [browser verification record](e2e-status.en.md) retains inspected outcomes and unreviewed images; [development and releases](development.en.md) describes current CI. This page's fixed images and historical counts remain unchanged.
 

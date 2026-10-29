@@ -2,7 +2,7 @@
 
 [简体中文](fixed-anchor-research.md) | **English**
 
-This research explains how four distances locate a root, how a receiver radius of 2 and anchor offsets of ±0.35 along each axis affect coverage, and how sampling activity is checked. Dimensions use Avatar-root authored units, equal to metres when both authored and runtime root scales are one. The implementation uses a fixed Avatar-root frame, a dedicated marker and `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}`; the desktop reconstructs position from this known geometry.
+Four fixed anchor distances locate a root in Avatar-local coordinates. This reference explains the equations, receiver coverage and sampling model behind SPS four-anchor tracking, including the current radius 2 and ±0.35 anchor offsets. Use the coverage model to choose placement, then calibrate the resulting position in Sensa.
 
 Use [routes](usage-scenarios.en.md) for setup, [positioning](positioning.en.md) for reception conditions and the [dictionary](osc-parameters.en.md) for fields. This page records pinned sources, mathematical derivations and assumptions awaiting measurement. Client accuracy needs known-trajectory measurements recorded separately.
 

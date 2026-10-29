@@ -100,12 +100,12 @@ class SmokeLifecycleContracts(LabFixture):
         with support.SmokeSession(['fake-sensa'], osc_enabled=True, report_dir=reports, adapters=environment.adapters()) as session:
             temporary = session.root
             command, launch = environment.launches[0]
-            self.assertEqual(command, ['fake-sensa'])
+            self.assertEqual(command, ['fake-sensa', '--open-browser', 'false'])
             self.assertNotEqual(Path(launch['cwd']), Path.cwd())
             configuration = json.loads(Path(launch['env']['SENSA_CONFIG_PATH']).read_text(encoding='utf-8'))
             self.assertEqual(configuration['outputs'], [])
             self.assertEqual(configuration['webUi']['host'], '127.0.0.1')
-            self.assertFalse(configuration['webUi']['autoOpenBrowser'])
+            self.assertNotIn('autoOpenBrowser', configuration['webUi'])
             self.assertTrue(configuration['osc']['enabled'])
             self.assertFalse(configuration['osc']['oscQueryEnabled'])
             self.assertFalse(configuration['osc']['oscQueryReceiver']['enabled'])

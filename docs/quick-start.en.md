@@ -2,27 +2,25 @@
 
 [简体中文](quick-start.md) | **English**
 
-Start with a manual slider recorded as funscript to learn saving, activation and live results. Then choose OSC or script input, or send the result to a device or application. [Full signal-flow guide](signal-pipeline.en.md)
+For controls and script playback straight from your browser, [open WebSensa](https://sealoong.github.io/Sensa/websensa/). For OSC, application routing, recording and the full device connections, start the desktop workbench below. Both editions organize work around a source, a connection and a result.
 
 ## 1. Start
 
-Open [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) for the latest stable release, then choose a release asset using the formats below. Development previews and older builds are listed separately in [release history](https://github.com/SeaLoong/Sensa/releases). Every build includes the required .NET runtime.
+[Download](https://github.com/SeaLoong/Sensa/releases/latest) the latest stable release. [Release history](https://github.com/SeaLoong/Sensa/releases) also lists development previews and previous versions. All desktop formats include the .NET runtime.
 
 | System and format | Architecture | Example filename | Start |
 | --- | --- | --- | --- |
-| Windows installer (recommended) | x64/ARM64 | `Sensa-version-win-x64-Setup.exe` | Launch after installation or from the Start menu to open the workbench automatically; uninstall through system settings |
-| Windows single file | x64/ARM64 | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable directory and run it; configuration stays beside it |
-| Windows portable | x64/ARM64 | `Sensa-version-win-x64.zip` | Fully extract to a writable directory, then run `Sensa.exe` |
-| Linux portable | x64/ARM64 | `Sensa-version-linux-x64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
-| macOS portable | x64/ARM64 | `Sensa-version-osx-arm64.tar.gz` | Fully extract, then run `./Sensa` from that directory |
+| Windows installer (recommended) | x64/ARM64 | `Sensa-version-win-x64-Setup.exe` | Install, then launch from the Start menu |
+| Windows single file | x64/ARM64 | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable folder and run it |
+| Windows portable | x64/ARM64 | `Sensa-version-win-x64.zip` | Extract the complete ZIP, then run `Sensa.exe` |
+| Linux portable | x64/ARM64 | `Sensa-version-linux-x64.tar.gz` | Extract, then run `./Sensa` |
+| macOS portable | x64/ARM64 | `Sensa-version-osx-arm64.tar.gz` | Extract, then run `./Sensa` |
 
-Every system offers **x64/ARM64**. Intel/AMD computers generally use x64; Apple Silicon and Windows ARM devices use ARM64. Preview filenames also contain a build number and commit identifier, with the same startup steps.
+Intel/AMD computers generally use **x64**; Apple Silicon and Windows ARM use **ARM64**. Development filenames also include a build number and commit.
 
-Open **http://127.0.0.1:5086** in your browser after starting Sensa. Input and outputs start disabled on the first run.
+Launch Sensa and the browser workbench opens automatically. Its usual address is **http://127.0.0.1:5086**; the console shows the actual address when ports are reassigned. Input starts off so you can prepare the first connection.
 
-The installer defaults to `%LOCALAPPDATA%\Programs\Sensa`; upgrades and uninstall preserve user data in `config.json` and `recordings`. Installer and portable packages include offline documentation and the Shader capture bridge. The single-file build embeds the workbench and [offline parameter explorer](http://127.0.0.1:5086/docs/parameter-geometry.html); obtain the separate Python capture bridge from the portable archive or repository.
-
-The interface chooses a language automatically, with a manual switch available. [Language preferences](languages.en.md)
+The Windows installer uses `%LOCALAPPDATA%\Programs\Sensa`. Updates and uninstall retain user configuration and recordings. Portable packages and installers include documentation and bridge tools; the single EXE embeds the workbench and [parameter explorer](http://127.0.0.1:5086/docs/parameter-geometry.html).
 
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
@@ -30,54 +28,66 @@ English interface · [Narrow layout](screenshots/mobile/english-manual.png) · [
 
 ## 2. Add an output
 
-Open Flow, choose Add output, select Recording and keep its default **Funscript** format.
+Recording a slider is a useful first flow:
 
-1. Open Input-to-output bindings and choose Manual → L0 as the source.
-2. Set track name `L0` and both input/output ranges to **0–1**.
-3. Save output, enable it and confirm its connection status.
+1. In **Flow**, choose **Add output → Recording** and keep **Funscript**.
+2. Open **Input-to-output bindings**, choose **Manual → L0**, name the track `L0` and use input/output ranges **0–1**.
+3. Save and enable the recording output.
 
-A binding describes how one input reaches a destination. The input range gives the reading's endpoints; the output range gives the values expected by the destination.
+Or choose a connected destination:
 
-You can also choose your intended destination directly:
-
-| Destination | What to prepare |
+| Destination | Connection |
 | --- | --- |
-| TCode device | Serial port, or UDP/TCP host and port; first set direction, a small travel range and speed in Settings → Axis profiles |
-| Intiface device | Start Central, then choose its address and device; check range and stopping settings in Central/the device |
-| OSC application or VRChat parameter | Receiver IP, port, parameter address and type; use the VRChat write-back shortcut for its usual endpoint |
-| DG-LAB | DG-LAB 4 APP, relay address, paired device and channel limits |
-| MIDI or network application | System MIDI port, or HTTP/WebSocket/MQTT service address |
+| TCode / OSR | Serial at 115200/8N1, or a UDP/TCP endpoint; select an axis profile |
+| Intiface | Start Central, enter its address, scan and select a device |
+| OSC / VRChat | Receiver IP/port, parameter path and Float/Int/Bool type |
+| DG-LAB | DG-LAB 4 APP pairing, device and channel |
+| MIDI / network service | MIDI port, HTTP/WebSocket URL or MQTT broker/topic |
 
-See [output setup](signal-pipeline.en.md#add-outputs-and-bindings) for individual fields. TCode serial defaults to 115200/8N1; Intiface connects to a separately running Central.
+A binding connects a source to a destination. Its input range describes the source reading; its output range describes the destination response. [Complete output setup](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ## 3. Enable input and inspect results
 
-In Control, choose Manual, Apply input mode and enable input. Adjust L0 and send once, then inspect the binding's raw and converted values. Repeated adjustments create a changing trajectory.
+In **Control**, choose **Manual**, apply the mode and enable input. Adjust L0 and choose **Send once**, or enable **Live updates** to follow edits. Each binding displays its raw reading, converted value and recent target.
 
-Disable input to complete the recording segment, then download it or load it into the script player. Loading leaves playback paused. When ready, apply Script, enable input and play.
+Disable input to finish the recording. Download the funscript or load it into the player, choose **Script**, enable input and press **Play**.
 
-For a motion device, use small targets to check direction, travel and stopping. Emergency stop stops outputs and disables input; enable input again when ready after clearing the stop. Saving configuration, changing input mode or replacing a script also disables input.
-
-An active input sends its current valid target to newly connected outputs, so check the header state before connecting.
+For a motion device, set direction and travel in its axis profile and try a small movement first. The header's **Emergency stop** stops every output and remains active until cleared. Saving configuration or changing mode/scripts switches input off; enable it after preparing the new setup.
 
 ## 4. Choose sources and add computation
 
-| Input you need | Operation |
+| Source | Next step |
 | --- | --- |
-| OSC parameters | Apply OSC or Combined; check reception/source in OSC, find actual parameters, then choose or create a mapping |
-| Funscript | Load a script, apply Script, enable input and play; adjust speed, looping and playback position |
-| Website/player protocol | Add a source in Settings → Protocol inputs and save its listener; [connect the upstream client](protocol-inputs.en.md), then apply Protocol or Combined and separately enable input |
-| Several source kinds together | Configure calculations and output bindings, then apply Combined in Control |
-| Avatar root position or velocity | Install measurement components using the [setup guide](usage-scenarios.en.md), then inspect, calibrate and allow experimental spatial input |
+| OSC parameter | Choose OSC or Combined; inspect the sender/source and save a mapping |
+| Funscript | Load the file, choose Script, then set speed, loop and position |
+| Website/player | Add a [protocol input](protocol-inputs.en.md), connect the client and choose Protocol or Combined |
+| Several sources | Add calculations and bindings, then choose Combined |
+| Avatar position | Follow [tracking setup](usage-scenarios.en.md), inspect the readings and calibrate the range |
 
-VRChat commonly sends parameters to Sensa on **9001**. Sensa's write-back or OGB heartbeat commonly targets VRChat on **9000**. Inspect actual parameters and their [meanings](osc-parameters.en.md) in OSC before choosing a [preset](presets.en.md) or calculation.
+VRChat commonly sends OSC to Sensa on **9001** and receives write-back/heartbeat on **9000**. [Parameter meanings](osc-parameters.en.md) and [presets](presets.en.md) help select the right readings.
 
-For weighting, smoothing or triggers, choose Add computed signal in Flow. Spatial calculation presets provide point distance, plane depth, offset within a plane and direction angles. If you have set up a following plane in Unity, its template creates the calculation drafts. After saving, several output bindings can use the results with separate ranges. [Calculation examples](computed-signals.en.md) · [Multiple outputs](signal-pipeline.en.md#one-result-several-outputs)
+In **Flow**, choose **Add computed signal** for weighting, smoothing, thresholds or spatial calculations. Save the result once and select it in several outputs. [Examples](computed-signals.en.md)
 
 ## 5. Save recordings and complete plans
 
-Completed funscript segments can be downloaded, loaded into the script player or used in calculations through Recording replay. Choose JSON Lines/CSV when analysing raw signals. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
+Completed recordings can be downloaded, played or used as calculation inputs. Funscript stores trajectories; JSON Lines/CSV store diagnostic samples. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
-Expand Save and load a complete plan in Flow to export calculations, mappings, axis profiles and outputs together. Review an import before applying it, then enable the outputs you need.
+In **Flow → Save and load a complete plan**, export calculations, mappings, axis profiles and outputs together. The import preview shows what will be replaced before applying it.
 
-Configuration defaults to `config.json` beside the program; `SENSA_CONFIG_PATH` selects another file. For troubleshooting, start with the active input mode, source, connection and logs. [Workbench guide](guide.en.md) · [Feature overview](features.en.md) · [Home](../README.md)
+Configuration lives in `config.json` beside the program. `SENSA_CONFIG_PATH` or `--config <path>` selects another file. [Workbench guide](guide.en.md) · [Language preferences](languages.en.md)
+
+## Run several instances
+
+Opening the same configuration again reuses its running instance. If a workbench page is already connected, Sensa keeps that page; otherwise it opens the workbench.
+
+Use named instances for independent setups:
+
+```sh
+Sensa --instance studio
+Sensa --instance portable
+Sensa --new-instance
+```
+
+Named configurations live under `instances/<name>/config.json` beside the original configuration. A new instance starts with a fresh setup. `--new-instance` chooses a unique name. Management HTTP, OSC reception and startup protocol listeners use available ports when the preferred ports are occupied; read the console/workbench for their current addresses. Manually saving an occupied listener still reports the conflict so you can choose its intended endpoint.
+
+For a background service, pass `--open-browser false`.

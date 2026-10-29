@@ -2,7 +2,7 @@
 
 [简体中文](development.md) | **English**
 
-CI runs unit tests and a full browser E2E comparison before building, packaging and publishing. Automatic pre-releases and manually started stable releases have the same check requirements. Any failed required step stops publication.
+Develop against one source commit, run the affected unit checks, then let CI verify the full browser workflows and native packages. Successful main builds publish a preview; the Release workflow applies the same gates to stable publication. Pages verifies its static artifact before deploying it.
 
 ## What happens when I commit code?
 
@@ -167,6 +167,14 @@ python -X utf8 scripts/verify.py
 
 Browser E2E, screenshots and full-process smoke run in Actions. Isolated units and static checks may run locally. Device-related checks use temporary configuration and mock transports. Real hardware, Unity/VRChat and actual World interactions receive separate acceptance checks.
 
+### WebSensa and desktop instances
+
+`npm run build:web` builds the desktop UI, WebSensa and the bundled parameter-explorer resources. `scripts/build-websensa.mjs` builds the standalone React entry point and its CSS/license notices once for use by Pages and desktop publication. The static route is `websensa/`; desktop HTTP serves `/websensa/`, and portable files live under `web/websensa/`.
+
+WebSensa units inject clocks, WebSocket peers and browser device APIs. Actions opens the built page for complete control/script, shared-connection and mock-GATT flows. The explorer's handoff is an explicit browser connection and uses the same normalized axis values.
+
+Instance tests verify configuration ownership, stale-owner recovery, browser page presence and actual bind-based port fallback. Actions starts separate processes for repeated-launch and named-instance workflows. For manual development, `--config`, `--instance` and `--new-instance` select the desired setup; `--open-browser false` keeps the run headless. [User launch options](quick-start.en.md#run-several-instances)
+
 ### Optional serial and BLE bridges
 
 Portable archives and Windows installers include Python sources, bilingual instructions and dependency pins from `tools/protocol-bridge` through an explicit `scripts/release.py` allowlist. The installer reuses those files, with Actions checking their installed contents. Dependabot also maintains this directory's optional dependencies weekly, grouping BLE backends and native WinRT projections separately while preserving platform markers and security update checks. It does not install Python, virtual serial drivers or Python dependencies. The standalone EXE does not embed an interpreter. Obtain the tools from the portable archive or installer and install the requirements you need in your own Python virtual environment.
@@ -178,7 +186,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE input uses Bless from `requirements-ble-input.txt` on Linux/macOS and a compatible native PyWinRT set from `requirements-ble-input-windows.txt` on Windows, avoiding Bless's Windows dependency conflict. Peripheral/advertising support, OS permissions and same-adapter concurrent roles need hardware checks; Windows LOOB/Svakom V1 also require a matching actual system advertising name. Browsers may not enumerate PTYs. Windows uses an existing COM pair with a trusted signed driver. `--check` opens no hardware; isolated local PTY and mock serial/BLE/WinRT tests do not establish website or device acceptance. LOOB/Thrust Sync have no verified hardware emergency-stop opcode: stopping clears the session and disconnects, rather than moving to position zero. The Svakom V1 single-vibration subset sends its upstream-verified zero-vibration command before disconnecting; a completed write does not establish physical stopping, and other Svakom models/protocols are not automatically compatible. [Installation and complete operation](../tools/protocol-bridge/README.md)
+Linux/macOS BLE input uses Bless; Windows input uses native PyWinRT. Outputs use Bleak. The tool guide lists platform permissions, advertised-name setup and profiles for LOOB, Thrust Sync, Svakom V1, Lovense single-vibration and Youou VX001. Isolated PTY/mock-GATT/WinRT checks verify software behavior; hardware runs belong to the selected OS/adapter. [Installation and operation](../tools/protocol-bridge/README.md)
 
 After changing Three.js source or dependencies, run `npm run build:web` and commit reproducible `docs/assets/parameter-geometry-3d.js` plus its complete `3d.LICENSE.txt`. After ordinary Markdown edits, build the site directly with `npm run build:pages`; artifacts are written to `artifacts/pages/`.
 

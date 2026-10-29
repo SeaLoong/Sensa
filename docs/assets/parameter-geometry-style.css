@@ -226,3 +226,36 @@ footer span { flex-basis: 100%; color: var(--muted); }
 .encoding-steps span { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 #shader-statistics { border-top: 1px solid var(--border); padding-top: 14px; }
 #shader-statistics > summary { cursor: pointer; min-height: 32px; font-size: 13px; color: #334966; }
+/* Parameter search and the signal workbench follow the desktop control layout. */
+.parameter-search { margin-top: 20px; display: grid; gap: 7px; font-size: 12px; color: var(--muted); }
+.parameter-search > input { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #b8c4d5; border-radius: 6px; padding: 8px 10px; background: #fff; }
+#parameter-search-results { display: grid; gap: 6px; max-height: 380px; overflow: auto; }
+#parameter-search-results button { display: grid; gap: 3px; text-align: left; min-width: 0; padding: 8px; }
+#parameter-search-results strong { font-size: 12px; overflow-wrap: anywhere; }
+#parameter-search-results span { font-size: 10px; color: var(--muted); overflow-wrap: anywhere; }
+.signal-workbench { margin-top: 24px; padding: 22px; border: 1px solid var(--border); border-radius: 10px; background: #fff; min-width: 0; }
+.signal-heading, .signal-connect { display: flex; gap: 16px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+.signal-heading p, .signal-connect p { margin-top: 6px; }
+.signal-reading { font: 600 30px ui-monospace, monospace; color: var(--blue); min-width: 90px; text-align: right; }
+.signal-settings { display: grid; grid-template-columns: minmax(180px, 2fr) minmax(80px, .6fr) repeat(2, minmax(120px, 1fr)) auto; gap: 14px; margin-top: 20px; align-items: end; }
+.signal-settings > label { display: grid; gap: 6px; min-width: 0; font-size: 12px; color: var(--muted); }
+.signal-settings select, .signal-settings input[type=number] { width: 100%; min-width: 0; min-height: 44px; font: inherit; color: #20252f; border: 1px solid #b8c4d5; border-radius: 6px; background: #fff; padding: 8px 10px; }
+.signal-settings > .signal-invert { display: flex; align-items: center; min-height: 44px; }
+.signal-invert input { width: 18px; height: 18px; }
+.signal-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+.signal-actions output { font-size: 12px; color: var(--muted); }
+.signal-actions button:disabled, .signal-connect button:disabled { opacity: .55; cursor: default; }
+#signal-trace { display: block; width: 100%; height: auto; max-height: 180px; margin-top: 18px; background: #f7faff; border-radius: 7px; }
+#signal-trace text { font: 11px ui-monospace, monospace; fill: #526176; }
+.trace-grid { fill: none; stroke: #dfe5ee; }
+.trace-line { fill: none; stroke: #0052d9; stroke-width: 2; vector-effect: non-scaling-stroke; }
+.signal-connect { border-top: 1px solid var(--border); padding-top: 18px; margin-top: 20px; justify-content: start; }
+.signal-connect > div { flex: 1 1 300px; }
+@media (max-width: 1100px) { .signal-settings { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .signal-workbench { padding: 16px; } .signal-settings { grid-template-columns: minmax(0, 1fr); } .signal-reading { font-size: 26px; } }
+.signal-workbench > summary { min-height: 28px; cursor: pointer; font-size: 15px; font-weight: 600; color: #244a7b; }
+.signal-workbench[open] > summary { border-bottom: 1px solid var(--border); padding-bottom: 14px; margin-bottom: 18px; }
+
+.movement-presets { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: -4px 0 20px; }
+.movement-presets > span { color: var(--muted); font-size: 12px; margin-right: 5px; }
+.movement-presets button { font-size: 12px; }

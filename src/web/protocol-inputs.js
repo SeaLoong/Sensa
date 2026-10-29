@@ -4,6 +4,7 @@ export const PROTOCOL_INPUT_TYPES = localized(() => [
   { value: 'Buttplug', label: 'Buttplug / Intiface', port: 12400 },
   { value: 'TCodeTcp', label: 'TCode TCP', port: 12401 },
   { value: 'TCodeUdp', label: 'TCode UDP', port: 12402 },
+  { value: 'TCodeWebSocket', label: 'TCode WebSocket', port: 12409 },
   { value: 'TCodeSerial', label: t('TCode 串口'), port: 12400 },
   { value: 'IntifaceDevice', label: t('Intiface 虚拟设备'), port: 54817 },
   { value: 'JsonHttp', label: 'HTTP JSON', port: 12403 },
@@ -17,6 +18,19 @@ export const PROTOCOL_AXES = Object.freeze(['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 
 export const PROTOCOL_SCALAR_TYPES = Object.freeze(['Vibrate', 'Oscillate', 'Constrict', 'Led', 'Temperature', 'Spray']);
 export const VENDOR_OUTPUT_TYPES = Object.freeze(['Handy', 'Autoblow', 'VacuGlide', 'Lovense']);
 const NETWORK_CLIENT_TYPES = new Set(['TCodeSerial', 'IntifaceDevice']);
+export const isWebProtocolInput = type => !NETWORK_CLIENT_TYPES.has(type) && !['TCodeTcp', 'TCodeUdp'].includes(type);
+export function protocolPath(value = '/') {
+  const path = String(value || '/').trim().replace(/\/+$/, '');
+  return path || '/';
+}
+
+function canonicalBindAddress(host) {
+  host = host.toLowerCase();
+  if (host.includes(':')) {
+    try { return new URL(`http://[${host}]/`).hostname.slice(1, -1); } catch { return host; }
+  }
+  return host.split('.').map(part => String(Number(part))).join('.');
+}
 
 function bindAddressValid(host) {
   if (/^(?:\d{1,3}\.){3}\d{1,3}$/.test(host)) return host.split('.').every(part => Number(part) <= 255);
@@ -34,7 +48,7 @@ export function makeProtocolDraft(input = {}) {
   delete options.allowedOrigins;
   delete options.allowedOriginsText;
   return { id: '', name: '', type, enabled: false, host: '127.0.0.1',
-    port: PROTOCOL_INPUT_TYPES().find(option => option.value === type)?.port ?? 12400,
+    port: PROTOCOL_INPUT_TYPES().find(option => option.value === type)?.port ?? 12400, path: '/',
     address: 'ws://127.0.0.1:54817', identifier: '', comPort: '', baudRate: 115200, timeoutMs: 10000, routeToMotion: true, maxSpeedPerSecond: 1, maxScriptDurationMs: 3600000,
     ...options,
     features: (Array.isArray(input.features) ? input.features : [{}]).map(makeProtocolFeature) };
@@ -50,7 +64,7 @@ export function newProtocolDraft(inputs = [], type = 'Buttplug') {
 }
 export function stripProtocolDraft(input) {
   return { id: String(input.id || '').trim(), name: String(input.name || '').trim(), type: input.type || 'Buttplug',
-    enabled: input.enabled === true, host: String(input.host || '').trim(), port: Number(input.port),
+    enabled: input.enabled === true, host: String(input.host || '').trim(), port: Number(input.port), path: protocolPath(input.path),
     address: String(input.address || '').trim(), identifier: String(input.identifier || '').trim(),
     comPort: String(input.comPort || '').trim(), baudRate: Number(input.baudRate), timeoutMs: Number(input.timeoutMs), routeToMotion: input.routeToMotion !== false,
     maxSpeedPerSecond: Number(input.maxSpeedPerSecond ?? 1),
@@ -59,7 +73,7 @@ export function stripProtocolDraft(input) {
       name: String(feature.name || '').trim(), actuator: feature.actuator || 'Position', scalarType: feature.scalarType || 'Vibrate', targetAxis: feature.targetAxis || '' })) };
 }
 export function protocolDraftErrors(drafts = []) {
-  const errors = [], ids = new Set(), listeners = new Set(), axes = new Set();
+  const errors = [], ids = new Set(), listeners = [], axes = new Set();
   if (drafts.length > 16) errors.push(t('最多配置 16 个协议来源。'));
   for (const draft of drafts) {
     const input = stripProtocolDraft(draft), label = input.name || input.id || t('协议输入');
@@ -80,10 +94,21 @@ export function protocolDraftErrors(drafts = []) {
     } else {
       if (!input.host) fail(t('请填写监听地址。'));
       if (!Number.isInteger(input.port) || input.port < 1 || input.port > 65535) fail(t('监听端口须为 1–65535。'));
-      const host = ['localhost', '127.0.0.1', '::1', '[::1]'].includes(input.host.toLowerCase()) ? 'loopback' : input.host.toLowerCase();
-      const key = `${input.type === 'TCodeUdp' ? 'udp' : 'tcp'}:${host}:${input.port}`;
-      if (input.enabled && listeners.has(key)) fail(t('已有启用的输入占用此监听地址和端口。'));
-      if (input.enabled) listeners.add(key);
+      const host = canonicalBindAddress(input.host);
+      if (input.path.length > 256 || !/^\/(?:[A-Za-z0-9_-]+(?:\/[A-Za-z0-9_-]+)*)?$/.test(input.path))
+        fail(t('路径使用斜线分隔的字母、数字、短横线或下划线。'));
+      if (input.enabled) {
+        for (const previous of listeners) {
+          if (previous.port !== input.port || (previous.type === 'TCodeUdp') !== (input.type === 'TCodeUdp')) continue;
+          const overlap = previous.host === host || previous.host === '::' || host === '::'
+            || !previous.host.includes(':') && !host.includes(':') && [previous.host, host].includes('0.0.0.0');
+          if (!overlap) continue;
+          if (!isWebProtocolInput(previous.type) || !isWebProtocolInput(input.type) || previous.host !== host)
+            fail(t('此监听地址和端口已占用；网页协议可在相同地址使用不同路径共享端口。'));
+          else if (previous.path === input.path) fail(t('共享端口的协议来源须使用不同路径。'));
+        }
+        listeners.push({ ...input, host });
+      }
     }
     if (!input.features.length || input.features.length > 16) fail(t('每个来源须配置 1–16 个控制通道。'));
     const channels = new Set();
@@ -115,9 +140,9 @@ export function saveProtocolDrafts(config, drafts) {
 export function protocolEndpoint(input) {
   if (input.type === 'TCodeSerial') return input.comPort || t('请填写串口。');
   if (input.type === 'IntifaceDevice') return input.address;
-  const scheme = ['Buttplug', 'JsonWebSocket'].includes(input.type) ? 'ws' : input.type === 'TCodeTcp' ? 'tcp' : input.type === 'TCodeUdp' ? 'udp' : 'http';
+  const scheme = ['Buttplug', 'JsonWebSocket', 'TCodeWebSocket'].includes(input.type) ? 'ws' : input.type === 'TCodeTcp' ? 'tcp' : input.type === 'TCodeUdp' ? 'udp' : 'http';
   const host = input.host?.includes(':') && !input.host.startsWith('[') ? `[${input.host}]` : input.host;
-  return `${scheme}://${host || '127.0.0.1'}:${input.port}`;
+  return `${scheme}://${host || '127.0.0.1'}:${input.port}${isWebProtocolInput(input.type) && protocolPath(input.path) !== '/' ? protocolPath(input.path) : ''}`;
 }
 export function normalizeDeviceOutput(options = {}) {
   return { axis: 'L0', requestTimeoutMs: 3000, minIntervalMs: 100,

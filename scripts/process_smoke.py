@@ -68,13 +68,13 @@ class SmokeSession:
             self.base = f'http://127.0.0.1:{self.port}'
             config = self.root / 'config.json'
             config.write_text(json.dumps({
-                'webUi': {'host': '127.0.0.1', 'port': self.port, 'autoOpenBrowser': False},
+                'webUi': {'host': '127.0.0.1', 'port': self.port},
                 'osc': {'enabled': self.osc_enabled, 'receiverHost': '127.0.0.1', 'receiverPort': self.osc_port,
                         'oscQueryEnabled': False, 'oscQueryReceiver': {'enabled': False}},
                 'outputs': [],
             }), encoding='utf-8')
             self._log = (self.root / 'service.log').open('w+', encoding='utf-8')
-            self.process = self.start_child(self.command, cwd=str(self.root),
+            self.process = self.start_child([*self.command, '--open-browser', 'false'], cwd=str(self.root),
                                            env=dict(os.environ, SENSA_CONFIG_PATH=str(config)),
                                            stdout=self._log, stderr=self._log)
             self._await_session()

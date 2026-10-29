@@ -6,10 +6,11 @@ import { createHash } from 'node:crypto';
 import MarkdownIt from 'markdown-it';
 import { screenshotGallery } from './site-screenshots.mjs';
 import { documentDiagram, documentDiagramAssets } from './site-diagrams.mjs';
+import { webSensaAssets } from './build-websensa.mjs';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const locales = ['en', 'zh-CN'];
 const folders = ['', 'docs', 'unity/top.sealoong.sensa', 'tools/unity-avatar-lab', 'tools/unity-world-lab', 'tools/protocol-bridge'];
-const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
+const diagramAssets = ['parameter-geometry-model.js', 'parameter-geometry-signal.js', 'parameter-geometry-view.js', 'parameter-geometry-style.css', 'parameter-geometry-3d.js', 'parameter-geometry-3d.LICENSE.txt', 'osc-parameter-reference.js'];
 const words = {
   en: { docs: 'Help', diagram: 'Parameter explorer', source: 'View source', download: 'Download', navigation: 'Browse guides', top: 'On this page', skip: 'Skip to content', home: 'Home', filter: 'Find a guide', empty: 'No matching guide. Try a shorter name.', table: 'Table; scroll horizontally when needed', code: 'Code example; scroll horizontally when needed' },
   'zh-CN': { docs: '使用帮助', diagram: '参数图解', source: '查看源码', download: '下载', navigation: '浏览帮助目录', top: '本页目录', skip: '跳到正文', home: '首页', filter: '查找文档', empty: '没有找到匹配的文档，可以缩短关键词再试。', table: '表格；内容超宽时可横向滚动', code: '代码示例；内容超宽时可横向滚动' },
@@ -99,7 +100,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const groups = [
       { en: 'Start here', zh: '开始使用', links: [
         ['README', 'About Sensa', '认识 Sensa'], ['docs/quick-start', 'First run', '首次使用'],
-        ['docs/guide', 'Workbench guide', '工作台指南'], ['docs/usage-scenarios', 'Examples', '使用场景'],
+        ['docs/guide', 'Workbench guide', '工作台指南'], ['docs/websensa', 'WebSensa in your browser', '网页工作台 WebSensa'], ['docs/usage-scenarios', 'Examples', '使用场景'],
         ['docs/features', 'All features', '完整功能'],
       ] },
       { en: 'Inputs and outputs', zh: '输入与联动', links: [
@@ -125,7 +126,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const diagramScript = document.diagrams ? '<script defer src="' + href(siteAssets.diagrams.name)
       + '" onerror="' + escape(scriptFallback(relative(route, 'document-diagrams.js'))) + '"></script>' : '';
     return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script>' + diagramScript + '</head><body><a class="skip" href="#content">' + t.skip + '</a>'
-      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
+      + '<header><a class="brand" href="' + href('index.html') + '"><span class="brand-mark" aria-hidden="true">S</span>Sensa<span class="brand-context">' + t.docs + '</span></a><nav aria-label="' + t.navigation + '"><a href="' + href('websensa/index.html') + '">WebSensa</a><a href="' + href('parameter-geometry.html') + '">' + t.diagram + '</a><a data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest">' + t.download + '</a><a data-locale="' + other + '" data-heading-map="' + escape(JSON.stringify(headingMap)) + '" href="' + href(buddy) + '">' + (other === 'en' ? 'English' : '简体中文') + '</a></nav></header>'
       + '<div class="layout"><details class="navigation" open><summary>' + t.navigation + '</summary><label class="guide-filter"><span>' + t.filter + '</span><input type="search" data-guide-filter autocomplete="off"></label><nav aria-label="' + t.docs + '">' + navigation + '</nav><p class="guide-empty" role="status" hidden>' + t.empty + '</p></details><main id="content" tabindex="-1"><nav class="doc-breadcrumb" aria-label="' + t.docs + '"><a href="' + href('index.html') + '">' + t.home + '</a><span aria-hidden="true">/</span><span>' + t.docs + '</span></nav><article>' + body + '</article><footer><a href="https://github.com/SeaLoong/Sensa/blob/main/' + escape(document.file) + '">' + t.source + '</a><span>MIT · SeaLoong</span></footer></main><aside aria-label="' + t.top + '"><p>' + t.top + '</p>' + toc.map(x => '<a href="#' + escape(x.id) + '">' + escape(x.title) + '</a>').join('') + '</aside></div></body></html>\n';
   };
   for (const document of documents.values()) {
@@ -164,6 +165,8 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       return render.renderToken(tokens, index, options);
     };
     const rewrite = async (url, image = false) => {
+      const webSensa = /^https:\/\/sealoong\.github\.io\/Sensa\/websensa\/(?:index\.html)?([?#].*)?$/.exec(url);
+      if (webSensa) return relative(document.route, 'websensa/index.html') + (webSensa[1] || '');
       // Only current, public Markdown is local. Pinned research/source references stay external.
       // 仅当前公开Markdown转站内；固定修订的研究与源码链接保留外链。
       const github = /^https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/([^?#]+\.md)(\?[^#]*)?(#.*)?$/.exec(url);
@@ -183,6 +186,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       let target;
       if (/\.md$/.test(file)) target = documentRoute(file, document.locale);
       else if (file === 'docs/parameter-geometry.html') target = 'parameter-geometry.html';
+      else if (['websensa', 'websensa/', 'websensa/index.html', 'src/websensa/index.html'].includes(file)) target = 'websensa/index.html';
       else if (image && /\.(?:png|jpe?g|webp|gif|svg)$/i.test(file)) {
         target = 'media/' + file;
         const reviewed = file.startsWith('docs/screenshots/') && screenshotFiles.has(file.slice('docs/screenshots/'.length));
@@ -190,7 +194,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
           await write(target, await fs.readFile(path.join(source, file)));
       }
       if (!target) return 'https://github.com/SeaLoong/Sensa/blob/main/' + file + (match[3] || '');
-      if (target !== 'parameter-geometry.html') links.push({ from: document.route, to: target, fragment: (match[3] || '').slice(1) });
+      if (!['parameter-geometry.html', 'websensa/index.html'].includes(target)) links.push({ from: document.route, to: target, fragment: (match[3] || '').slice(1) });
       return relative(document.route, target) + (match[2] || '') + (match[3] || '');
     };
     const tokens = md.parse(document.text, {});
@@ -251,6 +255,17 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
   await write('document-diagrams.js', siteAssets.diagrams.content);
   await write('document-diagrams.LICENSE.txt', diagrams.license);
   await write('parameter-geometry.html', (await fs.readFile(path.join(source, 'docs/parameter-geometry.html'), 'utf8')).replace('<head>', '<head>\n<meta name="sensa-site-root" content="./">'));
+  const standalone = await webSensaAssets({ source });
+  let standaloneHtml = standalone.get('index.html').toString()
+    .replace('name="sensa-explorer-url" content="../docs/parameter-geometry.html"',
+      'name="sensa-explorer-url" content="../parameter-geometry.html"');
+  for (const name of ['app.bundle.js', 'app.bundle.css']) {
+    const bytes = standalone.get(name), extension = path.extname(name);
+    const versioned = 'app.bundle.' + createHash('sha256').update(bytes).digest('hex').slice(0, 16) + extension;
+    await write('websensa/' + versioned, bytes);
+    standaloneHtml = standaloneHtml.replaceAll('./' + name, './' + versioned);
+  }
+  for (const [name, bytes] of standalone) await write('websensa/' + name, name === 'index.html' ? standaloneHtml : bytes);
   for (const name of diagramAssets) await write('assets/' + name, await fs.readFile(path.join(source, 'docs/assets', name)));
   await write('.nojekyll', '');
   // Deployment control files are not public HTTP resources. / 部署控制文件不列入公开 HTTP 资源。

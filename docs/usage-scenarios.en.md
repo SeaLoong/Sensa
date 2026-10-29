@@ -2,10 +2,12 @@
 
 [简体中文](usage-scenarios.md) | **English**
 
-Choose the result you want, then its input and destination. Add computation when you need blending, smoothing, triggers or conversion.
+Start with the job: quick browser control, application routing, recording or Avatar interaction. Choose the matching source and output, then add computation for blending, smoothing or geometry. The table below links each workflow to its setup.
 
 | Goal | Suggested flow | Setup |
 | --- | --- | --- |
+| Control immediately in a browser | Manual/script → browser outputs | [WebSensa](websensa.en.md) |
+| Route a website/player into another device | Buttplug/TCode/JSON input → output | [Shared protocol routes](protocol-inputs.en.md) |
 | Check a device or application's response | Manual slider → destination | [First run](quick-start.en.md) |
 | Play an existing trajectory | Funscript → device or application | [Manual and script](guide.en.md#manual-and-script) |
 | Combine readings, smoothing or thresholds | Several inputs → computed signal → output | [Calculation examples](computed-signals.en.md) |

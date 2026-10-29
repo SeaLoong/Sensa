@@ -33,10 +33,28 @@ class BleProtocol:
     packet_size: int
     scalar: bool = False
     stop_packet: bytes | None = None
+    wire_format: str = "position"
+    input_supported: bool = True
+    alternatives: tuple[tuple[str, str], ...] = ()
 
     def decode(self, packet: bytes) -> tuple[float, int]:
+        if self.wire_format == 'lovense':
+            match = re.fullmatch(rb'Vibrate:([0-9]{1,2});', packet)
+            if not match or int(match[1]) > self.maximum:
+                raise ValueError('Lovense single vibration expects Vibrate:0..20;')
+            return int(match[1]) / self.maximum, 0
         if len(packet) != self.packet_size:
             raise ValueError(f'{self.name}: expected {self.packet_size} bytes')
+        if self.wire_format == 'youou':
+            speed = packet[6]
+            checksum = 0
+            for value in packet[:8]:
+                checksum ^= value
+            if (packet[:2] != b'\xaa\x55' or packet[3:6] != b'\x02\x03\x01'
+                    or speed > self.maximum or packet[7] != bool(speed)
+                    or packet[8] != checksum or packet[9:] != b'\xff' + b'\x00' * 7):
+                raise ValueError('Invalid Youou single vibration packet/checksum')
+            return speed / self.maximum, 0
         if self.scalar:
             speed = packet[-1]
             if packet[:4] != b'\x55\x04\x03\x00' or speed > self.maximum or packet[4] != (1 if speed else 0):
@@ -47,8 +65,8 @@ class BleProtocol:
             raise ValueError(f'{self.name}: position outside protocol range')
         return position / self.maximum, duration
 
-    def encode(self, position: float, duration: int) -> bytes:
-        if not math.isfinite(position) or not 0 <= position <= 1:
+    def encode(self, position: float, duration: int, *, packet_id: int = 0) -> bytes:
+        if isinstance(position, bool) or not isinstance(position, (int, float)) or not math.isfinite(position) or not 0 <= position <= 1:
             raise ValueError('Position must be finite and within 0..1')
         if isinstance(duration, bool) or not isinstance(duration, int) or not 0 <= duration <= 65535:
             raise ValueError('BLE duration must be an integer within 0..65535 ms')
@@ -56,6 +74,16 @@ class BleProtocol:
             if duration:
                 raise ValueError('Scalar vibration has no hardware arrival duration')
             speed = min(self.maximum, round(position * self.maximum))
+            if self.wire_format == 'lovense':
+                return f'Vibrate:{speed};'.encode('ascii')
+            if self.wire_format == 'youou':
+                if isinstance(packet_id, bool) or not isinstance(packet_id, int) or not 0 <= packet_id <= 255:
+                    raise ValueError('Youou packet id must be an integer within 0..255')
+                prefix = bytes((0xaa, 0x55, packet_id, 0x02, 0x03, 0x01, speed, int(speed > 0)))
+                checksum = 0
+                for value in prefix:
+                    checksum ^= value
+                return prefix + bytes((checksum, 0xff)) + b'\x00' * 7
             return bytes((0x55, 0x04, 0x03, 0x00, 1 if speed else 0, speed))
         value = max(1 if self.name == 'loob' else 0, min(self.maximum, round(position * self.maximum)))
         return struct.pack('>HH' if self.packet_size == 4 else '>BH', value, duration)
@@ -79,6 +107,30 @@ PROTOCOLS = {
                              scalar=True, stop_packet=b'\x55\x04\x03\x00\x00\x00'),
 }
 
+# Exact upstream Lovense GATT families. The single-actuator profile selects an
+# available write endpoint without claiming the model/battery identification API.
+_LOVENSE_GATT = (
+    ('0000fff0-0000-1000-8000-00805f9b34fb', '0000fff2-0000-1000-8000-00805f9b34fb'),
+    ('6e400001-b5a3-f393-e0a9-e50e24dcca9e', '6e400002-b5a3-f393-e0a9-e50e24dcca9e'),
+    *((f'{prefix}0001-{variant}-4bd4-bbd5-a6920e4c5653',
+       f'{prefix}0002-{variant}-4bd4-bbd5-a6920e4c5653') for prefix, variant in (
+        ('5030', '0024'), ('5730', '0023'), ('5a30', '0024'),
+        ('5030', '0023'), ('5330', '0023'), ('5a30', '0023'),
+        ('4c30', '0023'), ('5830', '0023'), ('5230', '0023'),
+    )),
+)
+PROTOCOLS.update({
+    'lovense-single': BleProtocol('lovense-single', *_LOVENSE_GATT[0], 'Lovense single vibrator', 20, 0,
+                                  scalar=True, stop_packet=b'Vibrate:0;', wire_format='lovense',
+                                  input_supported=False, alternatives=_LOVENSE_GATT),
+    # Upstream notes values above ~247 select patterns; this explicit vibration
+    # profile uses 0..247 rather than mapping those pattern values to intensity.
+    'youou-vx001': BleProtocol('youou-vx001', '0000fff0-0000-1000-8000-00805f9b34fb',
+                               '0000fff6-0000-1000-8000-00805f9b34fb', 'VX001_Sensa', 247, 17,
+                               scalar=True, stop_packet=b'\xaa\x55\x00\x02\x03\x01\x00\x00\xff\xff' + b'\x00' * 7,
+                               wire_format='youou'),
+})
+
 
 def tcode_move(position: float, duration: int) -> bytes:
     """TCode decimal magnitude: three digits represent thousandths, 999 is its limit."""
@@ -97,7 +149,7 @@ def parse_tcode_move(line: bytes, default_duration: int = 100, *, protocol=None)
     if protocol is not None and protocol.scalar:
         match = re.fullmatch(r'V0([0-9]{1,5})', text)
         if not match:
-            raise ValueError('Svakom V1 output accepts only one V0 intensity without I/S duration or other axes')
+            raise ValueError('Scalar BLE output accepts only one V0 intensity without I/S duration or other axes')
         digits = match[1]
         return int(digits) / 10 ** len(digits), 0
     match = re.fullmatch(r'L0([0-9]{1,5})(?:I([0-9]{1,5}))?', text)
@@ -440,6 +492,8 @@ async def run_input(args, port=None, peripheral_factory=None):
             tasks.append(asyncio.create_task(pump_serial(port, mailbox, framer, shutdown)))
         else:
             protocol = PROTOCOLS[args.protocol]
+            if not protocol.input_supported:
+                raise ValueError(f'{protocol.name} is an output profile; use Buttplug or Lovense HTTP for input')
             def receive(data):
                 mailbox.put(protocol.to_tcode(bytes(data)))
             def disconnected():
@@ -530,6 +584,8 @@ def make_peripheral(args, receive, disconnected):
             raise RuntimeError('Windows GATT uses the system Bluetooth name. LOOB requires a LOOB-prefixed advertisement; configure this explicitly in OS settings then pass --confirm-windows-loob-name, or use an external peripheral. No system name is changed by this tool.')
         if args.protocol == 'svakom-v1' and not args.confirm_windows_svakom_name:
             raise RuntimeError('Windows GATT uses the system Bluetooth name. Svakom V1 clients match names such as Emma NEO; configure the matching advertised name explicitly in OS settings then pass --confirm-windows-svakom-name, or use an external peripheral. No system name is changed by this tool.')
+        if args.protocol == 'youou-vx001' and not args.confirm_windows_youou_name:
+            raise RuntimeError('Windows GATT uses the system Bluetooth name. Configure a VX001_-prefixed name then pass --confirm-windows-youou-name.')
         from windows_peripheral import WindowsPeripheral
         return WindowsPeripheral(PROTOCOLS[args.protocol], receive, disconnected)
     return BlessPeripheral(args, receive, disconnected)
@@ -542,51 +598,83 @@ class BleOutput:
         self.stopped = True
         self.failed = False
         self.closed = False
+        self.packet_id = 0
+        self.characteristic = protocol.characteristic
+        self._gate = asyncio.Lock()
+        self._generation = 0
+
+    def _encode(self, value, duration):
+        packet = self.protocol.encode(value, duration, packet_id=self.packet_id)
+        self.packet_id = (self.packet_id + 1) & 255
+        return packet
+
+    def _zero(self):
+        return self._encode(0, 0) if self.protocol.wire_format == 'youou' else self.protocol.stop_packet
+
+    async def select_characteristic(self):
+        if not self.protocol.alternatives:
+            return
+        services = self.client.services
+        for service_id, characteristic in self.protocol.alternatives:
+            service = services.get_service(service_id)
+            if service is not None and service.get_characteristic(characteristic) is not None:
+                self.characteristic = characteristic
+                return
+        raise ValueError('The selected device has no supported single-vibration Lovense GATT write endpoint')
 
     async def _write(self, packet):
         await asyncio.wait_for(self.client.write_gatt_char(
-            self.protocol.characteristic, packet, response=False), self.timeout)
+            self.characteristic, packet, response=False), self.timeout)
 
     async def send(self, line):
-        if self.failed or not self.client.is_connected:
-            raise ConnectionError('BLE disconnected; restart explicitly, no buffered command replay')
+        if self.closed:
+            raise ConnectionError('BLE output is closed')
         move = parse_tcode_move(line, protocol=self.protocol)
         if move is None:
-            self.last = None
+            self._generation += 1
+        generation = self._generation
+        async with self._gate:
+            if generation != self._generation or self.closed:
+                return
+            if self.failed or not self.client.is_connected:
+                raise ConnectionError('BLE disconnected; reconnect to start a new session')
+            if move is None:
+                self.last = None
+                try:
+                    if self.protocol.stop_packet is not None and not self.stopped:
+                        await self._write(self._zero())
+                except BaseException:
+                    self.failed = True
+                    raise
+                finally:
+                    self.stopped = True
+                return
             try:
-                if self.protocol.stop_packet is not None and not self.stopped:
-                    await self._write(self.protocol.stop_packet)
+                packet = self._encode(*move)
+                # A cancelled write may have reached the device; cleanup still zeros.
+                self.stopped = False
+                await self._write(packet)
+                self.last = move
             except BaseException:
                 self.failed = True
+                self.last = None
                 raise
-            finally:
-                self.stopped = True
-            return
-        try:
-            packet = self.protocol.encode(*move)
-            # A failed/cancelled write may already have reached hardware. Cleanup
-            # still attempts a profile's verified zero command before disconnect.
-            self.stopped = False
-            await self._write(packet)
-            self.last = move
-        except BaseException:
-            self.failed = True
-            self.last = None
-            raise
 
     async def stop(self):
-        if self.closed:
-            return
-        self.closed = True
-        self.last = None
-        needs_zero = self.protocol.stop_packet is not None and not self.stopped and self.client.is_connected
-        self.stopped = True
-        self.failed = True
-        try:
-            if needs_zero:
-                await self._write(self.protocol.stop_packet)
-        finally:
-            await asyncio.wait_for(self.client.disconnect(), self.timeout)
+        self._generation += 1
+        async with self._gate:
+            if self.closed:
+                return
+            self.closed = True
+            self.last = None
+            needs_zero = self.protocol.stop_packet is not None and not self.stopped and self.client.is_connected
+            self.stopped = True
+            self.failed = True
+            try:
+                if needs_zero:
+                    await self._write(self._zero())
+            finally:
+                await asyncio.wait_for(self.client.disconnect(), self.timeout)
 
 
 async def pump_ble_output(reader, output, idle, disconnected, *, clock=None):
@@ -675,6 +763,7 @@ async def serve_ble_output(args, client_factory=None):
         # Include partial/timed-out connection establishment in cleanup. Some
         # backends establish a link before connect() has finished discovery.
         await asyncio.wait_for(client.connect(), args.timeout * 5)
+        await output.select_characteristic()
         server = await asyncio.start_server(connection, host, port, limit=MAX_LINE + 1)
         async with server:
             axes = 'V0 intensity only, without I/S modifiers' if protocol.scalar else 'L0 only, Interval slope'
@@ -701,7 +790,7 @@ def diagnostics():
     return {'platform': sys.platform, 'python': sys.version.split()[0], 'dependencies': dependencies,
             'hardwareProbed': False, 'supportedBleProtocols': list(PROTOCOLS),
             'pty': os.name != 'nt', 'windowsVirtualCom': 'Use an existing signed-driver COM pair; no driver installation is performed',
-            'stop': 'DSTOP clears pending work and closes BLE output. Svakom V1 first sends its verified zero-vibration command; LOOB/Thrust Sync have no verified emergency-stop opcode.'}
+            'stop': 'DSTOP clears pending work and closes BLE output. Scalar profiles send zero vibration first; position profiles finish their last finite move.'}
 
 
 def parser():
@@ -723,11 +812,12 @@ def parser():
             p.add_argument('--port', help='Existing serial/COM-pair bridge end (browser opens the other end)')
             p.add_argument('--baud', type=int, default=115200)
         else:
-            p.add_argument('--protocol', choices=PROTOCOLS, default='loob')
+            p.add_argument('--protocol', choices=(PROTOCOLS if command == 'ble-output' else [name for name, p in PROTOCOLS.items() if p.input_supported]), default='loob')
             if command == 'ble-input':
                 p.add_argument('--adapter', help='Optional Bless Linux adapter path, e.g. /org/bluez/hci1')
                 p.add_argument('--confirm-windows-loob-name', action='store_true')
                 p.add_argument('--confirm-windows-svakom-name', action='store_true')
+                p.add_argument('--confirm-windows-youou-name', action='store_true')
             else:
                 p.add_argument('--listen', default='tcp://127.0.0.1:12411', help='Sensa TCode TCP OUTPUT connects here')
                 p.add_argument('--device', help='Actual BLE address/OS device identifier; explicit, no automatic selection')

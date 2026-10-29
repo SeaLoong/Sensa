@@ -2,7 +2,7 @@
 
 **简体中文** | [English](development.en.md)
 
-CI 先执行单元测试和完整浏览器 E2E 比较，通过后构建、打包和发布。自动预发布与手动正式版使用相同的检查要求，任何必要步骤失败都会停止发布。
+围绕同一个源码提交开发，先运行相关单元检查，再由 CI 验证完整浏览器流程与原生包。main 成功构建发布预览，Release 工作流以相同检查要求发布正式版。Pages 验证静态产物后再部署。
 
 ## 平时提交代码会发生什么？
 
@@ -167,6 +167,14 @@ python -X utf8 scripts/verify.py
 
 浏览器 E2E、截图和完整进程冒烟在 Actions 执行，隔离单元和静态检查可本地运行。设备相关检查使用临时配置与模拟传输。真实硬件、Unity／VRChat 和 World 实际交互另行验收。
 
+### WebSensa 与桌面实例
+
+`npm run build:web` 构建桌面界面、WebSensa 与参数图解资源。`scripts/build-websensa.mjs` 为静态站和桌面发布构建同一 React 入口、CSS 与许可证说明。静态路径为 `websensa/`，桌面 HTTP 提供 `/websensa/`，便携文件位于 `web/websensa/`。
+
+WebSensa 单元检查注入时钟、WebSocket 对端和浏览器设备 API。Actions 打开构建页面执行完整控制／脚本、共用连接与模拟 GATT 流程。图解通过明确的浏览器连接交付同一套归一化轴值。
+
+实例检查覆盖配置归属、陈旧持有者恢复、页面存活与实际绑定后的端口分配。Actions 启动独立进程检查重复启动与命名实例。日常开发通过 `--config`、`--instance` 和 `--new-instance` 选择设置，`--open-browser false` 用于无界面运行。[用户启动选项](quick-start.md#运行多个实例)
+
 ### 可选串口与 BLE 桥工具
 
 便携包和 Windows 安装器通过 `scripts/release.py` 的明确白名单附带 `tools/protocol-bridge` 中的 Python 源码、双语用法及依赖版本文件；安装器复用同一工具文件，Actions 逐个核对安装后的内容。该目录的可选依赖也由 Dependabot 每周维护，BLE 后端与原生 WinRT 投影分别分组更新，保留各平台标记和安全更新检查。程序不会安装 Python、虚拟串口驱动或 Python 依赖，独立单 EXE 也不嵌入解释器。需要这些工具时，从便携包或安装器取得文件，在自己选择的 Python 虚拟环境安装所需依赖。
@@ -178,7 +186,7 @@ python -m pip install -r tools/protocol-bridge/requirements-ble-output.txt
 python -X utf8 -m unittest discover -s tests/scripts -p 'test_protocol_bridge*.py'
 ```
 
-BLE 输入在 Linux／macOS 使用 `requirements-ble-input.txt` 中的 Bless，在 Windows 使用 `requirements-ble-input-windows.txt` 中兼容的原生 PyWinRT 版本，避免 Bless 的 Windows 依赖冲突。BLE 外围角色／广播、系统权限和同适配器双角色需实机检查；Windows LOOB／Svakom V1 另受实际系统广播名限制。PTY 不保证被浏览器 Web Serial 枚举；Windows 使用用户已建立的受信任签名驱动 COM 对。`--check` 不打开硬件，隔离测试使用本地 PTY、假串口／BLE／WinRT，并不代表网站与设备验收。LOOB／Thrust Sync 没有已验证的硬件急停指令，停止只清理会话并断开，不能把位置归零当作停止。Svakom V1 单振动子集使用上游已核实的零振动命令后断开；命令写出不是设备已物理停止的证明，其他 Svakom 型号／协议不因此自动兼容。[安装与完整操作](../tools/protocol-bridge/README.zh-CN.md)
+Linux／macOS BLE 输入使用 Bless，Windows 输入使用原生 PyWinRT，输出使用 Bleak。工具指南列出平台权限、广播名称与 LOOB、Thrust Sync、Svakom V1、Lovense 单振动和 Youou VX001 配置。隔离 PTY／模拟 GATT／WinRT 检查验证软件行为，硬件检查使用对应 OS 与适配器。[安装与操作](../tools/protocol-bridge/README.zh-CN.md)
 
 修改 Three.js 源码或依赖后运行 `npm run build:web`，提交可再现的 `docs/assets/parameter-geometry-3d.js` 与完整 `3d.LICENSE.txt`。修改普通 Markdown 后可直接构建站点：`npm run build:pages`，产物位于 `artifacts/pages/`。
 

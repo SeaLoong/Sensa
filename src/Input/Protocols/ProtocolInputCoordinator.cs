@@ -1,4 +1,9 @@
 using System.Net;
+using System.Net.Sockets;
+using Microsoft.AspNetCore.Hosting.Server.Features;
+using Microsoft.AspNetCore.Hosting.Server;
+using Microsoft.AspNetCore.Http.Features;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
@@ -12,7 +17,8 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
     private sealed class Listener(ProtocolInputConfig config)
     {
         public readonly ProtocolInputConfig Config = config;
-        public WebApplication? App;
+        public TCodeWebSocketInput? TCodeWebSocket;
+        public readonly SemaphoreSlim Slots = new(8, 8);
         public TCodeInputService? TCode;
         public IntifaceDeviceInput? Intiface;
         public HttpProtocolInput? Http;
@@ -24,41 +30,64 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
     private readonly SemaphoreSlim _reload = new(1, 1);
     private readonly object _sync = new();
     private List<Listener> _listeners = [];
+    private readonly List<WebApplication> _webApps = [];
     private bool _disposed;
     public event Action? Changed;
     public ProtocolInputCoordinator(ExternalControlStore store, Action<string> log)
     { _store = store; _log = log; _store.CommandsCleared += ResetCommands; }
 
-    public async Task ReloadAsync(IEnumerable<ProtocolInputConfig> inputs)
+    public async Task ReloadAsync(IEnumerable<ProtocolInputConfig> inputs, bool resolvePortConflicts = false)
     {
-        var config = ProtocolInputConfiguration.CloneAndValidate(inputs);
+        var submitted = inputs.ToList();
+        var config = ProtocolInputConfiguration.CloneAndValidate(submitted);
         await _reload.WaitAsync().ConfigureAwait(false);
         try
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             await StopListenersAsync().ConfigureAwait(false);
             _store.Configure(config);
-            foreach (var input in config)
+            var candidates = config.Select(input => new Listener(input)).ToList();
+            lock (_sync) _listeners = candidates;
+            foreach (var listener in candidates.Where(item => item.Config.Enabled && !ProtocolInputConfiguration.IsWebType(item.Config.Type)))
             {
-                var listener = new Listener(input);
-                lock (_sync) _listeners.Add(listener);
-                if (!input.Enabled) continue;
-                try
+                var input = listener.Config;
+                if (input.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial")
                 {
-                    if (input.Type is "TCodeTcp" or "TCodeUdp" or "TCodeSerial")
-                    { listener.TCode = new(input, _store); await listener.TCode.StartAsync().ConfigureAwait(false); }
-                    else if (input.Type == "IntifaceDevice")
-                    { listener.Intiface = new(input, _store); await listener.Intiface.StartAsync().ConfigureAwait(false); }
-                    else await StartWebListenerAsync(listener).ConfigureAwait(false);
-                    listener.Listening = true;
+                    listener.TCode = new(input, _store);
+                    try { await listener.TCode.StartAsync().ConfigureAwait(false); }
+                    catch (Exception error) when (resolvePortConflicts && input.Type != "TCodeSerial" && IsAddressInUse(error))
+                    {
+                        input.Port = 0;
+                        listener.TCode = new(input, _store);
+                        await listener.TCode.StartAsync().ConfigureAwait(false);
+                    }
+                    if (input.Type != "TCodeSerial") input.Port = listener.TCode.BoundPort;
                 }
-                catch (Exception error)
+                else
                 {
-                    listener.Error = "Could not start protocol input: " + error.GetType().Name;
-                    _log("[Protocol input/" + input.Id + "] " + listener.Error);
-                    throw new InvalidOperationException(listener.Error, error);
+                    listener.Intiface = new(input, _store);
+                    await listener.Intiface.StartAsync().ConfigureAwait(false);
                 }
+                listener.Listening = true;
             }
+            foreach (var group in candidates.Where(item => item.Config.Enabled && ProtocolInputConfiguration.IsWebType(item.Config.Type))
+                .GroupBy(item => (item.Config.Host, item.Config.Port)))
+            {
+                var members = group.OrderByDescending(item => item.Config.Path.Length).ToArray();
+                try { await StartWebListenerAsync(members).ConfigureAwait(false); }
+                catch (Exception error) when (resolvePortConflicts && IsAddressInUse(error))
+                {
+                    foreach (var member in members) member.Config.Port = 0;
+                    await StartWebListenerAsync(members).ConfigureAwait(false);
+                }
+                foreach (var member in members) member.Listening = true;
+            }
+            // Only a successful startup may update caller-owned configuration. Saved edits
+            // use the default strict behavior, while independent instances opt in at startup.
+            if (resolvePortConflicts)
+                foreach (var original in submitted)
+                    original.Port = config.Single(input => input.Id == original.Id.Trim()).Port;
+
         }
         catch (Exception error)
         {
@@ -66,39 +95,60 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
             _store.Configure([]);
             lock (_sync) _listeners = config.Select(input => new Listener(input)
             { Error = input.Enabled ? "Could not start protocol inputs: " + error.GetType().Name : null }).ToList();
-            throw;
+            if (error is InvalidOperationException or ObjectDisposedException) throw;
+            throw new InvalidOperationException("Could not start protocol inputs: " + error.GetType().Name, error);
         }
         finally { _reload.Release(); Changed?.Invoke(); }
     }
 
-    private async Task StartWebListenerAsync(Listener listener)
+    private static bool IsAddressInUse(Exception error)
     {
-        var input = listener.Config;
+        for (Exception? current = error; current is not null; current = current.InnerException)
+            if (current is SocketException { SocketErrorCode: SocketError.AddressAlreadyInUse }) return true;
+        return false;
+    }
+
+    private async Task StartWebListenerAsync(Listener[] listeners)
+    {
+        var first = listeners[0].Config;
         var builder = WebApplication.CreateSlimBuilder(new WebApplicationOptions { Args = [], ContentRootPath = AppContext.BaseDirectory });
         builder.Logging.ClearProviders();
         builder.WebHost.ConfigureKestrel(options =>
         {
-            options.Listen(IPAddress.Parse(input.Host), input.Port);
-            options.Limits.MaxRequestBodySize = input.Type is "AutoblowHttp" or "VacuGlideHttp" ? 1024 * 1024 + 16384 : 64 * 1024;
+            options.Listen(IPAddress.Parse(first.Host), first.Port);
+            options.Limits.MaxRequestBodySize = 1024 * 1024 + 16384;
             options.Limits.RequestHeadersTimeout = TimeSpan.FromSeconds(10);
         });
-        var app = builder.Build(); listener.App = app;
+        var app = builder.Build();
         app.UseWebSockets(new() { KeepAliveInterval = TimeSpan.FromSeconds(5), KeepAliveTimeout = TimeSpan.FromSeconds(10) });
-        if (input.Type != "Buttplug") listener.Http = new(input, _store);
-        var slots = new SemaphoreSlim(8, 8);
+        foreach (var listener in listeners)
+        {
+            if (listener.Config.Type == "TCodeWebSocket") listener.TCodeWebSocket ??= new(listener.Config, _store);
+            else if (listener.Config.Type != "Buttplug") listener.Http ??= new(listener.Config, _store);
+        }
         app.Run(async context =>
         {
+            var listener = listeners.FirstOrDefault(item => item.Config.Path == "/"
+                || context.Request.Path.StartsWithSegments(item.Config.Path, StringComparison.Ordinal));
+            if (listener is null) { context.Response.StatusCode = 404; return; }
+            var input = listener.Config;
             if (!IsRequestAllowed(input, context.Request.Host.Host))
             { context.Response.StatusCode = 403; return; }
             context.Response.Headers.AccessControlAllowOrigin = "*";
             context.Response.Headers.AccessControlAllowMethods = "GET, POST, PUT, DELETE, OPTIONS";
             context.Response.Headers.AccessControlAllowHeaders = "Content-Type, X-Sensa-Session, X-Connection-Key, Authorization, X-Api-Key, X-Device-Token";
             if (context.Request.Method == "OPTIONS") { context.Response.StatusCode = 204; return; }
-            if (!await slots.WaitAsync(0, context.RequestAborted).ConfigureAwait(false)) { context.Response.StatusCode = 429; return; }
+            if (!await listener.Slots.WaitAsync(0, context.RequestAborted).ConfigureAwait(false)) { context.Response.StatusCode = 429; return; }
             using var requestLifetime = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, app.Lifetime.ApplicationStopping);
             using var abortOnShutdown = app.Lifetime.ApplicationStopping.Register(context.Abort);
             try
             {
+                if (input.Path != "/")
+                {
+                    context.Request.Path.StartsWithSegments(input.Path, StringComparison.Ordinal, out var remaining);
+                    context.Request.PathBase = context.Request.PathBase.Add(input.Path);
+                    context.Request.Path = remaining.HasValue ? remaining : new PathString("/");
+                }
                 if (input.Type == "Buttplug")
                 {
                     if (!context.WebSockets.IsWebSocketRequest) { context.Response.StatusCode = 426; return; }
@@ -106,14 +156,17 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
                     using var session = new ButtplugInputSession(input, _store);
                     await session.RunAsync(socket, requestLifetime.Token).ConfigureAwait(false);
                 }
-                else if (input.Type == "JsonWebSocket")
+                else if (input.Type is "JsonWebSocket" or "TCodeWebSocket")
                 {
                     if (!context.WebSockets.IsWebSocketRequest) { context.Response.StatusCode = 426; return; }
                     using var socket = await context.WebSockets.AcceptWebSocketAsync().ConfigureAwait(false);
-                    await listener.Http!.RunAsync(socket, requestLifetime.Token).ConfigureAwait(false);
+                    if (listener.TCodeWebSocket is { } tcode) await tcode.RunAsync(socket, requestLifetime.Token).ConfigureAwait(false);
+                    else await listener.Http!.RunAsync(socket, requestLifetime.Token).ConfigureAwait(false);
                 }
                 else
                 {
+                    context.Features.Get<IHttpMaxRequestBodySizeFeature>()!.MaxRequestBodySize =
+                        input.Type is "AutoblowHttp" or "VacuGlideHttp" ? 1024 * 1024 + 16384 : HttpProtocolInput.MaximumBodyBytes;
                     context.RequestAborted = requestLifetime.Token;
                     await listener.Http!.HandleAsync(context).ConfigureAwait(false);
                 }
@@ -121,14 +174,20 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
             catch (OperationCanceledException) { }
             catch (Exception error)
             {
-                // Do not log URLs, request bodies, vendor keys or supplied headers.
                 listener.Error = "Protocol request failed: " + error.GetType().Name;
                 if (!context.Response.HasStarted) context.Response.StatusCode = 400;
                 Changed?.Invoke();
             }
-            finally { slots.Release(); }
+            finally { listener.Slots.Release(); }
         });
-        await app.StartAsync().ConfigureAwait(false);
+        try
+        {
+            await app.StartAsync().ConfigureAwait(false);
+            var actualPort = new Uri(app.Services.GetRequiredService<IServer>().Features.Get<IServerAddressesFeature>()!.Addresses.Single()).Port;
+            foreach (var listener in listeners) listener.Config.Port = actualPort;
+            _webApps.Add(app);
+        }
+        catch { await app.DisposeAsync().ConfigureAwait(false); throw; }
     }
 
     public static bool IsRequestAllowed(ProtocolInputConfig config, string host) =>
@@ -142,7 +201,7 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
         Listener[] listeners;
         lock (_sync) listeners = _listeners.ToArray();
         foreach (var listener in listeners)
-        { listener.TCode?.ResetCommands(); listener.Intiface?.ResetCommands(); }
+        { listener.TCode?.ResetCommands(); listener.Intiface?.ResetCommands(); listener.TCodeWebSocket?.ResetCommands(); }
     }
 
     public object[] Snapshot()
@@ -159,8 +218,9 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
                 session = state?.Session, receivedCommands = state?.ReceivedCommands ?? 0, channels = state?.Channels ?? [],
                 lastError = listener.Error ?? listener.TCode?.LastError ?? listener.Intiface?.LastError,
                 address = listener.Config.Type == "IntifaceDevice" ? listener.Config.Address : listener.Config.Type == "TCodeSerial" ? listener.Config.ComPort
-                    : (listener.Config.Type is "Buttplug" or "JsonWebSocket" ? "ws://" : listener.Config.Type == "TCodeTcp" ? "tcp://" : listener.Config.Type == "TCodeUdp" ? "udp://" : "http://")
-                        + (listener.Config.Host.Contains(':') ? "[" + listener.Config.Host + "]" : listener.Config.Host) + ":" + listener.Config.Port,
+                    : (listener.Config.Type is "Buttplug" or "JsonWebSocket" or "TCodeWebSocket" ? "ws://" : listener.Config.Type == "TCodeTcp" ? "tcp://" : listener.Config.Type == "TCodeUdp" ? "udp://" : "http://")
+                        + (listener.Config.Host.Contains(':') ? "[" + listener.Config.Host + "]" : listener.Config.Host) + ":" + listener.Config.Port
+                        + (ProtocolInputConfiguration.IsWebType(listener.Config.Type) && listener.Config.Path != "/" ? listener.Config.Path : ""),
             };
         }).ToArray();
     }
@@ -178,17 +238,19 @@ public sealed class ProtocolInputCoordinator : IAsyncDisposable
             catch (Exception error) { _log("[Protocol input] Cleanup failed: " + error.GetType().Name); }
             try
             {
-                if (listener.App is not null)
-                {
-                    using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                    try { await listener.App.StopAsync(timeout.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
-                    await listener.App.DisposeAsync().ConfigureAwait(false);
-                }
                 if (listener.TCode is not null) await listener.TCode.DisposeAsync().ConfigureAwait(false);
                 if (listener.Intiface is not null) await listener.Intiface.DisposeAsync().ConfigureAwait(false);
             }
             catch (Exception error) { _log("[Protocol input] Cleanup failed: " + error.GetType().Name); }
         }
+        foreach (var app in _webApps)
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            try { await app.StopAsync(timeout.Token).ConfigureAwait(false); } catch (OperationCanceledException) { }
+            await app.DisposeAsync().ConfigureAwait(false);
+        }
+        _webApps.Clear();
+        foreach (var listener in listeners) listener.Slots.Dispose();
     }
 
     public async ValueTask DisposeAsync()

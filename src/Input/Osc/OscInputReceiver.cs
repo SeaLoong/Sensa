@@ -22,13 +22,16 @@ public sealed class OscInputReceiver : IDisposable
     private readonly object _lifecycle = new();
     private CancellationTokenSource? _receiveCancellation;
     private volatile bool _running;
+    private readonly bool _resolvePortConflicts;
+    public event Action<int>? PortChanged;
 
     public Func<OscSource, bool>? IsSourceAllowed { get; set; }
     public event Action? OnAvatarChange;
     public event Action<byte[], OscSource>? OnUnhandledPacket;
 
-    public OscInputReceiver(OscParameterStore store, string host = "127.0.0.1", int port = 9001)
+    public OscInputReceiver(OscParameterStore store, string host = "127.0.0.1", int port = 9001, bool resolvePortConflicts = false)
     {
+        _resolvePortConflicts = resolvePortConflicts;
         _store = store;
         _host  = NormalizeHost(host);
         _port  = NormalizePort(port);
@@ -45,7 +48,14 @@ public sealed class OscInputReceiver : IDisposable
             if (_running) return;
             // Create socket first; if the port is in use this throws before _running is set,
             // so a subsequent call to Start() will retry instead of silently no-oping.
-            _udp     = new UdpClient(new IPEndPoint(ResolveBindAddress(_host), _port));
+            var address = ResolveBindAddress(_host);
+            try { _udp = new UdpClient(new IPEndPoint(address, _port)); }
+            catch (SocketException error) when (_resolvePortConflicts && error.SocketErrorCode == SocketError.AddressAlreadyInUse)
+            {
+                _udp = new UdpClient(new IPEndPoint(address, 0));
+                _port = ((IPEndPoint)_udp.Client.LocalEndPoint!).Port;
+                PortChanged?.Invoke(_port);
+            }
             var udp = _udp;
             _receiveCancellation = new CancellationTokenSource();
             var token = _receiveCancellation.Token;

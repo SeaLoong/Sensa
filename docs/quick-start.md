@@ -2,27 +2,25 @@
 
 **简体中文** | [English](quick-start.en.md)
 
-先完成一条“手动滑条 → funscript 录制”流程，熟悉保存、启用和查看结果的操作。之后可把来源换成 OSC 或脚本，把输出换成设备或应用。[完整信号流程](signal-pipeline.md)
+想直接在浏览器调节设备或播放脚本，可以[打开 WebSensa](https://sealoong.github.io/Sensa/websensa/)。需要 OSC、应用转发、录制和完整设备连接时，按下面的步骤启动桌面工作台。两个版本都围绕来源、连接和结果组织操作。
 
 ## 1. 启动
 
-打开[下载](https://github.com/SeaLoong/Sensa/releases/latest)查看最新正式版，在发布附件中选择下表对应格式。开发预览与旧版本单独列在[发布历史](https://github.com/SeaLoong/Sensa/releases)。所有版本均自带所需 .NET 运行时。
+[下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版。[发布历史](https://github.com/SeaLoong/Sensa/releases)还列出开发预览与旧版本。所有桌面格式均自带 .NET 运行时。
 
 | 系统与方式 | 架构 | 文件名示例 | 怎样启动 |
 | --- | --- | --- | --- |
-| Windows 安装版（推荐） | x64／ARM64 | `Sensa-版本-win-x64-Setup.exe` | 安装完成或从开始菜单启动时自动打开工作台；可在系统设置中卸载 |
-| Windows 单文件 | x64／ARM64 | `Sensa-版本-win-x64-SingleFile.exe` | 将 EXE 放在可写目录后直接运行，配置保存在旁边 |
-| Windows 便携版 | x64／ARM64 | `Sensa-版本-win-x64.zip` | 完整解压到可写目录，再运行 `Sensa.exe` |
-| Linux 便携版 | x64／ARM64 | `Sensa-版本-linux-x64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
-| macOS 便携版 | x64／ARM64 | `Sensa-版本-osx-arm64.tar.gz` | 完整解压，在目录中运行 `./Sensa` |
+| Windows 安装版（推荐） | x64／ARM64 | `Sensa-version-win-x64-Setup.exe` | 安装后从开始菜单打开 |
+| Windows 单文件 | x64／ARM64 | `Sensa-version-win-x64-SingleFile.exe` | 将 EXE 放到可写目录后运行 |
+| Windows 便携版 | x64／ARM64 | `Sensa-version-win-x64.zip` | 完整解压 ZIP，再运行 `Sensa.exe` |
+| Linux 便携版 | x64／ARM64 | `Sensa-version-linux-x64.tar.gz` | 解压后运行 `./Sensa` |
+| macOS 便携版 | x64／ARM64 | `Sensa-version-osx-arm64.tar.gz` | 解压后运行 `./Sensa` |
 
-各系统均提供 **x64／ARM64**。Intel／AMD 电脑通常选择 x64；Apple Silicon 和 Windows ARM 设备选择 ARM64。预览版文件名还包含构建编号与提交摘要，启动方式相同。
+Intel／AMD 电脑通常使用 **x64**，Apple Silicon 和 Windows ARM 使用 **ARM64**。开发预览文件名还包含构建编号与提交摘要。
 
-启动后，在浏览器打开 **http://127.0.0.1:5086**。首次启动时，输入和输出默认关闭。
+运行 Sensa 后，工作台会自动在浏览器打开。常用地址为 **http://127.0.0.1:5086**；端口调整时，以控制台显示的实际地址为准。首次启动输入处于关闭状态，可以先准备连接。
 
-安装版默认放在 `%LOCALAPPDATA%\Programs\Sensa`，升级和卸载会保留 `config.json` 与 `recordings` 中的用户数据。安装版与便携包都包含离线文档及 Shader 捕获桥；单文件版内置工作台和[离线参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)，独立 Python 捕获桥可从便携包或仓库取得。
-
-界面会自动选择语言，也可手动切换。[语言设置](languages.md)
+Windows 安装目录默认为 `%LOCALAPPDATA%\Programs\Sensa`。更新与卸载保留用户配置和录制。便携包与安装版附带文档及桥工具；单文件内置工作台与[参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)。
 
 ![Sensa 实际运行界面](screenshots/desktop/control-page.png)
 
@@ -30,54 +28,66 @@
 
 ## 2. 配置输出
 
-打开“流程”，点击“添加输出”，选择“录制”并保留默认 **Funscript** 格式。
+可以先把滑条录成一条轨道：
 
-1. 打开“输入到输出的连接”，选择来源“手动 → L0”。
-2. 轨道名称填写 `L0`，输入范围和输出范围均设为 **0～1**。
-3. 点击“保存输出”，再启用该输出，确认连接状态。
+1. 在**流程**选择**添加输出 → 录制**，保留 **Funscript** 格式。
+2. 展开**输入到输出绑定**，来源选**手动 → L0**，轨道名称填 `L0`，输入与输出范围均为 **0–1**。
+3. 保存并启用录制输出。
 
-这里的“连接”说明一项输入怎样送到目标。输入范围表示读数的起点和终点，输出范围表示目标需要的数值。
+也可以直接连接目标：
 
-也可以直接选择你要连接的目标：
-
-| 目标 | 需要准备什么 |
+| 目标 | 连接方式 |
 | --- | --- |
-| TCode 设备 | 串口，或 UDP／TCP 地址与端口；在“设置 → 轴配置”中先设好方向、较小行程和速度 |
-| Intiface 设备 | 先启动 Central，再选择服务地址和设备；检查 Central／设备中的范围和停止设置 |
-| OSC 应用或 VRChat 参数 | 接收 IP、端口、参数地址与类型；回写 VRChat 可使用对应快捷选项 |
-| DG-LAB | DG-LAB 4 APP、中继地址、配对设备与通道上限 |
-| MIDI 或网络应用 | 系统 MIDI 端口，或 HTTP／WebSocket／MQTT 服务地址 |
+| TCode／OSR | 115200/8N1 串口，或 UDP／TCP 地址；选择轴配置 |
+| Intiface | 启动 Central，填写地址，扫描并选择设备 |
+| OSC／VRChat | 接收 IP／端口、参数路径与 Float／Int／Bool 类型 |
+| DG-LAB | DG-LAB 4 APP 配对、设备与通道 |
+| MIDI／网络服务 | MIDI 端口、HTTP／WebSocket 地址，或 MQTT 服务与主题 |
 
-各输出的详细字段见[输出设置](signal-pipeline.md#添加输出与绑定)。TCode 串口默认使用 115200／8N1；Intiface 连接单独运行的 Central。
+绑定把一个来源连到目标。输入范围说明读数的起止值，输出范围决定目标的响应范围。[完整输出配置](signal-pipeline.md#添加输出与绑定)
 
 ## 3. 启用输入并检查结果
 
-在“控制”选择“手动”，点击“应用输入方式”，再“启用输入”。调整 L0 并点击“发送一次”，观察连接中的原始值和换算结果。多次调整即可录出一条变化轨迹。
+在**控制**选择**手动**，应用后启用输入。调整 L0 并点击**发送一次**，或开启**连续发送**跟随滑条变化。每条绑定会显示原始值、转换值与最近目标。
 
-关闭输入后，当前录制片段完成，可以“下载录制”或“载入脚本播放器”。载入后保持暂停；准备好后应用“脚本”、启用输入，再播放。
+关闭输入即可完成录制。下载 funscript，或载入播放器，选择**脚本**、启用输入，再点击**播放**。
 
-使用动作设备时，先以小幅目标检查方向、行程与停止。顶栏“急停”会停止输出并关闭输入；解除急停后，准备好再启用输入。保存配置、更换输入方式或脚本也会关闭输入。
-
-已启用的输入会向新连接的输出发送当前有效目标，连接前先确认顶栏状态。
+使用动作设备时，在轴配置中设置方向与行程，先试一个小幅动作。顶栏的**紧急停止**会停止全部输出并保持，解除后再启用输入。保存配置、切换方式或更换脚本会关闭输入，准备好新设置后重新启用。
 
 ## 4. 选择来源并添加计算
 
-| 需要什么输入 | 操作 |
+| 来源 | 下一步 |
 | --- | --- |
-| OSC 参数 | 应用“OSC”或“组合”，在“OSC”检查监听和来源，找到真实参数后选择或建立映射 |
-| Funscript | 导入脚本，应用“脚本”，启用输入后播放；可调速度、循环和播放位置 |
-| 网站／播放器协议 | 从“设置 → 协议输入”添加来源、保存监听；按[协议指南](protocol-inputs.md)连接上游，再应用“协议”或“组合”并单独启用输入 |
-| 多种来源一起使用 | 配置计算和输出绑定，在“控制”应用“组合” |
-| Avatar 根点位置或速度 | 按[方案指南](usage-scenarios.md)安装测量组件，再观察、校准并允许实验空间输入 |
+| OSC 参数 | 选择 OSC 或组合，查看发送来源并保存映射 |
+| Funscript | 载入文件、选择脚本，再设置速度、循环与位置 |
+| 网站／播放器 | 添加[协议输入](protocol-inputs.md)、连接客户端，选择协议或组合 |
+| 多种来源 | 添加计算和绑定，再选择组合 |
+| Avatar 位置 | 按[定位方案](usage-scenarios.md)完成设置，查看读数并校准范围 |
 
-VRChat 通常向 Sensa 的 **9001** 端口发参数；Sensa 回写或发送 OGB 心跳时，目标通常为 VRChat 的 **9000** 端口。在“OSC”先观察实际参数和[参数含义](osc-parameters.md)，再选择[预设](presets.md)或建立计算。
+VRChat 通常向 Sensa 的 **9001** 端口发送 OSC，并在 **9000** 接收回写与心跳。[参数含义](osc-parameters.md)与[预设](presets.md)可以帮助选择读数。
 
-需要加权平均、平滑或触发时，在“流程”点击“新增计算信号”。展开“空间计算预设”可直接计算两点距离、平面深度、平面内偏移或方向夹角；已在 Unity 配好跟随平面时，可用对应模板生成计算草稿。保存后，各输出连接可以共同选择结果，并分别设置量程。[计算示例](computed-signals.md) · [多输出示例](signal-pipeline.md#同一个结果连接多个输出)
+在**流程**点击**添加计算信号**，设置加权、平滑、阈值或空间计算。结果保存一次，即可被多个输出选用。[计算示例](computed-signals.md)
 
 ## 5. 保存录制与整套方案
 
-完成的 funscript 片段可以下载、载入脚本播放器，或通过“录制回放”再次参与计算。分析原始信号时，可选择 JSON Lines／CSV 格式。[录制与回放](signal-pipeline.md#录制与观察)
+完成的录制可以下载、播放，或作为计算输入。Funscript 保存轨迹；JSON Lines／CSV 保存诊断样本。[录制与回放](signal-pipeline.md#录制与观察)
 
-在“流程”展开“保存与载入整套方案”，可一起导出计算、映射、轴配置和输出。导入时先查看预览，再应用和启用所需输出。
+在**流程 → 保存与载入整套方案**中，将计算、映射、轴配置和输出一起导出。导入预览会先显示将要替换的内容。
 
-配置默认保存在程序旁的 `config.json`；`SENSA_CONFIG_PATH` 可指定另一份配置。需要排查时，先检查当前输入方式、来源、连接与日志。[工作台指南](guide.md) · [功能总览](features.md) · [首页](../README.zh-CN.md)
+配置默认保存为程序旁的 `config.json`。通过 `SENSA_CONFIG_PATH` 或 `--config <path>` 可以选择其他文件。[工作台指南](guide.md) · [语言设置](languages.md)
+
+## 运行多个实例
+
+再次打开同一配置，会复用已经运行的实例。已有工作台页面连接时沿用该页面；没有页面时打开工作台。
+
+独立设置可以使用命名实例：
+
+```sh
+Sensa --instance studio
+Sensa --instance portable
+Sensa --new-instance
+```
+
+命名配置位于原配置旁的 `instances/<name>/config.json`，新实例从全新设置开始。`--new-instance` 自动生成唯一名称。管理 HTTP、OSC 接收和启动时的协议监听遇到端口占用，会选择可用端口；当前地址可在控制台与工作台查看。手动保存监听配置时，端口冲突仍会直接提示，便于选定客户端要连接的地址。
+
+后台运行时，传入 `--open-browser false`。

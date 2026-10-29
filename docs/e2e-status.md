@@ -2,53 +2,48 @@
 
 **简体中文** | [English](e2e-status.en.md)
 
-本页记录固定源码已经完成的检查，不把历史结果当作后续改动的验收。较早的失败定位、修复过程和原始检查范围保存在[固定历史记录](https://github.com/SeaLoong/Sensa/blob/0bf1a8e95ff5f191dec03603c28fb983e3b69ad1/docs/e2e-status.md)。当前源码的结果请查看 [main 分支 CI 运行](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml?query=branch%3Amain)。工作流操作见[开发与发布](development.md)与 [E2E 维护](e2e.md)。
+下列结果属于明确列出的提交。更新源码的执行情况请查看[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)、[Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) 和 [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml)。[检查流程](development.md) · [浏览器测试工作流](e2e.md)
 
-## 已归档验收：0bf1a8e9（2026-10-29）
+## 已验收快照：b225ee3a
 
-固定源码为 [`0bf1a8e95ff5f191dec03603c28fb983e3b69ad1`](https://github.com/SeaLoong/Sensa/commit/0bf1a8e95ff5f191dec03603c28fb983e3b69ad1)。[主分支 CI 40768992258，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40768992258/attempts/1) 已依次完成单元、完整普通浏览器比较、六平台构建与隔离冒烟、Unity 打包及预览发布。
+源码 [`b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de`](https://github.com/SeaLoong/Sensa/commit/b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de)，[CI #213](https://github.com/SeaLoong/Sensa/actions/runs/40783839713)，attempt 1：
 
-| 范围 | 该固定源码的实际结果 |
+| 检查 | 实际结果 |
 | --- | --- |
-| Web 单元 | **240/240 通过**，失败和跳过为 0 |
-| .NET 单元 | **1081/1081 通过**，独立核对全部 TRX 执行结果，失败和跳过为 0 |
-| Python／脚本 | **389/389 通过**，失败和跳过为 0 |
-| 完整普通 E2E | **144/144 通过**，桌面／窄屏各 72 次，含 28 次协议执行；失败、跳过、未执行、中断、flaky 与重试均为 0 |
-| 原生构建／冒烟 | Windows、Linux、macOS 的 x64／ARM64 **六平台全部通过**；另完成 Unity 包 |
-| Windows 分发形式 | 两种架构的便携、单文件、安装后程序全部通过；安装／重装／卸载及配置／录制保留通过 |
-| 真实 Windows 依赖 | 两种架构的 WinRT／Bleak 八个命名空间导入及 `01f40064` 缓冲区往返通过；未枚举适配器、创建 GATT 服务或广播 |
-| 发布文件 | [开发预览版 #210](https://github.com/SeaLoong/Sensa/releases/tag/preview-210-1-0bf1a8e9) 的 **12 个文件**实际字节匹配官方 SHA-256 与 `SHA256SUMS.txt`；六份 BUILD-INFO、54 份桥工具文件和 169 份 Unity 源码匹配固定构建来源（仅允许计划内的 Unity 版本改写） |
+| Web／.NET／Python | **252／1207／401 项通过** |
+| 完整普通浏览器比较 | **176/176 通过**，每种视口 88 项，无重试、失败、跳过或未执行 |
+| Pages | [20/20 通过并部署](https://github.com/SeaLoong/Sensa/actions/runs/40783839496)，98 条路由、154 项资源，55 个选定线上文件一致 |
+| 原生包 | Windows、Linux、macOS，各 x64／ARM64 的隔离 TCode 冒烟通过 |
+| Windows 格式 | 两架构的便携、单文件、安装后运行、重装／卸载与用户数据保留通过 |
+| WinRT | 两架构导入 8 个命名空间并完成原生缓冲区字节往返，未操作适配器／GATT |
+| 发布 | [预览 #213](https://github.com/SeaLoong/Sensa/releases/tag/preview-213-1-b225ee3a) 的 12 个下载文件与官方 SHA-256／SHA256SUMS 一致，54 份桥工具源副本和 169 份 Unity 文件与构建计划一致 |
+| CodeQL | [四语言上传并处理](https://github.com/SeaLoong/Sensa/actions/runs/40783839791)，覆盖 249 个跟踪 C# 文件，两项质量指标为 100%，none-mode 为 0 |
 
-普通 E2E 报告为 `suite=all`、`mode=comparison`、`selectionComplete=true`、`snapshotsCompared=true`，命令及比较验证步骤均成功。原始结果逐项核对为 144 个唯一执行、每项一次尝试。候选截图成功、单独站点过滤检查或旧源码的 116 项结果均不能代替这一完整比较。
+普通浏览器运行执行了全部选中用例，并在关闭基线更新时完成比较。八张当前站点原图与八张图表原图已逐张打开审阅。部署图表另通过键盘滚动、源码回退与主动内容拒绝检查。
 
-## 协议、输入输出与停止检查
+## 自动套件覆盖内容
 
-该提交覆盖 Buttplug v3/v4、TCode TCP／UDP／串口、Intiface WSDM、JSON HTTP／WebSocket 和厂商兼容输入，以及厂商实时／脚本输出、Intiface 显式执行器映射与可选串口／BLE 桥。[操作范围与限制](protocol-inputs.md)
+| 套件 | 检查内容 |
+| --- | --- |
+| 单元／契约 | 注入时钟、真实回环 HTTP／WebSocket、隔离 PTY 与模拟串口／BLE／WinRT |
+| 协议输入 | 规范协商、来源独立会话、原子通道批次、时长、任务生命周期和停止顺序 |
+| 浏览器流程 | 配置、控制、录制、脚本、共享标签页与模拟设备传输 |
+| 站点 | 双语导航、直接下载、离线资源、响应式布局、图库与图表行为 |
+| 原生包冒烟 | 各平台实际二进制、临时配置与模拟网络目标 |
+| 源码分析 | 真实应用／Unity 引用编译、源码覆盖与扫描证据 |
 
-单元与集成检查使用真实回环 HTTP／WebSocket、隔离 PTY、模拟串口／BLE／WinRT 和注入时钟，覆盖单来源控制会话、原子命令批次、每轴时长、到达后租约、断线／非法 TCode、停止屏障、配置回滚、脚本取消和关机。绑定失效的 `StopValue` 与整机停止分别验证：位置轴的停止值是备用目标，可能产生运动；关闭输入、停用输出与急停走整机停止路径。
+Contact 用例包括离开接触与活动冻结：截图使用固定 0.210 m/s，之后在 Sample 冻结时发送十个不同速度。设备与协议回归还覆盖 Intiface 大消息／分片、循环选择、非零脚本首值、有限任务时长和 Python 桥往返。
 
-浏览器协议检查覆盖网站／播放器到模拟 TCode、控制会话竞争、组合计算、双语配置、旋转设备映射，以及脚本准备阻塞时的停止／急停和迟到结果不续动。两份 Contact 附件均完成丢失、冻结与停止断言；截图阶段明确保持 0.210 m/s，后续冻结 Sample 阶段实际发送 10 种不同速度。实际 SDK 客户端、网站、厂商云和硬件仍需独立验收。
+## 图片与审阅
 
-## 图片审阅与文档站
+[基线审阅记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保存 172 张基线图的来源与摘要，普通比较使用这些已审图片。38 张文档图片保留原始字节和采集清单。新视觉变化经过候选采集、原图审阅和之后的普通比较。[审阅流程](e2e.md)
 
-[完整候选 40756483229，attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40756483229/attempts/1) 固定 `aea5ef3f`，实际 144/144 通过，candidate 模式不作图片比较。导出补丁、原图提交 `30a8dd6d` 与全部 172 张 PNG 摘要匹配。13 张新原图逐张打开审阅；10 张复用本轮已打开且字节相同的原图，149 张复用既有逐图记录中的相同摘要。38 张文档图片同步采用该候选，其中 4 张字节变化。[逐图审阅凭据](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
+## 对应环境检查
 
-上述普通主分支比较实际使用这些已审图片，八张站点原图仍与已审候选逐字节相同。Contact 测试只固定截图阶段的输入，后续活动冻结与停止断言仍完整执行；未放宽图片门槛、删除安全断言或增加重试。
+实际网站、厂商云、实体 OSR／BLE、Unity 客户端和 VRChat／HMD 在对应环境检查。最近记录的 Unity Editor 2022.3.22f1 尝试停在许可证验证，**实际执行零项测试**；17 项 Tracking Frame 源用例未运行，未产生 NUnit XML。编译和包结构结果保留各自的验证作用。
 
-[Pages 40768992056](https://github.com/SeaLoong/Sensa/actions/runs/40768992056) 固定同一 `0bf1a8e9`，构建、站点比较和部署成功：**14/14** 通过，96 条路由、149 项资源。构建／线上清单来源一致，38 张文档图片及选取的 9 个 HTML／JS／CSS 资源实际字节与摘要一致。站点报告为 `suite=site`、`selectionComplete=false`、`snapshotsCompared=true`；它证明已部署站点，不能计为完整应用覆盖。
+扫描执行和 SARIF 结果与 GitHub 告警处置分别记录。已验收 b225 快照完成四语言上传，但该轮未远端关闭告警或接受风险；当前面板计数和告警状态需要单独访问与复核。
 
-[截图来源与审阅流程](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [运行画面](screenshots.md)
+## 更早的已验收快照
 
-## 静态分析与扫描边界
-
-同源码的 [CodeQL 40768992078](https://github.com/SeaLoong/Sensa/actions/runs/40768992078) 已完成四语言上传及结果处理。C# manual 构建独立核对 **240/240** Git 跟踪源码，调用目标和类型识别均为 **100%**，低质量诊断为 0，原有 85% 门槛保留。完整 SARIF 身份与原始数据流和已审主分支 `aea5ef3f` 一致。
-
-扫描成功不等于 GitHub 告警已关闭，也不能据此推断不可访问面板的当前告警数或开关状态。扫描配置、测试覆盖和审计门槛保持原要求；具体告警处置以各条记录与证据为准。[扫描配置与迁移](development.md#扫描与工作流依赖维护)
-
-## Unity 与实机范围
-
-保存的实验工程记录锁定 Avatar SDK／Base **3.10.6-beta.3**、MA **1.18.7**、NDMF **1.14.8**、VRCFury **1.1434.0**；World 锁定 SDK／Base **3.10.5**，不含 Avatar SDK。World 保持本地仓库，无远端或推送。vrc-get 1.9.3 的上游摘要、重复解析的包文件摘要及受管理实验文件曾逐项核对，详情见固定历史记录。
-
-最新保留的 Unity Editor 2022.3.22f1 隔离 EditMode 尝试因 **“No valid Unity Editor license found”**／`License is not active (com.unity.editor.headless)` 退出：**执行 0 项，17 项 Tracking Frame 源码用例未运行**，未生成 NUnit XML。这是该次尝试的证据，不代表当前许可状态或后续导入已通过。真实 Unity 导入、NDMF 构建、World PlayMode、Shader GPU 捕获、VRChat／HMD、蓝牙与其他硬件均未验收。
-
-CodeQL 的真实 Unity／SDK 引用编译、包结构检查、模拟进程和浏览器检查各自验证其范围。发布文件可下载、依赖可导入或模拟停止通过，均不能替代对应实体设备的行程、方向、时延和停止验收。后续源码以其自身 Source 提交的 [CI 运行](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)和附件为准。
+[`0bf1a8e9`](https://github.com/SeaLoong/Sensa/commit/0bf1a8e95ff5f191dec03603c28fb983e3b69ad1)通过 [144/144 普通浏览器用例](https://github.com/SeaLoong/Sensa/actions/runs/40768992258)、六平台检查和[预览 #210](https://github.com/SeaLoong/Sensa/releases/tag/preview-210-1-0bf1a8e9)发布；其 [Pages](https://github.com/SeaLoong/Sensa/actions/runs/40768992056)通过 14/14 站点检查。这些历史运行可用于比较后续变化。

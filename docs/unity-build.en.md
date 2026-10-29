@@ -2,7 +2,7 @@
 
 [简体中文](unity-build.md) | **English**
 
-Sensa's Unity scripts store authoring settings. During an Avatar build, NDMF reads those settings on the build copy, generates Contacts, constraints, FX animation and menus, then removes the author scripts. Your source Avatar and prefabs remain editable; standard generated Avatar components perform the uploaded measurement.
+Build your Avatar from editable Sensa authoring components. NDMF reads the settings on the build copy, creates native Contacts, constraints, FX animation and menus, then removes the author scripts. This guide shows the build order, generated assets and the checks available at each stage.
 
 ## Choose a measurement route
 

@@ -2,7 +2,7 @@
 
 [简体中文](ui-quality.md) | **English**
 
-Sensa aims for a clear, light, carefully finished control workbench, making the current state, main actions and secondary settings easy to recognize. This page describes design references, review steps and records. [Historical reviews](ui-visual-review.en.md) identify inspected images.
+The workbench uses a light surface, compact blue controls and familiar page structure across desktop Sensa and WebSensa. Current state and primary actions stay visible while detailed settings expand in place. This guide defines layout, readability, interaction and image-review criteria.
 
 ## How references are used
 

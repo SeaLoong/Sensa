@@ -2,21 +2,42 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Sensa.Hosting;
 using Xunit;
+using System.Text.Json;
+using Sensa.Configuration;
 
 namespace Sensa.Tests.Contracts;
 
 public sealed class BrowserLaunchContracts
 {
     [Theory]
-    [InlineData(null, false, false)]
-    [InlineData(null, true, true)]
-    [InlineData("true", false, true)]
-    [InlineData("false", true, false)]
-    public void Launch_option_overrides_only_this_process(string? option, bool configured, bool expected)
+    [InlineData(null, true)]
+    [InlineData("true", true)]
+    [InlineData("false", false)]
+    [InlineData("invalid", true)]
+    public void Launch_option_overrides_only_this_process(string? option, bool expected)
     {
         var options = new ConfigurationBuilder().AddInMemoryCollection(
             new Dictionary<string, string?> { ["open-browser"] = option }).Build();
-        Assert.Equal(expected, SensaHost.ShouldOpenBrowser(options, configured));
+        Assert.Equal(expected, SensaHost.ShouldOpenBrowser(options));
+    }
+
+    [Fact]
+    public void Legacy_saved_false_is_ignored_and_headless_is_an_explicit_launch_option()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "sensa-browser-migration-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(directory);
+        try
+        {
+            var path = Path.Combine(directory, "config.json");
+            File.WriteAllText(path, """{"webUi":{"autoOpenBrowser":false,"port":5086},"outputs":[]}""");
+            var config = AppConfig.Load(path);
+            Assert.Equal(5086, config.WebUi.Port);
+            config.Save(path);
+            using var saved = JsonDocument.Parse(File.ReadAllText(path));
+            Assert.False(saved.RootElement.GetProperty("WebUi").TryGetProperty("AutoOpenBrowser", out _));
+            Assert.True(SensaHost.ShouldOpenBrowser(new ConfigurationBuilder().Build()));
+        }
+        finally { Directory.Delete(directory, recursive: true); }
     }
 
     [Fact]

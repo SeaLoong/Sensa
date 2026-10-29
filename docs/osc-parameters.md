@@ -2,7 +2,7 @@
 
 **简体中文** | [English](osc-parameters.en.md)
 
-先看参数描述的是位置、接近程度还是运动强弱，再用希望的动作起点和终点校准映射。本页说明各字段的含义、单位、变化方向和常见联动用途；接入步骤见[使用方案](usage-scenarios.md)与[工作台指南](guide.md)。下文省略 `/avatar/parameters/`，路径区分大小写，`<id>` 使用实际实例名。
+先找到参数，查看单位和方向，再选择映射或计算。表格列出 OGB／SPS 与 Sensa 定位使用的路径。在[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)中可以搜索读数、移动目标、映射量程，再导出轨迹或发送到 WebSensa。
 
 ## 用图解理解数值
 

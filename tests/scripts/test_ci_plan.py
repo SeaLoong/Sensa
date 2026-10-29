@@ -27,6 +27,8 @@ class LocalPlanTests(unittest.TestCase):
             (['tests/Sensa.Tests/OutputTests.cs'], {'backend'}),
             (['tests/scripts/test_release.py'], {'scripts'}),
             (['src/web/app.js'], {'web'}),
+            (['src/websensa/controller.js'], {'web'}),
+            (['src/core/engine.js'], {'web'}),
             (['src/Program.cs'], {'backend'}),
             (['unity/package.json'], {'scripts', 'unity'}),
             (['scripts/release.py'], {'scripts', 'unity'}),
@@ -46,7 +48,7 @@ class LocalPlanTests(unittest.TestCase):
 
     def test_site_build_inputs_select_static_contracts(self):
         for path in ('.github/pages/index.html', '.github/pages/site.js', '.github/workflows/pages.yml',
-                     'scripts/build-pages.mjs', 'scripts/vpm-index.py', 'scripts/verify-pages-artifact.py', 'tests/e2e/site.spec.js'):
+                     'scripts/build-pages.mjs', 'scripts/build-websensa.mjs', 'scripts/vpm-index.py', 'scripts/verify-pages-artifact.py', 'tests/e2e/site.spec.js'):
             with self.subTest(path=path):
                 self.assertEqual(self.selected([path]), {'web', 'scripts', 'docs'})
         self.assertEqual(self.selected(['.github/workflows/ci.yml']), {'scripts', 'docs'})

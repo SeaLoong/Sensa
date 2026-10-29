@@ -13,6 +13,7 @@ INTERACTIVE_DOC_ASSETS = frozenset((
     'docs/parameter-geometry.html',
     'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-signal.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
     'docs/assets/parameter-geometry-3d.js',
@@ -40,7 +41,7 @@ def plan_changes(paths, *, diff_available=True):
                 enabled.add('docs')
         elif path.startswith('.github/pages/') or path in (
                 '.github/workflows/pages.yml', 'scripts/build-pages.mjs', 'scripts/vpm-index.py', 'scripts/verify-pages-artifact.py',
-                'tests/web/site.test.mjs', 'tests/e2e/site.spec.js'):
+                'tests/web/site.test.mjs', 'tests/e2e/site.spec.js', 'scripts/build-websensa.mjs'):
             enabled.update(('web', 'scripts', 'docs'))
         elif path.startswith('.github/'):
             enabled.update(('scripts', 'docs'))
@@ -60,7 +61,7 @@ def plan_changes(paths, *, diff_available=True):
             enabled.add('scripts')
         elif path.startswith('tests/fixtures/'):
             enabled.update(('scripts', 'backend'))
-        elif path.startswith('src/web/') or path == 'scripts/build-web.mjs':
+        elif path.startswith(('src/web/', 'src/websensa/', 'src/core/')) or path == 'scripts/build-web.mjs':
             enabled.add('web')
             if path.startswith('src/web/data/'):
                 enabled.add('backend')

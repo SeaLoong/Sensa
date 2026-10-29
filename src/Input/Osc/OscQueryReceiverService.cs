@@ -4,6 +4,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Sensa.Configuration;
+using Sensa.Hosting;
+using Microsoft.AspNetCore.Server.Kestrel.Transport.Sockets;
 
 namespace Sensa.Input.Osc;
 
@@ -23,9 +25,12 @@ public sealed class OscQueryReceiverService : IAsyncDisposable, IDisposable
     private string _signature = string.Empty;
     private OscQueryReceiverServiceSnapshot _snapshot = OscQueryReceiverServiceSnapshot.Disabled();
     private int _disposed;
+    private readonly bool _resolvePortConflicts;
+    public event Action<int>? HttpPortChanged;
 
-    public OscQueryReceiverService(Action<string>? logDebug = null, Action<string>? logError = null)
+    public OscQueryReceiverService(Action<string>? logDebug = null, Action<string>? logError = null, bool resolvePortConflicts = false)
     {
+        _resolvePortConflicts = resolvePortConflicts;
         _logDebug = logDebug;
         _logError = logError;
     }
@@ -104,6 +109,7 @@ public sealed class OscQueryReceiverService : IAsyncDisposable, IDisposable
         {
             app = BuildHttpApplication(config, oscPort, advertisedPaths);
             await app.StartAsync().ConfigureAwait(false);
+            signature = BuildSignature(shouldRun, config, oscPort);
 
             mdns = new MulticastService();
             serviceDiscovery = new ServiceDiscovery(mdns);
@@ -212,6 +218,13 @@ public sealed class OscQueryReceiverService : IAsyncDisposable, IDisposable
             ApplicationName = typeof(OscQueryReceiverService).Assembly.FullName,
         });
         builder.WebHost.UseUrls(BuildBindUrl(config.HttpPort));
+        if (_resolvePortConflicts)
+            builder.Services.Configure<SocketTransportOptions>(options => options.CreateBoundListenSocket = endpoint =>
+                ListenerPortBinding.BindTcp(endpoint, port =>
+                {
+                    config.HttpPort = port;
+                    HttpPortChanged?.Invoke(port);
+                }));
 
         var app = builder.Build();
         app.Run(context => HandleRequestAsync(context, config.ServiceName, NormalizeOscPort(oscPort), advertisedPaths));

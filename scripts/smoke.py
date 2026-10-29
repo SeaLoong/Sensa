@@ -84,7 +84,9 @@ def main():
         assert b'app.bundle.js' in session.request('/', authenticated=False).read()
         assert len(session.request('/app.bundle.js', authenticated=False).read()) > 1000
         for path in ('/styles.css', '/realtime-worker.bundle.js', '/docs/parameter-geometry.html',
-                     '/docs/assets/parameter-geometry-model.js', '/docs/assets/parameter-geometry-3d.js'):
+                     '/docs/assets/parameter-geometry-model.js', '/docs/assets/parameter-geometry-signal.js',
+                     '/docs/assets/parameter-geometry-3d.js', '/websensa/',
+                     '/websensa/app.bundle.js', '/websensa/app.bundle.css'):
             assert len(session.request(path, authenticated=False).read()) > 100, 'Missing packaged Web asset: ' + path
         def request(path, headers=None):
             return session.request(path, headers=headers, authenticated=False)

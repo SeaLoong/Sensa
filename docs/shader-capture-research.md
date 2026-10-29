@@ -2,7 +2,7 @@
 
 **简体中文** | [English](shader-capture-research.en.md)
 
-Shader 捕获把 Avatar 上一个选定位置的测量结果画成 QR 图块。桌面程序读取你选定的屏幕区域（ROI），还原位置、X/Z 两条轴向与 Avatar 世界缩放，再通过 OSC 交给 Sensa。目标可为 Avatar 内明确选择的 SPS Socket／Plug、骨骼／空物体 Transform、Sensa Component 或原生 Contact；桌面图块可见性、头显画面与端到端延迟通过实际客户端检查。
+Shader 捕获把所选 Avatar 根测量绘制为 QR 图块。桌面桥读取指定屏幕区域，将位置、Right／Forward 轴与 AvatarScale 通过 OSC 送入 Sensa。本页说明目标设置、图块格式、解码和跟随平面用法。
 
 以下 Shader 上游资料核验于 2026-10-19，源码固定到所列提交；Sensa 当前结构于 2026-10-24 更新。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页说明实现选择、数据格式与客户端验收方法。
 

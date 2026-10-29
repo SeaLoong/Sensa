@@ -2,10 +2,11 @@
 
 [简体中文](signal-pipeline.md) | **English**
 
-In Flow, choose sources, add calculations when needed and connect outputs. A simple flow uses a source directly; a complex flow saves named results for reuse. An output binding connects a source to a destination, with its own range and sending mode.
+A flow links a source to one or more destinations. Open Flow, choose the source and add an output. Add a calculation when the result needs blending, smoothing or another conversion. Each output binding holds its own target, range and delivery schedule. [Use the browser edition](websensa.en.md) for manual/script flows, or the desktop workbench for all source types.
 
 | Task | Start here |
 | --- | --- |
+| Open a control page immediately | [WebSensa](websensa.en.md) |
 | Try a complete flow | [Record a manual track](#record-a-manual-track-first) |
 | Choose sources or calculations | [Sources and computation](#choose-sources-and-computation) |
 | Connect a device or application | [Output setup](#add-outputs-and-bindings) |
@@ -81,7 +82,7 @@ TCode bindings target one of twelve axes using values from 0 to 1; the output's 
 
 Direct external motion routing preserves each channel's arrival duration. For computation/multiple outputs, select Protocol input and a path such as `website/L0`, or read `/target`, rotation `/speed` or `/clockwise`. Scalar bindings use their own sending rates and do not provide lossless forwarding of timed commands. Disable the source's direct routing before establishing bindings for those motion destinations, avoiding two paths driving the same motion. [Runnable configuration/client examples](protocol-inputs.en.md)
 
-The input range explains the source reading; the output range sets the destination's response. For example, converting input 0–1 to MIDI 0–127 makes an input of 0.5 roughly half the controller range. OSC, network, MIDI and motion-axis bindings can set a stop value to end that binding's effect when its source becomes invalid. Choose it to match the target, such as false for a switch, zero for intensity or a state parameter's default value. **A position-axis stop value is a fallback position target and may move the device; it is not a whole-device stop.** Disabling input, disabling an output and emergency stopping use the motion device's stop command.
+The input range describes the source; the output range sets the response. Mapping 0–1 to MIDI 0–127 makes 0.5 about half scale. The fallback value defines what a binding sends when its required source is invalid: zero intensity, false, or a chosen parameter default. On a position axis it is a position target. Disabling input/output or emergency stopping uses the device stop command.
 
 OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes. Send-on-change suits state or slowly changing readings and supports a minimum change. Fixed-rate sending suits destinations needing periodic updates. Positive-trigger sending delivers a single action when the mapped signal becomes positive. These bindings accept a send rate of 1–100 Hz, allowing outputs sharing a source to use different schedules. Events are delivered in order; state delivery retains the latest value. Use a state-sending mode for a switch that must receive both on and off values. DG-LAB automatically schedules delivery and renewal from task duration, as described below.
 
@@ -189,11 +190,13 @@ Imported outputs and input activation start disabled. Inspect target addresses, 
 
 ## Pages and shared connections
 
-The workbench multiplexes state pushes and control requests through one realtime connection. Same-origin tabs first share it through SharedWorker. If that worker cannot start, browsers supporting BroadcastChannel and Web Locks let one tab maintain the connection for the others. Each tab keeps its own drafts and request responses.
+Same-origin workbench tabs share state and command delivery through a realtime connection. Each tab keeps independent drafts and request responses. Closing a tab leaves the others connected; restoring a suspended tab attaches it to the current state.
 
-When one tab closes, the remaining tabs continue using the shared connection or a new owner takes over. Entering the page cache releases that page's subscription; restoration attaches it again. Reconnection restores the session and state reading, while control requests end with their own timeout or result.
+## Shared ports and independent instances
 
-When neither cross-tab method is available, each tab uses its own singleton connection. The number of usable tabs also depends on the server's session budget. HTTP connection pools, WebSocket and server session limits are managed separately; the sharing scope follows the current browser's capabilities.
+Several protocol inputs can share one HTTP/WebSocket listener using different paths. This shares the network endpoint while keeping each source's commands and channels separate. Use bindings to fan a source out, or computations to combine sources. [Routing examples](protocol-inputs.en.md#share-a-port-across-input-routes)
+
+Independent desktop instances store separate configurations. Opening the same configuration again reuses its owner; `--instance <name>` starts another setup with coordinated listening ports. [Startup guide](quick-start.en.md#run-several-instances)
 
 ## Configuration and activation
 

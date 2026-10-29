@@ -29,6 +29,7 @@ PARAMETER_GEOMETRY_FILES = (
     'docs/parameter-geometry.html',
     'docs/assets/osc-parameter-reference.js',
     'docs/assets/parameter-geometry-model.js',
+    'docs/assets/parameter-geometry-signal.js',
     'docs/assets/parameter-geometry-view.js',
     'docs/assets/parameter-geometry-style.css',
     'docs/assets/parameter-geometry-3d.js',
@@ -64,6 +65,10 @@ class ArchiveWorkspace(unittest.TestCase):
             shutil.copyfile(ROOT / 'scripts' / name, self.repository / 'scripts' / name)
         self.source = self.root / 'app'
         (self.source / 'web').mkdir(parents=True)
+        web_sensa = self.repository / 'src/websensa'
+        web_sensa.mkdir(parents=True)
+        for name in release.WEBSENSA_ASSETS:
+            (web_sensa / name).write_bytes(('isolated WebSensa fixture: ' + name).encode())
         self.output = self.root / 'output'
         self.version = json.loads((self.repository / 'package.json').read_text(encoding='utf-8'))['version']
         self.unity_version = json.loads((self.repository / 'unity/top.sealoong.sensa/package.json').read_text(encoding='utf-8'))['version']
@@ -79,6 +84,10 @@ class ArchiveWorkspace(unittest.TestCase):
     def prepare_app(self, runtime='win-x64'):
         (self.source / ('Sensa.exe' if runtime.startswith('win-') else 'Sensa')).write_bytes(b'fixture apphost')
         (self.source / 'web/app.bundle.js').write_text('fixture bundle', encoding='utf-8')
+        for name in release.WEBSENSA_ASSETS:
+            published = self.source / 'web/websensa' / name
+            published.parent.mkdir(parents=True, exist_ok=True)
+            published.write_bytes((self.repository / 'src/websensa' / name).read_bytes())
         for relative in PARAMETER_GEOMETRY_FILES:
             destination = self.source / 'web' / relative
             destination.parent.mkdir(parents=True, exist_ok=True)
@@ -108,6 +117,25 @@ class AuthoringGeneratorContracts(ArchiveWorkspace):
 
 
 class DesktopArchiveContracts(ArchiveWorkspace):
+    def test_standalone_websensa_assets_ship_under_the_served_web_root(self):
+        _, files = self.app()
+        for name in release.WEBSENSA_ASSETS:
+            self.assertEqual(files['web/websensa/' + name], (self.repository / 'src/websensa' / name).read_bytes())
+
+    def test_standalone_websensa_rejects_missing_or_stale_published_bundles(self):
+        for name in release.WEBSENSA_ASSETS:
+            for stale in (False, True):
+                with self.subTest(name=name, stale=stale):
+                    self.prepare_app()
+                    published = self.source / 'web/websensa' / name
+                    if stale:
+                        published.write_bytes(published.read_bytes() + b'outdated')
+                    else:
+                        published.unlink()
+                    with self.assertRaisesRegex(ValueError, 'WebSensa asset is missing or stale'):
+                        self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+                    self.assertFalse(any(self.output.glob('*.zip')))
+
     @unittest.skipIf(os.name == 'nt', 'Creating test symlinks requires a Unix host')
     def test_guide_destination_symlink_is_rejected_before_copying_outside_source(self):
         self.prepare_app()
@@ -244,6 +272,7 @@ class DesktopArchiveContracts(ArchiveWorkspace):
             '../docs/parameter-geometry.html': 'web/docs/parameter-geometry.html',
             '../docs/assets/osc-parameter-reference.js': 'web/docs/assets/osc-parameter-reference.js',
             '../docs/assets/parameter-geometry-model.js': 'web/docs/assets/parameter-geometry-model.js',
+            '../docs/assets/parameter-geometry-signal.js': 'web/docs/assets/parameter-geometry-signal.js',
             '../docs/assets/parameter-geometry-view.js': 'web/docs/assets/parameter-geometry-view.js',
             '../docs/assets/parameter-geometry-style.css': 'web/docs/assets/parameter-geometry-style.css',
             '../docs/assets/parameter-geometry-3d.js': 'web/docs/assets/parameter-geometry-3d.js',

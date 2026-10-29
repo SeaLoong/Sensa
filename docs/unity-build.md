@@ -2,7 +2,7 @@
 
 **简体中文** | [English](unity-build.en.md)
 
-Sensa 的 Unity 脚本保存制作设置。构建 Avatar 时，NDMF 在构建副本上读取这些设置，生成 Contact、约束、FX 动画与菜单，再移除作者脚本。你可以继续编辑场景中的原 Avatar 和预制件；上传后的测量由生成的标准 Avatar 组件完成。
+使用可编辑的 Sensa 作者组件构建 Avatar。NDMF 在构建副本读取设置，生成原生 Contact、约束、FX 动画与菜单，再移除作者脚本。本页说明构建顺序、生成资产和各阶段检查。
 
 ## 先选择测量方式
 

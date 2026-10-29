@@ -1,83 +1,79 @@
 # Sensa
 
-[简体中文](README.zh-CN.md) · [Documentation](https://sealoong.github.io/Sensa/) · [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[简体中文](README.zh-CN.md) · [Open WebSensa](https://sealoong.github.io/Sensa/websensa/) · [Download](https://github.com/SeaLoong/Sensa/releases/latest) · [Documentation](https://sealoong.github.io/Sensa/) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 [![CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)
 [![E2E](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml)
 [![Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml)
 [![Release](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml/badge.svg)](https://github.com/SeaLoong/Sensa/actions/workflows/release.yml)
 
-**Connect live data, scripts and manual controls to devices and applications.**
+**One workbench for manual controls, scripts and live signals.**
 
-Sensa runs on your computer and uses a browser for configuration. Read OSC parameters from VRChat or other applications, blend signals, add smoothing or triggers, then control devices, write application parameters or record a reusable funscript.
+Move a slider, play a funscript or read a live parameter. Shape the result, then send it to several devices and applications together. Sensa keeps each connection, range and destination visible in the same workbench.
+
+## Choose how to run
+
+| | WebSensa | Sensa Desktop |
+| --- | --- | --- |
+| Start | [Open in your browser](https://sealoong.github.io/Sensa/websensa/) | [Download and launch](https://github.com/SeaLoong/Sensa/releases/latest) |
+| Sources | Manual controls, funscript and parameter-explorer input | Manual, scripts, OSC, tracking, device protocols, feedback and recording replay |
+| Connections | Browser WebSocket, HTTP, serial, Bluetooth and MIDI where available | Serial, UDP/TCP, Intiface, device APIs, OSC, DG-LAB, MIDI, HTTP/WebSocket and MQTT |
+| Use it for | Quick device control, script playback and portable setups | Application routing, multiple input sources, recording and VRChat/Unity |
+
+Both editions share the same control layout and source-to-output workflow. [WebSensa guide](docs/websensa.en.md) · [Desktop first run](docs/quick-start.en.md)
 
 ![Combined input in Sensa](docs/screenshots/desktop/combined-input-en-US.png)
 
 [Narrow layout](docs/screenshots/mobile/combined-input-en-US.png) · [More running examples](docs/screenshots.en.md)
 
-## Inputs → computation → outputs
-
-| Step | Your choice | Examples |
-| --- | --- | --- |
-| **Input** | Where values come from | OSC, tracking, manual sliders, scripts, external protocol controls, device feedback and recording replay |
-| **Computation** | How values are processed | Weighted averages, distances, plane depth, direction angles, smoothing and triggers |
-| **Output** | Where results go | Motion devices, OSC parameters, DG-LAB, other applications or recording files |
-
-A simple flow connects an input directly to an output. Add a calculation when you need to combine or process values. One result can feed several outputs, each with its own range and sending mode. [Set up a flow](docs/signal-pipeline.en.md)
-
-## What would you like to do?
+## Build the flow you need
 
 | Goal | Start here |
 | --- | --- |
-| Adjust a value and check a device or application's response | [First run](docs/quick-start.en.md) |
-| Route a website/player's device controls to OSR or another output | [Protocol inputs, virtual devices and Bluetooth/serial bridges](docs/protocol-inputs.en.md) |
-| Combine touch readings, smooth a signal or add a trigger | [Computed signals and examples](docs/computed-signals.en.md) |
-| Control a device while writing an Avatar effect parameter | [One result, several outputs](docs/signal-pipeline.en.md#one-result-several-outputs) |
-| Record an interaction for playback or editing | [Recording and replay](docs/signal-pipeline.en.md#record-and-inspect) |
-| Use VRChat OGB/SPS parameters or root tracking | [Choose a setup](docs/usage-scenarios.en.md) |
+| Control a device immediately or play a script | [WebSensa](docs/websensa.en.md) |
+| Route a website/player to OSR or another output | [Protocol inputs and device bridges](docs/protocol-inputs.en.md) |
+| Blend values, smooth a response or add a trigger | [Computed signals](docs/computed-signals.en.md) |
+| Send one result to several devices or applications | [Multiple output bindings](docs/signal-pipeline.en.md#one-result-several-outputs) |
+| Record an interaction and play it again | [Recording and replay](docs/signal-pipeline.en.md#record-and-inspect) |
+| Use VRChat parameters or Avatar position | [Choose a setup](docs/usage-scenarios.en.md) |
 
-## Download and start
+A flow can connect a source directly to an output. Add a computation when you want blending, a curve, smoothing, geometry or a timed effect. One result can feed many outputs, each using its own range and update schedule.
 
-1. Open [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) for the latest stable release. Development previews and older builds are listed separately in [release history](https://github.com/SeaLoong/Sensa/releases). On **Windows**, choose the x64 or ARM64 installer from the release assets, install it and open Sensa from the Start menu. On **Linux/macOS**, fully extract the matching `.tar.gz` archive and run `./Sensa`.
-2. Open **http://127.0.0.1:5086** in your browser. All builds include the required .NET runtime. Windows also offers a directly runnable `SingleFile.exe` and a portable `.zip`; see [download formats](docs/quick-start.en.md#1-start).
-3. Follow [First run](docs/quick-start.en.md) to add an output, save the setup and enable input. Recording a manual slider as funscript is a useful first flow.
+## Start the desktop workbench
 
-For a motion device, start with small manual targets to check direction, travel and stopping. The header provides input activation and emergency stop. After saving configuration or changing input, enable input again when ready.
+1. [Download](https://github.com/SeaLoong/Sensa/releases/latest) the latest stable release. Windows offers installers, a single EXE and portable ZIPs; Linux/macOS offer portable archives. Choose x64 or ARM64 for your computer. [All formats](docs/quick-start.en.md#1-start)
+2. Launch Sensa. The workbench opens in your browser. The console shows its current address.
+3. Add an output, choose a source, save and connect. Enable input, then move a slider or play a script.
 
-## Where can results go?
+Several browser tabs share the desktop connection. Reopening the same configuration reuses its running instance; separate named instances keep independent configurations and ports. [Startup and instances](docs/quick-start.en.md#run-several-instances)
 
-| Output | Use |
+## Connect devices and applications
+
+| Destination | Connection |
 | --- | --- |
-| **TCode / Intiface** | Supported position, rotation, vibration and auxiliary features; TCode uses serial, UDP or TCP, while Intiface connects to Central |
-| **Handy / Lovense / Autoblow / VacuGlide** | Explicit device API integrations for supported position, intensity/speed or synchronized script capabilities; [setup and limits](docs/protocol-inputs.en.md#vendor-compatible-input-and-physical-device-output) |
-| **OSC parameter** | Send to an OSC application or a configured writable VRChat Avatar parameter |
-| **DG-LAB** | Pair through the DG-LAB 4 APP and control intensity/waveforms within channel limits |
-| **MIDI CC** | Send controller values to a system MIDI output port |
-| **HTTP JSON / WebSocket JSON / MQTT** | Connect a dashboard, automation service or custom application |
-| **Recording** | Save funscript tracks or JSON Lines/CSV signal data for analysis |
+| TCode / OSR / SR6 | Serial, UDP or TCP with per-axis profiles |
+| Intiface / Buttplug devices | Central device discovery and advertised feature mappings |
+| Handy / Lovense / Autoblow / VacuGlide | Device APIs and supported realtime or synchronized-script controls |
+| Bluetooth / virtual serial devices | [Protocol bridge tools](tools/protocol-bridge/README.md) |
+| VRChat / OSC applications | OSC parameters, discovery and forwarding |
+| DG-LAB | DG-LAB 4 APP pairing, intensity and waveform tasks |
+| MIDI / automation / custom services | MIDI CC, HTTP JSON, WebSocket JSON and MQTT |
+| Files | Funscript tracks, JSON Lines and CSV |
 
-Add an output in Flow and configure its connection inside that output. [Output setup and examples](docs/signal-pipeline.en.md#add-outputs-and-bindings)
+Sensa can also receive the device controls produced by another application. A typical route is **website → Sensa virtual Buttplug device → TCode → OSR**. Shared HTTP ports use separate paths for independent input routes. [Protocol examples](docs/protocol-inputs.en.md)
 
-Sensa can also act as a device-facing input for another application: Buttplug v2/v3/v4, TCode TCP/UDP/serial, Central's virtual device manager, HTTP/WebSocket JSON and documented vendor API subsets. Optional tools bridge virtual serial ports, LOOB/Thrust Sync position BLE and the documented Svakom V1 single-vibration subset. [Build an application → Sensa → device flow](docs/protocol-inputs.en.md); browser/OS and physical-device acceptance are separate from simulated tests.
+## Explore, record and reuse
 
-## Record, play and reuse
+The [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) lets you move targets, compare readings and understand detection regions. The same explorer ships inside the desktop application for offline use.
 
-Recording outputs default to **Funscript**. Select a source and track name, then record. Completed segments can be downloaded, loaded into the script player or used in calculations through Recording replay. Each track saves its continuous valid segments separately. [Operation](docs/signal-pipeline.en.md#record-and-inspect)
+Recording outputs turn selected signals into reusable funscript tracks. Load a completed track into the player, replay it as a computation source or export the entire interaction as a plan. [Signal-flow guide](docs/signal-pipeline.en.md)
 
-Once your interaction is ready, [save a complete plan](docs/signal-pipeline.en.md#save-and-reuse-a-complete-plan), including calculations, axis mappings, axis profiles and outputs. Same-origin tabs [share their realtime connection](docs/signal-pipeline.en.md#pages-and-shared-connections) when supported by the browser, with independent drafts.
+For your own Avatar, the [Unity package](unity/top.sealoong.sensa/README.md) provides SPS four-anchor tracking, Contact direct tracking (SDK Beta), Shader capture and following reference planes. [Setup choices](docs/usage-scenarios.en.md) · [Tracking and calibration](docs/positioning.en.md)
 
-## VRChat and Unity
+## Documentation and development
 
-Existing OGB/SPS parameters connect directly through OSC. When building your own Avatar, install the [Sensa Unity package](unity/top.sealoong.sensa/README.md) and choose **SPS four-anchor tracking**, **Contact direct tracking (SDK Beta)** or **Shader capture**. Add a **Tracking Frame** when a reference plane should follow a bone’s movement and rotation. See the [setup guide](docs/usage-scenarios.en.md) for prerequisites, measurements and calibration.
+[Workbench guide](docs/guide.en.md) · [Feature reference](docs/features.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Languages](docs/languages.en.md) · [Development and releases](docs/development.en.md) · [Verification record](docs/e2e-status.en.md)
 
-The [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) explains parameters and detection regions through adjustable scenes. The app also serves the offline explorer at **http://127.0.0.1:5086/docs/parameter-geometry.html**. Installer and portable packages include a copy at `docs/parameter-geometry.html`. Tracking is experimental; check client, graphics and device behavior with the versions you use.
-
-Stable releases and development previews include desktop downloads and a Unity ZIP. **The VPM repository for VCC/ALCOM offers published stable Unity packages**; download previews separately from Releases.
-
-## Full documentation
-
-[Workbench guide](docs/guide.en.md) · [Feature overview](docs/features.en.md) · [Signal flows](docs/signal-pipeline.en.md) · [OSC parameter reference](docs/osc-parameters.en.md) · [Tracking and calibration](docs/positioning.en.md) · [Language preferences](docs/languages.en.md)
-
-See the [development guide](docs/development.en.md) for builds and publication, and the [verification record](docs/e2e-status.en.md) for browser, native-package and installer checks tied to commits. Successful main checks automatically publish a development preview and the documentation site. Start stable releases with the **Release** workflow in Actions.
+[Development previews](https://github.com/SeaLoong/Sensa/releases) contain current main builds. Stable Unity packages are available through the VPM repository for VCC/ALCOM. Successful main checks publish a preview and update the site; the Release workflow publishes stable versions.
 
 [MIT license](LICENSE) · [Terminology](GLOSSARY.md)

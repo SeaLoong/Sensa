@@ -9,7 +9,11 @@ public sealed class LocalAccessPolicy
 {
     private readonly string _session = Convert.ToHexString(RandomNumberGenerator.GetBytes(32));
     private readonly string? _remoteToken = Environment.GetEnvironmentVariable("SENSA_ACCESS_TOKEN");
-    private const string CookieName = "SensaSession";
+    // Cookies share a host-wide jar across ports. Each concurrently running
+    // instance needs its own name or authenticating one tab logs another out.
+    private static string CookieName(HttpContext context) => "SensaSession_" +
+        (context.Connection.LocalPort > 0 ? context.Connection.LocalPort
+            : context.Request.Host.Port ?? (context.Request.IsHttps ? 443 : 80));
 
     public async Task InvokeAsync(HttpContext context, RequestDelegate next)
     {
@@ -25,7 +29,8 @@ public sealed class LocalAccessPolicy
         if (context.Request.Headers["Sec-Fetch-Site"] == "cross-site")
         { context.Response.StatusCode = 403; return; }
 
-        var authorized = Matches(context.Request.Cookies[CookieName], _session) || HasRemoteCredential(context);
+        var cookieName = CookieName(context);
+        var authorized = Matches(context.Request.Cookies[cookieName], _session) || HasRemoteCredential(context);
         if (!local && !authorized)
         {
             context.Response.StatusCode = 401;
@@ -34,7 +39,7 @@ public sealed class LocalAccessPolicy
         }
         if (context.Request.Path == "/api/session" && HttpMethods.IsGet(context.Request.Method))
         {
-            context.Response.Cookies.Append(CookieName, _session, new CookieOptions
+            context.Response.Cookies.Append(cookieName, _session, new CookieOptions
             { HttpOnly = true, SameSite = SameSiteMode.Strict, Secure = context.Request.IsHttps, IsEssential = true });
             context.Response.Headers.CacheControl = "no-store";
             context.Response.StatusCode = 204; return;

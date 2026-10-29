@@ -2,7 +2,7 @@
 
 [简体中文](presets.md) | **English**
 
-Templates provide common paths and roles to help create a mapping. Confirm the parameters exposed by your Avatar, choose a template, check source, direction, range and proximity conditions, then save and enable input. [Choose a route](usage-scenarios.en.md)
+A preset fills common paths and motion roles so you can build a mapping quickly. Choose the matching Avatar feature, select its live source, capture your input endpoints and save. The rows remain editable for your own paths, direction, range and conditions.
 
 | Template ID | Purpose | Default destination |
 | --- | --- | --- |
