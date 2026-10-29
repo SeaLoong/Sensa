@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import nativeShader from '../fixtures/shader-native-format1.json' with { type: 'json' };
 import { test as hostedTest, mode, oscWorkspace, text } from './fixtures.js';
+import { parameterDetailScreenshotOptions } from './parameter-detail-screenshot.ts';
 
 // Only offline guide cases share software WebGL; app fixtures keep their own browser pool.
 // 仅离线图解用例共用软件WebGL，真实应用fixture仍保持独立浏览器配置。
@@ -57,15 +58,14 @@ async function referenceCards(page) {
   return cards;
 }
 async function parameterDetailCheckpoint(page, dialog, name) {
-  // Match the shared checkpoint's notice handling; only the received time is dynamic here.
-  // 沿用共用截图的通知规则，此夹具仅接收时间会变化。
+  // Match shared notice handling. Hide only the live time using the assertion's
+  // supported stylePath; the former inline style option was ignored.
+  // 沿用通知规则，通过断言支持的 stylePath 仅隐藏实时接收时间；原内联 style 不生效。
   await page.mouse.move(0, 0);
   await expect(page.locator('.toast[role=alert]'), 'Unexpected UI error / 非预期界面错误').toHaveCount(0);
   await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10000 });
   await dialog.evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
-  await expect(dialog).toHaveScreenshot(name + '.png', {
-    stylePath: 'tests/e2e/screenshot.css', style: '[data-testid=parameter-detail-time] { visibility: hidden !important; }',
-  });
+  await expect(dialog).toHaveScreenshot(name + '.png', parameterDetailScreenshotOptions);
 }
 async function chooseScene(page, scenario, projection = 'xz') {
   await page.locator('#scene').selectOption(scenario);

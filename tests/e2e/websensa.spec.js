@@ -122,6 +122,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   expect(connections.filter(endpoint => endpoint === '/intiface')).toHaveLength(1);
   await page.getByLabel('Input enabled').uncheck();
   await expect.poll(() => commands.filter(item => item.command === 'StopDeviceCmd').at(-1)?.body.DeviceIndex).toBe(1);
+  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeEnabled();
   await info.attach('websensa-intiface-multiplex.json', { body: JSON.stringify({ commands, connections }), contentType: 'application/json' });
   await info.attach('websensa-outputs-' + info.project.name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });

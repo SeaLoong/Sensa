@@ -103,7 +103,8 @@ class LocalVerificationTests(unittest.TestCase):
                 self.assertEqual(self.commands, [])
 
     def test_shared_typed_contracts_and_fixture_changes_invalidate_web_receipts(self):
-        for name in ('tests/types/core-contracts.ts', 'tests/fixtures/funscript-interop.json',
+        for name in ('tests/types/core-contracts.ts', 'tests/e2e-types/parameter-detail-screenshot.contract.ts',
+                     'tsconfig.json', 'tsconfig.e2e-types.json', 'tests/fixtures/funscript-interop.json',
                      'src/core/engine.ts', 'src/websensa/capabilities.ts'):
             with self.subTest(path=name):
                 self.write(name, 'first contract content')

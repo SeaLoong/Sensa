@@ -173,7 +173,7 @@ python -X utf8 scripts/verify.py
 
 类型化源码使用 **Oxlint 1.90.0** 和 TypeScript 编译器，既有 JavaScript 保留 ESLint。已核对的 typescript-eslint 8.72.1 peer 范围不包含 TypeScript 7，因此保留稳定编译器，不强制安装不兼容依赖。仅在 `src/websensa/WebSensa.tsx` 关闭 `jsx-a11y/prefer-tag-over-role`：其建议会把合法内联 SVG 的 `role="img"`、状态播报与控件组替换为不同语义的元素；其他配置检查继续启用，浏览器 axe／交互检查验证实际页面。
 
-`npm run typecheck` 以不输出文件的方式执行 `tsc --project tsconfig.json`。严格检查包含 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`、unknown 异常、隔离模块和可擦除语法。网络数据与原生事件通过 `unknown` 和运行时校验进入类型边界。既有桌面界面 JavaScript 保留原 lint 检查，新共享核心／浏览器适配器进入严格 TypeScript 检查。
+`npm run typecheck` 分别检查浏览器源码与 E2E 类型契约，均不输出文件。`tsconfig.json` 保持浏览器全局类型；`tsconfig.e2e-types.json` 使用真实的 Node 与 Playwright 声明，检查截图等测试辅助接口。严格检查包含 `noUncheckedIndexedAccess`、`exactOptionalPropertyTypes`、unknown 异常、隔离模块和可擦除语法。网络数据与原生事件通过 `unknown` 和运行时校验进入类型边界。既有桌面界面 JavaScript 保留原 lint 检查，新共享核心／浏览器适配器进入严格 TypeScript 检查。
 
 ```sh
 npm ci

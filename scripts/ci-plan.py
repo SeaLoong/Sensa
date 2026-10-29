@@ -45,13 +45,13 @@ def plan_changes(paths, *, diff_available=True):
             enabled.update(('web', 'scripts', 'docs'))
         elif path.startswith('.github/'):
             enabled.update(('scripts', 'docs'))
-        elif path == 'eslint.config.js':
+        elif path in ('eslint.config.js', 'tsconfig.json', 'tsconfig.e2e-types.json'):
             enabled.add('web')
         elif path in INTERACTIVE_DOC_INPUTS:
             enabled.update(('web', 'docs'))
         elif path.endswith(('.md', '.md.meta')) or path.startswith('docs/') or path in ('LICENSE', '.gitignore'):
             enabled.add('docs')
-        elif path.startswith(('tests/web/', 'tests/e2e/', 'tests/types/')) or path in ('playwright.config.js', 'playwright.compatibility.config.js'):
+        elif path.startswith(('tests/web/', 'tests/e2e/', 'tests/types/', 'tests/e2e-types/')) or path in ('playwright.config.js', 'playwright.compatibility.config.js'):
             # These optional checks never start the browser runner.
             # 本地类别仅包含静态／隔离单元检查，不启动浏览器测试。
             enabled.add('web')

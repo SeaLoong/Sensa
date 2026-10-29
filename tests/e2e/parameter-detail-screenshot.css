@@ -1,0 +1,3 @@
+/* Only the parameter-detail capture hides its live received time.
+   仅参数详情截图隐藏实时接收时间，保留数值、定义与安全状态。 */
+[data-testid="parameter-detail-time"] { visibility: hidden !important; }

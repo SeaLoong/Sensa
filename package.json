@@ -11,8 +11,10 @@
     "e2e:request": "gh workflow run e2e.yml --ref main -f update_snapshots=false",
     "e2e:baselines": "gh workflow run update-e2e.yml --ref main -f mode=screenshots",
     "lint:legacy": "eslint src/web docs/assets/parameter-geometry-model.js docs/assets/parameter-geometry-signal.js docs/assets/parameter-geometry-view.js docs/assets/parameter-geometry-3d-source.js",
-    "lint:typed": "oxlint --max-warnings 0 src/core src/websensa tests/types",
-    "typecheck": "tsc --project tsconfig.json"
+    "lint:typed": "oxlint --max-warnings 0 src/core src/websensa tests/types tests/e2e-types tests/e2e/parameter-detail-screenshot.ts",
+    "typecheck": "npm run typecheck:browser && npm run typecheck:e2e",
+    "typecheck:browser": "tsc --project tsconfig.json",
+    "typecheck:e2e": "tsc --project tsconfig.e2e-types.json"
   },
   "repository": {
     "type": "git",
@@ -30,6 +32,7 @@
     "@axe-core/playwright": "4.14.0",
     "@mermaid-js/tiny": "12.2.0",
     "@playwright/test": "1.64.1",
+    "@types/node": "24.19.2",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
     "@types/w3c-web-serial": "1.0.9",
