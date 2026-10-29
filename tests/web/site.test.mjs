@@ -7,6 +7,7 @@ import vm from 'node:vm';
 import { createHash } from 'node:crypto';
 import { buildPages, mapDocumentHeadings } from '../../scripts/build-pages.mjs';
 import { documentDiagramAssets } from '../../scripts/site-diagrams.mjs';
+import { overviewTaskLinks } from '../e2e/site-overview-contracts.js';
 
 const decodeAttribute = value => value.replace(/&(amp|quot|#39|lt|gt);/g, (_, entity) => ({ amp: '&', quot: '"', '#39': "'", lt: '<', gt: '>' })[entity]);
 
@@ -114,6 +115,15 @@ test('public guides build into bilingual routes with resolvable local links and 
       assert.equal(picture[0].includes('badge.svg'), false, 'Workflow badges retain their original markup');
     for (const workflow of ['ci', 'e2e', 'pages', 'release'])
       assert.ok(overview.includes('<img src="https://github.com/SeaLoong/Sensa/actions/workflows/' + workflow + '.yml/badge.svg"'));
+    for (const locale of ['en', 'zh-CN']) {
+      const html = await fs.readFile(path.join(output, locale + '/README.html'), 'utf8');
+      const article = html.match(/<article>([\s\S]*?)<\/article>/)[1];
+      for (const { name, href } of overviewTaskLinks(locale)) {
+        const links = [...article.matchAll(/<a href="([^"]+)">([^<]+)<\/a>/g)].filter(link => link[2] === name);
+        assert.equal(links.length, 1, locale + ' overview has one task link: ' + name);
+        assert.equal(decodeAttribute(links[0][1]), href, locale + ' overview task destination: ' + name);
+      }
+    }
     const packageGuide = await fs.readFile(path.join(output, 'en/unity/top.sealoong.sensa/README.html'), 'utf8');
     assert.match(packageGuide, /href="\.\.\/\.\.\/docs\/ogb-compatibility\.html"/);
     assert.doesNotMatch(packageGuide, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/main\/docs\/ogb-compatibility\.en\.md"/);

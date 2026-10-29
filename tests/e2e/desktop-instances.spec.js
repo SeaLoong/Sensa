@@ -93,7 +93,7 @@ test('desktop profiles coordinate real processes, occupied ports and browser ses
       const ports = [stateA.osc.receiverPort, stateB.osc.receiverPort];
       expect(new Set(ports).size).toBe(2); expect(ports).not.toContain(oscPort);
       for (const [index, value] of [.23, .77].entries())
-        await new Promise((resolve, reject) => occupiedOsc.send(oscPacket('/avatar/parameters/CI/Owner', value), ports[index], '127.0.0.1', error => error ? reject(error) : resolve()));
+        await new Promise((resolve, reject) => occupiedOsc.send(oscPacket('CI/Owner', value), ports[index], '127.0.0.1', error => error ? reject(error) : resolve()));
       for (const [endpoint, expected] of [[a, .23], [b, .77]])
         await expect.poll(async () => (await endpoint.json('/api/state/overview')).osc.preview.find(entry => entry.path === 'CI/Owner')?.numericValue).toBeCloseTo(expected, 5);
       const duplicate = await child(directory, ['--config', base, '--instance=one', '--open-browser', 'false'], info); processes.push(duplicate);
