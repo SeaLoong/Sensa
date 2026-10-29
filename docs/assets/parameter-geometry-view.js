@@ -875,6 +875,7 @@
     $('signal-disconnect').disabled = !webSensaWindow;
     $('signal-connection-status').textContent = text(connectionStatus);
   });
+  $('signal-disconnect').addEventListener('click', disconnectWebSensa);
   window.addEventListener('message', event => {
     if (!webSensaWindow || event.source !== webSensaWindow || event.origin !== location.origin
       || event.data?.type !== 'sensa.signal.ready.v1' || event.data.session !== webSensaSession) return;

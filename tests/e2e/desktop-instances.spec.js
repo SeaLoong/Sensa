@@ -34,7 +34,7 @@ async function child(directory, arguments_, info) {
       return { url, async json(route) {
         const response = await fetch(url + route, { headers: { Cookie: cookie } });
         const text = await response.text();
-        expect(response.ok(), text).toBe(true);
+        expect(response.ok, text).toBe(true);
         return JSON.parse(text);
       } };
     },

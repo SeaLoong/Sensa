@@ -134,7 +134,10 @@ jobs:
         run: GITHUB_SHA="$SENSA_SOURCE_COMMIT" node scripts/build-pages.mjs --output "$SENSA_SITE_DIRECTORY"
       - name: Run compatibility
         id: compatibility_tests
-        run: npm run e2e:ci -- --config=playwright.compatibility.config.js
+        run: |
+          # Firefox requires the home directory to belong to its process user.
+          chown "$(id -u):$(id -g)" "$HOME"
+          npm run e2e:ci -- --config=playwright.compatibility.config.js
       - name: Summarize compatibility
         if: always()
         env:

@@ -309,8 +309,16 @@ class WorkflowGateContracts(unittest.TestCase):
                 self.assertNotIn('continue-on-error', installer)
                 self.assertNotIn('if:', installer)
                 self.assertNotIn('apt-get', body)
-                self.assertLess(body.index('run: bash scripts/install-e2e-dependencies.sh'),
-                                body.index('run: npm run e2e:ci'))
+                runners = [step for step in steps if re.search(
+                    r'(?m)^(?:        run: |          )npm run e2e:ci(?:\s|$)', step)]
+                self.assertEqual(len(runners), 1)
+                self.assertLess(body.index(installer), body.index(runners[0]))
+                if job_name == 'compatibility':
+                    runner = runners[0]
+                    home_ownership = 'chown "$(id -u):$(id -g)" "$HOME"'
+                    self.assertLess(runner.index(home_ownership), runner.index('npm run e2e:ci'))
+                    self.assertNotIn('chown -R', runner)
+                    self.assertNotRegex(runner, r'(?m)^\s*(?:export )?HOME=')
         self.assertEqual(len(images), 1, 'Browser jobs must use the same reviewed Playwright image digest')
 
     def test_pages_publish_automatically_only_after_built_site_browser_checks(self):

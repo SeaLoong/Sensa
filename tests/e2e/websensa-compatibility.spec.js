@@ -88,6 +88,7 @@ test.beforeEach(async ({ page, browserName, browser }) => {
 });
 test.afterEach(async ({}, info) => {
   try {
+    if (!runtimeBrowser) return;
     const actualAssets = await Promise.all(browserAssets);
     await info.attach('webcompat-source.json', { body: JSON.stringify({ ...sourceProof,
       project: info.project.name, browser: runtimeBrowser.name, browserVersion: runtimeBrowser.version,
@@ -96,7 +97,8 @@ test.afterEach(async ({}, info) => {
     for (const expected of sourceProof.assets) expect(actualAssets).toContainEqual({ path: expected.path, sha256: expected.sha256 });
     expect(pageErrors).toEqual([]);
   } finally {
-    for (const peer of sockets.clients) peer.terminate();
+    runtimeBrowser = undefined;
+    for (const peer of sockets?.clients ?? []) peer.terminate();
   }
 });
 test.afterAll(async () => {
