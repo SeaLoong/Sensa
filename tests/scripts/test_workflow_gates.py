@@ -29,6 +29,16 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_controlled_node_jobs_use_the_security_patched_distribution_version(self):
+        expected = json.loads((ROOT / 'scripts/licenses/node.json').read_text())['nodeVersion']
+        checked = []
+        for path in WORKFLOWS.glob('*.yml'):
+            for configured in re.findall(r"(?m)^\s+node-version:\s*['\"]?([^'\"\s]+)", path.read_text()):
+                checked.append(path.name)
+                with self.subTest(workflow=path.name, version=configured):
+                    self.assertEqual(configured, expected)
+        self.assertTrue(checked)
+
     def test_codeql_requires_measured_build_quality_before_publication(self):
         source = workflow('codeql.yml')
         scopes = jobs(source)

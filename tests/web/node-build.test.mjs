@@ -3,8 +3,9 @@ import { mkdtemp, mkdir, readFile, realpath, rm, symlink, writeFile } from 'node
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
-import { actionSourceProvenance, collectNativeFiles, nodeLicense, prepareDirectory, runtimeFor, safeRelative, thirdPartyNotices, webResources, writeSeaEvidence } from '../../scripts/build-node.mjs';
+import { actionSourceProvenance, collectNativeFiles, nodeLicense, prepareDirectory, runtimeFor, safeRelative, sourceIdentity, thirdPartyNotices, webResources, writeSeaEvidence } from '../../scripts/build-node.mjs';
 
 async function packageFixture(root, name, options = {}) {
   const directory = join(root, 'node_modules', name); await mkdir(directory, { recursive: true });
@@ -28,6 +29,22 @@ async function fixture(t) {
   }
   await writeFile(join(root, 'package-lock.json'), JSON.stringify({ packages })); return root;
 }
+
+test('source identity handles a differently owned checkout without global trust or weakening the exact commit pin', async t => {
+  const directory = await realpath(await mkdtemp(join(tmpdir(), 'sensa-source-identity-unit-'))); t.after(() => rm(directory, { recursive: true, force: true }));
+  const git = args => {
+    const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr); return result.stdout.trim();
+  };
+  git(['init', '--quiet']); await writeFile(join(directory, 'fixture.txt'), 'isolated source');
+  git(['add', 'fixture.txt']); git(['-c', 'user.name=Source Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', 'fixture']);
+  const commit = git(['rev-parse', 'HEAD']), environment = { ...process.env, GIT_TEST_ASSUME_DIFFERENT_OWNER: '1' };
+  const denied = () => spawnSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8', env: environment });
+  assert.notEqual(denied().status, 0);
+  assert.equal(sourceIdentity(directory, commit, environment), commit);
+  assert.throws(() => sourceIdentity(directory, '0'.repeat(40), environment), /identity differs/);
+  assert.notEqual(denied().status, 0, 'The successful check must not persist a global safe.directory entry.');
+});
 
 test('Node build resolves all production native dependency versions without running them', async t => {
   const root = await fixture(t), result = await collectNativeFiles(root);

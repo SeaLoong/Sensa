@@ -40,6 +40,17 @@ export function runtimeFor(platform = process.platform, arch = process.arch) {
   return `${os}-${arch}`;
 }
 
+/** Trust only this explicit checkout, including container-owned Actions mounts. */
+export function sourceIdentity(projectRoot = root, expectedCommit = process.env.SENSA_SOURCE_COMMIT, environment = process.env) {
+  const identity = spawnSync('git', ['-c', `safe.directory=${projectRoot}`, 'rev-parse', 'HEAD'],
+    { cwd: projectRoot, encoding: 'utf8', env: environment });
+  const sourceCommit = identity.stdout?.trim();
+  if (identity.status !== 0 || !/^[0-9a-f]{40}$/.test(sourceCommit)
+    || expectedCommit && expectedCommit !== sourceCommit)
+    throw new Error('Node build source identity differs from the checked-out commit.');
+  return sourceCommit;
+}
+
 async function ordinaryFile(path) {
   const info = await lstat(path);
   if (!info.isFile() || info.isSymbolicLink() || info.size > maximumFileBytes) throw new Error('Build assets require bounded regular files: ' + path);
@@ -254,11 +265,7 @@ export async function buildNode(options) {
   if (!/^(?:win|linux|osx)-(?:x64|arm64)$/.test(runtime)) throw new Error('Unsupported target runtime.');
   if (!bundleOnly && runtime !== runtimeFor()) throw new Error('SEA executables must be built on the matching native runner.');
   const runtimeLicense = bundleOnly ? null : await nodeLicense(process.versions.node);
-  const identity = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' });
-  const sourceCommit = identity.stdout?.trim();
-  if (identity.status !== 0 || !/^[0-9a-f]{40}$/.test(sourceCommit)
-    || process.env.SENSA_SOURCE_COMMIT && process.env.SENSA_SOURCE_COMMIT !== sourceCommit)
-    throw new Error('Node build source identity differs from the checked-out commit.');
+  const sourceCommit = sourceIdentity();
   const output = await prepareDirectory(options.output ?? join(root, 'artifacts/node'));
   const stage = bundleOnly ? output : await prepareDirectory(join(root, 'artifacts/node-sea', runtime));
   run(process.execPath, ['scripts/build-web.mjs']);
