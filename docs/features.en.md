@@ -92,6 +92,6 @@ Authoring components generate native Contacts, constraints, animation and parame
 
 ## Configuration and development
 
-The desktop stores `config.json` beside the program; named instances have their own folders. HTTP and WebSocket APIs expose the workbench operations to custom tools. [Architecture](architecture.en.md)
+CLI distributions store `config.json` beside the program; Electron defaults to `Sensa/config.json` under the user application-data directory. Named instances have their own folders. HTTP and WebSocket APIs expose the workbench operations to custom tools. [Architecture](architecture.en.md)
 
 [Development and releases](development.en.md) describes builds and scanner maintenance. [Verification records](e2e-status.en.md) identify the actual automated checks and environment-specific acceptance results.
