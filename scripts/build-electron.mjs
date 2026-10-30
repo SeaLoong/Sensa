@@ -2,7 +2,7 @@
 import { createHash } from 'node:crypto';
 import { cp, lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { execFileSync, spawnSync } from 'node:child_process';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { build } from 'esbuild';
@@ -43,6 +43,11 @@ function run(executable, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error('Desktop build step failed: ' + executable);
 }
+/** Match release.py's CLI archive inventory before handing resources to Electron. */
+export async function copyCliResources(source, destination) {
+  await cp(source, destination, { recursive: true, dereference: false,
+    filter: filename => !relative(source, filename).split(sep).some(component => component.startsWith('.')) });
+}
 export async function prepareDesktopShell(version) {
   const stage = join(root, 'artifacts/electron-app'); await generatedDirectory(stage);
   await writeFile(join(stage, 'package.json'), JSON.stringify({ name: 'sensa-desktop', productName: 'Sensa',
@@ -72,7 +77,7 @@ export async function main(argv = process.argv.slice(2)) {
   const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: root, encoding: 'utf8' }).trim();
   const cliSha256 = createHash('sha256').update(await readFile(cli)).digest('hex');
   const resources = join(root, 'artifacts/electron-resources', runtime); await generatedDirectory(resources);
-  await cp(portable, join(resources, 'cli'), { recursive: true, dereference: false });
+  await copyCliResources(portable, join(resources, 'cli'));
   const out = join(root, 'artifacts/electron', runtime); await generatedDirectory(out);
   const destinations = await packager({ dir: stage, out, name: 'Sensa', executableName: 'Sensa', appBundleId: 'top.sealoong.sensa',
     appVersion: version, buildVersion: version, electronVersion: manifest.devDependencies.electron, platform, arch,
