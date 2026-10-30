@@ -127,12 +127,16 @@ class LinuxSandboxTests(unittest.TestCase):
 
     def test_other_user_writable_executable_or_parent_is_rejected(self):
         self.executable.chmod(0o666)
-        with self.assertRaisesRegex(ValueError, 'replaceable'):
+        with self.assertRaisesRegex(ValueError, 'replaceable') as error:
             sandbox.plan(self.executable)
+        self.assertIn(str(self.executable), str(error.exception))
+        self.assertIn(f'uid={os.getuid()}, mode=0666', str(error.exception))
         self.executable.chmod(0o644)
         self.root.chmod(0o777)
-        with self.assertRaisesRegex(ValueError, 'replaceable'):
+        with self.assertRaisesRegex(ValueError, 'replaceable') as error:
             sandbox.plan(self.executable)
+        self.assertIn(str(self.root), str(error.exception))
+        self.assertIn('mode=0777', str(error.exception))
 
     def test_helper_refuses_running_as_root_before_system_operations(self):
         with patch.object(sandbox.os, 'geteuid', return_value=0), patch.object(sandbox, 'trusted') as trusted:

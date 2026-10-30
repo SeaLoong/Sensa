@@ -46,7 +46,8 @@ def plan(executable):
                        and attributes.st_mode & stat.S_ISVTX)
         if (attributes.st_uid not in (0, os.getuid())
                 or (attributes.st_mode & 0o022 and not sticky_root)):
-            raise ValueError('The executable and its directories must not be replaceable by other users.')
+            raise ValueError('The executable and its directories must not be replaceable by other users: '
+                             f'{entry} (uid={attributes.st_uid}, mode={stat.S_IMODE(attributes.st_mode):04o}).')
     with executable.open('rb') as stream:
         info = os.fstat(stream.fileno())
         if executable.name != 'Sensa' or not stat.S_ISREG(info.st_mode) or stream.read(5) != b'\x7fELF\x02':
