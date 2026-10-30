@@ -2,6 +2,7 @@ import Bonjour from 'bonjour-service';
 import type { Browser as BonjourBrowser, Service as BonjourService } from 'bonjour-service';
 import { createSocket } from 'node:dgram';
 import type { Socket as DatagramSocket } from 'node:dgram';
+import { lookup } from 'node:dns/promises';
 import { createServer } from 'node:http';
 import type { Server as HttpServer } from 'node:http';
 import { isIP } from 'node:net';
@@ -26,6 +27,12 @@ export interface OscServicesOptions {
   resolvePortConflicts?: boolean; instanceId?: string;
   bonjourFactory?: () => Bonjour;
   fetch?: typeof globalThis.fetch;
+  resolveHubHost?: (host: string) => Promise<string>;
+  sendHubPacket?: (packet: Uint8Array, port: number, address: string, done: (error: Error | null) => void) => void;
+}
+interface HubTargetState {
+  host: string; port: number; enabled: boolean; address: string | null; resolvedEndpoint: string;
+  sentPackets: number; lastSentAtUtc: string | null; lastError: string; lastErrorAtUtc: string | null;
 }
 interface QueryNode { path: string; fullPath: string; type: string; description: string; access: number | null; currentValue: string; parsedValue: OscValue | null; min: number | null; max: number | null; allowedValues: string[] }
 interface QuerySnapshot {
@@ -91,6 +98,7 @@ export class OscServices {
   #lastReceiver: number | null = null; #lastAvatar: number | null = null; #lastRaw: number | null = null; #lastSource: OscSource | null = null; #eventCount = 0;
   #previews: Preview[] = []; #pollTimer: ReturnType<typeof setTimeout> | null = null; #hubTimer: ReturnType<typeof setInterval> | null = null; #ogbTimer: ReturnType<typeof setInterval> | null = null;
   #senders = new Map<string, DatagramSocket>(); #forwarded = 0; #dropped = 0; #lastForwarded: string | null = null; #lastDropped: string | null = null; #lastDropReason = ''; #pending = new Map<string, { packet: Uint8Array; source: OscSource }>(); #pendingAvatar: OscSource | null = null;
+  #hubTargets = new Map<string, HubTargetState>(); #hubLookups = new Map<string, Promise<string>>();
   #ogbTarget: { host: string; port: number } | null = null; #ogbError = ''; #ogbSentAt: string | null = null; #ogbSentValue: boolean | null = null;
   #polling = { running: false, startedAtUtc: null as string | null, lastPolledAtUtc: null as string | null, lastAppliedValueCount: 0, error: '' };
   #disposed = false; #stopping = false; #generation = 0; #set = (path: string, value: OscValue, source: OscSource): void => this.#onValue(path, value, source);
@@ -101,6 +109,7 @@ export class OscServices {
     await this.#stop(); this.#config = structuredClone({ ...config, receiverHost: host }); this.#restorePersistentSource(previousPersistentId); this.#active = active; this.#stopping = false; this.#generation++;
     try {
       if (config.enabled && active) await this.#startReceiver();
+      await this.#prepareHubTargets();
       if (config.oscQueryEnabled && active) { this.#startDiscovery(); void this.refreshQuery(); if (config.oscQueryPolling.enabled) this.#schedulePoll(0); }
       if (config.oscQueryReceiver.enabled && config.enabled && active) await this.#startQueryReceiver();
       if (config.hub.enabled && active && (config.hub.mode === 'FixedRate' || config.hub.mode === 1)) { this.#hubTimer = setInterval(() => this.#flushHub(), 1000 / Math.max(1, Math.min(60, config.hub.fixedRateHz))); this.#hubTimer.unref(); }
@@ -156,11 +165,70 @@ export class OscServices {
     this.#sendForward(packet);
   }
   #sender(host: string): DatagramSocket { const family = host.includes(':') ? 'udp6' : 'udp4'; let socket = this.#senders.get(family); if (!socket) { socket = createSocket(family); socket.on('error', error => this.options.log?.(`OSC output: ${error.message}`)); this.#senders.set(family, socket); } return socket; }
+  async #resolveHubHost(host: string): Promise<string> {
+    if (host.toLowerCase() === 'localhost') return '127.0.0.1';
+    const literal = host.startsWith('[') && host.endsWith(']') ? host.slice(1, -1) : host;
+    if (isIP(literal)) return ipHost(literal);
+    if (!host || host.length > 253 || /[\s\0/\\#@?]/u.test(host)) throw new Error('Invalid OSC hub hostname.');
+    let pending = this.#hubLookups.get(host);
+    if (!pending) {
+      // Keep the actual lookups bounded even when an OS resolver outlives the
+      // configuration deadline. Never resolve a hostname for every OSC packet.
+      if (this.#hubLookups.size >= 64) throw new Error('Too many pending OSC hub DNS lookups.');
+      pending = this.options.resolveHubHost ? this.options.resolveHubHost(host) : lookup(host, { all: true }).then(addresses => {
+        const selected = addresses.find(address => address.family === 4) ?? addresses[0];
+        if (!selected) throw new Error('OSC hub hostname has no IP address.'); return selected.address;
+      });
+      this.#hubLookups.set(host, pending);
+      const current = pending;
+      void pending.then(() => { if (this.#hubLookups.get(host) === current) this.#hubLookups.delete(host); },
+        () => { if (this.#hubLookups.get(host) === current) this.#hubLookups.delete(host); });
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    try {
+      const address = await Promise.race([pending, new Promise<never>((_resolve, reject) => { timer = setTimeout(() => reject(new Error('OSC hub DNS lookup timed out.')), 3000); })]);
+      if (!isIP(address)) throw new Error('OSC hub DNS lookup returned an invalid IP address.'); return ipHost(address);
+    } finally { if (timer) clearTimeout(timer); }
+  }
+  async #prepareHubTargets(): Promise<void> {
+    const previous = this.#hubTargets, targets = new Map<string, HubTargetState>(), generation = this.#generation;
+    this.#hubTargets = targets;
+    await Promise.all(this.#config.hub.targets.map(async target => {
+      const prior = previous.get(target.id), host = target.host.trim();
+      const matches = prior?.host === host && prior.port === target.port && prior.enabled === target.enabled;
+      let state: HubTargetState = { host, port: target.port, enabled: target.enabled, address: null, resolvedEndpoint: '', sentPackets: 0, lastSentAtUtc: null, lastError: '', lastErrorAtUtc: null };
+      targets.set(target.id, state);
+      if (!target.enabled || !this.#config.hub.enabled || !this.#active) return;
+      try {
+        if (!validPort(target.port) || target.port === 0) throw new Error('Invalid OSC hub target port.');
+        const address = await this.#resolveHubHost(host);
+        if (generation !== this.#generation || this.#stopping || this.#disposed) return;
+        if (this.#receiver && target.port === this.#receiverPort && (address === this.#config.receiverHost || ['127.0.0.1', '::1'].includes(address))) throw new Error('OSC hub target would loop to this receiver.');
+        if (matches && prior?.address === address) { state = { ...prior }; targets.set(target.id, state); }
+        state.address = address; state.resolvedEndpoint = `${address.includes(':') ? `[${address}]` : address}:${target.port}`;
+      } catch (error) {
+        if (generation !== this.#generation || this.#stopping || this.#disposed) return;
+        state.lastError = error instanceof Error ? error.message : 'Invalid OSC hub target.'; state.lastErrorAtUtc = new Date(this.now()).toISOString();
+      }
+    }));
+  }
   #sendForward(packet: Uint8Array): void {
     for (const target of this.#config.hub.targets.filter(candidate => candidate.enabled)) {
-      try { const host = ipHost(target.host); if (!validPort(target.port) || target.port === 0 || target.port === this.#receiverPort && (host === this.#config.receiverHost || ['127.0.0.1', '::1'].includes(host))) throw new Error('OSC hub target would loop to this receiver.');
-        this.#sender(host).send(packet, target.port, host, error => { if (error) { this.#dropped++; this.#lastDropReason = error.message; this.#lastDropped = new Date(this.now()).toISOString(); } else { this.#forwarded++; this.#lastForwarded = new Date(this.now()).toISOString(); } this.options.onChanged?.(); });
-      } catch (error) { this.#dropped++; this.#lastDropReason = error instanceof Error ? error.message : 'Invalid hub target.'; this.#lastDropped = new Date(this.now()).toISOString(); }
+      const state = this.#hubTargets.get(target.id), generation = this.#generation;
+      if (!state) continue;
+      let settled = false;
+      const sent = (error: Error | null): void => {
+        if (settled || generation !== this.#generation || this.#stopping || this.#disposed || this.#hubTargets.get(target.id) !== state) return;
+        settled = true; const timestamp = new Date(this.now()).toISOString();
+        if (error) { state.lastError = error.message; state.lastErrorAtUtc = timestamp; this.#dropped++; this.#lastDropReason = error.message; this.#lastDropped = timestamp; }
+        else { state.sentPackets++; state.lastSentAtUtc = timestamp; state.lastError = ''; state.lastErrorAtUtc = null; this.#forwarded++; this.#lastForwarded = timestamp; }
+        this.options.onChanged?.();
+      };
+      try {
+        if (!state.address) throw new Error(state.lastError || 'OSC hub target is not resolved.');
+        if (this.options.sendHubPacket) this.options.sendHubPacket(packet, target.port, state.address, sent);
+        else this.#sender(state.address).send(packet, target.port, state.address, error => sent(error));
+      } catch (error) { sent(error instanceof Error ? error : new Error('Invalid hub target.')); }
     }
   }
   #avatarChanged(source: OscSource): void {
@@ -314,6 +382,7 @@ export class OscServices {
   }
   snapshot(): Record<string, unknown> {
     const config = this.#config, sources = this.store.snapshotSources(), effective = this.store.preferredSourceKey ?? (sources.length === 1 ? sources[0]?.key ?? null : null), selected = sources.find(source => source.key === effective);
+    const hubActive = config.hub.enabled && this.#active && !this.#stopping && !this.#disposed;
     const blocked = config.hub.enabled && sources.length > 1 && !effective;
     const preview = this.store.snapshotEntries().sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0).map(row => ({ path: row.path, type: row.entry.valueType.toLowerCase(), value: formatOscPreviewValue(row.entry.value, row.entry.valueType),
       numericValue: typeof row.entry.value === 'boolean' ? row.entry.value ? 1 : 0 : row.entry.value, classification: classifyOscPath(row.path),
@@ -333,10 +402,14 @@ export class OscServices {
         lastSourceAddress: source?.address ?? '', lastSourcePort: source?.port ?? 0, receivedEventCount: this.#eventCount, error: '' },
       trackingPreview: this.#previews.filter(value => value.category === 'tracking'), rawPreview: [...this.#previews],
       hub: { enabled: config.hub.enabled, mode: config.hub.mode, fixedRateHz: config.hub.fixedRateHz, forwardAvatarChange: config.hub.forwardAvatarChange,
-        targetCount: config.hub.targets.length, activeTargetCount: config.hub.targets.filter(target => target.enabled).length, pendingPacketCount: this.#pending.size, pendingAvatarChange: this.#pendingAvatar !== null,
+        targetCount: config.hub.targets.length, activeTargetCount: hubActive ? config.hub.targets.filter(target => target.enabled && this.#hubTargets.get(target.id)?.address).length : 0, pendingPacketCount: this.#pending.size, pendingAvatarChange: this.#pendingAvatar !== null,
         forwardedPacketCount: this.#forwarded, droppedPacketCount: this.#dropped, lastForwardedAtUtc: this.#lastForwarded, lastDroppedAtUtc: this.#lastDropped, lastDropReason: this.#lastDropReason,
         blockedBySourceSelection: blocked, effectiveSourceKey: selected?.key ?? '', effectiveSourceLabel: selected?.label ?? '', effectiveSourceParameterCount: selected?.parameterCount ?? 0,
-        canForward: config.hub.enabled && config.hub.targets.some(target => target.enabled) && !blocked, targets: config.hub.targets.map(target => ({ ...target, active: target.enabled, lastError: '' })) },
+        canForward: hubActive && config.hub.targets.some(target => target.enabled && this.#hubTargets.get(target.id)?.address) && !blocked,
+        targets: config.hub.targets.map(target => { const state = this.#hubTargets.get(target.id); return { ...target,
+          active: target.enabled && hubActive && !!state?.address,
+          resolvedEndpoint: state?.resolvedEndpoint ?? '', sentPackets: state?.sentPackets ?? 0, lastSentAtUtc: state?.lastSentAtUtc ?? null,
+          lastError: state?.lastError ?? '', lastErrorAtUtc: state?.lastErrorAtUtc ?? null }; }) },
       ogbControl: { active: this.#ogbTarget !== null, host: this.#ogbTarget?.host ?? '', port: this.#ogbTarget?.port ?? 0, lastError: this.#ogbError, lastSentAtUtc: this.#ogbSentAt, lastSentValue: this.#ogbSentValue } };
   }
   async #stop(): Promise<void> {
