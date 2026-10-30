@@ -4,6 +4,8 @@
 
 Develop against one source commit, run the affected unit checks, then let CI verify the full browser workflows and native packages. Successful main builds publish a preview; the Release workflow applies the same gates to stable publication. Pages verifies its static artifact before deploying it.
 
+Before running the full script unit suite locally, run `python -m pip install -r scripts/requirements-capture.txt` to install the pinned Pillow version required by PNG regressions. The shared CI checks install the same dependencies automatically.
+
 ## What happens when I commit code?
 
 | Action | Automatic result |

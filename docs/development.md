@@ -4,6 +4,8 @@
 
 围绕同一个源码提交开发，先运行相关单元检查，再由 CI 验证完整浏览器流程与原生包。main 成功构建发布预览，Release 工作流以相同检查要求发布正式版。Pages 验证静态产物后再部署。
 
+本地运行完整脚本单元测试前，先执行 `python -m pip install -r scripts/requirements-capture.txt`，安装 PNG 回归所需的固定版本 Pillow；CI 的共用检查会自动安装同一份依赖。
+
 ## 平时提交代码会发生什么？
 
 | 操作 | 自动执行 |
