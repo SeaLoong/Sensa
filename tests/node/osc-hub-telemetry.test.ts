@@ -1,11 +1,15 @@
 import assert from 'node:assert/strict';
 import { createSocket } from 'node:dgram';
+import { createServer } from 'node:http';
+import type { Duplex } from 'node:stream';
 import { once } from 'node:events';
 import { EventEmitter } from 'node:events';
 import type Bonjour from 'bonjour-service';
-import { setTimeout } from 'node:timers/promises';
+import type { Service as BonjourService } from 'bonjour-service';
+import { setTimeout, setImmediate } from 'node:timers/promises';
 import test from 'node:test';
 import { OscParameterStore } from '../../src/core/protocols/osc.ts';
+import { parseOscPacket } from '../../src/core/protocols/osc.ts';
 import { deadline } from '../../src/core/outputs/lifecycle.ts';
 import { OscServices, createOscServices } from '../../src/node/inputs/osc-services.ts';
 import type { OscServicesConfig } from '../../src/node/inputs/osc-services.ts';
@@ -183,4 +187,113 @@ test('disposing immediately after a real UDP bind starts settles both lifecycle 
   await deadline(Promise.all([configuring, services.dispose()]), 2000, 'Concurrent UDP bind/dispose');
   assert.equal(services.snapshot()['listening'], false);
   assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['canForward'], false);
+});
+
+function discoveryFixture() {
+  const browsers: { browser: EventEmitter & { stop(): void }; up: (service: BonjourService) => void }[] = [];
+  const factory = () => ({
+    find(_options: unknown, up: (service: BonjourService) => void) { const browser = Object.assign(new EventEmitter(), { stop() {} }); browsers.push({ browser, up }); return browser; },
+    unpublishAll(callback: () => void) { callback(); }, destroy(callback: () => void) { callback(); },
+  }) as unknown as Bonjour;
+  return { browsers, factory };
+}
+function polling(services: OscServices): { running: boolean } { return (services.snapshot()['query'] as { polling: { running: boolean } }).polling; }
+
+for (const action of ['dispose', 'reconfigure'] as const) test(`an aborted polling completion cannot restart polling after ${action}`, async () => {
+  const settings = config(); settings.enabled = false; settings.hub.enabled = false; settings.oscQueryEnabled = true;
+  settings.oscQueryUrl = 'http://held-query.example.test/'; settings.oscQueryPolling.enabled = true;
+  const discovery = discoveryFixture(); let fetched = false;
+  const services = await createOscServices(settings, new OscParameterStore(), { bonjourFactory: discovery.factory,
+    fetch: async (_url, options) => { fetched = true; return await new Promise<Response>((_resolve, reject) => {
+      const abort = () => reject(new Error('Isolated fetch aborted')); options?.signal?.addEventListener('abort', abort, { once: true });
+      if (options?.signal?.aborted) abort();
+    }); } });
+  try {
+    await until(() => fetched); await setTimeout(5); // Let the real zero-delay poll attach to the held refresh.
+    if (action === 'dispose') await services.dispose();
+    else { const newer = structuredClone(settings); newer.oscQueryEnabled = false; await services.reconfigure(newer); }
+    await setImmediate(); assert.equal(polling(services).running, false, 'obsolete refresh finalizers cannot schedule or mutate the current polling state');
+  } finally { await services.dispose(); }
+});
+
+test('late discovery up/down callbacks cannot populate or remove another generation catalog', async () => {
+  const settings = config(); settings.enabled = false; settings.hub.enabled = false; settings.oscQueryEnabled = true;
+  const discovery = discoveryFixture(), services = await createOscServices(settings, new OscParameterStore(), { bonjourFactory: discovery.factory });
+  const service = (name: string, fqdn = 'shared._oscjson._tcp.local') => ({ name, fqdn, host: '127.0.0.1', addresses: ['127.0.0.1'], port: 9001 }) as BonjourService;
+  try {
+    const old = discovery.browsers[0]; assert.ok(old); old.up(service('Old'));
+    await services.reconfigure(settings); const current = discovery.browsers[1]; assert.ok(current); current.up(service('Current'));
+    old.browser.emit('down', service('Old')); old.up(service('Late old', 'late._oscjson._tcp.local'));
+    const discovered = (services.snapshot()['query'] as { discovered: { name: string }[] }).discovered;
+    assert.deepEqual(discovered.map(value => value.name), ['Current']);
+    await services.dispose(); current.up(service('After disposal'));
+    assert.deepEqual((services.snapshot()['query'] as { discovered: unknown[] }).discovered, []);
+  } finally { await services.dispose(); }
+});
+
+test('late OGB callbacks cannot replace telemetry from the new target', async () => {
+  const settings = config(); settings.hub.enabled = false; settings.ogbControl = { enabled: true, host: '127.0.0.1', port: 9101 };
+  let now = 1000; const sends: { port: number; value: unknown; done: (error: Error | null) => void }[] = [];
+  const services = await createOscServices(settings, new OscParameterStore(), { now: () => now,
+    sendOgbPacket(packet, port, _host, done) { sends.push({ port, value: parseOscPacket(packet).values[0]?.value, done }); } });
+  try {
+    const newer = structuredClone(settings); newer.ogbControl.port = 9102; now = 2000; await services.reconfigure(newer);
+    assert.deepEqual(sends.map(send => [send.port, send.value]), [[9101, true], [9101, false], [9102, true]]);
+    sends[2]!.done(null); now = 3000; sends[0]!.done(new Error('Old target failed'));
+    let state = services.snapshot()['ogbControl'] as Record<string, unknown>;
+    assert.equal(state['lastError'], '', 'old target failure cannot be assigned to the current target');
+    sends[1]!.done(null); state = services.snapshot()['ogbControl'] as Record<string, unknown>;
+    assert.equal(state['lastSentValue'], true); assert.equal(state['lastSentAtUtc'], '1970-01-01T00:00:02.000Z');
+  } finally { await services.dispose(); }
+});
+
+test('the accepted OGB stop remains truthful within its closing generation after disposal', async () => {
+  const settings = config(); settings.hub.enabled = false; settings.ogbControl.enabled = true;
+  let now = 1000; const sends: { value: unknown; done: (error: Error | null) => void }[] = [];
+  const services = await createOscServices(settings, new OscParameterStore(), { now: () => now,
+    sendOgbPacket(packet, _port, _host, done) { sends.push({ value: parseOscPacket(packet).values[0]?.value, done }); } });
+  sends[0]!.done(null); now = 2000; await services.dispose(); assert.equal(sends[1]?.value, false); sends[1]!.done(null);
+  const state = services.snapshot()['ogbControl'] as Record<string, unknown>;
+  assert.equal(state['lastSentValue'], false); assert.equal(state['lastSentAtUtc'], '1970-01-01T00:00:02.000Z');
+});
+
+test('an abort-ignoring root response cannot start a later HOST_INFO request after disposal', async () => {
+  const settings = config(); settings.enabled = false; settings.hub.enabled = false; settings.oscQueryEnabled = true;
+  settings.oscQueryUrl = 'http://held-query.example.test/'; const discovery = discoveryFixture();
+  let release: ((response: Response) => void) | undefined, requests = 0;
+  const services = await createOscServices(settings, new OscParameterStore(), { bonjourFactory: discovery.factory,
+    fetch: async () => { requests++; if (requests === 1) return await new Promise<Response>(resolve => { release = resolve; }); return new Response('{}'); } });
+  const refreshing = services.refreshQuery(); assert.ok(release); await services.dispose(); release(new Response('{}')); await refreshing;
+  assert.equal(requests, 1, 'the next network stage belongs to the cancelled generation');
+});
+
+for (const kind of ['status', 'size'] as const) test(`a rejected OSCQuery ${kind} response cancels its actual held HTTP body`, async () => {
+  let closed: (() => void) | undefined; const connectionClosed = new Promise<void>(resolve => { closed = resolve; });
+  const server = createServer((_request, response) => {
+    response.on('close', () => closed?.()); response.writeHead(kind === 'status' ? 500 : 200,
+      { 'content-type': 'application/json', ...(kind === 'size' ? { 'content-length': '2097153' } : {}) }); response.write('{');
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening'); const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const settings = config(); settings.enabled = false; settings.hub.enabled = false; settings.oscQueryEnabled = true;
+  settings.oscQueryUrl = `http://127.0.0.1:${address.port}/`; const discovery = discoveryFixture();
+  const services = await createOscServices(settings, new OscParameterStore(), { bonjourFactory: discovery.factory });
+  try {
+    await services.refreshQuery(); assert.match(String((services.snapshot()['query'] as Record<string, unknown>)['error']), /rejected or oversized/u);
+    await deadline(connectionClosed, 500, 'Rejected HTTP body closes its connection');
+  } finally { await services.dispose(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+
+test('a terminated CONNECTING query socket cannot overwrite a newer LISTEN-disabled snapshot', async () => {
+  let listen = true, upgradeSeen = false; const held = new Set<Duplex>();
+  const server = createServer((request, response) => { const hostInfo = new URL(request.url ?? '/', 'http://fixture').searchParams.has('HOST_INFO');
+    response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify(hostInfo ? { NAME: 'Isolated query', EXTENSIONS: { LISTEN: listen } } : {})); });
+  server.on('upgrade', (_request, socket) => { upgradeSeen = true; held.add(socket); socket.once('close', () => held.delete(socket)); });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening'); const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const settings = config(); settings.enabled = false; settings.hub.enabled = false; settings.oscQueryEnabled = true;
+  settings.oscQueryUrl = `http://127.0.0.1:${address.port}/`; const discovery = discoveryFixture();
+  const services = await createOscServices(settings, new OscParameterStore(), { bonjourFactory: discovery.factory });
+  try {
+    await services.refreshQuery(); await until(() => upgradeSeen); listen = false; await services.refreshQuery(); await setImmediate();
+    const query = services.snapshot()['query'] as Record<string, unknown>; assert.equal(query['supportsListen'], false); assert.equal(query['error'], '');
+  } finally { await services.dispose(); for (const socket of held) socket.destroy(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
 });

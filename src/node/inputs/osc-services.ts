@@ -29,6 +29,7 @@ export interface OscServicesOptions {
   fetch?: typeof globalThis.fetch;
   resolveHubHost?: (host: string) => Promise<string>;
   sendHubPacket?: (packet: Uint8Array, port: number, address: string, done: (error: Error | null) => void) => void;
+  sendOgbPacket?: (packet: Uint8Array, port: number, address: string, done: (error: Error | null) => void) => void;
 }
 interface HubTargetState {
   host: string; port: number; enabled: boolean; address: string | null; resolvedEndpoint: string;
@@ -79,15 +80,18 @@ export function parseOscQueryNodes(raw: unknown): QueryNode[] {
   };
   append(raw, 0); return nodes;
 }
-async function listenHttp(server: HttpServer, port: number, fallback: boolean): Promise<number> {
-  const bind = async (candidate: number): Promise<number> => await new Promise((resolve, reject) => {
+async function listenHttp(server: HttpServer, port: number, fallback: boolean, canStart: () => boolean): Promise<number> {
+  const bind = async (candidate: number): Promise<number> => {
+    if (!canStart()) throw new Error('OSCQuery HTTP startup was cancelled.');
+    return await new Promise((resolve, reject) => {
     const cleanup = (): void => { server.off('error', fail); server.off('listening', ready); server.off('close', closed); };
     const fail = (error: Error): void => { cleanup(); reject(error); };
     const ready = (): void => { cleanup(); const address = server.address(); if (!address || typeof address === 'string') reject(new Error('OSCQuery HTTP listener did not bind.')); else resolve(address.port); };
     const closed = (): void => fail(new Error('OSCQuery HTTP listener closed during startup.'));
     server.once('error', fail); server.once('listening', ready); server.once('close', closed); server.listen(candidate, '0.0.0.0');
-  });
-  try { return await bind(port); } catch (error) { if (!fallback || !(error instanceof Error) || !('code' in error) || error.code !== 'EADDRINUSE') throw error; return await bind(0); }
+    });
+  };
+  try { return await bind(port); } catch (error) { if (!canStart()) throw new Error('OSCQuery HTTP startup was cancelled.', { cause: error }); if (!fallback || !(error instanceof Error) || !('code' in error) || error.code !== 'EADDRINUSE') throw error; return await bind(0); }
 }
 function closeHttp(server: HttpServer): Promise<void> { return new Promise(resolve => { if (!server.listening) { resolve(); return; } server.closeAllConnections(); server.close(() => resolve()); }); }
 /** One authoritative OSC receiver/query/catalog/hub lifecycle for the desktop host. */
@@ -123,7 +127,7 @@ export class OscServices {
       if (!this.#configurationCurrent(generation)) return;
       if (config.oscQueryReceiver.enabled && config.enabled && active) await this.#startQueryReceiver(generation);
       if (!this.#configurationCurrent(generation)) return;
-      if (config.hub.enabled && active && (config.hub.mode === 'FixedRate' || config.hub.mode === 1)) { this.#hubTimer = setInterval(() => this.#flushHub(), 1000 / Math.max(1, Math.min(60, config.hub.fixedRateHz))); this.#hubTimer.unref(); }
+      if (config.hub.enabled && active && (config.hub.mode === 'FixedRate' || config.hub.mode === 1)) { this.#hubTimer = setInterval(() => { if (this.#configurationCurrent(generation)) this.#flushHub(); }, 1000 / Math.max(1, Math.min(60, config.hub.fixedRateHz))); this.#hubTimer.unref(); }
       if (config.ogbControl.enabled && config.enabled && active) this.#startOgb();
       this.options.onChanged?.();
     } catch (error) { if (!this.#configurationCurrent(generation)) return; this.#receiverError = error instanceof Error ? error.message : 'OSC listener failed.'; await this.#stop(); throw error; }
@@ -263,28 +267,44 @@ export class OscServices {
   #startOgb(): void {
     const host = ipHost(this.#config.ogbControl.host), port = this.#config.ogbControl.port;
     if (!validPort(port) || !port || host === '0.0.0.0' || host === '::' || host === '255.255.255.255' || /^ff/i.test(host) || isIP(host) === 4 && Number(host.split('.')[0]) >= 224) throw new Error('OGB control requires a unicast IP address and valid UDP port.');
-    this.#ogbTarget = { host, port }; this.#sendOgb(true); this.#ogbTimer = setInterval(() => this.#sendOgb(true), 5000); this.#ogbTimer.unref();
+    const generation = this.#generation, target = { host, port }; this.#ogbTarget = target;
+    this.#ogbError = ''; this.#ogbSentAt = null; this.#ogbSentValue = null; this.#sendOgb(true);
+    if (!this.#configurationCurrent(generation) || this.#ogbTarget !== target) return;
+    this.#ogbTimer = setInterval(() => { if (this.#configurationCurrent(generation) && this.#ogbTarget === target) this.#sendOgb(true); }, 5000); this.#ogbTimer.unref();
   }
   #sendOgb(enabled: boolean): void {
     const target = this.#ogbTarget; if (!target) return;
-    this.#sender(target.host).send(encodeOscMessage('/avatar/parameters/OGB_ENABLED', enabled, 'Bool'), target.port, target.host, error => {
+    const generation = this.#generation, closing = !enabled && this.#stopping; let settled = false;
+    const sent = (error: Error | null): void => {
+      // The closing generation can report its actual stop, including after
+      // disposal. A newer generation or target must never inherit that result.
+      if (settled || generation !== this.#generation || !closing && (!this.#configurationCurrent(generation) || this.#ogbTarget !== target)) return;
+      settled = true;
       this.#ogbError = error?.message ?? ''; if (!error) { this.#ogbSentAt = new Date(this.now()).toISOString(); this.#ogbSentValue = enabled; } this.options.onChanged?.();
-    });
+    };
+    const packet = encodeOscMessage('/avatar/parameters/OGB_ENABLED', enabled, 'Bool');
+    if (this.options.sendOgbPacket) this.options.sendOgbPacket(packet, target.port, target.host, sent);
+    else this.#sender(target.host).send(packet, target.port, target.host, sent);
   }
   #discovery(): Bonjour {
-    if (!this.#bonjour) this.#bonjour = this.options.bonjourFactory?.() ?? new Bonjour({}, (error: unknown) => this.options.log?.(`OSCQuery discovery: ${error instanceof Error ? error.message : 'mDNS error'}`));
+    const generation = this.#generation;
+    if (!this.#bonjour) this.#bonjour = this.options.bonjourFactory?.() ?? new Bonjour({}, (error: unknown) => { if (this.#configurationCurrent(generation)) this.options.log?.(`OSCQuery discovery: ${error instanceof Error ? error.message : 'mDNS error'}`); });
     return this.#bonjour;
   }
   #startDiscovery(): void {
-    this.#browser = this.#discovery().find({ type: 'oscjson', protocol: 'tcp' }, service => {
+    const generation = this.#generation; let browser: BonjourBrowser | undefined;
+    browser = this.#discovery().find({ type: 'oscjson', protocol: 'tcp' }, service => {
+      if (!this.#configurationCurrent(generation) || browser && this.#browser !== browser) return;
       const host = service.addresses?.find(address => isIP(address) === 4) ?? service.addresses?.[0] ?? service.host;
       const url = `http://${host.includes(':') ? `[${host}]` : host}:${service.port}/`;
       this.#discovered.set(service.fqdn, { name: service.name, host, port: service.port, url, fqdn: service.fqdn }); this.options.onChanged?.();
     });
-    this.#browser.on('down', (service: BonjourService) => { this.#discovered.delete(service.fqdn); this.options.onChanged?.(); });
+    if (!this.#configurationCurrent(generation)) { browser.stop(); return; } this.#browser = browser;
+    browser.on('down', (service: BonjourService) => { if (!this.#configurationCurrent(generation) || this.#browser !== browser) return; this.#discovered.delete(service.fqdn); this.options.onChanged?.(); });
   }
   async #startQueryReceiver(generation: number): Promise<void> {
     const receiver = this.#config.oscQueryReceiver, server = createServer({ maxHeaderSize: 16384, headersTimeout: 10000, requestTimeout: 15000, connectionsCheckingInterval: 1000 }, (req, res) => {
+      if (!this.#configurationCurrent(generation) || this.#http !== server) { req.destroy(); res.destroy(); return; }
       if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
       const url = new URL(req.url ?? '/', 'http://sensa.local'); let payload: unknown;
       if ([...url.searchParams.keys()].some(key => key.toUpperCase() === 'HOST_INFO')) payload = { NAME: receiver.serviceName || 'Sensa', OSC_PORT: this.#receiverPort, OSC_TRANSPORT: 'UDP', SENSA_INSTANCE: this.options.instanceId ?? '', EXTENSIONS: { ACCESS: true, DESCRIPTION: true } };
@@ -295,7 +315,8 @@ export class OscServices {
       }
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(req.method === 'HEAD' ? undefined : JSON.stringify(payload));
     });
-    this.#http = server; const port = await listenHttp(server, receiver.httpPort, this.options.resolvePortConflicts ?? false);
+    this.#http = server; const port = await listenHttp(server, receiver.httpPort, this.options.resolvePortConflicts ?? false,
+      () => this.#configurationCurrent(generation) && this.#http === server);
     if (!this.#configurationCurrent(generation) || this.#http !== server) { await closeHttp(server); return; }
     this.#queryPort = port; this.#queryReceiverStarted = this.now();
     server.on('error', error => this.options.log?.(`OSCQuery receiver: ${error.message}`));
@@ -306,11 +327,14 @@ export class OscServices {
   }
   async #readQuery(url: string, signal: AbortSignal): Promise<unknown> {
     const response = await (this.options.fetch ?? globalThis.fetch)(url, { signal, redirect: 'error', headers: { Accept: 'application/json' } });
-    if (!response.ok || Number(response.headers.get('content-length')) > 2 * 1024 * 1024) throw new Error('OSCQuery response was rejected or oversized.');
+    if (signal.aborted || !response.ok || Number(response.headers.get('content-length')) > 2 * 1024 * 1024) {
+      try { await response.body?.cancel(); } catch { /* Keep the original cancellation or response rejection as the failure. */ }
+      throw new Error(signal.aborted ? 'OSCQuery request was cancelled.' : 'OSCQuery response was rejected or oversized.');
+    }
     if (!response.body) throw new Error('OSCQuery response has no body.');
     const reader = response.body.getReader(); const chunks: Uint8Array[] = []; let size = 0;
     try { while (true) { const row = await reader.read(); if (row.done) break; size += row.value.byteLength; if (size > 2 * 1024 * 1024) throw new Error('OSCQuery response exceeds 2 MiB.'); chunks.push(row.value); } }
-    finally { await reader.cancel(); reader.releaseLock(); }
+    finally { try { await reader.cancel(); } catch { /* A stream failure remains the request's original error. */ } finally { reader.releaseLock(); } }
     const bytes = new Uint8Array(size); let at = 0; for (const chunk of chunks) { bytes.set(chunk, at); at += chunk.length; }
     return parseStrictJson(new TextDecoder('utf8', { fatal: true }).decode(bytes), 64);
   }
@@ -322,9 +346,11 @@ export class OscServices {
     const url = normalizeOscQueryUrl(this.#config.oscQueryUrl); if (!this.#config.oscQueryEnabled || !url || this.#disposed || !this.#active) return this.#query;
     const generation = this.#generation, controller = new AbortController(); this.#abort?.abort(); this.#abort = controller; const timer = setTimeout(() => controller.abort(), 10000); timer.unref();
     try {
-      const root = await this.#readQuery(url, controller.signal), hostUrl = new URL(url); hostUrl.search = 'HOST_INFO';
+      const root = await this.#readQuery(url, controller.signal);
+      if (!this.#configurationCurrent(generation)) return this.#query;
+      const hostUrl = new URL(url); hostUrl.search = 'HOST_INFO';
       const info = jsonObject(await this.#readQuery(hostUrl.href, controller.signal)), extensions = safeObject(info['EXTENSIONS']);
-      if (generation !== this.#generation || this.#disposed) return this.#query;
+      if (!this.#configurationCurrent(generation)) return this.#query;
       const wsUrl = new URL(url); wsUrl.protocol = wsUrl.protocol === 'https:' ? 'wss:' : 'ws:';
       const wsHost = stringField(info, 'WS_IP', 512); if (wsHost) wsUrl.hostname = wsHost.includes(':') && !wsHost.startsWith('[') ? `[${wsHost}]` : wsHost;
       const wsPort = portField(info, 'WS_PORT'); if (wsPort) wsUrl.port = wsPort.toString();
@@ -336,7 +362,7 @@ export class OscServices {
       this.#polling.lastAppliedValueCount = applied; this.#polling.lastPolledAtUtc = new Date(this.now()).toISOString(); this.#polling.error = '';
       this.#syncQuerySocket(); this.options.onChanged?.(); return this.#query;
     } catch (error) {
-      if (generation !== this.#generation || this.#disposed) return this.#query;
+      if (!this.#configurationCurrent(generation)) return this.#query;
       const message = error instanceof Error ? error.message : 'OSCQuery refresh failed.'; this.#query = { ...emptyQuery(), url, error: message, refreshedAtUtc: new Date(this.now()).toISOString() }; this.#polling.error = message; this.options.onChanged?.(); return this.#query;
     } finally { clearTimeout(timer); if (this.#abort === controller) this.#abort = null; }
   }
@@ -346,22 +372,24 @@ export class OscServices {
     return { key: `oscquery:${query.url.toLowerCase()}`, label: query.name || `OSCQuery ${address}:${port}`, persistentId: query.name ? `oscquery:name:${query.name}` : `oscquery:url:${query.url}`, address, port };
   }
   #syncQuerySocket(): void {
-    const query = this.#query;
-    if (!query.supportsListen) { this.#querySocket?.terminate(); this.#querySocket = null; this.#querySubscriptions.clear(); return; }
+    const query = this.#query, generation = this.#generation;
+    if (!this.#configurationCurrent(generation)) return;
+    if (!query.supportsListen) { this.#queryEpoch++; const previous = this.#querySocket; this.#querySocket = null; this.#querySubscriptions.clear(); previous?.terminate(); return; }
     if (this.#querySocket && this.#querySocket.url === query.webSocketUrl
       && (this.#querySocket.readyState === WebSocket.OPEN || this.#querySocket.readyState === WebSocket.CONNECTING)) { this.#syncSubscriptions(); return; }
-    this.#querySocket?.terminate(); this.#querySubscriptions.clear(); const epoch = ++this.#queryEpoch;
+    const epoch = ++this.#queryEpoch; this.#querySocket?.terminate(); this.#querySubscriptions.clear();
     const socket = new WebSocket(query.webSocketUrl, { handshakeTimeout: 10000, maxPayload: 2 * 1024 * 1024, perMessageDeflate: false }); this.#querySocket = socket;
-    socket.on('open', () => { if (epoch !== this.#queryEpoch || this.#disposed) { socket.terminate(); return; } this.#syncSubscriptions(); this.options.onChanged?.(); });
+    const current = (): boolean => epoch === this.#queryEpoch && this.#querySocket === socket && this.#configurationCurrent(generation);
+    socket.on('open', () => { if (!current()) { socket.terminate(); return; } this.#syncSubscriptions(); this.options.onChanged?.(); });
     socket.on('message', (raw, binary) => {
-      if (epoch !== this.#queryEpoch || this.#disposed) return;
+      if (!current()) return;
       try { if (binary) this.#packet(dataBytes(raw), this.#querySource(true)); else {
         const message = jsonObject(parseStrictJson(new TextDecoder('utf8', { fatal: true }).decode(dataBytes(raw))));
         if (['PATH_CHANGED', 'PATH_RENAMED', 'PATH_REMOVED', 'PATH_ADDED'].includes(String(message['COMMAND']).toUpperCase())) void this.refreshQuery();
       } } catch { socket.close(1007, 'Invalid OSCQuery payload.'); }
     });
-    socket.on('error', error => { if (epoch === this.#queryEpoch) { this.#query.error = error.message; this.options.onChanged?.(); } });
-    socket.once('close', () => { if (this.#querySocket !== socket) return; this.#querySocket = null; this.#querySubscriptions.clear(); this.options.onChanged?.(); if (!this.#disposed && this.#active) this.#schedulePoll(500); });
+    socket.on('error', error => { if (current()) { this.#query.error = error.message; this.options.onChanged?.(); } });
+    socket.once('close', () => { if (!current()) return; this.#querySocket = null; this.#querySubscriptions.clear(); this.options.onChanged?.(); if (this.#configurationCurrent(generation) && this.#active) this.#schedulePoll(500); });
   }
   #syncSubscriptions(): void {
     const socket = this.#querySocket; if (!socket || socket.readyState !== WebSocket.OPEN) return;
@@ -371,11 +399,14 @@ export class OscServices {
     this.#querySubscriptions = wanted;
   }
   #schedulePoll(delay: number): void {
+    const generation = this.#generation;
+    if (!this.#configurationCurrent(generation) || !this.#active || !this.#config.oscQueryEnabled) return;
     if (this.#pollTimer) clearTimeout(this.#pollTimer);
     this.#polling.running = true; this.#polling.startedAtUtc ??= new Date(this.now()).toISOString();
-    this.#pollTimer = setTimeout(() => { this.#pollTimer = null; if (this.#disposed || !this.#active) return;
-      void this.refreshQuery().finally(() => { if (this.#config.oscQueryPolling.enabled || this.#query.supportsListen && !this.#querySocket) this.#schedulePoll(1000 / Math.max(1, Math.min(30, this.#config.oscQueryPolling.rateHz))); else this.#polling.running = false; });
-    }, delay); this.#pollTimer.unref();
+    const timer = setTimeout(() => {
+      if (!this.#configurationCurrent(generation) || this.#pollTimer !== timer) return; this.#pollTimer = null;
+      void this.refreshQuery().finally(() => { if (!this.#configurationCurrent(generation)) return; if (this.#config.oscQueryPolling.enabled || this.#query.supportsListen && !this.#querySocket) this.#schedulePoll(1000 / Math.max(1, Math.min(30, this.#config.oscQueryPolling.rateHz))); else this.#polling.running = false; });
+    }, delay); this.#pollTimer = timer; timer.unref();
   }
   #persistentSourceKey(persistentId: string): string {
     const sources = this.store.snapshotSources(), matches = (source: OscSource): boolean => source.persistentId?.toLowerCase() === persistentId.toLowerCase();
