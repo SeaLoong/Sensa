@@ -8,7 +8,7 @@ import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
 import { ApplicationFacade } from '../../src/core/runtime/application.ts';
 import { OutputCoordinator } from '../../src/core/outputs/coordinator.ts';
 import { SignalReplay } from '../../src/core/outputs/recording.ts';
-import { neutralValues } from '../../src/core/runtime/model.ts';
+import { neutralValues, sample, invalidSample } from '../../src/core/runtime/model.ts';
 import { manualCommandPayload, normalizeScriptSettingsState } from '../../src/web/input-workflows.js';
 
 function clock() { let id = 0; const callbacks = new Map(); return { callbacks,
@@ -141,6 +141,30 @@ test('completed browser recording downloads contain actual shared segment data a
 test('memory recordings reject unrelated filenames and never expose browser or server files', () => {
   const store = new BrowserRecordingStore();
   for (const name of ['../config.json', '/etc/passwd', 'other.funscript']) assert.throws(() => store.read(name), /completed recording/);
+});
+
+test('browser funscript recording exposes active clips and restores independent track metadata on recovery', async () => {
+  let now = 1000; const config = createDefaultConfiguration(), target = output('Recording'), store = new BrowserRecordingStore();
+  target.signal.bindings = ['L0', 'R0'].map((address, index) => ({ ...defaultSignalOutputBinding(), id: 'track' + index, address }));
+  const adapter = createBrowserOutputFactory(new BrowserDevices(), store, () => now)(target, { configuration: () => config, canSend: () => true });
+  const files = () => adapter.snapshot().recordingFiles;
+  try {
+    await adapter.connect(); await adapter.recordSample('L0', sample(.25, now), .25, now); await adapter.recordSample('R0', sample(.44, now), .44, now);
+    assert.deepEqual(files().map(file => [file.signalId, file.axis, file.segment, file.completed]), [['L0', 'L0', 1, false], ['R0', 'R0', 1, false]]);
+    assert.deepEqual(store.list(), []); assert.throws(() => store.read(files()[0].fileName), /completed recording/);
+    const firstName = files().find(file => file.signalId === 'R0').fileName;
+    now = 4000; await adapter.recordSample('R0', invalidSample('Expired source'), null, now);
+    assert.equal(files().find(file => file.fileName === firstName).completed, true); assert.equal(store.list()[0].fileName, firstName);
+    now = 4600; await adapter.recordSample('R0', sample(.5, now), .5, now);
+    const resumed = files().find(file => file.signalId === 'R0' && file.segment === 2);
+    assert.deepEqual([resumed.completed, resumed.timeOffsetMs, resumed.axis], [false, 3600, 'R0']);
+    assert.notEqual(resumed.fileName, firstName); assert.throws(() => store.read(resumed.fileName), /completed recording/);
+    now = 6700; await adapter.stop(); assert.equal(files().every(file => file.completed), true); assert.equal(store.list().length, 3);
+    const content = JSON.parse(store.read(resumed.fileName));
+    assert.deepEqual(content.metadata, { signalId: 'R0', segment: 2, startOffsetMs: 3600 });
+    assert.deepEqual(content.actions, [{ at: 0, pos: 50 }, { at: 2100, pos: 50 }]);
+    assert.equal(files().find(file => file.signalId === 'R0' && file.segment === 2).fileName, resumed.fileName);
+  } finally { await adapter.close(); }
 });
 
 test('all browser output choices reflect callable platform capabilities and registered factories', () => {

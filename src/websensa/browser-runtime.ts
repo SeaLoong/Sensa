@@ -114,6 +114,7 @@ export function createBrowserWorkbench(options: BrowserRuntimeOptions = {}): Bro
   runtime.externalControls.onStop.add(sourceStopped);
   const facade = new ApplicationFacade(runtime, {
     outputs: coordinator,
+    readOscLatest: pattern => runtime.oscStore.tryGetLatest(pattern),
     inputChange: mutate,
     applyConfiguration(value) {
       const candidate = normalizeConfiguration(value), release = runtime.blockInputActivation();

@@ -21,12 +21,14 @@ interface Route {
   observed: boolean; valid: boolean; reason: string; rawValue: number | null; value: number | null;
   sentValue: number | null; queuedAtMs: number; eventHigh: boolean; revision: number;
 }
-interface Delivery { binding: SignalOutputBinding; sample: ComputedSignalSample; value: number; at: number; revision: number; stopping: boolean }
+interface Delivery { binding: SignalOutputBinding; sample: ComputedSignalSample; value: number; at: number; revision: number; stopping: boolean; recordingBoundary?: true }
 interface Destination {
   adapter: OutputAdapter | null; key: string; epoch: number; lastError: string | null; sentCount: number; lastSendAtMs: number | null;
   routes: Map<string, Route>; latest: Map<string, Delivery>; events: Delivery[]; motion: RuntimeMotionFrame | null;
   draining: Promise<void> | null; closing: Promise<void> | null; stopping: Promise<void> | null; connecting: Promise<boolean> | null; replay: SignalReplay;
   telemetry: OutputTelemetry; requestedTargets: OutputTarget[]; lastRequestedAtUtc: string | null;
+  boundValues: RuntimeMotionFrame['values'];
+  recordingOverflow?: boolean;
 }
 export const motionOutputTypes = new Set(['TCodeSerial', 'TCodeUdp', 'TCodeTcp', 'TCodeWebSocket', 'Intiface', 'Handy', 'Autoblow', 'VacuGlide', 'Lovense', 'BleBridge', 'Bluetooth', 'SensaHttp', 'SensaWebSocket']);
 function connectionKey(output: OutputDeviceConfig): string { return JSON.stringify({ ...output, enabled: false, name: '', motionProfileId: '', signal: { ...output.signal, bindings: output.type === 'Midi' ? output.signal.bindings.map(binding => binding.address) : [] } }); }
@@ -49,7 +51,7 @@ export class OutputCoordinator {
   }
   get configuration(): AppConfig { return this.#configuration; }
   now(): number { return this.#options.now?.() ?? Date.now(); }
-  destination(output: OutputDeviceConfig): Destination { return { adapter: null, key: connectionKey(output), epoch: 0, lastError: null, sentCount: 0, lastSendAtMs: null, routes: new Map(output.signal.bindings.map(binding => [binding.id, route()])), latest: new Map(), events: [], motion: null, draining: null, closing: null, stopping: null, connecting: null, replay: new SignalReplay(() => this.now()), telemetry: new OutputTelemetry(() => this.now()), requestedTargets: [], lastRequestedAtUtc: null }; }
+  destination(output: OutputDeviceConfig): Destination { return { adapter: null, key: connectionKey(output), epoch: 0, lastError: null, sentCount: 0, lastSendAtMs: null, routes: new Map(output.signal.bindings.map(binding => [binding.id, route()])), latest: new Map(), events: [], motion: null, draining: null, closing: null, stopping: null, connecting: null, replay: new SignalReplay(() => this.now()), telemetry: new OutputTelemetry(() => this.now()), requestedTargets: [], lastRequestedAtUtc: null, boundValues: neutralValues() }; }
   output(id: string): OutputDeviceConfig { const output = this.#configuration.outputs.find(candidate => candidate.id === id); if (!output) throw new Error('Output was not found.'); return output; }
   state(id: string): Destination { const state = this.#destinations.get(id); if (!state) throw new Error('Output was not found.'); return state; }
   isConnected(id: string): boolean { return this.#destinations.get(id)?.adapter?.connected === true; }
@@ -65,7 +67,7 @@ export class OutputCoordinator {
         if (state.epoch !== epoch) { await adapter.close(); return false; }
         state.adapter = adapter; await adapter.connect();
         if (state.epoch !== epoch) { await adapter.close(); if (state.adapter === adapter) state.adapter = null; return false; }
-        state.lastError = null; state.telemetry.setState('idle', true); state.lastSendAtMs = null;
+        state.lastError = null; state.recordingOverflow = false; state.telemetry.setState('idle', true); state.lastSendAtMs = null;
         if (this.canSend() && output.enabled && !output.signal.bindings.length && motionOutputTypes.has(output.type) && this.#lastFrame) { state.motion = structuredClone(this.#lastFrame); if (!this.#stopping && !state.stopping) void this.drain(output, state); }
         this.#options.changed?.(); return adapter.connected;
       } catch (error) { state.lastError = safeError(error); state.telemetry.setState('error'); this.#options.log?.(`[Output ${output.id}] ${state.lastError}`); this.#options.changed?.(); return false; }
@@ -101,7 +103,7 @@ export class OutputCoordinator {
     const next = new Map<string, Destination>(), connect: string[] = [];
     for (const output of configuration.outputs) {
       const existing = previous.get(output.id), former = previousConfig.get(output.id), key = connectionKey(output);
-      if (existing && existing.key === key) { existing.routes = new Map(output.signal.bindings.map(binding => [binding.id, route()])); next.set(output.id, existing); previous.delete(output.id); }
+      if (existing && existing.key === key) { existing.routes = new Map(output.signal.bindings.map(binding => [binding.id, route()])); existing.boundValues = neutralValues(); next.set(output.id, existing); previous.delete(output.id); }
       else next.set(output.id, this.destination(output));
       if (output.enabled && (!former || !former.enabled || !existing || existing.key !== key)) connect.push(output.id);
     }
@@ -144,27 +146,40 @@ export class OutputCoordinator {
         const sample = resolve(binding.source), status = state.routes.get(binding.id) ?? route(); state.routes.set(binding.id, status);
         const valid = sample.valid && sample.value !== null && Number.isFinite(sample.value), value = valid ? mapBinding(binding, sample.value!) : null;
         const changedValidity = status.valid !== valid;
-        if (changedValidity) { status.revision++; status.eventHigh = false; state.latest.delete(binding.id); state.events = state.events.filter(event => event.binding.id !== binding.id); }
+        if (changedValidity) { status.revision++; status.eventHigh = false; state.latest.delete(binding.id); state.events = state.events.filter(event => event.recordingBoundary || event.binding.id !== binding.id); }
         status.valid = valid; status.reason = sample.reason; status.rawValue = sample.value; status.value = value;
         if (!valid) {
-          if (changedValidity || !status.observed) state.latest.set(binding.id, { binding, sample, value: binding.stopValue, at: now, revision: status.revision, stopping: true });
+          if (changedValidity || !status.observed) {
+            const delivery: Delivery = { binding, sample, value: binding.stopValue, at: now, revision: status.revision, stopping: true };
+            if (output.type === 'Recording') this.queueRecordingBoundary(state, delivery); else state.latest.set(binding.id, delivery);
+          }
           status.observed = true; continue;
         }
         status.observed = true;
         if (binding.sendMode === 'OnEvent' || output.type === 'Dglab' && binding.address === 'Pulse' && binding.sendMode !== 'FixedRate') {
           const high = value! >= (output.type === 'Dglab' ? .5 : Number.MIN_VALUE);
-          if (high && !status.eventHigh && state.events.length < 64) state.events.push({ binding, sample, value: value!, at: now, revision: status.revision, stopping: false });
+          if (high && !status.eventHigh) {
+            const delivery: Delivery = { binding, sample, value: value!, at: now, revision: status.revision, stopping: false };
+            if (output.type === 'Recording') this.queueRecordingBoundary(state, delivery); else if (state.events.length < 64) state.events.push(delivery);
+          }
           status.eventHigh = high; continue;
         }
         const heartbeat = output.type === 'Dglab' && binding.address === 'Intensity';
         let interval = heartbeat ? Math.min(1000 / binding.rateHz, output.signal.taskDurationMs / 2) : 1000 / binding.rateHz;
         if (output.type === 'Dglab' && binding.address === 'Pulse') interval = Math.max(100, Math.floor(Math.min(interval, Math.max(100, output.signal.taskDurationMs / 2)) / 100) * 100);
-        if (now - status.queuedAtMs < interval || !heartbeat && binding.sendMode === 'OnChange' && status.sentValue !== null && Math.abs(status.sentValue - value!) <= binding.epsilon) continue;
+        if (!(output.type === 'Recording' && changedValidity) && (now - status.queuedAtMs < interval || !heartbeat && binding.sendMode === 'OnChange' && status.sentValue !== null && Math.abs(status.sentValue - value!) <= binding.epsilon)) continue;
         status.queuedAtMs = now;
-        state.latest.set(binding.id, { binding, sample, value: value!, at: now, revision: status.revision, stopping: false });
+        const delivery: Delivery = { binding, sample, value: value!, at: now, revision: status.revision, stopping: false };
+        if (output.type === 'Recording' && changedValidity) this.queueRecordingBoundary(state, delivery); else state.latest.set(binding.id, delivery);
       }
       if (!this.#stopping && !state.stopping && (state.latest.size || state.events.length)) void this.drain(output, state);
     }
+  }
+  private queueRecordingBoundary(state: Destination, delivery: Delivery): void {
+    // Validity edges define clip boundaries, so a later value cannot replace them.
+    // Stop this recording lane if disk backpressure exhausts the bounded log.
+    if (state.events.length >= 128) { state.recordingOverflow = true; return; }
+    state.events.push({ ...delivery, recordingBoundary: true });
   }
   drain(output: OutputDeviceConfig, state: Destination): Promise<void> {
     if (state.draining) return state.draining;
@@ -172,19 +187,21 @@ export class OutputCoordinator {
     const work = async (): Promise<void> => {
       while (state.epoch === epoch && this.#generation === generation && this.canSend() && state.adapter?.connected) {
         const frame = state.motion; state.motion = null;
-        const deliveries = [...state.latest.values(), ...state.events]; state.latest.clear(); state.events = [];
+        const deliveries = output.type === 'Recording' ? [...state.events, ...state.latest.values()] : [...state.latest.values(), ...state.events]; state.latest.clear(); state.events = [];
         if (!frame && !deliveries.length) return;
         try {
+          if (state.recordingOverflow) throw new Error('Recording state-change queue is full.');
           if (frame) { const version = state.telemetry.version; await state.adapter.sendMotion(frame); this.recordAccepted(state, version); }
-          const values = neutralValues(), axes: MotionAxis[] = [];
           for (const item of deliveries) {
             const status = state.routes.get(item.binding.id);
-            if (state.epoch !== epoch || this.#generation !== generation || !this.canSend() || !status || status.revision !== item.revision) continue;
+            if (state.epoch !== epoch || this.#generation !== generation || !this.canSend() || !status || !item.recordingBoundary && status.revision !== item.revision) continue;
             const version = state.telemetry.version;
             if (output.type === 'Recording' && state.adapter.recordSample) {
               await state.adapter.recordSample(item.binding.address || item.binding.id, item.sample, item.stopping ? null : item.value, item.at);
             } else if (motionOutputTypes.has(output.type)) {
-              const axis = item.binding.address as MotionAxis; values[axis] = clamp(item.value); axes.push(axis);
+              const axis = item.binding.address as MotionAxis; state.boundValues[axis] = clamp(item.value);
+              const routed: RuntimeMotionFrame = { values: { ...state.boundValues }, deltaMs: 1000 / item.binding.rateHz, activeAxes: [axis] };
+              this.recordRequestedMotion(state, routed); await state.adapter.sendMotion(routed); this.recordAccepted(state, version);
             } else {
               const sample: SignalOutputValue = { address: item.binding.address, value: item.value, type: item.binding.valueType as SignalValueType, signalId: item.binding.id, timestampMs: item.at, coordinateFrame: item.sample.coordinateFrame,
                 ...(item.binding.channel === null ? {} : { channel: item.binding.channel }) };
@@ -192,7 +209,6 @@ export class OutputCoordinator {
             }
             status.sentValue = item.value; if (!motionOutputTypes.has(output.type)) this.recordSignalFallback(state, output, item, version);
           }
-          if (axes.length && this.canSend() && this.#generation === generation && state.epoch === epoch) { const routed: RuntimeMotionFrame = { values, deltaMs: 0, activeAxes: [...new Set(axes)], requestedCommandMode: 'None' }; this.recordRequestedMotion(state, routed); const version = state.telemetry.version; await state.adapter.sendMotion(routed); this.recordAccepted(state, version); }
           state.lastError = null;
         } catch (error) {
           state.lastError = safeError(error); state.telemetry.setState('error'); state.requestedTargets = []; state.lastRequestedAtUtc = null; state.epoch++; state.latest.clear(); state.events = []; state.motion = null;
@@ -215,7 +231,12 @@ export class OutputCoordinator {
     return draining;
   }
   private async sendStopValues(output: OutputDeviceConfig, adapter: OutputAdapter): Promise<void> {
-    if (!adapter.connected || motionOutputTypes.has(output.type) || output.type === 'Dglab' || output.type === 'Recording') return;
+    if (!adapter.connected || motionOutputTypes.has(output.type) || output.type === 'Dglab') return;
+    if (output.type === 'Recording') {
+      const now = this.now(), stopped = invalidSample('输入已停止 / Input stopped');
+      for (const binding of output.signal.bindings) await adapter.recordSample?.(binding.address || binding.id, stopped, null, now);
+      return;
+    }
     const deadline = Date.now() + 3000;
     for (const binding of output.signal.bindings) {
       if (Date.now() >= deadline) throw new Error('Output stop-value deadline exceeded.');
@@ -228,7 +249,8 @@ export class OutputCoordinator {
     const stopping = (async (): Promise<void> => {
     this.#generation++;
     await Promise.all([...this.#destinations].map(async ([id, state]) => {
-      state.epoch++; state.motion = null; state.latest.clear(); state.events = [];
+      state.replay.pause();
+      state.epoch++; state.motion = null; state.latest.clear(); state.events = []; state.recordingOverflow = false;
       state.requestedTargets = []; state.lastRequestedAtUtc = null;
       for (const status of state.routes.values()) { status.sentValue = null; status.queuedAtMs = -Infinity; status.eventHigh = false; status.observed = false; }
       if (state.stopping) await state.stopping;
@@ -285,7 +307,7 @@ export class OutputCoordinator {
     else if (action === 'play') replay.play(); else if (action === 'pause') replay.pause(); else if (action === 'seek') replay.seek(timeMs ?? 0); else throw new Error('Unknown replay action.');
     this.#options.changed?.(); return replay.snapshot();
   }
-  readReplay(outputId: string, signalId: string): ComputedSignalSample { return this.#destinations.get(outputId)?.replay.sample(signalId) ?? invalidSample('Replay output is unavailable.'); }
+  readReplay(outputId: string, signalId: string): ComputedSignalSample { return this.#destinations.get(outputId)?.replay.read(signalId) ?? invalidSample('Replay output is unavailable.'); }
   readFeedback(outputId: string, path: string): ComputedSignalSample {
     const state = this.#destinations.get(outputId); if (!state) return invalidSample('Output feedback is unavailable.');
     const value = path === 'connected' ? state.adapter?.connected ? 1 : 0 : state.adapter?.feedback?.(path) ?? null;

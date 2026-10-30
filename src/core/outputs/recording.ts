@@ -1,11 +1,13 @@
 import { parseFunscript, scriptValue } from '../funscript.ts';
-import type { ComputedSignalSample } from '../runtime/model.ts';
-import { invalidSample } from '../runtime/model.ts';
+import type { ComputedSignalSample, MotionAxis } from '../runtime/model.ts';
+import { invalidSample, isMotionAxis } from '../runtime/model.ts';
 import { clamp, optionalRecord, record } from './types.ts';
 import { roundAway } from './codecs.ts';
 
 export interface SessionRow { timeMs: number; signalId: string; rawValue: number | null; value: number | null; valid: boolean; reason: string; sourceKey: string | null; coordinateFrame: string | null }
 export interface FunscriptSegment { signalId: string; segment: number; startOffsetMs: number; actions: { at: number; pos: number }[] }
+export interface FunscriptSegmentState { signalId: string; segment: number; startOffsetMs: number; durationMs: number }
+export function funscriptTrackAxis(id: string, name = ''): MotionAxis | null { return isMotionAxis(id) ? id : isMotionAxis(name) ? name : null; }
 interface Track { signalId: string; number: number; began: number; actions: { at: number; pos: number }[]; lastAt: number; lastValue: number }
 /** Shared segment/tail rules; the host only owns publishing completed files. */
 export class FunscriptSegments {
@@ -35,6 +37,10 @@ export class FunscriptSegments {
     const at = Math.max(track.lastAt, roundAway(now - track.began));
     if (track.actions.at(-1)?.at !== at) { if (this.#actions < 250000) { track.actions.push({ at, pos: track.lastValue }); this.#actions++; } else this.full = true; }
     return { signalId: id, segment: track.number, startOffsetMs: track.began - (this.#began ?? track.began), actions: track.actions };
+  }
+  activeSegments(): FunscriptSegmentState[] {
+    return [...this.#active.values()].filter(track => track.actions.length > 0).map(track => ({ signalId: track.signalId,
+      segment: track.number, startOffsetMs: track.began - (this.#began ?? track.began), durationMs: track.lastAt }));
   }
   complete(now: number): FunscriptSegment[] { return [...this.#active.keys()].flatMap(id => { const segment = this.end(id, now); return segment ? [segment] : []; }); }
 }
@@ -86,10 +92,18 @@ export class SignalReplay {
     this.#rows = rows; this.#script = script; this.fileName = fileName; this.durationMs = script?.durationMs ?? Math.max(0, ...[...rows.values()].map(values => values.at(-1)?.timeMs ?? 0)); this.#position = 0; this.#playing = false;
   }
   position(): number { return Math.min(this.durationMs, this.#position + (this.#playing ? Math.max(0, this.now() - this.#anchor) : 0)); }
-  play(): void { if (!this.fileName) throw new Error('Load a recording first.'); this.#anchor = this.now(); this.#playing = true; }
+  play(): void {
+    if (!this.fileName) throw new Error('Load a recording first.');
+    const position = this.position(); if (this.#playing && position < this.durationMs) return;
+    if (position >= this.durationMs) this.#position = 0;
+    this.#anchor = this.now(); this.#playing = true;
+  }
   pause(): void { this.#position = this.position(); this.#playing = false; }
   seek(timeMs: number): void { if (!Number.isFinite(timeMs)) throw new TypeError('Replay position must be finite.'); this.#position = clamp(timeMs, 0, this.durationMs); this.#anchor = this.now(); }
   snapshot(): unknown { return { loaded: !!this.fileName, playing: this.#playing && this.position() < this.durationMs, timeMs: this.position(), durationMs: this.durationMs, fileName: this.fileName, signals: this.#script ? ['value'] : [...this.#rows.keys()] }; }
+  read(id: string): ComputedSignalSample {
+    return this.#playing && this.position() < this.durationMs ? this.sample(id) : invalidSample('回放已暂停或结束 / Replay is paused or complete');
+  }
   sample(id: string): ComputedSignalSample {
     const at = this.position();
     if (this.#script) {

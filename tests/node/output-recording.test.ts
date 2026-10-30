@@ -6,7 +6,8 @@ import os from 'node:os';
 import { FunscriptSegments, SignalReplay, SESSION_CSV_HEADER, encodeSessionRow } from '../../src/core/outputs/recording.ts';
 import { RecordingAdapter, listRecordings, readRecording } from '../../src/node/outputs/adapters.ts';
 import type { ComputedSignalSample } from '../../src/core/runtime/model.ts';
-import { output } from './output-support.ts';
+import { output, binding, configuration, deferred, MemoryAdapter } from './output-support.ts';
+import { OutputCoordinator } from '../../src/core/outputs/coordinator.ts';
 
 function sample(value: number | null, reason = ''): ComputedSignalSample { return { value, valid: value !== null, reason, sourceKey: 'source', timestampMs: 0, coordinateFrame: 'Normalized', originKey: null }; }
 test('funscript recording closes invalid intervals, appends a held tail and preserves later segment offsets', () => {
@@ -50,4 +51,123 @@ test('recording reads reject path traversal and symlinks while the list excludes
   const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-record-'));
   try { await writeFile(path.join(directory, 'real.jsonl'), '{"type":"sensa-session"}'); await symlink(path.join(directory, 'real.jsonl'), path.join(directory, 'link.jsonl')); await assert.rejects(readRecording(directory, '../real.jsonl'), /Choose/u); await assert.rejects(readRecording(directory, 'link.jsonl'), /regular file/u); assert.deepEqual((await listRecordings(directory)).map(row => row.fileName), ['real.jsonl']); }
   finally { await rm(directory, { recursive: true, force: true }); }
+});
+
+for (const format of ['Csv', 'JsonLines'] as const) test(`input stop appends a terminal invalid ${format} sample for every recording binding`, async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-record-stop-'));
+  const config = output('Recording'); config.signal.recordingFormat = format;
+  config.signal.bindings = ['manual', 'smooth', 'missing'].map(id => {
+    const route = binding(id, id); route.source.oscPath = id; route.sendMode = 'FixedRate'; route.rateHz = 20; return route;
+  });
+  let now = 1000, active = true;
+  const adapter = new RecordingAdapter(config, directory, () => now);
+  const coordinator = new OutputCoordinator(configuration([config]), { now: () => now, createAdapter: () => adapter, canSend: () => active });
+  try {
+    await coordinator.connectEnabled();
+    for (now = 1000; now <= 3500; now += 50) {
+      coordinator.updateBindings(now, input => input.oscPath === 'missing' ? sample(null, 'Missing input') : sample(.4));
+      await coordinator.flush();
+    }
+    active = false; await coordinator.emergencyStop();
+    const [file] = await listRecordings(directory); assert.ok(file);
+    const replay = new SignalReplay(() => now); replay.load(file.fileName, await readRecording(directory, file.fileName));
+    replay.seek(2550);
+    for (const id of ['manual', 'smooth', 'missing']) {
+      assert.equal(replay.sample(id).valid, false, id + ' must not retain an active sample after input stop');
+      assert.match(replay.sample(id).reason, /Input stopped/u);
+    }
+  } finally { await coordinator.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('recording exposes a resumed funscript segment while it is active and finalizes its original identity', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-record-resume-')), config = output('Recording');
+  config.signal.recordingFormat = 'Funscript'; config.signal.bindings = [binding('stroke', 'L0'), binding('twist', 'R0')];
+  let now = 1000; const adapter = new RecordingAdapter(config, directory, () => now);
+  type FileState = { fileName: string; signalId: string; segment: number; axis: string | null; timeOffsetMs: number; completed: boolean };
+  const files = (): FileState[] => (adapter.snapshot() as { recordingFiles: FileState[] }).recordingFiles;
+  try {
+    await adapter.connect(); await adapter.recordSample('L0', sample(.25), .25, now); await adapter.recordSample('R0', sample(.44), .44, now);
+    assert.deepEqual(files().map(file => [file.signalId, file.axis, file.completed]), [['L0', 'L0', false], ['R0', 'R0', false]]);
+    assert.deepEqual(await listRecordings(directory), [], 'an active clip cannot be downloaded as a complete script');
+    now = 4000; await adapter.recordSample('R0', sample(null, 'Expired source'), null, now);
+    const original = files().find(file => file.signalId === 'R0'); assert.ok(original); assert.equal(original.completed, true);
+    now = 4600; await adapter.recordSample('R0', sample(.5), .5, now);
+    const twist = files().filter(file => file.signalId === 'R0');
+    assert.deepEqual(twist.map(file => [file.segment, file.completed, file.timeOffsetMs]), [[1, true, 0], [2, false, 3600]]);
+    assert.notEqual(twist[0]?.fileName, twist[1]?.fileName);
+    const resumedName = twist[1]?.fileName; assert.ok(resumedName);
+    now = 6700; await adapter.stop(); assert.equal(files().every(file => file.completed), true);
+    const resumed = JSON.parse(await readRecording(directory, resumedName)) as { actions: { at: number; pos: number }[] };
+    assert.deepEqual(resumed.actions, [{ at: 0, pos: 50 }, { at: 2100, pos: 50 }]);
+    assert.equal(files().find(file => file.signalId === 'R0' && file.segment === 2)?.fileName, resumedName);
+    const [first] = JSON.parse(await readRecording(directory, original.fileName)).actions as { at: number; pos: number }[];
+    assert.equal(first?.pos, 44);
+  } finally { await adapter.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('slow recording writes preserve an invalid interval and same-value OnChange recovery as separate clips', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-record-boundary-')), config = output('Recording');
+  config.signal.recordingFormat = 'Funscript'; config.signal.bindings = [binding('twist', 'R0')]; config.signal.bindings[0]!.stopValue = .5;
+  let now = 1000; const adapter = new RecordingAdapter(config, directory, () => now), entered = deferred<void>(), release = deferred<void>();
+  const append = adapter.recordSample.bind(adapter); let first = true;
+  adapter.recordSample = async (...args) => { await append(...args); if (first) { first = false; entered.resolve(); await release.promise; } };
+  const coordinator = new OutputCoordinator(configuration([config]), { now: () => now, createAdapter: () => adapter, canSend: () => true });
+  try {
+    await coordinator.connectEnabled(); coordinator.updateBindings(now, () => sample(.5)); await entered.promise;
+    now = 1100; coordinator.updateBindings(now, () => sample(null, 'Expired source'));
+    now = 1200; coordinator.updateBindings(now, () => sample(.5));
+    now = 1300; coordinator.updateBindings(now, () => sample(null, 'Expired source'));
+    now = 1400; coordinator.updateBindings(now, () => sample(.5));
+    release.resolve(); await coordinator.flush();
+    const files = (adapter.snapshot() as { recordingFiles: { segment: number; completed: boolean; timeOffsetMs: number; fileName: string }[] }).recordingFiles;
+    assert.deepEqual(files.map(file => [file.segment, file.completed, file.timeOffsetMs]), [[1, true, 0], [2, true, 200], [3, false, 400]]);
+    const [closed] = files; assert.ok(closed);
+    const clip = JSON.parse(await readRecording(directory, closed.fileName)) as { actions: { at: number; pos: number }[] };
+    assert.deepEqual(clip.actions, [{ at: 0, pos: 50 }, { at: 100, pos: 50 }]);
+  } finally { release.resolve(); await coordinator.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('recording backpressure has a bounded state-change log and disconnects explicitly on overflow', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-record-overflow-')), config = output('Recording');
+  config.signal.recordingFormat = 'Funscript'; config.signal.bindings = [binding('twist', 'R0')];
+  let now = 1000; const adapter = new RecordingAdapter(config, directory, () => now), entered = deferred<void>(), release = deferred<void>();
+  const append = adapter.recordSample.bind(adapter); let first = true;
+  adapter.recordSample = async (...args) => { await append(...args); if (first) { first = false; entered.resolve(); await release.promise; } };
+  const coordinator = new OutputCoordinator(configuration([config]), { now: () => now, createAdapter: () => adapter, canSend: () => true });
+  try {
+    await coordinator.connectEnabled(); coordinator.updateBindings(now, () => sample(.5)); await entered.promise;
+    for (let index = 0; index < 65; index++) {
+      coordinator.updateBindings(++now, () => sample(null, 'Expired source'));
+      coordinator.updateBindings(++now, () => sample(.5));
+    }
+    release.resolve(); await coordinator.flush();
+    assert.equal(coordinator.isConnected(config.id), false);
+    assert.match((coordinator.snapshot()[0] as { lastError: string }).lastError, /Recording state-change queue is full/u);
+    const files = (adapter.snapshot() as { recordingFiles: { completed: boolean }[] }).recordingFiles;
+    assert.equal(files.length, 1);
+    assert.equal(files.every(file => file.completed), true);
+  } finally { release.resolve(); await coordinator.close(); await rm(directory, { recursive: true, force: true }); }
+});
+
+test('routed replay is invalid until playing, on pause and at its end, while play is idempotent and restarts a completed clip', async () => {
+  let now = 0; const config = output('Recording');
+  const coordinator = new OutputCoordinator(configuration([config]), { now: () => now, createAdapter: () => new MemoryAdapter(),
+    readRecording: async () => JSON.stringify({ actions: [{ at: 0, pos: 0 }, { at: 100, pos: 100 }] }) });
+  await coordinator.replayAction(config.id, 'load', 'clip.funscript');
+  assert.equal(coordinator.readReplay(config.id, 'value').valid, false);
+  await coordinator.replayAction(config.id, 'seek', undefined, 20);
+  assert.equal(coordinator.readReplay(config.id, 'value').valid, false);
+  await coordinator.replayAction(config.id, 'play'); assert.equal(coordinator.readReplay(config.id, 'value').value, .2);
+  now = 10; await coordinator.replayAction(config.id, 'play'); assert.equal(coordinator.readReplay(config.id, 'value').value, .3);
+  await coordinator.replayAction(config.id, 'pause'); now = 40;
+  assert.equal(coordinator.readReplay(config.id, 'value').valid, false);
+  await coordinator.replayAction(config.id, 'seek', undefined, 50); await coordinator.replayAction(config.id, 'play');
+  assert.equal(coordinator.readReplay(config.id, 'value').value, .5);
+  now = 90; assert.equal(coordinator.readReplay(config.id, 'value').valid, false);
+  await coordinator.replayAction(config.id, 'play'); assert.equal(coordinator.readReplay(config.id, 'value').value, 0);
+  await coordinator.emergencyStop(); now = 1000;
+  assert.equal(coordinator.readReplay(config.id, 'value').valid, false);
+  assert.match(coordinator.readReplay(config.id, 'value').reason, /paused or complete/u);
+  assert.equal((await coordinator.replayAction(config.id, 'seek', undefined, 0) as { playing: boolean }).playing, false);
+  await coordinator.close();
 });

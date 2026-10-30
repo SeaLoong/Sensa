@@ -216,7 +216,7 @@ export async function startSensa(options: StartSensaOptions = {}): Promise<Sensa
       return operation;
     };
     const services: ApplicationServices = {
-      outputs, applyConfiguration, capabilities: () => capabilities, oscSnapshot: () => osc?.snapshot() ?? {}, protocolSnapshot: () => {
+      outputs, applyConfiguration, capabilities: () => capabilities, oscSnapshot: () => osc?.snapshot() ?? {}, readOscLatest: pattern => oscStore.tryGetLatest(pattern), protocolSnapshot: () => {
         const status = new Map(external.snapshot().map(row => [row['id'], row]));
         return (input?.snapshot() ?? []).map(row => ({ ...row, ...(status.get(row.id) ?? {}) }));
       }, connectionCount: () => management?.connectionCount ?? 0,

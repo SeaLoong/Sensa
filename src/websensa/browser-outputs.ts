@@ -5,8 +5,8 @@ import { resolveAxisProfile } from '../core/runtime/configuration.ts';
 import { OutputLane, deadline } from '../core/outputs/lifecycle.ts';
 import { defaultIntifaceFeatureRoute, resolveFeatureRoute } from '../core/outputs/intiface-routing.ts';
 import { TCodeEncoder, durationFor, encodeJson, encodeMidi } from '../core/outputs/codecs.ts';
-import { FunscriptSegments, SESSION_CSV_HEADER, encodeSessionRow } from '../core/outputs/recording.ts';
-import type { FunscriptSegment, SessionRow } from '../core/outputs/recording.ts';
+import { FunscriptSegments, SESSION_CSV_HEADER, encodeSessionRow, funscriptTrackAxis } from '../core/outputs/recording.ts';
+import type { FunscriptSegment, FunscriptSegmentState, SessionRow } from '../core/outputs/recording.ts';
 import type { AdapterContext, OutputAdapter, SignalOutputValue } from '../core/outputs/index.ts';
 import { createOutputTransport, discoverIntiface, discoverMidi } from './transports.ts';
 import type { EncodedOutputTransport, IntifaceDiscovery, NavigatorPorts, OutputConfig, SerialPortPort, SocketPort, TransportDependencies } from './transports.ts';
@@ -21,20 +21,29 @@ export interface BrowserNavigatorPorts extends NavigatorPorts {
 export interface BrowserRecordingFile {
   fileName: string; name: string; format: string; sizeBytes: number; durationMs: number;
   startOffsetMs: number; signals: string[]; createdAt: string;
+  signalId: string; segment: number; axis: MotionAxis | null; timeOffsetMs: number; completed: boolean;
 }
+type BrowserRecordingMetadata = Partial<Pick<BrowserRecordingFile, 'durationMs' | 'startOffsetMs' | 'signals' | 'signalId' | 'segment' | 'axis' | 'timeOffsetMs'>>;
 export class BrowserRecordingStore {
   #files = new Map<string, { entry: BrowserRecordingFile; content: string }>();
   #bytes = 0;
   #sequence = 0;
-  publish(label: string, format: 'Funscript' | 'Csv' | 'JsonLines', content: string,
-    metadata: { durationMs?: number; startOffsetMs?: number; signals?: string[] } = {}): BrowserRecordingFile {
-    const sizeBytes = new TextEncoder().encode(content).byteLength;
-    if (this.#bytes + sizeBytes > 64 * 1024 * 1024 || this.#files.size >= 1024) throw new RangeError('Browser recordings reached the current page storage limit.');
+  reserve(label: string, format: 'Funscript' | 'Csv' | 'JsonLines', metadata: BrowserRecordingMetadata = {}): BrowserRecordingFile {
     const fileName = label.replace(/[^\p{L}\p{N}_.-]/gu, '_').slice(0, 64) + '-' + Date.now() + '-' + (++this.#sequence)
       + (format === 'Funscript' ? '.funscript' : format === 'Csv' ? '.csv' : '.jsonl');
-    const entry: BrowserRecordingFile = { fileName, name: fileName, format, sizeBytes, durationMs: metadata.durationMs ?? 0,
-      startOffsetMs: metadata.startOffsetMs ?? 0, signals: metadata.signals ?? [], createdAt: new Date().toISOString() };
-    this.#files.set(fileName, { entry, content }); this.#bytes += sizeBytes; return { ...entry };
+    return { fileName, name: fileName, format, sizeBytes: 0, durationMs: metadata.durationMs ?? 0,
+      startOffsetMs: metadata.startOffsetMs ?? 0, signals: [...metadata.signals ?? []], createdAt: new Date().toISOString(),
+      signalId: metadata.signalId ?? '', segment: metadata.segment ?? 1, axis: metadata.axis ?? null,
+      timeOffsetMs: metadata.timeOffsetMs ?? metadata.startOffsetMs ?? 0, completed: false };
+  }
+  publish(label: string, format: 'Funscript' | 'Csv' | 'JsonLines', content: string,
+    metadata: BrowserRecordingMetadata = {}, reserved?: BrowserRecordingFile): BrowserRecordingFile {
+    const sizeBytes = new TextEncoder().encode(content).byteLength;
+    if (this.#bytes + sizeBytes > 64 * 1024 * 1024 || this.#files.size >= 1024) throw new RangeError('Browser recordings reached the current page storage limit.');
+    const file = reserved ?? this.reserve(label, format, metadata);
+    if (file.format !== format || this.#files.has(file.fileName)) throw new Error('Recording has already been published or has an invalid format.');
+    const entry: BrowserRecordingFile = { ...file, ...metadata, signals: [...metadata.signals ?? file.signals], sizeBytes, completed: true };
+    this.#files.set(entry.fileName, { entry, content }); this.#bytes += sizeBytes; return { ...entry, signals: [...entry.signals] };
   }
   list(): BrowserRecordingFile[] { return [...this.#files.values()].reverse().map(value => ({ ...value.entry, signals: [...value.entry.signals] })); }
   read(name: string): string {
@@ -305,7 +314,7 @@ class BrowserRecordingAdapter extends BrowserAdapter {
   #files: BrowserRecordingFile[] = [];
   readonly config: OutputDeviceConfig; readonly store: BrowserRecordingStore; readonly now: () => number;
   constructor(config: OutputDeviceConfig, store: BrowserRecordingStore, now: () => number) { super(); this.config = config; this.store = store; this.now = now; }
-  protected async open(): Promise<void> { this.#started = this.now(); this.#segments = new FunscriptSegments(); this.#size = 0; this.#rowCount = 0; this.#full = false;
+  protected async open(): Promise<void> { this.#started = this.now(); this.#segments = new FunscriptSegments(); this.#size = 0; this.#rowCount = 0; this.#full = false; this.#files = [];
     this.#rows = this.config.signal.recordingFormat === 'Csv' ? [SESSION_CSV_HEADER] : [JSON.stringify({ type: 'sensa-session', version: 1 })]; }
   protected async motion(_frame: RuntimeMotionFrame): Promise<void> { throw new Error('Recording output uses signal bindings.'); }
   protected async signal(value: SignalOutputValue): Promise<void> {
@@ -315,7 +324,11 @@ class BrowserRecordingAdapter extends BrowserAdapter {
     return this.lane.enqueue(async () => { this.requireReady(); this.appendSample(id, sample, value, now); });
   }
   appendSample(id: string, sample: ComputedSignalSample, value: number | null, now: number): void {
-      if (this.config.signal.recordingFormat === 'Funscript') { for (const segment of this.#segments.append(id, sample, value, now)) this.publish(segment); }
+      if (this.config.signal.recordingFormat === 'Funscript') {
+        const completed = this.#segments.append(id, sample, value, now);
+        for (const segment of this.#segments.activeSegments()) this.segmentFile(segment);
+        for (const segment of completed) this.publish(segment);
+      }
       else {
         if (this.#full) return;
         const row: SessionRow = { timeMs: Math.max(0, now - this.#started), signalId: id, rawValue: sample.value, value: sample.valid ? value : null, valid: sample.valid,
@@ -326,11 +339,21 @@ class BrowserRecordingAdapter extends BrowserAdapter {
         this.#size += size; this.#rows.push(encoded);
       }
   }
+  private segmentFile(segment: FunscriptSegmentState): BrowserRecordingFile {
+    let entry = this.#files.find(file => file.signalId === segment.signalId && file.segment === segment.segment);
+    if (!entry) {
+      const binding = this.config.signal.bindings.find(route => (route.address || route.id) === segment.signalId);
+      entry = this.store.reserve(this.config.signal.recordingName || this.config.name, 'Funscript', { signalId: segment.signalId,
+        segment: segment.segment, axis: funscriptTrackAxis(segment.signalId, binding?.name), startOffsetMs: segment.startOffsetMs,
+        timeOffsetMs: segment.startOffsetMs, durationMs: segment.durationMs, signals: [segment.signalId] }); this.#files.push(entry);
+    } else entry.durationMs = segment.durationMs;
+    return entry;
+  }
   publish(segment: FunscriptSegment): void {
-    this.#files.push(this.store.publish(this.config.signal.recordingName || this.config.name, 'Funscript', JSON.stringify({ version: '1.0', inverted: false, range: 100,
-      actions: segment.actions, metadata: { signalId: segment.signalId, startOffsetMs: segment.startOffsetMs } }), {
-      durationMs: segment.actions.at(-1)?.at ?? 0, startOffsetMs: segment.startOffsetMs, signals: [segment.signalId],
-    }));
+    if (!segment.actions.length) return;
+    const entry = this.segmentFile({ ...segment, durationMs: segment.actions.at(-1)?.at ?? 0 });
+    Object.assign(entry, this.store.publish(this.config.signal.recordingName || this.config.name, 'Funscript', JSON.stringify({ version: '1.0', inverted: false, range: 100,
+      actions: segment.actions, metadata: { signalId: segment.signalId, segment: segment.segment, startOffsetMs: segment.startOffsetMs } }), {}, entry));
   }
   snapshot(): unknown { return { recordingFormat: this.config.signal.recordingFormat, recordingFiles: this.#files.map(file => ({ ...file })), recordingFull: this.#full || this.#segments.full, recordingError: null }; }
   protected async stopping(): Promise<void> {

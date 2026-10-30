@@ -1,8 +1,8 @@
 import { createHash } from 'node:crypto';
 import { mkdir, open, readdir, rename, lstat } from 'node:fs/promises';
 import { constants } from 'node:fs';
-import { FunscriptSegments, encodeSessionRow, SESSION_CSV_HEADER } from '../../core/outputs/recording.ts';
-import type { FunscriptSegment } from '../../core/outputs/recording.ts';
+import { FunscriptSegments, encodeSessionRow, SESSION_CSV_HEADER, funscriptTrackAxis } from '../../core/outputs/recording.ts';
+import type { FunscriptSegment, FunscriptSegmentState } from '../../core/outputs/recording.ts';
 import type { ComputedSignalSample } from '../../core/runtime/model.ts';
 import path from 'node:path';
 import { OutputLane, deadline } from '../../core/outputs/lifecycle.ts';
@@ -198,6 +198,7 @@ class MqttTransport extends TcpTransport {
 }
 
 export interface RecordingEntry { fileName: string; name: string; path: string; format: string; size: number; sizeBytes: number; durationMs: number; startOffsetMs: number; signals: string[]; createdAt: string; modifiedAt: string }
+interface RecordingFileState { fileName: string; signalId: string; segment: number; axis: string | null; startOffsetMs: number; timeOffsetMs: number; durationMs: number; completed: boolean }
 export class RecordingAdapter extends SerializedAdapter {
   readonly config: OutputDeviceConfig;
   readonly directory: string;
@@ -209,15 +210,15 @@ export class RecordingAdapter extends SerializedAdapter {
   #rows = 0;
   #bytes = 0;
   #full = false;
-  #files: { fileName: string; signalId: string; segment: number; startOffsetMs: number; durationMs: number }[] = [];
+  #files: RecordingFileState[] = [];
   constructor(config: OutputDeviceConfig, directory: string, now: () => number = Date.now) { super(); this.config = config; this.directory = directory; this.now = now; }
   protected async connectCore(): Promise<void> {
-    await mkdir(this.directory, { recursive: true, mode: 0o700 }); this.#startedAt = null; this.#segments = new FunscriptSegments(); this.#rows = this.#bytes = 0; this.#full = false;
+    await mkdir(this.directory, { recursive: true, mode: 0o700 }); this.#startedAt = null; this.#segments = new FunscriptSegments(); this.#rows = this.#bytes = 0; this.#full = false; this.#files = []; this.#filename = null;
     if (this.config.signal.recordingFormat !== 'Funscript') {
       const name = this.safeName('session') + (this.config.signal.recordingFormat === 'Csv' ? '.csv' : '.jsonl'); this.#filename = name;
       this.#file = await open(path.join(this.directory, name), 'wx', 0o600);
       await this.#file.write(this.config.signal.recordingFormat === 'Csv' ? SESSION_CSV_HEADER + '\n' : '{"type":"sensa-session","format":1}\n');
-      this.#files.push({ fileName: name, signalId: '', segment: 1, startOffsetMs: 0, durationMs: 0 });
+      this.#files.push({ fileName: name, signalId: '', segment: 1, axis: null, startOffsetMs: 0, timeOffsetMs: 0, durationMs: 0, completed: true });
     }
   }
   safeName(address: string): string { const label = (this.config.signal.recordingName || this.config.name || this.config.id || 'Sensa').replace(/[^a-zA-Z0-9_-]/gu, '_').slice(0, 40); return `${label}-${createHash('sha256').update(address).digest('hex').slice(0, 12)}-${this.now()}-${Math.random().toString(36).slice(2, 8)}`; }
@@ -225,7 +226,9 @@ export class RecordingAdapter extends SerializedAdapter {
   async append(id: string, sample: ComputedSignalSample, value: number | null, now: number): Promise<void> {
     this.#startedAt ??= now;
     if (this.config.signal.recordingFormat === 'Funscript') {
-      for (const segment of this.#segments.append(id, sample, value, now)) await this.publish(segment);
+      const completed = this.#segments.append(id, sample, value, now);
+      for (const segment of this.#segments.activeSegments()) this.segmentFile(segment);
+      for (const segment of completed) await this.publish(segment);
       this.#full = this.#segments.full; return;
     }
     if (this.#full) return;
@@ -239,17 +242,28 @@ export class RecordingAdapter extends SerializedAdapter {
     await this.append(sample.address || sample.signalId || 'value', { value: sample.value, valid: true, reason: '', sourceKey: null, timestampMs: sample.timestampMs ?? this.now(), coordinateFrame: sample.coordinateFrame ?? null, originKey: null }, sample.value, sample.timestampMs ?? this.now());
   }
   protected async motionCore(_frame: RuntimeMotionFrame): Promise<void> { throw new Error('Recording uses signal bindings.'); }
+  private segmentFile(segment: FunscriptSegmentState): RecordingFileState {
+    let entry = this.#files.find(file => file.signalId === segment.signalId && file.segment === segment.segment);
+    if (!entry) {
+      const binding = this.config.signal.bindings.find(route => (route.address || route.id) === segment.signalId);
+      entry = { fileName: this.safeName(segment.signalId) + '.funscript', signalId: segment.signalId, segment: segment.segment,
+        axis: funscriptTrackAxis(segment.signalId, binding?.name), startOffsetMs: segment.startOffsetMs, timeOffsetMs: segment.startOffsetMs,
+        durationMs: segment.durationMs, completed: false }; this.#files.push(entry);
+    } else entry.durationMs = segment.durationMs;
+    return entry;
+  }
   async publish(segment: FunscriptSegment): Promise<void> {
     if (!segment.actions.length) return;
-    const name = this.safeName(segment.signalId) + '.funscript', target = path.join(this.directory, name), temporary = target + '.partial';
+    const entry = this.segmentFile({ ...segment, durationMs: segment.actions.at(-1)?.at ?? 0 });
+    const target = path.join(this.directory, entry.fileName), temporary = target + '.partial';
     const file = await open(temporary, 'wx', 0o600);
     try { await file.writeFile(JSON.stringify({ version: '1.0', inverted: false, range: 100, actions: segment.actions, metadata: { signalId: segment.signalId, segment: segment.segment, startOffsetMs: segment.startOffsetMs } })); await file.sync(); }
     finally { await file.close(); }
-    await rename(temporary, target); this.#files.push({ fileName: name, signalId: segment.signalId, segment: segment.segment, startOffsetMs: segment.startOffsetMs, durationMs: segment.actions.at(-1)?.at ?? 0 });
+    await rename(temporary, target); entry.completed = true;
   }
   protected async stopCore(): Promise<void> { for (const segment of this.#segments.complete(this.now())) await this.publish(segment); await this.#file?.sync(); }
   protected async closeCore(): Promise<void> { await this.#file?.close(); this.#file = null; }
-  snapshot(): unknown { return { fileName: this.#filename ?? this.#files.at(-1)?.fileName ?? '', recordingFile: this.#filename ?? this.#files.at(-1)?.fileName ?? '', recordingFiles: [...this.#files], recordingFull: this.#full, recordingError: null }; }
+  snapshot(): unknown { return { fileName: this.#filename ?? this.#files.at(-1)?.fileName ?? '', recordingFile: this.#filename ?? this.#files.at(-1)?.fileName ?? '', recordingFiles: this.#files.map(file => ({ ...file })), recordingFull: this.#full, recordingError: null }; }
 }
 
 export async function listRecordings(directory: string): Promise<RecordingEntry[]> {

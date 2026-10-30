@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import http from 'node:http';
+import { once } from 'node:events';
+import { setImmediate } from 'node:timers/promises';
 import { VendorAdapter } from '../../src/node/outputs/vendor.ts';
-import { output, frame, deferred } from './output-support.ts';
+import { OutputCoordinator } from '../../src/node/outputs/index.ts';
+import { deadline } from '../../src/core/outputs/lifecycle.ts';
+import { output, frame, deferred, configuration } from './output-support.ts';
 
 interface Call { path: string; method: string; body: Record<string, unknown> | null; headers: Headers; redirect: 'error' | 'follow' | 'manual' | undefined }
 function vendor(type: 'Handy' | 'Autoblow' | 'VacuGlide' | 'Lovense', version = 2) {
@@ -80,4 +85,29 @@ test('vendor API status/JSON/response failures use bounded generic errors', asyn
 test('script format and cloud transport restrictions survive migration', async () => {
   const handy = vendor('Handy'); await handy.adapter.connect(); await assert.rejects(handy.adapter.vendorScript('prepare', { url: 'https://example.test/script.funscript' }), /CSV/u); await handy.adapter.close();
   const autoblow = vendor('Autoblow'); await autoblow.adapter.connect(); await assert.rejects(autoblow.adapter.vendorScript('prepare', { url: 'http://example.test/script.csv' }), /HTTPS/u); await autoblow.adapter.close();
+});
+for (const action of ['emergency', 'stop'] as const) test(`blocked native script preparation is promptly cancelled by ${action}, without accepting a late setup`, async () => {
+  const began = deferred<void>(), cancelled = deferred<void>(), paths: string[] = [], pending = new Set<http.ServerResponse>(); let cancelledSetups = 0;
+  const reply = (response: http.ServerResponse, value: object): void => { if (!response.destroyed && !response.writableEnded) { response.writeHead(200, { 'content-type': 'application/json' }); response.end(JSON.stringify(value)); } };
+  const server = http.createServer((request, response) => { const path = new URL(request.url ?? '/', 'http://fixture').pathname; paths.push(path); request.resume();
+    if (path === '/hssp/setup') { pending.add(response); response.on('close', () => { pending.delete(response); if (!response.writableFinished) { cancelledSetups++; cancelled.resolve(); } }); began.resolve(); }
+    else reply(response, path === '/connected' ? { connected: true } : path === '/info' ? { fwVersion: '3.0.0' } : path === '/servertime' ? { serverTime: Date.now() } : {});
+  });
+  server.listen(0, '127.0.0.1'); await once(server, 'listening'); const address = server.address(); assert.ok(address && typeof address !== 'string');
+  const config = output('Handy'); config.device.endpoint = `http://127.0.0.1:${address.port}/`; config.device.connectionKey = 'isolated-test'; config.device.scriptTimeoutMs = 60000;
+  const coordinator = new OutputCoordinator(configuration([config]));
+  try { await coordinator.connectEnabled(); const preparing = coordinator.vendorScript(config.id, 'prepare', { url: 'https://example.test/script.csv' }); const rejected = assert.rejects(preparing, /request failed|cancelled|invalid/u); await began.promise;
+    if (action === 'emergency') await deadline(coordinator.emergencyStop(), 2000, 'Emergency cancellation'); else await deadline(coordinator.vendorScript(config.id, 'stop'), 2000, 'Explicit script cancellation');
+    await deadline(cancelled.promise, 2000, 'HTTP setup connection cancellation'); await rejected; assert.equal(cancelledSetups, 1);
+    for (const response of pending) reply(response, {}); await setImmediate(); const snapshot = coordinator.snapshot()[0] as { deviceApi: { scriptPrepared: boolean; scriptPlaying: boolean } }; assert.equal(snapshot.deviceApi.scriptPrepared, false); assert.equal(snapshot.deviceApi.scriptPlaying, false);
+    assert.ok(paths.includes('/hssp/stop')); assert.equal(paths.some(path => path === '/hssp/play' || path.startsWith('/hdsp/') || path === '/servertime'), false);
+  } finally { for (const response of pending) response.destroy(); await coordinator.close(); server.closeAllConnections(); await new Promise<void>(resolve => server.close(() => resolve())); }
+});
+test('a setup transport ignoring AbortSignal cannot delay stop or publish its late response', async () => {
+  const setup = deferred<Response>(), began = deferred<void>(), paths: string[] = []; let setupSignal: AbortSignal | null | undefined, lateCancelled = 0;
+  const config = output('Handy'); config.device.endpoint = 'http://127.0.0.1:40000/'; config.device.connectionKey = 'isolated-test';
+  const adapter = new VendorAdapter(config, { fetch: async (request, options) => { const path = new URL(String(request)).pathname; paths.push(path); if (path === '/hssp/setup') { setupSignal = options?.signal; began.resolve(); return setup.promise; } return new Response(JSON.stringify(path === '/connected' ? { connected: true } : path === '/info' ? { fwVersion: '3.0.0' } : {})); } });
+  await adapter.connect(); const preparation = adapter.vendorScript('prepare', { url: 'https://example.test/script.csv' }); const rejected = assert.rejects(preparation, /request failed|cancelled/u); await began.promise;
+  await deadline(adapter.stop(), 1000, 'Ignoring-transport cancellation'); await rejected; assert.equal(setupSignal?.aborted, true); assert.equal(adapter.scriptState().prepared, false);
+  setup.resolve(new Response(new ReadableStream<Uint8Array>({ cancel() { lateCancelled++; } }))); await setImmediate(); assert.equal(lateCancelled, 1); assert.equal(adapter.scriptState().prepared, false); assert.equal(adapter.scriptState().playing, false); assert.equal(paths.some(path => path === '/servertime' || path === '/hssp/play' || path.startsWith('/hdsp/')), false); await adapter.close();
 });

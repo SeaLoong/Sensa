@@ -539,6 +539,46 @@ test('@site help screenshots switch between reviewed desktop and narrow captures
 test('@site local flowcharts render real readable SVG in both guide languages', async ({ page }, info) => {
   if (info.project.name === 'mobile') await page.setViewportSize({ width: 320, height: 844 });
   const external = [], errors = [], evidence = [];
+  // Independent expectations for the published graphs, including the shared
+  // TypeScript runtime introduced with the Node/Electron hosts.
+  const expectedDiagrams = {
+    architecture: {
+      labels: {
+        Electron: ['Electron shell', 'Electron 外壳'], Node: ['Node CLI service', 'Node CLI 服务'],
+        Remote: ['Remote RuntimeClient', '远程 RuntimeClient'], Page: ['Browser-local host', '浏览器本地宿主'],
+        Local: ['Local RuntimeClient', '本地 RuntimeClient'], UI: ['Shared React Workbench', '共享 React Workbench'],
+        App: ['ApplicationFacade', 'ApplicationFacade'], Runtime: ['RuntimeEngine', 'RuntimeEngine'],
+        OSC: ['OSC / OSCQuery', 'OSC / OSCQuery'], Store: ['OscParameterStore', 'OscParameterStore'],
+        Inputs: ['Device protocol inputs', '设备协议输入'], Commands: ['ExternalControlStore', 'ExternalControlStore'],
+        Sources: ['Manual / script / tracking / feedback', '手动 / 脚本 / 定位 / 反馈'],
+        Compute: ['Computed signals and motion', '计算信号与动作'],
+        Outputs: ['Shared OutputCoordinator', '共享 OutputCoordinator'], Adapters: ['Host output adapters', '宿主输出适配器'],
+        Destinations: ['Devices / applications / recordings', '设备 / 应用 / 录制'],
+      },
+      edges: [
+        ['Electron', 'Node'], ['Node', 'Remote'], ['Page', 'Local'], ['UI', 'Remote'], ['UI', 'Local'],
+        ['Remote', 'App'], ['Local', 'App'], ['App', 'Runtime'], ['OSC', 'Store'], ['Store', 'Runtime'],
+        ['Inputs', 'Commands'], ['Commands', 'Runtime'], ['Sources', 'Runtime'], ['Runtime', 'Compute'],
+        ['Compute', 'Outputs'], ['Outputs', 'Adapters'], ['Adapters', 'Destinations'],
+      ],
+    },
+    'protocol-inputs': {
+      labels: {
+        Application: ['Website / player / client', '网站 / 播放器 / 客户端'],
+        Input: ['Buttplug / TCode / HTTP / WebSocket input', 'Buttplug / TCode / HTTP / WebSocket 输入'],
+        BLE: ['BLE peripheral bridge / virtual serial', 'BLE 外围设备桥 / 虚拟串口'],
+        Model: ['Typed external command with source, target and duration', '带来源、类型、目标与时长的外部命令'],
+        Runtime: ['Input activation / stopping / motion runtime', '输入许可 / 停止 / 动作运行时'],
+        Compute: ['Protocol signal / computation / output binding', '协议信号 / 计算 / 输出绑定'],
+        Output: ['TCode / Intiface / device API / other output', 'TCode / Intiface / 设备 API / 其他输出'],
+        Device: ['OSR or another configured destination', 'OSR 或其他已配置目标'],
+      },
+      edges: [
+        ['Application', 'Input'], ['BLE', 'Input'], ['Input', 'Model'], ['Model', 'Runtime'],
+        ['Model', 'Compute'], ['Compute', 'Runtime'], ['Runtime', 'Output'], ['Output', 'Device'],
+      ],
+    },
+  };
   page.on('pageerror', error => errors.push(error.message));
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   await page.route('**/*', route => {
@@ -546,7 +586,7 @@ test('@site local flowcharts render real readable SVG in both guide languages', 
     if (url.origin !== new URL(base).origin) { external.push(url.href); return route.abort(); }
     return route.continue();
   });
-  for (const locale of ['en', 'zh-CN']) for (const [name, nodes] of [['protocol-inputs', 8], ['architecture', 20]]) {
+  for (const locale of ['en', 'zh-CN']) for (const [name, nodes] of [['protocol-inputs', 8], ['architecture', 17]]) {
     await page.goto(base + locale + '/docs/' + name + '.html');
     const figure = page.locator('[data-document-diagram]');
     await expect(figure).toHaveCount(1);
@@ -556,6 +596,25 @@ test('@site local flowcharts render real readable SVG in both guide languages', 
     await expect(graphic).toHaveAttribute('role', 'img');
     await expect(graphic).toHaveAttribute('aria-label', locale === 'en' ? /^Flowchart:/ : /^流程图:/);
     await expect(graphic.locator('g.node')).toHaveCount(nodes);
+    const structure = await graphic.evaluate(svg => ({
+      nodes: [...svg.querySelectorAll('g.node')].map(node => [
+        /-flowchart-(.+)-\d+$/.exec(node.id)?.[1] || '',
+        [...node.querySelectorAll('text')].flatMap(text => text.children.length
+          ? [...text.children].map(line => line.textContent) : [text.textContent]).join(' '),
+      ]),
+      edges: [...svg.querySelectorAll('path[data-edge="true"]')].map(edge => {
+        const match = /^L_([^_]+)_([^_]+)_\d+$/.exec(edge.getAttribute('data-id') || '');
+        return match ? [match[1], match[2]] : [];
+      }),
+    }));
+    const expected = expectedDiagrams[name], language = locale === 'en' ? 0 : 1;
+    const ordered = rows => [...rows].sort((left, right) => JSON.stringify(left).localeCompare(JSON.stringify(right)));
+    // SVG wraps English and CJK labels into tspans. Ignore layout whitespace on
+    // both sides while preserving every other character, node ID and edge.
+    const labelCharacters = value => value.replace(/\s+/gu, '');
+    expect(ordered(structure.nodes.map(([id, label]) => [id, labelCharacters(label)])))
+      .toEqual(ordered(Object.entries(expected.labels).map(([id, labels]) => [id, labelCharacters(labels[language])])));
+    expect(ordered(structure.edges)).toEqual(ordered(expected.edges));
     expect(await graphic.locator('path').count()).toBeGreaterThan(0);
     expect(await graphic.locator('text').count()).toBeGreaterThanOrEqual(nodes);
     await expect(figure.locator('.doc-diagram-source')).not.toHaveAttribute('open');
@@ -584,7 +643,7 @@ test('@site local flowcharts render real readable SVG in both guide languages', 
     await figure.locator('summary').click();
     await expect(figure.locator('.doc-diagram-source')).toHaveAttribute('open', '');
     await expect(figure.locator('.language-mermaid')).toContainText('flowchart LR');
-    evidence.push({ locale, name, nodes, bounds, scroll });
+    evidence.push({ locale, name, nodes, structure, bounds, scroll });
   }
   expect(errors).toEqual([]);
   expect(external).toEqual([]);

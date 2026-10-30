@@ -1,9 +1,11 @@
 import type { AppConfig } from './model.ts';
+import { oscNumber, type OscSnapshotEntry } from '../protocols/osc.ts';
 import { record, type RuntimeApplicationPort, type JsonRecord, type ApplicationOutputPort } from './application.ts';
 
 export interface PresentationServices {
   outputs: ApplicationOutputPort;
   oscSnapshot?: () => JsonRecord;
+  readOscLatest?: (pattern: string) => OscSnapshotEntry | undefined;
   protocolSnapshot?: () => unknown[];
   connectionCount?: () => number;
   capabilities?: () => unknown;
@@ -16,6 +18,19 @@ export function buildOverview(runtime: RuntimeApplicationPort, services: Present
   const script = runtime.getScriptSnapshot();
   const osc = services.oscSnapshot?.() ?? {};
   const preview = entries(osc['preview']), sources = entries(osc['sources']);
+  const latestSignal = (pattern: string): JsonRecord | null => {
+    if (services.readOscLatest) {
+      const latest = services.readOscLatest(pattern);
+      if (!latest) return null;
+      const { path, entry } = latest;
+      return { path, value: oscNumber(entry.value), timestampMs: entry.timestampMs, type: entry.valueType,
+        sourceKey: entry.source.key, sourceLabel: entry.source.label, sourcePersistentId: entry.source.persistentId };
+    }
+    const match = preview.find(value => record(value)['path'] === pattern);
+    if (!match) return null;
+    const row = record(match);
+    return { ...row, value: typeof row['numericValue'] === 'number' ? row['numericValue'] : row['value'] };
+  };
   const defaultQuery = { enabled: config.osc.oscQueryEnabled, url: config.osc.oscQueryUrl, name: '', oscIp: '', oscPort: 0,
     oscTransport: '', supportsListen: false, wsIp: '', wsPort: 0, webSocketUrl: '', listenConnected: false,
     listeningPathCount: 0, streamSourceLabel: '', streamSourcePersistentId: '', refreshedAtUtc: null, error: null,
@@ -52,5 +67,5 @@ export function buildOverview(runtime: RuntimeApplicationPort, services: Present
     intiface: { connected: services.outputs.isConnected(primary(config, 'Intiface')), config: config.intiface,
       devices: services.outputs.devices(primary(config, 'Intiface')) }, outputs,
     poseTracking: state['poseTracking'] ?? { observations: [], activeKey: '', spsRoots: [] }, recording: runtime.getRecordingSnapshot(), computedSignals,
-    signals: config.signals.map((signal, index) => ({ index, signal, latest: preview.find(value => record(value)['path'] === signal.oscPath) ?? null })) };
+    signals: config.signals.map((signal, index) => ({ index, signal, latest: latestSignal(signal.oscPath) })) };
 }

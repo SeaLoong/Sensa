@@ -19,6 +19,14 @@ function vendorEndpoint(text: string): URL {
 }
 function unwrap(value: Record<string, unknown>): Record<string, unknown> { return optionalRecord(value['result']) ?? value; }
 function propertyDepth(value: unknown, depth = 0): void { if (depth > 32) throw new Error('Device API JSON is too deeply nested.'); if (value && typeof value === 'object') for (const child of Object.values(value)) propertyDepth(child, depth + 1); }
+async function withSignal<T>(operation: Promise<T>, signal: AbortSignal, late?: (value: T) => void): Promise<T> {
+  let abandoned = signal.aborted;
+  void operation.then(value => { if (abandoned) late?.(value); }, () => {});
+  if (signal.aborted) throw new Error('Device API operation was cancelled.');
+  let abort: () => void = () => {};
+  const cancelled = new Promise<never>((_resolve, reject) => { abort = () => { abandoned = true; reject(new Error('Device API operation was cancelled.')); }; signal.addEventListener('abort', abort, { once: true }); });
+  try { return await Promise.race([operation, cancelled]); } finally { signal.removeEventListener('abort', abort); }
+}
 
 export class VendorAdapter extends SerializedAdapter {
   #endpoint: URL;
@@ -32,6 +40,9 @@ export class VendorAdapter extends SerializedAdapter {
   #serverOffset = 0;
   #handyV2Loop = false;
   #operationEpoch: number | null = null;
+  #operationPreparation: AbortSignal | null = null;
+  #preparations = new Set<AbortController>();
+  #cancelledPreparation = false;
   readonly config: OutputDeviceConfig;
   readonly dependencies: OutputDependencies;
   constructor(config: OutputDeviceConfig, dependencies: OutputDependencies = {}) {
@@ -80,23 +91,26 @@ export class VendorAdapter extends SerializedAdapter {
     return cluster;
   }
   async request(method: string, route: string, body?: unknown, timeoutMs = this.config.device.requestTimeoutMs): Promise<Record<string, unknown>> {
-    if (this.#operationEpoch !== null && this.#operationEpoch !== this.lane.epoch) throw new Error('Device command was cancelled by a stop.');
+    this.checkOperation();
     const headers: Record<string, string> = { accept: 'application/json' }, options = this.config.device;
     if (this.config.type === 'Handy') {
       headers['X-Connection-Key'] = options.connectionKey;
       if (options.apiVersion === 3) { if (options.apiKey) headers['X-Api-Key'] = options.apiKey; if (options.authToken) headers['authorization'] = 'Bearer ' + options.authToken; }
     } else if (this.config.type !== 'Lovense') headers['x-device-token'] = options.connectionKey;
     if (body !== undefined) headers['content-type'] = 'application/json';
+    const signal = AbortSignal.any([AbortSignal.timeout(timeoutMs), ...(this.#operationPreparation ? [this.#operationPreparation] : [])]);
     let response: Response;
-    try { response = await (this.dependencies.fetch ?? fetch)(new URL(route, this.#endpoint), { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal: AbortSignal.timeout(timeoutMs) }); }
+    try { response = await withSignal((this.dependencies.fetch ?? fetch)(new URL(route, this.#endpoint), { method, headers, ...(body === undefined ? {} : { body: JSON.stringify(body) }), redirect: 'error', signal }), signal, late => { void late.body?.cancel().catch(() => {}); }); }
     catch { throw new Error('Device API request failed or timed out.'); }
+    try { this.checkOperation(true); } catch (error) { await response.body?.cancel(); throw error; }
     if (!response.ok) { await response.body?.cancel(); throw new Error(`Device API rejected the request (HTTP ${response.status}).`); }
     const length = Number(response.headers.get('content-length')); if (Number.isFinite(length) && length > 1048576) { await response.body?.cancel(); throw new Error('Device API response exceeds 1 MiB.'); }
     const reader = response.body?.getReader(); let size = 0; const chunks: Uint8Array[] = [];
     try {
-      if (reader) while (true) { const part = await reader.read(); if (part.done) break; size += part.value.length; if (size > 1048576) throw new Error('Device API response exceeds 1 MiB.'); chunks.push(part.value); }
+      if (reader) while (true) { const part = await withSignal(reader.read(), signal); if (part.done) break; size += part.value.length; if (size > 1048576) throw new Error('Device API response exceeds 1 MiB.'); chunks.push(part.value); }
     } catch { await reader?.cancel(); throw new Error('Device API returned an invalid or oversized response.'); }
     finally { reader?.releaseLock(); }
+    this.checkOperation(true);
     if (!size) return {};
     const buffer = new Uint8Array(size); let offset = 0; for (const chunk of chunks) { buffer.set(chunk, offset); offset += chunk.length; }
     let result: Record<string, unknown>;
@@ -109,7 +123,11 @@ export class VendorAdapter extends SerializedAdapter {
   }
   async mode(value: number): Promise<void> { if (this.#mode === value) return; await this.request('PUT', this.config.device.apiVersion === 3 ? 'mode2' : 'mode', { mode: value }); this.#mode = value; }
   protected async motionCore(frame: RuntimeMotionFrame): Promise<void> { await this.runGeneration(() => this.moveCore(frame)); }
-  async runGeneration(operation: () => Promise<void>): Promise<void> { const previous = this.#operationEpoch; this.#operationEpoch = this.lane.epoch; try { await operation(); } finally { this.#operationEpoch = previous; } }
+  private checkOperation(afterResponse = false): void { if (afterResponse && !this.#operationPreparation) return; if (this.#operationPreparation?.aborted || this.#operationEpoch !== null && this.#operationEpoch !== this.lane.epoch) throw new Error('Device command was cancelled by a stop.'); }
+  async runGeneration(operation: () => Promise<void>, preparation?: AbortSignal): Promise<void> { const previous = this.#operationEpoch, previousPreparation = this.#operationPreparation; this.#operationEpoch = this.lane.epoch; this.#operationPreparation = preparation ?? null; try { this.checkOperation(); await operation(); } finally { this.#operationEpoch = previous; this.#operationPreparation = previousPreparation; } }
+  private cancelPreparation(): void { if (!this.#preparations.size) return; this.#cancelledPreparation = true; this.#prepared = this.#playing = this.#loop = false; this.#position = 0; for (const controller of this.#preparations) controller.abort(); this.dependencies.changed?.(); }
+  override stop(): Promise<void> { this.cancelPreparation(); return super.stop(); }
+  override close(): Promise<void> { this.cancelPreparation(); return super.close(); }
   private async moveCore(frame: RuntimeMotionFrame): Promise<void> {
     const options = this.config.device, axis = options.axis as MotionAxis;
     if (frame.activeAxes && !frame.activeAxes.includes(axis) || this.#playing) return;
@@ -132,7 +150,8 @@ export class VendorAdapter extends SerializedAdapter {
   async vendorScript(action: string, raw?: unknown): Promise<void> {
     if (action === 'stop') { await this.stop(); return; }
     const options = optionalRecord(raw) ?? {};
-    await this.lane.enqueue(() => this.runGeneration(async () => {
+    const preparation = action === 'prepare' ? new AbortController() : null; if (preparation) this.#preparations.add(preparation);
+    try { await this.lane.enqueue(() => this.runGeneration(async () => {
       this.requireReady(); if (this.config.type === 'Lovense') throw new Error('Lovense does not expose synchronized script playback.');
       if ((action === 'play' || action === 'seek') && this.dependencies.canSend && !this.dependencies.canSend()) throw new Error('Input is no longer active.');
       if (action === 'prepare') {
@@ -150,7 +169,7 @@ export class VendorAdapter extends SerializedAdapter {
           await this.request('PUT', this.prefix + `sync-script/upload-${format}-url`, { url: url.href }, this.config.device.scriptTimeoutMs);
           if (this.config.device.offsetMs) await this.request('PUT', this.prefix + 'sync-script/offset', { offsetTimeMs: this.config.device.offsetMs });
         }
-        this.#position = 0; this.#prepared = true;
+        this.checkOperation(); this.#position = 0; this.#prepared = true;
       } else if (action === 'loop') {
         if (!this.#prepared || this.#playing || !this.scriptState().loopSupported || typeof options['loop'] !== 'boolean') throw new Error('Choose looping while a prepared script is paused.');
         if (this.config.type === 'Handy' && this.config.device.apiVersion === 2) await this.mode(1);
@@ -161,7 +180,7 @@ export class VendorAdapter extends SerializedAdapter {
         if (!this.#prepared) throw new Error('Prepare a script before playback.');
         if (action === 'play' || this.#playing) await this.play(position); else this.#position = position;
       } else throw new Error('Unknown vendor script action.');
-    }));
+    }, preparation?.signal)); } finally { if (preparation) this.#preparations.delete(preparation); }
     this.dependencies.changed?.();
   }
   async applyLoop(value: boolean): Promise<void> { if (this.config.type === 'Handy') { if (this.config.device.apiVersion === 2) await this.request('PUT', 'hssp/loop', { activated: value }); } else await this.request('PUT', this.prefix + 'sync-script/loop', { loop: value }); }
@@ -178,12 +197,12 @@ export class VendorAdapter extends SerializedAdapter {
   protected async stopCore(): Promise<void> {
     if (this.config.type === 'VacuGlide') { await this.request('PUT', 'vacuglide/target-speed/stop'); this.#playing = false; }
     else {
-      if (this.#prepared) await this.stopScript();
+      if (this.#prepared || this.#cancelledPreparation) await this.stopScript();
       if (this.config.type === 'Handy' && this.#mode === 2) await this.request('PUT', 'hdsp/xpvp', this.config.device.apiVersion === 3 ? { xp: this.#lastPosition * 100, vp: 0, stop_on_target: true, immediate_rsp: true } : { position: this.#lastPosition * 100, velocity: 0, stopOnTarget: true, immediateResponse: true });
       else if (this.config.type === 'Autoblow' && this.#mode === 2) await this.request('PUT', 'autoblow/oscillate', { speed: 0, minY: 0, maxY: 100 });
       else if (this.config.type === 'Lovense') await this.request('POST', 'command', { command: 'Function', action: 'Stop', timeSec: 0, toy: this.config.device.deviceId, apiVer: 1 });
     }
-    this.#lastAt = null;
+    this.#lastAt = null; this.#cancelledPreparation = false;
   }
-  protected async closeCore(): Promise<void> { this.#prepared = this.#playing = this.#loop = false; this.#mode = -1; }
+  protected async closeCore(): Promise<void> { this.#prepared = this.#playing = this.#loop = this.#cancelledPreparation = false; this.#mode = -1; }
 }

@@ -52,6 +52,11 @@ test('binding range curves, send rate and epsilon run in the shared coordinator'
   coordinator.updateBindings(100, () => sample(.501, 100)); await coordinator.flush(); assert.equal(adapter.signals.length, 1);
   coordinator.updateBindings(200, () => sample(1, 200)); await coordinator.flush(); assert.equal(adapter.signals.at(-1)?.value, 20); await coordinator.close();
 });
+test('bound motion keeps each binding interval and prior routed axes without forcing a command mode', async () => {
+  const target = output('TCodeTcp'), left = binding('left', 'L0'), right = binding('right', 'R0'); left.rateHz = 20; right.rateHz = 40; left.source.oscPath = 'left'; right.source.oscPath = 'right'; target.signal.bindings = [left, right];
+  const adapter = new MemoryAdapter(), coordinator = new OutputCoordinator(configuration([target]), { createAdapter: () => adapter, canSend: () => true }); await coordinator.connectEnabled(); coordinator.updateBindings(0, source => sample(source.oscPath === 'left' ? .2 : .8, 0)); await coordinator.flush();
+  assert.equal(adapter.frames.length, 2); assert.deepEqual(adapter.frames.map(value => value.deltaMs), [50, 25]); assert.deepEqual(adapter.frames.map(value => value.activeAxes), [['L0'], ['R0']]); assert.ok(adapter.frames.every(value => value.requestedCommandMode === undefined)); assert.equal(adapter.frames[1]?.values.L0, .2); assert.equal(adapter.frames[1]?.values.R0, .8); await coordinator.close();
+});
 test('OnEvent does not repeatedly fire while high and resets after input stop', async () => {
   const device = output('HttpJson'), route = binding('event', 'trigger'); route.sendMode = 'OnEvent'; device.signal.bindings = [route];
   const adapter = new MemoryAdapter(), coordinator = new OutputCoordinator(configuration([device]), { createAdapter: () => adapter, canSend: () => true });

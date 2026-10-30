@@ -29,7 +29,20 @@ export interface InputCoordinatorOptions extends HttpInputOptions {
   onPortChanged?: (inputIds: string[], actualPort: number) => void;
   serialFactory?: (config: ProtocolInputConfig) => Promise<Duplex>;
 }
-export interface InputListenerSnapshot { id: string; name: string; type: string; enabled: boolean; running: boolean; host: string; port: number; path: string; error: string }
+export interface InputListenerSnapshot {
+  id: string; name: string; type: string; enabled: boolean; running: boolean; listening: boolean;
+  host: string; port: number; path: string; error: string; lastError: string | null; address: string;
+  connected: boolean; session: string | null; receivedCommands: number; channels: string[];
+}
+interface ListenerState { config: ProtocolInputConfig; port: number; running: boolean; error: string; ready(): boolean }
+function inputAddress(config: ProtocolInputConfig, port: number): string {
+  if (config.type === 'IntifaceDevice') return config.address;
+  if (config.type === 'TCodeSerial') return config.comPort;
+  const scheme = ['Buttplug', 'JsonWebSocket', 'TCodeWebSocket'].includes(config.type) ? 'ws'
+    : config.type === 'TCodeTcp' ? 'tcp' : config.type === 'TCodeUdp' ? 'udp' : 'http';
+  const host = config.host.includes(':') ? '[' + config.host + ']' : config.host;
+  return `${scheme}://${host}:${port}${isWebInput(config.type) && config.path !== '/' ? config.path : ''}`;
+}
 interface WebGroup { host: string; port: number; inputs: ProtocolInputConfig[]; server: HttpServer; owned: boolean }
 interface Session { dispose(): void; resetCommands?(): void; remainingIdleTime?: number; heartbeat?(): void }
 interface ActiveConnection { session: Session; framer?: TCodeLineFramer; stream?: Duplex; websocket?: WebSocket; pendingAt: number | null; pendingTimeoutMs?: number; checkIdle?: boolean }
@@ -64,7 +77,7 @@ export class InputCoordinator {
   readonly options: InputCoordinatorOptions;
   #configs: ProtocolInputConfig[] = []; #groups: WebGroup[] = []; #closers: (() => Promise<void>)[] = [];
   #http = new Map<string, HttpInputSession>(); #vendor = new Map<string, VendorInputSession>();
-  #connections = new Set<ActiveConnection>(); #snapshot = new Map<string, InputListenerSnapshot>();
+  #connections = new Set<ActiveConnection>(); #snapshot = new Map<string, ListenerState>();
   #wss = new WebSocketServer({ noServer: true, maxPayload: 65536, perMessageDeflate: false });
   #timer: ReturnType<typeof setInterval>; #disposed = false; #reload: Promise<void> = Promise.resolve();
   #inputEpoch = 0;
@@ -90,8 +103,8 @@ export class InputCoordinator {
     this.#reload = operation; return operation;
   }
   async #start(configs: ProtocolInputConfig[]): Promise<void> {
+    for (const config of configs) this.#snapshot.set(config.id, { config, port: config.port, running: false, error: '', ready: () => false });
     for (const config of configs.filter(input => input.enabled)) {
-      this.#snapshot.set(config.id, { id: config.id, name: config.name, type: config.type, enabled: true, running: false, host: config.host, port: config.port, path: config.path, error: '' });
       if (isWebInput(config.type)) {
         if (config.type === 'AutoblowHttp' || config.type === 'VacuGlideHttp') this.#vendor.set(config.id, new VendorInputSession(config, this.options.external, this.options));
         else if (!['Buttplug', 'TCodeWebSocket'].includes(config.type)) this.#http.set(config.id, new HttpInputSession(config, this.options.external, this.options));
@@ -114,7 +127,9 @@ export class InputCoordinator {
       group.inputs.sort((a, b) => b.path.length - a.path.length);
       const actualPort = group.owned ? await bindServer(group.server, group.host, group.port, this.options.resolvePortConflicts ?? false) : group.port;
       this.#closers.push(async () => { if (group.owned) await closeServer(group.server); });
-      for (const input of group.inputs) { const snapshot = this.#snapshot.get(input.id); if (snapshot) { snapshot.port = actualPort; snapshot.running = true; } }
+      const states = group.inputs.map(input => this.#snapshot.get(input.id)).filter((state): state is ListenerState => !!state);
+      for (const state of states) { state.port = actualPort; state.running = true; state.ready = () => group.server.listening; }
+      if (group.owned) group.server.on('error', error => { for (const state of states) state.error = error.message; this.options.log?.(`Protocol HTTP error: ${error.message}`); });
       if (actualPort !== group.port) this.options.onPortChanged?.(group.inputs.map(input => input.id), actualPort);
     }
   }
@@ -211,7 +226,7 @@ export class InputCoordinator {
   async #tcp(config: ProtocolInputConfig): Promise<void> {
     const server = createTcpServer(socket => { if (this.#connections.size >= 32) socket.destroy(); else this.#attachTCode(config, socket, `tcp:${randomUUID()}`); });
     const port = await bindServer(server, config.host, config.port, this.options.resolvePortConflicts ?? false);
-    server.on('error', error => this.options.log?.(`Protocol TCP error: ${error.message}`)); this.#closers.push(async () => await closeServer(server)); this.#mark(config, port);
+    const state = this.#snapshot.get(config.id); server.on('error', error => { if (state) state.error = error.message; this.options.log?.(`Protocol TCP error: ${error.message}`); }); this.#closers.push(async () => await closeServer(server)); this.#mark(config, port, () => server.listening);
   }
   async #udp(config: ProtocolInputConfig): Promise<void> {
     const socket = createSocket(config.host.includes(':') ? 'udp6' : 'udp4'); let owner = '', session: TCodeInputSession | null = null, active: ActiveConnection | null = null;
@@ -228,14 +243,14 @@ export class InputCoordinator {
       try { const framer = new TCodeLineFramer(); for (const line of framer.push(data)) { const reply = session.processLine(line); if (reply) socket.send(reply, peer.port, peer.address); if (reply.startsWith('ERR ')) { clear(); break; } } }
       catch { clear(); }
     });
-    socket.on('error', error => this.options.log?.(`Protocol UDP error: ${error.message}`));
-    this.#closers.push(async () => { clear(); await new Promise<void>(resolve => socket.close(() => resolve())); }); this.#mark(config, port);
+    const state = this.#snapshot.get(config.id); socket.on('error', error => { if (state) state.error = error.message; this.options.log?.(`Protocol UDP error: ${error.message}`); });
+    this.#closers.push(async () => { clear(); await new Promise<void>(resolve => socket.close(() => resolve())); }); this.#mark(config, port, () => { try { return socket.address().port > 0; } catch { return false; } });
   }
   async #serial(config: ProtocolInputConfig): Promise<void> {
     const factory = this.options.serialFactory ?? (await import('./serial-input.ts')).openSerialInput;
     const stream = await factory(config); this.#attachTCode(config, stream, `serial:${randomUUID()}`);
-    const snapshot = this.#snapshot.get(config.id); stream.once('close', () => { if (snapshot) snapshot.running = false; });
-    this.#closers.push(async () => { stream.destroy(); }); this.#mark(config, config.port);
+    const snapshot = this.#snapshot.get(config.id); stream.once('close', () => { if (snapshot) snapshot.running = false; }); stream.once('error', error => { if (snapshot) snapshot.error = error.message; });
+    this.#closers.push(async () => { stream.destroy(); }); this.#mark(config, config.port, () => !stream.destroyed && !stream.closed);
   }
   async #device(config: ProtocolInputConfig): Promise<void> {
     const address = new URL(config.address); if (!['ws:', 'wss:'].includes(address.protocol) || address.username || address.password || address.hash) throw new Error('Configure an Intiface device endpoint without embedded credentials.');
@@ -256,17 +271,17 @@ export class InputCoordinator {
       } catch { session.stop(); if (socket.readyState === WebSocket.OPEN) sendWebSocket(socket, Buffer.from('ERR invalid TCode frame\n'), true); }
     });
     const snapshot = this.#snapshot.get(config.id);
-    socket.on('error', () => socket.terminate()); socket.once('close', () => { if (heartbeat) clearInterval(heartbeat); heartbeat = undefined; session.dispose(); this.#connections.delete(active); if (snapshot) snapshot.running = false; });
+    socket.on('error', error => { if (snapshot) snapshot.error = error.message; socket.terminate(); }); socket.once('close', () => { if (heartbeat) clearInterval(heartbeat); heartbeat = undefined; session.dispose(); this.#connections.delete(active); if (snapshot) snapshot.running = false; });
     this.#closers.push(async () => { if (heartbeat) clearInterval(heartbeat); session.dispose(); socket.terminate(); });
     socket.once('open', () => socket.send(JSON.stringify({ identifier: config.identifier || config.name, address: config.id, version: 0 })));
     try { await new Promise<void>((resolve, reject) => { socket.once('open', resolve); socket.once('error', reject); }); }
     catch (error) { session.dispose(); socket.terminate(); throw error; }
     if (socket.readyState !== WebSocket.OPEN) { session.dispose(); socket.terminate(); throw new Error('The Intiface device connection closed during startup.'); }
     heartbeat = setInterval(() => { if (socket.readyState !== WebSocket.OPEN || Date.now() - lastPong >= config.timeoutMs) { socket.terminate(); return; } session.heartbeat(); socket.ping(); }, Math.max(50, Math.min(1000, config.timeoutMs / 3))); heartbeat.unref();
-    this.#mark(config, config.port);
+    this.#mark(config, config.port, () => socket.readyState === WebSocket.OPEN);
   }
 
-  #mark(config: ProtocolInputConfig, port: number): void { const snapshot = this.#snapshot.get(config.id); if (snapshot) { snapshot.port = port; snapshot.running = true; } if (port !== config.port) this.options.onPortChanged?.([config.id], port); }
+  #mark(config: ProtocolInputConfig, port: number, ready: () => boolean): void { const snapshot = this.#snapshot.get(config.id); if (snapshot) { snapshot.port = port; snapshot.running = true; snapshot.ready = ready; } if (port !== config.port) this.options.onPortChanged?.([config.id], port); }
   #tick(): void {
     for (const input of [...this.#http.values(), ...this.#vendor.values()]) { try { input.tick(); } catch (error) { input.resetCommands(); this.options.log?.(`Protocol task stopped: ${error instanceof Error ? error.message : 'unknown error'}`); } }
     for (const connection of this.#connections) {
@@ -278,7 +293,16 @@ export class InputCoordinator {
     if (this.options.external instanceof ExternalControlStore) this.options.external.expire();
   }
   resetCommands(): void { this.#inputEpoch++; for (const input of [...this.#http.values(), ...this.#vendor.values()]) input.resetCommands(); for (const connection of this.#connections) { connection.framer?.reset(); connection.pendingAt = null; connection.session.resetCommands?.(); } }
-  snapshot(): InputListenerSnapshot[] { return [...this.#snapshot.values()].map(value => ({ ...value })); }
+  snapshot(): InputListenerSnapshot[] {
+    return [...this.#snapshot.values()].map(state => {
+      const { config } = state, running = config.enabled && state.running && state.ready();
+      const control = config.enabled && this.options.external instanceof ExternalControlStore ? this.options.external.getStatus(config.id) : null;
+      return { id: config.id, name: config.name, type: config.type, enabled: config.enabled, host: config.host, port: state.port, path: config.path,
+        running, listening: running, error: state.error, lastError: state.error || null, address: inputAddress(config, state.port),
+        connected: running && (control?.session != null || config.type === 'IntifaceDevice'), session: control?.session ?? null,
+        receivedCommands: control?.receivedCommands ?? 0, channels: control?.channels ?? [] };
+    });
+  }
   async #stop(): Promise<void> {
     for (const input of [...this.#http.values(), ...this.#vendor.values()]) input.dispose(); this.#http.clear(); this.#vendor.clear();
     for (const connection of this.#connections) { connection.session.dispose(); connection.stream?.destroy(); connection.websocket?.terminate(); } this.#connections.clear();

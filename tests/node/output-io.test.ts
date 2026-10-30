@@ -12,6 +12,7 @@ import { SharedMidiFactory } from '../../src/node/outputs/midi-pool.ts';
 import { IntifaceAdapter } from '../../src/node/outputs/intiface.ts';
 import { OutputCoordinator } from '../../src/node/outputs/index.ts';
 import { defaultTCodeMotionProfile, defaultIntifaceFeatureRoute } from '../../src/core/runtime/configuration-defaults.ts';
+import { sample, invalidSample } from '../../src/core/runtime/model.ts';
 import type { SerialPortHandle, MidiFactory } from '../../src/core/outputs/types.ts';
 import { output, frame, deferred, binding, configuration } from './output-support.ts';
 
@@ -23,6 +24,18 @@ test('real loopback UDP TCode datagrams keep framing and whole-device stop', asy
   const config = output('TCodeUdp'); config.host = '127.0.0.1'; config.port = port; const adapter = new TCodeAdapter(config, undefined, { canSend: () => true });
   try { await adapter.connect(); const first = once(receiver, 'message'); await adapter.sendMotion(frame({ L0: .5 }, { activeAxes: ['L0'], requestedCommandMode: 'None' })); assert.equal(String((await first)[0]), 'L0500\n'); const stopped = once(receiver, 'message'); await adapter.stop(); assert.equal(String((await stopped)[0]), 'DSTOP\n'); }
   finally { await adapter.close(); receiver.close(); }
+});
+test('an invalid computed binding keeps the existing 20 Hz profiled fallback arrival before input disable sends DSTOP', async () => {
+  const receiver = dgram.createSocket('udp4'); receiver.bind(0, '127.0.0.1'); await once(receiver, 'listening');
+  const config = output('TCodeUdp'), route = binding('blend', 'L0'); config.host = '127.0.0.1'; config.port = receiver.address().port; route.rateHz = 20; route.stopValue = .25; config.signal.bindings = [route];
+  const app = configuration([config]), profile = app.axisProfiles[0]!.motion; config.motionProfileId = app.axisProfiles[0]!.id;
+  profile.l0 = { ...profile.l0, min: 400, max: 600, remapMin: 400, remapMax: 600, maxSpeed: 100, commandMode: 'Interval' };
+  let active = true; const coordinator = new OutputCoordinator(app, { canSend: () => active });
+  try { await coordinator.connectEnabled(); const initial = once(receiver, 'message'); coordinator.updateBindings(0, () => sample(.5, 0)); await coordinator.flush(); assert.match(String((await initial)[0]), /^L0500I\d+\n$/u);
+    const fallback = once(receiver, 'message'); coordinator.updateBindings(100, () => invalidSample('Combined source disconnected')); await coordinator.flush(); assert.equal(String((await fallback)[0]), 'L0450I50\n');
+    const routes = (coordinator.snapshot()[0] as { signalStatus: { routes: { valid: boolean }[] } }).signalStatus.routes; assert.equal(routes[0]?.valid, false);
+    const stopped = once(receiver, 'message'); active = false; await coordinator.emergencyStop(); assert.equal(String((await stopped)[0]), 'DSTOP\n');
+  } finally { await coordinator.close(); receiver.close(); }
 });
 test('real loopback TCP output writes complete lines and closes its connection', async () => {
   const lines: string[] = [], received = deferred<void>(); let peer: net.Socket | undefined;
