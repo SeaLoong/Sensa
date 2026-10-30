@@ -36,6 +36,8 @@ python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/
 
 Without `--port`, decoding does not send OSC. The full 16×8 grid needs at least 4×4 pixels per cell. Rectangular stretching is supported, automatic discovery and perspective correction are not.
 
+For replay diagnostics, `--status-every-frame` writes a JSON status for every capture, including invalid samples; the default logs only status changes. Replay tools can acknowledge a decoded frame before replacing it with the next one. OSC data and freshness rules stay unchanged.
+
 Startup/recovery requires two new progressing frames. Duplicate/stale frames, changed XYZ under one sequence, CRC/order faults and freeze cannot restore validity; exit clears it. Force-kill/network loss also needs Sensa's input timeout. A producer sequence reset may require restarting the bridge.
 
 Inspect only `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`. It is diagnostic transport, not a mappable native root or calibration source. Nonzero `Sensa/Shader/<id>` follows the separate [native root registration](../../unity/top.sealoong.sensa/GPU-TRACKING.en.md). Binary ID, coordinate mode, Frame and CRC remain even though public Producer/Profile fields were removed.

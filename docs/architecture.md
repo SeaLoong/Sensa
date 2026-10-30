@@ -2,50 +2,58 @@
 
 **简体中文** | [English](architecture.en.md)
 
-Sensa 桌面版通过共用运行时连接输入、计算和输出；WebSensa 在浏览器运行手动／脚本工作台，直接管理浏览器设备连接。两个版本展示相同的来源到输出流程，具体传输与输入由运行方式决定。本页说明职责、时序与生命周期。[使用指南](guide.md) · [术语](../GLOSSARY.md)
+Sensa 在 WebSensa、Node.js 服务与 Electron 中共用一份 TypeScript 运行时和 React 工作台。各宿主提供可用的传输、设备访问与存储，共享应用统一处理命令、信号计算和输出协调。[使用指南](guide.md) · [术语](../GLOSSARY.md)
 
-## 单一命令入口与数据流
+## 宿主与共享应用
+
+| 运行方式 | 引擎与界面 |
+| --- | --- |
+| WebSensa | 引擎在页面内运行，挂载共用工作台，使用浏览器设备 API |
+| Node.js CLI | 一个本地引擎持有监听、文件与设备连接，通过浏览器显示工作台 |
+| Electron | 启动同一份打包 Node CLI 可执行文件，在内嵌窗口显示其工作台 |
+
+Electron 等待 CLI 就绪消息并使用其中的实际 URL，渲染进程与普通浏览器一样通过 HTTP／WebSocket 调用共享应用。再次打开同一配置会复用既有服务；退出 Electron 时关闭由它启动的服务。Unity 作者与构建组件包继续使用 C#，沿用既有 OSC 契约。
 
 ```mermaid
 flowchart LR
-  Browser[浏览器] --> HTTP[HTTP / WebSocket adapter]
-  HTTP --> App[SensaApplication]
-  App --> Config[ConfigurationUpdate]
-  App --> Runtime[MotionRuntime]
-  OSC[OSC / OSCQuery] --> Store[OscParameterStore]
+  Electron["Electron 外壳"] --> Node["Node CLI 服务"]
+  Node --> Remote["远程 RuntimeClient"]
+  Page["浏览器本地宿主"] --> Local["本地 RuntimeClient"]
+  UI["共享 React Workbench"] --> Remote
+  UI --> Local
+  Remote --> App["ApplicationFacade"]
+  Local --> App
+  App --> Runtime["RuntimeEngine"]
+  OSC["OSC / OSCQuery"] --> Store["OscParameterStore"]
   Store --> Runtime
-  Script[FunscriptPlayer] --> Runtime
-  Manual[手动数值] --> Runtime
-  External[外部协议适配器] --> Commands[ExternalControlStore]
+  Inputs["设备协议输入"] --> Commands["ExternalControlStore"]
   Commands --> Runtime
-  Feedback[设备反馈] --> Runtime
-  Runtime --> Compute[计算信号]
-  Compute --> Bindings[输出绑定]
-  Bindings --> Protocol[协议适配器]
-  Protocol --> Transport[UDP / TCP / HTTP / WebSocket / MIDI / File]
-  Transport --> Destinations[应用 / DG-LAB / 服务 / MIDI / 录制]
-  Runtime --> Record[L0 MotionRecorder]
-  Runtime --> Output[IMotionOutput / OutputCoordinator]
-  Output --> Devices[TCode / Intiface / 厂商设备 API]
+  Sources["手动 / 脚本 / 定位 / 反馈"] --> Runtime
+  Runtime --> Compute["计算信号与动作"]
+  Compute --> Outputs["共享 OutputCoordinator"]
+  Outputs --> Adapters["宿主输出适配器"]
+  Adapters --> Destinations["设备 / 应用 / 录制"]
 ```
 
 | 模块 | 拥有的规则 |
 | --- | --- |
-| [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | 共用命令分派；模式、脚本、录制与连接操作 |
-| [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | 串行校验、关闭输入、停止、重连、持久化；失败恢复配置与连接 |
-| [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | 实际模式、许可、门控、信号融合、时效、请求代次与停止 |
-| [ProtocolInputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ProtocolInputCoordinator.cs)／[ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ExternalControl.cs) | 独立协议监听、单来源会话、原子多通道命令、类型与时长、租约和当前命令身份 |
-| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | 有界依赖图、计算复用、同来源／坐标框检查、最旧样本时间与数值有效性 |
-| [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | 将配置来源解析为带时间的有效或无效样本 |
-| [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | 共用计算帧求值与时序复位边界 |
-| [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | 每绑定有效性、当前值交付、事件队列、停止与协议适配器 |
-| [FunscriptTrackRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/FunscriptTrackRecorder.cs) | 每绑定有效片段、轴文件命名、有界动作与完成文件发布 |
-| [SignalSession](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/SignalSession.cs) | 录制格式、文件列表与 funscript／诊断信号回放 |
-| [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | 发送／停止边界；隔离测试可替换输出 |
-| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | 输出类型、轴配置、传输生命周期；在输出层封装协议细节 |
-| [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | 来源、值、更新时间／内容变化时间、序列与 Avatar 生命周期 |
+| [ApplicationFacade](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/application.ts) | 共用命令分派；模式、脚本、录制与连接操作 |
+| [Configuration](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/configuration.ts) | 规范配置模型、默认值、校验与持久化活动状态复位 |
+| [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) | 实际模式、输入启用、门控、信号融合、时效、请求代次与停止 |
+| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/computed.ts)／[ComputedSignalResolver](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts) | 有界依赖图、来源解析、同来源／坐标框检查与样本有效性 |
+| [定位与几何](https://github.com/SeaLoong/Sensa/tree/main/src/core/runtime) | SPS、Contact、Shader 解码，坐标换算与跟随平面计算 |
+| [RuntimeScriptPlayer](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/script.ts)／[RuntimeMotionRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/recording.ts) | 脚本时间线与 L0 动作录制 |
+| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/coordinator.ts)／[OutputLane](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/lifecycle.ts) | 每绑定求值、输出连接归属、有序交付、取消与停止 |
+| [录制与回放](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/recording.ts) | 有效 funscript 片段、JSON Lines／CSV 编码与信号会话回放 |
+| [ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/external-control.ts) | 来源会话、原子多通道命令、类型与时长、租约和当前命令身份 |
+| [OscParameterStore 与 OSC 编解码](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/osc.ts) | 来源、值、接收／内容变化时间、序列、bundle 与 Avatar 生命周期 |
+| [Node 宿主](https://github.com/SeaLoong/Sensa/tree/main/src/node/host) | 管理会话、可回滚的串行配置更新、原子文件与进程归属 |
+| [Node 输入](https://github.com/SeaLoong/Sensa/tree/main/src/node/inputs)／[Node 输出](https://github.com/SeaLoong/Sensa/tree/main/src/node/outputs) | 网络／原生监听、设备 API、发现与文件系统适配器 |
+| [浏览器宿主](https://github.com/SeaLoong/Sensa/blob/main/src/websensa/browser-runtime.ts) | 页面生命周期、本地配置，以及供同一应用与输出协调器使用的浏览器适配器 |
 
-UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学习并停止 OSC。未消费 bundle 保留结构、顺序与 timetag 转发。输入按消息逐项解释；bundle 的 timetag 随转发保留，原子帧调度属于当前实现范围之外。
+核心不依赖浏览器或 Node 传输，时钟、交付回调、文件与设备工厂由宿主注入。配置读取兼容既有 PascalCase 字段，保存统一写入 camelCase 模型；新进程启动时复位临时输入与输出活动状态。
+
+UDP 与 OSCQuery 共用 Avatar 变化清理入口。转发保留未消费 OSC bundle 的结构、顺序与 timetag，输入按消息逐项解释。[共享核心决策](adr/0011-shared-core-and-capability-adapters.md)
 
 ## 许可与停止不变量
 
@@ -54,7 +62,8 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 | 浏览导航／输入页签 | 切换查看内容，保留实际模式和许可 |
 | 模式改变、脚本替换、配置保存 | 先关闭输入并停止，旧待发请求失效 |
 | 急停／解除 | 锁存停止；解除后等待手动启用输入 |
-| 暂停、停止、卸载脚本 | 停止自动帧／UDP 刷新；已许可的显式 seek／step 仍可发送 |
+| 脚本自然结束 | 保留末值与输入启用，组合模式中的其他来源继续运行 |
+| 暂停、停止、卸载脚本 | 停止对应脚本活动；已许可的显式 seek／step 仍可发送 |
 | 门控／空间失效 | 停止相应动作或绑定，并使旧目标失效 |
 | 启动 | 以输入关闭、输出禁用、脚本未加载和运动停止的状态启动 |
 
@@ -64,7 +73,7 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 普通标量先匹配路径与来源，再做校准、反向、曲线、角色融合和门控。OgbDepth／OgbTouch 按外部协议定义解释对应参数。空间输入另有默认关闭的实验许可。
 
-计算信号在校准前生成可复用的原始数值，输入可以是 OSC 参数、已通过模型检查的定位指标、手动／脚本读数、设备反馈、常量或另一计算。时间处理属于当前求值器实例，使用注入时钟。配置校验限制图规模与引用深度，并拒绝缺失引用和循环；运行时按依赖顺序复用结果，同次求值共用叶子输入。每个结果保留参与输入的来源、坐标框和最旧样本时间，必需输入失效会沿引用链传播到依赖它的绑定，现有轴映射保留动作运行时的门控。关闭输入、重新配置和来源变化会复位相应时序状态。浏览器使用同一后端求值结果展示已保存状态。[运算与配置](computed-signals.md)
+计算信号在校准前生成可复用的原始数值，输入可以是 OSC 参数、已通过模型检查的定位指标、手动／脚本读数、设备反馈、常量或另一计算。时间处理属于当前求值器实例，使用注入时钟。配置校验限制图规模与引用深度，并拒绝缺失引用和循环；运行时按依赖顺序复用结果，同次求值共用叶子输入。每个结果保留参与输入的来源、坐标框和最旧样本时间，必需输入失效会沿引用链传播到依赖它的绑定，现有轴映射保留动作运行时的门控。关闭输入、重新配置和来源变化会复位相应时序状态。工作台在远程与浏览器本地宿主中都使用同一求值器结果展示已保存状态。[运算与配置](computed-signals.md)
 
 | 输入族 | 坐标／新鲜度规则 |
 | --- | --- |
@@ -81,7 +90,7 @@ UDP 与 OSCQuery 的 Avatar 变化进入同一清理入口，复位缓存和学�
 
 Buttplug v2/v3/v4、TCode、JSON 与厂商兼容入口将控制解释为带通道、目标、时长和方向的外部命令。直接动作路径按通道保留独立时长，停止是有序屏障；协议样本也可作为计算／绑定来源。首次位置轨迹起点未知时，当前值保持无效而目标可读；位置插值表示命令状态，不代表设备回读。原有设备反馈仍是独立来源，协议输入不伪装成 OSC 或硬件反馈。
 
-协议监听与管理 API 分离。共享 HTTP 监听通过不同 `Path` 前缀提供 Buttplug、JSON、厂商 API 与 TCode WebSocket。最长完整路径匹配先选择来源，再交给该来源的会话、通道与时序处理；原始 TCP 与 UDP 保留各自监听。
+协议监听与管理 API 分离。共享 HTTP 监听通过不同 `path` 前缀提供 Buttplug、JSON、厂商 API 与 TCode WebSocket。最长完整路径匹配先选择来源，再交给该来源的会话、通道与时序处理；原始 TCP 与 UDP 保留各自监听。
 
 ## 跟随平面与空间计算
 
@@ -105,6 +114,7 @@ React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign
 
 | 文件 | 职责 |
 | --- | --- |
+| [RuntimeClient](https://github.com/SeaLoong/Sensa/blob/main/src/web/runtime-client.ts)／[bootstrap.tsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/bootstrap.tsx) | 挂载同一工作台，连接远程服务或浏览器本地应用 |
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | 草稿归一化、输出引用、冲突与保存 |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | 手动／脚本意图与时码 |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | 同源会话、关联、超时、断线拒绝与重连；重连后等待新的控制请求 |
@@ -120,13 +130,15 @@ React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign
 
 ## 浏览器原生 WebSensa
 
-`src/core/index.ts` 提供浏览器与 Node.js 可直接使用的信号引擎、脚本时钟和输出队列；`src/websensa` 提供 React 入口与浏览器适配器。静态站与桌面包提供同一 `websensa/` 页面。手动轴、funscript 和明确连接的参数图解送入共用引擎，输出适配器使用 WebSocket、fetch、Web Serial、Web Bluetooth 或 Web MIDI。[共享核心与宿主迁移](adr/0011-shared-core-and-capability-adapters.md)说明 Node.js／Electron 的目标结构。
+`src/websensa/app.tsx` 与服务界面挂载同一个 `src/web/app.js` 工作台。`createBrowserWorkbench` 在页面内创建 `RuntimeEngine`、`ApplicationFacade` 与共享 `OutputCoordinator`，由 `RuntimeClient` 将本地请求与快照适配为远程工作台使用的接口。手动输入、funscript、计算信号、录制／回放与已连接的参数图解因此使用同一套应用行为。
 
-每个输出按序写入并保留连接代次；兼容 WebSocket 使用者共用目标连接，使用者结束时清理其排队工作。停止先清空待发指令，再调用适配器停止操作。脚本时钟与传输依赖可注入以便单元测试，浏览器权限请求由用户连接操作触发。
+浏览器适配器提供 WebSocket、fetch、Web Serial、Web Bluetooth、Web MIDI 与录制文件下载，宿主能力清单决定可选项目。明确选择设备时触发权限请求。配置保存在浏览器本地存储，完成的录制归当前页面持有。[WebSensa 指南](websensa.md)
 
 ## 桌面启动与实例归属
 
-一个配置由一个进程持有。再次启动时联系持有进程并复用其工作台，页面存活状态决定是否打开新页。命名实例分别保存全新配置。启动时绑定配置端口或可用端口，并报告实际地址；共用入口的协议来源一起调整。手动保存配置保留冲突校验。
+Node CLI 持有引擎，提供随包工作台、参数图解与 WebSensa 资源。发布的单文件程序内含 Node 运行时、应用与资源。Electron 将同一 CLI 打包为服务子进程，通过就绪／停止 IPC 协调生命周期；应用命令仍使用共享 HTTP／WebSocket 入口。
+
+一个配置由一个进程持有。再次启动时联系持有进程并复用其工作台，页面存活状态决定是否打开新页。命名实例分别保存独立配置。启动时绑定配置端口或可用端口，并报告实际地址；共用入口的协议来源一起调整。手动保存配置保留冲突校验。
 
 配置归属与实例协调独立于跨标签页实时共享，后台服务可以关闭自动打开浏览器。[启动选项](quick-start.md#运行多个实例)
 
@@ -136,6 +148,6 @@ React 使用原生控件、对话框与语义标签，本地样式呈现 TDesign
 
 ## 验证边界
 
-时间通过 TimeProvider 注入；隔离测试使用虚拟时钟、回环端口和模拟传输。安装器在写入前预检受管源码，保留用户改动；完整进程清理由公共冒烟工具负责。
+宿主注入时钟与传输工厂，隔离测试使用虚拟时间、进程内回环端口与模拟设备，核对协议字节、会话归属、停止屏障和生命周期清理。安装器在写入前预检受管源码，保留用户改动；完整进程清理由公共冒烟工具负责。
 
 CI 将单元测试、完整 E2E 和隔离原生冒烟作为构建与发布条件，浏览器与进程检查使用模拟传输。EditMode、元数据和浏览器模拟分别验证作者处理、资产结构与界面行为；真实上传、客户端和硬件行为须在对应环境中验收。World PlayMode 和真实客户端检查另行安排，流程见[开发与发布](development.md)。

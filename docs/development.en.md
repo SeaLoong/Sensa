@@ -4,6 +4,8 @@
 
 Develop against one source commit, run the affected unit checks, then let CI verify the full browser workflows and native packages. Successful main builds publish a preview; the Release workflow applies the same gates to stable publication. Pages verifies its static artifact before deploying it.
 
+Before running the full script unit suite locally, run `python -m pip install -r scripts/requirements-capture.txt` to install the pinned Pillow version required by PNG regressions. The shared CI checks install the same dependencies automatically.
+
 ## What happens when I commit code?
 
 | Action | Automatic result |
@@ -13,19 +15,24 @@ Develop against one source commit, run the affected unit checks, then let CI ver
 | Change documents or site files on `main` | Build the site, run site-specific E2E and deploy automatically without a manual Pages run |
 | Run `release.yml` manually | Resolve latest `main`, check/build/publish a stable Release, then refresh the site and VPM automatically |
 
-Both release channels include Windows installers, Windows standalone executables, six portable desktop archives and a Unity ZIP. Cleanup retains the newest **10 published pre-releases**, preserving stable releases, unpublished drafts and Git tags. VPM contains Unity packages from stable releases only.
+Both channels share 17 deliverable packages: six Node CLI archives, six Electron Desktop archives, CLI installers and single EXEs for both Windows architectures, and a Unity ZIP. Previews add `SHA256SUMS.txt` for **18 published assets**; stable releases also include `vpm-package.json` for **19 published assets**. Cleanup retains the newest **10 published pre-releases**, preserving stable releases, unpublished drafts and Git tags. VPM contains Unity packages from stable releases only.
 
 | System and format | Architecture | Example filename | Start |
 | --- | --- | --- | --- |
-| Windows installer (recommended) | x64/ARM64 | `Sensa-<version>-win-<architecture>-Setup.exe` | Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides, Shader and serial/BLE bridge tools; no administrator access needed |
-| Windows single file | x64/ARM64 | `Sensa-<version>-win-<architecture>-SingleFile.exe` | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get Python bridge tools and full Markdown guides from the installer or portable archive |
-| Windows/Linux/macOS portable | x64/ARM64 | `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
+| Electron Desktop portable | Windows/Linux/macOS × x64/ARM64 | `Sensa-<version>-<platform>-<architecture>-Desktop.zip`/`.tar.gz` | Extract the complete archive and open `Sensa.exe`, `./Sensa` or `Sensa.app`. Windows/macOS use ZIP; Linux uses tar.gz. The workbench opens in its embedded window |
+| Windows CLI installer | x64/ARM64 | `Sensa-<version>-win-<architecture>-Setup.exe` | Installs for the current user under `%LOCALAPPDATA%\Programs\Sensa`, opens the browser from the Start menu and includes offline guides, Shader and serial/BLE bridge tools; no administrator access needed |
+| Windows CLI single file | x64/ARM64 | `Sensa-<version>-win-<architecture>-SingleFile.exe` | Run one EXE directly with its built-in Web UI and interactive explorer; no adjacent application files required. Get Python bridge tools and full Markdown guides from the installer or portable archive |
+| Windows/Linux/macOS CLI portable | x64/ARM64 | `Sensa-<version>-<platform>-<architecture>.zip`/`.tar.gz` | Folder-based portable distribution with offline guides and tools; extract the complete archive before running. Windows uses ZIP; other systems use tar.gz |
 
 [Downloads](https://github.com/SeaLoong/Sensa/releases/latest) links directly to GitHub's latest stable release entry. When no stable release exists, GitHub redirects this address to release history. Development previews and older builds are listed separately in [release history](https://github.com/SeaLoong/Sensa/releases). Download desktop packages, the Unity ZIP and `SHA256SUMS.txt` checksums from the chosen release's assets.
 
-All desktop formats are self-contained and require no separately installed .NET runtime. For standalone Windows EXEs, .NET extracts native libraries to its cache while the application reads Web content from its assembly. Configuration `config.json` and recording-output `recordings` default to the executable directory, with environment-variable overrides available. Workbench funscript exports use `Sensa/recordings` under your Documents folder. Installer updates and uninstall retain user-created data. Keep standalone EXEs in a writable folder. The installer and application are not code-signed; Windows may show a publisher or reputation prompt.
+Native SEA distributions use exactly **Node 24.22.2**, tied to the verified official license hash; bundle-only and source development accept the 24.22.2+ range in `engines`. Portable directories include `THIRD-PARTY-NOTICES.txt`; the CLI serves the same content at `/THIRD-PARTY-NOTICES.txt`, including single-file builds. esbuild LEGAL files cover their bundled-code notices rather than the complete dependency license inventory.
 
-Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first eight commit characters>` after the version; stable filenames do not. Release notes lead with Windows x64/ARM64 installer asset links for that build. Preview notes follow with a **Source** link to the full build commit and omit the changelog.
+Current application builds include their Node runtime and web assets. Electron includes that same CLI service; Windows installers and single EXEs remain CLI formats. Serial/MIDI native dependencies are embedded in the SEA and verified before extraction to a private temporary directory. CLI configuration defaults beside its executable; Electron uses `Sensa/config.json` under user application data. `SENSA_CONFIG_PATH` or `--config` selects a shared profile. Recording outputs default to `recordings` beside that profile, overridden by `SENSA_RECORDINGS_PATH`; workbench exports are browser downloads. Updates and uninstall retain user data. Keep a single EXE in a writable directory. Downloads have no publisher code signature.
+
+On Ubuntu 24.04 with restricted user namespaces, the Linux Desktop archive includes `sensa-linux-sandbox.py install` to register an AppArmor permission for its exact executable path. Run it with `python3` as the desktop user; only fixed system utilities use sudo, never the application or script. Run its `remove` command before moving or deleting the directory. Native CI uses the same packaged helper, verifies the actual Electron process label, and removes only its own unchanged registration in finally while checking the kernel restriction stays unchanged. See [Quick start](quick-start.en.md) for commands. The policy follows [Ubuntu's per-application user-namespace permission](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces), retaining Chromium's sandbox and global restrictions.
+
+Automatic pre-release filenames append `-preview.<run number>.<attempt>.<first eight commit characters>` after the version; stable filenames do not. Release notes lead with x64/ARM64 Electron Desktop links for each system, then list CLI formats and checksums. Preview notes follow with a **Source** link to the full build commit and omit the changelog.
 
 ## How do I publish a stable release?
 
@@ -43,11 +50,11 @@ Automatic selection considers the repository version and existing stable tags. A
 | File | Actions name | Responsibility |
 | --- | --- | --- |
 | `ci.yml` | CI | Automatic PR/main checks and builds; automatic main pre-releases |
-| `checks.yml` | Checks | Shared Web/.NET/Python units, Unity metadata and E2E checks |
+| `checks.yml` | Checks | Shared Web/Node/Python units, four strict TypeScript projects, Unity metadata and E2E checks |
 | `codeql.yml` | CodeQL Advanced | Four-language analysis, traced C# builds, measured quality and complete source coverage |
 | `e2e.yml` | E2E | Browser behavior and normal screenshot comparison; manual baseline candidates |
 | `update-e2e.yml` | Update E2E | Manual test/candidate maintenance through a review PR; no AI key in default mode |
-| `build.yml` | Build | Shared six-platform portable archives, Windows installers/standalone EXEs, isolated native smoke and Unity packaging |
+| `build.yml` | Build | Six-platform CLI and Electron archives, Windows CLI installers/single EXEs, isolated native smoke and Unity packaging |
 | `release.yml` | Release | Manually started stable publication from latest `main` |
 | `pages.yml` | Pages | Automatic site build, site E2E, page deployment and VPM |
 
@@ -61,9 +68,9 @@ Default `screenshots` mode runs the full E2E suite and generates application bas
 
 ## How are release notes generated?
 
-Automatic pre-releases start with Windows x64/ARM64 installer download links for that build, followed by exact links for the other formats and checksums, then a **Source** link to the full commit. They do not generate a changelog.
+Automatic pre-releases start with Electron Desktop links for that build, followed by exact CLI, Unity and checksum links, then a **Source** link to the full commit. They do not generate a changelog.
 
-Stable release notes also lead with installer download links, then combine GitHub changes, direct commit history and bilingual download guidance:
+Stable release notes also lead with Desktop download links, then combine GitHub changes, direct commit history and bilingual download guidance:
 
 - Changes, Pull Requests and contributors between the previous stable release and the selected commit.
 - Version, full commit, check/build run links and download guidance for operating system/processor choices.
@@ -74,7 +81,7 @@ Use change titles that describe an observable user benefit. Generated notes use 
 
 ## Maintaining scanners and workflow dependencies
 
-Dependabot checks application and test NuGet projects, root npm dependencies, pip manifests under `scripts`, and GitHub Actions weekly. Existing React security-update groups remain enabled. Version-update configuration and security-alert settings are separate; updating a manifest does not establish that alerts are closed. NuGet design-time metadata discovery does not build frontend assets. Ordinary Build/Publish still runs `npm run build:web`; an updater without npm must not cause Web assets to be silently skipped in normal builds.
+Dependabot checks root npm dependencies, pip manifests under `scripts` and `tools/protocol-bridge`, and GitHub Actions weekly, retaining React security-update groups. The migrated application removes the old host NuGet entries; real Unity C# references and complete scanning remain. Version updates and security alerts are separate; verify individual alert status after dependency changes. Normal application builds always generate `npm run build:web` assets first.
 
 Browser jobs pin both the Playwright image version tag and the official registry OCI digest. When upgrading, update npm Playwright and all three browser jobs, checking the official manifest SHA-256 against `Docker-Content-Digest`; format tests do not authenticate the digest. All artifact downloads explicitly fail on digest mismatch, preserving the pinned Action's existing default protection.
 
@@ -88,7 +95,7 @@ CodeQL's cache-poisoning model may classify expressions named `ref` or `commit` 
 
 ### C# analysis quality and advanced setup
 
-The advanced workflow preserves Actions, C#, JavaScript/TypeScript and Python and their existing `/language:<language>` categories. It uses the same default query suite and remote threat model as the original default setup, without additional query filters. Manual C# extraction uses the pinned SDK, locked restore and fresh application/test compilation, including generated sources. Real Unity/VRChat references also compile the Unity package and both lab tools. External references are built before CodeQL initialization; repository sources are rebuilt afterward.
+The advanced workflow preserves Actions, C#, JavaScript/TypeScript and Python and their existing `/language:<language>` categories. It uses the same default query suite and remote threat model as the original default setup, without additional query filters. Manual C# extraction uses the pinned SDK and real Unity/VRChat references to compile the retained Unity package and both lab tools. JavaScript/TypeScript analysis covers the Node host. External references are built before CodeQL initialization; repository sources are rebuilt afterward.
 
 `scripts/codeql-unity.py` prepares real compiler references using the official sources, versions, archive hashes and individual file hashes in `.github/codeql/unity-sources.json`. It extracts only locked SDK references, never launches the Unity Editor and uses no stub types. Static compilation does not establish Unity test, PlayMode, client or hardware acceptance. New source files or assembly definitions must enter the real compilation plan; directory exclusions must not reduce coverage.
 
@@ -107,25 +114,25 @@ The repository already contains a validated `codeql.yml`; no new workflow file i
 
 Official guidance: [Disable default setup to unblock SARIF upload](https://docs.github.com/en/code-security/reference/code-scanning/sarif-files/troubleshoot-sarif-uploads/default-setup-enabled#disabling-default-setup-to-unblock-sarif-upload).
 
-Intiface output retains the Buttplug 5.0.1 client and wire v4. Its transport adapter assembles complete fragmented WebSocket messages, limits each to 1 MiB and strictly validates UTF-8/JSON with maximum depth 64; binary or invalid data closes that connection. Failed connection setup releases the socket, ends reception and clears the client so retries do not retain an old session. Isolated contracts cover fragmentation, multibyte names, large device lists and failed-connection cleanup.
+Node Intiface output uses a shared connection pool and Buttplug wire v4 codecs; browser output uses wire v3, and virtual-device inputs provide v2/v3/v4. Node transport assembles complete WebSocket messages, limits each to 1 MiB and checks UTF-8/JSON with maximum depth 64. Invalid messages or failed initialization close that connection and clear pending requests. Isolated contracts cover fragmentation, multibyte names, feature mappings, leases and failure cleanup.
 
 React 19 production builds and component SSR tests use the automatic JSX transform. Test loaders share both `react` and `react/*` runtimes to avoid bundling a second JSX/Hooks instance.
 
 ## Where should I look after a failure?
 
-Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. Cases suppressed by the failure limit are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
+Open the Actions run, then inspect failing steps and the Job summary. E2E `summary.json`/`summary.md` separately record passed, failed, skipped, unrun, interrupted and flaky cases. The full suite continues after individual failures; cases not reached before a workflow timeout or interruption are recorded as unrun. See the [verification record](e2e-status.en.md) for recorded outcomes. After screenshot failures, inspect expected/actual/diff, review intentional changes, update the baselines and run a full normal comparison.
 
 Application E2E, candidate capture and Pages site checks use the same Playwright container version, which provides the browser and its system dependencies. A shared installer adds Chinese fonts and the mock runtime while preserving fontconfig rules. The full application browser job has a 35-minute budget for both viewports, both languages and multi-tab connection cases.
 
 Dependency installation uses official Ubuntu sources and makes up to two attempts, each limited to 130 seconds with five more seconds to terminate processes. APT uses a 15-second network timeout and one retry per download; the step budget is five minutes. The second attempt completes pending package configuration with `dpkg --configure --pending` and uses a temporary source file to switch the Azure Ubuntu mirror to official `https://archive.ubuntu.com/ubuntu`. The original source file, suites, components and signature settings stay intact. Fonts use the version and SHA-256 selected by the first successful index update. Recovery, index verification and installation share the same budget; verification continues after installation succeeds.
 
-Native builds run all six portable programs with isolated smoke configuration; Windows also runs Shader bridge mock replay. Standalone Windows programs repeat smoke from a publish directory containing only one EXE, checking APIs, the Web UI and the local explorer. Installer checks silently install into a temporary directory, verify the installed binary and offline tools, run isolated application smoke, then uninstall and check that user configuration and recordings survive. Installation, startup and uninstall run only on native Windows Actions runners without real hardware.
+Native builds smoke all six CLI and Electron portable programs with isolated configuration, checking embedded CLI commit/byte identity, actual service URLs, renderer isolation, native dependency loading and shutdown cleanup. Windows also runs Shader bridge mock replay. Standalone Windows programs repeat smoke from a publish directory containing only one EXE, checking APIs, the Web UI and the local explorer. Installer checks silently install into a temporary directory, verify the installed binary and offline tools, run isolated application smoke, then uninstall and check that user configuration and recordings survive. Installation, startup and uninstall run only on native Windows Actions runners without real hardware.
 
 Windows x64/ARM64 builds also install the pinned BLE input/output dependencies and verify actual WinRT/Bleak APIs and a native buffer byte round-trip, without enumerating adapters, creating GATT services or starting advertising. Each platform uploads `protocol-bridge-dependencies.json` with its native test artifacts. This dependency check does not establish real Bluetooth hardware acceptance.
 
 Installers use pinned Inno Setup 6.7.3. The bootstrap downloads its compiler installer from the official GitHub Release, checks the repository-pinned SHA-256 and a valid Authenticode signature from official publisher `Pyrsys B.V.`, then executes it. This verifies the build tool's source; it does not imply that Sensa downloads are code-signed.
 
-Packaging and publication accept ordinary files with portable archive paths. Publication requires all six portable archives, four additional Windows downloads and the Unity package, and verifies their platform checksums before creating a draft. After upload, it verifies names, sizes and SHA-256 hashes, then rechecks the actual Git tag target immediately before publication. Failed uploads retain a draft for investigation. Rerunning a published preview verifies its existing assets and completes any remaining cleanup. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
+Packaging and publication accept ordinary files with portable archive paths. Publication requires six CLI archives, six Desktop archives, four additional Windows CLI downloads and the Unity package, verifying platform checksums before creating a draft. Adding the shared `SHA256SUMS.txt` produces 18 preview assets; stable releases also include `vpm-package.json` for 19 assets. After upload, it verifies names, sizes and SHA-256 hashes, then rechecks the actual Git tag target immediately before publication. Failed uploads retain a draft for investigation. Rerunning a published preview verifies its existing assets and completes any remaining cleanup. To publish newer code, start the stable workflow again so it resolves latest `main` and selects a new version.
 
 If **Update E2E** pushes its candidate branch but PR creation fails, use **Re-run failed jobs** after resolving the reported error. The publisher reuses the successful candidate attempt's branch after checking its parent commit and full file tree, and returns an existing draft PR when its repository, source SHA and review state match. A changed branch or closed review requires inspection. A full candidate rerun creates a new attempt for separate review. Test patches execute in a separate job; the publishing job reapplies checked files without running candidate code. Candidate images and assertion changes still receive review and a full normal comparison.
 
@@ -155,9 +162,7 @@ The sidebar includes Protocol inputs and Serial and Bluetooth bridges. The tools
 
 ## Local development and checks
 
-Use Node.js 24, Python 3.12+ and the .NET SDK in [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json). Plan affected checks before running them; unchanged source/toolchains can reuse successful local records.
-
-The .NET SDK is pinned to `10.0.403` with `rollForward: disable`. Actions and local commands run from the repository directory use this exact version. Update package lockfiles together with SDK upgrades, and check portable and single-file builds. Dependency restore stays in locked mode.
+Application development uses Node.js 24.22.2+ and Python 3.12+; Actions pins Node 24/Python 3.14. Plan affected checks before running them and reuse successful records for unchanged source/toolchains. Only the real Unity reference compilation for C# CodeQL requires the .NET SDK `10.0.403` pinned by [global.json](https://github.com/SeaLoong/Sensa/blob/main/global.json), with `rollForward: disable`. The Node application and unit tests require no .NET runtime or SDK.
 
 ```shell
 npm ci
@@ -169,22 +174,25 @@ Browser E2E, screenshots and full-process smoke run in Actions. Isolated units a
 
 ### TypeScript and runtime compatibility
 
-Use **Node 24.19.0 or later** for repository development and the pinned **TypeScript 7.0.2** compiler. The shared core and WebSensa use `.ts`/`.tsx`; `src/core/index.ts` is the public engine entry. The current desktop service remains .NET while local-service capabilities migrate behind the core interfaces.
+Use **Node 24.22.2 or later** and the pinned **TypeScript 7.0.2** compiler. `src/core/runtime` implements the shared `RuntimeEngine` and `ApplicationFacade`; `src/core/outputs` coordinates outputs. The Node CLI, Electron and browser-local host use the same application behavior. Unity authoring/build code remains C#.
 
 Typed sources use **Oxlint 1.90.0** and the TypeScript compiler; legacy JavaScript retains ESLint. The checked typescript-eslint 8.72.1 peer range excludes TypeScript 7, so this setup keeps the stable compiler instead of forcing incompatible peer dependencies. Only `jsx-a11y/prefer-tag-over-role` is disabled for `src/websensa/WebSensa.tsx`: its suggestions would replace legitimate inline SVG `role="img"`, status live regions and control groups with semantically different elements. Other configured lint checks remain active, and browser axe/interaction checks exercise the rendered pages.
 
-`npm run typecheck` checks browser sources and E2E type contracts separately, without emitting files. `tsconfig.json` retains browser globals; `tsconfig.e2e-types.json` uses the real Node and Playwright declarations to check test helper APIs such as screenshot options. Strict checking includes `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, unknown catch values, isolated modules and erasable-only syntax. Network payloads and native events enter typed boundaries through `unknown` and runtime validation. Existing desktop-UI JavaScript remains in the legacy lint lane; new shared-core/browser-adapter work belongs in the strict TypeScript lane.
+`npm run typecheck` runs four strict projects without emitting files: `tsconfig.json` (shared/browser), `tsconfig.node.json` (Node host and domain/component tests), `tsconfig.electron.json` (Electron shell) and `tsconfig.e2e-types.json` (real Node/Playwright test contracts). The Node project excludes DOM globals; browser and Electron projects keep their required declarations. Strict checking includes `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, unknown catch values, isolated modules and erasable-only syntax. Network payloads and native events enter typed boundaries through `unknown` and runtime validation. Existing desktop-UI JavaScript remains in the legacy lint lane; new shared-core/browser-adapter work belongs in the strict TypeScript lane.
 
 ```sh
 npm ci
 npm run typecheck
 npm test
+npm run test:node
 npm run build:web
 ```
 
+`npm test` runs lint, all four type projects and Web units. `npm run test:node` recursively runs the complete Node/domain inventory and writes `artifacts/test-results/backend/node.xml` JUnit plus `node-source.json`, recording the commit, Node version and every test file hash. Shared Checks uploads these as `tests-backend`.
+
 The core's erasable TypeScript can be imported by Node 24; esbuild bundles React TSX and browser adapters. Browser syntax targets remain **Chrome 110, Firefox 115 and Safari 16**; TypeScript uses an ES2023 standard-library baseline, with newer runtime APIs introduced through tested compatibility adapters. Device support uses callable API detection, not browser-version or user-agent guesses: Web Serial, Bluetooth and MIDI also require a secure context and the user's selected-device permission. Their absence keeps those choices unavailable; a usable WebSocket/HTTP endpoint or the desktop bridge provides another route.
 
-`src/websensa/capabilities.ts` reports actual available APIs and registered host factories. Detection does not open a connection or prompt for permission. A future Electron bridge registers a real adapter before advertising it. Node's real WebSocket/fetch can be used without pretending that browser device APIs exist. The explorer retains SVG when 3D rendering is unavailable; desktop tabs retain their SharedWorker → Web Locks/BroadcastChannel → per-tab connection fallback.
+`src/websensa/capabilities.ts` reports actual browser APIs and registered factories without opening connections or prompting for permission. Node reports its network, native serial/MIDI and bridge adapters through its capability inventory. Electron uses that same Node service; its renderer calls the HTTP/WebSocket application and never loads native device modules. The explorer retains SVG when 3D rendering is unavailable; desktop tabs retain their SharedWorker → Web Locks/BroadcastChannel → per-tab connection fallback.
 
 CI exercises the same built WebSensa files in the ordinary Chromium suite and a separate Firefox/WebKit compatibility job, with desktop and narrow viewports. The compatibility job checks real mock-endpoint delivery, capability fallback, keyboard use, axe and reflow, and gates publication. Execution results are recorded with their source commit.
 
@@ -194,13 +202,15 @@ Choose maintained stable dependencies, pin the selected versions and preserve th
 
 `npm run build:web` builds the desktop UI, WebSensa and the bundled parameter-explorer resources. `scripts/build-websensa.mjs` builds the standalone React entry point and its CSS/license notices once for use by Pages and desktop publication. The static route is `websensa/`; desktop HTTP serves `/websensa/`, and portable files live under `web/websensa/`.
 
+Start the development CLI with `npm start` or its embedded window with `npm run desktop`. `npm run build:desktop` prepares the development shell; platform builds generate native distributions. Development CLI configuration defaults to `config.json` in the working directory, while Electron uses `Sensa/config.json` under user application data. Both accept `SENSA_CONFIG_PATH`/`--config` for the same existing profile, read PascalCase properties and save canonical camelCase.
+
 WebSensa units inject clocks, WebSocket peers and browser device APIs. Actions opens the built page for complete control/script, shared-connection and mock-GATT flows. The explorer's handoff is an explicit browser connection and uses the same normalized axis values.
 
 Instance tests verify configuration ownership, stale-owner recovery, browser page presence and actual bind-based port fallback. Actions starts separate processes for repeated-launch and named-instance workflows. For manual development, `--config`, `--instance` and `--new-instance` select the desired setup; `--open-browser false` keeps the run headless. [User launch options](quick-start.en.md#run-several-instances)
 
 ### Optional serial and BLE bridges
 
-Portable archives and Windows installers include Python sources, bilingual instructions and dependency pins from `tools/protocol-bridge` through an explicit `scripts/release.py` allowlist. The installer reuses those files, with Actions checking their installed contents. Dependabot also maintains this directory's optional dependencies weekly, grouping BLE backends and native WinRT projections separately while preserving platform markers and security update checks. It does not install Python, virtual serial drivers or Python dependencies. The standalone EXE does not embed an interpreter. Obtain the tools from the portable archive or installer and install the requirements you need in your own Python virtual environment.
+CLI portable archives, Windows CLI installers and the CLI directory embedded in Electron include Python sources, bilingual instructions and dependency pins from `tools/protocol-bridge` through an explicit `scripts/release.py` allowlist. The installer reuses those files, with Actions checking their installed contents. Dependabot also maintains this directory's optional dependencies weekly, grouping BLE backends and native WinRT projections separately while preserving platform markers and security update checks. It does not install Python, virtual serial drivers or Python dependencies. The standalone EXE does not embed an interpreter. Obtain the tools from a portable archive, installer or Electron package and install the requirements in your own Python virtual environment. `SENSA_BRIDGE_PYTHON` and `SENSA_BRIDGE_SCRIPT` select the interpreter/script through the trusted host launch environment; they are not device configuration editable through the WebUI.
 
 ```shell
 python tools/protocol-bridge/bridge.py --check
@@ -223,7 +233,7 @@ This measures pure ranking time. E2E checks browser live updates, paging, frozen
 
 ## Verify outputs and shared sessions
 
-Protocol and transport changes use isolated codecs, mock transports and clocks to check value types, ranges, cancellation, stopping and reconnection. DG-LAB tests inspect pairing, device reports and RPC/task lifetime. Temporal computations check initial samples, changed provenance, invalidity and backward time. Recording checks bounded storage, escaping and sample timestamps.
+Protocol and transport changes use isolated codecs, mock transports and clocks to check value types, ranges, cancellation, stopping and reconnection. Natural script completion retains the final value and input activation; explicit pause/stop, input disable and emergency stop exercise their respective stop paths, while other Combined sources continue. DG-LAB tests inspect pairing, device reports and RPC/task lifetime. Temporal computations check initial samples, changed provenance, invalidity and backward time. Recording checks bounded storage, escaping and sample timestamps.
 
 Shared-session tests distinguish same-page reference counting, SharedWorker sharing, Web Locks ownership handoff, BroadcastChannel request correlation and the per-tab fallback. Actions browser cases open several pages and check partial closure, ownership handoff and reopening after all pages close. Isolated lifecycle unit tests check page-cache suspension and restoration. HTTP connection pools and server WebSocket budgets are observed separately. New output forms receive normal screenshot comparison and individual baseline inspection. [Architecture decision](adr/0008-signal-pipeline-and-shared-session.md) · [User guide](signal-pipeline.en.md)
 

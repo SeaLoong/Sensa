@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { t } from './i18n.js';
-import { Button } from './ui.jsx';
+import { Button } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { formatPreviewTimestamp, paginateOscPreview } from './osc-workspace.js';
 

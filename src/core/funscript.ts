@@ -1,6 +1,7 @@
 import type { Axis, FunscriptAction, Script, SignalValues } from './types.ts';
+import { motionAxes } from './runtime/model.ts';
 
-export const AXES = Object.freeze(['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0'] as const);
+export const AXES = Object.freeze(motionAxes);
 export function isAxis(value: unknown): value is Axis {
   return AXES.some(axis => axis === value);
 }
@@ -12,14 +13,32 @@ export function normalized(value: unknown): number {
 function record(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
-export function parseFunscript(input: unknown): Script {
+export interface FunscriptParseOptions {
+  maximumActions?: number;
+  /** Preserve established funscript import rules: clip, sort and skip malformed rows. */
+  normalizeActions?: boolean;
+}
+export function parseFunscript(input: unknown, options: FunscriptParseOptions = {}): Script {
+  const maximum = options.maximumActions ?? 200000;
+  if (!Number.isSafeInteger(maximum) || maximum < 1 || maximum > 500000) throw new Error('Invalid action limit.');
+  const normalize = options.normalizeActions === true;
   const value: unknown = typeof input === 'string' ? JSON.parse(input) : input;
-  if (!record(value) || !Array.isArray(value.actions) || !value.actions.length || value.actions.length > 200000)
-    throw new Error('Choose a funscript with 1–200000 actions.');
-  if (value.inverted !== undefined && typeof value.inverted !== 'boolean') throw new Error('Script inverted must be a boolean.');
+  if (!record(value) || !Array.isArray(value.actions) || !value.actions.length || !normalize && value.actions.length > maximum)
+    throw new Error(`Choose a funscript with 1–${maximum} actions.`);
+  if (!normalize && value.inverted !== undefined && typeof value.inverted !== 'boolean') throw new Error('Script inverted must be a boolean.');
   const actions: FunscriptAction[] = [];
+  const unordered = new Map<number, FunscriptAction>();
+  let imported = 0;
   const inputActions: unknown[] = value.actions;
   for (const action of inputActions) {
+    if (normalize) {
+      if (!record(action) || typeof action.at !== 'number' || !Number.isSafeInteger(action.at)
+        || typeof action.pos !== 'number' || !Number.isFinite(action.pos)) continue;
+      const at = Math.max(0, action.at), pos = Math.max(0, Math.min(100, action.pos));
+      if (at > 604800000 || ++imported > maximum) throw new Error('Script exceeds the duration or action limit.');
+      unordered.set(at, Object.freeze({ at, pos: value.inverted === true ? 100 - pos : pos }));
+      continue;
+    }
     if (!record(action) || typeof action.at !== 'number' || !Number.isSafeInteger(action.at) || action.at < 0 || action.at > 604800000
       || typeof action.pos !== 'number' || !Number.isInteger(action.pos) || action.pos < 0 || action.pos > 100)
       throw new Error('Actions need integer milliseconds and positions from 0 to 100.');
@@ -29,6 +48,7 @@ export function parseFunscript(input: unknown): Script {
     if (previous?.at === action.at) actions[actions.length - 1] = next;
     else actions.push(next);
   }
+  if (normalize) for (const action of [...unordered.values()].sort((a, b) => a.at - b.at)) actions.push(action);
   const last = actions.at(-1);
   if (!last) throw new Error('Choose a funscript with at least one action.');
   return Object.freeze({ actions: Object.freeze(actions), durationMs: last.at });

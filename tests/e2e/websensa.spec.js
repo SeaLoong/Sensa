@@ -4,6 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { buildPages } from '../../scripts/build-pages.mjs';
+import { addWorkbenchOutput, inputActivation, manualMotion, openWorkbench, uploadWorkbenchScript } from './websensa-workbench.js';
 
 let server, sockets, directory, base;
 const commands = [], requests = [], connections = [];
@@ -53,98 +54,104 @@ test.beforeAll(async () => {
 test.beforeEach(() => { commands.length = 0; requests.length = 0; connections.length = 0; });
 test.afterEach(() => { for (const socket of sockets.clients) socket.terminate(); });
 test.afterAll(async () => { if (sockets) await new Promise(resolve => sockets.close(resolve)); if (server) await new Promise(resolve => server.close(resolve)); });
-async function open(page) { await page.goto(base + '/Sensa/websensa/?lang=en'); await expect(page.getByRole('heading', { name: 'Put signals to work' })).toBeVisible(); }
-async function outputPage(page) { await page.getByRole('tab', { name: /^Outputs/ }).click(); }
-async function addOutput(page, type, endpoint) {
-  await outputPage(page); await page.getByLabel('Output type').selectOption(type);
-  if (endpoint) await page.getByLabel('Endpoint URL').fill(endpoint);
-  await page.getByRole('button', { name: 'Connect output', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeEnabled();
-  await expect(page.getByRole('alert')).toHaveCount(0);
-}
-async function setRange(locator, value) { await locator.evaluate((element, next) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(next)); element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true })); }, value); }
+async function open(page) { await openWorkbench(page, base + '/Sensa/websensa/?lang=en'); }
 
 test('@site @transport WebSensa sends manual fanout and scripts to actual independent WS/HTTP mock endpoints without a backend', async ({ page }, info) => {
   await open(page);
-  await addOutput(page, 'tcode-ws', base.replace('http:', 'ws:') + '/tcode');
-  await addOutput(page, 'json-ws', base.replace('http:', 'ws:') + '/json');
-  await addOutput(page, 'http', base + '/sink');
-  await expect(page.getByText('3 connected', { exact: true })).toBeVisible();
+  await addWorkbenchOutput(page, 'TCodeWebSocket', base.replace('http:', 'ws:') + '/tcode');
+  await addWorkbenchOutput(page, 'SensaWebSocket', base.replace('http:', 'ws:') + '/json');
+  await addWorkbenchOutput(page, 'SensaHttp', base + '/sink');
+  await expect(page.locator('.output-card')).toHaveCount(3);
   expect(commands.filter(item => item.type === 'tcode' && item.value.startsWith('L0'))).toHaveLength(0);
-  await page.getByRole('tab', { name: /^Control/ }).click();
-  await setRange(page.getByLabel('L0 Stroke'), 73);
-  await page.getByLabel('Input enabled').check();
-  await expect.poll(() => commands.some(item => item.type === 'tcode' && item.value === 'L07299\n')).toBe(true);
+  await manualMotion(page, 'L0', 730);
+  await inputActivation(page).check();
+  await expect.poll(() => commands.some(item => item.type === 'tcode' && item.value === 'L0729\n')).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'json' && item.value.values?.L0 === .73)).toBe(true);
   await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .73)).toBe(true);
-  await page.getByLabel('Record L0 track').check(); await setRange(page.getByLabel('L0 Stroke'), 81);
-  const downloadEvent = page.waitForEvent('download'); await page.getByRole('button', { name: 'Download recording' }).click();
-  const download = await downloadEvent; expect(download.suggestedFilename()).toBe('WebSensa-recording.funscript');
-  await page.getByRole('button', { name: 'Script', exact: true }).click(); await expect(page.getByLabel('Input enabled')).not.toBeChecked();
-  await page.getByLabel('Funscript file').setInputFiles({ name: 'nonzero.funscript', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ actions: [{ at: 0, pos: 80 }, { at: 60000, pos: 20 }] })) });
-  await expect(page.getByText(/0\.00 s \/ 60\.00 s · 80%/)).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeDisabled();
-  await page.getByLabel('Loop', { exact: true }).check(); await page.getByLabel('Playback speed').selectOption('2');
-  await page.getByLabel('Input enabled').check(); await page.getByRole('button', { name: 'Play', exact: true }).click();
+  await page.locator('.recording-panel summary').click();
+  await page.getByRole('button', { name: 'Start recording', exact: true }).click();
+  await manualMotion(page, 'L0', 810);
+  await expect.poll(() => commands.some(item => item.type === 'http' && item.value.values?.L0 === .81)).toBe(true);
+  const downloadEvent = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Stop recording and export', exact: true }).click();
+  const download = await downloadEvent;
+  expect(download.suggestedFilename()).toMatch(/\.funscript$/);
+  const recording = JSON.parse(await fs.readFile(await download.path(), 'utf8'));
+  expect(recording.version).toBe('1.0'); expect(recording.range).toBe(100);
+  expect(recording.actions.some(action => action.pos === 81)).toBe(true);
+  expect(recording.actions.every(action => Number.isInteger(action.at) && action.at >= 0 && action.pos >= 0 && action.pos <= 100)).toBe(true);
+  await uploadWorkbenchScript(page, 'nonzero.funscript', [{ at: 0, pos: 80 }, { at: 60000, pos: 20 }]);
+  await expect(inputActivation(page)).not.toBeChecked();
+  const beforePlay = commands.filter(item => item.type === 'json' && item.value.type === 'signal').length;
+  await page.getByRole('button', { name: 'Play', exact: true }).click();
+  // Playback can be prepared while inactive; it cannot emit until enabled.
+  expect(commands.filter(item => item.type === 'json' && item.value.type === 'signal')).toHaveLength(beforePlay);
+  await page.getByLabel('Loop', { exact: true }).check();
+  await page.getByLabel('Playback speed', { exact: true }).selectOption('2');
+  await inputActivation(page).check();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
-  await expect.poll(() => commands.filter(item => item.type === 'json' && item.value.type === 'signal').length).toBeGreaterThan(2);
-  await page.getByRole('button', { name: 'Emergency stop', exact: true }).click(); await expect(page.getByLabel('Input enabled')).not.toBeChecked();
+  await expect.poll(() => commands.filter(item => item.type === 'json' && item.value.type === 'signal').length).toBeGreaterThan(beforePlay + 2);
+  await page.getByRole('button', { name: 'Emergency stop', exact: true }).click();
+  await expect(inputActivation(page)).not.toBeChecked();
   await expect.poll(() => commands.filter(item => item.type === 'tcode').at(-1)?.value).toBe('DSTOP\n');
   await expect.poll(() => commands.filter(item => item.type === 'json').at(-1)?.value.type).toBe('stop');
   await expect.poll(() => commands.filter(item => item.type === 'http').at(-1)?.value.type).toBe('stop');
   const sent = commands.filter(item => item.value?.type === 'signal' || item.type === 'tcode' && item.value.startsWith('L0')).length;
-  await page.getByRole('button', { name: 'Clear stop', exact: true }).click(); await page.waitForTimeout(180);
+  await page.getByRole('button', { name: 'Release emergency stop', exact: true }).click(); await page.waitForTimeout(180);
   expect(commands.filter(item => item.value?.type === 'signal' || item.type === 'tcode' && item.value.startsWith('L0')).length).toBe(sent);
   expect(requests.some(endpoint => /^\/(api|ws)(\/|$)/.test(endpoint))).toBe(false);
-  await info.attach('websensa-fanout.json', { body: JSON.stringify({ commands, connections, backendRequests: false }), contentType: 'application/json' });
+  await info.attach('websensa-fanout.json', { body: JSON.stringify({ commands, connections, backendRequests: false, recording }), contentType: 'application/json' });
   await info.attach('websensa-control-' + info.project.name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });
 
-test('@site @transport WebSensa multiplexes two Intiface devices through one actual socket and stops/removes only their device owner', async ({ page }, info) => {
-  await open(page); await outputPage(page);
-  await page.getByLabel('Endpoint URL').fill(base.replace('http:', 'ws:') + '/intiface');
-  await page.getByRole('button', { name: 'Scan devices' }).click(); await expect(page.getByLabel('Device and feature')).toBeVisible();
-  await page.getByLabel('Device and feature').selectOption('0:LinearCmd:0'); await page.getByRole('button', { name: 'Connect output', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeEnabled();
-  await page.getByRole('button', { name: 'Scan devices' }).click(); await page.getByLabel('Device and feature').selectOption('1:ScalarCmd:0');
-  await page.getByRole('button', { name: 'Connect output', exact: true }).click(); await expect(page.getByText('2 connected', { exact: true })).toBeVisible();
-  expect(connections.filter(endpoint => endpoint === '/intiface')).toHaveLength(1);
+test('@site @transport WebSensa multiplexes two Intiface devices through one actual socket and preserves the remaining owner', async ({ page }, info) => {
+  await open(page);
+  const endpoint = base.replace('http:', 'ws:') + '/intiface';
+  const position = await addWorkbenchOutput(page, 'Intiface', endpoint, { name: 'Position output', deviceName: 'Position device' });
+  const vibration = await addWorkbenchOutput(page, 'Intiface', endpoint, { name: 'Vibration output', deviceName: 'Vibration device' });
+  expect(connections.filter(connectionEndpoint => connectionEndpoint === '/intiface')).toHaveLength(1);
   expect(commands.filter(item => ['LinearCmd', 'ScalarCmd'].includes(item.command))).toHaveLength(0);
-  await page.getByRole('tab', { name: /^Control/ }).click(); const vibrationAxis = page.locator('.websensa-axis-choices').getByRole('checkbox', { name: 'V0', exact: true }); await vibrationAxis.click(); await expect(vibrationAxis).toBeChecked();
-  await setRange(page.getByLabel('L0 Stroke'), 64); await setRange(page.getByLabel('V0 Intensity'), 38); await page.getByLabel('Input enabled').check();
-  await expect.poll(() => commands.some(item => item.command === 'LinearCmd' && item.body.DeviceIndex === 0 && item.body.Vectors[0].Position === .64)).toBe(true);
+  const vibrationAxis = page.getByRole('group', { name: 'Motion axes', exact: true }).getByRole('checkbox', { name: 'V0', exact: true });
+  await vibrationAxis.check();
+  await manualMotion(page, 'L0', 640); await manualMotion(page, 'V0', 380); await inputActivation(page).check();
+  await expect.poll(() => commands.some(item => item.command === 'LinearCmd' && item.body.DeviceIndex === 0 && item.body.Vectors[0].Position === .36)).toBe(true);
   await expect.poll(() => commands.some(item => item.command === 'ScalarCmd' && item.body.DeviceIndex === 1 && item.body.Scalars[0].Scalar === .38)).toBe(true);
-  await outputPage(page); const outputs = page.locator('.websensa-row'); await expect(outputs).toHaveCount(2);
-  await outputs.first().getByRole('button', { name: 'Disconnect and remove' }).click(); await expect(outputs).toHaveCount(1);
-  await expect.poll(() => commands.filter(item => item.command === 'StopDeviceCmd').at(-1)?.body.DeviceIndex).toBe(0);
+  await inputActivation(page).uncheck();
+  await expect.poll(() => new Set(commands.filter(item => item.command === 'StopDeviceCmd').map(item => item.body.DeviceIndex)).size).toBe(2);
+  await position.getByRole('button', { name: 'Remove', exact: true }).click();
+  await expect(page.locator('.output-card')).toHaveCount(1);
+  await expect(vibration.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
+  // Configuration changes share the desktop's explicit reactivation behavior.
+  // The untouched device retains its socket and resumes only when requested.
   const scalarBefore = commands.filter(item => item.command === 'ScalarCmd').length;
+  const positionBefore = commands.filter(item => item.command === 'LinearCmd').length;
+  await inputActivation(page).check();
   await expect.poll(() => commands.filter(item => item.command === 'ScalarCmd').length).toBeGreaterThan(scalarBefore);
-  expect(connections.filter(endpoint => endpoint === '/intiface')).toHaveLength(1);
-  await page.getByLabel('Input enabled').uncheck();
+  expect(commands.filter(item => item.command === 'LinearCmd')).toHaveLength(positionBefore);
+  expect(connections.filter(connectionEndpoint => connectionEndpoint === '/intiface')).toHaveLength(1);
+  await inputActivation(page).uncheck();
   await expect.poll(() => commands.filter(item => item.command === 'StopDeviceCmd').at(-1)?.body.DeviceIndex).toBe(1);
-  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeEnabled();
-  await info.attach('websensa-intiface-multiplex.json', { body: JSON.stringify({ commands, connections }), contentType: 'application/json' });
+  await info.attach('websensa-intiface-multiplex.json', { body: JSON.stringify({ commands, connections, configurationChangesDeactivate: true }), contentType: 'application/json' });
   await info.attach('websensa-outputs-' + info.project.name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
 });
 
 test('@site @input WebSensa receives explicitly paired explorer frames without arming and expires a lost stream', async ({ page, context }, info) => {
-  // This same-origin parent supplies the real opener relationship; no browser
-  // hardware or executable backend participates in the cross-window exchange.
   await page.goto(base + '/Sensa/');
   const session = 'a'.repeat(32), popupEvent = context.waitForEvent('page');
-  await page.evaluate(url => { window.__websensa = window.open(url, 'websensa-test'); }, base + '/Sensa/websensa/?lang=en&input=explorer&session=' + session);
-  const popup = await popupEvent; await expect(popup.getByRole('heading', { name: 'Put signals to work' })).toBeVisible();
-  await popup.getByRole('button', { name: 'Parameter explorer', exact: true }).click();
-  await popup.getByRole('button', { name: 'Connect parameter explorer', exact: true }).click();
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.v1', session, sequence: 1, timestamp: Date.now(), axes: { L0: .72 } }, location.origin), { session });
-  await expect(popup.getByText('L0 72%', { exact: true })).toBeVisible(); await expect(popup.getByLabel('Input enabled')).not.toBeChecked();
-  await popup.getByLabel('Input enabled').check(); await expect(popup.getByLabel('Input enabled')).toBeChecked();
-  await expect(popup.getByLabel('Input enabled')).not.toBeChecked({ timeout: 5000 });
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.v1', session, sequence: 2, timestamp: Date.now(), axes: { L0: .9 } }, location.origin), { session });
-  await expect(popup.getByText('L0 90%', { exact: true })).toBeVisible(); await expect(popup.getByLabel('Input enabled')).not.toBeChecked();
-  await popup.getByLabel('Input enabled').check();
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.stop.v1', session, sequence: 3, timestamp: Date.now() }, location.origin), { session });
-  await expect(popup.getByLabel('Input enabled')).not.toBeChecked();
+  await page.evaluate(url => { window.websensaPopup = window.open(url, 'websensa-test'); }, base + '/Sensa/websensa/?lang=en&input=explorer&session=' + session);
+  const popup = await popupEvent;
+  await expect(popup.getByRole('heading', { name: 'WebSensa', exact: true })).toBeVisible();
+  await expect(inputActivation(popup)).toBeEnabled();
+  await popup.getByRole('button', { name: 'Connect parameter explorer', exact: true }).first().click();
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.v1', session: sessionId, sequence: 1, timestamp: Date.now(), axes: { L0: .72 } }, location.origin), { session });
+  await expect(popup.getByText('L0 72%', { exact: true })).toBeVisible(); await expect(inputActivation(popup)).not.toBeChecked();
+  await inputActivation(popup).check(); await expect(inputActivation(popup)).toBeChecked();
+  await expect(inputActivation(popup)).not.toBeChecked({ timeout: 5000 });
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.v1', session: sessionId, sequence: 2, timestamp: Date.now(), axes: { L0: .9 } }, location.origin), { session });
+  await expect(popup.getByText('L0 90%', { exact: true })).toBeVisible(); await expect(inputActivation(popup)).not.toBeChecked();
+  await inputActivation(popup).check();
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.stop.v1', session: sessionId, sequence: 3, timestamp: Date.now() }, location.origin), { session });
+  await expect(inputActivation(popup)).not.toBeChecked();
   await info.attach('websensa-explorer-lifecycle.json', { body: JSON.stringify({ origin: new URL(base).origin, explicitPairing: true, automaticActivation: false, expiryStopped: true, explicitStop: true }), contentType: 'application/json' });
   await popup.close();
 });

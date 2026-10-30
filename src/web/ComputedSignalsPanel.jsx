@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Badge, Button, Field } from './ui.jsx';
+import { Badge, Button, Field } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t, diagnostic, getLocale } from './i18n.js';
 import SignalSourceFields from './SignalSourceFields.jsx';

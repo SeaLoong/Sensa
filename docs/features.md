@@ -92,6 +92,6 @@ WebSensa 适合打开浏览器直接控制；Sensa 桌面版连接应用、定�
 
 ## 配置与开发
 
-桌面程序旁保存 `config.json`，命名实例使用独立文件夹。HTTP 和 WebSocket API 为自制工具提供工作台操作。[架构](architecture.md)
+CLI 发行版在程序旁保存 `config.json`，Electron 默认保存在用户应用数据目录的 `Sensa/config.json`；命名实例使用独立文件夹。HTTP 和 WebSocket API 为自制工具提供工作台操作。[架构](architecture.md)
 
 [开发与发布](development.md)说明构建和扫描维护，[验证记录](e2e-status.md)列出实际执行的自动检查及环境验收结果。

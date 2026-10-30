@@ -1,5 +1,9 @@
 import { isAxis, normalized, tcodeFrame } from '../core/index.ts';
 import type { Axis, Awaitable, NamedOutputTransport, SignalFrame } from '../core/index.ts';
+import type { IntifaceFeatureRoute, MotionAxis } from '../core/runtime/model.ts';
+import { isMotionAxis, neutralValues } from '../core/runtime/model.ts';
+import { resolveFeatureRoute, resolveFeatureRouteValue } from '../core/outputs/intiface-routing.ts';
+import type { OutputTarget } from '../core/outputs/telemetry.ts';
 import { BLUETOOTH_PROFILES, createBluetoothTransport } from './device-codecs.ts';
 import type { BluetoothAccess } from './device-codecs.ts';
 
@@ -17,6 +21,8 @@ export interface OutputConfig {
   mapDevice?: boolean;
   deviceId?: string;
   clockwise?: boolean;
+  featureMappings?: readonly IntifaceFeatureRoute[];
+  requireFeatureMappings?: boolean;
 }
 export interface SocketPort extends Pick<EventTarget, 'addEventListener' | 'removeEventListener'> {
   readonly readyState: number;
@@ -37,6 +43,7 @@ export interface SerialPortPort {
 export interface MidiPortPort {
   readonly id: string;
   readonly name?: string | null;
+  readonly state?: string;
   open(): Awaitable<unknown>;
   close(): Awaitable<unknown>;
   send(data: number[]): void;
@@ -55,11 +62,17 @@ export interface HttpReply {
 interface SocketEntry { readonly kind: 'socket'; socket: SocketPort; refs: number; ready: Promise<void> }
 interface IntifaceEntry { readonly kind: 'intiface'; peer: IntifacePeer; refs: number; ready: Promise<void> }
 export interface TransportDependencies {
+  onTargets?: (targets: readonly OutputTarget[]) => void;
   WebSocket?: new (url: string) => SocketPort;
   pool?: Map<string, SocketEntry | IntifaceEntry>;
   timeoutMs?: number;
   navigator?: NavigatorPorts;
   fetch?: (url: string, options: RequestInit) => PromiseLike<HttpReply>;
+}
+/** The shared TCode encoder supplies already encoded text for every host. */
+export interface EncodedOutputTransport extends NamedOutputTransport {
+  sendText?(text: string): Promise<void>;
+  readonly connected?: boolean;
 }
 export type IntifaceCommand = 'LinearCmd' | 'ScalarCmd' | 'RotateCmd';
 interface FeatureDescriptor { ActuatorType?: string; FeatureDescriptor?: string }
@@ -72,10 +85,13 @@ export interface IntifaceFeature {
   axis: Axis;
   actuator?: string;
   name: string;
+  deviceName: string;
 }
 export interface IntifaceDiscovery {
+  readonly connected: boolean;
   features: IntifaceFeature[];
   subscribeFeatures(listener: (features: IntifaceFeature[]) => void): () => void;
+  setScanning(enabled: boolean): Promise<void>;
   close(): void;
 }
 export interface MidiOutputDescription { id: string; name: string }
@@ -87,8 +103,9 @@ interface ScalarVector { Index: number; Scalar: number; ActuatorType?: string }
 interface RotationVector { Index: number; Speed: number; Clockwise: boolean }
 type CommandBody = { DeviceIndex: number; Vectors?: LinearVector[]; Scalars?: ScalarVector[]; Rotations?: RotationVector[] };
 export interface IntifaceTransport extends NamedOutputTransport {
+  readonly connected: boolean;
   readonly feature: IntifaceFeature;
-  readonly mappings: readonly (IntifaceFeature & { sourceAxis: Axis })[];
+  readonly mappings: readonly (IntifaceFeature & { sourceAxis: MotionAxis; invert?: boolean; directionAxis?: MotionAxis; clockwise?: boolean })[];
   readonly socket: SocketPort;
 }
 
@@ -311,7 +328,7 @@ class IntifacePeer {
           results.push({ id: `${device.DeviceIndex}:${command}:${index}`, deviceIndex: device.DeviceIndex, command, index,
             axis: command === 'LinearCmd' ? linear[Math.min(index, 2)] ?? 'L0' : command === 'RotateCmd' ? rotation[Math.min(index, 2)] ?? 'R0' : 'V0',
             ...(descriptor.ActuatorType === undefined ? {} : { actuator: descriptor.ActuatorType }),
-            name: `${device.DeviceName} · ${descriptor.FeatureDescriptor || descriptor.ActuatorType || command} ${index}` });
+            deviceName: device.DeviceName, name: `${device.DeviceName} · ${descriptor.FeatureDescriptor || descriptor.ActuatorType || command} ${index}` });
         }
       }
     }
@@ -342,12 +359,13 @@ export async function discoverIntiface(url: string, dependencies?: TransportDepe
   const lease = await acquireIntiface(url, dependencies);
   try {
     const features = await lease.peer.refresh(), subscriptions = new Set<() => void>(); let closed = false;
-    return { features, subscribeFeatures(listener) { const unsubscribe = lease.peer.subscribeFeatures(listener); subscriptions.add(unsubscribe); return () => { unsubscribe(); subscriptions.delete(unsubscribe); }; },
+    return { features, get connected() { return !closed && lease.peer.socket.readyState === 1; }, subscribeFeatures(listener) { const unsubscribe = lease.peer.subscribeFeatures(listener); subscriptions.add(unsubscribe); return () => { unsubscribe(); subscriptions.delete(unsubscribe); }; },
+      async setScanning(enabled) { const result = await lease.peer.request(enabled ? 'StartScanning' : 'StopScanning'); if (result.type !== 'Ok') throw new Error('Buttplug did not acknowledge scanning.'); },
       close() { if (closed) return; closed = true; for (const unsubscribe of subscriptions) unsubscribe(); subscriptions.clear(); void lease.peer.request('StopScanning').catch(() => {}); lease.release(); } };
   }
   catch (error) { lease.release(); throw error; }
 }
-export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' | 'axis' | 'featureId' | 'mapDevice' | 'clockwise'>, dependencies?: TransportDependencies): Promise<IntifaceTransport> {
+export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' | 'axis' | 'featureId' | 'mapDevice' | 'clockwise' | 'featureMappings' | 'requireFeatureMappings'>, dependencies?: TransportDependencies): Promise<IntifaceTransport> {
   const lease = await acquireIntiface(requiredUrl(config), dependencies);
   const features = lease.peer.features(), feature = config.featureId ? features.find(item => item.id === config.featureId) : features[0];
   if (!feature) { lease.release(); throw new Error('Scan and choose an available device feature.'); }
@@ -355,28 +373,54 @@ export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' |
   if (!isAxis(axis)) { lease.release(); throw new Error('Choose a source axis.'); }
   if (lease.peer.owners.has(feature.deviceIndex)) { lease.release(); throw new Error('This Intiface device already has an output. Use its existing feature mappings.'); }
   lease.peer.owners.add(feature.deviceIndex);
-  const mappings = config.mapDevice ? features.filter(item => item.deviceIndex === feature.deviceIndex
-    && (item.command === 'ScalarCmd' || item.index < 3)).map(item => ({ ...item, sourceAxis: item.axis }))
+  const matchingRoute = (item: IntifaceFeature) => {
+    const routes = config.featureMappings ?? [];
+    return item.command === 'LinearCmd'
+      ? resolveFeatureRoute(routes, item.deviceName, item.index, 'HwPositionWithDuration') ?? resolveFeatureRoute(routes, item.deviceName, item.index, 'Position')
+      : resolveFeatureRoute(routes, item.deviceName, item.index, item.command === 'RotateCmd' ? 'Rotate' : item.actuator ?? 'Vibrate');
+  };
+  const mappings: (IntifaceFeature & { sourceAxis: MotionAxis; invert?: boolean; directionAxis?: MotionAxis; clockwise?: boolean })[] = config.mapDevice ? features.filter(item => item.deviceIndex === feature.deviceIndex
+    && (item.command === 'ScalarCmd' || item.index < 3 || matchingRoute(item))
+    && (!config.requireFeatureMappings || matchingRoute(item))).map(item => {
+      const route = matchingRoute(item);
+      return { ...item, sourceAxis: route && isMotionAxis(route.sourceAxis) ? route.sourceAxis : item.axis,
+        ...(route ? { invert: route.invert, clockwise: route.clockwise, ...(isMotionAxis(route.directionAxis) ? { directionAxis: route.directionAxis } : {}) } : {}) };
+    })
     : [{ ...feature, sourceAxis: axis }];
   let closed = false, sending: AbortController | undefined;
-  return { interrupt() { sending?.abort(); }, name: config.mapDevice ? feature.name.split(' · ')[0] || feature.name : feature.name, feature, mappings, socket: lease.peer.socket,
+  const lastValues = neutralValues();
+  return { interrupt() { sending?.abort(); }, name: config.mapDevice ? feature.deviceName : feature.name, feature, mappings, socket: lease.peer.socket,
+    get connected() { return !closed && lease.peer.socket.readyState === 1; },
     async send(frame) {
       if (closed) throw new Error('The output is disconnected.');
       const abort = new AbortController(); sending = abort;
       const commands = new Map<IntifaceCommand, CommandBody>();
+      const acceptedTargets = new Map<IntifaceCommand, OutputTarget[]>();
+      const activeAxes: MotionAxis[] = [];
+      for (const [frameAxis, value] of Object.entries(frame.values)) {
+        if (!isMotionAxis(frameAxis) || value === undefined) continue;
+        lastValues[frameAxis] = normalized(value); activeAxes.push(frameAxis);
+      }
       for (const mapping of mappings) {
-        const source = frame.values[mapping.sourceAxis];
-        if (source === undefined) continue;
-        const value = normalized(source);
+        const route: IntifaceFeatureRoute = { deviceName: mapping.deviceName, featureIndex: mapping.index, outputType: mapping.command,
+          sourceAxis: mapping.sourceAxis, directionAxis: mapping.directionAxis ?? '', invert: mapping.invert ?? false,
+          clockwise: mapping.clockwise ?? config.clockwise !== false };
+        const resolved = resolveFeatureRouteValue(route, { values: lastValues, deltaMs: frame.durationMs, activeAxes });
+        if (!resolved.active) continue;
+        const value = resolved.value;
         let body = commands.get(mapping.command);
         if (!body) { body = { DeviceIndex: feature.deviceIndex }; commands.set(mapping.command, body); }
         if (mapping.command === 'LinearCmd') (body.Vectors ||= []).push({ Index: mapping.index, Position: value, Duration: frame.durationMs || 0 });
         else if (mapping.command === 'ScalarCmd') (body.Scalars ||= []).push({ Index: mapping.index, Scalar: value, ...(mapping.actuator === undefined ? {} : { ActuatorType: mapping.actuator }) });
-        else (body.Rotations ||= []).push({ Index: mapping.index, Speed: value, Clockwise: config.clockwise !== false });
+        else (body.Rotations ||= []).push({ Index: mapping.index, Speed: value, Clockwise: resolved.clockwise });
+        const targets = acceptedTargets.get(mapping.command) ?? [];
+        targets.push({ key: `#${feature.deviceIndex}/Feature${mapping.index}/${mapping.command === 'LinearCmd' ? 'HwPositionWithDuration' : mapping.command === 'RotateCmd' ? 'Rotate' : mapping.actuator ?? 'Vibrate'}`, label: mapping.name, value: value * 100, maximum: 100 });
+        acceptedTargets.set(mapping.command, targets);
       }
       try { for (const [command, body] of commands) {
         const result = await lease.peer.request(command, body, abort.signal);
         if (result.type !== 'Ok') throw new Error('Buttplug did not acknowledge the command.');
+        dependencies?.onTargets?.(acceptedTargets.get(command) ?? []);
       } } finally { if (sending === abort) sending = undefined; }
     },
     async stop() { if (!closed && lease.peer.socket.readyState === 1) await lease.peer.request('StopDeviceCmd', { DeviceIndex: feature.deviceIndex }); },
@@ -384,7 +428,7 @@ export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' |
   };
 }
 
-export async function createOutputTransport(config: OutputConfig, dependencies: TransportDependencies = {}): Promise<NamedOutputTransport> {
+export async function createOutputTransport(config: OutputConfig, dependencies: TransportDependencies = {}): Promise<EncodedOutputTransport> {
   const nav: NavigatorPorts = dependencies.navigator || globalThis.navigator || {};
   if (config.type === 'intiface') return createIntifaceTransport(config, dependencies);
   if (config.type === 'bluetooth') {
@@ -392,7 +436,7 @@ export async function createOutputTransport(config: OutputConfig, dependencies: 
     if (!profile) throw new Error('Choose a Bluetooth profile.');
     const transport = await createBluetoothTransport(profile.id, nav.bluetooth ? { bluetooth: nav.bluetooth } : {});
     const sourceAxis = config.axis || profile.axis;
-    return { ...transport, send: frame => {
+    return { ...transport, get connected() { return transport.connected; }, send: frame => {
       const value = frame.values[sourceAxis];
       return value === undefined ? Promise.resolve() : transport.send({ ...frame, values: { [profile.axis]: value } });
     } };
@@ -426,7 +470,8 @@ export async function createOutputTransport(config: OutputConfig, dependencies: 
     const selectedWriter = writer;
     let closed = false;
     const write = (bytes: string) => withDeadline(selectedWriter.write(new TextEncoder().encode(bytes)), timeoutMs, abandon);
-    return { name: 'TCode serial', async send(frame) { if (closed) throw new Error('Serial disconnected.'); await write(tcodeFrame(frame.values, frame.durationMs)); },
+    return { name: 'TCode serial', get connected() { return !closed && port.writable !== null; }, async sendText(text) { if (closed) throw new Error('Serial disconnected.'); await write(text); },
+      async send(frame) { if (closed) throw new Error('Serial disconnected.'); await write(tcodeFrame(frame.values, frame.durationMs)); },
       async stop() { if (!closed) await write('DSTOP\n'); },
       async close() { if (!closed) { closed = true; try { selectedWriter.releaseLock(); } catch { abandon(); } try { await withDeadline(port.close(), timeoutMs, abandon); } finally { release(); } } } };
   }
@@ -442,7 +487,7 @@ export async function createOutputTransport(config: OutputConfig, dependencies: 
     owners.add(key); midiOwners.set(output.id, owners);
     try { await output.open(); } catch (error) { owners.delete(key); if (!owners.size) midiOwners.delete(output.id); throw error; }
     let closed = false;
-    return { name: output.name || 'MIDI CC', async send(frame) { if (closed) throw new Error('MIDI disconnected.'); const value = frame.values[axis]; if (value !== undefined) output.send([0xb0 + channel - 1, cc, Math.round(normalized(value) * 127)]); },
+    return { name: output.name || 'MIDI CC', get connected() { return !closed && output.state !== 'disconnected'; }, async send(frame) { if (closed) throw new Error('MIDI disconnected.'); const value = frame.values[axis]; if (value !== undefined) output.send([0xb0 + channel - 1, cc, Math.round(normalized(value) * 127)]); },
       async stop() { if (!closed) output.send([0xb0 + channel - 1, cc, 0]); },
       async close() { if (!closed) { closed = true; owners.delete(key); if (!owners.size) { midiOwners.delete(output.id); await output.close(); } } } };
   }
@@ -461,7 +506,7 @@ export async function createOutputTransport(config: OutputConfig, dependencies: 
         await response.body?.cancel(); }
       finally { clearTimeout(timer); if (sending === abort) sending = undefined; }
     };
-    return { name: 'JSON HTTP', send: frame => send(signalPacket(frame), true), stop: () => closed ? Promise.resolve() : send({ command: 'stop', type: 'stop' }),
+    return { name: 'JSON HTTP', get connected() { return !closed; }, send: frame => send(signalPacket(frame), true), stop: () => closed ? Promise.resolve() : send({ command: 'stop', type: 'stop' }),
       async close() { if (!closed) { closed = true; sending?.abort(); httpOwners.delete(url); } } };
   }
   if (!['tcode-ws', 'json-ws'].includes(config.type)) throw new Error('Choose an output type.');
@@ -469,6 +514,8 @@ export async function createOutputTransport(config: OutputConfig, dependencies: 
   const peer = config.type === 'json-ws' ? jsonSocketPeer(lease.socket, dependencies.timeoutMs ?? 5000) : null;
   let closed = false;
   return { name: config.type === 'tcode-ws' ? 'TCode WebSocket' : 'JSON WebSocket', socket: lease.socket,
+    get connected() { return !closed && lease.socket.readyState === 1; },
+    ...(config.type === 'tcode-ws' ? { async sendText(text: string) { if (closed) throw new Error('The output is disconnected.'); sendSocket(lease.socket, text); } } : {}),
     interrupt() { peer?.interrupt(); },
     async send(frame) { if (closed) throw new Error('The output is disconnected.');
       if (peer) await peer.request(signalPacket(frame)); else sendSocket(lease.socket, tcodeFrame(frame.values, frame.durationMs)); },

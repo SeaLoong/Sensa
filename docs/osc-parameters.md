@@ -4,6 +4,8 @@
 
 先找到参数，查看单位和方向，再选择映射或计算。表格列出 OGB／SPS 与 Sensa 定位使用的路径。在[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)中可以搜索读数、移动目标、映射量程，再导出轨迹或发送到 WebSensa。
 
+Node 的 [OSC 服务](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts)接收与发现参数，共享 [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/osc.ts)保留来源、顺序、接收时间与内容变化时间。后续标量、定位与空间计算由同一 TypeScript 运行时处理，Electron 和浏览器工作台显示该应用快照。
+
 ## 用图解理解数值
 
 [公开参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)按浏览器语言打开，手动切换后在当前标签页记住选择。分享时直接复制页面地址即可。应用参数详情可打开随包页面；保留相邻 assets，即可离线打开 `docs/parameter-geometry.html`。
@@ -111,7 +113,7 @@ SDK Beta.3 的高级报告可用于任意 Receiver 类型，并新增 `_SenderLo
 
 SDK 选择匹配 Sender 中 Proximity 严格大于零且最大的对象；Beta.3 在两个 Proximity 都为 1 时，以较小的 PointSeparation 决定目标。中点位移通过接收形状旋转的逆变换转换，保留米单位，未按缩放或半径归一化。报告速度取近似接触点处的相对速度，包含角运动项；形状旋转时，可能与中点位置的导数不同。没有选中 Sender 时，SDK 写入类型 0 和零 XYZ／速度。原生报告未提供时间戳、序号或稳定 Sender ID。
 
-桌面要求同一来源与完整实例的十二字段齐全、类型为 Self、Proximity 为正、数值有限、位置在 Radius 边界及小量数值容差内，且 Radius 受支持。Sample 目标每 50 ms 推进，按 ChangedAt 检查的年龄上限为 **1000 ms**；较短的正数 InputTimeoutMs 优先，重复相同计数不续期。Contact 消失、字段缺失、Radius／坐标非法或活动停用／冻结时，相关空间动作停止。
+桌面要求同一来源与完整实例的十二字段齐全、类型为 Self、Proximity 为正、数值有限、位置在 Radius 边界及小量数值容差内，且 Radius 受支持。Sample 目标每 50 ms 推进，按 `changedAtMs` 检查的年龄上限为 **1000 ms**；较短的正数 `osc.inputTimeoutMs` 优先，重复相同计数不续期。Contact 消失、字段缺失、Radius／坐标非法或活动停用／冻结时，相关空间动作停止。
 
 Contact 直接定位通过 SensaPoint 映射 **X／Y／Z／Distance** 或 **VelocityX／VelocityY／VelocityZ／Speed／ProximitySpeed**。端点校准、曲线、输出限位、空间启用与停止沿用现有流程。SPS 四点定位的 `Sensa/SPS/<id>/{P0,P1,P2,P3,Sample}` 和按制作尺度解释的 AvatarRootLocal 保留既有定义。[定位说明](positioning.md) · [工作台](guide.md)
 
@@ -131,9 +133,9 @@ Contact 直接定位通过 SensaPoint 映射 **X／Y／Z／Distance** 或 **Velo
 | `Sensa/SPS/<id>/P3` | 锚点 P3 的同类观测 | 同上 |
 | `Sensa/SPS/<id>/Sample` | 表示本实例当前有效性与采样活动的计数 | 0 表示失效；有效值仅 `n/32`，整数 n=1…32 |
 
-FX 每个采样状态目标持续 0.05 秒：先复制 RawP0–RawP3 到 P0–P3，再写 Sample；Sample 从 1/32 到 1 循环，目标周期 1.6 秒。更新节奏还受动画、Contact 与 OSC 调度影响。根点静止时沿用最近的 P 值，并通过变化的 Sample 检查采样是否持续。[共享常量](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)、[接收检查](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedRootTracking.cs)
+FX 每个采样状态目标持续 0.05 秒：先复制 RawP0–RawP3 到 P0–P3，再写 Sample；Sample 从 1/32 到 1 循环，目标周期 1.6 秒。更新节奏还受动画、Contact 与 OSC 调度影响。根点静止时沿用最近的 P 值，并通过变化的 Sample 检查采样是否持续。[共享常量](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs)、[接收检查](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 
-Sample 的寿命按**值最后变化时间 ChangedAt**计算，正常运行时**默认 1000 ms**。运行时使用正数 InputTimeoutMs 配置，否则回退为 1000 ms；解码器再将其上限限制为 1250 ms。因此配置更小会更严格，配置超过 1250 ms 也不会延长上限。重复发送同一个 Sample 只更新接收时间，不续期。缺少参数、Sample=0、非 n/32、冻结、超时或拟合失败均使坐标失效。[运行时寿命选择](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs#L76)
+Sample 的寿命按**值最后变化时间 `changedAtMs`**计算，正常运行时**默认 1000 ms**。运行时使用正数 `osc.inputTimeoutMs` 配置，否则回退为 1000 ms；解码器再将其上限限制为 1250 ms。因此配置更小会更严格，配置超过 1250 ms 也不会延长上限。重复发送同一个 Sample 只更新接收时间，不续期。缺少参数、Sample=0、非 n/32、冻结、超时或拟合失败均使坐标失效。[运行时寿命选择](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts)
 
 ### 菜单选择测量目标
 
@@ -157,7 +159,7 @@ p = clamp(1 - max(0, d - r) / R, 0, 1)
 d = R × (1 - p) + r
 ```
 
-d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-2,2]、Y=[-1,3] 内；残差反映四路距离与计算位置的一致程度。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+d 是锚点中心到标记中心的距离；加 r 是因为 Proximity 描述靠近 Receiver 中心的 Sender 表面。四个已知非共面锚点的真实距离足以唯一确定这个局部 XYZ。实现还要求 RMS 距离残差≤0.01、坐标在 X/Z=[-2,2]、Y=[-1,3] 内；残差反映四路距离与计算位置的一致程度。[VRChat Contact 定义](https://creators.vrchat.com/common-components/contacts/)、[重建实现](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 
 可用空间是**四个球形覆盖区的交集**，扣除饱和区与边界。以 c 为中心、半径约 `2 - √3×0.35 ≈ 1.394` 的球提供内接参考；p 阈值、饱和孔和数值边界进一步限定实际有效区域。上限 p<0.999 要求 d>0.003，故每个锚点附近约 **0.003 局部单位**（以局部米计为 3 mm）的区域被排除；下限 p>0.001 对应 d<1.999。世界尺寸随 Avatar 根缩放变化。
 
@@ -194,7 +196,7 @@ RawP0–RawP3 供内部 FX 采样使用。ScaleFactor 与 IsLocal 用于缩放�
 
 两条轴由同一三角形内的三个采样点计算。向量长度须大于 `10⁻⁶`，两轴夹角的正弦须大于 `10⁻⁴`，以排除退化测量。它们可用于计算朝向、平面法线、夹角与 X/Z 轴缩放；独立 Y 轴缩放需要另外测量。在“流程”中选择定位测量（SensaPoint），使用 `Sensa/Shader/<id>/**` 和对应指标，即可供计算信号或输出绑定使用，并保留完整包与时效检查。
 
-有效单 bundle 的固定顺序是 **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**。失效只发 Valid=0。桌面要求同一来源、同一 Producer 路径的十二字段连续到达，并检查完整性、有限值和量程。Frame 内容变化年龄最多 500 ms，更短的正数输入超时优先。[桌面接收器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ShaderRootTracking.cs)
+有效单 bundle 的固定顺序是 **Frame → X → Y → Z → RightX → RightY → RightZ → ForwardX → ForwardY → ForwardZ → AvatarScale → Valid=1**。失效只发 Valid=0。桌面要求同一来源、同一 Producer 路径的十二字段连续到达，并检查完整性、有限值和量程。Frame 内容变化年龄最多 500 ms，更短的正数输入超时优先。[共享解码器](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 
 桥先找到 QR 定位方框，再进行 Reed–Solomon 纠错、CRC32 和向前序号检查。同一 Frame 的任意测量改变、倒序、来源变化或冻结都会使测量失效；启动和恢复需要两个新的推进帧，默认冻结门限 350 ms。49×49 格图块包含 33×33 格 QR 主体和每边 8 格白色留白，捕获至少需要 196×196 物理像素。留白包含标准静区与额外位移余量；窗口尺寸改变后重新框选完整图块。
 

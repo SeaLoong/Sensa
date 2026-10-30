@@ -36,6 +36,8 @@ python -X utf8 scripts/shader-osc-bridge.py --image "<World project>/Validation/
 
 省略 `--port` 只解码，不发 OSC。完整 16×8 网格每格至少 4×4 像素；支持矩形拉伸，不支持自动发现或透视矫正。
 
+调试回放可加 `--status-every-frame`，让标准输出逐次记录捕获状态，包括无效样本；默认只记录状态变化。回放工具可据此确认帧已被解码后再替换下一帧，OSC 数据与新鲜度规则保持原样。
+
 启动／恢复需要两个新的前进帧。重复／过期帧、同序号改变 XYZ、CRC／顺序故障和冻结不能重新开门，退出会清零有效性。强杀／丢网还需要 Sensa 输入超时；生产端序号重置后可能要重启桥。
 
 只观察 `Sensa/Diagnostics/Shader/0/{Frame,X,Y,Z,Valid}`；这是诊断传输，不是可映射原生根或校准来源。非零 `Sensa/Shader/<id>` 使用独立[原生根注册](../../unity/top.sealoong.sensa/GPU-TRACKING.md)。移除公开 Producer／Profile 不等于移除二进制 ID、坐标模式、Frame 或 CRC。

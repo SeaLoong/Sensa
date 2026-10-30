@@ -12,6 +12,7 @@ export async function webSensaAssets({ source = root } = {}) {
     entryPoints: ['src/websensa/app.tsx'],
     outfile: path.join(source, 'src/websensa/app.bundle.js'),
     bundle: true, minify: true, write: false, jsx: 'automatic',
+    loader: { '.js': 'jsx' },
     target: ['chrome110', 'firefox115', 'safari16'],
     define: { 'process.env.NODE_ENV': '"production"' },
     legalComments: 'linked',

@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 import re
 import runpy
 import shutil
+import subprocess
 import sys
 import tarfile
 import tempfile
@@ -19,7 +20,6 @@ import unittest
 from unittest.mock import patch
 import urllib.error
 from urllib.parse import unquote, urlsplit
-import xml.etree.ElementTree as ET
 import zipfile
 
 from test_bilingual_docs import relative_links
@@ -63,6 +63,7 @@ class ArchiveWorkspace(unittest.TestCase):
         (self.repository / 'scripts').mkdir()
         for name in ('shader-osc-bridge.py', 'telemetry_qr.py', 'requirements-capture.txt'):
             shutil.copyfile(ROOT / 'scripts' / name, self.repository / 'scripts' / name)
+        shutil.copytree(ROOT / 'scripts/licenses', self.repository / 'scripts/licenses')
         self.source = self.root / 'app'
         (self.source / 'web').mkdir(parents=True)
         web_sensa = self.repository / 'src/websensa'
@@ -83,6 +84,16 @@ class ArchiveWorkspace(unittest.TestCase):
 
     def prepare_app(self, runtime='win-x64'):
         (self.source / ('Sensa.exe' if runtime.startswith('win-') else 'Sensa')).write_bytes(b'fixture apphost')
+        notices = b'Isolated distribution notices fixture'
+        (self.source / 'THIRD-PARTY-NOTICES.txt').write_bytes(notices)
+        (self.source / 'web/THIRD-PARTY-NOTICES.txt').write_bytes(notices)
+        node = json.loads((self.repository / 'scripts/licenses/node.json').read_text())
+        (self.source / 'NODE-BUILD.json').write_text(json.dumps({'schema': 1, 'kind': 'node-sea', 'runtime': runtime,
+            'nodeVersion': node['nodeVersion'], 'thirdPartyNotices': {'sha256': hashlib.sha256(notices).hexdigest(),
+                'node': {'version': node['nodeVersion'], 'source': node['source'], 'sha256': node['sha256']}},
+            'version': self.version, 'sourceCommit': os.environ.get('SENSA_SOURCE_COMMIT') or 'a' * 40,
+            'executableSha256': hashlib.sha256(b'fixture apphost').hexdigest(),
+            'nativePackages': {'roots': ['serialport', '@julusian/midi'], 'manifestSha256': 'b' * 64}}))
         (self.source / 'web/app.bundle.js').write_text('fixture bundle', encoding='utf-8')
         for name in release.WEBSENSA_ASSETS:
             published = self.source / 'web/websensa' / name
@@ -166,6 +177,43 @@ class DesktopArchiveContracts(ArchiveWorkspace):
         with patch.dict(os.environ, SENSA_SOURCE_COMMIT='b' * 40):
             _, files = self.app()
         self.assertEqual(json.loads(files['BUILD-INFO.json'])['commit'], 'b' * 40)
+
+    def test_cli_cannot_be_packaged_without_matching_sea_native_and_source_identity(self):
+        self.prepare_app()
+        marker = self.source / 'NODE-BUILD.json'
+        original = json.loads(marker.read_text())
+        marker.unlink()
+        with self.assertRaisesRegex(ValueError, 'build identity is missing'):
+            self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+        for changed in (
+                {'runtime': 'linux-arm64'}, {'sourceCommit': 'b' * 40},
+                {'executableSha256': 'c' * 64},
+                {'nativePackages': {'roots': ['serialport'], 'manifestSha256': 'b' * 64}}):
+            with self.subTest(changed=changed):
+                marker.write_text(json.dumps(original | changed))
+                with self.assertRaisesRegex(ValueError, 'differs from the actual executable'):
+                    self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+        self.assertFalse(any(self.output.glob('*.zip')))
+        self.assertFalse((self.source / 'BUILD-INFO.json').exists())
+
+    def test_user_profile_data_is_rejected_before_archiving_or_overwriting_it(self):
+        self.prepare_app()
+        for name in ('config.json', 'recordings', 'instances'):
+            with self.subTest(name=name):
+                entry = self.source / name
+                entry.write_bytes(b'private profile fixture')
+                with self.assertRaisesRegex(ValueError, 'user profile data'):
+                    self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+                self.assertEqual(entry.read_bytes(), b'private profile fixture')
+                entry.unlink()
+        self.assertFalse(any(self.output.glob('*.zip')))
+
+    def test_published_node_licenses_cannot_diverge_from_the_embedded_notice_manifest(self):
+        self.prepare_app()
+        (self.source / 'web/THIRD-PARTY-NOTICES.txt').write_bytes(b'changed notices')
+        with self.assertRaisesRegex(ValueError, 'runtime notices differ'):
+            self.package('app', '--tag', 'v' + self.version, '--source', str(self.source))
+        self.assertFalse(any(self.output.glob('*.zip')))
 
     def test_protocol_bridge_assets_are_complete_and_exclude_runtime_state(self):
         folder = self.repository / 'tools/protocol-bridge'
@@ -278,19 +326,10 @@ class DesktopArchiveContracts(ArchiveWorkspace):
             '../docs/assets/parameter-geometry-3d.js': 'web/docs/assets/parameter-geometry-3d.js',
             '../docs/assets/parameter-geometry-3d.LICENSE.txt': 'web/docs/assets/parameter-geometry-3d.LICENSE.txt',
         }
-        published = {}
-        for item in ET.parse(ROOT / 'src/Sensa.csproj').getroot().iter('Content'):
-            for source in item.get('Include', '').replace('\\', '/').split(';'):
-                if not source.startswith('../docs/'):
-                    continue
-                self.assertNotIn('*', source, 'Executable docs use an exact asset list / 交互文档使用精确资源列表')
-                name = PurePosixPath(source).name
-                extension = PurePosixPath(source).suffix
-                target = item.get('Link', '').replace('\\', '/').replace('%(Filename)', name[:-len(extension)]).replace('%(Extension)', extension)
-                self.assertEqual(item.get('CopyToOutputDirectory'), 'PreserveNewest')
-                self.assertEqual(item.get('CopyToPublishDirectory'), 'PreserveNewest')
-                self.assertEqual(item.get('ExcludeFromSingleFile'), 'true')
-                published[source] = target
+        script = 'import {webResources} from ' + json.dumps((ROOT / 'scripts/build-node.mjs').as_uri()) + ';console.log(JSON.stringify(webResources));'
+        resources = json.loads(subprocess.check_output(['node', '--input-type=module', '-e', script], cwd=ROOT))
+        published = {'../' + source: 'web/' + target for source, target in resources if source.startswith('docs/')}
+        self.assertTrue(all('*' not in source for source in published))
         self.assertEqual(published, required)
 
     def test_packaged_public_documentation_links_work_without_a_source_checkout(self):
@@ -331,13 +370,15 @@ class EnglishReleaseNotesContracts(unittest.TestCase):
             ('osx-x64', '.tar.gz'), ('osx-arm64', '.tar.gz'),
             ('win-x64', '-Setup.exe'), ('win-arm64', '-Setup.exe'),
             ('win-x64', '-SingleFile.exe'), ('win-arm64', '-SingleFile.exe'))}
+        names.update(f'Sensa-{version}-{rid}-Desktop' + ('.tar.gz' if rid.startswith('linux-') else '.zip')
+                     for rid in preview.RUNTIMES)
         names.update((f'top.sealoong.sensa-{version}.zip', 'SHA256SUMS.txt'))
         if stable:
             names.add('vpm-package.json')
         actual = set(re.findall(r'https://github.com/Owner/Repo/releases/download/[^)\s]+', notes))
         self.assertEqual(actual, {f'https://github.com/Owner/Repo/releases/download/{tag}/{name}' for name in names})
 
-    def test_preview_notes_lead_with_exact_installer_links_then_source_without_changes(self):
+    def test_preview_notes_lead_with_exact_desktop_links_then_source_without_changes(self):
         module = load('release_notes')
         for version, run, attempt, sha in (('0.4.0', '42', '1', 'a' * 40),
                                            ('12.0.3', '123456', '7', '1234567890abcdef' * 2 + '12345678')):
@@ -347,8 +388,8 @@ class EnglishReleaseNotesContracts(unittest.TestCase):
                                                      'Owner/Repo', '## Changes\n\n* Fix a published issue')
                 base = f'https://github.com/Owner/Repo/releases/download/{tag}/Sensa-{version}-preview.{run}.{attempt}.{sha[:8]}'
                 self.assertTrue(notes.startswith(
-                    'Windows installers (recommended) / Windows 安装器（推荐）: '
-                    f'[x64]({base}-win-x64-Setup.exe) · [ARM64]({base}-win-arm64-Setup.exe)\n\n'))
+                    'Desktop / 桌面版: Windows '
+                    f'[x64]({base}-win-x64-Desktop.zip) · [ARM64]({base}-win-arm64-Desktop.zip)'))
                 self.assertTrue(notes.endswith(f'Source: [`{sha}`](https://github.com/Owner/Repo/commit/{sha})\n'))
                 self.assert_exact_downloads(notes, f'{version}-preview.{run}.{attempt}.{sha[:8]}', tag)
                 self.assertNotIn('Changes', notes)
@@ -359,9 +400,9 @@ class EnglishReleaseNotesContracts(unittest.TestCase):
         notes = module.compose_release_notes('stable', '0.4.0', 'v0.4.0', 'b' * 40,
                                              'Owner/Repo', '* Improve publishing (#42)')
         self.assertTrue(notes.startswith(
-            'Windows installers (recommended) / Windows 安装器（推荐）: '
-            '[x64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-x64-Setup.exe) · '
-            '[ARM64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-arm64-Setup.exe)\n\n'))
+            'Desktop / 桌面版: Windows '
+            '[x64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-x64-Desktop.zip) · '
+            '[ARM64](https://github.com/Owner/Repo/releases/download/v0.4.0/Sensa-0.4.0-win-arm64-Desktop.zip)'))
         self.assertNotIn('preview.', notes)
         self.assert_exact_downloads(notes, '0.4.0', 'v0.4.0', stable=True)
         self.assertIn(f'Source commit: [`{"b" * 40}`](https://github.com/Owner/Repo/commit/{"b" * 40})', notes)
@@ -493,13 +534,17 @@ class ReproducibleArchiveContracts(unittest.TestCase):
                 (directory / name).write_bytes(runtime.encode())
                 digest = hashlib.sha256(runtime.encode()).hexdigest()
                 checksums = f'{digest}  {name}\n'
+                if runtime != 'unity':
+                    desktop_name = f'Sensa-0.4.0-preview-{runtime}-Desktop' + ('.tar.gz' if runtime.startswith('linux-') else '.zip')
+                    (directory / desktop_name).write_bytes((runtime + 'Desktop').encode())
+                    checksums += f'{hashlib.sha256((runtime + "Desktop").encode()).hexdigest()}  {desktop_name}\n'
                 if runtime.startswith('win-'):
                     for kind in ('Setup', 'SingleFile'):
                         extra_name = f'Sensa-0.4.0-preview-{runtime}-{kind}.exe'
                         (directory / extra_name).write_bytes(kind.encode())
                         checksums += f'{hashlib.sha256(kind.encode()).hexdigest()}  {extra_name}\n'
                 (directory / 'SHA256SUMS.txt').write_text(checksums, encoding='utf-8')
-            self.assertEqual(len(preview.collect(root)), 11)
+            self.assertEqual(len(preview.collect(root)), 17)
             duplicate = root / 'extra'
             duplicate.mkdir()
             (duplicate / 'Sensa-0.4.0-preview-win-x64.zip').write_bytes(b'duplicate')

@@ -1,5 +1,5 @@
 import { test, expect, text, card, enable, mode, active, workspace, oscWorkspace, expand, allowSpatial, checkpoint, checkpointViewport, outputValue } from './fixtures.js';
-import { pointSamples, poseSamples } from './mocks.js';
+import { pointSamples, poseSamples, ports } from './mocks.js';
 import { assertCalibrationAlignment } from './ui-quality.js';
 import { readFile } from 'node:fs/promises';
 
@@ -282,6 +282,8 @@ test.describe('OSCQuery and Hub', () => {
     await page.getByRole('button', { name:'保存 OSC 设置', exact:true }).click();
     await expect(page.getByRole('button', { name:'QueryDepth', exact:true })).toBeVisible({timeout:20000});
     await expect.poll(() => rig.wire.hub.length).toBeGreaterThan(0);
+    await expect.poll(async () => (await rig.overview()).osc.hub.targets.find(target => target.id === 'mock-hub')?.sentPackets).toBeGreaterThan(0);
+    const beforePollingChange = (await rig.overview()).osc.hub.targets.find(target => target.id === 'mock-hub');
     await polling.uncheck(); await page.getByRole('button', { name:'保存 OSC 设置', exact:true }).click();
     await expect.poll(async () => page.request.get(rig.baseUrl + '/api/config').then(response => response.json()).then(config => config.osc.oscQueryPolling.enabled)).toBe(false);
     await expect(page.getByRole('button', { name:'保存 OSC 设置', exact:true })).toBeEnabled();
@@ -290,6 +292,15 @@ test.describe('OSCQuery and Hub', () => {
     await expand(page, 'OSC Hub');
     const hub = page.locator('.osc-forwarding-settings');
     await expect(hub.locator('.hub-target')).toHaveCount(1);
+    const target = (await rig.overview()).osc.hub.targets.find(target => target.id === 'mock-hub');
+    expect(target.resolvedEndpoint).toBe(`127.0.0.1:${ports.hub}`);
+    expect(target.sentPackets).toBeGreaterThanOrEqual(beforePollingChange.sentPackets);
+    expect(Number.isFinite(Date.parse(target.lastSentAtUtc))).toBe(true);
+    expect(target.lastError).toBe('');
+    await expect(hub.locator('.hub-target')).toContainText(await text(page, '转发正常'));
+    await expect(hub.locator('.hub-target').getByText(target.resolvedEndpoint, { exact: true })).toBeVisible();
+    await info.attach('osc-hub-target-telemetry.json', { body: JSON.stringify({ fixtureOnly: true, hardwareExecution: false,
+      beforePollingChange, afterPollingChange: target, actualForwardedPackets: rig.wire.hub.length }), contentType: 'application/json' });
     if (info.project.name === 'mobile') {
       // Capture every control group through the real scrollport; retain the height guard.
       // 每组都在实际正文滚动区内完整截图，保留高度保护。

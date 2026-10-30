@@ -218,8 +218,11 @@ test('HTTP stop waits for the acknowledged prior request rather than treating fe
   const transport = await createOutputTransport({ type: 'http', url: 'https://ordered.test/control' }, { fetch: async (_, options) => {
     const body = JSON.parse(options.body); events.push(body.type); if (body.type === 'signal') await gate; return { ok: true };
   } });
-  const lane = new OutputLane(transport), writing = lane.send(frame), stopped = lane.stop();
-  assert.deepEqual(events, ['signal']); release(); await Promise.all([writing, stopped]); assert.deepEqual(events, ['signal', 'stop']); await lane.close();
+  const lane = new OutputLane(), writing = lane.enqueue(async () => { await transport.send(frame); });
+  for (let index = 0; index < 12; index++) await Promise.resolve();
+  const stopped = lane.barrier(async () => { await transport.stop(); });
+  assert.deepEqual(events, ['signal']); release(); await Promise.all([writing, stopped]); assert.deepEqual(events, ['signal', 'stop']);
+  await lane.close(async () => { await transport.close(); });
 });
 
 test('unknown wire device metadata is narrowed before creating typed output routes', async () => {

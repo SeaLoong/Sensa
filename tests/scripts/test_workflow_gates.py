@@ -29,6 +29,16 @@ def needs(body):
 
 
 class WorkflowGateContracts(unittest.TestCase):
+    def test_controlled_node_jobs_use_the_security_patched_distribution_version(self):
+        expected = json.loads((ROOT / 'scripts/licenses/node.json').read_text())['nodeVersion']
+        checked = []
+        for path in WORKFLOWS.glob('*.yml'):
+            for configured in re.findall(r"(?m)^\s+node-version:\s*['\"]?([^'\"\s]+)", path.read_text()):
+                checked.append(path.name)
+                with self.subTest(workflow=path.name, version=configured):
+                    self.assertEqual(configured, expected)
+        self.assertTrue(checked)
+
     def test_codeql_requires_measured_build_quality_before_publication(self):
         source = workflow('codeql.yml')
         scopes = jobs(source)
@@ -42,9 +52,8 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertNotIn('query-filters', source)
         self.assertNotIn('paths-ignore:', source)
         self.assertLess(analyze.index('codeql-unity.py prepare'), analyze.index('id: init'))
-        self.assertLess(analyze.index('id: init'), analyze.index('dotnet build src/Sensa.sln'))
-        self.assertIn('--no-incremental', analyze)
-        self.assertIn('-p:UseSharedCompilation=false', analyze)
+        self.assertLess(analyze.index('id: init'), analyze.index('codeql-unity.py build'))
+        self.assertNotIn('src/Sensa.sln', analyze)
         self.assertIn('codeql-unity.py build', analyze)
         self.assertIn('          upload: never', analyze)
         self.assertLess(analyze.index('verify-codeql-csharp.py'), analyze.index('Upload verified CodeQL results'))
@@ -168,7 +177,7 @@ class WorkflowGateContracts(unittest.TestCase):
                     self.assertIn('          global-json-file: global.json', step)
                     self.assertNotRegex(step, r'(?m)^          dotnet-(?:version|channel):')
                     configured.add(path.name)
-        self.assertEqual(configured, {'checks.yml', 'build.yml', 'e2e.yml', 'update-e2e.yml', 'codeql.yml'})
+        self.assertEqual(configured, {'codeql.yml'})
 
     def test_repository_write_secret_is_confined_to_trusted_publication_jobs(self):
         allowed = {'ci.yml': 'preview', 'release.yml': 'publish', 'update-e2e.yml': 'proposal'}
@@ -203,7 +212,7 @@ class WorkflowGateContracts(unittest.TestCase):
         self.assertIn('commit: ${{ steps.source.outputs.commit }}', scopes['units'])
         self.assertIn('ref: ${{ inputs.source_ref }}', scopes['units'])
         self.assertIn('git rev-parse HEAD', scopes['units'])
-        for command in ('npm test', 'dotnet test tests/Sensa.Tests/Sensa.Tests.csproj',
+        for command in ('npm test', 'npm run test:node', 'npm run build:node -- --bundle-only',
                         'python -X utf8 -m unittest discover -s tests/scripts',
                         'python scripts/release.py check-unity'):
             self.assertIn(command, scopes['units'])
@@ -269,6 +278,8 @@ class WorkflowGateContracts(unittest.TestCase):
                 self.assertNotIn('      GITHUB_SHA:', scopes[target])
         self.assertIn('--smoke', scopes['desktop'])
         self.assertIn('scripts/smoke-shader-bridge.py', scopes['desktop'])
+        self.assertNotIn('setup-dotnet', scopes['desktop'])
+        self.assertIn('libasound2t64', scopes['desktop'])
 
     def test_comparison_receipt_is_written_only_after_report_validation_and_never_for_candidates(self):
         browser = jobs(workflow('e2e.yml'))['browser']

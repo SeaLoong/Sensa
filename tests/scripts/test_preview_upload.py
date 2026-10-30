@@ -204,6 +204,11 @@ def write_archives(root, channel):
         path.write_bytes(runtime.encode())
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         checksums = f'{digest}  {name}\n'
+        if runtime != 'unity':
+            desktop_name = f'Sensa-{VERSION}{label}-{runtime}-Desktop' + ('.tar.gz' if runtime.startswith('linux-') else '.zip')
+            desktop = directory / desktop_name
+            desktop.write_bytes((runtime + 'Desktop').encode())
+            checksums += f'{hashlib.sha256(desktop.read_bytes()).hexdigest()}  {desktop_name}\n'
         if runtime.startswith('win-'):
             for kind in ('Setup', 'SingleFile'):
                 extra_name = f'Sensa-{VERSION}{label}-{runtime}-{kind}.exe'
@@ -244,7 +249,7 @@ class ReleaseCommandTests(unittest.TestCase):
             self.main('stable', releases)
         prune.assert_not_called()
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
-        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 13)
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 19)
         self.assertIn(('publish', 'v0.4.0', 'stable'), releases.events)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
         self.assertIn('Direct fix', notes)
@@ -253,7 +258,7 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertIn('通过单元检查和完整浏览器截图比较', notes)
         checksums = (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text()
         self.assertIn('vpm-package.json', checksums)
-        self.assertEqual(len(checksums.splitlines()), 12)
+        self.assertEqual(len(checksums.splitlines()), 18)
         self.assert_note_downloads_match_uploads(notes, releases, 'v' + VERSION)
         self.assertEqual(record.call_args.args[0],
             '[Release v0.4.0](https://github.com/Owner/Repo/releases/tag/v0.4.0) · '
@@ -271,12 +276,12 @@ class ReleaseCommandTests(unittest.TestCase):
             process = self.main('preview', releases, previous='v0.3.0')
         self.assertFalse(any(event[0] == 'notes' for event in releases.events))
         self.assertEqual([call.args[0] for call in process.call_args_list], [['git', 'rev-parse', 'HEAD']])
-        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 12)
+        self.assertEqual(sum(event[0] == 'upload' for event in releases.events), 18)
         notes = (self.root / 'artifacts/publication/release-notes.md').read_text()
         self.assertTrue(notes.startswith(
-            'Windows installers (recommended) / Windows 安装器（推荐）: '
-            f'[x64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-x64-Setup.exe) · '
-            f'[ARM64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-arm64-Setup.exe)\n\n'))
+            'Desktop / 桌面版: Windows '
+            f'[x64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-x64-Desktop.zip) · '
+            f'[ARM64](https://github.com/Owner/Repo/releases/download/{TAG}/Sensa-{VERSION}-preview.42.1.aaaaaaaa-win-arm64-Desktop.zip)'))
         self.assertTrue(notes.endswith(f'Source: [`{SHA}`](https://github.com/Owner/Repo/commit/{SHA})\n'))
         self.assert_note_downloads_match_uploads(notes, releases, TAG)
         self.assertIn(f'[Release {TAG}](https://github.com/Owner/Repo/releases/tag/{TAG})', record.call_args.args[0])
@@ -285,15 +290,16 @@ class ReleaseCommandTests(unittest.TestCase):
         self.assertNotIn('Direct fix', notes)
         self.assertNotIn('vpm-package.json', (self.root / 'artifacts/publication/SHA256SUMS.txt').read_text())
 
-    def test_windows_installers_and_single_files_are_required_verified_and_prioritized(self):
+    def test_desktop_archives_and_windows_extras_are_required_verified_and_prioritized(self):
         write_archives(self.inputs, 'preview')
         files = preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
-        self.assertTrue(all(path.name.endswith('-Setup.exe') for path in files[:2]))
-        self.assertTrue(all(path.name.endswith('-SingleFile.exe') for path in files[2:4]))
-        for path in files[:4]:
+        self.assertTrue(all('-Desktop.' in path.name for path in files[:6]))
+        self.assertTrue(all(path.name.endswith('-Setup.exe') for path in files[6:8]))
+        self.assertTrue(all(path.name.endswith('-SingleFile.exe') for path in files[8:10]))
+        for path in files[:10]:
             original = path.read_bytes()
             path.unlink()
-            with self.subTest(name=path.name, case='missing'), self.assertRaisesRegex(ValueError, 'Windows download'):
+            with self.subTest(name=path.name, case='missing'), self.assertRaisesRegex(ValueError, 'Windows download|Electron desktop archive'):
                 preview.release_assets(self.inputs, 'preview', VERSION, TAG, SHA, 'Owner/Repo')
             path.write_bytes(b'changed executable')
             with self.subTest(name=path.name, case='corrupt'), self.assertRaisesRegex(ValueError, 'Checksum mismatch'):
@@ -333,7 +339,7 @@ class ReleaseCommandTests(unittest.TestCase):
         current = self.published_current()
         releases = FakeReleases([*[published(number) for number in range(1, 11)], current])
         self.main('preview', releases)
-        self.assertEqual(len(current['assets']), 12)
+        self.assertEqual(len(current['assets']), 18)
         self.assertIn(('delete', 1), releases.events)
         self.assertNotIn(1, releases.releases)
         self.assertFalse(any(event[0] in ('create', 'upload', 'publish') for event in releases.events))

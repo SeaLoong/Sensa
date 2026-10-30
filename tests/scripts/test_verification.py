@@ -21,7 +21,7 @@ class LocalVerificationTests(unittest.TestCase):
         self.addCleanup(self.directory.cleanup)
         self.root = Path(self.directory.name)
         self.write('src/web/app.js', 'const version = 1;')
-        self.write('src/Program.cs', 'class Program {}')
+        self.write('src/node/example.ts', 'class Program {}')
         self.commands = []
         self.toolchain = {'version': 'test-toolchain'}
 
@@ -51,7 +51,7 @@ class LocalVerificationTests(unittest.TestCase):
         self.commands.clear()
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.assertEqual(self.commands, [])
-        self.write('src/Program.cs', 'class ChangedBackend {}')
+        self.write('tools/standalone/helper.py', '# unrelated tool change')
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
         self.assertEqual(self.commands, [])
         self.write('src/web/app.js', 'const version = 2;')
@@ -105,7 +105,7 @@ class LocalVerificationTests(unittest.TestCase):
     def test_shared_typed_contracts_and_fixture_changes_invalidate_web_receipts(self):
         for name in ('tests/types/core-contracts.ts', 'tests/e2e-types/parameter-detail-screenshot.contract.ts',
                      'tsconfig.json', 'tsconfig.e2e-types.json', 'tests/fixtures/funscript-interop.json',
-                     'src/core/engine.ts', 'src/websensa/capabilities.ts'):
+                     'src/core/runtime/runtime.ts', 'src/websensa/capabilities.ts'):
             with self.subTest(path=name):
                 self.write(name, 'first contract content')
                 self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
@@ -127,7 +127,7 @@ class LocalVerificationTests(unittest.TestCase):
         self.assertEqual(self.commands, [])
         self.write(protocol, 'const float ReceiverRadius = 2f;')
         self.assertTrue(self.run_plan([protocol]))
-        self.assertTrue(any('dotnet' in command[0] for command in self.commands))
+        self.assertTrue(any(command[1:] == ['run', 'test:node'] for command in self.commands))
 
     def test_force_repeats_success_but_failure_removes_receipt_and_stops_lane(self):
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
@@ -150,15 +150,13 @@ class LocalVerificationTests(unittest.TestCase):
         self.assertFalse(self.run_plan(['tests/web/example.test.mjs'], runner=changing_runner))
         self.assertFalse(self.receipt('web').exists())
 
-    def test_selected_lanes_deduplicate_docs_and_keep_backend_independent_of_node(self):
-        plan = verify.CI_PLAN.plan_changes(['tests/Sensa.Tests/Test.cs', 'tests/scripts/test_one.py', 'README.md'])
+    def test_selected_lanes_deduplicate_docs_and_run_node_domain_units_without_browser(self):
+        plan = verify.CI_PLAN.plan_changes(['tests/runtime/reference.json', 'tests/scripts/test_one.py', 'README.md'])
         self.assertEqual(verify.select_local_lanes(plan), ['backend', 'scripts'])
         self.assertTrue(verify.run_verification(plan, root=self.root, runner=self.runner,
-                                              tools=lambda *_: self.toolchain, output=lambda _: None,
-                                              dotnet='chosen-dotnet'))
-        self.assertEqual(self.commands[0][0], 'chosen-dotnet')
-        self.assertIn('-p:SkipWebBuild=true', self.commands[0])
-        self.assertFalse(any('npm' in argument or 'node' == argument for command in self.commands for argument in command))
+                                              tools=lambda *_: self.toolchain, output=lambda _: None))
+        self.assertEqual(self.commands[0][1:], ['run', 'test:node'])
+        self.assertFalse(any('dotnet' in argument or 'playwright' in argument for command in self.commands for argument in command))
         self.assertIn('utf8', self.commands[1])
         self.assertNotIn('test_bilingual_docs.py', self.commands[1])
 
@@ -225,11 +223,20 @@ class LocalVerificationTests(unittest.TestCase):
         with patch.object(verify.subprocess, 'run', side_effect=OSError('missing git')):
             self.assertEqual(verify.discover_changes(self.root), ([], False))
 
-    def test_local_sdk_precedes_path_and_explicit_override_precedes_both(self):
-        self.write('artifacts/toolchain/dotnet/dotnet.exe', 'fake SDK executable')
-        with patch.object(verify.shutil, 'which', return_value='path-dotnet'):
-            self.assertEqual(verify.resolve_dotnet(self.root), str((self.root / 'artifacts/toolchain/dotnet/dotnet.exe').resolve()))
-            self.assertEqual(verify.resolve_dotnet(self.root, 'explicit-sdk'), 'explicit-sdk')
+    def test_shared_runtime_and_native_dependency_changes_invalidate_node_backend_receipts(self):
+        paths = ('src/core/runtime/runtime.ts', 'src/node/outputs/adapters.ts', 'src/electron/main.ts',
+                 'tests/runtime/fixtures/reference.json', 'tsconfig.node.json', 'package-lock.json')
+        for path in paths:
+            with self.subTest(path=path):
+                self.write(path, 'first input')
+                self.assertTrue(self.run_plan(['tests/runtime/reference.json']))
+                self.commands.clear()
+                self.assertTrue(self.run_plan(['tests/runtime/reference.json']))
+                self.assertEqual(self.commands, [])
+                self.write(path, 'changed input')
+                self.assertTrue(self.run_plan(['tests/runtime/reference.json']))
+                self.assertEqual(self.commands[0][1:], ['run', 'test:node'])
+                self.commands.clear()
 
     def test_generated_outputs_and_local_hardware_config_do_not_invalidate_web_receipt(self):
         self.assertTrue(self.run_plan(['tests/web/example.test.mjs']))
@@ -267,10 +274,10 @@ class LocalVerificationTests(unittest.TestCase):
         self.write('.codex/project.json', '{"shared_project_setting":true}')
         self.write('node_modules/.package-lock.json', '{"installed_dependencies":true}')
         self.write('docs/config.json', '{"fixture":true}')
-        subprocess.run(['git', 'add', 'src/Program.cs'], cwd=self.root, check=True, capture_output=True)
-        (self.root / 'src/Program.cs').unlink()
+        subprocess.run(['git', 'add', 'src/node/example.ts'], cwd=self.root, check=True, capture_output=True)
+        (self.root / 'src/node/example.ts').unlink()
         files = verify.source_files(self.root)
-        for excluded in ('generated/output.py', 'local-machine.ini', '.codex/config.toml', 'src/Program.cs'):
+        for excluded in ('generated/output.py', 'local-machine.ini', '.codex/config.toml', 'src/node/example.ts'):
             self.assertNotIn(excluded, files)
         for included in ('src/web/app.js', '.codex/project.json', 'node_modules/.package-lock.json', 'docs/config.json'):
             self.assertIn(included, files)

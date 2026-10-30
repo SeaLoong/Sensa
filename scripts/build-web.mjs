@@ -10,7 +10,7 @@ await build({
   legalComments: 'inline',
 });
 await build({
-  entryPoints: ['src/web/app.js'], bundle: true, minify: true,
+  entryPoints: ['src/web/entry.tsx'], bundle: true, minify: true,
   outfile: 'src/web/app.bundle.js', loader: { '.js': 'jsx' },
   jsx: 'automatic',
   target: ['chrome110', 'firefox115', 'safari16'],

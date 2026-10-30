@@ -40,7 +40,7 @@ export function controlReadiness({ online = false, runtime = {}, mode = 'manual'
     t('应用输入方式后会关闭输入。'));
   if (!outputs.length) return make('no-outputs', t('当前仅供预览'), t('添加并配置输出后才能发送到设备。'), 'info', 'outputs');
   if (mode === 'script' && !script.loaded)
-    return make('script-empty', t('先选择脚本'), t('funscript 生成 L0 目标，不会自动启用输入。'));
+    return make('script-empty', t('先选择脚本'), t('funscript 生成所选轴的目标，不会自动启用输入。'));
   if (mode === 'osc' && !listening)
     return make('osc-receiver', t('OSC 尚未监听'), t('检查接收设置和实际输入方式。'), 'warning', 'osc-settings');
   if (mode === 'osc' && !mappings.length && !routedBindings)

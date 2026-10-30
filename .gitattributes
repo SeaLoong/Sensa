@@ -1,4 +1,7 @@
 * text=auto whitespace=cr-at-eol
+# Keep the original license bytes used by release integrity checks. / 保留发行完整性校验使用的许可证原始字节。
+/LICENSE -text
+/scripts/licenses/node-v24.22.2-LICENSE.txt -text
 # Preserve upstream GLSL string whitespace in the reproducible bundle. / 保留可重建 bundle 内上游 GLSL 字符串空白。
 docs/assets/parameter-geometry-3d.js text eol=lf -whitespace linguist-generated=true
 docs/assets/parameter-geometry-3d.LICENSE.txt text eol=lf

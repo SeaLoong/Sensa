@@ -1,15 +1,16 @@
 import { normalizeAxisLimitSpeed } from './configuration.js';
 import { localized, t } from './i18n.js';
+import { requireManualAxes } from './motion-controls.ts';
 
 // The command interface normalizes both one-shot and continuous manual input.
 // 命令 interface 同时规范单次与连续手动输入，避免两条路径行为分叉。
-export function manualCommandPayload(draft, mode = 'Default', motionValue = MANUAL_DEFAULT_SPEED) {
+export function manualCommandPayload(draft, mode = 'Default', motionValue = MANUAL_DEFAULT_SPEED, selectedAxes) {
   const axes = Object.fromEntries(Object.keys(EMPTY_MANUAL).map(key => {
     const value = Number(draft?.[key] ?? EMPTY_MANUAL[key]);
     return [key, Number.isFinite(value) ? Math.max(0, Math.min(999, Math.round(value))) : EMPTY_MANUAL[key]];
   }));
   const normalizedMode = normalizeManualMotionMode(mode);
-  return { enabled: true, motionMode: normalizedMode === 'Default' ? null : normalizedMode, motionValue: normalizeManualMotionValueByMode(normalizedMode, motionValue), ...axes };
+  return { enabled: true, motionMode: normalizedMode === 'Default' ? null : normalizedMode, motionValue: normalizeManualMotionValueByMode(normalizedMode, motionValue), ...axes, ...(selectedAxes === undefined ? {} : { axes: requireManualAxes(selectedAxes) }) };
 }
 
 const INPUT_MODES = localized(() => ([
@@ -304,6 +305,7 @@ function normalizeScriptSettingsState(settings, fallback = DEFAULT_SCRIPT_SETTIN
     speed: clampScriptSpeed(settings?.speed ?? resolvedFallback.speed ?? DEFAULT_SCRIPT_SETTINGS.speed),
     loopStartMs: loopRange.startMs,
     loopEndMs: loopRange.endMs,
+    ...((settings?.axis ?? resolvedFallback.axis) === undefined ? {} : { axis: requireManualAxes([settings?.axis ?? resolvedFallback.axis])[0] }),
   };
 }
 

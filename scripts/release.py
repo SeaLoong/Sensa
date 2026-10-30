@@ -4,8 +4,10 @@ import hashlib
 import json
 import os
 from pathlib import Path
+from pathlib import PurePosixPath
 import re
 import shutil
+import stat
 import zipfile
 import gzip
 import tarfile
@@ -113,6 +115,143 @@ def tar_directory(root, output):
                 archive.addfile(item,io.BytesIO(data))
 
 
+def desktop_entries(root):
+    """Electron framework aliases are relative links confined to this app tree.
+
+    This is separate from archive_files: CLI and Unity archives remain strictly
+    regular-file-only. Directory-link cycles and special filesystem types fail.
+    """
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError('Desktop source must be an ordinary directory')
+    canonical = root.resolve()
+    entries, names, directories, links = [], set(), set(), {}
+    total = 0
+
+    def walk(directory, depth=0):
+        nonlocal total
+        if depth > 128:
+            raise ValueError('Desktop directory nesting exceeds its limit')
+        for path in sorted(directory.iterdir()):
+            name = path.relative_to(root).as_posix()
+            key = name.casefold()
+            if (key in names or len(names) >= 50000 or any(c in name for c in ('\\', ':'))
+                    or any(ord(c) < 32 or ord(c) == 127 for c in name)
+                    or any(part in ('', '.', '..') or part.endswith((' ', '.')) for part in PurePosixPath(name).parts)):
+                raise ValueError('Duplicate or unsafe desktop archive path')
+            names.add(key)
+            if path.is_symlink():
+                target = os.readlink(path)
+                if (not target or len(target) > 4096 or PurePosixPath(target).is_absolute()
+                        or '\\' in target or ':' in target or any(ord(c) < 32 or ord(c) == 127 for c in target)):
+                    raise ValueError('Desktop links must have bounded relative targets')
+                try:
+                    resolved = path.resolve(strict=True)
+                except (OSError, RuntimeError) as error:
+                    raise ValueError('Desktop link target is missing or cyclic') from error
+                if not resolved.is_relative_to(canonical):
+                    raise ValueError('Desktop link escapes its application tree')
+                if resolved.is_dir():
+                    links[path.relative_to(root).as_posix()] = resolved.relative_to(canonical).as_posix()
+                entries.append((path, name, 'link', target))
+            elif path.is_dir():
+                directories.add(name)
+                entries.append((path, name, 'directory', None))
+                walk(path, depth + 1)
+            elif path.is_file():
+                size = path.stat().st_size
+                total += size
+                if size > 512 * 1024 * 1024 or total > 2 * 1024 * 1024 * 1024:
+                    raise ValueError('Desktop archive contents exceed their limit')
+                entries.append((path, name, 'file', None))
+            else:
+                raise ValueError('Desktop archives forbid special filesystem objects')
+
+    walk(root)
+    children = {}
+    for name in directories:
+        parent = PurePosixPath(name).parent.as_posix()
+        children.setdefault('' if parent == '.' else parent, []).append(name)
+    for name, target in links.items():
+        parent = PurePosixPath(name).parent.as_posix()
+        children.setdefault('' if parent == '.' else parent, []).append('' if target == '.' else target)
+    visited, active = set(), set()
+
+    def visit(directory):
+        if directory in active:
+            raise ValueError('Desktop directory links form a cycle')
+        if directory in visited:
+            return
+        active.add(directory)
+        for child in children.get(directory, []):
+            visit(child)
+        active.remove(directory)
+        visited.add(directory)
+
+    visit('')
+    return entries
+
+
+def desktop_layout(runtime):
+    prefix = 'Sensa.app/Contents/' if runtime.startswith('osx-') else ''
+    resources = prefix + ('Resources/' if prefix else 'resources/')
+    executable = 'Sensa.exe' if runtime.startswith('win-') else 'Sensa'
+    return (prefix + 'MacOS/Sensa' if prefix else executable,
+            resources + 'cli/' + executable, resources + 'app.asar')
+
+
+def validate_desktop(source, version, runtime, label, commit):
+    entries = desktop_entries(source)
+    regular = {name: path for path, name, kind, _ in entries if kind == 'file'}
+    metadata = regular.get('SENSA-DESKTOP-INFO.json')
+    if metadata is None or metadata.stat().st_size > 65536:
+        raise ValueError('Desktop package metadata is missing or oversized')
+    info = json.loads(metadata.read_text(encoding='utf-8'))
+    entry, cli, app = desktop_layout(runtime)
+    electron = json.loads((ROOT / 'package.json').read_text())['devDependencies']['electron']
+    if (info.get('schema') != 1 or info.get('version') != version or info.get('label') != label
+            or info.get('runtime') != runtime or info.get('entry') != entry
+            or info.get('electronVersion') != electron or not re.fullmatch('[0-9a-f]{40}', info.get('commit', ''))
+            or commit and info['commit'] != commit or not all(name in regular for name in (entry, cli, app))):
+        raise ValueError('Desktop identity or entry layout differs from the build plan')
+    digest = hashlib.sha256(regular[cli].read_bytes()).hexdigest()
+    independent = ROOT / 'artifacts/publish' / runtime / ('Sensa.exe' if runtime.startswith('win-') else 'Sensa')
+    if (independent.is_symlink() or not independent.is_file() or info.get('cliSha256') != digest
+            or hashlib.sha256(independent.read_bytes()).hexdigest() != digest):
+        raise ValueError('Desktop CLI bytes differ from the independent native build')
+    manifest = regular.get(str(PurePosixPath(cli).parent / 'BUILD-INFO.json'))
+    if manifest is None:
+        raise ValueError('Desktop CLI source metadata is missing')
+    built = json.loads(manifest.read_text(encoding='utf-8'))
+    if any(built.get(key) != expected for key, expected in
+           [('version', version), ('runtime', runtime), ('label', label), ('commit', info['commit'])]):
+        raise ValueError('Desktop embedded CLI provenance differs from the build plan')
+    return entries
+
+
+def archive_desktop(entries, output, suffix):
+    if suffix == 'zip':
+        with zipfile.ZipFile(output, 'w', zipfile.ZIP_DEFLATED) as archive:
+            for path, name, kind, target in entries:
+                item = zipfile.ZipInfo(name + ('/' if kind == 'directory' else ''), (2020, 1, 1, 0, 0, 0))
+                item.create_system = 3
+                mode = (stat.S_IFLNK | 0o777) if kind == 'link' else (stat.S_IFDIR | 0o755) if kind == 'directory' else (stat.S_IFREG | (0o755 if path.stat().st_mode & 0o111 else 0o644))
+                item.external_attr = mode << 16
+                item.compress_type = zipfile.ZIP_DEFLATED
+                archive.writestr(item, target.encode('utf-8') if kind == 'link' else b'' if kind == 'directory' else path.read_bytes())
+    else:
+        with output.open('wb') as raw, gzip.GzipFile(filename='', mode='wb', fileobj=raw, mtime=0) as compressed:
+            with tarfile.open(fileobj=compressed, mode='w', format=tarfile.PAX_FORMAT) as archive:
+                for path, name, kind, target in entries:
+                    item = tarfile.TarInfo(name)
+                    if kind == 'directory':
+                        item.type = tarfile.DIRTYPE; item.mode = 0o755; archive.addfile(item)
+                    elif kind == 'link':
+                        item.type = tarfile.SYMTYPE; item.linkname = target; item.mode = 0o777; archive.addfile(item)
+                    else:
+                        data = path.read_bytes(); item.size = len(data); item.mode = 0o755 if path.stat().st_mode & 0o111 else 0o644
+                        archive.addfile(item, io.BytesIO(data))
+
+
 def write_checksums(output):
     """Keep all formats from one platform in the same verified checksum list."""
     assets = sorted(path for path in output.iterdir() if path.name.endswith(('.zip', '.tar.gz', '.exe')))
@@ -135,7 +274,7 @@ def single_file(source, output, version, runtime):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument('kind', choices=['app', 'single-file', 'unity', 'check-unity'])
+    parser.add_argument('kind', choices=['app', 'single-file', 'desktop', 'unity', 'check-unity'])
     parser.add_argument('--tag', default=os.environ.get('GITHUB_REF_NAME', ''))
     parser.add_argument('--source', type=Path)
     parser.add_argument('--output', type=Path, default=ROOT / 'artifacts/release')
@@ -160,14 +299,52 @@ def main():
             raise ValueError('Single-file packaging requires a publish directory / 单文件打包需要发布目录')
         print(single_file(args.source, output, archive_version, args.runtime).name)
         return
+    if args.kind == 'desktop':
+        if args.source is None:
+            raise ValueError('Desktop packaging requires an explicit app directory')
+        entries = validate_desktop(args.source, version, args.runtime, args.label, source_commit)
+        suffix = 'tar.gz' if args.runtime.startswith('linux-') else 'zip'
+        name = f'Sensa-{archive_version}-{args.runtime}-Desktop.{suffix}'
+        archive_desktop(entries, output / name, suffix)
+        write_checksums(output)
+        print(name)
+        return
     source = args.source or ROOT / 'unity/top.sealoong.sensa'
     # Validate existing entries before copying guides/build metadata into the
     # source tree, so a destination symlink cannot redirect those writes either.
     archive_files(source)
     if args.kind == 'app':
+        if any((source / name).exists() or (source / name).is_symlink() for name in ('config.json', 'recordings', 'instances')):
+            raise ValueError('Application output contains user profile data')
         executable='Sensa.exe' if args.runtime.startswith('win-') else 'Sensa'
         if not (source / executable).is_file() or not (source / 'web/app.bundle.js').is_file():
             raise ValueError('Application output is incomplete / 程序输出不完整')
+        node_info = source / 'NODE-BUILD.json'
+        if node_info.is_symlink() or not node_info.is_file() or node_info.stat().st_size > 2 * 1024 * 1024:
+            raise ValueError('Node SEA build identity is missing or oversized')
+        built = json.loads(node_info.read_text(encoding='utf-8'))
+        native = built.get('nativePackages', {})
+        if (built.get('schema') != 1 or built.get('kind') != 'node-sea'
+                or built.get('runtime') != args.runtime or built.get('version') != version
+                or not re.fullmatch('[0-9a-f]{40}', built.get('sourceCommit', ''))
+                or source_commit and built['sourceCommit'] != source_commit
+                or set(native.get('roots', [])) != {'serialport', '@julusian/midi'}
+                or not re.fullmatch('[0-9a-f]{64}', native.get('manifestSha256', ''))
+                or built.get('executableSha256') != hashlib.sha256((source / executable).read_bytes()).hexdigest()):
+            raise ValueError('Node SEA metadata differs from the actual executable or build plan')
+        license_manifest = json.loads((ROOT / 'scripts/licenses/node.json').read_text(encoding='utf-8'))
+        license_bytes = (ROOT / 'scripts/licenses' / license_manifest['file']).read_bytes()
+        notices = built.get('thirdPartyNotices', {})
+        notice_file, web_notice = source / 'THIRD-PARTY-NOTICES.txt', source / 'web/THIRD-PARTY-NOTICES.txt'
+        expected_node = {'version': license_manifest['nodeVersion'], 'source': license_manifest['source'], 'sha256': license_manifest['sha256']}
+        if (hashlib.sha256(license_bytes).hexdigest() != license_manifest['sha256']
+                or built.get('nodeVersion') != license_manifest['nodeVersion']
+                or notices.get('node') != expected_node
+                or not notice_file.is_file() or not web_notice.is_file()
+                or notice_file.read_bytes() != web_notice.read_bytes()
+                or hashlib.sha256(notice_file.read_bytes()).hexdigest() != notices.get('sha256')):
+            raise ValueError('Node runtime notices differ from the verified build and pinned license')
+        source_commit = built['sourceCommit']
         for relative in PARAMETER_GEOMETRY_ASSETS:
             published = source / 'web' / relative
             if not published.is_file() or published.read_bytes() != (ROOT / relative).read_bytes():

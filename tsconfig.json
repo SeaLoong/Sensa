@@ -21,5 +21,5 @@
     "checkJs": false,
     "noEmit": true
   },
-  "include": ["src/core/**/*.ts", "src/websensa/**/*.ts", "src/websensa/**/*.tsx", "tests/types/**/*.ts"]
+  "include": ["src/core/**/*.ts", "src/web/**/*.ts", "src/web/**/*.tsx", "src/websensa/**/*.ts", "src/websensa/**/*.tsx", "tests/types/**/*.ts"]
 }

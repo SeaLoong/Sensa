@@ -1,6 +1,6 @@
 import React from 'react';
 import { t, getLocale, diagnostic } from './i18n.js';
-import { Badge } from './ui.jsx';
+import { Badge } from './ui.tsx';
 import { outputPreview } from './output-preview.js';
 
 export default function OutputPositionPanel({ state }) {

@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { Field } from './ui.jsx';
+import { Field } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { computedInputOptions } from './computed-signals.js';

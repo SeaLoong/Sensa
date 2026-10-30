@@ -116,7 +116,7 @@ export async function enable(page, names = ['Mock UDP', 'Mock TCP', 'Mock Serial
   await workspace(page, '控制');
   for (const name of names) {
     await card(page, name).getByRole('button', { name: await text(page, '启用'), exact: true }).click();
-    await expect(card(page, name).getByText(await text(page, '已连接'), { exact: true })).toBeVisible();
+    await expect(card(page, name).locator('.output-identity').getByText(await text(page, '已连接'), { exact: true })).toBeVisible();
   }
 }
 export async function waitForInputMode(page, expectedMode) {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Button, Field, Modal, Notice } from './ui.jsx';
+import { Button, Field, Modal, Notice } from './ui.tsx';
 import { t } from './i18n.js';
 import { exportSignalPlan, parseSignalPlan } from './signal-outputs.js';
 import { getOutputTypeLabel } from './configuration.js';

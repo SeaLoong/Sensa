@@ -4,6 +4,14 @@
 
 Results below belong to the named commits. Open [current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml), [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) and [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) for later source. [How checks run](development.en.md) · [Browser test workflow](e2e.en.md)
 
+## Migration capture and image review: 197af206
+
+[Candidate run 40996282389](https://github.com/SeaLoong/Sensa/actions/runs/40996282389/attempts/1) for source [`197af206`](https://github.com/SeaLoong/Sensa/commit/197af206bafda79b12160929251101aeca30214d) executed **218/218** cases; independent Firefox/WebKit compatibility executed **8/8**, with zero failures, skips, retries or unexecuted cases. Candidate mode generates images and records capture behavior; it is not ordinary screenshot-comparison evidence.
+
+The [per-image record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) covers 164 application baselines and eight site originals: 20 opened new application images and eight delegated-review originals were accepted, 142 images reuse identical-hash prior observations, and two OSC Hub images retain their reviewed source versions. The Hub endpoint/send-status display regression found during review was not accepted. All 38 documentation images match the selected baseline bytes and identify their actual capture source/run.
+
+Capture and visual review establish provenance and image selection. For the current pinned source, matching [CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) and [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) summaries/artifacts identify actual ordinary comparison, native CLI/Electron, preview and deployment outcomes. The tables below retain each historical snapshot's verified scope.
+
 ## Accepted snapshot: b225ee3a
 
 Source [`b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de`](https://github.com/SeaLoong/Sensa/commit/b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de), [CI #213](https://github.com/SeaLoong/Sensa/actions/runs/40783839713), attempt 1:
@@ -19,7 +27,7 @@ Source [`b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de`](https://github.com/SeaLoong/
 | Publication | All 12 [preview #213](https://github.com/SeaLoong/Sensa/releases/tag/preview-213-1-b225ee3a) downloads matched official SHA-256 and SHA256SUMS; 54 bridge-tool source copies and 169 Unity files matched the build plan |
 | CodeQL | [Four languages uploaded and processed](https://github.com/SeaLoong/Sensa/actions/runs/40783839791); all 249 tracked C# files covered, two quality metrics 100%, none-mode 0 |
 
-The ordinary browser run checked every selected case and compared the reviewed baselines with updates disabled. The eight current site originals and eight rendered-diagram originals were opened individually. The deployed diagrams were also tested for keyboard scrolling, source fallback and rejected active content.
+That historical browser run checked every selected case and compared the reviewed baselines with updates disabled. Its eight site originals and eight rendered-diagram originals were opened individually. The deployed diagrams were also tested for keyboard scrolling, source fallback and rejected active content.
 
 ## Coverage of the automated suites
 
@@ -36,7 +44,7 @@ The Contact cases include contact loss and frozen activity, with a fixed 0.210 m
 
 ## Images and review
 
-[Baseline review](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) records the source and hashes of 172 baseline images. Current ordinary comparisons use those reviewed images. The 38 published documentation images retain their original capture bytes and catalog provenance. New visual changes use candidate capture, original-image review and a subsequent ordinary comparison. [Review procedure](e2e.en.md)
+The [per-image review record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) identifies the current 164 application baselines and eight site originals, with hashes, observations and reuse chains. Ordinary comparison uses the selected application baselines. The 38 documentation images retain original bytes and capture provenance. Visual changes pass candidate capture and image review before comparison for their matching source. [Review process](e2e.en.md)
 
 ## Environment-specific checks
 

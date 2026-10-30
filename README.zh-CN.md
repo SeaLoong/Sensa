@@ -13,14 +13,14 @@
 
 ## 选择运行方式
 
-| | WebSensa | Sensa 桌面版 |
-| --- | --- | --- |
-| 启动 | [在浏览器打开](https://sealoong.github.io/Sensa/websensa/) | [下载并运行](https://github.com/SeaLoong/Sensa/releases/latest) |
-| 数值来源 | 手动控制、funscript 与参数图解输入 | 手动、脚本、OSC、定位、设备协议、反馈与录制回放 |
-| 连接方式 | 浏览器可用的 WebSocket、HTTP、串口、蓝牙和 MIDI | 串口、UDP／TCP、Intiface、设备 API、OSC、DG-LAB、MIDI、HTTP／WebSocket 与 MQTT |
-| 适合用途 | 快速控制、播放脚本、随开随用 | 应用转发、多种输入融合、录制、VRChat 与 Unity |
+| | WebSensa | Node.js CLI | Electron |
+| --- | --- | --- | --- |
+| 启动 | [在浏览器打开](https://sealoong.github.io/Sensa/websensa/) | 运行 Sensa，在浏览器打开工作台 | 运行 Sensa Desktop，打开内嵌工作台 |
+| 数值来源 | 手动控制、funscript、计算、录制回放与参数图解 | 手动、脚本、OSC、定位、设备协议、反馈与录制回放 | 与 CLI 共用本地服务和输入能力 |
+| 连接方式 | 浏览器可用的 WebSocket、HTTP、串口、蓝牙和 MIDI | 串口、UDP／TCP、Intiface、设备 API、OSC、DG-LAB、MIDI、HTTP／WebSocket 与 MQTT | 与 CLI 共用设备与网络适配器 |
+| 适合用途 | 快速控制、播放脚本、随开随用 | 应用转发、后台服务与独立实例 | 用桌面窗口操作本地服务 |
 
-两个版本沿用相同的控制布局与来源到输出流程。[WebSensa 指南](docs/websensa.md) · [桌面版首次使用](docs/quick-start.md)
+三种方式共用 TypeScript 核心与 React 工作台。Electron 启动随包 Node CLI 作为服务；WebSensa 使用浏览器适配器，在页面内运行同一应用。[架构](docs/architecture.md) · [WebSensa 指南](docs/websensa.md) · [本地版首次使用](docs/quick-start.md)
 
 ![Sensa 组合输入运行界面](docs/screenshots/desktop/combined-input-zh-CN.png)
 
@@ -41,11 +41,11 @@
 
 ## 启动桌面工作台
 
-1. [下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版。Windows 提供安装器、单文件 EXE 和便携 ZIP；Linux／macOS 提供便携压缩包。按电脑选择 x64 或 ARM64。[全部格式](docs/quick-start.md#1-启动)
-2. 运行 Sensa，工作台会在浏览器打开，控制台显示本次实际地址。
+1. [下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版；当前 Node.js／Electron 构建先发布到[开发预览](https://github.com/SeaLoong/Sensa/releases)。内嵌窗口选择 Electron Desktop 压缩包，浏览器／后台服务选择 CLI；Windows CLI 另有安装器和单 EXE。按电脑选择 x64 或 ARM64。[全部格式](docs/quick-start.md#1-启动)
+2. 运行 Sensa。CLI 自动在浏览器打开工作台并显示实际地址，Electron 则在自身窗口打开工作台。
 3. 添加输出、选择来源、保存并连接。启用输入后，即可移动滑条或播放脚本。
 
-多个浏览器标签页共用桌面连接。再次打开同一配置会复用运行中的实例；独立命名实例分别保存配置并协调端口。[启动与多实例](docs/quick-start.md#运行多个实例)
+多个浏览器标签页共用本地服务连接。再次打开同一配置会复用运行中的实例；独立命名实例分别保存配置并协调端口。[启动与多实例](docs/quick-start.md#运行多个实例)
 
 ## 连接设备与应用
 
@@ -74,6 +74,6 @@ Sensa 也能接收其他应用原本发给设备的控制。典型路径为 **�
 
 [工作台指南](docs/guide.md) · [功能参考](docs/features.md) · [OSC 参数字典](docs/osc-parameters.md) · [语言设置](docs/languages.md) · [开发与发布](docs/development.md) · [验证记录](docs/e2e-status.md)
 
-[开发预览](https://github.com/SeaLoong/Sensa/releases)提供当前 main 构建；VCC／ALCOM 的 VPM 仓库提供 Unity 正式版。main 检查通过后自动发布预览并更新网站，Release 工作流用于正式发布。
+[开发预览](https://github.com/SeaLoong/Sensa/releases)提供当前 main 构建，包括 Node.js／Electron 迁移。下载按钮始终打开最新正式版。新运行时可读取已有配置，保存时统一写入 camelCase 格式。Unity 组件包继续使用 C#，通过 VCC／ALCOM 的 VPM 仓库提供正式版。main 检查通过后自动发布预览并更新网站，Release 工作流用于正式发布。
 
 [MIT 许可](LICENSE) · [术语表](GLOSSARY.md)

@@ -7,6 +7,7 @@ import math
 import os
 from pathlib import Path
 import socket
+import shutil
 import struct
 import time
 import urllib.error
@@ -66,9 +67,9 @@ def fixed_root_samples(point, instance='Smoke'):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--dotnet', default='dotnet', help='dotnet 可执行文件。 / dotnet executable.')
+    parser.add_argument('--node', default=shutil.which('node') or 'node', help='Node.js 可执行文件。 / Node.js executable.')
     executable = parser.add_mutually_exclusive_group(required=True)
-    executable.add_argument('--dll', help='待验证的 Sensa DLL。 / Sensa DLL to verify.')
+    executable.add_argument('--entry', help='待验证的 Node Sensa 入口。 / Node Sensa bundle to verify.')
     executable.add_argument('--exe', help='待验证的 Sensa 可执行文件。 / Sensa executable to verify.')
     parser.add_argument('--report-dir', type=Path, help='诊断输出目录。 / Diagnostic output directory.')
     args = parser.parse_args()
@@ -77,8 +78,8 @@ def main():
     except RuntimeError as error:
         parser.error(str(error))
     report_dir = args.report_dir.resolve() if args.report_dir else None
-    dotnet = str(Path(args.dotnet).resolve()) if '/' in args.dotnet or '\\' in args.dotnet else args.dotnet
-    launch_command = [str(Path(args.exe).resolve())] if args.exe else [dotnet, str(Path(args.dll).resolve())]
+    node = str(Path(args.node).resolve()) if '/' in args.node or '\\' in args.node else args.node
+    launch_command = [str(Path(args.exe).resolve())] if args.exe else [node, str(Path(args.entry).resolve())]
     with SmokeSession(launch_command, report_dir=report_dir) as session:
         base, port, cookie = session.base, session.port, session.cookie
         assert b'app.bundle.js' in session.request('/', authenticated=False).read()

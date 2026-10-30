@@ -45,27 +45,24 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '24'
+          node-version: '24.22.2'
           cache: npm
-      - name: Set up .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          global-json-file: global.json
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
           python-version: '3.14'
       - name: Install dependencies
         run: npm ci
+      - name: Install script test dependencies
+        run: python -m pip install -r scripts/requirements-capture.txt
       - name: Check WebUI
         run: |
           npm test
           npm run build:web
-      - name: Check backend
-        run: >-
-          dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release
-          -p:RestoreLockedMode=true -p:SkipWebBuild=true
-          --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results/backend
+      - name: Check Node runtime
+        run: npm run test:node
+      - name: Build Node runtime
+        run: npm run build:node -- --bundle-only
       - name: Check scripts and docs
         run: python -X utf8 -m unittest discover -s tests/scripts
       - name: Check Unity metadata

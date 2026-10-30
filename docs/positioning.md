@@ -16,6 +16,8 @@
 
 [查看三种定位方式的实际读数面板](screenshots.md#定位读数)。
 
+[共享定位解码器](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)统一解读 Contact、SPS、Shader 与实验测量；[来源解析器](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)将坐标、单位、样本时效和有效性传给计算与输出绑定。Node／Electron 与浏览器本地宿主共用这些规则，Unity 生产端继续使用原有协议。
+
 ## Contact 直接定位：一个 Receiver 提供位置与速度
 
 Sensa 已适配 SDK **3.10.6-beta.3** 的高级 Contact 报告，并兼容 Beta.2 的 Proximity 接口。Sensa 使用跟随所选自身根点的微小球形 Sender，并在 Avatar 根放置零偏移、各轴对齐的球形 Receiver。独立通道与 Self-only 选择用于对应期望目标；明确选择 Sensa／原生 Contact 根点时，可独立于 VRCFury 使用。[Beta 设置与安装包依据](contact-sdk.md)
@@ -69,7 +71,7 @@ q = -Σ((aᵢ-c)dᵢ²)/(8h²)
 position = c+q
 ```
 
-r 用于将标记表面距离换算为中心距离。程序要求严格 .001<p<.999、四路距离的 RMS 残差≤.01，并将坐标限制在 X/Z=[−2,2]、Y=[−1,3]。残差用于检查计算位置与四路距离的一致程度；实际误差需用已知位置对照测量。[共享定义](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [桌面解算](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+r 用于将标记表面距离换算为中心距离。程序要求严格 .001<p<.999、四路距离的 RMS 残差≤.01，并将坐标限制在 X/Z=[−2,2]、Y=[−1,3]。残差用于检查计算位置与四路距离的一致程度；实际误差需用已知位置对照测量。[共享定义](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [共享解算](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 
 ## 为什么静止时坐标可以有效，停止采样却会失效？
 
