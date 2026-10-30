@@ -25,7 +25,10 @@ export function fusePolicy(platform) {
     [FuseV1Options.RunAsNode]: false, [FuseV1Options.EnableCookieEncryption]: true,
     [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false, [FuseV1Options.EnableNodeCliInspectArguments]: false,
     [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: platform !== 'linux',
-    [FuseV1Options.OnlyLoadAppFromAsar]: true, [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: true,
+    [FuseV1Options.OnlyLoadAppFromAsar]: true,
+    // Use Electron's stock snapshot; Sensa does not build the custom
+    // browser_v8_context_snapshot.bin required by the browser-specific fuse.
+    [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: false,
     [FuseV1Options.GrantFileProtocolExtraPrivileges]: false, [FuseV1Options.WasmTrapHandlers]: true };
 }
 async function generatedDirectory(path) {
