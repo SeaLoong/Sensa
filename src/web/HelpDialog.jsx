@@ -1,6 +1,6 @@
 import React from 'react';
 import { t, docUrl } from './i18n.js';
-import { Button, Modal } from './ui.jsx';
+import { Button, Modal } from './ui.tsx';
 
 export default function HelpDialog({ open, onClose, onNavigate, emergencyAction, error }) {
   return (

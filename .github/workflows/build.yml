@@ -91,19 +91,8 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
         with:
-          node-version: '24'
+          node-version: '24.22.2'
           cache: npm
-      - name: Install .NET
-        id: dotnet-setup
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        continue-on-error: ${{ matrix.rid == 'win-arm64' }}
-        with:
-          global-json-file: global.json
-      - name: Retry ARM SDK
-        if: matrix.rid == 'win-arm64' && steps.dotnet-setup.outcome == 'failure'
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          global-json-file: global.json
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
@@ -111,6 +100,12 @@ jobs:
       - name: Set version
         run: python scripts/prepare-release.py --apply-version "$BUILD_VERSION"
         shell: bash
+      - name: Install Linux native runtime dependencies
+        if: startsWith(matrix.rid, 'linux-')
+        timeout-minutes: 5
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends libasound2t64 libgtk-3-0t64 libnss3 libgbm1 xvfb
       - name: Install dependencies
         run: npm ci
       - name: Check native Windows protocol bridge dependencies

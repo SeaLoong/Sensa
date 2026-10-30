@@ -1,8 +1,9 @@
-/** Protocol-neutral values and ports used by the shared signal engine. */
-export type Axis = 'L0' | 'L1' | 'L2' | 'R0' | 'R1' | 'R2' | 'V0';
+import type { MotionAxis } from './runtime/model.ts';
+
+/** Protocol-neutral transport values; all hosts share the runtime's axis set. */
+export type Axis = MotionAxis;
 export type SignalValues = Partial<Record<Axis, number>>;
 export type AxisValues = SignalValues;
-export type InputMode = 'manual' | 'script' | 'external';
 export type Awaitable<T> = T | PromiseLike<T>;
 
 export interface SignalFrame {
@@ -35,41 +36,4 @@ export interface NamedOutputTransport extends OutputTransport {
 export interface OutputDetails {
   type?: string;
   axis?: string;
-}
-export interface OutputSummary extends OutputDetails {
-  id: string;
-  name: string;
-  connected: boolean;
-  error: string;
-}
-export interface EngineError {
-  id: string;
-  message: string;
-}
-/** Hosts exchange numeric timer tokens; native timer handles remain private. */
-export interface EngineClock {
-  now(): number;
-  interval(callback: () => void, periodMs: number): number;
-  clear(token: number): void;
-}
-export type Clock = EngineClock;
-export interface EngineSnapshot {
-  active: boolean;
-  emergency: boolean;
-  mode: InputMode;
-  externalConnected: boolean;
-  externalName: string;
-  playing: boolean;
-  loop: boolean;
-  speed: number;
-  positionMs: number;
-  script: Script | null;
-  scriptName: string;
-  scriptAxis: Axis;
-  values: Record<Axis, number>;
-  axes: Axis[];
-  outputs: OutputSummary[];
-  errors: EngineError[];
-  recordedActions: FunscriptAction[];
-  recording: boolean;
 }

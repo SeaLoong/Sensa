@@ -1,20 +1,14 @@
 import { test, expect } from './fixtures.js';
 
-const port = 19461;
-async function slider(page, value) {
-  await page.getByLabel('L0 Stroke', { exact: true }).evaluate((element, next) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(next));
-    element.dispatchEvent(new Event('input', { bubbles: true }));
-    element.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
-}
+import { openWorkbench, addWorkbenchOutput, manualMotion, inputActivation } from './websensa-workbench.js';
 
-for (const [outputType, inputType, scheme, suffix] of [
-  ['http', 'JsonHttp', 'http', '/command'],
-  ['json-ws', 'JsonWebSocket', 'ws', ''],
-  ['tcode-ws', 'TCodeWebSocket', 'ws', ''],
+const port = 19461;
+for (const [wireType, outputType, inputType, scheme, suffix] of [
+  ['http', 'SensaHttp', 'JsonHttp', 'http', '/command'],
+  ['json-ws', 'SensaWebSocket', 'JsonWebSocket', 'ws', ''],
+  ['tcode-ws', 'TCodeWebSocket', 'TCodeWebSocket', 'ws', ''],
 ]) {
-  test(`WebSensa ${outputType} interoperates with the actual desktop input and isolated UDP output / 网页与桌面协议实际互通`,
+  test(`WebSensa ${wireType} interoperates with the actual desktop input and isolated UDP output / 网页与桌面协议实际互通`,
     { tag: ['@input', '@transport'] }, async ({ page, rig }, info) => {
       const before = await page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
       const configuration = await page.request.put(rig.baseUrl + '/api/config', { data: { ...before,
@@ -26,16 +20,10 @@ for (const [outputType, inputType, scheme, suffix] of [
       expect(configuration.ok(), await configuration.text()).toBe(true);
       await expect.poll(async () => (await rig.overview()).protocolInputs[0]?.listening).toBe(true);
       await expect.poll(async () => (await rig.overview()).outputs.find(output => output.id === 'udp')?.connected).toBe(true);
-      await page.goto(rig.baseUrl + '/websensa/?lang=en');
-      await expect(page.getByRole('heading', { name: 'Put signals to work', exact: true })).toBeVisible();
-      await page.getByRole('tab', { name: /^Outputs/ }).click();
-      await page.getByLabel('Output type', { exact: true }).selectOption(outputType);
-      await page.getByLabel('Endpoint URL', { exact: true }).fill(`${scheme}://127.0.0.1:${port}/browser${suffix}`);
-      await page.getByRole('button', { name: 'Connect output', exact: true }).click();
-      await expect(page.getByText('1 connected', { exact: true })).toBeVisible();
-      await page.getByRole('tab', { name: /^Control/ }).click();
-      await slider(page, 80);
-      await page.getByLabel('Input enabled', { exact: true }).check();
+      await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
+      await addWorkbenchOutput(page, outputType, `${scheme}://127.0.0.1:${port}/browser${suffix}`);
+      await manualMotion(page, 'L0', 800);
+      await inputActivation(page).check();
       await expect.poll(async () => (await rig.overview()).protocolInputs[0]?.receivedCommands).toBeGreaterThan(0);
       expect((await rig.overview()).runtime.inputActive).toBe(false);
       expect(rig.wire.udp.some(line => /(?:^|\s)L0\d/.test(line))).toBe(false);
@@ -43,21 +31,27 @@ for (const [outputType, inputType, scheme, suffix] of [
       expect(mode.ok(), await mode.text()).toBe(true);
       const activation = await page.request.put(rig.baseUrl + '/api/input/active', { data: { active: true } });
       expect(activation.ok(), await activation.text()).toBe(true);
-      await expect.poll(() => rig.wire.udp.some(line => /(?:^|\s)L0560(?:\s|$)/.test(line))).toBe(true);
+      // Activation clears commands that arrived while the desktop was inactive.
+      // A fresh browser target must cross the real protocol lease after arming.
+      const receivedBefore = (await rig.overview()).protocolInputs[0].receivedCommands;
+      await manualMotion(page, 'L0', 810);
+      await expect.poll(async () => (await rig.overview()).protocolInputs[0]?.receivedCommands).toBeGreaterThan(receivedBefore);
+      await manualMotion(page, 'L0', 800);
+      await expect.poll(() => rig.wire.udp.some(line => /(?:^|\s)L0560(?:[IS]\d+)?(?:\s|$)/.test(line))).toBe(true);
       await expect(page.getByRole('alert')).toHaveCount(0);
       await page.getByRole('button', { name: 'Emergency stop', exact: true }).click();
-      await expect(page.getByLabel('Input enabled', { exact: true })).not.toBeChecked();
+      await expect(inputActivation(page)).not.toBeChecked();
       await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
       const stoppedCount = (await rig.overview()).protocolInputs[0].receivedCommands;
-      await page.getByRole('button', { name: 'Clear stop', exact: true }).click();
+      await page.getByRole('button', { name: 'Release emergency stop', exact: true }).click();
       // Repeat the last target while both sides are stopped; clearing the latch
       // must not re-enable the browser's timer or replay a pending frame.
-      await slider(page, 80);
+      await manualMotion(page, 'L0', 800);
       await page.waitForTimeout(260); // More than two manual refresh periods must remain silent.
       expect((await rig.overview()).protocolInputs[0].receivedCommands).toBe(stoppedCount);
       expect(rig.wire.udp.at(-1)).toBe('DSTOP');
-      await info.attach(`websensa-desktop-${outputType}.json`, { body: JSON.stringify({
-        inputType, outputType, actualDesktopProtocol: true, isolatedMockUdp: true,
+      await info.attach(`websensa-desktop-${wireType}.json`, { body: JSON.stringify({
+        inputType, outputType: wireType, sharedOutputType: outputType, actualDesktopProtocol: true, isolatedMockUdp: true,
         browserAndDesktopActivationSeparate: true, receivedCommands: stoppedCount,
         wire: rig.wire.udp, physicalHardware: false,
       }), contentType: 'application/json' });

@@ -55,7 +55,7 @@ export async function startTestRig(peers, scenario, expect) {
   try {
     peers.reset({ intifaceProfile: scenario === 'vibration-only' ? 'vibration-only' : scenario === 'rotation-only' ? 'rotation-only' : 'combined' });
     await writeFile(configPath, JSON.stringify(createRigConfiguration(scenario, peers.serialPort)));
-    app = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll'), '--open-browser', 'false'], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') }, stdio: ['ignore', 'pipe', 'pipe'] });
+    app = spawn(process.execPath, [path.resolve('artifacts/node/sensa.cjs'), '--config', configPath, '--open-browser', 'false'], { cwd: directory, env: { ...process.env, SENSA_CONFIG_PATH: configPath, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') }, stdio: ['ignore', 'pipe', 'pipe'] });
     let spawnError;
     app.on('error', error => { spawnError = error; });
     app.stdout.on('data', bytes => logs.push(bytes.toString()));

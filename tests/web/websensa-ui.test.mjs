@@ -5,16 +5,17 @@ import { pathToFileURL } from 'node:url';
 import { build } from 'esbuild';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { SensaEngine } from '../../src/core/index.ts';
+import { createBrowserWorkbench } from '../../src/websensa/browser-runtime.ts';
 import { resolveWebSensaLocale, saveWebSensaLocale } from '../../src/websensa/locale.ts';
-import { detectCapabilities } from '../../src/websensa/capabilities.ts';
 
 const require = createRequire(import.meta.url);
-const compiled = await build({ entryPoints: ['src/websensa/WebSensa.tsx'], bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', plugins: [{ name: 'shared-test-react', setup(builder) {
+const compiled = await build({ entryPoints: ['src/websensa/WebSensa.tsx'], bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', loader: { '.js': 'jsx' }, plugins: [{ name: 'shared-test-react', setup(builder) {
   builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
 } }] });
-const { default: WebSensa } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
+const source = compiled.outputFiles[0].text;
+const { default: WebSensa } = await import('data:text/javascript;base64,' + Buffer.from(source).toString('base64'));
 const render = props => renderToStaticMarkup(React.createElement(WebSensa, props));
+const makeHost = options => createBrowserWorkbench({ page: null, storage: null, ...options });
 
 test('WebSensa preserves explicit query, shared tab language and persistent fallback in the correct order', () => {
   const browser = { location: { href: 'https://example.test/websensa/?lang=zh-CN' }, sessionStorage: { getItem: () => 'en-US' }, localStorage: { getItem: () => 'en' }, navigator: { languages: ['en-US'] } };
@@ -30,51 +31,55 @@ test('WebSensa language saves both shared tab and page preference without requir
   assert.equal(saveWebSensaLocale('xx', browser), false); assert.equal(saveWebSensaLocale('en', { sessionStorage: { setItem() { throw new Error(); } } }), true);
 });
 
-test('WebSensa renders the desktop workbench shell and named controls in both languages without a backend', () => {
-  for (const initialLanguage of ['en', 'zh']) {
-    const html = render({ initialLanguage });
-    assert.match(html, /app-shell websensa/); assert.match(html, /workspace-sidebar/); assert.match(html, /workspace-scroll/);
-    assert.match(html, initialLanguage === 'en' ? /Input enabled/ : /输入启用/);
-    assert.match(html, initialLanguage === 'en' ? /Emergency stop/ : /紧急停止/);
-    assert.match(html, /aria-label="L0 (?:Stroke|主轴)"/); assert.match(html, /aria-selected="true"/);
-    assert.doesNotMatch(html, /value="password|localhost.*api|app\.bundle.*cdn/);
-  }
+test('WebSensa renders the complete shared workbench with actual local runtime state', async () => {
+  const host = makeHost({ environment: { fetch() {} } });
+  const html = render({ host });
+  assert.match(html, /class="app-shell"/); assert.match(html, /workspace-sidebar/); assert.match(html, /workspace-scroll/);
+  assert.match(html, /WebSensa/); assert.match(html, /Input enabled/); assert.match(html, /Emergency stop/);
+  assert.match(html, /aria-label="Motion axes"/); assert.match(html, /value="SensaHttp"/);
+  assert.doesNotMatch(html, /value="password|localhost.*api|app\.bundle.*cdn/);
+  await host.client.dispose();
 });
 
-test('WebSensa output form exposes explicit device discovery and all browser transport choices', () => {
-  const html = render({ initialLanguage: 'en', initialPage: 'outputs' });
-  for (const type of ['intiface', 'serial', 'tcode-ws', 'json-ws', 'http', 'midi', 'bluetooth']) assert.ok(html.includes('value="' + type + '"'));
-  assert.match(html, /Scan devices/); assert.match(html, /Different devices share one connection/);
-  assert.match(html, /<button[^>]*disabled=""[^>]*>Connect output<\/button>/);
+test('the unified output menu retains supported browser transports and disables host-only choices', async () => {
+  const host = makeHost({ environment: { fetch() {} } });
+  const html = render({ host });
+  for (const type of ['Intiface', 'TCodeSerial', 'TCodeWebSocket', 'Bluetooth', 'SensaHttp', 'SensaWebSocket', 'HttpJson', 'WebSocketJson', 'Midi', 'Recording']) assert.ok(html.includes('value="' + type + '"'), type);
+  assert.match(html, /<option value="TCodeSerial" disabled=""/);
+  assert.match(html, /<option value="TCodeUdp" disabled=""/);
+  assert.match(html, /<option value="SensaHttp"[^>]*>Sensa · HTTP/);
+  assert.match(html, /<option value="Recording">/);
   assert.doesNotMatch(html, /<input[^>]*type="password"/);
+  await host.client.dispose();
 });
 
-test('WebSensa script preview is paused and cannot play before explicit input activation', async () => {
-  const controller = new SensaEngine();
-  await controller.loadScript({ inverted: true, actions: [{ at: 0, pos: 20 }, { at: 1000, pos: 80 }] }, 'nonzero.funscript');
-  const html = render({ controller, initialLanguage: 'en' });
-  assert.match(html, /nonzero\.funscript/); assert.match(html, /0\.00 s \/ 1\.00 s · 80%/);
-  assert.match(html, /<button[^>]*disabled=""[^>]*>Play<\/button>/);
-  assert.match(html, /Playback speed/); assert.match(html, /Script target axis/); assert.match(html, /Script trajectory/);
-  await controller.dispose();
+test('the browser workbench exposes all twelve manual axes and keeps input inactive', async () => {
+  const host = makeHost();
+  const html = render({ host });
+  for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2']) assert.ok(html.includes('>' + axis + '</label>'), axis);
+  assert.match(html, /type="checkbox"[^>]*checked=""[^>]*\/>L0/);
+  assert.equal(host.runtime.getSnapshot().inputActive, false);
+  await host.client.dispose();
 });
 
-test('WebSensa explorer source lets all motion axes be selected and keeps activation separate', async () => {
-  const controller = new SensaEngine(); await controller.setMode('external'); controller.receiveExternal({ R2: .63 });
-  const html = render({ controller, initialLanguage: 'en' });
-  for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0']) assert.ok(html.includes(axis));
-  assert.match(html, /Receiving/); assert.match(html, /R2 63%/); assert.equal(controller.snapshot().active, false);
-  await controller.dispose();
+test('server and browser entry points resolve to the same workbench without a second signal engine', async () => {
+  assert.doesNotMatch(source, /class SensaEngine|function SensaEngine/);
+  assert.match(source, /function Workbench\(/);
+  const host = makeHost(); const snapshot = host.initialSnapshot();
+  snapshot.overview.runtime.inputActive = true;
+  assert.equal(host.runtime.getSnapshot().inputActive, false);
+  assert.equal(host.platform.inputModes.includes('osc'), false);
+  await host.client.dispose();
 });
 
-
-test('WebSensa disables unavailable browser outputs and offers an actual available route', () => {
-  const capabilities = detectCapabilities({ fetch() {} });
-  const html = render({ initialLanguage: 'en', initialPage: 'outputs', capabilities });
-  assert.match(html, /<option value="intiface" disabled=""/);
-  assert.match(html, /<option value="serial" disabled=""/);
-  assert.match(html, /<option value="http">JSON · HTTP<\/option>/);
-  assert.match(html, /WebSocket is unavailable/);
-  assert.match(html, /Use JSON HTTP/);
-  assert.match(html, /<button[^>]*disabled=""[^>]*>Connect output<\/button>/);
+test('the shared renderer disables native adapters reported unavailable by the actual host', async () => {
+  const host = makeHost();
+  const initial = host.initialSnapshot();
+  initial.overview.capabilities = { outputs: [{ type: 'TCodeSerial', available: false }, { type: 'SensaHttp', available: true }, { type: 'Recording', available: true }] };
+  host.platform = { name: 'Sensa' }; host.initialSnapshot = () => initial;
+  const html = render({ host });
+  assert.match(html, /<option value="TCodeSerial" disabled=""/);
+  assert.match(html, /<option value="Intiface" disabled=""/);
+  assert.match(html, /<option value="SensaHttp"[^>]*>Sensa · HTTP/);
+  await host.client.dispose();
 });

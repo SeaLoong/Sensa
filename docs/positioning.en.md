@@ -16,6 +16,8 @@ Choose a route below, inspect coordinates, then calibrate them into device motio
 
 [View the three tracking panels in use](screenshots.en.md#position-measurements).
 
+The [shared tracking decoder](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts) interprets Contact, SPS, Shader and experimental measurements. The [source resolver](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts) carries coordinates, units, sample age and validity into computations and output bindings. Node/Electron and browser-local hosts share these rules; Unity producers retain their existing protocols.
+
 ## Contact direct tracking: position and velocity from one Receiver
 
 Sensa supports SDK **3.10.6-beta.3** advanced Contact reports and the Proximity interface from Beta.2. Sensa uses one tiny spherical Sender following the selected own root and one spherical Receiver at the Avatar root with zero offsets and aligned axes. A unique channel and Self-only selection identify the intended target. Explicit Sensa/native Contact roots can be used independently of VRCFury. [Beta setup and package evidence](contact-sdk.en.md)
@@ -69,7 +71,7 @@ q = -Σ((aᵢ-c)dᵢ²)/(8h²)
 position = c+q
 ```
 
-Omitting r confuses marker-surface and center distance. Reception requires strict .001<p<.999, four-distance RMS residual≤.01, and coordinate bounds X/Z=[−2,2], Y=[−1,3]. Residual checks agreement between the calculated position and the four ranges. Actual error is measured against known positions. [Shared definition](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [Desktop solver](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/FixedAnchorReconstruction.cs)
+Omitting r confuses marker-surface and center distance. Reception requires strict .001<p<.999, four-distance RMS residual≤.01, and coordinate bounds X/Z=[−2,2], Y=[−1,3]. Residual checks agreement between the calculated position and the four ranges. Actual error is measured against known positions. [Shared definition](https://github.com/SeaLoong/Sensa/blob/main/unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs) · [Desktop solver](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/tracking.ts)
 
 ## Why can a stationary position stay valid while stopped sampling expires?
 

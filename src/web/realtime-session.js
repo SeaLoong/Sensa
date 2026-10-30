@@ -31,7 +31,7 @@ export function createBrowserRealtimeSession(options = {}) {
 // Initial reads are one attempt per connection until a complete snapshot applies.
 // 初始读取按连接代次执行，完整应用一次后不再覆盖用户草稿。
 export function createInitialSnapshotLoader(session, observers = {}) {
-  let disposed = false, loaded = false, generation = 0, pending = null;
+  let disposed = false, loaded = observers.initialLoaded === true, generation = 0, pending = null;
   return {
     connection(status) {
       if (disposed || loaded) return Promise.resolve();

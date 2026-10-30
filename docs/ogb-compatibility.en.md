@@ -12,6 +12,8 @@ Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2
 
 The explorer was checked against **VRCFury 1.1434.0**. Its `BakeHapticSocketsService.cs`, `VRCFuryHapticSocketBaker.cs` and `VRCFuryHapticPlugBaker.cs` match the pinned commit above.
 
+The Node [OscServices](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts) receives OSC/OSCQuery and tracks sources. The shared [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) interprets OgbDepth/OgbTouch and routes the result through the same output coordinator. Source identity keeps paired readings attached to one instance; geometry and units follow the upstream definitions below.
+
 ## Starting dimensions in the explorer
 
 Each parameter uses its upstream generation rule. Plug length, width and the automatic Socket touch region come from Avatar dimensions. The explorer provides an explicit example of those dimensions; adjust the sliders to match your Avatar.
@@ -130,7 +132,7 @@ d ≈ R × (1 - pRoot) + r
 Radial fraction q = clamp(1 - d / L, 0, 1)
 ```
 
-Sensa uses the generator model R=1 and r=0.01, giving the +0.01 correction. Runtime scaling or custom dimensions make this conversion approximate, with actual R/r determined from authored geometry. Root saturation at one means d≤r, so readings stay constant within that small region. Calibrate your desired start and end positions using the actual object. [Estimator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+Sensa uses the generator model R=1 and r=0.01, giving the +0.01 correction. Runtime scaling or custom dimensions make this conversion approximate, with actual R/r determined from authored geometry. Root saturation at one means d≤r, so readings stay constant within that small region. Calibrate your desired start and end positions using the actual object. [Estimator](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/motion.ts)
 
 Only complete finite 0–1 pairs with a usable unsaturated length observation support the subsequent radial fraction. Starting inside with unknown length returns zero: leave and re-enter first. Lateral offset, multiple Plugs, saturation and asynchronous per-parameter updates affect results. Keeping the same object and source throughout calibration helps produce stable, interpretable changes.
 
@@ -142,7 +144,7 @@ Choose this route when authoring your own root measurement. Explicit Sensa/nativ
 
 ## Sensa's compact entry points and prerequisites
 
-Choose OgbDepth for depth and OgbTouch for touch. OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**. Missing pairs or unknown length yield zero; absent or both-zero channels permit the same instance’s **SPS1 · PenOthers / PenOthersClose** depth signal. OgbTouch pairs required Close values by source/full parent/feature, returning zero if absent. Explicit Direct mappings retain access to raw values. [Consumer selection](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149), [Sensa address interpretation](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/OgbDepthAddress.cs)
+Choose OgbDepth for depth and OgbTouch for touch. OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**. Missing pairs or unknown length yield zero; absent or both-zero channels permit the same instance’s **SPS1 · PenOthers / PenOthersClose** depth signal. OgbTouch pairs required Close values by source/full parent/feature, returning zero if absent. Explicit Direct mappings retain access to raw values. [Consumer selection](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149), [Sensa address interpretation](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
 
 Modern VRCFury replaces instance-name slashes with underscores. Sensa also preserves custom nested parent paths. Companion values remain isolated by source/instance/Self-or-Others. Reactivation, Avatar changes and mapping rebuilds discard learned length. Timeouts follow the currently selected signal.
 

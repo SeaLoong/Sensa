@@ -41,6 +41,11 @@ def collect(root):
         if len(matches) != 1:
             raise ValueError('Expected one archive per runtime / 每个平台必须有一个压缩包: ' + rid)
         files.extend(matches)
+        desktop_suffix = '.tar.gz' if rid.startswith('linux-') else '.zip'
+        desktops = list(root.rglob(f'Sensa-*-{rid}-Desktop{desktop_suffix}'))
+        if len(desktops) != 1:
+            raise ValueError('Expected one Electron desktop archive per runtime / 每个平台必须有一个 Electron 桌面压缩包: ' + rid)
+        files.extend(desktops)
         if rid.startswith('win-'):
             for kind in ('Setup', 'SingleFile'):
                 matches = list(root.rglob(f'Sensa-*-{rid}-{kind}.exe'))
@@ -51,14 +56,19 @@ def collect(root):
     if len(unity) != 1:
         raise ValueError('Expected one Unity archive / 必须有一个 Unity 压缩包')
     files.extend(unity)
+    selected = set(files)
+    unexpected = [path for path in root.rglob('*') if path.name.endswith(('.zip', '.tar.gz', '.exe')) and path not in selected]
+    if unexpected:
+        raise ValueError('Unexpected release archive / 含有意外的发布文件: ' + unexpected[0].name)
     for path in files:
         regular_artifact(root, path)
         expected = regular_artifact(root, path.parent / 'SHA256SUMS.txt').read_text(encoding='utf-8').splitlines()
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         if f'{digest}  {path.name}' not in expected:
             raise ValueError('Checksum mismatch / 校验值不一致: ' + path.name)
-    return sorted(files, key=lambda path: (0 if path.name.endswith('-Setup.exe') else
-                                          1 if path.name.endswith('-SingleFile.exe') else 2, path.name))
+    return sorted(files, key=lambda path: (0 if '-Desktop.' in path.name else
+                                          1 if path.name.endswith('-Setup.exe') else
+                                          2 if path.name.endswith('-SingleFile.exe') else 3, path.name))
 
 
 def verify_identity(release, tag, sha, channel):
@@ -317,6 +327,8 @@ def release_assets(root, channel, version, tag, sha, repository):
     expected = {f'Sensa-{version}{label}-{rid}' + ('.zip' if rid.startswith('win-') else '.tar.gz') for rid in RUNTIMES}
     expected.update(f'Sensa-{version}{label}-{rid}-{kind}.exe'
                     for rid in RUNTIMES if rid.startswith('win-') for kind in ('Setup', 'SingleFile'))
+    expected.update(f'Sensa-{version}{label}-{rid}-Desktop' + ('.tar.gz' if rid.startswith('linux-') else '.zip')
+                    for rid in RUNTIMES)
     unity_name = f'top.sealoong.sensa-{version}{label}.zip'
     expected.add(unity_name)
     if {path.name for path in archives} != expected:

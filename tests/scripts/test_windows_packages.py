@@ -1,14 +1,15 @@
 """Windows distribution contracts with isolated files and fake process adapters."""
 import importlib.util
+import json
 import os
 from pathlib import Path
 import shutil
+import subprocess
 import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
-import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -84,22 +85,32 @@ class WindowsPackageContracts(unittest.TestCase):
             self.assertEqual((payload / name).read_bytes(), (ROOT / name).read_bytes())
 
     def test_windows_ci_builds_smokes_and_packages_both_standalone_and_installed_binaries(self):
+        def build_sea(command, **options):
+            if command[:2] == ('node', 'scripts/build-node.mjs'):
+                directory = Path(command[command.index('--output') + 1])
+                directory.mkdir(parents=True, exist_ok=True)
+                (directory / 'Sensa.exe').write_bytes(b'MZ verified SEA fixture')
         for runtime in ('win-x64', 'win-arm64'):
             with self.subTest(runtime=runtime), patch.dict(os.environ, GITHUB_ACTIONS='true', SENSA_ISCC='verified/ISCC.exe'), \
                     patch.object(build, 'ROOT', self.root), \
-                    patch.object(build.subprocess, 'run') as run, \
+                    patch.object(build.subprocess, 'run', side_effect=build_sea) as run, \
+                    patch.object(build, 'write_checksums'), \
                     patch.object(sys, 'argv', ['build-platform.py', '--runtime', runtime, '--version', '0.4.0', '--smoke', '--windows-extras']):
                 build.main()
             commands = [call.args[0] for call in run.call_args_list]
-            self.assertEqual(len(commands), 8)
-            self.assertIn('--self-contained', commands[3])
-            self.assertEqual(commands[3][commands[3].index('--self-contained') + 1], 'true')
-            self.assertIn('-p:PublishSingleFile=true', commands[3])
+            self.assertEqual(len(commands), 10)
+            self.assertEqual(commands[0][:2], ('node', 'scripts/build-node.mjs'))
+            self.assertIn('--sea', commands[0])
+            self.assertIn('--check-native', commands[1])
             self.assertEqual(commands[4][1:3], ('scripts/release.py', 'single-file'))
-            self.assertEqual(commands[5][1], 'scripts/smoke.py')
-            self.assertIn('publish-single', commands[5][commands[5].index('--exe') + 1])
-            self.assertEqual(commands[6][1], 'scripts/build-windows-installer.py')
-            self.assertEqual(commands[7][1], 'scripts/smoke-windows-installer.py')
+            self.assertIn('--check-native', commands[5])
+            self.assertEqual(commands[6][1], 'scripts/smoke.py')
+            self.assertIn('publish-single', commands[6][commands[6].index('--exe') + 1])
+            self.assertEqual(commands[7][1], 'scripts/build-windows-installer.py')
+            self.assertEqual(commands[8][1], 'scripts/smoke-windows-installer.py')
+            self.assertEqual(commands[9][:2], ('node', 'scripts/build-electron.mjs'))
+            self.assertIn('--smoke', commands[9])
+            self.assertEqual((self.root / 'artifacts/publish-single' / runtime / 'Sensa.exe').read_bytes(), b'MZ verified SEA fixture')
 
     def test_windows_extras_fail_before_any_build_without_the_pinned_compiler(self):
         for runtime in ('win-x64', 'linux-x64'):
@@ -206,21 +217,16 @@ class WindowsPackageContracts(unittest.TestCase):
         self.assertTrue((self.root / 'report/result.txt').is_file())
 
     def test_single_file_project_embeds_the_exact_web_and_offline_document_allowlist(self):
-        project = ET.parse(ROOT / 'src/Sensa.csproj').getroot()
-        group = next(item for item in project.findall('ItemGroup') if item.get('Condition') == "'$(PublishSingleFile)' == 'true'")
-        resources = {}
-        for item in group.findall('EmbeddedResource'):
-            for source in item.get('Include').split(';'):
-                name = Path(source).name
-                resources[source] = item.get('LogicalName').replace('%(Filename)%(Extension)', name)
+        script = 'import {webResources} from ' + json.dumps((ROOT / 'scripts/build-node.mjs').as_uri()) + ';console.log(JSON.stringify(webResources));'
+        resources = dict(json.loads(subprocess.check_output(['node', '--input-type=module', '-e', script], cwd=ROOT)))
         self.assertEqual(set(resources), {
-            'web/index.html', 'web/styles.css', 'web/app.bundle.js', 'web/app.bundle.js.LEGAL.txt', 'web/realtime-worker.bundle.js',
-            'websensa/index.html', 'websensa/app.bundle.js', 'websensa/app.bundle.css', 'websensa/app.bundle.js.LEGAL.txt',
-            '../docs/parameter-geometry.html', '../docs/assets/osc-parameter-reference.js', '../docs/assets/parameter-geometry-model.js',
-            '../docs/assets/parameter-geometry-view.js', '../docs/assets/parameter-geometry-signal.js', '../docs/assets/parameter-geometry-style.css',
-            '../docs/assets/parameter-geometry-3d.js', '../docs/assets/parameter-geometry-3d.LICENSE.txt'})
-        self.assertEqual(resources['../docs/assets/parameter-geometry-model.js'], 'Sensa.Web.docs.assets.parameter-geometry-model.js')
-        self.assertNotIn('IncludeAllContentForSelfExtract', (ROOT / 'src/Sensa.csproj').read_text(encoding='utf-8-sig'))
+            'src/web/index.html', 'src/web/styles.css', 'src/web/app.bundle.js', 'src/web/app.bundle.js.LEGAL.txt', 'src/web/realtime-worker.bundle.js',
+            'src/web/data/osc-presets.json', 'src/web/data/first-run-motion.json',
+            'src/websensa/index.html', 'src/websensa/app.bundle.js', 'src/websensa/app.bundle.css', 'src/websensa/app.bundle.js.LEGAL.txt',
+            'docs/parameter-geometry.html', 'docs/assets/osc-parameter-reference.js', 'docs/assets/parameter-geometry-model.js',
+            'docs/assets/parameter-geometry-view.js', 'docs/assets/parameter-geometry-signal.js', 'docs/assets/parameter-geometry-style.css',
+            'docs/assets/parameter-geometry-3d.js', 'docs/assets/parameter-geometry-3d.LICENSE.txt'})
+        self.assertEqual(resources['docs/assets/parameter-geometry-model.js'], 'docs/assets/parameter-geometry-model.js')
 
     def test_installer_is_per_user_and_preserves_user_generated_data(self):
         text = (ROOT / 'installer/Sensa.iss').read_text(encoding='utf-8')

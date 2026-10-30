@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures.js';
+import { addWorkbenchOutput, inputActivation, manualMotion, openWorkbench } from './websensa-workbench.js';
 
 async function installMockBluetooth(page, { sameDevice = false } = {}) {
   await page.addInitScript(({ sameDevice }) => {
@@ -50,11 +51,7 @@ async function installMockBluetooth(page, { sameDevice = false } = {}) {
   }, { sameDevice });
 }
 async function addBluetoothOutput(page, profile, name) {
-  await page.locator('#tab-outputs').click();
-  await page.getByLabel('Output type', { exact: true }).selectOption('bluetooth');
-  await page.getByLabel('Device protocol', { exact: true }).selectOption(profile);
-  await page.getByLabel('Name (optional)', { exact: true }).fill(name);
-  await page.getByRole('button', { name: 'Connect output', exact: true }).click();
+  return addWorkbenchOutput(page, 'Bluetooth', null, { profile, name });
 }
 const packets = (page, profile) => page.evaluate(profile => globalThis.__websensaGatt.events
   .filter(item => item.type === 'write' && item.profile === profile).map(item => item.bytes), profile);
@@ -75,21 +72,19 @@ function checkYouou(packets) {
 test('WebSensa drives two BLE device families with independent wire sequences and final zero / 网页工作台双蓝牙设备强度与独立停止',
   { tag: ['@input', '@transport', '@config'] }, async ({ page, rig }, info) => {
     await installMockBluetooth(page);
-    await page.goto(rig.baseUrl + '/websensa/?lang=en');
+    await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
     await addBluetoothOutput(page, 'lovense-single', 'Lovense CI');
     await expect(page.getByText('Lovense CI', { exact: true })).toBeVisible();
     await addBluetoothOutput(page, 'youou-vx001', 'Youou CI');
-    await expect(page.locator('.websensa-row')).toHaveCount(2);
+    await expect(page.locator('.output-card')).toHaveCount(2);
     expect(await packets(page, 'lovense-single')).toEqual([]);
     expect(await packets(page, 'youou-vx001')).toEqual([]);
-    await page.locator('#tab-control').click();
     const vibrationAxis = page.getByRole('checkbox', { name: 'V0', exact: true });
     await vibrationAxis.click(); await expect(vibrationAxis).toBeChecked();
     const strokeAxis = page.getByRole('checkbox', { name: 'L0', exact: true });
     await strokeAxis.click(); await expect(strokeAxis).not.toBeChecked();
-    await page.locator('#axis-V0').press('End');
-    await expect(page.locator('#axis-V0')).toHaveValue('100');
-    const activation = page.getByRole('checkbox', { name: 'Input enabled', exact: true });
+    await manualMotion(page, 'V0', 999);
+    const activation = inputActivation(page);
     await activation.click();
     await expect(activation).toBeChecked();
     await expect.poll(async () => (await packets(page, 'lovense-single')).some(packet =>
@@ -103,12 +98,11 @@ test('WebSensa drives two BLE device families with independent wire sequences an
     const second = await packets(page, 'youou-vx001');
     expect(first.every(packet => ['Vibrate:20;', 'Vibrate:0;'].includes(new TextDecoder().decode(Uint8Array.from(packet))))).toBe(true);
     checkYouou(second);
-    await page.locator('#tab-outputs').click();
     for (const name of ['Lovense CI', 'Youou CI']) {
-      await page.locator('.websensa-row').filter({ has: page.getByText(name, { exact: true }) })
-        .getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
+      await page.locator('.output-card').filter({ has: page.getByText(name, { exact: true }) })
+        .getByRole('button', { name: 'Remove', exact: true }).click();
     }
-    await expect(page.locator('.websensa-row')).toHaveCount(0);
+    await expect(page.locator('.output-card')).toHaveCount(0);
     const events = await page.evaluate(() => globalThis.__websensaGatt.events);
     expect(events.filter(event => event.type === 'connect')).toHaveLength(2);
     expect(events.filter(event => event.type === 'disconnect')).toHaveLength(2);
@@ -120,17 +114,28 @@ test('WebSensa drives two BLE device families with independent wire sequences an
 test('WebSensa prevents competing outputs for one selected Bluetooth device / 同一蓝牙设备不重复创建竞争输出',
   { tag: ['@transport', '@config'] }, async ({ page, rig }) => {
     await installMockBluetooth(page, { sameDevice: true });
-    await page.goto(rig.baseUrl + '/websensa/?lang=en');
-    await addBluetoothOutput(page, 'youou-vx001', 'First device');
-    await expect(page.locator('.websensa-row')).toHaveCount(1);
-    await addBluetoothOutput(page, 'youou-vx001', 'Duplicate device');
-    await expect(page.getByRole('alert')).toContainText('already connected');
-    await expect(page.locator('.websensa-row')).toHaveCount(1);
+    await openWorkbench(page, rig.baseUrl + '/websensa/?lang=en');
+    const first = await addBluetoothOutput(page, 'youou-vx001', 'First device');
+    await expect(page.locator('.output-card')).toHaveCount(1);
+    // The second configuration may be saved, but it cannot acquire an owned GATT
+    // device. Verify the real connection and owner rather than deleting the draft.
+    await page.getByTestId('output-type').selectOption('Bluetooth');
+    await page.getByTestId('add-output').click();
+    const dialog = page.getByRole('dialog', { name: 'Output settings', exact: true });
+    await dialog.getByLabel('Name', { exact: true }).fill('Duplicate device');
+    await dialog.getByLabel('Bluetooth protocol', { exact: true }).selectOption('youou-vx001');
+    await dialog.getByRole('button', { name: 'Save output', exact: true }).click();
+    await expect(dialog).not.toBeVisible();
+    const duplicate = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: 'Duplicate device', exact: true }) });
+    await duplicate.getByRole('button', { name: 'Enable', exact: true }).click();
+    await expect(duplicate.getByRole('alert')).toContainText('already connected');
+    await expect(first.getByText('Connected', { exact: true })).toBeVisible();
     expect((await page.evaluate(() => globalThis.__websensaGatt.events)).filter(event => event.type === 'connect')).toHaveLength(1);
-    await page.getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
-    await expect(page.locator('.websensa-row')).toHaveCount(0);
-    await addBluetoothOutput(page, 'youou-vx001', 'Replacement device');
-    await expect(page.locator('.websensa-row')).toHaveCount(1);
+    await duplicate.getByRole('button', { name: 'Remove', exact: true }).click();
+    await first.getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(page.locator('.output-card')).toHaveCount(0);
+    const replacement = await addBluetoothOutput(page, 'youou-vx001', 'Replacement device');
     expect((await page.evaluate(() => globalThis.__websensaGatt.events)).filter(event => event.type === 'connect')).toHaveLength(2);
-    await page.getByRole('button', { name: 'Disconnect and remove', exact: true }).click();
+    await replacement.getByRole('button', { name: 'Remove', exact: true }).click();
+    await expect(page.locator('.output-card')).toHaveCount(0);
   });

@@ -4,6 +4,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { Linter } from 'eslint';
+import { transformSync } from 'esbuild';
 import { localized, t, getLocale, setLocale, resolveLocale, normalizeLocale, detectLocale, clearLocaleQuery, subscribeLocale, diagnostic, docUrl } from '../../src/web/i18n.js';
 import en from '../../src/web/i18n.en.json' with { type: 'json' };
 import presets from '../../src/web/data/osc-presets.json' with { type: 'json' };
@@ -185,13 +186,20 @@ test('computed diagnostics translate owned phrases while preserving captured ide
 test('every source module and built-in preset has matching nonempty translations and placeholders / 每个源码 module 和内置预设均有非空翻译与匹配占位符', () => {
   const files = directory => readdirSync(directory, { withFileTypes: true }).flatMap(entry => {
     const file = path.join(directory, entry.name);
-    return entry.isDirectory() ? files(file) : /\.(js|jsx)$/.test(entry.name) && !entry.name.includes('bundle') ? [file] : [];
+    return entry.isDirectory() ? files(file) : /\.(?:[cm]?js|jsx|ts|tsx)$/.test(entry.name)
+      && !entry.name.endsWith('.d.ts') && !entry.name.includes('bundle') ? [file] : [];
   });
   const linter = new Linter();
   for (const file of files('src/web')) {
     const keys = [];
-    const messages = linter.verify(readFileSync(file, 'utf8'), {
-      files: ['**/*.{js,jsx}'],
+    const original = readFileSync(file, 'utf8');
+    // Erase types while preserving JSX and literal calls; the same catalog
+    // contract applies to the typed workbench and its existing JS components.
+    const source = /\.tsx?$/.test(file) ? transformSync(original, {
+      loader: file.endsWith('.tsx') ? 'tsx' : 'ts', jsx: 'preserve', target: 'esnext', sourcefile: file,
+    }).code : original;
+    const messages = linter.verify(source, {
+      files: ['**/*.{js,jsx,ts,tsx}'],
       languageOptions: { parserOptions: { ecmaFeatures: { jsx: true } } },
       plugins: { catalog: { rules: { keys: { create: () => ({
         CallExpression(node) {

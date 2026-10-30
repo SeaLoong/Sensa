@@ -1,4 +1,4 @@
-"""Lead with installer downloads and compose concise preview or full stable notes.
+"""Lead with desktop downloads and compose concise preview or full stable notes.
 
 The changelog remains exactly the text returned by GitHub; this module does not
 guess changes or translate pull-request titles.
@@ -35,65 +35,66 @@ def compose_release_notes(channel, version, tag, sha, repository, generated_body
         return ' · '.join(f'[{"ARM64" if arch == "arm64" else "x64"}]({download_base}Sensa-{asset_version}-{runtime}-{arch}{suffix})'
                           for arch in ('x64', 'arm64'))
 
-    installers = ('Windows installers (recommended) / Windows 安装器（推荐）: '
-                  f'[x64]({download_base}Sensa-{asset_version}-win-x64-Setup.exe) · '
-                  f'[ARM64]({download_base}Sensa-{asset_version}-win-arm64-Setup.exe)')
+    desktop = ('Desktop / 桌面版: '
+               f'Windows {desktop_links("win", "-Desktop.zip")} · '
+               f'macOS {desktop_links("osx", "-Desktop.zip")} · '
+               f'Linux {desktop_links("linux", "-Desktop.tar.gz")}')
     downloads = f'''| Format / 格式 | {asset_version} |
 | --- | --- |
-| Windows single file / 单文件 EXE | {desktop_links('win', '-SingleFile.exe')} |
-| Windows portable / 便携 ZIP | {desktop_links('win', '.zip')} |
-| Linux portable / 便携 tar.gz | {desktop_links('linux', '.tar.gz')} |
-| macOS portable / 便携 tar.gz | {desktop_links('osx', '.tar.gz')} |
+| Windows Desktop / 桌面 ZIP | {desktop_links('win', '-Desktop.zip')} |
+| macOS Desktop / 桌面 ZIP | {desktop_links('osx', '-Desktop.zip')} |
+| Linux Desktop / 桌面 tar.gz | {desktop_links('linux', '-Desktop.tar.gz')} |
+| Windows CLI installer / CLI 安装器 | {desktop_links('win', '-Setup.exe')} |
+| Windows CLI single file / CLI 单文件 EXE | {desktop_links('win', '-SingleFile.exe')} |
+| Windows CLI portable / CLI 便携 ZIP | {desktop_links('win', '.zip')} |
+| Linux CLI portable / CLI 便携 tar.gz | {desktop_links('linux', '.tar.gz')} |
+| macOS CLI portable / CLI 便携 tar.gz | {desktop_links('osx', '.tar.gz')} |
 | Unity package / 组件 ZIP | [top.sealoong.sensa-{asset_version}.zip]({download_base}top.sealoong.sensa-{asset_version}.zip) |
 | SHA-256 checksums / 校验值 | [SHA256SUMS.txt]({download_base}SHA256SUMS.txt) |'''
     if channel == 'preview':
-        return f'{installers}\n\n{downloads}\n\nSource: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
+        return f'{desktop}\n\n{downloads}\n\nSource: [`{sha}`](https://github.com/{repository}/commit/{sha})\n'
 
-    title = 'Stable release'
-    chinese_title = '正式发布'
     metadata = f'[vpm-package.json]({download_base}vpm-package.json)'
-    stable_en = f'Stable Unity metadata ({metadata}) is included for the VPM feed.'
-    stable_zh = f'附带供 VPM 正式索引使用的 Unity 元数据 {metadata}。'
     workflow_en = f' [Build workflow]({run_url}).' if run_url else ''
     workflow_zh = f' [构建工作流]({run_url})。' if run_url else ''
     changes = generated_body if generated_body.strip() else 'GitHub did not provide change notes for this range. / GitHub 未返回此范围的变更条目。'
-    return f'''{installers}
+    return f'''{desktop}
 
 {downloads}
 
-Sensa {version} · {title}
+Sensa {version} · Stable release
 
 Source commit: [`{sha}`](https://github.com/{repository}/commit/{sha}).{workflow_en}
 
-On Windows, choose `win-x64-Setup.exe` or `win-arm64-Setup.exe` for your processor (recommended). The installer adds Sensa to the Start menu for your user account and includes offline guides and Shader bridge tools. It needs no administrator access. Updates and uninstall preserve your configuration and recordings.
+Desktop opens the shared workbench in its own Electron window. Extract the complete archive and launch Sensa; the window coordinates one bundled Node service and retains your selected profile. Windows and macOS use ZIP; Linux uses tar.gz. Choose x64 or ARM64 for your processor.
 
-Windows also offers `SingleFile.exe`: run this standalone download directly; it includes the Web UI and needs no adjacent application files. Native libraries extract to .NET's cache on first launch. Configuration and recording-output files stay beside the EXE by default, so keep it in a writable folder. Workbench funscript exports use your Documents/Sensa/recordings folder. The Python Shader bridge and full offline Markdown guides are supplied by the installer or portable archive.
+The CLI edition opens the same workbench in your browser and can run headless with `--open-browser false`. Its six portable archives include offline guides, Shader tools and the serial/BLE bridge. Windows also offers a per-user CLI installer and a standalone `SingleFile.exe`. The single executable embeds its Web UI and serial/MIDI dependencies; native libraries use a private temporary directory. Python tools and full Markdown guides are supplied with the installer or portable archive. All application formats include their Node runtime.
 
-Six self-contained portable archives remain available for Windows, Linux and macOS, each for x64 and ARM64. Use these for a folder-based installation or the complete offline tools: extract the entire ZIP (Windows) or tar.gz (Linux/macOS), then run `Sensa.exe` or `./Sensa`. Open http://127.0.0.1:5086 . All desktop formats include .NET; no separate runtime is required. Downloads are not code-signed; Windows may show a publisher or reputation prompt. One Unity avatar archive is also included.
+Configuration and recordings stay in the selected profile. CLI `--config`, `--instance` and `--new-instance` select independent profiles; desktop profiles use the user application-data directory. Open http://127.0.0.1:5086 for the default CLI workbench, or use the actual address printed at startup. Downloads do not have a publisher code signature.
 
-Unity projects need the matching VRChat SDK and Modular Avatar/NDMF; SPS automation also requires VRCFury. {stable_en}
+Unity projects need the matching VRChat SDK and Modular Avatar/NDMF; SPS automation also requires VRCFury. Stable Unity metadata ({metadata}) is included for the VPM feed.
 
-Verify downloads against `SHA256SUMS.txt`. This source commit passed unit checks and the full browser screenshot comparison before publication. These checks do not validate real hardware or PCVR behavior.
+Verify downloads against `SHA256SUMS.txt`. This source commit passed unit checks and the full browser screenshot comparison before publication. Native package and desktop tests use isolated configurations and simulated transports; real hardware and PCVR remain separate acceptance work.
 
-[Installation and usage](https://sealoong.github.io/Sensa/) · [Standalone parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[Installation and usage](https://sealoong.github.io/Sensa/) · [WebSensa](https://sealoong.github.io/Sensa/websensa/) · [Parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 ## 简体中文
 
-Sensa {version} · {chinese_title}
+Sensa {version} · 正式发布
 
 源码提交：[`{sha}`](https://github.com/{repository}/commit/{sha})。{workflow_zh}
 
-Windows 推荐按处理器选择 `win-x64-Setup.exe` 或 `win-arm64-Setup.exe`。安装器只为当前用户安装，在开始菜单添加 Sensa，并附带离线指南与 Shader 桥工具，无需管理员权限。升级和卸载保留配置与录制文件。
+Desktop 在 Electron 窗口中打开共用工作台。完整解压后运行 Sensa，窗口协调一个内置 Node 服务并保留所选配置。Windows 和 macOS 提供 ZIP，Linux 提供 tar.gz，按处理器选择 x64 或 ARM64。
 
-Windows 也提供 `SingleFile.exe`：直接运行这个文件即可，内置 Web 界面，无需旁边另放程序文件。首次启动时，原生库会提取到 .NET 缓存。配置与“录制输出”文件默认保存在 EXE 旁，请放在可写目录；工作台导出的 funscript 保存在系统文档目录的 Sensa/recordings 下。Python Shader 桥与完整离线 Markdown 指南随安装器或便携压缩包提供。
+CLI 在浏览器中打开同一工作台，也可通过 `--open-browser false` 无界面运行。六个平台的便携包附带离线指南、Shader 工具与串口／BLE 桥。Windows 另有每用户 CLI 安装器和独立 `SingleFile.exe`。单 EXE 内置 Web 界面及串口／MIDI 依赖，原生库使用私有临时目录；Python 工具和完整 Markdown 指南随安装器或便携包提供。所有应用格式都包含 Node 运行时。
 
-另保留六个自包含便携压缩包，覆盖 Windows、Linux、macOS 的 x64 与 ARM64，适合按文件夹管理程序或使用完整离线工具。完整解压 ZIP（Windows）或 tar.gz（Linux/macOS），运行 `Sensa.exe` 或 `./Sensa`，再打开 http://127.0.0.1:5086 。所有桌面格式都包含 .NET，无需另装运行时。下载文件未作代码签名，Windows 可能显示发布者或信誉提示。另附一个 Unity Avatar 组件包。
+配置和录制保存在所选配置目录。CLI 的 `--config`、`--instance` 和 `--new-instance` 可以选择独立配置；桌面版使用用户应用数据目录。默认 CLI 工作台地址为 http://127.0.0.1:5086，端口调整后使用启动时显示的实际地址。下载文件尚无发布者代码签名。
 
-Unity 工程需要对应 VRChat SDK 与 Modular Avatar/NDMF；SPS 自动配置还需要 VRCFury。{stable_zh}
+Unity 工程需要对应 VRChat SDK 与 Modular Avatar/NDMF；SPS 自动配置还需要 VRCFury。附带供 VPM 正式索引使用的 Unity 元数据 {metadata}。
 
-通过 `SHA256SUMS.txt` 核对下载文件。此源码提交已在发布前通过单元检查和完整浏览器截图比较。这些检查不代表真实硬件或 PCVR 行为已验收。
+通过 `SHA256SUMS.txt` 核对下载文件。此源码提交已在发布前通过单元检查和完整浏览器截图比较。原生包与桌面测试使用隔离配置和模拟传输；真实硬件与 PCVR 另行验收。
 
-[安装与使用文档](https://sealoong.github.io/Sensa/) · [独立参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
+[安装与使用文档](https://sealoong.github.io/Sensa/) · [WebSensa](https://sealoong.github.io/Sensa/websensa/) · [参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)
 
 ## Changes / 变更记录
 

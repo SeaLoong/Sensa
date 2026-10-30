@@ -2,50 +2,58 @@
 
 [简体中文](architecture.md) | **English**
 
-Sensa Desktop connects input sources, computation and outputs through a shared application runtime. WebSensa runs the manual/script workbench in the browser and owns its browser device connections directly. Both present the same source-to-output flow; the edition determines which transports and inputs are available. This reference describes ownership, timing and lifecycle. [User guide](guide.en.md) · [Terminology](../GLOSSARY.md)
+Sensa uses one TypeScript runtime and one React workbench across WebSensa, the Node.js service and Electron. Each host supplies its available transports, device access and storage. The shared application owns command behavior, signal processing and output coordination. [User guide](guide.en.md) · [Terminology](../GLOSSARY.md)
 
-## One command boundary
+## Hosts and the shared application
+
+| Host | Engine and interface |
+| --- | --- |
+| WebSensa | Runs the engine in the page, mounts the shared workbench and uses browser device APIs |
+| Node.js CLI | Owns one local engine, listeners, files and device connections; serves the workbench to browsers |
+| Electron | Launches the same packaged Node CLI executable and opens its workbench in an embedded window |
+
+Electron waits for the CLI's ready message with its actual URL. The renderer uses the same HTTP/WebSocket application boundary as an ordinary browser. Reopening a configuration reuses its existing service; closing Electron stops a service it started. Unity's authoring and build package remains C# and publishes the existing OSC contracts.
 
 ```mermaid
 flowchart LR
-  Browser --> HTTP[HTTP / WebSocket adapter]
-  HTTP --> App[SensaApplication]
-  App --> Config[ConfigurationUpdate]
-  App --> Runtime[MotionRuntime]
-  OSC[OSC / OSCQuery] --> Store[OscParameterStore]
+  Electron["Electron shell"] --> Node["Node CLI service"]
+  Node --> Remote["Remote RuntimeClient"]
+  Page["Browser-local host"] --> Local["Local RuntimeClient"]
+  UI["Shared React Workbench"] --> Remote
+  UI --> Local
+  Remote --> App["ApplicationFacade"]
+  Local --> App
+  App --> Runtime["RuntimeEngine"]
+  OSC["OSC / OSCQuery"] --> Store["OscParameterStore"]
   Store --> Runtime
-  Script[FunscriptPlayer] --> Runtime
-  Manual[Manual values] --> Runtime
-  External[External protocol adapters] --> Commands[ExternalControlStore]
+  Inputs["Device protocol inputs"] --> Commands["ExternalControlStore"]
   Commands --> Runtime
-  Feedback[Device feedback] --> Runtime
-  Runtime --> Compute[Computed signals]
-  Compute --> Bindings[Output bindings]
-  Bindings --> Protocol[Protocol adapters]
-  Protocol --> Transport[UDP / TCP / HTTP / WebSocket / MIDI / File]
-  Transport --> Destinations[Application / DG-LAB / Service / MIDI / Recording]
-  Runtime --> Record[L0 MotionRecorder]
-  Runtime --> Output[IMotionOutput / OutputCoordinator]
-  Output --> Devices[TCode / Intiface / vendor device API]
+  Sources["Manual / script / tracking / feedback"] --> Runtime
+  Runtime --> Compute["Computed signals and motion"]
+  Compute --> Outputs["Shared OutputCoordinator"]
+  Outputs --> Adapters["Host output adapters"]
+  Adapters --> Destinations["Devices / applications / recordings"]
 ```
 
 | Module | Rules it owns |
 | --- | --- |
-| [SensaApplication](https://github.com/SeaLoong/Sensa/blob/main/src/Application/SensaApplication.cs) | Shared command dispatch, mode/script/recording/connection operations |
-| [ConfigurationUpdate](https://github.com/SeaLoong/Sensa/blob/main/src/Application/ConfigurationUpdate.cs) | Serialized validation, disarm, stop, reconnect and persistence; configuration/connection rollback |
-| [MotionRuntime](https://github.com/SeaLoong/Sensa/blob/main/src/Runtime/MotionRuntime.cs) | Actual mode, permission, gates, fusion, freshness, request generations and stop |
-| [ProtocolInputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ProtocolInputCoordinator.cs) / [ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Protocols/ExternalControl.cs) | Separate listeners, source sessions, atomic multichannel commands, types/durations, leases and current command identity |
-| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ComputedSignalEvaluator.cs) | Bounded dependency graph, computation reuse, shared-source/frame checks, oldest sample time and numeric validity |
-| [SignalInputSource](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SignalInputSource.cs) | Resolve a configured source into a timestamped, valid or invalid sample |
-| [ISignalProcessor](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/ISignalProcessor.cs) | Shared computation-frame evaluation and temporal reset boundary |
-| [SignalOutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/SignalOutputCoordinator.cs) | Per-binding validity, current-value delivery, event queue, stopping and protocol adapters |
-| [FunscriptTrackRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/FunscriptTrackRecorder.cs) | Per-binding valid segments, axis filenames, bounded actions and completed-file publication |
-| [SignalSession](https://github.com/SeaLoong/Sensa/blob/main/src/Recording/SignalSession.cs) | Recording formats, file lists and funscript/diagnostic-signal replay |
-| [IMotionOutput](https://github.com/SeaLoong/Sensa/blob/main/src/Motion/IMotionOutput.cs) | Send/stop seam replaceable by isolated tests |
-| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/Outputs/OutputCoordinator.cs) | Output types, profiles and transport lifecycle; encapsulate protocol details in the output layer |
-| [OscParameterStore](https://github.com/SeaLoong/Sensa/blob/main/src/Input/Osc/OscModels.cs) | Sources, values, receive/change timestamps, sequences and Avatar lifecycle |
+| [ApplicationFacade](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/application.ts) | Shared command dispatch, mode/script/recording/connection operations |
+| [Configuration](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/configuration.ts) | Canonical schema, defaults, validation and inactive persisted state |
+| [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) | Actual mode, input activation, gates, fusion, freshness, request generations and stop |
+| [ComputedSignalEvaluator](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/computed.ts) / [ComputedSignalResolver](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts) | Bounded dependency graph, source resolution, shared-source/frame checks and sample validity |
+| [Tracking and geometry](https://github.com/SeaLoong/Sensa/tree/main/src/core/runtime) | SPS, Contact and Shader decoding, coordinate conversion and following-plane calculations |
+| [RuntimeScriptPlayer](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/script.ts) / [RuntimeMotionRecorder](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/recording.ts) | Script timeline and the L0 motion recording workflow |
+| [OutputCoordinator](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/coordinator.ts) / [OutputLane](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/lifecycle.ts) | Per-binding evaluation, output connection ownership, ordered delivery, cancellation and stopping |
+| [Recording and replay](https://github.com/SeaLoong/Sensa/blob/main/src/core/outputs/recording.ts) | Valid funscript segments, JSON Lines/CSV encoding and signal-session replay |
+| [ExternalControlStore](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/external-control.ts) | Source sessions, atomic multichannel commands, types/durations, leases and current command identity |
+| [OscParameterStore and OSC codec](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/osc.ts) | Sources, values, receive/change timestamps, sequences, bundles and Avatar lifecycle |
+| [Node host](https://github.com/SeaLoong/Sensa/tree/main/src/node/host) | Management sessions, serialized configuration updates with rollback, atomic files and process ownership |
+| [Node inputs](https://github.com/SeaLoong/Sensa/tree/main/src/node/inputs) / [Node outputs](https://github.com/SeaLoong/Sensa/tree/main/src/node/outputs) | Network/native listeners, device APIs, discovery and filesystem adapters |
+| [Browser host](https://github.com/SeaLoong/Sensa/blob/main/src/websensa/browser-runtime.ts) | In-page lifecycle, local configuration and browser adapters for the same application and output coordinator |
 
-UDP and OSCQuery share Avatar-change cleanup, resetting caches/learning and stopping OSC. Unconsumed bundles preserve structure, order and timetags for forwarding. Input messages are interpreted individually; forwarding retains the bundle timetag, while atomic frame scheduling remains outside the current implementation.
+Core code has no browser or Node transport dependency. Hosts inject clocks, delivery callbacks, files and device factories. Existing PascalCase configuration files are accepted through case-insensitive decoding; saves use the canonical camelCase schema. New processes start with transient input and output activity reset.
+
+UDP and OSCQuery share Avatar-change cleanup. Forwarding preserves unconsumed OSC bundle structure, order and timetags; input messages are interpreted individually. [Shared-core decision](adr/0011-shared-core-and-capability-adapters.md)
 
 ## Permission and stopping invariants
 
@@ -54,7 +62,8 @@ UDP and OSCQuery share Avatar-change cleanup, resetting caches/learning and stop
 | Browse navigation/input tabs | Keep actual mode and permission unchanged |
 | Change mode, replace script, save configuration | Disarm/stop first; invalidate old pending requests |
 | Emergency stop/clear | Latch stop; after clearing, wait for input to be enabled manually |
-| Pause/stop/unload script | Stop automatic frames/UDP refresh; explicitly permitted seek/step may still send |
+| Natural script completion | Retain the final value and input activation; other Combined sources continue |
+| Pause/stop/unload script | Stop the corresponding script activity; explicitly permitted seek/step may still send |
 | Gate/spatial invalidity | Stop the affected motion or binding and invalidate its old target |
 | Startup | Start with input off, outputs disabled, scripts unloaded and motion stopped |
 
@@ -64,7 +73,7 @@ Connection and input activation are managed separately; an already active input 
 
 Ordinary scalar processing matches paths and source, then calibrates, inverts, curves, fuses roles and applies gates. OgbDepth/OgbTouch interpret their parameters according to the external protocol definitions. Spatial input has a separate default-off experimental permission.
 
-Computed signals produce reusable raw values before calibration, using OSC parameters, validated tracking metrics, manual/script readings, device feedback, constants or other computations. Temporal processing belongs to the current evaluator instance and uses injected time. Configuration validation bounds graph size and reference depth and rejects missing references and cycles. Runtime reuses results in dependency order and shares leaf inputs within each evaluation. Results retain contributing source, coordinate frame and oldest sample time. Required-input invalidity propagates through references to dependent bindings; existing axis mappings retain motion-runtime gates. Disarming, reconfiguration and changed provenance reset relevant temporal state. The browser presents saved state using the same backend evaluator. [Operations and configuration](computed-signals.en.md)
+Computed signals produce reusable raw values before calibration, using OSC parameters, validated tracking metrics, manual/script readings, device feedback, constants or other computations. Temporal processing belongs to the current evaluator instance and uses injected time. Configuration validation bounds graph size and reference depth and rejects missing references and cycles. Runtime reuses results in dependency order and shares leaf inputs within each evaluation. Results retain contributing source, coordinate frame and oldest sample time. Required-input invalidity propagates through references to dependent bindings; existing axis mappings retain motion-runtime gates. Disarming, reconfiguration and changed provenance reset relevant temporal state. The workbench presents saved state from the same evaluator in both remote and browser-local hosts. [Operations and configuration](computed-signals.en.md)
 
 | Family | Coordinate/freshness rules |
 | --- | --- |
@@ -81,7 +90,7 @@ Output bindings select source, conversion, value type, range, stop value and sen
 
 Buttplug v2/v3/v4, TCode, JSON and vendor-compatible adapters interpret controls as external commands with channels, targets, durations and direction. Direct motion routing retains independent timing per channel, with Stop as an ordered barrier; protocol samples also feed computation/bindings. An initial trajectory with an unknown start keeps its current value invalid while exposing the target. Interpolation represents command state, not hardware feedback. Existing device feedback remains a separate source.
 
-Protocol listeners are separate from management APIs. A shared HTTP listener serves Buttplug, JSON, vendor APIs and TCode WebSocket on distinct configured `Path` prefixes. Longest complete-path matching selects one source before dispatch; that source owns its session, channels and timing. Raw TCP and UDP keep their transport-specific listeners. Handy, Lovense, Autoblow and VacuGlide outputs connect to actual device APIs; similarly named local compatibility inputs require an upstream-selectable endpoint and do not take over fixed vendor clouds. Optional tools own BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
+Protocol listeners are separate from management APIs. A shared HTTP listener serves Buttplug, JSON, vendor APIs and TCode WebSocket on distinct configured `path` prefixes. Longest complete-path matching selects one source before dispatch; that source owns its session, channels and timing. Raw TCP and UDP keep their transport-specific listeners. Handy, Lovense, Autoblow and VacuGlide have device-output adapters and local compatibility inputs. Optional bridge tools provide BLE peripheral/central and virtual serial wiring. See the [protocol input guide](protocol-inputs.en.md) and [ADR 0010](adr/0010-external-protocol-inputs.md) for operation, types and stopping scope.
 
 ## Following planes and spatial calculations
 
@@ -105,6 +114,7 @@ React uses native controls, dialogs and semantic labels, with local styles prese
 
 | File | Responsibility |
 | --- | --- |
+| [RuntimeClient](https://github.com/SeaLoong/Sensa/blob/main/src/web/runtime-client.ts) / [bootstrap.tsx](https://github.com/SeaLoong/Sensa/blob/main/src/web/bootstrap.tsx) | Mount one workbench with a remote service client or a browser-local facade |
 | [configuration.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/configuration.js) | Normalize drafts, output references, conflicts and saves |
 | [input-workflows.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/input-workflows.js) | Manual/script intentions and timecodes |
 | [realtime-session.js](https://github.com/SeaLoong/Sensa/blob/main/src/web/realtime-session.js) | Same-origin session, correlation, timeout, disconnect rejection and reconnect; await new control requests after reconnection |
@@ -120,13 +130,15 @@ The standalone explorer displays parameters in the browser through local classic
 
 ## Browser-native WebSensa
 
-`src/core/index.ts` provides the signal engine, script clock and output queues for both browsers and Node.js; `src/websensa` supplies the React entry point and browser adapters. Static publication and desktop bundles expose the same `websensa/` page. Manual axes, funscript and an explicitly connected parameter explorer feed the shared engine; output adapters use WebSocket, fetch, Web Serial, Web Bluetooth or Web MIDI. The [shared-core and host decision](adr/0011-shared-core-and-capability-adapters.md) describes the Node.js/Electron target architecture.
+`src/websensa/app.tsx` mounts the same `src/web/app.js` workbench as the service UI. `createBrowserWorkbench` constructs `RuntimeEngine`, `ApplicationFacade` and the shared `OutputCoordinator` in the page; `RuntimeClient` adapts local requests and snapshots to the interface used by the remote workbench. Manual input, funscript, computed signals, recording/replay and the connected parameter explorer therefore use the same application behavior.
 
-Each output serializes writes and retains its connection generation. Compatible WebSocket consumers share one endpoint connection; a consumer's lifecycle ends its queued work. Stop clears pending commands before the adapter's stop operation. Funscript clocks and transport seams accept injected dependencies for unit tests. Browser permission prompts stay attached to user connection actions.
+Browser adapters provide WebSocket, fetch, Web Serial, Web Bluetooth, Web MIDI and downloadable recording files. The host capability inventory controls the available choices. Explicit device selection owns permission prompts. Configuration uses local browser storage; completed recordings belong to the current page. [WebSensa guide](websensa.en.md)
 
 ## Desktop startup and instance ownership
 
-One configuration has one process owner. Repeated launches contact that owner and reuse its workbench; page presence determines whether a new browser page is needed. Named instances store independent fresh configurations. Startup binds the configured listeners or an available port and reports the resulting addresses; protocol groups sharing one endpoint move together. Explicit configuration saves retain conflict validation.
+The Node CLI hosts the engine and serves bundled workbench, explorer and WebSensa assets. Published single-executable applications embed the Node runtime, application and assets. Electron packages that same CLI as its service child and uses its ready/stop IPC for lifecycle coordination; application commands still use the shared HTTP/WebSocket facade.
+
+One configuration has one process owner. Repeated launches contact that owner and reuse its workbench; page presence determines whether a new browser page is needed. Named instances store independent configurations. Startup binds configured listeners or an available port and reports actual addresses; protocol groups sharing an endpoint move together. Explicit configuration saves retain conflict validation.
 
 Configuration ownership and instance coordination are separate from cross-tab realtime sharing. Background services can disable automatic browser opening. [Launch options](quick-start.en.md#run-several-instances)
 
@@ -136,6 +148,6 @@ The compatible-input loader bounds URL, response size and task duration. It vali
 
 ## Verification seams
 
-TimeProvider injects time. Isolated tests use virtual clocks, loopback ports and mock transports. Installers preflight managed files before writing and retain user changes; shared smoke tooling owns process cleanup.
+Hosts inject clocks and transport factories. Isolated tests use virtual time, in-process loopback ports and mock devices to cover protocol bytes, session ownership, stop barriers and lifecycle cleanup. Installers preflight managed files before writing and retain user changes; shared smoke tooling owns process cleanup.
 
 CI requires units, full E2E and isolated native smoke before publication; browser/process checks use mock transports. EditMode, metadata and browser mocks verify author processing, asset structure and interface behavior respectively. Actual uploads, client behavior and hardware require acceptance checks in their corresponding environments. World PlayMode and real-client checks are arranged separately. See [development and releases](development.en.md).

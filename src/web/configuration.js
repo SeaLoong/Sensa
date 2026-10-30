@@ -1,4 +1,5 @@
 import { roundToStep } from './numeric.js';
+import { outputTargetsOverlap } from '../core/runtime/configuration.ts';
 import { localized, t } from './i18n.js';
 import firstRunMotion from './data/first-run-motion.json' with { type: 'json' };
 import BUILT_IN_OSC_MAPPING_PRESETS from './data/osc-presets.json' with { type: 'json' };
@@ -33,6 +34,7 @@ const OUTPUT_TYPES = localized(() => ([
   { value: 'TCodeSerial', label: t("TCode 串口"), shortLabel: t("串口直连"), scanSupported: false },
   { value: 'TCodeUdp', label: 'TCode UDP', shortLabel: 'UDP', scanSupported: false },
   { value: 'TCodeTcp', label: 'TCode TCP', shortLabel: 'TCP', scanSupported: false },
+  { value: 'TCodeWebSocket', label: 'TCode WebSocket', shortLabel: 'TCode WS', scanSupported: false },
   { value: 'Intiface', label: 'Intiface', shortLabel: 'Buttplug', scanSupported: true },
   { value: 'Handy', label: 'The Handy', shortLabel: 'Handy', scanSupported: false },
   { value: 'Autoblow', label: 'Autoblow', shortLabel: 'Autoblow', scanSupported: false },
@@ -45,6 +47,10 @@ const OUTPUT_TYPES = localized(() => ([
   { value: 'WebSocketJson', label: 'WebSocket JSON', shortLabel: 'WebSocket', scanSupported: false },
   { value: 'Mqtt', label: 'MQTT', shortLabel: 'MQTT', scanSupported: false },
   { value: 'Midi', label: 'MIDI CC', shortLabel: 'MIDI', scanSupported: false },
+  { value: 'SensaHttp', label: 'Sensa · HTTP', shortLabel: 'Sensa HTTP', scanSupported: false },
+  { value: 'SensaWebSocket', label: 'Sensa · WebSocket', shortLabel: 'Sensa WS', scanSupported: false },
+  { value: 'Bluetooth', label: 'Bluetooth LE', shortLabel: 'BLE', scanSupported: false },
+  { value: 'BleBridge', label: t('蓝牙桥'), shortLabel: 'BLE bridge', scanSupported: false },
 ]));
 
 const OUTPUT_TYPE_BY_VALUE = localized(() => (Object.fromEntries(OUTPUT_TYPES().map(item => [item.value, item]))));
@@ -853,7 +859,7 @@ function buildAxisProfileAxisRows(profileCard) {
 }
 
 function isTCodeOutputType(type) {
-  return type === 'TCodeSerial' || type === 'TCodeUdp' || type === 'TCodeTcp';
+  return type === 'TCodeSerial' || type === 'TCodeUdp' || type === 'TCodeTcp' || type === 'TCodeWebSocket';
 }
 
 function getOutputTypeLabel(type) {
@@ -877,7 +883,8 @@ function getDefaultOutputPort(type) {
 }
 
 function normalizeOutputComPort(value) {
-  return (value || '').trim().toUpperCase();
+  const port = (value || '').trim();
+  return /^COM[0-9]+$/i.test(port) ? port.toUpperCase() : port;
 }
 
 function normalizeOutputHost(value, fallback = '127.0.0.1') {
@@ -1016,18 +1023,13 @@ function buildSuggestedOutputTarget(type, config, serialPorts = [], currentOutpu
 
 function getOutputTargetConflicts(config, currentOutputId, draft) {
   if (!config || !draft) return [];
-
-  const desiredBindings = getOutputTargetBindings(draft);
-  if (desiredBindings.length === 0) return [];
-
-  const otherOutputs = getOutputs(config).filter(output => output.id !== currentOutputId);
-  const conflicts = [];
-
-  desiredBindings.forEach(binding => {
-    const owner = otherOutputs.find(output => getOutputTargetBindings(output).some(otherBinding => otherBinding.key === binding.key));
-    if (owner) conflicts.push({ binding, owner });
-  });
-
+  const bindings = getOutputTargetBindings(draft), conflicts = [];
+  for (const owner of getOutputs(config)) {
+    if (owner.id === currentOutputId) continue;
+    let overlaps = false;
+    try { overlaps = outputTargetsOverlap(draft, owner); } catch { /* Incomplete URL drafts are validated on save. */ }
+    if (overlaps) conflicts.push({ binding: bindings[0] || { key: draft.type, label: buildOutputSummary(draft) }, owner });
+  }
   return conflicts;
 }
 
@@ -1063,8 +1065,9 @@ function createOutputConfig(type, config, options = {}) {
     port: getDefaultOutputPort(type),
     manageEngineProcess: false,
     vibrationAxis: 'V0',
-    ...(type === 'Intiface' ? { intifaceFeatures: [] } : {}),
-    websocketAddress: type === 'HttpJson' ? 'http://127.0.0.1:8080/sensa' : type === 'WebSocketJson' ? 'ws://127.0.0.1:8080/sensa' : 'ws://localhost:12345',
+    ...(type === 'Intiface' ? { intifaceFeatures: [], intifaceDeviceName: '', intifaceDeviceIndex: null } : {}),
+    ...(['Bluetooth', 'BleBridge'].includes(type) ? { bridge: { protocol: 'loob', device: '' }, device: normalizeDeviceOutput({ axis: 'L0' }) } : {}),
+    websocketAddress: type === 'HttpJson' ? 'http://127.0.0.1:8080/sensa' : type === 'WebSocketJson' ? 'ws://127.0.0.1:8080/sensa' : type === 'SensaHttp' ? 'http://127.0.0.1:12403/command' : ['TCodeWebSocket', 'SensaWebSocket'].includes(type) ? 'ws://127.0.0.1:12403/command' : 'ws://localhost:12345',
     slopeMode: 'None',
     speedUnitBase: 'Per100ms',
     ...(VENDOR_OUTPUT_TYPES.includes(type) ? { device: normalizeDeviceOutput({ axis: ['VacuGlide', 'Lovense'].includes(type) ? 'V0' : 'L0' }) } : {}),

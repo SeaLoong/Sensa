@@ -90,7 +90,15 @@ export function localized(factory) {
   };
 }
 export function docUrl(path) {
-  if (path === 'docs/parameter-geometry.html') return '/docs/parameter-geometry.html';
+  const siteRoot = typeof document === 'undefined' ? null : document.querySelector('meta[name="sensa-site-root"]');
+  if (path === 'docs/parameter-geometry.html') {
+    const explorer = typeof document === 'undefined' ? null : document.querySelector('meta[name="sensa-explorer-url"]');
+    return explorer ? new URL(explorer.content, document.baseURI).href : '/docs/parameter-geometry.html';
+  }
+  if (siteRoot) {
+    const route = path.replace(/\.md$/, '').replace(/\.en$/, '') + '.html';
+    return new URL((locale === 'zh-CN' ? 'zh-CN/' : 'en/') + route, new URL(siteRoot.content, document.baseURI)).href;
+  }
   const localizedPath = /(?:^|\/)README\.md$/.test(path)
     ? path.replace(/README\.md$/, locale === 'zh-CN' ? 'README.zh-CN.md' : 'README.md')
     : path.replace(/\.md$/, locale === 'en-US' ? '.en.md' : '.md');

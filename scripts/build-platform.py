@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
-from release import RUNTIMES, validate_tag
+from release import RUNTIMES, validate_tag, write_checksums
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -34,26 +34,31 @@ def main():
     def run(*command):
         subprocess.run(command, cwd=ROOT, check=True)
 
-    run('dotnet', 'publish', 'src/Sensa.csproj', '-c', 'Release', '-r', args.runtime,
-        '--self-contained', 'true', '-p:RestoreLockedMode=true', '-o', str(source))
+    run('node', 'scripts/build-node.mjs', '--sea', '--runtime', args.runtime, '--output', str(source))
     if args.smoke:
         binary = source / ('Sensa.exe' if args.runtime.startswith('win-') else 'Sensa')
+        run(str(binary), '--check-native', '--native-report',
+            str(ROOT / 'artifacts' / 'test-results' / args.runtime / 'native-packages.json'))
         run(sys.executable, 'scripts/smoke.py', '--exe', str(binary),
             '--report-dir', str(ROOT / 'artifacts' / 'test-results' / args.runtime / 'smoke'))
     run(sys.executable, 'scripts/release.py', 'app', '--tag', tag, '--runtime', args.runtime,
         '--label', args.label, '--source', str(source), '--output', str(output))
     if args.windows_extras:
         single = ROOT / 'artifacts' / 'publish-single' / args.runtime
+        if single.is_symlink():
+            raise ValueError('Single-file build directory cannot be a symlink')
         if single.exists():
             shutil.rmtree(single)
-        run('dotnet', 'publish', 'src/Sensa.csproj', '-c', 'Release', '-r', args.runtime,
-            '--self-contained', 'true', '-p:PublishSingleFile=true', '-p:RestoreLockedMode=true', '-o', str(single))
+        single.mkdir(parents=True)
+        shutil.copyfile(source / 'Sensa.exe', single / 'Sensa.exe')
         binary = single / 'Sensa.exe'
         # Packaging rejects sidecars, so the smoke cannot accidentally use a web
         # directory or runtime DLLs left beside a nominally "single" executable.
         run(sys.executable, 'scripts/release.py', 'single-file', '--tag', tag, '--runtime', args.runtime,
             '--label', args.label, '--source', str(single), '--output', str(output))
         if args.smoke:
+            run(str(binary), '--check-native', '--native-report',
+                str(ROOT / 'artifacts' / 'test-results' / args.runtime / 'single-file-native-packages.json'))
             run(sys.executable, 'scripts/smoke.py', '--exe', str(binary),
                 '--report-dir', str(ROOT / 'artifacts' / 'test-results' / args.runtime / 'single-file'))
         run(sys.executable, 'scripts/build-windows-installer.py', '--runtime', args.runtime,
@@ -64,6 +69,11 @@ def main():
             installer = output / f'Sensa-{archive_version}-{args.runtime}-Setup.exe'
             run(sys.executable, 'scripts/smoke-windows-installer.py', '--installer', str(installer),
                 '--single-file', str(binary), '--report-dir', str(ROOT / 'artifacts' / 'test-results' / args.runtime / 'installer'))
+    # The app command above materializes the canonical offline/tool whitelist
+    # into source before Electron copies this exact checked CLI distribution.
+    run('node', 'scripts/build-electron.mjs', '--runtime', args.runtime, '--version', args.version,
+        '--label', args.label, '--output', str(output), *(['--smoke'] if args.smoke else []))
+    write_checksums(output)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
+import { Badge, Button, Field, Notice, Toggle } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { diagnostic, docUrl, t } from './i18n.js';
 import { PROTOCOL_AXES, PROTOCOL_INPUT_TYPES, PROTOCOL_SCALAR_TYPES, makeProtocolDraft, makeProtocolFeature, newProtocolDraft,

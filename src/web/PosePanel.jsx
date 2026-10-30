@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { t, diagnostic } from './i18n.js';
-import { Badge, Button, Notice } from './ui.jsx';
+import { Badge, Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 
 const number = (value, digits = 1) => {

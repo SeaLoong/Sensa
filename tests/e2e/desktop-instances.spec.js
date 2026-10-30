@@ -10,7 +10,7 @@ import { oscPacket } from './mocks.js';
 
 async function child(directory, arguments_, info) {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Desktop process acceptance runs only in Actions');
-  const log = [], process_ = spawn('dotnet', [path.resolve('artifacts/e2e/app/Sensa.dll'), ...arguments_], {
+  const log = [], process_ = spawn(process.execPath, [path.resolve('artifacts/node/sensa.cjs'), ...arguments_], {
     cwd: directory, env: { ...process.env, SENSA_RECORDINGS_PATH: path.join(directory, 'recordings') },
     stdio: ['ignore', 'pipe', 'pipe'],
   });
@@ -105,7 +105,7 @@ test('desktop profiles coordinate real processes, occupied ports and browser ses
       await expect.poll(async () => (await a.json('/api/instance')).openPages, { timeout: 25000 }).toBe(0);
       expect((await b.json('/api/instance')).openPages).toBe(1);
       const saved = JSON.parse(await readFile(path.join(directory, 'instances', 'one', 'config.json'), 'utf8'));
-      expect(saved.WebUi.Port).toBe(Number(new URL(a.url).port));
+      expect(saved.webUi.port).toBe(Number(new URL(a.url).port));
       await info.attach('desktop-instances.json', { body: JSON.stringify({ profiles: 2, processIds: [owner.process.pid, other.process.pid],
         urls: [a.url, b.url], occupiedHttpPort: httpPort, occupiedOscPort: oscPort, actualOscPorts: ports,
         duplicateExitedWithoutSecondOwner: true, hostCookieJarIsolated: true, distinctUdpValues: [.23, .77],

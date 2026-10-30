@@ -45,6 +45,8 @@ def plan_changes(paths, *, diff_available=True):
             enabled.update(('web', 'scripts', 'docs'))
         elif path.startswith('.github/'):
             enabled.update(('scripts', 'docs'))
+        elif path in ('tsconfig.node.json', 'tsconfig.electron.json'):
+            enabled.update(('web', 'backend'))
         elif path in ('eslint.config.js', 'tsconfig.json', 'tsconfig.e2e-types.json'):
             enabled.add('web')
         elif path in INTERACTIVE_DOC_INPUTS:
@@ -55,6 +57,10 @@ def plan_changes(paths, *, diff_available=True):
             # These optional checks never start the browser runner.
             # 本地类别仅包含静态／隔离单元检查，不启动浏览器测试。
             enabled.add('web')
+        elif path.startswith(('tests/node/', 'tests/runtime/')):
+            enabled.add('backend')
+            if path.endswith(('.ts', '.js', '.mjs', '.cjs')):
+                enabled.add('web')
         elif path.startswith('tests/Sensa.Tests/'):
             enabled.add('backend')
         elif path.startswith('tests/scripts/'):
@@ -63,7 +69,11 @@ def plan_changes(paths, *, diff_available=True):
             enabled.update(('web', 'scripts', 'backend'))
         elif path.startswith('tests/fixtures/'):
             enabled.update(('scripts', 'backend'))
-        elif path.startswith(('src/web/', 'src/websensa/', 'src/core/')) or path == 'scripts/build-web.mjs':
+        elif path.startswith(('src/core/', 'src/node/', 'src/electron/')):
+            enabled.update(('web', 'backend'))
+        elif path in ('scripts/build-node.mjs', 'scripts/build-electron.mjs', 'scripts/test-node.mjs'):
+            enabled.update(('web', 'backend', 'scripts'))
+        elif path.startswith(('src/web/', 'src/websensa/')) or path == 'scripts/build-web.mjs':
             enabled.add('web')
             if path.startswith('src/web/data/'):
                 enabled.add('backend')

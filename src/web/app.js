@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { outputTypesForHost } from './workbench-props.ts';
 import { attachPagePresence } from './page-presence.js';
-import * as ReactDOM from 'react-dom/client';
 import {
   editConfiguration,
   AXIS_LIMIT_MAX_SPEED,
@@ -80,12 +80,12 @@ import {
   parseScriptTimecodeInput,
   shouldIgnoreScriptShortcutTarget,
 } from './input-workflows.js';
-import { attachPageLifecycle, createInitialSnapshotLoader, createBrowserRealtimeSession } from './realtime-session.js';
+import { attachPageLifecycle, createInitialSnapshotLoader } from './realtime-session.js';
 import { loadStudio, saveStudio, sanitizeStudio } from './preferences.js';
 import { LOG_LEVEL_ORDER, createLogNormalizer, formatAxisTraceAction, formatRealtimeStatus } from './diagnostics.js';
 import { buildOscSourceSelectionOptions, formatOscParameterDetailStatus, formatPreviewTimestamp, oscCatalogVisibility, resolveOscParameterDetail } from './osc-workspace.js';
 import { AxisSlider, SelectField, SliderControl, ValueSliderField } from './controls.jsx';
-import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.jsx';
+import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.tsx';
 import { ScriptTimelineDensity } from './script-timeline.jsx';
 import { MotionAxisEditor, OscHubTargetRow, SignalMappingRow } from './configuration-views.jsx';
 import { AxisTraceLogEntry, PlainLogEntry, TCodeDeviceInfoCard } from './diagnostic-views.jsx';
@@ -122,7 +122,6 @@ import { intifaceFeatureErrors } from './intiface-feature-routing.js';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
 
-const WS_URL = `${location.protocol === 'https:' ? 'wss' : 'ws'}://${location.host}/api/ws`;
 
 function WorkspaceIcon({ kind }) {
   const paths = {
@@ -134,18 +133,18 @@ function WorkspaceIcon({ kind }) {
   return <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" focusable="false"><path d={paths[kind]} /></svg>;
 }
 
-function buildInitialAppState() {
-  const studio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE);
-  const config = null;
-  const overview = null;
-  const logs = [];
-  const serialPorts = [];
+function buildInitialAppState(snapshot) {
+  const config = snapshot?.config || null;
+  const overview = snapshot?.overview || null;
+  const studio = sanitizeStudio(loadStudio() || DEFAULT_STUDIO_STATE, config);
+  const logs = snapshot?.logs || [];
+  const serialPorts = normalizeSerialPorts(snapshot?.serialPorts || []);
   const oscDraft = buildOscDraftFromConfig(config);
-  const signalDrafts = [];
-  const manualDraft = EMPTY_MANUAL;
+  const signalDrafts = buildSignalDrafts(config?.signals);
+  const manualDraft = normalizeManualCommand(overview?.runtime?.manualCommand || EMPTY_MANUAL);
   const manualMotionMode = 'Default';
   const manualMotionValue = MANUAL_DEFAULT_SPEED;
-  const scriptSettings = normalizeScriptSettingsState(null, studio.scriptDefaults);
+  const scriptSettings = normalizeScriptSettingsState(overview?.input?.script, studio.scriptDefaults);
 
   return {
     config,
@@ -159,17 +158,18 @@ function buildInitialAppState() {
     manualMotionMode,
     manualMotionValue,
     scriptSettings,
-    loading: true,
-    scriptSettingsInitialized: false,
+    loading: !snapshot,
+    scriptSettingsInitialized: Boolean(snapshot),
   };
 }
 
-function App() {
-  useEffect(() => attachPagePresence(), []);
-  const [realtime] = useState(() => createBrowserRealtimeSession({ url: WS_URL }));
+// Rendering and drafts are shared; the injected client owns the host connection.
+/** @param {import('./workbench-props.ts').WorkbenchProps} props */
+export default function Workbench({ client: realtime, platform = {}, initialSnapshot }) {
+  useEffect(() => realtime.kind === 'remote' ? attachPagePresence() : undefined, [realtime]);
   const apiRequest = (path, options) => realtime.request(path, options);
-  const locale = React.useSyncExternalStore(subscribeLocale, getLocale);
-  const [wideNavigation, setWideNavigation] = useState(() => window.matchMedia('(min-width: 1101px)').matches);
+  const locale = React.useSyncExternalStore(subscribeLocale, getLocale, getLocale);
+  const [wideNavigation, setWideNavigation] = useState(() => typeof window === 'undefined' || window.matchMedia('(min-width: 1101px)').matches);
   useEffect(() => {
     const query = window.matchMedia('(min-width: 1101px)');
     const update = () => setWideNavigation(query.matches);
@@ -177,7 +177,7 @@ function App() {
     query.addEventListener('change', update);
     return () => query.removeEventListener('change', update);
   }, []);
-  const initialState = useMemo(() => buildInitialAppState(), []);
+  const initialState = useMemo(() => buildInitialAppState(initialSnapshot), []);
   const [config, setConfig] = useState(initialState.config);
   const [overview, setOverview] = useState(initialState.overview);
   const [logs, setLogs] = useState(initialState.logs);
@@ -189,7 +189,7 @@ function App() {
   const [recordingFiles, setRecordingFiles] = useState([]);
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
-  const [computedDrafts, setComputedDrafts] = useState([]);
+  const [computedDrafts, setComputedDrafts] = useState(() => buildComputedDrafts(initialState.config?.computedSignals));
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
   const [showFaceTracking, setShowFaceTracking] = useState(false);
   const [previewCategory, setPreviewCategory] = useState('all');
@@ -199,7 +199,7 @@ function App() {
   const [oscPreviewSearch, setOscPreviewSearch] = useState('');
   const [workspace, setWorkspace] = useState('control');
   const [oscWorkspaceTab, setOscWorkspaceTab] = useState('setup');
-  const [newOutputType, setNewOutputType] = useState('TCodeSerial');
+  const [newOutputType, setNewOutputType] = useState(platform.outputTypes?.[0] || 'TCodeSerial');
   const [helpOpen, setHelpOpen] = useState(false);
   const [previewSourceTab, setPreviewSourceTab] = useState('all');
   const [presetDialog, setPresetDialog] = useState(null);
@@ -208,7 +208,9 @@ function App() {
   const [manualDraft, setManualDraft] = useState(initialState.manualDraft);
   const [manualMotionMode, setManualMotionMode] = useState(initialState.manualMotionMode);
   const [manualMotionValue, setManualMotionValue] = useState(initialState.manualMotionValue);
-  const [manualContinuous, setManualContinuous] = useState(false);
+  const [manualContinuous, setManualContinuous] = useState(Boolean(platform.continuousManual));
+  const [manualAxes, setManualAxes] = useState(() => platform.manualAxes ? [...platform.manualAxes] : MANUAL_AXES().map(axis => axis.key));
+  const manualAxesRef = useRef(manualAxes);
   const [combinedScriptOpen, setCombinedScriptOpen] = useState(false);
   const [scriptSettings, setScriptSettings] = useState(initialState.scriptSettings);
   const [scriptSeekDraft, setScriptSeekDraft] = useState(0);
@@ -274,6 +276,7 @@ function App() {
   const scriptActivityBins = Array.isArray(scriptState?.activityBins) ? scriptState.activityBins : [];
   useEffect(() => {
     const initial = createInitialSnapshotLoader(realtime, {
+      initialLoaded: Boolean(initialSnapshot),
       onLoad: ({
         config: configResponse,
         overview: overviewResponse,
@@ -556,6 +559,22 @@ function App() {
     };
   }, [selectedScriptFile]);
 
+  function downloadLocalRecording(event) {
+    if (realtime.kind !== 'local' || !(event.target instanceof globalThis.Element)) return;
+    const anchor = event.target.closest('a[href]');
+    if (!anchor) return;
+    const url = new URL(anchor.href, location.href);
+    if (!/^\/api\/output\/recordings\/[^/]+\/download$/.test(url.pathname)) return;
+    event.preventDefault();
+    void (async () => {
+      const response = await realtime.fetch(url.pathname);
+      if (!response.ok) throw new Error(t('录制文件不可用'));
+      const blob = await response.blob(), address = URL.createObjectURL(blob), link = document.createElement('a');
+      link.href = address; link.download = decodeURIComponent(url.pathname.split('/').at(-2)); link.click();
+      setTimeout(() => URL.revokeObjectURL(address), 1000);
+    })().catch(error => notify(error.message, 'error'));
+  }
+
   async function recordingAction(action) {
     if (recordingBusyRef.current) return;
     recordingBusyRef.current = true;
@@ -836,7 +855,7 @@ function App() {
 
   async function vendorScriptAction(outputId, action, body) {
     await withBusy(`vendor-script-${outputId}-${action}`, async () => {
-      if (action === 'prepare') await prepareDeviceScript(outputId, body.url, getOutputConfig(config, outputId)?.device);
+      if (action === 'prepare') await prepareDeviceScript(outputId, body.url, getOutputConfig(config, outputId)?.device, { fetchRequest: realtime.fetch.bind(realtime) });
       else await apiRequest(`/api/control/output/${encodeURIComponent(outputId)}/script-${action}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
@@ -1180,7 +1199,7 @@ function App() {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(
-          manualCommandPayload(manualDraftRef.current, manualMotionModeRef.current, manualMotionValueRef.current),
+          manualCommandPayload(manualDraftRef.current, manualMotionModeRef.current, manualMotionValueRef.current, manualAxesRef.current),
         ),
       }).catch((error) => notify(error.message || t('手动输入更新失败'), 'error'));
     });
@@ -1211,6 +1230,43 @@ function App() {
     scheduleManualContinuousUpdate();
   }
 
+  async function changeManualAxes(next) {
+    await withBusy('manual-axes', async () => {
+      await apiRequest('/api/input/active', { method: 'PUT', body: { active: false } });
+      manualAxesRef.current = next; setManualAxes(next);
+      await apiRequest('/api/input/manual', { method: 'PUT', body: manualCommandPayload(manualDraftRef.current, manualMotionModeRef.current, manualMotionValueRef.current, next) });
+      await refreshOverview();
+    }).catch(error => notify(error.message, 'error'));
+  }
+
+  async function connectBrowserExplorer() {
+    await withBusy('browser-explorer', async () => {
+      await platform.connectExplorer();
+      setStudio(previous => ({ ...previous, preferredInputTab: 'protocol' }));
+      await refreshOverview();
+    }).catch(error => notify(error.message, 'error'));
+  }
+
+  function renderBrowserInputs() {
+    return <div className="stack" data-testid="browser-inputs"><p>{t('参数图解通过配对页面交付信号。')}</p>
+      {(overview?.protocolInputs || []).map(input => <div key={input.id}><p><strong>{input.name}</strong> · {input.connected ? t('已连接') : t('等待参数')} · {input.receivedCommands || 0}</p>
+        <div className="actions">{Object.entries(input.values || {}).map(([axis, value]) => <span key={axis}>{axis} {Math.round(value * 100)}%</span>)}</div>
+      </div>)}
+      {platform.connectExplorer && <Button onClick={() => void connectBrowserExplorer()}>{t('连接参数图解')}</Button>}
+    </div>;
+  }
+
+  function renderBluetoothFields() {
+    const bridge = dialog.draft.bridge || { protocol: 'loob', device: '' };
+    return <div className="stack"><SelectField label={t('蓝牙协议')} value={bridge.protocol} options={[
+      { value: 'loob', label: 'LOOB' }, { value: 'thrust-sync', label: 'Thrust Sync' }, { value: 'svakom-v1', label: 'Svakom V1' }, { value: 'lovense-single', label: 'Lovense' }, { value: 'youou-vx001', label: 'Youou VX001' },
+    ]} onChange={protocol => updateOutput({ bridge: { ...bridge, protocol }, device: { ...(dialog.draft.device || {}), axis: ['loob', 'thrust-sync'].includes(protocol) ? 'L0' : 'V0' } })} />
+      <SelectField label={t('来源轴')} value={dialog.draft.device?.axis || (['loob', 'thrust-sync'].includes(bridge.protocol) ? 'L0' : 'V0')} options={MANUAL_AXES().map(axis => ({ value: axis.key, label: axis.key }))} onChange={axis => updateOutput({ device: { ...(dialog.draft.device || {}), axis } })} />
+      {platform.supportsListeners !== false && <><Field label={t('设备地址或名称')} value={bridge.device || ''} onChange={event => updateOutput({ bridge: { ...bridge, device: event.target.value } })} />
+        <Field label={t('Python 程序（可选）')} value={bridge.python || ''} onChange={event => updateOutput({ bridge: { ...bridge, python: event.target.value } })} /></>}
+    </div>;
+  }
+
   async function applyManualOnce() {
     if (manualRafRef.current) {
       cancelAnimationFrame(manualRafRef.current);
@@ -1221,7 +1277,7 @@ function App() {
       await apiRequest('/api/input/manual', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(manualCommandPayload(manualDraft, manualMotionMode, manualMotionValue)),
+        body: JSON.stringify(manualCommandPayload(manualDraft, manualMotionMode, manualMotionValue, manualAxes)),
       });
       notify(t('手动目标已更新'), 'success');
     }).catch((error) => notify(error.message || t('更新位置失败'), 'error'));
@@ -1642,6 +1698,13 @@ function App() {
   const scriptBusy = Boolean(busyKey.startsWith('script-'));
   const inputActive = runtimeOverview?.inputActive === true;
   const online = wsState === 'connected';
+  const availableOutputTypes = useMemo(() => platform.outputTypes || outputTypesForHost(overview?.capabilities), [platform.outputTypes, overview?.capabilities]);
+  useEffect(() => {
+    if (availableOutputTypes && !availableOutputTypes.includes(newOutputType)) {
+      const next = OUTPUT_TYPES().find(item => availableOutputTypes.includes(item.value));
+      if (next) setNewOutputType(next.value);
+    }
+  }, [availableOutputTypes, newOutputType]);
   const modalError = snackbar.open && snackbar.severity === 'error' ? diagnostic(snackbar.message) : '';
   const emergencyAction = (
     <Button
@@ -1843,6 +1906,7 @@ function App() {
                 onChange={(speed) => updateScriptSettingsDraft({ speed })}
                 onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
               />
+              <SelectField label={t('脚本目标轴')} value={scriptSettings.axis || 'L0'} options={MANUAL_AXES().map(axis => ({ value: axis.key, label: axis.key }))} onChange={axis => updateScriptSettingsDraft({ axis }, { commit: true })} />
               <Toggle
                 label={t('循环')}
                 checked={scriptSettings.loop}
@@ -1973,10 +2037,10 @@ function App() {
               data-testid="output-type"
               label={t('输出类型')}
               value={newOutputType}
-              options={OUTPUT_TYPES()}
+              options={OUTPUT_TYPES().map(item => ({ ...item, disabled: availableOutputTypes ? !availableOutputTypes.includes(item.value) : false }))}
               onChange={setNewOutputType}
             />
-            <Button data-testid="add-output" onClick={() => addOutputCard(newOutputType)} disabled={!online || Boolean(busyKey)}>
+            <Button data-testid="add-output" onClick={() => addOutputCard(newOutputType)} disabled={!online || Boolean(busyKey) || availableOutputTypes && !availableOutputTypes.includes(newOutputType)}>
               {t('添加输出')}
             </Button>
           </>
@@ -2408,11 +2472,11 @@ function App() {
   }[workspace];
 
   return (
-    <div className="app-shell">
+    <div className="app-shell" onClick={downloadLocalRecording}>
       <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
       <header className="app-header">
         <div className="app-header__inner">
-          <div className="brand-group"><h1 className="brand"><a href="#main"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>Sensa</a></h1><span className="brand-caption">{t('信号工作台')}</span></div>
+          <div className="brand-group"><h1 className="brand"><a href="#main"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>{platform.name || 'Sensa'}</a></h1><span className="brand-caption">{t('信号工作台')}</span></div>
           <div className="header-status">
             <Badge tone={online ? 'success' : 'warning'}>
               <span title={formatRealtimeStatus(wsState)}>
@@ -2487,7 +2551,7 @@ function App() {
                   title={t('输入')}
                   description={config?.protocolInputs?.length ? t('手动调节、接收 OSC 或设备协议，或播放脚本。组合方式可以同时使用多个来源。') : t('手动调节、接收 OSC，或播放脚本。组合方式可以同时使用多个来源。')}
                   className="input-section"
-                  actions={<Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>}
+                  actions={<><Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>{platform.supportsListeners === false && <a className="button button--default button--variant-outline button--size-medium" href={docUrl('docs/parameter-geometry.html')}>{t('打开参数图解')}</a>}{platform.connectExplorer && <Button onClick={() => void connectBrowserExplorer()}>{t('连接参数图解')}</Button>}</>}
                 >
                   <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
                     selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
@@ -2500,7 +2564,7 @@ function App() {
                       variant="segmented"
                       value={selectedInputTab}
                       onChange={selectInputTab}
-                      options={INPUT_MODES().filter(item => item.value !== 'protocol' || config?.protocolInputs?.length || selectedInputTab === 'protocol')}
+                      options={INPUT_MODES().filter(item => (!platform.inputModes || platform.inputModes.includes(item.value)) && (item.value !== 'protocol' || config?.protocolInputs?.length || selectedInputTab === 'protocol'))}
                     />
                     {hasPendingInputMode && <Button
                       tone="primary" disabled={modeBusy || !online}
@@ -2512,6 +2576,7 @@ function App() {
                   <div id="input-tabs-panel" className="input-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
                     {selectedInputTab === 'manual' && (
                       <div className="stack manual-workspace">
+                        {platform.manualAxes && <div className="manual-axis-selection" role="group" aria-label={t('输出动作轴')}>{MANUAL_AXES().map(axis => <label key={axis.key}><input type="checkbox" checked={manualAxes.includes(axis.key)} disabled={Boolean(busyKey) || manualAxes.length === 1 && manualAxes[0] === axis.key} onChange={event => void changeManualAxes(event.target.checked ? [...manualAxes, axis.key] : manualAxes.filter(value => value !== axis.key))} />{axis.key}</label>)}</div>}
                         <div className="manual-primary">
                           {MANUAL_AXES().slice(0, 3).map((axis) => (
                             <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
@@ -2553,8 +2618,8 @@ function App() {
                       </div>
                     )}
                     {selectedInputTab === 'script' && renderScriptPlayer()}
-                    {selectedInputTab === 'protocol' && <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []}
-                      online={online} saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />}
+                    {selectedInputTab === 'protocol' && (platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []}
+                      online={online} saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />)}
                     {selectedInputTab === 'combined' && <div className="stack" data-testid="combined-inputs">
                       <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
                       <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
@@ -2776,8 +2841,8 @@ function App() {
                   </details>
                 </Section>
                 <Section title={t('协议输入')} description={t('接收网站、应用、虚拟串口或蓝牙协议桥的控制。')}>
-                  <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
-                    saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />
+                  {platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
+                    saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} />}
                 </Section>
               </>
             )}
@@ -2841,6 +2906,7 @@ function App() {
                     }
                     onChange={(comPort) => updateOutput({ comPort })}
                   />
+                  {platform.selectSerialPort && <Button onClick={() => void platform.selectSerialPort().then(refreshSerialPorts).catch(error => notify(error.message, 'error'))}>{t('选择串口')}</Button>}
                   <Button onClick={() => void refreshSerialPorts().catch((error) => notify(error.message, 'error'))}>
                     {t('刷新串口')}
                   </Button>
@@ -2870,6 +2936,8 @@ function App() {
                 />
               </div>
             )}
+            {['TCodeWebSocket', 'SensaHttp', 'SensaWebSocket'].includes(dialog.draft.type) && <Field label={t('连接地址')} value={dialog.draft.websocketAddress || ''} onChange={event => updateOutput({ websocketAddress: event.target.value })} />}
+            {['Bluetooth', 'BleBridge'].includes(dialog.draft.type) && renderBluetoothFields()}
             {dialog.draft.type === 'Intiface' && (
               <>
                 <Field
@@ -2880,7 +2948,7 @@ function App() {
                 <SelectField
                   label={t('连接方式')}
                   value={dialog.draft.manageEngineProcess ? 'managed' : 'central'}
-                  options={[{ value: 'central', label: t('连接现有 Intiface Central') }, { value: 'managed', label: t('由 Sensa 启动引擎') }]}
+                  options={[{ value: 'central', label: t('连接现有 Intiface Central') }, { value: 'managed', label: t('由 Sensa 启动引擎'), disabled: platform.supportsListeners === false }]}
                   onChange={(value) => updateOutput({ manageEngineProcess: value === 'managed' })}
                 />
                 {dialog.draft.manageEngineProcess && <Field
@@ -2895,6 +2963,10 @@ function App() {
                     { value: 'V2', label: t('V2 · 振动 3') }, { value: 'L0', label: t('L0 · 深度转振动') }]}
                   onChange={(vibrationAxis) => updateOutput({ vibrationAxis })}
                 />
+                <SelectField label={t('目标设备')} value={dialog.draft.intifaceDeviceIndex === null || dialog.draft.intifaceDeviceIndex === undefined ? '' : String(dialog.draft.intifaceDeviceIndex)}
+                  options={[{ value: '', label: t('全部设备') }, ...(outputDialogOverview?.devices || []).map(device => ({ value: String(device.index), label: `${device.index} · ${device.name}` }))]}
+                  onChange={value => updateOutput({ intifaceDeviceIndex: value === '' ? null : Number(value), intifaceDeviceName: '' })} />
+                <Field label={t('匹配设备名称')} value={dialog.draft.intifaceDeviceName || ''} onChange={event => updateOutput({ intifaceDeviceName: event.target.value, intifaceDeviceIndex: null })} />
                 <IntifaceFeatureFields routes={dialog.draft.intifaceFeatures || []} devices={outputDialogOverview?.devices || []}
                   onChange={intifaceFeatures => updateOutput({ intifaceFeatures })} />
               </>
@@ -3102,5 +3174,3 @@ function App() {
     </div>
   );
 }
-
-ReactDOM.createRoot(document.getElementById('app-root')).render(<App />);

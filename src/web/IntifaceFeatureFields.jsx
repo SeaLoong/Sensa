@@ -1,5 +1,5 @@
 import React, { useId } from 'react';
-import { Button, Field, Notice, Toggle } from './ui.jsx';
+import { Button, Field, Notice, Toggle } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { PROTOCOL_AXES } from './protocol-inputs.js';

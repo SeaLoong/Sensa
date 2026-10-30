@@ -28,11 +28,6 @@ def repository_version(root):
         versions[relative] = data.get('version')
         if relative == 'package-lock.json':
             versions['package-lock.json packages[""]'] = data.get('packages', {}).get('', {}).get('version')
-    source = (root / 'src/Sensa.csproj').read_text(encoding='utf-8-sig')
-    project_versions = re.findall(r'<Version>\s*([^<]+?)\s*</Version>', source)
-    if len(project_versions) != 1:
-        raise ValueError('Expected one application Version / 程序项目必须有一个 Version')
-    versions['src/Sensa.csproj'] = project_versions[0]
     for value in versions.values():
         version_parts(value)
     if len(set(versions.values())) != 1:
@@ -109,9 +104,6 @@ def apply_version(root, version):
             data['packages']['']['version'] = version
         text = json.dumps(data, ensure_ascii=False, indent=2) + '\n'
         replacements[destination] = (b'\xef\xbb\xbf' if original.startswith(b'\xef\xbb\xbf') else b'') + text.encode('utf-8')
-    project = root / 'src/Sensa.csproj'
-    original = project.read_bytes().decode('utf-8')
-    replacements[project] = re.sub(r'<Version>\s*[^<]+?\s*</Version>', f'<Version>{version}</Version>', original, count=1).encode('utf-8')
     for destination, content in replacements.items():
         destination.write_bytes(content)
 

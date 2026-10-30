@@ -637,3 +637,6 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .signal-pipeline-steps > div { padding: 12px; gap: 4px; }
   .signal-binding__body { padding: 4px 12px 12px; }
 }
+
+.manual-axis-selection { display: flex; flex-wrap: wrap; gap: 12px; }
+.manual-axis-selection label { display: inline-flex; align-items: center; gap: 6px; }

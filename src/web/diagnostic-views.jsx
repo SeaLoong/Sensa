@@ -7,7 +7,7 @@ import {
   formatAxisTraceTerm,
   getTCodeDeviceInfoView,
 } from './diagnostics.js';
-import { Badge, Button } from './ui.jsx';
+import { Badge, Button } from './ui.tsx';
 import { t, diagnostic } from './i18n.js';
 
 export function AxisTraceLogEntry({ log, timeStr }) {

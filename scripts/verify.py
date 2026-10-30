@@ -22,7 +22,7 @@ DOC_CHECK_PATTERNS = ('test_bilingual_docs.py', 'test_tool_paths.py', 'test_rele
 IGNORED_DIRECTORIES = {'.git', 'node_modules', 'artifacts', '_artifacts', 'bin', 'obj',
                        'build', '_build', '__pycache__', '.venv', '.vs',
                        'playwright-report', 'test-results', '.xerj'}
-RECEIPT_VERSION = 1
+RECEIPT_VERSION = 2
 
 
 def discover_changes(root=ROOT, base=None):
@@ -47,22 +47,11 @@ def select_local_lanes(plan):
     return [lane for lane in LOCAL_LANES if plan.get(lane) and not (lane == 'docs' and plan.get('scripts'))]
 
 
-def resolve_dotnet(root=ROOT, override=None):
-    if override:
-        return override
-    for name in ('dotnet.exe', 'dotnet'):
-        bundled = Path(root) / 'artifacts/toolchain/dotnet' / name
-        if bundled.is_file():
-            return str(bundled.resolve())
-    return shutil.which('dotnet') or 'dotnet'
-
-
-def lane_commands(lane, root=ROOT, dotnet=None):
+def lane_commands(lane, root=ROOT):
     python = [sys.executable, '-X', 'utf8']
     commands = {
         'web': [[shutil.which('npm') or 'npm', 'test'], [shutil.which('npm') or 'npm', 'run', 'build:web']],
-        'backend': [[resolve_dotnet(root, dotnet), 'test', 'tests/Sensa.Tests/Sensa.Tests.csproj',
-                     '-c', 'Release', '-p:SkipWebBuild=true', '-p:RestoreLockedMode=true']],
+        'backend': [[shutil.which('npm') or 'npm', 'run', 'test:node']],
         'scripts': [python + ['-m', 'unittest', 'discover', '-s', 'tests/scripts']],
         'docs': [python + ['-m', 'unittest', 'discover', '-s', 'tests/scripts', '-p', pattern]
                  for pattern in DOC_CHECK_PATTERNS],
@@ -97,7 +86,7 @@ def execute(command, root):
 def toolchain_fingerprint(lane, commands, root):
     result = {'python': sys.version, 'executable': sys.executable, 'platform': platform.platform()}
     probes = []
-    if lane == 'web':
+    if lane in ('web', 'backend'):
         npm_probe = [commands[0][0], '--version']
         try:
             npm_native = _native_command(npm_probe)
@@ -105,8 +94,6 @@ def toolchain_fingerprint(lane, commands, root):
             npm_native = []
         node = npm_native[0] if len(npm_native) > 1 and Path(npm_native[1]).name == 'npm-cli.js' else shutil.which('node') or 'node'
         probes = [[node, '--version'], npm_probe]
-    elif lane == 'backend':
-        probes = [[commands[0][0], '--version']]
     for command in probes:
         try:
             native = _native_command(command)
@@ -154,7 +141,7 @@ def _relevant(path, lane):
     if path in ('scripts/verify.py', 'scripts/ci-plan.py', '.gitignore'):
         return True
     if path == 'node_modules/.package-lock.json':
-        return lane == 'web'
+        return lane in ('web', 'backend')
     single = CI_PLAN.plan_changes([path])
     # A scripts impact must also invalidate its receipt, including development-only configuration.
     # 包括开发专用配置在内，凡被计划判定影响 scripts 的源码都必须使其凭据失效。
@@ -163,20 +150,21 @@ def _relevant(path, lane):
     if all(single[flag] for flag in CI_PLAN.FULL):
         return True
     if lane == 'web':
-        return path in CI_PLAN.INTERACTIVE_DOC_INPUTS or path.startswith(('src/web/', 'src/websensa/', 'src/core/', 'tests/web/', 'tests/e2e/', 'tests/types/', 'tests/e2e-types/')) or path in (
+        return path in CI_PLAN.INTERACTIVE_DOC_INPUTS or path.startswith(('src/web/', 'src/websensa/', 'src/core/', 'src/node/', 'src/electron/', 'tests/node/', 'tests/runtime/', 'tests/web/', 'tests/e2e/', 'tests/types/', 'tests/e2e-types/')) or path in (
             'package.json', 'package-lock.json', 'node_modules/.package-lock.json',
-            'eslint.config.js', 'tsconfig.json', 'tsconfig.e2e-types.json', 'scripts/build-web.mjs', 'scripts/build-websensa.mjs', 'scripts/build-pages.mjs', 'GLOSSARY.md',
+            'eslint.config.js', 'tsconfig.json', 'tsconfig.node.json', 'tsconfig.electron.json', 'tsconfig.e2e-types.json', 'scripts/build-web.mjs', 'scripts/build-websensa.mjs', 'scripts/build-pages.mjs', 'GLOSSARY.md',
             'tests/fixtures/funscript-interop.json', 'playwright.compatibility.config.js') or path.startswith('.github/pages/') or (
                 path.endswith('.md') and (Path(path).parent.as_posix() in ('.', 'docs', 'unity/top.sealoong.sensa',
                     'tools/unity-world-lab', 'tools/unity-avatar-lab') and Path(path).name != 'AGENTS.md'
                     or path.startswith('docs/adr/')))
     if lane == 'backend':
-        return (path.startswith('src/') and not path.startswith(('src/web/', 'src/websensa/', 'src/core/'))
-                or path.startswith(('src/web/data/', 'tests/Sensa.Tests/', 'tests/fixtures/'))
+        return (path.startswith(('src/core/', 'src/node/', 'src/electron/'))
+                or path.startswith(('src/web/data/', 'tests/node/', 'tests/runtime/', 'tests/fixtures/'))
                 or path in ('unity/top.sealoong.sensa/Runtime/SensaPoseProtocol.cs',
                             'unity/top.sealoong.sensa/Runtime/SensaFixedAnchorProtocol.cs',
                             'unity/top.sealoong.sensa/Runtime/SensaContactProtocol.cs')
-                or path == 'global.json' or path.endswith(('.props', '.targets', '.config', '.sln', '.slnx')))
+                or path in ('package.json', 'package-lock.json', 'tsconfig.node.json', 'tsconfig.electron.json',
+                            'scripts/test-node.mjs', 'scripts/build-node.mjs', 'scripts/build-electron.mjs'))
     if lane == 'scripts':
         return path.startswith(('scripts/', 'tests/scripts/', 'tests/fixtures/', 'tools/', 'unity/', 'docs/', '.github/')) or path.endswith('.md') or path in ('package.json', 'package-lock.json')
     if lane == 'docs':
@@ -210,7 +198,7 @@ def verification_key(root, lane, commands, toolchain, files):
     return digest.hexdigest()
 
 
-def run_verification(plan, *, root=ROOT, force=False, dotnet=None,
+def run_verification(plan, *, root=ROOT, force=False,
                      runner=None, tools=None, output=print):
     """Run selected interfaces; never run E2E, smoke, screenshots or publishing.
     执行选中的本地 interface；绝不执行 E2E、完整冒烟、截图或发布。
@@ -221,7 +209,7 @@ def run_verification(plan, *, root=ROOT, force=False, dotnet=None,
     files = source_files(root)
     cache = root / 'artifacts/verification'
     for lane in select_local_lanes(plan):
-        commands = lane_commands(lane, root, dotnet)
+        commands = lane_commands(lane, root)
         key = verification_key(root, lane, commands, tools(lane, commands, root), files)
         receipt = cache / (lane + '.json')
         try:
@@ -264,7 +252,6 @@ def main(argv=None):
     parser.add_argument('--all', action='store_true', help='Select all checks / 选择全部检查')
     parser.add_argument('--force', action='store_true', help='Ignore success receipts / 忽略成功缓存')
     parser.add_argument('--plan', action='store_true', help='Print JSON only; execute nothing / 仅输出 JSON，不执行检查')
-    parser.add_argument('--dotnet', help='Use this .NET executable / 使用指定 .NET 可执行文件')
     args = parser.parse_args(argv)
     paths, available = discover_changes(ROOT, args.base)
     plan = CI_PLAN.plan_changes(paths, diff_available=available and not args.all)
@@ -275,7 +262,7 @@ def main(argv=None):
     if not summary['local_lanes']:
         print('No affected local checks / 没有受影响的本地检查')
         return 0
-    return 0 if run_verification(plan, force=args.force, dotnet=args.dotnet) else 1
+    return 0 if run_verification(plan, force=args.force) else 1
 
 
 if __name__ == '__main__':

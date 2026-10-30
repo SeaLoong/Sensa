@@ -47,10 +47,6 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Set up .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          global-json-file: global.json
       - name: Set up Python
         uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0
         with:
@@ -61,11 +57,10 @@ jobs:
         run: |
           npm test
           npm run build:web
-      - name: Check backend
-        run: >-
-          dotnet test tests/Sensa.Tests/Sensa.Tests.csproj -c Release
-          -p:RestoreLockedMode=true -p:SkipWebBuild=true
-          --logger "trx;LogFileName=backend.trx" --results-directory artifacts/test-results/backend
+      - name: Check Node runtime
+        run: npm run test:node
+      - name: Build Node runtime
+        run: npm run build:node -- --bundle-only
       - name: Check scripts and docs
         run: python -X utf8 -m unittest discover -s tests/scripts
       - name: Check Unity metadata

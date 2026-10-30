@@ -13,14 +13,14 @@ Move a slider, play a funscript or read a live parameter. Shape the result, then
 
 ## Choose how to run
 
-| | WebSensa | Sensa Desktop |
-| --- | --- | --- |
-| Start | [Open in your browser](https://sealoong.github.io/Sensa/websensa/) | [Download and launch](https://github.com/SeaLoong/Sensa/releases/latest) |
-| Sources | Manual controls, funscript and parameter-explorer input | Manual, scripts, OSC, tracking, device protocols, feedback and recording replay |
-| Connections | Browser WebSocket, HTTP, serial, Bluetooth and MIDI where available | Serial, UDP/TCP, Intiface, device APIs, OSC, DG-LAB, MIDI, HTTP/WebSocket and MQTT |
-| Use it for | Quick device control, script playback and portable setups | Application routing, multiple input sources, recording and VRChat/Unity |
+| | WebSensa | Node.js CLI | Electron |
+| --- | --- | --- | --- |
+| Start | [Open in your browser](https://sealoong.github.io/Sensa/websensa/) | Run Sensa and open its browser workbench | Run Sensa Desktop with its embedded workbench |
+| Sources | Manual controls, funscript, computations, recording replay and parameter explorer | Manual, scripts, OSC, tracking, device protocols, feedback and recording replay | Same local service and sources as the CLI |
+| Connections | Browser WebSocket, HTTP, serial, Bluetooth and MIDI where available | Serial, UDP/TCP, Intiface, device APIs, OSC, DG-LAB, MIDI, HTTP/WebSocket and MQTT | Same device and network adapters as the CLI |
+| Use it for | Quick control, script playback and portable setups | Application routing, background service and independent instances | A desktop window around the local service |
 
-Both editions share the same control layout and source-to-output workflow. [WebSensa guide](docs/websensa.en.md) · [Desktop first run](docs/quick-start.en.md)
+All three run the same TypeScript core and React workbench. Electron starts the packaged Node CLI as its service; WebSensa runs the same application inside the page with browser adapters. [Architecture](docs/architecture.en.md) · [WebSensa guide](docs/websensa.en.md) · [Local first run](docs/quick-start.en.md)
 
 ![Combined input in Sensa](docs/screenshots/desktop/combined-input-en-US.png)
 
@@ -41,11 +41,11 @@ A flow can connect a source directly to an output. Add a computation when you wa
 
 ## Start the desktop workbench
 
-1. [Download](https://github.com/SeaLoong/Sensa/releases/latest) the latest stable release. Windows offers installers, a single EXE and portable ZIPs; Linux/macOS offer portable archives. Choose x64 or ARM64 for your computer. [All formats](docs/quick-start.en.md#1-start)
-2. Launch Sensa. The workbench opens in your browser. The console shows its current address.
+1. [Download](https://github.com/SeaLoong/Sensa/releases/latest) the latest stable release; current Node.js/Electron builds first appear in [development previews](https://github.com/SeaLoong/Sensa/releases). Choose an Electron Desktop archive for an embedded window or a CLI package for your browser/background service. Windows CLI also offers installers and a single EXE. Choose x64 or ARM64. [All formats](docs/quick-start.en.md#1-start)
+2. Launch Sensa. The CLI opens the workbench in your browser and reports its current address; Electron opens it in its own window.
 3. Add an output, choose a source, save and connect. Enable input, then move a slider or play a script.
 
-Several browser tabs share the desktop connection. Reopening the same configuration reuses its running instance; separate named instances keep independent configurations and ports. [Startup and instances](docs/quick-start.en.md#run-several-instances)
+Several browser tabs share the local service connection. Reopening the same configuration reuses its running instance; separate named instances keep independent configurations and ports. [Startup and instances](docs/quick-start.en.md#run-several-instances)
 
 ## Connect devices and applications
 
@@ -74,6 +74,6 @@ For your own Avatar, the [Unity package](unity/top.sealoong.sensa/README.md) pro
 
 [Workbench guide](docs/guide.en.md) · [Feature reference](docs/features.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Languages](docs/languages.en.md) · [Development and releases](docs/development.en.md) · [Verification record](docs/e2e-status.en.md)
 
-[Development previews](https://github.com/SeaLoong/Sensa/releases) contain current main builds. Stable Unity packages are available through the VPM repository for VCC/ALCOM. Successful main checks publish a preview and update the site; the Release workflow publishes stable versions.
+[Development previews](https://github.com/SeaLoong/Sensa/releases) contain current main builds, including the Node.js/Electron migration. The Download button always opens the latest stable release. Existing configuration files can be read by the new runtime; saves use the canonical camelCase format. Stable Unity packages remain C# and are available through the VPM repository for VCC/ALCOM. Successful main checks publish a preview and update the site; the Release workflow publishes stable versions.
 
 [MIT license](LICENSE) · [Terminology](GLOSSARY.md)

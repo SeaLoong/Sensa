@@ -2,9 +2,9 @@
 
 ## Decision / 决策
 
-Sensa 接收其他应用的设备控制，作为独立的**协议输入**。Buttplug、TCode、HTTP／WebSocket 与厂商兼容入口只负责消息与传输；`ExternalControlStore` 拥有每来源的单控制会话、原子批次、命令轨迹、心跳租约、时效与代次。运行时通过同一输入许可、动作串行门与停止边界交付结果。与 [ADR 0001](0001-control-and-input-activation.md) 和 [ADR 0008](0008-signal-pipeline-and-shared-session.md) 一致，配置、模式与急停变化使旧工作失效，解除急停不恢复输入。
+Sensa 接收其他应用的设备控制，作为独立的**协议输入**。Buttplug、TCode、HTTP／WebSocket 与厂商兼容入口只负责消息与传输；共享 TypeScript `ExternalControlStore` 拥有每来源的单控制会话、原子批次、命令轨迹、心跳租约、时效与代次。运行时通过同一输入许可、动作串行门与停止边界交付结果。与 [ADR 0001](0001-control-and-input-activation.md) 和 [ADR 0008](0008-signal-pipeline-and-shared-session.md) 一致，配置、模式与急停变化使旧工作失效，解除急停不恢复输入。
 
-Sensa accepts other applications' device commands as a distinct **protocol input**. Buttplug, TCode, HTTP/WebSocket and vendor-compatible adapters own message/transport framing. `ExternalControlStore` owns each source's single controller, atomic batches, commanded trajectories, heartbeat lease, validity and generations. Runtime delivery retains the shared activation, serialization and stopping boundaries. As in [ADR 0001](0001-control-and-input-activation.md) and [ADR 0008](0008-signal-pipeline-and-shared-session.md), configuration, mode and emergency changes invalidate old work; clearing emergency stop does not restore input activation.
+Sensa accepts other applications' device commands as a distinct **protocol input**. Buttplug, TCode, HTTP/WebSocket and vendor-compatible adapters own message/transport framing. the shared TypeScript `ExternalControlStore` owns each source's single controller, atomic batches, commanded trajectories, heartbeat lease, validity and generations. Runtime delivery retains the shared activation, serialization and stopping boundaries. As in [ADR 0001](0001-control-and-input-activation.md) and [ADR 0008](0008-signal-pipeline-and-shared-session.md), configuration, mode and emergency changes invalidate old work; clearing emergency stop does not restore input activation.
 
 ## Semantics / 语义
 
@@ -27,3 +27,11 @@ Protocol listeners are separate from management APIs. Compatible web protocols s
 Vendor cloud outputs use explicit endpoints/credentials; compatible local inputs require an upstream-selectable endpoint. Optional bridge tools own BLE peripheral emulation and central output, with explicit device/dependency selection. A virtual serial endpoint is not guaranteed browser enumeration; BLE disconnection is not hardware emergency stop. Evidence distinguishes codec/isolated transport checks, Actions browser/process checks and real application/hardware acceptance.
 
 [操作与接口 / Operation and interfaces](../protocol-inputs.md) · [English](../protocol-inputs.en.md)
+
+## Implementation / 实现
+
+The shared contracts, lease owner, OSC/TCode codecs and virtual Buttplug session live in [`src/core/protocols`](https://github.com/SeaLoong/Sensa/tree/main/src/core/protocols). Node adapters in [`src/node/inputs`](https://github.com/SeaLoong/Sensa/tree/main/src/node/inputs) own TCP/UDP/HTTP/WebSocket/serial listeners, OSCQuery/mDNS and vendor script tasks. Browser and desktop hosts consume the same protocol-neutral samples and command generations. / 共享契约、租约、OSC／TCode 编解码和虚拟 Buttplug 会话位于 `src/core/protocols`；Node 适配器位于 `src/node/inputs`，负责监听、OSCQuery／mDNS 和厂商脚本任务。浏览器与桌面使用同一套协议无关样本和命令代次。
+
+HTTP/WebSocket routes sharing a listener use longest whole-segment matching. Sharing the management listener requires a non-root mount. A WebSocket message retains the generation of its first arriving frame, including HTTP upgrade head; stopping rejects a later continuation from the old generation without disconnecting idle clients. WSDM keeps binary hardware framing and native PING/PONG lease renewal. / HTTP／WebSocket 共用监听时按最长完整路径匹配；共用管理端口使用独立非根路径。WebSocket 消息保留首个分片到达时的代次，包括 HTTP upgrade head；停止后拒绝旧代次续片，空闲连接仍可使用。WSDM 保留二进制硬件帧和原生 PING／PONG 续约。
+
+The implementation's codec, real-loopback transport and fragment-generation unit contracts are maintained under `tests/node/input-*.test.ts`. Platform mocks do not establish hardware acceptance. / 编解码、真实 loopback 传输和分片代次契约随 `tests/node/input-*.test.ts` 维护；平台模拟不代表硬件验收。

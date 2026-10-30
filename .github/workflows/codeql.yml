@@ -66,11 +66,6 @@ jobs:
           # Preserve default setup's query suite and remote threat model.
           config: '{"threat-models":["remote"]}'
           db-location: ${{ runner.temp }}/sensa-codeql-databases
-      - name: Compile application and tests
-        if: matrix.language == 'csharp'
-        run: |
-          dotnet restore src/Sensa.sln --locked-mode -p:SkipWebBuild=true
-          dotnet build src/Sensa.sln -c Release --no-restore --no-incremental -p:SkipWebBuild=true -p:UseSharedCompilation=false -p:EmitCompilerGeneratedFiles=true
       - name: Compile all Unity sources
         if: matrix.language == 'csharp'
         run: python scripts/codeql-unity.py build --prepared artifacts/codeql-unity

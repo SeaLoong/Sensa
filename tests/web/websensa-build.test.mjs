@@ -15,7 +15,8 @@ test('standalone WebSensa builds local executable resources with dependency noti
     assert.ok(files.has(reference[1]), 'Standalone HTML dependency: ' + reference[1]);
   assert.ok(files.get('app.bundle.js').length > 100000);
   assert.match(files.get('app.bundle.js.LEGAL.txt').toString(), /React|react/);
-  assert.match(files.get('app.bundle.css').toString(), /websensa/);
+  assert.match(files.get('app.bundle.css').toString(), /app-shell/);
+  assert.match(files.get('app.bundle.css').toString(), /manual-axis-selection/);
   const output = await fs.mkdtemp(path.join(os.tmpdir(), 'sensa-standalone-web-'));
   try {
     await buildWebSensa({ output });

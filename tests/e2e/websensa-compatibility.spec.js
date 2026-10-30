@@ -6,6 +6,7 @@ import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { buildPages } from '../../scripts/build-pages.mjs';
+import { openWorkbench, controlWorkspace, addWorkbenchOutput, manualMotion, uploadWorkbenchScript, inputActivation } from './websensa-workbench.js';
 
 let server, signalServer, sockets, directory, base, httpBase, sourceProof, runtimeBrowser;
 const wire = [], requests = [], httpRequests = [], browserAssets = [], pageErrors = [];
@@ -86,13 +87,13 @@ test.beforeEach(async ({ page, browserName, browser }) => {
       browserAssets.push(response.body().then(bytes => ({ path: url.pathname.slice('/Sensa/'.length), sha256: hash(bytes) })));
   });
 });
-test.afterEach(async ({}, info) => {
+test.afterEach(async ({ page }, info) => {
   try {
     if (!runtimeBrowser) return;
     const actualAssets = await Promise.all(browserAssets);
     await info.attach('webcompat-source.json', { body: JSON.stringify({ ...sourceProof,
       project: info.project.name, browser: runtimeBrowser.name, browserVersion: runtimeBrowser.version,
-      viewport: info.project.use.viewport, testId: info.testId, browserAssets: actualAssets }), contentType: 'application/json' });
+      viewport: info.project.use.viewport, actualViewport: page.viewportSize(), testId: info.testId, browserAssets: actualAssets }), contentType: 'application/json' });
     await info.attach('webcompat-wire.json', { body: JSON.stringify({ wire, httpRequests, pageErrors, backendRequests: requests.filter(url => /^\/api(?:\/|$)/.test(url)) }), contentType: 'application/json' });
     for (const expected of sourceProof.assets) expect(actualAssets).toContainEqual({ path: expected.path, sha256: expected.sha256 });
     expect(pageErrors).toEqual([]);
@@ -108,61 +109,48 @@ test.afterAll(async () => {
 });
 
 async function open(page, query = '?lang=en') {
-  await page.goto(base + '/Sensa/websensa/' + query);
-  await expect(page.getByRole('heading', { name: 'Put signals to work' })).toBeVisible();
-}
-async function addOutput(page, type, endpoint) {
-  await page.getByRole('tab', { name: /^Outputs/ }).click();
-  await page.getByLabel('Output type', { exact: true }).selectOption(type);
-  await page.getByLabel('Endpoint URL', { exact: true }).fill(endpoint);
-  await page.getByRole('button', { name: 'Connect output', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeEnabled();
-  await expect(page.getByRole('alert')).toHaveCount(0);
-}
-async function setRange(locator, value) {
-  await locator.evaluate((element, next) => {
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(next));
-    element.dispatchEvent(new Event('input', { bubbles: true })); element.dispatchEvent(new Event('change', { bubbles: true }));
-  }, value);
+  await openWorkbench(page, base + '/Sensa/websensa/' + query);
 }
 
 // The same two cases also run in the ordinary Chromium suite and Pages checks.
 test('@site @webcompat WebSensa manual and scripts reach real WS/HTTP mock connections and stop', async ({ page }, info) => {
   await open(page);
-  await addOutput(page, 'tcode-ws', base.replace('http:', 'ws:') + '/device');
-  await addOutput(page, 'http', httpBase + '/signal');
-  await expect(page.getByText('2 connected', { exact: true })).toBeVisible();
+  const tcode = await addWorkbenchOutput(page, 'TCodeWebSocket', base.replace('http:', 'ws:') + '/device');
+  const httpOutput = await addWorkbenchOutput(page, 'SensaHttp', httpBase + '/signal');
+  await expect(tcode.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(httpOutput.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(page.getByRole('alert')).toHaveCount(0);
   expect(wire.filter(item => item.transport === 'ws' && item.text.startsWith('L0'))).toHaveLength(0);
   expect(wire.filter(item => item.transport === 'http' && item.body.type === 'signal')).toHaveLength(0);
-  await page.getByRole('tab', { name: /^Control/ }).click();
-  await setRange(page.getByLabel('L0 Stroke'), 67);
-  await page.getByLabel('Input enabled', { exact: true }).click();
-  await expect(page.getByLabel('Input enabled', { exact: true })).toBeChecked();
-  await expect.poll(() => wire.some(item => item.transport === 'ws' && item.text === 'L06699\n')).toBe(true);
+  await controlWorkspace(page); await manualMotion(page, 'L0', 670);
+  await inputActivation(page).check(); await expect(inputActivation(page)).toBeChecked();
+  // The common runtime retains the desktop's 0..999 remap and three-digit wire.
+  await expect.poll(() => wire.some(item => item.transport === 'ws' && item.text === 'L0669\n')).toBe(true);
   await expect.poll(() => wire.some(item => item.transport === 'http' && item.body.type === 'signal' && item.body.values?.L0 === .67)).toBe(true);
-  await page.getByRole('button', { name: 'Script', exact: true }).click();
-  await expect(page.getByLabel('Input enabled', { exact: true })).not.toBeChecked();
   const beforePlay = wire.filter(item => item.transport === 'http' && item.body.type === 'signal').length;
-  await page.getByLabel('Funscript file', { exact: true }).setInputFiles({ name: 'compatibility.funscript', mimeType: 'application/json',
-    buffer: Buffer.from(JSON.stringify({ actions: [{ at: 0, pos: 80 }, { at: 10000, pos: 20 }] })) });
-  await expect(page.getByText(/0\.00 s \/ 10\.00 s · 80%/)).toBeVisible();
+  await uploadWorkbenchScript(page, 'compatibility.funscript', [{ at: 0, pos: 80 }, { at: 10000, pos: 20 }]);
+  await expect(inputActivation(page)).not.toBeChecked();
+  await expect(page.locator('.script-player')).toContainText('00:10.00');
   expect(wire.filter(item => item.transport === 'http' && item.body.type === 'signal')).toHaveLength(beforePlay);
-  await page.getByLabel('Input enabled', { exact: true }).click();
-  await expect(page.getByLabel('Input enabled', { exact: true })).toBeChecked();
+  await inputActivation(page).check(); await expect(inputActivation(page)).toBeChecked();
   await page.getByRole('button', { name: 'Play', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
   await expect.poll(() => wire.filter(item => item.transport === 'http' && item.body.type === 'signal').length).toBeGreaterThan(beforePlay + 2);
   await expect.poll(() => new Set(wire.filter(item => item.transport === 'http' && item.body.type === 'signal').slice(beforePlay).map(item => item.body.values.L0)).size).toBeGreaterThan(1);
   await expect.poll(() => wire.filter(item => item.transport === 'ws' && item.text.startsWith('L0')).length).toBeGreaterThan(3);
   await page.getByRole('button', { name: 'Emergency stop', exact: true }).click();
-  await expect(page.getByLabel('Input enabled', { exact: true })).not.toBeChecked();
+  await expect(inputActivation(page)).not.toBeChecked();
   await expect.poll(() => wire.filter(item => item.transport === 'ws').at(-1)?.text).toBe('DSTOP\n');
   await expect.poll(() => wire.filter(item => item.transport === 'http').at(-1)?.body.type).toBe('stop');
   const sent = wire.filter(item => item.transport === 'http' && item.body.type === 'signal').length;
-  await page.getByRole('button', { name: 'Clear stop', exact: true }).click();
-  await expect(page.getByLabel('Input enabled', { exact: true })).not.toBeChecked();
-  await expect.poll(() => page.getByRole('button', { name: 'Play', exact: true }).isDisabled()).toBe(true);
+  await page.getByRole('button', { name: 'Release emergency stop', exact: true }).click();
+  await expect(inputActivation(page)).not.toBeChecked();
+  // Playback can be previewed while inactive; it cannot implicitly arm output.
+  await page.getByRole('button', { name: /^(Play|Resume)$/, exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+  await page.waitForTimeout(260);
   expect(wire.filter(item => item.transport === 'http' && item.body.type === 'signal')).toHaveLength(sent);
+  await expect(inputActivation(page)).not.toBeChecked();
   expect(requests.filter(url => /^\/api(?:\/|$)/.test(url))).toEqual([]);
   expect(httpRequests.some(request => request.method === 'OPTIONS' && request.origin === base)).toBe(true);
   await info.attach('webcompat-manual-script-' + info.project.name, { body: await page.screenshot({ fullPage: true }), contentType: 'image/png' });
@@ -174,44 +162,41 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
     if (new URL(location.href).searchParams.has('http-only')) Object.defineProperty(window, 'WebSocket', { configurable: true, value: undefined });
   });
   const evidence = [];
-  for (const [language, label, headings] of [['en', 'Language', ['Control', 'Outputs', 'Help']], ['zh-CN', '语言', ['控制', '输出', '使用帮助']]]) {
+  for (const language of ['en', 'zh-CN']) {
     await page.goto(base + '/Sensa/websensa/?lang=' + language);
     await expect(page.locator('html')).toHaveAttribute('lang', language === 'en' ? 'en-US' : 'zh-CN');
-    const control = page.getByRole('tab', { name: new RegExp('^' + headings[0]) });
+    const control = page.locator('#workspace-tabs-control');
     await control.focus(); await control.press('ArrowRight');
-    const outputs = page.getByRole('tab', { name: new RegExp('^' + headings[1]) });
-    await expect(outputs).toBeFocused(); await expect(outputs).toHaveAttribute('aria-selected', 'true');
-    const select = page.getByLabel(language === 'en' ? 'Output type' : '输出类型', { exact: true });
-    for (const type of ['serial', 'bluetooth', 'midi']) await expect(select.locator(`option[value="${type}"]`)).toBeDisabled();
-    for (const type of ['intiface', 'tcode-ws', 'json-ws', 'http']) await expect(select.locator(`option[value="${type}"]`)).toBeEnabled();
+    const osc = page.locator('#workspace-tabs-osc');
+    await expect(osc).toBeFocused(); await expect(osc).toHaveAttribute('aria-selected', 'true');
+    await osc.press('ArrowRight'); const flow = page.locator('#workspace-tabs-pipeline');
+    await expect(flow).toBeFocused(); await expect(flow).toHaveAttribute('aria-selected', 'true');
+    await flow.press('ArrowRight'); const settings = page.locator('#workspace-tabs-settings');
+    await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
+    await control.click();
+    const select = page.getByTestId('output-type');
+    for (const type of ['TCodeSerial', 'Bluetooth', 'Midi']) await expect(select.locator(`option[value="${type}"]`)).toBeDisabled();
+    for (const type of ['Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'SensaHttp']) await expect(select.locator(`option[value="${type}"]`)).toBeEnabled();
     const features = await page.evaluate(() => ({ webSocket: typeof WebSocket, fetch: typeof fetch,
       serial: typeof navigator.serial?.requestPort, bluetooth: typeof navigator.bluetooth?.requestDevice,
       midi: typeof navigator.requestMIDIAccess, secureContext: isSecureContext,
       pageFits: document.documentElement.scrollWidth <= innerWidth + 1 }));
     expect(features).toMatchObject({ webSocket: 'function', fetch: 'function', serial: 'undefined', bluetooth: 'undefined', midi: 'undefined', pageFits: true });
-    await select.selectOption('http');
-    await expect(page.getByRole('button', { name: language === 'en' ? 'Connect output' : '连接输出', exact: true })).toBeEnabled();
-    await expect(page.getByLabel(label, { exact: true })).toBeVisible();
+    await select.selectOption('SensaHttp');
+    await expect(page.getByTestId('add-output')).toBeEnabled();
+    await expect(page.getByLabel('Language / 语言', { exact: true })).toBeVisible();
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     await info.attach('webcompat-axe-' + language + '.json', { body: JSON.stringify(axe, null, 2), contentType: 'application/json' });
     expect(axe.violations).toEqual([]);
-    await outputs.press('ArrowRight');
-    await expect(page.getByRole('tab', { name: new RegExp('^' + headings[2]) })).toBeFocused();
     evidence.push({ language, features, axeViolations: axe.violations.length, keyboardTabs: true });
   }
-  await open(page, '?lang=en&http-only=1');
-  await page.getByRole('tab', { name: /^Outputs/ }).click();
-  const fallback = page.getByRole('button', { name: 'Use JSON HTTP', exact: true });
-  await expect(fallback).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Connect output', exact: true })).toBeDisabled();
-  await fallback.click();
-  await expect(page.getByLabel('Output type', { exact: true })).toHaveValue('http');
-  await page.getByLabel('Endpoint URL', { exact: true }).fill(httpBase + '/signal');
-  await page.getByRole('button', { name: 'Connect output', exact: true }).click();
-  await expect(page.getByText('1 connected', { exact: true })).toBeVisible();
-  await page.getByRole('tab', { name: /^Control/ }).click();
-  await setRange(page.getByLabel('L0 Stroke'), 25);
-  await page.getByLabel('Input enabled', { exact: true }).click();
+  await open(page, '?lang=en&http-only=1'); await controlWorkspace(page);
+  const select = page.getByTestId('output-type');
+  for (const type of ['Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'WebSocketJson']) await expect(select.locator(`option[value="${type}"]`)).toBeDisabled();
+  await expect(select.locator('option[value="SensaHttp"]')).toBeEnabled();
+  await expect(select).toHaveValue('SensaHttp');
+  await addWorkbenchOutput(page, 'SensaHttp', httpBase + '/signal');
+  await manualMotion(page, 'L0', 250); await inputActivation(page).check();
   await expect.poll(() => wire.some(item => item.transport === 'http' && item.body.type === 'signal' && item.body.values?.L0 === .25)).toBe(true);
   await page.getByRole('button', { name: 'Emergency stop', exact: true }).click();
   await expect.poll(() => wire.filter(item => item.transport === 'http').at(-1)?.body.type).toBe('stop');

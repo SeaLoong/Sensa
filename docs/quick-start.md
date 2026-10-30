@@ -2,25 +2,28 @@
 
 **简体中文** | [English](quick-start.en.md)
 
-想直接在浏览器调节设备或播放脚本，可以[打开 WebSensa](https://sealoong.github.io/Sensa/websensa/)。需要 OSC、应用转发、录制和完整设备连接时，按下面的步骤启动桌面工作台。两个版本都围绕来源、连接和结果组织操作。
+想直接在浏览器调节设备或播放脚本，可以[打开 WebSensa](https://sealoong.github.io/Sensa/websensa/)。需要 OSC、应用转发、录制和完整设备连接时，按下面的步骤启动桌面工作台。WebSensa、Node CLI 与 Electron 共用同一工作台，围绕来源、连接和结果组织操作。
 
 ## 1. 启动
 
-[下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版。[发布历史](https://github.com/SeaLoong/Sensa/releases)还列出开发预览与旧版本。所有桌面格式均自带 .NET 运行时。
+[下载](https://github.com/SeaLoong/Sensa/releases/latest)最新正式版；Node.js／Electron 迁移构建通过 CI 后先进入[开发预览](https://github.com/SeaLoong/Sensa/releases)。以下格式自带所需运行时，无需另装 Node.js。
 
 | 系统与方式 | 架构 | 文件名示例 | 怎样启动 |
 | --- | --- | --- | --- |
-| Windows 安装版（推荐） | x64／ARM64 | `Sensa-version-win-x64-Setup.exe` | 安装后从开始菜单打开 |
-| Windows 单文件 | x64／ARM64 | `Sensa-version-win-x64-SingleFile.exe` | 将 EXE 放到可写目录后运行 |
-| Windows 便携版 | x64／ARM64 | `Sensa-version-win-x64.zip` | 完整解压 ZIP，再运行 `Sensa.exe` |
-| Linux 便携版 | x64／ARM64 | `Sensa-version-linux-x64.tar.gz` | 解压后运行 `./Sensa` |
-| macOS 便携版 | x64／ARM64 | `Sensa-version-osx-arm64.tar.gz` | 解压后运行 `./Sensa` |
+| Windows Electron 桌面版 | x64／ARM64 | `Sensa-version-win-x64-Desktop.zip` | 完整解压后运行 `Sensa.exe` |
+| Linux Electron 桌面版 | x64／ARM64 | `Sensa-version-linux-x64-Desktop.tar.gz` | 完整解压后运行 `./Sensa` |
+| macOS Electron 桌面版 | x64／ARM64 | `Sensa-version-osx-arm64-Desktop.zip` | 完整解压后打开 `Sensa.app` |
+| Windows CLI 安装版 | x64／ARM64 | `Sensa-version-win-x64-Setup.exe` | 安装后从开始菜单打开 |
+| Windows CLI 单文件 | x64／ARM64 | `Sensa-version-win-x64-SingleFile.exe` | 将 EXE 放到可写目录后运行 |
+| Windows CLI 便携版 | x64／ARM64 | `Sensa-version-win-x64.zip` | 完整解压 ZIP，再运行 `Sensa.exe` |
+| Linux CLI 便携版 | x64／ARM64 | `Sensa-version-linux-x64.tar.gz` | 解压后运行 `./Sensa` |
+| macOS CLI 便携版 | x64／ARM64 | `Sensa-version-osx-arm64.tar.gz` | 解压后运行 `./Sensa` |
 
 Intel／AMD 电脑通常使用 **x64**，Apple Silicon 和 Windows ARM 使用 **ARM64**。开发预览文件名还包含构建编号与提交摘要。
 
-运行 Sensa 后，工作台会自动在浏览器打开。常用地址为 **http://127.0.0.1:5086**；端口调整时，以控制台显示的实际地址为准。首次启动输入处于关闭状态，可以先准备连接。
+Electron 在自身窗口打开工作台，并协调随包的同一 Node CLI 服务；CLI 自动在浏览器打开工作台。CLI 常用地址为 **http://127.0.0.1:5086**，端口调整后使用启动时显示的实际地址。首次启动输入处于关闭状态，可以先准备连接。
 
-Windows 安装目录默认为 `%LOCALAPPDATA%\Programs\Sensa`。更新与卸载保留用户配置和录制。便携包与安装版附带文档及桥工具；单文件内置工作台与[参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)。
+Windows CLI 安装目录默认为 `%LOCALAPPDATA%\Programs\Sensa`，更新与卸载保留用户配置和录制。CLI 便携包、安装版与 Electron 包附带文档及 Python 桥工具；单文件 EXE 内置工作台、[参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)与串口／MIDI 依赖。使用 Python 桥时单独准备 Python 环境。[串口与蓝牙桥](../tools/protocol-bridge/README.zh-CN.md)
 
 ![Sensa 实际运行界面](screenshots/desktop/control-page.png)
 
@@ -50,7 +53,7 @@ Windows 安装目录默认为 `%LOCALAPPDATA%\Programs\Sensa`。更新与卸载�
 
 在**控制**选择**手动**，应用后启用输入。调整 L0 并点击**发送一次**，或开启**连续发送**跟随滑条变化。每条绑定会显示原始值、转换值与最近目标。
 
-关闭输入即可完成录制。下载 funscript，或载入播放器，选择**脚本**、启用输入，再点击**播放**。
+关闭输入即可完成录制。下载 funscript，或载入播放器，选择**脚本**、启用输入，再点击**播放**。脚本自然结束时保留末值和输入启用状态；点击停止、关闭输入或急停时执行对应停止操作。组合模式中的其他来源继续按自己的状态运行。
 
 使用动作设备时，在轴配置中设置方向与行程，先试一个小幅动作。顶栏的**紧急停止**会停止全部输出并保持，解除后再启用输入。保存配置、切换方式或更换脚本会关闭输入，准备好新设置后重新启用。
 
@@ -74,11 +77,11 @@ VRChat 通常向 Sensa 的 **9001** 端口发送 OSC，并在 **9000** 接收回
 
 在**流程 → 保存与载入整套方案**中，将计算、映射、轴配置和输出一起导出。导入预览会先显示将要替换的内容。
 
-配置默认保存为程序旁的 `config.json`。通过 `SENSA_CONFIG_PATH` 或 `--config <path>` 可以选择其他文件。[工作台指南](guide.md) · [语言设置](languages.md)
+CLI 默认在可执行文件旁保存 `config.json`，源码开发运行时使用当前工作目录；Electron 默认使用用户应用数据目录中的 `Sensa/config.json`。`SENSA_CONFIG_PATH` 或 `--config <path>` 可为两者指定同一个配置文件。既有 PascalCase 与 camelCase 字段都可读取，保存统一使用 camelCase；录制输出默认保存在所选配置旁的 `recordings`。[工作台指南](guide.md) · [语言设置](languages.md)
 
 ## 运行多个实例
 
-再次打开同一配置，会复用已经运行的实例。已有工作台页面连接时沿用该页面；没有页面时打开工作台。
+CLI 与 Electron 再次打开同一配置，都会复用已经运行的服务。已有工作台页面连接时沿用该页面；没有页面时打开工作台。
 
 独立设置可以使用命名实例：
 
@@ -90,4 +93,4 @@ Sensa --new-instance
 
 命名配置位于原配置旁的 `instances/<name>/config.json`，新实例从全新设置开始。`--new-instance` 自动生成唯一名称。管理 HTTP、OSC 接收和启动时的协议监听遇到端口占用，会选择可用端口；当前地址可在控制台与工作台查看。手动保存监听配置时，端口冲突仍会直接提示，便于选定客户端要连接的地址。
 
-后台运行时，传入 `--open-browser false`。
+CLI 后台运行时，传入 `--open-browser false`。使用 `--config <path>` 可让 CLI 与 Electron 共享同一配置及运行实例。

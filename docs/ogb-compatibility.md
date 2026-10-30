@@ -12,6 +12,8 @@ OGB／SPS 参数描述接近、进入和触碰。根据几何含义与命名规�
 
 图解已核对 **VRCFury 1.1434.0** 的 `BakeHapticSocketsService.cs`、`VRCFuryHapticSocketBaker.cs` 与 `VRCFuryHapticPlugBaker.cs`；这三个文件与上述固定提交一致。
 
+Node 的 [OscServices](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts) 接收 OSC／OSCQuery 并维护来源；共享 [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) 解释 OgbDepth／OgbTouch，再经同一输出协调器路由到设备。来源标识用于把配对读数对应到同一实例，几何与单位沿用下文的上游定义。
+
 ## 图解采用哪些默认尺寸
 
 每种参数使用对应的上游生成规则。Plug 长度、粗细和 Socket 自动触碰区来自 Avatar 尺寸，图解用一组明确的示例尺寸展示这些规则；滑条可改成你的实际尺寸。
@@ -129,7 +131,7 @@ d ≈ R × (1 - pRoot) + r
 径向比例 q = clamp(1 - d / L, 0, 1)
 ```
 
-Sensa 采用生成器的 R=1、r=0.01 模型，得到 +0.01 修正。运行时缩放或自定义尺寸会使换算带有误差，因为实际 R／r 需要从作者几何确认。Root 饱和为 1 时表示 d≤r，该小范围内保持同一读数；映射时用实际对象的期望起点和终点校准。[估算器](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/SpsDepthEstimator.cs)
+Sensa 采用生成器的 R=1、r=0.01 模型，得到 +0.01 修正。运行时缩放或自定义尺寸会使换算带有误差，因为实际 R／r 需要从作者几何确认。Root 饱和为 1 时表示 d≤r，该小范围内保持同一读数；映射时用实际对象的期望起点和终点校准。[估算器](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/motion.ts)
 
 只有完整、有限的 0–1 配对且存在未饱和估长采样时才产生后续径向比例；从内部启动、长度未知时给零，需要先退出再进入。横向偏移、不同 Plug 混入、截断和逐参数异步都会影响结果。固定同一对象与来源进行校准，有助于得到稳定、容易解释的变化。
 
@@ -141,7 +143,7 @@ Sensa 也支持 SDK 3.10.6-beta.3 与 Beta.2 的高级 Proximity 报告，读取
 
 ## Sensa 的精简入口与使用条件
 
-深度选择一组 OgbDepth，触碰选择一组 OgbTouch。OgbDepth 优先读取 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 配对；缺配对或尚未估长时输出零，两路缺失或均零时再使用同实例 **SPS1 · PenOthers / PenOthersClose** 的深浅信号。OgbTouch 按同来源、完整父路径和功能配对 Close，缺少必需 Close 给零；显式 Direct 可以读取原值。[消费端选择依据](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)、[Sensa 地址解释](https://github.com/SeaLoong/Sensa/blob/main/src/Signals/OgbDepthAddress.cs)
+深度选择一组 OgbDepth，触碰选择一组 OgbTouch。OgbDepth 优先读取 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 配对；缺配对或尚未估长时输出零，两路缺失或均零时再使用同实例 **SPS1 · PenOthers / PenOthersClose** 的深浅信号。OgbTouch 按同来源、完整父路径和功能配对 Close，缺少必需 Close 给零；显式 Direct 可以读取原值。[消费端选择依据](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)、[Sensa 地址解释](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
 
 现代 VRCFury 把生成实例名中的斜杠替换为下划线；Sensa 也支持保留自定义嵌套父路径。所有辅助值严格留在同一来源／实例／Self 或 Others 内。输入重新启用、更换 Avatar 或重建映射时重新估长；超时按当前选用的信号计算。
 

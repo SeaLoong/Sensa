@@ -1,5 +1,5 @@
 import React, { useId, useMemo, useState } from 'react';
-import { Button, Field, Toggle } from './ui.jsx';
+import { Button, Field, Toggle } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { COMPUTED_SIGNAL_LIMIT, SPATIAL_COMPUTED_OPERATIONS, computedOperationOptions, followingPlaneDrafts, newSpatialComputedDraft } from './computed-signals.js';

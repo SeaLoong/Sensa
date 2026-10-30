@@ -133,10 +133,6 @@ jobs:
         with:
           node-version: '24'
           cache: npm
-      - name: Set up .NET
-        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
-        with:
-          global-json-file: global.json
       - name: Install test dependencies
         timeout-minutes: 5
         run: bash scripts/install-e2e-dependencies.sh
@@ -148,7 +144,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build app
-        run: dotnet publish src/Sensa.csproj -c Release --no-self-contained -p:RestoreLockedMode=true -o artifacts/e2e/app
+        run: npm run build:node -- --bundle-only
       - name: Generate screenshots
         id: browser_tests
         run: npm run e2e:ci

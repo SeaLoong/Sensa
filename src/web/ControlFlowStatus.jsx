@@ -1,7 +1,7 @@
 import React from 'react';
 import { t } from './i18n.js';
 import { controlReadiness } from './control-workflow.js';
-import { Button } from './ui.jsx';
+import { Button } from './ui.tsx';
 
 export default function ControlFlowStatus({ onNavigate, ...state }) {
   const status = controlReadiness(state);

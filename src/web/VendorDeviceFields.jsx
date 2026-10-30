@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Badge, Button, Field, Toggle } from './ui.jsx';
+import { Badge, Button, Field, Toggle } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 import { t } from './i18n.js';
 import { PROTOCOL_AXES, normalizeDeviceOutput } from './protocol-inputs.js';

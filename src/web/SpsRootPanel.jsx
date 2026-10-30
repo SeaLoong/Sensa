@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { t, diagnostic, getLocale } from './i18n.js';
 import { capturePointEndpoint, calibratedPointDraft, pointCalibrationProgress, pointMetricOptions, pointTrackingLabel } from './osc-preview.js';
-import { Badge, Button, Notice } from './ui.jsx';
+import { Badge, Button, Notice } from './ui.tsx';
 import { SelectField } from './controls.jsx';
 
 function PointProjection({ point }) {

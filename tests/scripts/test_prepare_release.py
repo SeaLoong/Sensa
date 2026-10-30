@@ -45,7 +45,6 @@ class BuildWorkspaceContracts(unittest.TestCase):
         self.folder = tempfile.TemporaryDirectory()
         self.addCleanup(self.folder.cleanup)
         self.root = Path(self.folder.name)
-        (self.root / 'src').mkdir()
         (self.root / 'unity/top.sealoong.sensa').mkdir(parents=True)
         self.package = {'name': 'sensa', 'version': '0.4.0', 'dependencies': {'unchanged': '1.0.0'}}
         (self.root / 'package.json').write_text(json.dumps(self.package), encoding='utf-8')
@@ -54,10 +53,8 @@ class BuildWorkspaceContracts(unittest.TestCase):
             'packages': {'': self.package, 'node_modules/unchanged': {'version': '1.0.0'}}}), encoding='utf-8')
         (self.root / 'unity/top.sealoong.sensa/package.json').write_text(json.dumps({
             'name': 'top.sealoong.sensa', 'version': '0.4.0', 'vpmDependencies': {'other': '>=1.0.0'}}), encoding='utf-8')
-        self.project = b'\xef\xbb\xbf<Project>\r\n  <PropertyGroup><Version>0.4.0</Version></PropertyGroup>\r\n</Project>\r\n'
-        (self.root / 'src/Sensa.csproj').write_bytes(self.project)
 
-    def test_apply_updates_all_build_identities_and_preserves_dependencies_and_project_encoding(self):
+    def test_apply_updates_node_and_unity_build_identities_and_preserves_dependencies(self):
         self.assertEqual(prepare.repository_version(self.root), '0.4.0')
         with patch.object(prepare.subprocess, 'check_output', side_effect=AssertionError('No git or network during apply')):
             prepare.apply_version(self.root, '0.5.1')
@@ -68,7 +65,6 @@ class BuildWorkspaceContracts(unittest.TestCase):
         self.assertEqual(package['dependencies'], self.package['dependencies'])
         self.assertEqual(lock['packages']['node_modules/unchanged']['version'], '1.0.0')
         self.assertEqual(unity['vpmDependencies'], {'other': '>=1.0.0'})
-        self.assertEqual((self.root / 'src/Sensa.csproj').read_bytes(), self.project.replace(b'0.4.0', b'0.5.1'))
         first = {path: path.read_bytes() for path in self.root.rglob('*') if path.is_file()}
         prepare.apply_version(self.root, '0.5.1')
         self.assertEqual({path: path.read_bytes() for path in first}, first)

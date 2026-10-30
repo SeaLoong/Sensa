@@ -1,6 +1,6 @@
 import React from 'react';
 import { oscWorkflowHints } from './osc-workflow.js';
-import { Notice } from './ui.jsx';
+import { Notice } from './ui.tsx';
 
 export default function OscFlowStatus(props) {
   const hints = oscWorkflowHints(props);

@@ -1,0 +1,14 @@
+export type PresentationLocale = 'zh-CN' | 'en-US';
+export const LOCALE_STORAGE_KEY: 'sensa.locale';
+export const locales: readonly PresentationLocale[];
+export function normalizeLocale(value: unknown): PresentationLocale | null;
+export function resolveLocale(saved: unknown, languages?: readonly unknown[]): PresentationLocale;
+export function getLocale(): PresentationLocale;
+export function subscribeLocale(listener: () => void): () => void;
+export function setLocale(value: unknown): boolean;
+export function t(key: string, values?: readonly unknown[]): string;
+export function t<T>(key: T, values?: readonly unknown[]): T;
+export function diagnostic(message: string): string;
+export function diagnostic<T>(message: T): T;
+export function localized<T>(factory: () => T): () => T;
+export function docUrl(path: string): string;

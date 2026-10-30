@@ -1,0 +1,10 @@
+export { InputCoordinator, createInputCoordinator, normalizeInputPath } from './coordinator.ts';
+export type { InputCoordinatorOptions, InputListenerSnapshot } from './coordinator.ts';
+export { OscServices, createOscServices, normalizeOscQueryUrl, parseOscQueryNodes, classifyOscPath } from './osc-services.ts';
+export type { OscServicesConfig, OscServicesOptions } from './osc-services.ts';
+export { HttpInputSession } from './http-session.ts';
+export { VendorInputSession } from './vendor-session.ts';
+export { downloadProtocolScript, publicScriptAddress, InputHttpError } from './http-utils.ts';
+export { OscParameterStore, encodeOscMessage, encodeOscBundle, parseOscPacket } from '../../core/protocols/osc.ts';
+export { ExternalControlStore } from '../../core/protocols/external-control.ts';
+export type { ProtocolInputConfig, ProtocolFeatureConfig, ExternalControlSink, ExternalControlCommand } from '../../core/protocols/input-types.ts';

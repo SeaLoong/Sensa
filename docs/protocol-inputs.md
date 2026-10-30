@@ -28,12 +28,12 @@ flowchart LR
 
 ```json
 {
-  "ProtocolInputs": [
+  "protocolInputs": [
     {
-      "Id": "website", "Name": "Sensa OSR bridge", "Type": "Buttplug",
-      "Enabled": true, "Host": "127.0.0.1", "Port": 12400, "Path": "/",
-      "TimeoutMs": 10000, "RouteToMotion": true,
-      "Features": [{"Channel":"L0","Name":"Stroke","Actuator":"Position","TargetAxis":"L0"}]
+      "id": "website", "name": "Sensa OSR bridge", "type": "Buttplug",
+      "enabled": true, "host": "127.0.0.1", "port": 12400, "path": "/",
+      "timeoutMs": 10000, "routeToMotion": true,
+      "features": [{"channel":"L0","name":"Stroke","actuator":"Position","targetAxis":"L0"}]
     }
   ]
 }
@@ -54,7 +54,7 @@ Web 协议通过 **Path** 共用监听端口。例如：
 
 监听器移除路由前缀后，将请求交给对应协议。嵌套路径按最长完整路径匹配，路径 `/` 保留原有地址。不同路由分别管理通道与控制会话；使用不同轴，或通过计算／绑定融合它们。
 
-同一 TCP 端口可以提供共享 HTTP／WebSocket 监听或原始 TCode TCP 监听，UDP 使用独立端口空间。重复路径与不兼容监听会在保存时显示。
+同一 TCP 端口可以提供共享 HTTP／WebSocket 监听或原始 TCode TCP 监听，UDP 使用独立端口空间。重复路径与不兼容监听会在保存时显示。协议输入与 WebUI 共用地址和端口时，使用 `/input/tcode` 这样的独立路径；管理 API 和静态页面保留各自入口。实例启动后显示并保存实际绑定的端口。
 
 ## 输入能力与地址
 
@@ -71,6 +71,12 @@ Web 协议通过 **Path** 共用监听端口。例如：
 
 每个来源同时有一个控制会话，不同来源可以并行运行。多通道批次校验后一起接收，工作台显示通道、监听地址与接收计数。
 
+### OSC、OSCQuery 与来源目录
+
+Node.js 服务接收 OSC UDP 消息和 bundle，按来源分别保存参数、接收时间与内容更新时间。工作台可选择来源；OSC Hub 按事件或固定频率转发选定来源，同时保留未消费消息的 bundle 顺序与 timetag。
+
+OSCQuery 提供地址树、数值刷新、WebSocket `LISTEN`／`IGNORE` 和断线后的重连，也可开启定频轮询。启用接收器广播后，服务通过 `_oscjson._tcp` 发布 HTTP 元数据，通过 `_osc._udp` 发布实际 OSC 端口。不同实例使用各自的服务后缀与实际端口，发现列表保留独立地址。OGB 控制向配置的固定目标每五秒发送 `OGB_ENABLED`，停止时发送最终 false。
+
 ### 类型、时长与信号路径
 
 | 特征 | 含义 | 直接映射 |
@@ -85,7 +91,7 @@ Web 协议通过 **Path** 共用监听端口。例如：
 
 ## Buttplug v2、v3 与 v4
 
-输入协商**消息规范 v2、v3 或 v4**，把已配置特征声明为一台虚拟设备。桌面输出客户端使用 Buttplug 5.0.1。
+输入协商**消息规范 v2、v3 或 v4**，把已配置特征声明为一台虚拟设备。Node.js 桌面输出使用 wire v4；浏览器客户端使用 wire v3。包版本与消息规范分别说明。
 
 客户端在声明的 `MaxPingTime` 内发送 `Ping` 以保持会话。
 
@@ -120,7 +126,7 @@ v4 使用 `ProtocolVersionMajor:4`、`ProtocolVersionMinor:0` 握手，设备及
 
 Scalar 特征可配置 `ScalarType`，默认 Vibrate；Led／Temperature／Spray 只向 v4 客户端声明，v3 的标量索引按其支持的三类过滤后排列。功能值使用归一化协议范围。
 
-接口支持 v3 JS 与 v4 C# 客户端消息。能力列表描述命令输出，原始硬件和传感／电量／RSSI API 不在此虚拟设备配置中。[官方规范](https://buttplug.io/docs/spec/) · [v3 规范](https://buttplug.io/docs/spec-v3/spec/)
+接口支持官方 v2／v3／v4 客户端消息。能力列表描述命令输出，原始硬件和传感／电量／RSSI API 不在此虚拟设备配置中。[官方规范](https://buttplug.io/docs/spec/) · [v3 规范](https://buttplug.io/docs/spec-v3/spec/)
 
 ## TCode、串口与 Central 虚拟设备
 
@@ -137,9 +143,9 @@ DSTOP
 
 `S1000` 表示每秒一个归一化轴长，从之前的命令／插值位置计算时长。使用 S 前先发送明确初始位置。`D1` 返回 **TCode v0.3**，已实现动作核心使用前述 L/R/V/A、I/S 与 D 查询。[TCode 官方规范](https://github.com/multiaxis/TCode-Spec)
 
-使用 Central 的另一条路径是 `客户端 → Central → WSDM → Sensa → OSR`。在 Central 的 Manage WebSocket Devices 配置 **TCode v0.3** 设备，将其 identifier 与 Sensa `Identifier` 对应；Sensa 类型选 `IntifaceDevice`，`Address` 填实际设备管理端口，默认 `ws://127.0.0.1:54817`，通道使用 `L0` 等 TCode 轴名。Sensa 发送文本 `{identifier,address,version:0}` 注册，随后按**二进制 WebSocket 帧**收发 TCode；即使内容是 ASCII，也不能发送为文本硬件帧。`Identifier` 为空时使用来源名称，注册 address 使用稳定的来源 ID。无需把网站地址改成设备管理端口。[WSDM 官方说明](https://buttplug.io/docs/dev-guide/inflating-buttplug/devices/websocket-device-manager/)
+使用 Central 的另一条路径是 `客户端 → Central → WSDM → Sensa → OSR`。在 Central 的 Manage WebSocket Devices 配置 **TCode v0.3** 设备，将其 identifier 与 Sensa `identifier` 对应；Sensa 类型选 `IntifaceDevice`，`Address` 填实际设备管理端口，默认 `ws://127.0.0.1:54817`，通道使用 `L0` 等 TCode 轴名。Sensa 发送文本 `{identifier,address,version:0}` 注册，随后按**二进制 WebSocket 帧**收发 TCode；即使内容是 ASCII，也不能发送为文本硬件帧。`identifier` 为空时使用来源名称，注册 address 使用稳定的来源 ID。无需把网站地址改成设备管理端口。[WSDM 官方说明](https://buttplug.io/docs/dev-guide/inflating-buttplug/devices/websocket-device-manager/)
 
-有限 TCode 动作的会话保持到当前各通道最晚到达时间，再加 `TimeoutMs` 空闲宽限。完整命令和 D 查询刷新活动时间，新目标替换该通道之前的截止时间。停止清除当前目标，EOF 立即结束会话。WSDM 使用 WebSocket Ping/Pong 保持连接，连接有效时可保持静态目标。
+有限 TCode 动作的会话保持到当前各通道最晚到达时间，再加 `timeoutMs` 空闲宽限。完整命令和 D 查询刷新活动时间，新目标替换该通道之前的截止时间。停止清除当前目标，EOF 立即结束会话。WSDM 使用 WebSocket Ping/Pong 保持连接，连接有效时可保持静态目标。
 
 ### Intiface 输出的特征映射
 
@@ -147,14 +153,14 @@ DSTOP
 
 ```json
 {
-  "Id": "intiface-output",
-  "Name": "Selected Central devices",
-  "Type": "Intiface",
-  "Enabled": false,
-  "WebsocketAddress": "ws://127.0.0.1:12345",
-  "IntifaceFeatures": [
-    {"DeviceName":"Selected device","FeatureIndex":0,"OutputType":"Rotate","SourceAxis":"V0","DirectionAxis":"A0"},
-    {"DeviceName":"Selected device","FeatureIndex":1,"OutputType":"HwPositionWithDuration","SourceAxis":"L0","Invert":true}
+  "id": "intiface-output",
+  "name": "Selected Central devices",
+  "type": "Intiface",
+  "enabled": false,
+  "websocketAddress": "ws://127.0.0.1:12345",
+  "intifaceFeatures": [
+    {"deviceName":"Selected device","featureIndex":0,"outputType":"Rotate","sourceAxis":"V0","directionAxis":"A0"},
+    {"deviceName":"Selected device","featureIndex":1,"outputType":"HwPositionWithDuration","sourceAxis":"L0","invert":true}
   ]
 }
 ```
@@ -211,11 +217,11 @@ curl --request POST http://127.0.0.1:12405/command \
   --data '{"command":"Function","action":"Vibrate:5","timeSec":0,"toy":"lovense-in","apiVer":1}'
 ```
 
-Lovense `timeSec` **大于 1 且不超过 600 秒**时创建有限任务，会话保持到总时长结束，包括循环暂停。`timeSec:0` 使用普通 `TimeoutMs` 活动租约。停止、关闭输入、保存配置和急停取消任务，脚本播放另使用 `MaxScriptDurationMs`。
+Lovense `timeSec` **大于 1 且不超过 600 秒**时创建有限任务，会话保持到总时长结束，包括循环暂停。`timeSec:0` 使用普通 `timeoutMs` 活动租约。停止、关闭输入、保存配置和急停取消任务，脚本播放另使用 `maxScriptDurationMs`。
 
 最后一例使用来源 ID `lovense-in` 与 Scalar 特征。Autoblow／VacuGlide 的 `sync-script` 支持 multipart `upload-csv`／`upload-funscript`，URL 上传、当前来源本地 `load-token`、`start`（startTimeMs）、`stop`、`offset`（offsetTimeMs）和 `loop`。CSV 是无表头、末尾有换行的整数毫秒／0～100 位置对；funscript 使用 actions。脚本上限 1 MiB、100000 点、16777214 ms。Handy 的 HSSP setup 接受 URL，按相同轨迹模型播放。
 
-兼容输入的脚本任务使用有界 URL 下载或 multipart 上传。`MaxScriptDurationMs` 默认为一小时；即时控制使用 `TimeoutMs`，有限运动保留到达期限。Autoblow／VacuGlide 配置 `Identifier` 后，对应值用于 `x-device-token`。[下载校验与 API 实现](architecture.md)
+兼容输入的脚本任务使用有界 URL 下载或 multipart 上传。`maxScriptDurationMs` 默认为一小时；即时控制使用 `timeoutMs`，有限运动保留到达期限。Autoblow／VacuGlide 配置 `identifier` 后，对应值用于 `x-device-token`。[下载校验与 API 实现](architecture.md)
 
 真实设备输出在“添加输出”中选择 **Handy、Lovense、Autoblow、VacuGlide**，填写实际 API 地址、连接密钥或设备 ID。它们与同名的兼容输入是两个方向。
 
@@ -230,28 +236,28 @@ Lovense `timeSec` **大于 1 且不超过 600 秒**时创建有限任务，会�
 
 ```json
 {
-  "Outputs": [
+  "outputs": [
     {
-      "Id": "handy",
-      "Name": "Handy API",
-      "Type": "Handy",
-      "Enabled": false,
-      "Device": {
-        "Axis": "L0",
-        "ApiVersion": 3,
-        "ConnectionKey": "YOUR_DEVICE_CONNECTION_KEY",
-        "ApiKey": "YOUR_APPLICATION_API_KEY",
-        "ScriptUrl": "https://example.com/motion.csv",
-        "ScriptFormat": "Csv",
-        "ScriptTimeoutMs": 90000
+      "id": "handy",
+      "name": "Handy API",
+      "type": "Handy",
+      "enabled": false,
+      "device": {
+        "axis": "L0",
+        "apiVersion": 3,
+        "connectionKey": "YOUR_DEVICE_CONNECTION_KEY",
+        "apiKey": "YOUR_APPLICATION_API_KEY",
+        "scriptUrl": "https://example.com/motion.csv",
+        "scriptFormat": "Csv",
+        "scriptTimeoutMs": 90000
       }
     },
     {
-      "Id": "vacuglide",
-      "Name": "VacuGlide speed",
-      "Type": "VacuGlide",
-      "Enabled": false,
-      "Device": {"Axis": "V0", "ConnectionKey": "YOUR_DEVICE_CONNECTION_KEY"}
+      "id": "vacuglide",
+      "name": "VacuGlide speed",
+      "type": "VacuGlide",
+      "enabled": false,
+      "device": {"axis": "V0", "connectionKey": "YOUR_DEVICE_CONNECTION_KEY"}
     }
   ]
 }
@@ -309,7 +315,7 @@ LOOB／Thrust Sync 停止时清空队列并断开 BLE，设备仍可完成最后
 输入仍连接本机 TCode TCP 来源 `12401`；将该来源的特征设为下面的 **Scalar／Vibrate V0**，不要使用位置 L0：
 
 ```json
-{"Channel":"V0","Actuator":"Scalar","ScalarType":"Vibrate","TargetAxis":"V0"}
+{"channel":"V0","actuator":"Scalar","scalarType":"Vibrate","targetAxis":"V0"}
 ```
 
 ```sh
@@ -319,7 +325,7 @@ python tools/protocol-bridge/bridge.py ble-output --protocol svakom-v1 --device 
 
 Linux／macOS 输入广播 `Emma NEO`；Windows 设置匹配的系统蓝牙名称后，传入 `--confirm-windows-svakom-name`。
 
-输出启用 V0、选择 `NoSlope`，将 `CommandMode`／`RampType` 设为 `None`。通过固定频率发送无时长 V0 强度帧，间隔保持在工具的空闲期限内。默认期限为两秒，`--idle` 可选 0.05–120 秒。新会话从新命令开始。
+输出启用 V0、选择 `NoSlope`，将 `commandMode`／`rampType` 设为 `None`。通过固定频率发送无时长 V0 强度帧，间隔保持在工具的空闲期限内。默认期限为两秒，`--idle` 可选 0.05–120 秒。新会话从新命令开始。
 
 停止时发送零振动命令 `55 04 03 00 00 00`，随后清空并断开。此配置提供命令写入，`FFE2` 通知和传感／身份响应不在其功能范围内。
 
@@ -340,6 +346,19 @@ python tools/protocol-bridge/bridge.py ble-output --protocol youou-vx001 --devic
 [WebSensa](websensa.md)使用同名配置直接从浏览器进行蓝牙输出。工具指南列出 UUID、平台设置与支持指令。
 
 ## 验证范围与参考
+
+### TypeScript 实现与迁移契约
+
+| 能力 | 维护中的实现 |
+| --- | --- |
+| 输入配置、租约与命令轨迹 | [input-types.ts](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/input-types.ts)、[external-control.ts](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/external-control.ts) |
+| OSC 编解码与来源目录 | [osc.ts](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/osc.ts) |
+| TCode／Buttplug 虚拟设备 | [tcode-input.ts](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/tcode-input.ts)、[buttplug-input.ts](https://github.com/SeaLoong/Sensa/blob/main/src/core/protocols/buttplug-input.ts) |
+| 共享监听、串口与 WSDM | [Node 输入协调器](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/coordinator.ts) |
+| HTTP 厂商 API 与有限脚本任务 | [http-session.ts](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/http-session.ts)、[vendor-session.ts](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/vendor-session.ts) |
+| OSCQuery、mDNS、OSC Hub 与 OGB | [osc-services.ts](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts) |
+
+[编解码与租约契约](https://github.com/SeaLoong/Sensa/blob/main/tests/node/input-codecs.test.ts)、[隔离网络与服务契约](https://github.com/SeaLoong/Sensa/blob/main/tests/node/input-transports.test.ts)和[分片停机代次契约](https://github.com/SeaLoong/Sensa/blob/main/tests/node/input-websocket-epoch.test.ts)随实现维护。传输测试使用真实 loopback TCP／UDP／HTTP／WebSocket 对端，串口与 mDNS 使用注入平台接口；浏览器、完整进程和原生包检查由 Actions 执行。设备实机结果单独记录。
 
 [验证记录](e2e-status.md)列出协议、模拟传输与浏览器检查的提交和执行环境。[开发指南](development.md)说明对应测试套件。
 

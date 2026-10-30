@@ -14,7 +14,7 @@ import {
 import { computeSignalPreviewOutput } from './osc-workspace.js';
 import { getDynamicFloatSliderBounds } from './numeric.js';
 import { RangeField, SelectField, ValueSliderField } from './controls.jsx';
-import { Badge, Button, Field, Notice, Toggle } from './ui.jsx';
+import { Badge, Button, Field, Notice, Toggle } from './ui.tsx';
 import { t, diagnostic } from './i18n.js';
 import { mappingPathSuggestions } from './mapping-path-suggestions.js';
 import { pointMetricOptions } from './osc-preview.js';
