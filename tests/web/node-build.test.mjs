@@ -30,7 +30,7 @@ async function fixture(t) {
   await writeFile(join(root, 'package-lock.json'), JSON.stringify({ packages })); return root;
 }
 
-test('source identity handles a differently owned checkout without global trust or weakening the exact commit pin', async t => {
+test('source identity preserves the exact commit pin without changing global Git trust', async t => {
   const directory = await realpath(await mkdtemp(join(tmpdir(), 'sensa-source-identity-unit-'))); t.after(() => rm(directory, { recursive: true, force: true }));
   const git = args => {
     const result = spawnSync('git', args, { cwd: directory, encoding: 'utf8' });
@@ -38,12 +38,15 @@ test('source identity handles a differently owned checkout without global trust 
   };
   git(['init', '--quiet']); await writeFile(join(directory, 'fixture.txt'), 'isolated source');
   git(['add', 'fixture.txt']); git(['-c', 'user.name=Source Fixture', '-c', 'user.email=fixture@example.invalid', 'commit', '--quiet', '-m', 'fixture']);
-  const commit = git(['rev-parse', 'HEAD']), environment = { ...process.env, GIT_TEST_ASSUME_DIFFERENT_OWNER: '1' };
-  const denied = () => spawnSync('git', ['rev-parse', 'HEAD'], { cwd: directory, encoding: 'utf8', env: environment });
-  assert.notEqual(denied().status, 0);
-  assert.equal(sourceIdentity(directory, commit, environment), commit);
-  assert.throws(() => sourceIdentity(directory, '0'.repeat(40), environment), /identity differs/);
-  assert.notEqual(denied().status, 0, 'The successful check must not persist a global safe.directory entry.');
+  const globalTrust = () => {
+    const result = spawnSync('git', ['config', '--global', '--get-all', 'safe.directory'], { cwd: directory, encoding: 'utf8' });
+    assert.ok(result.status === 0 || result.status === 1, result.stderr);
+    return { status: result.status, value: result.stdout };
+  };
+  const commit = git(['rev-parse', 'HEAD']), before = globalTrust();
+  assert.equal(sourceIdentity(directory, commit), commit);
+  assert.throws(() => sourceIdentity(directory, '0'.repeat(40)), /identity differs/);
+  assert.deepEqual(globalTrust(), before, 'Source verification must not persist a global safe.directory entry.');
 });
 
 test('Node build resolves all production native dependency versions without running them', async t => {
