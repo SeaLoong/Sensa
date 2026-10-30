@@ -117,8 +117,8 @@ test('@site @webcompat WebSensa manual and scripts reach real WS/HTTP mock conne
   await open(page);
   const tcode = await addWorkbenchOutput(page, 'TCodeWebSocket', base.replace('http:', 'ws:') + '/device');
   const httpOutput = await addWorkbenchOutput(page, 'SensaHttp', httpBase + '/signal');
-  await expect(tcode.getByText('Connected', { exact: true })).toBeVisible();
-  await expect(httpOutput.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(tcode.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
+  await expect(httpOutput.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
   await expect(page.getByRole('alert')).toHaveCount(0);
   expect(wire.filter(item => item.transport === 'ws' && item.text.startsWith('L0'))).toHaveLength(0);
   expect(wire.filter(item => item.transport === 'http' && item.body.type === 'signal')).toHaveLength(0);

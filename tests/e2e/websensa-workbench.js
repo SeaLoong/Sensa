@@ -27,7 +27,7 @@ export async function addWorkbenchOutput(page, type, endpoint, { name, deviceNam
   await expect(dialog).not.toBeVisible();
   const card = page.locator('.output-card').filter({ has: page.getByRole('heading', { name: outputName, exact: true }) });
   await card.getByRole('button', { name: 'Enable', exact: true }).click();
-  await expect(card.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(card.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
   return card;
 }
 export async function changeWorkbenchInput(page, mode) {

@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { buildPages } from '../../scripts/build-pages.mjs';
-import { addWorkbenchOutput, controlWorkspace, inputActivation, manualMotion, openWorkbench, uploadWorkbenchScript } from './websensa-workbench.js';
+import { addWorkbenchOutput, inputActivation, manualMotion, openWorkbench, uploadWorkbenchScript } from './websensa-workbench.js';
 
 let server, sockets, directory, base;
 const commands = [], requests = [], connections = [];
@@ -109,7 +109,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   const endpoint = base.replace('http:', 'ws:') + '/intiface';
   const position = await addWorkbenchOutput(page, 'Intiface', endpoint, { name: 'Position output', deviceName: 'Position device' });
   const vibration = await addWorkbenchOutput(page, 'Intiface', endpoint, { name: 'Vibration output', deviceName: 'Vibration device' });
-  expect(connections.filter(endpoint => endpoint === '/intiface')).toHaveLength(1);
+  expect(connections.filter(connectionEndpoint => connectionEndpoint === '/intiface')).toHaveLength(1);
   expect(commands.filter(item => ['LinearCmd', 'ScalarCmd'].includes(item.command))).toHaveLength(0);
   const vibrationAxis = page.getByRole('group', { name: 'Motion axes', exact: true }).getByRole('checkbox', { name: 'V0', exact: true });
   await vibrationAxis.check();
@@ -120,7 +120,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   await expect.poll(() => new Set(commands.filter(item => item.command === 'StopDeviceCmd').map(item => item.body.DeviceIndex)).size).toBe(2);
   await position.getByRole('button', { name: 'Remove', exact: true }).click();
   await expect(page.locator('.output-card')).toHaveCount(1);
-  await expect(vibration.getByText('Connected', { exact: true })).toBeVisible();
+  await expect(vibration.locator('.output-identity').getByText('Connected', { exact: true })).toBeVisible();
   // Configuration changes share the desktop's explicit reactivation behavior.
   // The untouched device retains its socket and resumes only when requested.
   const scalarBefore = commands.filter(item => item.command === 'ScalarCmd').length;
@@ -128,7 +128,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   await inputActivation(page).check();
   await expect.poll(() => commands.filter(item => item.command === 'ScalarCmd').length).toBeGreaterThan(scalarBefore);
   expect(commands.filter(item => item.command === 'LinearCmd')).toHaveLength(positionBefore);
-  expect(connections.filter(endpoint => endpoint === '/intiface')).toHaveLength(1);
+  expect(connections.filter(connectionEndpoint => connectionEndpoint === '/intiface')).toHaveLength(1);
   await inputActivation(page).uncheck();
   await expect.poll(() => commands.filter(item => item.command === 'StopDeviceCmd').at(-1)?.body.DeviceIndex).toBe(1);
   await info.attach('websensa-intiface-multiplex.json', { body: JSON.stringify({ commands, connections, configurationChangesDeactivate: true }), contentType: 'application/json' });
@@ -138,19 +138,19 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
 test('@site @input WebSensa receives explicitly paired explorer frames without arming and expires a lost stream', async ({ page, context }, info) => {
   await page.goto(base + '/Sensa/');
   const session = 'a'.repeat(32), popupEvent = context.waitForEvent('page');
-  await page.evaluate(url => { window.__websensa = window.open(url, 'websensa-test'); }, base + '/Sensa/websensa/?lang=en&input=explorer&session=' + session);
+  await page.evaluate(url => { window.websensaPopup = window.open(url, 'websensa-test'); }, base + '/Sensa/websensa/?lang=en&input=explorer&session=' + session);
   const popup = await popupEvent;
   await expect(popup.getByRole('heading', { name: 'WebSensa', exact: true })).toBeVisible();
   await expect(inputActivation(popup)).toBeEnabled();
   await popup.getByRole('button', { name: 'Connect parameter explorer', exact: true }).first().click();
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.v1', session, sequence: 1, timestamp: Date.now(), axes: { L0: .72 } }, location.origin), { session });
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.v1', session: sessionId, sequence: 1, timestamp: Date.now(), axes: { L0: .72 } }, location.origin), { session });
   await expect(popup.getByText('L0 72%', { exact: true })).toBeVisible(); await expect(inputActivation(popup)).not.toBeChecked();
   await inputActivation(popup).check(); await expect(inputActivation(popup)).toBeChecked();
   await expect(inputActivation(popup)).not.toBeChecked({ timeout: 5000 });
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.v1', session, sequence: 2, timestamp: Date.now(), axes: { L0: .9 } }, location.origin), { session });
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.v1', session: sessionId, sequence: 2, timestamp: Date.now(), axes: { L0: .9 } }, location.origin), { session });
   await expect(popup.getByText('L0 90%', { exact: true })).toBeVisible(); await expect(inputActivation(popup)).not.toBeChecked();
   await inputActivation(popup).check();
-  await page.evaluate(({ session }) => window.__websensa.postMessage({ type: 'sensa.signal.stop.v1', session, sequence: 3, timestamp: Date.now() }, location.origin), { session });
+  await page.evaluate(({ session: sessionId }) => window.websensaPopup.postMessage({ type: 'sensa.signal.stop.v1', session: sessionId, sequence: 3, timestamp: Date.now() }, location.origin), { session });
   await expect(inputActivation(popup)).not.toBeChecked();
   await info.attach('websensa-explorer-lifecycle.json', { body: JSON.stringify({ origin: new URL(base).origin, explicitPairing: true, automaticActivation: false, expiryStopped: true, explicitStop: true }), contentType: 'application/json' });
   await popup.close();
