@@ -342,6 +342,8 @@ def parse_args(argv=None):
     parser.add_argument('--save-registration', type=Path, help='Save the explicit region and producer after a valid native-root decode')
     parser.add_argument('--port', type=int, help='Explicit localhost OSC port; omit to decode only')
     parser.add_argument('--watch', action='store_true')
+    parser.add_argument('--status-every-frame', action='store_true',
+                        help='Emit one JSON observation per capture, including invalid samples, for diagnostic consumers')
     parser.add_argument('--timeout', type=float, default=.35)
     parser.add_argument('--duration', type=float, default=30)
     args = parser.parse_args(argv)
@@ -428,7 +430,7 @@ def main():
                     statuses = [source.reject(ex) for source in args.sources]
                 if args.port: emit(statuses)
                 status = tuple((entry['valid'], entry['error']) for entry in statuses)
-                if not args.watch or status != last_status:
+                if not args.watch or args.status_every_frame or status != last_status:
                     print(json.dumps(statuses[0] if len(statuses) == 1 else {'sources': statuses}), flush=True)
                 last_status = status
                 if not args.watch or time.monotonic() - started >= args.duration: break

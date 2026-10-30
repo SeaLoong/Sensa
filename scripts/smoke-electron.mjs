@@ -30,6 +30,36 @@ export function isolatedDesktopConfig() {
   return { webUi: { host: '127.0.0.1', port: 0, locale: 'en-US' }, osc: { enabled: false, oscQueryEnabled: false },
     protocolInputs: [], outputs: [], signals: [], computedSignals: [] };
 }
+export async function captureInitialWorkbench(page, path) {
+  // The connecting shell already fills #app-root and the service may be ready
+  // before React has rendered its first interactive workbench.
+  await page.locator('.app-shell').waitFor({ state: 'visible' });
+  await page.locator('.manual-workspace').waitFor({ state: 'visible' });
+  const activation = page.getByRole('switch', { name: /^(?:Input enabled|输入启用)$/ });
+  const sendOnce = page.getByRole('button', { name: /^(?:Send once|发送一次)$/ });
+  await activation.waitFor({ state: 'visible' });
+  await sendOnce.waitFor({ state: 'visible' });
+  await until(async () => await activation.isEnabled() && await sendOnce.isEnabled());
+  assert.equal(await activation.isChecked(), false, 'The initial input switch must be disarmed.');
+  const manualAxes = {};
+  for (const axis of ['L0', 'L1', 'L2']) {
+    const slider = page.locator('.manual-primary').getByRole('slider', { name: new RegExp('^' + axis + '\\s') });
+    await slider.waitFor({ state: 'visible' });
+    const value = await slider.inputValue();
+    assert.equal(value, '500', 'The initial ' + axis + ' workbench value must be 500.');
+    manualAxes[axis] = Number(value);
+  }
+  const overview = await page.evaluate(async () => {
+    const response = await fetch('/api/state/overview');
+    if (!response.ok) throw new Error('The desktop service snapshot is unavailable before capture.');
+    return response.json();
+  });
+  assert.equal(overview.runtime.inputActive, false, 'The service input must remain disarmed before capture.');
+  assert.equal(overview.runtime.isEmergency, false, 'Emergency stop must be clear in the initial capture.');
+  assert.equal(overview.input.mode, 'manual', 'The initial workbench must use manual input mode.');
+  await page.screenshot({ path });
+  return { inputActive: false, isEmergency: false, inputMode: 'manual', manualAxes };
+}
 export async function main(argv = process.argv.slice(2)) {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Desktop browser/process smoke runs only in GitHub Actions.');
   const { values } = parseArgs({ args: argv, strict: true, options: { executable: { type: 'string' }, runtime: { type: 'string' },
@@ -84,7 +114,8 @@ export async function main(argv = process.argv.slice(2)) {
     assert.deepEqual(details.shell, { host: 'electron', embedded: true }); assert.equal(details.overview.runtime.inputActive, false);
     report.checks.rendererIsolated = true; report.checks.sharedServiceInitiallyInactive = true;
     report.electronUserAgent = details.userAgent; report.serviceOrigin = details.origin;
-    const capture = join(reportDirectory, 'desktop-main.png'); await page.screenshot({ path: capture });
+    const capture = join(reportDirectory, 'desktop-main.png');
+    report.workbenchCapture = await captureInitialWorkbench(page, capture);
     report.captures.push({ name: 'desktop-main', sha256: createHash('sha256').update(await readFile(capture)).digest('hex') });
     const emergency = page.getByRole('button', { name: /^(?:Emergency stop|紧急停止)$/ }).first();
     await emergency.click();
