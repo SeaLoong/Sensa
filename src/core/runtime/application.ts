@@ -147,7 +147,9 @@ export class ApplicationFacade {
   private scriptResult(): JsonRecord { return { ok: true, inputMode: this.inputMode(), script: this.runtime.getScriptSnapshot() }; }
   async execute(method: string, path: string, value?: unknown): Promise<CommandResult> {
     const ordered = method.toUpperCase() !== 'GET' && (path.startsWith('/api/input/') && !['/api/input/active', '/api/input/osc/source'].includes(path)
-      || path.startsWith('/api/output/replay/') || /^\/api\/control\/output\/[^/]+\/script-/.test(path));
+      // Stop must reach the adapter's cancellation barrier while preparation is
+      // still holding the mutation queue. Other script changes stay ordered.
+      || path.startsWith('/api/output/replay/') || /^\/api\/control\/output\/[^/]+\/script-(?:prepare|play|seek|loop)$/.test(path));
     if (ordered && this.services.inputChange) {
       try { return await this.services.inputChange(() => this.dispatch(method, path, value)); }
       catch (error) { return failure(400, error instanceof Error ? error.message : 'Input setup failed.'); }

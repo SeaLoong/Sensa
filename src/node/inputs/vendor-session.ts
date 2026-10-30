@@ -124,7 +124,15 @@ export class VendorInputSession {
       this.sink.heartbeat(this.config.id, this.#session);
       try {
         if (this.#mode === 'SYNC_SCRIPT_PLAYING') {
-          this.#publishCurrent(); if (!this.#loop && this.#script && this.#currentTime() + this.#offset >= this.#script.durationMs) { const end = this.#script.durationMs; this.resetCommands(); this.#positionMs = end; this.#mode = 'SYNC_SCRIPT_PAUSED'; this.#lastActivity = now; }
+          this.#publishCurrent();
+          if (!this.#loop && this.#script && this.#currentTime() + this.#offset >= this.#script.durationMs) {
+            const end = this.#script.durationMs, position = this.#positionKnown ? this.#position() : null;
+            this.resetCommands();
+            // Natural completion stops the signal but retains the accepted final
+            // position for calibrated moves. Explicit stop/expiry still forget it.
+            if (position !== null) this.#establish(position);
+            this.#positionMs = end; this.#mode = 'SYNC_SCRIPT_PAUSED'; this.#lastActivity = now;
+          }
         } else if (this.#mode === 'OSCILLATOR_PLAYING') { if (now - this.#motionAt >= this.#motionDuration) this.#oscillate(); }
         else if (this.#mode === 'GO_TO') { if (now - this.#motionAt >= this.#motionDuration) { this.#mode = 'ONLINE_CONNECTED'; this.#lastActivity = now; } }
         else this.#publish([{ channel: this.#feature('Scalar'), value: this.#speed }]);
