@@ -1262,8 +1262,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       { value: 'loob', label: 'LOOB' }, { value: 'thrust-sync', label: 'Thrust Sync' }, { value: 'svakom-v1', label: 'Svakom V1' }, { value: 'lovense-single', label: 'Lovense' }, { value: 'youou-vx001', label: 'Youou VX001' },
     ]} onChange={protocol => updateOutput({ bridge: { ...bridge, protocol }, device: { ...(dialog.draft.device || {}), axis: ['loob', 'thrust-sync'].includes(protocol) ? 'L0' : 'V0' } })} />
       <SelectField label={t('来源轴')} value={dialog.draft.device?.axis || (['loob', 'thrust-sync'].includes(bridge.protocol) ? 'L0' : 'V0')} options={MANUAL_AXES().map(axis => ({ value: axis.key, label: axis.key }))} onChange={axis => updateOutput({ device: { ...(dialog.draft.device || {}), axis } })} />
-      {platform.supportsListeners !== false && <><Field label={t('设备地址或名称')} value={bridge.device || ''} onChange={event => updateOutput({ bridge: { ...bridge, device: event.target.value } })} />
-        <Field label={t('Python 程序（可选）')} value={bridge.python || ''} onChange={event => updateOutput({ bridge: { ...bridge, python: event.target.value } })} /></>}
+      {platform.supportsListeners !== false && <Field label={t('设备地址或名称')} value={bridge.device || ''} onChange={event => updateOutput({ bridge: { ...bridge, device: event.target.value } })} />}
     </div>;
   }
 

@@ -1547,7 +1547,6 @@
   "连接地址": "Endpoint URL",
   "蓝牙协议": "Bluetooth protocol",
   "设备地址或名称": "Device address or name",
-  "Python 程序（可选）": "Python executable (optional)",
   "目标设备": "Target device",
   "全部设备": "All devices",
   "脚本目标轴": "Script target axis",
