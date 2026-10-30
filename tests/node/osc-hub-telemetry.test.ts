@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { createSocket } from 'node:dgram';
 import { once } from 'node:events';
+import { EventEmitter } from 'node:events';
+import type Bonjour from 'bonjour-service';
 import { setTimeout } from 'node:timers/promises';
 import test from 'node:test';
 import { OscParameterStore } from '../../src/core/protocols/osc.ts';
-import { createOscServices } from '../../src/node/inputs/osc-services.ts';
-import type { OscServices, OscServicesConfig } from '../../src/node/inputs/osc-services.ts';
+import { deadline } from '../../src/core/outputs/lifecycle.ts';
+import { OscServices, createOscServices } from '../../src/node/inputs/osc-services.ts';
+import type { OscServicesConfig } from '../../src/node/inputs/osc-services.ts';
 
 function config(): OscServicesConfig { return { enabled: true, receiverHost: '127.0.0.1', receiverPort: 0, inputTimeoutMs: 1000,
   oscQueryEnabled: false, oscQueryUrl: '', preferredSourcePersistentId: '', oscQueryPolling: { enabled: false, rateHz: 10 },
@@ -129,4 +132,55 @@ test('disposal closes forwarding and cannot accept a previously pending datagram
   assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['canForward'], false);
   assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['activeTargetCount'], 0);
   assert.equal(hub(services).forwardedPacketCount, 0);
+});
+
+function heldHubResolution() {
+  let resolve: ((address: string) => void) | undefined, began = false, discoveryStarts = 0;
+  const pending = new Promise<string>(complete => { resolve = complete; });
+  const browser = Object.assign(new EventEmitter(), { stop() {} });
+  const fake = { find() { discoveryStarts++; return browser; }, unpublishAll(callback: () => void) { callback(); }, destroy(callback: () => void) { callback(); } } as unknown as Bonjour;
+  return { options: { resolveHubHost: () => { began = true; return pending; }, bonjourFactory: () => fake },
+    began: () => began, discoveryStarts: () => discoveryStarts,
+    release: () => { assert.ok(resolve); resolve('127.0.0.2'); } };
+}
+
+test('disposing during hub DNS preparation cannot restart discovery or accept a later reconfiguration', async () => {
+  const settings = config(); settings.enabled = false; settings.oscQueryEnabled = true;
+  settings.hub.mode = 'FixedRate'; settings.hub.targets = [target('named', 9101, 'held.example.test')];
+  const held = heldHubResolution(), services = new OscServices(settings, new OscParameterStore(), held.options);
+  const configuring = services.reconfigure(settings);
+  await until(held.began); await services.dispose(); held.release(); await configuring;
+  assert.equal(held.discoveryStarts(), 0, 'an obsolete async phase must not start discovery after disposal');
+  assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['canForward'], false);
+  await assert.rejects(services.reconfigure(settings), /disposed/u);
+});
+
+test('a newer OSC configuration remains authoritative when an older DNS preparation finishes late', async () => {
+  const older = config(); older.enabled = false; older.oscQueryEnabled = true;
+  older.hub.mode = 'FixedRate'; older.hub.targets = [target('named', 9101, 'held.example.test')];
+  const held = heldHubResolution(), services = new OscServices(older, new OscParameterStore(), held.options);
+  const configuring = services.reconfigure(older);
+  try {
+    await until(held.began);
+    const newer = config(); newer.hub.targets = [target('current', 9102)];
+    await services.reconfigure(newer);
+    assert.equal(services.snapshot()['listening'], true);
+    const currentPort = services.snapshot()['receiverPort'];
+    held.release(); await configuring;
+    assert.equal(held.discoveryStarts(), 0, 'the older configuration must not start query discovery in the newer generation');
+    assert.equal(services.snapshot()['listening'], true); assert.equal(services.snapshot()['receiverPort'], currentPort);
+    assert.equal((services.snapshot()['query'] as Record<string, unknown>)['enabled'], false);
+    assert.equal(row(services, 'current').resolvedEndpoint, '127.0.0.1:9102');
+    assert.equal(hub(services).targets.length, 1);
+  } finally { held.release(); await configuring.catch(() => {}); await services.dispose(); }
+});
+
+test('disposing immediately after a real UDP bind starts settles both lifecycle operations', async () => {
+  const settings = config(), services = new OscServices(settings, new OscParameterStore());
+  const configuring = services.reconfigure(settings);
+  // Let reconfiguration pass its initial stop barrier and enter the real bind.
+  await Promise.resolve(); assert.equal(services.snapshot()['listening'], true);
+  await deadline(Promise.all([configuring, services.dispose()]), 2000, 'Concurrent UDP bind/dispose');
+  assert.equal(services.snapshot()['listening'], false);
+  assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['canForward'], false);
 });

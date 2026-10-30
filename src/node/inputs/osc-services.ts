@@ -81,9 +81,11 @@ export function parseOscQueryNodes(raw: unknown): QueryNode[] {
 }
 async function listenHttp(server: HttpServer, port: number, fallback: boolean): Promise<number> {
   const bind = async (candidate: number): Promise<number> => await new Promise((resolve, reject) => {
-    const fail = (error: Error): void => { server.off('listening', ready); reject(error); };
-    const ready = (): void => { server.off('error', fail); const address = server.address(); if (!address || typeof address === 'string') reject(new Error('OSCQuery HTTP listener did not bind.')); else resolve(address.port); };
-    server.once('error', fail); server.once('listening', ready); server.listen(candidate, '0.0.0.0');
+    const cleanup = (): void => { server.off('error', fail); server.off('listening', ready); server.off('close', closed); };
+    const fail = (error: Error): void => { cleanup(); reject(error); };
+    const ready = (): void => { cleanup(); const address = server.address(); if (!address || typeof address === 'string') reject(new Error('OSCQuery HTTP listener did not bind.')); else resolve(address.port); };
+    const closed = (): void => fail(new Error('OSCQuery HTTP listener closed during startup.'));
+    server.once('error', fail); server.once('listening', ready); server.once('close', closed); server.listen(candidate, '0.0.0.0');
   });
   try { return await bind(port); } catch (error) { if (!fallback || !(error instanceof Error) || !('code' in error) || error.code !== 'EADDRINUSE') throw error; return await bind(0); }
 }
@@ -103,36 +105,48 @@ export class OscServices {
   #polling = { running: false, startedAtUtc: null as string | null, lastPolledAtUtc: null as string | null, lastAppliedValueCount: 0, error: '' };
   #disposed = false; #stopping = false; #generation = 0; #set = (path: string, value: OscValue, source: OscSource): void => this.#onValue(path, value, source);
   constructor(config: OscServicesConfig, store: OscParameterStore, options: OscServicesOptions = {}) { this.#config = structuredClone(config); this.store = store; this.options = options; this.now = options.now ?? Date.now; this.#restorePersistentSource(); store.onSet.add(this.#set); }
+  #configurationCurrent(generation: number): boolean { return !this.#disposed && !this.#stopping && generation === this.#generation; }
   async reconfigure(config: OscServicesConfig, active = this.#active): Promise<void> {
+    if (this.#disposed) throw new Error('OSC services have been disposed.');
     const host = ipHost(config.receiverHost); if (!validPort(config.receiverPort) || !validPort(config.oscQueryReceiver.httpPort)) throw new Error('Invalid OSC listener port.');
     const previousPersistentId = this.#config.preferredSourcePersistentId;
-    await this.#stop(); this.#config = structuredClone({ ...config, receiverHost: host }); this.#restorePersistentSource(previousPersistentId); this.#active = active; this.#stopping = false; this.#generation++;
+    const stopped = this.#stop(), stoppingGeneration = this.#generation; await stopped;
+    if (this.#disposed || stoppingGeneration !== this.#generation) return;
+    this.#config = structuredClone({ ...config, receiverHost: host }); this.#restorePersistentSource(previousPersistentId); this.#active = active; this.#stopping = false;
+    const generation = ++this.#generation;
     try {
-      if (config.enabled && active) await this.#startReceiver();
+      if (config.enabled && active) await this.#startReceiver(generation);
+      if (!this.#configurationCurrent(generation)) return;
       await this.#prepareHubTargets();
-      if (config.oscQueryEnabled && active) { this.#startDiscovery(); void this.refreshQuery(); if (config.oscQueryPolling.enabled) this.#schedulePoll(0); }
-      if (config.oscQueryReceiver.enabled && config.enabled && active) await this.#startQueryReceiver();
+      if (!this.#configurationCurrent(generation)) return;
+      if (config.oscQueryEnabled && active) { this.#startDiscovery(); if (!this.#configurationCurrent(generation)) return; void this.refreshQuery(); if (config.oscQueryPolling.enabled) this.#schedulePoll(0); }
+      if (!this.#configurationCurrent(generation)) return;
+      if (config.oscQueryReceiver.enabled && config.enabled && active) await this.#startQueryReceiver(generation);
+      if (!this.#configurationCurrent(generation)) return;
       if (config.hub.enabled && active && (config.hub.mode === 'FixedRate' || config.hub.mode === 1)) { this.#hubTimer = setInterval(() => this.#flushHub(), 1000 / Math.max(1, Math.min(60, config.hub.fixedRateHz))); this.#hubTimer.unref(); }
       if (config.ogbControl.enabled && config.enabled && active) this.#startOgb();
       this.options.onChanged?.();
-    } catch (error) { this.#receiverError = error instanceof Error ? error.message : 'OSC listener failed.'; await this.#stop(); throw error; }
+    } catch (error) { if (!this.#configurationCurrent(generation)) return; this.#receiverError = error instanceof Error ? error.message : 'OSC listener failed.'; await this.#stop(); throw error; }
   }
-  async #startReceiver(): Promise<void> {
+  async #startReceiver(generation: number): Promise<void> {
     const config = this.#config, socket = createSocket(config.receiverHost.includes(':') ? 'udp6' : 'udp4'); this.#receiver = socket;
     const bind = async (port: number): Promise<number> => await new Promise((resolve, reject) => {
-      const fail = (error: Error): void => { socket.off('listening', ready); reject(error); };
-      const ready = (): void => { socket.off('error', fail); resolve(socket.address().port); }; socket.once('error', fail); socket.once('listening', ready); socket.bind(port, config.receiverHost);
+      const cleanup = (): void => { socket.off('error', fail); socket.off('listening', ready); socket.off('close', closed); };
+      const fail = (error: Error): void => { cleanup(); reject(error); };
+      const ready = (): void => { cleanup(); try { resolve(socket.address().port); } catch (error) { reject(error); } };
+      const closed = (): void => fail(new Error('OSC receiver closed during startup.'));
+      socket.once('error', fail); socket.once('listening', ready); socket.once('close', closed); socket.bind(port, config.receiverHost);
     });
-    let port: number; try { port = await bind(config.receiverPort); } catch (error) { if (!this.options.resolvePortConflicts || !(error instanceof Error) || !('code' in error) || error.code !== 'EADDRINUSE') throw error; port = await bind(0); }
+    let port: number; try { port = await bind(config.receiverPort); } catch (error) { if (!this.#configurationCurrent(generation)) return; if (!this.options.resolvePortConflicts || !(error instanceof Error) || !('code' in error) || error.code !== 'EADDRINUSE') throw error; port = await bind(0); }
+    if (!this.#configurationCurrent(generation) || this.#receiver !== socket) { try { socket.close(); } catch { /* A superseded bind may already be closed. */ } return; }
     this.#receiverPort = port; this.#receiverError = null;
     if (port !== config.receiverPort) { this.#config.receiverPort = port; this.options.onReceiverPortChanged?.(port); }
-    const generation = this.#generation;
     socket.on('message', (data, peer) => {
       if (generation !== this.#generation || this.#stopping || this.#disposed) return;
       const label = `${peer.address}:${peer.port}`, source: OscSource = { key: label, label, persistentId: null, address: peer.address, port: peer.port };
       this.#packet(data, source);
     });
-    socket.on('error', error => { this.#receiverError = error.message; this.options.log?.(`OSC receiver: ${error.message}`); this.options.onChanged?.(); });
+    socket.on('error', error => { if (!this.#configurationCurrent(generation) || this.#receiver !== socket) return; this.#receiverError = error.message; this.options.log?.(`OSC receiver: ${error.message}`); this.options.onChanged?.(); });
   }
   #packet(data: Uint8Array, source: OscSource): void {
     const parsed = parseOscPacket(data), now = this.now(); this.#lastReceiver = now; this.#lastSource = source; this.#eventCount++;
@@ -269,7 +283,7 @@ export class OscServices {
     });
     this.#browser.on('down', (service: BonjourService) => { this.#discovered.delete(service.fqdn); this.options.onChanged?.(); });
   }
-  async #startQueryReceiver(): Promise<void> {
+  async #startQueryReceiver(generation: number): Promise<void> {
     const receiver = this.#config.oscQueryReceiver, server = createServer({ maxHeaderSize: 16384, headersTimeout: 10000, requestTimeout: 15000, connectionsCheckingInterval: 1000 }, (req, res) => {
       if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); res.end(); return; }
       const url = new URL(req.url ?? '/', 'http://sensa.local'); let payload: unknown;
@@ -281,7 +295,9 @@ export class OscServices {
       }
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }); res.end(req.method === 'HEAD' ? undefined : JSON.stringify(payload));
     });
-    this.#http = server; this.#queryPort = await listenHttp(server, receiver.httpPort, this.options.resolvePortConflicts ?? false); this.#queryReceiverStarted = this.now();
+    this.#http = server; const port = await listenHttp(server, receiver.httpPort, this.options.resolvePortConflicts ?? false);
+    if (!this.#configurationCurrent(generation) || this.#http !== server) { await closeHttp(server); return; }
+    this.#queryPort = port; this.#queryReceiverStarted = this.now();
     server.on('error', error => this.options.log?.(`OSCQuery receiver: ${error.message}`));
     if (this.#queryPort !== receiver.httpPort) { receiver.httpPort = this.#queryPort; this.options.onQueryPortChanged?.(this.#queryPort); }
     const discovery = this.#discovery(), suffix = this.options.instanceId || this.#queryPort.toString();
@@ -414,15 +430,18 @@ export class OscServices {
   }
   async #stop(): Promise<void> {
     this.#stopping = true;
-    this.#generation++; this.#abort?.abort(); this.#abort = null; this.#refresh = null; this.#queryEpoch++;
+    const generation = ++this.#generation; this.#abort?.abort(); this.#abort = null; this.#refresh = null; this.#queryEpoch++;
     if (this.#pollTimer) clearTimeout(this.#pollTimer); if (this.#hubTimer) clearInterval(this.#hubTimer); if (this.#ogbTimer) clearInterval(this.#ogbTimer);
     this.#pollTimer = this.#hubTimer = this.#ogbTimer = null; this.#polling.running = false;
     this.#sendOgb(false); this.#ogbTarget = null; this.#pending.clear(); this.#pendingAvatar = null;
     this.#querySocket?.terminate(); this.#querySocket = null; this.#querySubscriptions.clear();
     if (this.#receiver) { const receiver = this.#receiver; this.#receiver = null; try { await new Promise<void>(resolve => receiver.close(() => resolve())); } catch { /* Failed binds may already be closed. */ } }
+    if (generation !== this.#generation) return;
     if (this.#http) { const server = this.#http; this.#http = null; await closeHttp(server); }
+    if (generation !== this.#generation) return;
     this.#browser?.stop(); this.#browser = null; this.#discovered.clear();
     if (this.#bonjour) { const service = this.#bonjour; this.#bonjour = null; await new Promise<void>(resolve => service.unpublishAll(() => { service.destroy(() => resolve()); })); }
+    if (generation !== this.#generation) return;
     for (const socket of this.#senders.values()) { try { socket.close(); } catch { /* A failed send may not have bound the sender. */ } } this.#senders.clear();
   }
   async dispose(): Promise<void> { if (this.#disposed) return; this.#disposed = true; await this.#stop(); this.store.onSet.delete(this.#set); }
