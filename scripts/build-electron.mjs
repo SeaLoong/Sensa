@@ -46,6 +46,46 @@ function run(executable, args) {
   if (result.error) throw result.error;
   if (result.status !== 0) throw new Error('Desktop build step failed: ' + executable);
 }
+export async function withLinuxSandbox({ executable, runtime, reportDirectory, commit }, smoke, invoke = (helper, args) => {
+  const result = spawnSync(process.env.PYTHON ?? 'python3', [helper, ...args], { cwd: root, encoding: 'utf8' });
+  if (result.error) throw result.error;
+  if (result.status !== 0) throw new Error('Linux sandbox setup failed: ' + result.stderr.trim());
+  return JSON.parse(result.stdout);
+}) {
+  const helper = join(dirname(executable), 'sensa-linux-sandbox.py');
+  const report = { schema: 1, sourceCommit: commit, runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
+    runtime, executable, helperSha256: createHash('sha256').update(await readFile(helper)).digest('hex'),
+    acceptance: false, events: [] };
+  await mkdir(reportDirectory, { recursive: true });
+  let installation, failure;
+  try {
+    const startedAt = new Date().toISOString();
+    installation = invoke(helper, ['install', '--executable', executable]);
+    report.events.push({ operation: 'install', startedAt, completedAt: new Date().toISOString(), exitCode: 0, receipt: installation });
+    if (installation.schema !== 1 || installation.operation !== 'install' || typeof installation.created !== 'boolean'
+        || !/^sensa-desktop-[a-f0-9]{64}$/.test(installation.profileName) || !/^\d+:\d+:\d+$/.test(installation.fileIdentity)) {
+      throw new Error('Invalid Linux sandbox installation receipt.');
+    }
+    report.smoke = { startedAt: new Date().toISOString(), succeeded: false };
+    await smoke(installation.profileName);
+    report.smoke.completedAt = new Date().toISOString(); report.smoke.succeeded = true;
+  } catch (error) { failure = error; }
+  finally {
+    if (installation?.created === true) {
+      try {
+        const startedAt = new Date().toISOString();
+        const removal = invoke(helper, ['remove', '--executable', executable, '--expected-file', installation.fileIdentity]);
+        report.events.push({ operation: 'remove', startedAt, completedAt: new Date().toISOString(), exitCode: 0, receipt: removal });
+        if (removal.removed !== true || removal.fileIdentity !== installation.fileIdentity) throw new Error('Linux sandbox cleanup did not remove its own registration.');
+      } catch (error) { failure ??= error; report.cleanupError = error.message; }
+    } else if (installation?.created === false) report.cleanup = 'retained-pre-existing-registration';
+    report.acceptance = !failure;
+    if (failure) report.error = failure.message;
+    await writeFile(join(reportDirectory, 'linux-sandbox.json'), JSON.stringify(report, null, 2) + '\n');
+  }
+  if (failure) throw failure;
+  return report;
+}
 /** Match release.py's CLI archive inventory before handing resources to Electron. */
 export async function copyCliResources(source, destination) {
   await cp(source, destination, { recursive: true, dereference: false,
@@ -94,6 +134,10 @@ export async function main(argv = process.argv.slice(2)) {
   const actualFuses = await getCurrentFuseWire(fuseTarget);
   for (const [key, value] of Object.entries(policy)) if (/^\d+$/.test(key) && actualFuses[key] !== (value ? FuseState.ENABLE : FuseState.DISABLE)) throw new Error('Desktop fuse verification failed.');
   if (platform === 'darwin') run('codesign', ['--force', '--deep', '--sign', '-', join(directory, 'Sensa.app')]);
+  if (platform === 'linux') {
+    await cp(join(root, 'scripts/sensa-linux-sandbox.py'), join(directory, 'sensa-linux-sandbox.py'));
+    await cp(join(root, 'scripts/linux-desktop-sandbox.txt'), join(directory, 'LINUX-SANDBOX.txt'));
+  }
   const info = { schema: 1, version, label: values.label, commit, runtime, electronVersion: manifest.devDependencies.electron,
     cliSha256, entry, cliPath: desktopCliPath(runtime), fuses: actualFuses,
     embeddedAsarIntegrity: platform !== 'linux', serviceOwnership: 'one-exact-native-node-cli-child' };
@@ -101,7 +145,9 @@ export async function main(argv = process.argv.slice(2)) {
   if (values.smoke) {
     const smokeArgs = ['scripts/smoke-electron.mjs', '--executable', join(directory, entry),
       '--runtime', runtime, '--report-directory', join(root, 'artifacts/test-results', runtime, 'desktop')];
-    if (platform === 'linux') run('xvfb-run', ['-a', process.execPath, ...smokeArgs]);
+    if (platform === 'linux') await withLinuxSandbox({ executable: join(directory, entry), runtime,
+      reportDirectory: join(root, 'artifacts/test-results', runtime, 'desktop'), commit },
+    profile => run('xvfb-run', ['-a', process.execPath, ...smokeArgs, '--linux-sandbox-profile', profile]));
     else run(process.execPath, smokeArgs);
   }
   run(process.env.PYTHON ?? (process.platform === 'win32' ? 'python' : 'python3'), ['scripts/release.py', 'desktop',

@@ -32,7 +32,8 @@ export function isolatedDesktopConfig() {
 }
 export async function main(argv = process.argv.slice(2)) {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Desktop browser/process smoke runs only in GitHub Actions.');
-  const { values } = parseArgs({ args: argv, strict: true, options: { executable: { type: 'string' }, runtime: { type: 'string' }, 'report-directory': { type: 'string' } } });
+  const { values } = parseArgs({ args: argv, strict: true, options: { executable: { type: 'string' }, runtime: { type: 'string' },
+    'report-directory': { type: 'string' }, 'linux-sandbox-profile': { type: 'string' } } });
   if (!values.executable || !/^(win|linux|osx)-(x64|arm64)$/.test(values.runtime ?? '') || !values['report-directory']) throw new Error('Choose a desktop executable, runtime and report directory.');
   const executable = resolve(values.executable), reportDirectory = resolve(values['report-directory']);
   const temporary = await mkdtemp(join(tmpdir(), 'sensa-desktop-smoke-'));
@@ -69,6 +70,13 @@ export async function main(argv = process.argv.slice(2)) {
     const configPath = join(temporary, 'first', 'config.json'); await mkdir(dirname(configPath), { recursive: true });
     await writeFile(configPath, JSON.stringify(isolatedDesktopConfig()));
     const first = await launch(configPath), page = first.page;
+    if (values.runtime.startsWith('linux-')) {
+      assert.match(values['linux-sandbox-profile'] ?? '', /^sensa-desktop-[a-f0-9]{64}$/);
+      const label = (await readFile(`/proc/${first.child.pid}/attr/current`, 'utf8')).trim();
+      assert.equal(label, values['linux-sandbox-profile'] + ' (unconfined)');
+      report.linuxSandbox = { processId: first.child.pid, profileName: values['linux-sandbox-profile'], actualProcessLabel: label };
+      report.checks.linuxExactAppArmorProfile = true;
+    }
     const details = await page.evaluate(async () => ({ origin: location.origin, userAgent: navigator.userAgent,
       requireType: typeof window.require, processType: typeof window.process, shell: window.sensaDesktop,
       overview: await (await fetch('/api/state/overview')).json(), instance: await (await fetch('/api/instance')).json() }));

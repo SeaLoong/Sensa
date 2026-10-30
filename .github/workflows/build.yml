@@ -105,7 +105,7 @@ jobs:
         timeout-minutes: 5
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends libasound2t64 libgtk-3-0t64 libnss3 libgbm1 xvfb
+          sudo apt-get install -y --no-install-recommends libasound2t64 libgtk-3-0t64 libnss3 libgbm1 xvfb apparmor
       - name: Install dependencies
         run: npm ci
       - name: Check native Windows protocol bridge dependencies

@@ -4,7 +4,7 @@ import { join, relative } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
 import { flipFuses, getCurrentFuseWire, FuseState, FuseV1Options } from '@electron/fuses';
-import { copyCliResources, fusePolicy } from '../../scripts/build-electron.mjs';
+import { copyCliResources, fusePolicy, withLinuxSandbox } from '../../scripts/build-electron.mjs';
 
 test('Electron embeds the same visible CLI files as the portable archive, including nested resources', async t => {
   const temporary = await mkdtemp(join(tmpdir(), '.sensa-cli-copy-'));
@@ -49,5 +49,42 @@ for (const platform of ['linux', 'darwin', 'win32']) {
       [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]: FuseState.DISABLE,
       [FuseV1Options.GrantFileProtocolExtraPrivileges]: FuseState.DISABLE,
       [FuseV1Options.WasmTrapHandlers]: FuseState.ENABLE });
+  });
+}
+
+for (const outcome of ['success', 'smoke-failure', 'cleanup-failure', 'existing-registration']) {
+  test(`Linux profile lifecycle preserves sandbox and ownership on ${outcome}`, async t => {
+    const temporary = await mkdtemp(join(tmpdir(), 'sensa-linux-sandbox-'));
+    t.after(() => rm(temporary, { recursive: true, force: true }));
+    await writeFile(join(temporary, 'sensa-linux-sandbox.py'), 'isolated helper fixture; never executed');
+    const executable = join(temporary, 'Sensa'), events = [];
+    const install = { schema: 1, operation: 'install', created: outcome !== 'existing-registration',
+      profileName: 'sensa-desktop-' + 'a'.repeat(64), fileIdentity: '1:2:3' };
+    const invoke = (helper, args) => {
+      assert.equal(helper, join(temporary, 'sensa-linux-sandbox.py'));
+      events.push(args[0]);
+      if (args[0] === 'install') {
+        assert.deepEqual(args, ['install', '--executable', executable]);
+        return install;
+      }
+      assert.deepEqual(args, ['remove', '--executable', executable, '--expected-file', '1:2:3']);
+      if (outcome === 'cleanup-failure') throw new Error('isolated cleanup failure');
+      return { removed: true, fileIdentity: '1:2:3' };
+    };
+    const smoke = profile => {
+      assert.equal(profile, install.profileName); events.push('ordinary-user-smoke');
+      if (outcome === 'smoke-failure') throw new Error('isolated smoke failure');
+    };
+    const result = withLinuxSandbox({ executable, runtime: 'linux-x64', reportDirectory: temporary, commit: 'isolated-fixture' }, smoke, invoke);
+    if (outcome.endsWith('-failure')) await assert.rejects(result, /isolated .* failure/);
+    else await result;
+    const report = JSON.parse(await readFile(join(temporary, 'linux-sandbox.json'), 'utf8'));
+    assert.equal(report.acceptance, !outcome.endsWith('-failure'));
+    assert.equal(report.smoke.succeeded, outcome !== 'smoke-failure');
+    assert.deepEqual(report.events[0].receipt, install);
+    assert.deepEqual(events, outcome === 'existing-registration'
+      ? ['install', 'ordinary-user-smoke'] : ['install', 'ordinary-user-smoke', 'remove']);
+    if (outcome === 'existing-registration') assert.equal(report.cleanup, 'retained-pre-existing-registration');
+    if (outcome === 'cleanup-failure') assert.equal(report.cleanupError, 'isolated cleanup failure');
   });
 }

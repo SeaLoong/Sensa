@@ -21,6 +21,8 @@ For controls and script playback straight from your browser, [open WebSensa](htt
 
 Intel/AMD computers generally use **x64**; Apple Silicon and Windows ARM use **ARM64**. Development filenames also include a build number and commit.
 
+On Ubuntu 24.04 with restricted user namespaces, run `python3 ./sensa-linux-sandbox.py install` from the Electron extraction directory before opening `./Sensa`. The helper uses sudo to register an AppArmor permission for that exact executable path; Chromium's sandbox stays enabled and Sensa runs as your ordinary user. Run `python3 ./sensa-linux-sandbox.py remove` before moving or deleting the directory, then register the new location. Other Linux configurations and the CLI do not need this step.
+
 Electron opens the workbench in its own window and coordinates the same bundled Node CLI service. The CLI opens it in your browser. The usual CLI address is **http://127.0.0.1:5086**; use the actual address reported at startup when ports change. Input starts off so you can prepare the first connection.
 
 The Windows CLI installer uses `%LOCALAPPDATA%\Programs\Sensa`; updates and uninstall retain user configuration and recordings. CLI portable archives, installers and Electron packages include documentation and Python bridge tools. The single EXE embeds the workbench, [parameter explorer](http://127.0.0.1:5086/docs/parameter-geometry.html) and serial/MIDI dependencies. Prepare a Python environment separately when using the bridges. [Serial and Bluetooth bridges](../tools/protocol-bridge/README.md)

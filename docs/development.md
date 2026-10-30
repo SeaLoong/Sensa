@@ -28,6 +28,8 @@
 
 当前应用构建自带 Node 运行时与网页资源；Electron 包包含同一份 CLI 服务程序，Windows 安装器与单文件格式仍属于 CLI。串口／MIDI 原生依赖内嵌在 SEA 中，运行时校验后提取到私有临时目录。CLI 配置默认在可执行文件旁，Electron 默认在用户应用数据目录的 `Sensa/config.json`；`SENSA_CONFIG_PATH` 或 `--config` 可统一指定。录制输出默认在所选配置旁的 `recordings`，可用 `SENSA_RECORDINGS_PATH` 覆盖；工作台导出由浏览器下载。升级与卸载保留用户数据，单文件请放在可写目录。程序尚无发布者代码签名。
 
+Ubuntu 24.04 限制用户命名空间时，Linux Desktop 包内的 `sensa-linux-sandbox.py install` 为当前可执行文件精确注册 AppArmor 许可；用 `python3` 以普通用户运行，脚本仅通过 sudo 调用系统管理工具，不以 root 运行应用或脚本。移动／删除目录前执行同脚本的 `remove`。原生 CI 使用相同包内工具，先加载许可、验证真实 Electron 进程标签，再在 finally 中仅删除本次创建且身份未变的注册，并核对内核限制未改变。安装命令见[快速开始](quick-start.md)；策略采用 [Ubuntu 的逐应用用户命名空间许可](https://ubuntu.com/blog/ubuntu-23-10-restricted-unprivileged-user-namespaces)，不关闭 Chromium 沙箱或全局限制。
+
 自动预发布的资产名在版本后追加 `-preview.<运行编号>.<attempt>.<提交前八位>`；正式版不追加。发布说明先提供各系统 Electron Desktop 的 x64／ARM64 下载，再列 CLI 格式及校验文件。预发布随后列出链接到完整构建提交的 **Source**，不列变更清单。
 
 ## 怎样发布正式版？

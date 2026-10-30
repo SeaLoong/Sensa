@@ -21,6 +21,8 @@
 
 Intel／AMD 电脑通常使用 **x64**，Apple Silicon 和 Windows ARM 使用 **ARM64**。开发预览文件名还包含构建编号与提交摘要。
 
+Ubuntu 24.04 开启用户命名空间限制时，在 Electron 解压目录先运行 `python3 ./sensa-linux-sandbox.py install`，再打开 `./Sensa`。它通过 sudo 为当前程序路径注册 AppArmor 许可，Chromium 沙箱保持开启；Sensa 仍以普通用户运行。移动或删除目录前运行 `python3 ./sensa-linux-sandbox.py remove`，移动后重新注册。其他 Linux 配置及 CLI 无需这一步。
+
 Electron 在自身窗口打开工作台，并协调随包的同一 Node CLI 服务；CLI 自动在浏览器打开工作台。CLI 常用地址为 **http://127.0.0.1:5086**，端口调整后使用启动时显示的实际地址。首次启动输入处于关闭状态，可以先准备连接。
 
 Windows CLI 安装目录默认为 `%LOCALAPPDATA%\Programs\Sensa`，更新与卸载保留用户配置和录制。CLI 便携包、安装版与 Electron 包附带文档及 Python 桥工具；单文件 EXE 内置工作台、[参数图解](http://127.0.0.1:5086/docs/parameter-geometry.html)与串口／MIDI 依赖。使用 Python 桥时单独准备 Python 环境。[串口与蓝牙桥](../tools/protocol-bridge/README.zh-CN.md)

@@ -1,0 +1,22 @@
+Sensa Linux Desktop — Ubuntu user-namespace permission
+
+On Ubuntu 24.04 with restricted unprivileged user namespaces, register this
+extracted executable once before opening Sensa:
+
+  python3 ./sensa-linux-sandbox.py install
+  ./Sensa
+
+The helper asks sudo to install an AppArmor permission for this exact executable
+path. Sensa and the helper run as your ordinary desktop user; the Chromium
+sandbox stays enabled. Other Linux configurations do not need this setup.
+
+Before moving or deleting this directory, remove the old registration:
+
+  python3 ./sensa-linux-sandbox.py remove
+
+After moving the directory, run install again from the new location.
+
+Ubuntu 24.04 开启非特权用户命名空间限制时，先运行上面的 install 命令，
+再打开 Sensa。系统许可仅匹配当前解压目录里的 Sensa；程序仍以普通用户运行，
+Chromium 沙箱保持开启。移动或删除目录前运行 remove，移动后重新 install。
+其他 Linux 配置无需这一步；CLI 便携版不需要此许可。
