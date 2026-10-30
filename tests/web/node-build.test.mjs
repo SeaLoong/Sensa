@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 import { actionSourceProvenance, collectNativeFiles, nodeLicense, prepareDirectory, runtimeFor, safeRelative, sourceIdentity, thirdPartyNotices, webResources, writeSeaEvidence } from '../../scripts/build-node.mjs';
 
@@ -119,6 +120,27 @@ test('redistributed Node license binds the exact version and original upstream b
   await writeFile(join(directory, 'node.json'), JSON.stringify(license));
   await writeFile(join(directory, license.file), license.text + 'changed');
   await assert.rejects(nodeLicense('24.22.2', directory), /SHA-256/);
+});
+
+test('release license bytes survive Git checkout and clean filters for both autocrlf modes', async () => {
+  const root = await realpath(fileURLToPath(new URL('../../', import.meta.url)));
+  const git = (args, input) => {
+    const result = spawnSync('git', ['-c', `safe.directory=${root}`, ...args], { cwd: root, input });
+    assert.equal(result.status, 0, result.stderr?.toString('utf8') || result.error?.message);
+    return result.stdout;
+  };
+  for (const path of ['LICENSE', 'scripts/licenses/node-v24.22.2-LICENSE.txt']) {
+    const object = git(['rev-parse', `HEAD:${path}`]).toString('utf8').trim();
+    const original = git(['cat-file', 'blob', object]);
+    for (const autocrlf of ['true', 'false']) {
+      const options = ['-c', `core.autocrlf=${autocrlf}`];
+      const checkedOut = git([...options, 'cat-file', '--filters', `--path=${path}`, object]);
+      const label = `${path}, core.autocrlf=${autocrlf}`;
+      assert.equal(checkedOut.equals(original), true, `${label}: checkout must preserve the exact license bytes`);
+      const cleaned = git([...options, 'hash-object', `--path=${path}`, '--stdin'], checkedOut).toString('utf8').trim();
+      assert.equal(cleaned, object, `${label}: clean filtering must return the original Git blob identity`);
+    }
+  }
 });
 
 test('distribution notices preserve package license and nested notices with pinned package identity', async t => {
