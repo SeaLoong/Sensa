@@ -5,7 +5,7 @@ const suite = process.env.E2E_SUITE || 'all';
 if (!['all', 'visual', 'transport', 'input', 'osc', 'config', 'i18n', 'quality', 'site'].includes(suite))
   throw new Error('Unknown E2E suite / 未知 E2E 套件: ' + suite);
 export default defineConfig({
-  testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0, maxFailures: 3,
+  testDir: './tests/e2e', timeout: 90000, fullyParallel: false, workers: 1, retries: 0, maxFailures: 0,
   forbidOnly: true, outputDir: 'artifacts/e2e/results',
   grep: suite === 'all' ? undefined : new RegExp('@' + suite + '\\b'),
   reporter: [['line'], ['html', { outputFolder: 'artifacts/e2e/report', open: 'never' }], ['json', { outputFile: 'artifacts/e2e/results.json' }], ['./scripts/e2e-summary-reporter.mjs']],

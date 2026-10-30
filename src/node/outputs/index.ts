@@ -24,7 +24,7 @@ export function createOutputAdapter(config: OutputDeviceConfig, dependencies: Ou
     const current = app.outputs.find(output => output.id === config.id) ?? config;
     return resolveAxisProfile(app, current.motionProfileId).motion;
   };
-  const options = { ...dependencies, ...(context ? { canSend: context.canSend } : {}) };
+  const options = { ...dependencies, ...(context ? { canSend: context.canSend } : {}), ...(context?.telemetry ? { telemetry: context.telemetry } : {}) };
   switch (config.type) {
     case 'TCodeSerial': case 'TCodeUdp': case 'TCodeTcp': return new TCodeAdapter(config, context ? profile : undefined, options);
     case 'TCodeWebSocket': return new TCodeWebSocketAdapter(config, context ? profile : undefined, options);

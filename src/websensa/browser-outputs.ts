@@ -138,6 +138,7 @@ class BrowserMotionAdapter extends BrowserAdapter {
       if (line) {
         if (!this.#transport.sendText) throw new Error('The transport does not accept shared TCode frames.');
         await this.#transport.sendText(line);
+        this.context.telemetry?.recordTCode(line);
       }
     } else if (this.config.type === 'Bluetooth') {
       const profile = BLUETOOTH_PROFILES.find(value => value.id === this.config.bridge?.protocol) ?? BLUETOOTH_PROFILES[0];
@@ -145,7 +146,8 @@ class BrowserMotionAdapter extends BrowserAdapter {
       const sourceAxis = isMotionAxis(this.config.device.axis) ? this.config.device.axis : profile.axis;
       if (frame.activeAxes && !frame.activeAxes.includes(sourceAxis)) return;
       await this.#transport.send({ ...transportFrame(frame), values: { [profile.axis]: frame.values[sourceAxis] } });
-    } else await this.#transport.send(transportFrame(frame));
+      this.context.telemetry?.recordTarget(sourceAxis, profile.name, frame.values[sourceAxis] * 100);
+    } else { const sent = transportFrame(frame); await this.#transport.send(sent); this.context.telemetry?.recordTargets(Object.entries(sent.values).map(([key, value]) => ({ key, label: key, value: (value ?? 0) * 100, maximum: 100 }))); }
   }
   protected async signal(_value: SignalOutputValue): Promise<void> { throw new Error('Motion output needs an axis frame.'); }
   protected async stopping(): Promise<void> { await this.#transport?.stop(); }
@@ -237,8 +239,8 @@ class BrowserIntifaceAdapter extends BrowserAdapter {
   #generation = 0;
   #updating: Promise<void> = Promise.resolve();
   #features: IntifaceDiscovery['features'] = [];
-  readonly config: OutputDeviceConfig; readonly devicesPort: BrowserDevices;
-  constructor(config: OutputDeviceConfig, devicesPort: BrowserDevices) { super(); this.config = config; this.devicesPort = devicesPort; }
+  readonly config: OutputDeviceConfig; readonly devicesPort: BrowserDevices; readonly context: AdapterContext;
+  constructor(config: OutputDeviceConfig, devicesPort: BrowserDevices, context: AdapterContext) { super(); this.config = config; this.devicesPort = devicesPort; this.context = context; }
   override get connected(): boolean { return this.ready && this.#discovery?.connected === true; }
   protected async open(): Promise<void> {
     const generation = ++this.#generation;
@@ -252,12 +254,12 @@ class BrowserIntifaceAdapter extends BrowserAdapter {
         const indices = new Set(selected.map(feature => feature.deviceIndex));
         if (this.config.intifaceDeviceName && this.config.intifaceDeviceIndex == null && indices.size > 1)
           throw new Error('Several Intiface devices share this name; select a specific device index.');
-        for (const [index, transport] of this.#transports) if (!indices.has(index)) { this.#transports.delete(index); this.#transportKeys.delete(index); await transport.close(); }
+        for (const [index, transport] of this.#transports) if (!indices.has(index)) { this.context.telemetry?.removePrefix(`#${index}/`); this.#transports.delete(index); this.#transportKeys.delete(index); await transport.close(); }
         for (const index of indices) {
           const key = JSON.stringify(selected.filter(item => item.deviceIndex === index));
           if (this.#transportKeys.get(index) === key) continue;
           const previous = this.#transports.get(index);
-          if (previous) { this.#transports.delete(index); this.#transportKeys.delete(index); try { await previous.stop(); } finally { await previous.close(); } }
+          if (previous) { this.context.telemetry?.removePrefix(`#${index}/`); this.#transports.delete(index); this.#transportKeys.delete(index); try { await previous.stop(); } finally { await previous.close(); } }
           const feature = selected.find(item => item.deviceIndex === index); if (!feature) continue;
           const featureMappings = selected.filter(item => item.deviceIndex === index).flatMap(item => {
             const type = item.command === 'LinearCmd' ? 'HwPositionWithDuration' : item.command === 'RotateCmd' ? 'Rotate' : item.actuator ?? 'Vibrate';
@@ -267,7 +269,7 @@ class BrowserIntifaceAdapter extends BrowserAdapter {
             return route ? [route] : [];
           });
           const transport = await createOutputTransport({ type: 'intiface', url: this.config.websocketAddress, featureId: feature.id, mapDevice: true,
-            featureMappings, requireFeatureMappings: true }, this.devicesPort.dependencies);
+            featureMappings, requireFeatureMappings: true }, { ...this.devicesPort.dependencies, onTargets: targets => this.context.telemetry?.recordTargets(targets) });
           if (generation !== this.#generation) { await transport.close(); return; }
           this.#transports.set(index, transport); this.#transportKeys.set(index, key);
         }
@@ -346,7 +348,7 @@ export function createBrowserOutputFactory(devices = new BrowserDevices(), recor
   const sockets = new BrowserSocketPool();
   return (config, context) => {
     if (config.type === 'Recording') return new BrowserRecordingAdapter(config, recordings, now);
-    if (config.type === 'Intiface') return new BrowserIntifaceAdapter(config, devices);
+    if (config.type === 'Intiface') return new BrowserIntifaceAdapter(config, devices, context);
     if (['HttpJson', 'WebSocketJson', 'Midi'].includes(config.type)) return new BrowserSignalAdapter(config, devices, sockets);
     if (['TCodeSerial', 'TCodeWebSocket', 'SensaHttp', 'SensaWebSocket', 'Bluetooth'].includes(config.type)) return new BrowserMotionAdapter(config, context, devices);
     throw new Error(`No browser adapter is registered for ${config.type}.`);

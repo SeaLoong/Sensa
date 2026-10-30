@@ -4,8 +4,11 @@ import type { OutputAdapter, ResolveInput, SignalOutputValue, SignalValueType } 
 import { clamp, safeError, optionalRecord } from './types.ts';
 import { mapBinding } from '../runtime/motion.ts';
 import { SignalReplay } from './recording.ts';
+import { OutputTelemetry } from './telemetry.ts';
+import type { OutputTarget } from './telemetry.ts';
+import { typedValue, encodeMidi } from './codecs.ts';
 
-export interface AdapterContext { configuration(): AppConfig; canSend(): boolean }
+export interface AdapterContext { configuration(): AppConfig; canSend(): boolean; telemetry?: OutputTelemetry }
 export interface OutputCoordinatorOptions {
   createAdapter(config: OutputDeviceConfig, context: AdapterContext): OutputAdapter | Promise<OutputAdapter>;
   now?: () => number;
@@ -23,6 +26,7 @@ interface Destination {
   adapter: OutputAdapter | null; key: string; epoch: number; lastError: string | null; sentCount: number; lastSendAtMs: number | null;
   routes: Map<string, Route>; latest: Map<string, Delivery>; events: Delivery[]; motion: RuntimeMotionFrame | null;
   draining: Promise<void> | null; closing: Promise<void> | null; stopping: Promise<void> | null; connecting: Promise<boolean> | null; replay: SignalReplay;
+  telemetry: OutputTelemetry; requestedTargets: OutputTarget[]; lastRequestedAtUtc: string | null;
 }
 export const motionOutputTypes = new Set(['TCodeSerial', 'TCodeUdp', 'TCodeTcp', 'TCodeWebSocket', 'Intiface', 'Handy', 'Autoblow', 'VacuGlide', 'Lovense', 'BleBridge', 'Bluetooth', 'SensaHttp', 'SensaWebSocket']);
 function connectionKey(output: OutputDeviceConfig): string { return JSON.stringify({ ...output, enabled: false, name: '', motionProfileId: '', signal: { ...output.signal, bindings: output.type === 'Midi' ? output.signal.bindings.map(binding => binding.address) : [] } }); }
@@ -45,7 +49,7 @@ export class OutputCoordinator {
   }
   get configuration(): AppConfig { return this.#configuration; }
   now(): number { return this.#options.now?.() ?? Date.now(); }
-  destination(output: OutputDeviceConfig): Destination { return { adapter: null, key: connectionKey(output), epoch: 0, lastError: null, sentCount: 0, lastSendAtMs: null, routes: new Map(output.signal.bindings.map(binding => [binding.id, route()])), latest: new Map(), events: [], motion: null, draining: null, closing: null, stopping: null, connecting: null, replay: new SignalReplay(() => this.now()) }; }
+  destination(output: OutputDeviceConfig): Destination { return { adapter: null, key: connectionKey(output), epoch: 0, lastError: null, sentCount: 0, lastSendAtMs: null, routes: new Map(output.signal.bindings.map(binding => [binding.id, route()])), latest: new Map(), events: [], motion: null, draining: null, closing: null, stopping: null, connecting: null, replay: new SignalReplay(() => this.now()), telemetry: new OutputTelemetry(() => this.now()), requestedTargets: [], lastRequestedAtUtc: null }; }
   output(id: string): OutputDeviceConfig { const output = this.#configuration.outputs.find(candidate => candidate.id === id); if (!output) throw new Error('Output was not found.'); return output; }
   state(id: string): Destination { const state = this.#destinations.get(id); if (!state) throw new Error('Output was not found.'); return state; }
   isConnected(id: string): boolean { return this.#destinations.get(id)?.adapter?.connected === true; }
@@ -57,14 +61,14 @@ export class OutputCoordinator {
     const epoch = state.epoch;
     const opening = (async (): Promise<boolean> => {
       try {
-        const adapter = state.adapter ?? await this.#options.createAdapter(output, { configuration: () => this.#configuration, canSend: () => this.canSend() });
+        const adapter = state.adapter ?? await this.#options.createAdapter(output, { configuration: () => this.#configuration, canSend: () => this.canSend(), telemetry: state.telemetry });
         if (state.epoch !== epoch) { await adapter.close(); return false; }
         state.adapter = adapter; await adapter.connect();
         if (state.epoch !== epoch) { await adapter.close(); if (state.adapter === adapter) state.adapter = null; return false; }
-        state.lastError = null;
+        state.lastError = null; state.telemetry.setState('idle', true); state.lastSendAtMs = null;
         if (this.canSend() && output.enabled && !output.signal.bindings.length && motionOutputTypes.has(output.type) && this.#lastFrame) { state.motion = structuredClone(this.#lastFrame); if (!this.#stopping && !state.stopping) void this.drain(output, state); }
         this.#options.changed?.(); return adapter.connected;
-      } catch (error) { state.lastError = safeError(error); this.#options.log?.(`[Output ${output.id}] ${state.lastError}`); this.#options.changed?.(); return false; }
+      } catch (error) { state.lastError = safeError(error); state.telemetry.setState('error'); this.#options.log?.(`[Output ${output.id}] ${state.lastError}`); this.#options.changed?.(); return false; }
     })();
     state.connecting = opening;
     try { return await opening; } finally { if (state.connecting === opening) state.connecting = null; }
@@ -85,6 +89,7 @@ export class OutputCoordinator {
       if (adapter) await this.sendStopValues(output, adapter);
     } catch (error) { stopError = safeError(error); }
     try { await adapter?.close(); state.lastError = stopError; } catch (error) { state.lastError = safeError(error); }
+    state.telemetry.setState(state.lastError ? 'error' : 'idle', !state.lastError); state.requestedTargets = []; state.lastRequestedAtUtc = null; if (!state.lastError) state.lastSendAtMs = null;
     for (const entry of state.routes.values()) { entry.sentValue = null; entry.eventHigh = false; entry.observed = false; }
     this.#options.changed?.();
   }
@@ -112,10 +117,24 @@ export class OutputCoordinator {
     for (const output of this.#configuration.outputs) {
       if (!output.enabled || output.signal.bindings.length || !motionOutputTypes.has(output.type)) continue;
       const state = this.state(output.id); if (!state.adapter?.connected) continue;
+      this.recordRequestedMotion(state, frame);
       state.motion = structuredClone(frame); if (!this.#stopping && !state.stopping) void this.drain(output, state);
     }
   }
   sendMotion(frame: RuntimeMotionFrame): Promise<void> { return this.sendFrame(frame); }
+  private recordRequestedMotion(state: Destination, frame: RuntimeMotionFrame): void {
+    state.lastRequestedAtUtc = new Date(this.now()).toISOString();
+    state.requestedTargets = Object.entries(frame.values).filter(([axis, value]) => Number.isFinite(value) && (!frame.activeAxes || frame.activeAxes.includes(axis as MotionAxis))).map(([key, value]) => ({ key, label: key, value, maximum: 1 }));
+  }
+  private recordAccepted(state: Destination, previousVersion: number): void { if (state.telemetry.version !== previousVersion) { state.sentCount++; const timestamp = state.telemetry.snapshot().lastSentAtUtc; state.lastSendAtMs = timestamp === null ? null : Date.parse(timestamp); } }
+  private recordSignalFallback(state: Destination, output: OutputDeviceConfig, item: Delivery, previousVersion: number): void {
+    if (state.telemetry.version === previousVersion && !(output.type === 'Recording' && item.stopping)) {
+      const sample = { address: item.binding.address, value: item.value, type: item.binding.valueType as SignalValueType };
+      const value = output.type === 'Midi' ? encodeMidi(sample)[2] ?? 0 : Number(typedValue(sample));
+      state.telemetry.recordTarget(item.binding.address || item.binding.id, item.binding.name || item.binding.address, value, output.type === 'Midi' ? 127 : Math.max(1, Math.abs(item.binding.outputMin), Math.abs(item.binding.outputMax)));
+    }
+    this.recordAccepted(state, previousVersion);
+  }
   async flush(): Promise<void> { while (true) { const active = [...this.#destinations.values()].flatMap(state => state.draining ? [state.draining] : []); if (!active.length) return; await Promise.all(active); } }
   updateBindings(now: number, resolve: ResolveInput): void {
     if (!this.canSend()) return;
@@ -156,11 +175,12 @@ export class OutputCoordinator {
         const deliveries = [...state.latest.values(), ...state.events]; state.latest.clear(); state.events = [];
         if (!frame && !deliveries.length) return;
         try {
-          if (frame) { await state.adapter.sendMotion(frame); state.sentCount++; state.lastSendAtMs = this.now(); }
+          if (frame) { const version = state.telemetry.version; await state.adapter.sendMotion(frame); this.recordAccepted(state, version); }
           const values = neutralValues(), axes: MotionAxis[] = [];
           for (const item of deliveries) {
             const status = state.routes.get(item.binding.id);
             if (state.epoch !== epoch || this.#generation !== generation || !this.canSend() || !status || status.revision !== item.revision) continue;
+            const version = state.telemetry.version;
             if (output.type === 'Recording' && state.adapter.recordSample) {
               await state.adapter.recordSample(item.binding.address || item.binding.id, item.sample, item.stopping ? null : item.value, item.at);
             } else if (motionOutputTypes.has(output.type)) {
@@ -170,12 +190,12 @@ export class OutputCoordinator {
                 ...(item.binding.channel === null ? {} : { channel: item.binding.channel }) };
               await state.adapter.sendSignal(sample);
             }
-            status.sentValue = item.value; state.sentCount++; state.lastSendAtMs = this.now();
+            status.sentValue = item.value; if (!motionOutputTypes.has(output.type)) this.recordSignalFallback(state, output, item, version);
           }
-          if (axes.length && this.canSend() && this.#generation === generation && state.epoch === epoch) await state.adapter.sendMotion({ values, deltaMs: 0, activeAxes: [...new Set(axes)], requestedCommandMode: 'None' });
+          if (axes.length && this.canSend() && this.#generation === generation && state.epoch === epoch) { const routed: RuntimeMotionFrame = { values, deltaMs: 0, activeAxes: [...new Set(axes)], requestedCommandMode: 'None' }; this.recordRequestedMotion(state, routed); const version = state.telemetry.version; await state.adapter.sendMotion(routed); this.recordAccepted(state, version); }
           state.lastError = null;
         } catch (error) {
-          state.lastError = safeError(error); state.epoch++; state.latest.clear(); state.events = []; state.motion = null;
+          state.lastError = safeError(error); state.telemetry.setState('error'); state.requestedTargets = []; state.lastRequestedAtUtc = null; state.epoch++; state.latest.clear(); state.events = []; state.motion = null;
           const failed = state.adapter; state.adapter = null;
           const cleanup = (async (): Promise<void> => {
             try { if (failed) { await this.sendStopValues(output, failed); await failed.stop(); } } catch { /* Retain the original delivery error when stopping cannot be confirmed. */ }
@@ -209,15 +229,16 @@ export class OutputCoordinator {
     this.#generation++;
     await Promise.all([...this.#destinations].map(async ([id, state]) => {
       state.epoch++; state.motion = null; state.latest.clear(); state.events = [];
+      state.requestedTargets = []; state.lastRequestedAtUtc = null;
       for (const status of state.routes.values()) { status.sentValue = null; status.queuedAtMs = -Infinity; status.eventHigh = false; status.observed = false; }
       if (state.stopping) await state.stopping;
       if (state.draining) await state.draining;
-      if (!state.adapter) return;
+      if (!state.adapter?.connected) return;
       const output = this.output(id);
       try {
         await this.sendStopValues(output, state.adapter);
-        await state.adapter.stop(); state.lastError = null;
-      } catch (error) { state.lastError = safeError(error); this.#options.log?.(`[Output ${id}] Stop could not be confirmed.`); }
+        await state.adapter.stop(); state.lastError = null; state.telemetry.setState('stopped', true); state.lastSendAtMs = null;
+      } catch (error) { state.lastError = safeError(error); state.telemetry.setState('error'); this.#options.log?.(`[Output ${id}] Stop could not be confirmed.`); }
     }));
     this.#options.changed?.();
     })().finally(() => {
@@ -235,9 +256,11 @@ export class OutputCoordinator {
     await Promise.all(this.#configuration.outputs.filter(output => !output.signal.bindings.length && motionOutputTypes.has(output.type)).map(async output => {
       const state = this.state(output.id); if (state.stopping) return state.stopping;
       state.epoch++; state.motion = null; state.latest.clear(); state.events = [];
+      state.requestedTargets = []; state.lastRequestedAtUtc = null;
       const stopping = (async (): Promise<void> => {
         if (state.draining) await state.draining;
-        try { await state.adapter?.stop(); state.lastError = null; } catch (error) { state.lastError = safeError(error); }
+        if (!state.adapter?.connected) return;
+        try { await state.adapter.stop(); state.lastError = null; state.telemetry.setState('stopped', true); state.lastSendAtMs = null; } catch (error) { state.lastError = safeError(error); state.telemetry.setState('error'); }
       })().finally(() => {
         state.stopping = null;
         if (!this.#stopping && this.canSend() && state.adapter?.connected && state.motion) void this.drain(output, state);
@@ -280,7 +303,7 @@ export class OutputCoordinator {
         tcodeSettings: output.type.startsWith('TCode') ? { speedUnitBase: output.speedUnitBase, slopeMode: output.slopeMode } : null,
         tcodeDeviceInfo: output.type.startsWith('TCode') ? adapter?.devices?.()[0] ?? { supported: false, reason: 'Not connected.' } : null,
         summary: output.type === 'TCodeSerial' ? output.comPort : output.type === 'TCodeTcp' || output.type === 'TCodeUdp' ? `${output.host}:${output.port}` : output.type === 'Intiface' ? output.websocketAddress : output.name,
-        telemetry: { state: state.lastError ? 'error' : connected ? 'connected' : 'disconnected', sendCount: state.sentCount, lastSendAtMs: state.lastSendAtMs, targets: bindings }, deviceApi: vendor ? { ...vendor, supportsStreaming: true, commandKind: output.type === 'VacuGlide' ? 'Speed' : output.type === 'Lovense' ? 'Intensity' : 'Position', supportsScripts: vendor.supported, supportsScriptLoop: vendor.loopSupported, scriptLoop: vendor.loop, scriptPrepared: vendor.prepared, scriptPlaying: vendor.playing, scriptPositionMs: vendor.positionMs, lastError: state.lastError } : null, devices: this.devices(output.id) };
+        telemetry: { ...state.telemetry.snapshot(), sendCount: state.sentCount, lastSendAtMs: state.lastSendAtMs, requestedTargets: state.requestedTargets.map(target => ({ ...target })), lastRequestedAtUtc: state.lastRequestedAtUtc }, deviceApi: vendor ? { ...vendor, supportsStreaming: true, commandKind: output.type === 'VacuGlide' ? 'Speed' : output.type === 'Lovense' ? 'Intensity' : 'Position', supportsScripts: vendor.supported, supportsScriptLoop: vendor.loopSupported, scriptLoop: vendor.loop, scriptPrepared: vendor.prepared, scriptPlaying: vendor.playing, scriptPositionMs: vendor.positionMs, lastError: state.lastError } : null, devices: this.devices(output.id) };
     });
   }
 }

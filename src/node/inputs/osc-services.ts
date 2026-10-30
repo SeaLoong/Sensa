@@ -302,7 +302,7 @@ export class OscServices {
       sourcePersistentId: row.entry.source.persistentId, sourceAddress: row.entry.source.address, sourcePort: row.entry.source.port }));
     const source = this.#lastSource;
     return { enabled: config.enabled, receiverHost: config.receiverHost, receiverPort: this.#receiverPort || config.receiverPort, listening: this.#receiver !== null,
-      listenerError: this.#receiverError, preview, sources: sources.map(knownSource => ({ ...knownSource, canPersistSelection: !!knownSource.persistentId })), selectedSourceKey: effective, preferredSourcePersistentId: config.preferredSourcePersistentId,
+      listenerError: this.#receiverError, preview, sources: sources.map(knownSource => ({ ...knownSource, canPersistSelection: !!knownSource.persistentId })), selectedSourceKey: this.#selectedSource ?? '', preferredSourcePersistentId: config.preferredSourcePersistentId,
       query: { enabled: config.oscQueryEnabled, ...this.#query, listenConnected: this.#querySocket?.readyState === WebSocket.OPEN, listeningPathCount: this.#querySubscriptions.size,
         streamSourceLabel: this.#query.name, streamSourcePersistentId: this.#query.url ? this.#querySource().persistentId : null,
         polling: { enabled: config.oscQueryPolling.enabled, ...this.#polling, rateHz: Math.max(1, Math.min(30, config.oscQueryPolling.rateHz)) }, discovered: [...this.#discovered.values()] },

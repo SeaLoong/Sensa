@@ -143,7 +143,7 @@ export class DglabAdapter extends SerializedAdapter {
       operation = dglabOperation(target, amount, duration);
     } else throw new Error('DG-LAB bindings use Intensity or Pulse.');
     const generation = this.#generation;
-    try { await this.request(target.clientId, 'device.op', operation, Math.max(3000, duration + 1000)); }
+    try { await this.request(target.clientId, 'device.op', operation, Math.max(3000, duration + 1000)); this.dependencies.telemetry?.recordTarget(`${target.slotId}/${target.channel}/${sample.address}`, sample.address, sample.address === 'Intensity' ? Number(operation['v']) : 1, sample.address === 'Intensity' ? Math.max(1, this.config.signal.maxIntensity) : 1); }
     catch (error) { if (generation === this.#generation) this.#commandError = this.#lastError = 'DG-LAB command failed; reconnect before sending more commands.'; this.dependencies.changed?.(); throw error; }
   }
   async stopTarget(target: DglabTarget): Promise<void> {

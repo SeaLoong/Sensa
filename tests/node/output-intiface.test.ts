@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { IntifaceAdapter, IntifacePool } from '../../src/node/outputs/intiface.ts';
 import { defaultIntifaceFeatureRoute } from '../../src/core/runtime/configuration-defaults.ts';
+import { OutputTelemetry } from '../../src/core/outputs/telemetry.ts';
 import { output, frame, FakeSocket, deferred } from './output-support.ts';
 
 function device(index: number, name = 'device', range = [0, 1000]) {
@@ -39,7 +40,7 @@ function commandValue(command: Record<string, unknown>, type: string): Record<st
 test('native Intiface negotiates wire v4, default position inversion and exact zero vibration', async () => {
   const server = peer(), config = output('Intiface'); const adapter = new IntifaceAdapter(config, { socketFactory: server.factory }); await adapter.connect(); await adapter.sendMotion(frame({ L0: .75, V0: 0 }, { deltaMs: 200 }));
   const commands = outputCommands(server); assert.equal(commands.length, 2); assert.deepEqual(commandValue(commands[0]!, 'HwPositionWithDuration'), { Value: 250, Duration: 200 }); assert.deepEqual(commandValue(commands[1]!, 'Vibrate'), { Value: 0 });
-  assert.equal(adapter.devices().length, 1); await adapter.stop(); const stop = server.commands.find(row => row.type === 'StopCmd')!; assert.equal(stop.body['DeviceIndex'], 0); assert.equal('FeatureIndex' in stop.body, false); await adapter.close();
+  assert.equal(adapter.devices().length, 1); await adapter.stop(); const stop = server.commands.find(row => row.type === 'StopCmd')!; assert.equal('DeviceIndex' in stop.body, false); assert.equal('FeatureIndex' in stop.body, false); assert.equal(stop.body['Outputs'], true); await adapter.close();
 });
 test('advertised nonzero minima are scaled as explicit steps', async () => {
   const server = peer([device(0, 'ranged', [20, 100])]), adapter = new IntifaceAdapter(output('Intiface'), { socketFactory: server.factory }); await adapter.connect(); await adapter.sendMotion(frame({ V0: .5 }, { activeAxes: ['V0'] })); assert.deepEqual(commandValue(outputCommands(server)[0]!, 'Vibrate'), { Value: 60 }); await adapter.close();
@@ -66,6 +67,18 @@ test('different explicit devices share one connection and stop only their owned 
   assert.equal(first.devices().length, 2, 'discovery retains all peer devices');
   await first.sendMotion(frame({ V0: .2 }, { activeAxes: ['V0'] })); await second.sendMotion(frame({ V0: .7 }, { activeAxes: ['V0'] })); await first.stop();
   assert.deepEqual(server.commands.filter(row => row.type === 'StopCmd').map(row => row.body['DeviceIndex']), [0]); await first.close(); assert.equal(second.connected, true); await second.sendMotion(frame({ V0: .8 }, { activeAxes: ['V0'] })); await second.close(); assert.equal(server.sockets[0]?.closeCount, 1);
+});
+test('default all-device stop remains global even with no advertised devices or named feature overrides', async () => {
+  for (const devices of [[], [device(0, 'first'), device(1, 'second')]]) {
+    const server = peer(devices), config = output('Intiface'); config.intifaceFeatures = [{ ...defaultIntifaceFeatureRoute(), deviceName: 'first', featureIndex: 0 }];
+    server.intercept((type, body, socket) => { if (type !== 'StopCmd') return false; socket.emit(body['DeviceIndex'] === undefined && body['FeatureIndex'] === undefined && body['Outputs'] !== false ? [{ Ok: { Id: body['Id'] } }] : [{ Error: { Id: body['Id'], ErrorCode: 3 } }]); return true; });
+    const adapter = new IntifaceAdapter(config, { socketFactory: server.factory }); await adapter.connect(); await adapter.stop(); const stops = server.commands.filter(row => row.type === 'StopCmd'); assert.equal(stops.length, 1); assert.equal(stops[0]?.body['DeviceIndex'], undefined); await adapter.close();
+  }
+});
+test('a matching request id on a different message type cannot falsely acknowledge STOP', async () => {
+  const server = peer(), adapter = new IntifaceAdapter(output('Intiface'), { socketFactory: server.factory }); await adapter.connect();
+  server.intercept((type, body, socket) => { if (type !== 'StopCmd') return false; socket.emit([{ Ping: { Id: body['Id'] } }]); return true; });
+  await assert.rejects(adapter.stop(), /unexpected acknowledgement/u); server.intercept(undefined); await adapter.close();
 });
 test('default-all scope conflicts with any second explicit controller before motion', async () => {
   const server = peer(), pool = new IntifacePool({ socketFactory: server.factory }), first = new IntifaceAdapter(output('Intiface', 'all'), {}, pool), specific = output('Intiface', 'one'); specific.intifaceDeviceIndex = 0;
@@ -95,6 +108,16 @@ test('partial initialization failure closes the acquired transport and never rep
 });
 test('malformed protocol envelopes close the session and reject pending requests', async () => {
   const server = peer(), adapter = new IntifaceAdapter(output('Intiface'), { socketFactory: server.factory }); await adapter.connect(); server.sockets[0]!.emit('[{"Bad":{},"Other":{}}]'); assert.equal(adapter.connected, false); assert.equal(server.sockets[0]?.closeCount, 1); await adapter.close();
+});
+test('Intiface device removal, capability replacement and index reuse clear obsolete accepted targets', async () => {
+  const server = peer(), telemetry = new OutputTelemetry(() => 1000), adapter = new IntifaceAdapter(output('Intiface'), { socketFactory: server.factory, telemetry }); await adapter.connect();
+  await adapter.sendMotion(frame({ V0: .5 }, { activeAxes: ['V0'] })); assert.equal(telemetry.snapshot().targets.length, 1);
+  server.sockets[0]!.emit([{ DeviceRemoved: { Id: 0, DeviceIndex: 0 } }]); assert.deepEqual(telemetry.snapshot().targets, []); assert.equal(telemetry.snapshot().state, 'idle');
+  server.sockets[0]!.emit([{ DeviceAdded: { Id: 0, ...device(0) } }]); await adapter.sendMotion(frame({ V0: .6 }, { activeAxes: ['V0'] })); assert.equal(telemetry.snapshot().targets.length, 1);
+  server.sockets[0]!.emit([{ DeviceList: { Id: 0, Devices: { '0': device(0, 'device', [10, 100]) } } }]); assert.deepEqual(telemetry.snapshot().targets, []); await adapter.sendMotion(frame({ V0: .6 }, { activeAxes: ['V0'] })); assert.equal(telemetry.snapshot().targets.length, 1);
+  const changed = device(0); delete (changed.DeviceFeatures as Partial<typeof changed.DeviceFeatures>)['1']; server.sockets[0]!.emit([{ DeviceList: { Id: 0, Devices: { '0': changed } } }]); assert.deepEqual(telemetry.snapshot().targets, []);
+  server.sockets[0]!.emit([{ DeviceAdded: { Id: 0, ...device(0) } }]); await adapter.sendMotion(frame({ V0: .7 }, { activeAxes: ['V0'] })); assert.equal(telemetry.snapshot().targets.length, 1);
+  server.sockets[0]!.emit([{ DeviceAdded: { Id: 0, ...device(0, 'replacement device') } }]); assert.deepEqual(telemetry.snapshot().targets, []); await adapter.close();
 });
 test('concurrent managed Intiface owners start one installed engine and stop it only after the last release', async () => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'sensa-engine-')), server = peer(); let starts = 0, stops = 0;

@@ -66,7 +66,7 @@ export class TCodeAdapter extends SerializedAdapter {
     if (profile !== this.#profileReference) { this.encoder.reset(); this.#profileReference = profile; }
     const now = this.dependencies.now?.() ?? Date.now(), refresh = this.config.type === 'TCodeUdp' && now - this.#lastFullAt >= 1000;
     const line = this.encoder.encode(frame, profile, this.config, refresh);
-    if (line) { await this.transport.send(new TextEncoder().encode(line)); if (refresh) this.#lastFullAt = now; }
+    if (line) { await this.transport.send(new TextEncoder().encode(line)); this.dependencies.telemetry?.recordTCode(line); if (refresh) this.#lastFullAt = now; }
     this.#lastFrame = structuredClone(frame);
   }
   protected async signalCore(value: SignalOutputValue): Promise<void> {
@@ -111,7 +111,7 @@ export class TCodeWebSocketAdapter extends SerializedAdapter {
   constructor(config: OutputDeviceConfig, profile: TCodeMotionProfile | (() => TCodeMotionProfile) | undefined, dependencies: OutputDependencies = {}) { super(); this.config = config; this.profile = profile; this.dependencies = dependencies;  }
   override get connected(): boolean { return this.ready && this.#socket?.open === true; }
   protected async connectCore(): Promise<void> { this.#socket = await (this.dependencies.socketFactory ?? nodeSocketFactory)(this.config.websocketAddress, 3000); this.#socket.onMessage(() => {}); this.#encoder.reset(); }
-  protected async motionCore(frame: RuntimeMotionFrame): Promise<void> { const profile = typeof this.profile === 'function' ? this.profile() : this.profile; if (profile !== this.#profileReference) { this.#encoder.reset(); this.#profileReference = profile; } const text = this.#encoder.encode(frame, profile, this.config); if (text) await this.#socket?.send(text); }
+  protected async motionCore(frame: RuntimeMotionFrame): Promise<void> { const profile = typeof this.profile === 'function' ? this.profile() : this.profile; if (profile !== this.#profileReference) { this.#encoder.reset(); this.#profileReference = profile; } const text = this.#encoder.encode(frame, profile, this.config); if (text) { await this.#socket?.send(text); this.dependencies.telemetry?.recordTCode(text); } }
   protected async signalCore(_value: SignalOutputValue): Promise<void> { throw new Error('TCode output requires a motion frame.'); }
   protected async stopCore(): Promise<void> { this.#encoder.reset(); await this.#socket?.send('DSTOP\n'); }
   protected async closeCore(): Promise<void> { const socket = this.#socket; this.#socket = null; await socket?.close(); }

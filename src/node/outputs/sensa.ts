@@ -39,6 +39,7 @@ export class SensaMotionAdapter extends SerializedAdapter {
   protected async motionCore(frame: RuntimeMotionFrame): Promise<void> {
     const durationMs = durationFor(frame), values = Object.fromEntries(Object.entries(frame.values).filter(([axis]) => !frame.activeAxes || frame.activeAxes.includes(axis as keyof typeof frame.values)));
     await this.request({ type: 'signal', values, durationMs, commands: Object.entries(values).map(([channel, value]) => ({ channel, value, durationMs })) });
+    this.dependencies.telemetry?.recordTargets(Object.entries(values).map(([key, value]) => ({ key, label: key, value: value * 100, maximum: 100 })));
   }
   protected async signalCore(_value: SignalOutputValue): Promise<void> { throw new Error('Sensa frame output requires an axis frame.'); }
   protected async stopCore(): Promise<void> { await this.request({ command: 'stop', type: 'stop' }); }

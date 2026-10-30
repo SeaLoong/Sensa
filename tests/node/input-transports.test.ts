@@ -15,7 +15,7 @@ import type { ProtocolInputConfig } from '../../src/core/protocols/input-types.t
 import { ExternalControlStore } from '../../src/core/protocols/external-control.ts';
 import { OscParameterStore, encodeOscMessage, parseOscPacket } from '../../src/core/protocols/osc.ts';
 import { createInputCoordinator } from '../../src/node/inputs/coordinator.ts';
-import { createOscServices, normalizeOscQueryUrl, parseOscQueryNodes, classifyOscPath } from '../../src/node/inputs/osc-services.ts';
+import { OscServices, createOscServices, normalizeOscQueryUrl, parseOscQueryNodes, classifyOscPath } from '../../src/node/inputs/osc-services.ts';
 import type { OscServicesConfig } from '../../src/node/inputs/osc-services.ts';
 import { downloadProtocolScript, publicScriptAddress } from '../../src/node/inputs/http-utils.ts';
 function input(type: ProtocolInputConfig['type'], id = 'input', path = '/'): ProtocolInputConfig { return { ...defaultProtocolInput(id), type, enabled: true, port: 0, path, routeToMotion: false }; }
@@ -42,6 +42,27 @@ function discovery() {
     unpublishAll: (callback: () => void) => { unpublished = true; callback(); }, destroy: (callback: () => void) => { destroyed = true; callback(); } } as unknown as Bonjour;
   return { fake, published, browser, emit: (service: BonjourService): void => { up?.(service); }, state: () => ({ stopped, destroyed, unpublished }) };
 }
+
+test('OSC automatic source selection stays automatic while the hub reports its effective source separately', async () => {
+  const store = new OscParameterStore(), config = oscConfig(), services = new OscServices(config, store);
+  const first = { key: 'first', label: 'First', persistentId: null, address: '127.0.0.1', port: 9001 };
+  const second = { ...first, key: 'second', label: 'Second', port: 9002 };
+  try {
+    store.set('CI/Depth', .25, first, 'Float');
+    assert.equal(services.snapshot()['selectedSourceKey'], '');
+    assert.equal(store.preferredSourceKey, null);
+    assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['effectiveSourceKey'], first.key);
+    services.selectSource(first.key);
+    assert.equal(services.snapshot()['selectedSourceKey'], first.key);
+    assert.equal(store.preferredSourceKey, first.key);
+    services.selectSource(null);
+    assert.equal(services.snapshot()['selectedSourceKey'], '');
+    assert.equal(store.preferredSourceKey, null);
+    store.set('CI/Depth', .75, second, 'Float');
+    assert.equal(services.snapshot()['selectedSourceKey'], '');
+    assert.equal((services.snapshot()['hub'] as Record<string, unknown>)['effectiveSourceKey'], '');
+  } finally { await services.dispose(); }
+});
 
 test('HTTP protocol routes share one real port and choose the longest whole-segment path', async () => {
   const configs = [input('JsonHttp', 'root', '/device'), input('JsonHttp', 'nested', '/device/nested')], external = new ExternalControlStore(configs), changed: number[] = [];

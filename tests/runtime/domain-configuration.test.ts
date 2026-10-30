@@ -85,7 +85,7 @@ test('spatial input coordinates cannot be mixed or used as implicit gates',()=>{
   assert.throws(()=>normalizeConfiguration({signals:[{sourceMode:'SensaPoint',oscPath:'a'},{sourceMode:'SensaPose',oscPath:'b'}]}),/Spatial/);
   assert.throws(()=>normalizeConfiguration({signals:[{sourceMode:'SensaPoint',oscPath:'a',role:'GateEnable'}]}),/Spatial/);
 });
-for(const text of ['', 'abc','The quick brown fox jumps over the lazy dog','多宿主来源\0test'.repeat(100)])test('pure SHA256 provenance matches Node crypto '+text.slice(0,20),async()=>{
+for(const text of ['', 'abc','The quick brown fox jumps over the lazy dog','多宿主来源\0test'.repeat(100)])test('pure SHA256 provenance matches Node crypto '+JSON.stringify(text.slice(0,20)),async()=>{
   const {createHash}=await import('node:crypto');assert.equal(sha256(text),createHash('sha256').update(text).digest('hex').toUpperCase());
 });
 

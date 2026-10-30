@@ -81,7 +81,7 @@ export class BleBridgeAdapter extends SerializedAdapter {
     const magnitude = String(Math.min(999, roundAway(clamp(frame.values[axis]) * 1000))).padStart(3, '0');
     const duration = durationFor(frame); if (!scalar && duration > 65535) throw new RangeError('BLE arrival duration exceeds 65535 ms.');
     const line = scalar ? `V0${magnitude}\n` : `L0${magnitude}I${duration}\n`;
-    await this.#transport?.send(new TextEncoder().encode(line)); this.#last = line;
+    await this.#transport?.send(new TextEncoder().encode(line)); this.dependencies.telemetry?.recordTCode(line); this.#last = line;
   }
   protected async signalCore(_value: SignalOutputValue): Promise<void> { throw new Error('BLE output requires an axis frame.'); }
   protected async stopCore(): Promise<void> {

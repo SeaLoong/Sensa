@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createBrowserWorkbench } from '../../src/websensa/browser-runtime.ts';
 import { BrowserDevices, BrowserRecordingStore, createBrowserOutputFactory } from '../../src/websensa/browser-outputs.ts';
-import { createDefaultConfiguration, normalizeConfiguration } from '../../src/core/runtime/configuration.ts';
+import { createDefaultConfiguration } from '../../src/core/runtime/configuration.ts';
 import { defaultOutputDeviceConfig, defaultSignalOutputBinding } from '../../src/core/runtime/configuration-defaults.ts';
 import { RuntimeEngine } from '../../src/core/runtime/runtime.ts';
 import { ApplicationFacade } from '../../src/core/runtime/application.ts';
@@ -15,6 +15,25 @@ function clock() { let id = 0; const callbacks = new Map(); return { callbacks,
   setInterval(callback) { const next = ++id; callbacks.set(next, callback); return next; }, clearInterval(value) { callbacks.delete(value); } }; }
 function output(type, patch = {}) { return { ...defaultOutputDeviceConfig(), id: 'one', name: 'Output', type,
   enabled: true, websocketAddress: type === 'SensaHttp' || type === 'HttpJson' ? 'http://fixture.invalid/command' : 'ws://fixture.invalid/command', ...patch }; }
+
+test('browser TCode telemetry records the profile-mapped wire target and changes to stopped after DSTOP', async () => {
+  const rig = network(), config = createDefaultConfiguration(), target = output('TCodeWebSocket'); config.outputs = [target]; target.motionProfileId = config.axisProfiles[0].id;
+  const profile = config.axisProfiles[0].motion; profile.l0.remapMin = 400; profile.l0.remapMax = 600; profile.l0.commandMode = 'None';
+  let active = true; const coordinator = new OutputCoordinator(config, { now: () => 2000, canSend: () => active, createAdapter: createBrowserOutputFactory(new BrowserDevices(rig.dependencies)) });
+  await coordinator.connectEnabled(); await coordinator.sendFrame({ values: { ...neutralValues(), L0: 1 }, deltaMs: 100, activeAxes: ['L0'] }); await coordinator.flush();
+  assert.equal(rig.writes.at(-1).text, 'L0600\n'); assert.deepEqual(coordinator.snapshot()[0].telemetry.targets, [{ key: 'L0', label: 'L0', value: 600, maximum: 999 }]); assert.equal(coordinator.snapshot()[0].telemetry.lastSentAtUtc, '1970-01-01T00:00:02.000Z');
+  active = false; await coordinator.emergencyStop(); assert.equal(rig.writes.at(-1).text, 'DSTOP\n'); assert.equal(coordinator.snapshot()[0].telemetry.state, 'stopped'); assert.deepEqual(coordinator.snapshot()[0].telemetry.targets, []); assert.equal(coordinator.snapshot()[0].telemetry.lastSentAtUtc, null); await coordinator.close();
+});
+
+test('browser Intiface telemetry waits for the real feature ACK and removes targets when that device disappears', async () => {
+  const rig = intifaceRig([{ DeviceIndex: 0, DeviceName: 'Telemetry device', DeviceMessages: { LinearCmd: [{ FeatureDescriptor: 'position' }] } }]), config = createDefaultConfiguration(), target = output('Intiface'); config.outputs = [target];
+  const coordinator = new OutputCoordinator(config, { now: () => 3000, canSend: () => true, createAdapter: createBrowserOutputFactory(new BrowserDevices(rig.dependencies)) }); await coordinator.connectEnabled();
+  const socket = rig.sockets[0], original = socket.send.bind(socket); let acknowledge, began; const started = new Promise(resolve => { began = resolve; });
+  socket.send = text => { const [name, body] = Object.entries(JSON.parse(text)[0])[0]; if (name === 'LinearCmd') { rig.commands.push({ name, body }); acknowledge = () => socket.receive([{ Ok: { Id: body.Id } }]); began(); } else original(text); };
+  await coordinator.sendFrame({ values: { ...neutralValues(), L0: .75 }, deltaMs: 100, activeAxes: ['L0'] }); await started;
+  assert.deepEqual(coordinator.snapshot()[0].telemetry.targets, []); assert.equal(coordinator.snapshot()[0].telemetry.state, 'idle'); acknowledge(); await coordinator.flush(); assert.equal(coordinator.snapshot()[0].telemetry.targets[0].value, 25); assert.equal(coordinator.snapshot()[0].telemetry.lastSentAtUtc, '1970-01-01T00:00:03.000Z');
+  socket.receive([{ DeviceRemoved: { Id: 0, DeviceIndex: 0 } }]); await new Promise(resolve => setImmediate(resolve)); assert.deepEqual(coordinator.snapshot()[0].telemetry.targets, []); assert.equal(coordinator.snapshot()[0].telemetry.state, 'idle'); await coordinator.close();
+});
 function network() {
   const writes = [], sockets = [], requests = [];
   class Socket extends EventTarget {

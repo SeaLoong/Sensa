@@ -122,6 +122,9 @@ export class VendorAdapter extends SerializedAdapter {
     } else if (this.config.type === 'Autoblow') { this.#mode = 2; await this.request('PUT', 'autoblow/goto', { position: Math.round(position * 1000000) / 10000, speed: options.speed }); }
     else if (this.config.type === 'VacuGlide') { this.#mode = 2; await this.request('PUT', 'vacuglide/target-speed', { targetSpeed: Math.round(position * 1000000) / 10000 }); }
     else await this.request('POST', 'command', { command: 'Function', action: `${options.function}:${roundAway(position * (options.function === 'Pump' ? 3 : 20))}`, timeSec: 0, toy: options.deviceId, apiVer: 1, stopPrevious: 1 });
+    const maximum = this.config.type === 'Lovense' ? options.function === 'Pump' ? 3 : 20 : 100;
+    const value = this.config.type === 'Lovense' ? roundAway(position * maximum) : Math.round(position * 1000000) / 10000;
+    this.dependencies.telemetry?.recordTarget(axis, this.config.type === 'VacuGlide' ? 'Speed' : this.config.type === 'Lovense' ? options.function : 'Position', value, maximum);
     this.#lastPosition = position; this.#lastAt = this.now();
   }
   protected async signalCore(_value: SignalOutputValue): Promise<void> { throw new Error('Vendor devices require an axis frame.'); }

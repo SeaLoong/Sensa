@@ -1,4 +1,5 @@
 import type { AppConfig, OutputDeviceConfig, RuntimeMotionFrame, ComputedSignalInputConfig, ComputedSignalSample } from '../runtime/model.ts';
+import type { OutputTelemetry } from './telemetry.ts';
 
 export type { AppConfig, OutputDeviceConfig, RuntimeMotionFrame };
 export type SignalValueType = 'Float' | 'Int' | 'Bool';
@@ -78,6 +79,7 @@ export interface BridgeProcess {
   stop(): Promise<void>;
 }
 export interface OutputDependencies {
+  telemetry?: OutputTelemetry;
   now?: () => number;
   canSend?: () => boolean;
   log?: (message: string) => void;

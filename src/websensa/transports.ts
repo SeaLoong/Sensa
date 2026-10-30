@@ -3,6 +3,7 @@ import type { Axis, Awaitable, NamedOutputTransport, SignalFrame } from '../core
 import type { IntifaceFeatureRoute, MotionAxis } from '../core/runtime/model.ts';
 import { isMotionAxis, neutralValues } from '../core/runtime/model.ts';
 import { resolveFeatureRoute, resolveFeatureRouteValue } from '../core/outputs/intiface-routing.ts';
+import type { OutputTarget } from '../core/outputs/telemetry.ts';
 import { BLUETOOTH_PROFILES, createBluetoothTransport } from './device-codecs.ts';
 import type { BluetoothAccess } from './device-codecs.ts';
 
@@ -61,6 +62,7 @@ export interface HttpReply {
 interface SocketEntry { readonly kind: 'socket'; socket: SocketPort; refs: number; ready: Promise<void> }
 interface IntifaceEntry { readonly kind: 'intiface'; peer: IntifacePeer; refs: number; ready: Promise<void> }
 export interface TransportDependencies {
+  onTargets?: (targets: readonly OutputTarget[]) => void;
   WebSocket?: new (url: string) => SocketPort;
   pool?: Map<string, SocketEntry | IntifaceEntry>;
   timeoutMs?: number;
@@ -393,6 +395,7 @@ export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' |
       if (closed) throw new Error('The output is disconnected.');
       const abort = new AbortController(); sending = abort;
       const commands = new Map<IntifaceCommand, CommandBody>();
+      const acceptedTargets = new Map<IntifaceCommand, OutputTarget[]>();
       const activeAxes: MotionAxis[] = [];
       for (const [frameAxis, value] of Object.entries(frame.values)) {
         if (!isMotionAxis(frameAxis) || value === undefined) continue;
@@ -410,10 +413,14 @@ export async function createIntifaceTransport(config: Pick<OutputConfig, 'url' |
         if (mapping.command === 'LinearCmd') (body.Vectors ||= []).push({ Index: mapping.index, Position: value, Duration: frame.durationMs || 0 });
         else if (mapping.command === 'ScalarCmd') (body.Scalars ||= []).push({ Index: mapping.index, Scalar: value, ...(mapping.actuator === undefined ? {} : { ActuatorType: mapping.actuator }) });
         else (body.Rotations ||= []).push({ Index: mapping.index, Speed: value, Clockwise: resolved.clockwise });
+        const targets = acceptedTargets.get(mapping.command) ?? [];
+        targets.push({ key: `#${feature.deviceIndex}/Feature${mapping.index}/${mapping.command === 'LinearCmd' ? 'HwPositionWithDuration' : mapping.command === 'RotateCmd' ? 'Rotate' : mapping.actuator ?? 'Vibrate'}`, label: mapping.name, value: value * 100, maximum: 100 });
+        acceptedTargets.set(mapping.command, targets);
       }
       try { for (const [command, body] of commands) {
         const result = await lease.peer.request(command, body, abort.signal);
         if (result.type !== 'Ok') throw new Error('Buttplug did not acknowledge the command.');
+        dependencies?.onTargets?.(acceptedTargets.get(command) ?? []);
       } } finally { if (sending === abort) sending = undefined; }
     },
     async stop() { if (!closed && lease.peer.socket.readyState === 1) await lease.peer.request('StopDeviceCmd', { DeviceIndex: feature.deviceIndex }); },
