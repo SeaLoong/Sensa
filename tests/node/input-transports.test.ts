@@ -64,6 +64,29 @@ test('OSC automatic source selection stays automatic while the hub reports its e
   } finally { await services.dispose(); }
 });
 
+test('clearing a persisted OSC source remains cleared when that persistent identity publishes again', async () => {
+  const store = new OscParameterStore(), config = oscConfig(); config.enabled = false; config.preferredSourcePersistentId = 'oscquery:name:Saved';
+  const source = { key: 'saved-endpoint', label: 'Saved', persistentId: config.preferredSourcePersistentId, address: '127.0.0.1', port: 9001 };
+  const services = await createOscServices(config, store);
+  try {
+    store.set('Depth', .25, source); assert.equal(store.preferredSourceKey, source.key);
+    config.preferredSourcePersistentId = ''; services.selectSource(null);
+    store.set('Depth', .5, source);
+    assert.equal(store.preferredSourceKey, null); assert.equal(services.snapshot()['selectedSourceKey'], '');
+    assert.equal(services.snapshot()['preferredSourcePersistentId'], '');
+  } finally { await services.dispose(); }
+});
+test('an explicit OSC selection replaces the old persistent identity instead of being overridden by it', async () => {
+  const store = new OscParameterStore(), config = oscConfig(); config.enabled = false; config.preferredSourcePersistentId = 'oscquery:name:Old';
+  const old = { key: 'old', label: 'Old', persistentId: config.preferredSourcePersistentId, address: '127.0.0.1', port: 9001 };
+  const selected = { ...old, key: 'selected', label: 'Selected', persistentId: 'oscquery:name:Selected', port: 9002 };
+  const services = await createOscServices(config, store);
+  try {
+    store.set('Depth', .2, old); store.set('Depth', .8, selected); services.selectSource(selected.key);
+    store.set('Depth', .3, old);
+    assert.equal(store.preferredSourceKey, selected.key); assert.equal(services.snapshot()['preferredSourcePersistentId'], selected.persistentId);
+  } finally { await services.dispose(); }
+});
 test('HTTP protocol routes share one real port and choose the longest whole-segment path', async () => {
   const configs = [input('JsonHttp', 'root', '/device'), input('JsonHttp', 'nested', '/device/nested')], external = new ExternalControlStore(configs), changed: number[] = [];
   const coordinator = await createInputCoordinator(configs, { external, osc: new OscParameterStore(), onPortChanged: (_ids, actualPort) => changed.push(actualPort) });

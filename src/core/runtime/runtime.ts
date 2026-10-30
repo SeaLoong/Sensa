@@ -29,7 +29,7 @@ export class RuntimeEngine {
   private scriptAxis:MotionAxis='L0';
   private processors:SignalChannelProcessor[]=[];private evaluator:ComputedSignalEvaluator;private previewEvaluator:ComputedSignalEvaluator;private computed:Record<string,ComputedSignalSample>={};private computedAt=-1;private previewAt=-1;
   private gateClosed=false;private poseBlocked=false;private computedBlocked=false;private computedReason='';private spatialReason='';private activePoseKey:string|null=null;
-  private rollKey:string|null=null;private continuousRoll=new ContinuousAngle();private estimators=new Map<string,SpsDepthEstimator>();private sourceKey:string|null=null;
+  private rollKey:string|null=null;private continuousRoll=new ContinuousAngle();private estimators=new Map<string,SpsDepthEstimator>();private observedSourceKey:string|null=null;
   private oscDirty=true;private geometryDueAt=0;private geometryPending=false;private resolverAt=-1;private resolverRevision=-1;private oscResolver:ComputedSignalResolver|null=null;
   private latestPoints:TrackingObservation[]=[];private latestPoses:PoseObservation[]=[];
   private trackingRevision=-1;private trackingSource:string|null=null;private trackingAt=-Infinity;
@@ -81,11 +81,11 @@ export class RuntimeEngine {
   }
   clearManual():void{this.setManual(null);}
   private queueManual():void{const axes=this.manual.activeAxes;const patch=axes?Object.fromEntries(axes.map(axis=>[axis,this.manual.values[axis]])):this.manual.values;this.queueFrame(patch,'manual',this.manual.requestedCommandMode,this.manual.requestedMotionValue,axes?[...axes]:undefined);}
-  setOscSource(source:string|null):void {if(source===this.sourceKey)return;this.setInputActive(false);this.sourceKey=source;this.oscStore.preferredSourceKey=source;this.estimators.clear();this.activePoseKey=null;this.resetSignalProcessing();this.oscDirty=true;this.changed();}
+  setOscSource(source:string|null):void {if(source===this.oscStore.preferredSourceKey)return;this.setInputActive(false);this.oscStore.preferredSourceKey=source;this.synchronizeOscSource();this.changed();}
   resetSignalProcessing():void {this.evaluator.reset();this.previewEvaluator.reset();this.computed={};this.computedAt=this.previewAt=-1;this.resolverAt=-1;this.computedReason='';}
-  getComputedSignals():Record<string,ComputedSignalSample>{const now=this.now();if(this.active&&this.computedAt===now)return this.computed;if(this.active){this.computed=this.evaluator.evaluate(now,input=>this.resolveLeaf(input,now));this.computedAt=now;return this.computed;}
+  getComputedSignals():Record<string,ComputedSignalSample>{this.synchronizeOscSource();const now=this.now();if(this.active&&this.computedAt===now)return this.computed;if(this.active){this.computed=this.evaluator.evaluate(now,input=>this.resolveLeaf(input,now));this.computedAt=now;return this.computed;}
     if(this.previewAt!==now){this.computed=this.previewEvaluator.evaluate(now,input=>this.resolveLeaf(input,now));this.previewAt=now;}return this.computed;}
-  resolveSignalInput(input:ComputedSignalInputConfig,now=this.now()):ComputedSignalSample {if(input.sourceMode==='Computed'){if(this.computedAt!==now){this.computed=this.evaluator.evaluate(now,item=>this.resolveLeaf(item,now));this.computedAt=now;}return this.computed[input.oscPath]??invalidSample('Choose an existing computation.');}return this.resolveLeaf(input,now);}
+  resolveSignalInput(input:ComputedSignalInputConfig,now=this.now()):ComputedSignalSample {this.synchronizeOscSource();if(input.sourceMode==='Computed'){if(this.computedAt!==now){this.computed=this.evaluator.evaluate(now,item=>this.resolveLeaf(item,now));this.computedAt=now;}return this.computed[input.oscPath]??invalidSample('Choose an existing computation.');}return this.resolveLeaf(input,now);}
   private resolveLeaf(input:ComputedSignalInputConfig,now:number):ComputedSignalSample {
     switch(input.sourceMode) {
       case 'Constant':return sample(input.value,now);
@@ -114,21 +114,25 @@ export class RuntimeEngine {
   getRecordingSnapshot():ReturnType<RuntimeMotionRecorder['snapshot']>{return this.recorder.snapshot();}
   exportRecording():ReturnType<RuntimeMotionRecorder['export']>{return this.recorder.export();}
   getSnapshot():Record<string,unknown> {
-    this.refreshTracking(this.now());
+    this.synchronizeOscSource();this.refreshTracking(this.now());
     return {inputMode:this.inputMode,inputActive:this.active,isEmergency:this.emergency,emergencyStopped:this.emergency,canSend:this.canSend(),canRouteSignals:this.canRoute(),gateClosed:this.gateClosed,poseBlocked:this.poseBlocked,
       computedInputBlocked:this.inputMode==='Osc'&&this.computedBlocked,computedInputBlockedReason:this.inputMode==='Osc'?this.computedReason:'',spatialInputBlockedReason:this.inputMode==='Osc'?this.spatialReason:'',spatialInputStatus:this.spatialReason,spatialSampleMaxAgeMs:this.spatialAge(),manualOverrideEnabled:this.manualEnabled,
       command:frameForApi(this.current),manualCommand:frameForApi(this.manual),currentFrame:structuredClone(this.current),manualFrame:structuredClone(this.manual),script:this.getScriptSnapshot(),
       poseTracking:{observations:this.latestPoses,activeKey:this.activePoseKey??'',spsRoots:this.latestPoints},computedSignals:this.computed};
   }
   tick(now=this.now()):void {
-    if(this.disposed)return;this.script.tick();this.externalControls.expire();
+    if(this.disposed)return;this.synchronizeOscSource();this.script.tick();this.externalControls.expire();
     if(this.active&&this.inputMode==='Osc'&&(this.oscDirty&&now>=this.geometryDueAt||this.config.computedSignals.some(item=>isTemporal(item.operation))||this.config.signals.some(item=>item.sourceMode==='Computed')))this.refreshOsc();
     if(now-this.lastWatchdogAt>=500){this.lastWatchdogAt=now;this.checkTimeout(now);}
   }
   private canRoute():boolean{return !this.disposed&&!this.emergency&&this.active&&this.activationBlocks===0;}
   private canSend():boolean{return this.canRoute()&&!this.gateClosed&&!this.poseBlocked&&!(this.inputMode==='Osc'&&this.computedBlocked)&&!(this.inputMode==='Script'&&this.scriptStopped);}
   private spatialAge():number{return this.config.osc.inputTimeoutMs>0?this.config.osc.inputTimeoutMs:poseProtocol.maximumSampleAgeMs;}
-  private preferredSource():string|null{return this.sourceKey??this.oscStore.preferredSourceKey;}
+  private preferredSource():string|null{return this.oscStore.preferredSourceKey;}
+  private synchronizeOscSource():void {
+    const source=this.preferredSource();if(source===this.observedSourceKey)return;
+    this.observedSourceKey=source;this.estimators.clear();this.activePoseKey=null;this.resetSignalProcessing();this.oscDirty=true;
+  }
   private refreshTracking(now:number):void {
     const source=this.preferredSource();
     if(this.trackingRevision===this.oscStore.revision&&this.trackingSource===source&&now>=this.trackingAt&&now-this.trackingAt<100)return;
@@ -137,7 +141,7 @@ export class RuntimeEngine {
   }
   private usesGeometry():boolean{return this.config.signals.some(item=>['SensaPoint','SensaPose'].includes(item.sourceMode))||this.config.computedSignals.some(item=>item.inputs.some(input=>['SensaPoint','SensaPose'].includes(input.sourceMode)));}
   private refreshOsc():void {
-    if(!this.canRoute()||this.inputMode!=='Osc')return;this.oscDirty=false;this.geometryPending=false;const now=this.now(),source=this.preferredSource(),entries=this.oscStore.snapshotEntries();
+    this.synchronizeOscSource();if(!this.canRoute()||this.inputMode!=='Osc')return;this.oscDirty=false;this.geometryPending=false;const now=this.now(),source=this.preferredSource(),entries=this.oscStore.snapshotEntries();
     const pointMappings=this.processors.filter(item=>item.mapping.sourceMode==='SensaPoint'),poseMappings=this.processors.filter(item=>item.mapping.sourceMode==='SensaPose');
     const spatialRoles=new Set([...pointMappings,...poseMappings].map(item=>item.mapping.role));const shadows=(mapping:SignalMapping):boolean=>spatialRoles.has(mapping.role)||mapping.role==='DepthOverride'&&spatialRoles.has('Depth');
     const computedMappings=this.processors.filter(item=>item.mapping.sourceMode==='Computed'&&!shadows(item.mapping));const computed=this.getComputedSignals();

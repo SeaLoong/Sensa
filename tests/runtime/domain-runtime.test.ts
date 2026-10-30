@@ -84,6 +84,34 @@ test('same scalar path in two OSC sources is ambiguous for computed values, not 
   const r=rig();r.store.set('Value',.2,SOURCE);r.store.set('Value',.9,{...SOURCE,key:'other'});const input={...defaultComputedSignalInputConfig(),oscPath:'Value'};
   assert.equal(r.runtime.resolveSignalInput(input).valid,false);r.runtime.setOscSource('source');assert.equal(r.runtime.resolveSignalInput(input).value,.2);
 });
+test('OSC source reads follow the authoritative store when a persistent source reconnects on a new endpoint',()=>{
+  const r=rig(), old={...SOURCE,key:'old-endpoint',persistentId:'oscquery:name:Saved'}, current={...old,key:'new-endpoint',port:9002};
+  const input={...defaultComputedSignalInputConfig(),oscPath:'Depth'};
+  r.store.set('Depth',.2,old);r.runtime.setOscSource(old.key);assert.equal(r.runtime.resolveSignalInput(input).value,.2);
+  r.store.set('Depth',.8,current);r.store.preferredSourceKey=current.key;
+  assert.equal(r.runtime.resolveSignalInput(input).value,.8);
+  r.runtime.setOscSource(null);assert.equal(r.store.preferredSourceKey,null);assert.equal(r.runtime.resolveSignalInput(input).valid,false);
+  r.runtime.dispose();
+});
+for(const removal of ['clearSource','clear','changeAvatar'] as const)test('OSC '+removal+' retains an explicit source intent instead of falling back to another producer',()=>{
+  const r=rig(),input={...defaultComputedSignalInputConfig(),oscPath:'Depth'};
+  try {
+    r.store.set('Depth',.2,SOURCE);r.runtime.setOscSource(SOURCE.key);
+    if(removal==='clearSource')r.store.clearSource(SOURCE.key);else if(removal==='changeAvatar')r.store.changeAvatar(SOURCE.key);else r.store.clear();
+    r.store.set('Depth',.9,{...SOURCE,key:'other'});
+    assert.equal(r.store.preferredSourceKey,SOURCE.key);assert.equal(r.runtime.resolveSignalInput(input).valid,false);
+  } finally {r.runtime.dispose();}
+});
+test('OSC selection invalidates computed and leaf caches even within the same clock tick',()=>{
+  const r=rig({computedSignals:[{...defaultComputedSignalConfig(),id:'A',operation:'Average',inputs:[{...defaultComputedSignalInputConfig(),oscPath:'Depth'}]}]});
+  const direct={...defaultComputedSignalInputConfig(),oscPath:'Depth'},computed={...direct,sourceMode:'Computed' as const,oscPath:'A'};
+  try {
+    r.store.set('Depth',.2,SOURCE);r.store.set('Depth',.8,{...SOURCE,key:'other'});r.runtime.setOscSource(SOURCE.key);
+    assert.equal(r.runtime.resolveSignalInput(direct).value,.2);assert.equal(r.runtime.resolveSignalInput(computed).value,.2);assert.equal(r.runtime.getComputedSignals()['A']?.value,.2);
+    r.store.preferredSourceKey='other';
+    assert.equal(r.runtime.resolveSignalInput(direct).value,.8);assert.equal(r.runtime.resolveSignalInput(computed).value,.8);assert.equal(r.runtime.getComputedSignals()['A']?.value,.8);
+  } finally {r.runtime.dispose();}
+});
 test('scalar timeout is based on mapped input, not unrelated OSC traffic',async()=>{
   const r=rig({osc:{inputTimeoutMs:100},signals:[mapping()]});r.runtime.setInputMode('Osc');r.store.set('Value',.5,SOURCE);r.runtime.setInputActive(true);await r.runtime.flush();
   r.setTime(1600);r.store.set('Unrelated',1,SOURCE);r.runtime.tick();await r.runtime.flush();assert.equal(r.runtime.getSnapshot()['isEmergency'],true);

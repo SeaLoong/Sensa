@@ -56,6 +56,37 @@ export function defaultConfigurationPath(): string {
   return resolvePath(process.env['SENSA_CONFIG_PATH'] ?? join(isSea() ? dirname(process.execPath) : process.cwd(), 'config.json'));
 }
 
+export interface OscSourceSelectionPorts {
+  runtime: Pick<RuntimeEngine, 'getConfig' | 'blockInputActivation' | 'setOscSource'>;
+  oscStore: OscParameterStore;
+  osc: Pick<OscServices, 'selectSource'> | undefined;
+  save(): Promise<void>;
+}
+/** The host serializes this transaction; failed persistence restores selection intent without rearming input. */
+export async function updateOscSourceSelection(key: string | null, ports: OscSourceSelectionPorts): Promise<{
+  ok: true; sourceKey: string | null; persisted: boolean; selectedSourceKey: string; preferredSourcePersistentId: string;
+}> {
+  key = key?.trim() || null;
+  const { runtime, oscStore, osc, save } = ports, config = runtime.getConfig();
+  const current = oscStore.preferredSourceKey, previousPersistentId = config.osc.preferredSourcePersistentId;
+  const persistentId = key === 'unavailable:' + previousPersistentId ? previousPersistentId
+    : oscStore.snapshotSources().find(source => source.key === key)?.persistentId ?? '';
+  if (current !== key || previousPersistentId !== persistentId) {
+    const release = runtime.blockInputActivation();
+    try {
+      config.osc.preferredSourcePersistentId = persistentId;
+      runtime.setOscSource(key); osc?.selectSource(key, persistentId);
+      await save();
+    } catch (error) {
+      config.osc.preferredSourcePersistentId = previousPersistentId;
+      runtime.setOscSource(current); osc?.selectSource(current, previousPersistentId);
+      throw error;
+    } finally { release(); }
+  }
+  return { ok: true, sourceKey: key, persisted: !!config.osc.preferredSourcePersistentId,
+    selectedSourceKey: key ?? '', preferredSourcePersistentId: config.osc.preferredSourcePersistentId };
+}
+
 /** One authoritative local engine, reused by headless Node and Electron shells. */
 export async function startSensa(options: StartSensaOptions = {}): Promise<SensaHostHandle> {
   const launch = parseLaunchOptions(options.args ?? [], options.configPath ?? defaultConfigurationPath());
@@ -190,26 +221,9 @@ export async function startSensa(options: StartSensaOptions = {}): Promise<Sensa
         return (input?.snapshot() ?? []).map(row => ({ ...row, ...(status.get(row.id) ?? {}) }));
       }, connectionCount: () => management?.connectionCount ?? 0,
       inputChange: mutate,
-      selectOscSource: key => mutate(async () => {
-        key = key?.trim() || null;
-        const current = oscStore.preferredSourceKey;
-        if (current !== key) {
-          const release = runtime!.blockInputActivation();
-          const previousPersistentId = config.osc.preferredSourcePersistentId;
-          try {
-            runtime!.setOscSource(key); osc?.selectSource(key); oscStore.preferredSourceKey = key;
-            const selected = oscStore.snapshotSources().find(source => source.key === key);
-            config.osc.preferredSourcePersistentId = selected?.persistentId ?? '';
-            await store.save(configurationForPersistence(runtime!.getConfig()));
-          } catch (error) {
-            runtime!.setOscSource(current); osc?.selectSource(current); oscStore.preferredSourceKey = current;
-            config.osc.preferredSourcePersistentId = previousPersistentId;
-            throw error;
-          } finally { release(); }
-        }
-        return { ok: true, sourceKey: key, persisted: !!config.osc.preferredSourcePersistentId,
-          selectedSourceKey: key ?? '', preferredSourcePersistentId: config.osc.preferredSourcePersistentId };
-      }), refreshOscQuery: async () => ({ ok: true, query: config.osc.oscQueryEnabled ? await osc!.refreshQuery() : osc!.snapshot()['query'] }), syncOsc,
+      selectOscSource: key => mutate(() => updateOscSourceSelection(key, { runtime: runtime!, oscStore, osc,
+        save: async () => await store.save(configurationForPersistence(runtime!.getConfig())),
+      })), refreshOscQuery: async () => ({ ok: true, query: config.osc.oscQueryEnabled ? await osc!.refreshQuery() : osc!.snapshot()['query'] }), syncOsc,
       listSerialPorts: async () => {
         try { return await outputs!.listSerialPorts(); }
         catch (error) { log(`[Meta] Serial discovery unavailable: ${error instanceof Error ? error.message : 'Unknown error.'}`, 'Warning'); return []; }

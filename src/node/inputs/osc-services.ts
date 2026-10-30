@@ -89,15 +89,16 @@ export class OscServices {
   #query = emptyQuery(); #querySocket: WebSocket | null = null; #querySubscriptions = new Set<string>(); #queryEpoch = 0; #refresh: Promise<QuerySnapshot> | null = null; #abort: AbortController | null = null;
   #receiverError: string | null = null; #queryReceiverStarted: number | null = null; #queryPort = 0; #receiverPort = 0;
   #lastReceiver: number | null = null; #lastAvatar: number | null = null; #lastRaw: number | null = null; #lastSource: OscSource | null = null; #eventCount = 0;
-  #previews: Preview[] = []; #selectedSource: string | null = null; #pollTimer: ReturnType<typeof setTimeout> | null = null; #hubTimer: ReturnType<typeof setInterval> | null = null; #ogbTimer: ReturnType<typeof setInterval> | null = null;
+  #previews: Preview[] = []; #pollTimer: ReturnType<typeof setTimeout> | null = null; #hubTimer: ReturnType<typeof setInterval> | null = null; #ogbTimer: ReturnType<typeof setInterval> | null = null;
   #senders = new Map<string, DatagramSocket>(); #forwarded = 0; #dropped = 0; #lastForwarded: string | null = null; #lastDropped: string | null = null; #lastDropReason = ''; #pending = new Map<string, { packet: Uint8Array; source: OscSource }>(); #pendingAvatar: OscSource | null = null;
   #ogbTarget: { host: string; port: number } | null = null; #ogbError = ''; #ogbSentAt: string | null = null; #ogbSentValue: boolean | null = null;
   #polling = { running: false, startedAtUtc: null as string | null, lastPolledAtUtc: null as string | null, lastAppliedValueCount: 0, error: '' };
   #disposed = false; #stopping = false; #generation = 0; #set = (path: string, value: OscValue, source: OscSource): void => this.#onValue(path, value, source);
-  constructor(config: OscServicesConfig, store: OscParameterStore, options: OscServicesOptions = {}) { this.#config = config; this.store = store; this.options = options; this.now = options.now ?? Date.now; store.onSet.add(this.#set); }
+  constructor(config: OscServicesConfig, store: OscParameterStore, options: OscServicesOptions = {}) { this.#config = structuredClone(config); this.store = store; this.options = options; this.now = options.now ?? Date.now; this.#restorePersistentSource(); store.onSet.add(this.#set); }
   async reconfigure(config: OscServicesConfig, active = this.#active): Promise<void> {
     const host = ipHost(config.receiverHost); if (!validPort(config.receiverPort) || !validPort(config.oscQueryReceiver.httpPort)) throw new Error('Invalid OSC listener port.');
-    await this.#stop(); this.#config = structuredClone({ ...config, receiverHost: host }); this.#active = active; this.#stopping = false; this.#generation++;
+    const previousPersistentId = this.#config.preferredSourcePersistentId;
+    await this.#stop(); this.#config = structuredClone({ ...config, receiverHost: host }); this.#restorePersistentSource(previousPersistentId); this.#active = active; this.#stopping = false; this.#generation++;
     try {
       if (config.enabled && active) await this.#startReceiver();
       if (config.oscQueryEnabled && active) { this.#startDiscovery(); void this.refreshQuery(); if (config.oscQueryPolling.enabled) this.#schedulePoll(0); }
@@ -137,12 +138,12 @@ export class OscServices {
     this.#previews.length = Math.min(64, this.#previews.length);
   }
   #onValue(path: string, value: OscValue, source: OscSource): void {
-    if (this.#config.preferredSourcePersistentId && source.persistentId === this.#config.preferredSourcePersistentId) { this.#selectedSource = source.key; this.store.preferredSourceKey = source.key; }
+    if (this.#config.preferredSourcePersistentId && source.persistentId?.toLowerCase() === this.#config.preferredSourcePersistentId.toLowerCase()) { this.store.preferredSourceKey = source.key; }
     const row = this.store.tryGetLatest(path, source.key); this.#forward(encodeOscMessage(`/avatar/parameters/${path}`, value, row?.entry.valueType), source, path);
     this.options.onChanged?.();
   }
   #hubSourceAllowed(source: OscSource): boolean {
-    const sources = this.store.snapshotSources(); const key = this.#selectedSource ?? (sources.length === 1 ? sources[0]?.key : null);
+    const sources = this.store.snapshotSources(); const key = this.store.preferredSourceKey ?? (sources.length === 1 ? sources[0]?.key : null);
     return !!key && key === source.key;
   }
   #forward(packet: Uint8Array, source: OscSource, path?: string): void {
@@ -173,7 +174,7 @@ export class OscServices {
   }
   #flushHub(): void {
     const avatar = this.#pendingAvatar; this.#pendingAvatar = null;
-    if (avatar && (this.#hubSourceAllowed(avatar) || !this.#selectedSource && this.store.sourceCount === 0)) this.#sendForward(encodeAvatarChange());
+    if (avatar && (this.#hubSourceAllowed(avatar) || !this.store.preferredSourceKey && this.store.sourceCount === 0)) this.#sendForward(encodeAvatarChange());
     const packets = [...this.#pending.values()]; this.#pending.clear();
     for (const row of packets) if (this.#hubSourceAllowed(row.source)) this.#sendForward(row.packet);
   }
@@ -292,9 +293,27 @@ export class OscServices {
       void this.refreshQuery().finally(() => { if (this.#config.oscQueryPolling.enabled || this.#query.supportsListen && !this.#querySocket) this.#schedulePoll(1000 / Math.max(1, Math.min(30, this.#config.oscQueryPolling.rateHz))); else this.#polling.running = false; });
     }, delay); this.#pollTimer.unref();
   }
-  selectSource(key: string | null): void { this.#selectedSource = key || null; this.store.preferredSourceKey = this.#selectedSource; this.#pending.clear(); this.#pendingAvatar = null; this.options.onChanged?.(); }
+  #persistentSourceKey(persistentId: string): string {
+    const sources = this.store.snapshotSources(), matches = (source: OscSource): boolean => source.persistentId?.toLowerCase() === persistentId.toLowerCase();
+    return sources.find(source => source.key === this.store.preferredSourceKey && matches(source))?.key
+      ?? sources.find(matches)?.key ?? 'unavailable:' + persistentId;
+  }
+  #restorePersistentSource(previousPersistentId = ''): void {
+    const persistentId = this.#config.preferredSourcePersistentId;
+    if (persistentId) this.store.preferredSourceKey = this.#persistentSourceKey(persistentId);
+    else if (previousPersistentId) this.store.preferredSourceKey = null;
+  }
+  selectSource(key: string | null, persistentId?: string): void {
+    key = key?.trim() || null;
+    const previousPersistentId = this.#config.preferredSourcePersistentId;
+    const selectedPersistentId = key === 'unavailable:' + previousPersistentId ? previousPersistentId
+      : this.store.snapshotSources().find(source => source.key === key)?.persistentId ?? '';
+    this.#config.preferredSourcePersistentId = (persistentId ?? selectedPersistentId).trim();
+    this.store.preferredSourceKey = key ?? (this.#config.preferredSourcePersistentId ? this.#persistentSourceKey(this.#config.preferredSourcePersistentId) : null);
+    this.#pending.clear(); this.#pendingAvatar = null; this.options.onChanged?.();
+  }
   snapshot(): Record<string, unknown> {
-    const config = this.#config, sources = this.store.snapshotSources(), effective = this.#selectedSource ?? (sources.length === 1 ? sources[0]?.key ?? null : null), selected = sources.find(source => source.key === effective);
+    const config = this.#config, sources = this.store.snapshotSources(), effective = this.store.preferredSourceKey ?? (sources.length === 1 ? sources[0]?.key ?? null : null), selected = sources.find(source => source.key === effective);
     const blocked = config.hub.enabled && sources.length > 1 && !effective;
     const preview = this.store.snapshotEntries().sort((a, b) => a.path < b.path ? -1 : a.path > b.path ? 1 : 0).map(row => ({ path: row.path, type: row.entry.valueType.toLowerCase(), value: formatOscPreviewValue(row.entry.value, row.entry.valueType),
       numericValue: typeof row.entry.value === 'boolean' ? row.entry.value ? 1 : 0 : row.entry.value, classification: classifyOscPath(row.path),
@@ -302,7 +321,7 @@ export class OscServices {
       sourcePersistentId: row.entry.source.persistentId, sourceAddress: row.entry.source.address, sourcePort: row.entry.source.port }));
     const source = this.#lastSource;
     return { enabled: config.enabled, receiverHost: config.receiverHost, receiverPort: this.#receiverPort || config.receiverPort, listening: this.#receiver !== null,
-      listenerError: this.#receiverError, preview, sources: sources.map(knownSource => ({ ...knownSource, canPersistSelection: !!knownSource.persistentId })), selectedSourceKey: this.#selectedSource ?? '', preferredSourcePersistentId: config.preferredSourcePersistentId,
+      listenerError: this.#receiverError, preview, sources: sources.map(knownSource => ({ ...knownSource, canPersistSelection: !!knownSource.persistentId })), selectedSourceKey: this.store.preferredSourceKey ?? '', preferredSourcePersistentId: config.preferredSourcePersistentId,
       query: { enabled: config.oscQueryEnabled, ...this.#query, listenConnected: this.#querySocket?.readyState === WebSocket.OPEN, listeningPathCount: this.#querySubscriptions.size,
         streamSourceLabel: this.#query.name, streamSourcePersistentId: this.#query.url ? this.#querySource().persistentId : null,
         polling: { enabled: config.oscQueryPolling.enabled, ...this.#polling, rateHz: Math.max(1, Math.min(30, config.oscQueryPolling.rateHz)) }, discovered: [...this.#discovered.values()] },
