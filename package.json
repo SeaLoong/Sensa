@@ -63,7 +63,7 @@
     "qrcode-generator": "2.0.4",
     "react": "19.3.1",
     "react-dom": "19.3.1",
-    "three": "0.186.1",
+    "three": "0.187.0",
     "ws": "8.22.0"
   },
   "engines": {
