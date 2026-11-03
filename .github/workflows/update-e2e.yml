@@ -97,7 +97,7 @@ jobs:
       # crosses to the fresh candidate job; it never receives a write token.
       - name: Propose test changes
         id: codex
-        uses: openai/codex-action@c05cfd74ad95c626cdf05c6685e62becc3bf7813
+        uses: openai/codex-action@13e9c17417b29e9a276f73ec6ed7fb574137d3c3
         with:
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           codex-version: '0.163.0'
