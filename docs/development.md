@@ -81,6 +81,8 @@ Ubuntu 24.04 限制用户命名空间时，Linux Desktop 包内的 `sensa-linux-
 
 ## 扫描与工作流依赖维护
 
+构建工具的传递依赖通过 `overrides` 固定 `glob 14.0.3` 与 `minimatch 11.0.4`，修复 [GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4) 和 [GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249)。上游调用方仍声明旧主版本范围；升级已验证 ESLint 配置、ASAR 文件打包与取消行为。上游约束包含修复版本后再移除对应覆盖，继续核对完整依赖审计与原生构建。
+
 Dependabot 每周检查根目录 npm、`scripts` 与 `tools/protocol-bridge` 下的 pip 清单及 GitHub Actions，保留 React 安全更新分组。`@types/node` 与 Node 24 运行基线保持同一主版本，仅忽略它的自动主版本升级建议；补丁、次版本和安全更新继续检查。升级运行时主版本时同步调整类型定义与此规则。应用迁移后移除旧宿主的 NuGet 更新项；Unity C# 的真实引用与完整扫描继续保留。版本更新配置与安全告警分别管理，更新依赖后还需核对具体告警状态。普通应用构建始终先生成 `npm run build:web` 资源。
 
 浏览器任务的 Playwright 镜像同时固定版本 tag 与官方 registry 的 OCI digest。升级时同步 npm Playwright 版本与三个浏览器任务，核对官方 manifest 内容的 SHA-256 和 `Docker-Content-Digest`；格式测试不能证明摘要来源。所有产物下载显式设置摘要不匹配即失败，维持固定 Action 的现有默认保护。
