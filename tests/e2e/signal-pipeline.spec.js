@@ -201,7 +201,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             { id: 'Signal2', operation: 'Hysteresis', threshold: .8, releaseThreshold: .5,
               inputs: [{ sourceMode: 'Computed', oscPath: 'Signal1' }] },
           ]);
-          await checkpoint(page, latch.locator('.computed-signal__settings'), 'pipeline-hysteresis-settings-' + locale);
+          await checkpoint(page, latch.locator('.computed-signal__configuration'), 'pipeline-hysteresis-settings-' + locale);
 
           const osc = await addOutput(page, rig, 'OscParameter', 'Typed OSC');
           const vrchat = osc.dialog.getByRole('checkbox', { name: await text(page, '回写到 VRChat OSC'), exact: true });
