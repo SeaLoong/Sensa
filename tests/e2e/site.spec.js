@@ -89,14 +89,21 @@ async function captureSiteReview(page, info, name, images) {
       });
       expect(after.footer.width, 'diagnostic footer has width').toBeGreaterThan(0);
       expect(after.footer.height, 'diagnostic footer has height').toBeGreaterThan(0);
-      expect(after.footer.left, 'diagnostic footer left is inside viewport').toBeGreaterThanOrEqual(0);
-      expect(after.footer.right, 'diagnostic footer right is inside viewport').toBeLessThanOrEqual(after.viewport.width);
-      expect(after.footer.top, 'diagnostic footer top is inside viewport').toBeGreaterThanOrEqual(0);
-      expect(after.footer.bottom, 'diagnostic footer bottom is inside viewport').toBeLessThanOrEqual(after.viewport.height);
+      // scrollIntoView can round the scroll offset while footer padding has fractional CSS pixels.
+      // A block edge within 1 CSS px does not imply clipped content; child bounds stay exact below.
+      expect(after.footer.left, 'diagnostic footer block left allows 1 CSS px rounding').toBeGreaterThanOrEqual(-1);
+      expect(after.footer.right, 'diagnostic footer block right allows 1 CSS px rounding').toBeLessThanOrEqual(after.viewport.width + 1);
+      expect(after.footer.top, 'diagnostic footer block top allows 1 CSS px rounding').toBeGreaterThanOrEqual(-1);
+      expect(after.footer.bottom, 'diagnostic footer block bottom allows 1 CSS px rounding').toBeLessThanOrEqual(after.viewport.height + 1);
       expect(after.footer.top, 'diagnostic footer clears sticky header').toBeGreaterThan(after.header.bottom);
       expect(after.children, 'guide footer has source link and attribution').toHaveLength(2);
-      for (const child of after.children)
+      for (const child of after.children) {
+        expect(child.bounds.left, 'diagnostic footer child left is inside viewport: ' + child.text).toBeGreaterThanOrEqual(0);
+        expect(child.bounds.right, 'diagnostic footer child right is inside viewport: ' + child.text).toBeLessThanOrEqual(after.viewport.width);
+        expect(child.bounds.top, 'diagnostic footer child top is inside viewport: ' + child.text).toBeGreaterThanOrEqual(0);
+        expect(child.bounds.bottom, 'diagnostic footer child bottom is inside viewport: ' + child.text).toBeLessThanOrEqual(after.viewport.height);
         expect(child.centerHit, 'diagnostic footer child center receives hit: ' + child.text).toBe(true);
+      }
     } finally {
       await page.evaluate(({ x, y }) => scrollTo(x, y), before.scroll);
     }
