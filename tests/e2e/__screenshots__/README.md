@@ -1,37 +1,41 @@
 # Screenshot review / 截图审阅
 
-The current set contains **164 application baselines and eight site-review originals**. [Candidate 40996282389, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/40996282389/attempts/1) captured source `197af206bafda79b12160929251101aeca30214d`: **218/218 passed**, every other outcome zero, `suite=all`, `mode=candidate`, `selectionComplete=true`, `snapshotsCompared=false`. Independent Firefox/WebKit compatibility executed **8/8** cases for the same source.
+The selected set contains **164 application baselines and eight site originals**. [Per-image evidence](../baseline-review.json) records each selected SHA256, candidate SHA256, capture, observation, selection reason and review chain.
 
-当前包含 **164 张应用基线和 8 张站点原图**。上述固定源码完整候选 **218/218 通过**，其余结果均为 0；同源码的独立 Firefox／WebKit 兼容检查 **8/8 通过**。候选采集与审图分别记录，普通比较仍使用已选基线。
+当前包含 **164 张应用基线和 8 张站点原图**。[逐图记录](../baseline-review.json)保存所选与候选 SHA256、采集来源、具体观察、选择理由及审阅链。
 
-## Image and source checks / 图片与来源核对
+## Layout capture and selection / 布局采集与选择
 
-Image-only commit [`73780b4058e64e7275328ec3dc6d3393b9ab3c45`](https://github.com/SeaLoong/Sensa/commit/73780b4058e64e7275328ec3dc6d3393b9ab3c45) has the candidate source as its sole parent. Its 31 changed PNGs comprise **20 application baselines, eight site originals and three documentation mirrors**. The binary patch SHA-256 is `ecaf9dc59a8d628ab9a7cfe46f6b25f2ed4cf7635e3b12b5adc1e3e058a811a0`; [baseline-review.json](../baseline-review.json) records its exact three-directory command, official artifact receipts and every selected image hash.
+[Candidate 41905870856, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/41905870856/attempts/1) captured source [`4b1d9816`](https://github.com/SeaLoong/Sensa/commit/4b1d98167809214772a17ab02393a35311451c1f): **242/242 passed**, each in one attempt with retry zero and every other outcome zero. The full `all` selection completed in `candidate` mode with `snapshotsCompared=false`.
 
-图片提交的唯一父提交为候选源码，只改变 **31 张 PNG**：20 张应用基线、8 张站点原图及 3 张文档图。38 张文档图片均逐字节对应已选应用基线，其中其余 35 张字节未变；文档图库清单使用本次采集的源码、运行与 attempt。
+上述候选对固定源码完整执行 **242/242 项**，每项单次执行、retry 为零，其他结果均为零；模式为 `candidate`，`selectionComplete=true`、`snapshotsCompared=false`。
 
-Root individually opened all **22 changed application originals**: **20 were accepted**, while two OSC Hub images were rejected because the forwarded target lost its resolved endpoint and healthy last-send status. Those two retain the previously reviewed source images and their original hash/evidence chain. A delegated reviewer individually opened all **eight new site originals**; root approved that review. The other **142 application images** exactly match their prior per-image visual evidence. The tracked review classifications are **28 original-opened, 142 exact-hash reuses and two retained-source images**; no unviewed change was accepted.
+| Selection / 选择 | Count / 数量 |
+| --- | ---: |
+| Revised application originals accepted / 接受的新版应用原图 | 116 |
+| Current site originals accepted / 接受的本轮站点原图 | 7 |
+| Existing bytes retained / 保留已有图片 | 10 |
+| Unchanged PNGs with exact prior hashes / 与已有摘要完全相同的未变图片 | 39 |
+| Documentation mirrors synchronized / 同步的文档镜像 | 38 |
 
-Root 逐张打开 **22 张变更应用原图**，接受其中 **20 张**。两张 OSC Hub 候选丢失已转发目标的实际地址与正常发送状态，因此拒绝该变化，保留旧图及其摘要和逐图审阅链。代理逐张打开 **8 张新站点原图**，经 root 确认采用。其余 **142 张应用图**与既有逐图证据摘要完全相同。当前逐图分类为 **28 张已打开原图、142 张精确摘要复用、2 张保留旧图**。
+The 116 workbench images cover axis navigation, grouped parameters, modal scrolling and fixed actions, output settings, script playback, computed signals and narrow bilingual layouts. All accepted changes were individually opened by root or a delegated reviewer. Nine geometry candidates have unchanged content and dimensions with only small raster differences; their existing baselines were retained. The desktop Chinese guide candidate cuts its footer at the PNG boundary, so its earlier original was also retained. Per-file reasons identify all ten decisions.
 
-Supplemental receipts cover **eight diagram originals** and **12 WebSensa/compatibility originals**, each individually opened and matched to the current official reports. The latter twelve visible captures are English. These supplemental images are separate from the 172 tracked review PNGs.
+116 张工作台图覆盖轴导航、参数分组、弹窗内部滚动与固定操作区、输出设置、脚本、计算信号和双语窄屏。所有接受的变化均由 root 或代理逐张打开。9 张几何候选仅有微小栅格差异，内容和尺寸相同；另 1 张桌面中文指南候选的页脚被 PNG 边界截断。10 项保留决定均有逐图依据。
 
-另有 **8 张图表原图**及 **12 张 WebSensa／兼容性原图**逐张打开，并核对本次官方报告字节；后者的可见界面均为英语。这些附加图片不计入上述 172 张跟踪图片。
+Of the new selected images, 104 exactly match originals opened from source [`956b0264`](https://github.com/SeaLoong/Sensa/commit/956b0264a44f7e913c268498a28c797e9fb965b3). Their `exact_sha256_reuse` evidence preserves the actual [cancelled observation run 41899721755](https://github.com/SeaLoong/Sensa/actions/runs/41899721755/attempts/1), original reviewer and receipt hash. The successful current capture and execution are recorded separately. Another 19 current originals were opened directly. Together with unchanged and retained images, the per-file methods are **19 original-opened, 143 exact-hash reuses and 10 retained-source records**.
 
-The eight site originals capture source197 with its then-existing gallery. They document that capture, rather than a later documentation commit or final online Pages deployment. The 38 selected documentation PNGs separately retain their own application-capture provenance.
+新选图片中，104 张与 956 源码下已打开的原图完整摘要相同；其 `exact_sha256_reuse` 证据保留真实的已取消观察运行、原审阅者和记录摘要，本轮成功采集及执行另记。另有 19 张本轮原图直接打开。加上未变及保留图片，逐图方法统计为 **19 张直接观察、143 张精确摘要复用、10 张保留已有来源**。
 
-8 张站点原图呈现候选 197 当时的图库，来源不改写为后续文档提交或最终线上 Pages；38 张文档 PNG 单独保留应用截图的真实来源。
+All 38 documentation mirrors match their selected application baselines byte for byte and have capture evidence for source 4b1, run 41905870856, attempt 1. Site originals retain their individual provenance and show the gallery present at their capture time; later Pages builds verify the updated gallery.
 
-## Ordinary comparison / 普通比较
+38 张文档镜像均逐字节对应所选应用基线，并具备 4b1／41905870856／attempt 1 的采集证据。站点原图保留各自来源，展示采集时的图库；后续 Pages 构建检查更新后的图库。
 
-For each exact pinned source, ordinary CI must execute **all 218** current cases with screenshot updates disabled, `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, a successful command and zero other outcomes. Candidate success and visual review do not replace that gate. The matching [CI run](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) summary and artifacts identify actual comparison and native-build results; [verification records](../../../docs/e2e-status.en.md) distinguish capture provenance from accepted historical snapshots.
+## Complete comparison / 完整比较
 
-每个固定源码的普通 CI 必须执行当前完整 **218 项**：关闭截图更新，模式为 comparison，完整选择与实际图片比较均为 true，命令成功，其余结果为 0。候选与审图不替代该门槛。对应 [CI 运行](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)摘要及附件记录实际比较和原生构建；[验证记录](../../../docs/e2e-status.md)区分图片来源与已验收历史快照。
+After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 242** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence; the selected-image commit's report identifies its execution result. [Verification records](../../../docs/e2e-status.en.md)
 
-## Scope and history / 范围与历史
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **242 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录，图片提交的执行结果以对应报告为准。[验证记录](../../../docs/e2e-status.md)
 
-Captures use Playwright 1.64.1, `zh-CN`/`en-US`, `Asia/Shanghai`, desktop 1280×900 and narrow 390×844, with separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical-device, vendor-cloud and Unity-client outcomes are recorded separately.
+Captures use pinned Playwright, desktop 1280×900, narrow 390×844 and separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical hardware and Unity-client acceptance have their own records. [Review procedure](../../../docs/e2e.md) · [Prior receipt](https://github.com/SeaLoong/Sensa/blob/4b1d98167809214772a17ab02393a35311451c1f/tests/e2e/baseline-review.json)
 
-图片使用固定 Playwright、双语与上海时区，覆盖桌面和窄屏，并有独立 320 CSS px 重排检查。连接使用隔离模拟传输；实体设备、厂商云和 Unity 客户端结果单独记录。
-
-[Previous per-image review / 上轮逐图记录](https://github.com/SeaLoong/Sensa/blob/197af206bafda79b12160929251101aeca30214d/tests/e2e/baseline-review.json)
+采集使用固定 Playwright，覆盖桌面 1280×900、窄屏 390×844 及独立的 320 CSS px 重排检查。设备连接采用隔离模拟；实体硬件和 Unity 客户端另行验收。[审阅流程](../../../docs/e2e.md) · [上轮记录](https://github.com/SeaLoong/Sensa/blob/4b1d98167809214772a17ab02393a35311451c1f/tests/e2e/baseline-review.json)

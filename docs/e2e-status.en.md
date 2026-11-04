@@ -2,56 +2,46 @@
 
 [简体中文](e2e-status.md) | **English**
 
-Results below belong to the named commits. Open [current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml), [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) and [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) for later source. [How checks run](development.en.md) · [Browser test workflow](e2e.en.md)
+Each result identifies its source, run and attempt. [Current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [Development and checks](development.en.md)
 
-## Migration capture and image review: 197af206
+## Layout update and image review: 4b1d9816
 
-[Candidate run 40996282389](https://github.com/SeaLoong/Sensa/actions/runs/40996282389/attempts/1) for source [`197af206`](https://github.com/SeaLoong/Sensa/commit/197af206bafda79b12160929251101aeca30214d) executed **218/218** cases; independent Firefox/WebKit compatibility executed **8/8**, with zero failures, skips, retries or unexecuted cases. Candidate mode generates images and records capture behavior; it is not ordinary screenshot-comparison evidence.
+Source [`4b1d9816`](https://github.com/SeaLoong/Sensa/commit/4b1d98167809214772a17ab02393a35311451c1f), [candidate run 41905870856](https://github.com/SeaLoong/Sensa/actions/runs/41905870856/attempts/1), attempt 1:
 
-The [per-image record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) covers 164 application baselines and eight site originals: 20 opened new application images and eight delegated-review originals were accepted, 142 images reuse identical-hash prior observations, and two OSC Hub images retain their reviewed source versions. The Hub endpoint/send-status display regression found during review was not accepted. All 38 documentation images match the selected baseline bytes and identify their actual capture source/run.
-
-Capture and visual review establish provenance and image selection. For the current pinned source, matching [CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) and [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) summaries/artifacts identify actual ordinary comparison, native CLI/Electron, preview and deployment outcomes. The tables below retain each historical snapshot's verified scope.
-
-## Accepted snapshot: b225ee3a
-
-Source [`b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de`](https://github.com/SeaLoong/Sensa/commit/b225ee3a7074a3a1e6a6c81d5e2bf8da824f10de), [CI #213](https://github.com/SeaLoong/Sensa/actions/runs/40783839713), attempt 1:
-
-| Check | Actual result |
+| Check | Observed result |
 | --- | --- |
-| Web / .NET / Python | **252 / 1207 / 401 passed** |
-| Full ordinary browser comparison | **176/176 passed**, 88 per viewport, zero retries, failures, skipped or unexecuted cases |
-| Pages | [20/20 passed and deployed](https://github.com/SeaLoong/Sensa/actions/runs/40783839496); 98 routes, 154 assets and 55 selected online files matched |
-| Native packages | Windows, Linux and macOS, each x64/ARM64: isolated TCode smoke passed |
-| Windows formats | Portable, single file, installed app, reinstall/uninstall and user-data retention passed on both architectures |
-| WinRT | Both architectures imported 8 namespaces and passed native-buffer byte roundtrip; no adapter/GATT operation |
-| Publication | All 12 [preview #213](https://github.com/SeaLoong/Sensa/releases/tag/preview-213-1-b225ee3a) downloads matched official SHA-256 and SHA256SUMS; 54 bridge-tool source copies and 169 Unity files matched the build plan |
-| CodeQL | [Four languages uploaded and processed](https://github.com/SeaLoong/Sensa/actions/runs/40783839791); all 249 tracked C# files covered, two quality metrics 100%, none-mode 0 |
+| Web / Node / Python | **431 / 1585 / 454 passed** |
+| Complete browser candidate | **242/242 passed**, one attempt each, zero failed, skipped, retried or unexecuted cases |
+| Pages | [34/34 passed and deployed](https://github.com/SeaLoong/Sensa/actions/runs/41905627911), all 167 assets matched |
+| CodeQL | [Four languages processed successfully](https://github.com/SeaLoong/Sensa/actions/runs/41905628046), 35 results and 69 flows semantically unchanged from the preceding source; scanning remains enabled |
+| Per-image selection | **116 application images and seven site originals accepted**; existing bytes kept for nine raster-only geometry candidates and one site candidate with a clipped capture edge |
+| Documentation gallery | **38 mirrors** match the selected application baseline bytes, with capture provenance for this pinned source and run |
 
-That historical browser run checked every selected case and compared the reviewed baselines with updates disabled. Its eight site originals and eight rendered-diagram originals were opened individually. The deployed diagrams were also tested for keyboard scrolling, source fallback and rejected active content.
+New layout regressions cover bilingual axis navigation, independent drafts, saved modes and limits, stable dialog frames, body scrolling, address/short-port alignment, long-form save/cancel and keyboard focus. The complete suite also checks 390 and 320 CSS px widths.
 
-## Coverage of the automated suites
+This execution used candidate mode with `snapshotsCompared=false`. After image selection, ordinary CI runs **all 242 comparisons** for the selected-image commit with updates disabled, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. That exact commit's complete comparison, six-platform native checks and preview results appear in its [CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) report; the updated gallery's deployment appears in its [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) run.
 
-| Suite | What it checks |
+## Image evidence
+
+[Per-image records](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) cover the selected and candidate hashes, specific observations, selection reasons and history for 164 application baselines and eight site originals. Of the newly selected images, 104 reuse opened originals from source 956 by complete SHA256 equality, preserving their real [cancelled observation run](https://github.com/SeaLoong/Sensa/actions/runs/41899721755/attempts/1) and observation provenance. Current successful capture/execution is recorded separately. The other newly selected originals were opened directly. Site originals retain the gallery present at capture time; later deployment checks cover the updated documentation images. [Image review notes](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [Review procedure](e2e.en.md)
+
+## Accepted snapshot before this layout update: 665753a6
+
+Source [`665753a6`](https://github.com/SeaLoong/Sensa/commit/665753a6403d534de9a227844e8eb0d99ebbe6a2), [CI #257](https://github.com/SeaLoong/Sensa/actions/runs/41884479633), attempt 1, all 12 jobs successful:
+
+| Check | Observed result |
 | --- | --- |
-| Unit / contracts | Injected clocks, real loopback HTTP/WebSocket, isolated PTY streams and mock serial/BLE/WinRT |
-| Protocol inputs | Schema negotiation, independent source sessions, atomic channel batches, durations, task lifetime and stop order |
-| Browser workflows | Configuration, control, recording, script playback, shared tabs and simulated device transport |
-| Site | Bilingual navigation, direct downloads, offline assets, responsive layout, gallery and diagram behavior |
-| Native package smoke | Actual platform binaries with temporary configurations and simulated network targets |
-| Source analysis | Real application/Unity-reference compilation, source coverage and scanner evidence |
+| Web / Node / Python | **427 / 1585 / 454 passed** |
+| Complete ordinary browser comparison | **226/226 passed**, one attempt each, zero other outcomes |
+| Independent Firefox / WebKit compatibility | **8/8 passed** |
+| Pages | [34/34 passed and deployed](https://github.com/SeaLoong/Sensa/actions/runs/41884479336) |
+| Native packages | Windows, Linux and macOS x64 / ARM64 builds and isolated CLI / Electron checks passed |
+| Publication | [Development preview #257](https://github.com/SeaLoong/Sensa/releases/tag/preview-257-1-665753a6), 18 public assets |
 
-The Contact cases include contact loss and frozen activity, with a fixed 0.210 m/s screenshot sample followed by ten distinct velocities while Sample remains frozen. Device and protocol regressions include large/fragmented Intiface messages, script loop selection, nonzero script starts, finite task timing and Python bridge roundtrips.
+## Verification scope
 
-## Images and review
+Automated coverage includes loopback HTTP / WebSocket, isolated PTY, simulated serial / BLE / WinRT, protocol negotiation and task lifecycles, stop ordering, scripts / recording, computed mappings, shared tabs, bilingual layouts, downloads and offline resources. Native checks run actual packaged programs with temporary configuration and simulated transports.
 
-The [per-image review record](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json) identifies the current 164 application baselines and eight site originals, with hashes, observations and reuse chains. Ordinary comparison uses the selected application baselines. The 38 documentation images retain original bytes and capture provenance. Visual changes pass candidate capture and image review before comparison for their matching source. [Review process](e2e.en.md)
+Physical devices, vendor clouds, Unity clients and VRChat / HMD operation have separate acceptance. The recorded Unity Editor 2022.3.22f1 attempt stopped at license validation and executed zero tests; 17 Tracking Frame source cases did not run and produced no NUnit XML.
 
-## Environment-specific checks
-
-Actual websites, vendor cloud services, physical OSR/BLE devices, Unity clients and VRChat/HMD operation are checked in their corresponding environments. The latest recorded Unity Editor 2022.3.22f1 attempt stopped at license validation with **zero tests executed**; 17 Tracking Frame source cases were not run and no NUnit XML was produced. Compilation and package structure results remain useful for their own scope.
-
-Scanner execution and SARIF results are recorded separately from GitHub alert dispositions. In the accepted b225 snapshot, four uploads completed, but no remote alerts were closed or risks accepted in that round; current panel counts and alert state require their own access and review.
-
-## Earlier accepted snapshot
-
-[`0bf1a8e9`](https://github.com/SeaLoong/Sensa/commit/0bf1a8e95ff5f191dec03603c28fb983e3b69ad1) passed [144/144 ordinary browser cases](https://github.com/SeaLoong/Sensa/actions/runs/40768992258), six-platform checks and [preview #210](https://github.com/SeaLoong/Sensa/releases/tag/preview-210-1-0bf1a8e9) publication. Its [Pages run](https://github.com/SeaLoong/Sensa/actions/runs/40768992056) passed 14/14 site checks. These historical runs remain available for comparing later changes.
+GitHub alert dispositions and scan execution are checked separately; inaccessible panel state remains unknown. [Historical migration candidate](https://github.com/SeaLoong/Sensa/actions/runs/40996282389/attempts/1) · [Earlier complete comparison](https://github.com/SeaLoong/Sensa/actions/runs/40783839713)
