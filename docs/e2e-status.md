@@ -4,6 +4,23 @@
 
 每项结果对应明确的源码、运行与 attempt。[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [开发与检查](development.md)
 
+## SPS3 Beta 兼容更新：c6a1ed14
+
+源码 [`c6a1ed14`](https://github.com/SeaLoong/Sensa/commit/c6a1ed14aef7e7024cf2f9c4672e8ae2333bfb8b)，[候选运行 41927196979](https://github.com/SeaLoong/Sensa/actions/runs/41927196979/attempts/1)，attempt 1：
+
+| 检查 | 实际结果 |
+| --- | --- |
+| 本地 Web／Node／Python 单元 | **440／1607／455 项通过** |
+| 完整浏览器候选 | **254/254 项通过**，逐项单次执行，retry 为零，其他结果均为零 |
+| 图片审阅 | **接受 25 张应用图和 6 张站点原图**；7 张应用候选仅有栅格差异、2 张指南候选未完整采集页脚，均保留旧图 |
+| 文档图库 | **38 张镜像**与所选基线继续逐字节一致，保留原有 4b1／41905870856 采集来源 |
+
+新增 22 项运行时单元和 12 项浏览器用例，覆盖公开 OGB 几何、来源／实例／Self／Others 隔离、估长与超时停止，以及 Socket 根标记 1 mm／0 mm 切换、窄屏和双语重绘、录制与脚本导出。[SPS3 使用说明](sps3.md)
+
+候选使用 `snapshotsCompared=false`。选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定图片提交执行完整 **254 项**比较，要求完整选择、实际比较、命令成功和其他结果为零；其报告另行记录六个平台的原生程序检查与预览发布。[逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
+
+本轮新增 37 项 Unity Editor 源用例（20 项根点兼容、17 项 GPU 数据与配置），尚未在 Unity 中执行。SPS3 探针使用真实 Unity 2022.3.22f1 头文件和 14 个固定上游依赖，经 DXC v1.9.2609 编译 `vert`／`frag` 两个 SM6 入口通过，使用 `sampler2D=sampler` 兼容宏；这是独立 HLSL 静态检查，Unity ShaderLab 导入和 GPU／VRChat 运行仍按各自实测记录。
+
 ## 布局更新与审图：4b1d9816
 
 源码 [`4b1d9816`](https://github.com/SeaLoong/Sensa/commit/4b1d98167809214772a17ab02393a35311451c1f)，[候选运行 41905870856](https://github.com/SeaLoong/Sensa/actions/runs/41905870856/attempts/1)，attempt 1：
@@ -21,7 +38,7 @@
 
 本轮为候选采集模式，`snapshotsCompared=false`。选图后，普通 CI 对图片提交完整执行 **242 项比较**，要求关闭基线更新、`selectionComplete=true`、`snapshotsCompared=true`、命令成功及其他结果为零。该固定提交的普通比较、六平台原生检查和预览结果记录在对应 [CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) 报告中；更新图库后的部署记录在对应 [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) 运行中。
 
-## 图片证据
+## 该轮布局的图片证据
 
 [逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)保存 164 张应用基线和 8 张站点原图的所选摘要、候选摘要、具体观察、选择理由与历史链。其中 104 张新选图片按完整 SHA256 复用 956 源码下已打开的原图观察，保留其真实的[已取消运行](https://github.com/SeaLoong/Sensa/actions/runs/41899721755/attempts/1)及观察来源；当前成功采集／执行单独记录。其余新选图片已直接打开。站点原图保留采集当时的图库，后续部署检查更新后的文档图片。[图片审阅说明](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/__screenshots__/README.md) · [审阅流程](e2e.md)
 

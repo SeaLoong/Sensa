@@ -4,7 +4,21 @@ The selected set contains **164 application baselines and eight site originals**
 
 当前包含 **164 张应用基线和 8 张站点原图**。[逐图记录](../baseline-review.json)保存所选与候选 SHA256、采集来源、具体观察、选择理由及审阅链。
 
-## Layout capture and selection / 布局采集与选择
+## SPS3 Beta capture and selection / SPS3 测试版采集与选择
+
+[Candidate 41927196979, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/41927196979/attempts/1) captured source [`c6a1ed14`](https://github.com/SeaLoong/Sensa/commit/c6a1ed14aef7e7024cf2f9c4672e8ae2333bfb8b): **254/254 passed**, each in one attempt with retry zero and every other outcome zero. The full `all` selection completed in `candidate` mode with `snapshotsCompared=false`.
+
+本轮固定源码完整执行 **254/254 项**，逐项单次通过，retry 与其他结果均为零；完整选择，模式为 `candidate`，尚未进行普通基线比较。
+
+All **40 changed originals were individually opened**. Root selected **25 application images and six site originals**, retaining seven application candidates with visually unchanged content and tiny raster differences, plus the desktop Chinese and narrow English guide candidates with incomplete footer captures. Retention does not establish complete-footer evidence; the narrow English prior original has the same limited footer scope. Each path records its actual observation and selection reason.
+
+**40 张变化原图全部逐张打开审阅**。选择 **25 张应用图和 6 张站点原图**；7 张内容布局未变、仅有微小栅格差异的应用图保留旧基线。桌面中文和窄屏英文指南的本轮原图未完整采集页脚，也保留旧图；窄屏英文旧图同样只具有已显示页脚的有限范围，保留不代表完整页脚验收。逐图记录保留具体观察与选择理由。
+
+The canonical 172-image receipt contains **31 current original-opened reviews, 132 exact-hash reuses and nine retained-source records**. All **38 documentation mirrors** and their catalog are byte-unchanged, preserving their real source `4b1d9816` / run `41905870856` / attempt `1` instead of claiming new captures. The six selected site originals show the gallery present during their own capture.
+
+172 张图片的记录包含 **31 张本轮原图观察、132 张精确摘要复用和 9 张保留已有来源**。**38 张文档镜像及目录字节均未变**，保留真实的 `4b1d9816`／`41905870856`／attempt `1` 采集身份。6 张新选站点原图展示其采集当时的图库。
+
+## Prior layout capture and selection / 上轮布局采集与选择
 
 [Candidate 41905870856, attempt 1](https://github.com/SeaLoong/Sensa/actions/runs/41905870856/attempts/1) captured source [`4b1d9816`](https://github.com/SeaLoong/Sensa/commit/4b1d98167809214772a17ab02393a35311451c1f): **242/242 passed**, each in one attempt with retry zero and every other outcome zero. The full `all` selection completed in `candidate` mode with `snapshotsCompared=false`.
 
@@ -32,9 +46,9 @@ All 38 documentation mirrors match their selected application baselines byte for
 
 ## Complete comparison / 完整比较
 
-After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 242** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence; the selected-image commit's report identifies its execution result. [Verification records](../../../docs/e2e-status.en.md)
+After image selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) checks **all 254** cases for its exact pinned commit with updates disabled: `mode=comparison`, `selectionComplete=true`, `snapshotsCompared=true`, command success and zero other outcomes. Candidate capture and ordinary comparison have separate evidence; the selected-image commit's report identifies its execution result. [Verification records](../../../docs/e2e-status.en.md)
 
-选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **242 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录，图片提交的执行结果以对应报告为准。[验证记录](../../../docs/e2e-status.md)
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定提交执行完整 **254 项**，关闭图片更新，要求 `mode=comparison`、完整选择、实际比较、命令成功及其他结果为零。候选采集和普通比较分别记录，图片提交的执行结果以对应报告为准。[验证记录](../../../docs/e2e-status.md)
 
 Captures use pinned Playwright, desktop 1280×900, narrow 390×844 and separate 320 CSS px reflow checks. Device connections use isolated simulations. Physical hardware and Unity-client acceptance have their own records. [Review procedure](../../../docs/e2e.md) · [Prior receipt](https://github.com/SeaLoong/Sensa/blob/4b1d98167809214772a17ab02393a35311451c1f/tests/e2e/baseline-review.json)
 
