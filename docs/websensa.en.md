@@ -17,11 +17,15 @@ Add more cards to fan out signals. Each card shows its own connection, values an
 
 The output menu groups currently available and unavailable types, with a short reason beside each unavailable entry. Saved unavailable outputs retain **Configure**, **Remove** and, when enabled, **Disable**. The serial list also shows saved ports that are currently unavailable, so you can choose a device again.
 
+TCode **Output settings** separates **Connection settings** from **Motion settings**. Intiface groups targets and feature mappings under **Devices and features**. The parameter area scrolls independently while the title, emergency stop, Cancel and Save remain visible.
+
 ## Manual controls and scripts
 
-**Manual** supports all twelve axes: **L0–L2, R0–R2, V0–V2 and A0–A2**. Select the axes that should participate. The sliders use **0–999**; the signal engine converts them to **0–1**, and the output profile determines the device range. **Send once** updates the target; **Continuous send** follows slider changes. Open the additional axes to adjust rotation, vibration and auxiliary controls.
+**Manual** supports all twelve axes: **L0–L2, R0–R2, V0–V2 and A0–A2**. Select the axes that should participate. The sliders use **0–999**; the signal engine converts them to **0–1**, and the output profile determines the device range. **Send once** updates the target; **Send continuously** follows slider changes. Open the additional axes to adjust rotation, vibration and auxiliary controls.
 
-To play a file, select **Script**, click **Apply input mode** if shown, and **Choose script**. A `.funscript` or compatible `.json` file supplies its real first position. Select a **Script target axis**, playback speed, loop or A–B range, then enable input and play. The timeline supports seeking, action stepping and keyboard controls.
+Edit TCode ranges, inversion and motion parameters in **Settings → Axis profiles**. Select an axis tab, then adjust **Axis mode**, **Travel and limits** and **Motion transitions**. Switching axes keeps the draft; choose **Save axis profile** to apply it.
+
+To play a file, select **Script**, click **Apply input mode** if shown, and **Choose script**. A `.funscript` or compatible `.json` file supplies its real first position. **Playback speed** and **Custom speed** are grouped together, with **Script target axis** and **Loop** in another group. Set an A–B range if needed, then enable input and play. The timeline supports seeking, action stepping and keyboard controls.
 
 At the end of a non-looping script, playback holds its final target and keeps the current input state. **Stop** ends playback and requests output stop. Pausing holds the cursor and also stops output. **Emergency stop** stops all outputs; clearing it leaves input off until you enable it again.
 
@@ -48,6 +52,8 @@ Intiface cards default to **All devices**. To split devices into separate output
 ## Calculations, recordings and explorer input
 
 The **Flow** workspace uses the same calculations, bindings, mapping curves, priorities and replay sources as the executable. Combine manual, script and paired input values, or route a calculation to several outputs. Network listeners belong to the Node.js host; the standalone page does not open UDP/TCP or OSC listener ports.
+
+Calculation cards group the name, operation and numeric parameters. For weighted averages, each input's **Weight** sits beside its heading, with source and path fields below.
 
 From the [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html), choose **Send to WebSensa**. In the opened workbench click **Connect parameter explorer**. Incoming values appear in the input panel without enabling output. Turn on **Input enabled** to route them. A stopped or expired stream closes input; a fresh value updates the preview and lets you enable it again.
 

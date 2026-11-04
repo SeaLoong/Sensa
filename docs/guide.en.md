@@ -22,9 +22,9 @@ Each output has its own connection and enabled state. A connected output receive
 
 ### Manual and script
 
-Manual shows L0/L1/L2 first; expand rotation, vibration and auxiliary controls for all twelve axes. Adjust a slider/value and choose **Send once**, or enable **Live updates**. Send settings use the selected axis profile or an explicit duration/speed.
+Manual shows L0/L1/L2 first; expand rotation, vibration and auxiliary controls for all twelve axes. Adjust a slider/value and choose **Send once**, or enable **Send continuously**. Send settings use the selected axis profile or an explicit duration/speed.
 
-Load a funscript to see its curve and playback cursor. Playback offers **0.1–4×**, looping, A–B, timecodes and keyframe navigation. Pause retains the cursor and target. Seeking to the beginning uses the file's first target; Stop resets time and the player target to zero. With Script input enabled, seeking/stepping can send the selected target while paused.
+Load a funscript to see its curve and playback cursor. Playback offers **0.1–4×**, looping, A–B, timecodes and keyframe navigation. **Playback speed** and **Custom speed** are grouped together; **Loop** sits beside **Script target axis**. Pause retains the cursor and target. Seeking to the beginning uses the file's first target; Stop resets time and the player target to zero. With Script input enabled, seeking/stepping can send the selected target while paused.
 
 ### Combined input
 
@@ -33,6 +33,8 @@ Use Combined when several source kinds should contribute. For example, a touch r
 ### Outputs
 
 Add an output, choose its type and enter its connection. In **Input-to-output bindings**, select the source, target and ranges. Save, connect and enable the output. Its diagnostics show raw values, converted values and recent commands.
+
+TCode endpoints are under **Connection settings**, with axis profiles and command options under **Motion settings**. Intiface groups its target and feature mappings under **Devices and features**.
 
 | Output | Main settings |
 | --- | --- |
@@ -89,6 +91,8 @@ The mapping preview shows the converted value. Gate roles add conditions such as
 
 In Flow, add a computation and its inputs. Readings 0.2 and 0.8 with weights 1 and 3 produce **0.65**. Add smoothing, then send that result to vibration and an Avatar effect.
 
+Calculation cards group the name and operation separately from input validity and operation parameters. For weighted averages, each input's **Weight** sits beside its heading, with source and path fields below.
+
 Spatial presets accept XYZ groups for distance, plane depth/offset and direction angles. The following-plane template connects a measured target with Tracking Frame markers. Save once, then reuse the result in several bindings. [Operations and examples](computed-signals.en.md)
 
 ### Reception, discovery and forwarding
@@ -114,7 +118,11 @@ Flow keeps computations, outputs and complete plans together. A direct binding n
 
 ## Settings and help
 
-Axis profiles hold range, inversion, speed, locking and motion settings. Copy a profile for another device and choose it on that output. Protocol inputs configure network/serial listeners and their channels. Logs can be filtered by level.
+The axis profile list shows range and motion summaries for each axis. Choose **Add axis profile** or **Edit profile**, set the **Profile name** and open **Apply axis preset** if needed, then select an axis using the twelve axis tabs.
+
+**Travel and limits** and **Motion transitions** appear side by side in wide windows and stack in narrow windows. Switching axes keeps the current draft. Choose **Save axis profile**, then select it on the corresponding TCode output. Dialog titles, emergency stop, Cancel and Save remain visible while you scroll the parameters.
+
+Protocol inputs configure network/serial listeners and their channels. Choose **View logs** beside the Logs heading to show filters and messages; **Hide logs** collapses the panel.
 
 Same-origin desktop tabs share one realtime connection and keep independent drafts. Startup detects an already open workbench; named instances provide independent configurations and ports. [Instances](quick-start.en.md#run-several-instances)
 

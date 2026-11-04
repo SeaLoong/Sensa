@@ -13,6 +13,28 @@ const input = (oscPath, weight = 1) => ({ sourceMode: 'Direct', oscPath, weight 
 const reference = oscPath => ({ sourceMode: 'Computed', oscPath });
 const constant = value => ({ sourceMode: 'Constant', value });
 
+async function assertComputedFormLayout(card) {
+  const layout = await card.evaluate(element => {
+    const box = node => { const value = node.getBoundingClientRect(); return { x: value.x, y: value.y, width: value.width, height: value.height, right: value.right }; };
+    const configuration = element.querySelector('.computed-signal__configuration');
+    const row = element.querySelector('[data-testid="computed-input-row"]');
+    const weight = row.querySelector('.computed-input__weight input');
+    const path = row.querySelector('.computed-input__source input[list]');
+    const bounds = box(element), settingsBounds = box(configuration);
+    const numbers = [...element.querySelectorAll('.computed-signal__parameters input')].map(box);
+    return { bounds, settingsBounds, weight: box(weight), path: box(path), numbers,
+      overflow: element.scrollWidth > element.clientWidth + 1,
+      controlsFit: [...element.querySelectorAll('input, select')].every(control => { const value = box(control); return value.x >= bounds.x - 1 && value.right <= bounds.right + 1; }) };
+  });
+  expect(layout.overflow, 'Computed editor does not overflow / 计算编辑器不溢出').toBe(false);
+  expect(layout.controlsFit).toBe(true);
+  expect(layout.weight.width).toBeGreaterThanOrEqual(60);
+  expect(layout.weight.width).toBeLessThanOrEqual(88);
+  expect(layout.path.width, 'Source paths retain more room than a numeric weight / 来源路径比权重数值更宽').toBeGreaterThan(layout.weight.width * 1.5);
+  expect(layout.numbers.every(control => control.width >= 60 && control.width <= 116), 'Calculation parameters use short controls / 计算参数使用短数值控件').toBe(true);
+  return layout;
+}
+
 async function replaceConfig(page, rig, patch) {
   const response = await page.request.put(rig.baseUrl + '/api/config', { data: { ...await savedConfig(page, rig), ...patch } });
   expect(response.ok(), await response.text()).toBe(true);
@@ -79,15 +101,18 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect.poll(async () => (await computation(rig, 'Signal1'))?.value).toBeCloseTo(.65, 5);
         await expect(card.getByTestId('computed-signal-value')).toContainText('0.65');
         await checkpointViewport(page, 'computed-signal-editor-' + locale);
-        await checkpoint(page, card.locator('.computed-signal__settings'), 'computed-signal-settings-' + locale);
+        await checkpoint(page, card.locator('.computed-signal__configuration'), 'computed-signal-settings-' + locale);
         await checkpoint(page, rows.first(), 'computed-signal-input-' + locale);
         const report = createUiQualityReport(page, info, { kind: 'computed-editor',
-          plannedStates: ['osc-computed-signal-saved'], plannedChecks: ['computed-editor-reflow-320'] });
+          plannedStates: ['osc-computed-signal-saved'], plannedChecks: ['computed-editor-semantic-columns', 'computed-editor-reflow-320'] });
         const viewport = page.viewportSize();
         try {
           await report.audit('osc-computed-signal-saved');
+          await report.check('computed-editor-semantic-columns / 计算编辑器语义列宽', () => assertComputedFormLayout(card));
           await page.setViewportSize({ ...viewport, width: 320 });
-          await report.check('computed-editor-reflow-320 / 计算编辑器 320 CSS px 重排', () => inspectReflow(page));
+          await report.check('computed-editor-reflow-320 / 计算编辑器 320 CSS px 重排', async () => ({
+            ...await inspectReflow(page), computedForm: await assertComputedFormLayout(card),
+          }));
         } catch (error) { report.fail(error); throw error; }
         finally { await page.setViewportSize(viewport); await report.write(); }
         await active(page); await outputValue(rig, 'udp', 530);

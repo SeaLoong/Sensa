@@ -40,7 +40,7 @@ async function attachIncompleteEvidence(page, info, state, incomplete) {
           throw new Error('Cannot resolve compound, frame or shadow target / 无法定位复合、frame 或 shadow 目标');
         const matches = await page.locator(node.target[0]).evaluateAll(elements => elements.map(element => {
           const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
-          let scroll = element.closest('.table-scroll, .log-list, dialog[open], .workspace-scroll');
+          let scroll = element.closest('.table-scroll, .log-list, .modal__body, dialog[open], .workspace-scroll');
           if (!scroll) {
             let ancestor = element.parentElement;
             while (ancestor) {
@@ -239,8 +239,9 @@ export async function inspectReflow(page) {
     const workspace = port ? { top: portBox.top, bottom: portBox.bottom, width: port.clientWidth, height: port.clientHeight,
       scrollWidth: port.scrollWidth, scrollHeight: port.scrollHeight, scrollTop: port.scrollTop, scrollLeft: port.scrollLeft } : null;
     const documentHeight = Math.max(document.documentElement.scrollHeight, document.body.scrollHeight);
-    const scrollRegions = [...document.querySelectorAll('.table-scroll, .log-list, dialog[open], .workspace-scroll')].map(element => ({
+    const scrollRegions = [...document.querySelectorAll('.table-scroll, .log-list, dialog[open], dialog[open] .modal__body, .workspace-scroll')].map(element => ({
       role: element.getAttribute('role') || element.tagName.toLowerCase(),
+      kind: element.matches('.modal__body') ? 'dialog-body' : null,
       label: element.getAttribute('aria-label') || element.getAttribute('aria-labelledby'),
       clientWidth: element.clientWidth, scrollWidth: element.scrollWidth,
       clientHeight: element.clientHeight, scrollHeight: element.scrollHeight,
@@ -256,9 +257,50 @@ export async function inspectReflow(page) {
   expect(evidence.documentHeight, 'Document does not scroll behind the header / 文档不在顶栏下滚动').toBeLessThanOrEqual(evidence.height + 1);
   expect(evidence.workspace.top).toBeGreaterThanOrEqual(evidence.headerBottom - 1);
   expect(evidence.workspace.bottom).toBeLessThanOrEqual(evidence.height + 1);
-  for (const region of evidence.scrollRegions.filter(region => region.role === 'dialog'))
+  for (const region of evidence.scrollRegions.filter(candidate => candidate.role === 'dialog'))
     expect(region.scrollWidth, 'Dialog reflows without horizontal scrolling / 对话框无水平滚动').toBeLessThanOrEqual(region.clientWidth + 1);
+  for (const region of evidence.scrollRegions.filter(candidate => candidate.kind === 'dialog-body')) {
+    expect(region.clientHeight, 'Dialog body retains a usable scrollport / 对话框正文有可用滚动区域').toBeGreaterThan(0);
+    expect(region.scrollWidth, 'Dialog body reflows without horizontal scrolling / 对话框正文无水平滚动').toBeLessThanOrEqual(region.clientWidth + 1);
+  }
   return evidence;
+}
+
+/** Check the visible dialog frame independently of the content's scroll position. */
+export async function inspectModalFrame(dialog) {
+  requireCi();
+  const evidence = await dialog.evaluate(element => {
+    const read = node => {
+      if (!node) return null;
+      const box = node.getBoundingClientRect();
+      return { top: box.top, right: box.right, bottom: box.bottom, left: box.left,
+        width: box.width, height: box.height, clientWidth: node.clientWidth, clientHeight: node.clientHeight,
+        scrollWidth: node.scrollWidth, scrollHeight: node.scrollHeight, scrollTop: node.scrollTop };
+    };
+    const body = element.querySelector('.modal__body'), focused = element.ownerDocument.activeElement;
+    return { dialog: read(element), header: read(element.querySelector('.modal__header')),
+      body: read(body), footer: read(element.querySelector('.modal__actions')),
+      viewport: { width: innerWidth, height: innerHeight },
+      focused: body?.contains(focused) ? read(focused) : null };
+  });
+  return geometricEvidence(evidence, () => {
+    const { dialog: frame, header, body, footer, viewport } = evidence;
+    for (const [name, box] of Object.entries({ frame, header, body, footer })) {
+      expect(box, name + ' exists / 对话框区域存在').not.toBeNull();
+      expect(box.width, name + ' has usable width / 对话框区域有可用宽度').toBeGreaterThan(0);
+      expect(box.height, name + ' has usable height / 对话框区域有可用高度').toBeGreaterThan(0);
+    }
+    expect(frame.left).toBeGreaterThanOrEqual(-1);
+    expect(frame.right).toBeLessThanOrEqual(viewport.width + 1);
+    expect(frame.top).toBeGreaterThanOrEqual(-1);
+    expect(frame.bottom).toBeLessThanOrEqual(viewport.height + 1);
+    for (const box of [header, body, footer]) contained(box, frame, 1, 'Dialog frame contains its regions / 对话框完整容纳各区域');
+    expect(header.bottom, 'Body starts below header / 正文位于标题栏下方').toBeLessThanOrEqual(body.top + 1);
+    expect(body.bottom, 'Body ends above actions / 正文不被操作栏覆盖').toBeLessThanOrEqual(footer.top + 1);
+    expect(frame.scrollTop, 'Only the dialog body scrolls / 只有正文滚动').toBe(0);
+    expect(frame.scrollHeight, 'Dialog frame does not need vertical scrolling / 对话框外框无需垂直滚动').toBeLessThanOrEqual(frame.clientHeight + 1);
+    expect(body.scrollWidth, 'Dialog body has no horizontal overflow / 对话框正文无水平溢出').toBeLessThanOrEqual(body.clientWidth + 1);
+  });
 }
 
 export async function inspectBasicTargets(page, locator, component) {
@@ -285,7 +327,7 @@ export async function inspectBasicTargets(page, locator, component) {
 // 几何契约检查共享边缘与完整容纳，不是美观分数，也不限定 CSS 实现。
 async function geometryGroups(locator, selectors) {
   requireCi();
-  return locator.evaluateAll((elements, selectors) => {
+  return locator.evaluateAll((elements, parts) => {
     const read = element => {
       const rect = element.getBoundingClientRect(), style = getComputedStyle(element);
       const range = document.createRange(); range.selectNodeContents(element);
@@ -299,7 +341,7 @@ async function geometryGroups(locator, selectors) {
         visible: rect.width > 0 && rect.height > 0 && style.visibility !== 'hidden' };
     };
     return elements.map(element => ({ box: read(element), parts: Object.fromEntries(
-      Object.entries(selectors).map(([key, selector]) => [key, [...element.querySelectorAll(selector)].map(read)])),
+      Object.entries(parts).map(([key, selector]) => [key, [...element.querySelectorAll(selector)].map(read)])),
     })).filter(group => group.box.visible);
   }, selectors);
 }
@@ -399,14 +441,14 @@ export async function inspectMappingAlignment(page) {
   return geometricEvidence({ groups }, () => {
     expect(groups.length, 'At least two saved fixture mappings / 至少两条夹具映射').toBeGreaterThanOrEqual(2);
     for (const group of groups) {
-      const path = only(group, 'path'), target = only(group, 'target');
+      const source = only(group, 'path'), target = only(group, 'target');
       const reverse = only(group, 'reverse'), remove = only(group, 'remove');
-      const slack = tolerance([path, target, reverse, remove]);
-      for (const box of [path, target, reverse, remove]) contained(box, group.box, slack, 'Mapping control containment / 映射控件完整容纳');
+      const slack = tolerance([source, target, reverse, remove]);
+      for (const box of [source, target, reverse, remove]) contained(box, group.box, slack, 'Mapping control containment / 映射控件完整容纳');
       near([target.bottom, reverse.bottom, remove.bottom], slack, 'Target, reverse and remove lower edges / 目标、反向与移除底沿');
       separate(target, reverse, slack, 'Mapping target and reverse do not overlap / 映射目标与反向不重叠');
       separate(reverse, remove, slack, 'Mapping reverse and remove do not overlap / 映射反向与移除不重叠');
-      separate(path, target, slack, 'Mapping path and target do not overlap / 映射路径与目标不重叠');
+      separate(source, target, slack, 'Mapping path and target do not overlap / 映射路径与目标不重叠');
     }
   });
 }
@@ -415,13 +457,49 @@ export async function inspectNarrowFormAlignment(scope) {
   const groups = await geometryGroups(scope.locator('.form-grid > .field'), {
     control: ':scope > input:not([type=checkbox]):not([type=range]), :scope > select, :scope > textarea',
   });
+  const columns = await geometryGroups(scope.locator('.form-grid:not(.form-grid--endpoint):not(.form-grid--rate)'), {
+    controls: ':scope > .field > input:not([type=checkbox]):not([type=range]), :scope > .field > select, :scope > .field > textarea',
+  });
+  const endpoints = await geometryGroups(scope.locator('.form-grid--endpoint, .form-grid--rate'), {
+    controls: ':scope > .field > input:not([type=checkbox]):not([type=range]), :scope > .field > select',
+    toggles: ':scope > .toggle',
+  });
   const ranges = await geometryGroups(scope.locator('.range-field'), { labels: '.range-field__inputs > label', inputs: '.range-field__inputs > label > input', names: '.range-field__inputs > label > span' });
-  return geometricEvidence({ groups, ranges }, () => {
+  return geometricEvidence({ groups, columns, endpoints, ranges }, () => {
     expect(groups.length, 'At least two comparable form controls / 至少两个可比较表单控件').toBeGreaterThanOrEqual(2);
     const controls = groups.map(group => only(group, 'control'));
     const slack = tolerance(controls);
-    near(controls.map(box => box.right), slack, 'Single-column form right edges / 单列表单右沿');
     for (const group of groups) contained(only(group, 'control'), group.box, slack, 'Form field containment / 表单控件完整容纳');
+    // Compare columns within their section: independently padded panels need not share an outer edge.
+    // 在各自分组内比较列对齐；独立面板可以具有不同外边缘。
+    for (const group of columns) {
+      const fields = group.parts.controls.filter(box => box.visible);
+      if (!fields.length) continue;
+      near(fields.map(box => box.left), slack, 'Single-column form left edges / 单列表单左沿');
+      near(fields.map(box => box.right), slack, 'Single-column form right edges / 单列表单右沿');
+      for (const control of fields) contained(control, group.box, slack, 'Form column containment / 表单列完整容纳');
+    }
+    for (const group of endpoints) {
+      const fields = group.parts.controls.filter(box => box.visible);
+      const toggles = group.parts.toggles.filter(box => box.visible);
+      let leading, short;
+      if (toggles.length) {
+        expect(toggles, 'Rate row contains one toggle / 频率行包含一个开关').toHaveLength(1);
+        expect(fields, 'Rate row contains one short field / 频率行包含一个短值字段').toHaveLength(1);
+        [leading] = toggles; [short] = fields;
+        expect(leading.width, 'Polling toggle has a usable hit area / 轮询开关具有可用命中区域').toBeGreaterThanOrEqual(24);
+        expect(leading.height, 'Polling toggle has a usable hit area / 轮询开关具有可用命中区域').toBeGreaterThanOrEqual(24);
+      } else {
+        expect(fields, 'Endpoint uses an address and a short value / 连接参数包含地址与短值').toHaveLength(2);
+        [leading, short] = fields;
+        expect(leading.width, 'Address receives at least the short field width / 地址至少获得短值字段宽度').toBeGreaterThanOrEqual(short.width - slack);
+      }
+      near([leading.bottom, short.bottom], slack, 'Endpoint controls share a row / 连接参数控件同排对齐');
+      for (const control of [leading, short]) contained(control, group.box, slack, 'Endpoint control containment / 连接参数完整容纳');
+      separate(leading, short, slack, 'Endpoint controls do not overlap / 连接参数控件不重叠');
+      expect(short.width, 'Port/rate field remains readable / 端口或频率字段保持可读').toBeGreaterThanOrEqual(80);
+      expect(short.width, 'Port/rate field stays compact / 端口或频率字段宽度紧凑').toBeLessThanOrEqual(128);
+    }
     expect(ranges.length, 'At least two endpoint ranges / 至少两个端点范围').toBeGreaterThanOrEqual(2);
     for (const group of ranges) {
       expect(group.parts.labels).toHaveLength(2);

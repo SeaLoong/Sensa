@@ -1568,5 +1568,13 @@
   "请使用桌面版": "Use the desktop app",
   "串口组件不可用": "Serial support unavailable",
   "MIDI 组件不可用": "MIDI support unavailable",
-  "需要配置蓝牙桥": "Set up the Bluetooth bridge"
+  "需要配置蓝牙桥": "Set up the Bluetooth bridge",
+  "选择轴": "Choose an axis",
+  "映射输入两端的位置，并限制可到达的范围。": "Map input endpoints and set travel limits.",
+  "选择运动指令、曲线与速度上限。": "Set the motion command, curve and speed limit.",
+  "轴配置摘要": "Axis profile summary",
+  "收起日志": "Hide logs",
+  "连接设置": "Connection settings",
+  "设备与功能": "Devices and features",
+  "输入有效期说明": "Input expiry details"
 }

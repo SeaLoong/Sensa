@@ -28,10 +28,9 @@ export default function ProtocolInputsPanel({ config, runtime = [], online = tru
       setDrafts(current => current === submitted ? normalized : current);
     } catch (failure) { setError(failure.message || t('保存协议输入失败')); }
   }
-  return <div className="stack" data-testid="protocol-inputs-panel">
-    <p>{t('让网站或应用把 Sensa 当作设备，再将控制转到实际输出。连接与输入启用分别管理。')}</p>
+  return <div className="stack protocol-inputs-panel" data-testid="protocol-inputs-panel">
+    <p className="caption muted">{t(drafts.length ? '让网站或应用把 Sensa 当作设备，再将控制转到实际输出。连接与输入启用分别管理。' : '添加一个来源，在客户端填写对应地址。蓝牙和虚拟串口可以通过协议桥工具接入。')}</p>
     <p className="caption"><a href={docUrl('docs/protocol-inputs.md')} target="_blank" rel="noreferrer">{t('协议、客户端与蓝牙／虚拟串口接入说明')}</a></p>
-    {!drafts.length && <Notice>{t('添加一个来源，在客户端填写对应地址。蓝牙和虚拟串口可以通过协议桥工具接入。')}</Notice>}
     {drafts.map((draft, index) => {
       const status = runtime.find(input => input.id === draft.id);
       const saved = (config?.protocolInputs || []).some(input => input.id === draft.id);

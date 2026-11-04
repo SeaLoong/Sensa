@@ -1,6 +1,7 @@
 import React, { useId, useMemo, useState } from 'react';
 import {
   AXIS_MODE_SELECT_OPTIONS,
+  AXIS_PROFILE_DEFS,
   COMMAND_MODE_OPTIONS,
   RAMP_TYPE_OPTIONS,
   SIGNAL_CURVE_OPTIONS,
@@ -14,22 +15,52 @@ import {
 import { computeSignalPreviewOutput } from './osc-workspace.js';
 import { getDynamicFloatSliderBounds } from './numeric.js';
 import { RangeField, SelectField, ValueSliderField } from './controls.jsx';
-import { Badge, Button, Field, Notice, Toggle } from './ui.tsx';
+import { Badge, Button, Field, Notice, Tabs, Toggle } from './ui.tsx';
 import { t, diagnostic } from './i18n.js';
 import { mappingPathSuggestions } from './mapping-path-suggestions.js';
 import { pointMetricOptions } from './osc-preview.js';
 
-export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) {
+export function AxisProfileEditor({ value, disabled = false, onChange }) {
+  const definitions = AXIS_PROFILE_DEFS();
+  const [selectedKey, setSelectedKey] = useState('l0');
+  const selected = definitions.find(axis => axis.key === selectedKey) || definitions[0];
+  const id = useId();
+  const navigationId = `axis-profile-${id}`;
+  return (
+    <div className="axis-profile-editor">
+      <Tabs
+        id={navigationId}
+        label={t('选择轴')}
+        value={selected.key}
+        onChange={setSelectedKey}
+        variant="segmented"
+        className="axis-profile-navigation"
+        options={definitions.map(axis => ({
+          value: axis.key,
+          label: <span className="axis-profile-axis">
+            <span className="axis-profile-axis__code">{axis.axis}</span>
+            <span className="sr-only"> {axis.label}</span>
+            <span className={`axis-profile-axis__state${value[axis.key]?.mode === 'Ignored' ? ' axis-profile-axis__state--ignored' : ''}`} aria-hidden="true" />
+          </span>,
+        }))}
+      />
+      <div className="axis-profile-panel" role="tabpanel" id={`${navigationId}-panel`}
+        aria-labelledby={`${navigationId}-${selected.key}`} tabIndex={0}>
+        <MotionAxisEditor axisDefinition={selected} value={value[selected.key]} disabled={disabled}
+          onChange={patch => onChange(selected.key, patch)} />
+      </div>
+    </div>
+  );
+}
+
+export function MotionAxisEditor({ axisDefinition, value, disabled = false, onChange }) {
   const mode = value.mode || 'Normal';
   const limit = getAxisMotionLimitFieldConfig(value);
+  const headingId = useId();
   return (
-    <details className="axis-editor" open={axisDefinition.key === 'l0'}>
-      <summary>
-        <strong>{axisDefinition.axis}</strong>
-        <span>{axisDefinition.label}</span>
-        <Badge>{AXIS_MODE_SELECT_OPTIONS().find((item) => item.value === getAxisModeSelectValue(value))?.label}</Badge>
-      </summary>
-      <div className="stack">
+    <section className="axis-editor" data-axis-key={axisDefinition.key} aria-labelledby={headingId}>
+      <header className="axis-editor__header">
+        <h3 id={headingId}><span className="axis-editor__code">{axisDefinition.axis}</span><span>{axisDefinition.label}</span></h3>
         <SelectField
           label={t('轴模式')}
           value={getAxisModeSelectValue(value)}
@@ -37,67 +68,77 @@ export function MotionAxisEditor({ axisDefinition, value, disabled, onChange }) 
           disabled={disabled}
           onChange={(next) => onChange(parseAxisModeSelectValue(next))}
         />
-        {mode === 'Ignored' ? (
-          <p className="muted">{t('该轴已忽略，不会参与输出。')}</p>
-        ) : mode === 'Locked' ? (
-          <ValueSliderField
-            label={t('锁定位置')}
-            value={Number(value.lockValue || 0)}
-            min={0}
-            max={1}
-            step={0.01}
-            onChange={(lockValue) => onChange({ lockValue })}
-          />
-        ) : (
-          <div className="editor-group"><h4>{t('行程与限位')}</h4><p className="caption muted">{t('映射范围决定输入两端对应的设备位置；边界范围限制最终允许到达的位置。')}</p><div className="form-grid">
-            <RangeField
-              label={t('映射范围')}
-              value={[value.remapMin, value.remapMax]}
-              sliderMin={0}
-              sliderMax={999}
-              onChange={([remapMin, remapMax]) => onChange({ remapMin, remapMax })}
-            />
-            <RangeField
-              label={t('边界范围')}
-              value={[value.min, value.max]}
-              sliderMin={0}
-              sliderMax={999}
-              onChange={([min, max]) => onChange({ min, max })}
-            />
-          </div></div>
-        )}
-        {mode !== 'Ignored' && (
-          <div className="editor-group"><h4>{t('动作怎样过渡')}</h4><p className="caption muted">{t('选择按速度或时间移动，再设置过渡曲线和上限。')}</p>
-            <div className="form-grid">
-              <SelectField
-                label={t('斜率方式')}
-                value={normalizeCommandMode(value.commandMode)}
-                options={COMMAND_MODE_OPTIONS()}
+      </header>
+      {mode === 'Ignored' ? <p className="axis-editor__ignored muted">{t('该轴已忽略，不会参与输出。')}</p> : (
+        <fieldset className="axis-editor__fields" disabled={disabled} aria-labelledby={headingId}>
+          <div className="axis-editor__layout">
+            <section className="axis-editor__group">
+              <div className="axis-editor__group-heading">
+                <h4>{t('行程与限位')}</h4>
+                {mode !== 'Locked' && <p className="caption muted">{t('映射输入两端的位置，并限制可到达的范围。')}</p>}
+              </div>
+              {mode === 'Locked' ? <ValueSliderField
+                label={t('锁定位置')}
+                value={Number(value.lockValue || 0)}
+                min={0}
+                max={1}
+                step={0.01}
                 disabled={disabled}
-                onChange={(commandMode) => onChange({ commandMode })}
-              />
-              <SelectField
-                label={t('斜率曲线')}
-                value={value.rampType || 'None'}
-                options={RAMP_TYPE_OPTIONS()}
+                onChange={lockValue => onChange({ lockValue })}
+              /> : <div className="axis-editor__ranges">
+                <RangeField
+                  label={t('映射范围')}
+                  value={[value.remapMin, value.remapMax]}
+                  sliderMin={0}
+                  sliderMax={999}
+                  onChange={([remapMin, remapMax]) => onChange({ remapMin, remapMax })}
+                />
+                <RangeField
+                  label={t('边界范围')}
+                  value={[value.min, value.max]}
+                  sliderMin={0}
+                  sliderMax={999}
+                  onChange={([min, max]) => onChange({ min, max })}
+                />
+              </div>}
+            </section>
+            <section className="axis-editor__group">
+              <div className="axis-editor__group-heading">
+                <h4>{t('动作怎样过渡')}</h4>
+                <p className="caption muted">{t('选择运动指令、曲线与速度上限。')}</p>
+              </div>
+              <div className="form-grid">
+                <SelectField
+                  label={t('斜率方式')}
+                  value={normalizeCommandMode(value.commandMode)}
+                  options={COMMAND_MODE_OPTIONS()}
+                  disabled={disabled}
+                  onChange={(commandMode) => onChange({ commandMode })}
+                />
+                <SelectField
+                  label={t('斜率曲线')}
+                  value={value.rampType || 'None'}
+                  options={RAMP_TYPE_OPTIONS()}
+                  disabled={disabled}
+                  onChange={(rampType) => onChange({ rampType })}
+                />
+              </div>
+              <ValueSliderField
+                label={limit.label}
+                title={limit.title}
+                value={limit.value}
+                min={limit.min}
+                max={limit.max}
+                step={limit.step}
+                valueFormatter={limit.valueFormatter}
                 disabled={disabled}
-                onChange={(rampType) => onChange({ rampType })}
+                onChange={(next) => onChange({ maxSpeed: limit.toProfileValue(next) })}
               />
-            </div>
-            <ValueSliderField
-              label={limit.label}
-              title={limit.title}
-              value={limit.value}
-              min={limit.min}
-              max={limit.max}
-              step={limit.step}
-              valueFormatter={limit.valueFormatter}
-              onChange={(next) => onChange({ maxSpeed: limit.toProfileValue(next) })}
-            />
+            </section>
           </div>
-        )}
-      </div>
-    </details>
+        </fieldset>
+      )}
+    </section>
   );
 }
 

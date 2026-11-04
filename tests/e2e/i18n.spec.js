@@ -114,6 +114,34 @@ test('English presets, script and compact help use localized documentation', {ta
   await expect(page.getByRole('button',{name:await text(page,'播放'),exact:true})).toBeEnabled();
   await expect(page.getByRole('slider',{name:await text(page,'时间轴'),exact:true})).toBeVisible();
   expect((await rig.overview()).runtime.inputActive).toBe(false);
+  async function assertPlaybackLayout() {
+    const playbackLayout = await page.locator('.script-player__options-grid').evaluate(element => {
+      const box = node => { const value = node.getBoundingClientRect(); return { x: value.x, y: value.y, width: value.width, height: value.height, right: value.right }; };
+      const preset = element.querySelector('.script-player__rate-settings select');
+      const custom = element.querySelector('.script-player__custom-speed input[type=number]');
+      const axis = element.querySelector('.script-player__target-settings select');
+      const loop = element.querySelector('.script-player__target-settings .toggle');
+      const bounds = box(element);
+      return { bounds, preset: box(preset), custom: box(custom), axis: box(axis), loop: box(loop),
+        overflow: element.scrollWidth > element.clientWidth + 1,
+        controlsFit: [...element.querySelectorAll('input, select')].every(control => { const value = box(control); return value.x >= bounds.x - 1 && value.right <= bounds.right + 1; }) };
+    });
+    expect(playbackLayout.overflow, 'Playback settings do not overflow / 播放设置不溢出').toBe(false);
+    expect(playbackLayout.controlsFit).toBe(true);
+    expect(Math.abs(playbackLayout.preset.y - playbackLayout.custom.y), 'Preset and custom rate controls align / 倍率选择与数值对齐').toBeLessThanOrEqual(1);
+    expect(playbackLayout.custom.width).toBeGreaterThanOrEqual(60);
+    expect(playbackLayout.custom.width).toBeLessThanOrEqual(88);
+    expect(Math.abs(playbackLayout.axis.y + playbackLayout.axis.height / 2 - playbackLayout.loop.y - playbackLayout.loop.height / 2),
+      'Target axis and Loop align / 目标轴与循环对齐').toBeLessThanOrEqual(1);
+    return playbackLayout;
+  }
+  const originalViewport = page.viewportSize();
+  const playbackLayouts = { initial: await assertPlaybackLayout() };
+  try {
+    await page.setViewportSize({ ...originalViewport, width: 320 });
+    playbackLayouts.narrow320 = await assertPlaybackLayout();
+  } finally { await page.setViewportSize(originalViewport); }
+  await test.info().attach('script-settings-layout.json', { body: JSON.stringify(playbackLayouts), contentType: 'application/json' });
   await checkpoint(page,page.locator('.script-player__controls'),'english-script-loaded');
   await checkpoint(page,page.locator('.script-player__options'),'english-script-options');
   await oscWorkspace(page,'映射');

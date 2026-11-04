@@ -11,11 +11,12 @@ import { COMPUTED_SIGNAL_LIMIT, computedOperationOptions, computedOperationField
 
 function ComputedInputRow({ input, index, operation, signals, pathOptions, pointOptions, onChange, onRemove }) {
   return <div className="computed-input stack" data-testid="computed-input-row">
-    <div className="actions"><strong>{t('输入 {0}', [index + 1])}</strong><Button tone="danger" aria-label={t('移除输入 {0}', [index + 1])} onClick={onRemove}>{t('移除')}</Button></div>
-    <div className="form-grid">
-      <SignalSourceFields source={input} signals={signals} pathOptions={pathOptions} pointOptions={pointOptions} onChange={onChange} />
-      {operation === 'WeightedAverage' && <Field label={t('权重')} type="number" min="0" step="any" value={input.weight} onChange={event => onChange({ weight: event.target.value === '' ? '' : Number(event.target.value) })} />}
+    <div className="computed-input__header">
+      <strong>{t('输入 {0}', [index + 1])}</strong>
+      {operation === 'WeightedAverage' && <Field className="computed-input__weight" label={t('权重')} type="number" min="0" step="any" value={input.weight} onChange={event => onChange({ weight: event.target.value === '' ? '' : Number(event.target.value) })} />}
+      <Button tone="danger" aria-label={t('移除输入 {0}', [index + 1])} onClick={onRemove}>{t('移除')}</Button>
     </div>
+    <div className="computed-input__source"><SignalSourceFields source={input} signals={signals} pathOptions={pathOptions} pointOptions={pointOptions} onChange={onChange} /></div>
     {input.sourceMode === 'SensaPoint' && <p className="caption muted">{t('填写测量对象的整组路径，例如 Sensa/SPS/Root/**。可读取位置、Contact 速度，以及 Shader 方向与缩放；计算遵循对应定位方式的有效状态。')}</p>}
     {input.sourceMode === 'DeviceFeedback' && <p className="caption muted">{t('路径由输出标识和反馈指标组成，例如 output-id/connected 或 output-id/props.battery。')}</p>}
     {input.sourceMode === 'RecordingReplay' && <p className="caption muted">{t('先载入录制，再使用录制输出标识／信号标识读取对应回放值。')}</p>}
@@ -33,21 +34,25 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pat
   const result = value === '—' ? value : value + (unit ? (unit === '°' ? '' : ' ') + unit : '');
   return (
     <details className="computed-signal" data-testid="computed-signal-card" data-signal-id={draft.id} open={open} onToggle={event => { setOpen(event.currentTarget.open); if (event.currentTarget.open) onSelect(draft.id); }}>
-      <summary><strong>{draft.name || draft.id}</strong><code>{draft.id}</code><Badge tone={valid && !graphDirty ? 'success' : 'default'}>{computedOperationOptions().find(option => option.value === draft.operation)?.label || draft.operation}</Badge><output data-testid="computed-signal-value">{result}</output></summary>
+      <summary><span className="computed-signal__identity"><strong>{draft.name || draft.id}</strong><code>{draft.id}</code></span><Badge tone={valid && !graphDirty ? 'success' : 'default'}>{computedOperationOptions().find(option => option.value === draft.operation)?.label || draft.operation}</Badge><output data-testid="computed-signal-value">{result}</output></summary>
       {open && <div className="stack computed-signal__body">
-        <div className="form-grid computed-signal__settings">
-          <Field label={t('信号名称')} value={draft.name || ''} maxLength={80} onChange={event => onChange({ name: event.target.value })} />
-          <SelectField data-testid="computed-operation" label={t('运算方式')} value={draft.operation} options={computedOperationOptions()} onChange={operation => onChange(changeComputedOperation(draft, operation))} />
-          <Field label={t('输入有效期（ms）')} type="number" min={0} max={60000} step={100} value={draft.maxAgeMs ?? 0} onChange={event => onChange({ maxAgeMs: event.target.value === '' ? '' : Number(event.target.value) })} />
-          {computedOperationFields(draft.operation).map(({ key, label, ...field }) => <Field key={key} label={label} type="number" {...field} value={draft[key] ?? ''}
-            onChange={event => onChange({ [key]: event.target.value === '' ? '' : Number(event.target.value) })} />)}
+        <div className="computed-signal__configuration">
+          <div className="computed-signal__settings">
+            <Field label={t('信号名称')} value={draft.name || ''} maxLength={80} onChange={event => onChange({ name: event.target.value })} />
+            <SelectField data-testid="computed-operation" label={t('运算方式')} value={draft.operation} options={computedOperationOptions()} onChange={operation => onChange(changeComputedOperation(draft, operation))} />
+          </div>
+          <div className="computed-signal__parameters">
+            <Field label={t('输入有效期（ms）')} type="number" min={0} max={60000} step={100} value={draft.maxAgeMs ?? 0} onChange={event => onChange({ maxAgeMs: event.target.value === '' ? '' : Number(event.target.value) })} />
+            {computedOperationFields(draft.operation).map(({ key, label, ...field }) => <Field key={key} label={label} type="number" {...field} value={draft[key] ?? ''}
+              onChange={event => onChange({ [key]: event.target.value === '' ? '' : Number(event.target.value) })} />)}
+          </div>
         </div>
         {computedOperationHelp(draft.operation) && <p className="caption muted">{computedOperationHelp(draft.operation)}</p>}
         {draft.operation === 'WeightedAverage' && <p className="caption muted">{t('权重表示各输入所占的比例。例如 0.2 的权重为 1、0.8 的权重为 3，结果为 0.65。')}</p>}
         {['Difference', 'Ratio'].includes(draft.operation) && <p className="caption muted">{t('按输入顺序计算，使用两项输入。')}</p>}
         {draft.operation === 'Magnitude' && <p className="caption muted">{t('把各项作为向量分量，例如用 X、Y、Z 计算到原点的距离。')}</p>}
         {groups.length > 0 && !['VectorAngle', 'PlaneAngle'].includes(draft.operation) && <p className="caption muted" data-testid="computed-spatial-units">{t('距离沿用位置输入的单位：Contact 为米，SPS 四点与 Shader 为 Avatar 根局部单位。方向只确定朝向，计算时自动归一化。')}</p>}
-        <p className="caption muted">{t('输入有效期填 0 时沿用 OSC 接收设置；也可填写毫秒数，让长时间未更新的输入暂停参与计算。定位输入同时遵循该定位方式的有效条件。')}</p>
+        <details className="computed-signal__help"><summary>{t('输入有效期说明')}</summary><p className="caption muted">{t('输入有效期填 0 时沿用 OSC 接收设置；也可填写毫秒数，让长时间未更新的输入暂停参与计算。定位输入同时遵循该定位方式的有效条件。')}</p></details>
         <div className="editor-group"><h4>{t('参与计算的输入')}</h4>{groups.length > 0 ? <div className="computed-vectors">{groups.map(group =>
           <ComputedVectorGroup key={draft.operation + ':' + group.key} group={group} inputs={draft.inputs.slice(group.start, group.start + 3)} signals={others} pathOptions={pathOptions} pointOptions={pointOptions}
             onChange={inputs => onChange({ inputs: [...draft.inputs.slice(0, group.start), ...inputs, ...draft.inputs.slice(group.start + 3)] })} />)}</div>

@@ -45,9 +45,9 @@ export function Badge({ children, tone = 'default' }: { children?: ReactNode; to
 }
 export interface ModalProps {
   open: boolean; title: ReactNode; onClose(): void; children?: ReactNode; actions?: ReactNode;
-  emergencyAction?: ReactNode; error?: string; wide?: boolean;
+  emergencyAction?: ReactNode; error?: string; wide?: boolean; className?: string;
 }
-export function Modal({ open, title, onClose, children, actions, emergencyAction, error = '', wide = false }: ModalProps) {
+export function Modal({ open, title, onClose, children, actions, emergencyAction, error = '', wide = false, className = '' }: ModalProps) {
   const ref = useRef<HTMLDialogElement>(null), titleId = useId();
   useEffect(() => {
     const dialog = ref.current;
@@ -56,7 +56,7 @@ export function Modal({ open, title, onClose, children, actions, emergencyAction
     else if (!open && dialog.open) dialog.close();
   }, [open]);
   // oxlint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Native dialog backdrop click complements its Escape handler and trapped keyboard focus.
-  return <dialog ref={ref} aria-labelledby={titleId} className={`modal${wide ? ' modal--wide' : ''}`}
+  return <dialog ref={ref} aria-labelledby={titleId} className={`modal${wide ? ' modal--wide' : ''} ${className}`.trim()}
     onKeyDown={event => {
       if (event.key !== 'Tab' || event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
       const dialog = event.currentTarget;

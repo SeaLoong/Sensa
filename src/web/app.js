@@ -6,7 +6,6 @@ import {
   editConfiguration,
   AXIS_LIMIT_MAX_SPEED,
   AXIS_LIMIT_MIN_SPEED,
-  AXIS_PROFILE_DEFS,
   AXIS_PROFILE_PRESETS,
   OSC_HUB_MODE_OPTIONS,
   OUTPUT_SLOPE_MODE_OPTIONS,
@@ -88,7 +87,7 @@ import { buildOscSourceSelectionOptions, formatOscParameterDetailStatus, formatP
 import { AxisSlider, SelectField, SliderControl, ValueSliderField } from './controls.jsx';
 import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.tsx';
 import { ScriptTimelineDensity } from './script-timeline.jsx';
-import { MotionAxisEditor, OscHubTargetRow, SignalMappingRow } from './configuration-views.jsx';
+import { AxisProfileEditor, OscHubTargetRow, SignalMappingRow } from './configuration-views.jsx';
 import { AxisTraceLogEntry, PlainLogEntry, TCodeDeviceInfoCard } from './diagnostic-views.jsx';
 import { t, getLocale, subscribeLocale, setLocale, diagnostic, docUrl } from './i18n.js';
 import {
@@ -1826,7 +1825,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     return (
       <div className="stack script-player">
         <div className="stack script-player__controls">
-          <div className="section__header">
+          <div className="script-player__header">
             <div>
               <h3>{scriptFileLabel}</h3>
               <span className="muted">
@@ -1854,36 +1853,38 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           </div>
           {scriptLoaded && (
             <>
-              <div className="script-clock">
-                <output>{formatDuration(scriptSeekBasePosition)}</output>
-                <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
+              <div className="script-player__timeline">
+                <div className="script-clock">
+                  <output>{formatDuration(scriptSeekBasePosition)}</output>
+                  <span className="muted">/ {formatDuration(scriptDurationMs)}</span>
+                </div>
+                <SliderControl
+                  aria-label={t('时间轴')}
+                  min={0}
+                  max={scriptSliderMax}
+                  step={50}
+                  value={scriptSeekValue}
+                  disabled={!scriptLoaded || scriptBusy}
+                  valueFormatter={formatDuration}
+                  onChange={(next) => {
+                    setScriptSeekDragging(true);
+                    setScriptSeekDraft(next);
+                  }}
+                  onChangeCommitted={(next) => void seekScript(next)}
+                />
+                <ScriptTimelineDensity
+                  bins={scriptActivityBins}
+                  durationMs={scriptDurationMs}
+                  currentPositionMs={scriptSeekBasePosition}
+                  loopStartMs={scriptLoopRange.startMs}
+                  loopEndMs={scriptLoopRange.endMs}
+                  disabled={!scriptLoaded || scriptBusy}
+                  onSeek={seekScript}
+                  onSetLoopBoundary={setScriptLoopBoundary}
+                  onSelectLoopRange={applyScriptLoopRange}
+                />
               </div>
-              <SliderControl
-                aria-label={t('时间轴')}
-                min={0}
-                max={scriptSliderMax}
-                step={50}
-                value={scriptSeekValue}
-                disabled={!scriptLoaded || scriptBusy}
-                valueFormatter={formatDuration}
-                onChange={(next) => {
-                  setScriptSeekDragging(true);
-                  setScriptSeekDraft(next);
-                }}
-                onChangeCommitted={(next) => void seekScript(next)}
-              />
-              <ScriptTimelineDensity
-                bins={scriptActivityBins}
-                durationMs={scriptDurationMs}
-                currentPositionMs={scriptSeekBasePosition}
-                loopStartMs={scriptLoopRange.startMs}
-                loopEndMs={scriptLoopRange.endMs}
-                disabled={!scriptLoaded || scriptBusy}
-                onSeek={seekScript}
-                onSetLoopBoundary={setScriptLoopBoundary}
-                onSelectLoopRange={applyScriptLoopRange}
-              />
-              <div className="actions transport">
+              <div className="actions transport script-player__transport">
                 <div className="actions transport__primary">
                   <Button tone="primary" disabled={!scriptLoaded || scriptBusy}
                     onClick={() => (scriptState?.playing ? pauseScript() : playScript(false))}>
@@ -1901,33 +1902,39 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           )}
         </div>
         {scriptLoaded && (
-          <div className="stack script-player__options">
-            <div className="form-grid">
-              <SelectField
-                label={t('播放倍率')}
-                value={scriptSettings.speed}
-                options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
-                  .sort((a, b) => a - b)
-                  .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
-                onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-              />
-              <ValueSliderField
-                label={t('自定义倍率')}
-                value={scriptSettings.speed}
-                min={SCRIPT_SPEED_MIN}
-                max={SCRIPT_SPEED_MAX}
-                step={SCRIPT_SPEED_STEP}
-                valueFormatter={formatScriptSpeedLabel}
-                unit="×"
-                onChange={(speed) => updateScriptSettingsDraft({ speed })}
-                onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
-              />
-              <SelectField label={t('脚本目标轴')} value={scriptSettings.axis || 'L0'} options={MANUAL_AXES().map(axis => ({ value: axis.key, label: axis.key }))} onChange={axis => updateScriptSettingsDraft({ axis }, { commit: true })} />
-              <Toggle
-                label={t('循环')}
-                checked={scriptSettings.loop}
-                onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
-              />
+          <div className="script-player__options">
+            <div className="script-player__options-grid">
+              <div className="script-player__rate-settings">
+                <SelectField
+                  label={t('播放倍率')}
+                  value={scriptSettings.speed}
+                  options={[...new Set([...SCRIPT_SPEED_PRESETS, scriptSettings.speed])]
+                    .sort((a, b) => a - b)
+                    .map((value) => ({ value, label: formatScriptSpeedLabel(value) }))}
+                  onChange={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+                />
+                <div className="script-player__custom-speed">
+                  <ValueSliderField
+                    label={t('自定义倍率')}
+                    value={scriptSettings.speed}
+                    min={SCRIPT_SPEED_MIN}
+                    max={SCRIPT_SPEED_MAX}
+                    step={SCRIPT_SPEED_STEP}
+                    valueFormatter={formatScriptSpeedLabel}
+                    unit="×"
+                    onChange={(speed) => updateScriptSettingsDraft({ speed })}
+                    onChangeCommitted={(speed) => updateScriptSettingsDraft({ speed }, { commit: true })}
+                  />
+                </div>
+              </div>
+              <div className="script-player__target-settings">
+                <SelectField label={t('脚本目标轴')} value={scriptSettings.axis || 'L0'} options={MANUAL_AXES().map(axis => ({ value: axis.key, label: axis.key }))} onChange={axis => updateScriptSettingsDraft({ axis }, { commit: true })} />
+                <Toggle
+                  label={t('循环')}
+                  checked={scriptSettings.loop}
+                  onChange={(loop) => updateScriptSettingsDraft({ loop }, { commit: true })}
+                />
+              </div>
             </div>
             <details>
               <summary>{t('定位与 A-B')}</summary>
@@ -2773,14 +2780,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     {axisProfiles.map((profile) => (
                       <article key={profile.id} className="profile-row">
                         <div>
-                          <h3>
-                            {profile.name} {profile.isDefault && <Badge>{t('默认')}</Badge>}
-                          </h3>
-                          <p className="caption muted">
-                            {buildAxisProfileAxisRows(profile)
-                              .map((axis) => `${axis.axis}: ${axis.details.map((detail) => detail.label).join(' ')}`)
-                              .join(' · ')}
-                          </p>
+                          <div className="profile-row__heading"><h3>{profile.name}</h3>{profile.isDefault && <Badge>{t('默认')}</Badge>}</div>
+                          <dl className="profile-axis-summary" aria-label={t('轴配置摘要')}>
+                            {buildAxisProfileAxisRows(profile).map(axis => <div key={axis.axis}>
+                              <dt>{axis.axis}</dt><dd>{axis.details.map((detail, index) => <span key={index}>{detail.label}</span>)}</dd>
+                            </div>)}
+                          </dl>
                         </div>
                         <div className="actions">
                           <Button onClick={() => openProfileDialog(profile.id)}>{t('修改配置')}</Button>
@@ -2797,9 +2802,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     ))}
                   </div>
                 </Section>
-                <Section title={t('日志')} description={t('按级别、分类或轴筛选消息，快速找到连接和数值变化的原因。')}>
-                  <details open={logDetailsOpen} onToggle={(event) => setLogDetailsOpen(event.currentTarget.open)}>
-                    <summary>{t('查看日志')}</summary>
+                <Section className="log-section" title={t('日志')} description={t('按级别、分类或轴筛选消息，快速找到连接和数值变化的原因。')}
+                  actions={<Button variant="text" aria-expanded={logDetailsOpen} aria-controls="logs-panel" onClick={() => setLogDetailsOpen(previous => !previous)}>{t(logDetailsOpen ? '收起日志' : '查看日志')}</Button>}>
+                  <div id="logs-panel" hidden={!logDetailsOpen}>
                     {logDetailsOpen && <div className="stack">
                       <div className="form-grid">
                         <SelectField
@@ -2864,7 +2869,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                         )}
                       </div>
                     </div>}
-                  </details>
+                  </div>
                 </Section>
                 <Section title={t('协议输入')} description={t('接收网站、应用、虚拟串口或蓝牙协议桥的控制。')}>
                   {platform.supportsListeners === false ? renderBrowserInputs() : <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
@@ -2904,6 +2909,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               onChange={(event) => updateOutput({ name: event.target.value })}
             />
 
+            {!isSignalOutputType(dialog.draft.type) && <section className="editor-panel"><h3>{t('连接设置')}</h3><div className="output-editor__connection">
             {VENDOR_OUTPUT_TYPES.includes(dialog.draft.type) && <VendorDeviceFields type={dialog.draft.type}
               value={dialog.draft.device} onChange={device => updateOutput({ device,
                 ...(device.axis !== dialog.draft.device?.axis && dialog.draft.signal?.bindings?.length ? {
@@ -2913,7 +2919,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
             {dialog.draft.type === 'TCodeSerial' && (
               <>
-                <div className="actions">
+                <div className="form-toolbar">
                   <SelectField
                     label={t('串口')}
                     value={dialog.draft.comPort || ''}
@@ -2981,7 +2987,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   value={dialog.draft.websocketAddress || ''}
                   onChange={(event) => updateOutput({ websocketAddress: event.target.value })}
                 />
-                <SelectField
+                <div className={dialog.draft.manageEngineProcess ? 'form-grid form-grid--endpoint' : 'form-grid'}><SelectField
                   label={t('连接方式')}
                   value={dialog.draft.manageEngineProcess ? 'managed' : 'central'}
                   options={[{ value: 'central', label: t('连接现有 Intiface Central') }, { value: 'managed', label: t('由 Sensa 启动引擎'), disabled: platform.supportsListeners === false }]}
@@ -2990,10 +2996,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 {dialog.draft.manageEngineProcess && <Field
                   label={t('引擎端口')} type="number" min={1} max={65535}
                   value={dialog.draft.port ?? 12345} onChange={(event) => updateOutput({ port: Number(event.target.value) })}
-                />}
+                />}</div>
                 <p className="caption muted">{dialog.draft.manageEngineProcess
                   ? t('先安装 Intiface Engine，再由 Sensa 管理它的启动与停止。')
                   : t('先在 Intiface Central 启动服务并扫描设备。')}</p>
+                <div className="output-editor__device-settings"><h4>{t('设备与功能')}</h4><div className="form-grid">
                 <SelectField label={t('振动来源')} value={dialog.draft.vibrationAxis || 'V0'}
                   options={[{ value: 'V0', label: t('V0 · 主振动') }, { value: 'V1', label: t('V1 · 振动 2') },
                     { value: 'V2', label: t('V2 · 振动 3') }, { value: 'L0', label: t('L0 · 深度转振动') }]}
@@ -3002,13 +3009,15 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 <SelectField label={t('目标设备')} value={dialog.draft.intifaceDeviceIndex === null || dialog.draft.intifaceDeviceIndex === undefined ? '' : String(dialog.draft.intifaceDeviceIndex)}
                   options={[{ value: '', label: t('全部设备') }, ...(outputDialogOverview?.devices || []).map(device => ({ value: String(device.index), label: `${device.index} · ${device.name}` }))]}
                   onChange={value => updateOutput({ intifaceDeviceIndex: value === '' ? null : Number(value), intifaceDeviceName: '' })} />
-                <Field label={t('匹配设备名称')} value={dialog.draft.intifaceDeviceName || ''} onChange={event => updateOutput({ intifaceDeviceName: event.target.value, intifaceDeviceIndex: null })} />
+                <Field className="field--span" label={t('匹配设备名称')} value={dialog.draft.intifaceDeviceName || ''} onChange={event => updateOutput({ intifaceDeviceName: event.target.value, intifaceDeviceIndex: null })} />
+                </div>
                 <IntifaceFeatureFields routes={dialog.draft.intifaceFeatures || []} devices={outputDialogOverview?.devices || []}
-                  onChange={intifaceFeatures => updateOutput({ intifaceFeatures })} />
+                  onChange={intifaceFeatures => updateOutput({ intifaceFeatures })} /></div>
               </>
             )}
+            </div></section>}
             {isTCodeOutputType(dialog.draft.type) && (
-              <div className="editor-group"><h3>{t('运动设置')}</h3><p className="caption muted">{t('选择轴配置确定行程，再选择设备采用的速度或时长指令。')}</p>
+              <section className="editor-panel output-editor__motion"><h3>{t('运动设置')}</h3><p className="caption muted">{t('选择轴配置确定行程，再选择设备采用的速度或时长指令。')}</p>
                 <SelectField
                   label={t('轴配置')}
                   value={dialog.draft.motionProfileId || getDefaultAxisProfileId(config)}
@@ -3029,7 +3038,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     onChange={(speedUnitBase) => updateOutput({ speedUnitBase })}
                   />
                 </div>
-              </div>
+              </section>
             )}
             {isSignalOutputType(dialog.draft.type) ? <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
               status={outputDialogOverview?.signalStatus} onChange={updateOutput} midiPorts={midiPorts} onRefreshMidi={() => refreshMidiPorts().catch(error => notify(error.message, 'error'))} busy={!online || Boolean(busyKey)} />
@@ -3045,6 +3054,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
         error={modalError}
         title={t('轴配置')}
         wide
+        className="modal--profile"
         onClose={() => setProfileDialog(null)}
         actions={
           <>
@@ -3061,7 +3071,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       >
         {profileDialog && (
           <div className="stack">
-            <Field
+            <div className="profile-identity"><Field
               label={t('配置名称')}
               value={profileDialog.name || ''}
               onChange={(event) => setProfileDialog((previous) => ({ ...previous, name: event.target.value }))}
@@ -3085,15 +3095,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   {t('应用预设')}
                 </Button>
               </div>
-            </details>
-            {AXIS_PROFILE_DEFS().map((axis) => (
-              <MotionAxisEditor
-                key={axis.key}
-                axisDefinition={axis}
-                value={profileDialog.profile[axis.key]}
-                onChange={(patch) => updateProfileAxis(axis.key, patch)}
-              />
-            ))}
+            </details></div>
+            <AxisProfileEditor value={profileDialog.profile} onChange={updateProfileAxis} />
           </div>
         )}
       </Modal>

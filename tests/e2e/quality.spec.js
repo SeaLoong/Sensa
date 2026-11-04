@@ -1,5 +1,5 @@
 import { test, expect, card, text, workspace, oscWorkspace, expand, mode } from './fixtures.js';
-import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow, inspectManualAlignment, inspectOutputAlignment, inspectMappingAlignment, inspectNarrowFormAlignment } from './ui-quality.js';
+import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow, inspectManualAlignment, inspectOutputAlignment, inspectMappingAlignment, inspectNarrowFormAlignment, inspectModalFrame } from './ui-quality.js';
 
 const auditStates = [
   'control-manual-expanded',
@@ -54,9 +54,9 @@ async function attachModalFocus(dialog, info, direction) {
   await info.attach('modal-focus-' + direction + '.json', { body: JSON.stringify(evidence, null, 2), contentType: 'application/json' });
 }
 async function expandFirstAxis(page, dialog) {
-  const axis = dialog.locator('.axis-editor').first();
-  if (!await axis.evaluate(element => element.open)) await axis.locator('summary').click();
-  await expect(axis).toHaveJSProperty('open', true);
+  const axis = dialog.getByRole('tabpanel').locator('.axis-editor');
+  await expect(axis).toHaveCount(1);
+  await expect(axis).toHaveAttribute('data-axis-key', 'l0');
   await expect(axis.getByLabel(await label(page, '轴模式'), { exact: true })).toBeVisible();
 }
 
@@ -127,7 +127,13 @@ for (const locale of ['zh-CN', 'en-US']) {
         await activateOgb.uncheck();
 
         await workspace(page, '设置');
-        await expand(page, await label(page, '查看日志'));
+        const logs = page.locator('button[aria-controls="logs-panel"]');
+        await expect(logs).toHaveAccessibleName(await label(page, '查看日志'));
+        await logs.click();
+        await expect(logs).toHaveAttribute('aria-expanded', 'true');
+        await expect(logs).toHaveAttribute('aria-controls', 'logs-panel');
+        await expect(logs).toHaveAccessibleName(await label(page, '收起日志'));
+        await expect(page.locator('#logs-panel')).toBeVisible();
         await report.audit('settings-logs-expanded');
 
         await page.getByRole('button', { name: await label(page, '修改配置'), exact: true }).click();
@@ -141,7 +147,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           expect(state.inputActive).toBe(false);
           expect(rig.wire.udp.filter(line => /L0\d/.test(line))).toHaveLength(0);
           const config = await page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
-          const enabledOutputs = config.outputs.filter(output => output.enabled).length;
+          const enabledOutputs = config.outputs.filter(item => item.enabled).length;
           expect(enabledOutputs).toBe(0);
           return { inputActive: state.inputActive, enabledOutputs };
         });
@@ -254,6 +260,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           const dialog = page.getByRole('dialog', { name: await label(page, '输出设置'), exact: true });
           const close = dialog.getByRole('button', { name: await label(page, '关闭'), exact: true });
           await expect(close).toBeFocused();
+          const frame = await inspectModalFrame(dialog);
           // The emergency action may precede Close. Test actual tab boundaries, not a fixed DOM order.
           // 急停入口可能在关闭按钮之前；检查真实首尾焦点，而非固定 DOM 顺序。
           const focusable = dialog.locator('button:visible:not([disabled]), input:visible:not([disabled]), select:visible:not([disabled]), textarea:visible:not([disabled]), a[href]:visible, [tabindex="0"]:visible');
@@ -285,7 +292,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           const config = await page.request.get(rig.baseUrl + '/api/config').then(response => response.json());
           expect(config.outputs.find(output => output.id === 'udp').name).toBe('Mock UDP');
           expect(config.outputs.filter(output => output.enabled)).toHaveLength(0);
-          return { focus, emergencyAccessible: true, emergencyCleared: true, inputActive: false,
+          return { focus, frame, emergencyAccessible: true, emergencyCleared: true, inputActive: false,
             draftPreservedDuringStop: true, escapeClosed: true, focusRestored: true };
         });
 
@@ -308,7 +315,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             const rect = element.getBoundingClientRect();
             return { tag: element.tagName.toLowerCase(), type: element.type, tabIndex: element.tabIndex,
               roleAttribute: element.getAttribute('role'), disabled: element.disabled,
-              labelTexts: [...element.labels].map(label => label.textContent.trim()),
+              labelTexts: [...element.labels].map(node => node.textContent.trim()),
               width: rect.width, height: rect.height };
           });
           expect(native.tag).toBe('input');
@@ -339,13 +346,13 @@ for (const locale of ['zh-CN', 'en-US']) {
             const appearance = await checkbox.evaluate(element => getComputedStyle(element).appearance);
             expect(mediaActive).toBe(true);
             expect(appearance).toBe('auto');
-            const hitArea = await inspectBasicTargets(page, checkbox, 'Forced-colors native checkbox');
+            const forcedHitArea = await inspectBasicTargets(page, checkbox, 'Forced-colors native checkbox');
             await expect(checkbox).not.toBeChecked();
             await labelText.click();
             await expect(checkbox).toBeChecked();
             await checkbox.press('Space');
             await expect(checkbox).not.toBeChecked();
-            forcedColors = { mediaActive, appearance, hitArea, labelClickChecked: true, spaceRestoredUnchecked: true,
+            forcedColors = { mediaActive, appearance, hitArea: forcedHitArea, labelClickChecked: true, spaceRestoredUnchecked: true,
               focus: await inspectFocusIndicator(checkbox) };
           } finally { await page.emulateMedia({ forcedColors: 'none' }); }
           const inputActive = (await rig.overview()).runtime.inputActive;
@@ -380,7 +387,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         const profile = page.getByRole('dialog', { name: await label(page, '轴配置'), exact: true });
         await expandFirstAxis(page, profile);
         await report.check('reflow-320-profile-dialog / 轴配置对话框 320 CSS px 重排', async () => ({
-          reflow: await inspectReflow(page), fields: await inspectNarrowFormAlignment(profile),
+          reflow: await inspectReflow(page), fields: await inspectNarrowFormAlignment(profile), frame: await inspectModalFrame(profile),
         }));
         await profile.getByRole('button', { name: await label(page, '取消'), exact: true }).click();
         await report.check('checks-never-enable-input / 检查不会启用输入', async () => {
