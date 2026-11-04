@@ -47,6 +47,60 @@ async function captureSiteReview(page, info, name, images) {
   const bytes = await page.screenshot({ path: file, fullPage: true });
   await info.attach(name, { path: file, contentType: 'image/png' });
   images.push({ attachment: name, sha256: createHash('sha256').update(bytes).digest('hex') });
+  if (name.includes('guide')) {
+    const identity = { sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
+      runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
+      project: info.project.name, testId: info.testId };
+    const diagnosticName = ['diag-footer', name, identity.project, identity.sourceCommit || 'unknown-source',
+      identity.runId || 'unknown-run', identity.attempt || 'unknown-attempt']
+      .map(value => value.replace(/[^a-zA-Z0-9_.-]/g, '_')).join('-');
+    const footer = page.locator('main > footer');
+    await expect(footer).toHaveCount(1);
+    const measureFooter = () => page.evaluate(() => {
+      const node = document.querySelector('main > footer');
+      const header = document.querySelector('body > header');
+      if (!node || !header) throw new Error('Diagnostic requires the guide footer and sticky header');
+      const rect = element => {
+        const { left, right, top, bottom, width, height } = element.getBoundingClientRect();
+        return { left, right, top, bottom, width, height };
+      };
+      return { scroll: { x: scrollX, y: scrollY }, viewport: { width: innerWidth, height: innerHeight },
+        document: { width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight },
+        footer: rect(node), header: rect(header), children: [...node.children].map(child => {
+          const box = rect(child);
+          const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+          return { tag: child.tagName, text: child.textContent.trim(), bounds: box,
+            centerHit: child === hit || child.contains(hit), hitTag: hit?.tagName ?? null };
+        }) };
+    });
+    const before = await measureFooter();
+    try {
+      await footer.evaluate(element => element.scrollIntoView({ block: 'end', inline: 'nearest', behavior: 'instant' }));
+      await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+      const after = await measureFooter();
+      const viewportFile = info.outputPath(diagnosticName + '.png');
+      const viewportBytes = await page.screenshot({ path: viewportFile, fullPage: false });
+      await info.attach(diagnosticName, { path: viewportFile, contentType: 'image/png' });
+      await info.attach(diagnosticName + '.json', {
+        body: JSON.stringify({ schema: 1, diagnosticOnly: true, ...identity,
+          originalFullPage: { attachment: name, sha256: createHash('sha256').update(bytes).digest('hex') },
+          viewportCapture: { attachment: diagnosticName, sha256: createHash('sha256').update(viewportBytes).digest('hex') },
+          before, after }, null, 2), contentType: 'application/json',
+      });
+      expect(after.footer.width, 'diagnostic footer has width').toBeGreaterThan(0);
+      expect(after.footer.height, 'diagnostic footer has height').toBeGreaterThan(0);
+      expect(after.footer.left, 'diagnostic footer left is inside viewport').toBeGreaterThanOrEqual(0);
+      expect(after.footer.right, 'diagnostic footer right is inside viewport').toBeLessThanOrEqual(after.viewport.width);
+      expect(after.footer.top, 'diagnostic footer top is inside viewport').toBeGreaterThanOrEqual(0);
+      expect(after.footer.bottom, 'diagnostic footer bottom is inside viewport').toBeLessThanOrEqual(after.viewport.height);
+      expect(after.footer.top, 'diagnostic footer clears sticky header').toBeGreaterThan(after.header.bottom);
+      expect(after.children, 'guide footer has source link and attribution').toHaveLength(2);
+      for (const child of after.children)
+        expect(child.centerHit, 'diagnostic footer child center receives hit: ' + child.text).toBe(true);
+    } finally {
+      await page.evaluate(({ x, y }) => scrollTo(x, y), before.scroll);
+    }
+  }
 }
 
 async function inspectRunningScreenshots(page, info) {

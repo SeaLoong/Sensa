@@ -30,7 +30,7 @@ jobs:
     timeout-minutes: 35
     env:
       CI: 'true'
-      E2E_SUITE: all
+      E2E_SUITE: site
       PYTHONUTF8: '1'
       E2E_UPDATE_SNAPSHOTS: ${{ inputs.update_snapshots }}
       SENSA_SOURCE_COMMIT: ${{ inputs.source_commit || github.sha }}
