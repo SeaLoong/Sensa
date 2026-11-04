@@ -5,6 +5,11 @@ import type { ButtonProps, FieldProps, TabsProps } from '../../src/web/ui.tsx';
 
 declare const client: RuntimeClient;
 export const browserWorkbench: WorkbenchProps = { client, platform: { manualAxes: ['L0', 'A2'], inputModes: ['manual', 'script'] } };
+export const serialPicker: WorkbenchPlatform = { selectSerialPort: async () => 'webserial-selected-port' };
+export const invalidSerialPicker: WorkbenchPlatform = {
+  // @ts-expect-error The picker must identify the selected port for the output draft.
+  selectSerialPort: async () => {},
+};
 export const invalidAxis: WorkbenchPlatform = {
   // @ts-expect-error Unknown axes cannot enter the shared workbench contract.
   manualAxes: ['L3'],

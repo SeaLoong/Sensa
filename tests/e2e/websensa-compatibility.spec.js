@@ -7,6 +7,7 @@ import { createHash } from 'node:crypto';
 import { WebSocketServer } from 'ws';
 import { buildPages } from '../../scripts/build-pages.mjs';
 import { openWorkbench, controlWorkspace, addWorkbenchOutput, manualMotion, uploadWorkbenchScript, inputActivation } from './websensa-workbench.js';
+import english from '../../src/web/i18n.en.json' with { type: 'json' };
 
 let server, signalServer, sockets, directory, base, httpBase, sourceProof, runtimeBrowser;
 const wire = [], requests = [], httpRequests = [], browserAssets = [], pageErrors = [];
@@ -175,8 +176,28 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
     await expect(settings).toBeFocused(); await expect(settings).toHaveAttribute('aria-selected', 'true');
     await control.click();
     const select = page.getByTestId('output-type');
-    for (const type of ['TCodeSerial', 'Bluetooth', 'Midi']) await expect(select.locator(`option[value="${type}"]`)).toBeDisabled();
-    for (const type of ['Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'SensaHttp']) await expect(select.locator(`option[value="${type}"]`)).toBeEnabled();
+    const availableLabel = language === 'en' ? 'Currently available' : '当前可用';
+    const unavailableLabel = language === 'en' ? 'Currently unavailable' : '当前不可用';
+    const availableGroup = select.locator(`optgroup[label="${availableLabel}"]`);
+    const unavailableGroup = select.locator(`optgroup[label="${unavailableLabel}"]`);
+    await expect(select.locator('optgroup')).toHaveCount(2);
+    await expect(availableGroup).toBeEnabled();
+    await expect(unavailableGroup).toBeDisabled();
+    for (const [type, reason] of [
+      ['TCodeSerial', '浏览器不支持串口'], ['Bluetooth', '浏览器不支持蓝牙'], ['Midi', '浏览器不支持 MIDI'],
+    ]) {
+      const option = unavailableGroup.locator(`option[value="${type}"]`);
+      const localizedReason = language === 'en' ? english[reason] : reason;
+      expect(localizedReason).toBeTruthy();
+      await expect(option).toBeDisabled();
+      await expect(option).toContainText(localizedReason);
+      await expect(option).toHaveAttribute('title', localizedReason);
+    }
+    for (const type of ['Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'SensaHttp', 'Recording'])
+      await expect(availableGroup.locator(`option[value="${type}"]`)).toBeEnabled();
+    const outputGroups = await select.locator('optgroup').evaluateAll(groups => groups.map(group => ({
+      label: group.label, disabled: group.disabled, types: Array.from(group.children, option => option.value),
+    })));
     const features = await page.evaluate(() => ({ webSocket: typeof WebSocket, fetch: typeof fetch,
       serial: typeof navigator.serial?.requestPort, bluetooth: typeof navigator.bluetooth?.requestDevice,
       midi: typeof navigator.requestMIDIAccess, secureContext: isSecureContext,
@@ -188,7 +209,7 @@ test('@site @webcompat WebSensa detects missing platform APIs and keeps accessib
     const axe = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze();
     await info.attach('webcompat-axe-' + language + '.json', { body: JSON.stringify(axe, null, 2), contentType: 'application/json' });
     expect(axe.violations).toEqual([]);
-    evidence.push({ language, features, axeViolations: axe.violations.length, keyboardTabs: true });
+    evidence.push({ language, features, outputGroups, axeViolations: axe.violations.length, keyboardTabs: true });
   }
   await open(page, '?lang=en&http-only=1'); await controlWorkspace(page);
   const select = page.getByTestId('output-type');

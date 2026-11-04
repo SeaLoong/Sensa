@@ -4,6 +4,22 @@ import { t } from './i18n.js';
 
 export function SelectField({ label, title, value, onChange, options, disabled = false, className = '', ...props }) {
   const id = useId();
+  const groups = [];
+  const grouped = new Map();
+  for (const option of options || []) {
+    if (!option.group) { groups.push(option); continue; }
+    if (!grouped.has(option.group)) {
+      const group = { label: option.group, options: [] };
+      grouped.set(option.group, group);
+      groups.push(group);
+    }
+    grouped.get(option.group).options.push(option);
+  }
+  const renderOption = (option) => (
+    <option key={String(option.value)} value={option.value} disabled={Boolean(option.disabled)} title={option.title}>
+      {option.label}
+    </option>
+  );
   return (
     <div className={`field ${className}`}>
       <label className="field__label" id={`${id}-label`} htmlFor={id} title={title}>
@@ -21,11 +37,11 @@ export function SelectField({ label, title, value, onChange, options, disabled =
           onChange(option ? option.value : event.target.value);
         }}
       >
-        {(options || []).map((option) => (
-          <option key={String(option.value)} value={option.value} disabled={Boolean(option.disabled)}>
-            {option.label}
-          </option>
-        ))}
+        {groups.map((entry) => entry.options
+          ? <optgroup key={`group-${entry.label}`} label={entry.label} disabled={entry.options.every(option => option.disabled)}>
+              {entry.options.map(renderOption)}
+            </optgroup>
+          : renderOption(entry))}
       </select>
       {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}
     </div>

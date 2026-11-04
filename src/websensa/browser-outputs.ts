@@ -12,6 +12,7 @@ import { createOutputTransport, discoverIntiface, discoverMidi } from './transpo
 import type { EncodedOutputTransport, IntifaceDiscovery, NavigatorPorts, OutputConfig, SerialPortPort, SocketPort, TransportDependencies } from './transports.ts';
 import type { SignalFrame } from '../core/types.ts';
 import { detectCapabilities } from './capabilities.ts';
+import type { OutputCapability, OutputKind } from './capabilities.ts';
 import { BLUETOOTH_PROFILES } from './device-codecs.ts';
 
 export interface BrowserSerialPort extends SerialPortPort { getInfo?(): { usbVendorId?: number | undefined; usbProductId?: number | undefined }; }
@@ -77,9 +78,9 @@ export class BrowserDevices {
       return { portName, description: info?.usbVendorId ? `USB ${info.usbVendorId.toString(16)}:${info.usbProductId?.toString(16) ?? ''}` : 'Web Serial' };
     });
   }
-  async selectSerialPort(): Promise<void> {
+  async selectSerialPort(): Promise<string> {
     if (!this.navigator.serial?.requestPort) throw new Error('This browser does not provide Web Serial.');
-    this.serialId(await this.navigator.serial.requestPort());
+    return this.serialId(await this.navigator.serial.requestPort());
   }
   selectedSerial(id: string): TransportDependencies {
     const port = this.#serial.get(id);
@@ -90,13 +91,22 @@ export class BrowserDevices {
   }
   listMidiPorts(): ReturnType<typeof discoverMidi> { return discoverMidi({ navigator: this.navigator }); }
   outputTypes(environment: unknown = globalThis): string[] {
-    const report = detectCapabilities(environment), outputs: string[] = [];
-    if (report.outputs['intiface'].available) outputs.push('Intiface', 'TCodeWebSocket', 'SensaWebSocket', 'WebSocketJson');
-    if (report.outputs['http'].available) outputs.push('SensaHttp', 'HttpJson');
-    if (report.outputs['serial'].available) outputs.push('TCodeSerial');
-    if (report.outputs['bluetooth'].available) outputs.push('Bluetooth');
-    if (report.outputs['midi'].available) outputs.push('Midi');
-    return [...outputs, 'Recording'];
+    return this.outputCapabilities(environment).filter(item => item.available).map(item => item.type);
+  }
+  outputCapabilities(environment: unknown = globalThis): (OutputCapability & { type: OutputDeviceConfig['type'] })[] {
+    const report = detectCapabilities(environment);
+    const browser: readonly (readonly [OutputDeviceConfig['type'], OutputKind])[] = [
+      ['Intiface', 'intiface'], ['TCodeWebSocket', 'tcode-ws'], ['SensaWebSocket', 'json-ws'], ['WebSocketJson', 'json-ws'],
+      ['SensaHttp', 'http'], ['HttpJson', 'http'], ['TCodeSerial', 'serial'], ['Bluetooth', 'bluetooth'], ['Midi', 'midi'],
+    ];
+    const desktop: readonly OutputDeviceConfig['type'][] = ['TCodeUdp', 'TCodeTcp', 'Handy', 'Autoblow', 'VacuGlide',
+      'Lovense', 'OscParameter', 'Dglab', 'Mqtt', 'BleBridge'];
+    return [
+      ...browser.map(([type, kind]) => ({ type, ...report.outputs[kind] })),
+      { type: 'Recording', available: true, reason: '', reasonZh: '', reasonCode: 'available', source: 'api', alternatives: [] },
+      ...desktop.map(type => ({ type, available: false, reason: 'Use the desktop app.', reasonZh: '请使用桌面版。',
+        reasonCode: 'desktop-only' as const, source: 'unavailable' as const, alternatives: [] })),
+    ];
   }
 }
 

@@ -113,6 +113,7 @@ export function createBrowserWorkbench(options: BrowserRuntimeOptions = {}): Bro
   const sourceStopped = (inputId: string) => { if (inputId === EXPLORER_ID) { runtime.setInputActive(false); explorerReady = false; } };
   runtime.externalControls.onStop.add(sourceStopped);
   const facade = new ApplicationFacade(runtime, {
+    capabilities: () => ({ outputs: devices.outputCapabilities(options.environment) }),
     outputs: coordinator,
     readOscLatest: pattern => runtime.oscStore.tryGetLatest(pattern),
     inputChange: mutate,

@@ -9,11 +9,13 @@ WebSensa, the Node.js service and Electron use one workbench and one TypeScript 
 ## Connect an output
 
 1. In **Control → Output**, choose an **Output type**, then **Add output**.
-2. In **Output settings**, enter the endpoint and choose a name, profile or signal binding. **Save output** applies the configuration.
-3. Click **Enable** on its card. Serial and Bluetooth devices are selected through the browser's permission dialog; use **Choose serial port** when configuring Web Serial.
+2. In **Output settings**, enter the endpoint and choose a name, profile or signal binding. For Web Serial, **Choose serial port** sets the current port to the device you just authorized. Click **Save output** to apply the configuration.
+3. Click **Enable** on its card; Bluetooth opens the browser's device picker.
 4. Prepare the input, then turn on **Input enabled** to send signals.
 
 Add more cards to fan out signals. Each card shows its own connection, values and errors. Saving configuration applies the same behavior as the executable: it closes input, preserves unchanged connections, and waits for you to enable input again.
+
+The output menu groups currently available and unavailable types, with a short reason beside each unavailable entry. Saved unavailable outputs retain **Configure**, **Remove** and, when enabled, **Disable**. The serial list also shows saved ports that are currently unavailable, so you can choose a device again.
 
 ## Manual controls and scripts
 
@@ -57,7 +59,7 @@ From the [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometr
 | Node.js service WebUI | Native listeners, UDP/TCP/OSC, filesystem recordings, vendor integrations and installed native adapters |
 | Electron | The same Node.js service and workbench inside a desktop window |
 
-The output menu disables unavailable types. Desktop Chromium browsers usually provide the widest device API support; Firefox and Safari can still use WebSocket and HTTP outputs. HTTP receivers need a matching CORS policy, and an HTTPS page must use endpoints allowed by that browser's mixed-content and local-network rules.
+Desktop Chromium browsers usually provide the widest device API support; Firefox and Safari can still use WebSocket and HTTP outputs. HTTP receivers need a matching CORS policy, and an HTTPS page must use endpoints allowed by that browser's mixed-content and local-network rules.
 
 Browser configuration and language preferences are saved locally. Reloading prepares an inactive configuration; it does not reconnect outputs automatically. Completed browser recordings remain in page memory, so download them before closing or reloading. Native recordings use the service's recording directory.
 

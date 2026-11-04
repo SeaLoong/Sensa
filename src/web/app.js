@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { outputTypesForHost } from './workbench-props.ts';
+import { buildOutputChoices } from './output-options.ts';
 import { attachPagePresence } from './page-presence.js';
 import {
   editConfiguration,
@@ -220,6 +221,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [scriptFileInputKey, setScriptFileInputKey] = useState(0);
   const [loading, setLoading] = useState(initialState.loading);
   const [busyKey, setBusyKey] = useState('');
+  const [intifaceScanPending, setIntifaceScanPending] = useState(() => new Map());
+  const intifaceScanRequests = useRef(new Set());
   const [wsState, setWsState] = useState('connecting');
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'info' });
   const [logFilterLevel, setLogFilterLevel] = useState('info');
@@ -1036,20 +1039,21 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   async function savePresetDialog() {
     if (!config || !presetDialog) return;
+    const submitted = presetDialog;
 
-    await withBusy(`preset-save-${presetDialog.presetId}`, async () => {
+    await withBusy(`preset-save-${submitted.presetId}`, async () => {
       const nextPreset = {
-        id: presetDialog.presetId,
-        name: (presetDialog.name || t('OSC 预设')).trim() || t('OSC 预设'),
-        description: (presetDialog.description || '').trim(),
-        mappings: presetDialog.mappings.map(stripSignalDraft).filter((signal) => Boolean(signal.oscPath)),
+        id: submitted.presetId,
+        name: (submitted.name || t('OSC 预设')).trim() || t('OSC 预设'),
+        description: (submitted.description || '').trim(),
+        mappings: submitted.mappings.map(stripSignalDraft).filter((signal) => Boolean(signal.oscPath)),
       };
 
       const nextConfig = editConfiguration(config, { kind: 'preset-save', preset: nextPreset });
 
       const saved = await persistConfig(nextConfig);
       setSelectedOscPreset(nextPreset.id);
-      setPresetDialog(null);
+      setPresetDialog((current) => current === submitted ? null : current);
       notify(t('{0} 已保存', [nextPreset.name]), 'success');
       setConfig(saved);
     }).catch((error) => notify(error.message || t('保存预设失败'), 'error'));
@@ -1120,14 +1124,15 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   async function saveProfileDialog() {
     if (!profileDialog || !config) return;
+    const submitted = profileDialog;
 
-    await withBusy(`profile-save-${profileDialog.profileId}`, async () => {
-      const nextProfileName = (profileDialog.name || t('轴配置')).trim() || t('轴配置');
-      const nextConfig = editConfiguration(config, { kind: 'profile-save', draft: profileDialog });
+    await withBusy(`profile-save-${submitted.profileId}`, async () => {
+      const nextProfileName = (submitted.name || t('轴配置')).trim() || t('轴配置');
+      const nextConfig = editConfiguration(config, { kind: 'profile-save', draft: submitted });
 
       await persistConfig(nextConfig);
       await refreshOverview();
-      setProfileDialog(null);
+      setProfileDialog((current) => current === submitted ? null : current);
       notify(t('{0} 已保存', [nextProfileName]), 'success');
     }).catch((error) => notify(error.message || t('保存轴配置失败'), 'error'));
   }
@@ -1561,19 +1566,20 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
 
   async function saveOutputDialog() {
     if (!dialog || !config) return;
+    const submitted = dialog;
 
-    const conflicts = getOutputTargetConflicts(config, dialog.outputId, dialog.draft);
+    const conflicts = getOutputTargetConflicts(config, submitted.outputId, submitted.draft);
     if (conflicts.length > 0) {
       notify(formatOutputTargetConflictMessage(conflicts), 'error');
       return;
     }
 
-    await withBusy(`dialog-save-${dialog.outputId}`, async () => {
-      const nextConfig = editConfiguration(config, { kind: 'output-save', id: dialog.outputId, draft: dialog.draft });
+    await withBusy(`dialog-save-${submitted.outputId}`, async () => {
+      const nextConfig = editConfiguration(config, { kind: 'output-save', id: submitted.outputId, draft: submitted.draft });
       const saved = await persistConfig(nextConfig);
-      setDialog(null);
+      setDialog((current) => current === submitted ? null : current);
       await refreshOverview();
-      notify(t('{0} 配置已保存', [getOutputConfig(saved, dialog.outputId)?.name || t('输出')]), 'success');
+      notify(t('{0} 配置已保存', [getOutputConfig(saved, submitted.outputId)?.name || t('输出')]), 'success');
     }).catch((error) => notify(error.message || t('保存配置失败'), 'error'));
   }
 
@@ -1594,13 +1600,25 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   }
 
   async function toggleIntifaceScan(start, outputId) {
+    if (intifaceScanRequests.current.has(outputId)) return;
+    intifaceScanRequests.current.add(outputId);
+    setIntifaceScanPending((previous) => new Map(previous).set(outputId, start ? 'start' : 'stop'));
     const endpoint = start
       ? `/api/control/output/${encodeURIComponent(outputId)}/scan-start`
       : `/api/control/output/${encodeURIComponent(outputId)}/scan-stop`;
-    await withBusy(start ? 'scan-start' : 'scan-stop', async () => {
-      await apiRequest(endpoint, { method: 'POST' });
-      notify(start ? t('已请求开始扫描') : t('已请求停止扫描'), 'info');
-    }).catch((error) => notify(error.message || t('扫描请求失败'), 'error'));
+    try {
+      await withBusy(`intiface-scan-${start ? 'start' : 'stop'}-${outputId}`, async () => {
+        await apiRequest(endpoint, { method: 'POST' });
+        notify(start ? t('已请求开始扫描') : t('已请求停止扫描'), 'info');
+      }).catch((error) => notify(error.message || t('扫描请求失败'), 'error'));
+    } finally {
+      intifaceScanRequests.current.delete(outputId);
+      setIntifaceScanPending((previous) => {
+        const next = new Map(previous);
+        next.delete(outputId);
+        return next;
+      });
+    }
   }
 
   async function refreshTCodeDeviceInfo(outputId) {
@@ -1698,12 +1716,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const inputActive = runtimeOverview?.inputActive === true;
   const online = wsState === 'connected';
   const availableOutputTypes = useMemo(() => platform.outputTypes || outputTypesForHost(overview?.capabilities), [platform.outputTypes, overview?.capabilities]);
+  const outputChoices = useMemo(() => buildOutputChoices(OUTPUT_TYPES(), availableOutputTypes, overview?.capabilities, newOutputType),
+    [availableOutputTypes, overview?.capabilities, newOutputType, locale]);
   useEffect(() => {
-    if (availableOutputTypes && !availableOutputTypes.includes(newOutputType)) {
-      const next = OUTPUT_TYPES().find(item => availableOutputTypes.includes(item.value));
-      if (next) setNewOutputType(next.value);
-    }
-  }, [availableOutputTypes, newOutputType]);
+    if (outputChoices.value !== newOutputType) setNewOutputType(outputChoices.value);
+  }, [outputChoices.value, newOutputType]);
   const modalError = snackbar.open && snackbar.severity === 'error' ? diagnostic(snackbar.message) : '';
   const emergencyAction = (
     <Button
@@ -2034,12 +2051,13 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <>
             <SelectField
               data-testid="output-type"
+              className="output-type-field"
               label={t('输出类型')}
-              value={newOutputType}
-              options={OUTPUT_TYPES().map(item => ({ ...item, disabled: availableOutputTypes ? !availableOutputTypes.includes(item.value) : false }))}
+              value={outputChoices.value}
+              options={outputChoices.options}
               onChange={setNewOutputType}
             />
-            <Button data-testid="add-output" onClick={() => addOutputCard(newOutputType)} disabled={!online || Boolean(busyKey) || availableOutputTypes && !availableOutputTypes.includes(newOutputType)}>
+            <Button data-testid="add-output" onClick={() => addOutputCard(outputChoices.value)} disabled={!online || Boolean(busyKey) || !outputChoices.canAdd}>
               {t('添加输出')}
             </Button>
           </>
@@ -2054,17 +2072,19 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <div className="output-list">
             {outputs.map((output) => {
               const state = getOutputOverview(overview, output.id) || {};
+              const availability = outputChoices.states.get(output.type);
+              const unavailable = availability?.available === false;
               const type = OUTPUT_TYPE_BY_VALUE()[output.type] || { label: output.type };
               const profile = isTCodeOutputType(output.type)
                 ? getAxisProfile(config, output.motionProfileId) || getDefaultAxisProfile(config)
                 : null;
               return (
-                <article key={output.id} className="output-card" data-output-id={output.id} data-output-type={output.type}>
+                <article key={output.id} className="output-card" aria-label={output.name} data-output-id={output.id} data-output-type={output.type}>
                   <div className="output-identity">
                     <header className="section__header">
                       <h3>{output.name}</h3>
-                      <Badge tone={!output.enabled ? 'default' : state.connected ? 'success' : 'warning'}>
-                        {!output.enabled ? t('已禁用') : state.connected ? t('已连接') : t('未连接')}
+                      <Badge tone={unavailable ? 'warning' : !output.enabled ? 'default' : state.connected ? 'success' : 'warning'}>
+                        {unavailable ? t('当前不可用') : !output.enabled ? t('已禁用') : state.connected ? t('已连接') : t('未连接')}
                       </Badge>
                     </header>
                     <p className="mono caption wrap" data-testid={output.type === 'TCodeSerial' ? 'serial-target' : undefined}>{buildOutputSummary(output)}</p>
@@ -2072,6 +2092,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                       {type.label}
                       {profile ? ` · ${profile.name}` : ''}
                     </p>
+                    {unavailable && <p className="caption muted" data-testid="output-unavailable-reason">{availability.reason}</p>}
                   </div>
                   <div className="output-telemetry stack">
                     {isSignalOutputType(output.type) ? <OutputSignalStatus status={state.signalStatus} onLoadScript={loadRecordedScript} busy={!online || Boolean(busyKey)} /> : <OutputPositionPanel state={state} />}
@@ -2079,7 +2100,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   </div>
                   <footer className="actions output-actions">
                     <Button
-                      disabled={!online || Boolean(busyKey)}
+                      disabled={!online || Boolean(busyKey) || (!output.enabled && unavailable)}
                       onClick={() => setOutputEnabled(output.id, !output.enabled)}
                     >
                       {output.enabled ? t('禁用') : t('启用')}
@@ -2116,8 +2137,14 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     <details className="output-detail">
                       <summary>{t('设备扫描')}</summary>
                       <div className="actions">
-                        <Button onClick={() => toggleIntifaceScan(true, output.id)}>{t('开始扫描')}</Button>
-                        <Button onClick={() => toggleIntifaceScan(false, output.id)}>{t('停止扫描')}</Button>
+                        <Button onClick={() => toggleIntifaceScan(true, output.id)}
+                          disabled={!online || !output.enabled || !state.connected || intifaceScanPending.has(output.id)}>
+                          {intifaceScanPending.get(output.id) === 'start' ? t('正在开始扫描…') : t('开始扫描')}
+                        </Button>
+                        <Button onClick={() => toggleIntifaceScan(false, output.id)}
+                          disabled={!online || !output.enabled || !state.connected || intifaceScanPending.has(output.id)}>
+                          {intifaceScanPending.get(output.id) === 'stop' ? t('正在停止扫描…') : t('停止扫描')}
+                        </Button>
                       </div>
                       <ul>
                         {(state.devices || []).map((device) => (
@@ -2890,22 +2917,32 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   <SelectField
                     label={t('串口')}
                     value={dialog.draft.comPort || ''}
-                    options={
-                      serialPorts.length
-                        ? serialPorts.map((port) => ({
-                            value: port.portName,
-                            label: `${port.portName}${port.description && port.description !== port.portName ? ' · ' + port.description : ''}`,
-                            disabled:
-                              getOutputTargetConflicts(config, dialog.outputId, {
-                                ...dialog.draft,
-                                comPort: port.portName,
-                              }).length > 0,
-                          }))
-                        : [{ value: '', label: t('未检测到串口') }]
-                    }
+                    options={[
+                      { value: '', label: t(serialPorts.length ? '选择串口' : '未检测到串口'), disabled: true },
+                      ...(dialog.draft.comPort && !serialPorts.some(port => port.portName === dialog.draft.comPort)
+                        ? [{ value: dialog.draft.comPort, label: `${dialog.draft.comPort} · ${t('当前不可用')}`, disabled: true }]
+                        : []),
+                      ...serialPorts.map((port) => ({
+                        value: port.portName,
+                        label: `${port.portName}${port.description && port.description !== port.portName ? ' · ' + port.description : ''}`,
+                        disabled:
+                          getOutputTargetConflicts(config, dialog.outputId, {
+                            ...dialog.draft,
+                            comPort: port.portName,
+                          }).length > 0,
+                      })),
+                    ]}
                     onChange={(comPort) => updateOutput({ comPort })}
                   />
-                  {platform.selectSerialPort && <Button onClick={() => void platform.selectSerialPort().then(refreshSerialPorts).catch(error => notify(error.message, 'error'))}>{t('选择串口')}</Button>}
+                  {platform.selectSerialPort && <Button onClick={() => {
+                    const selectedDialog = dialog;
+                    void platform.selectSerialPort().then(async comPort => {
+                      await refreshSerialPorts();
+                      setDialog(current => current === selectedDialog
+                        ? { ...current, draft: { ...current.draft, comPort } }
+                        : current);
+                    }).catch(error => notify(error.message, 'error'));
+                  }}>{t('选择串口')}</Button>}
                   <Button onClick={() => void refreshSerialPorts().catch((error) => notify(error.message, 'error'))}>
                     {t('刷新串口')}
                   </Button>

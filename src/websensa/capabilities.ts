@@ -2,7 +2,7 @@
 export type OutputKind = 'intiface' | 'tcode-ws' | 'json-ws' | 'http' | 'serial' | 'bluetooth' | 'midi';
 export type CapabilityReason = 'available' | 'missing-websocket' | 'missing-fetch' | 'requires-secure-context'
   | 'missing-serial' | 'missing-bluetooth' | 'missing-midi' | 'missing-window-messaging'
-  | 'missing-input-adapter' | 'missing-host-adapter' | 'host-unavailable';
+  | 'missing-input-adapter' | 'missing-host-adapter' | 'host-unavailable' | 'desktop-only';
 export type CapabilitySource = 'api' | 'injected' | 'unavailable';
 
 export interface OutputCapability {
@@ -43,6 +43,7 @@ const reasons: Readonly<Record<CapabilityReason, readonly [string, string]>> = {
   'missing-input-adapter': ['No MIDI input adapter is registered.', '尚未注册 MIDI 输入适配器。'],
   'missing-host-adapter': ['No host adapter is registered.', '尚未注册主机适配器。'],
   'host-unavailable': ['This host connection is unavailable.', '此主机连接当前不可用。'],
+  'desktop-only': ['Use the desktop app.', '请使用桌面版。'],
 };
 const networkRoutes: readonly OutputKind[] = ['intiface', 'tcode-ws', 'json-ws', 'http'];
 

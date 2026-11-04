@@ -49,7 +49,47 @@ test('the unified output menu retains supported browser transports and disables 
   assert.match(html, /<option value="TCodeUdp" disabled=""/);
   assert.match(html, /<option value="SensaHttp"[^>]*>Sensa · HTTP/);
   assert.match(html, /<option value="Recording">/);
+  const available = html.match(/<optgroup label="Currently available">([\s\S]*?)<\/optgroup>/)?.[1];
+  const unavailable = html.match(/<optgroup label="Currently unavailable" disabled="">([\s\S]*?)<\/optgroup>/)?.[1];
+  assert.ok(available); assert.ok(unavailable);
+  assert.match(available, /value="SensaHttp"/); assert.match(available, /value="Recording"/);
+  assert.doesNotMatch(available, /disabled=""/);
+  assert.match(unavailable, /value="TCodeSerial"/); assert.match(unavailable, /value="TCodeUdp"/);
+  assert.match(unavailable, /Use the desktop app/);
+  assert.ok(html.indexOf(available) < html.indexOf(unavailable));
   assert.doesNotMatch(html, /<input[^>]*type="password"/);
+  await host.client.dispose();
+});
+
+test('an explicitly empty host inventory renders a selected placeholder and disables adding outputs immediately', async () => {
+  const host = makeHost();
+  const initial = host.initialSnapshot();
+  initial.overview.capabilities = { outputs: [] };
+  host.platform = { name: 'Sensa' }; host.initialSnapshot = () => initial;
+  const html = render({ host });
+  assert.match(html, /<option value="" disabled="" selected="">No available output types<\/option>/);
+  assert.match(html, /<button[^>]*data-testid="add-output"[^>]*disabled=""/);
+  assert.doesNotMatch(html, /<option value="TCodeSerial"[^>]*selected=""/);
+  await host.client.dispose();
+});
+
+test('saved unsupported outputs retain recovery actions and render host diagnostics as plain text', async () => {
+  const host = makeHost();
+  const initial = host.initialSnapshot();
+  const output = { ...initial.config.outputs[0], id: 'restored-serial', type: 'TCodeSerial', name: 'Restored serial', enabled: false };
+  initial.config.outputs = [output];
+  initial.overview.capabilities = { outputs: [
+    { type: 'TCodeSerial', available: false, reason: '<script>device unavailable</script>' },
+    { type: 'Recording', available: true },
+  ] };
+  host.platform = { name: 'Sensa' }; host.initialSnapshot = () => initial;
+  const html = render({ host });
+  const card = html.match(/<article[^>]*aria-label="Restored serial"[\s\S]*?<\/article>/)?.[0];
+  assert.ok(card);
+  assert.match(card, /Currently unavailable/);
+  assert.match(card, /data-testid="output-unavailable-reason">&lt;script&gt;device unavailable&lt;\/script&gt;/);
+  assert.doesNotMatch(html, /<script>device unavailable/);
+  for (const label of ['Enable', 'Configure', 'Remove']) assert.ok(card.includes('>' + label + '</button>'), label);
   await host.client.dispose();
 });
 

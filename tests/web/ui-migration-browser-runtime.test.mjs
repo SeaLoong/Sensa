@@ -118,8 +118,27 @@ test('browser device discovery never requests serial permission before explicit 
   const port = { writable: { getWriter() { return { async write() {}, releaseLock() {} }; } }, async open() {}, async close() {} };
   const devices = new BrowserDevices({ navigator: { serial: { getPorts: async () => [], requestPort: async () => { prompts++; return port; } } } });
   assert.deepEqual(await devices.listSerialPorts(), []); assert.equal(prompts, 0);
-  await devices.selectSerialPort(); const [selected] = await devices.listSerialPorts(); assert.equal(prompts, 1); assert.match(selected.portName, /^webserial-/);
+  const selectedId = await devices.selectSerialPort(); const [selected] = await devices.listSerialPorts(); assert.equal(prompts, 1); assert.match(selected.portName, /^webserial-/);
+  assert.equal(selectedId, selected.portName);
   assert.equal(await devices.selectedSerial(selected.portName).navigator.serial.requestPort(), port); assert.equal(prompts, 1);
+});
+
+test('browser serial selection returns the chosen non-first port and keeps each authorized target stable', async () => {
+  const first = {}, chosen = {};
+  let prompts = 0;
+  const devices = new BrowserDevices({ navigator: { serial: {
+    getPorts: async () => [first, chosen],
+    requestPort: async () => { prompts++; return chosen; },
+  } } });
+  const discovered = await devices.listSerialPorts();
+  const selectedId = await devices.selectSerialPort();
+  assert.equal(selectedId, discovered[1].portName);
+  assert.notEqual(selectedId, discovered[0].portName);
+  assert.equal(await devices.selectedSerial(selectedId).navigator.serial.requestPort(), chosen);
+  assert.equal(await devices.selectedSerial(discovered[0].portName).navigator.serial.requestPort(), first);
+  assert.deepEqual(await devices.listSerialPorts(), discovered);
+  assert.equal(await devices.selectSerialPort(), selectedId);
+  assert.equal(prompts, 2);
 });
 
 test('completed browser recording downloads contain actual shared segment data and remain script-loadable', async () => {

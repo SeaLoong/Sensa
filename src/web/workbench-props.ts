@@ -12,7 +12,7 @@ export interface WorkbenchPlatform {
   manualAxes?: readonly MotionAxis[];
   continuousManual?: boolean;
   supportsListeners?: boolean;
-  selectSerialPort?(): Promise<void>;
+  selectSerialPort?(): Promise<string>;
   connectExplorer?(): Promise<void>;
 }
 export interface WorkbenchProps {
