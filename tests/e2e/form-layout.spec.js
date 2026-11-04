@@ -100,7 +100,9 @@ for (const locale of ['zh-CN', 'en-US']) {
         for (let index = 0; index < 3; index++) {
           await mappings.getByRole('button', { name: await text(page, '添加执行器映射'), exact: true }).click();
           const route = mappings.getByTestId('intiface-feature-route').nth(index);
-          await route.getByRole('textbox', { name: await text(page, '匹配设备名称'), exact: true }).fill('Layout device ' + index);
+          const deviceName = route.getByLabel(await text(page, '匹配设备名称'), { exact: true });
+          await deviceName.fill('Layout device ' + index);
+          await expect(deviceName).toHaveValue('Layout device ' + index);
           await route.getByRole('spinbutton', { name: await text(page, '特征索引'), exact: true }).fill(String(index));
         }
         const body = dialog.locator('.modal__body');

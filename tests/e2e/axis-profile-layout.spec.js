@@ -31,6 +31,8 @@ for (const locale of ['zh-CN', 'en-US']) {
     test('axis navigation preserves independent drafts and saves modes without activating output / 切换轴保留独立草稿并保存且不启用输出',
       { tag: ['@config', '@quality'] }, async ({ page, rig }, info) => {
         const original = await readConfig(page, rig);
+        const originalProfile = original.axisProfiles.find(profile => profile.isDefault) || original.axisProfiles[0];
+        expect(originalProfile, 'The loaded configuration has a profile / 已加载配置包含轴配置').toBeDefined();
         const dialog = await openProfile(page);
         const tabs = dialog.getByRole('tablist', { name: await text(page, '选择轴'), exact: true });
         const panel = dialog.getByRole('tabpanel');
@@ -93,14 +95,19 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(dialog).toBeHidden();
 
         const saved = await readConfig(page, rig);
-        const profile = saved.axisProfiles.find(candidate => candidate.id === 'test-profile');
+        const profile = saved.axisProfiles.find(candidate => candidate.id === originalProfile.id);
+        expect(profile, 'Saving preserves the loaded profile / 保存保留已加载的轴配置').toBeDefined();
+        expect(profile.id).toBe(originalProfile.id);
+        expect(saved.axisProfiles.map(candidate => candidate.id)).toEqual(original.axisProfiles.map(candidate => candidate.id));
+        expect(saved.outputs.map(output => ({ id: output.id, motionProfileId: output.motionProfileId })))
+          .toEqual(original.outputs.map(output => ({ id: output.id, motionProfileId: output.motionProfileId })));
         expect(profile.name).toBe(name);
         expect(profile.motion.l0).toMatchObject({ mode: 'Normal', invert: true, remapMin: 200, remapMax: 800,
           min: 100, max: 900, commandMode: 'None', maxSpeed: 339 });
         expect(profile.motion.l1).toMatchObject({ mode: 'Locked', invert: true, lockValue: .62,
           commandMode: 'Speed', rampType: 'EaseOut', maxSpeed: 222 });
         for (const key of Object.keys(profile.motion).filter(key => !['l0', 'l1', 'a2'].includes(key))) {
-          expect(profile.motion[key]).toEqual(original.axisProfiles[0].motion[key]);
+          expect(profile.motion[key]).toEqual(originalProfile.motion[key]);
         }
         expect(profile.motion.a2.mode).toBe('Ignored');
         expect(saved.outputs.every(output => !output.enabled)).toBe(true);
