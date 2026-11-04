@@ -1,5 +1,56 @@
-import { test, expect } from './fixtures.js';
+import { test, expect } from '@playwright/test';
+import http from 'node:http';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { buildPages } from '../../scripts/build-pages.mjs';
 import { controlWorkspace, inputActivation, manualMotion, openWorkbench } from './websensa-workbench.js';
+
+let server, directory, base;
+const pageErrors = [], requests = [];
+const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css', '.js': 'text/javascript', '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml' };
+
+test.beforeAll(async () => {
+  if (process.env.SENSA_SITE_DIRECTORY) directory = path.resolve(process.env.SENSA_SITE_DIRECTORY);
+  else {
+    await fs.mkdir('artifacts/e2e', { recursive: true });
+    directory = await fs.mkdtemp(path.resolve('artifacts/e2e/serial-selection-'));
+    await buildPages({ output: directory, commit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA });
+  }
+  server = http.createServer(async (request, response) => {
+    const url = new URL(request.url, 'http://localhost');
+    requests.push(url.pathname);
+    if (!url.pathname.startsWith('/Sensa/')) { response.writeHead(404).end(); return; }
+    const name = decodeURIComponent(url.pathname.slice('/Sensa/'.length)) || 'index.html';
+    const file = path.resolve(directory, name.endsWith('/') ? name + 'index.html' : name);
+    if (!file.startsWith(directory + path.sep)) { response.writeHead(403).end(); return; }
+    try {
+      response.setHeader('Content-Type', mime[path.extname(file)] || 'application/octet-stream');
+      response.end(await fs.readFile(file));
+    } catch { response.writeHead(404).end(); }
+  });
+  await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
+  base = 'http://127.0.0.1:' + server.address().port;
+});
+
+test.beforeEach(({ page }) => {
+  pageErrors.length = 0;
+  requests.length = 0;
+  page.on('pageerror', error => pageErrors.push(error.message));
+});
+
+test.afterEach(async ({}, info) => {
+  const backendRequests = requests.filter(endpoint => /^\/(?:Sensa\/)?(?:api|ws)(?:\/|$)/.test(endpoint));
+  await info.attach('browser-serial-static-host.json', { body: JSON.stringify({ pageErrors, backendRequests }), contentType: 'application/json' });
+  expect(pageErrors, 'Browser JavaScript errors / 浏览器 JavaScript 错误').toEqual([]);
+  expect(backendRequests, 'Static WebSensa does not require a backend / 静态 WebSensa 无需后端').toEqual([]);
+});
+
+test.afterAll(async () => {
+  if (server) {
+    server.closeAllConnections();
+    await new Promise(resolve => server.close(resolve));
+  }
+});
 
 async function installMockSerial(page, { authorized = ['first', 'chosen'], deferred = false } = {}) {
   await page.addInitScript(({ authorized: initiallyAuthorized, deferred: waitForSelection }) => {
@@ -32,8 +83,8 @@ async function installMockSerial(page, { authorized = ['first', 'chosen'], defer
   }, { authorized, deferred });
 }
 
-async function newSerialOutput(page, baseUrl) {
-  await openWorkbench(page, baseUrl + '/websensa/?lang=en');
+async function newSerialOutput(page) {
+  await openWorkbench(page, base + '/Sensa/websensa/?lang=en');
   await controlWorkspace(page);
   await page.getByTestId('output-type').selectOption('TCodeSerial');
   await page.getByTestId('add-output').click();
@@ -43,9 +94,9 @@ async function newSerialOutput(page, baseUrl) {
 }
 
 test('WebSensa serial picker saves and writes to the chosen non-first port / 串口选择器保存并写入用户选中的非首端口',
-  { tag: ['@config', '@transport', '@site'] }, async ({ page, rig }, info) => {
+  { tag: ['@config', '@transport', '@site'] }, async ({ page }, info) => {
     await installMockSerial(page);
-    const dialog = await newSerialOutput(page, rig.baseUrl);
+    const dialog = await newSerialOutput(page);
     const serial = dialog.getByLabel('Serial port', { exact: true });
     const chosenId = await serial.locator('option').filter({ hasText: 'USB 1234:2' }).getAttribute('value');
     const firstId = await serial.locator('option').filter({ hasText: 'USB 1234:1' }).getAttribute('value');
@@ -79,9 +130,9 @@ test('WebSensa serial picker saves and writes to the chosen non-first port / 串
   });
 
 test('a pending browser serial picker cannot change a reopened draft for the same output / 延迟串口选择不能覆盖同一输出的新草稿',
-  { tag: ['@config', '@site'] }, async ({ page, rig }) => {
+  { tag: ['@config', '@site'] }, async ({ page }) => {
     await installMockSerial(page, { authorized: [], deferred: true });
-    const dialog = await newSerialOutput(page, rig.baseUrl);
+    const dialog = await newSerialOutput(page);
     await expect(dialog.getByLabel('Serial port', { exact: true })).toHaveValue('COM3');
     await expect(dialog.getByLabel('Serial port', { exact: true }).locator('option:checked')).toHaveText('COM3 · Currently unavailable');
     await expect(dialog.getByLabel('Serial port', { exact: true }).locator('option[value=""]')).toHaveText('No serial ports detected');

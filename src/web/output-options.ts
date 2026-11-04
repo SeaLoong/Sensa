@@ -21,8 +21,8 @@ function inventory(value: unknown): Map<string, Capability> | null {
     const item: Capability = { type: row.type, available: row.available };
     const fields = row as Record<string, unknown>;
     for (const key of ['reason', 'reasonZh', 'reasonCode', 'source'] as const) {
-      const value = fields[key];
-      if (typeof value === 'string') item[key] = value;
+      const fieldValue = fields[key];
+      if (typeof fieldValue === 'string') item[key] = fieldValue;
     }
     result.set(item.type, item);
   }
