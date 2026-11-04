@@ -5,6 +5,7 @@
   'use strict';
 
   const fury = 'https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/';
+  const furySps3 = 'https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/';
   const sensa = 'https://github.com/SeaLoong/Sensa/blob/main/';
   const sources = {
     contacts: { label: ['VRChat 官方：Contacts', 'VRChat: Contacts'], url: 'https://creators.vrchat.com/common-components/contacts/', kind: 'official-doc' },
@@ -12,6 +13,11 @@
     beta3: { label: ['VRChat SDK 3.10.6-beta.3', 'VRChat SDK 3.10.6-beta.3'], url: 'https://github.com/vrchat/packages/releases/tag/3.10.6-beta.3', kind: 'official-sdk' },
     contactChanges: { label: ['VRChat 官方：高级 Contact 参数', 'VRChat: advanced Contact parameters'], url: 'https://vrc-beta-docs.netlify.app/releases/release-3-10-6', kind: 'official-doc' },
     sockets: { label: ['VRCFury：Socket 参数生成', 'VRCFury: Socket parameter generation'], url: fury + 'Editor-Avatars/Service/BakeHapticSocketsService.cs#L174-L273', kind: 'generator-source' },
+    sps3Sockets: { label: ['VRCFury SPS3 Beta：OGB 参数生成', 'VRCFury SPS3 Beta: OGB parameter generation'], url: furySps3 + 'Editor-Avatars/Service/BakeHapticSocketsService.cs#L194-L221', kind: 'generator-source' },
+    sps3Plugs: { label: ['VRCFury SPS3 Beta：Plug 参数生成', 'VRCFury SPS3 Beta: Plug parameter generation'], url: furySps3 + 'Editor-Avatars/Service/BakeHapticPlugsService.cs#L123-L178', kind: 'generator-source' },
+    sps3Senders: { label: ['VRCFury SPS3 Beta：兼容检测形状与通道', 'VRCFury SPS3 Beta: compatible shapes and channels'], url: furySps3 + 'Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L70-L102', kind: 'generator-source' },
+    sps3SocketMarkers: { label: ['VRCFury SPS3 Beta：Socket 点标记', 'VRCFury SPS3 Beta: Socket point markers'], url: furySps3 + 'Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs', kind: 'generator-source' },
+    sps3Versions: { label: ['VRCFury SPS3 Beta：能力版本标记', 'VRCFury SPS3 Beta: capability-version markers'], url: furySps3 + 'Editor-Avatars/Service/BakeHapticVersionsService.cs', kind: 'generator-source' },
     plugs: { label: ['VRCFury：Plug 参数生成', 'VRCFury: Plug parameter generation'], url: fury + 'Editor-Avatars/Service/BakeHapticPlugsService.cs#L175-L256', kind: 'generator-source' },
     senders: { label: ['VRCFury：Plug 检测形状', 'VRCFury: Plug detection shapes'], url: fury + 'Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108', kind: 'generator-source' },
     receiverTypes: { label: ['VRCFury：Receiver 参数类型', 'VRCFury: Receiver parameter types'], url: fury + 'Editor-Avatars/Service/HapticContactsService.cs#L41-L66', kind: 'generator-source' },
@@ -106,15 +112,15 @@
   }
 
   function ogb(side, name) {
-      const socket = side === 'Orf', baseSources = [socket ? sources.sockets : sources.plugs, sources.receiverTypes, sources.contacts];
+    const socket = side === 'Orf', baseSources = [socket ? sources.sockets : sources.plugs, socket ? sources.sps3Sockets : sources.sps3Plugs, sources.receiverTypes, sources.contacts];
     const modern = /^Pen(Self|Others)New(Root|Tip)$/.exec(name);
     if (socket && modern) {
       const rootMarker = modern[2] === 'Root', own = modern[1] === 'Self';
-      return entry(name, 'fury', proximity({ sources: [sources.sockets, sources.senders, sources.ogb, sources.contacts],
-        title: rootMarker ? ['SPS2 根部接近值', 'SPS2 root proximity'] : ['SPS2 长度球接近值', 'SPS2 length-sphere proximity'],
+      return entry(name, 'fury', proximity({ sources: [sources.sockets, sources.senders, sources.sps3Sockets, sources.sps3Senders, sources.ogb, sources.contacts],
+        title: rootMarker ? ['SPS2/SPS3 根部接近值', 'SPS2/SPS3 root proximity'] : ['SPS2/SPS3 长度球接近值', 'SPS2/SPS3 length-sphere proximity'],
         summary: rootMarker ? ['表示 Plug 根部的小球标记离 Socket 根中心有多近。', 'Shows how close the small Plug-root marker is to the Socket root center.'] : ['表示以 Plug 根为球心、半径等于 Plug 长度的球体离 Socket 根中心有多近。', 'Shows how close a sphere centered at the Plug root, with radius equal to Plug length, is to the Socket root center.'],
         definition: rootMarker ? [`VRCFury 在 Socket 根中心生成 R=1 的 Proximity Receiver，读取${own ? '自身' : '其他 Avatar'} Plug 的根部 Sender。固定生成器的根部 Sender 半径为 0.01 m。实际检测尺寸随生成布置与缩放确定。`, `VRCFury generates an R=1 Proximity Receiver at the Socket root, reading the ${own ? 'local Avatar’s' : 'other Avatar’s'} Plug-root Sender. The pinned generator uses a 0.01 m root Sender radius. Effective detection dimensions follow the generated arrangement and scale.`] : [`VRCFury 在 Socket 根中心生成 R=1 的 Proximity Receiver，读取${own ? '自身' : '其他 Avatar'} Plug 的长度球 Sender。该球以根部为中心，半径等于生成时的 Plug 长度 L。`, `VRCFury generates an R=1 Proximity Receiver at the Socket root, reading the ${own ? 'local Avatar’s' : 'other Avatar’s'} Plug length-sphere Sender. The sphere is centered at the root and has radius equal to the generated Plug length L.`],
-        usage: ['同一来源、同一 Socket 和同一 Self／Others 类别的 NewRoot 与 NewTip 配对，可估算 Plug 长度并换算进入深浅；再按实际动作校准范围。', 'Pair NewRoot and NewTip from the same source, Socket and Self/Others category to estimate Plug length and derive entry depth; calibrate the range against the actual movement.'],
+        usage: ['同一来源、同一 Socket 和同一 Self／Others 类别的 NewRoot 与 NewTip 配对，可估算 Plug 长度并换算进入深浅；再按实际动作校准范围。SPS3 他人检测使用 _public 兼容通道，_nothips 供自身排除髋部的兼容检测使用。自定义通道的 SPS/... 是 Contact 标签，不是额外 OSC 参数。', 'Pair NewRoot and NewTip from the same source, Socket and Self/Others category to estimate Plug length and derive entry depth; calibrate the range against the actual movement. SPS3 detection of others uses the _public compatible channel; _nothips provides self-only compatibility excluding hip-mounted targets. SPS/... names for custom channels are Contact tags, not additional OSC parameters.'],
       }));
     }
     const legacy = /^Pen(Self|Others)(Close)?$/.exec(name);
@@ -123,9 +129,10 @@
       const data = { sources: historic ? [sources.ogb, sources.contacts] : [...baseSources, sources.ogb],
         title: close ? ['SPS1 有效接近区开关', 'SPS1 proximity-region gate'] : [socket ? 'SPS1 进入深浅趋势' : 'Plug 进入深浅趋势', socket ? 'SPS1 entry-depth trend' : 'Plug entry-depth trend'],
         summary: close ? ['匹配目标进入这组检测范围时为 1，离开时为 0。', '1 while a matching target occupies this detection region; 0 after it leaves.'] : ['对齐靠近时，可把变化理解为进入深浅的趋势，再用实际两端动作校准。', 'During aligned approach, its change can indicate entry depth; calibrate it with the actual movement endpoints.'],
-        definition: historic ? ['官方 OGB 消费端直接读取历史 Orf/PenSelf 的数值。实际检测区域和量程按发布该参数的 Avatar 组件设置确定。', 'The OGB consumer directly reads the historical Orf/PenSelf value. The publishing Avatar component determines the actual detection geometry and range.'] : close ? ['VRCFury 为 Socket 的对应 Plug 标签生成 Constant 胶囊接收器，参数声明为 Float。有效检测区域内存在匹配 Contact 时输出 1，离开后输出 0。', 'VRCFury generates a Constant capsule receiver for the Socket’s matching Plug tag and declares a Float parameter. It reports 1 while a matching Contact occupies its effective region and 0 after it leaves.'] : socket ? ['VRCFury 在 Socket 入口内侧生成 Proximity Receiver，检测以 Plug 根为中心、半径为长度 L 的 Sender 球。输出由检测几何与相对位置共同决定。', 'VRCFury generates a Proximity Receiver inside the Socket opening, detecting a Sender sphere centered at the Plug root with radius L. Detection geometry and relative position determine the reading.'] : ['VRCFury 在 Plug 根中心生成半径为 Plug 长度 L 的 Proximity Receiver，检测对应类别的 Socket 根标记。', 'VRCFury generates a Proximity Receiver at the Plug root with radius equal to Plug length L, detecting the matching category of Socket-root marker.'],
+        definition: historic ? ['官方 OGB 消费端直接读取历史 Orf/PenSelf 的数值。实际检测区域和量程按发布该参数的 Avatar 组件设置确定。', 'The OGB consumer directly reads the historical Orf/PenSelf value. The publishing Avatar component determines the actual detection geometry and range.'] : close ? ['VRCFury 为 Socket 的对应 Plug 标签生成 Constant 胶囊接收器，参数声明为 Float。有效检测区域内存在匹配 Contact 时输出 1，离开后输出 0。', 'VRCFury generates a Constant capsule receiver for the Socket’s matching Plug tag and declares a Float parameter. It reports 1 while a matching Contact occupies its effective region and 0 after it leaves.'] : socket ? ['VRCFury 在 Socket 入口内侧生成 Proximity Receiver，检测以 Plug 根为中心、半径为长度 L 的 Sender 球。输出由检测几何与相对位置共同决定。', 'VRCFury generates a Proximity Receiver inside the Socket opening, detecting a Sender sphere centered at the Plug root with radius L. Detection geometry and relative position determine the reading.'] : ['VRCFury 在 Plug 根中心生成半径为 Plug 长度 L 的 Proximity Receiver，检测对应类别的 Socket 根标记。SPS1/2 的标记半径为 0.001 m，SPS3 改为半径零的点标记，因此开始产生接近值的中心距离分别约为 L+0.001 m 和 L。按实际对象校准原始读数。', 'VRCFury generates a Proximity Receiver at the Plug root with radius equal to Plug length L, detecting the matching category of Socket-root marker. SPS1/2 uses a 0.001 m marker, while SPS3 uses a radius-zero point, so proximity starts at approximately L+0.001 m and L respectively. Calibrate the raw reading against the actual object.'],
         usage: close ? ['作为配对 Pen 参数的生效条件，例如映射到 GateEnable，让动作跟随有效检测区的进入和离开。', 'Use it as the validity gate for the companion Pen parameter, such as GateEnable, so interaction follows entry into and exit from the detection region.'] : socket && !historic ? ['与同一实例、同类别的 Close 配对，再将校准后的深浅趋势映射为目标行程。', 'Pair it with Close from the same instance and category, then map the calibrated depth trend to target travel.'] : ['可直接校准进入深浅的两个端点，再按需要设置方向与曲线。', 'Calibrate the two depth endpoints directly, then set direction and curve as needed.'],
       };
+      if (!socket) data.sources.push(sources.sps3SocketMarkers);
       if (historic) data.valueType = ['数值；类型以发布方为准', 'Numeric; type follows the publisher'];
       return entry(name, historic ? 'ogb' : 'fury', close ? constant(data) : proximity(data));
     }
@@ -133,10 +140,10 @@
     if (touch) {
       const rubbing = touch[1] === 'Frot', close = !!touch[3];
       if (rubbing && (touch[2] !== 'Others' || socket && close)) return null;
-      return entry(name, 'fury', (close ? constant : proximity)({ sources: baseSources,
+      return entry(name, 'fury', (close ? constant : proximity)({ sources: rubbing && socket ? [...baseSources, sources.sps3SocketMarkers] : baseSources,
         title: close ? ['接触区域开关', 'Contact-region gate'] : rubbing ? ['贴近与摩擦强度', 'Close-contact and rubbing intensity'] : ['身体触碰强度', 'Body-touch intensity'],
         summary: close ? ['表示匹配目标是否进入对应的触碰或摩擦检测区。', 'Indicates whether a matching target occupies the corresponding touch or rubbing detection region.'] : rubbing ? ['表示附近匹配 Socket 或 Plug 标记的靠近程度，可用于擦过时的触感。', 'Shows proximity of a matching Socket or Plug marker, useful for feedback as it passes nearby.'] : ['表示匹配身体部位靠近这个触碰区域的程度。', 'Shows how closely a matching body part approaches this touch region.'],
-        definition: close ? ['VRCFury 使用 Constant 胶囊接收器，并声明 Float 参数提供 0／1 区域状态。SDK 按碰撞标签和 Self／Others 筛选目标，区域中存在匹配 Contact 时输出 1。', 'VRCFury uses a Constant capsule receiver and declares a Float parameter for a 0/1 region state. The SDK filters by collision tags and Self/Others and reports 1 while a matching Contact occupies the region.'] : rubbing ? (socket ? ['Socket FrotOthers 的 Proximity 球位于根前方 0.05 m、半径 0.1 m，检测其他 Avatar 的 Socket 根标签。尺寸按实际生成与缩放解释。', 'Socket FrotOthers uses a Proximity sphere 0.05 m in front of the root with radius 0.1 m, detecting another Avatar’s Socket-root tag. Effective dimensions follow generation and scaling.'] : ['Plug FrotOthers 的 Proximity 球以 Plug 根为中心、半径等于长度 L，检测其他 Plug 的包络 Sender，并提供 Close 区域开关。', 'Plug FrotOthers uses a Proximity sphere at the Plug root with radius L, detecting another Plug’s envelope Sender and providing a Close region gate.']) : [`VRCFury 使用 Proximity Receiver 检测${socket ? 'Head／Hand／Foot／Finger 等按类别配置的' : 'Hand／Foot／Finger'}身体标签。检测中心、半径及对应的 Close 区域由 Socket 或 Plug 的生成设置确定。`, `VRCFury uses a Proximity Receiver for ${socket ? 'body tags such as Head/Hand/Foot/Finger, according to category' : 'Hand/Foot/Finger body tags'}. Socket or Plug generation settings determine its center, radius and companion Close region.`],
+        definition: close ? ['VRCFury 使用 Constant 胶囊接收器，并声明 Float 参数提供 0／1 区域状态。SDK 按碰撞标签和 Self／Others 筛选目标，区域中存在匹配 Contact 时输出 1。', 'VRCFury uses a Constant capsule receiver and declares a Float parameter for a 0/1 region state. The SDK filters by collision tags and Self/Others and reports 1 while a matching Contact occupies the region.'] : rubbing ? (socket ? ['Socket FrotOthers 的 Proximity 球位于根前方 0.05 m、半径 0.1 m，检测其他 Avatar 的 Socket 根标签。SPS1/2 根标记半径为 0.001 m，SPS3 为半径零的点标记。尺寸按实际生成与缩放解释。', 'Socket FrotOthers uses a Proximity sphere 0.05 m in front of the root with radius 0.1 m, detecting another Avatar’s Socket-root tag. SPS1/2 uses a 0.001 m root marker; SPS3 uses a radius-zero point. Effective dimensions follow generation and scaling.'] : ['Plug FrotOthers 的 Proximity 球以 Plug 根为中心、半径等于长度 L，检测其他 Plug 的包络 Sender，并提供 Close 区域开关。', 'Plug FrotOthers uses a Proximity sphere at the Plug root with radius L, detecting another Plug’s envelope Sender and providing a Close region gate.']) : [`VRCFury 使用 Proximity Receiver 检测${socket ? 'Head／Hand／Foot／Finger 等按类别配置的' : 'Hand／Foot／Finger'}身体标签。检测中心、半径及对应的 Close 区域由 Socket 或 Plug 的生成设置确定。`, `VRCFury uses a Proximity Receiver for ${socket ? 'body tags such as Head/Hand/Foot/Finger, according to category' : 'Hand/Foot/Finger body tags'}. Socket or Plug generation settings determine its center, radius and companion Close region.`],
         usage: close ? ['与同一对象、同类别的 Touch 或 Frot 强度配对，控制何时采用接触强度。', 'Pair it with Touch or Frot intensity from the same object and category to control when the intensity applies.'] : !rubbing || !socket ? ['可校准为振动等强度，配合同一实例和类别的 Close 作为接触条件。', 'Calibrate it to an intensity such as vibration, using Close from the same instance and category as the contact condition.'] : ['可直接校准为贴近或擦过时的振动强度。', 'Calibrate it directly to vibration intensity for close approach or passing contact.'],
       }));
     }
@@ -285,12 +292,12 @@
       usage: ['在需要上游发布接触参数时配置该请求，随后观察实际收到的 Pen／Touch／Frot 读数。', 'Configure this request when the Avatar requires it to publish contacts, then inspect the received Pen/Touch/Frot readings.'],
     }));
     if (/^(?:VFH\/Version\/\d+|OGB\/(?:Pen|Orf)\/.+\/Version\/\d+)$/.test(path)) return entry(path.split('/').at(-1), 'ogb', gate({
-      sources: [sources.versions, sources.ogbVersions],
+      sources: [sources.versions, sources.sps3Versions, sources.ogbVersions],
       valueType: path === 'VFH/Version/10' ? 'Bool' : ['历史能力标记；类型以发布方为准', 'Historical capability marker; type follows the publisher'],
       range: path === 'VFH/Version/10' ? booleanRange : ['版本号位于参数路径中', 'Version number is part of the parameter path'],
       title: ['Haptics 能力版本标记', 'Haptics capability-version marker'],
       summary: ['帮助接收软件识别 Avatar 提供的 Haptics 参数能力。', 'Helps receiving software identify the Avatar’s Haptics parameter capabilities.'],
-      definition: ['VRCFury／OGB 通过版本标记路径约定所支持的参数能力，具体版本号包含在参数路径中。', 'VRCFury/OGB use version-marker paths to advertise supported parameter capabilities, with the version number in the path.'],
+      definition: ['VRCFury／OGB 通过版本标记路径约定所支持的参数能力，具体版本号包含在参数路径中。SPS2 和 SPS3 都可发布 VFH/Version/10，不能据此区分 SPS 形变代际。', 'VRCFury/OGB use version-marker paths to advertise supported parameter capabilities, with the version number in the path. Both SPS2 and SPS3 can publish VFH/Version/10; it does not identify the SPS deformation generation.'],
       usage: ['用于识别输入能力；联动强度读取实际接触或定位参数。', 'Use it to identify input capabilities; contact and tracking parameters provide interaction intensity.'],
     }));
     return builtin(path);

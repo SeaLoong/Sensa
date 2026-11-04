@@ -42,6 +42,8 @@ class LabFixture(unittest.TestCase):
             'unity/top.sealoong.sensa/Editor/SensaEditorLocalization.cs': 'editor localization',
             'unity/top.sealoong.sensa/Editor/SpsGpuProbe.shader.txt': 'gpu shader',
             'unity/top.sealoong.sensa/Editor/SpsGpuDependencies.sha256.txt': 'dependencies',
+            'unity/top.sealoong.sensa/Editor/Sps3GpuProbe.shader.txt': 'sps3 gpu shader',
+            'unity/top.sealoong.sensa/Editor/Sps3GpuDependencies.sha256.txt': 'sps3 dependencies',
         }.items():
             self.write(self.repository / relative, content)
 

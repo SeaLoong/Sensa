@@ -1,0 +1,120 @@
+{
+  "schema": 1,
+  "producer": {
+    "repository": "VRCFury/VRCFury",
+    "channel": "beta",
+    "commit": "59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4",
+    "evidence": "Source-derived legacy OGB contract; this fixture does not claim Unity or hardware execution.",
+    "sources": [
+      {
+        "path": "com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs",
+        "sha256": "29bc4b520f8b888d0a9e7ba7a3249f4828333f7ed06c94b7cf47d137a6c69c81"
+      },
+      {
+        "path": "com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs",
+        "sha256": "602c421e86045a0dbda747f5aa83b2c0c468a3379895367034a4bdfcd72c560c"
+      },
+      {
+        "path": "com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs",
+        "sha256": "94a5b122119dd1f6f4c25446480a3521c7e3bea428d56df6c33232304fbbc5f0"
+      },
+      {
+        "path": "com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsTags.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsTags.cs",
+        "sha256": "e7d48437a4eb27f4b51392037bba4607b8e34a7f6a586ddd366d46f1db6eb072"
+      },
+      {
+        "path": "com.vrcfury.vrcfury/Tests/Avatars/Sps3SendersTest.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Tests/Avatars/Sps3SendersTest.cs",
+        "sha256": "14fd7f783ffabb10497249fa319e36fd502538a684cd1dac30c9bd038575498e"
+      },
+      {
+        "path": "com.vrcfury.vrcfury/Editor-Avatars/Service/HapticContactsService.cs",
+        "url": "https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Avatars/Service/HapticContactsService.cs",
+        "sha256": "0d0be117ea3ea1f96cb7c368bc8a632c4078282bbd705f440c067a6b8ee5492a"
+      }
+    ]
+  },
+  "scope": {
+    "legacyChannels": [
+      "_public",
+      "_nothips"
+    ],
+    "nativeCollisionTagsAreNotOscParameters": true,
+    "privateOnlyChannelsHaveNoLegacySenderGuarantee": true,
+    "receiverPartyCompatibility": [
+      {
+        "party": "Others",
+        "receiverTagSuffix": "",
+        "requiredSenderChannel": "_public"
+      },
+      {
+        "party": "Self",
+        "receiverTagSuffix": "",
+        "requiredSenderChannel": "_public"
+      },
+      {
+        "party": "Self",
+        "receiverTagSuffix": "_SelfNotOnHips",
+        "requiredSenderChannel": "_nothips"
+      }
+    ],
+    "notHipsOnlyDoesNotMatchOthers": true,
+    "selfTagSuffixRule": "HapticContactsService.GetSelfTagSuffix uses _SelfNotOnHips only for a receiver nearest the Hips bone; other receivers use the unsuffixed tag. ReceiverParty maps directly to allowSelf/allowOthers."
+  },
+  "socket": {
+    "prefix": "OGB/Orf",
+    "receiverRadiusMeters": 1,
+    "rootSenderRadiusMeters": 0.01,
+    "rootTag": "TPS_Pen_Root",
+    "lengthTag": "TPS_Pen_Penetrating",
+    "parties": [
+      "Self",
+      "Others"
+    ],
+    "rootSuffix": "NewRoot",
+    "tipSuffix": "NewTip"
+  },
+  "traces": [
+    {
+      "name": "public Others 0.20m plug",
+      "party": "Others",
+      "plugLengthMeters": 0.2,
+      "learningDistanceMeters": 0.24,
+      "insideDistanceMeters": 0.12,
+      "expectedFraction": 0.4,
+      "senderChannels": [
+        "_public"
+      ],
+      "receiverTagSuffix": ""
+    },
+    {
+      "name": "compatible Self 0.40m plug",
+      "party": "Self",
+      "plugLengthMeters": 0.4,
+      "learningDistanceMeters": 0.5,
+      "insideDistanceMeters": 0.2,
+      "expectedFraction": 0.5,
+      "senderChannels": [
+        "_public",
+        "_nothips"
+      ],
+      "receiverTagSuffix": "_SelfNotOnHips"
+    },
+    {
+      "name": "public Others 0.60m plug",
+      "party": "Others",
+      "plugLengthMeters": 0.6,
+      "learningDistanceMeters": 0.8,
+      "insideDistanceMeters": 0.15,
+      "expectedFraction": 0.75,
+      "senderChannels": [
+        "_public"
+      ],
+      "receiverTagSuffix": ""
+    }
+  ]
+}

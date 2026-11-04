@@ -70,6 +70,8 @@ Sensa 也能接收其他应用原本发给设备的控制。典型路径为 **�
 
 制作自己的 Avatar 时，[Unity 组件包](unity/top.sealoong.sensa/README.zh-CN.md)提供 SPS 四点定位、Contact 直接定位（SDK Beta）、Shader 捕获与跟随参考平面。[方案选择](docs/usage-scenarios.md) · [定位与校准](docs/positioning.md)
 
+SPS3 测试版沿用公开 OGB 深度／触摸接口，也可使用 Sensa 专用根点测量。[SPS3 设置与通道](docs/sps3.md)
+
 ## 文档与开发
 
 [工作台指南](docs/guide.md) · [功能参考](docs/features.md) · [OSC 参数字典](docs/osc-parameters.md) · [语言设置](docs/languages.md) · [开发与发布](docs/development.md) · [验证记录](docs/e2e-status.md)

@@ -34,7 +34,7 @@ namespace UnityBox.Sensa
             var placement = SensaSpsAdapter.ReadRoot(author.reference);
             placement.position += placement.rotation * author.positionOffset;
             placement.rotation *= Quaternion.Euler(author.rotationOffset);
-            if (!Finite(placement.position) || !Finite(placement.root.TransformPoint(placement.position)))
+            if (!Finite(placement.position) || !Finite(placement.WorldMatrix.MultiplyPoint3x4(Vector3.zero)))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("Choose finite measurement position and rotation offsets."));
             return placement;
         }
@@ -81,9 +81,7 @@ namespace UnityBox.Sensa
             Validate(avatar, author);
             SensaSensorUtility.Budget(avatar, ContactCount(author));
             var placement = ResolvePlacement(author);
-            var source = SensaSensorUtility.Child(placement.root, "SensaFrameSource_" + author.instanceName);
-            source.localPosition = placement.position;
-            source.localRotation = placement.rotation;
+            var source = SensaSpsAdapter.BuildRootSource(avatar, placement, "SensaFrameSource_" + author.instanceName);
             // Keep the plane rigid in avatar-root units even when the reference bone is scaled or sheared.
             // Only the chosen origin and quaternion rotation follow the bone; the frame inherits Avatar scale.
             var frame = SensaSensorUtility.Child(avatar.transform, "SensaTrackingFrame_" + author.instanceName);

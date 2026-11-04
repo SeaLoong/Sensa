@@ -13,7 +13,7 @@ namespace UnityBox.Sensa
         [Tooltip("Bone, marker, SPS Socket/Plug, Sensa component or native Contact on this Avatar that the reference plane follows.")]
         public Component reference;
         public SensaRootTrackingMethod trackingMethod = SensaRootTrackingMethod.FourAnchor;
-        [Tooltip("Origin offset along the selected root's local axes, before the rotation offset.")]
+        [Tooltip("Origin offset along the selected root's local axes, before the rotation offset. SPS3 Contact markers use Avatar-root authored units, not encoded sender scale.")]
         public Vector3 positionOffset;
         [Tooltip("Euler rotation relative to the selected root. +Z is depth, +X is right, and +Y is up.")]
         public Vector3 rotationOffset;

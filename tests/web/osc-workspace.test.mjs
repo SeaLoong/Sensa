@@ -207,7 +207,7 @@ test('probe labels and signal explanations distinguish diagnostic geometry from 
   for (let index = 0; index < 4; index++) assert.equal(probePresentation(`Sensa/SPS/Main/P${index}`).label, `固定接收器 P${index}`);
   assert.equal(probePresentation('Sensa/SPS/Main/P4'), null);
   assert.equal(probePresentation('Sensa/SpsRoot/v1/Main/Self/Root/A0'), null);
-  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /整组读数计算位置/], ['Sensa/Pose/v1/Main/Others/Root/A0', /完整测量组计算位置/], ['Sensa/SPS/Main/P0', /根部相对 Avatar 的位置/], ['OGB/Orf/Main/PenOthersNewTip', /SPS2 · PenOthersNewTip.*以根部为球心/], ['OGB/Orf/Main/PenOthers', /SPS1 · PenOthers.*Close/]];
+  const explanations = [['Sensa/Handle/v1/LabHandle/Self/Root/A0', /整组读数计算位置/], ['Sensa/Pose/v1/Main/Others/Root/A0', /完整测量组计算位置/], ['Sensa/SPS/Main/P0', /根部相对 Avatar 的位置/], ['OGB/Orf/Main/PenOthersNewTip', /SPS2\/SPS3 · PenOthersNewTip.*以根部为球心/], ['OGB/Orf/Main/PenOthers', /SPS1 · PenOthers.*Close/]];
   for (const [path, expected] of explanations) assert.match(parameterMeaning(path), expected);
 });
 

@@ -130,4 +130,4 @@ Same-origin desktop tabs share one realtime connection and keep independent draf
 
 Open the [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) from Help or from the desktop's offline documentation. Choose a scene, move the target and compare parameter readings with the geometry. Use the axis sliders for exact values and the view controls for 3D/XZ/isometric presentation.
 
-SPS2 Root/Tip and SPS1 PenOthers/Close explain depth-related readings; Touch, Frot and zone scenes explain intensity. The dictionary supplies the full parameter definitions. [OSC reference](osc-parameters.en.md) · [Home](../README.md)
+SPS2/SPS3 Root/Tip and SPS1 PenOthers/Close explain depth-related readings; Touch, Frot and zone scenes explain intensity. The dictionary supplies the full parameter definitions. [OSC reference](osc-parameters.en.md) · [Home](../README.md)

@@ -183,7 +183,7 @@ namespace UnityBox.Sensa
             try
             {
                 var placement = SensaShaderCaptureBuilder.ResolvePlacement(author);
-                var frame = placement.root.localToWorldMatrix * Matrix4x4.TRS(placement.position, placement.rotation, Vector3.one);
+                var frame = placement.WorldMatrix;
                 var origin = frame.MultiplyPoint3x4(Vector3.zero);
                 var right = frame.MultiplyVector(Vector3.right);
                 var forward = frame.MultiplyVector(Vector3.forward);

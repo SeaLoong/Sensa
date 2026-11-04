@@ -179,10 +179,10 @@ function baseParameterMeaning(path) {
   if (path.startsWith('Sensa/Diagnostics/Shader/')) return t('此测试画面用于检查捕获与传输。完成后，请在真实客户端捕获原生编码画面，验证坐标变化后再创建映射。');
   if (/^Sensa\/(Point|Handle)\/v1\//.test(path)) return t('使用四路距离，测量本地骨骼或 PhysBone（PB）把手相对参考对象的位置。PB 把手在抓取时提供有效位置。');
   if (/^VFH\/Zone\/Touch\/.+\/(Self|Others)$/.test(path)) return t('独立触摸区的接触强度，用于振动映射；Self 表示自身，Others 表示他人。触摸区按自身半径检测，接触时即可生效。');
-  if (/^(VFH\/Version\/\d+|OGB\/(Pen|Orf)\/.+\/Version\/\d+)$/.test(path)) return t('Haptics 功能标记，帮助软件识别当前 Avatar 支持的接触参数。');
+  if (/^(VFH\/Version\/\d+|OGB\/(Pen|Orf)\/.+\/Version\/\d+)$/.test(path)) return t('Haptics 功能标记，帮助软件识别当前 Avatar 支持的接触参数。SPS2 与 SPS3 都可发布 VFH/Version/10，不能用它区分 SPS 代际。');
   if (/^OGB\/(Orf|Pen)\//.test(path)) {
-    if (/^Pen(Self|Others)NewRoot$/.test(leaf)) return t("SPS2 · {0}：测量根部表面与接收器的接近程度。与同一对象的 NewTip 配对后，Sensa 估算长度并计算插入比例。", [leaf]);
-    if (/^Pen(Self|Others)NewTip$/.test(leaf)) return t("SPS2 · {0}：测量以根部为球心、半径等于长度的球体接近程度。与 NewRoot 配对估算长度；实际插入比例也会受到横向偏移和角度影响。", [leaf]);
+    if (/^Pen(Self|Others)NewRoot$/.test(leaf)) return t("SPS2/SPS3 · {0}：测量根部表面与接收器的接近程度。与同一对象的 NewTip 配对后，Sensa 估算长度并计算插入比例。SPS3 他人检测使用 _public，_nothips 用于自身排除髋部的兼容检测。", [leaf]);
+    if (/^Pen(Self|Others)NewTip$/.test(leaf)) return t("SPS2/SPS3 · {0}：测量以根部为球心、半径等于长度的球体接近程度。与 NewRoot 配对估算长度；实际插入比例也会受到横向偏移和角度影响。", [leaf]);
     if (/^Pen(Others|Self)$/.test(leaf)) return path.startsWith('OGB/Orf/')
       ? leaf === 'PenSelf'
         ? t('SPS1 · PenSelf：自身目标的连续接近读数，可按希望的浅端与深端直接校准动作行程。')

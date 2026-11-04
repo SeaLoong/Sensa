@@ -2,7 +2,7 @@
   {
     "id": "ogb-depth",
     "name": "OGB / SPS · 深度",
-    "description": "自动识别 SPS2 · PenOthersNewRoot / PenOthersNewTip，以及 SPS1 · PenOthers / PenOthersClose。选择要使用的对象后校准动作范围。",
+    "description": "自动识别 SPS1，以及 SPS2／SPS3 兼容通道的 NewRoot / NewTip。SPS3 他人检测请启用 Include Public SPS Channel（_public）。选择对象后校准动作范围。",
     "mappings": [
       {
         "oscPath": "OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers",

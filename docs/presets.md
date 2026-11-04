@@ -6,7 +6,7 @@
 
 | 模板 ID | 用途 | 默认输出 |
 | --- | --- | --- |
-| `ogb-depth` | SPS2 配对估算、SPS1 或 Plug 深浅趋势 | Depth → L0 |
+| `ogb-depth` | SPS2/SPS3 配对估算、SPS1 或 Plug 深浅趋势 | Depth → L0 |
 | `ogb-touch` | Touch／Frot 或独立 VFH Touch Zone | V0 |
 | `contact-position` | Contact 直接位置；按米校准所选轴 | SensaPoint Z → Depth／L0 |
 | `contact-speed` | Contact 相对速率；按 m/s 校准强度 | SensaPoint Speed → V0 |
@@ -20,9 +20,9 @@
 OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers
 ```
 
-OgbDepth 优先配对同来源、同实例、同 Self／Others 类别的 `PenOthersNewRoot` 与 `PenOthersNewTip`，对应图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip**。先用未饱和样本估算 Plug 长度，再换算进入深浅的变化趋势；配对或估长未就绪时输出零。
+OgbDepth 优先配对同来源、同实例、同 Self／Others 类别的 `PenOthersNewRoot` 与 `PenOthersNewTip`，对应图解中的 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip**。先用未饱和样本估算 Plug 长度，再换算进入深浅的变化趋势；配对或估长未就绪时输出零。
 
-SPS2 参数缺失或两值均为零时，使用同实例的 **SPS1 · PenOthers / PenOthersClose**：`PenOthers` 提供深浅趋势，已发布的 `PenOthersClose` 限定 Socket 的有效接近区域。Plug 的 `PenOthers` 直接使用原值，按实际方向配置反向。
+SPS2/SPS3 参数缺失或两值均为零时，使用同实例的 **SPS1 · PenOthers / PenOthersClose**：`PenOthers` 提供深浅趋势，已发布的 `PenOthersClose` 限定 Socket 的有效接近区域。Plug 的 `PenOthers` 直接使用原值，按实际方向配置反向。
 
 `PenOthersNewTip` 观测根部长度球，与 `PenOthersNewRoot` 一起反映 Plug 靠近 Socket 的程度。先将对象分开，再沿期望方向靠近，让 Sensa 取得估长样本；随后检查并校准期望的两端。更换 Avatar、修改映射或重新启用输入后会重新学习。[几何和限制](ogb-compatibility.md)
 

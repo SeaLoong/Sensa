@@ -126,6 +126,57 @@ test('reference profiles close their surfaces and follow root, yaw and local dim
   assert.equal(fresh.illustrations.find(item => item.kind === 'plug').root.x, .1);
 });
 
+test('SPS2 and SPS3 public compatibility retain one saved geometry model and root-centred measurements / SPS2和SPS3公开兼容读数保持同一几何模型', () => {
+  for (const party of ['Self', 'Others']) {
+    const scene = evaluate({ scenario: 'socket-modern', party, z: .5, L: .2 });
+    assert.equal(scene.scenario, 'socket-modern');
+    assert.deepEqual(plain(scene.values.map(value => value.path)), [
+      'OGB/Orf/Example/Pen' + party + 'NewRoot', 'OGB/Orf/Example/Pen' + party + 'NewTip',
+    ]);
+    near(field(scene, 'Pen' + party + 'NewRoot').raw, .51);
+    near(field(scene, 'Pen' + party + 'NewTip').raw, .7);
+    near(scene.metrics.unsaturatedLengthEstimate, .2);
+    for (const value of scene.values) for (const meaning of value.meaning) assert.match(meaning, /SPS2.*SPS3/);
+  }
+  assert.ok(!model.scenarios.includes('sps3'));
+});
+
+test('legacy Socket-marker plots declare their SPS1/2 radius rather than treating it as the SPS3 point marker', () => {
+  for (const scenario of ['plug-depth', 'socket-frot']) {
+    const scene = evaluate({ scenario });
+    const note = scene.assumptions.find(value => value.id === 'socket-marker-version');
+    assert.ok(note);
+    assert.match(note.zh, /SPS1\/2.*0\.001 m.*SPS3.*半径为 0/);
+    assert.match(note.en, /SPS1\/2.*0\.001 m.*SPS3.*radius 0/);
+    assert.match(note.en, /SPS1\/2 Socket-root marker selected/);
+    near(shape(scene, 'sender-socket-root').radius, .001);
+  }
+  assert.ok(!evaluate({ scenario: 'socket-modern' }).assumptions.some(value => value.id === 'socket-marker-version'));
+});
+
+test('SPS3 Socket point selection preserves zero in Plug and rubbing geometry without changing legacy defaults', () => {
+  for (const party of ['Self', 'Others']) {
+    const legacy = evaluate({ scenario: 'plug-depth', party, z: .1, L: .2 });
+    const point = evaluate({ scenario: 'plug-depth', party, z: .1, L: .2, socketRootRadius: 0 });
+    near(field(legacy, 'Pen' + party).raw, .505);
+    near(field(point, 'Pen' + party).raw, .5);
+    assert.equal(point.parameters.socketRootRadius, 0);
+    assert.equal(shape(point, 'sender-socket-root').radius, 0);
+    assert.deepEqual(plain(point.values.map(value => value.path)), plain(legacy.values.map(value => value.path)));
+    assert.match(point.assumptions.find(value => value.id === 'socket-marker-version').en, /SPS3 Socket point marker selected: radius 0/);
+    assert.ok(field(evaluate({ scenario: 'plug-depth', party, z: .2005, L: .2 }), 'Pen' + party).raw > 0);
+    assert.equal(field(evaluate({ scenario: 'plug-depth', party, z: .2005, L: .2, socketRootRadius: 0 }), 'Pen' + party).raw, 0);
+  }
+  near(field(evaluate({ scenario: 'socket-frot', z: .1 }), 'FrotOthers').raw, .51);
+  near(field(evaluate({ scenario: 'socket-frot', z: .1, socketRootRadius: 0 }), 'FrotOthers').raw, .5);
+  assert.equal(field(evaluate({ scenario: 'socket-frot', z: .1505, socketRootRadius: 0 }), 'FrotOthers').raw, 0);
+  for (const scenario of ['plug-depth', 'socket-frot']) {
+    assert.equal(model.defaultsFor(scenario).socketRootRadius, .001);
+    for (const socketRootRadius of [-.001, .002, NaN, Infinity])
+      assert.throws(() => evaluate({ scenario, socketRootRadius }), { name: 'RangeError', message: /socketRootRadius/ });
+  }
+});
+
 test('modern Root and NewTip observe different root-centred spheres / 现代 Root 与 NewTip 观测两个根部同心球', () => {
   const scene = evaluate({ scenario: 'socket-modern', z: .5, L: .2 });
   near(field(scene, 'PenOthersNewRoot').raw, .51);

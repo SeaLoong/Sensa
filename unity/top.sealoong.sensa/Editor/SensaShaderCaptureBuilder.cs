@@ -32,9 +32,8 @@ namespace UnityBox.Sensa
                 var shader = EnsureShader();
                 foreach (var plan in plans)
                 {
-                    var marker = Child(plan.placement.root, "SensaShaderRoot_" + plan.author.producerId);
-                    marker.localPosition = plan.placement.position;
-                    marker.localRotation = plan.placement.rotation;
+                    var marker = SensaSpsAdapter.BuildRootSource(avatar, plan.placement,
+                        "SensaShaderRoot_" + plan.author.producerId);
                     BuildNativeRig(avatar, marker, plan.author.producerId, plan.author.desktopViewport, shader);
                 }
             }
@@ -62,8 +61,7 @@ namespace UnityBox.Sensa
             var placement = ResolvePlacement(author);
             if (placement.root == null || !BelongsTo(placement.root, avatar.transform))
                 throw new InvalidOperationException(SensaEditorLocalization.Text("The selected root must belong to this avatar."));
-            ValidateMeasuredFrame(avatar, placement.root,
-                placement.root.localToWorldMatrix * Matrix4x4.TRS(placement.position, placement.rotation, Vector3.one));
+            ValidateMeasuredFrame(avatar, placement.root, placement.WorldMatrix, placement.encodedContactScale);
             return placement;
         }
 
@@ -122,15 +120,18 @@ namespace UnityBox.Sensa
                 throw new InvalidOperationException(SensaEditorLocalization.Text("A Shader root capture with this producer ID already exists."));
         }
 
-        private static void ValidateMeasuredFrame(GameObject avatar, Transform parent, Matrix4x4 worldFrame)
+        private static void ValidateMeasuredFrame(GameObject avatar, Transform parent, Matrix4x4 worldFrame,
+            bool encodedContactScale = false)
         {
             // Three measured points determine the X/Z plane. Reject authored collapsed or
             // mirrored transforms; the unmeasured Y axis has no runtime handedness report.
             for (var node = parent; node != avatar.transform && node != null; node = node.parent)
             {
                 var scale = node.localScale;
+                // SPS3's selected sender uses scale as metadata (including a zero current radius).
+                // Its independent root frame was normalized above; physical ancestors still validate.
                 if (!Finite(scale.x) || !Finite(scale.y) || !Finite(scale.z)
-                    || scale.x <= 0 || scale.y <= 0 || scale.z <= 0)
+                    || !(encodedContactScale && node == parent) && (scale.x <= 0 || scale.y <= 0 || scale.z <= 0))
                     throw new InvalidOperationException(SensaEditorLocalization.Text("Shader capture needs finite positive target scales."));
             }
             var relative = avatar.transform.worldToLocalMatrix * worldFrame;

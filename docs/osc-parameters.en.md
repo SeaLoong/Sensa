@@ -50,23 +50,26 @@ To combine parameters, create a [computed signal](computed-signals.en.md) for a 
 
 ## OGB and VRCFury parameters
 
-`Orf` means Socket and `Pen` means Plug. `Self` filters matching targets on your own Avatar; `Others` filters matching targets on other Avatars. Sensa pairs by OSC source, complete instance path and category. **SPS2 · PenOthersNewRoot / PenOthersNewTip** and **SPS1 · PenOthers / PenOthersClose** identify the explorer's two parameter geometries.
+SPS3 Beta public compatibility parameters keep this table's Root/Tip geometry. The default Others preset uses the public channel; `_nothips` serves self-contact with hips excluded. [SPS3 setup and new Contact tags](sps3.en.md)
+
+
+`Orf` means Socket and `Pen` means Plug. `Self` filters matching targets on your own Avatar; `Others` filters matching targets on other Avatars. Sensa pairs by OSC source, complete instance path and category. **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** and **SPS1 · PenOthers / PenOthersClose** identify the explorer's two parameter geometries.
 
 | Parameter/path | Reading meaning | Sensa behavior |
 | --- | --- | --- |
 | `FrotOthers` | Approach intensity as two matching shapes move close, meet or brush past | Plug uses `FrotOthersClose`; Socket reads the value directly |
 | `FrotOthersClose` | Whether a matching target enters the Plug's effective nearby region: 0 away, 1 nearby | An additional condition for Plug Frot |
-| Orf/Pen `PenOthers` / `PenSelf` | Continuous 0–1 proximity. The Socket SPS1 value follows an entering-depth trend; the Plug value changes as the Socket entrance approaches its root | Calibrate your intended shallow and deep endpoints; Socket uses it when the SPS2 pair is absent or both values are zero, while Plug reads it directly |
+| Orf/Pen `PenOthers` / `PenSelf` | Continuous 0–1 proximity. The Socket SPS1 value follows an entering-depth trend; the Plug value changes as the Socket entrance approaches its root | Calibrate your intended shallow and deep endpoints; Socket uses it when the SPS2/SPS3 pair is absent or both values are zero, while Plug reads it directly |
 | Orf `PenOthersClose` | Whether a matching target enters the Socket's effective nearby region: 0 away, 1 nearby | When published, gates SPS1 depth; single-value sources retain their own path behavior |
-| Orf `PenOthersNewRoot` / `PenSelfNewRoot` | SPS2 proximity from the small Plug-root sphere to the Socket Receiver, from 0 to 1 | Pairs with the same instance's `NewTip` for length estimation and depth conversion |
-| Orf `PenOthersNewTip` / `PenSelfNewTip` | SPS2 proximity from a sphere centered on the Plug root whose radius equals Plug length, from 0 to 1 | Unsaturated pairs estimate length, then yield a depth trend |
+| Orf `PenOthersNewRoot` / `PenSelfNewRoot` | SPS2/SPS3 proximity from the small Plug-root sphere to the Socket Receiver, from 0 to 1 | Pairs with the same instance's `NewTip` for length estimation and depth conversion |
+| Orf `PenOthersNewTip` / `PenSelfNewTip` | SPS2/SPS3 proximity from a sphere centered on the Plug root whose radius equals Plug length, from 0 to 1 | Unsaturated pairs estimate length, then yield a depth trend |
 | `TouchOthers` / `TouchSelf` | Continuous 0–1 intensity as a body or matching target approaches the touch region | Used with its corresponding `Touch…Close` |
 | `TouchOthersClose` / `TouchSelfClose` | Whether a matching target enters that touch region: 0 away, 1 nearby | Close=1 admits Touch intensity; Close=0 yields zero |
 | `VFH/Zone/Touch/<complete-id>/Others` / `Self` | Continuous proximity in a chosen zone, usually increasing toward its center | OgbTouch reads 0–1 directly |
 | `VFH/Version/…`, historical OGB Version paths | Upstream capability flags | Identifying supported parameter features |
 | `OGB_ENABLED` | Tells the Avatar that the receiving service is running | Sends true to the configured destination every five seconds and attempts false when stopped; off by default |
 
-Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. `Close=1` means a matching target entered that Contact's effective region, making it useful as a condition for motion. Authored shapes determine how that region relates to the body's visible outline. SPS2 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
+Depth readings follow distances between detection shapes. Movement aligned with the Socket corresponds most directly to entering depth; sideways movement, tilt and authored dimensions also affect readings. Calibrate your intended start and end positions when mapping. `Close=1` means a matching target entered that Contact's effective region, making it useful as a condition for motion. Authored shapes determine how that region relates to the body's visible outline. SPS2/SPS3 OgbDepth uses Receiver radius R=1 and root-sphere radius r=0.01; the explorer shows how its two values work together.
 
 Use the parameters actually exposed by your Avatar. The [OGB tables](ogb-compatibility.en.md) give complete generated paths, shapes and dimensions, based on the [pinned generator](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs) and [official OGB consumer](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts).
 

@@ -109,6 +109,42 @@ test('SPS NewTip explains the root-centered length sphere and Close explains the
   assert.doesNotMatch(historical.usage, /Close/);
 });
 
+test('SPS3 compatible OGB readings cite the released beta and retain the established proximity contract', () => {
+  const betaSource = 'https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/';
+  for (const language of ['zh-CN', 'en']) {
+    for (const party of ['Self', 'Others']) for (const marker of ['Root', 'Tip']) {
+      const reference = lookup('/avatar/parameters/OGB/Orf/Body/Pen' + party + 'New' + marker, language);
+      assert.match(reference.title, /SPS2\/SPS3/);
+      assert.equal(reference.valueType, 'Float');
+      assert.equal(reference.range, '0–1');
+      assert.match(reference.usage, /_public/);
+      assert.match(reference.usage, /_nothips/);
+      assert.match(reference.usage, language === 'en' ? /self-only compatibility excluding hip-mounted targets/ : /自身排除髋部的兼容检测/);
+      assert.match(reference.usage, language === 'en' ? /Contact tags, not additional OSC parameters/ : /Contact 标签，不是额外 OSC 参数/);
+      assert.ok(reference.sources.some(source => source.url.startsWith(betaSource + 'Editor-Avatars/Service/BakeHapticSocketsService.cs')));
+      assert.ok(reference.sources.some(source => source.url.startsWith(betaSource + 'Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs')));
+    }
+    const version = lookup('VFH/Version/10', language);
+    assert.match(version.definition, language === 'en' ? /Both SPS2 and SPS3.*does not identify/ : /SPS2 和 SPS3.*不能.*区分/);
+    assert.ok(version.sources.some(source => source.url === betaSource + 'Editor-Avatars/Service/BakeHapticVersionsService.cs'));
+  }
+  for (const tag of ['SPS/Plug/_public', 'SPS/Socket/private', 'SPS/SocketPath/private'])
+    assert.equal(lookup(tag, 'en'), null);
+});
+
+test('raw Plug and Socket rubbing references distinguish SPS3 point markers from SPS1/2 marker radii', () => {
+  for (const language of ['zh-CN', 'en']) for (const path of [
+    'OGB/Pen/Body/PenOthers', 'OGB/Pen/Body/PenSelf', 'OGB/Orf/Body/FrotOthers',
+  ]) {
+    const reference = lookup(path, language);
+    assert.match(reference.definition, /SPS1\/2/);
+    assert.match(reference.definition, /0\.001 m/);
+    assert.match(reference.definition, language === 'en' ? /SPS3.*radius-zero point/ : /SPS3.*半径零的点标记/);
+    assert.ok(reference.sources.some(source => source.url === 'https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs'));
+  }
+  assert.match(lookup('OGB/Pen/Body/PenOthers', 'en').definition, /L\+0\.001 m and L respectively/);
+});
+
 test('player velocity and uncertain built-in units keep the official meaning without inferred units', () => {
   const player = lookup('VelocityZ', 'en'), contact = lookup(native('Proximity_SenderVelocityZ'), 'en');
   assert.equal(player.unit, 'm/s');

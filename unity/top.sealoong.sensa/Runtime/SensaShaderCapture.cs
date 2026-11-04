@@ -12,7 +12,7 @@ namespace UnityBox.Sensa
         public const float MaximumAvatarScale = 8f;
         [Tooltip("Avatar bone/Transform, SPS Socket/Plug, Sensa Component or native Contact root.")]
         public Component target;
-        [Tooltip("Measurement origin offset in the selected root's local axes and units.")]
+        [Tooltip("Measurement origin offset in the selected root's local axes and units. SPS3 Contact markers use Avatar-root authored units, not encoded sender scale.")]
         public Vector3 positionOffset;
         [Tooltip("Measurement axis rotation in local Euler degrees. +Z is forward; +X is right. The origin offset keeps the selected root's axes.")]
         public Vector3 rotationOffset;

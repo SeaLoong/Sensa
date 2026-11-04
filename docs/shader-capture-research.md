@@ -4,7 +4,7 @@
 
 Shader 捕获把所选 Avatar 根测量绘制为 QR 图块。桌面桥读取指定屏幕区域，将位置、Right／Forward 轴与 AvatarScale 通过 OSC 送入 Sensa。本页说明目标设置、图块格式、解码和跟随平面用法。
 
-以下 Shader 上游资料核验于 2026-10-19，源码固定到所列提交；Sensa 当前结构于 2026-10-24 更新。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页说明实现选择、数据格式与客户端验收方法。
+SPS2 研究保留原固定提交，SPS3 与 SDK 数据接口核验更新于 2026-11-05。实际命令见[GPU 指南](../unity/top.sealoong.sensa/GPU-TRACKING.md)，接收字段见[参数字典](osc-parameters.md)，本页说明实现选择、数据格式与客户端验收方法。
 
 ## 官方能力与本轮决策
 
@@ -19,12 +19,14 @@ Shader 捕获把所选 Avatar 根测量绘制为 QR 图块。桌面桥读取指�
 
 ## 根点测量与形变模型
 
-核对的 VRCFury 源提交为 `d048773de971881fb14c5f3b468e59ba2406a2dd`。
+SPS2 Resolver 资料固定到 `d048773de971881fb14c5f3b468e59ba2406a2dd`；SPS3 Beta 适配固定到 `59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4`。[SPS3 兼容与通道](sps3.md)
 
 - [SPS 单元布局](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc)有目标 ID、玩家 Shader ID、根部位置/方向/缩放等，未提供源几何帧序号。模型新鲜度需要单独的几何更新时间或采集证据，编码器时钟用于检查图块输出是否推进。
 - [SpsPlayerIdService](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Avatars/Service/SpsPlayerIdService.cs)在运行时通过 Animator 随机生成并驱动材质玩家 ID。[SpsConfigurer](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/Editor-Common/Builder/Haptics/SpsConfigurer.cs)负责材质/Resolver 绑定。读取该模型需要跟踪运行时生成的 ID。
 - 适配器 `ReadRoot` 统一解析明确选择的根点参照：SPS Socket／Plug 使用其作者根点几何，骨骼／空物体 Transform、Sensa Component 与原生 Contact 使用各自的根点定义。生成的三点蒙皮采样跟随该参照；SPS 目标的形变仍由安装的 VRCFury 处理。
-- 旧 `SensaGpuProbe` 仍是 EditorWindow：调用所安装 SPS 的曲线函数采样未混合中心线。根点捕获、编辑器模型探针与合成 PNG fixture 分别检查根点采样、模型计算和编解码链路。
+- `SensaGpuProbe` 是 EditorWindow：SPS2 分支读取 Resolver 网格；SPS3 分支读取明确选定表面 Renderer 的实际 Contact 矩阵／向量数组，再调用对应版本的曲线函数采样未混合中心线。材质槽级属性块优先于 Renderer 属性块，缺少所需数据时停止采集。根点捕获、模型探针与合成 PNG fixture 分别检查根点采样、模型计算和编解码链路。
+
+SPS3 移除了 SPS2 Resolver。探针使用独立的 SPS3 模板和依赖摘要，并随绘制传入所选 Renderer 的真实属性块；需要逐对象灯光的 `_SPS_UseLegacyLights` 分支目前不采集，因为独立诊断绘制无法取得原 Renderer 的同一组灯光。使用原生 Contact 形变数据或独立根点编码。[GPU 操作](../unity/top.sealoong.sensa/GPU-TRACKING.md)
 
 未来的模型采集需要同时处理运行时 ID、渲染阶段、几何更新时间和 XR texture array，并对照最终网格验证。几何更新时间与编码时钟分别记录，才能判断收到的是哪一次模型更新。
 

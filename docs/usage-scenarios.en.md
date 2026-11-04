@@ -38,7 +38,7 @@ Use the [interactive parameter explorer](https://sealoong.github.io/Sensa/parame
 2. If the Avatar requires OGB_ENABLED, enable its heartbeat in receiver settings and enter VRChat's receive port, commonly **9000**. Sensa commonly receives parameters on **9001**.
 3. Choose the OGB/SPS depth or vibration preset, fix the object/source, calibrate range and direction, save and enable input.
 
-**SPS2 · PenOthersNewRoot / PenOthersNewTip** provides two proximity readings for the same Plug. Sensa pairs them, learns length and derives a depth trend. Move the target to provide the samples needed for learning, then inspect the result.
+**SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** provides two proximity readings for the same Plug. Sensa pairs them, learns length and derives a depth trend. Move the target to provide the samples needed for learning, then inspect the result.
 
 In **SPS1 · PenOthers / PenOthersClose**, PenOthers describes a depth trend and PenOthersClose reports entry into the Socket's effective nearby region. Touch describes touch intensity; Plug Frot describes close or brushing contact.
 

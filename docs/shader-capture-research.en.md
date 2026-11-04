@@ -4,7 +4,7 @@
 
 Shader capture draws a selected Avatar root measurement into a QR tile. The desktop bridge reads the chosen screen region and sends position, Right/Forward axes and AvatarScale to Sensa over OSC. This reference explains the target setup, tile format, decoding and following-plane use.
 
-Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned below; the current Sensa structure was updated on 2026-10-24. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page explains the implementation choices, data format and client validation method.
+SPS2 research retains its pinned revisions; SPS3 and SDK data-interface verification was updated on 2026-11-05. See the [GPU guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) for commands and [dictionary](osc-parameters.en.md) for reception. This page explains the implementation choices, data format and client validation method.
 
 ## Primary-source findings and decisions
 
@@ -19,7 +19,7 @@ Upstream Shader evidence was checked on 2026-10-19, with source revisions pinned
 
 ## Root measurements and deformation models
 
-Inspected VRCFury commit: `d048773de971881fb14c5f3b468e59ba2406a2dd`.
+SPS2 Resolver references are pinned to `d048773de971881fb14c5f3b468e59ba2406a2dd`; the SPS3 Beta adapter targets `59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4`. [SPS3 compatibility and channels](sps3.en.md)
 
 The [SPS cell layout](https://github.com/VRCFury/VRCFury/blob/d048773de971881fb14c5f3b468e59ba2406a2dd/com.vrcfury.vrcfury/SPS/common/sps_cell_layout.cginc) contains target/player shader IDs, position, orientation and scale, without a source-geometry frame sequence. Model freshness needs a separate geometry timestamp or capture evidence; the encoder clock checks that tile output continues.
 

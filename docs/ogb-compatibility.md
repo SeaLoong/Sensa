@@ -4,15 +4,18 @@
 
 OGB／SPS 参数描述接近、进入和触碰。根据几何含义与命名规则选择读数，校准深度或强度，再连接到 Sensa 输出。本页说明 Socket、Plug 和独立触碰区域信号，并提供上游定义。
 
-先在参数列表找到实际来源和完整路径，再选[深度或振动模板](presets.md)。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 用两路数值估算进入深浅；**SPS1 · PenOthers / PenOthersClose** 用深浅信号配合有效接近区域。配对时保持同来源、同实例和同 Self／Others 类别，需要时开启 Avatar 的 OGB_ENABLED 心跳。
+先在参数列表找到实际来源和完整路径，再选[深度或振动模板](presets.md)。图解中的 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 用两路数值估算进入深浅；**SPS1 · PenOthers / PenOthersClose** 用深浅信号配合有效接近区域。配对时保持同来源、同实例和同 Self／Others 类别，需要时开启 Avatar 的 OGB_ENABLED 心跳。
 
 **外部 OGB 路径沿用上游名称**。Sensa 自有 SPS 四点定位、Contact 直接定位和 Shader 参数见[字典](osc-parameters.md)。[在线图解](https://sealoong.github.io/Sensa/parameter-geometry.html)可交互查看检测球与胶囊，灰色轮廓帮助辨认 Socket／Plug 的相对位置。
 
-研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。OGB v1.0.0 已同时读取 `PenOthersNewRoot`／`PenOthersNewTip` 和 `PenOthers`；图解的 SPS1／SPS2 标签按参数几何区分，具体以 Avatar 发布的路径为准。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
+研究固定到 VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`、OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`，并核对 OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`。OGB v1.0.0 已同时读取 `PenOthersNewRoot`／`PenOthersNewTip` 和 `PenOthers`；图解的 SPS1／SPS2/SPS3 标签按参数几何区分，具体以 Avatar 发布的路径为准。[旧消费端](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
 图解已核对 **VRCFury 1.1434.0** 的 `BakeHapticSocketsService.cs`、`VRCFuryHapticSocketBaker.cs` 与 `VRCFuryHapticPlugBaker.cs`；这三个文件与上述固定提交一致。
 
 Node 的 [OscServices](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts) 接收 OSC／OSCQuery 并维护来源；共享 [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) 解释 OgbDepth／OgbTouch，再经同一输出协调器路由到设备。来源标识用于把配对读数对应到同一实例，几何与单位沿用下文的上游定义。
+
+
+公开兼容路径另已核对 VRCFury **1.1437.0** 与 **1.1437.1-beta.1（SPS3）**。Socket 的 NewRoot／NewTip 配对几何保持一致；SPS3 原生 Socket 根标记改为半径零，并使用缩放编码。下表分别注明涉及的代际。[SPS3 版本与设置](sps3.md) · [固定 Beta 生成器](https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)
 
 ## 图解采用哪些默认尺寸
 
@@ -20,13 +23,16 @@ Node 的 [OscServices](https://github.com/SeaLoong/Sensa/blob/main/src/node/inpu
 
 | 场景 | VRCFury 生成规则 | 图解初始值 |
 | --- | --- | --- |
-| SPS2 · NewRoot / NewTip | 两只接收球半径均为 1 m；Plug 根标记半径 0.01 m | 1 m / 0.01 m |
+| SPS2/SPS3 · NewRoot / NewTip | 两只接收球半径均为 1 m；Plug 根标记半径 0.01 m | 1 m / 0.01 m |
 | SPS1 · PenOthers，以及 Socket Touch | 接收半径 D 来自区域长度；自动长度为 Avatar 视点高度的 5%，Close 半径为 D/2.5 | 示例视点高 1.60 m → D=0.08 m，Close=0.032 m |
 | Plug 侧深度、触碰与摩擦 | 按 Plug 的实际长度 L、半径 W 生成 | 示例 L=0.20 m、W=0.03 m |
-| Socket 根标记 | 半径 0.001 m | 0.001 m |
+| Socket 根标记（SPS1/2） | 半径 0.001 m | 0.001 m |
+| Socket 根标记（SPS3） | 半径 0；缩放字段编码分组与标志 | 原生点标记 |
 | 独立 Touch Zone | 默认半径 0.10 局部单位，随对象缩放 | 缩放 1 时为 0.10 m |
 
 Sensa 的 **SPS 四点定位**和 **Contact 直接定位**各自创建专用 Contact：接收半径为 2 个制作局部单位，目标标记半径为 0.001；制作缩放为 1 时分别对应 2 m 和 1 mm。它们使用 `Sensa/SPS/…` 与 `Sensa/Contact/…` 路径，几何配置见[定位说明](positioning.md)。上表的原生 `OGB/…` 参数继续使用 VRCFury 的生成尺寸。
+
+Plug 深度和 Socket 摩擦图解的 **Socket 根标记**可选择 SPS1/2 的 1 mm 或 SPS3 的 0 mm；同一公式使用所选半径，导出的录制保留对应几何。
 
 ## 先理解半径与数值
 
@@ -52,17 +58,17 @@ p = clamp(1 - max(0, |senderCenter - receiverCenter| - r) / R, 0, 1)
 
 ## Socket：`OGB/Orf/<id>`
 
-这组参数由 VRCFury 的 OGB Haptics 构建生成，SpsForAll 自动补充目标走自己的生成分支。`PenOthersNewRoot`／`PenOthersNewTip` 和对应 Self 配对用于 SPS2；启用触摸区域后，还会生成表中的 Touch、SPS1 与 Frot 参数。
+这组参数由 VRCFury 的 OGB Haptics 构建生成，SpsForAll 自动补充目标走自己的生成分支。`PenOthersNewRoot`／`PenOthersNewTip` 和对应 Self 配对用于 SPS2/SPS3；启用触摸区域后，还会生成表中的 Touch、SPS1 与 Frot 参数。
 
 | 叶子参数 | 类型、检测对象 | Receiver 几何 | Sensa 自动解释 |
 | --- | --- | --- | --- |
 | FrotOthers | 近接；他人 Socket 根标签 | 中心 +0.05·Z，球 R=0.1 m；需要触摸区 | 靠近或擦过时的强度，OgbTouch 直接读取 |
 | PenOthers | 近接；TPS_Pen_Penetrating | 中心 -D·Z，球 R=D；需要触摸区 | SPS1 的深浅趋势 |
 | PenOthersClose | Constant；同一 Plug 标签 | 中心 -D/2·Z，胶囊 R=D/2.5、H=D；需要触摸区 | 目标进入 Socket 有效接近区时为 1 |
-| PenOthersNewRoot | 近接；他人 Plug 根 Sender | 根中心，球 R=1 m | SPS2 根部接近值，与 NewTip 配对换算深浅 |
-| PenOthersNewTip | 近接；他人 Plug 长度 Sender | 根中心，球 R=1 m | SPS2 长度球接近值，与 NewRoot 配对估长 |
-| PenSelfNewRoot | 近接；自身 Plug 根 Sender | 根中心，球 R=1 m | 对应 Self 类别的 SPS2 配对 |
-| PenSelfNewTip | 近接；自身 Plug 长度 Sender | 根中心，球 R=1 m | 对应 Self 类别的 SPS2 估长辅助值 |
+| PenOthersNewRoot | 近接；他人 Plug 根 Sender | 根中心，球 R=1 m | SPS2/SPS3 根部接近值，与 NewTip 配对换算深浅 |
+| PenOthersNewTip | 近接；他人 Plug 长度 Sender | 根中心，球 R=1 m | SPS2/SPS3 长度球接近值，与 NewRoot 配对估长 |
+| PenSelfNewRoot | 近接；自身 Plug 根 Sender | 根中心，球 R=1 m | 对应 Self 类别的 SPS2/SPS3 配对 |
+| PenSelfNewTip | 近接；自身 Plug 长度 Sender | 根中心，球 R=1 m | 对应 Self 类别的 SPS2/SPS3 估长辅助值 |
 | TouchOthers | 近接；他人 Head/Hand/Foot/Finger | 中心 -D·Z，球 R=D；需要触摸区 | 触碰强度，与 TouchOthersClose 配合 |
 | TouchOthersClose | Constant；对应身体标签 | 中心 -D/2·Z，胶囊 R=D/2.5、H=D；需要触摸区 | 目标进入对应触碰区时为 1 |
 | TouchSelf | 近接；自身 Hand/Finger/Foot | 中心 -D·Z，球 R=D；需要触摸区 | 触碰强度，与 TouchSelfClose 配合 |
@@ -95,14 +101,17 @@ Sender 定义接收器看到的目标形状。常见生成对象如下：
 
 | 生成对象 | Sender 形状、标签 | 用途 |
 | --- | --- | --- |
-| Plug Root | 根中心球 r=0.01 m；TPS_Pen_Root | SPS2 的 PenOthersNewRoot／PenSelfNewRoot |
-| Plug Length | 根中心球 r=L；TPS_Pen_Penetrating | SPS2 的 NewTip 与 SPS1 的 PenOthers，均观测根中心长度球 |
+| Plug Root | 根中心球 r=0.01 m；TPS_Pen_Root | SPS2/SPS3 的 PenOthersNewRoot／PenSelfNewRoot |
+| Plug Length | 根中心球 r=L；TPS_Pen_Penetrating | SPS2/SPS3 的 NewTip 与 SPS1 的 PenOthers，均观测根中心长度球 |
 | Plug WidthHelper | 根中心球 r=max(0.01 m,L-2W)；TPS_Pen_Width | 上游内部宽度辅助 |
 | Plug Envelope | 中心 L/2·Z；胶囊 R=W、H=L；TPS_Pen_Close | Plug 摩擦／独立触摸区 |
-| Socket Root | 根中心球 r=0.001 m；含 TPS_Orf_Root | Plug 的 PenSelf／PenOthers，以及 Socket FrotOthers |
-| Socket Front | +0.01·Z，球 r=0.001 m；TPS_Orf_Norm 等 | 上游方向辅助 |
+| Socket Root（SPS1/2） | 根中心球 r=0.001 m；含 TPS_Orf_Root | Plug 的 PenSelf／PenOthers，以及 Socket FrotOthers |
+| Socket Root（SPS3） | 根中心点 r=0；公共通道仍带 TPS_Orf_Root／SPSLL_Socket_Root | 同一组原值读数；缩放编码另用于 SPS3 |
+| Socket Front | +0.01·Z，球 r=0.001 m；TPS_Orf_Norm | 旧式方向辅助；SPS3 仅在启用 TPS Plug Animation Compatibility 等相应设置时生成 |
 
-例如 Plug/PenOthers 在中心距约 L+0.001 m 时开始产生数值。SPS1 Socket 的 `PenOthers` 观测根中心的 Length 球 r=L（TPS_Pen_Penetrating）；SPS2 的 `PenOthersNewRoot` 观测 r=0.01 的根球，`PenOthersNewTip` 观测 r=L 的长度球。两球同心，因此数值主要随根中心距离变化。正对 Socket 靠近时，这种变化便于理解为进入深浅的趋势；侧移和倾斜时应结合图形及实际两端校准。[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[Socket Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+例如 SPS1/2 的 Plug/PenOthers 在中心距约 L+0.001 m 时开始产生数值；SPS3 Socket 根标记半径为零，相应阈值约为 L。SPS1 Socket 的 `PenOthers` 观测根中心的 Length 球 r=L（TPS_Pen_Penetrating）；SPS2/SPS3 的 `PenOthersNewRoot` 观测 r=0.01 的根球，`PenOthersNewTip` 观测 r=L 的长度球。两球同心，因此数值主要随根中心距离变化。正对 Socket 靠近时，这种变化便于理解为进入深浅的趋势；侧移和倾斜时应结合图形及实际两端校准。[Plug Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108)、[Socket Sender](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+
+[SPS3 根标记与可选 Front 的固定生成器](https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs)
 
 ## 其他真实参数与未支持范围
 
@@ -143,7 +152,7 @@ Sensa 也支持 SDK 3.10.6-beta.3 与 Beta.2 的高级 Proximity 报告，读取
 
 ## Sensa 的精简入口与使用条件
 
-深度选择一组 OgbDepth，触碰选择一组 OgbTouch。OgbDepth 优先读取 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 配对；缺配对或尚未估长时输出零，两路缺失或均零时再使用同实例 **SPS1 · PenOthers / PenOthersClose** 的深浅信号。OgbTouch 按同来源、完整父路径和功能配对 Close，缺少必需 Close 给零；显式 Direct 可以读取原值。[消费端选择依据](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)、[Sensa 地址解释](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
+深度选择一组 OgbDepth，触碰选择一组 OgbTouch。OgbDepth 优先读取 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 配对；缺配对或尚未估长时输出零，两路缺失或均零时再使用同实例 **SPS1 · PenOthers / PenOthersClose** 的深浅信号。OgbTouch 按同来源、完整父路径和功能配对 Close，缺少必需 Close 给零；显式 Direct 可以读取原值。[消费端选择依据](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149)、[Sensa 地址解释](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
 
 现代 VRCFury 把生成实例名中的斜杠替换为下划线；Sensa 也支持保留自定义嵌套父路径。所有辅助值严格留在同一来源／实例／Self 或 Others 内。输入重新启用、更换 Avatar 或重建映射时重新估长；超时按当前选用的信号计算。
 

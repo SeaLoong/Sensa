@@ -21,7 +21,7 @@ Use the internal QuickStart and experiment components already included in FullFl
 | --- | --- | --- |
 | Synthetic scalar | START HERE five steps/STOP and wrist QuickStart values/conditions | Compare each step, then check stopping through STOP and a closed condition |
 | Native PB | Stretch amount and IsGrabbed state | Grab and stretch, then release and check stopping |
-| OGB / SPS | SPS2 · PenOthersNewRoot / PenOthersNewTip, or SPS1 · PenOthers / PenOthersClose | Fix object/source, separate then approach, and check depth trend and Close presence |
+| OGB / SPS | SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip, or SPS1 · PenOthers / PenOthersClose | Fix object/source, separate then approach, and check depth trend and Close presence |
 | SPS four-anchor tracking | Dedicated root, P0–P3, changing Sample and endpoint calibration | Move along one axis; check local direction and stopping after sample invalidity |
 | Contact direct tracking (SDK Beta) | Add `SensaContactRootProbe` separately and follow [Contact setup](contact-sdk.en.md) for a dedicated own root; inspect metre-based XYZ, relative velocity in m/s, `Radius`, `Sample` and `Proximity_SenderType=1` (Self) | Calibrate position or speed; check stopping after leaving Receiver coverage or Sample activity freezing |
 | Shader | Native block, capture region, producer ID, CRC and advancing Frame | Move the selected root and check decoded position, X/Z axes and Avatar world scale; obscure/freeze the block and check invalidity |

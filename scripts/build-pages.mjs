@@ -106,7 +106,7 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
       { en: 'Inputs and outputs', zh: '输入与联动', links: [
         ['docs/signal-pipeline', 'Build a flow', '建立信号流程'], ['docs/computed-signals', 'Calculations', '计算与映射'],
         ['docs/protocol-inputs', 'Protocol inputs', '协议输入'], ['tools/protocol-bridge/README', 'Serial and Bluetooth bridges', '串口与蓝牙桥'],
-        ['docs/osc-parameters', 'OSC parameters', 'OSC 参数字典'], ['docs/positioning', 'Position and tracking', '位置与定位'],
+        ['docs/osc-parameters', 'OSC parameters', 'OSC 参数字典'], ['docs/sps3', 'SPS3 Beta compatibility', 'SPS3 测试版兼容'], ['docs/positioning', 'Position and tracking', '位置与定位'],
         ['docs/languages', 'Language settings', '语言设置'],
       ] },
       { en: 'Unity and development', zh: 'Unity 与开发', links: [

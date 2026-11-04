@@ -328,7 +328,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     // Independent distances: R=1, root r=.01, length-sphere r=.2, centre distance=.5.
     // 独立预期：接收球1、根球.01、长度球.2、中心距.5。
     await chooseScene(page, 'socket-modern');
-    await expect(page.locator('#scene-title')).toHaveText('SPS2 · PenOthersNewRoot / PenOthersNewTip');
+    await expect(page.locator('#scene-title')).toHaveText('SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip');
     expect(await page.locator('#values tr').evaluateAll(rows => rows.map(row => row.dataset.name)))
       .toEqual(['PenOthersNewRoot', 'PenOthersNewTip']);
     await expect(page.locator('#parameter-meaning')).toContainText('Socket');
@@ -356,7 +356,7 @@ threeTest('offline parameter geometry renders, responds and preserves bilingual 
     await page.locator('#show-dimensions').uncheck();
     await page.locator('#locale').selectOption('en-US');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
-    await expect(page.locator('#scene-title')).toHaveText('SPS2 · PenOthersNewRoot / PenOthersNewTip');
+    await expect(page.locator('#scene-title')).toHaveText('SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip');
     await expect(page.locator('#parameter-meaning')).toContainText('length sphere');
     await expect(tipReference.getByTestId('parameter-reference-definition')).toContainText(/sphere/i);
     await expect(tipReference.getByTestId('parameter-reference-usage')).toContainText(/depth/i);

@@ -70,6 +70,8 @@ Recording outputs turn selected signals into reusable funscript tracks. Load a c
 
 For your own Avatar, the [Unity package](unity/top.sealoong.sensa/README.md) provides SPS four-anchor tracking, Contact direct tracking (SDK Beta), Shader capture and following reference planes. [Setup choices](docs/usage-scenarios.en.md) · [Tracking and calibration](docs/positioning.en.md)
 
+SPS3 Beta keeps the public OGB depth/touch interface and supports dedicated Sensa root measurements. [SPS3 setup and channels](docs/sps3.en.md)
+
 ## Documentation and development
 
 [Workbench guide](docs/guide.en.md) · [Feature reference](docs/features.en.md) · [OSC dictionary](docs/osc-parameters.en.md) · [Languages](docs/languages.en.md) · [Development and releases](docs/development.en.md) · [Verification record](docs/e2e-status.en.md)

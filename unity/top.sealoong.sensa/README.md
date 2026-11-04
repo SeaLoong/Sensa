@@ -6,6 +6,8 @@ Sensa Unity components store tracking and parameter settings. Avatar builds gene
 
 [Interactive parameter diagrams](https://sealoong.github.io/Sensa/parameter-geometry.html) show the geometry and parameter prefixes. Browse geometry and values independently, including offline. An offline copy is available at `docs/parameter-geometry.html` in the repository and desktop distribution.
 
+SPS3 Beta supports the same public OGB paths and dedicated root measurements. Native SPS3 Contact markers use encoded scale; Sensa creates a separate rigid measurement frame for them. [SPS3 compatibility](../../docs/sps3.en.md)
+
 ## Install and choose a language
 
 1. Use a VCC/ALCOM **Avatars** project with the Unity version and VPM dependencies required by `package.json`, including NDMF 1.5.0+ and Modular Avatar 1.10.0+. Install official VRCFury separately when using its SPS authors.

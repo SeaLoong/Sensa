@@ -5,6 +5,23 @@ from lab_contract_fixtures import LabFixture
 
 
 class WorldInstallationContracts(LabFixture):
+    def test_sps3_reader_and_dependency_lock_are_owned_and_update_together(self):
+        project = self.project('world')
+        self.install(project, 'world')
+        editor = project / 'Assets/SensaLab/Editor'
+        source = self.repository / 'unity/top.sealoong.sensa/Editor'
+        names = ('Sps3GpuProbe.shader.txt', 'Sps3GpuDependencies.sha256.txt')
+        ownership = json.loads((project / 'Assets/SensaLab/source-manifest.json').read_text())
+        for name in names:
+            self.assertEqual((editor / name).read_bytes(), (source / name).read_bytes())
+            self.assertIn('Editor/' + name, ownership)
+        self.write(source / names[0], 'new sps3 shader')
+        self.write(editor / names[1], 'local dependency lock')
+        with self.assertRaisesRegex(ValueError, 'Preserve local edits'):
+            self.install(project, 'world')
+        self.assertEqual((editor / names[0]).read_text(), 'sps3 gpu shader')
+        self.assertEqual((editor / names[1]).read_text(), 'local dependency lock')
+
     def test_updates_preserve_generated_assets_and_share_the_same_protocol_sources(self):
         project = self.project('world')
         self.install(project, 'world')

@@ -38,7 +38,7 @@
 2. Avatar 需要 OGB_ENABLED 时，在接收设置启用心跳，目标填写 VRChat 的接收端口，通常为 **9000**；Sensa 接收参数通常使用 **9001**。
 3. 选择“OGB / SPS · 深度”或“振动”预设，固定对象／来源，校准范围和方向，保存后启用输入。
 
-**SPS2 · PenOthersNewRoot / PenOthersNewTip** 提供同一 Plug 的两项接近读数。Sensa 配对后估算长度，再得到进入深浅的变化趋势；移动目标，让估长取得所需样本后再检查结果。
+**SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 提供同一 Plug 的两项接近读数。Sensa 配对后估算长度，再得到进入深浅的变化趋势；移动目标，让估长取得所需样本后再检查结果。
 
 **SPS1 · PenOthers / PenOthersClose** 中，PenOthers 可理解为进入深浅的趋势，PenOthersClose 表示目标进入 Socket 附近的有效区域。Touch 表示触碰强度；Plug 的 Frot 表示贴近或擦过的强度。
 

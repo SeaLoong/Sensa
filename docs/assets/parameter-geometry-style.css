@@ -101,6 +101,8 @@ tr.selected { background: #eaf1ff; }
 .control { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 1fr auto; align-items: start; gap: 8px 12px; font-size: 12px; min-width: 0; }
 .control > span { word-break: keep-all; }
 .control output { color: #184883; text-align: right; font-size: 12px; }
+.control[data-control=socketRootRadius] { grid-column: 1/-1; max-width: 360px; }
+.control select { grid-column: 1/-1; min-width: 0; width: 100%; }
 .control input[type=range] { grid-column: 1/-1; width: 100%; margin: 0; height: 24px; }
 .toggle-control { align-items: start; justify-items: start; }
 .toggle-control input { width: 18px; height: 18px; margin: 0; }

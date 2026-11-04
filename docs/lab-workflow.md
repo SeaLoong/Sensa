@@ -21,7 +21,7 @@ Avatar／World Lab 将测量和交互实验组织成可重复场景。选择测�
 | --- | --- | --- |
 | 合成标量 | START HERE 五档／STOP、手腕 QuickStart 的参数和控制条件 | 比较各档数值，确认 STOP 与条件关闭后的停止 |
 | 原生 PB | Stretch 拉伸值与 IsGrabbed 抓取状态 | 抓取后拉伸，松手确认动作停止 |
-| OGB / SPS | SPS2 · PenOthersNewRoot / PenOthersNewTip，或 SPS1 · PenOthers / PenOthersClose | 固定对象与来源，先分开再靠近，检查深浅趋势和 Close 接近状态 |
+| OGB / SPS | SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip，或 SPS1 · PenOthers / PenOthersClose | 固定对象与来源，先分开再靠近，检查深浅趋势和 Close 接近状态 |
 | SPS 四点定位 | 专用根、P0–P3、变化 Sample 和两端校准 | 沿单轴移动，检查局部坐标方向及样本失效后的停止 |
 | Contact 直接定位（SDK Beta） | 另行添加 `SensaContactRootProbe` 并按 [Contact 设置](contact-sdk.md)配置专用自身根点；观察米制 XYZ、m/s 相对速度、`Radius`、`Sample` 与 `Proximity_SenderType=1`（Self） | 校准位置或速度，检查离开接收区及 Sample 停更后的停止 |
 | Shader | 原生图块、捕获区域、生产端 ID、CRC 与推进 Frame | 移动所选根，检查解码位置、X/Z 轴和 Avatar 世界缩放；遮住或冻结图块，检查失效 |

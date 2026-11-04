@@ -130,4 +130,4 @@ SPS 四点／Shader 使用 Avatar 根局部坐标；Contact 直接定位使用 A
 
 从帮助打开[参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)，或使用桌面版离线图解。选择场景、移动目标，将参数读数与几何变化对照。轴滑条用于精确调整，视图控制提供 3D／XZ／等轴展示。
 
-SPS2 Root／Tip 和 SPS1 PenOthers／Close 解释深度读数，Touch、Frot 与 Zone 场景解释强度。完整定义见参数字典。[OSC 参考](osc-parameters.md) · [首页](../README.zh-CN.md)
+SPS2/SPS3 Root／Tip 和 SPS1 PenOthers／Close 解释深度读数，Touch、Frot 与 Zone 场景解释强度。完整定义见参数字典。[OSC 参考](osc-parameters.md) · [首页](../README.zh-CN.md)

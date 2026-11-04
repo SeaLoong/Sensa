@@ -13,6 +13,8 @@ namespace UnityBox.Sensa
         {
             SensaInspectorLabels.Draw(serializedObject);
             var setup = (SensaAutoSetup)target;
+            if (SensaSpsAdapter.HasSps3ContactApi)
+                EditorGUILayout.LabelField(SensaEditorLocalization.Text("SPS Contact API"), "SPS3");
             EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Generated during upload/NDMF without changing original SPS. New setups default to Exclusive: one Socket/Plug measurement per group, initially Off, including markers, points and PB handles. Dedicated permits simultaneous measurements. Selection is independent of SPS Auto/activation."), MessageType.Info);
             if (setup.socketRootTracking && setup.rootTrackingMethod == SensaRootTrackingMethod.ContactDirect)
                 EditorGUILayout.HelpBox(SensaEditorLocalization.Text("Contact direct tracking (SDK Beta) uses one dedicated Sender and Receiver per root. It reports avatar-root axes in metres and requires SDK advanced Contact parameters. To track a bone/Transform, Sensa component or native Contact directly, use the Contact direct tracking (SDK Beta) prefab."), SensaContactRootBuilder.IsSupported ? MessageType.Info : MessageType.Warning);

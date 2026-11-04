@@ -15,7 +15,7 @@ namespace UnityBox.Sensa
     {
         // Standard VRCFury SPS / TPS contact tags
         // Plug senders
-        private const string TAG_TPS_PEN          = "TPS_Pen_Penetrating"; // Plug tip — primary tag used by all modern SPS Plugs
+        private const string TAG_TPS_PEN          = "TPS_Pen_Penetrating"; // Legacy native Plug length-sphere tag; the Sensa proxy keeps its own tip marker
         private const string TAG_TPS_ROOT         = "TPS_Pen_Root";        // Plug root
         // Socket senders (used by Plug-side receivers to detect sockets)
         private const string TAG_TPS_ORF_ROOT     = "TPS_Orf_Root";
@@ -189,7 +189,7 @@ namespace UnityBox.Sensa
         private static void BuildSocket(SensaComponent comp, GameObject host,
                                         List<(string, bool)> paramList)
         {
-            // TPS_Pen_Penetrating is the authoritative primary tag emitted by all modern SPS Plugs.
+            // Public SPS3 channels retain this legacy tag alongside SPS1/2 and TPS.
             // detectDps is no longer needed to gate this tag — it is always included.
             var filterTags = new List<string> { TAG_TPS_PEN };
 

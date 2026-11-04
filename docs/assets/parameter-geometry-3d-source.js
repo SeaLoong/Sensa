@@ -152,6 +152,11 @@ function create(host) {
           const box = new THREE.BoxGeometry(shape.size.x, shape.size.y, shape.size.z), geometry = new THREE.EdgesGeometry(box); box.dispose();
           const edges = new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: gray, transparent: true, opacity: .65 }));
           edges.name = shape.id + ':edges'; group.add(edges);
+        } else if (shape.type === 'sphere' && shape.radius === 0) {
+          // A point marker has no physical volume; draw a screen-sized glyph without altering its radius.
+          const geometry = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3()]);
+          const point = new THREE.Points(geometry, new THREE.PointsMaterial({ color, size: 6, sizeAttenuation: false, depthTest: false }));
+          point.name = shape.id + ':point'; group.add(point);
         } else {
           const geometry = shape.type === 'capsule' ? new THREE.CapsuleGeometry(shape.radius, capsuleLength(shape), 12, 32) : new THREE.SphereGeometry(shape.radius, 48, 24);
           const mesh = new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .035, depthWrite: false, side: THREE.DoubleSide }));

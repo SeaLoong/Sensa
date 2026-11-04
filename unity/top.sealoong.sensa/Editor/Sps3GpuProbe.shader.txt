@@ -1,0 +1,60 @@
+// Optional SPS3 adapter. The Editor probe supplies the selected Renderer's real
+// MaterialPropertyBlock, including all three VRChat Contact uniform arrays.
+Shader "Hidden/Sensa/Sps3GpuProbe"
+{
+    Properties
+    {
+        _SPS_Enabled ("Enabled", Float) = 0
+        _SPS_BakedLength ("Baked length", Float) = 0
+        _SPS_BakedRadius ("Baked radius", Float) = 0
+        _SPS_OthersChannelTagCount ("Channel count", Float) = 0
+        _SPS_OthersLegacyTags ("Legacy tags", Float) = 0
+        _SPS_UseLegacyLights ("Legacy lights", Float) = 0
+        _SPS_Overrun ("Overrun", Float) = 0
+    }
+    SubShader
+    {
+        Pass
+        {
+            Cull Off ZWrite Off ZTest Always Blend Off
+            CGPROGRAM
+            #pragma target 5.0
+            #pragma vertex vert
+            #pragma fragment frag
+            #include "UnityCG.cginc"
+            #include "Packages/com.vrcfury.vrcfury/SPS/deform/sps_deform_curve.cginc"
+
+            struct ProbeVertex { float4 position : SV_POSITION; float2 uv : TEXCOORD0; };
+            ProbeVertex vert(uint vertexId : SV_VertexID)
+            {
+                ProbeVertex output;
+                output.uv = float2((vertexId << 1) & 2, vertexId & 2);
+                output.position = float4(output.uv * 2 - 1, 0, 1);
+                return output;
+            }
+
+            float4 frag(ProbeVertex input) : SV_Target
+            {
+                uint column = min((uint)(input.uv.x * 36), 35u);
+                SpsDeformPathInfo path = (SpsDeformPathInfo)0;
+                bool found = sps_try_get_path(path) && _SPS_Enabled > 0;
+                float3 entry = sps_path_worlds[1];
+                float3 entryForward = sps_path_forwards[1];
+                bool usable = found && isfinite(path.worldLength) && path.worldLength > .001 && path.worldLength < 10
+                    && all(isfinite(entry)) && all(isfinite(entryForward)) && dot(entryForward, entryForward) > .25;
+                if (column == 0) return float4(1947, 1, usable ? 1 : 0, path.worldLength);
+                if (!usable) return 0;
+                if (column == 1) return float4(entry, 1);
+                if (column == 2) return float4(normalize(entryForward), 1);
+                float strength, radiusMultiplier;
+                float3 position, forward, up;
+                sps_deform_walk_chain(path, path.worldLength * (column - 3) / 32.0,
+                    strength, radiusMultiplier, position, forward, up);
+                // Unblended model centerline, not final skinned/deformed mesh vertices.
+                return float4(position, strength);
+            }
+            ENDCG
+        }
+    }
+    Fallback Off
+}

@@ -4,15 +4,18 @@
 
 OGB/SPS parameters describe approach, entry and touch. Use their geometry and naming rules to choose readings, calibrate a depth or intensity, and connect it to a Sensa output. This reference covers Socket, Plug and independent touch-zone signals with links to the upstream definitions.
 
-Find the actual source and complete path in the parameter list, then choose the [depth or vibration template](presets.en.md). **SPS2 · PenOthersNewRoot / PenOthersNewTip** pairs two readings to estimate a depth trend; **SPS1 · PenOthers / PenOthersClose** combines its depth signal with an effective nearby region. Keep pairs within one source, instance and Self/Others category, and enable the Avatar’s OGB_ENABLED heartbeat when needed.
+Find the actual source and complete path in the parameter list, then choose the [depth or vibration template](presets.en.md). **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** pairs two readings to estimate a depth trend; **SPS1 · PenOthers / PenOthersClose** combines its depth signal with an effective nearby region. Keep pairs within one source, instance and Self/Others category, and enable the Avatar’s OGB_ENABLED heartbeat when needed.
 
 **External OGB paths retain upstream names.** Sensa SPS four-anchor tracking and Shader parameters have their own [dictionary](osc-parameters.en.md). The [online explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) shows the detection spheres and capsules, with gray profiles to explain relative Socket/Plug placement.
 
-Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads `PenOthersNewRoot`/`PenOthersNewTip` and `PenOthers`. The explorer’s SPS1/SPS2 labels identify parameter geometry; use the paths actually published by the Avatar. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
+Research is pinned to VRCFury `6bd33f4cb453df816c943a335e47f64e6a37e188`, OGB v2.1.30 `643aedd493ba21b0c0859ce6e57708fe408ee9c0`, and OGB v1.0.0 `262164576721f12958409638851808aa662b87c7`. Version 1.0.0 already reads `PenOthersNewRoot`/`PenOthersNewTip` and `PenOthers`. The explorer’s SPS1/SPS2/SPS3 labels identify parameter geometry; use the paths actually published by the Avatar. [Old consumer](https://github.com/OscToys/OscGoesBrrr/blob/262164576721f12958409638851808aa662b87c7/src/main/GameDevice.ts#L68-L151)
 
 The explorer was checked against **VRCFury 1.1434.0**. Its `BakeHapticSocketsService.cs`, `VRCFuryHapticSocketBaker.cs` and `VRCFuryHapticPlugBaker.cs` match the pinned commit above.
 
 The Node [OscServices](https://github.com/SeaLoong/Sensa/blob/main/src/node/inputs/osc-services.ts) receives OSC/OSCQuery and tracks sources. The shared [RuntimeEngine](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/runtime.ts) interprets OgbDepth/OgbTouch and routes the result through the same output coordinator. Source identity keeps paired readings attached to one instance; geometry and units follow the upstream definitions below.
+
+
+The public compatibility paths were also checked against VRCFury **1.1437.0** and **1.1437.1-beta.1 (SPS3)**. The Socket NewRoot/NewTip pair keeps its geometry. Native SPS3 Socket roots instead have radius zero and encoded scale; the tables distinguish these generations. [SPS3 version and setup](sps3.en.md) · [Pinned Beta builder](https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)
 
 ## Starting dimensions in the explorer
 
@@ -20,13 +23,16 @@ Each parameter uses its upstream generation rule. Plug length, width and the aut
 
 | Scene | VRCFury generation rule | Explorer starting value |
 | --- | --- | --- |
-| SPS2 · NewRoot / NewTip | Both receiver radii are 1 m; the Plug-root marker radius is 0.01 m | 1 m / 0.01 m |
+| SPS2/SPS3 · NewRoot / NewTip | Both receiver radii are 1 m; the Plug-root marker radius is 0.01 m | 1 m / 0.01 m |
 | SPS1 · PenOthers and Socket Touch | Receiver radius D follows region length; automatic length is 5% of Avatar view height, with Close radius D/2.5 | Example view height 1.60 m → D=0.08 m, Close=0.032 m |
 | Plug-side depth, touch and rubbing | Generated from actual Plug length L and radius W | Example L=0.20 m, W=0.03 m |
-| Socket-root marker | Radius 0.001 m | 0.001 m |
+| Socket-root marker (SPS1/2) | Radius 0.001 m | 0.001 m |
+| Socket-root marker (SPS3) | Radius zero; scale encodes groups and flags | Native point marker |
 | Independent Touch Zone | Default radius 0.10 local units, following object scale | 0.10 m at scale 1 |
 
 Sensa **SPS four-anchor tracking** and **Contact direct tracking** create their own Contacts: receiver radius 2 in authored local units and target marker radius 0.001, corresponding to 2 m and 1 mm at authored scale 1. They use `Sensa/SPS/…` and `Sensa/Contact/…`; see [position tracking](positioning.en.md) for their geometry. Native `OGB/…` parameters retain the VRCFury dimensions above.
+
+The Plug-depth and Socket-friction explorer's **Socket root marker** selects SPS1/2 at 1 mm or SPS3 at 0 mm. The same formula uses the selected radius, and exported recordings retain that geometry.
 
 ## Radius and values first
 
@@ -53,17 +59,17 @@ Detection distance depends on both receiver and target signal shape. For a 10 cm
 
 ## Socket: `OGB/Orf/<id>`
 
-VRCFury generates this set through OGB Haptics; SpsForAll automatic supplementation has its own branch. `PenOthersNewRoot`/`PenOthersNewTip` and their Self pairs provide SPS2. Enabling the touch zone also generates the Touch, SPS1 and Frot parameters below.
+VRCFury generates this set through OGB Haptics; SpsForAll automatic supplementation has its own branch. `PenOthersNewRoot`/`PenOthersNewTip` and their Self pairs provide SPS2/SPS3. Enabling the touch zone also generates the Touch, SPS1 and Frot parameters below.
 
 | Leaf parameter | Type and detected object | Receiver geometry | Sensa interpretation |
 | --- | --- | --- | --- |
 | FrotOthers | Proximity; another Socket root tag | Center +0.05·Z, sphere R=0.1 m; needs touch zone | Approach/brushing intensity, read directly by OgbTouch |
 | PenOthers | Proximity; TPS_Pen_Penetrating | Center -D·Z, sphere R=D; needs touch zone | SPS1 depth trend |
 | PenOthersClose | Constant; same Plug tag | Center -D/2·Z, capsule R=D/2.5, H=D; needs touch zone | 1 when a target enters the Socket’s effective nearby region |
-| PenOthersNewRoot | Proximity; another Avatar’s Plug root Sender | Root center, sphere R=1 m | SPS2 root proximity paired with NewTip for depth conversion |
-| PenOthersNewTip | Proximity; another Avatar’s Plug length Sender | Root center, sphere R=1 m | SPS2 length-sphere proximity paired with NewRoot for length estimation |
-| PenSelfNewRoot | Proximity; own Plug root Sender | Root center, sphere R=1 m | Corresponding SPS2 pair for Self |
-| PenSelfNewTip | Proximity; own Plug length Sender | Root center, sphere R=1 m | Corresponding SPS2 length companion for Self |
+| PenOthersNewRoot | Proximity; another Avatar’s Plug root Sender | Root center, sphere R=1 m | SPS2/SPS3 root proximity paired with NewTip for depth conversion |
+| PenOthersNewTip | Proximity; another Avatar’s Plug length Sender | Root center, sphere R=1 m | SPS2/SPS3 length-sphere proximity paired with NewRoot for length estimation |
+| PenSelfNewRoot | Proximity; own Plug root Sender | Root center, sphere R=1 m | Corresponding SPS2/SPS3 pair for Self |
+| PenSelfNewTip | Proximity; own Plug length Sender | Root center, sphere R=1 m | Corresponding SPS2/SPS3 length companion for Self |
 | TouchOthers | Proximity; others’ Head/Hand/Foot/Finger | Center -D·Z, sphere R=D; needs touch zone | Touch intensity with TouchOthersClose |
 | TouchOthersClose | Constant; corresponding body tags | Center -D/2·Z, capsule R=D/2.5, H=D; needs touch zone | 1 when a target enters the corresponding touch region |
 | TouchSelf | Proximity; own Hand/Finger/Foot | Center -D·Z, sphere R=D; needs touch zone | Touch intensity with TouchSelfClose |
@@ -96,14 +102,17 @@ Senders define the target shape seen by a receiver. Common generated objects are
 
 | Generated object | Sender shape and tag | Purpose |
 | --- | --- | --- |
-| Plug Root | Root-centred sphere r=0.01 m; TPS_Pen_Root | SPS2 PenOthersNewRoot/PenSelfNewRoot |
-| Plug Length | Root-centred sphere r=L; TPS_Pen_Penetrating | SPS2 NewTip and SPS1 PenOthers observe a root-centered length sphere |
+| Plug Root | Root-centred sphere r=0.01 m; TPS_Pen_Root | SPS2/SPS3 PenOthersNewRoot/PenSelfNewRoot |
+| Plug Length | Root-centred sphere r=L; TPS_Pen_Penetrating | SPS2/SPS3 NewTip and SPS1 PenOthers observe a root-centered length sphere |
 | Plug WidthHelper | Root-centred sphere r=max(0.01 m,L-2W); TPS_Pen_Width | Upstream internal width aid |
 | Plug Envelope | Centre L/2·Z; capsule R=W, H=L; TPS_Pen_Close | Plug frottage/independent touch zones |
-| Socket Root | Root-centred sphere r=0.001 m; includes TPS_Orf_Root | Plug PenSelf/PenOthers and Socket FrotOthers |
-| Socket Front | +0.01·Z, sphere r=0.001 m; TPS_Orf_Norm etc. | Upstream direction aid |
+| Socket Root (SPS1/2) | Root-centred sphere r=0.001 m; includes TPS_Orf_Root | Plug PenSelf/PenOthers and Socket FrotOthers |
+| Socket Root (SPS3) | Root-centred point r=0; public channels retain TPS_Orf_Root/SPSLL_Socket_Root | The same raw readings; scale separately encodes SPS3 metadata |
+| Socket Front | +0.01·Z, sphere r=0.001 m; TPS_Orf_Norm | Legacy direction aid; SPS3 emits it with the corresponding TPS Plug Animation Compatibility settings |
 
-For example, Plug/PenOthers starts producing values at approximately L+0.001 m center distance. SPS1 Socket `PenOthers` observes the root-centered Length sphere r=L (TPS_Pen_Penetrating). SPS2 `PenOthersNewRoot` observes the r=0.01 root sphere, while `PenOthersNewTip` observes the r=L length sphere. Their shared center makes readings depend mainly on root-center distance. Approach aligned with the Socket is readily understood as a depth trend; for sideways movement or tilt, use the illustration and calibrate actual endpoints. [Plug Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108), [Socket Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+For example, SPS1/2 Plug/PenOthers starts producing values at approximately L+0.001 m center distance. SPS3 Socket roots have radius zero, moving that threshold to approximately L. SPS1 Socket `PenOthers` observes the root-centered Length sphere r=L (TPS_Pen_Penetrating). SPS2/SPS3 `PenOthersNewRoot` observes the r=0.01 root sphere, while `PenOthersNewTip` observes the r=L length sphere. Their shared center makes readings depend mainly on root-center distance. Approach aligned with the Socket is readily understood as a depth trend; for sideways movement or tilt, use the illustration and calibrate actual endpoints. [Plug Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticPlugBaker.cs#L60-L108), [Socket Senders](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs#L37-L83)
+
+[Pinned SPS3 root and optional Front builder](https://github.com/VRCFury/VRCFury/blob/59fa4fa0277c0f3eb7c73811d9b24bf73e2133f4/com.vrcfury.vrcfury/Editor-Common/Inspector/VRCFuryHapticSocketBaker.cs)
 
 ## Other real parameters and unsupported names
 
@@ -144,7 +153,7 @@ Choose this route when authoring your own root measurement. Explicit Sensa/nativ
 
 ## Sensa's compact entry points and prerequisites
 
-Choose OgbDepth for depth and OgbTouch for touch. OgbDepth prioritizes **SPS2 · PenOthersNewRoot / PenOthersNewTip**. Missing pairs or unknown length yield zero; absent or both-zero channels permit the same instance’s **SPS1 · PenOthers / PenOthersClose** depth signal. OgbTouch pairs required Close values by source/full parent/feature, returning zero if absent. Explicit Direct mappings retain access to raw values. [Consumer selection](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149), [Sensa address interpretation](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
+Choose OgbDepth for depth and OgbTouch for touch. OgbDepth prioritizes **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip**. Missing pairs or unknown length yield zero; absent or both-zero channels permit the same instance’s **SPS1 · PenOthers / PenOthersClose** depth signal. OgbTouch pairs required Close values by source/full parent/feature, returning zero if absent. Explicit Direct mappings retain access to raw values. [Consumer selection](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts#L63-L149), [Sensa address interpretation](https://github.com/SeaLoong/Sensa/blob/main/src/core/runtime/resolver.ts)
 
 Modern VRCFury replaces instance-name slashes with underscores. Sensa also preserves custom nested parent paths. Companion values remain isolated by source/instance/Self-or-Others. Reactivation, Avatar changes and mapping rebuilds discard learned length. Timeouts follow the currently selected signal.
 

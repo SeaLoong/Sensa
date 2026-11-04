@@ -48,8 +48,8 @@ namespace UnityBox.Sensa
         {
             var root = SensaSpsAdapter.ReadRoot(author.reference);
             Undo.RecordObject(author, SensaEditorLocalization.Text("Move tracking frame"));
-            author.positionOffset = Quaternion.Inverse(root.rotation) * (root.root.InverseTransformPoint(position) - root.position);
-            author.rotationOffset = (Quaternion.Inverse(root.root.rotation * root.rotation) * rotation).eulerAngles;
+            author.positionOffset = root.WorldMatrix.inverse.MultiplyPoint3x4(position);
+            author.rotationOffset = (Quaternion.Inverse(root.WorldRotation) * rotation).eulerAngles;
             RecordPrefabChange(author);
         }
 
@@ -67,8 +67,8 @@ namespace UnityBox.Sensa
             SensaSpsAdapter.RootPlacement placement;
             try { placement = SensaTrackingFrameBuilder.ResolvePlacement(author); }
             catch (InvalidOperationException) { return; }
-            var origin = placement.root.TransformPoint(placement.position);
-            var rotation = placement.root.rotation * placement.rotation;
+            var origin = placement.WorldMatrix.MultiplyPoint3x4(Vector3.zero);
+            var rotation = placement.WorldRotation;
             var length = Mathf.Clamp(author.axisLength, .05f, .5f);
             var scale = avatar.transform.lossyScale.x;
             if (author.trackingMethod == SensaRootTrackingMethod.FourAnchor) SensaCoverageGizmos.Fixed(avatar.transform);

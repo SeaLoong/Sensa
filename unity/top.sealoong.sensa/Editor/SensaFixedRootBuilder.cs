@@ -87,8 +87,7 @@ namespace UnityBox.Sensa
             Validate(avatar, id, target, channel);
             SensaSensorUtility.Budget(avatar, 5);
             var placement = SensaSpsAdapter.ReadRoot(target);
-            var source = SensaSensorUtility.Child(placement.root, "SensaRootSource_" + id);
-            source.localPosition = placement.position; source.localRotation = placement.rotation;
+            var source = SensaSpsAdapter.BuildRootSource(avatar, placement, "SensaRootSource_" + id);
             var host = SensaSensorUtility.Child(avatar.transform, "SensaFixedRoot_" + id).gameObject;
             var contacts = SensaSensorUtility.Child(host.transform, "Contacts").gameObject;
             var marker = SensaSensorUtility.Child(contacts.transform, "RootMarker");

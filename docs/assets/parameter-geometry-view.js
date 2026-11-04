@@ -71,6 +71,7 @@
     vx: ['SDK 相对速度 · X', 'SDK relative velocity · X'], vy: ['SDK 相对速度 · Y', 'SDK relative velocity · Y'], vz: ['SDK 相对速度 · Z', 'SDK relative velocity · Z'],
     proximitySpeed: ['接近值变化率', 'Proximity change rate'],
     length: ['Plug 长度 L', 'Plug length L'], width: ['Plug 半径 W', 'Plug radius W'], depth: ['Socket 区域 D', 'Socket region D'],
+    socketRootRadius: ['Socket 根标记', 'Socket root marker'], socketRootLegacy: ['SPS1/2 · 1 mm', 'SPS1/2 · 1 mm'], socketRootSps3: ['SPS3 · 点（0 mm）', 'SPS3 · point (0 mm)'],
     yaw: ['Plug 绕根旋转', 'Plug root rotation'], senderRadius: ["触碰对象半径", "Touching object radius"],
     zoneRadius: ['Touch Zone 半径', 'Touch Zone radius'], sample: ['活动计数 Sample（0 表示停止）', 'Activity counter Sample (0 means stopped)'],
     ageMs: ['距上次变化时间', 'Age since last change'], frame: ['编码序号 Frame', 'Encoded Frame'],
@@ -88,7 +89,7 @@
     parameterReferenceSelected: ['当前选中：', 'Selected: '],
     positioning: ['定位原理', 'Positioning'], offline: ['本地 Three.js · 离线可用', 'Local Three.js · Works offline'],
     exploreTopics: ['继续了解', 'More help'], positionTopic: ['位置追踪', 'Position tracking'], depthTopic: ['进入与靠近', 'Depth and approach'], touchTopic: ['触碰响应', 'Touch response'],
-    'socket-modern': ["SPS2 · PenOthersNewRoot / PenOthersNewTip", "SPS2 · PenOthersNewRoot / PenOthersNewTip"],
+    'socket-modern': ["SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip", "SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip"],
     'socket-legacy': ["SPS1 · PenOthers / PenOthersClose", "SPS1 · PenOthers / PenOthersClose"],
     'plug-depth': ['Plug · PenOthers', 'Plug · PenOthers'],
     'socket-touch': ["Socket · TouchOthers / TouchOthersClose", "Socket · TouchOthers / TouchOthersClose"],
@@ -103,7 +104,7 @@
   const scenes = {
     'socket-modern': {
       summary: ["NewRoot 随 Plug 根部靠近 Socket 入口而增大；NewTip 与它配合，提供长度辅助信息。", "NewRoot increases as the Plug root approaches the Socket entrance. NewTip pairs with it to provide length information."],
-      explanation: ["两路配合用于估算进入程度：NewRoot 反映根部距离，NewTip 观测同一根部的长度球。下方径向参考采用滑块中的已知长度 L；侧向偏移也会改变这个距离。", "The pair helps estimate entry: NewRoot reflects root distance, while NewTip observes a length sphere at the same root. The radial reference below uses the known slider length L; sideways movement also changes this distance."],
+      explanation: ["两路配合用于估算进入程度：NewRoot 反映根部距离，NewTip 观测同一根部的长度球。下方径向参考采用滑块中的已知长度 L；侧向偏移也会改变这个距离。SPS3 的公开兼容读数沿用此 OGB 模型。", "The pair helps estimate entry: NewRoot reflects root distance, while NewTip observes a length sphere at the same root. The radial reference below uses the known slider length L; sideways movement also changes this distance. SPS3 public-compatible readings use the same OGB model."],
       formula: ["两只接收球 R=1，根球 r=0.01，长度球 r=L。p=clamp(1−max(0,d−r)/R)；两路未饱和时，估长=NewTip−NewRoot+0.01，已知 L 的径向参考=clamp(1−d/L)。", "Both receivers have R=1; the root sphere has r=0.01 and the length sphere r=L. p=clamp(1−max(0,d−r)/R). With both channels unsaturated, estimated length=NewTip−NewRoot+0.01; the radial reference for known L is clamp(1−d/L)."],
     },
     'socket-legacy': {
@@ -114,7 +115,7 @@
     'plug-depth': {
       summary: ["Plug 一侧的 PenOthers 感知 Socket 入口：Plug 根部越靠近入口，读数越大。", "On the Plug side, PenOthers senses the Socket entrance: the reading rises as the Plug root approaches it."],
       explanation: ["这个值可作为进入程度的联动参考，再把实际动作两端的读数校准为设备行程。它随根部到入口的直线距离变化，轴向和侧向移动都会参与。", "Use this value as an entry reference, then calibrate the readings at the ends of the intended movement to the device travel. It follows the straight-line distance from root to entrance, including movement along and across the axis."],
-      formula: ["R=L 的接收球跟随 Plug 根部，入口标记球 r=0.001 位于 Socket 根部。p=clamp(1−max(0,d−0.001)/L)；灰色尖端帮助辨认 Plug 朝向。", "An R=L receiver follows the Plug root; an r=0.001 entrance marker sits at the Socket root. p=clamp(1−max(0,d−0.001)/L). The gray tip shows Plug direction."],
+      formula: ["SPS1/2 示例：R=L 的接收球跟随 Plug 根部，入口标记球 r=0.001 位于 Socket 根部。p=clamp(1−max(0,d−0.001)/L)；灰色尖端帮助辨认 Plug 朝向。", "SPS1/2 example: an R=L receiver follows the Plug root; an r=0.001 entrance marker sits at the Socket root. p=clamp(1−max(0,d−0.001)/L). The gray tip shows Plug direction."],
     },
     'socket-touch': {
       summary: ["TouchOthers 描述手指、手等触碰 Socket 附近区域时的接近程度；TouchOthersClose 确认进入同一接触范围。", "TouchOthers describes a finger, hand or similar body contact approaching the Socket region. TouchOthersClose confirms entry into that contact region."],
@@ -129,7 +130,7 @@
     'socket-frot': {
       summary: ["FrotOthers 反映两个 Socket 入口附近区域贴近的程度。", "FrotOthers reflects how closely the areas near two Socket entrances approach each other."],
       explanation: ["对方入口越靠近前置检测球，读数越大。Sensa 直接使用该接近值，作为贴近或摩擦时的强度参考。", "The reading rises as the other entrance approaches the forward detection sphere. Sensa uses this proximity value directly as an intensity reference for close contact or rubbing."],
-      formula: ["接收球中心 z=0.05、R=0.1；对方入口标记半径 r=0.001。p=clamp(1−max(0,d−0.001)/0.1)。", "The receiver is centered at z=0.05 with R=0.1; the other entrance marker has r=0.001. p=clamp(1−max(0,d−0.001)/0.1)."],
+      formula: ["SPS1/2 示例：接收球中心 z=0.05、R=0.1；对方入口标记半径 r=0.001。p=clamp(1−max(0,d−0.001)/0.1)。", "SPS1/2 example: the receiver is centered at z=0.05 with R=0.1; the other entrance marker has r=0.001. p=clamp(1−max(0,d−0.001)/0.1)."],
     },
     'plug-frot': {
       summary: ["FrotOthers 描述两个 Plug 外形贴近时的接近程度；FrotOthersClose 确认双方检测包络已经相交。", "FrotOthers describes two Plug shapes approaching each other. FrotOthersClose confirms that their detection envelopes overlap."],
@@ -289,10 +290,10 @@
     const index = anchorIndex(shape.id);
     tintAnchor(group, index);
     const attrs = { class: 'shape ' + shape.role + highlight + (index === null ? '' : ' anchor-colored') };
-    const tooltip = svg('title'); tooltip.textContent = shape.id + (shape.radius ? ' · R=' + fmt(shape.radius) + ' ' + units() : ''); group.append(tooltip);
+    const tooltip = svg('title'); tooltip.textContent = shape.id + (shape.radius !== undefined ? ' · R=' + fmt(shape.radius) + ' ' + units() : ''); group.append(tooltip);
     if (shape.type === 'sphere') {
       const p = projection.p(shape.center);
-      group.append(svg('circle', { ...attrs, cx: p.x, cy: p.y, r: shape.radius * projection.scale }));
+      group.append(svg('circle', { ...attrs, cx: p.x, cy: p.y, r: shape.radius === 0 ? 3 : shape.radius * projection.scale, 'data-point-marker': shape.radius === 0 ? 'true' : undefined }));
     } else if (shape.type === 'capsule') {
       const a = projection.p(shape.a), b = projection.p(shape.b), r = shape.radius * projection.scale;
       const length = Math.hypot(b.x - a.x, b.y - a.y);
@@ -525,7 +526,11 @@
     if (ownValidity) $('validity').dataset.valid = String(m.valid); else delete $('validity').dataset.valid;
     $('explanation').textContent = text(scenes[state.scenario].explanation)
       + (state.scenario === 'shader' && !m.valid ? ' ' + text(['当前图像会报告 Valid=0；恢复有效更新后，位置继续参与计算。', 'This image reports Valid=0. Position participates again after valid updates resume.']) : '');
-    $('formula').textContent = text(scenes[state.scenario].formula);
+    $('formula').textContent = ['plug-depth', 'socket-frot'].includes(state.scenario)
+      ? text(state.scenario === 'plug-depth'
+        ? ['R=L，所选 Socket 标记 r=' + fmt(state.socketRootRadius) + ' m。p=clamp(1−max(0,d−r)/L)；接近起点 d<L+r。', 'R=L, selected Socket marker r=' + fmt(state.socketRootRadius) + ' m. p=clamp(1−max(0,d−r)/L); proximity starts at d<L+r.']
+        : ['接收球中心 z=0.05、R=0.1；所选 Socket 标记 r=' + fmt(state.socketRootRadius) + ' m。p=clamp(1−max(0,d−r)/0.1)。', 'Receiver center z=0.05, R=0.1; selected Socket marker r=' + fmt(state.socketRootRadius) + ' m. p=clamp(1−max(0,d−r)/0.1).'])
+      : text(scenes[state.scenario].formula);
     $('assumptions').textContent = result.assumptions.map(a => locale === 'en-US' ? a.en : a.zh).join(' ');
     $('encoding').hidden = state.scenario !== 'shader';
     if (state.scenario === 'shader') {
@@ -640,6 +645,7 @@
     if (['plug-touch', 'plug-frot'].includes(state.scenario)) allowed.add('W');
     if (['socket-legacy', 'socket-touch'].includes(state.scenario)) allowed.add('D');
     if (['socket-modern', 'socket-legacy', 'plug-depth', 'plug-frot'].includes(state.scenario)) allowed.add('yaw');
+    if (['plug-depth', 'socket-frot'].includes(state.scenario)) allowed.add('socketRootRadius');
     if (['socket-touch', 'plug-touch', 'zone'].includes(state.scenario)) allowed.add('senderRadius');
     if (state.scenario === 'zone') allowed.add('zoneRadius');
     if (spatial()) ['ageMs', 'valid'].forEach(k => allowed.add(k));
@@ -679,7 +685,9 @@
       : ['socket-legacy', 'socket-touch'].includes(state.scenario)
       ? text(['VRCFury 自动区域按视点高度的 5% 生成。默认示例视点高 1.60 m，得到 D=0.08 m、Close 半径 0.032 m；调整 D 可模拟 Avatar 已填写的区域长度。', 'VRCFury generates the automatic region from 5% of view height. The example 1.60 m view height gives D=0.08 m and a 0.032 m Close radius. Adjust D to match an authored region length.'])
       : state.scenario === 'socket-modern'
-      ? text(['SPS2 接收球半径为 VRCFury 的 1 m，Plug 根标记半径为 0.01 m。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。', 'SPS2 uses VRCFury’s 1 m receiver radius and a 0.01 m Plug-root marker. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model.'])
+      ? text(['SPS2／SPS3 兼容通道的接收球半径为 1 m，Plug 根标记半径为 0.01 m。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。', 'SPS2/SPS3 compatible channels use a 1 m receiver radius and a 0.01 m Plug-root marker. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model.'])
+      : ['plug-depth', 'socket-frot'].includes(state.scenario)
+      ? text(['Socket 根标记可切换：SPS1/2 为 0.001 m，SPS3 为半径零的点。图形、公式和数值按选择同步更新；原始参数路径保持不变。', 'Switch the Socket root marker: 0.001 m for SPS1/2 or a radius-zero point for SPS3. Geometry, formulas and values follow the selection; raw parameter paths stay unchanged.'])
       : state.scenario === 'zone'
       ? text(['Touch Zone 默认半径为 VRCFury 的 0.10 局部单位；此图以缩放 1 展示，调整半径可模拟实际触碰区。', 'Touch Zone starts with VRCFury’s radius of 0.10 local units, shown here at scale 1. Adjust the radius to match your touch region.'])
       : text(['尺寸按 VRCFury 生成规则计算。示例 Plug 长 0.20 m、半径 0.03 m；可按实际模型调整。胶囊高度包含两端半球。', 'Dimensions follow VRCFury generation rules. The example Plug is 0.20 m long with a 0.03 m radius; adjust to your model. Capsule height includes both rounded caps.']);
@@ -850,7 +858,7 @@
   $('signal-record').addEventListener('click', () => {
     recordingStatus = '';
     const current = currentSignal();
-    if (recording.start(performance.now(), current.value)) recordingSource = { scenario: state.scenario, parameter: signalParameter, axis: $('signal-axis').value, min: current.min, max: current.max, invert: $('signal-invert').checked };
+    if (recording.start(performance.now(), current.value)) recordingSource = { scenario: state.scenario, parameter: signalParameter, axis: $('signal-axis').value, min: current.min, max: current.max, invert: $('signal-invert').checked, ...(['plug-depth', 'socket-frot'].includes(state.scenario) ? { socketRootRadius: state.socketRootRadius } : {}) };
     signalTick();
   });
   $('signal-stop').addEventListener('click', () => { finishRecording(); signalTick(); });
@@ -903,7 +911,10 @@
   for (const name of ['show-receivers', 'show-senders', 'show-reference', 'show-coverage', 'show-dimensions', 'zoom']) $(name).addEventListener('input', render);
   for (const holder of document.querySelectorAll('[data-control]')) {
     const key = holder.dataset.control, input = $('control-' + key);
-    input.addEventListener('input', () => { state[key] = key === 'valid' ? input.checked : Number(input.value) / (key === 'sample' ? 32 : 1); render(); });
+    input.addEventListener('input', () => {
+      if (key === 'socketRootRadius') { finishRecording(); stopWebSensaSignal(); signalHistory = []; }
+      state[key] = key === 'valid' ? input.checked : Number(input.value) / (key === 'sample' ? 32 : 1); render();
+    });
   }
   const move = point => {
     if (!['x', 'y', 'z'].every(key => Number.isFinite(point[key]))) return;

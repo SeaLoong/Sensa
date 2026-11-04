@@ -50,23 +50,26 @@ SPS 四点定位的 Unity 测量组件与桌面共享下文的五字段和固定
 
 ## OGB 与 VRCFury 参数
 
-`Orf` 表示 Socket，`Pen` 表示 Plug。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。
+SPS3 Beta 的公开兼容参数继续使用本表的 Root／Tip 几何，默认 Others 模板需要公共通道；`_nothips` 是自身避髋兼容用途。[SPS3 设置与新 Contact 标签](sps3.md)
+
+
+`Orf` 表示 Socket，`Pen` 表示 Plug。`Self` 表示检测自身的匹配目标，`Others` 表示检测其他 Avatar 的匹配目标。Sensa 按 OSC 来源、完整实例路径与类别配对。图解中的 **SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** 和 **SPS1 · PenOthers / PenOthersClose** 对应两种参数几何。
 
 | 参数／路径 | 怎样理解读数 | Sensa 的处理 |
 | --- | --- | --- |
 | `FrotOthers` | 两个匹配外形靠近、贴合或擦过时的接近强度 | Plug 与 `FrotOthersClose` 配合；Socket 直接使用该值 |
 | `FrotOthersClose` | Plug 周围是否有匹配目标进入有效接近区，0 为离开、1 为接近 | 为 Plug 的 Frot 提供附加条件 |
-| Orf／Pen 的 `PenOthers`／`PenSelf` | 连续 0–1 接近值。Socket 的 SPS1 参数可理解为进入深浅趋势；Plug 参数随 Socket 入口靠近其根部而变化 | 以希望的浅端、深端校准；Socket 在 SPS2 配对缺失或两值均零时使用，Plug 直接读取 |
+| Orf／Pen 的 `PenOthers`／`PenSelf` | 连续 0–1 接近值。Socket 的 SPS1 参数可理解为进入深浅趋势；Plug 参数随 Socket 入口靠近其根部而变化 | 以希望的浅端、深端校准；Socket 在 SPS2/SPS3 配对缺失或两值均零时使用，Plug 直接读取 |
 | Orf 的 `PenOthersClose` | 匹配目标是否进入 Socket 周围的有效接近区，0 为离开、1 为接近 | 发布该值时，以它作为 SPS1 深度的接近条件；单值来源按自身路径读取 |
-| Orf 的 `PenOthersNewRoot`／`PenSelfNewRoot` | SPS2 中 Plug 根部小球到 Socket 接收器的接近值，范围 0–1 | 与同实例 `NewTip` 配对，参与长度估计和深度换算 |
-| Orf 的 `PenOthersNewTip`／`PenSelfNewTip` | SPS2 中以 Plug 根部为球心、半径为 Plug 长度的球体所产生的接近值，范围 0–1 | 两路未饱和样本用于估长，再换算进入深浅的趋势 |
+| Orf 的 `PenOthersNewRoot`／`PenSelfNewRoot` | SPS2/SPS3 中 Plug 根部小球到 Socket 接收器的接近值，范围 0–1 | 与同实例 `NewTip` 配对，参与长度估计和深度换算 |
+| Orf 的 `PenOthersNewTip`／`PenSelfNewTip` | SPS2/SPS3 中以 Plug 根部为球心、半径为 Plug 长度的球体所产生的接近值，范围 0–1 | 两路未饱和样本用于估长，再换算进入深浅的趋势 |
 | `TouchOthers`／`TouchSelf` | 身体或匹配目标靠近触碰区域时的连续强度，范围 0–1 | 与对应 `Touch…Close` 配合使用 |
 | `TouchOthersClose`／`TouchSelfClose` | 匹配目标是否进入相应触碰区域，0 为离开、1 为接近 | Close 为 1 时采用 Touch 强度，为 0 时输出零 |
 | `VFH/Zone/Touch/<完整id>/Others`／`Self` | 指定区域内的连续接近强度，越靠近区域中心通常越大 | OgbTouch 直接读取 0–1 |
 | `VFH/Version/…`、历史 OGB Version 路径 | 上游支持能力的标志 | 用于识别参数能力 |
 | `OGB_ENABLED` | 向 Avatar 表示接收服务正在工作 | 按配置目标每 5 秒发送 true，停用时尝试 false；默认关闭 |
 
-深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。`Close=1` 表示匹配目标进入该 Contact 定义的有效区域，适合作为动作生效条件；身体外形与区域边界的关系由作者的形状设置决定。SPS2 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
+深度相关数值按检测形状之间的距离变化。正对 Socket 的移动最容易与进入深浅对应；横移、倾斜和作者设置的尺寸也会改变读数，因此映射时应以自己希望的起点和终点校准。`Close=1` 表示匹配目标进入该 Contact 定义的有效区域，适合作为动作生效条件；身体外形与区域边界的关系由作者的形状设置决定。SPS2/SPS3 的 OgbDepth 使用 Receiver 半径 R=1、根球半径 r=0.01 的模型；图解可以帮助观察两路数值如何配合。
 
 实际参数名以 Avatar 发布内容为准。完整生成表、形状和尺寸见[OGB 详表](ogb-compatibility.md)，依据[固定生成器源码](https://github.com/VRCFury/VRCFury/blob/6bd33f4cb453df816c943a335e47f64e6a37e188/com.vrcfury.vrcfury/Editor-Avatars/Service/BakeHapticSocketsService.cs)与[官方 OGB 消费端](https://github.com/OscToys/OscGoesBrrr/blob/643aedd493ba21b0c0859ce6e57708fe408ee9c0/src/main/GameDevice.ts)。
 

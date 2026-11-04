@@ -208,9 +208,9 @@ export function SignalMappingRow({ draft, latestEntry, pathOptions, computedSign
           value={draft.sourceMode || 'Direct'}
           options={[
             { value: 'Direct', label: t('OSC 参数') },
-            { value: 'OgbDepth', label: t('SPS1 / SPS2 自动识别') },
+            { value: 'OgbDepth', label: t('SPS1/SPS2/SPS3 自动识别') },
             { value: 'OgbTouch', label: t('OGB 触碰与门控') },
-            { value: 'SpsSocketDepth', label: t('SPS2 · PenOthersNewRoot / PenOthersNewTip') },
+            { value: 'SpsSocketDepth', label: t('SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip') },
             { value: 'SensaPose', label: t('三点姿态指标') },
             { value: 'SensaPoint', label: t('定位测量') },
             ...(allowComputed ? [{ value: 'Computed', label: t('计算信号') }] : []),

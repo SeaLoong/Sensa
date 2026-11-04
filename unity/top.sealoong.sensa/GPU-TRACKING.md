@@ -80,14 +80,21 @@ Reed–Solomon 纠错把测量包和校验信息交织到图中。部分格子�
 
 ## 编辑器 SPS 模型探针
 
-编辑器探针用于研究 SPS2 模型的变化。它读取 `_VFGridFinal`，调用安装版本 `sps_deform_walk_chain`，输出**未混合中心线**、长度、入口和 `firstSegmentStrength`。这些读数描述采样中心线；最终网格表面检查、上传后的模型读取需要各自实现与验证。
+编辑器探针调用安装版本的曲线函数，输出 **33 点未混合中心线**、长度、入口和 `firstSegmentStrength`。它按表面材质的数据接口选择 SPS2 或 SPS3 适配器。[SPS3 设置与通道](../../docs/sps3.md)
 
-1. 安装官方 VRCFury SPS2；依赖摘要针对源提交 `d048773de971881fb14c5f3b468e59ba2406a2dd`。使用 PC Built-in、非 XR/非立体相机，支持 ARGBFloat 和 AsyncGPUReadback。
-2. 在正常 SPS 构建预览/Play Mode 中，让生成的 Resolver 和表面实际渲染。打开 **Tools → Sensa → SPS GPU Model Probe (Experimental)**，选择对应 Camera、BakedSpsPlug Resolver Renderer 和同一 Plug 的 Surface Renderer。
-3. **检查依赖并采集下一帧**会核对安装 include 的规范化 SHA256，自动读取材质/MaterialPropertyBlock 身份；未知依赖、身份不一致、编译错误或十秒无相机渲染会停止。依赖使用项目中已安装的 VRCFury。
-4. 生成文件位于 `Assets/SensaGpuDiagnostics`，只用于编辑器探针。可检查 33 个点、导出 `sensa.sps-gpu-model.v1` JSON；连续 PNG 保存该编辑器读取器的测量结果。
+| 适配器 | 所需对象与数据 |
+| --- | --- |
+| SPS2 | BakedSpsPlug 的 Resolver Renderer、匹配的 Surface Renderer 和材质；读取 `_VFGridFinal` |
+| SPS3 Beta | Surface Renderer 及其对应 Baked Surface Material；读取该 Renderer 的实际 Contact 矩阵／向量数组，无需 Resolver |
 
-SPS 运行时玩家 Shader ID 由 Animator 驱动，采集时需要读取实际运行值。全局纹理可能保留旧帧，模型新鲜度需要额外采集证据。识别与 Socket 交互的 Plug 需要目标关联信息；该探针使用 SPS2 Resolver，旧 TPS／DPS 使用各自的输入方案。
+1. 使用 PC Built-in、非 XR／非立体相机，支持 ARGBFloat 和 AsyncGPUReadback。SPS2 依赖固定到 `d048773…`，SPS3 固定到 VRCFury `1.1437.1-beta.1` 的 `59fa4fa…`，并核对安装 SDK 的 include 摘要。
+2. 在构建预览／Play Mode 中渲染目标，打开 **Tools → Sensa → SPS GPU Model Probe (Experimental)**，选择 Camera、Surface Renderer 和对应的 Baked Surface Material。SPS2 再选其 Resolver；SPS3 自动使用 Renderer Contact 分支。
+3. 点击 **检查依赖并采集下一帧**。探针核对依赖、材质槽和数据，使用材质槽级属性块，或在其为空时使用 Renderer 级属性块；不拼接两个不同作用域的数组。数据缺失、身份改变、编译错误或相机十秒未渲染时停止。
+4. 在 Scene 视图查看中心线，并导出 `sensa.sps-gpu-model.v1` JSON；生成 Shader 位于 `Assets/SensaGpuDiagnostics`。连续 PNG 保存同一实验读取器的结果。
+
+SPS3 的 `_SPS_UseLegacyLights` 路径还需要原 Renderer 的逐对象灯光常量，独立绘制无法准确复制，因此探针会停止这类采集。原生 Contact 形变数据仍可采集；需要不依赖模型的测量时，使用前文的根点编码。探针不会修改 Avatar 材质以改变其实际形变。
+
+这些结果是模型中心线快照；最终网格、生产端几何更新年龄与上传后的采样各有独立验证。SPS2 的运行时玩家 ID 以及 SPS3 的 Contact 数组都需要来自当前所选 Renderer；编码时钟的推进本身不证明模型刚刚更新。
 
 离线分析（标准库，不捕获桌面、不发 OSC）：
 

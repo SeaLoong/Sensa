@@ -53,7 +53,7 @@
     };
     const [x, y, z] = positions[scenario];
     return { scenario, x, y, z, L: illustrationDefaults.plugLength, W: illustrationDefaults.plugRadius,
-      D: illustrationDefaults.viewHeight * nativeSpsGeometry.socketDepthViewHeightRatio, senderRadius: illustrationDefaults.bodyRadius,
+      D: illustrationDefaults.viewHeight * nativeSpsGeometry.socketDepthViewHeightRatio, socketRootRadius: nativeSpsGeometry.socketRootRadius, senderRadius: illustrationDefaults.bodyRadius,
       senderHeight: .12, zoneRadius: nativeSpsGeometry.touchZoneRadius, yaw: 0, party: 'Others', senderKind: 'body',
       senderShape: 'sphere', ageMs: 0, timeoutMs: 1000, sample: 1 / 32, frame: 0, valid: true,
       vx: 0, vy: 0, vz: 0, proximitySpeed: 0,
@@ -390,10 +390,10 @@
         'Sensa producer activity counter: cycles from 1/32 to 1 roughly every 50 ms, and is 0 when disabled. Usable position pauses after more than 1000 ms without a change. It indicates continued publishing; SDK fields update individually.'];
     }
     if (scenario === 'socket-modern') return name.endsWith('NewRoot')
-      ? ['Plug 根点越靠近 Socket 入口，数值越大。它与 NewTip 配合，用于估算根点距离、Plug 长度和进入程度。',
-        'Increases as the Plug root approaches the Socket opening. Paired with NewTip, it helps estimate root distance, Plug length and depth.']
-      : ['长度球以 Plug 根点为中心，半径等于 Plug 长度。它的接近值与 NewRoot 的差值帮助估算长度，再换算进入程度。',
-        'The length sphere is centered on the Plug root with a radius equal to Plug length. Its proximity difference from NewRoot helps estimate length and then depth.'];
+      ? ['SPS2／SPS3 兼容读数：Plug 根点越靠近 Socket 入口，数值越大。它与 NewTip 配合，用于估算根点距离、Plug 长度和进入程度。',
+        'SPS2/SPS3 compatible reading: increases as the Plug root approaches the Socket opening. Paired with NewTip, it helps estimate root distance, Plug length and depth.']
+      : ['SPS2／SPS3 兼容长度球以 Plug 根点为中心，半径等于 Plug 长度。它的接近值与 NewRoot 的差值帮助估算长度，再换算进入程度。',
+        'The SPS2/SPS3 compatible length sphere is centered on the Plug root with a radius equal to Plug length. Its proximity difference from NewRoot helps estimate length and then depth.'];
     if (scenario === 'socket-legacy') return name.endsWith('Close')
       ? ['Socket 附近的接触检测开关：匹配目标进入检测区域时为 1，离开时为 0。Sensa 据此决定何时使用 PenOthers。',
         'A contact-region switch near the Socket: 1 while a matching target overlaps the region, 0 after it leaves. Sensa uses it to gate PenOthers.']
@@ -449,6 +449,9 @@
       y: number(input, 'y', defaults.y), z: number(input, 'z', defaults.z) };
     const L = number(input, 'L', defaults.L, 0, true), W = number(input, 'W', defaults.W, 0, true);
     const D = number(input, 'D', defaults.D, 0, true), zoneRadius = number(input, 'zoneRadius', defaults.zoneRadius, 0, true);
+    const socketRootRadius = number(input, 'socketRootRadius', defaults.socketRootRadius, 0);
+    if (![0, nativeSpsGeometry.socketRootRadius].includes(socketRootRadius))
+      throw new RangeError('socketRootRadius: choose the SPS1/2 marker or SPS3 point / 选择 SPS1/2 标记或 SPS3 点');
     const senderRadius = number(input, 'senderRadius', defaults.senderRadius, 0);
     const senderHeight = number(input, 'senderHeight', .12, 0);
     const senderLength = number(input, 'senderLength', L, 0, true);
@@ -477,6 +480,11 @@
       id: 'upstream-defaults',
       zh: '固定半径与生成规则核对 VRCFury 1.1434.0。示例 Plug 长 0.20 m、半径 0.03 m；Socket 自动区域按示例视点高 1.60 m 的 5% 得到 D=0.08 m。可用滑条填写实际模型尺寸或自定义区域。',
       en: 'Fixed radii and generation rules match VRCFury 1.1434.0. The example Plug is 0.20 m long with a 0.03 m radius. Automatic Socket depth uses 5% of the example 1.60 m view height, giving D=0.08 m. Set the sliders to your actual model dimensions or authored region.',
+    });
+    if (['plug-depth', 'socket-frot'].includes(scenario)) assumptions.push({
+      id: 'socket-marker-version',
+      zh: socketRootRadius === 0 ? '已选择 SPS3 的 Socket 点标记，半径为 0；Plug 接近值从中心距离约 L 开始，原始读数仍按实际对象校准。' : '已选择 SPS1/2 的 Socket 根标记半径 0.001 m；SPS3 的标记半径为 0，可在 Socket 根标记选择框切换。Plug 读数的起始距离分别约为 L+0.001 m 和 L。',
+      en: socketRootRadius === 0 ? 'SPS3 Socket point marker selected: radius 0. Plug proximity starts at approximately center distance L; calibrate the raw reading against the actual object.' : 'SPS1/2 Socket-root marker selected: radius 0.001 m. SPS3 has radius 0; switch with the Socket root marker selector. Plug proximity begins at approximately L+0.001 m and L respectively.',
     });
     const put = shape => { shapes.push(shape); return shape; };
     const opening = position => {
@@ -533,11 +541,11 @@
       opening(origin()); points.senderRoot = { ...point };
       illustrate('socket-other', 'socket', point, { x: 0, y: 0, z: -1 }, Math.min(D, .22), Math.max(.045, W * 1.8));
       const receiver = put(sphere('receiver-frot', 'receiver', { x: 0, y: 0, z: nativeSpsGeometry.socketFrotOffset }, nativeSpsGeometry.socketFrotRadius, 'TPS_Orf_Root'));
-      field('FrotOthers', receiver, put(sphere('sender-socket-root', 'sender', point, nativeSpsGeometry.socketRootRadius, 'TPS_Orf_Root')));
+      field('FrotOthers', receiver, put(sphere('sender-socket-root', 'sender', point, socketRootRadius, 'TPS_Orf_Root')));
     } else if (scenario === 'plug-depth') {
       opening(origin()); plug(point, axis); points.senderRoot = origin();
       const receiver = put(sphere('receiver-depth', 'receiver', point, L, 'TPS_Orf_Root'));
-      field('Pen' + party, receiver, put(sphere('sender-socket-root', 'sender', origin(), nativeSpsGeometry.socketRootRadius, 'TPS_Orf_Root')),
+      field('Pen' + party, receiver, put(sphere('sender-socket-root', 'sender', origin(), socketRootRadius, 'TPS_Orf_Root')),
         'proximity', null, 'OGB/Pen/Example');
     } else if (scenario === 'plug-touch' || scenario === 'plug-frot') {
       plug(origin(), ownAxis); points.senderRoot = { ...point };
@@ -706,7 +714,7 @@
     values.forEach(value => { value.meaning = meaningFor(scenario, value.name); });
     return { scenario, party, shapes, illustrations, values, points, metrics, bounds, assumptions,
       coverage: ['contact-sdk', 'sensa-sps', 'shader'].includes(scenario) ? coverageFor(point, scenario) : null,
-      parameters: { L, W, D, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
+      parameters: { L, W, D, socketRootRadius, senderRadius, senderHeight, senderLength, senderWidth, zoneRadius, yaw }, sources };
   }
 
   root.SensaParameterGeometry = Object.freeze({ scenarios, defaultsFor, evaluate, sources, anchorColors, nativeSpsGeometry, illustrationDefaults, spsGeometry, shaderEncoding, coverageContains, coverageRadius, encodedBit, encodedCell, encodeQr });

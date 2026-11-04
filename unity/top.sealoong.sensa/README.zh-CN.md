@@ -6,6 +6,8 @@ Sensa 的 Unity 组件保存定位与参数设置，在 Avatar 构建时生成�
 
 [交互参数图解](https://sealoong.github.io/Sensa/parameter-geometry.html)解释几何和参数前缀；可独立浏览几何与读数，并离线打开。仓库和桌面发行包的 `docs/parameter-geometry.html` 保留离线页面。
 
+SPS3 测试版可使用相同的公开 OGB 参数和专用根点测量；原生 SPS3 Contact 标记带有缩放编码，Sensa 为其建立独立的刚性测量框。[SPS3 兼容与通道](../../docs/sps3.md)
+
 ## 安装与语言
 
 1. 使用 VCC/ALCOM **Avatars** 工程，满足 `package.json` 的 Unity 版本和 VPM 依赖，包括 NDMF 1.5.0+ 与 Modular Avatar 1.10.0+。使用 VRCFury SPS 作者组件时另行安装官方 VRCFury。

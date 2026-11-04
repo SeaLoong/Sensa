@@ -80,14 +80,21 @@ Internal diagnostic PNGs retain a separate 16×8 layout and `Sensa/Diagnostics/S
 
 ## Editor SPS model probe
 
-The editor probe helps inspect how the SPS2 model changes. It reads `_VFGridFinal`, calls the installed `sps_deform_walk_chain` and reports an **unblended centerline**, length, entry and `firstSegmentStrength`. These measurements describe the sampled centerline; final mesh-surface inspection and use after Avatar upload need their own implementation and validation.
+The editor probe calls the installed curve functions and reports a **33-point unblended centerline**, length, entry and `firstSegmentStrength`. It selects an SPS2 or SPS3 adapter from the surface material's data interface. [SPS3 setup and channels](../../docs/sps3.en.md)
 
-1. Install official VRCFury SPS2. Dependency hashes target source commit `d048773de971881fb14c5f3b468e59ba2406a2dd`. Use PC Built-in rendering, a non-XR/non-stereo camera, ARGBFloat and AsyncGPUReadback.
-2. Render the baked Resolver and surface through normal SPS build preview/Play Mode. Open **Tools → Sensa → SPS GPU Model Probe (Experimental)** and select its Camera, BakedSpsPlug Resolver Renderer and matching Surface Renderer.
-3. **Check dependencies and capture next frame** validates normalized include SHA256 and reads material/MaterialPropertyBlock identities. Unknown dependencies, mismatched identity, shader errors or ten seconds without camera rendering stop capture. Dependencies come from VRCFury already installed in the project.
-4. Generated files under `Assets/SensaGpuDiagnostics` are editor diagnostics. Inspect 33 points and export `sensa.sps-gpu-model.v1` JSON. Continuous PNG export records this editor reader’s measurements.
+| Adapter | Required objects and data |
+| --- | --- |
+| SPS2 | BakedSpsPlug Resolver Renderer, matching Surface Renderer and materials; reads `_VFGridFinal` |
+| SPS3 Beta | Surface Renderer and its corresponding Baked Surface Material; reads that Renderer's actual Contact matrix/vector arrays without a Resolver |
 
-SPS player shader IDs are animated at runtime, so capture needs their current values. Global textures may retain old frames; model freshness requires additional capture evidence. Associating a Socket with its active Plug requires target identity information. This probe uses the SPS2 Resolver; older TPS/DPS setups use their corresponding input routes.
+1. Use PC Built-in rendering, a non-XR/non-stereo camera, ARGBFloat and AsyncGPUReadback. SPS2 dependencies target `d048773…`; SPS3 targets VRCFury `1.1437.1-beta.1` at `59fa4fa…` and validates the installed SDK include hashes.
+2. Render the target in build preview/Play Mode. Open **Tools → Sensa → SPS GPU Model Probe (Experimental)** and select Camera, Surface Renderer and the matching Baked Surface Material. SPS2 additionally needs its Resolver; SPS3 selects Renderer Contact input automatically.
+3. **Check dependencies and capture next frame** validates dependencies, the material slot and required data. A material-slot property block takes precedence; an empty slot block falls back to the Renderer-wide block. Arrays from different scopes are not combined. Missing data, identity changes, shader errors or ten seconds without camera rendering stop capture.
+4. Inspect the centerline in Scene view and export `sensa.sps-gpu-model.v1` JSON. Generated shaders live under `Assets/SensaGpuDiagnostics`. Continuous PNG export records this experimental reader's results.
+
+The SPS3 `_SPS_UseLegacyLights` path also needs the original Renderer's per-object light constants, which a separate draw cannot accurately copy, so the probe stops that capture. Native Contact deformation data can still be sampled. Use independent root capture when model sampling is unnecessary. The probe does not change Avatar materials or their actual deformation.
+
+These are model-centerline snapshots. Final mesh shape, producer geometry age and sampling after upload have separate validation. SPS2 runtime player IDs and SPS3 Contact arrays must come from the selected Renderer; an advancing encoding clock alone does not prove newly updated geometry.
 
 Offline analysis uses the standard library without desktop capture or OSC:
 
