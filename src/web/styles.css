@@ -453,7 +453,8 @@ tbody tr:hover { background: #f3f3f3; }
 .modal[open] { display: flex; flex-direction: column; }
 .modal::backdrop { background: #0009; }
 .modal--wide { width: min(960px, calc(100% - 32px)); }
-.modal--profile { width: min(1040px, calc(100% - 32px)); }
+.modal--profile { width: min(1040px, calc(100% - 32px)); height: min(780px, calc(100dvh - 32px)); }
+.modal--profile .modal__body { flex: 1 1 auto; }
 .modal__header, .modal__actions { position: relative; z-index: 2; flex-shrink: 0; padding: 16px var(--dialog-gutter); background: var(--surface); }
 .modal__header { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 16px; border-bottom: 1px solid var(--border); }
 .modal__header h2 { min-width: 0; font-size: 18px; line-height: 26px; overflow-wrap: anywhere; }
@@ -631,6 +632,7 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   .hub-target__fields > .field:first-child { grid-column: 1 / -1; }
   .profile-row { grid-template-columns: minmax(0, 1fr); gap: 16px; }
   .modal { width: calc(100% - 16px); max-height: calc(100dvh - 16px); }
+  .modal--profile { height: calc(100dvh - 16px); }
   .modal__header { gap: 8px; }
   .modal__header h2 { font-size: 16px; line-height: 24px; }
   .modal__header, .modal__actions { padding-block: 12px; }

@@ -113,7 +113,45 @@ for (const locale of ['zh-CN', 'en-US']) {
     test('axis panel reflows and its scroll body keeps header and save actions visible / 轴编辑重排且正文滚动保留标题和保存操作',
       { tag: ['@config', '@quality'] }, async ({ page, rig }, info) => {
         const dialog = await openProfile(page);
-        const evidence = { locale, initial: await inspectModalFrame(dialog) };
+        const body = dialog.locator('.modal__body');
+        const navigation = dialog.getByRole('tablist', { name: await text(page, '选择轴'), exact: true });
+        const panel = dialog.getByRole('tabpanel');
+        const axisMode = panel.getByLabel(await text(page, '轴模式'), { exact: true });
+        const first = navigation.getByRole('tab', { name: /^L0\s/ });
+        await axisMode.selectOption('Normal');
+        await body.evaluate(element => { element.scrollTop = 0; });
+        const initial = await inspectModalFrame(dialog);
+        const initialNavigation = await navigation.evaluate(element => {
+          const box = element.getBoundingClientRect(); return { top: box.top, bottom: box.bottom };
+        });
+        const evidence = { locale, initial, initialNavigation, modeFrames: [] };
+        const stableModeFrame = async mode => {
+          await expect(axisMode).toHaveValue(mode);
+          await expect.poll(() => body.evaluate(element => element.scrollTop)).toBe(0);
+          const frame = await inspectModalFrame(dialog);
+          const nav = await navigation.evaluate(element => {
+            const box = element.getBoundingClientRect(); return { top: box.top, bottom: box.bottom };
+          });
+          for (const region of ['dialog', 'header', 'footer']) {
+            expect(Math.abs(frame[region].top - initial[region].top), region + ' remains stationary while changing axis mode').toBeLessThanOrEqual(1);
+            expect(Math.abs(frame[region].bottom - initial[region].bottom), region + ' retains its lower edge while changing axis mode').toBeLessThanOrEqual(1);
+          }
+          expect(Math.abs(nav.top - initialNavigation.top), 'Axis navigation stays under the pointer').toBeLessThanOrEqual(1);
+          expect(Math.abs(nav.bottom - initialNavigation.bottom), 'Axis navigation height remains stable').toBeLessThanOrEqual(1);
+          evidence.modeFrames.push({ mode, frame, navigation: nav });
+        };
+        await navigation.getByRole('tab', { name: /^L1\s/ }).click();
+        await expect(panel.locator('input')).toHaveCount(0);
+        await stableModeFrame('Ignored');
+        for (const mode of ['Locked', 'Normal', 'Ignored', 'Locked', 'Normal']) {
+          await axisMode.selectOption(mode);
+          if (mode === 'Ignored') await expect(panel.locator('input')).toHaveCount(0);
+          else if (mode === 'Locked') await expect(panel.getByRole('spinbutton', { name: await valueName(page, '锁定位置'), exact: true })).toBeVisible();
+          else await expect(panel.locator('.range-field')).toHaveCount(2);
+          await stableModeFrame(mode);
+        }
+        await first.click();
+        await stableModeFrame('Normal');
         const groups = await dialog.locator('.axis-editor__group').evaluateAll(elements => elements.map(element => {
           const box = element.getBoundingClientRect(); return { top: box.top, right: box.right, bottom: box.bottom, left: box.left };
         }));
@@ -125,7 +163,6 @@ for (const locale of ['zh-CN', 'en-US']) {
         await info.attach('axis-profile-frame-' + locale + '-' + info.project.name, { body: await dialog.screenshot(), contentType: 'image/png' });
 
         await page.setViewportSize({ width: 320, height: 740 });
-        const body = dialog.locator('.modal__body');
         await body.evaluate(element => { element.scrollTop = element.scrollHeight; });
         evidence.narrowScrolled = await inspectModalFrame(dialog);
         const speed = dialog.getByRole('spinbutton', { name: await valueName(page, '速度限制'), exact: true });
@@ -134,8 +171,6 @@ for (const locale of ['zh-CN', 'en-US']) {
         evidence.narrowFocused = await inspectModalFrame(dialog);
         expect(evidence.narrowFocused.focused.top).toBeGreaterThanOrEqual(evidence.narrowFocused.body.top - 1);
         expect(evidence.narrowFocused.focused.bottom).toBeLessThanOrEqual(evidence.narrowFocused.body.bottom + 1);
-        const navigation = dialog.getByRole('tablist', { name: await text(page, '选择轴'), exact: true });
-        const first = navigation.getByRole('tab', { name: /^L0\s/ });
         await first.focus();
         await page.keyboard.press('End');
         await expect(navigation.getByRole('tab', { name: /^A2\s/ })).toBeFocused();

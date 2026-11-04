@@ -42,7 +42,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         const name = dialog.getByRole('textbox', { name: await text(page, '名称'), exact: true });
         const address = dialog.getByRole('textbox', { name: await text(page, '目标地址'), exact: true });
         const port = dialog.getByRole('spinbutton', { name: await text(page, '目标端口'), exact: true });
-        const longName = 'Long output name / 长设备名称 — ' + 'Configured device '.repeat(5);
+        const longName = ('Long output name / 长设备名称 — ' + 'Configured device '.repeat(5)).trim();
         await name.fill(longName);
         await address.fill('127.0.0.2');
         await port.fill('24681');
