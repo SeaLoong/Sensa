@@ -1,5 +1,5 @@
-Three.js 0.186.1 (including OrbitControls)
-https://www.npmjs.com/package/three/v/0.186.1
+Three.js 0.187.0 (including OrbitControls)
+https://www.npmjs.com/package/three/v/0.187.0
 
 The MIT License
 

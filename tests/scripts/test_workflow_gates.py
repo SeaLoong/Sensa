@@ -130,8 +130,14 @@ class WorkflowGateContracts(unittest.TestCase):
         for key in required:
             with self.subTest(ecosystem=key[0], directory=key[1]):
                 self.assertIn('      interval: weekly', entries[key])
-                self.assertNotRegex(entries[key], r'(?m)^    ignore:')
+                if key != ('npm', '/'):
+                    self.assertNotRegex(entries[key], r'(?m)^    ignore:')
         npm = entries['npm', '/']
+        # Security-only updates bypass update-types filters, but not version ranges.
+        # Allow only the runtime-major boundary; reject broader dependency exclusions.
+        ignored = re.findall(r'(?ms)^    ignore:\n(.*?)(?=^    \S|\Z)', npm)
+        self.assertEqual(ignored, ["      - dependency-name: '@types/node'\n"
+                                   "        update-types: ['version-update:semver-major']\n"])
         self.assertIn('      react-runtime:', npm)
         self.assertIn('      react-security:', npm)
         self.assertIn('        applies-to: security-updates', npm)

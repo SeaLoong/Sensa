@@ -1,5 +1,5 @@
 /* Offline, on-demand Three.js geometry and target manipulation. / 离线按需三维几何与目标操作。
- * Checked against three@0.186.1 and its installed source:
+ * Checked against three@0.187.0 and its installed source:
  * https://threejs.org/docs/pages/Raycaster.html
  * https://threejs.org/docs/pages/Plane.html
  * https://threejs.org/docs/pages/LatheGeometry.html

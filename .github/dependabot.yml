@@ -17,6 +17,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    # Match the Node 24 runtime; security-only updates bypass update-types filters.
+    ignore:
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
     groups:
       react-runtime:
         patterns: [react, react-dom]

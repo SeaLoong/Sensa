@@ -81,7 +81,7 @@ Use change titles that describe an observable user benefit. Generated notes use 
 
 ## Maintaining scanners and workflow dependencies
 
-Dependabot checks root npm dependencies, pip manifests under `scripts` and `tools/protocol-bridge`, and GitHub Actions weekly, retaining React security-update groups. The migrated application removes the old host NuGet entries; real Unity C# references and complete scanning remain. Version updates and security alerts are separate; verify individual alert status after dependency changes. Normal application builds always generate `npm run build:web` assets first.
+Dependabot checks root npm dependencies, pip manifests under `scripts` and `tools/protocol-bridge`, and GitHub Actions weekly, retaining React security-update groups. Keep `@types/node` on the Node 24 runtime major; only its automatic major version-update proposals are ignored. Patch, minor and security updates remain enabled. Update the declarations and this rule together when changing the runtime major. The migrated application removes the old host NuGet entries; real Unity C# references and complete scanning remain. Version updates and security alerts are separate; verify individual alert status after dependency changes. Normal application builds always generate `npm run build:web` assets first.
 
 Browser jobs pin both the Playwright image version tag and the official registry OCI digest. When upgrading, update npm Playwright and all three browser jobs, checking the official manifest SHA-256 against `Docker-Content-Digest`; format tests do not authenticate the digest. All artifact downloads explicitly fail on digest mismatch, preserving the pinned Action's existing default protection.
 
