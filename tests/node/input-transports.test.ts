@@ -11,7 +11,7 @@ import { WebSocket, WebSocketServer } from 'ws';
 import type Bonjour from 'bonjour-service';
 import type { ServiceConfig, Service as BonjourService } from 'bonjour-service';
 import { defaultProtocolInput } from '../../src/core/protocols/input-types.ts';
-import type { ProtocolInputConfig } from '../../src/core/protocols/input-types.ts';
+import type { ExternalControlBatch, ProtocolInputConfig } from '../../src/core/protocols/input-types.ts';
 import { ExternalControlStore } from '../../src/core/protocols/external-control.ts';
 import { OscParameterStore, encodeOscMessage, parseOscPacket } from '../../src/core/protocols/osc.ts';
 import { createInputCoordinator } from '../../src/node/inputs/coordinator.ts';
@@ -223,15 +223,25 @@ test('immediately closing Intiface device manager does not leave a running liste
   } finally { await coordinator?.dispose(); for (const client of wss.clients) client.terminate(); wss.close(); await close(server); }
 });
 test('vendor multipart script uploads use one local token and preserve final script position', async () => {
-  const config = { ...input('AutoblowHttp'), identifier: 'isolated-fixture-token' }, external = new ExternalControlStore([config]), coordinator = await createInputCoordinator([config], { external, osc: new OscParameterStore() });
+  const accepted: ExternalControlBatch[] = [];
+  const config = { ...input('AutoblowHttp'), identifier: 'isolated-fixture-token' }, external = new ExternalControlStore([config], Date.now,
+    { onBatch: batch => { accepted.push(batch); } }), coordinator = await createInputCoordinator([config], { external, osc: new OscParameterStore() });
   try {
     const base = `http://127.0.0.1:${coordinator.snapshot()[0]?.port}/autoblow`, headers = { 'x-device-token': 'isolated-fixture-token', 'Content-Type': 'application/json' };
     assert.equal((await fetch(`${base}/state`)).status, 401);
     const boundary = 'sensa-fixture', file = `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="motion.csv"\r\nContent-Type: text/csv\r\n\r\n0,0\n1000,100\n\r\n--${boundary}--\r\n`;
     const upload = await fetch(`${base}/sync-script/upload-csv`, { method: 'PUT', headers: { 'x-device-token': 'isolated-fixture-token', 'Content-Type': `multipart/form-data; boundary=${boundary}` }, body: file }); assert.equal(upload.status, 200);
     const uploaded = await upload.json() as Record<string, unknown>; assert.equal(uploaded['operationalMode'], 'SYNC_SCRIPT_PAUSED'); assert.ok(uploaded['syncScriptToken']);
-    const start = await fetch(`${base}/sync-script/start`, { method: 'PUT', headers, body: '{"startTimeMs":1000}' }); assert.equal(start.status, 200); assert.equal(external.read('input/L0').value, 1);
-    assert.equal((await fetch(`${base}/goto`, { method: 'PUT', headers, body: '{"position":50,"speed":50}' })).status, 200);
+    const start = await fetch(`${base}/sync-script/start`, { method: 'PUT', headers, body: '{"startTimeMs":1000}' }); assert.equal(start.status, 200); await start.arrayBuffer();
+    // Starting at the endpoint publishes it, then the coordinator may complete
+    // the task before HTTP delivery. Check acceptance and the retained state.
+    assert.equal(accepted.at(-1)?.commands[0]?.value, 1);
+    await until(() => !external.read('input/L0').valid);
+    const completed = await fetch(`${base}/state`, { headers }).then(response => response.json()) as Record<string, unknown>;
+    assert.equal(completed['operationalMode'], 'SYNC_SCRIPT_PAUSED');
+    assert.equal(completed['position'], 100); assert.equal(completed['syncScriptCurrentTime'], 1000);
+    const moved = await fetch(`${base}/goto`, { method: 'PUT', headers, body: '{"position":50,"speed":50}' }); assert.equal(moved.status, 200); await moved.arrayBuffer();
+    assert.deepEqual(accepted.at(-1)?.commands, [{ channel: 'L0', value: .5, durationMs: 1000, clockwise: true }]);
   } finally { await coordinator.dispose(); }
 });
 test('VacuGlide keeps scalar target speed distinct from synchronized script position', async () => {
