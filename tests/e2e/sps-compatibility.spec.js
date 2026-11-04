@@ -120,6 +120,17 @@ for (const locale of ['zh-CN', 'en-US']) {
 
           await feed.set(readings(others, others.learningDistanceMeters));
           await received(rig, pathFor('Others', contract.socket.tipSuffix), .96);
+          // Geometry packets coalesce before evaluation; an old 400 wire value is not
+          // a learning acknowledgement. Reactivation consumes this unsaturated pair
+          // synchronously, then a new 400 frame proves completion before saturation.
+          const learningStops = rig.wire.udp.filter(line => line === 'DSTOP').length;
+          await active(page, false);
+          await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
+          await expect.poll(() => rig.wire.udp.filter(line => line === 'DSTOP').length).toBeGreaterThan(learningStops);
+          const beforeLearningMotion = motionLines(rig).length;
+          await active(page);
+          await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(true);
+          await expect.poll(() => motionLines(rig).length).toBeGreaterThan(beforeLearningMotion);
           await outputValue(rig, 'udp', 400);
           await feed.set(readings(others, others.insideDistanceMeters));
           await outputValue(rig, 'udp', 400 + 200 * others.expectedFraction);
