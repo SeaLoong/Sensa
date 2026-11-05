@@ -52,7 +52,7 @@ Avatar 作者可以添加 SPS 四点定位、Contact 直接定位（SDK Beta）�
 
 ## 配置与开发
 
-下载包包含运行时，无需单独安装 Node.js。下面的 `version` 代表发布版本，按电脑选择 x64 或 ARM64。
+[下载 Sensa](https://github.com/SeaLoong/Sensa/releases/latest)。每种下载包都包含运行时，无需单独安装 Node.js。下面的 `version` 代表发布版本，按电脑选择 x64 或 ARM64。
 
 | 格式 | 文件名示例 | 启动 |
 | --- | --- | --- |

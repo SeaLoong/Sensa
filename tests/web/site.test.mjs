@@ -133,6 +133,9 @@ test('public guides build into bilingual routes with resolvable local links and 
       assert.match(article, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest"/);
       assert.doesNotMatch(article, /data-download=/, 'The guide contains ordinary release links');
       const installReference = await fs.readFile(path.join(output, locale + '/docs/features.html'), 'utf8');
+      const installArticle = installReference.match(/<article>([\s\S]*?)<\/article>/)[1];
+      assert.match(installArticle, /<a href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/, 'The install reference offers a direct download without JavaScript');
+      assert.doesNotMatch(installArticle, /data-download=/, 'The install reference keeps an ordinary release link');
       const referenceAnchor = locale === 'en' ? 'configuration-and-development' : '配置与开发';
       assert.ok([...article.matchAll(/href="features\.html#([^"]+)"/g)].some(match => decodeURIComponent(match[1]) === referenceAnchor), 'The first-run guide links to install format details: ' + locale);
       for (const format of ['win-x64-Setup.exe', 'win-x64-SingleFile.exe', 'win-x64.zip', 'linux-x64.tar.gz', 'osx-arm64.tar.gz'])

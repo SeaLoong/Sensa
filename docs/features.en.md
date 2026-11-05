@@ -52,7 +52,7 @@ Avatar authors can add SPS four-anchor tracking, Contact direct tracking (SDK Be
 
 ## Configuration and development
 
-Download formats include the runtime; no separate Node.js installation is needed. Replace `version` below with the release version, and choose x64 or ARM64 for your computer.
+[Download Sensa](https://github.com/SeaLoong/Sensa/releases/latest). Every format includes the runtime; no separate Node.js installation is needed. Replace `version` below with the release version, and choose x64 or ARM64 for your computer.
 
 | Format | Example filename | Start |
 | --- | --- | --- |
