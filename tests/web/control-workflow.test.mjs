@@ -1,6 +1,29 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { createRequire } from 'node:module';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+import { build } from 'esbuild';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { createDefaultConfiguration } from '../../src/core/runtime/configuration.ts';
 import { controlReadiness, outputRoutingScope } from '../../src/web/control-workflow.js';
+
+const require = createRequire(import.meta.url);
+const root = fileURLToPath(new URL('../../', import.meta.url));
+const compiled = await build({
+  absWorkingDir: root,
+  stdin: { contents: "export { default as GettingStarted } from './src/web/GettingStarted.jsx'; export { default as ManualControls } from './src/web/ManualControls.jsx'; export { default as Workbench } from './src/web/app.js'; export { setLocale, t } from './src/web/i18n.js';", resolveDir: root },
+  bundle: true, write: false, platform: 'node', format: 'esm', jsx: 'automatic', loader: { '.js': 'jsx' },
+  plugins: [{ name: 'shared-test-react', setup(builder) {
+    builder.onResolve({ filter: /^react(?:\/.*)?$/ }, args => ({ path: pathToFileURL(require.resolve(args.path)).href, external: true }));
+  } }],
+});
+const { GettingStarted, ManualControls, Workbench, setLocale, t } = await import('data:text/javascript;base64,' + Buffer.from(compiled.outputFiles[0].text).toString('base64'));
+const render = (Component, props) => renderToStaticMarkup(React.createElement(Component, props));
+function elements(node) {
+  if (!React.isValidElement(node)) return [];
+  return [node, ...React.Children.toArray(node.props.children).flatMap(elements)];
+}
 
 const output = { id: 'udp', type: 'TCodeUdp', enabled: true };
 const base = { online: true, runtime: { inputActive: true, manualOverrideEnabled: true },
@@ -118,4 +141,70 @@ test('disabled binding drafts preserve legacy readiness wording and never supply
   }
   assert.equal(controlReadiness({ ...state, mappings: [], outputs: [output, disabled] }).key, 'osc-mappings');
   assert.equal(outputRoutingScope([output, disabled]).independentBindings, false);
+});
+
+for (const locale of ['zh-CN', 'en-US']) {
+  test('task setup is immediate without outputs and collapsed for saved setups in ' + locale, () => {
+    setLocale(locale);
+    const props = { onNavigate() {} };
+    const firstRun = render(GettingStarted, props);
+    assert.match(firstRun, /data-testid="getting-started"/);
+    assert.doesNotMatch(firstRun, /<details/);
+    for (const task of ['osc', 'script', 'manual']) assert.ok(firstRun.includes(`data-testid="setup-task-${task}"`), task);
+    assert.ok(firstRun.includes(t('准备好后，再打开顶部的“输入启用”。')));
+    const saved = render(GettingStarted, { ...props, hasOutputs: true });
+    const disclosure = saved.match(/<details\b[^>]*data-testid="quick-setup"[^>]*>/)?.[0];
+    assert.ok(disclosure);
+    assert.doesNotMatch(disclosure, /\bopen(?:=|\s|>)/);
+    assert.ok(saved.includes(t('快速设置')));
+    assert.match(saved, /data-testid="setup-connect-device"/);
+  });
+
+  test('manual axis details keep all drafts and browser axis selection behind one collapsed control in ' + locale, () => {
+    setLocale(locale);
+    const draft = { L0: 501, L1: 317, L2: 627, R0: 229, R1: 500, R2: 500, V0: 73, V1: 0, V2: 0, A0: 500, A1: 500, A2: 500 };
+    const before = JSON.stringify(draft);
+    const html = render(ManualControls, { draft, selectedAxes: ['L0', 'V0'], onChange() {}, onAxesChange() {} });
+    const [primary, more] = html.split(/(?=<details\b)/);
+    assert.ok(primary.includes(t('L0 主轴')));
+    assert.ok(!primary.includes(t('L1 前后')));
+    assert.ok(!primary.includes(t('L2 左右')));
+    assert.match(more, /^<details\b[^>]*data-testid="manual-more-axes"/);
+    assert.doesNotMatch(more.slice(0, more.indexOf('>') + 1), /\bopen(?:=|\s|>)/);
+    assert.ok(more.includes(t('更多动作轴')));
+    assert.ok(more.includes(t('L1/L2、旋转、振动与辅助轴')));
+    assert.ok(more.includes(t('输出动作轴：{0}', ['L0 · V0'])));
+    assert.match(more, /role="group" aria-label="/);
+    assert.equal((more.match(/type="checkbox"/g) || []).length, 12);
+    assert.equal((html.match(/type="range"/g) || []).length, 12);
+    for (const value of [317, 627, 229, 73]) assert.ok(more.includes(`value="${value}"`), value);
+    assert.equal(JSON.stringify(draft), before);
+  });
+}
+
+test('task choices only request navigation and filter unavailable host inputs', () => {
+  const navigated = [];
+  const tree = GettingStarted({ inputModes: ['manual', 'script'], onNavigate: destination => navigated.push(destination) });
+  const controls = elements(tree).filter(element => element.props['data-testid']?.startsWith('setup-'));
+  assert.deepEqual(controls.map(element => element.props['data-testid']), ['setup-task-script', 'setup-task-manual', 'setup-connect-device']);
+  for (const control of controls) control.props.onClick();
+  assert.deepEqual(navigated, ['script', 'manual', 'outputs']);
+  const empty = render(GettingStarted, { inputModes: [], onNavigate() {} });
+  assert.doesNotMatch(empty, /data-testid="setup-task-/);
+  assert.match(empty, /data-testid="setup-connect-device"/);
+});
+
+test('shared workbench keeps one actual readiness status and output errors visible beside collapsed setup', () => {
+  setLocale('en-US');
+  const config = createDefaultConfiguration();
+  config.outputs = [{ ...config.outputs[0], id: 'saved-device', name: 'Saved device', enabled: true }];
+  const client = { kind: 'local', request() { throw new Error('Rendering must not issue runtime commands'); } };
+  const overview = { input: { mode: 'manual' }, runtime: { inputActive: false },
+    outputs: [{ id: 'saved-device', enabled: true, connected: false, lastError: 'Device connection failed' }] };
+  const html = render(Workbench, { client, initialSnapshot: { config, overview, logs: [], serialPorts: [] } });
+  assert.equal((html.match(/class="control-readiness control-readiness--/g) || []).length, 1);
+  assert.ok(html.includes(t('连接设备 → 选择输入 → 启用输入')));
+  assert.match(html, /data-testid="quick-setup"/);
+  assert.match(html, /<div class="output-detail"><div class="notice notice--error" role="alert">Device connection failed<\/div><\/div>/);
+  assert.ok(html.indexOf('data-testid="quick-setup"') < html.indexOf('class="section input-section"'));
 });

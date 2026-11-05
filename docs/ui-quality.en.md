@@ -20,11 +20,13 @@ Sources were checked on **2026-10-19** and are reviewed again when adopting late
 
 ## Current design constraints
 
-The workbench uses light-gray surroundings, single-level white surfaces, flat output/mapping rows and **24 px** major gaps. The header and independently scrolling content share edges. Main/OSC navigation uses line tabs, with segmented selection for input modes. Current mode and input activation remain visible; settings expand as needed, with stop always available.
+The workbench uses light-gray surroundings, single-level white surfaces, flat output/mapping rows and **24 px** major gaps. The header and independently scrolling content share edges. Main navigation sits on the left on desktop and at the top on narrow screens. OSC uses line tabs, with segmented selection for input modes. Current mode and input activation remain visible; settings expand as needed, with stop always available.
 
-Body text and ordinary controls use **14/22 px**, captions **12/20 px**. Small/medium/large controls are **24/32/40 px**, defaulting to **32 px**. Component radii are **3 px**, dialogs **9 px**, and the brand color **#0052d9**. Text and essential control boundaries use sufficient contrast, decorative dividers stay light, and danger colors indicate actual states needing attention. The [official theme](https://github.com/Tencent/tdesign-common/tree/d9734f64af0e863f70e7f2c839a15278ca3d6867/style/web/theme) and [office layout](https://github.com/Tencent/tdesign/blob/522dcfd95b1ec5077a4d7c3fc5ff2bd1bd6cc3d0/docs/design/offices_zh-CN.md) inform these choices, adapted to Sensa’s tasks.
+Body text and ordinary controls use **14/22 px**, captions **12/20 px**. Ordinary buttons and inputs are **36 px** tall, with **40 px** large buttons. Component radii are **8 px**, dialogs **12 px**, and the brand color **#0052d9**. Text and essential control boundaries use sufficient contrast, decorative dividers stay light, and danger colors indicate actual states needing attention. The [official theme](https://github.com/Tencent/tdesign-common/tree/d9734f64af0e863f70e7f2c839a15278ca3d6867/style/web/theme) and [office layout](https://github.com/Tencent/tdesign/blob/522dcfd95b1ec5077a4d7c3fc5ff2bd1bd6cc3d0/docs/design/offices_zh-CN.md) inform these choices, adapted to Sensa’s tasks.
 
 Values and units stay grouped, with bounded field expansion based on content length. Number fields start at **80 px**; ports/rates use short columns, while addresses/paths receive more space. Checkbox hitboxes remain **24 px** with smaller glyphs. Coarse-pointer actions and whole labels are at least **44 px**, with native forced-color fallback. Review touch targeting and forced-color appearance in their corresponding environments.
+
+Manual control focuses on L0 by default; More motion axes reveals the other eleven axes. Automated checks validate the primary axis and the expanded additional axes separately, retaining field, slider, numeric and keyboard checks.
 
 ## V1–V6 manual rubric
 

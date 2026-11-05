@@ -177,6 +177,9 @@ async function inspectFirstRunLinks(page, locale) {
 }
 
 async function inspectHomeLayout(page, info, language) {
+  const advanced = page.locator('#advanced');
+  const wasOpen = await advanced.getAttribute('open') !== null;
+  if (!wasOpen) await advanced.locator(':scope > summary').click();
   await page.evaluate(() => document.fonts.ready);
   const layout = await page.locator('main.home').evaluate(home => {
     const rect = node => {
@@ -229,6 +232,8 @@ async function inspectHomeLayout(page, info, language) {
     body: JSON.stringify({ ...layout, buttons }, null, 2), contentType: 'application/json',
   });
   await page.evaluate(() => window.scrollTo(0, 0));
+  if (!wasOpen) await advanced.locator(':scope > summary').click();
+  await page.evaluate(() => window.scrollTo(0, 0));
 }
 
 async function inspectOverview(page, info, locale) {
@@ -251,26 +256,29 @@ test('@site standalone Pages language, document navigation and independent geome
   if (await page.locator('html').getAttribute('lang') !== 'en-US')
     await page.getByRole('button', { name: 'English', exact: true }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
-  await expect(page.getByRole('heading', { name: /Make your signals\s*work together\./ })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Connect VRChat / SPS and funscripts to OSR and other interactive devices.', exact: true })).toBeVisible();
   const download = page.locator('#downloads a[data-download="release"]');
   await expect(download).toHaveCount(1);
-  await expect(download).toHaveAccessibleName('Download');
+  await expect(download).toHaveAccessibleName('Download Sensa');
   await expect(download).toHaveAttribute('href', latestRelease);
   await expect(page.locator('[data-installer], #download-status, .download-more')).toHaveCount(0);
-  const heroFirstRunGuide = page.locator('.hero .actions a[data-doc="docs/quick-start"]');
+  const heroFirstRunGuide = page.locator('.hero-copy > a[data-doc="docs/quick-start"]');
   await expect(heroFirstRunGuide).toHaveCount(1);
-  await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide');
+  await expect(heroFirstRunGuide).toHaveAccessibleName('First-run guide →');
   await inspectFirstRunLinks(page, 'en');
-  await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html$/);
-  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('Connect and record');
+  await expect(page.locator('.entry-grid [data-doc="docs/usage-scenarios"]')).toHaveAttribute('href', /en\/docs\/usage-scenarios.html$/);
+  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('Funscript → device');
   await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /en\/docs\/features.html$/);
   await expect(page.locator('.flow-preview > li')).toHaveCount(3);
   await expect(page.locator('.start-steps > li')).toHaveCount(3);
-  await expect(page.locator('#start')).toContainText('http://127.0.0.1:5086');
+  await expect(page.locator('#start')).toContainText('Choose input, then enable it');
+  await expect(page.locator('#advanced')).not.toHaveAttribute('open');
+  await page.locator('#advanced > summary').click();
+  await expect(page.locator('#advanced')).toHaveAttribute('open', '');
   await expect(page.locator('.outputs-section')).toContainText('DG-LAB');
   await expect(page.locator('.outputs-section')).toContainText('MQTT');
   await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href', /en\/docs\/signal-pipeline.html#record-and-inspect$/);
-  await expect(page.locator('.documentation-links [data-doc="docs/computed-signals"]')).toHaveAttribute('href', /en\/docs\/computed-signals.html$/);
+  await expect(page.locator('.more-links [data-doc="docs/computed-signals"]')).toHaveAttribute('href', /en\/docs\/computed-signals.html$/);
   await inspectWorkflowBadges(page.locator('.project-status'));
   if (await page.locator('body').getAttribute('data-vpm') === 'false') {
     await expect(page.locator('#vcc')).toBeHidden();
@@ -282,13 +290,15 @@ test('@site standalone Pages language, document navigation and independent geome
   }
   expect(await page.locator('body').evaluate(x => x.scrollWidth <= x.clientWidth)).toBe(true);
   await inspectHomeLayout(page, testInfo, 'en-US');
+  if (await page.locator('#advanced').getAttribute('open') !== null) await page.locator('#advanced > summary').click();
   await inspectRunningScreenshots(page, testInfo);
   await auditHome(page, testInfo, 'en-US');
   await captureSiteReview(page, testInfo, 'site-review-home-en-US', reviewImages);
-  await page.locator('.entry-grid [data-doc="docs/signal-pipeline"]').click();
+  await page.locator('#advanced > summary').click();
+  await page.locator('.recording-section [data-doc="docs/signal-pipeline"]').click();
   await expect(page.getByRole('heading', { level: 1, name: 'Inputs, computation and outputs', exact: true })).toBeVisible();
   const navigation = page.locator('.navigation');
-  const navigationToggle = navigation.locator('summary');
+  const navigationToggle = navigation.locator(':scope > summary');
   const collapsibleNavigation = await navigationToggle.isVisible();
   if (collapsibleNavigation) {
     await expect(navigation).not.toHaveAttribute('open');
@@ -330,22 +340,23 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.getByRole('button', { name: '简体中文', exact: true }).click();
   await expect(page.getByRole('button', { name: 'English', exact: true })).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
-  await expect(download).toHaveAccessibleName('下载');
+  await expect(download).toHaveAccessibleName('下载 Sensa');
   await expect(download).toHaveAttribute('href', latestRelease);
-  await expect(page.locator('.entry-grid [data-doc="docs/signal-pipeline"]')).toHaveAttribute('href', /zh-CN\/docs\/signal-pipeline.html$/);
-  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('连接输出与录制');
+  await expect(page.locator('.entry-grid [data-doc="docs/usage-scenarios"]')).toHaveAttribute('href', /zh-CN\/docs\/usage-scenarios.html$/);
+  await expect(page.locator('.entry-grid [data-doc="docs/guide"]')).toContainText('funscript → 设备');
   await expect(page.locator('.more-links [data-doc="docs/features"]')).toHaveAttribute('href', /zh-CN\/docs\/features.html$/);
-  await expect(page.locator('#start')).toContainText('录下第一条轨道');
+  await expect(page.locator('#start')).toContainText('选择输入，再启用');
   await expect(page.locator('.recording-section [data-doc]')).toHaveAttribute('href',
     new RegExp('zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察') + '$'));
   await inspectFirstRunLinks(page, 'zh-CN');
   await page.reload();
   await expect(page.locator('html')).toHaveAttribute('lang', 'zh-CN');
   await inspectHomeLayout(page, testInfo, 'zh-CN');
+  if (await page.locator('#advanced').getAttribute('open') !== null) await page.locator('#advanced > summary').click();
   await inspectRunningScreenshots(page, testInfo);
   await auditHome(page, testInfo, 'zh-CN');
   await captureSiteReview(page, testInfo, 'site-review-home-zh-CN', reviewImages);
-  await expect(heroFirstRunGuide).toHaveAccessibleName('首次使用指南');
+  await expect(heroFirstRunGuide).toHaveAccessibleName('首次使用指南 →');
   await heroFirstRunGuide.click();
   await expect(page).toHaveURL(/zh-CN\/docs\/quick-start.html$/);
   await expect(page.locator('article h1')).toBeVisible();
@@ -429,6 +440,60 @@ test('@site language priority, unsupported preferences and Chinese variants', as
     } finally { await context.close(); }
   }
 });
+
+for (const locale of ['zh-CN', 'en-US']) {
+  test('@site @beginner homepage explains VRChat to OSR above the fold and follows three beginner tasks / 首页首屏说明用途且三项新手任务可直达 ' + locale,
+    async ({ page }, info) => {
+      await page.goto(base);
+      const english = locale === 'en-US';
+      if (await page.locator('html').getAttribute('lang') !== locale)
+        await page.getByRole('button', { name: english ? 'English' : '简体中文', exact: true }).click();
+      await page.evaluate(() => document.fonts.ready);
+      const purpose = page.getByRole('heading', { level: 1 });
+      await expect(purpose).toContainText('VRChat / SPS');
+      await expect(purpose).toContainText('OSR');
+      await expect(purpose).toContainText(/funscript/i);
+      await expect(purpose).toBeInViewport({ ratio: 1 });
+      const download = page.locator('#downloads a[data-download="release"]');
+      const browser = page.locator('#downloads a[href="websensa/"]');
+      await expect(download).toBeInViewport({ ratio: 1 });
+      await expect(browser).toBeInViewport({ ratio: 1 });
+      const initialPurpose = await purpose.boundingBox();
+      const prefix = english ? 'en' : 'zh-CN';
+      const tasks = [
+        ['docs/usage-scenarios', english ? 'VRChat / SPS → device' : 'VRChat / SPS → 设备'],
+        ['docs/guide', english ? 'Funscript → device' : 'funscript → 设备'],
+        ['docs/websensa', english ? 'Manual control & website bridges' : '手动控制与网站联动'],
+      ];
+      await expect(page.locator('.entry-grid > a')).toHaveCount(3);
+      for (const [documentName, title] of tasks) {
+        const task = page.locator('.entry-grid > a[data-doc="' + documentName + '"]');
+        await expect(task.getByRole('heading', { level: 3, name: title, exact: true })).toBeVisible();
+        await expect(task).toHaveAttribute('href', prefix + '/' + documentName + '.html');
+        await task.click();
+        await expect(page).toHaveURL(new URL(prefix + '/' + documentName + '.html', base).href);
+        await expect(page.locator('html')).toHaveAttribute('lang', locale);
+        await expect(page.locator('article h1')).toBeVisible();
+        await page.goto(base);
+      }
+      const advanced = page.locator('#advanced'), summary = advanced.locator(':scope > summary');
+      await expect(advanced).not.toHaveAttribute('open');
+      await expect(page.locator('.outputs-section')).toBeHidden();
+      await summary.focus(); await summary.press('Enter');
+      await expect(advanced).toHaveAttribute('open', '');
+      await expect(summary).toBeFocused();
+      await expect(page.locator('.outputs-section')).toBeVisible();
+      await expect(page.locator('.outputs-section')).toContainText('TCode');
+      await expect(page.locator('.outputs-section')).toContainText('DG-LAB');
+      await expect(page.locator('.more-links [data-doc="docs/computed-signals"]')).toBeVisible();
+      expect(await page.locator('body').evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true);
+      await summary.focus(); await summary.press('Space');
+      await expect(advanced).not.toHaveAttribute('open');
+      await expect(page.locator('.outputs-section')).toBeHidden();
+      await info.attach('homepage-beginner-tasks.json', { body: JSON.stringify({ locale, viewport: page.viewportSize(),
+        purpose: initialPurpose, tasks: tasks.map(([route]) => route), keyboardDisclosure: true }), contentType: 'application/json' });
+    });
+}
 
 test('@site document language changes preserve the current section and discard unknown fragments', async ({ page }, info) => {
   const zhId = '3-启用输入并检查结果', enId = '3-enable-input-and-inspect-results';
@@ -736,13 +801,13 @@ test('@site downloads stay direct in both languages without JavaScript or remote
         await expect(page.locator('html')).toHaveAttribute('lang', homeLanguage);
         const download = page.locator('#downloads a[data-download="release"]');
         await expect(page.locator('#downloads a[data-download]')).toHaveCount(1);
-        await expect(download).toHaveAccessibleName(homeLanguage === 'zh-CN' ? '下载' : 'Download');
-        await expect(page.locator('#downloads a[data-doc="docs/quick-start"]')).toHaveCount(1);
+        await expect(download).toHaveAccessibleName(homeLanguage === 'zh-CN' ? '下载 Sensa' : 'Download Sensa');
+        await expect(page.locator('.hero-copy > a[data-doc="docs/quick-start"]')).toHaveCount(1);
         await expect(page.locator('[data-installer], #download-status, .download-more, a[href*="download.html"], a[href*="?asset="]')).toHaveCount(0);
         await clickDirectly(download);
 
         const routeLocale = locale === 'en-US' ? 'en' : 'zh-CN';
-        for (const documentName of ['docs/quick-start', 'docs/development', 'README']) {
+        for (const documentName of ['docs/quick-start', 'docs/features', 'docs/development', 'README']) {
           await page.goto(base + routeLocale + '/' + documentName + '.html');
           const headerDownload = page.locator('header a[data-download="release"]');
           await expect(headerDownload).toHaveCount(1);
@@ -751,7 +816,7 @@ test('@site downloads stay direct in both languages without JavaScript or remote
           const articleDownloads = page.locator('article a[href="' + latestRelease + '"]');
           expect(await articleDownloads.count(), 'The guide has a plain link to the same latest release').toBeGreaterThan(0);
           await expect(page.locator('article [data-download], a[href*="download.html"], a[href*="?asset="]')).toHaveCount(0);
-          if (documentName === 'docs/quick-start') {
+          if (documentName === 'docs/features') {
             for (const format of ['win-x64-Setup.exe', 'win-x64-SingleFile.exe', 'win-x64.zip', 'linux-x64.tar.gz', 'osx-arm64.tar.gz'])
               await expect(page.locator('article')).toContainText(format);
           }

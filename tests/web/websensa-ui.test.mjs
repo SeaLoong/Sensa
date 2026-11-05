@@ -96,8 +96,8 @@ test('saved unsupported outputs retain recovery actions and render host diagnost
 test('the browser workbench exposes all twelve manual axes and keeps input inactive', async () => {
   const host = makeHost();
   const html = render({ host });
-  for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2']) assert.ok(html.includes('>' + axis + '</label>'), axis);
-  assert.match(html, /type="checkbox"[^>]*checked=""[^>]*\/>L0/);
+  for (const axis of ['L0', 'L1', 'L2', 'R0', 'R1', 'R2', 'V0', 'V1', 'V2', 'A0', 'A1', 'A2']) assert.ok(html.includes('>' + axis + '</span></label>'), axis);
+  assert.match(html, /<label class="toggle"><input type="checkbox"[^>]*checked=""[^>]*\/><span>L0<\/span><\/label>/);
   assert.equal(host.runtime.getSnapshot().inputActive, false);
   await host.client.dispose();
 });

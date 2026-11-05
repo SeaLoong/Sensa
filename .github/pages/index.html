@@ -3,9 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="description" content="Control devices from your browser with WebSensa, or build live signal flows with Sensa Desktop.">
+<meta name="description" content="Connect VRChat / SPS and funscripts to OSR and other interactive devices with Sensa. Download the desktop app or open WebSensa in your browser.">
 <meta name="color-scheme" content="light">
-<title>Sensa — Make your signals work together</title>
+<title>Sensa — VRChat, SPS and funscripts for your devices</title>
 <link rel="stylesheet" href="__SITE_STYLESHEET__" onerror="__SITE_STYLESHEET_FALLBACK__">
 <script defer src="__SITE_SCRIPT__" onerror="__SITE_SCRIPT_FALLBACK__"></script>
 </head>
@@ -14,79 +14,78 @@
 <header class="home-header">
 <a class="brand" href="./"><span class="brand-mark" aria-hidden="true">S</span>Sensa</a>
 <nav aria-label="Main navigation" data-label-en="Main navigation" data-label-zh="主导航">
-<a href="websensa/">WebSensa</a>
 <a href="#start"><span data-en>Get started</span><span data-zh hidden>开始使用</span></a>
+<a href="websensa/">WebSensa</a>
 <a href="#documentation"><span data-en>Help</span><span data-zh hidden>使用帮助</span></a>
-<a data-diagram href="parameter-geometry.html"><span data-en>Parameter explorer</span><span data-zh hidden>参数图解</span></a>
-<a href="https://github.com/SeaLoong/Sensa">GitHub</a>
 <button type="button" id="language">简体中文</button>
 </nav></header>
 <main id="content" class="home" tabindex="-1">
-<section class="hero">
+<section class="hero" aria-labelledby="purpose-heading">
 <div class="hero-copy">
-<p class="eyebrow"><span data-en>YOUR SIGNAL WORKBENCH</span><span data-zh hidden>信号联动工作台</span></p>
-<h1 data-en>Make your signals<br>work together.</h1><h1 data-zh hidden>把输入的数值，<br>变成想要的联动。</h1>
-<p data-en class="intro">Move a slider, play a script or connect a live signal. Send the result to several devices and applications, with a workbench that feels the same in your browser and on your desktop.</p>
-<p data-zh hidden class="intro">移动滑条、播放脚本，或连接实时信号。把结果同时送给多个设备与应用，在网页和桌面使用熟悉的同一个工作台。</p>
-<div id="downloads" class="actions"><a class="button primary" href="websensa/"><span data-en>Open WebSensa</span><span data-zh hidden>打开 WebSensa</span><span aria-hidden="true">↗</span></a><a class="button" data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest"><span data-en>Download</span><span data-zh hidden>下载</span><span aria-hidden="true">↓</span></a><a class="button" data-doc="docs/quick-start" href="en/docs/quick-start.html"><span data-en>First-run guide</span><span data-zh hidden>首次使用指南</span></a></div>
-<p class="caption"><span data-en>Open in your browser · Download for Windows, Linux and macOS</span><span data-zh hidden>浏览器即开即用 · Windows、Linux、macOS 桌面版</span></p>
+<p class="eyebrow">VRChat · SPS · OSR</p>
+<h1 id="purpose-heading"><span data-en>Connect VRChat / SPS and funscripts to OSR and other interactive devices.</span><span data-zh hidden>连接 VRChat / SPS 与 funscript，联动 OSR 等互动设备。</span></h1>
+<p data-en class="intro">Use VRChat interactions, play a funscript or move a slider. Sensa turns your input into device motion, with the same workbench on desktop and in your browser.</p>
+<p data-zh hidden class="intro">用 VRChat 互动、funscript 脚本或手动滑条驱动设备。Sensa 把输入转换为设备动作，桌面版和网页版沿用同一套工作台操作。</p>
+<div id="downloads" class="actions"><a class="button primary" data-download="release" href="https://github.com/SeaLoong/Sensa/releases/latest"><span data-en>Download Sensa</span><span data-zh hidden>下载 Sensa</span><span aria-hidden="true">↓</span></a><a class="button" href="websensa/"><span data-en>Open WebSensa</span><span data-zh hidden>打开 WebSensa</span><span aria-hidden="true">↗</span></a></div>
+<p class="caption"><span data-en>Desktop: Windows, Linux, macOS · WebSensa: browser-supported connections</span><span data-zh hidden>桌面版：Windows、Linux、macOS · WebSensa：使用浏览器支持的连接</span></p>
+<a class="text-link" data-doc="docs/quick-start" href="en/docs/quick-start.html"><span data-en>First-run guide →</span><span data-zh hidden>首次使用指南 →</span></a>
 </div>
 <figure class="hero-visual" aria-labelledby="flow-caption">
-<figcaption id="flow-caption"><span class="example-label" data-en>EXAMPLE FLOW</span><span class="example-label" data-zh hidden>联动示例</span><strong data-en>One source, several destinations</strong><strong data-zh hidden>一个来源，连接多个目标</strong></figcaption>
+<figcaption id="flow-caption"><span class="example-label" data-en>EXAMPLE: VRCHAT TO OSR</span><span class="example-label" data-zh hidden>示例：VRCHAT 联动 OSR</span><strong>VRChat → Sensa → OSR</strong></figcaption>
 <ol class="flow-preview">
-<li><span class="flow-step" aria-hidden="true">01</span><div><span class="flow-label" data-en>Choose a source</span><span class="flow-label" data-zh hidden>选择来源</span><strong data-en>Control, script or live signal</strong><strong data-zh hidden>控制、脚本或实时信号</strong><p data-en>Start from a slider, a file or an application.</p><p data-zh hidden>从滑条、文件或应用取得数值。</p></div><span class="flow-value">0.65</span></li>
-<li class="flow-compute"><span class="flow-step" aria-hidden="true">02</span><div><span class="flow-label" data-en>Adjust the response</span><span class="flow-label" data-zh hidden>调整响应</span><strong data-en>Smooth and scale</strong><strong data-zh hidden>平滑变化、调整范围</strong><p data-en>Choose a range, smooth changes or combine values.</p><p data-zh hidden>选择量程、平滑变化，或融合多个读数。</p></div><span class="flow-value">0.40</span></li>
-<li><span class="flow-step" aria-hidden="true">03</span><div><span class="flow-label" data-en>Send the result</span><span class="flow-label" data-zh hidden>发送结果</span><strong data-en>Device or application</strong><strong data-zh hidden>设备或应用</strong><p data-en>Each output has its own connection and settings.</p><p data-zh hidden>每个输出分别设置连接和响应。</p></div><span class="flow-value">40%</span></li>
+<li><span class="flow-step" aria-hidden="true">1</span><div><strong>VRChat / SPS</strong><p data-en>Send interaction parameters over OSC.</p><p data-zh hidden>通过 OSC 发送互动参数。</p></div></li>
+<li><span class="flow-step" aria-hidden="true">2</span><div><strong>Sensa</strong><p data-en>Choose the input and set the device's range.</p><p data-zh hidden>选择输入，设置设备动作范围。</p></div></li>
+<li><span class="flow-step" aria-hidden="true">3</span><div><strong>OSR / TCode</strong><p data-en>Connect the output, then enable input when ready.</p><p data-zh hidden>连接输出，准备好后启用输入。</p></div></li>
 </ol>
-<p class="flow-note" data-en>Build a direct connection or add computation when you need it.</p><p class="flow-note" data-zh hidden>可以直接连接，也可以按需添加计算转换。</p>
+<p class="flow-note" data-en>VRChat OSC input uses Sensa Desktop.</p><p class="flow-note" data-zh hidden>接收 VRChat OSC 输入需使用 Sensa 桌面版。</p>
 </figure>
 </section>
-<section class="edition-section" aria-labelledby="edition-heading">
-<div class="section-heading"><p class="eyebrow" data-en>TWO WAYS TO WORK</p><p class="eyebrow" data-zh hidden>两种使用方式</p><h2 id="edition-heading"><span data-en>Start in the browser. Build more on desktop.</span><span data-zh hidden>网页随开随用，桌面连接更多。</span></h2></div>
-<div class="edition-grid">
-<article class="edition-card"><span class="edition-tag">WebSensa</span><h3 data-en>Controls and scripts, ready to go</h3><h3 data-zh hidden>打开页面，就能控制与播放</h3><p data-en>Manual axes, funscript playback and several outputs together. Connect through the serial, Bluetooth, MIDI, HTTP and WebSocket capabilities available in your browser.</p><p data-zh hidden>手动轴控制、funscript 播放与多路输出。通过浏览器可用的串口、蓝牙、MIDI、HTTP 和 WebSocket 连接目标。</p><a class="text-link" data-doc="docs/websensa" href="en/docs/websensa.html"><span data-en>WebSensa guide →</span><span data-zh hidden>WebSensa 使用指南 →</span></a></article>
-<article class="edition-card"><span class="edition-tag" data-en>Sensa Desktop</span><span class="edition-tag" data-zh hidden>Sensa 桌面版</span><h3 data-en>Bring your whole setup together</h3><h3 data-zh hidden>把整套设备与应用连接起来</h3><p data-en>Receive OSC and device protocols, combine live inputs, record trajectories and connect the full range of desktop outputs. Share ports across input routes and run independent instances.</p><p data-zh hidden>接收 OSC 与设备协议，融合实时输入，录制轨迹，使用完整桌面输出。多个输入路由共用端口，独立实例各自运行。</p><a class="text-link" data-doc="docs/features" href="en/docs/features.html"><span data-en>Compare capabilities →</span><span data-zh hidden>查看完整能力 →</span></a></article>
-</div></section>
-<div class="release-strip"><p><span data-en>Built in public, checked on every update.</span><span data-zh hidden>开放开发，每次更新都经过自动检查。</span></p><div class="project-status" aria-label="Project status" data-label-en="Project status" data-label-zh="项目状态">
+<section class="use-cases home-section" aria-labelledby="possibilities-heading">
+<div class="section-heading"><h2 id="possibilities-heading"><span data-en>What do you want to connect?</span><span data-zh hidden>你想用什么驱动设备？</span></h2></div>
+<div class="entry-grid">
+<a data-doc="docs/usage-scenarios" href="en/docs/usage-scenarios.html"><div><h3><span data-en>VRChat / SPS → device</span><span data-zh hidden>VRChat / SPS → 设备</span></h3><p data-en>Use avatar interactions to drive an OSR or another device. Start with existing OSC parameters.</p><p data-zh hidden>用 Avatar 互动联动 OSR 等设备，从已有 OSC 参数开始。</p></div><span class="arrow" aria-hidden="true">→</span></a>
+<a data-doc="docs/guide" href="en/docs/guide.html"><div><h3><span data-en>Funscript → device</span><span data-zh hidden>funscript → 设备</span></h3><p data-en>Load a funscript, select an output and play its movement on your device.</p><p data-zh hidden>载入 funscript，选择输出，在设备上播放脚本动作。</p></div><span class="arrow" aria-hidden="true">→</span></a>
+<a data-doc="docs/websensa" href="en/docs/websensa.html"><div><h3><span data-en>Manual control &amp; website bridges</span><span data-zh hidden>手动控制与网站联动</span></h3><p data-en>Try sliders in WebSensa, or let a supported app or website send controls through Sensa Desktop.</p><p data-zh hidden>用 WebSensa 滑条控制，或让支持的应用、网站通过 Sensa 桌面版发送控制。</p></div><span class="arrow" aria-hidden="true">→</span></a>
+</div>
+</section>
+<section id="start" class="home-section" aria-labelledby="start-heading">
+<div class="section-heading"><h2 id="start-heading"><span data-en>Start with one input and one device</span><span data-zh hidden>先连接一个输入和一台设备</span></h2></div>
+<ol class="start-steps">
+<li><span class="step-number" aria-hidden="true">1</span><div><h3><span data-en>Open Sensa</span><span data-zh hidden>打开 Sensa</span></h3><p data-en>Download the desktop app for VRChat and the full connection range. Open WebSensa for browser controls and scripts.</p><p data-zh hidden>VRChat 联动和完整连接使用桌面版；浏览器控制与脚本可直接打开 WebSensa。</p></div></li>
+<li><span class="step-number" aria-hidden="true">2</span><div><h3><span data-en>Add your device</span><span data-zh hidden>添加设备</span></h3><p data-en>Add an output, choose your device and connection, then set its motion range.</p><p data-zh hidden>添加输出，选择设备与连接方式，再设置动作范围。</p></div></li>
+<li><span class="step-number" aria-hidden="true">3</span><div><h3><span data-en>Choose input, then enable it</span><span data-zh hidden>选择输入，再启用</span></h3><p data-en>Choose OSC, a funscript or Manual. Enable the output and input when ready; emergency stop is always available.</p><p data-zh hidden>选择 OSC、funscript 或手动输入。准备好后启用输出与输入，随时可急停。</p></div></li>
+</ol><a class="text-link" data-doc="docs/quick-start" href="en/docs/quick-start.html"><span data-en>Follow the first-run guide →</span><span data-zh hidden>查看完整上手步骤 →</span></a>
+</section>
+__SCREENSHOT_GALLERY__
+<section id="documentation" class="home-section documentation-section" aria-labelledby="documentation-heading">
+<div class="section-heading"><h2 id="documentation-heading"><span data-en>Help for your next step</span><span data-zh hidden>按下一步找帮助</span></h2></div>
+<nav class="documentation-links" aria-label="Documentation" data-label-en="Documentation" data-label-zh="文档入口">
+<a data-doc="docs/quick-start" href="en/docs/quick-start.html"><strong data-en>First run</strong><strong data-zh hidden>首次使用</strong><span data-en>Install, connect and try a first input.</span><span data-zh hidden>安装、连接，试用第一个输入。</span></a>
+<a data-doc="docs/usage-scenarios" href="en/docs/usage-scenarios.html"><strong data-en>Choose your setup</strong><strong data-zh hidden>选择使用方案</strong><span data-en>VRChat, scripts and website connections.</span><span data-zh hidden>VRChat、脚本与网站联动。</span></a>
+<a data-doc="docs/guide" href="en/docs/guide.html"><strong data-en>Workbench guide</strong><strong data-zh hidden>工作台指南</strong><span data-en>Find a control or change a setting.</span><span data-zh hidden>查找操作，调整设置。</span></a>
+</nav>
+</section>
+<details id="advanced" class="advanced-section">
+<summary><span data-en>More connections, Unity &amp; technical guides</span><span data-zh hidden>更多连接、Unity 与技术文档</span></summary>
+<div class="advanced-content">
+<section class="outputs-section" aria-labelledby="outputs-heading"><h3 id="outputs-heading"><span data-en>Devices, applications and bridges</span><span data-zh hidden>设备、应用与协议桥</span></h3><p data-en>Connect TCode/OSR, Intiface, Handy, Lovense, Autoblow, VacuGlide or DG-LAB. Send results over OSC, HTTP, WebSocket, MQTT or MIDI CC. WebSensa uses the serial, Bluetooth, MIDI, HTTP and WebSocket capabilities available in your browser.</p><p data-zh hidden>连接 TCode／OSR、Intiface、Handy、Lovense、Autoblow、VacuGlide 或 DG-LAB；通过 OSC、HTTP、WebSocket、MQTT 或 MIDI CC 发送结果。WebSensa 使用浏览器可用的串口、蓝牙、MIDI、HTTP 与 WebSocket 连接。</p><a class="text-link" data-doc="docs/protocol-inputs" href="en/docs/protocol-inputs.html"><span data-en>Protocol inputs and website bridges →</span><span data-zh hidden>协议输入与网站桥接 →</span></a></section>
+<section class="recording-section" aria-labelledby="recording-heading"><h3 id="recording-heading"><span data-en>Combine, record and replay</span><span data-zh hidden>组合输入、录制与回放</span></h3><p data-en>Combine inputs, smooth motion and send one result to several outputs. Record each binding as a funscript track; use JSON Lines or CSV for diagnostics.</p><p data-zh hidden>组合输入、平滑动作，把一个结果送到多个输出。每条绑定可录制为 funscript 轨道，诊断数据可用 JSON Lines 或 CSV 保存。</p><a class="text-link" data-doc="docs/signal-pipeline" data-fragment-en="record-and-inspect" data-fragment-zh="录制与观察" href="en/docs/signal-pipeline.html#record-and-inspect"><span data-en>Record and replay a track →</span><span data-zh hidden>录制与回放步骤 →</span></a></section>
+<section class="package-section" aria-labelledby="unity-heading"><div><h3 id="unity-heading"><span data-en>Unity avatar tracking</span><span data-zh hidden>Unity Avatar 定位</span></h3><p data-en>Use existing OGB/SPS parameters, or add SPS four-anchor tracking, Contact direct tracking (SDK Beta) or Shader tracking for position measurements.</p><p data-zh hidden>使用已有 OGB／SPS 参数，或添加 SPS 四点定位、Contact 直接定位（SDK Beta）、Shader 定位来测量位置。</p><p id="vpm-status" class="caption" role="status"><span data-en>__VPM_STATUS_EN__</span><span data-zh hidden>__VPM_STATUS_ZH__</span></p></div><div class="package-actions"><a class="button" data-doc="unity/top.sealoong.sensa/README" href="en/unity/top.sealoong.sensa/README.html"><span data-en>Unity setup guide</span><span data-zh hidden>Unity 配置指南</span></a><a id="vcc" class="button primary" __VPM_INSTALL_HIDDEN__ href="__VPM_INSTALL_URL__"><span data-en>Add to VCC</span><span data-zh hidden>添加到 VCC</span></a><button id="copy-vpm" type="button" hidden><span data-en>Copy VPM URL</span><span data-zh hidden>复制 VPM 地址</span></button></div></section>
+<nav class="more-links" aria-label="Technical guides" data-label-en="Technical guides" data-label-zh="技术文档">
+<a data-doc="docs/features" href="en/docs/features.html"><span data-en>All features</span><span data-zh hidden>完整功能</span></a>
+<a data-doc="docs/computed-signals" href="en/docs/computed-signals.html"><span data-en>Calculations</span><span data-zh hidden>计算与映射</span></a>
+<a data-diagram href="parameter-geometry.html"><span data-en>Parameter explorer</span><span data-zh hidden>参数图解</span></a>
+<a data-doc="docs/osc-parameters" href="en/docs/osc-parameters.html"><span data-en>OSC parameter reference</span><span data-zh hidden>OSC 参数字典</span></a>
+<a data-doc="docs/positioning" href="en/docs/positioning.html"><span data-en>Position and tracking</span><span data-zh hidden>位置与定位</span></a>
+<a data-doc="docs/development" href="en/docs/development.html"><span data-en>Development</span><span data-zh hidden>开发指南</span></a>
+<a data-doc="docs/languages" href="en/docs/languages.html"><span data-en>Language settings</span><span data-zh hidden>语言设置</span></a>
+</nav>
+<div class="project-status" aria-label="Project status" data-label-en="Project status" data-label-zh="项目状态">
 <a href="https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml"><img height="20" alt="CI" src="https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml/badge.svg"></a>
 <a href="https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml"><img height="20" alt="E2E" src="https://github.com/SeaLoong/Sensa/actions/workflows/e2e.yml/badge.svg"></a>
 <a href="https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml"><img height="20" alt="Pages" src="https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml/badge.svg"></a>
 <a href="https://github.com/SeaLoong/Sensa/actions/workflows/release.yml"><img height="20" alt="Release" src="https://github.com/SeaLoong/Sensa/actions/workflows/release.yml/badge.svg"></a>
-</div></div>
-__SCREENSHOT_GALLERY__
-<section id="start" class="home-section" aria-labelledby="start-heading">
-<div class="section-heading"><p class="eyebrow" data-en>START ON DESKTOP</p><p class="eyebrow" data-zh hidden>启动桌面版</p><h2 id="start-heading"><span data-en>Your first desktop flow</span><span data-zh hidden>第一条桌面信号流程</span></h2><p data-en>Connect an output, choose a source and start sending. A manual recording is a useful first project.</p><p data-zh hidden>连接输出、选择来源，再开始发送。可以先把手动变化录成一条轨道。</p></div>
-<ol class="start-steps">
-<li><span class="step-number" aria-hidden="true">1</span><div><h3 data-en>Download and open</h3><h3 data-zh hidden>下载并启动</h3><p data-en>On Windows, choose the Setup installer and open Sensa from the Start menu. On Linux or macOS, extract the matching archive and run Sensa.</p><p data-zh hidden>Windows 选择 Setup 安装包，安装后从开始菜单打开。Linux 或 macOS 选择对应压缩包，完整解压后运行。</p></div></li>
-<li><span class="step-number" aria-hidden="true">2</span><div><h3 data-en>Open the workbench</h3><h3 data-zh hidden>打开工作台</h3><p data-en>Sensa opens the browser workbench, usually at <code>http://127.0.0.1:5086</code>. Add a Recording output and choose Manual → L0 as its source.</p><p data-zh hidden>Sensa 自动打开工作台，常用地址为 <code>http://127.0.0.1:5086</code>。添加录制输出，来源选择手动 → L0。</p></div></li>
-<li><span class="step-number" aria-hidden="true">3</span><div><h3 data-en>Record your first track</h3><h3 data-zh hidden>录下第一条轨道</h3><p data-en>Enable the output and input, enable live updates, then move L0. Disable input to finish and download the track.</p><p data-zh hidden>启用输出与输入，开启连续发送后调整 L0。关闭输入，完成并下载这条轨道。</p></div></li>
-</ol><a class="text-link" data-doc="docs/quick-start" href="en/docs/quick-start.html"><span data-en>Follow the full first-run guide →</span><span data-zh hidden>查看完整上手步骤 →</span></a>
-</section>
-<section class="home-section task-section" aria-labelledby="possibilities-heading">
-<div class="section-heading"><p class="eyebrow" data-en>CHOOSE A TASK</p><p class="eyebrow" data-zh hidden>按目标开始</p><h2 id="possibilities-heading"><span data-en>What would you like to build?</span><span data-zh hidden>你希望实现什么？</span></h2></div>
-<div class="entry-grid">
-<a data-doc="docs/signal-pipeline" href="en/docs/signal-pipeline.html"><span class="index">01</span><div><h3 data-en>Combine several inputs</h3><h3 data-zh hidden>组合多个输入</h3><p data-en>Mix OSC with manual strength, measure a distance or plane depth, smooth changes or add a trigger.</p><p data-zh hidden>结合 OSC 与手动强度，计算距离或平面深度，平滑变化，或加入触发条件。</p></div><span class="arrow" aria-hidden="true">→</span></a>
-<a data-doc="docs/guide" href="en/docs/guide.html"><span class="index">02</span><div><h3 data-en>Connect and record</h3><h3 data-zh hidden>连接输出与录制</h3><p data-en>Send a result to a device, write an OSC parameter or save a funscript track.</p><p data-zh hidden>将结果送给设备，写入 OSC 参数，或保存成 funscript 轨道。</p></div><span class="arrow" aria-hidden="true">→</span></a>
-<a data-doc="docs/usage-scenarios" href="en/docs/usage-scenarios.html"><span class="index">03</span><div><h3 data-en>Use contact and position</h3><h3 data-zh hidden>使用接触与位置</h3><p data-en>Use VRChat parameters or measure a point relative to a plane that follows your avatar’s movement.</p><p data-zh hidden>选择 VRChat 参数，或测量目标相对跟随 Avatar 动作的平面的深度与偏移。</p></div><span class="arrow" aria-hidden="true">→</span></a>
 </div>
-</section>
-<section class="home-section outputs-section" aria-labelledby="outputs-heading">
-<div class="section-heading"><p class="eyebrow" data-en>CONNECTIONS</p><p class="eyebrow" data-zh hidden>连接方式</p><h2 id="outputs-heading"><span data-en>Choose where the result goes</span><span data-zh hidden>把结果送到需要的地方</span></h2><p data-en>Each output has its own connection, source and value range.</p><p data-zh hidden>每个输出分别设置连接方式、数值来源和输出范围。</p></div>
-<div class="output-groups">
-<article><h3 data-en>Devices</h3><h3 data-zh hidden>体感设备</h3><p data-en>Connect TCode/OSR, Intiface, Handy, Lovense, Autoblow, VacuGlide or DG-LAB.</p><p data-zh hidden>连接 TCode／OSR、Intiface、Handy、Lovense、Autoblow、VacuGlide 或 DG-LAB。</p><ul class="protocols"><li>TCode</li><li>Intiface</li><li>DG-LAB</li></ul></article>
-<article><h3 data-en>Applications</h3><h3 data-zh hidden>应用与服务</h3><p data-en>Write values back to VRChat, send them to a service or control a MIDI parameter.</p><p data-zh hidden>将数值写回 VRChat、发送到其他服务，或控制一个 MIDI 参数。</p><ul class="protocols"><li>OSC</li><li>HTTP</li><li>WebSocket</li><li>MQTT</li><li>MIDI CC</li></ul></article>
-<article><h3 data-en>Files</h3><h3 data-zh hidden>轨道与数据文件</h3><p data-en>Keep movement as funscript. Inspect raw values and timing with JSON Lines or CSV.</p><p data-zh hidden>用 funscript 保存动作；用 JSON Lines 或 CSV 检查原始数值和时间。</p><ul class="protocols"><li>Funscript</li><li>JSONL</li><li>CSV</li></ul></article>
-</div>
-</section>
-<section class="recording-section" aria-labelledby="recording-heading"><div><p class="eyebrow" data-en>RECORD &amp; REPLAY</p><p class="eyebrow" data-zh hidden>录制与回放</p><h2 id="recording-heading"><span data-en>Keep the movement. <br>Use it again.</span><span data-zh hidden>保存这段动作，<br>随时再次使用。</span></h2><p data-en>Each binding records its own funscript track. Download a completed segment, open it in the script player or combine its replay with another input.</p><p data-zh hidden>每条输出绑定都会录成独立轨道。完成的片段可以下载、载入脚本播放器，或通过录制回放与其他输入一起计算。</p><a class="text-link" data-doc="docs/signal-pipeline" data-fragment-en="record-and-inspect" data-fragment-zh="录制与观察" href="en/docs/signal-pipeline.html#record-and-inspect"><span data-en>Record and replay a track →</span><span data-zh hidden>查看录制与回放步骤 →</span></a></div><ol class="recording-path"><li><span class="index">01</span><strong data-en>Choose a source</strong><strong data-zh hidden>选择来源</strong><span data-en>Set the track name and its range.</span><span data-zh hidden>设置轨道名称与数值范围。</span></li><li><span class="index">02</span><strong data-en>Record a segment</strong><strong data-zh hidden>录制片段</strong><span data-en>Enable input; disable it to finish.</span><span data-zh hidden>启用输入开始，关闭输入完成。</span></li><li><span class="index">03</span><strong data-en>Download or replay</strong><strong data-zh hidden>下载或回放</strong><span data-en>Reuse the track whenever you need it.</span><span data-zh hidden>把这条轨道用于下一次联动。</span></li></ol></section>
-<section class="package-section" aria-labelledby="unity-heading"><div><p class="eyebrow" data-en>UNITY</p><p class="eyebrow" data-zh hidden>UNITY 组件</p><h2 id="unity-heading"><span data-en>Measure a point on your avatar</span><span data-zh hidden>把 Avatar 上的位置变成输入</span></h2><p data-en>Use existing OGB/SPS parameters or add SPS four-anchor, Contact or Shader tracking. Following reference planes turn those measurements into depth, offset and direction.</p><p data-zh hidden>使用已有 OGB／SPS 参数，或添加 SPS 四点、Contact、Shader 定位。跟随参考平面将测量转换为深度、偏移与方向。</p><p id="vpm-status" class="caption" role="status"><span data-en>__VPM_STATUS_EN__</span><span data-zh hidden>__VPM_STATUS_ZH__</span></p></div><div class="package-actions"><a class="button" data-doc="unity/top.sealoong.sensa/README" href="en/unity/top.sealoong.sensa/README.html"><span data-en>Unity setup guide</span><span data-zh hidden>Unity 配置指南</span></a><a id="vcc" class="button primary" __VPM_INSTALL_HIDDEN__ href="__VPM_INSTALL_URL__"><span data-en>Add to VCC</span><span data-zh hidden>添加到 VCC</span></a><button id="copy-vpm" type="button" hidden><span data-en>Copy VPM URL</span><span data-zh hidden>复制 VPM 地址</span></button></div></section>
-<section id="documentation" class="home-section documentation-section" aria-labelledby="documentation-heading"><div class="section-heading"><p class="eyebrow" data-en>HELP</p><p class="eyebrow" data-zh hidden>使用帮助</p><h2 id="documentation-heading"><span data-en>A guide for your next step</span><span data-zh hidden>需要的时候，找到具体步骤</span></h2></div><nav class="documentation-links" aria-label="Documentation" data-label-en="Documentation" data-label-zh="文档入口">
-<a data-doc="docs/quick-start" href="en/docs/quick-start.html"><strong data-en>First run</strong><strong data-zh hidden>首次使用</strong><span data-en>Download, start and record.</span><span data-zh hidden>下载、启动与首次录制。</span></a>
-<a data-doc="docs/guide" href="en/docs/guide.html"><strong data-en>Workbench guide</strong><strong data-zh hidden>工作台指南</strong><span data-en>Find each setting and control.</span><span data-zh hidden>了解各页的操作与设置。</span></a>
-<a data-doc="docs/computed-signals" href="en/docs/computed-signals.html"><strong data-en>Calculations</strong><strong data-zh hidden>计算与映射</strong><span data-en>Combine values and adjust their response.</span><span data-zh hidden>组合数值，调整响应方式。</span></a>
-<a data-diagram href="parameter-geometry.html"><strong data-en>Parameter explorer</strong><strong data-zh hidden>参数图解</strong><span data-en>Move a target and watch values change.</span><span data-zh hidden>移动目标，观察参数怎样变化。</span></a>
-<a data-doc="docs/osc-parameters" href="en/docs/osc-parameters.html"><strong data-en>OSC parameter reference</strong><strong data-zh hidden>OSC 参数字典</strong><span data-en>Meanings, units and official sources.</span><span data-zh hidden>含义、单位与官方来源。</span></a>
-<a data-doc="docs/positioning" href="en/docs/positioning.html"><strong data-en>Position and tracking</strong><strong data-zh hidden>位置与定位</strong><span data-en>Choose a method and calibrate it.</span><span data-zh hidden>选择测量方式并校准。</span></a>
-</nav><div class="more-links"><a data-doc="docs/features" href="en/docs/features.html"><span data-en>All features →</span><span data-zh hidden>完整功能 →</span></a><a data-doc="docs/usage-scenarios" href="en/docs/usage-scenarios.html"><span data-en>More examples →</span><span data-zh hidden>更多使用场景 →</span></a><a data-doc="docs/development" href="en/docs/development.html"><span data-en>Development →</span><span data-zh hidden>开发指南 →</span></a><a data-doc="docs/languages" href="en/docs/languages.html"><span data-en>Language settings →</span><span data-zh hidden>语言设置 →</span></a></div></section>
+</div></details>
 <noscript><p class="offline-languages"><a href="en/README.html">English guide</a> · <a href="zh-CN/README.html">简体中文指南</a></p></noscript><footer><span>Sensa · MIT · SeaLoong</span><a href="https://github.com/SeaLoong/Sensa"><span data-en>Source code on GitHub ↗</span><span data-zh hidden>在 GitHub 查看源码 ↗</span></a></footer>
 </main></body></html>

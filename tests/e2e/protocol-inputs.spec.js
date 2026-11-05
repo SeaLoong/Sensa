@@ -365,7 +365,7 @@ test.describe('rotation-only Intiface device / 纯旋转Intiface设备', () => {
       await expect(page.locator('.control-readiness')).toHaveAttribute('data-state', 'inactive');
       await expect(page.locator('.control-readiness summary')).toContainText('1/4');
       await active(page);
-      await expand(page, await text(page, '旋转、震动与辅助轴'));
+      await expand(page, await text(page, '更多动作轴'));
       await page.getByRole('spinbutton', { name: 'V0 震动数值', exact: true }).fill('400');
       await page.getByRole('button', { name: await text(page, '发送一次'), exact: true }).click();
       await expect.poll(() => rig.wire.intiface.filter(message => message.OutputCmd?.Command?.Rotate)

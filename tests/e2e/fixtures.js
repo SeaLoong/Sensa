@@ -1,10 +1,15 @@
 import { test as base, expect } from '@playwright/test';
 import english from '../../src/web/i18n.en.json' with { type: 'json' };
+import catalog from '../../docs/screenshots/catalog.json' with { type: 'json' };
+import fs from 'node:fs/promises';
+import { catalogCapturePaths, catalogCaptureRecord } from './catalog-capture.js';
 import { startMocks } from './mocks.js';
 import { startTestRig } from './rig.js';
 
 export { expect };
 const observedPages = new WeakMap();
+const catalogSources = catalogCapturePaths(catalog);
+const screenshotStyle = fs.readFile(new URL('./screenshot.css', import.meta.url), 'utf8');
 
 // Observe accepted transport sends, including requests multiplexed through a worker.
 // 记录传输层成功发送的请求，并关联响应；覆盖页面连接与 SharedWorker 端口。
@@ -178,6 +183,7 @@ export async function checkpointViewport(page, name) {
   await clearScreenshotNotice(page);
   await page.locator('.workspace-scroll').evaluate(element => element.scrollTo({ top: 0, left: 0, behavior: 'instant' }));
   await expect(page).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
+  await attachCurrentCatalogCapture(page, name);
   await assertScrollLayout(page);
 }
 export async function checkpoint(page, locator, name) {
@@ -207,7 +213,21 @@ export async function checkpoint(page, locator, name) {
     expect(positioned.target.right).toBeLessThanOrEqual(positioned.port.right + 1);
   }
   await expect(locator).toHaveScreenshot(name + '.png', { stylePath: 'tests/e2e/screenshot.css' });
+  await attachCurrentCatalogCapture(locator, name);
   await assertScrollLayout(page);
+}
+async function attachCurrentCatalogCapture(target, name) {
+  const info = test.info();
+  if (!catalogSources.has(info.project.name + '/' + name + '.png')) return;
+  // Preserve toHaveScreenshot's stable-pixel check above, then bind the exact
+  // fresh buffer to the same golden and to this passing case's attachment.
+  const bytes = await target.screenshot({ animations: 'disabled', caret: 'hide', scale: 'css', style: await screenshotStyle });
+  await expect(bytes).toMatchSnapshot(name + '.png', { maxDiffPixelRatio: 0.001 });
+  const record = catalogCaptureRecord({ project: info.project.name, name, bytes, testId: info.testId,
+    sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
+    runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT });
+  await info.attach(record.attachment, { body: bytes, contentType: 'image/png' });
+  await info.attach(record.attachment + '-source', { body: JSON.stringify(record), contentType: 'application/json' });
 }
 export async function outputValue(rig, transport, expected) {
   await expect.poll(() => {

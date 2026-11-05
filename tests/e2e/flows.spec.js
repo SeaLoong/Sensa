@@ -216,16 +216,20 @@ test('funscript import, playback, pause, stepping and unload', { tag: ['@input',
 
 test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual'] }, async ({ page, rig }) => {
   await page.getByRole('button', { name:'帮助', exact:true }).click();
-  const help = page.getByRole('dialog', { name:'使用帮助', exact:true });
+  const help = page.getByRole('dialog', { name:'从这里开始', exact:true });
   await expect(help.locator('.usage-choices h3')).toHaveCount(6);
+  await expect(help.getByRole('heading', { level: 3 })).toHaveCount(3);
+  await expect(help.locator('details')).not.toHaveAttribute('open');
   await checkpoint(page, help, 'help-workflow');
   await expect(page.getByRole('link', { name:'使用指南', exact:true })).toHaveAttribute('href', /guide\.md$/);
   const beforeBrowse = rig.commands.filter(command => command.method !== 'GET').length;
+  await expand(page, '更多连接与测量');
   await help.getByRole('button', { name: '编辑信号流程', exact: true }).click();
   await expect(help).toBeHidden();
   await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
   await expect(page.getByTestId('computed-signals-editor')).toBeVisible();
   await page.getByRole('button', { name: '帮助', exact: true }).click();
+  await expand(page, '更多连接与测量');
   await help.getByRole('button', { name: '录制动作', exact: true }).click();
   await expect(help).toBeHidden();
   await expect(page.locator('.recording-panel')).toHaveJSProperty('open', true);

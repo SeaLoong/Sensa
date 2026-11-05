@@ -1,5 +1,5 @@
 import { test, expect } from './fixtures.js';
-import { addWorkbenchOutput, inputActivation, manualMotion, openWorkbench } from './websensa-workbench.js';
+import { addWorkbenchOutput, inputActivation, manualMotion, revealWorkbenchAxes, openWorkbench } from './websensa-workbench.js';
 
 async function installMockBluetooth(page, { sameDevice = false } = {}) {
   await page.addInitScript(({ sameDevice: sharedDevice }) => {
@@ -82,6 +82,7 @@ test('WebSensa drives two BLE device families with independent wire sequences an
     expect((await packets(page, 'lovense-single')).every(packet =>
       new TextDecoder().decode(Uint8Array.from(packet)) === 'Vibrate:0;')).toBe(true);
     expect((await packets(page, 'youou-vx001')).every(packet => packet[6] === 0 && packet[7] === 0)).toBe(true);
+    await revealWorkbenchAxes(page);
     const vibrationAxis = page.getByRole('checkbox', { name: 'V0', exact: true });
     await vibrationAxis.click(); await expect(vibrationAxis).toBeChecked();
     const strokeAxis = page.getByRole('checkbox', { name: 'L0', exact: true });

@@ -100,30 +100,38 @@ export async function buildPages({ source = root, output = path.join(root, 'arti
     const groups = [
       { en: 'Start here', zh: '开始使用', links: [
         ['README', 'About Sensa', '认识 Sensa'], ['docs/quick-start', 'First run', '首次使用'],
-        ['docs/guide', 'Workbench guide', '工作台指南'], ['docs/websensa', 'WebSensa in your browser', '网页工作台 WebSensa'], ['docs/usage-scenarios', 'Examples', '使用场景'],
-        ['docs/features', 'All features', '完整功能'],
+        ['docs/usage-scenarios', 'VRChat / SPS setup', 'VRChat / SPS 设置'],
+        ['docs/websensa', 'Browser control and scripts', '网页控制与脚本'], ['docs/guide', 'Workbench map', '工作台地图'],
+        ['docs/features', 'Feature reference', '功能参考'],
       ] },
-      { en: 'Inputs and outputs', zh: '输入与联动', links: [
+      { en: 'Connections and reference', zh: '连接与参考', collapsed: true, links: [
         ['docs/signal-pipeline', 'Build a flow', '建立信号流程'], ['docs/computed-signals', 'Calculations', '计算与映射'],
         ['docs/protocol-inputs', 'Protocol inputs', '协议输入'], ['tools/protocol-bridge/README', 'Serial and Bluetooth bridges', '串口与蓝牙桥'],
         ['docs/osc-parameters', 'OSC parameters', 'OSC 参数字典'], ['docs/sps3', 'SPS3 Beta compatibility', 'SPS3 测试版兼容'], ['docs/positioning', 'Position and tracking', '位置与定位'],
-        ['docs/languages', 'Language settings', '语言设置'],
+        ['docs/languages', 'Language settings', '语言设置'], ['GLOSSARY', 'Terminology', '术语表'],
       ] },
-      { en: 'Unity and development', zh: 'Unity 与开发', links: [
+      { en: 'Unity and development', zh: 'Unity 与开发', collapsed: true, links: [
         ['unity/top.sealoong.sensa/README', 'Unity setup', 'Unity 配置指南'],
         ['docs/unity-build', 'Avatar build process', 'Avatar 构建流程'],
         ['docs/shader-capture-research', 'Shader capture design', 'Shader 编码与捕获'],
         ['tools/unity-world-lab/README', 'World lab', 'World 实验场景'],
         ['tools/unity-avatar-lab/README', 'Avatar lab', 'Avatar 实验场景'],
         ['docs/development', 'Development and releases', '开发与发布'],
+        ['docs/architecture', 'Architecture', '架构'], ['docs/e2e-status', 'Verification records', '验证记录'],
         ['docs/adapter-catalog', 'Adapter packages and contributions', '适配器与社区贡献'],
       ] },
     ];
-    const navigation = groups.map(group => '<div class="nav-group"><p class="nav-group-title">'
-      + escape(locale === 'en' ? group.en : group.zh) + '</p>' + group.links.map(([key, en, zh]) => {
+    const navigation = groups.map(group => {
+      const active = group.links.some(([key]) => routes.get(locale + ':' + key) === route);
+      const title = escape(locale === 'en' ? group.en : group.zh);
+      const start = group.collapsed
+        ? '<details class="nav-group" data-guide-group' + (active ? ' open' : '') + '><summary class="nav-group-title">' + title + '</summary>'
+        : '<div class="nav-group"><p class="nav-group-title">' + title + '</p>';
+      return start + group.links.map(([key, en, zh]) => {
         const target = routes.get(locale + ':' + key);
         return target ? '<a data-guide-link' + (route === target ? ' aria-current="page"' : '') + ' href="' + href(target) + '">' + escape(locale === 'en' ? en : zh) + '</a>' : '';
-      }).join('') + '</div>').join('');
+      }).join('') + (group.collapsed ? '</details>' : '</div>');
+    }).join('');
     const diagramScript = document.diagrams ? '<script defer src="' + href(siteAssets.diagrams.name)
       + '" onerror="' + escape(scriptFallback(relative(route, 'document-diagrams.js'))) + '"></script>' : '';
     return '<!doctype html><html lang="' + (locale === 'en' ? 'en-US' : locale) + '"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="description" content="' + escape(titleOf(document) + ' — Sensa ' + t.docs) + '"><title>' + escape(titleOf(document)) + ' · Sensa</title><link rel="stylesheet" href="' + href(siteAssets.css.name) + '" onerror="' + escape(stylesheetFallback(relative(route, 'site.css'))) + '"><script defer src="' + href(siteAssets.js.name) + '" onerror="' + escape(scriptFallback(relative(route, 'site.js'))) + '"></script>' + diagramScript + '</head><body><a class="skip" href="#content">' + t.skip + '</a>'

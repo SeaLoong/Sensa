@@ -2,90 +2,48 @@
 
 [简体中文](usage-scenarios.md) | **English**
 
-Start with the job: quick browser control, application routing, recording or Avatar interaction. Choose the matching source and output, then add computation for blending, smoothing or geometry. The table below links each workflow to its setup.
+Sensa connects **VRChat/SPS/OGB interactions**, **funscript playback** or **manual controls** to OSR/TCode, Intiface and other interactive devices. [Connect your first output](quick-start.en.md) before choosing an input below.
 
-| Goal | Suggested flow | Setup |
-| --- | --- | --- |
-| Control immediately in a browser | Manual/script → browser outputs | [WebSensa](websensa.en.md) |
-| Route a website/player into another device | Buttplug/TCode/JSON input → output | [Shared protocol routes](protocol-inputs.en.md) |
-| Check a device or application's response | Manual slider → destination | [First run](quick-start.en.md) |
-| Play an existing trajectory | Funscript → device or application | [Manual and script](guide.en.md#manual-and-script) |
-| Combine readings, smoothing or thresholds | Several inputs → computed signal → output | [Calculation examples](computed-signals.en.md) |
-| Control a device and an Avatar effect together | One result → device and OSC parameter | [Multiple outputs](signal-pipeline.en.md#one-result-several-outputs) |
-| Connect DG-LAB, MIDI or a network service | Signal → matching output | [Output setup](signal-pipeline.en.md#add-outputs-and-bindings) |
-| Save an interaction for playback/editing | Selected source → Funscript recording | [Recording and replay](signal-pipeline.en.md#record-and-inspect) |
+## Play a funscript or control manually
 
-Apply Combined in Control when using several source kinds. [Save the whole plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) to retain calculations, mappings, axis profiles and outputs.
+For a file, open **Control → Script**, choose the script, apply the mode and turn on **Input enabled**, then press **Play**. For a slider, choose **Manual**, apply the mode, enable input and adjust L0. [Browser and player steps](websensa.en.md)
 
 ## VRChat parameters and tracking
 
-Start with what the Avatar already provides. Existing OGB/SPS parameters connect directly; when authoring your Avatar, you can add root measurement components.
-
-| Your situation | Choose | Measurement |
-| --- | --- | --- |
-| Avatar already provides OGB/SPS haptics parameters | Existing OGB/SPS | Proximity, touch and depth-related readings |
-| You want SPS Socket/Plug root position | SPS four-anchor tracking | Three-dimensional position relative to the Avatar |
-| Supported advanced Proximity SDK, with position and velocity needed | Contact direct tracking (SDK Beta) | Metre-based position and relative velocity |
-| A PC view can show a code block, with axes and scale needed | Shader capture | Root position, X/Z axes and AvatarScale |
-| You want measurements relative to a bone’s current direction on your Avatar | [Following plane](#follow-body-movement-with-a-reference-plane) | Depth, offset and distance from a reference plane |
-| You want depth and angles during paired interaction between Avatars | [Three-marker pose](positioning.en.md#interaction-between-avatars-paired-three-marker-pose) | Entry proportion, opening offset and pose angles in the receiving Socket’s local frame |
-
-Use the [interactive parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) to understand parameters and valid regions first. For spatial input, inspect and calibrate before allowing experimental spatial input and activating input. Check actual client/graphics behavior with the versions used.
+Use the desktop edition for live VRChat OSC. If your Avatar already has SPS/OGB, start with its public contact parameters below. You can use these without adding Sensa's custom tracking components.
 
 ## Existing OGB / SPS
 
-1. Apply OSC or Combined in Control, then check reception, source and actual parameters in OSC.
-2. If the Avatar requires OGB_ENABLED, enable its heartbeat in receiver settings and enter VRChat's receive port, commonly **9000**. Sensa commonly receives parameters on **9001**.
-3. Choose the OGB/SPS depth or vibration preset, fix the object/source, calibrate range and direction, save and enable input.
+1. Enable OSC in VRChat. In Sensa, open **Control → OSC** and **Apply input mode**, then inspect received parameters in **OSC**. Sensa commonly receives on **9001**; check the actual listener address.
+2. If needed, open **OGB parameter activation** in OSC settings, enable **Enable OGB parameters in VRChat** and save. The VRChat receive port is commonly **9000**.
+3. Under mappings, choose **OGB / SPS · Depth** for L0 or **OGB / SPS · Vibration** for V0. Click **Replace draft**, select the intended object/source, check the preview and calibrate range/direction. Click **Save mappings**.
+4. Confirm the output is enabled. Turn on **Input enabled**, then try a small interaction and watch the response.
 
-**SPS2/SPS3 · PenOthersNewRoot / PenOthersNewTip** provides two proximity readings for the same Plug. Sensa pairs them, learns length and derives a depth trend. Move the target to provide the samples needed for learning, then inspect the result.
-
-In **SPS1 · PenOthers / PenOthersClose**, PenOthers describes a depth trend and PenOthersClose reports entry into the Socket's effective nearby region. Touch describes touch intensity; Plug Frot describes close or brushing contact.
-
-Alignment, sideways movement, tilt and authored dimensions affect proximity, so calibrate the actual movement endpoints. See [parameter meanings](osc-parameters.en.md), [presets](presets.en.md) and [OGB compatibility](ogb-compatibility.en.md) for pairing and validity conditions.
+SPS2/SPS3 public Root/Tip readings are paired to estimate a depth trend. Separate the objects, then approach in the intended direction so learning can collect samples. SPS1 uses its depth and nearby-region readings. [Preset steps](presets.en.md) · [SPS3 channels](sps3.en.md) · [OGB parameter meanings and limits](ogb-compatibility.en.md)
 
 ## Contact direct tracking (SDK Beta)
 
-Choose this when authoring an Avatar that needs root position and movement strength. Install **SDK 3.10.6-beta.3**; Beta.2 is also supported. Select this route in Automatic SPS Setup or add `SensaContactRootProbe`.
-
-1. Select an own SPS, Sensa or native Contact root and build the Avatar.
-2. Fix the object/source in the root panel and inspect valid position and velocity.
-3. Choose X/Y/Z/Distance for position, or VelocityX/Y/Z, Speed or ProximitySpeed for movement strength. Capture endpoints, inspect the preview, save and enable spatial input and current input.
-
-Position uses metres and velocity uses m/s. ProximitySpeed is proximity change per second and needs its own calibration. This route provides single-point position and velocity; detection coverage and sampling activity determine validity. [Installation and conditions](contact-sdk.en.md) · [Calibration](positioning.en.md)
+For Avatar authors who need metre-based root position and relative velocity. This requires a supported advanced Proximity SDK and a Sensa Contact component. [Contact setup](contact-sdk.en.md) · [Calibration](positioning.en.md)
 
 ## SPS four-anchor tracking
 
-Choose this to measure an SPS Socket/Plug root moving within the Avatar. Unity components create four receivers at known positions and report proximity values; desktop Sensa reconstructs the root's three-dimensional position.
-
-1. Add **SPS four-anchor tracking** (`SensaFixedRootProbe`) or Automatic SPS Setup and select your target root.
-2. Inspect the green common detection region in Unity or the explorer and keep the intended motion within it.
-3. Select the object/coordinate metric in the workbench, capture movement endpoints, check direction/range, save and enable input.
-
-Receivers have a radius of 2 Avatar-root local units. Coordinates follow the Avatar's authored scale; interpret scaling in that frame. Explicit Transform, Sensa or native Contact targets can also use this route. See [positioning](positioning.en.md) for geometry, sampling and scale conditions, and the [Unity package](../unity/top.sealoong.sensa/README.md) for installation.
+For Avatar authors who need an SPS Socket/Plug root's position relative to the Avatar. Add the Unity tracking component, inspect the common detection region and calibrate in Sensa. [Unity setup](../unity/top.sealoong.sensa/README.md) · [Position, scale and sample conditions](positioning.en.md)
 
 ## Shader root encoding and region capture
 
-Choose this experimental setup when a PC desktop view can retain the encoded block. Avatar rendering encodes root position, X/Z axes and Avatar scale; the desktop bridge reads the block into OSC measurements.
-
-1. Add **Shader Root Capture (Experimental)** in Unity, select the root and set its Producer ID.
-2. Enable encoding after building. Follow the [capture guide](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) to select the complete block and configure the matching ID.
-3. Inspect decoding, choose the required Tracking measurement metric in the workbench, then calibrate, save and enable input.
-
-QR finder patterns locate the tile, white margins buffer small shifts, and Reed–Solomon correction restores some damaged data. The rendered image, capture region and advancing frames determine availability. [Current protocol and validity](positioning.en.md) · [Implementation reference](shader-capture-research.en.md)
+An experimental PC route that reads an encoded block from the Avatar's rendered image to measure root position, axes and scale. [Capture setup](../unity/top.sealoong.sensa/GPU-TRACKING.en.md) · [Technical reference](shader-capture-research.en.md)
 
 ## Follow body movement with a reference plane
 
-Use this for relative movement between a target and reference on your own Avatar, such as approach measured along the palm’s or chest’s current direction.
+Measure movement relative to a changing body direction, such as a palm or chest. This needs tracking markers and a following reference plane. [Unity setup](unity-build.en.md#create-a-plane-that-follows-a-bone) · [Calculation example](computed-signals.en.md#follow-an-avatars-movement-with-a-plane)
 
-1. Add a root tracking component for the measured target in Unity, then create **GameObject → Sensa → Tracking Frame** and select the bone or root to follow. Use the same tracking method for target and plane, with unique instance names.
-2. Set the plane’s centre and orientation; the Scene +Z arrow marks positive depth. After building, confirm valid readings for the target, `<name>_Origin` and `<name>_Forward` in the workbench.
-3. In **Flow → Spatial calculation presets → Follow a moving plane**, select the target and Origin, add and review the drafts, save, then connect depth, offset or distance to outputs.
-
-Shader can also define a following plane from its own position and Forward direction. [Unity setup steps](unity-build.en.md#create-a-plane-that-follows-a-bone) · [Calculation template and units](computed-signals.en.md#follow-an-avatars-movement-with-a-plane)
+For these spatial routes, inspect valid readings, calibrate and enable experimental spatial input before enabling current input. The [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) explains the geometry visually.
 
 ## Other inputs and tools
 
-PhysBone Stretch/IsGrabbed can drive scalar controls; OSCQuery and Hub discover/forward parameters. Independent Point/Handle/Pose and Avatar/World labs provide measurement-model and integration checks. [Lab workflow](lab-workflow.en.md)
+- Website/player → OSR: [protocol inputs and bridges](protocol-inputs.en.md).
+- Several inputs, smoothing or several outputs: [signal flows](signal-pipeline.en.md).
+- Save an interaction as funscript: [recording and replay](signal-pipeline.en.md#record-and-inspect).
+- PhysBone, OSC discovery or custom mappings: [presets](presets.en.md) and [OSC dictionary](osc-parameters.en.md).
 
-Check calculations with observable parameters or recording first, then use small device targets to confirm direction, response and stopping. [Workbench guide](guide.en.md) · [Feature overview](features.en.md)
+[Workbench map](guide.en.md) · [Feature reference](features.en.md)

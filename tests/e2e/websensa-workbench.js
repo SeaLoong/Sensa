@@ -38,8 +38,7 @@ export async function changeWorkbenchInput(page, mode) {
   await expect(apply).not.toBeVisible();
 }
 export async function manualMotion(page, axis, value) {
-  const moreAxes = page.locator('.manual-workspace details').filter({ has: page.locator('input[type="range"][aria-label^="' + axis + ' "]') });
-  if (await moreAxes.count()) await moreAxes.evaluate(element => { element.open = true; });
+  if (axis !== 'L0') await revealWorkbenchAxes(page);
   const slider = page.locator('.manual-workspace').getByRole('slider', { name: new RegExp('^' + axis + ' ') });
   await slider.evaluate((element, next) => {
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(element, String(next));
@@ -47,6 +46,14 @@ export async function manualMotion(page, axis, value) {
     element.dispatchEvent(new Event('change', { bubbles: true }));
   }, value);
   await expect(slider).toHaveValue(String(value));
+}
+export async function revealWorkbenchAxes(page) {
+  const moreAxes = page.getByTestId('manual-more-axes');
+  await expect(moreAxes).toHaveCount(1);
+  const summary = moreAxes.locator('summary');
+  if (await moreAxes.getAttribute('open') === null) await summary.click();
+  await expect(moreAxes).toHaveAttribute('open', '');
+  return moreAxes;
 }
 export async function uploadWorkbenchScript(page, name, actions) {
   await changeWorkbenchInput(page, 'Script');

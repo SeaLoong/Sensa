@@ -84,8 +84,8 @@ import { attachPageLifecycle, createInitialSnapshotLoader } from './realtime-ses
 import { loadStudio, saveStudio, sanitizeStudio } from './preferences.js';
 import { LOG_LEVEL_ORDER, createLogNormalizer, formatAxisTraceAction, formatRealtimeStatus } from './diagnostics.js';
 import { buildOscSourceSelectionOptions, formatOscParameterDetailStatus, formatPreviewTimestamp, oscCatalogVisibility, resolveOscParameterDetail } from './osc-workspace.js';
-import { AxisSlider, SelectField, SliderControl, ValueSliderField } from './controls.jsx';
-import { Badge, Button, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.tsx';
+import { SelectField, SliderControl, ValueSliderField } from './controls.jsx';
+import { Badge, Button, ButtonLink, Disclosure, Field, Modal, Notice, Section, Tabs, Toggle } from './ui.tsx';
 import { ScriptTimelineDensity } from './script-timeline.jsx';
 import { AxisProfileEditor, OscHubTargetRow, SignalMappingRow } from './configuration-views.jsx';
 import { AxisTraceLogEntry, PlainLogEntry, TCodeDeviceInfoCard } from './diagnostic-views.jsx';
@@ -119,6 +119,8 @@ import { VENDOR_OUTPUT_TYPES } from './protocol-inputs.js';
 import { prepareDeviceScript } from './device-script-requests.js';
 import IntifaceFeatureFields from './IntifaceFeatureFields.jsx';
 import { intifaceFeatureErrors } from './intiface-feature-routing.js';
+import GettingStarted from './GettingStarted.jsx';
+import ManualControls from './ManualControls.jsx';
 
 const EMPTY_OSC_CATALOG = Object.freeze([]);
 
@@ -1936,8 +1938,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 />
               </div>
             </div>
-            <details>
-              <summary>{t('定位与 A-B')}</summary>
+            <Disclosure title={t('定位与 A-B')}>
               <div className="stack">
                 <div className="actions">
                   <Field
@@ -1997,9 +1998,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   {scriptLoopRange.endMs === null ? '—' : formatDuration(scriptLoopRange.endMs)}
                 </p>
               </div>
-            </details>
-            <details>
-              <summary>{t('快捷键')}</summary>
+            </Disclosure>
+            <Disclosure title={t('快捷键')}>
               <div className="shortcut-list">
                 {SCRIPT_SHORTCUT_GROUPS()
                   .flatMap((group) => group.items)
@@ -2011,7 +2011,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   ))}
               </div>
               <p className="caption muted">{t('点击播放器空白处后可使用快捷键；编辑输入框或滑块时，键盘用于当前控件。')}</p>
-            </details>
+            </Disclosure>
           </div>
         )}
       </div>
@@ -2021,13 +2021,12 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function renderRecording() {
     const recording = overview?.recording || {};
     return (
-      <details className="recording-panel">
-        <summary>
+      <Disclosure className="recording-panel" title={<>
           {t('录制 L0 目标')}{' '}
           <Badge tone={recording.isActive ? 'warning' : 'default'}>
             {recording.isActive ? t('录制中') : recording.frameCount ? t('已停止') : t('待录制')}
           </Badge>
-        </summary>
+        </>}>
         <div className="stack">
           <p className="caption muted">{t('把 Sensa 计算出的 L0 主轴位置保存为 funscript，之后可在脚本播放器中重放。')}</p>
           <div className="actions recording-toolbar">
@@ -2044,7 +2043,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             </Button>
           </div>
         </div>
-      </details>
+      </Disclosure>
     );
   }
 
@@ -2141,8 +2140,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                     </div>
                   )}
                   {output.type === 'Intiface' && (
-                    <details className="output-detail">
-                      <summary>{t('设备扫描')}</summary>
+                    <Disclosure className="output-detail" title={t('设备扫描')}>
                       <div className="actions">
                         <Button onClick={() => toggleIntifaceScan(true, output.id)}
                           disabled={!online || !output.enabled || !state.connected || intifaceScanPending.has(output.id)}>
@@ -2158,7 +2156,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                           <li key={device.index}>{device.name}</li>
                         ))}
                       </ul>
-                    </details>
+                    </Disclosure>
                   )}
                 </article>
               );
@@ -2498,7 +2496,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     );
 
   const workspaceIntroduction = {
-    control: { title: t('让信号开始工作'), description: t('选择输入方式，连接输出，再启用输入。运行中的数值和连接状态会持续显示。'), number: '01' },
+    control: { title: t('连接设备 → 选择输入 → 启用输入'), number: '01' },
     osc: { title: t('读懂收到的每个参数'), description: t('查看 OSC 实时数据，为需要的参数设置映射，或把定位结果转换为动作。'), number: '02' },
     pipeline: { title: t('把输入变成需要的结果'), description: t('组合多个来源，设置计算，再将结果发送到设备、应用或录制文件。'), number: '03' },
     settings: { title: t('调好设备，查看运行情况'), description: t('保存常用的轴范围与运动设置，通过日志了解连接、输入和输出的运行状态。'), number: '04' },
@@ -2509,7 +2507,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       <a className="skip-link" href="#main">{t('跳到主要内容')}</a>
       <header className="app-header">
         <div className="app-header__inner">
-          <div className="brand-group"><h1 className="brand"><a href="#main"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>{platform.name || 'Sensa'}</a></h1><span className="brand-caption">{t('信号工作台')}</span></div>
+          <div className="brand-group"><h1 className="brand"><a href="#main"><span className="brand-mark" aria-hidden="true"><i /><i /><i /></span>{platform.name || 'Sensa'}</a></h1><span className="brand-caption">{t('设备联动')}</span></div>
           <div className="header-status">
             <Badge tone={online ? 'success' : 'warning'}>
               <span title={formatRealtimeStatus(wsState)}>
@@ -2562,7 +2560,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
             aria-labelledby={`workspace-tabs-${workspace}`}
             className={`workspace-panel workspace-panel--${workspace}`}
           >
-            <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2><p>{workspaceIntroduction.description}</p></div></header>
+            <header className="workspace-intro"><span className="workspace-intro__number" aria-hidden="true">{workspaceIntroduction.number}</span><div><h2>{workspaceIntroduction.title}</h2>{workspaceIntroduction.description && <p>{workspaceIntroduction.description}</p>}</div></header>
             {!online && workspace !== 'control' && (
               <Notice tone="warning" role="status">
                 {t('连接已断开。恢复连接后，请重新执行需要的操作。')}
@@ -2580,11 +2578,11 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
               {t('其他输出连接继续使用各自的有效输入。')}</Notice>}
             {workspace === 'control' && (
               <>
+                <GettingStarted hasOutputs={outputs.length > 0} inputModes={platform.inputModes} onNavigate={navigateWorkflow} />
                 <Section
                   title={t('输入')}
-                  description={config?.protocolInputs?.length ? t('手动调节、接收 OSC 或设备协议，或播放脚本。组合方式可以同时使用多个来源。') : t('手动调节、接收 OSC，或播放脚本。组合方式可以同时使用多个来源。')}
                   className="input-section"
-                  actions={<><Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>{platform.supportsListeners === false && <a className="button button--default button--variant-outline button--size-medium" href={docUrl('docs/parameter-geometry.html')}>{t('打开参数图解')}</a>}{platform.connectExplorer && <Button onClick={() => void connectBrowserExplorer()}>{t('连接参数图解')}</Button>}</>}
+                  actions={<><Badge>{t('当前 {0}', [formatMode(actualInputMode)])}</Badge>{platform.supportsListeners === false && <ButtonLink href={docUrl('docs/parameter-geometry.html')}>{t('打开参数图解')}</ButtonLink>}{platform.connectExplorer && <Button onClick={() => void connectBrowserExplorer()}>{t('连接参数图解')}</Button>}</>}
                 >
                   <ControlFlowStatus online={online} runtime={runtimeOverview || {}} mode={actualInputMode}
                     selectedMode={selectedInputTab} script={scriptState || {}} outputs={outputs}
@@ -2609,33 +2607,21 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                   <div id="input-tabs-panel" className="input-panel" role="tabpanel" aria-labelledby={`input-tabs-${selectedInputTab}`}>
                     {selectedInputTab === 'manual' && (
                       <div className="stack manual-workspace">
-                        {platform.manualAxes && <div className="manual-axis-selection" role="group" aria-label={t('输出动作轴')}>{MANUAL_AXES().map(axis => <label key={axis.key}><input type="checkbox" checked={manualAxes.includes(axis.key)} disabled={Boolean(busyKey) || manualAxes.length === 1 && manualAxes[0] === axis.key} onChange={event => void changeManualAxes(event.target.checked ? [...manualAxes, axis.key] : manualAxes.filter(value => value !== axis.key))} />{axis.key}</label>)}</div>}
-                        <div className="manual-primary">
-                          {MANUAL_AXES().slice(0, 3).map((axis) => (
-                            <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
-                          ))}
-                        </div>
+                        <ManualControls draft={manualDraft} onChange={handleManualSliderChange}
+                          selectedAxes={platform.manualAxes ? manualAxes : undefined}
+                          onAxesChange={next => void changeManualAxes(next)} busy={Boolean(busyKey)} />
                         <div className="actions manual-actions">
                           <Button tone="primary" onClick={applyManualOnce} disabled={!online || actualInputMode !== 'manual' || busyKey === 'manual-once'}>{t('发送一次')}</Button>
                           <Toggle label={t('连续发送')} checked={manualContinuous} onChange={setManualContinuous} />
                           <Button onClick={disableManualInput} disabled={!online}>{t('停用手动')}</Button>
                         </div>
                         <div className="manual-options">
-                          <details className="manual-settings">
-                            <summary>{t('发送设置')}</summary>
+                          <Disclosure title={t('发送设置')} className="manual-settings">
                             <div className="form-grid">
                               <SelectField label={t('斜率方式')} value={manualMotionMode} options={MANUAL_MOTION_MODE_OPTIONS()} onChange={handleManualMotionModeChange} />
                               <ValueSliderField label={manualMotionField.label} value={manualMotionValue} min={manualMotionField.min} max={manualMotionField.max} valueFormatter={manualMotionField.format} unit={manualMotionField.unit} onChange={handleManualMotionValueChange} />
                             </div>
-                          </details>
-                          <details>
-                            <summary>{t('旋转、震动与辅助轴')}</summary>
-                            <div className="manual-grid">
-                              {MANUAL_AXES().slice(3).map((axis) => (
-                                <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={(next) => handleManualSliderChange({ [axis.key]: next })} />
-                              ))}
-                            </div>
-                          </details>
+                          </Disclosure>
                         </div>
                       </div>
                     )}
@@ -2657,16 +2643,17 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                       <p>{config?.protocolInputs?.length ? t('同时使用 OSC、协议、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。') : t('同时使用 OSC、手动、脚本和设备反馈，在计算或输出连接中分别选择来源。')}</p>
                       <div className="actions"><Badge tone={overview?.osc?.listening ? 'success' : 'default'}>{overview?.osc?.listening ? t('OSC 监听中') : t('OSC 未监听')}</Badge>
                         <Button onClick={() => setWorkspace('pipeline')}>{t('编辑信号流程')}</Button></div>
-                      <details><summary>{t('手动来源')}</summary><div className="stack">
-                        <div className="manual-grid">{MANUAL_AXES().map(axis => <AxisSlider key={axis.key} axis={axis} value={manualDraft[axis.key]} onChange={next => handleManualSliderChange({ [axis.key]: next })} />)}</div>
+                      <Disclosure title={t('手动来源')}><div className="stack">
+                        <ManualControls draft={manualDraft} onChange={handleManualSliderChange}
+                          selectedAxes={platform.manualAxes ? manualAxes : undefined} />
                         <div className="actions"><Button onClick={applyManualOnce} disabled={!online || actualInputMode !== 'combined' || Boolean(busyKey)}>{t('更新手动来源')}</Button>
                           <Toggle label={t('连续更新')} checked={manualContinuous} onChange={setManualContinuous} disabled={!online || actualInputMode !== 'combined'} /></div>
                         <p className="caption muted">{t('滑条的 0–999 在信号流程中转换为 0–1。')}</p>
-                      </div></details>
-                      <details open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}><summary>{t('脚本来源')}</summary>{renderScriptPlayer()}</details>
-                      {config?.protocolInputs?.length > 0 && <details><summary>{t('协议来源')}</summary>
+                      </div></Disclosure>
+                      <Disclosure title={t('脚本来源')} open={combinedScriptOpen} onToggle={event => setCombinedScriptOpen(event.currentTarget.open)}>{renderScriptPlayer()}</Disclosure>
+                      {config?.protocolInputs?.length > 0 && <Disclosure title={t('协议来源')}>
                         <ProtocolInputsPanel config={config} runtime={overview?.protocolInputs || []} online={online}
-                          saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} /></details>}
+                          saving={busyKey === 'protocol-save'} onSave={saveProtocolInputs} /></Disclosure>}
                     </div>}
 
                   </div>
@@ -3201,7 +3188,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
           <Button tone="primary" disabled={!online || recordingBusy} onClick={() => { setRecordingRestartOpen(false); void recordingAction('start'); }}>{t('重新录制')}</Button></>}>
         <p>{t('将清空当前录制的 {0} 帧。可先取消并导出。', [overview?.recording?.frameCount || 0])}</p>
       </Modal>
-      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow} emergencyAction={emergencyAction} error={modalError} />
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} onNavigate={navigateWorkflow} supportsListeners={platform.supportsListeners !== false} emergencyAction={emergencyAction} error={modalError} />
       {snackbar.open && (
         <div className={`toast toast--${snackbar.severity}`} role={snackbar.severity === 'error' ? 'alert' : 'status'}>
           <span>{diagnostic(snackbar.message)}</span>

@@ -19,7 +19,7 @@
   const apply = next => {
     locale = next;
     document.documentElement.lang = next === 'en' ? 'en-US' : next;
-    document.title = next === 'en' ? 'Sensa — Make your signals work together' : 'Sensa — 把数值变成联动';
+    document.title = next === 'en' ? 'Sensa — VRChat, SPS and funscripts for your devices' : 'Sensa — 连接 VRChat、SPS、funscript 与互动设备';
     document.querySelectorAll('[data-en]').forEach(x => { x.hidden = next !== 'en'; });
     document.querySelectorAll('[data-zh]').forEach(x => { x.hidden = next !== 'zh-CN'; });
     document.querySelectorAll('[data-doc]').forEach(x => {
@@ -80,12 +80,17 @@
     document.querySelectorAll('[data-guide-filter]').forEach(input => {
       const navigation = input.closest('.navigation');
       const links = [...navigation.querySelectorAll('[data-guide-link]')];
+      const groups = [...navigation.querySelectorAll('.nav-group')];
+      let expanded;
       input.addEventListener('input', () => {
         const query = input.value.trim().toLocaleLowerCase();
+        if (query && !expanded) expanded = new Map(groups.filter(group => group.hasAttribute('data-guide-group')).map(group => [group, group.open]));
         links.forEach(link => { link.hidden = !link.textContent.toLocaleLowerCase().includes(query); });
-        navigation.querySelectorAll('.nav-group').forEach(group => {
+        groups.forEach(group => {
           group.hidden = ![...group.querySelectorAll('[data-guide-link]')].some(link => !link.hidden);
+          if (expanded?.has(group)) group.open = query ? !group.hidden : expanded.get(group);
         });
+        if (!query) expanded = undefined;
         navigation.querySelector('.guide-empty').hidden = links.some(link => !link.hidden);
       });
     });

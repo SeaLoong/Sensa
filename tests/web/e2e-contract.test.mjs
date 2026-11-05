@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { createRigConfiguration } from '../e2e/rig.js';
 import { pointSamples, fixedRootSamples, poseSamples, shaderRootSamples, oscBundle } from '../e2e/mocks.js';
+import { catalogCapturePaths, catalogCaptureRecord } from '../e2e/catalog-capture.js';
+import { createHash } from 'node:crypto';
 
 const sharedGeometry = (protocol) => {
   const source = readFileSync(new URL('../../unity/top.sealoong.sensa/Runtime/' + protocol, import.meta.url), 'utf8');
@@ -11,6 +13,30 @@ const sharedGeometry = (protocol) => {
   assert.ok(Object.values(geometry).every(Number.isFinite), protocol);
   return geometry;
 };
+
+test('gallery sources bind all 38 goldens to fresh PNG bytes and a pinned browser case', () => {
+  const catalog = JSON.parse(readFileSync(new URL('../../docs/screenshots/catalog.json', import.meta.url), 'utf8'));
+  const sources = catalogCapturePaths(catalog);
+  assert.equal(sources.size, 38);
+  assert.equal([...sources].filter(file => file.startsWith('desktop/')).length, 19);
+  assert.equal([...sources].filter(file => file.startsWith('mobile/')).length, 19);
+  // Real existing PNG bytes exercise the provenance binding without a browser.
+  const bytes = readFileSync(new URL('../e2e/__screenshots__/desktop/english-manual.png', import.meta.url));
+  const identity = { project: 'desktop', name: 'english-manual', bytes, testId: 'passing-browser-case',
+    sourceCommit: 'a'.repeat(40), runId: '123', attempt: '1' };
+  const record = catalogCaptureRecord(identity);
+  assert.deepEqual(record, { schema: 1, sourceCommit: identity.sourceCommit, runId: '123', attempt: '1',
+    testId: identity.testId, project: 'desktop', path: 'tests/e2e/__screenshots__/desktop/english-manual.png',
+    attachment: 'catalog-current-english-manual', sha256: createHash('sha256').update(bytes).digest('hex') });
+  assert.notEqual(catalogCaptureRecord({ ...identity, bytes: Buffer.concat([bytes, Buffer.from([1])]) }).sha256, record.sha256);
+  for (const patch of [{ sourceCommit: '' }, { testId: '' }, { project: 'unknown' }, { name: '../expected' },
+    { runId: undefined }, { attempt: '0' }, { bytes: Buffer.from('baseline path is not a capture') }])
+    assert.throws(() => catalogCaptureRecord({ ...identity, ...patch }));
+  for (const patch of [{ schema: 2 }, { additionalImages: null }, { scenes: [{}] },
+    { additionalImages: [{ ...catalog.additionalImages[0], file: '../expected.png' }] },
+    { additionalImages: [{ ...catalog.additionalImages[0], sha256: 'unverified' }] }])
+    assert.throws(() => catalogCapturePaths({ ...catalog, ...patch }));
+});
 
 function reconstruct(proximity, anchors, { radius, span, marker }, center = [0, 0, 0]) {
   assert.ok(proximity.every(value => Number.isFinite(value) && value > 0 && value < 1));
@@ -47,7 +73,7 @@ test('E2E spatial fixtures reconstruct known positions with the shared Unity geo
 });
 
 test('all E2E configurations isolate devices and initialize outputs disabled / 所有 E2E 配置隔离设备且默认关闭输出', () => {
-  for (const scenario of ['basic', 'sps', 'query', 'vibration-only', 'rotation-only']) {
+  for (const scenario of ['basic', 'first-run', 'sps', 'query', 'vibration-only', 'rotation-only']) {
     const config = createRigConfiguration(scenario, '/dev/pts/42');
     assert.equal('autoOpenBrowser' in config.webUi, false); assert.equal(config.webUi.host, '127.0.0.1');
     for (const output of config.outputs) {
@@ -59,6 +85,7 @@ test('all E2E configurations isolate devices and initialize outputs disabled / �
     assert.equal(config.osc.allowExperimentalSpatialInput, false);
     assert.equal(config.osc.oscQueryReceiver.enabled, false);
     assert.equal(config.osc.oscQueryEnabled, scenario === 'query');
+    if (scenario === 'first-run') assert.deepEqual(config.outputs, []);
     config.axisProfiles[0].motion.l0.min = 1;
     assert.notEqual(createRigConfiguration(scenario, '/dev/pts/43').axisProfiles[0].motion.l0.min, 1);
   }

@@ -132,9 +132,12 @@ test('public guides build into bilingual routes with resolvable local links and 
       const article = downloadGuide.match(/<article>([\s\S]*?)<\/article>/)[1];
       assert.match(article, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest"/);
       assert.doesNotMatch(article, /data-download=/, 'The guide contains ordinary release links');
+      const installReference = await fs.readFile(path.join(output, locale + '/docs/features.html'), 'utf8');
+      const referenceAnchor = locale === 'en' ? 'configuration-and-development' : '配置与开发';
+      assert.ok([...article.matchAll(/href="features\.html#([^"]+)"/g)].some(match => decodeURIComponent(match[1]) === referenceAnchor), 'The first-run guide links to install format details: ' + locale);
       for (const format of ['win-x64-Setup.exe', 'win-x64-SingleFile.exe', 'win-x64.zip', 'linux-x64.tar.gz', 'osx-arm64.tar.gz'])
-        assert.ok(downloadGuide.includes(format), 'Download format: ' + locale + ' ' + format);
-      assert.ok(downloadGuide.indexOf('win-x64-Setup.exe') < downloadGuide.indexOf('win-x64-SingleFile.exe'), 'Installer is the first Windows choice');
+        assert.ok(installReference.includes(format), 'Download format reference: ' + locale + ' ' + format);
+      assert.ok(installReference.indexOf('win-x64-Setup.exe') < installReference.indexOf('win-x64-SingleFile.exe'), 'Installer is the first Windows choice');
       const calculations = await fs.readFile(path.join(output, locale + '/docs/computed-signals.html'), 'utf8');
       for (const operation of ['PointDistance', 'PlaneDepth', 'PlaneOffset', 'PlaneDepthFromAxes', 'PlaneOffsetFromAxes', 'VectorAngle', 'PlaneAngle'])
         assert.ok(calculations.includes('<code>' + operation + '</code>'), 'Spatial operation: ' + locale + ' ' + operation);
@@ -171,6 +174,11 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.doesNotMatch(guide, /<script[^>]+document-diagrams/);
     assert.doesNotMatch(await fs.readFile(path.join(output, 'index.html'), 'utf8'), /<script[^>]+document-diagrams/);
     assert.equal((guide.match(/class="nav-group"/g) || []).length, 3);
+    for (const localizedGuide of [guide, translatedGuide]) {
+      const referenceGroups = [...localizedGuide.matchAll(/<details class="nav-group" data-guide-group([^>]*)>([\s\S]*?)<\/details>/g)];
+      assert.equal(referenceGroups.length, 2, 'Reference and development guides use native disclosures');
+      assert.ok(referenceGroups.every(group => !/\bopen\b/.test(group[1])), 'Beginner guides keep technical groups closed');
+    }
     assert.match(guide, /<input type="search" data-guide-filter autocomplete="off">/);
     assert.match(guide, /<span>Find a guide<\/span>/);
     assert.match(translatedGuide, /<span>查找文档<\/span>/);
@@ -186,6 +194,11 @@ test('public guides build into bilingual routes with resolvable local links and 
     assert.match(parameterGuide, /<div class="doc-scroll" role="region" tabindex="0" aria-label="Table; scroll horizontally when needed"><table>/);
     const developmentGuide = await fs.readFile(path.join(output, 'en/docs/development.html'), 'utf8');
     assert.match(developmentGuide, /<div class="doc-scroll" role="region" tabindex="0" aria-label="Code example; scroll horizontally when needed"><pre>/);
+    for (const reference of [parameterGuide, developmentGuide]) {
+      const activeGroups = [...reference.matchAll(/<details class="nav-group" data-guide-group([^>]*)>([\s\S]*?)<\/details>/g)].filter(group => group[2].includes('aria-current="page"'));
+      assert.equal(activeGroups.length, 1);
+      assert.match(activeGroups[0][1], /\bopen\b/, 'The current technical guide stays visible in its navigation group');
+    }
     const review = await fs.readFile(path.join(output, 'en/docs/ui-visual-review.html'), 'utf8');
     const reviewSource = await fs.readFile(new URL('../../docs/ui-visual-review.en.md', import.meta.url), 'utf8');
     const pinned = reviewSource.match(/https:\/\/github\.com\/SeaLoong\/Sensa\/blob\/[0-9a-f]{7,40}\/[^)\s]+\.md/)?.[0];
@@ -226,7 +239,21 @@ test('public guides build into bilingual routes with resolvable local links and 
     for (const section of ['start', 'possibilities-heading', 'outputs-heading', 'recording-heading', 'unity-heading', 'documentation'])
       assert.ok(homepage.includes('id="' + section + '"'), 'Homepage task section: ' + section);
     assert.match(homepage, /data-fragment-en="record-and-inspect" data-fragment-zh="录制与观察"/);
-    assert.match(homepage, /Keep the movement\.\s+<br>Use it again\./, 'Narrow screens retain the space when the line break is hidden');
+    const hero = homepage.match(/<section class="hero"[\s\S]*?<\/section>/)?.[0];
+    assert.ok(hero, 'The product purpose appears before the task choices and gallery');
+    assert.match(hero, /<h1[^>]*><span data-en>Connect VRChat \/ SPS and funscripts to OSR and other interactive devices\.<\/span><span data-zh hidden>连接 VRChat \/ SPS 与 funscript，联动 OSR 等互动设备。<\/span><\/h1>/);
+    const actions = hero.match(/<div id="downloads" class="actions">([\s\S]*?)<\/div>/)?.[1];
+    assert.match(actions, /^<a class="button primary" data-download="release" href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/);
+    assert.match(actions, /Download Sensa[\s\S]*Open WebSensa/);
+    assert.match(hero, /VRChat → Sensa → OSR/);
+    const tasks = homepage.match(/<div class="entry-grid">([\s\S]*?)<\/section>/)?.[1];
+    assert.deepEqual([...tasks.matchAll(/data-doc="([^"]+)"/g)].map(match => match[1]), ['docs/usage-scenarios', 'docs/guide', 'docs/websensa']);
+    const advanced = homepage.match(/<details id="advanced" class="advanced-section">([\s\S]*?)<\/details>/)?.[1];
+    assert.ok(advanced, 'Technical capabilities are available through a closed native disclosure');
+    for (const capability of ['outputs-heading', 'recording-heading', 'unity-heading', 'data-diagram', 'docs/computed-signals', 'docs/development', 'copy-vpm'])
+      assert.ok(advanced.includes(capability), 'Technical capability remains discoverable: ' + capability);
+    assert.ok(homepage.indexOf('id="purpose-heading"') < homepage.indexOf('class="entry-grid"'));
+    assert.ok(homepage.indexOf('class="entry-grid"') < homepage.indexOf('id="screenshot-image"'));
     assert.match(homepage, /<noscript>[\s\S]*href="en\/README.html"[\s\S]*href="zh-CN\/README.html"[\s\S]*<\/noscript>/);
     for (const label of ['CI', 'E2E', 'Pages', 'Release']) assert.ok(homepage.includes('alt="' + label + '"'));
   } finally { await fs.rm(output, { recursive: true, force: true }); }
@@ -248,10 +275,12 @@ test('homepage switches task anchors and accessible labels with unavailable pref
     sessionStorage: { getItem() { throw new Error('Unavailable'); }, setItem() { throw new Error('Unavailable'); } },
   });
   assert.equal(document.documentElement.lang, 'en-US');
+  assert.equal(document.title, 'Sensa — VRChat, SPS and funscripts for your devices');
   assert.equal(recording.href, 'en/docs/signal-pipeline.html#record-and-inspect');
   assert.equal(label['aria-label'], 'Main navigation');
   callbacks.get('click')();
   assert.equal(document.documentElement.lang, 'zh-CN');
+  assert.equal(document.title, 'Sensa — 连接 VRChat、SPS、funscript 与互动设备');
   assert.equal(english.hidden, true); assert.equal(chinese.hidden, false);
   assert.equal(recording.href, 'zh-CN/docs/signal-pipeline.html#' + encodeURIComponent('录制与观察'));
   assert.equal(label['aria-label'], '主导航'); assert.equal(elements.language.textContent, 'English');
@@ -332,4 +361,45 @@ test('document enhancement preserves heading links and makes only overflowing ex
   assert.equal(wide.tabIndex, -1);
   clicks.get('click')();
   assert.equal(storage.get('sensa.locale'), 'zh-CN');
+});
+
+test('guide search reveals matching technical groups and restores the reader\'s disclosure choices', async () => {
+  const source = await fs.readFile(new URL('../../.github/pages/site.js', import.meta.url), 'utf8');
+  const beginner = { textContent: 'First run', hidden: false };
+  const technical = { textContent: 'OSC parameter reference', hidden: false };
+  const development = { textContent: 'Development', hidden: false };
+  const group = (link, collapsible, open = false) => ({
+    open, hidden: false, hasAttribute: name => name === 'data-guide-group' && collapsible,
+    querySelectorAll: selector => selector === '[data-guide-link]' ? [link] : [],
+  });
+  const groups = [group(beginner, false), group(technical, true), group(development, true, true)];
+  const empty = { hidden: true }, events = new Map();
+  const navigation = { querySelectorAll: selector => selector === '[data-guide-link]' ? [beginner, technical, development] : groups,
+    querySelector: selector => selector === '.guide-empty' ? empty : null };
+  const input = { value: '', closest: selector => selector === '.navigation' ? navigation : null,
+    addEventListener: (name, handler) => events.set(name, handler) };
+  const filter = value => { input.value = value; events.get('input')(); };
+  vm.runInNewContext(source, { URL, location: new URL('https://example.test/Sensa/en/docs/quick-start.html'),
+    navigator: { languages: ['en-US'], language: 'en-US' }, sessionStorage: { getItem: () => null, setItem() {} },
+    document: { documentElement: { lang: 'en-US' }, body: { hasAttribute: () => false },
+      querySelectorAll: selector => selector === '[data-guide-filter]' ? [input] : [] },
+    window: { addEventListener() {} }, matchMedia: () => ({ matches: false }),
+  });
+  filter('  OSC  ');
+  assert.equal(beginner.hidden, true);
+  assert.equal(technical.hidden, false);
+  assert.equal(groups[1].open, true, 'A matching technical guide is visible inside its native disclosure');
+  assert.equal(groups[2].hidden, true);
+  assert.equal(empty.hidden, true);
+  filter('unmatched');
+  assert.equal(groups.every(item => item.hidden), true);
+  assert.equal(empty.hidden, false);
+  filter('');
+  assert.equal(groups.every(item => !item.hidden), true);
+  assert.equal(groups[1].open, false, 'Search restores a previously closed group');
+  assert.equal(groups[2].open, true, 'Search restores a previously open group');
+  assert.equal(empty.hidden, true);
+  groups[1].open = true;
+  filter('development'); filter('');
+  assert.equal(groups[1].open, true, 'A later search preserves the reader\'s updated choice');
 });

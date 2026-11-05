@@ -124,6 +124,9 @@ async function combinedManual(page, rig, raw = 400, r0) {
   const axis = manual.locator('.value-field').filter({ has: page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true }) });
   await axis.getByRole('spinbutton').fill(String(raw));
   if (r0 !== undefined) {
+    const moreAxes = manual.getByTestId('manual-more-axes');
+    if (await moreAxes.getAttribute('open') === null) await moreAxes.locator('summary').click();
+    await expect(moreAxes).toHaveAttribute('open', '');
     const twist = manual.locator('.value-field').filter({ has: page.getByRole('slider', { name: await text(page, 'R0 扭转'), exact: true }) });
     await twist.getByRole('spinbutton').fill(String(r0));
   }

@@ -61,7 +61,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     const selectedAxis = async () => (await savedConfiguration(page, rig)).outputs.find(output => output.id === 'intiface').vibrationAxis;
     expect(await selectedAxis()).toBe('V0');
     await expect(page.getByRole('spinbutton', { name: 'L0 主轴数值', exact: true })).toHaveValue('500');
-    await expand(page, '旋转、震动与辅助轴');
+    await expand(page, '更多动作轴');
     await expect(page.getByRole('spinbutton', { name: 'V0 震动数值', exact: true })).toHaveValue('0');
     await active(page);
     await page.getByRole('button', { name: '发送一次', exact: true }).click();

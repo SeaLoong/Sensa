@@ -2,71 +2,48 @@
 
 [简体中文](websensa.md) | **English**
 
-[Open WebSensa](https://sealoong.github.io/Sensa/websensa/) to adjust signals, play funscript files and drive several outputs from a browser. It runs directly in the page. You do not need to start a local Sensa service.
+[Open WebSensa](https://sealoong.github.io/Sensa/websensa/) to control an OSR/TCode device or connect through Intiface, using sliders or a `.funscript`. It runs in your browser without installing Sensa. For live **VRChat/SPS/OGB**, use the [desktop first run](quick-start.en.md).
 
-WebSensa, the Node.js service and Electron use one workbench and one TypeScript signal engine. The **Control**, **OSC**, **Flow** and **Settings** workspaces keep the same controls and layout. A browser runs the engine locally; the service's WebUI and Electron connect to the Node.js host. Available connections depend on the host and its installed adapters.
+To route a website or player to OSR, use **Sensa Desktop** [protocol inputs](protocol-inputs.en.md) and forward the received controls to your device.
 
 ## Connect an output
 
-1. In **Control → Output**, choose an **Output type**, then **Add output**.
-2. In **Output settings**, enter the endpoint and choose a name, profile or signal binding. For Web Serial, **Choose serial port** sets the current port to the device you just authorized. Click **Save output** to apply the configuration.
-3. Click **Enable** on its card; Bluetooth opens the browser's device picker.
-4. Prepare the input, then turn on **Input enabled** to send signals.
+1. Open **Control → Outputs**. Choose your **Output type**, then **Add output**.
+2. Enter the connection in **Output settings**, then click **Save output**.
+3. Click **Enable** on the output card and confirm it connects.
 
-Add more cards to fan out signals. Each card shows its own connection, values and errors. Saving configuration applies the same behavior as the executable: it closes input, preserves unchanged connections, and waits for you to enable input again.
+For **OSR/TCode**, use TCode WebSocket or serial. **Choose serial port** opens the browser's permission picker. Check direction and travel in **Settings → Axis profiles**.
 
-The output menu groups currently available and unavailable types, with a short reason beside each unavailable entry. Saved unavailable outputs retain **Configure**, **Remove** and, when enabled, **Disable**. The serial list also shows saved ports that are currently unavailable, so you can choose a device again.
-
-TCode **Output settings** separates **Connection settings** from **Motion settings**. Intiface groups targets and feature mappings under **Devices and features**. The parameter area scrolls independently while the title, emergency stop, Cancel and Save remain visible.
+For **Intiface**, start Central and enter its WebSocket address. Under **Devices and features**, enter **Matching device name** to control your device. Once connected, **Target device** can select a discovered device; **All devices** controls every matching device.
 
 ## Manual controls and scripts
 
-**Manual** supports all twelve axes: **L0–L2, R0–R2, V0–V2 and A0–A2**. Select the axes that should participate. The sliders use **0–999**; the signal engine converts them to **0–1**, and the output profile determines the device range. **Send once** updates the target; **Send continuously** follows slider changes. Open the additional axes to adjust rotation, vibration and auxiliary controls.
+For a first movement, choose **Manual**, click **Apply input mode** if shown, and turn on **Input enabled** in the header. Adjust **L0**, then click **Send once**. **Send continuously** follows slider changes. For a vibrator using the default V0 source, open **More motion axes**, enable **V0** under **Motion axes** and adjust its slider instead.
 
-Edit TCode ranges, inversion and motion parameters in **Settings → Axis profiles**. Select an axis tab, then adjust **Axis mode**, **Travel and limits** and **Motion transitions**. Switching axes keeps the draft; choose **Save axis profile** to apply it.
+To play a script:
 
-To play a file, select **Script**, click **Apply input mode** if shown, and **Choose script**. A `.funscript` or compatible `.json` file supplies its real first position. **Playback speed** and **Custom speed** are grouped together, with **Script target axis** and **Loop** in another group. Set an A–B range if needed, then enable input and play. The timeline supports seeking, action stepping and keyboard controls.
+1. Choose **Script** and click **Choose script** to load a `.funscript` or compatible `.json` file.
+2. Click **Apply input mode** if shown. Keep **Script target axis** on L0 for the main stroke.
+3. For a vibration-only Intiface device, set its **Vibration source** to **L0 · Depth to vibration**. Turn on **Input enabled**, then press **Play**.
 
-At the end of a non-looping script, playback holds its final target and keeps the current input state. **Stop** ends playback and requests output stop. Pausing holds the cursor and also stops output. **Emergency stop** stops all outputs; clearing it leaves input off until you enable it again.
-
-**Record L0 targets** captures the shared engine's calculated stroke. Start recording, control or play a signal, then **Stop recording and export**. For independent tracks or signal data, add a **Signal recording** output, configure its bindings and choose Funscript, CSV or JSON Lines. Completed files can be downloaded, loaded into the script player or used as replay sources.
+The player offers speed, loop, A–B, seeking and keyframe stepping. Pause/Stop request output stop; a completed non-looping script holds its final target. Saving settings, applying a different mode or loading a script turns input off. Enable it again when ready. **Emergency stop** stops all outputs; clearing it leaves input off.
 
 ## Browser connections
 
-| Output type | Destination and behavior |
-| --- | --- |
-| Intiface | Buttplug v3 WebSocket; position, vibration and rotation features discovered from the server |
-| TCode WebSocket / serial | Selected axes encoded with the shared axis profiles, ranges and motion settings; serial uses Web Serial |
-| Sensa · HTTP / WebSocket | Sensa axis-command messages, for connection to another Sensa protocol input or a compatible receiver |
-| HTTP JSON / WebSocket JSON | Individual signal bindings encoded as `{address, value, type, …}` messages |
-| MIDI CC | A selected MIDI output with `CC/channel/controller` signal bindings |
-| Bluetooth LE | A selected device with a supported GATT profile and source axis |
-| Signal recording | Page-local Funscript tracks, CSV or JSON Lines |
+Use desktop Chrome or Edge for the widest serial, Bluetooth and MIDI support. WebSocket and HTTP outputs are also available; endpoints must meet the browser's HTTPS, local-network and CORS requirements.
 
-The two JSON families have different wire formats. **Sensa · HTTP / WebSocket** uses channel-command messages understood by [Sensa protocol inputs](protocol-inputs.en.md#httpwebsocket-json-for-applications); its WebSocket receiver acknowledges commands with `{ "ok": true }`. Generic **HTTP JSON / WebSocket JSON** sends the shared signal-binding envelope.
-
-Bluetooth profiles include **LOOB**, **Thrust Sync**, **Svakom V1**, **Lovense single-vibration** and **Youou VX001**. Choose the matching profile and the source axis before enabling the output. [Profile details and bridges](protocol-inputs.en.md#bluetooth-and-virtual-serial-wiring)
-
-Intiface cards default to **All devices**. To split devices into separate outputs on one socket, set each card's **Target device** or **Matching device name** to a distinct device. Default position features use inverted L0, matching the executable; feature mappings select a different source or direction. Different explicit device indices also distinguish devices with the same name. MIDI bindings can share one port on different channel/controller pairs. One TCode card sends its selected axes together; different WebSocket paths can use the same service port.
+Available output types appear in the menu. Unavailable entries explain the missing capability. For Bluetooth, choose the profile that matches your device. [Device profiles, JSON formats and bridge tools](protocol-inputs.en.md#bluetooth-and-virtual-serial-wiring)
 
 ## Calculations, recordings and explorer input
 
-The **Flow** workspace uses the same calculations, bindings, mapping curves, priorities and replay sources as the executable. Combine manual, script and paired input values, or route a calculation to several outputs. Network listeners belong to the Node.js host; the standalone page does not open UDP/TCP or OSC listener ports.
+Once one output works, **Flow** can combine inputs, smooth values or send a result to several outputs. A **Signal recording** output saves funscript tracks, CSV or JSON Lines. [Calculations and recordings](signal-pipeline.en.md)
 
-Calculation cards group the name, operation and numeric parameters. For weighted averages, each input's **Weight** sits beside its heading, with source and path fields below.
-
-From the [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html), choose **Send to WebSensa**. In the opened workbench click **Connect parameter explorer**. Incoming values appear in the input panel without enabling output. Turn on **Input enabled** to route them. A stopped or expired stream closes input; a fresh value updates the preview and lets you enable it again.
+The [parameter explorer](https://sealoong.github.io/Sensa/parameter-geometry.html) can send simulated readings to WebSensa: select **Send to WebSensa**, then **Connect parameter explorer** in the workbench. Check the preview and enable input when ready.
 
 ## Choosing a host
 
-| Host | Connections |
-| --- | --- |
-| Standalone WebSensa | Browser WebSocket/HTTP, supported serial/Bluetooth/MIDI APIs, local files and paired explorer input |
-| Node.js service WebUI | Native listeners, UDP/TCP/OSC, filesystem recordings, vendor integrations and installed native adapters |
-| Electron | The same Node.js service and workbench inside a desktop window |
+Use WebSensa for browser connections, manual control and scripts. Choose [Desktop or CLI](features.en.md#choose-an-edition) for VRChat/OSC, native UDP/TCP listeners, application routing and filesystem recordings. All use the same **Control**, **OSC**, **Flow** and **Settings** workbench; connections depend on the host.
 
-Desktop Chromium browsers usually provide the widest device API support; Firefox and Safari can still use WebSocket and HTTP outputs. HTTP receivers need a matching CORS policy, and an HTTPS page must use endpoints allowed by that browser's mixed-content and local-network rules.
+Browser settings are stored locally. Reloading starts with input off and does not reconnect outputs. **Download completed browser recordings before closing or reloading.**
 
-Browser configuration and language preferences are saved locally. Reloading prepares an inactive configuration; it does not reconnect outputs automatically. Completed browser recordings remain in page memory, so download them before closing or reloading. Native recordings use the service's recording directory.
-
-[First run](quick-start.en.md) · [Signal-flow guide](signal-pipeline.en.md) · [Adapter packages](adapter-catalog.en.md)
+[First run](quick-start.en.md) · [Workbench map](guide.en.md) · [Connection reference](protocol-inputs.en.md)

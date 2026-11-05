@@ -14,6 +14,19 @@ test('manual input shares one finite command format for one-shot and continuous 
   assert.equal(snapshot.L0, 600); assert.equal(snapshot.V0, 500); assert.equal(snapshot.L1, 234); assert.equal(snapshot.A0, 0);
 });
 
+test('selecting visible manual axes preserves every other axis draft in the shared command', () => {
+  const draft = { L0: 520, L1: 317, L2: 627, R0: 229, V0: 73 };
+  const before = JSON.stringify(draft);
+  const selected = ['L0', 'V0'];
+  const command = manualCommandPayload(draft, 'Default', 999, selected);
+  assert.deepEqual(command.axes, selected);
+  for (const [axis, value] of Object.entries(draft)) assert.equal(command[axis], value, axis);
+  assert.equal(JSON.stringify(draft), before);
+  assert.deepEqual(selected, ['L0', 'V0']);
+  assert.deepEqual(manualCommandPayload(draft, 'Default', 999, ['R0']).axes, ['R0']);
+  assert.equal(manualCommandPayload(draft, 'Default', 999, ['R0']).L1, 317);
+});
+
 test('script snapshots preserve A-B markers and explicit clearing survives fallback preferences / 脚本快照保留 A-B 标记，显式清除不会被旧偏好恢复', () => {
   const snapshot = { durationMs: 10000, loop: true, speed: 2, loopStartMs: 2000, loopEndMs: 8000 };
   assert.deepEqual(normalizeScriptSettingsState(snapshot), { loop: true, speed: 2, loopStartMs: 2000, loopEndMs: 8000 });

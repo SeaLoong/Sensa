@@ -381,7 +381,7 @@ export async function inspectManualAlignment(page, layout) {
     slider: '.value-field__controls input[type=range]',
   });
   return geometricEvidence({ layout, groups }, () => {
-    expect(groups, 'Three primary axes / 三个主轴').toHaveLength(3);
+    expect(groups, 'One primary stroke axis / 一个常用主轴').toHaveLength(1);
     const slack = tolerance(groups.map(group => group.box));
     for (const group of groups) {
       const label = only(group, 'label'), number = only(group, 'number'), slider = only(group, 'slider');
@@ -399,6 +399,35 @@ export async function inspectManualAlignment(page, layout) {
     } else {
       near(groups.map(group => only(group, 'number').right), slack, 'Stacked numeric input right edges / 堆叠输入右沿');
     }
+  });
+}
+
+export async function inspectMoreAxesAlignment(page, layout) {
+  const fields = page.getByTestId('manual-more-axes').locator('.manual-extra-axes > .value-field');
+  const groups = await geometryGroups(fields, {
+    label: '.value-field__heading label', number: '.value-field__heading input.number-input',
+    slider: '.value-field__controls input[type=range]',
+  });
+  return geometricEvidence({ layout, groups }, () => {
+    expect(groups, 'All eleven additional axes remain available / 其余十一个动作轴均可用').toHaveLength(11);
+    const slack = tolerance(groups.map(group => group.box));
+    for (const group of groups) {
+      const label = only(group, 'label'), number = only(group, 'number'), slider = only(group, 'slider');
+      for (const box of [label, number, slider]) contained(box, group.box, slack, 'Additional axis containment / 更多轴控件完整容纳');
+      near([(label.top + label.bottom) / 2, (number.top + number.bottom) / 2], slack, 'Additional axis heading alignment / 更多轴标题与数值对齐');
+      separate(label, number, slack, 'Additional axis title and number do not overlap / 更多轴标题与数值不重叠');
+      expect(number.bottom).toBeLessThanOrEqual(slider.top + slack);
+      near([slider.right, number.right], slack, 'Additional axis input and slider right edges / 更多轴数值与滑条右沿');
+    }
+    near(groups.map(group => group.box.width), slack, 'Additional axes use equal widths / 更多轴等宽');
+    if (layout === 'columns') {
+      for (let start = 0; start < groups.length; start += 3) {
+        const row = groups.slice(start, start + 3);
+        near(row.map(group => only(group, 'number').bottom), slack, 'Additional axis numbers share a row / 更多轴数值同排');
+        near(row.map(group => only(group, 'label').textBottom), slack, 'Additional axis title baselines / 更多轴标题基线');
+        near(row.map(group => only(group, 'slider').top), slack, 'Additional axis sliders share a row / 更多轴滑条同排');
+      }
+    } else near(groups.map(group => only(group, 'number').right), slack, 'Stacked additional axis input right edges / 窄屏更多轴数值右沿');
   });
 }
 

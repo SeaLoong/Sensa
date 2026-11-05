@@ -1,9 +1,11 @@
 import React, { useId, useRef } from 'react';
 import { formatCompactNumber, normalizeRangePair, precisionFromStep } from './numeric.js';
 import { t } from './i18n.js';
+import { FieldHint } from './ui.tsx';
 
-export function SelectField({ label, title, value, onChange, options, disabled = false, className = '', ...props }) {
-  const id = useId();
+export function SelectField({ label, title, visibleHint = false, value, onChange, options, disabled = false, className = '', ...props }) {
+  const generatedId = useId(), id = props.id ?? generatedId;
+  const description = [props['aria-describedby'], title ? `${id}-hint` : undefined].filter(Boolean).join(' ') || undefined;
   const groups = [];
   const grouped = new Map();
   for (const option of options || []) {
@@ -29,7 +31,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
         {...props}
         id={id}
         aria-labelledby={`${id}-label`}
-        aria-describedby={title ? `${id}-hint` : undefined}
+        aria-describedby={description}
         value={value ?? ''}
         disabled={disabled}
         onChange={(event) => {
@@ -43,7 +45,7 @@ export function SelectField({ label, title, value, onChange, options, disabled =
             </optgroup>
           : renderOption(entry))}
       </select>
-      {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}
+      <FieldHint id={`${id}-hint`} visible={visibleHint}>{title}</FieldHint>
     </div>
   );
 }
@@ -94,6 +96,7 @@ export function SliderControl({
 export function ValueSliderField({
   label,
   title,
+  visibleHint = false,
   value,
   onChange,
   onChangeCommitted,
@@ -161,7 +164,7 @@ export function ValueSliderField({
           onChangeCommitted={(next) => onChangeCommitted?.(normalize(next))}
         />
       </div>
-      {title && <span className="sr-only" id={`${id}-hint`}>{title}</span>}
+      <FieldHint id={`${id}-hint`} visible={visibleHint}>{title}</FieldHint>
     </div>
   );
 }
@@ -169,6 +172,7 @@ export function ValueSliderField({
 export function RangeField({
   label,
   title,
+  visibleHint = false,
   value,
   onChange,
   sliderMin,
@@ -181,6 +185,7 @@ export function RangeField({
   endLabel = t('终点'),
   valueFormatter = (next) => formatCompactNumber(next, precisionFromStep(inputStep)),
 }) {
+  const id = useId();
   const update = (index, next) => {
     const pair = [...value];
     pair[index] = next;
@@ -195,7 +200,7 @@ export function RangeField({
     );
   };
   return (
-    <fieldset className="range-field">
+    <fieldset className="range-field" aria-describedby={title ? `${id}-hint` : undefined}>
       <legend title={title}>
         {label}{' '}
         <span className="muted">
@@ -220,6 +225,7 @@ export function RangeField({
           </label>
         ))}
       </div>
+      <FieldHint id={`${id}-hint`} visible={visibleHint}>{title}</FieldHint>
     </fieldset>
   );
 }

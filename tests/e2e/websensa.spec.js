@@ -4,7 +4,8 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { WebSocketServer } from 'ws';
 import { buildPages } from '../../scripts/build-pages.mjs';
-import { addWorkbenchOutput, inputActivation, manualMotion, openWorkbench, uploadWorkbenchScript } from './websensa-workbench.js';
+import { addWorkbenchOutput, inputActivation, manualMotion, revealWorkbenchAxes, openWorkbench, uploadWorkbenchScript } from './websensa-workbench.js';
+import english from '../../src/web/i18n.en.json' with { type: 'json' };
 
 let server, sockets, directory, base;
 const commands = [], requests = [], connections = [];
@@ -55,6 +56,52 @@ test.beforeEach(() => { commands.length = 0; requests.length = 0; connections.le
 test.afterEach(() => { for (const socket of sockets.clients) socket.terminate(); });
 test.afterAll(async () => { if (sockets) await new Promise(resolve => sockets.close(resolve)); if (server) await new Promise(resolve => server.close(resolve)); });
 async function open(page) { await openWorkbench(page, base + '/Sensa/websensa/?lang=en'); }
+
+for (const locale of ['zh-CN', 'en-US']) {
+  test('@site @beginner @quality @i18n WebSensa shares the compact task chooser and keyboard motion disclosure / 网页工作台沿用简洁任务选择与键盘动作折叠 ' + locale,
+    async ({ page }, info) => {
+      const label = zh => locale === 'en-US' ? english[zh] || zh : zh;
+      await page.goto(base + '/Sensa/websensa/?lang=' + locale);
+      await expect(page.getByRole('heading', { name: 'WebSensa', exact: true })).toBeVisible();
+      await expect(page.locator('html')).toHaveAttribute('lang', locale);
+      const chooser = page.getByTestId('getting-started');
+      await expect(chooser).toBeVisible();
+      await expect(chooser.locator('[data-testid^="setup-task-"]')).toHaveCount(2);
+      await expect(chooser.getByTestId('setup-task-osc')).toHaveCount(0);
+      await chooser.getByTestId('setup-task-script').click();
+      await expect(page.locator('#input-tabs-script')).toBeFocused();
+      await expect(page.getByRole('button', { name: label('应用输入方式'), exact: true })).toBeVisible();
+      await chooser.getByTestId('setup-task-manual').click();
+      await expect(page.locator('#input-tabs-manual')).toBeFocused();
+      const manual = page.locator('.manual-workspace'), details = manual.getByTestId('manual-more-axes'), summary = details.locator('summary');
+      await expect(manual.getByRole('slider')).toHaveCount(1);
+      await expect(manual.getByRole('group', { name: label('输出动作轴'), exact: true })).toBeHidden();
+      await summary.focus(); await summary.press('Enter');
+      await expect(details).toHaveAttribute('open', '');
+      await expect(manual.getByRole('slider')).toHaveCount(12);
+      const axes = manual.getByRole('group', { name: label('输出动作轴'), exact: true });
+      await summary.press('Tab');
+      await expect(axes.getByRole('checkbox', { name: 'L1', exact: true })).toBeFocused();
+      const l1 = manual.locator('input[type=number]').nth(1);
+      await l1.fill('420');
+      await axes.getByRole('checkbox', { name: 'V0', exact: true }).check();
+      await summary.focus(); await summary.press('Space');
+      await expect(details).not.toHaveAttribute('open');
+      await expect(l1).toBeHidden();
+      await page.getByLabel('Language / 语言').selectOption(locale === 'en-US' ? 'zh-CN' : 'en-US');
+      await summary.focus(); await summary.press('Enter');
+      await expect(l1).toHaveValue('420');
+      await expect(axes.getByRole('checkbox', { name: 'V0', exact: true })).toBeChecked();
+      await expect(axes.getByRole('checkbox', { name: 'L0', exact: true })).toBeChecked();
+      await expect(page.getByRole('switch')).not.toBeChecked();
+      await expect(page.locator('.output-card')).toHaveCount(0);
+      expect(commands).toEqual([]);
+      expect(requests.some(endpoint => /^\/(api|ws)(\/|$)/.test(endpoint))).toBe(false);
+      await info.attach('websensa-beginner-controls.json', { body: JSON.stringify({ locale,
+        taskModes: ['script', 'manual'], primaryAxes: 1, expandedAxes: 12, preservedDraft: { L1: 420 },
+        preservedOutputAxes: ['L0', 'V0'], inputActive: false, commands }), contentType: 'application/json' });
+    });
+}
 
 test('@site @transport WebSensa sends manual fanout and scripts to actual independent WS/HTTP mock endpoints without a backend', async ({ page }, info) => {
   await open(page);
@@ -111,6 +158,7 @@ test('@site @transport WebSensa multiplexes two Intiface devices through one act
   const vibration = await addWorkbenchOutput(page, 'Intiface', endpoint, { name: 'Vibration output', deviceName: 'Vibration device' });
   expect(connections.filter(connectionEndpoint => connectionEndpoint === '/intiface')).toHaveLength(1);
   expect(commands.filter(item => ['LinearCmd', 'ScalarCmd'].includes(item.command))).toHaveLength(0);
+  await revealWorkbenchAxes(page);
   const vibrationAxis = page.getByRole('group', { name: 'Motion axes', exact: true }).getByRole('checkbox', { name: 'V0', exact: true });
   await vibrationAxis.check();
   await manualMotion(page, 'L0', 640); await manualMotion(page, 'V0', 380); await inputActivation(page).check();

@@ -1,5 +1,5 @@
 import { test, expect, card, text, workspace, oscWorkspace, expand, mode } from './fixtures.js';
-import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow, inspectManualAlignment, inspectOutputAlignment, inspectMappingAlignment, inspectNarrowFormAlignment, inspectModalFrame } from './ui-quality.js';
+import { createUiQualityReport, inspectBasicTargets, inspectFocusIndicator, inspectReflow, inspectManualAlignment, inspectMoreAxesAlignment, inspectOutputAlignment, inspectMappingAlignment, inspectNarrowFormAlignment, inspectModalFrame } from './ui-quality.js';
 
 const auditStates = [
   'control-manual-expanded',
@@ -14,7 +14,7 @@ const auditStates = [
   'axis-profile-dialog',
 ];
 const behaviorChecks = [
-  'workspace-navigation-layout', 'manual-alignment', 'output-row-alignment', 'mapping-alignment',
+  'workspace-navigation-layout', 'manual-alignment', 'manual-more-axes-alignment', 'output-row-alignment', 'mapping-alignment',
   'skip-link-focus-and-target', 'tabs-keyboard-and-control-boundary', 'native-dialog-focus-trap-escape-return',
   'reflow-320-control', 'target-samples-buttons', 'target-samples-toggle-label', 'target-samples-select-and-slider',
   'reflow-320-mapping-expanded', 'target-samples-fields-and-disclosures', 'reflow-320-parameter-scroll-region',
@@ -68,7 +68,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       test.setTimeout(180000);
       const report = createUiQualityReport(page, info, { kind: 'automated', plannedStates: auditStates, plannedChecks: ['audits-never-enable-input'] });
       try {
-        await expand(page, await label(page, '旋转、震动与辅助轴'));
+        await expand(page, await label(page, '更多动作轴'));
         await expand(page, await label(page, '发送设置'));
         await expand(page, await label(page, '录制 L0 目标'));
         await report.audit('control-manual-expanded');
@@ -178,7 +178,7 @@ for (const locale of ['zh-CN', 'en-US']) {
             await page.keyboard.press('End');
             await expect.poll(() => main.evaluate(element => Math.abs(element.scrollHeight - element.clientHeight - element.scrollTop))).toBeLessThanOrEqual(1);
           }
-          const firstControl = page.locator('.control-readiness').getByRole('button', { name: await label(page, '配置输出'), exact: true });
+          const firstControl = page.getByTestId('quick-setup').locator('summary');
           await page.keyboard.press('Tab');
           await expect(firstControl).toBeFocused();
           const bounds = await firstControl.evaluate(element => {
@@ -199,6 +199,9 @@ for (const locale of ['zh-CN', 'en-US']) {
           return { indicator, destination: 'main', focusEvidence: 'main-scrollport-focus-viewport', canScroll,
             tabTarget: await firstControl.getAttribute('id'), bounds, emergencyVisible: true };
         });
+
+        await expand(page, await label(page, '更多动作轴'));
+        await report.check('manual-more-axes-alignment / 更多动作轴对齐', () => inspectMoreAxesAlignment(page, layout));
 
         await report.check('tabs-keyboard-and-control-boundary / 页签键盘与控制边界', async () => {
           const before = await rig.overview();

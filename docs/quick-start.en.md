@@ -2,97 +2,61 @@
 
 [简体中文](quick-start.md) | **English**
 
-For controls and script playback straight from your browser, [open WebSensa](https://sealoong.github.io/Sensa/websensa/). For OSC, application routing, recording and the full device connections, start the desktop workbench below. WebSensa, the Node CLI and Electron share one workbench organized around sources, connections and results.
+Connect one device first: use L0 for an OSR/TCode stroke, or V0 for an Intiface vibrator. Then choose VRChat/SPS, a funscript or manual control.
 
 ## 1. Start
 
-[Download](https://github.com/SeaLoong/Sensa/releases/latest) the latest stable release. Node.js/Electron migration builds first reach [development previews](https://github.com/SeaLoong/Sensa/releases) after CI passes. The formats below include their runtime; no separate Node.js installation is needed.
+For manual control or scripts, [open WebSensa](https://sealoong.github.io/Sensa/websensa/). Use desktop Chrome or Edge for serial or Bluetooth connections.
 
-| System and format | Architecture | Example filename | Start |
-| --- | --- | --- | --- |
-| Windows Electron desktop | x64/ARM64 | `Sensa-version-win-x64-Desktop.zip` | Extract the complete archive, then run `Sensa.exe` |
-| Linux Electron desktop | x64/ARM64 | `Sensa-version-linux-x64-Desktop.tar.gz` | Extract the complete archive, then run `./Sensa` |
-| macOS Electron desktop | x64/ARM64 | `Sensa-version-osx-arm64-Desktop.zip` | Extract the complete archive, then open `Sensa.app` |
-| Windows CLI installer | x64/ARM64 | `Sensa-version-win-x64-Setup.exe` | Install, then launch from the Start menu |
-| Windows CLI single file | x64/ARM64 | `Sensa-version-win-x64-SingleFile.exe` | Put the EXE in a writable folder and run it |
-| Windows CLI portable | x64/ARM64 | `Sensa-version-win-x64.zip` | Extract the complete ZIP, then run `Sensa.exe` |
-| Linux CLI portable | x64/ARM64 | `Sensa-version-linux-x64.tar.gz` | Extract, then run `./Sensa` |
-| macOS CLI portable | x64/ARM64 | `Sensa-version-osx-arm64.tar.gz` | Extract, then run `./Sensa` |
+For **VRChat/OSC**, [download Sensa](https://github.com/SeaLoong/Sensa/releases/latest), extract a **Desktop** package and run it. The **CLI** package opens the same workbench in your browser and reports its address, usually **http://127.0.0.1:5086**. Use the address it actually reports.
 
-Intel/AMD computers generally use **x64**; Apple Silicon and Windows ARM use **ARM64**. Development filenames also include a build number and commit.
-
-On Ubuntu 24.04 with restricted user namespaces, run `python3 ./sensa-linux-sandbox.py install` from the Electron extraction directory before opening `./Sensa`. The helper uses sudo to register an AppArmor permission for that exact executable path; Chromium's sandbox stays enabled and Sensa runs as your ordinary user. Run `python3 ./sensa-linux-sandbox.py remove` before moving or deleting the directory, then register the new location. Other Linux configurations and the CLI do not need this step.
-
-Electron opens the workbench in its own window and coordinates the same bundled Node CLI service. The CLI opens it in your browser. The usual CLI address is **http://127.0.0.1:5086**; use the actual address reported at startup when ports change. Input starts off so you can prepare the first connection.
-
-The Windows CLI installer uses `%LOCALAPPDATA%\Programs\Sensa`; updates and uninstall retain user configuration and recordings. CLI portable archives, installers and Electron packages include documentation and Python bridge tools. The single EXE embeds the workbench, [parameter explorer](http://127.0.0.1:5086/docs/parameter-geometry.html) and serial/MIDI dependencies. Prepare a Python environment separately when using the bridges. [Serial and Bluetooth bridges](../tools/protocol-bridge/README.md)
+Current Desktop/CLI builds are also available in [development previews](https://github.com/SeaLoong/Sensa/releases); Download opens the latest stable release. Choose **x64** for Intel/AMD or **ARM64** for Apple Silicon/Windows ARM. [All download formats and Linux setup](features.en.md#configuration-and-development)
 
 ![Manual controls in Sensa](screenshots/desktop/english-manual.png)
 
-English interface · [Narrow layout](screenshots/mobile/english-manual.png) · [More running examples](screenshots.en.md)
+[Narrow layout](screenshots/mobile/english-manual.png) · [More running examples](screenshots.en.md)
 
 ## 2. Add an output
 
-Recording a slider is a useful first flow:
+1. Open **Control → Outputs**, choose an **Output type** and click **Add output**.
+2. Enter your device's connection in **Output settings**:
+   - **OSR / SR6 / TCode:** select serial and the port, or enter its network endpoint. Choose the device's axis profile.
+   - **Intiface:** start Intiface Central and scan for your device. Enter its WebSocket address in Sensa. Use **Matching device name** under **Devices and features** to limit control to your device.
+3. Click **Save output**, then **Enable** on the output card. Confirm that it connects.
 
-1. In **Flow**, choose **Add output → Recording** and keep **Funscript**.
-2. Open **Input-to-output bindings**, choose **Manual → L0**, name the track `L0` and use input/output ranges **0–1**.
-3. Save and enable the recording output.
-
-Or choose a connected destination:
-
-| Destination | Connection |
-| --- | --- |
-| TCode / OSR | Serial at 115200/8N1, or a UDP/TCP endpoint; select an axis profile |
-| Intiface | Start Central, enter its address, scan and select a device |
-| OSC / VRChat | Receiver IP/port, parameter path and Float/Int/Bool type |
-| DG-LAB | DG-LAB 4 APP pairing, device and channel |
-| MIDI / network service | MIDI port, HTTP/WebSocket URL or MQTT broker/topic |
-
-A binding connects a source to a destination. Its input range describes the source reading; its output range describes the destination response. [Complete output setup](signal-pipeline.en.md#add-outputs-and-bindings)
+For TCode, check direction and travel in **Settings → Axis profiles** before the first movement. For another device type, follow [output setup](signal-pipeline.en.md#add-outputs-and-bindings).
 
 ## 3. Enable input and inspect results
 
-In **Control**, choose **Manual**, apply the mode and enable input. Adjust L0 and choose **Send once**, or enable **Live updates** to follow edits. Each binding displays its raw reading, converted value and recent target.
+1. In **Control**, choose **Manual** and click **Apply input mode** if shown.
+2. Turn on **Input enabled** in the header.
+3. For OSR/TCode, move **L0** a small amount. For an Intiface vibrator, open **More motion axes** and adjust **V0** instead. In WebSensa, also enable **V0** under **Motion axes**. Click **Send once** and watch the device respond. **Send continuously** follows later slider changes.
 
-Disable input to finish the recording. Download the funscript or load it into the player, choose **Script**, enable input and press **Play**. Natural completion retains the final value and input activation. Stop, input disable and emergency stop perform their respective stop operations; other sources in Combined mode continue according to their own state.
+The output card shows connection status and recent values. If nothing happens, check the selected device/port, output **Enable**, applied input mode and **Input enabled**.
 
-For a motion device, set direction and travel in its axis profile and try a small movement first. The header's **Emergency stop** stops every output and remains active until cleared. Saving configuration or changing mode/scripts switches input off; enable it after preparing the new setup.
+Turn off **Input enabled** when finished. **Emergency stop** stops all outputs and stays active until cleared. Saving settings, changing input mode or replacing a script turns input off; enable it again when ready. Clearing emergency stop also leaves input off.
 
 ## 4. Choose sources and add computation
 
-| Source | Next step |
-| --- | --- |
-| OSC parameter | Choose OSC or Combined; inspect the sender/source and save a mapping |
-| Funscript | Load the file, choose Script, then set speed, loop and position |
-| Website/player | Add a [protocol input](protocol-inputs.en.md), connect the client and choose Protocol or Combined |
-| Several sources | Add calculations and bindings, then choose Combined |
-| Avatar position | Follow [tracking setup](usage-scenarios.en.md), inspect the readings and calibrate the range |
+- **VRChat / SPS / OGB:** use the desktop edition and follow [the OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps). Select a preset, check received values and calibrate before enabling input.
+- **Funscript:** choose **Script**, **Choose script**, then **Apply input mode** if shown. For a vibration-only Intiface device, set its **Vibration source** to **L0 · Depth to vibration**. Turn on **Input enabled** and press **Play**. [Player controls](websensa.en.md#manual-controls-and-scripts)
+- **Manual:** keep using L0. Expand the additional axes when your device needs them.
 
-VRChat commonly sends OSC to Sensa on **9001** and receives write-back/heartbeat on **9000**. [Parameter meanings](osc-parameters.en.md) and [presets](presets.en.md) help select the right readings.
-
-In **Flow**, choose **Add computed signal** for weighting, smoothing, thresholds or spatial calculations. Save the result once and select it in several outputs. [Examples](computed-signals.en.md)
+Once this works, [computed signals](computed-signals.en.md) can mix inputs or smooth a response. [Protocol inputs](protocol-inputs.en.md) receive controls from websites and other players.
 
 ## 5. Save recordings and complete plans
 
-Completed recordings can be downloaded, played or used as calculation inputs. Funscript stores trajectories; JSON Lines/CSV store diagnostic samples. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
+[Recording and replay](signal-pipeline.en.md#record-and-inspect) can save your interaction as funscript. [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) save mappings, calculations, axis profiles and outputs together.
 
-In **Flow → Save and load a complete plan**, export calculations, mappings, axis profiles and outputs together. The import preview shows what will be replaced before applying it.
-
-The CLI defaults to `config.json` beside its executable, or the current working directory during source development. Electron defaults to `Sensa/config.json` under the user application-data directory. `SENSA_CONFIG_PATH` or `--config <path>` selects a shared file for either host. Existing PascalCase and camelCase properties are accepted; saves use canonical camelCase. Recording outputs default to `recordings` beside the selected configuration. [Workbench guide](guide.en.md) · [Language preferences](languages.en.md)
+Browser settings are saved locally; download completed browser recordings before reloading or closing the page. [WebSensa connection details](websensa.en.md) · [Workbench map](guide.en.md)
 
 ## Run several instances
 
-Opening the same configuration again from the CLI or Electron reuses its running service. If a workbench page is already connected, Sensa keeps that page; otherwise it opens the workbench.
-
-Use named instances for independent setups:
+Opening the same desktop configuration again reuses its running service. For an independent setup, use a named instance:
 
 ```sh
 Sensa --instance studio
-Sensa --instance portable
 Sensa --new-instance
 ```
 
-Named configurations live under `instances/<name>/config.json` beside the original configuration. A new instance starts with a fresh setup. `--new-instance` chooses a unique name. Management HTTP, OSC reception and startup protocol listeners use available ports when the preferred ports are occupied; read the console/workbench for their current addresses. Manually saving an occupied listener still reports the conflict so you can choose its intended endpoint.
-
-For a background CLI service, pass `--open-browser false`. Use `--config <path>` to share a configuration and running instance between CLI and Electron.
+Named configurations live in `instances/<name>/config.json` beside the original configuration. Read the current listening addresses in the console/workbench. `--config <path>` selects a configuration; `--open-browser false` runs the CLI in the background. [Configuration locations and runtime details](architecture.en.md)
