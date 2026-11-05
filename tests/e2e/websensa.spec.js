@@ -91,8 +91,11 @@ for (const locale of ['zh-CN', 'en-US']) {
       await page.getByLabel('Language / 语言').selectOption(locale === 'en-US' ? 'zh-CN' : 'en-US');
       await summary.focus(); await summary.press('Enter');
       await expect(l1).toHaveValue('420');
-      await expect(axes.getByRole('checkbox', { name: 'V0', exact: true })).toBeChecked();
-      await expect(axes.getByRole('checkbox', { name: 'L0', exact: true })).toBeChecked();
+      const translatedAxes = manual.getByRole('group', {
+        name: locale === 'en-US' ? '输出动作轴' : english['输出动作轴'], exact: true,
+      });
+      await expect(translatedAxes.getByRole('checkbox', { name: 'V0', exact: true })).toBeChecked();
+      await expect(translatedAxes.getByRole('checkbox', { name: 'L0', exact: true })).toBeChecked();
       await expect(page.getByRole('switch')).not.toBeChecked();
       await expect(page.locator('.output-card')).toHaveCount(0);
       expect(commands).toEqual([]);
