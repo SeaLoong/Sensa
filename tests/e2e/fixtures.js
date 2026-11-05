@@ -226,8 +226,13 @@ async function attachCurrentCatalogCapture(target, name) {
   const record = catalogCaptureRecord({ project: info.project.name, name, bytes, testId: info.testId,
     sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
     runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT });
-  await info.attach(record.attachment, { body: bytes, contentType: 'image/png' });
-  await info.attach(record.attachment + '-source', { body: JSON.stringify(record), contentType: 'application/json' });
+  const imagePath = info.outputPath(record.attachment + '.png');
+  const sourcePath = info.outputPath(record.attachment + '-source.json');
+  // Path attachments keep the actual files addressable in the raw case report.
+  await fs.writeFile(imagePath, bytes);
+  await fs.writeFile(sourcePath, JSON.stringify(record));
+  await info.attach(record.attachment, { path: imagePath, contentType: 'image/png' });
+  await info.attach(record.attachment + '-source', { path: sourcePath, contentType: 'application/json' });
 }
 export async function outputValue(rig, transport, expected) {
   await expect.poll(() => {

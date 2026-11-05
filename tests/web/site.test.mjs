@@ -132,6 +132,9 @@ test('public guides build into bilingual routes with resolvable local links and 
       const article = downloadGuide.match(/<article>([\s\S]*?)<\/article>/)[1];
       assert.match(article, /href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest"/);
       assert.doesNotMatch(article, /data-download=/, 'The guide contains ordinary release links');
+      if (locale === 'zh-CN')
+        for (const label of ['OSR／SR6／TCode', 'VRChat／SPS／OGB', '手动'])
+          assert.ok(article.includes('<strong>' + label + '</strong>：'), 'First-run device/source labels render as emphasis: ' + label);
       const installReference = await fs.readFile(path.join(output, locale + '/docs/features.html'), 'utf8');
       const installArticle = installReference.match(/<article>([\s\S]*?)<\/article>/)[1];
       assert.match(installArticle, /<a href="https:\/\/github\.com\/SeaLoong\/Sensa\/releases\/latest">/, 'The install reference offers a direct download without JavaScript');
