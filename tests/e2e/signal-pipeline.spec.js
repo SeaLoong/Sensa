@@ -120,7 +120,9 @@ async function combinedManual(page, rig, raw = 400, r0) {
   await expect.poll(async () => (await rig.overview()).input.mode).toBe('combined');
   const combined = page.getByTestId('combined-inputs');
   const manual = combined.locator('details').filter({ has: page.locator('summary', { hasText: await text(page, '手动来源') }) });
-  if (!(await manual.evaluate(element => element.open))) await manual.locator('summary').click();
+  const manualSummary = manual.locator(':scope > summary');
+  await expect(manualSummary).toHaveCount(1);
+  if (!(await manual.evaluate(element => element.open))) await manualSummary.click();
   const axis = manual.locator('.value-field').filter({ has: page.getByRole('slider', { name: await text(page, 'L0 主轴'), exact: true }) });
   await axis.getByRole('spinbutton').fill(String(raw));
   if (r0 !== undefined) {
