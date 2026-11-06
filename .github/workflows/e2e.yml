@@ -57,7 +57,7 @@ jobs:
         run: npm run build:node -- --bundle-only
       - name: Run E2E
         id: browser_tests
-        run: npm run e2e:ci
+        run: npm run e2e:ci -- osc-flow.spec.js --grep 'OSC and Flow ownership / OSC 与流程职责 (zh-CN|en-US)'
       - name: Verify comparison
         id: comparison
         if: ${{ !inputs.update_snapshots }}

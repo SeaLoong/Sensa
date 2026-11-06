@@ -213,6 +213,92 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(toolbar.getByTestId('restore-signal-drafts')).toBeDisabled();
         await expect(routing.locator('[data-output-id="udp"]')).toContainText('Flow UDP ' + locale);
         await unchanged(page, rig, outputSaved);
+        // Supplemental diagnostic only: inspect Flow after the complete unchanged main journey.
+        const routingReflow = [];
+        try {
+          for (const width of [320, 390]) {
+            await page.setViewportSize({ ...viewport, width });
+            const floor = width === 320 ? await inspectReflow(page) : null;
+            const layout = await routing.evaluate(element => {
+              const box = node => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right,
+                top: r.top, bottom: r.bottom, width: r.width, height: r.height }; };
+              const port = element.closest('.workspace-scroll');
+              return { viewport: { width: innerWidth, height: innerHeight }, routing: box(element),
+                documentWidth: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth),
+                workspaceWidth: port.clientWidth, workspaceScrollWidth: port.scrollWidth,
+                rows: [...element.querySelectorAll('[data-output-id]')].map(row => ({ id: row.dataset.outputId,
+                  ...box(row), clientWidth: row.clientWidth, scrollWidth: row.scrollWidth,
+                  actions: [...row.querySelectorAll('button')].map(box) })) };
+            });
+            expect(layout.documentWidth).toBeLessThanOrEqual(width + 1);
+            expect(layout.workspaceScrollWidth).toBeLessThanOrEqual(layout.workspaceWidth + 1);
+            expect(layout.routing.left).toBeGreaterThanOrEqual(0);
+            expect(layout.routing.right).toBeLessThanOrEqual(width + 1);
+            expect(layout.rows.map(row => row.id)).toEqual(outputSaved.config.outputs.map(output => output.id));
+            for (const row of layout.rows) {
+              expect(row.scrollWidth).toBeLessThanOrEqual(row.clientWidth + 1);
+              expect(row.left).toBeGreaterThanOrEqual(layout.routing.left - 1);
+              expect(row.right).toBeLessThanOrEqual(layout.routing.right + 1);
+              expect(row.actions).toHaveLength(1);
+              for (const action of row.actions) {
+                expect(action.left).toBeGreaterThanOrEqual(row.left - 1);
+                expect(action.right).toBeLessThanOrEqual(row.right + 1);
+                expect(action.width).toBeGreaterThanOrEqual(32);
+                expect(action.height).toBeGreaterThanOrEqual(32);
+              }
+            }
+            routingReflow.push({ width, floor, layout });
+          }
+        } finally { await page.setViewportSize(viewport); }
+        await unchanged(page, rig, outputSaved);
+        await expect(page.locator('.toast')).toHaveCount(0, { timeout: 10000 });
+        const sizing = await routing.evaluate(element => ({ height: element.getBoundingClientRect().height,
+          portHeight: element.closest('.workspace-scroll').clientHeight }));
+        // Keep the native project width. A taller observation viewport avoids ancestor clipping;
+        // the 320/390 assertions above use the original project height, without DOM/CSS changes.
+        const routingCaptureViewport = { ...viewport,
+          height: viewport.height + Math.max(0, Math.ceil(sizing.height - sizing.portHeight)) + 32 };
+        try {
+          await page.setViewportSize(routingCaptureViewport);
+          const captureGeometry = await routing.evaluate(element => {
+            const port = element.closest('.workspace-scroll'), bounds = port.getBoundingClientRect();
+            const initial = element.getBoundingClientRect();
+            port.scrollTo({ top: port.scrollTop + initial.top - bounds.top - port.clientTop,
+              left: 0, behavior: 'instant' });
+            const box = node => { const r = node.getBoundingClientRect(); return { left: r.left, right: r.right,
+              top: r.top, bottom: r.bottom, width: r.width, height: r.height }; };
+            const p = port.getBoundingClientRect();
+            return { routing: box(element), port: { left: p.left + port.clientLeft,
+              right: p.left + port.clientLeft + port.clientWidth, top: p.top + port.clientTop,
+              bottom: p.top + port.clientTop + port.clientHeight },
+              rows: [...element.querySelectorAll('[data-output-id]')].map(row => ({ id: row.dataset.outputId, ...box(row) })) };
+          });
+          expect(captureGeometry.routing.top).toBeGreaterThanOrEqual(captureGeometry.port.top - 1);
+          expect(captureGeometry.routing.bottom).toBeLessThanOrEqual(captureGeometry.port.bottom + 1);
+          expect(captureGeometry.routing.left).toBeGreaterThanOrEqual(captureGeometry.port.left - 1);
+          expect(captureGeometry.routing.right).toBeLessThanOrEqual(captureGeometry.port.right + 1);
+          for (const row of captureGeometry.rows) {
+            expect(row.top).toBeGreaterThanOrEqual(captureGeometry.port.top - 1);
+            expect(row.bottom).toBeLessThanOrEqual(captureGeometry.port.bottom + 1);
+          }
+          const routingPng = info.outputPath('osc-flow-routing.png');
+          await routing.screenshot({ path: routingPng, animations: 'disabled', caret: 'hide' });
+          const routingBytes = await readFile(routingPng);
+          const routingSource = { schema: 1,
+            sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
+            productSourceCommit: '15e15cf47dcb5bd49083b1df1123e9aa143c3bf2',
+            runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT,
+            testId: info.testId, project: info.project.name, locale, attachment: 'osc-flow-routing',
+            sha256: createHash('sha256').update(routingBytes).digest('hex'),
+            originalViewport: viewport, captureViewport: routingCaptureViewport, captureGeometry, routingReflow,
+            wholeRoutingContained: true, domOrCssModified: false, configurationAndWireUnchanged: true,
+            supplementalDiagnosticOnly: true, baselineAcceptance: false, ordinaryComparisonAcceptance: false };
+          const routingSourcePath = info.outputPath('osc-flow-routing-source.json');
+          await writeFile(routingSourcePath, JSON.stringify(routingSource, null, 2));
+          await info.attach('osc-flow-routing', { path: routingPng, contentType: 'image/png' });
+          await info.attach('osc-flow-routing-source', { path: routingSourcePath, contentType: 'application/json' });
+        } finally { await page.setViewportSize(viewport); }
+        await unchanged(page, rig, outputSaved);
         const proof = { schema: 1, sourceCommit: process.env.SENSA_SOURCE_COMMIT || process.env.GITHUB_SHA,
           runId: process.env.GITHUB_RUN_ID, attempt: process.env.GITHUB_RUN_ATTEMPT, testId: info.testId,
           project: info.project.name, locale, keyboardSequence: sequence, focus, geometry,
