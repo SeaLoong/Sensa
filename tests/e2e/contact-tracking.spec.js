@@ -1,4 +1,4 @@
-import { test, expect, enable, mode, active, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
+import { test, expect, text, enable, mode, active, oscWorkspace, expand, allowSpatial, checkpoint, outputValue } from './fixtures.js';
 import { contactRootSamples } from './mocks.js';
 
 const prefix = 'Sensa/Contact/CIContactRoot';
@@ -18,7 +18,7 @@ async function savePointDraft(page, rig, panel, metric, role) {
   await panel.getByRole('button', { name: '替换草稿', exact: true }).click();
   await oscWorkspace(page, '映射');
   await expect(page.locator('.mapping-row')).toHaveCount(1);
-  const saveMappings = page.getByRole('button', { name: '保存映射', exact: true });
+  const saveMappings = page.getByRole('button', { name: await text(page, '保存更改'), exact: true });
   await saveMappings.click();
   await expect.poll(async () => (await saved(page, rig)).signals[0]).toMatchObject({
     sourceMode: 'SensaPoint', oscPath: prefix + '/**', pointMetric: metric, role,

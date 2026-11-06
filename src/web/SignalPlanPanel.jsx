@@ -34,6 +34,7 @@ export default function SignalPlanPanel({ config, onApply, disabled = false, eme
   }
   return <details className="signal-plan-panel" data-testid="signal-plan-panel"><summary>{t('保存与载入整套方案')}</summary><div className="stack">
     <p className="caption muted">{t('方案一起保存输入映射、计算、轴配置及输出连接。载入时先检查目标地址和设备，再启用输出。')}</p>
+    <p className="caption muted">{t('导出当前已保存的配置，不包含未保存草稿。')}</p>
     <Field label={t('方案名称')} value={name} onChange={event => setName(event.target.value)} />
     <div className="actions"><Button data-testid="signal-plan-export" disabled={disabled || !config} onClick={download}>{t('导出交互方案')}</Button>
       <label className="button button--default button--variant-outline file-button">{t('选择交互方案')}<input data-testid="signal-plan-import" type="file" accept=".json,application/json" disabled={disabled || saving}

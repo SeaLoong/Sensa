@@ -100,7 +100,7 @@ test('one live Contact channel cannot revive the other expired ranges / 单路�
   await allowSpatial(page); await expand(page,'配对三点姿态');
   await expect(page.getByRole('button',{name:'生成深度草稿',exact:true})).toBeEnabled();
   await page.getByRole('button',{name:'生成深度草稿',exact:true}).click();
-  await oscWorkspace(page,'映射'); await page.getByRole('button',{name:'保存映射',exact:true}).click();
+  await oscWorkspace(page,'映射'); await page.getByRole('button',{name:await text(page, '保存更改'),exact:true}).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   await active(page); await outputValue(rig,'udp',500);
   await feed.stop();

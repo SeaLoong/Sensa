@@ -44,8 +44,8 @@ Use `contact-position` or `contact-speed` after building the dedicated own-root 
 
 ## Apply and customize
 
-Replace removes the current mappings; append retains them. Both edit a draft first. Verify real paths/roles and save; saving disarms input, so activate it explicitly afterward. To detect your own targets, choose Self while keeping paired parameters on the same object.
+Replace loads the preset into the mapping draft; append adds its rows. Both preserve computed signals. Review the paths/roles, then **Save changes**: calculations and axis mappings save together, including edits made in Flow. **Restore changes** restores both sets of drafts. Saving disables input; enable it when ready. To detect your own targets, choose Self while keeping paired parameters on the same object.
 
 Custom presets can be saved or removed. Generate experimental root mappings through endpoint calibration. Configure QuickStart steps and Shader diagnostics manually using the paths exposed by the experiment. [Mapping guide](guide.en.md) · [Dictionary](osc-parameters.en.md)
 
-Configure input blending and intermediate calculations through [computed signals](computed-signals.en.md). Custom presets store OSC parameter and tracking mappings. The [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) in Flow exports axis mappings, axis profiles, computations and outputs together for reuse. For proportional blending, create a weighted average first, then use its result in an axis mapping or output binding.
+Create [computed signals](computed-signals.en.md) in **Flow** for blending and intermediate calculations, **Save changes**, then select their results in **OSC → Map** or output bindings. Custom presets store OSC parameter and tracking mappings. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) exports saved axis mappings, axis profiles, computations and outputs together; save current edits first to include them.

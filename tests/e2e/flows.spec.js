@@ -157,7 +157,7 @@ test('PB calibration replaces the previous gate, opts in explicitly and persists
   await page.getByRole('button', { name: '替换草稿', exact: true }).click();
   await oscWorkspace(page, '映射');
   await expect(page.locator('.mapping-row')).toHaveCount(1);
-  await page.getByRole('button', { name: '保存映射', exact: true }).click();
+  await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   expect((await rig.overview()).signals[0].signal.oscPath).toBe('Sensa/Handle/v1/LabHandle/Self/**');
   await expect(page.getByRole('switch', { name: '输入启用', exact: true })).not.toBeChecked();
@@ -175,7 +175,7 @@ test.describe('modern OGB SPS', () => {
     await page.getByLabel('预设方案', { exact: true }).selectOption('ogb-depth');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
     await expect(page.getByText('未保存', { exact: true })).toBeVisible();
-    await page.getByRole('button', { name: '保存映射', exact: true }).click();
+    await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
     await expect.poll(async () => (await rig.overview()).signals[0].signal.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');
     await expect(page.getByText('未保存', { exact: true })).toHaveCount(0);
     await checkpointViewport(page, 'osc-mappings-page');
@@ -214,7 +214,7 @@ test('funscript import, playback, pause, stepping and unload', { tag: ['@input',
   await expect.poll(() => rig.wire.udp.at(-1)).toBe('DSTOP');
 });
 
-test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@config','@visual','@layout-preflight'] }, async ({ page, rig }) => {
+test('help, output editing, conflicts and profile dialog remain usable', { tag: ['@osc-flow-preflight','@config','@visual','@layout-preflight'] }, async ({ page, rig }) => {
   await page.getByRole('button', { name:'帮助', exact:true }).click();
   const help = page.getByRole('dialog', { name:'帮助与指南', exact:true });
   await expect(help.locator('.usage-choices h3')).toHaveCount(6);
@@ -265,7 +265,7 @@ test('paired pose is diagnostic by default, explicit opt-in drives, missing land
   await oscWorkspace(page, '实验诊断'); await expand(page, '配对三点姿态');
   await checkpoint(page, page.locator('.pose-dashboard'), 'paired-pose');
   await page.getByRole('button', { name:'生成深度草稿', exact:true }).click();
-  await oscWorkspace(page, '映射'); await page.getByRole('button', { name:'保存映射', exact:true }).click();
+  await oscWorkspace(page, '映射'); await page.getByRole('button', { name:await text(page, '保存更改'), exact:true }).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   await active(page);
   await expect.poll(async () => (await rig.overview()).runtime.spatialInputBlockedReason).toContain('disabled');

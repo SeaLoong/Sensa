@@ -26,7 +26,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     test.describe('empty configuration / 空配置', () => {
       test.use({ scenario: 'first-run' });
       test('first-run tasks reach usable setup without applying a mode or enabling input / 首次使用任务可直达设置且不应用或启用输入',
-        { tag: ['@beginner', '@config', '@quality', '@i18n'] }, async ({ page, rig }, info) => {
+        { tag: ['@beginner', '@config', '@quality', '@i18n', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
           const config = await configuration(page, rig), mutations = rig.commands.filter(command => command.method !== 'GET').length;
           const chooser = page.getByTestId('getting-started');
           await expect(chooser).toBeVisible();

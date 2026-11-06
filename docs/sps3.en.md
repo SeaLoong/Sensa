@@ -10,7 +10,7 @@ This page targets official **VRCFury 1.1437.1-beta.1**, pinned to [`59fa4fa`](ht
 
 1. Enable the required **OGB Haptics** in the Avatar's VRCFury configuration. Keep the Plug's **Include Public SPS Channel** enabled for the usual Others interaction.
 2. Open Sensa's OSC page, choose the source publishing the parameters and apply **OGB / SPS · Depth** or **OGB / SPS · Vibration**.
-3. Separate the objects, then approach to provide length samples. Calibrate the intended endpoints and save the mappings. Enable OGB parameter control in settings if the Avatar needs a heartbeat, then enable input.
+3. Separate the objects, then approach to provide length samples. Calibrate the intended endpoints and click **Save changes**. Enable OGB parameter control in settings if the Avatar needs a heartbeat, then enable input.
 
 SPS3's public compatibility readings keep these paths:
 

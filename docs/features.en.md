@@ -10,7 +10,7 @@ Drive an OSR or another interactive device from VRChat/SPS, funscripts or manual
 
 **Start setup guide** takes you through **Choose a scene → Connect device → Prepare input → Review setup**. Save your progress and return with **Resume setup**, or reopen it through **Guided setup**. After **Finish setup**, turn on **Input enabled** when ready.
 
-**Scene presets** prepares common VRChat/SPS mapping drafts and TCode axis profiles. Review and save a mapping draft before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse a whole configuration, including inputs and outputs.
+**Scene presets** prepares common VRChat/SPS mapping drafts and TCode axis profiles. Review a mapping draft and **Save changes** before use. For a device-motion preset, review and save the new axis profile, then select it on the output. Choose ranges that match your actual device. A [complete plan](signal-pipeline.en.md#save-and-reuse-a-complete-plan) can reuse saved configuration, including inputs and outputs.
 
 [First-run steps](quick-start.en.md) · [Mapping templates](presets.en.md) · [Workbench map](guide.en.md)
 
@@ -24,7 +24,7 @@ Desktop/CLI provide live VRChat OSC, UDP/TCP listeners, native connections and f
 
 ## Browser workbench
 
-Scene shortcuts give common tasks a starting point. **Control** connects outputs and runs manual/script input. **OSC** inspects and maps parameters. **Flow** adds calculations, bindings and plans. **Settings** holds axis profiles and logs. Available connections follow the host's capabilities. [Workbench map](guide.en.md) · [Browser connections](websensa.en.md)
+Scene shortcuts give common tasks a starting point. **Control** manages device connections and manual/script input. **OSC** inspects parameters and maps them to axes. **Flow** edits computed signals, summarizes output connections and reuses saved plans. **Settings** holds axis profiles and logs. Available connections follow the host's capabilities. [Workbench map](guide.en.md) · [Browser connections](websensa.en.md)
 
 ## Desktop inputs
 
@@ -32,7 +32,7 @@ Manual control offers twelve axes. Funscript playback supports speed, loops, A�
 
 ## Computation and mapping
 
-Blend, scale, smooth or gate readings; add timed effects or spatial calculations. One result can feed several outputs. [Calculation examples](computed-signals.en.md) · [Presets](presets.en.md)
+Create computed signals in **Flow** to blend, scale, smooth or gate readings, or add timed effects and spatial calculations. Select their results in **OSC → Map** or output bindings. Calculations and axis mappings share **Save changes**; output bindings save separately with **Save output** and read saved results when using computations. [Calculation examples](computed-signals.en.md) · [Presets](presets.en.md)
 
 ## Devices and output transports
 
@@ -50,7 +50,7 @@ Several outputs can share a compatible connection. Desktop tabs share their real
 
 ## Recording and reusable plans
 
-Browser and desktop recording outputs can save selected signals as funscript tracks or diagnostic CSV/JSON Lines. Reuse recordings as script/replay sources, or export a complete plan with mappings, calculations, profiles and outputs. Download browser recordings before closing the page. [Recording and plans](signal-pipeline.en.md#record-and-inspect)
+Browser and desktop recording outputs can save selected signals as funscript tracks or diagnostic CSV/JSON Lines. Reuse recordings as script/replay sources, or export a complete plan with saved mappings, calculations, profiles and outputs. Download browser recordings before closing the page. [Recording and plans](signal-pipeline.en.md#record-and-inspect)
 
 ## Parameter explorer
 

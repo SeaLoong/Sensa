@@ -23,9 +23,24 @@ function ComputedInputRow({ input, index, operation, signals, pathOptions, point
   </div>;
 }
 
-function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pathOptions, pointOptions, onSelect, onChange, onRemove, onMap }) {
+export function updateComputedView(current, id, expanded) {
+  const ids = current.expandedIds || [];
+  if (!expanded && !ids.includes(id)) return current;
+  if (expanded && ids.includes(id)) return current;
+  return { selectedId: expanded ? id : current.selectedId,
+    expandedIds: expanded ? [...ids.filter(value => value !== id), id] : ids.filter(value => value !== id) };
+}
+
+export function pruneComputedView(current, drafts = []) {
+  const ids = new Set(drafts.map(draft => draft.id));
+  const selectedId = ids.has(current.selectedId) ? current.selectedId : '';
+  const expandedIds = (current.expandedIds || []).filter(id => ids.has(id));
+  return selectedId === current.selectedId && expandedIds.length === (current.expandedIds || []).length
+    ? current : { selectedId, expandedIds };
+}
+
+function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, open, pathOptions, pointOptions, onToggle, onChange, onRemove, onMap }) {
   const valid = runtime?.valid && Number.isFinite(runtime.value);
-  const [open, setOpen] = useState(selected);
   const others = useMemo(() => signals.filter(signal => signal.id !== draft.id), [signals, draft.id]);
   const reason = graphDirty || !runtime ? t('保存后查看结果') : diagnostic(runtime.reason) || t('等待完整输入');
   const value = valid && !graphDirty ? Number(runtime.value.toFixed(6)).toString() : '—';
@@ -33,7 +48,8 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pat
   const unit = computedResultUnit(draft.operation, runtime);
   const result = value === '—' ? value : value + (unit ? (unit === '°' ? '' : ' ') + unit : '');
   return (
-    <details className="computed-signal" data-testid="computed-signal-card" data-signal-id={draft.id} open={open} onToggle={event => { setOpen(event.currentTarget.open); if (event.currentTarget.open) onSelect(draft.id); }}>
+    <details className="computed-signal" data-testid="computed-signal-card" data-signal-id={draft.id} data-selected={selected || undefined}
+      open={open} onToggle={event => onToggle(event.currentTarget.open)}>
       <summary><span className="computed-signal__identity"><strong>{draft.name || draft.id}</strong><code>{draft.id}</code></span><Badge tone={valid && !graphDirty ? 'success' : 'default'}>{computedOperationOptions().find(option => option.value === draft.operation)?.label || draft.operation}</Badge><output data-testid="computed-signal-value">{result}</output></summary>
       {open && <div className="stack computed-signal__body">
         <div className="computed-signal__configuration">
@@ -70,9 +86,13 @@ function ComputedSignalCard({ draft, signals, runtime, graphDirty, selected, pat
   );
 }
 
-export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [], observations = [], selectedSourceKey = '', graphDirty = false, pathOptions = [], onChange, onMap }) {
+export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [], observations = [], selectedSourceKey = '', graphDirty = false, pathOptions = [],
+  viewState, onViewStateChange, onChange, onMap }) {
   const locale = getLocale();
-  const [selected, setSelected] = useState('');
+  const [localView, setLocalView] = useState({ selectedId: '', expandedIds: [] });
+  const view = viewState || localView;
+  const setView = onViewStateChange || setLocalView;
+  const select = id => setView(current => updateComputedView(current, id, true));
   const runtimeById = useMemo(() => new Map(runtimeSignals.map(signal => [signal.id, signal])), [runtimeSignals]);
   const pointOptions = useMemo(() => [...new Map(observations.filter(point => (!selectedSourceKey || point.sourceKey === selectedSourceKey)
     && (['Point', 'Handle'].includes(point.kind) || point.party === 'Self' && point.isMappablePoint === true))
@@ -81,13 +101,18 @@ export default function ComputedSignalsPanel({ drafts = [], runtimeSignals = [],
     <section className="computed-signals stack" aria-label={t('计算信号')} data-testid="computed-signals-editor">
       <div className="computed-signals__heading"><h3>{t('计算信号')}</h3><Badge>{t('{0} 个计算', [drafts.length])}</Badge></div>
       <p className="caption muted">{t('为计算取一个名称，再选择运算和输入。保存后，这个结果就能用于输出连接、轴映射或下一步计算。')}</p>
-      {drafts.map(draft => <ComputedSignalCard key={draft.id} draft={draft} signals={drafts} runtime={runtimeById.get(draft.id)} graphDirty={graphDirty} selected={selected === draft.id} onSelect={setSelected} pathOptions={pathOptions} pointOptions={pointOptions}
+      {drafts.map(draft => <ComputedSignalCard key={draft.id} draft={draft} signals={drafts} runtime={runtimeById.get(draft.id)} graphDirty={graphDirty}
+        selected={view.selectedId === draft.id} open={(view.expandedIds || []).includes(draft.id)} onToggle={open => setView(current => updateComputedView(current, draft.id, open))} pathOptions={pathOptions} pointOptions={pointOptions}
         onChange={patch => onChange(drafts.map(existing => existing.id === draft.id ? { ...existing, ...patch } : existing))}
-        onRemove={() => onChange(drafts.filter(existing => existing.id !== draft.id))} onMap={() => onMap(draft)} />)}
-      <div className="actions"><Button disabled={drafts.length >= COMPUTED_SIGNAL_LIMIT} onClick={() => { const draft = newComputedDraft(drafts); setSelected(draft.id); onChange([...drafts, draft]); }}>{t('新增计算信号')}</Button></div>
+        onRemove={() => {
+          onChange(drafts.filter(existing => existing.id !== draft.id));
+          setView(current => ({ selectedId: current.selectedId === draft.id ? '' : current.selectedId,
+            expandedIds: (current.expandedIds || []).filter(id => id !== draft.id) }));
+        }} onMap={() => onMap(draft)} />)}
+      <div className="actions"><Button disabled={drafts.length >= COMPUTED_SIGNAL_LIMIT} onClick={() => { const draft = newComputedDraft(drafts); select(draft.id); onChange([...drafts, draft]); }}>{t('新增计算信号')}</Button></div>
       <ComputedSpatialPresets drafts={drafts} pointOptions={pointOptions} onAdd={added => {
         if (!added.length) return;
-        setSelected((added.find(draft => computedVectorGroups(draft.operation).length) || added[0]).id);
+        select((added.find(draft => computedVectorGroups(draft.operation).length) || added[0]).id);
         onChange([...drafts, ...added]);
       }} />
     </section>

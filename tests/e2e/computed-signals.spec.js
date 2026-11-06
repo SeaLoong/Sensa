@@ -1,5 +1,5 @@
 import {
-  test, expect, text, enable, mode, active, oscWorkspace, allowSpatial,
+  test, expect, text, enable, mode, active, workspace, oscWorkspace, allowSpatial,
   checkpoint, checkpointViewport, outputValue,
 } from './fixtures.js';
 import { contactRootSamples, fixedRootSamples } from './mocks.js';
@@ -41,9 +41,9 @@ async function replaceConfig(page, rig, patch) {
   await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
 }
 
-async function saveMappings(page, rig) {
+async function saveSignalDrafts(page, rig) {
   const before = rig.commands.length;
-  const save = page.getByRole('button', { name: await text(page, '保存映射'), exact: true });
+  const save = page.getByTestId('signal-draft-toolbar').getByRole('button', { name: await text(page, '保存更改'), exact: true });
   await save.click();
   // The app multiplexes saves over WebSocket or SharedWorker. Observe the
   // corresponding response before reading results or starting another edit.
@@ -66,11 +66,16 @@ for (const locale of ['zh-CN', 'en-US']) {
     test.use({ locale });
 
     test('weighted inputs are saved together with an axis mapping / 加权输入与目标轴映射一起保存',
-      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual', '@quality'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual', '@quality', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
         await enable(page, ['Mock UDP']); await mode(page, 'OSC');
         await rig.startFeed([['CI/A', .2], ['CI/B', .8], ['CI/Depth', .25], ['CI/Active', 1]]);
         await active(page); await outputValue(rig, 'udp', 450);
         await oscWorkspace(page, '映射');
+        const beforeDrafts = await savedConfig(page, rig);
+        const mutations = rig.commands.filter(command => command.method !== 'GET').length;
+        await expect(page.getByTestId('computed-signals-editor')).toHaveCount(0);
+        await page.getByTestId('edit-computations').click();
+        await expect(page.locator('#workspace-tabs-pipeline')).toHaveAttribute('aria-selected', 'true');
         await page.getByRole('button', { name: await text(page, '新增计算信号'), exact: true }).click();
         const card = page.getByTestId('computed-signal-card').first();
         await expect(card).toHaveJSProperty('open', true);
@@ -83,14 +88,26 @@ for (const locale of ['zh-CN', 'en-US']) {
           await rows.nth(index).getByLabel(await text(page, '参数路径'), { exact: true }).fill(path);
           await rows.nth(index).getByRole('spinbutton', { name: await text(page, '权重'), exact: true }).fill(String(weight));
         }
+        await card.getByRole('button', { name: await text(page, '用于轴映射'), exact: true }).click();
+        await expect(page.locator('#workspace-tabs-osc')).toHaveAttribute('aria-selected', 'true');
+        await expect(page.locator('#osc-tabs-setup')).toHaveAttribute('aria-selected', 'true');
         const mappings = page.locator('.mapping-row');
-        await mappings.nth(1).getByRole('button', { name: await text(page, '移除映射'), exact: true }).click();
-        await mappings.first().getByRole('combobox', { name: await text(page, '输入类型'), exact: true }).selectOption('Computed');
-        await mappings.first().getByRole('combobox', { name: await text(page, '计算信号'), exact: true }).selectOption('Signal1');
+        await expect(mappings).toHaveCount(beforeDrafts.signals.length + 1);
+        await expect(mappings.last().getByRole('combobox', { name: await text(page, '计算信号'), exact: true })).toHaveValue('Signal1');
+        await expect.poll(() => mappings.last().evaluate(element => element.contains(document.activeElement))).toBe(true);
+        for (let index = 0; index < beforeDrafts.signals.length; index++) {
+          await mappings.first().getByRole('button', { name: await text(page, '移除映射'), exact: true }).click();
+        }
+        await expect(mappings).toHaveCount(1);
+        await workspace(page, '流程');
+        await expect(card).toHaveJSProperty('open', true);
+        await expect(card.getByRole('textbox', { name: await text(page, '信号名称'), exact: true })).toHaveValue('Blend');
         await expect(card.getByTestId('computed-signal-status')).toHaveText(await text(page, '保存后查看结果'));
         expect((await rig.overview()).runtime.inputActive).toBe(true);
         expect((await savedConfig(page, rig)).computedSignals).toHaveLength(0);
-        await page.getByRole('button', { name: await text(page, '保存映射'), exact: true }).click();
+        expect((await savedConfig(page, rig)).signals).toEqual(beforeDrafts.signals);
+        expect(rig.commands.filter(command => command.method !== 'GET')).toHaveLength(mutations);
+        await saveSignalDrafts(page, rig);
         await expect.poll(async () => (await savedConfig(page, rig)).computedSignals[0]).toMatchObject({
           id: 'Signal1', name: 'Blend', operation: 'WeightedAverage',
           inputs: [{ sourceMode: 'Direct', oscPath: 'CI/A', weight: 1 }, { sourceMode: 'Direct', oscPath: 'CI/B', weight: 3 }],
@@ -119,8 +136,8 @@ for (const locale of ['zh-CN', 'en-US']) {
       });
 
     test('spatial XYZ groups calculate tilted planes, point distance and angles / 空间 XYZ 分组计算倾斜平面、两点距离与夹角',
-      { tag: ['@osc', '@input', '@config', '@i18n', '@visual', '@quality'] }, async ({ page, rig }, info) => {
-        await mode(page, 'OSC'); await oscWorkspace(page, '映射');
+      { tag: ['@osc', '@input', '@config', '@i18n', '@visual', '@quality', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
+        await mode(page, 'OSC'); await workspace(page, '流程');
         const presets = page.getByTestId('computed-spatial-presets');
         await presets.locator('summary').click();
         await presets.getByRole('combobox', { name: await text(page, '空间运算'), exact: true }).selectOption('PlaneDepth');
@@ -142,7 +159,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await expect(groups).toHaveCount(example.vectors.length);
           for (const [index, values] of example.vectors.entries()) await setVectorConstants(page, groups.nth(index), values);
           await expect(card.getByTestId('computed-signal-status')).toHaveText(await text(page, '保存后查看结果'));
-          await saveMappings(page, rig);
+          await saveSignalDrafts(page, rig);
           const saved = (await savedConfig(page, rig)).computedSignals[0];
           expect(saved.operation).toBe(example.operation);
           expect(saved.inputs).toHaveLength(example.vectors.flat().length);
@@ -174,7 +191,7 @@ for (const locale of ['zh-CN', 'en-US']) {
 }
 
 test('chained calculations stop for zero division, missing and expired input, then recover / 链式计算在除零、缺失和过期时停止并可恢复',
-  { tag: ['@osc', '@input', '@config', '@transport'] }, async ({ page, rig }, info) => {
+  { tag: ['@osc', '@input', '@config', '@transport', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     const computedSignals = [
       { id: 'Blend', name: 'Weighted blend', operation: 'WeightedAverage', maxAgeMs: 500, inputs: [input('CI/A', 1), input('CI/B', 3)] },
@@ -237,7 +254,7 @@ test('chained calculations stop for zero division, missing and expired input, th
   });
 
 test('SPS four-anchor solved coordinates feed calculations with spatial permission and freshness / SPS 四点解算坐标参与计算并保留空间许可与时效',
-  { tag: ['@osc', '@input', '@config', '@transport'] }, async ({ page, rig }, info) => {
+  { tag: ['@osc', '@input', '@config', '@transport', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC');
     const id = 'RootBlend', prefix = 'Sensa/SPS/CIFixedRoot';
     await replaceConfig(page, rig, { computedSignals: [{ id, operation: 'WeightedAverage', maxAgeMs: 1000,
@@ -254,7 +271,7 @@ test('SPS four-anchor solved coordinates feed calculations with spatial permissi
     await active(page);
     await expect.poll(async () => (await rig.overview()).runtime.computedInputBlocked).toBe(true);
     expect(motionLines(rig)).toHaveLength(0);
-    await oscWorkspace(page, '映射');
+    await workspace(page, '流程');
     const rootCalculation = page.getByTestId('computed-signal-card').first();
     await rootCalculation.locator('summary').click();
     const trackedInput = rootCalculation.getByTestId('computed-input-row').first();
@@ -282,7 +299,7 @@ test('SPS four-anchor solved coordinates feed calculations with spatial permissi
   });
 
 test('following-plane drafts use live tracking-frame markers and stop for lost orientation / 跟随平面草稿读取实时定位标记并在朝向失效时停止',
-  { tag: ['@osc', '@input', '@config', '@transport'] }, async ({ page, rig }, info) => {
+  { tag: ['@osc', '@input', '@config', '@transport', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
     await enable(page, ['Mock UDP']); await mode(page, 'OSC'); await allowSpatial(page);
     let sequence = 0, forwardSample = 0, frozen = false, direction = 1, batches = 0;
     const marker = (name, position, sample) => contactRootSamples(position[2], sample, true, { x: position[0], y: position[1] })
@@ -296,7 +313,7 @@ test('following-plane drafts use live tracking-frame markers and stop for lost o
         ...marker('Guide_Forward', [.1, .1 + .12 * direction, .1 + .16 * direction], forwardSample),
       ];
     });
-    await oscWorkspace(page, '映射');
+    await workspace(page, '流程');
     const presets = page.getByTestId('computed-spatial-presets');
     await presets.locator('summary').click();
     await presets.getByLabel(await text(page, '测量对象路径'), { exact: true }).fill('Sensa/Contact/Target/**');
@@ -307,7 +324,7 @@ test('following-plane drafts use live tracking-frame markers and stop for lost o
     expect((await rig.overview()).runtime.inputActive).toBe(false);
     const depth = page.locator('[data-signal-id="Signal4"]');
     await expect(depth).toHaveJSProperty('open', true);
-    await saveMappings(page, rig);
+    await saveSignalDrafts(page, rig);
     const saved = (await savedConfig(page, rig)).computedSignals;
     expect(saved.map(signal => signal.operation)).toEqual(['Difference', 'Difference', 'Difference', 'PlaneDepth', 'PlaneOffset']);
     for (let index = 0; index < 3; index++) expect(saved[index].inputs).toMatchObject([

@@ -10,7 +10,7 @@ Sensa 支持 VRCFury SPS3 Beta 的 OGB 兼容参数，以及 Socket／Plug 的�
 
 1. 在 Avatar 的 VRCFury 配置中启用需要的 **OGB Haptics**。对常用的他人／Others 联动，保留 Plug 的 **Include Public SPS Channel**。
 2. 打开 Sensa 的 OSC 页面，选择实际发送参数的来源，应用 **OGB / SPS · 深度**或**OGB / SPS · 振动**预设。
-3. 找到对象并让它先分开、再靠近，取得长度样本，校准所需两端，保存映射。需要心跳时在设置中启用 OGB 参数控制，再启用输入。
+3. 找到对象并让它先分开、再靠近，取得长度样本，校准所需两端，点击**保存更改**。需要心跳时在设置中启用 OGB 参数控制，再启用输入。
 
 SPS3 的公开兼容读数沿用这些路径：
 

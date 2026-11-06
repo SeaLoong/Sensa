@@ -6,22 +6,24 @@ Use this map to find a control. [Guides](start.en.md) helps you choose a task; [
 
 | Open | Use it to |
 | --- | --- |
-| **Control** | Connect a device, choose an input, move L0 or play a script |
+| **Control** | Connect and manage devices, choose an input, move L0 or play a script |
 | **OSC** | Inspect VRChat parameters, choose presets and calibrate mappings |
-| **Flow** | Add calculations, bindings, recordings and reusable plans |
+| **Flow** | Edit computed signals, connect their results to outputs and reuse saved plans |
 | **Settings** | Set device travel, protocol listeners and logs |
 
 ## Guided setup and scene presets
 
 **Start setup guide** begins four steps: **Choose a scene → Connect device → Prepare input → Review setup**. Later, use **Guided setup** to reopen it. **Save progress, continue later** keeps your place; **Resume setup** continues. **Finish setup** records completion and returns to **Control** with your chosen input. Turn on **Input enabled** when ready.
 
-**Scene presets** opens two groups. **VRChat / OSC mappings** prepares a mapping draft with **Append to mapping draft** or **Replace mapping draft**; review and **Save mappings** in the editor. **Device axis profiles** offers **Device motion preset → Review and create an axis profile**; review and save the profile, then select it on your TCode output.
+**Scene presets** opens two groups. **VRChat / OSC mappings** prepares a mapping draft with **Append to mapping draft** or **Replace mapping draft**; review and **Save changes** in the editor. **Device axis profiles** offers **Device motion preset → Review and create an axis profile**; review and save the profile, then select it on your TCode output.
 
 Scene shortcuts open the controls for a task. Selecting a scene or a preset does not enable input.
 
 ## Prepare, apply the input mode, then enable input
 
 Prepare your source and output, save, then **Apply input mode** and turn on **Input enabled**. Merely opening a tab prepares its controls. Saving configuration, changing mode or loading a script turns input off. Clearing **Emergency stop** also leaves input off.
+
+In OSC and Flow, **Save changes** saves all computed-signal and axis-mapping drafts together, including edits made in the other workspace. **Restore changes** restores both to their saved state. Output bindings use **Save output** separately. If saving is blocked, the toolbar identifies incomplete drafts and links to their workspace.
 
 ## Control
 
@@ -35,7 +37,7 @@ Choose Combined when different source kinds should contribute together. [Worked 
 
 ### Outputs
 
-Choose **Output type → Add output**, configure and **Save output**, then **Enable** its card. Connection status and recent values appear on the card. [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
+In **Control → Outputs**, choose **Output type → Add output**, configure and **Save output**, then **Enable** its card. Connection status, device actions and recent values appear here. [Output settings and bindings](signal-pipeline.en.md#add-outputs-and-bindings)
 
 ### Receive a website's serial or Bluetooth commands
 
@@ -47,9 +49,11 @@ Use a [protocol input](protocol-inputs.en.md) for a compatible player, or the [s
 
 ### Recording outputs
 
-Add a **Signal recording** output for selected sources, several tracks or diagnostic data. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
+In **Control → Outputs**, add a **Signal recording** output for selected sources, several tracks or diagnostic data. [Recording and replay](signal-pipeline.en.md#record-and-inspect)
 
 ## OSC
+
+Use **Map**, **Parameters** and **Experimental diagnostics** to choose the OSC view. These segmented tabs prepare settings without applying an input mode.
 
 ### Parameters and sources
 
@@ -61,11 +65,11 @@ Check reception and sender port first, then source selection, saved mapping, out
 
 ### Turn an input into motion (mapping)
 
-Open **Scene presets** to choose an OSC preset and load it into a mapping draft. You can also use the preset selector in OSC. Calibrate its range/direction and **Save mappings**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
+Open **Scene presets** to choose an OSC preset and load it into **OSC → Map**. You can also use the preset selector there. Select a parameter or computed result, calibrate its range/direction and **Save changes**. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps) · [Template reference](presets.en.md)
 
 ### Combine inputs first (computed signals)
 
-Add a named computation when you need blending, smoothing or a condition. [Calculation examples](computed-signals.en.md)
+Choose **Edit computed signals in Flow** when you need blending, smoothing or a condition. Create the calculation in Flow, then select its result in the mapping. [Calculation examples](computed-signals.en.md)
 
 ### Reception, discovery and forwarding
 
@@ -77,7 +81,11 @@ Choose a [tracking setup](usage-scenarios.en.md), inspect valid readings and cap
 
 ## Flow
 
-Use Flow after a direct input/output connection works. It adds calculations, per-output bindings and **Save and load a complete plan**. [Signal-flow guide](signal-pipeline.en.md)
+Flow is the home for creating and editing **Computed signals**. **Map to an axis** on a calculation opens OSC with a new draft; review it and **Save changes** when ready.
+
+**Output connections** summarizes saved routes. **Edit output bindings** opens the output's existing settings dialog at its bindings; **Manage outputs** opens the full device cards in Control. Bindings that use computations read saved results. **Save output** applies bindings separately, preserving unfinished calculation/mapping drafts.
+
+**Save and load a complete plan** exports saved configuration. Save any calculation, mapping or output edits first to include them. [Signal-flow guide](signal-pipeline.en.md)
 
 ## Settings and help
 

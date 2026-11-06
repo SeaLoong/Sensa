@@ -230,7 +230,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       });
 
     test('real OSC presets replace and append drafts before a separate explicit save / 真实OSC预设先替换追加草稿再另行明确保存',
-      { tag: ['@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc-flow-preflight', '@onboarding', '@config', '@i18n'] }, async ({ page, rig }, info) => {
         const initial = await passiveSnapshot(page, rig);
         let library = await openPresets(page);
         await library.getByTestId('scene-osc-preset').selectOption('ogb-depth');
@@ -243,7 +243,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('.mapping-row__path input')).toHaveValue(/OGB\/Orf\/\*\*\/PenOthersNewRoot/);
         await expect(page.locator('.mapping-row__target select')).toHaveValue('Depth');
         await unchanged(page, rig, initial);
-        await page.getByRole('button', { name: await text(page, '保存映射'), exact: true }).click();
+        await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
         await expect.poll(async () => (await configuration(page, rig)).signals.map(signal => ({ sourceMode: signal.sourceMode, role: signal.role })))
           .toEqual([{ sourceMode: 'OgbDepth', role: 'Depth' }]);
         const depth = await passiveSnapshot(page, rig);
@@ -256,7 +256,7 @@ for (const locale of ['zh-CN', 'en-US']) {
         await expect(page.locator('.mapping-row__target select').nth(1)).toHaveValue('V0');
         await expect(page.locator('.mapping-row__path input').nth(1)).toHaveValue(/TouchOthers/);
         await unchanged(page, rig, depth);
-        await page.getByRole('button', { name: await text(page, '保存映射'), exact: true }).click();
+        await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
         await expect.poll(async () => (await configuration(page, rig)).signals.map(signal => ({ sourceMode: signal.sourceMode, role: signal.role })))
           .toEqual([{ sourceMode: 'OgbDepth', role: 'Depth' }, { sourceMode: 'OgbTouch', role: 'V0' }]);
         const saved = await configuration(page, rig);

@@ -29,7 +29,7 @@ async function saveMapping(page, rig, path) {
   const row = page.locator('.mapping-row');
   await expect(row).toHaveCount(1);
   await row.getByLabel(await text(page, '参数路径'), { exact: true }).fill(path);
-  await page.getByRole('button', { name: await text(page, '保存映射'), exact: true }).click();
+  await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
   await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0]?.oscPath).toBe(path);
   await expect.poll(async () => (await rig.overview()).runtime.inputActive).toBe(false);
   await expect(page.getByRole('switch', { name: await text(page, '输入启用'), exact: true })).not.toBeChecked();
@@ -42,7 +42,7 @@ async function applyDepthPreset(page, rig) {
   const row = page.locator('.mapping-row');
   await expect(row).toHaveCount(1);
   await expect(row.getByLabel(await text(page, '输入类型'), { exact: true })).toHaveValue('OgbDepth');
-  await page.getByRole('button', { name: await text(page, '保存映射'), exact: true }).click();
+  await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
   await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0]?.sourceMode).toBe('OgbDepth');
   const preset = (await savedConfiguration(page, rig)).signals[0];
   expect(preset.oscPath).toBe('OGB/Orf/**/PenOthersNewRoot;OGB/Orf/**/PenOthers;OGB/Pen/**/PenOthers');

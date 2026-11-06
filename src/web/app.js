@@ -103,14 +103,15 @@ import PosePanel from './PosePanel.jsx';
 import SpsRootPanel from './SpsRootPanel.jsx';
 import OutputPositionPanel from './OutputPositionPanel.jsx';
 import HelpDialog from './HelpDialog.jsx';
-import OscFlowStatus from './OscFlowStatus.jsx';
 import OscParameterTable from './OscParameterTable.jsx';
 import ControlFlowStatus from './ControlFlowStatus.jsx';
 import { controlReadiness, outputRoutingScope } from './control-workflow.js';
-import ComputedSignalsPanel from './ComputedSignalsPanel.jsx';
 import OscParameterReference from './OscParameterReference.jsx';
 import OutputBindings, { OutputSignalStatus, RecordingReplayControls } from './OutputBindings.jsx';
-import SignalPlanPanel from './SignalPlanPanel.jsx';
+import AxisMappingsPanel from './AxisMappingsPanel.jsx';
+import SignalPipelineWorkspace from './SignalPipelineWorkspace.jsx';
+import SignalDraftToolbar from './SignalDraftToolbar.jsx';
+import { pruneComputedView } from './ComputedSignalsPanel.jsx';
 import { isSignalOutputType } from './signal-outputs.js';
 import { buildComputedDrafts, computeComputedHash, computedDraftIncomplete, computedMappingPreviews, expandMappingSources } from './computed-signals.js';
 import ProtocolInputsPanel from './ProtocolInputsPanel.jsx';
@@ -198,6 +199,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   const [oscDraft, setOscDraft] = useState(initialState.oscDraft);
   const [signalDrafts, setSignalDrafts] = useState(initialState.signalDrafts);
   const [computedDrafts, setComputedDrafts] = useState(() => buildComputedDrafts(initialState.config?.computedSignals));
+  const [computedView, setComputedView] = useState({ selectedId: '', expandedIds: [] });
   const [selectedOscPreset, setSelectedOscPreset] = useState('');
   const [showFaceTracking, setShowFaceTracking] = useState(false);
   const [previewCategory, setPreviewCategory] = useState('all');
@@ -820,6 +822,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       });
       setComputedDrafts(buildComputedDrafts(saved.computedSignals));
       setSignalDrafts(buildSignalDrafts(saved.signals));
+      setComputedView(current => pruneComputedView(current, saved.computedSignals));
       await refreshOverview();
       notify(t('交互方案已应用，请检查目标并启用输出。'), 'success');
     });
@@ -965,21 +968,22 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   function clearSignalDrafts() {
     setSignalDrafts([]);
     setConfirmClearMappings(false);
-    notify(t('已在当前页面清空映射；如需放弃更改，可点“恢复映射”'), 'info');
+    notify(t('已清空轴映射草稿；保存前可恢复更改。'), 'info');
   }
 
   function restoreSignalDrafts() {
     if (!config) return;
     setSignalDrafts(buildSignalDrafts(config?.signals));
     setComputedDrafts(buildComputedDrafts(config?.computedSignals));
+    setComputedView(current => pruneComputedView(current, config.computedSignals));
     setConfirmClearMappings(false);
-    notify(t('已恢复到已保存映射'), 'info');
+    notify(t('已恢复到已保存的计算与轴映射'), 'info');
   }
 
   async function saveOscMappings() {
     if (!config) return;
     if (hasIncompleteMappings) {
-      notify(t('填写映射与计算输入，完成后再保存。'), 'warning');
+      notify(t('请补全轴映射与计算输入后保存。'), 'warning');
       return;
     }
 
@@ -992,8 +996,8 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setSignalDrafts((current) => current === submittedDrafts ? buildSignalDrafts(savedConfig.signals) : current);
       setComputedDrafts(current => current === submittedComputed ? buildComputedDrafts(savedConfig.computedSignals) : current);
       await refreshOverview();
-      notify(t('OSC 映射已保存并应用，输入已关闭；检查接收值后再打开输入。'), 'success');
-    }).catch((error) => notify(error.message || t('保存 OSC 映射失败'), 'error'));
+      notify(t('更改已保存并应用，输入已关闭；检查后再启用。'), 'success');
+    }).catch((error) => notify(error.message || t('保存更改失败'), 'error'));
   }
 
   function applyOscPreset(mode = 'replace') {
@@ -1562,7 +1566,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     }).catch((error) => notify(error.message || t('移除输出失败'), 'error'));
   }
 
-  async function openOutputDialog(type) {
+  async function openOutputDialog(type, { focusBindings = false } = {}) {
     clearErrorNotification();
     if (!config) return;
     const output = getOutputConfig(config, type);
@@ -1573,7 +1577,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       availableSerialPorts = (await refreshSerialPorts().catch(() => serialPorts)) || serialPorts;
     }
     if (output.type === 'Midi') await refreshMidiPorts().catch(error => notify(error.message, 'error'));
-    setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config, availableSerialPorts) });
+    setDialog({ outputId: type, draft: buildOutputDialogDraft(type, config, availableSerialPorts), focusBindings });
   }
 
   async function saveOutputDialog() {
@@ -1674,8 +1678,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
   [parameterBrowserVisible, sourceCatalog, mappedParameterSources, showFaceTracking, oscPreviewSearch, pinnedPaths, previewCategory, rankOscPreview]);
   const oscMappingPresets = useMemo(() => getOscMappingPresets(config), [config, locale]);
   const selectedOscPresetConfig = useMemo(() => getOscMappingPreset(config, selectedOscPreset), [config, selectedOscPreset, locale]);
-  const hasIncompleteMappings = useMemo(() => signalDrafts.some((draft) => !String(draft.oscPath || '').trim())
-    || computedDrafts.some(computedDraftIncomplete), [signalDrafts, computedDrafts]);
+  const incompleteMappingCount = useMemo(() => signalDrafts.filter(draft => !String(draft.oscPath || '').trim()).length, [signalDrafts]);
+  const incompleteComputedCount = useMemo(() => computedDrafts.filter(computedDraftIncomplete).length, [computedDrafts]);
+  const hasIncompleteMappings = incompleteMappingCount > 0 || incompleteComputedCount > 0;
   const signalDraftsHash = useMemo(() => computeSignalHash(signalDrafts), [signalDrafts]);
   const computedDraftsHash = useMemo(() => computeComputedHash(computedDrafts), [computedDrafts]);
   const computedGraphDirty = computedDraftsHash !== savedComputedHash;
@@ -1855,7 +1860,9 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
       setNavigationTarget('[data-testid="protocol-inputs-panel"]');
     } else if (destination === 'pipeline') {
       setWorkspace('pipeline');
-      setNavigationTarget('.computed-signals');
+      setNavigationTarget(computedView.expandedIds.includes(computedView.selectedId)
+        && computedDrafts.some(signal => signal.id === computedView.selectedId)
+        ? `[data-signal-id="${computedView.selectedId}"] summary` : '.computed-signals');
     } else if (destination === 'outputs' || destination === 'recording') {
       setWorkspace('control');
       setNavigationTarget(destination === 'recording' ? '.recording-panel' : '.outputs-section');
@@ -1881,6 +1888,22 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     (region.classList.contains('recording-panel') ? region : region.closest('.input-section') || region).scrollIntoView({ block: 'start', behavior: 'instant' });
     setNavigationTarget(null);
   }, [navigationTarget, workspace, oscWorkspaceTab, helpOpen, onboarding.status, onboarding.step]);
+
+  useEffect(() => {
+    if (!dialog?.focusBindings) return;
+    const frame = window.requestAnimationFrame(() => {
+      const region = document.querySelector('dialog[open] [data-testid="output-bindings-section"]');
+      if (!region) return;
+      if (region.tagName === 'DETAILS') region.open = true;
+      const binding = region.querySelector('[data-testid="output-binding"]');
+      if (binding) binding.open = true;
+      const target = binding?.querySelector('input:not(:disabled), select:not(:disabled), button:not(:disabled)')
+        || [...region.querySelectorAll('button:not(:disabled)')].at(-1) || region;
+      target.focus({ preventScroll: true });
+      region.scrollIntoView({ block: 'start', behavior: 'instant' });
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [dialog?.outputId, dialog?.focusBindings]);
 
   function renderScriptPlayer() {
     return (
@@ -2226,89 +2249,33 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
     );
   }
 
+  function renderSignalDraftToolbar(activeWorkspace) {
+    return <SignalDraftToolbar workspace={activeWorkspace} mappingCount={signalDrafts.length} computedCount={computedDrafts.length}
+      mappingDirty={signalDraftsHash !== savedSignalsHash} computedDirty={computedGraphDirty}
+      incompleteMappings={incompleteMappingCount} incompleteComputations={incompleteComputedCount}
+      online={online} busy={Boolean(busyKey)} onSave={saveOscMappings} onRestore={restoreSignalDrafts}
+      onOpenMappings={() => navigateWorkflow('osc-mappings')} onOpenComputations={() => navigateWorkflow('pipeline')} />;
+  }
+
+  function mapComputedSignal(signal) {
+    const draft = makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id });
+    setSignalDrafts(previous => [...previous, draft]);
+    setWorkspace('osc');
+    setOscWorkspaceTab('setup');
+    setNavigationTarget('[data-mapping-draft-id="' + draft._draftId + '"]');
+    notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info');
+  }
+
   function renderMappings() {
-    return (
-      <div className="stack">
-        <div className="preset-strip">
-          <SelectField
-            label={t('预设方案')}
-            value={selectedOscPreset}
-            options={oscMappingPresets.map((preset) => ({ value: preset.id, label: preset.name }))}
-            onChange={setSelectedOscPreset}
-          />
-          <div className="actions">
-            <Button onClick={() => applyOscPreset('replace')} disabled={!selectedOscPresetConfig}>
-              {t('替换草稿')}
-            </Button>
-            <Button onClick={() => applyOscPreset('append')} disabled={!selectedOscPresetConfig}>
-              {t('追加草稿')}
-            </Button>
-          </div>
-        </div>
-        <div className="mapping-toolbar" role="group" aria-label={t('映射保存')}>
-          <div className="actions">
-            <span className="caption muted">{t('{0} 条映射', [signalDrafts.length])}</span>
-            <Badge tone={hasUnsavedMappings || hasIncompleteMappings ? 'warning' : 'default'}>{hasIncompleteMappings ? t('待填写') : hasUnsavedMappings ? t('未保存') : t('已保存')}</Badge>
-            <Button disabled={(!hasUnsavedMappings && !hasIncompleteMappings) || Boolean(busyKey)} onClick={restoreSignalDrafts}>{t('恢复映射')}</Button>
-          </div>
-          <Button tone="primary" disabled={!online || Boolean(busyKey) || hasIncompleteMappings} onClick={saveOscMappings}>{t('保存映射')}</Button>
-        </div>
-        {hasIncompleteMappings && <p className="caption muted">{t('填写映射与计算输入，完成后再保存。')}</p>}
-        <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
-          observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
-          graphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onChange={setComputedDrafts}
-          onMap={signal => { setSignalDrafts(previous => [...previous, makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id })]); notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info'); }} />
-        <details className="inline-details">
-          <summary>{t('管理预设')}</summary>
-          <div className="actions">
-            <Button disabled={!selectedOscPresetConfig} onClick={() => openPresetDialog(selectedOscPreset)}>
-              {selectedOscPresetConfig?.isBuiltIn ? t('复制预设') : t('编辑预设')}
-            </Button>
-            <Button onClick={() => openPresetDialog(null, { fromCurrent: true, currentMappings: signalDrafts })}>
-              {t('另存为预设')}
-            </Button>
-            <Button onClick={() => openPresetDialog(null)}>{t('新建空预设')}</Button>
-            <Button
-              tone="danger"
-              disabled={!selectedOscPresetConfig || selectedOscPresetConfig.isBuiltIn}
-              onClick={deleteSelectedPreset}
-            >
-              {t('删除预设')}
-            </Button>
-          </div>
-        </details>
-        {selectedOscPresetConfig?.description && <p className="caption muted">{selectedOscPresetConfig.description}</p>}
-        <details className="workflow-details">
-          <summary>{t('映射检查')}</summary>
-          <OscFlowStatus mappings={config?.signals || []} drafts={signalDrafts} dirty={hasUnsavedMappings}
-            runtime={runtimeOverview || {}} mode={actualInputMode} listening={Boolean(overview?.osc?.listening)} />
-        </details>
-        {signalOverlapWarnings.length > 0 && <Notice>{t('同一目标轴按归一化优先级选择输入；需要混合时可先建立计算信号。')}</Notice>}
-        {signalDrafts.length === 0 ? (
-          <p className="empty-state">{t('还没有轴映射')}</p>
-        ) : (
-          <div className="mapping-list">
-            {signalDrafts.map((draft) => (
-              <SignalMappingRow
-                key={draft._draftId}
-                draft={draft}
-                latestEntry={latestForDraft(draft)}
-                pathOptions={oscPathSuggestions}
-                computedSignals={computedDrafts}
-                onChange={(patch) => updateSignalDraft(draft._draftId, patch)}
-                onRemove={() => removeSignalDraft(draft._draftId)}
-              />
-            ))}
-          </div>
-        )}
-        <div className="actions mapping-actions">
-          <Button onClick={() => addSignalDraft()}>{t('新增映射')}</Button>
-          <Button tone="danger" disabled={!signalDrafts.length} onClick={() => { clearErrorNotification(); setConfirmClearMappings(true); }}>
-            {t('清空映射')}
-          </Button>
-        </div>
-      </div>
-    );
+    return <AxisMappingsPanel toolbar={renderSignalDraftToolbar('osc')} signalDrafts={signalDrafts} computedDrafts={computedDrafts}
+      oscMappingPresets={oscMappingPresets} selectedOscPreset={selectedOscPreset}
+      selectedOscPresetConfig={selectedOscPresetConfig} busy={Boolean(busyKey)} onSelectPreset={setSelectedOscPreset}
+      onApplyPreset={applyOscPreset} onOpenPreset={openPresetDialog} onDeletePreset={deleteSelectedPreset}
+      onOpenComputations={() => navigateWorkflow('pipeline')} savedMappings={config?.signals || []}
+      runtime={runtimeOverview || {}} actualInputMode={actualInputMode} listening={Boolean(overview?.osc?.listening)}
+      hasUnsavedMappings={hasUnsavedMappings} signalOverlapWarnings={signalOverlapWarnings} latestForDraft={latestForDraft}
+      pathOptions={oscPathSuggestions} onUpdateMapping={updateSignalDraft} onRemoveMapping={removeSignalDraft}
+      onAddMapping={addSignalDraft} onClearMappings={() => { clearErrorNotification(); setConfirmClearMappings(true); }} />;
   }
 
   function renderParameters() {
@@ -2760,6 +2727,7 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 <Tabs
                   id="osc-tabs"
                   label={t('OSC 工作区')}
+                  variant="segmented"
                   value={oscWorkspaceTab}
                   onChange={setOscWorkspaceTab}
                   options={[
@@ -2815,24 +2783,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 </div>
               </Section>
             )}
-            {workspace === 'pipeline' && <>
-              <Section title={t('信号流程')} description={t('选择来源、处理数值，再连接到设备、应用或录制。')} actions={<Button onClick={() => { setWorkspace('control'); selectInputTab('combined'); }}>{t('设置组合输入')}</Button>}>
-                <div className="signal-pipeline-steps" aria-label={t('输入、计算与输出')}>
-                  <div><strong>{t('输入')}</strong><span>{config?.protocolInputs?.length ? t('OSC · 协议 · 手动 · 脚本 · 设备反馈 · 回放') : t('OSC · 手动 · 脚本 · 设备反馈 · 回放')}</span></div>
-                  <div><strong>{t('计算转换')}</strong><span>{t('{0} 个计算信号', [computedDrafts.length])}</span></div>
-                  <div><strong>{t('输出')}</strong><span>{t('{0} 个目标', [outputs.length])}</span></div>
-                </div>
-                <div className="mapping-toolbar"><Badge tone={hasUnsavedMappings ? 'warning' : 'default'}>{hasUnsavedMappings ? t('未保存') : t('已保存')}</Badge>
-                  <div className="actions"><Button disabled={!hasUnsavedMappings || Boolean(busyKey)} onClick={restoreSignalDrafts}>{t('恢复计算与映射')}</Button>
-                    <Button tone="primary" disabled={!online || Boolean(busyKey) || hasIncompleteMappings} onClick={saveOscMappings}>{t('保存计算与映射')}</Button></div></div>
-                <ComputedSignalsPanel drafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
-                  observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
-                  graphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onChange={setComputedDrafts}
-                  onMap={signal => { setSignalDrafts(previous => [...previous, makeSignalDraft({ sourceMode: 'Computed', oscPath: signal.id })]); notify(t('已添加计算信号的轴映射，请调整目标轴与量程后保存。'), 'info'); setWorkspace('osc'); setOscWorkspaceTab('setup'); }} />
-                <SignalPlanPanel config={config} onApply={applySignalPlan} disabled={!online || Boolean(busyKey)} emergencyAction={emergencyAction} />
-              </Section>
-              {renderOutputs()}
-            </>}
+            {workspace === 'pipeline' && <SignalPipelineWorkspace toolbar={renderSignalDraftToolbar('pipeline')}
+              computedDrafts={computedDrafts} runtimeSignals={overview?.computedSignals || EMPTY_OSC_CATALOG}
+              observations={overview?.poseTracking?.spsRoots || EMPTY_OSC_CATALOG} selectedSourceKey={selectedOscSourceKey}
+              computedGraphDirty={computedGraphDirty} pathOptions={oscPathSuggestions} onComputedChange={setComputedDrafts}
+              onMapCalculation={mapComputedSignal} computedView={computedView} onComputedViewChange={setComputedView}
+              config={config} outputs={outputs} overview={overview} outputAvailability={outputChoices.states}
+              online={online} busy={Boolean(busyKey)} onEditOutput={id => openOutputDialog(id, { focusBindings: true })}
+              onManageOutputs={() => navigateWorkflow('outputs')}
+              onSetCombinedInput={() => { setWorkspace('control'); selectInputTab('combined'); }}
+              onApplyPlan={applySignalPlan} emergencyAction={emergencyAction} />}
             {workspace === 'settings' && (
               <>
                 <Section
@@ -3108,10 +3068,16 @@ export default function Workbench({ client: realtime, platform = {}, initialSnap
                 </div>
               </section>
             )}
-            {isSignalOutputType(dialog.draft.type) ? <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
-              status={outputDialogOverview?.signalStatus} onChange={updateOutput} midiPorts={midiPorts} onRefreshMidi={() => refreshMidiPorts().catch(error => notify(error.message, 'error'))} busy={!online || Boolean(busyKey)} />
-              : <details><summary>{t('独立信号连接')}</summary><OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
-                status={outputDialogOverview?.signalStatus} onChange={updateOutput} /></details>}
+            {isSignalOutputType(dialog.draft.type) ? <div data-testid="output-bindings-section" tabIndex={-1} aria-label={t('输出连接')}>
+              <p className="caption muted">{t('选择计算来源时使用已保存结果，输出连接单独保存。')}</p>
+              <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
+                status={outputDialogOverview?.signalStatus} onChange={updateOutput} midiPorts={midiPorts} onRefreshMidi={() => refreshMidiPorts().catch(error => notify(error.message, 'error'))} busy={!online || Boolean(busyKey)} />
+            </div> : <details data-testid="output-bindings-section" tabIndex={-1} aria-label={t('输出连接')}>
+              <summary>{t('独立信号连接')}</summary>
+              <p className="caption muted">{t('选择计算来源时使用已保存结果，输出连接单独保存。')}</p>
+              <OutputBindings output={dialog.draft} signals={config?.computedSignals || []} pathOptions={oscPathSuggestions}
+                status={outputDialogOverview?.signalStatus} onChange={updateOutput} />
+            </details>}
 
           </div>
         )}

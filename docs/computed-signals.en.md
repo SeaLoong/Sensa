@@ -30,11 +30,13 @@ Each computed signal has a stable identifier and a readable name. Other computat
 
 ## Create a computation in the workbench
 
-1. Open **Flow** and choose Add computed signal in the Computed signals area. **OSC → Mappings** also provides an editor for the same calculations.
+1. Open **Flow → Computed signals** and choose **Add computed signal**. From OSC, **Edit computed signals in Flow** takes you to this editor.
 2. Enter a recognizable name, choose an operation and add the inputs.
 3. Choose an OSC parameter, tracking measurement, pose metric, manual, script, device feedback, recording replay, another calculation or a constant. Parameters need their actual path; tracking selects both object path and metric.
-4. Select Computed signal as an axis mapping or output binding source, choose the new computation, then configure its destination and input/output ranges.
-5. Save calculations and mappings. Live previews use the saved setup. Check readings and ranges before enabling current input.
+4. To drive an axis, choose **Map to an axis** on the calculation. It opens **OSC → Map** with a new mapping draft; set its target and range. This action leaves saving and input activation to you.
+5. Click **Save changes** to save the calculation graph and axis mappings together. Both OSC and Flow use this shared transaction; **Restore changes** restores both sets of drafts, including edits made in the other workspace. Live previews use the saved setup.
+
+To use a result in an output binding, save the calculation first. In **Flow → Output connections**, choose **Edit output bindings**, select the saved calculation and click **Save output**. Output bindings save separately and preserve unfinished calculation/mapping drafts. Check readings and ranges before enabling input.
 
 Saving configuration disables input. Computations containing tracking metrics retain experimental spatial-input permission and the selected route's validity conditions. A constant-only computation needs a consuming mapping or binding and enabled input before it can drive an output.
 
@@ -141,7 +143,7 @@ Tracking Frame and Shader templates measure **relative movement between a target
 
 Add a Unity [Tracking Frame](unity-build.en.md), choose the bone, SPS root or marker it follows, then adjust its centre and orientation. It publishes positions for `<name>_Origin`, `<name>_Forward` and `<name>_Right`. Forward−Origin gives the current depth direction, which changes with measured bone rotation.
 
-In the workbench, expand **Spatial calculation presets → Follow a moving plane** and select **Tracking Frame · Origin / Forward**. Enter the Tracking object path and Plane reference object path, such as `Sensa/Contact/Target/**` and `Sensa/Contact/Frame_Origin/**`, then choose **Add following-plane drafts**. The template reads the matching `_Forward` and creates three direction differences, depth and offset: 5 calculations in total. Select Also create point distance to add one more. Review the instances, save calculations and mappings, then connect the results to outputs. One target can then control both depth and off-centre feedback. [Unity setup and coordinates](positioning.en.md)
+In **Flow**, expand **Spatial calculation presets → Follow a moving plane** and select **Tracking Frame · Origin / Forward**. Enter the Tracking object path and Plane reference object path, such as `Sensa/Contact/Target/**` and `Sensa/Contact/Frame_Origin/**`, then choose **Add following-plane drafts**. The template reads the matching `_Forward` and creates three direction differences, depth and offset: 5 calculations in total. Select Also create point distance to add one more. Review the instances, click **Save changes**, then connect the saved results to outputs. One target can then control both depth and off-centre feedback. [Unity setup and coordinates](positioning.en.md)
 
 Alternatively, choose **Shader · Position and Forward**. The selected Shader position supplies the plane origin and Forward supplies its normal, creating depth and offset directly as two drafts.
 
@@ -221,4 +223,4 @@ The workbench handles ordinary setup. For manual editing, replace `TouchA` and `
 }
 ```
 
-Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings. Flow exports axis mappings, axis profiles, computations and outputs as a complete plan, with review before importing. [Presets](presets.en.md) · [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan)
+Computed signals live in Sensa's configuration while the Avatar continues publishing its existing OSC parameters. Their identifiers are internal Sensa references. Custom presets store OSC parameter and tracking mappings. Flow exports saved axis mappings, axis profiles, computations and outputs as a complete plan, with review before importing. Save current edits first to include them. [Presets](presets.en.md) · [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan)

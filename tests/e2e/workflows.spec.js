@@ -8,7 +8,7 @@ async function savedConfiguration(page, rig) {
   return response.json();
 }
 
-test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保留映射与接收草稿', { tag: ['@config', '@osc'] }, async ({ page, rig }) => {
+test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保留映射与接收草稿', { tag: ['@osc-flow-preflight', '@config', '@osc'] }, async ({ page, rig }) => {
   const initial = await savedConfiguration(page, rig);
   await oscWorkspace(page, '映射');
   const path = page.locator('.mapping-row').first().getByLabel('参数路径', { exact: true });
@@ -32,7 +32,7 @@ test('unrelated saves preserve mapping and receiver drafts / 跨区域保存保�
   const receiverPort = page.getByRole('spinbutton', { name: '监听端口', exact: true });
   const draftPort = 19094;
   await receiverPort.fill(String(draftPort));
-  const saveMappings = page.getByRole('button', { name: '保存映射', exact: true });
+  const saveMappings = page.getByRole('button', { name: await text(page, '保存更改'), exact: true });
   await saveMappings.click();
   await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0].oscPath).toBe(draftPath);
   await expect(saveMappings).toBeEnabled();
@@ -73,7 +73,7 @@ test.describe('vibration-only Intiface peer / 纯振动 Intiface 模拟端', () 
     await oscWorkspace(page, '映射');
     await page.getByLabel('预设方案', { exact: true }).selectOption('ogb-touch');
     await page.getByRole('button', { name: '替换草稿', exact: true }).click();
-    await page.getByRole('button', { name: '保存映射', exact: true }).click();
+    await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
     await expect.poll(async () => (await savedConfiguration(page, rig)).signals.map(signal => signal.role)).toEqual(['V0']);
     await mode(page, 'OSC');
     await rig.send([['OGB/Orf/Test/TouchOthers', .7], ['OGB/Orf/Test/TouchOthersClose', 1]]);
@@ -153,7 +153,7 @@ for (const producer of [
       await panel.getByRole('button', { name: '替换草稿', exact: true }).click();
       await oscWorkspace(page, '映射');
       await expect(page.locator('.mapping-row')).toHaveCount(1);
-      await page.getByRole('button', { name: '保存映射', exact: true }).click();
+      await page.getByRole('button', { name: await text(page, '保存更改'), exact: true }).click();
       await expect.poll(async () => (await savedConfiguration(page, rig)).signals[0]?.sourceMode).toBe('SensaPoint');
       const saved = await savedConfiguration(page, rig);
       expect(saved.signals[0]).toMatchObject({ oscPath: producer.prefix + '/**', role: 'Depth', pointMetric: 'Z' });

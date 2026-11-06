@@ -38,7 +38,7 @@ In the guide, click **Open input settings** and prepare your chosen scene:
 
 - **Manual:** check L0, or V0 under **More motion axes** for an Intiface vibrator. In WebSensa, also enable V0 under **Motion axes**.
 - **Script:** click **Choose script** and load a `.funscript`. For a vibration-only Intiface device, set its output's **Vibration source** to **L0 · Depth to vibration**.
-- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and save the calibrated mapping. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
+- **VRChat / SPS:** receive OSC parameters, choose a mapping preset and click **Save changes** in **OSC → Map** after calibration. [OGB/SPS steps](usage-scenarios.en.md#existing-ogb--sps)
 - **Website or software:** configure a protocol input and connect the upstream application. [Protocol input steps](protocol-inputs.en.md)
 
 Click **Apply input mode** if shown. Return to the guide, check the output and prepared input, then click **Finish setup**. Finishing records your progress and returns to **Control** with your chosen input. Turn on **Input enabled** separately when ready.
@@ -51,13 +51,13 @@ Turn off **Input enabled** when finished. **Emergency stop** stops all outputs a
 
 ## 4. Choose sources and add computation
 
-Use the scene shortcuts to switch tasks, or reopen **Guided setup** for the steps. **Scene presets** lets you inspect OSC and device-motion presets. Loading a preset prepares an editable draft; save it to change the running configuration.
+Use the scene shortcuts to switch tasks, or reopen **Guided setup** for the steps. **Scene presets** lets you inspect OSC and device-motion presets. Loading a preset prepares an editable draft. **Save changes** saves the current calculation and axis-mapping drafts together; **Restore changes** restores both.
 
-Once one connection works, [computed signals](computed-signals.en.md) can mix inputs or smooth a response. [Choose a setup](usage-scenarios.en.md) for additional input and Avatar tracking options.
+Once one connection works, open **Flow** to create [computed signals](computed-signals.en.md) that mix inputs or smooth a response. Device cards stay in **Control**; Flow's **Output connections** opens their saved bindings for editing. [Choose a setup](usage-scenarios.en.md) for additional input and Avatar tracking options.
 
 ## 5. Save recordings and complete plans
 
-[Recording and replay](signal-pipeline.en.md#record-and-inspect) can save your interaction as funscript. [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) save mappings, calculations, axis profiles and outputs together.
+[Recording and replay](signal-pipeline.en.md#record-and-inspect) can save your interaction as funscript. [Complete plans](signal-pipeline.en.md#save-and-reuse-a-complete-plan) export saved mappings, calculations, axis profiles and outputs together. Save your edits first to include them.
 
 Browser settings and guide progress are saved locally; download completed browser recordings before reloading or closing the page. [WebSensa connection details](websensa.en.md) · [Workbench map](guide.en.md) · [All guides](start.en.md)
 

@@ -23,7 +23,7 @@ export default function ScenePresets({ open, initialGroup = 'osc', supportsOsc =
           {selectedOsc && <><p>{selectedOsc.description}</p><span className="caption muted">{t('{0} 条映射', [selectedOsc.mappings.length])}</span></>}
           <div className="actions"><Button tone="primary" data-testid="scene-osc-append" disabled={disabled || !selectedOsc} onClick={() => onUseOscPreset('append')}>{t('追加到映射草稿')}</Button>
             <Button data-testid="scene-osc-replace" disabled={disabled || !selectedOsc} onClick={() => onUseOscPreset('replace')}>{t('替换映射草稿')}</Button></div>
-          <p className="caption muted">{t('替换只影响映射草稿，计算信号保持不变；保存映射后应用。')}</p>
+          <p className="caption muted">{t('替换只影响映射草稿，计算信号保持不变；点击“保存更改”应用。')}</p>
         </>}
         {group === 'profile' && <>
           <SelectField data-testid="scene-axis-preset" label={t('设备动作预设')} value={selectedAxis?.id || ''} onChange={setAxisPresetId}

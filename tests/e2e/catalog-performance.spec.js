@@ -3,7 +3,7 @@ import { test, expect, text, oscWorkspace } from './fixtures.js';
 // This tests a large client snapshot, not OSC throughput or real device latency.
 // 客户端大目录检查，不把模拟状态当作 OSC 吞吐量或真实设备延迟证据。
 test('large parameter catalogs keep browsing and path editing bounded without activating input',
-  { tag: ['@osc', '@config', '@quality'] }, async ({ page, rig }, info) => {
+  { tag: ['@osc', '@config', '@quality', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
     // This case intercepts the page leader's socket to supply a synthetic catalog.
     // Cross-tab worker behavior is exercised with the real host in shared-session.spec.js.
     await page.addInitScript(() => Object.defineProperty(globalThis, 'SharedWorker', { configurable: true, value: undefined }));

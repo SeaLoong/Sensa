@@ -2,7 +2,7 @@
 
 [简体中文](signal-pipeline.md) | **English**
 
-A flow links a source to one or more destinations. Open Flow, choose the source and add an output. Add a calculation when the result needs blending, smoothing or another conversion. Each output binding holds its own target, range and delivery schedule. [Use the browser edition](websensa.en.md) for manual/script flows, or the desktop workbench for all source types.
+A flow links a source to one or more destinations. Connect and manage devices in **Control**. Use **Flow** to create computed signals, edit output connections and reuse saved plans. Add a calculation when a result needs blending, smoothing or another conversion; each output binding has its own target, range and delivery schedule. [Use the browser edition](websensa.en.md) for manual/script flows, or the desktop workbench for all source types.
 
 | Task | Start here |
 | --- | --- |
@@ -31,9 +31,9 @@ For example, combine two touch regions into “contact intensity,” then use it
 
 ## Record a manual track first
 
-1. Open Flow, add a Recording output and keep its default Funscript format.
-2. Choose Manual → L0 for the binding, set track name `L0` and both input/output ranges to 0–1, then Save output.
-3. Enable the output and confirm its connection. In Control, apply Manual, enable input, adjust L0 and send once. Repeated adjustments create a changing trajectory.
+1. In **Control → Outputs**, add a **Signal recording** output and keep its default Funscript format.
+2. Choose Manual → L0 for the binding, set track name `L0` and both input/output ranges to 0–1, then **Save output**.
+3. Enable the output card in Control and confirm its connection. Apply Manual, enable input, adjust L0 and send once. Repeated adjustments create a changing trajectory.
 4. Disable input to complete the segment, then download it or load it into the script player. Loading leaves playback paused; apply Script and enable input before playing.
 
 This flow demonstrates source, conversion, output and replay. Next, choose an OSC value or calculation as its source, or add other outputs for the same result.
@@ -41,6 +41,8 @@ This flow demonstrates source, conversion, output and replay. Next, choose an OS
 ## Choose sources and computation
 
 Manual, OSC, Script and Protocol retain quick input modes; Combined lets several kinds of source contribute to output bindings. Prepare and save the setup, apply the required input mode, then enable input.
+
+Create and edit **Computed signals** in Flow. **Save changes** saves the calculation graph and axis mappings together, including drafts edited in OSC. **Restore changes** restores both to their saved state. **Map to an axis** on a calculation opens **OSC → Map** with a draft for you to review and save.
 
 | Source | Available reading | Example use |
 | --- | --- | --- |
@@ -57,14 +59,16 @@ Shader direction and scale can participate as tracking metrics: choose Tracking 
 
 Spatial calculations turn positions and directions into meaningful readings: point distance, signed plane depth, off-centre distance and direction angles. Define a plane with an origin and normal, or an origin and two axes. The Follow a moving plane template reads Unity-generated markers so its orientation follows bone movement. Select XYZ as groups, save, then connect the results to outputs.
 
-Give a calculation a recognizable name, such as Contact intensity, then select it in any output binding. Position, velocity and intensity use ranges matching their meaning; each binding converts the result into the destination's required range. [Calculation examples](computed-signals.en.md) · [Tracking units](positioning.en.md)
+Give a calculation a recognizable name, such as Contact intensity. Save it with **Save changes**, then select it in an output binding. Position, velocity and intensity use ranges matching their meaning; each binding converts the result into the destination's required range. [Calculation examples](computed-signals.en.md) · [Tracking units](positioning.en.md)
 
 ## Add outputs and bindings
 
-1. Choose Add output, select its type and configure the address/device.
+1. In **Control → Outputs**, choose **Output type → Add output** and configure the address/device.
 2. Open Input-to-output bindings and select a direct source or saved calculation.
-3. Enter the target parameter and input/output ranges, then Save output.
-4. Enable the output and confirm its connection. Apply the input mode in Control, then enable input.
+3. Enter the target parameter and input/output ranges, then **Save output**.
+4. Enable the output card in Control and confirm its connection. Apply the input mode, then enable input.
+
+For an existing output, **Flow → Output connections → Edit output bindings** opens the same settings dialog at its binding form. **Manage outputs** takes you to the full device cards in Control. Bindings that use computations read saved results; **Save output** applies them separately and preserves unfinished calculation/mapping drafts.
 
 | Output type | Connection and destination | Suitable content |
 | --- | --- | --- |
@@ -88,7 +92,7 @@ OSC, network, MIDI, Recording and motion-axis bindings offer three sending modes
 
 ## One result, several outputs
 
-For example, create a Product calculation with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Save it, then select that calculation as the source in each output:
+For example, create a Product calculation in Flow with the actual OSC touch value and Manual → L0 as an overall intensity, both using 0–1. Click **Save changes**, then select that saved calculation as the source in each output:
 
 | Output | Target and range | Result use |
 | --- | --- | --- |
@@ -184,7 +188,7 @@ Inspect the source, raw value, computed result and destination along the same bi
 
 ## Save and reuse a complete plan
 
-Expand “Save and load a complete plan” to export axis mappings, axis profiles, the computed-signal graph and output settings as JSON. Axis profiles preserve each axis's range and processing settings. Choose a name to recognize the setup later. Importing first opens a review dialog showing the numbers of computations, mappings and outputs; applying it replaces those parts of the current configuration.
+Expand **Save and load a complete plan** to export saved axis mappings, axis profiles, the computed-signal graph and output settings as JSON. Save calculation/mapping drafts and output settings first to include their latest edits. Axis profiles preserve each axis's range and processing settings. Choose a name to recognize the setup later. Importing first opens a review dialog showing the numbers of computations, mappings and outputs; applying it replaces those parts of the current configuration.
 
 Imported outputs and input activation start disabled. Inspect target addresses, referenced axis profiles, device selections and source paths, then enable the outputs you intend to use. Script files, current manual values and external application setup remain part of the local environment.
 

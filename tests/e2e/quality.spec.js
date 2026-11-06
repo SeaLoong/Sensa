@@ -76,7 +76,7 @@ for (const locale of ['zh-CN', 'en-US']) {
   test.describe('Automated UI floor / 自动可检 UI 底线 ' + locale, () => {
     test.use({ locale });
 
-    test('automatically detectable WCAG rules across key states / 关键状态的自动 WCAG 检查', { tag: ['@quality'] }, async ({ page, rig }, info) => {
+    test('automatically detectable WCAG rules across key states / 关键状态的自动 WCAG 检查', { tag: ['@quality', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
       test.setTimeout(180000);
       const report = createUiQualityReport(page, info, { kind: 'automated', plannedStates: auditStates, plannedChecks: ['audits-never-enable-input'] });
       try {
@@ -167,7 +167,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       finally { await report.write(); }
     });
 
-    test('keyboard focus, modal boundaries and narrow reflow / 键盘焦点、对话框边界与窄屏重排', { tag: ['@quality', '@layout-preflight'] }, async ({ page, rig }, info) => {
+    test('keyboard focus, modal boundaries and narrow reflow / 键盘焦点、对话框边界与窄屏重排', { tag: ['@quality', '@layout-preflight', '@osc-flow-preflight'] }, async ({ page, rig }, info) => {
       test.setTimeout(120000);
       const report = createUiQualityReport(page, info, { kind: 'behavior', plannedChecks: behaviorChecks });
       try {

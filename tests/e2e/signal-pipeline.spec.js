@@ -182,7 +182,7 @@ for (const locale of ['zh-CN', 'en-US']) {
     test.use({ locale });
 
     test('combined calculations drive typed OSC and configured stop values / 组合计算驱动 OSC 并发送停止值',
-      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual', '@layout-preflight'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc-flow-preflight', '@osc', '@input', '@config', '@transport', '@i18n', '@visual', '@layout-preflight'] }, async ({ page, rig }, info) => {
         // Keep the real loopback endpoint stable in documentation screenshots, with a port for each locale and viewport.
         const previewPort = 31540 + (info.project.name === 'mobile' ? 2 : 0) + (locale === 'en-US' ? 1 : 0);
         const receiver = await oscReceiver(previewPort);
@@ -199,7 +199,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await source(page, latch.getByTestId('computed-input-row').first(), 'Computed', 'Signal1');
           await numeric(page, latch, '开启阈值', .8);
           await numeric(page, latch, '关闭阈值', .5);
-          await (await button(page, page, '保存计算与映射')).click();
+          await (await button(page, page, '保存更改')).click();
           await expect.poll(async () => (await config(page, rig)).computedSignals).toMatchObject([
             { id: 'Signal1', operation: 'WeightedAverage', inputs: [
               { sourceMode: 'Manual', oscPath: 'L0', weight: 1 }, { sourceMode: 'Direct', oscPath: 'CI/Source', weight: 3 }] },
@@ -261,14 +261,14 @@ for (const locale of ['zh-CN', 'en-US']) {
       });
 
     test('session recording replays into OSC and complete plans import disabled / 会话回放到 OSC 且整套方案停用载入',
-      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc-flow-preflight', '@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
         const receiver = await oscReceiver(), format = locale === 'zh-CN' ? 'JsonLines' : 'Csv';
         try {
           await workspace(page, '流程');
           const smooth = await addCalculation(page, 'Smoothed manual', 'Smooth');
           await source(page, smooth.getByTestId('computed-input-row').first(), 'Manual', 'L0');
           await numeric(page, smooth, '平滑时间（ms）', 100);
-          await (await button(page, page, '保存计算与映射')).click();
+          await (await button(page, page, '保存更改')).click();
           const recording = await addOutput(page, rig, 'Recording', 'Session capture');
           await recording.dialog.getByRole('combobox', { name: await text(page, '录制格式'), exact: true }).selectOption(format);
           await recording.dialog.getByRole('textbox', { name: await text(page, '录制名称'), exact: true }).fill('pipeline');
@@ -380,7 +380,7 @@ for (const locale of ['zh-CN', 'en-US']) {
       });
 
     test('default funscript recording keeps separate tracks and reopens valid clips for playback / 默认 funscript 分轨录制并回放有效片段',
-      { tag: ['@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
+      { tag: ['@osc-flow-preflight', '@osc', '@input', '@config', '@transport', '@i18n', '@visual'] }, async ({ page, rig }, info) => {
         const receiver = await oscReceiver();
         try {
           let feed = await rig.startFeed([['CI/Funscript', .2]]);
@@ -389,7 +389,7 @@ for (const locale of ['zh-CN', 'en-US']) {
           await source(page, blend.getByTestId('computed-input-row').nth(0), 'Manual', 'R0');
           await source(page, blend.getByTestId('computed-input-row').nth(1), 'Direct', 'CI/Funscript');
           await numeric(page, blend, '输入有效期（ms）', 300);
-          await (await button(page, page, '保存计算与映射')).click();
+          await (await button(page, page, '保存更改')).click();
 
           const recording = await addOutput(page, rig, 'Recording', 'Funscript tracks');
           const format = recording.dialog.getByRole('combobox', { name: await text(page, '录制格式'), exact: true });

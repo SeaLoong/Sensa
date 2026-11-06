@@ -303,6 +303,14 @@ fieldset { min-width: 0; }
 .recording-panel > summary > .badge { margin-left: 8px; vertical-align: middle; }
 .recording-toolbar > .caption { margin-right: auto; }
 .mapping-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; padding-block: 12px; border-block: 1px solid var(--border); }
+.signal-draft-toolbar { gap: 8px; }
+.signal-draft-toolbar__counts { gap: 8px 20px; }
+.signal-draft-toolbar__counts > span { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 0; }
+.signal-draft-toolbar__actions { margin-left: auto; }
+.signal-draft-toolbar__scope { overflow-wrap: anywhere; }
+.signal-draft-toolbar__issues > div { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.computed-signals-bridge { gap: 8px 12px; }
+.computed-signals-bridge .button { text-align: left; }
 .transport { justify-content: space-between; gap: 12px 24px; }
 .transport__navigation .button { padding-inline: 8px; }
 .help-intro { margin-bottom: 20px; color: var(--muted); line-height: 24px; }
@@ -387,6 +395,7 @@ progress::-moz-progress-bar { background: var(--accent); }
 .mapping-list { display: flex; flex-direction: column; gap: 0; }
 .mapping-row { min-width: 0; padding: 24px 0; border-block: 1px solid var(--border); }
 .mapping-row + .mapping-row { border-top: 0; }
+.mapping-list > [data-mapping-draft-id] + [data-mapping-draft-id] > .mapping-row { border-top: 0; }
 .mapping-row__main { display: grid; grid-template-columns: minmax(0, 1fr) 200px max-content max-content; align-items: end; gap: 12px; }
 .mapping-row__source { margin-bottom: 16px; }
 .computed-signals { border-block: 1px solid var(--border); padding-block: 20px; }
@@ -691,10 +700,22 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
 
+/* Flow owns calculations; output rows link to the shared connection editor. */
+.signal-pipeline-workspace > .signal-draft-toolbar { margin-bottom: 24px; }
+.signal-pipeline-workspace > .computed-signals { padding-block: 0 24px; border: 0; }
+.flow-output-routing { gap: 12px; padding-top: 20px; border-top: 1px solid var(--border); }
+.flow-output-routing__list { min-width: 0; }
+.flow-output-route { gap: 8px; padding-block: 16px; border-top: 1px solid var(--border); }
+.flow-output-route__heading { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; }
+.flow-output-route__heading > strong { min-width: 0; overflow-wrap: anywhere; }
+.flow-output-route__meta { display: flex; flex-wrap: wrap; gap: 4px 16px; min-width: 0; }
+.flow-output-route__meta > span { min-width: 0; overflow-wrap: anywhere; }
+.flow-output-route__bindings { display: grid; gap: 8px; margin: 0; padding: 4px 0 12px 20px; }
+.flow-output-route__bindings li, .flow-output-route__bindings code { white-space: normal; overflow-wrap: anywhere; }
+.flow-output-route__bindings strong { margin-right: 8px; }
+.flow-output-route__actions { justify-content: flex-end; }
+.signal-pipeline-workspace > .signal-plan-panel { margin-top: 8px; border-top: 1px solid var(--border); }
 /* Reusable signal routes, with controls mounted only while their card is open. */
-.signal-pipeline-steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-bottom: 24px; }
-.signal-pipeline-steps > div { display: grid; align-content: start; gap: 8px; min-width: 0; padding: 16px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--muted-surface); }
-.signal-pipeline-steps span { color: var(--muted); overflow-wrap: anywhere; }
 .signal-output-settings, .signal-binding, .signal-binding__body, .signal-plan-panel, .recording-replay, .output-telemetry { min-width: 0; }
 .signal-output-settings > h3, .signal-bindings-heading h3 { margin: 0; }
 .signal-bindings-heading { display: flex; align-items: center; gap: 12px; }
@@ -717,8 +738,8 @@ kbd { padding: 1px 6px; border: 1px solid #c6c6c6; border-bottom-width: 2px; bor
 .recording-replay > .stack, .signal-plan-panel > .stack { padding-top: 16px; }
 @media (max-width: 640px) {
   .workspace-nav .tabs--line { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .signal-pipeline-steps { grid-template-columns: minmax(0, 1fr); gap: 8px; margin-bottom: 16px; }
-  .signal-pipeline-steps > div { padding: 12px; gap: 4px; }
+  .signal-draft-toolbar__actions { width: 100%; margin-left: 0; }
+  .flow-output-route__actions { justify-content: flex-start; }
   .signal-binding__body { padding: 4px 12px 12px; }
 }
 

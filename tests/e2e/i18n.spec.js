@@ -95,7 +95,7 @@ test('English experimental calibration drives only after opt-in and stops on rel
   await assertCalibrationAlignment(page, test.info());
   await checkpoint(page,page.locator('.calibration-grid'),'english-calibration');
   await page.getByRole('button',{name:await text(page,'替换草稿'),exact:true}).click();
-  await oscWorkspace(page,'映射'); await page.getByRole('button',{name:await text(page,'保存映射'),exact:true}).click();
+  await oscWorkspace(page,'映射'); await page.getByRole('button',{name:await text(page,'保存更改'),exact:true}).click();
   await expect.poll(async () => (await rig.overview()).signals.length).toBe(1);
   await workspace(page,'控制'); await active(page); await feed.set(pointSamples(.1)); await outputValue(rig,'udp',500);
   await checkpoint(page,card(page,'Mock UDP').locator('.output-position-panel'),'english-output');
