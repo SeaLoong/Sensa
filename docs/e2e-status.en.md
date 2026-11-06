@@ -4,6 +4,23 @@
 
 Each result identifies its source, run and attempt. [Current CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [Development and checks](development.en.md)
 
+## Clearer purpose and simpler setup: 23443637
+
+Source [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2), [candidate run 42131857671](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1), attempt 1:
+
+| Check | Actual result |
+| --- | --- |
+| Web / Node / Python units | **454 / 1607 / 455 passed** |
+| Complete browser candidate | **274/274 passed**, each once, with zero retries or other outcomes |
+| Layout and interaction checks | **20 reports, 52 states and 92 passing checks**, including separate alignment checks for the primary axis and eleven extra axes |
+| Images and gallery | Selected **80 application and eight site originals**; all 38 documentation mirrors have current actual-attachment proof, with 18 changed byte sequences |
+
+Twenty new browser cases cover first-run tasks, configuration navigation, drafts across disclosure and language changes, homepage purpose and WebSensa capability paths. The homepage explains VRChat / SPS, funscripts and OSR directly; the workbench emphasizes L0 and reveals other motion axes on demand.
+
+Per-image records contain 22 current-original observations, 66 exact-hash reuses of opened originals and 84 unchanged-baseline reuses. The 66 observations retain their actual failed source8e/run42126557470 identity; current complete candidate execution is recorded independently. Tight element captures retain their outer-focus or scroll-view limits. Axe manual-review items are separate from automatic failures and do not establish complete accessibility conformance. [Per-image records](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
+
+After selection, [ordinary CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) compares **all 274** cases against the pinned image commit with updates disabled, requiring complete selection, actual comparison, command success and zero other outcomes. Native packages and automatic previews use that commit's actual run records.
+
 ## SPS3 Beta compatibility update: c6a1ed14
 
 Source [`c6a1ed14`](https://github.com/SeaLoong/Sensa/commit/c6a1ed14aef7e7024cf2f9c4672e8ae2333bfb8b), [candidate run 41927196979](https://github.com/SeaLoong/Sensa/actions/runs/41927196979/attempts/1), attempt 1:

@@ -1,7 +1,7 @@
 {
   "schema": 1,
-  "sourceCommit": "4b1d98167809214772a17ab02393a35311451c1f",
-  "runId": "41905870856",
+  "sourceCommit": "2344363779e028519feb318d807757dbdbb00ce2",
+  "runId": "42131857671",
   "attempt": "1",
   "scenes": [
     {
@@ -12,24 +12,24 @@
         "desktop": {
           "en": {
             "file": "desktop/english-manual.png",
-            "sha256": "aa39632759ba71a45b13d0c7ff459abaaf1e39bcf1f129fe29de7a73fc56c98b",
+            "sha256": "c544bd99ecdcb488b9646be22dc18c89aecfa9e8c6629942419549fffb2cfc7a",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/control-page.png",
-            "sha256": "68f121ebf28b5a4da7d35ce4964045d0483148e13aa5ee30575ee450c3f9c83d",
+            "sha256": "aa18f519d92dfe6a2d0a4c082c64d36dcc28374839ca8a7e858fbe6a95450462",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/english-manual.png",
-            "sha256": "896fe685e680a3bf47c64f4f233f912dcb1d44fdb0542a9a8476fe788295c47f",
+            "sha256": "345c077ab81c4b5c2f81ff055da74d9166e647b9a36a35a51ed5f0cc7bda7339",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/control-page.png",
-            "sha256": "6fce08741cbd614d642a08ee9c887b3c2ec6728daea1d1c9a6ed24be198c0c58",
+            "sha256": "69eb6cc73b0a3864798c4996e4994a607a03faaa5ef59b7b88116476d4668e71",
             "language": "zh-CN"
           }
         }
@@ -43,24 +43,24 @@
         "desktop": {
           "en": {
             "file": "desktop/osc-parameters.png",
-            "sha256": "1225afc30ae9b8b00043a2f1ce6669153dad9951c42fe8144ad206774cbcf3cd",
+            "sha256": "bf5ed918e3bbebb2d715bd0f99853a49fa6218f98cc569cf0be96ea386d4ce9d",
             "language": "zh-CN"
           },
           "zh-CN": {
             "file": "desktop/osc-parameters.png",
-            "sha256": "1225afc30ae9b8b00043a2f1ce6669153dad9951c42fe8144ad206774cbcf3cd",
+            "sha256": "bf5ed918e3bbebb2d715bd0f99853a49fa6218f98cc569cf0be96ea386d4ce9d",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/osc-parameters.png",
-            "sha256": "ea6340426c03eb9d5d22ca43362f85d76651e8190c268ed6f7873b1427684a51",
+            "sha256": "dd721407d4a9fcfad570cf53cfa5f9d493c5fb0fe509f39457611625f6b72d8a",
             "language": "zh-CN"
           },
           "zh-CN": {
             "file": "mobile/osc-parameters.png",
-            "sha256": "ea6340426c03eb9d5d22ca43362f85d76651e8190c268ed6f7873b1427684a51",
+            "sha256": "dd721407d4a9fcfad570cf53cfa5f9d493c5fb0fe509f39457611625f6b72d8a",
             "language": "zh-CN"
           }
         }
@@ -74,24 +74,24 @@
         "desktop": {
           "en": {
             "file": "desktop/english-script-loaded.png",
-            "sha256": "694868327fab9626f16129403760fff9956a41fdc521a5d07fa2374390b0dfbd",
+            "sha256": "da083d5d01c93a9d4eca7c3ac87df1bd47e0787b7d63463a74127bd844f4e7d0",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/script-paused-keyframe.png",
-            "sha256": "2bfc8ee8d52a6a25fbeaff5fe24fb1ceec9f323ee496196712789570923cfea7",
+            "sha256": "6271cd7e6f4d963dd5514033247d63d2cff242ad3df55feae90f15f36bd282ff",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/english-script-loaded.png",
-            "sha256": "fd08d1d66cef9d284fe047bba49b0daa027b8538ede5d69ce46b79e2e80af2e4",
+            "sha256": "54e80b58237d153aaadb21b6cfa85d3f1df036da600159995cabfd2f0ddb4995",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/script-paused-keyframe.png",
-            "sha256": "d6e8763cd5da78d075f6f659d7b1c14b1f2d517dea845b12c79f703f8f7399b1",
+            "sha256": "9de16fb6bab5fda0c41b17bc9627ebc1ce3b8a3722af1df8950ed597ec8a0990",
             "language": "zh-CN"
           }
         }
@@ -105,12 +105,12 @@
         "desktop": {
           "en": {
             "file": "desktop/computed-signal-editor-en-US.png",
-            "sha256": "e5bb1aca7e19c5345f95d140912a0c1b1a234e806e0b1e563df3304736f7e2c1",
+            "sha256": "b78fa1a9bad535d8d5f1208e3d5a1152cba1998e097bf995db5e6b5091aed67a",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/computed-signal-editor-zh-CN.png",
-            "sha256": "74f5b671f7bf9f8887f39b3b77688d1afac0a2f59fb9a0b47ab0fabf99d00d90",
+            "sha256": "31adbe2a3a523d8cb7c2cd283e0735d15ea8cd12b24c93d1ba9492d77971d141",
             "language": "zh-CN"
           }
         },
@@ -136,24 +136,24 @@
         "desktop": {
           "en": {
             "file": "desktop/combined-input-en-US.png",
-            "sha256": "a8cdcd26d0db81529150ca47fd090d81bd8edd4cb7f8793c57c88f42d49bef5d",
+            "sha256": "23ad9e43fa476d57973b4856f62224f6a7e8703de1290ad2ea004f6648d339a6",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "desktop/combined-input-zh-CN.png",
-            "sha256": "1b3bc7008ea57f56bd22ee75817341615a811aa19a745821b89c45657e375e7a",
+            "sha256": "a6f00392ed56d430ecddb23348590ea14f58ddeeb635b91f2ddb662356d2b1e3",
             "language": "zh-CN"
           }
         },
         "mobile": {
           "en": {
             "file": "mobile/combined-input-en-US.png",
-            "sha256": "6a852281de00dd22a5a4dda1bfe4af4e25859ffed1776cb597d936d2eb9feb3f",
+            "sha256": "0f0be30baa928e07664d390af505c8fe85635a45bb9e134b8d7a822fabad81a3",
             "language": "en-US"
           },
           "zh-CN": {
             "file": "mobile/combined-input-zh-CN.png",
-            "sha256": "b17ae3c0101f63c2d38eed171137902d65f3c1a1f9030c920ff2651468ea5434",
+            "sha256": "d7cdee6d2250c77b9aadd072a42aefcb4f2e2a0afee250e7462799ced35d4b10",
             "language": "zh-CN"
           }
         }
@@ -163,7 +163,7 @@
   "additionalImages": [
     {
       "file": "desktop/recording-controls.png",
-      "sha256": "ef52537b6fa6e28a2cd1f0da153c16f9376ae879222a521ba2605545e8bfc072",
+      "sha256": "8ea679988b7234fd90d2a5bf5db50446fb8d4b3adaf225915371f7988272b964",
       "language": "zh-CN"
     },
     {
@@ -213,7 +213,7 @@
     },
     {
       "file": "mobile/recording-controls.png",
-      "sha256": "0964dd60a95db9e8f378d0b3f706b337f5677aac39926a12d8cdd184532063d0",
+      "sha256": "c64e6835784b3f3108a2666df00de6dbfcb12357ed073e5d2e149300313ddcd8",
       "language": "zh-CN"
     },
     {

@@ -4,6 +4,23 @@
 
 每项结果对应明确的源码、运行与 attempt。[当前 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml) · [Pages](https://github.com/SeaLoong/Sensa/actions/workflows/pages.yml) · [CodeQL](https://github.com/SeaLoong/Sensa/actions/workflows/codeql.yml) · [开发与检查](development.md)
 
+## 用途说明与上手交互：23443637
+
+源码 [`23443637`](https://github.com/SeaLoong/Sensa/commit/2344363779e028519feb318d807757dbdbb00ce2)，[候选运行 42131857671](https://github.com/SeaLoong/Sensa/actions/runs/42131857671/attempts/1)，attempt 1：
+
+| 检查 | 实际结果 |
+| --- | --- |
+| Web／Node／Python 单元 | **454／1607／455 项通过** |
+| 完整浏览器候选 | **274/274 项通过**，逐项单次执行，retry 与其他结果均为零 |
+| 布局与操作检查 | **20 份报告、52 个状态、92 项检查通过**，包含主轴与额外 11 轴的独立对齐检查 |
+| 图片与图库 | 接受 **80 张应用图、8 张站点原图**；38 张文档镜像均有本轮实际附件证明，其中 18 张更新字节 |
+
+新增 20 项浏览器用例，覆盖首次使用任务、配置导航、折叠与语言切换后保留草稿、首页用途和 WebSensa 能力入口。首页直接说明 VRChat／SPS、funscript 与 OSR 的关系；工作台默认突出 L0，其余动作轴按需展开。
+
+逐图记录包含 22 张本轮原图观察、66 张已打开原图的精确摘要复用，以及 84 张未变基线复用。66 张观察来源保留真实的 8e／42126557470 失败运行身份；当前完整候选的执行结果单独记录。局部裁图保留其焦点外圈或滚动视角范围。axe 的人工待审项不等同于自动失败，也不构成完整无障碍符合性验收。[逐图记录](https://github.com/SeaLoong/Sensa/blob/main/tests/e2e/baseline-review.json)
+
+选图后的[普通 CI](https://github.com/SeaLoong/Sensa/actions/workflows/ci.yml)对固定图片提交执行完整 **274 项**比较，关闭截图更新，要求完整选择、实际比较、命令成功和其他结果为零；原生程序与自动预览使用该提交的实际运行记录。
+
 ## SPS3 Beta 兼容更新：c6a1ed14
 
 源码 [`c6a1ed14`](https://github.com/SeaLoong/Sensa/commit/c6a1ed14aef7e7024cf2f9c4672e8ae2333bfb8b)，[候选运行 41927196979](https://github.com/SeaLoong/Sensa/actions/runs/41927196979/attempts/1)，attempt 1：
