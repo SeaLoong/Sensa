@@ -123,12 +123,16 @@ test('English presets, script and compact help use localized documentation', {ta
       const loop = element.querySelector('.script-player__target-settings .toggle');
       const bounds = box(element);
       return { bounds, preset: box(preset), custom: box(custom), axis: box(axis), loop: box(loop),
+        rateControlsStacked: element.closest('.workbench-main').getBoundingClientRect().width <= 520,
         overflow: element.scrollWidth > element.clientWidth + 1,
         controlsFit: [...element.querySelectorAll('input, select')].every(control => { const value = box(control); return value.x >= bounds.x - 1 && value.right <= bounds.right + 1; }) };
     });
     expect(playbackLayout.overflow, 'Playback settings do not overflow / 播放设置不溢出').toBe(false);
     expect(playbackLayout.controlsFit).toBe(true);
-    expect(Math.abs(playbackLayout.preset.y - playbackLayout.custom.y), 'Preset and custom rate controls align / 倍率选择与数值对齐').toBeLessThanOrEqual(1);
+    if (playbackLayout.rateControlsStacked) {
+      expect(playbackLayout.preset.y + playbackLayout.preset.height, 'Narrow rate controls stack without overlap / 窄列倍率控件堆叠不重叠').toBeLessThanOrEqual(playbackLayout.custom.y);
+      expect(Math.abs(playbackLayout.preset.x - playbackLayout.custom.x), 'Stacked rate controls share their left edge / 堆叠倍率控件左沿对齐').toBeLessThanOrEqual(1);
+    } else expect(Math.abs(playbackLayout.preset.y - playbackLayout.custom.y), 'Preset and custom rate controls align / 倍率选择与数值对齐').toBeLessThanOrEqual(1);
     expect(playbackLayout.custom.width).toBeGreaterThanOrEqual(60);
     expect(playbackLayout.custom.width).toBeLessThanOrEqual(88);
     expect(Math.abs(playbackLayout.axis.y + playbackLayout.axis.height / 2 - playbackLayout.loop.y - playbackLayout.loop.height / 2),

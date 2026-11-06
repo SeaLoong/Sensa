@@ -248,7 +248,7 @@ async function inspectOverview(page, info, locale) {
   await page.screenshot({ path: info.outputPath('pages-overview-' + locale + '.png'), fullPage: true });
 }
 
-test('@site standalone Pages language, document navigation and independent geometry', async ({ page }, testInfo) => {
+test('@site standalone Pages language, document navigation and independent geometry', { tag: ['@layout-preflight'] }, async ({ page }, testInfo) => {
   const errors = [];
   const reviewImages = [];
   page.on('pageerror', error => errors.push(error.message));
@@ -376,7 +376,10 @@ test('@site standalone Pages language, document navigation and independent geome
   await page.goto(new URL('en/unity/top.sealoong.sensa/README.html', base).href);
   await inspectDocumentStyle(page);
   await page.goto(new URL('en/docs/quick-start.html', base).href);
-  await page.locator('header a[href*="parameter-geometry.html"]').click();
+  await page.locator('header [data-site-destination="features"]').click();
+  await expect(page).toHaveURL(new URL('en/docs/features.html', base).href);
+  await expect(page.getByRole('heading', { level: 1, name: 'Feature reference', exact: true })).toBeVisible();
+  await page.locator('article a[href*="parameter-geometry.html"]').click();
   await expect(page.locator('#scene')).toBeVisible();
   await page.locator('#scene').selectOption('sensa-sps');
   await expect(page.locator('#scene-title')).toHaveText('SPS four-anchor tracking');
@@ -902,8 +905,9 @@ for (const locale of ['en-US', 'zh-CN']) {
           await followOnboardingLink(page, url, () => nav.locator('[data-site-destination="' + destination + '"]').click());
           if (destination === 'websensa') {
             await expect(page.locator('noscript')).toBeVisible();
-            await expect(page.locator('noscript')).toContainText('WebSensa needs JavaScript to connect outputs and run scripts.');
-            await expect(page.locator('noscript')).toContainText('请启用 JavaScript 运行 WebSensa。');
+            const fallback = await page.locator('noscript').evaluate(element => element.textContent);
+            expect(fallback).toContain('WebSensa needs JavaScript to connect outputs and run scripts.');
+            expect(fallback).toContain('请启用 JavaScript 运行 WebSensa。');
           } else {
             await expect(page.locator('html')).toHaveAttribute('lang', locale);
             await expect(page.getByRole('heading', { level: 1, name: headings[locale][destination], exact: true })).toBeVisible();
@@ -944,7 +948,8 @@ for (const locale of ['en-US', 'zh-CN']) {
         for (const width of [320, 390]) {
           await page.setViewportSize({ width, height: info.project.use.viewport.height });
           const priorLanguage = locale === 'en-US' ? 'zh-CN' : 'en-US';
-          await page.goto(new URL('?lang=' + priorLanguage, base).href);
+          const priorPrefix = priorLanguage === 'en-US' ? 'en' : 'zh-CN';
+          await page.goto(new URL(priorPrefix + '/index.html', base).href);
           await expect(page.locator('html')).toHaveAttribute('lang', priorLanguage);
           await page.goto(home);
           await expect(page.locator('body')).toHaveAttribute('data-home-locale', prefix);
