@@ -41,10 +41,20 @@ export async function captureInitialWorkbench(page, path) {
   await sendOnce.waitFor({ state: 'visible' });
   await until(async () => await activation.isEnabled() && await sendOnce.isEnabled());
   assert.equal(await activation.isChecked(), false, 'The initial input switch must be disarmed.');
+  const primary = page.locator('.manual-primary');
+  assert.equal(await primary.getByRole('slider').count(), 1, 'The initial primary controls must expose exactly one axis.');
+  const extraAxes = page.locator('details[data-testid="manual-more-axes"]');
+  await extraAxes.waitFor({ state: 'visible' });
+  assert.equal(await extraAxes.count(), 1, 'The initial extra axes must have one disclosure.');
+  assert.equal(await extraAxes.getAttribute('open'), null, 'The initial extra axes disclosure must remain closed.');
+  const extraAxisCount = await extraAxes.getByRole('slider', { includeHidden: true }).count();
+  assert.equal(extraAxisCount, 11, 'All eleven extra axes must remain mounted before capture.');
   const manualAxes = {};
   for (const axis of ['L0', 'L1', 'L2']) {
-    const slider = page.locator('.manual-primary').getByRole('slider', { name: new RegExp('^' + axis + '\\s') });
-    await slider.waitFor({ state: 'visible' });
+    const slider = axis === 'L0' ? primary.getByRole('slider', { name: /^L0\s/ })
+      : extraAxes.getByRole('slider', { name: new RegExp('^' + axis + '\\s'), includeHidden: true });
+    await slider.waitFor({ state: axis === 'L0' ? 'visible' : 'attached' });
+    assert.equal(await slider.isVisible(), axis === 'L0', 'Only L0 may be visible before the initial workbench capture.');
     const value = await slider.inputValue();
     assert.equal(value, '500', 'The initial ' + axis + ' workbench value must be 500.');
     manualAxes[axis] = Number(value);
@@ -58,7 +68,8 @@ export async function captureInitialWorkbench(page, path) {
   assert.equal(overview.runtime.isEmergency, false, 'Emergency stop must be clear in the initial capture.');
   assert.equal(overview.input.mode, 'manual', 'The initial workbench must use manual input mode.');
   await page.screenshot({ path });
-  return { inputActive: false, isEmergency: false, inputMode: 'manual', manualAxes };
+  return { inputActive: false, isEmergency: false, inputMode: 'manual', manualAxes,
+    visibleManualAxes: ['L0'], extraAxesCollapsed: true, extraAxisCount };
 }
 export async function main(argv = process.argv.slice(2)) {
   if (process.env.GITHUB_ACTIONS !== 'true') throw new Error('Desktop browser/process smoke runs only in GitHub Actions.');
